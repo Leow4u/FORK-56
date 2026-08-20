@@ -24,9 +24,6 @@ npm run build
 # output → dist/
 ```
 
-Hosting / DNS / cloud provider are **not** decided in this file. Do not treat
-past publish notes here as product architecture.
-
 ## Scope
 
 Pages like Preços / Plataforma / Portal are **out of this home** for now.
