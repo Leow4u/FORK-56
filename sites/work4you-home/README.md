@@ -37,5 +37,6 @@ DNS and GCP project access are required only at publish time — not to develop 
 ## Scope notes
 
 - No Portal/Stripe/OpenRouter wiring in this package
-- Download / Portal links currently point at `https://portal.work4you.ai` placeholders until assets are published on GCS
+- Primary CTAs match the Hermes home pattern: **Docs**, **Download desktop**, **Install via terminal**
+- Desktop download URL is a placeholder until artifacts are published on GCS
 - Safe to extract later into its own GitHub repo; kept here only so we can iterate on FORK-56 without a second remote yet

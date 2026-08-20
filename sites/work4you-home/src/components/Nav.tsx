@@ -1,10 +1,8 @@
 import styles from './Nav.module.css'
 
 const links = [
-  { href: '#pillars', label: 'Product' },
-  { href: '#surfaces', label: 'Platforms' },
-  { href: '#install', label: 'Install' },
   { href: 'https://work4you.ai/docs/', label: 'Docs', external: true },
+  { href: '#install', label: 'Install' },
 ]
 
 export function Nav() {
@@ -28,14 +26,6 @@ export function Nav() {
             </a>
           ))}
         </nav>
-        <div className={styles.actions}>
-          <a className={styles.ghost} href="https://portal.work4you.ai">
-            Sign in
-          </a>
-          <a className={styles.solid} href="#install">
-            Get started
-          </a>
-        </div>
       </div>
     </header>
   )

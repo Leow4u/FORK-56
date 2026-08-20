@@ -39,10 +39,7 @@ export function Install() {
               extra confirmation while the publisher is unsigned.
             </p>
             <div className={styles.row}>
-              <a
-                className={styles.button}
-                href="https://portal.work4you.ai"
-              >
+              <a className={styles.button} href="#install">
                 Download for your system
               </a>
             </div>

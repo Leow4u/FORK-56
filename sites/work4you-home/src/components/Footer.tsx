@@ -10,7 +10,6 @@ export function Footer() {
         </div>
         <div className={styles.links}>
           <a href="https://work4you.ai/docs/">Docs</a>
-          <a href="https://portal.work4you.ai">Portal</a>
           <a href="https://github.com/Leow4u/FORK-56">GitHub</a>
         </div>
         <p className={styles.copy}>© {new Date().getFullYear()} Work4You</p>
