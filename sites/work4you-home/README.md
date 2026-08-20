@@ -40,7 +40,11 @@ Alternative: Netlify / Cloudflare Pages / Firebase Hosting — point at this dir
 
 ## Notes
 
-- Links to `/login` and `/planos` may 404 in this package alone — point them at
-  `portal.work4you.ai` (or the live host) when wiring production.
+- Primary CTAs follow the Hermes-style home pattern: **Documentação / Docs**,
+  **Baixar aplicativo**, **Instalar via terminal** (header CTA → `/baixar`).
+- Portal/login entry points (`Abrir o Work4You`, `Começar agora`, footer
+  `Entrar`) were removed or retargeted in this static export polish.
+- Some deep `/login` or `/planos` links may still appear on pricing/help pages
+  until Portal is wired; point those at `portal.work4you.ai` in production.
 - Safe to extract later into its own GitHub repo; kept here to iterate on FORK-56
   without a second remote yet.
