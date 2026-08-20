@@ -17,12 +17,15 @@ npm run dev
 
 Open http://127.0.0.1:5173/
 
-## Build / GCP
+## Build
 
 ```bash
 npm run build
-# upload dist/ to GCS + CDN / Load Balancer
+# output → dist/
 ```
+
+Hosting / DNS / cloud provider are **not** decided in this file. Do not treat
+past publish notes here as product architecture.
 
 ## Scope
 
