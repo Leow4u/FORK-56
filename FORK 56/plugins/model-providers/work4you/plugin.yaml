@@ -1,0 +1,5 @@
+name: work4you-provider
+kind: model-provider
+version: 1.0.0
+description: Work4You Portal
+author: Work4You
