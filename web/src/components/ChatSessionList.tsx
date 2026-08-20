@@ -18,9 +18,9 @@
  * keeps the chat context focused on switching conversations quickly.
  */
 
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { ListItem } from "@work4you-research/ui/ui/components/list-item";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
+import { Button } from "@work4you/ui/ui/components/button";
+import { ListItem } from "@work4you/ui/ui/components/list-item";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { AlertCircle, MessageSquarePlus, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";

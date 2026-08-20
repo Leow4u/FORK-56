@@ -12,18 +12,18 @@ import type {
   MemoryProviderSetupResult,
   PluginsHubResponse,
 } from "@/lib/api";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Select, SelectOption } from "@work4you-research/ui/ui/components/select";
-import { Switch } from "@work4you-research/ui/ui/components/switch";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { CommandBlock, CopyButton } from "@work4you-research/ui/ui/components/command-block";
-import { Card, CardContent, CardHeader, CardTitle } from "@work4you-research/ui/ui/components/card";
-import { ConfirmDialog } from "@work4you-research/ui/ui/components/confirm-dialog";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Select, SelectOption } from "@work4you/ui/ui/components/select";
+import { Switch } from "@work4you/ui/ui/components/switch";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { CommandBlock, CopyButton } from "@work4you/ui/ui/components/command-block";
+import { Card, CardContent, CardHeader, CardTitle } from "@work4you/ui/ui/components/card";
+import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
+import { useToast } from "@work4you/ui/hooks/use-toast";
+import { Toast } from "@work4you/ui/ui/components/toast";
 import { useI18n } from "@/i18n";
 import { PluginSlot } from "@/plugins";
 import { cn } from "@/lib/utils";

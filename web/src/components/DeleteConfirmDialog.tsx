@@ -1,4 +1,4 @@
-import { ConfirmDialog } from "@work4you-research/ui/ui/components/confirm-dialog";
+import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { useI18n } from "@/i18n";
 
 export function DeleteConfirmDialog({

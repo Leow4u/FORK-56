@@ -17,10 +17,10 @@ import type {
   AnalyticsSkillEntry,
 } from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { Stats } from "@work4you-research/ui/ui/components/stats";
-import { Card, CardContent, CardHeader, CardTitle } from "@work4you-research/ui/ui/components/card";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { Stats } from "@work4you/ui/ui/components/stats";
+import { Card, CardContent, CardHeader, CardTitle } from "@work4you/ui/ui/components/card";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { useI18n } from "@/i18n";
 import { PluginSlot } from "@/plugins";

@@ -1,16 +1,16 @@
 @import 'tailwindcss';
-/* `fonts.css` must come BEFORE `globals.css`: as of @work4you-research/ui 0.14.x,
+/* `fonts.css` must come BEFORE `globals.css`: as of @work4you/ui 0.14.x,
    `globals.css` only declares the `--font-*` CSS variables (Collapse, Rules
    Compressed/Expanded, Mondwest). The `@font-face` registrations live in
    `fonts.css`, so without this import the DS variables resolve to font
    families the browser never loads and components fall back to a system
    stack (Tabs, Segmented, Typography, Buttons, etc. all look unstyled). */
-@import '@work4you-research/ui/styles/fonts.css';
-@import '@work4you-research/ui/styles/globals.css';
+@import '@work4you/ui/styles/fonts.css';
+@import '@work4you/ui/styles/globals.css';
 
 /* Scan the published design-system bundle so its utility classes survive
    Tailwind's JIT purge. */
-@source '../node_modules/@work4you-research/ui/dist';
+@source '../node_modules/@work4you/ui/dist';
 
 /* ------------------------------------------------------------------ */
 /* JetBrains Mono — bundled for the embedded TUI (/chat tab).          */

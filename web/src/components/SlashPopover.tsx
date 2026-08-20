@@ -1,5 +1,5 @@
 import type { GatewayClient } from "@/lib/gatewayClient";
-import { ListItem } from "@work4you-research/ui/ui/components/list-item";
+import { ListItem } from "@work4you/ui/ui/components/list-item";
 import { ChevronRight } from "lucide-react";
 import {
   forwardRef,

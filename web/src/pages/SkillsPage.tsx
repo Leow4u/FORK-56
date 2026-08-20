@@ -42,23 +42,23 @@ import type {
 import { useProfileScope } from "@/contexts/useProfileScope";
 import { ToolsetConfigDrawer } from "@/components/ToolsetConfigDrawer";
 import { SkillEditorDialog } from "@/components/SkillEditorDialog";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@work4you-research/ui/ui/components/card";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { ListItem } from "@work4you-research/ui/ui/components/list-item";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { Switch } from "@work4you-research/ui/ui/components/switch";
+import { useToast } from "@work4you/ui/hooks/use-toast";
+import { Toast } from "@work4you/ui/ui/components/toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@work4you/ui/ui/components/card";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Button } from "@work4you/ui/ui/components/button";
+import { ListItem } from "@work4you/ui/ui/components/list-item";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { Switch } from "@work4you/ui/ui/components/switch";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@work4you-research/ui/ui/components/dialog";
+} from "@work4you/ui/ui/components/dialog";
 import { cn } from "@/lib/utils";
-import { Input } from "@work4you-research/ui/ui/components/input";
+import { Input } from "@work4you/ui/ui/components/input";
 import { useI18n } from "@/i18n";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { PluginSlot } from "@/plugins";

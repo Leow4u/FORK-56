@@ -23,25 +23,25 @@ import {
   X,
 } from "lucide-react";
 import spinners from "unicode-animations";
-import { H2 } from "@work4you-research/ui/ui/components/typography/h2";
+import { H2 } from "@work4you/ui/ui/components/typography/h2";
 import { api } from "@/lib/api";
 import type { ActiveProfileInfo, ProfileInfo } from "@/lib/api";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
-import { useConfirmDelete } from "@work4you-research/ui/hooks/use-confirm-delete";
+import { useToast } from "@work4you/ui/hooks/use-toast";
+import { useConfirmDelete } from "@work4you/ui/hooks/use-confirm-delete";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
-import { Card, CardContent } from "@work4you-research/ui/ui/components/card";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
+import { Toast } from "@work4you/ui/ui/components/toast";
+import { Card, CardContent } from "@work4you/ui/ui/components/card";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
 import {
   Select,
   SelectOption,
-} from "@work4you-research/ui/ui/components/select";
-import { Checkbox } from "@work4you-research/ui/ui/components/checkbox";
+} from "@work4you/ui/ui/components/select";
+import { Checkbox } from "@work4you/ui/ui/components/checkbox";
 import { useI18n } from "@/i18n";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { cn, themedBody } from "@/lib/utils";

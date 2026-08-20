@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@work4you-research/ui/ui/components/dialog";
+} from "@work4you/ui/ui/components/dialog";
 
 /* ------------------------------------------------------------------ */
 /*  SkillEditorDialog — create or edit a SKILL.md from the dashboard   */

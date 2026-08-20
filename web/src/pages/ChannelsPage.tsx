@@ -16,15 +16,15 @@ import {
   X,
 } from "lucide-react";
 import * as QRCode from "qrcode";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Card, CardContent } from "@work4you-research/ui/ui/components/card";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { Switch } from "@work4you-research/ui/ui/components/switch";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Card, CardContent } from "@work4you/ui/ui/components/card";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { Switch } from "@work4you/ui/ui/components/switch";
+import { Toast } from "@work4you/ui/ui/components/toast";
+import { useToast } from "@work4you/ui/hooks/use-toast";
 import { api } from "@/lib/api";
 import type {
   MessagingPlatform,
