@@ -1,0 +1,34 @@
+.section {
+  padding: clamp(3rem, 6vw, 4.5rem) 0 clamp(4rem, 8vw, 6rem);
+}
+
+.panel {
+  padding: clamp(2rem, 5vw, 3rem);
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) + 6px);
+  background:
+    radial-gradient(700px 280px at 15% 0%, rgba(232, 197, 71, 0.16), transparent 60%),
+    var(--bg-elevated);
+}
+
+.lead {
+  margin: 0.9rem 0 0;
+  max-width: 34rem;
+  color: var(--ink-muted);
+}
+
+.button {
+  display: inline-flex;
+  margin-top: 1.5rem;
+  min-height: 2.9rem;
+  padding: 0 1.25rem;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #111;
+  font-weight: 700;
+}
+
+.button:hover {
+  background: #fff;
+}
