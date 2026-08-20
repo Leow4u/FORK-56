@@ -1,21 +1,13 @@
 ﻿# Work4You Home (`https://work4you.ai`)
 
-Marketing site for Work4You — **static HTML export** of the public pages.
-Independent of the agent monorepo runtime: this folder does not change CLI,
-Desktop, gateway, or docs (`website/`).
+Clean marketing home for Work4You.
 
-Docs stay at `https://work4you.ai/docs/` (Docusaurus in `/website`).
-This package is the root vitrine: brand, product story, download / install.
+- **Visual:** Work4You (paper / ink / Plus Jakarta / JetBrains Mono)
+- **CTAs:** Hermes-faithful — only **Docs**, **Download desktop**, **Install via terminal**
+- **Source:** Vite + React (not a bloated Next static export)
+- Independent of the agent runtime (`website/` docs stay at `/docs/`)
 
-## Contents
-
-- `index.html` — landing
-- `precos`, `recursos`, `solucoes`, `plataforma`, `modelos`, `clientes`, `baixar`, …
-- `brand/` — official logo + favicon assets
-- `media/` — landscapes / hero imagery (Earth branding)
-- `_next/static/` — CSS/JS from the Next export
-
-## Local preview
+## Local
 
 ```bash
 cd sites/work4you-home
@@ -25,26 +17,15 @@ npm run dev
 
 Open http://127.0.0.1:5173/
 
-Or without npm: `npx serve . -l 5173`
+## Build / GCP
 
-## Publish (GCP / static host)
+```bash
+npm run build
+# upload dist/ to GCS + CDN / Load Balancer
+```
 
-This folder is already the build output — upload as-is:
+## Scope
 
-1. GCS bucket with website config (e.g. `work4you-ai-home`)
-2. `gsutil -m rsync -r -d . gs://work4you-ai-home` (exclude `node_modules`, `.git`)
-3. Cloud CDN + HTTPS Load Balancer (managed cert for `work4you.ai` / `www`)
-4. Hostinger DNS → load balancer
-
-Alternative: Netlify / Cloudflare Pages / Firebase Hosting — point at this directory.
-
-## Notes
-
-- Primary CTAs follow the Hermes-style home pattern: **Documentação / Docs**,
-  **Baixar aplicativo**, **Instalar via terminal** (header CTA → `/baixar`).
-- Portal/login entry points (`Abrir o Work4You`, `Começar agora`, footer
-  `Entrar`) were removed or retargeted in this static export polish.
-- Some deep `/login` or `/planos` links may still appear on pricing/help pages
-  until Portal is wired; point those at `portal.work4you.ai` in production.
-- Safe to extract later into its own GitHub repo; kept here to iterate on FORK-56
-  without a second remote yet.
+Pages like Preços / Plataforma / Portal are **out of this home** for now.
+Rebuild them one by one and wire to the fork later — do not reintroduce
+duplicate login/portal CTAs on the landing.
