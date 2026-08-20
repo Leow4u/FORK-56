@@ -1,4 +1,4 @@
-import { Button } from "@work4you-research/ui/ui/components/button";
+import { Button } from "@work4you/ui/ui/components/button";
 import { AlertTriangle } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";

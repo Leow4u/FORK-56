@@ -64,7 +64,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
       "@work4you/shared": path.resolve(__dirname, "../apps/shared/src"),
     },
-    // When @work4you-research/ui is symlinked via `file:../../design-language`,
+    // When @work4you/ui is symlinked via `workspace package @work4you/ui`,
     // Node's module resolution would pick up shared deps from
     // design-language/node_modules/*, giving us two copies + breaking
     // hooks (useRef-of-null), webgl contexts, etc. Force everything that

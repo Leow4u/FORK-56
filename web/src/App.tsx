@@ -56,15 +56,15 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { SelectionSwitcher } from "@work4you-research/ui/ui/components/selection-switcher";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { Typography } from "@work4you-research/ui/ui/components/typography/index";
-import { ConfirmDialog } from "@work4you-research/ui/ui/components/confirm-dialog";
+import { Button } from "@work4you/ui/ui/components/button";
+import { SelectionSwitcher } from "@work4you/ui/ui/components/selection-switcher";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { Typography } from "@work4you/ui/ui/components/typography/index";
+import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { SidebarFooter } from "@/components/SidebarFooter";
 import { SidebarStatusStrip, gatewayLine } from "@/components/SidebarStatusStrip";
-import { useBelowBreakpoint } from "@work4you-research/ui/hooks/use-below-breakpoint";
+import { useBelowBreakpoint } from "@work4you/ui/hooks/use-below-breakpoint";
 import { useSidebarStatus } from "@/hooks/useSidebarStatus";
 import { AuthWidget } from "@/components/AuthWidget";
 import { PageHeaderProvider } from "@/contexts/PageHeaderProvider";

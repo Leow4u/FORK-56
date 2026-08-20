@@ -5,7 +5,7 @@ registry; clicking a provider sends a GET to
 ``/auth/login?provider=<name>``.
 
 Visual styling mirrors the Work4You design system (the
-``@work4you-research/ui`` package the React dashboard uses): the same
+``@work4you/ui`` package the React dashboard uses): the same
 ``Collapse`` / ``Rules Compressed`` typeface, amber-on-dark colour
 tokens (``#170d02`` / ``#ffac02`` / ``#fff``), uppercase + wide-tracking
 brand chrome, and the inset-bevel button shadow. Fonts are served
@@ -40,7 +40,7 @@ _LOGIN_HTML_TEMPLATE = """\
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sign in — Work4You</title>
 <style>
-  /* Brand fonts shipped by @work4you-research/ui — same files the SPA loads. */
+  /* Brand fonts shipped by @work4you/ui — same files the SPA loads. */
   @font-face {{
     font-family: 'Collapse';
     font-style: normal;

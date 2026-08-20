@@ -19,23 +19,23 @@ import React, {
 } from "react";
 import { api, fetchJSON, authedFetch, buildWsUrl, buildWsAuthParam } from "@/lib/api";
 import { cn, timeAgo, isoTimeAgo } from "@/lib/utils";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Checkbox } from "@work4you-research/ui/ui/components/checkbox";
-import { ConfirmDialog } from "@work4you-research/ui/ui/components/confirm-dialog";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Checkbox } from "@work4you/ui/ui/components/checkbox";
+import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import {
   Dialog, DialogClose, DialogContent, DialogDescription,
   DialogFooter, DialogHeader, DialogTitle,
-} from "@work4you-research/ui/ui/components/dialog";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
-import { useConfirmDelete } from "@work4you-research/ui/hooks/use-confirm-delete";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
-import { Select, SelectOption } from "@work4you-research/ui/ui/components/select";
-import { Card, CardHeader, CardTitle, CardContent } from "@work4you-research/ui/ui/components/card";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
-import { Separator } from "@work4you-research/ui/ui/components/separator";
-import { Tabs, TabsList, TabsTrigger } from "@work4you-research/ui/ui/components/tabs";
+} from "@work4you/ui/ui/components/dialog";
+import { Toast } from "@work4you/ui/ui/components/toast";
+import { useConfirmDelete } from "@work4you/ui/hooks/use-confirm-delete";
+import { useToast } from "@work4you/ui/hooks/use-toast";
+import { Select, SelectOption } from "@work4you/ui/ui/components/select";
+import { Card, CardHeader, CardTitle, CardContent } from "@work4you/ui/ui/components/card";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
+import { Separator } from "@work4you/ui/ui/components/separator";
+import { Tabs, TabsList, TabsTrigger } from "@work4you/ui/ui/components/tabs";
 import { useI18n } from "@/i18n";
 import { registerSlot, PluginSlot } from "./slots";
 

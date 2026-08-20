@@ -1,8 +1,8 @@
 import { useCallback } from "react";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
-import { Select, SelectOption } from "@work4you-research/ui/ui/components/select";
-import { Button } from "@work4you-research/ui/ui/components/button";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
+import { Select, SelectOption } from "@work4you/ui/ui/components/select";
+import { Button } from "@work4you/ui/ui/components/button";
 import { useI18n } from "@/i18n";
 import {
   buildScheduleString,

@@ -27,19 +27,19 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { H2 } from "@work4you-research/ui/ui/components/typography/h2";
-import { Card, CardContent } from "@work4you-research/ui/ui/components/card";
-import { Checkbox } from "@work4you-research/ui/ui/components/checkbox";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
-import { Select, SelectOption } from "@work4you-research/ui/ui/components/select";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
-import { useConfirmDelete } from "@work4you-research/ui/hooks/use-confirm-delete";
-import { ConfirmDialog } from "@work4you-research/ui/ui/components/confirm-dialog";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { H2 } from "@work4you/ui/ui/components/typography/h2";
+import { Card, CardContent } from "@work4you/ui/ui/components/card";
+import { Checkbox } from "@work4you/ui/ui/components/checkbox";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
+import { Select, SelectOption } from "@work4you/ui/ui/components/select";
+import { Toast } from "@work4you/ui/ui/components/toast";
+import { useToast } from "@work4you/ui/hooks/use-toast";
+import { useConfirmDelete } from "@work4you/ui/hooks/use-confirm-delete";
+import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Work4YouConsoleModal } from "@/components/Work4YouConsoleModal";

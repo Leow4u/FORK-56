@@ -1,4 +1,4 @@
-import { Typography } from "@work4you-research/ui/ui/components/typography/index";
+import { Typography } from "@work4you/ui/ui/components/typography/index";
 import type { StatusResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";

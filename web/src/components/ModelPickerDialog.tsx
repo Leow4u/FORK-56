@@ -1,9 +1,9 @@
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Checkbox } from "@work4you-research/ui/ui/components/checkbox";
-import { ListItem } from "@work4you-research/ui/ui/components/list-item";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Checkbox } from "@work4you/ui/ui/components/checkbox";
+import { ListItem } from "@work4you/ui/ui/components/list-item";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { GatewayClient } from "@/lib/gatewayClient";
 import { Check, RefreshCw, Search, X } from "lucide-react";

@@ -1,7 +1,7 @@
-import { Select, SelectOption } from "@work4you-research/ui/ui/components/select";
-import { Switch } from "@work4you-research/ui/ui/components/switch";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
+import { Select, SelectOption } from "@work4you/ui/ui/components/select";
+import { Switch } from "@work4you/ui/ui/components/switch";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
 
 function FieldHint({ schema, schemaKey }: { schema: Record<string, unknown>; schemaKey: string }) {
   const keyPath = schemaKey.includes(".") ? schemaKey : "";

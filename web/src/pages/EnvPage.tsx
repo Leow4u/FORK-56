@@ -18,23 +18,23 @@ import {
 import { api } from "@/lib/api";
 import type { EnvVarInfo } from "@/lib/api";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
-import { useConfirmDelete } from "@work4you-research/ui/hooks/use-confirm-delete";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
+import { Toast } from "@work4you/ui/ui/components/toast";
+import { useConfirmDelete } from "@work4you/ui/hooks/use-confirm-delete";
+import { useToast } from "@work4you/ui/hooks/use-toast";
 import { OAuthProvidersCard } from "@/components/OAuthProvidersCard";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { ListItem } from "@work4you-research/ui/ui/components/list-item";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
+import { Button } from "@work4you/ui/ui/components/button";
+import { ListItem } from "@work4you/ui/ui/components/list-item";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@work4you-research/ui/ui/components/card";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
+} from "@work4you/ui/ui/components/card";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
 import { useI18n } from "@/i18n";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { PluginSlot } from "@/plugins";

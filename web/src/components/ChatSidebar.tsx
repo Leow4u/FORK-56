@@ -25,9 +25,9 @@
  * terminal pane keeps working unimpaired.
  */
 
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Card } from "@work4you-research/ui/ui/components/card";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Card } from "@work4you/ui/ui/components/card";
 
 import { ModelPickerDialog } from "@/components/ModelPickerDialog";
 import { ModelReloadConfirm } from "@/components/ModelReloadConfirm";

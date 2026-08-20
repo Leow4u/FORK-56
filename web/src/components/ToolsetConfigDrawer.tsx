@@ -7,14 +7,14 @@ import type {
   ToolsetInfo,
   ToolsetProvider,
 } from "@/lib/api";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Switch } from "@work4you-research/ui/ui/components/switch";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
+import { useToast } from "@work4you/ui/hooks/use-toast";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Switch } from "@work4you/ui/ui/components/switch";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { Toast } from "@work4you/ui/ui/components/toast";
 import { cn, themedBody } from "@/lib/utils";
 
 interface Props {

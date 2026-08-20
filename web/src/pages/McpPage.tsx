@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { KeyRound, Package, Power, Server, Trash2, X, Zap } from "lucide-react";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Select, SelectOption } from "@work4you-research/ui/ui/components/select";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { H2 } from "@work4you-research/ui/ui/components/typography/h2";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Select, SelectOption } from "@work4you/ui/ui/components/select";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { H2 } from "@work4you/ui/ui/components/typography/h2";
 import { api } from "@/lib/api";
 import type {
   McpCatalogDiagnostic,
@@ -14,13 +14,13 @@ import type {
   McpTestResult,
 } from "@/lib/api";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
-import { useConfirmDelete } from "@work4you-research/ui/hooks/use-confirm-delete";
+import { useToast } from "@work4you/ui/hooks/use-toast";
+import { useConfirmDelete } from "@work4you/ui/hooks/use-confirm-delete";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
-import { Card, CardContent } from "@work4you-research/ui/ui/components/card";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
+import { Toast } from "@work4you/ui/ui/components/toast";
+import { Card, CardContent } from "@work4you/ui/ui/components/card";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { cn, themedBody } from "@/lib/utils";
 import {

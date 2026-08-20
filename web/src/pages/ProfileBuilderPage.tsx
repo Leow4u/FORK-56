@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { H2 } from "@work4you-research/ui/ui/components/typography/h2";
-import { Card, CardContent } from "@work4you-research/ui/ui/components/card";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Label } from "@work4you-research/ui/ui/components/label";
-import { Checkbox } from "@work4you-research/ui/ui/components/checkbox";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
+import { H2 } from "@work4you/ui/ui/components/typography/h2";
+import { Card, CardContent } from "@work4you/ui/ui/components/card";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Label } from "@work4you/ui/ui/components/label";
+import { Checkbox } from "@work4you/ui/ui/components/checkbox";
+import { Toast } from "@work4you/ui/ui/components/toast";
+import { useToast } from "@work4you/ui/hooks/use-toast";
 import { api } from "@/lib/api";
 import type {
   McpHttpAuth,

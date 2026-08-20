@@ -49,17 +49,17 @@ import type {
 import { timeAgo } from "@/lib/utils";
 import { Markdown } from "@/components/Markdown";
 import { PlatformsCard } from "@/components/PlatformsCard";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Checkbox } from "@work4you-research/ui/ui/components/checkbox";
-import { ListItem } from "@work4you-research/ui/ui/components/list-item";
-import { Segmented } from "@work4you-research/ui/ui/components/segmented";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@work4you-research/ui/ui/components/card";
+import { Toast } from "@work4you/ui/ui/components/toast";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Checkbox } from "@work4you/ui/ui/components/checkbox";
+import { ListItem } from "@work4you/ui/ui/components/list-item";
+import { Segmented } from "@work4you/ui/ui/components/segmented";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@work4you/ui/ui/components/card";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
-import { useConfirmDelete } from "@work4you-research/ui/hooks/use-confirm-delete";
-import { Input } from "@work4you-research/ui/ui/components/input";
+import { useConfirmDelete } from "@work4you/ui/hooks/use-confirm-delete";
+import { Input } from "@work4you/ui/ui/components/input";
 import {
   Dialog,
   DialogContent,
@@ -67,9 +67,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@work4you-research/ui/ui/components/dialog";
+} from "@work4you/ui/ui/components/dialog";
 import { useSystemActions } from "@/contexts/useSystemActions";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
+import { useToast } from "@work4you/ui/hooks/use-toast";
 import { useI18n } from "@/i18n";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { PluginSlot } from "@/plugins";

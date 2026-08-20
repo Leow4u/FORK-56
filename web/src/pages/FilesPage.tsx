@@ -16,9 +16,9 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import { Badge } from "@work4you-research/ui/ui/components/badge";
-import { Button } from "@work4you-research/ui/ui/components/button";
-import { Card, CardContent } from "@work4you-research/ui/ui/components/card";
+import { Badge } from "@work4you/ui/ui/components/badge";
+import { Button } from "@work4you/ui/ui/components/button";
+import { Card, CardContent } from "@work4you/ui/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -26,11 +26,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@work4you-research/ui/ui/components/dialog";
-import { Input } from "@work4you-research/ui/ui/components/input";
-import { Spinner } from "@work4you-research/ui/ui/components/spinner";
-import { Toast } from "@work4you-research/ui/ui/components/toast";
-import { useToast } from "@work4you-research/ui/hooks/use-toast";
+} from "@work4you/ui/ui/components/dialog";
+import { Input } from "@work4you/ui/ui/components/input";
+import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { Toast } from "@work4you/ui/ui/components/toast";
+import { useToast } from "@work4you/ui/hooks/use-toast";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { api } from "@/lib/api";
