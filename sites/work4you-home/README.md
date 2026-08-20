@@ -1,12 +1,21 @@
-# Work4You Home (`https://work4you.ai`)
+﻿# Work4You Home (`https://work4you.ai`)
 
-Marketing home for Work4You. **Independent** of the agent monorepo runtime —
-this folder does not change CLI, Desktop, gateway, or docs (`website/`).
+Marketing site for Work4You — **static HTML export** of the public pages.
+Independent of the agent monorepo runtime: this folder does not change CLI,
+Desktop, gateway, or docs (`website/`).
 
 Docs stay at `https://work4you.ai/docs/` (Docusaurus in `/website`).
-This site is the root vitrine: brand, product story, download / install.
+This package is the root vitrine: brand, product story, download / install.
 
-## Local
+## Contents
+
+- `index.html` — landing
+- `precos`, `recursos`, `solucoes`, `plataforma`, `modelos`, `clientes`, `baixar`, …
+- `brand/` — official logo + favicon assets
+- `media/` — landscapes / hero imagery (Earth branding)
+- `_next/static/` — CSS/JS from the Next export
+
+## Local preview
 
 ```bash
 cd sites/work4you-home
@@ -14,28 +23,24 @@ npm install
 npm run dev
 ```
 
-Build static assets for GCP:
+Open http://127.0.0.1:5173/
 
-```bash
-npm run build
-# output → dist/
-```
+Or without npm: `npx serve . -l 5173`
 
-## Google Cloud (target hosting)
+## Publish (GCP / static host)
 
-Recommended first path (static):
+This folder is already the build output — upload as-is:
 
-1. Create a GCS bucket (e.g. `work4you-ai-home`) with website config
-2. Upload `dist/` (`gsutil -m rsync -r -d dist gs://work4you-ai-home`)
-3. Put **Cloud CDN + HTTPS Load Balancer** in front (managed cert for `work4you.ai` / `www`)
-4. At Hostinger DNS, point `A` / `CNAME` to the load balancer
+1. GCS bucket with website config (e.g. `work4you-ai-home`)
+2. `gsutil -m rsync -r -d . gs://work4you-ai-home` (exclude `node_modules`, `.git`)
+3. Cloud CDN + HTTPS Load Balancer (managed cert for `work4you.ai` / `www`)
+4. Hostinger DNS → load balancer
 
-Alternative: **Firebase Hosting** in the same GCP project (`firebase deploy`).
+Alternative: Netlify / Cloudflare Pages / Firebase Hosting — point at this directory.
 
-DNS and GCP project access are required only at publish time — not to develop this site.
+## Notes
 
-## Scope notes
-
-- No Portal/Stripe/OpenRouter wiring in this package
-- Download / Portal links currently point at `https://portal.work4you.ai` placeholders until assets are published on GCS
-- Safe to extract later into its own GitHub repo; kept here only so we can iterate on FORK-56 without a second remote yet
+- Links to `/login` and `/planos` may 404 in this package alone — point them at
+  `portal.work4you.ai` (or the live host) when wiring production.
+- Safe to extract later into its own GitHub repo; kept here to iterate on FORK-56
+  without a second remote yet.
