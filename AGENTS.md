@@ -1565,3 +1565,42 @@ test('windowsHide defaults to true on Windows, is left alone elsewhere', () => {
 If the logic lives inline in a god-file (`main.ts`, `cli.py`,
 `gateway/run.py`) and extracting it feels disruptive: that's the actual
 signal to do the extraction, not to regex around it.
+
+## Cursor Cloud specific instructions
+
+Scope: the primary product here is the **Python `work4you` agent/CLI** (root
+package). The startup update script keeps its dependencies fresh; the notes
+below are the non-obvious bits for developing and running it in Cloud.
+
+- **Python env is `.venv/` at the repo root**, created by the startup update
+  script via `uv sync --extra all --extra dev` (Python 3.11, provisioned by
+  `uv`). Run tools with `.venv/bin/python …` / `.venv/bin/ruff …`, or
+  `source .venv/bin/activate`. `uv` lives at `~/.local/bin/uv`. Re-running
+  `uv sync` is the safe way to repair the env; it will not pick up a running
+  process's changes, so restart long-running CLIs/gateways after a sync.
+- **Tests: always use `scripts/run_tests.sh [path...]`, not raw `pytest`.** It
+  runs each test file in its own hermetic subprocess (see the script header)
+  and auto-selects `.venv`. The full suite is ~3185 files and slow — scope to a
+  directory (e.g. `scripts/run_tests.sh tests/state`, `tests/cli`). Integration
+  tests are excluded by default (`-m 'not integration'` in `pyproject.toml`).
+- **Lint that gates merge is intentionally tiny**: `ruff check .` only enforces
+  `PLW1514` (see `[tool.ruff.lint]`), plus `python scripts/check-windows-footguns.py --all`.
+  `ty` runs advisory-only in CI (`--exit-zero`), so a wall of `ty` diagnostics
+  is expected and non-blocking.
+- **Running the agent needs a model provider.** No provider API keys are set in
+  Cloud by default (`work4you status` shows all keys unset). To exercise the
+  real agent loop offline, configure a `custom` OpenAI-compatible provider
+  pointed at a local mock/echo server, e.g.
+  `work4you config set model.provider custom` + `model.base_url` +
+  `model.default`, then `work4you -z "…" --provider custom -m <model> --safe-mode`.
+  (`~/.work4you/config.yaml` holds this; it's user state, outside the repo.)
+- **The JS/TS workspaces (`apps/desktop`, `web`, `ui-tui`, `website`) do NOT
+  install in a clean environment** — this is a pre-existing repo issue, not an
+  environment gap. The committed `package-lock.json` and several workspace
+  `package.json` files reference `@work4you-research/ui@0.18.2`, which is not on
+  the public npm registry (an over-eager brand-rename also turned Meta's
+  `hermes-parser`/`hermes-estree` into non-existent `work4you-parser`/`work4you-estree`
+  in the lockfile). So `npm install`/`npm ci` fail with `E404`. Requires Node 26
+  (`.nvmrc`) via `nvm` and `engine-strict=true` (`.npmrc`). Do **not** add
+  `npm install` to the startup update script — it would fail every boot. Fixing
+  the JS side means restoring the real dependency names/sources first.
