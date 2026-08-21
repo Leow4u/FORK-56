@@ -35,6 +35,9 @@ data/
 # `data/` pattern above would otherwise swallow it.
 !work4you_cli/data/
 !work4you_cli/data/plugin_index.json
+# Docs User Stories collage seed (same bare `data/` trap).
+!website/src/data/
+!website/src/data/userStories.json
 .pytest_cache/
 test_durations.json
 .pytest-cache/

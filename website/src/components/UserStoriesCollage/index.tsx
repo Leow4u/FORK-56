@@ -16,100 +16,100 @@ interface Story {
 
 const allStories = stories as Story[];
 
-// Category → pretty label + accent colors (solid + soft fill + gradient top-strip)
+// Category accents — Brandbook v1 monocrome (Oliva / Sálvia / Grafite). Flat only.
 const CATEGORIES: Record<
   string,
   { label: string; solid: string; soft: string; strip: string }
 > = {
   'dev-workflow': {
     label: 'Dev Workflow',
-    solid: '#60a5fa',
-    soft: 'rgba(96, 165, 250, 0.14)',
-    strip: 'linear-gradient(90deg, #3b82f6, #60a5fa, #a78bfa)',
+    solid: '#4D5943',
+    soft: 'rgba(77, 89, 67, 0.12)',
+    strip: '#4D5943',
   },
   'personal-assistant': {
     label: 'Personal Assistant',
-    solid: '#34d399',
-    soft: 'rgba(52, 211, 153, 0.14)',
-    strip: 'linear-gradient(90deg, #10b981, #34d399, #a7f3d0)',
+    solid: '#3A452F',
+    soft: 'rgba(58, 69, 47, 0.12)',
+    strip: '#3A452F',
   },
   'content-creation': {
     label: 'Content Creation',
-    solid: '#f472b6',
-    soft: 'rgba(244, 114, 182, 0.14)',
-    strip: 'linear-gradient(90deg, #ec4899, #f472b6, #fda4af)',
+    solid: '#5F6C52',
+    soft: 'rgba(95, 108, 82, 0.14)',
+    strip: '#5F6C52',
   },
   'business-ops': {
     label: 'Business Ops',
-    solid: '#fb923c',
-    soft: 'rgba(251, 146, 60, 0.14)',
-    strip: 'linear-gradient(90deg, #f97316, #fb923c, #fcd34d)',
+    solid: '#4D5943',
+    soft: 'rgba(77, 89, 67, 0.12)',
+    strip: '#4D5943',
   },
   trading: {
     label: 'Trading & Markets',
-    solid: '#facc15',
-    soft: 'rgba(250, 204, 21, 0.16)',
-    strip: 'linear-gradient(90deg, #eab308, #facc15, #fde047)',
+    solid: '#6E6E68',
+    soft: 'rgba(110, 110, 104, 0.14)',
+    strip: '#6E6E68',
   },
   research: {
     label: 'Research',
-    solid: '#a78bfa',
-    soft: 'rgba(167, 139, 250, 0.14)',
-    strip: 'linear-gradient(90deg, #8b5cf6, #a78bfa, #c4b5fd)',
+    solid: '#3A452F',
+    soft: 'rgba(58, 69, 47, 0.12)',
+    strip: '#3A452F',
   },
   creative: {
     label: 'Creative',
-    solid: '#f87171',
-    soft: 'rgba(248, 113, 113, 0.14)',
-    strip: 'linear-gradient(90deg, #ef4444, #f87171, #fca5a5)',
+    solid: '#71806E',
+    soft: 'rgba(113, 128, 110, 0.14)',
+    strip: '#71806E',
   },
   marketing: {
     label: 'Marketing',
-    solid: '#e879f9',
-    soft: 'rgba(232, 121, 249, 0.14)',
-    strip: 'linear-gradient(90deg, #d946ef, #e879f9, #f0abfc)',
+    solid: '#5F6C52',
+    soft: 'rgba(95, 108, 82, 0.14)',
+    strip: '#5F6C52',
   },
   integrations: {
     label: 'Integrations',
-    solid: '#38bdf8',
-    soft: 'rgba(56, 189, 248, 0.14)',
-    strip: 'linear-gradient(90deg, #0ea5e9, #38bdf8, #7dd3fc)',
+    solid: '#4D5943',
+    soft: 'rgba(77, 89, 67, 0.12)',
+    strip: '#4D5943',
   },
   enterprise: {
     label: 'Enterprise',
-    solid: '#94a3b8',
-    soft: 'rgba(148, 163, 184, 0.16)',
-    strip: 'linear-gradient(90deg, #64748b, #94a3b8, #cbd5e1)',
+    solid: '#6E6E68',
+    soft: 'rgba(110, 110, 104, 0.14)',
+    strip: '#6E6E68',
   },
   messaging: {
     label: 'Messaging',
-    solid: '#22d3ee',
-    soft: 'rgba(34, 211, 238, 0.14)',
-    strip: 'linear-gradient(90deg, #06b6d4, #22d3ee, #67e8f9)',
+    solid: '#3A452F',
+    soft: 'rgba(58, 69, 47, 0.12)',
+    strip: '#3A452F',
   },
   privacy: {
     label: 'Privacy & Self-Hosted',
-    solid: '#4ade80',
-    soft: 'rgba(74, 222, 128, 0.14)',
-    strip: 'linear-gradient(90deg, #16a34a, #4ade80, #86efac)',
+    solid: '#4D5943',
+    soft: 'rgba(77, 89, 67, 0.12)',
+    strip: '#4D5943',
   },
   'cost-optimization': {
     label: 'Cost Optimization',
-    solid: '#fbbf24',
-    soft: 'rgba(251, 191, 36, 0.16)',
-    strip: 'linear-gradient(90deg, #f59e0b, #fbbf24, #fde68a)',
+    solid: '#71806E',
+    soft: 'rgba(113, 128, 110, 0.14)',
+    strip: '#71806E',
   },
   meta: {
     label: 'Meta & Ecosystem',
-    solid: '#c084fc',
-    soft: 'rgba(192, 132, 252, 0.14)',
-    strip: 'linear-gradient(90deg, #a855f7, #c084fc, #d8b4fe)',
+    solid: '#5F6C52',
+    soft: 'rgba(95, 108, 82, 0.14)',
+    strip: '#5F6C52',
   },
   general: {
     label: 'General',
-    solid: '#9ca3af',
-    soft: 'rgba(156, 163, 175, 0.16)',
-    strip: 'linear-gradient(90deg, #6b7280, #9ca3af, #d1d5db)',
+    solid: '#6E6E68',
+    soft: 'rgba(110, 110, 104, 0.14)',
+    strip: '#6E6E68',
   },
 };
 
@@ -128,21 +128,9 @@ const SOURCE_LABELS: Record<string, string> = {
   discord: 'Discord',
 };
 
-function sourceColor(source: string): string {
-  switch (source) {
-    case 'x': return '#1d9bf0';
-    case 'hn': return '#ff6600';
-    case 'reddit': return '#ff4500';
-    case 'github': return '#8b949e';
-    case 'youtube': return '#ff0033';
-    case 'blog': return '#a78bfa';
-    case 'podcast': return '#8b5cf6';
-    case 'linkedin': return '#0a66c2';
-    case 'gist': return '#8b949e';
-    case 'producthunt': return '#da552f';
-    case 'discord': return '#5865f2';
-    default: return '#64748b';
-  }
+function sourceColor(_source: string): string {
+  // Brandbook: no out-of-palette accents on public surfaces.
+  return '#6E6E68';
 }
 
 export default function UserStoriesCollage(): JSX.Element {
