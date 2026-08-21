@@ -70,6 +70,18 @@
   color: var(--grafite);
 }
 
+.lede strong {
+  color: var(--tinta);
+  font-weight: 700;
+}
+
+.sessionHint {
+  margin: 1rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--grafite);
+}
+
 .providers {
   display: grid;
   gap: 0.65rem;

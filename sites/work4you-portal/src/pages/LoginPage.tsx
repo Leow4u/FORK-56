@@ -1,19 +1,34 @@
+import { useLogin, usePrivy } from '@privy-io/react-auth'
 import { FormEvent, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import styles from './LoginPage.module.css'
 
 export type AuthMode = 'login' | 'signup'
 
+type ProviderId = 'github' | 'google' | 'discord' | 'passkey'
+
 interface LoginPageProps {
   initialMode?: AuthMode
 }
 
-const PROVIDERS = [
+const PROVIDERS: { id: ProviderId; label: string }[] = [
   { id: 'github', label: 'Continuar com GitHub' },
   { id: 'google', label: 'Continuar com Google' },
   { id: 'discord', label: 'Continuar com Discord' },
   { id: 'passkey', label: 'Continuar com Passkey' },
-] as const
+]
+
+function displayName(user: NonNullable<ReturnType<typeof usePrivy>['user']>): string {
+  const email = user.email?.address
+  if (email) return email
+  const google = user.google?.email
+  if (google) return google
+  const github = user.github?.username || user.github?.email
+  if (github) return github
+  const discord = user.discord?.username
+  if (discord) return discord
+  return user.id
+}
 
 export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
   const [params] = useSearchParams()
@@ -25,6 +40,18 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
   const [email, setEmail] = useState('')
   const [showEmail, setShowEmail] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+
+  const { ready, authenticated, user, logout } = usePrivy()
+  const { login } = useLogin({
+    onError: (error) => {
+      const message = String(error)
+      if (message.toLowerCase().includes('exited')) {
+        setNotice(null)
+        return
+      }
+      setNotice(message || 'Não foi possível entrar. Tente de novo.')
+    },
+  })
 
   const copy = useMemo(
     () =>
@@ -52,21 +79,82 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
     setShowEmail(false)
   }
 
-  function onProvider(id: string) {
-    // Auth providers wire to Portal/NAS next — UI shell only for now.
-    setNotice(
-      `Provedor “${id}” reservado. A autenticação será ligada ao backend do Portal.`,
-    )
+  function onProvider(id: ProviderId) {
+    setNotice(null)
+    login({ loginMethods: [id] })
   }
 
   function onEmailSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!email.trim()) {
+    const value = email.trim()
+    if (!value || !value.includes('@')) {
       setNotice('Informe um e-mail válido.')
       return
     }
-    setNotice(
-      'Fluxo de e-mail reservado. A autenticação será ligada ao backend do Portal.',
+    setNotice(null)
+    login({
+      loginMethods: ['email'],
+      prefill: { type: 'email', value },
+    })
+  }
+
+  async function onLogout() {
+    setNotice(null)
+    await logout()
+  }
+
+  if (!ready) {
+    return (
+      <div className={styles.page}>
+        <main className={styles.main}>
+          <p className={styles.lede}>Carregando…</p>
+        </main>
+      </div>
+    )
+  }
+
+  if (authenticated && user) {
+    return (
+      <div className={styles.page}>
+        <header className={styles.top}>
+          <a className={styles.brand} href="https://work4you.ai/" aria-label="Work4You">
+            <img
+              src="/brand/work4you-logo.png"
+              alt="Work4You"
+              width={160}
+              height={16}
+            />
+          </a>
+          <a className={styles.homeLink} href="https://work4you.ai/">
+            Voltar ao site
+          </a>
+        </header>
+
+        <main className={styles.main}>
+          <section className={styles.card} aria-labelledby="session-title">
+            <p className={styles.eyebrow}>Sessão</p>
+            <h1 id="session-title" className={styles.title}>
+              Você entrou
+            </h1>
+            <p className={styles.lede}>
+              Conectado como <strong>{displayName(user)}</strong>.
+            </p>
+            <p className={styles.sessionHint}>
+              O painel completo (billing, API keys, usage) chega em seguida. Por
+              enquanto a autenticação Privy já está ativa neste portal.
+            </p>
+            <button type="button" className={styles.primary} onClick={() => void onLogout()}>
+              Sair
+            </button>
+          </section>
+        </main>
+
+        <footer className={styles.footer}>
+          <Link to="/login">portal.work4you.ai</Link>
+          <span aria-hidden="true">·</span>
+          <a href="https://work4you.ai/docs/">Docs</a>
+        </footer>
+      </div>
     )
   }
 

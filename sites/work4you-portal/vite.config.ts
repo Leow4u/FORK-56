@@ -8,4 +8,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
   },
+  optimizeDeps: {
+    include: ['@privy-io/react-auth'],
+  },
 })
