@@ -1,5 +1,8 @@
 import styles from './Nav.module.css'
 
+const LOGIN = 'https://portal.work4you.ai/login'
+const SIGNUP = 'https://portal.work4you.ai/login?mode=signup'
+
 export function Nav() {
   return (
     <header className={styles.header}>
@@ -17,9 +20,14 @@ export function Nav() {
           />
         </a>
 
-        <a className={styles.side} href="#install">
-          Install →
-        </a>
+        <div className={styles.auth}>
+          <a className={styles.login} href={LOGIN}>
+            Fazer login
+          </a>
+          <a className={styles.signup} href={SIGNUP}>
+            Sign up
+          </a>
+        </div>
       </div>
     </header>
   )

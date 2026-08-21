@@ -16,16 +16,12 @@
 }
 
 .side {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-soft);
-}
-
-.side:last-child {
-  justify-self: end;
 }
 
 .side:hover {
@@ -42,8 +38,59 @@
   width: auto;
 }
 
+.auth {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.login {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 0.45rem 0.35rem;
+}
+
+.login:hover {
+  color: var(--ink);
+}
+
+.signup {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f5f4ee;
+  background: #151515;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+}
+
+.signup:hover {
+  background: #3a452f;
+}
+
 @media (max-width: 640px) {
   .brand img {
     height: 0.95rem;
+  }
+
+  .auth {
+    gap: 0.35rem;
+  }
+
+  .login {
+    font-size: 0.7rem;
+    padding: 0.35rem 0.2rem;
+  }
+
+  .signup {
+    font-size: 0.7rem;
+    padding: 0.45rem 0.65rem;
   }
 }
