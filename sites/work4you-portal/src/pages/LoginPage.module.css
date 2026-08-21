@@ -63,11 +63,23 @@
   color: var(--tinta);
 }
 
-.lede {
-  margin: 0.75rem 0 0;
+.status {
+  margin: 0.85rem 0 0;
   font-size: 0.95rem;
-  line-height: 1.55;
+  line-height: 1.45;
   color: var(--grafite);
+}
+
+.status strong {
+  color: var(--tinta);
+  font-weight: 700;
+}
+
+.provider:disabled,
+.emailToggle:disabled,
+.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .providers {
