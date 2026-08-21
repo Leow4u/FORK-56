@@ -5,7 +5,8 @@ import {
   usePrivy,
 } from '@privy-io/react-auth'
 import { FormEvent, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { personalOrgId } from '../lib/org'
 import styles from './LoginPage.module.css'
 
 export type AuthMode = 'login' | 'signup'
@@ -21,18 +22,6 @@ const OAUTH_PROVIDERS: { id: OAuthProviderId; label: string }[] = [
   { id: 'google', label: 'Continuar com Google' },
   { id: 'discord', label: 'Continuar com Discord' },
 ]
-
-function displayName(user: NonNullable<ReturnType<typeof usePrivy>['user']>): string {
-  const email = user.email?.address
-  if (email) return email
-  const google = user.google?.email
-  if (google) return google
-  const github = user.github?.username || user.github?.email
-  if (github) return github
-  const discord = user.discord?.username
-  if (discord) return discord
-  return user.id
-}
 
 function errorMessage(error: unknown): string {
   const message = String(error ?? '')
@@ -72,7 +61,7 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
-  const { ready, authenticated, user, logout } = usePrivy()
+  const { ready, authenticated, user } = usePrivy()
 
   const { initOAuth } = useLoginWithOAuth({
     onError: (error) => {
@@ -186,11 +175,6 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
     }
   }
 
-  async function onLogout() {
-    setNotice(null)
-    await logout()
-  }
-
   if (!ready) {
     return (
       <div className={styles.page}>
@@ -202,44 +186,7 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
   }
 
   if (authenticated && user) {
-    return (
-      <div className={styles.page}>
-        <header className={styles.top}>
-          <a className={styles.brand} href="https://work4you.ai/" aria-label="Work4You">
-            <img
-              src="/brand/work4you-logo.png"
-              alt="Work4You"
-              width={160}
-              height={16}
-            />
-          </a>
-          <a className={styles.homeLink} href="https://work4you.ai/">
-            Voltar ao site
-          </a>
-        </header>
-
-        <main className={styles.main}>
-          <section className={styles.card} aria-labelledby="session-title">
-            <p className={styles.eyebrow}>Sessão</p>
-            <h1 id="session-title" className={styles.title}>
-              Você entrou
-            </h1>
-            <p className={styles.status}>
-              <strong>{displayName(user)}</strong>
-            </p>
-            <button type="button" className={styles.primary} onClick={() => void onLogout()}>
-              Sair
-            </button>
-          </section>
-        </main>
-
-        <footer className={styles.footer}>
-          <Link to="/login">portal.work4you.ai</Link>
-          <span aria-hidden="true">·</span>
-          <a href="https://work4you.ai/docs/">Docs</a>
-        </footer>
-      </div>
-    )
+    return <Navigate to={`/orgs/${personalOrgId(user.id)}`} replace />
   }
 
   return (
