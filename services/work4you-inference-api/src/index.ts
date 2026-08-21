@@ -24,6 +24,7 @@ import {
   estimateRequestTokens,
   reconcileRateLimitTokens,
 } from './rate-limit.js'
+import { metersFromOpenRouterUsage } from './usage-meters.js'
 
 type Variables = {
   claims: InvokeClaims
@@ -166,13 +167,17 @@ async function settleDebit(params: {
   try {
     const pricing = await getModelPricing(params.model)
     const amountUsd = costUsdFromUsage(params.usage, pricing)
-    if (!(amountUsd > 0)) return
+    const meters = metersFromOpenRouterUsage(params.usage)
+    if (!(amountUsd > 0) && !(meters.inputTokens > 0 || meters.outputTokens > 0 || meters.cacheReadTokens > 0 || meters.cacheWriteTokens > 0)) {
+      return
+    }
     await debitOrg({
       orgId: params.orgId,
-      amountUsd,
+      amountUsd: amountUsd > 0 ? amountUsd : 0,
       idempotencyKey: `inf:${params.requestId}`,
       purpose: `inference:${params.model}`,
       apiKeyId: params.apiKeyId,
+      meters,
     })
   } catch (err) {
     console.error('[debit] failed', err)

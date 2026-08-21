@@ -90,8 +90,23 @@ export async function debitOrg(params: {
   idempotencyKey: string
   purpose?: string
   apiKeyId?: string | null
+  meters?: {
+    inputTokens: number
+    outputTokens: number
+    cacheReadTokens: number
+    cacheWriteTokens: number
+  } | null
 }): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
-  if (!(params.amountUsd > 0) || !Number.isFinite(params.amountUsd)) {
+  const amount = Number.isFinite(params.amountUsd) ? params.amountUsd : 0
+  const meters = params.meters
+  const hasMeters = Boolean(
+    meters &&
+      (meters.inputTokens > 0 ||
+        meters.outputTokens > 0 ||
+        meters.cacheReadTokens > 0 ||
+        meters.cacheWriteTokens > 0),
+  )
+  if (!(amount > 0) && !hasMeters) {
     return { ok: true, status: 200, body: { skipped: true, reason: 'zero_amount' } }
   }
   const res = await fetch(
@@ -105,10 +120,18 @@ export async function debitOrg(params: {
       },
       body: JSON.stringify({
         orgId: params.orgId,
-        amountUsd: params.amountUsd,
+        amountUsd: amount > 0 ? amount : 0,
         idempotencyKey: params.idempotencyKey,
         purpose: params.purpose || 'inference',
         ...(params.apiKeyId ? { apiKeyId: params.apiKeyId } : {}),
+        ...(meters
+          ? {
+              inputTokens: meters.inputTokens,
+              outputTokens: meters.outputTokens,
+              cacheReadTokens: meters.cacheReadTokens,
+              cacheWriteTokens: meters.cacheWriteTokens,
+            }
+          : {}),
       }),
     },
   )
