@@ -1,6 +1,6 @@
 /**
- * Verify Portal OAuth invoke JWTs via JWKS.
- * Claims we need: org_id, scope containing inference:invoke.
+ * Verify Portal OAuth invoke JWTs via JWKS, or static sk-work4you-… API keys
+ * via NAS /api/internal/api-keys/resolve.
  */
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose'
 import { config } from './config.js'
@@ -9,12 +9,14 @@ export type InvokeClaims = {
   sub: string
   orgId: string
   sessionId: string | null
+  apiKeyId: string | null
   scope: string
   clientId: string | null
   paidAccess: boolean | null
   subscriptionTier: number | null
   jti: string | null
   raw: JWTPayload
+  via: 'jwt' | 'api_key'
 }
 
 const jwks = createRemoteJWKSet(
@@ -24,6 +26,43 @@ const jwks = createRemoteJWKSet(
 function scopeList(scope: unknown): string[] {
   if (typeof scope !== 'string') return []
   return scope.split(/\s+/).filter(Boolean)
+}
+
+async function resolveStaticApiKey(token: string): Promise<InvokeClaims> {
+  const res = await fetch(
+    `${config.portalBillingBaseUrl}/api/internal/api-keys/resolve`,
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${config.inferenceBillingSecret}`,
+        'x-work4you-billing-key': config.inferenceBillingSecret,
+      },
+      body: JSON.stringify({ token }),
+    },
+  )
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  if (!res.ok) {
+    throw Object.assign(new Error('invalid_api_key'), { status: 401 })
+  }
+  const orgId = typeof body.orgId === 'string' ? body.orgId : ''
+  const keyId = typeof body.keyId === 'string' ? body.keyId : ''
+  if (!orgId || !keyId) {
+    throw Object.assign(new Error('invalid_api_key'), { status: 401 })
+  }
+  return {
+    sub: `api_key:${keyId}`,
+    orgId,
+    sessionId: null,
+    apiKeyId: keyId,
+    scope: 'inference:invoke',
+    clientId: 'portal-api-key',
+    paidAccess: null,
+    subscriptionTier: null,
+    jti: keyId,
+    raw: body as JWTPayload,
+    via: 'api_key',
+  }
 }
 
 export async function verifyInvokeBearer(
@@ -37,12 +76,14 @@ export async function verifyInvokeBearer(
     throw Object.assign(new Error('missing_bearer'), { status: 401 })
   }
 
-  // Static Portal API keys (sk-…) land in a later fatia — reject for now
-  // with a clear signal so clients don't confuse with OR BYOK.
   if (token.startsWith('sk-')) {
-    throw Object.assign(new Error('static_api_keys_not_enabled'), {
-      status: 401,
-    })
+    if (!token.startsWith('sk-work4you-')) {
+      throw Object.assign(new Error('invalid_api_key'), { status: 401 })
+    }
+    if (!config.hasBillingSecret()) {
+      throw Object.assign(new Error('billing_not_configured'), { status: 503 })
+    }
+    return resolveStaticApiKey(token)
   }
 
   let payload: JWTPayload
@@ -78,6 +119,7 @@ export async function verifyInvokeBearer(
     orgId,
     sessionId:
       typeof payload.session_id === 'string' ? payload.session_id : null,
+    apiKeyId: null,
     scope: scopes.join(' '),
     clientId:
       typeof payload.client_id === 'string'
@@ -93,5 +135,6 @@ export async function verifyInvokeBearer(
         : null,
     jti: typeof payload.jti === 'string' ? payload.jti : null,
     raw: payload,
+    via: 'jwt',
   }
 }

@@ -95,6 +95,7 @@ async function settleDebit(params: {
   requestId: string
   model: string
   usage: Record<string, unknown> | null
+  apiKeyId?: string | null
 }) {
   try {
     const pricing = await getModelPricing(params.model)
@@ -105,6 +106,7 @@ async function settleDebit(params: {
       amountUsd,
       idempotencyKey: `inf:${params.requestId}`,
       purpose: `inference:${params.model}`,
+      apiKeyId: params.apiKeyId,
     })
   } catch (err) {
     console.error('[debit] failed', err)
@@ -150,6 +152,7 @@ async function proxyJson(c: Context<AppEnv>, orPath: string, body: unknown) {
       requestId,
       model,
       usage: extractUsage(json),
+      apiKeyId: claims.apiKeyId,
     })
   }
 
@@ -198,6 +201,7 @@ async function proxyStream(c: Context<AppEnv>, orPath: string, body: unknown) {
           requestId,
           model,
           usage: lastUsage,
+          apiKeyId: claims.apiKeyId,
         })
         controller.close()
         return

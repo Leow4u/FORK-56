@@ -12,7 +12,9 @@ OpenAI-compatible gateway at **`https://inference-api.work4you.ai`** (Fly app
 
 Surfaces: `/v1/models`, `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, `/v1/messages` (Anthropic-shaped → chat).
 
-Static Portal `sk-…` keys are **not** enabled yet (401 `static_api_keys_not_enabled`) — Agent/Desktop use JWT after device login.
+Static Portal `sk-work4you-…` keys are resolved via NAS
+`/api/internal/api-keys/resolve` (same billing secret). Agent/Desktop keep using
+OAuth invoke JWTs after device login.
 
 ## Env (Fly secrets)
 

@@ -46,6 +46,7 @@ export async function debitOrg(params: {
   amountUsd: number
   idempotencyKey: string
   purpose?: string
+  apiKeyId?: string | null
 }): Promise<{ ok: boolean; status: number; body: Record<string, unknown> }> {
   if (!(params.amountUsd > 0) || !Number.isFinite(params.amountUsd)) {
     return { ok: true, status: 200, body: { skipped: true, reason: 'zero_amount' } }
@@ -64,6 +65,7 @@ export async function debitOrg(params: {
         amountUsd: params.amountUsd,
         idempotencyKey: params.idempotencyKey,
         purpose: params.purpose || 'inference',
+        ...(params.apiKeyId ? { apiKeyId: params.apiKeyId } : {}),
       }),
     },
   )
