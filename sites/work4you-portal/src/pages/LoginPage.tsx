@@ -39,6 +39,22 @@ function errorMessage(error: unknown): string {
   if (!message || message === 'undefined' || message.toLowerCase().includes('exited')) {
     return ''
   }
+  const lower = message.toLowerCase()
+  if (lower.includes('disallowed_login_method')) {
+    if (lower.includes('github')) {
+      return 'GitHub ainda não está liberado no Privy. Ative o método Login → GitHub no dashboard e salve.'
+    }
+    if (lower.includes('google')) {
+      return 'Google ainda não está liberado no Privy. Ative o método Login → Google no dashboard e salve.'
+    }
+    if (lower.includes('discord')) {
+      return 'Discord ainda não está liberado no Privy. Ative o método Login → Discord no dashboard e salve.'
+    }
+    return 'Este método de login não está liberado no Privy. Confira Login methods no dashboard.'
+  }
+  if (lower.includes('invalid_origin') || lower.includes('origin')) {
+    return 'Origem não autorizada. Inclua https://portal.work4you.ai em Allowed origins no Privy.'
+  }
   return message
 }
 
