@@ -1,21 +1,25 @@
-import { useLogin, usePrivy } from '@privy-io/react-auth'
+import {
+  useLoginWithEmail,
+  useLoginWithOAuth,
+  useLoginWithPasskey,
+  usePrivy,
+} from '@privy-io/react-auth'
 import { FormEvent, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import styles from './LoginPage.module.css'
 
 export type AuthMode = 'login' | 'signup'
 
-type ProviderId = 'github' | 'google' | 'discord' | 'passkey'
+type OAuthProviderId = 'github' | 'google' | 'discord'
 
 interface LoginPageProps {
   initialMode?: AuthMode
 }
 
-const PROVIDERS: { id: ProviderId; label: string }[] = [
+const OAUTH_PROVIDERS: { id: OAuthProviderId; label: string }[] = [
   { id: 'github', label: 'Continuar com GitHub' },
   { id: 'google', label: 'Continuar com Google' },
   { id: 'discord', label: 'Continuar com Discord' },
-  { id: 'passkey', label: 'Continuar com Passkey' },
 ]
 
 function displayName(user: NonNullable<ReturnType<typeof usePrivy>['user']>): string {
@@ -30,6 +34,14 @@ function displayName(user: NonNullable<ReturnType<typeof usePrivy>['user']>): st
   return user.id
 }
 
+function errorMessage(error: unknown): string {
+  const message = String(error ?? '')
+  if (!message || message === 'undefined' || message.toLowerCase().includes('exited')) {
+    return ''
+  }
+  return message
+}
+
 export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
   const [params] = useSearchParams()
   const modeFromQuery = params.get('mode')
@@ -38,18 +50,32 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
 
   const [mode, setMode] = useState<AuthMode>(startMode)
   const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
   const [showEmail, setShowEmail] = useState(false)
+  const [awaitingCode, setAwaitingCode] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
   const { ready, authenticated, user, logout } = usePrivy()
-  const { login } = useLogin({
+
+  const { initOAuth } = useLoginWithOAuth({
     onError: (error) => {
-      const message = String(error)
-      if (message.toLowerCase().includes('exited')) {
-        setNotice(null)
-        return
-      }
-      setNotice(message || 'Não foi possível entrar. Tente de novo.')
+      const message = errorMessage(error)
+      if (message) setNotice(message)
+    },
+  })
+
+  const { loginWithPasskey } = useLoginWithPasskey({
+    onError: (error) => {
+      const message = errorMessage(error)
+      if (message) setNotice(message)
+    },
+  })
+
+  const { sendCode, loginWithCode } = useLoginWithEmail({
+    onError: (error) => {
+      const message = errorMessage(error)
+      if (message) setNotice(message)
     },
   })
 
@@ -77,14 +103,36 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
     setMode((m) => (m === 'login' ? 'signup' : 'login'))
     setNotice(null)
     setShowEmail(false)
+    setAwaitingCode(false)
+    setCode('')
   }
 
-  function onProvider(id: ProviderId) {
+  async function onOAuth(id: OAuthProviderId) {
     setNotice(null)
-    login({ loginMethods: [id] })
+    setBusy(true)
+    try {
+      await initOAuth({ provider: id })
+    } catch (error) {
+      const message = errorMessage(error)
+      setNotice(message || 'Não foi possível entrar. Tente de novo.')
+      setBusy(false)
+    }
   }
 
-  function onEmailSubmit(e: FormEvent) {
+  async function onPasskey() {
+    setNotice(null)
+    setBusy(true)
+    try {
+      await loginWithPasskey()
+    } catch (error) {
+      const message = errorMessage(error)
+      if (message) setNotice(message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onEmailSubmit(e: FormEvent) {
     e.preventDefault()
     const value = email.trim()
     if (!value || !value.includes('@')) {
@@ -92,10 +140,34 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
       return
     }
     setNotice(null)
-    login({
-      loginMethods: ['email'],
-      prefill: { type: 'email', value },
-    })
+    setBusy(true)
+    try {
+      await sendCode({ email: value })
+      setAwaitingCode(true)
+    } catch (error) {
+      const message = errorMessage(error)
+      setNotice(message || 'Não foi possível enviar o código.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onCodeSubmit(e: FormEvent) {
+    e.preventDefault()
+    const value = code.trim()
+    if (!value) {
+      setNotice('Informe o código recebido por e-mail.')
+      return
+    }
+    setNotice(null)
+    setBusy(true)
+    try {
+      await loginWithCode({ code: value })
+    } catch (error) {
+      const message = errorMessage(error)
+      setNotice(message || 'Código inválido. Tente de novo.')
+      setBusy(false)
+    }
   }
 
   async function onLogout() {
@@ -107,7 +179,7 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
     return (
       <div className={styles.page}>
         <main className={styles.main}>
-          <p className={styles.lede}>Carregando…</p>
+          <p className={styles.status}>Carregando…</p>
         </main>
       </div>
     )
@@ -136,12 +208,8 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
             <h1 id="session-title" className={styles.title}>
               Você entrou
             </h1>
-            <p className={styles.lede}>
-              Conectado como <strong>{displayName(user)}</strong>.
-            </p>
-            <p className={styles.sessionHint}>
-              O painel completo (billing, API keys, usage) chega em seguida. Por
-              enquanto a autenticação Privy já está ativa neste portal.
+            <p className={styles.status}>
+              <strong>{displayName(user)}</strong>
             </p>
             <button type="button" className={styles.primary} onClick={() => void onLogout()}>
               Sair
@@ -180,21 +248,27 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
           <h1 id="login-title" className={styles.title}>
             {copy.title}
           </h1>
-          <p className={styles.lede}>
-            Um agente de IA que aprende sua empresa e assume o trabalho.
-          </p>
 
           <div className={styles.providers}>
-            {PROVIDERS.map((p) => (
+            {OAUTH_PROVIDERS.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 className={styles.provider}
-                onClick={() => onProvider(p.id)}
+                disabled={busy}
+                onClick={() => void onOAuth(p.id)}
               >
                 {p.label}
               </button>
             ))}
+            <button
+              type="button"
+              className={styles.provider}
+              disabled={busy}
+              onClick={() => void onPasskey()}
+            >
+              Continuar com Passkey
+            </button>
           </div>
 
           <div className={styles.divider} role="separator">
@@ -205,6 +279,7 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
             <button
               type="button"
               className={styles.emailToggle}
+              disabled={busy}
               onClick={() => {
                 setShowEmail(true)
                 setNotice(null)
@@ -212,8 +287,28 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
             >
               {copy.emailCta}
             </button>
+          ) : awaitingCode ? (
+            <form className={styles.emailForm} onSubmit={(e) => void onCodeSubmit(e)}>
+              <label className={styles.label} htmlFor="code">
+                Código
+              </label>
+              <input
+                id="code"
+                className={styles.input}
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                disabled={busy}
+              />
+              <button type="submit" className={styles.primary} disabled={busy}>
+                Entrar
+              </button>
+            </form>
           ) : (
-            <form className={styles.emailForm} onSubmit={onEmailSubmit}>
+            <form className={styles.emailForm} onSubmit={(e) => void onEmailSubmit(e)}>
               <label className={styles.label} htmlFor="email">
                 E-mail
               </label>
@@ -225,8 +320,9 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
                 placeholder="voce@empresa.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={busy}
               />
-              <button type="submit" className={styles.primary}>
+              <button type="submit" className={styles.primary} disabled={busy}>
                 Continuar
               </button>
             </form>

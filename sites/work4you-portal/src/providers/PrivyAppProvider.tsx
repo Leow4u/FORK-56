@@ -21,7 +21,6 @@ export function PrivyAppProvider({ children }: PrivyAppProviderProps) {
           accentColor: '#4D5943',
           logo: '/brand/work4you-logo.png',
           landingHeader: 'Entrar na Work4You',
-          loginMessage: 'Um agente de IA que aprende sua empresa.',
           showWalletLoginFirst: false,
         },
         embeddedWallets: {
