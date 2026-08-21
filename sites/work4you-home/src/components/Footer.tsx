@@ -8,6 +8,7 @@ export function Footer() {
         <nav className={styles.links} aria-label="Footer">
           <a href="https://work4you.ai/docs/">Docs</a>
           <a href="#install">Install</a>
+          <a href="https://portal.work4you.ai/login">Fazer login</a>
           <a href="https://github.com/Leow4u/FORK-56">GitHub</a>
         </nav>
         <p className={styles.copy}>© {new Date().getFullYear()} Work4You · MIT</p>
