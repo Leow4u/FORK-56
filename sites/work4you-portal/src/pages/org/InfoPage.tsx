@@ -12,7 +12,7 @@ export function InfoPage() {
         <h2 className={pageStyles.panelTitle}>Rotas</h2>
         <ul className={pageStyles.list}>
           <li>
-            <code>/orgs/:orgId</code> — Work4You Agent (OAuth login sessions)
+            <code>/orgs/:orgId</code> — Work4You Agent
           </li>
           <li>
             <code>/orgs/:orgId/agents</code> — Work4You Cloud
