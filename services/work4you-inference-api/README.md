@@ -16,6 +16,12 @@ Static Portal `sk-work4you-…` keys are resolved via NAS
 `/api/internal/api-keys/resolve` (same billing secret). Agent/Desktop keep using
 OAuth invoke JWTs after device login.
 
+**Plan gates (Hermes-style):** Free plan may only invoke free/`$0` models
+(`paid_plan_required` otherwise). Plus/Super/Ultra unlock the full catalog.
+
+**Rate limits (per org, rolling 60s):** Free 50 RPM / 500K TPM · Plus 400 / 4M ·
+Super 800 / 8M · Ultra 1600 / 16M.
+
 ## Env (Fly secrets)
 
 | Secret | Purpose |

@@ -14,11 +14,24 @@ import {
   authorizeOrg,
   costUsdFromUsage,
   debitOrg,
+  type AuthorizeOk,
 } from './billing.js'
 import { config } from './config.js'
+import { isModelFreeForPlan } from './model-access.js'
 import { getModelPricing, openRouterFetch } from './openrouter.js'
+import {
+  checkAndConsumeRateLimit,
+  estimateRequestTokens,
+  reconcileRateLimitTokens,
+} from './rate-limit.js'
 
-type Variables = { claims: InvokeClaims; requestId: string }
+type Variables = {
+  claims: InvokeClaims
+  requestId: string
+  billing: AuthorizeOk
+  body: unknown
+  estimatedTokens: number
+}
 type AppEnv = { Variables: Variables }
 
 const app = new Hono<AppEnv>()
@@ -59,12 +72,15 @@ async function requireInvoke(c: Context<AppEnv>, next: Next) {
           code: message,
         },
       },
-      status as 401 | 403,
+      status as 401 | 403 | 503,
     )
   }
 }
 
-async function requireCredits(c: Context<AppEnv>, next: Next) {
+/**
+ * Credits authorize + plan/rate-limit/model gates for metered POST routes.
+ */
+async function requireBillingGates(c: Context<AppEnv>, next: Next) {
   const claims = c.get('claims')
   const authz = await authorizeOrg(claims.orgId)
   if (!authz.allowed) {
@@ -82,11 +98,61 @@ async function requireCredits(c: Context<AppEnv>, next: Next) {
       402,
     )
   }
+  c.set('billing', authz)
+
+  const body = await c.req.json().catch(() => ({}))
+  c.set('body', body)
+
+  const estimatedTokens = estimateRequestTokens(body)
+  c.set('estimatedTokens', estimatedTokens)
+  const rl = checkAndConsumeRateLimit({
+    orgId: claims.orgId,
+    limit: authz.rateLimit,
+    estimatedTokens,
+  })
+  if (!rl.ok) {
+    c.header('Retry-After', String(rl.retryAfterSec))
+    return c.json(
+      {
+        error: {
+          message:
+            rl.code === 'rate_limit_rpm'
+              ? `Rate limit exceeded: ${rl.used}/${rl.limit} requests per minute`
+              : `Rate limit exceeded: ${rl.used}/${rl.limit} tokens per minute`,
+          type: 'rate_limit_exceeded',
+          code: rl.code,
+          limit: rl.limit,
+          used: rl.used,
+        },
+      },
+      429,
+    )
+  }
+
+  const model = extractModel(body)
+  const paidPlan =
+    typeof claims.paidPlan === 'boolean' ? claims.paidPlan : authz.paidPlan
+  if (!paidPlan && model !== 'unknown') {
+    const pricing = await getModelPricing(model)
+    if (!isModelFreeForPlan(model, pricing)) {
+      return c.json(
+        {
+          error: {
+            message: 'Modelo disponível apenas em planos pagos.',
+            type: 'forbidden',
+            code: 'paid_plan_required',
+            model,
+          },
+        },
+        403,
+      )
+    }
+  }
+
   await next()
 }
 
 function stripClientAuth(body: unknown): unknown {
-  // Body passes through; never trust client-supplied provider routing secrets.
   return body
 }
 
@@ -132,6 +198,7 @@ async function proxyJson(c: Context<AppEnv>, orPath: string, body: unknown) {
   const claims = c.get('claims')
   const requestId = c.get('requestId')
   const model = extractModel(body)
+  const estimatedTokens = c.get('estimatedTokens') || estimateRequestTokens(body)
 
   const upstream = await openRouterFetch(orPath, {
     method: 'POST',
@@ -147,11 +214,23 @@ async function proxyJson(c: Context<AppEnv>, orPath: string, body: unknown) {
   }
 
   if (upstream.ok && json) {
+    const usage = extractUsage(json)
+    if (usage) {
+      const actual =
+        Number(usage.prompt_tokens || 0) + Number(usage.completion_tokens || 0)
+      if (actual > 0) {
+        reconcileRateLimitTokens({
+          orgId: claims.orgId,
+          estimatedTokens,
+          actualTokens: actual,
+        })
+      }
+    }
     void settleDebit({
       orgId: claims.orgId,
       requestId,
       model,
-      usage: extractUsage(json),
+      usage,
       apiKeyId: claims.apiKeyId,
     })
   }
@@ -283,30 +362,28 @@ app.get('/v1/models', async (c) => {
   })
 })
 
-app.post('/v1/chat/completions', requireCredits, async (c) => {
-  const body = await c.req.json().catch(() => ({}))
+app.post('/v1/chat/completions', requireBillingGates, async (c) => {
+  const body = c.get('body')
   const stream = Boolean((body as { stream?: boolean }).stream)
   if (stream) return proxyStream(c, '/chat/completions', body)
   return proxyJson(c, '/chat/completions', body)
 })
 
-app.post('/v1/completions', requireCredits, async (c) => {
-  const body = await c.req.json().catch(() => ({}))
+app.post('/v1/completions', requireBillingGates, async (c) => {
+  const body = c.get('body')
   const stream = Boolean((body as { stream?: boolean }).stream)
   if (stream) return proxyStream(c, '/completions', body)
   return proxyJson(c, '/completions', body)
 })
 
-app.post('/v1/embeddings', requireCredits, async (c) => {
-  const body = await c.req.json().catch(() => ({}))
+app.post('/v1/embeddings', requireBillingGates, async (c) => {
+  const body = c.get('body')
   return proxyJson(c, '/embeddings', body)
 })
 
 /** Anthropic Messages dual-wire (agent path for anthropic/*). */
-app.post('/v1/messages', requireCredits, async (c) => {
-  const body = await c.req.json().catch(() => ({}))
-  // OpenRouter OpenAI path is primary; Anthropic native via OR OpenAI wrapper.
-  // If body looks Anthropic, map to chat/completions shape minimally.
+app.post('/v1/messages', requireBillingGates, async (c) => {
+  const body = c.get('body')
   const mapped = mapAnthropicToChat(body)
   const stream = Boolean((mapped as { stream?: boolean }).stream)
   if (stream) return proxyStream(c, '/chat/completions', mapped)

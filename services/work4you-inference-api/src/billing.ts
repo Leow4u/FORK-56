@@ -1,11 +1,24 @@
 /** NAS authorize + debit (Hermes billing wall path). */
 import { config } from './config.js'
+import {
+  DEFAULT_TIER_RATE_LIMITS,
+  type RateLimitConfig,
+} from './rate-limit.js'
 
-export type AuthorizeOk = { allowed: true }
+export type AuthorizeOk = {
+  allowed: true
+  paidPlan: boolean
+  tierId: string
+  subscriptionTier: number
+  rateLimit: RateLimitConfig
+}
 export type AuthorizeDenied = {
   allowed: false
   status: number
   body: Record<string, unknown>
+  paidPlan?: boolean
+  tierId?: string
+  rateLimit?: RateLimitConfig
 }
 
 export async function authorizeOrg(
@@ -24,8 +37,31 @@ export async function authorizeOrg(
     },
   )
   const body = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  const tierId =
+    typeof body.tier_id === 'string' ? body.tier_id : 'free'
+  const paidPlan =
+    typeof body.paid_plan === 'boolean'
+      ? body.paid_plan
+      : tierId !== 'free'
+  const subscriptionTier =
+    typeof body.subscription_tier === 'number' ? body.subscription_tier : 0
+  const rateLimit =
+    body.rate_limit &&
+    typeof body.rate_limit === 'object' &&
+    typeof (body.rate_limit as { rpm?: unknown }).rpm === 'number' &&
+    typeof (body.rate_limit as { tpm?: unknown }).tpm === 'number'
+      ? (body.rate_limit as RateLimitConfig)
+      : DEFAULT_TIER_RATE_LIMITS[tierId] || DEFAULT_TIER_RATE_LIMITS.free
+
   if (res.status === 402 || body.allowed === false) {
-    return { allowed: false, status: 402, body }
+    return {
+      allowed: false,
+      status: 402,
+      body,
+      paidPlan,
+      tierId,
+      rateLimit,
+    }
   }
   if (!res.ok) {
     return {
@@ -33,12 +69,19 @@ export async function authorizeOrg(
       status: res.status >= 400 ? res.status : 502,
       body: {
         error: 'authorize_failed',
-        message: typeof body.message === 'string' ? body.message : 'authorize failed',
+        message:
+          typeof body.message === 'string' ? body.message : 'authorize failed',
         upstream: body,
       },
     }
   }
-  return { allowed: true }
+  return {
+    allowed: true,
+    paidPlan,
+    tierId,
+    subscriptionTier,
+    rateLimit,
+  }
 }
 
 export async function debitOrg(params: {
@@ -92,7 +135,6 @@ export function costUsdFromUsage(
   if (!pricing) return 0
   const p = Number(pricing.prompt || 0)
   const c = Number(pricing.completion || 0)
-  // OpenRouter model pricing is USD per token (already tiny fractions).
   const total = promptTokens * p + completionTokens * c
   return Number.isFinite(total) && total > 0 ? total : 0
 }

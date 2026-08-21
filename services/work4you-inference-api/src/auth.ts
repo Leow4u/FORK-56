@@ -13,7 +13,10 @@ export type InvokeClaims = {
   scope: string
   clientId: string | null
   paidAccess: boolean | null
+  /** True when org is on Plus/Super/Ultra (not Free plan). */
+  paidPlan: boolean | null
   subscriptionTier: number | null
+  tierId: string | null
   jti: string | null
   raw: JWTPayload
   via: 'jwt' | 'api_key'
@@ -50,6 +53,12 @@ async function resolveStaticApiKey(token: string): Promise<InvokeClaims> {
   if (!orgId || !keyId) {
     throw Object.assign(new Error('invalid_api_key'), { status: 401 })
   }
+  const paidPlan =
+    typeof body.paid_plan === 'boolean'
+      ? body.paid_plan
+      : typeof body.subscription_tier === 'number'
+        ? body.subscription_tier > 0
+        : null
   return {
     sub: `api_key:${keyId}`,
     orgId,
@@ -57,8 +66,14 @@ async function resolveStaticApiKey(token: string): Promise<InvokeClaims> {
     apiKeyId: keyId,
     scope: 'inference:invoke',
     clientId: 'portal-api-key',
-    paidAccess: null,
-    subscriptionTier: null,
+    paidAccess:
+      typeof body.paid_access === 'boolean' ? body.paid_access : null,
+    paidPlan,
+    subscriptionTier:
+      typeof body.subscription_tier === 'number'
+        ? body.subscription_tier
+        : null,
+    tierId: typeof body.tier_id === 'string' ? body.tier_id : null,
     jti: keyId,
     raw: body as JWTPayload,
     via: 'api_key',
@@ -114,6 +129,11 @@ export async function verifyInvokeBearer(
     throw Object.assign(new Error('missing_sub'), { status: 401 })
   }
 
+  const subscriptionTier =
+    typeof payload.subscription_tier === 'number'
+      ? payload.subscription_tier
+      : null
+
   return {
     sub,
     orgId,
@@ -129,10 +149,10 @@ export async function verifyInvokeBearer(
           : null,
     paidAccess:
       typeof payload.paid_access === 'boolean' ? payload.paid_access : null,
-    subscriptionTier:
-      typeof payload.subscription_tier === 'number'
-        ? payload.subscription_tier
-        : null,
+    paidPlan:
+      subscriptionTier != null ? subscriptionTier > 0 : null,
+    subscriptionTier,
+    tierId: null,
     jti: typeof payload.jti === 'string' ? payload.jti : null,
     raw: payload,
     via: 'jwt',
