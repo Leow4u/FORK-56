@@ -99,107 +99,107 @@ const SOURCE_CONFIG: Record<
 > = {
   "built-in": {
     label: "Built-in",
-    color: "#4ade80",
-    bg: "rgba(74, 222, 128, 0.08)",
-    border: "rgba(74, 222, 128, 0.2)",
+    color: "#4D5943",
+    bg: "rgba(77, 89, 67, 0.10)",
+    border: "rgba(77, 89, 67, 0.22)",
     icon: "\u{2713}",
   },
   optional: {
     label: "Optional",
-    color: "#fbbf24",
-    bg: "rgba(251, 191, 36, 0.08)",
-    border: "rgba(251, 191, 36, 0.2)",
+    color: "#3A452F",
+    bg: "rgba(58, 69, 47, 0.10)",
+    border: "rgba(58, 69, 47, 0.22)",
     icon: "\u{2B50}",
   },
   Anthropic: {
     label: "Anthropic",
-    color: "#d4845a",
-    bg: "rgba(212, 132, 90, 0.08)",
-    border: "rgba(212, 132, 90, 0.2)",
+    color: "#5F6C52",
+    bg: "rgba(95, 108, 82, 0.12)",
+    border: "rgba(95, 108, 82, 0.24)",
     icon: "\u{25C6}",
   },
   LobeHub: {
     label: "LobeHub",
-    color: "#60a5fa",
-    bg: "rgba(96, 165, 250, 0.08)",
-    border: "rgba(96, 165, 250, 0.2)",
+    color: "#6E6E68",
+    bg: "rgba(110, 110, 104, 0.12)",
+    border: "rgba(110, 110, 104, 0.24)",
     icon: "\u{25CB}",
   },
   "skills.sh": {
     label: "skills.sh",
-    color: "#34d399",
-    bg: "rgba(52, 211, 153, 0.08)",
-    border: "rgba(52, 211, 153, 0.2)",
+    color: "#71806E",
+    bg: "rgba(113, 128, 110, 0.12)",
+    border: "rgba(113, 128, 110, 0.24)",
     icon: "\u{2734}",
   },
   ClawHub: {
     label: "ClawHub",
-    color: "#f472b6",
-    bg: "rgba(244, 114, 182, 0.08)",
-    border: "rgba(244, 114, 182, 0.2)",
+    color: "#151515",
+    bg: "rgba(21, 21, 21, 0.08)",
+    border: "rgba(21, 21, 21, 0.18)",
     icon: "\u{2726}",
   },
   "browse.sh": {
     label: "browse.sh",
-    color: "#22d3ee",
-    bg: "rgba(34, 211, 238, 0.08)",
-    border: "rgba(34, 211, 238, 0.2)",
+    color: "#4D5943",
+    bg: "rgba(77, 89, 67, 0.10)",
+    border: "rgba(77, 89, 67, 0.22)",
     icon: "\u{29BF}",
   },
   OpenAI: {
     label: "OpenAI",
-    color: "#10b981",
-    bg: "rgba(16, 185, 129, 0.08)",
-    border: "rgba(16, 185, 129, 0.2)",
+    color: "#3A452F",
+    bg: "rgba(58, 69, 47, 0.10)",
+    border: "rgba(58, 69, 47, 0.22)",
     icon: "\u{2737}",
   },
   HuggingFace: {
     label: "HuggingFace",
-    color: "#fbbf24",
-    bg: "rgba(251, 191, 36, 0.08)",
-    border: "rgba(251, 191, 36, 0.2)",
+    color: "#5F6C52",
+    bg: "rgba(95, 108, 82, 0.12)",
+    border: "rgba(95, 108, 82, 0.24)",
     icon: "\u{1F917}",
   },
   NVIDIA: {
     label: "NVIDIA",
-    color: "#76b900",
-    bg: "rgba(118, 185, 0, 0.08)",
-    border: "rgba(118, 185, 0, 0.25)",
+    color: "#6E6E68",
+    bg: "rgba(110, 110, 104, 0.12)",
+    border: "rgba(110, 110, 104, 0.24)",
     icon: "\u{25B6}",
   },
   VoltAgent: {
     label: "VoltAgent",
-    color: "#facc15",
-    bg: "rgba(250, 204, 21, 0.08)",
-    border: "rgba(250, 204, 21, 0.2)",
+    color: "#71806E",
+    bg: "rgba(113, 128, 110, 0.12)",
+    border: "rgba(113, 128, 110, 0.24)",
     icon: "\u{26A1}",
   },
   GitHub: {
     label: "GitHub",
-    color: "#94a3b8",
-    bg: "rgba(148, 163, 184, 0.08)",
-    border: "rgba(148, 163, 184, 0.2)",
+    color: "#151515",
+    bg: "rgba(21, 21, 21, 0.08)",
+    border: "rgba(21, 21, 21, 0.18)",
     icon: "\u{2756}",
   },
   "Well-Known": {
     label: "Well-Known",
-    color: "#818cf8",
-    bg: "rgba(129, 140, 248, 0.08)",
-    border: "rgba(129, 140, 248, 0.2)",
+    color: "#4D5943",
+    bg: "rgba(77, 89, 67, 0.10)",
+    border: "rgba(77, 89, 67, 0.22)",
     icon: "\u{2756}",
   },
   gstack: {
     label: "gstack",
-    color: "#fb923c",
-    bg: "rgba(251, 146, 60, 0.08)",
-    border: "rgba(251, 146, 60, 0.2)",
+    color: "#3A452F",
+    bg: "rgba(58, 69, 47, 0.10)",
+    border: "rgba(58, 69, 47, 0.22)",
     icon: "\u{2756}",
   },
   MiniMax: {
     label: "MiniMax",
-    color: "#f87171",
-    bg: "rgba(248, 113, 113, 0.08)",
-    border: "rgba(248, 113, 113, 0.2)",
+    color: "#5F6C52",
+    bg: "rgba(95, 108, 82, 0.12)",
+    border: "rgba(95, 108, 82, 0.24)",
     icon: "\u{2756}",
   },
 };
@@ -714,12 +714,12 @@ export default function SkillsDashboard() {
               <StatCard
                 value={allSkillsLocal.filter((s) => s.source === "built-in").length}
                 label="Built-in"
-                color="#4ade80"
+                color="#4D5943"
               />
               <StatCard
                 value={allSkillsLocal.filter((s) => s.source === "optional").length}
                 label="Optional"
-                color="#fbbf24"
+                color="#6E6E68"
               />
               <StatCard
                 value={
@@ -728,12 +728,12 @@ export default function SkillsDashboard() {
                   ).length
                 }
                 label="Community"
-                color="#60a5fa"
+                color="#3A452F"
               />
               <StatCard
                 value={new Set(allSkillsLocal.map((s) => s.category)).size}
                 label="Categories"
-                color="#a78bfa"
+                color="#5F6C52"
               />
             </div>
           </div>

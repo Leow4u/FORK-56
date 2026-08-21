@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Work4You',
-  tagline: 'The self-improving AI agent',
+  tagline: 'An AI agent that grows with your business',
   favicon: 'img/favicon.ico',
 
   url: 'https://work4you.ai',
@@ -107,8 +107,9 @@ const config: Config = {
       contextualSearch: true,
     },
     colorMode: {
-      defaultMode: 'dark',
-      respectPrefersColorScheme: true,
+      // Brandbook v1: Papel is the default surface; dark uses Tinta (CLI tokens).
+      defaultMode: 'light',
+      respectPrefersColorScheme: false,
     },
     docs: {
       sidebar: {
