@@ -24,25 +24,12 @@
   text-decoration: underline;
 }
 
-.sessionsHead {
-  display: grid;
-  gap: 0.35rem;
-  margin-bottom: 1rem;
-}
-
 .sessionsTitle {
-  margin: 0;
+  margin: 0 0 1rem;
   font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--tinta);
-}
-
-.sessionsLead {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--grafite);
 }
 
 .tableWrap {
@@ -93,14 +80,6 @@
   color: var(--grafite);
 }
 
-.emptyRow td {
-  padding: 1.35rem 0.85rem;
-  text-align: center;
-  color: var(--grafite);
-  font-size: 0.875rem;
-  line-height: 1.45;
-}
-
 .signOut {
   display: inline-flex;
   align-items: center;
@@ -130,12 +109,5 @@
   display: inline-block;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--grafite);
-}
-
-.footnote {
-  margin: 0.85rem 0 0;
-  font-size: 0.8rem;
-  line-height: 1.45;
   color: var(--grafite);
 }
