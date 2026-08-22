@@ -17,11 +17,11 @@ npm run dev
 
 Open http://127.0.0.1:5173/
 
-## Build / GCP
+## Build
 
 ```bash
 npm run build
-# upload dist/ to GCS + CDN / Load Balancer
+# output → dist/
 ```
 
 ## Scope
