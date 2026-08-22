@@ -37,6 +37,7 @@
   "homepage": "https://github.com/Leow4u/FORK-56#readme",
   "devDependencies": {
     "@eslint/js": "9.39.5",
+    "playwright": "1.58.2",
     "typescript-eslint": "8.64.0",
     "eslint-plugin-perfectionist": "5.10.0",
     "eslint-plugin-react-hooks": "7.1.1",
