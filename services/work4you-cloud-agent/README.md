@@ -19,10 +19,24 @@ This is **not** the legacy Wayne / `provisioner-w4y` stack.
 
 Requires Fly org token with deploy access to `work4you-cloud-runtime`.
 
+**Windows (recommended):** deploy from the **repo root** so Docker receives the
+full build context. Subdirectory `build-context = "../.."` can drop files on
+Windows flyctl.
+
+```powershell
+cd C:\DEV\FORK-56
+fly auth login   # or: $env:FLY_API_TOKEN = "…"
+fly deploy -c fly.cloud-runtime.toml -a work4you-cloud-runtime --local-only
+```
+
+**Linux / macOS / WSL** (either path works):
+
 ```bash
-# From repo root or this directory:
+# From repo root (preferred):
+fly deploy -c fly.cloud-runtime.toml -a work4you-cloud-runtime --remote-only
+
+# Or from this directory:
 cd services/work4you-cloud-agent
-fly auth login   # or: export FLY_API_TOKEN=…
 fly deploy -a work4you-cloud-runtime --remote-only
 ```
 
