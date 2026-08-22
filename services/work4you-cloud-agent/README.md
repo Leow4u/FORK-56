@@ -14,8 +14,8 @@ fly deploy -a work4you-cloud-runtime --remote-only
 ```
 
 After deploy, update Vercel `WORK4YOU_AGENT_IMAGE` to the new
-`registry.fly.io/work4you-cloud-runtime:deployment-…` tag.
+`registry.fly.io/work4you-cloud-runtime:deployment-…` tag **only if** you
+redeployed the golden image. Omit the variable to use the code default pin.
 
-Fly machines override the container CMD to run `work4you gateway run` in the
-background and `work4you dashboard` in the foreground (s6 is unavailable when
-the platform owns PID 1).
+Stub machines use the image CMD (`python server.py`) as-is — do not override
+`init.cmd` until the full Work4You container ships.
