@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 
-import { renameProfile } from '@/work4you'
 import { retireLocalProfileGateways } from '@/store/gateway'
+import { renameProfile } from '@/work4you'
 
 import { RenameProfileDialog } from './rename-profile-dialog'
 

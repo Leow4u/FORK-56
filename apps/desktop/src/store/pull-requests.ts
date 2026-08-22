@@ -1,9 +1,9 @@
 import { atom } from 'nanostores'
 
 import type { Work4YouBranchPullRequest } from '@/global'
-import { scanSessionPullRequests, type SessionInfo } from '@/work4you'
 import { desktopGit } from '@/lib/desktop-git'
 import { Codecs, persistentAtom } from '@/lib/persisted'
+import { scanSessionPullRequests, type SessionInfo } from '@/work4you'
 
 /** How a row's PR reads at a glance — and what the sidebar filters on. A
  *  session with no branch, no PR, or an unreachable `gh` is `none`. */

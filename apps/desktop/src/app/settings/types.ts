@@ -1,8 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react'
 
-import type { Work4YouGateway } from '@/work4you'
 import type { IconComponent } from '@/lib/icons'
 import type { EnvVarInfo } from '@/types/work4you'
+import type { Work4YouGateway } from '@/work4you'
 
 export type SettingsView =
   | 'about'

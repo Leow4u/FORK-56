@@ -14,12 +14,12 @@ import type {
   DesktopUpdateStatus,
   DesktopVersionInfo
 } from '@/global'
-import { checkWork4YouUpdate, getActionStatus, updateWork4You } from '@/work4you'
 import { translateNow } from '@/i18n'
 import { persistString, storedString } from '@/lib/storage'
 import { dismissNotification, notify } from '@/store/notifications'
 import { $connection } from '@/store/session'
 import type { BackendUpdateCheckResponse } from '@/types/work4you'
+import { checkWork4YouUpdate, getActionStatus, updateWork4You } from '@/work4you'
 
 export interface UpdateApplyState {
   applying: boolean

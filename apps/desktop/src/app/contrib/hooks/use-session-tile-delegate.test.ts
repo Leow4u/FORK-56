@@ -1,10 +1,10 @@
 import { renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type * as Work4YouModule from '@/work4you'
 import { setSessions } from '@/store/session'
 import { sessionTileDelegate } from '@/store/session-states'
 import type { SessionInfo } from '@/types/work4you'
+import type * as Work4YouModule from '@/work4you'
 
 import { useSessionTileDelegate } from './use-session-tile-delegate'
 

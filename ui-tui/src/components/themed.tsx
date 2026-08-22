@@ -1,5 +1,5 @@
-import { Text } from '@work4you/ink'
 import { useStore } from '@nanostores/react'
+import { Text } from '@work4you/ink'
 import type { ReactNode } from 'react'
 
 import { $uiState } from '../app/uiStore.js'

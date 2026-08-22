@@ -1,7 +1,6 @@
 import { type MutableRefObject, useCallback, useRef, useState } from 'react'
 
 import { setTerminalFontFamilyFromConfig } from '@/app/right-sidebar/terminal/terminal-font'
-import { getWork4YouConfig, getWork4YouConfigDefaults } from '@/work4you'
 import { BUILTIN_PERSONALITIES, normalizePersonalityValue, personalityNamesFromConfig } from '@/lib/chat-runtime'
 import { normalize } from '@/lib/text'
 import { setDisplayTimestampsFromConfig } from '@/store/display-timestamps'
@@ -21,6 +20,7 @@ import {
   applyThinkingSoundFromConfig,
   applyVoiceStopPhraseFromConfig
 } from '@/store/voice-prefs'
+import { getWork4YouConfig, getWork4YouConfigDefaults } from '@/work4you'
 
 const DEFAULT_VOICE_SECONDS = 120
 const FAST_TIERS = new Set(['fast', 'priority', 'on'])
@@ -65,7 +65,10 @@ export function useWork4YouConfig({ activeSessionIdRef }: Work4YouConfigOptions)
       const selectionGeneration = getComposerSelectionGeneration()
 
       try {
-        const [config, defaults] = await Promise.all([getWork4YouConfig(), getWork4YouConfigDefaults().catch(() => ({}))])
+        const [config, defaults] = await Promise.all([
+          getWork4YouConfig(),
+          getWork4YouConfigDefaults().catch(() => ({}))
+        ])
 
         if (profileRefreshEpochRef.current !== profileRefreshEpoch) {
           return

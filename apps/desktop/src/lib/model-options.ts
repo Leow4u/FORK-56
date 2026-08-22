@@ -1,5 +1,5 @@
-import { getGlobalModelOptions, type Work4YouGateway, type ModelOptionsResponse } from '@/work4you'
 import type { ModelOptionProvider } from '@/types/work4you'
+import { getGlobalModelOptions, type ModelOptionsResponse, type Work4YouGateway } from '@/work4you'
 
 /**
  * True only when a persisted **manual** composer pick has been removed from the

@@ -6,7 +6,6 @@ import { useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { getElevenLabsVoices, getWork4YouConfigSchema, saveWork4YouConfig } from '@/work4you'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import {
@@ -25,8 +24,9 @@ import { normalizeProfileKey } from '@/store/profile'
 import { repoDiscoveryPolicyFromConfig, repoDiscoveryPolicySignature, scanAndRecordRepos } from '@/store/projects'
 import { $settingsScopeOverride } from '@/store/settings-scope'
 import type { ConfigFieldSchema, Work4YouConfigRecord } from '@/types/work4you'
+import { getElevenLabsVoices, getWork4YouConfigSchema, saveWork4YouConfig } from '@/work4you'
 
-import { work4youConfigCacheWriter, useWork4YouConfigRecord } from '../hooks/use-config-record'
+import { useWork4YouConfigRecord, work4youConfigCacheWriter } from '../hooks/use-config-record'
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 import { PanelEmpty } from '../overlays/panel'
 
@@ -93,7 +93,11 @@ function ConfigSettingsInner({
   // from — and saved back through — the shared config cache, so edits are visible
   // in the MCP/model surfaces and reopening the page doesn't reload-flash.
   const [config, setConfig] = useState<Work4YouConfigRecord | null>(null)
-  const { data: loadedConfig, isError: configLoadFailed, refetch: refetchConfig } = useWork4YouConfigRecord(scopeProfile)
+  const {
+    data: loadedConfig,
+    isError: configLoadFailed,
+    refetch: refetchConfig
+  } = useWork4YouConfigRecord(scopeProfile)
   // Writes land on the same cache key the query above reads (base key when
   // following the active profile, suffixed when a scope override is set).
   const writeConfigCache = useMemo(() => work4youConfigCacheWriter(scopeProfile), [scopeProfile])

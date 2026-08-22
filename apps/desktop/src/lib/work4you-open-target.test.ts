@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   normalizeWork4YouOpenString,
-  pathFromWork4YouDeepLink,
   pathFromOpenDeepLink,
+  pathFromWork4YouDeepLink,
   resolveWork4YouOpenPath
 } from './work4you-open-target'
 

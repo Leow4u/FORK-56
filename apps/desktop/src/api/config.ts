@@ -4,17 +4,17 @@ import type {
   CustomEndpointUpdate,
   CustomEndpointValidationResponse,
   EnvVarInfo,
-  Work4YouConfig,
-  Work4YouConfigRecord,
   LogsResponse,
   OAuthPollResponse,
   OAuthProvidersResponse,
   OAuthStartResponse,
   OAuthSubmitResponse,
-  StatusResponse
+  StatusResponse,
+  Work4YouConfig,
+  Work4YouConfigRecord
 } from '@/types/work4you'
 
-import { capabilityScoped, work4youApi, type ProfileScope, profileScoped, STARTUP_REQUEST_TIMEOUT_MS } from './client'
+import { capabilityScoped, type ProfileScope, profileScoped, STARTUP_REQUEST_TIMEOUT_MS, work4youApi } from './client'
 
 export function getStatus(): Promise<StatusResponse> {
   return work4youApi<StatusResponse>({

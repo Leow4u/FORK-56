@@ -60,13 +60,13 @@ export {
 } from './json-rpc-gateway'
 export { skillInvocationText } from './skill-scaffold'
 export {
-  type Work4YouSkin,
   SKIN_BRANDING_TOKENS,
   SKIN_COLOR_TOKENS,
   type SkinBranding,
   type SkinBrandingToken,
   type SkinColors,
-  type SkinColorToken
+  type SkinColorToken,
+  type Work4YouSkin
 } from './skin'
 export {
   backgroundMaterialFor,
@@ -106,9 +106,9 @@ export {
   GatewayReauthRequiredError,
   type GatewayWsConnection,
   type GatewayWsUrlResult,
-  type Work4YouWebSocketUrlOptions,
   isGatewayReauthRequired,
   resolveGatewayWsUrl,
   type ResolveGatewayWsUrlDeps,
-  type WebSocketAuthParam
+  type WebSocketAuthParam,
+  type Work4YouWebSocketUrlOptions
 } from './websocket-url'

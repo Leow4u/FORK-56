@@ -15,7 +15,7 @@
  * still picks `.dark` from the real background luminance.
  */
 
-import type { Work4YouSkin, SkinColors } from '@work4you/shared/skin'
+import type { SkinColors, Work4YouSkin } from '@work4you/shared/skin'
 
 import { ensureContrast, luminance, mix, normalizeHex, readableOn } from './color'
 import type { DesktopTheme, DesktopThemeColors } from './types'

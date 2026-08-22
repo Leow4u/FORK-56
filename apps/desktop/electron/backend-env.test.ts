@@ -7,10 +7,10 @@ import {
   appendUniquePathEntries,
   buildDesktopBackendEnv,
   buildDesktopBackendPath,
-  work4youManagedNodePathEntries,
   normalizeWork4YouHomeRoot,
   pathEnvKey,
-  POSIX_SANE_PATH_ENTRIES
+  POSIX_SANE_PATH_ENTRIES,
+  work4youManagedNodePathEntries
 } from './backend-env'
 
 test('desktop backend PATH adds Work4You-managed bins and missing POSIX sane entries', () => {
@@ -153,7 +153,9 @@ test('normalizeWork4YouHomeRoot maps profile homes back to the global Work4You r
     '/Users/test/.work4you'
   )
   assert.equal(
-    normalizeWork4YouHomeRoot('C:\\Users\\test\\AppData\\Local\\work4you\\profiles\\oracle', { pathModule: path.win32 }),
+    normalizeWork4YouHomeRoot('C:\\Users\\test\\AppData\\Local\\work4you\\profiles\\oracle', {
+      pathModule: path.win32
+    }),
     'C:\\Users\\test\\AppData\\Local\\work4you'
   )
   assert.equal(normalizeWork4YouHomeRoot('/Users/test/.work4you', { pathModule: path.posix }), '/Users/test/.work4you')

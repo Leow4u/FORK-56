@@ -33,7 +33,6 @@ import {
 } from '@/components/pane-shell/tree/store'
 import { onGatewayEvent } from '@/contrib/events'
 import { registry } from '@/contrib/registry'
-import { deleteProfile, getLogs, getStatus, type Work4YouGateway } from '@/work4you'
 import {
   $gateway,
   activeGatewayConnectionId,
@@ -78,6 +77,7 @@ import {
 } from '@/store/session-states'
 import { runGatewayRestart } from '@/store/system-actions'
 import type { UsageStats } from '@/types/work4you'
+import { deleteProfile, getLogs, getStatus, type Work4YouGateway } from '@/work4you'
 
 import { planPluginOpenSession } from './plugin-open-session-plan'
 
@@ -571,11 +571,13 @@ export const host = {
     const profile = (options.profile ?? '').trim()
     const targetProfile = normalizeProfileKey(profile || $activeGatewayProfile.get())
     const expectHistory = options.expectHistory ?? false
+
     const plan = planPluginOpenSession({
       activeProfile: $activeGatewayProfile.get(),
       keepAllProfilesScope: options.keepAllProfilesScope,
       profile
     })
+
     // Wake-path phase timings. Logged ONLY on a hydration timeout (bridged
     // into desktop.log via the renderer-console tap), so a support bundle
     // pinpoints WHERE the budget went — profile activation vs hydration —
@@ -980,14 +982,14 @@ export { Textarea } from '@/components/ui/textarea'
 export { Tip, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 export type { GatewayEventListener } from '@/contrib/events'
 export type {
-  Work4YouPlugin,
   PluginContext,
   PluginContribution,
   PluginNativeNotificationInput,
   PluginNotificationAction,
   PluginOs,
   PluginRestOptions,
-  PluginStorage
+  PluginStorage,
+  Work4YouPlugin
 } from '@/contrib/plugin'
 /** Mount-scoped contribution: while the rendering component is mounted, its
  *  children render in the target area's slot; unmount disposes it. Use for
@@ -999,9 +1001,6 @@ export { Contribute, type ContributeProps } from '@/contrib/react/contribute'
 // -- contracts ----------------------------------------------------------------
 
 export type { Contribution } from '@/contrib/types'
-/** The live gateway instance type — for typing the `gateway` prop `McpTab`
- *  takes; obtain the instance from `host.getGateway()`. */
-export type { Work4YouGateway } from '@/work4you'
 /** Grab-to-pan for overflow containers (boards, timelines, wide tables) —
  *  the shared scrub primitive; don't hand-roll drag-to-scroll. */
 export { type GrabScroll, useGrabScroll } from '@/hooks/use-grab-scroll'
@@ -1027,7 +1026,6 @@ export { type BudgetedLoop, type BudgetedLoopOptions, createBudgetedLoop } from 
  *  through here (1230 → "1.2k", 1_500_000 → "1.5M"). Don't hand-roll `/1000`. */
 export { compactNumber } from '@/lib/format'
 export { triggerHaptic as haptic } from '@/lib/haptics'
-export type { Work4YouOpenTarget } from '@/lib/work4you-open-target'
 /** The app's lucide icon set (RefreshCw, LayoutDashboard, Activity, …). */
 export * as icons from '@/lib/icons'
 export { type KeybindContribution, KEYBINDS_AREA } from '@/lib/keybinds/actions'
@@ -1049,16 +1047,13 @@ export {
   type ReasoningEffort,
   reasoningEffortLabel
 } from '@/lib/reasoning-effort'
-
-export const PANES_AREA = 'panes'
 /** The app's own gateway-readiness evaluation (setup.status +
  *  setup.runtime_check, reconciled) — pass `host.request`. Don't hand-roll
  *  readiness from raw RPC shapes. */
 export { evaluateRuntimeReadiness, type RuntimeReadinessResult } from '@/lib/runtime-readiness'
-export const STATUSBAR_AREAS = { left: 'statusBar.left', right: 'statusBar.right' } as const
-export const TITLEBAR_AREAS = { center: 'titleBar.center', left: 'titleBar.left', right: 'titleBar.right' } as const
-
 export { coarseElapsed, fmtDateTime, fmtDayTime, relativeTime } from '@/lib/time'
+
+export const PANES_AREA = 'panes'
 /** The transcript as a contribution area: register a named `::directive{...}`
  *  and the model can render your component inline in assistant messages. */
 export {
@@ -1066,9 +1061,16 @@ export {
   type TranscriptDirectiveContribution,
   type TranscriptDirectiveProps
 } from '@/lib/transcript-directives'
+export const STATUSBAR_AREAS = { left: 'statusBar.left', right: 'statusBar.right' } as const
+export const TITLEBAR_AREAS = { center: 'titleBar.center', left: 'titleBar.left', right: 'titleBar.right' } as const
+
 export { cn } from '@/lib/utils'
+export type { Work4YouOpenTarget } from '@/lib/work4you-open-target'
 export { THEMES_AREA } from '@/themes/user-themes'
 export type { RpcEvent, StatusResponse } from '@/types/work4you'
+/** The live gateway instance type — for typing the `gateway` prop `McpTab`
+ *  takes; obtain the instance from `host.getGateway()`. */
+export type { Work4YouGateway } from '@/work4you'
 /** Subscribe a component to a `host.state` atom. */
 export { useStore as useValue } from '@nanostores/react'
 /** The app's data-fetching layer. Plugins share the ONE QueryClient mounted at

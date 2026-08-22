@@ -1,6 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
-import { getWork4YouConfigRecord, type Work4YouConfigRecord, saveWork4YouConfig } from '@/work4you'
+import { getWork4YouConfigRecord, saveWork4YouConfig, type Work4YouConfigRecord } from '@/work4you'
 
 import { TRANSLATIONS } from './catalog'
 import { DEFAULT_LOCALE, localeConfigValue, normalizeLocale } from './languages'

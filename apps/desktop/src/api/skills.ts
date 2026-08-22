@@ -8,7 +8,7 @@ import type {
 } from '@/types/work4you'
 import type { ActionResponse } from '@/types/work4you'
 
-import { capabilityScoped, work4youApi, type ProfileScope, profileScoped } from './client'
+import { capabilityScoped, type ProfileScope, profileScoped, work4youApi } from './client'
 
 export function getSkills(profile?: ProfileScope): Promise<SkillInfo[]> {
   return window.work4youDesktop.api<SkillInfo[]>({

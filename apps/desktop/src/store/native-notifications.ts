@@ -1,7 +1,7 @@
 import { atom } from 'nanostores'
 
-import { type Work4YouOpenTarget, resolveWork4YouOpenPath } from '@/lib/work4you-open-target'
 import { persistString, storedString } from '@/lib/storage'
+import { resolveWork4YouOpenPath, type Work4YouOpenTarget } from '@/lib/work4you-open-target'
 
 import { $gateway } from './gateway'
 import { withinNativeNotifyBaseline } from './notify-baseline'

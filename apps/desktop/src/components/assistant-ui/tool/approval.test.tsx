@@ -1,10 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import type { Work4YouGateway } from '@/work4you'
 import { $gateway } from '@/store/gateway'
 import { $approvalRequest, clearAllPrompts, setApprovalRequest } from '@/store/prompts'
 import { $activeSessionId } from '@/store/session'
+import type { Work4YouGateway } from '@/work4you'
 
 import { PendingApprovalFallback, PendingToolApproval } from './approval'
 import type { ToolPart } from './fallback-model'

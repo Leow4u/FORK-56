@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type * as Work4YouModule from '@/work4you'
-import { getSession } from '@/work4you'
 import { $activeGatewayProfile, $profiles } from '@/store/profile'
 import { $cronSessions, $messagingSessions, $sessions } from '@/store/session'
 import type { SessionInfo } from '@/types/work4you'
+import type * as Work4YouModule from '@/work4you'
+import { getSession } from '@/work4you'
 
 import { resolveSessionProfile, resolveStoredSession } from './utils'
 

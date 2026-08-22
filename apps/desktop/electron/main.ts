@@ -34,7 +34,7 @@ import { classifyActiveRuntime } from './active-runtime-state'
 import { stopBackendChild as stopBackendChildImpl, stopBackendTreesForUpdate } from './backend-child'
 import { dashboardFallbackArgs, sourceDeclaresServe } from './backend-command'
 import { createBackendConnectionState } from './backend-connection-state'
-import { buildDesktopBackendEnv, work4youManagedNodePathEntries, normalizeWork4YouHomeRoot } from './backend-env'
+import { buildDesktopBackendEnv, normalizeWork4YouHomeRoot, work4youManagedNodePathEntries } from './backend-env'
 import { isReauthRequiredError, waitForWork4YouReady } from './backend-health'
 import { backendCommandMatches, createBackendOwnership, createBackendShutdownCoordinator } from './backend-ownership'
 import {
@@ -320,12 +320,6 @@ import {
   MIN_WIDTH as WINDOW_MIN_WIDTH
 } from './window-state'
 import { hiddenWindowsChildOptions } from './windows-child-options'
-import {
-  buildPathExtCandidates,
-  chooseUpdaterArgs,
-  getVenvSitePackagesEntries,
-  resolveVenvWork4YouCommand
-} from './windows-work4you-path'
 import { connectWindowsRemote, detectRemotePlatform, helper } from './windows-remote-lifecycle'
 import {
   alreadyHasNoSandbox,
@@ -343,6 +337,12 @@ import {
 } from './windows-sandbox-fallback'
 import { installWindowsSystemCaTrust } from './windows-system-ca'
 import { readWindowsUserEnvVar } from './windows-user-env'
+import {
+  buildPathExtCandidates,
+  chooseUpdaterArgs,
+  getVenvSitePackagesEntries,
+  resolveVenvWork4YouCommand
+} from './windows-work4you-path'
 import { isPackagedInstallPath as isPackagedInstallPathUnderRoots } from './workspace-cwd'
 import { readWslWindowsClipboardImage } from './wsl-clipboard-image'
 import { resolvePickerDefaultPath } from './wsl-path-bridge'
@@ -4396,7 +4396,8 @@ function createActiveBackend(backendArgs) {
 function resolveWork4YouBackend(backendArgs) {
   // 1. Explicit override -- WORK4YOU_DESKTOP_WORK4YOU_ROOT points at a developer
   //    checkout. Honour it as-is (no bootstrap; the user is driving).
-  const overrideRoot = process.env.WORK4YOU_DESKTOP_WORK4YOU_ROOT && path.resolve(process.env.WORK4YOU_DESKTOP_WORK4YOU_ROOT)
+  const overrideRoot =
+    process.env.WORK4YOU_DESKTOP_WORK4YOU_ROOT && path.resolve(process.env.WORK4YOU_DESKTOP_WORK4YOU_ROOT)
 
   if (overrideRoot && isWork4YouSourceRoot(overrideRoot)) {
     const backend = createPythonBackend(overrideRoot, `Work4You source at ${overrideRoot}`, backendArgs)
@@ -4492,7 +4493,10 @@ function resolveWork4YouBackend(backendArgs) {
       // the Nix wrapper), not a discovered PATH candidate. It must not fall
       // through to the install-script bootstrap if the optional probe times
       // out under load; the pinned backend is the only valid runtime there.
-      if (shouldTrustWork4YouOverride(work4youOverride) || verifyWork4YouCli(work4youCommand, { shell: shellForProbe })) {
+      if (
+        shouldTrustWork4YouOverride(work4youOverride) ||
+        verifyWork4YouCli(work4youCommand, { shell: shellForProbe })
+      ) {
         // `unwrapped` above already answered "is this a Windows venv shim?" —
         // it was null (not a shim, or its import probe failed). Do NOT re-run
         // unwrapWindowsVenvWork4YouCommand here: the second call repeats the
@@ -7418,7 +7422,8 @@ async function freshGatewayWsUrl(profile) {
 const DEFAULT_WORK4YOU_PORTAL_URL = 'https://portal.work4you.ai'
 
 function resolvePortalBaseUrl() {
-  const raw = process.env.WORK4YOU_PORTAL_BASE_URL || process.env.WORK4YOU_PORTAL_BASE_URL || DEFAULT_WORK4YOU_PORTAL_URL
+  const raw =
+    process.env.WORK4YOU_PORTAL_BASE_URL || process.env.WORK4YOU_PORTAL_BASE_URL || DEFAULT_WORK4YOU_PORTAL_URL
 
   return String(raw).trim().replace(/\/+$/, '')
 }
@@ -14521,7 +14526,9 @@ ipcMain.handle('work4you:uninstall:run', async (_event, payload) => {
 ipcMain.handle('work4you:vscode-theme:fetch', async (_event, id) => fetchMarketplaceThemes(String(id || '')))
 
 // Search the Marketplace for color-theme extensions (empty query = top installs).
-ipcMain.handle('work4you:vscode-theme:search', async (_event, query) => searchMarketplaceThemes(String(query || ''), 20))
+ipcMain.handle('work4you:vscode-theme:search', async (_event, query) =>
+  searchMarketplaceThemes(String(query || ''), 20)
+)
 
 // ---------------------------------------------------------------------------
 // work4you:// deep links (e.g. work4you://blueprint/morning-brief?time=08:00,

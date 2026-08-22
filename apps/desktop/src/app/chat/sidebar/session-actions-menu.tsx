@@ -31,7 +31,6 @@ import {
   preventCloseButtonAutoFocus
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { renameSession } from '@/work4you'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { PROFILE_SWATCHES } from '@/lib/profile-color'
@@ -54,6 +53,7 @@ import { $sessionColorOverrides, setSessionColorOverride } from '@/store/session
 import { $sessionTiles } from '@/store/session-states'
 import { ackStoredSessionId } from '@/store/session-unread'
 import { canOpenSessionInTerminal, canOpenSessionWindow, openSessionInTerminal } from '@/store/windows'
+import { renameSession } from '@/work4you'
 
 import type { SessionTitleResponse } from '../../types'
 

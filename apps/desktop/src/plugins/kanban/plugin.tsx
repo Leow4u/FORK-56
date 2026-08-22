@@ -14,7 +14,6 @@ import './kanban.css'
 import {
   cn,
   Codicon,
-  type Work4YouPlugin,
   host,
   type KeybindContribution,
   KEYBINDS_AREA,
@@ -27,7 +26,8 @@ import {
   STATUSBAR_AREAS,
   Tip,
   useQuery,
-  useValue
+  useValue,
+  type Work4YouPlugin
 } from '@work4you/plugin-sdk'
 
 import { $boardSlug, bindApi, boardKey, fetchBoard } from './api'

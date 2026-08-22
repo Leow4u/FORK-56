@@ -13,12 +13,12 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import type { Work4YouGitWorktree } from '@/global'
-import type { SessionInfo } from '@/work4you'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
 import { $dismissedWorktreeIds, dismissWorktree, setWorkspaceNodeOpen } from '@/store/layout'
 import { notifyError } from '@/store/notifications'
 import { removeWorktreePath } from '@/store/projects'
+import type { SessionInfo } from '@/work4you'
 
 import { SidebarRowStack } from '../chrome'
 

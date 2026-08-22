@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { Work4YouConfigRecord } from '@/work4you'
 import { type I18nConfigClient, I18nProvider } from '@/i18n'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
+import type { Work4YouConfigRecord } from '@/work4you'
 
 import { LanguageSwitcher } from './language-switcher'
 

@@ -15,22 +15,6 @@ import { Switch } from '@/components/ui/switch'
 import { TextTab } from '@/components/ui/text-tab'
 import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
-import {
-  authMcpServer,
-  getActionStatus,
-  getLogs,
-  getMcpCatalog,
-  getMcpOAuthFlow,
-  getUsageAnalytics,
-  type Work4YouGateway,
-  installMcpCatalogEntry,
-  type McpCatalogEntry,
-  type McpTestResult,
-  type ProfileScope,
-  profileScopeKey,
-  saveMcpServers,
-  testMcpServer
-} from '@/work4you'
 import { type Translations, useI18n } from '@/i18n'
 import { compactNumber } from '@/lib/format'
 import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
@@ -44,8 +28,24 @@ import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { $activeSessionId } from '@/store/session'
+import {
+  authMcpServer,
+  getActionStatus,
+  getLogs,
+  getMcpCatalog,
+  getMcpOAuthFlow,
+  getUsageAnalytics,
+  installMcpCatalogEntry,
+  type McpCatalogEntry,
+  type McpTestResult,
+  type ProfileScope,
+  profileScopeKey,
+  saveMcpServers,
+  testMcpServer,
+  type Work4YouGateway
+} from '@/work4you'
 
-import { work4youConfigCacheWriter, useWork4YouConfigRecord } from '../hooks/use-config-record'
+import { useWork4YouConfigRecord, work4youConfigCacheWriter } from '../hooks/use-config-record'
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 import { DetailPane, ICON_BUTTON, MASTER_DETAIL_WIDE_COLS } from '../master-detail'
 import { PanelAddButton, PanelEmpty } from '../overlays/panel'

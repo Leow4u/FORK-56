@@ -1,6 +1,6 @@
-import { DropdownMenu, DropdownMenuContent, ModelCatalogMenu, type ModelMenuController } from '@work4you/plugin-sdk'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { DropdownMenu, DropdownMenuContent, ModelCatalogMenu, type ModelMenuController } from '@work4you/plugin-sdk'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {

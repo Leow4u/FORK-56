@@ -3,7 +3,6 @@ import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { $terminalFontFamily, setTerminalFontFamilyFromConfig } from '@/app/right-sidebar/terminal/terminal-font'
-import { getWork4YouConfig } from '@/work4you'
 import { persistString } from '@/lib/storage'
 import {
   $currentCwd,
@@ -17,6 +16,7 @@ import {
   setCurrentReasoningEffort,
   setDefaultReasoningEffort
 } from '@/store/session'
+import { getWork4YouConfig } from '@/work4you'
 
 import { deferred } from '../../../test/deferred'
 

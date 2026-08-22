@@ -1,4 +1,3 @@
-import { getApiRequestProfile, setModelAssignment } from '@/work4you'
 import { translateNow } from '@/i18n'
 import { requestCronReview } from '@/store/cron'
 import {
@@ -15,6 +14,7 @@ import type {
   ModelAssignmentRequest,
   ModelAssignmentResponse
 } from '@/types/work4you'
+import { getApiRequestProfile, setModelAssignment } from '@/work4you'
 
 export const CRON_MODEL_IMPACT_NOTIFICATION_ID = 'cron-model-impact'
 

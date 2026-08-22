@@ -91,9 +91,7 @@ describe('skillTouchedInMessages', () => {
   })
 
   it('matches qualified skill names (category/name, plugin:name)', () => {
-    expect(
-      skillTouchedInMessages('work4you-dev', [toolCall('skill_view', { name: 'github/work4you-dev' })])
-    ).toBe(true)
+    expect(skillTouchedInMessages('work4you-dev', [toolCall('skill_view', { name: 'github/work4you-dev' })])).toBe(true)
     expect(
       skillTouchedInMessages('writing-plans', [toolCall('skill_view', { name: 'superpowers:writing-plans' })])
     ).toBe(true)

@@ -12,13 +12,13 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { getWork4YouConfigRecord, saveMcpServers } from '@/work4you'
 import { useI18n } from '@/i18n'
 import { AlertTriangle } from '@/lib/icons'
 import { MCP_DEEPLINK_NAME_RE } from '@/lib/mcp-deeplink'
 import { getServers } from '@/lib/mcp-servers'
 import { $mcpInstallRequest } from '@/store/mcp-deeplink-install'
 import { notify, readableError } from '@/store/notifications'
+import { getWork4YouConfigRecord, saveMcpServers } from '@/work4you'
 
 import { setWork4YouConfigCache } from '../hooks/use-config-record'
 

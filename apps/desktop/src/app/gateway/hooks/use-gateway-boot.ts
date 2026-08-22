@@ -2,7 +2,6 @@ import { isGatewayReauthRequired, resolveGatewayWsUrl } from '@work4you/shared'
 import { useEffect, useRef } from 'react'
 
 import type { Work4YouConnection } from '@/global'
-import { Work4YouGateway } from '@/work4you'
 import { translateNow } from '@/i18n'
 import { desktopDefaultCwd } from '@/lib/desktop-fs'
 import { reconnectBackoffDelayMs } from '@/lib/reconnect-backoff'
@@ -57,6 +56,7 @@ import {
 } from '@/store/session-states'
 import { windowProfileOverride } from '@/store/windows'
 import type { RpcEvent } from '@/types/work4you'
+import { Work4YouGateway } from '@/work4you'
 
 import { stashGatewaySurvivor, survivorIsStale, takeGatewaySurvivor } from './gateway-hmr-survivor'
 

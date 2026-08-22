@@ -8,7 +8,7 @@ import type {
   ModelOptionsResponse
 } from '@/types/work4you'
 
-import { capabilityScoped, work4youApi, type ProfileScope, profileScoped, STARTUP_REQUEST_TIMEOUT_MS } from './client'
+import { capabilityScoped, type ProfileScope, profileScoped, STARTUP_REQUEST_TIMEOUT_MS, work4youApi } from './client'
 
 export function getGlobalModelInfo(profile?: null | string): Promise<ModelInfoResponse> {
   return work4youApi<ModelInfoResponse>({

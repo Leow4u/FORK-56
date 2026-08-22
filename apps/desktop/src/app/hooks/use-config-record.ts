@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { getWork4YouConfigRecord, type ProfileScope, profileScopeKey } from '@/work4you'
 import { queryClient, writeCache } from '@/lib/query-client'
 import type { Work4YouConfigRecord } from '@/types/work4you'
+import { getWork4YouConfigRecord, type ProfileScope, profileScopeKey } from '@/work4you'
 
 // One shared cache for the whole profile config record (`GET /api/config`).
 // Every settings surface (MCP, model, config) reads and writes through this key

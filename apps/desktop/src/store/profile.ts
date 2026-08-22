@@ -1,7 +1,6 @@
 import { atom, batch, computed } from 'nanostores'
 
 import type { Work4YouConnection } from '@/global'
-import { getProfiles, work4youApi, setApiRequestProfile, STARTUP_REQUEST_TIMEOUT_MS } from '@/work4you'
 import { invalidateProfileScopedQueries } from '@/lib/query-client'
 import {
   arraysEqual,
@@ -17,6 +16,7 @@ import { $gateway, ensureGatewayForAgent, ensureGatewayForProfile, openGatewayFo
 import { setConnection } from '@/store/session'
 import { resetStarmapGraph } from '@/store/starmap'
 import type { ProfileInfo } from '@/types/work4you'
+import { getProfiles, setApiRequestProfile, STARTUP_REQUEST_TIMEOUT_MS, work4youApi } from '@/work4you'
 
 // Canonical key for a profile: trimmed, empty → "default". Used everywhere we
 // compare a session's owning profile against the live gateway's profile.

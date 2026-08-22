@@ -1,11 +1,11 @@
-import { isGatewayReauthRequired, resolveGatewayWsUrl } from '@work4you/shared'
 import { useStore } from '@nanostores/react'
+import { isGatewayReauthRequired, resolveGatewayWsUrl } from '@work4you/shared'
 import { useCallback, useEffect, useRef } from 'react'
 
-import type { Work4YouGateway } from '@/work4you'
 import { $gateway, ensureActiveGatewayOpen, isActivePrimary } from '@/store/gateway'
 import { $activeGatewayProfile } from '@/store/profile'
 import { $gatewayState, setConnection } from '@/store/session'
+import type { Work4YouGateway } from '@/work4you'
 
 export function useGatewayRequest() {
   const gatewayState = useStore($gatewayState)

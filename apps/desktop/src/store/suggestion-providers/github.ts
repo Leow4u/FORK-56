@@ -1,7 +1,7 @@
 import { requestComposerFocus, requestComposerInsert } from '@/app/chat/composer/focus'
-import { getGhAuthStatus } from '@/work4you'
 import { translateNow } from '@/i18n'
 import { type ComposerSuggestion, registerDraftProvider } from '@/store/composer-suggestions'
+import { getGhAuthStatus } from '@/work4you'
 
 /**
  * GitHub draft provider — the deliberate NON-MCP integration path.

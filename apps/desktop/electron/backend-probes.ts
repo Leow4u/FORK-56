@@ -213,9 +213,9 @@ export {
   canImportWork4YouCli,
   DEFAULT_PROBE_TIMEOUT_MS,
   execProbeSync,
-  work4youRuntimeImportProbe,
   PROBE_TIMEOUT_MS,
   resolveProbeTimeoutMs,
   shouldTrustWork4YouOverride,
-  verifyWork4YouCli
+  verifyWork4YouCli,
+  work4youRuntimeImportProbe
 }
