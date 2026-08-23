@@ -43,6 +43,8 @@ jobs:
     if: github.repository == 'Leow4u/FORK-56'
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    outputs:
+      deployed_image: ${{ steps.show_image.outputs.image }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -67,6 +69,7 @@ jobs:
             2>&1 | tee deploy.log
 
       - name: Show deployed image tag
+        id: show_image
         if: success()
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -77,6 +80,7 @@ jobs:
           tag="$(grep -oE 'registry\.fly\.io/work4you-cloud-runtime:deployment-[A-Z0-9]+' deploy.log | tail -1 || true)"
           if [ -n "${tag}" ]; then
             echo "DEPLOYED_IMAGE=${tag}" >> "${GITHUB_ENV}"
+            echo "image=${tag}" >> "${GITHUB_OUTPUT}"
             echo "=== Image from deploy log ==="
             echo "${tag}"
           fi
@@ -91,3 +95,12 @@ jobs:
             echo ""
             echo "\`${DEPLOYED_IMAGE}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  sync-nas:
+    name: Sync NAS (Etapa 2)
+    needs: deploy
+    if: github.repository == 'Leow4u/FORK-56' && needs.deploy.result == 'success'
+    uses: ./.github/workflows/sync-nas-cloud-etapa2.yml
+    with:
+      agent_image: ${{ needs.deploy.outputs.deployed_image }}
+    secrets: inherit

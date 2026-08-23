@@ -1,0 +1,111 @@
+name: Sync NAS Cloud (Etapa 2)
+
+# Pushes OAuth/bootstrap + golden-image pin to work4you-account-service.
+#
+# Triggers:
+#   - After golden image deploy (fly-cloud-runtime.yml)
+#   - Push to main when cloud/nas-sync/** changes
+#   - Manual: Actions → Run workflow
+#
+# One-time setup (única vez):
+#   gh secret set NAS_REPO_TOKEN --repo Leow4u/FORK-56
+#   (fine-grained PAT: Contents read+write on Leow4u/work4you-account-service)
+
+on:
+  workflow_dispatch:
+    inputs:
+      agent_image:
+        description: Optional full image ref to pin (defaults to cloud/nas-sync default)
+        type: string
+        required: false
+  workflow_call:
+    inputs:
+      agent_image:
+        description: Full registry.fly.io/... image tag from golden deploy
+        type: string
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - cloud/nas-sync/**
+      - .github/workflows/sync-nas-cloud-etapa2.yml
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Push NAS OAuth + golden image pin
+    if: github.repository == 'Leow4u/FORK-56'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout FORK-56 (source files)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Require NAS_REPO_TOKEN
+        id: token
+        env:
+          NAS_REPO_TOKEN: ${{ secrets.NAS_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NAS_REPO_TOKEN}" ]; then
+            echo "configured=false" >> "${GITHUB_OUTPUT}"
+            echo "::warning::NAS_REPO_TOKEN not set — skipping NAS sync. Run once: gh secret set NAS_REPO_TOKEN --repo Leow4u/FORK-56"
+            exit 0
+          fi
+          echo "configured=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout work4you-account-service
+        if: steps.token.outputs.configured == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: Leow4u/work4you-account-service
+          token: ${{ secrets.NAS_REPO_TOKEN }}
+          path: nas
+
+      - name: Sync provision files
+        if: steps.token.outputs.configured == 'true'
+        env:
+          AGENT_IMAGE: ${{ inputs.agent_image || github.event.inputs.agent_image || '' }}
+        run: |
+          set -euo pipefail
+          cp cloud/nas-sync/src/lib/agents.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/agent-bootstrap.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/fly-machines.ts nas/src/lib/
+          if [ -n "${AGENT_IMAGE}" ]; then
+            echo "Pinning agent image: ${AGENT_IMAGE}"
+            sed -i "s|'registry\\.fly\\.io/work4you-cloud-runtime:deployment-[A-Z0-9]*'|'${AGENT_IMAGE}'|g" nas/src/lib/fly-machines.ts
+          fi
+
+      - name: Commit and push to NAS main
+        if: steps.token.outputs.configured == 'true'
+        working-directory: nas
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/agents.ts src/lib/agent-bootstrap.ts src/lib/fly-machines.ts
+          if git diff --staged --quiet; then
+            echo "NAS already up to date — nothing to push."
+            exit 0
+          fi
+          git commit -m "feat(cloud): OAuth bootstrap + golden image pin (FORK-56 sync)"
+          git push origin main
+
+      - name: Summary
+        if: success()
+        run: |
+          {
+            if [ "${{ steps.token.outputs.configured }}" != "true" ]; then
+              echo "## NAS sync skipped"
+              echo ""
+              echo "Add secret \`NAS_REPO_TOKEN\` once, then re-run deploy or push to \`cloud/nas-sync/\`."
+            else
+              echo "## NAS Etapa 2 synced"
+              echo ""
+              echo "Vercel redeploys portal.work4you.ai automatically."
+              echo ""
+              echo "Next: Portal → Cloud → **create a new agent** and open its dashboard URL."
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"
