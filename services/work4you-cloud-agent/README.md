@@ -77,9 +77,9 @@ Save that tag for **stage 3** (NAS pin or Vercel `WORK4YOU_AGENT_IMAGE`).
 
 ## Rollout order (do not skip)
 
-1. **This deploy** — golden image in Fly registry (no NAS change yet)
-2. **NAS provision** — inject full env contract (`agent-dashboard-oauth-contract.md`)
-3. **Update image pin** — `fly-machines.ts` default or Vercel `WORK4YOU_AGENT_IMAGE`
+1. **Golden image** — ✅ Release v2 `deployment-01M0QG8FXP8V4J48RPR92KPQ2B` em `work4you-cloud-runtime`
+2. **NAS provision** — merge/deploy `work4you-account-service` com OAuth env + `init.cmd` dashboard (ver `docs/cloud-rollout/nas-etapa-2.md`)
+3. **Image pin** — `fly-machines.ts` default ou Vercel `WORK4YOU_AGENT_IMAGE` (mesma tag)
 4. **New customer instance** — delete old stub VMs, create fresh
 
 Deploying the full image **before** stage 2 will break new instances: the dashboard
