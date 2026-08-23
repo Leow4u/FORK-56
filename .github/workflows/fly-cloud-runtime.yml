@@ -1,0 +1,93 @@
+name: Deploy Cloud Runtime (Golden Image)
+
+# Builds and deploys the full Work4You image to Fly app work4you-cloud-runtime.
+# The remote builder does the heavy work — your PC does not need to stay on.
+#
+# Setup (once):
+#   fly tokens create deploy -a work4you-cloud-runtime -x 999999h
+#   GitHub → FORK-56 → Settings → Secrets → Actions → FLY_API_TOKEN
+#
+# Run: Actions → "Deploy Cloud Runtime (Golden Image)" → Run workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      use_depot:
+        description: Use Depot builder (leave false — legacy builder is faster for this image)
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fly-cloud-runtime.yml
+      - Dockerfile
+      - fly.cloud-runtime.toml
+      - package.json
+      - package-lock.json
+      - docker/**
+      - pyproject.toml
+      - uv.lock
+
+permissions:
+  contents: read
+
+# Never cancel an in-progress golden-image build — a partial deploy is worse
+# than waiting for the previous run to finish.
+concurrency:
+  group: fly-cloud-runtime-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy work4you-cloud-runtime
+    if: github.repository == 'Leow4u/FORK-56'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1
+
+      - name: Deploy golden image
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          depot_flag="--depot=false"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.use_depot }}" = "true" ]; then
+            depot_flag="--depot=true"
+          fi
+          fly deploy \
+            -c fly.cloud-runtime.toml \
+            -a work4you-cloud-runtime \
+            --remote-only \
+            "${depot_flag}" \
+            2>&1 | tee deploy.log
+
+      - name: Show deployed image tag
+        if: success()
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "=== Latest Fly release ==="
+          fly releases -a work4you-cloud-runtime --image | head -8
+          echo ""
+          tag="$(grep -oE 'registry\.fly\.io/work4you-cloud-runtime:deployment-[A-Z0-9]+' deploy.log | tail -1 || true)"
+          if [ -n "${tag}" ]; then
+            echo "DEPLOYED_IMAGE=${tag}" >> "${GITHUB_ENV}"
+            echo "=== Image from deploy log ==="
+            echo "${tag}"
+          fi
+
+      - name: Job summary
+        if: success() && env.DEPLOYED_IMAGE != ''
+        run: |
+          {
+            echo "## Golden image deployed"
+            echo ""
+            echo "Pin this tag for NAS stage 3 (\`WORK4YOU_AGENT_IMAGE\` or \`fly-machines.ts\`):"
+            echo ""
+            echo "\`${DEPLOYED_IMAGE}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

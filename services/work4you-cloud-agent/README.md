@@ -15,6 +15,30 @@ This is **not** the legacy Wayne / `provisioner-w4y` stack.
 - **PID 1:** Fly platform → `docker/entrypoint-dispatch.sh` (non-PID-1 fallback, no s6)
 - **Stub:** `Dockerfile` + `server.py` in this directory are the old bootstrap only — not used after full-image deploy
 
+## Deploy (recommended — GitHub Actions)
+
+Does **not** require your PC to stay on. The Fly remote builder does the work;
+GitHub Actions only orchestrates and streams logs.
+
+**One-time setup:**
+
+1. Create a deploy token:
+   ```bash
+   fly tokens create deploy -a work4you-cloud-runtime -x 999999h
+   ```
+2. GitHub → **Leow4u/FORK-56** → Settings → Secrets and variables → Actions
+3. New repository secret: `FLY_API_TOKEN` = token from step 1
+
+**Run deploy:**
+
+1. https://github.com/Leow4u/FORK-56/actions/workflows/fly-cloud-runtime.yml
+2. **Run workflow** → branch `main` → Run
+3. Wait ~30–90 min (watch in the browser; PC can sleep)
+4. Job summary prints the `deployment-01…` tag for NAS stage 3
+
+Also triggers automatically on pushes to `main` that touch `Dockerfile`,
+`fly.cloud-runtime.toml`, or root lockfiles.
+
 ## Deploy (operator — local machine)
 
 Requires Fly org token with deploy access to `work4you-cloud-runtime`.
