@@ -1,0 +1,66 @@
+name: Sync NAS Cloud (Etapa 2)
+
+# Pushes OAuth/bootstrap + golden-image pin to work4you-account-service.
+# One-time setup, then one click.
+#
+# Setup (once):
+#   1. GitHub → Settings → Developer settings → Fine-grained tokens
+#   2. New token: repo Leow4u/work4you-account-service, Contents read+write
+#   3. FORK-56 → Settings → Secrets → Actions → NAS_REPO_TOKEN = that token
+#
+# Run: Actions → "Sync NAS Cloud (Etapa 2)" → Run workflow
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Push NAS OAuth + golden image pin
+    if: github.repository == 'Leow4u/FORK-56'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout FORK-56 (source files)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Checkout work4you-account-service
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: Leow4u/work4you-account-service
+          token: ${{ secrets.NAS_REPO_TOKEN }}
+          path: nas
+
+      - name: Sync provision files
+        run: |
+          set -euo pipefail
+          cp cloud/nas-sync/src/lib/agents.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/agent-bootstrap.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/fly-machines.ts nas/src/lib/
+
+      - name: Commit and push to NAS main
+        working-directory: nas
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/agents.ts src/lib/agent-bootstrap.ts src/lib/fly-machines.ts
+          if git diff --staged --quiet; then
+            echo "NAS already up to date — nothing to push."
+            exit 0
+          fi
+          git commit -m "feat(cloud): OAuth bootstrap + golden image v2 (FORK-56 sync)"
+          git push origin main
+
+      - name: Summary
+        if: success()
+        run: |
+          {
+            echo "## NAS Etapa 2 synced"
+            echo ""
+            echo "Vercel will redeploy portal.work4you.ai automatically."
+            echo ""
+            echo "Golden image pin: \`deployment-01M0QG8FXP8V4J48RPR92KPQ2B\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

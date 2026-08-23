@@ -20,7 +20,17 @@ Em `createAndProvisionAgent()` (`src/lib/agents.ts`):
 
 Contrato: `work4you-account-service/docs/agent-dashboard-oauth-contract.md`
 
-## Patch pendente (imagem + dashboard CMD)
+## Forma mais fácil (automatizada)
+
+**Uma vez:** FORK-56 → Settings → Secrets → Actions → `NAS_REPO_TOKEN`  
+(fine-grained PAT com write em `Leow4u/work4you-account-service`).
+
+**Depois:** https://github.com/Leow4u/FORK-56/actions/workflows/sync-nas-cloud-etapa2.yml  
+→ **Run workflow** → pronto (Vercel redeploy sozinho).
+
+Ficheiros fonte: `cloud/nas-sync/src/lib/` neste repo.
+
+## Patch manual (só se o workflow falhar)
 
 Branch local: `cursor/nas-oauth-bootstrap-6b2c` (commit `90257a3`)
 
