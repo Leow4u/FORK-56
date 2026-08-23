@@ -59,7 +59,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.use_depot }}" = "true" ]; then
             depot_flag="--depot=true"
           fi
-          fly deploy \
+          flyctl deploy \
             -c fly.cloud-runtime.toml \
             -a work4you-cloud-runtime \
             --remote-only \
@@ -72,7 +72,7 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           echo "=== Latest Fly release ==="
-          fly releases -a work4you-cloud-runtime --image | head -8
+          flyctl releases -a work4you-cloud-runtime --image | head -8
           echo ""
           tag="$(grep -oE 'registry\.fly\.io/work4you-cloud-runtime:deployment-[A-Z0-9]+' deploy.log | tail -1 || true)"
           if [ -n "${tag}" ]; then
