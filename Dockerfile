@@ -196,12 +196,16 @@ COPY apps/shared/ apps/shared/
 # guards against a future regression if the source npm version changes.
 ENV npm_config_install_links=false
 
-RUN npm install --prefer-offline --no-audit --fetch-retries=5 && \
-    for i in 1 2 3; do \
+# Split npm and Playwright into separate layers so a Playwright retry does not
+# re-run the full workspace npm install (saves ~15 min on CI / Fly rebuilds).
+RUN npm install --prefer-offline --no-audit --fetch-retries=5
+
+RUN for i in 1 2 3; do \
         ./node_modules/.bin/playwright install --with-deps chromium --only-shell && break || \
         { [ "$i" = 3 ] && exit 1; echo "playwright install failed (attempt $i); retrying in 10s"; sleep 10; }; \
-    done && \
-    npm cache clean --force
+    done
+
+RUN npm cache clean --force
 
 # ---------- Photon iMessage sidecar deps (baked, NS-606) ----------
 # The photon plugin's Node sidecar needs its own node_modules
