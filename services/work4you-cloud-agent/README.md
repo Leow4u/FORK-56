@@ -50,8 +50,13 @@ Windows flyctl.
 ```powershell
 cd C:\DEV\FORK-56
 fly auth login   # or: $env:FLY_API_TOKEN = "…"
+# Requires Docker Desktop running. Build locally, push to Fly registry.
 fly deploy -c fly.cloud-runtime.toml -a work4you-cloud-runtime --local-only
 ```
+
+`fly.cloud-runtime.toml` sets `PLAYWRIGHT_BROWSERS_SOURCE=copy` so the build
+copies browsers from Microsoft's Playwright image instead of downloading from
+`cdn.playwright.dev` (which hangs on Fly remote builders).
 
 **Linux / macOS / WSL** (either path works):
 

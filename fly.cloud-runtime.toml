@@ -11,6 +11,10 @@ primary_region = "gru"
 [build]
   dockerfile = "Dockerfile"
   build-context = "."
+  # Copy pre-baked Playwright browsers (see Dockerfile PLAYWRIGHT_BROWSERS_SOURCE).
+  # Avoids cdn.playwright.dev hangs on Fly/Depot remote builders.
+  [build.args]
+    PLAYWRIGHT_BROWSERS_SOURCE = "copy"
 
 [env]
   WORK4YOU_DASHBOARD_HOST = "0.0.0.0"

@@ -49,6 +49,10 @@ FROM ghcr.io/astral-sh/uv:0.11.6-python3.13-trixie@sha256:b3c543b6c4f23a5f2df228
 # 2.41) runtime.  Bumping to a new Node major is a one-line ARG change; see
 # #4977.
 FROM node:26-bookworm-slim@sha256:9e6f9357d371591e32ab6f2d8a26d63bdd0d17c29eee3f4f3e7e454d9634bf73 AS node_source
+# Pre-baked browsers for cloud/Fly builds. Activated via
+# PLAYWRIGHT_BROWSERS_SOURCE=copy (fly.cloud-runtime.toml). Default Docker
+# Hub / local builds keep PLAYWRIGHT_BROWSERS_SOURCE=cdn (playwright install).
+FROM mcr.microsoft.com/playwright:v1.58.2-noble AS playwright_browsers
 FROM debian:13.4
 
 # Disable Python stdout buffering to ensure logs are printed immediately.
@@ -200,10 +204,23 @@ ENV npm_config_install_links=false
 # re-run the full workspace npm install (saves ~15 min on CI / Fly rebuilds).
 RUN npm install --prefer-offline --no-audit --fetch-retries=5
 
-RUN for i in 1 2 3; do \
-        ./node_modules/.bin/playwright install --with-deps chromium --only-shell && break || \
-        { [ "$i" = 3 ] && exit 1; echo "playwright install failed (attempt $i); retrying in 10s"; sleep 10; }; \
-    done
+# cdn (default): download browsers during build — fine on Docker Hub / beefy hosts.
+# copy (cloud): reuse Microsoft’s pre-baked /ms-playwright — avoids
+# cdn.playwright.dev hangs on constrained Fly/Depot remote builders.
+ARG PLAYWRIGHT_BROWSERS_SOURCE=cdn
+ENV DEBIAN_FRONTEND=noninteractive
+RUN --mount=type=bind,from=playwright_browsers,source=/ms-playwright,target=/mnt/playwright-browsers,ro \
+    if [ "$PLAYWRIGHT_BROWSERS_SOURCE" = "copy" ]; then \
+        ./node_modules/.bin/playwright install-deps chromium && \
+        mkdir -p /opt/work4you/.playwright && \
+        cp -a /mnt/playwright-browsers/. /opt/work4you/.playwright/ && \
+        chmod -R a+rX /opt/work4you/.playwright; \
+    else \
+        for i in 1 2 3; do \
+            ./node_modules/.bin/playwright install --with-deps chromium --only-shell && break || \
+            { [ "$i" = 3 ] && exit 1; echo "playwright install failed (attempt $i); retrying in 10s"; sleep 10; }; \
+        done; \
+    fi
 
 RUN npm cache clean --force
 
