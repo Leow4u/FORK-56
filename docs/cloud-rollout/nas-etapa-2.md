@@ -20,17 +20,33 @@ Em `createAndProvisionAgent()` (`src/lib/agents.ts`):
 
 Contrato: `work4you-account-service/docs/agent-dashboard-oauth-contract.md`
 
-## Forma mais fácil (automatizada)
+## Forma automatizada (recomendada)
 
-**Uma vez:** FORK-56 → Settings → Secrets → Actions → `NAS_REPO_TOKEN`  
-(fine-grained PAT com write em `Leow4u/work4you-account-service`).
+### Uma vez (2 minutos)
 
-**Depois:** https://github.com/Leow4u/FORK-56/actions/workflows/sync-nas-cloud-etapa2.yml  
-→ **Run workflow** → pronto (Vercel redeploy sozinho).
+1. GitHub → **Settings** → **Developer settings** → **Fine-grained tokens** → **Generate**
+   - Repository: `Leow4u/work4you-account-service`
+   - Permissions: **Contents** → Read and write
+2. No terminal (ou GitHub → FORK-56 → Settings → Secrets → Actions):
+   ```bash
+   gh secret set NAS_REPO_TOKEN --repo Leow4u/FORK-56
+   ```
+   (cola o PAT quando pedido)
+
+3. **Merge** do PR com o workflow de sync em `main` do FORK-56.
+
+### Depois disso — zero cliques
+
+| Evento | O que acontece |
+|--------|----------------|
+| Merge em `cloud/nas-sync/**` | Sync automático para NAS `main` → Vercel redeploy |
+| Deploy golden image (GHA) | Sync automático com a tag nova da imagem |
+
+**Não** uses PowerShell nem copies ficheiros à mão.
 
 Ficheiros fonte: `cloud/nas-sync/src/lib/` neste repo.
 
-## Patch manual (só se o workflow falhar)
+## Forma manual (só se o workflow falhar)
 
 Branch local: `cursor/nas-oauth-bootstrap-6b2c` (commit `90257a3`)
 
