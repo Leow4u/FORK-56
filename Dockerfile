@@ -187,6 +187,10 @@ COPY ui-tui/packages/work4you-ink/ ui-tui/packages/work4you-ink/
 # apps/shared/ is copied IN FULL because web/package.json references it as a
 # `file:` workspace dependency (same pattern as work4you-ink above).
 COPY apps/shared/ apps/shared/
+# @work4you/ui (packages/work4you-ui) is a workspace dep of web/. Its prebuilt
+# dist/ is committed and whitelisted in .dockerignore — web's `tsc -b` imports
+# @work4you/ui/ui/* from those dist entries during the frontend build layer.
+COPY packages/work4you-ui/package.json packages/work4you-ui/
 
 # `npm_config_install_links=false` forces npm to install `file:` deps as
 # symlinks instead of copies.  This is the default since npm 10+, which is
@@ -293,6 +297,7 @@ RUN uv sync --frozen --no-install-project --extra all --extra messaging --extra 
 COPY web/ web/
 COPY ui-tui/ ui-tui/
 COPY apps/shared/ apps/shared/
+COPY packages/work4you-ui/ packages/work4you-ui/
 RUN cd web && npm run build && \
     cd ../ui-tui && npm run build
 

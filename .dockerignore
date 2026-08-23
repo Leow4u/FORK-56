@@ -12,6 +12,8 @@ __pycache__
 *.egg-info/
 dist/
 build/
+# Prebuilt design-system bundle — web imports @work4you/ui from dist/ at build time.
+!packages/work4you-ui/dist/
 
 # Virtual environments
 venv/
