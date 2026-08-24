@@ -101,6 +101,21 @@ Se omitido, o default no código (após merge) já aponta para Release v2.
 
 Apagar instâncias antigas criadas com imagem stub (`deployment-01M0JY209NVKM1C5Z8DKBQ0YW0`).
 
+| 6 Drain antes de stop (Fase D) | ✅ | PR #42 — drain antes de stopMachine |
+| 7 Model UX (Fase E) | 🔧 | CloudPage + config seed + bootstrap JWT |
+
+## Etapa 7 — model UX (Fase E)
+
+Alinha create Cloud, provision e runtime com contratos existentes:
+
+- **CloudPage** → `GET /api/keys/models?org=` (catálogo live + `locked` por plano)
+- **POST /api/agents** → `resolveProvisionModel()` (recusa modelo bloqueado server-side)
+- **`WORK4YOU_DEFAULT_MODEL`** → `scripts/docker_seed_default_model.py` + `stage2-hook.sh`
+- **Bootstrap JWT** → `paidAccess` + `subscriptionTier` (paridade com `/oauth/token`)
+- **`recommended-models`** → remove slug stale `qwen/qwen3-32b:free`
+
+Golden image redeploy necessário para o seed de `config.yaml`. Portal: merge NAS + Vercel.
+
 ## Etapa 6 — drain antes de stop (Fase D)
 
 Contrato existente no Fork (`gateway/run.py` + `POST /api/gateway/drain`):
