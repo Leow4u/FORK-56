@@ -78,15 +78,22 @@ jobs:
           cp cloud/nas-sync/src/lib/fly-machines.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/inference-catalog.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/model-access.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/account-delete.ts nas/src/lib/
           cp cloud/nas-sync/src/app/api/agents/route.ts nas/src/app/api/agents/
           cp cloud/nas-sync/src/app/api/keys/models/route.ts nas/src/app/api/keys/models/
           cp cloud/nas-sync/src/app/api/work4you/recommended-models/route.ts nas/src/app/api/work4you/recommended-models/
           mkdir -p nas/src/app/api/oauth/self-hosted-client/\[id\]
           cp cloud/nas-sync/src/app/api/oauth/self-hosted-client/route.ts nas/src/app/api/oauth/self-hosted-client/
           cp cloud/nas-sync/src/app/api/oauth/self-hosted-client/\[id\]/route.ts nas/src/app/api/oauth/self-hosted-client/\[id\]/
+          mkdir -p nas/src/app/api/account
+          cp cloud/nas-sync/src/app/api/account/route.ts nas/src/app/api/account/
           cp cloud/nas-sync/src/portal/pages/org/CloudPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.module.css nas/src/portal/pages/org/
+          cp cloud/nas-sync/src/portal/pages/org/AccountSettingsPage.tsx nas/src/portal/pages/org/
+          cp cloud/nas-sync/src/portal/pages/org/AccountSettingsPage.module.css nas/src/portal/pages/org/
+          mkdir -p nas/src/portal/lib
+          cp cloud/nas-sync/src/portal/lib/linked-accounts.ts nas/src/portal/lib/
           if [ -n "${AGENT_IMAGE}" ]; then
             echo "Pinning agent image: ${AGENT_IMAGE}"
             sed -i "s|'registry\\.fly\\.io/work4you-cloud-runtime:deployment-[A-Z0-9]*'|'${AGENT_IMAGE}'|g" nas/src/lib/fly-machines.ts
@@ -108,19 +115,24 @@ jobs:
             src/lib/fly-machines.ts \
             src/lib/inference-catalog.ts \
             src/lib/model-access.ts \
+            src/lib/account-delete.ts \
             src/app/api/agents/route.ts \
             src/app/api/keys/models/route.ts \
             src/app/api/work4you/recommended-models/route.ts \
             src/app/api/oauth/self-hosted-client/route.ts \
             src/app/api/oauth/self-hosted-client/\[id\]/route.ts \
+            src/app/api/account/route.ts \
             src/portal/pages/org/CloudPage.tsx \
             src/portal/pages/org/LocalDashboardsPage.tsx \
-            src/portal/pages/org/LocalDashboardsPage.module.css
+            src/portal/pages/org/LocalDashboardsPage.module.css \
+            src/portal/pages/org/AccountSettingsPage.tsx \
+            src/portal/pages/org/AccountSettingsPage.module.css \
+            src/portal/lib/linked-accounts.ts
           if git diff --staged --quiet; then
             echo "NAS already up to date — nothing to push."
             exit 0
           fi
-          git commit -m "feat(portal): sync Local Dashboards + self-hosted OAuth client from FORK-56"
+          git commit -m "feat(portal): sync Account Settings + account delete from FORK-56"
           git push origin main
 
       - name: Summary
