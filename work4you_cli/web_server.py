@@ -283,6 +283,55 @@ def _start_desktop_cron_ticker(stop_event: "threading.Event", interval: int = 60
     provider.start(stop_event, interval=interval)
 
 
+def _maybe_autostart_unsupervised_gateway() -> None:
+    """Honour container_boot autostart intent when s6 supervision is absent.
+
+    On the non-PID-1 container path (Fly Machines, ``docker run --init``),
+    ``docker/stage2-hook.sh`` seeds ``gateway_state.json`` from
+    ``WORK4YOU_GATEWAY_BOOTSTRAP_STATE=running``, but
+    ``container_boot.reconcile_profile_gateways`` never runs for dashboard
+    containers and s6 does not supervise the gateway slot. Mirror the same
+    autostart contract here using the dashboard's existing detached
+    ``work4you gateway restart`` spawn (``gateway start`` is a no-op inside
+    unsupervised containers — see ``gateway.py`` ``start`` subcmd).
+    """
+    if os.getenv("WORK4YOU_DESKTOP") == "1":
+        return
+
+    from work4you_cli.container_boot import (
+        _AUTOSTART_STATES,
+        _cleanup_stale_runtime_files,
+        _read_desired_state,
+    )
+    from work4you_cli.profiles import _check_gateway_running
+    from work4you_cli.service_manager import _s6_running
+    from work4you_constants import get_work4you_home
+
+    if _s6_running():
+        return
+
+    home = get_work4you_home()
+    desired = _read_desired_state(home)
+    if desired not in _AUTOSTART_STATES:
+        return
+
+    if _check_gateway_running(home):
+        return
+
+    _cleanup_stale_runtime_files(home)
+    try:
+        _spawn_work4you_action(
+            _gateway_subcommand(None, "restart"),
+            "gateway-start",
+        )
+        _log.info(
+            "Unsupervised dashboard autostarting gateway (desired_state=%s)",
+            desired,
+        )
+    except Exception:
+        _log.exception("Failed to autostart gateway on unsupervised dashboard boot")
+
+
 def _warm_gateway_module() -> None:
     """Pre-import heavy modules so the event loop is not stalled on first use.
 
@@ -385,6 +434,11 @@ async def _lifespan(app: "FastAPI"):
     # run_in_executor still froze the event loop for 15-22 s, causing the
     # Desktop's 10-second WebSocket ready-probe to time out (GH-73083).
     _warm_gateway_module()
+
+    # Non-s6 dashboard containers (Fly Machines, docker --init): honour the
+    # gateway_state.json autostart contract seeded by stage2-hook /
+    # WORK4YOU_GATEWAY_BOOTSTRAP_STATE. s6 hosts rely on container_boot instead.
+    _maybe_autostart_unsupervised_gateway()
 
     # Desktop-spawned backends (WORK4YOU_DESKTOP=1) fire cron jobs themselves,
     # since the app has no gateway running the scheduler. Server `work4you
