@@ -43,11 +43,26 @@ jobs:
       - name: Stage Windows artifact
         shell: pwsh
         run: |
-          $bundle = Get-ChildItem -Recurse -Path apps/bootstrap-installer/src-tauri/target/release/bundle -Filter '*-setup.exe' | Select-Object -First 1
-          if (-not $bundle) {
-            $bundle = Get-ChildItem -Recurse -Path apps/bootstrap-installer/src-tauri/target/release/bundle -Filter 'Work4You-Setup.exe' | Select-Object -First 1
+          $roots = @(
+            'apps/bootstrap-installer/src-tauri/target/release/bundle',
+            'apps/bootstrap-installer/src-tauri/target/release'
+          )
+          $bundle = $null
+          foreach ($root in $roots) {
+            if (-not (Test-Path $root)) { continue }
+            $bundle = Get-ChildItem -Recurse -Path $root -Include 'Work4You-Setup.exe','*-setup.exe' -File -ErrorAction SilentlyContinue |
+              Where-Object { $_.Extension -ieq '.exe' } |
+              Select-Object -First 1
+            if ($bundle) { break }
           }
-          if (-not $bundle) { throw "Windows installer not found under bundle/" }
+          if (-not $bundle) {
+            Write-Host 'bundle tree:'
+            if (Test-Path 'apps/bootstrap-installer/src-tauri/target/release') {
+              Get-ChildItem -Recurse 'apps/bootstrap-installer/src-tauri/target/release' -Include '*.exe' |
+                Select-Object -ExpandProperty FullName
+            }
+            throw 'Windows installer not found under target/release or bundle/'
+          }
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item $bundle.FullName dist/Work4You-Setup.exe
 
