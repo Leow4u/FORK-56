@@ -94,6 +94,9 @@ jobs:
           cp cloud/nas-sync/src/portal/pages/org/AccountSettingsPage.module.css nas/src/portal/pages/org/
           mkdir -p nas/src/portal/lib
           cp cloud/nas-sync/src/portal/lib/linked-accounts.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/info-content.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/pages/org/InfoPage.tsx nas/src/portal/pages/org/
+          cp cloud/nas-sync/src/portal/pages/org/InfoPage.module.css nas/src/portal/pages/org/
           if [ -n "${AGENT_IMAGE}" ]; then
             echo "Pinning agent image: ${AGENT_IMAGE}"
             sed -i "s|'registry\\.fly\\.io/work4you-cloud-runtime:deployment-[A-Z0-9]*'|'${AGENT_IMAGE}'|g" nas/src/lib/fly-machines.ts
@@ -127,12 +130,15 @@ jobs:
             src/portal/pages/org/LocalDashboardsPage.module.css \
             src/portal/pages/org/AccountSettingsPage.tsx \
             src/portal/pages/org/AccountSettingsPage.module.css \
-            src/portal/lib/linked-accounts.ts
+            src/portal/lib/linked-accounts.ts \
+            src/portal/lib/info-content.ts \
+            src/portal/pages/org/InfoPage.tsx \
+            src/portal/pages/org/InfoPage.module.css
           if git diff --staged --quiet; then
             echo "NAS already up to date — nothing to push."
             exit 0
           fi
-          git commit -m "feat(portal): sync Account Settings + account delete from FORK-56"
+          git commit -m "feat(portal): sync Info page + portal guidance from FORK-56"
           git push origin main
 
       - name: Summary
