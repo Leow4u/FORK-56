@@ -86,6 +86,12 @@ jobs:
               SYNC_FLY_MACHINES=1
             fi
           fi
+          FORK_PIN="$(grep -oE 'deployment-[A-Z0-9]+' cloud/nas-sync/src/lib/fly-machines.ts | head -1 || true)"
+          NAS_PIN="$(grep -oE 'deployment-[A-Z0-9]+' nas/src/lib/fly-machines.ts | head -1 || true)"
+          if [ -n "${FORK_PIN}" ] && [ -n "${NAS_PIN}" ] && [ "${FORK_PIN}" != "${NAS_PIN}" ]; then
+            echo "Fork/NAS pin drift (fork=${FORK_PIN}, nas=${NAS_PIN}) — syncing fly-machines.ts"
+            SYNC_FLY_MACHINES=1
+          fi
 
           cp cloud/nas-sync/src/lib/agents.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/agent-bootstrap.ts nas/src/lib/
