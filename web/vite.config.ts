@@ -1,9 +1,131 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import fs from "fs";
 import path from "path";
+import { createRequire } from "module";
 
 const BACKEND = process.env.WORK4YOU_DASHBOARD_URL ?? "http://127.0.0.1:9119";
+const DESKTOP_SRC = path.resolve(__dirname, "../apps/desktop/src");
+const WEB_SRC = path.resolve(__dirname, "./src");
+
+const requireFromWeb = createRequire(path.join(__dirname, "package.json"));
+
+function resolveEmojibaseDir(): string | null {
+  for (const candidate of [
+    path.resolve(__dirname, "node_modules/emojibase-data"),
+    path.resolve(__dirname, "../node_modules/emojibase-data"),
+    path.resolve(__dirname, "../apps/desktop/node_modules/emojibase-data"),
+  ]) {
+    try {
+      return fs.realpathSync(candidate);
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
+}
+
+const emojibaseDir = resolveEmojibaseDir();
+
+const EMOJIBASE_PATH = /^[a-z-]+\/(data|messages|shortcodes\/emojibase)\.json$/;
+
+function desktopChatAlias(): Plugin {
+  const desktopImporter = /(?:^|\/)(?:apps\/desktop\/src|web\/src\/desktop-chat)\//;
+
+  return {
+    name: "work4you:desktop-chat-alias",
+    enforce: "pre",
+    resolveId(source, importer, options) {
+      if (
+        source === "@/desktop-chat/WebChatApp" ||
+        source.endsWith("/desktop-chat/WebChatApp") ||
+        source.endsWith("/desktop-chat/WebChatApp.ts") ||
+        source.endsWith("/desktop-chat/WebChatApp.tsx")
+      ) {
+        return path.join(WEB_SRC, "desktop-chat/WebChatApp.runtime.tsx");
+      }
+
+      if (source.startsWith("@/")) {
+        const normalizedImporter = importer?.replace(/\\/g, "/") ?? "";
+        const fromDesktopGraph =
+          desktopImporter.test(normalizedImporter) || source.startsWith("@desktop/");
+
+        if (fromDesktopGraph) {
+          if (source.startsWith("@desktop/")) {
+            return this.resolve(
+              path.join(DESKTOP_SRC, source.slice("@desktop/".length)),
+              importer,
+              { ...options, skipSelf: true },
+            );
+          }
+          return this.resolve(path.join(DESKTOP_SRC, source.slice(2)), importer, {
+            ...options,
+            skipSelf: true,
+          });
+        }
+
+        return this.resolve(path.join(WEB_SRC, source.slice(2)), importer, {
+          ...options,
+          skipSelf: true,
+        });
+      }
+
+      if (!importer) return null;
+      const normalizedImporter = importer.replace(/\\/g, "/");
+      const fromDesktopGraph =
+        desktopImporter.test(normalizedImporter) || source.startsWith("@desktop/");
+
+      if (source.startsWith("@desktop/")) {
+        return this.resolve(
+          path.join(DESKTOP_SRC, source.slice("@desktop/".length)),
+          importer,
+          { ...options, skipSelf: true },
+        );
+      }
+
+      if (fromDesktopGraph && source === "@work4you/plugin-sdk") {
+        return path.join(DESKTOP_SRC, "sdk/index.ts");
+      }
+
+      return null;
+    },
+  };
+}
+
+function emojibaseAssets(): Plugin {
+  return {
+    name: "work4you:emojibase-assets",
+    configureServer(server) {
+      server.middlewares.use("/emojibase", (req, res, next) => {
+        const rel = (req.url ?? "").split("?")[0].replace(/^\/+/, "");
+        if (!EMOJIBASE_PATH.test(rel) || !emojibaseDir) {
+          return next();
+        }
+        fs.readFile(path.join(emojibaseDir, rel), (err, buf) => {
+          if (err) return next();
+          res.setHeader("Content-Type", "application/json");
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          res.end(buf);
+        });
+      });
+    },
+    generateBundle() {
+      if (!emojibaseDir) return;
+      for (const rel of [
+        "en/data.json",
+        "en/messages.json",
+        "en/shortcodes/emojibase.json",
+      ]) {
+        this.emitFile({
+          type: "asset",
+          fileName: `emojibase/${rel}`,
+          source: fs.readFileSync(path.join(emojibaseDir, rel)),
+        });
+      }
+    },
+  };
+}
 
 /**
  * In production the Python `work4you dashboard` server injects a one-shot
@@ -58,11 +180,32 @@ function work4youDevToken(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), work4youDevToken()],
+  plugins: [desktopChatAlias(), react(), tailwindcss(), work4youDevToken(), emojibaseAssets()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@desktop": DESKTOP_SRC,
       "@work4you/shared": path.resolve(__dirname, "../apps/shared/src"),
+      "@work4you/shared/billing": path.resolve(
+        __dirname,
+        "../apps/shared/src/billing-types.ts",
+      ),
+      "@work4you/shared/translucency": path.resolve(
+        __dirname,
+        "../apps/shared/src/translucency.ts",
+      ),
+      "@work4you/plugin-sdk": path.join(DESKTOP_SRC, "sdk/index.ts"),
+      ...((): Record<string, string> => {
+        try {
+          const driverRoot = path.dirname(requireFromWeb.resolve("driver.js"));
+          const iife = path.join(driverRoot, "driver.js.iife.js");
+          return {
+            "driver.js/dist/driver.js.iife.js?raw": `${iife}?raw`,
+            "driver.js/dist/driver.js.iife.js": iife,
+          };
+        } catch {
+          return {};
+        }
+      })(),
     },
     // When @work4you/ui is symlinked via `workspace package @work4you/ui`,
     // Node's module resolution would pick up shared deps from
@@ -76,11 +219,15 @@ export default defineConfig({
     dedupe: [
       "react",
       "react-dom",
+      "react-router",
       "@react-three/fiber",
       "@observablehq/plot",
       "three",
       "leva",
       "gsap",
+      "nanostores",
+      "@nanostores/react",
+      "@tanstack/react-query",
     ],
   },
   build: {
@@ -102,6 +249,10 @@ export default defineConfig({
             {
               name: "react-vendor",
               test: /node_modules[\\/](react|react-dom|scheduler|react-router|react-router)([\\/]|$)/,
+            },
+            {
+              name: "desktop-chat",
+              test: /(?:apps[\\/]desktop[\\/]src|web[\\/]src[\\/]desktop-chat)[\\/]/,
             },
             {
               name: "xterm",
@@ -133,6 +284,9 @@ export default defineConfig({
     },
   },
   server: {
+    fs: {
+      allow: [path.resolve(__dirname, ".."), WEB_SRC, DESKTOP_SRC],
+    },
     proxy: {
       "/api": {
         target: BACKEND,
