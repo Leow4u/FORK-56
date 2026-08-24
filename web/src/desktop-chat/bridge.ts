@@ -48,7 +48,7 @@ function appendRequestProfile(url: string, profile?: string | null): string {
 
 async function apiRequest<T>(request: Work4YouApiRequest): Promise<T> {
   const method = (request.method ?? "GET").toUpperCase();
-  let path = appendRequestProfile(request.path, request.profile);
+  const path = appendRequestProfile(request.path, request.profile);
 
   if (request.upload) {
     const form = new FormData();
