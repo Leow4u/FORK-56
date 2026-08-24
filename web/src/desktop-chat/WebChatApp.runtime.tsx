@@ -1,4 +1,4 @@
-import "../../../apps/desktop/src/styles.css";
+import "@desktop/styles.css";
 import "./web-chat.css";
 
 import { QueryClientProvider } from "@tanstack/react-query";
