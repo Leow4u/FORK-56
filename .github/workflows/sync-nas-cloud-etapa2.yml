@@ -70,21 +70,40 @@ jobs:
           AGENT_IMAGE: ${{ inputs.agent_image || github.event.inputs.agent_image || '' }}
         run: |
           set -euo pipefail
+          # Only touch fly-machines.ts when the golden-image pin is being
+          # updated (explicit agent_image, fork default changed, or manual sync).
+          # Portal-only pushes must not overwrite a newer NAS pin with a stale
+          # fork default — but they also must not preserve a stale NAS pin over
+          # an intentional fork default bump (see #51 follow-up).
+          SYNC_FLY_MACHINES=0
+          if [ -n "${AGENT_IMAGE}" ]; then
+            SYNC_FLY_MACHINES=1
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SYNC_FLY_MACHINES=1
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
+              | grep -qx 'cloud/nas-sync/src/lib/fly-machines.ts'; then
+              SYNC_FLY_MACHINES=1
+            fi
+          fi
+
           cp cloud/nas-sync/src/lib/agents.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/agent-bootstrap.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/agent-gateway-drain.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/agent-redirect-uri.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/self-hosted-dashboard.ts nas/src/lib/
-          # Preserve the NAS golden-image pin on portal-only syncs. Copying
-          # fly-machines.ts from cloud/nas-sync always resets the deployment
-          # tag to the fork default; re-apply the pin already on NAS unless a
-          # golden-image deploy explicitly passes agent_image.
-          EXISTING_PIN="$(grep -oE "registry\.fly\.io/work4you-cloud-runtime:deployment-[A-Z0-9]+" nas/src/lib/fly-machines.ts | head -1 || true)"
-          cp cloud/nas-sync/src/lib/fly-machines.ts nas/src/lib/
-          if [ -n "${EXISTING_PIN}" ] && [ -z "${AGENT_IMAGE}" ]; then
-            echo "Preserving NAS agent image pin: ${EXISTING_PIN}"
-            sed -i "s|'registry\\.fly\\.io/work4you-cloud-runtime:deployment-[A-Z0-9]*'|'${EXISTING_PIN}'|g" nas/src/lib/fly-machines.ts
+          if [ "${SYNC_FLY_MACHINES}" = 1 ]; then
+            cp cloud/nas-sync/src/lib/fly-machines.ts nas/src/lib/
+            if [ -n "${AGENT_IMAGE}" ]; then
+              echo "Pinning agent image: ${AGENT_IMAGE}"
+              sed -i "s|'registry\\.fly\\.io/work4you-cloud-runtime:deployment-[A-Z0-9]*'|'${AGENT_IMAGE}'|g" nas/src/lib/fly-machines.ts
+            else
+              echo "Syncing fly-machines.ts (fork default pin)"
+            fi
+          else
+            echo "Skipping fly-machines.ts (portal-only sync — NAS pin unchanged)"
           fi
+          echo "sync_fly_machines=${SYNC_FLY_MACHINES}" >> "${GITHUB_ENV}"
           cp cloud/nas-sync/src/lib/inference-catalog.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/model-access.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/account-delete.ts nas/src/lib/
@@ -106,10 +125,6 @@ jobs:
           cp cloud/nas-sync/src/portal/lib/info-content.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/pages/org/InfoPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/InfoPage.module.css nas/src/portal/pages/org/
-          if [ -n "${AGENT_IMAGE}" ]; then
-            echo "Pinning agent image: ${AGENT_IMAGE}"
-            sed -i "s|'registry\\.fly\\.io/work4you-cloud-runtime:deployment-[A-Z0-9]*'|'${AGENT_IMAGE}'|g" nas/src/lib/fly-machines.ts
-          fi
 
       - name: Commit and push to NAS main
         if: steps.token.outputs.configured == 'true'
@@ -124,7 +139,6 @@ jobs:
             src/lib/agent-gateway-drain.ts \
             src/lib/agent-redirect-uri.ts \
             src/lib/self-hosted-dashboard.ts \
-            src/lib/fly-machines.ts \
             src/lib/inference-catalog.ts \
             src/lib/model-access.ts \
             src/lib/account-delete.ts \
@@ -143,6 +157,9 @@ jobs:
             src/portal/lib/info-content.ts \
             src/portal/pages/org/InfoPage.tsx \
             src/portal/pages/org/InfoPage.module.css
+          if [ "${{ env.sync_fly_machines }}" = "1" ]; then
+            git add src/lib/fly-machines.ts
+          fi
           if git diff --staged --quiet; then
             echo "NAS already up to date — nothing to push."
             exit 0
