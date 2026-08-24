@@ -64,7 +64,7 @@ jobs:
           token: ${{ secrets.NAS_REPO_TOKEN }}
           path: nas
 
-      - name: Sync provision files
+      - name: Sync NAS cloud files
         if: steps.token.outputs.configured == 'true'
         env:
           AGENT_IMAGE: ${{ inputs.agent_image || github.event.inputs.agent_image || '' }}
@@ -74,6 +74,12 @@ jobs:
           cp cloud/nas-sync/src/lib/agent-bootstrap.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/agent-gateway-drain.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/fly-machines.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/inference-catalog.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/model-access.ts nas/src/lib/
+          cp cloud/nas-sync/src/app/api/agents/route.ts nas/src/app/api/agents/
+          cp cloud/nas-sync/src/app/api/keys/models/route.ts nas/src/app/api/keys/models/
+          cp cloud/nas-sync/src/app/api/work4you/recommended-models/route.ts nas/src/app/api/work4you/recommended-models/
+          cp cloud/nas-sync/src/portal/pages/org/CloudPage.tsx nas/src/portal/pages/org/
           if [ -n "${AGENT_IMAGE}" ]; then
             echo "Pinning agent image: ${AGENT_IMAGE}"
             sed -i "s|'registry\\.fly\\.io/work4you-cloud-runtime:deployment-[A-Z0-9]*'|'${AGENT_IMAGE}'|g" nas/src/lib/fly-machines.ts
@@ -86,12 +92,22 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/lib/agents.ts src/lib/agent-bootstrap.ts src/lib/agent-gateway-drain.ts src/lib/fly-machines.ts
+          git add \
+            src/lib/agents.ts \
+            src/lib/agent-bootstrap.ts \
+            src/lib/agent-gateway-drain.ts \
+            src/lib/fly-machines.ts \
+            src/lib/inference-catalog.ts \
+            src/lib/model-access.ts \
+            src/app/api/agents/route.ts \
+            src/app/api/keys/models/route.ts \
+            src/app/api/work4you/recommended-models/route.ts \
+            src/portal/pages/org/CloudPage.tsx
           if git diff --staged --quiet; then
             echo "NAS already up to date — nothing to push."
             exit 0
           fi
-          git commit -m "feat(cloud): OAuth bootstrap + golden image pin (FORK-56 sync)"
+          git commit -m "feat(cloud): sync from FORK-56 (provision + model UX + drain)"
           git push origin main
 
       - name: Summary
