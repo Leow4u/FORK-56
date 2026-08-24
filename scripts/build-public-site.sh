@@ -18,6 +18,11 @@ echo "==> Building home ($HOME_DIR)"
 )
 cp -a "$HOME_DIR/dist/." "$OUT/"
 
+echo "==> Publishing install scripts at site root"
+cp "$ROOT/scripts/install.sh" "$OUT/install.sh"
+cp "$ROOT/scripts/install.ps1" "$OUT/install.ps1"
+chmod 644 "$OUT/install.sh" "$OUT/install.ps1"
+
 echo "==> Building docs ($DOCS_DIR)"
 # userStories.json is local data for the collage; ensure build can resolve it.
 mkdir -p "$DOCS_DIR/src/data"

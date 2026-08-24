@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react'
+import {
+  DESKTOP_DOWNLOADS,
+  INSTALL_COMMANDS,
+  type InstallPlatform,
+} from '../lib/downloads'
 import styles from './Hero.module.css'
 
-const COMMANDS = {
-  unix: 'curl -fsSL https://storage.googleapis.com/w4y-engine-dist/install.sh | bash',
-  windows:
-    'irm https://storage.googleapis.com/w4y-engine-dist/install.ps1 | iex',
-} as const
-
-type Tab = keyof typeof COMMANDS
+type Tab = InstallPlatform
 
 function detectTab(): Tab {
   if (typeof navigator === 'undefined') return 'unix'
@@ -21,7 +20,7 @@ export function Hero() {
 
   async function copyCommand() {
     try {
-      await navigator.clipboard.writeText(COMMANDS[tab])
+      await navigator.clipboard.writeText(INSTALL_COMMANDS[tab])
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1600)
     } catch {
@@ -46,8 +45,8 @@ export function Hero() {
               className={styles.download}
               href={
                 tab === 'windows'
-                  ? 'https://storage.googleapis.com/w4y-engine-dist/Work4You-Setup.exe'
-                  : 'https://storage.googleapis.com/w4y-engine-dist/Work4You.dmg'
+                  ? DESKTOP_DOWNLOADS.windows
+                  : DESKTOP_DOWNLOADS.mac
               }
             >
               {tab === 'windows'
@@ -79,7 +78,7 @@ export function Hero() {
               </button>
             </div>
             <div className={styles.code}>
-              <code>{COMMANDS[tab]}</code>
+              <code>{INSTALL_COMMANDS[tab]}</code>
               <button type="button" onClick={() => void copyCommand()}>
                 {copied ? 'Copiado' : 'Copiar'}
               </button>
