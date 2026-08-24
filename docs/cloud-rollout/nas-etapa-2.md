@@ -4,7 +4,7 @@
 
 | Etapa | Estado | Notas |
 |-------|--------|-------|
-| 1 Golden image | ✅ | `registry.fly.io/work4you-cloud-runtime:deployment-01M0QG8FXP8V4J48RPR92KPQ2B` (Release v2) |
+| 1 Golden image | ✅ | `registry.fly.io/work4you-cloud-runtime:deployment-01M0SYFQR5K1MX2KKJGGT99G5Y` (Phase E + gateway autostart) |
 | 2 NAS OAuth/bootstrap | 🔧 | Já em `main` do NAS; falta deploy + pin imagem + `init.cmd` |
 | 3 Pin imagem | 🔧 | Incluído no branch `cursor/nas-oauth-bootstrap-6b2c` |
 | 4 Nova instância | ⏳ | Após Vercel deploy |
@@ -69,7 +69,7 @@ Copiar os ficheiros do patch ou aplicar manualmente:
 
 ```diff
 # fly-machines.ts — agentImage() default:
-'registry.fly.io/work4you-cloud-runtime:deployment-01M0QG8FXP8V4J48RPR92KPQ2B'
+'registry.fly.io/work4you-cloud-runtime:deployment-01M0SYFQR5K1MX2KKJGGT99G5Y'
 
 # fly-machines.ts — createMachine config.init:
 init: {
@@ -88,7 +88,7 @@ Merge → Vercel redeploy automático do Portal.
 ### Vercel (opcional)
 
 ```
-WORK4YOU_AGENT_IMAGE=registry.fly.io/work4you-cloud-runtime:deployment-01M0QG8FXP8V4J48RPR92KPQ2B
+WORK4YOU_AGENT_IMAGE=registry.fly.io/work4you-cloud-runtime:deployment-01M0SYFQR5K1MX2KKJGGT99G5Y
 ```
 
 Se omitido, o default no código (após merge) já aponta para Release v2.
