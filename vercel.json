@@ -4,5 +4,37 @@
   "installCommand": "echo 'Package installs run inside scripts/build-public-site.sh'",
   "framework": null,
   "trailingSlash": false,
-  "cleanUrls": true
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/install.sh",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/install.ps1",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/downloads/Work4You-Setup.exe",
+      "destination": "https://github.com/Leow4u/FORK-56/releases/latest/download/Work4You-Setup.exe",
+      "statusCode": 302
+    },
+    {
+      "source": "/downloads/Work4You.dmg",
+      "destination": "https://github.com/Leow4u/FORK-56/releases/latest/download/Work4You.dmg",
+      "statusCode": 302
+    }
+  ]
 }
