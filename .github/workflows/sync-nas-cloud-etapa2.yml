@@ -75,7 +75,16 @@ jobs:
           cp cloud/nas-sync/src/lib/agent-gateway-drain.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/agent-redirect-uri.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/self-hosted-dashboard.ts nas/src/lib/
+          # Preserve the NAS golden-image pin on portal-only syncs. Copying
+          # fly-machines.ts from cloud/nas-sync always resets the deployment
+          # tag to the fork default; re-apply the pin already on NAS unless a
+          # golden-image deploy explicitly passes agent_image.
+          EXISTING_PIN="$(grep -oE "registry\.fly\.io/work4you-cloud-runtime:deployment-[A-Z0-9]+" nas/src/lib/fly-machines.ts | head -1 || true)"
           cp cloud/nas-sync/src/lib/fly-machines.ts nas/src/lib/
+          if [ -n "${EXISTING_PIN}" ] && [ -z "${AGENT_IMAGE}" ]; then
+            echo "Preserving NAS agent image pin: ${EXISTING_PIN}"
+            sed -i "s|'registry\\.fly\\.io/work4you-cloud-runtime:deployment-[A-Z0-9]*'|'${EXISTING_PIN}'|g" nas/src/lib/fly-machines.ts
+          fi
           cp cloud/nas-sync/src/lib/inference-catalog.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/model-access.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/account-delete.ts nas/src/lib/
@@ -138,7 +147,7 @@ jobs:
             echo "NAS already up to date — nothing to push."
             exit 0
           fi
-          git commit -m "feat(portal): sync Info page + portal guidance from FORK-56"
+          git commit -m "feat(cloud): sync from FORK-56"
           git push origin main
 
       - name: Summary
