@@ -481,6 +481,14 @@ if [ -f "$WORK4YOU_HOME/config.yaml" ]; then
         || echo "[stage2] Warning: docker_config_migrate.py failed; continuing"
 fi
 
+# Cloud NAS provision: apply WORK4YOU_DEFAULT_MODEL to config.yaml when the
+# factory example default is still in place (never overwrite user edits).
+if [ -f "$WORK4YOU_HOME/config.yaml" ] && [ -n "${WORK4YOU_DEFAULT_MODEL:-}" ]; then
+    s6-setuidgid work4you "$INSTALL_DIR/.venv/bin/python" \
+        "$INSTALL_DIR/scripts/docker_seed_default_model.py" \
+        || echo "[stage2] Warning: docker_seed_default_model.py failed; continuing"
+fi
+
 # auth.json: bootstrap from env on first boot only. Same semantics as the
 # pre-s6 entrypoint — the [ ! -f ] guard is critical to avoid clobbering
 # rotated refresh tokens on container restart.
