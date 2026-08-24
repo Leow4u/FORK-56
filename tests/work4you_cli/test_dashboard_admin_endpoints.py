@@ -1063,3 +1063,92 @@ def test_desktop_lifespan_terminates_managed_gateway_restart(monkeypatch):
         pass
 
     assert calls == ["terminate"]
+
+
+# ---------------------------------------------------------------------------
+# Unsupervised dashboard gateway autostart (Fly / docker --init)
+# ---------------------------------------------------------------------------
+
+
+def test_unsupervised_lifespan_autostarts_gateway_when_desired_running(
+    monkeypatch, _isolate_work4you_home,
+):
+    """Non-s6 dashboard backends honour container_boot autostart intent."""
+    import work4you_cli.web_server as ws
+
+    spawned = []
+
+    monkeypatch.delenv("WORK4YOU_DESKTOP", raising=False)
+    monkeypatch.setattr(ws, "_warm_gateway_module", lambda: None)
+    monkeypatch.setattr(
+        "work4you_cli.service_manager._s6_running", lambda: False,
+    )
+    monkeypatch.setattr(
+        "work4you_cli.container_boot._read_desired_state",
+        lambda _home: "running",
+    )
+    monkeypatch.setattr(
+        "work4you_cli.profiles._check_gateway_running", lambda _home: False,
+    )
+    cleaned = []
+    monkeypatch.setattr(
+        "work4you_cli.container_boot._cleanup_stale_runtime_files",
+        lambda home: cleaned.append(home),
+    )
+
+    def _fake_spawn(subcommand, name):
+        spawned.append((list(subcommand), name))
+        class _Proc:
+            pid = 4242
+        return _Proc()
+
+    monkeypatch.setattr(ws, "_spawn_work4you_action", _fake_spawn)
+
+    client, _header = _client()
+    with client:
+        pass
+
+    assert spawned == [(["gateway", "restart"], "gateway-start")]
+
+
+def test_unsupervised_lifespan_skips_autostart_when_s6_running(monkeypatch):
+    import work4you_cli.web_server as ws
+
+    monkeypatch.delenv("WORK4YOU_DESKTOP", raising=False)
+    monkeypatch.setattr(ws, "_warm_gateway_module", lambda: None)
+    monkeypatch.setattr(
+        "work4you_cli.service_manager._s6_running", lambda: True,
+    )
+    monkeypatch.setattr(
+        ws, "_spawn_work4you_action",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("should not spawn")),
+    )
+
+    client, _header = _client()
+    with client:
+        pass
+
+
+def test_unsupervised_lifespan_skips_autostart_when_desired_stopped(
+    monkeypatch, _isolate_work4you_home,
+):
+    import work4you_cli.web_server as ws
+
+    monkeypatch.delenv("WORK4YOU_DESKTOP", raising=False)
+    monkeypatch.setattr(ws, "_warm_gateway_module", lambda: None)
+    monkeypatch.setattr(
+        "work4you_cli.service_manager._s6_running", lambda: False,
+    )
+    monkeypatch.setattr(
+        "work4you_cli.container_boot._read_desired_state",
+        lambda _home: "stopped",
+    )
+    monkeypatch.setattr(
+        ws, "_spawn_work4you_action",
+        lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("should not spawn")),
+    )
+
+    client, _header = _client()
+    with client:
+        pass
+
