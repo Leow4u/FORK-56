@@ -19,6 +19,7 @@
     /* Path aliases */
     "paths": {
       "@/*": ["./src/*"],
+      "@desktop/*": ["../apps/desktop/src/*"],
       "@work4you/shared": ["../apps/shared/src/index.ts"]
     },
 
@@ -30,5 +31,6 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "../apps/shared/src"]
+  "include": ["src", "../apps/shared/src", "src/desktop-chat/shims.d.ts"],
+  "exclude": ["src/desktop-chat/WebChatApp.runtime.tsx"]
 }

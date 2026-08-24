@@ -1,0 +1,15 @@
+/* Hide desktop-only chrome when the renderer is embedded in the web dashboard. */
+.web-desktop-chat-host [data-titlebar-controls],
+.web-desktop-chat-host .titlebar-controls,
+.web-desktop-chat-host [class*="TitlebarControls"] {
+  display: none !important;
+}
+
+.web-desktop-chat-host .web-desktop-chat__sidebar {
+  width: min(100%, 20rem);
+  max-width: 24rem;
+}
+
+.web-desktop-chat-host .web-desktop-chat__main {
+  min-width: 0;
+}
