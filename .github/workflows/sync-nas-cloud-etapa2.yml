@@ -72,6 +72,7 @@ jobs:
           set -euo pipefail
           cp cloud/nas-sync/src/lib/agents.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/agent-bootstrap.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/agent-gateway-drain.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/fly-machines.ts nas/src/lib/
           if [ -n "${AGENT_IMAGE}" ]; then
             echo "Pinning agent image: ${AGENT_IMAGE}"
@@ -85,7 +86,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/lib/agents.ts src/lib/agent-bootstrap.ts src/lib/fly-machines.ts
+          git add src/lib/agents.ts src/lib/agent-bootstrap.ts src/lib/agent-gateway-drain.ts src/lib/fly-machines.ts
           if git diff --staged --quiet; then
             echo "NAS already up to date — nothing to push."
             exit 0

@@ -100,3 +100,23 @@ Se omitido, o default no código (após merge) já aponta para Release v2.
 3. Confirmar dashboard carrega com sessão
 
 Apagar instâncias antigas criadas com imagem stub (`deployment-01M0JY209NVKM1C5Z8DKBQ0YW0`).
+
+## Etapa 6 — drain antes de stop (Fase D)
+
+Contrato existente no Fork (`gateway/run.py` + `POST /api/gateway/drain`):
+
+1. NAS envia `POST {dashboardUrl}/api/gateway/drain` com bearer `dashboardDrainSecret`
+   e `{"action":"drain","suppress_notification":true}`.
+2. Poll público `GET {dashboardUrl}/api/status` até `active_agents === 0` (budget ≤ 100s,
+   alinhado ao `maxDuration=120` da rota Vercel).
+3. Só então chama `stopMachine` / `destroyMachine`.
+
+Implementação: `cloud/nas-sync/src/lib/agent-gateway-drain.ts` + hook em
+`stopAgent()` / `deleteAgent()` em `agents.ts`.
+
+Verificação manual:
+
+1. Instância **online** com gateway Running → iniciar um turno longo no Chat.
+2. Portal → Cloud → **Parar** a instância enquanto o turno corre.
+3. Confirmar que o turno termina antes da VM parar (sem corte abrupto mid-stream).
+4. Repetir com instância **idle** — stop deve ser quase imediato.
