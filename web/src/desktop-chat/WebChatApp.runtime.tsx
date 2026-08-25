@@ -2,11 +2,13 @@ import "@desktop/styles.css";
 import "./web-chat.css";
 
 import { QueryClientProvider } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { type CSSProperties, useEffect, useMemo } from "react";
 import { HashRouter } from "react-router";
 
 import { ContribWiring, WiredPane } from "@desktop/app/contrib/wiring";
 import { sessionRoute } from "@desktop/app/routes";
+import { SidebarProvider } from "@desktop/components/ui/sidebar";
+import { RootTooltipProvider } from "@desktop/components/ui/tooltip";
 import { I18nProvider } from "@desktop/i18n";
 import { installClipboardShim } from "@desktop/lib/clipboard";
 import { queryClient } from "@desktop/lib/query-client";
@@ -39,7 +41,10 @@ function ChatRouteBootstrap() {
 
 function WebChatLayout() {
   return (
-    <div className="web-desktop-chat flex h-full min-h-0 w-full min-w-0">
+    <div
+      className="web-desktop-chat flex h-full min-h-0 w-full min-w-0 flex-1 bg-(--ui-bg-chrome) text-(--ui-text-primary)"
+      data-contrib-shell=""
+    >
       <ChatRouteBootstrap />
       <aside className="web-desktop-chat__sidebar flex h-full min-h-0 shrink-0 flex-col border-r border-(--ui-border-subtle) bg-(--ui-surface-raised)">
         <WiredPane part="sidebar" />
@@ -66,11 +71,21 @@ export function WebChatApp({ isActive }: { isActive?: boolean }) {
       <QueryClientProvider client={queryClient}>
         <I18nProvider>
           <ThemeProvider>
-            <HashRouter useTransitions={false}>
-              <ContribWiring>
-                <WebChatLayout />
-              </ContribWiring>
-            </HashRouter>
+            <RootTooltipProvider>
+              <HashRouter useTransitions={false}>
+                {/* Same provider the Electron DesktopController wraps —
+                    session sidebar / rail components call useSidebar(). */}
+                <SidebarProvider
+                  className="flex h-full min-h-0 w-full flex-1 flex-col"
+                  defaultOpen
+                  style={{ "--sidebar-width": "20rem" } as CSSProperties}
+                >
+                  <ContribWiring>
+                    <WebChatLayout />
+                  </ContribWiring>
+                </SidebarProvider>
+              </HashRouter>
+            </RootTooltipProvider>
           </ThemeProvider>
         </I18nProvider>
       </QueryClientProvider>
