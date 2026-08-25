@@ -1,8 +1,9 @@
 import { Button } from "@work4you/ui/ui/components/button";
-import { ArrowUp, Plus, Square } from "lucide-react";
+import { ArrowUp, Layers3, Plus, Square } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   type FormEvent,
   type KeyboardEvent,
@@ -13,6 +14,19 @@ import { cn } from "@/lib/utils";
 
 import { composerSurface } from "./composer-dock-styles";
 
+export type ComposerBusyAction = "send" | "stop" | "steer" | "queue";
+
+export function resolveComposerBusyAction(
+  busy: boolean,
+  text: string,
+): ComposerBusyAction {
+  const trimmed = text.trim();
+  if (!busy) return "send";
+  if (!trimmed) return "stop";
+  if (trimmed.startsWith("/")) return "queue";
+  return "steer";
+}
+
 export interface ComposerProps {
   value: string;
   onChange: (value: string) => void;
@@ -21,9 +35,9 @@ export interface ComposerProps {
   variant?: "hero" | "dock";
   placeholder?: string;
   disabled?: boolean;
-  /** When true, show Stop instead of Send. */
   busy?: boolean;
   onStop?: () => void;
+  onQueue?: (text: string) => void;
   autoFocus?: boolean;
   className?: string;
   /** When true, popover/slash handler consumed the key. */
@@ -46,6 +60,7 @@ export function Composer({
   disabled = false,
   busy = false,
   onStop,
+  onQueue,
   autoFocus = false,
   className,
   onBeforeKeyDown,
@@ -53,6 +68,11 @@ export function Composer({
   showAttachButton = true,
 }: ComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const hasText = Boolean(value.trim());
+  const busyAction = useMemo(
+    () => resolveComposerBusyAction(busy, value),
+    [busy, value],
+  );
 
   useEffect(() => {
     if (!autoFocus) return;
@@ -71,29 +91,36 @@ export function Composer({
     resize();
   }, [value, resize]);
 
-  const submit = useCallback(() => {
+  const dispatch = useCallback(() => {
     const text = value.trim();
     if (!text || disabled) return;
-    if (busy && !onStop) return;
+
+    if (busyAction === "queue") {
+      onQueue?.(text);
+      return;
+    }
+
     onSubmit(text);
-  }, [busy, disabled, onStop, onSubmit, value]);
+  }, [busyAction, disabled, onQueue, onSubmit, value]);
 
   const onFormSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (busy && !onStop) return;
-    submit();
+    if (busyAction === "stop") return;
+    dispatch();
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (onBeforeKeyDown?.(event)) return;
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      if (busy && !onStop) return;
-      submit();
+      if (busyAction === "stop") return;
+      dispatch();
     }
   };
 
-  const canSend = Boolean(value.trim()) && !disabled && (!busy || Boolean(onStop));
+  const showStop = busyAction === "stop";
+  const showQueue = busyAction === "queue" && Boolean(onQueue);
+  const canSend = hasText && !disabled && busyAction !== "stop";
 
   return (
     <form
@@ -138,7 +165,20 @@ export function Composer({
 
         <div className="mb-0.5 flex shrink-0 items-center gap-1">
           {trailingControls}
-          {busy && onStop ? (
+          {showQueue ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              disabled={!canSend}
+              aria-label="Queue message for next turn"
+              className="h-8 w-8 shrink-0 rounded-lg"
+              onClick={dispatch}
+            >
+              <Layers3 className="h-4 w-4" />
+            </Button>
+          ) : null}
+          {showStop ? (
             <Button
               type="button"
               size="icon"
@@ -153,7 +193,7 @@ export function Composer({
               type="submit"
               size="icon"
               disabled={!canSend}
-              aria-label={busy ? "Steer message" : "Send message"}
+              aria-label={busyAction === "steer" ? "Steer message" : "Send message"}
               className="h-8 w-8 shrink-0 rounded-lg"
             >
               <ArrowUp className="h-4 w-4" />

@@ -21,6 +21,7 @@ export interface ComposerDockProps extends SlashComposerProps {
   resumeLabel?: string | null;
   showChrome?: boolean;
   onReasoningChange?: (effort: string) => void;
+  onQueue?: (text: string) => void;
   className?: string;
 }
 
@@ -38,6 +39,7 @@ export function ComposerDock({
   resumeLabel,
   showChrome = true,
   onReasoningChange: _reasoningChange,
+  onQueue,
   className,
   variant = "dock",
   ...composerProps
@@ -68,7 +70,7 @@ export function ComposerDock({
     () =>
       variant === "hero"
         ? "Plan, Build, / for skills, @ for context"
-        : "Message Work4You…  / skills  @ files",
+        : "Send follow-up",
     [variant],
   );
 
@@ -109,6 +111,7 @@ export function ComposerDock({
         placeholder={dockPlaceholder}
         trailingControls={showChrome ? modelPill : undefined}
         showAttachButton={showChrome}
+        onQueue={onQueue}
         className="w-full"
         {...composerProps}
       />
