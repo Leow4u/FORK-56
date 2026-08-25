@@ -20,12 +20,12 @@
 import { Button } from "@work4you/ui/ui/components/button";
 import { ListItem } from "@work4you/ui/ui/components/list-item";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
-import { AlertCircle, MessageSquarePlus, RefreshCw } from "lucide-react";
+import { AlertCircle, MessageSquarePlus, RefreshCw, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { useI18n } from "@/i18n";
-import { api, type SessionInfo } from "@/lib/api";
+import { api, type SessionInfo, type SessionSearchResult } from "@/lib/api";
 import { cn, timeAgo } from "@/lib/utils";
 
 const SESSION_LIMIT = 30;
@@ -65,10 +65,16 @@ export function ChatSessionList({
   const { t } = useI18n();
   const [, setSearchParams] = useSearchParams();
   const [sessions, setSessions] = useState<SessionInfo[] | null>(null);
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<SessionSearchResult[] | null>(
+    null,
+  );
+  const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Bumped to force a refetch (after switching, on Refresh, on mount).
   const [reloadNonce, setReloadNonce] = useState(0);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // `profile` is read inside the fetch; it's part of the scope key so a
   // profile switch refetches. The empty-string fallback keeps the dep
@@ -108,6 +114,29 @@ export function ChatSessionList({
     // `reloadNonce` is a manual refetch trigger; `refreshToken` is parent-driven.
   }, [load, reloadNonce, refreshToken]);
 
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!search.trim()) {
+      debounceRef.current = setTimeout(() => {
+        setSearchResults(null);
+        setSearching(false);
+      }, 0);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      setSearching(true);
+      setSearchResults(null);
+      api
+        .searchSessions(search.trim(), scopeKey)
+        .then((resp) => setSearchResults(resp.results))
+        .catch(() => setSearchResults(null))
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [search, scopeKey]);
+
   const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
 
   // Picking a row sets `/chat?resume=<id>`.
@@ -145,7 +174,8 @@ export function ChatSessionList({
   }, [onNewChat, onPicked, setSearchParams]);
 
   const content = useMemo(() => {
-    if (loading && sessions === null) {
+    const visible = searchResults ?? sessions;
+    if (loading && sessions === null && !search.trim()) {
       return (
         <div className="flex items-center justify-center gap-2 px-2 py-6 text-xs text-text-secondary">
           <Spinner /> {t.common.loading}
@@ -165,16 +195,16 @@ export function ChatSessionList({
         </div>
       );
     }
-    if (!sessions || sessions.length === 0) {
+    if (!visible || visible.length === 0) {
       return (
         <div className="px-2 py-6 text-center text-xs text-text-secondary">
-          {t.sessions.noSessions}
+          {search.trim() ? t.sessions.noMatch : t.sessions.noSessions}
         </div>
       );
     }
     return (
       <div className="flex flex-col gap-0.5">
-        {sessions.map((s) => {
+        {visible.map((s) => {
           const isActive = s.id === activeSessionId;
           return (
             <ListItem
@@ -212,7 +242,7 @@ export function ChatSessionList({
         })}
       </div>
     );
-  }, [activeSessionId, error, loading, pick, reload, sessions, t]);
+  }, [activeSessionId, error, loading, pick, reload, search, searchResults, sessions, t]);
 
   return (
     <aside
@@ -235,6 +265,18 @@ export function ChatSessionList({
         >
           <RefreshCw className={cn(loading && "animate-spin")} />
         </Button>
+      </div>
+
+      <div className="mx-2 mb-2 flex items-center gap-2 rounded-md border border-border/60 bg-background/60 px-2 py-1.5">
+        <Search className="h-3.5 w-3.5 shrink-0 text-text-tertiary" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t.sessions.searchPlaceholder}
+          className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-text-tertiary"
+        />
+        {searching && <Spinner className="h-3.5 w-3.5" />}
       </div>
 
       <Button

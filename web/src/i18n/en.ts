@@ -204,6 +204,7 @@ export const en: Translations = {
     emptySubtitle: "Ask anything. Your agent runs on this machine.",
     thinking: "Thinking…",
     scrollToBottom: "Scroll to bottom",
+    loadEarlier: "Load earlier messages",
     suggestions: [
       "What can you help me with?",
       "Summarize what we talked about last time",

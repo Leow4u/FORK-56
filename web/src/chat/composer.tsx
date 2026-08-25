@@ -64,13 +64,14 @@ export function Composer({
 
   const submit = useCallback(() => {
     const text = value.trim();
-    if (!text || disabled || busy) return;
+    if (!text || disabled) return;
+    if (busy && !onStop) return;
     onSubmit(text);
-  }, [busy, disabled, onSubmit, value]);
+  }, [busy, disabled, onStop, onSubmit, value]);
 
   const onFormSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (busy) return;
+    if (busy && !onStop) return;
     submit();
   };
 
@@ -78,12 +79,12 @@ export function Composer({
     if (onBeforeKeyDown?.(event)) return;
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      if (busy) return;
+      if (busy && !onStop) return;
       submit();
     }
   };
 
-  const canSend = Boolean(value.trim()) && !disabled && !busy;
+  const canSend = Boolean(value.trim()) && !disabled && (!busy || Boolean(onStop));
 
   return (
     <form
@@ -126,7 +127,7 @@ export function Composer({
           type="submit"
           size="icon"
           disabled={!canSend}
-          aria-label="Send message"
+          aria-label={busy ? "Steer message" : "Send message"}
           className="mb-0.5 shrink-0 rounded-lg"
         >
           <ArrowUp className="h-4 w-4" />

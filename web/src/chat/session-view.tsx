@@ -10,8 +10,12 @@ export interface SessionViewProps {
   onDraftChange: (value: string) => void;
   onSubmit: (text: string) => void;
   gateway: GatewayClient | null;
+  sessionId?: string | null;
   onStop?: () => void;
   busy?: boolean;
+  canLoadEarlier?: boolean;
+  loadingEarlier?: boolean;
+  onLoadEarlier?: () => void;
   autoFocus?: boolean;
 }
 
@@ -24,13 +28,23 @@ export function SessionView({
   onDraftChange,
   onSubmit,
   gateway,
+  sessionId = null,
   onStop,
   busy = false,
+  canLoadEarlier = false,
+  loadingEarlier = false,
+  onLoadEarlier,
   autoFocus = true,
 }: SessionViewProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <MessageList messages={messages} busy={busy} />
+      <MessageList
+        messages={messages}
+        busy={busy}
+        canLoadEarlier={canLoadEarlier}
+        loadingEarlier={loadingEarlier}
+        onLoadEarlier={onLoadEarlier}
+      />
       <div className="relative shrink-0 border-t border-border/60 bg-gradient-to-t from-background via-background/95 to-background/80 px-4 py-3 backdrop-blur-sm">
         <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-background/80 to-transparent" />
         <div className="mx-auto w-full max-w-3xl">
@@ -40,6 +54,7 @@ export function SessionView({
             onChange={onDraftChange}
             onSubmit={onSubmit}
             gateway={gateway}
+            sessionId={sessionId}
             onStop={onStop}
             busy={busy}
             autoFocus={autoFocus}

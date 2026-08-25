@@ -19,6 +19,7 @@ export interface EmptyHomeProps {
   onDraftChange: (value: string) => void;
   onSubmit: (text: string) => void;
   gateway: GatewayClient | null;
+  sessionId?: string | null;
   autoFocus?: boolean;
   disabled?: boolean;
 }
@@ -31,6 +32,7 @@ export function EmptyHome({
   onDraftChange,
   onSubmit,
   gateway,
+  sessionId = null,
   autoFocus = true,
   disabled = false,
 }: EmptyHomeProps) {
@@ -59,6 +61,7 @@ export function EmptyHome({
           onChange={onDraftChange}
           onSubmit={onSubmit}
           gateway={gateway}
+          sessionId={sessionId}
           autoFocus={autoFocus}
           disabled={disabled}
           className="w-full shadow-md"

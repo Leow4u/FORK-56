@@ -1,12 +1,19 @@
-/** Display roles for the thin web chat transcript (v1 skeleton). */
-export type ChatRole = "user" | "assistant" | "system" | "tool";
+/** Display roles for the thin web chat transcript. */
+export type ChatRole =
+  | "user"
+  | "assistant"
+  | "system"
+  | "tool"
+  | "reasoning";
 
 export interface ChatMessage {
   id: string;
   role: ChatRole;
   text: string;
-  /** True while the assistant bubble is still streaming (step 3+). */
+  /** True while the assistant bubble is still streaming. */
   streaming?: boolean;
+  /** Stable tool row key from gateway ``tool_id``. */
+  toolId?: string;
 }
 
 export type ThinChatPhase = "home" | "session";

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type MutableRefObject } from "react";
 
 import { EmptyHome } from "./empty-home";
+import { SessionStatusBar } from "./session-status-bar";
 import { SessionView } from "./session-view";
 import type { ThinChatPhase } from "./types";
 import { useThinChatGateway } from "./use-thin-chat-gateway";
@@ -45,12 +46,20 @@ export function ThinChat({
     connectionState,
     busy,
     error,
+    reconnecting,
     credentialWarning,
     ready,
     gateway,
+    liveSessionId,
+    sessionInfo,
+    sessionUsage,
+    resumeProgress,
+    canLoadEarlier,
+    loadingEarlier,
     submit,
     interrupt,
     reset,
+    loadEarlier,
     clearError,
   } = useThinChatGateway({
     profile,
@@ -99,6 +108,15 @@ export function ThinChat({
 
   const showCredentialWarning = Boolean(credentialWarning) && !error;
 
+  const resumeBanner =
+    resumeProgress?.status === "loading"
+      ? resumeProgress.messageCount != null
+        ? `Loading session history (${resumeProgress.messageCount} messages)…`
+        : "Loading session history…"
+      : resumeProgress?.status === "failed"
+        ? resumeProgress.message ?? "Resume failed"
+        : null;
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       {showCredentialWarning && (
@@ -107,6 +125,23 @@ export function ThinChat({
           role="status"
         >
           <div className="mx-auto max-w-3xl">{credentialWarning}</div>
+        </div>
+      )}
+
+      {phase === "session" && (
+        <SessionStatusBar
+          info={sessionInfo}
+          usage={sessionUsage}
+          reconnecting={reconnecting}
+        />
+      )}
+
+      {resumeBanner && (
+        <div
+          className="border-b border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
+          role="status"
+        >
+          <div className="mx-auto max-w-3xl">{resumeBanner}</div>
         </div>
       )}
 
@@ -140,6 +175,7 @@ export function ThinChat({
           onDraftChange={setDraft}
           onSubmit={handleSubmit}
           gateway={gateway}
+          sessionId={liveSessionId}
           autoFocus={isActive}
           disabled={busy || connectionState === "connecting"}
         />
@@ -150,8 +186,12 @@ export function ThinChat({
           onDraftChange={setDraft}
           onSubmit={handleSubmit}
           gateway={gateway}
+          sessionId={liveSessionId}
           onStop={() => void interrupt()}
           busy={busy}
+          canLoadEarlier={canLoadEarlier}
+          loadingEarlier={loadingEarlier}
+          onLoadEarlier={() => void loadEarlier()}
           autoFocus={isActive}
         />
       )}

@@ -1,4 +1,7 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Check, Copy } from "lucide-react";
+
+import { copyTextToClipboard } from "@/lib/clipboard";
 
 /**
  * Lightweight markdown renderer for LLM output.
@@ -168,12 +171,7 @@ function Block({
   switch (block.type) {
     case "code":
       return (
-        <pre className="bg-secondary/60 border border-border px-3 py-2.5 text-xs font-mono leading-relaxed overflow-x-auto">
-          <code>
-            {block.content}
-            {caret}
-          </code>
-        </pre>
+        <CodeBlock content={block.content} lang={block.lang} caret={caret} />
       );
 
     case "heading": {
@@ -225,6 +223,51 @@ function Block({
         </p>
       );
   }
+}
+
+function CodeBlock({
+  content,
+  lang,
+  caret,
+}: {
+  content: string;
+  lang: string;
+  caret?: ReactNode;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const onCopy = async () => {
+    const ok = await copyTextToClipboard(content);
+    if (!ok) return;
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="relative group">
+      <button
+        type="button"
+        onClick={() => void onCopy()}
+        aria-label={copied ? "Copied" : "Copy code"}
+        className="absolute right-2 top-2 rounded border border-border/60 bg-background/80 p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+      >
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+      {lang && (
+        <div className="border border-b-0 border-border bg-secondary/40 px-3 py-1 text-[0.65rem] uppercase tracking-wide text-muted-foreground">
+          {lang}
+        </div>
+      )}
+      <pre
+        className={`bg-secondary/60 border border-border px-3 py-2.5 text-xs font-mono leading-relaxed overflow-x-auto ${lang ? "rounded-b-md" : "rounded-md"}`}
+      >
+        <code>
+          {content}
+          {caret}
+        </code>
+      </pre>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */

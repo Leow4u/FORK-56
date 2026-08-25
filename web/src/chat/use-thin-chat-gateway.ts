@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { api } from "@/lib/api";
+import {
+  EVENTS_CONNECT_TIMEOUT_MS,
+  EVENTS_MAX_RECONNECT_ATTEMPTS,
+  eventsGaveUpMessage,
+  eventsReconnectDelayMs,
+  eventsReconnectingMessage,
+  shouldRetryEventsClose,
+} from "@/lib/events-reconnect";
 import {
   GatewayClient,
   type ConnectionState,
@@ -10,16 +19,61 @@ import { executeSlash } from "@/lib/slashExec";
 import {
   applyGatewayEvent,
   historyToChatMessages,
+  sessionMessagesToChatMessages,
   thinChatSessionCreateParams,
   thinChatSessionResumeParams,
   type SessionCreateResult,
   type SessionResumeResult,
 } from "./gateway-protocol";
 import {
+  mergeSessionInfo,
+  sessionInfoFromPayload,
+  sessionUsageFromPayload,
+  type ThinChatSessionInfo,
+  type ThinChatSessionUsage,
+} from "./session-info";
+import {
   createMessageId,
   type ChatMessage,
   type ThinChatPhase,
 } from "./types";
+
+const STREAM_EVENT_TYPES = new Set([
+  "message.start",
+  "message.delta",
+  "message.interim",
+  "message.complete",
+  "reasoning.delta",
+  "thinking.delta",
+  "reasoning.available",
+  "tool.start",
+  "tool.progress",
+  "tool.complete",
+  "tool.generating",
+  "tool.output_risk",
+  "status.update",
+  "review.summary",
+  "notification.show",
+  "notification.clear",
+  "moa.reference",
+  "moa.aggregating",
+  "moa.progress",
+  "moa.phase",
+  "subagent.spawn_requested",
+  "subagent.start",
+  "subagent.thinking",
+  "subagent.tool",
+  "subagent.progress",
+  "subagent.complete",
+  "error",
+]);
+
+export interface ResumeProgress {
+  phase?: string;
+  status?: string;
+  message?: string;
+  messageCount?: number;
+}
 
 export interface UseThinChatGatewayOptions {
   profile?: string;
@@ -37,13 +91,21 @@ export interface UseThinChatGatewayResult {
   connectionState: ConnectionState;
   busy: boolean;
   error: string | null;
+  reconnecting: boolean;
   credentialWarning: string | null;
   ready: boolean;
   gateway: GatewayClient;
   liveSessionId: string | null;
+  storedSessionId: string | null;
+  sessionInfo: ThinChatSessionInfo;
+  sessionUsage: ThinChatSessionUsage | null;
+  resumeProgress: ResumeProgress | null;
+  canLoadEarlier: boolean;
+  loadingEarlier: boolean;
   submit: (text: string) => Promise<void>;
   interrupt: () => Promise<void>;
   reset: () => Promise<void>;
+  loadEarlier: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -74,17 +136,29 @@ export function useThinChatGateway(
     useState<ConnectionState>("idle");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
   const [credentialWarning, setCredentialWarning] = useState<string | null>(
     null,
   );
   const [ready, setReady] = useState(false);
   const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
+  const [storedSessionId, setStoredSessionId] = useState<string | null>(null);
+  const [sessionInfo, setSessionInfo] = useState<ThinChatSessionInfo>({});
+  const [sessionUsage, setSessionUsage] = useState<ThinChatSessionUsage | null>(
+    null,
+  );
+  const [resumeProgress, setResumeProgress] = useState<ResumeProgress | null>(
+    null,
+  );
+  const [backfillLoaded, setBackfillLoaded] = useState(false);
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
 
   const liveSessionIdRef = useRef<string | null>(null);
   const storedSessionIdRef = useRef<string | null>(null);
   const ensurePromiseRef = useRef<Promise<string> | null>(null);
-  /** When true, ignore external resume effect (user hit New chat). */
   const suppressResumeRef = useRef(false);
+  const intentionalCloseRef = useRef(false);
+  const queueRef = useRef<string[]>([]);
 
   const profileRef = useRef(profile);
   const onStoredSessionIdRef = useRef(onStoredSessionId);
@@ -117,6 +191,7 @@ export function useThinChatGateway(
   const rememberStored = useCallback((stored: string | null | undefined) => {
     if (!stored) return;
     storedSessionIdRef.current = stored;
+    setStoredSessionId(stored);
     onStoredSessionIdRef.current?.(stored);
   }, []);
 
@@ -132,6 +207,30 @@ export function useThinChatGateway(
     ]);
   }, []);
 
+  const applySessionInfoPayload = useCallback((payload: unknown) => {
+    const patch = sessionInfoFromPayload(payload);
+    if (Object.keys(patch).length > 0) {
+      setSessionInfo((prev) => mergeSessionInfo(prev, patch));
+    }
+    if (typeof patch.running === "boolean") {
+      setBusy(patch.running);
+    }
+    if (payload && typeof payload === "object") {
+      const p = payload as Record<string, unknown>;
+      const title = typeof p.title === "string" ? p.title : undefined;
+      if (typeof title === "string" && title.trim()) {
+        onTitleRef.current?.(title.trim());
+      }
+      const warn =
+        typeof p.credential_warning === "string"
+          ? p.credential_warning
+          : null;
+      if (warn?.trim()) {
+        setCredentialWarning(warn.trim());
+      }
+    }
+  }, []);
+
   const applyResumeResult = useCallback(
     (result: SessionResumeResult) => {
       bindLiveSession(result.session_id);
@@ -140,13 +239,18 @@ export function useThinChatGateway(
       setPhase("session");
       setBusy(Boolean(result.running));
       setReady(true);
+      setBackfillLoaded(false);
+      setResumeProgress(null);
+      if (result.info) {
+        applySessionInfoPayload(result.info);
+      }
       const title =
         result.info && typeof result.info.title === "string"
           ? result.info.title
           : null;
       if (title) onTitleRef.current?.(title);
     },
-    [bindLiveSession, rememberStored],
+    [applySessionInfoPayload, bindLiveSession, rememberStored],
   );
 
   const createFreshSession = useCallback(async (): Promise<string> => {
@@ -158,10 +262,14 @@ export function useThinChatGateway(
     bindLiveSession(created.session_id);
     if (created.stored_session_id) {
       storedSessionIdRef.current = created.stored_session_id;
+      setStoredSessionId(created.stored_session_id);
+    }
+    if (created.info) {
+      applySessionInfoPayload(created.info);
     }
     setReady(true);
     return created.session_id;
-  }, [bindLiveSession, gw]);
+  }, [applySessionInfoPayload, bindLiveSession, gw]);
 
   const ensureLiveSession = useCallback(async (): Promise<string> => {
     if (liveSessionIdRef.current) return liveSessionIdRef.current;
@@ -169,8 +277,6 @@ export function useThinChatGateway(
 
     const run = (async () => {
       const target = storedSessionIdRef.current;
-      // Only resume here if we already bound a stored id but lost the live id
-      // (shouldn't be common). Prefer createFresh for EmptyHome first send.
       if (target && phase === "session" && messages.length > 0) {
         await gw.connect();
         const resumed = await gw.request<SessionResumeResult>(
@@ -193,46 +299,74 @@ export function useThinChatGateway(
     }
   }, [bindLiveSession, createFreshSession, gw, messages.length, phase, rememberStored]);
 
-  // Boot: connect + create (EmptyHome) or resume (?resume=).
-  useEffect(() => {
-    if (!enabled) return;
-    let cancelled = false;
+  const resumeAfterReconnect = useCallback(async () => {
+    const stored = storedSessionIdRef.current;
+    if (stored) {
+      const resumed = await gw.request<SessionResumeResult>(
+        "session.resume",
+        thinChatSessionResumeParams(stored, profileRef.current),
+      );
+      bindLiveSession(resumed.session_id);
+      rememberStored(resumed.stored_session_id ?? resumed.resumed);
+      setBusy(Boolean(resumed.running));
+      setReady(true);
+      if (resumed.info) {
+        applySessionInfoPayload(resumed.info);
+      }
+      return;
+    }
+    if (!liveSessionIdRef.current) {
+      await createFreshSession();
+    }
+  }, [
+    applySessionInfoPayload,
+    bindLiveSession,
+    createFreshSession,
+    gw,
+    rememberStored,
+  ]);
 
-    const offState = gw.onState(setConnectionState);
-
-    const onEvent = (ev: GatewayEvent) => {
+  const handleGatewayEvent = useCallback(
+    (ev: GatewayEvent) => {
       const sid = liveSessionIdRef.current;
       if (sid && ev.session_id && ev.session_id !== sid) return;
 
       if (ev.type === "session.info" || ev.type === "session.title") {
+        applySessionInfoPayload(ev.payload);
+        return;
+      }
+
+      if (ev.type === "session.usage") {
+        const usage = sessionUsageFromPayload(ev.payload);
+        if (usage) setSessionUsage(usage);
+        return;
+      }
+
+      if (ev.type === "session.resume_progress") {
         const payload =
           ev.payload && typeof ev.payload === "object"
             ? (ev.payload as Record<string, unknown>)
             : null;
-        const title =
-          payload && typeof payload.title === "string" ? payload.title : undefined;
-        if (typeof title === "string" && title.trim()) {
-          onTitleRef.current?.(title.trim());
-        }
-        const warn =
-          payload && typeof payload.credential_warning === "string"
-            ? payload.credential_warning
-            : null;
-        if (warn?.trim()) {
-          setCredentialWarning(warn.trim());
+        if (!payload) return;
+        setResumeProgress({
+          phase:
+            typeof payload.phase === "string" ? payload.phase : undefined,
+          status:
+            typeof payload.status === "string" ? payload.status : undefined,
+          message:
+            typeof payload.message === "string" ? payload.message : undefined,
+          messageCount:
+            typeof payload.message_count === "number"
+              ? payload.message_count
+              : undefined,
+        });
+        if (payload.status === "complete" || payload.status === "failed") {
+          setTimeout(() => setResumeProgress(null), 2000);
         }
         return;
       }
 
-      if (
-        ev.type === "message.start" ||
-        ev.type === "message.delta" ||
-        ev.type === "message.interim" ||
-        ev.type === "message.complete" ||
-        ev.type === "tool.start" ||
-        ev.type === "tool.complete" ||
-        ev.type === "error"
-      ) {
+      if (STREAM_EVENT_TYPES.has(ev.type)) {
         setMessages((prev) => applyGatewayEvent(prev, ev.type, ev.payload));
         if (ev.type === "message.start") {
           setBusy(true);
@@ -242,15 +376,25 @@ export function useThinChatGateway(
           setBusy(false);
         }
       }
-    };
+    },
+    [applySessionInfoPayload],
+  );
 
-    const offAny = gw.onAny(onEvent);
+  // Boot: connect + create (EmptyHome) or resume (?resume=).
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    intentionalCloseRef.current = false;
+
+    const offState = gw.onState(setConnectionState);
+    const offAny = gw.onAny(handleGatewayEvent);
 
     (async () => {
       try {
         if (resumeSessionId) {
           suppressResumeRef.current = false;
           storedSessionIdRef.current = resumeSessionId;
+          setStoredSessionId(resumeSessionId);
           await gw.connect();
           if (cancelled) return;
           const resumed = await gw.request<SessionResumeResult>(
@@ -284,18 +428,101 @@ export function useThinChatGateway(
 
     return () => {
       cancelled = true;
+      intentionalCloseRef.current = true;
       offState();
       offAny();
       bindLiveSession(null);
       ensurePromiseRef.current = null;
       gw.close();
     };
-    // Initial boot only for this gateway instance. Resume URL changes use the
-    // effect below; New chat uses reset().
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gw, enabled]);
 
-  // `/chat?resume=` changed while the host stays mounted (not the initial boot).
+  // WebSocket auto-reconnect (same backoff policy as ChatSidebar events feed).
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let connectTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
+    let connectGeneration = 0;
+
+    const clearTimers = () => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      if (connectTimer) {
+        clearTimeout(connectTimer);
+        connectTimer = null;
+      }
+    };
+
+    const scheduleReconnect = (closeCode?: number) => {
+      if (cancelled || intentionalCloseRef.current) return;
+      if (!shouldRetryEventsClose(closeCode)) return;
+      if (reconnectTimer) return;
+      if (attempt >= EVENTS_MAX_RECONNECT_ATTEMPTS) {
+        setReconnecting(false);
+        setError(eventsGaveUpMessage());
+        return;
+      }
+      const delay = eventsReconnectDelayMs(attempt);
+      attempt += 1;
+      setReconnecting(true);
+      setError(eventsReconnectingMessage(delay));
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        void connect();
+      }, delay);
+    };
+
+    const connect = async () => {
+      if (cancelled || intentionalCloseRef.current) return;
+      const generation = ++connectGeneration;
+      clearTimers();
+      connectTimer = setTimeout(() => {
+        connectTimer = null;
+        if (cancelled || generation !== connectGeneration) return;
+        connectGeneration += 1;
+        scheduleReconnect();
+      }, EVENTS_CONNECT_TIMEOUT_MS);
+
+      try {
+        await gw.connect();
+        if (cancelled || generation !== connectGeneration) return;
+        clearTimers();
+        attempt = 0;
+        setReconnecting(false);
+        setError((current) =>
+          current?.startsWith("events feed ") || current?.includes("reconnecting")
+            ? null
+            : current,
+        );
+        await resumeAfterReconnect();
+      } catch {
+        if (cancelled || generation !== connectGeneration) return;
+        clearTimers();
+        scheduleReconnect();
+      }
+    };
+
+    const offState = gw.onState((state) => {
+      if (state === "closed" || state === "error") {
+        if (!intentionalCloseRef.current) {
+          scheduleReconnect();
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      clearTimers();
+      offState();
+    };
+  }, [enabled, gw, resumeAfterReconnect]);
+
+  // `/chat?resume=` changed while the host stays mounted.
   const prevResumeRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     if (!enabled) return;
@@ -339,12 +566,12 @@ export function useThinChatGateway(
     return () => {
       cancelled = true;
     };
-  }, [applyResumeResult, enabled, gw, resumeSessionId]);
+  }, [applyResumeResult, enabled, gw, resumeSessionId, bindLiveSession]);
 
   const submitPrompt = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || busy) return;
+      if (!trimmed) return;
       setError(null);
       setBusy(true);
       try {
@@ -361,21 +588,57 @@ export function useThinChatGateway(
         appendSystemMessage(message);
       }
     },
-    [appendSystemMessage, busy, ensureLiveSession, gw, rememberStored],
+    [appendSystemMessage, ensureLiveSession, gw, rememberStored],
+  );
+
+  const trySteer = useCallback(
+    async (text: string): Promise<"queued" | "rejected" | "failed"> => {
+      const sid = liveSessionIdRef.current;
+      if (!sid) return "failed";
+      try {
+        const result = await gw.request<{ status?: string }>("session.steer", {
+          session_id: sid,
+          text,
+        });
+        return result?.status === "queued" ? "queued" : "rejected";
+      } catch {
+        return "failed";
+      }
+    },
+    [gw],
   );
 
   const submit = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || busy) return;
+      if (!trimmed) return;
 
       const isSlash = trimmed.startsWith("/");
-      if (!isSlash && credentialWarning) {
+      if (!isSlash && credentialWarning && !busy) {
         return;
       }
 
       setError(null);
       setPhase("session");
+
+      if (busy && !isSlash) {
+        setMessages((prev) => [
+          ...prev,
+          { id: createMessageId(), role: "user", text: trimmed },
+        ]);
+        const steerResult = await trySteer(trimmed);
+        if (steerResult === "queued") return;
+        queueRef.current.push(trimmed);
+        appendSystemMessage(
+          steerResult === "rejected"
+            ? "Steer rejected — message queued for next turn"
+            : "Steer failed — message queued for next turn",
+        );
+        return;
+      }
+
+      if (busy && isSlash) return;
+
       setMessages((prev) => [
         ...prev,
         { id: createMessageId(), role: "user", text: trimmed },
@@ -432,8 +695,17 @@ export function useThinChatGateway(
       gw,
       rememberStored,
       submitPrompt,
+      trySteer,
     ],
   );
+
+  // Drain steer-fallback queue when the agent turn finishes.
+  useEffect(() => {
+    if (busy || queueRef.current.length === 0) return;
+    const next = queueRef.current.shift();
+    if (!next) return;
+    void submitPrompt(next);
+  }, [busy, submitPrompt]);
 
   const interrupt = useCallback(async () => {
     const sid = liveSessionIdRef.current;
@@ -445,15 +717,49 @@ export function useThinChatGateway(
     }
   }, [gw]);
 
+  const loadEarlier = useCallback(async () => {
+    const stored = storedSessionIdRef.current;
+    if (!stored || loadingEarlier || backfillLoaded) return;
+    setLoadingEarlier(true);
+    try {
+      const resp = await api.getSessionMessages(stored, profileRef.current);
+      const older = sessionMessagesToChatMessages(resp.messages ?? []);
+      if (older.length > 0) {
+        setMessages((prev) => [...older, ...prev]);
+      }
+      setBackfillLoaded(true);
+    } catch (e) {
+      appendSystemMessage(
+        e instanceof Error ? e.message : "Could not load earlier messages",
+      );
+    } finally {
+      setLoadingEarlier(false);
+    }
+  }, [appendSystemMessage, backfillLoaded, loadingEarlier]);
+
+  const canLoadEarlier = Boolean(
+    storedSessionId &&
+      phase === "session" &&
+      !backfillLoaded &&
+      (sessionInfo.messageCount ?? 0) > messages.length,
+  );
+
   const reset = useCallback(async () => {
     suppressResumeRef.current = true;
     const sid = liveSessionIdRef.current;
     bindLiveSession(null);
     storedSessionIdRef.current = null;
+    setStoredSessionId(null);
     ensurePromiseRef.current = null;
+    queueRef.current = [];
     setBusy(false);
     setError(null);
+    setReconnecting(false);
     setCredentialWarning(null);
+    setSessionInfo({});
+    setSessionUsage(null);
+    setResumeProgress(null);
+    setBackfillLoaded(false);
     setMessages([]);
     setPhase("home");
     setReady(false);
@@ -477,13 +783,21 @@ export function useThinChatGateway(
     connectionState,
     busy,
     error,
+    reconnecting,
     credentialWarning,
     ready,
     gateway: gw,
     liveSessionId,
+    storedSessionId,
+    sessionInfo,
+    sessionUsage,
+    resumeProgress,
+    canLoadEarlier,
+    loadingEarlier,
     submit,
     interrupt,
     reset,
+    loadEarlier,
     clearError: () => setError(null),
   };
 }
