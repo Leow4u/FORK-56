@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, type ReactNode } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,15 +17,6 @@ vi.mock("@/desktop-chat/WebChatApp", () => ({
     ),
 }));
 
-vi.mock("@desktop/app/routes", () => ({
-  sessionRoute: (sessionId: string) => `/${sessionId}`,
-}));
-
-vi.mock("@desktop/app/contrib/wiring", () => ({
-  ContribWiring: ({ children }: { children?: ReactNode }) => <div data-testid="contrib-wiring">{children}</div>,
-  WiredPane: ({ part }: { part: string }) => <div data-testid={`wired-pane-${part}`} />,
-}));
-
 vi.mock("@/desktop-chat/bridge", () => ({
   installWebDesktopBridge: () => {
     window.work4youDesktop = { api: async () => ({}) };
@@ -34,6 +25,14 @@ vi.mock("@/desktop-chat/bridge", () => ({
     Reflect.deleteProperty(window, "work4youDesktop");
   },
 }));
+
+async function flushMount() {
+  // ChatPage mounts WebChatApp asynchronously via createRoot + dynamic import.
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
 
 describe("ChatPage", () => {
   let container: HTMLDivElement;
@@ -61,6 +60,7 @@ describe("ChatPage", () => {
     await act(async () => {
       root.render(<ChatPage isActive />);
     });
+    await flushMount();
 
     expect(container.querySelector('[data-web-desktop-chat-host="active"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="contrib-wiring"]')).toBeTruthy();
@@ -74,8 +74,26 @@ describe("ChatPage", () => {
     await act(async () => {
       root.render(<ChatPage isActive={false} />);
     });
+    await flushMount();
 
     expect(container.querySelector('[data-web-desktop-chat-host="idle"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="contrib-wiring"]')).toBeNull();
+  });
+
+  it("survives nesting under a BrowserRouter (separate React root)", async () => {
+    const { BrowserRouter } = await import("react-router");
+    const { default: ChatPage } = await import("./ChatPage");
+
+    await act(async () => {
+      root.render(
+        <BrowserRouter>
+          <ChatPage isActive />
+        </BrowserRouter>,
+      );
+    });
+    await flushMount();
+
+    expect(container.querySelector("[data-web-chat-mount]")).toBeTruthy();
+    expect(container.querySelector('[data-web-desktop-chat-host="active"]')).toBeTruthy();
   });
 });
