@@ -5,6 +5,8 @@
 #
 # Do not deploy from services/work4you-cloud-agent on Windows: fly's
 # build-context = "../.." can omit files from the Docker context (#29).
+#
+# 2026-08-25: rebuild after thin web /chat (EmptyHome → gateway WS, #69).
 app = "work4you-cloud-runtime"
 primary_region = "gru"
 
