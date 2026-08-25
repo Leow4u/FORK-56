@@ -18,6 +18,7 @@ import { executeSlash } from "@/lib/slashExec";
 
 import {
   applyGatewayEvent,
+  activityLineFromGatewayEvent,
   historyToChatMessages,
   sessionMessagesToChatMessages,
   thinChatSessionCreateParams,
@@ -25,6 +26,7 @@ import {
   type SessionCreateResult,
   type SessionResumeResult,
 } from "./gateway-protocol";
+import type { ThinChatActivity } from "./chat-activity-strip";
 import {
   mergeSessionInfo,
   sessionInfoFromPayload,
@@ -68,6 +70,53 @@ const STREAM_EVENT_TYPES = new Set([
   "error",
 ]);
 
+const ACTIVITY_EVENT_TYPES = new Set([
+  "tool.generating",
+  "tool.start",
+  "tool.progress",
+  "tool.complete",
+  "status.update",
+  "notification.show",
+  "subagent.spawn_requested",
+  "subagent.start",
+  "subagent.thinking",
+  "subagent.tool",
+  "subagent.progress",
+  "subagent.complete",
+]);
+
+const EMPTY_ACTIVITY: ThinChatActivity = {
+  toolLine: null,
+  backgroundLine: null,
+  queueCount: 0,
+};
+
+function activityPatchFromEvent(
+  eventType: string,
+  payload: unknown,
+): Partial<ThinChatActivity> | null {
+  if (!ACTIVITY_EVENT_TYPES.has(eventType)) return null;
+  const line = activityLineFromGatewayEvent(eventType, payload);
+  if (eventType === "notification.show") {
+    return line ? { backgroundLine: line } : null;
+  }
+  if (eventType === "status.update") {
+    const kind =
+      payload && typeof payload === "object"
+        ? (payload as { kind?: unknown }).kind
+        : undefined;
+    if (kind === "compacted") return { backgroundLine: null };
+    if (kind === "process") {
+      return line ? { backgroundLine: line } : null;
+    }
+    return line ? { toolLine: line } : null;
+  }
+  if (eventType.startsWith("subagent.") || eventType.startsWith("tool.")) {
+    return line ? { toolLine: line } : null;
+  }
+  return line ? { toolLine: line } : null;
+}
+
 export interface ResumeProgress {
   phase?: string;
   status?: string;
@@ -99,13 +148,17 @@ export interface UseThinChatGatewayResult {
   storedSessionId: string | null;
   sessionInfo: ThinChatSessionInfo;
   sessionUsage: ThinChatSessionUsage | null;
+  activity: ThinChatActivity;
   resumeProgress: ResumeProgress | null;
   canLoadEarlier: boolean;
+  showLoadEarlier: boolean;
   loadingEarlier: boolean;
   submit: (text: string) => Promise<void>;
   interrupt: () => Promise<void>;
   reset: () => Promise<void>;
   loadEarlier: () => Promise<void>;
+  setReasoningEffort: (effort: string) => Promise<void>;
+  refreshSessionUsage: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -152,6 +205,16 @@ export function useThinChatGateway(
   );
   const [backfillLoaded, setBackfillLoaded] = useState(false);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
+  const [activity, setActivity] = useState<ThinChatActivity>(EMPTY_ACTIVITY);
+  const [queueCount, setQueueCount] = useState(0);
+
+  const activityWithQueue = useMemo(
+    () =>
+      activity.queueCount === queueCount
+        ? activity
+        : { ...activity, queueCount },
+    [activity, queueCount],
+  );
 
   const liveSessionIdRef = useRef<string | null>(null);
   const storedSessionIdRef = useRef<string | null>(null);
@@ -207,6 +270,38 @@ export function useThinChatGateway(
     ]);
   }, []);
 
+  const refreshSessionUsage = useCallback(async () => {
+    const sid = liveSessionIdRef.current;
+    if (!sid) return;
+    try {
+      const usage = await gw.request<unknown>("session.usage", {
+        session_id: sid,
+      });
+      const parsed = sessionUsageFromPayload(usage);
+      if (parsed) setSessionUsage(parsed);
+    } catch {
+      // Usage is best-effort chrome — ignore transient RPC failures.
+    }
+  }, [gw]);
+
+  const setReasoningEffort = useCallback(
+    async (effort: string) => {
+      const sid = liveSessionIdRef.current;
+      if (!sid) return;
+      setSessionInfo((prev) => mergeSessionInfo(prev, { reasoningEffort: effort }));
+      try {
+        await gw.request("config.set", {
+          key: "reasoning",
+          session_id: sid,
+          value: effort,
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not set reasoning");
+      }
+    },
+    [gw],
+  );
+
   const applySessionInfoPayload = useCallback((payload: unknown) => {
     const patch = sessionInfoFromPayload(payload);
     if (Object.keys(patch).length > 0) {
@@ -249,8 +344,9 @@ export function useThinChatGateway(
           ? result.info.title
           : null;
       if (title) onTitleRef.current?.(title);
+      void refreshSessionUsage();
     },
-    [applySessionInfoPayload, bindLiveSession, rememberStored],
+    [applySessionInfoPayload, bindLiveSession, rememberStored, refreshSessionUsage],
   );
 
   const createFreshSession = useCallback(async (): Promise<string> => {
@@ -268,8 +364,9 @@ export function useThinChatGateway(
       applySessionInfoPayload(created.info);
     }
     setReady(true);
+    void refreshSessionUsage();
     return created.session_id;
-  }, [applySessionInfoPayload, bindLiveSession, gw]);
+  }, [applySessionInfoPayload, bindLiveSession, gw, refreshSessionUsage]);
 
   const ensureLiveSession = useCallback(async (): Promise<string> => {
     if (liveSessionIdRef.current) return liveSessionIdRef.current;
@@ -313,6 +410,7 @@ export function useThinChatGateway(
       if (resumed.info) {
         applySessionInfoPayload(resumed.info);
       }
+      void refreshSessionUsage();
       return;
     }
     if (!liveSessionIdRef.current) {
@@ -324,6 +422,7 @@ export function useThinChatGateway(
     createFreshSession,
     gw,
     rememberStored,
+    refreshSessionUsage,
   ]);
 
   const handleGatewayEvent = useCallback(
@@ -340,6 +439,11 @@ export function useThinChatGateway(
         const usage = sessionUsageFromPayload(ev.payload);
         if (usage) setSessionUsage(usage);
         return;
+      }
+
+      const activityPatch = activityPatchFromEvent(ev.type, ev.payload);
+      if (activityPatch) {
+        setActivity((prev) => ({ ...prev, ...activityPatch }));
       }
 
       if (ev.type === "session.resume_progress") {
@@ -374,10 +478,11 @@ export function useThinChatGateway(
         }
         if (ev.type === "message.complete" || ev.type === "error") {
           setBusy(false);
+          void refreshSessionUsage();
         }
       }
     },
-    [applySessionInfoPayload],
+    [applySessionInfoPayload, refreshSessionUsage],
   );
 
   // Boot: connect + create (EmptyHome) or resume (?resume=).
@@ -629,6 +734,7 @@ export function useThinChatGateway(
         const steerResult = await trySteer(trimmed);
         if (steerResult === "queued") return;
         queueRef.current.push(trimmed);
+        setQueueCount(queueRef.current.length);
         appendSystemMessage(
           steerResult === "rejected"
             ? "Steer rejected — message queued for next turn"
@@ -703,6 +809,7 @@ export function useThinChatGateway(
   useEffect(() => {
     if (busy || queueRef.current.length === 0) return;
     const next = queueRef.current.shift();
+    setQueueCount(queueRef.current.length);
     if (!next) return;
     void submitPrompt(next);
   }, [busy, submitPrompt]);
@@ -737,9 +844,10 @@ export function useThinChatGateway(
     }
   }, [appendSystemMessage, backfillLoaded, loadingEarlier]);
 
+  const showLoadEarlier = Boolean(storedSessionId && phase === "session");
+
   const canLoadEarlier = Boolean(
-    storedSessionId &&
-      phase === "session" &&
+    showLoadEarlier &&
       !backfillLoaded &&
       (sessionInfo.messageCount ?? 0) > messages.length,
   );
@@ -752,6 +860,8 @@ export function useThinChatGateway(
     setStoredSessionId(null);
     ensurePromiseRef.current = null;
     queueRef.current = [];
+    setQueueCount(0);
+    setActivity(EMPTY_ACTIVITY);
     setBusy(false);
     setError(null);
     setReconnecting(false);
@@ -791,13 +901,17 @@ export function useThinChatGateway(
     storedSessionId,
     sessionInfo,
     sessionUsage,
+    activity: activityWithQueue,
     resumeProgress,
     canLoadEarlier,
+    showLoadEarlier,
     loadingEarlier,
     submit,
     interrupt,
     reset,
     loadEarlier,
+    setReasoningEffort,
+    refreshSessionUsage,
     clearError: () => setError(null),
   };
 }

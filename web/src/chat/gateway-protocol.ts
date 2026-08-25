@@ -275,7 +275,48 @@ export function applyGatewayEvent(
   }
 }
 
-function formatToolEvent(
+/** Last tool/subagent line for the composer activity strip. */
+export function activityLineFromGatewayEvent(
+  eventType: string,
+  payload: unknown,
+): string | null {
+  switch (eventType) {
+    case "tool.generating":
+      return formatToolEvent(payload, "start").replace(/^▶/, "…") || null;
+    case "tool.start":
+      return formatToolEvent(payload, "start") || null;
+    case "tool.progress":
+      return formatToolEvent(payload, "progress") || null;
+    case "tool.complete":
+      return formatToolEvent(payload, "done") || null;
+    case "status.update": {
+      const kind =
+        payload && typeof payload === "object"
+          ? (payload as { kind?: unknown }).kind
+          : undefined;
+      if (kind === "compacting") return "Compacting context…";
+      if (kind === "compacted") return null;
+      if (kind === "process") {
+        const text = coerceEventText(payload);
+        return text ? `Background: ${text}` : "Background process…";
+      }
+      return coerceEventText(payload) || null;
+    }
+    case "notification.show":
+      return coerceEventText(payload) || null;
+    case "subagent.spawn_requested":
+    case "subagent.start":
+    case "subagent.thinking":
+    case "subagent.tool":
+    case "subagent.progress":
+    case "subagent.complete":
+      return formatSubagentEvent(eventType, payload) || null;
+    default:
+      return null;
+  }
+}
+
+export function formatToolEvent(
   payload: unknown,
   phase: "start" | "progress" | "done",
 ): string {

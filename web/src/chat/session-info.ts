@@ -49,7 +49,11 @@ export function sessionUsageFromPayload(
   payload: unknown,
 ): ThinChatSessionUsage | null {
   if (!payload || typeof payload !== "object") return null;
-  const p = payload as Record<string, unknown>;
+  const raw = payload as Record<string, unknown>;
+  const p =
+    raw.usage && typeof raw.usage === "object"
+      ? (raw.usage as Record<string, unknown>)
+      : raw;
   return {
     calls: typeof p.calls === "number" ? p.calls : undefined,
     input: typeof p.input === "number" ? p.input : undefined,
