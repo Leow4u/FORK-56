@@ -200,6 +200,18 @@ export const en: Translations = {
     },
   },
 
+  thinChat: {
+    emptySubtitle: "Ask anything. Your agent runs on this machine.",
+    thinking: "Thinking…",
+    scrollToBottom: "Scroll to bottom",
+    suggestions: [
+      "What can you help me with?",
+      "Summarize what we talked about last time",
+      "What skills are available?",
+      "Check if the gateway is healthy",
+    ],
+  },
+
   analytics: {
     period: "Period:",
     totalTokens: "Total Tokens",
