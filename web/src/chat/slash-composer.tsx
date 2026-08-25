@@ -58,7 +58,6 @@ export function SlashComposer({
         value={value}
         onChange={onChange}
         onBeforeKeyDown={onBeforeKeyDown}
-        className="w-full"
         {...rest}
       />
     </div>

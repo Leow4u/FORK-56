@@ -154,6 +154,7 @@ export interface UseThinChatGatewayResult {
   showLoadEarlier: boolean;
   loadingEarlier: boolean;
   submit: (text: string) => Promise<void>;
+  enqueueDraft: (text: string) => void;
   interrupt: () => Promise<void>;
   reset: () => Promise<void>;
   loadEarlier: () => Promise<void>;
@@ -814,6 +815,17 @@ export function useThinChatGateway(
     void submitPrompt(next);
   }, [busy, submitPrompt]);
 
+  const enqueueDraft = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || !busy) return;
+    setMessages((prev) => [
+      ...prev,
+      { id: createMessageId(), role: "user", text: trimmed },
+    ]);
+    queueRef.current.push(trimmed);
+    setQueueCount(queueRef.current.length);
+  }, [busy]);
+
   const interrupt = useCallback(async () => {
     const sid = liveSessionIdRef.current;
     if (!sid) return;
@@ -907,6 +919,7 @@ export function useThinChatGateway(
     showLoadEarlier,
     loadingEarlier,
     submit,
+    enqueueDraft,
     interrupt,
     reset,
     loadEarlier,

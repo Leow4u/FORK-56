@@ -58,6 +58,7 @@ export function ThinChat({
     showLoadEarlier,
     loadingEarlier,
     submit,
+    enqueueDraft,
     interrupt,
     reset,
     loadEarlier,
@@ -83,6 +84,14 @@ export function ThinChat({
       void submit(text);
     },
     [submit],
+  );
+
+  const handleQueue = useCallback(
+    (text: string) => {
+      setDraft("");
+      enqueueDraft(text);
+    },
+    [enqueueDraft],
   );
 
   const handleReset = useCallback(() => {
@@ -185,6 +194,7 @@ export function ThinChat({
           activity={activity}
           resumeLabel={resumeBanner}
           onReasoningChange={(effort) => void setReasoningEffort(effort)}
+          onQueue={handleQueue}
           onStop={() => void interrupt()}
           busy={busy}
           canLoadEarlier={canLoadEarlier}

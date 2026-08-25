@@ -43,6 +43,9 @@ export interface ThinChatSessionUsage {
   input?: number;
   output?: number;
   total?: number;
+  contextMax?: number;
+  contextUsed?: number;
+  contextPercent?: number;
 }
 
 export function sessionUsageFromPayload(
@@ -54,10 +57,16 @@ export function sessionUsageFromPayload(
     raw.usage && typeof raw.usage === "object"
       ? (raw.usage as Record<string, unknown>)
       : raw;
-  return {
+  const out: ThinChatSessionUsage = {
     calls: typeof p.calls === "number" ? p.calls : undefined,
     input: typeof p.input === "number" ? p.input : undefined,
     output: typeof p.output === "number" ? p.output : undefined,
     total: typeof p.total === "number" ? p.total : undefined,
   };
+  if (typeof p.context_max === "number") out.contextMax = p.context_max;
+  if (typeof p.context_used === "number") out.contextUsed = p.context_used;
+  if (typeof p.context_percent === "number") {
+    out.contextPercent = p.context_percent;
+  }
+  return out;
 }

@@ -20,6 +20,7 @@ export interface SessionViewProps {
   activity: ThinChatActivity;
   resumeLabel?: string | null;
   onReasoningChange?: (effort: string) => void;
+  onQueue?: (text: string) => void;
   onStop?: () => void;
   busy?: boolean;
   canLoadEarlier?: boolean;
@@ -46,6 +47,7 @@ export function SessionView({
   activity,
   resumeLabel,
   onReasoningChange,
+  onQueue,
   onStop,
   busy = false,
   canLoadEarlier = false,
@@ -81,6 +83,7 @@ export function SessionView({
             activity={activity}
             resumeLabel={resumeLabel}
             onReasoningChange={onReasoningChange}
+            onQueue={onQueue}
             onStop={onStop}
             busy={busy}
             autoFocus={autoFocus}
