@@ -3,7 +3,7 @@ import "./web-chat.css";
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
-import { HashRouter, useSearchParams } from "react-router";
+import { HashRouter } from "react-router";
 
 import { ContribWiring, WiredPane } from "@desktop/app/contrib/wiring";
 import { sessionRoute } from "@desktop/app/routes";
@@ -15,19 +15,24 @@ import { ThemeProvider } from "@desktop/themes/context";
 import { installWebDesktopBridge, removeWebDesktopBridge } from "./bridge";
 
 installClipboardShim();
+// Bridge before ThemeProvider / ContribWiring effects — they call
+// window.work4youDesktop during mount.
+installWebDesktopBridge();
 
 function ChatRouteBootstrap() {
-  const [params] = useSearchParams();
-  const resume = (params.get("resume") ?? "").trim();
-
+  // Resume lands on the dashboard BrowserRouter as `/chat?resume=…`.
+  // This shell's HashRouter does not see that search string — read the
+  // outer location instead.
   useEffect(() => {
-    if (!resume || typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
+    const resume = new URLSearchParams(window.location.search).get("resume")?.trim() ?? "";
+    if (!resume) return;
     const target = sessionRoute(resume);
     if (window.location.hash === `#${target}` || window.location.hash === target) {
       return;
     }
     window.location.hash = target;
-  }, [resume]);
+  }, []);
 
   return null;
 }
