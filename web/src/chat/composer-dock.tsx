@@ -10,6 +10,7 @@ import { ComposerModelPill } from "./composer-model-pill";
 import { ComposerUnderside } from "./composer-underside";
 import { SlashComposer, type SlashComposerProps } from "./slash-composer";
 import type { ThinChatSessionInfo, ThinChatSessionUsage } from "./session-info";
+import { useContextBreakdown } from "./use-context-breakdown";
 
 export interface ComposerDockProps extends SlashComposerProps {
   connectionState: ConnectionState;
@@ -43,6 +44,14 @@ export function ComposerDock({
 }: ComposerDockProps) {
   void _reasoningChange;
   const [modelOpen, setModelOpen] = useState(false);
+  const busy = Boolean(composerProps.busy);
+
+  const { breakdown, loading: breakdownLoading } = useContextBreakdown({
+    busy,
+    enabled: showChrome,
+    gateway,
+    sessionId,
+  });
 
   const modelName =
     sessionInfo.model && sessionInfo.provider
@@ -110,7 +119,9 @@ export function ComposerDock({
           reconnecting={reconnecting}
           info={sessionInfo}
           usage={sessionUsage}
-          busy={Boolean(composerProps.busy)}
+          breakdown={breakdown}
+          breakdownLoading={breakdownLoading}
+          busy={busy}
         />
       ) : null}
 

@@ -1,8 +1,11 @@
 import type { ConnectionState } from "@/lib/gatewayClient";
-import { Cloud, GitBranch, Loader2 } from "lucide-react";
+import { Cloud, GitBranch } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+import type { ContextBreakdown } from "./context-breakdown";
+import { mergeGaugeUsage } from "./context-breakdown";
+import { ContextUsageChip } from "./context-usage-chip";
 import { composerFloatingPill, composerFloatingStrip } from "./composer-dock-styles";
 import type { ThinChatSessionInfo, ThinChatSessionUsage } from "./session-info";
 
@@ -11,6 +14,8 @@ export interface ComposerUndersideProps {
   reconnecting?: boolean;
   info: ThinChatSessionInfo;
   usage: ThinChatSessionUsage | null;
+  breakdown?: ContextBreakdown | null;
+  breakdownLoading?: boolean;
   busy?: boolean;
   className?: string;
 }
@@ -37,15 +42,6 @@ function connectionTone(
   return "text-muted-foreground";
 }
 
-function contextSummary(usage: ThinChatSessionUsage | null): string {
-  if (!usage) return "—";
-  if (usage.total != null) return `${usage.total.toLocaleString()} tok`;
-  if (usage.input != null || usage.output != null) {
-    return `${(usage.input ?? 0).toLocaleString()} in`;
-  }
-  return "—";
-}
-
 /**
  * Chrome-free strip below the composer: branch · connection · context meter.
  */
@@ -54,12 +50,14 @@ export function ComposerUnderside({
   reconnecting = false,
   info,
   usage,
+  breakdown = null,
+  breakdownLoading = false,
   busy = false,
   className,
 }: ComposerUndersideProps) {
   const branch = info.branch?.trim();
   const connLabel = connectionLabel(connectionState, reconnecting);
-  const contextLabel = contextSummary(usage);
+  const gauge = mergeGaugeUsage(usage, breakdown);
 
   return (
     <div
@@ -88,18 +86,15 @@ export function ComposerUnderside({
         <span className="text-[0.6875rem]">{connLabel}</span>
       </span>
 
-      <span
-        className={cn(
-          composerFloatingPill,
-          "ml-auto cursor-default tabular-nums",
-        )}
-        title="Session context usage"
-      >
-        {busy ? (
-          <Loader2 className="h-3 w-3 shrink-0 animate-spin opacity-70" aria-hidden />
-        ) : null}
-        <span className="text-[0.6875rem]">{contextLabel}</span>
-      </span>
+      <ContextUsageChip
+        breakdown={breakdown}
+        loading={breakdownLoading}
+        contextMax={gauge.contextMax}
+        contextUsed={gauge.contextUsed}
+        contextPercent={gauge.contextPercent}
+        total={gauge.total}
+        busy={busy}
+      />
     </div>
   );
 }

@@ -25,19 +25,19 @@ describe("ComposerUnderside", () => {
     container.remove();
   });
 
-  it("renders branch, cloud connection, and context placeholder", () => {
+  it("renders branch, cloud connection, and context meter", () => {
     act(() => {
       root.render(
         <ComposerUnderside
           connectionState="open"
           info={{ branch: "cursor/feature-branch" }}
-          usage={null}
+          usage={{ contextMax: 200_000, contextUsed: 50_000, contextPercent: 25 }}
         />,
       );
     });
     expect(container.textContent).toContain("cursor/feature-branch");
     expect(container.textContent).toContain("Cloud");
-    expect(container.textContent).toContain("—");
+    expect(container.textContent).toContain("25%");
   });
 
   it("formats token usage when present", () => {
