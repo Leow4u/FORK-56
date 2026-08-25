@@ -30,7 +30,6 @@ def test_tool_call_signature_hashes_canonical_nested_unicode_args_without_exposi
     metadata = sig_a.to_metadata()
     assert metadata == {"tool_name": "web_search", "args_hash": sig_a.args_hash}
     assert "secret-token-value" not in json.dumps(metadata)
-    assert "" not in json.dumps(metadata)
 
 
 

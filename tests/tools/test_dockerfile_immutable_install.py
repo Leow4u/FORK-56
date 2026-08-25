@@ -20,8 +20,9 @@ def test_dockerfile_makes_opt_work4you_readonly_for_work4you_user() -> None:
     assert "COPY --link --chmod=a+rX,go-w . ." in text
     # The old tree-walking passes must not be present.
     assert "chown -R root:root /opt/work4you" not in text
-    assert "chmod -R a+rX /opt/work4you" not in text
-    assert "chmod -R a-w /opt/work4you" not in text
+    # Scoped subdirs (e.g. .playwright) may be chmod'd; forbid tree walks on the root.
+    assert not re.search(r"chmod\s+-R\s+a\+rX\s+/opt/work4you(?:\s|;|\\)", text)
+    assert not re.search(r"chmod\s+-R\s+a-w\s+/opt/work4you(?:\s|;|\\)", text)
 
 
 def test_dockerfile_does_not_chown_install_trees_to_work4you() -> None:

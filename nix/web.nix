@@ -7,6 +7,9 @@ work4youNpmLib.buildNpmPackage {
     # @work4you/shared ships as a file: workspace dep of web, so its source
     # must be in the filtered src tree too.
     "apps/shared"
+
+    # @work4you/ui is a workspace package linked from web/package-lock.json.
+    "packages/work4you-ui"
   ];
 
   doCheck = false;

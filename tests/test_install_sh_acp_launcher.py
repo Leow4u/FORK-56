@@ -163,10 +163,13 @@ def _run_work4you_block(tmp_path: Path, use_venv: str) -> Path | None:
     work4you_bin.write_text("#!/bin/sh\n", encoding="utf-8")
     install_dir = tmp_path / "install"
     install_dir.mkdir()
+    entrypoint = install_dir / "work4you"
+    entrypoint.write_text("#!/bin/sh\n", encoding="utf-8")
 
     script = (
         "set -e\n"
         f"WORK4YOU_BIN={work4you_bin}\n"
+        f"WORK4YOU_ENTRYPOINT={entrypoint}\n"
         f"INSTALL_DIR={install_dir}\n"
         f"command_link_dir={command_link_dir}\n"
         f"command_link_display_dir={command_link_dir}\n"
@@ -195,7 +198,9 @@ def test_venv_install_writes_executable_work4you_launcher(tmp_path):
     text = shim.read_text(encoding="utf-8")
     assert "unset PYTHONPATH" in text
     assert "unset PYTHONHOME" in text
-    assert "run_agent.py" in text, "work4you must dispatch to run_agent.py"
+    assert str(tmp_path / "install" / "work4you") in text, (
+        "work4you must dispatch to the checked-in entrypoint"
+    )
 
 
 def test_work4you_launcher_cleanup_on_uninstall(tmp_path):
