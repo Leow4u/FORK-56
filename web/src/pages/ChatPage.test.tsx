@@ -56,6 +56,12 @@ vi.mock("@/lib/gatewayClient", () => ({
   },
 }));
 
+vi.mock("@/lib/api", () => ({
+  api: {
+    getSessions: vi.fn(async () => ({ sessions: [] })),
+  },
+}));
+
 vi.mock("@/contexts/usePageHeader", () => ({
   usePageHeader: () => ({ setEnd, setTitle }),
 }));
@@ -68,7 +74,8 @@ vi.mock("@/i18n", () => ({
   useI18n: () => ({
     t: {
       app: { nav: { chat: "Chat" } },
-      sessions: { newChat: "New chat" },
+      common: { close: "Close" },
+      sessions: { newChat: "New chat", title: "Sessions", untitledSession: "Untitled" },
     },
   }),
 }));
@@ -87,6 +94,16 @@ vi.mock("@work4you/ui/ui/components/button", () => ({
 
 vi.mock("@work4you/ui/ui/components/typography/index", () => ({
   Typography: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock("@work4you/ui/ui/components/list-item", () => ({
+  ListItem: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+    <div {...props}>{children}</div>
+  ),
+}));
+
+vi.mock("@work4you/ui/ui/components/spinner", () => ({
+  Spinner: () => <span>loading</span>,
 }));
 
 vi.mock("@/components/Markdown", () => ({

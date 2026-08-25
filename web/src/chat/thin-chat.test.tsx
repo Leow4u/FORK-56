@@ -44,6 +44,9 @@ const gatewayMocks = vi.hoisted(() => {
       if (method === "prompt.submit") {
         return { status: "streaming" };
       }
+      if (method === "slash.exec") {
+        return { output: "help text" };
+      }
       if (method === "session.close" || method === "session.interrupt") {
         return { ok: true };
       }
@@ -84,6 +87,12 @@ vi.mock("@work4you/ui/ui/components/button", () => ({
     <button type="button" {...props}>
       {children}
     </button>
+  ),
+}));
+
+vi.mock("@work4you/ui/ui/components/list-item", () => ({
+  ListItem: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+    <div {...props}>{children}</div>
   ),
 }));
 
@@ -203,6 +212,89 @@ describe("ThinChat gateway wiring", () => {
     expect(
       container.querySelector('button[aria-label="Stop generating"]'),
     ).toBeNull();
+  });
+
+  it("runs slash commands via slash.exec", async () => {
+    await act(async () => {
+      root.render(<ThinChat />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const textarea = container.querySelector(
+      'textarea[aria-label="Message"]',
+    ) as HTMLTextAreaElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )?.set;
+    await act(async () => {
+      setter?.call(textarea, "/help");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const send = container.querySelector(
+      'button[aria-label="Send message"]',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      send.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(gatewayMocks.request).toHaveBeenCalledWith(
+      "slash.exec",
+      expect.objectContaining({ command: "help" }),
+    );
+    expect(container.textContent).toContain("help text");
+    expect(gatewayMocks.request).not.toHaveBeenCalledWith(
+      "prompt.submit",
+      expect.anything(),
+    );
+  });
+
+  it("blocks plain sends when credential_warning is active", async () => {
+    await act(async () => {
+      root.render(<ThinChat />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      gatewayMocks.emit("session.info", {
+        credential_warning: "No API key configured",
+      });
+    });
+
+    expect(container.textContent).toContain("No API key configured");
+
+    const textarea = container.querySelector(
+      'textarea[aria-label="Message"]',
+    ) as HTMLTextAreaElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )?.set;
+    await act(async () => {
+      setter?.call(textarea, "hello");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const send = container.querySelector(
+      'button[aria-label="Send message"]',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      send.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(gatewayMocks.request).not.toHaveBeenCalledWith(
+      "prompt.submit",
+      expect.anything(),
+    );
   });
 
   it("exposes reset via resetRef", async () => {

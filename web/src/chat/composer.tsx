@@ -23,6 +23,8 @@ export interface ComposerProps {
   onStop?: () => void;
   autoFocus?: boolean;
   className?: string;
+  /** When true, popover/slash handler consumed the key. */
+  onBeforeKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export function Composer({
   onStop,
   autoFocus = false,
   className,
+  onBeforeKeyDown,
 }: ComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -72,6 +75,7 @@ export function Composer({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (onBeforeKeyDown?.(event)) return;
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       if (busy) return;
