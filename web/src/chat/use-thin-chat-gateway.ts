@@ -79,14 +79,16 @@ export function useThinChatGateway(
   const suppressResumeRef = useRef(false);
 
   const profileRef = useRef(profile);
-  profileRef.current = profile;
-
   const onStoredSessionIdRef = useRef(onStoredSessionId);
-  onStoredSessionIdRef.current = onStoredSessionId;
   const onTitleRef = useRef(onTitle);
-  onTitleRef.current = onTitle;
   const onPhaseChangeRef = useRef(onPhaseChange);
-  onPhaseChangeRef.current = onPhaseChange;
+
+  useEffect(() => {
+    profileRef.current = profile;
+    onStoredSessionIdRef.current = onStoredSessionId;
+    onTitleRef.current = onTitle;
+    onPhaseChangeRef.current = onPhaseChange;
+  }, [profile, onStoredSessionId, onTitle, onPhaseChange]);
 
   useEffect(() => {
     onPhaseChangeRef.current?.(phase);

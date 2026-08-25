@@ -7,7 +7,7 @@
 
 import { Button } from "@work4you/ui/ui/components/button";
 import { Plus } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { ThinChat } from "@/chat";
@@ -23,7 +23,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const resetRef = useRef<(() => void) | null>(null);
   // Capture ?learn= once so clearing the query doesn't wipe the composer seed.
-  const learnSeedRef = useRef(searchParams.get("learn") ?? "");
+  const [learnSeed] = useState(() => searchParams.get("learn") ?? "");
 
   const resumeParam = searchParams.get("resume");
 
@@ -124,7 +124,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
           isActive={isActive}
           profile={scopedProfile || undefined}
           resumeSessionId={resumeParam}
-          initialDraft={learnSeedRef.current}
+          initialDraft={learnSeed}
           onReset={handleReset}
           onStoredSessionId={handleStoredSessionId}
           onTitle={handleTitle}

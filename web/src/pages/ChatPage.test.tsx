@@ -80,20 +80,9 @@ vi.mock("@/plugins", () => ({
 }));
 
 vi.mock("@work4you/ui/ui/components/button", () => ({
-  Button: ({
-    children,
-    ...props
-  }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-    ghost?: boolean;
-    size?: string;
-  }) => {
-    const { ghost: _g, size: _s, ...rest } = props;
-    return (
-      <button type="button" {...rest}>
-        {children}
-      </button>
-    );
-  },
+  Button: ({ children }: { children?: ReactNode }) => (
+    <button type="button">{children}</button>
+  ),
 }));
 
 vi.mock("@work4you/ui/ui/components/typography/index", () => ({

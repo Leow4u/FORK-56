@@ -59,9 +59,10 @@ export function ThinChat({
     onPhaseChange,
   });
 
+  // Seed composer from Skills → /chat?learn=… (captured once by the page).
   useEffect(() => {
     if (!initialDraft) return;
-    setDraft(initialDraft);
+    queueMicrotask(() => setDraft(initialDraft));
   }, [initialDraft]);
 
   const handleSubmit = useCallback(
