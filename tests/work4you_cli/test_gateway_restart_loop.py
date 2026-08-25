@@ -29,7 +29,7 @@ class TestGatewayLifecyclePattern:
         "work4you gateway restart",
         "work4you gateway stop",
         "work4you  gateway  restart",         # double spaces
-        "Hermez Gateway Restart".lower().replace("z", "s"),  # case handled
+        "Work4You Gateway Restart".lower(),  # case handled
         "WORK4YOU GATEWAY RESTART",           # uppercase
     ])
     def test_work4you_gateway_commands(self, text):
