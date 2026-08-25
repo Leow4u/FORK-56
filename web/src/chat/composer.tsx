@@ -136,7 +136,7 @@ export function Composer({
           <Button
             type="button"
             size="icon"
-            variant="ghost"
+            ghost
             disabled={disabled}
             className="mb-0.5 h-8 w-8 shrink-0 rounded-lg text-muted-foreground"
             aria-label="Add context — type @ for files"
@@ -169,7 +169,7 @@ export function Composer({
             <Button
               type="button"
               size="icon"
-              variant="ghost"
+              ghost
               disabled={!canSend}
               aria-label="Queue message for next turn"
               className="h-8 w-8 shrink-0 rounded-lg"
