@@ -644,6 +644,15 @@ export function useThinChatGateway(
       return;
     }
     if (!resumeSessionId) return;
+    // First prompt from EmptyHome calls rememberStored → parent sets ?resume= to
+    // the session key we already have live. Re-resuming would close the in-flight
+    // turn and replace the local transcript with empty durable history.
+    if (
+      resumeSessionId === storedSessionIdRef.current &&
+      liveSessionIdRef.current
+    ) {
+      return;
+    }
 
     let cancelled = false;
     (async () => {
