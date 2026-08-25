@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  activityLineFromGatewayEvent,
   applyGatewayEvent,
   historyToChatMessages,
   thinChatSessionCreateParams,
@@ -98,5 +99,27 @@ describe("applyGatewayEvent", () => {
     expect(msgs.some((m) => m.id === "status-compacting")).toBe(true);
     msgs = applyGatewayEvent(msgs, "status.update", { kind: "compacted" });
     expect(msgs.some((m) => m.id === "status-compacting")).toBe(false);
+  });
+});
+
+describe("activityLineFromGatewayEvent", () => {
+  it("formats tool and background activity lines", () => {
+    expect(
+      activityLineFromGatewayEvent("tool.start", {
+        name: "terminal",
+        context: "pwd",
+      }),
+    ).toBe("▶ terminal — pwd");
+    expect(
+      activityLineFromGatewayEvent("status.update", {
+        kind: "process",
+        text: "npm test finished",
+      }),
+    ).toBe("Background: npm test finished");
+    expect(
+      activityLineFromGatewayEvent("notification.show", {
+        text: "Build complete",
+      }),
+    ).toBe("Build complete");
   });
 });

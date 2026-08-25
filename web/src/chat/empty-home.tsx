@@ -1,11 +1,12 @@
 import { Typography } from "@work4you/ui/ui/components/typography/index";
 
 import { useI18n } from "@/i18n";
+import type { ConnectionState, GatewayClient } from "@/lib/gatewayClient";
 import { cn } from "@/lib/utils";
 
-import type { GatewayClient } from "@/lib/gatewayClient";
-
-import { SlashComposer } from "./slash-composer";
+import type { ThinChatActivity } from "./chat-activity-strip";
+import { ComposerDock } from "./composer-dock";
+import type { ThinChatSessionInfo, ThinChatSessionUsage } from "./session-info";
 
 const DEFAULT_SUGGESTIONS = [
   "What can you help me with?",
@@ -20,12 +21,18 @@ export interface EmptyHomeProps {
   onSubmit: (text: string) => void;
   gateway: GatewayClient | null;
   sessionId?: string | null;
+  connectionState: ConnectionState;
+  reconnecting?: boolean;
+  sessionInfo: ThinChatSessionInfo;
+  sessionUsage: ThinChatSessionUsage | null;
+  activity: ThinChatActivity;
+  onReasoningChange?: (effort: string) => void;
   autoFocus?: boolean;
   disabled?: boolean;
 }
 
 /**
- * First-paint chat surface: brand + one short line + centered composer.
+ * First-paint chat surface: brand + centered composer dock with session chrome.
  */
 export function EmptyHome({
   draft,
@@ -33,6 +40,12 @@ export function EmptyHome({
   onSubmit,
   gateway,
   sessionId = null,
+  connectionState,
+  reconnecting = false,
+  sessionInfo,
+  sessionUsage,
+  activity,
+  onReasoningChange,
   autoFocus = true,
   disabled = false,
 }: EmptyHomeProps) {
@@ -55,15 +68,22 @@ export function EmptyHome({
           <p className="max-w-md text-sm text-muted-foreground">{subtitle}</p>
         </div>
 
-        <SlashComposer
+        <ComposerDock
           variant="hero"
           value={draft}
           onChange={onDraftChange}
           onSubmit={onSubmit}
           gateway={gateway}
           sessionId={sessionId}
+          connectionState={connectionState}
+          reconnecting={reconnecting}
+          sessionInfo={sessionInfo}
+          sessionUsage={sessionUsage}
+          activity={activity}
+          onReasoningChange={onReasoningChange}
           autoFocus={autoFocus}
           disabled={disabled}
+          busy={disabled}
           className="w-full shadow-md"
         />
 

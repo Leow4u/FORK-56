@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, type MutableRefObject } from "react";
 
 import { EmptyHome } from "./empty-home";
-import { SessionStatusBar } from "./session-status-bar";
 import { SessionView } from "./session-view";
 import type { ThinChatPhase } from "./types";
 import { useThinChatGateway } from "./use-thin-chat-gateway";
@@ -53,13 +52,16 @@ export function ThinChat({
     liveSessionId,
     sessionInfo,
     sessionUsage,
+    activity,
     resumeProgress,
     canLoadEarlier,
+    showLoadEarlier,
     loadingEarlier,
     submit,
     interrupt,
     reset,
     loadEarlier,
+    setReasoningEffort,
     clearError,
   } = useThinChatGateway({
     profile,
@@ -128,23 +130,6 @@ export function ThinChat({
         </div>
       )}
 
-      {phase === "session" && (
-        <SessionStatusBar
-          info={sessionInfo}
-          usage={sessionUsage}
-          reconnecting={reconnecting}
-        />
-      )}
-
-      {resumeBanner && (
-        <div
-          className="border-b border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
-          role="status"
-        >
-          <div className="mx-auto max-w-3xl">{resumeBanner}</div>
-        </div>
-      )}
-
       {(error || statusLabel) && (
         <div
           className={
@@ -176,6 +161,12 @@ export function ThinChat({
           onSubmit={handleSubmit}
           gateway={gateway}
           sessionId={liveSessionId}
+          connectionState={connectionState}
+          reconnecting={reconnecting}
+          sessionInfo={sessionInfo}
+          sessionUsage={sessionUsage}
+          activity={activity}
+          onReasoningChange={(effort) => void setReasoningEffort(effort)}
           autoFocus={isActive}
           disabled={busy || connectionState === "connecting"}
         />
@@ -187,9 +178,17 @@ export function ThinChat({
           onSubmit={handleSubmit}
           gateway={gateway}
           sessionId={liveSessionId}
+          connectionState={connectionState}
+          reconnecting={reconnecting}
+          sessionInfo={sessionInfo}
+          sessionUsage={sessionUsage}
+          activity={activity}
+          resumeLabel={resumeBanner}
+          onReasoningChange={(effort) => void setReasoningEffort(effort)}
           onStop={() => void interrupt()}
           busy={busy}
           canLoadEarlier={canLoadEarlier}
+          showLoadEarlier={showLoadEarlier}
           loadingEarlier={loadingEarlier}
           onLoadEarlier={() => void loadEarlier()}
           autoFocus={isActive}

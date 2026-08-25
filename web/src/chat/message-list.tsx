@@ -13,6 +13,8 @@ export interface MessageListProps {
   /** Agent turn in flight — shows thinking dots before the first token. */
   busy?: boolean;
   canLoadEarlier?: boolean;
+  /** Show the load-earlier control even when nothing is available yet. */
+  showLoadEarlier?: boolean;
   loadingEarlier?: boolean;
   onLoadEarlier?: () => void;
   className?: string;
@@ -131,6 +133,7 @@ export function MessageList({
   messages,
   busy = false,
   canLoadEarlier = false,
+  showLoadEarlier = false,
   loadingEarlier = false,
   onLoadEarlier,
   className,
@@ -147,6 +150,8 @@ export function MessageList({
 
   const showThinking = shouldShowThinking(messages, busy);
 
+  const loadEarlierVisible = showLoadEarlier || canLoadEarlier;
+
   return (
     <div className="relative min-h-0 flex-1">
       <div
@@ -159,15 +164,19 @@ export function MessageList({
         aria-live="polite"
         aria-relevant="additions"
       >
-        {canLoadEarlier && onLoadEarlier && (
+        {loadEarlierVisible && onLoadEarlier && (
           <div className="mx-auto flex w-full max-w-3xl justify-center">
             <button
               type="button"
-              disabled={loadingEarlier}
+              disabled={loadingEarlier || !canLoadEarlier}
               onClick={onLoadEarlier}
-              className="rounded-full border border-border/50 bg-muted/20 px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/35 hover:text-foreground disabled:opacity-50"
+              className="rounded-full border border-border/50 bg-muted/20 px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/35 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loadingEarlier ? t.common.loading : loadEarlierLabel}
+              {loadingEarlier
+                ? t.common.loading
+                : canLoadEarlier
+                  ? loadEarlierLabel
+                  : `${loadEarlierLabel} (none)`}
             </button>
           </div>
         )}

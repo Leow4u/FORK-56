@@ -102,6 +102,36 @@ vi.mock("@work4you/ui/ui/components/typography/index", () => ({
   ),
 }));
 
+vi.mock("@work4you/ui/ui/components/select", () => ({
+  Select: ({
+    children,
+    value,
+    onValueChange,
+    disabled,
+  }: {
+    children?: React.ReactNode;
+    value?: string;
+    onValueChange?: (value: string) => void;
+    disabled?: boolean;
+  }) => (
+    <select
+      aria-label="Reasoning effort"
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onValueChange?.(e.target.value)}
+    >
+      {children}
+    </select>
+  ),
+  SelectOption: ({
+    children,
+    value,
+  }: {
+    children?: React.ReactNode;
+    value: string;
+  }) => <option value={value}>{children}</option>,
+}));
+
 vi.mock("@/components/Markdown", () => ({
   Markdown: ({ content }: { content: string }) => <div>{content}</div>,
 }));
