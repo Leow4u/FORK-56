@@ -4,8 +4,8 @@ import { ModelPickerDialog } from "@/components/ModelPickerDialog";
 import type { ConnectionState } from "@/lib/gatewayClient";
 import { cn } from "@/lib/utils";
 
-import { ChatActivityStrip, type ThinChatActivity } from "./chat-activity-strip";
-import { composerFloatingStrip } from "./composer-dock-styles";
+import type { ThinChatActivity } from "./chat-activity-strip";
+import { ComposerFloatingPills } from "./composer-floating-pills";
 import { ComposerModelPill } from "./composer-model-pill";
 import { ComposerUnderside } from "./composer-underside";
 import { SlashComposer, type SlashComposerProps } from "./slash-composer";
@@ -83,25 +83,25 @@ export function ComposerDock({
     />
   );
 
-  const showActivity =
+  const showFloatingPills =
     showChrome &&
     (Boolean(composerProps.busy) ||
       Boolean(resumeLabel) ||
       Boolean(activity.toolLine) ||
       Boolean(activity.backgroundLine) ||
-      activity.queueCount > 0);
+      activity.queueCount > 0 ||
+      Boolean(sessionInfo.fast) ||
+      Boolean(sessionInfo.yolo));
 
   return (
     <div className={cn("flex w-full flex-col", className)} data-slot="composer-dock">
-      {showActivity ? (
-        <div className={cn(composerFloatingStrip, "pb-1.5")}>
-          <ChatActivityStrip
-            busy={Boolean(composerProps.busy)}
-            activity={activity}
-            resumeLabel={resumeLabel}
-            className="w-full rounded-full border border-border/50 bg-background/80 px-2 py-1 backdrop-blur-md"
-          />
-        </div>
+      {showFloatingPills ? (
+        <ComposerFloatingPills
+          activity={activity}
+          busy={busy}
+          info={sessionInfo}
+          resumeLabel={resumeLabel}
+        />
       ) : null}
 
       <SlashComposer
