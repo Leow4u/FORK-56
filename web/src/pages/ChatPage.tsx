@@ -1,8 +1,8 @@
 /**
  * ChatPage — thin conversation UI for the dashboard /chat tab.
  *
- * Replaces the previous xterm + `/api/pty` embed. Step 2 ships EmptyHome →
- * SessionView with local state only; step 3 wires `GatewayClient` → `/api/ws`.
+ * Conversation shell over ``GatewayClient`` → ``/api/ws`` (same JSON-RPC as
+ * TUI/desktop). No PTY / xterm embed.
  */
 
 import { Button } from "@work4you/ui/ui/components/button";
@@ -47,6 +47,34 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
   const handleReset = useCallback(() => {
     clearChatParams();
   }, [clearChatParams]);
+
+  const handleStoredSessionId = useCallback(
+    (storedId: string | null) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (storedId) {
+            if (next.get("resume") === storedId) return prev;
+            next.set("resume", storedId);
+          } else {
+            next.delete("resume");
+          }
+          next.delete("learn");
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const handleTitle = useCallback(
+    (title: string | null) => {
+      if (!isActive) return;
+      setTitle(title?.trim() || t.app.nav.chat);
+    },
+    [isActive, setTitle, t.app.nav.chat],
+  );
 
   useEffect(() => {
     if (!searchParams.get("learn")) return;
@@ -94,9 +122,12 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         <ThinChat
           key={profileKey}
           isActive={isActive}
+          profile={scopedProfile || undefined}
           resumeSessionId={resumeParam}
           initialDraft={learnSeedRef.current}
           onReset={handleReset}
+          onStoredSessionId={handleStoredSessionId}
+          onTitle={handleTitle}
           resetRef={resetRef}
         />
       </div>

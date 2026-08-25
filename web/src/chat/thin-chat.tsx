@@ -2,131 +2,146 @@ import { useCallback, useEffect, useState, type MutableRefObject } from "react";
 
 import { EmptyHome } from "./empty-home";
 import { SessionView } from "./session-view";
-import {
-  createMessageId,
-  type ChatMessage,
-  type ThinChatPhase,
-} from "./types";
+import type { ThinChatPhase } from "./types";
+import { useThinChatGateway } from "./use-thin-chat-gateway";
 
 export interface ThinChatProps {
   /** When false, skip autofocus (persistent host hidden on other routes). */
   isActive?: boolean;
-  /** Stored session id from `/chat?resume=<id>` — hydrated in step 3. */
+  profile?: string;
+  /** Stored session id from `/chat?resume=<id>`. */
   resumeSessionId?: string | null;
   /** Seed composer from `/chat?learn=…` (Skills page). */
   initialDraft?: string;
   onPhaseChange?: (phase: ThinChatPhase) => void;
   /** Fired when the local transcript is cleared (New chat). */
   onReset?: () => void;
+  /** Persist the durable session id into the URL for Sessions resume. */
+  onStoredSessionId?: (storedId: string | null) => void;
+  onTitle?: (title: string | null) => void;
   /** Parent can call `resetRef.current?.()` for the header New chat action. */
   resetRef?: MutableRefObject<(() => void) | null>;
 }
 
 /**
- * Thin chat shell: EmptyHome → SessionView after the first send.
- *
- * Step 2 is presentation + local state only. Submitting appends the user
- * turn and a short placeholder assistant reply; JSON-RPC (`session.create` /
- * `prompt.submit` / stream events) lands in step 3.
+ * Thin chat: EmptyHome → SessionView, driven by ``GatewayClient`` → ``/api/ws``.
  */
 export function ThinChat({
   isActive = true,
+  profile,
   resumeSessionId = null,
   initialDraft = "",
   onPhaseChange,
   onReset,
+  onStoredSessionId,
+  onTitle,
   resetRef,
 }: ThinChatProps) {
-  const [phase, setPhase] = useState<ThinChatPhase>(() =>
-    resumeSessionId ? "session" : "home",
-  );
   const [draft, setDraft] = useState(initialDraft);
-  const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    resumeSessionId ? [resumePlaceholderMessage()] : [],
-  );
 
-  useEffect(() => {
-    onPhaseChange?.(phase);
-  }, [onPhaseChange, phase]);
+  const {
+    phase,
+    messages,
+    connectionState,
+    busy,
+    error,
+    ready,
+    submit,
+    interrupt,
+    reset,
+    clearError,
+  } = useThinChatGateway({
+    profile,
+    resumeSessionId,
+    enabled: true,
+    onStoredSessionId,
+    onTitle,
+    onPhaseChange,
+  });
 
-  // External resume target changed (Sessions → /chat?resume=).
-  useEffect(() => {
-    if (!resumeSessionId) return;
-    setPhase("session");
-    setMessages([resumePlaceholderMessage()]);
-    setDraft("");
-  }, [resumeSessionId]);
-
-  // Skills → /chat?learn=… seeds the composer without forcing a session.
   useEffect(() => {
     if (!initialDraft) return;
     setDraft(initialDraft);
   }, [initialDraft]);
 
-  const enterSessionWith = useCallback((text: string) => {
-    const user: ChatMessage = {
-      id: createMessageId(),
-      role: "user",
-      text,
-    };
-    const assistant: ChatMessage = {
-      id: createMessageId(),
-      role: "assistant",
-      text: "Chat UI skeleton is live. Gateway streaming lands in the next step.",
-    };
-    setMessages((prev) => [...prev, user, assistant]);
-    setPhase("session");
-    setDraft("");
-  }, []);
-
   const handleSubmit = useCallback(
     (text: string) => {
-      enterSessionWith(text);
+      setDraft("");
+      void submit(text);
     },
-    [enterSessionWith],
+    [submit],
   );
 
-  const reset = useCallback(() => {
-    setPhase("home");
-    setMessages([]);
+  const handleReset = useCallback(() => {
     setDraft("");
     onReset?.();
-  }, [onReset]);
+    void reset();
+  }, [onReset, reset]);
 
   useEffect(() => {
     if (!resetRef) return;
-    resetRef.current = reset;
+    resetRef.current = handleReset;
     return () => {
       resetRef.current = null;
     };
-  }, [reset, resetRef]);
+  }, [handleReset, resetRef]);
 
-  if (phase === "home") {
-    return (
-      <EmptyHome
-        draft={draft}
-        onDraftChange={setDraft}
-        onSubmit={handleSubmit}
-        autoFocus={isActive}
-      />
-    );
-  }
+  const statusLabel =
+    connectionState === "connecting"
+      ? "Connecting…"
+      : connectionState === "error"
+        ? "Connection error"
+        : !ready && !error
+          ? "Starting…"
+          : null;
+
+  const banner = error ?? statusLabel;
 
   return (
-    <SessionView
-      messages={messages}
-      draft={draft}
-      onDraftChange={setDraft}
-      onSubmit={handleSubmit}
-      autoFocus={isActive}
-    />
-  );
-}
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      {banner && (
+        <div
+          className={
+            error
+              ? "border-b border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning"
+              : "border-b border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
+          }
+          role={error ? "alert" : "status"}
+        >
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
+            <span>{banner}</span>
+            {error && (
+              <button
+                type="button"
+                className="shrink-0 underline-offset-2 hover:underline"
+                onClick={clearError}
+              >
+                Dismiss
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
-function resumePlaceholderMessage(): ChatMessage {
-  return {
-    id: createMessageId(),
-    role: "system",
-    text: "Session resume will load here once the gateway is wired.",
-  };
+      {phase === "home" ? (
+        <EmptyHome
+          draft={draft}
+          onDraftChange={setDraft}
+          onSubmit={handleSubmit}
+          autoFocus={isActive}
+          disabled={busy || connectionState === "connecting"}
+        />
+      ) : (
+        <SessionView
+          messages={messages}
+          draft={draft}
+          onDraftChange={setDraft}
+          onSubmit={handleSubmit}
+          onStop={() => void interrupt()}
+          busy={busy}
+          autoFocus={isActive}
+        />
+      )}
+    </div>
+  );
 }

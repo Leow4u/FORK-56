@@ -7,6 +7,7 @@ export interface EmptyHomeProps {
   onDraftChange: (value: string) => void;
   onSubmit: (text: string) => void;
   autoFocus?: boolean;
+  disabled?: boolean;
 }
 
 /**
@@ -18,6 +19,7 @@ export function EmptyHome({
   onDraftChange,
   onSubmit,
   autoFocus = true,
+  disabled = false,
 }: EmptyHomeProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pb-16 pt-8">
@@ -40,6 +42,7 @@ export function EmptyHome({
           onChange={onDraftChange}
           onSubmit={onSubmit}
           autoFocus={autoFocus}
+          disabled={disabled}
           className="w-full"
         />
       </div>

@@ -7,6 +7,55 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const setEnd = vi.fn();
 const setTitle = vi.fn();
 
+const gatewayMocks = vi.hoisted(() => {
+  const anyHandlers = new Set<(event: unknown) => void>();
+  const stateHandlers = new Set<(state: string) => void>();
+  return {
+    close: vi.fn(),
+    connect: vi.fn(async () => {
+      for (const h of stateHandlers) h("open");
+    }),
+    onAny: vi.fn((handler: (event: unknown) => void) => {
+      anyHandlers.add(handler);
+      return () => anyHandlers.delete(handler);
+    }),
+    onState: vi.fn((handler: (state: string) => void) => {
+      stateHandlers.add(handler);
+      return () => stateHandlers.delete(handler);
+    }),
+    request: vi.fn(async (method: string) => {
+      if (method === "session.create") {
+        return { session_id: "live-1", stored_session_id: "stored-1", messages: [] };
+      }
+      if (method === "session.resume") {
+        return {
+          session_id: "live-r",
+          stored_session_id: "abc123",
+          messages: [{ role: "user", text: "from history" }],
+        };
+      }
+      return {};
+    }),
+    reset() {
+      anyHandlers.clear();
+      stateHandlers.clear();
+      this.close.mockClear();
+      this.connect.mockClear();
+      this.request.mockClear();
+    },
+  };
+});
+
+vi.mock("@/lib/gatewayClient", () => ({
+  GatewayClient: class {
+    close = gatewayMocks.close;
+    connect = gatewayMocks.connect;
+    onAny = gatewayMocks.onAny;
+    onState = gatewayMocks.onState;
+    request = gatewayMocks.request;
+  },
+}));
+
 vi.mock("@/contexts/usePageHeader", () => ({
   usePageHeader: () => ({ setEnd, setTitle }),
 }));
@@ -34,7 +83,10 @@ vi.mock("@work4you/ui/ui/components/button", () => ({
   Button: ({
     children,
     ...props
-  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { ghost?: boolean; size?: string }) => {
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    ghost?: boolean;
+    size?: string;
+  }) => {
     const { ghost: _g, size: _s, ...rest } = props;
     return (
       <button type="button" {...rest}>
@@ -74,6 +126,7 @@ describe("ChatPage thin shell", () => {
     ).IS_REACT_ACT_ENVIRONMENT = true;
     setEnd.mockClear();
     setTitle.mockClear();
+    gatewayMocks.reset();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -88,15 +141,23 @@ describe("ChatPage thin shell", () => {
 
   it("renders EmptyHome without a PTY terminal host", async () => {
     await renderChat();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
     expect(container.querySelector(".work4you-chat-xterm-host")).toBeNull();
     expect(container.textContent).toContain("Work4You");
     expect(container.querySelector('[data-plugin-slot="chat:top"]')).toBeTruthy();
   });
 
-  it("seeds SessionView when ?resume= is present", async () => {
+  it("resumes when ?resume= is present", async () => {
     await renderChat("/chat?resume=abc123");
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
     expect(container.querySelector('[role="log"]')).toBeTruthy();
-    expect(container.textContent).toContain("Session resume will load");
+    expect(container.textContent).toContain("from history");
   });
 
   it("registers a New chat header action when active", async () => {

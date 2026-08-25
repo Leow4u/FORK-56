@@ -1,5 +1,5 @@
 import { Button } from "@work4you/ui/ui/components/button";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Square } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -18,13 +18,15 @@ export interface ComposerProps {
   variant?: "hero" | "dock";
   placeholder?: string;
   disabled?: boolean;
+  /** When true, show Stop instead of Send. */
+  busy?: boolean;
+  onStop?: () => void;
   autoFocus?: boolean;
   className?: string;
 }
 
 /**
  * Shared chat composer — Enter sends, Shift+Enter inserts a newline.
- * Presentation only in step 2; gateway wiring lands in step 3.
  */
 export function Composer({
   value,
@@ -33,6 +35,8 @@ export function Composer({
   variant = "dock",
   placeholder = "Message Work4You…",
   disabled = false,
+  busy = false,
+  onStop,
   autoFocus = false,
   className,
 }: ComposerProps) {
@@ -57,23 +61,25 @@ export function Composer({
 
   const submit = useCallback(() => {
     const text = value.trim();
-    if (!text || disabled) return;
+    if (!text || disabled || busy) return;
     onSubmit(text);
-  }, [disabled, onSubmit, value]);
+  }, [busy, disabled, onSubmit, value]);
 
   const onFormSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (busy) return;
     submit();
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
+      if (busy) return;
       submit();
     }
   };
 
-  const canSend = Boolean(value.trim()) && !disabled;
+  const canSend = Boolean(value.trim()) && !disabled && !busy;
 
   return (
     <form
@@ -100,15 +106,27 @@ export function Composer({
           "disabled:cursor-not-allowed disabled:opacity-50",
         )}
       />
-      <Button
-        type="submit"
-        size="icon"
-        disabled={!canSend}
-        aria-label="Send message"
-        className="mb-0.5 shrink-0 rounded-lg"
-      >
-        <ArrowUp className="h-4 w-4" />
-      </Button>
+      {busy && onStop ? (
+        <Button
+          type="button"
+          size="icon"
+          onClick={onStop}
+          aria-label="Stop generating"
+          className="mb-0.5 shrink-0 rounded-lg"
+        >
+          <Square className="h-3.5 w-3.5 fill-current" />
+        </Button>
+      ) : (
+        <Button
+          type="submit"
+          size="icon"
+          disabled={!canSend}
+          aria-label="Send message"
+          className="mb-0.5 shrink-0 rounded-lg"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+      )}
     </form>
   );
 }

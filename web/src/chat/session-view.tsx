@@ -7,6 +7,8 @@ export interface SessionViewProps {
   draft: string;
   onDraftChange: (value: string) => void;
   onSubmit: (text: string) => void;
+  onStop?: () => void;
+  busy?: boolean;
   autoFocus?: boolean;
 }
 
@@ -19,6 +21,8 @@ export function SessionView({
   draft,
   onDraftChange,
   onSubmit,
+  onStop,
+  busy = false,
   autoFocus = true,
 }: SessionViewProps) {
   return (
@@ -31,6 +35,8 @@ export function SessionView({
             value={draft}
             onChange={onDraftChange}
             onSubmit={onSubmit}
+            onStop={onStop}
+            busy={busy}
             autoFocus={autoFocus}
           />
         </div>
