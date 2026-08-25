@@ -71,9 +71,12 @@ runtime/
 # Desktop app source (Tauri/Electron); never installed in the container.
 # apps/shared is the dashboard↔desktop websocket helper and is linked from
 # web/package.json as a file: workspace dep — keep it in the build context.
+# apps/desktop is imported by web/src/desktop-chat for the structured /chat UI.
 apps/
 !apps/shared/
 !apps/shared/**
+!apps/desktop/
+!apps/desktop/**
 
 # Test suite — not shipped in production images
 tests/
