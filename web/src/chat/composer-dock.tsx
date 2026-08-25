@@ -1,11 +1,13 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { ModelPickerDialog } from "@/components/ModelPickerDialog";
 import type { ConnectionState } from "@/lib/gatewayClient";
 import { cn } from "@/lib/utils";
 
 import { ChatActivityStrip, type ThinChatActivity } from "./chat-activity-strip";
-import { ChatContextBar } from "./chat-context-bar";
+import { composerFloatingStrip } from "./composer-dock-styles";
+import { ComposerModelPill } from "./composer-model-pill";
+import { ComposerUnderside } from "./composer-underside";
 import { SlashComposer, type SlashComposerProps } from "./slash-composer";
 import type { ThinChatSessionInfo, ThinChatSessionUsage } from "./session-info";
 
@@ -22,7 +24,7 @@ export interface ComposerDockProps extends SlashComposerProps {
 }
 
 /**
- * Composer dock: context bar + activity strip + slash/@ composer + model picker.
+ * Composer dock — FORK geometry: floating top → surface → underside.
  */
 export function ComposerDock({
   gateway,
@@ -34,11 +36,12 @@ export function ComposerDock({
   activity,
   resumeLabel,
   showChrome = true,
-  onReasoningChange,
+  onReasoningChange: _reasoningChange,
   className,
   variant = "dock",
   ...composerProps
 }: ComposerDockProps) {
+  void _reasoningChange;
   const [modelOpen, setModelOpen] = useState(false);
 
   const modelName =
@@ -47,17 +50,10 @@ export function ComposerDock({
       : sessionInfo.model || sessionInfo.provider || "";
   const modelLabel = modelName
     ? (modelName.split("/").slice(-1)[0] ?? modelName)
-    : "Model";
+    : "Auto";
   const modelTitle = modelName || "Switch model";
 
   const canPickModel = Boolean(gateway && sessionId);
-
-  const handleReasoning = useCallback(
-    (effort: string) => {
-      onReasoningChange?.(effort);
-    },
-    [onReasoningChange],
-  );
 
   const dockPlaceholder = useMemo(
     () =>
@@ -67,38 +63,56 @@ export function ComposerDock({
     [variant],
   );
 
+  const modelPill = (
+    <ComposerModelPill
+      label={modelLabel}
+      title={modelTitle}
+      disabled={!canPickModel}
+      onClick={canPickModel ? () => setModelOpen(true) : undefined}
+    />
+  );
+
+  const showActivity =
+    showChrome &&
+    (Boolean(composerProps.busy) ||
+      Boolean(resumeLabel) ||
+      Boolean(activity.toolLine) ||
+      Boolean(activity.backgroundLine) ||
+      activity.queueCount > 0);
+
   return (
-    <div className={cn("w-full", className)}>
-      {showChrome && (
-        <>
-          <ChatContextBar
-            connectionState={connectionState}
-            reconnecting={reconnecting}
-            info={sessionInfo}
-            usage={sessionUsage}
-            modelLabel={modelLabel}
-            modelTitle={modelTitle}
-            onOpenModelPicker={
-              canPickModel ? () => setModelOpen(true) : undefined
-            }
-            onReasoningChange={canPickModel ? handleReasoning : undefined}
-            reasoningDisabled={!canPickModel}
-          />
+    <div className={cn("flex w-full flex-col", className)} data-slot="composer-dock">
+      {showActivity ? (
+        <div className={cn(composerFloatingStrip, "pb-1.5")}>
           <ChatActivityStrip
             busy={Boolean(composerProps.busy)}
             activity={activity}
             resumeLabel={resumeLabel}
+            className="w-full rounded-full border border-border/50 bg-background/80 px-2 py-1 backdrop-blur-md"
           />
-        </>
-      )}
+        </div>
+      ) : null}
 
       <SlashComposer
         variant={variant}
         gateway={gateway}
         sessionId={sessionId}
         placeholder={dockPlaceholder}
+        trailingControls={showChrome ? modelPill : undefined}
+        showAttachButton={showChrome}
+        className="w-full"
         {...composerProps}
       />
+
+      {showChrome ? (
+        <ComposerUnderside
+          connectionState={connectionState}
+          reconnecting={reconnecting}
+          info={sessionInfo}
+          usage={sessionUsage}
+          busy={Boolean(composerProps.busy)}
+        />
+      ) : null}
 
       {modelOpen && gateway && sessionId && (
         <ModelPickerDialog
