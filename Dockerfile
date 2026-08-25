@@ -297,6 +297,7 @@ RUN uv sync --frozen --no-install-project --extra all --extra messaging --extra 
 COPY web/ web/
 COPY ui-tui/ ui-tui/
 COPY apps/shared/ apps/shared/
+# Structured web /chat imports the desktop renderer graph at build time.
 COPY apps/desktop/ apps/desktop/
 COPY packages/work4you-ui/ packages/work4you-ui/
 RUN cd web && npm run build && \
