@@ -66,4 +66,37 @@ describe("applyGatewayEvent", () => {
     expect(msgs[0].role).toBe("tool");
     expect(msgs[0].text).toContain("read_file");
   });
+
+  it("streams reasoning blocks", () => {
+    let msgs: ChatMessage[] = [];
+    msgs = applyGatewayEvent(msgs, "reasoning.delta", { text: "hmm" });
+    expect(msgs[0]).toMatchObject({ role: "reasoning", text: "hmm" });
+    msgs = applyGatewayEvent(msgs, "reasoning.available", { text: "done thinking" });
+    expect(msgs[0].text).toBe("done thinking");
+  });
+
+  it("upserts tool progress by tool_id", () => {
+    let msgs: ChatMessage[] = [];
+    msgs = applyGatewayEvent(msgs, "tool.start", {
+      name: "terminal",
+      tool_id: "t1",
+    });
+    msgs = applyGatewayEvent(msgs, "tool.progress", {
+      name: "terminal",
+      tool_id: "t1",
+      progress: "halfway",
+    });
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].text).toContain("halfway");
+  });
+
+  it("surfaces subagent and compaction status lines", () => {
+    let msgs: ChatMessage[] = [];
+    msgs = applyGatewayEvent(msgs, "subagent.start", { goal: "research" });
+    expect(msgs[0].text).toContain("research");
+    msgs = applyGatewayEvent(msgs, "status.update", { kind: "compacting" });
+    expect(msgs.some((m) => m.id === "status-compacting")).toBe(true);
+    msgs = applyGatewayEvent(msgs, "status.update", { kind: "compacted" });
+    expect(msgs.some((m) => m.id === "status-compacting")).toBe(false);
+  });
 });

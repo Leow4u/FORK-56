@@ -218,6 +218,7 @@ export interface Translations {
     emptySubtitle: string;
     thinking: string;
     scrollToBottom: string;
+    loadEarlier?: string;
     suggestions: string[];
   };
 

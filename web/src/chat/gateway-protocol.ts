@@ -30,7 +30,6 @@ export function thinChatSessionCreateParams(
 ): Record<string, unknown> {
   return {
     close_on_disconnect: true,
-    // Appears in Sessions list (deny-list is only ``tool`` / ``kanban``).
     source: "web",
     ...(profile ? { profile } : {}),
   };
@@ -76,8 +75,37 @@ export function historyToChatMessages(
   return out;
 }
 
+export function sessionMessagesToChatMessages(
+  raw: Array<{ role?: string; content?: string | null; tool_name?: string }>,
+): ChatMessage[] {
+  const out: ChatMessage[] = [];
+  for (const item of raw) {
+    const role = normalizeRole(item.role);
+    if (!role) continue;
+    const text =
+      typeof item.content === "string"
+        ? item.content
+        : item.role === "tool" && item.tool_name
+          ? item.tool_name
+          : "";
+    if (!text.trim()) continue;
+    out.push({
+      id: createMessageId(),
+      role,
+      text,
+    });
+  }
+  return out;
+}
+
 function normalizeRole(role: unknown): ChatRole | null {
-  if (role === "user" || role === "assistant" || role === "system" || role === "tool") {
+  if (
+    role === "user" ||
+    role === "assistant" ||
+    role === "system" ||
+    role === "tool" ||
+    role === "reasoning"
+  ) {
     return role;
   }
   return null;
@@ -93,6 +121,12 @@ export function coerceEventText(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
   const text = (payload as { text?: unknown }).text;
   return typeof text === "string" ? text : "";
+}
+
+function toolIdFromPayload(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const id = (payload as { tool_id?: unknown }).tool_id;
+  return typeof id === "string" && id ? id : undefined;
 }
 
 /**
@@ -127,29 +161,103 @@ export function applyGatewayEvent(
     }
     case "message.complete": {
       const text = coerceEventText(payload);
-      const status =
-        payload && typeof payload === "object"
-          ? (payload as { status?: string }).status
-          : undefined;
-      if (status === "error" && text) {
-        return finalizeStreamingAssistant(messages, text);
-      }
       return finalizeStreamingAssistant(messages, text);
     }
-    case "tool.start": {
-      const line = formatToolEvent(payload, "start");
-      if (!line) return messages;
+    case "reasoning.delta":
+    case "thinking.delta": {
+      const chunk = coerceEventText(payload);
+      if (!chunk) return messages;
+      return appendReasoningDelta(messages, chunk);
+    }
+    case "reasoning.available": {
+      const text = coerceEventText(payload);
+      if (!text) return messages;
+      return replaceReasoningBlock(messages, text);
+    }
+    case "moa.reference":
+    case "moa.aggregating":
+    case "moa.progress":
+    case "moa.phase": {
+      const text = coerceEventText(payload);
+      if (!text) return messages;
+      return appendReasoningDelta(messages, text);
+    }
+    case "tool.generating": {
+      const name =
+        payload && typeof payload === "object"
+          ? String((payload as { name?: unknown }).name || "tool")
+          : "tool";
       return [
         ...sealStreaming(messages),
-        { id: createMessageId(), role: "tool", text: line },
+        {
+          id: createMessageId(),
+          role: "tool",
+          text: `… ${name}`,
+          toolId: toolIdFromPayload(payload),
+        },
       ];
     }
-    case "tool.complete": {
-      const line = formatToolEvent(payload, "done");
+    case "tool.start":
+      return upsertToolRow(messages, payload, "start");
+    case "tool.progress":
+      return upsertToolRow(messages, payload, "progress");
+    case "tool.complete":
+      return upsertToolRow(messages, payload, "done");
+    case "tool.output_risk": {
+      const text = coerceEventText(payload);
+      if (!text) return messages;
+      return [
+        ...messages,
+        { id: createMessageId(), role: "system", text: `⚠ ${text}` },
+      ];
+    }
+    case "status.update": {
+      const kind =
+        payload && typeof payload === "object"
+          ? (payload as { kind?: unknown }).kind
+          : undefined;
+      if (kind === "compacting") {
+        return [
+          ...messages,
+          {
+            id: "status-compacting",
+            role: "system",
+            text: "Compacting context…",
+          },
+        ];
+      }
+      if (kind === "compacted") {
+        return messages.filter((m) => m.id !== "status-compacting");
+      }
+      const text = coerceEventText(payload);
+      if (!text) return messages;
+      return [
+        ...messages,
+        { id: createMessageId(), role: "system", text },
+      ];
+    }
+    case "review.summary":
+    case "notification.show": {
+      const text = coerceEventText(payload);
+      if (!text) return messages;
+      return [
+        ...messages,
+        { id: createMessageId(), role: "system", text },
+      ];
+    }
+    case "notification.clear":
+      return messages;
+    case "subagent.spawn_requested":
+    case "subagent.start":
+    case "subagent.thinking":
+    case "subagent.tool":
+    case "subagent.progress":
+    case "subagent.complete": {
+      const line = formatSubagentEvent(eventType, payload);
       if (!line) return messages;
       return [
         ...messages,
-        { id: createMessageId(), role: "tool", text: line },
+        { id: createMessageId(), role: "system", text: line },
       ];
     }
     case "error": {
@@ -169,14 +277,52 @@ export function applyGatewayEvent(
 
 function formatToolEvent(
   payload: unknown,
-  phase: "start" | "done",
+  phase: "start" | "progress" | "done",
 ): string {
   if (!payload || typeof payload !== "object") return "";
   const name = String((payload as { name?: unknown }).name || "tool");
   const context = (payload as { context?: unknown }).context;
   const ctx =
     typeof context === "string" && context.trim() ? ` — ${context.trim()}` : "";
-  return phase === "start" ? `▶ ${name}${ctx}` : `✓ ${name}${ctx}`;
+  const progress = (payload as { progress?: unknown }).progress;
+  if (phase === "progress" && typeof progress === "string" && progress.trim()) {
+    return `▶ ${name}${ctx} — ${progress.trim()}`;
+  }
+  if (phase === "done") {
+    const err = (payload as { error?: unknown }).error;
+    if (err) return `✗ ${name}${ctx}`;
+    return `✓ ${name}${ctx}`;
+  }
+  return `▶ ${name}${ctx}`;
+}
+
+function upsertToolRow(
+  messages: ChatMessage[],
+  payload: unknown,
+  phase: "start" | "progress" | "done",
+): ChatMessage[] {
+  const line = formatToolEvent(payload, phase);
+  if (!line) return messages;
+  const toolId = toolIdFromPayload(payload);
+  const base =
+    phase === "start" ? [...sealStreaming(messages)] : [...messages];
+  if (toolId) {
+    const idx = base.findIndex((m) => m.toolId === toolId);
+    if (idx >= 0) {
+      const next = base.slice();
+      next[idx] = { ...next[idx], text: line, role: "tool" };
+      return next;
+    }
+  }
+  return [
+    ...base,
+    {
+      id: createMessageId(),
+      role: "tool" as const,
+      text: line,
+      toolId,
+    },
+  ];
 }
 
 function sealStreaming(messages: ChatMessage[]): ChatMessage[] {
@@ -208,6 +354,65 @@ function appendAssistantDelta(
       streaming: true,
     },
   ];
+}
+
+function appendReasoningDelta(
+  messages: ChatMessage[],
+  chunk: string,
+): ChatMessage[] {
+  const last = messages[messages.length - 1];
+  if (last?.role === "reasoning" && last.streaming !== false) {
+    const next = messages.slice();
+    next[next.length - 1] = { ...last, text: last.text + chunk };
+    return next;
+  }
+  return [
+    ...sealStreaming(messages),
+    {
+      id: createMessageId(),
+      role: "reasoning",
+      text: chunk,
+      streaming: true,
+    },
+  ];
+}
+
+function replaceReasoningBlock(
+  messages: ChatMessage[],
+  text: string,
+): ChatMessage[] {
+  const last = messages[messages.length - 1];
+  if (last?.role === "reasoning") {
+    const next = messages.slice();
+    next[next.length - 1] = { ...last, text, streaming: false };
+    return next;
+  }
+  return [
+    ...sealStreaming(messages),
+    { id: createMessageId(), role: "reasoning", text, streaming: false },
+  ];
+}
+
+function formatSubagentEvent(type: string, payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const p = payload as Record<string, unknown>;
+  const goal = typeof p.goal === "string" ? p.goal.trim() : "";
+  const text = typeof p.text === "string" ? p.text.trim() : "";
+  const summary = typeof p.summary === "string" ? p.summary.trim() : "";
+  if (type === "subagent.start" || type === "subagent.spawn_requested") {
+    return goal ? `↳ Delegating: ${goal}` : "↳ Starting subagent…";
+  }
+  if (type === "subagent.complete") {
+    if (summary) return `✓ Subagent: ${summary}`;
+    const status = typeof p.status === "string" ? p.status : "";
+    if (status === "failed" || status === "timeout") {
+      return summary || "✗ Subagent failed";
+    }
+    return "✓ Subagent finished";
+  }
+  if (text) return `↳ ${text}`;
+  if (goal) return `↳ ${goal}`;
+  return "";
 }
 
 function finalizeStreamingAssistant(

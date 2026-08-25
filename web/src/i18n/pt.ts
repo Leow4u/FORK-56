@@ -179,6 +179,7 @@ export const pt: Translations = {
     emptySubtitle: "Pergunte o que quiser. O seu agente corre nesta máquina.",
     thinking: "A pensar…",
     scrollToBottom: "Ir para o fim",
+    loadEarlier: "Carregar mensagens anteriores",
     suggestions: [
       "Em que me podes ajudar?",
       "Resume o que falámos da última vez",

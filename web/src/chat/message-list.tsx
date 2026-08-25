@@ -12,6 +12,9 @@ export interface MessageListProps {
   messages: ChatMessage[];
   /** Agent turn in flight — shows thinking dots before the first token. */
   busy?: boolean;
+  canLoadEarlier?: boolean;
+  loadingEarlier?: boolean;
+  onLoadEarlier?: () => void;
   className?: string;
 }
 
@@ -53,13 +56,42 @@ function ToolLine({ text }: { text: string }) {
   );
 }
 
+function ReasoningBlock({ text, streaming }: { text: string; streaming?: boolean }) {
+  return (
+    <div className="mx-auto flex w-full max-w-3xl justify-start">
+      <details
+        className="max-w-full rounded-lg border border-border/35 bg-muted/10 px-3 py-2 text-xs text-muted-foreground"
+        open={Boolean(streaming)}
+      >
+        <summary className="cursor-pointer select-none font-medium text-muted-foreground/90">
+          Reasoning
+        </summary>
+        <p className="mt-2 whitespace-pre-wrap break-words font-mono leading-relaxed">
+          {text}
+          {streaming && (
+            <span
+              aria-hidden
+              className="ml-0.5 inline-block h-3 w-1 animate-pulse bg-muted-foreground/60 align-middle"
+            />
+          )}
+        </p>
+      </details>
+    </div>
+  );
+}
+
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
   const isTool = message.role === "tool";
   const isSystem = message.role === "system";
+  const isReasoning = message.role === "reasoning";
 
   if (isTool) {
     return <ToolLine text={message.text} />;
+  }
+
+  if (isReasoning) {
+    return <ReasoningBlock text={message.text} streaming={message.streaming} />;
   }
 
   if (isSystem) {
@@ -95,10 +127,18 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   );
 }
 
-export function MessageList({ messages, busy = false, className }: MessageListProps) {
+export function MessageList({
+  messages,
+  busy = false,
+  canLoadEarlier = false,
+  loadingEarlier = false,
+  onLoadEarlier,
+  className,
+}: MessageListProps) {
   const { t } = useI18n();
   const thinkingLabel = t.thinChat?.thinking ?? "Thinking…";
   const scrollLabel = t.thinChat?.scrollToBottom ?? "Scroll to bottom";
+  const loadEarlierLabel = t.thinChat?.loadEarlier ?? "Load earlier messages";
 
   const { containerRef, endRef, showJump, scrollToBottom } = useStickToBottom([
     messages,
@@ -119,6 +159,18 @@ export function MessageList({ messages, busy = false, className }: MessageListPr
         aria-live="polite"
         aria-relevant="additions"
       >
+        {canLoadEarlier && onLoadEarlier && (
+          <div className="mx-auto flex w-full max-w-3xl justify-center">
+            <button
+              type="button"
+              disabled={loadingEarlier}
+              onClick={onLoadEarlier}
+              className="rounded-full border border-border/50 bg-muted/20 px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/35 hover:text-foreground disabled:opacity-50"
+            >
+              {loadingEarlier ? t.common.loading : loadEarlierLabel}
+            </button>
+          </div>
+        )}
         {messages.map((message) => (
           <MessageBubble key={message.id} message={message} />
         ))}
