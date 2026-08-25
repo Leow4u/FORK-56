@@ -3,7 +3,9 @@ import { Typography } from "@work4you/ui/ui/components/typography/index";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
-import { Composer } from "./composer";
+import type { GatewayClient } from "@/lib/gatewayClient";
+
+import { SlashComposer } from "./slash-composer";
 
 const DEFAULT_SUGGESTIONS = [
   "What can you help me with?",
@@ -16,6 +18,7 @@ export interface EmptyHomeProps {
   draft: string;
   onDraftChange: (value: string) => void;
   onSubmit: (text: string) => void;
+  gateway: GatewayClient | null;
   autoFocus?: boolean;
   disabled?: boolean;
 }
@@ -27,6 +30,7 @@ export function EmptyHome({
   draft,
   onDraftChange,
   onSubmit,
+  gateway,
   autoFocus = true,
   disabled = false,
 }: EmptyHomeProps) {
@@ -49,11 +53,12 @@ export function EmptyHome({
           <p className="max-w-md text-sm text-muted-foreground">{subtitle}</p>
         </div>
 
-        <Composer
+        <SlashComposer
           variant="hero"
           value={draft}
           onChange={onDraftChange}
           onSubmit={onSubmit}
+          gateway={gateway}
           autoFocus={autoFocus}
           disabled={disabled}
           className="w-full shadow-md"

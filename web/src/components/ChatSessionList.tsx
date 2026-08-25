@@ -4,10 +4,9 @@
  *
  * It lists the most recent sessions for the active management profile and
  * lets the user swap between them without leaving the Chat page. Selecting
- * a row sets `/chat?resume=<id>`; ChatPage treats the resume target as part
- * of the PTY identity, so the change tears down the current terminal child
- * and respawns it resuming that conversation (see ChatPage.tsx). The
- * "New session" action clears the resume param, which spawns a fresh PTY.
+ * a row sets `/chat?resume=<id>`; ChatPage resumes that conversation in the
+ * thin chat surface. The "New session" action clears the resume param and
+ * resets the chat host.
  *
  * Best-effort, like ChatSidebar: a failed fetch surfaces a small inline
  * error with a retry affordance and the terminal pane keeps working.
@@ -39,12 +38,12 @@ interface ChatSessionListProps {
   /** Optional callback fired after a row is picked (e.g. close mobile sheet). */
   onPicked?: () => void;
   /**
-   * Starts a fresh chat. ChatPage supplies its `startFreshDashboardChat`,
-   * which clears `?resume` AND bumps the reconnect nonce so a brand-new PTY
-   * spawns even when the user is already on an unsaved fresh session. When
-   * omitted, we fall back to clearing the resume param ourselves.
+   * Starts a fresh chat. ChatPage supplies its `startFresh` handler, which
+   * clears `?resume` and resets the thin-chat session.
    */
   onNewChat?: () => void;
+  /** Bumped by the parent when a new stored session id appears (refresh list). */
+  refreshToken?: number;
 }
 
 function rowLabel(session: SessionInfo, untitled: string): string {
@@ -61,6 +60,7 @@ export function ChatSessionList({
   className,
   onPicked,
   onNewChat,
+  refreshToken = 0,
 }: ChatSessionListProps) {
   const { t } = useI18n();
   const [, setSearchParams] = useSearchParams();
@@ -105,13 +105,12 @@ export function ChatSessionList({
     // for async loaders (matches FilesPage).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
-    // `reloadNonce` is a manual refetch trigger (Refresh button / row pick).
-  }, [load, reloadNonce]);
+    // `reloadNonce` is a manual refetch trigger; `refreshToken` is parent-driven.
+  }, [load, reloadNonce, refreshToken]);
 
   const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
 
-  // Picking a row sets `/chat?resume=<id>`. Re-picking the row already in
-  // the terminal is a no-op (avoids a needless PTY teardown).
+  // Picking a row sets `/chat?resume=<id>`.
   const pick = useCallback(
     (id: string) => {
       onPicked?.();
@@ -128,11 +127,7 @@ export function ChatSessionList({
     [activeSessionId, onPicked, setSearchParams],
   );
 
-  // "New chat" prefers ChatPage's robust handler (clears resume + forces a
-  // PTY respawn even from an already-fresh session). Fallback: clear the
-  // resume param ourselves, which spawns a fresh PTY whenever one was being
-  // resumed. Session management (delete/rename/export) lives on the Sessions
-  // page; this panel only switches and starts conversations.
+  // "New chat" prefers ChatPage's handler (clears resume + resets session).
   const startNew = useCallback(() => {
     onPicked?.();
     if (onNewChat) {

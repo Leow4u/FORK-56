@@ -45,7 +45,9 @@ export function ThinChat({
     connectionState,
     busy,
     error,
+    credentialWarning,
     ready,
+    gateway,
     submit,
     interrupt,
     reset,
@@ -59,7 +61,6 @@ export function ThinChat({
     onPhaseChange,
   });
 
-  // Seed composer from Skills → /chat?learn=… (captured once by the page).
   useEffect(() => {
     if (!initialDraft) return;
     queueMicrotask(() => setDraft(initialDraft));
@@ -96,11 +97,20 @@ export function ThinChat({
           ? "Starting…"
           : null;
 
-  const banner = error ?? statusLabel;
+  const showCredentialWarning = Boolean(credentialWarning) && !error;
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {banner && (
+      {showCredentialWarning && (
+        <div
+          className="border-b border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning"
+          role="status"
+        >
+          <div className="mx-auto max-w-3xl">{credentialWarning}</div>
+        </div>
+      )}
+
+      {(error || statusLabel) && (
         <div
           className={
             error
@@ -110,7 +120,7 @@ export function ThinChat({
           role={error ? "alert" : "status"}
         >
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
-            <span>{banner}</span>
+            <span>{error ?? statusLabel}</span>
             {error && (
               <button
                 type="button"
@@ -129,6 +139,7 @@ export function ThinChat({
           draft={draft}
           onDraftChange={setDraft}
           onSubmit={handleSubmit}
+          gateway={gateway}
           autoFocus={isActive}
           disabled={busy || connectionState === "connecting"}
         />
@@ -138,6 +149,7 @@ export function ThinChat({
           draft={draft}
           onDraftChange={setDraft}
           onSubmit={handleSubmit}
+          gateway={gateway}
           onStop={() => void interrupt()}
           busy={busy}
           autoFocus={isActive}

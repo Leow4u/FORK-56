@@ -5,6 +5,7 @@ import {
   type ConnectionState,
   type GatewayEvent,
 } from "@/lib/gatewayClient";
+import { executeSlash } from "@/lib/slashExec";
 
 import {
   applyGatewayEvent,
@@ -36,7 +37,10 @@ export interface UseThinChatGatewayResult {
   connectionState: ConnectionState;
   busy: boolean;
   error: string | null;
+  credentialWarning: string | null;
   ready: boolean;
+  gateway: GatewayClient;
+  liveSessionId: string | null;
   submit: (text: string) => Promise<void>;
   interrupt: () => Promise<void>;
   reset: () => Promise<void>;
@@ -70,7 +74,11 @@ export function useThinChatGateway(
     useState<ConnectionState>("idle");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [credentialWarning, setCredentialWarning] = useState<string | null>(
+    null,
+  );
   const [ready, setReady] = useState(false);
+  const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
 
   const liveSessionIdRef = useRef<string | null>(null);
   const storedSessionIdRef = useRef<string | null>(null);
@@ -112,9 +120,21 @@ export function useThinChatGateway(
     onStoredSessionIdRef.current?.(stored);
   }, []);
 
+  const bindLiveSession = useCallback((sessionId: string | null) => {
+    liveSessionIdRef.current = sessionId;
+    setLiveSessionId(sessionId);
+  }, []);
+
+  const appendSystemMessage = useCallback((text: string) => {
+    setMessages((prev) => [
+      ...prev,
+      { id: createMessageId(), role: "system", text },
+    ]);
+  }, []);
+
   const applyResumeResult = useCallback(
     (result: SessionResumeResult) => {
-      liveSessionIdRef.current = result.session_id;
+      bindLiveSession(result.session_id);
       rememberStored(result.stored_session_id ?? result.resumed);
       setMessages(historyToChatMessages(result.messages));
       setPhase("session");
@@ -126,7 +146,7 @@ export function useThinChatGateway(
           : null;
       if (title) onTitleRef.current?.(title);
     },
-    [rememberStored],
+    [bindLiveSession, rememberStored],
   );
 
   const createFreshSession = useCallback(async (): Promise<string> => {
@@ -135,13 +155,13 @@ export function useThinChatGateway(
       "session.create",
       thinChatSessionCreateParams(profileRef.current),
     );
-    liveSessionIdRef.current = created.session_id;
+    bindLiveSession(created.session_id);
     if (created.stored_session_id) {
       storedSessionIdRef.current = created.stored_session_id;
     }
     setReady(true);
     return created.session_id;
-  }, [gw]);
+  }, [bindLiveSession, gw]);
 
   const ensureLiveSession = useCallback(async (): Promise<string> => {
     if (liveSessionIdRef.current) return liveSessionIdRef.current;
@@ -157,7 +177,7 @@ export function useThinChatGateway(
           "session.resume",
           thinChatSessionResumeParams(target, profileRef.current),
         );
-        liveSessionIdRef.current = resumed.session_id;
+        bindLiveSession(resumed.session_id);
         rememberStored(resumed.stored_session_id ?? resumed.resumed);
         setReady(true);
         return resumed.session_id;
@@ -171,7 +191,7 @@ export function useThinChatGateway(
     } finally {
       ensurePromiseRef.current = null;
     }
-  }, [createFreshSession, gw, messages.length, phase, rememberStored]);
+  }, [bindLiveSession, createFreshSession, gw, messages.length, phase, rememberStored]);
 
   // Boot: connect + create (EmptyHome) or resume (?resume=).
   useEffect(() => {
@@ -185,12 +205,21 @@ export function useThinChatGateway(
       if (sid && ev.session_id && ev.session_id !== sid) return;
 
       if (ev.type === "session.info" || ev.type === "session.title") {
-        const title =
+        const payload =
           ev.payload && typeof ev.payload === "object"
-            ? (ev.payload as { title?: string }).title
-            : undefined;
+            ? (ev.payload as Record<string, unknown>)
+            : null;
+        const title =
+          payload && typeof payload.title === "string" ? payload.title : undefined;
         if (typeof title === "string" && title.trim()) {
           onTitleRef.current?.(title.trim());
+        }
+        const warn =
+          payload && typeof payload.credential_warning === "string"
+            ? payload.credential_warning
+            : null;
+        if (warn?.trim()) {
+          setCredentialWarning(warn.trim());
         }
         return;
       }
@@ -257,7 +286,7 @@ export function useThinChatGateway(
       cancelled = true;
       offState();
       offAny();
-      liveSessionIdRef.current = null;
+      bindLiveSession(null);
       ensurePromiseRef.current = null;
       gw.close();
     };
@@ -287,7 +316,7 @@ export function useThinChatGateway(
     (async () => {
       try {
         const prev = liveSessionIdRef.current;
-        liveSessionIdRef.current = null;
+        bindLiveSession(null);
         if (prev) {
           await gw
             .request("session.close", { session_id: prev })
@@ -312,16 +341,11 @@ export function useThinChatGateway(
     };
   }, [applyResumeResult, enabled, gw, resumeSessionId]);
 
-  const submit = useCallback(
+  const submitPrompt = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || busy) return;
       setError(null);
-      setPhase("session");
-      setMessages((prev) => [
-        ...prev,
-        { id: createMessageId(), role: "user", text: trimmed },
-      ]);
       setBusy(true);
       try {
         const sessionId = await ensureLiveSession();
@@ -330,18 +354,85 @@ export function useThinChatGateway(
           session_id: sessionId,
           text: trimmed,
         });
-        // Stream events drive the assistant bubble + clear busy on complete.
       } catch (e) {
         setBusy(false);
         const message = e instanceof Error ? e.message : "Send failed";
         setError(message);
-        setMessages((prev) => [
-          ...prev,
-          { id: createMessageId(), role: "system", text: message },
-        ]);
+        appendSystemMessage(message);
       }
     },
-    [busy, ensureLiveSession, gw, rememberStored],
+    [appendSystemMessage, busy, ensureLiveSession, gw, rememberStored],
+  );
+
+  const submit = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || busy) return;
+
+      const isSlash = trimmed.startsWith("/");
+      if (!isSlash && credentialWarning) {
+        return;
+      }
+
+      setError(null);
+      setPhase("session");
+      setMessages((prev) => [
+        ...prev,
+        { id: createMessageId(), role: "user", text: trimmed },
+      ]);
+
+      if (isSlash) {
+        try {
+          const sessionId = await ensureLiveSession();
+          rememberStored(storedSessionIdRef.current);
+          const result = await executeSlash({
+            command: trimmed,
+            sessionId,
+            gw,
+            callbacks: {
+              sys: appendSystemMessage,
+              send: async (message) => {
+                setMessages((prev) => [
+                  ...prev,
+                  { id: createMessageId(), role: "user", text: message },
+                ]);
+                await submitPrompt(message);
+              },
+            },
+          });
+          if (result === "sent") return;
+        } catch (e) {
+          const message = e instanceof Error ? e.message : "Command failed";
+          setError(message);
+          appendSystemMessage(message);
+        }
+        return;
+      }
+
+      setBusy(true);
+      try {
+        const sessionId = await ensureLiveSession();
+        rememberStored(storedSessionIdRef.current);
+        await gw.request("prompt.submit", {
+          session_id: sessionId,
+          text: trimmed,
+        });
+      } catch (e) {
+        setBusy(false);
+        const message = e instanceof Error ? e.message : "Send failed";
+        setError(message);
+        appendSystemMessage(message);
+      }
+    },
+    [
+      appendSystemMessage,
+      busy,
+      credentialWarning,
+      ensureLiveSession,
+      gw,
+      rememberStored,
+      submitPrompt,
+    ],
   );
 
   const interrupt = useCallback(async () => {
@@ -357,11 +448,12 @@ export function useThinChatGateway(
   const reset = useCallback(async () => {
     suppressResumeRef.current = true;
     const sid = liveSessionIdRef.current;
-    liveSessionIdRef.current = null;
+    bindLiveSession(null);
     storedSessionIdRef.current = null;
     ensurePromiseRef.current = null;
     setBusy(false);
     setError(null);
+    setCredentialWarning(null);
     setMessages([]);
     setPhase("home");
     setReady(false);
@@ -377,7 +469,7 @@ export function useThinChatGateway(
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start new chat");
     }
-  }, [createFreshSession, gw]);
+  }, [bindLiveSession, createFreshSession, gw]);
 
   return {
     phase,
@@ -385,7 +477,10 @@ export function useThinChatGateway(
     connectionState,
     busy,
     error,
+    credentialWarning,
     ready,
+    gateway: gw,
+    liveSessionId,
     submit,
     interrupt,
     reset,
