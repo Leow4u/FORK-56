@@ -193,6 +193,60 @@ describe("ThinChat gateway wiring", () => {
     expect(container.textContent).toContain("prior reply");
   });
 
+  it("does not re-resume when ?resume= catches up to the live session", async () => {
+    const onStoredSessionId = vi.fn();
+    await act(async () => {
+      root.render(<ThinChat onStoredSessionId={onStoredSessionId} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const textarea = container.querySelector(
+      'textarea[aria-label="Message"]',
+    ) as HTMLTextAreaElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )?.set;
+    await act(async () => {
+      setter?.call(textarea, "hello agent");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const send = container.querySelector(
+      'button[aria-label="Send message"]',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      send.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onStoredSessionId).toHaveBeenCalledWith("stored-1");
+
+    await act(async () => {
+      root.render(
+        <ThinChat
+          onStoredSessionId={onStoredSessionId}
+          resumeSessionId="stored-1"
+        />,
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(gatewayMocks.request).not.toHaveBeenCalledWith(
+      "session.resume",
+      expect.anything(),
+    );
+    expect(gatewayMocks.request).not.toHaveBeenCalledWith(
+      "session.close",
+      expect.anything(),
+    );
+    expect(container.textContent).toContain("hello agent");
+  });
+
   it("submits a prompt and streams assistant deltas", async () => {
     await act(async () => {
       root.render(<ThinChat />);
