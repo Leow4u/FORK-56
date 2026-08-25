@@ -109,7 +109,7 @@ export function ThinChat({
           }
           role={error ? "alert" : "status"}
         >
-          <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
             <span>{banner}</span>
             {error && (
               <button

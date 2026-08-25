@@ -175,6 +175,18 @@ export const pt: Translations = {
     },
   },
 
+  thinChat: {
+    emptySubtitle: "Pergunte o que quiser. O seu agente corre nesta máquina.",
+    thinking: "A pensar…",
+    scrollToBottom: "Ir para o fim",
+    suggestions: [
+      "Em que me podes ajudar?",
+      "Resume o que falámos da última vez",
+      "Que skills estão disponíveis?",
+      "Verifica se o gateway está saudável",
+    ],
+  },
+
   analytics: {
     period: "Período:",
     totalTokens: "Tokens totais",

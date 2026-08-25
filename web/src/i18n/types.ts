@@ -213,6 +213,14 @@ export interface Translations {
     };
   };
 
+  /** Thin web chat (/chat) — optional; English fallback in components. */
+  thinChat?: {
+    emptySubtitle: string;
+    thinking: string;
+    scrollToBottom: string;
+    suggestions: string[];
+  };
+
   // ── Analytics page ──
   analytics: {
     period: string;

@@ -14,7 +14,6 @@ export interface SessionViewProps {
 
 /**
  * Active conversation: scrollable transcript + docked composer.
- * No second chat sidebar — dashboard nav already owns Sessions.
  */
 export function SessionView({
   messages,
@@ -27,9 +26,10 @@ export function SessionView({
 }: SessionViewProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <MessageList messages={messages} />
-      <div className="shrink-0 border-t border-border/60 bg-background/90 px-4 py-3 backdrop-blur-sm">
-        <div className="mx-auto w-full max-w-2xl">
+      <MessageList messages={messages} busy={busy} />
+      <div className="relative shrink-0 border-t border-border/60 bg-gradient-to-t from-background via-background/95 to-background/80 px-4 py-3 backdrop-blur-sm">
+        <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-background/80 to-transparent" />
+        <div className="mx-auto w-full max-w-3xl">
           <Composer
             variant="dock"
             value={draft}

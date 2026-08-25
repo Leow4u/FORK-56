@@ -85,8 +85,9 @@ export function Composer({
     <form
       onSubmit={onFormSubmit}
       className={cn(
-        "flex w-full items-end gap-2 border border-border bg-background/80",
-        variant === "hero" ? "rounded-2xl px-3 py-3 shadow-sm" : "rounded-xl px-2.5 py-2",
+        "flex w-full items-end gap-2 border border-border/70 bg-background/90",
+        "shadow-sm transition-[border-color,box-shadow] focus-within:border-border focus-within:shadow-md",
+        variant === "hero" ? "rounded-2xl px-3 py-3" : "rounded-xl px-2.5 py-2",
         className,
       )}
     >
