@@ -21,6 +21,8 @@ export interface RightFilesPaneProps {
   onClose?: () => void;
   /** Insert a path reference into the composer draft. */
   onAddPathToChat?: (path: string) => void;
+  /** When true, skip the pane's own title row (parent provides tabs). */
+  embedded?: boolean;
   className?: string;
 }
 
@@ -59,6 +61,7 @@ export function RightFilesPane({
   onOpenWorkspace,
   onClose,
   onAddPathToChat,
+  embedded = false,
   className,
 }: RightFilesPaneProps) {
   const hasWorkspace = hasOpenWorkspace(workspaceCwd);
@@ -135,23 +138,25 @@ export function RightFilesPane({
     >
       {!hasWorkspace ? (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex h-8 shrink-0 items-center justify-between gap-1 border-b border-border/40 px-2.5">
-            <span className="truncate text-xs font-medium text-foreground">
-              Files
-            </span>
-            {onClose && (
-              <Button
-                type="button"
-                size="icon"
-                ghost
-                className="h-6 w-6"
-                aria-label="Hide files"
-                onClick={onClose}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
+          {!embedded && (
+            <div className="flex h-8 shrink-0 items-center justify-between gap-1 border-b border-border/40 px-2.5">
+              <span className="truncate text-xs font-medium text-foreground">
+                Files
+              </span>
+              {onClose && (
+                <Button
+                  type="button"
+                  size="icon"
+                  ghost
+                  className="h-6 w-6"
+                  aria-label="Hide files"
+                  onClick={onClose}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          )}
           <EmptyState
             title="No project open"
             body="Open a project to browse its files."
@@ -172,7 +177,13 @@ export function RightFilesPane({
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="group/project-header flex h-8 shrink-0 items-center gap-0.5 border-b border-border/40 px-2">
+          <div
+            className={cn(
+              "group/project-header flex h-8 shrink-0 items-center gap-0.5 px-2",
+              !embedded && "border-b border-border/40",
+              embedded && "border-b border-border/30",
+            )}
+          >
             <span
               className="min-w-0 flex-1 truncate px-0.5 text-xs font-medium text-foreground"
               title={effectiveCwd || cwd}
@@ -203,7 +214,7 @@ export function RightFilesPane({
             >
               <ChevronsDownUp className="h-3.5 w-3.5" />
             </Button>
-            {onClose && (
+            {!embedded && onClose && (
               <Button
                 type="button"
                 size="icon"

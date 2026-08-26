@@ -481,6 +481,70 @@ export const api = {
     fetchJSON<FsReadTextResponse>(
       `/api/fs/read-text?path=${encodeURIComponent(path)}`,
     ),
+  /** Session-cwd git review (agent host) — same surface as desktop remote. */
+  gitReviewList: (path: string, scope = "uncommitted", base?: string | null) => {
+    const qs = new URLSearchParams({ path, scope });
+    if (base) qs.set("base", base);
+    return fetchJSON<GitReviewListResponse>(`/api/git/review/list?${qs}`);
+  },
+  gitReviewDiff: (
+    path: string,
+    file: string,
+    opts: { scope?: string; base?: string | null; staged?: boolean } = {},
+  ) => {
+    const qs = new URLSearchParams({
+      path,
+      file,
+      scope: opts.scope ?? "uncommitted",
+      staged: String(Boolean(opts.staged)),
+    });
+    if (opts.base) qs.set("base", opts.base);
+    return fetchJSON<{ diff: string }>(`/api/git/review/diff?${qs}`);
+  },
+  gitReviewStage: (path: string, file?: string | null) =>
+    fetchJSON<{ ok: boolean }>("/api/git/review/stage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, file: file ?? null }),
+    }),
+  gitReviewUnstage: (path: string, file?: string | null) =>
+    fetchJSON<{ ok: boolean }>("/api/git/review/unstage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, file: file ?? null }),
+    }),
+  gitReviewRevert: (path: string, file?: string | null) =>
+    fetchJSON<{ ok: boolean }>("/api/git/review/revert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, file: file ?? null }),
+    }),
+  gitReviewCommit: (path: string, message: string, push = false) =>
+    fetchJSON<{ ok: boolean }>("/api/git/review/commit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, message, push }),
+    }),
+  gitReviewPush: (path: string) =>
+    fetchJSON<{ ok: boolean }>("/api/git/review/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }),
+  gitReviewShipInfo: (path: string) =>
+    fetchJSON<GitReviewShipInfo>(
+      `/api/git/review/ship-info?path=${encodeURIComponent(path)}`,
+    ),
+  gitReviewCreatePr: (path: string) =>
+    fetchJSON<{ ok?: boolean; url?: string }>("/api/git/review/create-pr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }),
+  gitRepoStatus: (path: string) =>
+    fetchJSON<GitRepoStatus | null>(
+      `/api/git/status?path=${encodeURIComponent(path)}`,
+    ),
   readFile: (path: string) =>
     fetchJSON<ManagedFileReadResponse>(
       `/api/files/read?path=${encodeURIComponent(path)}`,
@@ -2116,6 +2180,39 @@ export interface FsReadTextResponse {
   path: string;
   text: string;
   truncated: boolean;
+}
+
+/** Changed file from ``GET /api/git/review/list`` (desktop review pane). */
+export interface GitReviewFile {
+  path: string;
+  added: number;
+  removed: number;
+  status: string;
+  staged: boolean;
+}
+
+export interface GitReviewListResponse {
+  files: GitReviewFile[];
+  base: string | null;
+}
+
+export interface GitReviewPr {
+  url: string;
+  state: string;
+  number: number;
+}
+
+export interface GitReviewShipInfo {
+  ghReady: boolean;
+  pr: GitReviewPr | null;
+}
+
+export interface GitRepoStatus {
+  branch?: string;
+  ahead?: number;
+  behind?: number;
+  dirty?: boolean;
+  [key: string]: unknown;
 }
 
 export interface ManagedFileReadResponse {

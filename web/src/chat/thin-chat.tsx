@@ -9,9 +9,9 @@ import {
 import { cn } from "@/lib/utils";
 
 import { EmptyHome } from "./empty-home";
+import { RightContextPane } from "./right-context-pane";
 import {
   readFilesPaneOpen,
-  RightFilesPane,
   writeFilesPaneOpen,
 } from "./right-files";
 import { SessionView } from "./session-view";
@@ -397,7 +397,7 @@ export function ThinChat({
               "lg:w-64",
             )}
           >
-            <RightFilesPane
+            <RightContextPane
               workspaceCwd={workspaceCwd}
               onOpenWorkspace={() => {
                 setWorkspaceError(null);
