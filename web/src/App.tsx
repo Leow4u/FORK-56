@@ -64,6 +64,7 @@ import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { ChatSessionList } from "@/components/ChatSessionList";
 import { FilesRouteGate } from "@/components/FilesRouteGate";
+import { ModelsRouteGate } from "@/components/ModelsRouteGate";
 import { SidebarFooter } from "@/components/SidebarFooter";
 import { SidebarStatusStrip, gatewayLine } from "@/components/SidebarStatusStrip";
 import { useBelowBreakpoint } from "@work4you/ui/hooks/use-below-breakpoint";
@@ -85,7 +86,7 @@ const EnvPage = lazy(() => import("@/pages/EnvPage"));
 const SessionsPage = lazy(() => import("@/pages/SessionsPage"));
 const LogsPage = lazy(() => import("@/pages/LogsPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
-const ModelsPage = lazy(() => import("@/pages/ModelsPage"));
+const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const CronPage = lazy(() => import("@/pages/CronPage"));
 const ProfilesPage = lazy(() => import("@/pages/ProfilesPage"));
 const ProfileBuilderPage = lazy(() => import("@/pages/ProfileBuilderPage"));
@@ -167,7 +168,11 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   // (the gate redirects home). See FilesRouteGate.
   "/files": FilesRouteGate,
   "/analytics": AnalyticsPage,
-  "/models": ModelsPage,
+  // User-facing model settings moved to /settings (Settings → Model); the
+  // page behind /models is the operator analytics view, gated like
+  // /analytics. See ModelsRouteGate.
+  "/models": ModelsRouteGate,
+  "/settings": SettingsPage,
   "/logs": LogsPage,
   "/cron": CronPage,
   "/skills": SkillsPage,
@@ -506,6 +511,9 @@ export default function App() {
       : BUILTIN_NAV_REST;
     return base.filter((n) => {
       if (n.path === "/analytics") return showTokenAnalytics;
+      // Model settings moved to Settings → Model; /models is the operator
+      // analytics view, shown under the same flag as /analytics.
+      if (n.path === "/models") return showTokenAnalytics;
       // Hide the Sessions admin console when the sidebar session list is
       // the everyday surface (embedded chat on) unless explicitly re-shown.
       if (n.path === "/sessions") return showSessionsAdmin || !embeddedChat;
