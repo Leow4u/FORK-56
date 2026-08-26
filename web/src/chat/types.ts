@@ -16,6 +16,8 @@ export interface ChatMessage {
   interim?: boolean;
   /** Stable tool row key from gateway ``tool_id``. */
   toolId?: string;
+  /** Optimistic / attached image data-URLs or agent-host paths. */
+  images?: string[];
 }
 
 export type ThinChatPhase = "home" | "session";

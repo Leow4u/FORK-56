@@ -485,6 +485,19 @@ export const api = {
     fetchJSON<{ dataUrl: string }>(
       `/api/fs/read-data-url?path=${encodeURIComponent(path)}`,
     ),
+  /** Desktop-parity STT — same ``/api/audio/transcribe`` the Electron app uses. */
+  transcribeAudio: (dataUrl: string, mimeType?: string) =>
+    fetchJSON<{ ok?: boolean; transcript?: string; text?: string; error?: string }>(
+      "/api/audio/transcribe",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data_url: dataUrl,
+          mime_type: mimeType,
+        }),
+      },
+    ),
   /** Session-cwd git review (agent host) — same surface as desktop remote. */
   gitReviewList: (path: string, scope = "uncommitted", base?: string | null) => {
     const qs = new URLSearchParams({ path, scope });

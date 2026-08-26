@@ -31,6 +31,7 @@ describe("uploadThinAttachment", () => {
       sessionId: "s1",
     });
     expect(staged.path).toBe("/opt/data/images/upload.png");
+    expect(staged.refText).toBe("@image:/opt/data/images/upload.png");
     expect(staged.attachedSessionId).toBe("s1");
     expect(gw.request).toHaveBeenCalledWith("image.attach_bytes", {
       session_id: "s1",

@@ -72,6 +72,7 @@ export async function uploadThinAttachment(
         attachedSessionId: sessionId,
         label: attachedPath ? pathLabel(attachedPath) : attachment.label,
         path: attachedPath,
+        refText: attachedPath ? `@image:${attachedPath}` : attachment.refText,
         uploadState: undefined,
       };
     }

@@ -1,12 +1,20 @@
 import { ArrowDown } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Markdown } from "@/components/Markdown";
 import { useI18n } from "@/i18n";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+import {
+  extractEmbeddedImages,
+  extractImageRefs,
+  imageRefPath,
+} from "./embedded-images";
 import type { ChatMessage } from "./types";
 import { useStickToBottom } from "./use-stick-to-bottom";
 import { shouldShowThinking } from "./thinking";
+import { ZoomableImage } from "./zoomable-image";
 
 export interface MessageListProps {
   messages: ChatMessage[];
@@ -81,6 +89,53 @@ function ReasoningBlock({ text, streaming }: { text: string; streaming?: boolean
   );
 }
 
+function MessageImages({
+  inline,
+  paths,
+}: {
+  inline: string[];
+  paths: string[];
+}) {
+  const [resolved, setResolved] = useState<Record<string, string>>({});
+  const pathKey = paths.join("\0");
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      for (const path of paths) {
+        if (!path) continue;
+        try {
+          const result = await api.readFsDataUrl(path);
+          if (!cancelled && result?.dataUrl) {
+            setResolved((prev) =>
+              prev[path] ? prev : { ...prev, [path]: result.dataUrl },
+            );
+          }
+        } catch {
+          // Missing file — skip.
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathKey, paths]);
+
+  const urls = [
+    ...inline,
+    ...paths.map((p) => resolved[p]).filter((u): u is string => Boolean(u)),
+  ];
+  if (urls.length === 0) return null;
+
+  return (
+    <div className="mt-2 flex flex-col gap-2">
+      {urls.map((url, i) => (
+        <ZoomableImage key={`${i}:${url.slice(0, 48)}`} src={url} alt="" />
+      ))}
+    </div>
+  );
+}
+
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
   const isTool = message.role === "tool";
@@ -103,6 +158,17 @@ function MessageBubble({ message }: { message: ChatMessage }) {
     );
   }
 
+  const embedded = extractEmbeddedImages(message.text);
+  const refs = extractImageRefs(embedded.cleanedText);
+  const pathRefs = refs.refs.map(imageRefPath).filter(Boolean);
+  const extra = message.images ?? [];
+  const dataUrls = [
+    ...embedded.images,
+    ...extra.filter((u) => /^data:image\//i.test(u)),
+  ];
+  const pathExtras = extra.filter((u) => u && !/^data:/i.test(u));
+  const bodyText = refs.cleanedText;
+
   return (
     <div
       className={cn(
@@ -118,11 +184,14 @@ function MessageBubble({ message }: { message: ChatMessage }) {
             : "rounded-2xl rounded-bl-md border border-border/45 bg-muted/30 text-foreground shadow-sm",
         )}
       >
-        {isUser ? (
-          <p className="whitespace-pre-wrap break-words">{message.text}</p>
-        ) : (
-          <Markdown content={message.text} streaming={message.streaming} />
-        )}
+        {bodyText ? (
+          isUser ? (
+            <p className="whitespace-pre-wrap break-words">{bodyText}</p>
+          ) : (
+            <Markdown content={bodyText} streaming={message.streaming} />
+          )
+        ) : null}
+        <MessageImages inline={dataUrls} paths={[...pathRefs, ...pathExtras]} />
       </div>
     </div>
   );

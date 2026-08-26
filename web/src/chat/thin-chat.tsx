@@ -222,6 +222,12 @@ export function ThinChat({
     workspaceCwd,
     setWorkspaceCwd,
     clearWorkspaceCwd,
+    queueEntries,
+    queueParked,
+    removeQueuedPrompt,
+    sendQueuedNow,
+    steerQueuedNow,
+    resumeQueue,
     prompts,
     setPrompts,
     blockingPrompt,
@@ -268,6 +274,14 @@ export function ThinChat({
     if (!initialDraft) return;
     queueMicrotask(() => setDraft(initialDraft));
   }, [initialDraft]);
+
+  const handleQueueEdit = useCallback(
+    (entry: (typeof queueEntries)[number]) => {
+      setDraft(entry.text);
+      removeQueuedPrompt(entry.id);
+    },
+    [removeQueuedPrompt],
+  );
 
   const handleSubmit = useCallback(
     (text: string) => {
@@ -486,6 +500,13 @@ export function ThinChat({
           prompts={prompts}
           onPromptsChange={setPrompts}
           blockingPrompt={blockingPrompt}
+          queueEntries={queueEntries}
+          queueParked={queueParked}
+          onQueueEdit={handleQueueEdit}
+          onQueueDelete={removeQueuedPrompt}
+          onQueueSendNow={sendQueuedNow}
+          onQueueSteerNow={(id) => void steerQueuedNow(id)}
+          onQueueResume={resumeQueue}
         />
       )}
 

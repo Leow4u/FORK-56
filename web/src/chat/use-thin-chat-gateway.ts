@@ -52,6 +52,10 @@ import {
 } from "./resume-transcript";
 import type { ThinChatActivity } from "./chat-activity-strip";
 import {
+  makeQueuedEntry,
+  type QueuedPromptEntry,
+} from "./composer-queue";
+import {
   clearInflightJournal,
   persistInflightJournal,
   prependOlderMessages,
@@ -213,6 +217,14 @@ export interface UseThinChatGatewayResult {
     text: string,
     attachments?: ThinComposerAttachment[],
   ) => void;
+  /** Interactive queue panel state. */
+  queueEntries: QueuedPromptEntry[];
+  queueParked: boolean;
+  removeQueuedPrompt: (id: string) => void;
+  sendQueuedNow: (id: string) => void;
+  steerQueuedNow: (id: string) => Promise<void>;
+  parkQueue: () => void;
+  resumeQueue: () => void;
   interrupt: () => Promise<void>;
   reset: () => Promise<void>;
   loadEarlier: () => Promise<void>;
@@ -287,7 +299,9 @@ export function useThinChatGateway(
   const [backfillLoaded, setBackfillLoaded] = useState(false);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [activity, setActivity] = useState<ThinChatActivity>(EMPTY_ACTIVITY);
-  const [queueCount, setQueueCount] = useState(0);
+  const [queueEntries, setQueueEntries] = useState<QueuedPromptEntry[]>([]);
+  const [queueParked, setQueueParked] = useState(false);
+  const queueCount = queueEntries.length;
   const [prompts, setPrompts] = useState<ThinChatPromptState>(EMPTY_PROMPT_STATE);
   const promptsRef = useRef(prompts);
   promptsRef.current = prompts;
@@ -306,9 +320,19 @@ export function useThinChatGateway(
   const ensurePromiseRef = useRef<Promise<string> | null>(null);
   const suppressResumeRef = useRef(false);
   const intentionalCloseRef = useRef(false);
-  const queueRef = useRef<
-    Array<{ text: string; attachments: ThinComposerAttachment[] }>
-  >([]);
+  const queueRef = useRef<QueuedPromptEntry[]>([]);
+  useEffect(() => {
+    queueRef.current = queueEntries;
+  }, [queueEntries]);
+
+  const pushQueued = useCallback((entry: QueuedPromptEntry) => {
+    setQueueEntries((prev) => {
+      const next = [...prev, entry];
+      queueRef.current = next;
+      return next;
+    });
+  }, []);
+
   const turnStateRef = useRef<ThinChatTurnState>(createThinChatTurnState());
 
   const profileRef = useRef(profile);
@@ -1119,15 +1143,26 @@ export function useThinChatGateway(
         // Approval / sudo / secret: cannot answer by typing — queue, not steer.
         const blocking = hasBlockingPrompt(promptsRef.current);
         if (hasAttachments || blocking) {
+          const images = attachments
+            .filter((a) => a.kind === "image")
+            .map((a) => a.previewUrl || a.path || "")
+            .filter(Boolean);
           setMessages((prev) => [
             ...prev,
-            { id: createMessageId(), role: "user", text: displayText },
+            {
+              id: createMessageId(),
+              role: "user",
+              text: displayText,
+              images: images.length ? images : undefined,
+            },
           ]);
-          queueRef.current.push({
-            text: trimmed,
-            attachments: [...attachments],
-          });
-          setQueueCount(queueRef.current.length);
+          pushQueued(
+            makeQueuedEntry({
+              text: trimmed,
+              displayText,
+              attachments,
+            }),
+          );
           appendSystemMessage("Message queued for next turn");
           return;
         }
@@ -1138,8 +1173,7 @@ export function useThinChatGateway(
         ]);
         const steerResult = await trySteer(trimmed);
         if (steerResult === "queued") return;
-        queueRef.current.push({ text: trimmed, attachments: [] });
-        setQueueCount(queueRef.current.length);
+        pushQueued(makeQueuedEntry({ text: trimmed, attachments: [] }));
         appendSystemMessage(
           steerResult === "rejected"
             ? "Steer rejected — message queued for next turn"
@@ -1162,12 +1196,17 @@ export function useThinChatGateway(
         }
       }
 
+      const images = attachments
+        .filter((a) => a.kind === "image")
+        .map((a) => a.previewUrl || a.path || "")
+        .filter(Boolean);
       setMessages((prev) => [
         ...prev,
         {
           id: createMessageId(),
           role: "user",
           text: displayText,
+          images: images.length ? images : undefined,
         },
       ]);
 
@@ -1210,17 +1249,19 @@ export function useThinChatGateway(
       rememberStored,
       submitPrompt,
       trySteer,
+      pushQueued,
     ],
   );
 
-  // Drain steer-fallback queue when the agent turn finishes.
+  // Drain steer-fallback queue when the agent turn finishes (unless parked).
   useEffect(() => {
-    if (busy || queueRef.current.length === 0) return;
-    const next = queueRef.current.shift();
-    setQueueCount(queueRef.current.length);
+    if (busy || queueParked || queueRef.current.length === 0) return;
+    const [next, ...rest] = queueRef.current;
+    queueRef.current = rest;
+    setQueueEntries(rest);
     if (!next) return;
     void submitPrompt(next.text, next.attachments);
-  }, [busy, submitPrompt]);
+  }, [busy, queueParked, submitPrompt]);
 
   useEffect(() => {
     persistInflightJournal(
@@ -1237,24 +1278,92 @@ export function useThinChatGateway(
       if ((!trimmed && !attachments.length) || !busy) return;
       const displayText =
         buildPromptTextFromAttachments(trimmed, attachments) || trimmed;
+      const images = attachments
+        .filter((a) => a.kind === "image")
+        .map((a) => a.previewUrl || a.path || "")
+        .filter(Boolean);
       setMessages((prev) => [
         ...prev,
-        { id: createMessageId(), role: "user", text: displayText },
+        {
+          id: createMessageId(),
+          role: "user",
+          text: displayText,
+          images: images.length ? images : undefined,
+        },
       ]);
-      queueRef.current.push({
-        text: trimmed,
-        attachments: [...attachments],
-      });
-      setQueueCount(queueRef.current.length);
+      pushQueued(
+        makeQueuedEntry({
+          text: trimmed,
+          displayText,
+          attachments,
+        }),
+      );
     },
-    [busy],
+    [busy, pushQueued],
   );
+
+  const removeQueuedPrompt = useCallback((id: string) => {
+    setQueueEntries((prev) => {
+      const next = prev.filter((e) => e.id !== id);
+      queueRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const sendQueuedNow = useCallback(
+    (id: string) => {
+      const entry = queueRef.current.find((e) => e.id === id);
+      if (!entry) return;
+      if (busy) {
+        setQueueEntries((prev) => {
+          const next = [entry, ...prev.filter((e) => e.id !== id)];
+          queueRef.current = next;
+          return next;
+        });
+        setQueueParked(false);
+        return;
+      }
+      setQueueEntries((prev) => {
+        const next = prev.filter((e) => e.id !== id);
+        queueRef.current = next;
+        return next;
+      });
+      setQueueParked(false);
+      void submitPrompt(entry.text, entry.attachments);
+    },
+    [busy, submitPrompt],
+  );
+
+  const steerQueuedNow = useCallback(
+    async (id: string) => {
+      const entry = queueRef.current.find((e) => e.id === id);
+      if (!entry || !busy) return;
+      const result = await trySteer(entry.text);
+      if (result === "queued" || result === "rejected" || result === "failed") {
+        // Leave in queue on failure; remove only when steer accepted as queued
+        // at gateway (still drains later). On true mid-turn accept there's no
+        // distinct status — gateway "queued" means accepted into steer buffer.
+        if (result === "queued") {
+          setQueueEntries((prev) => {
+            const next = prev.filter((e) => e.id !== id);
+            queueRef.current = next;
+            return next;
+          });
+        }
+      }
+    },
+    [busy, trySteer],
+  );
+
+  const parkQueue = useCallback(() => setQueueParked(true), []);
+  const resumeQueue = useCallback(() => setQueueParked(false), []);
 
   const interrupt = useCallback(async () => {
     const sid = liveSessionIdRef.current;
     if (!sid) return;
     try {
       await gw.request("session.interrupt", { session_id: sid });
+      setQueueParked(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Interrupt failed");
     }
@@ -1297,7 +1406,8 @@ export function useThinChatGateway(
     queueRef.current = [];
     turnStateRef.current = createThinChatTurnState();
     clearInflightJournal(storedSessionIdRef.current);
-    setQueueCount(0);
+    setQueueEntries([]);
+    setQueueParked(false);
     setActivity(EMPTY_ACTIVITY);
     setPrompts(clearAllPrompts());
     setBusy(false);
@@ -1345,6 +1455,13 @@ export function useThinChatGateway(
     loadingEarlier,
     submit,
     enqueueDraft,
+    queueEntries,
+    queueParked,
+    removeQueuedPrompt,
+    sendQueuedNow,
+    steerQueuedNow,
+    parkQueue,
+    resumeQueue,
     interrupt,
     reset,
     loadEarlier,

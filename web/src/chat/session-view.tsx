@@ -4,6 +4,7 @@ import { PromptHost, type ThinChatPromptState } from "./approvals";
 import type { ThinChatActivity } from "./chat-activity-strip";
 import type { ComposerAttachHandlers } from "./composer";
 import { ComposerDock } from "./composer-dock";
+import type { QueuedPromptEntry } from "./composer-queue";
 import { MessageList } from "./message-list";
 import type { ThinChatSessionInfo, ThinChatSessionUsage } from "./session-info";
 import type { ChatMessage } from "./types";
@@ -37,6 +38,13 @@ export interface SessionViewProps {
     updater: (prev: ThinChatPromptState) => ThinChatPromptState,
   ) => void;
   blockingPrompt?: boolean;
+  queueEntries?: QueuedPromptEntry[];
+  queueParked?: boolean;
+  onQueueEdit?: (entry: QueuedPromptEntry) => void;
+  onQueueDelete?: (id: string) => void;
+  onQueueSendNow?: (id: string) => void;
+  onQueueSteerNow?: (id: string) => void;
+  onQueueResume?: () => void;
 }
 
 /**
@@ -69,6 +77,13 @@ export function SessionView({
   prompts,
   onPromptsChange,
   blockingPrompt = false,
+  queueEntries = [],
+  queueParked = false,
+  onQueueEdit,
+  onQueueDelete,
+  onQueueSendNow,
+  onQueueSteerNow,
+  onQueueResume,
 }: SessionViewProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -112,6 +127,13 @@ export function SessionView({
             workspaceCwd={workspaceCwd}
             onWorkspaceClick={onWorkspaceClick}
             blockingPrompt={blockingPrompt}
+            queueEntries={queueEntries}
+            queueParked={queueParked}
+            onQueueEdit={onQueueEdit}
+            onQueueDelete={onQueueDelete}
+            onQueueSendNow={onQueueSendNow}
+            onQueueSteerNow={onQueueSteerNow}
+            onQueueResume={onQueueResume}
           />
         </div>
       </div>
