@@ -1,6 +1,7 @@
 import type { ConnectionState, GatewayClient } from "@/lib/gatewayClient";
 
 import type { ThinChatActivity } from "./chat-activity-strip";
+import type { ComposerAttachHandlers } from "./composer";
 import { ComposerDock } from "./composer-dock";
 import { MessageList } from "./message-list";
 import type { ThinChatSessionInfo, ThinChatSessionUsage } from "./session-info";
@@ -27,6 +28,7 @@ export interface SessionViewProps {
   loadingEarlier?: boolean;
   onLoadEarlier?: () => void;
   autoFocus?: boolean;
+  attach?: ComposerAttachHandlers | null;
 }
 
 /**
@@ -53,6 +55,7 @@ export function SessionView({
   loadingEarlier = false,
   onLoadEarlier,
   autoFocus = true,
+  attach = null,
 }: SessionViewProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -84,6 +87,7 @@ export function SessionView({
             onStop={onStop}
             busy={busy}
             autoFocus={autoFocus}
+            attach={attach}
           />
         </div>
       </div>

@@ -17,6 +17,11 @@ import {
 import { executeSlash } from "@/lib/slashExec";
 
 import {
+  buildPromptTextFromAttachments,
+  type ThinComposerAttachment,
+} from "./attachments";
+import { syncAttachmentsForSubmit } from "./attach-upload";
+import {
   applyGatewayEvent,
   activityLineFromGatewayEvent,
   createThinChatTurnState,
@@ -164,8 +169,14 @@ export interface UseThinChatGatewayResult {
   resumeProgress: ResumeProgress | null;
   canLoadEarlier: boolean;
   loadingEarlier: boolean;
-  submit: (text: string) => Promise<void>;
-  enqueueDraft: (text: string) => void;
+  submit: (
+    text: string,
+    attachments?: ThinComposerAttachment[],
+  ) => Promise<void>;
+  enqueueDraft: (
+    text: string,
+    attachments?: ThinComposerAttachment[],
+  ) => void;
   interrupt: () => Promise<void>;
   reset: () => Promise<void>;
   loadEarlier: () => Promise<void>;
@@ -233,7 +244,9 @@ export function useThinChatGateway(
   const ensurePromiseRef = useRef<Promise<string> | null>(null);
   const suppressResumeRef = useRef(false);
   const intentionalCloseRef = useRef(false);
-  const queueRef = useRef<string[]>([]);
+  const queueRef = useRef<
+    Array<{ text: string; attachments: ThinComposerAttachment[] }>
+  >([]);
   const turnStateRef = useRef<ThinChatTurnState>(createThinChatTurnState());
 
   const profileRef = useRef(profile);
@@ -735,17 +748,29 @@ export function useThinChatGateway(
   }, [applyResumeResult, enabled, gw, resumeSessionId, bindLiveSession]);
 
   const submitPrompt = useCallback(
-    async (text: string) => {
+    async (text: string, attachments: ThinComposerAttachment[] = []) => {
+      const hasAttachments = attachments.length > 0;
       const trimmed = text.trim();
-      if (!trimmed) return;
+      if (!trimmed && !hasAttachments) return;
       setError(null);
       setBusy(true);
       try {
         const sessionId = await ensureLiveSession();
         rememberStored(storedSessionIdRef.current);
+        const staged = hasAttachments
+          ? await syncAttachmentsForSubmit(attachments, {
+              gateway: gw,
+              sessionId,
+            })
+          : [];
+        const promptText = buildPromptTextFromAttachments(trimmed, staged);
+        if (!promptText.trim()) {
+          setBusy(false);
+          return;
+        }
         await gw.request("prompt.submit", {
           session_id: sessionId,
-          text: trimmed,
+          text: promptText,
         });
       } catch (e) {
         setBusy(false);
@@ -775,11 +800,12 @@ export function useThinChatGateway(
   );
 
   const submit = useCallback(
-    async (text: string) => {
+    async (text: string, attachments: ThinComposerAttachment[] = []) => {
       const trimmed = text.trim();
-      if (!trimmed) return;
+      const hasAttachments = attachments.length > 0;
+      if (!trimmed && !hasAttachments) return;
 
-      const isSlash = trimmed.startsWith("/");
+      const isSlash = trimmed.startsWith("/") && !hasAttachments;
       if (!isSlash && credentialWarning && !busy) {
         return;
       }
@@ -787,14 +813,29 @@ export function useThinChatGateway(
       setError(null);
       setPhase("session");
 
+      const displayText =
+        buildPromptTextFromAttachments(trimmed, attachments) || trimmed;
+
       if (busy && !isSlash) {
+        // Attachments cannot steer — queue for next turn (desktop contract).
+        if (hasAttachments) {
+          setMessages((prev) => [
+            ...prev,
+            { id: createMessageId(), role: "user", text: displayText },
+          ]);
+          queueRef.current.push({ text: trimmed, attachments: [...attachments] });
+          setQueueCount(queueRef.current.length);
+          appendSystemMessage("Message queued for next turn");
+          return;
+        }
+
         setMessages((prev) => [
           ...prev,
           { id: createMessageId(), role: "user", text: trimmed },
         ]);
         const steerResult = await trySteer(trimmed);
         if (steerResult === "queued") return;
-        queueRef.current.push(trimmed);
+        queueRef.current.push({ text: trimmed, attachments: [] });
         setQueueCount(queueRef.current.length);
         appendSystemMessage(
           steerResult === "rejected"
@@ -808,7 +849,11 @@ export function useThinChatGateway(
 
       setMessages((prev) => [
         ...prev,
-        { id: createMessageId(), role: "user", text: trimmed },
+        {
+          id: createMessageId(),
+          role: "user",
+          text: displayText,
+        },
       ]);
 
       if (isSlash) {
@@ -839,20 +884,7 @@ export function useThinChatGateway(
         return;
       }
 
-      setBusy(true);
-      try {
-        const sessionId = await ensureLiveSession();
-        rememberStored(storedSessionIdRef.current);
-        await gw.request("prompt.submit", {
-          session_id: sessionId,
-          text: trimmed,
-        });
-      } catch (e) {
-        setBusy(false);
-        const message = e instanceof Error ? e.message : "Send failed";
-        setError(message);
-        appendSystemMessage(message);
-      }
+      await submitPrompt(trimmed, attachments);
     },
     [
       appendSystemMessage,
@@ -872,7 +904,7 @@ export function useThinChatGateway(
     const next = queueRef.current.shift();
     setQueueCount(queueRef.current.length);
     if (!next) return;
-    void submitPrompt(next);
+    void submitPrompt(next.text, next.attachments);
   }, [busy, submitPrompt]);
 
   useEffect(() => {
@@ -884,16 +916,24 @@ export function useThinChatGateway(
     );
   }, [busy, messages, storedSessionId]);
 
-  const enqueueDraft = useCallback((text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || !busy) return;
-    setMessages((prev) => [
-      ...prev,
-      { id: createMessageId(), role: "user", text: trimmed },
-    ]);
-    queueRef.current.push(trimmed);
-    setQueueCount(queueRef.current.length);
-  }, [busy]);
+  const enqueueDraft = useCallback(
+    (text: string, attachments: ThinComposerAttachment[] = []) => {
+      const trimmed = text.trim();
+      if ((!trimmed && !attachments.length) || !busy) return;
+      const displayText =
+        buildPromptTextFromAttachments(trimmed, attachments) || trimmed;
+      setMessages((prev) => [
+        ...prev,
+        { id: createMessageId(), role: "user", text: displayText },
+      ]);
+      queueRef.current.push({
+        text: trimmed,
+        attachments: [...attachments],
+      });
+      setQueueCount(queueRef.current.length);
+    },
+    [busy],
+  );
 
   const interrupt = useCallback(async () => {
     const sid = liveSessionIdRef.current;

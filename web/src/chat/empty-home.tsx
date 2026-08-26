@@ -5,6 +5,7 @@ import type { ConnectionState, GatewayClient } from "@/lib/gatewayClient";
 import { cn } from "@/lib/utils";
 
 import type { ThinChatActivity } from "./chat-activity-strip";
+import type { ComposerAttachHandlers } from "./composer";
 import { ComposerDock } from "./composer-dock";
 import type { ThinChatSessionInfo, ThinChatSessionUsage } from "./session-info";
 
@@ -29,6 +30,7 @@ export interface EmptyHomeProps {
   onReasoningChange?: (effort: string) => void;
   autoFocus?: boolean;
   disabled?: boolean;
+  attach?: ComposerAttachHandlers | null;
 }
 
 /**
@@ -48,6 +50,7 @@ export function EmptyHome({
   onReasoningChange,
   autoFocus = true,
   disabled = false,
+  attach = null,
 }: EmptyHomeProps) {
   const { t } = useI18n();
   const subtitle =
@@ -84,6 +87,7 @@ export function EmptyHome({
           autoFocus={autoFocus}
           disabled={disabled}
           busy={disabled}
+          attach={attach}
           className="w-full shadow-md"
         />
 

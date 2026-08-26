@@ -5,13 +5,19 @@ import {
   useEffect,
   useMemo,
   useRef,
+  type DragEvent,
   type FormEvent,
   type KeyboardEvent,
+  type ClipboardEvent,
   type ReactNode,
 } from "react";
 
 import { cn } from "@/lib/utils";
 
+import type { ThinComposerAttachment } from "./attachments";
+import { isImageFile } from "./attachments";
+import { ComposerAttachMenu } from "./composer-attach-menu";
+import { ComposerAttachmentList } from "./composer-attachment-list";
 import { composerSurface } from "./composer-dock-styles";
 
 export type ComposerBusyAction = "send" | "stop" | "steer" | "queue";
@@ -19,12 +25,27 @@ export type ComposerBusyAction = "send" | "stop" | "steer" | "queue";
 export function resolveComposerBusyAction(
   busy: boolean,
   text: string,
+  hasAttachments = false,
 ): ComposerBusyAction {
   const trimmed = text.trim();
   if (!busy) return "send";
-  if (!trimmed) return "stop";
+  if (!trimmed && !hasAttachments) return "stop";
   if (trimmed.startsWith("/")) return "queue";
+  // Desktop: attachments force queue (cannot steer with pending chips).
+  if (hasAttachments) return "queue";
+  if (!trimmed) return "stop";
   return "steer";
+}
+
+export interface ComposerAttachHandlers {
+  attachments: ThinComposerAttachment[];
+  onRemoveAttachment: (id: string) => void;
+  onPickFiles: (files: FileList | File[]) => void;
+  onPickImages: (files: FileList | File[]) => void;
+  onPasteClipboardImage: () => void | Promise<void>;
+  onAddUrl: (url: string) => void;
+  onInsertSnippet: (text: string) => void;
+  onDropFiles?: (files: File[]) => void;
 }
 
 export interface ComposerProps {
@@ -44,8 +65,9 @@ export interface ComposerProps {
   onBeforeKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => boolean;
   /** Controls between input and send (e.g. model pill). */
   trailingControls?: ReactNode;
-  /** Show the attach/context `+` affordance (type @ for paths). */
+  /** Show the attach/context ``+`` affordance. */
   showAttachButton?: boolean;
+  attach?: ComposerAttachHandlers | null;
 }
 
 /**
@@ -66,12 +88,15 @@ export function Composer({
   onBeforeKeyDown,
   trailingControls,
   showAttachButton = true,
+  attach = null,
 }: ComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const hasAttachments = Boolean(attach?.attachments.length);
   const hasText = Boolean(value.trim());
+  const hasPayload = hasText || hasAttachments;
   const busyAction = useMemo(
-    () => resolveComposerBusyAction(busy, value),
-    [busy, value],
+    () => resolveComposerBusyAction(busy, value, hasAttachments),
+    [busy, value, hasAttachments],
   );
 
   useEffect(() => {
@@ -92,8 +117,9 @@ export function Composer({
   }, [value, resize]);
 
   const dispatch = useCallback(() => {
+    if (disabled) return;
     const text = value.trim();
-    if (!text || disabled) return;
+    if (!text && !hasAttachments) return;
 
     if (busyAction === "queue") {
       onQueue?.(text);
@@ -101,7 +127,7 @@ export function Composer({
     }
 
     onSubmit(text);
-  }, [busyAction, disabled, onQueue, onSubmit, value]);
+  }, [busyAction, disabled, hasAttachments, onQueue, onSubmit, value]);
 
   const onFormSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -118,21 +144,79 @@ export function Composer({
     }
   };
 
+  const onPaste = useCallback(
+    (event: ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!attach) return;
+      const files = event.clipboardData?.files;
+      if (!files?.length) return;
+      const images: File[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files.item(i);
+        if (file && isImageFile(file)) images.push(file);
+      }
+      if (!images.length) return;
+      event.preventDefault();
+      void attach.onPickImages(images);
+    },
+    [attach],
+  );
+
+  const onDragOver = useCallback((event: DragEvent) => {
+    if (!attach) return;
+    if (!event.dataTransfer?.types?.includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }, [attach]);
+
+  const onDrop = useCallback(
+    (event: DragEvent) => {
+      if (!attach) return;
+      const list = event.dataTransfer?.files;
+      if (!list?.length) return;
+      event.preventDefault();
+      const files = Array.from(list);
+      if (attach.onDropFiles) {
+        attach.onDropFiles(files);
+      } else {
+        void attach.onPickFiles(files);
+      }
+    },
+    [attach],
+  );
+
   const showStop = busyAction === "stop";
   const showQueue = busyAction === "queue" && Boolean(onQueue);
-  const canSend = hasText && !disabled && busyAction !== "stop";
+  const canSend = hasPayload && !disabled && busyAction !== "stop";
 
   return (
     <form
       onSubmit={onFormSubmit}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
       className={cn(
         composerSurface,
         variant === "hero" ? "px-3 py-3" : "px-2.5 py-2",
         className,
       )}
     >
+      {attach && attach.attachments.length > 0 ? (
+        <ComposerAttachmentList
+          attachments={attach.attachments}
+          onRemove={attach.onRemoveAttachment}
+        />
+      ) : null}
+
       <div className="flex w-full items-end gap-2">
-        {showAttachButton ? (
+        {showAttachButton && attach ? (
+          <ComposerAttachMenu
+            disabled={disabled}
+            onPickFiles={attach.onPickFiles}
+            onPickImages={attach.onPickImages}
+            onPasteClipboardImage={attach.onPasteClipboardImage}
+            onAddUrl={attach.onAddUrl}
+            onInsertSnippet={attach.onInsertSnippet}
+          />
+        ) : showAttachButton ? (
           <Button
             type="button"
             size="icon"
@@ -151,6 +235,7 @@ export function Composer({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
+          onPaste={onPaste}
           placeholder={placeholder}
           disabled={disabled}
           rows={1}

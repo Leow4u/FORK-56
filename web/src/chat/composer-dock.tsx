@@ -5,6 +5,7 @@ import type { ConnectionState } from "@/lib/gatewayClient";
 import { cn } from "@/lib/utils";
 
 import type { ThinChatActivity } from "./chat-activity-strip";
+import type { ComposerAttachHandlers } from "./composer";
 import { ComposerFloatingPills } from "./composer-floating-pills";
 import { ComposerModelPill } from "./composer-model-pill";
 import { ComposerUnderside } from "./composer-underside";
@@ -22,6 +23,7 @@ export interface ComposerDockProps extends SlashComposerProps {
   showChrome?: boolean;
   onReasoningChange?: (effort: string) => void;
   onQueue?: (text: string) => void;
+  attach?: ComposerAttachHandlers | null;
   className?: string;
 }
 
@@ -40,6 +42,7 @@ export function ComposerDock({
   showChrome = true,
   onReasoningChange: _reasoningChange,
   onQueue,
+  attach = null,
   className,
   variant = "dock",
   ...composerProps
@@ -112,6 +115,7 @@ export function ComposerDock({
         trailingControls={showChrome ? modelPill : undefined}
         showAttachButton={showChrome}
         onQueue={onQueue}
+        attach={attach}
         className="w-full"
         {...composerProps}
       />

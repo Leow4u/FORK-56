@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useState, type MutableRefObject } from "react";
 
 import { EmptyHome } from "./empty-home";
 import { SessionView } from "./session-view";
 import type { ThinChatPhase } from "./types";
+import { useComposerAttachments } from "./use-composer-attachments";
 import { useThinChatGateway } from "./use-thin-chat-gateway";
 
 export interface ThinChatProps {
@@ -38,6 +39,7 @@ export function ThinChat({
   resetRef,
 }: ThinChatProps) {
   const [draft, setDraft] = useState(initialDraft);
+  const [attachError, setAttachError] = useState<string | null>(null);
 
   const {
     phase,
@@ -72,6 +74,20 @@ export function ThinChat({
     onPhaseChange,
   });
 
+  const insertSnippet = useCallback((text: string) => {
+    setDraft((prev) => {
+      if (!prev.trim()) return text;
+      return `${prev.trimEnd()}\n\n${text}`;
+    });
+  }, []);
+
+  const attachmentsApi = useComposerAttachments({
+    gateway,
+    sessionId: liveSessionId,
+    onError: setAttachError,
+    onInsertText: insertSnippet,
+  });
+
   useEffect(() => {
     if (!initialDraft) return;
     queueMicrotask(() => setDraft(initialDraft));
@@ -79,25 +95,33 @@ export function ThinChat({
 
   const handleSubmit = useCallback(
     (text: string) => {
+      const chips = attachmentsApi.attachments;
       setDraft("");
-      void submit(text);
+      attachmentsApi.clearAttachments();
+      setAttachError(null);
+      void submit(text, chips);
     },
-    [submit],
+    [attachmentsApi, submit],
   );
 
   const handleQueue = useCallback(
     (text: string) => {
+      const chips = attachmentsApi.attachments;
       setDraft("");
-      enqueueDraft(text);
+      attachmentsApi.clearAttachments();
+      setAttachError(null);
+      enqueueDraft(text, chips);
     },
-    [enqueueDraft],
+    [attachmentsApi, enqueueDraft],
   );
 
   const handleReset = useCallback(() => {
     setDraft("");
+    attachmentsApi.clearAttachments();
+    setAttachError(null);
     onReset?.();
     void reset();
-  }, [onReset, reset]);
+  }, [attachmentsApi, onReset, reset]);
 
   useEffect(() => {
     if (!resetRef) return;
@@ -106,6 +130,39 @@ export function ThinChat({
       resetRef.current = null;
     };
   }, [handleReset, resetRef]);
+
+  const attachHandlers = useMemo(
+    () => ({
+      attachments: attachmentsApi.attachments,
+      onRemoveAttachment: (id: string) => {
+        void attachmentsApi.removeAttachment(id);
+      },
+      onPickFiles: (files: FileList | File[]) => {
+        setAttachError(null);
+        void attachmentsApi.attachFiles(files);
+      },
+      onPickImages: (files: FileList | File[]) => {
+        setAttachError(null);
+        void attachmentsApi.attachImages(files);
+      },
+      onPasteClipboardImage: () => {
+        setAttachError(null);
+        void attachmentsApi.pasteClipboardImage();
+      },
+      onAddUrl: (url: string) => {
+        setAttachError(null);
+        attachmentsApi.addUrl(url);
+      },
+      onInsertSnippet: (text: string) => {
+        attachmentsApi.insertSnippet(text);
+      },
+      onDropFiles: (files: File[]) => {
+        setAttachError(null);
+        void attachmentsApi.attachFiles(files);
+      },
+    }),
+    [attachmentsApi],
+  );
 
   const statusLabel =
     connectionState === "connecting"
@@ -117,6 +174,7 @@ export function ThinChat({
           : null;
 
   const showCredentialWarning = Boolean(credentialWarning) && !error;
+  const bannerError = error || attachError;
 
   const resumeBanner =
     resumeProgress?.status === "loading"
@@ -138,22 +196,25 @@ export function ThinChat({
         </div>
       )}
 
-      {(error || statusLabel) && (
+      {(bannerError || statusLabel) && (
         <div
           className={
-            error
+            bannerError
               ? "border-b border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning"
               : "border-b border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
           }
-          role={error ? "alert" : "status"}
+          role={bannerError ? "alert" : "status"}
         >
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
-            <span>{error ?? statusLabel}</span>
-            {error && (
+            <span>{bannerError ?? statusLabel}</span>
+            {bannerError && (
               <button
                 type="button"
                 className="shrink-0 underline-offset-2 hover:underline"
-                onClick={clearError}
+                onClick={() => {
+                  clearError();
+                  setAttachError(null);
+                }}
               >
                 Dismiss
               </button>
@@ -177,6 +238,7 @@ export function ThinChat({
           onReasoningChange={(effort) => void setReasoningEffort(effort)}
           autoFocus={isActive}
           disabled={busy || connectionState === "connecting"}
+          attach={attachHandlers}
         />
       ) : (
         <SessionView
@@ -200,6 +262,7 @@ export function ThinChat({
           loadingEarlier={loadingEarlier}
           onLoadEarlier={() => void loadEarlier()}
           autoFocus={isActive}
+          attach={attachHandlers}
         />
       )}
     </div>
