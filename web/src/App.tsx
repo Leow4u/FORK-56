@@ -124,8 +124,14 @@ function RouteFallback({ label = "Loading…" }: { label?: string }) {
   );
 }
 
+// Chat is the product home; Sessions is the operator fallback for the
+// (currently theoretical) embedded-chat-off deployment.
+function homePath(): string {
+  return isDashboardEmbeddedChatEnabled() ? "/chat" : "/sessions";
+}
+
 function RootRedirect() {
-  return <Navigate to="/sessions" replace />;
+  return <Navigate to={homePath()} replace />;
 }
 
 function UnknownRouteFallback({ pluginsLoading }: { pluginsLoading: boolean }) {
@@ -133,7 +139,7 @@ function UnknownRouteFallback({ pluginsLoading }: { pluginsLoading: boolean }) {
     // Render nothing during the plugin-load window — a spinner here would just flash.
     return null;
   }
-  return <Navigate to="/sessions" replace />;
+  return <Navigate to={homePath()} replace />;
 }
 
 const CHAT_NAV_ITEM: NavItem = {
@@ -431,17 +437,28 @@ export default function App() {
   // page itself remains reachable by URL (it renders an explanation when
   // the flag is off — see AnalyticsPage), but hiding the nav entry avoids
   // surfacing misleading token/cost numbers in the sidebar.  Default off.
+  //
+  // `dashboard.show_sessions_admin` gates the Sessions admin page the same
+  // way: everyday session management lives in the sidebar session list, so
+  // the store-hygiene console (stats, import, prune, bulk delete) stays off
+  // the default nav. The /sessions route remains fully reachable by URL.
   const [showTokenAnalytics, setShowTokenAnalytics] = useState(false);
+  const [showSessionsAdmin, setShowSessionsAdmin] = useState(false);
   useEffect(() => {
     api
       .getConfig()
       .then((cfg) => {
         const dash = (cfg?.dashboard ?? {}) as {
           show_token_analytics?: unknown;
+          show_sessions_admin?: unknown;
         };
         setShowTokenAnalytics(dash.show_token_analytics === true);
+        setShowSessionsAdmin(dash.show_sessions_admin === true);
       })
-      .catch(() => setShowTokenAnalytics(false));
+      .catch(() => {
+        setShowTokenAnalytics(false);
+        setShowSessionsAdmin(false);
+      });
   }, []);
 
   // A plugin can replace the built-in /chat page via `tab.override: "/chat"`
@@ -478,10 +495,14 @@ export default function App() {
     const base = embeddedChat
       ? [CHAT_NAV_ITEM, ...BUILTIN_NAV_REST]
       : BUILTIN_NAV_REST;
-    return showTokenAnalytics
-      ? base
-      : base.filter((n) => n.path !== "/analytics");
-  }, [embeddedChat, showTokenAnalytics]);
+    return base.filter((n) => {
+      if (n.path === "/analytics") return showTokenAnalytics;
+      // Hide the Sessions admin console when the sidebar session list is
+      // the everyday surface (embedded chat on) unless explicitly re-shown.
+      if (n.path === "/sessions") return showSessionsAdmin || !embeddedChat;
+      return true;
+    });
+  }, [embeddedChat, showSessionsAdmin, showTokenAnalytics]);
 
   const sidebarNav = useMemo(
     () => partitionSidebarNav(builtinNav, manifests),
@@ -1080,21 +1101,21 @@ function SidebarSystemActions({
       return;
     }
     void runAction(action);
-    navigate("/sessions");
+    navigate("/");
     onNavigate();
   };
 
   const confirmRestart = () => {
     setRestartConfirmOpen(false);
     void runAction("restart");
-    navigate("/sessions");
+    navigate("/");
     onNavigate();
   };
 
   const confirmUpdate = () => {
     setUpdateConfirmOpen(false);
     void runAction("update");
-    navigate("/sessions");
+    navigate("/");
     onNavigate();
   };
 

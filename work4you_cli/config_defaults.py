@@ -1512,6 +1512,12 @@ DEFAULT_CONFIG = {
         # Set this to True to re-enable the surfaces with the understanding
         # that the numbers are a local lower-bound estimate, not billing.
         "show_token_analytics": False,
+        # Hide the Sessions admin console (store stats, import, prune, bulk
+        # delete) from the sidebar by default.  Everyday session management
+        # (resume, rename, pin, archive) lives in the sidebar session list;
+        # the admin page remains fully reachable at /sessions by URL.  Set
+        # this to True to restore the nav entry for operator workflows.
+        "show_sessions_admin": False,
         # OAuth gate configuration (engaged when ``--host`` is set and
         # ``--insecure`` is not). The bundled Work4You Portal plugin reads
         # both keys at startup; they are the canonical surface for these
