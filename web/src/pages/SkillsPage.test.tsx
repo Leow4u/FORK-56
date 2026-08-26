@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetTestLocalStorage } from "@/chat/test-local-storage";
 import { I18nProvider } from "@/i18n/context";
 
 const apiMocks = vi.hoisted(() => ({
@@ -102,6 +103,10 @@ describe("SkillsPage (Capabilities)", () => {
     (
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
+    // Node 26 CI exposes a broken experimental localStorage that jsdom does
+    // not always replace — install the in-memory Storage the fork ships for
+    // exactly this (see chat/test-local-storage.ts).
+    resetTestLocalStorage();
     localStorage.clear();
     apiMocks.getSkills.mockClear();
     apiMocks.getToolsets.mockClear();
