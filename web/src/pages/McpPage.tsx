@@ -43,7 +43,7 @@ const TRANSPORT_TONE: Record<string, "success" | "warning" | "secondary"> = {
   unknown: "secondary",
 };
 
-export default function McpPage() {
+export default function McpPage({ embedded = false }: { embedded?: boolean }) {
   const [servers, setServers] = useState<McpServer[]>([]);
   const [catalog, setCatalog] = useState<McpCatalogEntry[]>([]);
   const [diagnostics, setDiagnostics] = useState<McpCatalogDiagnostic[]>([]);
@@ -293,8 +293,11 @@ export default function McpPage() {
     void runInstall(installEntry, envMap);
   };
 
-  // Put "Add Server" button in page header
+  // Put "Add Server" button in page header. When embedded (Capabilities →
+  // MCP tab), the host page owns the header; an inline button renders in
+  // the body instead.
   useLayoutEffect(() => {
+    if (embedded) return;
     setEnd(
       <Button
         className="uppercase"
@@ -307,7 +310,7 @@ export default function McpPage() {
     return () => {
       setEnd(null);
     };
-  }, [setEnd, loading]);
+  }, [embedded, setEnd, loading]);
 
   if (loading) {
     return (
@@ -325,6 +328,18 @@ export default function McpPage() {
   return (
     <div className="flex flex-col gap-6">
       <Toast toast={toast} />
+
+      {embedded && (
+        <div className="flex justify-end">
+          <Button
+            className="uppercase"
+            size="sm"
+            onClick={() => setCreateModalOpen(true)}
+          >
+            Add Server
+          </Button>
+        </div>
+      )}
 
       <DeleteConfirmDialog
         open={serverDelete.isOpen}

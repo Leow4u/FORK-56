@@ -78,7 +78,7 @@ export const pt: Translations = {
       profiles: "perfis: multiagentes",
       plugins: "Plugins",
       sessions: "Sessões",
-      skills: "Competências",
+      skills: "Capacidades",
       settings: "Configurações",
     },
     logOut: "Sair",
@@ -387,6 +387,7 @@ export const pt: Translations = {
 
   skills: {
     title: "Competências",
+    cacheNote: "As alterações valem para novas sessões.",
     searchPlaceholder: "Pesquisar competências e conjuntos de ferramentas...",
     enabledOf: "{enabled}/{total} ativadas",
     all: "Todas",

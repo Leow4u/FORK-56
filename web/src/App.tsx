@@ -40,7 +40,6 @@ import {
   Package,
   PanelLeftClose,
   PanelLeftOpen,
-  Plug,
   Puzzle,
   Radio,
   RotateCw,
@@ -92,7 +91,11 @@ const ProfilesPage = lazy(() => import("@/pages/ProfilesPage"));
 const ProfileBuilderPage = lazy(() => import("@/pages/ProfileBuilderPage"));
 const SkillsPage = lazy(() => import("@/pages/SkillsPage"));
 const PluginsPage = lazy(() => import("@/pages/PluginsPage"));
-const McpPage = lazy(() => import("@/pages/McpPage"));
+// MCP lives inside Capabilities (/skills?tab=mcp) — the /mcp route only
+// redirects there, mirroring the desktop's legacy-link behavior.
+function McpRedirect() {
+  return <Navigate to="/skills?tab=mcp" replace />;
+}
 const PairingPage = lazy(() => import("@/pages/PairingPage"));
 const ChannelsPage = lazy(() => import("@/pages/ChannelsPage"));
 const WebhooksPage = lazy(() => import("@/pages/WebhooksPage"));
@@ -179,7 +182,7 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   "/cron": CronPage,
   "/skills": SkillsPage,
   "/plugins": PluginsPage,
-  "/mcp": McpPage,
+  "/mcp": McpRedirect,
   "/pairing": PairingPage,
   "/channels": ChannelsPage,
   "/webhooks": WebhooksPage,
@@ -223,7 +226,6 @@ const BUILTIN_NAV_REST: NavItem[] = [
   { path: "/cron", labelKey: "cron", label: "Cron", icon: Clock },
   { path: "/skills", labelKey: "skills", label: "Skills", icon: Package },
   { path: "/plugins", labelKey: "plugins", label: "Plugins", icon: Puzzle },
-  { path: "/mcp", label: "MCP", icon: Plug },
   { path: "/channels", label: "Channels", icon: Radio },
   { path: "/webhooks", label: "Webhooks", icon: Webhook },
   { path: "/pairing", label: "Pairing", icon: ShieldCheck },

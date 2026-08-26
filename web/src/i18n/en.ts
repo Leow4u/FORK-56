@@ -81,7 +81,7 @@ export const en: Translations = {
       profiles: "Profiles",
       plugins: "Plugins",
       sessions: "Sessions",
-      skills: "Skills",
+      skills: "Capabilities",
       settings: "Settings",
     },
     logOut: "Log out",
@@ -447,6 +447,7 @@ export const en: Translations = {
 
   skills: {
     title: "Skills",
+    cacheNote: "Changes apply to new sessions.",
     searchPlaceholder: "Search skills and toolsets...",
     enabledOf: "{enabled}/{total} enabled",
     all: "All",

@@ -1,5 +1,17 @@
-import { useEffect, useLayoutEffect, useState, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
+import { useNavigate, useSearchParams } from "react-router";
+
+// Capabilities → MCP tab renders the existing MCP page embedded (header
+// button inlined). Lazy so the Skills tab doesn't pay for the MCP chunk.
+const McpPage = lazy(() => import("@/pages/McpPage"));
 import {
   Package,
   Search,
@@ -48,6 +60,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@work4you/ui/ui/compon
 import { Badge } from "@work4you/ui/ui/components/badge";
 import { Button } from "@work4you/ui/ui/components/button";
 import { ListItem } from "@work4you/ui/ui/components/list-item";
+import { Segmented } from "@work4you/ui/ui/components/segmented";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { Switch } from "@work4you/ui/ui/components/switch";
 import {
@@ -130,7 +143,7 @@ export default function SkillsPage() {
   const [toolsets, setToolsets] = useState<ToolsetInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"skills" | "toolsets" | "hub">("skills");
+  const [view, setView] = useState<"skills" | "hub">("skills");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [togglingSkills, setTogglingSkills] = useState<Set<string>>(new Set());
   const [configToolset, setConfigToolset] = useState<ToolsetInfo | null>(null);
@@ -151,6 +164,32 @@ export default function SkillsPage() {
   const {
     profile: selectedProfile,
   } = useProfileScope();
+
+  // ── Capabilities tabs (desktop parity) ──
+  // Skills | Tools | MCP via ?tab= — the same deep-link contract the
+  // desktop Capabilities page uses (its legacy MCP link is /skills?tab=mcp).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get("tab");
+  const tab: "skills" | "tools" | "mcp" =
+    rawTab === "tools" || rawTab === "toolsets"
+      ? "tools"
+      : rawTab === "mcp"
+        ? "mcp"
+        : "skills";
+  const selectTab = useCallback(
+    (next: string) => {
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (next === "skills") p.delete("tab");
+          else p.set("tab", next);
+          return p;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   useEffect(() => {
     // Promise-chain shape: setState fires only inside async callbacks so the
@@ -242,7 +281,12 @@ export default function SkillsPage() {
     const composed = segs.join("; ").replace(/\s*\n\s*/g, " ").trim();
     if (!composed) return;
     setLearnOpen(false);
-    navigate(`/chat?learn=${encodeURIComponent(composed)}`);
+    // Seed the composer with the actual /learn slash command so the chat's
+    // slash pipeline (slash.exec → command.dispatch) applies
+    // build_learn_prompt — the same code path as CLI/TUI/gateway /learn.
+    // A bare text seed would submit as a plain prompt and skip the house
+    // authoring standards entirely.
+    navigate(`/chat?learn=${encodeURIComponent(`/learn ${composed}`)}`);
   }, [learnDir, learnUrl, learnText, navigate]);
   const openEditEditor = useCallback((skillName: string) => {
     setEditorSkill(skillName);
@@ -382,6 +426,31 @@ export default function SkillsPage() {
       <PluginSlot name="skills:top" />
       <Toast toast={toast} />
 
+      <Segmented
+        value={tab}
+        onChange={(v) => selectTab(v)}
+        options={[
+          { value: "skills", label: "Skills" },
+          { value: "tools", label: "Tools" },
+          { value: "mcp", label: "MCP" },
+        ]}
+      />
+
+      <p className="text-xs text-muted-foreground">
+        {t.skills.cacheNote ?? "Changes apply to new sessions."}
+      </p>
+
+      {tab === "mcp" ? (
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-24">
+              <Spinner className="text-2xl text-primary" />
+            </div>
+          }
+        >
+          <McpPage embedded />
+        </Suspense>
+      ) : tab === "skills" ? (
       <div className="flex flex-col sm:flex-row sm:items-start gap-4">
         <aside aria-label={t.skills.title} className="sm:w-56 sm:shrink-0">
           <div className="sm:sticky sm:top-0">
@@ -401,15 +470,6 @@ export default function SkillsPage() {
                   onClick={() => {
                     setView("skills");
                     setActiveCategory(null);
-                    setSearch("");
-                  }}
-                />
-                <PanelItem
-                  icon={Wrench}
-                  label={`${t.skills.toolsets} (${toolsets.length})`}
-                  active={view === "toolsets"}
-                  onClick={() => {
-                    setView("toolsets");
                     setSearch("");
                   }}
                 />
@@ -566,9 +626,14 @@ export default function SkillsPage() {
                 )}
               </CardContent>
             </Card>
-          ) : view === "toolsets" ? (
-            /* Toolsets grid */
-            <>
+          ) : (
+            <HubBrowser showToast={showToast} profile={selectedProfile || undefined} />
+          )}
+        </div>
+      </div>
+      ) : (
+        /* Tools tab — toolsets grid */
+        <>
               {filteredToolsets.length === 0 ? (
                 <Card className="rounded-none">
                   <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -649,12 +714,8 @@ export default function SkillsPage() {
                   })}
                 </div>
               )}
-            </>
-          ) : (
-            <HubBrowser showToast={showToast} profile={selectedProfile || undefined} />
-          )}
-        </div>
-      </div>
+        </>
+      )}
       {configToolset && (
         <ToolsetConfigDrawer
           toolset={configToolset}
@@ -758,6 +819,28 @@ function SkillRow({
           >
             {skill.name}
           </span>
+          {/* Provenance + usage badges — same classification the desktop
+              Capabilities page shows (Learned = agent-authored, Hub). The
+              API already annotates both; "bundled" stays unbadged to keep
+              the common case quiet. */}
+          {skill.provenance === "agent" && (
+            <Badge tone="secondary" className="text-[0.625rem]">
+              Learned
+            </Badge>
+          )}
+          {skill.provenance === "hub" && (
+            <Badge tone="outline" className="text-[0.625rem]">
+              Hub
+            </Badge>
+          )}
+          {typeof skill.usage === "number" && skill.usage > 0 && (
+            <span
+              className="text-[0.625rem] text-text-tertiary tabular-nums"
+              title={`Used ${skill.usage} time${skill.usage === 1 ? "" : "s"}`}
+            >
+              ×{skill.usage}
+            </span>
+          )}
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
           {skill.description || noDescriptionLabel}
