@@ -2507,6 +2507,10 @@ export interface SkillInfo {
   description: string;
   category: string;
   enabled: boolean;
+  /** Activity count from the usage sidecar (use+view+patch). */
+  usage?: number;
+  /** "hub" | "bundled" | "agent" — same classification the desktop shows. */
+  provenance?: string;
 }
 
 export interface SkillContent {

@@ -465,6 +465,8 @@ export interface Translations {
     searchPlaceholder: string;
     enabledOf: string;
     all: string;
+    /** Capabilities cache note — optional; English fallback in components. */
+    cacheNote?: string;
     categories: string;
     filters: string;
     noSkills: string;
