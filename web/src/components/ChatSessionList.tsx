@@ -1,28 +1,43 @@
 /**
- * ChatSessionList — a ChatGPT-style conversation switcher that sits beside
- * the embedded TUI on the dashboard Chat tab.
+ * ChatSessionList — a ChatGPT-style conversation switcher rendered in the
+ * app sidebar.
  *
  * It lists the most recent sessions for the active management profile and
- * lets the user swap between them without leaving the Chat page. Selecting
- * a row sets `/chat?resume=<id>`; ChatPage resumes that conversation in the
- * thin chat surface. The "New session" action clears the resume param and
- * resets the chat host.
+ * lets the user swap between them from anywhere: picking a row navigates to
+ * `/chat?resume=<id>` (the same affordance as the Sessions page "Resume in
+ * Chat" action). The "New chat" action clears the resume param and resets
+ * the chat host.
+ *
+ * Everyday management mirrors the desktop sidebar: rename, pin and archive
+ * act through the shared `PATCH /api/sessions/{id}` surface, so state set
+ * here is the same state the desktop app shows (`sessions.pinned` /
+ * `sessions.archived`). Pinned sessions group at the top; archiving
+ * soft-hides a row (messages are kept — the Sessions page and desktop
+ * Settings can restore). Store-wide hygiene (bulk delete, prune,
+ * import/export) stays on the Sessions page.
  *
  * Best-effort, like ChatSidebar: a failed fetch surfaces a small inline
- * error with a retry affordance and the terminal pane keeps working.
- *
- * This is a navigation surface, NOT a session-management one — delete,
- * rename, export, and bulk actions live on the Sessions page. Keeping this
- * panel read-only (plus select / new) avoids duplicating that machinery and
- * keeps the chat context focused on switching conversations quickly.
+ * error with a retry affordance and the chat surface keeps working.
  */
 
 import { Button } from "@work4you/ui/ui/components/button";
+import { Input } from "@work4you/ui/ui/components/input";
 import { ListItem } from "@work4you/ui/ui/components/list-item";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
-import { AlertCircle, MessageSquarePlus, RefreshCw, Search } from "lucide-react";
+import {
+  AlertCircle,
+  Archive,
+  Check,
+  MessageSquarePlus,
+  Pencil,
+  Pin,
+  PinOff,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
 
 import { useI18n } from "@/i18n";
 import { api, type SessionInfo, type SessionSearchResult } from "@/lib/api";
@@ -30,7 +45,7 @@ import { cn, timeAgo } from "@/lib/utils";
 
 const SESSION_LIMIT = 30;
 interface ChatSessionListProps {
-  /** Active resume target (the session currently shown in the terminal). */
+  /** Active resume target (the session currently shown in the chat). */
   activeSessionId: string | null;
   /** Management profile from the dashboard switcher — scopes the listing. */
   profile?: string;
@@ -38,8 +53,8 @@ interface ChatSessionListProps {
   /** Optional callback fired after a row is picked (e.g. close mobile sheet). */
   onPicked?: () => void;
   /**
-   * Starts a fresh chat. ChatPage supplies its `startFresh` handler, which
-   * clears `?resume` and resets the thin-chat session.
+   * Starts a fresh chat. The app shell supplies a handler that navigates to
+   * /chat and resets the thin-chat session.
    */
   onNewChat?: () => void;
   /** Bumped by the parent when a new stored session id appears (refresh list). */
@@ -63,7 +78,7 @@ export function ChatSessionList({
   refreshToken = 0,
 }: ChatSessionListProps) {
   const { t } = useI18n();
-  const [, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<SessionInfo[] | null>(null);
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<SessionSearchResult[] | null>(
@@ -139,39 +154,30 @@ export function ChatSessionList({
 
   const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
 
-  // Picking a row sets `/chat?resume=<id>`.
+  // Picking a row navigates to `/chat?resume=<id>` — same as the Sessions
+  // page "Resume in Chat" action, so the list works from any route.
   const pick = useCallback(
     (id: string) => {
       onPicked?.();
       if (id === activeSessionId) return;
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("resume", id);
-          return next;
-        },
-        { replace: false },
-      );
+      navigate(`/chat?resume=${encodeURIComponent(id)}`);
     },
-    [activeSessionId, onPicked, setSearchParams],
+    [activeSessionId, navigate, onPicked],
   );
 
-  // "New chat" prefers ChatPage's handler (clears resume + resets session).
+  // "New chat" prefers the shell handler (navigates to /chat + resets).
   const startNew = useCallback(() => {
     onPicked?.();
     if (onNewChat) {
       onNewChat();
       return;
     }
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("resume");
-        return next;
-      },
-      { replace: false },
-    );
-  }, [onNewChat, onPicked, setSearchParams]);
+    navigate("/chat");
+  }, [navigate, onNewChat, onPicked]);
+
+  const handleActionError = useCallback((e: unknown) => {
+    setError(e instanceof Error ? e.message : "session update failed");
+  }, []);
 
   const content = useMemo(() => {
     const visible = searchResults ?? sessions;
@@ -202,47 +208,58 @@ export function ChatSessionList({
         </div>
       );
     }
+    const pinnedRows = visible.filter((s) => s.pinned);
+    const restRows = visible.filter((s) => !s.pinned);
+    const renderRow = (s: SessionInfo) => (
+      <SessionRow
+        key={s.id}
+        session={s}
+        isActive={s.id === activeSessionId}
+        profile={scopeKey}
+        untitled={t.sessions.untitledSession}
+        labels={{
+          pin: t.sessions.pinSession ?? "Pin",
+          unpin: t.sessions.unpinSession ?? "Unpin",
+          archive: t.sessions.archiveSession ?? "Archive",
+          rename: t.sessions.renameSession ?? "Rename",
+        }}
+        onPick={() => pick(s.id)}
+        onChanged={reload}
+        onError={handleActionError}
+      />
+    );
     return (
       <div className="flex flex-col gap-0.5">
-        {visible.map((s) => {
-          const isActive = s.id === activeSessionId;
-          return (
-            <ListItem
-              key={s.id}
-              onClick={() => pick(s.id)}
-              aria-current={isActive ? "true" : undefined}
-              className={cn(
-                "flex-col items-start gap-0.5 rounded px-2 py-1.5",
-                "normal-case tracking-normal",
-                isActive
-                  ? "bg-primary/10 text-foreground border-l-2 border-primary"
-                  : "text-text-secondary hover:bg-midground/5 hover:text-foreground",
-              )}
-            >
-              <span className="w-full truncate text-sm font-medium">
-                {rowLabel(s, t.sessions.untitledSession)}
-              </span>
-              <span className="flex w-full items-center gap-1.5 text-[0.6875rem] text-text-tertiary">
-                <span>{timeAgo(s.last_active)}</span>
-                {s.message_count > 0 && (
-                  <>
-                    <span aria-hidden>·</span>
-                    <span>{s.message_count} msgs</span>
-                  </>
-                )}
-                {s.source && s.source !== "cli" && (
-                  <>
-                    <span aria-hidden>·</span>
-                    <span className="truncate">{s.source}</span>
-                  </>
-                )}
-              </span>
-            </ListItem>
-          );
-        })}
+        {pinnedRows.length > 0 && (
+          <>
+            <span className="px-2 pt-1 pb-0.5 text-display text-[0.625rem] tracking-wider text-text-tertiary">
+              {t.sessions.pinnedSection ?? "Pinned"}
+            </span>
+            {pinnedRows.map(renderRow)}
+            {restRows.length > 0 && (
+              <span
+                aria-hidden
+                className="mx-2 my-1 border-t border-border/40"
+              />
+            )}
+          </>
+        )}
+        {restRows.map(renderRow)}
       </div>
     );
-  }, [activeSessionId, error, loading, pick, reload, search, searchResults, sessions, t]);
+  }, [
+    activeSessionId,
+    error,
+    handleActionError,
+    loading,
+    pick,
+    reload,
+    scopeKey,
+    search,
+    searchResults,
+    sessions,
+    t,
+  ]);
 
   return (
     <aside
@@ -293,5 +310,193 @@ export function ChatSessionList({
         {content}
       </div>
     </aside>
+  );
+}
+
+interface SessionRowProps {
+  session: SessionInfo;
+  isActive: boolean;
+  profile: string;
+  untitled: string;
+  labels: { pin: string; unpin: string; archive: string; rename: string };
+  onPick: () => void;
+  /** Fired after a successful rename / pin / archive so the list refetches. */
+  onChanged: () => void;
+  onError: (e: unknown) => void;
+}
+
+/**
+ * One session row: the main ListItem resumes the conversation; a hover
+ * action cluster (rename / pin / archive) overlays the right edge. The
+ * actions are siblings of the ListItem — it renders a <button>, so nesting
+ * buttons inside it would be invalid HTML.
+ */
+function SessionRow({
+  session,
+  isActive,
+  profile,
+  untitled,
+  labels,
+  onPick,
+  onChanged,
+  onError,
+}: SessionRowProps) {
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const pinned = Boolean(session.pinned);
+
+  const runAction = async (action: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await action();
+      onChanged();
+    } catch (e) {
+      onError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitRename = async () => {
+    const value = renameValue.trim();
+    if (!value || value === session.title) {
+      setRenaming(false);
+      return;
+    }
+    await runAction(() => api.renameSession(session.id, value, profile));
+    setRenaming(false);
+  };
+
+  if (renaming) {
+    return (
+      <div className="flex items-center gap-1 px-2 py-1">
+        <Input
+          autoFocus
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void submitRename();
+            else if (e.key === "Escape") setRenaming(false);
+          }}
+          placeholder={untitled}
+          className="h-7 min-w-0 flex-1 py-0 text-xs"
+          disabled={busy}
+        />
+        <Button
+          ghost
+          size="icon"
+          aria-label={labels.rename}
+          disabled={busy}
+          onClick={() => void submitRename()}
+          className="text-text-secondary hover:text-success"
+        >
+          {busy ? <Spinner className="text-sm" /> : <Check />}
+        </Button>
+        <Button
+          ghost
+          size="icon"
+          aria-label={`${labels.rename} — cancel`}
+          disabled={busy}
+          onClick={() => setRenaming(false)}
+          className="text-text-secondary hover:text-foreground"
+        >
+          <X />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group/row relative">
+      <ListItem
+        onClick={onPick}
+        aria-current={isActive ? "true" : undefined}
+        className={cn(
+          "flex-col items-start gap-0.5 rounded px-2 py-1.5",
+          "normal-case tracking-normal",
+          isActive
+            ? "bg-primary/10 text-foreground border-l-2 border-primary"
+            : "text-text-secondary hover:bg-midground/5 hover:text-foreground",
+        )}
+      >
+        <span className="w-full truncate pr-16 text-sm font-medium">
+          {rowLabel(session, untitled)}
+        </span>
+        <span className="flex w-full items-center gap-1.5 text-[0.6875rem] text-text-tertiary">
+          {pinned && <Pin aria-hidden className="h-3 w-3 shrink-0" />}
+          <span>{timeAgo(session.last_active)}</span>
+          {session.message_count > 0 && (
+            <>
+              <span aria-hidden>·</span>
+              <span>{session.message_count} msgs</span>
+            </>
+          )}
+          {session.source && session.source !== "cli" && (
+            <>
+              <span aria-hidden>·</span>
+              <span className="truncate">{session.source}</span>
+            </>
+          )}
+        </span>
+      </ListItem>
+
+      <span
+        className={cn(
+          "absolute right-1 top-1 flex items-center gap-0.5 rounded bg-background/90",
+          "opacity-0 transition-opacity group-hover/row:opacity-100",
+          "focus-within:opacity-100",
+        )}
+      >
+        <Button
+          ghost
+          size="icon"
+          aria-label={labels.rename}
+          title={labels.rename}
+          disabled={busy}
+          onClick={() => {
+            setRenameValue(
+              session.title && session.title !== "Untitled"
+                ? session.title
+                : "",
+            );
+            setRenaming(true);
+          }}
+          className="h-6 w-6 text-text-tertiary hover:text-foreground"
+        >
+          <Pencil className="h-3 w-3" />
+        </Button>
+        <Button
+          ghost
+          size="icon"
+          aria-label={pinned ? labels.unpin : labels.pin}
+          title={pinned ? labels.unpin : labels.pin}
+          disabled={busy}
+          onClick={() =>
+            void runAction(() =>
+              api.setSessionPinned(session.id, !pinned, profile),
+            )
+          }
+          className="h-6 w-6 text-text-tertiary hover:text-foreground"
+        >
+          {pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
+        </Button>
+        <Button
+          ghost
+          size="icon"
+          aria-label={labels.archive}
+          title={labels.archive}
+          disabled={busy}
+          onClick={() =>
+            void runAction(() =>
+              api.setSessionArchived(session.id, true, profile),
+            )
+          }
+          className="h-6 w-6 text-text-tertiary hover:text-foreground"
+        >
+          {busy ? <Spinner className="text-xs" /> : <Archive className="h-3 w-3" />}
+        </Button>
+      </span>
+    </div>
   );
 }

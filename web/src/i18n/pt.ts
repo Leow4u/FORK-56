@@ -167,6 +167,11 @@ export const pt: Translations = {
     newChat: "Novo chat",
     previousPage: "Página anterior",
     nextPage: "Página seguinte",
+    pinnedSection: "Fixadas",
+    pinSession: "Fixar",
+    unpinSession: "Desafixar",
+    archiveSession: "Arquivar",
+    renameSession: "Renomear",
     roles: {
       user: "Utilizador",
       assistant: "Assistente",

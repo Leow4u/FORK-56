@@ -1633,8 +1633,9 @@ export default function SessionsPage() {
           <DialogHeader>
             <DialogTitle>Prune old sessions</DialogTitle>
             <DialogDescription>
-              Permanently remove archived sessions whose last activity is older
-              than the given number of days. Active sessions are never pruned.
+              Permanently remove ended sessions whose last activity is older
+              than the given number of days. Active sessions and archived
+              sessions are never pruned.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-1.5">

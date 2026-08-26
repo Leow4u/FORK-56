@@ -62,6 +62,7 @@ import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { Typography } from "@work4you/ui/ui/components/typography/index";
 import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { ChatSessionList } from "@/components/ChatSessionList";
 import { SidebarFooter } from "@/components/SidebarFooter";
 import { SidebarStatusStrip, gatewayLine } from "@/components/SidebarStatusStrip";
 import { useBelowBreakpoint } from "@work4you/ui/hooks/use-below-breakpoint";
@@ -123,8 +124,14 @@ function RouteFallback({ label = "Loading…" }: { label?: string }) {
   );
 }
 
+// Chat is the product home; Sessions is the operator fallback for the
+// (currently theoretical) embedded-chat-off deployment.
+function homePath(): string {
+  return isDashboardEmbeddedChatEnabled() ? "/chat" : "/sessions";
+}
+
 function RootRedirect() {
-  return <Navigate to="/sessions" replace />;
+  return <Navigate to={homePath()} replace />;
 }
 
 function UnknownRouteFallback({ pluginsLoading }: { pluginsLoading: boolean }) {
@@ -132,7 +139,7 @@ function UnknownRouteFallback({ pluginsLoading }: { pluginsLoading: boolean }) {
     // Render nothing during the plugin-load window — a spinner here would just flash.
     return null;
   }
-  return <Navigate to="/sessions" replace />;
+  return <Navigate to={homePath()} replace />;
 }
 
 const CHAT_NAV_ITEM: NavItem = {
@@ -372,10 +379,27 @@ const SIDEBAR_COLLAPSED_KEY = "work4you-sidebar-collapsed";
 export default function App() {
   const { t } = useI18n();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { manifests, loading: pluginsLoading } = usePlugins();
   const { theme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = useCallback(() => setMobileOpen(false), []);
+
+  // Sidebar session list wiring: the list refetches when the chat host
+  // reports a stored-session change, and "New chat" resets the live chat
+  // through the ref the persistent ChatPage host registers.
+  const [sessionsNonce, setSessionsNonce] = useState(0);
+  const bumpSessionsNonce = useCallback(
+    () => setSessionsNonce((n) => n + 1),
+    [],
+  );
+  const chatNewChatRef = useRef<(() => void) | null>(null);
+  const handleSidebarNewChat = useCallback(() => {
+    navigate("/chat");
+    // When the chat host is already mounted, reset it; on a first visit the
+    // ref is null and /chat opens fresh anyway.
+    chatNewChatRef.current?.();
+  }, [navigate]);
 
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -413,17 +437,28 @@ export default function App() {
   // page itself remains reachable by URL (it renders an explanation when
   // the flag is off — see AnalyticsPage), but hiding the nav entry avoids
   // surfacing misleading token/cost numbers in the sidebar.  Default off.
+  //
+  // `dashboard.show_sessions_admin` gates the Sessions admin page the same
+  // way: everyday session management lives in the sidebar session list, so
+  // the store-hygiene console (stats, import, prune, bulk delete) stays off
+  // the default nav. The /sessions route remains fully reachable by URL.
   const [showTokenAnalytics, setShowTokenAnalytics] = useState(false);
+  const [showSessionsAdmin, setShowSessionsAdmin] = useState(false);
   useEffect(() => {
     api
       .getConfig()
       .then((cfg) => {
         const dash = (cfg?.dashboard ?? {}) as {
           show_token_analytics?: unknown;
+          show_sessions_admin?: unknown;
         };
         setShowTokenAnalytics(dash.show_token_analytics === true);
+        setShowSessionsAdmin(dash.show_sessions_admin === true);
       })
-      .catch(() => setShowTokenAnalytics(false));
+      .catch(() => {
+        setShowTokenAnalytics(false);
+        setShowSessionsAdmin(false);
+      });
   }, []);
 
   // A plugin can replace the built-in /chat page via `tab.override: "/chat"`
@@ -460,10 +495,14 @@ export default function App() {
     const base = embeddedChat
       ? [CHAT_NAV_ITEM, ...BUILTIN_NAV_REST]
       : BUILTIN_NAV_REST;
-    return showTokenAnalytics
-      ? base
-      : base.filter((n) => n.path !== "/analytics");
-  }, [embeddedChat, showTokenAnalytics]);
+    return base.filter((n) => {
+      if (n.path === "/analytics") return showTokenAnalytics;
+      // Hide the Sessions admin console when the sidebar session list is
+      // the everyday surface (embedded chat on) unless explicitly re-shown.
+      if (n.path === "/sessions") return showSessionsAdmin || !embeddedChat;
+      return true;
+    });
+  }, [embeddedChat, showSessionsAdmin, showTokenAnalytics]);
 
   const sidebarNav = useMemo(
     () => partitionSidebarNav(builtinNav, manifests),
@@ -697,6 +736,21 @@ export default function App() {
               )}
             </nav>
 
+            {embeddedChat && (
+              <div
+                className={cn(
+                  "flex min-h-0 flex-1 flex-col border-t border-current/10 pt-2",
+                  isDesktopCollapsed && "lg:hidden",
+                )}
+              >
+                <SidebarSessions
+                  onNavigate={closeMobile}
+                  onNewChat={handleSidebarNewChat}
+                  refreshToken={sessionsNonce}
+                />
+              </div>
+            )}
+
             <SidebarSystemActions
               collapsed={isDesktopCollapsed}
               onNavigate={closeMobile}
@@ -810,7 +864,11 @@ export default function App() {
                           ) : null
                         }
                       >
-                        <ChatPage isActive={isChatRoute} />
+                        <ChatPage
+                          isActive={isChatRoute}
+                          newChatRef={chatNewChatRef}
+                          onSessionsChanged={bumpSessionsNonce}
+                        />
                       </Suspense>
                     </div>
                   ) : isChatRoute ? (
@@ -826,6 +884,36 @@ export default function App() {
       <PluginSlot name="overlay" />
     </div>
     </ProfileProvider>
+  );
+}
+
+/**
+ * Session list section of the app sidebar — the everyday conversation
+ * switcher (mirrors the desktop app, where the system sidebar owns
+ * sessions). Reads the active resume target from the URL when on /chat and
+ * scopes the listing to the active management profile.
+ */
+function SidebarSessions({
+  onNavigate,
+  onNewChat,
+  refreshToken,
+}: SidebarSessionsProps) {
+  const { profile } = useProfileScope();
+  const { pathname, search } = useLocation();
+  const normalizedPath = pathname.replace(/\/$/, "") || "/";
+  const activeSessionId =
+    normalizedPath === "/chat"
+      ? new URLSearchParams(search).get("resume")
+      : null;
+  return (
+    <ChatSessionList
+      activeSessionId={activeSessionId}
+      profile={profile || undefined}
+      onPicked={onNavigate}
+      onNewChat={onNewChat}
+      refreshToken={refreshToken}
+      className="h-full"
+    />
   );
 }
 
@@ -1013,21 +1101,21 @@ function SidebarSystemActions({
       return;
     }
     void runAction(action);
-    navigate("/sessions");
+    navigate("/");
     onNavigate();
   };
 
   const confirmRestart = () => {
     setRestartConfirmOpen(false);
     void runAction("restart");
-    navigate("/sessions");
+    navigate("/");
     onNavigate();
   };
 
   const confirmUpdate = () => {
     setUpdateConfirmOpen(false);
     void runAction("update");
-    navigate("/sessions");
+    navigate("/");
     onNavigate();
   };
 
@@ -1361,6 +1449,12 @@ interface SidebarNavLinkProps {
   item: NavItem;
   t: Translations;
   tooltipWarmRef: TooltipWarmRef;
+}
+
+interface SidebarSessionsProps {
+  onNavigate: () => void;
+  onNewChat: () => void;
+  refreshToken: number;
 }
 
 interface SidebarSystemActionsProps {

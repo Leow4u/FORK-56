@@ -34,7 +34,8 @@ export function resolvePageTitle(
 ): string {
   const normalized = pathname.replace(/\/$/, "") || "/";
   if (normalized === "/") {
-    return t.app.nav.sessions;
+    // Root redirects to the chat home (see RootRedirect in App.tsx).
+    return t.app.nav.chat;
   }
   const plugin = pluginTabs.find((p) => p.path === normalized);
   if (plugin) {
