@@ -176,6 +176,37 @@ describe("ThinChat gateway wiring", () => {
     );
   });
 
+  it("projects inflight tail when resuming a running session", async () => {
+    gatewayMocks.request.mockImplementationOnce(async (method: string) => {
+      if (method === "session.resume") {
+        return {
+          session_id: "live-resume",
+          stored_session_id: "sess-running",
+          resumed: "sess-running",
+          running: true,
+          messages: [{ role: "user", text: "question", row_id: 1 }],
+          inflight: {
+            user: "question",
+            assistant: "partial answer",
+            streaming: true,
+          },
+        };
+      }
+      return {};
+    });
+
+    await act(async () => {
+      root.render(<ThinChat resumeSessionId="sess-running" />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain("question");
+    expect(container.textContent).toContain("partial answer");
+  });
+
   it("resumes a stored session into SessionView", async () => {
     await act(async () => {
       root.render(<ThinChat resumeSessionId="sess-abc" />);

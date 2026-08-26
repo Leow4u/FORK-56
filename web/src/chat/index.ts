@@ -13,5 +13,11 @@ export {
   thinChatSessionCreateParams,
   thinChatSessionResumeParams,
 } from "./gateway-protocol";
-export type { ApplyGatewayEventResult, ThinChatTurnState } from "./gateway-protocol";
+export type { ApplyGatewayEventResult, SessionInflightTurn, ThinChatTurnState } from "./gateway-protocol";
+export {
+  appendInflightProjection,
+  buildResumeTranscript,
+  reconcileResumeMessages,
+  turnStateFromInflight,
+} from "./resume-transcript";
 export { useThinChatGateway } from "./use-thin-chat-gateway";

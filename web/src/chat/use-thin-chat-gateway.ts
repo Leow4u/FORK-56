@@ -28,6 +28,10 @@ import {
   type SessionResumeResult,
   type ThinChatTurnState,
 } from "./gateway-protocol";
+import {
+  buildResumeTranscript,
+  turnStateFromInflight,
+} from "./resume-transcript";
 import type { ThinChatActivity } from "./chat-activity-strip";
 import {
   mergeSessionInfo,
@@ -331,11 +335,21 @@ export function useThinChatGateway(
   }, []);
 
   const applyResumeResult = useCallback(
-    (result: SessionResumeResult) => {
+    (result: SessionResumeResult, localMessages?: ChatMessage[]) => {
       bindLiveSession(result.session_id);
       rememberStored(result.stored_session_id ?? result.resumed);
-      turnStateRef.current = createThinChatTurnState();
-      setMessages(historyToChatMessages(result.messages));
+      turnStateRef.current = turnStateFromInflight(
+        result.inflight,
+        result.session_id,
+      );
+      setMessages((current) =>
+        buildResumeTranscript(
+          historyToChatMessages(result.messages),
+          result.inflight,
+          localMessages ?? current,
+          result.session_id,
+        ),
+      );
       setPhase("session");
       setBusy(Boolean(result.running));
       setReady(true);
@@ -410,6 +424,18 @@ export function useThinChatGateway(
       );
       bindLiveSession(resumed.session_id);
       rememberStored(resumed.stored_session_id ?? resumed.resumed);
+      turnStateRef.current = turnStateFromInflight(
+        resumed.inflight,
+        resumed.session_id,
+      );
+      setMessages((current) =>
+        buildResumeTranscript(
+          historyToChatMessages(resumed.messages),
+          resumed.inflight,
+          current,
+          resumed.session_id,
+        ),
+      );
       setBusy(Boolean(resumed.running));
       setReady(true);
       if (resumed.info) {
