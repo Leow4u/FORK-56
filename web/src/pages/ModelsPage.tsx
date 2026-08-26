@@ -927,7 +927,15 @@ function MoaModelsModal({
   );
 }
 
-function ModelSettingsPanel({
+/**
+ * Model Settings panel — main model, auxiliary tasks, Mixture of Agents.
+ *
+ * Exported: the user-facing home of this panel is Settings → Model
+ * (/settings, see SettingsPage). This page keeps rendering it beside the
+ * per-model analytics for the operator view (gated by
+ * ``dashboard.show_token_analytics``).
+ */
+export function ModelSettingsPanel({
   aux,
   refreshKey,
   onSaved,

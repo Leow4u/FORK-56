@@ -100,7 +100,11 @@ export interface Translations {
       plugins: string;
       sessions: string;
       skills: string;
+      /** Optional; English fallback in components. */
+      settings?: string;
     };
+    /** Optional; English fallback in components. */
+    logOut?: string;
     modelToolsSheetSubtitle: string;
     modelToolsSheetTitle: string;
     navigation: string;

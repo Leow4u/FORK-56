@@ -25,6 +25,7 @@ const BUILTIN_LITERAL: Record<string, string> = {
   "/webhooks": "Webhooks",
   "/pairing": "Pairing",
   "/system": "System",
+  "/settings": "Settings",
 };
 
 export function resolvePageTitle(
@@ -43,7 +44,10 @@ export function resolvePageTitle(
   }
   const key = BUILTIN[normalized];
   if (key) {
-    return t.app.nav[key];
+    // Some nav keys are optional (locale fallback lives in components);
+    // fall through to the literal/capitalize fallbacks when absent.
+    const value = t.app.nav[key];
+    if (value) return value;
   }
   const literal = BUILTIN_LITERAL[normalized];
   if (literal) {
