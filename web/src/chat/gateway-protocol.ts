@@ -22,6 +22,19 @@ export interface SessionResumeResult extends SessionCreateResult {
   resumed?: string;
   running?: boolean;
   status?: string;
+  inflight?: SessionInflightTurn | null;
+}
+
+/** ``session.resume`` inflight turn snapshot (``tui_gateway._inflight_snapshot``). */
+export interface SessionInflightTurn {
+  user?: string;
+  assistant?: string;
+  streaming?: boolean;
+  corrections?: string[];
+  correction_offsets?: number[];
+  error?: string;
+  status?: string;
+  recoverable?: boolean;
 }
 
 /** Per-turn stream bookkeeping (desktop ``interimBoundaryPending`` / ``streamId``). */
