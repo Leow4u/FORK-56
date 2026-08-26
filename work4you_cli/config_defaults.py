@@ -1526,6 +1526,11 @@ DEFAULT_CONFIG = {
         # right Files/Preview pane); this page is an operator tool for
         # pulling backups/logs off an instance without SSH.
         "show_files_admin": False,
+        # Hide the Logs page (raw agent/errors/gateway log tail) entirely by
+        # default — route gated like the Files page, so /logs redirects home
+        # unless this is True. The read-only /api/logs endpoint is untouched
+        # (the desktop Command Center tails logs through it).
+        "show_logs_admin": False,
         # OAuth gate configuration (engaged when ``--host`` is set and
         # ``--insecure`` is not). The bundled Work4You Portal plugin reads
         # both keys at startup; they are the canonical surface for these
