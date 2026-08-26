@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   activityLineFromGatewayEvent,
   applyGatewayEvent,
+  createThinChatTurnState,
   historyToChatMessages,
   thinChatSessionCreateParams,
   thinChatSessionResumeParams,
@@ -44,60 +45,199 @@ describe("historyToChatMessages", () => {
 });
 
 describe("applyGatewayEvent", () => {
-  it("starts, appends deltas, and finalizes", () => {
+  it("creates the assistant bubble on first delta, not on message.start", () => {
     let msgs: ChatMessage[] = [];
-    msgs = applyGatewayEvent(msgs, "message.start", {});
-    expect(msgs).toHaveLength(1);
-    expect(msgs[0].streaming).toBe(true);
+    let turn = createThinChatTurnState();
 
-    msgs = applyGatewayEvent(msgs, "message.delta", { text: "Hel" });
-    msgs = applyGatewayEvent(msgs, "message.delta", { text: "lo" });
+    ({ messages: msgs, turn } = applyGatewayEvent(msgs, "message.start", {}, turn));
+    expect(msgs).toHaveLength(0);
+    expect(turn.streamId).toBeTruthy();
+
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.delta",
+      { text: "Hel" },
+      turn,
+    ));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.delta",
+      { text: "lo" },
+      turn,
+    ));
+    expect(msgs).toHaveLength(1);
     expect(msgs[0].text).toBe("Hello");
 
-    msgs = applyGatewayEvent(msgs, "message.complete", { text: "Hello!" });
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.complete",
+      { text: "Hello!" },
+      turn,
+    ));
     expect(msgs[0]).toMatchObject({ text: "Hello!", streaming: false });
+  });
+
+  it("settles identical terminal reply onto interim when response_previewed", () => {
+    let msgs: ChatMessage[] = [];
+    let turn = createThinChatTurnState();
+
+    ({ messages: msgs, turn } = applyGatewayEvent(msgs, "message.start", {}, turn));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.interim",
+      { text: "same reply" },
+      turn,
+    ));
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({ text: "same reply", interim: true });
+
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.complete",
+      { response_previewed: true, text: "same reply" },
+      turn,
+    ));
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      text: "same reply",
+      interim: false,
+      streaming: false,
+    });
+  });
+
+  it("settles prefix-matched final onto interim without response_previewed", () => {
+    let msgs: ChatMessage[] = [];
+    let turn = createThinChatTurnState();
+
+    ({ messages: msgs, turn } = applyGatewayEvent(msgs, "message.start", {}, turn));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.interim",
+      { text: "partial answer" },
+      turn,
+    ));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.complete",
+      { text: "partial answer with more detail" },
+      turn,
+    ));
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].text).toBe("partial answer with more detail");
+  });
+
+  it("settles identical terminal reply onto interim via prefix continuity", () => {
+    let msgs: ChatMessage[] = [];
+    let turn = createThinChatTurnState();
+
+    ({ messages: msgs, turn } = applyGatewayEvent(msgs, "message.start", {}, turn));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.interim",
+      { text: "same reply" },
+      turn,
+    ));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.complete",
+      { text: "same reply" },
+      turn,
+    ));
+    expect(msgs.filter((m) => m.role === "assistant")).toHaveLength(1);
+  });
+
+  it("appends a distinct final reply after an interim segment", () => {
+    let msgs: ChatMessage[] = [];
+    let turn = createThinChatTurnState();
+
+    ({ messages: msgs, turn } = applyGatewayEvent(msgs, "message.start", {}, turn));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.interim",
+      { text: "interim thought" },
+      turn,
+    ));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.complete",
+      { text: "brand new final answer" },
+      turn,
+    ));
+    const assistantMsgs = msgs.filter((m) => m.role === "assistant");
+    expect(assistantMsgs).toHaveLength(2);
+    expect(assistantMsgs[0]?.text).toBe("interim thought");
+    expect(assistantMsgs[1]?.text).toBe("brand new final answer");
   });
 
   it("surfaces tool lifecycle lines", () => {
     let msgs: ChatMessage[] = [];
-    msgs = applyGatewayEvent(msgs, "tool.start", {
+    let turn = createThinChatTurnState();
+    ({ messages: msgs, turn } = applyGatewayEvent(msgs, "tool.start", {
       name: "read_file",
       context: "a.ts",
-    });
+    }, turn));
     expect(msgs[0].role).toBe("tool");
     expect(msgs[0].text).toContain("read_file");
   });
 
   it("streams reasoning blocks", () => {
     let msgs: ChatMessage[] = [];
-    msgs = applyGatewayEvent(msgs, "reasoning.delta", { text: "hmm" });
+    let turn = createThinChatTurnState();
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "reasoning.delta",
+      { text: "hmm" },
+      turn,
+    ));
     expect(msgs[0]).toMatchObject({ role: "reasoning", text: "hmm" });
-    msgs = applyGatewayEvent(msgs, "reasoning.available", { text: "done thinking" });
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "reasoning.available",
+      { text: "done thinking" },
+      turn,
+    ));
     expect(msgs[0].text).toBe("done thinking");
   });
 
   it("upserts tool progress by tool_id", () => {
     let msgs: ChatMessage[] = [];
-    msgs = applyGatewayEvent(msgs, "tool.start", {
+    let turn = createThinChatTurnState();
+    ({ messages: msgs, turn } = applyGatewayEvent(msgs, "tool.start", {
       name: "terminal",
       tool_id: "t1",
-    });
-    msgs = applyGatewayEvent(msgs, "tool.progress", {
+    }, turn));
+    ({ messages: msgs, turn } = applyGatewayEvent(msgs, "tool.progress", {
       name: "terminal",
       tool_id: "t1",
       progress: "halfway",
-    });
+    }, turn));
     expect(msgs).toHaveLength(1);
     expect(msgs[0].text).toContain("halfway");
   });
 
   it("surfaces subagent and compaction status lines", () => {
     let msgs: ChatMessage[] = [];
-    msgs = applyGatewayEvent(msgs, "subagent.start", { goal: "research" });
+    let turn = createThinChatTurnState();
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "subagent.start",
+      { goal: "research" },
+      turn,
+    ));
     expect(msgs[0].text).toContain("research");
-    msgs = applyGatewayEvent(msgs, "status.update", { kind: "compacting" });
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "status.update",
+      { kind: "compacting" },
+      turn,
+    ));
     expect(msgs.some((m) => m.id === "status-compacting")).toBe(true);
-    msgs = applyGatewayEvent(msgs, "status.update", { kind: "compacted" });
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "status.update",
+      { kind: "compacted" },
+      turn,
+    ));
     expect(msgs.some((m) => m.id === "status-compacting")).toBe(false);
   });
 });

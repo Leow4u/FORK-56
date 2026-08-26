@@ -24,6 +24,21 @@ export interface SessionResumeResult extends SessionCreateResult {
   status?: string;
 }
 
+/** Per-turn stream bookkeeping (desktop ``interimBoundaryPending`` / ``streamId``). */
+export interface ThinChatTurnState {
+  streamId: string | null;
+  interimBoundaryPending: boolean;
+}
+
+export interface ApplyGatewayEventResult {
+  messages: ChatMessage[];
+  turn: ThinChatTurnState;
+}
+
+export function createThinChatTurnState(): ThinChatTurnState {
+  return { streamId: null, interimBoundaryPending: false };
+}
+
 /** ``session.create`` params for the thin web chat (not the tool sidecar). */
 export function thinChatSessionCreateParams(
   profile?: string,
@@ -123,10 +138,19 @@ export function coerceEventText(payload: unknown): string {
   return typeof text === "string" ? text : "";
 }
 
+function responsePreviewedFromPayload(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  return Boolean((payload as { response_previewed?: unknown }).response_previewed);
+}
+
 function toolIdFromPayload(payload: unknown): string | undefined {
   if (!payload || typeof payload !== "object") return undefined;
   const id = (payload as { tool_id?: unknown }).tool_id;
   return typeof id === "string" && id ? id : undefined;
+}
+
+function clearedTurnState(turn: ThinChatTurnState): ThinChatTurnState {
+  return { ...turn, streamId: null, interimBoundaryPending: false };
 }
 
 /**
@@ -137,79 +161,100 @@ export function applyGatewayEvent(
   messages: ChatMessage[],
   eventType: string,
   payload: unknown,
-): ChatMessage[] {
+  turn: ThinChatTurnState = createThinChatTurnState(),
+): ApplyGatewayEventResult {
   switch (eventType) {
     case "message.start":
-      return [
-        ...sealStreaming(messages),
-        {
-          id: createMessageId(),
-          role: "assistant",
-          text: "",
-          streaming: true,
+      return {
+        messages: sealStreaming(messages),
+        turn: {
+          streamId: createMessageId(),
+          interimBoundaryPending: false,
         },
-      ];
+      };
     case "message.delta": {
       const chunk = coerceEventText(payload);
-      if (!chunk) return messages;
-      return appendAssistantDelta(messages, chunk);
+      if (!chunk) return { messages, turn };
+      return appendAssistantDelta(messages, turn, chunk);
     }
     case "message.interim": {
       const text = coerceEventText(payload);
-      if (!text) return sealStreaming(messages);
-      return finalizeStreamingAssistant(messages, text);
+      if (!text) {
+        return { messages: sealStreaming(messages), turn: { ...turn, streamId: null } };
+      }
+      return finalizeInterimAssistant(messages, turn, text);
     }
     case "message.complete": {
       const text = coerceEventText(payload);
-      return finalizeStreamingAssistant(messages, text);
+      return completeAssistantMessage(
+        messages,
+        turn,
+        text,
+        responsePreviewedFromPayload(payload),
+      );
     }
     case "reasoning.delta":
     case "thinking.delta": {
       const chunk = coerceEventText(payload);
-      if (!chunk) return messages;
-      return appendReasoningDelta(messages, chunk);
+      if (!chunk) return { messages, turn };
+      return { messages: appendReasoningDelta(messages, chunk), turn };
     }
     case "reasoning.available": {
       const text = coerceEventText(payload);
-      if (!text) return messages;
-      return replaceReasoningBlock(messages, text);
+      if (!text) return { messages, turn };
+      return { messages: replaceReasoningBlock(messages, text), turn };
     }
     case "moa.reference":
     case "moa.aggregating":
     case "moa.progress":
     case "moa.phase": {
       const text = coerceEventText(payload);
-      if (!text) return messages;
-      return appendReasoningDelta(messages, text);
+      if (!text) return { messages, turn };
+      return { messages: appendReasoningDelta(messages, text), turn };
     }
     case "tool.generating": {
       const name =
         payload && typeof payload === "object"
           ? String((payload as { name?: unknown }).name || "tool")
           : "tool";
-      return [
-        ...sealStreaming(messages),
-        {
-          id: createMessageId(),
-          role: "tool",
-          text: `… ${name}`,
-          toolId: toolIdFromPayload(payload),
-        },
-      ];
+      return {
+        messages: [
+          ...sealStreaming(messages),
+          {
+            id: createMessageId(),
+            role: "tool",
+            text: `… ${name}`,
+            toolId: toolIdFromPayload(payload),
+          },
+        ],
+        turn: { ...turn, streamId: null },
+      };
     }
     case "tool.start":
-      return upsertToolRow(messages, payload, "start");
+      return {
+        messages: upsertToolRow(messages, payload, "start"),
+        turn,
+      };
     case "tool.progress":
-      return upsertToolRow(messages, payload, "progress");
+      return {
+        messages: upsertToolRow(messages, payload, "progress"),
+        turn,
+      };
     case "tool.complete":
-      return upsertToolRow(messages, payload, "done");
+      return {
+        messages: upsertToolRow(messages, payload, "done"),
+        turn,
+      };
     case "tool.output_risk": {
       const text = coerceEventText(payload);
-      if (!text) return messages;
-      return [
-        ...messages,
-        { id: createMessageId(), role: "system", text: `⚠ ${text}` },
-      ];
+      if (!text) return { messages, turn };
+      return {
+        messages: [
+          ...messages,
+          { id: createMessageId(), role: "system", text: `⚠ ${text}` },
+        ],
+        turn,
+      };
     }
     case "status.update": {
       const kind =
@@ -217,36 +262,48 @@ export function applyGatewayEvent(
           ? (payload as { kind?: unknown }).kind
           : undefined;
       if (kind === "compacting") {
-        return [
-          ...messages,
-          {
-            id: "status-compacting",
-            role: "system",
-            text: "Compacting context…",
-          },
-        ];
+        return {
+          messages: [
+            ...messages,
+            {
+              id: "status-compacting",
+              role: "system",
+              text: "Compacting context…",
+            },
+          ],
+          turn,
+        };
       }
       if (kind === "compacted") {
-        return messages.filter((m) => m.id !== "status-compacting");
+        return {
+          messages: messages.filter((m) => m.id !== "status-compacting"),
+          turn,
+        };
       }
       const text = coerceEventText(payload);
-      if (!text) return messages;
-      return [
-        ...messages,
-        { id: createMessageId(), role: "system", text },
-      ];
+      if (!text) return { messages, turn };
+      return {
+        messages: [
+          ...messages,
+          { id: createMessageId(), role: "system", text },
+        ],
+        turn,
+      };
     }
     case "review.summary":
     case "notification.show": {
       const text = coerceEventText(payload);
-      if (!text) return messages;
-      return [
-        ...messages,
-        { id: createMessageId(), role: "system", text },
-      ];
+      if (!text) return { messages, turn };
+      return {
+        messages: [
+          ...messages,
+          { id: createMessageId(), role: "system", text },
+        ],
+        turn,
+      };
     }
     case "notification.clear":
-      return messages;
+      return { messages, turn };
     case "subagent.spawn_requested":
     case "subagent.start":
     case "subagent.thinking":
@@ -254,24 +311,30 @@ export function applyGatewayEvent(
     case "subagent.progress":
     case "subagent.complete": {
       const line = formatSubagentEvent(eventType, payload);
-      if (!line) return messages;
-      return [
-        ...messages,
-        { id: createMessageId(), role: "system", text: line },
-      ];
+      if (!line) return { messages, turn };
+      return {
+        messages: [
+          ...messages,
+          { id: createMessageId(), role: "system", text: line },
+        ],
+        turn,
+      };
     }
     case "error": {
       const message =
         payload && typeof payload === "object"
           ? String((payload as { message?: unknown }).message || "Error")
           : "Error";
-      return [
-        ...sealStreaming(messages),
-        { id: createMessageId(), role: "system", text: message },
-      ];
+      return {
+        messages: [
+          ...sealStreaming(messages),
+          { id: createMessageId(), role: "system", text: message },
+        ],
+        turn: clearedTurnState(turn),
+      };
     }
     default:
-      return messages;
+      return { messages, turn };
   }
 }
 
@@ -378,23 +441,40 @@ function sealStreaming(messages: ChatMessage[]): ChatMessage[] {
 
 function appendAssistantDelta(
   messages: ChatMessage[],
+  turn: ThinChatTurnState,
   chunk: string,
-): ChatMessage[] {
+): ApplyGatewayEventResult {
+  const streamId = turn.streamId ?? createMessageId();
+
+  if (streamId) {
+    const idx = messages.findIndex((m) => m.id === streamId);
+    if (idx >= 0 && messages[idx]?.role === "assistant") {
+      const next = messages.slice();
+      const row = next[idx];
+      next[idx] = { ...row, text: row.text + chunk, streaming: true };
+      return { messages: next, turn: { ...turn, streamId } };
+    }
+  }
+
   const last = messages[messages.length - 1];
   if (last?.role === "assistant" && last.streaming) {
     const next = messages.slice();
     next[next.length - 1] = { ...last, text: last.text + chunk };
-    return next;
+    return { messages: next, turn: { ...turn, streamId: last.id } };
   }
-  return [
-    ...messages,
-    {
-      id: createMessageId(),
-      role: "assistant",
-      text: chunk,
-      streaming: true,
-    },
-  ];
+
+  return {
+    messages: [
+      ...messages,
+      {
+        id: streamId,
+        role: "assistant",
+        text: chunk,
+        streaming: true,
+      },
+    ],
+    turn: { ...turn, streamId },
+  };
 }
 
 function appendReasoningDelta(
@@ -456,25 +536,154 @@ function formatSubagentEvent(type: string, payload: unknown): string {
   return "";
 }
 
-function finalizeStreamingAssistant(
+function finalizeInterimAssistant(
   messages: ChatMessage[],
+  turn: ThinChatTurnState,
   text: string,
-): ChatMessage[] {
-  const last = messages[messages.length - 1];
-  if (last?.role === "assistant" && last.streaming) {
-    const next = messages.slice();
-    next[next.length - 1] = {
-      ...last,
-      text: text || last.text,
-      streaming: false,
+): ApplyGatewayEventResult {
+  const streamId = turn.streamId;
+  let nextMessages = messages;
+
+  if (streamId) {
+    const idx = messages.findIndex((m) => m.id === streamId);
+    if (idx >= 0 && messages[idx]?.role === "assistant") {
+      const next = messages.slice();
+      const row = next[idx];
+      next[idx] = {
+        ...row,
+        text: text || row.text,
+        streaming: false,
+        interim: true,
+      };
+      nextMessages = next;
+    }
+  }
+
+  if (nextMessages === messages) {
+    const last = messages[messages.length - 1];
+    if (last?.role === "assistant" && last.streaming) {
+      const next = messages.slice();
+      next[next.length - 1] = {
+        ...last,
+        text: text || last.text,
+        streaming: false,
+        interim: true,
+      };
+      nextMessages = next;
+    } else {
+      nextMessages = [
+        ...sealStreaming(messages),
+        {
+          id: createMessageId(),
+          role: "assistant",
+          text,
+          streaming: false,
+          interim: true,
+        },
+      ];
+    }
+  }
+
+  return {
+    messages: nextMessages,
+    turn: {
+      streamId: null,
+      interimBoundaryPending: true,
+    },
+  };
+}
+
+function completeAssistantMessage(
+  messages: ChatMessage[],
+  turn: ThinChatTurnState,
+  text: string,
+  responsePreviewed: boolean,
+): ApplyGatewayEventResult {
+  const finalText = text.trim();
+  const streamId = turn.streamId;
+  const interimBoundaryPending = turn.interimBoundaryPending;
+  const nextTurn = clearedTurnState(turn);
+
+  const settleAssistant = (message: ChatMessage): ChatMessage => ({
+    ...message,
+    text: finalText || message.text,
+    streaming: false,
+    interim: false,
+  });
+
+  if (streamId) {
+    const idx = messages.findIndex((m) => m.id === streamId);
+    if (idx >= 0 && messages[idx]?.role === "assistant") {
+      const next = messages.slice();
+      next[idx] = settleAssistant(next[idx]);
+      return { messages: next, turn: nextTurn };
+    }
+  }
+
+  const lastAssistantIdx = [...messages]
+    .map((m, i) => ({ m, i }))
+    .reverse()
+    .find(({ m }) => m.role === "assistant")?.i;
+
+  if (lastAssistantIdx !== undefined && lastAssistantIdx >= 0) {
+    const existing = messages[lastAssistantIdx];
+    const existingText = existing.text.trim();
+    const finalContinuesInterim = Boolean(
+      existing.interim &&
+        finalText &&
+        existingText &&
+        (finalText === existingText ||
+          finalText.startsWith(existingText) ||
+          existingText.startsWith(finalText)),
+    );
+
+    if (
+      existing.streaming ||
+      (!interimBoundaryPending && finalText && existingText === finalText)
+    ) {
+      const next = messages.slice();
+      next[lastAssistantIdx] = settleAssistant(existing);
+      return { messages: next, turn: nextTurn };
+    }
+
+    if ((interimBoundaryPending && responsePreviewed) || finalContinuesInterim) {
+      const next = messages.slice();
+      next[lastAssistantIdx] = settleAssistant(existing);
+      return { messages: next, turn: nextTurn };
+    }
+
+    if (finalText) {
+      return {
+        messages: [
+          ...sealStreaming(messages),
+          {
+            id: createMessageId(),
+            role: "assistant",
+            text: finalText,
+            streaming: false,
+          },
+        ],
+        turn: nextTurn,
+      };
+    }
+
+    return { messages: sealStreaming(messages), turn: nextTurn };
+  }
+
+  if (finalText) {
+    return {
+      messages: [
+        ...sealStreaming(messages),
+        {
+          id: createMessageId(),
+          role: "assistant",
+          text: finalText,
+          streaming: false,
+        },
+      ],
+      turn: nextTurn,
     };
-    return next;
   }
-  if (text) {
-    return [
-      ...sealStreaming(messages),
-      { id: createMessageId(), role: "assistant", text, streaming: false },
-    ];
-  }
-  return sealStreaming(messages);
+
+  return { messages: sealStreaming(messages), turn: nextTurn };
 }

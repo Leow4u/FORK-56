@@ -8,8 +8,10 @@ export { ThinChat } from "./thin-chat";
 export type { ThinChatProps } from "./thin-chat";
 export {
   applyGatewayEvent,
+  createThinChatTurnState,
   historyToChatMessages,
   thinChatSessionCreateParams,
   thinChatSessionResumeParams,
 } from "./gateway-protocol";
+export type { ApplyGatewayEventResult, ThinChatTurnState } from "./gateway-protocol";
 export { useThinChatGateway } from "./use-thin-chat-gateway";

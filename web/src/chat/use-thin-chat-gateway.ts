@@ -19,12 +19,14 @@ import { executeSlash } from "@/lib/slashExec";
 import {
   applyGatewayEvent,
   activityLineFromGatewayEvent,
+  createThinChatTurnState,
   historyToChatMessages,
   sessionMessagesToChatMessages,
   thinChatSessionCreateParams,
   thinChatSessionResumeParams,
   type SessionCreateResult,
   type SessionResumeResult,
+  type ThinChatTurnState,
 } from "./gateway-protocol";
 import type { ThinChatActivity } from "./chat-activity-strip";
 import {
@@ -223,6 +225,7 @@ export function useThinChatGateway(
   const suppressResumeRef = useRef(false);
   const intentionalCloseRef = useRef(false);
   const queueRef = useRef<string[]>([]);
+  const turnStateRef = useRef<ThinChatTurnState>(createThinChatTurnState());
 
   const profileRef = useRef(profile);
   const onStoredSessionIdRef = useRef(onStoredSessionId);
@@ -331,6 +334,7 @@ export function useThinChatGateway(
     (result: SessionResumeResult) => {
       bindLiveSession(result.session_id);
       rememberStored(result.stored_session_id ?? result.resumed);
+      turnStateRef.current = createThinChatTurnState();
       setMessages(historyToChatMessages(result.messages));
       setPhase("session");
       setBusy(Boolean(result.running));
@@ -472,7 +476,16 @@ export function useThinChatGateway(
       }
 
       if (STREAM_EVENT_TYPES.has(ev.type)) {
-        setMessages((prev) => applyGatewayEvent(prev, ev.type, ev.payload));
+        setMessages((prev) => {
+          const result = applyGatewayEvent(
+            prev,
+            ev.type,
+            ev.payload,
+            turnStateRef.current,
+          );
+          turnStateRef.current = result.turn;
+          return result.messages;
+        });
         if (ev.type === "message.start") {
           setBusy(true);
           setPhase("session");
@@ -868,7 +881,8 @@ export function useThinChatGateway(
   const showLoadEarlier = Boolean(storedSessionId && phase === "session");
 
   const canLoadEarlier = Boolean(
-    showLoadEarlier &&
+    storedSessionId &&
+      phase === "session" &&
       !backfillLoaded &&
       (sessionInfo.messageCount ?? 0) > messages.length,
   );
@@ -881,6 +895,7 @@ export function useThinChatGateway(
     setStoredSessionId(null);
     ensurePromiseRef.current = null;
     queueRef.current = [];
+    turnStateRef.current = createThinChatTurnState();
     setQueueCount(0);
     setActivity(EMPTY_ACTIVITY);
     setBusy(false);
