@@ -6,7 +6,7 @@
 # Do not deploy from services/work4you-cloud-agent on Windows: fly's
 # build-context = "../.." can omit files from the Docker context (#29).
 #
-# 2026-08-26: rebuild after thin-chat TS build fix (1a4e835).
+# 2026-08-26: rebuild after thin-chat duplicate reasoning fix (21adfed).
 app = "work4you-cloud-runtime"
 primary_region = "gru"
 
