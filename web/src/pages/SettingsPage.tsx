@@ -14,7 +14,7 @@
  *     exact same component + APIs (getAuxiliaryModels / setModelAssignment).
  */
 
-import { Cpu } from "lucide-react";
+import { Brain, Cpu } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { PluginSlot } from "@/plugins";
 import { ModelSettingsPanel } from "@/pages/ModelsPage";
+import { ProvidersCard } from "@/pages/PluginsPage";
 
 interface SettingsSection {
   id: string;
@@ -87,6 +88,15 @@ const SECTIONS: SettingsSection[] = [
     label: "Model",
     icon: Cpu,
     render: () => <ModelSection />,
+  },
+  {
+    // Where the agent keeps memory + which context engine compacts it —
+    // moved here from the Plugins page, matching the desktop app's
+    // Settings → Memory & Context.
+    id: "memory",
+    label: "Memory & Context",
+    icon: Brain,
+    render: () => <ProvidersCard />,
   },
 ];
 

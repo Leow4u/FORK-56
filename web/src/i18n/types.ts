@@ -375,6 +375,8 @@ export interface Translations {
     providerDefaults: string;
     providersHeading: string;
     providersHint: string;
+    /** Next-session note for plugin toggles — optional; English fallback. */
+    cacheNote?: string;
     refreshDashboard: string;
     removeConfirm: string;
     removeHint: string;

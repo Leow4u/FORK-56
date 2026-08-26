@@ -460,6 +460,7 @@ export default function App() {
   const [showSessionsAdmin, setShowSessionsAdmin] = useState(false);
   const [showFilesAdmin, setShowFilesAdmin] = useState(false);
   const [showLogsAdmin, setShowLogsAdmin] = useState(false);
+  const [showPluginsAdmin, setShowPluginsAdmin] = useState(false);
   useEffect(() => {
     api
       .getConfig()
@@ -469,17 +470,20 @@ export default function App() {
           show_sessions_admin?: unknown;
           show_files_admin?: unknown;
           show_logs_admin?: unknown;
+          show_plugins_admin?: unknown;
         };
         setShowTokenAnalytics(dash.show_token_analytics === true);
         setShowSessionsAdmin(dash.show_sessions_admin === true);
         setShowFilesAdmin(dash.show_files_admin === true);
         setShowLogsAdmin(dash.show_logs_admin === true);
+        setShowPluginsAdmin(dash.show_plugins_admin === true);
       })
       .catch(() => {
         setShowTokenAnalytics(false);
         setShowSessionsAdmin(false);
         setShowFilesAdmin(false);
         setShowLogsAdmin(false);
+        setShowPluginsAdmin(false);
       });
   }, []);
 
@@ -529,12 +533,17 @@ export default function App() {
       if (n.path === "/files") return showFilesAdmin;
       // Operator-only diagnostics — route itself is gated (LogsRouteGate).
       if (n.path === "/logs") return showLogsAdmin;
+      // Plugins: the user-facing part (memory/context providers) lives in
+      // Settings → Memory & Context; the page that remains (git install,
+      // dashboard-tab plumbing) is operator. Route stays URL-reachable.
+      if (n.path === "/plugins") return showPluginsAdmin;
       return true;
     });
   }, [
     embeddedChat,
     showFilesAdmin,
     showLogsAdmin,
+    showPluginsAdmin,
     showSessionsAdmin,
     showTokenAnalytics,
   ]);

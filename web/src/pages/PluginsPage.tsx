@@ -278,14 +278,18 @@ function MemoryProviderSetupHint({
   );
 }
 
-export default function PluginsPage() {
-  const [hub, setHub] = useState<PluginsHubResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [installId, setInstallId] = useState("");
-  const [installForce, setInstallForce] = useState(false);
-  const [installEnable, setInstallEnable] = useState(true);
-  const [installBusy, setInstallBusy] = useState(false);
-  const [rescanBusy, setRescanBusy] = useState(false);
+/**
+ * Memory provider + context engine card — the user-facing "where does my
+ * agent keep memory" surface. Exported: its product home is Settings →
+ * Memory & Context (see SettingsPage), matching the desktop app, which
+ * keeps these selections in Settings while the Plugins page stays an
+ * operator surface (install / enable / dashboard-tab plumbing).
+ *
+ * Self-contained: loads the providers slice of the plugins hub itself and
+ * owns the provider-config form state (same APIs as before the move).
+ */
+export function ProvidersCard() {
+  const [providers, setProviders] = useState<PluginsHubResponse["providers"] | null>(null);
   const [memorySel, setMemorySel] = useState(MEMORY_PROVIDER_BUILTIN);
   const [memoryConfig, setMemoryConfig] = useState<MemoryProviderConfig | null>(null);
   const [memoryValues, setMemoryValues] = useState<Record<string, MemoryFormValue>>({});
@@ -296,18 +300,15 @@ export default function PluginsPage() {
   const [memorySetupBusy, setMemorySetupBusy] = useState(false);
   const [memorySetupResults, setMemorySetupResults] = useState<MemoryProviderSetupResult[] | null>(null);
   const [contextBusy, setContextBusy] = useState(false);
-  const [rowBusy, setRowBusy] = useState<string | null>(null);
-
   const { toast, showToast } = useToast();
   const { t } = useI18n();
-  const { setAfterTitle } = usePageHeader();
 
-  const loadHub = useCallback((memorySelection?: string) => {
+  const loadProviders = useCallback((memorySelection?: string) => {
     return api
       .getPluginsHub()
       .then((h) => {
-        setHub(h);
         const p = h.providers;
+        setProviders(p);
         setMemorySel(
           memorySelection ?? (p.memory_provider ? p.memory_provider : MEMORY_PROVIDER_BUILTIN),
         );
@@ -317,8 +318,8 @@ export default function PluginsPage() {
   }, [showToast, t.common.loading]);
 
   useEffect(() => {
-    void loadHub().finally(() => setLoading(false));
-  }, [loadHub]);
+    void loadProviders();
+  }, [loadProviders]);
 
   useEffect(() => {
     const provider = memorySel === MEMORY_PROVIDER_BUILTIN ? "" : memorySel;
@@ -364,6 +365,361 @@ export default function PluginsPage() {
       cancelled = true;
     };
   }, [memorySel, showToast]);
+
+  const currentVisibleMemoryValues = () =>
+    Object.fromEntries(
+      Object.entries(memoryValues).filter(([key]) => {
+        const field = memoryConfig?.fields.find((candidate) => candidate.key === key);
+        return field ? fieldIsVisible(field, memoryValues) : true;
+      }),
+    );
+
+  const onSaveMemoryProvider = async () => {
+    const provider = memorySel === MEMORY_PROVIDER_BUILTIN ? "" : memorySel;
+    setMemoryBusy(true);
+    try {
+      if (!provider) {
+        await api.setMemoryProvider("");
+      } else {
+        await api.updateMemoryProviderConfig(provider, currentVisibleMemoryValues());
+      }
+      showToast(t.pluginsPage.savedProviders, "success");
+      await loadProviders();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Save failed", "error");
+    } finally {
+      setMemoryBusy(false);
+    }
+  };
+
+  const onSetupMemoryProvider = async () => {
+    const provider = memorySel === MEMORY_PROVIDER_BUILTIN ? "" : memorySel;
+    if (!provider) return;
+
+    setMemorySetupBusy(true);
+    setMemorySetupResults(null);
+    try {
+      const result = await api.setupMemoryProvider(provider, currentVisibleMemoryValues());
+      setMemorySetupResults(result.results);
+      const failed = result.results.filter((row) => row.status === "failed");
+      if (failed.length) {
+        const names = Array.from(new Set(failed.map((row) => row.name))).join(", ");
+        showToast(`Provider setup failed: ${names || provider}. See setup results below.`, "error");
+      } else {
+        showToast("Provider setup finished", "success");
+      }
+      await loadProviders(provider);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Provider setup failed", "error");
+    } finally {
+      setMemorySetupBusy(false);
+    }
+  };
+
+  const onSaveContextEngine = async () => {
+    setContextBusy(true);
+    try {
+      await api.savePluginProviders({ context_engine: contextSel });
+      showToast(t.pluginsPage.savedProviders, "success");
+      await loadProviders();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "Save failed", "error");
+    } finally {
+      setContextBusy(false);
+    }
+  };
+
+  const selectedMemoryName = memorySel === MEMORY_PROVIDER_BUILTIN ? "" : memorySel;
+  const selectedMemoryInfo = selectedMemoryName
+    ? providers?.memory_options.find((provider) => provider.name === selectedMemoryName)
+    : null;
+  const activeMemoryInfo = providers?.memory_provider
+    ? providers.memory_options.find((provider) => provider.name === providers.memory_provider)
+    : null;
+  const visibleMemoryFields =
+    memoryConfig?.fields.filter((field) => fieldIsVisible(field, memoryValues)) ?? [];
+
+  if (!providers) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Spinner className="text-xl text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Toast toast={toast} />
+      <Card>
+        <CardHeader>
+          <CardTitle>{t.pluginsPage.providersHeading}</CardTitle>
+          {/* Next-session honesty — the i18n string always existed; render it. */}
+          <p className="text-xs tracking-[0.08em] text-text-tertiary">
+            {t.pluginsPage.providersHint}
+          </p>
+        </CardHeader>
+
+        <CardContent className="flex flex-col gap-6">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
+            <div className="flex flex-col gap-4 min-w-0">
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label htmlFor="mem-provider">{t.pluginsPage.memoryProviderLabel}</Label>
+                  {selectedMemoryName && selectedMemoryInfo && (
+                    <Badge tone={MEMORY_STATUS_TONE[selectedMemoryInfo.status]}>
+                      {MEMORY_STATUS_LABEL[selectedMemoryInfo.status]}
+                    </Badge>
+                  )}
+                  {selectedMemoryName && selectedMemoryName === providers.memory_provider && (
+                    <Badge tone="outline">active</Badge>
+                  )}
+                  {!selectedMemoryName && !providers.memory_provider && (
+                    <Badge tone="success">active</Badge>
+                  )}
+                </div>
+
+                <Select
+                  id="mem-provider"
+                  className="w-full"
+                  value={memorySel}
+                  onValueChange={setMemorySel}
+                >
+                  <SelectOption value={MEMORY_PROVIDER_BUILTIN}>
+                    {`(${t.pluginsPage.providerDefaults})`}
+                  </SelectOption>
+
+                  {providers.memory_options.map((o) => (
+                    <SelectOption key={o.name} value={o.name}>
+                      {o.name}
+                    </SelectOption>
+                  ))}
+                </Select>
+              </div>
+
+              {!selectedMemoryName && (
+                <p className="text-xs text-muted-foreground">
+                  Work4You will use the built-in MEMORY.md and USER.md files.
+                </p>
+              )}
+
+              {activeMemoryInfo?.status === "missing" && (
+                <p className="border border-destructive/50 px-3 py-2 text-xs text-destructive">
+                  Active provider {providers.memory_provider} is no longer installed. Select another provider and save.
+                </p>
+              )}
+
+              {selectedMemoryName && selectedMemoryInfo?.description && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedMemoryInfo.description}
+                </p>
+              )}
+
+              {selectedMemoryName && selectedMemoryInfo && (
+                <MemoryProviderSetupHint
+                  installing={memorySetupBusy}
+                  onInstall={() => void onSetupMemoryProvider()}
+                  provider={selectedMemoryInfo}
+                  results={memorySetupResults}
+                />
+              )}
+
+              {selectedMemoryName && selectedMemoryInfo?.status === "needs_config" && (
+                <p className="border border-warning/50 px-3 py-2 text-xs text-warning">
+                  Provider dependencies are installed. Add the required credentials or self-hosted URL below, then save the provider.
+                </p>
+              )}
+
+              {selectedMemoryName && memoryConfigBusy && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Spinner /> Loading provider settings…
+                </div>
+              )}
+
+              {selectedMemoryName && !memoryConfigBusy && visibleMemoryFields.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  This provider does not expose dashboard settings.
+                </p>
+              )}
+
+              {selectedMemoryName && !memoryConfigBusy && visibleMemoryFields.length > 0 && (
+                <div className="grid gap-4 border border-border p-4">
+                  {visibleMemoryFields.map((field) => {
+                    const value = memoryValues[field.key];
+                    const secretIsVisible = !!secretVisible[field.key];
+                    return (
+                      <div key={field.key} className="grid gap-2 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Label htmlFor={`memory-${field.key}`}>{field.label}</Label>
+                          {field.required && <Badge tone="outline">required</Badge>}
+                          {field.kind === "secret" && field.is_set && !value && (
+                            <Badge tone="success">set</Badge>
+                          )}
+                          {field.url && (
+                            <a
+                              href={field.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-xs underline"
+                            >
+                              Open <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                        </div>
+
+                        {field.kind === "select" ? (
+                          <Select
+                            id={`memory-${field.key}`}
+                            className="w-full"
+                            value={String(value ?? "")}
+                            onValueChange={(next) =>
+                              setMemoryValues((current) => ({ ...current, [field.key]: next }))
+                            }
+                          >
+                            {field.options.map((option) => (
+                              <SelectOption key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectOption>
+                            ))}
+                          </Select>
+                        ) : field.kind === "boolean" ? (
+                          <Switch
+                            checked={Boolean(value)}
+                            onCheckedChange={(next) =>
+                              setMemoryValues((current) => ({ ...current, [field.key]: next }))
+                            }
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id={`memory-${field.key}`}
+                              type={
+                                field.kind === "secret" && !secretIsVisible
+                                  ? "password"
+                                  : field.kind === "integer" || field.kind === "number"
+                                    ? "number"
+                                    : "text"
+                              }
+                              min={field.minimum ?? undefined}
+                              max={field.maximum ?? undefined}
+                              step={
+                                field.step ?? (field.kind === "integer" ? 1 : undefined)
+                              }
+                              value={String(value ?? "")}
+                              placeholder={
+                                field.kind === "secret" && field.is_set
+                                  ? "Leave blank to keep existing value"
+                                  : field.placeholder
+                              }
+                              onChange={(event) =>
+                                setMemoryValues((current) => ({
+                                  ...current,
+                                  [field.key]: event.target.value,
+                                }))
+                              }
+                            />
+                            {field.kind === "secret" && (
+                              <Button
+                                ghost
+                                size="icon"
+                                aria-label={secretIsVisible ? "Hide secret" : "Show secret"}
+                                onClick={() =>
+                                  setSecretVisible((current) => ({
+                                    ...current,
+                                    [field.key]: !current[field.key],
+                                  }))
+                                }
+                              >
+                                {secretIsVisible ? (
+                                  <EyeOff className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Eye className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+
+                        {field.description && (
+                          <p className="text-xs text-muted-foreground">{field.description}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <Button
+                className="w-fit uppercase"
+                size="sm"
+                disabled={memoryBusy || memoryConfigBusy || memorySetupBusy}
+                onClick={() => void onSaveMemoryProvider()}
+                prefix={memoryBusy ? <Spinner /> : undefined}
+              >
+                Save memory provider
+              </Button>
+            </div>
+
+            <div className="grid content-start gap-3 min-w-0">
+              <Label htmlFor="ctx-engine">{t.pluginsPage.contextEngineLabel}</Label>
+
+              <Select
+                id="ctx-engine"
+                className="w-full"
+                value={contextSel}
+                onValueChange={setContextSel}
+              >
+                <SelectOption value="compressor">compressor</SelectOption>
+
+                {providers.context_options
+                  .filter((o) => o.name !== "compressor")
+                  .map((o) => (
+                    <SelectOption key={o.name} value={o.name}>
+                      {o.name}
+                    </SelectOption>
+                  ))}
+              </Select>
+
+              <Button
+                className="w-fit uppercase"
+                size="sm"
+                disabled={contextBusy}
+                onClick={() => void onSaveContextEngine()}
+                prefix={contextBusy ? <Spinner /> : undefined}
+              >
+                Save context engine
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+export default function PluginsPage() {
+  const [hub, setHub] = useState<PluginsHubResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [installId, setInstallId] = useState("");
+  const [installForce, setInstallForce] = useState(false);
+  const [installEnable, setInstallEnable] = useState(true);
+  const [installBusy, setInstallBusy] = useState(false);
+  const [rescanBusy, setRescanBusy] = useState(false);
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+
+  const { toast, showToast } = useToast();
+  const { t } = useI18n();
+  const { setAfterTitle } = usePageHeader();
+
+  const loadHub = useCallback(() => {
+    return api
+      .getPluginsHub()
+      .then(setHub)
+      .catch(() => showToast(t.common.loading, "error"));
+  }, [showToast, t.common.loading]);
+
+  useEffect(() => {
+    void loadHub().finally(() => setLoading(false));
+  }, [loadHub]);
 
   const onInstall = async () => {
     const id = installId.trim();
@@ -423,75 +779,6 @@ export default function PluginsPage() {
     return () => setAfterTitle(null);
   }, [loading, onRescan, rescanBusy, setAfterTitle, t.pluginsPage.refreshDashboard]);
 
-  const onSaveMemoryProvider = async () => {
-    const provider = memorySel === MEMORY_PROVIDER_BUILTIN ? "" : memorySel;
-    setMemoryBusy(true);
-    try {
-      if (!provider) {
-        await api.setMemoryProvider("");
-      } else {
-        const visibleValues = Object.fromEntries(
-          Object.entries(memoryValues).filter(([key]) => {
-            const field = memoryConfig?.fields.find((candidate) => candidate.key === key);
-            return field ? fieldIsVisible(field, memoryValues) : true;
-          }),
-        );
-        await api.updateMemoryProviderConfig(provider, visibleValues);
-      }
-      showToast(t.pluginsPage.savedProviders, "success");
-      await loadHub();
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : "Save failed", "error");
-    } finally {
-      setMemoryBusy(false);
-    }
-  };
-
-  const currentVisibleMemoryValues = () =>
-    Object.fromEntries(
-      Object.entries(memoryValues).filter(([key]) => {
-        const field = memoryConfig?.fields.find((candidate) => candidate.key === key);
-        return field ? fieldIsVisible(field, memoryValues) : true;
-      }),
-    );
-
-  const onSetupMemoryProvider = async () => {
-    const provider = memorySel === MEMORY_PROVIDER_BUILTIN ? "" : memorySel;
-    if (!provider) return;
-
-    setMemorySetupBusy(true);
-    setMemorySetupResults(null);
-    try {
-      const result = await api.setupMemoryProvider(provider, currentVisibleMemoryValues());
-      setMemorySetupResults(result.results);
-      const failed = result.results.filter((row) => row.status === "failed");
-      if (failed.length) {
-        const names = Array.from(new Set(failed.map((row) => row.name))).join(", ");
-        showToast(`Provider setup failed: ${names || provider}. See setup results below.`, "error");
-      } else {
-        showToast("Provider setup finished", "success");
-      }
-      await loadHub(provider);
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : "Provider setup failed", "error");
-    } finally {
-      setMemorySetupBusy(false);
-    }
-  };
-
-  const onSaveContextEngine = async () => {
-    setContextBusy(true);
-    try {
-      await api.savePluginProviders({ context_engine: contextSel });
-      showToast(t.pluginsPage.savedProviders, "success");
-      await loadHub();
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : "Save failed", "error");
-    } finally {
-      setContextBusy(false);
-    }
-  };
-
   const setRuntimeLoading = async (name: string, fn: () => Promise<unknown>) => {
     setRowBusy(name);
     try {
@@ -505,16 +792,6 @@ export default function PluginsPage() {
   };
 
   const rows = hub?.plugins ?? [];
-  const providers = hub?.providers;
-  const selectedMemoryName = memorySel === MEMORY_PROVIDER_BUILTIN ? "" : memorySel;
-  const selectedMemoryInfo = selectedMemoryName
-    ? providers?.memory_options.find((provider) => provider.name === selectedMemoryName)
-    : null;
-  const activeMemoryInfo = providers?.memory_provider
-    ? providers.memory_options.find((provider) => provider.name === providers.memory_provider)
-    : null;
-  const visibleMemoryFields =
-    memoryConfig?.fields.filter((field) => fieldIsVisible(field, memoryValues)) ?? [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -522,249 +799,6 @@ export default function PluginsPage() {
 
       <div className={cn("flex w-full flex-col gap-8")}>
 
-        {providers && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t.pluginsPage.providersHeading}</CardTitle>
-              <p className="text-xs tracking-[0.08em] text-text-tertiary">
-                Configure memory providers and runtime context engine selection.
-              </p>
-            </CardHeader>
-
-            <CardContent className="flex flex-col gap-6">
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.65fr)]">
-                <div className="flex flex-col gap-4 min-w-0">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Label htmlFor="mem-provider">{t.pluginsPage.memoryProviderLabel}</Label>
-                      {selectedMemoryName && selectedMemoryInfo && (
-                        <Badge tone={MEMORY_STATUS_TONE[selectedMemoryInfo.status]}>
-                          {MEMORY_STATUS_LABEL[selectedMemoryInfo.status]}
-                        </Badge>
-                      )}
-                      {selectedMemoryName && selectedMemoryName === providers.memory_provider && (
-                        <Badge tone="outline">active</Badge>
-                      )}
-                      {!selectedMemoryName && !providers.memory_provider && (
-                        <Badge tone="success">active</Badge>
-                      )}
-                    </div>
-
-                    <Select
-                      id="mem-provider"
-                      className="w-full"
-                      value={memorySel}
-                      onValueChange={setMemorySel}
-                    >
-                      <SelectOption value={MEMORY_PROVIDER_BUILTIN}>
-                        {`(${t.pluginsPage.providerDefaults})`}
-                      </SelectOption>
-
-                      {providers.memory_options.map((o) => (
-                        <SelectOption key={o.name} value={o.name}>
-                          {o.name}
-                        </SelectOption>
-                      ))}
-                    </Select>
-                  </div>
-
-                  {!selectedMemoryName && (
-                    <p className="text-xs text-muted-foreground">
-                      Work4You will use the built-in MEMORY.md and USER.md files.
-                    </p>
-                  )}
-
-                  {activeMemoryInfo?.status === "missing" && (
-                    <p className="border border-destructive/50 px-3 py-2 text-xs text-destructive">
-                      Active provider {providers.memory_provider} is no longer installed. Select another provider and save.
-                    </p>
-                  )}
-
-                  {selectedMemoryName && selectedMemoryInfo?.description && (
-                    <p className="text-xs text-muted-foreground">
-                      {selectedMemoryInfo.description}
-                    </p>
-                  )}
-
-                  {selectedMemoryName && selectedMemoryInfo && (
-                    <MemoryProviderSetupHint
-                      installing={memorySetupBusy}
-                      onInstall={() => void onSetupMemoryProvider()}
-                      provider={selectedMemoryInfo}
-                      results={memorySetupResults}
-                    />
-                  )}
-
-                  {selectedMemoryName && selectedMemoryInfo?.status === "needs_config" && (
-                    <p className="border border-warning/50 px-3 py-2 text-xs text-warning">
-                      Provider dependencies are installed. Add the required credentials or self-hosted URL below, then save the provider.
-                    </p>
-                  )}
-
-                  {selectedMemoryName && memoryConfigBusy && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Spinner /> Loading provider settings…
-                    </div>
-                  )}
-
-                  {selectedMemoryName && !memoryConfigBusy && visibleMemoryFields.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      This provider does not expose dashboard settings.
-                    </p>
-                  )}
-
-                  {selectedMemoryName && !memoryConfigBusy && visibleMemoryFields.length > 0 && (
-                    <div className="grid gap-4 border border-border p-4">
-                      {visibleMemoryFields.map((field) => {
-                        const value = memoryValues[field.key];
-                        const secretIsVisible = !!secretVisible[field.key];
-                        return (
-                          <div key={field.key} className="grid gap-2 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Label htmlFor={`memory-${field.key}`}>{field.label}</Label>
-                              {field.required && <Badge tone="outline">required</Badge>}
-                              {field.kind === "secret" && field.is_set && !value && (
-                                <Badge tone="success">set</Badge>
-                              )}
-                              {field.url && (
-                                <a
-                                  href={field.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs underline"
-                                >
-                                  Open <ExternalLink className="h-3 w-3" />
-                                </a>
-                              )}
-                            </div>
-
-                            {field.kind === "select" ? (
-                              <Select
-                                id={`memory-${field.key}`}
-                                className="w-full"
-                                value={String(value ?? "")}
-                                onValueChange={(next) =>
-                                  setMemoryValues((current) => ({ ...current, [field.key]: next }))
-                                }
-                              >
-                                {field.options.map((option) => (
-                                  <SelectOption key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectOption>
-                                ))}
-                              </Select>
-                            ) : field.kind === "boolean" ? (
-                              <Switch
-                                checked={Boolean(value)}
-                                onCheckedChange={(next) =>
-                                  setMemoryValues((current) => ({ ...current, [field.key]: next }))
-                                }
-                              />
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  id={`memory-${field.key}`}
-                                  type={
-                                    field.kind === "secret" && !secretIsVisible
-                                      ? "password"
-                                      : field.kind === "integer" || field.kind === "number"
-                                        ? "number"
-                                        : "text"
-                                  }
-                                  min={field.minimum ?? undefined}
-                                  max={field.maximum ?? undefined}
-                                  step={
-                                    field.step ?? (field.kind === "integer" ? 1 : undefined)
-                                  }
-                                  value={String(value ?? "")}
-                                  placeholder={
-                                    field.kind === "secret" && field.is_set
-                                      ? "Leave blank to keep existing value"
-                                      : field.placeholder
-                                  }
-                                  onChange={(event) =>
-                                    setMemoryValues((current) => ({
-                                      ...current,
-                                      [field.key]: event.target.value,
-                                    }))
-                                  }
-                                />
-                                {field.kind === "secret" && (
-                                  <Button
-                                    ghost
-                                    size="icon"
-                                    aria-label={secretIsVisible ? "Hide secret" : "Show secret"}
-                                    onClick={() =>
-                                      setSecretVisible((current) => ({
-                                        ...current,
-                                        [field.key]: !current[field.key],
-                                      }))
-                                    }
-                                  >
-                                    {secretIsVisible ? (
-                                      <EyeOff className="h-3.5 w-3.5" />
-                                    ) : (
-                                      <Eye className="h-3.5 w-3.5" />
-                                    )}
-                                  </Button>
-                                )}
-                              </div>
-                            )}
-
-                            {field.description && (
-                              <p className="text-xs text-muted-foreground">{field.description}</p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <Button
-                    className="w-fit uppercase"
-                    size="sm"
-                    disabled={memoryBusy || memoryConfigBusy || memorySetupBusy}
-                    onClick={() => void onSaveMemoryProvider()}
-                    prefix={memoryBusy ? <Spinner /> : undefined}
-                  >
-                    Save memory provider
-                  </Button>
-                </div>
-
-                <div className="grid content-start gap-3 min-w-0">
-                  <Label htmlFor="ctx-engine">{t.pluginsPage.contextEngineLabel}</Label>
-
-                  <Select
-                    id="ctx-engine"
-                    className="w-full"
-                    value={contextSel}
-                    onValueChange={setContextSel}
-                  >
-                    <SelectOption value="compressor">compressor</SelectOption>
-
-                    {providers.context_options
-                      .filter((o) => o.name !== "compressor")
-                      .map((o) => (
-                        <SelectOption key={o.name} value={o.name}>
-                          {o.name}
-                        </SelectOption>
-                      ))}
-                  </Select>
-
-                  <Button
-                    className="w-fit uppercase"
-                    size="sm"
-                    disabled={contextBusy}
-                    onClick={() => void onSaveContextEngine()}
-                    prefix={contextBusy ? <Spinner /> : undefined}
-                  >
-                    Save context engine
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         <Card>
           <CardHeader>
@@ -838,6 +872,11 @@ export default function PluginsPage() {
           <h3 className="font-mondwest text-display text-xs tracking-[0.12em] text-text-secondary">
             {t.pluginsPage.pluginListHeading}
           </h3>
+
+          <p className="text-xs text-muted-foreground">
+            {t.pluginsPage.cacheNote ??
+              "Plugin toggles apply to new sessions."}
+          </p>
 
           {loading ? (
 

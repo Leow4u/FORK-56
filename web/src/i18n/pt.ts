@@ -366,6 +366,7 @@ export const pt: Translations = {
     pluginListHeading: "Plugins instalados",
     providerDefaults: "incorporado / predefinido",
     providersHeading: "Plugins de fornecedor em runtime",
+    cacheNote: "Alterações em plugins valem para novas sessões.",
     providersHint:
       "Escreve memory.provider (vazio = incorporado) e context.engine no config.yaml. Aplicado na próxima sessão.",
     refreshDashboard: "Re-analisar extensões do dashboard",
