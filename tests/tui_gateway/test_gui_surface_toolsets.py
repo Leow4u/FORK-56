@@ -63,6 +63,10 @@ class TestSurfaceResolution:
         """THE regression: a desktop client on a remote/cloud backend."""
         assert "desktop_ui" in server._gui_surface_toolsets("desktop")
 
+    def test_web_session_gets_them_with_no_desktop_env(self, no_desktop_env):
+        """Thin-chat dashboard client — honest source:web, not fake desktop."""
+        assert "desktop_ui" in server._gui_surface_toolsets("web")
+
     def test_tui_session_does_not(self, no_desktop_env):
         assert "desktop_ui" not in server._gui_surface_toolsets("tui")
 
@@ -76,7 +80,7 @@ class TestSurfaceResolution:
         assert "desktop_ui" not in server._gui_surface_toolsets("tui")
 
     def test_project_tools_ride_on_every_gui_surface(self, no_desktop_env):
-        for platform in ("desktop", "tui"):
+        for platform in ("desktop", "tui", "web"):
             assert "project" in server._gui_surface_toolsets(platform)
 
 
@@ -88,6 +92,11 @@ class TestResolverPlumbing:
         no_desktop_env.setattr(cc, "coding_selection", lambda **_: ["coding"])
 
         assert server._load_enabled_toolsets("desktop") == [
+            "coding",
+            "desktop_ui",
+            "project",
+        ]
+        assert server._load_enabled_toolsets("web") == [
             "coding",
             "desktop_ui",
             "project",

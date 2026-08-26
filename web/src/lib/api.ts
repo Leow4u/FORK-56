@@ -481,6 +481,10 @@ export const api = {
     fetchJSON<FsReadTextResponse>(
       `/api/fs/read-text?path=${encodeURIComponent(path)}`,
     ),
+  readFsDataUrl: (path: string) =>
+    fetchJSON<{ dataUrl: string }>(
+      `/api/fs/read-data-url?path=${encodeURIComponent(path)}`,
+    ),
   /** Session-cwd git review (agent host) — same surface as desktop remote. */
   gitReviewList: (path: string, scope = "uncommitted", base?: string | null) => {
     const qs = new URLSearchParams({ path, scope });

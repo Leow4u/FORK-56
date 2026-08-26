@@ -4633,7 +4633,10 @@ def _gui_surface_toolsets(platform: str) -> set[str]:
     app". See the surface-capability rule in AGENTS.md.
     """
     surfaces = {"project"}
-    if platform == "desktop":
+    # GUI clients that can answer desktop_ui bridge events. Keep ``source``
+    # honest — thin chat uses ``web``, desktop uses ``desktop``. Never key
+    # this off ``WORK4YOU_DESKTOP`` (process env ≠ watching client).
+    if platform in {"desktop", "web"}:
         surfaces.add("desktop_ui")
     return surfaces
 

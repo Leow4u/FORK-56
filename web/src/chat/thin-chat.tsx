@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type MutableRefObject,
 } from "react";
@@ -9,12 +10,24 @@ import {
 import { cn } from "@/lib/utils";
 
 import { EmptyHome } from "./empty-home";
-import { RightContextPane } from "./right-context-pane";
+import {
+  EMPTY_PREVIEW_STATE,
+  openPreviewTarget,
+  parsePreviewOpenPayload,
+  type PreviewState,
+} from "./preview/preview-state";
+import { RightContextPane, type RightContextTab } from "./right-context-pane";
 import {
   readFilesPaneOpen,
   writeFilesPaneOpen,
 } from "./right-files";
 import { SessionView } from "./session-view";
+import {
+  EMPTY_AGENT_TERMINAL_STATE,
+  appendAgentOutput,
+  closeAgentTerminal,
+  type AgentTerminalState,
+} from "./terminal/agent-terminals";
 import type { ThinChatPhase } from "./types";
 import { useComposerAttachments } from "./use-composer-attachments";
 import { useThinChatGateway } from "./use-thin-chat-gateway";
@@ -65,6 +78,13 @@ export function ThinChat({
   const [filesPaneOpenLocal, setFilesPaneOpenLocal] = useState(() =>
     readFilesPaneOpen(profile),
   );
+  const [rightTab, setRightTab] = useState<RightContextTab>("files");
+  const [previewState, setPreviewState] =
+    useState<PreviewState>(EMPTY_PREVIEW_STATE);
+  const [agentTerminals, setAgentTerminals] = useState<AgentTerminalState>(
+    EMPTY_AGENT_TERMINAL_STATE,
+  );
+  const terminalBufferRef = useRef<(() => string) | null>(null);
   const filesPaneOpen = filesPaneOpenProp ?? filesPaneOpenLocal;
 
   useEffect(() => {
@@ -81,6 +101,99 @@ export function ThinChat({
     },
     [onFilesPaneOpenChange, profile],
   );
+
+  const handlePreviewOpen = useCallback(
+    (payload: Record<string, unknown>) => {
+      const target = parsePreviewOpenPayload(payload);
+      if (!target) return;
+      setPreviewState((prev) => openPreviewTarget(prev, target));
+      setRightTab("preview");
+      setFilesPaneOpen(true);
+    },
+    [setFilesPaneOpen],
+  );
+
+  const handlePreviewClose = useCallback(() => {
+    setPreviewState(EMPTY_PREVIEW_STATE);
+  }, []);
+
+  const handlePaneReveal = useCallback(
+    (pane: string) => {
+      const map: Record<string, RightContextTab> = {
+        files: "files",
+        file: "files",
+        "file-browser": "files",
+        review: "review",
+        preview: "preview",
+        terminal: "terminal",
+      };
+      const tab = map[pane.toLowerCase()];
+      if (tab) {
+        setRightTab(tab);
+        setFilesPaneOpen(true);
+      }
+    },
+    [setFilesPaneOpen],
+  );
+
+  const handleOpenFilePreview = useCallback(
+    (path: string) => {
+      const trimmed = path.trim();
+      if (!trimmed) return;
+      setPreviewState((prev) =>
+        openPreviewTarget(prev, {
+          kind: "file",
+          label: trimmed.split(/[\\/]/).filter(Boolean).pop() || trimmed,
+          url: trimmed,
+          path: trimmed,
+          source: "files-pane",
+        }),
+      );
+      setRightTab("preview");
+      setFilesPaneOpen(true);
+    },
+    [setFilesPaneOpen],
+  );
+
+  const handleAgentTerminalOutput = useCallback(
+    (processId: string, chunk: string) => {
+      setAgentTerminals((prev) => {
+        const existed = prev.tabs.some((t) => t.processId === processId);
+        const next = appendAgentOutput(prev, processId, chunk);
+        if (!existed && next.tabs.some((t) => t.processId === processId)) {
+          queueMicrotask(() => {
+            setRightTab("terminal");
+            setFilesPaneOpen(true);
+          });
+        }
+        return next;
+      });
+    },
+    [setFilesPaneOpen],
+  );
+
+  const handleAgentTerminalClose = useCallback((processId: string) => {
+    setAgentTerminals((prev) => closeAgentTerminal(prev, processId));
+  }, []);
+
+  const getTerminalText = useCallback(
+    () => terminalBufferRef.current?.() ?? "",
+    [],
+  );
+
+  const getPreviewSnapshot = useCallback(() => {
+    const tab =
+      previewState.activeIndex >= 0
+        ? previewState.tabs[previewState.activeIndex]
+        : null;
+    if (!tab) return null;
+    return {
+      kind: tab.kind,
+      label: tab.label,
+      url: tab.url,
+      path: tab.path,
+    };
+  }, [previewState]);
 
   const {
     phase,
@@ -119,6 +232,13 @@ export function ThinChat({
     onStoredSessionId,
     onTitle,
     onPhaseChange,
+    onPreviewOpen: handlePreviewOpen,
+    onPreviewClose: handlePreviewClose,
+    onPaneReveal: handlePaneReveal,
+    getTerminalText,
+    getPreviewSnapshot,
+    onAgentTerminalOutput: handleAgentTerminalOutput,
+    onAgentTerminalClose: handleAgentTerminalClose,
   });
 
   const insertSnippet = useCallback((text: string) => {
@@ -405,6 +525,14 @@ export function ThinChat({
               }}
               onClose={() => setFilesPaneOpen(false)}
               onAddPathToChat={addPathToChat}
+              onOpenFilePreview={handleOpenFilePreview}
+              tab={rightTab}
+              onTabChange={setRightTab}
+              previewState={previewState}
+              onPreviewChange={setPreviewState}
+              terminalBufferRef={terminalBufferRef}
+              agentTerminals={agentTerminals}
+              onAgentTerminalsChange={setAgentTerminals}
               className="bg-background"
             />
           </div>

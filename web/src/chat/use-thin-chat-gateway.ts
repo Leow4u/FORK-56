@@ -176,6 +176,15 @@ export interface UseThinChatGatewayOptions {
   onStoredSessionId?: (storedId: string | null) => void;
   onTitle?: (title: string | null) => void;
   onPhaseChange?: (phase: ThinChatPhase) => void;
+  /** GUI bridge: preview.open from desktop_ui tools. */
+  onPreviewOpen?: (payload: Record<string, unknown>) => void;
+  onPreviewClose?: () => void;
+  onPaneReveal?: (pane: string) => void;
+  getTerminalText?: () => string;
+  getPreviewSnapshot?: () => Record<string, unknown> | null;
+  /** Background-process agent terminal stream (desktop_ui / process_registry). */
+  onAgentTerminalOutput?: (processId: string, chunk: string) => void;
+  onAgentTerminalClose?: (processId: string) => void;
 }
 
 export interface UseThinChatGatewayResult {
@@ -236,6 +245,13 @@ export function useThinChatGateway(
     onStoredSessionId,
     onTitle,
     onPhaseChange,
+    onPreviewOpen,
+    onPreviewClose,
+    onPaneReveal,
+    getTerminalText,
+    getPreviewSnapshot,
+    onAgentTerminalOutput,
+    onAgentTerminalClose,
   } = options;
 
   const [version, setVersion] = useState(0);
@@ -299,13 +315,39 @@ export function useThinChatGateway(
   const onStoredSessionIdRef = useRef(onStoredSessionId);
   const onTitleRef = useRef(onTitle);
   const onPhaseChangeRef = useRef(onPhaseChange);
+  const onPreviewOpenRef = useRef(onPreviewOpen);
+  const onPreviewCloseRef = useRef(onPreviewClose);
+  const onPaneRevealRef = useRef(onPaneReveal);
+  const getTerminalTextRef = useRef(getTerminalText);
+  const getPreviewSnapshotRef = useRef(getPreviewSnapshot);
+  const onAgentTerminalOutputRef = useRef(onAgentTerminalOutput);
+  const onAgentTerminalCloseRef = useRef(onAgentTerminalClose);
 
   useEffect(() => {
     profileRef.current = profile;
     onStoredSessionIdRef.current = onStoredSessionId;
     onTitleRef.current = onTitle;
     onPhaseChangeRef.current = onPhaseChange;
-  }, [profile, onStoredSessionId, onTitle, onPhaseChange]);
+    onPreviewOpenRef.current = onPreviewOpen;
+    onPreviewCloseRef.current = onPreviewClose;
+    onPaneRevealRef.current = onPaneReveal;
+    getTerminalTextRef.current = getTerminalText;
+    getPreviewSnapshotRef.current = getPreviewSnapshot;
+    onAgentTerminalOutputRef.current = onAgentTerminalOutput;
+    onAgentTerminalCloseRef.current = onAgentTerminalClose;
+  }, [
+    profile,
+    onStoredSessionId,
+    onTitle,
+    onPhaseChange,
+    onPreviewOpen,
+    onPreviewClose,
+    onPaneReveal,
+    getTerminalText,
+    getPreviewSnapshot,
+    onAgentTerminalOutput,
+    onAgentTerminalClose,
+  ]);
 
   useEffect(() => {
     onPhaseChangeRef.current?.(phase);
@@ -663,6 +705,110 @@ export function useThinChatGateway(
             requestId: payload.request_id,
             sessionId: eventSid,
           }).catch(() => undefined);
+        }
+      }
+
+      // desktop_ui bridge — answer read-backs; surface open/reveal to UI.
+      const bridgePayload =
+        ev.payload && typeof ev.payload === "object"
+          ? (ev.payload as Record<string, unknown>)
+          : null;
+
+      if (ev.type === "preview.open" && bridgePayload) {
+        onPreviewOpenRef.current?.(bridgePayload);
+      }
+      if (ev.type === "preview.close") {
+        onPreviewCloseRef.current?.();
+      }
+      if (ev.type === "pane.reveal") {
+        const pane =
+          typeof bridgePayload?.pane === "string" ? bridgePayload.pane : "";
+        if (pane) onPaneRevealRef.current?.(pane);
+      }
+      if (ev.type === "terminal.read.request") {
+        const requestId =
+          typeof bridgePayload?.request_id === "string"
+            ? bridgePayload.request_id
+            : "";
+        if (requestId) {
+          const text = getTerminalTextRef.current?.() ?? "";
+          void gw
+            .request("terminal.read.respond", {
+              request_id: requestId,
+              text: text
+                ? JSON.stringify({ text, truncated: false })
+                : "",
+            })
+            .catch(() => undefined);
+        }
+      }
+      if (ev.type === "preview.read.request") {
+        const requestId =
+          typeof bridgePayload?.request_id === "string"
+            ? bridgePayload.request_id
+            : "";
+        if (requestId) {
+          const snap = getPreviewSnapshotRef.current?.() ?? null;
+          void gw
+            .request("preview.read.respond", {
+              request_id: requestId,
+              text: snap ? JSON.stringify(snap) : "",
+            })
+            .catch(() => undefined);
+        }
+      }
+      if (ev.type === "window.read.request") {
+        const requestId =
+          typeof bridgePayload?.request_id === "string"
+            ? bridgePayload.request_id
+            : "";
+        if (requestId) {
+          // No native window enumeration in the browser dashboard.
+          void gw
+            .request("window.read.respond", {
+              request_id: requestId,
+              text: "",
+            })
+            .catch(() => undefined);
+        }
+      }
+      if (ev.type === "tour.request") {
+        const requestId =
+          typeof bridgePayload?.request_id === "string"
+            ? bridgePayload.request_id
+            : "";
+        if (requestId) {
+          // Honest degrade: thin chat has no driver.js tour surface.
+          void gw
+            .request("tour.respond", {
+              request_id: requestId,
+              text: JSON.stringify({
+                success: false,
+                error:
+                  "Guided tours are not available in the web dashboard chat.",
+              }),
+            })
+            .catch(() => undefined);
+        }
+      }
+      if (ev.type === "agent.terminal.output" && bridgePayload) {
+        const processId =
+          typeof bridgePayload.process_id === "string"
+            ? bridgePayload.process_id
+            : "";
+        const chunk =
+          typeof bridgePayload.chunk === "string" ? bridgePayload.chunk : "";
+        if (processId) {
+          onAgentTerminalOutputRef.current?.(processId, chunk);
+        }
+      }
+      if (ev.type === "terminal.close" && bridgePayload) {
+        const processId =
+          typeof bridgePayload.process_id === "string"
+            ? bridgePayload.process_id
+            : "";
+        if (processId) {
+          onAgentTerminalCloseRef.current?.(processId);
         }
       }
 

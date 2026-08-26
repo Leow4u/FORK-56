@@ -21,6 +21,8 @@ export interface RightFilesPaneProps {
   onClose?: () => void;
   /** Insert a path reference into the composer draft. */
   onAddPathToChat?: (path: string) => void;
+  /** Open the file in the Preview tab (right-context Preview rail). */
+  onOpenFilePreview?: (path: string) => void;
   /** When true, skip the pane's own title row (parent provides tabs). */
   embedded?: boolean;
   className?: string;
@@ -61,6 +63,7 @@ export function RightFilesPane({
   onOpenWorkspace,
   onClose,
   onAddPathToChat,
+  onOpenFilePreview,
   embedded = false,
   className,
 }: RightFilesPaneProps) {
@@ -272,6 +275,17 @@ export function RightFilesPane({
                 >
                   {peek.path.split(/[\\/]/).filter(Boolean).pop() || peek.path}
                 </span>
+                {onOpenFilePreview && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    ghost
+                    className="h-6 px-1.5 text-[0.65rem]"
+                    onClick={() => onOpenFilePreview(peek.path)}
+                  >
+                    Open in Preview
+                  </Button>
+                )}
                 {onAddPathToChat && (
                   <Button
                     type="button"

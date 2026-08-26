@@ -17175,6 +17175,90 @@ async def pty_ws(ws: WebSocket) -> None:
 
 
 # ---------------------------------------------------------------------------
+# /api/shell-pty — interactive user shell for thin-chat right Terminal.
+#
+# Distinct from ``/api/pty`` which embeds ``work4you --tui``. This endpoint
+# spawns the user's login shell in the requested cwd (session workspace) so
+# the agent-host filesystem matches Files/Review. Same auth gates as /api/pty.
+# ---------------------------------------------------------------------------
+
+
+def _resolve_user_shell() -> list[str]:
+    shell = (os.environ.get("SHELL") or "").strip() or "/bin/bash"
+    return [shell, "-l"]
+
+
+@app.websocket("/api/shell-pty")
+async def shell_pty_ws(ws: WebSocket) -> None:
+    peer = ws.client.host if ws.client else "?"
+
+    if not _DASHBOARD_EMBEDDED_CHAT_ENABLED:
+        await ws.close(code=4404, reason="embedded chat disabled")
+        return
+
+    auth_reason, cred = _ws_auth_reason(ws)
+    mode = _ws_auth_mode()
+    if auth_reason is not None:
+        _log.warning(
+            "shell-pty auth rejected reason=%s mode=%s cred=%s peer=%s",
+            auth_reason, mode, cred, peer,
+        )
+        await ws.close(code=4401, reason=_ws_close_reason(f"auth: {auth_reason}"))
+        return
+
+    host_origin_reason = _ws_host_origin_reason(ws)
+    if host_origin_reason is not None:
+        await ws.close(code=4403, reason=_ws_close_reason(host_origin_reason))
+        return
+
+    client_reason = _ws_client_reason(ws)
+    if client_reason is not None:
+        await ws.close(code=4408, reason=_ws_close_reason(client_reason))
+        return
+
+    await ws.accept()
+    _log.info("shell-pty accepted peer=%s mode=%s cred=%s", peer, mode, cred)
+
+    if not _PTY_BRIDGE_AVAILABLE:
+        await ws.send_text(
+            "\r\n\x1b[31mShell unavailable: POSIX PTY required "
+            "(use WSL2 on Windows).\x1b[0m\r\n"
+        )
+        await ws.close(code=1011)
+        return
+
+    raw_cwd = (ws.query_params.get("cwd") or "").strip()
+    try:
+        cwd = str(_fs_path(raw_cwd)) if raw_cwd else str(Path.cwd())
+        if not Path(cwd).is_dir():
+            raise ValueError("not a directory")
+    except Exception as exc:
+        await ws.send_text(f"\r\n\x1b[31mInvalid cwd: {exc}\x1b[0m\r\n")
+        await ws.close(code=1011)
+        return
+
+    cols = int(ws.query_params.get("cols") or 80)
+    rows = int(ws.query_params.get("rows") or 24)
+    argv = _resolve_user_shell()
+    env = os.environ.copy()
+    env["TERM"] = env.get("TERM") or "xterm-256color"
+    env["COLORTERM"] = env.get("COLORTERM") or "truecolor"
+
+    try:
+        bridge = PtyBridge.spawn(argv, cwd=cwd, env=env, cols=cols, rows=rows)
+    except PtyUnavailableError as exc:
+        await ws.send_text(f"\r\n\x1b[31mShell unavailable: {exc}\x1b[0m\r\n")
+        await ws.close(code=1011)
+        return
+    except (FileNotFoundError, OSError) as exc:
+        await ws.send_text(f"\r\n\x1b[31mShell failed to start: {exc}\x1b[0m\r\n")
+        await ws.close(code=1011)
+        return
+
+    await _legacy_pump(ws, bridge)
+
+
+# ---------------------------------------------------------------------------
 # /api/ws — JSON-RPC WebSocket sidecar for the dashboard "Chat" tab.
 #
 # Drives the same `tui_gateway.dispatch` surface Ink uses over stdio, so the
