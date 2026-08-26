@@ -729,6 +729,12 @@ export const api = {
   // Cron jobs
   getCronJobs: (profile = "all") =>
     fetchJSON<CronJob[]>(`/api/cron/jobs?profile=${encodeURIComponent(profile)}`),
+  /** Run history for one job: the cron sessions it produced, newest first.
+   *  Same endpoint the desktop app's run history uses. */
+  getCronJobRuns: (id: string, profile = "default", limit = 10) =>
+    fetchJSON<{ runs: SessionInfo[] }>(
+      `/api/cron/jobs/${encodeURIComponent(id)}/runs?profile=${encodeURIComponent(profile)}&limit=${limit}`,
+    ),
   getCronDeliveryTargets: () =>
     fetchJSON<{ targets: CronDeliveryTarget[] }>("/api/cron/delivery-targets"),
   createCronJob: (job: CronJobMutation, profile = "default") =>

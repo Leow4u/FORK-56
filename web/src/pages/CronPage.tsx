@@ -3,7 +3,8 @@ import {
   type CronTriggerController,
   createCronTriggerController,
 } from "@work4you/shared";
-import { Clock, Pause, Pencil, Play, Trash2, X, Zap } from "lucide-react";
+import { Clock, History, Pause, Pencil, Play, Trash2, X, Zap } from "lucide-react";
+import { useNavigate } from "react-router";
 import { Badge } from "@work4you/ui/ui/components/badge";
 import { Button } from "@work4you/ui/ui/components/button";
 import { Select, SelectOption } from "@work4you/ui/ui/components/select";
@@ -15,6 +16,7 @@ import type {
   CronDeliveryTarget,
   ModelOptionsResponse,
   ProfileInfo,
+  SessionInfo,
   SkillInfo,
   ToolsetInfo,
 } from "@/lib/api";
@@ -22,6 +24,8 @@ import {
   buildCronJobPayload,
   cronJobHasExecutionContent,
   cronJobFormFromJob,
+  parseCronDeliveryTargets,
+  toggleCronDeliveryTarget,
   type CronJobFormState,
 } from "@/lib/cron-job";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
@@ -49,7 +53,7 @@ import { usePageHeader } from "@/contexts/usePageHeader";
 import { PluginSlot } from "@/plugins";
 import { Segmented } from "@work4you/ui/ui/components/segmented";
 import { AutomationBlueprints } from "@/components/AutomationBlueprints";
-import { cn, themedBody } from "@/lib/utils";
+import { cn, themedBody, timeAgo } from "@/lib/utils";
 
 function formatTime(iso?: string | null): string {
   if (!iso) return "—";
@@ -269,7 +273,7 @@ function CronAdvancedFields({
               checked={form.no_agent}
               onChange={(e) => update("no_agent", e.target.checked)}
             />
-            no_agent: run the script only and deliver stdout verbatim
+            Script only — skip the agent and deliver the script output as-is
           </label>
           <div className="grid gap-1">
             <Label htmlFor={`${idPrefix}-script`}>Script</Label>
@@ -283,7 +287,7 @@ function CronAdvancedFields({
         </div>
 
         <div className="grid gap-1">
-          <Label htmlFor={`${idPrefix}-workdir`}>Workdir</Label>
+          <Label htmlFor={`${idPrefix}-workdir`}>Working directory</Label>
           <Input
             id={`${idPrefix}-workdir`}
             value={form.workdir}
@@ -299,12 +303,14 @@ function CronAdvancedFields({
             checked={form.continuity}
             onChange={(e) => update("continuity", e.target.checked)}
           />
-          continuity: each run sees the previous run&apos;s output (dedupe, pick up where it left off)
-        </label>
+            Continuity — each run sees the previous run&apos;s output (dedupe, pick up where it left off)
+          </label>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="grid gap-1">
-            <Label htmlFor={`${idPrefix}-context-from`}>context_from job IDs</Label>
+            <Label htmlFor={`${idPrefix}-context-from`}>
+              Include output from other automations (job IDs)
+            </Label>
             <textarea
               id={`${idPrefix}-context-from`}
               className="flex min-h-[64px] w-full border border-border bg-background/40 px-3 py-2 text-xs font-courier shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30 focus-visible:border-foreground/25"
@@ -314,7 +320,7 @@ function CronAdvancedFields({
             />
           </div>
           <div className="grid gap-1">
-            <Label htmlFor={`${idPrefix}-toolsets`}>enabled_toolsets</Label>
+            <Label htmlFor={`${idPrefix}-toolsets`}>Toolsets</Label>
             <NameCheckboxPicker
               id={`${idPrefix}-toolsets`}
               available={availableToolsets}
@@ -355,17 +361,23 @@ function CronJobFormFields({
   const onlyLocalAvailable =
     deliveryTargets.filter((target) => target.id !== "local").length === 0;
 
-  const deliveryOptions = selectOptions(
-    form.deliver,
-    deliveryTargets.map((target) => {
-      const base = target.id === "local" ? t.cron.delivery.local : target.name;
-      if (target.id !== "local" && !target.home_target_set) {
-        const hint = t.cron.delivery.needsHomeChannel ?? "set a home channel first";
-        return { value: target.id, label: `${base} — ${hint}` };
-      }
-      return { value: target.id, label: base };
-    }),
-  );
+  // Multi-target delivery: the scheduler accepts comma-separated targets
+  // (desktop parity), so results can stay local AND go to connected
+  // platforms. Preserve selected targets missing from discovery so editing
+  // never drops a saved route.
+  const selectedDeliver = parseCronDeliveryTargets(form.deliver);
+  const knownDeliverIds = new Set(deliveryTargets.map((target) => target.id));
+  const deliverChoices = [
+    ...deliveryTargets,
+    ...selectedDeliver
+      .filter((target) => !knownDeliverIds.has(target))
+      .map((target) => ({
+        id: target,
+        name: target,
+        home_target_set: true,
+        home_env_var: null,
+      })),
+  ];
 
   return (
     <>
@@ -397,14 +409,46 @@ function CronJobFormFields({
       />
 
       <div className="grid gap-2">
-        <Label htmlFor={`${idPrefix}-deliver`}>{t.cron.deliverTo}</Label>
-        <Select
+        <Label id={`${idPrefix}-deliver-label`}>{t.cron.deliverTo}</Label>
+        <div
           id={`${idPrefix}-deliver`}
-          value={form.deliver}
-          onValueChange={(v) => update("deliver", v)}
+          role="group"
+          aria-labelledby={`${idPrefix}-deliver-label`}
+          className="grid gap-1 border border-border bg-background/40 p-2"
         >
-          {deliveryOptions}
-        </Select>
+          {deliverChoices.map((target) => {
+            const base =
+              target.id === "local" ? t.cron.delivery.local : target.name;
+            const needsHome = target.id !== "local" && !target.home_target_set;
+            const hint =
+              t.cron.delivery.needsHomeChannel ?? "set a home channel first";
+            return (
+              <label
+                key={target.id}
+                className="flex cursor-pointer items-center gap-2 px-1 py-0.5 text-xs hover:bg-muted/40"
+              >
+                <input
+                  type="checkbox"
+                  className="accent-foreground"
+                  checked={selectedDeliver.includes(target.id)}
+                  onChange={(e) =>
+                    update(
+                      "deliver",
+                      toggleCronDeliveryTarget(
+                        form.deliver,
+                        target.id,
+                        e.target.checked,
+                      ),
+                    )
+                  }
+                />
+                <span className="truncate">
+                  {needsHome ? `${base} — ${hint}` : base}
+                </span>
+              </label>
+            );
+          })}
+        </div>
         {onlyLocalAvailable && (
           <p className="text-xs text-muted-foreground">
             {t.cron.delivery.noneConfigured ??
@@ -436,6 +480,77 @@ function CronJobFormFields({
         availableToolsets={availableToolsets}
       />
     </>
+  );
+}
+
+/**
+ * Run history for one automation — the cron sessions it produced (same
+ * `/api/cron/jobs/{id}/runs` endpoint the desktop run history uses).
+ * Picking a run opens that session in the chat.
+ */
+function JobRunsList({ jobId, profile }: { jobId: string; profile: string }) {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const [runs, setRuns] = useState<SessionInfo[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getCronJobRuns(jobId, profile || "default")
+      .then((resp) => {
+        if (!cancelled) setRuns(resp.runs ?? []);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, profile]);
+
+  if (error) return <p className="text-xs text-destructive">{error}</p>;
+  if (runs === null) {
+    return (
+      <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground">
+        <Spinner /> {t.common.loading}
+      </div>
+    );
+  }
+  if (runs.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {t.cron.noRuns ?? "No runs yet"}
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-0.5">
+      {runs.map((run) => (
+        <button
+          key={run.id}
+          type="button"
+          onClick={() => navigate(`/chat?resume=${encodeURIComponent(run.id)}`)}
+          className={cn(
+            "flex w-full items-center gap-2 px-1 py-1 text-left text-xs",
+            "text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground",
+          )}
+        >
+          <History className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="shrink-0 font-mono-ui">
+            {timeAgo(run.last_active)}
+          </span>
+          {run.message_count > 0 && (
+            <span className="shrink-0">· {run.message_count} msgs</span>
+          )}
+          {(run.title || run.preview) && (
+            <span className="min-w-0 truncate">
+              · {truncateText((run.title || run.preview) ?? "", 80)}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -550,6 +665,12 @@ export default function CronPage() {
   const [selectedProfile, setSelectedProfile] = useState("all");
   const [view, setView] = useState<"jobs" | "blueprints">("jobs");
   const [loading, setLoading] = useState(true);
+  // Per-job run-history expansion (jobKey set).
+  const [runsOpen, setRunsOpen] = useState<Set<string>>(new Set());
+  // Blueprints are the front door for first-time users: when the first
+  // load comes back with zero jobs, land on the gallery instead of an
+  // empty list. Applied once so the user's tab choice is never fought.
+  const blueprintsDefaultAppliedRef = useRef(false);
   const { toast, showToast } = useToast();
   const { t, locale } = useI18n();
   const { setEnd } = usePageHeader();
@@ -627,7 +748,13 @@ export default function CronPage() {
         if (
           jobsRequestGenerationRef.current === generation &&
           selectedProfileRef.current === profile
-        ) setJobs(nextJobs);
+        ) {
+          setJobs(nextJobs);
+          if (!blueprintsDefaultAppliedRef.current) {
+            blueprintsDefaultAppliedRef.current = true;
+            if (nextJobs.length === 0) setView("blueprints");
+          }
+        }
       })
       .catch(() => {
         if (
@@ -705,7 +832,7 @@ export default function CronPage() {
       return;
     }
     if (payload.no_agent && !payload.script) {
-      showToast("no_agent jobs require a script", "error");
+      showToast("Script-only automations require a script", "error");
       return;
     }
     setCreating(true);
@@ -733,7 +860,7 @@ export default function CronPage() {
       return;
     }
     if (payload.no_agent && !payload.script) {
-      showToast("no_agent jobs require a script", "error");
+      showToast("Script-only automations require a script", "error");
       return;
     }
     setSaving(true);
@@ -878,6 +1005,11 @@ export default function CronPage() {
         ]}
       />
 
+      <p className="text-xs text-muted-foreground">
+        {t.cron.alwaysOnNote ??
+          "Scheduled automations fire only while your agent is running — keep it always-on for hands-off schedules."}
+      </p>
+
       {view === "blueprints" && (
         <AutomationBlueprints
           profile={selectedProfile === "all" ? "default" : selectedProfile}
@@ -1002,7 +1134,7 @@ export default function CronPage() {
                 id="edit-cron-title"
                 className="font-mondwest text-display text-base tracking-wider"
               >
-                Edit job
+                Edit automation
               </h2>
             </header>
 
@@ -1170,9 +1302,37 @@ export default function CronPage() {
                       {job.last_error}
                     </p>
                   )}
+                  {runsOpen.has(jobKey) && (
+                    <div className="mt-2 border-t border-border/50 pt-2">
+                      <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {t.cron.runsTitle ?? "Recent runs"}
+                      </div>
+                      <JobRunsList jobId={asText(job.id)} profile={profile} />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    ghost
+                    size="icon"
+                    title={t.cron.showRuns ?? "Run history"}
+                    aria-label={t.cron.showRuns ?? "Run history"}
+                    aria-pressed={runsOpen.has(jobKey)}
+                    onClick={() =>
+                      setRunsOpen((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(jobKey)) next.delete(jobKey);
+                        else next.add(jobKey);
+                        return next;
+                      })
+                    }
+                    className={
+                      runsOpen.has(jobKey) ? "text-foreground" : undefined
+                    }
+                  >
+                    <History />
+                  </Button>
                   <Button
                     ghost
                     size="icon"
@@ -1202,8 +1362,8 @@ export default function CronPage() {
                   <Button
                     ghost
                     size="icon"
-                    title="Edit job"
-                    aria-label="Edit job"
+                    title="Edit automation"
+                    aria-label="Edit automation"
                     onClick={() => openEditModal(job)}
                   >
                     <Pencil />

@@ -330,6 +330,11 @@ export interface Translations {
     };
     deliverTo: string;
     scheduledJobs: string;
+    /** Automations polish — optional; English fallback in components. */
+    alwaysOnNote?: string;
+    runsTitle?: string;
+    noRuns?: string;
+    showRuns?: string;
     noJobs: string;
     last: string;
     next: string;

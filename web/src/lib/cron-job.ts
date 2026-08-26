@@ -27,6 +27,36 @@ export function splitCronList(value: unknown): string[] {
   return items.map((item) => String(item).trim()).filter(Boolean);
 }
 
+/** Parse a comma-separated deliver value into unique target ids.
+ * Falls back to ["local"] when empty. Ported from the desktop app's
+ * cron-job-model so both frontends speak the scheduler's format. */
+export function parseCronDeliveryTargets(value: string): string[] {
+  const targets = value
+    .split(",")
+    .map((target) => target.trim())
+    .filter(Boolean);
+  return targets.length > 0 ? [...new Set(targets)] : ["local"];
+}
+
+/** Toggle one target in a comma-separated deliver value. Never empties the
+ * selection (the last remaining target stays). Ported from the desktop app. */
+export function toggleCronDeliveryTarget(
+  value: string,
+  target: string,
+  checked: boolean,
+): string {
+  const targets = parseCronDeliveryTargets(value);
+  if (checked) {
+    return targets.includes(target)
+      ? targets.join(",")
+      : [...targets, target].join(",");
+  }
+  if (!targets.includes(target) || targets.length === 1) {
+    return targets.join(",");
+  }
+  return targets.filter((candidate) => candidate !== target).join(",");
+}
+
 /** Trim to a non-empty string, or null. Optionally strip trailing slashes
  * (base URLs). Mirrors the backend's `_cron_optional_text`. */
 function optionalText(value: string, stripTrailingSlash = false): string | null {
