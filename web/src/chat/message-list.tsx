@@ -150,7 +150,7 @@ export function MessageList({
 
   const showThinking = shouldShowThinking(messages, busy);
 
-  const loadEarlierVisible = showLoadEarlier || canLoadEarlier;
+  const loadEarlierVisible = canLoadEarlier;
 
   return (
     <div className="relative min-h-0 flex-1">

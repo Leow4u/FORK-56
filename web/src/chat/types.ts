@@ -12,6 +12,8 @@ export interface ChatMessage {
   text: string;
   /** True while the assistant bubble is still streaming. */
   streaming?: boolean;
+  /** Sealed interim segment (tool boundary / verify-on-stop preview). */
+  interim?: boolean;
   /** Stable tool row key from gateway ``tool_id``. */
   toolId?: string;
 }
