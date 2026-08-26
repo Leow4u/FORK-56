@@ -57,6 +57,7 @@ function ToolLine({ text }: { text: string }) {
 }
 
 function ReasoningBlock({ text, streaming }: { text: string; streaming?: boolean }) {
+  if (!text.trim()) return null;
   return (
     <div className="mx-auto flex w-full max-w-3xl justify-start">
       <details

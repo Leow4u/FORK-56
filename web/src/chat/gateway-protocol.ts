@@ -220,7 +220,7 @@ export function applyGatewayEvent(
       return { messages: appendReasoningDelta(messages, chunk), turn };
     }
     case "reasoning.available": {
-      const text = coerceEventText(payload);
+      const text = coerceEventText(payload).trim();
       if (!text) return { messages, turn };
       return { messages: replaceReasoningBlock(messages, text), turn };
     }
@@ -459,6 +459,36 @@ function sealStreaming(messages: ChatMessage[]): ChatMessage[] {
   return changed ? next : messages;
 }
 
+/** Reasoning row for the open turn (sits before the trailing assistant/tools). */
+function findTurnReasoningIndex(messages: ChatMessage[]): number {
+  let i = messages.length - 1;
+  while (i >= 0 && messages[i].role === "tool") {
+    i -= 1;
+  }
+  if (i >= 0 && messages[i].role === "assistant") {
+    i -= 1;
+  }
+  while (i >= 0 && messages[i].role === "tool") {
+    i -= 1;
+  }
+  if (i >= 0 && messages[i].role === "reasoning") {
+    return i;
+  }
+  return -1;
+}
+
+function turnReasoningText(messages: ChatMessage[]): string {
+  const idx = findTurnReasoningIndex(messages);
+  return idx >= 0 ? messages[idx].text.trim() : "";
+}
+
+function pruneEmptyReasoning(messages: ChatMessage[]): ChatMessage[] {
+  const next = messages.filter(
+    (m) => m.role !== "reasoning" || m.text.trim().length > 0,
+  );
+  return next.length === messages.length ? messages : next;
+}
+
 function appendAssistantDelta(
   messages: ChatMessage[],
   turn: ThinChatTurnState,
@@ -507,6 +537,37 @@ function appendReasoningDelta(
     next[next.length - 1] = { ...last, text: last.text + chunk };
     return next;
   }
+
+  const turnIdx = findTurnReasoningIndex(messages);
+  if (turnIdx >= 0) {
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant");
+    if (
+      lastAssistant?.text.trim() &&
+      !lastAssistant.streaming &&
+      messages[turnIdx].text.trim()
+    ) {
+      return messages;
+    }
+
+    const next = messages.slice();
+    const row = next[turnIdx];
+    next[turnIdx] = {
+      ...row,
+      text: row.text + chunk,
+      streaming: row.streaming !== false,
+    };
+    return next;
+  }
+
+  const lastAssistant = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant");
+  if (lastAssistant?.text.trim() && !lastAssistant.streaming) {
+    return messages;
+  }
+
   return [
     ...sealStreaming(messages),
     {
@@ -522,15 +583,41 @@ function replaceReasoningBlock(
   messages: ChatMessage[],
   text: string,
 ): ChatMessage[] {
+  const trimmed = text.trim();
+  if (!trimmed) return messages;
+
+  if (turnReasoningText(messages)) {
+    return messages;
+  }
+
   const last = messages[messages.length - 1];
   if (last?.role === "reasoning") {
     const next = messages.slice();
-    next[next.length - 1] = { ...last, text, streaming: false };
+    next[next.length - 1] = { ...last, text: trimmed, streaming: false };
     return next;
   }
+
+  const turnIdx = findTurnReasoningIndex(messages);
+  if (turnIdx >= 0) {
+    const next = messages.slice();
+    next[turnIdx] = {
+      ...next[turnIdx],
+      text: trimmed,
+      streaming: false,
+    };
+    return next;
+  }
+
+  const lastAssistant = [...messages]
+    .reverse()
+    .find((m) => m.role === "assistant");
+  if (lastAssistant?.text.trim() && !lastAssistant.streaming) {
+    return messages;
+  }
+
   return [
     ...sealStreaming(messages),
-    { id: createMessageId(), role: "reasoning", text, streaming: false },
+    { id: createMessageId(), role: "reasoning", text: trimmed, streaming: false },
   ];
 }
 
@@ -634,7 +721,7 @@ function completeAssistantMessage(
   if (streamId) {
     const idx = messages.findIndex((m) => m.id === streamId);
     if (idx >= 0 && messages[idx]?.role === "assistant") {
-      const next = messages.slice();
+      const next = pruneEmptyReasoning(messages.slice());
       next[idx] = settleAssistant(next[idx]);
       return { messages: next, turn: nextTurn };
     }
@@ -661,20 +748,20 @@ function completeAssistantMessage(
       existing.streaming ||
       (!interimBoundaryPending && finalText && existingText === finalText)
     ) {
-      const next = messages.slice();
+      const next = pruneEmptyReasoning(messages.slice());
       next[lastAssistantIdx] = settleAssistant(existing);
       return { messages: next, turn: nextTurn };
     }
 
     if ((interimBoundaryPending && responsePreviewed) || finalContinuesInterim) {
-      const next = messages.slice();
+      const next = pruneEmptyReasoning(messages.slice());
       next[lastAssistantIdx] = settleAssistant(existing);
       return { messages: next, turn: nextTurn };
     }
 
     if (finalText) {
       return {
-        messages: [
+        messages: pruneEmptyReasoning([
           ...sealStreaming(messages),
           {
             id: createMessageId(),
@@ -682,17 +769,17 @@ function completeAssistantMessage(
             text: finalText,
             streaming: false,
           },
-        ],
+        ]),
         turn: nextTurn,
       };
     }
 
-    return { messages: sealStreaming(messages), turn: nextTurn };
+    return { messages: pruneEmptyReasoning(sealStreaming(messages)), turn: nextTurn };
   }
 
   if (finalText) {
     return {
-      messages: [
+      messages: pruneEmptyReasoning([
         ...sealStreaming(messages),
         {
           id: createMessageId(),
@@ -700,10 +787,10 @@ function completeAssistantMessage(
           text: finalText,
           streaming: false,
         },
-      ],
+      ]),
       turn: nextTurn,
     };
   }
 
-  return { messages: sealStreaming(messages), turn: nextTurn };
+  return { messages: pruneEmptyReasoning(sealStreaming(messages)), turn: nextTurn };
 }

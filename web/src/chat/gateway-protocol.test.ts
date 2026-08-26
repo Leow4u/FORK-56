@@ -196,7 +196,95 @@ describe("applyGatewayEvent", () => {
       { text: "done thinking" },
       turn,
     ));
-    expect(msgs[0].text).toBe("done thinking");
+    expect(msgs[0].text).toBe("hmm");
+  });
+
+  it("fills reasoning from reasoning.available when nothing streamed yet", () => {
+    let msgs: ChatMessage[] = [];
+    let turn = createThinChatTurnState();
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "reasoning.available",
+      { text: "done thinking" },
+      turn,
+    ));
+    expect(msgs[0]).toMatchObject({
+      role: "reasoning",
+      text: "done thinking",
+      streaming: false,
+    });
+  });
+
+  it("ignores fallback reasoning.available when streamed reasoning already exists", () => {
+    let msgs: ChatMessage[] = [];
+    let turn = createThinChatTurnState();
+    const streamed = "short streamed reasoning";
+    const fallback = "x".repeat(400);
+
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "reasoning.delta",
+      { text: streamed },
+      turn,
+    ));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "reasoning.available",
+      { text: fallback },
+      turn,
+    ));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.complete",
+      { text: "final answer" },
+      turn,
+    ));
+
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0]).toMatchObject({ role: "reasoning", text: streamed });
+    expect(msgs[1]).toMatchObject({ role: "assistant", text: "final answer" });
+  });
+
+  it("does not append a second reasoning block below a completed assistant", () => {
+    let msgs: ChatMessage[] = [];
+    let turn = createThinChatTurnState();
+
+    ({ messages: msgs, turn } = applyGatewayEvent(msgs, "message.start", {}, turn));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "reasoning.delta",
+      { text: "thinking…" },
+      turn,
+    ));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.delta",
+      { text: "Hello" },
+      turn,
+    ));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "message.complete",
+      { text: "Hello there" },
+      turn,
+    ));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "reasoning.available",
+      { text: "late fallback" },
+      turn,
+    ));
+    ({ messages: msgs, turn } = applyGatewayEvent(
+      msgs,
+      "reasoning.delta",
+      { text: "late delta" },
+      turn,
+    ));
+
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0].role).toBe("reasoning");
+    expect(msgs[0].text).toBe("thinking…");
+    expect(msgs[1]).toMatchObject({ role: "assistant", text: "Hello there" });
   });
 
   it("upserts tool progress by tool_id", () => {
