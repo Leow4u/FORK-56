@@ -1,5 +1,5 @@
 import type { ConnectionState } from "@/lib/gatewayClient";
-import { Cloud, GitBranch } from "lucide-react";
+import { Cloud, FolderOpen, GitBranch } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -8,6 +8,7 @@ import { mergeGaugeUsage } from "./context-breakdown";
 import { ContextUsageChip } from "./context-usage-chip";
 import { composerFloatingPill, composerFloatingStrip } from "./composer-dock-styles";
 import type { ThinChatSessionInfo, ThinChatSessionUsage } from "./session-info";
+import { hasOpenWorkspace, workspaceLabel } from "./workspace";
 
 export interface ComposerUndersideProps {
   connectionState: ConnectionState;
@@ -17,6 +18,9 @@ export interface ComposerUndersideProps {
   breakdown?: ContextBreakdown | null;
   breakdownLoading?: boolean;
   busy?: boolean;
+  /** User-chosen workspace (null = detached / no project). */
+  workspaceCwd?: string | null;
+  onWorkspaceClick?: () => void;
   className?: string;
 }
 
@@ -43,7 +47,7 @@ function connectionTone(
 }
 
 /**
- * Chrome-free strip below the composer: branch · connection · context meter.
+ * Chrome-free strip below the composer: workspace · branch · connection · meter.
  */
 export function ComposerUnderside({
   connectionState,
@@ -53,11 +57,15 @@ export function ComposerUnderside({
   breakdown = null,
   breakdownLoading = false,
   busy = false,
+  workspaceCwd = null,
+  onWorkspaceClick,
   className,
 }: ComposerUndersideProps) {
   const branch = info.branch?.trim();
   const connLabel = connectionLabel(connectionState, reconnecting);
   const gauge = mergeGaugeUsage(usage, breakdown);
+  const open = hasOpenWorkspace(workspaceCwd);
+  const label = workspaceLabel(workspaceCwd);
 
   return (
     <div
@@ -65,6 +73,24 @@ export function ComposerUnderside({
       role="status"
       aria-label="Composer context"
     >
+      <button
+        type="button"
+        className={cn(
+          composerFloatingPill,
+          "max-w-[14rem]",
+          onWorkspaceClick
+            ? "cursor-pointer hover:bg-muted/40"
+            : "cursor-default",
+          !open && "text-muted-foreground",
+        )}
+        title={open ? workspaceCwd || label : "Open project on the agent"}
+        onClick={onWorkspaceClick}
+        disabled={!onWorkspaceClick}
+      >
+        <FolderOpen className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+        <span className="truncate font-mono text-[0.6875rem]">{label}</span>
+      </button>
+
       {branch ? (
         <span
           className={cn(composerFloatingPill, "max-w-[14rem] cursor-default")}

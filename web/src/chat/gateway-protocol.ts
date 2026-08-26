@@ -55,11 +55,14 @@ export function createThinChatTurnState(): ThinChatTurnState {
 /** ``session.create`` params for the thin web chat (not the tool sidecar). */
 export function thinChatSessionCreateParams(
   profile?: string,
+  cwd?: string | null,
 ): Record<string, unknown> {
+  const trimmed = cwd?.trim() ?? "";
   return {
     close_on_disconnect: true,
     source: "web",
     ...(profile ? { profile } : {}),
+    ...(trimmed ? { cwd: trimmed } : {}),
   };
 }
 

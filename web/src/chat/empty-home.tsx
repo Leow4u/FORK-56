@@ -31,6 +31,8 @@ export interface EmptyHomeProps {
   autoFocus?: boolean;
   disabled?: boolean;
   attach?: ComposerAttachHandlers | null;
+  workspaceCwd?: string | null;
+  onWorkspaceClick?: () => void;
 }
 
 /**
@@ -51,6 +53,8 @@ export function EmptyHome({
   autoFocus = true,
   disabled = false,
   attach = null,
+  workspaceCwd = null,
+  onWorkspaceClick,
 }: EmptyHomeProps) {
   const { t } = useI18n();
   const subtitle =
@@ -88,6 +92,8 @@ export function EmptyHome({
           disabled={disabled}
           busy={disabled}
           attach={attach}
+          workspaceCwd={workspaceCwd}
+          onWorkspaceClick={onWorkspaceClick}
           className="w-full shadow-md"
         />
 

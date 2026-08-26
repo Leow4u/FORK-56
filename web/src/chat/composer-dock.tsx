@@ -24,6 +24,8 @@ export interface ComposerDockProps extends SlashComposerProps {
   onReasoningChange?: (effort: string) => void;
   onQueue?: (text: string) => void;
   attach?: ComposerAttachHandlers | null;
+  workspaceCwd?: string | null;
+  onWorkspaceClick?: () => void;
   className?: string;
 }
 
@@ -43,6 +45,8 @@ export function ComposerDock({
   onReasoningChange: _reasoningChange,
   onQueue,
   attach = null,
+  workspaceCwd = null,
+  onWorkspaceClick,
   className,
   variant = "dock",
   ...composerProps
@@ -129,6 +133,8 @@ export function ComposerDock({
           breakdown={breakdown}
           breakdownLoading={breakdownLoading}
           busy={busy}
+          workspaceCwd={workspaceCwd}
+          onWorkspaceClick={onWorkspaceClick}
         />
       ) : null}
 

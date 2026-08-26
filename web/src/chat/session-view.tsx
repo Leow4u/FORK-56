@@ -29,6 +29,8 @@ export interface SessionViewProps {
   onLoadEarlier?: () => void;
   autoFocus?: boolean;
   attach?: ComposerAttachHandlers | null;
+  workspaceCwd?: string | null;
+  onWorkspaceClick?: () => void;
 }
 
 /**
@@ -56,6 +58,8 @@ export function SessionView({
   onLoadEarlier,
   autoFocus = true,
   attach = null,
+  workspaceCwd = null,
+  onWorkspaceClick,
 }: SessionViewProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -88,6 +92,8 @@ export function SessionView({
             busy={busy}
             autoFocus={autoFocus}
             attach={attach}
+            workspaceCwd={workspaceCwd}
+            onWorkspaceClick={onWorkspaceClick}
           />
         </div>
       </div>

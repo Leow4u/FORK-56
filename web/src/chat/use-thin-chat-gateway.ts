@@ -52,6 +52,10 @@ import {
   type ThinChatSessionUsage,
 } from "./session-info";
 import {
+  readRememberedWorkspaceCwd,
+  writeRememberedWorkspaceCwd,
+} from "./workspace";
+import {
   createMessageId,
   type ChatMessage,
   type ThinChatPhase,
@@ -183,6 +187,10 @@ export interface UseThinChatGatewayResult {
   setReasoningEffort: (effort: string) => Promise<void>;
   refreshSessionUsage: () => Promise<void>;
   clearError: () => void;
+  /** User-chosen workspace cwd (null = detached / no project). */
+  workspaceCwd: string | null;
+  setWorkspaceCwd: (cwd: string) => Promise<void>;
+  clearWorkspaceCwd: () => Promise<void>;
 }
 
 /**
@@ -226,6 +234,10 @@ export function useThinChatGateway(
   const [resumeProgress, setResumeProgress] = useState<ResumeProgress | null>(
     null,
   );
+  const [workspaceCwd, setWorkspaceCwdState] = useState<string | null>(() =>
+    readRememberedWorkspaceCwd(profile),
+  );
+  const workspaceCwdRef = useRef<string | null>(workspaceCwd);
   const [backfillLoaded, setBackfillLoaded] = useState(false);
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [activity, setActivity] = useState<ThinChatActivity>(EMPTY_ACTIVITY);
@@ -392,7 +404,7 @@ export function useThinChatGateway(
     await gw.connect();
     const created = await gw.request<SessionCreateResult>(
       "session.create",
-      thinChatSessionCreateParams(profileRef.current),
+      thinChatSessionCreateParams(profileRef.current, workspaceCwdRef.current),
     );
     bindLiveSession(created.session_id);
     if (created.stored_session_id) {
@@ -406,6 +418,33 @@ export function useThinChatGateway(
     void refreshSessionUsage();
     return created.session_id;
   }, [applySessionInfoPayload, bindLiveSession, gw, refreshSessionUsage]);
+
+  const setWorkspaceCwd = useCallback(
+    async (cwd: string) => {
+      const trimmed = cwd.trim();
+      if (!trimmed) return;
+      const sid = liveSessionIdRef.current;
+      if (sid) {
+        const info = await gw.request<Record<string, unknown>>("session.cwd.set", {
+          session_id: sid,
+          cwd: trimmed,
+        });
+        if (info) applySessionInfoPayload(info);
+      }
+      workspaceCwdRef.current = trimmed;
+      setWorkspaceCwdState(trimmed);
+      writeRememberedWorkspaceCwd(trimmed, profileRef.current);
+    },
+    [applySessionInfoPayload, gw],
+  );
+
+  const clearWorkspaceCwd = useCallback(async () => {
+    workspaceCwdRef.current = null;
+    setWorkspaceCwdState(null);
+    writeRememberedWorkspaceCwd(null, profileRef.current);
+    // Detached UI state — live session keeps its last gateway cwd for tools,
+    // matching desktop: Files/Review hide when hasWorkspace is false.
+  }, []);
 
   const ensureLiveSession = useCallback(async (): Promise<string> => {
     if (liveSessionIdRef.current) return liveSessionIdRef.current;
@@ -1035,5 +1074,8 @@ export function useThinChatGateway(
     setReasoningEffort,
     refreshSessionUsage,
     clearError: () => setError(null),
+    workspaceCwd,
+    setWorkspaceCwd,
+    clearWorkspaceCwd,
   };
 }

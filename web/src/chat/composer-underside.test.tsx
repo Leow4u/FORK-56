@@ -35,9 +35,24 @@ describe("ComposerUnderside", () => {
         />,
       );
     });
+    expect(container.textContent).toContain("No project open");
     expect(container.textContent).toContain("cursor/feature-branch");
     expect(container.textContent).toContain("Cloud");
     expect(container.textContent).toContain("25%");
+  });
+
+  it("shows workspace basename when a project is open", () => {
+    act(() => {
+      root.render(
+        <ComposerUnderside
+          connectionState="open"
+          info={{}}
+          usage={null}
+          workspaceCwd="/opt/data/my-app"
+        />,
+      );
+    });
+    expect(container.textContent).toContain("my-app");
   });
 
   it("formats token usage when present", () => {

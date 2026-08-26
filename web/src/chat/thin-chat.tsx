@@ -5,6 +5,7 @@ import { SessionView } from "./session-view";
 import type { ThinChatPhase } from "./types";
 import { useComposerAttachments } from "./use-composer-attachments";
 import { useThinChatGateway } from "./use-thin-chat-gateway";
+import { WorkspaceDialog } from "./workspace-dialog";
 
 export interface ThinChatProps {
   /** When false, skip autofocus (persistent host hidden on other routes). */
@@ -40,6 +41,9 @@ export function ThinChat({
 }: ThinChatProps) {
   const [draft, setDraft] = useState(initialDraft);
   const [attachError, setAttachError] = useState<string | null>(null);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
 
   const {
     phase,
@@ -65,6 +69,9 @@ export function ThinChat({
     loadEarlier,
     setReasoningEffort,
     clearError,
+    workspaceCwd,
+    setWorkspaceCwd,
+    clearWorkspaceCwd,
   } = useThinChatGateway({
     profile,
     resumeSessionId,
@@ -164,6 +171,39 @@ export function ThinChat({
     [attachmentsApi],
   );
 
+  const handleOpenWorkspace = useCallback(
+    async (cwd: string) => {
+      setWorkspaceBusy(true);
+      setWorkspaceError(null);
+      try {
+        await setWorkspaceCwd(cwd);
+        setWorkspaceOpen(false);
+      } catch (e) {
+        setWorkspaceError(
+          e instanceof Error ? e.message : "Could not open project",
+        );
+      } finally {
+        setWorkspaceBusy(false);
+      }
+    },
+    [setWorkspaceCwd],
+  );
+
+  const handleClearWorkspace = useCallback(async () => {
+    setWorkspaceBusy(true);
+    setWorkspaceError(null);
+    try {
+      await clearWorkspaceCwd();
+      setWorkspaceOpen(false);
+    } catch (e) {
+      setWorkspaceError(
+        e instanceof Error ? e.message : "Could not clear project",
+      );
+    } finally {
+      setWorkspaceBusy(false);
+    }
+  }, [clearWorkspaceCwd]);
+
   const statusLabel =
     connectionState === "connecting"
       ? "Connecting…"
@@ -239,6 +279,11 @@ export function ThinChat({
           autoFocus={isActive}
           disabled={busy || connectionState === "connecting"}
           attach={attachHandlers}
+          workspaceCwd={workspaceCwd}
+          onWorkspaceClick={() => {
+            setWorkspaceError(null);
+            setWorkspaceOpen(true);
+          }}
         />
       ) : (
         <SessionView
@@ -263,8 +308,25 @@ export function ThinChat({
           onLoadEarlier={() => void loadEarlier()}
           autoFocus={isActive}
           attach={attachHandlers}
+          workspaceCwd={workspaceCwd}
+          onWorkspaceClick={() => {
+            setWorkspaceError(null);
+            setWorkspaceOpen(true);
+          }}
         />
       )}
+
+      <WorkspaceDialog
+        open={workspaceOpen}
+        initialCwd={workspaceCwd}
+        busy={workspaceBusy}
+        error={workspaceError}
+        onClose={() => {
+          if (!workspaceBusy) setWorkspaceOpen(false);
+        }}
+        onOpen={handleOpenWorkspace}
+        onClear={handleClearWorkspace}
+      />
     </div>
   );
 }

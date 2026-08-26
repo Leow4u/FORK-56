@@ -21,6 +21,12 @@ describe("thinChatSessionCreateParams", () => {
   it("forwards profile when set", () => {
     expect(thinChatSessionCreateParams("coder").profile).toBe("coder");
   });
+
+  it("forwards explicit cwd only when non-empty", () => {
+    expect(thinChatSessionCreateParams(undefined, "/repo").cwd).toBe("/repo");
+    expect(thinChatSessionCreateParams(undefined, "  ").cwd).toBeUndefined();
+    expect(thinChatSessionCreateParams(undefined, null).cwd).toBeUndefined();
+  });
 });
 
 describe("thinChatSessionResumeParams", () => {
