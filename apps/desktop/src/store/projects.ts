@@ -6,7 +6,6 @@ import {
   type SidebarProjectTree
 } from '@/app/chat/sidebar/projects/workspace-groups'
 import type { Work4YouGitBaseBranch, Work4YouGitBranch } from '@/global'
-import { getWork4YouConfig, work4youApi, type Work4YouGateway } from '@/work4you'
 import { translateNow } from '@/i18n'
 import { desktopDefaultCwd, isDesktopFsRemoteMode, selectDesktopPaths, writeDesktopFileText } from '@/lib/desktop-fs'
 import { desktopGit } from '@/lib/desktop-git'
@@ -25,6 +24,7 @@ import {
   workspaceCwdForNewSession
 } from '@/store/session'
 import type { ProjectInfo, ProjectsPayload } from '@/types/work4you'
+import { getWork4YouConfig, work4youApi, type Work4YouGateway } from '@/work4you'
 
 // First-class, per-profile Projects (named, multi-folder workspaces). State is
 // served by the live gateway's `projects.*` JSON-RPC methods, which wrap the

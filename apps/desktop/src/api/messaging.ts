@@ -10,7 +10,7 @@ import type {
   WebhooksResponse
 } from '@/types/work4you'
 
-import { work4youApi, profileScoped } from './client'
+import { profileScoped, work4youApi } from './client'
 
 export function getMessagingPlatforms(profile?: null | string): Promise<MessagingPlatformsResponse> {
   return work4youApi<MessagingPlatformsResponse>({

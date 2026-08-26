@@ -1,7 +1,7 @@
 import type { Work4YouConnection } from '@/global'
 import { reconnectBackoffDelayMs } from '@/lib/reconnect-backoff'
 
-import { getApiRequestConnection, getApiRequestProfile, work4youApi, profileScoped } from './client'
+import { getApiRequestConnection, getApiRequestProfile, profileScoped, work4youApi } from './client'
 
 /** Resolve the ACTIVE backend's connection descriptor, (connectionId,
  *  profile)-scoped — mirroring how store/profile resolves $connection: a

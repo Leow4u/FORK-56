@@ -8,10 +8,10 @@ import {
 } from '@/app/right-sidebar/terminal/terminal-font'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { saveWork4YouConfig } from '@/work4you'
 import { useI18n } from '@/i18n'
 import { notifyError } from '@/store/notifications'
 import type { Work4YouConfigRecord } from '@/types/work4you'
+import { saveWork4YouConfig } from '@/work4you'
 
 import { setWork4YouConfigCache, useWork4YouConfigRecord } from '../hooks/use-config-record'
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'

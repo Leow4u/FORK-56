@@ -12,7 +12,7 @@ import type {
   MemoryStatusResponse
 } from '@/types/work4you'
 
-import { capabilityScoped, work4youApi, type ProfileScope, profileScoped } from './client'
+import { capabilityScoped, type ProfileScope, profileScoped, work4youApi } from './client'
 
 export const AUDIO_SPEAK_MIN_REQUEST_TIMEOUT_MS = 180_000
 export const AUDIO_SPEAK_MAX_REQUEST_TIMEOUT_MS = 600_000

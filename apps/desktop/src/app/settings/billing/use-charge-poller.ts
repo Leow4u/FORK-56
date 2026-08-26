@@ -1,10 +1,10 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { refusalPolicy } from '@work4you/shared/billing-policy'
 import {
   driveChargeSettlement,
   SETTLEMENT_POLL_CAP_MS,
   SETTLEMENT_POLL_INTERVAL_MS
 } from '@work4you/shared/charge-settlement'
-import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useRef, useState } from 'react'
 
 import type { BillingApi, BillingRefusal } from './api'

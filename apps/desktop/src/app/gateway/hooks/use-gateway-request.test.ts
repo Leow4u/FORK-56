@@ -1,8 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { Work4YouGateway } from '@/work4you'
 import { $gateway } from '@/store/gateway'
+import type { Work4YouGateway } from '@/work4you'
 
 import { useGatewayRequest } from './use-gateway-request'
 

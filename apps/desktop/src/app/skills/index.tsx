@@ -12,6 +12,17 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CountSkeleton } from '@/components/ui/skeleton'
 import type { DesktopRosterAgent } from '@/global'
+import { useI18n } from '@/i18n'
+import { isDesktopToolsetVisible } from '@/lib/desktop-toolsets'
+import { compactNumber } from '@/lib/format'
+import { queryClient } from '@/lib/query-client'
+import { invalidateSlashCompletions } from '@/lib/slash-completion-cache'
+import { normalize } from '@/lib/text'
+import { useStoreSelector } from '@/lib/use-session-slice'
+import { $gateway, activeGatewayConnectionId } from '@/store/gateway'
+import { notify, notifyError } from '@/store/notifications'
+import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
+import type { SkillInfo, ToolsetInfo } from '@/types/work4you'
 import {
   editLearningNode,
   getLearningNode,
@@ -25,17 +36,6 @@ import {
   setSkillEnabled,
   setToolsetEnabled
 } from '@/work4you'
-import { useI18n } from '@/i18n'
-import { isDesktopToolsetVisible } from '@/lib/desktop-toolsets'
-import { compactNumber } from '@/lib/format'
-import { queryClient } from '@/lib/query-client'
-import { invalidateSlashCompletions } from '@/lib/slash-completion-cache'
-import { normalize } from '@/lib/text'
-import { useStoreSelector } from '@/lib/use-session-slice'
-import { $gateway, activeGatewayConnectionId } from '@/store/gateway'
-import { notify, notifyError } from '@/store/notifications'
-import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
-import type { SkillInfo, ToolsetInfo } from '@/types/work4you'
 
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'

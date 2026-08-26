@@ -1,12 +1,12 @@
 import { resolveGatewayWsUrl } from '@work4you/shared'
 
-import { getApiRequestProfile, speakText } from '@/work4you'
 import {
   $voicePlayback,
   setVoicePlaybackState,
   type VoicePlaybackSource,
   type VoicePlaybackState
 } from '@/store/voice-playback'
+import { getApiRequestProfile, speakText } from '@/work4you'
 
 import { sanitizeTextForSpeech } from './speech-text'
 

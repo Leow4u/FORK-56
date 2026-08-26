@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  getWork4YouConfigRecord,
   getMcpCatalog,
   getSkillContent,
   getSkills,
   getToolsets,
   getUsageAnalytics,
+  getWork4YouConfigRecord,
   installSkillFromHub,
   profileScopeKey,
   saveMcpServers,

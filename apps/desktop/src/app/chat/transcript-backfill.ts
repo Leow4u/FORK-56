@@ -15,9 +15,9 @@
  * drift on the next page.
  */
 
-import { getOlderSessionMessages } from '@/work4you'
 import { type ChatMessage, toChatMessages } from '@/lib/chat-messages'
 import { recordTranscriptBackfillPage, transcriptTailState } from '@/store/transcript-tail'
+import { getOlderSessionMessages } from '@/work4you'
 
 /** Older rows likely exist beyond what the in-memory store holds. */
 export function transcriptBackfillAvailable(storedSessionId: null | string | undefined): boolean {

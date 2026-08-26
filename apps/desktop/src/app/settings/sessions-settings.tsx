@@ -3,13 +3,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tip } from '@/components/ui/tooltip'
-import {
-  deleteSession,
-  getWork4YouConfigRecord,
-  listAllProfileSessions,
-  saveWork4YouConfig,
-  setSessionArchived
-} from '@/work4you'
 import { useI18n } from '@/i18n'
 import { sessionTitle } from '@/lib/chat-runtime'
 import { pathLeaf } from '@/lib/display-path'
@@ -19,7 +12,14 @@ import { notify, notifyError } from '@/store/notifications'
 import { untombstoneSessions } from '@/store/projects'
 import { applyConfiguredDefaultProjectDir, ensureDefaultWorkspaceCwd, setSessions } from '@/store/session'
 import { forgetSessionUnread } from '@/store/session-unread'
-import type { Work4YouConfigRecord, SessionInfo } from '@/types/work4you'
+import type { SessionInfo, Work4YouConfigRecord } from '@/types/work4you'
+import {
+  deleteSession,
+  getWork4YouConfigRecord,
+  listAllProfileSessions,
+  saveWork4YouConfig,
+  setSessionArchived
+} from '@/work4you'
 
 import { EmptyState, ListRow, SectionHeading, SettingsContent, SettingsSkeleton, ToggleRow } from './primitives'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'

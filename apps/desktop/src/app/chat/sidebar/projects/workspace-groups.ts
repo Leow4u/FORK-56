@@ -1,6 +1,6 @@
 import type { Work4YouGitWorktree } from '@/global'
-import type { ProjectInfo, SessionInfo } from '@/work4you'
 import { normalize } from '@/lib/text'
+import type { ProjectInfo, SessionInfo } from '@/work4you'
 
 import { rankSessions } from '../order'
 

@@ -7,13 +7,13 @@
 export {
   getApiRequestConnection,
   getApiRequestProfile,
-  work4youApi,
-  Work4YouGateway,
   profileScopeKey,
   PROMPT_SUBMIT_REQUEST_TIMEOUT_MS,
   setApiRequestConnection,
   setApiRequestProfile,
-  STARTUP_REQUEST_TIMEOUT_MS
+  STARTUP_REQUEST_TIMEOUT_MS,
+  work4youApi,
+  Work4YouGateway
 } from './api/client'
 export type { ProfileScope } from './api/client'
 export * from './api/config'
@@ -63,8 +63,6 @@ export type {
   ElevenLabsVoicesResponse,
   EnvVarInfo,
   GatewayReadyPayload,
-  Work4YouConfig,
-  Work4YouConfigRecord,
   LogsResponse,
   McpCatalogEntry,
   McpCatalogResponse,
@@ -126,5 +124,7 @@ export type {
   WebhookCreateResponse,
   WebhookEnableResponse,
   WebhookRoute,
-  WebhooksResponse
+  WebhooksResponse,
+  Work4YouConfig,
+  Work4YouConfigRecord
 } from '@/types/work4you'

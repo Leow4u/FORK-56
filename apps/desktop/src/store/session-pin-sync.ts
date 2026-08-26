@@ -21,12 +21,12 @@
  * fenced out until a later page confirms the value we wrote.
  */
 
-import { setSessionPinnedRemote } from '@/work4you'
 import { onConnectionScopeChange } from '@/lib/connection-scoped'
 import { $pinnedSessionIds, pinSession, unpinSession } from '@/store/layout'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { $sessions, sessionMatchesStoredId, sessionPinId } from '@/store/session'
 import type { SessionInfo } from '@/types/work4you'
+import { setSessionPinnedRemote } from '@/work4you'
 
 // pin ids we've successfully PATCHed pinned=true this session.
 const mirrored = new Set<string>()

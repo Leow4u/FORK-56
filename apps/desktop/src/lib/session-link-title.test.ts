@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getSession } from '@/work4you'
 import { $sessions } from '@/store/session'
 import type { SessionInfo } from '@/types/work4you'
+import { getSession } from '@/work4you'
 
 import { __resetSessionLinkTitleCache, fetchSessionLinkTitle, lookupLocalSessionTitle } from './session-link-title'
 import { sessionRefCacheKey } from './session-refs'

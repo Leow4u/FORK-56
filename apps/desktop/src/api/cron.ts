@@ -7,7 +7,7 @@ import type {
   SessionInfo
 } from '@/types/work4you'
 
-import { connectionScoped, work4youApi, profileScoped, STARTUP_REQUEST_TIMEOUT_MS } from './client'
+import { connectionScoped, profileScoped, STARTUP_REQUEST_TIMEOUT_MS, work4youApi } from './client'
 
 // The cron trigger endpoint intentionally waits for the whole job so its
 // response reflects the persisted execution result. Agent jobs can run far

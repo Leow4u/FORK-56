@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { refreshActiveProfile } from './store/profile'
+import { $transcriptTailBySessionId, transcriptTailState } from './store/transcript-tail'
 import {
   AUDIO_SPEAK_MAX_REQUEST_TIMEOUT_MS,
   AUDIO_SPEAK_MIN_REQUEST_TIMEOUT_MS,
@@ -11,13 +13,13 @@ import {
   getCronJobs,
   getGlobalModelInfo,
   getGlobalModelOptions,
-  getWork4YouConfig,
-  getWork4YouConfigDefaults,
   getLatestSessionMessages,
   getOlderSessionMessages,
   getProfiles,
   getSessionMessages,
   getStatus,
+  getWork4YouConfig,
+  getWork4YouConfigDefaults,
   LATEST_SESSION_MESSAGES_LIMIT,
   listAllProfileSessions,
   listSessions,
@@ -30,8 +32,6 @@ import {
   transcribeAudio,
   triggerCronJob
 } from './work4you'
-import { refreshActiveProfile } from './store/profile'
-import { $transcriptTailBySessionId, transcriptTailState } from './store/transcript-tail'
 
 const emptySessionsResponse = {
   limit: 0,

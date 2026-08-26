@@ -1,5 +1,5 @@
 import { asText, normalize } from '@/lib/text'
-import type { ConfigFieldSchema, Work4YouConfigRecord, ToolsetInfo } from '@/types/work4you'
+import type { ConfigFieldSchema, ToolsetInfo, Work4YouConfigRecord } from '@/types/work4you'
 
 import { BUILTIN_PERSONALITIES, ENUM_OPTIONS, PROVIDER_GROUPS, SECTIONS } from './constants'
 

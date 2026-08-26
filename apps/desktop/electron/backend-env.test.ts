@@ -7,10 +7,10 @@ import {
   appendUniquePathEntries,
   buildDesktopBackendEnv,
   buildDesktopBackendPath,
-  work4youManagedNodePathEntries,
   normalizeWork4YouHomeRoot,
   pathEnvKey,
-  POSIX_SANE_PATH_ENTRIES
+  POSIX_SANE_PATH_ENTRIES,
+  work4youManagedNodePathEntries
 } from './backend-env'
 
 test('desktop backend PATH adds Work4You-managed bins and missing POSIX sane entries', () => {

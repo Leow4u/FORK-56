@@ -1,9 +1,9 @@
 import { useStore } from '@nanostores/react'
 
 import { ModelVisibilityDialog } from '@/components/model-visibility-dialog'
-import type { Work4YouGateway } from '@/work4you'
 import { $modelVisibilityOpen, setModelVisibilityOpen } from '@/store/model-visibility'
 import { $activeSessionId, $gatewayState } from '@/store/session'
+import type { Work4YouGateway } from '@/work4you'
 
 interface ModelVisibilityOverlayProps {
   gateway?: Work4YouGateway

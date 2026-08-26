@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { getElevenLabsVoices, getWork4YouConfigSchema, saveWork4YouConfig } from '@/work4you'
 import { useI18n } from '@/i18n'
 import { notifyError } from '@/store/notifications'
 import type { Work4YouConfigRecord } from '@/types/work4you'
+import { getElevenLabsVoices, getWork4YouConfigSchema, saveWork4YouConfig } from '@/work4you'
 
 import { setWork4YouConfigCache, useWork4YouConfigRecord } from '../hooks/use-config-record'
 
