@@ -8,6 +8,7 @@ import {
   prependOlderMessages,
   recoverInflightJournal,
 } from "./inflight-journal";
+import { resetTestLocalStorage } from "./test-local-storage";
 import type { ChatMessage } from "./types";
 
 const user = (text: string, id: string): ChatMessage => ({
@@ -46,7 +47,7 @@ describe("inflight journal", () => {
   const stored = "sess-journal-1";
 
   beforeEach(() => {
-    localStorage.clear();
+    resetTestLocalStorage();
     clearInflightJournal(stored);
   });
 

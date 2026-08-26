@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetTestLocalStorage } from "../test-local-storage";
 import { filterExcludedEntries } from "./excluded-paths";
 import { readProjectDir } from "./fs-client";
 import {
@@ -35,7 +36,7 @@ describe("excluded-paths", () => {
 
 describe("files-pane-state", () => {
   beforeEach(() => {
-    localStorage.clear();
+    resetTestLocalStorage();
   });
 
   it("defaults to open when unset", () => {

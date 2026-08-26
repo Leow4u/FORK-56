@@ -17240,7 +17240,11 @@ async def shell_pty_ws(ws: WebSocket) -> None:
     cols = int(ws.query_params.get("cols") or 80)
     rows = int(ws.query_params.get("rows") or 24)
     argv = _resolve_user_shell()
-    env = os.environ.copy()
+    # Interactive user shell: exact env preservation (login shell needs
+    # user PATH/profile). Same factory as /api/pty — do not use raw
+    # os.environ.copy() (test_subprocess_env_guard).
+    from tools.environments.local import build_subprocess_env
+    env = build_subprocess_env(scrub_secrets=False, inherit_profile_home=False)
     env["TERM"] = env.get("TERM") or "xterm-256color"
     env["COLORTERM"] = env.get("COLORTERM") or "truecolor"
 

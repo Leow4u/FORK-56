@@ -13,7 +13,7 @@
  */
 
 const OFFICIAL_REPO_HTTPS_URL = 'https://github.com/Leow4u/FORK-56.git'
-const OFFICIAL_REPO_CANONICAL = 'github.com/work4you/work4you'
+const OFFICIAL_REPO_CANONICAL = 'github.com/leow4u/fork-56'
 
 // Normalize common GitHub remote URL forms to `host/owner/repo` (lowercased,
 // no trailing slash, no .git suffix) so SSH and HTTPS forms of the same repo

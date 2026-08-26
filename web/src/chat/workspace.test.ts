@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, beforeEach } from "vitest";
 
+import { resetTestLocalStorage } from "./test-local-storage";
 import {
   hasOpenWorkspace,
   readRememberedWorkspaceCwd,
@@ -11,7 +12,7 @@ import {
 
 describe("workspace helpers", () => {
   beforeEach(() => {
-    localStorage.clear();
+    resetTestLocalStorage();
   });
 
   it("keys by profile", () => {

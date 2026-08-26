@@ -15,10 +15,11 @@
     "check": "npm run typecheck && npm run test && npm run lint"
   },
   "dependencies": {
-    "@work4you/shared": "file:../apps/shared",
     "@observablehq/plot": "0.6.17",
     "@react-three/fiber": "9.6.1",
     "@tailwindcss/vite": "4.3.3",
+    "@work4you/shared": "file:../apps/shared",
+    "@work4you/ui": "*",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/addon-unicode11": "0.9.0",
     "@xterm/addon-web-links": "0.12.0",
@@ -36,8 +37,7 @@
     "react-router": "8.3.0",
     "tailwind-merge": "3.6.0",
     "tailwindcss": "4.3.3",
-    "unicode-animations": "1.0.3",
-    "@work4you/ui": "*"
+    "unicode-animations": "1.0.3"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
@@ -46,6 +46,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.3",
     "eslint-plugin-react-refresh": "0.5.3",
+    "jsdom": "29.1.1",
     "three": "0.180.0",
     "typescript": "6.0.3",
     "vite": "8.2.0",

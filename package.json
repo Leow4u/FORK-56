@@ -66,7 +66,12 @@
   },
   "allowScripts": {
     "unicode-animations": false,
+    "@biomejs/biome@1.9.4": true,
+    "@parcel/watcher@2.5.1": true,
+    "esbuild@0.24.2": true,
+    "esbuild@0.25.12": true,
     "esbuild@0.28.1": true,
+    "msw@2.15.0": true,
     "node-pty@1.1.0": true,
     "electron-winstaller@5.4.0": true,
     "electron@40.10.2": true,
