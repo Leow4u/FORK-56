@@ -1,5 +1,6 @@
 import type { ConnectionState, GatewayClient } from "@/lib/gatewayClient";
 
+import { PromptHost, type ThinChatPromptState } from "./approvals";
 import type { ThinChatActivity } from "./chat-activity-strip";
 import type { ComposerAttachHandlers } from "./composer";
 import { ComposerDock } from "./composer-dock";
@@ -31,6 +32,11 @@ export interface SessionViewProps {
   attach?: ComposerAttachHandlers | null;
   workspaceCwd?: string | null;
   onWorkspaceClick?: () => void;
+  prompts?: ThinChatPromptState;
+  onPromptsChange?: (
+    updater: (prev: ThinChatPromptState) => ThinChatPromptState,
+  ) => void;
+  blockingPrompt?: boolean;
 }
 
 /**
@@ -60,18 +66,29 @@ export function SessionView({
   attach = null,
   workspaceCwd = null,
   onWorkspaceClick,
+  prompts,
+  onPromptsChange,
+  blockingPrompt = false,
 }: SessionViewProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <MessageList
         messages={messages}
-        busy={busy}
+        busy={busy && !blockingPrompt}
         canLoadEarlier={canLoadEarlier}
         loadingEarlier={loadingEarlier}
         onLoadEarlier={onLoadEarlier}
       />
       <div className="relative shrink-0 border-t border-border/60 bg-gradient-to-t from-background via-background/95 to-background/80 px-4 py-3 backdrop-blur-sm">
         <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-background/80 to-transparent" />
+        {prompts && onPromptsChange && (
+          <PromptHost
+            gateway={gateway}
+            sessionId={sessionId}
+            prompts={prompts}
+            onPromptsChange={onPromptsChange}
+          />
+        )}
         <div className="mx-auto w-full max-w-3xl">
           <ComposerDock
             variant="dock"
@@ -94,6 +111,7 @@ export function SessionView({
             attach={attach}
             workspaceCwd={workspaceCwd}
             onWorkspaceClick={onWorkspaceClick}
+            blockingPrompt={blockingPrompt}
           />
         </div>
       </div>

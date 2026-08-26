@@ -37,6 +37,12 @@ describe("resolveComposerBusyAction", () => {
   it("returns queue when busy with attachments and empty text", () => {
     expect(resolveComposerBusyAction(true, "", true)).toBe("queue");
   });
+
+  it("returns queue when busy with a blocking approval/sudo/secret prompt", () => {
+    expect(resolveComposerBusyAction(true, "continue", false, true)).toBe(
+      "queue",
+    );
+  });
 });
 
 describe("attachments helpers", () => {

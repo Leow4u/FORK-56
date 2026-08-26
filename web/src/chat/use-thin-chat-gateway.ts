@@ -17,6 +17,19 @@ import {
 import { executeSlash } from "@/lib/slashExec";
 
 import {
+  ackApprovalReceived,
+  applyPromptEvent,
+  clearAllPrompts,
+  EMPTY_PROMPT_STATE,
+  hasBlockingPrompt,
+  hasClarifyPrompt,
+  mergePromptEvent,
+  parseApprovalPayload,
+  parseClarifyPayload,
+  respondClarify,
+  type ThinChatPromptState,
+} from "./approvals";
+import {
   buildPromptTextFromAttachments,
   type ThinComposerAttachment,
 } from "./attachments";
@@ -89,6 +102,16 @@ const STREAM_EVENT_TYPES = new Set([
   "subagent.progress",
   "subagent.complete",
   "error",
+]);
+
+const PROMPT_EVENT_TYPES = new Set([
+  "approval.request",
+  "clarify.request",
+  "sudo.request",
+  "secret.request",
+  "clarify.expire",
+  "sudo.expire",
+  "secret.expire",
 ]);
 
 const ACTIVITY_EVENT_TYPES = new Set([
@@ -191,6 +214,13 @@ export interface UseThinChatGatewayResult {
   workspaceCwd: string | null;
   setWorkspaceCwd: (cwd: string) => Promise<void>;
   clearWorkspaceCwd: () => Promise<void>;
+  /** Mid-turn blocking prompts (approval / clarify / sudo / secret). */
+  prompts: ThinChatPromptState;
+  setPrompts: (
+    updater: (prev: ThinChatPromptState) => ThinChatPromptState,
+  ) => void;
+  /** Approval/sudo/secret parked — composer must queue, not steer. */
+  blockingPrompt: boolean;
 }
 
 /**
@@ -242,6 +272,10 @@ export function useThinChatGateway(
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [activity, setActivity] = useState<ThinChatActivity>(EMPTY_ACTIVITY);
   const [queueCount, setQueueCount] = useState(0);
+  const [prompts, setPrompts] = useState<ThinChatPromptState>(EMPTY_PROMPT_STATE);
+  const promptsRef = useRef(prompts);
+  promptsRef.current = prompts;
+  const blockingPrompt = hasBlockingPrompt(prompts);
 
   const activityWithQueue = useMemo(
     () =>
@@ -340,6 +374,39 @@ export function useThinChatGateway(
     [gw],
   );
 
+  const restorePendingPrompts = useCallback(
+    (
+      result: SessionCreateResult | SessionResumeResult,
+      sessionId: string,
+    ) => {
+      let next = clearAllPrompts();
+      if (result.pending_approval) {
+        const approval = parseApprovalPayload(
+          result.pending_approval,
+          sessionId,
+        );
+        if (approval) {
+          next = { ...next, approval };
+          if (approval.requestId) {
+            void ackApprovalReceived(gw, {
+              requestId: approval.requestId,
+              sessionId,
+            }).catch(() => undefined);
+          }
+        }
+      }
+      if (result.pending_clarify) {
+        const clarify = parseClarifyPayload(
+          result.pending_clarify,
+          sessionId,
+        );
+        if (clarify) next = { ...next, clarify };
+      }
+      setPrompts(next);
+    },
+    [gw],
+  );
+
   const applySessionInfoPayload = useCallback((payload: unknown) => {
     const patch = sessionInfoFromPayload(payload);
     if (Object.keys(patch).length > 0) {
@@ -390,6 +457,7 @@ export function useThinChatGateway(
       if (result.info) {
         applySessionInfoPayload(result.info);
       }
+      restorePendingPrompts(result, result.session_id);
       const title =
         result.info && typeof result.info.title === "string"
           ? result.info.title
@@ -397,7 +465,13 @@ export function useThinChatGateway(
       if (title) onTitleRef.current?.(title);
       void refreshSessionUsage();
     },
-    [applySessionInfoPayload, bindLiveSession, rememberStored, refreshSessionUsage],
+    [
+      applySessionInfoPayload,
+      bindLiveSession,
+      rememberStored,
+      refreshSessionUsage,
+      restorePendingPrompts,
+    ],
   );
 
   const createFreshSession = useCallback(async (): Promise<string> => {
@@ -504,6 +578,7 @@ export function useThinChatGateway(
       if (resumed.info) {
         applySessionInfoPayload(resumed.info);
       }
+      restorePendingPrompts(resumed, resumed.session_id);
       void refreshSessionUsage();
       return;
     }
@@ -517,6 +592,7 @@ export function useThinChatGateway(
     gw,
     rememberStored,
     refreshSessionUsage,
+    restorePendingPrompts,
   ]);
 
   const handleGatewayEvent = useCallback(
@@ -564,6 +640,32 @@ export function useThinChatGateway(
         return;
       }
 
+      if (PROMPT_EVENT_TYPES.has(ev.type) || ev.type === "message.complete") {
+        const payload =
+          ev.payload && typeof ev.payload === "object"
+            ? (ev.payload as Record<string, unknown>)
+            : null;
+        const eventSid =
+          (sid ??
+            (typeof ev.session_id === "string" ? ev.session_id : null)) ||
+          null;
+        const patch = applyPromptEvent(ev.type, payload, eventSid);
+        if (patch.kind !== "noop") {
+          setPrompts((prev) => mergePromptEvent(prev, patch));
+        }
+        if (
+          ev.type === "approval.request" &&
+          payload &&
+          typeof payload.request_id === "string" &&
+          payload.request_id
+        ) {
+          void ackApprovalReceived(gw, {
+            requestId: payload.request_id,
+            sessionId: eventSid,
+          }).catch(() => undefined);
+        }
+      }
+
       if (STREAM_EVENT_TYPES.has(ev.type)) {
         setMessages((prev) => {
           const result = applyGatewayEvent(
@@ -586,7 +688,7 @@ export function useThinChatGateway(
         }
       }
     },
-    [applySessionInfoPayload, refreshSessionUsage],
+    [applySessionInfoPayload, gw, refreshSessionUsage],
   );
 
   // Boot: connect + create (EmptyHome) or resume (?resume=).
@@ -856,13 +958,29 @@ export function useThinChatGateway(
         buildPromptTextFromAttachments(trimmed, attachments) || trimmed;
 
       if (busy && !isSlash) {
-        // Attachments cannot steer — queue for next turn (desktop contract).
-        if (hasAttachments) {
+        // Clarify: typing IS "none of these" — skip then continue.
+        if (hasClarifyPrompt(promptsRef.current)) {
+          const clarify = promptsRef.current.clarify;
+          setPrompts((prev) => ({ ...prev, clarify: null }));
+          if (clarify) {
+            void respondClarify(gw, {
+              requestId: clarify.requestId,
+              answer: "",
+            }).catch(() => undefined);
+          }
+        }
+
+        // Approval / sudo / secret: cannot answer by typing — queue, not steer.
+        const blocking = hasBlockingPrompt(promptsRef.current);
+        if (hasAttachments || blocking) {
           setMessages((prev) => [
             ...prev,
             { id: createMessageId(), role: "user", text: displayText },
           ]);
-          queueRef.current.push({ text: trimmed, attachments: [...attachments] });
+          queueRef.current.push({
+            text: trimmed,
+            attachments: [...attachments],
+          });
           setQueueCount(queueRef.current.length);
           appendSystemMessage("Message queued for next turn");
           return;
@@ -885,6 +1003,18 @@ export function useThinChatGateway(
       }
 
       if (busy && isSlash) return;
+
+      // Idle + clarify: skip before sending so the tool batch unblocks.
+      if (!busy && hasClarifyPrompt(promptsRef.current) && !isSlash) {
+        const clarify = promptsRef.current.clarify;
+        setPrompts((prev) => ({ ...prev, clarify: null }));
+        if (clarify) {
+          void respondClarify(gw, {
+            requestId: clarify.requestId,
+            answer: "",
+          }).catch(() => undefined);
+        }
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -1023,6 +1153,7 @@ export function useThinChatGateway(
     clearInflightJournal(storedSessionIdRef.current);
     setQueueCount(0);
     setActivity(EMPTY_ACTIVITY);
+    setPrompts(clearAllPrompts());
     setBusy(false);
     setError(null);
     setReconnecting(false);
@@ -1077,5 +1208,8 @@ export function useThinChatGateway(
     workspaceCwd,
     setWorkspaceCwd,
     clearWorkspaceCwd,
+    prompts,
+    setPrompts,
+    blockingPrompt,
   };
 }

@@ -16,6 +16,8 @@ export interface SessionCreateResult {
   messages?: GatewayHistoryMessage[];
   message_count?: number;
   info?: Record<string, unknown>;
+  pending_approval?: Record<string, unknown> | null;
+  pending_clarify?: Record<string, unknown> | null;
 }
 
 export interface SessionResumeResult extends SessionCreateResult {

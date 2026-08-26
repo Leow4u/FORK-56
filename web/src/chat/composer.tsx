@@ -26,6 +26,7 @@ export function resolveComposerBusyAction(
   busy: boolean,
   text: string,
   hasAttachments = false,
+  blockingPrompt = false,
 ): ComposerBusyAction {
   const trimmed = text.trim();
   if (!busy) return "send";
@@ -33,6 +34,8 @@ export function resolveComposerBusyAction(
   if (trimmed.startsWith("/")) return "queue";
   // Desktop: attachments force queue (cannot steer with pending chips).
   if (hasAttachments) return "queue";
+  // Approval / sudo / secret: steer can't reach the model — queue instead.
+  if (blockingPrompt) return "queue";
   if (!trimmed) return "stop";
   return "steer";
 }
@@ -68,6 +71,8 @@ export interface ComposerProps {
   /** Show the attach/context ``+`` affordance. */
   showAttachButton?: boolean;
   attach?: ComposerAttachHandlers | null;
+  /** Approval/sudo/secret parked — Enter queues instead of steer. */
+  blockingPrompt?: boolean;
 }
 
 /**
@@ -89,14 +94,21 @@ export function Composer({
   trailingControls,
   showAttachButton = true,
   attach = null,
+  blockingPrompt = false,
 }: ComposerProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const hasAttachments = Boolean(attach?.attachments.length);
   const hasText = Boolean(value.trim());
   const hasPayload = hasText || hasAttachments;
   const busyAction = useMemo(
-    () => resolveComposerBusyAction(busy, value, hasAttachments),
-    [busy, value, hasAttachments],
+    () =>
+      resolveComposerBusyAction(
+        busy,
+        value,
+        hasAttachments,
+        blockingPrompt,
+      ),
+    [blockingPrompt, busy, value, hasAttachments],
   );
 
   useEffect(() => {

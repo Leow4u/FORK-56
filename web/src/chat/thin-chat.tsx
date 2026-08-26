@@ -109,6 +109,9 @@ export function ThinChat({
     workspaceCwd,
     setWorkspaceCwd,
     clearWorkspaceCwd,
+    prompts,
+    setPrompts,
+    blockingPrompt,
   } = useThinChatGateway({
     profile,
     resumeSessionId,
@@ -354,16 +357,19 @@ export function ThinChat({
             loadingEarlier={loadingEarlier}
             onLoadEarlier={() => void loadEarlier()}
             autoFocus={isActive}
-            attach={attachHandlers}
-            workspaceCwd={workspaceCwd}
-            onWorkspaceClick={() => {
-              setWorkspaceError(null);
-              setWorkspaceOpen(true);
-            }}
-          />
-        )}
+          attach={attachHandlers}
+          workspaceCwd={workspaceCwd}
+          onWorkspaceClick={() => {
+            setWorkspaceError(null);
+            setWorkspaceOpen(true);
+          }}
+          prompts={prompts}
+          onPromptsChange={setPrompts}
+          blockingPrompt={blockingPrompt}
+        />
+      )}
 
-        <WorkspaceDialog
+      <WorkspaceDialog
           open={workspaceOpen}
           initialCwd={workspaceCwd}
           busy={workspaceBusy}
