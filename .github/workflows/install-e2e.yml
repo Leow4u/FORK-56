@@ -75,13 +75,22 @@ jobs:
       - id: pick
         run: |
           set -euo pipefail
-          tags="$(scripts/sandbox/pick-release-tags.sh --count '${{ inputs.tag-count || 5 }}')"
-          echo "Testing updates from: $tags"
+          # --allow-empty: forks / remotes that have never cut a vYYYY.M.D
+          # release emit [] so the matrix jobs below skip instead of failing
+          # the scheduled run red. Default script behavior stays fail-hard.
+          tags="$(scripts/sandbox/pick-release-tags.sh --count '${{ inputs.tag-count || 5 }}' --allow-empty)"
+          if [ "$tags" = '[]' ]; then
+            echo "No release tags in this repository; skipping install/update E2E."
+          else
+            echo "Testing updates from: $tags"
+          fi
           echo "tags=$tags" >> "$GITHUB_OUTPUT"
 
   # `work4you update` -- the route most users take.
   update:
-    if: github.event_name != 'workflow_dispatch' || inputs.route != 'installer'
+    if: >-
+      needs.pick-releases.outputs.tags != '[]' &&
+      (github.event_name != 'workflow_dispatch' || inputs.route != 'installer')
     needs: pick-releases
     strategy:
       # One release breaking is worth knowing about even if another already
@@ -97,7 +106,9 @@ jobs:
   # Re-running the curl one-liner over an existing checkout: autostash + pull
   # rather than the updater's own git handling.
   installer:
-    if: github.event_name != 'workflow_dispatch' || inputs.route != 'update'
+    if: >-
+      needs.pick-releases.outputs.tags != '[]' &&
+      (github.event_name != 'workflow_dispatch' || inputs.route != 'update')
     needs: pick-releases
     strategy:
       fail-fast: false
