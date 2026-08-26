@@ -205,6 +205,12 @@ export interface Translations {
     newChat: string;
     previousPage: string;
     nextPage: string;
+    /** Sidebar session actions — optional; English fallback in components. */
+    pinnedSection?: string;
+    pinSession?: string;
+    unpinSession?: string;
+    archiveSession?: string;
+    renameSession?: string;
     roles: {
       user: string;
       assistant: string;

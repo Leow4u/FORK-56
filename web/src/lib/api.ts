@@ -434,6 +434,38 @@ export const api = {
         body: JSON.stringify({ title, profile: profile || undefined }),
       },
     ),
+  /** Durable keep flag — exempts the session from the auto-archive sweep.
+   *  Shared backend field (``sessions.pinned``); the desktop sidebar mirrors
+   *  its pins here, so pinning on the web is visible everywhere. */
+  setSessionPinned: (
+    id: string,
+    pinned: boolean,
+    profile = getManagementProfile(),
+  ) =>
+    fetchJSON<{ ok: boolean; pinned: boolean }>(
+      `/api/sessions/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinned, profile: profile || undefined }),
+      },
+    ),
+  /** Soft-hide (or restore) a session — messages are kept; the default
+   *  session listing excludes archived rows. Same shared field the desktop
+   *  sidebar / Settings → Archived Chats operate on. */
+  setSessionArchived: (
+    id: string,
+    archived: boolean,
+    profile = getManagementProfile(),
+  ) =>
+    fetchJSON<{ ok: boolean; archived: boolean }>(
+      `/api/sessions/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived, profile: profile || undefined }),
+      },
+    ),
   getSessionStats: (profile = getManagementProfile()) =>
     fetchJSON<SessionStoreStats>(appendProfileParam("/api/sessions/stats", profile)),
   exportSessionUrl: (id: string, profile = getManagementProfile()) =>
@@ -2038,6 +2070,10 @@ export interface SessionInfo {
   output_tokens: number;
   preview: string | null;
   parent_session_id?: string | null;
+  /** Shared backend flags (``PATCH /api/sessions/{id}``) — the same fields
+   *  the desktop sidebar reads/writes, so pin/archive stay in sync. */
+  pinned?: boolean;
+  archived?: boolean;
 }
 
 export interface SessionLatestDescendantResponse {
