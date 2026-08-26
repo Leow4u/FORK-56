@@ -1,11 +1,27 @@
 """Tests for the dashboard-managed file browser API."""
 
+import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from starlette.testclient import TestClient
 
 from work4you_cli import web_server
+
+
+def _write_files_admin_config(enabled: bool) -> None:
+    """Write the operator gate into the test's isolated WORK4YOU_HOME.
+
+    Write endpoints (upload / upload-stream / mkdir / delete) are locked
+    unless ``dashboard.show_files_admin`` is true — the same config that
+    re-enables the Files admin page in the SPA. Read endpoints stay open.
+    """
+    home = Path(os.environ["WORK4YOU_HOME"])
+    home.mkdir(parents=True, exist_ok=True)
+    (home / "config.yaml").write_text(
+        f"dashboard:\n  show_files_admin: {str(enabled).lower()}\n"
+    )
 
 
 def _client_with_app_state():
@@ -41,6 +57,7 @@ def _close_client(client):
 def forced_files_client(monkeypatch, tmp_path):
     root = tmp_path / "data"
     monkeypatch.setenv("WORK4YOU_DASHBOARD_FILES_ROOT", str(root))
+    _write_files_admin_config(True)
 
     client, prev_auth_required, prev_bound_host = _client_with_app_state()
     try:
@@ -55,8 +72,19 @@ def local_files_client(monkeypatch, tmp_path):
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.delenv("WORK4YOU_DASHBOARD_FILES_ROOT", raising=False)
+    # Enable the write gate BEFORE un-setting WORK4YOU_HOME so the config
+    # lands in the isolated home the server will read.
+    _write_files_admin_config(True)
+    config_home = os.environ["WORK4YOU_HOME"]
     monkeypatch.delenv("WORK4YOU_HOME", raising=False)
     monkeypatch.setenv("HOME", str(home))
+    # get_config_path falls back to ~/.work4you when WORK4YOU_HOME is unset;
+    # mirror the gate config there too.
+    fallback = home / ".work4you"
+    fallback.mkdir(parents=True, exist_ok=True)
+    (fallback / "config.yaml").write_text(
+        (Path(config_home) / "config.yaml").read_text()
+    )
 
     client, prev_auth_required, prev_bound_host = _client_with_app_state()
     try:
@@ -64,6 +92,65 @@ def local_files_client(monkeypatch, tmp_path):
     finally:
         _close_client(client)
         _restore_app_state(prev_auth_required, prev_bound_host)
+
+
+@pytest.fixture
+def locked_files_client(monkeypatch, tmp_path):
+    """Client with the default (no config) state: write endpoints locked."""
+    root = tmp_path / "data"
+    monkeypatch.setenv("WORK4YOU_DASHBOARD_FILES_ROOT", str(root))
+
+    client, prev_auth_required, prev_bound_host = _client_with_app_state()
+    try:
+        yield client, root
+    finally:
+        _close_client(client)
+        _restore_app_state(prev_auth_required, prev_bound_host)
+
+
+def test_write_endpoints_locked_by_default(locked_files_client):
+    client, root = locked_files_client
+    target = root / "locked.txt"
+
+    upload = client.post(
+        "/api/files/upload",
+        json={"path": str(target), "data_url": "data:text/plain;base64,aGVsbG8="},
+    )
+    assert upload.status_code == 403
+
+    mkdir = client.post("/api/files/mkdir", json={"path": str(root / "sub")})
+    assert mkdir.status_code == 403
+
+    delete = client.request(
+        "DELETE", "/api/files", json={"path": str(target)}
+    )
+    assert delete.status_code == 403
+
+    stream = client.post(
+        "/api/files/upload-stream",
+        files={"file": ("locked.txt", b"hello")},
+        data={"path": str(target)},
+    )
+    assert stream.status_code == 403
+
+    # Nothing was written to the managed root.
+    assert not target.exists()
+    assert not (root / "sub").exists()
+
+
+def test_read_endpoints_stay_open_when_locked(locked_files_client):
+    client, root = locked_files_client
+    root.mkdir(parents=True, exist_ok=True)
+    seeded = root / "readable.txt"
+    seeded.write_text("hello")
+
+    listing = client.get("/api/files")
+    assert listing.status_code == 200
+    names = [e["name"] for e in listing.json()["entries"]]
+    assert "readable.txt" in names
+
+    read = client.get("/api/files/read", params={"path": str(seeded)})
+    assert read.status_code == 200
 
 
 
