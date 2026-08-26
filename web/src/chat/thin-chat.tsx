@@ -1,6 +1,19 @@
-import { useCallback, useEffect, useMemo, useState, type MutableRefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type MutableRefObject,
+} from "react";
+
+import { cn } from "@/lib/utils";
 
 import { EmptyHome } from "./empty-home";
+import {
+  readFilesPaneOpen,
+  RightFilesPane,
+  writeFilesPaneOpen,
+} from "./right-files";
 import { SessionView } from "./session-view";
 import type { ThinChatPhase } from "./types";
 import { useComposerAttachments } from "./use-composer-attachments";
@@ -23,6 +36,9 @@ export interface ThinChatProps {
   onTitle?: (title: string | null) => void;
   /** Parent can call `resetRef.current?.()` for the header New chat action. */
   resetRef?: MutableRefObject<(() => void) | null>;
+  /** Controlled Files pane open state (ChatPage header toggle). */
+  filesPaneOpen?: boolean;
+  onFilesPaneOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -38,12 +54,33 @@ export function ThinChat({
   onStoredSessionId,
   onTitle,
   resetRef,
+  filesPaneOpen: filesPaneOpenProp,
+  onFilesPaneOpenChange,
 }: ThinChatProps) {
   const [draft, setDraft] = useState(initialDraft);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [filesPaneOpenLocal, setFilesPaneOpenLocal] = useState(() =>
+    readFilesPaneOpen(profile),
+  );
+  const filesPaneOpen = filesPaneOpenProp ?? filesPaneOpenLocal;
+
+  useEffect(() => {
+    if (filesPaneOpenProp !== undefined) {
+      setFilesPaneOpenLocal(filesPaneOpenProp);
+    }
+  }, [filesPaneOpenProp]);
+
+  const setFilesPaneOpen = useCallback(
+    (open: boolean) => {
+      writeFilesPaneOpen(open, profile);
+      setFilesPaneOpenLocal(open);
+      onFilesPaneOpenChange?.(open);
+    },
+    [onFilesPaneOpenChange, profile],
+  );
 
   const {
     phase,
@@ -87,6 +124,15 @@ export function ThinChat({
       return `${prev.trimEnd()}\n\n${text}`;
     });
   }, []);
+
+  const addPathToChat = useCallback(
+    (path: string) => {
+      const trimmed = path.trim();
+      if (!trimmed) return;
+      insertSnippet(`\`${trimmed}\``);
+    },
+    [insertSnippet],
+  );
 
   const attachmentsApi = useComposerAttachments({
     gateway,
@@ -226,107 +272,138 @@ export function ThinChat({
         : null;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
-      {showCredentialWarning && (
-        <div
-          className="border-b border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning"
-          role="status"
-        >
-          <div className="mx-auto max-w-3xl">{credentialWarning}</div>
-        </div>
-      )}
-
-      {(bannerError || statusLabel) && (
-        <div
-          className={
-            bannerError
-              ? "border-b border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning"
-              : "border-b border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
-          }
-          role={bannerError ? "alert" : "status"}
-        >
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
-            <span>{bannerError ?? statusLabel}</span>
-            {bannerError && (
-              <button
-                type="button"
-                className="shrink-0 underline-offset-2 hover:underline"
-                onClick={() => {
-                  clearError();
-                  setAttachError(null);
-                }}
-              >
-                Dismiss
-              </button>
-            )}
+    <div className="relative flex min-h-0 flex-1 flex-row overflow-hidden">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        {showCredentialWarning && (
+          <div
+            className="border-b border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning"
+            role="status"
+          >
+            <div className="mx-auto max-w-3xl">{credentialWarning}</div>
           </div>
-        </div>
-      )}
+        )}
 
-      {phase === "home" ? (
-        <EmptyHome
-          draft={draft}
-          onDraftChange={setDraft}
-          onSubmit={handleSubmit}
-          gateway={gateway}
-          sessionId={liveSessionId}
-          connectionState={connectionState}
-          reconnecting={reconnecting}
-          sessionInfo={sessionInfo}
-          sessionUsage={sessionUsage}
-          activity={activity}
-          onReasoningChange={(effort) => void setReasoningEffort(effort)}
-          autoFocus={isActive}
-          disabled={busy || connectionState === "connecting"}
-          attach={attachHandlers}
-          workspaceCwd={workspaceCwd}
-          onWorkspaceClick={() => {
-            setWorkspaceError(null);
-            setWorkspaceOpen(true);
-          }}
-        />
-      ) : (
-        <SessionView
-          messages={messages}
-          draft={draft}
-          onDraftChange={setDraft}
-          onSubmit={handleSubmit}
-          gateway={gateway}
-          sessionId={liveSessionId}
-          connectionState={connectionState}
-          reconnecting={reconnecting}
-          sessionInfo={sessionInfo}
-          sessionUsage={sessionUsage}
-          activity={activity}
-          resumeLabel={resumeBanner}
-          onReasoningChange={(effort) => void setReasoningEffort(effort)}
-          onQueue={handleQueue}
-          onStop={() => void interrupt()}
-          busy={busy}
-          canLoadEarlier={canLoadEarlier}
-          loadingEarlier={loadingEarlier}
-          onLoadEarlier={() => void loadEarlier()}
-          autoFocus={isActive}
-          attach={attachHandlers}
-          workspaceCwd={workspaceCwd}
-          onWorkspaceClick={() => {
-            setWorkspaceError(null);
-            setWorkspaceOpen(true);
-          }}
-        />
-      )}
+        {(bannerError || statusLabel) && (
+          <div
+            className={
+              bannerError
+                ? "border-b border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning"
+                : "border-b border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
+            }
+            role={bannerError ? "alert" : "status"}
+          >
+            <div className="mx-auto flex max-w-3xl items-center justify-between gap-2">
+              <span>{bannerError ?? statusLabel}</span>
+              {bannerError && (
+                <button
+                  type="button"
+                  className="shrink-0 underline-offset-2 hover:underline"
+                  onClick={() => {
+                    clearError();
+                    setAttachError(null);
+                  }}
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
-      <WorkspaceDialog
-        open={workspaceOpen}
-        initialCwd={workspaceCwd}
-        busy={workspaceBusy}
-        error={workspaceError}
-        onClose={() => {
-          if (!workspaceBusy) setWorkspaceOpen(false);
-        }}
-        onOpen={handleOpenWorkspace}
-        onClear={handleClearWorkspace}
-      />
+        {phase === "home" ? (
+          <EmptyHome
+            draft={draft}
+            onDraftChange={setDraft}
+            onSubmit={handleSubmit}
+            gateway={gateway}
+            sessionId={liveSessionId}
+            connectionState={connectionState}
+            reconnecting={reconnecting}
+            sessionInfo={sessionInfo}
+            sessionUsage={sessionUsage}
+            activity={activity}
+            onReasoningChange={(effort) => void setReasoningEffort(effort)}
+            autoFocus={isActive}
+            disabled={busy || connectionState === "connecting"}
+            attach={attachHandlers}
+            workspaceCwd={workspaceCwd}
+            onWorkspaceClick={() => {
+              setWorkspaceError(null);
+              setWorkspaceOpen(true);
+            }}
+          />
+        ) : (
+          <SessionView
+            messages={messages}
+            draft={draft}
+            onDraftChange={setDraft}
+            onSubmit={handleSubmit}
+            gateway={gateway}
+            sessionId={liveSessionId}
+            connectionState={connectionState}
+            reconnecting={reconnecting}
+            sessionInfo={sessionInfo}
+            sessionUsage={sessionUsage}
+            activity={activity}
+            resumeLabel={resumeBanner}
+            onReasoningChange={(effort) => void setReasoningEffort(effort)}
+            onQueue={handleQueue}
+            onStop={() => void interrupt()}
+            busy={busy}
+            canLoadEarlier={canLoadEarlier}
+            loadingEarlier={loadingEarlier}
+            onLoadEarlier={() => void loadEarlier()}
+            autoFocus={isActive}
+            attach={attachHandlers}
+            workspaceCwd={workspaceCwd}
+            onWorkspaceClick={() => {
+              setWorkspaceError(null);
+              setWorkspaceOpen(true);
+            }}
+          />
+        )}
+
+        <WorkspaceDialog
+          open={workspaceOpen}
+          initialCwd={workspaceCwd}
+          busy={workspaceBusy}
+          error={workspaceError}
+          onClose={() => {
+            if (!workspaceBusy) setWorkspaceOpen(false);
+          }}
+          onOpen={handleOpenWorkspace}
+          onClear={handleClearWorkspace}
+        />
+      </div>
+
+      {filesPaneOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Close files"
+            className="fixed inset-0 z-40 bg-black/40 md:hidden"
+            onClick={() => setFilesPaneOpen(false)}
+          />
+          <div
+            className={cn(
+              "z-50 flex h-full w-[min(100%,18rem)] shrink-0",
+              "fixed inset-y-0 right-0 shadow-xl md:static md:z-auto md:shadow-none",
+              "lg:w-64",
+            )}
+          >
+            <RightFilesPane
+              workspaceCwd={workspaceCwd}
+              onOpenWorkspace={() => {
+                setWorkspaceError(null);
+                setWorkspaceOpen(true);
+              }}
+              onClose={() => setFilesPaneOpen(false)}
+              onAddPathToChat={addPathToChat}
+              className="bg-background"
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -6,11 +6,15 @@
  */
 
 import { Button } from "@work4you/ui/ui/components/button";
-import { PanelLeft, Plus, X } from "lucide-react";
+import { FolderTree, PanelLeft, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { ThinChat } from "@/chat";
+import {
+  readFilesPaneOpen,
+  writeFilesPaneOpen,
+} from "@/chat/right-files";
 import { ChatSessionList } from "@/components/ChatSessionList";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { useProfileScope } from "@/contexts/useProfileScope";
@@ -27,8 +31,23 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
   const [learnSeed] = useState(() => searchParams.get("learn") ?? "");
   const [sessionListNonce, setSessionListNonce] = useState(0);
   const [mobileSessionsOpen, setMobileSessionsOpen] = useState(false);
+  const [filesPaneOpen, setFilesPaneOpen] = useState(() =>
+    readFilesPaneOpen(scopedProfile),
+  );
 
   const resumeParam = searchParams.get("resume");
+
+  const handleFilesPaneOpenChange = useCallback(
+    (open: boolean) => {
+      writeFilesPaneOpen(open, scopedProfile);
+      setFilesPaneOpen(open);
+    },
+    [scopedProfile],
+  );
+
+  useEffect(() => {
+    setFilesPaneOpen(readFilesPaneOpen(scopedProfile));
+  }, [scopedProfile]);
 
   const clearChatParams = useCallback(() => {
     setSearchParams(
@@ -116,6 +135,19 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         <Button
           ghost
           size="sm"
+          onClick={() => handleFilesPaneOpenChange(!filesPaneOpen)}
+          aria-label={filesPaneOpen ? "Hide files" : "Show files"}
+          aria-pressed={filesPaneOpen}
+          className={cn(
+            "text-muted-foreground hover:text-foreground",
+            filesPaneOpen && "text-foreground",
+          )}
+        >
+          <FolderTree className="h-4 w-4" />
+        </Button>
+        <Button
+          ghost
+          size="sm"
           onClick={startFresh}
           aria-label={t.sessions.newChat}
           className="gap-1.5 text-muted-foreground hover:text-foreground"
@@ -130,6 +162,8 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
       setTitle(null);
     };
   }, [
+    filesPaneOpen,
+    handleFilesPaneOpenChange,
     isActive,
     setEnd,
     setTitle,
@@ -205,6 +239,8 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
             onStoredSessionId={handleStoredSessionId}
             onTitle={handleTitle}
             resetRef={resetRef}
+            filesPaneOpen={filesPaneOpen}
+            onFilesPaneOpenChange={handleFilesPaneOpenChange}
           />
         </div>
       </div>

@@ -7,6 +7,12 @@ export { SessionView } from "./session-view";
 export { ThinChat } from "./thin-chat";
 export type { ThinChatProps } from "./thin-chat";
 export {
+  readFilesPaneOpen,
+  writeFilesPaneOpen,
+  RightFilesPane,
+} from "./right-files";
+export type { RightFilesPaneProps } from "./right-files";
+export {
   applyGatewayEvent,
   createThinChatTurnState,
   historyToChatMessages,

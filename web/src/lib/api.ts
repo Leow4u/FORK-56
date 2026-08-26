@@ -468,6 +468,19 @@ export const api = {
     const query = path ? `?path=${encodeURIComponent(path)}` : "";
     return fetchJSON<ManagedFilesResponse>(`/api/files${query}`);
   },
+  /**
+   * Agent-host filesystem listing (session cwd / right Files pane).
+   * Distinct from ``listFiles`` which is the managed WORK4YOU_HOME browser.
+   * Same surface the desktop remote bridge uses (``/api/fs/list``).
+   */
+  listFsDir: (path: string) =>
+    fetchJSON<FsListResponse>(
+      `/api/fs/list?path=${encodeURIComponent(path)}`,
+    ),
+  readFsText: (path: string) =>
+    fetchJSON<FsReadTextResponse>(
+      `/api/fs/read-text?path=${encodeURIComponent(path)}`,
+    ),
   readFile: (path: string) =>
     fetchJSON<ManagedFileReadResponse>(
       `/api/files/read?path=${encodeURIComponent(path)}`,
@@ -2081,6 +2094,28 @@ export interface ManagedFilesResponse {
   locked_root: string | null;
   can_change_path: boolean;
   entries: ManagedFileEntry[];
+}
+
+/** Agent-host dir entry from ``GET /api/fs/list`` (desktop remote FS bridge). */
+export interface FsDirEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+}
+
+export interface FsListResponse {
+  entries: FsDirEntry[];
+  error?: string;
+}
+
+export interface FsReadTextResponse {
+  binary: boolean;
+  byteSize: number;
+  language: string;
+  mimeType: string;
+  path: string;
+  text: string;
+  truncated: boolean;
 }
 
 export interface ManagedFileReadResponse {
