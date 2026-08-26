@@ -6,6 +6,8 @@ import {
   cronJobFormFromJob,
   splitCronList,
   type CronJobFormState,
+  parseCronDeliveryTargets,
+  toggleCronDeliveryTarget,
 } from "./cron-job";
 import type { CronJob } from "./api";
 
@@ -151,5 +153,30 @@ describe("cronJobFormFromJob", () => {
     expect(cronJobFormFromJob(job)).toMatchObject({
       schedule: "2026-02-03T14:00:00+08:00",
     });
+  });
+});
+
+describe("cron delivery target helpers (desktop parity)", () => {
+  it("parses comma-separated targets, deduped, defaulting to local", () => {
+    expect(parseCronDeliveryTargets("")).toEqual(["local"]);
+    expect(parseCronDeliveryTargets("local, telegram, telegram")).toEqual([
+      "local",
+      "telegram",
+    ]);
+  });
+
+  it("toggles targets on and off without ever emptying the selection", () => {
+    expect(toggleCronDeliveryTarget("local", "telegram", true)).toBe(
+      "local,telegram",
+    );
+    expect(toggleCronDeliveryTarget("local,telegram", "telegram", false)).toBe(
+      "local",
+    );
+    // Last remaining target cannot be removed.
+    expect(toggleCronDeliveryTarget("local", "local", false)).toBe("local");
+    // Toggling an already-present target on is a no-op.
+    expect(toggleCronDeliveryTarget("local,telegram", "telegram", true)).toBe(
+      "local,telegram",
+    );
   });
 });
