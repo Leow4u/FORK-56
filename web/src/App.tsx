@@ -64,6 +64,7 @@ import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { ChatSessionList } from "@/components/ChatSessionList";
 import { FilesRouteGate } from "@/components/FilesRouteGate";
+import { LogsRouteGate } from "@/components/LogsRouteGate";
 import { ModelsRouteGate } from "@/components/ModelsRouteGate";
 import { SidebarFooter } from "@/components/SidebarFooter";
 import { SidebarStatusStrip, gatewayLine } from "@/components/SidebarStatusStrip";
@@ -84,7 +85,6 @@ const ConfigPage = lazy(() => import("@/pages/ConfigPage"));
 const DocsPage = lazy(() => import("@/pages/DocsPage"));
 const EnvPage = lazy(() => import("@/pages/EnvPage"));
 const SessionsPage = lazy(() => import("@/pages/SessionsPage"));
-const LogsPage = lazy(() => import("@/pages/LogsPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const CronPage = lazy(() => import("@/pages/CronPage"));
@@ -173,7 +173,9 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   // /analytics. See ModelsRouteGate.
   "/models": ModelsRouteGate,
   "/settings": SettingsPage,
-  "/logs": LogsPage,
+  // Operator-only diagnostics: fully absent unless dashboard.show_logs_admin
+  // is set (the gate redirects home). See LogsRouteGate.
+  "/logs": LogsRouteGate,
   "/cron": CronPage,
   "/skills": SkillsPage,
   "/plugins": PluginsPage,
@@ -455,6 +457,7 @@ export default function App() {
   const [showTokenAnalytics, setShowTokenAnalytics] = useState(false);
   const [showSessionsAdmin, setShowSessionsAdmin] = useState(false);
   const [showFilesAdmin, setShowFilesAdmin] = useState(false);
+  const [showLogsAdmin, setShowLogsAdmin] = useState(false);
   useEffect(() => {
     api
       .getConfig()
@@ -463,15 +466,18 @@ export default function App() {
           show_token_analytics?: unknown;
           show_sessions_admin?: unknown;
           show_files_admin?: unknown;
+          show_logs_admin?: unknown;
         };
         setShowTokenAnalytics(dash.show_token_analytics === true);
         setShowSessionsAdmin(dash.show_sessions_admin === true);
         setShowFilesAdmin(dash.show_files_admin === true);
+        setShowLogsAdmin(dash.show_logs_admin === true);
       })
       .catch(() => {
         setShowTokenAnalytics(false);
         setShowSessionsAdmin(false);
         setShowFilesAdmin(false);
+        setShowLogsAdmin(false);
       });
   }, []);
 
@@ -519,9 +525,17 @@ export default function App() {
       if (n.path === "/sessions") return showSessionsAdmin || !embeddedChat;
       // Operator-only file manager — route itself is gated (FilesRouteGate).
       if (n.path === "/files") return showFilesAdmin;
+      // Operator-only diagnostics — route itself is gated (LogsRouteGate).
+      if (n.path === "/logs") return showLogsAdmin;
       return true;
     });
-  }, [embeddedChat, showFilesAdmin, showSessionsAdmin, showTokenAnalytics]);
+  }, [
+    embeddedChat,
+    showFilesAdmin,
+    showLogsAdmin,
+    showSessionsAdmin,
+    showTokenAnalytics,
+  ]);
 
   const sidebarNav = useMemo(
     () => partitionSidebarNav(builtinNav, manifests),
