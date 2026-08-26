@@ -55,7 +55,6 @@ export function ThinChat({
     activity,
     resumeProgress,
     canLoadEarlier,
-    showLoadEarlier,
     loadingEarlier,
     submit,
     enqueueDraft,
@@ -198,7 +197,6 @@ export function ThinChat({
           onStop={() => void interrupt()}
           busy={busy}
           canLoadEarlier={canLoadEarlier}
-          showLoadEarlier={showLoadEarlier}
           loadingEarlier={loadingEarlier}
           onLoadEarlier={() => void loadEarlier()}
           autoFocus={isActive}

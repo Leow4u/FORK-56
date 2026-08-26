@@ -24,7 +24,6 @@ export interface SessionViewProps {
   onStop?: () => void;
   busy?: boolean;
   canLoadEarlier?: boolean;
-  showLoadEarlier?: boolean;
   loadingEarlier?: boolean;
   onLoadEarlier?: () => void;
   autoFocus?: boolean;
@@ -51,7 +50,6 @@ export function SessionView({
   onStop,
   busy = false,
   canLoadEarlier = false,
-  showLoadEarlier = false,
   loadingEarlier = false,
   onLoadEarlier,
   autoFocus = true,
@@ -62,7 +60,6 @@ export function SessionView({
         messages={messages}
         busy={busy}
         canLoadEarlier={canLoadEarlier}
-        showLoadEarlier={showLoadEarlier}
         loadingEarlier={loadingEarlier}
         onLoadEarlier={onLoadEarlier}
       />

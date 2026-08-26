@@ -13,8 +13,6 @@ export interface MessageListProps {
   /** Agent turn in flight — shows thinking dots before the first token. */
   busy?: boolean;
   canLoadEarlier?: boolean;
-  /** Show the load-earlier control even when nothing is available yet. */
-  showLoadEarlier?: boolean;
   loadingEarlier?: boolean;
   onLoadEarlier?: () => void;
   className?: string;
@@ -133,7 +131,6 @@ export function MessageList({
   messages,
   busy = false,
   canLoadEarlier = false,
-  showLoadEarlier = false,
   loadingEarlier = false,
   onLoadEarlier,
   className,

@@ -163,7 +163,6 @@ export interface UseThinChatGatewayResult {
   activity: ThinChatActivity;
   resumeProgress: ResumeProgress | null;
   canLoadEarlier: boolean;
-  showLoadEarlier: boolean;
   loadingEarlier: boolean;
   submit: (text: string) => Promise<void>;
   enqueueDraft: (text: string) => void;
@@ -424,15 +423,15 @@ export function useThinChatGateway(
   }, [bindLiveSession, createFreshSession, gw, messages.length, phase, rememberStored]);
 
   const resumeAfterReconnect = useCallback(async () => {
-    const stored = storedSessionIdRef.current;
-    if (stored) {
+    const storedSessionKey = storedSessionIdRef.current;
+    if (storedSessionKey) {
       const resumed = await gw.request<SessionResumeResult>(
         "session.resume",
-        thinChatSessionResumeParams(stored, profileRef.current),
+        thinChatSessionResumeParams(storedSessionKey, profileRef.current),
       );
       bindLiveSession(resumed.session_id);
-      const stored = resumed.stored_session_id ?? resumed.resumed ?? null;
-      rememberStored(stored);
+      const storedId = resumed.stored_session_id ?? resumed.resumed ?? null;
+      rememberStored(storedId);
       setMessages((current) => {
         const authoritative = buildResumeTranscript(
           historyToChatMessages(resumed.messages),
@@ -440,7 +439,7 @@ export function useThinChatGateway(
           current,
           resumed.session_id,
         );
-        const recovery = recoverInflightJournal(stored, authoritative, {
+        const recovery = recoverInflightJournal(storedId, authoritative, {
           keepPending: Boolean(resumed.running),
         });
         turnStateRef.current = recovery.applied
@@ -926,8 +925,6 @@ export function useThinChatGateway(
     }
   }, [appendSystemMessage, backfillLoaded, loadingEarlier]);
 
-  const showLoadEarlier = Boolean(storedSessionId && phase === "session");
-
   const canLoadEarlier = Boolean(
     storedSessionId &&
       phase === "session" &&
@@ -989,7 +986,6 @@ export function useThinChatGateway(
     activity: activityWithQueue,
     resumeProgress,
     canLoadEarlier,
-    showLoadEarlier,
     loadingEarlier,
     submit,
     enqueueDraft,
