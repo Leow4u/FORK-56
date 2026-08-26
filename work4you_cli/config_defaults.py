@@ -1518,6 +1518,14 @@ DEFAULT_CONFIG = {
         # the admin page remains fully reachable at /sessions by URL.  Set
         # this to True to restore the nav entry for operator workflows.
         "show_sessions_admin": False,
+        # Hide the Files admin page (raw managed-file manager over the
+        # instance's data directory: upload / download / delete via
+        # /api/files*) entirely by default — unlike the gates above, the
+        # ROUTE is gated too, so /files redirects home unless this is True.
+        # Everyday user file needs live in the chat (composer attachments,
+        # right Files/Preview pane); this page is an operator tool for
+        # pulling backups/logs off an instance without SSH.
+        "show_files_admin": False,
         # OAuth gate configuration (engaged when ``--host`` is set and
         # ``--insecure`` is not). The bundled Work4You Portal plugin reads
         # both keys at startup; they are the canonical surface for these

@@ -2425,6 +2425,33 @@ def _managed_files_policy(request: Request, *, create_root: bool = True) -> Mana
     return ManagedFilesPolicy(default_path=home, locked_root=None, can_change_path=True)
 
 
+def _ensure_files_admin_writes_enabled() -> None:
+    """Server-side lock for destructive managed-file operations.
+
+    The Files admin page is hidden from the SPA unless
+    ``dashboard.show_files_admin`` is true (see FilesRouteGate); this check
+    enforces the same gate on the WRITE endpoints (upload / upload-stream /
+    mkdir / delete) so an authenticated client cannot mutate the instance's
+    data directory while the surface is disabled. Read-only routes (list,
+    read, download, stream) stay open: the desktop app renders agent-written
+    media through ``/api/files/download`` and ``/api/files/stream``.
+    Fail closed: a config read error keeps the lock engaged.
+    """
+    try:
+        dash = load_config().get("dashboard") or {}
+        enabled = dash.get("show_files_admin") is True
+    except Exception:
+        enabled = False
+    if not enabled:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Files admin is disabled. Set dashboard.show_files_admin: true "
+                "in config.yaml to enable uploads, folder creation, and deletes."
+            ),
+        )
+
+
 def _resolve_managed_path(
     raw_path: str | None,
     request: Request,
@@ -2755,6 +2782,7 @@ async def stream_managed_file(request: Request, path: str):
 
 @app.post("/api/files/upload")
 async def upload_managed_file(payload: ManagedFileUpload, request: Request):
+    _ensure_files_admin_writes_enabled()
     policy, target, display_path = _resolve_managed_path(payload.path, request, for_write=True)
     if target.exists() and target.is_dir():
         raise HTTPException(status_code=409, detail="A directory already exists at that path")
@@ -2795,6 +2823,7 @@ async def upload_managed_file_stream(
     path: str = Form(...),
     overwrite: bool = Form(True),
 ):
+    _ensure_files_admin_writes_enabled()
     policy, target, display_path = _resolve_managed_path(path, request, for_write=True)
     if target.exists() and target.is_dir():
         raise HTTPException(status_code=409, detail="A directory already exists at that path")
@@ -2854,6 +2883,7 @@ async def upload_managed_file_stream(
 
 @app.post("/api/files/mkdir")
 async def create_managed_directory(payload: ManagedDirectoryCreate, request: Request):
+    _ensure_files_admin_writes_enabled()
     policy, target, display_path = _resolve_managed_path(payload.path, request, for_write=True)
     if target.exists() and not target.is_dir():
         raise HTTPException(status_code=409, detail="A file already exists at that path")
@@ -2875,6 +2905,7 @@ async def create_managed_directory(payload: ManagedDirectoryCreate, request: Req
 
 @app.delete("/api/files")
 async def delete_managed_file(payload: ManagedFileDelete, request: Request):
+    _ensure_files_admin_writes_enabled()
     policy, target, display_path = _resolve_managed_path(payload.path, request)
     if policy.locked_root is not None and target == policy.locked_root:
         raise HTTPException(status_code=400, detail="Cannot delete the managed files root")
