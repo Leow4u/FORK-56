@@ -6,8 +6,8 @@
 # Do not deploy from services/work4you-cloud-agent on Windows: fly's
 # build-context = "../.." can omit files from the Docker context (#29).
 #
-# 2026-08-26: rebuild after thin-chat full parity Phases 1–7
-# (attach, workspace, files, approvals, review, term/preview/desktop_ui, polish).
+# 2026-08-26: rebuild after composer popover overflow-visible fix (ea91df3).
+# Prior: thin-chat full parity Phases 1–7.
 app = "work4you-cloud-runtime"
 primary_region = "gru"
 
