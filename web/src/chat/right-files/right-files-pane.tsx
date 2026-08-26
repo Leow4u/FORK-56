@@ -126,7 +126,8 @@ export function RightFilesPane({
     [previewFile],
   );
 
-  const activateFolder = useCallback((_path: string) => {
+  const activateFolder = useCallback((path: string) => {
+    void path;
     // Folders expand via toggle; no path insert on navigate.
   }, []);
 

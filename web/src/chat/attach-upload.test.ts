@@ -90,7 +90,7 @@ describe("uploadThinAttachment", () => {
 describe("syncAttachmentsForSubmit", () => {
   it("stages pending attachments in order", async () => {
     const calls: string[] = [];
-    const gw = fakeGateway((method, params) => {
+    const gw = fakeGateway((method) => {
       calls.push(method);
       if (method === "image.attach_bytes") {
         return { attached: true, path: "/img.png" };
