@@ -13,7 +13,7 @@ export const composerFloatingStrip = "flex flex-wrap items-center gap-1.5 px-[5p
 
 /** Glassy composer input card. */
 export const composerSurface = cn(
-  "relative w-full overflow-hidden rounded-2xl border border-border/65",
+  "relative w-full overflow-visible rounded-2xl border border-border/65",
   "bg-background/90 shadow-sm backdrop-blur-md",
   "transition-[border-color,box-shadow] focus-within:border-border focus-within:shadow-md",
 );
