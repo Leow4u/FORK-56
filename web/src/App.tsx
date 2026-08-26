@@ -63,6 +63,7 @@ import { Typography } from "@work4you/ui/ui/components/typography/index";
 import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { ChatSessionList } from "@/components/ChatSessionList";
+import { FilesRouteGate } from "@/components/FilesRouteGate";
 import { SidebarFooter } from "@/components/SidebarFooter";
 import { SidebarStatusStrip, gatewayLine } from "@/components/SidebarStatusStrip";
 import { useBelowBreakpoint } from "@work4you/ui/hooks/use-below-breakpoint";
@@ -81,7 +82,6 @@ import type { SystemAction } from "@/contexts/system-actions-context";
 const ConfigPage = lazy(() => import("@/pages/ConfigPage"));
 const DocsPage = lazy(() => import("@/pages/DocsPage"));
 const EnvPage = lazy(() => import("@/pages/EnvPage"));
-const FilesPage = lazy(() => import("@/pages/FilesPage"));
 const SessionsPage = lazy(() => import("@/pages/SessionsPage"));
 const LogsPage = lazy(() => import("@/pages/LogsPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
@@ -163,7 +163,9 @@ const CHAT_NAV_ITEM: NavItem = {
 const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   "/": RootRedirect,
   "/sessions": SessionsPage,
-  "/files": FilesPage,
+  // Operator-only: fully absent unless dashboard.show_files_admin is set
+  // (the gate redirects home). See FilesRouteGate.
+  "/files": FilesRouteGate,
   "/analytics": AnalyticsPage,
   "/models": ModelsPage,
   "/logs": LogsPage,
@@ -442,8 +444,12 @@ export default function App() {
   // way: everyday session management lives in the sidebar session list, so
   // the store-hygiene console (stats, import, prune, bulk delete) stays off
   // the default nav. The /sessions route remains fully reachable by URL.
+  // `dashboard.show_files_admin` gates the Files admin page (raw managed-file
+  // manager). Unlike the two gates above, the ROUTE itself is also gated —
+  // see FilesRouteGate — so the page is fully absent unless re-enabled.
   const [showTokenAnalytics, setShowTokenAnalytics] = useState(false);
   const [showSessionsAdmin, setShowSessionsAdmin] = useState(false);
+  const [showFilesAdmin, setShowFilesAdmin] = useState(false);
   useEffect(() => {
     api
       .getConfig()
@@ -451,13 +457,16 @@ export default function App() {
         const dash = (cfg?.dashboard ?? {}) as {
           show_token_analytics?: unknown;
           show_sessions_admin?: unknown;
+          show_files_admin?: unknown;
         };
         setShowTokenAnalytics(dash.show_token_analytics === true);
         setShowSessionsAdmin(dash.show_sessions_admin === true);
+        setShowFilesAdmin(dash.show_files_admin === true);
       })
       .catch(() => {
         setShowTokenAnalytics(false);
         setShowSessionsAdmin(false);
+        setShowFilesAdmin(false);
       });
   }, []);
 
@@ -500,9 +509,11 @@ export default function App() {
       // Hide the Sessions admin console when the sidebar session list is
       // the everyday surface (embedded chat on) unless explicitly re-shown.
       if (n.path === "/sessions") return showSessionsAdmin || !embeddedChat;
+      // Operator-only file manager — route itself is gated (FilesRouteGate).
+      if (n.path === "/files") return showFilesAdmin;
       return true;
     });
-  }, [embeddedChat, showSessionsAdmin, showTokenAnalytics]);
+  }, [embeddedChat, showFilesAdmin, showSessionsAdmin, showTokenAnalytics]);
 
   const sidebarNav = useMemo(
     () => partitionSidebarNav(builtinNav, manifests),
