@@ -104,7 +104,13 @@ export function historyToChatMessages(
 }
 
 export function sessionMessagesToChatMessages(
-  raw: Array<{ role?: string; content?: string | null; tool_name?: string }>,
+  raw: Array<{
+    role?: string;
+    content?: string | null;
+    tool_name?: string;
+    id?: number;
+    row_id?: number;
+  }>,
 ): ChatMessage[] {
   const out: ChatMessage[] = [];
   for (const item of raw) {
@@ -117,8 +123,9 @@ export function sessionMessagesToChatMessages(
           ? item.tool_name
           : "";
     if (!text.trim()) continue;
+    const rowId = item.row_id ?? item.id;
     out.push({
-      id: createMessageId(),
+      id: rowId != null ? `row-${rowId}` : createMessageId(),
       role,
       text,
     });

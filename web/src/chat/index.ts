@@ -20,4 +20,10 @@ export {
   reconcileResumeMessages,
   turnStateFromInflight,
 } from "./resume-transcript";
+export {
+  clearInflightJournal,
+  persistInflightJournal,
+  prependOlderMessages,
+  recoverInflightJournal,
+} from "./inflight-journal";
 export { useThinChatGateway } from "./use-thin-chat-gateway";

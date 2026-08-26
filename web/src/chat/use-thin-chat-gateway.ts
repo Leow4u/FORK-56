@@ -34,6 +34,12 @@ import {
 } from "./resume-transcript";
 import type { ThinChatActivity } from "./chat-activity-strip";
 import {
+  clearInflightJournal,
+  persistInflightJournal,
+  prependOlderMessages,
+  recoverInflightJournal,
+} from "./inflight-journal";
+import {
   mergeSessionInfo,
   sessionInfoFromPayload,
   sessionUsageFromPayload,
@@ -337,19 +343,21 @@ export function useThinChatGateway(
   const applyResumeResult = useCallback(
     (result: SessionResumeResult, localMessages?: ChatMessage[]) => {
       bindLiveSession(result.session_id);
-      rememberStored(result.stored_session_id ?? result.resumed);
-      turnStateRef.current = turnStateFromInflight(
+      const stored = result.stored_session_id ?? result.resumed ?? null;
+      rememberStored(stored);
+      const authoritative = buildResumeTranscript(
+        historyToChatMessages(result.messages),
         result.inflight,
+        localMessages ?? [],
         result.session_id,
       );
-      setMessages((current) =>
-        buildResumeTranscript(
-          historyToChatMessages(result.messages),
-          result.inflight,
-          localMessages ?? current,
-          result.session_id,
-        ),
-      );
+      const recovery = recoverInflightJournal(stored, authoritative, {
+        keepPending: Boolean(result.running),
+      });
+      turnStateRef.current = recovery.applied
+        ? recovery.turn
+        : turnStateFromInflight(result.inflight, result.session_id);
+      setMessages(recovery.messages);
       setPhase("session");
       setBusy(Boolean(result.running));
       setReady(true);
@@ -423,19 +431,23 @@ export function useThinChatGateway(
         thinChatSessionResumeParams(stored, profileRef.current),
       );
       bindLiveSession(resumed.session_id);
-      rememberStored(resumed.stored_session_id ?? resumed.resumed);
-      turnStateRef.current = turnStateFromInflight(
-        resumed.inflight,
-        resumed.session_id,
-      );
-      setMessages((current) =>
-        buildResumeTranscript(
+      const stored = resumed.stored_session_id ?? resumed.resumed ?? null;
+      rememberStored(stored);
+      setMessages((current) => {
+        const authoritative = buildResumeTranscript(
           historyToChatMessages(resumed.messages),
           resumed.inflight,
           current,
           resumed.session_id,
-        ),
-      );
+        );
+        const recovery = recoverInflightJournal(stored, authoritative, {
+          keepPending: Boolean(resumed.running),
+        });
+        turnStateRef.current = recovery.applied
+          ? recovery.turn
+          : turnStateFromInflight(resumed.inflight, resumed.session_id);
+        return recovery.messages;
+      });
       setBusy(Boolean(resumed.running));
       setReady(true);
       if (resumed.info) {
@@ -518,6 +530,7 @@ export function useThinChatGateway(
         }
         if (ev.type === "message.complete" || ev.type === "error") {
           setBusy(false);
+          clearInflightJournal(storedSessionIdRef.current);
           void refreshSessionUsage();
         }
       }
@@ -863,6 +876,15 @@ export function useThinChatGateway(
     void submitPrompt(next);
   }, [busy, submitPrompt]);
 
+  useEffect(() => {
+    persistInflightJournal(
+      storedSessionId,
+      messages,
+      turnStateRef.current,
+      busy,
+    );
+  }, [busy, messages, storedSessionId]);
+
   const enqueueDraft = useCallback((text: string) => {
     const trimmed = text.trim();
     if (!trimmed || !busy) return;
@@ -892,7 +914,7 @@ export function useThinChatGateway(
       const resp = await api.getSessionMessages(stored, profileRef.current);
       const older = sessionMessagesToChatMessages(resp.messages ?? []);
       if (older.length > 0) {
-        setMessages((prev) => [...older, ...prev]);
+        setMessages((prev) => prependOlderMessages(prev, older));
       }
       setBackfillLoaded(true);
     } catch (e) {
@@ -922,6 +944,7 @@ export function useThinChatGateway(
     ensurePromiseRef.current = null;
     queueRef.current = [];
     turnStateRef.current = createThinChatTurnState();
+    clearInflightJournal(storedSessionIdRef.current);
     setQueueCount(0);
     setActivity(EMPTY_ACTIVITY);
     setBusy(false);
