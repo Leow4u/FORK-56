@@ -22,6 +22,12 @@ vi.mock("@/pages/ModelsPage", () => ({
   },
 }));
 
+vi.mock("@/pages/PluginsPage", () => ({
+  ProvidersCard: () => (
+    <div data-testid="providers-card">memory and context providers</div>
+  ),
+}));
+
 vi.mock("@/contexts/usePageHeader", () => ({
   usePageHeader: () => ({ setTitle: vi.fn(), setEnd: vi.fn() }),
 }));
@@ -87,5 +93,18 @@ describe("SettingsPage", () => {
     await renderPage("/settings?section=nope");
     const active = container.querySelector('[aria-current="true"]');
     expect(active?.textContent).toContain("Model");
+  });
+
+  it("renders the Memory & Context section with the providers card", async () => {
+    await renderPage("/settings?section=memory");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("Memory & Context");
+    expect(
+      container.querySelector('[data-testid="providers-card"]'),
+    ).toBeTruthy();
+    // Model panel is not mounted on this section.
+    expect(
+      container.querySelector('[data-testid="model-settings-panel"]'),
+    ).toBeNull();
   });
 });

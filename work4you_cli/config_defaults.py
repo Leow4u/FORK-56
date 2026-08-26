@@ -1531,6 +1531,13 @@ DEFAULT_CONFIG = {
         # unless this is True. The read-only /api/logs endpoint is untouched
         # (the desktop Command Center tails logs through it).
         "show_logs_admin": False,
+        # Hide the Plugins page from the sidebar by default. The user-facing
+        # part (memory provider + context engine) lives in Settings → Memory
+        # & Context; what remains on /plugins (git install, enable/disable,
+        # dashboard-tab visibility, orphan manifests) is operator work. The
+        # route stays reachable by URL — nothing there is destructive to the
+        # instance the way managed-file writes are.
+        "show_plugins_admin": False,
         # OAuth gate configuration (engaged when ``--host`` is set and
         # ``--insecure`` is not). The bundled Work4You Portal plugin reads
         # both keys at startup; they are the canonical surface for these

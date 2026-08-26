@@ -426,6 +426,7 @@ export const en: Translations = {
     pluginListHeading: "Installed plugins",
     providerDefaults: "built-in / default",
     providersHeading: "Runtime provider plugins",
+    cacheNote: "Plugin toggles apply to new sessions.",
     providersHint:
       "Writes memory.provider (empty = built-in) and context.engine to config.yaml. Takes effect next session.",
     refreshDashboard: "Rescan dashboard extensions",
