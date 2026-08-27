@@ -112,4 +112,58 @@ describe("SettingsConfigSection", () => {
     expect(container.textContent).toContain("display.show_reasoning");
     expect(container.textContent).toContain("agent.image_input_mode");
   });
+
+  it("applies visibleKey and schemaFallback for voice-style sections", async () => {
+    apiMocks.getConfig.mockResolvedValue({
+      tts: { provider: "edge", edge: { voice: "en-US-AriaNeural" } },
+      stt: { enabled: true, provider: "local", local: { model: "base" } },
+      voice: { auto_tts: false },
+    });
+    apiMocks.getSchema.mockResolvedValue({
+      fields: {
+        "tts.provider": { type: "select", options: ["edge", "openai"] },
+        "tts.edge.voice": { type: "string" },
+        "tts.openai.voice": { type: "string" },
+        "stt.enabled": { type: "boolean" },
+        "stt.local.model": { type: "select", options: ["base"] },
+        "stt.groq.model": { type: "string" },
+        "voice.auto_tts": { type: "boolean" },
+      },
+      category_order: [],
+    });
+
+    const { SettingsConfigSection } = await import("./SettingsConfigSection");
+    const { voiceFieldVisible, VOICE_SCHEMA_FALLBACKS } = await import(
+      "@/lib/voice-settings"
+    );
+
+    act(() => {
+      root.render(
+        <SettingsConfigSection
+          keys={[
+            "tts.provider",
+            "stt.provider",
+            "tts.edge.voice",
+            "tts.openai.voice",
+            "stt.local.model",
+            "stt.groq.model",
+            "voice.auto_tts",
+          ]}
+          visibleKey={voiceFieldVisible}
+          schemaFallback={VOICE_SCHEMA_FALLBACKS}
+        />,
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const text = container.textContent ?? "";
+    expect(text).toContain("stt.provider");
+    expect(text).toContain("tts.edge.voice");
+    expect(text).toContain("stt.local.model");
+    expect(text).not.toContain("tts.openai.voice");
+    expect(text).not.toContain("stt.groq.model");
+  });
 });

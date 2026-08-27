@@ -18,9 +18,11 @@
  *     (keys mirror desktop Settings → Workspace).
  *   - safety — approvals, allowlist, security/browser URL policy, checkpoints
  *     (keys mirror desktop Settings → Safety).
+ *   - voice — TTS/STT providers and voice tuning (keys + voiceFieldVisible
+ *     mirror desktop Settings → Voice).
  */
 
-import { Brain, Cpu, Lock, MessageCircle, Monitor } from "lucide-react";
+import { Brain, Cpu, Lock, MessageCircle, Mic, Monitor } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -34,6 +36,11 @@ import { cn } from "@/lib/utils";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { PluginSlot } from "@/plugins";
 import { SettingsConfigSection } from "@/components/SettingsConfigSection";
+import {
+  VOICE_CONFIG_KEYS,
+  VOICE_SCHEMA_FALLBACKS,
+  voiceFieldVisible,
+} from "@/lib/voice-settings";
 import { ModelSettingsPanel } from "@/pages/ModelsPage";
 import { ProvidersCard } from "@/pages/PluginsPage";
 
@@ -146,6 +153,18 @@ const SECTIONS: SettingsSection[] = [
     label: "Safety",
     icon: Lock,
     render: () => <SettingsConfigSection keys={SAFETY_CONFIG_KEYS} />,
+  },
+  {
+    id: "voice",
+    label: "Voice",
+    icon: Mic,
+    render: () => (
+      <SettingsConfigSection
+        keys={VOICE_CONFIG_KEYS}
+        visibleKey={voiceFieldVisible}
+        schemaFallback={VOICE_SCHEMA_FALLBACKS}
+      />
+    ),
   },
   {
     // Where the agent keeps memory + which context engine compacts it —
