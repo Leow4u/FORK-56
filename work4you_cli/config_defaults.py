@@ -1538,6 +1538,12 @@ DEFAULT_CONFIG = {
         # route stays reachable by URL — nothing there is destructive to the
         # instance the way managed-file writes are.
         "show_plugins_admin": False,
+        # Hide the Config page (raw config.yaml schema editor) from the
+        # sidebar by default. User-facing settings live in /settings; this
+        # page is the operator surface for keys not yet curated there.
+        # The route stays reachable by URL — Settings and operators can still
+        # open /config directly; only the nav entry is gated.
+        "show_config_admin": False,
         # OAuth gate configuration (engaged when ``--host`` is set and
         # ``--insecure`` is not). The bundled Work4You Portal plugin reads
         # both keys at startup; they are the canonical surface for these

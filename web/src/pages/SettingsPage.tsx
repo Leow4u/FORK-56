@@ -5,7 +5,8 @@
  * (apps/desktop/src/app/settings/): a section nav on the left, curated
  * content on the right, deep-linkable via ``?section=``. Only fields a
  * user should tune from the app live here; the raw config editor
- * (/config) remains the operator surface.
+ * (/config) remains the operator surface (hidden from sidebar nav unless
+ * `dashboard.show_config_admin` is true; route stays URL-reachable).
  *
  * Sections grow as the screen-by-screen curation advances. Today:
  *
