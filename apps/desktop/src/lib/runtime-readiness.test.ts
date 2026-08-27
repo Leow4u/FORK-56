@@ -84,7 +84,10 @@ describe('fetchRuntimeReadinessSignals', () => {
 
     await fetchRuntimeReadinessSignals(requestGateway, 'work4you')
 
-    expect(calls).toEqual([{ method: 'setup.status' }, { method: 'setup.runtime_check', params: { provider: 'work4you' } }])
+    expect(calls).toEqual([
+      { method: 'setup.status' },
+      { method: 'setup.runtime_check', params: { provider: 'work4you' } }
+    ])
   })
 })
 
