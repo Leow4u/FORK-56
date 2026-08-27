@@ -51,13 +51,12 @@ export function AuthWidget({ className }: AuthWidgetProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const { manifests } = usePlugins();
-  const achievementsManifest = manifests.find(
-    (m) => m.name === "work4you-achievements",
+  const accountMenuPlugins = manifests.filter(
+    (m) => m.tab.hidden && !m.tab.override,
   );
 
   const settingsLabel = t.app.nav.settings ?? "Settings";
   const docsLabel = t.app.nav.documentation ?? "Docs";
-  const achievementsLabel = achievementsManifest?.label ?? "Achievements";
   const logOutLabel = t.app.logOut ?? "Log out";
 
   const gated =
@@ -117,9 +116,9 @@ export function AuthWidget({ className }: AuthWidgetProps) {
     navigate("/docs");
   };
 
-  const openAchievements = () => {
+  const openAccountMenuPlugin = (path: string) => {
     closeMenu();
-    navigate(achievementsManifest?.tab.path ?? "/achievements");
+    navigate(path);
   };
 
   const handleLogout = () => {
@@ -186,17 +185,18 @@ export function AuthWidget({ className }: AuthWidgetProps) {
           <BookOpen className="h-3 w-3 shrink-0" />
           <span className="truncate">{docsLabel}</span>
         </button>
-        {achievementsManifest && (
+        {accountMenuPlugins.map((manifest) => (
           <button
+            key={manifest.name}
             type="button"
             role="menuitem"
-            onClick={openAchievements}
+            onClick={() => openAccountMenuPlugin(manifest.tab.path)}
             className={itemClass}
           >
             <Star className="h-3 w-3 shrink-0" />
-            <span className="truncate">{achievementsLabel}</span>
+            <span className="truncate">{manifest.label}</span>
           </button>
-        )}
+        ))}
         {showLogout && (
           <button
             type="button"
