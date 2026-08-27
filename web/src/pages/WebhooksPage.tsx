@@ -75,6 +75,7 @@ export default function WebhooksPage() {
   const [deliver, setDeliver] = useState("log");
   const [deliverOnly, setDeliverOnly] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [skills, setSkills] = useState("");
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<CreatedWebhook | null>(null);
 
@@ -181,6 +182,7 @@ export default function WebhooksPage() {
     setDeliver("log");
     setDeliverOnly(false);
     setPrompt("");
+    setSkills("");
   }, []);
 
   const handleCreate = async () => {
@@ -194,6 +196,12 @@ export default function WebhooksPage() {
         .split(",")
         .map((e) => e.trim())
         .filter(Boolean);
+      // Same split the desktop create form uses — WebhookCreate.skills
+      // is already on the web API client.
+      const skillsList = skills
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       const res = await api.createWebhook({
         name: name.trim(),
         description: description.trim() || undefined,
@@ -201,6 +209,7 @@ export default function WebhooksPage() {
         deliver,
         deliver_only: deliverOnly,
         prompt: prompt.trim() || undefined,
+        skills: skillsList.length ? skillsList : undefined,
       });
       showToast("Created ✓", "success");
       setCreated({ url: res.url, secret: res.secret });
@@ -388,14 +397,25 @@ export default function WebhooksPage() {
                   />
                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="webhook-events">Events</Label>
-                  <Input
-                    id="webhook-events"
-                    placeholder="comma-separated, leave empty for all"
-                    value={events}
-                    onChange={(e) => setEvents(e.target.value)}
-                  />
+                <div className="grid items-start gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="webhook-events">Events</Label>
+                    <Input
+                      id="webhook-events"
+                      placeholder="comma-separated, leave empty for all"
+                      value={events}
+                      onChange={(e) => setEvents(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="webhook-skills">Skills</Label>
+                    <Input
+                      id="webhook-skills"
+                      placeholder="comma-separated skill names (optional)"
+                      value={skills}
+                      onChange={(e) => setSkills(e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -573,6 +593,22 @@ export default function WebhooksPage() {
                     ))
                   )}
                 </div>
+
+                {sub.skills.length > 0 ? (
+                  <div className="flex items-center gap-1 flex-wrap mb-2">
+                    {sub.skills.map((skill) => (
+                      <Badge key={skill} tone="secondary">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+
+                {sub.prompt ? (
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {sub.prompt}
+                  </p>
+                ) : null}
 
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="flex-1 min-w-0 truncate font-mono">
