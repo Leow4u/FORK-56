@@ -9,9 +9,9 @@
  *
  * Sections grow as the screen-by-screen curation advances. Today:
  *
- *   - model — the Model Settings panel moved from the Models page
- *     (main model, auxiliary tasks, Mixture of Agents), reusing the
- *     exact same component + APIs (getAuxiliaryModels / setModelAssignment).
+ *   - model — Model Settings panel (main model, auxiliary, MoA) plus
+ *     model_context_length and fallback_providers (keys mirror desktop
+ *     Settings → Model in apps/desktop/src/app/settings/constants.ts).
  *   - chat — personality, timezone, reasoning blocks, image attachments
  *     (keys mirror desktop Settings → Chat in apps/desktop/src/app/settings/constants.ts).
  *   - workspace — working directory, repo discovery, code execution, file limits
@@ -37,8 +37,10 @@ import { api, type AuxiliaryModelsResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { PluginSlot } from "@/plugins";
+import { FallbackModelsField } from "@/components/FallbackModelsField";
 import { SettingsConfigSection } from "@/components/SettingsConfigSection";
 import { ADVANCED_CONFIG_KEYS } from "@/lib/advanced-settings";
+import { MODEL_CONFIG_KEYS } from "@/lib/model-settings";
 import {
   VOICE_CONFIG_KEYS,
   VOICE_SCHEMA_FALLBACKS,
@@ -46,6 +48,7 @@ import {
 } from "@/lib/voice-settings";
 import { ModelSettingsPanel } from "@/pages/ModelsPage";
 import { ProvidersCard } from "@/pages/PluginsPage";
+import { Label } from "@work4you/ui/ui/components/label";
 
 /** Desktop Settings → Chat keys (apps/desktop/src/app/settings/constants.ts). */
 const CHAT_CONFIG_KEYS = [
@@ -128,7 +131,41 @@ function ModelSection() {
   }, [refreshAux]);
 
   return (
-    <ModelSettingsPanel aux={aux} refreshKey={saveKey} onSaved={onAssigned} />
+    <div className="flex flex-col gap-6">
+      <ModelSettingsPanel aux={aux} refreshKey={saveKey} onSaved={onAssigned} />
+      <SettingsConfigSection
+        keys={MODEL_CONFIG_KEYS}
+        renderField={({ schemaKey, schema, value, onChange }) => {
+          if (schemaKey !== "fallback_providers") {
+            return null;
+          }
+          const rawLabel = schemaKey.split(".").pop() ?? schemaKey;
+          const label = rawLabel
+            .replace(/_/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+          const description = schema.description
+            ? String(schema.description)
+            : undefined;
+          return (
+            <div className="grid gap-1.5">
+              <Label className="text-sm">{label}</Label>
+              {description && (
+                <span className="text-xs font-mono text-text-tertiary">
+                  {schemaKey}
+                </span>
+              )}
+              {description && (
+                <span className="text-xs text-text-secondary">{description}</span>
+              )}
+              <FallbackModelsField
+                value={value}
+                onChange={(next) => onChange(next)}
+              />
+            </div>
+          );
+        }}
+      />
+    </div>
   );
 }
 

@@ -5,7 +5,7 @@
  * key list (mirrors desktop Settings → ConfigSettings sections).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { AutoField } from "@/components/AutoField";
 import { useI18n } from "@/i18n";
@@ -21,6 +21,13 @@ import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { Toast } from "@work4you/ui/ui/components/toast";
 import { useToast } from "@work4you/ui/hooks/use-toast";
 
+export interface SettingsCustomFieldProps {
+  schemaKey: string;
+  schema: Record<string, unknown>;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}
+
 export interface SettingsConfigSectionProps {
   keys: readonly string[];
   /** When set, only matching keys render (e.g. desktop voiceFieldVisible). */
@@ -29,6 +36,8 @@ export interface SettingsConfigSectionProps {
   schemaFallback?: Record<string, Record<string, unknown>>;
   /** Confirm before save when clearing all enabled toolsets (desktop Advanced). */
   guardToolsetsWipe?: boolean;
+  /** Override AutoField for specific keys (e.g. fallback_providers). */
+  renderField?: (props: SettingsCustomFieldProps) => ReactNode | null | undefined;
 }
 
 function resolveFieldSchema(
@@ -55,6 +64,7 @@ export function SettingsConfigSection({
   visibleKey,
   schemaFallback,
   guardToolsetsWipe = false,
+  renderField,
 }: SettingsConfigSectionProps) {
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [schema, setSchema] = useState<Record<
@@ -142,17 +152,29 @@ export function SettingsConfigSection({
       </p>
 
       <div className="flex flex-col gap-4">
-        {fields.map(([key, fieldSchema]) => (
-          <AutoField
-            key={key}
-            schemaKey={key}
-            schema={fieldSchema}
-            value={getNestedValue(config, key)}
-            onChange={(value) =>
-              setConfig(setNestedValue(config, key, value))
-            }
-          />
-        ))}
+        {fields.map(([key, fieldSchema]) => {
+          const value = getNestedValue(config, key);
+          const onChange = (next: unknown) =>
+            setConfig(setNestedValue(config, key, next));
+          const custom = renderField?.({
+            schemaKey: key,
+            schema: fieldSchema,
+            value,
+            onChange,
+          });
+          if (custom != null) {
+            return <div key={key}>{custom}</div>;
+          }
+          return (
+            <AutoField
+              key={key}
+              schemaKey={key}
+              schema={fieldSchema}
+              value={value}
+              onChange={onChange}
+            />
+          );
+        })}
       </div>
 
       <Button
