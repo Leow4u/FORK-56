@@ -13,6 +13,7 @@ const BUILTIN: Record<string, keyof Translations["app"]["nav"]> = {
   "/config": "config",
   "/env": "keys",
   "/docs": "documentation",
+  "/channels": "messaging",
 };
 
 // Built-in routes without an i18n nav key. Keep these in sync with the
@@ -21,9 +22,9 @@ const BUILTIN: Record<string, keyof Translations["app"]["nav"]> = {
 const BUILTIN_LITERAL: Record<string, string> = {
   "/files": "Files",
   "/mcp": "MCP",
-  "/channels": "Channels",
+  "/channels": "Messaging",
   "/webhooks": "Webhooks",
-  "/pairing": "Pairing",
+  "/pairing": "Messaging",
   "/system": "System",
   "/settings": "Settings",
 };

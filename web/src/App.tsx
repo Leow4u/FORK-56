@@ -45,7 +45,6 @@ import {
   RotateCw,
   Settings,
   Shield,
-  ShieldCheck,
   Sparkles,
   Star,
   Terminal,
@@ -96,7 +95,11 @@ const PluginsPage = lazy(() => import("@/pages/PluginsPage"));
 function McpRedirect() {
   return <Navigate to="/skills?tab=mcp" replace />;
 }
-const PairingPage = lazy(() => import("@/pages/PairingPage"));
+// Pairing lives inside Messaging (/channels?tab=pairing) — the /pairing
+// route only redirects there, mirroring Capabilities' /mcp → /skills?tab=mcp.
+function PairingRedirect() {
+  return <Navigate to="/channels?tab=pairing" replace />;
+}
 const ChannelsPage = lazy(() => import("@/pages/ChannelsPage"));
 const WebhooksPage = lazy(() => import("@/pages/WebhooksPage"));
 const SystemPage = lazy(() => import("@/pages/SystemPage"));
@@ -183,7 +186,7 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   "/skills": SkillsPage,
   "/plugins": PluginsPage,
   "/mcp": McpRedirect,
-  "/pairing": PairingPage,
+  "/pairing": PairingRedirect,
   "/channels": ChannelsPage,
   "/webhooks": WebhooksPage,
   "/system": SystemPage,
@@ -226,9 +229,13 @@ const BUILTIN_NAV_REST: NavItem[] = [
   { path: "/cron", labelKey: "cron", label: "Cron", icon: Clock },
   { path: "/skills", labelKey: "skills", label: "Skills", icon: Package },
   { path: "/plugins", labelKey: "plugins", label: "Plugins", icon: Puzzle },
-  { path: "/channels", label: "Channels", icon: Radio },
+  {
+    path: "/channels",
+    labelKey: "messaging",
+    label: "Messaging",
+    icon: Radio,
+  },
   { path: "/webhooks", label: "Webhooks", icon: Webhook },
-  { path: "/pairing", label: "Pairing", icon: ShieldCheck },
   { path: "/profiles", labelKey: "profiles", label: "Profiles", icon: Users },
   { path: "/config", labelKey: "config", label: "Config", icon: Settings },
   { path: "/env", labelKey: "keys", label: "Keys", icon: KeyRound },

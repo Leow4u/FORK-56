@@ -452,7 +452,7 @@ function CronJobFormFields({
         {onlyLocalAvailable && (
           <p className="text-xs text-muted-foreground">
             {t.cron.delivery.noneConfigured ??
-              "No messaging platforms configured. Set one up under Channels to deliver reports."}
+              "No messaging platforms configured. Set one up under Messaging to deliver reports."}
           </p>
         )}
       </div>

@@ -27,7 +27,7 @@ function getUserLabel(user: PairingUser): string {
   return user.user_name || user.user_id;
 }
 
-export default function PairingPage() {
+export default function PairingPage({ embedded = false }: { embedded?: boolean }) {
   const [pending, setPending] = useState<PairingUser[]>([]);
   const [approved, setApproved] = useState<PairingUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,8 +104,11 @@ export default function PairingPage() {
     ),
   });
 
-  // Put "Clear pending" button in page header
+  // Put "Clear pending" button in page header. When embedded (Messaging →
+  // Pairing tab), the host page owns the header; an inline button renders
+  // in the body instead — same contract as McpPage's "Add Server".
   useLayoutEffect(() => {
+    if (embedded) return;
     setEnd(
       <Button
         className="uppercase"
@@ -121,7 +124,7 @@ export default function PairingPage() {
       setEnd(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setEnd, clearing]);
+  }, [embedded, setEnd, clearing]);
 
   if (loading) {
     return (
@@ -138,6 +141,20 @@ export default function PairingPage() {
   return (
     <div className="flex flex-col gap-6">
       <Toast toast={toast} />
+
+      {embedded && (
+        <div className="flex justify-end">
+          <Button
+            className="uppercase"
+            size="sm"
+            onClick={handleClearPending}
+            disabled={clearing}
+            prefix={clearing ? <Spinner /> : <Trash2 className="h-4 w-4" />}
+          >
+            Clear pending
+          </Button>
+        </div>
+      )}
 
       <DeleteConfirmDialog
         open={userRevoke.isOpen}

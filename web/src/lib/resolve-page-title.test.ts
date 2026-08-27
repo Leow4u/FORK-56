@@ -33,9 +33,9 @@ describe("resolvePageTitle", () => {
     // Regression: the naive capitalize fallback produced "Mcp".
     expect(resolvePageTitle("/mcp", t, [])).toBe("MCP");
     expect(resolvePageTitle("/system", t, [])).toBe("System");
-    expect(resolvePageTitle("/channels", t, [])).toBe("Channels");
+    expect(resolvePageTitle("/channels", t, [])).toBe("Messaging");
     expect(resolvePageTitle("/webhooks", t, [])).toBe("Webhooks");
-    expect(resolvePageTitle("/pairing", t, [])).toBe("Pairing");
+    expect(resolvePageTitle("/pairing", t, [])).toBe("Messaging");
     expect(resolvePageTitle("/files", t, [])).toBe("Files");
   });
 
