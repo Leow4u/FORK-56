@@ -62,6 +62,7 @@ import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { ChatSessionList } from "@/components/ChatSessionList";
 import { FilesRouteGate } from "@/components/FilesRouteGate";
+import { showConfigAdminNav } from "@/lib/config-admin-nav";
 import { LogsRouteGate } from "@/components/LogsRouteGate";
 import { ModelsRouteGate } from "@/components/ModelsRouteGate";
 import { SidebarFooter } from "@/components/SidebarFooter";
@@ -190,6 +191,8 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   "/system": SystemPage,
   "/profiles": ProfilesPage,
   "/profiles/new": ProfileBuilderPage,
+  // Operator-only raw config editor: hidden from nav by default; route stays
+  // URL-reachable (see showConfigAdmin nav filter). User settings → /settings.
   "/config": ConfigPage,
   "/env": EnvPage,
   "/docs": DocsPage,
@@ -466,6 +469,7 @@ export default function App() {
   const [showFilesAdmin, setShowFilesAdmin] = useState(false);
   const [showLogsAdmin, setShowLogsAdmin] = useState(false);
   const [showPluginsAdmin, setShowPluginsAdmin] = useState(false);
+  const [showConfigAdmin, setShowConfigAdmin] = useState(false);
   useEffect(() => {
     api
       .getConfig()
@@ -476,12 +480,14 @@ export default function App() {
           show_files_admin?: unknown;
           show_logs_admin?: unknown;
           show_plugins_admin?: unknown;
+          show_config_admin?: unknown;
         };
         setShowTokenAnalytics(dash.show_token_analytics === true);
         setShowSessionsAdmin(dash.show_sessions_admin === true);
         setShowFilesAdmin(dash.show_files_admin === true);
         setShowLogsAdmin(dash.show_logs_admin === true);
         setShowPluginsAdmin(dash.show_plugins_admin === true);
+        setShowConfigAdmin(showConfigAdminNav(dash));
       })
       .catch(() => {
         setShowTokenAnalytics(false);
@@ -489,6 +495,7 @@ export default function App() {
         setShowFilesAdmin(false);
         setShowLogsAdmin(false);
         setShowPluginsAdmin(false);
+        setShowConfigAdmin(false);
       });
   }, []);
 
@@ -542,6 +549,9 @@ export default function App() {
       // Settings → Memory & Context; the page that remains (git install,
       // dashboard-tab plumbing) is operator. Route stays URL-reachable.
       if (n.path === "/plugins") return showPluginsAdmin;
+      // Config: curated user settings live in /settings; the raw schema
+      // editor is operator-only. Route stays URL-reachable like Plugins.
+      if (n.path === "/config") return showConfigAdmin;
       return true;
     });
   }, [
@@ -549,6 +559,7 @@ export default function App() {
     showFilesAdmin,
     showLogsAdmin,
     showPluginsAdmin,
+    showConfigAdmin,
     showSessionsAdmin,
     showTokenAnalytics,
   ]);
