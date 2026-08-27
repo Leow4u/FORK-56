@@ -226,10 +226,10 @@ export function ChatSessionList({
           pin: t.sessions.pinSession ?? "Pin",
           unpin: t.sessions.unpinSession ?? "Unpin",
           archive: t.sessions.archiveSession ?? "Archive",
-          restore: t.sessions.restoreSession ?? "Restore",
+          restore: "Restore",
           rename: t.sessions.renameSession ?? "Rename",
           delete: t.sessions.deleteSession ?? "Delete",
-          export: t.sessions.exportSession ?? "Export",
+          export: "Export",
         }}
         onPick={() => pick(s.id)}
         onChanged={reload}
@@ -365,7 +365,6 @@ function SessionRow({
   onError,
   onDeleted,
 }: SessionRowProps) {
-  const { t } = useI18n();
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [busy, setBusy] = useState(false);
@@ -612,10 +611,7 @@ function SessionRow({
         onCancel={() => setDeleteOpen(false)}
         onConfirm={() => void handleDelete()}
         title={labels.delete}
-        description={
-          t.sessions.deleteConfirm ??
-          "Delete this conversation permanently? This cannot be undone."
-        }
+        description="Delete this conversation permanently? This cannot be undone."
         confirmLabel={labels.delete}
         loading={busy}
       />

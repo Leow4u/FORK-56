@@ -964,6 +964,12 @@ export default function App() {
   );
 }
 
+interface SidebarSessionsProps {
+  onNavigate?: () => void;
+  onNewChat?: () => void;
+  refreshToken?: number;
+}
+
 /**
  * Session list section of the app sidebar — the everyday conversation
  * switcher (mirrors the desktop app, where the system sidebar owns
