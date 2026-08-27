@@ -20,6 +20,9 @@
  *     (keys mirror desktop Settings → Safety).
  *   - voice — TTS/STT providers and voice tuning (keys + voiceFieldVisible
  *     mirror desktop Settings → Voice).
+ *   - memory — memory toggles/budgets, provider + context engine
+ *     (ProvidersCard), and compression keys (mirrors desktop Settings →
+ *     Memory & Context).
  *   - advanced — toolsets, terminal backend, limits, delegation, updates
  *     (keys mirror desktop Settings → Advanced).
  */
@@ -40,6 +43,10 @@ import { PluginSlot } from "@/plugins";
 import { FallbackModelsField } from "@/components/FallbackModelsField";
 import { SettingsConfigSection } from "@/components/SettingsConfigSection";
 import { ADVANCED_CONFIG_KEYS } from "@/lib/advanced-settings";
+import {
+  MEMORY_COMPRESSION_KEYS,
+  MEMORY_TOGGLE_KEYS,
+} from "@/lib/memory-context-settings";
 import { MODEL_CONFIG_KEYS } from "@/lib/model-settings";
 import {
   VOICE_CONFIG_KEYS,
@@ -169,6 +176,17 @@ function ModelSection() {
   );
 }
 
+/** Memory & Context — config toggles/budgets + provider card + compression. */
+function MemoryContextSection() {
+  return (
+    <div className="flex flex-col gap-6">
+      <SettingsConfigSection keys={MEMORY_TOGGLE_KEYS} />
+      <ProvidersCard />
+      <SettingsConfigSection keys={MEMORY_COMPRESSION_KEYS} />
+    </div>
+  );
+}
+
 const SECTIONS: SettingsSection[] = [
   {
     id: "model",
@@ -213,7 +231,7 @@ const SECTIONS: SettingsSection[] = [
     id: "memory",
     label: "Memory & Context",
     icon: Brain,
-    render: () => <ProvidersCard />,
+    render: () => <MemoryContextSection />,
   },
   {
     id: "advanced",
