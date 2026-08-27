@@ -37,6 +37,7 @@ vi.mock("@/i18n", () => ({
         unpinSession: "Unpin",
         archiveSession: "Archive",
         renameSession: "Rename",
+        openInTui: "Open in TUI",
       },
     },
   }),
@@ -109,6 +110,19 @@ vi.mock("@/components/DeleteConfirmDialog", () => ({
       <button type="button" data-testid="delete-confirm" onClick={onConfirm}>
         {title}
       </button>
+    ) : null,
+}));
+
+vi.mock("@/components/TuiPtyModal", () => ({
+  TuiPtyModal: ({
+    open,
+    resumeSessionId,
+  }: {
+    open: boolean;
+    resumeSessionId: string;
+  }) =>
+    open ? (
+      <div data-testid="tui-modal" data-resume={resumeSessionId} />
     ) : null,
 }));
 
@@ -280,5 +294,22 @@ describe("ChatSessionList", () => {
       "My renamed chat",
       "",
     );
+  });
+
+  it("opens embedded TUI PTY (/api/pty) for the session row", async () => {
+    await renderList();
+    const recentRow = Array.from(
+      container.querySelectorAll("[class*='group/row']"),
+    ).find((el) => el.textContent?.includes("Recent convo"));
+    const openTui = recentRow?.querySelector(
+      '[aria-label="Open in TUI"]',
+    ) as HTMLButtonElement;
+    expect(openTui).toBeTruthy();
+    act(() => {
+      openTui.click();
+    });
+    const modal = container.querySelector('[data-testid="tui-modal"]');
+    expect(modal).toBeTruthy();
+    expect(modal?.getAttribute("data-resume")).toBe("recent-1");
   });
 });

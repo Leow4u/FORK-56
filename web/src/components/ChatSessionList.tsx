@@ -36,6 +36,7 @@ import {
   PinOff,
   RefreshCw,
   Search,
+  Terminal,
   Trash2,
   X,
 } from "lucide-react";
@@ -43,6 +44,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import { TuiPtyModal } from "@/components/TuiPtyModal";
 import { useI18n } from "@/i18n";
 import { api, type SessionInfo, type SessionSearchResult } from "@/lib/api";
 import { sessionRowDetails } from "@/lib/session-row-details";
@@ -230,6 +232,7 @@ export function ChatSessionList({
           rename: t.sessions.renameSession ?? "Rename",
           delete: t.sessions.deleteSession ?? "Delete",
           export: "Export",
+          openTui: t.sessions.openInTui ?? "Open in TUI",
         }}
         onPick={() => pick(s.id)}
         onChanged={reload}
@@ -339,6 +342,7 @@ interface SessionRowProps {
     rename: string;
     delete: string;
     export: string;
+    openTui: string;
   };
   onPick: () => void;
   /** Fired after a successful rename / pin / archive so the list refetches. */
@@ -369,6 +373,7 @@ function SessionRow({
   const [renameValue, setRenameValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [tuiOpen, setTuiOpen] = useState(false);
   const pinned = Boolean(session.pinned);
   const archived = Boolean(session.archived);
   const title = rowLabel(session, untitled);
@@ -584,6 +589,17 @@ function SessionRow({
           <Button
             ghost
             size="icon"
+            aria-label={labels.openTui}
+            title={labels.openTui}
+            disabled={busy}
+            onClick={() => setTuiOpen(true)}
+            className="h-6 w-6 text-text-tertiary hover:text-foreground"
+          >
+            <Terminal className="h-3 w-3" />
+          </Button>
+          <Button
+            ghost
+            size="icon"
             aria-label={labels.export}
             title={labels.export}
             disabled={busy}
@@ -605,6 +621,13 @@ function SessionRow({
           </Button>
         </span>
       </div>
+
+      <TuiPtyModal
+        open={tuiOpen}
+        onClose={() => setTuiOpen(false)}
+        resumeSessionId={session.id}
+        profile={profile || undefined}
+      />
 
       <DeleteConfirmDialog
         open={deleteOpen}

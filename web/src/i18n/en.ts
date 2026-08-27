@@ -200,6 +200,7 @@ export const en: Translations = {
     unpinSession: "Unpin",
     archiveSession: "Archive",
     renameSession: "Rename",
+    openInTui: "Open in TUI",
     roles: {
       user: "User",
       assistant: "Assistant",

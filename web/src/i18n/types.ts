@@ -217,6 +217,8 @@ export interface Translations {
     unpinSession?: string;
     archiveSession?: string;
     renameSession?: string;
+    /** Open embedded Ink TUI over ``/api/pty`` (browser PTY, not OS terminal). */
+    openInTui?: string;
     roles: {
       user: string;
       assistant: string;
