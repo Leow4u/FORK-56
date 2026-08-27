@@ -95,7 +95,7 @@ describe("SettingsPage", () => {
     container.remove();
   });
 
-  it("renders the section nav with Model active and the moved panel", async () => {
+  it("renders the section nav with Model active, the moved panel, and config keys", async () => {
     await renderPage();
     const nav = container.querySelector('nav[aria-label="Settings sections"]');
     expect(nav).toBeTruthy();
@@ -104,6 +104,12 @@ describe("SettingsPage", () => {
     expect(
       container.querySelector('[data-testid="model-settings-panel"]'),
     ).toBeTruthy();
+    const section = container.querySelector(
+      '[data-testid="settings-config-section"]',
+    );
+    expect(section).toBeTruthy();
+    expect(section?.textContent).toContain("model_context_length");
+    expect(section?.textContent).toContain("fallback_providers");
     // The section loads auxiliary models through the same API the Models
     // page used.
     expect(apiMocks.getAuxiliaryModels).toHaveBeenCalled();
