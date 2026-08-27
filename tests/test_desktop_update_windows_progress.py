@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import time
+import urllib.error
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -31,6 +32,18 @@ def _read_progress(url: str) -> dict[str, object]:
         return json.loads(response.read().decode("utf-8"))
 
 
+def _read_progress_retry(url: str, *, attempts: int = 8) -> dict[str, object]:
+    last: BaseException | None = None
+    for i in range(attempts):
+        try:
+            return _read_progress(url)
+        except (TimeoutError, urllib.error.URLError, ConnectionError, OSError) as e:
+            last = e
+            time.sleep(0.25 * (i + 1))
+    assert last is not None
+    raise last
+
+
 def test_progress_advances_while_the_orchestrator_blocks(tmp_path: Path) -> None:
     powershell = shutil.which("powershell.exe")
     assert powershell, "Windows updater tests require Windows PowerShell."
@@ -39,7 +52,10 @@ def test_progress_advances_while_the_orchestrator_blocks(tmp_path: Path) -> None
     env = os.environ.copy()
     env["TEMP"] = str(tmp_path)
     env["TMP"] = str(tmp_path)
-    env["WORK4YOU_SELFTEST_HOLD_SECONDS"] = "4"
+    # Shim discovery can take several seconds on CI; keep the orchestrator
+    # blocked long enough that both progress polls land inside the hold
+    # window (before Close-ProgressWindow clears message / stops the listener).
+    env["WORK4YOU_SELFTEST_HOLD_SECONDS"] = "20"
 
     with output_path.open("wb") as output:
         process = subprocess.Popen(
@@ -59,7 +75,7 @@ def test_progress_advances_while_the_orchestrator_blocks(tmp_path: Path) -> None
         )
 
     try:
-        deadline = time.monotonic() + 20
+        deadline = time.monotonic() + 25
         shim_url = None
         while time.monotonic() < deadline:
             text = output_path.read_text(encoding="utf-8", errors="replace")
@@ -72,21 +88,27 @@ def test_progress_advances_while_the_orchestrator_blocks(tmp_path: Path) -> None
             time.sleep(0.1)
 
         assert shim_url, output_path.read_text(encoding="utf-8", errors="replace")
-        first = _read_progress(shim_url)
-        time.sleep(1.5)
-        second = _read_progress(shim_url)
 
-        # The stage is whatever the orchestrator last published -- it must
-        # reach the page verbatim and must not churn on its own.
-        assert first["status"] == "running"
-        assert first["message"]
+        first = None
+        poll_deadline = time.monotonic() + 10
+        while time.monotonic() < poll_deadline:
+            snap = _read_progress_retry(shim_url)
+            if snap.get("status") == "running" and snap.get("message"):
+                first = snap
+                break
+            time.sleep(0.2)
+        assert first is not None, "progress never published a running message"
+
+        time.sleep(1.5)
+        second = _read_progress_retry(shim_url)
+
+        # Still inside the orchestrator hold — stage must stay verbatim and
+        # elapsed must keep ticking while the main thread is asleep.
+        assert second["status"] == "running", second
         assert second["message"] == first["message"]
-        # The main thread is asleep for the whole window above. If elapsed
-        # only moved when the orchestrator published, it would be frozen here
-        # -- which is what a stalled update looks like to the user.
         assert int(second["elapsed_seconds"]) > int(first["elapsed_seconds"])
 
-        assert process.wait(timeout=20) == 0
+        assert process.wait(timeout=30) == 0
     finally:
         if process.poll() is None:
             process.kill()
