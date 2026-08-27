@@ -157,11 +157,9 @@ export function FallbackModelsField({
               onValueChange={(provider) =>
                 updateRow(index, { provider, model: "" })
               }
+              placeholder={PROVIDER_PLACEHOLDER}
               className="min-w-36 text-xs"
             >
-              <SelectOption value="" disabled>
-                {PROVIDER_PLACEHOLDER}
-              </SelectOption>
               {providers.map((provider) => (
                 <SelectOption key={provider.slug} value={provider.slug}>
                   {provider.name}
@@ -171,11 +169,9 @@ export function FallbackModelsField({
             <Select
               value={entry.model}
               onValueChange={(model) => updateRow(index, { model })}
+              placeholder={MODEL_PLACEHOLDER}
               className="min-w-52 flex-1 text-xs"
             >
-              <SelectOption value="" disabled>
-                {MODEL_PLACEHOLDER}
-              </SelectOption>
               {modelItems.map((model) => (
                 <SelectOption key={model} value={model}>
                   {model}
