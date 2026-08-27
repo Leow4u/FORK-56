@@ -46,6 +46,18 @@ vi.mock("@/components/custom-endpoints-settings", () => ({
   ),
 }));
 
+vi.mock("@/components/cloud-computer-panel", () => ({
+  CloudComputerPanel: () => (
+    <div data-testid="cloud-computer-panel">my computer</div>
+  ),
+}));
+
+vi.mock("@/components/portal-accounts-panel", () => ({
+  PortalAccountsPanel: () => (
+    <div data-testid="portal-accounts-panel">portal accounts</div>
+  ),
+}));
+
 vi.mock("@/components/SettingsConfigSection", () => ({
   SettingsConfigSection: ({
     keys,
@@ -260,8 +272,20 @@ describe("SettingsPage", () => {
     await renderPage("/settings?section=providers");
     const active = container.querySelector('[aria-current="true"]');
     expect(active?.textContent).toContain("Providers");
+    expect(
+      container.querySelector('[data-testid="portal-accounts-panel"]'),
+    ).toBeTruthy();
     const panel = container.querySelector('[data-testid="env-credentials-panel"]');
     expect(panel?.getAttribute("data-view")).toBe("providers-accounts");
+  });
+
+  it("renders the My Computer section with cloud host metrics", async () => {
+    await renderPage("/settings?section=my-computer");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("My Computer");
+    expect(
+      container.querySelector('[data-testid="cloud-computer-panel"]'),
+    ).toBeTruthy();
   });
 
   it("renders the Tools & Keys section with tools credentials panel", async () => {

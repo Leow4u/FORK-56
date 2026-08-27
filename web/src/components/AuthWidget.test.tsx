@@ -15,7 +15,9 @@ vi.mock("@/i18n", () => ({
   useI18n: () => ({
     t: {
       app: {
-        nav: { settings: "Settings" },
+        brand: "Work4You",
+        footer: { org: "Work4You" },
+        nav: { settings: "Settings", documentation: "Documentation" },
         logOut: "Log out",
       },
     },
@@ -46,6 +48,14 @@ async function renderWidget() {
   });
 }
 
+function menuItems(): string[] {
+  const menu = document.body.querySelector('[role="menu"]');
+  if (!menu) return [];
+  return Array.from(menu.querySelectorAll('[role="menuitem"]')).map(
+    (b) => b.textContent?.trim() ?? "",
+  );
+}
+
 describe("AuthWidget footer user area", () => {
   beforeEach(() => {
     (
@@ -63,25 +73,56 @@ describe("AuthWidget footer user area", () => {
       root.unmount();
     });
     container.remove();
+    document.body
+      .querySelectorAll('[role="menu"]')
+      .forEach((node) => node.remove());
     delete (window as { __WORK4YOU_AUTH_REQUIRED__?: boolean })
       .__WORK4YOU_AUTH_REQUIRED__;
   });
 
-  it("loopback (ungated): renders a Settings gear that navigates to /settings", async () => {
+  it("loopback (ungated): account row opens Settings and Documentation menu items", async () => {
     await renderWidget();
-    const gear = container.querySelector(
-      'button[aria-label="Settings"]',
+    const trigger = container.querySelector(
+      'button[aria-haspopup="menu"]',
     ) as HTMLButtonElement;
-    expect(gear).toBeTruthy();
+    expect(trigger).toBeTruthy();
+    expect(trigger.textContent).toContain("Work4You");
+    expect(trigger.textContent).not.toContain("Settings");
+
     act(() => {
-      gear.click();
+      trigger.click();
+    });
+    expect(menuItems()).toEqual(["Settings", "Documentation"]);
+
+    act(() => {
+      (
+        document.body.querySelectorAll('[role="menuitem"]')[0] as HTMLButtonElement
+      ).click();
     });
     expect(
       container.querySelector('[data-testid="location"]')?.textContent,
     ).toBe("/settings");
   });
 
-  it("gated: clicking the identity opens a menu with Settings and Log out", async () => {
+  it("loopback (ungated): Documentation menu item navigates to /docs", async () => {
+    await renderWidget();
+    const trigger = container.querySelector(
+      'button[aria-haspopup="menu"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      trigger.click();
+    });
+    act(() => {
+      (
+        document.body.querySelectorAll('[role="menuitem"]')[1] as HTMLButtonElement
+      ).click();
+    });
+    expect(
+      container.querySelector('[data-testid="location"]')?.textContent,
+    ).toBe("/docs");
+  });
+
+  it("gated: clicking the identity opens Settings, Documentation, and Log out", async () => {
     (window as { __WORK4YOU_AUTH_REQUIRED__?: boolean }).__WORK4YOU_AUTH_REQUIRED__ =
       true;
     apiMocks.getAuthMe.mockResolvedValue({
@@ -95,52 +136,18 @@ describe("AuthWidget footer user area", () => {
     const identity = container.querySelector(
       'button[aria-haspopup="menu"]',
     ) as HTMLButtonElement;
-    expect(identity).toBeTruthy();
     expect(identity.textContent).toContain("did:privy:cmt2…");
 
     act(() => {
       identity.click();
     });
-    const menu = document.body.querySelector('[role="menu"]');
-    expect(menu).toBeTruthy();
-    const items = Array.from(
-      menu!.querySelectorAll('[role="menuitem"]'),
-    ).map((b) => b.textContent);
-    expect(items).toEqual(["Settings", "Log out"]);
+    expect(menuItems()).toEqual(["Settings", "Documentation", "Log out"]);
 
-    // Log out goes through the existing api.logout flow.
     act(() => {
-      (menu!.querySelectorAll('[role="menuitem"]')[1] as HTMLButtonElement).click();
+      (
+        document.body.querySelectorAll('[role="menuitem"]')[2] as HTMLButtonElement
+      ).click();
     });
     expect(apiMocks.logout).toHaveBeenCalled();
-  });
-
-  it("gated: the Settings menu item navigates to /settings", async () => {
-    (window as { __WORK4YOU_AUTH_REQUIRED__?: boolean }).__WORK4YOU_AUTH_REQUIRED__ =
-      true;
-    apiMocks.getAuthMe.mockResolvedValue({
-      user_id: "u1",
-      display_name: "Leo",
-      email: "",
-      provider: "work4you",
-    });
-    await renderWidget();
-    const identity = container.querySelector(
-      'button[aria-haspopup="menu"]',
-    ) as HTMLButtonElement;
-    act(() => {
-      identity.click();
-    });
-    const settingsItem = document.body.querySelector(
-      '[role="menu"] [role="menuitem"]',
-    ) as HTMLButtonElement;
-    act(() => {
-      settingsItem.click();
-    });
-    expect(
-      container.querySelector('[data-testid="location"]')?.textContent,
-    ).toBe("/settings");
-    // Menu closes after navigating.
-    expect(document.body.querySelector('[role="menu"]')).toBeNull();
   });
 });

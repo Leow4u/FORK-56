@@ -14,7 +14,9 @@
  *     model_context_length and fallback_providers (keys mirror desktop
  *     Settings → Model in apps/desktop/src/app/settings/constants.ts).
  *   - providers — OAuth accounts, provider API keys, custom endpoints
- *     (mirrors desktop Settings → Providers).
+ *     (mirrors desktop Settings → Providers). Accounts includes Work4You
+ *     Portal status and agent logs.
+ *   - my-computer — cloud agent host metrics (CPU, disk, uptime).
  *   - keys — tool + server/gateway env vars (mirrors desktop Settings →
  *     Tools & Keys).
  *   - chat — personality, timezone, reasoning blocks, image attachments
@@ -34,7 +36,7 @@
  *     (keys mirror desktop Settings → Advanced).
  */
 
-import { Brain, Cpu, KeyRound, Lock, MessageCircle, Mic, Monitor, Palette, Wrench, Zap } from "lucide-react";
+import { Brain, Cpu, KeyRound, Lock, MessageCircle, Mic, Monitor, Palette, Server, Wrench, Zap } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -69,6 +71,8 @@ import {
   type EnvCredentialsView,
 } from "@/components/env-settings-panels";
 import { CustomEndpointsSettingsSection } from "@/components/custom-endpoints-settings";
+import { CloudComputerPanel } from "@/components/cloud-computer-panel";
+import { PortalAccountsPanel } from "@/components/portal-accounts-panel";
 
 const PROVIDER_VIEWS = ["accounts", "api-keys", "custom-endpoints"] as const;
 type ProviderView = (typeof PROVIDER_VIEWS)[number];
@@ -262,6 +266,14 @@ function ProvidersSection({
       />
       {view === "custom-endpoints" ? (
         <CustomEndpointsSettingsSection />
+      ) : view === "accounts" ? (
+        <>
+          <PortalAccountsPanel />
+          <EnvCredentialsPanel
+            view={providerPanelView(view)}
+            highlightKey={highlightKey}
+          />
+        </>
       ) : (
         <EnvCredentialsPanel
           view={providerPanelView(view)}
@@ -314,6 +326,12 @@ const SECTIONS: SettingsSection[] = [
     label: "Model",
     icon: Cpu,
     render: () => <ModelSection />,
+  },
+  {
+    id: "my-computer",
+    label: "My Computer",
+    icon: Server,
+    render: () => <CloudComputerPanel />,
   },
   {
     id: "providers",

@@ -2383,12 +2383,18 @@ def _dashboard_local_update_managed_externally() -> bool:
     still behave like their actual install method in the CLI.
 
     However, when the install method is ``git`` (a bind-mounted checkout inside
-    a container — e.g. the work4you-webui image sharing the Work4You source tree),
+    a container — e.g. the work4you-webui image sharing the Work4You source tree,
+    or a cloud agent with ``WORK4YOU_HOME=/opt/data`` but a git code tree),
     the dashboard's ``work4you update`` button is the correct update path and
     should not be suppressed. Other containerized install methods remain
     externally managed unless their apply path is proven safe inside the
     running container filesystem.
     """
+    try:
+        if detect_install_method(PROJECT_ROOT) == "git":
+            return False
+    except Exception:
+        pass
     if _default_work4you_root_is_opt_data():
         return True
     try:
@@ -2398,17 +2404,6 @@ def _dashboard_local_update_managed_externally() -> bool:
             return False
     except Exception:
         return False
-    # We are inside a container, but the install may still be self-managed.
-    # If the install method is git, the dashboard update button works against
-    # the mounted checkout and should be offered. Keep pip blocked inside
-    # containers: its apply path mutates the running container filesystem and
-    # is not the bind-mounted checkout case this gate is meant to recover.
-    try:
-        method = detect_install_method(PROJECT_ROOT)
-        if method == "git":
-            return False
-    except Exception:
-        pass
     return True
 
 
