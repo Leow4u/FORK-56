@@ -350,7 +350,7 @@ export default function ChannelsPage() {
       </Button>,
     );
     return () => setEnd(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [setEnd, restarting, tab, isBusy, t.status.restartGateway, t.status.restartingGateway]);
 
   const configured = useMemo(
