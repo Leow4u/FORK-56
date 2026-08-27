@@ -12,9 +12,11 @@
  *   - model — the Model Settings panel moved from the Models page
  *     (main model, auxiliary tasks, Mixture of Agents), reusing the
  *     exact same component + APIs (getAuxiliaryModels / setModelAssignment).
+ *   - chat — personality, timezone, reasoning blocks, image attachments
+ *     (keys mirror desktop Settings → Chat in apps/desktop/src/app/settings/constants.ts).
  */
 
-import { Brain, Cpu } from "lucide-react";
+import { Brain, Cpu, MessageCircle } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -27,8 +29,17 @@ import { api, type AuxiliaryModelsResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { PluginSlot } from "@/plugins";
+import { SettingsConfigSection } from "@/components/SettingsConfigSection";
 import { ModelSettingsPanel } from "@/pages/ModelsPage";
 import { ProvidersCard } from "@/pages/PluginsPage";
+
+/** Desktop Settings → Chat keys (apps/desktop/src/app/settings/constants.ts). */
+const CHAT_CONFIG_KEYS = [
+  "display.personality",
+  "timezone",
+  "display.show_reasoning",
+  "agent.image_input_mode",
+] as const;
 
 interface SettingsSection {
   id: string;
@@ -88,6 +99,12 @@ const SECTIONS: SettingsSection[] = [
     label: "Model",
     icon: Cpu,
     render: () => <ModelSection />,
+  },
+  {
+    id: "chat",
+    label: "Chat",
+    icon: MessageCircle,
+    render: () => <SettingsConfigSection keys={CHAT_CONFIG_KEYS} />,
   },
   {
     // Where the agent keeps memory + which context engine compacts it —

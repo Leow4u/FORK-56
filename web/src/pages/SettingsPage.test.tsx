@@ -28,6 +28,12 @@ vi.mock("@/pages/PluginsPage", () => ({
   ),
 }));
 
+vi.mock("@/components/SettingsConfigSection", () => ({
+  SettingsConfigSection: ({ keys }: { keys: readonly string[] }) => (
+    <div data-testid="settings-config-section">{keys.join(",")}</div>
+  ),
+}));
+
 vi.mock("@/contexts/usePageHeader", () => ({
   usePageHeader: () => ({ setTitle: vi.fn(), setEnd: vi.fn() }),
 }));
@@ -103,6 +109,21 @@ describe("SettingsPage", () => {
       container.querySelector('[data-testid="providers-card"]'),
     ).toBeTruthy();
     // Model panel is not mounted on this section.
+    expect(
+      container.querySelector('[data-testid="model-settings-panel"]'),
+    ).toBeNull();
+  });
+
+  it("renders the Chat section with the curated config keys", async () => {
+    await renderPage("/settings?section=chat");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("Chat");
+    const section = container.querySelector(
+      '[data-testid="settings-config-section"]',
+    );
+    expect(section).toBeTruthy();
+    expect(section?.textContent).toContain("display.personality");
+    expect(section?.textContent).toContain("agent.image_input_mode");
     expect(
       container.querySelector('[data-testid="model-settings-panel"]'),
     ).toBeNull();
