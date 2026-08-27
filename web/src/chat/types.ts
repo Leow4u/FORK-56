@@ -1,24 +1,11 @@
-/** Display roles for the thin web chat transcript. */
+/** Display roles — legacy alias; parts model uses SessionMessage roles. */
 export type ChatRole =
   | "user"
   | "assistant"
   | "system"
-  | "tool"
-  | "reasoning";
+  | "tool";
 
-export interface ChatMessage {
-  id: string;
-  role: ChatRole;
-  text: string;
-  /** True while the assistant bubble is still streaming. */
-  streaming?: boolean;
-  /** Sealed interim segment (tool boundary / verify-on-stop preview). */
-  interim?: boolean;
-  /** Stable tool row key from gateway ``tool_id``. */
-  toolId?: string;
-  /** Optimistic / attached image data-URLs or agent-host paths. */
-  images?: string[];
-}
+export type { ChatMessage } from "@/lib/chat-messages/types";
 
 export type ThinChatPhase = "home" | "session";
 

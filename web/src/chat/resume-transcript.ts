@@ -1,8 +1,14 @@
 import {
-  createThinChatTurnState,
+  assistantTextPart,
+  chatMessageText,
+  textPart,
+} from "@/lib/chat-messages";
+
+import {
+  createPartsTurnState,
   type SessionInflightTurn,
-  type ThinChatTurnState,
-} from "./gateway-protocol";
+  type PartsTurnState,
+} from "./parts-gateway-protocol";
 import { createMessageId, type ChatMessage } from "./types";
 
 function normalizeText(text: string): string {
@@ -20,7 +26,7 @@ function latestUserRun(messages: ChatMessage[]): ChatMessage[] {
       run.unshift(candidate);
       continue;
     }
-    if (candidate.role === "assistant" && candidate.streaming) {
+    if (candidate.role === "assistant" && candidate.pending) {
       continue;
     }
     break;
@@ -28,16 +34,17 @@ function latestUserRun(messages: ChatMessage[]): ChatMessage[] {
   return run;
 }
 
-function inflightUserPersisted(messages: ChatMessage[], inflightUser: string): boolean {
+function inflightUserPersisted(
+  messages: ChatMessage[],
+  inflightUser: string,
+): boolean {
   if (!inflightUser) return false;
   const run = latestUserRun(messages);
-  return run.some((m) => normalizeText(m.text) === inflightUser);
+  return run.some(
+    (m) => normalizeText(chatMessageText(m)) === inflightUser,
+  );
 }
 
-/**
- * Append the gateway's live inflight tail onto committed history.
- * Mirrors desktop ``appendLiveSessionProjection`` / TUI ``liveSessionInflightMessages``.
- */
 export function appendInflightProjection(
   messages: ChatMessage[],
   inflight?: SessionInflightTurn | null,
@@ -69,13 +76,17 @@ export function appendInflightProjection(
     out.push({
       id: createMessageId(),
       role: "user",
-      text: inflight.user!.trim(),
+      parts: [textPart(inflight.user!.trim())],
     });
   }
 
   for (const correction of corrections) {
     if (!inflightUserPersisted(out, normalizeText(correction))) {
-      out.push({ id: createMessageId(), role: "user", text: correction });
+      out.push({
+        id: createMessageId(),
+        role: "user",
+        parts: [textPart(correction)],
+      });
     }
   }
 
@@ -83,14 +94,14 @@ export function appendInflightProjection(
     out.push({
       id: createMessageId(),
       role: "system",
-      text: error,
+      parts: [textPart(error)],
     });
     if (assistant.trim()) {
       out.push({
         id: `inflight-assistant-${sessionId}`,
         role: "assistant",
-        text: assistant.trim(),
-        streaming: false,
+        parts: [assistantTextPart(assistant.trim())],
+        pending: false,
       });
     }
     return out;
@@ -106,10 +117,13 @@ export function appendInflightProjection(
 
   if (existingIdx >= 0) {
     const next = out.slice();
+    const existing = next[existingIdx];
     next[existingIdx] = {
-      ...next[existingIdx],
-      text: assistantText || next[existingIdx].text,
-      streaming,
+      ...existing,
+      parts: assistantText
+        ? [assistantTextPart(assistantText)]
+        : existing.parts,
+      pending: streaming,
     };
     return next;
   }
@@ -117,9 +131,10 @@ export function appendInflightProjection(
   const lastAssistant = [...out].reverse().find((m) => m.role === "assistant");
   if (
     lastAssistant &&
-    !lastAssistant.streaming &&
+    !lastAssistant.pending &&
     assistantText &&
-    normalizeText(lastAssistant.text) === normalizeText(assistantText) &&
+    normalizeText(chatMessageText(lastAssistant)) ===
+      normalizeText(assistantText) &&
     !streaming
   ) {
     return out;
@@ -128,20 +143,19 @@ export function appendInflightProjection(
   out.push({
     id: streamId,
     role: "assistant",
-    text: assistantText,
-    streaming,
+    parts: assistantText ? [assistantTextPart(assistantText)] : [],
+    pending: streaming,
   });
 
   return out;
 }
 
-/** Seed turn state when resuming onto a live streaming inflight assistant. */
 export function turnStateFromInflight(
   inflight: SessionInflightTurn | null | undefined,
   sessionId: string,
-): ThinChatTurnState {
+): PartsTurnState {
   if (!inflight?.streaming) {
-    return createThinChatTurnState();
+    return createPartsTurnState();
   }
   return {
     streamId: `inflight-assistant-${sessionId}`,
@@ -149,10 +163,6 @@ export function turnStateFromInflight(
   };
 }
 
-/**
- * Merge authoritative resume history with the local optimistic tail instead of
- * clobbering rows that have not round-tripped yet.
- */
 export function reconcileResumeMessages(
   authoritative: ChatMessage[],
   local: ChatMessage[],
@@ -162,7 +172,11 @@ export function reconcileResumeMessages(
   let openTailStart = 0;
   for (let i = authoritative.length - 1; i >= 0; i -= 1) {
     const message = authoritative[i];
-    if (message.role === "assistant" && !message.streaming && !message.interim) {
+    if (
+      message.role === "assistant" &&
+      !message.pending &&
+      !message.interim
+    ) {
       openTailStart = i + 1;
       break;
     }
@@ -172,14 +186,16 @@ export function reconcileResumeMessages(
   if (!localTail.length) return authoritative;
 
   const authoritativeKeys = new Set(
-    authoritative.map((m) => `${m.role}:${normalizeText(m.text)}`),
+    authoritative.map(
+      (m) => `${m.role}:${normalizeText(chatMessageText(m))}`,
+    ),
   );
 
   const merged = [...authoritative];
   const authoritativeTail = authoritative.slice(openTailStart);
 
   for (const localMsg of localTail) {
-    const key = `${localMsg.role}:${normalizeText(localMsg.text)}`;
+    const key = `${localMsg.role}:${normalizeText(chatMessageText(localMsg))}`;
 
     if (localMsg.role === "user") {
       if (!authoritativeKeys.has(key)) {
@@ -193,15 +209,15 @@ export function reconcileResumeMessages(
       continue;
     }
 
-    const localText = localMsg.text.trim();
+    const localText = chatMessageText(localMsg).trim();
     const tailAssistant = [...authoritativeTail]
       .reverse()
       .find((m) => m.role === "assistant");
-    const tailText = tailAssistant?.text.trim() ?? "";
+    const tailText = tailAssistant ? chatMessageText(tailAssistant).trim() : "";
 
     const localRicher =
       localText.length > tailText.length ||
-      (localMsg.streaming && !tailAssistant?.streaming);
+      (localMsg.pending && !tailAssistant?.pending);
 
     if (!localRicher) {
       continue;
@@ -212,14 +228,17 @@ export function reconcileResumeMessages(
       if (idx >= 0) {
         merged[idx] = {
           ...tailAssistant,
-          text: localText.length >= tailText.length ? localMsg.text : tailAssistant.text,
-          streaming: localMsg.streaming || tailAssistant.streaming,
+          parts:
+            localText.length >= tailText.length
+              ? localMsg.parts
+              : tailAssistant.parts,
+          pending: localMsg.pending || tailAssistant.pending,
         };
         continue;
       }
     }
 
-    if (!authoritativeKeys.has(key) || localMsg.streaming) {
+    if (!authoritativeKeys.has(key) || localMsg.pending) {
       merged.push(localMsg);
     }
   }

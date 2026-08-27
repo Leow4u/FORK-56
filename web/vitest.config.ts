@@ -11,6 +11,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    setupFiles: ["./src/test/setup.ts"],
     // Chat/UI tests need DOM + Storage. Docblock `@vitest-environment jsdom`
     // is unreliable under Node 26 in CI; match by path so localStorage works.
     environmentMatchGlobs: [

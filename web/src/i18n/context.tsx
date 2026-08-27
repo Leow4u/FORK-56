@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
-import type { Locale, Translations } from "./types";
+import { resolveTranslations } from "./resolve";
+import type { Locale, ResolvedTranslations, Translations } from "./types";
 import { en } from "./en";
 import { zh } from "./zh";
 import { zhHant } from "./zh-hant";
@@ -91,13 +92,13 @@ function getInitialLocale(): Locale {
 interface I18nContextValue {
   locale: Locale;
   setLocale: (l: Locale) => void;
-  t: Translations;
+  t: ResolvedTranslations;
 }
 
 const I18nContext = createContext<I18nContextValue>({
   locale: "en",
   setLocale: () => {},
-  t: en,
+  t: resolveTranslations("en"),
 });
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -121,7 +122,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value: I18nContextValue = {
     locale,
     setLocale,
-    t: TRANSLATIONS[locale],
+    t: resolveTranslations(locale),
   };
 
   return (

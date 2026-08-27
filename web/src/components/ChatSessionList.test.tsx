@@ -12,6 +12,11 @@ const apiMocks = vi.hoisted(() => ({
   setSessionPinned: vi.fn(async () => ({ ok: true, pinned: true })),
   setSessionArchived: vi.fn(async () => ({ ok: true, archived: true })),
   renameSession: vi.fn(async () => ({ ok: true, title: "Renamed" })),
+  deleteSession: vi.fn(async () => ({ ok: true })),
+  exportSessionUrl: vi.fn(
+    (id: string, profile?: string) =>
+      `/api/sessions/${id}/export?profile=${profile ?? ""}`,
+  ),
 }));
 
 vi.mock("@/lib/api", () => ({ api: apiMocks }));
@@ -32,6 +37,7 @@ vi.mock("@/i18n", () => ({
         unpinSession: "Unpin",
         archiveSession: "Archive",
         renameSession: "Rename",
+        openInTui: "Open in TUI",
       },
     },
   }),
@@ -88,6 +94,36 @@ vi.mock("@work4you/ui/ui/components/input", () => ({
 
 vi.mock("@work4you/ui/ui/components/spinner", () => ({
   Spinner: () => <span data-spinner />,
+}));
+
+vi.mock("@/components/DeleteConfirmDialog", () => ({
+  DeleteConfirmDialog: ({
+    open,
+    onConfirm,
+    title,
+  }: {
+    open: boolean;
+    onConfirm: () => void;
+    title: string;
+  }) =>
+    open ? (
+      <button type="button" data-testid="delete-confirm" onClick={onConfirm}>
+        {title}
+      </button>
+    ) : null,
+}));
+
+vi.mock("@/components/TuiPtyModal", () => ({
+  TuiPtyModal: ({
+    open,
+    resumeSessionId,
+  }: {
+    open: boolean;
+    resumeSessionId: string;
+  }) =>
+    open ? (
+      <div data-testid="tui-modal" data-resume={resumeSessionId} />
+    ) : null,
 }));
 
 function sessionFixture(overrides: Record<string, unknown>) {
@@ -161,6 +197,16 @@ describe("ChatSessionList", () => {
       root.unmount();
     });
     container.remove();
+  });
+
+  it("does not render a duplicate New chat button in the sidebar", async () => {
+    await renderList();
+    expect(container.textContent).not.toContain("New chat");
+    expect(
+      Array.from(container.querySelectorAll("button")).some((b) =>
+        b.textContent?.includes("New chat"),
+      ),
+    ).toBe(false);
   });
 
   it("groups pinned sessions under a Pinned header, before the rest", async () => {
@@ -258,5 +304,22 @@ describe("ChatSessionList", () => {
       "My renamed chat",
       "",
     );
+  });
+
+  it("opens embedded TUI PTY (/api/pty) for the session row", async () => {
+    await renderList();
+    const recentRow = Array.from(
+      container.querySelectorAll("[class*='group/row']"),
+    ).find((el) => el.textContent?.includes("Recent convo"));
+    const openTui = recentRow?.querySelector(
+      '[aria-label="Open in TUI"]',
+    ) as HTMLButtonElement;
+    expect(openTui).toBeTruthy();
+    act(() => {
+      openTui.click();
+    });
+    const modal = container.querySelector('[data-testid="tui-modal"]');
+    expect(modal).toBeTruthy();
+    expect(modal?.getAttribute("data-resume")).toBe("recent-1");
   });
 });

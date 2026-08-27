@@ -140,6 +140,29 @@ function UnknownRouteFallback({ pluginsLoading }: { pluginsLoading: boolean }) {
   return <Navigate to={homePath()} replace />;
 }
 
+interface NavItem {
+  path: string;
+  label: string;
+  labelKey?: string;
+  icon: ComponentType<{ className?: string }>;
+}
+
+interface SidebarNavLinkProps {
+  closeMobile: () => void;
+  collapsed: boolean;
+  isChatRoute?: boolean;
+  item: NavItem;
+  onChatNavClick?: () => void;
+  tooltipWarmRef: React.MutableRefObject<number>;
+  t: ReturnType<typeof useI18n>["t"];
+}
+
+interface SidebarTooltipProps {
+  anchor: HTMLElement;
+  label: string;
+  warmRef?: React.MutableRefObject<number>;
+}
+
 const CHAT_NAV_ITEM: NavItem = {
   path: "/chat",
   labelKey: "chat",
@@ -771,8 +794,10 @@ export default function App() {
                   <SidebarNavLink
                     closeMobile={closeMobile}
                     collapsed={isDesktopCollapsed}
+                    isChatRoute={isChatRoute}
                     item={item}
                     key={item.path}
+                    onChatNavClick={handleSidebarNewChat}
                     t={t}
                     tooltipWarmRef={tooltipWarmRef}
                   />
@@ -939,6 +964,12 @@ export default function App() {
   );
 }
 
+interface SidebarSessionsProps {
+  onNavigate?: () => void;
+  onNewChat?: () => void;
+  refreshToken?: number;
+}
+
 /**
  * Session list section of the app sidebar — the everyday conversation
  * switcher (mirrors the desktop app, where the system sidebar owns
@@ -987,7 +1018,9 @@ function ProfileKeyedRoutes({ children }: { children: ReactNode }) {
 function SidebarNavLink({
   closeMobile,
   collapsed,
+  isChatRoute,
   item,
+  onChatNavClick,
   tooltipWarmRef,
   t,
 }: SidebarNavLinkProps) {
@@ -1015,7 +1048,13 @@ function SidebarNavLink({
       <NavLink
         to={path}
         end={path === "/sessions"}
-        onClick={closeMobile}
+        onClick={(event) => {
+          if (path === "/chat" && isChatRoute && onChatNavClick) {
+            event.preventDefault();
+            onChatNavClick();
+          }
+          closeMobile();
+        }}
         aria-label={collapsed ? navLabel : undefined}
         onFocus={collapsed ? showTooltip : undefined}
         onBlur={collapsed ? hideTooltip : undefined}

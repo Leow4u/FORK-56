@@ -5,8 +5,8 @@
  * It lists the most recent sessions for the active management profile and
  * lets the user swap between them from anywhere: picking a row navigates to
  * `/chat?resume=<id>` (the same affordance as the Sessions page "Resume in
- * Chat" action). The "New chat" action clears the resume param and resets
- * the chat host.
+ * Chat" action). Starting a fresh chat lives in the Chat page header (and the
+ * main Chat nav item when already on /chat) — not as a duplicate control here.
  *
  * Everyday management mirrors the desktop sidebar: rename, pin and archive
  * act through the shared `PATCH /api/sessions/{id}` surface, so state set
@@ -27,20 +27,26 @@ import { Spinner } from "@work4you/ui/ui/components/spinner";
 import {
   AlertCircle,
   Archive,
+  ArchiveRestore,
   Check,
-  MessageSquarePlus,
+  Download,
   Pencil,
   Pin,
   PinOff,
   RefreshCw,
   Search,
+  Terminal,
+  Trash2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+import { TuiPtyModal } from "@/components/TuiPtyModal";
 import { useI18n } from "@/i18n";
 import { api, type SessionInfo, type SessionSearchResult } from "@/lib/api";
+import { sessionRowDetails } from "@/lib/session-row-details";
 import { cn, timeAgo } from "@/lib/utils";
 
 const SESSION_LIMIT = 30;
@@ -165,16 +171,6 @@ export function ChatSessionList({
     [activeSessionId, navigate, onPicked],
   );
 
-  // "New chat" prefers the shell handler (navigates to /chat + resets).
-  const startNew = useCallback(() => {
-    onPicked?.();
-    if (onNewChat) {
-      onNewChat();
-      return;
-    }
-    navigate("/chat");
-  }, [navigate, onNewChat, onPicked]);
-
   const handleActionError = useCallback((e: unknown) => {
     setError(e instanceof Error ? e.message : "session update failed");
   }, []);
@@ -221,11 +217,19 @@ export function ChatSessionList({
           pin: t.sessions.pinSession ?? "Pin",
           unpin: t.sessions.unpinSession ?? "Unpin",
           archive: t.sessions.archiveSession ?? "Archive",
+          restore: "Restore",
           rename: t.sessions.renameSession ?? "Rename",
+          delete: t.sessions.deleteSession ?? "Delete",
+          export: "Export",
+          openTui: t.sessions.openInTui ?? "Open in TUI",
         }}
         onPick={() => pick(s.id)}
         onChanged={reload}
         onError={handleActionError}
+        onDeleted={(id) => {
+          if (id === activeSessionId) onNewChat?.();
+          reload();
+        }}
       />
     );
     return (
@@ -252,6 +256,7 @@ export function ChatSessionList({
     error,
     handleActionError,
     loading,
+    onNewChat,
     pick,
     reload,
     scopeKey,
@@ -277,10 +282,9 @@ export function ChatSessionList({
           size="icon"
           onClick={reload}
           aria-label={t.common.refresh}
-          title={t.common.refresh}
           className="text-text-secondary hover:text-foreground"
         >
-          <RefreshCw className={cn(loading && "animate-spin")} />
+          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
         </Button>
       </div>
 
@@ -296,16 +300,6 @@ export function ChatSessionList({
         {searching && <Spinner className="h-3.5 w-3.5" />}
       </div>
 
-      <Button
-        outlined
-        size="sm"
-        onClick={startNew}
-        prefix={<MessageSquarePlus />}
-        className="mx-2 mb-2 justify-center"
-      >
-        {t.sessions.newChat}
-      </Button>
-
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 pb-1">
         {content}
       </div>
@@ -318,11 +312,22 @@ interface SessionRowProps {
   isActive: boolean;
   profile: string;
   untitled: string;
-  labels: { pin: string; unpin: string; archive: string; rename: string };
+  labels: {
+    pin: string;
+    unpin: string;
+    archive: string;
+    restore: string;
+    rename: string;
+    delete: string;
+    export: string;
+    openTui: string;
+  };
   onPick: () => void;
   /** Fired after a successful rename / pin / archive so the list refetches. */
   onChanged: () => void;
   onError: (e: unknown) => void;
+  /** Fired after delete — parent may reset the live chat if the row was active. */
+  onDeleted: (id: string) => void;
 }
 
 /**
@@ -340,11 +345,20 @@ function SessionRow({
   onPick,
   onChanged,
   onError,
+  onDeleted,
 }: SessionRowProps) {
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [tuiOpen, setTuiOpen] = useState(false);
   const pinned = Boolean(session.pinned);
+  const archived = Boolean(session.archived);
+  const title = rowLabel(session, untitled);
+  const details = sessionRowDetails(session, {
+    messageCount: (count) => `${count} msgs`,
+    toolCallCount: (count) => `${count} tools`,
+  });
 
   const runAction = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -366,6 +380,24 @@ function SessionRow({
     }
     await runAction(() => api.renameSession(session.id, value, profile));
     setRenaming(false);
+  };
+
+  const handleExport = () => {
+    const url = api.exportSessionUrl(session.id, profile);
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDelete = async () => {
+    setBusy(true);
+    try {
+      await api.deleteSession(session.id, profile);
+      setDeleteOpen(false);
+      onDeleted(session.id);
+    } catch (e) {
+      onError(e);
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (renaming) {
@@ -408,95 +440,182 @@ function SessionRow({
   }
 
   return (
-    <div className="group/row relative">
-      <ListItem
-        onClick={onPick}
-        aria-current={isActive ? "true" : undefined}
-        className={cn(
-          "flex-col items-start gap-0.5 rounded px-2 py-1.5",
-          "normal-case tracking-normal",
-          isActive
-            ? "bg-primary/10 text-foreground border-l-2 border-primary"
-            : "text-text-secondary hover:bg-midground/5 hover:text-foreground",
-        )}
-      >
-        <span className="w-full truncate pr-16 text-sm font-medium">
-          {rowLabel(session, untitled)}
-        </span>
-        <span className="flex w-full items-center gap-1.5 text-[0.6875rem] text-text-tertiary">
-          {pinned && <Pin aria-hidden className="h-3 w-3 shrink-0" />}
-          <span>{timeAgo(session.last_active)}</span>
-          {session.message_count > 0 && (
-            <>
-              <span aria-hidden>·</span>
-              <span>{session.message_count} msgs</span>
-            </>
+    <>
+      <div className="group/row relative">
+        <ListItem
+          onClick={onPick}
+          aria-current={isActive ? "true" : undefined}
+          className={cn(
+            "flex-col items-start gap-0.5 rounded px-2 py-1.5",
+            "normal-case tracking-normal",
+            isActive
+              ? "bg-primary/10 text-foreground border-l-2 border-primary"
+              : "text-text-secondary hover:bg-midground/5 hover:text-foreground",
+            archived && "opacity-70",
           )}
-          {session.source && session.source !== "cli" && (
-            <>
-              <span aria-hidden>·</span>
-              <span className="truncate">{session.source}</span>
-            </>
+        >
+          <span className="w-full truncate pr-24 text-sm font-medium">{title}</span>
+          {details.preview && (
+            <span className="w-full truncate pr-24 text-[0.6875rem] text-text-tertiary">
+              {details.preview}
+            </span>
           )}
-        </span>
-      </ListItem>
+          <span className="flex w-full items-center gap-1.5 text-[0.6875rem] text-text-tertiary">
+            {pinned && <Pin aria-hidden className="h-3 w-3 shrink-0" />}
+            {archived && <Archive aria-hidden className="h-3 w-3 shrink-0" />}
+            <span>{timeAgo(session.last_active)}</span>
+            {details.metadata && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="truncate">{details.metadata}</span>
+              </>
+            )}
+            {session.source && session.source !== "cli" && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="truncate">{session.source}</span>
+              </>
+            )}
+          </span>
+        </ListItem>
 
-      <span
-        className={cn(
-          "absolute right-1 top-1 flex items-center gap-0.5 rounded bg-background/90",
-          "opacity-0 transition-opacity group-hover/row:opacity-100",
-          "focus-within:opacity-100",
-        )}
-      >
-        <Button
-          ghost
-          size="icon"
-          aria-label={labels.rename}
-          title={labels.rename}
-          disabled={busy}
-          onClick={() => {
-            setRenameValue(
-              session.title && session.title !== "Untitled"
-                ? session.title
-                : "",
-            );
-            setRenaming(true);
-          }}
-          className="h-6 w-6 text-text-tertiary hover:text-foreground"
+        <span
+          className={cn(
+            "absolute right-1 top-1 flex items-center gap-0.5 rounded bg-background/90",
+            "opacity-0 transition-opacity group-hover/row:opacity-100",
+            "focus-within:opacity-100",
+          )}
         >
-          <Pencil className="h-3 w-3" />
-        </Button>
-        <Button
-          ghost
-          size="icon"
-          aria-label={pinned ? labels.unpin : labels.pin}
-          title={pinned ? labels.unpin : labels.pin}
-          disabled={busy}
-          onClick={() =>
-            void runAction(() =>
-              api.setSessionPinned(session.id, !pinned, profile),
-            )
-          }
-          className="h-6 w-6 text-text-tertiary hover:text-foreground"
-        >
-          {pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
-        </Button>
-        <Button
-          ghost
-          size="icon"
-          aria-label={labels.archive}
-          title={labels.archive}
-          disabled={busy}
-          onClick={() =>
-            void runAction(() =>
-              api.setSessionArchived(session.id, true, profile),
-            )
-          }
-          className="h-6 w-6 text-text-tertiary hover:text-foreground"
-        >
-          {busy ? <Spinner className="text-xs" /> : <Archive className="h-3 w-3" />}
-        </Button>
-      </span>
-    </div>
+          <Button
+            ghost
+            size="icon"
+            aria-label={labels.rename}
+            title={labels.rename}
+            disabled={busy}
+            onClick={() => {
+              setRenameValue(
+                session.title && session.title !== "Untitled"
+                  ? session.title
+                  : "",
+              );
+              setRenaming(true);
+            }}
+            className="h-6 w-6 text-text-tertiary hover:text-foreground"
+          >
+            <Pencil className="h-3 w-3" />
+          </Button>
+          <Button
+            ghost
+            size="icon"
+            aria-label={pinned ? labels.unpin : labels.pin}
+            title={pinned ? labels.unpin : labels.pin}
+            disabled={busy}
+            onClick={() =>
+              void runAction(() =>
+                api.setSessionPinned(session.id, !pinned, profile),
+              )
+            }
+            className="h-6 w-6 text-text-tertiary hover:text-foreground"
+          >
+            {pinned ? (
+              <PinOff className="h-3 w-3" />
+            ) : (
+              <Pin className="h-3 w-3" />
+            )}
+          </Button>
+          {archived ? (
+            <Button
+              ghost
+              size="icon"
+              aria-label={labels.restore}
+              title={labels.restore}
+              disabled={busy}
+              onClick={() =>
+                void runAction(() =>
+                  api.setSessionArchived(session.id, false, profile),
+                )
+              }
+              className="h-6 w-6 text-text-tertiary hover:text-foreground"
+            >
+              {busy ? (
+                <Spinner className="text-xs" />
+              ) : (
+                <ArchiveRestore className="h-3 w-3" />
+              )}
+            </Button>
+          ) : (
+            <Button
+              ghost
+              size="icon"
+              aria-label={labels.archive}
+              title={labels.archive}
+              disabled={busy}
+              onClick={() =>
+                void runAction(() =>
+                  api.setSessionArchived(session.id, true, profile),
+                )
+              }
+              className="h-6 w-6 text-text-tertiary hover:text-foreground"
+            >
+              {busy ? (
+                <Spinner className="text-xs" />
+              ) : (
+                <Archive className="h-3 w-3" />
+              )}
+            </Button>
+          )}
+          <Button
+            ghost
+            size="icon"
+            aria-label={labels.openTui}
+            title={labels.openTui}
+            disabled={busy}
+            onClick={() => setTuiOpen(true)}
+            className="h-6 w-6 text-text-tertiary hover:text-foreground"
+          >
+            <Terminal className="h-3 w-3" />
+          </Button>
+          <Button
+            ghost
+            size="icon"
+            aria-label={labels.export}
+            title={labels.export}
+            disabled={busy}
+            onClick={handleExport}
+            className="h-6 w-6 text-text-tertiary hover:text-foreground"
+          >
+            <Download className="h-3 w-3" />
+          </Button>
+          <Button
+            ghost
+            size="icon"
+            aria-label={labels.delete}
+            title={labels.delete}
+            disabled={busy}
+            onClick={() => setDeleteOpen(true)}
+            className="h-6 w-6 text-text-tertiary hover:text-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </span>
+      </div>
+
+      <TuiPtyModal
+        open={tuiOpen}
+        onClose={() => setTuiOpen(false)}
+        resumeSessionId={session.id}
+        profile={profile || undefined}
+      />
+
+      <DeleteConfirmDialog
+        open={deleteOpen}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={() => void handleDelete()}
+        title={labels.delete}
+        description="Delete this conversation permanently? This cannot be undone."
+        confirmLabel={labels.delete}
+        loading={busy}
+      />
+    </>
   );
 }

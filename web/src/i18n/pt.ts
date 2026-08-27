@@ -175,6 +175,7 @@ export const pt: Translations = {
     unpinSession: "Desafixar",
     archiveSession: "Arquivar",
     renameSession: "Renomear",
+    openInTui: "Abrir no TUI",
     roles: {
       user: "Utilizador",
       assistant: "Assistente",

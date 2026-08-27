@@ -34,18 +34,22 @@ import {
   type ThinComposerAttachment,
 } from "./attachments";
 import { syncAttachmentsForSubmit } from "./attach-upload";
+import { textPart } from "@/lib/chat-messages";
 import {
-  applyGatewayEvent,
   activityLineFromGatewayEvent,
-  createThinChatTurnState,
-  historyToChatMessages,
-  sessionMessagesToChatMessages,
   thinChatSessionCreateParams,
   thinChatSessionResumeParams,
   type SessionCreateResult,
   type SessionResumeResult,
-  type ThinChatTurnState,
 } from "./gateway-protocol";
+import {
+  applyPartsGatewayEvent,
+  createPartsTurnState,
+  historyToPartsMessages,
+  optimisticUserPartsMessage,
+  sessionMessagesToPartsMessages,
+  type PartsTurnState,
+} from "./parts-gateway-protocol";
 import {
   buildResumeTranscript,
   turnStateFromInflight,
@@ -333,7 +337,7 @@ export function useThinChatGateway(
     });
   }, []);
 
-  const turnStateRef = useRef<ThinChatTurnState>(createThinChatTurnState());
+  const turnStateRef = useRef<PartsTurnState>(createPartsTurnState());
 
   const profileRef = useRef(profile);
   const onStoredSessionIdRef = useRef(onStoredSessionId);
@@ -404,7 +408,7 @@ export function useThinChatGateway(
   const appendSystemMessage = useCallback((text: string) => {
     setMessages((prev) => [
       ...prev,
-      { id: createMessageId(), role: "system", text },
+      { id: createMessageId(), role: "system", parts: [textPart(text)] },
     ]);
   }, []);
 
@@ -503,7 +507,7 @@ export function useThinChatGateway(
       const stored = result.stored_session_id ?? result.resumed ?? null;
       rememberStored(stored);
       const authoritative = buildResumeTranscript(
-        historyToChatMessages(result.messages),
+        historyToPartsMessages(result.messages),
         result.inflight,
         localMessages ?? [],
         result.session_id,
@@ -626,7 +630,7 @@ export function useThinChatGateway(
       rememberStored(storedId);
       setMessages((current) => {
         const authoritative = buildResumeTranscript(
-          historyToChatMessages(resumed.messages),
+          historyToPartsMessages(resumed.messages),
           resumed.inflight,
           current,
           resumed.session_id,
@@ -648,13 +652,11 @@ export function useThinChatGateway(
       void refreshSessionUsage();
       return;
     }
-    if (!liveSessionIdRef.current) {
-      await createFreshSession();
-    }
+    // Home draft: reconnect only — session.create runs on first send (desktop parity).
+    setReady(true);
   }, [
     applySessionInfoPayload,
     bindLiveSession,
-    createFreshSession,
     gw,
     rememberStored,
     refreshSessionUsage,
@@ -838,7 +840,7 @@ export function useThinChatGateway(
 
       if (STREAM_EVENT_TYPES.has(ev.type)) {
         setMessages((prev) => {
-          const result = applyGatewayEvent(
+          const result = applyPartsGatewayEvent(
             prev,
             ev.type,
             ev.payload,
@@ -885,10 +887,11 @@ export function useThinChatGateway(
           if (cancelled) return;
           applyResumeResult(resumed);
         } else {
-          await createFreshSession();
+          await gw.connect();
           if (cancelled) return;
           setPhase("home");
           setMessages([]);
+          setReady(true);
         }
       } catch (e) {
         if (!cancelled) {
@@ -899,7 +902,7 @@ export function useThinChatGateway(
               {
                 id: createMessageId(),
                 role: "system",
-                text: "Could not resume this session.",
+                parts: [textPart("Could not resume this session.")],
               },
             ]);
           }
@@ -1149,12 +1152,10 @@ export function useThinChatGateway(
             .filter(Boolean);
           setMessages((prev) => [
             ...prev,
-            {
-              id: createMessageId(),
-              role: "user",
-              text: displayText,
-              images: images.length ? images : undefined,
-            },
+            optimisticUserPartsMessage(
+              displayText,
+              images.length ? images : undefined,
+            ),
           ]);
           pushQueued(
             makeQueuedEntry({
@@ -1169,7 +1170,7 @@ export function useThinChatGateway(
 
         setMessages((prev) => [
           ...prev,
-          { id: createMessageId(), role: "user", text: trimmed },
+          optimisticUserPartsMessage(trimmed),
         ]);
         const steerResult = await trySteer(trimmed);
         if (steerResult === "queued") return;
@@ -1202,12 +1203,10 @@ export function useThinChatGateway(
         .filter(Boolean);
       setMessages((prev) => [
         ...prev,
-        {
-          id: createMessageId(),
-          role: "user",
-          text: displayText,
-          images: images.length ? images : undefined,
-        },
+        optimisticUserPartsMessage(
+          displayText,
+          images.length ? images : undefined,
+        ),
       ]);
 
       if (isSlash) {
@@ -1223,7 +1222,7 @@ export function useThinChatGateway(
               send: async (message) => {
                 setMessages((prev) => [
                   ...prev,
-                  { id: createMessageId(), role: "user", text: message },
+                  optimisticUserPartsMessage(message),
                 ]);
                 await submitPrompt(message);
               },
@@ -1284,12 +1283,10 @@ export function useThinChatGateway(
         .filter(Boolean);
       setMessages((prev) => [
         ...prev,
-        {
-          id: createMessageId(),
-          role: "user",
-          text: displayText,
-          images: images.length ? images : undefined,
-        },
+        optimisticUserPartsMessage(
+          displayText,
+          images.length ? images : undefined,
+        ),
       ]);
       pushQueued(
         makeQueuedEntry({
@@ -1375,7 +1372,7 @@ export function useThinChatGateway(
     setLoadingEarlier(true);
     try {
       const resp = await api.getSessionMessages(stored, profileRef.current);
-      const older = sessionMessagesToChatMessages(resp.messages ?? []);
+      const older = sessionMessagesToPartsMessages(resp.messages ?? []);
       if (older.length > 0) {
         setMessages((prev) => prependOlderMessages(prev, older));
       }
@@ -1404,7 +1401,7 @@ export function useThinChatGateway(
     setStoredSessionId(null);
     ensurePromiseRef.current = null;
     queueRef.current = [];
-    turnStateRef.current = createThinChatTurnState();
+    turnStateRef.current = createPartsTurnState();
     clearInflightJournal(storedSessionIdRef.current);
     setQueueEntries([]);
     setQueueParked(false);
@@ -1427,13 +1424,14 @@ export function useThinChatGateway(
       await gw.request("session.close", { session_id: sid }).catch(() => undefined);
     }
     try {
-      await createFreshSession();
+      await gw.connect();
       setPhase("home");
       setMessages([]);
+      setReady(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start new chat");
     }
-  }, [bindLiveSession, createFreshSession, gw]);
+  }, [bindLiveSession, gw]);
 
   return {
     phase,

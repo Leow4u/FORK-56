@@ -159,17 +159,52 @@ describe("ThinChat gateway wiring", () => {
     container.remove();
   });
 
-  it("boots EmptyHome and creates a web session", async () => {
+  it("boots EmptyHome without creating a session until first send", async () => {
     await act(async () => {
       root.render(<ThinChat />);
     });
-    // Flush connect/create microtasks
+    // Flush connect microtasks
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
     });
     expect(container.textContent).toContain("Work4You");
     expect(gatewayMocks.connect).toHaveBeenCalled();
+    expect(gatewayMocks.request).not.toHaveBeenCalledWith(
+      "session.create",
+      expect.anything(),
+    );
+  });
+
+  it("creates a web session on first send (desktop draft parity)", async () => {
+    await act(async () => {
+      root.render(<ThinChat />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const textarea = container.querySelector(
+      'textarea[aria-label="Message"]',
+    ) as HTMLTextAreaElement;
+    const setter = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "value",
+    )?.set;
+    await act(async () => {
+      setter?.call(textarea, "hello agent");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const send = container.querySelector(
+      'button[aria-label="Send message"]',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      send.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
     expect(gatewayMocks.request).toHaveBeenCalledWith(
       "session.create",
       expect.objectContaining({ source: "web", close_on_disconnect: true }),

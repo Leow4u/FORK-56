@@ -1,4 +1,16 @@
-import { createMessageId, type ChatMessage, type ChatRole } from "./types";
+import { createMessageId, type ChatRole } from "./types";
+
+/** Legacy flat message shape used by ``gateway-protocol.ts`` tests and history helpers. */
+export interface FlatChatMessage {
+  id: string;
+  role: ChatRole | "reasoning";
+  text: string;
+  streaming?: boolean;
+  name?: string;
+  context?: string;
+  toolId?: string;
+  interim?: boolean;
+}
 
 /** Message shape returned by ``session.create`` / ``session.resume`` (``_history_to_messages``). */
 export interface GatewayHistoryMessage {
@@ -46,7 +58,7 @@ export interface ThinChatTurnState {
 }
 
 export interface ApplyGatewayEventResult {
-  messages: ChatMessage[];
+  messages: FlatChatMessage[];
   turn: ThinChatTurnState;
 }
 
@@ -78,11 +90,11 @@ export function thinChatSessionResumeParams(
   };
 }
 
-export function historyToChatMessages(
+export function historyToFlatChatMessages(
   raw: GatewayHistoryMessage[] | unknown[] | null | undefined,
-): ChatMessage[] {
+): FlatChatMessage[] {
   if (!Array.isArray(raw)) return [];
-  const out: ChatMessage[] = [];
+  const out: FlatChatMessage[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const msg = item as GatewayHistoryMessage;
@@ -108,7 +120,10 @@ export function historyToChatMessages(
   return out;
 }
 
-export function sessionMessagesToChatMessages(
+/** @deprecated Use ``historyToFlatChatMessages`` — kept for existing imports. */
+export const historyToChatMessages = historyToFlatChatMessages;
+
+export function sessionMessagesToFlatChatMessages(
   raw: Array<{
     role?: string;
     content?: string | null;
@@ -116,8 +131,8 @@ export function sessionMessagesToChatMessages(
     id?: number;
     row_id?: number;
   }>,
-): ChatMessage[] {
-  const out: ChatMessage[] = [];
+): FlatChatMessage[] {
+  const out: FlatChatMessage[] = [];
   for (const item of raw) {
     const role = normalizeRole(item.role);
     if (!role) continue;
@@ -138,7 +153,7 @@ export function sessionMessagesToChatMessages(
   return out;
 }
 
-function normalizeRole(role: unknown): ChatRole | null {
+function normalizeRole(role: unknown): ChatRole | "reasoning" | null {
   if (
     role === "user" ||
     role === "assistant" ||
@@ -183,7 +198,7 @@ function clearedTurnState(turn: ThinChatTurnState): ThinChatTurnState {
  * Returns a new array when something changed, otherwise the same reference.
  */
 export function applyGatewayEvent(
-  messages: ChatMessage[],
+  messages: FlatChatMessage[],
   eventType: string,
   payload: unknown,
   turn: ThinChatTurnState = createThinChatTurnState(),
@@ -426,10 +441,10 @@ export function formatToolEvent(
 }
 
 function upsertToolRow(
-  messages: ChatMessage[],
+  messages: FlatChatMessage[],
   payload: unknown,
   phase: "start" | "progress" | "done",
-): ChatMessage[] {
+): FlatChatMessage[] {
   const line = formatToolEvent(payload, phase);
   if (!line) return messages;
   const toolId = toolIdFromPayload(payload);
@@ -454,7 +469,7 @@ function upsertToolRow(
   ];
 }
 
-function sealStreaming(messages: ChatMessage[]): ChatMessage[] {
+function sealStreaming(messages: FlatChatMessage[]): FlatChatMessage[] {
   let changed = false;
   const next = messages.map((m) => {
     if (!m.streaming) return m;
@@ -465,7 +480,7 @@ function sealStreaming(messages: ChatMessage[]): ChatMessage[] {
 }
 
 /** Reasoning row for the open turn (sits before the trailing assistant/tools). */
-function findTurnReasoningIndex(messages: ChatMessage[]): number {
+function findTurnReasoningIndex(messages: FlatChatMessage[]): number {
   let i = messages.length - 1;
   while (i >= 0 && messages[i].role === "tool") {
     i -= 1;
@@ -482,12 +497,12 @@ function findTurnReasoningIndex(messages: ChatMessage[]): number {
   return -1;
 }
 
-function turnReasoningText(messages: ChatMessage[]): string {
+function turnReasoningText(messages: FlatChatMessage[]): string {
   const idx = findTurnReasoningIndex(messages);
   return idx >= 0 ? messages[idx].text.trim() : "";
 }
 
-function pruneEmptyReasoning(messages: ChatMessage[]): ChatMessage[] {
+function pruneEmptyReasoning(messages: FlatChatMessage[]): FlatChatMessage[] {
   const next = messages.filter(
     (m) => m.role !== "reasoning" || m.text.trim().length > 0,
   );
@@ -495,7 +510,7 @@ function pruneEmptyReasoning(messages: ChatMessage[]): ChatMessage[] {
 }
 
 function appendAssistantDelta(
-  messages: ChatMessage[],
+  messages: FlatChatMessage[],
   turn: ThinChatTurnState,
   chunk: string,
 ): ApplyGatewayEventResult {
@@ -533,9 +548,9 @@ function appendAssistantDelta(
 }
 
 function appendReasoningDelta(
-  messages: ChatMessage[],
+  messages: FlatChatMessage[],
   chunk: string,
-): ChatMessage[] {
+): FlatChatMessage[] {
   const last = messages[messages.length - 1];
   if (last?.role === "reasoning" && last.streaming !== false) {
     const next = messages.slice();
@@ -585,9 +600,9 @@ function appendReasoningDelta(
 }
 
 function replaceReasoningBlock(
-  messages: ChatMessage[],
+  messages: FlatChatMessage[],
   text: string,
-): ChatMessage[] {
+): FlatChatMessage[] {
   const trimmed = text.trim();
   if (!trimmed) return messages;
 
@@ -649,7 +664,7 @@ function formatSubagentEvent(type: string, payload: unknown): string {
 }
 
 function finalizeInterimAssistant(
-  messages: ChatMessage[],
+  messages: FlatChatMessage[],
   turn: ThinChatTurnState,
   text: string,
 ): ApplyGatewayEventResult {
@@ -706,7 +721,7 @@ function finalizeInterimAssistant(
 }
 
 function completeAssistantMessage(
-  messages: ChatMessage[],
+  messages: FlatChatMessage[],
   turn: ThinChatTurnState,
   text: string,
   responsePreviewed: boolean,
@@ -716,7 +731,7 @@ function completeAssistantMessage(
   const interimBoundaryPending = turn.interimBoundaryPending;
   const nextTurn = clearedTurnState(turn);
 
-  const settleAssistant = (message: ChatMessage): ChatMessage => ({
+  const settleAssistant = (message: FlatChatMessage): FlatChatMessage => ({
     ...message,
     text: finalText || message.text,
     streaming: false,
