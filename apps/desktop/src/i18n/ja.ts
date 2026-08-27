@@ -1043,7 +1043,8 @@ export const ja = defineLocale({
       activeBackend: '使用中',
       activeBackendHint: 'これが現在アクティブなバックエンドです',
       useBackend: 'このバックエンドを使う',
-      work4youIncluded: 'Work4You サブスクリプションに含まれています。有効にするには Work4You Portal にサインインしてください。',
+      work4youIncluded:
+        'Work4You サブスクリプションに含まれています。有効にするには Work4You Portal にサインインしてください。',
       work4youAuthNeededTitle: 'Work4You Portal にサインイン',
       work4youAuthNeededMessage: provider =>
         `${provider} は保存されましたが、Work4You Portal にサインインするまで有効になりません。`,
@@ -2158,7 +2159,8 @@ export const ja = defineLocale({
     done: '完了',
     applyingBody:
       'Work4You アップデーターが独自のウィンドウで引き継ぎ、完了後に自動的に Work4You を再度開きます。更新中はご自分で Work4You を開き直さないでください。',
-    applyingBodyBackend: 'リモートバックエンドが更新を適用して再起動します。復帰すると Work4You が自動的に再接続します。',
+    applyingBodyBackend:
+      'リモートバックエンドが更新を適用して再起動します。復帰すると Work4You が自動的に再接続します。',
     applyingClose: 'このウィンドウは更新中に閉じ、その後 Work4You が自動的に再度開きます。',
     errorTitle: '更新が完了しませんでした',
     errorBody: 'ご安心ください。何も失われていません。今すぐ再試行できます。',
@@ -2212,7 +2214,8 @@ export const ja = defineLocale({
     connectExistingDesc:
       'セッショントークンまたはブラウザーサインインでリモートバックエンドを使用します。ローカルインストールは開始されません。',
     installLocalTitle: 'Work4You をローカルにインストール',
-    installLocalDesc: 'Work4You をダウンロードし、Python 環境を作成して、このコンピューターでバックエンドを実行します。',
+    installLocalDesc:
+      'Work4You をダウンロードし、Python 環境を作成して、このコンピューターでバックエンドを実行します。',
     localStartUnavailable:
       'ローカルインストールを開始できません。Work4You Desktop を再起動して、もう一度お試しください。',
     remoteSetupTitle: '既存の Work4You に接続',

@@ -1126,7 +1126,8 @@ export const en: Translations = {
       useBackend: 'Use this backend',
       work4youIncluded: 'Included with a Work4You subscription — sign in to Work4You Portal to activate.',
       work4youAuthNeededTitle: 'Sign in to Work4You Portal',
-      work4youAuthNeededMessage: provider => `${provider} is saved but won't activate until you sign in to Work4You Portal.`,
+      work4youAuthNeededMessage: provider =>
+        `${provider} is saved but won't activate until you sign in to Work4You Portal.`,
       work4youAuthSignIn: 'Sign in',
       work4youAuthDoneTitle: 'Work4You Portal connected',
       work4youAuthDoneMessage: 'Your subscription backends are now active.',
@@ -2481,7 +2482,8 @@ export const en: Translations = {
     maybeLater: 'Maybe later',
     moreChanges: count => `+ ${count} more change${count === 1 ? '' : 's'} included.`,
     manualTitle: 'Update from your terminal',
-    manualBody: 'You installed Work4You from the command line, so updates run there too. Paste this into your terminal:',
+    manualBody:
+      'You installed Work4You from the command line, so updates run there too. Paste this into your terminal:',
     manualPickedUp: 'Work4You will pick up the new version next time you launch it.',
     guiSkewTitle: 'Update the desktop app',
     guiSkewBody:
@@ -2547,7 +2549,8 @@ export const en: Translations = {
     installLocalDesc: 'Download Work4You, create its Python environment, and run the backend on this computer.',
     localStartUnavailable: 'Local installation could not start. Restart Work4You Desktop and try again.',
     remoteSetupTitle: 'Connect to existing Work4You',
-    remoteSetupDesc: 'Enter your gateway URL. Work4You Desktop will detect whether it needs a token or browser sign-in.',
+    remoteSetupDesc:
+      'Enter your gateway URL. Work4You Desktop will detect whether it needs a token or browser sign-in.',
     remoteUrlTitle: 'Gateway URL',
     remoteUrlDesc: 'Use the base URL of the Work4You gateway, including https:// when remote.',
     remoteUrlPlaceholder: 'https://gateway.example.com/work4you',
@@ -2623,7 +2626,8 @@ export const en: Translations = {
       xai: { short: 'Grok models', description: 'Direct access to xAI Grok models.' },
       local: {
         short: 'self-hosted',
-        description: 'Point Work4You at a local or self-hosted OpenAI-compatible endpoint (vLLM, llama.cpp, Ollama, etc).'
+        description:
+          'Point Work4You at a local or self-hosted OpenAI-compatible endpoint (vLLM, llama.cpp, Ollama, etc).'
       }
     },
     backToSignIn: 'Back to sign in',

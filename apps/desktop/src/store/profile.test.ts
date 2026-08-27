@@ -44,7 +44,12 @@ const profile = (name: string, isDefault = false): ProfileInfo => ({
 })
 
 const remoteConn = (over: Partial<Work4YouConnection> = {}): Work4YouConnection =>
-  ({ baseUrl: 'https://work4you-roy.tail.ts.net', mode: 'remote', profile: 'vps-remote', ...over }) as Work4YouConnection
+  ({
+    baseUrl: 'https://work4you-roy.tail.ts.net',
+    mode: 'remote',
+    profile: 'vps-remote',
+    ...over
+  }) as Work4YouConnection
 
 const localConn = (over: Partial<Work4YouConnection> = {}): Work4YouConnection =>
   ({ baseUrl: '', mode: 'local', profile: 'default', ...over }) as Work4YouConnection
