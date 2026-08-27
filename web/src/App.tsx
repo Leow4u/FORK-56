@@ -313,12 +313,18 @@ function partitionSidebarNav(
   builtIn: NavItem[],
   manifests: PluginManifest[],
 ): { coreItems: NavItem[]; pluginItems: NavItem[] } {
+  const hiddenTabPaths = new Set(
+    manifests
+      .filter((m) => m.tab.hidden && !m.tab.override)
+      .map((m) => m.tab.path),
+  );
   const merged = buildNavItems(builtIn, manifests);
   const builtinPaths = new Set(builtIn.map((i) => i.path));
   const coreItems: NavItem[] = [];
   const pluginItems: NavItem[] = [];
   for (const item of merged) {
     if (builtinPaths.has(item.path)) coreItems.push(item);
+    else if (hiddenTabPaths.has(item.path)) continue;
     else pluginItems.push(item);
   }
   return { coreItems, pluginItems };

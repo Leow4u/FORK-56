@@ -11,6 +11,20 @@ const apiMocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/api", () => ({ api: apiMocks }));
 
+vi.mock("@/plugins", () => ({
+  usePlugins: () => ({
+    manifests: [
+      {
+        name: "work4you-achievements",
+        label: "Achievements",
+        tab: { path: "/achievements", hidden: true },
+      },
+    ],
+    plugins: [],
+    loading: false,
+  }),
+}));
+
 vi.mock("@/i18n", () => ({
   useI18n: () => ({
     t: {
@@ -92,7 +106,7 @@ describe("AuthWidget footer user area", () => {
     act(() => {
       trigger.click();
     });
-    expect(menuItems()).toEqual(["Settings", "Documentation"]);
+    expect(menuItems()).toEqual(["Settings", "Documentation", "Achievements"]);
 
     act(() => {
       (
@@ -122,6 +136,24 @@ describe("AuthWidget footer user area", () => {
     ).toBe("/docs");
   });
 
+  it("loopback (ungated): Achievements menu item navigates to /achievements", async () => {
+    await renderWidget();
+    const trigger = container.querySelector(
+      'button[aria-haspopup="menu"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      trigger.click();
+    });
+    act(() => {
+      (
+        document.body.querySelectorAll('[role="menuitem"]')[2] as HTMLButtonElement
+      ).click();
+    });
+    expect(
+      container.querySelector('[data-testid="location"]')?.textContent,
+    ).toBe("/achievements");
+  });
+
   it("gated: clicking the identity opens Settings, Documentation, and Log out", async () => {
     (window as { __WORK4YOU_AUTH_REQUIRED__?: boolean }).__WORK4YOU_AUTH_REQUIRED__ =
       true;
@@ -141,11 +173,16 @@ describe("AuthWidget footer user area", () => {
     act(() => {
       identity.click();
     });
-    expect(menuItems()).toEqual(["Settings", "Documentation", "Log out"]);
+    expect(menuItems()).toEqual([
+      "Settings",
+      "Documentation",
+      "Achievements",
+      "Log out",
+    ]);
 
     act(() => {
       (
-        document.body.querySelectorAll('[role="menuitem"]')[2] as HTMLButtonElement
+        document.body.querySelectorAll('[role="menuitem"]')[3] as HTMLButtonElement
       ).click();
     });
     expect(apiMocks.logout).toHaveBeenCalled();

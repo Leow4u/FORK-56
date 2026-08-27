@@ -3,7 +3,7 @@
  *
  * Mirrors the desktop-app / Cursor pattern: the logged-in identity sits at
  * the bottom of the sidebar; clicking it opens a small drop-up menu with
- * "Settings", "Docs", and (when authenticated) "Log out".
+ * "Settings", "Docs", "Achievements", and (when authenticated) "Log out".
  *
  * Auth behavior (unchanged from the original OAuth-gate widget):
  *   - Gated mode (non-loopback, OAuth/password): fetches /api/auth/me and
@@ -11,8 +11,8 @@
  *     email/display_name) plus the provider name. Log out POSTs
  *     /auth/logout and full-page-navigates to /login.
  *   - Loopback / --insecure mode: there is no logged-in identity, so the
- *     footer shows the Work4You brand as the menu trigger — Settings and
- *     Docs stay reachable on local installs.
+ *     footer shows the Work4You brand as the menu trigger — Settings, Docs,
+ *     and Achievements stay reachable on local installs.
  *
  * The drop-up menu reuses the LanguageSwitcher pattern: portal to body,
  * fixed position above the trigger, Escape + outside-pointerdown close.
@@ -24,7 +24,8 @@ import { useNavigate } from "react-router";
 import { api, type AuthMeResponse } from "@/lib/api";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { BookOpen, LogOut, Settings } from "lucide-react";
+import { BookOpen, LogOut, Settings, Star } from "lucide-react";
+import { usePlugins } from "@/plugins";
 
 interface AuthWidgetProps {
   className?: string;
@@ -48,6 +49,11 @@ export function AuthWidget({ className }: AuthWidgetProps) {
   const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const { manifests } = usePlugins();
+  const accountMenuPlugins = manifests.filter(
+    (m) => m.tab.hidden && !m.tab.override,
+  );
 
   const settingsLabel = t.app.nav.settings ?? "Settings";
   const docsLabel = t.app.nav.documentation ?? "Docs";
@@ -108,6 +114,11 @@ export function AuthWidget({ className }: AuthWidgetProps) {
   const openDocs = () => {
     closeMenu();
     navigate("/docs");
+  };
+
+  const openAccountMenuPlugin = (path: string) => {
+    closeMenu();
+    navigate(path);
   };
 
   const handleLogout = () => {
@@ -174,6 +185,18 @@ export function AuthWidget({ className }: AuthWidgetProps) {
           <BookOpen className="h-3 w-3 shrink-0" />
           <span className="truncate">{docsLabel}</span>
         </button>
+        {accountMenuPlugins.map((manifest) => (
+          <button
+            key={manifest.name}
+            type="button"
+            role="menuitem"
+            onClick={() => openAccountMenuPlugin(manifest.tab.path)}
+            className={itemClass}
+          >
+            <Star className="h-3 w-3 shrink-0" />
+            <span className="truncate">{manifest.label}</span>
+          </button>
+        ))}
         {showLogout && (
           <button
             type="button"
