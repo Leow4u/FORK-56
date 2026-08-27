@@ -31,7 +31,11 @@ import type {
   StaleAuxAssignment
 } from '@/work4you'
 
-import { invalidateWork4YouConfig, useWork4YouConfigRecord, work4youConfigCacheWriter } from '../hooks/use-config-record'
+import {
+  invalidateWork4YouConfig,
+  useWork4YouConfigRecord,
+  work4youConfigCacheWriter
+} from '../hooks/use-config-record'
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 
 import { CONTROL_TEXT } from './constants'

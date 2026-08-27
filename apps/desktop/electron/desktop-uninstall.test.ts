@@ -96,13 +96,18 @@ test('resolveRemovableAppPath returns null for an unrecognized Windows dir', () 
 
 test('resolveRemovableAppPath uses APPIMAGE on Linux when set', () => {
   assert.equal(
-    resolveRemovableAppPath('/tmp/.mount_Work4YouXXXX/work4you', 'linux', { APPIMAGE: '/home/x/Apps/Work4You.AppImage' }),
+    resolveRemovableAppPath('/tmp/.mount_Work4YouXXXX/work4you', 'linux', {
+      APPIMAGE: '/home/x/Apps/Work4You.AppImage'
+    }),
     '/home/x/Apps/Work4You.AppImage'
   )
 })
 
 test('resolveRemovableAppPath finds the unpacked dir on Linux', () => {
-  assert.equal(resolveRemovableAppPath('/opt/work4you/linux-unpacked/work4you', 'linux', {}), '/opt/work4you/linux-unpacked')
+  assert.equal(
+    resolveRemovableAppPath('/opt/work4you/linux-unpacked/work4you', 'linux', {}),
+    '/opt/work4you/linux-unpacked'
+  )
   // A system-package install (/usr/bin) → null, left to apt/dnf.
   assert.equal(resolveRemovableAppPath('/usr/bin/work4you', 'linux', {}), null)
 })
