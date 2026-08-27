@@ -114,6 +114,9 @@ jobs:
           cp cloud/nas-sync/src/lib/model-access.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/account-delete.ts nas/src/lib/
           cp cloud/nas-sync/src/app/api/agents/route.ts nas/src/app/api/agents/
+          mkdir -p nas/src/app/api/agents/\[id\]/\[action\]
+          cp cloud/nas-sync/src/app/api/agents/\[id\]/route.ts nas/src/app/api/agents/\[id\]/
+          cp cloud/nas-sync/src/app/api/agents/\[id\]/\[action\]/route.ts nas/src/app/api/agents/\[id\]/\[action\]/
           cp cloud/nas-sync/src/app/api/keys/models/route.ts nas/src/app/api/keys/models/
           cp cloud/nas-sync/src/app/api/work4you/recommended-models/route.ts nas/src/app/api/work4you/recommended-models/
           mkdir -p nas/src/app/api/oauth/self-hosted-client/\[id\]
@@ -149,6 +152,8 @@ jobs:
             src/lib/model-access.ts \
             src/lib/account-delete.ts \
             src/app/api/agents/route.ts \
+            src/app/api/agents/\[id\]/route.ts \
+            src/app/api/agents/\[id\]/\[action\]/route.ts \
             src/app/api/keys/models/route.ts \
             src/app/api/work4you/recommended-models/route.ts \
             src/app/api/oauth/self-hosted-client/route.ts \
@@ -186,6 +191,6 @@ jobs:
               echo ""
               echo "Vercel redeploys portal.work4you.ai automatically."
               echo ""
-              echo "Next: Portal → Cloud → **create a new agent** and open its dashboard URL."
+              echo "Next: Portal → Cloud → **Atualizar** on an existing agent (preserves /opt/data history), or create a new one."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
