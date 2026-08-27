@@ -63,7 +63,6 @@ import { showEnvAdminNav } from "@/lib/env-admin-nav";
 import { showSystemAdminNav } from "@/lib/system-admin-nav";
 import { LogsRouteGate } from "@/components/LogsRouteGate";
 import { ModelsRouteGate } from "@/components/ModelsRouteGate";
-import { SidebarFooter } from "@/components/SidebarFooter";
 import { useBelowBreakpoint } from "@work4you/ui/hooks/use-below-breakpoint";
 import { useSidebarStatus } from "@/hooks/useSidebarStatus";
 import { AuthWidget } from "@/components/AuthWidget";
@@ -849,7 +848,6 @@ export default function App() {
               )}
             >
               <AuthWidget />
-              <SidebarFooter status={sidebarStatus} />
             </div>
           </aside>
 
