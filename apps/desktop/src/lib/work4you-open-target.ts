@@ -155,7 +155,11 @@ export function resolveWork4YouOpenPath(target: Work4YouOpenTarget | null | unde
  * Build a navigate path from a parsed deep-link payload
  * (`work4you://<kind>/<name>?…` → kind/name/params).
  */
-export function pathFromWork4YouDeepLink(kind: string, name: string, params: Record<string, string> = {}): string | null {
+export function pathFromWork4YouDeepLink(
+  kind: string,
+  name: string,
+  params: Record<string, string> = {}
+): string | null {
   if (!kind || !name) {
     return null
   }

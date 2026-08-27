@@ -182,7 +182,7 @@ export function useComposerAttachments({
       }
       try {
         // Validate
-        // eslint-disable-next-line no-new
+         
         new URL(url);
       } catch {
         report("Invalid URL");

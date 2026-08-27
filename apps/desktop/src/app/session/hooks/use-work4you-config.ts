@@ -65,7 +65,10 @@ export function useWork4YouConfig({ activeSessionIdRef }: Work4YouConfigOptions)
       const selectionGeneration = getComposerSelectionGeneration()
 
       try {
-        const [config, defaults] = await Promise.all([getWork4YouConfig(), getWork4YouConfigDefaults().catch(() => ({}))])
+        const [config, defaults] = await Promise.all([
+          getWork4YouConfig(),
+          getWork4YouConfigDefaults().catch(() => ({}))
+        ])
 
         if (profileRefreshEpochRef.current !== profileRefreshEpoch) {
           return
