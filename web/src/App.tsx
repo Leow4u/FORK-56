@@ -101,7 +101,6 @@ const WebhooksPage = lazy(() => import("@/pages/WebhooksPage"));
 const SystemPage = lazy(() => import("@/pages/SystemPage"));
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
 import { useI18n } from "@/i18n";
-import type { Translations } from "@/i18n/types";
 import { PluginPage, PluginSlot, usePlugins } from "@/plugins";
 import type { PluginManifest } from "@/plugins";
 import { useTheme } from "@/themes";
@@ -1108,6 +1107,4 @@ function SidebarTooltip({ anchor, label, warmRef }: SidebarTooltipProps) {
     document.body,
   );
 }
-
-type TooltipWarmRef = React.RefObject<number>;
 
