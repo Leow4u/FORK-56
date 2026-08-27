@@ -14,9 +14,11 @@
  *     exact same component + APIs (getAuxiliaryModels / setModelAssignment).
  *   - chat — personality, timezone, reasoning blocks, image attachments
  *     (keys mirror desktop Settings → Chat in apps/desktop/src/app/settings/constants.ts).
+ *   - workspace — working directory, repo discovery, code execution, file limits
+ *     (keys mirror desktop Settings → Workspace).
  */
 
-import { Brain, Cpu, MessageCircle } from "lucide-react";
+import { Brain, Cpu, MessageCircle, Monitor } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -39,6 +41,18 @@ const CHAT_CONFIG_KEYS = [
   "timezone",
   "display.show_reasoning",
   "agent.image_input_mode",
+] as const;
+
+/** Desktop Settings → Workspace keys (apps/desktop/src/app/settings/constants.ts). */
+const WORKSPACE_CONFIG_KEYS = [
+  "terminal.cwd",
+  "desktop.repo_scan_enabled",
+  "desktop.repo_scan_roots",
+  "desktop.repo_scan_exclude_paths",
+  "code_execution.mode",
+  "terminal.persistent_shell",
+  "terminal.env_passthrough",
+  "file_read_max_chars",
 ] as const;
 
 interface SettingsSection {
@@ -105,6 +119,12 @@ const SECTIONS: SettingsSection[] = [
     label: "Chat",
     icon: MessageCircle,
     render: () => <SettingsConfigSection keys={CHAT_CONFIG_KEYS} />,
+  },
+  {
+    id: "workspace",
+    label: "Workspace",
+    icon: Monitor,
+    render: () => <SettingsConfigSection keys={WORKSPACE_CONFIG_KEYS} />,
   },
   {
     // Where the agent keeps memory + which context engine compacts it —
