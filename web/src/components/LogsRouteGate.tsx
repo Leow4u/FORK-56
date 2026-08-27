@@ -4,8 +4,9 @@
  * /logs tails the raw agent / errors / gateway log files — an operator
  * diagnostics surface, not a user one. The page is fully absent unless
  * the operator sets `dashboard.show_logs_admin: true`: hitting the URL
- * redirects to the home route instead of mounting the page. The
- * read-only /api/logs endpoint stays untouched — the desktop app's
+ * redirects to the home route instead of mounting the page. User-facing
+ * log tail lives in Settings → Providers → Accounts (Work4You Portal).
+ * The read-only /api/logs endpoint stays untouched — the desktop app's
  * Command Center tails logs through it.
  *
  * Same self-gating pattern as FilesRouteGate.

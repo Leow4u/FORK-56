@@ -64,6 +64,7 @@ import { ChatSessionList } from "@/components/ChatSessionList";
 import { FilesRouteGate } from "@/components/FilesRouteGate";
 import { showConfigAdminNav } from "@/lib/config-admin-nav";
 import { showEnvAdminNav } from "@/lib/env-admin-nav";
+import { showSystemAdminNav } from "@/lib/system-admin-nav";
 import { LogsRouteGate } from "@/components/LogsRouteGate";
 import { ModelsRouteGate } from "@/components/ModelsRouteGate";
 import { SidebarFooter } from "@/components/SidebarFooter";
@@ -244,6 +245,7 @@ const BUILTIN_NAV_REST: NavItem[] = [
   // credentials live in Settings → Providers / Tools & Keys. Route stays
   // URL-reachable (see showEnvAdmin nav filter).
   { path: "/env", labelKey: "keys", label: "Keys", icon: KeyRound },
+  // URL-reachable (see showEnvAdmin nav filter).
   { path: "/system", label: "System", icon: Wrench },
   {
     path: "/docs",
@@ -475,6 +477,7 @@ export default function App() {
   const [showPluginsAdmin, setShowPluginsAdmin] = useState(false);
   const [showConfigAdmin, setShowConfigAdmin] = useState(false);
   const [showEnvAdmin, setShowEnvAdmin] = useState(false);
+  const [showSystemAdmin, setShowSystemAdmin] = useState(false);
   useEffect(() => {
     api
       .getConfig()
@@ -487,6 +490,7 @@ export default function App() {
           show_plugins_admin?: unknown;
           show_config_admin?: unknown;
           show_env_admin?: unknown;
+          show_system_admin?: unknown;
         };
         setShowTokenAnalytics(dash.show_token_analytics === true);
         setShowSessionsAdmin(dash.show_sessions_admin === true);
@@ -495,6 +499,7 @@ export default function App() {
         setShowPluginsAdmin(dash.show_plugins_admin === true);
         setShowConfigAdmin(showConfigAdminNav(dash));
         setShowEnvAdmin(showEnvAdminNav(dash));
+        setShowSystemAdmin(showSystemAdminNav(dash));
       })
       .catch(() => {
         setShowTokenAnalytics(false);
@@ -504,6 +509,7 @@ export default function App() {
         setShowPluginsAdmin(false);
         setShowConfigAdmin(false);
         setShowEnvAdmin(false);
+        setShowSystemAdmin(false);
       });
   }, []);
 
@@ -563,6 +569,9 @@ export default function App() {
       // Keys (/env): credential UI lives in /settings; the legacy monolith
       // is operator-only. Route stays URL-reachable like Config/Plugins.
       if (n.path === "/env") return showEnvAdmin;
+      // System: user metrics in Settings → My Computer; Portal + logs in
+      // Settings → Providers → Accounts. Operator console stays URL-reachable.
+      if (n.path === "/system") return showSystemAdmin;
       return true;
     });
   }, [
@@ -572,6 +581,7 @@ export default function App() {
     showPluginsAdmin,
     showConfigAdmin,
     showEnvAdmin,
+    showSystemAdmin,
     showSessionsAdmin,
     showTokenAnalytics,
   ]);

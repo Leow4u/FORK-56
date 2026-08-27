@@ -6,17 +6,13 @@ import {
   Check,
   Clock,
   Copy,
-  Cpu,
   Database,
   Download,
-  Globe,
-  HardDrive,
   Link2,
   Play,
   Plus,
   Power,
   RotateCw,
-  Server,
   Share2,
   ShieldCheck,
   Sparkles,
@@ -52,10 +48,7 @@ import type {
   CheckpointsResponse,
   HooksResponse,
   HookEntry,
-  SystemStats,
-  UpdateCheckResponse,
   CuratorStatus,
-  PortalStatus,
   DebugShareResponse,
 } from "@/lib/api";
 
@@ -64,15 +57,6 @@ function formatBytes(n: number): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
   return `${(n / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
-
-function formatDuration(seconds: number): string {
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h ${m}m`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
 }
 
 type BackupImportTarget =
@@ -192,14 +176,12 @@ export default function SystemPage() {
   const { toast, showToast } = useToast();
 
   const [status, setStatus] = useState<StatusResponse | null>(null);
-  const [stats, setStats] = useState<SystemStats | null>(null);
   const [memory, setMemory] = useState<MemoryStatus | null>(null);
   const [checkpoints, setCheckpoints] = useState<CheckpointsResponse | null>(
     null,
   );
   const [hooks, setHooks] = useState<HooksResponse | null>(null);
   const [curator, setCurator] = useState<CuratorStatus | null>(null);
-  const [portal, setPortal] = useState<PortalStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -237,35 +219,20 @@ export default function SystemPage() {
   const [hookApprove, setHookApprove] = useState(true);
   const [creatingHook, setCreatingHook] = useState(false);
 
-  // ── Update check ───────────────────────────────────────────────────
-  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(
-    null,
-  );
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
-
   const loadAll = useCallback(() => {
     Promise.allSettled([
       api.getStatus(),
-      api.getSystemStats(),
       api.getMemory(),
       api.getCheckpoints(),
       api.getHooks(),
       api.getCurator(),
-      api.getPortal(),
-      // Cached (non-forced) check so the version row shows update status on
-      // load without a separate effect / a forced network round-trip.
-      api.checkWork4YouUpdate(false),
     ])
-      .then(([s, st, m, c, h, cur, prt, upd]) => {
+      .then(([s, m, c, h, cur]) => {
         if (s.status === "fulfilled") setStatus(s.value);
-        if (st.status === "fulfilled") setStats(st.value);
         if (m.status === "fulfilled") setMemory(m.value);
         if (c.status === "fulfilled") setCheckpoints(c.value);
         if (h.status === "fulfilled") setHooks(h.value);
         if (cur.status === "fulfilled") setCurator(cur.value);
-        if (prt.status === "fulfilled") setPortal(prt.value);
-        if (upd.status === "fulfilled") setUpdateInfo(upd.value);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -307,9 +274,7 @@ export default function SystemPage() {
   };
 
   // ── Memory ─────────────────────────────────────────────────────────
-  // Memory provider selection lives on the /plugins page now (see the
-  // read-only display + link below); the dropdown was intentionally
-  // dropped from this card during the admin-panel refresh.
+  // Memory provider selection lives in Settings → Memory & Context.
   const memoryReset = useConfirmDelete({
     onDelete: useCallback(
       async (target: string) => {
@@ -456,66 +421,6 @@ export default function SystemPage() {
     }
   }, [shareRedact, showToast]);
 
-
-  // ── Update check / apply ───────────────────────────────────────────
-  const checkForUpdate = useCallback(
-    async (force = false) => {
-      if (status?.can_update_work4you === false) return;
-      setCheckingUpdate(true);
-      try {
-        const info = await api.checkWork4YouUpdate(force);
-        setUpdateInfo(info);
-        if (force) {
-          if (info.update_available) {
-            showToast(
-              info.behind && info.behind > 0
-                ? `Update available — ${info.behind} commit${info.behind === 1 ? "" : "s"} behind`
-                : "Update available",
-              "success",
-            );
-          } else if (info.behind === 0) {
-            showToast("You're on the latest version", "success");
-          } else if (info.message) {
-            showToast(info.message, "error");
-          }
-        }
-      } catch (e) {
-        showToast(`Update check failed: ${e}`, "error");
-      } finally {
-        setCheckingUpdate(false);
-      }
-    },
-    [showToast, status?.can_update_work4you],
-  );
-
-  // Auto-check (cached) runs inside loadAll on mount; this is the
-  // user-triggered forced re-check from the "Check for updates" button.
-  const applyUpdate = async () => {
-    setUpdateConfirmOpen(false);
-    if (status?.can_update_work4you === false) {
-      showToast(
-        "Work4You updates are managed outside this dashboard.",
-        "success",
-      );
-      return;
-    }
-    try {
-      const resp = await api.updateWork4You();
-      if (!resp.ok) {
-        showToast(
-          resp.message ??
-            "Updates don't apply from this dashboard.",
-          "success",
-        );
-        return;
-      }
-      setActiveAction(resp.name ?? "work4you-update");
-      showToast("Update started", "success");
-    } catch (e) {
-      showToast(`Update failed: ${e}`, "error");
-    }
-  };
-
   const checkpointsPrune = useConfirmDelete({
     onDelete: useCallback(async () => {
       try {
@@ -585,7 +490,6 @@ export default function SystemPage() {
   }
 
   const gatewayRunning = status?.gateway_running;
-  const canUpdateWork4You = status?.can_update_work4you !== false;
   const activeMemoryProvider = memory?.active
     ? memory.providers.find((provider) => provider.name === memory.active)
     : null;
@@ -604,19 +508,6 @@ export default function SystemPage() {
         onChange={(event) => {
           setImportFile(event.currentTarget.files?.[0] ?? null);
         }}
-      />
-
-      <ConfirmDialog
-        open={canUpdateWork4You && updateConfirmOpen}
-        onCancel={() => setUpdateConfirmOpen(false)}
-        onConfirm={() => void applyUpdate()}
-        title="Update Work4You?"
-        description={
-          updateInfo && updateInfo.behind && updateInfo.behind > 0
-            ? `This will run 'work4you update' (${updateInfo.update_command}) and pull ${updateInfo.behind} new commit${updateInfo.behind === 1 ? "" : "s"}. The gateway restarts when the update finishes; the current session keeps its prompt cache until then.`
-            : `This will run 'work4you update' (${updateInfo?.update_command ?? "work4you update"}) and restart the gateway when it finishes.`
-        }
-        confirmLabel="Update now"
       />
 
       <DeleteConfirmDialog
@@ -761,187 +652,6 @@ export default function SystemPage() {
         />
       )}
 
-      {/* ── Host / system stats ───────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <H2 variant="sm" className="flex items-center gap-2 text-muted-foreground">
-          <Server className="h-4 w-4" /> Host
-        </H2>
-        <Card>
-          <CardContent className="py-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-3 gap-x-6 text-sm">
-              <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">OS</div>
-                <div>{stats?.os} {stats?.os_release}</div>
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Arch</div>
-                <div>{stats?.arch}</div>
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Host</div>
-                <div className="truncate">{stats?.hostname}</div>
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Python</div>
-                <div>{stats?.python_impl} {stats?.python_version}</div>
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Work4You</div>
-                <div className="flex items-center gap-2">
-                  <span>v{stats?.work4you_version}</span>
-                  {canUpdateWork4You &&
-                    updateInfo &&
-                    (updateInfo.update_available ? (
-                      <Badge tone="warning">
-                        {updateInfo.behind && updateInfo.behind > 0
-                          ? `${updateInfo.behind} behind`
-                          : "update available"}
-                      </Badge>
-                    ) : updateInfo.behind === 0 ? (
-                      <Badge tone="success">latest</Badge>
-                    ) : null)}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                  <Cpu className="h-3 w-3" /> CPU
-                </div>
-                <div>
-                  {stats?.cpu_count ?? "—"} cores
-                  {typeof stats?.cpu_percent === "number"
-                    ? ` · ${stats.cpu_percent.toFixed(0)}%`
-                    : ""}
-                </div>
-              </div>
-              {stats?.memory && (
-                <div>
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Memory</div>
-                  <div>
-                    {formatBytes(stats.memory.used)} / {formatBytes(stats.memory.total)} ({stats.memory.percent}%)
-                  </div>
-                </div>
-              )}
-              {stats?.disk && (
-                <div>
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                    <HardDrive className="h-3 w-3" /> Disk
-                  </div>
-                  <div>
-                    {formatBytes(stats.disk.used)} / {formatBytes(stats.disk.total)} ({stats.disk.percent}%)
-                  </div>
-                </div>
-              )}
-              {typeof stats?.uptime_seconds === "number" && (
-                <div>
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Uptime</div>
-                  <div>{formatDuration(stats.uptime_seconds)}</div>
-                </div>
-              )}
-              {stats?.load_avg && stats.load_avg.length >= 3 && (
-                <div>
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Load avg</div>
-                  <div>{stats.load_avg.map((n) => n.toFixed(2)).join(" / ")}</div>
-                </div>
-              )}
-            </div>
-            {stats && !stats.psutil && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Install the <span className="font-mono">psutil</span> extra for
-                CPU / memory / disk metrics.
-              </p>
-            )}
-            {canUpdateWork4You && (
-              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-                <Button
-                  size="sm"
-                  ghost
-                  disabled={checkingUpdate}
-                  prefix={
-                    checkingUpdate ? (
-                      <Spinner className="h-3.5 w-3.5" />
-                    ) : (
-                      <RotateCw className="h-3.5 w-3.5" />
-                    )
-                  }
-                  onClick={() => void checkForUpdate(true)}
-                >
-                  Check for updates
-                </Button>
-                {updateInfo?.update_available && updateInfo.can_apply && (
-                  <Button
-                    size="sm"
-                    prefix={<Download className="h-3.5 w-3.5" />}
-                    onClick={() => setUpdateConfirmOpen(true)}
-                  >
-                    Update now
-                  </Button>
-                )}
-                {updateInfo &&
-                  !updateInfo.can_apply &&
-                  updateInfo.update_available && (
-                    <span className="text-xs text-muted-foreground">
-                      Update with{" "}
-                      <span className="font-mono">{updateInfo.update_command}</span>
-                    </span>
-                  )}
-                {updateInfo?.message && !updateInfo.update_available && (
-                  <span className="text-xs text-muted-foreground">
-                    {updateInfo.message}
-                  </span>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* ── Portal ────────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <H2 variant="sm" className="flex items-center gap-2 text-muted-foreground">
-          <Globe className="h-4 w-4" /> Work4You Portal
-        </H2>
-        <Card>
-          <CardContent className="flex flex-col gap-3 py-4">
-            <div className="flex items-center gap-3">
-              <Badge tone={portal?.logged_in ? "success" : "secondary"}>
-                {portal?.logged_in ? "logged in" : "not logged in"}
-              </Badge>
-              {portal?.provider && (
-                <span className="text-sm text-muted-foreground">
-                  inference provider: {portal.provider}
-                </span>
-              )}
-              <a
-                href={portal?.subscription_url || "https://portal.work4you.ai/manage-subscription"}
-                target="_blank"
-                rel="noreferrer"
-                className="ml-auto text-xs text-primary underline"
-              >
-                Manage subscription
-              </a>
-            </div>
-            {portal?.features && portal.features.length > 0 && (
-              <div className="flex flex-col gap-1 border-t border-border pt-3">
-                <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Tool Gateway routing
-                </span>
-                {portal.features.map((f) => (
-                  <div key={f.label} className="flex items-center justify-between text-sm">
-                    <span>{f.label}</span>
-                    <span className="text-muted-foreground">{f.state}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {!portal?.logged_in && (
-              <p className="text-xs text-muted-foreground">
-                Log in with <span className="font-mono">work4you portal</span>.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
       {/* ── Curator ───────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
         <H2 variant="sm" className="flex items-center gap-2 text-muted-foreground">
@@ -1043,20 +753,20 @@ export default function SystemPage() {
                   {MEMORY_STATUS_LABEL[activeMemoryProvider.status]}
                 </Badge>
               )}
-              <Link to="/plugins" className="underline">
-                Change in Plugins →
+              <Link to="/settings?section=memory" className="underline">
+                Change in Settings →
               </Link>
               <span className="ml-auto">
                 Provider setup:{" "}
-                <Link to="/plugins" className="underline">
-                  configure in Plugins
+                <Link to="/settings?section=memory" className="underline">
+                  configure in Memory & Context
                 </Link>
               </span>
             </div>
 
             {activeMemoryProvider?.status === "missing" && (
               <p className="border border-destructive/50 px-3 py-2 text-xs text-destructive">
-                The configured provider is no longer installed. Switch to built-in memory or configure another provider in Plugins.
+                The configured provider is no longer installed. Switch to built-in memory or configure another provider in Settings → Memory & Context.
               </p>
             )}
 

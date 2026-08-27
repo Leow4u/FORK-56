@@ -1528,8 +1528,10 @@ DEFAULT_CONFIG = {
         "show_files_admin": False,
         # Hide the Logs page (raw agent/errors/gateway log tail) entirely by
         # default — route gated like the Files page, so /logs redirects home
-        # unless this is True. The read-only /api/logs endpoint is untouched
-        # (the desktop Command Center tails logs through it).
+        # unless this is True. User-facing log tail lives in Settings →
+        # Providers → Accounts (Work4You Portal). The read-only /api/logs
+        # endpoint is untouched (the desktop Command Center tails logs
+        # through it).
         "show_logs_admin": False,
         # Hide the Plugins page from the sidebar by default. The user-facing
         # part (memory provider + context engine) lives in Settings → Memory
@@ -1549,6 +1551,12 @@ DEFAULT_CONFIG = {
         # (Providers + Tools & Keys), mirroring the desktop app. The route
         # stays reachable by URL for operators who know the path.
         "show_env_admin": False,
+        # Hide the System page (host ops, gateway lifecycle, maintenance
+        # console) from the sidebar by default. User-facing cloud-computer
+        # metrics live in Settings → My Computer; Portal status and agent
+        # logs live in Settings → Providers → Accounts. The route stays
+        # reachable by URL for operators who know the path.
+        "show_system_admin": False,
         # OAuth gate configuration (engaged when ``--host`` is set and
         # ``--insecure`` is not). The bundled Work4You Portal plugin reads
         # both keys at startup; they are the canonical surface for these
