@@ -44,6 +44,7 @@ import { useNavigate } from "react-router";
 
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { TuiPtyModal } from "@/components/TuiPtyModal";
+import { Tip } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n";
 import { api, type SessionInfo, type SessionSearchResult } from "@/lib/api";
 import { sessionRowDetails } from "@/lib/session-row-details";
@@ -486,117 +487,124 @@ function SessionRow({
             "focus-within:opacity-100",
           )}
         >
-          <Button
-            ghost
-            size="icon"
-            aria-label={labels.rename}
-            title={labels.rename}
-            disabled={busy}
-            onClick={() => {
-              setRenameValue(
-                session.title && session.title !== "Untitled"
-                  ? session.title
-                  : "",
-              );
-              setRenaming(true);
-            }}
-            className="h-6 w-6 text-text-tertiary hover:text-foreground"
-          >
-            <Pencil className="h-3 w-3" />
-          </Button>
-          <Button
-            ghost
-            size="icon"
-            aria-label={pinned ? labels.unpin : labels.pin}
-            title={pinned ? labels.unpin : labels.pin}
-            disabled={busy}
-            onClick={() =>
-              void runAction(() =>
-                api.setSessionPinned(session.id, !pinned, profile),
-              )
-            }
-            className="h-6 w-6 text-text-tertiary hover:text-foreground"
-          >
-            {pinned ? (
-              <PinOff className="h-3 w-3" />
-            ) : (
-              <Pin className="h-3 w-3" />
-            )}
-          </Button>
+          <Tip label={labels.rename}>
+            <Button
+              ghost
+              size="icon"
+              aria-label={labels.rename}
+              disabled={busy}
+              onClick={() => {
+                setRenameValue(
+                  session.title && session.title !== "Untitled"
+                    ? session.title
+                    : "",
+                );
+                setRenaming(true);
+              }}
+              className="h-6 w-6 text-text-tertiary hover:text-foreground"
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+          </Tip>
+          <Tip label={pinned ? labels.unpin : labels.pin}>
+            <Button
+              ghost
+              size="icon"
+              aria-label={pinned ? labels.unpin : labels.pin}
+              disabled={busy}
+              onClick={() =>
+                void runAction(() =>
+                  api.setSessionPinned(session.id, !pinned, profile),
+                )
+              }
+              className="h-6 w-6 text-text-tertiary hover:text-foreground"
+            >
+              {pinned ? (
+                <PinOff className="h-3 w-3" />
+              ) : (
+                <Pin className="h-3 w-3" />
+              )}
+            </Button>
+          </Tip>
           {archived ? (
-            <Button
-              ghost
-              size="icon"
-              aria-label={labels.restore}
-              title={labels.restore}
-              disabled={busy}
-              onClick={() =>
-                void runAction(() =>
-                  api.setSessionArchived(session.id, false, profile),
-                )
-              }
-              className="h-6 w-6 text-text-tertiary hover:text-foreground"
-            >
-              {busy ? (
-                <Spinner className="text-xs" />
-              ) : (
-                <ArchiveRestore className="h-3 w-3" />
-              )}
-            </Button>
+            <Tip label={labels.restore}>
+              <Button
+                ghost
+                size="icon"
+                aria-label={labels.restore}
+                disabled={busy}
+                onClick={() =>
+                  void runAction(() =>
+                    api.setSessionArchived(session.id, false, profile),
+                  )
+                }
+                className="h-6 w-6 text-text-tertiary hover:text-foreground"
+              >
+                {busy ? (
+                  <Spinner className="text-xs" />
+                ) : (
+                  <ArchiveRestore className="h-3 w-3" />
+                )}
+              </Button>
+            </Tip>
           ) : (
+            <Tip label={labels.archive}>
+              <Button
+                ghost
+                size="icon"
+                aria-label={labels.archive}
+                disabled={busy}
+                onClick={() =>
+                  void runAction(() =>
+                    api.setSessionArchived(session.id, true, profile),
+                  )
+                }
+                className="h-6 w-6 text-text-tertiary hover:text-foreground"
+              >
+                {busy ? (
+                  <Spinner className="text-xs" />
+                ) : (
+                  <Archive className="h-3 w-3" />
+                )}
+              </Button>
+            </Tip>
+          )}
+          <Tip label={labels.openTui}>
             <Button
               ghost
               size="icon"
-              aria-label={labels.archive}
-              title={labels.archive}
+              aria-label={labels.openTui}
               disabled={busy}
-              onClick={() =>
-                void runAction(() =>
-                  api.setSessionArchived(session.id, true, profile),
-                )
-              }
+              onClick={() => setTuiOpen(true)}
               className="h-6 w-6 text-text-tertiary hover:text-foreground"
             >
-              {busy ? (
-                <Spinner className="text-xs" />
-              ) : (
-                <Archive className="h-3 w-3" />
-              )}
+              <Terminal className="h-3 w-3" />
             </Button>
-          )}
-          <Button
-            ghost
-            size="icon"
-            aria-label={labels.openTui}
-            title={labels.openTui}
-            disabled={busy}
-            onClick={() => setTuiOpen(true)}
-            className="h-6 w-6 text-text-tertiary hover:text-foreground"
-          >
-            <Terminal className="h-3 w-3" />
-          </Button>
-          <Button
-            ghost
-            size="icon"
-            aria-label={labels.export}
-            title={labels.export}
-            disabled={busy}
-            onClick={handleExport}
-            className="h-6 w-6 text-text-tertiary hover:text-foreground"
-          >
-            <Download className="h-3 w-3" />
-          </Button>
-          <Button
-            ghost
-            size="icon"
-            aria-label={labels.delete}
-            title={labels.delete}
-            disabled={busy}
-            onClick={() => setDeleteOpen(true)}
-            className="h-6 w-6 text-text-tertiary hover:text-destructive"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
+          </Tip>
+          <Tip label={labels.export}>
+            <Button
+              ghost
+              size="icon"
+              aria-label={labels.export}
+              disabled={busy}
+              onClick={handleExport}
+              className="h-6 w-6 text-text-tertiary hover:text-foreground"
+            >
+              <Download className="h-3 w-3" />
+            </Button>
+          </Tip>
+          <Tip label={labels.delete}>
+            <Button
+              ghost
+              size="icon"
+              aria-label={labels.delete}
+              disabled={busy}
+              onClick={() => setDeleteOpen(true)}
+              className="h-6 w-6 text-text-tertiary hover:text-destructive"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </Tip>
         </span>
       </div>
 

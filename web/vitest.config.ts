@@ -17,8 +17,10 @@ export default defineConfig({
     environmentMatchGlobs: [
       ["src/chat/**", "jsdom"],
       ["src/components/**", "jsdom"],
+      ["src/hooks/**", "jsdom"],
       ["src/pages/**", "jsdom"],
       ["src/lib/**", "jsdom"],
+      ["src/app/**", "jsdom"],
     ],
     include: ["src/**/*.test.{ts,tsx}"],
   },

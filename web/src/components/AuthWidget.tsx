@@ -238,7 +238,6 @@ export function AuthWidget({ className }: AuthWidgetProps) {
           "transition-colors hover:bg-current/10",
           "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-current/40",
         )}
-        title={me?.user_id ?? primaryLabel}
       >
         <span className="truncate font-mono text-foreground/90">
           {primaryLabel}

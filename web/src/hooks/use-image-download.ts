@@ -20,7 +20,12 @@ export function imageFilename(src?: string): string {
   }
 
   try {
-    return new URL(src, window.location.href).pathname.split('/').filter(Boolean).pop() || 'image'
+    // Prefer an absolute parse so Node/unit tests (no `window`) still get the
+    // pathname segment. Fall back to the page base only for relative srcs.
+    const url = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(src)
+      ? new URL(src)
+      : new URL(src, typeof window !== 'undefined' ? window.location.href : 'http://localhost/')
+    return url.pathname.split('/').filter(Boolean).pop() || 'image'
   } catch {
     return src.split(/[\\/]/).filter(Boolean).pop() || 'image'
   }
