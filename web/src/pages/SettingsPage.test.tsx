@@ -121,14 +121,22 @@ describe("SettingsPage", () => {
     expect(active?.textContent).toContain("Model");
   });
 
-  it("renders the Memory & Context section with the providers card", async () => {
+  it("renders the Memory & Context section with providers card and config keys", async () => {
     await renderPage("/settings?section=memory");
     const active = container.querySelector('[aria-current="true"]');
     expect(active?.textContent).toContain("Memory & Context");
     expect(
       container.querySelector('[data-testid="providers-card"]'),
     ).toBeTruthy();
-    // Model panel is not mounted on this section.
+    const sections = container.querySelectorAll(
+      '[data-testid="settings-config-section"]',
+    );
+    expect(sections.length).toBe(2);
+    const keysText = [...sections].map((el) => el.textContent ?? "").join(",");
+    expect(keysText).toContain("memory.memory_enabled");
+    expect(keysText).toContain("memory.user_char_limit");
+    expect(keysText).toContain("compression.enabled");
+    expect(keysText).toContain("compression.protect_last_n");
     expect(
       container.querySelector('[data-testid="model-settings-panel"]'),
     ).toBeNull();
