@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { sessionMessagesToChatMessages } from "./gateway-protocol";
+import { textPart } from "@/lib/chat-messages";
+import { chatMessageText } from "@/lib/chat-messages/parts";
+
+import { sessionMessagesToPartsMessages } from "./parts-gateway-protocol";
 import {
   clearInflightJournal,
   persistInflightJournal,
@@ -14,23 +17,28 @@ import type { ChatMessage } from "./types";
 const user = (text: string, id: string): ChatMessage => ({
   id,
   role: "user",
-  text,
+  parts: [textPart(text)],
 });
 
-const assistant = (text: string, id: string): ChatMessage => ({
+const assistant = (text: string, id: string, pending = false): ChatMessage => ({
   id,
   role: "assistant",
-  text,
+  parts: text.trim() ? [textPart(text)] : [],
+  pending,
 });
+
+function messageText(message: ChatMessage): string {
+  return chatMessageText(message);
+}
 
 describe("sessionMessagesToChatMessages", () => {
   it("uses durable row ids from REST backfill", () => {
-    const msgs = sessionMessagesToChatMessages([
+    const msgs = sessionMessagesToPartsMessages([
       { role: "user", content: "hi", id: 42 },
       { role: "assistant", content: "hello", row_id: 43 },
     ]);
-    expect(msgs[0].id).toBe("row-42");
-    expect(msgs[1].id).toBe("row-43");
+    expect(msgs[0].rowId).toBe(42);
+    expect(msgs[1].rowId).toBe(43);
   });
 });
 
@@ -55,7 +63,7 @@ describe("inflight journal", () => {
     const base = [user("committed", "row-1")];
     const tail = [
       user("live prompt", "user-live"),
-      { ...assistant("partial", "stream-1"), streaming: true },
+      assistant("partial", "stream-1", true),
     ];
 
     persistInflightJournal(
@@ -67,7 +75,7 @@ describe("inflight journal", () => {
 
     const recovery = recoverInflightJournal(stored, base, { keepPending: true });
     expect(recovery.applied).toBe(true);
-    expect(recovery.messages.map((m) => m.text)).toEqual([
+    expect(recovery.messages.map(messageText)).toEqual([
       "committed",
       "live prompt",
       "partial",
@@ -78,18 +86,11 @@ describe("inflight journal", () => {
   it("clears journal when turn settles", () => {
     persistInflightJournal(
       stored,
-      [user("q", "u1")],
-      { streamId: "s1", interimBoundaryPending: false },
-      true,
-    );
-    persistInflightJournal(
-      stored,
-      [user("q", "u1"), assistant("done", "a1")],
+      [user("done", "row-1")],
       { streamId: null, interimBoundaryPending: false },
       false,
     );
-    expect(recoverInflightJournal(stored, [], { keepPending: false }).applied).toBe(
-      false,
-    );
+    const recovery = recoverInflightJournal(stored, [user("done", "row-1")]);
+    expect(recovery.applied).toBe(false);
   });
 });

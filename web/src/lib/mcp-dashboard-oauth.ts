@@ -64,3 +64,72 @@ export async function completeMcpDashboardOAuth({
     await sleep(1000);
   }
 }
+
+/** Thrown when the caller's `cancelled()` tripped — skip error toasts on user cancel. */
+export class McpOAuthCancelled extends Error {
+  constructor() {
+    super("OAuth cancelled by user");
+    this.name = "McpOAuthCancelled";
+  }
+}
+
+type DesktopCompleteOptions = {
+  serverName: string;
+  start: (name: string) => Promise<McpOAuthFlow>;
+  status: (flowId: string) => Promise<McpOAuthFlow>;
+  openExternal: (url: string) => Promise<void>;
+  cancelled?: () => boolean;
+  cancel?: (flowId: string) => Promise<unknown>;
+  sleep?: (milliseconds: number) => Promise<void>;
+  maxPollFailures?: number;
+};
+
+/** Desktop / in-chat MCP setup OAuth — popup via `openExternal` with cancel support. */
+export async function completeMcpDesktopOAuth({
+  serverName,
+  start,
+  status,
+  openExternal,
+  cancelled,
+  cancel,
+  sleep = defaultSleep,
+  maxPollFailures = 3,
+}: DesktopCompleteOptions): Promise<McpOAuthFlow> {
+  const started = await start(serverName);
+
+  if (started.status === "error") {
+    throw new Error(started.error || "OAuth failed to start");
+  }
+
+  if (!started.authorization_url) {
+    throw new Error("OAuth server did not provide an authorization URL");
+  }
+
+  await openExternal(started.authorization_url);
+
+  let pollFailures = 0;
+  for (;;) {
+    if (cancelled?.()) {
+      await cancel?.(started.flow_id).catch(() => {});
+      throw new McpOAuthCancelled();
+    }
+
+    let current: McpOAuthFlow;
+    try {
+      current = await status(started.flow_id);
+      pollFailures = 0;
+    } catch (error) {
+      pollFailures += 1;
+      if (pollFailures >= maxPollFailures) throw error;
+      await sleep(1000);
+      continue;
+    }
+
+    if (current.status === "approved") return current;
+    if (current.status === "error") {
+      throw new Error(current.error || "OAuth authorization failed");
+    }
+
+    await sleep(1000);
+  }
+}

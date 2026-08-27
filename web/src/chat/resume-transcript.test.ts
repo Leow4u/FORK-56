@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { textPart } from "@/lib/chat-messages";
+import { chatMessageText } from "@/lib/chat-messages/parts";
+
 import {
   appendInflightProjection,
   buildResumeTranscript,
@@ -11,17 +14,17 @@ import type { ChatMessage } from "./types";
 const user = (text: string, id = createId()): ChatMessage => ({
   id,
   role: "user",
-  text,
+  parts: [textPart(text)],
 });
 
 const assistant = (
   text: string,
-  opts: { streaming?: boolean; id?: string } = {},
+  opts: { pending?: boolean; id?: string } = {},
 ): ChatMessage => ({
   id: opts.id ?? createId(),
   role: "assistant",
-  text,
-  streaming: opts.streaming,
+  parts: text.trim() ? [textPart(text)] : [],
+  pending: opts.pending,
 });
 
 let seq = 0;
@@ -30,21 +33,26 @@ function createId(): string {
   return `msg-${seq}`;
 }
 
+function messageText(message: ChatMessage): string {
+  return chatMessageText(message);
+}
+
 describe("appendInflightProjection", () => {
   it("appends inflight user and streaming assistant", () => {
     const out = appendInflightProjection(
-      [{ role: "user", text: "old", id: "u1" }],
+      [user("old", "u1")],
       { user: "new prompt", assistant: "partial", streaming: true },
       "sess-1",
     );
     expect(out).toHaveLength(3);
-    expect(out[1]).toMatchObject({ role: "user", text: "new prompt" });
+    expect(out[1]).toMatchObject({ role: "user" });
+    expect(messageText(out[1]!)).toBe("new prompt");
     expect(out[2]).toMatchObject({
       role: "assistant",
-      text: "partial",
-      streaming: true,
+      pending: true,
       id: "inflight-assistant-sess-1",
     });
+    expect(messageText(out[2]!)).toBe("partial");
   });
 
   it("does not duplicate inflight user already in the latest run", () => {
@@ -63,12 +71,12 @@ describe("appendInflightProjection", () => {
       { user: "q", assistant: "partial", error: "turn failed", streaming: false },
       "sess-1",
     );
-    expect(out.some((m) => m.role === "system" && m.text === "turn failed")).toBe(
-      true,
-    );
-    expect(out.some((m) => m.role === "assistant" && m.text === "partial")).toBe(
-      true,
-    );
+    expect(
+      out.some((m) => m.role === "system" && messageText(m) === "turn failed"),
+    ).toBe(true);
+    expect(
+      out.some((m) => m.role === "assistant" && messageText(m) === "partial"),
+    ).toBe(true);
   });
 });
 
@@ -77,23 +85,26 @@ describe("reconcileResumeMessages", () => {
     const authoritative = [user("committed")];
     const local = [user("committed"), user("optimistic send")];
     const merged = reconcileResumeMessages(authoritative, local);
-    expect(merged.map((m) => m.text)).toEqual(["committed", "optimistic send"]);
+    expect(merged.map(messageText)).toEqual(["committed", "optimistic send"]);
   });
 
   it("keeps richer local streaming assistant over an empty authoritative shell", () => {
     const authoritative = [
       user("q"),
-      assistant("", { streaming: true, id: "inflight-assistant-s1" }),
+      assistant("", { pending: true, id: "inflight-assistant-s1" }),
     ];
     const local = [
       user("q"),
-      assistant("longer streamed answer", { streaming: true, id: "local-stream" }),
+      assistant("longer streamed answer", {
+        pending: true,
+        id: "local-stream",
+      }),
     ];
     const merged = reconcileResumeMessages(authoritative, local);
     expect(merged[1]).toMatchObject({
-      text: "longer streamed answer",
-      streaming: true,
+      pending: true,
     });
+    expect(messageText(merged[1]!)).toBe("longer streamed answer");
   });
 });
 
@@ -107,15 +118,15 @@ describe("buildResumeTranscript", () => {
       local,
       "sess-2",
     );
-    expect(merged.filter((m) => m.role === "user").map((m) => m.text)).toEqual([
+    expect(merged.filter((m) => m.role === "user").map(messageText)).toEqual([
       "stored",
       "just sent",
     ]);
     expect(merged.at(-1)).toMatchObject({
       role: "assistant",
-      text: "thinking",
-      streaming: true,
+      pending: true,
     });
+    expect(messageText(merged.at(-1)!)).toBe("thinking");
   });
 });
 

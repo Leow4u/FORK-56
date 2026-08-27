@@ -70,13 +70,13 @@ vi.mock("@/contexts/useProfileScope", () => ({
   useProfileScope: () => ({ profile: "" }),
 }));
 
+import { resolveTranslations } from "@/i18n/resolve";
+
 vi.mock("@/i18n", () => ({
   useI18n: () => ({
-    t: {
-      app: { nav: { chat: "Chat" } },
-      common: { close: "Close" },
-      sessions: { newChat: "New chat", title: "Sessions", untitledSession: "Untitled" },
-    },
+    t: resolveTranslations("en"),
+    locale: "en" as const,
+    setLocale: () => {},
   }),
 }));
 

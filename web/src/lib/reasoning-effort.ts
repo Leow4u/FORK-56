@@ -29,6 +29,9 @@ export const VALID_EFFORTS: ReadonlySet<string> = new Set(
   EFFORT_OPTIONS.map((o) => o.value),
 );
 
+/** Work4You default when config leaves reasoning effort unset. */
+export const DEFAULT_REASONING_EFFORT = "medium";
+
 /** Compact labels for composer model-pill chrome (desktop SHORT_LABELS). */
 const SHORT_LABELS: Record<string, string> = {
   none: "Off",

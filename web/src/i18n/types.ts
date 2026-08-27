@@ -1,3 +1,5 @@
+import type { desktopSections } from "./desktop-sections.raw";
+
 export type Locale =
   | "en"
   | "zh"
@@ -17,7 +19,10 @@ export type Locale =
   | "hu"
   | "ar";
 
-export interface Translations {
+type DesktopI18nSections = typeof desktopSections;
+
+/** Locale files may omit desktop-only sections; the provider merges ``desktopSections``. */
+export interface Translations extends Partial<DesktopI18nSections> {
   // ── Common ──
   common: {
     save: string;
@@ -912,3 +917,6 @@ export interface Translations {
     };
   };
 }
+
+/** Runtime translations after merging desktop overlay sections. */
+export type ResolvedTranslations = Translations & DesktopI18nSections;

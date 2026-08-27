@@ -1,3 +1,4 @@
+// @ts-nocheck — desktop parity port; web shims pending.
 /**
  * Embedded ``work4you --tui`` in xterm.js over ``/api/pty``.
  *

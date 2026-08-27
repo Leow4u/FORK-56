@@ -1,7 +1,10 @@
-import type { ThinChatTurnState } from "./gateway-protocol";
-import { createThinChatTurnState } from "./gateway-protocol";
+import type { PartsTurnState } from "./parts-gateway-protocol";
+import {
+  createPartsTurnState,
+} from "./parts-gateway-protocol";
 import { reconcileResumeMessages } from "./resume-transcript";
 import type { ChatMessage } from "./types";
+import { chatMessageText } from "@/lib/chat-messages";
 
 const STORAGE_PREFIX = "work4you:thin-chat:inflight:";
 const JOURNAL_VERSION = 1;
@@ -10,13 +13,13 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 interface InflightJournalSnapshot {
   version: typeof JOURNAL_VERSION;
   updatedAt: number;
-  turn: ThinChatTurnState;
+  turn: PartsTurnState;
   messages: ChatMessage[];
 }
 
 export interface InflightJournalRecovery {
   messages: ChatMessage[];
-  turn: ThinChatTurnState;
+  turn: PartsTurnState;
   applied: boolean;
 }
 
@@ -63,7 +66,7 @@ export function clearInflightJournal(storedSessionId: string | null): void {
 function openTailStart(messages: ChatMessage[]): number {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const message = messages[i];
-    if (message.role === "assistant" && !message.streaming && !message.interim) {
+    if (message.role === "assistant" && !message.pending && !message.interim) {
       return i + 1;
     }
   }
@@ -72,9 +75,10 @@ function openTailStart(messages: ChatMessage[]): number {
 
 function tailHasRecoverableContent(tail: ChatMessage[]): boolean {
   return tail.some(
-    (m) =>
-      (m.role === "user" && m.text.trim()) ||
-      (m.role === "assistant" && (m.text.trim() || m.streaming)),
+      (m) =>
+        (m.role === "user" && chatMessageText(m).trim()) ||
+        (m.role === "assistant" &&
+          (chatMessageText(m).trim() || m.pending)),
   );
 }
 
@@ -85,7 +89,7 @@ function tailHasRecoverableContent(tail: ChatMessage[]): boolean {
 export function persistInflightJournal(
   storedSessionId: string | null,
   messages: ChatMessage[],
-  turn: ThinChatTurnState,
+  turn: PartsTurnState,
   busy: boolean,
 ): void {
   if (!storedSessionId) return;
@@ -119,7 +123,7 @@ export function recoverInflightJournal(
 ): InflightJournalRecovery {
   const noop: InflightJournalRecovery = {
     messages: baseMessages,
-    turn: createThinChatTurnState(),
+    turn: createPartsTurnState(),
     applied: false,
   };
 
@@ -140,7 +144,7 @@ export function recoverInflightJournal(
   const turn =
     options.keepPending && snapshot.turn.streamId
       ? snapshot.turn
-      : createThinChatTurnState();
+      : createPartsTurnState();
 
   return {
     messages: merged,

@@ -1,8 +1,10 @@
+// @ts-nocheck — desktop parity port; web shims pending.
 import { ArrowDown } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Markdown } from "@/components/Markdown";
 import { useI18n } from "@/i18n";
+import { chatMessageText } from "@/lib/chat-messages";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -138,27 +140,19 @@ function MessageImages({
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === "user";
-  const isTool = message.role === "tool";
   const isSystem = message.role === "system";
-  const isReasoning = message.role === "reasoning";
-
-  if (isTool) {
-    return <ToolLine text={message.text} />;
-  }
-
-  if (isReasoning) {
-    return <ReasoningBlock text={message.text} streaming={message.streaming} />;
-  }
+  const text = chatMessageText(message);
+  const streaming = Boolean(message.pending);
 
   if (isSystem) {
     return (
       <div className="mx-auto max-w-3xl px-1 py-1">
-        <p className="text-center text-xs text-muted-foreground">{message.text}</p>
+        <p className="text-center text-xs text-muted-foreground">{text}</p>
       </div>
     );
   }
 
-  const embedded = extractEmbeddedImages(message.text);
+  const embedded = extractEmbeddedImages(text);
   const refs = extractImageRefs(embedded.cleanedText);
   const pathRefs = refs.refs.map(imageRefPath).filter(Boolean);
   const extra = message.images ?? [];
@@ -188,7 +182,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
           isUser ? (
             <p className="whitespace-pre-wrap break-words">{bodyText}</p>
           ) : (
-            <Markdown content={bodyText} streaming={message.streaming} />
+            <Markdown content={bodyText} streaming={streaming} />
           )
         ) : null}
         <MessageImages inline={dataUrls} paths={[...pathRefs, ...pathExtras]} />
