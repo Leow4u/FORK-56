@@ -133,7 +133,7 @@ export function AuthWidget({ className }: AuthWidgetProps) {
 
   const secondaryLabel = (() => {
     if (me) return `via ${me.provider}`;
-    if (identityAbsent) return settingsLabel;
+    if (identityAbsent) return null;
     return "…";
   })();
 
@@ -220,9 +220,11 @@ export function AuthWidget({ className }: AuthWidgetProps) {
         <span className="truncate font-mono text-foreground/90">
           {primaryLabel}
         </span>
-        <span className="truncate text-muted-foreground/70">
-          {secondaryLabel}
-        </span>
+        {secondaryLabel ? (
+          <span className="truncate text-muted-foreground/70">
+            {secondaryLabel}
+          </span>
+        ) : null}
       </button>
       {menu}
     </div>

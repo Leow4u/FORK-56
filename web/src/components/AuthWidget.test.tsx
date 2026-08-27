@@ -87,6 +87,7 @@ describe("AuthWidget footer user area", () => {
     ) as HTMLButtonElement;
     expect(trigger).toBeTruthy();
     expect(trigger.textContent).toContain("Work4You");
+    expect(trigger.textContent).not.toContain("Settings");
 
     act(() => {
       trigger.click();
