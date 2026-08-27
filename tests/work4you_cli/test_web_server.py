@@ -1279,6 +1279,32 @@ class TestWebServerEndpoints:
 
 
 
+    def test_dashboard_update_not_managed_externally_for_git_on_opt_data(
+        self, monkeypatch,
+    ):
+        """Git checkouts self-update even when WORK4YOU_HOME is /opt/data."""
+        import work4you_cli.web_server as web_server
+
+        monkeypatch.setattr(
+            web_server, "_default_work4you_root_is_opt_data", lambda: True
+        )
+        monkeypatch.setattr(
+            web_server, "detect_install_method", lambda _root: "git"
+        )
+        assert web_server._dashboard_local_update_managed_externally() is False
+
+    def test_dashboard_update_managed_externally_for_pip_on_opt_data(
+        self, monkeypatch,
+    ):
+        import work4you_cli.web_server as web_server
+
+        monkeypatch.setattr(
+            web_server, "_default_work4you_root_is_opt_data", lambda: True
+        )
+        monkeypatch.setattr(
+            web_server, "detect_install_method", lambda _root: "pip"
+        )
+        assert web_server._dashboard_local_update_managed_externally() is True
 
     def _schema_provider_options(self, key):
         resp = self.client.get("/api/config/schema")

@@ -5,6 +5,7 @@ import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetTestLocalStorage } from "@/chat/test-local-storage";
+import { SystemActionsProvider } from "@/contexts/SystemActions";
 import { I18nProvider } from "@/i18n/context";
 
 const apiMocks = vi.hoisted(() => ({
@@ -40,6 +41,18 @@ const apiMocks = vi.hoisted(() => ({
     ],
     approved: [],
   })),
+  restartGateway: vi.fn(async () => ({
+    ok: true,
+    name: "gateway-restart",
+    pid: 1,
+  })),
+  getActionStatus: vi.fn(async () => ({
+    running: false,
+    exit_code: 0,
+    lines: [],
+    name: "gateway-restart",
+    pid: 1,
+  })),
 }));
 
 vi.mock("@/lib/api", () => ({ api: apiMocks }));
@@ -69,10 +82,12 @@ async function renderPage(path = "/channels") {
   act(() => {
     root.render(
       <I18nProvider>
-        <MemoryRouter initialEntries={[path]}>
-          <ChannelsPage />
-          <LocationProbe />
-        </MemoryRouter>
+        <SystemActionsProvider>
+          <MemoryRouter initialEntries={[path]}>
+            <ChannelsPage />
+            <LocationProbe />
+          </MemoryRouter>
+        </SystemActionsProvider>
       </I18nProvider>,
     );
   });

@@ -1,11 +1,30 @@
-import { useCallback, useEffect, useState } from "react";
-import { Cpu, Download, HardDrive, RotateCw, Server } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Cpu,
+  Download,
+  HardDrive,
+  RotateCw,
+  Server,
+  X,
+} from "lucide-react";
 import { Badge } from "@work4you/ui/ui/components/badge";
 import { Button } from "@work4you/ui/ui/components/button";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { Card, CardContent } from "@work4you/ui/ui/components/card";
 import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
-import { api, type SystemStats, type UpdateCheckResponse } from "@/lib/api";
+import {
+  api,
+  type StatusResponse,
+  type SystemStats,
+  type UpdateCheckResponse,
+} from "@/lib/api";
+import { gatewayLine } from "@/components/SidebarStatusStrip";
+import { useSystemActions } from "@/contexts/useSystemActions";
+import { useI18n } from "@/i18n";
+import { cn } from "@/lib/utils";
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -23,58 +42,119 @@ function formatDuration(seconds: number): string {
   return `${m}m`;
 }
 
-/** Host metrics for Settings → My Computer (cloud agent environment). */
+/** Host metrics + gateway summary + Work4You updates (Settings → My Computer). */
 export function CloudComputerPanel() {
+  const { t } = useI18n();
+  const {
+    actionStatus,
+    activeAction,
+    dismissLog,
+    isBusy,
+    isRunning,
+    pendingAction,
+    runAction,
+  } = useSystemActions();
+
   const [stats, setStats] = useState<SystemStats | null>(null);
+  const [status, setStatus] = useState<StatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [canUpdateWork4You, setCanUpdateWork4You] = useState(true);
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(
     null,
   );
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
+  const [updateConfirmChecking, setUpdateConfirmChecking] = useState(false);
+  const [updateConfirmInfo, setUpdateConfirmInfo] =
+    useState<UpdateCheckResponse | null>(null);
+
+  const canUpdateWork4You = status?.can_update_work4you !== false;
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.allSettled([
+    return Promise.allSettled([
       api.getSystemStats(),
       api.getStatus(),
       api.checkWork4YouUpdate(false),
     ])
-      .then(([st, status, upd]) => {
+      .then(([st, stStatus, upd]) => {
         if (st.status === "fulfilled") setStats(st.value);
-        if (status.status === "fulfilled") {
-          setCanUpdateWork4You(status.value.can_update_work4you !== false);
-        }
+        if (stStatus.status === "fulfilled") setStatus(stStatus.value);
         if (upd.status === "fulfilled") setUpdateInfo(upd.value);
       })
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!activeAction || activeAction !== "update") return;
+    if (actionStatus?.running) return;
+    void load();
+  }, [actionStatus?.running, activeAction, load]);
+
+  useEffect(() => {
+    if (!updateConfirmOpen) {
+      setUpdateConfirmInfo(null);
+      return;
+    }
+    let cancelled = false;
+    setUpdateConfirmChecking(true);
+    api
+      .checkWork4YouUpdate(false)
+      .then((info) => {
+        if (!cancelled) setUpdateConfirmInfo(info);
+      })
+      .catch(() => {
+        if (!cancelled) setUpdateConfirmInfo(null);
+      })
+      .finally(() => {
+        if (!cancelled) setUpdateConfirmChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [updateConfirmOpen]);
+
   const checkForUpdate = useCallback(async (force = false) => {
-    if (!canUpdateWork4You) return;
     setCheckingUpdate(true);
     try {
       setUpdateInfo(await api.checkWork4YouUpdate(force));
     } finally {
       setCheckingUpdate(false);
     }
-  }, [canUpdateWork4You]);
+  }, []);
 
-  const applyUpdate = async () => {
-    setUpdateConfirmOpen(false);
-    if (!canUpdateWork4You) return;
-    try {
-      const resp = await api.updateWork4You();
-      if (!resp.ok) return;
-    } catch {
-      /* sidebar footer surfaces errors; this panel stays read-mostly */
+  const updateConfirmDescription = useMemo(() => {
+    if (updateConfirmChecking) return t.common.loading;
+    const info = updateConfirmInfo ?? updateInfo;
+    if (info?.message && !info.can_apply) return info.message;
+    if (info?.behind && info.behind > 0) {
+      const cmd = info.update_command;
+      const n = info.behind;
+      return `This will run 'work4you update' (${cmd}) and pull ${n} new commit${n === 1 ? "" : "s"}. The gateway restarts when the update finishes.`;
     }
+    const cmd = info?.update_command ?? "work4you update";
+    return (
+      t.status.updateWork4YouConfirmMessage ??
+      `This will run 'work4you update' (${cmd}) and restart the gateway when it finishes.`
+    );
+  }, [
+    t.common.loading,
+    t.status.updateWork4YouConfirmMessage,
+    updateConfirmChecking,
+    updateConfirmInfo,
+    updateInfo,
+  ]);
+
+  const confirmUpdate = () => {
+    setUpdateConfirmOpen(false);
+    void runAction("update");
   };
+
+  const gw = status ? gatewayLine(status, t) : null;
+  const updateRunning = activeAction === "update" && isRunning;
 
   if (loading && !stats) {
     return (
@@ -90,21 +170,101 @@ export function CloudComputerPanel() {
         These metrics describe your{" "}
         <span className="font-medium text-foreground">cloud computer</span> —
         the remote environment where this Work4You agent runs, not your local
-        laptop or phone.
+        laptop or phone. Restart the gateway from{" "}
+        <Link to="/channels" className="underline hover:text-foreground">
+          Messaging
+        </Link>{" "}
+        when channels need to reconnect.
       </p>
 
+      {status && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-2 py-4 text-sm">
+            <div>
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t.app.gatewayStatusLabel}
+              </span>
+              <div className={cn("font-medium", gw?.tone)}>{gw?.label ?? "—"}</div>
+            </div>
+            <div>
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t.app.activeSessionsLabel}
+              </span>
+              <div className="tabular-nums">{status.active_sessions}</div>
+            </div>
+            <div className="ml-auto">
+              <Link
+                to="/sessions"
+                className="text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                {t.app.statusOverview}
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <ConfirmDialog
-        open={canUpdateWork4You && updateConfirmOpen}
+        cancelLabel={t.common.cancel}
+        confirmLabel={t.status.updateWork4YouConfirmNow ?? "Update now"}
+        description={updateConfirmDescription}
+        loading={pendingAction === "update" || updateConfirmChecking}
         onCancel={() => setUpdateConfirmOpen(false)}
-        onConfirm={() => void applyUpdate()}
-        title="Update Work4You?"
-        description={
-          updateInfo && updateInfo.behind && updateInfo.behind > 0
-            ? `This will run 'work4you update' (${updateInfo.update_command}) and pull ${updateInfo.behind} new commit${updateInfo.behind === 1 ? "" : "s"}. The gateway restarts when the update finishes.`
-            : `This will run 'work4you update' (${updateInfo?.update_command ?? "work4you update"}) and restart the gateway when it finishes.`
+        onConfirm={confirmUpdate}
+        open={updateConfirmOpen}
+        title={
+          t.status.updateWork4YouConfirmTitle ?? `${t.status.updateWork4You}?`
         }
-        confirmLabel="Update now"
       />
+
+      {activeAction === "update" && actionStatus && (
+        <div className="border border-border bg-background-base/50">
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+            <div className="flex min-w-0 items-center gap-2">
+              {actionStatus.running ? (
+                <Spinner className="shrink-0 text-[0.875rem] text-warning" />
+              ) : actionStatus.exit_code === 0 ? (
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
+              ) : (
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" />
+              )}
+              <span className="truncate text-xs font-medium tracking-wide">
+                {t.status.updateWork4You}
+              </span>
+              <Badge
+                tone={
+                  actionStatus.running
+                    ? "warning"
+                    : actionStatus.exit_code === 0
+                      ? "success"
+                      : "destructive"
+                }
+                className="text-xs shrink-0"
+              >
+                {actionStatus.running
+                  ? t.status.running
+                  : actionStatus.exit_code === 0
+                    ? t.status.actionFinished
+                    : `${t.status.actionFailed} (${actionStatus.exit_code ?? "?"})`}
+              </Badge>
+            </div>
+            <Button
+              ghost
+              size="icon"
+              onClick={dismissLog}
+              className="shrink-0"
+              aria-label={t.common.close}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          <pre className="max-h-48 overflow-auto px-3 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all">
+            {actionStatus.lines.length > 0
+              ? actionStatus.lines.join("\n")
+              : t.status.waitingForOutput}
+          </pre>
+        </div>
+      )}
 
       <Card>
         <CardContent className="py-4">
@@ -142,9 +302,8 @@ export function CloudComputerPanel() {
                 <Server className="h-3 w-3" /> Work4You
               </div>
               <div className="flex items-center gap-2">
-                <span>v{stats?.work4you_version}</span>
-                {canUpdateWork4You &&
-                  updateInfo &&
+                <span>v{stats?.work4you_version ?? status?.version}</span>
+                {updateInfo &&
                   (updateInfo.update_available ? (
                     <Badge tone="warning">
                       {updateInfo.behind && updateInfo.behind > 0
@@ -214,42 +373,49 @@ export function CloudComputerPanel() {
               CPU / memory / disk metrics on the cloud computer.
             </p>
           )}
-          {canUpdateWork4You && (
-            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
-              <Button
-                size="sm"
-                ghost
-                disabled={checkingUpdate}
-                prefix={
-                  checkingUpdate ? (
-                    <Spinner className="h-3.5 w-3.5" />
-                  ) : (
-                    <RotateCw className="h-3.5 w-3.5" />
-                  )
-                }
-                onClick={() => void checkForUpdate(true)}
-              >
-                Check for updates
-              </Button>
-              {updateInfo?.update_available && updateInfo.can_apply && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+            <Button
+              size="sm"
+              ghost
+              disabled={checkingUpdate || updateRunning}
+              prefix={
+                checkingUpdate ? (
+                  <Spinner className="h-3.5 w-3.5" />
+                ) : (
+                  <RotateCw className="h-3.5 w-3.5" />
+                )
+              }
+              onClick={() => void checkForUpdate(true)}
+            >
+              Check for updates
+            </Button>
+            {canUpdateWork4You &&
+              updateInfo?.update_available &&
+              updateInfo.can_apply && (
                 <Button
                   size="sm"
+                  disabled={isBusy}
                   prefix={<Download className="h-3.5 w-3.5" />}
                   onClick={() => setUpdateConfirmOpen(true)}
                 >
-                  Update now
+                  {updateRunning
+                    ? t.status.updatingWork4You
+                    : t.status.updateWork4You}
                 </Button>
               )}
-              {updateInfo &&
-                !updateInfo.can_apply &&
-                updateInfo.update_available && (
-                  <span className="text-xs text-muted-foreground">
-                    Update with{" "}
+            {updateInfo?.message && (
+              <span className="text-xs text-muted-foreground max-w-prose">
+                {updateInfo.message}
+                {updateInfo.update_command &&
+                updateInfo.update_command !== "managed outside dashboard" ? (
+                  <>
+                    {" "}
                     <span className="font-mono">{updateInfo.update_command}</span>
-                  </span>
-                )}
-            </div>
-          )}
+                  </>
+                ) : null}
+              </span>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

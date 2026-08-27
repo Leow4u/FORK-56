@@ -33,6 +33,7 @@ import { Label } from "@work4you/ui/ui/components/label";
 import { Segmented } from "@work4you/ui/ui/components/segmented";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { Switch } from "@work4you/ui/ui/components/switch";
+import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { Toast } from "@work4you/ui/ui/components/toast";
 import { useToast } from "@work4you/ui/hooks/use-toast";
 
@@ -49,7 +50,9 @@ import type {
 } from "@/lib/api";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { usePageHeader } from "@/contexts/usePageHeader";
+import { useSystemActions } from "@/contexts/useSystemActions";
 import { cn, themedBody } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 // State → badge mapping. The backend emits a small, fixed vocabulary plus
 // whatever the live gateway runtime reports (connected/disconnected/fatal).
@@ -144,6 +147,8 @@ function normalizeWhatsAppMode(mode: unknown): "bot" | "self-chat" | null {
 }
 
 export default function ChannelsPage() {
+  const { t } = useI18n();
+  const { isBusy, pendingAction, runAction } = useSystemActions();
   const [platforms, setPlatforms] = useState<MessagingPlatform[]>([]);
   const [envPath, setEnvPath] = useState("~/.work4you/.env");
   const [gatewayStartCommand, setGatewayStartCommand] = useState(
@@ -208,7 +213,8 @@ export default function ChannelsPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
   const [restartNeeded, setRestartNeeded] = useState(false);
-  const [restarting, setRestarting] = useState(false);
+  const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
+  const restarting = pendingAction === "restart";
 
   const gatewayRunning = platforms.length > 0 && platforms[0].gateway_running;
 
@@ -313,19 +319,16 @@ export default function ChannelsPage() {
     }
   };
 
-  const handleRestart = async () => {
-    setRestarting(true);
-    try {
-      await api.restartGateway();
-      showToast("Gateway restarting…", "success");
+  const handleRestart = () => {
+    setRestartConfirmOpen(true);
+  };
+
+  const confirmRestart = () => {
+    setRestartConfirmOpen(false);
+    void runAction("restart").then(() => {
       setRestartNeeded(false);
-      // Give the gateway a moment to come up, then refresh status.
       setTimeout(() => void load(), 4000);
-    } catch (e) {
-      showToast(`Failed to restart: ${e}`, "error");
-    } finally {
-      setRestarting(false);
-    }
+    });
   };
 
   useLayoutEffect(() => {
@@ -340,15 +343,15 @@ export default function ChannelsPage() {
         className="uppercase"
         size="sm"
         onClick={handleRestart}
-        disabled={restarting}
+        disabled={isBusy}
         prefix={restarting ? <Spinner /> : <RotateCw className="h-4 w-4" />}
       >
-        {restarting ? "Restarting…" : "Restart gateway"}
+        {restarting ? t.status.restartingGateway : t.status.restartGateway}
       </Button>,
     );
     return () => setEnd(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setEnd, restarting, tab]);
+  }, [setEnd, restarting, tab, isBusy, t.status.restartGateway, t.status.restartingGateway]);
 
   const configured = useMemo(
     () => platforms.filter((p) => p.configured).length,
@@ -358,6 +361,39 @@ export default function ChannelsPage() {
   return (
     <div className="flex flex-col gap-6">
       <Toast toast={toast} />
+
+      <ConfirmDialog
+        cancelLabel={t.common.cancel}
+        confirmLabel={t.status.restartGateway}
+        description={
+          t.status.restartGatewayConfirmMessage ??
+          "This restarts the Work4You gateway process. Connected channels and active sessions will reconnect afterward."
+        }
+        loading={pendingAction === "restart"}
+        onCancel={() => setRestartConfirmOpen(false)}
+        onConfirm={confirmRestart}
+        open={restartConfirmOpen}
+        title={
+          t.status.restartGatewayConfirmTitle ?? `${t.status.restartGateway}?`
+        }
+      />
+
+      {(restartNeeded || !gatewayRunning) && tab === "channels" && (
+        <div className="flex items-start gap-3 border border-warning/30 bg-warning/[0.06] px-4 py-3 text-sm">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <div className="min-w-0">
+            <p className="font-medium text-foreground">
+              {!gatewayRunning
+                ? "Gateway is not running — messaging channels cannot connect."
+                : "Gateway restart required to apply your changes."}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Use <span className="font-medium">Restart gateway</span> above to
+              reconnect Telegram, Discord, Slack, and other channels.
+            </p>
+          </div>
+        </div>
+      )}
 
       <Segmented
         value={tab}
