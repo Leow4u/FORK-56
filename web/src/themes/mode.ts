@@ -25,15 +25,24 @@ export function isPaletteDark(palette: ThemePalette): boolean {
 }
 
 /** Synthesize a light palette from a dark seed — same idea as desktop
- *  `synthLightColors`, adapted to the dashboard's 3-layer model. */
+ *  `synthLightColors`, adapted to the dashboard's 3-layer model.
+ *
+ *  Critical: the web shell maps `--color-foreground` → `--midground`, so
+ *  midground must be a *readable* color on the light canvas, not the bright
+ *  accent swatch from the dark theme. */
 export function synthLightPalette(seed: ThemePalette): ThemePalette {
   const accent = seed.midground.hex;
+  const canvas = mix("#ffffff", accent, 0.06);
+  let textAccent = mix(seed.background.hex, accent, 0.55);
+  if (relativeLuminance(textAccent) > 0.45) {
+    textAccent = mix(textAccent, "#161616", 0.55);
+  }
   return {
-    background: { hex: mix("#ffffff", accent, 0.06), alpha: 1 },
-    midground: { hex: accent, alpha: seed.midground.alpha },
+    background: { hex: canvas, alpha: 1 },
+    midground: { hex: textAccent, alpha: 1 },
     foreground: {
       hex: mix("#161616", accent, 0.12),
-      alpha: seed.foreground.alpha > 0 ? seed.foreground.alpha : 1,
+      alpha: seed.foreground.alpha > 0 ? seed.foreground.alpha : 0,
     },
     warmGlow: seed.warmGlow.replace(/[\d.]+\)$/, "0.12)"),
     noiseOpacity: Math.max(0, seed.noiseOpacity * 0.35),

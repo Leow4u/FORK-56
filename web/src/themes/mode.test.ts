@@ -8,6 +8,7 @@ import {
   resolveThemeMode,
   synthLightPalette,
 } from "@/themes/mode";
+import { relativeLuminance } from "@/themes/color";
 
 describe("dashboard theme mode", () => {
   it("normalizes invalid mode values to system", () => {
@@ -47,9 +48,10 @@ describe("dashboard theme mode", () => {
     expect(dark.background.hex).not.toBe(work4youBlueTheme.palette.background.hex);
   });
 
-  it("light synthesis brightens the canvas while keeping the accent", () => {
+  it("light synthesis keeps midground readable on the light canvas", () => {
     const synth = synthLightPalette(defaultTheme.palette);
-    expect(synth.midground.hex).toBe(defaultTheme.palette.midground.hex);
+    expect(synth.midground.hex).not.toBe(defaultTheme.palette.midground.hex);
+    expect(relativeLuminance(synth.midground.hex)).toBeLessThan(0.45);
     expect(isPaletteDark(synth)).toBe(false);
   });
 });
