@@ -22,6 +22,12 @@ vi.mock("@/pages/ModelsPage", () => ({
   },
 }));
 
+vi.mock("@/components/appearance-panels", () => ({
+  AppearanceSettingsSection: () => (
+    <div data-testid="appearance-settings-section">appearance settings</div>
+  ),
+}));
+
 vi.mock("@/pages/PluginsPage", () => ({
   ProvidersCard: () => (
     <div data-testid="providers-card">memory and context providers</div>
@@ -137,6 +143,18 @@ describe("SettingsPage", () => {
     expect(keysText).toContain("memory.user_char_limit");
     expect(keysText).toContain("compression.enabled");
     expect(keysText).toContain("compression.protect_last_n");
+    expect(
+      container.querySelector('[data-testid="model-settings-panel"]'),
+    ).toBeNull();
+  });
+
+  it("renders the Appearance section with the theme and language panels", async () => {
+    await renderPage("/settings?section=appearance");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("Appearance");
+    expect(
+      container.querySelector('[data-testid="appearance-settings-section"]'),
+    ).toBeTruthy();
     expect(
       container.querySelector('[data-testid="model-settings-panel"]'),
     ).toBeNull();

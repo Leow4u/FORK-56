@@ -1,14 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Check } from "lucide-react";
 import { Button } from "@work4you/ui/ui/components/button";
 import { BottomSheet } from "@work4you/ui/ui/components/bottom-sheet";
 import { Typography } from "@work4you/ui/ui/components/typography/index";
 import { useBelowBreakpoint } from "@work4you/ui/hooks/use-below-breakpoint";
 import { useI18n } from "@/i18n/context";
 import { LOCALE_META } from "@/i18n";
-import type { Locale } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { LanguagePickerList } from "@/components/appearance-panels";
 
 /**
  * Language picker — shows the current language's endonym, opens a dropdown
@@ -28,7 +27,7 @@ import { cn } from "@/lib/utils";
  * bottom sheet portaled to `document.body` instead of an anchored dropdown.
  */
 export function LanguageSwitcher({ collapsed = false, dropUp = false }: LanguageSwitcherProps) {
-  const { locale, setLocale, t } = useI18n();
+  const { locale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -59,8 +58,8 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
   }, [open, useMobileSheet]);
 
   const current = LOCALE_META[locale];
-  const allLocales = Object.entries(LOCALE_META) as Array<[Locale, typeof current]>;
   const sheetTitle = t.language.switchTo;
+  const close = () => setOpen(false);
 
   return (
     <div ref={containerRef} className="relative inline-flex">
@@ -77,9 +76,7 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
         )}
       >
         <span className="inline-flex items-center gap-1.5">
-          <Typography
-            className="hidden sm:inline text-display tracking-wide text-xs"
-          >
+          <Typography className="hidden sm:inline text-display tracking-wide text-xs">
             {locale === "en" ? "EN" : current.name}
           </Typography>
         </span>
@@ -88,17 +85,12 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
       {useMobileSheet && (
         <BottomSheet
           backdropDismissLabel={t.common.close}
-          onClose={() => setOpen(false)}
+          onClose={close}
           open={open}
           title={sheetTitle}
         >
           <div aria-label={sheetTitle} role="listbox">
-            <LanguageSwitcherOptions
-              allLocales={allLocales}
-              locale={locale}
-              setLocale={setLocale}
-              setOpen={setOpen}
-            />
+            <LanguagePickerList onAfterSelect={close} />
           </div>
         </BottomSheet>
       )}
@@ -120,63 +112,13 @@ export function LanguageSwitcher({ collapsed = false, dropUp = false }: Language
                 : undefined
             }
           >
-            <LanguageSwitcherOptions
-              allLocales={allLocales}
-              locale={locale}
-              setLocale={setLocale}
-              setOpen={setOpen}
-            />
+            <LanguagePickerList onAfterSelect={close} />
           </div>
         );
         return dropUp ? createPortal(dropdown, document.body) : dropdown;
       })()}
     </div>
   );
-}
-
-function LanguageSwitcherOptions({
-  allLocales,
-  locale,
-  setLocale,
-  setOpen,
-}: LanguageSwitcherOptionsProps) {
-  return (
-    <>
-      {allLocales.map(([code, meta]) => {
-        const selected = code === locale;
-
-        return (
-          <button
-            aria-selected={selected}
-            className={cn(
-              "w-full text-left px-3 py-1.5 flex items-center gap-2 cursor-pointer",
-              "font-sans text-display text-xs tracking-[0.08em]",
-              "hover:bg-accent hover:text-accent-foreground transition-colors",
-              selected ? "font-semibold text-foreground" : "text-muted-foreground",
-            )}
-            key={code}
-            onClick={() => {
-              setLocale(code);
-              setOpen(false);
-            }}
-            role="option"
-            type="button"
-          >
-            <span className="truncate">{meta.name}</span>
-
-            {selected && <Check className="ml-auto h-3 w-3 shrink-0 text-midground" />}
-          </button>
-        );
-      })}
-    </>
-  );
-}
-
-interface LanguageSwitcherOptionsProps {
-  allLocales: Array<[Locale, (typeof LOCALE_META)[Locale]]>;
-  locale: Locale;
-  setLocale: (code: Locale) => void;
-  setOpen: (open: boolean) => void;
 }
 
 interface LanguageSwitcherProps {
