@@ -29,8 +29,19 @@ vi.mock("@/pages/PluginsPage", () => ({
 }));
 
 vi.mock("@/components/SettingsConfigSection", () => ({
-  SettingsConfigSection: ({ keys }: { keys: readonly string[] }) => (
-    <div data-testid="settings-config-section">{keys.join(",")}</div>
+  SettingsConfigSection: ({
+    keys,
+    visibleKey,
+  }: {
+    keys: readonly string[];
+    visibleKey?: (key: string, config: Record<string, unknown>) => boolean;
+  }) => (
+    <div
+      data-testid="settings-config-section"
+      data-has-visible-filter={visibleKey ? "true" : "false"}
+    >
+      {keys.join(",")}
+    </div>
   ),
 }));
 
@@ -156,6 +167,23 @@ describe("SettingsPage", () => {
     expect(section?.textContent).toContain("approvals.mode");
     expect(section?.textContent).toContain("command_allowlist");
     expect(section?.textContent).toContain("checkpoints.enabled");
+    expect(
+      container.querySelector('[data-testid="model-settings-panel"]'),
+    ).toBeNull();
+  });
+
+  it("renders the Voice section with keys and provider visibility filter", async () => {
+    await renderPage("/settings?section=voice");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("Voice");
+    const section = container.querySelector(
+      '[data-testid="settings-config-section"]',
+    );
+    expect(section).toBeTruthy();
+    expect(section?.getAttribute("data-has-visible-filter")).toBe("true");
+    expect(section?.textContent).toContain("tts.provider");
+    expect(section?.textContent).toContain("stt.provider");
+    expect(section?.textContent).toContain("voice.auto_tts");
     expect(
       container.querySelector('[data-testid="model-settings-panel"]'),
     ).toBeNull();

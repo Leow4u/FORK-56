@@ -11,6 +11,7 @@ import { AutoField } from "@/components/AutoField";
 import { useI18n } from "@/i18n";
 import { api } from "@/lib/api";
 import { getNestedValue, setNestedValue } from "@/lib/nested";
+import { inferFieldSchema } from "@/lib/voice-settings";
 import { Button } from "@work4you/ui/ui/components/button";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { Toast } from "@work4you/ui/ui/components/toast";
@@ -18,9 +19,36 @@ import { useToast } from "@work4you/ui/hooks/use-toast";
 
 export interface SettingsConfigSectionProps {
   keys: readonly string[];
+  /** When set, only matching keys render (e.g. desktop voiceFieldVisible). */
+  visibleKey?: (key: string, config: Record<string, unknown>) => boolean;
+  /** Schema entries omitted from /api/config/schema but curated in Settings. */
+  schemaFallback?: Record<string, Record<string, unknown>>;
 }
 
-export function SettingsConfigSection({ keys }: SettingsConfigSectionProps) {
+function resolveFieldSchema(
+  key: string,
+  schema: Record<string, Record<string, unknown>>,
+  config: Record<string, unknown>,
+  schemaFallback?: Record<string, Record<string, unknown>>,
+): Record<string, unknown> | undefined {
+  if (schema[key]) {
+    return schema[key];
+  }
+  if (schemaFallback?.[key]) {
+    return schemaFallback[key];
+  }
+  const value = getNestedValue(config, key);
+  if (value !== undefined) {
+    return inferFieldSchema(value);
+  }
+  return undefined;
+}
+
+export function SettingsConfigSection({
+  keys,
+  visibleKey,
+  schemaFallback,
+}: SettingsConfigSectionProps) {
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [schema, setSchema] = useState<Record<
     string,
@@ -66,11 +94,17 @@ export function SettingsConfigSection({ keys }: SettingsConfigSectionProps) {
   }
 
   const fields = keys
-    .map((key) => [key, schema[key]] as const)
-    .filter((entry): entry is [string, Record<string, unknown>] => {
-      const [, fieldSchema] = entry;
-      return fieldSchema != null;
-    });
+    .filter((key) => !visibleKey || visibleKey(key, config))
+    .map((key) => {
+      const fieldSchema = resolveFieldSchema(
+        key,
+        schema,
+        config,
+        schemaFallback,
+      );
+      return fieldSchema ? ([key, fieldSchema] as const) : null;
+    })
+    .filter((entry): entry is [string, Record<string, unknown>] => entry != null);
 
   return (
     <div className="flex flex-col gap-4">
