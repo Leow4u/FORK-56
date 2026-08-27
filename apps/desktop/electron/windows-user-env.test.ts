@@ -10,6 +10,7 @@ test('parseRegQueryValue extracts a REG_SZ value', () => {
   const out = ['', 'HKEY_CURRENT_USER\\Environment', '    WORK4YOU_HOME    REG_SZ    F:\\Work4You\\data', ''].join(
     '\r\n'
   )
+
   assert.equal(parseRegQueryValue(out, 'WORK4YOU_HOME'), 'F:\\Work4You\\data')
 })
 
