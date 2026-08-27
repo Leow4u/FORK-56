@@ -166,4 +166,57 @@ describe("SettingsConfigSection", () => {
     expect(text).not.toContain("tts.openai.voice");
     expect(text).not.toContain("stt.groq.model");
   });
+
+  it("confirms before save when guardToolsetsWipe would clear all toolsets", async () => {
+    apiMocks.getConfig.mockResolvedValue({
+      toolsets: ["memory", "terminal", "web"],
+    });
+    apiMocks.getSchema.mockResolvedValue({
+      fields: {
+        toolsets: { type: "list", description: "Enabled toolsets" },
+      },
+      category_order: ["general"],
+    });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    const { SettingsConfigSection } = await import("./SettingsConfigSection");
+
+    act(() => {
+      root.render(
+        <SettingsConfigSection keys={["toolsets"]} guardToolsetsWipe />,
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const input = container.querySelector("input");
+    expect(input).toBeTruthy();
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      setter?.call(input, "");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+      input!.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    const saveButton = [...container.querySelectorAll("button")].find((b) =>
+      b.textContent?.includes("Save"),
+    );
+    expect(saveButton).toBeTruthy();
+
+    await act(async () => {
+      saveButton!.click();
+      await Promise.resolve();
+    });
+
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(apiMocks.saveConfig).not.toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
+  });
 });

@@ -5,10 +5,14 @@
  * key list (mirrors desktop Settings → ConfigSettings sections).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AutoField } from "@/components/AutoField";
 import { useI18n } from "@/i18n";
+import {
+  clearsEnabledToolsets,
+  TOOLSETS_WIPE_CONFIRM,
+} from "@/lib/advanced-settings";
 import { api } from "@/lib/api";
 import { getNestedValue, setNestedValue } from "@/lib/nested";
 import { inferFieldSchema } from "@/lib/voice-settings";
@@ -23,6 +27,8 @@ export interface SettingsConfigSectionProps {
   visibleKey?: (key: string, config: Record<string, unknown>) => boolean;
   /** Schema entries omitted from /api/config/schema but curated in Settings. */
   schemaFallback?: Record<string, Record<string, unknown>>;
+  /** Confirm before save when clearing all enabled toolsets (desktop Advanced). */
+  guardToolsetsWipe?: boolean;
 }
 
 function resolveFieldSchema(
@@ -48,6 +54,7 @@ export function SettingsConfigSection({
   keys,
   visibleKey,
   schemaFallback,
+  guardToolsetsWipe = false,
 }: SettingsConfigSectionProps) {
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [schema, setSchema] = useState<Record<
@@ -55,13 +62,17 @@ export function SettingsConfigSection({
     Record<string, unknown>
   > | null>(null);
   const [saving, setSaving] = useState(false);
+  const loadedConfigRef = useRef<Record<string, unknown> | null>(null);
   const { toast, showToast } = useToast();
   const { t } = useI18n();
 
   useEffect(() => {
     api
       .getConfig()
-      .then(setConfig)
+      .then((loaded) => {
+        loadedConfigRef.current = structuredClone(loaded);
+        setConfig(loaded);
+      })
       .catch(() => {});
     api
       .getSchema()
@@ -73,16 +84,32 @@ export function SettingsConfigSection({
 
   const handleSave = useCallback(async () => {
     if (!config) return;
+    const baseline = loadedConfigRef.current;
+    if (
+      guardToolsetsWipe &&
+      baseline &&
+      clearsEnabledToolsets(baseline, config) &&
+      !window.confirm(TOOLSETS_WIPE_CONFIRM)
+    ) {
+      return;
+    }
     setSaving(true);
     try {
       await api.saveConfig(config);
+      loadedConfigRef.current = structuredClone(config);
       showToast(t.config.configSaved, "success");
     } catch (e) {
       showToast(`${t.config.failedToSave}: ${e}`, "error");
     } finally {
       setSaving(false);
     }
-  }, [config, showToast, t.config.configSaved, t.config.failedToSave]);
+  }, [
+    config,
+    guardToolsetsWipe,
+    showToast,
+    t.config.configSaved,
+    t.config.failedToSave,
+  ]);
 
   if (!config || !schema) {
     return (
