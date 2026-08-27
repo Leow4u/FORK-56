@@ -15,6 +15,8 @@ vi.mock("@/lib/api", () => ({
     setTheme: vi.fn(async () => ({ ok: true, theme: "default" })),
     getFontPref: vi.fn(async () => ({ font: "theme" })),
     setFontPref: vi.fn(async () => ({ ok: true, font: "theme" })),
+    getModePref: vi.fn(async () => ({ mode: "system" })),
+    setModePref: vi.fn(async () => ({ ok: true, mode: "system" })),
   },
 }));
 
@@ -26,6 +28,12 @@ vi.mock("@/i18n", () => ({
       language: { switchTo: "Switch language" },
       theme: {
         title: "Theme",
+        modeTitle: "Color mode",
+        modeDesc: "Fixed light or dark, or follow your system setting.",
+        modeLight: "Light",
+        modeDark: "Dark",
+        modeSystem: "System",
+        skinDesc: "Palette and typography. Color mode above controls brightness.",
         fontTitle: "Font",
         fontDefault: "Theme default",
         fontDefaultHint: "Use the active theme's font",
@@ -44,12 +52,15 @@ vi.mock("@/i18n", () => ({
 const themeState = vi.hoisted(() => ({
   themeName: "default",
   fontId: "theme",
+  mode: "system" as const,
+  resolvedMode: "dark" as const,
   availableThemes: [
     { name: "default", label: "Default", description: "Classic look" },
     { name: "midnight", label: "Midnight", description: "Dark teal" },
   ],
   setTheme: vi.fn(),
   setFont: vi.fn(),
+  setMode: vi.fn(),
 }));
 
 vi.mock("@/themes", async (importOriginal) => {
@@ -59,8 +70,11 @@ vi.mock("@/themes", async (importOriginal) => {
     useTheme: () => ({
       theme: actual.BUILTIN_THEMES.default,
       themeName: themeState.themeName,
+      mode: themeState.mode,
+      resolvedMode: themeState.resolvedMode,
       availableThemes: themeState.availableThemes,
       setTheme: themeState.setTheme,
+      setMode: themeState.setMode,
       fontId: themeState.fontId,
       fontChoices: actual.FONT_CHOICES,
       setFont: themeState.setFont,
@@ -101,9 +115,13 @@ describe("AppearanceSettingsSection", () => {
     container.remove();
   });
 
-  it("renders language and theme headings with selectable rows", async () => {
+  it("renders language, color mode, and theme headings with selectable rows", async () => {
     await renderSection();
     expect(container.textContent).toContain("Switch language");
+    expect(container.textContent).toContain("Color mode");
+    expect(container.textContent).toContain("Light");
+    expect(container.textContent).toContain("Dark");
+    expect(container.textContent).toContain("System");
     expect(container.textContent).toContain("Theme");
     expect(container.textContent).toContain("English");
     expect(container.textContent).toContain("Default");

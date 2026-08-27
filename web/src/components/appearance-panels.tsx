@@ -1,9 +1,9 @@
 /**
  * Shared language + dashboard theme/font pickers.
  *
- * Used by the sidebar switchers (compact dropdown) and Settings → Appearance
- * (expanded panels). Same hooks and persistence as before — only the layout
- * differs.
+ * Used by Settings → Appearance (the official surface for language, color
+ * mode, theme, and font). Same hooks and persistence as the former sidebar
+ * switchers — only the layout differs.
  */
 
 import { Check, Type } from "lucide-react";
@@ -11,8 +11,14 @@ import { Check, Type } from "lucide-react";
 import { LOCALE_META, useI18n } from "@/i18n";
 import type { Locale } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { BUILTIN_THEMES, THEME_DEFAULT_FONT_ID, useTheme } from "@/themes";
-import type { DashboardTheme, FontChoice } from "@/themes";
+import {
+  BUILTIN_THEMES,
+  THEME_DEFAULT_FONT_ID,
+  getPaletteForMode,
+  useTheme,
+} from "@/themes";
+import type { DashboardTheme, FontChoice, ThemeMode } from "@/themes";
+import { Segmented } from "@work4you/ui/ui/components/segmented";
 import { ListItem } from "@work4you/ui/ui/components/list-item";
 import { Typography } from "@work4you/ui/ui/components/typography/index";
 
@@ -70,6 +76,25 @@ export function LanguagePickerList({
   );
 }
 
+export function ThemeModePicker({ className }: { className?: string }) {
+  const { mode, setMode } = useTheme();
+  const { t } = useI18n();
+  const options: Array<{ value: ThemeMode; label: string }> = [
+    { value: "light", label: t.theme?.modeLight ?? "Light" },
+    { value: "dark", label: t.theme?.modeDark ?? "Dark" },
+    { value: "system", label: t.theme?.modeSystem ?? "System" },
+  ];
+
+  return (
+    <Segmented
+      className={className}
+      onChange={setMode}
+      options={options}
+      value={mode}
+    />
+  );
+}
+
 export function ThemePickerList({
   onAfterSelect,
   className,
@@ -77,13 +102,19 @@ export function ThemePickerList({
   onAfterSelect?: () => void;
   className?: string;
 }) {
-  const { themeName, availableThemes, setTheme } = useTheme();
+  const { themeName, availableThemes, setTheme, resolvedMode } = useTheme();
 
   return (
     <div className={cn("py-1", className)} role="listbox">
       {availableThemes.map((th) => {
         const isActive = th.name === themeName;
         const paletteTheme = BUILTIN_THEMES[th.name] ?? th.definition;
+        const previewTheme =
+          paletteTheme &&
+          ({
+            ...paletteTheme,
+            palette: getPaletteForMode(paletteTheme, resolvedMode),
+          } satisfies DashboardTheme);
 
         return (
           <ListItem
@@ -97,8 +128,8 @@ export function ThemePickerList({
             }}
             role="option"
           >
-            {paletteTheme ? (
-              <ThemeSwatch theme={paletteTheme} />
+            {previewTheme ? (
+              <ThemeSwatch theme={previewTheme} />
             ) : (
               <PlaceholderSwatch />
             )}
@@ -222,7 +253,7 @@ export function FontPickerList({
   );
 }
 
-/** Settings → Appearance — expanded language, theme, and font panels. */
+/** Settings → Appearance — expanded language, color mode, theme, and font panels. */
 export function AppearanceSettingsSection() {
   const { t } = useI18n();
 
@@ -238,8 +269,25 @@ export function AppearanceSettingsSection() {
       </section>
 
       <section className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Typography className="text-display text-sm tracking-wide">
+            {t.theme?.modeTitle ?? "Color mode"}
+          </Typography>
+          <ThemeModePicker />
+        </div>
+        <Typography className="text-xs tracking-normal text-text-tertiary">
+          {t.theme?.modeDesc ??
+            "Fixed light or dark, or follow your system setting."}
+        </Typography>
+      </section>
+
+      <section className="flex flex-col gap-2">
         <Typography className="text-display text-sm tracking-wide">
           {t.theme?.title ?? "Theme"}
+        </Typography>
+        <Typography className="text-xs tracking-normal text-text-tertiary">
+          {t.theme?.skinDesc ??
+            "Palette and typography. Color mode above controls brightness."}
         </Typography>
         <div className="border border-border bg-background-base/40 max-h-[70dvh] overflow-y-auto">
           <ThemePickerList />

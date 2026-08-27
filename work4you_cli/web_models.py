@@ -719,6 +719,10 @@ class FontSetBody(BaseModel):
     font: str
 
 
+class ModeSetBody(BaseModel):
+    mode: str
+
+
 # --- from web_server.py (originally lines 19681-19684) ---
 
 class _AgentPluginInstallBody(BaseModel):

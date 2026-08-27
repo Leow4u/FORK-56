@@ -158,6 +158,12 @@ export interface DashboardTheme {
   label: string;
   name: string;
   palette: ThemePalette;
+  /** Optional explicit light palette. When absent, light mode synthesizes from
+   *  `palette` (or uses `palette` directly when it is already light). */
+  lightPalette?: ThemePalette;
+  /** Optional explicit dark palette. When absent, dark mode uses `palette`
+   *  when it is already dark, otherwise synthesizes one. */
+  darkPalette?: ThemePalette;
   typography: ThemeTypography;
   layout: ThemeLayout;
   /** Overall shell layout. Defaults to `"standard"` when absent. */

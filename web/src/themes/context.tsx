@@ -14,6 +14,14 @@ import {
   getFontChoice,
   type FontChoice,
 } from "./fonts";
+import {
+  getPaletteForMode,
+  normalizeThemeMode,
+  resolveThemeMode,
+  terminalColorsForMode,
+  type ResolvedThemeMode,
+  type ThemeMode,
+} from "./mode";
 import type {
   DashboardTheme,
   ThemeAssets,
@@ -33,6 +41,9 @@ import { api } from "@/lib/api";
 /** LocalStorage key — pre-applied before the React tree mounts to avoid
  *  a visible flash of the default palette on theme-overridden installs. */
 const STORAGE_KEY = "work4you-dashboard-theme";
+
+/** LocalStorage key for light/dark/system brightness preference. */
+const MODE_STORAGE_KEY = "work4you-dashboard-mode";
 
 /** LocalStorage key for the font override (independent of theme). Holds a
  *  font id from the catalog in `fonts.ts`, or the `THEME_DEFAULT_FONT_ID`
@@ -344,9 +355,15 @@ function applyFontOverride(fontId: string | undefined) {
 // Apply a full theme to :root
 // ---------------------------------------------------------------------------
 
-function applyTheme(theme: DashboardTheme) {
+function applyTheme(theme: DashboardTheme, resolvedMode: ResolvedThemeMode) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
+  const palette = getPaletteForMode(theme, resolvedMode);
+  const themed: DashboardTheme = { ...theme, palette };
+  const terminal = terminalColorsForMode(theme, resolvedMode);
+
+  root.style.setProperty("color-scheme", resolvedMode);
+  root.dataset.work4youMode = resolvedMode;
 
   // Clear any overrides from a previous theme before applying the new set.
   for (const cssVar of ALL_OVERRIDE_VARS) {
@@ -373,11 +390,11 @@ function applyTheme(theme: DashboardTheme) {
   ]);
 
   const vars = {
-    ...paletteVars(theme.palette),
-    ...typographyVars(theme.typography),
-    ...layoutVars(theme.layout),
-    ...overrideVars(theme.colorOverrides),
-    ...seriesColorVars(theme.seriesColors),
+    ...paletteVars(palette),
+    ...typographyVars(themed.typography),
+    ...layoutVars(themed.layout),
+    ...overrideVars(themed.colorOverrides),
+    ...seriesColorVars(themed.seriesColors),
     ...assetMap,
     ...componentMap,
   };
@@ -385,19 +402,13 @@ function applyTheme(theme: DashboardTheme) {
     root.style.setProperty(k, v);
   }
 
-  injectFontStylesheet(theme.typography.fontUrl);
-  applyCustomCSS(theme.customCSS);
-  applyLayoutVariant(theme.layoutVariant);
+  injectFontStylesheet(themed.typography.fontUrl);
+  applyCustomCSS(themed.customCSS);
+  applyLayoutVariant(themed.layoutVariant);
 
   // Terminal colors — read by ChatPage via useTheme(); also available as CSS vars.
-  root.style.setProperty(
-    "--theme-terminal-background",
-    theme.terminalBackground ?? "#000000",
-  );
-  root.style.setProperty(
-    "--theme-terminal-foreground",
-    theme.terminalForeground ?? "#f0e6d2",
-  );
+  root.style.setProperty("--theme-terminal-background", terminal.background);
+  root.style.setProperty("--theme-terminal-foreground", terminal.foreground);
 
   // Re-assert the font override last: theme application just rewrote
   // --theme-font-sans/-display, so an active override has to win again.
@@ -448,6 +459,31 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return valid;
   });
 
+  /** Light/dark/system brightness — independent of theme (skin) name. */
+  const [mode, setModeState] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") return "system";
+    return normalizeThemeMode(window.localStorage.getItem(MODE_STORAGE_KEY));
+  });
+
+  const [systemDark, setSystemDark] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches
+      : false,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = (event: MediaQueryListEvent) => setSystemDark(event.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const resolvedMode = useMemo(
+    () => resolveThemeMode(mode, systemDark),
+    [mode, systemDark],
+  );
+
   // Resolve a theme name to a full DashboardTheme, falling back to default
   // only when neither a built-in nor a user theme is found.
   const resolveTheme = useCallback(
@@ -467,8 +503,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // which restores the theme's own font; setting it re-asserts the override.
   useEffect(() => {
     _ACTIVE_FONT_OVERRIDE = fontId;
-    applyTheme(resolveTheme(themeName));
-  }, [themeName, resolveTheme, fontId]);
+    applyTheme(resolveTheme(themeName), resolvedMode);
+  }, [themeName, resolveTheme, fontId, resolvedMode]);
 
   // Load server-side themes (built-ins + user YAMLs) once on mount.
   useEffect(() => {
@@ -540,6 +576,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load the server-persisted color mode once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getModePref()
+      .then((resp) => {
+        if (cancelled) return;
+        const serverMode = normalizeThemeMode(resp?.mode);
+        if (serverMode !== mode) {
+          setModeState(serverMode);
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(MODE_STORAGE_KEY, serverMode);
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const setTheme = useCallback(
     (name: string) => {
       // Accept any name the server told us exists OR any built-in.
@@ -567,17 +625,47 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     api.setFontPref(next).catch(() => {});
   }, []);
 
+  const setMode = useCallback((nextMode: ThemeMode) => {
+    const next = normalizeThemeMode(nextMode);
+    setModeState(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(MODE_STORAGE_KEY, next);
+    }
+    api.setModePref(next).catch(() => {});
+  }, []);
+
+  const activeTheme = useMemo(
+    () => ({
+      ...resolveTheme(themeName),
+      palette: getPaletteForMode(resolveTheme(themeName), resolvedMode),
+    }),
+    [resolveTheme, themeName, resolvedMode],
+  );
+
   const value = useMemo<ThemeContextValue>(
     () => ({
-      theme: resolveTheme(themeName),
+      theme: activeTheme,
       themeName,
+      mode,
+      resolvedMode,
       availableThemes,
       setTheme,
+      setMode,
       fontId,
       fontChoices: FONT_CHOICES,
       setFont,
     }),
-    [themeName, availableThemes, setTheme, resolveTheme, fontId, setFont],
+    [
+      activeTheme,
+      themeName,
+      mode,
+      resolvedMode,
+      availableThemes,
+      setTheme,
+      setMode,
+      fontId,
+      setFont,
+    ],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -590,12 +678,15 @@ export function useTheme(): ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue>({
   theme: defaultTheme,
   themeName: "default",
+  mode: "system",
+  resolvedMode: "dark",
   availableThemes: Object.values(BUILTIN_THEMES).map((t) => ({
     name: t.name,
     label: t.label,
     description: t.description,
   })),
   setTheme: () => {},
+  setMode: () => {},
   fontId: THEME_DEFAULT_FONT_ID,
   fontChoices: FONT_CHOICES,
   setFont: () => {},
@@ -604,6 +695,11 @@ const ThemeContext = createContext<ThemeContextValue>({
 interface ThemeContextValue {
   availableThemes: ThemeListEntry[];
   setTheme: (name: string) => void;
+  /** Brightness preference (light / dark / system). */
+  mode: ThemeMode;
+  /** Resolved light or dark after applying the system preference. */
+  resolvedMode: ResolvedThemeMode;
+  setMode: (mode: ThemeMode) => void;
   theme: DashboardTheme;
   themeName: string;
   /** Active font-override id (`THEME_DEFAULT_FONT_ID` = no override). */

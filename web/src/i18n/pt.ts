@@ -527,6 +527,13 @@ export const pt: Translations = {
   theme: {
     title: "Tema",
     switchTheme: "Mudar tema",
+    modeTitle: "Modo de cor",
+    modeDesc: "Claro ou escuro fixo, ou seguir a definição do sistema.",
+    modeLight: "Claro",
+    modeDark: "Escuro",
+    modeSystem: "Sistema",
+    skinDesc: "Paleta e tipografia. O modo de cor acima controla o brilho.",
+    fontTitle: "Fonte",
   },
 
   achievements: {
