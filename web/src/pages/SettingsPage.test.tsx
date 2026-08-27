@@ -34,6 +34,18 @@ vi.mock("@/pages/PluginsPage", () => ({
   ),
 }));
 
+vi.mock("@/components/env-settings-panels", () => ({
+  EnvCredentialsPanel: ({ view }: { view: string }) => (
+    <div data-testid="env-credentials-panel" data-view={view} />
+  ),
+}));
+
+vi.mock("@/components/custom-endpoints-settings", () => ({
+  CustomEndpointsSettingsSection: () => (
+    <div data-testid="custom-endpoints-section">custom endpoints</div>
+  ),
+}));
+
 vi.mock("@/components/SettingsConfigSection", () => ({
   SettingsConfigSection: ({
     keys,
@@ -242,5 +254,21 @@ describe("SettingsPage", () => {
     expect(
       container.querySelector('[data-testid="model-settings-panel"]'),
     ).toBeNull();
+  });
+
+  it("renders the Providers section with accounts credentials panel", async () => {
+    await renderPage("/settings?section=providers");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("Providers");
+    const panel = container.querySelector('[data-testid="env-credentials-panel"]');
+    expect(panel?.getAttribute("data-view")).toBe("providers-accounts");
+  });
+
+  it("renders the Tools & Keys section with tools credentials panel", async () => {
+    await renderPage("/settings?section=keys&view=tools&key=OPENAI_API_KEY");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("Tools & Keys");
+    const panel = container.querySelector('[data-testid="env-credentials-panel"]');
+    expect(panel?.getAttribute("data-view")).toBe("keys-tools");
   });
 });

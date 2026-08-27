@@ -420,7 +420,7 @@ export const en: Translations = {
     installHeading: "Install from GitHub / Git URL",
     installHint: "Use owner/repo shorthand or a full https:// or git@ clone URL. For a plugin in a subdirectory, append the path: owner/repo/path/to/plugin (or <url>#path/to/plugin).",
     memoryProviderLabel: "Memory provider",
-    missingEnvWarn: "Set these in Keys before the plugin can run:",
+    missingEnvWarn: "Set these in Settings → Tools & Keys before the plugin can run:",
     noDashboardTab: "No dashboard tab",
     openTab: "Open",
     orphanHeading: "Dashboard-only extensions (no agent plugin.yaml match)",

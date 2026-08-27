@@ -59,6 +59,12 @@ vi.mock("@/components/ToolsetConfigDrawer", () => ({
   ToolsetConfigDrawer: () => null,
 }));
 
+vi.mock("@/components/env-settings-panels", () => ({
+  EnvCredentialsPanel: ({ view }: { view: string }) => (
+    <div data-testid="custom-keys-panel" data-view={view} />
+  ),
+}));
+
 vi.mock("@/components/SkillEditorDialog", () => ({
   SkillEditorDialog: () => null,
 }));
