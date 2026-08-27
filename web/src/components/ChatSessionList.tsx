@@ -5,8 +5,8 @@
  * It lists the most recent sessions for the active management profile and
  * lets the user swap between them from anywhere: picking a row navigates to
  * `/chat?resume=<id>` (the same affordance as the Sessions page "Resume in
- * Chat" action). The "New chat" action clears the resume param and resets
- * the chat host.
+ * Chat" action). Starting a fresh chat lives in the Chat page header (and the
+ * main Chat nav item when already on /chat) — not as a duplicate control here.
  *
  * Everyday management mirrors the desktop sidebar: rename, pin and archive
  * act through the shared `PATCH /api/sessions/{id}` surface, so state set
@@ -30,7 +30,6 @@ import {
   ArchiveRestore,
   Check,
   Download,
-  MessageSquarePlus,
   Pencil,
   Pin,
   PinOff,
@@ -172,16 +171,6 @@ export function ChatSessionList({
     [activeSessionId, navigate, onPicked],
   );
 
-  // "New chat" prefers the shell handler (navigates to /chat + resets).
-  const startNew = useCallback(() => {
-    onPicked?.();
-    if (onNewChat) {
-      onNewChat();
-      return;
-    }
-    navigate("/chat");
-  }, [navigate, onNewChat, onPicked]);
-
   const handleActionError = useCallback((e: unknown) => {
     setError(e instanceof Error ? e.message : "session update failed");
   }, []);
@@ -293,10 +282,9 @@ export function ChatSessionList({
           size="icon"
           onClick={reload}
           aria-label={t.common.refresh}
-          title={t.common.refresh}
           className="text-text-secondary hover:text-foreground"
         >
-          <RefreshCw className={cn(loading && "animate-spin")} />
+          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
         </Button>
       </div>
 
@@ -311,16 +299,6 @@ export function ChatSessionList({
         />
         {searching && <Spinner className="h-3.5 w-3.5" />}
       </div>
-
-      <Button
-        outlined
-        size="sm"
-        onClick={startNew}
-        prefix={<MessageSquarePlus />}
-        className="mx-2 mb-2 justify-center"
-      >
-        {t.sessions.newChat}
-      </Button>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 pb-1">
         {content}

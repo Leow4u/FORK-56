@@ -199,6 +199,16 @@ describe("ChatSessionList", () => {
     container.remove();
   });
 
+  it("does not render a duplicate New chat button in the sidebar", async () => {
+    await renderList();
+    expect(container.textContent).not.toContain("New chat");
+    expect(
+      Array.from(container.querySelectorAll("button")).some((b) =>
+        b.textContent?.includes("New chat"),
+      ),
+    ).toBe(false);
+  });
+
   it("groups pinned sessions under a Pinned header, before the rest", async () => {
     await renderList();
     const text = container.textContent ?? "";
