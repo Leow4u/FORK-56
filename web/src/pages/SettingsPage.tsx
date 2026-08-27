@@ -20,9 +20,11 @@
  *     (keys mirror desktop Settings → Safety).
  *   - voice — TTS/STT providers and voice tuning (keys + voiceFieldVisible
  *     mirror desktop Settings → Voice).
+ *   - advanced — toolsets, terminal backend, limits, delegation, updates
+ *     (keys mirror desktop Settings → Advanced).
  */
 
-import { Brain, Cpu, Lock, MessageCircle, Mic, Monitor } from "lucide-react";
+import { Brain, Cpu, Lock, MessageCircle, Mic, Monitor, Wrench } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -36,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { PluginSlot } from "@/plugins";
 import { SettingsConfigSection } from "@/components/SettingsConfigSection";
+import { ADVANCED_CONFIG_KEYS } from "@/lib/advanced-settings";
 import {
   VOICE_CONFIG_KEYS,
   VOICE_SCHEMA_FALLBACKS,
@@ -174,6 +177,17 @@ const SECTIONS: SettingsSection[] = [
     label: "Memory & Context",
     icon: Brain,
     render: () => <ProvidersCard />,
+  },
+  {
+    id: "advanced",
+    label: "Advanced",
+    icon: Wrench,
+    render: () => (
+      <SettingsConfigSection
+        keys={ADVANCED_CONFIG_KEYS}
+        guardToolsetsWipe
+      />
+    ),
   },
 ];
 

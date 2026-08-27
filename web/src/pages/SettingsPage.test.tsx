@@ -32,13 +32,16 @@ vi.mock("@/components/SettingsConfigSection", () => ({
   SettingsConfigSection: ({
     keys,
     visibleKey,
+    guardToolsetsWipe,
   }: {
     keys: readonly string[];
     visibleKey?: (key: string, config: Record<string, unknown>) => boolean;
+    guardToolsetsWipe?: boolean;
   }) => (
     <div
       data-testid="settings-config-section"
       data-has-visible-filter={visibleKey ? "true" : "false"}
+      data-guard-toolsets-wipe={guardToolsetsWipe ? "true" : "false"}
     >
       {keys.join(",")}
     </div>
@@ -184,6 +187,26 @@ describe("SettingsPage", () => {
     expect(section?.textContent).toContain("tts.provider");
     expect(section?.textContent).toContain("stt.provider");
     expect(section?.textContent).toContain("voice.auto_tts");
+    expect(
+      container.querySelector('[data-testid="model-settings-panel"]'),
+    ).toBeNull();
+  });
+
+  it("renders the Advanced section with the curated config keys", async () => {
+    await renderPage("/settings?section=advanced");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("Advanced");
+    const section = container.querySelector(
+      '[data-testid="settings-config-section"]',
+    );
+    expect(section).toBeTruthy();
+    expect(section?.getAttribute("data-guard-toolsets-wipe")).toBe("true");
+    expect(section?.textContent).toContain("toolsets");
+    expect(section?.textContent).toContain("terminal.backend");
+    expect(section?.textContent).toContain("delegation.max_iterations");
+    expect(section?.textContent).toContain(
+      "updates.non_interactive_local_changes",
+    );
     expect(
       container.querySelector('[data-testid="model-settings-panel"]'),
     ).toBeNull();
