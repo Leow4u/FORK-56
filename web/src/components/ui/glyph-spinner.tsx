@@ -59,7 +59,6 @@ export function GlyphSpinner({ ariaLabel = 'Loading', className, spinner = 'brai
 
     let frame = 0
     let timer: number | undefined
-    let pauseController: ReturnType<typeof createRendererLoopPauseController> | undefined
     glyph.textContent = spin.frames[frame]
 
     const stopAnimation = () => {
@@ -72,7 +71,7 @@ export function GlyphSpinner({ ariaLabel = 'Loading', className, spinner = 'brai
     }
 
     const syncAnimation = () => {
-      if (pauseController?.isPaused()) {
+      if (pauseController.isPaused()) {
         stopAnimation()
 
         return
@@ -88,7 +87,7 @@ export function GlyphSpinner({ ariaLabel = 'Loading', className, spinner = 'brai
       }, spin.interval)
     }
 
-    pauseController = createRendererLoopPauseController(syncAnimation)
+    const pauseController = createRendererLoopPauseController(syncAnimation)
     syncAnimation()
 
     return () => {

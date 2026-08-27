@@ -317,7 +317,6 @@ export function parseCommandDispatch(raw: unknown): CommandDispatchResponse | nu
 
   switch (row.type) {
     case 'exec':
-
     case 'plugin':
       return { type: row.type, output: str(row.output) }
 

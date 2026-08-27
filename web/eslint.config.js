@@ -24,6 +24,22 @@ export default defineConfig([
       // (the Provider) and a hook (useContext). Allow constant exports so
       // these don't need to be split into separate files.
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Desktop-parity stubs / intentional unused callback params use `_name`.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+      // Bulk assistant-ui port keeps `@ts-nocheck` on unfinished v1 shims
+      // (voice/preview/plugin directives). Tighten once those are typed.
+      '@typescript-eslint/ban-ts-comment': [
+        'error',
+        { 'ts-nocheck': false, 'ts-ignore': true, 'ts-expect-error': 'allow-with-description' },
+      ],
       // TODO: upgrade these react-hooks v7 rules from 'warn' to 'error' after
       // refactoring set-state-in-effect, ref-as-instance-var, and manual
       // memoization patterns in the web codebase.
@@ -31,6 +47,8 @@ export default defineConfig([
       'react-hooks/refs': 'warn',
       'react-hooks/preserve-manual-memoization': 'warn',
       'react-hooks/static-components': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/immutability': 'warn',
     },
   },
 ])

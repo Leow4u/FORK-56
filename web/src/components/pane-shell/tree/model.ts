@@ -535,14 +535,6 @@ export function setGroupHeaderHidden(root: LayoutNode, groupId: string, headerHi
   return mapGroups(root, g => (g.id === groupId ? { ...g, headerHidden } : g))
 }
 
-function replaceNode(node: LayoutNode, id: string, make: (g: GroupNode) => LayoutNode): LayoutNode {
-  if (node.type === 'group') {
-    return node.id === id ? make(node) : node
-  }
-
-  return { ...node, children: node.children.map(c => replaceNode(c, id, make)) }
-}
-
 /** Mirror the layout HORIZONTALLY (the titlebar flip toggle / ⌘\): reverse
  *  every ROW split's child order at EVERY depth, so left↔right flips
  *  everywhere. A right rail lands on the left with its OWN internal order

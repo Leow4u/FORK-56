@@ -48,49 +48,6 @@ function ThinkingRow({ label }: { label: string }) {
   );
 }
 
-function ToolLine({ text }: { text: string }) {
-  const running = text.startsWith("▶");
-  return (
-    <div className="mx-auto flex w-full max-w-3xl justify-start">
-      <div
-        className={cn(
-          "max-w-full rounded-lg border px-3 py-1.5 font-mono text-xs leading-snug",
-          running
-            ? "border-primary/25 bg-primary/5 text-primary/90"
-            : "border-border/40 bg-muted/15 text-muted-foreground",
-        )}
-      >
-        {text}
-      </div>
-    </div>
-  );
-}
-
-function ReasoningBlock({ text, streaming }: { text: string; streaming?: boolean }) {
-  if (!text.trim()) return null;
-  return (
-    <div className="mx-auto flex w-full max-w-3xl justify-start">
-      <details
-        className="max-w-full rounded-lg border border-border/35 bg-muted/10 px-3 py-2 text-xs text-muted-foreground"
-        open={Boolean(streaming)}
-      >
-        <summary className="cursor-pointer select-none font-medium text-muted-foreground/90">
-          Reasoning
-        </summary>
-        <p className="mt-2 whitespace-pre-wrap break-words font-mono leading-relaxed">
-          {text}
-          {streaming && (
-            <span
-              aria-hidden
-              className="ml-0.5 inline-block h-3 w-1 animate-pulse bg-muted-foreground/60 align-middle"
-            />
-          )}
-        </p>
-      </details>
-    </div>
-  );
-}
-
 function MessageImages({
   inline,
   paths,
