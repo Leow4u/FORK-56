@@ -5,8 +5,9 @@ import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { Input } from "@work4you/ui/ui/components/input";
 import { Label } from "@work4you/ui/ui/components/label";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { api } from "@/lib/api";
 import type { GatewayClient } from "@/lib/gatewayClient";
-import { Check, RefreshCw, Search, X } from "lucide-react";
+import { Check, Loader2, RefreshCw, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn, themedBody } from "@/lib/utils";
@@ -41,6 +42,8 @@ interface ModelOptionProvider {
   total_models?: number;
   is_current?: boolean;
   warning?: string;
+  auth_type?: string;
+  key_env?: string;
 }
 
 interface ModelOptionsResponse {
@@ -116,6 +119,8 @@ export function ModelPickerDialog(props: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [pendingConfirm, setPendingConfirm] =
     useState<PendingExpensiveConfirm | null>(null);
+  const [apiKeyDraft, setApiKeyDraft] = useState("");
+  const [activating, setActivating] = useState(false);
   const closedRef = useRef(false);
 
   const applyOptions = (r: ModelOptionsResponse) => {
@@ -207,6 +212,40 @@ export function ModelPickerDialog(props: Props) {
     () => providers.find((p) => p.slug === selectedSlug) ?? null,
     [providers, selectedSlug],
   );
+
+  const activateApiKeyProvider = async () => {
+    const keyEnv = selectedProvider?.key_env;
+    const slug = selectedProvider?.slug;
+    if (!keyEnv || !slug || !apiKeyDraft.trim() || activating) return;
+
+    setActivating(true);
+    setError(null);
+    try {
+      await api.setEnvVar(keyEnv, apiKeyDraft.trim());
+      setApiKeyDraft("");
+
+      let nextModel = "";
+      try {
+        const rec = await api.getRecommendedDefaultModel(slug);
+        nextModel = rec.model || "";
+      } catch {
+        nextModel = "";
+      }
+
+      const refreshed = await requestOptions(true);
+      if (closedRef.current) return;
+      applyOptions(refreshed);
+      const refreshedRow = (refreshed?.providers ?? []).find((p) => p.slug === slug);
+      const fallbackModel = refreshedRow?.models?.[0] ?? "";
+      setSelectedModel(nextModel || fallbackModel);
+    } catch (e) {
+      if (!closedRef.current) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    } finally {
+      if (!closedRef.current) setActivating(false);
+    }
+  };
 
   const models = useMemo(
     () => selectedProvider?.models ?? [],
@@ -405,6 +444,7 @@ export function ModelPickerDialog(props: Props) {
             onSelect={(slug) => {
               setSelectedSlug(slug);
               setSelectedModel("");
+              setApiKeyDraft("");
             }}
           />
 
@@ -425,6 +465,10 @@ export function ModelPickerDialog(props: Props) {
                 message: "",
               });
             }}
+            apiKeyDraft={apiKeyDraft}
+            activating={activating}
+            onApiKeyDraftChange={setApiKeyDraft}
+            onActivateApiKey={() => void activateApiKeyProvider()}
           />
         </div>
 
@@ -572,6 +616,10 @@ function ModelColumn({
   currentProviderSlug,
   onSelect,
   onConfirm,
+  apiKeyDraft,
+  activating,
+  onApiKeyDraftChange,
+  onActivateApiKey,
 }: {
   provider: ModelOptionProvider | null;
   models: { model: string; positions: number[] }[];
@@ -581,6 +629,10 @@ function ModelColumn({
   currentProviderSlug: string;
   onSelect(model: string): void;
   onConfirm(model: string): void;
+  apiKeyDraft: string;
+  activating: boolean;
+  onApiKeyDraftChange(value: string): void;
+  onActivateApiKey(): void;
 }) {
   if (!provider) {
     return (
@@ -592,6 +644,11 @@ function ModelColumn({
     );
   }
 
+  const needsApiKey =
+    allModels.length === 0 &&
+    provider.auth_type === "api_key" &&
+    !!provider.key_env;
+
   return (
     <div className="overflow-y-auto">
       {provider.warning && (
@@ -600,7 +657,37 @@ function ModelColumn({
         </div>
       )}
 
-      {models.length === 0 ? (
+      {needsApiKey ? (
+        <div className="space-y-3 p-4">
+          <p className="text-xs text-muted-foreground">
+            {provider.name} needs an API key before its models appear.
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="model-picker-api-key" className="text-xs font-mono">
+              {provider.key_env}
+            </Label>
+            <Input
+              id="model-picker-api-key"
+              type="password"
+              autoComplete="off"
+              className="h-8 text-xs font-mono"
+              placeholder={`Paste ${provider.key_env}`}
+              value={apiKeyDraft}
+              onChange={(e) => onApiKeyDraftChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onActivateApiKey();
+              }}
+            />
+          </div>
+          <Button
+            size="sm"
+            disabled={!apiKeyDraft.trim() || activating}
+            onClick={onActivateApiKey}
+          >
+            {activating ? <Loader2 className="h-3 w-3 animate-spin" /> : "Activate"}
+          </Button>
+        </div>
+      ) : models.length === 0 ? (
         <div className="p-4 text-xs text-muted-foreground italic">
           {allModels.length
             ? "no models match your filter"

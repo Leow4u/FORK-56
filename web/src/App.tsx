@@ -63,6 +63,7 @@ import { cn } from "@/lib/utils";
 import { ChatSessionList } from "@/components/ChatSessionList";
 import { FilesRouteGate } from "@/components/FilesRouteGate";
 import { showConfigAdminNav } from "@/lib/config-admin-nav";
+import { showEnvAdminNav } from "@/lib/env-admin-nav";
 import { LogsRouteGate } from "@/components/LogsRouteGate";
 import { ModelsRouteGate } from "@/components/ModelsRouteGate";
 import { SidebarFooter } from "@/components/SidebarFooter";
@@ -239,6 +240,9 @@ const BUILTIN_NAV_REST: NavItem[] = [
   { path: "/webhooks", label: "Webhooks", icon: Webhook },
   { path: "/profiles", labelKey: "profiles", label: "Profiles", icon: Users },
   { path: "/config", labelKey: "config", label: "Config", icon: Settings },
+  // Operator-only legacy env monolith — hidden from nav by default; user
+  // credentials live in Settings → Providers / Tools & Keys. Route stays
+  // URL-reachable (see showEnvAdmin nav filter).
   { path: "/env", labelKey: "keys", label: "Keys", icon: KeyRound },
   { path: "/system", label: "System", icon: Wrench },
   {
@@ -470,6 +474,7 @@ export default function App() {
   const [showLogsAdmin, setShowLogsAdmin] = useState(false);
   const [showPluginsAdmin, setShowPluginsAdmin] = useState(false);
   const [showConfigAdmin, setShowConfigAdmin] = useState(false);
+  const [showEnvAdmin, setShowEnvAdmin] = useState(false);
   useEffect(() => {
     api
       .getConfig()
@@ -481,6 +486,7 @@ export default function App() {
           show_logs_admin?: unknown;
           show_plugins_admin?: unknown;
           show_config_admin?: unknown;
+          show_env_admin?: unknown;
         };
         setShowTokenAnalytics(dash.show_token_analytics === true);
         setShowSessionsAdmin(dash.show_sessions_admin === true);
@@ -488,6 +494,7 @@ export default function App() {
         setShowLogsAdmin(dash.show_logs_admin === true);
         setShowPluginsAdmin(dash.show_plugins_admin === true);
         setShowConfigAdmin(showConfigAdminNav(dash));
+        setShowEnvAdmin(showEnvAdminNav(dash));
       })
       .catch(() => {
         setShowTokenAnalytics(false);
@@ -496,6 +503,7 @@ export default function App() {
         setShowLogsAdmin(false);
         setShowPluginsAdmin(false);
         setShowConfigAdmin(false);
+        setShowEnvAdmin(false);
       });
   }, []);
 
@@ -552,6 +560,9 @@ export default function App() {
       // Config: curated user settings live in /settings; the raw schema
       // editor is operator-only. Route stays URL-reachable like Plugins.
       if (n.path === "/config") return showConfigAdmin;
+      // Keys (/env): credential UI lives in /settings; the legacy monolith
+      // is operator-only. Route stays URL-reachable like Config/Plugins.
+      if (n.path === "/env") return showEnvAdmin;
       return true;
     });
   }, [
@@ -560,6 +571,7 @@ export default function App() {
     showLogsAdmin,
     showPluginsAdmin,
     showConfigAdmin,
+    showEnvAdmin,
     showSessionsAdmin,
     showTokenAnalytics,
   ]);

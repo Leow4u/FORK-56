@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ExternalLink, Loader2, Terminal, X } from "lucide-react";
+import { useNavigate } from "react-router";
+import { Check, ExternalLink, KeyRound, Loader2, Terminal, X } from "lucide-react";
 import { api } from "@/lib/api";
 import type {
   ToolsetConfig,
@@ -35,6 +36,7 @@ interface Props {
  * post-setup install hook (npm/pip/binary) with a live log tail.
  */
 export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Props) {
+  const navigate = useNavigate();
   const { toast, showToast } = useToast();
   const [config, setConfig] = useState<ToolsetConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -375,6 +377,19 @@ export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Pr
                             >
                               <ExternalLink className="h-3 w-3" /> Get a key
                             </a>
+                          )}
+                          {isSet[ev.key] && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                navigate(
+                                  `/settings?section=keys&view=tools&key=${encodeURIComponent(ev.key)}`,
+                                )
+                              }
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                            >
+                              <KeyRound className="h-3 w-3" /> Manage in API Keys
+                            </button>
                           )}
                         </div>
                       ))}

@@ -53,6 +53,7 @@ import type {
 } from "@/lib/api";
 import { useProfileScope } from "@/contexts/useProfileScope";
 import { ToolsetConfigDrawer } from "@/components/ToolsetConfigDrawer";
+import { EnvCredentialsPanel } from "@/components/env-settings-panels";
 import { SkillEditorDialog } from "@/components/SkillEditorDialog";
 import { useToast } from "@work4you/ui/hooks/use-toast";
 import { Toast } from "@work4you/ui/ui/components/toast";
@@ -714,6 +715,9 @@ export default function SkillsPage() {
                   })}
                 </div>
               )}
+              <div className="mt-6">
+                <EnvCredentialsPanel view="custom-keys" />
+              </div>
         </>
       )}
       {configToolset && (

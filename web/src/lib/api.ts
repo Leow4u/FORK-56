@@ -667,6 +667,13 @@ export const api = {
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     return fetchJSON<ModelOptionsResponse>(`/api/model/options${suffix}`);
   },
+  getRecommendedDefaultModel: (provider: string, profile = getManagementProfile()) =>
+    fetchJSON<{ model: string }>(
+      appendProfileParam(
+        `/api/model/recommended-default?provider=${encodeURIComponent(provider)}`,
+        profile,
+      ),
+    ),
   getAuxiliaryModels: (profile = getManagementProfile()) =>
     fetchJSON<AuxiliaryModelsResponse>(
       appendProfileParam("/api/model/auxiliary", profile),
@@ -725,6 +732,50 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key }),
     }),
+  getCustomEndpoints: (profile = getManagementProfile()) =>
+    fetchJSON<CustomEndpointsResponse>(
+      appendProfileParam("/api/providers/custom-endpoints", profile),
+    ),
+  saveCustomEndpoint: (
+    body: CustomEndpointUpdate,
+    profile = getManagementProfile(),
+  ) =>
+    fetchJSON<CustomEndpointsResponse>(
+      appendProfileParam("/api/providers/custom-endpoints", profile),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    ),
+  validateCustomEndpoint: (body: CustomEndpointUpdate) =>
+    fetchJSON<CustomEndpointValidationResponse>(
+      "/api/providers/custom-endpoints/validate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    ),
+  activateCustomEndpoint: (
+    id: string,
+    profile = getManagementProfile(),
+  ) =>
+    fetchJSON<{ ok: boolean; provider: string; model: string }>(
+      appendProfileParam(
+        `/api/providers/custom-endpoints/${encodeURIComponent(id)}/activate`,
+        profile,
+      ),
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+    ),
+  deleteCustomEndpoint: (id: string, profile = getManagementProfile()) =>
+    fetchJSON<CustomEndpointsResponse>(
+      appendProfileParam(
+        `/api/providers/custom-endpoints/${encodeURIComponent(id)}`,
+        profile,
+      ),
+      { method: "DELETE" },
+    ),
 
   // Cron jobs
   getCronJobs: (profile = "all") =>
@@ -2119,6 +2170,50 @@ export interface EnvVarInfo {
   custom?: boolean;
 }
 
+export interface CustomEndpoint {
+  api_key_preview?: string | null;
+  base_url: string;
+  context_length?: number | null;
+  discover_models: boolean;
+  has_api_key: boolean;
+  id: string;
+  is_current?: boolean;
+  model: string;
+  models: string[];
+  name: string;
+  source?: string;
+}
+
+export interface CustomEndpointsResponse {
+  current: {
+    base_url: string;
+    model: string;
+    provider: string;
+  };
+  endpoints: CustomEndpoint[];
+  id?: string;
+  ok?: boolean;
+}
+
+export interface CustomEndpointUpdate {
+  api_key?: string;
+  base_url: string;
+  context_length?: number;
+  discover_models?: boolean;
+  id?: string;
+  make_default?: boolean;
+  model: string;
+  models?: string[];
+  name: string;
+}
+
+export interface CustomEndpointValidationResponse {
+  message: string;
+  models: string[];
+  ok: boolean;
+  reachable: boolean;
+}
+
 export interface TelegramOnboardingStartResponse {
   pairing_id: string;
   suggested_username: string;
@@ -2620,6 +2715,8 @@ export interface ModelOptionProvider {
   source?: string;
   warning?: string;
   authenticated?: boolean;
+  auth_type?: string;
+  key_env?: string;
 }
 
 export interface ModelOptionsResponse {

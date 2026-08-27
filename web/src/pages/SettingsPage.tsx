@@ -13,6 +13,10 @@
  *   - model — Model Settings panel (main model, auxiliary, MoA) plus
  *     model_context_length and fallback_providers (keys mirror desktop
  *     Settings → Model in apps/desktop/src/app/settings/constants.ts).
+ *   - providers — OAuth accounts, provider API keys, custom endpoints
+ *     (mirrors desktop Settings → Providers).
+ *   - keys — tool + server/gateway env vars (mirrors desktop Settings →
+ *     Tools & Keys).
  *   - chat — personality, timezone, reasoning blocks, image attachments
  *     (keys mirror desktop Settings → Chat in apps/desktop/src/app/settings/constants.ts).
  *   - appearance — dashboard language, theme, and font (same pickers as the
@@ -30,7 +34,7 @@
  *     (keys mirror desktop Settings → Advanced).
  */
 
-import { Brain, Cpu, Lock, MessageCircle, Mic, Monitor, Palette, Wrench } from "lucide-react";
+import { Brain, Cpu, KeyRound, Lock, MessageCircle, Mic, Monitor, Palette, Wrench, Zap } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -60,6 +64,61 @@ import {
 import { ModelSettingsPanel } from "@/pages/ModelsPage";
 import { ProvidersCard } from "@/pages/PluginsPage";
 import { Label } from "@work4you/ui/ui/components/label";
+import {
+  EnvCredentialsPanel,
+  type EnvCredentialsView,
+} from "@/components/env-settings-panels";
+import { CustomEndpointsSettingsSection } from "@/components/custom-endpoints-settings";
+
+const PROVIDER_VIEWS = ["accounts", "api-keys", "custom-endpoints"] as const;
+type ProviderView = (typeof PROVIDER_VIEWS)[number];
+
+const KEYS_VIEWS = ["tools", "settings"] as const;
+type KeysView = (typeof KEYS_VIEWS)[number];
+
+function SettingsSubNav({
+  items,
+  activeId,
+  onSelect,
+}: {
+  items: { id: string; label: string }[];
+  activeId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <nav
+      aria-label="Section views"
+      className="mb-4 flex flex-wrap gap-1 border-b border-border pb-3"
+    >
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onSelect(item.id)}
+          aria-current={item.id === activeId ? "true" : undefined}
+          className={cn(
+            "px-3 py-1.5 font-sans text-display text-xs tracking-[0.08em] uppercase transition-colors cursor-pointer",
+            item.id === activeId
+              ? "bg-midground/10 text-midground"
+              : "text-text-secondary hover:text-midground hover:bg-midground/5",
+          )}
+        >
+          {item.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function providerPanelView(view: ProviderView): EnvCredentialsView {
+  if (view === "accounts") return "providers-accounts";
+  if (view === "api-keys") return "providers-api-keys";
+  return "providers-api-keys";
+}
+
+function keysPanelView(view: KeysView): EnvCredentialsView {
+  return view === "tools" ? "keys-tools" : "keys-settings";
+}
 
 /** Desktop Settings → Chat keys (apps/desktop/src/app/settings/constants.ts). */
 const CHAT_CONFIG_KEYS = [
@@ -180,6 +239,64 @@ function ModelSection() {
   );
 }
 
+/** Providers — accounts, API keys, custom endpoints (desktop parity). */
+function ProvidersSection({
+  view,
+  highlightKey,
+  onViewChange,
+}: {
+  view: ProviderView;
+  highlightKey: string | null;
+  onViewChange: (view: ProviderView) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <SettingsSubNav
+        activeId={view}
+        onSelect={(id) => onViewChange(id as ProviderView)}
+        items={[
+          { id: "accounts", label: "Accounts" },
+          { id: "api-keys", label: "API keys" },
+          { id: "custom-endpoints", label: "Custom Endpoints" },
+        ]}
+      />
+      {view === "custom-endpoints" ? (
+        <CustomEndpointsSettingsSection />
+      ) : (
+        <EnvCredentialsPanel
+          view={providerPanelView(view)}
+          highlightKey={highlightKey}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Tools & Keys — tool API keys + server/gateway env (desktop parity). */
+function KeysSection({
+  view,
+  highlightKey,
+  onViewChange,
+}: {
+  view: KeysView;
+  highlightKey: string | null;
+  onViewChange: (view: KeysView) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <SettingsSubNav
+        activeId={view}
+        onSelect={(id) => onViewChange(id as KeysView)}
+        items={[
+          { id: "tools", label: "Tools" },
+          { id: "settings", label: "Settings" },
+        ]}
+      />
+      <EnvCredentialsPanel view={keysPanelView(view)} highlightKey={highlightKey} />
+    </div>
+  );
+}
+
 /** Memory & Context — config toggles/budgets + provider card + compression. */
 function MemoryContextSection() {
   return (
@@ -197,6 +314,18 @@ const SECTIONS: SettingsSection[] = [
     label: "Model",
     icon: Cpu,
     render: () => <ModelSection />,
+  },
+  {
+    id: "providers",
+    label: "Providers",
+    icon: Zap,
+    render: () => null,
+  },
+  {
+    id: "keys",
+    label: "Tools & Keys",
+    icon: KeyRound,
+    render: () => null,
   },
   {
     id: "chat",
@@ -267,6 +396,17 @@ export default function SettingsPage() {
     SECTIONS.find((s) => s.id === requested) ??
     SECTIONS.find((s) => s.id === DEFAULT_SECTION)!;
 
+  const rawView = searchParams.get("view");
+  const providerView: ProviderView = PROVIDER_VIEWS.includes(
+    rawView as ProviderView,
+  )
+    ? (rawView as ProviderView)
+    : "accounts";
+  const keysView: KeysView = KEYS_VIEWS.includes(rawView as KeysView)
+    ? (rawView as KeysView)
+    : "tools";
+  const highlightKey = searchParams.get("key");
+
   useEffect(() => {
     setTitle("Settings");
     setEnd(null);
@@ -283,6 +423,8 @@ export default function SettingsPage() {
           const next = new URLSearchParams(prev);
           if (id === DEFAULT_SECTION) next.delete("section");
           else next.set("section", id);
+          next.delete("view");
+          next.delete("key");
           return next;
         },
         { replace: true },
@@ -290,6 +432,44 @@ export default function SettingsPage() {
     },
     [setSearchParams],
   );
+
+  const setNestedView = useCallback(
+    (view: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (
+            (view === "accounts" && active.id === "providers") ||
+            (view === "tools" && active.id === "keys")
+          ) {
+            next.delete("view");
+          } else {
+            next.set("view", view);
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [active.id, setSearchParams],
+  );
+
+  const sectionContent =
+    active.id === "providers" ? (
+      <ProvidersSection
+        view={providerView}
+        highlightKey={highlightKey}
+        onViewChange={setNestedView}
+      />
+    ) : active.id === "keys" ? (
+      <KeysSection
+        view={keysView}
+        highlightKey={highlightKey}
+        onViewChange={setNestedView}
+      />
+    ) : (
+      active.render()
+    );
 
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-6">
@@ -326,7 +506,7 @@ export default function SettingsPage() {
           })}
         </nav>
 
-        <div className="min-w-0 max-w-3xl flex-1">{active.render()}</div>
+        <div className="min-w-0 max-w-3xl flex-1">{sectionContent}</div>
       </div>
 
       <PluginSlot name="settings:bottom" />

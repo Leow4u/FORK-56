@@ -11,7 +11,6 @@ import {
   Download,
   Globe,
   HardDrive,
-  KeyRound,
   Link2,
   Play,
   Plus,
@@ -50,7 +49,6 @@ import type {
   StatusResponse,
   MemoryStatus,
   MemoryProviderInfo,
-  CredentialPoolProvider,
   CheckpointsResponse,
   HooksResponse,
   HookEntry,
@@ -196,7 +194,6 @@ export default function SystemPage() {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [memory, setMemory] = useState<MemoryStatus | null>(null);
-  const [pool, setPool] = useState<CredentialPoolProvider[]>([]);
   const [checkpoints, setCheckpoints] = useState<CheckpointsResponse | null>(
     null,
   );
@@ -207,12 +204,6 @@ export default function SystemPage() {
 
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [consoleOpen, setConsoleOpen] = useState(false);
-
-  // Add-credential form.
-  const [credProvider, setCredProvider] = useState("openrouter");
-  const [credKey, setCredKey] = useState("");
-  const [credLabel, setCredLabel] = useState("");
-  const [addingCred, setAddingCred] = useState(false);
 
   const [pendingBackupArchive, setPendingBackupArchive] = useState<string | null>(
     null,
@@ -258,7 +249,6 @@ export default function SystemPage() {
       api.getStatus(),
       api.getSystemStats(),
       api.getMemory(),
-      api.getCredentialPool(),
       api.getCheckpoints(),
       api.getHooks(),
       api.getCurator(),
@@ -267,11 +257,10 @@ export default function SystemPage() {
       // load without a separate effect / a forced network round-trip.
       api.checkWork4YouUpdate(false),
     ])
-      .then(([s, st, m, p, c, h, cur, prt, upd]) => {
+      .then(([s, st, m, c, h, cur, prt, upd]) => {
         if (s.status === "fulfilled") setStatus(s.value);
         if (st.status === "fulfilled") setStats(st.value);
         if (m.status === "fulfilled") setMemory(m.value);
-        if (p.status === "fulfilled") setPool(p.value.providers);
         if (c.status === "fulfilled") setCheckpoints(c.value);
         if (h.status === "fulfilled") setHooks(h.value);
         if (cur.status === "fulfilled") setCurator(cur.value);
@@ -332,47 +321,6 @@ export default function SystemPage() {
           loadAll();
         } catch (e) {
           showToast(`Reset failed: ${e}`, "error");
-          throw e;
-        }
-      },
-      [loadAll, showToast],
-    ),
-  });
-
-  // ── Credential pool ────────────────────────────────────────────────
-  const addCredential = async () => {
-    if (!credProvider.trim() || !credKey.trim()) {
-      showToast("Provider and API key required", "error");
-      return;
-    }
-    setAddingCred(true);
-    try {
-      await api.addCredentialPoolEntry(
-        credProvider.trim(),
-        credKey.trim(),
-        credLabel.trim() || undefined,
-      );
-      showToast("Credential added", "success");
-      setCredKey("");
-      setCredLabel("");
-      loadAll();
-    } catch (e) {
-      showToast(`Failed to add credential: ${e}`, "error");
-    } finally {
-      setAddingCred(false);
-    }
-  };
-
-  const credDelete = useConfirmDelete({
-    onDelete: useCallback(
-      async (key: string) => {
-        const [provider, idxStr] = key.split("|");
-        try {
-          await api.removeCredentialPoolEntry(provider, Number(idxStr));
-          showToast("Credential removed", "success");
-          loadAll();
-        } catch (e) {
-          showToast(`Failed to remove: ${e}`, "error");
           throw e;
         }
       },
@@ -678,14 +626,6 @@ export default function SystemPage() {
         title="Reset memory"
         description="This permanently erases the selected built-in memory files. This cannot be undone."
         loading={memoryReset.isDeleting}
-      />
-      <DeleteConfirmDialog
-        open={credDelete.isOpen}
-        onCancel={credDelete.cancel}
-        onConfirm={credDelete.confirm}
-        title="Remove credential"
-        description="Remove this pooled API key? The agent will no longer rotate through it."
-        loading={credDelete.isDeleting}
       />
       <DeleteConfirmDialog
         open={checkpointsPrune.isOpen}
@@ -1142,58 +1082,8 @@ export default function SystemPage() {
         </Card>
       </section>
 
-      {/* ── Credential pool ───────────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <H2 variant="sm" className="flex items-center gap-2 text-muted-foreground">
-          <KeyRound className="h-4 w-4" /> Credential pool
-        </H2>
-        <Card>
-          <CardContent className="flex flex-col gap-4 py-4">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-              <div className="grid gap-2">
-                <Label htmlFor="cred-provider">Provider</Label>
-                <Input id="cred-provider" value={credProvider} onChange={(e) => setCredProvider(e.target.value)} placeholder="openrouter" />
-              </div>
-              <div className="grid gap-2 sm:col-span-2">
-                <Label htmlFor="cred-key">API key</Label>
-                <Input id="cred-key" type="password" value={credKey} onChange={(e) => setCredKey(e.target.value)} placeholder="sk-…" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="cred-label">Label</Label>
-                <Input id="cred-label" value={credLabel} onChange={(e) => setCredLabel(e.target.value)} placeholder="optional" />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Button size="sm" className="uppercase" onClick={addCredential} disabled={addingCred} prefix={addingCred ? <Spinner /> : undefined}>
-                Add key
-              </Button>
-            </div>
-            {pool.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No pooled credentials. Add one above to enable key rotation.
-              </p>
-            )}
-            {pool.map((prov) => (
-              <div key={prov.provider} className="flex flex-col gap-2">
-                <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {prov.provider}
-                </span>
-                {prov.entries.map((entry) => (
-                  <div key={`${prov.provider}-${entry.index}`} className="flex items-center gap-3 border border-border bg-background/40 px-3 py-2">
-                    <span className="text-sm font-medium">{entry.label}</span>
-                    <span className="font-mono text-xs text-muted-foreground">{entry.token_preview}</span>
-                    <Badge tone="outline">{entry.auth_type}</Badge>
-                    {entry.last_status && <Badge tone="secondary">{entry.last_status}</Badge>}
-                    <Button ghost size="icon" className="ml-auto text-destructive" aria-label="Remove credential" onClick={() => credDelete.requestDelete(`${prov.provider}|${entry.index}`)}>
-                      <Trash2 />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </section>
+      {/* Credential pool removed from user-facing System page — internal
+          key rotation is operator-only and must not appear in the dashboard UI. */}
 
       {/* ── Operations ────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
