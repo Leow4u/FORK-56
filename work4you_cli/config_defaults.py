@@ -1544,6 +1544,11 @@ DEFAULT_CONFIG = {
         # The route stays reachable by URL — Settings and operators can still
         # open /config directly; only the nav entry is gated.
         "show_config_admin": False,
+        # Hide the Keys page (/env, legacy monolith) from the sidebar by
+        # default. User-facing credential management lives in /settings
+        # (Providers + Tools & Keys), mirroring the desktop app. The route
+        # stays reachable by URL for operators who know the path.
+        "show_env_admin": False,
         # OAuth gate configuration (engaged when ``--host`` is set and
         # ``--insecure`` is not). The bundled Work4You Portal plugin reads
         # both keys at startup; they are the canonical surface for these
