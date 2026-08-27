@@ -245,14 +245,12 @@ const BUILTIN_NAV_REST: NavItem[] = [
   // credentials live in Settings → Providers / Tools & Keys. Route stays
   // URL-reachable (see showEnvAdmin nav filter).
   { path: "/env", labelKey: "keys", label: "Keys", icon: KeyRound },
-  // URL-reachable (see showEnvAdmin nav filter).
+  // Operator-only maintenance console — hidden from nav by default; cloud
+  // metrics in Settings → My Computer, Portal + logs in Settings → Accounts.
+  // Route stays URL-reachable (see showSystemAdmin nav filter).
   { path: "/system", label: "System", icon: Wrench },
-  {
-    path: "/docs",
-    labelKey: "documentation",
-    label: "Documentation",
-    icon: BookOpen,
-  },
+  // Documentation lives in the footer account menu (AuthWidget), not the
+  // sidebar nav. The /docs route stays URL-reachable.
 ];
 
 const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
