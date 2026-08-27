@@ -2139,6 +2139,8 @@ export interface SessionInfo {
    *  the desktop sidebar reads/writes, so pin/archive stay in sync. */
   pinned?: boolean;
   archived?: boolean;
+  git_branch?: string | null;
+  cwd?: string | null;
 }
 
 export interface SessionLatestDescendantResponse {

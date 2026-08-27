@@ -12,6 +12,11 @@ const apiMocks = vi.hoisted(() => ({
   setSessionPinned: vi.fn(async () => ({ ok: true, pinned: true })),
   setSessionArchived: vi.fn(async () => ({ ok: true, archived: true })),
   renameSession: vi.fn(async () => ({ ok: true, title: "Renamed" })),
+  deleteSession: vi.fn(async () => ({ ok: true })),
+  exportSessionUrl: vi.fn(
+    (id: string, profile?: string) =>
+      `/api/sessions/${id}/export?profile=${profile ?? ""}`,
+  ),
 }));
 
 vi.mock("@/lib/api", () => ({ api: apiMocks }));
@@ -88,6 +93,23 @@ vi.mock("@work4you/ui/ui/components/input", () => ({
 
 vi.mock("@work4you/ui/ui/components/spinner", () => ({
   Spinner: () => <span data-spinner />,
+}));
+
+vi.mock("@/components/DeleteConfirmDialog", () => ({
+  DeleteConfirmDialog: ({
+    open,
+    onConfirm,
+    title,
+  }: {
+    open: boolean;
+    onConfirm: () => void;
+    title: string;
+  }) =>
+    open ? (
+      <button type="button" data-testid="delete-confirm" onClick={onConfirm}>
+        {title}
+      </button>
+    ) : null,
 }));
 
 function sessionFixture(overrides: Record<string, unknown>) {

@@ -648,13 +648,11 @@ export function useThinChatGateway(
       void refreshSessionUsage();
       return;
     }
-    if (!liveSessionIdRef.current) {
-      await createFreshSession();
-    }
+    // Home draft: reconnect only — session.create runs on first send (desktop parity).
+    setReady(true);
   }, [
     applySessionInfoPayload,
     bindLiveSession,
-    createFreshSession,
     gw,
     rememberStored,
     refreshSessionUsage,
@@ -885,10 +883,11 @@ export function useThinChatGateway(
           if (cancelled) return;
           applyResumeResult(resumed);
         } else {
-          await createFreshSession();
+          await gw.connect();
           if (cancelled) return;
           setPhase("home");
           setMessages([]);
+          setReady(true);
         }
       } catch (e) {
         if (!cancelled) {
@@ -1427,13 +1426,14 @@ export function useThinChatGateway(
       await gw.request("session.close", { session_id: sid }).catch(() => undefined);
     }
     try {
-      await createFreshSession();
+      await gw.connect();
       setPhase("home");
       setMessages([]);
+      setReady(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start new chat");
     }
-  }, [bindLiveSession, createFreshSession, gw]);
+  }, [bindLiveSession, gw]);
 
   return {
     phase,
