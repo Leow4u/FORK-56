@@ -59,11 +59,11 @@ export function createRendererLoopPauseController(onChange: () => void, { pauseW
  */
 export function installRendererAnimationPauseState(): () => void {
   const root = document.documentElement
-  let controller: ReturnType<typeof createRendererLoopPauseController>
+  const controller = createRendererLoopPauseController(() =>
+    root.toggleAttribute(RENDERER_ANIMATIONS_PAUSED_ATTRIBUTE, controller.isPaused()),
+  )
 
   const sync = () => root.toggleAttribute(RENDERER_ANIMATIONS_PAUSED_ATTRIBUTE, controller.isPaused())
-
-  controller = createRendererLoopPauseController(sync)
   sync()
 
   return () => {

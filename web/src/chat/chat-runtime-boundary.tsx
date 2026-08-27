@@ -28,7 +28,7 @@ export function ChatRuntimeBoundary({
   sessionId = null,
   cwd = null,
   canLoadEarlier = false,
-  loadingEarlier = false,
+  loadingEarlier: _loadingEarlier = false,
   onLoadEarlier,
 }: ChatRuntimeBoundaryProps) {
   const repository = useRuntimeMessageRepository(messages);

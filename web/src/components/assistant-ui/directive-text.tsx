@@ -16,10 +16,7 @@ import { useSessionLinkTitle } from '@/lib/session-link-title'
 import { parseSessionRefValue, sessionRefFallbackLabel } from '@/lib/session-refs'
 import { cn } from '@/lib/utils'
 
-import { referenceKind, referenceRe, referenceStyle, WIRE_REFERENCE_KINDS } from './reference-kinds'
-
-const WORK4YOU_REF_TYPES = WIRE_REFERENCE_KINDS
-type Work4YouRefType = (typeof WORK4YOU_REF_TYPES)[number]
+import { referenceKind, referenceRe, referenceStyle } from './reference-kinds'
 
 /** Icon glyphs come from the shared reference vocabulary, so the popover row
  *  and the chip can never drift apart. */
