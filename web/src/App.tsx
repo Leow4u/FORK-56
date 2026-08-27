@@ -10,6 +10,7 @@ import {
   type FocusEvent,
   type MouseEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -99,7 +100,7 @@ const ChannelsPage = lazy(() => import("@/pages/ChannelsPage"));
 const WebhooksPage = lazy(() => import("@/pages/WebhooksPage"));
 const SystemPage = lazy(() => import("@/pages/SystemPage"));
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
-import { useI18n } from "@/i18n";
+import { useI18n, type Translations } from "@/i18n";
 import { PluginPage, PluginSlot, usePlugins } from "@/plugins";
 import type { PluginManifest } from "@/plugins";
 import { useTheme } from "@/themes";
@@ -138,6 +139,35 @@ function UnknownRouteFallback({ pluginsLoading }: { pluginsLoading: boolean }) {
     return null;
   }
   return <Navigate to={homePath()} replace />;
+}
+
+type TooltipWarmRef = RefObject<number>;
+
+interface NavItem {
+  icon: ComponentType<{ className?: string }>;
+  label: string;
+  labelKey?: string;
+  path: string;
+}
+
+interface SidebarNavLinkProps {
+  closeMobile: () => void;
+  collapsed: boolean;
+  item: NavItem;
+  t: Translations;
+  tooltipWarmRef: TooltipWarmRef;
+}
+
+interface SidebarSessionsProps {
+  onNavigate: () => void;
+  onNewChat: () => void;
+  refreshToken: number;
+}
+
+interface SidebarTooltipProps {
+  anchor: HTMLElement;
+  label: string;
+  warmRef?: TooltipWarmRef;
 }
 
 const CHAT_NAV_ITEM: NavItem = {
