@@ -153,7 +153,9 @@ test('normalizeWork4YouHomeRoot maps profile homes back to the global Work4You r
     '/Users/test/.work4you'
   )
   assert.equal(
-    normalizeWork4YouHomeRoot('C:\\Users\\test\\AppData\\Local\\work4you\\profiles\\oracle', { pathModule: path.win32 }),
+    normalizeWork4YouHomeRoot('C:\\Users\\test\\AppData\\Local\\work4you\\profiles\\oracle', {
+      pathModule: path.win32
+    }),
     'C:\\Users\\test\\AppData\\Local\\work4you'
   )
   assert.equal(normalizeWork4YouHomeRoot('/Users/test/.work4you', { pathModule: path.posix }), '/Users/test/.work4you')

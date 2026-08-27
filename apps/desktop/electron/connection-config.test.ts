@@ -922,11 +922,19 @@ test('cookiesHaveSession handles non-arrays', () => {
 })
 
 test('AT_COOKIE_VARIANTS covers all three deploy shapes', () => {
-  assert.deepEqual(AT_COOKIE_VARIANTS, ['__Host-work4you_session_at', '__Secure-work4you_session_at', 'work4you_session_at'])
+  assert.deepEqual(AT_COOKIE_VARIANTS, [
+    '__Host-work4you_session_at',
+    '__Secure-work4you_session_at',
+    'work4you_session_at'
+  ])
 })
 
 test('RT_COOKIE_VARIANTS covers all three deploy shapes', () => {
-  assert.deepEqual(RT_COOKIE_VARIANTS, ['__Host-work4you_session_rt', '__Secure-work4you_session_rt', 'work4you_session_rt'])
+  assert.deepEqual(RT_COOKIE_VARIANTS, [
+    '__Host-work4you_session_rt',
+    '__Secure-work4you_session_rt',
+    'work4you_session_rt'
+  ])
 })
 
 // --- cookiesHaveLiveSession (AT or RT — the connectivity check) ---
