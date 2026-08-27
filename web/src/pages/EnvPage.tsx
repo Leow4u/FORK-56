@@ -835,7 +835,7 @@ export default function EnvPage() {
       .sort((a, b) => a.priority - b.priority);
 
     // Non-provider categories — use translated labels. Platform credentials
-    // (channel_managed) are configured on the Channels page, so the messaging
+    // (channel_managed) are configured on the Messaging page, so the messaging
     // category here is trimmed down to cross-cutting gateway / API / proxy
     // settings and relabelled accordingly.
     const CATEGORY_META_LABELS: Record<string, string> = {
@@ -846,7 +846,7 @@ export default function EnvPage() {
     const CATEGORY_META_HINTS: Record<string, string | undefined> = {
       messaging:
         t.common.gatewayHint ??
-        "Messaging platforms, the API server and webhooks are configured on the Channels page. These are gateway-wide settings (proxy/relay mode and the global allowlist).",
+        "Messaging platforms, the API server and webhooks are configured on the Messaging page. These are gateway-wide settings (proxy/relay mode and the global allowlist).",
     };
     const otherCategories = ["tool", "messaging", "setting"];
     const nonProvider = otherCategories.map((cat) => {

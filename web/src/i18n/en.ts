@@ -45,7 +45,7 @@ export const en: Translations = {
     messaging: "Messaging",
     gateway: "Gateway",
     gatewayHint:
-      "Messaging platforms, the API server and webhooks are configured on the Channels page. These are gateway-wide settings (proxy/relay mode and the global allowlist).",
+      "Messaging platforms, the API server and webhooks are configured on the Messaging page. These are gateway-wide settings (proxy/relay mode and the global allowlist).",
     pluginLoadFailed:
       "Could not load this plugin’s script. Check the Network tab (dashboard-plugins/…) and the server’s plugin path.",
     pluginNotRegistered:
@@ -83,6 +83,7 @@ export const en: Translations = {
       sessions: "Sessions",
       skills: "Capabilities",
       settings: "Settings",
+      messaging: "Messaging",
     },
     logOut: "Log out",
     modelToolsSheetSubtitle: "& tools",
@@ -335,7 +336,7 @@ export const en: Translations = {
       email: "Email",
       needsHomeChannel: "set a home channel first",
       noneConfigured:
-        "No messaging platforms configured. Set one up under Channels to deliver reports.",
+        "No messaging platforms configured. Set one up under Messaging to deliver reports.",
     },
   },
 

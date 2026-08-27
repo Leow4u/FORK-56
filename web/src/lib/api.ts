@@ -2105,7 +2105,7 @@ export interface EnvVarInfo {
   is_password: boolean;
   tools: string[];
   advanced: boolean;
-  /** True when this var is a messaging-platform credential owned by the Channels page. */
+  /** True when this var is a messaging-platform credential owned by the Messaging page. */
   channel_managed?: boolean;
   /** True when this key is set in .env but not in any catalog (user-added custom key). */
   custom?: boolean;

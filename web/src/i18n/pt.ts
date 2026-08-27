@@ -80,6 +80,7 @@ export const pt: Translations = {
       sessions: "Sessões",
       skills: "Capacidades",
       settings: "Configurações",
+      messaging: "Mensagens",
     },
     logOut: "Sair",
     modelToolsSheetSubtitle: "e ferramentas",

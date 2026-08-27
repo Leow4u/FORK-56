@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useSearchParams } from "react-router";
 import {
   AlertTriangle,
   Bot,
@@ -21,10 +30,15 @@ import { Button } from "@work4you/ui/ui/components/button";
 import { Card, CardContent } from "@work4you/ui/ui/components/card";
 import { Input } from "@work4you/ui/ui/components/input";
 import { Label } from "@work4you/ui/ui/components/label";
+import { Segmented } from "@work4you/ui/ui/components/segmented";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { Switch } from "@work4you/ui/ui/components/switch";
 import { Toast } from "@work4you/ui/ui/components/toast";
 import { useToast } from "@work4you/ui/hooks/use-toast";
+
+// Messaging → Pairing tab renders the existing Pairing page embedded
+// (header button inlined). Lazy so the Channels tab doesn't pay for it.
+const PairingPage = lazy(() => import("@/pages/PairingPage"));
 import { api } from "@/lib/api";
 import type {
   MessagingPlatform,
@@ -138,6 +152,46 @@ export default function ChannelsPage() {
   const [loading, setLoading] = useState(true);
   const { toast, showToast } = useToast();
   const { setEnd } = usePageHeader();
+
+  // Messaging tabs (desktop parity): Channels | Pairing via ?tab= —
+  // the same deep-link contract Capabilities uses for /skills?tab=mcp.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get("tab");
+  const tab: "channels" | "pairing" =
+    rawTab === "pairing" ? "pairing" : "channels";
+  const selectTab = useCallback(
+    (next: string) => {
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (next === "channels") p.delete("tab");
+          else p.set("tab", next);
+          return p;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  // Desktop paints a pending-count pill on each platform row. Segmented
+  // only takes a label string, so the Pairing tab reuses PairingPage's
+  // own count format: "Pairing (N)".
+  const [pendingCount, setPendingCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getPairing()
+      .then((res) => {
+        if (!cancelled) setPendingCount(res.pending?.length ?? 0);
+      })
+      .catch(() => {
+        // Pairing tab still loads its own list; a badge miss is fine.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab]);
 
   // Config modal state
   const [editing, setEditing] = useState<MessagingPlatform | null>(null);
@@ -275,6 +329,12 @@ export default function ChannelsPage() {
   };
 
   useLayoutEffect(() => {
+    // Pairing tab owns the header (Clear pending) the same way the
+    // Capabilities MCP tab does — skip Restart gateway while it's mounted.
+    if (tab === "pairing") {
+      setEnd(null);
+      return;
+    }
     setEnd(
       <Button
         className="uppercase"
@@ -288,25 +348,46 @@ export default function ChannelsPage() {
     );
     return () => setEnd(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setEnd, restarting]);
+  }, [setEnd, restarting, tab]);
 
   const configured = useMemo(
     () => platforms.filter((p) => p.configured).length,
     [platforms],
   );
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Spinner className="text-2xl text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <Toast toast={toast} />
 
+      <Segmented
+        value={tab}
+        onChange={(v) => selectTab(v)}
+        options={[
+          { value: "channels", label: "Channels" },
+          {
+            value: "pairing",
+            label:
+              pendingCount > 0 ? `Pairing (${pendingCount})` : "Pairing",
+          },
+        ]}
+      />
+
+      {tab === "pairing" ? (
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-24">
+              <Spinner className="text-2xl text-primary" />
+            </div>
+          }
+        >
+          <PairingPage embedded />
+        </Suspense>
+      ) : loading ? (
+        <div className="flex items-center justify-center py-24">
+          <Spinner className="text-2xl text-primary" />
+        </div>
+      ) : (
+        <>
       {/* Restart banner */}
       {restartNeeded && (
         <Card className="border-warning/50">
@@ -441,7 +522,7 @@ export default function ChannelsPage() {
                   </div>
                   <p className="text-xs">
                     You can leave allowed users blank. Work4You will then send new DM
-                    users a code that you approve from the Pairing page.
+                    users a code that you approve from the Pairing tab.
                   </p>
                 </div>
               )}
@@ -633,6 +714,8 @@ export default function ChannelsPage() {
           );
         })}
       </div>
+        </>
+      )}
     </div>
   );
 }
@@ -875,7 +958,7 @@ function WhatsAppOnboardingPanel({
         : "Self-chat mode will allow the linked account automatically when you save."
       : !allowedUsers.trim() && hasSavedAllowedUsers
         ? "Work4You will keep the saved WhatsApp allowlist."
-        : "If no allowed numbers were entered, Work4You replies with a pairing code. Approve it from the dashboard Pairing page.";
+        : "If no allowed numbers were entered, Work4You replies with a pairing code. Approve it from the dashboard Pairing tab.";
 
   return (
     <div className="rounded-sm border border-border bg-background/35 p-4">

@@ -102,6 +102,8 @@ export interface Translations {
       skills: string;
       /** Optional; English fallback in components. */
       settings?: string;
+      /** Optional; same string as common.messaging. */
+      messaging?: string;
     };
     /** Optional; English fallback in components. */
     logOut?: string;
