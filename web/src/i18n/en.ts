@@ -591,6 +591,12 @@ export const en: Translations = {
   theme: {
     title: "Theme",
     switchTheme: "Switch theme",
+    modeTitle: "Color mode",
+    modeDesc: "Fixed light or dark, or follow your system setting.",
+    modeLight: "Light",
+    modeDark: "Dark",
+    modeSystem: "System",
+    skinDesc: "Palette and typography. Color mode above controls brightness.",
     fontTitle: "Font",
     fontDefault: "Theme default",
     fontDefaultHint: "Use the active theme's font",

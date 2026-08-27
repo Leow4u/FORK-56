@@ -14,6 +14,8 @@
  *     Settings → Model in apps/desktop/src/app/settings/constants.ts).
  *   - chat — personality, timezone, reasoning blocks, image attachments
  *     (keys mirror desktop Settings → Chat in apps/desktop/src/app/settings/constants.ts).
+ *   - appearance — dashboard language, theme, and font (same pickers as the
+ *     sidebar switchers; mirrors desktop Settings → Appearance).
  *   - workspace — working directory, repo discovery, code execution, file limits
  *     (keys mirror desktop Settings → Workspace).
  *   - safety — approvals, allowlist, security/browser URL policy, checkpoints
@@ -27,7 +29,7 @@
  *     (keys mirror desktop Settings → Advanced).
  */
 
-import { Brain, Cpu, Lock, MessageCircle, Mic, Monitor, Wrench } from "lucide-react";
+import { Brain, Cpu, Lock, MessageCircle, Mic, Monitor, Palette, Wrench } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -40,6 +42,7 @@ import { api, type AuxiliaryModelsResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { PluginSlot } from "@/plugins";
+import { AppearanceSettingsSection } from "@/components/appearance-panels";
 import { FallbackModelsField } from "@/components/FallbackModelsField";
 import { SettingsConfigSection } from "@/components/SettingsConfigSection";
 import { ADVANCED_CONFIG_KEYS } from "@/lib/advanced-settings";
@@ -199,6 +202,12 @@ const SECTIONS: SettingsSection[] = [
     label: "Chat",
     icon: MessageCircle,
     render: () => <SettingsConfigSection keys={CHAT_CONFIG_KEYS} />,
+  },
+  {
+    id: "appearance",
+    label: "Appearance",
+    icon: Palette,
+    render: () => <AppearanceSettingsSection />,
   },
   {
     id: "workspace",

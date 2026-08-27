@@ -612,6 +612,14 @@ export interface Translations {
   theme: {
     title: string;
     switchTheme: string;
+    /** Brightness (light / dark / system). */
+    modeTitle?: string;
+    modeDesc?: string;
+    modeLight?: string;
+    modeDark?: string;
+    modeSystem?: string;
+    /** Palette picker helper copy. */
+    skinDesc?: string;
     /** Font-override section (optional — locales fall back to English). */
     fontTitle?: string;
     fontDefault?: string;

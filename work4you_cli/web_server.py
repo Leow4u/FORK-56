@@ -1173,6 +1173,11 @@ _SCHEMA_OVERRIDES: Dict[str, Dict[str, Any]] = {
         "description": "Web dashboard visual theme",
         "options": ["default", "midnight", "ember", "mono", "cyberpunk", "rose"],
     },
+    "dashboard.mode": {
+        "type": "select",
+        "description": "Web dashboard color mode (brightness)",
+        "options": ["light", "dark", "system"],
+    },
     "display.resume_display": {
         "type": "select",
         "description": "How resumed sessions display history",
@@ -1628,6 +1633,7 @@ from work4you_cli.web_models import (  # noqa: F401
     RawConfigUpdate,
     ThemeSetBody,
     FontSetBody,
+    ModeSetBody,
     _AgentPluginInstallBody,
     _PluginProvidersPutBody,
     _PluginVisibilityBody,
@@ -18026,6 +18032,40 @@ async def set_dashboard_font(body: FontSetBody):
             config["dashboard"]["font"] = font
             save_config(config)
         return {"ok": True, "font": font}
+
+    return await asyncio.to_thread(_run)
+
+
+_DASHBOARD_MODE_CHOICES = frozenset({"light", "dark", "system"})
+_DASHBOARD_MODE_DEFAULT = "system"
+
+
+@app.get("/api/dashboard/mode")
+async def get_dashboard_mode():
+    """Return the active dashboard color mode (light / dark / system)."""
+    def _run():
+        config = load_config()
+        mode = cfg_get(config, "dashboard", "mode", default=_DASHBOARD_MODE_DEFAULT)
+        if mode not in _DASHBOARD_MODE_CHOICES:
+            mode = _DASHBOARD_MODE_DEFAULT
+        return {"mode": mode}
+
+    return await asyncio.to_thread(_run)
+
+
+@app.put("/api/dashboard/mode")
+async def set_dashboard_mode(body: ModeSetBody):
+    """Set the dashboard color mode (persists to config.yaml)."""
+    mode = body.mode if body.mode in _DASHBOARD_MODE_CHOICES else _DASHBOARD_MODE_DEFAULT
+
+    def _run():
+        with _CONFIG_MUTATION_LOCK:
+            config = load_config()
+            if "dashboard" not in config:
+                config["dashboard"] = {}
+            config["dashboard"]["mode"] = mode
+            save_config(config)
+        return {"ok": True, "mode": mode}
 
     return await asyncio.to_thread(_run)
 
