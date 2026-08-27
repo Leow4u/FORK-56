@@ -128,4 +128,20 @@ describe("SettingsPage", () => {
       container.querySelector('[data-testid="model-settings-panel"]'),
     ).toBeNull();
   });
+
+  it("renders the Workspace section with the curated config keys", async () => {
+    await renderPage("/settings?section=workspace");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("Workspace");
+    const section = container.querySelector(
+      '[data-testid="settings-config-section"]',
+    );
+    expect(section).toBeTruthy();
+    expect(section?.textContent).toContain("terminal.cwd");
+    expect(section?.textContent).toContain("code_execution.mode");
+    expect(section?.textContent).toContain("file_read_max_chars");
+    expect(
+      container.querySelector('[data-testid="model-settings-panel"]'),
+    ).toBeNull();
+  });
 });
