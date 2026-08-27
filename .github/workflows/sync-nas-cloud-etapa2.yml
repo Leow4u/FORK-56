@@ -70,27 +70,53 @@ jobs:
           AGENT_IMAGE: ${{ inputs.agent_image || github.event.inputs.agent_image || '' }}
         run: |
           set -euo pipefail
-          # Only touch fly-machines.ts when the golden-image pin is being
-          # updated (explicit agent_image, fork default changed, or manual sync).
+          # Sync fly-machines.ts when the pin must change OR when the file's
+          # API/content drifted (e.g. new helpers that agents.ts imports).
+          # Do NOT rely on `git diff before..sha` alone — default checkout is
+          # shallow and that diff often no-ops under `if`, leaving NAS with a
+          # stale fly-machines while agents.ts already imports new symbols
+          # (broke Vercel: imagesMatch / rollMachineImage missing).
+          #
           # Portal-only pushes must not overwrite a newer NAS pin with a stale
-          # fork default — but they also must not preserve a stale NAS pin over
-          # an intentional fork default bump (see #51 follow-up).
+          # fork default — after a content sync we re-apply NAS_PIN when the
+          # fork pin was unchanged-by-intent (same as pre-sync NAS) wait:
+          # Prefer: content-normalize compare; on sync without AGENT_IMAGE,
+          # keep the newer of FORK_PIN/NAS_PIN by keeping NAS pin whenever
+          # FORK_PIN == old NAS was already equal... Actually:
+          # - AGENT_IMAGE → explicit pin
+          # - content drift → copy fork file, then if NAS_PIN set and no
+          #   AGENT_IMAGE and FORK_PIN != NAS_PIN, restore NAS_PIN (pin wins
+          #   from NAS; API wins from fork). Intentional fork pin bumps set
+          #   FORK_PIN != NAS_PIN AND are usually paired with golden deploy
+          #   passing AGENT_IMAGE. Manual workflow_dispatch syncs fork pin.
           SYNC_FLY_MACHINES=0
           if [ -n "${AGENT_IMAGE}" ]; then
             SYNC_FLY_MACHINES=1
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             SYNC_FLY_MACHINES=1
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
-              | grep -qx 'cloud/nas-sync/src/lib/fly-machines.ts'; then
-              SYNC_FLY_MACHINES=1
-            fi
           fi
           FORK_PIN="$(grep -oE 'deployment-[A-Z0-9]+' cloud/nas-sync/src/lib/fly-machines.ts | head -1 || true)"
           NAS_PIN="$(grep -oE 'deployment-[A-Z0-9]+' nas/src/lib/fly-machines.ts | head -1 || true)"
           if [ -n "${FORK_PIN}" ] && [ -n "${NAS_PIN}" ] && [ "${FORK_PIN}" != "${NAS_PIN}" ]; then
             echo "Fork/NAS pin drift (fork=${FORK_PIN}, nas=${NAS_PIN}) — syncing fly-machines.ts"
             SYNC_FLY_MACHINES=1
+          fi
+          # Content drift ignoring the pin string (API / helpers / comments).
+          normalize_fly() {
+            sed -E 's/deployment-[A-Z0-9]+/deployment-PIN/g' "$1"
+          }
+          if ! cmp -s \
+            <(normalize_fly cloud/nas-sync/src/lib/fly-machines.ts) \
+            <(normalize_fly nas/src/lib/fly-machines.ts); then
+            echo "fly-machines.ts content drift (ignoring pin) — syncing"
+            SYNC_FLY_MACHINES=1
+          fi
+          # Shallow-safe path check (best-effort; never blocks content compare).
+          if [ "${{ github.event_name }}" = "push" ]; then
+            if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" 2>/dev/null \
+              | grep -qx 'cloud/nas-sync/src/lib/fly-machines.ts'; then
+              SYNC_FLY_MACHINES=1
+            fi
           fi
 
           cp cloud/nas-sync/src/lib/agents.ts nas/src/lib/
@@ -103,6 +129,11 @@ jobs:
             if [ -n "${AGENT_IMAGE}" ]; then
               echo "Pinning agent image: ${AGENT_IMAGE}"
               sed -i "s|'registry\\.fly\\.io/work4you-cloud-runtime:deployment-[A-Z0-9]*'|'${AGENT_IMAGE}'|g" nas/src/lib/fly-machines.ts
+            elif [ -n "${NAS_PIN}" ] && [ -n "${FORK_PIN}" ] && [ "${FORK_PIN}" != "${NAS_PIN}" ] \
+              && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+              # Content/API sync must not clobber a newer NAS-only pin.
+              echo "Preserving NAS pin ${NAS_PIN} (fork had ${FORK_PIN})"
+              sed -i "s|'registry\\.fly\\.io/work4you-cloud-runtime:deployment-[A-Z0-9]*'|'registry.fly.io/work4you-cloud-runtime:${NAS_PIN}'|g" nas/src/lib/fly-machines.ts
             else
               echo "Syncing fly-machines.ts (fork default pin)"
             fi
