@@ -16,9 +16,11 @@
  *     (keys mirror desktop Settings → Chat in apps/desktop/src/app/settings/constants.ts).
  *   - workspace — working directory, repo discovery, code execution, file limits
  *     (keys mirror desktop Settings → Workspace).
+ *   - safety — approvals, allowlist, security/browser URL policy, checkpoints
+ *     (keys mirror desktop Settings → Safety).
  */
 
-import { Brain, Cpu, MessageCircle, Monitor } from "lucide-react";
+import { Brain, Cpu, Lock, MessageCircle, Monitor } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -53,6 +55,19 @@ const WORKSPACE_CONFIG_KEYS = [
   "terminal.persistent_shell",
   "terminal.env_passthrough",
   "file_read_max_chars",
+] as const;
+
+/** Desktop Settings → Safety keys (apps/desktop/src/app/settings/constants.ts). */
+const SAFETY_CONFIG_KEYS = [
+  "approvals.mode",
+  "approvals.timeout",
+  "approvals.mcp_reload_confirm",
+  "command_allowlist",
+  "security.redact_secrets",
+  "security.allow_private_urls",
+  "browser.allow_private_urls",
+  "browser.auto_local_for_private_urls",
+  "checkpoints.enabled",
 ] as const;
 
 interface SettingsSection {
@@ -125,6 +140,12 @@ const SECTIONS: SettingsSection[] = [
     label: "Workspace",
     icon: Monitor,
     render: () => <SettingsConfigSection keys={WORKSPACE_CONFIG_KEYS} />,
+  },
+  {
+    id: "safety",
+    label: "Safety",
+    icon: Lock,
+    render: () => <SettingsConfigSection keys={SAFETY_CONFIG_KEYS} />,
   },
   {
     // Where the agent keeps memory + which context engine compacts it —

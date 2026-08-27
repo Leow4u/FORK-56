@@ -144,4 +144,20 @@ describe("SettingsPage", () => {
       container.querySelector('[data-testid="model-settings-panel"]'),
     ).toBeNull();
   });
+
+  it("renders the Safety section with the curated config keys", async () => {
+    await renderPage("/settings?section=safety");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("Safety");
+    const section = container.querySelector(
+      '[data-testid="settings-config-section"]',
+    );
+    expect(section).toBeTruthy();
+    expect(section?.textContent).toContain("approvals.mode");
+    expect(section?.textContent).toContain("command_allowlist");
+    expect(section?.textContent).toContain("checkpoints.enabled");
+    expect(
+      container.querySelector('[data-testid="model-settings-panel"]'),
+    ).toBeNull();
+  });
 });
