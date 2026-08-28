@@ -9,8 +9,8 @@ name: Deploy Cloud Runtime (Golden Image)
 #
 # Run: Actions → "Deploy Cloud Runtime (Golden Image)" → Run workflow
 #
-# Build 2026-08-28: rebuild to ship the unified visual identity (#134) in the
-# bundled dashboard (web_dist) — paper/ink/olive default theme.
+# Build 2026-08-28b: rebuild to ship the quiet new-session hero (#137)
+# on top of the unified visual identity (#134) in the bundled dashboard.
 
 on:
   workflow_dispatch:
