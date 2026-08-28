@@ -4,7 +4,7 @@
  *
  * Launches the app with an empty config.yaml (no providers). The renderer
  * should detect the unconfigured state and show the DesktopOnboardingOverlay
- * with provider options / API key form.
+ * with the Work4You Portal account door.
  *
  * Prerequisite: `npm run build` must have been run so dist/ exists.
  */
@@ -35,7 +35,7 @@ test.describe('onboarding with no provider configured', () => {
     await waitForOnboarding(fixture.page, 90_000)
   })
 
-  test('onboarding shows provider options or API key form', async () => {
+  test('onboarding shows the Work4You Portal account door', async () => {
     if (!fixture) {
       test.skip(true, 'Previous test failed — no app running')
 
@@ -44,24 +44,16 @@ test.describe('onboarding with no provider configured', () => {
 
     const page = fixture.page
 
-    // The onboarding overlay should contain provider-related text.
-    // It might show OAuth providers, an API key form, or a "choose later"
-    // link. Verify at least one of these is visible.
     const rootText = await page.evaluate(() => {
       const root = document.getElementById('root')
 
       return root?.textContent ?? ''
     })
 
-    const hasProviderText =
-      rootText.includes('provider') ||
-      rootText.includes('Provider') ||
-      rootText.includes('API key') ||
-      rootText.includes('Sign in') ||
-      rootText.includes('OpenRouter') ||
-      rootText.includes('OpenAI')
-
-    expect(hasProviderText).toBe(true)
+    expect(rootText).toMatch(/Work4You Portal/)
+    expect(rootText).not.toMatch(/I'll choose a provider later/)
+    expect(rootText).not.toMatch(/I have an API key/)
+    expect(rootText).not.toMatch(/Other providers/)
   })
 
   test('screenshot of onboarding overlay', async () => {

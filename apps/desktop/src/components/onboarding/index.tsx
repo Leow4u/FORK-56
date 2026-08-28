@@ -18,7 +18,6 @@ import {
   confirmOnboardingModel,
   DEFAULT_MANUAL_ONBOARDING_REASON,
   DEFAULT_ONBOARDING_REASON,
-  dismissFirstRunOnboarding,
   type OnboardingContext,
   peekPendingProviderOAuth,
   refreshOnboarding,
@@ -279,13 +278,6 @@ export function DesktopOnboardingOverlay({
     return null
   }
 
-  // The user chose "I'll choose a provider later" on first run. Stay out of the
-  // way on every subsequent launch — they re-enter via Settings → Providers
-  // (manual mode), which sets manual=true and bypasses this gate.
-  if (!preview && onboarding.firstRunSkipped && !onboarding.manual) {
-    return null
-  }
-
   const { flow } = onboarding
   // Show the launch reason only when it's a meaningful, caller-supplied prompt —
   // suppress the generic defaults (useless noise) and provider-setup errors
@@ -400,13 +392,16 @@ function Preparing({ boot }: { boot: DesktopBootState }) {
 
 function Header() {
   const { t } = useI18n()
+  const { manual } = useStore($desktopOnboarding)
 
   return (
     <div className="flex items-start gap-4 bg-(--ui-chat-bubble-background) px-5 pt-5 pb-1">
       <BrandMark className="size-11 shrink-0" />
       <div className="min-w-0">
         <h2 className="text-xl font-semibold tracking-tight">{t.onboarding.headerTitle}</h2>
-        <p className="mt-1.5 text-sm leading-5 text-muted-foreground">{t.onboarding.headerDesc}</p>
+        <p className="mt-1.5 text-sm leading-5 text-muted-foreground">
+          {manual ? t.onboarding.headerDesc : t.onboarding.featuredPitch}
+        </p>
       </div>
     </div>
   )
@@ -433,6 +428,53 @@ const persistShowAll = (value: boolean) => {
   return value
 }
 
+function fallbackPortalProvider(): OAuthProvider {
+  return {
+    id: FEATURED_ID,
+    name: 'Work4You Portal',
+    flow: 'pkce',
+    cli_command: 'work4you login',
+    docs_url: 'https://portal.work4you.ai',
+    status: { logged_in: false }
+  }
+}
+
+function startPickerOAuth(provider: OAuthProvider, ctx: OnboardingContext) {
+  if (onboardingPreviewMode()) {
+    // Stay in the DEV preview: show login chrome without calling the bridge.
+    const next = new URL(window.location.href)
+    next.searchParams.set('onboarding', 'login')
+    window.history.replaceState(window.history.state, '', next)
+    seedOnboardingPreview('login')
+
+    return
+  }
+
+  void startProviderOAuth(provider, ctx)
+}
+
+function FirstRunAccountPicker({ ctx }: { ctx: OnboardingContext }) {
+  const { t } = useI18n()
+  const { providers } = useStore($desktopOnboarding)
+
+  if (providers === null) {
+    return <Status>{t.onboarding.lookingUpProviders}</Status>
+  }
+
+  // First-run is the Portal account door. Labs, API keys, and skip stay on
+  // Settings → Providers (manual mode). If the catalog omitted Portal, still
+  // offer only that account — never fall through to other labs or a key form.
+  const portal = providers.find(p => p.id === FEATURED_ID) ?? fallbackPortalProvider()
+
+  return (
+    <div className="grid gap-2">
+      <div className="grid max-h-[60dvh] gap-2 overflow-y-auto p-1">
+        <FeaturedProviderRow onSelect={p => startPickerOAuth(p, ctx)} provider={portal} />
+      </div>
+    </div>
+  )
+}
+
 export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const { t } = useI18n()
   const { localEndpoint, manual, mode, providers } = useStore($desktopOnboarding)
@@ -450,6 +492,10 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const hasOauth = ordered.length > 0
   const apiKeyOptions = useApiKeyCatalog()
 
+  if (!manual) {
+    return <FirstRunAccountPicker ctx={ctx} />
+  }
+
   // localEndpoint forces the key form regardless of `mode` (which a manual
   // provider refresh may flip back to 'oauth'); it preselects the local option
   // and hides the "back to sign in" link since the user came specifically to
@@ -464,31 +510,12 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
           onSave={(envKey, value, name, apiKey) => saveOnboardingApiKey(envKey, value, name, ctx, apiKey)}
           options={apiKeyOptions}
         />
-        {manual ? null : (
-          <div className="flex justify-center pt-1">
-            <ChooseLaterLink />
-          </div>
-        )}
       </div>
     )
   }
 
   if (providers === null) {
     return <Status>{t.onboarding.lookingUpProviders}</Status>
-  }
-
-  const select = (p: OAuthProvider) => {
-    if (onboardingPreviewMode()) {
-      // Stay in the DEV preview: show login chrome without calling the bridge.
-      const next = new URL(window.location.href)
-      next.searchParams.set('onboarding', 'login')
-      window.history.replaceState(window.history.state, '', next)
-      seedOnboardingPreview('login')
-
-      return
-    }
-
-    void startProviderOAuth(p, ctx)
   }
 
   const featured = ordered.find(p => p.id === FEATURED_ID) ?? null
@@ -503,14 +530,14 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   return (
     <div className="grid gap-2">
       <div className="grid max-h-[60dvh] gap-2 overflow-y-auto p-1">
-        {featured ? <FeaturedProviderRow onSelect={select} provider={featured} /> : null}
+        {featured ? <FeaturedProviderRow onSelect={p => startPickerOAuth(p, ctx)} provider={featured} /> : null}
         {showRest ? (
           <>
             {/* Fireworks leads the expanded list, matching CANONICAL_PROVIDERS
                 (Work4You → Fireworks), but stays hidden until the user opens it. */}
             <FireworksProviderRow onClick={() => openKeyForm('FIREWORKS_API_KEY')} />
             {rest.map(p => (
-              <ProviderRow key={p.id} onSelect={select} provider={p} />
+              <ProviderRow key={p.id} onSelect={p => startPickerOAuth(p, ctx)} provider={p} />
             ))}
             <OpenRouterProviderRow onClick={() => openKeyForm('OPENROUTER_API_KEY')} />
           </>
@@ -528,29 +555,12 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
           <ChevronDown className={cn('size-3.5 transition', showAll && 'rotate-180')} />
         </Button>
       ) : null}
-      <div className="flex items-center justify-between gap-3 pt-1">
-        {/* First run only: let the user defer the choice and land in the app.
-            In manual mode the overlay already has a close affordance, so the
-            "choose later" escape would be redundant — hide it. */}
-        {manual ? <span /> : <ChooseLaterLink />}
+      <div className="flex items-center justify-end gap-3 pt-1">
         <Button className="-mr-2 font-medium" onClick={() => openKeyForm()} size="xs" type="button" variant="text">
           {t.onboarding.haveApiKey}
         </Button>
       </div>
     </div>
-  )
-}
-
-// "I'll choose a provider later" — dismisses the first-run picker and persists
-// the skip so it never re-nags. The user connects a provider any time from
-// Settings → Providers. Rendered only on the unconfigured first-run flow.
-function ChooseLaterLink() {
-  const { t } = useI18n()
-
-  return (
-    <Button className="font-medium" onClick={() => dismissFirstRunOnboarding()} size="xs" type="button" variant="text">
-      {t.onboarding.chooseLater}
-    </Button>
   )
 }
 
@@ -728,14 +738,7 @@ export function ApiKeyForm({
 }
 
 function seedOnboardingPreview(mode: OnboardingPreviewMode) {
-  const portal: OAuthProvider = {
-    id: 'work4you',
-    name: 'Work4You Portal',
-    flow: 'pkce',
-    cli_command: 'work4you login',
-    docs_url: 'https://portal.work4you.ai',
-    status: { logged_in: false }
-  }
+  const portal = fallbackPortalProvider()
 
   const rest: OAuthProvider[] = [
     portal,

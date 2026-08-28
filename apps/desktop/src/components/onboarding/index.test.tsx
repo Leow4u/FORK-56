@@ -7,7 +7,7 @@ import type { OAuthProvider } from '@/types/work4you'
 
 import { Picker } from '.'
 
-function setProviders(providers: OAuthProvider[]) {
+function setProviders(providers: OAuthProvider[], patch: Partial<DesktopOnboardingState> = {}) {
   $desktopOnboarding.set({
     configured: false,
     flow: { status: 'idle' },
@@ -17,7 +17,8 @@ function setProviders(providers: OAuthProvider[]) {
     requested: false,
     firstRunSkipped: false,
     manual: false,
-    localEndpoint: false
+    localEndpoint: false,
+    ...patch
   } satisfies DesktopOnboardingState)
 }
 
@@ -46,14 +47,41 @@ afterEach(() => {
 })
 
 describe('onboarding Picker', () => {
-  it('features Work4You Portal and hides other providers behind a disclosure', () => {
+  it('first-run offers only Work4You Portal — no labs, API key, or skip', () => {
     setProviders([makeOAuthProvider('anthropic', 'Anthropic Claude'), makeOAuthProvider('work4you', 'Work4You Portal')])
     render(<Picker ctx={ctx} />)
 
     expect(screen.getByText('Work4You Portal')).toBeTruthy()
     expect(screen.getByText('Recommended')).toBeTruthy()
-    // Fireworks stays behind the disclosure with the other alternatives; only
-    // Work4You Portal is visible before the user expands the list.
+    expect(screen.queryByText('Fireworks AI')).toBeNull()
+    expect(screen.queryByText('Anthropic API Key')).toBeNull()
+    expect(screen.queryByText('OpenRouter')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Other providers' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'I have an API key' })).toBeNull()
+    expect(screen.queryByRole('button', { name: "I'll choose a provider later" })).toBeNull()
+  })
+
+  it('first-run still offers only Portal when the catalog omitted it', () => {
+    setProviders([makeOAuthProvider('anthropic', 'Anthropic Claude'), makeOAuthProvider('openai-codex', 'OpenAI Codex / ChatGPT')])
+    render(<Picker ctx={ctx} />)
+
+    expect(screen.getByText('Work4You Portal')).toBeTruthy()
+    expect(screen.getByText('Recommended')).toBeTruthy()
+    expect(screen.queryByText('Fireworks AI')).toBeNull()
+    expect(screen.queryByText('Anthropic API Key')).toBeNull()
+    expect(screen.queryByText('ChatGPT or Codex Subscription')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'I have an API key' })).toBeNull()
+    expect(screen.queryByRole('button', { name: "I'll choose a provider later" })).toBeNull()
+  })
+
+  it('manual mode keeps labs, keys, and the other-providers disclosure', () => {
+    setProviders(
+      [makeOAuthProvider('anthropic', 'Anthropic Claude'), makeOAuthProvider('work4you', 'Work4You Portal')],
+      { manual: true }
+    )
+    render(<Picker ctx={ctx} />)
+
+    expect(screen.getByText('Work4You Portal')).toBeTruthy()
     expect(screen.queryByText('Fireworks AI')).toBeNull()
     expect(screen.queryByText('Anthropic API Key')).toBeNull()
 
@@ -61,15 +89,20 @@ describe('onboarding Picker', () => {
 
     expect(screen.getByText('Fireworks AI')).toBeTruthy()
     expect(screen.getByText('Anthropic API Key')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'I have an API key' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Collapse' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: "I'll choose a provider later" })).toBeNull()
   })
 
-  it('shows Fireworks first in the expanded list, ahead of other OAuth providers', () => {
-    setProviders([
-      makeOAuthProvider('openai-codex', 'OpenAI Codex / ChatGPT'),
-      makeOAuthProvider('minimax-oauth', 'MiniMax'),
-      makeOAuthProvider('work4you', 'Work4You Portal')
-    ])
+  it('shows Fireworks first in the expanded manual list, ahead of other OAuth providers', () => {
+    setProviders(
+      [
+        makeOAuthProvider('openai-codex', 'OpenAI Codex / ChatGPT'),
+        makeOAuthProvider('minimax-oauth', 'MiniMax'),
+        makeOAuthProvider('work4you', 'Work4You Portal')
+      ],
+      { manual: true }
+    )
     render(<Picker ctx={ctx} />)
     fireEvent.click(screen.getByRole('button', { name: 'Other providers' }))
 
@@ -85,11 +118,14 @@ describe('onboarding Picker', () => {
     expect(indexOf('MiniMax')).toBeGreaterThan(indexOf('ChatGPT or Codex'))
   })
 
-  it('shows every provider directly when Work4You Portal is absent', () => {
-    setProviders([
-      makeOAuthProvider('anthropic', 'Anthropic Claude'),
-      makeOAuthProvider('openai-codex', 'OpenAI Codex / ChatGPT')
-    ])
+  it('shows every provider directly in manual mode when Work4You Portal is absent', () => {
+    setProviders(
+      [
+        makeOAuthProvider('anthropic', 'Anthropic Claude'),
+        makeOAuthProvider('openai-codex', 'OpenAI Codex / ChatGPT')
+      ],
+      { manual: true }
+    )
     render(<Picker ctx={ctx} />)
 
     expect(screen.getByText('Fireworks AI')).toBeTruthy()
@@ -97,18 +133,6 @@ describe('onboarding Picker', () => {
     expect(screen.getByText('ChatGPT or Codex Subscription')).toBeTruthy()
     expect(screen.queryByText('Other sign-in options')).toBeNull()
     expect(screen.queryByText('Recommended')).toBeNull()
-  })
-
-  it('offers "choose later" on first run and persists the skip', () => {
-    setProviders([makeOAuthProvider('work4you', 'Work4You Portal')])
-    render(<Picker ctx={ctx} />)
-
-    const skip = screen.getByRole('button', { name: "I'll choose a provider later" })
-
-    fireEvent.click(skip)
-
-    expect($desktopOnboarding.get().firstRunSkipped).toBe(true)
-    expect(window.localStorage.getItem('work4you-onboarding-skipped-v1')).toBe('1')
   })
 
   it('preview picker seeds login instead of starting OAuth', () => {
@@ -127,13 +151,5 @@ describe('onboarding Picker', () => {
     } finally {
       Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
     }
-  })
-
-  it('hides "choose later" in manual (add-provider) mode', () => {
-    setProviders([makeOAuthProvider('work4you', 'Work4You Portal')])
-    $desktopOnboarding.set({ ...$desktopOnboarding.get(), manual: true })
-    render(<Picker ctx={ctx} />)
-
-    expect(screen.queryByRole('button', { name: "I'll choose a provider later" })).toBeNull()
   })
 })
