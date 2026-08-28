@@ -1,5 +1,3 @@
-import { Typography } from "@work4you/ui/ui/components/typography/index";
-
 import { useI18n } from "@/i18n";
 import type { ConnectionState, GatewayClient } from "@/lib/gatewayClient";
 import { cn } from "@/lib/utils";
@@ -36,7 +34,7 @@ export interface EmptyHomeProps {
 }
 
 /**
- * First-paint chat surface: brand + centered composer dock with session chrome.
+ * First-paint chat surface: quiet headline + centered composer dock.
  */
 export function EmptyHome({
   draft,
@@ -57,21 +55,22 @@ export function EmptyHome({
   onWorkspaceClick,
 }: EmptyHomeProps) {
   const { t } = useI18n();
+  const title = t.thinChat?.emptyTitle ?? "Ready when you are.";
   const subtitle =
     t.thinChat?.emptySubtitle ??
     "Ask anything. Your agent runs on this machine.";
   const suggestions = t.thinChat?.suggestions ?? DEFAULT_SUGGESTIONS;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pb-16 pt-8">
+    <div
+      className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 pb-16 pt-8"
+      data-slot="empty-home"
+    >
       <div className="flex w-full max-w-3xl flex-col items-center gap-8">
         <div className="flex flex-col items-center gap-2 text-center">
-          <Typography
-            mondwest
-            className="text-display text-[1.75rem] leading-none tracking-[0.04em] text-foreground sm:text-[2rem]"
-          >
-            Work4You
-          </Typography>
+          <p className="text-xl font-semibold leading-snug tracking-tight text-foreground">
+            {title}
+          </p>
           <p className="max-w-md text-sm text-muted-foreground">{subtitle}</p>
         </div>
 

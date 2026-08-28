@@ -152,7 +152,7 @@ describe("ChatPage thin shell", () => {
       await Promise.resolve();
     });
     expect(container.querySelector(".work4you-chat-xterm-host")).toBeNull();
-    expect(container.textContent).toContain("Work4You");
+    expect(container.textContent).toContain("Ready when you are.");
     expect(container.querySelector('[data-plugin-slot="chat:top"]')).toBeTruthy();
   });
 
