@@ -1,6 +1,7 @@
 import { useStore } from '@nanostores/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { BrandMark } from '@/components/brand-mark'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { Input } from '@/components/ui/input'
@@ -224,18 +225,26 @@ export function DesktopOnboardingOverlay({
     window.setTimeout(() => confirmOnboardingModel(ctx), ONBOARDING_EXIT_MS)
   }
 
+  const preview = onboardingPreviewMode()
+
   useEffect(() => {
+    if (preview) {
+      seedOnboardingPreview(preview)
+
+      return
+    }
+
     if (enabled || onboarding.requested) {
       void refreshOnboarding(ctx)
     }
-  }, [ctx, enabled, onboarding.requested])
+  }, [ctx, enabled, onboarding.requested, preview])
 
   // When the Providers settings page asked to connect a specific provider, the
   // store stashed its id. Once the provider list has loaded and we're back at
   // an idle picker, launch that exact OAuth flow so the user lands directly in
   // sign-in instead of the picker they just came from.
   useEffect(() => {
-    if (!onboarding.manual || onboarding.providers === null || onboarding.flow.status !== 'idle') {
+    if (preview || !onboarding.manual || onboarding.providers === null || onboarding.flow.status !== 'idle') {
       return
     }
 
@@ -258,21 +267,21 @@ export function DesktopOnboardingOverlay({
       // and let a later refresh retry.
       clearPendingProviderOAuth()
     }
-  }, [ctx, onboarding.flow.status, onboarding.manual, onboarding.providers])
+  }, [ctx, onboarding.flow.status, onboarding.manual, onboarding.providers, preview])
 
   // Mount from frame 1 so we replace the boot overlay seamlessly. The
   // configured field stays null until the runtime check resolves; only then
   // do we know whether to dismiss (true) or surface the picker (false).
   // EXCEPTION: manual mode (user opened the selector from a working app to
   // add/switch a provider) shows the overlay regardless of configured state.
-  if (onboarding.configured === true && !onboarding.manual) {
+  if (!preview && onboarding.configured === true && !onboarding.manual) {
     return null
   }
 
   // The user chose "I'll choose a provider later" on first run. Stay out of the
   // way on every subsequent launch — they re-enter via Settings → Providers
   // (manual mode), which sets manual=true and bypasses this gate.
-  if (onboarding.firstRunSkipped && !onboarding.manual) {
+  if (!preview && onboarding.firstRunSkipped && !onboarding.manual) {
     return null
   }
 
@@ -293,7 +302,7 @@ export function DesktopOnboardingOverlay({
   // In manual mode the app is already configured, so the flow is "ready"
   // immediately — no runtime gate needed. Otherwise wait for the readiness
   // check (configured === false) before showing the picker.
-  const ready = onboarding.manual || (enabled && onboarding.configured === false)
+  const ready = Boolean(preview) || onboarding.manual || (enabled && onboarding.configured === false)
   const showPicker = flow.status === 'idle' || flow.status === 'success'
   // The final "you're in" screen drops the card chrome and floats centered on
   // the surface — same bare, cinematic treatment as the connecting overlay.
@@ -392,9 +401,12 @@ function Header() {
   const { t } = useI18n()
 
   return (
-    <div className="bg-(--ui-chat-bubble-background) px-5 pt-5 pb-1">
-      <h2 className="text-[0.9375rem] font-semibold tracking-tight">{t.onboarding.headerTitle}</h2>
-      <p className="mt-1 max-w-xl text-[0.8125rem] leading-5 text-(--ui-text-tertiary)">{t.onboarding.headerDesc}</p>
+    <div className="flex items-start gap-4 bg-(--ui-chat-bubble-background) px-5 pt-5 pb-1">
+      <BrandMark className="size-11 shrink-0" />
+      <div className="min-w-0">
+        <h2 className="text-xl font-semibold tracking-tight">{t.onboarding.headerTitle}</h2>
+        <p className="mt-1.5 text-sm leading-5 text-muted-foreground">{t.onboarding.headerDesc}</p>
+      </div>
     </div>
   )
 }
@@ -699,4 +711,89 @@ export function ApiKeyForm({
       </div>
     </div>
   )
+}
+
+type OnboardingPreviewMode = 'confirm' | 'login' | 'picker'
+
+// Dev affordance, sibling of `?connecting=1`: force the first-run overlay so
+// the picker / sign-in / confirm screens can be reviewed without an empty
+// WORK4YOU_HOME. Stripped from the production bundle.
+function onboardingPreviewMode(): OnboardingPreviewMode | null {
+  if (!import.meta.env.DEV || typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    const value = new URLSearchParams(window.location.search).get('onboarding')
+
+    if (value === '1' || value === 'picker') {
+      return 'picker'
+    }
+
+    if (value === 'login' || value === 'confirm') {
+      return value
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+function seedOnboardingPreview(mode: OnboardingPreviewMode) {
+  const portal: OAuthProvider = {
+    id: 'work4you',
+    name: 'Work4You Portal',
+    flow: 'pkce',
+    cli_command: 'work4you login',
+    docs_url: 'https://portal.work4you.ai',
+    status: { logged_in: false }
+  }
+
+  const rest: OAuthProvider[] = [
+    portal,
+    {
+      id: 'openai-codex',
+      name: 'ChatGPT or Codex Subscription',
+      flow: 'pkce',
+      cli_command: 'work4you login openai-codex',
+      docs_url: 'https://chatgpt.com',
+      status: { logged_in: false }
+    }
+  ]
+
+  const flow =
+    mode === 'login'
+      ? {
+          status: 'awaiting_user' as const,
+          provider: portal,
+          code: '',
+          start: {
+            flow: 'pkce' as const,
+            auth_url: 'https://portal.work4you.ai/oauth',
+            expires_in: 600,
+            session_id: 'preview'
+          }
+        }
+      : mode === 'confirm'
+        ? {
+            status: 'confirming_model' as const,
+            currentModel: 'anthropic/claude-sonnet-4.5',
+            label: 'Work4You Portal',
+            providerSlug: 'work4you',
+            saving: false
+          }
+        : { status: 'idle' as const }
+
+  $desktopOnboarding.set({
+    configured: false,
+    flow,
+    mode: 'oauth',
+    providers: rest,
+    reason: null,
+    requested: true,
+    firstRunSkipped: false,
+    manual: false,
+    localEndpoint: false
+  })
 }

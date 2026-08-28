@@ -22,7 +22,7 @@ import {
 } from '@/store/onboarding'
 import { getGlobalModelOptions } from '@/work4you'
 
-import { DecodedLabel, GlyphText, HackeryButton, useScramble } from './glyph'
+import { GlyphText, useScramble } from './glyph'
 import { providerTitle } from './providers'
 
 export function FlowPanel({
@@ -48,7 +48,7 @@ export function FlowPanel({
   }
 
   if (flow.status === 'success') {
-    return <DecodedLabel text={t.onboarding.connectedPicking(title)} />
+    return <Status>{t.onboarding.connectedPicking(title)}</Status>
   }
 
   if (flow.status === 'confirming_model') {
@@ -227,7 +227,6 @@ function ConfirmingModelPanel({
 }) {
   const { t } = useI18n()
   const scrambledModel = useScramble(flow.currentModel, leaving)
-  const scrambledBegin = useScramble(t.onboarding.startChatting, leaving)
   // Local state controls whether the model picker dialog is open.
   // We reuse the existing ModelPickerDialog component (the same picker
   // available from the chat shell) rather than building an inline
@@ -251,7 +250,14 @@ function ConfirmingModelPanel({
 
   return (
     <div className="grid place-items-center gap-7 py-6 text-center">
-      <DecodedLabel leaving={leaving} text={t.onboarding.connectedProvider(flow.label)} />
+      <h2
+        className={cn(
+          'text-xl font-semibold tracking-tight text-foreground transition duration-[360ms] ease-out',
+          leaving ? 'translate-y-2 opacity-0' : 'translate-y-0 opacity-100'
+        )}
+      >
+        {t.onboarding.connectedProvider(flow.label)}
+      </h2>
 
       <div
         className={cn(
@@ -260,9 +266,7 @@ function ConfirmingModelPanel({
         )}
       >
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[0.625rem] uppercase tracking-[0.2em] text-muted-foreground">
-            {t.onboarding.defaultModel}
-          </span>
+          <span className="text-xs text-muted-foreground">{t.onboarding.defaultModel}</span>
           {freeTier === true && (
             <span className="rounded-sm bg-emerald-500/15 px-1 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
               {t.onboarding.freeTier}
@@ -299,12 +303,10 @@ function ConfirmingModelPanel({
           leaving ? 'opacity-0 saturate-0' : 'opacity-100 saturate-100'
         )}
       >
-        <HackeryButton
-          disabled={flow.saving}
-          label={<GlyphText text={scrambledBegin} />}
-          loading={flow.saving}
-          onClick={onBegin}
-        />
+        <Button disabled={flow.saving} onClick={onBegin} size="lg">
+          {flow.saving ? <Loader className="size-4 text-primary-foreground" /> : null}
+          {t.onboarding.startChatting}
+        </Button>
       </div>
 
       {/*

@@ -1085,12 +1085,16 @@
   animation-direction: reverse;
 }
 
-/* Work4You Portal hero: slower, blue → orange arc. */
-.arc-border.arc-work4you,
-:root.dark .arc-border.arc-work4you {
-  --arc-c1: #4f8cff;
-  --arc-c2: #ff8c42;
+/* Work4You Portal hero: slower, olive → ink arc (papel/tinta/oliva). */
+.arc-border.arc-work4you {
+  --arc-c1: #4d5943;
+  --arc-c2: #1a1915;
   --arc-duration: 3.27s;
+}
+
+:root.dark .arc-border.arc-work4you {
+  --arc-c1: #c9d2bc;
+  --arc-c2: #e9e7df;
 }
 
 /* Sidebar session row — a thin, clipped, single-line host, so it differs twice
