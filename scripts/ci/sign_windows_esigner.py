@@ -30,6 +30,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import errno
 import hashlib
 import os
 import shutil
@@ -247,6 +248,46 @@ def _run(argv: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> su
     )
 
 
+def _is_cross_device_replace_error(exc: OSError) -> bool:
+    """True for Windows WinError 17 and POSIX EXDEV (not the same volume)."""
+    if getattr(exc, "winerror", None) == 17:
+        return True
+    return exc.errno == errno.EXDEV
+
+
+def replace_file(src: Path, dst: Path) -> None:
+    """Replace ``dst`` with ``src``, including Windows cross-drive moves.
+
+    ``os.replace`` cannot move a file across volumes on Windows
+    (``WinError 17`` / ``ERROR_NOT_SAME_DEVICE``). GitHub-hosted Windows
+    runners keep ``%TEMP%`` on ``C:`` and the workspace on ``D:``, which is
+    the layout that failed after CodeSignTool had already signed the
+    installer (``Code signed successfully`` then ``os.replace``).
+    """
+    src = Path(src)
+    dst = Path(dst)
+    try:
+        os.replace(src, dst)
+        return
+    except OSError as exc:
+        if not _is_cross_device_replace_error(exc):
+            raise
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{dst.name}.",
+        suffix=".tmp",
+        dir=str(dst.parent),
+    )
+    os.close(fd)
+    tmp_path = Path(tmp_name)
+    try:
+        shutil.copyfile(src, tmp_path)
+        os.replace(tmp_path, dst)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+    src.unlink(missing_ok=True)
+
+
 def sign_file(
     input_path: Path,
     *,
@@ -263,7 +304,11 @@ def sign_file(
     if not jar.is_file():
         raise SignError(f"CodeSignTool jar not found: {jar}")
 
-    out_dir = Path(tempfile.mkdtemp(prefix="work4you-esigner-"))
+    # Stage next to the installer so the common path is a same-volume
+    # replace. Windows GHA still needs replace_file() if TEMP stays on C:.
+    out_dir = Path(
+        tempfile.mkdtemp(prefix=".work4you-esigner-", dir=str(input_path.parent))
+    )
     try:
         argv = codesigntool_argv(
             java=java,
@@ -294,7 +339,7 @@ def sign_file(
                 raise SignError(
                     f"signed file missing in {out_dir}; contents: {listing}"
                 )
-        os.replace(signed, input_path)
+        replace_file(signed, input_path)
     finally:
         shutil.rmtree(out_dir, ignore_errors=True)
 

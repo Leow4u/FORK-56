@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import os
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -180,9 +181,80 @@ def test_sign_file_replaces_input_from_output_dir(tmp_path):
         assert env["CODE_SIGN_TOOL_PATH"] == str(tool_dir)
         out_flag = next(a for a in argv if a.startswith("-output_dir_path="))
         out_dir = Path(out_flag.split("=", 1)[1])
+        assert out_dir.parent == exe.parent
         (out_dir / "Work4You-Setup.exe").write_bytes(b"signed-bytes")
         return SimpleNamespace(returncode=0, stdout="Code signed successfully\n", stderr="")
 
+    mod.sign_file(
+        exe,
+        creds=VALID_ENV,
+        java="java",
+        tool_dir=tool_dir,
+        runner=fake_runner,
+    )
+    assert exe.read_bytes() == b"signed-bytes"
+
+
+def test_is_cross_device_replace_error_winerror_17_and_exdev():
+    win = OSError(17, "The system cannot move the file to a different disk drive")
+    win.winerror = 17
+    assert mod._is_cross_device_replace_error(win) is True
+    posix = OSError(mod.errno.EXDEV, "Invalid cross-device link")
+    assert mod._is_cross_device_replace_error(posix) is True
+    other = OSError(13, "Permission denied")
+    assert mod._is_cross_device_replace_error(other) is False
+
+
+def test_replace_file_falls_back_when_os_replace_is_cross_device(tmp_path, monkeypatch):
+    src = tmp_path / "signed.exe"
+    dst = tmp_path / "Work4You-Setup.exe"
+    src.write_bytes(b"signed-bytes")
+    dst.write_bytes(b"unsigned-bytes")
+
+    calls = {"n": 0}
+    real_replace = os.replace
+
+    def flaky_replace(a, b):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            err = OSError(17, "The system cannot move the file to a different disk drive")
+            err.winerror = 17
+            err.errno = 17
+            raise err
+        return real_replace(a, b)
+
+    monkeypatch.setattr(mod.os, "replace", flaky_replace)
+    mod.replace_file(src, dst)
+    assert dst.read_bytes() == b"signed-bytes"
+    assert not src.exists()
+    assert calls["n"] >= 2
+
+
+def test_sign_file_survives_cross_device_replace(tmp_path, monkeypatch):
+    tool_dir = tmp_path / "tool"
+    (tool_dir / "jar").mkdir(parents=True)
+    (tool_dir / "jar" / "code_sign_tool-1.3.2.jar").write_bytes(b"jar")
+    exe = tmp_path / "Work4You-Setup.exe"
+    exe.write_bytes(b"unsigned-bytes")
+
+    real_replace = os.replace
+
+    def flaky_replace(a, b):
+        src = Path(a)
+        dst = Path(b)
+        if src.name == "Work4You-Setup.exe" and dst.name == "Work4You-Setup.exe":
+            err = OSError(17, "The system cannot move the file to a different disk drive")
+            err.winerror = 17
+            raise err
+        return real_replace(a, b)
+
+    def fake_runner(argv, *, cwd, env=None):
+        out_flag = next(a for a in argv if a.startswith("-output_dir_path="))
+        out_dir = Path(out_flag.split("=", 1)[1])
+        (out_dir / "Work4You-Setup.exe").write_bytes(b"signed-bytes")
+        return SimpleNamespace(returncode=0, stdout="Code signed successfully\n", stderr="")
+
+    monkeypatch.setattr(mod.os, "replace", flaky_replace)
     mod.sign_file(
         exe,
         creds=VALID_ENV,
