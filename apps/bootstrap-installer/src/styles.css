@@ -30,6 +30,45 @@
  */
 @import '../../desktop/src/styles.css';
 
+/*
+ * Plus Jakarta Sans — bundled locally. The desktop loads this face via
+ * applyTheme()'s Google Fonts fontUrl; the installer has no theme runtime
+ * and Tauri CSP is font-src 'self', so a <link> to fonts.googleapis.com
+ * would be a no-op in the packaged app. Latin subset, SIL OFL 1.1
+ * (src/fonts/OFL.txt).
+ */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/plus-jakarta-sans-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/plus-jakarta-sans-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./fonts/plus-jakarta-sans-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/plus-jakarta-sans-700.woff2') format('woff2');
+}
+
 /* Installer-only additions: a fade-in animation and a warm radial glow
    for the welcome screen. Everything else inherits from the desktop. */
 @keyframes work4you-fade-in {

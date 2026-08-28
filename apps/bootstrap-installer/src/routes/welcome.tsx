@@ -1,13 +1,13 @@
 import { BrandMark } from '../components/brand-mark'
-import { HackeryButton } from '../components/hackery-button'
+import { Button } from '../components/button'
 import { startInstall } from '../store'
 
 /*
  * Welcome screen.
  *
  * Same quiet hero the rest of the product uses after the visual-identity
- * pass: BrandMark + sentence-case headline + muted tagline + the existing
- * [ Install ] CTA. Copy and the startInstall() click are unchanged.
+ * pass: BrandMark + sentence-case headline + muted tagline + the system
+ * ink Button. Copy and the startInstall() click are unchanged.
  */
 export default function Welcome() {
   return (
@@ -22,7 +22,9 @@ export default function Welcome() {
             background &mdash; takes a few minutes.
           </p>
         </div>
-        <HackeryButton label="Install" onClick={() => void startInstall()} />
+        <Button onClick={() => void startInstall()} size="lg">
+          Install
+        </Button>
       </div>
     </div>
   )

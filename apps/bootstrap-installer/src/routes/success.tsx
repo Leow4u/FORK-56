@@ -2,16 +2,18 @@ import { AlertCircle } from 'lucide-react'
 import { useState } from 'react'
 
 import { BrandMark } from '../components/brand-mark'
-import { HackeryButton } from '../components/hackery-button'
+import { Button } from '../components/button'
+import { Loader } from '../components/loader'
 import { launchWork4YouDesktop } from '../store'
 
 /*
- * Success screen. Same quiet BrandMark hero as Welcome. Launching the
- * desktop can fail (e.g. Stage-Desktop was skipped and Work4You.exe
- * doesn't exist). We catch the Tauri error and surface it inline rather
- * than silently doing nothing — the previous version had
- * `onClick={() => void launchWork4YouDesktop()}` which swallowed the
- * rejection and left the user staring at an unresponsive button.
+ * Success screen. Same quiet BrandMark hero as Welcome, with the system
+ * ink Launch button. Launching the desktop can fail (e.g. Stage-Desktop
+ * was skipped and Work4You.exe doesn't exist). We catch the Tauri error
+ * and surface it inline rather than silently doing nothing — the
+ * previous version had `onClick={() => void launchWork4YouDesktop()}`
+ * which swallowed the rejection and left the user staring at an
+ * unresponsive button.
  */
 export default function Success() {
   const [error, setError] = useState<string | null>(null)
@@ -46,12 +48,10 @@ export default function Success() {
           </p>
         </div>
 
-        <HackeryButton
-          disabled={launching}
-          label={launching ? 'Launching' : 'Launch'}
-          loading={launching}
-          onClick={() => void handleLaunch()}
-        />
+        <Button disabled={launching} onClick={() => void handleLaunch()} size="lg">
+          {launching ? <Loader className="size-4 text-primary-foreground" /> : null}
+          {launching ? 'Launching' : 'Launch'}
+        </Button>
 
         {error && (
           <div className="flex max-w-md items-start gap-2 text-left text-sm" role="alert">
