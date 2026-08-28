@@ -135,9 +135,8 @@ export function DecodedLabel({ leaving, text }: { leaving?: boolean; text: strin
   )
 }
 
-// Terminal-flavored CTA to match the connecting overlay's hacker aesthetic:
-// mono, uppercase, letter-spaced, wrapped in primary brackets that light up on
-// hover. The whole onboarding "you're in" moment leans into this motif.
+// Legacy bracketed CTA. First-run Confirm/Begin now uses the system ink
+// Button; this stays exported so any remaining caller keeps compiling.
 export function HackeryButton({
   disabled,
   label,
