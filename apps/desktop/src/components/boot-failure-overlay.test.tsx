@@ -86,6 +86,22 @@ describe('BootFailureOverlay', () => {
     expect(screen.queryByRole('button', { name: /use local gateway/i })).toBeNull()
   })
 
+  it('stays hidden during onboarding preview so the picker is reviewable', () => {
+    const originalLocation = window.location
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, search: '?onboarding=1' }
+    })
+
+    try {
+      render(<BootFailureOverlay />)
+      expect(screen.queryByRole('button', { name: /retry/i })).toBeNull()
+      expect(screen.queryByText(/couldn't start/i)).toBeNull()
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+    }
+  })
+
   it('leads with Gateway settings and drops Repair for a remote (token) failure', async () => {
     const restore = stubDesktop(remoteToken)
 
