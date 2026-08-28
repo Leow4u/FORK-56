@@ -157,14 +157,15 @@ class TestSetupWizardOpenclawIntegration:
             patch("work4you_cli.auth.get_active_provider", return_value=None),
             # User presses Enter to start
             patch("builtins.input", return_value=""),
-            # Select "Full setup" (index 1) so we exercise the full path
-            patch.object(setup_mod, "prompt_choice", return_value=1),
-            # Mock the migration offer
+            # Mock the migration offer — declined, so first-run is Portal only
             patch.object(
                 setup_mod, "_offer_openclaw_migration", return_value=False
             ) as mock_migration,
-            # Mock the actual setup sections so they don't run
-            patch.object(setup_mod, "setup_model_provider"),
+            patch.object(
+                setup_mod, "_run_first_time_quick_setup"
+            ) as mock_quick,
+            # Full-wizard sections must not run on a declined-migration first-run
+            patch.object(setup_mod, "setup_model_provider") as mock_model,
             patch.object(setup_mod, "setup_terminal_backend"),
             patch.object(setup_mod, "setup_agent_settings"),
             patch.object(setup_mod, "setup_gateway"),
@@ -175,6 +176,8 @@ class TestSetupWizardOpenclawIntegration:
             setup_mod.run_setup_wizard(args)
 
         mock_migration.assert_called_once_with(tmp_path)
+        mock_quick.assert_called_once()
+        mock_model.assert_not_called()
 
     def test_migration_reloads_config_on_success(self, tmp_path):
         """When migration returns True, config should be reloaded."""
