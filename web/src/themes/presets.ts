@@ -83,9 +83,26 @@ export const defaultTheme: DashboardTheme = {
     outputTokenAccent: "#8A9B6E",
   },
   swatchColors: [PAPER, INK, OLIVE],
-  // Presentation-only: soften the sidebar chrome to match the unified brand
-  // (sentence case, quieter tracking). Applies only while this theme is active.
+  // Presentation-only: while this theme is active, route the DS brand fonts
+  // (Collapse / Mondwest / Rules) through the theme stack and relax the
+  // uppercase display tracking so chrome reads in calm sentence case.
+  // Injected as a scoped <style> on theme apply — other themes keep the
+  // canonical DS display look.
   customCSS: `
+:root {
+  --font-sans: var(--theme-font-sans);
+  --font-mono: var(--theme-font-mono);
+  --font-mondwest: var(--theme-font-display);
+  --font-rules-compressed: var(--theme-font-display);
+  --font-rules-expanded: var(--theme-font-display);
+}
+.text-display { font-family: var(--theme-font-sans); text-transform: none; letter-spacing: 0.01em; font-weight: 600; }
+.font-mondwest { letter-spacing: -0.01em; }
+button.font-mono, select.font-mono, .font-courier {
+  font-family: var(--theme-font-sans);
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
 #app-sidebar a, #app-sidebar span { text-transform: none; letter-spacing: 0.01em; }
 `,
 };
