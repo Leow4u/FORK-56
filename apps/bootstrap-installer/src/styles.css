@@ -20,12 +20,54 @@
  *
  * Follows the OS appearance: the installer has no in-app theme switcher, so
  * src/theme.ts tracks the Tauri window theme and toggles `.dark` on
- * <html>. The desktop's runtime applyTheme() normally PAINTS the dark seed
- * colors inline (its imported :root.dark below only flips the per-mode mix
- * knobs + neutral chrome), so we supply the Work4You *dark* seeds ourselves in the
- * :root.dark block at the end of this file.
+ * <html>. The desktop's runtime applyTheme() normally PAINTS the seed
+ * colors inline (its imported :root / :root.dark below only flip mix knobs
+ * + the CSS fallback palette), so we supply the canonical Work4You seeds
+ * ourselves — papel · tinta · oliva from work4youTheme in
+ * apps/desktop/src/themes/presets.ts. Unlayered on purpose so they win
+ * over the imported @layer base fallbacks. Keep in sync with work4youTheme
+ * if that palette is retuned.
  */
 @import '../../desktop/src/styles.css';
+
+/*
+ * Plus Jakarta Sans — bundled locally. The desktop loads this face via
+ * applyTheme()'s Google Fonts fontUrl; the installer has no theme runtime
+ * and Tauri CSP is font-src 'self', so a <link> to fonts.googleapis.com
+ * would be a no-op in the packaged app. Latin subset, SIL OFL 1.1
+ * (src/fonts/OFL.txt).
+ */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/plus-jakarta-sans-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/plus-jakarta-sans-500.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./fonts/plus-jakarta-sans-600.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/plus-jakarta-sans-700.woff2') format('woff2');
+}
 
 /* Installer-only additions: a fade-in animation and a warm radial glow
    for the welcome screen. Everything else inherits from the desktop. */
@@ -47,42 +89,72 @@
 .work4you-glow {
   background: radial-gradient(
     ellipse at center,
-    color-mix(in srgb, var(--ui-warm) 18%, transparent) 0%,
+    color-mix(in srgb, var(--ui-accent) 14%, transparent) 0%,
     transparent 60%
   );
 }
 
 /*
- * Dark appearance — Work4You dark seeds.
+ * Light appearance — Work4You seeds (paper canvas, ink text, olive accent).
  *
- * The imported desktop :root.dark only flips the per-mode mix knobs + neutral
- * chrome; the seed COLORS are normally painted at runtime by the desktop's
- * applyTheme(). The installer has no theme runtime, so we mirror them here from
- * apps/desktop/src/themes/presets.ts (work4youTheme.darkColors). The whole
- * --ui-* / --dt-* chain in the imported stylesheet derives from these seeds, so
- * flipping them is enough — we only additionally override the few tokens
- * applyTheme() sets inline that DON'T derive from a seed (primary-foreground on
- * the cream accent, destructive). Unlayered on purpose so it wins over the
- * imported @layer base :root light seeds. Keep in sync with work4youTheme.darkColors
- * if that palette is retuned.
+ * applyTheme() would paint these on the desktop; the installer has no theme
+ * runtime, so they live here. Also covers the non-derived shadcn tokens
+ * applyTheme() sets inline (primary-foreground, destructive, sans stack).
+ */
+:root {
+  color-scheme: light;
+
+  --theme-foreground: #1a1915;
+  --theme-primary: #1a1915;
+  --theme-secondary: #f1efe9;
+  --theme-accent-soft: #eceae1;
+  --theme-midground: #4d5943;
+  --theme-warm: #1a1915;
+  --theme-background-seed: #faf9f5;
+  --theme-sidebar-seed: #faf9f5;
+  --theme-card-seed: #ffffff;
+  --theme-elevated-seed: #ffffff;
+  --theme-bubble-seed: #f1efe9;
+
+  --dt-primary-foreground: #faf9f5;
+  --dt-secondary-foreground: #3b3a34;
+  --dt-accent-foreground: #33322c;
+  --dt-border: #e6e4dc;
+  --dt-input: #e0ded4;
+  --dt-ring: #4d5943;
+  --dt-muted: #f1efe9;
+  --dt-destructive: #b3402e;
+  --dt-destructive-foreground: #ffffff;
+  --dt-font-sans:
+    'Plus Jakarta Sans', 'Segoe WPC', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui,
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', emoji;
+}
+
+/*
+ * Dark appearance — Work4You dark seeds (tinta canvas, paper text, sage accent).
  */
 :root.dark {
   color-scheme: dark;
 
-  --theme-foreground: #ffe6cb;
-  --theme-primary: #ffe6cb;
-  --theme-secondary: #1b45a4;
-  --theme-accent-soft: #1540b1;
-  --theme-midground: #0053fd;
-  --theme-warm: #ffe6cb;
-  --theme-background-seed: #0d2f86;
-  --theme-sidebar-seed: #09286f;
-  --theme-card-seed: #12378f;
-  --theme-elevated-seed: #123a96;
-  --theme-bubble-seed: #143b91;
+  --theme-foreground: #e9e7df;
+  --theme-primary: #e9e7df;
+  --theme-secondary: #262521;
+  --theme-accent-soft: #262b22;
+  --theme-midground: #c9d2bc;
+  --theme-warm: #e9e7df;
+  --theme-background-seed: #171716;
+  --theme-sidebar-seed: #141412;
+  --theme-card-seed: #1e1d1b;
+  --theme-elevated-seed: #201f1d;
+  --theme-bubble-seed: #22211e;
 
-  /* Non-derived shadcn tokens applyTheme() paints inline (Work4You dark values). */
-  --dt-primary-foreground: #0d2f86;
+  --dt-primary-foreground: #171716;
+  --dt-secondary-foreground: #d7d5cc;
+  --dt-accent-foreground: #dce3d2;
+  --dt-border: #32312c;
+  --dt-input: #232220;
+  --dt-ring: #c9d2bc;
+  --dt-muted: #232220;
   --dt-destructive: #c0473a;
   --dt-destructive-foreground: #fef2f2;
 }

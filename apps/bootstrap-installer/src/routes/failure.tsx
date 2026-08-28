@@ -1,6 +1,5 @@
 import { useStore } from '@nanostores/react'
 import { FileText, RefreshCw } from 'lucide-react'
-import { type CSSProperties } from 'react'
 
 import { Button } from '../components/button'
 import {
@@ -17,11 +16,8 @@ interface FailureProps {
 }
 
 /*
- * Failure screen. Same hero treatment as Welcome/Success — the wordmark
- * carries the brand, so we keep it across every terminal state.
- *
- * The actual error message lives below in muted text. Two affordances on
- * shared Button tokens: Retry (primary) and Open logs (quiet text link).
+ * Failure screen. Same quiet hero as Welcome/Success — destructive
+ * headline, muted body, existing Retry / Open logs actions.
  */
 export default function Failure({ bootstrap }: FailureProps) {
   const logPath = useStore($logPath)
@@ -29,25 +25,12 @@ export default function Failure({ bootstrap }: FailureProps) {
   const isUpdate = mode === 'update'
 
   return (
-    <div className="work4you-fade-in flex h-full flex-col items-center justify-center gap-6 px-12 py-10">
-      <div className="w-full max-w-2xl min-w-0 text-center">
-        <p
-          className="fit-text mx-auto mb-4 w-full font-['Collapse'] font-bold uppercase leading-[0.9] tracking-[0.08em] text-destructive mix-blend-plus-lighter dark:text-destructive/90"
-          style={
-            {
-              '--fit-text-line-height': '0.9',
-              '--fit-text-max': '5rem',
-              '--fit-text-min': '2.25rem'
-            } as CSSProperties
-          }
-        >
-          <span>
-            <span>{isUpdate ? 'Update didn\u2019t finish' : 'Install didn\u2019t finish'}</span>
-          </span>
-          <span aria-hidden="true">{isUpdate ? 'Update didn\u2019t finish' : 'Install didn\u2019t finish'}</span>
-        </p>
-
-        <p className="m-0 mx-auto max-w-xl text-center text-sm leading-normal tracking-tight text-muted-foreground">
+    <div className="work4you-fade-in flex h-full flex-col items-center justify-center gap-6 px-8 py-10">
+      <div className="w-full max-w-md min-w-0 text-center">
+        <h1 className="mb-2 text-xl font-semibold leading-snug tracking-tight text-destructive">
+          {isUpdate ? 'Update didn\u2019t finish' : 'Install didn\u2019t finish'}
+        </h1>
+        <p className="m-0 text-sm leading-normal tracking-tight text-muted-foreground">
           {bootstrap.error ??
             (isUpdate
               ? 'Something went wrong during the update.'
