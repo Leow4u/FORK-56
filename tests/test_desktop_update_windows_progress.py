@@ -100,11 +100,16 @@ def test_progress_advances_while_the_orchestrator_blocks(tmp_path: Path) -> None
         poll_deadline = time.monotonic() + 10
         while time.monotonic() < poll_deadline:
             snap = _read_progress_retry(shim_url)
-            if snap.get("status") == "running" and snap.get("message"):
+            # Wait for the self-test stage specifically — the UiState seed is
+            # "Work4You will open once done." until Publish-UiProgress runs.
+            if (
+                snap.get("status") == "running"
+                and snap.get("message") == "Testing quiet update"
+            ):
                 first = snap
                 break
             time.sleep(0.2)
-        assert first is not None, "progress never published a running message"
+        assert first is not None, "progress never published the self-test stage"
 
         time.sleep(1.5)
         second = _read_progress_retry(shim_url)
