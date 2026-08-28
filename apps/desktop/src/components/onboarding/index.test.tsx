@@ -111,6 +111,24 @@ describe('onboarding Picker', () => {
     expect(window.localStorage.getItem('work4you-onboarding-skipped-v1')).toBe('1')
   })
 
+  it('preview picker seeds login instead of starting OAuth', () => {
+    const originalLocation = window.location
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, search: '?onboarding=1' }
+    })
+
+    try {
+      setProviders([makeOAuthProvider('work4you', 'Work4You Portal')])
+      render(<Picker ctx={ctx} />)
+      fireEvent.click(screen.getByRole('button', { name: /Work4You Portal/ }))
+
+      expect($desktopOnboarding.get().flow.status).toBe('awaiting_user')
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+    }
+  })
+
   it('hides "choose later" in manual (add-provider) mode', () => {
     setProviders([makeOAuthProvider('work4you', 'Work4You Portal')])
     $desktopOnboarding.set({ ...$desktopOnboarding.get(), manual: true })

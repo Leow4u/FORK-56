@@ -210,7 +210,7 @@ export function DesktopOnboardingOverlay({
   const [leaving, setLeaving] = useState(false)
 
   const finalizeOnboarding = () => {
-    if (leaving) {
+    if (onboardingPreviewMode() || leaving) {
       return
     }
 
@@ -477,7 +477,20 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
     return <Status>{t.onboarding.lookingUpProviders}</Status>
   }
 
-  const select = (p: OAuthProvider) => void startProviderOAuth(p, ctx)
+  const select = (p: OAuthProvider) => {
+    if (onboardingPreviewMode()) {
+      // Stay in the DEV preview: show login chrome without calling the bridge.
+      const next = new URL(window.location.href)
+      next.searchParams.set('onboarding', 'login')
+      window.history.replaceState(window.history.state, '', next)
+      seedOnboardingPreview('login')
+
+      return
+    }
+
+    void startProviderOAuth(p, ctx)
+  }
+
   const featured = ordered.find(p => p.id === FEATURED_ID) ?? null
   const rest = featured ? ordered.filter(p => p.id !== FEATURED_ID) : ordered
   // Collapse the secondary providers behind a disclosure whenever Work4You Portal
