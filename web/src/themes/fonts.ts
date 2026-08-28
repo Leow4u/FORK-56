@@ -61,6 +61,13 @@ export const FONT_CHOICES: FontChoice[] = [
 
   // ── Sans ────────────────────────────────────────────────────────────────
   {
+    id: "plus-jakarta-sans",
+    label: "Plus Jakarta Sans",
+    category: "sans",
+    stack: `"Plus Jakarta Sans", ${SYSTEM_SANS}`,
+    fontUrl: GF("Plus+Jakarta+Sans:wght@400;500;600;700;800"),
+  },
+  {
     id: "inter",
     label: "Inter",
     category: "sans",

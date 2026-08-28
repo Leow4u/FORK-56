@@ -17681,8 +17681,9 @@ def mount_spa(application: FastAPI):
 # Built-in dashboard themes — label + description only.  The actual color
 # definitions live in the frontend (web/src/themes/presets.ts).
 _BUILTIN_DASHBOARD_THEMES = [
-    {"name": "default",       "label": "Work4You Teal",         "description": "Classic dark teal — the canonical Work4You look"},
-    {"name": "default-large", "label": "Work4You Teal (Large)", "description": "Work4You Teal with bigger fonts and roomier spacing"},
+    {"name": "default",       "label": "Work4You",              "description": "Warm paper and ink with olive accents — the unified Work4You look"},
+    {"name": "default-large", "label": "Work4You (Large)",      "description": "The Work4You look with bigger fonts and roomier spacing"},
+    {"name": "teal",          "label": "Work4You Teal",         "description": "Classic dark teal — the original Work4You look"},
     {"name": "work4you-blue",     "label": "Work4You Blue",           "description": "Light mode — vivid Work4You-blue accents on cream canvas"},
     {"name": "midnight",      "label": "Midnight",            "description": "Deep blue-violet with cool accents"},
     {"name": "ember",     "label": "Ember",          "description": "Warm crimson and bronze — forge vibes"},
@@ -17989,6 +17990,7 @@ async def set_dashboard_theme(body: ThemeSetBody):
 _FONT_DEFAULT_ID = "theme"
 _FONT_CHOICES = frozenset({
     "system-sans", "system-serif", "system-mono",
+    "plus-jakarta-sans",
     "inter", "ibm-plex-sans", "work-sans", "atkinson-hyperlegible", "dm-sans",
     "spectral", "fraunces", "source-serif",
     "jetbrains-mono", "ibm-plex-mono", "space-mono",

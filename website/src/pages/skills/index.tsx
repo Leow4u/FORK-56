@@ -134,7 +134,7 @@ const SOURCE_CONFIG: Record<
   },
   ClawHub: {
     label: "ClawHub",
-    color: "#151515",
+    color: "#1a1915",
     bg: "rgba(21, 21, 21, 0.08)",
     border: "rgba(21, 21, 21, 0.18)",
     icon: "\u{2726}",
@@ -176,7 +176,7 @@ const SOURCE_CONFIG: Record<
   },
   GitHub: {
     label: "GitHub",
-    color: "#151515",
+    color: "#1a1915",
     bg: "rgba(21, 21, 21, 0.08)",
     border: "rgba(21, 21, 21, 0.18)",
     icon: "\u{2756}",
