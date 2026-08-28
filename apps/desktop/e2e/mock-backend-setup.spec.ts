@@ -65,6 +65,16 @@ test.describe('mock backend gets past setup screen', () => {
     await expect(composer).toBeVisible()
   })
 
+  test('new session uses a quiet headline instead of a WORK4YOU wordmark', async () => {
+    const page = fixture!.page
+    const intro = page.locator('[data-slot="aui_intro"]')
+
+    await expect(intro).toBeVisible()
+    await expect(page.locator('[aria-label="WORK4YOU"]')).toHaveCount(0)
+    await expect(intro.locator('.fit-text')).toHaveCount(0)
+    await expect(intro.locator('p').first()).not.toHaveText(/^WORK4YOU$/)
+  })
+
   test('can type into the composer', async () => {
     const page = fixture!.page
 
