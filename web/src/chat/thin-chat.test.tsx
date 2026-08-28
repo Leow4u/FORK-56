@@ -168,7 +168,7 @@ describe("ThinChat gateway wiring", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(container.textContent).toContain("Work4You");
+    expect(container.textContent).toContain("Ready when you are.");
     expect(gatewayMocks.connect).toHaveBeenCalled();
     expect(gatewayMocks.request).not.toHaveBeenCalledWith(
       "session.create",
@@ -465,7 +465,7 @@ describe("ThinChat gateway wiring", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(container.textContent).toContain("Work4You");
+    expect(container.textContent).toContain("Ready when you are.");
     expect(gatewayMocks.request).toHaveBeenCalledWith(
       "session.close",
       expect.objectContaining({ session_id: "live-resume" }),

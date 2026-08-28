@@ -210,6 +210,7 @@ export const en: Translations = {
   },
 
   thinChat: {
+    emptyTitle: "Ready when you are.",
     emptySubtitle: "Ask anything. Your agent runs on this machine.",
     thinking: "Thinking…",
     scrollToBottom: "Scroll to bottom",

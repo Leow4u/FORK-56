@@ -185,6 +185,7 @@ export const pt: Translations = {
   },
 
   thinChat: {
+    emptyTitle: "Pronto quando quiser.",
     emptySubtitle: "Pergunte o que quiser. O seu agente corre nesta máquina.",
     thinking: "A pensar…",
     scrollToBottom: "Ir para o fim",

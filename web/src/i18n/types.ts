@@ -234,6 +234,7 @@ export interface Translations extends Partial<DesktopI18nSections> {
 
   /** Thin web chat (/chat) — optional; English fallback in components. */
   thinChat?: {
+    emptyTitle?: string;
     emptySubtitle: string;
     thinking: string;
     scrollToBottom: string;
