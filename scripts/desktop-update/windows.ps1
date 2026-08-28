@@ -649,8 +649,18 @@ if ($SelfTestUi) {
             $script:UiServer = Start-UiServer $htmlPath
         }
     }
+    # Write-Output (success stream) — not Write-Host — so redirected stdout in
+    # tests/test_desktop_update_windows_progress.py actually captures the URL.
+    # Write-Host talks to the host UI and is often discarded when powershell.exe
+    # has no console / stdout is a pipe (CI flake: shim_url stayed None with
+    # empty capture). Flush so the parent sees the line before the hold sleep.
     if ($script:UiServer) {
-        Write-Host "SELF-TEST: shim at http://127.0.0.1:$($script:UiServer.Port)/"
+        $line = "SELF-TEST: shim at http://127.0.0.1:$($script:UiServer.Port)/"
+        Write-Output $line
+        try { [Console]::Out.Flush() } catch {}
+    } else {
+        Write-Output "SELF-TEST: shim failed to start"
+        try { [Console]::Out.Flush() } catch {}
     }
     Write-HandoffLog "SELF-TEST: shim simulation (no update will run)"
     $hold = 6
