@@ -7,7 +7,7 @@ never chose, and never offered setup.
 
 Covers:
 - ``_runtime_credentials_ready()`` silent probe semantics
-- ``_offer_first_run_setup()`` routing into the shared provider picker
+- ``_offer_first_run_setup()`` routing into Portal one-shot (no skip, no lab picker)
 - the provider-aware (non-OpenRouter-specific) empty-key error message
 """
 
@@ -156,18 +156,26 @@ def test_credentials_ready_never_prints(monkeypatch, capsys):
 # ---------------------------------------------------------------------------
 
 
-def test_offer_first_run_setup_routes_into_shared_picker(monkeypatch):
+def test_offer_first_run_setup_routes_into_portal_one_shot(monkeypatch):
     cli = _import_cli()
     shell = _make_shell(cli, monkeypatch)
 
-    picker_calls = {"count": 0}
+    portal_calls = {"count": 0}
 
-    def _fake_picker():
-        picker_calls["count"] += 1
+    def _fake_portal(config):
+        portal_calls["count"] += 1
+        assert isinstance(config, dict)
 
-    monkeypatch.setattr("work4you_cli.main.select_provider_and_model", _fake_picker)
-    monkeypatch.setattr("builtins.input", lambda *a, **k: "y")
-    # After the picker "runs", config has a provider and creds resolve.
+    def _fail_picker():
+        raise AssertionError("first-run must not open the lab/key picker")
+
+    def _fail_input(*_a, **_k):
+        raise AssertionError("first-run must not offer a skip prompt")
+
+    monkeypatch.setattr("work4you_cli.setup._run_portal_one_shot", _fake_portal)
+    monkeypatch.setattr("work4you_cli.main.select_provider_and_model", _fail_picker)
+    monkeypatch.setattr("builtins.input", _fail_input)
+    # After Portal setup "runs", config has a provider and creds resolve.
     monkeypatch.setattr(
         "work4you_cli.config.load_config",
         lambda: {"model": {"provider": "work4you", "default": "work4you-4-405b"}},
@@ -183,35 +191,42 @@ def test_offer_first_run_setup_routes_into_shared_picker(monkeypatch):
     )
 
     assert shell._offer_first_run_setup() is True
-    assert picker_calls["count"] == 1
+    assert portal_calls["count"] == 1
     assert shell.requested_provider == "work4you"
     assert shell.model == "work4you-4-405b"
     # Agent must be rebuilt with the new credentials on next use.
     assert shell.agent is None
 
 
-def test_offer_first_run_setup_declined(monkeypatch):
+def test_offer_first_run_setup_does_not_offer_skip(monkeypatch):
     cli = _import_cli()
     shell = _make_shell(cli, monkeypatch)
 
-    def _fail_picker():
-        raise AssertionError("picker must not run when declined")
+    monkeypatch.setattr("work4you_cli.setup._run_portal_one_shot", lambda config: None)
+    monkeypatch.setattr(
+        "builtins.input",
+        lambda *_a, **_k: (_ for _ in ()).throw(
+            AssertionError("first-run must not offer a skip prompt")
+        ),
+    )
+    monkeypatch.setattr(
+        "work4you_cli.runtime_provider.resolve_runtime_provider",
+        lambda **kw: (_ for _ in ()).throw(
+            AuthError("No inference provider configured.", code="no_provider_configured")
+        ),
+    )
 
-    monkeypatch.setattr("work4you_cli.main.select_provider_and_model", _fail_picker)
-    monkeypatch.setattr("builtins.input", lambda *a, **k: "n")
     assert shell._offer_first_run_setup() is False
 
 
-def test_offer_first_run_setup_picker_cancel_is_graceful(monkeypatch):
+def test_offer_first_run_setup_portal_cancel_is_graceful(monkeypatch):
     cli = _import_cli()
     shell = _make_shell(cli, monkeypatch)
 
-    def _cancel_picker():
+    def _cancel_portal(_config):
         raise KeyboardInterrupt()
 
-    monkeypatch.setattr("work4you_cli.main.select_provider_and_model", _cancel_picker)
-    monkeypatch.setattr("builtins.input", lambda *a, **k: "")
-    # Empty answer defaults to yes -> picker runs -> cancels -> False, no raise.
+    monkeypatch.setattr("work4you_cli.setup._run_portal_one_shot", _cancel_portal)
     assert shell._offer_first_run_setup() is False
 
 

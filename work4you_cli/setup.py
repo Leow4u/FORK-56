@@ -3012,22 +3012,11 @@ def run_setup_wizard(args):
         migration_ran = _offer_openclaw_migration(work4you_home)
         if migration_ran:
             config = load_config()
-
-        setup_mode = prompt_choice(
-            "How would you like to set up Work4You?",
-            [
-                "Quick Setup (Work4You Portal) — free OAuth login, no API keys, model + tools (recommended)",
-                "Full setup — configure every provider, tool & option yourself (bring your own keys)",
-                "Blank Slate — everything off except the bare minimum; opt in to each capability",
-            ],
-            0,
-        )
-
-        if setup_mode == 0:
+        else:
+            # First-run door is Portal only — same rule as Desktop and TUI.
+            # Full setup, Blank Slate, and ``work4you model`` stay available
+            # after this (existing-install reconfigure / ``work4you setup <section>``).
             _run_first_time_quick_setup(config, work4you_home, is_existing)
-            return
-        if setup_mode == 2:
-            _run_blank_slate_setup(config, work4you_home, is_existing)
             return
 
     # ── Full Setup — run all sections ──
