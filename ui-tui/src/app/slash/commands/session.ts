@@ -4,7 +4,6 @@ import { usageBarsText } from '../../../components/overlayPrimitives.js'
 import { FIRST_RUN_PORTAL_ARGS, isFirstRunSetupRequired } from '../../../content/setup.js'
 import { introMsg, toTranscriptMessages } from '../../../domain/messages.js'
 import { sessionScopedModelArg, TUI_SESSION_MODEL_FLAG } from '../../../domain/slash.js'
-import { launchWork4YouCommand } from '../../../lib/externalCli.js'
 import type {
   BackgroundStartResponse,
   ConfigGetValueResponse,
@@ -15,6 +14,7 @@ import type {
   SlashExecResponse,
   VoiceToggleResponse
 } from '../../../gatewayTypes.js'
+import { launchWork4YouCommand } from '../../../lib/externalCli.js'
 import { formatVoiceRecordKey, parseVoiceRecordKey } from '../../../lib/platform.js'
 import { fmtK } from '../../../lib/text.js'
 import type { PanelSection } from '../../../types.js'
