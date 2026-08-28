@@ -286,13 +286,32 @@ def test_sign_file_surfaces_codesigntool_failure(tmp_path):
     assert exe.read_bytes() == b"unsigned"
 
 
+def test_windows_powershell_prefers_system32(tmp_path, monkeypatch):
+    ps = tmp_path / "Windows" / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    ps.parent.mkdir(parents=True)
+    ps.write_bytes(b"ps")
+    monkeypatch.setenv("SystemRoot", str(tmp_path / "Windows"))
+    assert Path(mod.windows_powershell_exe()) == ps
+
+
+def test_authenticode_probe_argv_imports_security_module():
+    argv = mod.authenticode_probe_argv(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe")
+    assert argv[0].endswith("powershell.exe")
+    assert "-ExecutionPolicy" in argv
+    joined = " ".join(argv)
+    assert "Import-Module Microsoft.PowerShell.Security" in joined
+    assert "Get-AuthenticodeSignature" in joined
+
+
 def test_verify_authenticode_rejects_notsigned(tmp_path, monkeypatch):
     monkeypatch.setattr(mod.sys, "platform", "win32")
+    monkeypatch.setattr(mod, "windows_powershell_exe", lambda: "powershell")
     exe = tmp_path / "Work4You-Setup.exe"
     exe.write_bytes(b"x")
 
     def fake_runner(argv, *, cwd, env=None):
         assert env["SIGN_TARGET"] == str(exe.resolve())
+        assert argv[0] == "powershell"
         return SimpleNamespace(returncode=0, stdout="NotSigned\n", stderr="")
 
     with pytest.raises(mod.SignError, match="still unsigned"):
@@ -301,6 +320,7 @@ def test_verify_authenticode_rejects_notsigned(tmp_path, monkeypatch):
 
 def test_verify_authenticode_accepts_valid(tmp_path, monkeypatch):
     monkeypatch.setattr(mod.sys, "platform", "win32")
+    monkeypatch.setattr(mod, "windows_powershell_exe", lambda: "powershell")
     exe = tmp_path / "Work4You-Setup.exe"
     exe.write_bytes(b"x")
 
@@ -308,6 +328,25 @@ def test_verify_authenticode_accepts_valid(tmp_path, monkeypatch):
         return SimpleNamespace(returncode=0, stdout="Valid\n", stderr="")
 
     assert mod.verify_authenticode(exe, runner=fake_runner) == "Valid"
+
+
+def test_verify_authenticode_soft_skips_gha_module_autoload(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(mod.sys, "platform", "win32")
+    monkeypatch.setattr(mod, "windows_powershell_exe", lambda: "powershell")
+    exe = tmp_path / "Work4You-Setup.exe"
+    exe.write_bytes(b"x")
+    err = (
+        "Get-AuthenticodeSignature : The 'Get-AuthenticodeSignature' command "
+        "was found in the module 'Microsoft.PowerShell.Security', but the "
+        "module could not be loaded. FullyQualifiedErrorId : "
+        "CouldNotAutoloadMatchingModule\n"
+    )
+
+    def fake_runner(argv, *, cwd, env=None):
+        return SimpleNamespace(returncode=1, stdout="", stderr=err)
+
+    assert mod.verify_authenticode(exe, runner=fake_runner) == "unverified"
+    assert "Authenticode probe unavailable" in capsys.readouterr().out
 
 
 def test_print_argv_main_does_not_need_java(tmp_path, monkeypatch, capsys):

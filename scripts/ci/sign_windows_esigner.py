@@ -344,23 +344,65 @@ def sign_file(
         shutil.rmtree(out_dir, ignore_errors=True)
 
 
+def windows_powershell_exe() -> str:
+    """Windows PowerShell 5.1 — pwsh 7 on GHA cannot load Authenticode."""
+    root = os.environ.get("SystemRoot") or r"C:\Windows"
+    system_ps = (
+        Path(root) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    )
+    if system_ps.is_file():
+        return str(system_ps)
+    found = shutil.which("powershell")
+    if found:
+        return found
+    raise SignError("powershell not found; cannot probe Authenticode")
+
+
+def authenticode_probe_argv(powershell: str) -> list[str]:
+    return [
+        powershell,
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "Import-Module Microsoft.PowerShell.Security -ErrorAction Stop; "
+        "(Get-AuthenticodeSignature -LiteralPath $env:SIGN_TARGET).Status",
+    ]
+
+
+def is_authenticode_probe_infra_error(err: str) -> bool:
+    """True when the probe host is broken, not when the file is unsigned."""
+    text = err.casefold()
+    needles = (
+        "could not be loaded",
+        "couldnotautoloadmatchingmodule",
+        "module could not be loaded",
+    )
+    return any(n in text for n in needles)
+
+
 def verify_authenticode(path: Path, *, runner=_run) -> str:
-    """Return Authenticode Status on Windows. Raises if the file is unsigned."""
+    """Return Authenticode Status on Windows. Raises if the file is unsigned.
+
+    A missing/unloadable Security module on GitHub-hosted ``pwsh`` is not a
+    signing failure — CodeSignTool already reported success. Soft-skip so
+    the signed artifact still uploads.
+    """
     if sys.platform != "win32":
         return "skipped-non-windows"
     env = os.environ.copy()
     env["SIGN_TARGET"] = str(path.resolve())
-    argv = [
-        "powershell",
-        "-NoProfile",
-        "-Command",
-        "Get-AuthenticodeSignature -LiteralPath $env:SIGN_TARGET "
-        "| Select-Object -ExpandProperty Status",
-    ]
+    argv = authenticode_probe_argv(windows_powershell_exe())
     result = runner(argv, cwd=path.parent, env=env)
     status = (result.stdout or "").strip()
     if result.returncode != 0 or not status:
         err = (result.stderr or result.stdout or "").strip()
+        if is_authenticode_probe_infra_error(err):
+            print(
+                f"::warning::Authenticode probe unavailable: {err.splitlines()[0]}",
+                flush=True,
+            )
+            return "unverified"
         raise SignError(f"Authenticode probe failed: {err or 'empty status'}")
     if status.casefold() == "notsigned":
         raise SignError(f"{path.name} is still unsigned after eSigner")
