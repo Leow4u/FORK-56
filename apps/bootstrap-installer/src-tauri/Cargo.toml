@@ -1,6 +1,6 @@
 [package]
 name = "work4you-bootstrap"
-version = "0.0.2"
+version = "0.0.3"
 description = "Work4You Setup — signed installer that drives scripts/install.ps1"
 authors = ["Work4You <info@work4you.ai>"]
 edition = "2021"
