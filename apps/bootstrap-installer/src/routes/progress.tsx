@@ -60,6 +60,7 @@ export default function ProgressScreen({ bootstrap }: ProgressProps) {
     : 'This is a one-time setup. The Work4You installer is downloading dependencies and configuring your machine. Subsequent launches will skip this step.'
 
   const pct = Math.round(progress.fraction * 100)
+
   const visibleStages = bootstrap.stageOrder.filter((name) => {
     const rec = bootstrap.stages[name]
 
