@@ -8,6 +8,9 @@ name: Deploy Cloud Runtime (Golden Image)
 #   GitHub → FORK-56 → Settings → Secrets → Actions → FLY_API_TOKEN
 #
 # Run: Actions → "Deploy Cloud Runtime (Golden Image)" → Run workflow
+#
+# Build 2026-08-28: rebuild to ship the unified visual identity (#134) in the
+# bundled dashboard (web_dist) — paper/ink/olive default theme.
 
 on:
   workflow_dispatch:
