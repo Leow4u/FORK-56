@@ -75,7 +75,9 @@ def test_progress_advances_while_the_orchestrator_blocks(tmp_path: Path) -> None
         )
 
     try:
-        deadline = time.monotonic() + 25
+        # Hold is 20s; allow slow powershell cold-start on GHA before the
+        # SELF-TEST line appears on the success stream.
+        deadline = time.monotonic() + 40
         shim_url = None
         while time.monotonic() < deadline:
             text = output_path.read_text(encoding="utf-8", errors="replace")
@@ -83,21 +85,31 @@ def test_progress_advances_while_the_orchestrator_blocks(tmp_path: Path) -> None
             if match:
                 shim_url = match.group(1)
                 break
+            if "SELF-TEST: shim failed to start" in text:
+                break
             if process.poll() is not None:
                 break
             time.sleep(0.1)
 
-        assert shim_url, output_path.read_text(encoding="utf-8", errors="replace")
+        assert shim_url, (
+            f"exit={process.poll()} "
+            f"output={output_path.read_text(encoding='utf-8', errors='replace')!r}"
+        )
 
         first = None
         poll_deadline = time.monotonic() + 10
         while time.monotonic() < poll_deadline:
             snap = _read_progress_retry(shim_url)
-            if snap.get("status") == "running" and snap.get("message"):
+            # Wait for the self-test stage specifically — the UiState seed is
+            # "Work4You will open once done." until Publish-UiProgress runs.
+            if (
+                snap.get("status") == "running"
+                and snap.get("message") == "Testing quiet update"
+            ):
                 first = snap
                 break
             time.sleep(0.2)
-        assert first is not None, "progress never published a running message"
+        assert first is not None, "progress never published the self-test stage"
 
         time.sleep(1.5)
         second = _read_progress_retry(shim_url)
@@ -108,7 +120,7 @@ def test_progress_advances_while_the_orchestrator_blocks(tmp_path: Path) -> None
         assert second["message"] == first["message"]
         assert int(second["elapsed_seconds"]) > int(first["elapsed_seconds"])
 
-        assert process.wait(timeout=30) == 0
+        assert process.wait(timeout=60) == 0
     finally:
         if process.poll() is None:
             process.kill()

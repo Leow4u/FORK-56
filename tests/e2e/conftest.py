@@ -273,16 +273,31 @@ def make_adapter(platform: Platform, runner=None):
 async def send_and_capture(adapter, text: str, platform: Platform, **event_kwargs) -> AsyncMock:
     """Send a message through the full e2e flow and return the send mock.
 
-    Polls for the send rather than waiting a fixed delay: handler DB work now
-    hops to worker threads (AsyncSessionDB), so completion latency varies.
+    ``handle_message`` returns as soon as it schedules ``_process_message_background``;
+    the actual ``adapter.send`` happens later. Prefer awaiting those background
+    tasks, then fall back to a short poll — fixed sleep alone raced on slow CI
+    when group/agent paths paid session+DB setup (``plaintext_restart_gateway_in_group``
+    flaked with send called 0 times on main).
     """
     event = make_event(platform, text, **event_kwargs)
     adapter.send.reset_mock()
     await adapter.handle_message(event)
-    for _ in range(40):  # up to ~2s; returns as soon as the send lands
+
+    deadline = asyncio.get_running_loop().time() + 5.0
+    while asyncio.get_running_loop().time() < deadline:
         if adapter.send.called:
             break
-        await asyncio.sleep(0.05)
+        pending = [
+            t
+            for t in getattr(adapter, "_background_tasks", set())
+            if not t.done()
+        ]
+        if pending:
+            done, _ = await asyncio.wait(pending, timeout=0.1)
+            if done and adapter.send.called:
+                break
+        else:
+            await asyncio.sleep(0.05)
     return adapter.send
 
 
