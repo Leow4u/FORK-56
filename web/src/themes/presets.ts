@@ -38,10 +38,63 @@ const DEFAULT_LAYOUT: ThemeLayout = {
 // Themes
 // ---------------------------------------------------------------------------
 
+/** Unified Work4You brand tokens — shared with the portal/docs "papel · oliva"
+ *  identity (paper canvas, ink text, olive as the single character accent). */
+const PAPER = "#FAF9F5";
+const INK = "#1A1915";
+const OLIVE = "#4D5943";
+const INK_DARK_CANVAS = "#171716";
+const PAPER_DARK_TEXT = "#E9E7DF";
+const SAGE = "#C9D2BC";
+
 export const defaultTheme: DashboardTheme = {
   name: "default",
+  label: "Work4You",
+  description: "Warm paper and ink with olive accents — the unified Work4You look",
+  palette: {
+    background: { hex: PAPER, alpha: 1 },
+    midground: { hex: INK, alpha: 1 },
+    foreground: { hex: OLIVE, alpha: 0 },
+    warmGlow: "rgba(77, 89, 67, 0.12)",
+    noiseOpacity: 0,
+  },
+  darkPalette: {
+    background: { hex: INK_DARK_CANVAS, alpha: 1 },
+    midground: { hex: PAPER_DARK_TEXT, alpha: 1 },
+    foreground: { hex: SAGE, alpha: 0 },
+    warmGlow: "rgba(201, 210, 188, 0.12)",
+    noiseOpacity: 0,
+  },
+  typography: {
+    ...DEFAULT_TYPOGRAPHY,
+    fontSans: `"Plus Jakarta Sans", ${SYSTEM_SANS}`,
+    fontUrl:
+      "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+    letterSpacing: "-0.005em",
+  },
+  layout: {
+    ...DEFAULT_LAYOUT,
+    radius: "0.75rem",
+  },
+  terminalBackground: PAPER,
+  terminalForeground: INK,
+  seriesColors: {
+    inputTokenAccent: OLIVE,
+    outputTokenAccent: "#8A9B6E",
+  },
+  swatchColors: [PAPER, INK, OLIVE],
+  // Presentation-only: soften the sidebar chrome to match the unified brand
+  // (sentence case, quieter tracking). Applies only while this theme is active.
+  customCSS: `
+#app-sidebar a, #app-sidebar span { text-transform: none; letter-spacing: 0.01em; }
+`,
+};
+
+/** The previous canonical dark-teal look, kept selectable as its own theme. */
+export const tealTheme: DashboardTheme = {
+  name: "teal",
   label: "Work4You Teal",
-  description: "Classic dark teal — the canonical Work4You look",
+  description: "Classic dark teal — the original Work4You look",
   palette: {
     background: { hex: "#041c1c", alpha: 1 },
     midground: { hex: "#ffe6cb", alpha: 1 },
@@ -214,23 +267,30 @@ export const work4youBlueTheme: DashboardTheme = {
  */
 export const defaultLargeTheme: DashboardTheme = {
   name: "default-large",
-  label: "Work4You Teal (Large)",
-  description: "Work4You Teal with bigger fonts and roomier spacing",
+  label: "Work4You (Large)",
+  description: "The Work4You look with bigger fonts and roomier spacing",
   palette: defaultTheme.palette,
+  darkPalette: defaultTheme.darkPalette,
   typography: {
-    ...DEFAULT_TYPOGRAPHY,
+    ...defaultTheme.typography,
     baseSize: "18px",
     lineHeight: "1.65",
   },
   layout: {
-    ...DEFAULT_LAYOUT,
+    ...defaultTheme.layout,
     density: "spacious",
   },
+  terminalBackground: defaultTheme.terminalBackground,
+  terminalForeground: defaultTheme.terminalForeground,
+  seriesColors: defaultTheme.seriesColors,
+  swatchColors: defaultTheme.swatchColors,
+  customCSS: defaultTheme.customCSS,
 };
 
 export const BUILTIN_THEMES: Record<string, DashboardTheme> = {
   default: defaultTheme,
   "default-large": defaultLargeTheme,
+  teal: tealTheme,
   "work4you-blue": work4youBlueTheme,
   midnight: midnightTheme,
   ember: emberTheme,

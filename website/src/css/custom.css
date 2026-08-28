@@ -7,8 +7,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --w4y-papel: #f5f4ee;
-  --w4y-tinta: #151515;
+  --w4y-papel: #faf9f5;
+  --w4y-tinta: #1a1915;
   --w4y-oliva: #4d5943;
   --w4y-oliva-esc: #3a452f;
   --w4y-salvia: #c9d2bc;
@@ -29,14 +29,14 @@
   --ifm-font-family-base: 'Plus Jakarta Sans', system-ui, sans-serif;
   --ifm-font-family-monospace: 'JetBrains Mono', ui-monospace, monospace;
 
-  --ifm-background-color: #f5f4ee;
+  --ifm-background-color: #faf9f5;
   --ifm-background-surface-color: #e4e6dd;
-  --ifm-navbar-background-color: rgba(245, 244, 238, 0.92);
+  --ifm-navbar-background-color: rgba(250, 249, 245, 0.92);
   --ifm-footer-background-color: #e4e6dd;
 
-  --ifm-font-color-base: #151515;
+  --ifm-font-color-base: #1a1915;
   --ifm-font-color-secondary: #6e6e68;
-  --ifm-heading-color: #151515;
+  --ifm-heading-color: #1a1915;
   --ifm-heading-font-weight: 700;
 
   --ifm-link-color: #4d5943;
@@ -61,16 +61,16 @@
   --ifm-color-primary-darkest: #8b9484;
   --ifm-color-primary-light: #d6dccb;
   --ifm-color-primary-lighter: #e4e6dd;
-  --ifm-color-primary-lightest: #f5f4ee;
+  --ifm-color-primary-lightest: #faf9f5;
 
-  --ifm-background-color: #151515;
+  --ifm-background-color: #171716;
   --ifm-background-surface-color: #1e1e1c;
-  --ifm-navbar-background-color: rgba(21, 21, 21, 0.94);
-  --ifm-footer-background-color: #151515;
+  --ifm-navbar-background-color: rgba(23, 23, 22, 0.94);
+  --ifm-footer-background-color: #171716;
 
   --ifm-font-color-base: #c9d2bc;
   --ifm-font-color-secondary: #7a7a72;
-  --ifm-heading-color: #f5f4ee;
+  --ifm-heading-color: #faf9f5;
 
   --ifm-link-color: #c9d2bc;
   --ifm-link-hover-color: #e4e6dd;
@@ -145,7 +145,7 @@ code {
 }
 
 [data-theme='light'] .prism-code {
-  background-color: #151515 !important;
+  background-color: #171716 !important;
   border: 1px solid var(--w4y-linha);
   border-radius: 8px;
 }
@@ -197,7 +197,7 @@ pre.prism-code.language-ascii code {
   margin: 1.25rem auto 0.5rem;
   border: 1px solid var(--w4y-linha);
   border-radius: 8px;
-  background: #151515;
+  background: #171716;
 }
 
 [data-theme='dark'] .docs-terminal-figure {
@@ -292,7 +292,7 @@ table td {
 }
 
 [data-theme='dark'] ::-webkit-scrollbar-track {
-  background: #151515;
+  background: #171716;
 }
 
 [data-theme='dark'] ::-webkit-scrollbar-thumb {

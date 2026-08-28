@@ -26,14 +26,91 @@ const PSYCHE_WARM = '#FFE6CB'
 const work4youTint = (pct: number) => `color-mix(in srgb, ${WORK4YOU_BLUE} ${pct}%, #FFFFFF)`
 const work4youTintTransparent = (pct: number) => `color-mix(in srgb, ${WORK4YOU_BLUE} ${pct}%, transparent)`
 
+// Unified Work4You brand seeds — shared with the portal/docs/dashboard
+// "papel · tinta · oliva" identity (paper canvas, ink text, olive accent).
+const PAPER = '#FAF9F5'
+const INK = '#1A1915'
+const OLIVE = '#4D5943'
+const SAGE = '#C9D2BC'
+
 /**
- * Work4You — canonical Work4You desktop identity. The palette keeps the current
- * glass geometry neutral, then lets the old bb/gui blue and psyche cream
- * return as accent seeds.
+ * Work4You — canonical Work4You desktop identity. Unified brand look: warm
+ * paper canvas, near-black ink text and primary actions, olive as the single
+ * character accent (focus rings, composer outline, active states).
  */
 export const work4youTheme: DesktopTheme = {
   name: 'work4you',
   label: 'Work4You',
+  description: 'Warm paper and ink with olive accents',
+  colors: {
+    background: PAPER,
+    foreground: INK,
+    card: '#FFFFFF',
+    cardForeground: INK,
+    muted: '#F1EFE9',
+    mutedForeground: '#75736C',
+    popover: '#FFFFFF',
+    popoverForeground: INK,
+    primary: INK,
+    primaryForeground: PAPER,
+    secondary: '#F1EFE9',
+    secondaryForeground: '#3B3A34',
+    accent: '#ECEAE1',
+    accentForeground: '#33322C',
+    border: '#E6E4DC',
+    input: '#E0DED4',
+    ring: OLIVE,
+    midground: OLIVE,
+    composerRing: OLIVE,
+    destructive: '#B3402E',
+    destructiveForeground: '#FFFFFF',
+    sidebarBackground: PAPER,
+    sidebarBorder: '#E6E4DC',
+    userBubble: '#F1EFE9',
+    userBubbleBorder: '#E6E4DC'
+  },
+  darkColors: {
+    background: '#171716',
+    foreground: '#E9E7DF',
+    card: '#1E1D1B',
+    cardForeground: '#E9E7DF',
+    muted: '#232220',
+    mutedForeground: '#A5A399',
+    popover: '#201F1D',
+    popoverForeground: '#E9E7DF',
+    primary: '#E9E7DF',
+    primaryForeground: '#171716',
+    secondary: '#262521',
+    secondaryForeground: '#D7D5CC',
+    accent: '#262B22',
+    accentForeground: '#DCE3D2',
+    border: '#32312C',
+    input: '#232220',
+    ring: SAGE,
+    midground: SAGE,
+    composerRing: SAGE,
+    destructive: '#C0473A',
+    destructiveForeground: '#FEF2F2',
+    sidebarBackground: '#141412',
+    sidebarBorder: '#2A2925',
+    userBubble: '#22211E',
+    userBubbleBorder: '#383730'
+  },
+  typography: {
+    fontSans: `"Plus Jakarta Sans", ${SYSTEM_SANS}`,
+    fontMono: SYSTEM_MONO,
+    fontUrl:
+      'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Courier+Prime:wght@400;700&display=swap'
+  }
+}
+
+/**
+ * Work4You Blue — the previous desktop identity (glass neutrals with Work4You
+ * blue accents, psyche navy dark mode), kept selectable as its own skin.
+ */
+export const work4youBlueTheme: DesktopTheme = {
+  name: 'work4you-blue',
+  label: 'Work4You Blue',
   description: 'Glass neutrals with Work4You blue accents',
   colors: {
     background: '#F8FAFF',
@@ -278,6 +355,7 @@ export const slateTheme: DesktopTheme = {
 
 export const BUILTIN_THEMES: Record<string, DesktopTheme> = {
   work4you: work4youTheme,
+  'work4you-blue': work4youBlueTheme,
   midnight: midnightTheme,
   ember: emberTheme,
   mono: monoTheme,
