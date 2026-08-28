@@ -165,6 +165,11 @@ jobs:
           cp cloud/nas-sync/src/portal/lib/info-content.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/pages/org/InfoPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/InfoPage.module.css nas/src/portal/pages/org/
+          cp cloud/nas-sync/src/portal/pages/org/CloudPage.module.css nas/src/portal/pages/org/
+          cp cloud/nas-sync/src/portal/pages/org/ApiKeysPage.module.css nas/src/portal/pages/org/
+          mkdir -p nas/src/portal/styles nas/src/portal/components
+          cp cloud/nas-sync/src/portal/styles/global.css nas/src/portal/styles/
+          cp cloud/nas-sync/src/portal/components/OrgPage.module.css nas/src/portal/components/
 
       - name: Commit and push to NAS main
         if: steps.token.outputs.configured == 'true'
@@ -198,7 +203,11 @@ jobs:
             src/portal/lib/linked-accounts.ts \
             src/portal/lib/info-content.ts \
             src/portal/pages/org/InfoPage.tsx \
-            src/portal/pages/org/InfoPage.module.css
+            src/portal/pages/org/InfoPage.module.css \
+            src/portal/pages/org/CloudPage.module.css \
+            src/portal/pages/org/ApiKeysPage.module.css \
+            src/portal/styles/global.css \
+            src/portal/components/OrgPage.module.css
           if [ "${{ env.sync_fly_machines }}" = "1" ]; then
             git add src/lib/fly-machines.ts
           fi
