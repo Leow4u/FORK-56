@@ -9233,9 +9233,15 @@ def _define_discord_view_classes() -> None:
                 return
 
             models = provider.get("models", [])
+            locked = set(provider.get("unavailable_models") or [])
             options = []
             for model_id in models[:25]:
                 short = model_id.split("/")[-1] if "/" in model_id else model_id
+                if model_id in locked:
+                    short = f"Pro · {short}"
+                option_kwargs = {}
+                if model_id in locked:
+                    option_kwargs["description"] = "Available on a paid plan"
                 options.append(
                     discord.SelectOption(
                         label=_truncate_discord_component_text(
@@ -9246,6 +9252,7 @@ def _define_discord_view_classes() -> None:
                             model_id,
                             _DISCORD_SELECT_FIELD_LIMIT,
                         ),
+                        **option_kwargs,
                     )
                 )
             if not options:
@@ -9393,6 +9400,15 @@ def _define_discord_view_classes() -> None:
                 return
 
             model_id = interaction.data["values"][0]
+            provider = next(
+                (p for p in self.providers if p["slug"] == self._selected_provider),
+                None,
+            )
+            if model_id in set((provider or {}).get("unavailable_models") or []):
+                await interaction.response.send_message(
+                    "Available on a paid plan.", ephemeral=True
+                )
+                return
             warning = await self._expensive_warning_for(model_id)
             if warning is not None:
                 self._build_expensive_confirm(model_id)

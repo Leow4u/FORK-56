@@ -472,6 +472,8 @@ export interface ModelOptionProvider {
   slug: string
   total_models?: number
   warning?: string
+  free_tier?: boolean
+  unavailable_models?: string[]
 }
 
 export interface ModelOptionsResponse {

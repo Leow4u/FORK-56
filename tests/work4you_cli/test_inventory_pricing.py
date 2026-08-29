@@ -91,3 +91,15 @@ def test_apply_pricing_omits_sale_when_original_not_cheaper(monkeypatch):
     assert "discount_percent" not in rows[0]["pricing"]["a/eq"]
 
 
+def test_apply_pricing_gates_work4you_without_live_prices(monkeypatch):
+    """Free-plan lock uses the house-model partition even when pricing is empty."""
+    monkeypatch.setattr(models_mod, "get_pricing_for_provider", lambda slug, **kw: {})
+    monkeypatch.setattr(models_mod, "check_work4you_free_tier", lambda *, force_fresh=False: True)
+    house = "deepseek/deepseek-v4-flash-0731"
+    rows = [{"slug": "work4you", "models": [house, "z-ai/glm-5.2"]}]
+    inv._apply_pricing(rows)
+    assert rows[0]["free_tier"] is True
+    assert house not in rows[0]["unavailable_models"]
+    assert "z-ai/glm-5.2" in rows[0]["unavailable_models"]
+
+

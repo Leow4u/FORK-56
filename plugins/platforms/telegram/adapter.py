@@ -6611,8 +6611,9 @@ class TelegramAdapter(BasePlatformAdapter):
 
         return InlineKeyboardMarkup(rows), page_meta["page_info"]
 
-    def _build_model_keyboard(self, models: list, page: int) -> tuple:
+    def _build_model_keyboard(self, models: list, page: int, unavailable: list | None = None) -> tuple:
         """Build paginated model buttons. Returns (keyboard, page_info_text)."""
+        locked = set(unavailable or [])
         page_models, page_meta = self._format_choice_page(
             models, page, self._MODEL_PAGE_SIZE
         )
@@ -6624,6 +6625,8 @@ class TelegramAdapter(BasePlatformAdapter):
         for i, model_id in enumerate(page_models):
             abs_idx = start + i
             short = model_id.split("/")[-1] if "/" in model_id else model_id
+            if model_id in locked:
+                short = f"Pro · {short}"
             if len(short) > 38:
                 short = short[:35] + "..."
             buttons.append(
@@ -6679,9 +6682,12 @@ class TelegramAdapter(BasePlatformAdapter):
             state["selected_provider"] = provider_slug
             state["selected_provider_name"] = provider.get("name", provider_slug)
             state["model_list"] = models
+            state["unavailable_models"] = list(provider.get("unavailable_models") or [])
             state["model_page"] = 0
 
-            keyboard, page_info = self._build_model_keyboard(models, 0)
+            keyboard, page_info = self._build_model_keyboard(
+                models, 0, state["unavailable_models"]
+            )
 
             pname = provider.get("name", provider_slug)
             total = provider.get("total_models", len(models))
@@ -6712,7 +6718,9 @@ class TelegramAdapter(BasePlatformAdapter):
             models = state.get("model_list", [])
             state["model_page"] = page
 
-            keyboard, page_info = self._build_model_keyboard(models, page)
+            keyboard, page_info = self._build_model_keyboard(
+                models, page, state.get("unavailable_models") or []
+            )
 
             pname = state.get("selected_provider_name", "")
             provider_slug = state.get("selected_provider", "")
@@ -6832,6 +6840,12 @@ class TelegramAdapter(BasePlatformAdapter):
                 return
 
             model_id = model_list[idx]
+            if model_id in set(state.get("unavailable_models") or []):
+                await query.answer(
+                    text="Available on a paid plan.",
+                    show_alert=True,
+                )
+                return
             provider_slug = state.get("selected_provider", "")
             callback = state.get("on_model_selected")
 

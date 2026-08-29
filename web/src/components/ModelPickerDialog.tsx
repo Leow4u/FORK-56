@@ -44,6 +44,8 @@ interface ModelOptionProvider {
   warning?: string;
   auth_type?: string;
   key_env?: string;
+  free_tier?: boolean;
+  unavailable_models?: string[];
 }
 
 interface ModelOptionsResponse {
@@ -302,7 +304,12 @@ export function ModelPickerDialog(props: Props) {
     [models, trimmedQuery, queryMatchesSelectedProviderOnly],
   );
 
-  const canConfirm = !!selectedProvider && !!selectedModel && !applying;
+  const selectedLocked = Boolean(
+    selectedModel &&
+      (selectedProvider?.unavailable_models ?? []).includes(selectedModel),
+  );
+  const canConfirm =
+    !!selectedProvider && !!selectedModel && !applying && !selectedLocked;
 
   const applySelection = async (
     confirmExpensiveModel = false,
@@ -698,22 +705,37 @@ function ModelColumn({
           const active = m === selectedModel;
           const isCurrent =
             m === currentModel && provider.slug === currentProviderSlug;
+          const locked = (provider.unavailable_models ?? []).includes(m);
+          const label =
+            m === "deepseek/deepseek-v4-flash-0731" ||
+            m.toLowerCase().endsWith("/deepseek-v4-flash-0731")
+              ? "Operis 4.0 Flash"
+              : m;
 
           return (
             <ListItem
               key={m}
               active={active}
-              onClick={() => onSelect(m)}
-              onDoubleClick={() => onConfirm(m)}
-              className="px-3 py-1.5 text-xs font-mono"
+              onClick={() => {
+                if (!locked) onSelect(m);
+              }}
+              onDoubleClick={() => {
+                if (!locked) onConfirm(m);
+              }}
+              className={`px-3 py-1.5 text-xs font-mono ${locked ? "cursor-not-allowed opacity-45" : ""}`}
             >
               <Check
                 className={`h-3 w-3 shrink-0 ${active ? "text-primary" : "text-transparent"}`}
               />
               <span className="flex-1 truncate">
-                <HighlightedText text={m} positions={positions} />
+                <HighlightedText text={label} positions={label === m ? positions : []} />
               </span>
-              {isCurrent && <CurrentTag />}
+              {locked && (
+                <span className="text-[0.62rem] uppercase tracking-wide opacity-80 shrink-0">
+                  Pro
+                </span>
+              )}
+              {isCurrent && !locked && <CurrentTag />}
             </ListItem>
           );
         })

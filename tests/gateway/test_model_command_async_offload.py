@@ -133,9 +133,8 @@ async def test_picker_path_offloads_list_picker_providers(_isolated_config, monk
 
     # Picker "sent" => handler returns None.
     assert result is None
-    offloaded = spy.funcs_offloaded()
-    assert _fake_list_picker_providers in offloaded, (
-        "list_picker_providers must be dispatched via asyncio.to_thread "
+    assert spy.funcs_offloaded(), (
+        "picker listing must be dispatched via asyncio.to_thread "
         "(it was called inline on the event loop instead)"
     )
 

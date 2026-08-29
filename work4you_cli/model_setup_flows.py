@@ -455,8 +455,6 @@ def _model_flow_nous(config, current_model="", args=None):
         get_pricing_for_provider,
         check_work4you_free_tier,
         partition_work4you_models_by_tier,
-        union_with_portal_free_recommendations,
-        union_with_portal_paid_recommendations,
     )
 
     model_ids = get_curated_work4you_model_ids()
@@ -519,15 +517,7 @@ def _model_flow_nous(config, current_model="", args=None):
     except Exception:
         pass
 
-    # For free users: partition models into selectable/unavailable based on
-    # whether they are free per the Portal-reported pricing.  First augment
-    # with the Portal's freeRecommendedModels list so newly-launched free
-    # models show up even if this CLI build's hardcoded curated list and
-    # docs-hosted manifest haven't caught up yet.
-    #
-    # For paid users: mirror the same idea with paidRecommendedModels so
-    # newly-launched paid models surface in the picker too — independent
-    # of CLI release cadence.
+    # Free: Operis selectable, official catalog otherwise locked.
     unavailable_models: list[str] = []
     unavailable_message = ""
     if free_tier:
@@ -547,15 +537,8 @@ def _model_flow_nous(config, current_model="", args=None):
             )
         except Exception:
             unavailable_message = ""
-        model_ids, pricing = union_with_portal_free_recommendations(
-            model_ids, pricing, _work4you_portal_url,
-        )
         model_ids, unavailable_models = partition_work4you_models_by_tier(
             model_ids, pricing, free_tier=True
-        )
-    else:
-        model_ids, pricing = union_with_portal_paid_recommendations(
-            model_ids, pricing, _work4you_portal_url,
         )
 
     if not model_ids and not unavailable_models:
