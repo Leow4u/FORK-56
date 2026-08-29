@@ -22,6 +22,9 @@ class _Access:
     subscription_credits_remaining: Optional[float] = None
     purchased_credits_remaining: Optional[float] = None
     total_usable_credits: Optional[float] = None
+    subscription_tier: Optional[int] = None
+    active_subscription_is_paid: Optional[bool] = None
+    subscription_monthly_charge: Optional[float] = None
 
 
 @dataclass
@@ -70,6 +73,26 @@ class _Boom:
                paid_service_access_info=_Access(subscription_credits_remaining=5.0, total_usable_credits=5.0)), "healthy"),
         # top-up only, no plan -> usable (healthy), not free
         (_acct(paid_service_access=True, paid_service_access_info=_Access(purchased_credits_remaining=30.0, total_usable_credits=30.0)), "healthy"),
+        # Free plan with a hidden monthly grant is still free (not healthy/low)
+        (_acct(
+            paid_service_access=True,
+            subscription=_Sub(plan="Free", monthly_credits=5.0),
+            paid_service_access_info=_Access(
+                subscription_credits_remaining=5.0,
+                total_usable_credits=5.0,
+                subscription_tier=0,
+            ),
+        ), "free"),
+        # Depleted Free stays free — not a /topup depleted paid wall
+        (_acct(
+            paid_service_access=False,
+            subscription=_Sub(plan="Free", monthly_credits=5.0),
+            paid_service_access_info=_Access(
+                subscription_credits_remaining=0.0,
+                total_usable_credits=0.0,
+                subscription_tier=0,
+            ),
+        ), "free"),
     ],
 )
 def test_status_classification(account, expected):
@@ -93,6 +116,28 @@ def test_plan_bar_spent_and_pct():
     assert bar.spent_usd == pytest.approx(6.0)
 
 
+
+
+def test_free_plan_hides_dollar_bars_and_totals():
+    m = usage_model_from_account(
+        _acct(
+            paid_service_access=True,
+            subscription=_Sub(plan="Free", monthly_credits=5.0),
+            paid_service_access_info=_Access(
+                subscription_credits_remaining=4.0,
+                purchased_credits_remaining=12.0,
+                total_usable_credits=16.0,
+                subscription_tier=0,
+            ),
+        )
+    )
+    assert m.status == "free"
+    assert m.plan_name == "Free"
+    assert m.plan_bar is None
+    assert m.topup_bar is None
+    assert m.subscription_remaining_usd is None
+    assert m.topup_remaining_usd is None
+    assert m.total_spendable_usd is None
 
 
 def test_topup_bar_is_full_with_no_denominator():

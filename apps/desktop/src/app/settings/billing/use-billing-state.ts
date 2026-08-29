@@ -226,8 +226,8 @@ export function deriveBillingView(
     refillRow: autoReloadRow(billing),
     status: 'normal',
     summary: [
-      { label: 'Balance', value: displayBalance(billing) },
-      { label: 'Plan', value: displayPlan(subscription, billing.usage) },
+      { label: 'Balance', value: isFreePlan(billing, subscription) ? EMPTY_BILLING_VALUE : displayBalance(billing) },
+      { label: 'Plan', value: isFreePlan(billing, subscription) ? 'Free' : displayPlan(subscription, billing.usage) },
       {
         label: 'Auto-refill',
         tone: billing.auto_reload?.enabled ? 'primary' : billing.auto_reload ? 'muted' : undefined,
@@ -378,6 +378,25 @@ export function formatMonthlyCreditsDelta(delta?: null | string): null | string 
  * subscription, top tier, empty catalog) the card ALWAYS carries the portal
  * escape-hatch link so the user is never stranded on an info-only card.
  */
+function isFreePlan(
+  billing: BillingStateResponse,
+  subscription: null | SubscriptionStateResponse
+): boolean {
+  const current = subscription?.current
+  if (current?.tier_id && current.tier_id !== 'free') {
+    return false
+  }
+  const plan = (current?.tier_name ?? billing.usage?.plan_name ?? '').trim().toLowerCase()
+  if (plan && plan !== 'free') {
+    return false
+  }
+  if (current?.tier_id === 'free' || plan === 'free') {
+    return true
+  }
+  // NAS Free: subscription payload loaded with current: null.
+  return subscription != null && current == null
+}
+
 function derivePlanCard(
   billing: BillingStateResponse,
   subscription: null | SubscriptionStateResponse,
@@ -387,10 +406,11 @@ function derivePlanCard(
   pending: PendingPlanTransition | undefined
 ): BillingPlanCardView {
   const current = subscription?.current
-  const tierName = current?.tier_name ?? billing.usage?.plan_name ?? 'Free'
+  const free = isFreePlan(billing, subscription)
+  const tierName = free ? 'Free' : (current?.tier_name ?? billing.usage?.plan_name ?? 'Free')
   // Price resolves against the UNFILTERED catalog so a grandfathered current tier
-  // still shows its price.
-  const price = findCurrentTier(subscription)?.dollars_per_month_display
+  // still shows its price. Hidden on Free — the monthly grant is not a user-facing price.
+  const price = free ? undefined : findCurrentTier(subscription)?.dollars_per_month_display
   const renewal = formatBillingDate(current?.cycle_ends_at ?? billing.usage?.renews_at)
   const unavailable = subscriptionResult ? !subscriptionResult.ok : false
 
@@ -400,9 +420,13 @@ function derivePlanCard(
       ? pending.kind === 'downgrade'
         ? `Changes to ${pending.tierName} on ${pending.when}.`
         : `Cancels on ${pending.when}.`
-      : current
-        ? `Renews ${renewal}`
-        : 'No active subscription — paid models draw down top-up credits.'
+      : free
+        ? renewal !== EMPTY_BILLING_VALUE
+          ? `Allowance resets ${renewal}`
+          : 'Free'
+        : current
+          ? `Renews ${renewal}`
+          : 'No active subscription — paid models draw down top-up credits.'
 
   // Actionable = a paid tier above (upgrade) or an in-app downgrade below the current
   // one. Ticket 11 counts downgrades (they act in-app, so they carry no `action`); a
@@ -502,10 +526,13 @@ function derivePlanTiers(
   const pendingName = pending?.kind === 'downgrade' ? pending.tierName : null
 
   return gridTiers.map((tier): BillingPlanTierView => {
+    const freeTile =
+      (tier.name || '').trim().toLowerCase() === 'free' || tier.tier_id === 'free'
     const base: BillingPlanTierBase = {
-      creditsDisplay: creditsPerMonthDisplay(tier.monthly_credits),
+      // Free never names the hidden monthly grant (or a $0/mo price).
+      creditsDisplay: freeTile ? undefined : creditsPerMonthDisplay(tier.monthly_credits),
       name: tier.name,
-      priceDisplay: tier.dollars_per_month_display,
+      priceDisplay: freeTile ? '' : tier.dollars_per_month_display,
       tierId: tier.tier_id
     }
 
@@ -665,6 +692,20 @@ function deriveUsageRows(
   const remaining = parseAmount(current?.credits_remaining)
   const monthly = parseAmount(current?.monthly_credits)
   const usage = subscription?.usage ?? billing.usage
+  const free = isFreePlan(billing, subscription)
+
+  if (free) {
+    const resetAt = formatBillingDate(current?.cycle_ends_at ?? usage?.renews_at)
+    const balance = parseAmount(billing.balance_usd)
+    const usedUp = balance != null && balance <= 0
+    rows.push({
+      caption: resetAt !== EMPTY_BILLING_VALUE ? `Resets ${resetAt}` : 'Resets next cycle',
+      id: 'subscription_credits',
+      title: "This month's allowance",
+      value: usedUp ? 'Used for this cycle' : 'Available'
+    })
+    return rows
+  }
 
   // Remaining can go slightly negative (usage settles after credits hit zero).
   // A raw "-$0.79 left" reads as broken — clamp to $0 and name the overage.

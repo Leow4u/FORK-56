@@ -153,6 +153,12 @@ def build_work4you_credits_snapshot(account_info) -> Optional[AccountUsageSnapsh
         access = getattr(account_info, "paid_service_access_info", None)
         sub = getattr(account_info, "subscription", None)
 
+        try:
+            from work4you_cli.work4you_account import is_work4you_free_plan
+            free_plan = is_work4you_free_plan(account_info)
+        except Exception:
+            free_plan = False
+
         windows: list[AccountUsageWindow] = []
         details: list[str] = []
 
@@ -168,6 +174,7 @@ def build_work4you_credits_snapshot(account_info) -> Optional[AccountUsageSnapsh
         #   - remaining > cap (rollover balance spanning the period) → monthly_credits
         #     is no longer a meaningful denominator, and "$X of $Y left" with X>Y
         #     reads as a contradiction. Both fall back to the magnitudes lines.
+        # Free: percent + reset only — never the hidden grant in dollars.
         if sub is not None:
             monthly_credits = getattr(sub, "monthly_credits", None)
             sub_remaining = getattr(sub, "credits_remaining", None)
@@ -181,13 +188,13 @@ def build_work4you_credits_snapshot(account_info) -> Optional[AccountUsageSnapsh
                 used_pct = max(0.0, min(100.0, used / monthly_credits * 100.0))
                 windows.append(
                     AccountUsageWindow(
-                        label="Subscription",
+                        label="This month's allowance" if free_plan else "Subscription",
                         used_percent=used_pct,
-                        detail=f"{_fmt_usd(sub_remaining)} of {_fmt_usd(monthly_credits)} left",
+                        detail=None if free_plan else f"{_fmt_usd(sub_remaining)} of {_fmt_usd(monthly_credits)} left",
                     )
                 )
 
-        if access is not None:
+        if access is not None and not free_plan:
             sub_credits = getattr(access, "subscription_credits_remaining", None)
             if _is_finite_num(sub_credits):
                 details.append(f"Subscription credits: {_fmt_usd(sub_credits)}")
@@ -199,24 +206,30 @@ def build_work4you_credits_snapshot(account_info) -> Optional[AccountUsageSnapsh
                 details.append(f"Total usable: {_fmt_usd(total_usable)}")
 
         if sub is not None:
-            rollover = getattr(sub, "rollover_credits", None)
-            if _is_finite_num(rollover) and rollover > 0:
-                details.append(f"Rollover: {_fmt_usd(rollover)}")
+            if not free_plan:
+                rollover = getattr(sub, "rollover_credits", None)
+                if _is_finite_num(rollover) and rollover > 0:
+                    details.append(f"Rollover: {_fmt_usd(rollover)}")
             period_end = getattr(sub, "current_period_end", None)
             if period_end:
-                details.append(f"Renews: {period_end}")
+                details.append(f"{'Resets' if free_plan else 'Renews'}: {period_end}")
 
         paid = getattr(account_info, "paid_service_access", None)
         if paid is False:
-            details.append("Status: access depleted — top up to restore")
+            details.append(
+                "Status: used for this cycle · resumes next month"
+                if free_plan
+                else "Status: access depleted — top up to restore"
+            )
 
         if not windows and not details:
             return None
 
-        details.append(f"Top up: {work4you_portal_topup_url(account_info)}")
-        details.append("(or run /topup)")
+        if not free_plan:
+            details.append(f"Top up: {work4you_portal_topup_url(account_info)}")
+            details.append("(or run /topup)")
 
-        plan = getattr(sub, "plan", None) if sub is not None else None
+        plan = "Free" if free_plan else (getattr(sub, "plan", None) if sub is not None else None)
         return AccountUsageSnapshot(
             provider="work4you",
             source="portal-account",

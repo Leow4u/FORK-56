@@ -672,8 +672,9 @@ export const sessionCommands: SlashCommand[] = [
           const plan = usageModel.plan_name ?? (usageModel.status === 'free' ? 'Free' : null)
 
           if (plan) {
+            const cycleWord = usageModel.status === 'free' ? 'resets' : 'renews'
             sections.push({
-              text: `Plan: ${plan}${usageModel.renews_display ? ` · renews ${usageModel.renews_display}` : ''}`
+              text: `Plan: ${plan}${usageModel.renews_display ? ` · ${cycleWord} ${usageModel.renews_display}` : ''}`
             })
           }
 
@@ -682,7 +683,7 @@ export const sessionCommands: SlashCommand[] = [
           }
 
           if (usageModel.status === 'free') {
-            sections.push({ text: '> Free · free models only. Run /subscription to reach paid models.' })
+            sections.push({ text: '> Free · allowance resumes next cycle.' })
           } else if (usageModel.status === 'low') {
             sections.push({
               text: `! Low balance · ${usageModel.total_spendable_display ?? 'under $5'} left. Run /topup or /subscription.`

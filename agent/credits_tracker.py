@@ -268,6 +268,7 @@ def evaluate_credits_notices(
     latch: dict,
     *,
     model_is_free: bool = False,
+    plan_is_free: bool = False,
 ) -> tuple[list[AgentNotice], list[str]]:
     """Reconcile credits notices against the latch. Mutates ``latch`` IN PLACE.
 
@@ -280,6 +281,10 @@ def evaluate_credits_notices(
     error banner is noise (and confuses free-tier users who never had credits).
     Suppression does NOT emit the "restored" success notice; that fires only on
     a genuine ``paid_access`` flip back to True.
+
+    ``plan_is_free``: True when the Portal plan is Free. Usage / depleted copy
+    stays generic (no dollar amounts, no /topup). The hidden monthly grant is
+    not a user-facing balance.
 
     Returns ``(to_show: list[AgentNotice], to_clear: list[str])``.
     Caller emits to_clear FIRST, then to_show.
@@ -362,9 +367,18 @@ def evaluate_credits_notices(
             _used_micros = max(0, min(_lim, _lim - state.subscription_micros))
             _used_usd = f"{_used_micros / 1_000_000:.2f}" if _lim else "?"
             _glyph = "⚠" if _level == "warn" else "•"
+            if plan_is_free:
+                if target_band >= 90:
+                    usage_text = f"{_glyph} Free allowance almost gone this cycle"
+                elif target_band >= 75:
+                    usage_text = f"{_glyph} Free allowance running low this cycle"
+                else:
+                    usage_text = f"{_glyph} Free allowance halfway used this cycle"
+            else:
+                usage_text = f"{_glyph} You've used ${_used_usd} of your ${_cap_usd} cap"
             to_show.append(
                 AgentNotice(
-                    text=f"{_glyph} You've used ${_used_usd} of your ${_cap_usd} cap",
+                    text=usage_text,
                     level=_level,
                     kind=CREDITS_NOTICE_KIND,
                     key=CREDITS_USAGE_KEY,
@@ -383,6 +397,7 @@ def evaluate_credits_notices(
     # the key, so a first observation can never fire this notice.
     if (
         grant_cond
+        and not plan_is_free
         and "credits.grant_spent" not in active
         and latch.get("seen_grant_unspent", False)
     ):
@@ -407,9 +422,14 @@ def evaluate_credits_notices(
     # who never had paid credits to "lose").
     show_depleted = depleted_cond and not model_is_free
     if show_depleted and "credits.depleted" not in active:
+        depleted_text = (
+            "✕ Free allowance used for this cycle · resumes next month"
+            if plan_is_free
+            else "✕ Credit access paused · run /topup to top up"
+        )
         to_show.append(
             AgentNotice(
-                text="✕ Credit access paused · run /topup to top up",
+                text=depleted_text,
                 level="error",
                 kind=CREDITS_NOTICE_KIND,
                 key="credits.depleted",
@@ -424,9 +444,14 @@ def evaluate_credits_notices(
             # Genuine recovery (paid_access flipped back True): also emit the
             # success notice. A clear caused by switching to a free model while
             # still depleted must NOT claim access was restored.
+            restored_text = (
+                "✓ Free allowance restored for this cycle"
+                if plan_is_free
+                else "✓ Credit access restored"
+            )
             to_show.append(
                 AgentNotice(
-                    text="✓ Credit access restored",
+                    text=restored_text,
                     level="success",
                     kind="ttl",
                     ttl_ms=CREDITS_RESTORED_TTL_MS,
