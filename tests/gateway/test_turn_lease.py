@@ -200,7 +200,10 @@ async def test_full_dispatch_rejects_lease_timeout_without_running_goal_hook(
     runner._post_turn_goal_continuation = AsyncMock()
 
     try:
-        response = await asyncio.wait_for(runner._handle_message(_event()), timeout=1)
+        # Full dispatch still hops recover-topic through asyncio.to_thread
+        # before the lease wait. A 1s bound flakes on a busy CI thread pool
+        # (the lease budget itself is 0.02s once that hop returns).
+        response = await asyncio.wait_for(runner._handle_message(_event()), timeout=5)
     finally:
         assert runner._turn_leases.release(holder) is True
 
