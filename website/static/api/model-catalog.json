@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-08-17T19:11:38Z",
+  "updated_at": "2026-08-29T12:31:17Z",
   "metadata": {
     "source": "work4you repo",
     "docs": "https://work4you.ai/docs/reference/model-catalog"
@@ -186,6 +186,10 @@
       },
       "models": [
         {
+          "id": "deepseek/deepseek-v4-flash-0731",
+          "default": true
+        },
+        {
           "id": "anthropic/claude-fable-5"
         },
         {
@@ -235,19 +239,6 @@
         },
         {
           "id": "x-ai/grok-4.6"
-        },
-        {
-          "id": "deepseek/deepseek-v4-pro"
-        },
-        {
-          "id": "deepseek/deepseek-v4-pro-0813"
-        },
-        {
-          "id": "deepseek/deepseek-v4-flash"
-        },
-        {
-          "id": "deepseek/deepseek-v4-flash-0731",
-          "default": true
         },
         {
           "id": "qwen/qwen3.8-max"

@@ -64,12 +64,37 @@ describe("ComposerDock geometry", () => {
     const dock = container.querySelector("[data-slot='composer-dock']");
     expect(dock).toBeTruthy();
 
-    expect(container.textContent).toContain("gpt-4");
+    expect(container.textContent).toContain("GPT-4");
     expect(container.textContent).toContain("main");
     expect(container.textContent).toContain("Cloud");
     expect(container.textContent).toContain("500 tok");
 
     // Old horizontal context bar (connection Live chip) must not appear above composer.
     expect(container.textContent).not.toContain("Live");
+  });
+
+  it("shows Operis 4.0 Flash for the house model id", () => {
+    act(() => {
+      root.render(
+        <ComposerDock
+          value=""
+          onChange={() => undefined}
+          onSubmit={() => undefined}
+          gateway={null}
+          sessionId="sess-1"
+          connectionState="open"
+          sessionInfo={{
+            model: "deepseek/deepseek-v4-flash-0731",
+            provider: "work4you",
+            branch: "main",
+          }}
+          sessionUsage={{ total: 500 }}
+          activity={{ toolLine: null, backgroundLine: null, queueCount: 0 }}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain("Operis 4.0 Flash");
+    expect(container.textContent).not.toContain("deepseek-v4-fla");
   });
 });

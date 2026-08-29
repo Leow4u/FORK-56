@@ -13,8 +13,11 @@ def test_official_catalog_is_curated_without_openrouter_free():
     from work4you_cli.models import _PROVIDER_MODELS
 
     ids = _PROVIDER_MODELS["work4you"]
-    assert WORK4YOU_HOUSE_MODEL_ID in ids
+    assert ids[0] == WORK4YOU_HOUSE_MODEL_ID
     assert "openrouter/free" not in ids
+    assert "deepseek/deepseek-v4-pro" not in ids
+    assert "deepseek/deepseek-v4-pro-0813" not in ids
+    assert "deepseek/deepseek-v4-flash" not in ids
 
 
 def test_house_model_id_is_dated_deepseek_flash():

@@ -259,6 +259,9 @@ def _xai_curated_models() -> list[str]:
 _PROVIDER_MODELS: dict[str, list[str]] = {
     "moa": ["default"],
     "work4you": [
+        # House model (Operis) first so leftover Settings picks land here.
+        # Paid DeepSeek siblings stay on the OpenRouter snapshot, not here.
+        "deepseek/deepseek-v4-flash-0731",
         # Anthropic
         "anthropic/claude-fable-5",
         "anthropic/claude-opus-5",
@@ -280,11 +283,6 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
         "google/gemini-3.7-flash",
         # xAI
         "x-ai/grok-4.6",
-        # DeepSeek
-        "deepseek/deepseek-v4-pro",
-        "deepseek/deepseek-v4-pro-0813",
-        "deepseek/deepseek-v4-flash",
-        "deepseek/deepseek-v4-flash-0731",
         # Qwen
         "qwen/qwen3.8-max",
         # MoonshotAI
