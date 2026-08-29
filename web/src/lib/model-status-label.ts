@@ -34,6 +34,14 @@ export function currentPickerSelection(
   }
 }
 
+export const WORK4YOU_HOUSE_MODEL_ID = 'deepseek/deepseek-v4-flash-0731'
+export const WORK4YOU_HOUSE_MODEL_DISPLAY = 'Operis 4.0 Flash'
+
+export function isWork4YouHouseModel(model: string): boolean {
+  const id = model.trim().toLowerCase()
+  return id === WORK4YOU_HOUSE_MODEL_ID || id.endsWith('/deepseek-v4-flash-0731')
+}
+
 /** Strip provider prefix and normalize for display. */
 export function modelBaseId(model: string): string {
   const trimmed = model.trim()
@@ -73,6 +81,10 @@ function prettifyBase(base: string): string {
 /** Split a model id into a clean display name plus an optional grayed variant
  *  tag, so distinct ids (e.g. `…-4.8` vs `…-4.8-fast`) don't collapse. */
 export function modelDisplayParts(model: string): { name: string; tag: string } {
+  if (isWork4YouHouseModel(model)) {
+    return { name: WORK4YOU_HOUSE_MODEL_DISPLAY, tag: '' }
+  }
+
   let base = modelBaseId(model)
   let tag = ''
 

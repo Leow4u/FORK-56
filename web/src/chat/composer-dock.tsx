@@ -3,10 +3,8 @@ import { useMemo, useState } from "react";
 
 import { ModelPickerDialog } from "@/components/ModelPickerDialog";
 import type { ConnectionState } from "@/lib/gatewayClient";
-import {
-  EFFORT_OPTIONS,
-  formatModelStatusLabel,
-} from "@/lib/reasoning-effort";
+import { formatModelStatusLabel } from "@/lib/model-status-label";
+import { EFFORT_OPTIONS } from "@/lib/reasoning-effort";
 import { cn } from "@/lib/utils";
 
 import type { ThinChatActivity } from "./chat-activity-strip";
