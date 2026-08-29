@@ -1,4 +1,4 @@
-/** Free vs paid model gate (Hermes binary: Free plan → free models + house). */
+/** Free vs paid model gate: Free plan → Operis only. */
 
 export type ModelPricing = { prompt?: string; completion?: string }
 
@@ -29,7 +29,7 @@ export function isModelFreeForPlan(
 
 export function isAllowedOnFreePlan(
   modelId: string,
-  pricing?: ModelPricing | null,
+  _pricing?: ModelPricing | null,
 ): boolean {
-  return isHouseModel(modelId) || isModelFreeForPlan(modelId, pricing)
+  return isHouseModel(modelId)
 }

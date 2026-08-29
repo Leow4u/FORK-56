@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useI18n } from '@/i18n'
+import { displayModelName } from '@/lib/model-status-label'
 import { AlertTriangle, Cpu, Loader2 } from '@/lib/icons'
 import { DEFAULT_REASONING_EFFORT, REASONING_EFFORT_VALUES } from '@/lib/reasoning-effort'
 import { cn } from '@/lib/utils'
@@ -42,6 +43,10 @@ import { CONTROL_TEXT } from './constants'
 import { getNested, setNested } from './helpers'
 import { ListRow, Pill, SectionHeading } from './primitives'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
+
+function unavailableModelsFor(providers: ModelOptionProvider[], slug: string): Set<string> {
+  return new Set(providers.find(provider => provider.slug === slug)?.unavailable_models ?? [])
+}
 
 // Skeleton mirror of the Model settings DOM so the page keeps its shape while
 // the provider/model catalog loads, instead of collapsing to a centered
@@ -630,6 +635,9 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
     if (!selectedProvider || !selectedModel) {
       return
     }
+    if (unavailableModelsFor(providers, selectedProvider).has(selectedModel)) {
+      return
+    }
 
     const epoch = profileEpoch.current
     setApplying(true)
@@ -666,7 +674,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
     } finally {
       setApplying(false)
     }
-  }, [onMainModelChanged, refresh, scopeProfile, selectedModel, selectedProvider, selectedProviderRow])
+  }, [onMainModelChanged, providers, refresh, scopeProfile, selectedModel, selectedProvider, selectedProviderRow])
 
   // Sibling of the applyMainModel endpoint passthrough (#65254): auxiliary
   // assignments targeting a user-defined provider must carry that provider's
@@ -717,6 +725,9 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
       if (!auxDraft.provider || !auxDraft.model) {
         return
       }
+      if (unavailableModelsFor(providers, auxDraft.provider).has(auxDraft.model)) {
+        return
+      }
 
       setApplying(true)
       setError('')
@@ -740,7 +751,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
         setApplying(false)
       }
     },
-    [auxDraft, endpointForProvider, refresh, scopeProfile]
+    [auxDraft, endpointForProvider, providers, refresh, scopeProfile]
   )
 
   const beginAuxiliaryEdit = useCallback(
@@ -842,15 +853,24 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                   <SelectValue placeholder={m.model} />
                 </SelectTrigger>
                 <SelectContent>
-                  {withActive(selectedProviderModels, selectedModel).map(model => (
-                    <SelectItem key={model} value={model}>
-                      {model}
-                    </SelectItem>
-                  ))}
+                  {withActive(selectedProviderModels, selectedModel).map(model => {
+                    const locked = unavailableModelsFor(providers, selectedProvider).has(model)
+                    return (
+                      <SelectItem disabled={locked} key={model} value={model}>
+                        {displayModelName(model)}
+                        {locked ? ` · ${t.modelPicker.pro}` : ''}
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
               <Button
-                disabled={!selectedProvider || !selectedModel || applying}
+                disabled={
+                  !selectedProvider ||
+                  !selectedModel ||
+                  applying ||
+                  unavailableModelsFor(providers, selectedProvider).has(selectedModel)
+                }
                 onClick={() => void applyMainModel()}
                 size="sm"
               >
@@ -996,15 +1016,24 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                             <SelectValue placeholder={m.model} />
                           </SelectTrigger>
                           <SelectContent>
-                            {withActive(auxDraftProviderModels, auxDraft.model).map(model => (
-                              <SelectItem key={model} value={model}>
-                                {model}
-                              </SelectItem>
-                            ))}
+                            {withActive(auxDraftProviderModels, auxDraft.model).map(model => {
+                              const locked = unavailableModelsFor(providers, auxDraft.provider).has(model)
+                              return (
+                                <SelectItem disabled={locked} key={model} value={model}>
+                                  {displayModelName(model)}
+                                  {locked ? ` · ${t.modelPicker.pro}` : ''}
+                                </SelectItem>
+                              )
+                            })}
                           </SelectContent>
                         </Select>
                         <Button
-                          disabled={!auxDraft.provider || !auxDraft.model || applying}
+                          disabled={
+                            !auxDraft.provider ||
+                            !auxDraft.model ||
+                            applying ||
+                            unavailableModelsFor(providers, auxDraft.provider).has(auxDraft.model)
+                          }
                           onClick={() => void applyAuxiliaryDraft(meta.key)}
                           size="sm"
                         >
@@ -1199,11 +1228,15 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                         <SelectValue placeholder={m.model} />
                       </SelectTrigger>
                       <SelectContent>
-                        {withActive(modelsForProvider(slot.provider), slot.model).map(model => (
-                          <SelectItem key={model} value={model}>
-                            {model}
-                          </SelectItem>
-                        ))}
+                        {withActive(modelsForProvider(slot.provider), slot.model).map(model => {
+                          const locked = unavailableModelsFor(providers, slot.provider).has(model)
+                          return (
+                            <SelectItem disabled={locked} key={model} value={model}>
+                              {displayModelName(model)}
+                              {locked ? ` · ${t.modelPicker.pro}` : ''}
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
                     <Button
@@ -1290,11 +1323,18 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                       {withActive(
                         modelsForProvider(currentMoaPreset.aggregator.provider),
                         currentMoaPreset.aggregator.model
-                      ).map(model => (
-                        <SelectItem key={model} value={model}>
-                          {model}
-                        </SelectItem>
-                      ))}
+                      ).map(model => {
+                        const locked = unavailableModelsFor(
+                          providers,
+                          currentMoaPreset.aggregator.provider
+                        ).has(model)
+                        return (
+                          <SelectItem disabled={locked} key={model} value={model}>
+                            {displayModelName(model)}
+                            {locked ? ` · ${t.modelPicker.pro}` : ''}
+                          </SelectItem>
+                        )
+                      })}
                     </SelectContent>
                   </Select>
                 </div>

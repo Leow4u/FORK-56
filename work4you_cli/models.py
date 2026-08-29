@@ -730,19 +730,16 @@ def partition_work4you_models_by_tier(
 
     For paid-tier users: all models are selectable, none unavailable.
 
-    For free-tier users: zero-price models and the billed house model
-    (Operis) are selectable; other paid models are unavailable.
+    For free-tier users: only the billed house model (Operis) is
+    selectable; every other official catalog id is unavailable.
     """
     if not free_tier:
         return (model_ids, [])
 
-    if not pricing:
-        return (model_ids, [])  # can't determine, show everything
-
     selectable: list[str] = []
     unavailable: list[str] = []
     for mid in model_ids:
-        if is_work4you_house_model(mid) or _is_model_free(mid, pricing):
+        if is_work4you_house_model(mid):
             selectable.append(mid)
         else:
             unavailable.append(mid)

@@ -785,8 +785,6 @@ def _apply_pricing(
             raw_pricing = get_pricing_for_provider(slug) or {}
         except Exception:
             raw_pricing = {}
-        if not raw_pricing:
-            continue
 
         formatted: dict[str, dict] = {}
         for mid in models:

@@ -1864,17 +1864,23 @@ class GatewaySlashCommandsMixin:
                     # Offload blocking provider-listing (can fall through to a
                     # synchronous urllib HTTP fetch on a stale cache) off the
                     # event loop so the gateway doesn't freeze. See #41289.
-                    providers = await asyncio.to_thread(
-                        list_picker_providers,
-                        current_provider=current_provider,
-                        current_base_url=current_base_url,
-                        current_model=current_model,
-                        user_providers=user_provs,
-                        custom_providers=custom_provs,
-                        max_models=50,
-                        include_moa=True,
-                        excluded_providers=excluded_provs,
-                    )
+                    def _picker_rows():
+                        from work4you_cli.inventory import _apply_pricing
+
+                        rows = list_picker_providers(
+                            current_provider=current_provider,
+                            current_base_url=current_base_url,
+                            current_model=current_model,
+                            user_providers=user_provs,
+                            custom_providers=custom_provs,
+                            max_models=50,
+                            include_moa=True,
+                            excluded_providers=excluded_provs,
+                        )
+                        _apply_pricing(rows)
+                        return rows
+
+                    providers = await asyncio.to_thread(_picker_rows)
                 except Exception:
                     providers = []
 
@@ -2173,21 +2179,31 @@ class GatewaySlashCommandsMixin:
             try:
                 # Offload blocking provider-listing off the event loop so the
                 # gateway doesn't freeze on a stale-cache HTTP fetch. See #41289.
-                providers = await asyncio.to_thread(
-                    list_authenticated_providers,
-                    current_provider=current_provider,
-                    current_base_url=current_base_url,
-                    current_model=current_model,
-                    user_providers=user_provs,
-                    custom_providers=custom_provs,
-                    max_models=5,
-                    excluded_providers=excluded_provs,
-                )
+                def _text_rows():
+                    from work4you_cli.inventory import _apply_pricing
+
+                    rows = list_authenticated_providers(
+                        current_provider=current_provider,
+                        current_base_url=current_base_url,
+                        current_model=current_model,
+                        user_providers=user_provs,
+                        custom_providers=custom_provs,
+                        max_models=5,
+                        excluded_providers=excluded_provs,
+                    )
+                    _apply_pricing(rows)
+                    return rows
+
+                providers = await asyncio.to_thread(_text_rows)
                 for p in providers:
                     tag = t("gateway.model.current_tag") if p["is_current"] else ""
                     lines.append(f"**{p['name']}** `--provider {p['slug']}`{tag}:")
                     if p["models"]:
-                        model_strs = ", ".join(f"`{m}`" for m in p["models"])
+                        locked = set(p.get("unavailable_models") or [])
+                        model_strs = ", ".join(
+                            f"`{m}` (Pro)" if m in locked else f"`{m}`"
+                            for m in p["models"]
+                        )
                         extra = t("gateway.model.more_models_suffix", count=p["total_models"] - len(p["models"])) if p["total_models"] > len(p["models"]) else ""
                         lines.append(f"  {model_strs}{extra}")
                     elif p.get("api_url"):

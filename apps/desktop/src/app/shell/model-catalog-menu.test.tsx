@@ -97,6 +97,30 @@ describe('the catalog owns model curation', () => {
     })
   })
 
+  it('does not commit a Work4You model marked unavailable', async () => {
+    getGlobalModelOptions.mockResolvedValue({
+      providers: [
+        {
+          models: ['deepseek/deepseek-v4-flash-0731', 'z-ai/glm-5.2'],
+          name: 'Work4You Portal',
+          slug: 'work4you',
+          unavailable_models: ['z-ai/glm-5.2']
+        }
+      ]
+    })
+
+    const select = renderMenu()
+
+    await screen.findByText('Operis 4.0 Flash')
+    fireEvent.click(screen.getByText(/Glm 5\.2/i))
+    expect(select).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByText('Operis 4.0 Flash'))
+    await vi.waitFor(() => {
+      expect(select).toHaveBeenCalledWith('deepseek/deepseek-v4-flash-0731', 'work4you')
+    })
+  })
+
   it('offers Edit Models without the host wiring it up', async () => {
     renderMenu()
     await screen.findByText(/Gemini 3\.1 Pro/i)

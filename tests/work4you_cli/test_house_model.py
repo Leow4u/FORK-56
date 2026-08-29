@@ -9,6 +9,14 @@ from work4you_cli.models import (
 )
 
 
+def test_official_catalog_is_curated_without_openrouter_free():
+    from work4you_cli.models import _PROVIDER_MODELS
+
+    ids = _PROVIDER_MODELS["work4you"]
+    assert WORK4YOU_HOUSE_MODEL_ID in ids
+    assert "openrouter/free" not in ids
+
+
 def test_house_model_id_is_dated_deepseek_flash():
     assert WORK4YOU_HOUSE_MODEL_ID == "deepseek/deepseek-v4-flash-0731"
     assert WORK4YOU_HOUSE_MODEL_DISPLAY == "Operis 4.0 Flash"
@@ -56,5 +64,7 @@ def test_free_tier_recommended_default_prefers_house():
         WORK4YOU_HOUSE_MODEL_ID: {"prompt": "0.00014", "completion": "0.00028"},
         "z-ai/glm-5.2": {"prompt": "0.0014", "completion": "0.0044"},
     }
-    selectable, _ = partition_work4you_models_by_tier(models, pricing, free_tier=True)
+    selectable, unavailable = partition_work4you_models_by_tier(models, pricing, free_tier=True)
+    assert selectable == [WORK4YOU_HOUSE_MODEL_ID]
+    assert "openrouter/free" in unavailable
     assert pick_silent_default_model(selectable, provider="work4you") == WORK4YOU_HOUSE_MODEL_ID

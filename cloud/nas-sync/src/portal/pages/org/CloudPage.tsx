@@ -90,7 +90,6 @@ const FALLBACK_MODELS: AnnotatedModelOption[] = [
     free: false,
     locked: false,
   },
-  { id: 'openrouter/free', name: 'openrouter/free', free: true, locked: false },
 ]
 
 const SIZE_LABELS: Record<string, string> = {

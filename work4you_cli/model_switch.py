@@ -3047,42 +3047,9 @@ def list_authenticated_providers(
             except Exception:
                 model_ids = curated.get(work4you_slug, []) or curated.get(pid, [])
         elif work4you_slug == "work4you":
-            # Work4You serves a large live /v1/models catalog (vendor-prefixed
-            # models from many providers, returned alphabetically). The
-            # `work4you model` picker deliberately shows ONLY the curated agentic
-            # list — augmented with the Portal's free/paid recommendations so
-            # newly-launched models surface without a CLI release — in curated
-            # order. Mirror that exactly (see _model_flow_nous in main.py) so
-            # the GUI picker matches the CLI. Was: falling through to
-            # cached_provider_model_ids, which dumped the full alphabetical
-            # catalog; then: curated-only, which dropped the 4 Portal
-            # recommendations (e.g. stepfun/step-3.7-flash:free).
+            # Official Work4You catalog is the curated manifesto only.
+            # Portal recommended-models is default/hint data, not a second list.
             model_ids = curated.get("work4you", [])
-            try:
-                from work4you_cli.models import (
-                    get_pricing_for_provider as _work4you_pricing,
-                    check_work4you_free_tier as _work4you_free,
-                    union_with_portal_free_recommendations as _union_free,
-                    union_with_portal_paid_recommendations as _union_paid,
-                )
-                from work4you_cli.auth import get_provider_auth_state as _work4you_state
-
-                _pricing = _work4you_pricing("work4you") or {}
-                _portal = ""
-                try:
-                    _st = _work4you_state("work4you") or {}
-                    _portal = _st.get("portal_base_url", "") or ""
-                except Exception:
-                    _portal = ""
-                if _work4you_free(force_fresh=force_fresh_work4you_tier):
-                    model_ids, _ = _union_free(model_ids, _pricing, _portal)
-                else:
-                    model_ids, _ = _union_paid(model_ids, _pricing, _portal)
-            except Exception:
-                # Portal recommendation fetch failed — fall back to the
-                # curated list alone (still correct, just may lag newly
-                # launched models, exactly like an offline CLI run).
-                pass
         else:
             # Unified pathway — see Section 1 rationale. Fall back to the
             # curated dict (with models.dev merge for preferred providers)

@@ -218,10 +218,18 @@ class TestPartitionWork4YouModelsByTier:
             "openrouter/free": self._FREE,
         }
         sel, unav = partition_work4you_models_by_tier(models, pricing, free_tier=True)
-        assert WORK4YOU_HOUSE_MODEL_ID in sel
-        assert "openrouter/free" in sel
+        assert sel == [WORK4YOU_HOUSE_MODEL_ID]
+        assert "openrouter/free" in unav
         assert "anthropic/claude-opus-4.6" in unav
         assert WORK4YOU_HOUSE_MODEL_ID not in unav
+
+    def test_free_tier_locks_zero_price_without_house(self):
+        """$0 / :free ids are not the Free-plan unlock — Operis is."""
+        models = ["openrouter/free", "deepseek/deepseek-chat:free"]
+        pricing = {m: self._FREE for m in models}
+        sel, unav = partition_work4you_models_by_tier(models, pricing, free_tier=True)
+        assert sel == []
+        assert unav == models
 
 
 class TestUnionWithPortalFreeRecommendations:
