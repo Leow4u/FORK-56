@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useI18n } from '@/i18n'
-import { displayModelName } from '@/lib/model-status-label'
+import { displayModelName, isWork4YouHouseModel } from '@/lib/model-status-label'
 import { AlertTriangle, Cpu, Loader2 } from '@/lib/icons'
 import { DEFAULT_REASONING_EFFORT, REASONING_EFFORT_VALUES } from '@/lib/reasoning-effort'
 import { cn } from '@/lib/utils'
@@ -46,6 +46,10 @@ import { useDeepLinkHighlight } from './use-deep-link-highlight'
 
 function unavailableModelsFor(providers: ModelOptionProvider[], slug: string): Set<string> {
   return new Set(providers.find(provider => provider.slug === slug)?.unavailable_models ?? [])
+}
+
+function settingsModelLabel(model: string): string {
+  return isWork4YouHouseModel(model) ? displayModelName(model) : model
 }
 
 // Skeleton mirror of the Model settings DOM so the page keeps its shape while
@@ -857,7 +861,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                     const locked = unavailableModelsFor(providers, selectedProvider).has(model)
                     return (
                       <SelectItem disabled={locked} key={model} value={model}>
-                        {displayModelName(model)}
+                        {settingsModelLabel(model)}
                         {locked ? ` · ${t.modelPicker.pro}` : ''}
                       </SelectItem>
                     )
@@ -1020,7 +1024,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                               const locked = unavailableModelsFor(providers, auxDraft.provider).has(model)
                               return (
                                 <SelectItem disabled={locked} key={model} value={model}>
-                                  {displayModelName(model)}
+                                  {settingsModelLabel(model)}
                                   {locked ? ` · ${t.modelPicker.pro}` : ''}
                                 </SelectItem>
                               )
@@ -1232,7 +1236,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                           const locked = unavailableModelsFor(providers, slot.provider).has(model)
                           return (
                             <SelectItem disabled={locked} key={model} value={model}>
-                              {displayModelName(model)}
+                              {settingsModelLabel(model)}
                               {locked ? ` · ${t.modelPicker.pro}` : ''}
                             </SelectItem>
                           )
@@ -1330,7 +1334,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                         ).has(model)
                         return (
                           <SelectItem disabled={locked} key={model} value={model}>
-                            {displayModelName(model)}
+                            {settingsModelLabel(model)}
                             {locked ? ` · ${t.modelPicker.pro}` : ''}
                           </SelectItem>
                         )
