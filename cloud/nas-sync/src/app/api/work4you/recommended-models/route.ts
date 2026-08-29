@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
 
+const HOUSE_MODEL_ID = 'deepseek/deepseek-v4-flash-0731'
+const HOUSE_MODEL_DISPLAY = 'Operis 4.0 Flash'
+
 /**
  * GET /api/work4you/recommended-models
  * Public catalog hints for CLI/Desktop free vs paid pickers (Hermes shape).
@@ -10,6 +13,7 @@ export const runtime = 'nodejs'
 export async function GET() {
   const now = new Date().toISOString()
   const freeRecommendedModels = [
+    HOUSE_MODEL_ID,
     'openrouter/free',
     'deepseek/deepseek-chat:free',
     'google/gemma-3-27b-it:free',
@@ -17,10 +21,10 @@ export async function GET() {
     'mistralai/mistral-small-3.1-24b-instruct:free',
   ].map((modelName, position) => ({
     modelName,
-    displayName: modelName,
+    displayName: modelName === HOUSE_MODEL_ID ? HOUSE_MODEL_DISPLAY : modelName,
     source: 'local',
     href: null,
-    tokenPrice: '$0.00/1M',
+    tokenPrice: modelName === HOUSE_MODEL_ID ? null : '$0.00/1M',
     contextLength: null,
     inputModalities: [] as string[],
     outputModalities: [] as string[],
@@ -36,10 +40,13 @@ export async function GET() {
     'anthropic/claude-sonnet-4',
     'deepseek/deepseek-chat',
     'deepseek/deepseek-v4-flash',
-    ...freeRecommendedModels.map((m) => m.modelName),
+    HOUSE_MODEL_ID,
+    ...freeRecommendedModels
+      .map((m) => m.modelName)
+      .filter((id) => id !== HOUSE_MODEL_ID),
   ].map((modelName, position) => ({
     modelName,
-    displayName: modelName,
+    displayName: modelName === HOUSE_MODEL_ID ? HOUSE_MODEL_DISPLAY : modelName,
     source: 'local',
     href: null,
     tokenPrice: null as string | null,

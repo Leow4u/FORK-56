@@ -84,6 +84,12 @@ type AnnotatedModelOption = {
 }
 
 const FALLBACK_MODELS: AnnotatedModelOption[] = [
+  {
+    id: 'deepseek/deepseek-v4-flash-0731',
+    name: 'Operis 4.0 Flash',
+    free: false,
+    locked: false,
+  },
   { id: 'openrouter/free', name: 'openrouter/free', free: true, locked: false },
 ]
 

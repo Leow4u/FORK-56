@@ -203,6 +203,26 @@ class TestPartitionWork4YouModelsByTier:
         assert sel == []
         assert unav == models
 
+    def test_house_model_selectable_on_free_tier(self):
+        """Operis stays selectable on Free even with paid (non-zero) pricing."""
+        from work4you_cli.models import WORK4YOU_HOUSE_MODEL_ID
+
+        models = [
+            "anthropic/claude-opus-4.6",
+            WORK4YOU_HOUSE_MODEL_ID,
+            "openrouter/free",
+        ]
+        pricing = {
+            "anthropic/claude-opus-4.6": self._PAID,
+            WORK4YOU_HOUSE_MODEL_ID: self._PAID,
+            "openrouter/free": self._FREE,
+        }
+        sel, unav = partition_work4you_models_by_tier(models, pricing, free_tier=True)
+        assert WORK4YOU_HOUSE_MODEL_ID in sel
+        assert "openrouter/free" in sel
+        assert "anthropic/claude-opus-4.6" in unav
+        assert WORK4YOU_HOUSE_MODEL_ID not in unav
+
 
 class TestUnionWithPortalFreeRecommendations:
     """Tests for union_with_portal_free_recommendations.
