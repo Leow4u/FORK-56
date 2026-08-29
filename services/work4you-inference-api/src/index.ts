@@ -17,7 +17,7 @@ import {
   type AuthorizeOk,
 } from './billing.js'
 import { config } from './config.js'
-import { isModelFreeForPlan } from './model-access.js'
+import { isAllowedOnFreePlan } from './model-access.js'
 import { getModelPricing, openRouterFetch } from './openrouter.js'
 import {
   checkAndConsumeRateLimit,
@@ -135,7 +135,7 @@ async function requireBillingGates(c: Context<AppEnv>, next: Next) {
     typeof claims.paidPlan === 'boolean' ? claims.paidPlan : authz.paidPlan
   if (!paidPlan && model !== 'unknown') {
     const pricing = await getModelPricing(model)
-    if (!isModelFreeForPlan(model, pricing)) {
+    if (!isAllowedOnFreePlan(model, pricing)) {
       return c.json(
         {
           error: {

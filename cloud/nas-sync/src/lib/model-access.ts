@@ -1,6 +1,7 @@
 /**
  * Free vs paid model access (Hermes-style binary gate).
- * Plus/Super/Ultra all unlock the full catalog; Free locks paid models.
+ * Plus/Super/Ultra all unlock the full catalog; Free locks paid models
+ * except the billed house model (Operis).
  */
 import type { Org } from '@prisma/client'
 import { getTier } from './tiers'
@@ -13,6 +14,22 @@ export type AnnotatedModel = {
   free: boolean
   locked: boolean
   pricing?: ModelPricing
+}
+
+/** Billed house model on Free. Ceiling is existing NAS authorize/debit. */
+export const HOUSE_MODEL_ID = 'deepseek/deepseek-v4-flash-0731'
+export const HOUSE_MODEL_DISPLAY = 'Operis 4.0 Flash'
+
+export function isHouseModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase()
+  return id === HOUSE_MODEL_ID || id.endsWith('/deepseek-v4-flash-0731')
+}
+
+export function isAllowedOnFreePlan(
+  modelId: string,
+  pricing?: ModelPricing | null,
+): boolean {
+  return isHouseModel(modelId) || isModelFreeForPlan(modelId, pricing)
 }
 
 /** Paid subscription (Plus/Super/Ultra) — not the Free plan. */
@@ -45,12 +62,13 @@ export function annotateModels(params: {
   const out: AnnotatedModel[] = []
   for (const m of params.models) {
     if (!m?.id) continue
+    const house = isHouseModel(m.id)
     const free = isModelFreeForPlan(m.id, m.pricing)
     out.push({
       id: m.id,
-      name: m.name || m.id,
+      name: house ? HOUSE_MODEL_DISPLAY : m.name || m.id,
       free,
-      locked: !params.paidPlan && !free,
+      locked: !params.paidPlan && !free && !house,
       pricing: m.pricing,
     })
   }
@@ -65,6 +83,7 @@ export function annotateModels(params: {
 
 export function pickDefaultUnlocked(models: AnnotatedModel[]): string {
   const preferred = [
+    HOUSE_MODEL_ID,
     'openrouter/free',
     'openai/gpt-4o-mini',
     'google/gemini-2.5-flash',
