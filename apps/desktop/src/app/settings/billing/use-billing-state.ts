@@ -526,10 +526,13 @@ function derivePlanTiers(
   const pendingName = pending?.kind === 'downgrade' ? pending.tierName : null
 
   return gridTiers.map((tier): BillingPlanTierView => {
+    const freeTile =
+      (tier.name || '').trim().toLowerCase() === 'free' || tier.tier_id === 'free'
     const base: BillingPlanTierBase = {
-      creditsDisplay: creditsPerMonthDisplay(tier.monthly_credits),
+      // Free never names the hidden monthly grant (or a $0/mo price).
+      creditsDisplay: freeTile ? undefined : creditsPerMonthDisplay(tier.monthly_credits),
       name: tier.name,
-      priceDisplay: tier.dollars_per_month_display,
+      priceDisplay: freeTile ? '' : tier.dollars_per_month_display,
       tierId: tier.tier_id
     }
 

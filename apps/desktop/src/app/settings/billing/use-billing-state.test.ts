@@ -561,6 +561,9 @@ describe('derivePlanTiers (plans grid)', () => {
         url: 'https://portal.work4you.ai/manage-subscription?org_id=org_personal_free&plan=cltier111plus1111personal'
       }
     })
+    expect(byName.Free.priceDisplay).toBe('')
+    expect(byName.Free.creditsDisplay).toBeUndefined()
+    expect(byName.Plus.priceDisplay).toBe('$20')
   })
 
   it('still lists a tier whose name has no art mapping (text-only card, no layout break)', () => {
