@@ -313,11 +313,15 @@ export function ModelCatalogMenu({
     listRef.current?.querySelector('[data-kb-active]')?.scrollIntoView({ block: 'nearest' })
   }, [kbActiveKey])
 
-  const kbRowProps = (key: string) => {
+  const kbRowProps = (key: string, extraClassName?: string) => {
     const active = kbActiveKey === key
 
     return {
-      className: cn(dropdownMenuRow, active && 'bg-(--ui-control-active-background) text-foreground'),
+      className: cn(
+        dropdownMenuRow,
+        active && 'bg-(--ui-control-active-background) text-foreground',
+        extraClassName
+      ),
       ...(active ? { 'data-kb-active': '' } : {})
     }
   }
@@ -455,7 +459,6 @@ export function ModelCatalogMenu({
                     return (
                       <DropdownMenuSub key={`${group.provider.slug}:${family.id}`}>
                         <DropdownMenuSubTrigger
-                          className={locked ? 'cursor-not-allowed opacity-45' : undefined}
                           hideChevron
                           onClick={activate}
                           onKeyDown={event => {
@@ -463,7 +466,10 @@ export function ModelCatalogMenu({
                               activate()
                             }
                           }}
-                          {...kbRowProps(`${group.provider.slug}:${family.id}`)}
+                          {...kbRowProps(
+                            `${group.provider.slug}:${family.id}`,
+                            locked ? 'cursor-not-allowed opacity-45' : undefined
+                          )}
                         >
                           <span className="min-w-0 flex-1 truncate">
                             <HighlightMatches query={search} text={name} />
