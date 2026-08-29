@@ -1,4 +1,7 @@
+import { withInkSuspended } from '@work4you/ink'
+
 import { usageBarsText } from '../../../components/overlayPrimitives.js'
+import { FIRST_RUN_PORTAL_ARGS, isFirstRunSetupRequired } from '../../../content/setup.js'
 import { introMsg, toTranscriptMessages } from '../../../domain/messages.js'
 import { sessionScopedModelArg, TUI_SESSION_MODEL_FLAG } from '../../../domain/slash.js'
 import type {
@@ -11,12 +14,14 @@ import type {
   SlashExecResponse,
   VoiceToggleResponse
 } from '../../../gatewayTypes.js'
+import { launchWork4YouCommand } from '../../../lib/externalCli.js'
 import { formatVoiceRecordKey, parseVoiceRecordKey } from '../../../lib/platform.js'
 import { fmtK } from '../../../lib/text.js'
 import type { PanelSection } from '../../../types.js'
 import { applyConfiguredTuiTheme } from '../../createGatewayEventHandler.js'
 import { DEFAULT_INDICATOR_STYLE, INDICATOR_STYLES, type IndicatorStyle } from '../../interfaces.js'
 import { patchOverlayState } from '../../overlayStore.js'
+import { runExternalSetup } from '../../setupHandoff.js'
 import { patchUiState } from '../../uiStore.js'
 import type { SlashCommand } from '../types.js'
 
@@ -103,6 +108,20 @@ export const sessionCommands: SlashCommand[] = [
     help: 'change or show model',
     name: 'model',
     run: (arg, ctx) => {
+      // First-run door is Portal only — same rule as Desktop and `work4you`.
+      // `/model` after setup still opens the full picker / typed switch.
+      if (isFirstRunSetupRequired(ctx.ui.status)) {
+        void runExternalSetup({
+          args: [...FIRST_RUN_PORTAL_ARGS],
+          ctx,
+          done: 'setup complete — starting session…',
+          launcher: launchWork4YouCommand,
+          suspend: withInkSuspended
+        })
+
+        return
+      }
+
       // No busy guard here (unlike session switching). A model change is a
       // session-scoped config.set: idle it switches immediately; mid-turn the
       // gateway QUEUES it and applies it at the next turn start (returning

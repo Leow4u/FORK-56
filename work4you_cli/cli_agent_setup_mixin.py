@@ -225,44 +225,39 @@ class CLIAgentSetupMixin:
         )
 
     def _offer_first_run_setup(self) -> bool:
-        """Offer the provider picker when no provider is configured at all.
+        """Run Work4You Portal first-run when no provider is configured.
 
         Called from the interactive startup path when
-        ``_runtime_credentials_ready()`` is False and stdin is a TTY. Runs the
-        exact same flow as ``work4you model`` (which fronts Quick Setup / Work4You
-        Portal OAuth as the first, recommended option) so there is a single
-        source of truth for provider onboarding. Returns True when a provider
-        was configured.
+        ``_runtime_credentials_ready()`` is False and stdin is a TTY. Same door
+        as Desktop and TUI first-run: Portal account, no skip, no lab/key
+        picker. Reuses ``_run_portal_one_shot`` (``work4you setup --portal`` /
+        ``work4you portal``). ``work4you model`` remains the post-setup full
+        picker. Returns True when a provider was configured.
         """
         from cli import _cprint, logger
 
         _cprint("")
-        _cprint("⚕ No inference provider is configured yet — let's fix that.")
-        _cprint("  You'll pick a provider (Work4You Portal OAuth is the fastest; "
-                "no API key needed) and a model.")
-        try:
-            answer = input("  Set up a provider now? [Y/n]: ").strip().lower()
-        except (KeyboardInterrupt, EOFError):
-            print()
-            answer = "n"
-        if answer in {"n", "no"}:
-            _cprint("  Skipped. Run 'work4you model' or 'work4you setup' any time.")
-            return False
+        _cprint("⚕ No inference provider is configured yet — sign in with Work4You Portal.")
 
         try:
-            from work4you_cli.main import select_provider_and_model
-            select_provider_and_model()
+            from work4you_cli.config import load_config
+            from work4you_cli.setup import _run_portal_one_shot
+
+            config = load_config()
+            if not isinstance(config, dict):
+                config = {}
+            _run_portal_one_shot(config)
         except (KeyboardInterrupt, EOFError, SystemExit):
             print()
-            _cprint("  Setup cancelled. Run 'work4you model' any time.")
+            _cprint("  Setup cancelled. Run 'work4you portal' any time.")
             return False
         except Exception as exc:
             logger.debug("first-run provider setup failed: %s", exc)
             _cprint(f"  ⚠️  Provider setup failed: {exc}")
-            _cprint("  Run 'work4you model' to try again.")
+            _cprint("  Run 'work4you portal' to try again.")
             return False
 
-        # Re-sync CLI state from what the picker persisted so the very next
+        # Re-sync CLI state from what Portal setup persisted so the very next
         # turn uses the new provider without a restart.
         try:
             from work4you_cli.config import load_config
@@ -285,7 +280,7 @@ class CLIAgentSetupMixin:
         if self._runtime_credentials_ready():
             _cprint("  ✓ Provider configured — you're ready to chat.")
             return True
-        _cprint("  Provider setup didn't complete. Run 'work4you model' to retry.")
+        _cprint("  Provider setup didn't complete. Run 'work4you portal' to retry.")
         return False
 
     def _resolve_turn_agent_config(self, user_message: str) -> dict:

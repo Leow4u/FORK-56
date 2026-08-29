@@ -7,7 +7,8 @@ On an existing install:
 - `work4you setup --reconfigure` is a backwards-compat alias for the
   bare-setup default.
 
-On a fresh install, all three are no-ops — fall through to first-time setup.
+On a fresh install, flags are no-ops and first-time setup is Portal only
+(no Full setup / Blank Slate / skip menu).
 """
 
 from argparse import Namespace
@@ -160,8 +161,7 @@ class TestQuickFlag:
 
 
 class TestFreshInstall:
-    """On a fresh install (no active provider), flags are no-ops."""
-
+    """On a fresh install (no active provider), first-run is Portal only."""
 
     def test_reconfigure_on_fresh_install_falls_through(self, fresh_install):
         args = _make_setup_args(reconfigure=True)
@@ -169,13 +169,36 @@ class TestFreshInstall:
         with ExitStack() as stack:
             m = _enter_fresh_install_patches(
                 stack,
-                prompt=("work4you_cli.setup.prompt_choice", {"return_value": 0}),
+                prompt="work4you_cli.setup.prompt_choice",
                 first="work4you_cli.setup._run_first_time_quick_setup",
+                blank="work4you_cli.setup._run_blank_slate_setup",
+                model="work4you_cli.setup.setup_model_provider",
             )
             from work4you_cli.setup import run_setup_wizard
             run_setup_wizard(args)
 
-        m["prompt"].assert_called_once()
+        m["prompt"].assert_not_called()
+        m["blank"].assert_not_called()
+        m["model"].assert_not_called()
+        m["first"].assert_called_once()
+
+    def test_bare_setup_on_fresh_install_is_portal_only(self, fresh_install):
+        args = _make_setup_args()
+
+        with ExitStack() as stack:
+            m = _enter_fresh_install_patches(
+                stack,
+                prompt="work4you_cli.setup.prompt_choice",
+                first="work4you_cli.setup._run_first_time_quick_setup",
+                blank="work4you_cli.setup._run_blank_slate_setup",
+                model="work4you_cli.setup.setup_model_provider",
+            )
+            from work4you_cli.setup import run_setup_wizard
+            run_setup_wizard(args)
+
+        m["prompt"].assert_not_called()
+        m["blank"].assert_not_called()
+        m["model"].assert_not_called()
         m["first"].assert_called_once()
 
 

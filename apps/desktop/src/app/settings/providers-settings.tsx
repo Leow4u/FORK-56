@@ -114,15 +114,11 @@ function buildProviderKeyGroups(vars: Record<string, EnvVarInfo>): ProviderKeyGr
   return groups.sort((a, b) => a.priority - b.priority || a.name.localeCompare(b.name))
 }
 
-// Deliberately a near-1:1 replica of the first-run onboarding picker
-// (`Picker` in desktop-onboarding-overlay): same recommended card, same
-// Fireworks #2 quick-key row, same provider rows, same "Other providers"
-// disclosure, same OpenRouter quick-key row, and the same bottom-right
-// "I have an API key" affordance. The leaf cards are the exact shared
-// components, so the two surfaces stay visually identical. Selecting a
-// provider hands off to the shared onboarding overlay, which runs that
-// provider's real sign-in flow; the key affordances open the API-key
-// catalog below.
+// Replica of the *manual* add-provider picker (`Picker` with manual=true):
+// recommended Portal card, Fireworks #2, other OAuth rows, "Other providers"
+// disclosure, OpenRouter quick-key, and "I have an API key". First-run no
+// longer shows those alternatives — they live here. Leaf cards are the
+// shared components. Selecting a provider hands off to the shared overlay.
 function OAuthPicker({
   disconnecting,
   onDisconnect,
