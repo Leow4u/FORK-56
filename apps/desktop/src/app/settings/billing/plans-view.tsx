@@ -142,9 +142,11 @@ function PlanCard({ flow, tier }: { flow: DowngradeFlow; tier: BillingPlanTierVi
           <div className="truncate text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
             {tier.name}
           </div>
-          <div className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-            {tier.priceDisplay}/mo
-          </div>
+          {tier.priceDisplay ? (
+            <div className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+              {tier.priceDisplay}/mo
+            </div>
+          ) : null}
         </div>
       </div>
 

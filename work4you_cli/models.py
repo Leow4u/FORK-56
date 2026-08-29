@@ -108,7 +108,7 @@ OPENROUTER_MODELS: list[tuple[str, str]] = [
     ("deepseek/deepseek-v4-pro",               ""),
     ("deepseek/deepseek-v4-pro-0813",          "dated snapshot of v4-pro"),
     ("deepseek/deepseek-v4-flash",             ""),
-    ("deepseek/deepseek-v4-flash-0731",        "dated snapshot of v4-flash"),
+    ("deepseek/deepseek-v4-flash-0731",        "Operis 4.0 Flash"),
     # Qwen
     ("qwen/qwen3.8-max",                       ""),
     # MoonshotAI
@@ -116,7 +116,7 @@ OPENROUTER_MODELS: list[tuple[str, str]] = [
     # MiniMax
     ("minimax/minimax-m3",                     ""),
     # Z-AI
-    ("z-ai/glm-5.2",                           "default"),
+    ("z-ai/glm-5.2",                           ""),
     ("z-ai/glm-5.1",                           ""),
     # Xiaomi
     ("xiaomi/mimo-v2.5-pro",                   ""),
@@ -668,6 +668,16 @@ _PROVIDER_MODELS["ai-gateway"] = [mid for mid, _ in VERCEL_AI_GATEWAY_MODELS]
 # are currently offered (free or paid). We trust whatever it returns and
 # surface it to users as-is — no local allowlist filtering.
 
+# Billed house model on Free (Operis). Not $0 — NAS authorize/debit is the ceiling.
+WORK4YOU_HOUSE_MODEL_ID = "deepseek/deepseek-v4-flash-0731"
+WORK4YOU_HOUSE_MODEL_DISPLAY = "Operis 4.0 Flash"
+
+
+def is_work4you_house_model(model_id: str) -> bool:
+    """Return True if *model_id* is the Free-plan house model (Operis)."""
+    mid = (model_id or "").strip().lower()
+    return mid == WORK4YOU_HOUSE_MODEL_ID or mid.endswith("/deepseek-v4-flash-0731")
+
 
 def _is_model_free(model_id: str, pricing: dict[str, dict[str, str]]) -> bool:
     """Return True if *model_id* has zero-cost prompt AND completion pricing."""
@@ -720,19 +730,16 @@ def partition_work4you_models_by_tier(
 
     For paid-tier users: all models are selectable, none unavailable.
 
-    For free-tier users: only free models are selectable; paid models
-    are returned as unavailable (shown grayed out in the menu).
+    For free-tier users: only the billed house model (Operis) is
+    selectable; every other official catalog id is unavailable.
     """
     if not free_tier:
         return (model_ids, [])
 
-    if not pricing:
-        return (model_ids, [])  # can't determine, show everything
-
     selectable: list[str] = []
     unavailable: list[str] = []
     for mid in model_ids:
-        if _is_model_free(mid, pricing):
+        if is_work4you_house_model(mid):
             selectable.append(mid)
         else:
             unavailable.append(mid)
@@ -1424,7 +1431,7 @@ _PROVIDER_ALIASES = {
 # lists are ordered most-capable-first, so [0] is the priciest Anthropic
 # flagship (claude-fable-5 / opus) — silently billing the most expensive model
 # for traffic the user never opted into.
-PREFERRED_SILENT_DEFAULT_MODEL = "z-ai/glm-5.2"
+PREFERRED_SILENT_DEFAULT_MODEL = WORK4YOU_HOUSE_MODEL_ID
 
 
 def get_preferred_silent_default_model(provider: str = "openrouter") -> str:

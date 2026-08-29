@@ -279,6 +279,41 @@ class TestDepleted:
         assert "credits.depleted" in keys
 
 
+# ── Scenario 5a2: Free *plan* notices hide the dollar grant ──────────────────
+
+
+class TestFreePlanGenericNotices:
+    def test_usage_band_has_no_dollar_amount(self):
+        latch = fresh_latch()
+        evaluate_credits_notices(state_with_fraction(0.10), latch, plan_is_free=True)
+        to_show, _ = evaluate_credits_notices(state_with_fraction(0.55), latch, plan_is_free=True)
+        usage = [n for n in to_show if n.key == "credits.usage"]
+        assert len(usage) == 1
+        assert "$" not in usage[0].text
+        assert "Free allowance halfway used this cycle" in usage[0].text
+
+    def test_depleted_points_at_next_cycle_not_topup(self):
+        latch = fresh_latch()
+        to_show, _ = evaluate_credits_notices(
+            CreditsState(paid_access=False), latch, plan_is_free=True
+        )
+        depleted = [n for n in to_show if n.key == "credits.depleted"]
+        assert len(depleted) == 1
+        assert "$" not in depleted[0].text
+        assert "/topup" not in depleted[0].text
+        assert "resumes next month" in depleted[0].text
+
+    def test_grant_spent_suppressed_on_free_plan(self):
+        latch = fresh_latch()
+        evaluate_credits_notices(state_with_fraction(0.10), latch, plan_is_free=True)
+        to_show, _ = evaluate_credits_notices(
+            state_with_fraction(1.0, purchased_micros=5_000_000, purchased_usd="5.00"),
+            latch,
+            plan_is_free=True,
+        )
+        assert all(n.key != "credits.grant_spent" for n in to_show)
+
+
 # ── Scenario 5b: free-model suppression of the depleted notice ───────────────
 
 

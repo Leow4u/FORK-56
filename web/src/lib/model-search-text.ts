@@ -10,6 +10,7 @@
  */
 const MODEL_SEARCH_ALIASES: Record<string, readonly string[]> = {
   k3: ["kimi-k3", "kimi"],
+  "deepseek/deepseek-v4-flash-0731": ["operis", "operis 4.0 flash"],
 };
 
 /** Haystack for fuzzy/substring model search; never changes the wire id. */

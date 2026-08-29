@@ -9226,8 +9226,6 @@ def _login_nous(args, pconfig: ProviderConfig) -> None:
             from work4you_cli.models import (
                 get_curated_work4you_model_ids, get_pricing_for_provider,
                 check_work4you_free_tier, partition_work4you_models_by_tier,
-                union_with_portal_free_recommendations,
-                union_with_portal_paid_recommendations,
             )
             model_ids = get_curated_work4you_model_ids()
 
@@ -9239,7 +9237,6 @@ def _login_nous(args, pconfig: ProviderConfig) -> None:
                 # Force fresh account data for model selection so recent credit
                 # purchases are reflected immediately.
                 free_tier = check_work4you_free_tier(force_fresh=True)
-                _portal_for_recs = auth_state.get("portal_base_url", "")
                 if free_tier:
                     try:
                         from work4you_cli.work4you_account import (
@@ -9257,24 +9254,8 @@ def _login_nous(args, pconfig: ProviderConfig) -> None:
                         )
                     except Exception:
                         unavailable_message = ""
-                    # The Portal's freeRecommendedModels endpoint is the
-                    # source of truth for what's free *right now*. Augment
-                    # the curated list with anything new the Portal flags
-                    # as free so users on older Work4You builds still see
-                    # newly-launched free models without a CLI release.
-                    model_ids, pricing = union_with_portal_free_recommendations(
-                        model_ids, pricing, _portal_for_recs,
-                    )
                     model_ids, unavailable_models = partition_work4you_models_by_tier(
                         model_ids, pricing, free_tier=True,
-                    )
-                else:
-                    # Paid-tier mirror: pull paidRecommendedModels so newly
-                    # launched paid models surface in the picker even if
-                    # the in-repo curated list and docs-hosted manifest
-                    # haven't caught up yet.
-                    model_ids, pricing = union_with_portal_paid_recommendations(
-                        model_ids, pricing, _portal_for_recs,
                     )
             _portal = auth_state.get("portal_base_url", "")
             if model_ids:

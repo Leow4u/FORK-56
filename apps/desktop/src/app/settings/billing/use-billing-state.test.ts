@@ -306,6 +306,17 @@ describe('derivePlanCard (current-plan card)', () => {
 
     expect(view.plan).toMatchObject({ action: { label: 'View plans' }, tierName: 'Free' })
     expect(view.plan?.link).toBeUndefined()
+    expect(view.plan?.price).toBeUndefined()
+    expect(view.summary).toContainEqual({ label: 'Plan', value: 'Free' })
+    expect(view.summary.find(item => item.label === 'Balance')?.value).toBe('—')
+    expect(view.usageRows).toEqual([
+      expect.objectContaining({
+        id: 'subscription_credits',
+        title: "This month's allowance",
+        value: 'Available'
+      })
+    ])
+    expect(view.usageRows.some(row => /\$/.test(row.value))).toBe(false)
   })
 
   it('offers an in-app "Change plan" button for a personal subscriber', () => {
@@ -550,6 +561,9 @@ describe('derivePlanTiers (plans grid)', () => {
         url: 'https://portal.work4you.ai/manage-subscription?org_id=org_personal_free&plan=cltier111plus1111personal'
       }
     })
+    expect(byName.Free.priceDisplay).toBe('')
+    expect(byName.Free.creditsDisplay).toBeUndefined()
+    expect(byName.Plus.priceDisplay).toBe('$20')
   })
 
   it('still lists a tier whose name has no art mapping (text-only card, no layout break)', () => {

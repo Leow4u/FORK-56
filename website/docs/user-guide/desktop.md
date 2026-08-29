@@ -471,7 +471,7 @@ npm run dist:linux   # AppImage + deb + rpm
 npm run pack         # unpacked app under release/ (no installer)
 ```
 
-macOS/Windows signing and notarization run automatically when the relevant credentials are present in the environment (`CSC_LINK` / `CSC_KEY_PASSWORD` / `APPLE_*` for macOS, `WIN_CSC_*` for Windows).
+The Windows installer people download (`Work4You-Setup.exe`) is Authenticode-signed in CI with Work4You's SSL.com eSigner certificate. Local `npm run dist:win` packs are unsigned development artifacts. macOS notarization still runs when `CSC_LINK` / `CSC_KEY_PASSWORD` / `APPLE_*` are present.
 
 ### macOS permissions and local rebuilds (TCC)
 

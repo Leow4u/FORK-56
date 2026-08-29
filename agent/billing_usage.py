@@ -162,7 +162,15 @@ def usage_model_from_account(account_info: Any) -> UsageModel:
         renews_at = getattr(sub, "current_period_end", None) if sub is not None else None
         monthly = _finite(getattr(sub, "monthly_credits", None)) if sub is not None else None
 
-        has_subscription = bool(plan_name) or (monthly is not None and monthly > 0)
+        try:
+            from work4you_cli.work4you_account import is_work4you_free_plan
+            free_plan = is_work4you_free_plan(account_info)
+        except Exception:
+            free_plan = (str(plan_name or "").strip().lower() == "free")
+
+        has_subscription = (not free_plan) and (
+            bool(plan_name) or (monthly is not None and monthly > 0)
+        )
 
         # Total spendable: prefer the server's total; else sum the parts we have.
         if total_usable is not None:
@@ -171,8 +179,11 @@ def usage_model_from_account(account_info: Any) -> UsageModel:
             parts = [v for v in (sub_remaining, topup_remaining) if v is not None]
             total_spendable = sum(parts) if parts else None
 
-        # Status classification.
-        if paid is False:
+        # Status classification. Free stays "free" even with a hidden monthly
+        # grant or a depleted cycle — clients must not show dollars or /topup.
+        if free_plan:
+            status = "free"
+        elif paid is False:
             status = "depleted"
         elif not has_subscription and not (topup_remaining and topup_remaining > 0):
             # No plan and no purchased balance -> free-models-only.
@@ -185,8 +196,14 @@ def usage_model_from_account(account_info: Any) -> UsageModel:
         # Plan bar — only with a positive monthly allowance AND a remaining we
         # can place on it. spent = cap - remaining, clamped (a debt/over-cap
         # balance reads as fully spent rather than a nonsensical negative).
+        # Hidden on Free so the grant amount never reaches the wire.
         plan_bar: Optional[UsageBar] = None
-        if monthly is not None and monthly > 0 and sub_remaining is not None:
+        if (
+            not free_plan
+            and monthly is not None
+            and monthly > 0
+            and sub_remaining is not None
+        ):
             remaining = max(0.0, min(monthly, sub_remaining))
             plan_bar = UsageBar(
                 kind="plan",
@@ -198,7 +215,7 @@ def usage_model_from_account(account_info: Any) -> UsageModel:
         # Top-up bar — only when there are purchased dollars to show. No
         # denominator (top-up has no monthly cap), so it renders full = balance.
         topup_bar: Optional[UsageBar] = None
-        if topup_remaining is not None and topup_remaining > 0:
+        if (not free_plan) and topup_remaining is not None and topup_remaining > 0:
             topup_bar = UsageBar(
                 kind="topup",
                 remaining_usd=topup_remaining,
@@ -209,12 +226,12 @@ def usage_model_from_account(account_info: Any) -> UsageModel:
         return UsageModel(
             available=True,
             status=status,
-            plan_name=plan_name,
+            plan_name="Free" if free_plan else plan_name,
             renews_at=renews_at,
             renews_display=format_renews(renews_at),
-            subscription_remaining_usd=sub_remaining,
-            topup_remaining_usd=topup_remaining,
-            total_spendable_usd=total_spendable,
+            subscription_remaining_usd=None if free_plan else sub_remaining,
+            topup_remaining_usd=None if free_plan else topup_remaining,
+            total_spendable_usd=None if free_plan else total_spendable,
             plan_bar=plan_bar,
             topup_bar=topup_bar,
         )

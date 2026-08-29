@@ -48,6 +48,11 @@ function isCurrentProvider(provider: ModelOptionProvider, currentProvider: strin
   return provider.slug === currentProvider || (provider.aliases?.includes(currentProvider) ?? false)
 }
 
+function familyIsLocked(family: ModelFamily, provider: ModelOptionProvider): boolean {
+  const unavailable = new Set(provider.unavailable_models ?? [])
+  return unavailable.has(family.id) || Boolean(family.fastId && unavailable.has(family.fastId))
+}
+
 // Lets the host dropdown (model-pill, a kanban field trigger, …) hand the panel
 // a way to dismiss itself so clicking a model row commits + closes, while the
 // hover-revealed edit submenu (reasoning/fast) stays open to play with (its
@@ -126,6 +131,7 @@ export function ModelCatalogMenu({
 }: ModelCatalogMenuProps) {
   const { t } = useI18n()
   const copy = t.shell.modelMenu
+  const pickerCopy = t.modelPicker
   const closeMenu = useContext(ModelMenuCloseContext)
   const [search, setSearch] = useState('')
   const collapsedProviders = useStoreCollapsed()
@@ -289,6 +295,10 @@ export function ModelCatalogMenu({
       return
     }
 
+    if (familyIsLocked(row.family, row.provider)) {
+      return
+    }
+
     if (!rowIsCurrent(row) && row.family.fastId !== current.model) {
       void selectFamily(row.family, row.provider)
     }
@@ -303,11 +313,15 @@ export function ModelCatalogMenu({
     listRef.current?.querySelector('[data-kb-active]')?.scrollIntoView({ block: 'nearest' })
   }, [kbActiveKey])
 
-  const kbRowProps = (key: string) => {
+  const kbRowProps = (key: string, extraClassName?: string) => {
     const active = kbActiveKey === key
 
     return {
-      className: cn(dropdownMenuRow, active && 'bg-(--ui-control-active-background) text-foreground'),
+      className: cn(
+        dropdownMenuRow,
+        active && 'bg-(--ui-control-active-background) text-foreground',
+        extraClassName
+      ),
       ...(active ? { 'data-kb-active': '' } : {})
     }
   }
@@ -429,7 +443,12 @@ export function ModelCatalogMenu({
                     // Clicking the row commits the model and closes; the edit
                     // submenu (reasoning/fast) is reached by HOVER, so you can
                     // tweak those without the click dismissing everything.
+                    const locked = familyIsLocked(family, group.provider)
                     const activate = () => {
+                      if (locked) {
+                        return
+                      }
+
                       if (!isCurrent) {
                         void selectFamily(family, group.provider)
                       }
@@ -447,13 +466,20 @@ export function ModelCatalogMenu({
                               activate()
                             }
                           }}
-                          {...kbRowProps(`${group.provider.slug}:${family.id}`)}
+                          {...kbRowProps(
+                            `${group.provider.slug}:${family.id}`,
+                            locked ? 'cursor-not-allowed opacity-45' : undefined
+                          )}
                         >
                           <span className="min-w-0 flex-1 truncate">
                             <HighlightMatches query={search} text={name} />
                             {meta ? <span className="text-(--ui-text-tertiary)"> {meta}</span> : null}
                           </span>
-                          {isCurrent ? (
+                          {locked ? (
+                            <span className="ml-auto shrink-0 text-[0.62rem] uppercase tracking-wide opacity-80">
+                              {pickerCopy.pro}
+                            </span>
+                          ) : isCurrent ? (
                             <Codicon className="ml-auto text-foreground" name="check" size="0.75rem" />
                           ) : null}
                         </DropdownMenuSubTrigger>

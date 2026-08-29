@@ -144,6 +144,11 @@ jobs:
           cp cloud/nas-sync/src/lib/inference-catalog.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/model-access.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/account-delete.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/tiers.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/org-billing.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/billing-client.ts nas/src/lib/
+          mkdir -p nas/src/app/api/internal/billing/authorize
+          cp cloud/nas-sync/src/app/api/internal/billing/authorize/route.ts nas/src/app/api/internal/billing/authorize/
           cp cloud/nas-sync/src/app/api/agents/route.ts nas/src/app/api/agents/
           mkdir -p nas/src/app/api/agents/\[id\]/\[action\]
           cp cloud/nas-sync/src/app/api/agents/\[id\]/route.ts nas/src/app/api/agents/\[id\]/
@@ -160,6 +165,10 @@ jobs:
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.module.css nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/AccountSettingsPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/AccountSettingsPage.module.css nas/src/portal/pages/org/
+          cp cloud/nas-sync/src/portal/pages/org/BillingPage.tsx nas/src/portal/pages/org/
+          cp cloud/nas-sync/src/portal/pages/ManageSubscriptionPage.tsx nas/src/portal/pages/
+          mkdir -p nas/src/portal/components
+          cp cloud/nas-sync/src/portal/components/PortalShell.tsx nas/src/portal/components/
           mkdir -p nas/src/portal/lib
           cp cloud/nas-sync/src/portal/lib/linked-accounts.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/info-content.ts nas/src/portal/lib/
@@ -187,6 +196,10 @@ jobs:
             src/lib/inference-catalog.ts \
             src/lib/model-access.ts \
             src/lib/account-delete.ts \
+            src/lib/tiers.ts \
+            src/lib/org-billing.ts \
+            src/lib/billing-client.ts \
+            src/app/api/internal/billing/authorize/route.ts \
             src/app/api/agents/route.ts \
             src/app/api/agents/\[id\]/route.ts \
             src/app/api/agents/\[id\]/\[action\]/route.ts \
@@ -200,6 +213,9 @@ jobs:
             src/portal/pages/org/LocalDashboardsPage.module.css \
             src/portal/pages/org/AccountSettingsPage.tsx \
             src/portal/pages/org/AccountSettingsPage.module.css \
+            src/portal/pages/org/BillingPage.tsx \
+            src/portal/pages/ManageSubscriptionPage.tsx \
+            src/portal/components/PortalShell.tsx \
             src/portal/lib/linked-accounts.ts \
             src/portal/lib/info-content.ts \
             src/portal/pages/org/InfoPage.tsx \

@@ -384,6 +384,9 @@ export function ModelPicker({
       const model = models[modelIdx]
 
       if (provider && model) {
+        if ((provider.unavailable_models ?? []).includes(model)) {
+          return
+        }
         onSelect(
           `${model} --provider ${provider.slug}${allowPersistGlobal && persistGlobal ? ' --global' : ` ${TUI_SESSION_MODEL_FLAG}`}`
         )
@@ -669,16 +672,24 @@ export function ModelPicker({
         }
 
         const prefix = modelIdx === idx ? '▸ ' : row === currentModel ? '* ' : '  '
+        const locked = (provider?.unavailable_models ?? []).includes(row)
+        const label =
+          row === 'deepseek/deepseek-v4-flash-0731' ||
+          row.toLowerCase().endsWith('/deepseek-v4-flash-0731')
+            ? 'Operis 4.0 Flash'
+            : row
 
         return (
           <Text
-            color={t.color.muted}
+            color={locked ? t.color.muted : t.color.muted}
+            dimColor={locked}
             {...chipRowProps(t, modelIdx === idx)}
             key={`${provider?.slug ?? 'prov'}:${idx}:${row}`}
             wrap="truncate-end"
           >
             {prefix}
-            {idx + 1}. {row}
+            {idx + 1}. {label}
+            {locked ? '  Pro' : ''}
           </Text>
         )
       })}
@@ -691,6 +702,11 @@ export function ModelPicker({
         persist: {allowPersistGlobal ? (persistGlobal ? 'global' : 'session') : 'session'}
         {allowPersistGlobal ? ' · ^g toggle' : ' only'}
       </Text>
+      {(provider?.unavailable_models?.length ?? 0) > 0 ? (
+        <Text color={t.color.muted} wrap="truncate-end">
+          Pro models need a paid plan
+        </Text>
+      ) : null}
       <OverlayHint t={t}>
         {models.length ? '↑/↓ select · Enter switch · Esc clear/back · q close' : 'Esc back · q close'}
       </OverlayHint>

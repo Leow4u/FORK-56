@@ -102,7 +102,8 @@
         },
         {
           "id": "deepseek/deepseek-v4-flash-0731",
-          "description": "dated snapshot of v4-flash"
+          "description": "Operis 4.0 Flash",
+          "default": true
         },
         {
           "id": "qwen/qwen3.8-max",
@@ -118,8 +119,7 @@
         },
         {
           "id": "z-ai/glm-5.2",
-          "description": "default",
-          "default": true
+          "description": ""
         },
         {
           "id": "z-ai/glm-5.1",
@@ -246,7 +246,8 @@
           "id": "deepseek/deepseek-v4-flash"
         },
         {
-          "id": "deepseek/deepseek-v4-flash-0731"
+          "id": "deepseek/deepseek-v4-flash-0731",
+          "default": true
         },
         {
           "id": "qwen/qwen3.8-max"
@@ -258,8 +259,7 @@
           "id": "minimax/minimax-m3"
         },
         {
-          "id": "z-ai/glm-5.2",
-          "default": true
+          "id": "z-ai/glm-5.2"
         },
         {
           "id": "z-ai/glm-5.1"

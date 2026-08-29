@@ -7150,32 +7150,15 @@ def get_recommended_default_model(provider: str = ""):
                 check_work4you_free_tier,
                 partition_work4you_models_by_tier,
                 pick_silent_default_model,
-                union_with_portal_free_recommendations,
-                union_with_portal_paid_recommendations,
             )
-            from work4you_cli.auth import get_provider_auth_state
 
             model_ids = get_curated_work4you_model_ids()
             pricing = get_pricing_for_provider("work4you") or {}
             free_tier = check_work4you_free_tier(force_fresh=True)
 
-            portal_url = ""
-            try:
-                state = get_provider_auth_state("work4you") or {}
-                portal_url = state.get("portal_base_url", "") or ""
-            except Exception:
-                portal_url = ""
-
             if free_tier:
-                model_ids, pricing = union_with_portal_free_recommendations(
-                    model_ids, pricing, portal_url
-                )
                 model_ids, _unavailable = partition_work4you_models_by_tier(
                     model_ids, pricing, free_tier=True
-                )
-            else:
-                model_ids, pricing = union_with_portal_paid_recommendations(
-                    model_ids, pricing, portal_url
                 )
 
             model = pick_silent_default_model(model_ids, provider="work4you")
