@@ -131,6 +131,46 @@ class Work4YouPortalAccountInfo:
         return bool(ta and ta.enabled and ta.coverage.get(category) is True)
 
 
+_PAID_PLAN_NAMES = frozenset({"plus", "super", "ultra"})
+
+
+def is_work4you_free_plan(account_info: Optional[Work4YouPortalAccountInfo]) -> bool:
+    """True only when the Portal plan is positively Free (not Plus/Super/Ultra).
+
+    Distinct from ``is_free_tier``, which means *paid access is False* (depleted
+    Plus looks "free-tier" there). Unknown / missing signals return False so
+    paid dollar surfaces stay visible.
+    """
+    if account_info is None:
+        return False
+    access = getattr(account_info, "paid_service_access_info", None)
+    sub = getattr(account_info, "subscription", None)
+    if access is not None:
+        if getattr(access, "active_subscription_is_paid", None) is True:
+            return False
+        tier = getattr(access, "subscription_tier", None)
+        if tier is not None and tier > 0:
+            return False
+        charge = getattr(access, "subscription_monthly_charge", None)
+        if charge is not None and charge > 0:
+            return False
+        if tier == 0:
+            return True
+    if sub is not None:
+        sub_tier = getattr(sub, "tier", None)
+        if sub_tier is not None and sub_tier > 0:
+            return False
+        monthly_charge = getattr(sub, "monthly_charge", None)
+        if monthly_charge is not None and monthly_charge > 0:
+            return False
+        plan = (getattr(sub, "plan", None) or "").strip().lower()
+        if plan in _PAID_PLAN_NAMES:
+            return False
+        if plan == "free" or sub_tier == 0:
+            return True
+    return False
+
+
 def work4you_portal_billing_url(account_info: Optional[Work4YouPortalAccountInfo] = None) -> str:
     """Return the billing URL for a normalized Work4You account snapshot."""
     try:
@@ -287,6 +327,12 @@ def _no_paid_access_message(
             f"{credit_detail} Ask your organisation admin to raise the"
             f" member spend cap at {billing_url}, then run `work4you model`"
             f" to refresh."
+        )
+
+    if is_work4you_free_plan(account_info):
+        return (
+            f"Your Free allowance is used for this cycle, so {capability} "
+            f"is unavailable. It resumes next month. Or upgrade at {billing_url}."
         )
 
     if has_active_subscription and active_subscription_is_paid:

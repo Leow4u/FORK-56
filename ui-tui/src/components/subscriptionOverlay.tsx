@@ -351,8 +351,10 @@ function statusLine(s: SubscriptionStateResponse): string {
   const renews = renewsRaw ? ` · renews ${renewsRaw}` : ''
   const viewOnly = !s.can_change_plan
 
-  if (!plan) {
-    return 'Plan: Free · free models only'
+  const planLc = (plan || '').toLowerCase()
+  const isFree = !c?.tier_id || planLc === 'free' || u?.status === 'free'
+  if (isFree || !plan) {
+    return renewsRaw ? `Plan: Free · resets ${renewsRaw}` : 'Plan: Free'
   }
 
   if (u?.status === 'low' && u.total_spendable_display) {
@@ -385,10 +387,10 @@ function OverviewScreen({ onClose, onPatch, overlay, t }: ScreenProps) {
   const busyRef = useRef(false)
 
   const u = s.usage
-  const freeNudge = isFree ? 'Paid models need a subscription. Start one to reach them.' : null
+  const freeNudge = isFree ? 'Free allowance resets next cycle. Upgrade to keep going sooner.' : null
 
   const lowNudge =
-    u?.status === 'low'
+    !isFree && u?.status === 'low'
       ? `Low balance · ${u.total_spendable_display ?? 'under $5'} left. Top up or upgrade before a mid-run cutoff.`
       : null
 

@@ -63,7 +63,7 @@ class CLIBillingMixin:
                 _cprint(f"  Total spendable: ${usage.total_spendable_usd:,.2f}")
 
             if usage.status == "free":
-                _cprint(f"  {_d('> Free · free models only. Run /subscription to reach paid models.')}")
+                _cprint(f"  {_d('> Free · allowance resumes next cycle.')}")
                 printed_any = True
             elif usage.status == "low":
                 _amt = f"${usage.total_spendable_usd:,.2f}" if usage.total_spendable_usd is not None else "under $5"
@@ -181,8 +181,9 @@ class CLIBillingMixin:
             _flip = " → cancels"
         elif c and c.pending_downgrade_tier_name:
             _flip = f" → {c.pending_downgrade_tier_name}"
-        if not plan_name:
-            status = "Plan: Free · free models only"
+        if is_free or not plan_name or str(plan_name).strip().lower() == "free":
+            _reset = f" · resets {renews_display}" if renews_display else ""
+            status = f"Plan: Free{_reset}"
         elif usage is not None and u_status == "low" and usage.total_spendable_usd is not None:
             _tot = f"${usage.total_spendable_usd:,.2f}"
             status = f"Plan: {plan_name}{_flip} · {_tot} left"

@@ -4219,7 +4219,20 @@ class AIAgent:
                 getattr(self, "model", "") or "",
                 getattr(self, "base_url", "") or "",
             )
-            to_show, to_clear = evaluate_credits_notices(state, latch, model_is_free=model_is_free)
+            # Portal Free plan: generic notices, no dollar grant. JWT-local
+            # (get_work4you_portal_account_info does not fetch when the token is live).
+            plan_is_free = False
+            try:
+                from work4you_cli.work4you_account import (
+                    get_work4you_portal_account_info,
+                    is_work4you_free_plan,
+                )
+                plan_is_free = is_work4you_free_plan(get_work4you_portal_account_info())
+            except Exception:
+                plan_is_free = False
+            to_show, to_clear = evaluate_credits_notices(
+                state, latch, model_is_free=model_is_free, plan_is_free=plan_is_free
+            )
             for key in to_clear:        # clears FIRST …
                 self._emit_notice_clear(key)
             for notice in to_show:      # … then shows (depleted lands last in a latest-wins slot)

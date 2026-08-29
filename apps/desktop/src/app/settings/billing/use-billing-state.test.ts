@@ -306,6 +306,17 @@ describe('derivePlanCard (current-plan card)', () => {
 
     expect(view.plan).toMatchObject({ action: { label: 'View plans' }, tierName: 'Free' })
     expect(view.plan?.link).toBeUndefined()
+    expect(view.plan?.price).toBeUndefined()
+    expect(view.summary).toContainEqual({ label: 'Plan', value: 'Free' })
+    expect(view.summary.find(item => item.label === 'Balance')?.value).toBe('—')
+    expect(view.usageRows).toEqual([
+      expect.objectContaining({
+        id: 'subscription_credits',
+        title: "This month's allowance",
+        value: 'Available'
+      })
+    ])
+    expect(view.usageRows.some(row => /\$/.test(row.value))).toBe(false)
   })
 
   it('offers an in-app "Change plan" button for a personal subscriber', () => {

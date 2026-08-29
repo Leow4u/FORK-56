@@ -118,7 +118,7 @@ describe('/usage slash command', () => {
     await run('')
 
     const body = balancePanel(panel)
-    expect(body).toContain('free models only')
-    expect(body).toContain('/subscription')
+    expect(body).toContain('Plan: Free')
+    expect(body).toContain('allowance resumes next cycle')
   })
 })

@@ -142,8 +142,8 @@ describe('SubscriptionOverlay — overview', () => {
   it('free: upsell + "Start a subscription", no tier list, no "credits"', () => {
     const out = render(overlay(state({ current: null, usage: { available: true, status: 'free', plan_name: null } })))
 
-    expect(out).toContain('Plan: Free · free models only')
-    expect(out).toContain('Paid models need a subscription')
+    expect(out).toContain('Plan: Free')
+    expect(out).toContain('Free allowance resets next cycle')
     expect(out).toContain('Start a subscription')
     expect(out).not.toContain('$20/mo')
     expect(out.toLowerCase()).not.toContain('credits')

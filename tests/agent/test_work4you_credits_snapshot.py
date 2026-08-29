@@ -56,6 +56,35 @@ def test_healthy():
 
 
 
+def test_free_plan_hides_dollar_grant():
+    info = _account(
+        paid_service_access=True,
+        paid_service_access_info=Work4YouPaidServiceAccessInfo(
+            subscription_tier=0,
+            active_subscription_is_paid=False,
+            subscription_credits_remaining=3.0,
+            purchased_credits_remaining=0,
+            total_usable_credits=3.0,
+        ),
+        subscription=Work4YouPortalSubscriptionInfo(
+            plan="Free",
+            tier=0,
+            monthly_credits=5.0,
+            credits_remaining=3.0,
+            current_period_end="2026-09-15",
+        ),
+    )
+    snap = build_work4you_credits_snapshot(info)
+    assert snap is not None
+    assert snap.plan == "Free"
+    blob = "\n".join(list(snap.details) + [w.detail or "" for w in snap.windows])
+    assert "$" not in blob
+    assert "topup" not in blob.lower()
+    assert "Top up" not in blob
+    assert any(w.label == "This month's allowance" for w in snap.windows)
+    assert any("Resets: 2026-09-15" in line for line in snap.details)
+
+
 def test_logged_out():
     info = _account(
         logged_in=False,

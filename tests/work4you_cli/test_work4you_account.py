@@ -12,8 +12,10 @@ import pytest
 from work4you_cli.work4you_account import (
     Work4YouPaidServiceAccessInfo,
     Work4YouPortalAccountInfo,
+    Work4YouPortalSubscriptionInfo,
     format_work4you_portal_entitlement_message,
     get_work4you_portal_account_info,
+    is_work4you_free_plan,
     work4you_portal_topup_url,
     reset_work4you_portal_account_info_cache,
 )
@@ -266,6 +268,63 @@ def test_pool_oauth_entry_force_fresh_uses_account_api(monkeypatch):
     assert info.fresh is True
     assert info.paid_service_access is True
     assert info.credential_source == "pool:dashboard device_code"
+
+
+def test_is_work4you_free_plan_positive_and_paid():
+    free = Work4YouPortalAccountInfo(
+        logged_in=True,
+        source="account_api",
+        fresh=True,
+        subscription=Work4YouPortalSubscriptionInfo(plan="Free", tier=0, monthly_charge=0, monthly_credits=5),
+        paid_service_access=True,
+        paid_service_access_info=Work4YouPaidServiceAccessInfo(
+            subscription_tier=0,
+            active_subscription_is_paid=False,
+            subscription_monthly_charge=0,
+        ),
+    )
+    plus = Work4YouPortalAccountInfo(
+        logged_in=True,
+        source="account_api",
+        fresh=True,
+        subscription=Work4YouPortalSubscriptionInfo(plan="Plus", tier=1, monthly_charge=20, monthly_credits=22),
+        paid_service_access=True,
+        paid_service_access_info=Work4YouPaidServiceAccessInfo(
+            subscription_tier=1,
+            active_subscription_is_paid=True,
+            subscription_monthly_charge=20,
+        ),
+    )
+    assert is_work4you_free_plan(free) is True
+    assert is_work4you_free_plan(plus) is False
+    assert is_work4you_free_plan(None) is False
+
+
+def test_free_plan_entitlement_message_hides_dollars():
+    info = Work4YouPortalAccountInfo(
+        logged_in=True,
+        source="account_api",
+        fresh=True,
+        portal_base_url="https://portal.example.test",
+        subscription=Work4YouPortalSubscriptionInfo(plan="Free", tier=0, monthly_credits=5),
+        paid_service_access=False,
+        paid_service_access_info=Work4YouPaidServiceAccessInfo(
+            allowed=False,
+            reason="no_usable_credits",
+            has_active_subscription=False,
+            active_subscription_is_paid=False,
+            subscription_tier=0,
+            subscription_credits_remaining=0,
+            purchased_credits_remaining=0,
+            total_usable_credits=0,
+        ),
+    )
+    msg = format_work4you_portal_entitlement_message(info, capability="Work4You model access")
+    assert msg is not None
+    assert "Free allowance is used for this cycle" in msg
+    assert "resumes next month" in msg
+    assert "$" not in msg
+    assert "top up" not in msg.lower()
 
 
 # ── member spend cap exceeded ───────────────────────────────────────────────
