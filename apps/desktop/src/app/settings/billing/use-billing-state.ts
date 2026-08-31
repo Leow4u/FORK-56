@@ -378,21 +378,23 @@ export function formatMonthlyCreditsDelta(delta?: null | string): null | string 
  * subscription, top tier, empty catalog) the card ALWAYS carries the portal
  * escape-hatch link so the user is never stranded on an info-only card.
  */
-function isFreePlan(
-  billing: BillingStateResponse,
-  subscription: null | SubscriptionStateResponse
-): boolean {
+function isFreePlan(billing: BillingStateResponse, subscription: null | SubscriptionStateResponse): boolean {
   const current = subscription?.current
+
   if (current?.tier_id && current.tier_id !== 'free') {
     return false
   }
+
   const plan = (current?.tier_name ?? billing.usage?.plan_name ?? '').trim().toLowerCase()
+
   if (plan && plan !== 'free') {
     return false
   }
+
   if (current?.tier_id === 'free' || plan === 'free') {
     return true
   }
+
   // NAS Free: subscription payload loaded with current: null.
   return subscription != null && current == null
 }
@@ -526,8 +528,8 @@ function derivePlanTiers(
   const pendingName = pending?.kind === 'downgrade' ? pending.tierName : null
 
   return gridTiers.map((tier): BillingPlanTierView => {
-    const freeTile =
-      (tier.name || '').trim().toLowerCase() === 'free' || tier.tier_id === 'free'
+    const freeTile = (tier.name || '').trim().toLowerCase() === 'free' || tier.tier_id === 'free'
+
     const base: BillingPlanTierBase = {
       // Free never names the hidden monthly grant (or a $0/mo price).
       creditsDisplay: freeTile ? undefined : creditsPerMonthDisplay(tier.monthly_credits),
@@ -704,6 +706,7 @@ function deriveUsageRows(
       title: "This month's allowance",
       value: usedUp ? 'Used for this cycle' : 'Available'
     })
+
     return rows
   }
 

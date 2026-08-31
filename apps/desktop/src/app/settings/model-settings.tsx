@@ -639,6 +639,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
     if (!selectedProvider || !selectedModel) {
       return
     }
+
     if (unavailableModelsFor(providers, selectedProvider).has(selectedModel)) {
       return
     }
@@ -729,6 +730,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
       if (!auxDraft.provider || !auxDraft.model) {
         return
       }
+
       if (unavailableModelsFor(providers, auxDraft.provider).has(auxDraft.model)) {
         return
       }
@@ -859,6 +861,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                 <SelectContent>
                   {withActive(selectedProviderModels, selectedModel).map(model => {
                     const locked = unavailableModelsFor(providers, selectedProvider).has(model)
+
                     return (
                       <SelectItem disabled={locked} key={model} value={model}>
                         {settingsModelLabel(model)}
@@ -1022,6 +1025,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                           <SelectContent>
                             {withActive(auxDraftProviderModels, auxDraft.model).map(model => {
                               const locked = unavailableModelsFor(providers, auxDraft.provider).has(model)
+
                               return (
                                 <SelectItem disabled={locked} key={model} value={model}>
                                   {settingsModelLabel(model)}
@@ -1234,6 +1238,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                       <SelectContent>
                         {withActive(modelsForProvider(slot.provider), slot.model).map(model => {
                           const locked = unavailableModelsFor(providers, slot.provider).has(model)
+
                           return (
                             <SelectItem disabled={locked} key={model} value={model}>
                               {settingsModelLabel(model)}
@@ -1328,10 +1333,8 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                         modelsForProvider(currentMoaPreset.aggregator.provider),
                         currentMoaPreset.aggregator.model
                       ).map(model => {
-                        const locked = unavailableModelsFor(
-                          providers,
-                          currentMoaPreset.aggregator.provider
-                        ).has(model)
+                        const locked = unavailableModelsFor(providers, currentMoaPreset.aggregator.provider).has(model)
+
                         return (
                           <SelectItem disabled={locked} key={model} value={model}>
                             {settingsModelLabel(model)}

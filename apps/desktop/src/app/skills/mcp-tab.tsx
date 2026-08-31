@@ -1104,10 +1104,7 @@ export function McpTab({
   const catalogEntries = showAvailable ? availableCatalog : []
 
   const directoryEmpty =
-    !selected &&
-    connectedNames.length === 0 &&
-    catalogEntries.length === 0 &&
-    !catalogQuery.isLoading
+    !selected && connectedNames.length === 0 && catalogEntries.length === 0 && !catalogQuery.isLoading
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -1138,11 +1135,7 @@ export function McpTab({
         <Button disabled={profilePending} onClick={addServer} size="xs" variant="text">
           {m.newServer}
         </Button>
-        <TextTab
-          active={adminOpen}
-          className="h-5 px-0.5 text-[0.65rem]"
-          onClick={() => setAdminOpen(open => !open)}
-        >
+        <TextTab active={adminOpen} className="h-5 px-0.5 text-[0.65rem]" onClick={() => setAdminOpen(open => !open)}>
           {t.settings.sections.advanced}
         </TextTab>
       </div>
@@ -1175,19 +1168,11 @@ export function McpTab({
                   </Button>
                 }
                 description={
-                  query.trim()
-                    ? t.skills.noSkillsDesc
-                    : directoryFilter === 'available'
-                      ? m.catalogEmpty
-                      : m.emptyDesc
+                  query.trim() ? t.skills.noSkillsDesc : directoryFilter === 'available' ? m.catalogEmpty : m.emptyDesc
                 }
                 icon="plug"
                 title={
-                  query.trim()
-                    ? t.skills.noSkillsTitle
-                    : directoryFilter === 'available'
-                      ? m.tabCatalog
-                      : m.emptyTitle
+                  query.trim() ? t.skills.noSkillsTitle : directoryFilter === 'available' ? m.tabCatalog : m.emptyTitle
                 }
               />
             ) : (
@@ -1415,7 +1400,7 @@ function ServerConfig({
             <Codicon name="chevron-left" size="0.8125rem" />
           </Button>
         </Tip>
-            <McpAvatar className="mt-2.5 size-6" name={name} status={status} />
+        <McpAvatar className="mt-2.5 size-6" name={name} status={status} />
         <div className="min-w-0 flex-1 pt-1">
           <h3 className="min-w-0 truncate text-[0.9375rem] font-semibold tracking-tight">{prettyName(name)}</h3>
           <p className="mt-0.5 truncate text-[0.68rem] text-(--ui-text-tertiary)">

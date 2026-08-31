@@ -387,6 +387,7 @@ export function ModelPicker({
         if ((provider.unavailable_models ?? []).includes(model)) {
           return
         }
+
         onSelect(
           `${model} --provider ${provider.slug}${allowPersistGlobal && persistGlobal ? ' --global' : ` ${TUI_SESSION_MODEL_FLAG}`}`
         )
@@ -673,9 +674,9 @@ export function ModelPicker({
 
         const prefix = modelIdx === idx ? '▸ ' : row === currentModel ? '* ' : '  '
         const locked = (provider?.unavailable_models ?? []).includes(row)
+
         const label =
-          row === 'deepseek/deepseek-v4-flash-0731' ||
-          row.toLowerCase().endsWith('/deepseek-v4-flash-0731')
+          row === 'deepseek/deepseek-v4-flash-0731' || row.toLowerCase().endsWith('/deepseek-v4-flash-0731')
             ? 'Operis 4.0 Flash'
             : row
 

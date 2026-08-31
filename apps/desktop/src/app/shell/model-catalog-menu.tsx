@@ -50,6 +50,7 @@ function isCurrentProvider(provider: ModelOptionProvider, currentProvider: strin
 
 function familyIsLocked(family: ModelFamily, provider: ModelOptionProvider): boolean {
   const unavailable = new Set(provider.unavailable_models ?? [])
+
   return unavailable.has(family.id) || Boolean(family.fastId && unavailable.has(family.fastId))
 }
 
@@ -317,11 +318,7 @@ export function ModelCatalogMenu({
     const active = kbActiveKey === key
 
     return {
-      className: cn(
-        dropdownMenuRow,
-        active && 'bg-(--ui-control-active-background) text-foreground',
-        extraClassName
-      ),
+      className: cn(dropdownMenuRow, active && 'bg-(--ui-control-active-background) text-foreground', extraClassName),
       ...(active ? { 'data-kb-active': '' } : {})
     }
   }
@@ -444,6 +441,7 @@ export function ModelCatalogMenu({
                     // submenu (reasoning/fast) is reached by HOVER, so you can
                     // tweak those without the click dismissing everything.
                     const locked = familyIsLocked(family, group.provider)
+
                     const activate = () => {
                       if (locked) {
                         return

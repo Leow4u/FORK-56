@@ -62,7 +62,10 @@ describe('onboarding Picker', () => {
   })
 
   it('first-run still offers only Portal when the catalog omitted it', () => {
-    setProviders([makeOAuthProvider('anthropic', 'Anthropic Claude'), makeOAuthProvider('openai-codex', 'OpenAI Codex / ChatGPT')])
+    setProviders([
+      makeOAuthProvider('anthropic', 'Anthropic Claude'),
+      makeOAuthProvider('openai-codex', 'OpenAI Codex / ChatGPT')
+    ])
     render(<Picker ctx={ctx} />)
 
     expect(screen.getByText('Work4You Portal')).toBeTruthy()
@@ -120,10 +123,7 @@ describe('onboarding Picker', () => {
 
   it('shows every provider directly in manual mode when Work4You Portal is absent', () => {
     setProviders(
-      [
-        makeOAuthProvider('anthropic', 'Anthropic Claude'),
-        makeOAuthProvider('openai-codex', 'OpenAI Codex / ChatGPT')
-      ],
+      [makeOAuthProvider('anthropic', 'Anthropic Claude'), makeOAuthProvider('openai-codex', 'OpenAI Codex / ChatGPT')],
       { manual: true }
     )
     render(<Picker ctx={ctx} />)
