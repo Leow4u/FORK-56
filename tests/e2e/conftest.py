@@ -235,6 +235,16 @@ def make_runner(platform: Platform, session_entry: SessionEntry = None) -> "Gate
     # telegram param only — first parametrization pays the cold-resolution cost).
     runner._reset_notice_session_info = lambda source: ""
 
+    # Keep plaintext/agent-path tests hermetic. After _handle_message_with_agent
+    # returns, _handle_message still runs /goal and /loop bookkeeping which
+    # warms SessionDB on the default executor. A cold state.db init on GitHub
+    # runners can exceed send_and_capture's wait window, so the adapter never
+    # reaches send() (plaintext_restart_gateway_in_group: send called 0 times
+    # on main @ 4403443 / run 33423024057).
+    runner._run_post_turn_hooks = AsyncMock()
+    runner._persist_active_agents = lambda: None
+    runner._warm_goals_session_db = AsyncMock()
+
     runner.pairing_store = MagicMock()
     runner.pairing_store._is_rate_limited = MagicMock(return_value=False)
     runner.pairing_store.generate_code = MagicMock(return_value="ABC123")
@@ -270,14 +280,39 @@ def make_adapter(platform: Platform, runner=None):
     return adapter
 
 
+def _adapter_dispatch_tasks(adapter) -> list:
+    """Background dispatch tasks spawned by ``handle_message``.
+
+    The processing task is removed from ``_background_tasks`` on completion,
+    but stays in ``_session_tasks`` — wait on both so a fast finish is not
+    mistaken for "nothing running".
+    """
+    tasks = []
+    seen: set[int] = set()
+    for pool in (
+        list(getattr(adapter, "_background_tasks", set()) or ()),
+        list(getattr(adapter, "_session_tasks", {}).values()),
+    ):
+        for task in pool:
+            if task is None or not hasattr(task, "done"):
+                continue
+            marker = id(task)
+            if marker in seen:
+                continue
+            seen.add(marker)
+            tasks.append(task)
+    return tasks
+
+
 async def send_and_capture(adapter, text: str, platform: Platform, **event_kwargs) -> AsyncMock:
     """Send a message through the full e2e flow and return the send mock.
 
     ``handle_message`` returns as soon as it schedules ``_process_message_background``;
-    the actual ``adapter.send`` happens later. Prefer awaiting those background
-    tasks, then fall back to a short poll — fixed sleep alone raced on slow CI
-    when group/agent paths paid session+DB setup (``plaintext_restart_gateway_in_group``
-    flaked with send called 0 times on main).
+    the actual ``adapter.send`` happens later. Await those background tasks
+    (and ``_session_tasks``, which keep a handle after ``_background_tasks``
+    discards a finished task). When dispatch has finished without sending,
+    stop immediately so a hung post-turn hook is not hidden as
+    ``send called 0 times``.
     """
     event = make_event(platform, text, **event_kwargs)
     adapter.send.reset_mock()
@@ -287,17 +322,18 @@ async def send_and_capture(adapter, text: str, platform: Platform, **event_kwarg
     while asyncio.get_running_loop().time() < deadline:
         if adapter.send.called:
             break
-        pending = [
-            t
-            for t in getattr(adapter, "_background_tasks", set())
-            if not t.done()
-        ]
+        pending = [task for task in _adapter_dispatch_tasks(adapter) if not task.done()]
         if pending:
-            done, _ = await asyncio.wait(pending, timeout=0.1)
-            if done and adapter.send.called:
-                break
-        else:
-            await asyncio.sleep(0.05)
+            await asyncio.wait(pending, timeout=0.2)
+            continue
+        break
+
+    for task in _adapter_dispatch_tasks(adapter):
+        if not task.done() or task.cancelled():
+            continue
+        exc = task.exception()
+        if exc is not None:
+            raise exc
     return adapter.send
 
 
