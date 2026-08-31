@@ -86,6 +86,7 @@ export const en: Translations = {
       messaging: "Messaging",
       newSession: "New session",
       artifacts: "Artifacts",
+      agents: "Agents",
     },
     logOut: "Log out",
     modelToolsSheetSubtitle: "& tools",

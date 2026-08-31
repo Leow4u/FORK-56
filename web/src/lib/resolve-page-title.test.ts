@@ -13,5 +13,6 @@ describe("resolvePageTitle", () => {
     expect(resolvePageTitle("/cron", t, [])).toBe("Scheduled jobs");
     expect(resolvePageTitle("/skills", t, [])).toBe("Capabilities");
     expect(resolvePageTitle("/channels", t, [])).toBe("Messaging");
+    expect(resolvePageTitle("/agents", t, [])).toBe("Agents");
   });
 });

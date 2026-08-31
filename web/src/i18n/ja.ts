@@ -82,6 +82,7 @@ export const ja: Translations = {
       messaging: "メッセージング",
       newSession: "新しいセッション",
       artifacts: "アーティファクト",
+      agents: "エージェント",
     },
     modelToolsSheetSubtitle: "とツール",
     modelToolsSheetTitle: "モデル",

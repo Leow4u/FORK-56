@@ -57,6 +57,7 @@ export const WEB_OVERLAY_ROUTES_NOT_IN_NAV = [
   "/profiles",
   "/settings",
   "/docs",
+  "/agents",
 ] as const;
 
 export function isNewSessionNavItem(item: {

@@ -98,6 +98,7 @@ function PairingRedirect() {
 }
 const ChannelsPage = lazy(() => import("@/pages/ChannelsPage"));
 const ArtifactsPage = lazy(() => import("@/pages/ArtifactsPage"));
+const AgentsPage = lazy(() => import("@/pages/AgentsPage"));
 const WebhooksPage = lazy(() => import("@/pages/WebhooksPage"));
 const SystemPage = lazy(() => import("@/pages/SystemPage"));
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
@@ -106,7 +107,7 @@ import { PluginPage, PluginSlot, usePlugins } from "@/plugins";
 import type { PluginManifest } from "@/plugins";
 import { useTheme } from "@/themes";
 import { isDashboardEmbeddedChatEnabled } from "@/lib/dashboard-flags";
-import { latchChatActivation } from "@/lib/chat-activation";
+import { latchChatActivation, shouldKeepChatHost } from "@/lib/chat-activation";
 import { api } from "@/lib/api";
 import {
   isNewSessionNavItem,
@@ -192,9 +193,9 @@ function userNavItems(embeddedChat: boolean): NavItem[] {
  * inline near the bottom of this file — so the PTY child, WebSocket,
  * and xterm instance survive when the user visits another tab and comes
  * back.  A `display:none` toggle hides the terminal without unmounting.
- * The host itself is still deferred until the first /chat visit so the
- * xterm chunk is not downloaded on unrelated pages.  Routing still owns
- * the URL so /chat deep-links, browser back/forward, and nav highlight
+ * The host itself is still deferred until the first /chat or /agents visit
+ * so the gateway chunk is not downloaded on unrelated pages.  Routing still
+ * owns the URL so /chat deep-links, browser back/forward, and nav highlight
  * keep working.
  */
 const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
@@ -219,8 +220,9 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   "/mcp": McpRedirect,
   "/pairing": PairingRedirect,
   "/channels": ChannelsPage,
-  // Overlay destinations (Desktop: statusbar / profile rail). Routes stay
-  // URL-reachable; they are not default sidebar items.
+  // Overlay destinations (Desktop: statusbar / profile rail / Agents spawn
+  // tree). Routes stay URL-reachable; they are not default sidebar items.
+  "/agents": AgentsPage,
   "/webhooks": WebhooksPage,
   "/system": SystemPage,
   "/profiles": ProfilesPage,
@@ -480,13 +482,18 @@ export default function App() {
   const normalizedPath = pathname.replace(/\/$/, "") || "/";
   const isChatRoute = normalizedPath === "/chat";
   const embeddedChat = isDashboardEmbeddedChatEnabled();
-  // Defer mounting the persistent chat host (and its xterm chunk) until the
-  // user has actually opened /chat at least once. Sticky after that so the
-  // PTY survives later tab switches.
-  const [chatHostMounted, setChatHostMounted] = useState(isChatRoute);
+  // Defer mounting the persistent chat host until the user has actually
+  // opened /chat or /agents at least once. Sticky after that so the
+  // gateway WebSocket survives later tab switches — /agents needs the
+  // same event stream to populate the spawn tree.
+  const [chatHostMounted, setChatHostMounted] = useState(
+    shouldKeepChatHost(pathname),
+  );
   useEffect(() => {
-    setChatHostMounted((prev) => latchChatActivation(prev, isChatRoute));
-  }, [isChatRoute]);
+    setChatHostMounted((prev) =>
+      latchChatActivation(prev, shouldKeepChatHost(pathname)),
+    );
+  }, [pathname]);
 
   // `dashboard.show_token_analytics` gates the Analytics nav item.  The
   // page itself remains reachable by URL (it renders an explanation when

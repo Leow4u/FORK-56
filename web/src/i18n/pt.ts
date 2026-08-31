@@ -83,6 +83,7 @@ export const pt: Translations = {
       messaging: "Mensagens",
       newSession: "Nova sessão",
       artifacts: "Artefatos",
+      agents: "Agentes",
     },
     logOut: "Sair",
     modelToolsSheetSubtitle: "e ferramentas",
