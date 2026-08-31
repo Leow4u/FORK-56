@@ -96,6 +96,10 @@ jobs:
       - name: Sign Windows installer (SSL.com eSigner)
         id: sign
         if: ${{ github.event_name == 'release' || inputs.skip_windows_signing != true }}
+        # cmd, not pwsh 7: the default windows-latest shell injects
+        # PSModulePath with PowerShell\7\Modules, which breaks 5.1's
+        # Authenticode probe (TypeData / Microsoft.PowerShell.Security).
+        shell: cmd
         env:
           ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
           ESIGNER_PASSWORD: ${{ secrets.ESIGNER_PASSWORD }}
