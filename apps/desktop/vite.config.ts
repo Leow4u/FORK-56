@@ -5,8 +5,6 @@ import path from 'path'
 import fs from 'fs'
 import { createRequire } from 'module'
 
-import { tablerIconsReactStaticEntry } from './scripts/tabler-icons-entry.ts'
-
 // `hgui` symlinks a worktree's node_modules to the main checkout. Vite realpaths
 // those before enforcing server.fs.allow, so codicon/font assets resolve outside
 // the worktree root and 404. Whitelist the real node_modules locations.
@@ -170,22 +168,12 @@ export default defineConfig(({ command }) => ({
       'driver.js',
       'driver.js/dist/driver.js.iife.js',
       'driver.js/dist/driver.js.iife.js?raw',
-      'driver.js/dist/driver.css?raw',
-      // Same Windows Rolldown path as the resolve alias: never prebundle the
-      // default tabler barrel (see tablerIconsReactStaticEntry).
-      '@tabler/icons-react'
+      'driver.js/dist/driver.css?raw'
     ]
   },
   resolve: {
     alias: {
       '@/debug/dev-only': debugEntry(command, process.env as Record<string, string>),
-      // Windows Vite 8 / Rolldown mis-resolves the default tabler barrel
-      // (`./icons/IconX.mjs` attributed to `icons/index.mjs` → 5000+
-      // UNRESOLVED_IMPORT, first IconNumber123). The static icons index
-      // uses same-folder `./IconX.mjs` specifiers.
-      '@tabler/icons-react': tablerIconsReactStaticEntry(
-        requireFromApp.resolve('@tabler/icons-react/package.json')
-      ),
       '@': path.resolve(__dirname, './src'),
       '@work4you/plugin-sdk': path.resolve(__dirname, './src/sdk/index.ts'),
       '@work4you/shared/billing': path.resolve(__dirname, '../shared/src/billing-types.ts'),
