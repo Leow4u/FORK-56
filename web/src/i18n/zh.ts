@@ -78,6 +78,8 @@ export const zh: Translations = {
       plugins: "插件管理",
       sessions: "会话",
       skills: "技能",
+      newSession: "新建会话",
+      artifacts: "产物",
     },
     modelToolsSheetSubtitle: "与工具",
     modelToolsSheetTitle: "模型",
@@ -162,7 +164,7 @@ export const zh: Translations = {
     selectedSessionsDeleted: "已删除 {count} 个会话",
     failedToDeleteSelected: "删除所选会话失败",
     resumeInChat: "在对话中继续",
-    newChat: "新对话",
+    newChat: "新建会话",
     previousPage: "上一页",
     nextPage: "下一页",
     roles: {

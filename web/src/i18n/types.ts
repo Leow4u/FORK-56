@@ -109,6 +109,10 @@ export interface Translations extends Partial<DesktopI18nSections> {
       settings?: string;
       /** Optional; same string as common.messaging. */
       messaging?: string;
+      /** Sidebar action verb; English fallback is the NavItem label. */
+      newSession?: string;
+      /** Sidebar destination; English fallback is the NavItem label. */
+      artifacts?: string;
     };
     /** Optional; English fallback in components. */
     logOut?: string;
@@ -469,6 +473,8 @@ export interface Translations extends Partial<DesktopI18nSections> {
     actions?: string;
     manageSkills?: string;
     activeSetHint?: string;
+    /** Desktop rail affordance; English fallback in ProfileSwitcher. */
+    manageProfiles?: string;
   };
 
   // ── Skills page ──

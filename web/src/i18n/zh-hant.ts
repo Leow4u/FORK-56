@@ -79,6 +79,8 @@ export const zhHant: Translations = {
       plugins: "外掛管理",
       sessions: "工作階段",
       skills: "技能",
+      newSession: "新工作階段",
+      artifacts: "成品",
     },
     modelToolsSheetSubtitle: "與工具",
     modelToolsSheetTitle: "模型",
@@ -164,7 +166,7 @@ export const zhHant: Translations = {
     selectedSessionsDeleted: "已刪除 {count} 個工作階段",
     failedToDeleteSelected: "刪除所選工作階段失敗",
     resumeInChat: "在對話中繼續",
-    newChat: "新對話",
+    newChat: "新工作階段",
     previousPage: "上一頁",
     nextPage: "下一頁",
     roles: {

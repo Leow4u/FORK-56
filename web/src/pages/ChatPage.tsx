@@ -7,7 +7,7 @@
  * The session list lives in the app sidebar (see ``SidebarSessions`` in
  * App.tsx), not inside this page — matching the desktop app, where the
  * system sidebar owns conversations. This page wires the shell hooks:
- * ``newChatRef`` lets the sidebar's "New chat" reset the live session, and
+ * ``newChatRef`` lets the sidebar's "New session" reset the live session, and
  * ``onSessionsChanged`` tells the sidebar list to refetch when a new stored
  * session id appears.
  */
@@ -40,7 +40,7 @@ export default function ChatPage({
   onSessionsChanged,
 }: {
   isActive?: boolean;
-  /** The app shell's sidebar "New chat" calls through this ref. */
+  /** The app shell's sidebar "New session" calls through this ref. */
   newChatRef?: MutableRefObject<(() => void) | null>;
   /** Fired when the stored-session set changes (sidebar list refetch). */
   onSessionsChanged?: () => void;
@@ -168,11 +168,13 @@ export default function ChatPage({
           ghost
           size="sm"
           onClick={startFresh}
-          aria-label={t.sessions.newChat}
+          aria-label={t.app.nav.newSession ?? t.sessions.newChat}
           className="gap-1.5 text-muted-foreground hover:text-foreground"
         >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">{t.sessions.newChat}</span>
+          <span className="hidden sm:inline">
+            {t.app.nav.newSession ?? t.sessions.newChat}
+          </span>
         </Button>
       </div>,
     );
@@ -188,6 +190,7 @@ export default function ChatPage({
     setTitle,
     startFresh,
     t.app.nav.chat,
+    t.app.nav.newSession,
     t.sessions.newChat,
   ]);
 

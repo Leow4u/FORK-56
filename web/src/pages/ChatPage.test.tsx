@@ -166,7 +166,7 @@ describe("ChatPage thin shell", () => {
     expect(container.textContent).toContain("from history");
   });
 
-  it("registers a New chat header action when active", async () => {
+  it("registers a New session header action when active", async () => {
     await renderChat();
     expect(setTitle).toHaveBeenCalledWith("Chat");
     expect(setEnd).toHaveBeenCalled();

@@ -14,6 +14,7 @@ const BUILTIN: Record<string, keyof Translations["app"]["nav"]> = {
   "/env": "keys",
   "/docs": "documentation",
   "/channels": "messaging",
+  "/artifacts": "artifacts",
 };
 
 // Built-in routes without an i18n nav key. Keep these in sync with the
