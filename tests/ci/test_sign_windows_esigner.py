@@ -179,6 +179,11 @@ def test_sign_file_replaces_input_from_output_dir(tmp_path):
         assert Path(cwd) == tool_dir
         assert env is not None
         assert env["CODE_SIGN_TOOL_PATH"] == str(tool_dir)
+        assert env["USERNAME"] == VALID_ENV["ESIGNER_USERNAME"]
+        assert env["PASSWORD"] == VALID_ENV["ESIGNER_PASSWORD"]
+        assert env["CREDENTIAL_ID"] == VALID_ENV["ESIGNER_CREDENTIAL_ID"]
+        assert env["TOTP_SECRET"] == VALID_ENV["ESIGNER_TOTP_SECRET"]
+        assert env["ENVIRONMENT_NAME"] == "PROD"
         out_flag = next(a for a in argv if a.startswith("-output_dir_path="))
         out_dir = Path(out_flag.split("=", 1)[1])
         assert out_dir.parent == exe.parent
@@ -314,7 +319,7 @@ def test_verify_authenticode_rejects_notsigned(tmp_path, monkeypatch):
         assert argv[0] == "powershell"
         return SimpleNamespace(returncode=0, stdout="NotSigned\n", stderr="")
 
-    with pytest.raises(mod.SignError, match="still unsigned"):
+    with pytest.raises(mod.SignError, match="required Valid"):
         mod.verify_authenticode(exe, runner=fake_runner)
 
 
@@ -330,7 +335,21 @@ def test_verify_authenticode_accepts_valid(tmp_path, monkeypatch):
     assert mod.verify_authenticode(exe, runner=fake_runner) == "Valid"
 
 
-def test_verify_authenticode_soft_skips_gha_module_autoload(tmp_path, monkeypatch, capsys):
+def test_verify_authenticode_rejects_hashmismatch_and_nottrusted(tmp_path, monkeypatch):
+    monkeypatch.setattr(mod.sys, "platform", "win32")
+    monkeypatch.setattr(mod, "windows_powershell_exe", lambda: "powershell")
+    exe = tmp_path / "Work4You-Setup.exe"
+    exe.write_bytes(b"x")
+
+    for status in ("HashMismatch", "NotTrusted", "UnknownError", "unverified"):
+        def fake_runner(argv, *, cwd, env=None, _status=status):
+            return SimpleNamespace(returncode=0, stdout=f"{_status}\n", stderr="")
+
+        with pytest.raises(mod.SignError, match="required Valid"):
+            mod.verify_authenticode(exe, runner=fake_runner)
+
+
+def test_verify_authenticode_fails_closed_on_gha_module_autoload(tmp_path, monkeypatch):
     monkeypatch.setattr(mod.sys, "platform", "win32")
     monkeypatch.setattr(mod, "windows_powershell_exe", lambda: "powershell")
     exe = tmp_path / "Work4You-Setup.exe"
@@ -345,8 +364,49 @@ def test_verify_authenticode_soft_skips_gha_module_autoload(tmp_path, monkeypatc
     def fake_runner(argv, *, cwd, env=None):
         return SimpleNamespace(returncode=1, stdout="", stderr=err)
 
-    assert mod.verify_authenticode(exe, runner=fake_runner) == "unverified"
-    assert "Authenticode probe unavailable" in capsys.readouterr().out
+    with pytest.raises(mod.SignError, match="probe unavailable"):
+        mod.verify_authenticode(exe, runner=fake_runner)
+
+
+def test_infra_error_requires_security_module_not_generic_could_not_be_loaded():
+    gha = (
+        "The 'Get-AuthenticodeSignature' command was found in the module "
+        "'Microsoft.PowerShell.Security', but the module could not be loaded. "
+        "FullyQualifiedErrorId : CouldNotAutoloadMatchingModule"
+    )
+    assert mod.is_authenticode_probe_infra_error(gha) is True
+    assert mod.is_authenticode_probe_infra_error(
+        "The file C:\\temp\\Work4You-Setup.exe could not be loaded."
+    ) is False
+    assert mod.is_authenticode_probe_infra_error("module could not be loaded") is False
+
+
+def test_codesigntool_child_env_maps_sslcom_names_and_defaults_prod(tmp_path):
+    env = mod.codesigntool_child_env(
+        VALID_ENV,
+        base={"PATH": "/bin", "ESIGNER_ENVIRONMENT": ""},
+        tool_dir=tmp_path / "tool",
+    )
+    assert env["USERNAME"] == VALID_ENV["ESIGNER_USERNAME"]
+    assert env["PASSWORD"] == VALID_ENV["ESIGNER_PASSWORD"]
+    assert env["ENVIRONMENT_NAME"] == "PROD"
+    assert env["CODE_SIGN_TOOL_PATH"] == str(tmp_path / "tool")
+    env_test = mod.codesigntool_child_env(
+        VALID_ENV, base={"ESIGNER_ENVIRONMENT": "TEST"}
+    )
+    assert env_test["ENVIRONMENT_NAME"] == "TEST"
+
+
+def test_require_authenticode_valid_accepts_valid_and_non_windows_skip(tmp_path):
+    exe = tmp_path / "Work4You-Setup.exe"
+    exe.write_bytes(b"x")
+    assert mod.require_authenticode_valid("Valid", path=exe) == "Valid"
+    assert (
+        mod.require_authenticode_valid("skipped-non-windows", path=exe)
+        == "skipped-non-windows"
+    )
+    with pytest.raises(mod.SignError, match="required Valid"):
+        mod.require_authenticode_valid("unverified", path=exe)
 
 
 def test_print_argv_main_does_not_need_java(tmp_path, monkeypatch, capsys):
