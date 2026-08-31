@@ -449,9 +449,10 @@ export default function App() {
   );
   const chatNewChatRef = useRef<(() => void) | null>(null);
   const handleSidebarNewChat = useCallback(() => {
-    navigate("/chat");
+    navigate({ pathname: "/chat", search: "" });
     // When the chat host is already mounted, reset it; on a first visit the
-    // ref is null and /chat opens fresh anyway.
+    // ref is null and /chat opens fresh anyway. ChatPage must not rewrite
+    // search params while hidden — that cancels this navigate.
     chatNewChatRef.current?.();
   }, [navigate]);
 

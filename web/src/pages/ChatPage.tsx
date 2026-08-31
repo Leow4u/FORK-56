@@ -69,17 +69,26 @@ export default function ChatPage({
     setFilesPaneOpen(readFilesPaneOpen(scopedProfile));
   }, [scopedProfile]);
 
+  // The persistent host stays mounted on Capabilities / Artifacts /
+  // Scheduled jobs. Any setSearchParams from this page while /chat is not
+  // the URL overwrites a pending sidebar navigate("/chat") and the New
+  // session click appears to do nothing.
+  const replaceChatSearchParams = useCallback(
+    (updater: (prev: URLSearchParams) => URLSearchParams) => {
+      if (!isActive) return;
+      setSearchParams(updater, { replace: true });
+    },
+    [isActive, setSearchParams],
+  );
+
   const clearChatParams = useCallback(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("resume");
-        next.delete("learn");
-        return next;
-      },
-      { replace: true },
-    );
-  }, [setSearchParams]);
+    replaceChatSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("resume");
+      next.delete("learn");
+      return next;
+    });
+  }, [replaceChatSearchParams]);
 
   const startFresh = useCallback(() => {
     clearChatParams();
@@ -104,22 +113,19 @@ export default function ChatPage({
       if (storedId) {
         onSessionsChanged?.();
       }
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (storedId) {
-            if (next.get("resume") === storedId) return prev;
-            next.set("resume", storedId);
-          } else {
-            next.delete("resume");
-          }
-          next.delete("learn");
-          return next;
-        },
-        { replace: true },
-      );
+      replaceChatSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (storedId) {
+          if (next.get("resume") === storedId) return prev;
+          next.set("resume", storedId);
+        } else {
+          next.delete("resume");
+        }
+        next.delete("learn");
+        return next;
+      });
     },
-    [onSessionsChanged, setSearchParams],
+    [onSessionsChanged, replaceChatSearchParams],
   );
 
   const handleTitle = useCallback(
@@ -131,16 +137,13 @@ export default function ChatPage({
   );
 
   useEffect(() => {
-    if (!searchParams.get("learn")) return;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("learn");
-        return next;
-      },
-      { replace: true },
-    );
-  }, [searchParams, setSearchParams]);
+    if (!isActive || !searchParams.get("learn")) return;
+    replaceChatSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("learn");
+      return next;
+    });
+  }, [isActive, replaceChatSearchParams, searchParams]);
 
   useEffect(() => {
     if (!isActive) {
