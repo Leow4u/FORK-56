@@ -208,6 +208,11 @@ describe("ChatPage thin shell", () => {
   it("clears resume params when New session runs on the active chat route", async () => {
     const newChatRef = { current: null as (() => void) | null };
     await renderChat("/chat?resume=abc123", { newChatRef });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain("from history");
     act(() => {
       newChatRef.current?.();
     });
