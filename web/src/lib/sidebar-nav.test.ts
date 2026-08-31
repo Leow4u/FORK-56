@@ -41,6 +41,7 @@ describe("web user sidebar nav", () => {
     for (const path of WEB_OVERLAY_ROUTES_NOT_IN_NAV) {
       expect(paths.has(path)).toBe(false);
     }
+    expect(WEB_OVERLAY_ROUTES_NOT_IN_NAV).toContain("/starmap");
   });
 
   it("omits New session when embedded chat is off", () => {

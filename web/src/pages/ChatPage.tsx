@@ -21,7 +21,7 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import { ThinChat } from "@/chat";
 import {
@@ -31,6 +31,7 @@ import {
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { useProfileScope } from "@/contexts/useProfileScope";
 import { useI18n } from "@/i18n";
+import { Starmap } from "@/lib/icons";
 import { PluginSlot } from "@/plugins";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ export default function ChatPage({
   onSessionsChanged?: () => void;
 }) {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const { setEnd, setTitle } = usePageHeader();
   const { profile: scopedProfile } = useProfileScope();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -147,13 +149,23 @@ export default function ChatPage({
 
   useEffect(() => {
     if (!isActive) {
-      setEnd(null);
-      setTitle(null);
+      // Persistent host stays mounted on overlay routes like /starmap.
+      // Clearing title/end here races the overlay page (this host renders
+      // after <Routes>) and would restore the default Chat title.
       return;
     }
     setTitle(t.app.nav.chat);
     setEnd(
       <div className="flex items-center gap-1">
+        <Button
+          ghost
+          size="sm"
+          onClick={() => navigate("/starmap")}
+          aria-label={t.titlebar.openStarmap}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <Starmap className="h-4 w-4" />
+        </Button>
         <Button
           ghost
           size="sm"
@@ -189,12 +201,14 @@ export default function ChatPage({
     filesPaneOpen,
     handleFilesPaneOpenChange,
     isActive,
+    navigate,
     setEnd,
     setTitle,
     startFresh,
     t.app.nav.chat,
     t.app.nav.newSession,
     t.sessions.newChat,
+    t.titlebar.openStarmap,
   ]);
 
   const profileKey = scopedProfile || "__own__";

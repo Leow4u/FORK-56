@@ -113,6 +113,8 @@ export interface Translations extends Partial<DesktopI18nSections> {
       newSession?: string;
       /** Sidebar destination; English fallback is the NavItem label. */
       artifacts?: string;
+      /** Overlay (not default nav); English fallback is Memory Graph. */
+      starmap?: string;
     };
     /** Optional; English fallback in components. */
     logOut?: string;

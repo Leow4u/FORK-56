@@ -98,6 +98,7 @@ function PairingRedirect() {
 }
 const ChannelsPage = lazy(() => import("@/pages/ChannelsPage"));
 const ArtifactsPage = lazy(() => import("@/pages/ArtifactsPage"));
+const StarmapPage = lazy(() => import("@/pages/StarmapPage"));
 const WebhooksPage = lazy(() => import("@/pages/WebhooksPage"));
 const SystemPage = lazy(() => import("@/pages/SystemPage"));
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
@@ -219,8 +220,9 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   "/mcp": McpRedirect,
   "/pairing": PairingRedirect,
   "/channels": ChannelsPage,
-  // Overlay destinations (Desktop: statusbar / profile rail). Routes stay
-  // URL-reachable; they are not default sidebar items.
+  // Overlay destinations (Desktop: statusbar / command palette / profile rail).
+  // Routes stay URL-reachable; they are not default sidebar items.
+  "/starmap": StarmapPage,
   "/webhooks": WebhooksPage,
   "/system": SystemPage,
   "/profiles": ProfilesPage,
@@ -479,6 +481,8 @@ export default function App() {
   const isDocsRoute = pathname === "/docs" || pathname === "/docs/";
   const normalizedPath = pathname.replace(/\/$/, "") || "/";
   const isChatRoute = normalizedPath === "/chat";
+  const isStarmapRoute = normalizedPath === "/starmap";
+  const isFillRoute = isChatRoute || isDocsRoute || isStarmapRoute;
   const embeddedChat = isDashboardEmbeddedChatEnabled();
   // Defer mounting the persistent chat host (and its xterm chunk) until the
   // user has actually opened /chat at least once. Sticky after that so the
@@ -897,10 +901,10 @@ export default function App() {
               className={cn(
                 "relative z-2 flex min-w-0 min-h-0 flex-1 flex-col",
                 "px-3 sm:px-6",
-                isChatRoute
+                isChatRoute || isStarmapRoute
                   ? "pb-0 pt-1 sm:pt-2 lg:pt-4"
                   : "pt-2 sm:pt-4 lg:pt-6",
-                isDocsRoute && "min-h-0 flex-1",
+                isFillRoute && "min-h-0 flex-1",
               )}
             >
               <PluginSlot name="pre-main" />
@@ -908,9 +912,9 @@ export default function App() {
                 className={cn(
                   "w-full min-w-0",
                   !isChatRoute &&
+                    !isStarmapRoute &&
                     "pb-[calc(2rem+env(safe-area-inset-bottom,0px))] lg:pb-8",
-                  (isDocsRoute || isChatRoute) &&
-                    "min-h-0 flex flex-1 flex-col",
+                  isFillRoute && "min-h-0 flex flex-1 flex-col",
                 )}
               >
                 <ProfileKeyedRoutes>

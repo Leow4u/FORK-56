@@ -87,8 +87,13 @@ vi.mock("@/plugins", () => ({
 }));
 
 vi.mock("@work4you/ui/ui/components/button", () => ({
-  Button: ({ children }: { children?: ReactNode }) => (
-    <button type="button">{children}</button>
+  Button: ({
+    children,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button type="button" {...props}>
+      {children}
+    </button>
   ),
 }));
 
@@ -185,8 +190,30 @@ describe("ChatPage thin shell", () => {
     await renderChat();
     expect(setTitle).toHaveBeenCalledWith("Chat");
     expect(setEnd).toHaveBeenCalled();
-    const end = setEnd.mock.calls.at(-1)?.[0];
+    const end = setEnd.mock.calls.at(-1)?.[0] as { props?: { children?: unknown } };
     expect(end).toBeTruthy();
+  });
+
+  it("registers a Memory Graph header control when active", async () => {
+    await renderChat();
+    const end = setEnd.mock.calls.at(-1)?.[0] as ReactNode;
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={["/chat"]}>
+          {end}
+          <LocationProbe />
+        </MemoryRouter>,
+      );
+    });
+    expect(
+      container.querySelector('[aria-label="Open memory graph"]'),
+    ).toBeTruthy();
+  });
+
+  it("does not clear the page title when the chat host is hidden", async () => {
+    await renderChat("/starmap", { isActive: false });
+    expect(setTitle).not.toHaveBeenCalledWith(null);
+    expect(setEnd).not.toHaveBeenCalledWith(null);
   });
 
   it("does not rewrite a non-chat URL when New session resets the hidden host", async () => {

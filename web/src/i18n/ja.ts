@@ -82,6 +82,7 @@ export const ja: Translations = {
       messaging: "メッセージング",
       newSession: "新しいセッション",
       artifacts: "アーティファクト",
+      starmap: "メモリグラフ",
     },
     modelToolsSheetSubtitle: "とツール",
     modelToolsSheetTitle: "モデル",
