@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       skip_windows_signing:
-        description: Skip Authenticode signing (unsigned artifact; do not ship)
+        description: Skip Authenticode (Actions artifacts only; does not publish a GitHub Release)
         type: boolean
         default: false
   release:
@@ -28,6 +28,8 @@ jobs:
     name: Build Windows installer
     runs-on: windows-latest
     timeout-minutes: 45
+    outputs:
+      windows_signed: ${{ steps.sign.outcome == 'success' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -92,6 +94,7 @@ jobs:
           python-version: "3.11"
 
       - name: Sign Windows installer (SSL.com eSigner)
+        id: sign
         if: ${{ github.event_name == 'release' || inputs.skip_windows_signing != true }}
         env:
           ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
@@ -102,7 +105,7 @@ jobs:
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: windows-installer
+          name: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_windows_signing == true && 'windows-installer-unsigned' || 'windows-installer' }}
           path: dist/Work4You-Setup.exe
           if-no-files-found: error
 
@@ -151,7 +154,9 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'desktop-v')
+    # Never publish when Windows signing was skipped or the sign step did not
+    # succeed. Unsigned Work4You-Setup.exe must not clobber desktop-v* assets.
+    if: (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'desktop-v') || github.event_name == 'workflow_dispatch') && needs.build-windows.outputs.windows_signed == 'true'
     name: Publish desktop release
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest

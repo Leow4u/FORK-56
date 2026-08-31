@@ -194,6 +194,30 @@ def find_java() -> str:
     raise SignError("java not found; install a JRE 11+ or set JAVA_HOME")
 
 
+def codesigntool_child_env(
+    creds: dict[str, str],
+    *,
+    base: dict[str, str] | None = None,
+    tool_dir: Path | None = None,
+) -> dict[str, str]:
+    """Env for the CodeSignTool JVM.
+
+    SSL.com's Docker wrapper maps these names; the JAR still requires the
+    matching ``-username=`` / ``-password=`` flags (their entrypoint injects
+    the same flags). We set both so a future JAR that reads env does not need
+    argv, while today's v1.3.2 keeps working. Logs must use :func:`redact_argv`.
+    """
+    env = dict(os.environ if base is None else base)
+    env["USERNAME"] = creds["ESIGNER_USERNAME"]
+    env["PASSWORD"] = creds["ESIGNER_PASSWORD"]
+    env["CREDENTIAL_ID"] = creds["ESIGNER_CREDENTIAL_ID"]
+    env["TOTP_SECRET"] = creds["ESIGNER_TOTP_SECRET"]
+    env["ENVIRONMENT_NAME"] = _strip(env.get("ESIGNER_ENVIRONMENT")) or "PROD"
+    if tool_dir is not None:
+        env["CODE_SIGN_TOOL_PATH"] = str(tool_dir)
+    return env
+
+
 def codesigntool_argv(
     *,
     java: str,
@@ -203,6 +227,8 @@ def codesigntool_argv(
     output_dir: Path,
     program_name: str = PROGRAM_NAME,
 ) -> list[str]:
+    # v1.3.2's ``sign`` command requires these flags (Picocli). Do not print
+    # this argv unredacted — Windows process lists still see the values.
     return [
         java,
         "-jar",
@@ -318,8 +344,7 @@ def sign_file(
             output_dir=out_dir,
         )
         print("[esigner] " + " ".join(redact_argv(argv)), flush=True)
-        env = os.environ.copy()
-        env["CODE_SIGN_TOOL_PATH"] = str(tool_dir)
+        env = codesigntool_child_env(creds, tool_dir=tool_dir)
         result = runner(argv, cwd=tool_dir, env=env)
         if result.stdout:
             print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
@@ -371,22 +396,42 @@ def authenticode_probe_argv(powershell: str) -> list[str]:
 
 
 def is_authenticode_probe_infra_error(err: str) -> bool:
-    """True when the probe host is broken, not when the file is unsigned."""
+    """True when PowerShell cannot load Microsoft.PowerShell.Security.
+
+    Generic ``could not be loaded`` (wrong file, missing path) is a probe
+    failure, not infra. Require the Security module FQID or name plus an
+    autoload/load failure.
+    """
     text = err.casefold()
-    needles = (
-        "could not be loaded",
-        "couldnotautoloadmatchingmodule",
-        "module could not be loaded",
+    has_security_module = (
+        "microsoft.powershell.security" in text
+        or "couldnotautoloadmatchingmodule" in text
     )
-    return any(n in text for n in needles)
+    has_load_failure = (
+        "module could not be loaded" in text
+        or "couldnotautoloadmatchingmodule" in text
+    )
+    return has_security_module and has_load_failure
+
+
+def require_authenticode_valid(status: str, *, path: Path) -> str:
+    """Accept only Valid (Windows) or skipped-non-windows (unit tests / Linux)."""
+    normalized = (status or "").strip().casefold()
+    if normalized == "skipped-non-windows":
+        return status
+    if normalized != "valid":
+        raise SignError(
+            f"{path.name} Authenticode status is {status!r}; required Valid"
+        )
+    return status
 
 
 def verify_authenticode(path: Path, *, runner=_run) -> str:
-    """Return Authenticode Status on Windows. Raises if the file is unsigned.
+    """Return Authenticode Status on Windows. Raises unless the file is Valid.
 
-    A missing/unloadable Security module on GitHub-hosted ``pwsh`` is not a
-    signing failure — CodeSignTool already reported success. Soft-skip so
-    the signed artifact still uploads.
+    A missing Security module on the runner is a job failure — CodeSignTool
+    reporting success is not enough to publish. Non-Windows hosts skip the
+    probe (``skipped-non-windows``); production signing runs on windows-latest.
     """
     if sys.platform != "win32":
         return "skipped-non-windows"
@@ -398,15 +443,12 @@ def verify_authenticode(path: Path, *, runner=_run) -> str:
     if result.returncode != 0 or not status:
         err = (result.stderr or result.stdout or "").strip()
         if is_authenticode_probe_infra_error(err):
-            print(
-                f"::warning::Authenticode probe unavailable: {err.splitlines()[0]}",
-                flush=True,
+            raise SignError(
+                "Authenticode probe unavailable "
+                f"(PowerShell Security module): {err.splitlines()[0] if err else 'empty'}"
             )
-            return "unverified"
         raise SignError(f"Authenticode probe failed: {err or 'empty status'}")
-    if status.casefold() == "notsigned":
-        raise SignError(f"{path.name} is still unsigned after eSigner")
-    return status
+    return require_authenticode_valid(status, path=path)
 
 
 def cache_dir_default() -> Path:
@@ -472,7 +514,9 @@ def main(argv: list[str] | None = None) -> int:
             tool_dir = fetch_codesigntool(args.cache_dir or cache_dir_default())
         sign_file(exe, creds=creds, java=java, tool_dir=tool_dir)
         if not args.skip_verify:
-            status = verify_authenticode(exe)
+            status = require_authenticode_valid(
+                verify_authenticode(exe), path=exe
+            )
             print(f"[esigner] Authenticode status: {status}", flush=True)
         print(f"[esigner] signed {exe}", flush=True)
         return 0

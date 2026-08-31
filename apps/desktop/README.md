@@ -83,7 +83,7 @@ npm run dist:linux   # AppImage + deb + rpm
 npm run pack         # unpacked app under release/ (no installer)
 ```
 
-The downloadable Windows installer is the Tauri bootstrap (`Work4You-Setup.exe`), published by `.github/workflows/release-desktop.yml`. CI Authenticode-signs it with SSL.com eSigner (`ESIGNER_*` repo secrets) after the code-signing order has eSigner activated. Local `npm run dist:win` packs an NSIS/MSI for development and does not Authenticode-sign (electron-builder's `winCodeSign` path is disabled on purpose). macOS notarization still uses `APPLE_*` / `CSC_LINK` when those credentials are present.
+The downloadable Windows installer is the Tauri bootstrap (`Work4You-Setup.exe`), published by `.github/workflows/release-desktop.yml`. CI Authenticode-signs it with SSL.com eSigner (`ESIGNER_*` repo secrets) after the code-signing order has eSigner activated; a `workflow_dispatch` that skips signing uploads an unsigned Actions artifact and does **not** publish a GitHub Release. Local `npm run dist:win` packs an NSIS/MSI for development and does not Authenticode-sign (electron-builder's `winCodeSign` path is disabled on purpose). macOS notarization still uses `APPLE_*` / `CSC_LINK` when those credentials are present.
 
 ### How it works
 
