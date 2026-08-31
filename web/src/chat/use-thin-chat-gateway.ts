@@ -76,6 +76,7 @@ import {
   readRememberedWorkspaceCwd,
   writeRememberedWorkspaceCwd,
 } from "./workspace";
+import { ingestSubagentGatewayEvent } from "./ingest-subagent-event";
 import {
   createMessageId,
   type ChatMessage,
@@ -665,6 +666,11 @@ export function useThinChatGateway(
 
   const handleGatewayEvent = useCallback(
     (ev: GatewayEvent) => {
+      // Spawn-tree store is session-aggregated (Desktop Agents overlay).
+      // Ingest native subagent events *before* the live-session filter so a
+      // child in another stored session still appears on /agents.
+      ingestSubagentGatewayEvent(ev, liveSessionIdRef.current);
+
       const sid = liveSessionIdRef.current;
       if (sid && ev.session_id && ev.session_id !== sid) return;
 

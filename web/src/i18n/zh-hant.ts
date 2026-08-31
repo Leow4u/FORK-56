@@ -82,6 +82,7 @@ export const zhHant: Translations = {
       messaging: "訊息平台",
       newSession: "新工作階段",
       artifacts: "成品",
+      agents: "代理",
     },
     modelToolsSheetSubtitle: "與工具",
     modelToolsSheetTitle: "模型",

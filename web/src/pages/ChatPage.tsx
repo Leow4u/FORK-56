@@ -13,7 +13,8 @@
  */
 
 import { Button } from "@work4you/ui/ui/components/button";
-import { FolderTree, Plus } from "lucide-react";
+import { useStore } from "@nanostores/react";
+import { Bot, FolderTree, Plus } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -21,7 +22,7 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import { ThinChat } from "@/chat";
 import {
@@ -33,6 +34,11 @@ import { useProfileScope } from "@/contexts/useProfileScope";
 import { useI18n } from "@/i18n";
 import { PluginSlot } from "@/plugins";
 import { cn } from "@/lib/utils";
+import {
+  $subagentsBySession,
+  activeSubagentCount,
+  allSubagents,
+} from "@/store/subagents";
 
 export default function ChatPage({
   isActive = true,
@@ -46,8 +52,12 @@ export default function ChatPage({
   onSessionsChanged?: () => void;
 }) {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const { setEnd, setTitle } = usePageHeader();
   const { profile: scopedProfile } = useProfileScope();
+  const subagentsBySession = useStore($subagentsBySession);
+  const activeAgents = activeSubagentCount(allSubagents(subagentsBySession));
+  const agentsLabel = t.app.nav.agents ?? "Agents";
   const [searchParams, setSearchParams] = useSearchParams();
   const resetRef = useRef<(() => void) | null>(null);
   const [learnSeed] = useState(() => searchParams.get("learn") ?? "");
@@ -147,13 +157,35 @@ export default function ChatPage({
 
   useEffect(() => {
     if (!isActive) {
-      setEnd(null);
-      setTitle(null);
+      // Persistent host stays mounted on overlay routes like /agents.
+      // Do not clear the header here — that races the active page's
+      // setTitle (ChatPage renders after <Routes>, so an inactive
+      // setTitle(null) would wipe Spawn tree back to the default).
+      // PageHeaderProvider already resets slots on pathname change.
       return;
     }
     setTitle(t.app.nav.chat);
     setEnd(
       <div className="flex items-center gap-1">
+        <Button
+          ghost
+          size="sm"
+          onClick={() => navigate("/agents")}
+          aria-label={
+            activeAgents > 0
+              ? `${agentsLabel} (${activeAgents})`
+              : agentsLabel
+          }
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
+        >
+          <Bot className="h-4 w-4" />
+          <span className="hidden sm:inline">{agentsLabel}</span>
+          {activeAgents > 0 ? (
+            <span className="text-[0.7rem] tabular-nums text-muted-foreground/80">
+              {activeAgents}
+            </span>
+          ) : null}
+        </Button>
         <Button
           ghost
           size="sm"
@@ -189,9 +221,12 @@ export default function ChatPage({
     filesPaneOpen,
     handleFilesPaneOpenChange,
     isActive,
+    navigate,
     setEnd,
     setTitle,
     startFresh,
+    activeAgents,
+    agentsLabel,
     t.app.nav.chat,
     t.app.nav.newSession,
     t.sessions.newChat,

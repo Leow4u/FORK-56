@@ -189,6 +189,39 @@ describe("ChatPage thin shell", () => {
     expect(end).toBeTruthy();
   });
 
+  it("registers an Agents overlay action in the chat header", async () => {
+    await renderChat();
+    const labels: string[] = [];
+    const walk = (node: unknown) => {
+      if (node == null || typeof node === "boolean") return;
+      if (typeof node === "string" || typeof node === "number") {
+        labels.push(String(node));
+        return;
+      }
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+        return;
+      }
+      if (typeof node === "object" && node !== null && "props" in node) {
+        const props = (
+          node as {
+            props: { children?: unknown; "aria-label"?: string };
+          }
+        ).props;
+        if (props["aria-label"]) labels.push(props["aria-label"]);
+        walk(props.children);
+      }
+    };
+    walk(setEnd.mock.calls.at(-1)?.[0]);
+    expect(labels.join(" ")).toContain("Agents");
+  });
+
+  it("does not clear the page header when the persistent host is hidden", async () => {
+    await renderChat("/agents", { isActive: false });
+    expect(setTitle).not.toHaveBeenCalled();
+    expect(setEnd).not.toHaveBeenCalled();
+  });
+
   it("does not rewrite a non-chat URL when New session resets the hidden host", async () => {
     const newChatRef = { current: null as (() => void) | null };
     await renderChat("/cron", { isActive: false, newChatRef });

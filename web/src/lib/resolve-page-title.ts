@@ -15,6 +15,7 @@ const BUILTIN: Record<string, keyof Translations["app"]["nav"]> = {
   "/docs": "documentation",
   "/channels": "messaging",
   "/artifacts": "artifacts",
+  "/agents": "agents",
 };
 
 // Built-in routes without an i18n nav key. Keep these in sync with the
@@ -28,6 +29,7 @@ const BUILTIN_LITERAL: Record<string, string> = {
   "/pairing": "Messaging",
   "/system": "System",
   "/settings": "Settings",
+  "/agents": "Agents",
 };
 
 export function resolvePageTitle(

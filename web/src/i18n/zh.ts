@@ -81,6 +81,7 @@ export const zh: Translations = {
       messaging: "消息平台",
       newSession: "新建会话",
       artifacts: "产物",
+      agents: "代理",
     },
     modelToolsSheetSubtitle: "与工具",
     modelToolsSheetTitle: "模型",

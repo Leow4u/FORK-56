@@ -842,5 +842,36 @@ export const desktopSections = {
     chat: 'Chat',
     copyUrl: 'Copy URL',
     copyPath: 'Copy path'
+  },
+
+  agents: {
+    close: 'Close agents',
+    title: 'Spawn tree',
+    subtitle: 'Live subagent activity for the current turn.',
+    emptyTitle: 'No live subagents',
+    emptyDesc: 'When a turn delegates work, child agents stream their progress here.',
+    running: 'Running',
+    failed: 'Failed',
+    done: 'Done',
+    streaming: 'Streaming',
+    files: 'Files',
+    moreFiles: count => `+${count} more files`,
+    delegation: index => `Delegation ${index}`,
+    workers: count => `${count} workers`,
+    workersActive: count => `${count} active`,
+    agentsCount: count => `${count} ${count === 1 ? 'agent' : 'agents'}`,
+    activeCount: count => `${count} active`,
+    failedCount: count => `${count} failed`,
+    toolsCount: count => `${count} tools`,
+    filesCount: count => `${count} files`,
+    updatedAgo: age => `updated ${age}`,
+    ageNow: 'now',
+    ageSeconds: seconds => `${seconds}s ago`,
+    ageMinutes: minutes => `${minutes}m ago`,
+    ageHours: hours => `${hours}h ago`,
+    ageDays: days => `${days}d ago`,
+    durationSeconds: seconds => `${seconds}s`,
+    durationMinutes: (minutes, seconds) => `${minutes}m ${seconds}s`,
+    tokens: value => `${value} tok`
   }
 } as const
