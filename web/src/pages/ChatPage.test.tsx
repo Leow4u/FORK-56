@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const setEnd = vi.fn();
@@ -110,12 +110,27 @@ vi.mock("@/components/Markdown", () => ({
   Markdown: ({ content }: { content: string }) => <div>{content}</div>,
 }));
 
-function renderChat(path = "/chat") {
+function LocationProbe() {
+  const { pathname, search } = useLocation();
+  return <span data-testid="location">{`${pathname}${search}`}</span>;
+}
+
+function renderChat(
+  path = "/chat",
+  {
+    isActive = true,
+    newChatRef,
+  }: {
+    isActive?: boolean;
+    newChatRef?: { current: (() => void) | null };
+  } = {},
+) {
   return import("./ChatPage").then(({ default: ChatPage }) => {
     act(() => {
       root.render(
         <MemoryRouter initialEntries={[path]}>
-          <ChatPage isActive />
+          <ChatPage isActive={isActive} newChatRef={newChatRef} />
+          <LocationProbe />
         </MemoryRouter>,
       );
     });
@@ -166,11 +181,47 @@ describe("ChatPage thin shell", () => {
     expect(container.textContent).toContain("from history");
   });
 
-  it("registers a New chat header action when active", async () => {
+  it("registers a New session header action when active", async () => {
     await renderChat();
     expect(setTitle).toHaveBeenCalledWith("Chat");
     expect(setEnd).toHaveBeenCalled();
     const end = setEnd.mock.calls.at(-1)?.[0];
     expect(end).toBeTruthy();
+  });
+
+  it("does not rewrite a non-chat URL when New session resets the hidden host", async () => {
+    const newChatRef = { current: null as (() => void) | null };
+    await renderChat("/cron", { isActive: false, newChatRef });
+    expect(newChatRef.current).toBeTruthy();
+    act(() => {
+      newChatRef.current?.();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-testid="location"]')?.textContent).toBe(
+      "/cron",
+    );
+  });
+
+  it("clears resume params when New session runs on the active chat route", async () => {
+    const newChatRef = { current: null as (() => void) | null };
+    await renderChat("/chat?resume=abc123", { newChatRef });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain("from history");
+    act(() => {
+      newChatRef.current?.();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-testid="location"]')?.textContent).toBe(
+      "/chat",
+    );
   });
 });

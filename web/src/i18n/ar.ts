@@ -79,6 +79,9 @@ export const ar = defineLocale({
       plugins: "المكوِّنات الإضافية",
       sessions: "الجلسات",
       skills: "المهارات",
+      messaging: "المراسلة",
+      newSession: "جلسة جديدة",
+      artifacts: "العناصر",
     },
     modelToolsSheetSubtitle: "& أدوات",
     modelToolsSheetTitle: "النموذج",
@@ -146,6 +149,7 @@ export const ar = defineLocale({
     sessionDeleted: "تم حذف الجلسة",
     failedToDelete: "فشل حذف الجلسة",
     resumeInChat: "استئناف في المحادثة",
+    newChat: "جلسة جديدة",
     previousPage: "الصفحة السابقة",
     nextPage: "الصفحة التالية",
     roles: {

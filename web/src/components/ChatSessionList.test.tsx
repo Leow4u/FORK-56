@@ -27,7 +27,7 @@ vi.mock("@/i18n", () => ({
       common: { loading: "Loading", retry: "Retry", refresh: "Refresh" },
       sessions: {
         title: "Sessions",
-        newChat: "New chat",
+        newChat: "New session",
         searchPlaceholder: "Search message content...",
         noSessions: "No sessions yet",
         noMatch: "No sessions match",
@@ -199,12 +199,12 @@ describe("ChatSessionList", () => {
     container.remove();
   });
 
-  it("does not render a duplicate New chat button in the sidebar", async () => {
+  it("does not render a duplicate New session button in the sidebar", async () => {
     await renderList();
-    expect(container.textContent).not.toContain("New chat");
+    expect(container.textContent).not.toContain("New session");
     expect(
       Array.from(container.querySelectorAll("button")).some((b) =>
-        b.textContent?.includes("New chat"),
+        b.textContent?.includes("New session"),
       ),
     ).toBe(false);
   });

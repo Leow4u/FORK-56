@@ -23,6 +23,7 @@ import {
 import {
   Activity,
   BarChart3,
+  Bot,
   Clock,
   Code,
   Cpu,
@@ -32,6 +33,7 @@ import {
   FileText,
   Globe,
   Heart,
+  Images,
   KeyRound,
   Menu,
   MessageSquare,
@@ -46,7 +48,6 @@ import {
   Star,
   Terminal,
   Users,
-  Webhook,
   Wrench,
   X,
   Zap,
@@ -96,6 +97,7 @@ function PairingRedirect() {
   return <Navigate to="/channels?tab=pairing" replace />;
 }
 const ChannelsPage = lazy(() => import("@/pages/ChannelsPage"));
+const ArtifactsPage = lazy(() => import("@/pages/ArtifactsPage"));
 const WebhooksPage = lazy(() => import("@/pages/WebhooksPage"));
 const SystemPage = lazy(() => import("@/pages/SystemPage"));
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
@@ -106,6 +108,11 @@ import { useTheme } from "@/themes";
 import { isDashboardEmbeddedChatEnabled } from "@/lib/dashboard-flags";
 import { latchChatActivation } from "@/lib/chat-activation";
 import { api } from "@/lib/api";
+import {
+  isNewSessionNavItem,
+  userSidebarNavForEmbeddedChat,
+  type UserSidebarNavSpec,
+} from "@/lib/sidebar-nav";
 
 function RouteFallback({ label = "Loading…" }: { label?: string }) {
   return (
@@ -141,6 +148,8 @@ function UnknownRouteFallback({ pluginsLoading }: { pluginsLoading: boolean }) {
 }
 
 interface NavItem {
+  action?: UserSidebarNavSpec["action"];
+  id?: string;
   path: string;
   label: string;
   labelKey?: string;
@@ -150,7 +159,6 @@ interface NavItem {
 interface SidebarNavLinkProps {
   closeMobile: () => void;
   collapsed: boolean;
-  isChatRoute?: boolean;
   item: NavItem;
   onChatNavClick?: () => void;
   tooltipWarmRef: React.MutableRefObject<number>;
@@ -163,12 +171,20 @@ interface SidebarTooltipProps {
   warmRef?: React.MutableRefObject<number>;
 }
 
-const CHAT_NAV_ITEM: NavItem = {
-  path: "/chat",
-  labelKey: "chat",
-  label: "Chat",
-  icon: Terminal,
+const USER_NAV_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  "new-session": Bot,
+  skills: Package,
+  messaging: Radio,
+  artifacts: Images,
+  cron: Clock,
 };
+
+function userNavItems(embeddedChat: boolean): NavItem[] {
+  return userSidebarNavForEmbeddedChat(embeddedChat).map((spec) => ({
+    ...spec,
+    icon: USER_NAV_ICONS[spec.id] ?? Puzzle,
+  }));
+}
 
 /**
  * Built-in routes except /chat.  Chat is rendered persistently (outside
@@ -197,11 +213,14 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   // is set (the gate redirects home). See LogsRouteGate.
   "/logs": LogsRouteGate,
   "/cron": CronPage,
+  "/artifacts": ArtifactsPage,
   "/skills": SkillsPage,
   "/plugins": PluginsPage,
   "/mcp": McpRedirect,
   "/pairing": PairingRedirect,
   "/channels": ChannelsPage,
+  // Overlay destinations (Desktop: statusbar / profile rail). Routes stay
+  // URL-reachable; they are not default sidebar items.
   "/webhooks": WebhooksPage,
   "/system": SystemPage,
   "/profiles": ProfilesPage,
@@ -221,7 +240,8 @@ function ChatRouteSink() {
   return null;
 }
 
-const BUILTIN_NAV_REST: NavItem[] = [
+/** Operator / gated admin entries. User destinations live in WEB_USER_SIDEBAR_NAV. */
+const BUILTIN_NAV_OPERATOR: NavItem[] = [
   {
     path: "/sessions",
     labelKey: "sessions",
@@ -242,17 +262,7 @@ const BUILTIN_NAV_REST: NavItem[] = [
     icon: Cpu,
   },
   { path: "/logs", labelKey: "logs", label: "Logs", icon: FileText },
-  { path: "/cron", labelKey: "cron", label: "Cron", icon: Clock },
-  { path: "/skills", labelKey: "skills", label: "Skills", icon: Package },
   { path: "/plugins", labelKey: "plugins", label: "Plugins", icon: Puzzle },
-  {
-    path: "/channels",
-    labelKey: "messaging",
-    label: "Messaging",
-    icon: Radio,
-  },
-  { path: "/webhooks", label: "Webhooks", icon: Webhook },
-  { path: "/profiles", labelKey: "profiles", label: "Profiles", icon: Users },
   { path: "/config", labelKey: "config", label: "Config", icon: Settings },
   // Operator-only legacy env monolith — hidden from nav by default; user
   // credentials live in Settings → Providers / Tools & Keys. Route stays
@@ -269,10 +279,12 @@ const BUILTIN_NAV_REST: NavItem[] = [
 const ICON_MAP: Record<string, ComponentType<{ className?: string }>> = {
   Activity,
   BarChart3,
+  Bot,
   Clock,
   Cpu,
   FileText,
   FolderOpen,
+  Images,
   KeyRound,
   MessageSquare,
   Package,
@@ -428,8 +440,8 @@ export default function App() {
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
   // Sidebar session list wiring: the list refetches when the chat host
-  // reports a stored-session change, and "New chat" resets the live chat
-  // through the ref the persistent ChatPage host registers.
+  // reports a stored-session change, and "New session" always starts a
+  // fresh chat through the ref the persistent ChatPage host registers.
   const [sessionsNonce, setSessionsNonce] = useState(0);
   const bumpSessionsNonce = useCallback(
     () => setSessionsNonce((n) => n + 1),
@@ -437,9 +449,10 @@ export default function App() {
   );
   const chatNewChatRef = useRef<(() => void) | null>(null);
   const handleSidebarNewChat = useCallback(() => {
-    navigate("/chat");
+    navigate({ pathname: "/chat", search: "" });
     // When the chat host is already mounted, reset it; on a first visit the
-    // ref is null and /chat opens fresh anyway.
+    // ref is null and /chat opens fresh anyway. ChatPage must not rewrite
+    // search params while hidden — that cancels this navigate.
     chatNewChatRef.current?.();
   }, [navigate]);
 
@@ -561,9 +574,7 @@ export default function App() {
   );
 
   const builtinNav = useMemo(() => {
-    const base = embeddedChat
-      ? [CHAT_NAV_ITEM, ...BUILTIN_NAV_REST]
-      : BUILTIN_NAV_REST;
+    const base = [...userNavItems(embeddedChat), ...BUILTIN_NAV_OPERATOR];
     return base.filter((n) => {
       if (n.path === "/analytics") return showTokenAnalytics;
       // Model settings moved to Settings → Model; /models is the operator
@@ -794,9 +805,8 @@ export default function App() {
                   <SidebarNavLink
                     closeMobile={closeMobile}
                     collapsed={isDesktopCollapsed}
-                    isChatRoute={isChatRoute}
                     item={item}
-                    key={item.path}
+                    key={item.id ?? item.path}
                     onChatNavClick={handleSidebarNewChat}
                     t={t}
                     tooltipWarmRef={tooltipWarmRef}
@@ -827,7 +837,7 @@ export default function App() {
                         closeMobile={closeMobile}
                         collapsed={isDesktopCollapsed}
                         item={item}
-                        key={item.path}
+                        key={item.id ?? item.path}
                         t={t}
                         tooltipWarmRef={tooltipWarmRef}
                       />
@@ -1015,10 +1025,12 @@ function ProfileKeyedRoutes({ children }: { children: ReactNode }) {
   return <div key={profile || "__own__"} className="contents">{children}</div>;
 }
 
+const NAV_ITEM_CLASS =
+  "group/nav relative flex w-full items-center gap-3 px-5 py-2.5 font-sans text-display uppercase text-sm tracking-[0.12em] whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-midground";
+
 function SidebarNavLink({
   closeMobile,
   collapsed,
-  isChatRoute,
   item,
   onChatNavClick,
   tooltipWarmRef,
@@ -1027,6 +1039,7 @@ function SidebarNavLink({
   const { path, label, labelKey, icon: Icon } = item;
   const [hovered, setHovered] = useState(false);
   const [tooltipAnchor, setTooltipAnchor] = useState<HTMLElement | null>(null);
+  const isNewSession = isNewSessionNavItem(item);
 
   const navLabel = labelKey
     ? ((t.app.nav as Record<string, string>)[labelKey] ?? label)
@@ -1040,67 +1053,79 @@ function SidebarNavLink({
     setTooltipAnchor(null);
   };
 
+  const labelSpan = (
+    <>
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span
+        className={cn(
+          "truncate transition-opacity duration-300",
+          collapsed ? "lg:opacity-0" : "lg:opacity-100",
+        )}
+      >
+        {navLabel}
+      </span>
+      <span
+        aria-hidden
+        className="absolute inset-y-0.5 left-1.5 right-1.5 bg-midground opacity-0 pointer-events-none transition-opacity duration-200 group-hover/nav:opacity-5"
+      />
+    </>
+  );
+
   return (
     <li
       onMouseEnter={collapsed ? showTooltip : undefined}
       onMouseLeave={collapsed ? hideTooltip : undefined}
     >
-      <NavLink
-        to={path}
-        end={path === "/sessions"}
-        onClick={(event) => {
-          if (path === "/chat" && isChatRoute && onChatNavClick) {
-            event.preventDefault();
-            onChatNavClick();
+      {isNewSession ? (
+        <button
+          type="button"
+          onClick={() => {
+            onChatNavClick?.();
+            closeMobile();
+          }}
+          aria-label={navLabel}
+          onFocus={collapsed ? showTooltip : undefined}
+          onBlur={collapsed ? hideTooltip : undefined}
+          className={cn(NAV_ITEM_CLASS, "text-text-secondary hover:text-midground")}
+          style={{ clipPath: "var(--component-tab-clip-path)" }}
+        >
+          {labelSpan}
+        </button>
+      ) : (
+        <NavLink
+          to={path}
+          end={path === "/sessions"}
+          onClick={() => {
+            closeMobile();
+          }}
+          aria-label={collapsed ? navLabel : undefined}
+          onFocus={collapsed ? showTooltip : undefined}
+          onBlur={collapsed ? hideTooltip : undefined}
+          className={({ isActive }) =>
+            cn(
+              NAV_ITEM_CLASS,
+              isActive
+                ? "text-midground"
+                : "text-text-secondary hover:text-midground",
+            )
           }
-          closeMobile();
-        }}
-        aria-label={collapsed ? navLabel : undefined}
-        onFocus={collapsed ? showTooltip : undefined}
-        onBlur={collapsed ? hideTooltip : undefined}
-        className={({ isActive }) =>
-          cn(
-            "group/nav relative flex items-center gap-3",
-            "px-5 py-2.5",
-            "font-sans text-display uppercase text-sm tracking-[0.12em]",
-            "whitespace-nowrap transition-colors cursor-pointer",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-midground",
-            isActive
-              ? "text-midground"
-              : "text-text-secondary hover:text-midground",
-          )
-        }
-        style={{
-          clipPath: "var(--component-tab-clip-path)",
-        }}
-      >
-        {({ isActive }) => (
-          <>
-            <Icon className="h-3.5 w-3.5 shrink-0" />
-
-            <span
-              className={cn(
-                "truncate transition-opacity duration-300",
-                collapsed ? "lg:opacity-0" : "lg:opacity-100",
+          style={{
+            clipPath: "var(--component-tab-clip-path)",
+          }}
+        >
+          {({ isActive }) => (
+            <>
+              {labelSpan}
+              {isActive && (
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-0 bottom-0 w-px bg-midground"
+                />
               )}
-            >
-              {navLabel}
-            </span>
-
-            <span
-              aria-hidden
-              className="absolute inset-y-0.5 left-1.5 right-1.5 bg-midground opacity-0 pointer-events-none transition-opacity duration-200 group-hover/nav:opacity-5"
-            />
-
-            {isActive && (
-              <span
-                aria-hidden
-                className="absolute left-0 top-0 bottom-0 w-px bg-midground"
-              />
-            )}
-          </>
-        )}
-      </NavLink>
+            </>
+          )}
+        </NavLink>
+      )}
 
       {collapsed && hovered && tooltipAnchor && (
         <SidebarTooltip anchor={tooltipAnchor} label={navLabel} warmRef={tooltipWarmRef} />

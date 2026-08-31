@@ -7,7 +7,7 @@
  * The session list lives in the app sidebar (see ``SidebarSessions`` in
  * App.tsx), not inside this page — matching the desktop app, where the
  * system sidebar owns conversations. This page wires the shell hooks:
- * ``newChatRef`` lets the sidebar's "New chat" reset the live session, and
+ * ``newChatRef`` lets the sidebar's "New session" reset the live session, and
  * ``onSessionsChanged`` tells the sidebar list to refetch when a new stored
  * session id appears.
  */
@@ -40,7 +40,7 @@ export default function ChatPage({
   onSessionsChanged,
 }: {
   isActive?: boolean;
-  /** The app shell's sidebar "New chat" calls through this ref. */
+  /** The app shell's sidebar "New session" calls through this ref. */
   newChatRef?: MutableRefObject<(() => void) | null>;
   /** Fired when the stored-session set changes (sidebar list refetch). */
   onSessionsChanged?: () => void;
@@ -69,17 +69,26 @@ export default function ChatPage({
     setFilesPaneOpen(readFilesPaneOpen(scopedProfile));
   }, [scopedProfile]);
 
+  // The persistent host stays mounted on Capabilities / Artifacts /
+  // Scheduled jobs. Any setSearchParams from this page while /chat is not
+  // the URL overwrites a pending sidebar navigate("/chat") and the New
+  // session click appears to do nothing.
+  const replaceChatSearchParams = useCallback(
+    (updater: (prev: URLSearchParams) => URLSearchParams) => {
+      if (!isActive) return;
+      setSearchParams(updater, { replace: true });
+    },
+    [isActive, setSearchParams],
+  );
+
   const clearChatParams = useCallback(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("resume");
-        next.delete("learn");
-        return next;
-      },
-      { replace: true },
-    );
-  }, [setSearchParams]);
+    replaceChatSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("resume");
+      next.delete("learn");
+      return next;
+    });
+  }, [replaceChatSearchParams]);
 
   const startFresh = useCallback(() => {
     clearChatParams();
@@ -104,22 +113,19 @@ export default function ChatPage({
       if (storedId) {
         onSessionsChanged?.();
       }
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          if (storedId) {
-            if (next.get("resume") === storedId) return prev;
-            next.set("resume", storedId);
-          } else {
-            next.delete("resume");
-          }
-          next.delete("learn");
-          return next;
-        },
-        { replace: true },
-      );
+      replaceChatSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (storedId) {
+          if (next.get("resume") === storedId) return prev;
+          next.set("resume", storedId);
+        } else {
+          next.delete("resume");
+        }
+        next.delete("learn");
+        return next;
+      });
     },
-    [onSessionsChanged, setSearchParams],
+    [onSessionsChanged, replaceChatSearchParams],
   );
 
   const handleTitle = useCallback(
@@ -131,16 +137,13 @@ export default function ChatPage({
   );
 
   useEffect(() => {
-    if (!searchParams.get("learn")) return;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("learn");
-        return next;
-      },
-      { replace: true },
-    );
-  }, [searchParams, setSearchParams]);
+    if (!isActive || !searchParams.get("learn")) return;
+    replaceChatSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("learn");
+      return next;
+    });
+  }, [isActive, replaceChatSearchParams, searchParams]);
 
   useEffect(() => {
     if (!isActive) {
@@ -168,11 +171,13 @@ export default function ChatPage({
           ghost
           size="sm"
           onClick={startFresh}
-          aria-label={t.sessions.newChat}
+          aria-label={t.app.nav.newSession ?? t.sessions.newChat}
           className="gap-1.5 text-muted-foreground hover:text-foreground"
         >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">{t.sessions.newChat}</span>
+          <span className="hidden sm:inline">
+            {t.app.nav.newSession ?? t.sessions.newChat}
+          </span>
         </Button>
       </div>,
     );
@@ -188,6 +193,7 @@ export default function ChatPage({
     setTitle,
     startFresh,
     t.app.nav.chat,
+    t.app.nav.newSession,
     t.sessions.newChat,
   ]);
 

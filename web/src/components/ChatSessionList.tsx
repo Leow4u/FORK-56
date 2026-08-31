@@ -5,8 +5,8 @@
  * It lists the most recent sessions for the active management profile and
  * lets the user swap between them from anywhere: picking a row navigates to
  * `/chat?resume=<id>` (the same affordance as the Sessions page "Resume in
- * Chat" action). Starting a fresh chat lives in the Chat page header (and the
- * main Chat nav item when already on /chat) — not as a duplicate control here.
+ * Chat" action). Starting a fresh chat lives in New session (sidebar + Chat
+ * header) — not as a duplicate control here.
  *
  * Everyday management mirrors the desktop sidebar: rename, pin and archive
  * act through the shared `PATCH /api/sessions/{id}` surface, so state set
