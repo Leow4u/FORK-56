@@ -353,6 +353,7 @@ function statusLine(s: SubscriptionStateResponse): string {
 
   const planLc = (plan || '').toLowerCase()
   const isFree = !c?.tier_id || planLc === 'free' || u?.status === 'free'
+
   if (isFree || !plan) {
     return renewsRaw ? `Plan: Free · resets ${renewsRaw}` : 'Plan: Free'
   }

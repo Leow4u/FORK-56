@@ -38,6 +38,7 @@ export const WORK4YOU_HOUSE_MODEL_DISPLAY = 'Operis 4.0 Flash'
 
 export function isWork4YouHouseModel(model: string): boolean {
   const id = model.trim().toLowerCase()
+
   return id === WORK4YOU_HOUSE_MODEL_ID || id.endsWith('/deepseek-v4-flash-0731')
 }
 

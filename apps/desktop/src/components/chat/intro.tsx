@@ -164,9 +164,7 @@ export function Intro({ personality, seed }: IntroProps) {
       data-slot="aui_intro"
     >
       <div className="mx-auto w-full min-w-0 max-w-md">
-        <p className="mb-1.5 text-xl font-semibold leading-snug tracking-tight text-foreground">
-          {copy.headline}
-        </p>
+        <p className="mb-1.5 text-xl font-semibold leading-snug tracking-tight text-foreground">{copy.headline}</p>
 
         <p className="m-0 text-center leading-normal tracking-tight">{copy.body}</p>
       </div>
