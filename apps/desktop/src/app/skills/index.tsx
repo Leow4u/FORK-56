@@ -769,11 +769,14 @@ export function SkillsView({
       activeTab={mode}
       onSearchChange={setQuery}
       onTabChange={id => setMode(id as (typeof SKILLS_MODES)[number])}
-      // MCP manages a handful of entries with the editor right there —
-      // searching it is noise.
-      searchHidden={mode === 'mcp'}
       searchHints={searchHints}
-      searchPlaceholder={mode === 'skills' ? t.skills.searchSkills : t.skills.searchToolsets}
+      searchPlaceholder={
+        mode === 'skills'
+          ? t.skills.searchSkills
+          : mode === 'mcp'
+            ? t.settings.searchPlaceholder.mcp
+            : t.skills.searchToolsets
+      }
       searchValue={query}
       tabs={[
         { id: 'skills', label: t.skills.tabSkills, meta: skills?.length ?? null },
@@ -794,7 +797,12 @@ export function SkillsView({
               // different backend that RPC would hot-reload the wrong
               // machine's MCP servers, so it is withheld (config edits still
               // apply on that backend's next session).
-              <McpTab gateway={crossBackendScope ? null : gateway} key={`mcp-${scopeKey}`} profile={scopeProfile} />
+              <McpTab
+                gateway={crossBackendScope ? null : gateway}
+                key={`mcp-${scopeKey}`}
+                profile={scopeProfile}
+                query={query}
+              />
             ) : (skillsFailed || toolsetsFailed) && (!skills || !toolsets) ? (
               <PanelEmpty
                 action={

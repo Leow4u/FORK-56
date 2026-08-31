@@ -1,6 +1,6 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
 import { type CodeEditorApi } from '@/components/chat/code-editor'
 import { JsonDocumentEditor } from '@/components/chat/json-document-editor'
@@ -20,6 +20,13 @@ import { compactNumber } from '@/lib/format'
 import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
 import { completeMcpDesktopOAuth } from '@/lib/mcp-dashboard-oauth'
+import {
+  mcpCatalogPrimaryAction,
+  type McpDirectoryFilter,
+  mcpDirectoryQueryHit,
+  mcpDirectoryShowsAvailable,
+  mcpDirectoryShowsConnected
+} from '@/lib/mcp-directory-filter'
 import { type McpImportEntry, parseMcpImport } from '@/lib/mcp-import'
 import { NEEDS_AUTH_RE, PROBE_TTL_MS, probeCache, probeKey, serverFingerprint } from '@/lib/mcp-probe-cache'
 import { getServers, isServerShape, type McpServers, normalizeEntry } from '@/lib/mcp-servers'
@@ -47,8 +54,8 @@ import {
 
 import { useWork4YouConfigRecord, work4youConfigCacheWriter } from '../hooks/use-config-record'
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
-import { DetailPane, ICON_BUTTON, MASTER_DETAIL_WIDE_COLS } from '../master-detail'
-import { PanelAddButton, PanelEmpty } from '../overlays/panel'
+import { DetailPane, ICON_BUTTON } from '../master-detail'
+import { PanelEmpty } from '../overlays/panel'
 import { prettyName } from '../settings/helpers'
 import { useDeepLinkHighlight } from '../settings/use-deep-link-highlight'
 
@@ -90,6 +97,23 @@ const serverEnabled = (server: Record<string, unknown>) => server.enabled !== fa
 // Shared cache for the Work4You-approved catalog — feeds both description enrichment
 // and the Catalog install view; invalidated after an install.
 const MCP_CATALOG_KEY = ['mcp-catalog'] as const
+
+function catalogDescription(
+  catalog: readonly McpCatalogEntry[],
+  serverName: string,
+  server: Record<string, unknown>
+): null | string {
+  const lower = serverName.toLowerCase()
+
+  const match = catalog.find(
+    entry =>
+      entry.name.toLowerCase() === lower ||
+      (entry.url && entry.url === server.url) ||
+      (entry.command && entry.command === server.command)
+  )
+
+  return match?.description ?? null
+}
 
 type Probe = McpTestResult | 'probing'
 
@@ -346,7 +370,15 @@ function scanServerBlocks(text: string): ServerBlock[] {
   return blocks
 }
 
-export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; profile?: ProfileScope }) {
+export function McpTab({
+  gateway,
+  profile,
+  query = ''
+}: {
+  gateway: Work4YouGateway | null
+  profile?: ProfileScope
+  query?: string
+}) {
   const { t } = useI18n()
   const m = t.settings.mcp
   const activeSessionId = useStore($activeSessionId)
@@ -402,9 +434,13 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
   const [dirty, setDirty] = useState(false)
   const [docVersion, setDocVersion] = useState(0)
   const [logSource, setLogSource] = useState<'stdio' | 'agent'>('stdio')
+  const [directoryFilter, setDirectoryFilter] = useState<McpDirectoryFilter>('all')
+  const [adminOpen, setAdminOpen] = useState(false)
+  const [selectedName, setSelectedName] = useState<null | string>(null)
 
-  // Selection IS the editor cursor: whichever server block contains it is the
-  // configured server on the left. Cursor outside every block → the list.
+  // The mcp.json editor still highlights the selected server block when
+  // Administration is open. Directory selection is explicit so collapsing
+  // that pane does not bounce the user back to the catalog.
   const editorApi = useRef<CodeEditorApi | null>(null)
   const [cursor, setCursor] = useState(0)
   const blocks = useMemo(() => scanServerBlocks(draft), [draft])
@@ -414,16 +450,25 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
     [blocks, cursor]
   )
 
-  const selected = activeBlock?.name ?? null
+  const selected = selectedName
 
-  const focusServer = (name: string) => {
+  const syncEditorCursor = (name: string) => {
     const block = blocks.find(b => b.name === name)
 
     if (block) {
-      // Land just inside the key so the block claims the cursor.
       editorApi.current?.setCursor(block.from + 1)
       setCursor(block.from + 1)
     }
+  }
+
+  const focusServer = (name: string) => {
+    setSelectedName(name)
+    syncEditorCursor(name)
+  }
+
+  const clearSelection = () => {
+    setSelectedName(null)
+    setCursor(0)
   }
 
   const servers = useMemo(() => getServers(config ?? null), [config])
@@ -449,22 +494,26 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
   // entry under the same name (covers a just-saved doc the catalog refetch
   // hasn't caught up with yet).
   const availableCatalog = useMemo(
-    () => catalog.filter((entry: McpCatalogEntry) => !entry.installed && !(entry.name in servers)),
-    [catalog, servers]
+    () =>
+      catalog.filter(
+        (entry: McpCatalogEntry) =>
+          !entry.installed &&
+          !(entry.name in servers) &&
+          mcpDirectoryQueryHit([entry.name, prettyName(entry.name), entry.description], query)
+      ),
+    [catalog, query, servers]
   )
 
-  const descriptionFor = (serverName: string, server: Record<string, unknown>): null | string => {
-    const lower = serverName.toLowerCase()
-
-    const match = catalog.find(
-      entry =>
-        entry.name.toLowerCase() === lower ||
-        (entry.url && entry.url === server.url) ||
-        (entry.command && entry.command === server.command)
-    )
-
-    return match?.description ?? null
-  }
+  const visibleNames = useMemo(
+    () =>
+      names.filter(serverName =>
+        mcpDirectoryQueryHit(
+          [serverName, prettyName(serverName), catalogDescription(catalog, serverName, servers[serverName])],
+          query
+        )
+      ),
+    [catalog, names, query, servers]
+  )
 
   const resetDraft = (entries: McpServers) => {
     setDraft(wrapDoc(entries))
@@ -537,6 +586,9 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
     setProbes({})
     setToolCalls30d(null)
     setCursor(0)
+    setSelectedName(null)
+    setDirectoryFilter('all')
+    setAdminOpen(false)
     setAuthing(null)
     setDirty(false)
     setDraft('')
@@ -752,7 +804,7 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
   // EDITOR DRAFT with the fresh servers. Without this a dirty draft (or even a
   // clean one the seed never refreshes) would omit the new server, and the next
   // whole-map Save would silently drop it.
-  const onCatalogInstalled = async () => {
+  const onCatalogInstalled = async (installedName?: string) => {
     void catalogQuery.refetch()
     const { data } = await refetchConfig()
     const nextServers = getServers(data ?? null)
@@ -766,6 +818,10 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
     }
 
     void silentReload()
+
+    if (installedName) {
+      setSelectedName(installedName)
+    }
   }
 
   const withEnabled = (server: Record<string, unknown>, enabled: boolean) => {
@@ -863,6 +919,7 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
       }
 
       setCursor(0)
+      setSelectedName(null)
     } catch (err) {
       notifyError(err, m.removeFailed)
     } finally {
@@ -895,6 +952,8 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
     setDraft(nextDraft)
     setDirty(true)
     setDocVersion(version => version + 1)
+    setAdminOpen(true)
+    setSelectedName(key)
 
     // Focus the fresh block once the editor remounts with the new doc.
     const from = nextDraft.indexOf(`"${key}"`)
@@ -941,8 +1000,10 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
     setDraft(nextDraft)
     setDirty(true)
     setDocVersion(version => version + 1)
+    setAdminOpen(true)
 
     if (firstKey) {
+      setSelectedName(firstKey)
       const from = nextDraft.indexOf(`"${firstKey}"`)
 
       if (from >= 0) {
@@ -1037,19 +1098,65 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
 
   const activeEntry = savedEntry ?? draftEntry
 
+  const showConnected = mcpDirectoryShowsConnected(directoryFilter)
+  const showAvailable = mcpDirectoryShowsAvailable(directoryFilter)
+  const connectedNames = showConnected ? visibleNames : []
+  const catalogEntries = showAvailable ? availableCatalog : []
+
+  const directoryEmpty =
+    !selected &&
+    connectedNames.length === 0 &&
+    catalogEntries.length === 0 &&
+    !catalogQuery.isLoading
+
   return (
-    <div className={cn('grid h-full min-h-0 grid-cols-1', MASTER_DETAIL_WIDE_COLS)}>
-      {/* LEFT: the focused block's server config, or the unified fleet+catalog list. */}
-      <aside className="flex min-h-0 flex-col overflow-hidden border-r border-(--ui-stroke-quaternary)">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-(--ui-stroke-quaternary) px-3">
+        {!selected ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {(
+              [
+                ['all', t.skills.all],
+                ['connected', t.settings.providers.connected],
+                ['available', m.tabCatalog]
+              ] as const
+            ).map(([id, label]) => (
+              <TextTab
+                active={directoryFilter === id}
+                className="h-5 px-0.5 text-[0.65rem]"
+                key={id}
+                onClick={() => setDirectoryFilter(id)}
+              >
+                {label}
+              </TextTab>
+            ))}
+          </div>
+        ) : (
+          <span className="min-w-0 flex-1" />
+        )}
+        <McpImportButton disabled={profilePending} onImport={importServers} />
+        <Button disabled={profilePending} onClick={addServer} size="xs" variant="text">
+          {m.newServer}
+        </Button>
+        <TextTab
+          active={adminOpen}
+          className="h-5 px-0.5 text-[0.65rem]"
+          onClick={() => setAdminOpen(open => !open)}
+        >
+          {t.settings.sections.advanced}
+        </TextTab>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-hidden">
         {selected && activeEntry ? (
           <ServerConfig
             authing={authing === selected}
             cost={costFor(selected, activeEntry)}
-            description={descriptionFor(selected, activeEntry)}
+            description={catalogDescription(catalog, selected, activeEntry)}
             entry={activeEntry}
             name={selected}
             onAuthenticate={() => void authenticate(selected)}
-            onBack={() => setCursor(0)}
+            onBack={clearSelection}
             onProbe={() => void runProbe(selected)}
             onRemove={() => void removeServer(selected)}
             onToggle={checked => void setServerEnabled(selected, checked)}
@@ -1059,84 +1166,108 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
             saving={saving}
           />
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col p-2">
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
-              {/* ONE coherent column: the configured fleet on top, the
-                  Work4You-approved catalog below it. Installed entries live in the
-                  fleet list (with live status), so the catalog section only
-                  offers what's NOT installed yet — no duplicate rows, no tab
-                  flipping to find the install button. */}
-              {/* Geometry mirrors ListStrip (mb-1 h-6 pl-2) so this header
-                  lands on the exact line the sort link occupies in the
-                  Skills/Tools views. */}
-              <div className="mb-1 flex h-6 shrink-0 items-center pl-2 pr-1">
-                <span className="flex-1 text-[0.72rem] font-medium text-(--ui-text-tertiary)">{m.tabServers}</span>
-                <McpImportButton disabled={profilePending} onImport={importServers} />
-              </div>
-              {names.length === 0 ? (
-                <PanelEmpty
-                  action={
-                    <Button onClick={addServer} size="sm">
-                      {m.newServer}
-                    </Button>
-                  }
-                  description={m.emptyDesc}
-                  icon="plug"
-                  title={m.emptyTitle}
-                />
-              ) : (
-                <>
-                  {names.map(serverName => {
-                    const server = servers[serverName]
-                    const status = statusOf(server, probes[serverName])
-                    const cost = costFor(serverName, server)
+          <div className="h-full overflow-y-auto overscroll-contain p-3 [scrollbar-gutter:stable]">
+            {directoryEmpty ? (
+              <PanelEmpty
+                action={
+                  <Button onClick={addServer} size="sm">
+                    {m.newServer}
+                  </Button>
+                }
+                description={
+                  query.trim()
+                    ? t.skills.noSkillsDesc
+                    : directoryFilter === 'available'
+                      ? m.catalogEmpty
+                      : m.emptyDesc
+                }
+                icon="plug"
+                title={
+                  query.trim()
+                    ? t.skills.noSkillsTitle
+                    : directoryFilter === 'available'
+                      ? m.tabCatalog
+                      : m.emptyTitle
+                }
+              />
+            ) : (
+              <div className="flex flex-col gap-4">
+                {connectedNames.length > 0 && (
+                  <section className="flex flex-col gap-2">
+                    <h2 className="px-0.5 text-[0.72rem] font-medium text-(--ui-text-tertiary)">
+                      {t.settings.providers.connected}
+                    </h2>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {connectedNames.map(serverName => {
+                        const server = servers[serverName]
+                        const status = statusOf(server, probes[serverName])
+                        const cost = costFor(serverName, server)
 
-                    return (
-                      <McpRow
-                        active={false}
-                        busy={saving}
-                        enabled={serverEnabled(server)}
-                        key={serverName}
-                        name={serverName}
-                        onProbe={() => void runProbe(serverName)}
-                        onRemove={() => void removeServer(serverName)}
-                        onSelect={() => focusServer(serverName)}
-                        onToggle={checked => void setServerEnabled(serverName, checked)}
-                        status={status}
-                        statusText={statusLine(m, status, probes[serverName], server, cost)}
-                        unused={
-                          serverEnabled(server) &&
-                          status === 'ok' &&
-                          cost.tokens !== null &&
-                          cost.tokens > 0 &&
-                          cost.uses === 0
-                        }
-                      />
-                    )
-                  })}
-                  <PanelAddButton label={m.newServer} onClick={addServer} />
-                </>
-              )}
-              {(catalogQuery.isLoading || availableCatalog.length > 0) && (
-                <>
-                  <div className="mb-1 mt-3 flex h-6 shrink-0 items-center border-t border-(--ui-stroke-quaternary) pl-2 pr-1 pt-2">
-                    <span className="text-[0.72rem] font-medium text-(--ui-text-tertiary)">{m.tabCatalog}</span>
-                  </div>
-                  <McpCatalog
-                    entries={availableCatalog}
-                    loading={catalogQuery.isLoading}
-                    onInstalled={onCatalogInstalled}
-                    profile={profile}
-                  />
-                </>
-              )}
-            </div>
+                        return (
+                          <ConnectorCard
+                            description={
+                              catalogDescription(catalog, serverName, server) ??
+                              statusLine(m, status, probes[serverName], server, cost)
+                            }
+                            key={serverName}
+                            name={serverName}
+                            onSelect={() => focusServer(serverName)}
+                            status={status}
+                            trailing={
+                              <>
+                                <ServerIconActions
+                                  className="opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100"
+                                  onProbe={() => void runProbe(serverName)}
+                                  onRemove={() => void removeServer(serverName)}
+                                  probing={status === 'probing'}
+                                  saving={saving}
+                                />
+                                <ServerSwitch
+                                  disabled={saving}
+                                  enabled={serverEnabled(server)}
+                                  name={serverName}
+                                  onToggle={checked => void setServerEnabled(serverName, checked)}
+                                />
+                              </>
+                            }
+                            unused={
+                              serverEnabled(server) &&
+                              status === 'ok' &&
+                              cost.tokens !== null &&
+                              cost.tokens > 0 &&
+                              cost.uses === 0
+                            }
+                          />
+                        )
+                      })}
+                    </div>
+                  </section>
+                )}
+                {showAvailable && (catalogQuery.isLoading || catalogEntries.length > 0) && (
+                  <section className="flex flex-col gap-2">
+                    {connectedNames.length > 0 && (
+                      <h2 className="px-0.5 text-[0.72rem] font-medium text-(--ui-text-tertiary)">{m.tabCatalog}</h2>
+                    )}
+                    <McpCatalog
+                      entries={catalogEntries}
+                      loading={catalogQuery.isLoading}
+                      onInstalled={onCatalogInstalled}
+                      profile={profile}
+                    />
+                  </section>
+                )}
+              </div>
+            )}
           </div>
         )}
-      </aside>
+      </div>
 
-      {/* RIGHT: the mcp.json editor, logs hard-pinned below. */}
-      <main className="flex min-h-0 flex-col overflow-hidden">
+      <div
+        className={cn(
+          'flex min-h-0 flex-col overflow-hidden border-t border-(--ui-stroke-quaternary)',
+          adminOpen ? 'h-[min(42vh,22rem)] shrink-0' : 'hidden'
+        )}
+      >
         <JsonDocumentEditor
           apiRef={editorApi}
           disabled={saving}
@@ -1153,10 +1284,24 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
             setDraft(next)
             setDirty(true)
           }}
-          onCursorChange={setCursor}
+          onCursorChange={next => {
+            setCursor(next)
+
+            // Directory selection is explicit. Only the open Advanced editor
+            // may retarget it — a hidden remount must not bounce the catalog.
+            if (!adminOpen) {
+              return
+            }
+
+            const block = blocks.find(b => next >= b.from && next <= b.to)
+
+            if (block) {
+              setSelectedName(block.name)
+            }
+          }}
           onFormatJsonError={error => notifyError(new Error(error), m.invalidJson)}
           onSave={() => void saveDoc()}
-          remountKey={docVersion}
+          remountKey={`${docVersion}-${adminOpen ? 'open' : 'shut'}`}
           trailing={
             <Button disabled={saving || !dirty} onClick={() => void saveDoc()} size="xs">
               {saving ? t.common.saving : t.common.save}
@@ -1178,7 +1323,7 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
               ))}
             </span>
           }
-          defaultHeight={176}
+          defaultHeight={120}
           id="mcp-logs"
           title={
             <span className="text-[0.68rem] font-normal text-muted-foreground/60">
@@ -1188,7 +1333,7 @@ export function McpTab({ gateway, profile }: { gateway: Work4YouGateway | null; 
         >
           <McpLogs emptyLabel={m.noOutput} server={selected && savedEntry ? selected : null} source={logSource} />
         </DetailPane>
-      </main>
+      </div>
     </div>
   )
 }
@@ -1250,7 +1395,10 @@ function ServerConfig({
   return (
     // p-2 matches the list view's container so flipping list ⇄ config keeps
     // content anchored at the same origin.
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 [scrollbar-gutter:stable]">
+    <div
+      className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 [scrollbar-gutter:stable]"
+      id={`mcp-server-${name}`}
+    >
       {/* Geometry cloned from McpRow so nothing jumps when flipping list ⇄
           config: items-start with per-element top margins that reproduce the
           row's h-11 centering exactly (h-5 controls → mt-3, size-6 avatar →
@@ -1267,7 +1415,7 @@ function ServerConfig({
             <Codicon name="chevron-left" size="0.8125rem" />
           </Button>
         </Tip>
-        <McpAvatar className="mt-2.5" name={name} status={status} />
+            <McpAvatar className="mt-2.5 size-6" name={name} status={status} />
         <div className="min-w-0 flex-1 pt-1">
           <h3 className="min-w-0 truncate text-[0.9375rem] font-semibold tracking-tight">{prettyName(name)}</h3>
           <p className="mt-0.5 truncate text-[0.68rem] text-(--ui-text-tertiary)">
@@ -1529,7 +1677,7 @@ function McpCatalog({
 }: {
   entries: McpCatalogEntry[]
   loading: boolean
-  onInstalled: () => void
+  onInstalled: (name?: string) => void
   profile?: ProfileScope
 }) {
   const { t } = useI18n()
@@ -1582,7 +1730,7 @@ function McpCatalog({
 
       notify({ kind: 'success', title: m.catalogInstallStarted(entry.name), message: '' })
       setEnvOpenFor(null)
-      onInstalled()
+      onInstalled(entry.name)
     } catch (err) {
       notifyError(err, m.catalogInstallFailed(entry.name))
     } finally {
@@ -1599,75 +1747,66 @@ function McpCatalog({
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
       {entries.map(entry => {
         const draft = envDrafts[entry.name] ?? {}
+        const action = mcpCatalogPrimaryAction(entry.auth_type)
+
+        const actionLabel =
+          installing === entry.name
+            ? m.catalogInstalling
+            : entry.installed
+              ? m.catalogInstalled
+              : action === 'connect'
+                ? t.common.connect
+                : m.catalogInstall
 
         return (
-          <div className="rounded-md px-2 py-2" key={entry.name}>
-            <div className="flex items-start gap-2">
-              {/* 2px nudge so the start-aligned avatar sits where McpRow's
-                  center-aligned one does — no jump when flipping Servers⇄Catalog. */}
-              <McpAvatar
-                className="mt-0.5"
-                name={entry.name}
-                status={entry.installed ? (entry.enabled ? 'ok' : 'off') : 'unknown'}
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="truncate text-[0.78rem] font-medium text-foreground/85">
-                    {prettyName(entry.name)}
-                  </span>
-                  <CatalogTag>{entry.transport}</CatalogTag>
-                  {entry.auth_type === 'oauth' && <CatalogTag>OAuth</CatalogTag>}
-                  {entry.auth_type === 'api_key' && <CatalogTag>API key</CatalogTag>}
-                  {entry.needs_install && !entry.installed && <CatalogTag>{m.catalogNeedsInstall}</CatalogTag>}
-                  {entry.installed && (
-                    <span className="text-[0.6rem] text-emerald-400">
-                      {entry.enabled ? m.catalogEnabled : m.catalogInstalled}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-0.5 line-clamp-2 text-[0.68rem] text-muted-foreground/70">{entry.description}</p>
-                {envOpenFor === entry.name && entry.required_env.length > 0 && (
-                  <div className="mt-2 grid gap-2">
-                    {entry.required_env.map(env => (
-                      <label className="grid gap-1" key={env.name}>
-                        <span className="text-[0.62rem] text-muted-foreground">
-                          {env.prompt || env.name}
-                          {env.required ? ' *' : ''}
-                        </span>
-                        <Input
-                          className="h-7 text-xs"
-                          onChange={event =>
-                            setEnvDrafts(prev => ({
-                              ...prev,
-                              [entry.name]: { ...prev[entry.name], [env.name]: event.currentTarget.value }
-                            }))
-                          }
-                          type="password"
-                          value={draft[env.name] ?? ''}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
+          <ConnectorCard
+            description={entry.description}
+            key={entry.name}
+            name={entry.name}
+            status={entry.installed ? (entry.enabled ? 'ok' : 'off') : 'unknown'}
+            trailing={
               <Button
-                className="mt-0.5 shrink-0"
                 disabled={entry.installed || installing !== null}
                 onClick={() => void install(entry)}
                 size="xs"
                 variant="text"
               >
-                {installing === entry.name
-                  ? m.catalogInstalling
-                  : entry.installed
-                    ? m.catalogInstalled
-                    : m.catalogInstall}
+                {actionLabel}
               </Button>
-            </div>
-          </div>
+            }
+          >
+            {entry.needs_install && !entry.installed ? (
+              <span className="mt-1">
+                <CatalogTag>{m.catalogNeedsInstall}</CatalogTag>
+              </span>
+            ) : null}
+            {envOpenFor === entry.name && entry.required_env.length > 0 && (
+              <div className="mt-2 grid gap-2">
+                {entry.required_env.map(env => (
+                  <label className="grid gap-1" key={env.name}>
+                    <span className="text-[0.62rem] text-muted-foreground">
+                      {env.prompt || env.name}
+                      {env.required ? ' *' : ''}
+                    </span>
+                    <Input
+                      className="h-7 text-xs"
+                      onChange={event =>
+                        setEnvDrafts(prev => ({
+                          ...prev,
+                          [entry.name]: { ...prev[entry.name], [env.name]: event.currentTarget.value }
+                        }))
+                      }
+                      type="password"
+                      value={draft[env.name] ?? ''}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
+          </ConnectorCard>
         )
       })}
     </div>
@@ -1773,14 +1912,14 @@ function McpAvatar({ className, name, status }: { className?: string; name: stri
   return (
     <span
       className={cn(
-        'relative inline-grid size-6 shrink-0 place-items-center rounded-md text-[length:var(--conversation-caption-font-size)] font-medium',
+        'relative inline-grid size-8 shrink-0 place-items-center rounded-md text-[length:var(--conversation-caption-font-size)] font-medium',
         !brand && 'bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)',
         className
       )}
       style={brand ? { backgroundColor: `color-mix(in srgb, ${brand.color} 16%, transparent)` } : undefined}
     >
       {brand ? (
-        <brand.Icon aria-hidden className="size-3.5" style={brandGlyphStyle(brand)} />
+        <brand.Icon aria-hidden className="size-4" style={brandGlyphStyle(brand)} />
       ) : (
         name.charAt(0).toUpperCase()
       )}
@@ -1795,78 +1934,68 @@ function McpAvatar({ className, name, status }: { className?: string; name: stri
   )
 }
 
-function McpRow({
-  active,
-  busy,
-  enabled,
+function ConnectorCard({
+  children,
+  description,
   name,
-  onProbe,
-  onRemove,
   onSelect,
-  onToggle,
   status,
-  statusText,
+  trailing,
   unused
 }: {
-  active: boolean
-  busy: boolean
-  enabled: boolean
+  children?: ReactNode
+  description: null | string
   name: string
-  onProbe: () => void
-  onRemove: () => void
-  onSelect: () => void
-  onToggle: (checked: boolean) => void
+  onSelect?: () => void
   status: ServerStatus
-  statusText: string
+  trailing?: ReactNode
   unused?: boolean
 }) {
   const { t } = useI18n()
   const m = t.settings.mcp
 
+  const title = (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <span className="min-w-0 truncate text-[0.82rem] font-medium text-foreground/85">{prettyName(name)}</span>
+      {unused && (
+        <span className="shrink-0 rounded bg-(--ui-bg-tertiary) px-1 py-px text-[0.58rem] font-normal text-muted-foreground/60">
+          {m.unusedPill}
+        </span>
+      )}
+    </span>
+  )
+
   return (
     <div
-      className={cn(
-        'group/row row-hover flex h-11 w-full shrink-0 items-center gap-2 rounded-md pl-2 pr-1.5 hover:text-foreground',
-        active ? 'bg-(--ui-row-active-background) text-foreground' : 'text-(--ui-text-secondary)'
-      )}
+      className="group/card flex min-h-[5.75rem] flex-col rounded-lg bg-(--ui-bg-secondary)/50 p-3 ring-1 ring-(--ui-stroke-quaternary)"
       id={`mcp-server-${name}`}
     >
-      <button
-        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
-        onClick={onSelect}
-        type="button"
-      >
-        <McpAvatar name={name} status={status} />
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span
-              className={cn(
-                'min-w-0 truncate text-[0.78rem]',
-                enabled ? 'font-medium text-foreground/85' : 'font-normal text-muted-foreground/60'
-              )}
-            >
-              {prettyName(name)}
+      <div className="flex items-start gap-2.5">
+        {onSelect ? (
+          <button className="flex min-w-0 flex-1 items-start gap-2.5 text-left" onClick={onSelect} type="button">
+            <McpAvatar className="mt-0.5" name={name} status={status} />
+            <span className="min-w-0 flex-1">
+              {title}
+              {description ? (
+                <span className="mt-0.5 line-clamp-2 text-[0.68rem] text-muted-foreground/70">{description}</span>
+              ) : null}
             </span>
-            {/* Subtle "paying for schemas, not using them" hint — a muted pill,
-                never a dialog. Shown only when the overlay KNOWS both halves:
-                nonzero schema cost and zero 30-day uses. */}
-            {unused && (
-              <span className="shrink-0 rounded bg-(--ui-bg-tertiary) px-1 py-px text-[0.58rem] font-normal text-muted-foreground/60">
-                {m.unusedPill}
-              </span>
-            )}
-          </span>
-          <span className="block truncate text-[0.62rem] text-muted-foreground/50">{statusText}</span>
-        </span>
-      </button>
-      <ServerIconActions
-        className="opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100"
-        onProbe={onProbe}
-        onRemove={onRemove}
-        probing={status === 'probing'}
-        saving={busy}
-      />
-      <ServerSwitch disabled={busy} enabled={enabled} name={name} onToggle={onToggle} />
+          </button>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-start gap-2.5">
+            <McpAvatar className="mt-0.5" name={name} status={status} />
+            <div className="min-w-0 flex-1">
+              {title}
+              {description ? (
+                <p className="mt-0.5 line-clamp-2 text-[0.68rem] text-muted-foreground/70">{description}</p>
+              ) : null}
+              {children}
+            </div>
+          </div>
+        )}
+        {trailing ? <div className="flex shrink-0 items-center gap-0.5">{trailing}</div> : null}
+      </div>
+      {onSelect ? children : null}
     </div>
   )
 }
