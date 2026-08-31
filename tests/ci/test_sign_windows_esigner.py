@@ -303,9 +303,46 @@ def test_authenticode_probe_argv_imports_security_module():
     argv = mod.authenticode_probe_argv(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe")
     assert argv[0].endswith("powershell.exe")
     assert "-ExecutionPolicy" in argv
+    assert "-NonInteractive" in argv
     joined = " ".join(argv)
     assert "Import-Module Microsoft.PowerShell.Security" in joined
     assert "Get-AuthenticodeSignature" in joined
+
+
+def test_windows_powershell_child_env_strips_pwsh7_module_path(tmp_path):
+    exe = tmp_path / "Work4You-Setup.exe"
+    exe.write_bytes(b"x")
+    polluted = {
+        "PATH": "/bin",
+        "SystemRoot": r"C:\Windows",
+        "ProgramFiles": r"C:\Program Files",
+        "PSModulePath": (
+            r"C:\Users\runneradmin\Documents\PowerShell\Modules;"
+            r"C:\Program Files\PowerShell\7\Modules;"
+            r"C:\Windows\system32\WindowsPowerShell\v1.0\Modules"
+        ),
+        "PSModuleAutoloadingPreference": "None",
+        "psmodulepath": r"C:\Program Files\PowerShell\7\Modules",
+    }
+    env = mod.windows_powershell_child_env(exe, base=polluted)
+    assert r"PowerShell\7\Modules" not in env["PSModulePath"]
+    assert r"WindowsPowerShell\v1.0\Modules" in env["PSModulePath"]
+    assert r"C:\Windows\System32\WindowsPowerShell\v1.0\Modules" in env["PSModulePath"]
+    assert env["SIGN_TARGET"] == str(exe.resolve())
+    assert "PSModuleAutoloadingPreference" not in env
+    assert "psmodulepath" not in env
+
+
+def test_windows_powershell_module_path_never_includes_pwsh7():
+    path = mod.windows_powershell_module_path(
+        system_root=r"D:\Windows",
+        program_files=r"D:\Program Files",
+    )
+    assert path == (
+        r"D:\Windows\System32\WindowsPowerShell\v1.0\Modules;"
+        r"D:\Program Files\WindowsPowerShell\Modules"
+    )
+    assert r"PowerShell\7" not in path
 
 
 def test_verify_authenticode_rejects_notsigned(tmp_path, monkeypatch):
@@ -317,6 +354,8 @@ def test_verify_authenticode_rejects_notsigned(tmp_path, monkeypatch):
     def fake_runner(argv, *, cwd, env=None):
         assert env["SIGN_TARGET"] == str(exe.resolve())
         assert argv[0] == "powershell"
+        assert r"PowerShell\7\Modules" not in env["PSModulePath"]
+        assert r"WindowsPowerShell\v1.0\Modules" in env["PSModulePath"]
         return SimpleNamespace(returncode=0, stdout="NotSigned\n", stderr="")
 
     with pytest.raises(mod.SignError, match="required Valid"):
@@ -379,6 +418,17 @@ def test_infra_error_requires_security_module_not_generic_could_not_be_loaded():
         "The file C:\\temp\\Work4You-Setup.exe could not be loaded."
     ) is False
     assert mod.is_authenticode_probe_infra_error("module could not be loaded") is False
+
+
+def test_infra_error_typedata_from_pwsh7_module_path_leak():
+    gha = (
+        "Import-Module : The following error occurred while loading the "
+        "extended type data file: Error in TypeData "
+    )
+    assert mod.is_authenticode_probe_infra_error(gha) is True
+    assert mod.is_authenticode_probe_infra_error(
+        "Error in TypeData file C:\\temp\\foo.ps1xml"
+    ) is False
 
 
 def test_codesigntool_child_env_maps_sslcom_names_and_defaults_prod(tmp_path):

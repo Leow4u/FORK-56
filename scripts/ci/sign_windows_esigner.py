@@ -383,10 +383,63 @@ def windows_powershell_exe() -> str:
     raise SignError("powershell not found; cannot probe Authenticode")
 
 
+def windows_powershell_module_path(
+    *,
+    system_root: str | None = None,
+    program_files: str | None = None,
+) -> str:
+    """PSModulePath for Windows PowerShell 5.1 — never PowerShell 7's Modules.
+
+    Use Windows separators even when unit tests run on Linux: this string is
+    consumed only by ``powershell.exe``. GitHub Actions windows-latest steps
+    default to pwsh 7, which injects ``PowerShell\\7\\Modules`` into
+    ``PSModulePath``. Spawning 5.1 with that inherited path loads 7's type
+    data and fails ``Import-Module Microsoft.PowerShell.Security``.
+    """
+    root = (system_root or os.environ.get("SystemRoot") or r"C:\Windows").rstrip("\\/")
+    pf = (
+        program_files or os.environ.get("ProgramFiles") or r"C:\Program Files"
+    ).rstrip("\\/")
+    system_modules = rf"{root}\System32\WindowsPowerShell\v1.0\Modules"
+    extra = rf"{pf}\WindowsPowerShell\Modules"
+    return f"{system_modules};{extra}"
+
+
+_PWSH7_CHILD_ENV_DROP = frozenset(
+    {
+        "psmodulepath",
+        "psmoduleautoloadingpreference",
+    }
+)
+
+
+def windows_powershell_child_env(
+    path: Path,
+    *,
+    base: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Environment for the Authenticode probe subprocess.
+
+    Drops pwsh-7 module-path pollution (any case) and pins 5.1's module
+    directories before setting ``SIGN_TARGET``.
+    """
+    env = dict(os.environ if base is None else base)
+    for key in list(env):
+        if key.casefold() in _PWSH7_CHILD_ENV_DROP:
+            del env[key]
+    env["PSModulePath"] = windows_powershell_module_path(
+        system_root=env.get("SystemRoot") or env.get("SYSTEMROOT"),
+        program_files=env.get("ProgramFiles") or env.get("PROGRAMFILES"),
+    )
+    env["SIGN_TARGET"] = str(path.resolve())
+    return env
+
+
 def authenticode_probe_argv(powershell: str) -> list[str]:
     return [
         powershell,
         "-NoProfile",
+        "-NonInteractive",
         "-ExecutionPolicy",
         "Bypass",
         "-Command",
@@ -401,6 +454,9 @@ def is_authenticode_probe_infra_error(err: str) -> bool:
     Generic ``could not be loaded`` (wrong file, missing path) is a probe
     failure, not infra. Require the Security module FQID or name plus an
     autoload/load failure.
+
+    Also treat Import-Module TypeData failures as infra: that is the
+    windows-latest symptom when pwsh 7's ``PSModulePath`` leaks into 5.1.
     """
     text = err.casefold()
     has_security_module = (
@@ -411,7 +467,13 @@ def is_authenticode_probe_infra_error(err: str) -> bool:
         "module could not be loaded" in text
         or "couldnotautoloadmatchingmodule" in text
     )
-    return has_security_module and has_load_failure
+    if has_security_module and has_load_failure:
+        return True
+    typedata = "error in typedata" in text or "extended type data" in text
+    import_or_security = (
+        "import-module" in text or "microsoft.powershell.security" in text
+    )
+    return typedata and import_or_security
 
 
 def require_authenticode_valid(status: str, *, path: Path) -> str:
@@ -435,8 +497,7 @@ def verify_authenticode(path: Path, *, runner=_run) -> str:
     """
     if sys.platform != "win32":
         return "skipped-non-windows"
-    env = os.environ.copy()
-    env["SIGN_TARGET"] = str(path.resolve())
+    env = windows_powershell_child_env(path)
     argv = authenticode_probe_argv(windows_powershell_exe())
     result = runner(argv, cwd=path.parent, env=env)
     status = (result.stdout or "").strip()
