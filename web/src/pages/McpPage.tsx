@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
-import { KeyRound, Package, Power, Server, Trash2, X, Zap } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { KeyRound, Package, Power, Search, Server, Trash2, X, Zap } from "lucide-react";
 import { Badge } from "@work4you/ui/ui/components/badge";
 import { Button } from "@work4you/ui/ui/components/button";
 import { Select, SelectOption } from "@work4you/ui/ui/components/select";
@@ -21,6 +21,7 @@ import { Toast } from "@work4you/ui/ui/components/toast";
 import { Card, CardContent } from "@work4you/ui/ui/components/card";
 import { Input } from "@work4you/ui/ui/components/input";
 import { Label } from "@work4you/ui/ui/components/label";
+import { Segmented } from "@work4you/ui/ui/components/segmented";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { cn, themedBody } from "@/lib/utils";
 import {
@@ -28,6 +29,15 @@ import {
   type McpTransport,
 } from "@/lib/mcp-server-create";
 import { completeMcpDashboardOAuth } from "@/lib/mcp-dashboard-oauth";
+import { brandFor, brandGlyphStyle } from "@/lib/mcp-brands";
+import {
+  type McpDirectoryFilter,
+  mcpCatalogPrimaryAction,
+  mcpDirectoryQueryHit,
+  mcpDirectoryShowsAvailable,
+  mcpDirectoryShowsConnected,
+} from "@/lib/mcp-directory-filter";
+import { prettyName } from "@/lib/text";
 
 function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value.trim());
@@ -37,11 +47,34 @@ function truncateText(value: string, maxLength: number): string {
   return value.length > maxLength ? value.slice(0, maxLength) + "..." : value;
 }
 
-const TRANSPORT_TONE: Record<string, "success" | "warning" | "secondary"> = {
-  http: "success",
-  stdio: "warning",
-  unknown: "secondary",
-};
+function McpBrandMark({ name }: { name: string }) {
+  const brand = brandFor(name);
+  return (
+    <span
+      className={cn(
+        "inline-grid size-9 shrink-0 place-items-center rounded-md text-sm font-medium",
+        !brand && "bg-muted text-muted-foreground",
+      )}
+      style={
+        brand
+          ? {
+              backgroundColor: `color-mix(in srgb, ${brand.color} 16%, transparent)`,
+            }
+          : undefined
+      }
+    >
+      {brand ? (
+        <brand.Icon
+          aria-hidden
+          className="size-4"
+          style={brandGlyphStyle(brand)}
+        />
+      ) : (
+        name.charAt(0).toUpperCase()
+      )}
+    </span>
+  );
+}
 
 export default function McpPage({ embedded = false }: { embedded?: boolean }) {
   const [servers, setServers] = useState<McpServer[]>([]);
@@ -88,6 +121,9 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
   );
   const [installEnv, setInstallEnv] = useState<Record<string, string>>({});
   const [installingName, setInstallingName] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [directoryFilter, setDirectoryFilter] =
+    useState<McpDirectoryFilter>("all");
   const closeInstallModal = useCallback(() => setInstallEntry(null), []);
   const installModalRef = useModalBehavior({
     open: installEntry !== null,
@@ -312,6 +348,45 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
     };
   }, [embedded, setEnd, loading]);
 
+  const connectedServers = useMemo(
+    () =>
+      servers.filter((server) =>
+        mcpDirectoryQueryHit(
+          [
+            server.name,
+            prettyName(server.name),
+            catalog.find((entry) => entry.name === server.name)?.description,
+            server.url,
+            server.command,
+            ...(server.args ?? []),
+          ],
+          query,
+        ),
+      ),
+    [catalog, query, servers],
+  );
+
+  const availableCatalog = useMemo(
+    () =>
+      catalog.filter(
+        (entry) =>
+          !entry.installed &&
+          !servers.some((server) => server.name === entry.name) &&
+          mcpDirectoryQueryHit(
+            [entry.name, prettyName(entry.name), entry.description],
+            query,
+          ),
+      ),
+    [catalog, query, servers],
+  );
+
+  const visibleConnected = mcpDirectoryShowsConnected(directoryFilter)
+    ? connectedServers
+    : [];
+  const visibleCatalog = mcpDirectoryShowsAvailable(directoryFilter)
+    ? availableCatalog
+    : [];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -340,6 +415,27 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
           </Button>
         </div>
       )}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search MCP servers..."
+            value={query}
+          />
+        </div>
+        <Segmented
+          onChange={(v) => setDirectoryFilter(v as McpDirectoryFilter)}
+          options={[
+            { value: "all", label: "All" },
+            { value: "connected", label: "Connected" },
+            { value: "available", label: "Catalog" },
+          ]}
+          value={directoryFilter}
+        />
+      </div>
 
       <DeleteConfirmDialog
         open={serverDelete.isOpen}
@@ -602,316 +698,322 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
         </div>
       )}
 
-      {/* ── Your MCP servers ── */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <H2
-            variant="sm"
-            className="flex items-center gap-2 text-muted-foreground"
-          >
-            <Server className="h-4 w-4" />
-            Your MCP servers ({servers.length})
-          </H2>
-        </div>
+      {restartNote && <p className="text-xs text-warning">{restartNote}</p>}
 
-        {restartNote && <p className="text-xs text-warning">{restartNote}</p>}
-
-        {servers.length === 0 && (
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              No MCP servers configured.
-            </CardContent>
-          </Card>
-        )}
-
-        {servers.map((server) => {
-          const envCount = Object.keys(server.env ?? {}).length;
-          const result = testResults[server.name];
-
-          return (
-            <Card key={server.name}>
-              <CardContent
-                className={cn(
-                  "flex items-start gap-4 py-4",
-                  !server.enabled && "opacity-60",
-                )}
+      {visibleConnected.length === 0 && visibleCatalog.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            {query.trim()
+              ? "No MCP servers match your search."
+              : directoryFilter === "available"
+                ? "No catalog entries available."
+                : "No MCP servers configured."}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {visibleConnected.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <H2
+                variant="sm"
+                className="flex items-center gap-2 text-muted-foreground"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-sm truncate">
-                      {server.name}
-                    </span>
-                    <Badge
-                      tone={TRANSPORT_TONE[server.transport] ?? "secondary"}
-                    >
-                      {server.transport}
-                    </Badge>
-                    {server.auth && (
-                      <Badge tone="outline">
-                        auth:{" "}
-                        {server.auth === "header" ? "bearer" : server.auth}
-                      </Badge>
-                    )}
-                    {!server.enabled && <Badge tone="outline">disabled</Badge>}
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    {server.transport === "http" ? (
-                      <span className="font-mono truncate">
-                        {server.url ?? "—"}
-                      </span>
-                    ) : (
-                      <span className="font-mono truncate">
-                        {[server.command, ...(server.args ?? [])]
-                          .filter(Boolean)
-                          .join(" ") || "—"}
-                      </span>
-                    )}
-                    {envCount > 0 && (
-                      <span>
-                        {envCount} env var{envCount === 1 ? "" : "s"}
-                      </span>
-                    )}
-                  </div>
-                  {result && (
-                    <div className="mt-2 text-xs">
-                      {result.ok ? (
-                        <p className="text-success">
-                          {result.tools.length === 0
-                            ? "Connected — no tools"
-                            : `Tools: ${result.tools
-                                .map((tool) => tool.name)
-                                .join(", ")}`}
-                        </p>
-                      ) : (
-                        <p className="text-destructive">
-                          {result.error ?? "Connection failed"}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <Server className="h-4 w-4" />
+                Connected ({visibleConnected.length})
+              </H2>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {visibleConnected.map((server) => {
+                  const envCount = Object.keys(server.env ?? {}).length;
+                  const result = testResults[server.name];
+                  const description = catalog.find(
+                    (entry) => entry.name === server.name,
+                  )?.description;
 
-                <div className="flex items-center gap-1 shrink-0">
-                  {server.auth === "oauth" && (
-                    <Button
-                      ghost
-                      size="sm"
-                      title="Authenticate with OAuth"
-                      onClick={() => handleAuthenticate(server)}
-                      disabled={authenticating === server.name}
-                      prefix={
-                        authenticating === server.name ? (
-                          <Spinner />
-                        ) : (
-                          <KeyRound />
-                        )
-                      }
-                    >
-                      Authenticate
-                    </Button>
-                  )}
-
-                  <Button
-                    ghost
-                    size="sm"
-                    title={server.enabled ? "Disable" : "Enable"}
-                    aria-label={server.enabled ? "Disable" : "Enable"}
-                    onClick={() => handleToggleEnabled(server)}
-                    disabled={togglingName === server.name}
-                    prefix={
-                      togglingName === server.name ? <Spinner /> : <Power />
-                    }
-                    className={server.enabled ? "text-success" : undefined}
-                  >
-                    {server.enabled ? "Disable" : "Enable"}
-                  </Button>
-
-                  <Button
-                    ghost
-                    size="icon"
-                    title="Test connection"
-                    aria-label="Test connection"
-                    onClick={() => handleTest(server)}
-                    disabled={testing === server.name}
-                  >
-                    {testing === server.name ? <Spinner /> : <Zap />}
-                  </Button>
-
-                  <Button
-                    ghost
-                    destructive
-                    size="icon"
-                    title="Delete"
-                    aria-label="Delete"
-                    onClick={() => serverDelete.requestDelete(server.name)}
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* ── Catalog ── */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <H2
-            variant="sm"
-            className="flex items-center gap-2 text-muted-foreground"
-          >
-            <Package className="h-4 w-4" />
-            Catalog ({catalog.length})
-          </H2>
-        </div>
-
-        <p className="text-xs text-muted-foreground">
-          Browse Work4You-approved MCP servers and install them with one click.
-        </p>
-
-        {catalog.length === 0 && (
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              No catalog entries available.
-            </CardContent>
-          </Card>
-        )}
-
-        {catalog.map((entry) => {
-          const entryDiags = diagnosticsByName[entry.name] ?? [];
-          const isInstalling = installingName === entry.name;
-
-          return (
-            <Card key={entry.name}>
-              <CardContent className="flex items-start gap-4 py-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="font-medium text-sm truncate">
-                      {entry.name}
-                    </span>
-                    <Badge
-                      tone={TRANSPORT_TONE[entry.transport] ?? "secondary"}
-                    >
-                      {entry.transport}
-                    </Badge>
-                    <Badge tone="outline">auth: {entry.auth_type}</Badge>
-                    {isHttpUrl(entry.source) ? (
-                      <a
-                        href={entry.source}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary underline underline-offset-2 hover:opacity-80"
+                  return (
+                    <Card key={server.name}>
+                      <CardContent
+                        className={cn(
+                          "flex items-start gap-3 py-4",
+                          !server.enabled && "opacity-60",
+                        )}
                       >
-                        source ↗
-                      </a>
-                    ) : (
-                      entry.source && (
-                        <Badge tone="outline">{entry.source}</Badge>
-                      )
-                    )}
-                    {entry.installed && <Badge tone="success">Installed</Badge>}
-                    {entry.installed && !entry.enabled && (
-                      <Badge tone="outline">disabled</Badge>
-                    )}
-                  </div>
-                  {entry.description && (
-                    <p className="text-xs text-muted-foreground">
-                      {entry.description}
-                    </p>
-                  )}
-                  {/* Connection detail: what the agent actually talks to. */}
-                  {entry.transport === "http" && entry.url && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      <span className="font-medium">Endpoint:</span>{" "}
-                      <code className="font-mono">{entry.url}</code>
-                    </p>
-                  )}
-                  {entry.transport === "stdio" && entry.command && (
-                    <p className="mt-1 text-xs text-muted-foreground break-all">
-                      <span className="font-medium">Runs:</span>{" "}
-                      <code className="font-mono">
-                        {[entry.command, ...entry.args].join(" ")}
-                      </code>
-                    </p>
-                  )}
-                  {/* Git bootstrap — surfaced so users see what gets cloned/run
-                      before they install (matches the docs trust model). */}
-                  {entry.install_url && (
-                    <p className="mt-1 text-xs text-muted-foreground break-all">
-                      <span className="font-medium">Installs from:</span>{" "}
-                      {isHttpUrl(entry.install_url) ? (
-                        <a
-                          href={entry.install_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary underline underline-offset-2 hover:opacity-80"
-                        >
-                          {entry.install_url}
-                        </a>
-                      ) : (
-                        <code className="font-mono">{entry.install_url}</code>
-                      )}
-                      {entry.install_ref && <span> @ {entry.install_ref}</span>}
-                    </p>
-                  )}
-                  {entry.bootstrap.length > 0 && (
-                    <details className="mt-1 text-xs text-muted-foreground">
-                      <summary className="cursor-pointer select-none">
-                        Bootstrap commands ({entry.bootstrap.length})
-                      </summary>
-                      <ul className="mt-1 ml-3 list-disc space-y-0.5">
-                        {entry.bootstrap.map((cmd, i) => (
-                          <li
-                            key={`${entry.name}-bs-${i}`}
-                            className="break-all"
+                        <McpBrandMark name={server.name} />
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1 flex items-center gap-2">
+                            <span className="truncate text-sm font-medium">
+                              {prettyName(server.name)}
+                            </span>
+                            {!server.enabled && (
+                              <Badge tone="outline">disabled</Badge>
+                            )}
+                          </div>
+                          {description && (
+                            <p className="mb-1 text-xs text-muted-foreground line-clamp-2">
+                              {description}
+                            </p>
+                          )}
+                          {result && (
+                            <div className="text-xs">
+                              {result.ok ? (
+                                <p className="text-success">
+                                  {result.tools.length === 0
+                                    ? "Connected — no tools"
+                                    : `Tools: ${result.tools
+                                        .map((tool) => tool.name)
+                                        .join(", ")}`}
+                                </p>
+                              ) : (
+                                <p className="text-destructive">
+                                  {result.error ?? "Connection failed"}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          <details className="mt-1 text-xs text-muted-foreground">
+                            <summary className="cursor-pointer select-none">
+                              Details
+                            </summary>
+                            <div className="mt-1 space-y-1">
+                              <p className="font-mono break-all">
+                                {server.transport === "http"
+                                  ? (server.url ?? "—")
+                                  : [server.command, ...(server.args ?? [])]
+                                      .filter(Boolean)
+                                      .join(" ") || "—"}
+                              </p>
+                              {envCount > 0 && (
+                                <p>
+                                  {envCount} env var
+                                  {envCount === 1 ? "" : "s"}
+                                </p>
+                              )}
+                            </div>
+                          </details>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          {server.auth === "oauth" && (
+                            <Button
+                              ghost
+                              size="sm"
+                              title="Authenticate with OAuth"
+                              onClick={() => handleAuthenticate(server)}
+                              disabled={authenticating === server.name}
+                              prefix={
+                                authenticating === server.name ? (
+                                  <Spinner />
+                                ) : (
+                                  <KeyRound />
+                                )
+                              }
+                            >
+                              Authenticate
+                            </Button>
+                          )}
+                          <Button
+                            ghost
+                            size="sm"
+                            title={server.enabled ? "Disable" : "Enable"}
+                            aria-label={
+                              server.enabled ? "Disable" : "Enable"
+                            }
+                            onClick={() => handleToggleEnabled(server)}
+                            disabled={togglingName === server.name}
+                            prefix={
+                              togglingName === server.name ? (
+                                <Spinner />
+                              ) : (
+                                <Power />
+                              )
+                            }
+                            className={
+                              server.enabled ? "text-success" : undefined
+                            }
                           >
-                            <code className="font-mono">{cmd}</code>
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-                  {entry.post_install && (
-                    <details className="mt-1 text-xs text-muted-foreground">
-                      <summary className="cursor-pointer select-none">
-                        Setup notes
-                      </summary>
-                      <p className="mt-1 whitespace-pre-wrap">
-                        {entry.post_install.trim()}
-                      </p>
-                    </details>
-                  )}
-                  {entryDiags.map((d, i) => (
-                    <p
-                      key={`${entry.name}-diag-${i}`}
-                      className="text-xs text-warning mt-1"
-                    >
-                      {d.message}
-                    </p>
-                  ))}
-                </div>
+                            {server.enabled ? "Disable" : "Enable"}
+                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              ghost
+                              size="icon"
+                              title="Test connection"
+                              aria-label="Test connection"
+                              onClick={() => handleTest(server)}
+                              disabled={testing === server.name}
+                            >
+                              {testing === server.name ? (
+                                <Spinner />
+                              ) : (
+                                <Zap />
+                              )}
+                            </Button>
+                            <Button
+                              ghost
+                              destructive
+                              size="icon"
+                              title="Delete"
+                              aria-label="Delete"
+                              onClick={() =>
+                                serverDelete.requestDelete(server.name)
+                              }
+                            >
+                              <Trash2 />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
-                <div className="flex items-center gap-1 shrink-0">
-                  {entry.installed ? (
-                    <Badge tone="success">Installed</Badge>
-                  ) : (
-                    <Button
-                      className="uppercase"
-                      size="sm"
-                      onClick={() => handleInstallClick(entry)}
-                      disabled={isInstalling}
-                      prefix={isInstalling ? <Spinner /> : undefined}
-                    >
-                      {isInstalling ? "Installing..." : "Install"}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+          {visibleCatalog.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <H2
+                variant="sm"
+                className="flex items-center gap-2 text-muted-foreground"
+              >
+                <Package className="h-4 w-4" />
+                Catalog ({visibleCatalog.length})
+              </H2>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {visibleCatalog.map((entry) => {
+                  const entryDiags = diagnosticsByName[entry.name] ?? [];
+                  const isInstalling = installingName === entry.name;
+                  const action = mcpCatalogPrimaryAction(entry.auth_type);
+
+                  return (
+                    <Card key={entry.name}>
+                      <CardContent className="flex items-start gap-3 py-4">
+                        <McpBrandMark name={entry.name} />
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1 flex flex-wrap items-center gap-2">
+                            <span className="truncate text-sm font-medium">
+                              {prettyName(entry.name)}
+                            </span>
+                            {entry.needs_install && (
+                              <Badge tone="warning">Needs build</Badge>
+                            )}
+                          </div>
+                          {entry.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {entry.description}
+                            </p>
+                          )}
+                          {(entry.url ||
+                            entry.command ||
+                            entry.install_url ||
+                            entry.bootstrap.length > 0 ||
+                            entry.post_install ||
+                            entryDiags.length > 0) && (
+                            <details className="mt-1 text-xs text-muted-foreground">
+                              <summary className="cursor-pointer select-none">
+                                Details
+                              </summary>
+                              <div className="mt-1 space-y-1">
+                                {entry.transport === "http" && entry.url && (
+                                  <p>
+                                    <span className="font-medium">
+                                      Endpoint:
+                                    </span>{" "}
+                                    <code className="font-mono">
+                                      {entry.url}
+                                    </code>
+                                  </p>
+                                )}
+                                {entry.transport === "stdio" &&
+                                  entry.command && (
+                                    <p className="break-all">
+                                      <span className="font-medium">
+                                        Runs:
+                                      </span>{" "}
+                                      <code className="font-mono">
+                                        {[entry.command, ...entry.args].join(
+                                          " ",
+                                        )}
+                                      </code>
+                                    </p>
+                                  )}
+                                {entry.install_url && (
+                                  <p className="break-all">
+                                    <span className="font-medium">
+                                      Installs from:
+                                    </span>{" "}
+                                    {isHttpUrl(entry.install_url) ? (
+                                      <a
+                                        href={entry.install_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary underline underline-offset-2 hover:opacity-80"
+                                      >
+                                        {entry.install_url}
+                                      </a>
+                                    ) : (
+                                      <code className="font-mono">
+                                        {entry.install_url}
+                                      </code>
+                                    )}
+                                    {entry.install_ref && (
+                                      <span> @ {entry.install_ref}</span>
+                                    )}
+                                  </p>
+                                )}
+                                {entry.bootstrap.length > 0 && (
+                                  <ul className="ml-3 list-disc space-y-0.5">
+                                    {entry.bootstrap.map((cmd, i) => (
+                                      <li
+                                        key={`${entry.name}-bs-${i}`}
+                                        className="break-all"
+                                      >
+                                        <code className="font-mono">
+                                          {cmd}
+                                        </code>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                                {entry.post_install && (
+                                  <p className="whitespace-pre-wrap">
+                                    {entry.post_install.trim()}
+                                  </p>
+                                )}
+                                {entryDiags.map((d, i) => (
+                                  <p
+                                    key={`${entry.name}-diag-${i}`}
+                                    className="text-warning"
+                                  >
+                                    {d.message}
+                                  </p>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                        <Button
+                          className="uppercase shrink-0"
+                          size="sm"
+                          onClick={() => handleInstallClick(entry)}
+                          disabled={isInstalling}
+                          prefix={
+                            isInstalling ? <Spinner /> : undefined
+                          }
+                        >
+                          {isInstalling
+                            ? "Installing..."
+                            : action === "connect"
+                              ? "Connect"
+                              : "Install"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
     </div>
   );
 }
