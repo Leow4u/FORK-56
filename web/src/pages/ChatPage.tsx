@@ -157,8 +157,11 @@ export default function ChatPage({
 
   useEffect(() => {
     if (!isActive) {
-      setEnd(null);
-      setTitle(null);
+      // Persistent host stays mounted on overlay routes like /agents.
+      // Do not clear the header here — that races the active page's
+      // setTitle (ChatPage renders after <Routes>, so an inactive
+      // setTitle(null) would wipe Spawn tree back to the default).
+      // PageHeaderProvider already resets slots on pathname change.
       return;
     }
     setTitle(t.app.nav.chat);

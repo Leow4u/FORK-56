@@ -216,6 +216,12 @@ describe("ChatPage thin shell", () => {
     expect(labels.join(" ")).toContain("Agents");
   });
 
+  it("does not clear the page header when the persistent host is hidden", async () => {
+    await renderChat("/agents", { isActive: false });
+    expect(setTitle).not.toHaveBeenCalled();
+    expect(setEnd).not.toHaveBeenCalled();
+  });
+
   it("does not rewrite a non-chat URL when New session resets the hidden host", async () => {
     const newChatRef = { current: null as (() => void) | null };
     await renderChat("/cron", { isActive: false, newChatRef });
