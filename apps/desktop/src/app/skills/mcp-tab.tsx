@@ -21,8 +21,8 @@ import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
 import { completeMcpDesktopOAuth } from '@/lib/mcp-dashboard-oauth'
 import {
-  type McpDirectoryFilter,
   mcpCatalogPrimaryAction,
+  type McpDirectoryFilter,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
   mcpDirectoryShowsConnected
@@ -97,6 +97,23 @@ const serverEnabled = (server: Record<string, unknown>) => server.enabled !== fa
 // Shared cache for the Work4You-approved catalog — feeds both description enrichment
 // and the Catalog install view; invalidated after an install.
 const MCP_CATALOG_KEY = ['mcp-catalog'] as const
+
+function catalogDescription(
+  catalog: readonly McpCatalogEntry[],
+  serverName: string,
+  server: Record<string, unknown>
+): null | string {
+  const lower = serverName.toLowerCase()
+
+  const match = catalog.find(
+    entry =>
+      entry.name.toLowerCase() === lower ||
+      (entry.url && entry.url === server.url) ||
+      (entry.command && entry.command === server.command)
+  )
+
+  return match?.description ?? null
+}
 
 type Probe = McpTestResult | 'probing'
 
@@ -471,19 +488,6 @@ export function McpTab({
 
   const catalog = useMemo(() => catalogQuery.data?.entries ?? [], [catalogQuery.data])
 
-  const descriptionFor = (serverName: string, server: Record<string, unknown>): null | string => {
-    const lower = serverName.toLowerCase()
-
-    const match = catalog.find(
-      entry =>
-        entry.name.toLowerCase() === lower ||
-        (entry.url && entry.url === server.url) ||
-        (entry.command && entry.command === server.command)
-    )
-
-    return match?.description ?? null
-  }
-
   // The catalog SECTION of the unified list only offers entries that aren't
   // already configured — installed servers appear once, in the fleet list
   // above, with live status. Match by catalog `installed` flag or a config
@@ -504,7 +508,7 @@ export function McpTab({
     () =>
       names.filter(serverName =>
         mcpDirectoryQueryHit(
-          [serverName, prettyName(serverName), descriptionFor(serverName, servers[serverName])],
+          [serverName, prettyName(serverName), catalogDescription(catalog, serverName, servers[serverName])],
           query
         )
       ),
@@ -1098,6 +1102,7 @@ export function McpTab({
   const showAvailable = mcpDirectoryShowsAvailable(directoryFilter)
   const connectedNames = showConnected ? visibleNames : []
   const catalogEntries = showAvailable ? availableCatalog : []
+
   const directoryEmpty =
     !selected &&
     connectedNames.length === 0 &&
@@ -1147,7 +1152,7 @@ export function McpTab({
           <ServerConfig
             authing={authing === selected}
             cost={costFor(selected, activeEntry)}
-            description={descriptionFor(selected, activeEntry)}
+            description={catalogDescription(catalog, selected, activeEntry)}
             entry={activeEntry}
             name={selected}
             onAuthenticate={() => void authenticate(selected)}
@@ -1201,7 +1206,7 @@ export function McpTab({
                         return (
                           <ConnectorCard
                             description={
-                              descriptionFor(serverName, server) ??
+                              catalogDescription(catalog, serverName, server) ??
                               statusLine(m, status, probes[serverName], server, cost)
                             }
                             key={serverName}
@@ -1746,6 +1751,7 @@ function McpCatalog({
       {entries.map(entry => {
         const draft = envDrafts[entry.name] ?? {}
         const action = mcpCatalogPrimaryAction(entry.auth_type)
+
         const actionLabel =
           installing === entry.name
             ? m.catalogInstalling
@@ -1947,6 +1953,7 @@ function ConnectorCard({
 }) {
   const { t } = useI18n()
   const m = t.settings.mcp
+
   const title = (
     <span className="flex min-w-0 items-center gap-1.5">
       <span className="min-w-0 truncate text-[0.82rem] font-medium text-foreground/85">{prettyName(name)}</span>
