@@ -115,6 +115,8 @@ export interface Translations extends Partial<DesktopI18nSections> {
       artifacts?: string;
       /** Overlay spawn-tree; English fallback is "Agents". */
       agents?: string;
+      /** Overlay (not default nav); English fallback is Memory Graph. */
+      starmap?: string;
     };
     /** Optional; English fallback in components. */
     logOut?: string;

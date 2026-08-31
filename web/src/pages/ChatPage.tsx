@@ -32,6 +32,7 @@ import {
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { useProfileScope } from "@/contexts/useProfileScope";
 import { useI18n } from "@/i18n";
+import { Starmap } from "@/lib/icons";
 import { PluginSlot } from "@/plugins";
 import { cn } from "@/lib/utils";
 import {
@@ -157,11 +158,12 @@ export default function ChatPage({
 
   useEffect(() => {
     if (!isActive) {
-      // Persistent host stays mounted on overlay routes like /agents.
-      // Do not clear the header here — that races the active page's
-      // setTitle (ChatPage renders after <Routes>, so an inactive
-      // setTitle(null) would wipe Spawn tree back to the default).
-      // PageHeaderProvider already resets slots on pathname change.
+      // Persistent host stays mounted on overlay routes like /agents
+      // and /starmap. Do not clear the header here — that races the
+      // active page's setTitle (ChatPage renders after <Routes>, so an
+      // inactive setTitle(null) would wipe Spawn tree / Memory Graph
+      // back to the default). PageHeaderProvider already resets slots
+      // on pathname change.
       return;
     }
     setTitle(t.app.nav.chat);
@@ -185,6 +187,15 @@ export default function ChatPage({
               {activeAgents}
             </span>
           ) : null}
+        </Button>
+        <Button
+          ghost
+          size="sm"
+          onClick={() => navigate("/starmap")}
+          aria-label={t.titlebar.openStarmap}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <Starmap className="h-4 w-4" />
         </Button>
         <Button
           ghost
@@ -230,6 +241,7 @@ export default function ChatPage({
     t.app.nav.chat,
     t.app.nav.newSession,
     t.sessions.newChat,
+    t.titlebar.openStarmap,
   ]);
 
   const profileKey = scopedProfile || "__own__";

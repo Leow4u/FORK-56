@@ -42,6 +42,7 @@ describe("web user sidebar nav", () => {
       expect(paths.has(path)).toBe(false);
     }
     expect(WEB_OVERLAY_ROUTES_NOT_IN_NAV).toContain("/agents");
+    expect(WEB_OVERLAY_ROUTES_NOT_IN_NAV).toContain("/starmap");
   });
 
   it("omits New session when embedded chat is off", () => {

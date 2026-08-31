@@ -87,6 +87,7 @@ export const en: Translations = {
       newSession: "New session",
       artifacts: "Artifacts",
       agents: "Agents",
+      starmap: "Memory Graph",
     },
     logOut: "Log out",
     modelToolsSheetSubtitle: "& tools",

@@ -14,5 +14,6 @@ describe("resolvePageTitle", () => {
     expect(resolvePageTitle("/skills", t, [])).toBe("Capabilities");
     expect(resolvePageTitle("/channels", t, [])).toBe("Messaging");
     expect(resolvePageTitle("/agents", t, [])).toBe("Agents");
+    expect(resolvePageTitle("/starmap", t, [])).toBe("Memory Graph");
   });
 });

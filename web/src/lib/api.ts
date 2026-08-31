@@ -88,6 +88,8 @@ const PROFILE_SCOPED_PREFIXES = [
   // consults that one — approving into the global store would grant access
   // the running gateway never sees.
   "/api/pairing",
+  // Star map / learning graph is profile-scoped (skills catalog + MEMORY.md).
+  "/api/learning",
 ];
 
 function withManagementProfile(url: string): string {

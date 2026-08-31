@@ -82,6 +82,7 @@ export const zh: Translations = {
       newSession: "新建会话",
       artifacts: "产物",
       agents: "代理",
+      starmap: "记忆图谱",
     },
     modelToolsSheetSubtitle: "与工具",
     modelToolsSheetTitle: "模型",

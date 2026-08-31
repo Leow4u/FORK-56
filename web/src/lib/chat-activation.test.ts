@@ -17,6 +17,7 @@ describe("chat host activation latch", () => {
     expect(shouldKeepChatHost("/chat/")).toBe(true);
     expect(shouldKeepChatHost("/agents")).toBe(true);
     expect(shouldKeepChatHost("/agents/")).toBe(true);
+    expect(shouldKeepChatHost("/starmap")).toBe(false);
     expect(shouldKeepChatHost("/cron")).toBe(false);
     expect(shouldKeepChatHost("/skills")).toBe(false);
     expect(shouldKeepChatHost("/")).toBe(false);

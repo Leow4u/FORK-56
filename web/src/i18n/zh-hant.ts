@@ -83,6 +83,7 @@ export const zhHant: Translations = {
       newSession: "新工作階段",
       artifacts: "成品",
       agents: "代理",
+      starmap: "記憶圖譜",
     },
     modelToolsSheetSubtitle: "與工具",
     modelToolsSheetTitle: "模型",

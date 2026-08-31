@@ -87,8 +87,13 @@ vi.mock("@/plugins", () => ({
 }));
 
 vi.mock("@work4you/ui/ui/components/button", () => ({
-  Button: ({ children }: { children?: ReactNode }) => (
-    <button type="button">{children}</button>
+  Button: ({
+    children,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button type="button" {...props}>
+      {children}
+    </button>
   ),
 }));
 
@@ -185,7 +190,7 @@ describe("ChatPage thin shell", () => {
     await renderChat();
     expect(setTitle).toHaveBeenCalledWith("Chat");
     expect(setEnd).toHaveBeenCalled();
-    const end = setEnd.mock.calls.at(-1)?.[0];
+    const end = setEnd.mock.calls.at(-1)?.[0] as { props?: { children?: unknown } };
     expect(end).toBeTruthy();
   });
 
@@ -214,13 +219,33 @@ describe("ChatPage thin shell", () => {
     };
     walk(setEnd.mock.calls.at(-1)?.[0]);
     expect(labels.join(" ")).toContain("Agents");
+    expect(labels.join(" ")).toContain("Open memory graph");
   });
 
-  it("does not clear the page header when the persistent host is hidden", async () => {
-    await renderChat("/agents", { isActive: false });
-    expect(setTitle).not.toHaveBeenCalled();
-    expect(setEnd).not.toHaveBeenCalled();
+  it("registers a Memory Graph header control when active", async () => {
+    await renderChat();
+    const end = setEnd.mock.calls.at(-1)?.[0] as ReactNode;
+    act(() => {
+      root.render(
+        <MemoryRouter initialEntries={["/chat"]}>
+          {end}
+          <LocationProbe />
+        </MemoryRouter>,
+      );
+    });
+    expect(
+      container.querySelector('[aria-label="Open memory graph"]'),
+    ).toBeTruthy();
   });
+
+  it.each(["/agents", "/starmap"] as const)(
+    "does not clear the page header when the persistent host is hidden on %s",
+    async (path) => {
+      await renderChat(path, { isActive: false });
+      expect(setTitle).not.toHaveBeenCalled();
+      expect(setEnd).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not rewrite a non-chat URL when New session resets the hidden host", async () => {
     const newChatRef = { current: null as (() => void) | null };

@@ -83,6 +83,7 @@ export const ar = defineLocale({
       newSession: "جلسة جديدة",
       artifacts: "العناصر",
       agents: "الوكلاء",
+      starmap: "مخطط الذاكرة",
     },
     modelToolsSheetSubtitle: "& أدوات",
     modelToolsSheetTitle: "النموذج",

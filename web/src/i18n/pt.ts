@@ -84,6 +84,7 @@ export const pt: Translations = {
       newSession: "Nova sessão",
       artifacts: "Artefatos",
       agents: "Agentes",
+      starmap: "Grafo de memória",
     },
     logOut: "Sair",
     modelToolsSheetSubtitle: "e ferramentas",

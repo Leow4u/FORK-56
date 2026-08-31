@@ -58,6 +58,7 @@ export const WEB_OVERLAY_ROUTES_NOT_IN_NAV = [
   "/settings",
   "/docs",
   "/agents",
+  "/starmap",
 ] as const;
 
 export function isNewSessionNavItem(item: {
