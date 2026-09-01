@@ -28,6 +28,8 @@ interface OverlayMainProps {
   className?: string
 }
 
+export type OverlayNavItemTone = 'default' | 'quiet'
+
 interface OverlayNavItemProps {
   active: boolean
   icon: IconComponent
@@ -38,6 +40,8 @@ interface OverlayNavItemProps {
   // lighter active state so it never competes with the boxed parent item.
   nested?: boolean
   onClick: () => void
+  /** `quiet` is Settings-only: text highlight, no boxed active fill. */
+  tone?: OverlayNavItemTone
   trailing?: ReactNode
 }
 
@@ -107,8 +111,11 @@ export const OverlayNavItem = memo(function OverlayNavItem({
   label,
   nested,
   onClick,
+  tone = 'default',
   trailing
 }: OverlayNavItemProps) {
+  const quiet = tone === 'quiet'
+
   return (
     <button
       className={cn(
@@ -118,11 +125,14 @@ export const OverlayNavItem = memo(function OverlayNavItem({
             ? 'border-transparent bg-(--chrome-action-hover) font-medium text-foreground'
             : 'border-transparent bg-transparent text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground'
           : active
-            ? 'border-(--ui-stroke-tertiary) bg-(--ui-bg-tertiary) text-foreground'
+            ? quiet
+              ? 'border-transparent bg-(--chrome-action-hover) font-medium text-foreground'
+              : 'border-(--ui-stroke-tertiary) bg-(--ui-bg-tertiary) text-foreground'
             : 'border-transparent bg-transparent text-(--ui-text-secondary) hover:bg-(--chrome-action-hover) hover:text-foreground'
       )}
       // Names the row by its own id, so a tour can address one link
       // (`[data-tour="nav-models"]`) instead of guessing at nth-child.
+      data-tone={tone}
       data-tour={id ? `nav-${id}` : undefined}
       onClick={onClick}
       type="button"
@@ -162,10 +172,25 @@ export interface OverlayNavGroup extends OverlayNavLink {
 // dropdown in PageSearchShell), so every OverlaySplitLayout pane degrades the
 // same way instead of stacking its whole sidebar. Drop it in as the first
 // child of an OverlaySplitLayout, before OverlayMain.
-export function OverlayNav({ footer, groups }: { footer?: ReactNode; groups: OverlayNavGroup[] }) {
+export function OverlayNav({
+  footer,
+  groups,
+  header,
+  itemTone = 'default'
+}: {
+  footer?: ReactNode
+  groups: OverlayNavGroup[]
+  header?: ReactNode
+  itemTone?: OverlayNavItemTone
+}) {
   return (
     <>
       <OverlaySidebar className={RAIL_HIDDEN}>
+        {header && (
+          <div className="mb-2 shrink-0" data-slot="overlay-nav-header">
+            {header}
+          </div>
+        )}
         {groups.map(group => (
           <Fragment key={group.id}>
             {group.gapBefore && <div aria-hidden className="h-2" />}
@@ -175,6 +200,7 @@ export function OverlayNav({ footer, groups }: { footer?: ReactNode; groups: Ove
               id={group.id}
               label={group.label}
               onClick={group.onSelect}
+              tone={itemTone}
             />
             {group.children && group.active && (
               <div className="ml-3.5 flex flex-col gap-0.5 pl-1.5">
@@ -187,6 +213,7 @@ export function OverlayNav({ footer, groups }: { footer?: ReactNode; groups: Ove
                     label={child.label}
                     nested
                     onClick={child.onSelect}
+                    tone={itemTone}
                   />
                 ))}
               </div>
@@ -207,7 +234,12 @@ export function OverlayNav({ footer, groups }: { footer?: ReactNode; groups: Ove
           BAR_HIDDEN
         )}
       >
-        <div className="pointer-events-auto min-w-0 [-webkit-app-region:no-drag]">
+        <div className="pointer-events-auto flex min-w-0 items-center gap-2 [-webkit-app-region:no-drag]">
+          {header && (
+            <div className="min-w-0 shrink" data-slot="overlay-nav-header">
+              {header}
+            </div>
+          )}
           <TabDropdown
             align="start"
             items={groups.flatMap(group => [

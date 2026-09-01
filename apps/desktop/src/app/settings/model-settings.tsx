@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useI18n } from '@/i18n'
-import { AlertTriangle, Cpu, Loader2 } from '@/lib/icons'
+import { AlertTriangle, Loader2 } from '@/lib/icons'
 import { displayModelName, isWork4YouHouseModel } from '@/lib/model-status-label'
 import { DEFAULT_REASONING_EFFORT, REASONING_EFFORT_VALUES } from '@/lib/reasoning-effort'
 import { cn } from '@/lib/utils'
@@ -41,7 +41,7 @@ import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 
 import { CONTROL_TEXT } from './constants'
 import { getNested, setNested } from './helpers'
-import { ListRow, Pill, SectionHeading } from './primitives'
+import { ListRow, Pill, SettingsGroup, ToggleRow } from './primitives'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
 
 function unavailableModelsFor(providers: ModelOptionProvider[], slug: string): Set<string> {
@@ -57,42 +57,22 @@ function settingsModelLabel(model: string): string {
 // spinner. Same containers/rhythm as the real render below.
 export function ModelSettingsSkeleton() {
   return (
-    <div className="grid gap-6" data-slot="model-settings-skeleton">
-      <section>
-        <Skeleton className="mb-3 h-3 w-72 max-w-full" />
-        <div className="flex flex-wrap items-center gap-2">
-          <Skeleton className="h-8 w-40" />
-          <Skeleton className="h-8 w-60 max-w-full" />
-          <Skeleton className="h-8 w-16" />
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <Skeleton className="h-3 w-16" />
-          <Skeleton className="h-8 w-28" />
-          <Skeleton className="h-6 w-20" />
-        </div>
-      </section>
-
-      <section>
-        <div className="mb-2.5 flex items-center gap-2 pt-2">
-          <Skeleton className="size-4" />
-          <Skeleton className="h-4 w-36" />
-        </div>
-        <div className="grid gap-1">
-          {[0, 1, 2, 3].map(row => (
-            <div
-              className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center"
-              key={row}
-            >
-              <div className="min-w-0 space-y-1.5">
-                <Skeleton className="h-3.5 w-32" />
-                <Skeleton className="h-3 w-52 max-w-full" />
-              </div>
-              <Skeleton className="h-8 w-full @xl:justify-self-end @xl:w-56" />
+    <SettingsGroup>
+      <div className="grid gap-1" data-slot="model-settings-skeleton">
+        {[0, 1, 2, 3].map(row => (
+          <div
+            className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center"
+            key={row}
+          >
+            <div className="min-w-0 space-y-1.5">
+              <Skeleton className="h-3.5 w-32" />
+              <Skeleton className="h-3 w-52 max-w-full" />
             </div>
-          ))}
-        </div>
-      </section>
-    </div>
+            <Skeleton className="h-8 w-full @xl:w-56 @xl:justify-self-end" />
+          </div>
+        ))}
+      </div>
+    </SettingsGroup>
   )
 }
 
@@ -807,131 +787,135 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
 
   return (
     <div className="grid gap-6">
-      <section>
-        <p className="mb-3 text-xs text-muted-foreground">{m.appliesDesc}</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select onValueChange={setSelectedProvider} value={selectedProvider}>
-            <SelectTrigger className={cn('min-w-40', CONTROL_TEXT)}>
-              <SelectValue placeholder={m.provider} />
-            </SelectTrigger>
-            <SelectContent>
-              {mainProviderOptions.map(provider => (
-                <SelectItem key={provider.slug || 'none'} value={provider.slug || 'none'}>
-                  {provider.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {needsSetup ? (
-            setupIsApiKey ? (
-              <>
-                <Input
-                  autoComplete="off"
-                  className={cn('min-w-60 flex-1', CONTROL_TEXT)}
-                  onChange={event => setApiKeyDraft(event.target.value)}
-                  onKeyDown={event => {
-                    if (event.key === 'Enter') {
-                      void activateApiKeyProvider()
-                    }
-                  }}
-                  placeholder={`Paste ${selectedProviderRow?.key_env ?? 'API key'}`}
-                  type="password"
-                  value={apiKeyDraft}
-                />
-                <Button
-                  disabled={!apiKeyDraft.trim() || activating}
-                  onClick={() => void activateApiKeyProvider()}
-                  size="sm"
-                >
-                  {activating && <Loader2 className="size-3.5 animate-spin" />}
-                  {activating ? 'Activating...' : 'Activate'}
+      <SettingsGroup>
+        <ListRow
+          action={
+            <Select onValueChange={setSelectedProvider} value={selectedProvider}>
+              <SelectTrigger className={cn('min-w-40', CONTROL_TEXT)}>
+                <SelectValue placeholder={m.provider} />
+              </SelectTrigger>
+              <SelectContent>
+                {mainProviderOptions.map(provider => (
+                  <SelectItem key={provider.slug || 'none'} value={provider.slug || 'none'}>
+                    {provider.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+          description={m.appliesDesc}
+          title={m.provider}
+        />
+        <ListRow
+          action={
+            needsSetup ? (
+              setupIsApiKey ? (
+                <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+                  <Input
+                    autoComplete="off"
+                    className={cn('min-w-40 flex-1', CONTROL_TEXT)}
+                    onChange={event => setApiKeyDraft(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') {
+                        void activateApiKeyProvider()
+                      }
+                    }}
+                    placeholder={`Paste ${selectedProviderRow?.key_env ?? 'API key'}`}
+                    type="password"
+                    value={apiKeyDraft}
+                  />
+                  <Button
+                    disabled={!apiKeyDraft.trim() || activating}
+                    onClick={() => void activateApiKeyProvider()}
+                    size="sm"
+                    variant="secondary"
+                  >
+                    {activating && <Loader2 className="size-3.5 animate-spin" />}
+                    {activating ? 'Activating...' : 'Activate'}
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={startProviderSetup} size="sm" variant="textStrong">
+                  Set up {selectedProviderRow?.name ?? 'provider'}
                 </Button>
-              </>
+              )
             ) : (
-              <Button onClick={startProviderSetup} size="sm" variant="textStrong">
-                Set up {selectedProviderRow?.name ?? 'provider'}
-              </Button>
-            )
-          ) : (
-            <>
-              <Select onValueChange={setSelectedModel} value={selectedModel}>
-                <SelectTrigger className={cn('min-w-60', CONTROL_TEXT)}>
-                  <SelectValue placeholder={m.model} />
-                </SelectTrigger>
-                <SelectContent>
-                  {withActive(selectedProviderModels, selectedModel).map(model => {
-                    const locked = unavailableModelsFor(providers, selectedProvider).has(model)
-
-                    return (
-                      <SelectItem disabled={locked} key={model} value={model}>
-                        {settingsModelLabel(model)}
-                        {locked ? ` · ${t.modelPicker.pro}` : ''}
-                      </SelectItem>
-                    )
-                  })}
-                </SelectContent>
-              </Select>
-              <Button
-                disabled={
-                  !selectedProvider ||
-                  !selectedModel ||
-                  applying ||
-                  unavailableModelsFor(providers, selectedProvider).has(selectedModel)
-                }
-                onClick={() => void applyMainModel()}
-                size="sm"
-              >
-                {applying && <Loader2 className="size-3.5 animate-spin" />}
-                {applying ? m.applying : t.common.apply}
-              </Button>
-            </>
-          )}
-        </div>
-        {needsSetup && !setupIsApiKey && selectedProviderRow && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            {selectedProviderRow?.auth_type === 'api_key'
-              ? `${selectedProviderRow?.name} needs an API key — set it up to choose a model.`
-              : `${selectedProviderRow?.name} signs in through your browser — Work4You runs the flow for you.`}
-          </p>
-        )}
-        {config && mainModel && (reasoningSupported || fastSupported) && (
-          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3">
-            <span className="text-xs text-muted-foreground">{m.defaultsLabel}</span>
-            {reasoningSupported && (
-              <div className="flex items-center gap-2 text-xs">
-                {m.reasoning}
-                <Select
-                  onValueChange={value => void writeAgentDefault('agent.reasoning_effort', value)}
-                  value={effortValue}
-                >
-                  <SelectTrigger className={cn('min-w-28', CONTROL_TEXT)}>
-                    <SelectValue />
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+                <Select onValueChange={setSelectedModel} value={selectedModel}>
+                  <SelectTrigger className={cn('min-w-44', CONTROL_TEXT)}>
+                    <SelectValue placeholder={m.model} />
                   </SelectTrigger>
                   <SelectContent>
-                    {REASONING_EFFORT_VALUES.map(value => (
-                      <SelectItem key={value} value={value}>
-                        {value === 'none' ? m.reasoningOff : t.shell.modelOptions[value]}
-                      </SelectItem>
-                    ))}
+                    {withActive(selectedProviderModels, selectedModel).map(model => {
+                      const locked = unavailableModelsFor(providers, selectedProvider).has(model)
+
+                      return (
+                        <SelectItem disabled={locked} key={model} value={model}>
+                          {settingsModelLabel(model)}
+                          {locked ? ` · ${t.modelPicker.pro}` : ''}
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
+                <Button
+                  disabled={
+                    !selectedProvider ||
+                    !selectedModel ||
+                    applying ||
+                    unavailableModelsFor(providers, selectedProvider).has(selectedModel)
+                  }
+                  onClick={() => void applyMainModel()}
+                  size="sm"
+                  variant="secondary"
+                >
+                  {applying && <Loader2 className="size-3.5 animate-spin" />}
+                  {applying ? m.applying : t.common.apply}
+                </Button>
               </div>
-            )}
-            {fastSupported && (
-              <label className="flex items-center gap-2 text-xs">
-                {t.shell.modelOptions.fast}
-                <Switch
-                  checked={fastOn}
-                  onCheckedChange={checked => void writeAgentDefault('agent.service_tier', checked ? 'fast' : 'normal')}
-                  size="xs"
-                />
-              </label>
-            )}
-          </div>
+            )
+          }
+          description={
+            needsSetup && !setupIsApiKey && selectedProviderRow
+              ? selectedProviderRow.auth_type === 'api_key'
+                ? `${selectedProviderRow.name} needs an API key — set it up to choose a model.`
+                : `${selectedProviderRow.name} signs in through your browser — Work4You runs the flow for you.`
+              : undefined
+          }
+          title={m.model}
+        />
+        {config && mainModel && reasoningSupported && (
+          <ListRow
+            action={
+              <Select
+                onValueChange={value => void writeAgentDefault('agent.reasoning_effort', value)}
+                value={effortValue}
+              >
+                <SelectTrigger className={cn('min-w-28', CONTROL_TEXT)}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REASONING_EFFORT_VALUES.map(value => (
+                    <SelectItem key={value} value={value}>
+                      {value === 'none' ? m.reasoningOff : t.shell.modelOptions[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            }
+            title={m.reasoning}
+          />
         )}
-        {error && <div className="mt-2 text-xs text-destructive">{error}</div>}
+        {config && mainModel && fastSupported && (
+          <ToggleRow
+            checked={fastOn}
+            label={t.shell.modelOptions.fast}
+            onChange={checked => void writeAgentDefault('agent.service_tier', checked ? 'fast' : 'normal')}
+          />
+        )}
+        {error && <div className="py-2 text-xs text-destructive">{error}</div>}
         {switchStaleAux.length > 0 && (
-          <div className="mt-2">
+          <div className="py-2">
             <StaleAuxWarning
               applying={applying}
               onReset={() => void resetAuxiliaryModels()}
@@ -940,11 +924,10 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
             />
           </div>
         )}
-      </section>
+      </SettingsGroup>
 
-      <section>
-        <div className="mb-2.5 flex items-center justify-between">
-          <SectionHeading icon={Cpu} title={m.auxiliaryTitle} />
+      <SettingsGroup
+        aside={
           <Button
             disabled={!mainModel || applying}
             onClick={() => void resetAuxiliaryModels()}
@@ -953,8 +936,12 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
           >
             {m.resetAllToMain}
           </Button>
-        </div>
-        <p className="mb-2 text-xs text-muted-foreground">{m.auxiliaryDesc}</p>
+        }
+        title={m.auxiliaryTitle}
+      >
+        <p className="pt-3 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+          {m.auxiliaryDesc}
+        </p>
         {switchStaleAux.length === 0 && persistentStaleAux.length > 0 && (
           <div className="mb-2.5">
             <StaleAuxWarning
@@ -1044,6 +1031,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                           }
                           onClick={() => void applyAuxiliaryDraft(meta.key)}
                           size="sm"
+                          variant="secondary"
                         >
                           {applying ? m.applying : t.common.apply}
                         </Button>
@@ -1069,11 +1057,10 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
             )
           })}
         </div>
-      </section>
+      </SettingsGroup>
       {moa && currentMoaPreset && (
-        <section>
-          <SectionHeading icon={Cpu} title="Mixture of Agents" />
-          <p className="mb-2 text-xs text-muted-foreground">
+        <SettingsGroup title="Mixture of Agents">
+          <p className="pt-3 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
             Configure named presets that appear as models under the Mixture of Agents provider. The aggregator is the
             acting model.
           </p>
@@ -1354,7 +1341,7 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
               title="Aggregator"
             />
           </div>
-        </section>
+        </SettingsGroup>
       )}
     </div>
   )

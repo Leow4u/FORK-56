@@ -305,19 +305,16 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  // Fake search pill riding the card's top edge, dead-center and half off it.
-  // Clicking (or just typing) opens the ⌘K palette scoped to settings; while
-  // the palette is up the pill hands over to it — grows slightly and fades,
-  // then fades back when the palette closes. It renders as chrome, not an
-  // input — no border, recessed fill, live ⌘K hint.
+  // Search pill lives in the OverlayNav header (left rail). Clicking — or
+  // typing on this surface — opens the ⌘K palette scoped to settings.
   const searchCombo = bindingsFor('nav.commandPalette')[0]
   const paletteOpen = useStore($commandPaletteOpen)
 
   const searchPill = (
     <button
       className={cn(
-        'flex h-(--titlebar-control-height) items-center gap-1.5 rounded-full border border-(--ui-stroke-secondary) bg-(--ui-chat-surface-background) px-2.5 text-(--ui-text-tertiary) shadow-sm transition-all duration-200 ease-out hover:text-foreground motion-reduce:transition-none',
-        paletteOpen && 'pointer-events-none scale-110 opacity-0'
+        'flex h-7 w-full items-center gap-1.5 rounded-full bg-(--ui-bg-quinary) px-2.5 text-(--ui-text-tertiary) transition-colors hover:text-foreground max-[47.5rem]:w-auto',
+        paletteOpen && 'pointer-events-none opacity-0'
       )}
       onClick={() => {
         triggerHaptic('open')
@@ -326,9 +323,13 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       tabIndex={paletteOpen ? -1 : undefined}
       type="button"
     >
-      <Search className="size-3" />
-      <span className="text-xs">{t.settings.search.pill}</span>
-      {searchCombo && <KbdCombo combo={searchCombo} size="sm" variant="ghost" />}
+      <Search className="size-3 shrink-0" />
+      <span className="min-w-0 truncate text-xs max-[47.5rem]:hidden">{t.settings.search.pill}</span>
+      {searchCombo && (
+        <span className="ml-auto max-[47.5rem]:hidden">
+          <KbdCombo combo={searchCombo} size="sm" variant="ghost" />
+        </span>
+      )}
     </button>
   )
 
@@ -402,11 +403,11 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     )
 
   return (
-    <OverlayView closeLabel={t.settings.closeSettings} edgeBadge={searchPill} onClose={onClose}>
+    <OverlayView closeLabel={t.settings.closeSettings} onClose={onClose}>
       <OverlaySplitLayout>
-        <OverlayNav footer={navFooter} groups={navGroups} />
+        <OverlayNav footer={navFooter} groups={navGroups} header={searchPill} itemTone="quiet" />
 
-        <OverlayMain className="px-0 pb-0">{activeSettingsContent}</OverlayMain>
+        <OverlayMain className="max-w-none bg-(--ui-bg-quaternary) px-0 pb-0">{activeSettingsContent}</OverlayMain>
       </OverlaySplitLayout>
     </OverlayView>
   )

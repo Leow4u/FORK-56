@@ -7,7 +7,7 @@ import { useI18n } from '@/i18n'
 import { sessionTitle } from '@/lib/chat-runtime'
 import { pathLeaf } from '@/lib/display-path'
 import { triggerHaptic } from '@/lib/haptics'
-import { Archive, ArchiveOff, FolderOpen, Loader2, Trash2 } from '@/lib/icons'
+import { ArchiveOff, FolderOpen, Loader2, Trash2 } from '@/lib/icons'
 import { notify, notifyError } from '@/store/notifications'
 import { untombstoneSessions } from '@/store/projects'
 import { applyConfiguredDefaultProjectDir, ensureDefaultWorkspaceCwd, setSessions } from '@/store/session'
@@ -21,7 +21,7 @@ import {
   setSessionArchived
 } from '@/work4you'
 
-import { EmptyState, ListRow, SectionHeading, SettingsContent, SettingsSkeleton, ToggleRow } from './primitives'
+import { EmptyState, ListRow, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton, ToggleRow } from './primitives'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
 
 const DEFAULT_AUTO_ARCHIVE_DAYS = 3
@@ -110,16 +110,16 @@ export function SessionsSettings() {
 
   return (
     <SettingsContent>
+      <SectionHeading title={t.settings.nav.archivedChats} variant="page" />
+
+      <SettingsGroup>
       <DefaultProjectDirSetting />
 
       <AutoArchiveSetting />
+      </SettingsGroup>
 
-      <SectionHeading
-        icon={Archive}
-        meta={sessions.length ? String(sessions.length) : undefined}
-        title={s.archivedTitle}
-      />
-      <p className="mb-2 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+      <SettingsGroup>
+      <p className="pt-3 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
         {s.archivedIntro}
       </p>
 
@@ -170,6 +170,7 @@ export function SessionsSettings() {
           })}
         </div>
       )}
+      </SettingsGroup>
     </SettingsContent>
   )
 }
@@ -245,7 +246,7 @@ function AutoArchiveSetting() {
   }
 
   return (
-    <div className="mb-6">
+    <>
       <ToggleRow
         checked={enabled}
         description={s.autoArchiveDesc}
@@ -276,7 +277,7 @@ function AutoArchiveSetting() {
           title={s.autoArchiveDaysLabel}
         />
       )}
-    </div>
+    </>
   )
 }
 
@@ -368,28 +369,22 @@ function DefaultProjectDirSetting() {
   }, [s])
 
   return (
-    <div className="mb-6">
-      <SectionHeading icon={FolderOpen} title={s.defaultDirTitle} />
-      <p className="mb-2 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-        {s.defaultDirDesc}
-      </p>
-      <ListRow
-        action={
-          <div className="flex items-center gap-3">
-            <Button disabled={busy} onClick={() => void choose()} size="sm" type="button" variant="textStrong">
-              <FolderOpen className="size-3.5" />
-              <span>{dir ? s.change : s.choose}</span>
+    <ListRow
+      action={
+        <div className="flex items-center gap-3">
+          <Button disabled={busy} onClick={() => void choose()} size="sm" type="button" variant="textStrong">
+            <FolderOpen className="size-3.5" />
+            <span>{dir ? s.change : s.choose}</span>
+          </Button>
+          {dir && (
+            <Button disabled={busy} onClick={() => void clear()} size="sm" type="button" variant="text">
+              {s.clear}
             </Button>
-            {dir && (
-              <Button disabled={busy} onClick={() => void clear()} size="sm" type="button" variant="text">
-                {s.clear}
-              </Button>
-            )}
-          </div>
-        }
-        description={dir || s.defaultsTo(fallback || '~')}
-        title={dir ? dir : s.notSet}
-      />
-    </div>
+          )}
+        </div>
+      }
+      description={dir || s.defaultsTo(fallback || '~')}
+      title={s.defaultDirTitle}
+    />
   )
 }

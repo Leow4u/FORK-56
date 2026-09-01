@@ -21,7 +21,7 @@ import { Cloud, Globe, Loader2, Monitor, Pencil, Plus, RefreshCw, SearchIcon, Te
 import { $activeConnectionId, setConnectionsRegistry } from '@/store/connections'
 import { notify, notifyError } from '@/store/notifications'
 
-import { EmptyState, ListRow, Pill, SectionHeading, ToggleRow } from './primitives'
+import { EmptyState, ListRow, Pill, SettingsGroup, ToggleRow } from './primitives'
 
 const KIND_ICONS: Record<DesktopConnectionKind, typeof Globe> = {
   cloud: Cloud,
@@ -534,8 +534,7 @@ export function ConnectionsRegistrySection() {
   }
 
   return (
-    <div className="mt-8 border-t border-border/60 pt-6">
-      <SectionHeading icon={Globe} title={s.title} />
+    <div className="mt-8">
       <p className="mb-1 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">{s.intro}</p>
       {/* Source selection lives in Sessions. Primary is the registry fallback,
           not an immediate workspace switch. */}
@@ -546,7 +545,7 @@ export function ConnectionsRegistrySection() {
       {!loading && showSearch && (
         <Input
           aria-label={s.searchPlaceholder}
-          containerClassName="mt-3 mb-0 w-full max-w-sm"
+          containerClassName="mb-3 w-full max-w-sm"
           onChange={event => updateSearchQuery(event.target.value)}
           placeholder={s.searchPlaceholder}
           prefix={<SearchIcon className="size-3.5" />}
@@ -557,6 +556,7 @@ export function ConnectionsRegistrySection() {
         />
       )}
 
+      <SettingsGroup title={s.title}>
       {loading ? (
         <div className="flex items-center gap-2 py-3 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
           <Loader2 className="size-4 animate-spin" />
@@ -851,8 +851,10 @@ export function ConnectionsRegistrySection() {
         </div>
       )}
 
+      </SettingsGroup>
+
       {!loading && registry && registry.connections.length > 1 && (
-        <div className="mt-6 border-t border-border/60 pt-4">
+        <SettingsGroup>
           <ToggleRow
             checked={registry.launchMode === 'last-used'}
             description={s.launchModeDesc}
@@ -860,7 +862,7 @@ export function ConnectionsRegistrySection() {
             label={s.launchModeTitle}
             onChange={enabled => void setLaunchMode(enabled ? 'last-used' : 'primary')}
           />
-        </div>
+        </SettingsGroup>
       )}
 
       <ConfirmDialog

@@ -28,7 +28,7 @@ import { notify, notifyError, readableError } from '@/store/notifications'
 
 import { ConnectionsRegistrySection } from './connections-registry'
 import { CONTROL_TEXT } from './constants'
-import { EmptyState, ListRow, Pill, SettingsContent, SettingsSkeleton } from './primitives'
+import { EmptyState, ListRow, Pill, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton } from './primitives'
 import { enrichSelectedSshHost, selectSshHost } from './ssh-host-selection'
 
 type Mode = 'local' | 'remote' | 'cloud' | 'ssh'
@@ -1019,16 +1019,12 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
   return (
     <SettingsContent bare={embedded}>
       {embedded ? null : (
-        <div className="mb-5">
-          <div className="flex items-center gap-2 text-[length:var(--conversation-text-font-size)] font-medium">
-            <Globe className="size-4 text-muted-foreground" />
-            {g.title}
-            {state.envOverride ? <Pill tone="primary">{g.envOverride}</Pill> : null}
-          </div>
-          <p className="mt-2 max-w-2xl text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-            {g.intro}
-          </p>
-        </div>
+        <SectionHeading
+          aside={state.envOverride ? <Pill tone="primary">{g.envOverride}</Pill> : null}
+          description={g.intro}
+          title={g.title}
+          variant="page"
+        />
       )}
 
       {state.envOverride ? (
@@ -1087,7 +1083,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
           whose selection drives the silent per-agent cascade + a cloud
           connection. Replaces the URL/token form while in cloud mode. */}
       {state.mode === 'cloud' && !state.envOverride ? (
-        <div className="mt-5 grid gap-1">
+        <SettingsGroup>
           <ListRow
             action={
               cloudSignedIn ? (
@@ -1225,11 +1221,11 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
               </div>
             )
           ) : null}
-        </div>
+        </SettingsGroup>
       ) : null}
 
       {state.mode === 'remote' && !state.envOverride ? (
-        <div className="mt-5 grid gap-1">
+        <SettingsGroup>
           <ListRow
             action={
               <Input
@@ -1328,11 +1324,11 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
               ) : null}
             </>
           ) : null}
-        </div>
+        </SettingsGroup>
       ) : null}
 
       {state.mode === 'ssh' && !state.envOverride ? (
-        <div className="mt-5 grid gap-1">
+        <SettingsGroup>
           {sshHostSuggestions.length > 0 && !sshCustomHost ? (
             <ListRow
               action={
@@ -1431,7 +1427,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
             description={g.sshWork4YouPathDesc}
             title={g.sshWork4YouPathTitle}
           />
-        </div>
+        </SettingsGroup>
       ) : null}
 
       {lastTest ? <div className="mt-4 text-xs text-primary">{lastTest}</div> : null}
@@ -1482,7 +1478,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       ) : null}
 
       {embedded ? null : (
-        <div className="mt-6 grid gap-1">
+        <SettingsGroup>
           <ListRow
             action={
               <Button onClick={() => void window.work4youDesktop?.revealLogs()} size="sm" variant="textStrong">
@@ -1493,7 +1489,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
             description={g.diagnosticsDesc}
             title={g.diagnostics}
           />
-        </div>
+        </SettingsGroup>
       )}
 
       {/* Unified Gateways page: the full connections registry (add/edit/delete

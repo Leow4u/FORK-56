@@ -30,7 +30,7 @@ import { $activeGatewayProfile } from '@/store/profile'
 import { $connection, $gatewayState } from '@/store/session'
 import { getProfiles } from '@/work4you'
 
-import { EmptyState, ListRowSkeleton, Pill, SettingsContent, SettingsSection } from './primitives'
+import { EmptyState, ListRowSkeleton, Pill, SectionHeading, SettingsContent, SettingsSection } from './primitives'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
 
 const KIND_ORDER: Record<PluginRecord['kind'], number> = { disk: 0, runtime: 1, bundled: 2 }
@@ -374,6 +374,8 @@ export function PluginsSettings() {
 
   return (
     <SettingsContent>
+      <SectionHeading title={t.settings.nav.plugins} variant="page" />
+
       <SettingsSection icon={Monitor} meta={p.count(rows.length)} title={p.title}>
         <p className="mb-2 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">{p.blurb}</p>
 

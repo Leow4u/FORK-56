@@ -8,14 +8,19 @@ import { triggerHaptic } from '@/lib/haptics'
 import type { IconComponent } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
-import { PAGE_INSET_X } from '../layout-constants'
+import { PAGE_INSET_X, PAGE_SETTINGS_MAX_W } from '../layout-constants'
 
 // `bare` drops the page gutters + tall bottom pad for embedding in a tighter
 // surface (e.g. the boot-failure recovery card owns its own padding).
 export function SettingsContent({ children, bare = false }: { children: ReactNode; bare?: boolean }) {
   return (
     <section className="min-h-0 overflow-hidden">
-      <div className={cn('h-full min-h-0 overflow-y-auto', bare ? 'px-5 pb-6' : cn('pb-20', PAGE_INSET_X))}>
+      <div
+        className={cn(
+          'h-full min-h-0 overflow-y-auto',
+          bare ? 'px-5 pb-6' : cn('mx-auto w-full pb-20', PAGE_SETTINGS_MAX_W, PAGE_INSET_X)
+        )}
+      >
         {children}
       </div>
     </section>
@@ -30,20 +35,53 @@ export function Pill({ tone = 'muted', children }: { tone?: keyof typeof PILL_VA
 
 export function SectionHeading({
   aside,
+  description,
   icon: Icon,
   meta,
-  title
+  title,
+  variant = 'section'
 }: {
   // Right-aligned trailing content on the heading row (e.g. a compact status +
   // action), so a single-item section needn't repeat its own label as a row.
   aside?: ReactNode
-  icon: IconComponent
+  description?: ReactNode
+  icon?: IconComponent
   meta?: string
   title: string
+  variant?: 'group' | 'page' | 'section'
 }) {
+  if (variant === 'page') {
+    return (
+      <header className="mb-6">
+        <div className="flex items-end gap-3">
+          <h1 className="min-w-0 flex-1 text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+          {meta && <Pill>{meta}</Pill>}
+          {aside && <div className="mb-0.5 flex min-w-0 items-center">{aside}</div>}
+        </div>
+        {description && (
+          <div className="mt-1.5 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+            {description}
+          </div>
+        )}
+      </header>
+    )
+  }
+
+  if (variant === 'group') {
+    return (
+      <div className="mb-2 flex items-center gap-2">
+        <h2 className="min-w-0 text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-tertiary)">
+          {title}
+        </h2>
+        {meta && <Pill>{meta}</Pill>}
+        {aside && <div className="ml-auto flex min-w-0 items-center">{aside}</div>}
+      </div>
+    )
+  }
+
   return (
     <div className="mb-2.5 flex items-center gap-2 pt-2 text-[length:var(--conversation-text-font-size)] font-medium">
-      <Icon className="size-4 shrink-0 text-muted-foreground" />
+      {Icon && <Icon className="size-4 shrink-0 text-muted-foreground" />}
       <span>{title}</span>
       {meta && <Pill>{meta}</Pill>}
       {aside && <div className="ml-auto flex min-w-0 items-center">{aside}</div>}
@@ -51,27 +89,52 @@ export function SectionHeading({
   )
 }
 
-// A titled section: heading + body with the shared vertical rhythm. Keeps the
-// heading and its content welded together so pages stop hand-rolling
-// `<div className="mb-…"><SectionHeading/>…</div>` at every call site.
-export function SettingsSection({
+// Rounded well on the gray Settings pane. Contrast comes from
+// `--ui-chat-surface-background` against OverlayMain's `--ui-bg-quaternary` —
+// no extra border, no nested card chrome. Optional quiet group label above.
+export function SettingsGroup({
   aside,
   children,
-  icon,
+  className,
   meta,
   title
 }: {
   aside?: ReactNode
   children: ReactNode
-  icon: IconComponent
+  className?: string
+  meta?: string
+  title?: string
+}) {
+  return (
+    <section className={cn('mb-6 last:mb-0', className)}>
+      {title ? <SectionHeading aside={aside} meta={meta} title={title} variant="group" /> : null}
+      <div className="overflow-hidden rounded-xl bg-(--ui-chat-surface-background) px-4" data-slot="settings-group">
+        {children}
+      </div>
+    </section>
+  )
+}
+
+// A titled section: quiet group label + well. Keeps the heading and its
+// content welded together so pages stop hand-rolling a heading + body at
+// every call site.
+export function SettingsSection({
+  aside,
+  children,
+  icon: _icon,
+  meta,
+  title
+}: {
+  aside?: ReactNode
+  children: ReactNode
+  icon?: IconComponent
   meta?: string
   title: string
 }) {
   return (
-    <section className="mb-6">
-      <SectionHeading aside={aside} icon={icon} meta={meta} title={title} />
+    <SettingsGroup aside={aside} meta={meta} title={title}>
       {children}
-    </section>
+    </SettingsGroup>
   )
 }
 
@@ -189,10 +252,19 @@ export function ToggleRow({
 
 // Skeleton primitives mirroring the settings layout rhythm — a loading page keeps
 // its shape (like ModelSettings) instead of collapsing to a centered spinner.
-export function SectionHeadingSkeleton() {
+export function SectionHeadingSkeleton({ variant = 'section' }: { variant?: 'group' | 'page' | 'section' }) {
+  if (variant === 'page') {
+    return (
+      <div className="mb-6 space-y-2">
+        <Skeleton className="h-8 w-40 max-w-full" />
+        <Skeleton className="h-3 w-72 max-w-full" />
+      </div>
+    )
+  }
+
   return (
-    <div className="mb-2.5 flex items-center gap-2 pt-2">
-      <Skeleton className="size-4" />
+    <div className={cn('mb-2.5 flex items-center gap-2', variant === 'group' ? '' : 'pt-2')}>
+      {variant === 'section' && <Skeleton className="size-4" />}
       <Skeleton className="h-4 w-36 max-w-full" />
     </div>
   )
@@ -229,16 +301,17 @@ export function SettingsSkeleton({
 }) {
   return (
     <SettingsContent>
+      <SectionHeadingSkeleton variant="page" />
       {search && <Skeleton className="mb-3 h-8 w-full" />}
       {sections.map((section, i) => (
-        <section className={cn(i > 0 && 'mt-6')} key={i}>
-          {section.heading && <SectionHeadingSkeleton />}
-          <div className="grid gap-1">
+        <div key={i}>
+          {section.heading && <SectionHeadingSkeleton variant="group" />}
+          <SettingsGroup>
             {Array.from({ length: section.rows }, (_, r) => (
               <ListRowSkeleton key={r} />
             ))}
-          </div>
-        </section>
+          </SettingsGroup>
+        </div>
       ))}
     </SettingsContent>
   )

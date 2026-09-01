@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { Download, Loader2, PawPrint, Pencil, Trash2 } from '@/lib/icons'
+import { Download, Loader2, Pencil, Trash2 } from '@/lib/icons'
 import { selectableCardClass } from '@/lib/selectable-card'
 import { cn } from '@/lib/utils'
 import { $petInfo, $petRoam, setPetRoam } from '@/store/pet'
@@ -37,7 +37,7 @@ import {
 } from '@/store/pet-gallery'
 import { $gatewayState } from '@/store/session'
 
-import { ListRow, SectionHeading } from './primitives'
+import { ListRow, SettingsGroup } from './primitives'
 
 /**
  * Appearance opt-in for the floating petdex mascot. A thin view over the shared
@@ -114,9 +114,9 @@ export function PetSettings() {
   const shown = sorted.slice(0, RENDER_CAP)
 
   return (
-    <div>
-      <SectionHeading icon={PawPrint} title={copy.title} />
-      <p className="max-w-2xl text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+    <>
+    <SettingsGroup title={copy.title}>
+      <p className="pt-3 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
         {copy.intro}
       </p>
 
@@ -317,6 +317,7 @@ export function PetSettings() {
           />
         )}
       </div>
+    </SettingsGroup>
 
       <ConfirmDialog
         confirmLabel={copy.deleteConfirm}
@@ -369,7 +370,7 @@ export function PetSettings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
 

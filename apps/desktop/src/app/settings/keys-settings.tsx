@@ -7,7 +7,7 @@ import { $settingsScopeOverride } from '@/store/settings-scope'
 import { CredentialKeyCard, credentialPlaceholder, credentialRowLabel } from './credential-key-ui'
 import { useEnvCredentials } from './env-credentials'
 import { asText } from './helpers'
-import { SettingsContent, SettingsSkeleton } from './primitives'
+import { EmptyState, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton } from './primitives'
 import { SettingsProfileScope } from './profile-scope'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
 
@@ -81,9 +81,13 @@ export function KeysSettings({ view }: KeysSettingsProps) {
 
   return (
     <SettingsContent>
+      <SectionHeading
+        title={view === 'tools' ? t.settings.nav.keysTools : t.settings.nav.keysSettings}
+        variant="page"
+      />
       <SettingsProfileScope className="mb-5" />
       {entries.length > 0 ? (
-        <div className="grid gap-2">
+        <SettingsGroup>
           {entries.map(([key, info]) => {
             const label = credentialRowLabel(key, info)
 
@@ -102,11 +106,9 @@ export function KeysSettings({ view }: KeysSettingsProps) {
               </div>
             )
           })}
-        </div>
+        </SettingsGroup>
       ) : (
-        <div className="rounded-lg border border-dashed border-(--ui-stroke-tertiary) px-4 py-8 text-center text-[length:var(--conversation-caption-font-size)] text-muted-foreground">
-          {t.settings.keys.empty}
-        </div>
+        <EmptyState title={t.settings.keys.empty} />
       )}
     </SettingsContent>
   )

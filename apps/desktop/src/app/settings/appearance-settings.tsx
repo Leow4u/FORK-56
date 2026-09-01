@@ -51,7 +51,7 @@ import { $marketplaceInstalls, isUserTheme, removeUserTheme } from '@/themes/use
 
 import { MODE_OPTIONS } from './constants'
 import { PetSettings } from './pet-settings'
-import { ListRow, SectionHeading, SettingsContent, ToggleRow } from './primitives'
+import { ListRow, SectionHeading, SettingsContent, SettingsGroup, ToggleRow } from './primitives'
 import { APPEARANCE_SETTING_IDS } from './settings-search'
 import { TerminalFontSetting } from './terminal-font-setting'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
@@ -435,21 +435,19 @@ export function AppearanceSettings() {
 
   return (
     <SettingsContent>
-      <div>
-        <SectionHeading icon={Palette} title={a.title} />
-        <p className="max-w-2xl text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-          {a.intro}
-        </p>
+      <SectionHeading description={a.intro} title={a.title} variant="page" />
 
-        <div className="mt-2">
-          <ListRow
-            action={<LanguageSwitcher />}
-            description={isSavingLocale ? t.language.saving : t.language.description}
-            id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.language)}
-            title={t.language.label}
-          />
+      <SettingsGroup>
+        <ListRow
+          action={<LanguageSwitcher />}
+          description={isSavingLocale ? t.language.saving : t.language.description}
+          id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.language)}
+          title={t.language.label}
+        />
+      </SettingsGroup>
 
-          <ListRow
+      <SettingsGroup>
+        <ListRow
             below={
               <>
                 {/* One search box: filters your installed themes (the grid)
@@ -549,7 +547,9 @@ export function AppearanceSettings() {
             }
             wide
           />
+      </SettingsGroup>
 
+      <SettingsGroup>
           <ListRow
             action={
               <SegmentedControl
@@ -793,12 +793,9 @@ export function AppearanceSettings() {
             id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.embeds)}
             title={a.embedsTitle}
           />
-        </div>
-      </div>
+      </SettingsGroup>
 
-      <div className="mt-6">
-        <PetSettings />
-      </div>
+      <PetSettings />
     </SettingsContent>
   )
 }

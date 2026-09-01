@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import type { DesktopUninstallMode, DesktopUninstallSummary } from '@/global'
-import { AlertTriangle, Loader2, Trash2 } from '@/lib/icons'
+import { Loader2, Trash2 } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 import { SectionHeading } from './primitives'
@@ -121,8 +121,8 @@ export function UninstallSection() {
   const pendingOption = OPTIONS.find(opt => opt.mode === pending) ?? null
 
   return (
-    <div className="mx-auto mt-8 w-full max-w-2xl">
-      <SectionHeading icon={AlertTriangle} title="Danger zone" />
+    <div className="mt-8 w-full">
+      <SectionHeading title="Danger zone" variant="group" />
 
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
         {loading ? (
