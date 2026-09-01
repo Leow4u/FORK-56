@@ -4,10 +4,25 @@ name: Release Desktop Installer
 # Required repo secrets after activating eSigner on the WORK4YOU code-signing order:
 #   ESIGNER_USERNAME, ESIGNER_PASSWORD, ESIGNER_CREDENTIAL_ID, ESIGNER_TOTP_SECRET
 # Script: scripts/ci/sign_windows_esigner.py
+#
+# Public .exe/.dmg live on GitHub releases/latest (desktop-v* series).
+# workflow_dispatch must NOT read apps/bootstrap-installer/package.json —
+# that is the Tauri setup wizard (0.0.3) and used to clobber desktop-v0.0.3
+# while Latest (0.0.8+) stayed stale. Tag resolution is
+# scripts/ci/resolve_desktop_release_tag.py.
 
 on:
   workflow_dispatch:
     inputs:
+      tag:
+        description: >
+          Installer GitHub tag. Empty bumps the current desktop-v* Latest
+          (new public .exe/.dmg). Use "latest" to rebuild Latest in place,
+          or desktop-vX.Y.Z / X.Y.Z for an explicit tag. Do not use the
+          bootstrap-installer package version.
+        type: string
+        required: false
+        default: ""
       skip_windows_signing:
         description: Skip Authenticode (Actions artifacts only; does not publish a GitHub Release)
         type: boolean
@@ -18,9 +33,11 @@ on:
 permissions:
   contents: write
 
+# One publisher at a time so a dispatch cannot race a desktop-v* tag build
+# (those used to use different github.ref values and clobber each other).
 concurrency:
-  group: release-desktop-${{ github.ref }}
-  cancel-in-progress: true
+  group: release-desktop
+  cancel-in-progress: false
 
 jobs:
   build-windows:
@@ -193,14 +210,23 @@ jobs:
 
       - name: Resolve release tag
         id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "release" ]; then
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            python scripts/ci/resolve_desktop_release_tag.py \
+              --event release \
+              --release-tag "${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          version="$(node -p "require('./apps/bootstrap-installer/package.json').version")"
-          echo "tag=desktop-v${version}" >> "$GITHUB_OUTPUT"
+          latest="$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name || true)"
+          tags="$(gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[].tag_name' || true)"
+          python scripts/ci/resolve_desktop_release_tag.py \
+            --event workflow_dispatch \
+            --input-tag "${{ inputs.tag }}" \
+            --github-latest "$latest" \
+            --desktop-tags "$tags" >> "$GITHUB_OUTPUT"
 
       - name: Create or update GitHub release
         env:
@@ -208,12 +234,18 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ steps.tag.outputs.tag }}"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Updating existing release $tag"
-          else
+          create="${{ steps.tag.outputs.create }}"
+          notes="Signed Windows NSIS app (npm run dist:win:nsis) and macOS DMG (npm run dist:mac:dmg). Downloads from [work4you.ai](https://work4you.ai/) redirect here."
+          echo "Publishing $tag (create=$create) from ${{ github.sha }}"
+          if [ "$create" = "true" ] || ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" \
+              --target "${{ github.sha }}" \
+              --latest \
               --title "Work4You Desktop ${tag#desktop-v}" \
-              --notes "Signed Windows NSIS app (npm run dist:win:nsis) and macOS DMG (npm run dist:mac:dmg). Downloads from [work4you.ai](https://work4you.ai/) redirect here."
+              --notes "$notes"
+          else
+            echo "Updating existing release $tag"
+            gh release edit "$tag" --latest
           fi
           gh release upload "$tag" installers/windows-installer/Work4You-Setup.exe --clobber
           gh release upload "$tag" installers/macos-installer/Work4You.dmg --clobber
