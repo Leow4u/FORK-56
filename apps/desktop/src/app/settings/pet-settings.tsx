@@ -37,7 +37,7 @@ import {
 } from '@/store/pet-gallery'
 import { $gatewayState } from '@/store/session'
 
-import { ListRow, SettingsGroup, ToggleRow } from './primitives'
+import { ListRow, SettingsGroup } from './primitives'
 
 /**
  * Appearance opt-in for the floating petdex mascot. A thin view over the shared
