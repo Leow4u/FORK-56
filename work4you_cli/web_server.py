@@ -13416,6 +13416,11 @@ from work4you_cli.web_routers.mcp import (  # noqa: E402,F401 — legacy re-expo
     install_mcp_catalog_entry,
 )
 
+from work4you_cli.web_routers import connectors as _connectors_routes  # noqa: E402
+
+app.include_router(_connectors_routes.router)
+
+
 
 
 
