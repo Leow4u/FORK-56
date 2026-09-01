@@ -39,6 +39,19 @@ const fsAllow = [
 const requireFromApp = createRequire(path.join(__dirname, 'vite.config.ts'))
 const reactDir = path.dirname(requireFromApp.resolve('react/package.json'))
 const reactDomDir = path.dirname(requireFromApp.resolve('react-dom/package.json'))
+// Default `@tabler/icons-react` barrel (`dist/esm/tabler-icons-react.mjs`)
+// re-exports every icon as `./icons/IconX.mjs` and also `import *`s
+// `./icons/index.mjs`. Vite 8 / Rolldown on Windows then attributes those
+// `./icons/…` specifiers to `icons/index.mjs`, so they resolve to
+// `icons/icons/IconX.mjs` and `npm run pack` dies with thousands of
+// UNRESOLVED_IMPORT errors (first hit: IconNumber123). The static icons
+// index uses same-folder `./IconX.mjs` specifiers — Tabler's documented
+// Vite workaround (tabler-icons#1233). Absolute path, same pattern as
+// `reactDir` above.
+const tablerIconsReact = path.join(
+  path.dirname(requireFromApp.resolve('@tabler/icons-react/package.json')),
+  'dist/esm/icons/index.mjs'
+)
 
 // The dev-only render/state churn counters (src/debug) must be imported
 // STATICALLY above react-dom — react-dom captures the devtools hook at module
@@ -174,6 +187,7 @@ export default defineConfig(({ command }) => ({
   resolve: {
     alias: {
       '@/debug/dev-only': debugEntry(command, process.env as Record<string, string>),
+      '@tabler/icons-react': tablerIconsReact,
       '@': path.resolve(__dirname, './src'),
       '@work4you/plugin-sdk': path.resolve(__dirname, './src/sdk/index.ts'),
       '@work4you/shared/billing': path.resolve(__dirname, '../shared/src/billing-types.ts'),
