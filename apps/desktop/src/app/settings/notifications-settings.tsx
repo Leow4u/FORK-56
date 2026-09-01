@@ -19,7 +19,7 @@ import {
 import { notify } from '@/store/notifications'
 
 import { CONTROL_TEXT } from './constants'
-import { ListRow, SectionHeading, SettingsContent, ToggleRow } from './primitives'
+import { ListRow, SectionHeading, SettingsContent, SettingsGroup, ToggleRow } from './primitives'
 
 const CAPTION = 'text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)'
 
@@ -41,9 +41,9 @@ export function NotificationsSettings() {
 
   return (
     <SettingsContent>
-      <SectionHeading icon={Bell} title={copy.title} />
-      <Caption className="mb-2 leading-(--conversation-caption-line-height)">{copy.intro}</Caption>
+      <SectionHeading description={copy.intro} title={copy.title} variant="page" />
 
+      <SettingsGroup>
       <ToggleRow
         checked={prefs.enabled}
         description={copy.enableAllDesc}
@@ -62,6 +62,9 @@ export function NotificationsSettings() {
         />
       ))}
 
+      </SettingsGroup>
+
+      <SettingsGroup>
       <ListRow
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -106,6 +109,7 @@ export function NotificationsSettings() {
         description={copy.completionSoundDesc}
         title={copy.completionSoundTitle}
       />
+      </SettingsGroup>
 
       <div className="mt-4 flex flex-col gap-2">
         <Button className="self-start" onClick={() => void runTest()} size="sm" type="button" variant="outline">

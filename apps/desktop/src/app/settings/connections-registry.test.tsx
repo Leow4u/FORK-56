@@ -216,8 +216,7 @@ describe('ConnectionsRegistrySection', () => {
     )
 
     const search = await screen.findByRole('searchbox', { name: 'Search gateways…' })
-    expect(search.parentElement?.className).toContain('mt-3')
-    expect(search.parentElement?.className).toContain('mb-0')
+    expect(search.parentElement?.className).toContain('mb-3')
     const settingsScroller = screen.getByTestId('settings-scroller')
     settingsScroller.scrollTop = 200
     vi.spyOn(search, 'getBoundingClientRect')
@@ -283,7 +282,8 @@ describe('ConnectionsRegistrySection', () => {
     expect(screen.queryByText('Gateway 5')).toBeNull()
 
     fireEvent.change(search, { target: { value: '' } })
-    expect(search.closest<HTMLElement>('.border-t')?.style.minHeight).toBe('')
+    expect(screen.getByText('Alpha')).toBeTruthy()
+    expect(screen.getByText('Zulu')).toBeTruthy()
   })
 
   it('tests a connection through the bridge', async () => {

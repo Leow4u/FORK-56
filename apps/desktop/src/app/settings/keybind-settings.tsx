@@ -1,6 +1,7 @@
 import { useStore } from '@nanostores/react'
 import { useMemo, useState } from 'react'
 
+import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { DisclosureCaret } from '@/components/ui/disclosure-caret'
 import { Kbd, KbdCombo } from '@/components/ui/kbd'
@@ -30,7 +31,7 @@ import {
   resetBinding
 } from '@/store/keybinds'
 
-import { SettingsContent } from './primitives'
+import { SectionHeading, SettingsContent, SettingsGroup } from './primitives'
 
 export function KeybindSettings() {
   const { t } = useI18n()
@@ -95,22 +96,22 @@ export function KeybindSettings() {
 
   return (
     <SettingsContent>
-      <div className="flex items-center justify-between gap-3 pb-3">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-foreground">{k.title}</h2>
-          <p className="mt-0.5 text-[0.72rem] text-muted-foreground">
-            {k.subtitle(openCombo ? formatCombo(openCombo) : '')}
-          </p>
-        </div>
-        <button
-          className="flex shrink-0 items-center gap-1 rounded-md text-[0.72rem] text-muted-foreground hover:text-foreground"
-          onClick={resetAllBindings}
-          type="button"
-        >
-          <Codicon name="discard" size="0.8125rem" />
-          {k.resetAll}
-        </button>
-      </div>
+      <SectionHeading
+        aside={
+          <Button
+            onClick={resetAllBindings}
+            size="sm"
+            type="button"
+            variant="text"
+          >
+            <Codicon name="discard" size="0.8125rem" />
+            {k.resetAll}
+          </Button>
+        }
+        description={k.subtitle(openCombo ? formatCombo(openCombo) : '')}
+        title={k.title}
+        variant="page"
+      />
 
       <div className="pb-3">
         <SearchField
@@ -122,6 +123,7 @@ export function KeybindSettings() {
         />
       </div>
 
+      <SettingsGroup>
       {isSearching ? (
         <div className="px-2 py-1.5">
           {filteredActions?.length === 0 && filteredReadonly?.length === 0 ? (
@@ -166,6 +168,7 @@ export function KeybindSettings() {
           })}
         </div>
       )}
+      </SettingsGroup>
     </SettingsContent>
   )
 }

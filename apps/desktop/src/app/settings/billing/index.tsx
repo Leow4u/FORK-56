@@ -15,8 +15,8 @@ import {
   ListRow,
   ListRowSkeleton,
   SectionHeading,
-  SectionHeadingSkeleton,
   SettingsContent,
+  SettingsGroup,
   SettingsSection
 } from '../primitives'
 
@@ -408,15 +408,15 @@ function BillingHeader({
   onFixtureChange?: (value: BillingFixtureSelection) => void
 }) {
   return (
-    <div className="mb-2.5 flex items-center justify-between gap-3 pt-2 text-[length:var(--conversation-text-font-size)] font-medium">
-      <div className="flex min-w-0 items-center gap-2">
-        <BarChart3 className="size-4 shrink-0 text-muted-foreground" />
-        <span>Billing</span>
-      </div>
-      {import.meta.env.DEV && fixtureName && onFixtureChange ? (
-        <BillingFixtureSelect onValueChange={onFixtureChange} value={fixtureName} />
-      ) : null}
-    </div>
+    <SectionHeading
+      aside={
+        import.meta.env.DEV && fixtureName && onFixtureChange ? (
+          <BillingFixtureSelect onValueChange={onFixtureChange} value={fixtureName} />
+        ) : undefined
+      }
+      title="Billing"
+      variant="page"
+    />
   )
 }
 
@@ -436,13 +436,10 @@ function BillingSkeleton() {
         </div>
       </div>
       {[0, 1, 2].map(section => (
-        <section className="mb-6" key={section}>
-          <SectionHeadingSkeleton />
-          <div className="grid gap-1">
-            <ListRowSkeleton />
-            <ListRowSkeleton />
-          </div>
-        </section>
+        <SettingsGroup key={section}>
+          <ListRowSkeleton />
+          <ListRowSkeleton />
+        </SettingsGroup>
       ))}
     </>
   )
@@ -544,7 +541,7 @@ function BillingSettingsContent({
 
       {
         // no endpoint yet — NAS capability-board gap
-        FEATURE_BILLING_INVOICES ? <SectionHeading icon={BarChart3} title="Invoices" /> : null
+        FEATURE_BILLING_INVOICES ? <SectionHeading title="Invoices" variant="group" /> : null
       }
     </SettingsContent>
   )

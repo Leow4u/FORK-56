@@ -43,7 +43,7 @@ import {
 import { MemoryConnect } from './memory/connect'
 import { ProviderConfigPanel } from './memory/provider-config-panel'
 import { ModelSettings, ModelSettingsSkeleton } from './model-settings'
-import { EmptyState, ListRow, SettingsContent, SettingsSkeleton, ToggleRow } from './primitives'
+import { EmptyState, ListRow, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton, ToggleRow } from './primitives'
 import { SettingsProfileScope } from './profile-scope'
 import { QuickEntrySettings } from './quick-entry-settings'
 
@@ -335,6 +335,7 @@ function ConfigSettingsInner({
     if (activeSectionId === 'model') {
       return (
         <SettingsContent>
+          <SectionHeading title={t.settings.sections.model} variant="page" />
           <SettingsProfileScope className="mb-5" />
           <div className="mb-6">
             <ModelSettingsSkeleton />
@@ -350,6 +351,10 @@ function ConfigSettingsInner({
 
   return (
     <SettingsContent>
+      <SectionHeading
+        title={t.settings.sections[activeSectionId] ?? activeSectionId}
+        variant="page"
+      />
       {/* Which profile's config.yaml this page edits — shared across every
           config-backed settings page (and hidden for single-profile users). */}
       <SettingsProfileScope className="mb-5" />
@@ -362,7 +367,7 @@ function ConfigSettingsInner({
           keeping the machine awake and the global Quick Entry chord are both
           power-user, this-computer-only knobs. */}
       {activeSectionId === 'advanced' && (
-        <>
+        <SettingsGroup>
           <ToggleRow
             checked={keepAwake}
             description={c.keepAwakeDesc}
@@ -376,16 +381,14 @@ function ConfigSettingsInner({
             onChange={setDisableF12}
           />
           <QuickEntrySettings />
-        </>
+        </SettingsGroup>
       )}
       {/* Device-local attach/preview byte cap (main-process IPC guard). Chat is
           where image-attachment behavior already lives, so this sits above the
           schema fields for that section. */}
-      {activeSectionId === 'chat' ? <AttachmentSizeSetting /> : null}
-      {visibleFields.length === 0 && activeSectionId !== 'chat' ? (
-        <EmptyState description={c.emptyDesc} title={c.emptyTitle} />
-      ) : visibleFields.length === 0 ? null : (
-        <div className="grid gap-1">
+      {activeSectionId === 'chat' || visibleFields.length > 0 ? (
+        <SettingsGroup>
+          {activeSectionId === 'chat' ? <AttachmentSizeSetting /> : null}
           {visibleFields.map(([key, field]) => (
             <div className="scroll-mt-6 rounded-lg" id={`setting-field-${key}`} key={key}>
               <ConfigField
@@ -414,8 +417,10 @@ function ConfigSettingsInner({
               ) : null}
             </div>
           ))}
-        </div>
-      )}
+        </SettingsGroup>
+      ) : visibleFields.length === 0 && activeSectionId !== 'chat' && activeSectionId !== 'model' && activeSectionId !== 'advanced' ? (
+        <EmptyState description={c.emptyDesc} title={c.emptyTitle} />
+      ) : null}
       <input
         accept=".json,application/json"
         className="hidden"

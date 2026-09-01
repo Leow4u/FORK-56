@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { triggerHaptic } from '@/lib/haptics'
-import { Check, Globe, Loader2, Plus, Save, Trash2, Zap } from '@/lib/icons'
+import { Check, Loader2, Save, Trash2, Zap } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 import type { CustomEndpoint, CustomEndpointUpdate } from '@/types/work4you'
@@ -16,7 +16,7 @@ import {
   validateCustomEndpoint
 } from '@/work4you'
 
-import { EmptyState, Pill, SectionHeading, SettingsContent, SettingsSkeleton } from './primitives'
+import { EmptyState, Pill, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton } from './primitives'
 
 interface CustomEndpointsSettingsProps {
   onConfigSaved?: () => void
@@ -229,11 +229,11 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
     <SettingsContent>
       <div className="space-y-6">
         <section>
-          <SectionHeading icon={Globe} meta={`${endpoints.length}`} title="Custom endpoints" />
-          <div className="divide-y divide-border/40 rounded-md border border-border/50">
+          <SectionHeading title="Custom endpoints" variant="page" />
+          <SettingsGroup meta={`${endpoints.length}`}>
             {endpoints.length ? (
               endpoints.map(endpoint => (
-                <div className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" key={endpoint.id}>
+                <div className="grid gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" key={endpoint.id}>
                   <button
                     className="min-w-0 text-left"
                     onClick={() => {
@@ -288,12 +288,12 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
             ) : (
               <EmptyState description="Add an OpenAI-compatible endpoint below." title="No custom endpoints" />
             )}
-          </div>
+          </SettingsGroup>
         </section>
 
         <section>
-          <SectionHeading icon={Plus} title={form.id ? 'Edit Endpoint' : 'Add Endpoint'} />
-          <div className="grid gap-3 rounded-md border border-border/50 p-3">
+          <SettingsGroup title={form.id ? 'Edit endpoint' : 'Add endpoint'}>
+          <div className="grid gap-3 py-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="grid gap-1.5 text-xs text-muted-foreground">
                 Name
@@ -396,6 +396,7 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
               </Button>
             </div>
           </div>
+          </SettingsGroup>
         </section>
       </div>
     </SettingsContent>

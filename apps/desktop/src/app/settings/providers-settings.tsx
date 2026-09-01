@@ -28,7 +28,7 @@ import { isKeyVar, ProviderKeyRows } from './credential-key-ui'
 import { CustomEndpointsSettings } from './custom-endpoints-settings'
 import { SettingsCategoryHeading, useEnvCredentials } from './env-credentials'
 import { providerGroup, providerMeta, providerPriority } from './helpers'
-import { SettingsContent, SettingsSkeleton } from './primitives'
+import { SettingsContent, SettingsSkeleton, SectionHeading } from './primitives'
 
 // The embedded terminal (and thus the "run disconnect command" path) only
 // exists in the Electron desktop shell, not the web dashboard.
@@ -450,6 +450,7 @@ export function ProvidersSettings({
 
     return (
       <SettingsContent>
+        <SectionHeading title={t.settings.nav.providerApiKeys} variant="page" />
         <LocalEndpointRow onOpen={startManualLocalEndpoint} />
         {keyGroups.length > 0 ? (
           <div className="grid gap-3">
@@ -492,6 +493,7 @@ export function ProvidersSettings({
 
   return (
     <SettingsContent>
+      <SectionHeading title={t.settings.nav.providerAccounts} variant="page" />
       <OAuthPicker
         disconnecting={disconnecting}
         onDisconnect={provider => void handleDisconnect(provider)}

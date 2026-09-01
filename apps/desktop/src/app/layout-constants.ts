@@ -18,6 +18,11 @@ export const PAGE_INSET_NEG_X = '-mx-[clamp(1.25rem,4vw,4rem)]'
 // for Tailwind's scanner (see PAGE_INSET_X note).
 export const PAGE_MAX_W = 'max-w-[75rem]'
 
+// Settings right-pane column: a centered reading width so label+control rows
+// don't sprawl across the overlay. The gray pane behind this column can still
+// fill OverlayMain; only the information is capped. Literal for Tailwind.
+export const PAGE_SETTINGS_MAX_W = 'max-w-[42rem]'
+
 // Below this viewport width a docked sidebar leaves no room for content, so both
 // rails auto-collapse into the hover-reveal overlay. Single source of truth for
 // the responsive collapse point.

@@ -18,7 +18,7 @@ import {
   startActiveUpdate
 } from '@/store/updates'
 
-import { ListRow, SectionHeading, SettingsContent } from './primitives'
+import { ListRow, SettingsContent, SettingsGroup } from './primitives'
 import { UninstallSection } from './uninstall-section'
 
 const RELEASE_NOTES_URL = 'https://github.com/Leow4u/FORK-56/releases'
@@ -134,15 +134,13 @@ export function AboutSettings() {
         )}
       </div>
 
-      <div className="mx-auto mt-4 w-full max-w-2xl">
-        <SectionHeading icon={RefreshCw} title={a.updates} />
-
+      <SettingsGroup title={a.updates}>
         <div
           className={cn(
-            'rounded-xl border px-4 py-3 text-sm',
-            statusTone === 'available' && 'border-primary/30 bg-primary/5 text-foreground',
-            statusTone === 'error' && 'border-destructive/35 bg-destructive/5 text-destructive',
-            statusTone === 'idle' && 'border-border/70 bg-muted/20 text-foreground'
+            'py-3 text-sm',
+            statusTone === 'available' && 'text-foreground',
+            statusTone === 'error' && 'text-destructive',
+            statusTone === 'idle' && 'text-foreground'
           )}
         >
           <div className="flex items-start gap-2">
@@ -204,9 +202,9 @@ export function AboutSettings() {
           hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}
           title={a.automaticUpdates}
         />
+      </SettingsGroup>
 
-        <UninstallSection />
-      </div>
+      <UninstallSection />
     </SettingsContent>
   )
 }
