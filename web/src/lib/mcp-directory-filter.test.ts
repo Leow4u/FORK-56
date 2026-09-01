@@ -1,11 +1,27 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  filterDirectoryApps,
+  groupDirectorySections,
   mcpCatalogPrimaryAction,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
   mcpDirectoryShowsConnected,
-} from "./mcp-directory-filter";
+  type DirectoryApp,
+} from "@work4you/shared";
+
+function app(
+  partial: Partial<DirectoryApp> & Pick<DirectoryApp, "id" | "name" | "source">,
+): DirectoryApp {
+  return {
+    description: `${partial.name} app`,
+    section: "email",
+    popular: false,
+    connected: false,
+    auth_type: "oauth",
+    ...partial,
+  };
+}
 
 describe("mcpDirectoryQueryHit", () => {
   it("matches any field case-insensitively", () => {
@@ -27,9 +43,11 @@ describe("mcpDirectoryQueryHit", () => {
 });
 
 describe("mcpDirectoryShowsConnected / available", () => {
-  it("all shows both sections", () => {
+  it("all and discover show both", () => {
     expect(mcpDirectoryShowsConnected("all")).toBe(true);
     expect(mcpDirectoryShowsAvailable("all")).toBe(true);
+    expect(mcpDirectoryShowsConnected("discover")).toBe(true);
+    expect(mcpDirectoryShowsAvailable("discover")).toBe(true);
   });
 
   it("connected hides the catalog section", () => {
@@ -48,5 +66,27 @@ describe("mcpCatalogPrimaryAction", () => {
     expect(mcpCatalogPrimaryAction("oauth")).toBe("connect");
     expect(mcpCatalogPrimaryAction("api_key")).toBe("install");
     expect(mcpCatalogPrimaryAction(undefined)).toBe("install");
+  });
+});
+
+describe("filterDirectoryApps", () => {
+  it("never surfaces work4you_apps", () => {
+    const visible = filterDirectoryApps(
+      [
+        app({ id: "gmail", name: "Gmail", source: "composio" }),
+        app({ id: "work4you_apps", name: "Apps", source: "native", connected: true }),
+      ],
+      { filter: "all", query: "", section: null },
+    );
+    expect(visible.map((row) => row.id)).toEqual(["gmail"]);
+  });
+});
+
+describe("groupDirectorySections", () => {
+  it("lists Popular and the type section for the same app", () => {
+    const groups = groupDirectorySections([
+      app({ id: "slack", name: "Slack", source: "composio", popular: true, section: "communication" }),
+    ]);
+    expect(groups.map((group) => group.id)).toEqual(["popular", "communication"]);
   });
 });

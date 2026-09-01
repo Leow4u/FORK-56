@@ -101,14 +101,19 @@ export {
   type WindowsBackgroundMaterial
 } from './translucency'
 export {
-  buildWork4YouWebSocketUrl,
-  type GatewayAuthMode,
-  GatewayReauthRequiredError,
-  type GatewayWsConnection,
-  type GatewayWsUrlResult,
-  isGatewayReauthRequired,
-  resolveGatewayWsUrl,
-  type ResolveGatewayWsUrlDeps,
-  type WebSocketAuthParam,
-  type Work4YouWebSocketUrlOptions
-} from './websocket-url'
+  completeComposioConnect,
+  DIRECTORY_SECTION_IDS,
+  DIRECTORY_SECTION_LABELS,
+  directoryAppDescription,
+  filterDirectoryApps,
+  groupDirectorySections,
+  HIDDEN_DIRECTORY_IDS,
+  mcpCatalogPrimaryAction,
+  mcpDirectoryQueryHit,
+  mcpDirectoryShowsAvailable,
+  mcpDirectoryShowsConnected,
+  type DirectoryApp,
+  type DirectorySectionGroup,
+  type DirectorySectionId,
+  type McpDirectoryFilter
+} from './mcp-directory'

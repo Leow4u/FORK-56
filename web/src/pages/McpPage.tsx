@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { KeyRound, Package, Power, Search, Server, Trash2, X, Zap } from "lucide-react";
+import { KeyRound, Power, Search, Trash2, X, Zap } from "lucide-react";
 import { Badge } from "@work4you/ui/ui/components/badge";
 import { Button } from "@work4you/ui/ui/components/button";
 import { Select, SelectOption } from "@work4you/ui/ui/components/select";
@@ -7,6 +7,7 @@ import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { H2 } from "@work4you/ui/ui/components/typography/h2";
 import { api } from "@/lib/api";
 import type {
+  ConnectorsDirectoryApp,
   McpCatalogDiagnostic,
   McpCatalogEntry,
   McpHttpAuth,
@@ -30,13 +31,17 @@ import {
 } from "@/lib/mcp-server-create";
 import { completeMcpDashboardOAuth } from "@/lib/mcp-dashboard-oauth";
 import { brandFor, brandGlyphStyle } from "@/lib/mcp-brands";
+import { mcpCatalogPrimaryAction } from "@/lib/mcp-directory-filter";
 import {
+  completeComposioConnect,
+  DIRECTORY_SECTION_IDS,
+  DIRECTORY_SECTION_LABELS,
+  directoryAppDescription,
+  filterDirectoryApps,
+  groupDirectorySections,
+  type DirectoryApp,
   type McpDirectoryFilter,
-  mcpCatalogPrimaryAction,
-  mcpDirectoryQueryHit,
-  mcpDirectoryShowsAvailable,
-  mcpDirectoryShowsConnected,
-} from "@/lib/mcp-directory-filter";
+} from "@work4you/shared";
 import { prettyName } from "@/lib/text";
 
 function isHttpUrl(value: string): boolean {
@@ -45,6 +50,36 @@ function isHttpUrl(value: string): boolean {
 
 function truncateText(value: string, maxLength: number): string {
   return value.length > maxLength ? value.slice(0, maxLength) + "..." : value;
+}
+
+function directoryNativeEntry(
+  app: DirectoryApp,
+  found: McpCatalogEntry | undefined,
+): McpCatalogEntry {
+  if (found) return found;
+  const authType =
+    app.auth_type === "oauth" || app.auth_type === "api_key"
+      ? app.auth_type
+      : "none";
+  return {
+    name: app.id,
+    description: app.description,
+    source: "official",
+    transport: "http",
+    auth_type: authType,
+    required_env: app.required_env ?? [],
+    command: null,
+    args: [],
+    url: null,
+    install_url: null,
+    install_ref: null,
+    bootstrap: [],
+    default_enabled: null,
+    post_install: "",
+    needs_install: Boolean(app.needs_install),
+    installed: Boolean(app.installed),
+    enabled: Boolean(app.enabled),
+  };
 }
 
 function McpBrandMark({ name }: { name: string }) {
@@ -79,6 +114,7 @@ function McpBrandMark({ name }: { name: string }) {
 export default function McpPage({ embedded = false }: { embedded?: boolean }) {
   const [servers, setServers] = useState<McpServer[]>([]);
   const [catalog, setCatalog] = useState<McpCatalogEntry[]>([]);
+  const [directory, setDirectory] = useState<ConnectorsDirectoryApp[]>([]);
   const [diagnostics, setDiagnostics] = useState<McpCatalogDiagnostic[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast, showToast } = useToast();
@@ -123,7 +159,9 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
   const [installingName, setInstallingName] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [directoryFilter, setDirectoryFilter] =
-    useState<McpDirectoryFilter>("all");
+    useState<McpDirectoryFilter>("discover");
+  const [sectionFilter, setSectionFilter] = useState("all");
+  const [connectingSlug, setConnectingSlug] = useState<string | null>(null);
   const closeInstallModal = useCallback(() => setInstallEntry(null), []);
   const installModalRef = useModalBehavior({
     open: installEntry !== null,
@@ -147,11 +185,20 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
       .catch((e) => showToast(`Error: ${e}`, "error"));
   }, [showToast]);
 
+  const loadDirectory = useCallback(() => {
+    return api
+      .getConnectorsDirectory()
+      .then((res) => {
+        setDirectory(res.apps);
+      })
+      .catch((e) => showToast(`Error: ${e}`, "error"));
+  }, [showToast]);
+
   useEffect(() => {
-    Promise.all([loadServers(), loadCatalog()]).finally(() =>
+    Promise.all([loadServers(), loadCatalog(), loadDirectory()]).finally(() =>
       setLoading(false),
     );
-  }, [loadServers, loadCatalog]);
+  }, [loadServers, loadCatalog, loadDirectory]);
 
   const handleCreate = async () => {
     let body;
@@ -192,7 +239,7 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
       setEnv("");
       setTransport("http");
       setCreateModalOpen(false);
-      loadServers();
+      void Promise.all([loadServers(), loadDirectory()]);
     } catch (e) {
       showToast(`Failed to add: ${e}`, "error");
     } finally {
@@ -268,12 +315,13 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
             return next;
           });
           loadServers();
+          void loadDirectory();
         } catch (e) {
           showToast(`Error: ${e}`, "error");
           throw e;
         }
       },
-      [loadServers, showToast],
+      [loadServers, loadDirectory, showToast],
     ),
   });
 
@@ -290,14 +338,14 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
         }
         setInstallEntry(null);
         setInstallEnv({});
-        await Promise.all([loadServers(), loadCatalog()]);
+        await Promise.all([loadServers(), loadCatalog(), loadDirectory()]);
       } catch (e) {
         showToast(`Failed to install: ${e}`, "error");
       } finally {
         setInstallingName(null);
       }
     },
-    [loadServers, loadCatalog, showToast],
+    [loadServers, loadCatalog, loadDirectory, showToast],
   );
 
   const handleInstallClick = (entry: McpCatalogEntry) => {
@@ -329,6 +377,55 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
     void runInstall(installEntry, envMap);
   };
 
+  const handleConnectComposio = async (app: DirectoryApp) => {
+    if (app.needs_login) {
+      showToast("Sign in to Work4You to connect this app.", "error");
+      return;
+    }
+    const popup = window.open("about:blank", "_blank");
+    if (popup) popup.opener = null;
+    setConnectingSlug(app.id);
+    try {
+      await api.bootstrapConnectors();
+      const ok = await completeComposioConnect({
+        authorize: () => api.authorizeConnector(app.id),
+        wait: () => api.waitConnector(app.id),
+        open: (url) => {
+          if (popup && !popup.closed) {
+            popup.location.href = url;
+          } else {
+            window.open(url, "_blank", "noopener,noreferrer");
+          }
+        },
+      });
+      if (ok) {
+        showToast(
+          `${app.name} connected — available in new sessions.`,
+          "success",
+        );
+      }
+      await loadDirectory();
+    } catch (e) {
+      popup?.close();
+      showToast(`Failed to connect: ${e}`, "error");
+    } finally {
+      setConnectingSlug(null);
+    }
+  };
+
+  const handleDisconnectComposio = async (app: DirectoryApp) => {
+    setConnectingSlug(app.id);
+    try {
+      await api.disconnectConnector(app.id);
+      showToast(`${app.name} disconnected`, "success");
+      await loadDirectory();
+    } catch (e) {
+      showToast(`Error: ${e}`, "error");
+    } finally {
+      setConnectingSlug(null);
+    }
+  };
+
   // Put "Add Server" button in page header. When embedded (Capabilities →
   // MCP tab), the host page owns the header; an inline button renders in
   // the body instead.
@@ -348,44 +445,53 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
     };
   }, [embedded, setEnd, loading]);
 
-  const connectedServers = useMemo(
-    () =>
-      servers.filter((server) =>
-        mcpDirectoryQueryHit(
-          [
-            server.name,
-            prettyName(server.name),
-            catalog.find((entry) => entry.name === server.name)?.description,
-            server.url,
-            server.command,
-            ...(server.args ?? []),
-          ],
-          query,
-        ),
-      ),
-    [catalog, query, servers],
-  );
+  const catalogByName = useMemo(() => {
+    const map = new Map<string, McpCatalogEntry>();
+    for (const entry of catalog) {
+      map.set(entry.name.toLowerCase(), entry);
+    }
+    return map;
+  }, [catalog]);
 
-  const availableCatalog = useMemo(
-    () =>
-      catalog.filter(
-        (entry) =>
-          !entry.installed &&
-          !servers.some((server) => server.name === entry.name) &&
-          mcpDirectoryQueryHit(
-            [entry.name, prettyName(entry.name), entry.description],
-            query,
-          ),
-      ),
-    [catalog, query, servers],
-  );
+  const serversByName = useMemo(() => {
+    const map = new Map<string, McpServer>();
+    for (const server of servers) {
+      map.set(server.name, server);
+    }
+    return map;
+  }, [servers]);
 
-  const visibleConnected = mcpDirectoryShowsConnected(directoryFilter)
-    ? connectedServers
-    : [];
-  const visibleCatalog = mcpDirectoryShowsAvailable(directoryFilter)
-    ? availableCatalog
-    : [];
+  const directoryApps = useMemo(() => {
+    const rows: DirectoryApp[] = directory.map((app) => ({
+      ...app,
+      source: app.source === "composio" ? "composio" : "native",
+    }));
+    const known = new Set(rows.map((app) => app.id));
+    for (const server of servers) {
+      if (server.name === "work4you_apps" || known.has(server.name)) continue;
+      rows.push({
+        id: server.name,
+        name: server.name,
+        description:
+          catalogByName.get(server.name.toLowerCase())?.description ?? "",
+        section: "other",
+        popular: false,
+        source: "custom",
+        connected: true,
+        auth_type: server.auth ?? undefined,
+      });
+    }
+    return filterDirectoryApps(rows, {
+      filter: directoryFilter,
+      query,
+      section: sectionFilter === "all" ? null : sectionFilter,
+    });
+  }, [catalogByName, directory, directoryFilter, query, sectionFilter, servers]);
+
+  const directoryGroups = useMemo(
+    () => groupDirectorySections(directoryApps),
+    [directoryApps],
+  );
 
   if (loading) {
     return (
@@ -422,19 +528,33 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
           <Input
             className="pl-8"
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search MCP servers..."
+            placeholder="Search apps..."
             value={query}
           />
         </div>
         <Segmented
           onChange={(v) => setDirectoryFilter(v as McpDirectoryFilter)}
           options={[
+            { value: "discover", label: "Discover" },
             { value: "all", label: "All" },
             { value: "connected", label: "Connected" },
-            { value: "available", label: "Catalog" },
+            { value: "available", label: "Available" },
           ]}
           value={directoryFilter}
         />
+        <select
+          aria-label="Category"
+          className="h-9 max-w-[12rem] truncate rounded-md border border-border bg-background px-2 text-sm"
+          onChange={(e) => setSectionFilter(e.currentTarget.value)}
+          value={sectionFilter}
+        >
+          <option value="all">All categories</option>
+          {DIRECTORY_SECTION_IDS.map((id) => (
+            <option key={id} value={id}>
+              {DIRECTORY_SECTION_LABELS[id]}
+            </option>
+          ))}
+        </select>
       </div>
 
       <DeleteConfirmDialog
@@ -700,7 +820,7 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
 
       {restartNote && <p className="text-xs text-warning">{restartNote}</p>}
 
-      {visibleConnected.length === 0 && visibleCatalog.length === 0 ? (
+      {directoryApps.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
             {query.trim()
@@ -712,185 +832,214 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
         </Card>
       ) : (
         <div className="flex flex-col gap-6">
-          {visibleConnected.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <H2
-                variant="sm"
-                className="flex items-center gap-2 text-muted-foreground"
-              >
-                <Server className="h-4 w-4" />
-                Connected ({visibleConnected.length})
+          {directoryGroups.map((group) => (
+            <section className="flex flex-col gap-3" key={group.id}>
+              <H2 variant="sm" className="text-muted-foreground">
+                {group.label}
               </H2>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {visibleConnected.map((server) => {
-                  const envCount = Object.keys(server.env ?? {}).length;
-                  const result = testResults[server.name];
-                  const description = catalog.find(
-                    (entry) => entry.name === server.name,
-                  )?.description;
-
-                  return (
-                    <Card key={server.name}>
-                      <CardContent
-                        className={cn(
-                          "flex items-start gap-3 py-4",
-                          !server.enabled && "opacity-60",
-                        )}
-                      >
-                        <McpBrandMark name={server.name} />
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-1 flex items-center gap-2">
-                            <span className="truncate text-sm font-medium">
-                              {prettyName(server.name)}
-                            </span>
-                            {!server.enabled && (
-                              <Badge tone="outline">disabled</Badge>
-                            )}
-                          </div>
-                          {description && (
-                            <p className="mb-1 text-xs text-muted-foreground line-clamp-2">
-                              {description}
-                            </p>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {group.apps.map((app) => {
+                  const server = serversByName.get(app.id);
+                  if ((app.source === "native" || app.source === "custom") && server) {
+                    const envCount = Object.keys(server.env ?? {}).length;
+                    const result = testResults[server.name];
+                    const description =
+                      app.description ||
+                      catalogByName.get(server.name.toLowerCase())?.description;
+                    return (
+                      <Card key={`${group.id}-${app.id}`}>
+                        <CardContent
+                          className={cn(
+                            "flex items-start gap-3 py-4",
+                            !server.enabled && "opacity-60",
                           )}
-                          {result && (
-                            <div className="text-xs">
-                              {result.ok ? (
-                                <p className="text-success">
-                                  {result.tools.length === 0
-                                    ? "Connected — no tools"
-                                    : `Tools: ${result.tools
-                                        .map((tool) => tool.name)
-                                        .join(", ")}`}
-                                </p>
-                              ) : (
-                                <p className="text-destructive">
-                                  {result.error ?? "Connection failed"}
-                                </p>
+                        >
+                          <McpBrandMark name={app.id} />
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-1 flex items-center gap-2">
+                              <span className="truncate text-sm font-medium">
+                                {app.name || prettyName(server.name)}
+                              </span>
+                              {!server.enabled && (
+                                <Badge tone="outline">disabled</Badge>
                               )}
                             </div>
-                          )}
-                          <details className="mt-1 text-xs text-muted-foreground">
-                            <summary className="cursor-pointer select-none">
-                              Details
-                            </summary>
-                            <div className="mt-1 space-y-1">
-                              <p className="font-mono break-all">
-                                {server.transport === "http"
-                                  ? (server.url ?? "—")
-                                  : [server.command, ...(server.args ?? [])]
-                                      .filter(Boolean)
-                                      .join(" ") || "—"}
+                            {description && (
+                              <p className="mb-1 text-xs text-muted-foreground line-clamp-2">
+                                {description}
                               </p>
-                              {envCount > 0 && (
-                                <p>
-                                  {envCount} env var
-                                  {envCount === 1 ? "" : "s"}
+                            )}
+                            {result && (
+                              <div className="text-xs">
+                                {result.ok ? (
+                                  <p className="text-success">
+                                    {result.tools.length === 0
+                                      ? "Connected — no tools"
+                                      : `Tools: ${result.tools
+                                          .map((tool) => tool.name)
+                                          .join(", ")}`}
+                                  </p>
+                                ) : (
+                                  <p className="text-destructive">
+                                    {result.error ?? "Connection failed"}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            <details className="mt-1 text-xs text-muted-foreground">
+                              <summary className="cursor-pointer select-none">
+                                Details
+                              </summary>
+                              <div className="mt-1 space-y-1">
+                                <p className="font-mono break-all">
+                                  {server.transport === "http"
+                                    ? (server.url ?? "—")
+                                    : [server.command, ...(server.args ?? [])]
+                                        .filter(Boolean)
+                                        .join(" ") || "—"}
                                 </p>
-                              )}
-                            </div>
-                          </details>
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1">
-                          {server.auth === "oauth" && (
+                                {envCount > 0 && (
+                                  <p>
+                                    {envCount} env var
+                                    {envCount === 1 ? "" : "s"}
+                                  </p>
+                                )}
+                              </div>
+                            </details>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            {server.auth === "oauth" && (
+                              <Button
+                                ghost
+                                size="sm"
+                                title="Authenticate with OAuth"
+                                onClick={() => handleAuthenticate(server)}
+                                disabled={authenticating === server.name}
+                                prefix={
+                                  authenticating === server.name ? (
+                                    <Spinner />
+                                  ) : (
+                                    <KeyRound />
+                                  )
+                                }
+                              >
+                                Authenticate
+                              </Button>
+                            )}
                             <Button
                               ghost
                               size="sm"
-                              title="Authenticate with OAuth"
-                              onClick={() => handleAuthenticate(server)}
-                              disabled={authenticating === server.name}
+                              title={server.enabled ? "Disable" : "Enable"}
+                              aria-label={
+                                server.enabled ? "Disable" : "Enable"
+                              }
+                              onClick={() => handleToggleEnabled(server)}
+                              disabled={togglingName === server.name}
                               prefix={
-                                authenticating === server.name ? (
+                                togglingName === server.name ? (
                                   <Spinner />
                                 ) : (
-                                  <KeyRound />
+                                  <Power />
                                 )
                               }
-                            >
-                              Authenticate
-                            </Button>
-                          )}
-                          <Button
-                            ghost
-                            size="sm"
-                            title={server.enabled ? "Disable" : "Enable"}
-                            aria-label={
-                              server.enabled ? "Disable" : "Enable"
-                            }
-                            onClick={() => handleToggleEnabled(server)}
-                            disabled={togglingName === server.name}
-                            prefix={
-                              togglingName === server.name ? (
-                                <Spinner />
-                              ) : (
-                                <Power />
-                              )
-                            }
-                            className={
-                              server.enabled ? "text-success" : undefined
-                            }
-                          >
-                            {server.enabled ? "Disable" : "Enable"}
-                          </Button>
-                          <div className="flex gap-1">
-                            <Button
-                              ghost
-                              size="icon"
-                              title="Test connection"
-                              aria-label="Test connection"
-                              onClick={() => handleTest(server)}
-                              disabled={testing === server.name}
-                            >
-                              {testing === server.name ? (
-                                <Spinner />
-                              ) : (
-                                <Zap />
-                              )}
-                            </Button>
-                            <Button
-                              ghost
-                              destructive
-                              size="icon"
-                              title="Delete"
-                              aria-label="Delete"
-                              onClick={() =>
-                                serverDelete.requestDelete(server.name)
+                              className={
+                                server.enabled ? "text-success" : undefined
                               }
                             >
-                              <Trash2 />
+                              {server.enabled ? "Disable" : "Enable"}
                             </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                ghost
+                                size="icon"
+                                title="Test connection"
+                                aria-label="Test connection"
+                                onClick={() => handleTest(server)}
+                                disabled={testing === server.name}
+                              >
+                                {testing === server.name ? (
+                                  <Spinner />
+                                ) : (
+                                  <Zap />
+                                )}
+                              </Button>
+                              <Button
+                                ghost
+                                destructive
+                                size="icon"
+                                title="Delete"
+                                aria-label="Delete"
+                                onClick={() =>
+                                  serverDelete.requestDelete(server.name)
+                                }
+                              >
+                                <Trash2 />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </section>
-          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  }
 
-          {visibleCatalog.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <H2
-                variant="sm"
-                className="flex items-center gap-2 text-muted-foreground"
-              >
-                <Package className="h-4 w-4" />
-                Catalog ({visibleCatalog.length})
-              </H2>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {visibleCatalog.map((entry) => {
+                  if (app.source === "composio") {
+                    const busy = connectingSlug === app.id;
+                    return (
+                      <Card key={`${group.id}-${app.id}`}>
+                        <CardContent className="flex items-start gap-3 py-4">
+                          <McpBrandMark name={app.id} />
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-1 flex items-center gap-2">
+                              <span className="truncate text-sm font-medium">
+                                {app.name}
+                              </span>
+                              {app.connected && (
+                                <Badge tone="outline">connected</Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {directoryAppDescription(app)}
+                            </p>
+                          </div>
+                          <Button
+                            className="uppercase shrink-0"
+                            size="sm"
+                            onClick={() =>
+                              app.connected
+                                ? void handleDisconnectComposio(app)
+                                : void handleConnectComposio(app)
+                            }
+                            disabled={busy}
+                            prefix={busy ? <Spinner /> : undefined}
+                          >
+                            {busy
+                              ? app.connected
+                                ? "Disconnecting..."
+                                : "Connecting..."
+                              : app.connected
+                                ? "Disconnect"
+                                : "Connect"}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+
+                  const entry = directoryNativeEntry(
+                    app,
+                    catalogByName.get(app.id.toLowerCase()),
+                  );
                   const entryDiags = diagnosticsByName[entry.name] ?? [];
                   const isInstalling = installingName === entry.name;
                   const action = mcpCatalogPrimaryAction(entry.auth_type);
-
                   return (
-                    <Card key={entry.name}>
+                    <Card key={`${group.id}-${app.id}`}>
                       <CardContent className="flex items-start gap-3 py-4">
-                        <McpBrandMark name={entry.name} />
+                        <McpBrandMark name={app.id} />
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex flex-wrap items-center gap-2">
                             <span className="truncate text-sm font-medium">
-                              {prettyName(entry.name)}
+                              {app.name || prettyName(entry.name)}
                             </span>
                             {entry.needs_install && (
                               <Badge tone="warning">Needs build</Badge>
@@ -1011,7 +1160,7 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
                 })}
               </div>
             </section>
-          )}
+          ))}
         </div>
       )}
     </div>

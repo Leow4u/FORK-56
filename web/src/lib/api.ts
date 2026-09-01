@@ -1274,6 +1274,41 @@ export const api = {
     fetchJSON<{ entries: McpCatalogEntry[]; diagnostics: McpCatalogDiagnostic[] }>(
       "/api/mcp/catalog",
     ),
+  getConnectorsDirectory: () =>
+    fetchJSON<{
+      apps: ConnectorsDirectoryApp[];
+      sections: string[];
+      portal: boolean;
+      hidden?: string[];
+    }>("/api/connectors/directory"),
+  bootstrapConnectors: () =>
+    fetchJSON<{ ok: boolean }>("/api/connectors/bootstrap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    }),
+  authorizeConnector: (slug: string) =>
+    fetchJSON<{ redirect_url: string; slug?: string }>(
+      `/api/connectors/apps/${encodeURIComponent(slug)}/authorize`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+    ),
+  waitConnector: (slug: string) =>
+    fetchJSON<{ connected: boolean; status?: string }>(
+      `/api/connectors/apps/${encodeURIComponent(slug)}/wait`,
+    ),
+  disconnectConnector: (slug: string) =>
+    fetchJSON<{ disconnected?: boolean }>(
+      `/api/connectors/apps/${encodeURIComponent(slug)}/disconnect`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+    ),
   installMcpCatalogEntry: (
     name: string,
     env: Record<string, string> = {},
@@ -1678,6 +1713,23 @@ export interface McpServer {
   auth: "header" | "oauth" | null;
   enabled: boolean;
   tools: string[] | null;
+}
+
+export interface ConnectorsDirectoryApp {
+  id: string;
+  name: string;
+  description: string;
+  section: string;
+  popular: boolean;
+  source: "native" | "composio" | "custom";
+  connected: boolean;
+  auth_type?: string;
+  needs_login?: boolean;
+  notes?: string | null;
+  required_env?: { name: string; prompt: string; required: boolean }[];
+  needs_install?: boolean;
+  installed?: boolean;
+  enabled?: boolean;
 }
 
 export interface McpCatalogEntry {

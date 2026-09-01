@@ -151,3 +151,78 @@ export function installMcpCatalogEntry(
     timeoutMs: 60_000
   })
 }
+
+export interface ConnectorsDirectoryApp {
+  id: string
+  name: string
+  description: string
+  section: string
+  popular: boolean
+  source: 'native' | 'composio' | 'custom'
+  connected: boolean
+  auth_type?: string
+  needs_login?: boolean
+  notes?: string | null
+  required_env?: { name: string; prompt: string; required: boolean }[]
+  needs_install?: boolean
+  installed?: boolean
+  enabled?: boolean
+}
+
+export interface ConnectorsDirectoryResponse {
+  apps: ConnectorsDirectoryApp[]
+  sections: string[]
+  portal: boolean
+  hidden?: string[]
+}
+
+export function getConnectorsDirectory(profile?: ProfileScope): Promise<ConnectorsDirectoryResponse> {
+  return window.work4youDesktop.api<ConnectorsDirectoryResponse>({
+    ...capabilityScoped(profile),
+    path: '/api/connectors/directory'
+  })
+}
+
+export function bootstrapConnectors(profile?: ProfileScope): Promise<{ ok: boolean }> {
+  return window.work4youDesktop.api<{ ok: boolean }>({
+    ...capabilityScoped(profile),
+    path: '/api/connectors/bootstrap',
+    method: 'POST',
+    body: {},
+    timeoutMs: 60_000
+  })
+}
+
+export function authorizeConnector(
+  slug: string,
+  profile?: ProfileScope
+): Promise<{ redirect_url: string; slug?: string }> {
+  return window.work4youDesktop.api<{ redirect_url: string; slug?: string }>({
+    ...capabilityScoped(profile),
+    path: `/api/connectors/apps/${encodeURIComponent(slug)}/authorize`,
+    method: 'POST',
+    body: {},
+    timeoutMs: 60_000
+  })
+}
+
+export function waitConnector(
+  slug: string,
+  profile?: ProfileScope
+): Promise<{ connected: boolean; status?: string; slug?: string }> {
+  return window.work4youDesktop.api<{ connected: boolean; status?: string; slug?: string }>({
+    ...capabilityScoped(profile),
+    path: `/api/connectors/apps/${encodeURIComponent(slug)}/wait`,
+    timeoutMs: 60_000
+  })
+}
+
+export function disconnectConnector(slug: string, profile?: ProfileScope): Promise<{ disconnected?: boolean }> {
+  return window.work4youDesktop.api<{ disconnected?: boolean }>({
+    ...capabilityScoped(profile),
+    path: `/api/connectors/apps/${encodeURIComponent(slug)}/disconnect`,
+    method: 'POST',
+    body: {},
+    timeoutMs: 30_000
+  })
+}
