@@ -83,7 +83,11 @@ npm run dist:linux   # AppImage + deb + rpm
 npm run pack         # unpacked app under release/ (no installer)
 ```
 
-The downloadable Windows installer is the electron-builder NSIS pack (`npm run dist:win:nsis`), published as `Work4You-Setup.exe` by `.github/workflows/release-desktop.yml`. The downloadable macOS installer is the electron-builder DMG (`npm run dist:mac:dmg`), published as `Work4You.dmg`. CI Authenticode-signs the Windows pack with SSL.com eSigner (`ESIGNER_*` repo secrets) after the code-signing order has eSigner activated; a `workflow_dispatch` that skips signing uploads an unsigned Actions artifact and does **not** publish a GitHub Release. Local `npm run dist:win` packs an NSIS/MSI for development and does not Authenticode-sign (electron-builder's `winCodeSign` path is disabled on purpose). macOS notarization still uses `APPLE_*` / `CSC_LINK` when those credentials are present.
+The downloadable Windows installer is the electron-builder NSIS pack (`npm run dist:win:nsis`), published as `Work4You-Setup.exe` by `.github/workflows/release-desktop.yml`. The downloadable macOS installer is the electron-builder DMG (`npm run dist:mac:dmg`), published as `Work4You.dmg`. CI Authenticode-signs the Windows pack with SSL.com eSigner (`ESIGNER_*` repo secrets) after the code-signing order has eSigner activated; a `workflow_dispatch` that skips signing uploads an unsigned Actions artifact and does **not** publish a GitHub Release.
+
+Public downloads (`https://work4you.ai/downloads/Work4You-Setup.exe` and `.dmg`) redirect to GitHub `releases/latest`, which is the `desktop-v*` installer series. A plain **Run workflow** on `Release Desktop Installer` (empty `tag`) bumps that series (for example `desktop-v0.0.8` → `desktop-v0.0.9`), tags the run's commit so the asar install-stamp matches, and marks the new release Latest. Pass `tag=latest` to rebuild the current Latest in place, or `tag=desktop-vX.Y.Z` for an explicit tag. Do not use `apps/bootstrap-installer` `package.json` — that is the Tauri setup wizard, not the Electron app.
+
+Local `npm run dist:win` packs an NSIS/MSI for development and does not Authenticode-sign (electron-builder's `winCodeSign` path is disabled on purpose). macOS notarization still uses `APPLE_*` / `CSC_LINK` when those credentials are present.
 
 ### How it works
 
