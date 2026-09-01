@@ -136,13 +136,16 @@ jobs:
       # `--publish never` is the same flag `npm run pack` already uses so
       # electron-builder 26 does not infer onTagOrDraft from CI + GITHUB_TOKEN
       # (#87758) and race the Work4You.dmg upload below.
-      # APPLE_* / CSC_* are the existing notarize.mjs / electron-builder inputs;
-      # notarize.mjs skips when they are unset.
+      # Do not pass CSC_LINK / CSC_KEY_PASSWORD here. GitHub injects missing
+      # secrets as empty strings; electron-builder then treats CSC_LINK as a
+      # cert path, resolves "" to the job working-directory, and fails with
+      # "apps/desktop not a file" (desktop-v0.0.5 run 33462742230). Same
+      # CSC_IDENTITY_AUTO_DISCOVERY=false as the Windows job. notarize.mjs
+      # still reads APPLE_* and skips when they are empty.
       - name: Build macOS DMG installer
         working-directory: apps/desktop
         env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
