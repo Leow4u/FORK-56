@@ -177,7 +177,7 @@ function CategoryHeader({ label, onToggle, open }: { label: string; onToggle: ()
       onClick={onToggle}
       type="button"
     >
-      <span className="min-w-0 truncate text-[0.64rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+      <span className="min-w-0 truncate text-[length:var(--conversation-text-font-size)] font-medium text-muted-foreground">
         {label}
       </span>
       <DisclosureCaret

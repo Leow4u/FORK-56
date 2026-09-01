@@ -81,7 +81,7 @@ async function main() {
   // Settings sub-pages — open settings, click each nav item, idle 1.5s on it
   await nav(ws, '/settings')
   await sleep(600)
-  for (const label of ['Model','Session','Appearance','Notifications','Providers','Gateway','Keybinds','API Keys','Plugins','Archived Chats','About']) {
+  for (const label of ['Model','Session','Appearance','Notifications','Providers','Gateway','Keybinds','API Keys','Plugins','Archived chats','About']) {
     results.push(await measure(ws, `SETTINGS: ${label} (1.5s idle)`, async (ws) => {
       await clickText(ws, label)
       await sleep(1500)

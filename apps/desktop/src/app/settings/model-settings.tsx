@@ -80,14 +80,14 @@ export function ModelSettingsSkeleton() {
         <div className="grid gap-1">
           {[0, 1, 2, 3].map(row => (
             <div
-              className="grid gap-3 py-3 @2xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @2xl:items-center"
+              className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center"
               key={row}
             >
               <div className="min-w-0 space-y-1.5">
                 <Skeleton className="h-3.5 w-32" />
                 <Skeleton className="h-3 w-52 max-w-full" />
               </div>
-              <Skeleton className="h-8 w-full @2xl:justify-self-end @2xl:w-56" />
+              <Skeleton className="h-8 w-full @xl:justify-self-end @xl:w-56" />
             </div>
           ))}
         </div>

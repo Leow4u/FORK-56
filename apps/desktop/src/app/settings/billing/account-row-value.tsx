@@ -11,7 +11,7 @@ export function RowValue({ onAction, row }: { onAction?: () => void; row: Billin
   const { action } = row
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 @2xl:justify-end">
+    <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 @xl:justify-end">
       {row.value && (
         <span className="min-w-0 truncate text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
           {row.value}

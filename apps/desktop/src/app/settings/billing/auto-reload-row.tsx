@@ -165,7 +165,7 @@ export function AutoReloadRow({
   // panes. The form is `invisible` + `aria-hidden` when not editing.
   return (
     <div className="@container">
-      <div className="grid gap-3 py-3 @2xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @2xl:items-start">
+      <div className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-start">
         <div className="min-w-0">
           <div className="text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
             {row.title}
@@ -176,7 +176,7 @@ export function AutoReloadRow({
           <div className="mt-3 grid [grid-template-areas:'stack']">
             {/* EDIT layer — always in layout (reserves exact height); hidden until editing. */}
             <div aria-hidden={!editing} className={cn('space-y-2 [grid-area:stack]', !editing && 'invisible')}>
-              <div className="grid gap-2 @2xl:grid-cols-2">
+              <div className="grid gap-2 @xl:grid-cols-2">
                 <label className="min-w-0 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
                   Threshold
                   <Input
@@ -256,7 +256,7 @@ export function AutoReloadRow({
           </div>
         </div>
         {/* Action column swaps Manage ↔ Save/Cancel in place (top-aligned, no move). */}
-        <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 @2xl:justify-end">
+        <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 @xl:justify-end">
           {row.pill && <Pill tone={row.pill.tone}>{row.pill.label}</Pill>}
           {editing ? (
             <>

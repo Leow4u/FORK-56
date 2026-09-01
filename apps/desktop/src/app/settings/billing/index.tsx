@@ -184,7 +184,7 @@ function BuyCreditsRow({ billing, row }: { billing: BillingStateResponse; row: B
   return (
     <ListRow
       action={
-        <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 @2xl:justify-end">
+        <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 @xl:justify-end">
           <SegmentedControl
             disabled={controlsDisabled}
             onChange={value => setAmount(value)}
@@ -339,7 +339,7 @@ function UsageBar({ bar, fallbackLabel }: { bar?: BillingUsageRowView['bar']; fa
 function UsageRow({ row }: { row: BillingUsageRowView }) {
   return (
     <div className="@container">
-      <div className="grid min-w-0 gap-2 py-3 @2xl:grid-cols-[minmax(0,180px)_minmax(0,1fr)_220px] @2xl:items-center @2xl:gap-4">
+      <div className="grid min-w-0 gap-2 py-3 @xl:grid-cols-[minmax(0,180px)_minmax(0,1fr)_220px] @xl:items-center @xl:gap-4">
         <div className="min-w-0">
           <div className="text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
             {row.title}
@@ -353,7 +353,7 @@ function UsageRow({ row }: { row: BillingUsageRowView }) {
         </div>
         <div
           className={cn(
-            'min-w-0 whitespace-nowrap text-[length:var(--conversation-text-font-size)] font-medium tabular-nums @2xl:w-[220px] @2xl:flex-none @2xl:text-right',
+            'min-w-0 whitespace-nowrap text-[length:var(--conversation-text-font-size)] font-medium tabular-nums @xl:w-[220px] @xl:flex-none @xl:text-right',
             row.bar?.state === 'danger' ? 'text-destructive' : 'text-foreground'
           )}
         >
