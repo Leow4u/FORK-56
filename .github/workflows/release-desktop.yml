@@ -115,7 +115,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'desktop-v')
     name: Build macOS installer
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -127,23 +127,41 @@ jobs:
       - name: Install npm 12
         run: npm i -g npm@12
 
-      - uses: dtolnay/rust-toolchain@stable
-
       - name: Install dependencies
         uses: ./.github/actions/retry
         with:
           command: npm ci
 
-      - name: Build bootstrap installer (macOS)
-        working-directory: apps/bootstrap-installer
-        run: npm run tauri:build
+      # apps/desktop `dist:mac:dmg` (`npm run build && npm run builder -- --mac dmg`).
+      # `--publish never` is the same flag `npm run pack` already uses so
+      # electron-builder 26 does not infer onTagOrDraft from CI + GITHUB_TOKEN
+      # (#87758) and race the Work4You.dmg upload below.
+      # APPLE_* / CSC_* are the existing notarize.mjs / electron-builder inputs;
+      # notarize.mjs skips when they are unset.
+      - name: Build macOS DMG installer
+        working-directory: apps/desktop
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_NOTARY_PROFILE: ${{ secrets.APPLE_NOTARY_PROFILE }}
+        run: npm run build && npm run builder -- --mac dmg --publish never
 
       - name: Stage macOS artifact
         run: |
           set -euo pipefail
-          dmg="$(find apps/bootstrap-installer/src-tauri/target/release/bundle/dmg -name '*.dmg' -print -quit)"
+          release='apps/desktop/release'
+          if [ ! -d "$release" ]; then
+            echo "::error::apps/desktop/release not found"
+            exit 1
+          fi
+          # Same idea as apps/desktop/scripts/test-desktop.mjs resolveDmgPath().
+          dmg="$(ls -t "$release"/Work4You-*.dmg 2>/dev/null | head -n 1 || true)"
           if [ -z "$dmg" ]; then
-            echo "::error::macOS DMG not found under bundle/dmg"
+            echo "::error::macOS DMG not found under apps/desktop/release"
+            find "$release" -print
             exit 1
           fi
           mkdir -p dist
@@ -192,7 +210,7 @@ jobs:
           else
             gh release create "$tag" \
               --title "Work4You Desktop ${tag#desktop-v}" \
-              --notes "Signed Windows NSIS app (npm run dist:win:nsis) and macOS bootstrap installer. Downloads from [work4you.ai](https://work4you.ai/) redirect here."
+              --notes "Signed Windows NSIS app (npm run dist:win:nsis) and macOS DMG (npm run dist:mac:dmg). Downloads from [work4you.ai](https://work4you.ai/) redirect here."
           fi
           gh release upload "$tag" installers/windows-installer/Work4You-Setup.exe --clobber
           gh release upload "$tag" installers/macos-installer/Work4You.dmg --clobber
