@@ -235,17 +235,25 @@ jobs:
           set -euo pipefail
           tag="${{ steps.tag.outputs.tag }}"
           create="${{ steps.tag.outputs.create }}"
+          repo="${{ github.repository }}"
           notes="Signed Windows NSIS app (npm run dist:win:nsis) and macOS DMG (npm run dist:mac:dmg). Downloads from [work4you.ai](https://work4you.ai/) redirect here."
           echo "Publishing $tag (create=$create) from ${{ github.sha }}"
-          if [ "$create" = "true" ] || ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" \
+          # `on: release` (and a dispatch that races a just-created tag) already
+          # owns $tag. `gh release create` then 422s ("tag_name already exists")
+          # and `set -e` skipped upload — desktop-v0.0.9 shipped as Latest with
+          # no .exe/.dmg. Always land on edit+upload when the release exists.
+          if ! gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            if ! gh release create "$tag" \
+              --repo "$repo" \
               --target "${{ github.sha }}" \
               --latest \
               --title "Work4You Desktop ${tag#desktop-v}" \
-              --notes "$notes"
-          else
-            echo "Updating existing release $tag"
-            gh release edit "$tag" --latest
+              --notes "$notes"; then
+              echo "create failed (tag may already exist); uploading in place"
+            fi
           fi
-          gh release upload "$tag" installers/windows-installer/Work4You-Setup.exe --clobber
-          gh release upload "$tag" installers/macos-installer/Work4You.dmg --clobber
+          # Do not require `release view` here: the 0.0.9 miss was view failing
+          # while the tag already existed. edit+upload is the source of truth.
+          gh release edit "$tag" --repo "$repo" --latest
+          gh release upload "$tag" --repo "$repo" installers/windows-installer/Work4You-Setup.exe --clobber
+          gh release upload "$tag" --repo "$repo" installers/macos-installer/Work4You.dmg --clobber
