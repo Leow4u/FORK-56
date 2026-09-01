@@ -12,7 +12,7 @@ export function CurrentPlanCard({ onViewPlans, plan }: { onViewPlans: () => void
 
   return (
     <div className="@container">
-      <div className="grid gap-3 py-3 @2xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @2xl:items-center">
+      <div className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center">
         <div className="flex min-w-0 items-center gap-3">
           <TierArt name={plan.tierName} />
           <div className="min-w-0">
@@ -31,7 +31,7 @@ export function CurrentPlanCard({ onViewPlans, plan }: { onViewPlans: () => void
             </div>
           </div>
         </div>
-        <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 @2xl:justify-end">
+        <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 @xl:justify-end">
           {plan.action && (
             <Button onClick={onViewPlans} size="sm" type="button" variant="outline">
               {plan.action.label}

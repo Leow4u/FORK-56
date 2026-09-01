@@ -135,7 +135,7 @@ export function ListRow({
       <div
         className={cn(
           'grid gap-3 py-3',
-          !wide && '@2xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @2xl:items-center'
+          !wide && '@xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center'
         )}
       >
         <div className="min-w-0">
@@ -148,7 +148,7 @@ export function ListRow({
           {hint && <div className="mt-1 block font-mono text-[0.68rem] text-muted-foreground/45">{hint}</div>}
           {below}
         </div>
-        {action && <div className={cn('min-w-0', !wide && '@2xl:justify-self-end')}>{action}</div>}
+        {action && <div className={cn('min-w-0', !wide && '@xl:justify-self-end')}>{action}</div>}
       </div>
     </div>
   )
@@ -204,14 +204,14 @@ export function ListRowSkeleton({ wide = false }: { wide?: boolean }) {
       <div
         className={cn(
           'grid gap-3 py-3',
-          !wide && '@2xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @2xl:items-center'
+          !wide && '@xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center'
         )}
       >
         <div className="min-w-0 space-y-1.5">
           <Skeleton className="h-3.5 w-40 max-w-full" />
           <Skeleton className="h-3 w-64 max-w-full" />
         </div>
-        {!wide && <Skeleton className="h-8 w-full @2xl:w-72 @2xl:justify-self-end" />}
+        {!wide && <Skeleton className="h-8 w-full @xl:w-72 @xl:justify-self-end" />}
       </div>
     </div>
   )
