@@ -1,16 +1,15 @@
-import { describe, expect, it } from 'vitest'
-
 import {
   completeComposioConnect,
+  type DirectoryApp,
   directoryAppDescription,
   filterDirectoryApps,
   groupDirectorySections,
   mcpCatalogPrimaryAction,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
-  mcpDirectoryShowsConnected,
-  type DirectoryApp
+  mcpDirectoryShowsConnected
 } from '@work4you/shared'
+import { describe, expect, it } from 'vitest'
 
 function app(partial: Partial<DirectoryApp> & Pick<DirectoryApp, 'id' | 'name' | 'source'>): DirectoryApp {
   return {
@@ -88,6 +87,7 @@ describe('groupDirectorySections', () => {
       app({ id: 'hubspot', name: 'HubSpot', source: 'composio', section: 'crm', popular: true }),
       app({ id: 'custom-1', name: 'Mine', source: 'custom', section: 'other' })
     ])
+
     expect(groups[0]?.id).toBe('popular')
     expect(groups[0]?.apps.map(row => row.id)).toEqual(['gmail', 'hubspot'])
     const email = groups.find(group => group.id === 'email')
@@ -99,6 +99,7 @@ describe('groupDirectorySections', () => {
 describe('completeComposioConnect', () => {
   it('opens the vendor redirect and does not call native MCP auth', async () => {
     const opened: string[] = []
+
     const connected = await completeComposioConnect({
       authorize: async () => ({ redirect_url: 'https://connect.example/hubspot' }),
       wait: async () => ({ connected: true }),
@@ -106,21 +107,25 @@ describe('completeComposioConnect', () => {
         opened.push(url)
       }
     })
+
     expect(connected).toBe(true)
     expect(opened).toEqual(['https://connect.example/hubspot'])
   })
 
   it('retries wait once when the first poll is still pending', async () => {
     let waits = 0
+
     const connected = await completeComposioConnect({
       authorize: async () => ({ redirect_url: 'https://connect.example/slack' }),
       wait: async () => {
         waits += 1
+
         return { connected: waits > 1 }
       },
       open: () => undefined,
       sleep: async () => undefined
     })
+
     expect(connected).toBe(true)
     expect(waits).toBe(2)
   })

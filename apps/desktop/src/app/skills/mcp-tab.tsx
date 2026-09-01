@@ -1,5 +1,14 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
+import {
+  completeComposioConnect,
+  DIRECTORY_SECTION_IDS,
+  DIRECTORY_SECTION_LABELS,
+  type DirectoryApp,
+  directoryAppDescription,
+  filterDirectoryApps,
+  groupDirectorySections
+} from '@work4you/shared'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
 import { type CodeEditorApi } from '@/components/chat/code-editor'
@@ -20,15 +29,6 @@ import { compactNumber } from '@/lib/format'
 import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
 import { completeMcpDesktopOAuth } from '@/lib/mcp-dashboard-oauth'
-import {
-  completeComposioConnect,
-  DIRECTORY_SECTION_IDS,
-  DIRECTORY_SECTION_LABELS,
-  directoryAppDescription,
-  type DirectoryApp,
-  filterDirectoryApps,
-  groupDirectorySections
-} from '@work4you/shared'
 import {
   mcpCatalogPrimaryAction,
   type McpDirectoryFilter
@@ -509,9 +509,11 @@ export function McpTab({
 
   const nativeCatalogByName = useMemo(() => {
     const map = new Map<string, McpCatalogEntry>()
+
     for (const entry of catalog) {
       map.set(entry.name.toLowerCase(), entry)
     }
+
     return map
   }, [catalog])
 
@@ -520,9 +522,14 @@ export function McpTab({
       ...app,
       source: app.source === 'composio' ? 'composio' : 'native'
     }))
+
     const known = new Set(rows.map(app => app.id))
+
     for (const serverName of names) {
-      if (serverName === 'work4you_apps' || known.has(serverName)) continue
+      if (serverName === 'work4you_apps' || known.has(serverName)) {
+        continue
+      }
+
       rows.push({
         id: serverName,
         name: serverName,
@@ -534,6 +541,7 @@ export function McpTab({
         auth_type: typeof servers[serverName]?.auth === 'string' ? String(servers[serverName].auth) : undefined
       })
     }
+
     return filterDirectoryApps(rows, {
       filter: directoryFilter,
       query,
@@ -1135,19 +1143,25 @@ export function McpTab({
         title: 'Sign in required',
         message: 'Sign in to Work4You to connect this app.'
       })
+
       return
     }
+
     setConnectingSlug(app.id)
+
     try {
       await bootstrapConnectors(profile ?? undefined)
+
       const ok = await completeComposioConnect({
         authorize: () => authorizeConnector(app.id, profile ?? undefined),
         wait: () => waitConnector(app.id, profile ?? undefined),
         open: url => window.work4youDesktop.openExternal(url)
       })
+
       if (ok) {
         notify({ kind: 'success', title: `${app.name} connected`, message: 'Available in new sessions.' })
       }
+
       await directoryQuery.refetch()
     } catch (err) {
       notifyError(err, m.catalogInstallFailed(app.name))
@@ -1158,6 +1172,7 @@ export function McpTab({
 
   const disconnectComposioApp = async (app: DirectoryApp) => {
     setConnectingSlug(app.id)
+
     try {
       await disconnectConnector(app.id, profile ?? undefined)
       await directoryQuery.refetch()
@@ -1263,9 +1278,11 @@ export function McpTab({
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
                       {group.apps.map(app => {
                         const server = servers[app.id]
+
                         if ((app.source === 'native' || app.source === 'custom') && server) {
                           const status = statusOf(server, probes[app.id])
                           const cost = costFor(app.id, server)
+
                           return (
                             <ConnectorCard
                               description={app.description || catalogDescription(catalog, app.id, server)}
@@ -1301,8 +1318,10 @@ export function McpTab({
                             />
                           )
                         }
+
                         if (app.source === 'composio') {
                           const busy = connectingSlug === app.id
+
                           return (
                             <ConnectorCard
                               description={directoryAppDescription(app)}
@@ -1334,7 +1353,9 @@ export function McpTab({
                             />
                           )
                         }
+
                         const catalogEntry = nativeCatalogByName.get(app.id.toLowerCase())
+
                         if (!catalogEntry) {
                           return (
                             <ConnectorCard
@@ -1346,6 +1367,7 @@ export function McpTab({
                             />
                           )
                         }
+
                         return (
                           <CatalogInstallCard
                             entry={catalogEntry}
@@ -1793,10 +1815,12 @@ function CatalogInstallCard({
     if (required.some(env => !envDraft[env.name]?.trim())) {
       if (!envOpen) {
         setEnvOpen(true)
+
         return
       }
 
       notify({ kind: 'error', title: m.catalogEnvPrompt(entry.name), message: m.catalogEnvRequired })
+
       return
     }
 
@@ -1832,6 +1856,7 @@ function CatalogInstallCard({
   }
 
   const action = mcpCatalogPrimaryAction(entry.auth_type)
+
   const actionLabel = installing
     ? m.catalogInstalling
     : entry.installed

@@ -14,7 +14,7 @@ export const DIRECTORY_SECTION_IDS = [
   'files',
   'communication',
   'ai',
-  'other',
+  'other'
 ] as const
 
 export type DirectorySectionId = (typeof DIRECTORY_SECTION_IDS)[number]
@@ -33,7 +33,7 @@ export const DIRECTORY_SECTION_LABELS: Record<DirectorySectionId | 'popular' | '
   communication: 'Communication',
   ai: 'AI',
   other: 'Other',
-  custom: 'Your servers',
+  custom: 'Your servers'
 }
 
 export const HIDDEN_DIRECTORY_IDS = new Set(['work4you_apps'])
@@ -57,7 +57,11 @@ export interface DirectoryApp {
 
 export function mcpDirectoryQueryHit(fields: ReadonlyArray<null | string | undefined>, query: string): boolean {
   const needle = query.trim().toLowerCase()
-  if (!needle) return true
+
+  if (!needle) {
+    return true
+  }
+
   return fields.some(field => (field ?? '').toLowerCase().includes(needle))
 }
 
@@ -76,14 +80,29 @@ export function mcpCatalogPrimaryAction(authType: string | undefined): 'connect'
 
 export function filterDirectoryApps(
   apps: readonly DirectoryApp[],
-  opts: { filter: McpDirectoryFilter; query: string; section: string | null },
+  opts: { filter: McpDirectoryFilter; query: string; section: string | null }
 ): DirectoryApp[] {
   return apps.filter(app => {
-    if (HIDDEN_DIRECTORY_IDS.has(app.id)) return false
-    if (opts.section && opts.section !== 'all' && app.section !== opts.section) return false
-    if (!mcpDirectoryQueryHit([app.name, app.id, app.description], opts.query)) return false
-    if (opts.filter === 'connected') return app.connected
-    if (opts.filter === 'available') return !app.connected
+    if (HIDDEN_DIRECTORY_IDS.has(app.id)) {
+      return false
+    }
+
+    if (opts.section && opts.section !== 'all' && app.section !== opts.section) {
+      return false
+    }
+
+    if (!mcpDirectoryQueryHit([app.name, app.id, app.description], opts.query)) {
+      return false
+    }
+
+    if (opts.filter === 'connected') {
+      return app.connected
+    }
+
+    if (opts.filter === 'available') {
+      return !app.connected
+    }
+
     return true
   })
 }
@@ -102,18 +121,27 @@ export interface DirectorySectionGroup {
 export function groupDirectorySections(apps: readonly DirectoryApp[]): DirectorySectionGroup[] {
   const groups: DirectorySectionGroup[] = []
   const popular = apps.filter(app => app.popular)
+
   if (popular.length) {
     groups.push({ id: 'popular', label: DIRECTORY_SECTION_LABELS.popular, apps: popular })
   }
+
   const custom = apps.filter(app => app.source === 'custom')
+
   for (const id of DIRECTORY_SECTION_IDS) {
     const rows = apps.filter(app => app.section === id && app.source !== 'custom')
-    if (!rows.length) continue
+
+    if (!rows.length) {
+      continue
+    }
+
     groups.push({ id, label: DIRECTORY_SECTION_LABELS[id], apps: rows })
   }
+
   if (custom.length) {
     groups.push({ id: 'custom', label: DIRECTORY_SECTION_LABELS.custom, apps: custom })
   }
+
   return groups
 }
 
@@ -121,8 +149,10 @@ export function directoryAppDescription(app: Pick<DirectoryApp, 'description' | 
   if (app.notes === 'instagram_business_creator') {
     const base = app.description.trim()
     const note = 'Instagram Business or Creator only.'
+
     return base ? `${base} ${note}` : note
   }
+
   return app.description
 }
 
@@ -134,12 +164,21 @@ export async function completeComposioConnect(opts: {
 }): Promise<boolean> {
   const started = await opts.authorize()
   const url = started.redirect_url
-  if (!url) throw new Error('missing_redirect_url')
+
+  if (!url) {
+    throw new Error('missing_redirect_url')
+  }
+
   await opts.open(url)
   const result = await opts.wait()
-  if (result.connected) return true
+
+  if (result.connected) {
+    return true
+  }
+
   const sleep = opts.sleep ?? ((ms: number) => new Promise(r => setTimeout(r, ms)))
   await sleep(1500)
   const retry = await opts.wait()
+
   return Boolean(retry.connected)
 }

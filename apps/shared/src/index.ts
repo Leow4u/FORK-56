@@ -58,6 +58,23 @@ export {
   JsonRpcGatewayError,
   type WebSocketLike
 } from './json-rpc-gateway'
+export {
+  completeComposioConnect,
+  DIRECTORY_SECTION_IDS,
+  DIRECTORY_SECTION_LABELS,
+  type DirectoryApp,
+  directoryAppDescription,
+  type DirectorySectionGroup,
+  type DirectorySectionId,
+  filterDirectoryApps,
+  groupDirectorySections,
+  HIDDEN_DIRECTORY_IDS,
+  mcpCatalogPrimaryAction,
+  type McpDirectoryFilter,
+  mcpDirectoryQueryHit,
+  mcpDirectoryShowsAvailable,
+  mcpDirectoryShowsConnected
+} from './mcp-directory'
 export { skillInvocationText } from './skill-scaffold'
 export {
   SKIN_BRANDING_TOKENS,
@@ -101,19 +118,14 @@ export {
   type WindowsBackgroundMaterial
 } from './translucency'
 export {
-  completeComposioConnect,
-  DIRECTORY_SECTION_IDS,
-  DIRECTORY_SECTION_LABELS,
-  directoryAppDescription,
-  filterDirectoryApps,
-  groupDirectorySections,
-  HIDDEN_DIRECTORY_IDS,
-  mcpCatalogPrimaryAction,
-  mcpDirectoryQueryHit,
-  mcpDirectoryShowsAvailable,
-  mcpDirectoryShowsConnected,
-  type DirectoryApp,
-  type DirectorySectionGroup,
-  type DirectorySectionId,
-  type McpDirectoryFilter
-} from './mcp-directory'
+  buildWork4YouWebSocketUrl,
+  type GatewayAuthMode,
+  GatewayReauthRequiredError,
+  type GatewayWsConnection,
+  type GatewayWsUrlResult,
+  isGatewayReauthRequired,
+  resolveGatewayWsUrl,
+  type ResolveGatewayWsUrlDeps,
+  type WebSocketAuthParam,
+  type Work4YouWebSocketUrlOptions
+} from './websocket-url'
