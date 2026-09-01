@@ -151,7 +151,7 @@ export function SettingsConfigSection({
         {t.skills.cacheNote ?? "Changes apply to new sessions."}
       </p>
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col">
         {fields.map(([key, fieldSchema]) => {
           const value = getNestedValue(config, key);
           const onChange = (next: unknown) =>
@@ -172,13 +172,15 @@ export function SettingsConfigSection({
               schema={fieldSchema}
               value={value}
               onChange={onChange}
+              showSchemaKey={false}
+              row
             />
           );
         })}
       </div>
 
       <Button
-        className="w-fit uppercase"
+        className="w-fit"
         size="sm"
         disabled={saving}
         onClick={() => void handleSave()}

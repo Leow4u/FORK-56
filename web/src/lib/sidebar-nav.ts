@@ -61,6 +61,40 @@ export const WEB_OVERLAY_ROUTES_NOT_IN_NAV = [
   "/starmap",
 ] as const;
 
+const SETTINGS_RETURN_STORAGE_KEY = "work4you.web.settingsReturn";
+
+export function isSettingsPath(pathname: string): boolean {
+  const normalized = pathname.replace(/\/$/, "") || "/";
+  return normalized === "/settings";
+}
+
+/** Stash the last non-Settings route so closing Settings returns there. */
+export function rememberSettingsReturnPath(pathname: string, search = ""): void {
+  if (typeof sessionStorage === "undefined") return;
+  if (isSettingsPath(pathname)) return;
+  try {
+    sessionStorage.setItem(
+      SETTINGS_RETURN_STORAGE_KEY,
+      `${pathname}${search}` || "/chat",
+    );
+  } catch {
+    /* private browsing */
+  }
+}
+
+export function readSettingsReturnPath(fallback = "/chat"): string {
+  if (typeof sessionStorage === "undefined") return fallback;
+  try {
+    const stored = sessionStorage.getItem(SETTINGS_RETURN_STORAGE_KEY);
+    if (!stored) return fallback;
+    const storedPath = stored.split("?")[0] ?? stored;
+    if (isSettingsPath(storedPath)) return fallback;
+    return stored;
+  } catch {
+    return fallback;
+  }
+}
+
 export function isNewSessionNavItem(item: {
   action?: string;
 }): item is { action: "new-session" } {

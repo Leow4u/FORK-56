@@ -1002,11 +1002,11 @@ export function ModelSettingsPanel({
 
       <CardContent className="min-w-0 space-y-3 pt-3">
         {/* Main row */}
-        <div className="flex min-w-0 flex-col gap-2 bg-muted/20 border border-border/50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-0.5">
               <Star className="h-3 w-3 text-primary" />
-              <span className="text-display text-xs font-medium tracking-wider">
+              <span className="text-sm font-medium">
                 Main model
               </span>
             </div>
@@ -1019,18 +1019,18 @@ export function ModelSettingsPanel({
           <Button
             size="sm"
             onClick={() => setPicker({ kind: "main" })}
-            className="shrink-0 self-start text-xs uppercase sm:self-center"
+            className="shrink-0 self-start text-xs sm:self-center"
           >
             Change
           </Button>
         </div>
 
         {/* Auxiliary tasks summary + open modal */}
-        <div className="flex min-w-0 flex-col gap-2 bg-muted/20 border border-border/50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-0.5">
               <Cpu className="h-3 w-3 text-text-tertiary" />
-              <span className="text-display text-xs font-medium tracking-wider">
+              <span className="text-sm font-medium">
                 Auxiliary tasks
               </span>
             </div>
@@ -1044,17 +1044,17 @@ export function ModelSettingsPanel({
             size="sm"
             outlined
             onClick={() => setAuxModalOpen(true)}
-            className="shrink-0 self-start text-xs uppercase sm:self-center"
+            className="shrink-0 self-start text-xs sm:self-center"
           >
             Configure
           </Button>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-2 bg-muted/20 border border-border/50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-0.5">
               <Brain className="h-3 w-3 text-text-tertiary" />
-              <span className="text-display text-xs font-medium tracking-wider">
+              <span className="text-sm font-medium">
                 Mixture of Agents
               </span>
             </div>
@@ -1069,7 +1069,7 @@ export function ModelSettingsPanel({
             outlined
             onClick={() => setMoaModalOpen(true)}
             disabled={!moa}
-            className="shrink-0 self-start text-xs uppercase sm:self-center"
+            className="shrink-0 self-start text-xs sm:self-center"
           >
             Configure
           </Button>
