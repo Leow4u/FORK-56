@@ -112,6 +112,8 @@ import { latchChatActivation, shouldKeepChatHost } from "@/lib/chat-activation";
 import { api } from "@/lib/api";
 import {
   isNewSessionNavItem,
+  isSettingsPath,
+  rememberSettingsReturnPath,
   userSidebarNavForEmbeddedChat,
   type UserSidebarNavSpec,
 } from "@/lib/sidebar-nav";
@@ -436,7 +438,7 @@ const SIDEBAR_COLLAPSED_KEY = "work4you-sidebar-collapsed";
 
 export default function App() {
   const { t } = useI18n();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const { manifests, loading: pluginsLoading } = usePlugins();
   const { theme } = useTheme();
@@ -484,7 +486,9 @@ export default function App() {
   const normalizedPath = pathname.replace(/\/$/, "") || "/";
   const isChatRoute = normalizedPath === "/chat";
   const isStarmapRoute = normalizedPath === "/starmap";
-  const isFillRoute = isChatRoute || isDocsRoute || isStarmapRoute;
+  const isSettingsRoute = isSettingsPath(pathname);
+  const isFillRoute =
+    isChatRoute || isDocsRoute || isStarmapRoute || isSettingsRoute;
   const embeddedChat = isDashboardEmbeddedChatEnabled();
   // Defer mounting the persistent chat host until the user has actually
   // opened /chat or /agents at least once. Sticky after that so the
@@ -498,6 +502,14 @@ export default function App() {
       latchChatActivation(prev, shouldKeepChatHost(pathname)),
     );
   }, [pathname]);
+
+  useEffect(() => {
+    rememberSettingsReturnPath(pathname, search);
+  }, [pathname, search]);
+
+  useEffect(() => {
+    if (isSettingsRoute) setMobileOpen(false);
+  }, [isSettingsRoute]);
 
   // `dashboard.show_token_analytics` gates the Analytics nav item.  The
   // page itself remains reachable by URL (it renders an explanation when
@@ -690,6 +702,7 @@ export default function App() {
           "flex items-center gap-2 px-4 py-2",
           "border-b border-current/20",
           "bg-background-base",
+          isSettingsRoute && "hidden",
         )}
         style={{
           background: "var(--component-header-background)",
@@ -730,7 +743,10 @@ export default function App() {
           fixed lg:hidden header is h-14/z-40; previously each banner carried
           its own mt-14 AND the content kept pt-14, so two visible banners
           stacked three offsets (NS-656 review P3). One spacer, applied once. */}
-      <div aria-hidden className="h-14 shrink-0 lg:hidden" />
+      <div
+        aria-hidden
+        className={cn("h-14 shrink-0 lg:hidden", isSettingsRoute && "hidden")}
+      />
       <PluginSlot name="header-banner" />
       <ProfileScopeBanner />
       <MemoryPressureBanner status={sidebarStatus} />
@@ -749,6 +765,7 @@ export default function App() {
               "lg:sticky lg:top-0 lg:translate-x-0 lg:shrink-0 lg:overflow-hidden",
               "lg:transition-[width] lg:duration-300 lg:ease-[cubic-bezier(0.23,1,0.32,1)]",
               collapsed && "lg:w-14",
+              isSettingsRoute && "hidden",
             )}
             style={{
               background: "var(--component-sidebar-background)",
@@ -907,10 +924,14 @@ export default function App() {
             <div
               className={cn(
                 "relative z-2 flex min-w-0 min-h-0 flex-1 flex-col",
-                "px-3 sm:px-6",
-                isChatRoute || isStarmapRoute
-                  ? "pb-0 pt-1 sm:pt-2 lg:pt-4"
-                  : "pt-2 sm:pt-4 lg:pt-6",
+                isSettingsRoute
+                  ? "p-0"
+                  : cn(
+                      "px-3 sm:px-6",
+                      isChatRoute || isStarmapRoute
+                        ? "pb-0 pt-1 sm:pt-2 lg:pt-4"
+                        : "pt-2 sm:pt-4 lg:pt-6",
+                    ),
                 isFillRoute && "min-h-0 flex-1",
               )}
             >
@@ -920,6 +941,7 @@ export default function App() {
                   "w-full min-w-0",
                   !isChatRoute &&
                     !isStarmapRoute &&
+                    !isSettingsRoute &&
                     "pb-[calc(2rem+env(safe-area-inset-bottom,0px))] lg:pb-8",
                   isFillRoute && "min-h-0 flex flex-1 flex-col",
                 )}

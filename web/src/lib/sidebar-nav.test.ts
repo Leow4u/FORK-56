@@ -1,9 +1,13 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 
 import {
   WEB_OVERLAY_ROUTES_NOT_IN_NAV,
   WEB_USER_SIDEBAR_NAV,
   isNewSessionNavItem,
+  isSettingsPath,
+  readSettingsReturnPath,
+  rememberSettingsReturnPath,
   userSidebarNavForEmbeddedChat,
 } from "./sidebar-nav";
 
@@ -43,6 +47,23 @@ describe("web user sidebar nav", () => {
     }
     expect(WEB_OVERLAY_ROUTES_NOT_IN_NAV).toContain("/agents");
     expect(WEB_OVERLAY_ROUTES_NOT_IN_NAV).toContain("/starmap");
+  });
+
+  it("treats /settings as the dedicated Settings surface", () => {
+    expect(isSettingsPath("/settings")).toBe(true);
+    expect(isSettingsPath("/settings/")).toBe(true);
+    expect(isSettingsPath("/chat")).toBe(false);
+    expect(isSettingsPath("/skills")).toBe(false);
+  });
+
+  it("remembers the last non-Settings route for close", () => {
+    sessionStorage.clear();
+    rememberSettingsReturnPath("/skills", "?tab=mcp");
+    expect(readSettingsReturnPath()).toBe("/skills?tab=mcp");
+    rememberSettingsReturnPath("/settings", "?section=model");
+    expect(readSettingsReturnPath()).toBe("/skills?tab=mcp");
+    sessionStorage.clear();
+    expect(readSettingsReturnPath("/chat")).toBe("/chat");
   });
 
   it("omits New session when embedded chat is off", () => {

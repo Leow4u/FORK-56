@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { PageHeaderContext } from "./page-header-context";
+import { isSettingsPath } from "@/lib/sidebar-nav";
 import { resolvePageTitle } from "@/lib/resolve-page-title";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
@@ -37,6 +38,7 @@ export function PageHeaderProvider({
   const isChatRoute = pathname === "/chat" || pathname === "/chat/";
   const isStarmapRoute =
     pathname === "/starmap" || pathname === "/starmap/";
+  const isSettingsRoute = isSettingsPath(pathname);
   /** Env jump-nav is wide — stack below title on small screens so KEYS stays readable. */
   const isEnvRoute =
     pathname === "/env" || pathname.startsWith("/env/");
@@ -60,6 +62,7 @@ export function PageHeaderProvider({
             "bg-background-base",
             // Mobile stacks title + toolbar — fixed h-14 clips content; desktop stays one row.
             "min-h-0 overflow-x-hidden overflow-y-visible py-3 sm:h-14 sm:min-h-[3.5rem] sm:overflow-hidden sm:py-0",
+            isSettingsRoute && "hidden",
           )}
           role="banner"
         >
@@ -127,7 +130,7 @@ export function PageHeaderProvider({
             "min-h-0 w-full min-w-0 flex-1 flex flex-col",
             // Bottom inset for scrolled pages lives on the route outlet wrapper in
             // `App.tsx` (`w-full min-w-0`) so it pads scrollable content, not flex chrome.
-            isChatRoute || isStarmapRoute
+            isChatRoute || isStarmapRoute || isSettingsRoute
               ? "overflow-hidden"
               : "overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]",
           )}

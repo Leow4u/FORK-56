@@ -260,7 +260,7 @@ export function AppearanceSettingsSection() {
   return (
     <div className="flex max-w-xl flex-col gap-8">
       <section className="flex flex-col gap-2">
-        <Typography className="text-display text-sm tracking-wide">
+        <Typography className="text-sm font-medium">
           {t.language.switchTo}
         </Typography>
         <div className="border border-border bg-background-base/40 max-h-80 overflow-y-auto">
@@ -270,7 +270,7 @@ export function AppearanceSettingsSection() {
 
       <section className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Typography className="text-display text-sm tracking-wide">
+          <Typography className="text-sm font-medium">
             {t.theme?.modeTitle ?? "Color mode"}
           </Typography>
           <ThemeModePicker />
@@ -282,7 +282,7 @@ export function AppearanceSettingsSection() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <Typography className="text-display text-sm tracking-wide">
+        <Typography className="text-sm font-medium">
           {t.theme?.title ?? "Theme"}
         </Typography>
         <Typography className="text-xs tracking-normal text-text-tertiary">

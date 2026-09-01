@@ -107,10 +107,13 @@ describe("SettingsConfigSection", () => {
     expect(apiMocks.getConfig).toHaveBeenCalled();
     expect(apiMocks.getSchema).toHaveBeenCalled();
     expect(container.textContent).toContain("Changes apply to new sessions.");
-    expect(container.textContent).toContain("display.personality");
-    expect(container.textContent).toContain("timezone");
-    expect(container.textContent).toContain("display.show_reasoning");
-    expect(container.textContent).toContain("agent.image_input_mode");
+    expect(container.textContent).toContain("Personality");
+    expect(container.textContent).toContain("Timezone");
+    expect(container.textContent).toContain("Show Reasoning");
+    expect(container.textContent).toContain("Image Input Mode");
+    expect(container.textContent).not.toContain("display.personality");
+    expect(container.textContent).not.toContain("display.show_reasoning");
+    expect(container.textContent).not.toContain("agent.image_input_mode");
   });
 
   it("applies visibleKey and schemaFallback for voice-style sections", async () => {
@@ -160,11 +163,14 @@ describe("SettingsConfigSection", () => {
     });
 
     const text = container.textContent ?? "";
-    expect(text).toContain("stt.provider");
-    expect(text).toContain("tts.edge.voice");
-    expect(text).toContain("stt.local.model");
+    expect(text).toContain("Provider");
+    expect(text).toContain("Voice");
+    expect(text).toContain("Model");
+    expect(text).toContain("Auto Tts");
     expect(text).not.toContain("tts.openai.voice");
     expect(text).not.toContain("stt.groq.model");
+    expect(text).not.toContain("stt.provider");
+    expect(text).not.toContain("tts.edge.voice");
   });
 
   it("confirms before save when guardToolsetsWipe would clear all toolsets", async () => {

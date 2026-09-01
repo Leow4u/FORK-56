@@ -1,18 +1,38 @@
+import type { ReactNode } from "react";
 import { Select, SelectOption } from "@work4you/ui/ui/components/select";
 import { Switch } from "@work4you/ui/ui/components/switch";
 import { Input } from "@work4you/ui/ui/components/input";
 import { Label } from "@work4you/ui/ui/components/label";
 
-function FieldHint({ schema, schemaKey }: { schema: Record<string, unknown>; schemaKey: string }) {
-  const keyPath = schemaKey.includes(".") ? schemaKey : "";
+import { cn, themedBody } from "@/lib/utils";
+
+function humanizeSchemaKey(schemaKey: string): string {
+  const rawLabel = schemaKey.split(".").pop() ?? schemaKey;
+  return rawLabel.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function FieldHint({
+  schema,
+  schemaKey,
+  showSchemaKey,
+}: {
+  schema: Record<string, unknown>;
+  schemaKey: string;
+  showSchemaKey: boolean;
+}) {
+  const keyPath = showSchemaKey && schemaKey.includes(".") ? schemaKey : "";
   const description = schema.description ? String(schema.description) : "";
 
   if (!keyPath && !description) return null;
 
   return (
     <div className="flex flex-col gap-0.5">
-      {keyPath && <span className="text-xs font-mono text-text-tertiary">{keyPath}</span>}
-      {description && <span className="text-xs text-text-secondary">{description}</span>}
+      {keyPath && (
+        <span className="text-xs font-mono text-text-tertiary">{keyPath}</span>
+      )}
+      {description && (
+        <span className="text-xs text-text-secondary">{description}</span>
+      )}
     </div>
   );
 }
@@ -87,16 +107,119 @@ export function AutoField({
   schema,
   value,
   onChange,
+  showSchemaKey = true,
+  row = false,
 }: AutoFieldProps) {
-  const rawLabel = schemaKey.split(".").pop() ?? schemaKey;
-  const label = rawLabel.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const label = humanizeSchemaKey(schemaKey);
+  const hint = (
+    <FieldHint
+      schema={schema}
+      schemaKey={schemaKey}
+      showSchemaKey={showSchemaKey}
+    />
+  );
 
   if (isRecord(value) || (Array.isArray(value) && value.some((item) => isRecord(item)))) {
     return (
-      <div className="grid gap-3 border border-border p-3">
-        <Label className="text-xs font-medium">{label}</Label>
-        <FieldHint schema={schema} schemaKey={schemaKey} />
+      <div className={row ? "grid gap-3 py-3" : "grid gap-3 border border-border p-3"}>
+        {row ? (
+          <div className={cn(themedBody, "text-sm font-medium")}>{label}</div>
+        ) : (
+          <Label className="text-xs font-medium">{label}</Label>
+        )}
+        {hint}
         <NestedValueEditor fieldKey={schemaKey} value={value} onChange={onChange} />
+      </div>
+    );
+  }
+
+  let control: ReactNode;
+  if (schema.type === "boolean") {
+    control = <Switch checked={!!value} onCheckedChange={onChange} />;
+  } else if (schema.type === "select") {
+    const options = (schema.options as string[]) ?? [];
+    control = (
+      <Select value={String(value ?? "")} onValueChange={(v) => onChange(v)}>
+        {options.map((opt) => (
+          <SelectOption key={opt} value={opt}>
+            {opt || "(none)"}
+          </SelectOption>
+        ))}
+      </Select>
+    );
+  } else if (schema.type === "number") {
+    control = (
+      <Input
+        type="number"
+        value={value === undefined || value === null ? "" : String(value)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === "") {
+            onChange(0);
+            return;
+          }
+          const n = Number(raw);
+          if (!Number.isNaN(n)) {
+            onChange(n);
+          }
+        }}
+      />
+    );
+  } else if (schema.type === "text") {
+    control = (
+      <textarea
+        className="flex min-h-[80px] w-full border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        value={String(value ?? "")}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  } else if (schema.type === "list") {
+    control = (
+      <Input
+        value={Array.isArray(value) ? value.join(", ") : String(value ?? "")}
+        onChange={(e) =>
+          onChange(
+            e.target.value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
+          )
+        }
+        placeholder="comma-separated values"
+      />
+    );
+  } else {
+    control = (
+      <Input value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />
+    );
+  }
+
+  const labelBlock = (
+    <div className="min-w-0">
+      {row ? (
+        <div className={cn(themedBody, "text-sm font-medium")}>{label}</div>
+      ) : (
+        <Label className="text-sm font-medium">{label}</Label>
+      )}
+      {hint}
+    </div>
+  );
+
+  if (row) {
+    const compactControl = schema.type === "boolean" || schema.type === "select";
+    return (
+      <div className="@container">
+        <div
+          className={cn(
+            "grid gap-3 py-3",
+            compactControl
+              ? "@xl:grid-cols-[minmax(0,1fr)_auto] @xl:items-center"
+              : "@xl:grid-cols-[minmax(0,1fr)_minmax(12rem,22rem)] @xl:items-center",
+          )}
+        >
+          {labelBlock}
+          <div className="min-w-0 @xl:justify-self-end">{control}</div>
+        </div>
       </div>
     );
   }
@@ -104,96 +227,16 @@ export function AutoField({
   if (schema.type === "boolean") {
     return (
       <div className="flex items-center justify-between gap-4">
-        <div className="flex flex-col gap-0.5">
-          <Label className="text-sm">{label}</Label>
-          <FieldHint schema={schema} schemaKey={schemaKey} />
-        </div>
-        <Switch checked={!!value} onCheckedChange={onChange} />
-      </div>
-    );
-  }
-
-  if (schema.type === "select") {
-    const options = (schema.options as string[]) ?? [];
-    return (
-      <div className="grid gap-1.5">
-        <Label className="text-sm">{label}</Label>
-        <FieldHint schema={schema} schemaKey={schemaKey} />
-        <Select value={String(value ?? "")} onValueChange={(v) => onChange(v)}>
-          {options.map((opt) => (
-            <SelectOption key={opt} value={opt}>
-              {opt || "(none)"}
-            </SelectOption>
-          ))}
-        </Select>
-      </div>
-    );
-  }
-
-  if (schema.type === "number") {
-    return (
-      <div className="grid gap-1.5">
-        <Label className="text-sm">{label}</Label>
-        <FieldHint schema={schema} schemaKey={schemaKey} />
-        <Input
-          type="number"
-          value={value === undefined || value === null ? "" : String(value)}
-          onChange={(e) => {
-            const raw = e.target.value;
-            if (raw === "") {
-              onChange(0);
-              return;
-            }
-            const n = Number(raw);
-            if (!Number.isNaN(n)) {
-              onChange(n);
-            }
-          }}
-        />
-      </div>
-    );
-  }
-
-  if (schema.type === "text") {
-    return (
-      <div className="grid gap-1.5">
-        <Label className="text-sm">{label}</Label>
-        <FieldHint schema={schema} schemaKey={schemaKey} />
-        <textarea
-          className="flex min-h-[80px] w-full border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          value={String(value ?? "")}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  }
-
-  if (schema.type === "list") {
-    return (
-      <div className="grid gap-1.5">
-        <Label className="text-sm">{label}</Label>
-        <FieldHint schema={schema} schemaKey={schemaKey} />
-        <Input
-          value={Array.isArray(value) ? value.join(", ") : String(value ?? "")}
-          onChange={(e) =>
-            onChange(
-              e.target.value
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean),
-            )
-          }
-          placeholder="comma-separated values"
-        />
+        {labelBlock}
+        {control}
       </div>
     );
   }
 
   return (
     <div className="grid gap-1.5">
-      <Label className="text-sm">{label}</Label>
-      <FieldHint schema={schema} schemaKey={schemaKey} />
-      <Input value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />
+      {labelBlock}
+      {control}
     </div>
   );
 }
@@ -203,4 +246,8 @@ interface AutoFieldProps {
   schema: Record<string, unknown>;
   value: unknown;
   onChange: (v: unknown) => void;
+  /** Operator config shows the dotted schema key; Settings hides it. */
+  showSchemaKey?: boolean;
+  /** Settings rows: label left, control right. */
+  row?: boolean;
 }

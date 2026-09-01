@@ -2,8 +2,9 @@
  * SettingsPage — the user-facing curated settings surface (/settings).
  *
  * Web counterpart of the desktop app's Settings overlay
- * (apps/desktop/src/app/settings/): a section nav on the left, curated
- * content on the right, deep-linkable via ``?section=``. Only fields a
+ * (apps/desktop/src/app/settings/): a dedicated surface (product sidebar
+ * hidden) with a section nav on the left, curated content on the right,
+ * deep-linkable via ``?section=``. Only fields a
  * user should tune from the app live here; the raw config editor
  * (/config) remains the operator surface (hidden from sidebar nav unless
  * `dashboard.show_config_admin` is true; route stays URL-reachable).
@@ -36,18 +37,18 @@
  *     (keys mirror desktop Settings → Advanced).
  */
 
-import { Brain, Cpu, KeyRound, Lock, MessageCircle, Mic, Monitor, Palette, Server, Wrench, Zap } from "lucide-react";
+import { Brain, Cpu, KeyRound, Lock, MessageCircle, Mic, Monitor, Palette, Server, Wrench, X, Zap } from "lucide-react";
 import {
   useCallback,
   useEffect,
   useState,
   type ComponentType,
 } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import { api, type AuxiliaryModelsResponse } from "@/lib/api";
-import { cn } from "@/lib/utils";
-import { usePageHeader } from "@/contexts/usePageHeader";
+import { cn, themedBody } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import { PluginSlot } from "@/plugins";
 import { AppearanceSettingsSection } from "@/components/appearance-panels";
 import { FallbackModelsField } from "@/components/FallbackModelsField";
@@ -58,6 +59,7 @@ import {
   MEMORY_TOGGLE_KEYS,
 } from "@/lib/memory-context-settings";
 import { MODEL_CONFIG_KEYS } from "@/lib/model-settings";
+import { readSettingsReturnPath } from "@/lib/sidebar-nav";
 import {
   VOICE_CONFIG_KEYS,
   VOICE_SCHEMA_FALLBACKS,
@@ -65,7 +67,6 @@ import {
 } from "@/lib/voice-settings";
 import { ModelSettingsPanel } from "@/pages/ModelsPage";
 import { ProvidersCard } from "@/pages/PluginsPage";
-import { Label } from "@work4you/ui/ui/components/label";
 import {
   EnvCredentialsPanel,
   type EnvCredentialsView,
@@ -73,6 +74,7 @@ import {
 import { CustomEndpointsSettingsSection } from "@/components/custom-endpoints-settings";
 import { CloudComputerPanel } from "@/components/cloud-computer-panel";
 import { PortalAccountsPanel } from "@/components/portal-accounts-panel";
+import { Button } from "@work4you/ui/ui/components/button";
 
 const PROVIDER_VIEWS = ["accounts", "api-keys", "custom-endpoints"] as const;
 type ProviderView = (typeof PROVIDER_VIEWS)[number];
@@ -101,10 +103,11 @@ function SettingsSubNav({
           onClick={() => onSelect(item.id)}
           aria-current={item.id === activeId ? "true" : undefined}
           className={cn(
-            "px-3 py-1.5 font-sans text-display text-xs tracking-[0.08em] uppercase transition-colors cursor-pointer",
+            "rounded-md px-3 py-1.5 text-sm transition-colors cursor-pointer",
+            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-midground",
             item.id === activeId
-              ? "bg-midground/10 text-midground"
-              : "text-text-secondary hover:text-midground hover:bg-midground/5",
+              ? "bg-midground/10 font-medium text-foreground"
+              : "text-text-secondary hover:bg-midground/5 hover:text-foreground",
           )}
         >
           {item.label}
@@ -221,20 +224,23 @@ function ModelSection() {
             ? String(schema.description)
             : undefined;
           return (
-            <div className="grid gap-1.5">
-              <Label className="text-sm">{label}</Label>
-              {description && (
-                <span className="text-xs font-mono text-text-tertiary">
-                  {schemaKey}
-                </span>
-              )}
-              {description && (
-                <span className="text-xs text-text-secondary">{description}</span>
-              )}
-              <FallbackModelsField
-                value={value}
-                onChange={(next) => onChange(next)}
-              />
+            <div className="@container">
+              <div className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(12rem,22rem)] @xl:items-center">
+                <div className="min-w-0">
+                  <div className={cn(themedBody, "text-sm font-medium")}>{label}</div>
+                  {description && (
+                    <span className="mt-1 block text-xs text-text-secondary">
+                      {description}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 @xl:justify-self-end">
+                  <FallbackModelsField
+                    value={value}
+                    onChange={(next) => onChange(next)}
+                  />
+                </div>
+              </div>
             </div>
           );
         }}
@@ -261,7 +267,7 @@ function ProvidersSection({
         items={[
           { id: "accounts", label: "Accounts" },
           { id: "api-keys", label: "API keys" },
-          { id: "custom-endpoints", label: "Custom Endpoints" },
+          { id: "custom-endpoints", label: "Custom endpoints" },
         ]}
       />
       {view === "custom-endpoints" ? (
@@ -407,7 +413,8 @@ const DEFAULT_SECTION = SECTIONS[0].id;
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { setTitle, setEnd } = usePageHeader();
+  const navigate = useNavigate();
+  const { t } = useI18n();
 
   const requested = searchParams.get("section") ?? DEFAULT_SECTION;
   const active =
@@ -425,14 +432,19 @@ export default function SettingsPage() {
     : "tools";
   const highlightKey = searchParams.get("key");
 
+  const closeSettings = useCallback(() => {
+    navigate(readSettingsReturnPath("/chat"));
+  }, [navigate]);
+
   useEffect(() => {
-    setTitle("Settings");
-    setEnd(null);
-    return () => {
-      setTitle(null);
-      setEnd(null);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      closeSettings();
     };
-  }, [setEnd, setTitle]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [closeSettings]);
 
   const selectSection = useCallback(
     (id: string) => {
@@ -490,13 +502,30 @@ export default function SettingsPage() {
     );
 
   return (
-    <div className="flex min-w-0 max-w-full flex-col gap-6">
-      <PluginSlot name="settings:top" />
+    <div
+      className="flex h-full min-h-0 flex-col bg-background-base"
+      data-settings-surface=""
+      role="region"
+      aria-label={t.app.nav.settings}
+    >
+      <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-current/10 px-3">
+        <h1 className="truncate text-sm font-medium text-foreground">
+          {t.app.nav.settings}
+        </h1>
+        <Button
+          ghost
+          size="icon"
+          aria-label={t.common.close}
+          onClick={closeSettings}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
 
-      <div className="flex min-w-0 flex-col gap-6 md:flex-row">
+      <div className="grid min-h-0 flex-1 grid-cols-[13rem_minmax(0,1fr)] overflow-hidden max-[47.5rem]:grid-cols-1 max-[47.5rem]:grid-rows-[auto_minmax(0,1fr)]">
         <nav
           aria-label="Settings sections"
-          className="flex shrink-0 flex-row gap-1 overflow-x-auto md:w-44 md:flex-col"
+          className="flex min-h-0 flex-col gap-0.5 overflow-y-auto border-current/10 bg-midground/5 px-2.5 py-3 max-[47.5rem]:flex-row max-[47.5rem]:overflow-x-auto max-[47.5rem]:border-b min-[47.5rem]:border-r"
         >
           {SECTIONS.map((section) => {
             const Icon = section.icon;
@@ -508,13 +537,12 @@ export default function SettingsPage() {
                 onClick={() => selectSection(section.id)}
                 aria-current={isActive ? "true" : undefined}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-2 text-left",
-                  "font-sans text-display text-xs tracking-[0.08em] uppercase",
+                  "flex h-7 w-full shrink-0 items-center gap-2 rounded-md px-2 text-left text-sm",
                   "transition-colors cursor-pointer",
                   "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-midground",
                   isActive
-                    ? "bg-midground/10 text-midground"
-                    : "text-text-secondary hover:text-midground hover:bg-midground/5",
+                    ? "bg-midground/10 font-medium text-foreground"
+                    : "text-text-secondary hover:bg-midground/5 hover:text-foreground",
                 )}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -524,10 +552,14 @@ export default function SettingsPage() {
           })}
         </nav>
 
-        <div className="min-w-0 max-w-3xl flex-1">{sectionContent}</div>
+        <div className="min-h-0 overflow-y-auto">
+          <div className="mx-auto w-full max-w-3xl px-[clamp(1.25rem,4vw,4rem)] pb-20 pt-4">
+            <PluginSlot name="settings:top" />
+            {sectionContent}
+            <PluginSlot name="settings:bottom" />
+          </div>
+        </div>
       </div>
-
-      <PluginSlot name="settings:bottom" />
     </div>
   );
 }

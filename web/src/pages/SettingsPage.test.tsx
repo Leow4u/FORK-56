@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { rememberSettingsReturnPath } from "@/lib/sidebar-nav";
 
 const apiMocks = vi.hoisted(() => ({
   getAuxiliaryModels: vi.fn(async () => ({
@@ -78,10 +80,6 @@ vi.mock("@/components/SettingsConfigSection", () => ({
   ),
 }));
 
-vi.mock("@/contexts/usePageHeader", () => ({
-  usePageHeader: () => ({ setTitle: vi.fn(), setEnd: vi.fn() }),
-}));
-
 vi.mock("@/plugins", () => ({
   PluginSlot: ({ name }: { name: string }) => (
     <div data-plugin-slot={name} />
@@ -91,12 +89,19 @@ vi.mock("@/plugins", () => ({
 let container: HTMLDivElement;
 let root: Root;
 
-async function renderPage(path = "/settings") {
+async function renderPage(pathOrEntries: string | string[] = "/settings") {
+  const initialEntries = Array.isArray(pathOrEntries)
+    ? pathOrEntries
+    : [pathOrEntries];
   const { default: SettingsPage } = await import("./SettingsPage");
   act(() => {
     root.render(
-      <MemoryRouter initialEntries={[path]}>
-        <SettingsPage />
+      <MemoryRouter initialEntries={initialEntries}>
+        <Routes>
+          <Route path="/chat" element={<div data-testid="chat-home" />} />
+          <Route path="/skills" element={<div data-testid="skills-home" />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Routes>
       </MemoryRouter>,
     );
   });
@@ -113,6 +118,7 @@ describe("SettingsPage", () => {
     ).IS_REACT_ACT_ENVIRONMENT = true;
     apiMocks.getAuxiliaryModels.mockClear();
     panelProps.calls.length = 0;
+    sessionStorage.clear();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -143,6 +149,40 @@ describe("SettingsPage", () => {
     // The section loads auxiliary models through the same API the Models
     // page used.
     expect(apiMocks.getAuxiliaryModels).toHaveBeenCalled();
+    expect(container.querySelector("[data-settings-surface]")).toBeTruthy();
+    expect(
+      container.querySelector('button[aria-label="Close"]'),
+    ).toBeTruthy();
+    const sectionButtons = [...nav!.querySelectorAll("button")];
+    expect(
+      sectionButtons.some((button) => button.className.includes("uppercase")),
+    ).toBe(false);
+  });
+
+  it("closes back to the previous dashboard route", async () => {
+    sessionStorage.clear();
+    rememberSettingsReturnPath("/skills", "?tab=mcp");
+    await renderPage(["/skills?tab=mcp", "/settings"]);
+    const closeBtn = container.querySelector(
+      'button[aria-label="Close"]',
+    ) as HTMLButtonElement | null;
+    expect(closeBtn).toBeTruthy();
+    act(() => {
+      closeBtn!.click();
+    });
+    expect(container.querySelector("[data-testid='skills-home']")).toBeTruthy();
+    expect(container.querySelector("[data-settings-surface]")).toBeNull();
+  });
+
+  it("closes on Escape", async () => {
+    sessionStorage.clear();
+    rememberSettingsReturnPath("/chat");
+    await renderPage(["/chat", "/settings"]);
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(container.querySelector("[data-testid='chat-home']")).toBeTruthy();
+    expect(container.querySelector("[data-settings-surface]")).toBeNull();
   });
 
   it("resolves an unknown ?section= back to the default section", async () => {
