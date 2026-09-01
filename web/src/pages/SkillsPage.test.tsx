@@ -35,6 +35,14 @@ const apiMocks = vi.hoisted(() => ({
       configured: true,
       tools: ["browser_navigate"],
     },
+    {
+      name: "discord",
+      label: "Discord",
+      description: "Platform-coupled; not a dashboard toggle",
+      enabled: true,
+      configured: true,
+      tools: ["discord_send"],
+    },
   ]),
   toggleSkill: vi.fn(async () => ({ ok: true })),
 }));
@@ -137,6 +145,9 @@ describe("SkillsPage (Capabilities)", () => {
     expect(text).toContain("×4");
     // Cache-awareness note (desktop parity).
     expect(text).toContain("Changes apply to new sessions.");
+    expect(text).toContain("Skills are playbooks.");
+    expect(container.querySelector('[aria-label="Edit learned-skill"]')).toBeTruthy();
+    expect(container.querySelector('[aria-label="Edit hub-skill"]')).toBeNull();
   });
 
   it("renders the toolsets grid under ?tab=tools", async () => {
@@ -144,6 +155,7 @@ describe("SkillsPage (Capabilities)", () => {
     const text = container.textContent ?? "";
     expect(text).toContain("Browser");
     expect(text).toContain("Drive a real browser");
+    expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");
   });

@@ -71,6 +71,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@work4you/ui/ui/components/dialog";
+import { isDesktopToolsetVisible } from "@/lib/desktop-toolsets";
 import { cn } from "@/lib/utils";
 import { Input } from "@work4you/ui/ui/components/input";
 import { useI18n } from "@/i18n";
@@ -404,13 +405,15 @@ export default function SkillsPage() {
   ]);
 
   const filteredToolsets = useMemo(() => {
-    return toolsets.filter(
-      (ts) =>
-        !search ||
+    return toolsets.filter((ts) => {
+      if (!isDesktopToolsetVisible(ts.name)) return false;
+      if (!search) return true;
+      return (
         ts.name.toLowerCase().includes(lowerSearch) ||
         ts.label.toLowerCase().includes(lowerSearch) ||
-        ts.description.toLowerCase().includes(lowerSearch),
-    );
+        ts.description.toLowerCase().includes(lowerSearch)
+      );
+    });
   }, [toolsets, search, lowerSearch]);
 
   /* ---- Loading ---- */
@@ -437,6 +440,10 @@ export default function SkillsPage() {
         ]}
       />
 
+      <p className="text-xs text-muted-foreground">
+        {t.skills.planNote ??
+          "Skills are playbooks. Tools are built-in functions. MCP connects other apps."}
+      </p>
       <p className="text-xs text-muted-foreground">
         {t.skills.cacheNote ?? "Changes apply to new sessions."}
       </p>
@@ -557,7 +564,11 @@ export default function SkillsPage() {
                         skill={skill}
                         toggling={togglingSkills.has(skill.name)}
                         onToggle={() => handleToggleSkill(skill)}
-                        onEdit={() => openEditEditor(skill.name)}
+                        onEdit={
+                          skill.provenance === "agent"
+                            ? () => openEditEditor(skill.name)
+                            : undefined
+                        }
                         noDescriptionLabel={t.skills.noDescription}
                       />
                     ))}
@@ -619,7 +630,11 @@ export default function SkillsPage() {
                         skill={skill}
                         toggling={togglingSkills.has(skill.name)}
                         onToggle={() => handleToggleSkill(skill)}
-                        onEdit={() => openEditEditor(skill.name)}
+                        onEdit={
+                          skill.provenance === "agent"
+                            ? () => openEditEditor(skill.name)
+                            : undefined
+                        }
                         noDescriptionLabel={t.skills.noDescription}
                       />
                     ))}
@@ -850,16 +865,18 @@ function SkillRow({
           {skill.description || noDescriptionLabel}
         </p>
       </div>
-      <Button
-        ghost
-        size="icon"
-        className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-foreground"
-        title="Edit SKILL.md"
-        aria-label={`Edit ${skill.name}`}
-        onClick={onEdit}
-      >
-        <Pencil />
-      </Button>
+      {onEdit ? (
+        <Button
+          ghost
+          size="icon"
+          className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+          title="Edit SKILL.md"
+          aria-label={`Edit ${skill.name}`}
+          onClick={onEdit}
+        >
+          <Pencil />
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -891,7 +908,7 @@ interface PanelItemProps {
 interface SkillRowProps {
   noDescriptionLabel: string;
   onToggle: () => void;
-  onEdit: () => void;
+  onEdit?: () => void;
   skill: SkillInfo;
   toggling: boolean;
 }
