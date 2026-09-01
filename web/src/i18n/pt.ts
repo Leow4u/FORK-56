@@ -397,6 +397,7 @@ export const pt: Translations = {
   skills: {
     title: "Competências",
     cacheNote: "As alterações valem para novas sessões.",
+    planNote: "Skills são playbooks. Tools são funções nativas. MCP liga outras apps.",
     searchPlaceholder: "Pesquisar competências e conjuntos de ferramentas...",
     enabledOf: "{enabled}/{total} ativadas",
     all: "Todas",

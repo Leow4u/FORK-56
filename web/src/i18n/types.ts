@@ -489,6 +489,8 @@ export interface Translations extends Partial<DesktopI18nSections> {
     all: string;
     /** Capabilities cache note — optional; English fallback in components. */
     cacheNote?: string;
+    /** One-line Skills / Tools / MCP distinction. Optional; English fallback. */
+    planNote?: string;
     categories: string;
     filters: string;
     noSkills: string;
