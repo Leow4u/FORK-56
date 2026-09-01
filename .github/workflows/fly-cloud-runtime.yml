@@ -11,6 +11,7 @@ name: Deploy Cloud Runtime (Golden Image)
 #
 # Build 2026-08-28b: rebuild to ship the quiet new-session hero (#137)
 # on top of the unified visual identity (#134) in the bundled dashboard.
+# Build 2026-09-01: rebuild to ship Settings overlay dashboard (#166).
 
 on:
   workflow_dispatch:
