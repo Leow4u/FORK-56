@@ -180,7 +180,7 @@ export function SettingsConfigSection({
       </div>
 
       <Button
-        className="w-fit"
+        className="w-fit normal-case tracking-normal"
         size="sm"
         disabled={saving}
         onClick={() => void handleSave()}

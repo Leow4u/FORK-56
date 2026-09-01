@@ -47,7 +47,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router";
 
 import { api, type AuxiliaryModelsResponse } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, themedBody } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { PluginSlot } from "@/plugins";
 import { AppearanceSettingsSection } from "@/components/appearance-panels";
@@ -67,7 +67,6 @@ import {
 } from "@/lib/voice-settings";
 import { ModelSettingsPanel } from "@/pages/ModelsPage";
 import { ProvidersCard } from "@/pages/PluginsPage";
-import { Label } from "@work4you/ui/ui/components/label";
 import {
   EnvCredentialsPanel,
   type EnvCredentialsView,
@@ -226,16 +225,16 @@ function ModelSection() {
             : undefined;
           return (
             <div className="@container">
-              <div className="grid gap-3 py-3 @2xl:grid-cols-[minmax(0,1fr)_minmax(12rem,22rem)] @2xl:items-center">
+              <div className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(12rem,22rem)] @xl:items-center">
                 <div className="min-w-0">
-                  <Label className="text-sm font-medium">{label}</Label>
+                  <div className={cn(themedBody, "text-sm font-medium")}>{label}</div>
                   {description && (
                     <span className="mt-1 block text-xs text-text-secondary">
                       {description}
                     </span>
                   )}
                 </div>
-                <div className="min-w-0 @2xl:justify-self-end">
+                <div className="min-w-0 @xl:justify-self-end">
                   <FallbackModelsField
                     value={value}
                     onChange={(next) => onChange(next)}

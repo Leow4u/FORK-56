@@ -4,7 +4,7 @@ import { Switch } from "@work4you/ui/ui/components/switch";
 import { Input } from "@work4you/ui/ui/components/input";
 import { Label } from "@work4you/ui/ui/components/label";
 
-import { cn } from "@/lib/utils";
+import { cn, themedBody } from "@/lib/utils";
 
 function humanizeSchemaKey(schemaKey: string): string {
   const rawLabel = schemaKey.split(".").pop() ?? schemaKey;
@@ -122,7 +122,11 @@ export function AutoField({
   if (isRecord(value) || (Array.isArray(value) && value.some((item) => isRecord(item)))) {
     return (
       <div className={row ? "grid gap-3 py-3" : "grid gap-3 border border-border p-3"}>
-        <Label className="text-xs font-medium">{label}</Label>
+        {row ? (
+          <div className={cn(themedBody, "text-sm font-medium")}>{label}</div>
+        ) : (
+          <Label className="text-xs font-medium">{label}</Label>
+        )}
         {hint}
         <NestedValueEditor fieldKey={schemaKey} value={value} onChange={onChange} />
       </div>
@@ -192,7 +196,11 @@ export function AutoField({
 
   const labelBlock = (
     <div className="min-w-0">
-      <Label className="text-sm font-medium">{label}</Label>
+      {row ? (
+        <div className={cn(themedBody, "text-sm font-medium")}>{label}</div>
+      ) : (
+        <Label className="text-sm font-medium">{label}</Label>
+      )}
       {hint}
     </div>
   );
@@ -205,12 +213,12 @@ export function AutoField({
           className={cn(
             "grid gap-3 py-3",
             compactControl
-              ? "@2xl:grid-cols-[minmax(0,1fr)_auto] @2xl:items-center"
-              : "@2xl:grid-cols-[minmax(0,1fr)_minmax(12rem,22rem)] @2xl:items-center",
+              ? "@xl:grid-cols-[minmax(0,1fr)_auto] @xl:items-center"
+              : "@xl:grid-cols-[minmax(0,1fr)_minmax(12rem,22rem)] @xl:items-center",
           )}
         >
           {labelBlock}
-          <div className="min-w-0 @2xl:justify-self-end">{control}</div>
+          <div className="min-w-0 @xl:justify-self-end">{control}</div>
         </div>
       </div>
     );
