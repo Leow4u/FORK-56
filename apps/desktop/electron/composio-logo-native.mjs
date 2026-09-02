@@ -122,7 +122,8 @@ async function run() {
   }
 
   if (SHOW) {
-    await new Promise(resolve => setTimeout(resolve, 40_000))
+    const holdMs = Number.parseInt(process.env.SHOW_MS || '40000', 10)
+    await new Promise(resolve => setTimeout(resolve, Number.isFinite(holdMs) ? holdMs : 40_000))
   }
 
   window.close()
