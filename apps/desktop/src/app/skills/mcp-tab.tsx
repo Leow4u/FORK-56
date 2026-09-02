@@ -6,8 +6,10 @@ import {
   DIRECTORY_SECTION_LABELS,
   type DirectoryApp,
   directoryAppDescription,
+  directoryAppLogoUrl,
   filterDirectoryApps,
-  groupDirectorySections
+  groupDirectorySections,
+  isTrustedComposioLogoUrl
 } from '@work4you/shared'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -1288,6 +1290,7 @@ export function McpTab({
                               description={app.description || catalogDescription(catalog, app.id, server)}
                               displayName={app.name}
                               key={`${group.id}-${app.id}`}
+                              logo={directoryAppLogoUrl(app)}
                               name={app.id}
                               onSelect={() => focusServer(app.id)}
                               status={status}
@@ -1327,6 +1330,7 @@ export function McpTab({
                               description={directoryAppDescription(app)}
                               displayName={app.name}
                               key={`${group.id}-${app.id}`}
+                              logo={directoryAppLogoUrl(app)}
                               name={app.id}
                               status={app.connected ? 'ok' : 'unknown'}
                               trailing={
@@ -1362,6 +1366,7 @@ export function McpTab({
                               description={app.description}
                               displayName={app.name}
                               key={`${group.id}-${app.id}`}
+                              logo={directoryAppLogoUrl(app)}
                               name={app.id}
                               status="unknown"
                             />
@@ -1983,29 +1988,49 @@ function McpLogs({
 // Avatars + list rows
 // ---------------------------------------------------------------------------
 
-// Brand glyphs for well-known MCP providers, exactly the Messaging avatar
-// treatment (simpleicons on a 16% brand tint) — shared with the composer
-// suggestion pills and inline setup card via lib/mcp-brands. Unknown servers
-// fall back to the same letter monogram Messaging uses.
+// Brand glyphs for well-known native MCP providers, exactly the Messaging
+// avatar treatment (simpleicons on a 16% brand tint). Work4You Apps rows use
+// the official Composio CDN mark (`logos.composio.dev/api/{slug}`). Custom
+// MCP URLs still never hit a favicon service — a private host must not leak
+// off-box.
+function McpAvatar({
+  className,
+  logo,
+  name,
+  status
+}: {
+  className?: string
+  logo?: string | null
+  name: string
+  status: ServerStatus
+}) {
+  const [failedLogo, setFailedLogo] = useState<string | null>(null)
 
-// PlatformAvatar (messaging), copied 1:1 — same size, radius, type scale, and
-// brand-tint treatment — plus a status dot overlay. Identity ladder: curated
-// brand glyph → letter monogram. We deliberately do NOT fetch remote favicons:
-// a configured MCP URL can be a private/internal host, and hitting Google's
-// favicon service for it would leak that hostname off-box.
-function McpAvatar({ className, name, status }: { className?: string; name: string; status: ServerStatus }) {
-  const brand = brandFor(name)
+  const src =
+    typeof logo === 'string' && isTrustedComposioLogoUrl(logo) && failedLogo !== logo ? logo : null
+
+  const brand = src ? null : brandFor(name)
 
   return (
     <span
       className={cn(
         'relative inline-grid size-8 shrink-0 place-items-center rounded-md text-[length:var(--conversation-caption-font-size)] font-medium',
-        !brand && 'bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)',
+        src && 'bg-white',
+        !src && !brand && 'bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)',
         className
       )}
-      style={brand ? { backgroundColor: `color-mix(in srgb, ${brand.color} 16%, transparent)` } : undefined}
+      style={!src && brand ? { backgroundColor: `color-mix(in srgb, ${brand.color} 16%, transparent)` } : undefined}
     >
-      {brand ? (
+      {src ? (
+        <img
+          alt=""
+          className="size-5 object-contain"
+          decoding="async"
+          onError={() => setFailedLogo(src)}
+          referrerPolicy="no-referrer"
+          src={src}
+        />
+      ) : brand ? (
         <brand.Icon aria-hidden className="size-4" style={brandGlyphStyle(brand)} />
       ) : (
         name.charAt(0).toUpperCase()
@@ -2025,6 +2050,7 @@ function ConnectorCard({
   children,
   description,
   displayName,
+  logo,
   name,
   onSelect,
   status,
@@ -2034,6 +2060,7 @@ function ConnectorCard({
   children?: ReactNode
   description: null | string
   displayName?: string
+  logo?: string | null
   name: string
   onSelect?: () => void
   status: ServerStatus
@@ -2064,7 +2091,7 @@ function ConnectorCard({
       <div className="flex items-start gap-2.5">
         {onSelect ? (
           <button className="flex min-w-0 flex-1 items-start gap-2.5 text-left" onClick={onSelect} type="button">
-            <McpAvatar className="mt-0.5" name={name} status={status} />
+            <McpAvatar className="mt-0.5" logo={logo} name={name} status={status} />
             <span className="min-w-0 flex-1">
               {title}
               {description ? (
@@ -2074,7 +2101,7 @@ function ConnectorCard({
           </button>
         ) : (
           <div className="flex min-w-0 flex-1 items-start gap-2.5">
-            <McpAvatar className="mt-0.5" name={name} status={status} />
+            <McpAvatar className="mt-0.5" logo={logo} name={name} status={status} />
             <div className="min-w-0 flex-1">
               {title}
               {description ? (

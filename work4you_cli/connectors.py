@@ -23,6 +23,8 @@ from work4you_cli.connectors_catalog import (
     NATIVE_POPULAR,
     NATIVE_SECTIONS,
     SECTION_IDS,
+    composio_logo_url,
+    is_trusted_composio_logo_url,
 )
 from work4you_cli.mcp_config import _get_mcp_servers, _save_mcp_server
 from work4you_cli.config import save_env_value
@@ -189,6 +191,12 @@ def _composio_row(app: Mapping[str, Any], *, portal_ok: bool) -> Dict[str, Any]:
     slug = str(app.get("slug") or "")
     status = str(app.get("status") or "disconnected").lower()
     connected = bool(app.get("connected")) or status == "active"
+    provided = app.get("logo")
+    logo = (
+        provided
+        if isinstance(provided, str) and is_trusted_composio_logo_url(provided)
+        else composio_logo_url(slug)
+    )
     return {
         "id": slug,
         "name": str(app.get("name") or slug),
@@ -204,6 +212,7 @@ def _composio_row(app: Mapping[str, Any], *, portal_ok: bool) -> Dict[str, Any]:
         "notes": app.get("notes"),
         "required_env": [],
         "installed": connected if portal_ok else False,
+        "logo": logo or None,
     }
 
 

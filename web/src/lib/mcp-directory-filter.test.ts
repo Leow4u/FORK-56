@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  directoryAppLogoUrl,
   filterDirectoryApps,
   groupDirectorySections,
+  isTrustedComposioLogoUrl,
   mcpCatalogPrimaryAction,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
@@ -88,5 +90,21 @@ describe("groupDirectorySections", () => {
       app({ id: "slack", name: "Slack", source: "composio", popular: true, section: "communication" }),
     ]);
     expect(groups.map((group) => group.id)).toEqual(["popular", "communication"]);
+  });
+});
+
+describe("directoryAppLogoUrl", () => {
+  it("uses the Composio CDN for Work4You Apps and never for native MCP", () => {
+    expect(directoryAppLogoUrl({ id: "gmail", source: "composio" })).toBe(
+      "https://logos.composio.dev/api/gmail",
+    );
+    expect(
+      directoryAppLogoUrl({
+        id: "gmail",
+        source: "native",
+        logo: "https://logos.composio.dev/api/gmail",
+      }),
+    ).toBeNull();
+    expect(isTrustedComposioLogoUrl("https://evil.example/x.png")).toBe(false);
   });
 });

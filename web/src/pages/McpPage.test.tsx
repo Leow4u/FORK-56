@@ -212,6 +212,9 @@ describe("McpPage directory", () => {
     expect(text).not.toContain("No MCP servers configured");
     expect(text).toContain("Connect");
     expect(text).toContain("Install");
+    expect(
+      container.querySelector('img[src="https://logos.composio.dev/api/gmail"]'),
+    ).toBeTruthy();
   });
 
   it("never surfaces the hidden work4you_apps runtime server", async () => {

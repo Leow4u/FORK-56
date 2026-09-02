@@ -53,6 +53,48 @@ export interface DirectoryApp {
   needs_install?: boolean
   installed?: boolean
   enabled?: boolean
+  /** Composio CDN mark. Native/custom servers never carry a remote logo. */
+  logo?: string | null
+}
+
+/** Official toolkit marks Composio already hosts. Not a favicon service. */
+export const COMPOSIO_LOGOS_ORIGIN = 'https://logos.composio.dev'
+
+export function composioToolkitLogoUrl(slug: string): string {
+  const safe = slug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')
+
+  return safe ? `${COMPOSIO_LOGOS_ORIGIN}/api/${encodeURIComponent(safe)}` : ''
+}
+
+export function isTrustedComposioLogoUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+
+    return (
+      parsed.protocol === 'https:' &&
+      parsed.hostname === 'logos.composio.dev' &&
+      parsed.pathname.startsWith('/api/') &&
+      parsed.pathname.length > '/api/'.length &&
+      !parsed.pathname.includes('..')
+    )
+  } catch {
+    return false
+  }
+}
+
+/** Remote logo only for Work4You Apps (Composio) rows. Never for custom MCP URLs. */
+export function directoryAppLogoUrl(app: Pick<DirectoryApp, 'id' | 'source' | 'logo'>): string | null {
+  if (app.source !== 'composio') {
+    return null
+  }
+
+  if (typeof app.logo === 'string' && isTrustedComposioLogoUrl(app.logo)) {
+    return app.logo
+  }
+
+  const derived = composioToolkitLogoUrl(app.id)
+
+  return derived && isTrustedComposioLogoUrl(derived) ? derived : null
 }
 
 export function mcpDirectoryQueryHit(fields: ReadonlyArray<null | string | undefined>, query: string): boolean {

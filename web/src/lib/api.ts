@@ -1730,6 +1730,7 @@ export interface ConnectorsDirectoryApp {
   needs_install?: boolean;
   installed?: boolean;
   enabled?: boolean;
+  logo?: string | null;
 }
 
 export interface McpCatalogEntry {

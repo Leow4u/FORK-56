@@ -78,6 +78,26 @@ class TestMergeDirectory:
         assert by_id["canva"]["name"] == "Canva"
         assert by_id["canva_mcp"]["name"] == "Canva MCP"
         assert by_id["instagram"]["notes"] == "instagram_business_creator"
+        assert by_id["gmail"]["logo"] == "https://logos.composio.dev/api/gmail"
+        assert by_id["granola_mcp"]["logo"] == "https://logos.composio.dev/api/granola_mcp"
+        assert by_id["notion"].get("logo") in (None, "")
+
+    def test_untrusted_broker_logo_is_replaced_with_cdn(self):
+        apps = merge_directory(
+            native_entries=[],
+            native_state={},
+            composio_apps=[
+                {
+                    "slug": "hubspot",
+                    "name": "HubSpot",
+                    "section": "crm",
+                    "logo": "https://evil.example/x.png",
+                }
+            ],
+            portal_ok=True,
+        )
+        by_id = {row["id"]: row for row in apps}
+        assert by_id["hubspot"]["logo"] == "https://logos.composio.dev/api/hubspot"
 
     def test_native_popular_pins_applied_at_merge(self):
         apps = merge_directory(
