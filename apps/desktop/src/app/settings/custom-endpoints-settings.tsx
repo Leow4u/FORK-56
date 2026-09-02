@@ -293,109 +293,109 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
 
         <section>
           <SettingsGroup title={form.id ? 'Edit endpoint' : 'Add endpoint'}>
-          <div className="grid gap-3 py-3">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 py-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1.5 text-xs text-muted-foreground">
+                  Name
+                  <Input
+                    onChange={event => setForm(current => ({ ...current, name: event.target.value }))}
+                    placeholder="Axet Proxy"
+                    value={form.name}
+                  />
+                </label>
+                <label className="grid gap-1.5 text-xs text-muted-foreground">
+                  Provider ID
+                  <Input
+                    onChange={event => setForm(current => ({ ...current, id: event.target.value }))}
+                    placeholder="axet-proxy"
+                    value={form.id}
+                  />
+                </label>
+              </div>
               <label className="grid gap-1.5 text-xs text-muted-foreground">
-                Name
+                Endpoint URL
                 <Input
-                  onChange={event => setForm(current => ({ ...current, name: event.target.value }))}
-                  placeholder="Axet Proxy"
-                  value={form.name}
+                  onChange={event => setForm(current => ({ ...current, baseUrl: event.target.value }))}
+                  placeholder="http://127.0.0.1:8081/v1"
+                  value={form.baseUrl}
                 />
               </label>
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+                <label className="grid gap-1.5 text-xs text-muted-foreground">
+                  Default Model
+                  <Input
+                    list="custom-endpoint-models"
+                    onChange={event => setForm(current => ({ ...current, model: event.target.value }))}
+                    placeholder="gpt-5.4"
+                    value={form.model}
+                  />
+                  <datalist id="custom-endpoint-models">
+                    {allModelOptions.map(model => (
+                      <option key={model} value={model} />
+                    ))}
+                  </datalist>
+                </label>
+                <label className="grid gap-1.5 text-xs text-muted-foreground">
+                  Context
+                  <Input
+                    inputMode="numeric"
+                    onChange={event => setForm(current => ({ ...current, contextLength: event.target.value }))}
+                    placeholder="Auto"
+                    value={form.contextLength}
+                  />
+                </label>
+              </div>
               <label className="grid gap-1.5 text-xs text-muted-foreground">
-                Provider ID
+                API Key
                 <Input
-                  onChange={event => setForm(current => ({ ...current, id: event.target.value }))}
-                  placeholder="axet-proxy"
-                  value={form.id}
+                  onChange={event => setForm(current => ({ ...current, apiKey: event.target.value }))}
+                  placeholder={form.id ? 'Leave blank to keep current key' : 'Optional'}
+                  type="password"
+                  value={form.apiKey}
                 />
               </label>
+              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={form.makeDefault}
+                    onCheckedChange={checked => setForm(current => ({ ...current, makeDefault: checked === true }))}
+                  />
+                  Use for new chats
+                </label>
+                <label className="flex items-center gap-2">
+                  <Checkbox
+                    checked={form.discoverModels}
+                    onCheckedChange={checked => setForm(current => ({ ...current, discoverModels: checked === true }))}
+                  />
+                  Discover models
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={testing || !form.baseUrl.trim()}
+                  onClick={() => void handleValidate()}
+                  variant="outline"
+                >
+                  {testing ? <Loader2 className="animate-spin" /> : <Zap />}
+                  Test
+                </Button>
+                <Button disabled={saving || !canSave} onClick={() => void handleSave()}>
+                  {saving ? <Loader2 className="animate-spin" /> : <Save />}
+                  Save
+                </Button>
+                <Button
+                  className={cn(!form.id && 'hidden')}
+                  onClick={() => {
+                    setForm(EMPTY_FORM)
+                    setDiscoveredModels([])
+                  }}
+                  type="button"
+                  variant="ghost"
+                >
+                  New endpoint
+                </Button>
+              </div>
             </div>
-            <label className="grid gap-1.5 text-xs text-muted-foreground">
-              Endpoint URL
-              <Input
-                onChange={event => setForm(current => ({ ...current, baseUrl: event.target.value }))}
-                placeholder="http://127.0.0.1:8081/v1"
-                value={form.baseUrl}
-              />
-            </label>
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
-              <label className="grid gap-1.5 text-xs text-muted-foreground">
-                Default Model
-                <Input
-                  list="custom-endpoint-models"
-                  onChange={event => setForm(current => ({ ...current, model: event.target.value }))}
-                  placeholder="gpt-5.4"
-                  value={form.model}
-                />
-                <datalist id="custom-endpoint-models">
-                  {allModelOptions.map(model => (
-                    <option key={model} value={model} />
-                  ))}
-                </datalist>
-              </label>
-              <label className="grid gap-1.5 text-xs text-muted-foreground">
-                Context
-                <Input
-                  inputMode="numeric"
-                  onChange={event => setForm(current => ({ ...current, contextLength: event.target.value }))}
-                  placeholder="Auto"
-                  value={form.contextLength}
-                />
-              </label>
-            </div>
-            <label className="grid gap-1.5 text-xs text-muted-foreground">
-              API Key
-              <Input
-                onChange={event => setForm(current => ({ ...current, apiKey: event.target.value }))}
-                placeholder={form.id ? 'Leave blank to keep current key' : 'Optional'}
-                type="password"
-                value={form.apiKey}
-              />
-            </label>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-              <label className="flex items-center gap-2">
-                <Checkbox
-                  checked={form.makeDefault}
-                  onCheckedChange={checked => setForm(current => ({ ...current, makeDefault: checked === true }))}
-                />
-                Use for new chats
-              </label>
-              <label className="flex items-center gap-2">
-                <Checkbox
-                  checked={form.discoverModels}
-                  onCheckedChange={checked => setForm(current => ({ ...current, discoverModels: checked === true }))}
-                />
-                Discover models
-              </label>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                disabled={testing || !form.baseUrl.trim()}
-                onClick={() => void handleValidate()}
-                variant="outline"
-              >
-                {testing ? <Loader2 className="animate-spin" /> : <Zap />}
-                Test
-              </Button>
-              <Button disabled={saving || !canSave} onClick={() => void handleSave()}>
-                {saving ? <Loader2 className="animate-spin" /> : <Save />}
-                Save
-              </Button>
-              <Button
-                className={cn(!form.id && 'hidden')}
-                onClick={() => {
-                  setForm(EMPTY_FORM)
-                  setDiscoveredModels([])
-                }}
-                type="button"
-                variant="ghost"
-              >
-                New endpoint
-              </Button>
-            </div>
-          </div>
           </SettingsGroup>
         </section>
       </div>

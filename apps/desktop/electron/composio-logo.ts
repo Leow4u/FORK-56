@@ -1,7 +1,4 @@
-import {
-  composioCdnUrlFromProtocolRequest,
-  isTrustedComposioLogoUrl
-} from '../../shared/src/mcp-directory'
+import { composioCdnUrlFromProtocolRequest, isTrustedComposioLogoUrl } from '../../shared/src/mcp-directory'
 
 export { COMPOSIO_LOGO_PROTOCOL } from '../../shared/src/mcp-directory'
 
@@ -16,9 +13,7 @@ type NetFetchInit = RequestInit & { bypassCustomProtocolHandlers?: boolean }
  * Adapter for Electron `net.fetch`. Callers must pass Chromium's fetch — Node
  * `fetch` is what left packaged Windows on letter avatars after #182.
  */
-export function bindComposioLogoNetFetch(
-  netFetch: (url: string, init?: NetFetchInit) => Promise<Response>
-): FetchLike {
+export function bindComposioLogoNetFetch(netFetch: (url: string, init?: NetFetchInit) => Promise<Response>): FetchLike {
   return (url, init) =>
     netFetch(url, {
       ...init,
@@ -40,10 +35,7 @@ function finalUrl(response: Response, fallback: string): string {
 }
 
 /** Chromium-network fetch of a trusted Composio mark for the work4you-logo protocol. */
-export async function handleComposioLogoProtocol(
-  request: { url: string },
-  fetchImpl: FetchLike
-): Promise<Response> {
+export async function handleComposioLogoProtocol(request: { url: string }, fetchImpl: FetchLike): Promise<Response> {
   const cdn = composioCdnUrlFromProtocolRequest(request.url)
 
   if (!cdn) {

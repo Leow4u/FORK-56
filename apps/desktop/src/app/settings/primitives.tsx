@@ -196,10 +196,7 @@ export function ListRow({
     // views) stacks instead of squishing the label against minmax(15rem,…).
     <div className={cn('@container', className)} data-tour={dataTour} id={id}>
       <div
-        className={cn(
-          'grid gap-3 py-3',
-          !wide && '@xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center'
-        )}
+        className={cn('grid gap-3 py-3', !wide && '@xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center')}
       >
         <div className="min-w-0">
           <div className="text-[length:var(--conversation-text-font-size)] font-medium text-foreground">{title}</div>
@@ -274,10 +271,7 @@ export function ListRowSkeleton({ wide = false }: { wide?: boolean }) {
   return (
     <div className="@container">
       <div
-        className={cn(
-          'grid gap-3 py-3',
-          !wide && '@xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center'
-        )}
+        className={cn('grid gap-3 py-3', !wide && '@xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center')}
       >
         <div className="min-w-0 space-y-1.5">
           <Skeleton className="h-3.5 w-40 max-w-full" />

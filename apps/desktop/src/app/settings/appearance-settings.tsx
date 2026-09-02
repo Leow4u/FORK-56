@@ -448,351 +448,351 @@ export function AppearanceSettings() {
 
       <SettingsGroup>
         <ListRow
-            below={
-              <>
-                {/* One search box: filters your installed themes (the grid)
+          below={
+            <>
+              {/* One search box: filters your installed themes (the grid)
                     and live-searches the VS Code Marketplace below. */}
-                <div className="mt-3">
-                  <input
-                    className="w-full rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-1.5 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
-                    onChange={event => setQuery(event.target.value)}
-                    placeholder="Search your themes or the VS Code Marketplace…"
-                    spellCheck={false}
-                    value={query}
-                  />
-                </div>
-
-                {/* Fixed-height scroll area so the (growing) theme list never
-                    runs the page long; the grid scrolls inside it. */}
-                <div className="mt-3 max-h-96 overflow-y-auto pr-1">
-                  {filteredThemes.length === 0 ? (
-                    needle ? (
-                      <p className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-                        No installed themes match "{query.trim()}".
-                      </p>
-                    ) : null
-                  ) : (
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {filteredThemes.map(theme => {
-                        const active = themeName === theme.name
-                        const removable = isUserTheme(theme.name)
-
-                        return (
-                          <div className="group relative" key={theme.name}>
-                            <button
-                              className={cn('w-full p-2 text-left', selectableCardClass({ active, prominent: true }))}
-                              onClick={() => {
-                                triggerHaptic('crisp')
-                                setTheme(theme.name)
-                              }}
-                              type="button"
-                            >
-                              <ThemePreview mode={resolvedMode} name={theme.name} />
-                              <div className="mt-3 px-1">
-                                <div className="truncate text-[length:var(--conversation-text-font-size)] font-medium">
-                                  {theme.label}
-                                </div>
-                                <div className="mt-0.5 line-clamp-2 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-                                  {theme.description}
-                                </div>
-                              </div>
-                            </button>
-                            {removable && (
-                              <button
-                                aria-label={a.removeTheme}
-                                className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-md bg-(--ui-bg-elevated)/80 text-(--ui-text-tertiary) opacity-0 backdrop-blur-sm transition hover:text-(--ui-red) focus-visible:opacity-100 group-hover:opacity-100"
-                                onClick={() => {
-                                  triggerHaptic('crisp')
-                                  removeUserTheme(theme.name)
-
-                                  // Re-normalize off the now-missing skin → default.
-                                  if (active) {
-                                    setTheme(theme.name)
-                                  }
-                                }}
-                                title={a.removeTheme}
-                                type="button"
-                              >
-                                <Trash2 className="size-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                  <MarketplaceThemeResults installs={installs} onInstalled={name => setTheme(name)} query={query} />
-                </div>
-                {showProfileNote && (
-                  <p className="mt-3 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-                    {a.themeProfileNote(activeProfileName)}
-                  </p>
-                )}
-              </>
-            }
-            description={a.themeDesc}
-            id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.theme)}
-            title={
-              <div className="flex items-center justify-between gap-3">
-                <span>{a.themeTitle}</span>
-                <SegmentedControl
-                  onChange={id => {
-                    triggerHaptic('crisp')
-                    setMode(id)
-                  }}
-                  options={modeOptions}
-                  value={mode}
+              <div className="mt-3">
+                <input
+                  className="w-full rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-1.5 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
+                  onChange={event => setQuery(event.target.value)}
+                  placeholder="Search your themes or the VS Code Marketplace…"
+                  spellCheck={false}
+                  value={query}
                 />
               </div>
-            }
-            wide
-          />
+
+              {/* Fixed-height scroll area so the (growing) theme list never
+                    runs the page long; the grid scrolls inside it. */}
+              <div className="mt-3 max-h-96 overflow-y-auto pr-1">
+                {filteredThemes.length === 0 ? (
+                  needle ? (
+                    <p className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+                      No installed themes match "{query.trim()}".
+                    </p>
+                  ) : null
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {filteredThemes.map(theme => {
+                      const active = themeName === theme.name
+                      const removable = isUserTheme(theme.name)
+
+                      return (
+                        <div className="group relative" key={theme.name}>
+                          <button
+                            className={cn('w-full p-2 text-left', selectableCardClass({ active, prominent: true }))}
+                            onClick={() => {
+                              triggerHaptic('crisp')
+                              setTheme(theme.name)
+                            }}
+                            type="button"
+                          >
+                            <ThemePreview mode={resolvedMode} name={theme.name} />
+                            <div className="mt-3 px-1">
+                              <div className="truncate text-[length:var(--conversation-text-font-size)] font-medium">
+                                {theme.label}
+                              </div>
+                              <div className="mt-0.5 line-clamp-2 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+                                {theme.description}
+                              </div>
+                            </div>
+                          </button>
+                          {removable && (
+                            <button
+                              aria-label={a.removeTheme}
+                              className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-md bg-(--ui-bg-elevated)/80 text-(--ui-text-tertiary) opacity-0 backdrop-blur-sm transition hover:text-(--ui-red) focus-visible:opacity-100 group-hover:opacity-100"
+                              onClick={() => {
+                                triggerHaptic('crisp')
+                                removeUserTheme(theme.name)
+
+                                // Re-normalize off the now-missing skin → default.
+                                if (active) {
+                                  setTheme(theme.name)
+                                }
+                              }}
+                              title={a.removeTheme}
+                              type="button"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                <MarketplaceThemeResults installs={installs} onInstalled={name => setTheme(name)} query={query} />
+              </div>
+              {showProfileNote && (
+                <p className="mt-3 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+                  {a.themeProfileNote(activeProfileName)}
+                </p>
+              )}
+            </>
+          }
+          description={a.themeDesc}
+          id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.theme)}
+          title={
+            <div className="flex items-center justify-between gap-3">
+              <span>{a.themeTitle}</span>
+              <SegmentedControl
+                onChange={id => {
+                  triggerHaptic('crisp')
+                  setMode(id)
+                }}
+                options={modeOptions}
+                value={mode}
+              />
+            </div>
+          }
+          wide
+        />
       </SettingsGroup>
 
       <SettingsGroup>
-          <ListRow
-            action={
-              <SegmentedControl
-                onChange={id => {
-                  triggerHaptic('selection')
-                  setZoomPercent(Number(id))
-                }}
-                options={uiScaleOptions}
-                value={matchedScalePreset ?? ('' as UiScalePreset)}
-              />
-            }
-            description={a.uiScaleDesc(zoomPercent)}
-            id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.uiScale)}
-            title={a.uiScaleTitle}
-          />
+        <ListRow
+          action={
+            <SegmentedControl
+              onChange={id => {
+                triggerHaptic('selection')
+                setZoomPercent(Number(id))
+              }}
+              options={uiScaleOptions}
+              value={matchedScalePreset ?? ('' as UiScalePreset)}
+            />
+          }
+          description={a.uiScaleDesc(zoomPercent)}
+          id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.uiScale)}
+          title={a.uiScaleTitle}
+        />
 
-          <TerminalFontSetting />
+        <TerminalFontSetting />
 
-          <ListRow
-            action={
-              <SegmentedControl
-                onChange={id => {
-                  triggerHaptic('selection')
-                  setSessionListDensity(id)
-                }}
-                options={sessionDensityOptions}
-                value={sessionListDensity}
-              />
-            }
-            description={a.sessionDensityDesc}
-            title={a.sessionDensityTitle}
-          />
+        <ListRow
+          action={
+            <SegmentedControl
+              onChange={id => {
+                triggerHaptic('selection')
+                setSessionListDensity(id)
+              }}
+              options={sessionDensityOptions}
+              value={sessionListDensity}
+            />
+          }
+          description={a.sessionDensityDesc}
+          title={a.sessionDensityTitle}
+        />
 
-          {/* Linux has neither half of this setting (see TRANSLUCENCY_SUPPORTED),
+        {/* Linux has neither half of this setting (see TRANSLUCENCY_SUPPORTED),
               so the row is absent there rather than offering a dead lever. */}
-          {TRANSLUCENCY_SUPPORTED && (
-            <ListRow
-              action={
-                <div
-                  className="flex items-center gap-3"
-                  // Arms the peek for the overlay this row lives in — the
-                  // ghosting rules in styles.css scope to it, so no other
-                  // overlay pays for an opacity transition it never uses.
-                  data-translucency-peek-scope=""
-                >
-                  {GLASS_SUPPORTED && (
-                    <SegmentedControl
-                      onChange={pickTranslucency(setTranslucencyMode)}
-                      options={[
-                        { id: 'clear' as const, label: a.translucencyModeClear },
-                        { id: 'glass' as const, label: a.translucencyModeGlass }
-                      ]}
-                      value={translucency.mode}
-                    />
-                  )}
-                  {/* Clear has one lever and it belongs beside the mode. Glass
+        {TRANSLUCENCY_SUPPORTED && (
+          <ListRow
+            action={
+              <div
+                className="flex items-center gap-3"
+                // Arms the peek for the overlay this row lives in — the
+                // ghosting rules in styles.css scope to it, so no other
+                // overlay pays for an opacity transition it never uses.
+                data-translucency-peek-scope=""
+              >
+                {GLASS_SUPPORTED && (
+                  <SegmentedControl
+                    onChange={pickTranslucency(setTranslucencyMode)}
+                    options={[
+                      { id: 'clear' as const, label: a.translucencyModeClear },
+                      { id: 'glass' as const, label: a.translucencyModeGlass }
+                    ]}
+                    value={translucency.mode}
+                  />
+                )}
+                {/* Clear has one lever and it belongs beside the mode. Glass
                       has four controls, so they move into the labelled panel
                       below rather than crowding this line with an unlabelled
                       slider that means something different. */}
-                  {!glassMode && (
-                    <TranslucencySlider
-                      label={a.translucencyTitle}
-                      onChange={setTranslucency}
-                      value={translucency.intensity}
-                    />
-                  )}
-                </div>
-              }
-              below={
-                glassMode ? (
-                  <div className="mt-3 flex flex-col gap-2.5" data-translucency-peek-scope="">
-                    <GlassRow label={a.translucencyTintTitle}>
-                      <TranslucencySlider
-                        label={a.translucencyTintTitle}
-                        onChange={setTranslucency}
-                        value={translucency.intensity}
-                      />
-                    </GlassRow>
-                    <GlassRow label={a.translucencyFadeTitle}>
-                      <TranslucencySlider
-                        label={a.translucencyFadeTitle}
-                        onChange={setTranslucencyFade}
-                        value={translucency.fade}
-                      />
-                    </GlassRow>
-                    <GlassRow label={a.translucencyFrostTitle}>
-                      <SegmentedControl
-                        onChange={pickTranslucency(setTranslucencyMaterial)}
-                        // Windows renders four rungs as three backdrops, so it
-                        // is offered three; a frost saved on a Mac highlights
-                        // the rung that renders the same backdrop here.
-                        options={glassMaterialsFor(GLASS_IS_WINDOWS).map(material => ({
-                          id: material,
-                          label: a.translucencyFrost[material]
-                        }))}
-                        value={glassMaterialForPicker(translucency.material, GLASS_IS_WINDOWS)}
-                      />
-                    </GlassRow>
-                    <GlassRow label={a.translucencyScopeTitle}>
-                      <SegmentedControl
-                        onChange={pickTranslucency(setTranslucencyScope)}
-                        options={GLASS_SCOPES.map(scope => ({
-                          id: scope,
-                          label: a.translucencyScope[scope]
-                        }))}
-                        value={translucency.scope}
-                      />
-                    </GlassRow>
-                  </div>
-                ) : undefined
-              }
-              description={glassMode ? a.translucencyGlassDesc : a.translucencyDesc}
-              id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.translucency)}
-              title={a.translucencyTitle}
-            />
-          )}
-
-          <ListRow
-            action={
-              <SegmentedControl
-                onChange={id => {
-                  triggerHaptic('selection')
-                  setBackdrop(id === 'on')
-                }}
-                options={[
-                  { id: 'off', label: t.common.off },
-                  { id: 'on', label: t.common.on }
-                ]}
-                value={backdrop ? 'on' : 'off'}
-              />
-            }
-            description={a.backdropDesc}
-            id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.backdrop)}
-            title={a.backdropTitle}
-          />
-
-          <ListRow
-            action={
-              <SegmentedControl
-                onChange={id => {
-                  triggerHaptic('selection')
-                  setIntroSplash(id === 'on')
-                }}
-                options={[
-                  { id: 'off', label: t.common.off },
-                  { id: 'on', label: t.common.on }
-                ]}
-                value={introSplash ? 'on' : 'off'}
-              />
-            }
-            description={a.introSplashDesc}
-            id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.introSplash)}
-            title={a.introSplashTitle}
-          />
-
-          <ToggleRow
-            checked={composerPopoutGesturesEnabled}
-            description={a.composerPopoutDesc}
-            label={a.composerPopoutTitle}
-            onChange={setComposerPopoutGesturesEnabled}
-          />
-
-          <ListRow
-            action={
-              <SegmentedControl
-                onChange={id => {
-                  triggerHaptic('selection')
-                  setReactionsEnabled(id === 'on')
-                }}
-                options={[
-                  { id: 'off', label: t.common.off },
-                  { id: 'on', label: t.common.on }
-                ]}
-                value={reactionsEnabled ? 'on' : 'off'}
-              />
-            }
-            description={a.reactionsDesc}
-            title={a.reactionsTitle}
-          />
-
-          <ListRow
-            action={
-              <SegmentedControl
-                onChange={id => {
-                  triggerHaptic('selection')
-                  setToolViewMode(id)
-                }}
-                options={toolOptions}
-                value={toolViewMode}
-              />
-            }
-            description={a.toolViewDesc}
-            id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.toolView)}
-            title={a.toolViewTitle}
-          />
-
-          <ListRow
-            action={
-              <SegmentedControl
-                onChange={id => {
-                  triggerHaptic('selection')
-                  setReasoningCollapsedByDefault(id === 'on')
-                }}
-                options={[
-                  { id: 'off', label: t.common.off },
-                  { id: 'on', label: t.common.on }
-                ]}
-                value={reasoningCollapsedByDefault ? 'on' : 'off'}
-              />
-            }
-            description={a.reasoningCollapsedDesc}
-            title={a.reasoningCollapsedTitle}
-          />
-
-          <ListRow
-            action={
-              <div className="flex flex-col items-end gap-1.5">
-                <SegmentedControl
-                  onChange={id => {
-                    triggerHaptic('selection')
-                    setEmbedMode(id)
-                  }}
-                  options={embedOptions}
-                  value={embedMode}
-                />
-                {embedAllowed.length > 0 && (
-                  <Button
-                    onClick={() => {
-                      triggerHaptic('selection')
-                      clearEmbedAllowed()
-                    }}
-                    size="inline"
-                    variant="text"
-                  >
-                    {a.embedsReset(embedAllowed.length)}
-                  </Button>
+                {!glassMode && (
+                  <TranslucencySlider
+                    label={a.translucencyTitle}
+                    onChange={setTranslucency}
+                    value={translucency.intensity}
+                  />
                 )}
               </div>
             }
-            description={a.embedsDesc}
-            id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.embeds)}
-            title={a.embedsTitle}
+            below={
+              glassMode ? (
+                <div className="mt-3 flex flex-col gap-2.5" data-translucency-peek-scope="">
+                  <GlassRow label={a.translucencyTintTitle}>
+                    <TranslucencySlider
+                      label={a.translucencyTintTitle}
+                      onChange={setTranslucency}
+                      value={translucency.intensity}
+                    />
+                  </GlassRow>
+                  <GlassRow label={a.translucencyFadeTitle}>
+                    <TranslucencySlider
+                      label={a.translucencyFadeTitle}
+                      onChange={setTranslucencyFade}
+                      value={translucency.fade}
+                    />
+                  </GlassRow>
+                  <GlassRow label={a.translucencyFrostTitle}>
+                    <SegmentedControl
+                      onChange={pickTranslucency(setTranslucencyMaterial)}
+                      // Windows renders four rungs as three backdrops, so it
+                      // is offered three; a frost saved on a Mac highlights
+                      // the rung that renders the same backdrop here.
+                      options={glassMaterialsFor(GLASS_IS_WINDOWS).map(material => ({
+                        id: material,
+                        label: a.translucencyFrost[material]
+                      }))}
+                      value={glassMaterialForPicker(translucency.material, GLASS_IS_WINDOWS)}
+                    />
+                  </GlassRow>
+                  <GlassRow label={a.translucencyScopeTitle}>
+                    <SegmentedControl
+                      onChange={pickTranslucency(setTranslucencyScope)}
+                      options={GLASS_SCOPES.map(scope => ({
+                        id: scope,
+                        label: a.translucencyScope[scope]
+                      }))}
+                      value={translucency.scope}
+                    />
+                  </GlassRow>
+                </div>
+              ) : undefined
+            }
+            description={glassMode ? a.translucencyGlassDesc : a.translucencyDesc}
+            id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.translucency)}
+            title={a.translucencyTitle}
           />
+        )}
+
+        <ListRow
+          action={
+            <SegmentedControl
+              onChange={id => {
+                triggerHaptic('selection')
+                setBackdrop(id === 'on')
+              }}
+              options={[
+                { id: 'off', label: t.common.off },
+                { id: 'on', label: t.common.on }
+              ]}
+              value={backdrop ? 'on' : 'off'}
+            />
+          }
+          description={a.backdropDesc}
+          id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.backdrop)}
+          title={a.backdropTitle}
+        />
+
+        <ListRow
+          action={
+            <SegmentedControl
+              onChange={id => {
+                triggerHaptic('selection')
+                setIntroSplash(id === 'on')
+              }}
+              options={[
+                { id: 'off', label: t.common.off },
+                { id: 'on', label: t.common.on }
+              ]}
+              value={introSplash ? 'on' : 'off'}
+            />
+          }
+          description={a.introSplashDesc}
+          id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.introSplash)}
+          title={a.introSplashTitle}
+        />
+
+        <ToggleRow
+          checked={composerPopoutGesturesEnabled}
+          description={a.composerPopoutDesc}
+          label={a.composerPopoutTitle}
+          onChange={setComposerPopoutGesturesEnabled}
+        />
+
+        <ListRow
+          action={
+            <SegmentedControl
+              onChange={id => {
+                triggerHaptic('selection')
+                setReactionsEnabled(id === 'on')
+              }}
+              options={[
+                { id: 'off', label: t.common.off },
+                { id: 'on', label: t.common.on }
+              ]}
+              value={reactionsEnabled ? 'on' : 'off'}
+            />
+          }
+          description={a.reactionsDesc}
+          title={a.reactionsTitle}
+        />
+
+        <ListRow
+          action={
+            <SegmentedControl
+              onChange={id => {
+                triggerHaptic('selection')
+                setToolViewMode(id)
+              }}
+              options={toolOptions}
+              value={toolViewMode}
+            />
+          }
+          description={a.toolViewDesc}
+          id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.toolView)}
+          title={a.toolViewTitle}
+        />
+
+        <ListRow
+          action={
+            <SegmentedControl
+              onChange={id => {
+                triggerHaptic('selection')
+                setReasoningCollapsedByDefault(id === 'on')
+              }}
+              options={[
+                { id: 'off', label: t.common.off },
+                { id: 'on', label: t.common.on }
+              ]}
+              value={reasoningCollapsedByDefault ? 'on' : 'off'}
+            />
+          }
+          description={a.reasoningCollapsedDesc}
+          title={a.reasoningCollapsedTitle}
+        />
+
+        <ListRow
+          action={
+            <div className="flex flex-col items-end gap-1.5">
+              <SegmentedControl
+                onChange={id => {
+                  triggerHaptic('selection')
+                  setEmbedMode(id)
+                }}
+                options={embedOptions}
+                value={embedMode}
+              />
+              {embedAllowed.length > 0 && (
+                <Button
+                  onClick={() => {
+                    triggerHaptic('selection')
+                    clearEmbedAllowed()
+                  }}
+                  size="inline"
+                  variant="text"
+                >
+                  {a.embedsReset(embedAllowed.length)}
+                </Button>
+              )}
+            </div>
+          }
+          description={a.embedsDesc}
+          id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.embeds)}
+          title={a.embedsTitle}
+        />
       </SettingsGroup>
 
       <PetSettings />
