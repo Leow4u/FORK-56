@@ -215,6 +215,9 @@ describe("McpPage directory", () => {
     expect(
       container.querySelector('img[src="https://logos.composio.dev/api/gmail"]'),
     ).toBeTruthy();
+    expect(
+      container.querySelector('img[src="https://logos.composio.dev/api/notion"]'),
+    ).toBeTruthy();
   });
 
   it("never surfaces the hidden work4you_apps runtime server", async () => {

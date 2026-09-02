@@ -59,6 +59,7 @@ import {
 import { decideBootstrapRepair } from './bootstrap-repair-guard'
 import { runBootstrap } from './bootstrap-runner'
 import { detectBundleSkew } from './bundle-skew'
+import { fetchComposioLogoDataUrl } from './composio-logo'
 import { applyConnectionChange } from './connection-apply'
 import {
   apiRequestRegistryConnectionId,
@@ -14155,6 +14156,14 @@ ipcMain.handle('work4you:setting:defaultProjectDir:pick', async () => {
 })
 
 ipcMain.handle('work4you:fetchLinkTitle', (_event, url) => fetchLinkTitle(url))
+
+ipcMain.handle('work4you:composio-logo', async (_event, url) => {
+  try {
+    return await fetchComposioLogoDataUrl(String(url || ''))
+  } catch {
+    return null
+  }
+})
 
 ipcMain.handle('work4you:logs:reveal', async () => {
   try {

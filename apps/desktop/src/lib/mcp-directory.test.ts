@@ -154,14 +154,20 @@ describe('directoryAppLogoUrl', () => {
     )
   })
 
-  it('ignores remote logos on native and custom servers', () => {
+  it('uses the Composio CDN for catalog rows and never for custom MCP', () => {
+    expect(directoryAppLogoUrl({ id: 'gmail', source: 'composio' })).toBe(
+      'https://logos.composio.dev/api/gmail'
+    )
+    expect(directoryAppLogoUrl({ id: 'n8n', source: 'native' })).toBe(
+      'https://logos.composio.dev/api/n8n'
+    )
     expect(
       directoryAppLogoUrl({
         id: 'gmail',
         source: 'native',
         logo: 'https://logos.composio.dev/api/gmail'
       })
-    ).toBeNull()
+    ).toBe('https://logos.composio.dev/api/gmail')
     expect(
       directoryAppLogoUrl({
         id: 'my-box',
