@@ -14,8 +14,8 @@ Notion API + ntn CLI：页面、数据库、Markdown、Workers。
 
 | | |
 |---|---|
-| 来源 | 内置（默认安装） |
-| 路径 | `skills/productivity/notion` |
+| 来源 | 可选 — 通过 `work4you skills install official/productivity/notion` 安装 |
+| 路径 | `optional-skills/productivity/notion` |
 | 版本 | `2.0.0` |
 | 作者 | community |
 | 许可证 | MIT |

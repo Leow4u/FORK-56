@@ -18,6 +18,9 @@ Update logic:
       * If bundled changed and user copy differs: user customized it → SKIP.
   - DELETED by user (in manifest, absent from user dir): respected, not re-added.
   - REMOVED from bundled (in manifest, gone from repo): cleaned from manifest.
+  - DEMOTED to optional-skills (CONNECTOR_SKILLS_DEMOTED_TO_OPTIONAL): unmodified
+    copies are removed from the active tree so they leave the default prompt;
+    user-edited copies are kept.
 
 The manifest lives at ~/.work4you/skills/.bundled_manifest.
 """
@@ -47,7 +50,7 @@ for _stream in (sys.stdout, sys.stderr):
             pass
 from work4you_constants import get_bundled_skills_dir, get_work4you_home, get_optional_skills_dir
 from agent.skill_utils import is_excluded_skill_path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 from utils import atomic_replace, atomic_write_text
 
 logger = logging.getLogger(__name__)
@@ -103,6 +106,20 @@ def _manifest_file() -> Path:
 # work4you_cli.profiles.NO_BUNDLED_SKILLS_MARKER (kept as a literal here to
 # avoid importing the CLI layer into this low-level sync module).
 NO_BUNDLED_SKILLS_MARKER = ".no-bundled-skills"
+
+# Former bundled skills whose job was connecting a named product that Work4You
+# Apps / native MCP already attach. They still ship under optional-skills/ so
+# CLI-only installs can opt in. Sync must not keep unmodified copies in the
+# default prompt (two connectors for the same app).
+CONNECTOR_SKILLS_DEMOTED_TO_OPTIONAL: FrozenSet[str] = frozenset(
+    {
+        "google-workspace",
+        "github-auth",
+        "xurl",
+        "notion",
+        "airtable",
+    }
+)
 
 
 def _get_bundled_dir() -> Path:
@@ -699,6 +716,87 @@ def _recover_renamed_skill(
     return None
 
 
+def _find_optional_skill_dir(name: str) -> Optional[Path]:
+    """Return the unique optional-skills directory whose frontmatter name matches."""
+    optional_dir = _get_optional_dir()
+    if not optional_dir.exists():
+        return None
+    hits: List[Path] = []
+    for skill_md in optional_dir.rglob("SKILL.md"):
+        if is_excluded_skill_path(skill_md.relative_to(optional_dir), root=optional_dir):
+            continue
+        skill_dir = skill_md.parent
+        if _read_skill_name(skill_md, skill_dir.name) == name:
+            hits.append(skill_dir)
+    if len(hits) == 1:
+        return hits[0]
+    return None
+
+
+def _copy_is_unmodified_demotion(dest: Path, origin_hash: str, name: str) -> bool:
+    """True when dest is the copy we seeded, not a user or hub edit."""
+    user_hash = _dir_hash(dest)
+    if origin_hash and user_hash == origin_hash:
+        return True
+    if origin_hash:
+        return False
+    optional_src = _find_optional_skill_dir(name)
+    return optional_src is not None and user_hash == _dir_hash(optional_src)
+
+
+def _demote_connector_skills(
+    manifest: Dict[str, str],
+    bundled_names: Set[str],
+    quiet: bool,
+) -> List[str]:
+    """Remove unmodified copies of connector skills that left the bundled tree.
+
+    User-edited copies stay on disk. Names still in ``skills/`` are skipped.
+    Hub-installed optional copies are not in the bundled manifest, so they
+    are not touched.
+    """
+    demoted: List[str] = []
+    active: Optional[Dict[str, List[Path]]] = None
+    for name in sorted(CONNECTOR_SKILLS_DEMOTED_TO_OPTIONAL):
+        if name in bundled_names or name not in manifest:
+            continue
+        if active is None:
+            active = _index_active_skills()
+        origin_hash = manifest.get(name) or ""
+        copies = list(active.get(name) or [])
+        kept_modified = False
+        removed_any = False
+        for dest in copies:
+            if not dest.is_dir():
+                continue
+            try:
+                dest.resolve().relative_to(_skills_dir().resolve())
+            except (OSError, ValueError):
+                continue
+            if not _copy_is_unmodified_demotion(dest, origin_hash, name):
+                kept_modified = True
+                continue
+            try:
+                _rmtree_writable(dest)
+            except (OSError, IOError, ValueError):
+                logger.warning(
+                    "Could not demote connector skill %s at %s",
+                    name,
+                    dest,
+                    exc_info=True,
+                )
+                kept_modified = True
+                continue
+            removed_any = True
+            if not quiet:
+                print(f"  ✓ {name} (now optional — not re-seeded)")
+        if removed_any:
+            demoted.append(name)
+        if not kept_modified:
+            manifest.pop(name, None)
+    return demoted
+
+
 def sync_skills(quiet: bool = False) -> dict:
     """
     Sync bundled skills into ~/.work4you/skills/ using the manifest.
@@ -719,6 +817,7 @@ def sync_skills(quiet: bool = False) -> dict:
             "copied": [], "updated": [], "skipped": 0,
             "user_modified": [], "cleaned": [], "total_bundled": 0,
             "optional_provenance_backfilled": [], "skipped_opt_out": True,
+            "demoted": [],
         }
 
     bundled_dir = _get_bundled_dir()
@@ -727,6 +826,7 @@ def sync_skills(quiet: bool = False) -> dict:
             "copied": [], "updated": [], "skipped": 0,
             "user_modified": [], "cleaned": [], "suppressed": [], "total_bundled": 0,
             "optional_provenance_backfilled": [],
+            "demoted": [],
         }
 
     _skills_dir().mkdir(parents=True, exist_ok=True)
@@ -942,6 +1042,8 @@ def sync_skills(quiet: bool = False) -> dict:
             # ── In manifest but not on disk — user deleted it ──
             skipped += 1
 
+    demoted = _demote_connector_skills(manifest, bundled_names, quiet)
+
     # Clean stale manifest entries (skills removed from bundled dir)
     cleaned = sorted(set(manifest.keys()) - bundled_names)
     for name in cleaned:
@@ -972,6 +1074,7 @@ def sync_skills(quiet: bool = False) -> dict:
         "total_bundled": len(bundled_skills),
         "optional_provenance_backfilled": optional_provenance_backfilled,
         "shadowed_by_external": shadowed_by_external,
+        "demoted": demoted,
     }
 
 

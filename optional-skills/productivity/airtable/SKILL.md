@@ -16,7 +16,9 @@ metadata:
 
 # Airtable — Bases, Tables & Records
 
-Work with Airtable's REST API directly via `curl` using the `terminal` tool. No MCP server, no OAuth flow, no Python SDK — just `curl` and a personal access token.
+Work with Airtable's REST API directly via `curl` using the `terminal` tool, with a personal access token.
+
+Prefer Airtable when it already shows Connected under Capabilities → MCP (native MCP). Use this optional skill for the PAT + curl playbook when that connector is not in the session.
 
 ## Prerequisites
 

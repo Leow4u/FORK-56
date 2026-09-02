@@ -21,6 +21,10 @@ metadata:
 
 Gmail, Calendar, Drive, Contacts, Sheets, and Docs — through Work4You-managed OAuth and a thin CLI wrapper. When `gws` is installed, the skill uses it as the execution backend for broader Google Workspace coverage; otherwise it falls back to the bundled Python client implementation.
 
+## When to Use
+
+Prefer Gmail, Calendar, and Drive when they already show Connected under Capabilities → MCP. Use this optional skill only for the `gws` / OAuth CLI playbook (Docs/Sheets, or installs without that connector).
+
 ## References
 
 - `references/gmail-search-syntax.md` — Gmail search operators (is:unread, from:, newer_than:, etc.)

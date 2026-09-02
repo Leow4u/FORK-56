@@ -100,6 +100,12 @@ work4you skills uninstall <skill-name>
 | [**pptx-author**](/user-guide/skills/optional/finance/finance-pptx-author) | 使用 python-pptx 无头构建 PowerPoint 演示文稿。与 excel-author 配合，制作每个数字均可追溯至工作簿单元格的模型支撑型幻灯片。适用于 pitch deck、投委会备忘录、盈利说明。 |
 | [**stocks**](/user-guide/skills/optional/finance/finance-stocks) | 通过 Yahoo 获取股票报价、历史数据、搜索、对比及加密货币行情。 |
 
+## github
+
+| 技能 | 描述 |
+|-------|-------------|
+| [**github-auth**](/user-guide/skills/optional/github/github-github-auth) | GitHub 认证配置：HTTPS token、SSH 密钥、gh CLI 登录。 |
+
 ## health
 
 | 技能 | 描述 |
@@ -158,9 +164,12 @@ work4you skills uninstall <skill-name>
 
 | 技能 | 描述 |
 |-------|-------------|
+| [**airtable**](/user-guide/skills/optional/productivity/productivity-airtable) | 通过 curl 调用 Airtable REST API：记录增删改查、过滤、upsert。 |
 | [**canvas**](/user-guide/skills/optional/productivity/productivity-canvas) | Canvas LMS 集成 — 使用 API token 认证获取已注册课程和作业。 |
+| [**google-workspace**](/user-guide/skills/optional/productivity/productivity-google-workspace) | 通过 gws CLI 或 Python 操作 Gmail、Calendar、Drive、Docs、Sheets。 |
 | [**here.now**](/user-guide/skills/optional/productivity/productivity-here-now) | 将静态站点发布至 &#123;slug&#125;.here.now，并将私有文件存储在云端 Drive 中以供 agent 间交接。 |
 | [**memento-flashcards**](/user-guide/skills/optional/productivity/productivity-memento-flashcards) | 间隔重复闪卡系统。从事实或文本创建卡片，通过 agent 评分的自由文本回答与闪卡对话，从 YouTube 字幕生成测验，使用自适应调度复习到期卡片，并支持导出/导入。 |
+| [**notion**](/user-guide/skills/optional/productivity/productivity-notion) | Notion API + ntn CLI：页面、数据库、Markdown、Workers。 |
 | [**shop**](/user-guide/skills/optional/productivity/productivity-shop) | Shop.app：商品搜索、订单追踪、退货、重新下单。 |
 | [**shopify**](/user-guide/skills/optional/productivity/productivity-shopify) | 通过 curl 使用 Shopify Admin 和 Storefront GraphQL API。支持商品、订单、客户、库存、元字段。 |
 | [**siyuan**](/user-guide/skills/optional/productivity/productivity-siyuan) | 通过 curl 使用 SiYuan Note API，在自托管知识库中搜索、读取、创建和管理块与文档。 |
@@ -189,6 +198,12 @@ work4you skills uninstall <skill-name>
 | [**1password**](/user-guide/skills/optional/security/security-1password) | 配置并使用 1Password CLI（op）。适用于安装 CLI、启用桌面应用集成、登录及为命令读取/注入密钥的场景。 |
 | [**oss-forensics**](/user-guide/skills/optional/security/security-oss-forensics) | 针对 GitHub 仓库的供应链调查、证据恢复和取证分析。涵盖已删除提交恢复、强制推送检测、IOC 提取、多源证据收集、假设形成/验证等。 |
 | [**sherlock**](/user-guide/skills/optional/security/security-sherlock) | 跨 400+ 社交网络的 OSINT 用户名搜索。通过用户名追踪社交媒体账号。 |
+
+## social-media
+
+| 技能 | 描述 |
+|-------|-------------|
+| [**xurl**](/user-guide/skills/optional/social-media/social-media-xurl) | 通过 xurl CLI 操作 X/Twitter：发帖、搜索、私信、媒体、v2 API。 |
 
 ## software-development
 

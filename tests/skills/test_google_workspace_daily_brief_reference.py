@@ -4,7 +4,7 @@ from pathlib import Path
 
 GWS_DIR = (
     Path(__file__).resolve().parents[2]
-    / "skills"
+    / "optional-skills"
     / "productivity"
     / "google-workspace"
 )
@@ -55,5 +55,5 @@ def test_no_machine_local_paths():
 
 def test_no_standalone_daily_brief_skill():
     """The brief ships as a reference, not a sibling skill."""
-    repo_root = GWS_DIR.parents[2]
+    repo_root = GWS_DIR.parents[3]
     assert not (repo_root / "skills" / "productivity" / "google-workspace-daily-brief").exists()

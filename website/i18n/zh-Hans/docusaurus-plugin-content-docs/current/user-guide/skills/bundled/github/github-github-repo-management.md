@@ -21,7 +21,7 @@ description: "克隆/创建/fork 仓库；管理远程、发布"
 | 许可证 | MIT |
 | 平台 | linux, macos, windows |
 | 标签 | `GitHub`, `Repositories`, `Git`, `Releases`, `Secrets`, `Configuration` |
-| 相关 skill | [`github-auth`](/user-guide/skills/bundled/github/github-github-auth), [`github-pr-workflow`](/user-guide/skills/bundled/github/github-github-pr-workflow), [`github-issues`](/user-guide/skills/bundled/github/github-github-issues) |
+| 相关 skill | [`github-auth`](/user-guide/skills/optional/github/github-github-auth), [`github-pr-workflow`](/user-guide/skills/bundled/github/github-github-pr-workflow), [`github-issues`](/user-guide/skills/bundled/github/github-github-issues) |
 
 ## 参考：完整 SKILL.md
 
@@ -35,7 +35,7 @@ description: "克隆/创建/fork 仓库；管理远程、发布"
 
 ## 前提条件
 
-- 已通过 GitHub 认证（参见 `github-auth` skill）
+- 本机已通过 GitHub 认证（`gh auth status` 或 `GITHUB_TOKEN`）。在 Capabilities → MCP 连接 GitHub 是另一套 agent 工具账号；本 skill 是 `gh`/`git` 工作流。
 
 ### 初始化设置
 
@@ -48,7 +48,7 @@ else
     if [ -f ~/.work4you/.env ] && grep -q "^GITHUB_TOKEN=" ~/.work4you/.env; then
       GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" ~/.work4you/.env | head -1 | cut -d= -f2 | tr -d '\n\r')
     elif grep -q "github.com" ~/.git-credentials 2>/dev/null; then
-      GITHUB_TOKEN=$(uv run python3 "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-auth/scripts/git-credential-token.py")
+      GITHUB_TOKEN=$(uv run python3 "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-pr-workflow/scripts/git-credential-token.py")
     fi
   fi
 fi

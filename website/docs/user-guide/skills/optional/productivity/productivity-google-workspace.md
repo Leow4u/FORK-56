@@ -14,8 +14,8 @@ Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python.
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/productivity/google-workspace` |
+| Source | Optional — install with `work4you skills install official/productivity/google-workspace` |
+| Path | `optional-skills/productivity/google-workspace` |
 | Version | `1.2.0` |
 | Author | Work4You |
 | License | MIT |
@@ -32,6 +32,10 @@ The following is the complete skill definition that Work4You loads when this ski
 # Google Workspace
 
 Gmail, Calendar, Drive, Contacts, Sheets, and Docs — through Work4You-managed OAuth and a thin CLI wrapper. When `gws` is installed, the skill uses it as the execution backend for broader Google Workspace coverage; otherwise it falls back to the bundled Python client implementation.
+
+## When to Use
+
+Prefer Gmail, Calendar, and Drive when they already show Connected under Capabilities → MCP. Use this optional skill only for the `gws` / OAuth CLI playbook (Docs/Sheets, or installs without that connector).
 
 ## References
 

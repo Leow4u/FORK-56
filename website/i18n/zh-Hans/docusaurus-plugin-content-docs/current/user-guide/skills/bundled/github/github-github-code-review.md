@@ -21,7 +21,7 @@ description: "通过 gh 或 REST 审查 PR：差异对比、行内评论"
 | 许可证 | MIT |
 | 平台 | linux, macos, windows |
 | 标签 | `GitHub`, `Code-Review`, `Pull-Requests`, `Git`, `Quality` |
-| 相关 skill | [`github-auth`](/user-guide/skills/bundled/github/github-github-auth), [`github-pr-workflow`](/user-guide/skills/bundled/github/github-github-pr-workflow) |
+| 相关 skill | [`github-auth`](/user-guide/skills/optional/github/github-github-auth), [`github-pr-workflow`](/user-guide/skills/bundled/github/github-github-pr-workflow) |
 
 ## 参考：完整 SKILL.md
 
@@ -35,7 +35,7 @@ description: "通过 gh 或 REST 审查 PR：差异对比、行内评论"
 
 ## 前置条件
 
-- 已通过 GitHub 身份验证（参见 `github-auth` skill）
+- 本机已通过 GitHub 认证（`gh auth status` 或 `GITHUB_TOKEN`）。在 Capabilities → MCP 连接 GitHub 是另一套 agent 工具账号；本 skill 是 review 工作流。
 - 位于 git 仓库内部
 
 ### 设置（用于 PR 交互）
@@ -49,7 +49,7 @@ else
     if [ -f ~/.work4you/.env ] && grep -q "^GITHUB_TOKEN=" ~/.work4you/.env; then
       GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" ~/.work4you/.env | head -1 | cut -d= -f2 | tr -d '\n\r')
     elif grep -q "github.com" ~/.git-credentials 2>/dev/null; then
-      GITHUB_TOKEN=$(uv run python3 "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-auth/scripts/git-credential-token.py")
+      GITHUB_TOKEN=$(uv run python3 "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-pr-workflow/scripts/git-credential-token.py")
     fi
   fi
 fi
@@ -353,7 +353,7 @@ curl -s -X POST \
 ### 第一步：设置环境
 
 ```bash
-source "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-auth/scripts/gh-env.sh"
+source "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-pr-workflow/scripts/gh-env.sh"
 # 或运行本 skill 顶部的内联设置代码块
 ```
 

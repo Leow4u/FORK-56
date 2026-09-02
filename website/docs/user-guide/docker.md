@@ -190,7 +190,7 @@ On hosted/published images, agent self-improvement is scoped to skills, memory, 
 
 If an operator needs to repair or inspect files outside `/opt/data`, use a root shell intentionally. The `work4you` shim normally drops `docker exec work4you work4you ...` back to the runtime user; set `WORK4YOU_DOCKER_EXEC_AS_ROOT=1` for a one-off root invocation when you explicitly need root semantics.
 
-Skill CLIs that store credentials under `~` must be initialized against the subprocess HOME, not just the data-volume root. For example, the [xurl skill](./skills/bundled/social-media/social-media-xurl.md) stores OAuth state in `~/.xurl`; in the official Docker layout, Work4You tool calls read that as `/opt/data/home/.xurl`, so run manual xurl auth with `HOME=/opt/data/home` and verify with `HOME=/opt/data/home xurl auth status`.
+Skill CLIs that store credentials under `~` must be initialized against the subprocess HOME, not just the data-volume root. For example, the [xurl skill](./skills/optional/social-media/social-media-xurl.md) stores OAuth state in `~/.xurl`; in the official Docker layout, Work4You tool calls read that as `/opt/data/home/.xurl`, so run manual xurl auth with `HOME=/opt/data/home` and verify with `HOME=/opt/data/home xurl auth status`.
 
 :::warning
 Never run two Work4You **gateway** containers against the same data directory simultaneously — session files and memory stores are not designed for concurrent write access.

@@ -14,8 +14,8 @@ description: "通过 curl 调用 Airtable REST API"
 
 | | |
 |---|---|
-| 来源 | 内置（默认安装） |
-| 路径 | `skills/productivity/airtable` |
+| 来源 | 可选 — 通过 `work4you skills install official/productivity/airtable` 安装 |
+| 路径 | `optional-skills/productivity/airtable` |
 | 版本 | `1.1.0` |
 | 作者 | community |
 | 许可证 | MIT |

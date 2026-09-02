@@ -21,7 +21,7 @@ description: "通过 gh 或 REST 创建、分类、标记、分配 GitHub Issues
 | 许可证 | MIT |
 | 平台 | linux, macos, windows |
 | 标签 | `GitHub`, `Issues`, `Project-Management`, `Bug-Tracking`, `Triage` |
-| 相关 skills | [`github-auth`](/user-guide/skills/bundled/github/github-github-auth), [`github-pr-workflow`](/user-guide/skills/bundled/github/github-github-pr-workflow) |
+| 相关 skills | [`github-auth`](/user-guide/skills/optional/github/github-github-auth), [`github-pr-workflow`](/user-guide/skills/bundled/github/github-github-pr-workflow) |
 
 ## 参考：完整 SKILL.md
 
@@ -35,7 +35,7 @@ description: "通过 gh 或 REST 创建、分类、标记、分配 GitHub Issues
 
 ## 前提条件
 
-- 已通过 GitHub 认证（参见 `github-auth` skill）
+- 本机已通过 GitHub 认证（`gh auth status` 或 `GITHUB_TOKEN`）。在 Capabilities → MCP 连接 GitHub 是另一套 agent 工具账号；本 skill 是 `gh`/`git` 工作流。
 - 位于含有 GitHub 远程仓库的 git 仓库内，或显式指定仓库
 
 ### 设置
@@ -49,7 +49,7 @@ else
     if [ -f ~/.work4you/.env ] && grep -q "^GITHUB_TOKEN=" ~/.work4you/.env; then
       GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" ~/.work4you/.env | head -1 | cut -d= -f2 | tr -d '\n\r')
     elif grep -q "github.com" ~/.git-credentials 2>/dev/null; then
-      GITHUB_TOKEN=$(uv run python3 "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-auth/scripts/git-credential-token.py")
+      GITHUB_TOKEN=$(uv run python3 "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-pr-workflow/scripts/git-credential-token.py")
     fi
   fi
 fi

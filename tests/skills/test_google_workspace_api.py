@@ -14,11 +14,11 @@ import pytest
 
 BRIDGE_PATH = (
     Path(__file__).resolve().parents[2]
-    / "skills/productivity/google-workspace/scripts/gws_bridge.py"
+    / "optional-skills/productivity/google-workspace/scripts/gws_bridge.py"
 )
 API_PATH = (
     Path(__file__).resolve().parents[2]
-    / "skills/productivity/google-workspace/scripts/google_api.py"
+    / "optional-skills/productivity/google-workspace/scripts/google_api.py"
 )
 
 

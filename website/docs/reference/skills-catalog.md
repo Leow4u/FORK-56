@@ -64,7 +64,6 @@ If a skill is missing from this list but present in the repo, the catalog is reg
 | Skill | Description | Path |
 |-------|-------------|------|
 | [`codebase-inspection`](/docs/user-guide/skills/bundled/github/github-codebase-inspection) | Inspect codebases w/ pygount: LOC, languages, ratios. | `github/codebase-inspection` |
-| [`github-auth`](/docs/user-guide/skills/bundled/github/github-github-auth) | GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login. | `github/github-auth` |
 | [`github-code-review`](/docs/user-guide/skills/bundled/github/github-github-code-review) | Review PRs: diffs, inline comments via gh or REST. | `github/github-code-review` |
 | [`github-issue-to-pr`](/docs/user-guide/skills/bundled/github/github-github-issue-to-pr) | Carry a GitHub issue to a verified PR with honest CI state. | `github/github-issue-to-pr` |
 | [`github-issues`](/docs/user-guide/skills/bundled/github/github-github-issues) | Create, triage, label, assign GitHub issues via gh or REST. | `github/github-issues` |
@@ -99,15 +98,12 @@ If a skill is missing from this list but present in the repo, the catalog is reg
 
 | Skill | Description | Path |
 |-------|-------------|------|
-| [`airtable`](/docs/user-guide/skills/bundled/productivity/productivity-airtable) | Airtable REST API via curl. Records CRUD, filters, upserts. | `productivity/airtable` |
 | [`box`](/docs/user-guide/skills/bundled/productivity/productivity-box) | Box manages cloud files, sharing, search, and metadata. | `productivity/box` |
 | [`document-to-action-items`](/docs/user-guide/skills/bundled/productivity/productivity-document-to-action-items) | Extract cited obligations, deadlines, tasks from documents. | `productivity/document-to-action-items` |
 | [`docx`](/docs/user-guide/skills/bundled/productivity/productivity-docx) | Create, read, edit, and template Word .docx files. | `productivity/docx` |
-| [`google-workspace`](/docs/user-guide/skills/bundled/productivity/productivity-google-workspace) | Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python. | `productivity/google-workspace` |
 | [`maps`](/docs/user-guide/skills/bundled/productivity/productivity-maps) | Geocode, POIs, routes, timezones via OpenStreetMap/OSRM. | `productivity/maps` |
 | [`meeting-action-items`](/docs/user-guide/skills/bundled/productivity/productivity-meeting-action-items) | Turn meeting notes into cited decisions, owners, tickets. | `productivity/meeting-action-items` |
 | [`nano-pdf`](/docs/user-guide/skills/bundled/productivity/productivity-nano-pdf) | Edit text in existing PDFs via natural-language prompts. | `productivity/nano-pdf` |
-| [`notion`](/docs/user-guide/skills/bundled/productivity/productivity-notion) | Notion API + ntn CLI: pages, databases, markdown, Workers. | `productivity/notion` |
 | [`ocr-and-documents`](/docs/user-guide/skills/bundled/productivity/productivity-ocr-and-documents) | Extract text from PDFs/scans (pymupdf, marker-pdf). | `productivity/ocr-and-documents` |
 | [`pdf`](/docs/user-guide/skills/bundled/productivity/productivity-pdf) | Create, read, merge, fill, and secure PDF files. | `productivity/pdf` |
 | [`powerpoint`](/docs/user-guide/skills/bundled/productivity/productivity-powerpoint) | Create, read, edit .pptx decks with python-pptx. | `productivity/powerpoint` |
@@ -134,12 +130,6 @@ If a skill is missing from this list but present in the repo, the catalog is reg
 | Skill | Description | Path |
 |-------|-------------|------|
 | [`openhue`](/docs/user-guide/skills/bundled/smart-home/smart-home-openhue) | Control Philips Hue lights, scenes, rooms via OpenHue CLI. | `smart-home/openhue` |
-
-## social-media
-
-| Skill | Description | Path |
-|-------|-------------|------|
-| [`xurl`](/docs/user-guide/skills/bundled/social-media/social-media-xurl) | X/Twitter via xurl CLI: raw post search, posting, DM, media. | `social-media/xurl` |
 
 ## software-development
 

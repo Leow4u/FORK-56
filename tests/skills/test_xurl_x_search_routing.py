@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-XURL_SKILL = REPO_ROOT / "skills" / "social-media" / "xurl" / "SKILL.md"
+XURL_SKILL = REPO_ROOT / "optional-skills" / "social-media" / "xurl" / "SKILL.md"
 X_SEARCH_DOC = REPO_ROOT / "website" / "docs" / "user-guide" / "features" / "x-search.md"
 
 

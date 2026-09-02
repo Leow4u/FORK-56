@@ -36,12 +36,10 @@ async def git_status_route(path: str):
 
 
 # ─── gh CLI auth probe ───────────────────────────────────────────────────────
-# Cached `gh auth status` result. Consumed by the desktop composer's GitHub
-# suggestion pill: GitHub deliberately has NO MCP catalog entry (its hosted
-# MCP requires a per-host OAuth app — generic DCR 404s — and the bundled
-# github/* skills via gh CLI are the more capable integration), so the pill
-# offers the `/github-auth` skill instead, and only to users who aren't
-# already authenticated. The probe is read-only and never prompts.
+# GitHub account attachment for agent tools is Capabilities → MCP (Work4You
+# Apps). This probe remains so the desktop can tell whether local `gh` is
+# logged in (bundled github-* workflow skills). It is read-only and never
+# prompts.
 
 _GH_AUTH_TTL_S = 300.0
 _gh_auth_cache: Optional[tuple] = None  # (monotonic_ts, payload)

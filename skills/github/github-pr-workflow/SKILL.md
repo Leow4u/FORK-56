@@ -17,7 +17,7 @@ Complete guide for managing the PR lifecycle. Each section shows the `gh` way fi
 
 ## Prerequisites
 
-- Authenticated with GitHub (see `github-auth` skill)
+- Authenticated with GitHub locally (`gh auth status` or `GITHUB_TOKEN`). Connecting GitHub under Capabilities → MCP is a separate agent-tool account; this skill is the `gh`/`git` workflow.
 - Inside a git repository with a GitHub remote
 
 ### Quick Auth Detection
@@ -33,7 +33,7 @@ else
     if _work4you_env="${WORK4YOU_HOME:-$HOME/.work4you}/.env"; [ -f "$_work4you_env" ] && grep -q "^GITHUB_TOKEN=" "$_work4you_env"; then
       GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$_work4you_env" | head -1 | cut -d= -f2 | tr -d '\n\r')
     elif grep -q "github.com" ~/.git-credentials 2>/dev/null; then
-      GITHUB_TOKEN=$(uv run python "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-auth/scripts/git-credential-token.py")
+      GITHUB_TOKEN=$(uv run python "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-pr-workflow/scripts/git-credential-token.py")
     fi
   fi
 fi

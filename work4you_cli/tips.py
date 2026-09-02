@@ -169,7 +169,7 @@ TIPS = [
     "Corrections you give the agent (\"no, do it this way\") are often auto-saved to memory.",
 
     # --- Skills ---
-    "Over 80 bundled skills covering github, creative, mlops, productivity, research, and more.",
+    "Bundled skills covering github, creative, mlops, productivity, research, and more.",
     "Every installed skill automatically becomes a slash command — type / to see them all.",
     "work4you skills install official/security/1password installs optional skills from the repo.",
     "Skills can restrict to specific OS platforms — some only load on macOS or Linux.",

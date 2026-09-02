@@ -320,6 +320,34 @@ def page_output_path(meta: dict[str, Any]) -> Path:
     )
 
 
+def remove_stale_generated_pages(keep: set[Path]) -> int:
+    """Delete generated skill pages whose source SKILL.md is gone.
+
+    The writer only overwrites live skills; without this, a demotion from
+    skills/ to optional-skills/ would leave the old bundled page published.
+    Hand-written pages under user-guide/skills/*.md (not bundled/optional)
+    are left alone.
+    """
+    removed = 0
+    for generated_root in (SKILLS_PAGES / "bundled", SKILLS_PAGES / "optional"):
+        if not generated_root.exists():
+            continue
+        for path in sorted(generated_root.rglob("*.md"), reverse=True):
+            if path.resolve() in keep:
+                continue
+            path.unlink()
+            removed += 1
+            print(f"Removed stale generated page: {path.relative_to(REPO)}")
+        for dirpath in sorted(
+            (p for p in generated_root.rglob("*") if p.is_dir()), reverse=True
+        ):
+            try:
+                next(dirpath.iterdir())
+            except StopIteration:
+                dirpath.rmdir()
+    return removed
+
+
 def sidebar_doc_id(meta: dict[str, Any]) -> str:
     """Docusaurus sidebar id, relative to docs/."""
     return f"user-guide/skills/{meta['source_kind']}/{meta['category']}/{page_id(meta)}"
@@ -746,6 +774,7 @@ def main():
 
     # Write per-skill pages
     written = 0
+    keep: set[Path] = set()
     for meta, parsed in entries:
         out_path = page_output_path(meta)
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -753,8 +782,12 @@ def main():
             meta, parsed["frontmatter"], parsed["body"], skill_index=skill_index
         )
         out_path.write_text(content, encoding="utf-8")
+        keep.add(out_path.resolve())
         written += 1
     print(f"Wrote {written} per-skill pages under {SKILLS_PAGES}")
+    removed = remove_stale_generated_pages(keep)
+    if removed:
+        print(f"Removed {removed} stale generated page(s)")
 
     # Regenerate catalogs
     bundled_catalog = build_catalog_md_bundled(entries)

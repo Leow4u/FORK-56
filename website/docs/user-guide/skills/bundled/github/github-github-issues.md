@@ -21,7 +21,7 @@ Create, triage, label, assign GitHub issues via gh or REST.
 | License | MIT |
 | Platforms | linux, macos, windows |
 | Tags | `GitHub`, `Issues`, `Project-Management`, `Bug-Tracking`, `Triage` |
-| Related skills | [`github-auth`](/docs/user-guide/skills/bundled/github/github-github-auth), [`github-pr-workflow`](/docs/user-guide/skills/bundled/github/github-github-pr-workflow) |
+| Related skills | [`github-auth`](/docs/user-guide/skills/optional/github/github-github-auth), [`github-pr-workflow`](/docs/user-guide/skills/bundled/github/github-github-pr-workflow) |
 
 ## Reference: full SKILL.md
 
@@ -35,7 +35,7 @@ Create, search, triage, and manage GitHub issues. Each section shows `gh` first,
 
 ## Prerequisites
 
-- Authenticated with GitHub (see `github-auth` skill)
+- Authenticated with GitHub locally (`gh auth status` or `GITHUB_TOKEN`). Connecting GitHub under Capabilities → MCP is a separate agent-tool account; this skill is the issues workflow.
 - Inside a git repo with a GitHub remote, or specify the repo explicitly
 
 ### Setup
@@ -49,7 +49,7 @@ else
     if _work4you_env="${WORK4YOU_HOME:-$HOME/.work4you}/.env"; [ -f "$_work4you_env" ] && grep -q "^GITHUB_TOKEN=" "$_work4you_env"; then
       GITHUB_TOKEN=$(grep "^GITHUB_TOKEN=" "$_work4you_env" | head -1 | cut -d= -f2 | tr -d '\n\r')
     elif grep -q "github.com" ~/.git-credentials 2>/dev/null; then
-      GITHUB_TOKEN=$(uv run python3 "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-auth/scripts/git-credential-token.py")
+      GITHUB_TOKEN=$(uv run python "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-pr-workflow/scripts/git-credential-token.py")
     fi
   fi
 fi
@@ -81,7 +81,7 @@ gh issue view 42
 curl -s \
   -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/repos/$OWNER/$REPO/issues?state=open&per_page=20" \
-  | python3 -c "
+  | python -c "
 import sys, json
 for i in json.load(sys.stdin):
     if 'pull_request' not in i:  # GitHub API returns PRs in /issues too
@@ -92,7 +92,7 @@ for i in json.load(sys.stdin):
 curl -s \
   -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/repos/$OWNER/$REPO/issues?state=open&labels=bug&per_page=20" \
-  | python3 -c "
+  | python -c "
 import sys, json
 for i in json.load(sys.stdin):
     if 'pull_request' not in i:
@@ -102,7 +102,7 @@ for i in json.load(sys.stdin):
 curl -s \
   -H "Authorization: token $GITHUB_TOKEN" \
   https://api.github.com/repos/$OWNER/$REPO/issues/42 \
-  | python3 -c "
+  | python -c "
 import sys, json
 i = json.load(sys.stdin)
 labels = ', '.join(l['name'] for l in i['labels'])
@@ -116,7 +116,7 @@ print(f\"\n{i['body']}\")"
 curl -s \
   -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/search/issues?q=authentication+error+repo:$OWNER/$REPO" \
-  | python3 -c "
+  | python -c "
 import sys, json
 for i in json.load(sys.stdin)['items']:
     print(f\"#{i['number']}  {i['state']:6}  {i['title']}\")"
@@ -224,7 +224,7 @@ curl -s -X DELETE \
 curl -s \
   -H "Authorization: token $GITHUB_TOKEN" \
   https://api.github.com/repos/$OWNER/$REPO/labels \
-  | python3 -c "
+  | python -c "
 import sys, json
 for l in json.load(sys.stdin):
     print(f\"  {l['name']:30}  {l.get('description', '')}\")"
@@ -330,7 +330,7 @@ gh issue list --label "needs-triage" --state open
 curl -s \
   -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/repos/$OWNER/$REPO/issues?labels=needs-triage&state=open" \
-  | python3 -c "
+  | python -c "
 import sys, json
 for i in json.load(sys.stdin):
     if 'pull_request' not in i:
@@ -364,7 +364,7 @@ gh issue list --label "wontfix" --json number --jq '.[].number' | \
 curl -s \
   -H "Authorization: token $GITHUB_TOKEN" \
   "https://api.github.com/repos/$OWNER/$REPO/issues?labels=wontfix&state=open" \
-  | python3 -c "import sys,json; [print(i['number']) for i in json.load(sys.stdin)]" \
+  | python -c "import sys,json; [print(i['number']) for i in json.load(sys.stdin)]" \
   | while read num; do
     curl -s -X PATCH \
       -H "Authorization: token $GITHUB_TOKEN" \

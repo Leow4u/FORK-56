@@ -14,8 +14,8 @@ GitHub auth 设置：HTTPS 令牌、SSH 密钥、gh CLI 登录。
 
 | | |
 |---|---|
-| 来源 | 内置（默认安装） |
-| 路径 | `skills/github/github-auth` |
+| 来源 | 可选 — 通过 `work4you skills install official/github/github-auth` 安装 |
+| 路径 | `optional-skills/github/github-auth` |
 | 版本 | `1.1.0` |
 | 作者 | Work4You |
 | 许可证 | MIT |
