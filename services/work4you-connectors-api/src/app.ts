@@ -77,14 +77,42 @@ function mapApp(
   }
 }
 
-async function ensureSession(deps: AppDeps, userId: string) {
-  const enable = sessionToolkitSlugs()
+async function tryEnableToolkits(
+  deps: AppDeps,
+  sessionId: string,
+  userId: string,
+  extraSlug?: string,
+) {
+  const full = sessionToolkitSlugs()
+  try {
+    await deps.composio.updateSessionToolkits(sessionId, full)
+    return
+  } catch (err) {
+    if (!(err instanceof ComposioHttpError) || err.status !== 400) throw err
+  }
+  const accounts = await deps.composio.listAccounts(userId)
+  const live = accounts
+    .filter((account) => {
+      const status = account.status.toUpperCase()
+      return status === 'ACTIVE' || status === 'INITIATED' || status === 'INITIATING'
+    })
+    .map((account) => account.toolkit)
+  const wanted = [...new Set([...live, extraSlug].filter((slug): slug is string => Boolean(slug)))]
+  if (!wanted.length) return
+  try {
+    await deps.composio.updateSessionToolkits(sessionId, wanted)
+  } catch (err) {
+    if (!(err instanceof ComposioHttpError) || err.status !== 400) throw err
+  }
+}
+
+async function ensureSession(deps: AppDeps, userId: string, extraSlug?: string) {
   const authConfigs = authConfigsFromEnv(deps.config.authConfigId)
   const existing = deps.tokens.getBySub(userId)
   if (existing) {
     const session = await deps.composio.getSession(existing.sessionId)
     if (session) {
-      await deps.composio.updateSessionToolkits(existing.sessionId, enable)
+      await tryEnableToolkits(deps, existing.sessionId, userId, extraSlug)
       return {
         token: existing.token,
         sessionId: existing.sessionId,
@@ -95,6 +123,7 @@ async function ensureSession(deps: AppDeps, userId: string) {
   }
   const created = await deps.composio.createSession(userId, authConfigs)
   const record = deps.tokens.issue(userId, created.sessionId, created.mcpUrl)
+  await tryEnableToolkits(deps, created.sessionId, userId, extraSlug)
   return {
     token: record.token,
     sessionId: created.sessionId,
@@ -222,10 +251,16 @@ export function createApp(deps: AppDeps) {
     if (!isAllowlisted(slug) || BLOCKED_SESSION_SLUGS.includes(slug)) {
       return jsonError(c, 404, 'unknown_app')
     }
-    const session = await ensureSession(deps, user.sub)
+    const session = await ensureSession(deps, user.sub, slug)
     const body = (await c.req.json().catch(() => ({}))) as { callback_url?: string }
     const callbackUrl = body.callback_url || `${deps.config.publicBaseUrl}/connected`
-    const link = await deps.composio.authorize(session.sessionId, slug, callbackUrl)
+    const link = await deps.composio.authorize(
+      session.sessionId,
+      slug,
+      callbackUrl,
+      user.sub,
+      deps.config.authConfigId(slug),
+    )
     return c.json({
       slug,
       redirect_url: link.redirectUrl,

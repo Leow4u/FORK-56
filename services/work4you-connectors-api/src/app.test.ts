@@ -12,7 +12,12 @@ import {
 } from './allowlist.js'
 import { createApp, type AppConfig, type AppDeps } from './app.js'
 import { AuthError, type ConnectorClaims } from './auth.js'
-import type { ComposioPort, ComposioSession, ConnectedAccount } from './composio.js'
+import {
+  ComposioHttpError,
+  type ComposioPort,
+  type ComposioSession,
+  type ConnectedAccount,
+} from './composio.js'
 import { TokenStore } from './tokens.js'
 
 function claims(sub: string): ConnectorClaims {
@@ -57,7 +62,12 @@ class FakeComposio implements ComposioPort {
     this.updated.push({ sessionId, slugs })
   }
 
-  async authorize(sessionId: string, toolkit: string, callbackUrl: string) {
+  async authorize(
+    sessionId: string,
+    toolkit: string,
+    callbackUrl: string,
+    _userId?: string,
+  ) {
     this.authorized.push({ sessionId, toolkit, callbackUrl })
     return {
       redirectUrl: `https://connect.composio.dev/${toolkit}`,
@@ -238,6 +248,49 @@ test('authorize allowlisted slug returns a connect link', async () => {
   const body = await res.json()
   assert.equal(body.redirect_url, 'https://connect.composio.dev/hubspot')
   assert.equal(composio.authorized[0]?.toolkit, 'hubspot')
+})
+
+test('bootstrap survives a 400 when patching the full toolkit allowlist', async () => {
+  class Patch400 extends FakeComposio {
+    async updateSessionToolkits(): Promise<void> {
+      throw new ComposioHttpError('composio_400: invalid toolkit granola_mcp', 400, {})
+    }
+  }
+  const composio = new Patch400()
+  const { app } = harness({ composio })
+  const first = await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  assert.equal(first.status, 200)
+  const second = await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  assert.equal(second.status, 200)
+  assert.equal(composio.createCalls, 1)
+})
+
+test('composio 400 surfaces the upstream message without the API key', async () => {
+  class Boom extends FakeComposio {
+    async createSession(): Promise<ComposioSession> {
+      throw new ComposioHttpError(
+        'composio_400: user_id format is invalid',
+        400,
+        { error: { message: 'user_id format is invalid' } },
+      )
+    }
+  }
+  const { app } = harness({ composio: new Boom() })
+  const res = await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  assert.equal(res.status, 502)
+  const body = await res.json()
+  assert.equal(body.error, 'upstream_error')
+  assert.match(body.detail, /user_id format is invalid/)
+  assert.equal(JSON.stringify(body).includes('ak_test'), false)
 })
 
 test('wait reports connected once the account is ACTIVE', async () => {
