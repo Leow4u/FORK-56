@@ -217,12 +217,16 @@ export function BillingPage() {
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       })
-      const data = (await res.json()) as { url?: string; error?: string }
+      const data = (await res.json()) as {
+        url?: string
+        error?: string
+        message?: string
+      }
       if (data.url) {
         window.location.href = data.url
         return
       }
-      setFlash(data.error || 'Falha ao abrir Stripe')
+      setFlash(data.message || data.error || 'Falha ao abrir Stripe')
     } finally {
       setBusy(null)
     }
