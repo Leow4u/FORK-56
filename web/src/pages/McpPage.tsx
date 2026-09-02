@@ -37,8 +37,10 @@ import {
   DIRECTORY_SECTION_IDS,
   DIRECTORY_SECTION_LABELS,
   directoryAppDescription,
+  directoryAppLogoUrl,
   filterDirectoryApps,
   groupDirectorySections,
+  isTrustedComposioLogoUrl,
   type DirectoryApp,
   type McpDirectoryFilter,
 } from "@work4you/shared";
@@ -82,23 +84,42 @@ function directoryNativeEntry(
   };
 }
 
-function McpBrandMark({ name }: { name: string }) {
-  const brand = brandFor(name);
+function McpBrandMark({ logo, name }: { logo?: string | null; name: string }) {
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+
+  const src =
+    typeof logo === "string" &&
+    isTrustedComposioLogoUrl(logo) &&
+    failedLogo !== logo
+      ? logo
+      : null;
+
+  const brand = src ? null : brandFor(name);
   return (
     <span
       className={cn(
         "inline-grid size-9 shrink-0 place-items-center rounded-md text-sm font-medium",
-        !brand && "bg-muted text-muted-foreground",
+        src && "bg-white",
+        !src && !brand && "bg-muted text-muted-foreground",
       )}
       style={
-        brand
+        !src && brand
           ? {
               backgroundColor: `color-mix(in srgb, ${brand.color} 16%, transparent)`,
             }
           : undefined
       }
     >
-      {brand ? (
+      {src ? (
+        <img
+          alt=""
+          className="size-5 object-contain"
+          decoding="async"
+          onError={() => setFailedLogo(src)}
+          referrerPolicy="no-referrer"
+          src={src}
+        />
+      ) : brand ? (
         <brand.Icon
           aria-hidden
           className="size-4"
@@ -854,7 +875,7 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
                             !server.enabled && "opacity-60",
                           )}
                         >
-                          <McpBrandMark name={app.id} />
+                          <McpBrandMark logo={directoryAppLogoUrl(app)} name={app.id} />
                           <div className="min-w-0 flex-1">
                             <div className="mb-1 flex items-center gap-2">
                               <span className="truncate text-sm font-medium">
@@ -987,7 +1008,7 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
                     return (
                       <Card key={`${group.id}-${app.id}`}>
                         <CardContent className="flex items-start gap-3 py-4">
-                          <McpBrandMark name={app.id} />
+                          <McpBrandMark logo={directoryAppLogoUrl(app)} name={app.id} />
                           <div className="min-w-0 flex-1">
                             <div className="mb-1 flex items-center gap-2">
                               <span className="truncate text-sm font-medium">
@@ -1035,7 +1056,7 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
                   return (
                     <Card key={`${group.id}-${app.id}`}>
                       <CardContent className="flex items-start gap-3 py-4">
-                        <McpBrandMark name={app.id} />
+                        <McpBrandMark logo={directoryAppLogoUrl(app)} name={app.id} />
                         <div className="min-w-0 flex-1">
                           <div className="mb-1 flex flex-wrap items-center gap-2">
                             <span className="truncate text-sm font-medium">

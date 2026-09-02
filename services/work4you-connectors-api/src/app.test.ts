@@ -9,6 +9,7 @@ import {
   isAllowlisted,
   sectionForComposioCategory,
   sessionToolkitSlugs,
+  toolkitLogoUrl,
 } from './allowlist.js'
 import { createApp, type AppConfig, type AppDeps } from './app.js'
 import { AuthError, type ConnectorClaims } from './auth.js'
@@ -204,6 +205,9 @@ test('apps catalog is the allowlist and never includes native/blocked slugs', as
   assert.equal(slugs.includes('linear'), false)
   const granola = body.apps.find((row: { slug: string }) => row.slug === 'granola_mcp')
   assert.equal(granola.name, 'Granola')
+  assert.equal(granola.logo, 'https://logos.composio.dev/api/granola_mcp')
+  const gmail = body.apps.find((row: { slug: string }) => row.slug === 'gmail')
+  assert.equal(gmail.logo, 'https://logos.composio.dev/api/gmail')
   const instagram = body.apps.find((row: { slug: string }) => row.slug === 'instagram')
   assert.equal(instagram.notes, 'instagram_business_creator')
   assert.deepEqual(body.popular, [...POPULAR_SLUGS])
@@ -342,4 +346,8 @@ test('allowlist never enables blocked native/search slugs', () => {
   }
   assert.equal(ALLOWLIST.filter((app) => app.slug === 'canva').length, 1)
   assert.equal(ALLOWLIST.filter((app) => app.slug === 'canva_mcp').length, 1)
+  assert.equal(toolkitLogoUrl('gmail'), 'https://logos.composio.dev/api/gmail')
+  assert.equal(toolkitLogoUrl('granola_mcp'), 'https://logos.composio.dev/api/granola_mcp')
+  assert.equal(toolkitLogoUrl(''), '')
+  assert.equal(toolkitLogoUrl('../gmail'), 'https://logos.composio.dev/api/gmail')
 })

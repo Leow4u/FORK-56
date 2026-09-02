@@ -298,6 +298,14 @@ export const BLOCKED_SESSION_SLUGS: readonly string[] = [
   'exa',
 ]
 
+/** Official toolkit marks Composio already hosts (`meta.logo` / logos CDN). */
+export const COMPOSIO_LOGOS_ORIGIN = 'https://logos.composio.dev'
+
+export function toolkitLogoUrl(slug: string): string {
+  const safe = slug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')
+  return safe ? `${COMPOSIO_LOGOS_ORIGIN}/api/${encodeURIComponent(safe)}` : ''
+}
+
 export function getAllowlistApp(slug: string): AllowlistApp | undefined {
   return BY_SLUG.get(slug)
 }

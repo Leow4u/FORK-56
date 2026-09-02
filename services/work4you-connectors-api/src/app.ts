@@ -9,6 +9,7 @@ import {
   authConfigsFromEnv,
   isAllowlisted,
   sessionToolkitSlugs,
+  toolkitLogoUrl,
 } from './allowlist.js'
 import { AuthError, type ConnectorClaims } from './auth.js'
 import { ComposioHttpError, statusFromAccount, type ComposioPort } from './composio.js'
@@ -74,6 +75,7 @@ function mapApp(
     connected: status === 'active',
     source: 'composio' as const,
     notes: slug === 'instagram' ? 'instagram_business_creator' : null,
+    logo: toolkitLogoUrl(slug),
   }
 }
 

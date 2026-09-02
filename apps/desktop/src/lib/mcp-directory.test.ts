@@ -2,8 +2,10 @@ import {
   completeComposioConnect,
   type DirectoryApp,
   directoryAppDescription,
+  directoryAppLogoUrl,
   filterDirectoryApps,
   groupDirectorySections,
+  isTrustedComposioLogoUrl,
   mcpCatalogPrimaryAction,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
@@ -139,5 +141,46 @@ describe('directoryAppDescription', () => {
         notes: 'instagram_business_creator'
       })
     ).toBe('Publish to Instagram. Instagram Business or Creator only.')
+  })
+})
+
+describe('directoryAppLogoUrl', () => {
+  it('uses the Composio CDN for Work4You Apps rows', () => {
+    expect(directoryAppLogoUrl({ id: 'gmail', source: 'composio' })).toBe(
+      'https://logos.composio.dev/api/gmail'
+    )
+    expect(directoryAppLogoUrl({ id: 'granola_mcp', source: 'composio' })).toBe(
+      'https://logos.composio.dev/api/granola_mcp'
+    )
+  })
+
+  it('ignores remote logos on native and custom servers', () => {
+    expect(
+      directoryAppLogoUrl({
+        id: 'gmail',
+        source: 'native',
+        logo: 'https://logos.composio.dev/api/gmail'
+      })
+    ).toBeNull()
+    expect(
+      directoryAppLogoUrl({
+        id: 'my-box',
+        source: 'custom',
+        logo: 'https://logos.composio.dev/api/gmail'
+      })
+    ).toBeNull()
+  })
+
+  it('rejects untrusted broker logo URLs and falls back to the CDN', () => {
+    expect(
+      directoryAppLogoUrl({
+        id: 'hubspot',
+        source: 'composio',
+        logo: 'https://evil.example/x.png'
+      })
+    ).toBe('https://logos.composio.dev/api/hubspot')
+    expect(isTrustedComposioLogoUrl('https://evil.example/x.png')).toBe(false)
+    expect(isTrustedComposioLogoUrl('https://logos.composio.dev/api/gmail')).toBe(true)
+    expect(isTrustedComposioLogoUrl('https://logos.composio.dev/api/')).toBe(false)
   })
 })

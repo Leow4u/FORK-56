@@ -9,6 +9,34 @@ name wins, the Composio slug is dropped.
 from __future__ import annotations
 
 from typing import FrozenSet, List, Tuple, TypedDict
+from urllib.parse import urlparse
+
+COMPOSIO_LOGOS_ORIGIN = "https://logos.composio.dev"
+
+
+def composio_logo_url(slug: str) -> str:
+    """Official toolkit mark Composio already hosts at logos.composio.dev."""
+    safe = "".join(ch for ch in (slug or "").lower() if ch.isalnum() or ch in "_-")
+    if not safe:
+        return ""
+    return f"{COMPOSIO_LOGOS_ORIGIN}/api/{safe}"
+
+
+def is_trusted_composio_logo_url(url: str) -> bool:
+    if not isinstance(url, str) or not url:
+        return False
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    path = parsed.path or ""
+    return (
+        parsed.scheme == "https"
+        and parsed.hostname == "logos.composio.dev"
+        and path.startswith("/api/")
+        and len(path) > len("/api/")
+        and ".." not in path
+    )
 
 
 class ComposioCatalogApp(TypedDict, total=False):
