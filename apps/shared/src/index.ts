@@ -59,6 +59,7 @@ export {
   type WebSocketLike
 } from './json-rpc-gateway'
 export {
+  buildMcpDirectoryApps,
   completeComposioConnect,
   DIRECTORY_SECTION_IDS,
   DIRECTORY_SECTION_LABELS,
@@ -69,11 +70,18 @@ export {
   filterDirectoryApps,
   groupDirectorySections,
   HIDDEN_DIRECTORY_IDS,
+  httpErrorStatus,
+  type InstalledDirectoryServer,
+  isConnectorsDirectoryMissing,
   mcpCatalogPrimaryAction,
   type McpDirectoryFilter,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
-  mcpDirectoryShowsConnected
+  mcpDirectoryShowsConnected,
+  type NativeCatalogLike,
+  nativeCatalogToDirectoryApp,
+  NATIVE_POPULAR,
+  NATIVE_SECTIONS
 } from './mcp-directory'
 export { skillInvocationText } from './skill-scaffold'
 export {

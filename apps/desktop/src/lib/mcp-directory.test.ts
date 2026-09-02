@@ -1,9 +1,12 @@
 import {
+  buildMcpDirectoryApps,
   completeComposioConnect,
   type DirectoryApp,
   directoryAppDescription,
   filterDirectoryApps,
   groupDirectorySections,
+  httpErrorStatus,
+  isConnectorsDirectoryMissing,
   mcpCatalogPrimaryAction,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
@@ -139,5 +142,46 @@ describe('directoryAppDescription', () => {
         notes: 'instagram_business_creator'
       })
     ).toBe('Publish to Instagram. Instagram Business or Creator only.')
+  })
+})
+
+describe('isConnectorsDirectoryMissing', () => {
+  it('treats 404 and 405 as a missing control plane', () => {
+    expect(httpErrorStatus({ statusCode: 404 })).toBe(404)
+    expect(isConnectorsDirectoryMissing({ statusCode: 404 })).toBe(true)
+    expect(isConnectorsDirectoryMissing(new Error('404: Not Found'))).toBe(true)
+    expect(isConnectorsDirectoryMissing(new Error('405: Method Not Allowed'))).toBe(true)
+    expect(isConnectorsDirectoryMissing(new Error('502: connectors broker unreachable'))).toBe(false)
+  })
+})
+
+describe('buildMcpDirectoryApps', () => {
+  it('falls back to the native catalog when the connectors directory is missing', () => {
+    const rows = buildMcpDirectoryApps({
+      directoryApps: null,
+      nativeCatalog: [
+        { name: 'notion', description: 'Pages and databases', auth_type: 'oauth' },
+        { name: 'work4you_apps', description: 'hidden' }
+      ],
+      installed: [{ name: 'vercel', description: 'Deployments', auth: 'oauth' }]
+    })
+
+    expect(rows.map(row => row.id)).toEqual(['notion', 'vercel'])
+    expect(rows.find(row => row.id === 'notion')?.popular).toBe(true)
+    expect(rows.find(row => row.id === 'notion')?.section).toBe('productivity')
+    expect(rows.find(row => row.id === 'vercel')?.source).toBe('custom')
+  })
+
+  it('keeps a live connectors directory and still appends unknown installed servers', () => {
+    const rows = buildMcpDirectoryApps({
+      directoryApps: [
+        app({ id: 'gmail', name: 'Gmail', source: 'composio', popular: true, connected: false })
+      ],
+      nativeCatalog: [{ name: 'notion', description: 'Pages' }],
+      installed: [{ name: 'linear' }]
+    })
+
+    expect(rows.map(row => row.id)).toEqual(['gmail', 'linear'])
+    expect(rows.find(row => row.id === 'gmail')?.source).toBe('composio')
   })
 })

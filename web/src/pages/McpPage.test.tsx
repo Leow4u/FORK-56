@@ -371,4 +371,15 @@ describe("McpPage directory", () => {
     expect(apiMocks.authMcpServer).not.toHaveBeenCalled();
     expect(apiMocks.installMcpCatalogEntry).toHaveBeenCalled();
   });
+
+  it("fills Discover from the native catalog when the connectors directory is missing", async () => {
+    apiMocks.getConnectorsDirectory.mockRejectedValue(new Error("404: Not Found"));
+    await renderPage();
+    const text = container.textContent ?? "";
+    expect(text).toContain("Notion");
+    expect(text).toContain("Filesystem");
+    expect(text).toContain("too old to fill the app store");
+    expect(text).not.toContain("Gmail");
+    expect(text).not.toContain("No MCP servers configured");
+  });
 });

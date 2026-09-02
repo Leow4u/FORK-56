@@ -838,6 +838,7 @@ export interface Translations {
       catalogInstalling: string
       catalogInstallStarted: (name: string) => string
       catalogInstallFailed: (name: string) => string
+      directoryRuntimeBehind: string
       catalogEnvPrompt: (name: string) => string
       catalogEnvRequired: string
       capabilitySummary: (tools: number, prompts: number, resources: number) => string

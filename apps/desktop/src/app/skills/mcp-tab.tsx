@@ -1,13 +1,15 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  buildMcpDirectoryApps,
   completeComposioConnect,
   DIRECTORY_SECTION_IDS,
   DIRECTORY_SECTION_LABELS,
   type DirectoryApp,
   directoryAppDescription,
   filterDirectoryApps,
-  groupDirectorySections
+  groupDirectorySections,
+  isConnectorsDirectoryMissing
 } from '@work4you/shared'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -39,6 +41,7 @@ import { getServers, isServerShape, type McpServers, normalizeEntry } from '@/li
 import { countEnabledTools, isToolEnabled, toggleToolInServer } from '@/lib/mcp-tool-filter'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
+import { applyBackendUpdate } from '@/store/updates'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { $activeSessionId } from '@/store/session'
 import {
@@ -502,6 +505,7 @@ export function McpTab({
   const directoryQuery = useQuery({
     queryKey: ['connectors-directory', scopeProfileKey],
     queryFn: () => getConnectorsDirectory(profile ?? undefined),
+    retry: (count, error) => !isConnectorsDirectoryMissing(error) && count < 2,
     staleTime: 30_000
   })
 
@@ -518,36 +522,40 @@ export function McpTab({
   }, [catalog])
 
   const directoryApps = useMemo(() => {
-    const rows: DirectoryApp[] = (directoryQuery.data?.apps ?? []).map(app => ({
-      ...app,
-      source: app.source === 'composio' ? 'composio' : 'native'
-    }))
+    const directorySource = !directoryQuery.isFetched
+      ? []
+      : directoryQuery.isError || directoryQuery.data?.apps == null
+        ? null
+        : directoryQuery.data.apps
 
-    const known = new Set(rows.map(app => app.id))
-
-    for (const serverName of names) {
-      if (serverName === 'work4you_apps' || known.has(serverName)) {
-        continue
-      }
-
-      rows.push({
-        id: serverName,
+    const rows = buildMcpDirectoryApps({
+      directoryApps: directorySource,
+      nativeCatalog: catalog,
+      installed: names.map(serverName => ({
         name: serverName,
         description: catalogDescription(catalog, serverName, servers[serverName]) ?? '',
-        section: 'other',
-        popular: false,
-        source: 'custom',
-        connected: true,
-        auth_type: typeof servers[serverName]?.auth === 'string' ? String(servers[serverName].auth) : undefined
-      })
-    }
+        auth: typeof servers[serverName]?.auth === 'string' ? String(servers[serverName].auth) : undefined
+      }))
+    })
 
     return filterDirectoryApps(rows, {
       filter: directoryFilter,
       query,
       section: sectionFilter === 'all' ? null : sectionFilter
     })
-  }, [catalog, directoryFilter, directoryQuery.data, names, query, sectionFilter, servers])
+  }, [
+    catalog,
+    directoryFilter,
+    directoryQuery.data,
+    directoryQuery.isError,
+    directoryQuery.isFetched,
+    names,
+    query,
+    sectionFilter,
+    servers
+  ])
+
+  const directoryRuntimeBehind = directoryQuery.isError && isConnectorsDirectoryMissing(directoryQuery.error)
 
   const directoryGroups = useMemo(() => groupDirectorySections(directoryApps), [directoryApps])
 
@@ -1254,6 +1262,19 @@ export function McpTab({
           />
         ) : (
           <div className="h-full overflow-y-auto overscroll-contain p-3 [scrollbar-gutter:stable]">
+            {directoryRuntimeBehind ? (
+              <div className="mb-3 flex items-start justify-between gap-3 rounded-xl border border-(--ui-stroke-quaternary) bg-(--ui-fill-tertiary)/40 px-3 py-2">
+                <p className="min-w-0 text-[0.72rem] leading-5 text-(--ui-text-secondary)">{m.directoryRuntimeBehind}</p>
+                <Button
+                  className="shrink-0"
+                  onClick={() => void applyBackendUpdate()}
+                  size="xs"
+                  variant="textStrong"
+                >
+                  {t.notifications.updateWork4You}
+                </Button>
+              </div>
+            ) : null}
             {directoryEmpty ? (
               <PanelEmpty
                 action={

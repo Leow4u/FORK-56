@@ -1168,6 +1168,8 @@ export const zh: Translations = {
       catalogInstalling: '安装中…',
       catalogInstallStarted: name => `正在安装 ${name}… 完成后对新会话生效。`,
       catalogInstallFailed: name => `安装 ${name} 失败`,
+      directoryRuntimeBehind:
+        '此桌面已有应用商店，但本地 Work4You 运行时过旧，无法填充列表。请更新 Work4You，然后完全退出并重新打开 Desktop。',
       catalogEnvPrompt: name => `${name} 需要凭据`,
       catalogEnvRequired: '安装前请填写必需的值。',
       capabilitySummary: (tools, prompts, resources) =>

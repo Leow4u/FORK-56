@@ -7283,6 +7283,10 @@ def test_desktop_contract_includes_approval_mode_rpc():
     assert server.DESKTOP_BACKEND_CONTRACT >= 3
 
 
+def test_desktop_contract_includes_connectors_directory():
+    assert server.DESKTOP_BACKEND_CONTRACT >= 7
+
+
 def test_config_set_approval_mode_rejects_unknown_value():
     resp = server.handle_request(
         {

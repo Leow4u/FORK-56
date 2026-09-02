@@ -33,12 +33,14 @@ import { completeMcpDashboardOAuth } from "@/lib/mcp-dashboard-oauth";
 import { brandFor, brandGlyphStyle } from "@/lib/mcp-brands";
 import { mcpCatalogPrimaryAction } from "@/lib/mcp-directory-filter";
 import {
+  buildMcpDirectoryApps,
   completeComposioConnect,
   DIRECTORY_SECTION_IDS,
   DIRECTORY_SECTION_LABELS,
   directoryAppDescription,
   filterDirectoryApps,
   groupDirectorySections,
+  isConnectorsDirectoryMissing,
   type DirectoryApp,
   type McpDirectoryFilter,
 } from "@work4you/shared";
@@ -115,6 +117,7 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
   const [servers, setServers] = useState<McpServer[]>([]);
   const [catalog, setCatalog] = useState<McpCatalogEntry[]>([]);
   const [directory, setDirectory] = useState<ConnectorsDirectoryApp[]>([]);
+  const [directoryUnavailable, setDirectoryUnavailable] = useState(false);
   const [diagnostics, setDiagnostics] = useState<McpCatalogDiagnostic[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast, showToast } = useToast();
@@ -190,8 +193,15 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
       .getConnectorsDirectory()
       .then((res) => {
         setDirectory(res.apps);
+        setDirectoryUnavailable(false);
       })
-      .catch((e) => showToast(`Error: ${e}`, "error"));
+      .catch((e) => {
+        setDirectory([]);
+        setDirectoryUnavailable(true);
+        if (!isConnectorsDirectoryMissing(e)) {
+          showToast(`Error: ${e}`, "error");
+        }
+      });
   }, [showToast]);
 
   useEffect(() => {
@@ -462,31 +472,31 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
   }, [servers]);
 
   const directoryApps = useMemo(() => {
-    const rows: DirectoryApp[] = directory.map((app) => ({
-      ...app,
-      source: app.source === "composio" ? "composio" : "native",
-    }));
-    const known = new Set(rows.map((app) => app.id));
-    for (const server of servers) {
-      if (server.name === "work4you_apps" || known.has(server.name)) continue;
-      rows.push({
-        id: server.name,
+    const rows = buildMcpDirectoryApps({
+      directoryApps: directoryUnavailable ? null : directory,
+      nativeCatalog: catalog,
+      installed: servers.map((server) => ({
         name: server.name,
         description:
           catalogByName.get(server.name.toLowerCase())?.description ?? "",
-        section: "other",
-        popular: false,
-        source: "custom",
-        connected: true,
-        auth_type: server.auth ?? undefined,
-      });
-    }
+        auth: server.auth ?? undefined,
+      })),
+    });
     return filterDirectoryApps(rows, {
       filter: directoryFilter,
       query,
       section: sectionFilter === "all" ? null : sectionFilter,
     });
-  }, [catalogByName, directory, directoryFilter, query, sectionFilter, servers]);
+  }, [
+    catalog,
+    catalogByName,
+    directory,
+    directoryFilter,
+    directoryUnavailable,
+    query,
+    sectionFilter,
+    servers,
+  ]);
 
   const directoryGroups = useMemo(
     () => groupDirectorySections(directoryApps),
@@ -556,6 +566,13 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
           ))}
         </select>
       </div>
+
+      {directoryUnavailable ? (
+        <p className="text-sm text-muted-foreground">
+          This Work4You runtime is too old to fill the app store. Update
+          Work4You, then reload. Native catalog apps still appear below.
+        </p>
+      ) : null}
 
       <DeleteConfirmDialog
         open={serverDelete.isOpen}
