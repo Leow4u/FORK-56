@@ -2,7 +2,7 @@
 
 import { type ToolCallMessagePartProps, useAuiState } from '@assistant-ui/react'
 import { useStore } from '@nanostores/react'
-import { findComposioDirectoryApp, type DirectoryApp } from '@work4you/shared'
+import { type DirectoryApp, findComposioDirectoryApp } from '@work4you/shared'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useSessionView } from '@/app/chat/session-view'
@@ -474,11 +474,13 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
   // Catalog entries carry their transport URL in the API response; the
   // static directory remains a fallback rung for older backends.
   const known = directoryEntry(server)
+
   const sourceLine = composioApp
     ? copy.work4youAppsSource
     : action === 'install'
       ? (entry?.url ?? known?.url ?? copy.catalogSource)
       : null
+
   const brand = brandFor(server)
 
   const trailingIcon = brand ? (

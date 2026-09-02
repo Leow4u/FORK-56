@@ -282,6 +282,7 @@ export async function completeComposioConnect(opts: {
 export function composioAppSuggestKeywords(app: { id: string; name: string }): string[] {
   const keywords: string[] = []
   const seen = new Set<string>()
+
   const add = (value: string) => {
     const trimmed = value.trim().toLowerCase()
 

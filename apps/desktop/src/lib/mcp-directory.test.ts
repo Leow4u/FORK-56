@@ -1,7 +1,7 @@
 import {
   completeComposioConnect,
-  composioAppSuggestKeywords,
   composioAppsToSuggestible,
+  composioAppSuggestKeywords,
   composioCdnUrlFromProtocolRequest,
   composioLogoImgSrc,
   type DirectoryApp,
