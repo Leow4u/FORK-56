@@ -1164,7 +1164,7 @@ export function McpTab({
 
       await directoryQuery.refetch()
     } catch (err) {
-      notifyError(err, m.catalogInstallFailed(app.name))
+      notifyError(err, m.catalogConnectFailed(app.name))
     } finally {
       setConnectingSlug(null)
     }

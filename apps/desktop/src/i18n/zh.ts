@@ -1168,6 +1168,7 @@ export const zh: Translations = {
       catalogInstalling: '安装中…',
       catalogInstallStarted: name => `正在安装 ${name}… 完成后对新会话生效。`,
       catalogInstallFailed: name => `安装 ${name} 失败`,
+      catalogConnectFailed: name => `连接 ${name} 失败`,
       catalogEnvPrompt: name => `${name} 需要凭据`,
       catalogEnvRequired: '安装前请填写必需的值。',
       capabilitySummary: (tools, prompts, resources) =>
