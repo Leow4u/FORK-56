@@ -21,6 +21,8 @@ export const PAGE_MAX_W = 'max-w-[75rem]'
 // Settings right-pane column: a centered reading width so label+control rows
 // don't sprawl across the overlay. The gray pane behind this column can still
 // fill OverlayMain; only the information is capped. Literal for Tailwind.
+// Chat uses the same 42rem via `--composer-width` in styles.css (transcript +
+// composer), not this class — keep the rem in sync if either cap moves.
 export const PAGE_SETTINGS_MAX_W = 'max-w-[42rem]'
 
 // Below this viewport width a docked sidebar leaves no room for content, so both

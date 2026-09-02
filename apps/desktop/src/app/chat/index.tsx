@@ -61,6 +61,7 @@ import { ComposerSurfaceProvider, useComposerScope, useComposerSurfaceId } from 
 import type { ChatBarState } from './composer/types'
 import { type DroppedFile, partitionDroppedFiles } from './hooks/use-composer-actions'
 import { type DragKind, useFileDropZone } from './hooks/use-file-drop-zone'
+import { dockedComposerAnchor } from './composer-placement'
 import { shouldShowIntro } from './intro-visibility'
 import { ProfileTag } from './profile-tag'
 import { isRouteSessionMismatch } from './route-session-state'
@@ -575,6 +576,7 @@ const ChatViewContent = memo(function ChatViewContent({
         className
       )}
       data-chat-surface=""
+      data-composer-anchor={dockedComposerAnchor(showIntro)}
       data-composer-surface-id={composerSurfaceId}
       data-composer-target={composerScope.target}
       data-session-anchor={sessionAnchor}

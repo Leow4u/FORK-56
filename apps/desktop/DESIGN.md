@@ -171,7 +171,10 @@ Notes:
 - **Gutters:** `PAGE_INSET_X` (`src/app/layout-constants.ts`) for page side
   padding; `PAGE_INSET_NEG_X` to bleed a child to the edge. Don't hardcode
   `px-6`/`px-8` on pages. Settings bodies also cap at `PAGE_SETTINGS_MAX_W`
-  (`max-w-[42rem]`) so the column stays centered in the gray pane.
+  (`max-w-[42rem]`) so the column stays centered in the gray pane. Chat
+  transcript and composer use the same 42rem via `--composer-width` (narrow
+  panes still `min(..., 100% - 2rem)`). Empty intro docks the composer at the
+  pane midline; a live thread docks it at the bottom. HUD keeps `--composer-width: 100%`.
 - **Master/detail overlays:** `OverlaySplitLayout` + `OverlaySidebar` /
   `OverlayMain`. Cron, profiles, etc. ride this — don't rebuild a titlebar
   shell. Settings passes `header` (search pill) and `itemTone="quiet"` into
