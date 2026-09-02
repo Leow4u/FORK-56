@@ -557,300 +557,299 @@ export function ConnectionsRegistrySection() {
       )}
 
       <SettingsGroup title={s.title}>
-      {loading ? (
-        <div className="flex items-center gap-2 py-3 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-          <Loader2 className="size-4 animate-spin" />
-        </div>
-      ) : !registry || registry.connections.length === 0 ? (
-        <EmptyState title={s.empty} />
-      ) : displayedConnections.length === 0 ? (
-        <EmptyState title={s.noSearchResults} />
-      ) : (
-        displayedConnections.map(conn => {
-          const Icon = KIND_ICONS[conn.kind]
-          const isCurrent = activeConnectionId === conn.id
-          const isPrimary = registry.primary === conn.id
-          const busy = busyId === conn.id
-          // Display-only: this connection is a second address for a backend
-          // already registered under another entry (same install_id).
-          const sameBackendPeer = sameBackendPeerLabel(conn, sortedConnections)
+        {loading ? (
+          <div className="flex items-center gap-2 py-3 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
+        ) : !registry || registry.connections.length === 0 ? (
+          <EmptyState title={s.empty} />
+        ) : displayedConnections.length === 0 ? (
+          <EmptyState title={s.noSearchResults} />
+        ) : (
+          displayedConnections.map(conn => {
+            const Icon = KIND_ICONS[conn.kind]
+            const isCurrent = activeConnectionId === conn.id
+            const isPrimary = registry.primary === conn.id
+            const busy = busyId === conn.id
+            // Display-only: this connection is a second address for a backend
+            // already registered under another entry (same install_id).
+            const sameBackendPeer = sameBackendPeerLabel(conn, sortedConnections)
 
-          const baseDescription =
-            conn.kind === 'ssh'
-              ? `${kindMeta[conn.kind].label} · ${conn.user ? `${conn.user}@` : ''}${conn.host}${conn.port ? `:${conn.port}` : ''}`
-              : conn.url
-                ? `${kindMeta[conn.kind].label} · ${conn.url}`
-                : kindMeta[conn.kind].desc
+            const baseDescription =
+              conn.kind === 'ssh'
+                ? `${kindMeta[conn.kind].label} · ${conn.user ? `${conn.user}@` : ''}${conn.host}${conn.port ? `:${conn.port}` : ''}`
+                : conn.url
+                  ? `${kindMeta[conn.kind].label} · ${conn.url}`
+                  : kindMeta[conn.kind].desc
 
-          return (
+            return (
+              <ListRow
+                action={
+                  <div className="flex items-center gap-2">
+                    <Button
+                      disabled={testingId === conn.id}
+                      onClick={() => {
+                        triggerHaptic('selection')
+                        void test(conn)
+                      }}
+                      size="sm"
+                      variant="outline"
+                    >
+                      {testingId === conn.id ? <Loader2 className="size-3.5 animate-spin" /> : s.testConnection}
+                    </Button>
+                    {!isPrimary && (
+                      <Button disabled={busy} onClick={() => void makePrimary(conn.id)} size="sm" variant="outline">
+                        {s.makePrimary}
+                      </Button>
+                    )}
+                    {conn.kind !== 'local' && (
+                      <>
+                        <Button
+                          aria-label={s.editConnection}
+                          onClick={() => openEditor(editorFromConnection(conn))}
+                          size="icon-sm"
+                          variant="ghost"
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          aria-label={s.removeConnection}
+                          disabled={busy}
+                          onClick={() => setRemoveTarget(conn)}
+                          size="icon-sm"
+                          variant="ghost"
+                        >
+                          {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                }
+                description={
+                  sameBackendPeer ? `${baseDescription} · ${s.sameBackendHint(sameBackendPeer)}` : baseDescription
+                }
+                key={conn.id}
+                title={
+                  <span className="flex items-center gap-2">
+                    <Icon className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{conn.label}</span>
+                    {isCurrent && <Pill tone="primary">{s.currentPill}</Pill>}
+                    {isPrimary && <Pill>{s.primaryPill}</Pill>}
+                    {conn.kind === 'local' && <Pill>{s.managedPill}</Pill>}
+                  </span>
+                }
+              />
+            )
+          })
+        )}
+
+        {editor ? (
+          <div className="mt-4 space-y-3 rounded-lg border border-border/60 p-4">
+            <div className="grid grid-cols-2 gap-2 @2xl:grid-cols-4">
+              {/* Kind is fixed once created (buttons disable on edit). On create
+                every kind is offered; Local is disabled while the managed
+                local entry exists (the registry holds at most one). */}
+              {(editor.id ? ([editor.kind] as const) : (['local', 'cloud', 'remote', 'ssh'] as const)).map(kind => (
+                <Button
+                  disabled={Boolean(editor.id) || (kind === 'local' && hasLocal)}
+                  key={kind}
+                  onClick={() => {
+                    setDupeError(null)
+                    setEditor({ ...editor, kind })
+                  }}
+                  size="sm"
+                  variant={editor.kind === kind ? 'default' : 'outline'}
+                >
+                  {kindMeta[kind].label}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">{kindMeta[editor.kind].desc}</p>
+            {!editor.id && hasLocal ? <p className="text-xs text-muted-foreground">{s.localAddHint}</p> : null}
+            {!editor.id && editor.kind === 'cloud' ? (
+              <p className="text-xs text-muted-foreground">{s.cloudAddHint}</p>
+            ) : null}
+
             <ListRow
               action={
-                <div className="flex items-center gap-2">
-                  <Button
-                    disabled={testingId === conn.id}
-                    onClick={() => {
-                      triggerHaptic('selection')
-                      void test(conn)
+                <Input
+                  onChange={e => setEditor({ ...editor, label: e.target.value })}
+                  placeholder={s.labelPlaceholder}
+                  value={editor.label}
+                />
+              }
+              description={s.labelDesc}
+              title={s.labelTitle}
+            />
+
+            {(editor.kind === 'remote' || editor.kind === 'cloud') && (
+              <ListRow
+                action={
+                  <Input
+                    onChange={e => {
+                      setDupeError(null)
+                      setEditor({ ...editor, url: e.target.value })
                     }}
+                    placeholder="http://homelab.lan:9119"
+                    value={editor.url}
+                  />
+                }
+                title={s.urlTitle}
+              />
+            )}
+
+            {editor.kind === 'remote' && (
+              <>
+                <ListRow
+                  action={
+                    <div className="flex gap-2">
+                      {(['token', 'oauth'] as const).map(mode => (
+                        <Button
+                          key={mode}
+                          onClick={() => setEditor({ ...editor, authMode: mode })}
+                          size="sm"
+                          variant={editor.authMode === mode ? 'default' : 'outline'}
+                        >
+                          {mode === 'token' ? t.settings.gateway.tokenTitle : 'OAuth'}
+                        </Button>
+                      ))}
+                    </div>
+                  }
+                  title={t.settings.gateway.authTitle}
+                />
+                {editor.authMode === 'token' && (
+                  <ListRow
+                    action={
+                      <Input
+                        onChange={e => setEditor({ ...editor, token: e.target.value })}
+                        placeholder={t.settings.gateway.pasteSessionToken}
+                        type="password"
+                        value={editor.token}
+                      />
+                    }
+                    description={t.settings.gateway.tokenDesc}
+                    title={t.settings.gateway.tokenTitle}
+                  />
+                )}
+              </>
+            )}
+
+            {(editor.kind === 'remote' || editor.kind === 'cloud') && (
+              <div className="grid gap-2">
+                <div>
+                  <div className="text-sm font-medium">{s.headersTitle}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">{s.headersDesc}</p>
+                </div>
+                {editor.headers.map((row, index) => (
+                  <div className="flex items-center gap-2" key={index}>
+                    <Input
+                      className="flex-1"
+                      onChange={e =>
+                        setEditor({
+                          ...editor,
+                          headers: editor.headers.map((h, i) => (i === index ? { ...h, name: e.target.value } : h))
+                        })
+                      }
+                      placeholder="CF-Access-Client-Id"
+                      value={row.name}
+                    />
+                    <Input
+                      className="flex-1"
+                      onChange={e =>
+                        setEditor({
+                          ...editor,
+                          headers: editor.headers.map((h, i) => (i === index ? { ...h, value: e.target.value } : h))
+                        })
+                      }
+                      placeholder={row.stored ? s.headerValueSaved : s.headerValuePlaceholder}
+                      type="password"
+                      value={row.value}
+                    />
+                    <Button
+                      onClick={() => setEditor({ ...editor, headers: editor.headers.filter((_, i) => i !== index) })}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      {s.headerRemove}
+                    </Button>
+                  </div>
+                ))}
+                <div>
+                  <Button
+                    onClick={() =>
+                      setEditor({ ...editor, headers: [...editor.headers, { name: '', stored: false, value: '' }] })
+                    }
                     size="sm"
                     variant="outline"
                   >
-                    {testingId === conn.id ? <Loader2 className="size-3.5 animate-spin" /> : s.testConnection}
+                    {s.headerAdd}
                   </Button>
-                  {!isPrimary && (
-                    <Button disabled={busy} onClick={() => void makePrimary(conn.id)} size="sm" variant="outline">
-                      {s.makePrimary}
-                    </Button>
-                  )}
-                  {conn.kind !== 'local' && (
-                    <>
-                      <Button
-                        aria-label={s.editConnection}
-                        onClick={() => openEditor(editorFromConnection(conn))}
-                        size="icon-sm"
-                        variant="ghost"
-                      >
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button
-                        aria-label={s.removeConnection}
-                        disabled={busy}
-                        onClick={() => setRemoveTarget(conn)}
-                        size="icon-sm"
-                        variant="ghost"
-                      >
-                        {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-                      </Button>
-                    </>
-                  )}
                 </div>
-              }
-              description={
-                sameBackendPeer ? `${baseDescription} · ${s.sameBackendHint(sameBackendPeer)}` : baseDescription
-              }
-              key={conn.id}
-              title={
-                <span className="flex items-center gap-2">
-                  <Icon className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate">{conn.label}</span>
-                  {isCurrent && <Pill tone="primary">{s.currentPill}</Pill>}
-                  {isPrimary && <Pill>{s.primaryPill}</Pill>}
-                  {conn.kind === 'local' && <Pill>{s.managedPill}</Pill>}
-                </span>
-              }
-            />
-          )
-        })
-      )}
+              </div>
+            )}
 
-      {editor ? (
-        <div className="mt-4 space-y-3 rounded-lg border border-border/60 p-4">
-          <div className="grid grid-cols-2 gap-2 @2xl:grid-cols-4">
-            {/* Kind is fixed once created (buttons disable on edit). On create
-                every kind is offered; Local is disabled while the managed
-                local entry exists (the registry holds at most one). */}
-            {(editor.id ? ([editor.kind] as const) : (['local', 'cloud', 'remote', 'ssh'] as const)).map(kind => (
-              <Button
-                disabled={Boolean(editor.id) || (kind === 'local' && hasLocal)}
-                key={kind}
-                onClick={() => {
-                  setDupeError(null)
-                  setEditor({ ...editor, kind })
-                }}
-                size="sm"
-                variant={editor.kind === kind ? 'default' : 'outline'}
-              >
-                {kindMeta[kind].label}
-              </Button>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">{kindMeta[editor.kind].desc}</p>
-          {!editor.id && hasLocal ? <p className="text-xs text-muted-foreground">{s.localAddHint}</p> : null}
-          {!editor.id && editor.kind === 'cloud' ? (
-            <p className="text-xs text-muted-foreground">{s.cloudAddHint}</p>
-          ) : null}
-
-          <ListRow
-            action={
-              <Input
-                onChange={e => setEditor({ ...editor, label: e.target.value })}
-                placeholder={s.labelPlaceholder}
-                value={editor.label}
-              />
-            }
-            description={s.labelDesc}
-            title={s.labelTitle}
-          />
-
-          {(editor.kind === 'remote' || editor.kind === 'cloud') && (
-            <ListRow
-              action={
-                <Input
-                  onChange={e => {
-                    setDupeError(null)
-                    setEditor({ ...editor, url: e.target.value })
-                  }}
-                  placeholder="http://homelab.lan:9119"
-                  value={editor.url}
-                />
-              }
-              title={s.urlTitle}
-            />
-          )}
-
-          {editor.kind === 'remote' && (
-            <>
+            {editor.kind === 'ssh' && (
               <ListRow
                 action={
-                  <div className="flex gap-2">
-                    {(['token', 'oauth'] as const).map(mode => (
-                      <Button
-                        key={mode}
-                        onClick={() => setEditor({ ...editor, authMode: mode })}
-                        size="sm"
-                        variant={editor.authMode === mode ? 'default' : 'outline'}
-                      >
-                        {mode === 'token' ? t.settings.gateway.tokenTitle : 'OAuth'}
-                      </Button>
-                    ))}
-                  </div>
+                  <Input
+                    onChange={e => {
+                      setDupeError(null)
+                      setEditor({ ...editor, host: e.target.value })
+                    }}
+                    placeholder="user@host:22"
+                    value={editor.host}
+                  />
                 }
-                title={t.settings.gateway.authTitle}
+                title={s.sshHostTitle}
               />
-              {editor.authMode === 'token' && (
-                <ListRow
-                  action={
-                    <Input
-                      onChange={e => setEditor({ ...editor, token: e.target.value })}
-                      placeholder={t.settings.gateway.pasteSessionToken}
-                      type="password"
-                      value={editor.token}
-                    />
-                  }
-                  description={t.settings.gateway.tokenDesc}
-                  title={t.settings.gateway.tokenTitle}
-                />
-              )}
-            </>
-          )}
+            )}
 
-          {(editor.kind === 'remote' || editor.kind === 'cloud') && (
-            <div className="grid gap-2">
-              <div>
-                <div className="text-sm font-medium">{s.headersTitle}</div>
-                <p className="mt-1 text-xs text-muted-foreground">{s.headersDesc}</p>
-              </div>
-              {editor.headers.map((row, index) => (
-                <div className="flex items-center gap-2" key={index}>
-                  <Input
-                    className="flex-1"
-                    onChange={e =>
-                      setEditor({
-                        ...editor,
-                        headers: editor.headers.map((h, i) => (i === index ? { ...h, name: e.target.value } : h))
-                      })
-                    }
-                    placeholder="CF-Access-Client-Id"
-                    value={row.name}
-                  />
-                  <Input
-                    className="flex-1"
-                    onChange={e =>
-                      setEditor({
-                        ...editor,
-                        headers: editor.headers.map((h, i) => (i === index ? { ...h, value: e.target.value } : h))
-                      })
-                    }
-                    placeholder={row.stored ? s.headerValueSaved : s.headerValuePlaceholder}
-                    type="password"
-                    value={row.value}
-                  />
-                  <Button
-                    onClick={() => setEditor({ ...editor, headers: editor.headers.filter((_, i) => i !== index) })}
-                    size="sm"
-                    variant="ghost"
-                  >
-                    {s.headerRemove}
-                  </Button>
-                </div>
-              ))}
-              <div>
-                <Button
-                  onClick={() =>
-                    setEditor({ ...editor, headers: [...editor.headers, { name: '', stored: false, value: '' }] })
-                  }
-                  size="sm"
-                  variant="outline"
-                >
-                  {s.headerAdd}
-                </Button>
-              </div>
+            {dupeError ? <p className="text-xs text-destructive">{dupeError}</p> : null}
+
+            <div className="flex justify-end gap-2">
+              <Button disabled={saving} onClick={() => openEditor(null)} size="sm" variant="ghost">
+                {s.cancel}
+              </Button>
+              <Button disabled={saving || !editor.label.trim()} onClick={() => void save()} size="sm">
+                {saving ? s.saving : s.save}
+              </Button>
             </div>
-          )}
-
-          {editor.kind === 'ssh' && (
-            <ListRow
-              action={
-                <Input
-                  onChange={e => {
-                    setDupeError(null)
-                    setEditor({ ...editor, host: e.target.value })
-                  }}
-                  placeholder="user@host:22"
-                  value={editor.host}
-                />
-              }
-              title={s.sshHostTitle}
-            />
-          )}
-
-          {dupeError ? <p className="text-xs text-destructive">{dupeError}</p> : null}
-
-          <div className="flex justify-end gap-2">
-            <Button disabled={saving} onClick={() => openEditor(null)} size="sm" variant="ghost">
-              {s.cancel}
-            </Button>
-            <Button disabled={saving || !editor.label.trim()} onClick={() => void save()} size="sm">
-              {saving ? s.saving : s.save}
-            </Button>
           </div>
-        </div>
-      ) : (
-        <div className="mt-4 flex items-center gap-2">
-          <Button
-            onClick={() => {
-              triggerHaptic('selection')
-              openEditor(emptyEditor('remote'))
-            }}
-            size="sm"
-            variant="outline"
-          >
-            <Plus className="size-3.5" /> {s.addConnection}
-          </Button>
-          {bridge?.updateAll && (registry?.connections.length ?? 0) > 1 && (
+        ) : (
+          <div className="mt-4 flex items-center gap-2">
             <Button
-              disabled={updatingAll}
               onClick={() => {
                 triggerHaptic('selection')
-                void updateAll()
+                openEditor(emptyEditor('remote'))
               }}
               size="sm"
               variant="outline"
             >
-              {updatingAll ? (
-                <>
-                  <Loader2 className="size-3.5 animate-spin" /> {s.updateAllRunning}
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="size-3.5" /> {s.updateAll}
-                </>
-              )}
+              <Plus className="size-3.5" /> {s.addConnection}
             </Button>
-          )}
-        </div>
-      )}
-
+            {bridge?.updateAll && (registry?.connections.length ?? 0) > 1 && (
+              <Button
+                disabled={updatingAll}
+                onClick={() => {
+                  triggerHaptic('selection')
+                  void updateAll()
+                }}
+                size="sm"
+                variant="outline"
+              >
+                {updatingAll ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" /> {s.updateAllRunning}
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="size-3.5" /> {s.updateAll}
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
       </SettingsGroup>
 
       {!loading && registry && registry.connections.length > 1 && (

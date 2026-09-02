@@ -21,7 +21,15 @@ import {
   setSessionArchived
 } from '@/work4you'
 
-import { EmptyState, ListRow, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton, ToggleRow } from './primitives'
+import {
+  EmptyState,
+  ListRow,
+  SectionHeading,
+  SettingsContent,
+  SettingsGroup,
+  SettingsSkeleton,
+  ToggleRow
+} from './primitives'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
 
 const DEFAULT_AUTO_ARCHIVE_DAYS = 3
@@ -113,63 +121,63 @@ export function SessionsSettings() {
       <SectionHeading title={t.settings.nav.archivedChats} variant="page" />
 
       <SettingsGroup>
-      <DefaultProjectDirSetting />
+        <DefaultProjectDirSetting />
 
-      <AutoArchiveSetting />
+        <AutoArchiveSetting />
       </SettingsGroup>
 
       <SettingsGroup>
-      <p className="pt-3 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-        {s.archivedIntro}
-      </p>
+        <p className="pt-3 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+          {s.archivedIntro}
+        </p>
 
-      {sessions.length === 0 ? (
-        <EmptyState description={s.emptyArchivedDesc} title={s.emptyArchivedTitle} />
-      ) : (
-        <div className="grid gap-1">
-          {sessions.map(session => {
-            const label = pathLeaf(session.cwd)
-            const busy = busyId === session.id
+        {sessions.length === 0 ? (
+          <EmptyState description={s.emptyArchivedDesc} title={s.emptyArchivedTitle} />
+        ) : (
+          <div className="grid gap-1">
+            {sessions.map(session => {
+              const label = pathLeaf(session.cwd)
+              const busy = busyId === session.id
 
-            return (
-              <div className="scroll-mt-6 rounded-lg" id={`archived-session-${session.id}`} key={session.id}>
-                <ListRow
-                  action={
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        disabled={busy}
-                        onClick={() => void unarchive(session)}
-                        size="sm"
-                        type="button"
-                        variant="textStrong"
-                      >
-                        {busy ? <Loader2 className="size-3.5 animate-spin" /> : <ArchiveOff className="size-3.5" />}
-                        <span>{s.unarchive}</span>
-                      </Button>
-                      <Tip label={s.deletePermanently}>
+              return (
+                <div className="scroll-mt-6 rounded-lg" id={`archived-session-${session.id}`} key={session.id}>
+                  <ListRow
+                    action={
+                      <div className="flex items-center gap-1.5">
                         <Button
-                          aria-label={s.deletePermanently}
-                          className="text-muted-foreground hover:text-destructive"
                           disabled={busy}
-                          onClick={() => void remove(session)}
-                          size="icon"
+                          onClick={() => void unarchive(session)}
+                          size="sm"
                           type="button"
-                          variant="ghost"
+                          variant="textStrong"
                         >
-                          <Trash2 className="size-3.5" />
+                          {busy ? <Loader2 className="size-3.5 animate-spin" /> : <ArchiveOff className="size-3.5" />}
+                          <span>{s.unarchive}</span>
                         </Button>
-                      </Tip>
-                    </div>
-                  }
-                  description={session.preview || undefined}
-                  hint={label ? `${label} · ${s.messages(session.message_count)}` : s.messages(session.message_count)}
-                  title={sessionTitle(session)}
-                />
-              </div>
-            )
-          })}
-        </div>
-      )}
+                        <Tip label={s.deletePermanently}>
+                          <Button
+                            aria-label={s.deletePermanently}
+                            className="text-muted-foreground hover:text-destructive"
+                            disabled={busy}
+                            onClick={() => void remove(session)}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </Tip>
+                      </div>
+                    }
+                    description={session.preview || undefined}
+                    hint={label ? `${label} · ${s.messages(session.message_count)}` : s.messages(session.message_count)}
+                    title={sessionTitle(session)}
+                  />
+                </div>
+              )
+            })}
+          </div>
+        )}
       </SettingsGroup>
     </SettingsContent>
   )

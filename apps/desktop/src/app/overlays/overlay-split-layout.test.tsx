@@ -67,9 +67,7 @@ describe('OverlayNavItem', () => {
   })
 
   it('uses a quiet text highlight when tone is quiet', () => {
-    render(
-      <OverlayNavItem active icon={Zap} id="models" label="Models" onClick={() => undefined} tone="quiet" />
-    )
+    render(<OverlayNavItem active icon={Zap} id="models" label="Models" onClick={() => undefined} tone="quiet" />)
 
     const item = screen.getByRole('button', { name: 'Models' })
 

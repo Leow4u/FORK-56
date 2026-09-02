@@ -28,7 +28,15 @@ import { notify, notifyError, readableError } from '@/store/notifications'
 
 import { ConnectionsRegistrySection } from './connections-registry'
 import { CONTROL_TEXT } from './constants'
-import { EmptyState, ListRow, Pill, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton } from './primitives'
+import {
+  EmptyState,
+  ListRow,
+  Pill,
+  SectionHeading,
+  SettingsContent,
+  SettingsGroup,
+  SettingsSkeleton
+} from './primitives'
 import { enrichSelectedSshHost, selectSshHost } from './ssh-host-selection'
 
 type Mode = 'local' | 'remote' | 'cloud' | 'ssh'
