@@ -235,7 +235,6 @@ contextBridge.exposeInMainWorld('work4youDesktop', {
   openPreviewInBrowser: url => ipcRenderer.invoke('work4you:openPreviewInBrowser', url),
   reachPreviewUrl: url => ipcRenderer.invoke('work4you:preview:reach', url),
   fetchLinkTitle: url => ipcRenderer.invoke('work4you:fetchLinkTitle', url),
-  fetchComposioLogo: url => ipcRenderer.invoke('work4you:composio-logo', url),
   sanitizeWorkspaceCwd: cwd => ipcRenderer.invoke('work4you:workspace:sanitize', cwd),
   settings: {
     getDefaultProjectDir: () => ipcRenderer.invoke('work4you:setting:defaultProjectDir:get'),

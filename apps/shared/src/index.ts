@@ -60,7 +60,11 @@ export {
 } from './json-rpc-gateway'
 export {
   completeComposioConnect,
+  COMPOSIO_LOGO_PROTOCOL,
   COMPOSIO_LOGOS_ORIGIN,
+  composioCdnUrlFromProtocolRequest,
+  composioLogoImgSrc,
+  composioLogoProtocolUrl,
   composioToolkitLogoUrl,
   DIRECTORY_SECTION_IDS,
   DIRECTORY_SECTION_LABELS,

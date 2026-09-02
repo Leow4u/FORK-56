@@ -59,7 +59,11 @@ import {
 import { decideBootstrapRepair } from './bootstrap-repair-guard'
 import { runBootstrap } from './bootstrap-runner'
 import { detectBundleSkew } from './bundle-skew'
-import { fetchComposioLogoDataUrl } from './composio-logo'
+import {
+  bindComposioLogoNetFetch,
+  COMPOSIO_LOGO_PROTOCOL,
+  handleComposioLogoProtocol
+} from './composio-logo'
 import { applyConnectionChange } from './connection-apply'
 import {
   apiRequestRegistryConnectionId,
@@ -1210,6 +1214,15 @@ protocol.registerSchemesAsPrivileged([
       stream: true,
       supportFetchAPI: true
     }
+  },
+  {
+    scheme: COMPOSIO_LOGO_PROTOCOL,
+    privileges: {
+      corsEnabled: true,
+      secure: true,
+      standard: true,
+      supportFetchAPI: true
+    }
   }
 ])
 
@@ -1253,6 +1266,13 @@ function registerMediaProtocol() {
   })
 
   protocol.handle(MEDIA_PROTOCOL, handler)
+}
+
+function registerComposioLogoProtocol() {
+  protocol.handle(
+    COMPOSIO_LOGO_PROTOCOL,
+    request => handleComposioLogoProtocol(request, bindComposioLogoNetFetch(electronNet.fetch.bind(electronNet)))
+  )
 }
 
 let mainWindow = null
@@ -14157,14 +14177,6 @@ ipcMain.handle('work4you:setting:defaultProjectDir:pick', async () => {
 
 ipcMain.handle('work4you:fetchLinkTitle', (_event, url) => fetchLinkTitle(url))
 
-ipcMain.handle('work4you:composio-logo', async (_event, url) => {
-  try {
-    return await fetchComposioLogoDataUrl(String(url || ''))
-  } catch {
-    return null
-  }
-})
-
 ipcMain.handle('work4you:logs:reveal', async () => {
   try {
     await fs.promises.mkdir(path.dirname(DESKTOP_LOG_PATH), { recursive: true })
@@ -14724,6 +14736,7 @@ app.whenReady().then(() => {
   installMediaPermissions()
   installDownloadHandling()
   registerMediaProtocol()
+  registerComposioLogoProtocol()
   installEmbedReferer()
   installRemoteHeaderRules()
   registerDeepLinkProtocol()

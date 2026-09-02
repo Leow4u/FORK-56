@@ -1,5 +1,7 @@
 import {
   completeComposioConnect,
+  composioCdnUrlFromProtocolRequest,
+  composioLogoImgSrc,
   type DirectoryApp,
   directoryAppDescription,
   directoryAppLogoUrl,
@@ -188,5 +190,21 @@ describe('directoryAppLogoUrl', () => {
     expect(isTrustedComposioLogoUrl('https://evil.example/x.png')).toBe(false)
     expect(isTrustedComposioLogoUrl('https://logos.composio.dev/api/gmail')).toBe(true)
     expect(isTrustedComposioLogoUrl('https://logos.composio.dev/api/')).toBe(false)
+  })
+
+  it('maps file:// origins onto the privileged Electron logo scheme', () => {
+    expect(composioLogoImgSrc('https://logos.composio.dev/api/gmail', 'http:')).toBe(
+      'https://logos.composio.dev/api/gmail'
+    )
+    expect(composioLogoImgSrc('https://logos.composio.dev/api/n8n', 'file:')).toBe(
+      'work4you-logo://mark/n8n'
+    )
+    expect(composioLogoImgSrc('https://evil.example/x.png', 'file:')).toBeNull()
+    expect(composioCdnUrlFromProtocolRequest('work4you-logo://mark/gmail')).toBe(
+      'https://logos.composio.dev/api/gmail'
+    )
+    expect(composioCdnUrlFromProtocolRequest('work4you-logo://mark/unreal-engine')).toBe(
+      'https://logos.composio.dev/api/unreal-engine'
+    )
   })
 })

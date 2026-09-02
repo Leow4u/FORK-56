@@ -2,64 +2,79 @@ import assert from 'node:assert/strict'
 
 import { test } from 'vitest'
 
-import { COMPOSIO_LOGO_MAX_BYTES, fetchComposioLogoDataUrl } from './composio-logo'
+import {
+  bindComposioLogoNetFetch,
+  COMPOSIO_LOGO_MAX_BYTES,
+  COMPOSIO_LOGO_PROTOCOL,
+  handleComposioLogoProtocol
+} from './composio-logo'
 
 const GMAIL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3"/></svg>'
-const GMAIL_URL = 'https://logos.composio.dev/api/gmail'
+const GMAIL_CDN = 'https://logos.composio.dev/api/gmail'
+const GMAIL_PROTOCOL = `${COMPOSIO_LOGO_PROTOCOL}://mark/gmail`
 
-function svgResponse(body: string, extra: { status?: number; type?: string } = {}): Response {
+function svgResponse(body: string, extra: { status?: number; type?: string; url?: string } = {}): Response {
   return new Response(body, {
     status: extra.status ?? 200,
     headers: { 'content-type': extra.type ?? 'image/svg+xml' }
   })
 }
 
-test('fetchComposioLogoDataUrl inlines a trusted SVG as a data URL', async () => {
-  const dataUrl = await fetchComposioLogoDataUrl(GMAIL_URL, async (url, init) => {
-    assert.equal(url, GMAIL_URL)
+test('bindComposioLogoNetFetch always uses Chromium net.fetch options', async () => {
+  const calls: Array<{ url: string; init?: RequestInit & { bypassCustomProtocolHandlers?: boolean } }> = []
+  const fetchImpl = bindComposioLogoNetFetch(async (url, init) => {
+    calls.push({ url, init })
+    return svgResponse(GMAIL_SVG)
+  })
+
+  const response = await handleComposioLogoProtocol({ url: GMAIL_PROTOCOL }, fetchImpl)
+
+  assert.equal(response.status, 200)
+  assert.equal(calls[0]?.url, GMAIL_CDN)
+  assert.equal(calls[0]?.init?.bypassCustomProtocolHandlers, true)
+  assert.equal(calls[0]?.init?.credentials, 'omit')
+  assert.equal(calls[0]?.init?.redirect, 'error')
+})
+
+test('handleComposioLogoProtocol serves a trusted SVG through the privileged scheme', async () => {
+  const response = await handleComposioLogoProtocol({ url: GMAIL_PROTOCOL }, async (url, init) => {
+    assert.equal(url, GMAIL_CDN)
     assert.equal(init?.redirect, 'error')
 
     return svgResponse(GMAIL_SVG)
   })
 
-  assert.match(dataUrl, /^data:image\/svg\+xml;charset=utf-8,/)
-  assert.ok(decodeURIComponent(dataUrl.split(',')[1]).includes('<svg'))
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('content-type'), 'image/svg+xml')
+  assert.ok((await response.text()).includes('<svg'))
 })
 
-test('fetchComposioLogoDataUrl rejects hosts other than logos.composio.dev', async () => {
-  await assert.rejects(
-    () => fetchComposioLogoDataUrl('https://evil.example/api/gmail', async () => svgResponse(GMAIL_SVG)),
-    /untrusted/
+test('handleComposioLogoProtocol rejects hosts other than the logo scheme', async () => {
+  const response = await handleComposioLogoProtocol(
+    { url: 'https://evil.example/gmail' },
+    async () => svgResponse(GMAIL_SVG)
   )
+
+  assert.equal(response.status, 400)
 })
 
-test('fetchComposioLogoDataUrl rejects HTTP failures and non-images', async () => {
-  await assert.rejects(
-    () => fetchComposioLogoDataUrl(GMAIL_URL, async () => svgResponse('nope', { status: 404 })),
-    /http 404/
+test('handleComposioLogoProtocol rejects HTTP failures and non-images', async () => {
+  const missing = await handleComposioLogoProtocol({ url: GMAIL_PROTOCOL }, async () =>
+    svgResponse('nope', { status: 404 })
   )
-  await assert.rejects(
-    () =>
-      fetchComposioLogoDataUrl(GMAIL_URL, async () => svgResponse('{"ok":true}', { type: 'application/json' })),
-    /not an image/
+
+  assert.equal(missing.status, 502)
+
+  const json = await handleComposioLogoProtocol({ url: GMAIL_PROTOCOL }, async () =>
+    svgResponse('{"ok":true}', { type: 'application/json' })
   )
+
+  assert.equal(json.status, 415)
 })
 
-test('fetchComposioLogoDataUrl rejects oversized payloads', async () => {
+test('handleComposioLogoProtocol rejects oversized payloads', async () => {
   const huge = `<svg>${'x'.repeat(COMPOSIO_LOGO_MAX_BYTES + 1)}</svg>`
+  const response = await handleComposioLogoProtocol({ url: GMAIL_PROTOCOL }, async () => svgResponse(huge))
 
-  await assert.rejects(
-    () => fetchComposioLogoDataUrl(GMAIL_URL, async () => svgResponse(huge)),
-    /size/
-  )
-})
-
-test('fetchComposioLogoDataUrl encodes raster bytes as base64', async () => {
-  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47])
-
-  const dataUrl = await fetchComposioLogoDataUrl(GMAIL_URL, async () => {
-    return new Response(png, { status: 200, headers: { 'content-type': 'image/png' } })
-  })
-
-  assert.equal(dataUrl, `data:image/png;base64,${png.toString('base64')}`)
+  assert.equal(response.status, 413)
 })
