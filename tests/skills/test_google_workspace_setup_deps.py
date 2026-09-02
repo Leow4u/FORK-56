@@ -6,7 +6,7 @@ response handling.  Fixed in httplib2 0.32.0.
 There are three install paths for google-workspace dependencies:
   1. pyproject.toml [project.optional-dependencies].google
   2. tools/lazy_deps.py LAZY_DEPS['skill.google_workspace']
-  3. skills/productivity/google-workspace/scripts/setup.py REQUIRED_PACKAGES
+  3. optional-skills/productivity/google-workspace/scripts/setup.py REQUIRED_PACKAGES
 
 This test ensures path 3 stays pinned and consistent with the other two.
 """
@@ -18,7 +18,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-SETUP_PY = REPO_ROOT / "skills/productivity/google-workspace/scripts/setup.py"
+SETUP_PY = REPO_ROOT / "optional-skills/productivity/google-workspace/scripts/setup.py"
 PYPROJECT_TOML = REPO_ROOT / "pyproject.toml"
 
 # ---------------------------------------------------------------------------

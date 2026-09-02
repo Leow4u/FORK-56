@@ -21,7 +21,7 @@ Weekly reset: commitments, stalled work, next-week plan.
 | License | MIT |
 | Platforms | linux, macos, windows |
 | Tags | `Weekly-Review`, `Planning`, `Tasks`, `Calendar`, `Productivity` |
-| Related skills | [`obsidian`](/docs/user-guide/skills/bundled/note-taking/note-taking-obsidian), [`notion`](/docs/user-guide/skills/bundled/productivity/productivity-notion), [`airtable`](/docs/user-guide/skills/bundled/productivity/productivity-airtable), [`google-workspace`](/docs/user-guide/skills/bundled/productivity/productivity-google-workspace), [`email-inbox-triage`](/docs/user-guide/skills/bundled/email/email-email-inbox-triage) |
+| Related skills | [`obsidian`](/docs/user-guide/skills/bundled/note-taking/note-taking-obsidian), [`email-inbox-triage`](/docs/user-guide/skills/bundled/email/email-email-inbox-triage) |
 
 ## Reference: full SKILL.md
 
@@ -41,7 +41,7 @@ Run a bounded weekly reset across the user's chosen systems. This is a concrete 
 - "Find stale projects and waiting items."
 - A cron tick fires for a scheduled weekly review.
 
-Don't use for: daily briefs (see the `google-workspace` daily-brief reference) or single-inbox triage (`email-inbox-triage`).
+Don't use for: a daily calendar/mail briefing (use connected Calendar/Gmail tools) or single-inbox triage (`email-inbox-triage`).
 
 ## Procedure
 
@@ -51,7 +51,7 @@ Confirm timezone, review period, planning horizon, authoritative task/project st
 
 ### 2. Review calendar evidence
 
-Load `google-workspace` or the relevant calendar connector. Inspect the completed week for meetings and commitments, then the next 1-2 weeks for deadlines, travel, preparation, and capacity. Capture follow-ups implied by past events and conflicts ahead. Done when both retrospective and horizon are covered.
+Use the connected calendar tools (Capabilities → MCP) or the calendar the user already has attached. Inspect the completed week for meetings and commitments, then the next 1-2 weeks for deadlines, travel, preparation, and capacity. Capture follow-ups implied by past events and conflicts ahead. Done when both retrospective and horizon are covered.
 
 ### 3. Clear capture inboxes
 

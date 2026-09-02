@@ -256,7 +256,7 @@ required_credential_files:
 对简单的 API key 和 token（存储在 `~/.work4you/.env` 中的字符串）使用 `required_environment_variables`。对 OAuth token 文件、客户端密钥、服务账号 JSON、证书或任何以磁盘文件形式存在的凭证使用 `required_credential_files`。
 :::
 
-完整示例请参见 `skills/productivity/google-workspace/SKILL.md`，其中同时使用了两者。
+完整示例请参见 `optional-skills/productivity/google-workspace/SKILL.md`，其中同时使用了两者。
 
 ## Skill 规范
 

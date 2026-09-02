@@ -7,9 +7,11 @@ description: "Send email, manage calendar events, search Drive, read/write Sheet
 
 # Google Workspace Skill
 
-Gmail, Calendar, Drive, Contacts, Sheets, and Docs integration for Work4You. Uses OAuth2 with automatic token refresh. Prefers the [Google Workspace CLI (`gws`)](https://github.com/googleworkspace/cli) when available for broader coverage, and falls back to Google's Python client libraries otherwise.
+The default way to attach Gmail, Calendar, and Drive is **Connect** under Capabilities → MCP. That card holds the account for new sessions.
 
-**Skill path:** `skills/productivity/google-workspace/`
+This page documents the optional CLI/OAuth skill — the `gws` / Python playbook — for Docs/Sheets or installs that are not using that connector. Install it with `work4you skills install official/productivity/google-workspace`. Prefers the [Google Workspace CLI (`gws`)](https://github.com/googleworkspace/cli) when available, and falls back to Google's Python client libraries otherwise.
+
+**Skill path:** `optional-skills/productivity/google-workspace/`
 
 ## Setup
 

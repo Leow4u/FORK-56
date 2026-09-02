@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.skills_sync import (
+    CONNECTOR_SKILLS_DEMOTED_TO_OPTIONAL,
     _get_bundled_dir,
     _read_manifest,
     _read_skill_name,
@@ -20,6 +21,28 @@ from tools.skills_sync import (
     reset_bundled_skill,
     restore_official_optional_skill,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_demoted_connector_skills_live_only_under_optional():
+    """MCP/card holds the account; these skills teach the CLI playbook.
+
+    Invariant: each demoted name still ships (optional-skills/) and is absent
+    from the default prompt tree (skills/). Not a count snapshot.
+    """
+    assert CONNECTOR_SKILLS_DEMOTED_TO_OPTIONAL
+    for name in CONNECTOR_SKILLS_DEMOTED_TO_OPTIONAL:
+        bundled = [
+            p for p in (REPO_ROOT / "skills").rglob("SKILL.md") if p.parent.name == name
+        ]
+        optional = [
+            p
+            for p in (REPO_ROOT / "optional-skills").rglob("SKILL.md")
+            if p.parent.name == name
+        ]
+        assert bundled == [], f"{name} must not remain under skills/"
+        assert optional, f"{name} must ship under optional-skills/"
 
 
 class TestReadWriteManifest:
@@ -1002,3 +1025,89 @@ class TestCallTimeDirResolution:
                 ss._rmtree_writable(foreign)
         finally:
             reset_work4you_home_override(token)
+
+
+class TestConnectorSkillDemotion:
+    """Unmodified copies of demoted connector skills leave the default prompt."""
+
+    def _patches(self, bundled, optional, skills_dir, manifest_file):
+        from contextlib import ExitStack
+
+        stack = ExitStack()
+        stack.enter_context(patch("tools.skills_sync._get_bundled_dir", return_value=bundled))
+        stack.enter_context(patch("tools.skills_sync._get_optional_dir", return_value=optional))
+        stack.enter_context(patch("tools.skills_sync.SKILLS_DIR", skills_dir))
+        stack.enter_context(patch("tools.skills_sync.MANIFEST_FILE", manifest_file))
+        stack.enter_context(
+            patch("agent.skill_utils.get_external_skills_dirs", return_value=[])
+        )
+        return stack
+
+    def _seed_ascii(self, bundled: Path) -> None:
+        dest = bundled / "creative" / "ascii-art"
+        dest.mkdir(parents=True)
+        (dest / "SKILL.md").write_text("---\nname: ascii-art\n---\n# ascii\n")
+
+    def test_unmodified_demoted_skill_removed(self, tmp_path):
+        bundled = tmp_path / "bundled"
+        self._seed_ascii(bundled)
+        optional = tmp_path / "optional-skills"
+        gw_opt = optional / "productivity" / "google-workspace"
+        gw_opt.mkdir(parents=True)
+        (gw_opt / "SKILL.md").write_text("---\nname: google-workspace\n---\n# gw\n")
+
+        skills_dir = tmp_path / "user_skills"
+        dest = skills_dir / "productivity" / "google-workspace"
+        dest.mkdir(parents=True)
+        (dest / "SKILL.md").write_text("---\nname: google-workspace\n---\n# gw\n")
+        origin = _dir_hash(dest)
+        manifest_file = skills_dir / ".bundled_manifest"
+        manifest_file.write_text(f"google-workspace:{origin}\n")
+
+        with self._patches(bundled, optional, skills_dir, manifest_file):
+            result = sync_skills(quiet=True)
+            manifest = _read_manifest()
+
+        assert "google-workspace" in result["demoted"]
+        assert not dest.exists()
+        assert "google-workspace" not in manifest
+
+    def test_user_modified_demoted_skill_kept(self, tmp_path):
+        bundled = tmp_path / "bundled"
+        self._seed_ascii(bundled)
+        optional = tmp_path / "optional-skills"
+        optional.mkdir()
+
+        skills_dir = tmp_path / "user_skills"
+        dest = skills_dir / "productivity" / "google-workspace"
+        dest.mkdir(parents=True)
+        (dest / "SKILL.md").write_text("---\nname: google-workspace\n---\n# user edit\n")
+        manifest_file = skills_dir / ".bundled_manifest"
+        manifest_file.write_text("google-workspace:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n")
+
+        with self._patches(bundled, optional, skills_dir, manifest_file):
+            result = sync_skills(quiet=True)
+
+        assert "google-workspace" not in result["demoted"]
+        assert dest.exists()
+        assert "user edit" in (dest / "SKILL.md").read_text()
+
+    def test_untracked_copy_not_demoted(self, tmp_path):
+        bundled = tmp_path / "bundled"
+        self._seed_ascii(bundled)
+        optional = tmp_path / "optional-skills"
+        optional.mkdir()
+
+        skills_dir = tmp_path / "user_skills"
+        dest = skills_dir / "productivity" / "google-workspace"
+        dest.mkdir(parents=True)
+        (dest / "SKILL.md").write_text("---\nname: google-workspace\n---\n# hub\n")
+        manifest_file = skills_dir / ".bundled_manifest"
+        manifest_file.write_text("")
+
+        with self._patches(bundled, optional, skills_dir, manifest_file):
+            result = sync_skills(quiet=True)
+
+        assert result["demoted"] == []
+        assert dest.exists()
+

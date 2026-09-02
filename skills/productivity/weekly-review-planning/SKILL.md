@@ -8,7 +8,7 @@ platforms: [linux, macos, windows]
 metadata:
   work4you:
     tags: [Weekly-Review, Planning, Tasks, Calendar, Productivity]
-    related_skills: [obsidian, notion, airtable, google-workspace, email-inbox-triage]
+    related_skills: [obsidian, email-inbox-triage]
 ---
 
 # Weekly Review and Planning
@@ -23,7 +23,7 @@ Run a bounded weekly reset across the user's chosen systems. This is a concrete 
 - "Find stale projects and waiting items."
 - A cron tick fires for a scheduled weekly review.
 
-Don't use for: daily briefs (see the `google-workspace` daily-brief reference) or single-inbox triage (`email-inbox-triage`).
+Don't use for: a daily calendar/mail briefing (use connected Calendar/Gmail tools) or single-inbox triage (`email-inbox-triage`).
 
 ## Procedure
 
@@ -33,7 +33,7 @@ Confirm timezone, review period, planning horizon, authoritative task/project st
 
 ### 2. Review calendar evidence
 
-Load `google-workspace` or the relevant calendar connector. Inspect the completed week for meetings and commitments, then the next 1-2 weeks for deadlines, travel, preparation, and capacity. Capture follow-ups implied by past events and conflicts ahead. Done when both retrospective and horizon are covered.
+Use the connected calendar tools (Capabilities → MCP) or the calendar the user already has attached. Inspect the completed week for meetings and commitments, then the next 1-2 weeks for deadlines, travel, preparation, and capacity. Capture follow-ups implied by past events and conflicts ahead. Done when both retrospective and horizon are covered.
 
 ### 3. Clear capture inboxes
 

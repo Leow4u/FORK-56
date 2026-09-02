@@ -1,22 +1,38 @@
 ---
-name: xurl
-description: "X/Twitter via xurl CLI: raw post search, posting, DM, media."
-version: 1.1.3
-author: xdevplatform + openclaw + Work4You
-license: MIT
-platforms: [linux, macos]
-prerequisites:
-  commands: [xurl]
-metadata:
-  work4you:
-    tags: [twitter, x, social-media, xurl, official-api]
-    homepage: https://github.com/xdevplatform/xurl
-    upstream_skill: https://github.com/openclaw/openclaw/blob/main/skills/xurl/SKILL.md
+title: "Xurl — X/Twitter via xurl CLI: raw post search, posting, DM, media"
+sidebar_label: "Xurl"
+description: "X/Twitter via xurl CLI: raw post search, posting, DM, media"
 ---
+
+{/* This page is auto-generated from the skill's SKILL.md by website/scripts/generate-skill-docs.py. Edit the source SKILL.md, not this page. */}
+
+# Xurl
+
+X/Twitter via xurl CLI: raw post search, posting, DM, media.
+
+## Skill metadata
+
+| | |
+|---|---|
+| Source | Optional — install with `work4you skills install official/social-media/xurl` |
+| Path | `optional-skills/social-media/xurl` |
+| Version | `1.1.3` |
+| Author | xdevplatform + openclaw + Work4You |
+| License | MIT |
+| Platforms | linux, macos |
+| Tags | `twitter`, `x`, `social-media`, `xurl`, `official-api` |
+
+## Reference: full SKILL.md
+
+:::info
+The following is the complete skill definition that Work4You loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
+:::
 
 # xurl — X (Twitter) API via the Official CLI
 
 `xurl` is the X developer platform's official CLI for the X API. It supports shortcut commands for common actions AND raw curl-style access to any v2 endpoint. All commands return JSON to stdout.
+
+Prefer X/Twitter when it already shows Connected under Capabilities → MCP. Use this optional skill for the official `xurl` CLI and multi-app OAuth on the machine.
 
 Use this skill for:
 - posting, replying, quoting, deleting posts

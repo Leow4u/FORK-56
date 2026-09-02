@@ -1,22 +1,39 @@
 ---
-name: github-auth
-description: "GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login."
-version: 1.1.0
-author: Work4You
-license: MIT
-platforms: [linux, macos, windows]
-metadata:
-  work4you:
-    tags: [GitHub, Authentication, Git, gh-cli, SSH, Setup]
-    related_skills: [github-pr-workflow, github-code-review, github-issues, github-repo-management]
+title: "Github Auth — GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login"
+sidebar_label: "Github Auth"
+description: "GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login"
 ---
+
+{/* This page is auto-generated from the skill's SKILL.md by website/scripts/generate-skill-docs.py. Edit the source SKILL.md, not this page. */}
+
+# Github Auth
+
+GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login.
+
+## Skill metadata
+
+| | |
+|---|---|
+| Source | Optional — install with `work4you skills install official/github/github-auth` |
+| Path | `optional-skills/github/github-auth` |
+| Version | `1.1.0` |
+| Author | Work4You |
+| License | MIT |
+| Platforms | linux, macos, windows |
+| Tags | `GitHub`, `Authentication`, `Git`, `gh-cli`, `SSH`, `Setup` |
+| Related skills | [`github-pr-workflow`](/docs/user-guide/skills/bundled/github/github-github-pr-workflow), [`github-code-review`](/docs/user-guide/skills/bundled/github/github-github-code-review), [`github-issues`](/docs/user-guide/skills/bundled/github/github-github-issues), [`github-repo-management`](/docs/user-guide/skills/bundled/github/github-github-repo-management) |
+
+## Reference: full SKILL.md
+
+:::info
+The following is the complete skill definition that Work4You loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
+:::
 
 # GitHub Authentication Setup
 
-This skill sets up authentication so the agent can work with GitHub repositories, PRs, issues, and CI. It covers two paths:
+This skill sets up local `git` / `gh` authentication so the agent can push, open PRs, and talk to the GitHub API from the terminal.
 
-- **`git` (always available)** — uses HTTPS personal access tokens or SSH keys
-- **`gh` CLI (if installed)** — richer GitHub API access with a simpler auth flow
+Prefer GitHub when it already shows Connected under Capabilities → MCP for agent tools. Use this optional skill when the user needs `gh auth login`, HTTPS tokens, or SSH keys on the machine.
 
 ## Detection Flow
 
@@ -131,7 +148,7 @@ cat ~/.ssh/id_ed25519.pub
 Tell the user to add the public key at: **https://github.com/settings/keys**
 - Click "New SSH key"
 - Paste the public key content
-- Give it a title like "work4you-<machine-name>"
+- Give it a title like "work4you-&lt;machine-name>"
 
 **Step 3: Test the connection**
 

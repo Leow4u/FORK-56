@@ -14,8 +14,8 @@ Notion API + ntn CLI: pages, databases, markdown, Workers.
 
 | | |
 |---|---|
-| Source | Bundled (installed by default) |
-| Path | `skills/productivity/notion` |
+| Source | Optional — install with `work4you skills install official/productivity/notion` |
+| Path | `optional-skills/productivity/notion` |
 | Version | `2.0.0` |
 | Author | community |
 | License | MIT |
@@ -31,6 +31,8 @@ The following is the complete skill definition that Work4You loads when this ski
 # Notion
 
 Talk to Notion two ways. Same integration token works for both — pick by what's available.
+
+Prefer Notion when it already shows Connected under Capabilities → MCP (native MCP). Use this optional skill for the `ntn` CLI or PAT + curl playbook when that connector is not in the session.
 
 ◆ **`ntn` CLI** — Notion's official CLI. Shorter syntax, one-line file uploads, required for Workers. macOS + Linux only as of May 2026 (Windows support "coming soon"). **Default when installed.**
 ◆ **HTTP + curl** — works everywhere including Windows. **Default fallback** when `ntn` isn't installed.

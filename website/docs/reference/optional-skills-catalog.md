@@ -121,6 +121,12 @@ work4you skills uninstall <skill-name>
 | [**minecraft-modpack-server**](/docs/user-guide/skills/optional/gaming/gaming-minecraft-modpack-server) | Host modded Minecraft servers (CurseForge, Modrinth). |
 | [**pokemon-player**](/docs/user-guide/skills/optional/gaming/gaming-pokemon-player) | Play Pokemon via headless emulator + RAM reads. |
 
+## github
+
+| Skill | Description |
+|-------|-------------|
+| [**github-auth**](/docs/user-guide/skills/optional/github/github-github-auth) | GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login. |
+
 ## health
 
 | Skill | Description |
@@ -190,9 +196,12 @@ work4you skills uninstall <skill-name>
 
 | Skill | Description |
 |-------|-------------|
+| [**airtable**](/docs/user-guide/skills/optional/productivity/productivity-airtable) | Airtable REST API via curl. Records CRUD, filters, upserts. |
 | [**canvas**](/docs/user-guide/skills/optional/productivity/productivity-canvas) | Fetch Canvas LMS courses and assignments via API token. |
+| [**google-workspace**](/docs/user-guide/skills/optional/productivity/productivity-google-workspace) | Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python. |
 | [**here-now**](/docs/user-guide/skills/optional/productivity/productivity-here-now) | Publish sites to &#123;slug&#125;.here.now and store files in Drives. |
 | [**memento-flashcards**](/docs/user-guide/skills/optional/productivity/productivity-memento-flashcards) | Spaced-repetition flashcards: create, review, quiz, export. |
+| [**notion**](/docs/user-guide/skills/optional/productivity/productivity-notion) | Notion API + ntn CLI: pages, databases, markdown, Workers. |
 | [**shop**](/docs/user-guide/skills/optional/productivity/productivity-shop) | Shop catalog search, checkout, order tracking, returns. |
 | [**shopify**](/docs/user-guide/skills/optional/productivity/productivity-shopify) | Query Shopify Admin/Storefront GraphQL APIs via curl. |
 | [**siyuan**](/docs/user-guide/skills/optional/productivity/productivity-siyuan) | Query and edit a SiYuan knowledge base via its API. |
@@ -225,6 +234,12 @@ work4you skills uninstall <skill-name>
 | [**sherlock**](/docs/user-guide/skills/optional/security/security-sherlock) | Find accounts for a username across 400+ platforms. |
 | [**unbroker**](/docs/user-guide/skills/optional/security/security-unbroker) | Autonomously remove your info from data-broker sites. |
 | [**web-pentest**](/docs/user-guide/skills/optional/security/security-web-pentest) | Authorized web pentest: recon, proof-based exploits, report. |
+
+## social-media
+
+| Skill | Description |
+|-------|-------------|
+| [**xurl**](/docs/user-guide/skills/optional/social-media/social-media-xurl) | X/Twitter via xurl CLI: raw post search, posting, DM, media. |
 
 ## software-development
 

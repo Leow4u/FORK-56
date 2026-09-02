@@ -8,7 +8,7 @@ platforms: [linux, macos, windows]
 metadata:
   work4you:
     tags: [Meetings, Action-Items, Follow-Up, Productivity]
-    related_skills: [teams-meeting-pipeline, google-workspace, notion]
+    related_skills: [teams-meeting-pipeline]
 ---
 
 # Meeting Action Items

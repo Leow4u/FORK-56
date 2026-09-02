@@ -10,7 +10,7 @@ prerequisites:
 metadata:
   work4you:
     tags: [Box, Productivity, Cloud Storage, Collaboration, Metadata, Content Extraction, CLI, SDK]
-    related_skills: [google-workspace]
+    related_skills: []
     homepage: https://developer.box.com/
 ---
 

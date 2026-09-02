@@ -106,7 +106,7 @@ def test_task_skill_blueprints_are_wired():
     from cron.blueprint_catalog import CATALOG
 
     expected = {
-        "morning-brief": "google-workspace",
+        "morning-brief": "email-inbox-triage",
         "important-mail": "email-inbox-triage",
         "weekly-review": "weekly-review-planning",
         "price-watch": "product-price-monitor",

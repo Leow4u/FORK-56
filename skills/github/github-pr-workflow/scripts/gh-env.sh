@@ -2,7 +2,7 @@
 # GitHub environment detection helper for Work4You skills.
 #
 # Usage (via terminal tool):
-#   source skills/github/github-auth/scripts/gh-env.sh
+#   source skills/github/github-pr-workflow/scripts/gh-env.sh
 #
 # After sourcing, these variables are set:
 #   GH_AUTH_METHOD  - "gh", "curl", or "none"
@@ -29,7 +29,9 @@ elif _work4you_env="${WORK4YOU_HOME:-$HOME/.work4you}/.env"; [ -f "$_work4you_en
         GH_AUTH_METHOD="curl"
     fi
 elif [ -f "$HOME/.git-credentials" ]; then
-    GITHUB_TOKEN=$(uv run python3 "${WORK4YOU_HOME:-$HOME/.work4you}/skills/github/github-auth/scripts/git-credential-token.py")
+    _helper="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/git-credential-token.py"
+    GITHUB_TOKEN=$(uv run python3 "$_helper")
+    unset _helper
     if [ -n "$GITHUB_TOKEN" ]; then
         GH_AUTH_METHOD="curl"
     fi
@@ -61,6 +63,6 @@ unset _remote_url
 echo "GitHub Auth: $GH_AUTH_METHOD"
 [ -n "$GH_USER" ]       && echo "User: $GH_USER"
 [ -n "$GH_OWNER_REPO" ] && echo "Repo: $GH_OWNER_REPO"
-[ "$GH_AUTH_METHOD" = "none" ] && echo "⚠ Not authenticated — see github-auth skill"
+[ "$GH_AUTH_METHOD" = "none" ] && echo "⚠ Not authenticated — run gh auth login, or set GITHUB_TOKEN"
 
 export GH_AUTH_METHOD GITHUB_TOKEN GH_USER GH_OWNER GH_REPO GH_OWNER_REPO

@@ -14,8 +14,8 @@ description: "通过 gws CLI 或 Python 使用 Gmail、Calendar、Drive、Docs�
 
 | | |
 |---|---|
-| 来源 | 内置（默认安装） |
-| 路径 | `skills/productivity/google-workspace` |
+| 来源 | 可选 — 通过 `work4you skills install official/productivity/google-workspace` 安装 |
+| 路径 | `optional-skills/productivity/google-workspace` |
 | 版本 | `1.1.0` |
 | 作者 | Work4You |
 | 许可证 | MIT |

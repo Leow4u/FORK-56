@@ -13,11 +13,9 @@
  * manifest under `optional-mcps/` instead. Remove this file at the next
  * backend contract bump.
  *
- * GitHub is intentionally absent (here AND in the catalog): its hosted MCP
- * requires each MCP host to provide its own OAuth app (generic Dynamic
- * Client Registration 404s at /register), and the bundled github/* skills
- * via the gh CLI are the more capable integration. The composer's github
- * suggestion provider offers the `github-auth` skill instead.
+ * GitHub is attached via Capabilities → MCP (Work4You Apps), not a native
+ * optional-mcps catalog entry. Local `gh` workflow is the bundled github-*
+ * skills; the optional `github-auth` skill is the CLI login playbook.
  */
 export interface McpDirectoryEntry {
   /** Server name as it will appear in mcp_servers config. */
