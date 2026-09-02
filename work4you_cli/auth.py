@@ -6291,10 +6291,72 @@ def persist_work4you_credentials(
     _write_shared_work4you_state(state)
 
     pool = load_pool("work4you")
-    return next(
+    entry = next(
         (e for e in pool.entries() if e.source == WORK4YOU_DEVICE_CODE_SOURCE),
         None,
     )
+    _schedule_work4you_apps_after_login()
+    return entry
+
+
+def _schedule_work4you_apps_after_login() -> None:
+    """Inject ``work4you_apps`` after Portal tokens land. Never blocks login."""
+    try:
+        from work4you_constants import get_work4you_home_override
+
+        home_override = get_work4you_home_override()
+    except Exception:
+        home_override = None
+
+    def _run() -> None:
+        token = None
+        try:
+            from work4you_constants import set_work4you_home_override
+
+            token = set_work4you_home_override(home_override)
+        except Exception:
+            token = None
+        try:
+            from work4you_cli.connectors import maybe_bootstrap_work4you_apps
+
+            maybe_bootstrap_work4you_apps(skip_if_installed=False)
+            try:
+                from tools.mcp_tool import discover_mcp_tools
+
+                discover_mcp_tools()
+            except Exception:
+                logger.debug(
+                    "MCP rediscovery after work4you_apps bootstrap failed",
+                    exc_info=True,
+                )
+            try:
+                from work4you_cli.mcp_startup import start_background_mcp_discovery
+
+                start_background_mcp_discovery(
+                    logger=logger,
+                    thread_name="work4you-apps-mcp-discovery",
+                )
+            except Exception:
+                logger.debug(
+                    "MCP discovery start after Portal login failed",
+                    exc_info=True,
+                )
+        except Exception:
+            logger.debug("work4you_apps bootstrap after Portal login failed", exc_info=True)
+        finally:
+            if token is not None:
+                try:
+                    from work4you_constants import reset_work4you_home_override
+
+                    reset_work4you_home_override(token)
+                except Exception:
+                    pass
+
+    threading.Thread(
+        target=_run,
+        name="work4you-apps-bootstrap",
+        daemon=True,
+    ).start()
 
 
 def _sync_work4you_pool_from_auth_store() -> None:

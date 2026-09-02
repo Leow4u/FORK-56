@@ -627,6 +627,17 @@ class TestLoginWork4YouSkipKeepsCurrent:
 # =============================================================================
 
 
+@pytest.fixture(autouse=True)
+def _skip_work4you_apps_bootstrap_after_login(monkeypatch):
+    """Persist tests assert auth.json / pool shape. The post-login Apps
+    bootstrap is covered in test_connectors.py and must not hit the broker
+    (or spawn MCP discovery) from this file."""
+    monkeypatch.setattr(
+        "work4you_cli.auth._schedule_work4you_apps_after_login",
+        lambda: None,
+    )
+
+
 def _full_state_fixture() -> dict:
     """Shape of the dict returned by _work4you_device_code_login /
     refresh_work4you_oauth_from_state. Used as helper input."""

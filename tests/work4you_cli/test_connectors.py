@@ -10,6 +10,7 @@ from work4you_cli.connectors import (
     ConnectorError,
     bootstrap_work4you_apps,
     inject_work4you_apps,
+    maybe_bootstrap_work4you_apps,
     merge_directory,
     resolve_portal_token,
 )
@@ -171,6 +172,72 @@ class TestInjectAndBootstrap:
         assert WORK4YOU_APPS_SERVER_NAME in servers
         env_text = (get_work4you_home() / ".env").read_text()
         assert "w4y-c-from-broker" in env_text
+
+    def test_maybe_bootstrap_noops_without_portal(self, _isolate_work4you_home, monkeypatch):
+        import work4you_cli.connectors as connectors
+
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: None)
+        called = {"broker": False}
+
+        def fake_broker(*_a, **_k):
+            called["broker"] = True
+            raise AssertionError("broker must not run without a Portal token")
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        assert maybe_bootstrap_work4you_apps() is False
+        assert called["broker"] is False
+        assert WORK4YOU_APPS_SERVER_NAME not in _get_mcp_servers()
+
+    def test_maybe_bootstrap_skips_when_already_installed(self, _isolate_work4you_home, monkeypatch):
+        import work4you_cli.connectors as connectors
+
+        inject_work4you_apps(
+            mcp_url="https://connectors-api.work4you.ai/mcp",
+            token="w4y-c-already",
+        )
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(*_a, **_k):
+            raise AssertionError("already-installed skip must not hit the broker")
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        assert maybe_bootstrap_work4you_apps(skip_if_installed=True) is False
+
+    def test_maybe_bootstrap_swallows_broker_failure(self, _isolate_work4you_home, monkeypatch):
+        import work4you_cli.connectors as connectors
+
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(*_a, **_k):
+            raise ConnectorError("connectors broker unreachable", status=502)
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        assert maybe_bootstrap_work4you_apps(skip_if_installed=False) is False
+        assert WORK4YOU_APPS_SERVER_NAME not in _get_mcp_servers()
+
+    def test_maybe_bootstrap_injects_when_missing(self, _isolate_work4you_home, monkeypatch):
+        import work4you_cli.connectors as connectors
+
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(method, path, **kwargs):
+            assert method == "POST"
+            assert path == "/v1/bootstrap"
+            return {
+                "mcp": {
+                    "url": "https://connectors-api.work4you.ai/mcp",
+                    "token": "w4y-c-login",
+                },
+                "user_id": "user-sub-2",
+            }
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        assert maybe_bootstrap_work4you_apps(skip_if_installed=True) is True
+        assert WORK4YOU_APPS_SERVER_NAME in _get_mcp_servers()
+
+    def test_apollo_is_on_the_composio_allowlist(self):
+        slugs = {app["slug"] for app in COMPOSIO_CATALOG}
+        assert "apollo" in slugs
 
     def test_static_api_keys_are_not_portal_tokens(self, monkeypatch):
         import work4you_cli.auth as auth

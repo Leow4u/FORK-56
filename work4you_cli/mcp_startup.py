@@ -59,9 +59,21 @@ def start_background_mcp_discovery(*, logger, thread_name: str) -> None:
             _mcp_discovery_started = False
             _mcp_discovery_thread = None
 
-        _mcp_discovery_started = True
         if not _has_configured_mcp_servers():
-            return
+            # Empty mcp_servers is the common case. A Portal login still needs
+            # a discovery thread so we can inject the hidden work4you_apps
+            # server; without that, discovery exits before the first Connect
+            # and COMPOSIO_* tools never appear. Leave _mcp_discovery_started
+            # unset when there is no Portal token so a later login can retry.
+            try:
+                from work4you_cli.connectors import resolve_portal_token
+
+                if not resolve_portal_token():
+                    return
+            except Exception:
+                return
+
+        _mcp_discovery_started = True
 
         # Capture the caller's context-local WORK4YOU_HOME override (profile
         # scoping in multi-profile processes like the dashboard/desktop
@@ -86,6 +98,17 @@ def start_background_mcp_discovery(*, logger, thread_name: str) -> None:
             except Exception:
                 token = None
             try:
+                try:
+                    from work4you_cli.connectors import maybe_bootstrap_work4you_apps
+
+                    maybe_bootstrap_work4you_apps(skip_if_installed=True)
+                except Exception:
+                    logger.debug(
+                        "work4you_apps bootstrap during MCP discovery failed",
+                        exc_info=True,
+                    )
+                if not _has_configured_mcp_servers():
+                    return
                 _discover_mcp_tools_without_interactive_oauth()
                 try:
                     from tools.mcp_tool import get_mcp_status
