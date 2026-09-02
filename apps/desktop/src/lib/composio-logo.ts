@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react'
-
 import { isTrustedComposioLogoUrl } from '@work4you/shared'
+import { useEffect, useState } from 'react'
 
 const cache = new Map<string, string>()
 const inflight = new Map<string, Promise<string>>()

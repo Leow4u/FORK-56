@@ -24,8 +24,10 @@ function svgResponse(body: string, extra: { status?: number; type?: string; url?
 
 test('bindComposioLogoNetFetch always uses Chromium net.fetch options', async () => {
   const calls: Array<{ url: string; init?: RequestInit & { bypassCustomProtocolHandlers?: boolean } }> = []
+
   const fetchImpl = bindComposioLogoNetFetch(async (url, init) => {
     calls.push({ url, init })
+
     return svgResponse(GMAIL_SVG)
   })
 

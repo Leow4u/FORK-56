@@ -1,6 +1,5 @@
-import { useState } from 'react'
-
 import { isTrustedComposioLogoUrl } from '@work4you/shared'
+import { useState } from 'react'
 
 import { useComposioLogoSrc } from '@/lib/composio-logo'
 import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'

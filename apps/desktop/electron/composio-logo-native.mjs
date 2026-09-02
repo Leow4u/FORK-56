@@ -14,10 +14,8 @@ import { app, BrowserWindow, ipcMain, net as electronNet } from 'electron'
 
 import { bindComposioLogoNetFetch, fetchComposioLogoDataUrl } from './composio-logo'
 
-app.commandLine.appendSwitch('no-sandbox')
-app.commandLine.appendSwitch('disable-gpu')
-
 const SHOW = process.env.SHOW === '1'
+const CAPTURE_PATH = process.env.CAPTURE_PATH || ''
 const runtimeDir = mkdtempSync(join(tmpdir(), 'work4you-composio-logo-'))
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -113,7 +111,7 @@ async function run() {
   })
 
   const window = new BrowserWindow({
-    show: SHOW,
+    show: SHOW || Boolean(CAPTURE_PATH),
     x: 40,
     y: 40,
     width: 780,
@@ -128,6 +126,13 @@ async function run() {
     }
   })
 
+  window.webContents.on('render-process-gone', (_event, details) => {
+    console.error('render-process-gone', details)
+  })
+  window.webContents.on('did-fail-load', (_event, code, desc, url) => {
+    console.error('did-fail-load', code, desc, url)
+  })
+
   const fixturePath = join(runtimeDir, 'index.html')
   writeFileSync(fixturePath, html)
   await window.loadFile(fixturePath)
@@ -136,6 +141,11 @@ async function run() {
   const failed = results.filter(row => !row.ok || row.srcKind !== 'data')
 
   process.stdout.write(`${JSON.stringify({ origin, results }, null, 2)}\n`)
+
+  if (CAPTURE_PATH) {
+    const png = await window.webContents.capturePage()
+    writeFileSync(CAPTURE_PATH, png.toPNG())
+  }
 
   if (!origin.startsWith('file:')) {
     throw new Error(`expected file:// origin, got ${origin}`)

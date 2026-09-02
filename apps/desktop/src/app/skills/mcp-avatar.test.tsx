@@ -1,4 +1,4 @@
-import { cleanup, render, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { directoryAppLogoUrl } from '@work4you/shared'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -13,7 +13,7 @@ afterEach(() => {
 
 describe('McpAvatar', () => {
   it('paints the Composio CDN mark from directoryAppLogoUrl on http(s)', async () => {
-    render(
+    const { container } = render(
       <McpAvatar
         logo={directoryAppLogoUrl({ id: 'gmail', source: 'composio' })}
         name="gmail"
@@ -22,16 +22,16 @@ describe('McpAvatar', () => {
     )
 
     await waitFor(() => {
-      expect(document.querySelector('[data-mcp-avatar="gmail"]')?.getAttribute('src')).toBe(
+      expect(container.querySelector('[data-mcp-avatar="gmail"]')?.getAttribute('src')).toBe(
         'https://logos.composio.dev/api/gmail'
       )
     })
   })
 
   it('falls back to a letter when there is no trusted mark and no brand glyph', () => {
-    render(<McpAvatar logo={null} name="hubspot" status="unknown" />)
+    const { container } = render(<McpAvatar logo={null} name="hubspot" status="unknown" />)
 
-    expect(document.querySelector('[data-mcp-avatar]')).toBeNull()
-    expect(document.body.textContent).toContain('H')
+    expect(container.querySelector('[data-mcp-avatar]')).toBeNull()
+    expect(screen.getByText('H')).toBeTruthy()
   })
 })
