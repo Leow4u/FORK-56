@@ -147,11 +147,7 @@ export const Thread = memo(function Thread({
     [hasBranchInNewChat, hasCancel, hasDismissError, hasRestoreToMessage, requestRestoreConfirm]
   )
 
-  const emptyPlaceholder = intro ? (
-    <div className="flex min-h-0 w-full flex-col items-center justify-center pt-[var(--composer-measured-height)]">
-      <Intro {...intro} />
-    </div>
-  ) : undefined
+  const emptyPlaceholder = intro ? <Intro {...intro} /> : undefined
 
   // Stable element identity, for the same reason the component map above is
   // memoized: this is a prop of the memo'd ThreadMessageList, so a fresh

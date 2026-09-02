@@ -55,6 +55,7 @@ import { titlebarHeaderBaseClass, titlebarHeaderShadowClass, titlebarHeaderTitle
 import { ChatDropOverlay } from './chat-drop-overlay'
 import { ChatSwapOverlay } from './chat-swap-overlay'
 import { ChatBar, ChatBarFallback } from './composer'
+import { dockedComposerAnchor } from './composer-placement'
 import { requestComposerInsert } from './composer/focus'
 import { droppedFileInlineRefs } from './composer/inline-refs'
 import { ComposerSurfaceProvider, useComposerScope, useComposerSurfaceId } from './composer/scope'
@@ -575,6 +576,7 @@ const ChatViewContent = memo(function ChatViewContent({
         className
       )}
       data-chat-surface=""
+      data-composer-anchor={dockedComposerAnchor(showIntro)}
       data-composer-surface-id={composerSurfaceId}
       data-composer-target={composerScope.target}
       data-session-anchor={sessionAnchor}
