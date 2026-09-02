@@ -44,71 +44,70 @@ export function NotificationsSettings() {
       <SectionHeading description={copy.intro} title={copy.title} variant="page" />
 
       <SettingsGroup>
-      <ToggleRow
-        checked={prefs.enabled}
-        description={copy.enableAllDesc}
-        label={copy.enableAll}
-        onChange={setNativeNotifyEnabled}
-      />
-
-      {NATIVE_NOTIFICATION_KINDS.map(kind => (
         <ToggleRow
-          checked={prefs.enabled && prefs.kinds[kind]}
-          description={copy.kinds[kind].description}
-          disabled={!prefs.enabled}
-          key={kind}
-          label={copy.kinds[kind].label}
-          onChange={on => setNativeNotifyKind(kind, on)}
+          checked={prefs.enabled}
+          description={copy.enableAllDesc}
+          label={copy.enableAll}
+          onChange={setNativeNotifyEnabled}
         />
-      ))}
 
+        {NATIVE_NOTIFICATION_KINDS.map(kind => (
+          <ToggleRow
+            checked={prefs.enabled && prefs.kinds[kind]}
+            description={copy.kinds[kind].description}
+            disabled={!prefs.enabled}
+            key={kind}
+            label={copy.kinds[kind].label}
+            onChange={on => setNativeNotifyKind(kind, on)}
+          />
+        ))}
       </SettingsGroup>
 
       <SettingsGroup>
-      <ListRow
-        action={
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Select
-              onValueChange={value => {
-                const variantId = Number.parseInt(value, 10)
+        <ListRow
+          action={
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Select
+                onValueChange={value => {
+                  const variantId = Number.parseInt(value, 10)
 
-                setCompletionSoundVariantId(variantId)
-                previewCompletionSound(variantId)
-                triggerHaptic('selection')
-              }}
-              value={String(completionSoundVariantId)}
-            >
-              <SelectTrigger className={cn('min-w-56', CONTROL_TEXT)}>
-                <SelectValue />
-              </SelectTrigger>
+                  setCompletionSoundVariantId(variantId)
+                  previewCompletionSound(variantId)
+                  triggerHaptic('selection')
+                }}
+                value={String(completionSoundVariantId)}
+              >
+                <SelectTrigger className={cn('min-w-56', CONTROL_TEXT)}>
+                  <SelectValue />
+                </SelectTrigger>
 
-              <SelectContent>
-                {COMPLETION_SOUND_VARIANTS.map(variant => (
-                  <SelectItem key={variant.id} value={String(variant.id)}>
-                    {variant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <SelectContent>
+                  {COMPLETION_SOUND_VARIANTS.map(variant => (
+                    <SelectItem key={variant.id} value={String(variant.id)}>
+                      {variant.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Button
-              className="gap-1.5"
-              onClick={() => {
-                previewCompletionSound()
-                triggerHaptic('crisp')
-              }}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <Play className="size-3.5" />
-              {copy.completionSoundPreview}
-            </Button>
-          </div>
-        }
-        description={copy.completionSoundDesc}
-        title={copy.completionSoundTitle}
-      />
+              <Button
+                className="gap-1.5"
+                onClick={() => {
+                  previewCompletionSound()
+                  triggerHaptic('crisp')
+                }}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                <Play className="size-3.5" />
+                {copy.completionSoundPreview}
+              </Button>
+            </div>
+          }
+          description={copy.completionSoundDesc}
+          title={copy.completionSoundTitle}
+        />
       </SettingsGroup>
 
       <div className="mt-4 flex flex-col gap-2">

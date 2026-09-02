@@ -43,7 +43,15 @@ import {
 import { MemoryConnect } from './memory/connect'
 import { ProviderConfigPanel } from './memory/provider-config-panel'
 import { ModelSettings, ModelSettingsSkeleton } from './model-settings'
-import { EmptyState, ListRow, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton, ToggleRow } from './primitives'
+import {
+  EmptyState,
+  ListRow,
+  SectionHeading,
+  SettingsContent,
+  SettingsGroup,
+  SettingsSkeleton,
+  ToggleRow
+} from './primitives'
 import { SettingsProfileScope } from './profile-scope'
 import { QuickEntrySettings } from './quick-entry-settings'
 
@@ -351,10 +359,7 @@ function ConfigSettingsInner({
 
   return (
     <SettingsContent>
-      <SectionHeading
-        title={t.settings.sections[activeSectionId] ?? activeSectionId}
-        variant="page"
-      />
+      <SectionHeading title={t.settings.sections[activeSectionId] ?? activeSectionId} variant="page" />
       {/* Which profile's config.yaml this page edits — shared across every
           config-backed settings page (and hidden for single-profile users). */}
       <SettingsProfileScope className="mb-5" />
@@ -418,7 +423,10 @@ function ConfigSettingsInner({
             </div>
           ))}
         </SettingsGroup>
-      ) : visibleFields.length === 0 && activeSectionId !== 'chat' && activeSectionId !== 'model' && activeSectionId !== 'advanced' ? (
+      ) : visibleFields.length === 0 &&
+        activeSectionId !== 'chat' &&
+        activeSectionId !== 'model' &&
+        activeSectionId !== 'advanced' ? (
         <EmptyState description={c.emptyDesc} title={c.emptyTitle} />
       ) : null}
       <input

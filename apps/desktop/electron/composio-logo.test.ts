@@ -22,8 +22,10 @@ function svgResponse(body: string, extra: { status?: number; type?: string; url?
 
 test('bindComposioLogoNetFetch always uses Chromium net.fetch options', async () => {
   const calls: Array<{ url: string; init?: RequestInit & { bypassCustomProtocolHandlers?: boolean } }> = []
+
   const fetchImpl = bindComposioLogoNetFetch(async (url, init) => {
     calls.push({ url, init })
+
     return svgResponse(GMAIL_SVG)
   })
 
@@ -50,9 +52,8 @@ test('handleComposioLogoProtocol serves a trusted SVG through the privileged sch
 })
 
 test('handleComposioLogoProtocol rejects hosts other than the logo scheme', async () => {
-  const response = await handleComposioLogoProtocol(
-    { url: 'https://evil.example/gmail' },
-    async () => svgResponse(GMAIL_SVG)
+  const response = await handleComposioLogoProtocol({ url: 'https://evil.example/gmail' }, async () =>
+    svgResponse(GMAIL_SVG)
   )
 
   assert.equal(response.status, 400)
