@@ -1,11 +1,7 @@
 import { completeComposioConnect } from '@work4you/shared'
 
-import {
-  authorizeConnector,
-  bootstrapConnectors,
-  type ProfileScope,
-  waitConnector
-} from '@/api/mcp'
+import { type ProfileScope } from '@/api/client'
+import { authorizeConnector, bootstrapConnectors, waitConnector } from '@/api/mcp'
 
 /** Capabilities / chat Connect for a Work4You App directory slug. */
 export async function connectWork4YouApp(
