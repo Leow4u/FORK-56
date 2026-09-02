@@ -377,7 +377,7 @@ describe("McpPage directory", () => {
     await renderPage();
     const text = container.textContent ?? "";
     expect(text).toContain("Notion");
-    expect(text).toContain("Filesystem");
+    expect(text).toContain("Local files over stdio");
     expect(text).toContain("too old to fill the app store");
     expect(text).not.toContain("Gmail");
     expect(text).not.toContain("No MCP servers configured");
