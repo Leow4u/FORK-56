@@ -177,6 +177,7 @@ import {
   tightenSecretFileMode,
   writeSecretFileAtomic
 } from './hardening'
+import { fetchComposioLogoDataUrl } from './composio-logo'
 import { cursorPointInWindow } from './hud-cursor'
 import { registerHudIpc } from './hud-ipc'
 import { snapHudBounds } from './hud-snap'
@@ -14155,6 +14156,14 @@ ipcMain.handle('work4you:setting:defaultProjectDir:pick', async () => {
 })
 
 ipcMain.handle('work4you:fetchLinkTitle', (_event, url) => fetchLinkTitle(url))
+
+ipcMain.handle('work4you:composio-logo', async (_event, url) => {
+  try {
+    return await fetchComposioLogoDataUrl(String(url || ''))
+  } catch {
+    return null
+  }
+})
 
 ipcMain.handle('work4you:logs:reveal', async () => {
   try {

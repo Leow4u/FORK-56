@@ -258,6 +258,8 @@ declare global {
       openExternal: (url: string) => Promise<void>
       openPreviewInBrowser?: (url: string) => Promise<void>
       fetchLinkTitle: (url: string) => Promise<string>
+      /** Trusted logos.composio.dev mark → data URL for the file:// renderer. */
+      fetchComposioLogo?: (url: string) => Promise<null | string>
       sanitizeWorkspaceCwd: (cwd?: null | string) => Promise<{ cwd: string; sanitized: boolean }>
       settings: {
         getDefaultProjectDir: () => Promise<{ defaultLabel: string; dir: null | string; resolvedCwd: string }>

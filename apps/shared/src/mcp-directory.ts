@@ -53,7 +53,7 @@ export interface DirectoryApp {
   needs_install?: boolean
   installed?: boolean
   enabled?: boolean
-  /** Composio CDN mark. Native/custom servers never carry a remote logo. */
+  /** Official toolkit mark from logos.composio.dev. Custom MCP URLs never carry one. */
   logo?: string | null
 }
 
@@ -82,9 +82,13 @@ export function isTrustedComposioLogoUrl(url: string): boolean {
   }
 }
 
-/** Remote logo only for Work4You Apps (Composio) rows. Never for custom MCP URLs. */
+/**
+ * Remote mark for catalog rows (native MCP + Work4You Apps). Custom servers
+ * never get one: a private MCP URL must not leak off-box via a favicon fetch.
+ * Native ids are public slugs (`figma`, `n8n`), not hosts.
+ */
 export function directoryAppLogoUrl(app: Pick<DirectoryApp, 'id' | 'source' | 'logo'>): string | null {
-  if (app.source !== 'composio') {
+  if (app.source === 'custom') {
     return null
   }
 

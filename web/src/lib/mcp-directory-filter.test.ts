@@ -94,14 +94,24 @@ describe("groupDirectorySections", () => {
 });
 
 describe("directoryAppLogoUrl", () => {
-  it("uses the Composio CDN for Work4You Apps and never for native MCP", () => {
+  it("uses the Composio CDN for catalog rows and never for custom MCP", () => {
     expect(directoryAppLogoUrl({ id: "gmail", source: "composio" })).toBe(
       "https://logos.composio.dev/api/gmail",
+    );
+    expect(directoryAppLogoUrl({ id: "n8n", source: "native" })).toBe(
+      "https://logos.composio.dev/api/n8n",
     );
     expect(
       directoryAppLogoUrl({
         id: "gmail",
         source: "native",
+        logo: "https://logos.composio.dev/api/gmail",
+      }),
+    ).toBe("https://logos.composio.dev/api/gmail");
+    expect(
+      directoryAppLogoUrl({
+        id: "my-box",
+        source: "custom",
         logo: "https://logos.composio.dev/api/gmail",
       }),
     ).toBeNull();
