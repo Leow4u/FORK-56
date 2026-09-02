@@ -59,11 +59,7 @@ import {
 import { decideBootstrapRepair } from './bootstrap-repair-guard'
 import { runBootstrap } from './bootstrap-runner'
 import { detectBundleSkew } from './bundle-skew'
-import {
-  bindComposioLogoNetFetch,
-  COMPOSIO_LOGO_PROTOCOL,
-  handleComposioLogoProtocol
-} from './composio-logo'
+import { bindComposioLogoNetFetch, COMPOSIO_LOGO_PROTOCOL, handleComposioLogoProtocol } from './composio-logo'
 import { applyConnectionChange } from './connection-apply'
 import {
   apiRequestRegistryConnectionId,
@@ -1269,9 +1265,8 @@ function registerMediaProtocol() {
 }
 
 function registerComposioLogoProtocol() {
-  protocol.handle(
-    COMPOSIO_LOGO_PROTOCOL,
-    request => handleComposioLogoProtocol(request, bindComposioLogoNetFetch(electronNet.fetch.bind(electronNet)))
+  protocol.handle(COMPOSIO_LOGO_PROTOCOL, request =>
+    handleComposioLogoProtocol(request, bindComposioLogoNetFetch(electronNet.fetch.bind(electronNet)))
   )
 }
 

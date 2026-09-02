@@ -60,10 +60,7 @@ export function ModelSettingsSkeleton() {
     <SettingsGroup>
       <div className="grid gap-1" data-slot="model-settings-skeleton">
         {[0, 1, 2, 3].map(row => (
-          <div
-            className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center"
-            key={row}
-          >
+          <div className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center" key={row}>
             <div className="min-w-0 space-y-1.5">
               <Skeleton className="h-3.5 w-32" />
               <Skeleton className="h-3 w-52 max-w-full" />

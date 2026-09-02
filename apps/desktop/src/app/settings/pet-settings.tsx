@@ -115,209 +115,211 @@ export function PetSettings() {
 
   return (
     <>
-    <SettingsGroup title={copy.title}>
-      <p className="pt-3 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-        {copy.intro}
-      </p>
-
-      {staleBackend && (
-        <p className="mt-2 rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-2 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-          {copy.restartHint}
+      <SettingsGroup title={copy.title}>
+        <p className="pt-3 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+          {copy.intro}
         </p>
-      )}
 
-      <div className="mt-2">
-        <ListRow
-          below={
-            <>
-              <input
-                className="mt-3 w-full rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-1.5 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
-                onChange={event => setQuery(event.target.value)}
-                placeholder={copy.searchPlaceholder}
-                spellCheck={false}
-                value={query}
-              />
-              {/* Fixed-height scroll area so filtering never grows/shrinks the
-                  page (no layout thrash); the grid scrolls inside it. */}
-              <div className="mt-3 h-72 overflow-y-auto pr-1">
-                {status === 'loading' && pets.length === 0 ? (
-                  // First load keeps the grid's shape rather than flashing the
-                  // "unreachable" copy before the gallery has even arrived.
-                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                    {Array.from({ length: 6 }, (_, i) => (
-                      <div className="flex items-center gap-2.5 px-2.5 py-2" key={i}>
-                        <Skeleton className="size-10 shrink-0 rounded-md" />
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <Skeleton className="h-3.5 w-24 max-w-full" />
-                          <Skeleton className="h-3 w-16 max-w-full" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : pets.length === 0 ? (
-                  <p className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-                    {copy.unreachable}
-                  </p>
-                ) : shown.length === 0 ? (
-                  <p className="wrap-anywhere text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-                    {copy.noMatch(query)}
-                  </p>
-                ) : (
-                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                    {shown.map(pet => {
-                      const isActive = enabled && active === pet.slug
-                      const isBusy = busySlug === pet.slug
+        {staleBackend && (
+          <p className="mt-2 rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-2 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+            {copy.restartHint}
+          </p>
+        )}
 
-                      return (
-                        <div className="group relative" key={pet.slug}>
-                          <button
-                            className={cn(
-                              'flex w-full items-center gap-2.5 px-2.5 py-2 text-left disabled:opacity-50',
-                              selectableCardClass({ active: isActive, prominent: pet.installed })
-                            )}
-                            disabled={isBusy}
-                            onClick={() => void selectPet(pet.slug)}
-                            type="button"
-                          >
-                            <PetThumb
-                              alt={pet.displayName}
-                              load={(slug, url) => loadPetThumb(requestGateway, slug, url)}
-                              slug={pet.slug}
-                              url={pet.spritesheetUrl}
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-center gap-1.5">
-                                <span className="truncate text-[length:var(--conversation-text-font-size)] font-medium">
-                                  {pet.displayName}
-                                </span>
-                                {pet.generated && (
-                                  <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-px text-[0.625rem] font-medium text-primary">
-                                    {copy.generatedTag}
-                                  </span>
-                                )}
-                              </span>
-                              <span className="block truncate text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-                                {pet.slug}
-                                {pet.installed ? ` · ${copy.installedTag}` : ''}
-                              </span>
-                            </span>
-                            {isBusy && <Loader2 className="size-4 shrink-0 animate-spin text-(--ui-text-tertiary)" />}
-                          </button>
-                          {!isBusy && (pet.installed || pet.generated) && (
-                            <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
-                              {pet.generated && (
-                                <PetAction
-                                  icon={<Pencil className="size-3.5" />}
-                                  label={copy.rename(pet.displayName)}
-                                  onClick={() => {
-                                    setRenameValue(pet.displayName)
-                                    setRenameTarget(pet)
-                                  }}
-                                />
-                              )}
-                              {pet.generated && (
-                                <PetAction
-                                  icon={<Download className="size-3.5" />}
-                                  label={copy.exportPet(pet.displayName)}
-                                  onClick={() => exportPet(pet.slug)}
-                                />
-                              )}
-                              {pet.installed && (
-                                // Generated pets have no remote source — deletion is
-                                // permanent, so confirm; petdex pets just uninstall.
-                                <PetAction
-                                  danger
-                                  icon={<Trash2 className="size-3.5" />}
-                                  label={pet.generated ? copy.delete(pet.displayName) : copy.uninstall(pet.displayName)}
-                                  onClick={() => (pet.generated ? setConfirmDelete(pet) : removePet(pet.slug))}
-                                />
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-              {/* Always-present status line so its appearance never shifts layout. */}
-              <p className="mt-2 min-h-4 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-                {error ? (
-                  <span className="text-(--ui-red)">{error}</span>
-                ) : sorted.length > RENDER_CAP ? (
-                  copy.countCapped(RENDER_CAP, sorted.length)
-                ) : (
-                  copy.count(sorted.length)
-                )}
-              </p>
-            </>
-          }
-          description={copy.chooseDesc}
-          title={
-            <div className="flex items-center justify-between gap-3">
-              <span>{copy.chooseTitle}</span>
-              <SegmentedControl
-                onChange={id => void toggle(id === 'on')}
-                options={[
-                  { id: 'off', label: copy.off },
-                  { id: 'on', label: copy.on }
-                ]}
-                value={enabled ? 'on' : 'off'}
-              />
-            </div>
-          }
-          wide
-        />
-
-        {enabled && (
+        <div className="mt-2">
           <ListRow
-            action={
-              <div className="flex items-center gap-3">
+            below={
+              <>
                 <input
-                  aria-label={copy.scaleTitle}
-                  className="h-1 w-40 cursor-pointer appearance-none rounded-full bg-(--ui-stroke-tertiary)"
-                  max={PET_SCALE_MAX}
-                  min={PET_SCALE_MIN}
-                  onChange={event => {
-                    triggerHaptic('selection')
-                    setPetScale(requestGateway, Number(event.target.value))
-                  }}
-                  step={0.05}
-                  style={{ accentColor: 'var(--dt-primary)' }}
-                  type="range"
-                  value={scale}
+                  className="mt-3 w-full rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-1.5 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
+                  onChange={event => setQuery(event.target.value)}
+                  placeholder={copy.searchPlaceholder}
+                  spellCheck={false}
+                  value={query}
                 />
-                <span className="w-9 text-right text-[length:var(--conversation-caption-font-size)] tabular-nums text-(--ui-text-tertiary)">
-                  {`${Math.round(scale * 100)}%`}
-                </span>
+                {/* Fixed-height scroll area so filtering never grows/shrinks the
+                  page (no layout thrash); the grid scrolls inside it. */}
+                <div className="mt-3 h-72 overflow-y-auto pr-1">
+                  {status === 'loading' && pets.length === 0 ? (
+                    // First load keeps the grid's shape rather than flashing the
+                    // "unreachable" copy before the gallery has even arrived.
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {Array.from({ length: 6 }, (_, i) => (
+                        <div className="flex items-center gap-2.5 px-2.5 py-2" key={i}>
+                          <Skeleton className="size-10 shrink-0 rounded-md" />
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <Skeleton className="h-3.5 w-24 max-w-full" />
+                            <Skeleton className="h-3 w-16 max-w-full" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : pets.length === 0 ? (
+                    <p className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+                      {copy.unreachable}
+                    </p>
+                  ) : shown.length === 0 ? (
+                    <p className="wrap-anywhere text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+                      {copy.noMatch(query)}
+                    </p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {shown.map(pet => {
+                        const isActive = enabled && active === pet.slug
+                        const isBusy = busySlug === pet.slug
+
+                        return (
+                          <div className="group relative" key={pet.slug}>
+                            <button
+                              className={cn(
+                                'flex w-full items-center gap-2.5 px-2.5 py-2 text-left disabled:opacity-50',
+                                selectableCardClass({ active: isActive, prominent: pet.installed })
+                              )}
+                              disabled={isBusy}
+                              onClick={() => void selectPet(pet.slug)}
+                              type="button"
+                            >
+                              <PetThumb
+                                alt={pet.displayName}
+                                load={(slug, url) => loadPetThumb(requestGateway, slug, url)}
+                                slug={pet.slug}
+                                url={pet.spritesheetUrl}
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="truncate text-[length:var(--conversation-text-font-size)] font-medium">
+                                    {pet.displayName}
+                                  </span>
+                                  {pet.generated && (
+                                    <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-px text-[0.625rem] font-medium text-primary">
+                                      {copy.generatedTag}
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="block truncate text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+                                  {pet.slug}
+                                  {pet.installed ? ` · ${copy.installedTag}` : ''}
+                                </span>
+                              </span>
+                              {isBusy && <Loader2 className="size-4 shrink-0 animate-spin text-(--ui-text-tertiary)" />}
+                            </button>
+                            {!isBusy && (pet.installed || pet.generated) && (
+                              <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition focus-within:opacity-100 group-hover:opacity-100">
+                                {pet.generated && (
+                                  <PetAction
+                                    icon={<Pencil className="size-3.5" />}
+                                    label={copy.rename(pet.displayName)}
+                                    onClick={() => {
+                                      setRenameValue(pet.displayName)
+                                      setRenameTarget(pet)
+                                    }}
+                                  />
+                                )}
+                                {pet.generated && (
+                                  <PetAction
+                                    icon={<Download className="size-3.5" />}
+                                    label={copy.exportPet(pet.displayName)}
+                                    onClick={() => exportPet(pet.slug)}
+                                  />
+                                )}
+                                {pet.installed && (
+                                  // Generated pets have no remote source — deletion is
+                                  // permanent, so confirm; petdex pets just uninstall.
+                                  <PetAction
+                                    danger
+                                    icon={<Trash2 className="size-3.5" />}
+                                    label={
+                                      pet.generated ? copy.delete(pet.displayName) : copy.uninstall(pet.displayName)
+                                    }
+                                    onClick={() => (pet.generated ? setConfirmDelete(pet) : removePet(pet.slug))}
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+                {/* Always-present status line so its appearance never shifts layout. */}
+                <p className="mt-2 min-h-4 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+                  {error ? (
+                    <span className="text-(--ui-red)">{error}</span>
+                  ) : sorted.length > RENDER_CAP ? (
+                    copy.countCapped(RENDER_CAP, sorted.length)
+                  ) : (
+                    copy.count(sorted.length)
+                  )}
+                </p>
+              </>
+            }
+            description={copy.chooseDesc}
+            title={
+              <div className="flex items-center justify-between gap-3">
+                <span>{copy.chooseTitle}</span>
+                <SegmentedControl
+                  onChange={id => void toggle(id === 'on')}
+                  options={[
+                    { id: 'off', label: copy.off },
+                    { id: 'on', label: copy.on }
+                  ]}
+                  value={enabled ? 'on' : 'off'}
+                />
               </div>
             }
-            description={copy.scaleDesc}
-            title={copy.scaleTitle}
+            wide
           />
-        )}
 
-        {enabled && (
-          <ListRow
-            action={
-              <SegmentedControl
-                onChange={id => {
-                  setPetRoam(id === 'on')
-                  triggerHaptic('crisp')
-                }}
-                options={[
-                  { id: 'off', label: copy.off },
-                  { id: 'on', label: copy.on }
-                ]}
-                value={roam ? 'on' : 'off'}
-              />
-            }
-            description={copy.roamDesc}
-            title={copy.roamTitle}
-          />
-        )}
-      </div>
-    </SettingsGroup>
+          {enabled && (
+            <ListRow
+              action={
+                <div className="flex items-center gap-3">
+                  <input
+                    aria-label={copy.scaleTitle}
+                    className="h-1 w-40 cursor-pointer appearance-none rounded-full bg-(--ui-stroke-tertiary)"
+                    max={PET_SCALE_MAX}
+                    min={PET_SCALE_MIN}
+                    onChange={event => {
+                      triggerHaptic('selection')
+                      setPetScale(requestGateway, Number(event.target.value))
+                    }}
+                    step={0.05}
+                    style={{ accentColor: 'var(--dt-primary)' }}
+                    type="range"
+                    value={scale}
+                  />
+                  <span className="w-9 text-right text-[length:var(--conversation-caption-font-size)] tabular-nums text-(--ui-text-tertiary)">
+                    {`${Math.round(scale * 100)}%`}
+                  </span>
+                </div>
+              }
+              description={copy.scaleDesc}
+              title={copy.scaleTitle}
+            />
+          )}
+
+          {enabled && (
+            <ListRow
+              action={
+                <SegmentedControl
+                  onChange={id => {
+                    setPetRoam(id === 'on')
+                    triggerHaptic('crisp')
+                  }}
+                  options={[
+                    { id: 'off', label: copy.off },
+                    { id: 'on', label: copy.on }
+                  ]}
+                  value={roam ? 'on' : 'off'}
+                />
+              }
+              description={copy.roamDesc}
+              title={copy.roamTitle}
+            />
+          )}
+        </div>
+      </SettingsGroup>
 
       <ConfirmDialog
         confirmLabel={copy.deleteConfirm}

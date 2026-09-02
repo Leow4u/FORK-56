@@ -31,10 +31,7 @@ import { compactNumber } from '@/lib/format'
 import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
 import { completeMcpDesktopOAuth } from '@/lib/mcp-dashboard-oauth'
-import {
-  mcpCatalogPrimaryAction,
-  type McpDirectoryFilter
-} from '@/lib/mcp-directory-filter'
+import { mcpCatalogPrimaryAction, type McpDirectoryFilter } from '@/lib/mcp-directory-filter'
 import { type McpImportEntry, parseMcpImport } from '@/lib/mcp-import'
 import { NEEDS_AUTH_RE, PROBE_TTL_MS, probeCache, probeKey, serverFingerprint } from '@/lib/mcp-probe-cache'
 import { getServers, isServerShape, type McpServers, normalizeEntry } from '@/lib/mcp-servers'
@@ -1185,8 +1182,7 @@ export function McpTab({
     }
   }
 
-  const directoryEmpty =
-    !selected && directoryApps.length === 0 && !directoryQuery.isLoading && !catalogQuery.isLoading
+  const directoryEmpty = !selected && directoryApps.length === 0 && !directoryQuery.isLoading && !catalogQuery.isLoading
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -2017,11 +2013,7 @@ function McpAvatar({
         !src && !brand && 'bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)',
         className
       )}
-      style={
-        !src && brand
-          ? { backgroundColor: `color-mix(in srgb, ${brand.color} 16%, transparent)` }
-          : undefined
-      }
+      style={!src && brand ? { backgroundColor: `color-mix(in srgb, ${brand.color} 16%, transparent)` } : undefined}
     >
       {src ? (
         <img

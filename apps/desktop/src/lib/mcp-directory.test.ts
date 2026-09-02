@@ -148,21 +148,15 @@ describe('directoryAppDescription', () => {
 
 describe('directoryAppLogoUrl', () => {
   it('uses the Composio CDN for Work4You Apps rows', () => {
-    expect(directoryAppLogoUrl({ id: 'gmail', source: 'composio' })).toBe(
-      'https://logos.composio.dev/api/gmail'
-    )
+    expect(directoryAppLogoUrl({ id: 'gmail', source: 'composio' })).toBe('https://logos.composio.dev/api/gmail')
     expect(directoryAppLogoUrl({ id: 'granola_mcp', source: 'composio' })).toBe(
       'https://logos.composio.dev/api/granola_mcp'
     )
   })
 
   it('uses the Composio CDN for catalog rows and never for custom MCP', () => {
-    expect(directoryAppLogoUrl({ id: 'gmail', source: 'composio' })).toBe(
-      'https://logos.composio.dev/api/gmail'
-    )
-    expect(directoryAppLogoUrl({ id: 'n8n', source: 'native' })).toBe(
-      'https://logos.composio.dev/api/n8n'
-    )
+    expect(directoryAppLogoUrl({ id: 'gmail', source: 'composio' })).toBe('https://logos.composio.dev/api/gmail')
+    expect(directoryAppLogoUrl({ id: 'n8n', source: 'native' })).toBe('https://logos.composio.dev/api/n8n')
     expect(
       directoryAppLogoUrl({
         id: 'gmail',
@@ -196,13 +190,9 @@ describe('directoryAppLogoUrl', () => {
     expect(composioLogoImgSrc('https://logos.composio.dev/api/gmail', 'http:')).toBe(
       'https://logos.composio.dev/api/gmail'
     )
-    expect(composioLogoImgSrc('https://logos.composio.dev/api/n8n', 'file:')).toBe(
-      'work4you-logo://mark/n8n'
-    )
+    expect(composioLogoImgSrc('https://logos.composio.dev/api/n8n', 'file:')).toBe('work4you-logo://mark/n8n')
     expect(composioLogoImgSrc('https://evil.example/x.png', 'file:')).toBeNull()
-    expect(composioCdnUrlFromProtocolRequest('work4you-logo://mark/gmail')).toBe(
-      'https://logos.composio.dev/api/gmail'
-    )
+    expect(composioCdnUrlFromProtocolRequest('work4you-logo://mark/gmail')).toBe('https://logos.composio.dev/api/gmail')
     expect(composioCdnUrlFromProtocolRequest('work4you-logo://mark/unreal-engine')).toBe(
       'https://logos.composio.dev/api/unreal-engine'
     )
