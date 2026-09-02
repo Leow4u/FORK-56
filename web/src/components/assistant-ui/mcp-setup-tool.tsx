@@ -16,6 +16,7 @@ import { triggerHaptic } from '@/lib/haptics'
 import { AlertCircle, CheckCircle2, Loader2 } from '@/lib/icons'
 import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { completeMcpDesktopOAuth, McpOAuthCancelled } from '@/lib/mcp-dashboard-oauth'
+import { connectWork4YouApp, openComposioConnectUrl } from '@/lib/composio-connect'
 import { directoryEntry } from '@/lib/mcp-directory'
 import { prettyName } from '@/lib/text'
 import { cn } from '@/lib/utils'
@@ -23,11 +24,13 @@ import { $gateway } from '@/store/gateway'
 import { clearMcpSetupRequest, type McpSetupOutcome, sessionMcpSetupRequest } from '@/store/mcp-setup'
 import { notifyError } from '@/store/notifications'
 import { invalidateMcpSuggestionIndex } from '@/store/suggestion-providers/mcp'
+import { findComposioDirectoryApp } from '@work4you/shared'
 import {
   addMcpServer,
   authMcpServer,
   cancelMcpOAuthFlow,
   getActionStatus,
+  getConnectorsDirectory,
   getMcpCatalog,
   getMcpOAuthFlow,
   installMcpCatalogEntry,
@@ -183,6 +186,7 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
   const [envDraft, setEnvDraft] = useState<Record<string, string>>({})
   const [entry, setEntry] = useState<McpCatalogEntry | null | undefined>(undefined)
   const [envOpen, setEnvOpen] = useState(false)
+  const [composioApp, setComposioApp] = useState(undefined)
   // Set when the user cancels mid-flight (a stuck OAuth tab, a hung install).
   // The in-flight flow checks it at every poll boundary and aborts via the
   // CANCELLED sentinel; the declined respond has already been sent by then.
@@ -191,6 +195,28 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
   // Race: tool.start fires a tick before mcp.setup.request — hold the buttons
   // until the gateway request is wired (same spinner rule as clarify).
   const ready = Boolean(request?.requestId)
+
+  useEffect(() => {
+    let cancelled = false
+
+    void getConnectorsDirectory()
+      .then(directory => {
+        if (cancelled) {
+          return
+        }
+
+        setComposioApp(findComposioDirectoryApp(directory.apps, server) ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setComposioApp(null)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [server])
 
   const respond = useCallback(
     async (outcome: McpSetupOutcome) => {
@@ -264,6 +290,50 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
     }
 
     try {
+      const directory = await getConnectorsDirectory().catch(() => null)
+      const composio = directory ? findComposioDirectoryApp(directory.apps, server) : undefined
+
+      if (composio) {
+        if (composio.needs_login) {
+          await respond({ detail: copy.loginRequired, server, status: 'error' })
+
+          return
+        }
+
+        if (composio.connected) {
+          triggerHaptic('submit')
+          await respond({ server: composio.id, status: action === 'enable' ? 'enabled' : 'authorized' })
+
+          return
+        }
+
+        const popup = window.open('about:blank', '_blank')
+        if (popup) popup.opener = null
+
+        try {
+          const ok = await connectWork4YouApp(composio.id, url => openComposioConnectUrl(url, popup))
+
+          if (cancelRef.current) {
+            throw CANCELLED
+          }
+
+          if (!ok) {
+            throw new Error(copy.failed(prettyName(composio.name || server)))
+          }
+        } catch (error) {
+          popup?.close()
+          throw error
+        }
+
+        triggerHaptic('submit')
+        await respond({
+          server: composio.id,
+          status: action === 'enable' ? 'enabled' : action === 'authorize' ? 'authorized' : 'installed'
+        })
+
+        return
+      }
+
       if (action === 'enable') {
         await setMcpServerEnabled(server, true)
         triggerHaptic('submit')
@@ -410,22 +480,32 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
     }
   }, [action, copy, entry, envDraft, respond, server])
 
-  const title =
-    action === 'enable'
+  const title = composioApp
+    ? copy.connectTitle(prettyName(composioApp.name || server))
+    : action === 'enable'
       ? copy.enableTitle(prettyName(server))
       : action === 'authorize'
         ? copy.authorizeTitle(prettyName(server))
         : copy.installTitle(prettyName(server))
 
-  const actionLabel =
-    action === 'enable' ? copy.enableAction : action === 'authorize' ? copy.authorizeAction : copy.installAction
+  const actionLabel = composioApp
+    ? copy.connectAction
+    : action === 'enable'
+      ? copy.enableAction
+      : action === 'authorize'
+        ? copy.authorizeAction
+        : copy.installAction
 
   // What connecting actually means — the endpoint that will be contacted.
   // VS Code's trust dialog links the config it's about to trust; same idea.
   // Catalog entries carry their transport URL in the API response; the
   // static directory remains a fallback rung for older backends.
   const known = directoryEntry(server)
-  const sourceLine = action === 'install' ? (entry?.url ?? known?.url ?? copy.catalogSource) : null
+  const sourceLine = composioApp
+    ? copy.work4youAppsSource
+    : action === 'install'
+      ? (entry?.url ?? known?.url ?? copy.catalogSource)
+      : null
   const brand = brandFor(server)
 
   const trailingIcon = brand ? (

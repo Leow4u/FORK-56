@@ -1,7 +1,6 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  completeComposioConnect,
   DIRECTORY_SECTION_IDS,
   DIRECTORY_SECTION_LABELS,
   type DirectoryApp,
@@ -27,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { resolveComposioLogoSrc } from '@/lib/composio-logo'
+import { connectWork4YouApp } from '@/lib/composio-connect'
 import { compactNumber } from '@/lib/format'
 import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
@@ -45,8 +45,6 @@ import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { $activeSessionId } from '@/store/session'
 import {
   authMcpServer,
-  authorizeConnector,
-  bootstrapConnectors,
   disconnectConnector,
   getActionStatus,
   getConnectorsDirectory,
@@ -61,7 +59,6 @@ import {
   profileScopeKey,
   saveMcpServers,
   testMcpServer,
-  waitConnector,
   type Work4YouGateway
 } from '@/work4you'
 
@@ -1152,16 +1149,18 @@ export function McpTab({
     setConnectingSlug(app.id)
 
     try {
-      await bootstrapConnectors(profile ?? undefined)
-
-      const ok = await completeComposioConnect({
-        authorize: () => authorizeConnector(app.id, profile ?? undefined),
-        wait: () => waitConnector(app.id, profile ?? undefined),
-        open: url => window.work4youDesktop.openExternal(url)
+      const ok = await connectWork4YouApp(app.id, {
+        open: url => window.work4youDesktop.openExternal(url),
+        profile: profile ?? undefined
       })
 
       if (ok) {
-        notify({ kind: 'success', title: `${app.name} connected`, message: 'Available in new sessions.' })
+        await silentReload()
+        notify({
+          kind: 'success',
+          title: `${app.name} connected`,
+          message: 'Its tools are ready in this chat.'
+        })
       }
 
       await directoryQuery.refetch()

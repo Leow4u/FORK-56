@@ -1,4 +1,7 @@
+import { composioAppsToSuggestible } from '@work4you/shared'
+
 import { translateNow } from '@/i18n'
+import { connectWork4YouApp } from '@/lib/composio-connect'
 import { completeMcpDesktopOAuth, McpOAuthCancelled } from '@/lib/mcp-dashboard-oauth'
 import { MCP_DIRECTORY } from '@/lib/mcp-directory'
 import { prettyName } from '@/lib/text'
@@ -9,6 +12,7 @@ import {
   addMcpServer,
   authMcpServer,
   cancelMcpOAuthFlow,
+  getConnectorsDirectory,
   getMcpCatalog,
   getMcpOAuthFlow,
   listMcpServers,
@@ -43,8 +47,9 @@ interface SuggestibleServer {
   server: string
   keywords: string[]
   hosts?: string[]
-  /** Streamable-HTTP/SSE endpoint written to config on invoke. */
+  /** Streamable-HTTP/SSE endpoint written to config on invoke. Empty for Work4You Apps. */
   url: string
+  source?: 'composio'
 }
 
 // Suggestible servers from the catalog (entries with `suggest` + an http
@@ -103,6 +108,16 @@ async function loadSuggestible(): Promise<SuggestibleServer[]> {
           server: entry.name,
           url: entry.url
         }))
+
+  const nativeNames = new Set(suggestible.map(entry => entry.server))
+
+  try {
+    const directory = await getConnectorsDirectory()
+    suggestible = [...suggestible, ...composioAppsToSuggestible(directory.apps, nativeNames)]
+  } catch {
+    // Directory unreachable — native suggestions still work.
+  }
+
   suggestibleAt = Date.now()
 
   return suggestible
@@ -191,23 +206,37 @@ export function matchSuggestions(text: string, index: KeywordEntry[]): McpMatch[
 
 async function connect(known: SuggestibleServer, sessionId: string | null, cancelled: () => boolean): Promise<void> {
   try {
-    await addMcpServer({ name: known.server, url: known.url })
-
-    try {
-      await completeMcpDesktopOAuth({
-        serverName: known.server,
-        start: authMcpServer,
-        status: getMcpOAuthFlow,
-        cancelled,
-        cancel: cancelMcpOAuthFlow,
-        openExternal: url => window.work4youDesktop.openExternal(url)
+    if (known.source === 'composio') {
+      const ok = await connectWork4YouApp(known.server, {
+        open: url => window.work4youDesktop.openExternal(url)
       })
-    } catch (error) {
-      // Decline/failure means "no server" — roll back the config write
-      // rather than stranding an unauthorized entry (authoritative-write
-      // rule). Best-effort; the primary error wins.
-      await removeMcpServer(known.server).catch(() => {})
-      throw error
+
+      if (cancelled()) {
+        return
+      }
+
+      if (!ok) {
+        throw new Error('not_connected')
+      }
+    } else {
+      await addMcpServer({ name: known.server, url: known.url })
+
+      try {
+        await completeMcpDesktopOAuth({
+          serverName: known.server,
+          start: authMcpServer,
+          status: getMcpOAuthFlow,
+          cancelled,
+          cancel: cancelMcpOAuthFlow,
+          openExternal: url => window.work4youDesktop.openExternal(url)
+        })
+      } catch (error) {
+        // Decline/failure means "no server" — roll back the config write
+        // rather than stranding an unauthorized entry (authoritative-write
+        // rule). Best-effort; the primary error wins.
+        await removeMcpServer(known.server).catch(() => {})
+        throw error
+      }
     }
 
     // Tools reach the live session before the pill claims success — the
@@ -239,7 +268,7 @@ function toSuggestion(match: McpMatch, known: SuggestibleServer, sessionId: stri
     // The pill's session wins over the one captured at sample time: the reload
     // has to reach the session the user is actually looking at.
     invoke: context => connect(known, context.sessionId ?? sessionId, context.cancelled),
-    label: copy('label', name),
+    label: known.source === 'composio' ? copy('connectLabel', name) : copy('label', name),
     provider: 'mcp',
     tip: copy('tip', match.keyword),
     workingLabel: copy('connecting', name),
