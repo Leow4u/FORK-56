@@ -4,7 +4,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resetTestLocalStorage } from "@/chat/test-local-storage";
-import type { McpCatalogEntry, McpServer } from "@/lib/api";
+import type {
+  ConnectorsDirectoryApp,
+  McpCatalogEntry,
+  McpServer,
+} from "@/lib/api";
 
 function catalogEntry(
   overrides: Partial<McpCatalogEntry> & Pick<McpCatalogEntry, "name" | "auth_type">,
@@ -29,12 +33,43 @@ function catalogEntry(
   };
 }
 
+function directoryApp(
+  overrides: Partial<ConnectorsDirectoryApp> &
+    Pick<ConnectorsDirectoryApp, "id" | "name" | "source">,
+): ConnectorsDirectoryApp {
+  return {
+    description: `${overrides.name} catalog entry`,
+    section: "email",
+    popular: false,
+    connected: false,
+    auth_type: "oauth",
+    needs_login: false,
+    notes: null,
+    required_env: [],
+    needs_install: false,
+    installed: false,
+    enabled: false,
+    ...overrides,
+  };
+}
+
 const apiMocks = vi.hoisted(() => ({
   getMcpServers: vi.fn(async () => ({ servers: [] as McpServer[] })),
   getMcpCatalog: vi.fn(async () => ({
     entries: [] as McpCatalogEntry[],
     diagnostics: [],
   })),
+  getConnectorsDirectory: vi.fn(async () => ({
+    apps: [] as ConnectorsDirectoryApp[],
+    sections: [],
+    portal: true,
+  })),
+  bootstrapConnectors: vi.fn(async () => ({ ok: true })),
+  authorizeConnector: vi.fn(async () => ({
+    redirect_url: "https://connect.example/gmail",
+  })),
+  waitConnector: vi.fn(async () => ({ connected: true })),
+  disconnectConnector: vi.fn(async () => ({ disconnected: true })),
   installMcpCatalogEntry: vi.fn(),
   addMcpServer: vi.fn(),
   authMcpServer: vi.fn(),
@@ -81,16 +116,18 @@ describe("McpPage directory", () => {
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
     resetTestLocalStorage();
-    apiMocks.getMcpServers.mockReset();
-    apiMocks.getMcpCatalog.mockReset();
+    vi.spyOn(window, "open").mockReturnValue({
+      closed: false,
+      opener: null,
+      location: { href: "" },
+      close: vi.fn(),
+    } as unknown as Window);
+    for (const fn of Object.values(apiMocks)) {
+      fn.mockReset();
+    }
     apiMocks.getMcpServers.mockResolvedValue({ servers: [] });
     apiMocks.getMcpCatalog.mockResolvedValue({
       entries: [
-        catalogEntry({
-          name: "gmail",
-          auth_type: "oauth",
-          description: "Read and send Gmail",
-        }),
         catalogEntry({
           name: "filesystem",
           auth_type: "none",
@@ -99,9 +136,58 @@ describe("McpPage directory", () => {
           url: null,
           description: "Local files over stdio",
         }),
+        catalogEntry({
+          name: "notion",
+          auth_type: "oauth",
+          description: "Pages and databases",
+        }),
       ],
       diagnostics: [],
     });
+    apiMocks.getConnectorsDirectory.mockResolvedValue({
+      apps: [
+        directoryApp({
+          id: "gmail",
+          name: "Gmail",
+          source: "composio",
+          description: "Read and send Gmail",
+          section: "email",
+          popular: true,
+          auth_type: "oauth",
+        }),
+        directoryApp({
+          id: "filesystem",
+          name: "Filesystem",
+          source: "native",
+          description: "Local files over stdio",
+          section: "files",
+          auth_type: "none",
+        }),
+        directoryApp({
+          id: "notion",
+          name: "Notion",
+          source: "native",
+          description: "Pages and databases",
+          section: "productivity",
+          popular: true,
+          auth_type: "oauth",
+        }),
+        directoryApp({
+          id: "work4you_apps",
+          name: "Apps",
+          source: "native",
+          connected: true,
+          section: "other",
+        }),
+      ],
+      sections: ["email", "files", "productivity"],
+      portal: true,
+    });
+    apiMocks.bootstrapConnectors.mockResolvedValue({ ok: true });
+    apiMocks.authorizeConnector.mockResolvedValue({
+      redirect_url: "https://connect.example/gmail",
+    });
+    apiMocks.waitConnector.mockResolvedValue({ connected: true });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -112,6 +198,7 @@ describe("McpPage directory", () => {
       root.unmount();
     });
     container.remove();
+    vi.restoreAllMocks();
   });
 
   it("shows catalog cards when no servers are configured", async () => {
@@ -120,9 +207,20 @@ describe("McpPage directory", () => {
     expect(text).toContain("Gmail");
     expect(text).toContain("Read and send Gmail");
     expect(text).toContain("Filesystem");
+    expect(text).toContain("Discover");
+    expect(text).toContain("Popular");
     expect(text).not.toContain("No MCP servers configured");
     expect(text).toContain("Connect");
     expect(text).toContain("Install");
+  });
+
+  it("never surfaces the hidden work4you_apps runtime server", async () => {
+    await renderPage();
+    expect(container.textContent ?? "").not.toMatch(/\bApps runtime\b/);
+    const titles = Array.from(container.querySelectorAll("span")).map(
+      (el) => el.textContent?.trim() ?? "",
+    );
+    expect(titles).not.toContain("work4you_apps");
   });
 
   it("labels OAuth catalog entries Connect and others Install", async () => {
@@ -200,11 +298,77 @@ describe("McpPage directory", () => {
       ],
       diagnostics: [],
     });
+    apiMocks.getConnectorsDirectory.mockResolvedValue({
+      apps: [
+        directoryApp({
+          id: "linear",
+          name: "Linear",
+          source: "native",
+          connected: true,
+          installed: true,
+          enabled: true,
+          description: "Linear issues and projects",
+          section: "productivity",
+          auth_type: "oauth",
+        }),
+        directoryApp({
+          id: "gmail",
+          name: "Gmail",
+          source: "composio",
+          description: "Read and send Gmail",
+          section: "email",
+          popular: true,
+          auth_type: "oauth",
+        }),
+      ],
+      sections: ["productivity", "email"],
+      portal: true,
+    });
     await renderPage();
     const text = container.textContent ?? "";
     expect(text).toContain("Linear");
     expect(text).toContain("Linear issues and projects");
     expect(text).toContain("Gmail");
     expect(text).toContain("Connect");
+  });
+
+  it("connects Composio apps without native MCP OAuth", async () => {
+    await renderPage();
+    const gmailConnect = Array.from(container.querySelectorAll("button")).find(
+      (el) =>
+        el.textContent?.trim() === "Connect" &&
+        el.closest("div")?.textContent?.includes("Gmail"),
+    );
+    expect(gmailConnect).toBeTruthy();
+    await act(async () => {
+      gmailConnect!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(apiMocks.authMcpServer).not.toHaveBeenCalled();
+    expect(apiMocks.installMcpCatalogEntry).not.toHaveBeenCalled();
+    expect(apiMocks.bootstrapConnectors).toHaveBeenCalled();
+    expect(apiMocks.authorizeConnector).toHaveBeenCalledWith("gmail");
+    expect(apiMocks.waitConnector).toHaveBeenCalledWith("gmail");
+    expect(window.open).toHaveBeenCalled();
+  });
+
+  it("installs native catalog apps without the Composio authorize route", async () => {
+    await renderPage();
+    const notionConnect = Array.from(container.querySelectorAll("button")).find(
+      (el) =>
+        el.textContent?.trim() === "Connect" &&
+        el.closest("div")?.textContent?.includes("Notion"),
+    );
+    expect(notionConnect).toBeTruthy();
+    await act(async () => {
+      notionConnect!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(apiMocks.authorizeConnector).not.toHaveBeenCalled();
+    expect(apiMocks.authMcpServer).not.toHaveBeenCalled();
+    expect(apiMocks.installMcpCatalogEntry).toHaveBeenCalled();
   });
 });

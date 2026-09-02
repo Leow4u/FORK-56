@@ -1,5 +1,14 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
+import {
+  completeComposioConnect,
+  DIRECTORY_SECTION_IDS,
+  DIRECTORY_SECTION_LABELS,
+  type DirectoryApp,
+  directoryAppDescription,
+  filterDirectoryApps,
+  groupDirectorySections
+} from '@work4you/shared'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
 import { type CodeEditorApi } from '@/components/chat/code-editor'
@@ -22,10 +31,7 @@ import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
 import { completeMcpDesktopOAuth } from '@/lib/mcp-dashboard-oauth'
 import {
   mcpCatalogPrimaryAction,
-  type McpDirectoryFilter,
-  mcpDirectoryQueryHit,
-  mcpDirectoryShowsAvailable,
-  mcpDirectoryShowsConnected
+  type McpDirectoryFilter
 } from '@/lib/mcp-directory-filter'
 import { type McpImportEntry, parseMcpImport } from '@/lib/mcp-import'
 import { NEEDS_AUTH_RE, PROBE_TTL_MS, probeCache, probeKey, serverFingerprint } from '@/lib/mcp-probe-cache'
@@ -37,7 +43,11 @@ import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { $activeSessionId } from '@/store/session'
 import {
   authMcpServer,
+  authorizeConnector,
+  bootstrapConnectors,
+  disconnectConnector,
   getActionStatus,
+  getConnectorsDirectory,
   getLogs,
   getMcpCatalog,
   getMcpOAuthFlow,
@@ -49,6 +59,7 @@ import {
   profileScopeKey,
   saveMcpServers,
   testMcpServer,
+  waitConnector,
   type Work4YouGateway
 } from '@/work4you'
 
@@ -434,7 +445,9 @@ export function McpTab({
   const [dirty, setDirty] = useState(false)
   const [docVersion, setDocVersion] = useState(0)
   const [logSource, setLogSource] = useState<'stdio' | 'agent'>('stdio')
-  const [directoryFilter, setDirectoryFilter] = useState<McpDirectoryFilter>('all')
+  const [directoryFilter, setDirectoryFilter] = useState<McpDirectoryFilter>('discover')
+  const [sectionFilter, setSectionFilter] = useState<string>('all')
+  const [connectingSlug, setConnectingSlug] = useState<null | string>(null)
   const [adminOpen, setAdminOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<null | string>(null)
 
@@ -486,34 +499,57 @@ export function McpTab({
     staleTime: 5 * 60_000
   })
 
+  const directoryQuery = useQuery({
+    queryKey: ['connectors-directory', scopeProfileKey],
+    queryFn: () => getConnectorsDirectory(profile ?? undefined),
+    staleTime: 30_000
+  })
+
   const catalog = useMemo(() => catalogQuery.data?.entries ?? [], [catalogQuery.data])
 
-  // The catalog SECTION of the unified list only offers entries that aren't
-  // already configured — installed servers appear once, in the fleet list
-  // above, with live status. Match by catalog `installed` flag or a config
-  // entry under the same name (covers a just-saved doc the catalog refetch
-  // hasn't caught up with yet).
-  const availableCatalog = useMemo(
-    () =>
-      catalog.filter(
-        (entry: McpCatalogEntry) =>
-          !entry.installed &&
-          !(entry.name in servers) &&
-          mcpDirectoryQueryHit([entry.name, prettyName(entry.name), entry.description], query)
-      ),
-    [catalog, query, servers]
-  )
+  const nativeCatalogByName = useMemo(() => {
+    const map = new Map<string, McpCatalogEntry>()
 
-  const visibleNames = useMemo(
-    () =>
-      names.filter(serverName =>
-        mcpDirectoryQueryHit(
-          [serverName, prettyName(serverName), catalogDescription(catalog, serverName, servers[serverName])],
-          query
-        )
-      ),
-    [catalog, names, query, servers]
-  )
+    for (const entry of catalog) {
+      map.set(entry.name.toLowerCase(), entry)
+    }
+
+    return map
+  }, [catalog])
+
+  const directoryApps = useMemo(() => {
+    const rows: DirectoryApp[] = (directoryQuery.data?.apps ?? []).map(app => ({
+      ...app,
+      source: app.source === 'composio' ? 'composio' : 'native'
+    }))
+
+    const known = new Set(rows.map(app => app.id))
+
+    for (const serverName of names) {
+      if (serverName === 'work4you_apps' || known.has(serverName)) {
+        continue
+      }
+
+      rows.push({
+        id: serverName,
+        name: serverName,
+        description: catalogDescription(catalog, serverName, servers[serverName]) ?? '',
+        section: 'other',
+        popular: false,
+        source: 'custom',
+        connected: true,
+        auth_type: typeof servers[serverName]?.auth === 'string' ? String(servers[serverName].auth) : undefined
+      })
+    }
+
+    return filterDirectoryApps(rows, {
+      filter: directoryFilter,
+      query,
+      section: sectionFilter === 'all' ? null : sectionFilter
+    })
+  }, [catalog, directoryFilter, directoryQuery.data, names, query, sectionFilter, servers])
+
+  const directoryGroups = useMemo(() => groupDirectorySections(directoryApps), [directoryApps])
 
   const resetDraft = (entries: McpServers) => {
     setDraft(wrapDoc(entries))
@@ -587,7 +623,8 @@ export function McpTab({
     setToolCalls30d(null)
     setCursor(0)
     setSelectedName(null)
-    setDirectoryFilter('all')
+    setDirectoryFilter('discover')
+    setSectionFilter('all')
     setAdminOpen(false)
     setAuthing(null)
     setDirty(false)
@@ -806,6 +843,7 @@ export function McpTab({
   // whole-map Save would silently drop it.
   const onCatalogInstalled = async (installedName?: string) => {
     void catalogQuery.refetch()
+    void directoryQuery.refetch()
     const { data } = await refetchConfig()
     const nextServers = getServers(data ?? null)
 
@@ -1098,13 +1136,55 @@ export function McpTab({
 
   const activeEntry = savedEntry ?? draftEntry
 
-  const showConnected = mcpDirectoryShowsConnected(directoryFilter)
-  const showAvailable = mcpDirectoryShowsAvailable(directoryFilter)
-  const connectedNames = showConnected ? visibleNames : []
-  const catalogEntries = showAvailable ? availableCatalog : []
+  const connectComposioApp = async (app: DirectoryApp) => {
+    if (app.needs_login) {
+      notify({
+        kind: 'error',
+        title: 'Sign in required',
+        message: 'Sign in to Work4You to connect this app.'
+      })
+
+      return
+    }
+
+    setConnectingSlug(app.id)
+
+    try {
+      await bootstrapConnectors(profile ?? undefined)
+
+      const ok = await completeComposioConnect({
+        authorize: () => authorizeConnector(app.id, profile ?? undefined),
+        wait: () => waitConnector(app.id, profile ?? undefined),
+        open: url => window.work4youDesktop.openExternal(url)
+      })
+
+      if (ok) {
+        notify({ kind: 'success', title: `${app.name} connected`, message: 'Available in new sessions.' })
+      }
+
+      await directoryQuery.refetch()
+    } catch (err) {
+      notifyError(err, m.catalogInstallFailed(app.name))
+    } finally {
+      setConnectingSlug(null)
+    }
+  }
+
+  const disconnectComposioApp = async (app: DirectoryApp) => {
+    setConnectingSlug(app.id)
+
+    try {
+      await disconnectConnector(app.id, profile ?? undefined)
+      await directoryQuery.refetch()
+    } catch (err) {
+      notifyError(err, m.removeFailed)
+    } finally {
+      setConnectingSlug(null)
+    }
+  }
 
   const directoryEmpty =
-    !selected && connectedNames.length === 0 && catalogEntries.length === 0 && !catalogQuery.isLoading
+    !selected && directoryApps.length === 0 && !directoryQuery.isLoading && !catalogQuery.isLoading
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -1113,9 +1193,10 @@ export function McpTab({
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {(
               [
+                ['discover', 'Discover'],
                 ['all', t.skills.all],
                 ['connected', t.settings.providers.connected],
-                ['available', m.tabCatalog]
+                ['available', 'Available']
               ] as const
             ).map(([id, label]) => (
               <TextTab
@@ -1127,6 +1208,19 @@ export function McpTab({
                 {label}
               </TextTab>
             ))}
+            <select
+              aria-label="Category"
+              className="h-5 max-w-[9rem] truncate bg-transparent text-[0.65rem] text-(--ui-text-secondary)"
+              onChange={event => setSectionFilter(event.currentTarget.value)}
+              value={sectionFilter}
+            >
+              <option value="all">All categories</option>
+              {DIRECTORY_SECTION_IDS.map(id => (
+                <option key={id} value={id}>
+                  {DIRECTORY_SECTION_LABELS[id]}
+                </option>
+              ))}
+            </select>
           </div>
         ) : (
           <span className="min-w-0 flex-1" />
@@ -1177,70 +1271,115 @@ export function McpTab({
               />
             ) : (
               <div className="flex flex-col gap-4">
-                {connectedNames.length > 0 && (
-                  <section className="flex flex-col gap-2">
-                    <h2 className="px-0.5 text-[0.72rem] font-medium text-(--ui-text-tertiary)">
-                      {t.settings.providers.connected}
-                    </h2>
+                {directoryQuery.isLoading ? <PageLoader className="min-h-24" label={m.catalogLoading} /> : null}
+                {directoryGroups.map(group => (
+                  <section className="flex flex-col gap-2" key={group.id}>
+                    <h2 className="px-0.5 text-[0.72rem] font-medium text-(--ui-text-tertiary)">{group.label}</h2>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                      {connectedNames.map(serverName => {
-                        const server = servers[serverName]
-                        const status = statusOf(server, probes[serverName])
-                        const cost = costFor(serverName, server)
+                      {group.apps.map(app => {
+                        const server = servers[app.id]
+
+                        if ((app.source === 'native' || app.source === 'custom') && server) {
+                          const status = statusOf(server, probes[app.id])
+                          const cost = costFor(app.id, server)
+
+                          return (
+                            <ConnectorCard
+                              description={app.description || catalogDescription(catalog, app.id, server)}
+                              displayName={app.name}
+                              key={`${group.id}-${app.id}`}
+                              name={app.id}
+                              onSelect={() => focusServer(app.id)}
+                              status={status}
+                              trailing={
+                                <>
+                                  <ServerIconActions
+                                    className="opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100"
+                                    onProbe={() => void runProbe(app.id)}
+                                    onRemove={() => void removeServer(app.id)}
+                                    probing={status === 'probing'}
+                                    saving={saving}
+                                  />
+                                  <ServerSwitch
+                                    disabled={saving}
+                                    enabled={serverEnabled(server)}
+                                    name={app.id}
+                                    onToggle={checked => void setServerEnabled(app.id, checked)}
+                                  />
+                                </>
+                              }
+                              unused={
+                                serverEnabled(server) &&
+                                status === 'ok' &&
+                                cost.tokens !== null &&
+                                cost.tokens > 0 &&
+                                cost.uses === 0
+                              }
+                            />
+                          )
+                        }
+
+                        if (app.source === 'composio') {
+                          const busy = connectingSlug === app.id
+
+                          return (
+                            <ConnectorCard
+                              description={directoryAppDescription(app)}
+                              displayName={app.name}
+                              key={`${group.id}-${app.id}`}
+                              name={app.id}
+                              status={app.connected ? 'ok' : 'unknown'}
+                              trailing={
+                                app.connected ? (
+                                  <Button
+                                    disabled={busy}
+                                    onClick={() => void disconnectComposioApp(app)}
+                                    size="xs"
+                                    variant="text"
+                                  >
+                                    {busy ? m.catalogInstalling : 'Disconnect'}
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    disabled={busy}
+                                    onClick={() => void connectComposioApp(app)}
+                                    size="xs"
+                                    variant="text"
+                                  >
+                                    {busy ? m.waitingForBrowser : t.common.connect}
+                                  </Button>
+                                )
+                              }
+                            />
+                          )
+                        }
+
+                        const catalogEntry = nativeCatalogByName.get(app.id.toLowerCase())
+
+                        if (!catalogEntry) {
+                          return (
+                            <ConnectorCard
+                              description={app.description}
+                              displayName={app.name}
+                              key={`${group.id}-${app.id}`}
+                              name={app.id}
+                              status="unknown"
+                            />
+                          )
+                        }
 
                         return (
-                          <ConnectorCard
-                            description={
-                              catalogDescription(catalog, serverName, server) ??
-                              statusLine(m, status, probes[serverName], server, cost)
-                            }
-                            key={serverName}
-                            name={serverName}
-                            onSelect={() => focusServer(serverName)}
-                            status={status}
-                            trailing={
-                              <>
-                                <ServerIconActions
-                                  className="opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100"
-                                  onProbe={() => void runProbe(serverName)}
-                                  onRemove={() => void removeServer(serverName)}
-                                  probing={status === 'probing'}
-                                  saving={saving}
-                                />
-                                <ServerSwitch
-                                  disabled={saving}
-                                  enabled={serverEnabled(server)}
-                                  name={serverName}
-                                  onToggle={checked => void setServerEnabled(serverName, checked)}
-                                />
-                              </>
-                            }
-                            unused={
-                              serverEnabled(server) &&
-                              status === 'ok' &&
-                              cost.tokens !== null &&
-                              cost.tokens > 0 &&
-                              cost.uses === 0
-                            }
+                          <CatalogInstallCard
+                            entry={catalogEntry}
+                            key={`${group.id}-${app.id}`}
+                            onInstalled={onCatalogInstalled}
+                            profile={profile}
                           />
                         )
                       })}
                     </div>
                   </section>
-                )}
-                {showAvailable && (catalogQuery.isLoading || catalogEntries.length > 0) && (
-                  <section className="flex flex-col gap-2">
-                    {connectedNames.length > 0 && (
-                      <h2 className="px-0.5 text-[0.72rem] font-medium text-(--ui-text-tertiary)">{m.tabCatalog}</h2>
-                    )}
-                    <McpCatalog
-                      entries={catalogEntries}
-                      loading={catalogQuery.isLoading}
-                      onInstalled={onCatalogInstalled}
-                      profile={profile}
-                    />
-                  </section>
-                )}
+                ))}
               </div>
             )}
           </div>
@@ -1651,34 +1790,31 @@ function CatalogTag({ children }: { children: string }) {
   )
 }
 
-// The Work4You-approved MCP catalog: one-click installs of curated servers, with an
-// inline prompt for any required credentials (never shows stored values). On
-// install the parent refetches config + catalog and reloads live sessions.
-function McpCatalog({
-  entries,
-  loading,
+const CATALOG_INSTALL_POLL_MS = 1500
+
+// One native catalog card: Connect / Install plus the optional env prompt.
+// Rendered inside the unified directory grid — never wraps its own grid.
+function CatalogInstallCard({
+  entry,
   onInstalled,
   profile
 }: {
-  entries: McpCatalogEntry[]
-  loading: boolean
+  entry: McpCatalogEntry
   onInstalled: (name?: string) => void
   profile?: ProfileScope
 }) {
   const { t } = useI18n()
   const m = t.settings.mcp
-  const [installing, setInstalling] = useState<null | string>(null)
-  const [envDrafts, setEnvDrafts] = useState<Record<string, Record<string, string>>>({})
-  const [envOpenFor, setEnvOpenFor] = useState<null | string>(null)
+  const [installing, setInstalling] = useState(false)
+  const [envDraft, setEnvDraft] = useState<Record<string, string>>({})
+  const [envOpen, setEnvOpen] = useState(false)
 
-  const install = async (entry: McpCatalogEntry) => {
+  const install = async () => {
     const required = entry.required_env.filter(env => env.required)
-    const draft = envDrafts[entry.name] ?? {}
 
-    // Reveal the credential prompt first; only error once it's shown and unfilled.
-    if (required.some(env => !draft[env.name]?.trim())) {
-      if (envOpenFor !== entry.name) {
-        setEnvOpenFor(entry.name)
+    if (required.some(env => !envDraft[env.name]?.trim())) {
+      if (!envOpen) {
+        setEnvOpen(true)
 
         return
       }
@@ -1688,15 +1824,11 @@ function McpCatalog({
       return
     }
 
-    setInstalling(entry.name)
+    setInstalling(true)
 
     try {
-      const res = await installMcpCatalogEntry(entry.name, draft, profile ?? undefined)
+      const res = await installMcpCatalogEntry(entry.name, envDraft, profile ?? undefined)
 
-      // Git-backed entries clone in the background — keep the row busy and poll
-      // the action to completion before refetching / re-enabling, so a re-click
-      // can't spawn a second install over the first's tracked process. A non-zero
-      // exit is a real failure — surface it instead of a false success.
       if (res.background && res.action) {
         for (;;) {
           const status = await getActionStatus(res.action, 1, profile ?? undefined)
@@ -1714,94 +1846,64 @@ function McpCatalog({
       }
 
       notify({ kind: 'success', title: m.catalogInstallStarted(entry.name), message: '' })
-      setEnvOpenFor(null)
+      setEnvOpen(false)
       onInstalled(entry.name)
     } catch (err) {
       notifyError(err, m.catalogInstallFailed(entry.name))
     } finally {
-      setInstalling(null)
+      setInstalling(false)
     }
   }
 
-  if (loading) {
-    return <PageLoader className="min-h-24" label={m.catalogLoading} />
-  }
+  const action = mcpCatalogPrimaryAction(entry.auth_type)
 
-  if (entries.length === 0) {
-    return <PanelEmpty description={m.catalogEmpty} icon="plug" title={m.tabCatalog} />
-  }
+  const actionLabel = installing
+    ? m.catalogInstalling
+    : entry.installed
+      ? m.catalogInstalled
+      : action === 'connect'
+        ? t.common.connect
+        : m.catalogInstall
 
   return (
-    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-      {entries.map(entry => {
-        const draft = envDrafts[entry.name] ?? {}
-        const action = mcpCatalogPrimaryAction(entry.auth_type)
-
-        const actionLabel =
-          installing === entry.name
-            ? m.catalogInstalling
-            : entry.installed
-              ? m.catalogInstalled
-              : action === 'connect'
-                ? t.common.connect
-                : m.catalogInstall
-
-        return (
-          <ConnectorCard
-            description={entry.description}
-            key={entry.name}
-            name={entry.name}
-            status={entry.installed ? (entry.enabled ? 'ok' : 'off') : 'unknown'}
-            trailing={
-              <Button
-                disabled={entry.installed || installing !== null}
-                onClick={() => void install(entry)}
-                size="xs"
-                variant="text"
-              >
-                {actionLabel}
-              </Button>
-            }
-          >
-            {entry.needs_install && !entry.installed ? (
-              <span className="mt-1">
-                <CatalogTag>{m.catalogNeedsInstall}</CatalogTag>
+    <ConnectorCard
+      description={entry.description}
+      name={entry.name}
+      status={entry.installed ? (entry.enabled ? 'ok' : 'off') : 'unknown'}
+      trailing={
+        <Button disabled={entry.installed || installing} onClick={() => void install()} size="xs" variant="text">
+          {actionLabel}
+        </Button>
+      }
+    >
+      {entry.needs_install && !entry.installed ? (
+        <span className="mt-1">
+          <CatalogTag>{m.catalogNeedsInstall}</CatalogTag>
+        </span>
+      ) : null}
+      {envOpen && entry.required_env.length > 0 && (
+        <div className="mt-2 grid gap-2">
+          {entry.required_env.map(env => (
+            <label className="grid gap-1" key={env.name}>
+              <span className="text-[0.62rem] text-muted-foreground">
+                {env.prompt || env.name}
+                {env.required ? ' *' : ''}
               </span>
-            ) : null}
-            {envOpenFor === entry.name && entry.required_env.length > 0 && (
-              <div className="mt-2 grid gap-2">
-                {entry.required_env.map(env => (
-                  <label className="grid gap-1" key={env.name}>
-                    <span className="text-[0.62rem] text-muted-foreground">
-                      {env.prompt || env.name}
-                      {env.required ? ' *' : ''}
-                    </span>
-                    <Input
-                      className="h-7 text-xs"
-                      onChange={event =>
-                        setEnvDrafts(prev => ({
-                          ...prev,
-                          [entry.name]: { ...prev[entry.name], [env.name]: event.currentTarget.value }
-                        }))
-                      }
-                      type="password"
-                      value={draft[env.name] ?? ''}
-                    />
-                  </label>
-                ))}
-              </div>
-            )}
-          </ConnectorCard>
-        )
-      })}
-    </div>
+              <Input
+                className="h-7 text-xs"
+                onChange={event => setEnvDraft(prev => ({ ...prev, [env.name]: event.currentTarget.value }))}
+                type="password"
+                value={envDraft[env.name] ?? ''}
+              />
+            </label>
+          ))}
+        </div>
+      )}
+    </ConnectorCard>
   )
 }
 
 const LOG_POLL_MS = 2000
-
-// Cadence for polling a background (git-bootstrap) catalog install to completion.
-const CATALOG_INSTALL_POLL_MS = 1500
 
 const STDIO_MARKER_RE = /^===== \[.*\] starting MCP server '(.+)' =====$/
 
@@ -1922,6 +2024,7 @@ function McpAvatar({ className, name, status }: { className?: string; name: stri
 function ConnectorCard({
   children,
   description,
+  displayName,
   name,
   onSelect,
   status,
@@ -1930,6 +2033,7 @@ function ConnectorCard({
 }: {
   children?: ReactNode
   description: null | string
+  displayName?: string
   name: string
   onSelect?: () => void
   status: ServerStatus
@@ -1941,7 +2045,9 @@ function ConnectorCard({
 
   const title = (
     <span className="flex min-w-0 items-center gap-1.5">
-      <span className="min-w-0 truncate text-[0.82rem] font-medium text-foreground/85">{prettyName(name)}</span>
+      <span className="min-w-0 truncate text-[0.82rem] font-medium text-foreground/85">
+        {displayName ?? prettyName(name)}
+      </span>
       {unused && (
         <span className="shrink-0 rounded bg-(--ui-bg-tertiary) px-1 py-px text-[0.58rem] font-normal text-muted-foreground/60">
           {m.unusedPill}

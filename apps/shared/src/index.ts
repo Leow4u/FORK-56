@@ -58,6 +58,23 @@ export {
   JsonRpcGatewayError,
   type WebSocketLike
 } from './json-rpc-gateway'
+export {
+  completeComposioConnect,
+  DIRECTORY_SECTION_IDS,
+  DIRECTORY_SECTION_LABELS,
+  type DirectoryApp,
+  directoryAppDescription,
+  type DirectorySectionGroup,
+  type DirectorySectionId,
+  filterDirectoryApps,
+  groupDirectorySections,
+  HIDDEN_DIRECTORY_IDS,
+  mcpCatalogPrimaryAction,
+  type McpDirectoryFilter,
+  mcpDirectoryQueryHit,
+  mcpDirectoryShowsAvailable,
+  mcpDirectoryShowsConnected
+} from './mcp-directory'
 export { skillInvocationText } from './skill-scaffold'
 export {
   SKIN_BRANDING_TOKENS,
