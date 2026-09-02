@@ -36,6 +36,7 @@ export async function resolveComposioLogoSrc(url: string): Promise<string> {
   }
 
   const fetchLogo = desktopLogoFetch()
+
   const task = (fetchLogo ? fetchLogo(url) : Promise.resolve(url)).then(resolved => {
     if (typeof resolved !== 'string' || !resolved) {
       throw new Error('composio logo empty')

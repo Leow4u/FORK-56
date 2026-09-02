@@ -59,6 +59,7 @@ import {
 import { decideBootstrapRepair } from './bootstrap-repair-guard'
 import { runBootstrap } from './bootstrap-runner'
 import { detectBundleSkew } from './bundle-skew'
+import { fetchComposioLogoDataUrl } from './composio-logo'
 import { applyConnectionChange } from './connection-apply'
 import {
   apiRequestRegistryConnectionId,
@@ -177,7 +178,6 @@ import {
   tightenSecretFileMode,
   writeSecretFileAtomic
 } from './hardening'
-import { fetchComposioLogoDataUrl } from './composio-logo'
 import { cursorPointInWindow } from './hud-cursor'
 import { registerHudIpc } from './hud-ipc'
 import { snapHudBounds } from './hud-snap'

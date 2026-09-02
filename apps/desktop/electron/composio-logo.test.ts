@@ -56,6 +56,7 @@ test('fetchComposioLogoDataUrl rejects oversized payloads', async () => {
 
 test('fetchComposioLogoDataUrl encodes raster bytes as base64', async () => {
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47])
+
   const dataUrl = await fetchComposioLogoDataUrl(GMAIL_URL, async () => {
     return new Response(png, { status: 200, headers: { 'content-type': 'image/png' } })
   })
