@@ -139,3 +139,29 @@ export function formatCycleDate(iso: string | null): string {
     return '—'
   }
 }
+
+const STRIPE_UNAVAILABLE_COPY =
+  'O Stripe está indisponível neste momento. Tenta novamente dentro de instantes.'
+
+/** Server internals that must never land in the Portal flash banner. */
+function isInternalBillingMessage(message: string): boolean {
+  return /STRIPE_SECRET_KEY|is not set|apiVersion/i.test(message)
+}
+
+/**
+ * Human copy for Portal billing action failures. Maps `stripe_unavailable`
+ * (the Add-card 503) instead of flashing the raw error code.
+ */
+export function portalBillingFlash(
+  data: { error?: string; message?: string; reason?: string } | null | undefined,
+  fallback: string,
+): string {
+  const error = data?.error?.trim()
+  if (error === 'stripe_unavailable') return STRIPE_UNAVAILABLE_COPY
+  const message = data?.message?.trim()
+  if (message && !isInternalBillingMessage(message)) return message
+  const reason = data?.reason?.trim()
+  if (reason && !isInternalBillingMessage(reason)) return reason
+  if (error) return error
+  return fallback
+}

@@ -10,6 +10,7 @@ import {
   formatUsdDisplay,
   freeAllowanceUsedUp,
   isFreePlanPayload,
+  portalBillingFlash,
   type BillingStatePayload,
   type SubscriptionStatePayload,
 } from '@/lib/billing-client'
@@ -129,7 +130,7 @@ export function BillingPage() {
           window.location.href = data.url
           return
         }
-        setFlash(data.message || data.error || 'Falha no Checkout')
+        setFlash(portalBillingFlash(data, 'Falha no Checkout'))
         return
       }
       const key = crypto.randomUUID()
@@ -170,7 +171,7 @@ export function BillingPage() {
           return
         }
       }
-      setFlash(data.message || data.error || data.reason || 'Upgrade falhou')
+      setFlash(portalBillingFlash(data, 'Upgrade falhou'))
     } finally {
       setBusy(null)
     }
@@ -196,7 +197,7 @@ export function BillingPage() {
         targetTierName?: string
       }
       if (!res.ok) {
-        setFlash(data.message || data.error || 'Não foi possível agendar')
+        setFlash(portalBillingFlash(data, 'Não foi possível agendar'))
         return
       }
       setFlash(data.message || `Mudança para ${data.targetTierName} agendada`)
@@ -217,12 +218,16 @@ export function BillingPage() {
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       })
-      const data = (await res.json()) as { url?: string; error?: string }
+      const data = (await res.json()) as {
+        url?: string
+        error?: string
+        message?: string
+      }
       if (data.url) {
         window.location.href = data.url
         return
       }
-      setFlash(data.error || 'Falha ao abrir Stripe')
+      setFlash(portalBillingFlash(data, 'Falha ao abrir Stripe'))
     } finally {
       setBusy(null)
     }
@@ -255,7 +260,7 @@ export function BillingPage() {
           setFlash('Adiciona um cartão primeiro')
           return
         }
-        setFlash(data.error || 'Cobrança falhou')
+        setFlash(portalBillingFlash(data, 'Cobrança falhou'))
         return
       }
       for (let i = 0; i < 15; i++) {
@@ -274,7 +279,7 @@ export function BillingPage() {
           return
         }
         if (body.status === 'failed') {
-          setFlash(body.reason || 'Cobrança falhou')
+          setFlash(portalBillingFlash(body, 'Cobrança falhou'))
           return
         }
       }

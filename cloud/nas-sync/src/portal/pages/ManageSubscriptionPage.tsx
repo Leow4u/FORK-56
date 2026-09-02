@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   catalogTierCopy,
+  portalBillingFlash,
   type BillingStatePayload,
   type SubscriptionStatePayload,
 } from '@/lib/billing-client'
@@ -106,7 +107,7 @@ export function ManageSubscriptionPage() {
           window.location.href = data.url
           return
         }
-        setFlash(data.message || data.error || 'Falha ao abrir Checkout')
+        setFlash(portalBillingFlash(data, 'Falha ao abrir Checkout'))
       } finally {
         setBusy(null)
       }
@@ -162,7 +163,7 @@ export function ManageSubscriptionPage() {
           await startCheckout(tierId)
           return
         }
-        setFlash(data.message || data.error || data.reason || 'Upgrade falhou')
+        setFlash(portalBillingFlash(data, 'Upgrade falhou'))
       } finally {
         setBusy(null)
       }
