@@ -62,6 +62,8 @@ import { detectBundleSkew } from './bundle-skew'
 import {
   bindComposioLogoNetFetch,
   COMPOSIO_LOGO_PROTOCOL,
+  COMPOSIO_LOGO_SCHEME_PRIVILEGES,
+  fetchComposioLogoDataUrl,
   handleComposioLogoProtocol
 } from './composio-logo'
 import { applyConnectionChange } from './connection-apply'
@@ -1217,12 +1219,7 @@ protocol.registerSchemesAsPrivileged([
   },
   {
     scheme: COMPOSIO_LOGO_PROTOCOL,
-    privileges: {
-      corsEnabled: true,
-      secure: true,
-      standard: true,
-      supportFetchAPI: true
-    }
+    privileges: { ...COMPOSIO_LOGO_SCHEME_PRIVILEGES }
   }
 ])
 
@@ -14176,6 +14173,31 @@ ipcMain.handle('work4you:setting:defaultProjectDir:pick', async () => {
 })
 
 ipcMain.handle('work4you:fetchLinkTitle', (_event, url) => fetchLinkTitle(url))
+
+const composioLogoIpcCache = new Map<string, Promise<null | string>>()
+
+ipcMain.handle('work4you:composio-logo', (_event, url) => {
+  const key = String(url || '')
+  const cached = composioLogoIpcCache.get(key)
+
+  if (cached) {
+    return cached
+  }
+
+  const task = fetchComposioLogoDataUrl(
+    key,
+    bindComposioLogoNetFetch(electronNet.fetch.bind(electronNet))
+  ).catch(() => null)
+
+  composioLogoIpcCache.set(key, task)
+  void task.then(value => {
+    if (!value) {
+      composioLogoIpcCache.delete(key)
+    }
+  })
+
+  return task
+})
 
 ipcMain.handle('work4you:logs:reveal', async () => {
   try {

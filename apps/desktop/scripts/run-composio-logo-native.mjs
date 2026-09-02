@@ -6,10 +6,12 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const outfile = resolve(root, 'build/composio-logo-native/composio-logo-native.mjs')
+const outdir = resolve(root, 'build/composio-logo-native')
+const outfile = resolve(outdir, 'composio-logo-native.mjs')
+const rendererOutfile = resolve(outdir, 'mcp-avatar-native-renderer.js')
 const electronBin = createRequire(import.meta.url)('electron')
 
-mkdirSync(dirname(outfile), { recursive: true })
+mkdirSync(outdir, { recursive: true })
 
 await build({
   absWorkingDir: root,
@@ -19,6 +21,20 @@ await build({
   format: 'esm',
   outfile,
   platform: 'node'
+})
+
+await build({
+  absWorkingDir: root,
+  alias: {
+    '@': resolve(root, 'src'),
+    '@work4you/shared': resolve(root, '../shared/src/index.ts')
+  },
+  bundle: true,
+  entryPoints: [resolve(root, 'electron/mcp-avatar-native-renderer.tsx')],
+  format: 'iife',
+  jsx: 'automatic',
+  outfile: rendererOutfile,
+  platform: 'browser'
 })
 
 const child = spawn(electronBin, [outfile], {

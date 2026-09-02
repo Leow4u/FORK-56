@@ -26,9 +26,7 @@ import { TextTab } from '@/components/ui/text-tab'
 import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
-import { resolveComposioLogoSrc } from '@/lib/composio-logo'
 import { compactNumber } from '@/lib/format'
-import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
 import { completeMcpDesktopOAuth } from '@/lib/mcp-dashboard-oauth'
 import {
@@ -71,6 +69,8 @@ import { DetailPane, ICON_BUTTON } from '../master-detail'
 import { PanelEmpty } from '../overlays/panel'
 import { prettyName } from '../settings/helpers'
 import { useDeepLinkHighlight } from '../settings/use-deep-link-highlight'
+
+import { McpAvatar } from './mcp-avatar'
 
 // The editor always speaks the ecosystem's mcp.json document format — names
 // are the JSON keys, transport is inferred from `command` vs `url` — so any
@@ -185,15 +185,6 @@ function statusOf(server: Record<string, unknown>, probe: Probe | undefined): Se
   }
 
   return NEEDS_AUTH_RE.test(probe.error ?? '') ? 'needs-auth' : 'error'
-}
-
-const STATUS_DOT: Record<ServerStatus, string> = {
-  ok: 'bg-emerald-500',
-  error: 'bg-red-500',
-  'needs-auth': 'bg-amber-500',
-  probing: 'animate-pulse bg-foreground/40',
-  off: 'bg-foreground/20',
-  unknown: 'bg-foreground/20'
 }
 
 // "12 tools enabled" / "25 tools, 1 prompts, 103 resources enabled" — only
@@ -1988,65 +1979,6 @@ function McpLogs({
 // ---------------------------------------------------------------------------
 // Avatars + list rows
 // ---------------------------------------------------------------------------
-
-// Catalog avatars (native MCP + Work4You Apps) use the official Composio CDN
-// mark. Packaged Electron paints it through the privileged work4you-logo
-// scheme because a file:// renderer cannot load logos.composio.dev as <img>.
-// Custom MCP URLs still never hit a favicon service — a private host must not
-// leak off-box.
-function McpAvatar({
-  className,
-  logo,
-  name,
-  status
-}: {
-  className?: string
-  logo?: string | null
-  name: string
-  status: ServerStatus
-}) {
-  const [failedLogo, setFailedLogo] = useState<string | null>(null)
-  const src = failedLogo === logo ? null : resolveComposioLogoSrc(logo)
-  const brand = src ? null : brandFor(name)
-
-  return (
-    <span
-      className={cn(
-        'relative inline-grid size-8 shrink-0 place-items-center rounded-md text-[length:var(--conversation-caption-font-size)] font-medium',
-        src && 'bg-white',
-        !src && !brand && 'bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)',
-        className
-      )}
-      style={
-        !src && brand
-          ? { backgroundColor: `color-mix(in srgb, ${brand.color} 16%, transparent)` }
-          : undefined
-      }
-    >
-      {src ? (
-        <img
-          alt=""
-          className="size-5 object-contain"
-          decoding="async"
-          onError={() => setFailedLogo(typeof logo === 'string' ? logo : src)}
-          referrerPolicy="no-referrer"
-          src={src}
-        />
-      ) : brand ? (
-        <brand.Icon aria-hidden className="size-4" style={brandGlyphStyle(brand)} />
-      ) : (
-        name.charAt(0).toUpperCase()
-      )}
-      <span
-        aria-hidden
-        className={cn(
-          'absolute -bottom-0.5 -right-0.5 size-2 rounded-full ring-2 ring-(--ui-chat-surface-background)',
-          STATUS_DOT[status]
-        )}
-      />
-    </span>
-  )
-}
 
 function ConnectorCard({
   children,

@@ -22,5 +22,5 @@
     "../shared/src/mcp-directory.ts",
     "../shared/src/translucency.ts"
   ],
-  "exclude": ["src", "electron/**/*.e2e.mts"]
+  "exclude": ["src", "electron/**/*.e2e.mts", "electron/mcp-avatar-native-renderer.tsx"]
 }

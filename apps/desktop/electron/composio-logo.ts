@@ -8,6 +8,18 @@ export { COMPOSIO_LOGO_PROTOCOL } from '../../shared/src/mcp-directory'
 export const COMPOSIO_LOGO_MAX_BYTES = 64 * 1024
 export const COMPOSIO_LOGO_TIMEOUT_MS = 8_000
 
+/** Privileges for the logo scheme. `stream` matches work4you-media; CSP/CORS
+ *  so a file:// renderer can consume the response if anything still hits the
+ *  scheme. The MCP tab paints via data URLs from `fetchComposioLogoDataUrl`. */
+export const COMPOSIO_LOGO_SCHEME_PRIVILEGES = {
+  bypassCSP: true,
+  corsEnabled: true,
+  secure: true,
+  standard: true,
+  stream: true,
+  supportFetchAPI: true
+} as const
+
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>
 
 type NetFetchInit = RequestInit & { bypassCustomProtocolHandlers?: boolean }
@@ -39,6 +51,86 @@ function finalUrl(response: Response, fallback: string): string {
   return typeof response.url === 'string' && response.url ? response.url : fallback
 }
 
+export interface ComposioLogoBytes {
+  bytes: Buffer
+  mime: string
+}
+
+/** Chromium-network fetch of a trusted Composio mark. */
+export async function loadTrustedComposioLogo(
+  rawUrl: string,
+  fetchImpl: FetchLike
+): Promise<ComposioLogoBytes> {
+  const url = String(rawUrl || '').trim()
+
+  if (!isTrustedComposioLogoUrl(url)) {
+    throw new Error('untrusted composio logo url')
+  }
+
+  const response = await fetchImpl(url, {
+    headers: { Accept: 'image/svg+xml,image/*;q=0.9' },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(COMPOSIO_LOGO_TIMEOUT_MS)
+  })
+
+  if (!response.ok) {
+    throw new Error(`composio logo http ${response.status}`)
+  }
+
+  if (!isTrustedComposioLogoUrl(finalUrl(response, url))) {
+    throw new Error('composio logo redirected off-host')
+  }
+
+  const type = headerType(response)
+
+  if (!isImageType(type)) {
+    throw new Error('composio logo is not an image')
+  }
+
+  const bytes = Buffer.from(await response.arrayBuffer())
+
+  if (!bytes.length || bytes.length > COMPOSIO_LOGO_MAX_BYTES) {
+    throw new Error('composio logo size')
+  }
+
+  const mime = type || 'image/svg+xml'
+
+  if ((mime === 'image/svg+xml' || mime === 'image/svg') && !/<svg[\s>/]/i.test(bytes.toString('utf8'))) {
+    throw new Error('composio logo is not svg')
+  }
+
+  return { bytes, mime }
+}
+
+/** Data URL the file:// renderer can put on <img src>. */
+export async function fetchComposioLogoDataUrl(rawUrl: string, fetchImpl: FetchLike): Promise<string> {
+  const { bytes, mime } = await loadTrustedComposioLogo(rawUrl, fetchImpl)
+
+  if (mime === 'image/svg+xml' || mime === 'image/svg') {
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(bytes.toString('utf8'))}`
+  }
+
+  return `data:${mime};base64,${bytes.toString('base64')}`
+}
+
+function protocolErrorStatus(error: unknown): number {
+  const message = error instanceof Error ? error.message : ''
+
+  if (message.includes('untrusted') || message.includes('redirected')) {
+    return 400
+  }
+
+  if (message.includes('size')) {
+    return 413
+  }
+
+  if (message.includes('not an image') || message.includes('not svg')) {
+    return 415
+  }
+
+  return 502
+}
+
 /** Chromium-network fetch of a trusted Composio mark for the work4you-logo protocol. */
 export async function handleComposioLogoProtocol(
   request: { url: string },
@@ -51,46 +143,19 @@ export async function handleComposioLogoProtocol(
   }
 
   try {
-    const response = await fetchImpl(cdn, {
-      headers: { Accept: 'image/svg+xml,image/*;q=0.9' },
-      redirect: 'error',
-      signal: AbortSignal.timeout(COMPOSIO_LOGO_TIMEOUT_MS)
-    })
+    const { bytes, mime } = await loadTrustedComposioLogo(cdn, fetchImpl)
 
-    if (!response.ok) {
-      return new Response(`composio logo http ${response.status}`, { status: 502 })
-    }
-
-    if (!isTrustedComposioLogoUrl(finalUrl(response, cdn))) {
-      return new Response('composio logo redirected off-host', { status: 400 })
-    }
-
-    const type = headerType(response)
-
-    if (!isImageType(type)) {
-      return new Response('composio logo is not an image', { status: 415 })
-    }
-
-    const bytes = Buffer.from(await response.arrayBuffer())
-
-    if (!bytes.length || bytes.length > COMPOSIO_LOGO_MAX_BYTES) {
-      return new Response('composio logo size', { status: 413 })
-    }
-
-    const mime = type || 'image/svg+xml'
-
-    if ((mime === 'image/svg+xml' || mime === 'image/svg') && !/<svg[\s>/]/i.test(bytes.toString('utf8'))) {
-      return new Response('composio logo is not svg', { status: 415 })
-    }
-
-    return new Response(bytes, {
+    return new Response(Uint8Array.from(bytes), {
       headers: {
+        'access-control-allow-origin': '*',
         'cache-control': 'public, max-age=86400',
         'content-type': mime
       },
       status: 200
     })
-  } catch {
-    return new Response('composio logo fetch failed', { status: 502 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'composio logo fetch failed'
+
+    return new Response(message, { status: protocolErrorStatus(error) })
   }
 }
