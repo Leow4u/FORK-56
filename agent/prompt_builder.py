@@ -853,6 +853,20 @@ def hud_surface_note(valid_tool_names: "set[str] | None" = None) -> str:
 # message representation stays consistent ("system" everywhere).
 DEVELOPER_ROLE_MODELS = ("gpt-5", "codex")
 
+# Shared by the desktop and web graphical chat surfaces. Work4You Apps
+# (Composio directory ids) go through the existing setup_mcp card — never a
+# community MCP install or a pasted vendor API key.
+_GUI_MCP_SETUP_HINT = (
+    "When the user asks to add, enable, authorize, or connect an MCP server "
+    "or a Work4You App from the Capabilities MCP directory (ids such as "
+    "apollo, gmail, hubspot, slack), use the setup_mcp tool if it is "
+    "available — it shows an inline consent card right in the chat. Pass "
+    "the directory id as server (for example apollo). Do not install a "
+    "community MCP with `work4you mcp add`, and do not ask the user to paste "
+    "an API key for those apps — Connect handles OAuth or the vendor key "
+    "form. Never hand-edit mcp_servers config for them."
+)
+
 PLATFORM_HINTS = {
     "whatsapp": (
         "You are on a text messaging communication platform, WhatsApp. "
@@ -995,10 +1009,15 @@ PLATFORM_HINTS = {
         "them by updating the widget's file, not with prose. Only "
         "a standalone PAGE (a mockup, a poster, a game) should bring its own "
         "background and layout. "
-        "When the user asks to add, enable, or authorize an MCP server (or a "
-        "task clearly needs one that is missing), use the setup_mcp tool if "
-        "it is available — it shows an inline consent card right in the chat; "
-        "never hand-edit mcp_servers config for them."
+        + _GUI_MCP_SETUP_HINT
+    ),
+    "web": (
+        "You are chatting inside the Work4You web app — a graphical chat "
+        "surface, not a terminal. Use markdown freely: it renders with full "
+        "GitHub flavor (tables, code blocks with syntax highlighting). "
+        "You can deliver files natively — include MEDIA:/absolute/path/to/file "
+        "in your response. "
+        + _GUI_MCP_SETUP_HINT
     ),
     "sms": (
         "You are communicating via SMS. Keep responses concise and use plain text "

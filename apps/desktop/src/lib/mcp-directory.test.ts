@@ -1,11 +1,14 @@
 import {
   completeComposioConnect,
+  composioAppsToSuggestible,
+  composioAppSuggestKeywords,
   composioCdnUrlFromProtocolRequest,
   composioLogoImgSrc,
   type DirectoryApp,
   directoryAppDescription,
   directoryAppLogoUrl,
   filterDirectoryApps,
+  findComposioDirectoryApp,
   groupDirectorySections,
   isTrustedComposioLogoUrl,
   mcpCatalogPrimaryAction,
@@ -132,6 +135,46 @@ describe('completeComposioConnect', () => {
 
     expect(connected).toBe(true)
     expect(waits).toBe(2)
+  })
+})
+
+describe('composioAppSuggestKeywords', () => {
+  it('uses the slug and display name, not short token splits', () => {
+    expect(composioAppSuggestKeywords({ id: 'apollo', name: 'Apollo' })).toEqual(['apollo'])
+    expect(composioAppSuggestKeywords({ id: 'canva', name: 'Canva' })).toEqual(['canva'])
+    expect(composioAppSuggestKeywords({ id: 'granola_mcp', name: 'Granola' })).toEqual([
+      'granola_mcp',
+      'granola mcp',
+      'granola'
+    ])
+  })
+})
+
+describe('findComposioDirectoryApp', () => {
+  it('matches directory id or name case-insensitively and ignores native rows', () => {
+    const apps = [
+      app({ id: 'linear', name: 'Linear', source: 'native' }),
+      app({ id: 'apollo', name: 'Apollo', source: 'composio', section: 'crm' })
+    ]
+
+    expect(findComposioDirectoryApp(apps, 'Apollo')?.id).toBe('apollo')
+    expect(findComposioDirectoryApp(apps, 'linear')).toBeUndefined()
+  })
+})
+
+describe('composioAppsToSuggestible', () => {
+  it('suggests disconnected Work4You Apps and skips native collisions', () => {
+    const apps = [
+      app({ id: 'apollo', name: 'Apollo', source: 'composio', connected: false, section: 'crm' }),
+      app({ id: 'gmail', name: 'Gmail', source: 'composio', connected: true }),
+      app({ id: 'hubspot', name: 'HubSpot', source: 'composio', needs_login: true, section: 'crm' }),
+      app({ id: 'slack', name: 'Slack', source: 'composio', connected: false })
+    ]
+
+    const suggestible = composioAppsToSuggestible(apps, new Set(['slack']))
+
+    expect(suggestible.map(row => row.server)).toEqual(['apollo'])
+    expect(suggestible[0]?.source).toBe('composio')
   })
 })
 

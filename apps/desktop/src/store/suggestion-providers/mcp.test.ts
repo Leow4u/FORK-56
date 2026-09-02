@@ -1,3 +1,4 @@
+import { composioAppSuggestKeywords } from '@work4you/shared'
 import { describe, expect, it } from 'vitest'
 
 import { MCP_DIRECTORY } from '@/lib/mcp-directory'
@@ -99,5 +100,24 @@ describe('matchSuggestions', () => {
     const index = MCP_DIRECTORY.map(entry => ({ hosts: entry.hosts, keywords: entry.keywords, server: entry.name }))
 
     expect(matchSuggestions('connect github', index)).toEqual([])
+  })
+
+  it('matches a Work4You App slug as a completed whole word', () => {
+    const index = [
+      {
+        keywords: composioAppSuggestKeywords({ id: 'apollo', name: 'Apollo' }),
+        server: 'apollo'
+      }
+    ]
+
+    expect(matchSuggestions('conectar a apollo ', index)).toEqual([{ keyword: 'apollo', server: 'apollo' }])
+    expect(matchSuggestions('quero a apollo.', index)).toEqual([{ keyword: 'apollo', server: 'apollo' }])
+    expect(matchSuggestions('can you check apollo', index)).toEqual([])
+  })
+
+  it('does not suggest Canva from the word can', () => {
+    const index = [{ keywords: composioAppSuggestKeywords({ id: 'canva', name: 'Canva' }), server: 'canva' }]
+
+    expect(matchSuggestions('can you connect later ', index)).toEqual([])
   })
 })

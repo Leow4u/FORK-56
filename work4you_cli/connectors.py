@@ -132,12 +132,12 @@ def inject_work4you_apps(*, mcp_url: str, token: str) -> Dict[str, Any]:
     return server_config
 
 
-def bootstrap_work4you_apps() -> Dict[str, Any]:
+def bootstrap_work4you_apps(*, timeout: float = 30.0) -> Dict[str, Any]:
     """Create/reuse the broker session and inject ``work4you_apps`` locally."""
     token = resolve_portal_token()
     if not token:
         raise ConnectorError("portal_login_required", status=401)
-    payload = broker_request("POST", "/v1/bootstrap", token=token)
+    payload = broker_request("POST", "/v1/bootstrap", token=token, timeout=timeout)
     mcp = payload.get("mcp") if isinstance(payload, dict) else None
     if not isinstance(mcp, dict):
         raise ConnectorError("bootstrap missing mcp payload", status=502)
@@ -323,3 +323,22 @@ def disconnect_app(slug: str) -> Dict[str, Any]:
 
 def work4you_apps_installed() -> bool:
     return WORK4YOU_APPS_SERVER_NAME in _get_mcp_servers()
+
+
+def maybe_bootstrap_work4you_apps(*, skip_if_installed: bool = True) -> bool:
+    """Best-effort inject of the hidden ``work4you_apps`` MCP server.
+
+    Used on Portal login and MCP discovery so the Work4You Apps session exists
+    before the first Capabilities/chat Connect. Never raises: a down broker
+    or a missing Portal login is a no-op. Returns True when bootstrap ran.
+    """
+    try:
+        if not resolve_portal_token():
+            return False
+        if skip_if_installed and work4you_apps_installed():
+            return False
+        bootstrap_work4you_apps(timeout=8.0)
+        return True
+    except Exception:
+        _log.debug("best-effort work4you_apps bootstrap skipped", exc_info=True)
+        return False

@@ -278,3 +278,68 @@ export async function completeComposioConnect(opts: {
 
   return Boolean(retry.connected)
 }
+
+export function composioAppSuggestKeywords(app: { id: string; name: string }): string[] {
+  const keywords: string[] = []
+  const seen = new Set<string>()
+
+  const add = (value: string) => {
+    const trimmed = value.trim().toLowerCase()
+
+    if (!trimmed || seen.has(trimmed)) {
+      return
+    }
+
+    seen.add(trimmed)
+    keywords.push(trimmed)
+  }
+
+  add(app.id)
+
+  if (app.id.includes('_')) {
+    add(app.id.replace(/_/g, ' '))
+  }
+
+  add(app.name)
+
+  return keywords
+}
+
+export function findComposioDirectoryApp(
+  apps: readonly DirectoryApp[],
+  server: string
+): DirectoryApp | undefined {
+  const needle = server.trim().toLowerCase()
+
+  if (!needle) {
+    return undefined
+  }
+
+  return apps.find(
+    app =>
+      app.source === 'composio' &&
+      (app.id.toLowerCase() === needle || app.name.toLowerCase() === needle)
+  )
+}
+
+export function composioAppsToSuggestible(
+  apps: readonly DirectoryApp[],
+  nativeServers: ReadonlySet<string>
+): Array<{ keywords: string[]; server: string; source: 'composio'; url: string }> {
+  const native = new Set([...nativeServers].map(name => name.toLowerCase()))
+
+  return apps
+    .filter(
+      app =>
+        app.source === 'composio' &&
+        !app.connected &&
+        !app.needs_login &&
+        !native.has(app.id.toLowerCase())
+    )
+    .map(app => ({
+      keywords: composioAppSuggestKeywords(app),
+      server: app.id,
+      source: 'composio' as const,
+      url: ''
+    }))
+}

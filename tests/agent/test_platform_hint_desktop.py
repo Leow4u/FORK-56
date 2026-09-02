@@ -70,6 +70,20 @@ class TestDesktopHintEntry:
         agent toward markdown, not away from it like the cli/tui hints do."""
         hint = PLATFORM_HINTS["desktop"]
         assert "markdown" in hint.lower()
+        assert "setup_mcp" in hint
+        assert "Work4You App" in hint
+        assert "work4you mcp add" in hint
+        assert "apollo" in hint
+
+
+    def test_web_hint_uses_the_same_mcp_card_contract(self):
+        assert "web" in PLATFORM_HINTS
+        hint = PLATFORM_HINTS["web"]
+        assert "markdown" in hint.lower()
+        assert "setup_mcp" in hint
+        assert "Work4You App" in hint
+        assert "work4you mcp add" in hint
+        assert PLATFORM_HINTS["desktop"] != hint
 
 
 
@@ -117,6 +131,13 @@ class TestPlatformHintResolutionInStablePrompt:
         assert "terminal UI" not in stable
         assert "Runtime surface:" not in stable
         assert "embedded terminal pane" not in stable
+
+
+    def test_web_platform_yields_web_hint(self, monkeypatch):
+        monkeypatch.delenv("WORK4YOU_DESKTOP", raising=False)
+        stable = _stable_prompt(_make_agent(platform="web"))
+        assert PLATFORM_HINTS["web"] in stable
+        assert PLATFORM_HINTS["desktop"] not in stable
 
 
     def test_embedded_tui_yields_tui_hint_with_clarifier(self, monkeypatch):

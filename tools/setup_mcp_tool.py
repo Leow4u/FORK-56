@@ -2,16 +2,16 @@
 """Propose an MCP server to the user as an inline card in the desktop chat.
 
 The card (install / enable / authorize + decline) lives in the desktop
-renderer, so this tool round-trips through the gateway's blocking-prompt
+and web renderers, so this tool round-trips through the gateway's blocking-prompt
 bridge — the same one ``clarify`` uses: tui_gateway emits
 ``mcp.setup.request``, the renderer walks the user through the flow via the
-existing REST endpoints (catalog install, enable, OAuth), and answers with
-``mcp.setup.respond`` once the flow settles. This module is just schema + a
-thin dispatcher over the platform-injected callback.
+existing REST endpoints (catalog install, enable, OAuth, or Work4You Apps
+Connect), and answers with ``mcp.setup.respond`` once the flow settles. This
+module is just schema + a thin dispatcher over the platform-injected callback.
 
-Lives in the ``desktop_ui`` toolset, which the GUI gateway enables only for
-desktop-sourced sessions — on every other surface the agent falls back to
-``work4you mcp install <name>`` in the terminal.
+Lives in the ``desktop_ui`` toolset, which the GUI gateway enables for
+desktop- and web-sourced sessions — on every other surface the agent falls
+back to ``work4you mcp install <name>`` in the terminal.
 """
 
 import json
@@ -31,9 +31,9 @@ def setup_mcp_tool(
     """Ask the desktop GUI to run an MCP setup flow; return its JSON outcome."""
     if callback is None:
         return tool_error(
-            "setup_mcp is only available in the Work4You desktop app. Use the "
-            "terminal instead: `work4you mcp install <name>` for catalog entries, "
-            "`work4you mcp login <name>` for OAuth."
+            "setup_mcp is only available in the Work4You desktop or web app. "
+            "Use the terminal instead: `work4you mcp install <name>` for catalog "
+            "entries, `work4you mcp login <name>` for OAuth."
         )
 
     name = (server or "").strip()
@@ -74,17 +74,22 @@ def setup_mcp_tool(
 SETUP_MCP_SCHEMA = {
     "name": "setup_mcp",
     "description": (
-        "Propose an MCP server to the user as an inline consent card in the "
-        "Work4You desktop chat. The card lets them install a catalog entry, "
-        "re-enable a disabled server, or run an OAuth login — right there, "
-        "without opening the Capabilities tab — and blocks until they act or "
-        "decline. Use when the user asks to add/set up an MCP (e.g. \"add the "
-        "linear mcp\"), or when a task clearly needs one that is missing or "
-        "unauthorized. Never call it twice for the same server after a "
+        "Propose an MCP server or Work4You App to the user as an inline consent "
+        "card in the Work4You desktop or web chat. The card lets them install a "
+        "native catalog entry, re-enable a disabled server, run native OAuth, "
+        "or Connect a Work4You App (directory ids such as apollo, gmail, "
+        "hubspot, slack) — right there, without opening the Capabilities tab — "
+        "and blocks until they act or decline. Use when the user asks to add, "
+        "set up, or connect an MCP or Work4You App (e.g. \"conectar a apollo\", "
+        "\"add the linear mcp\"), or when a task clearly needs one that is "
+        "missing or unauthorized. Pass the directory id as server. Do not "
+        "install a community MCP with `work4you mcp add`, and do not ask the "
+        "user to paste an API key for Work4You Apps — Connect handles OAuth or "
+        "the vendor key form. Never call it twice for the same server after a "
         "decline. Returns JSON {status: installed|enabled|authorized|declined|"
         "unanswered|error, server, detail?, tools?}. On declined/unanswered, "
-        "continue without the server. Catalog names: run `work4you mcp catalog` "
-        "in the terminal to list them."
+        "continue without the server. Native catalog names: `work4you mcp catalog`. "
+        "Work4You App ids are the Capabilities MCP directory slugs."
     ),
     "parameters": {
         "type": "object",
@@ -92,8 +97,9 @@ SETUP_MCP_SCHEMA = {
             "server": {
                 "type": "string",
                 "description": (
-                    "The server's catalog name (for install) or its name in "
-                    "mcp_servers config (for enable/authorize)."
+                    "The native catalog name, Work4You App directory id "
+                    "(apollo, gmail, hubspot, …), or the name in mcp_servers "
+                    "config (for enable/authorize)."
                 ),
             },
             "action": {

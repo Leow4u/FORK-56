@@ -11,7 +11,6 @@ import types
 
 import pytest
 
-import cli as cli_mod
 from work4you_cli import main as main_mod
 from work4you_cli import mcp_startup
 
@@ -163,10 +162,83 @@ def test_portable_only_mcp_configuration_opens_startup_gate(monkeypatch):
     assert mcp_startup._has_configured_mcp_servers() is True
 
 
+def test_discovery_bootstraps_work4you_apps_when_portal_and_empty_servers(monkeypatch):
+    calls = {"bootstrap": 0, "mcp": 0}
+
+    monkeypatch.setitem(
+        sys.modules,
+        "work4you_cli.config",
+        types.SimpleNamespace(read_raw_config=lambda: {}),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "work4you_cli.agent_plugins",
+        types.SimpleNamespace(has_enabled_agent_plugin_mcp=lambda _config: False),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "work4you_cli.connectors",
+        types.SimpleNamespace(
+            resolve_portal_token=lambda: "portal-jwt",
+            maybe_bootstrap_work4you_apps=lambda **_k: calls.__setitem__(
+                "bootstrap", calls["bootstrap"] + 1
+            )
+            or True,
+        ),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "tools.mcp_oauth",
+        types.SimpleNamespace(suppress_interactive_oauth=lambda: nullcontext()),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "tools.mcp_tool",
+        types.SimpleNamespace(
+            discover_mcp_tools=lambda: calls.__setitem__("mcp", calls["mcp"] + 1),
+            get_mcp_status=lambda: [{"connected": True, "name": "work4you_apps"}],
+        ),
+    )
+    monkeypatch.setattr(
+        mcp_startup,
+        "_has_configured_mcp_servers",
+        lambda: calls["bootstrap"] > 0,
+    )
+
+    mcp_startup.start_background_mcp_discovery(
+        logger=_retry_logger(),
+        thread_name="test-apps-bootstrap-discovery",
+    )
+    assert mcp_startup._mcp_discovery_thread is not None
+    mcp_startup._mcp_discovery_thread.join(timeout=1.0)
+
+    assert calls["bootstrap"] == 1
+    assert calls["mcp"] == 1
 
 
+def test_discovery_skips_thread_without_portal_or_servers(monkeypatch):
+    monkeypatch.setitem(
+        sys.modules,
+        "work4you_cli.config",
+        types.SimpleNamespace(read_raw_config=lambda: {}),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "work4you_cli.agent_plugins",
+        types.SimpleNamespace(has_enabled_agent_plugin_mcp=lambda _config: False),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "work4you_cli.connectors",
+        types.SimpleNamespace(resolve_portal_token=lambda: None),
+    )
 
-
+    mcp_startup.start_background_mcp_discovery(
+        logger=_retry_logger(),
+        thread_name="test-no-portal-skip",
+    )
+    assert mcp_startup._mcp_discovery_thread is None
+    assert mcp_startup._mcp_discovery_started is False
 
 
 def _retry_logger():
@@ -197,5 +269,3 @@ def _install_retry_stubs(monkeypatch, *, connected: bool, calls: dict):
             get_mcp_status=lambda: [{"connected": connected}],
         ),
     )
-
-

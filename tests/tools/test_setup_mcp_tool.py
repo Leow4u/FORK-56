@@ -11,7 +11,7 @@ import json
 
 import pytest
 
-from tools.setup_mcp_tool import setup_mcp_tool
+from tools.setup_mcp_tool import SETUP_MCP_SCHEMA, setup_mcp_tool
 
 
 def test_requires_desktop_callback():
@@ -73,3 +73,18 @@ def test_all_actions_accepted(action):
         setup_mcp_tool(server="x", action=action, callback=lambda s, a, r: json.dumps({"status": "declined", "server": s}))
     )
     assert result["status"] == "declined"
+
+
+def test_schema_points_work4you_apps_at_setup_mcp_not_community_mcp():
+    description = SETUP_MCP_SCHEMA["description"]
+    assert "Work4You App" in description
+    assert "consent card" in description
+    assert "work4you mcp add" in description
+    assert "API key" in description
+    server_desc = SETUP_MCP_SCHEMA["parameters"]["properties"]["server"]["description"]
+    assert "apollo" in server_desc
+    assert set(SETUP_MCP_SCHEMA["parameters"]["properties"]["action"]["enum"]) == {
+        "install",
+        "enable",
+        "authorize",
+    }

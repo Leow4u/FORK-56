@@ -32,8 +32,8 @@ import {
 import { completeMcpDashboardOAuth } from "@/lib/mcp-dashboard-oauth";
 import { brandFor, brandGlyphStyle } from "@/lib/mcp-brands";
 import { mcpCatalogPrimaryAction } from "@/lib/mcp-directory-filter";
+import { connectWork4YouApp, openComposioConnectUrl } from "@/lib/composio-connect";
 import {
-  completeComposioConnect,
   DIRECTORY_SECTION_IDS,
   DIRECTORY_SECTION_LABELS,
   directoryAppDescription,
@@ -45,6 +45,8 @@ import {
   type McpDirectoryFilter,
 } from "@work4you/shared";
 import { prettyName } from "@/lib/text";
+import { $gateway } from "@/store/gateway";
+import { $activeSessionId } from "@/store/session";
 
 function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value.trim());
@@ -407,23 +409,19 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
     if (popup) popup.opener = null;
     setConnectingSlug(app.id);
     try {
-      await api.bootstrapConnectors();
-      const ok = await completeComposioConnect({
-        authorize: () => api.authorizeConnector(app.id),
-        wait: () => api.waitConnector(app.id),
-        open: (url) => {
-          if (popup && !popup.closed) {
-            popup.location.href = url;
-          } else {
-            window.open(url, "_blank", "noopener,noreferrer");
-          }
-        },
-      });
+      const ok = await connectWork4YouApp(app.id, (url) =>
+        openComposioConnectUrl(url, popup),
+      );
       if (ok) {
-        showToast(
-          `${app.name} connected — available in new sessions.`,
-          "success",
-        );
+        try {
+          await $gateway.get()?.request("reload.mcp", {
+            confirm: true,
+            session_id: $activeSessionId.get() ?? undefined,
+          });
+        } catch {
+          // Config landed; tools arrive next session if reload fails.
+        }
+        showToast(`${app.name} connected — its tools are ready in this chat.`, "success");
       }
       await loadDirectory();
     } catch (e) {

@@ -51,6 +51,9 @@ export const setMcpServerEnabled = (
 export const getMcpCatalog = (): ReturnType<typeof api.getMcpCatalog> =>
   api.getMcpCatalog();
 
+export const getConnectorsDirectory = (): ReturnType<typeof api.getConnectorsDirectory> =>
+  api.getConnectorsDirectory();
+
 export const installMcpCatalogEntry = (
   name: string,
   env: Record<string, string> = {},

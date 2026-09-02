@@ -1978,6 +1978,7 @@ export interface Translations {
     dropSession: string
     mcpSuggestions: {
       label: (server: string) => string
+      connectLabel: (server: string) => string
       tip: (keyword: string) => string
       connecting: (server: string) => string
       cancelTip: string
@@ -2689,9 +2690,11 @@ export interface Translations {
       installTitle: (server: string) => string
       enableTitle: (server: string) => string
       authorizeTitle: (server: string) => string
+      connectTitle: (server: string) => string
       installAction: string
       enableAction: string
       authorizeAction: string
+      connectAction: string
       decline: string
       declined: string
       installed: (server: string) => string
@@ -2702,6 +2705,8 @@ export interface Translations {
       toolCount: (count: number) => string
       notInCatalog: (server: string) => string
       catalogSource: string
+      work4youAppsSource: string
+      loginRequired: string
       envRequired: string
       sendFailed: string
       reloadFailed: string
