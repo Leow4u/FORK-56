@@ -8,8 +8,7 @@ import {
   directoryAppDescription,
   directoryAppLogoUrl,
   filterDirectoryApps,
-  groupDirectorySections,
-  isTrustedComposioLogoUrl
+  groupDirectorySections
 } from '@work4you/shared'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -27,7 +26,7 @@ import { TextTab } from '@/components/ui/text-tab'
 import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
-import { useComposioLogoSrc } from '@/lib/composio-logo'
+import { resolveComposioLogoSrc } from '@/lib/composio-logo'
 import { compactNumber } from '@/lib/format'
 import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
@@ -1991,9 +1990,10 @@ function McpLogs({
 // ---------------------------------------------------------------------------
 
 // Catalog avatars (native MCP + Work4You Apps) use the official Composio CDN
-// mark. Packaged Electron paints it from a main-process data URL because a
-// file:// renderer cannot load logos.composio.dev as <img>. Custom MCP URLs
-// still never hit a favicon service — a private host must not leak off-box.
+// mark. Packaged Electron paints it through the privileged work4you-logo
+// scheme because a file:// renderer cannot load logos.composio.dev as <img>.
+// Custom MCP URLs still never hit a favicon service — a private host must not
+// leak off-box.
 function McpAvatar({
   className,
   logo,
@@ -2006,22 +2006,19 @@ function McpAvatar({
   status: ServerStatus
 }) {
   const [failedLogo, setFailedLogo] = useState<string | null>(null)
-  const { failed: proxyFailed, src: resolved } = useComposioLogoSrc(failedLogo === logo ? null : logo)
-  const remote = typeof logo === 'string' && isTrustedComposioLogoUrl(logo) && failedLogo !== logo
-  const src = resolved && failedLogo !== resolved ? resolved : null
-  const loading = remote && !src && !proxyFailed
-  const brand = src || loading ? null : brandFor(name)
+  const src = failedLogo === logo ? null : resolveComposioLogoSrc(logo)
+  const brand = src ? null : brandFor(name)
 
   return (
     <span
       className={cn(
         'relative inline-grid size-8 shrink-0 place-items-center rounded-md text-[length:var(--conversation-caption-font-size)] font-medium',
-        (src || loading) && 'bg-white',
-        !src && !loading && !brand && 'bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)',
+        src && 'bg-white',
+        !src && !brand && 'bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)',
         className
       )}
       style={
-        !src && !loading && brand
+        !src && brand
           ? { backgroundColor: `color-mix(in srgb, ${brand.color} 16%, transparent)` }
           : undefined
       }
@@ -2035,7 +2032,7 @@ function McpAvatar({
           referrerPolicy="no-referrer"
           src={src}
         />
-      ) : loading ? null : brand ? (
+      ) : brand ? (
         <brand.Icon aria-hidden className="size-4" style={brandGlyphStyle(brand)} />
       ) : (
         name.charAt(0).toUpperCase()

@@ -60,6 +60,9 @@ export interface DirectoryApp {
 /** Official toolkit marks Composio already hosts. Not a favicon service. */
 export const COMPOSIO_LOGOS_ORIGIN = 'https://logos.composio.dev'
 
+/** Privileged Electron scheme so a file:// renderer can paint those marks. */
+export const COMPOSIO_LOGO_PROTOCOL = 'work4you-logo'
+
 export function composioToolkitLogoUrl(slug: string): string {
   const safe = slug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')
 
@@ -99,6 +102,53 @@ export function directoryAppLogoUrl(app: Pick<DirectoryApp, 'id' | 'source' | 'l
   const derived = composioToolkitLogoUrl(app.id)
 
   return derived && isTrustedComposioLogoUrl(derived) ? derived : null
+}
+
+export function composioLogoProtocolUrl(cdnUrl: string): string | null {
+  if (!isTrustedComposioLogoUrl(cdnUrl)) {
+    return null
+  }
+
+  const slug = new URL(cdnUrl).pathname.replace(/^\/api\//, '')
+
+  return slug ? `${COMPOSIO_LOGO_PROTOCOL}://mark/${encodeURIComponent(slug)}` : null
+}
+
+export function composioCdnUrlFromProtocolRequest(requestUrl: string): string | null {
+  try {
+    const parsed = new URL(requestUrl)
+
+    if (parsed.protocol !== `${COMPOSIO_LOGO_PROTOCOL}:` || parsed.hostname !== 'mark') {
+      return null
+    }
+
+    const slug = decodeURIComponent(parsed.pathname.replace(/^\//, ''))
+    const cdn = composioToolkitLogoUrl(slug)
+
+    return cdn && isTrustedComposioLogoUrl(cdn) ? cdn : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Packaged Electron loads the renderer from file://, which cannot paint a
+ * remote <img>. Map the CDN URL onto the privileged work4you-logo scheme.
+ * http(s) origins (web, Vite) load the CDN directly.
+ */
+export function composioLogoImgSrc(
+  cdnUrl: null | string | undefined,
+  pageProtocol = typeof window === 'undefined' ? '' : window.location.protocol
+): string | null {
+  if (typeof cdnUrl !== 'string' || !isTrustedComposioLogoUrl(cdnUrl)) {
+    return null
+  }
+
+  if (pageProtocol === 'file:') {
+    return composioLogoProtocolUrl(cdnUrl)
+  }
+
+  return cdnUrl
 }
 
 export function mcpDirectoryQueryHit(fields: ReadonlyArray<null | string | undefined>, query: string): boolean {
