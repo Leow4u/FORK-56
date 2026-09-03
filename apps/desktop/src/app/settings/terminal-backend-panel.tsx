@@ -6,7 +6,7 @@ import { AlertTriangle, Check, Loader2, RefreshCw } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 import type { TerminalBackendInfo, TerminalBackendsResponse } from '@/types/work4you'
-import { getTerminalBackends, selectTerminalBackend } from '@/work4you'
+import { getTerminalBackends, selectTerminalBackend, type ProfileScope } from '@/work4you'
 
 import { Pill } from './primitives'
 
@@ -14,6 +14,8 @@ interface TerminalBackendPanelProps {
   /** Re-read the parent toolset list after a backend change so any derived
    *  pills stay in sync. */
   onConfiguredChange?: () => void
+  /** Capabilities profile/connection pin. Omit for the app-active profile. */
+  profile?: ProfileScope
 }
 
 function StatusPill({ backend }: { backend: TerminalBackendInfo }) {
@@ -38,14 +40,14 @@ function StatusPill({ backend }: { backend: TerminalBackendInfo }) {
 }
 
 /**
- * Terminal execution backend picker — the Capabilities-tab counterpart of the
- * `terminal.backend` config enum. Each backend row carries a live health probe
- * (Docker daemon reachable, SSH host configured, Modal/Daytona credentials
- * present) so users see Ready / Needs-setup guidance instead of a bare
- * dropdown. Selecting a needs-setup backend is allowed — the row shows what's
- * missing rather than blocking, matching the CLI configurator.
+ * Terminal execution backend picker — the machine-setup counterpart of the
+ * `terminal.backend` config enum. Not shown on Capabilities → Tools (core
+ * terminal is always on; Local is the product default). Kept for a future
+ * Advanced / machine-setup surface. Each backend row carries a live health
+ * probe (Docker daemon reachable, SSH host configured, Modal via Work4You
+ * Subscription or direct credentials).
  */
-export function TerminalBackendPanel({ onConfiguredChange }: TerminalBackendPanelProps) {
+export function TerminalBackendPanel({ onConfiguredChange, profile }: TerminalBackendPanelProps) {
   const { t } = useI18n()
   const copy = t.settings.toolsets.terminalBackend
   const [data, setData] = useState<TerminalBackendsResponse | null>(null)
@@ -56,13 +58,13 @@ export function TerminalBackendPanel({ onConfiguredChange }: TerminalBackendPane
     setLoading(true)
 
     try {
-      setData(await getTerminalBackends())
+      setData(await getTerminalBackends(profile))
     } catch (err) {
       notifyError(err, copy.failedLoad)
     } finally {
       setLoading(false)
     }
-  }, [copy.failedLoad])
+  }, [copy.failedLoad, profile])
 
   useEffect(() => {
     void refresh()
@@ -76,7 +78,7 @@ export function TerminalBackendPanel({ onConfiguredChange }: TerminalBackendPane
     setSelecting(backend.name)
 
     try {
-      await selectTerminalBackend(backend.name)
+      await selectTerminalBackend(backend.name, profile)
       // Mirror the backend write locally so the active highlight tracks the
       // new selection without a refetch (probes are unchanged by a select).
       setData(current =>

@@ -187,6 +187,24 @@ describe('SkillsView toolset management', () => {
     expect(screen.queryByText('Speech-to-Text')).toBeNull()
   })
 
+  it('does not show the execution-backend picker on Terminal', async () => {
+    getToolsets.mockResolvedValue([
+      toolset({
+        name: 'terminal',
+        label: 'Terminal & Processes',
+        description: 'terminal, process',
+        tools: ['terminal', 'process'],
+        presence: 'always_on',
+        toggleable: false
+      })
+    ])
+
+    await renderSkills()
+
+    expect((await screen.findAllByText('Terminal & Processes')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Execution backend')).toBeNull()
+  })
+
   it('renders toolset titles without leading emoji', async () => {
     getToolsets.mockResolvedValue([toolset({ name: 'cronjob', label: '⏰ Cron Jobs', description: 'cron tools', presence: 'always_on', toggleable: false })])
 

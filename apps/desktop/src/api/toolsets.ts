@@ -109,16 +109,19 @@ export function runToolsetPostSetup(
   })
 }
 
-export function getTerminalBackends(): Promise<TerminalBackendsResponse> {
-  return work4youApi<TerminalBackendsResponse>({
-    ...profileScoped(),
+export function getTerminalBackends(profile?: ProfileScope): Promise<TerminalBackendsResponse> {
+  return window.work4youDesktop.api<TerminalBackendsResponse>({
+    ...capabilityScoped(profile),
     path: '/api/tools/terminal/backends'
   })
 }
 
-export function selectTerminalBackend(backend: string): Promise<{ ok: boolean; backend: string }> {
-  return work4youApi<{ ok: boolean; backend: string }>({
-    ...profileScoped(),
+export function selectTerminalBackend(
+  backend: string,
+  profile?: ProfileScope
+): Promise<{ ok: boolean; backend: string }> {
+  return window.work4youDesktop.api<{ ok: boolean; backend: string }>({
+    ...capabilityScoped(profile),
     path: '/api/tools/terminal/backend',
     method: 'PUT',
     body: { backend }

@@ -15244,11 +15244,33 @@ def _probe_ssh_backend(terminal_cfg: dict) -> tuple:
     return ("ready", f"{user}@{host}")
 
 
-def _probe_modal_backend() -> tuple:
-    try:
-        from tools.tool_backend_helpers import has_direct_modal_credentials
+def _probe_modal_backend(terminal_cfg: dict | None = None) -> tuple:
+    """Ready when NAS-managed Modal is available or direct Modal credentials exist.
 
-        if has_direct_modal_credentials():
+    The execution path already prefers the Work4You tool gateway
+    (``terminal.modal_mode: auto``). This probe must match that — asking the
+    user to paste ``MODAL_TOKEN_*`` while a subscribed session is entitled is
+    the leftover Hermes BYOK copy.
+    """
+    modal_mode = "auto"
+    if isinstance(terminal_cfg, dict) and terminal_cfg.get("modal_mode") not in (None, ""):
+        modal_mode = terminal_cfg.get("modal_mode")
+    try:
+        from tools.managed_tool_gateway import is_managed_tool_gateway_ready
+        from tools.tool_backend_helpers import (
+            has_direct_modal_credentials,
+            resolve_modal_backend_state,
+        )
+
+        has_direct = has_direct_modal_credentials()
+        state = resolve_modal_backend_state(
+            modal_mode,
+            has_direct=has_direct,
+            managed_ready=is_managed_tool_gateway_ready("modal"),
+        )
+        if state["selected_backend"] == "managed":
+            return ("ready", "Work4You Subscription")
+        if state["selected_backend"] == "direct":
             return ("ready", "")
     except Exception:
         pass
@@ -15261,7 +15283,8 @@ def _probe_modal_backend() -> tuple:
         pass
     return (
         "needs_setup",
-        "Modal credentials not found — set MODAL_TOKEN_ID and MODAL_TOKEN_SECRET (or run `modal setup`).",
+        "Modal sandboxes are billed to your Work4You subscription when "
+        "the plan covers them. Sign in to Work4You — do not paste Modal tokens here.",
     )
 
 
@@ -15288,7 +15311,7 @@ def _probe_terminal_backend(name: str, terminal_cfg: dict) -> tuple:
         if name == "ssh":
             return _probe_ssh_backend(terminal_cfg)
         if name == "modal":
-            return _probe_modal_backend()
+            return _probe_modal_backend(terminal_cfg)
         if name == "daytona":
             return _probe_daytona_backend()
         return ("unavailable", f"Unknown backend: {name}")

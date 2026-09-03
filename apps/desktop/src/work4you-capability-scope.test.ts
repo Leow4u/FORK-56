@@ -4,12 +4,14 @@ import {
   getMcpCatalog,
   getSkillContent,
   getSkills,
+  getTerminalBackends,
   getToolsets,
   getUsageAnalytics,
   getWork4YouConfigRecord,
   installSkillFromHub,
   profileScopeKey,
   saveMcpServers,
+  selectTerminalBackend,
   setApiRequestConnection,
   setApiRequestProfile,
   setSkillEnabled,
@@ -54,6 +56,7 @@ describe('capability helpers are connection-scoped', () => {
 
     void getSkills()
     void getToolsets()
+    void getTerminalBackends()
     void getWork4YouConfigRecord()
     void getMcpCatalog()
     void getUsageAnalytics(30)
@@ -80,6 +83,8 @@ describe('capability helpers are connection-scoped', () => {
     void getSkillContent('arxiv', { connectionId: 'homelab', profile: 'inbox-bot' })
     void setSkillEnabled('arxiv', false, { connectionId: 'homelab', profile: 'inbox-bot' })
     void setToolsetEnabled('browser', true, { connectionId: 'homelab', profile: 'inbox-bot' })
+    void getTerminalBackends({ connectionId: 'homelab', profile: 'inbox-bot' })
+    void selectTerminalBackend('docker', { connectionId: 'homelab', profile: 'inbox-bot' })
     void saveMcpServers({}, { connectionId: 'homelab', profile: 'inbox-bot' })
     void installSkillFromHub('official/research/arxiv', { connectionId: 'homelab', profile: 'inbox-bot' })
 
