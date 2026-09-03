@@ -24,6 +24,11 @@ cp "$ROOT/scripts/install.ps1" "$OUT/install.ps1"
 chmod 644 "$OUT/install.sh" "$OUT/install.ps1"
 
 echo "==> Building docs ($DOCS_DIR)"
+# Skills Hub catalog (skills.json) is a gitignored build artifact. prebuild.mjs
+# runs extract-skills.py; PyYAML is required to parse SKILL.md frontmatter.
+if command -v python3 >/dev/null 2>&1; then
+  python3 -m pip install --user -q 'pyyaml==6.0.2' || true
+fi
 # userStories.json is local data for the collage; ensure build can resolve it.
 mkdir -p "$DOCS_DIR/src/data"
 if [[ ! -f "$DOCS_DIR/src/data/userStories.json" ]]; then
