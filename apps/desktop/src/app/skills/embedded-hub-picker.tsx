@@ -25,7 +25,10 @@ const HUB_PICKER_URL = `${HUB_ORIGIN}/docs/skills?embed=picker`
 // terminal/editor panes use), dragged from the section's TOP edge — "pull the
 // hub up" — clamped so neither the hub nor the skills list above vanishes.
 const HUB_PANE_ID = 'capabilities-hub'
-const HUB_DEFAULT_PX = 380
+// Collapsed until the user clicks Browse — the installed list is the Skills
+// tab; the hub is a catalog they open on purpose (Intent before automation).
+const HUB_DEFAULT_PX = 0
+const HUB_EXPANDED_PX = 380
 const HUB_MIN_PX = 120
 const HUB_MAX_VH = 0.75
 // Collapse threshold, mirroring DetailPane: a persisted height at/below this
@@ -58,10 +61,10 @@ interface EmbeddedHubPickerProps {
 }
 
 /** The Skills Hub browser for the Skills tab: a resizable iframe of the live
- *  hub where every card installs with one click. Expanded by default —
- *  discovery IS the point — with a collapse toggle (persisted, like every
- *  other pane) and an update-all action. Memoized: the iframe must not sit in
- *  the parent's keystroke/re-render path. */
+ *  hub where every card installs with one click. Collapsed by default — the
+ *  installed list is the page; Browse opens the catalog (persisted, like
+ *  every other pane) plus an update-all action. Memoized: the iframe must not
+ *  sit in the parent's keystroke/re-render path. */
 export const EmbeddedHubPicker = memo(function EmbeddedHubPicker({
   hidden = false,
   installedNames,
@@ -197,7 +200,11 @@ export const EmbeddedHubPicker = memo(function EmbeddedHubPicker({
             {updating && <Loader2 className="size-3 animate-spin" />}
             {updating ? h.updating : h.updateAll}
           </Button>
-          <Button onClick={() => setPaneHeightOverride(HUB_PANE_ID, open ? 0 : undefined)} size="xs" variant="text">
+          <Button
+            onClick={() => setPaneHeightOverride(HUB_PANE_ID, open ? 0 : HUB_EXPANDED_PX)}
+            size="xs"
+            variant="text"
+          >
             {open ? h.pickerHide : h.pickerBrowse}
           </Button>
         </div>
@@ -207,14 +214,11 @@ export const EmbeddedHubPicker = memo(function EmbeddedHubPicker({
           {/* Resizable viewport: height comes from the top-edge drag sash
               above (persisted; double-click resets). flex-basis instead of a
               hard height so a short window shrinks the hub viewport rather
-              than letting it spill over the list. The iframe is rendered
-              oversized and scaled DOWN (133% × 0.75) so the hub page starts
-              zoomed out — the cross-origin page itself can't be styled, but
-              scaling the frame is ours. */}
+              than letting it spill over the list. Native 1:1 iframe — the
+              hub page owns brand tokens; we do not scale a foreign layout. */}
           <div
             style={{
               border: '1px solid var(--ui-stroke-secondary)',
-              borderRadius: 8,
               flex: `0 1 ${height}px`,
               maxWidth: '100%',
               minHeight: 0,
@@ -228,15 +232,14 @@ export const EmbeddedHubPicker = memo(function EmbeddedHubPicker({
               sandbox="allow-scripts allow-same-origin"
               src={HUB_PICKER_URL}
               style={{
-                background: 'transparent',
+                background: 'var(--ui-bg)',
                 border: 'none',
-                height: '133.34%',
+                colorScheme: 'dark',
+                height: '100%',
                 // While the sash drags, the cross-origin iframe must not eat
                 // the pointermove stream.
                 pointerEvents: dragging ? 'none' : 'auto',
-                transform: 'scale(0.75)',
-                transformOrigin: 'top left',
-                width: '133.34%'
+                width: '100%'
               }}
               title={h.pickerTitle}
             />

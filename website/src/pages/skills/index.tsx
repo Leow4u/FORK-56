@@ -1,262 +1,259 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import Layout from "@theme/Layout";
-import styles from "./styles.module.css";
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import Layout from '@theme/Layout'
+import styles from './styles.module.css'
 
 interface Skill {
-  name: string;
-  description: string;
-  overview?: string;
-  category: string;
-  categoryLabel: string;
-  source: string;
-  tags: string[];
-  platforms: string[];
-  author: string;
-  version: string;
-  license?: string;
-  envVars?: string[];
-  commands?: string[];
-  docsPath?: string;
-  identifier?: string;
-  installCmd?: string;
+  name: string
+  description: string
+  overview?: string
+  category: string
+  categoryLabel: string
+  source: string
+  tags: string[]
+  platforms: string[]
+  author: string
+  version: string
+  license?: string
+  envVars?: string[]
+  commands?: string[]
+  docsPath?: string
+  identifier?: string
+  installCmd?: string
   /** Clickable URL to the skill's origin (repo / detail page). Synthesized
    *  in extract-skills.py for community skills that have no generated docs
    *  page, so the expanded card always has somewhere to send the user. */
-  sourceUrl?: string;
+  sourceUrl?: string
   /** Lowercase pre-joined haystack used by the search filter.
    *  Built once at load time so per-keystroke filtering is a single
    *  `.includes()` per skill instead of array-join + toLowerCase on
    *  every render. Skipped on the wire — added in the loader. */
-  _search?: string;
+  _search?: string
 }
 
-const allSkills: Skill[] = [];
+const allSkills: Skill[] = []
 
 interface IndexMeta {
-  extractedAt?: string;
-  indexGeneratedAt?: string;
-  totalSkills?: number;
-  externalSource?: string;
-  bySource?: Record<string, number>;
+  extractedAt?: string
+  indexGeneratedAt?: string
+  totalSkills?: number
+  externalSource?: string
+  bySource?: Record<string, number>
 }
-const indexMeta: IndexMeta = {};
+const indexMeta: IndexMeta = {}
 
 function formatRelativeTime(iso?: string): string | null {
-  if (!iso) return null;
-  const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return null;
-  const now = Date.now();
-  const diffMs = now - then;
-  if (diffMs < 0) return "just now";
-  const mins = Math.floor(diffMs / 60_000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
-  const months = Math.floor(days / 30);
-  return `${months} month${months === 1 ? "" : "s"} ago`;
+  if (!iso) return null
+  const then = new Date(iso).getTime()
+  if (!Number.isFinite(then)) return null
+  const now = Date.now()
+  const diffMs = now - then
+  if (diffMs < 0) return 'just now'
+  const mins = Math.floor(diffMs / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`
+  const months = Math.floor(days / 30)
+  return `${months} month${months === 1 ? '' : 's'} ago`
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
-  apple: "\u{f179}",
-  "autonomous-ai-agents": "\u{1F916}",
-  blockchain: "\u{26D3}",
-  communication: "\u{1F4AC}",
-  creative: "\u{1F3A8}",
-  "data-science": "\u{1F4CA}",
-  devops: "\u{2699}",
-  dogfood: "\u{1F436}",
-  domain: "\u{1F310}",
-  email: "\u{2709}",
-  feeds: "\u{1F4E1}",
-  gaming: "\u{1F3AE}",
-  gifs: "\u{1F3AC}",
-  github: "\u{1F4BB}",
-  health: "\u{2764}",
-  "inference-sh": "\u{26A1}",
-  leisure: "\u{2615}",
-  mcp: "\u{1F50C}",
-  media: "\u{1F3B5}",
-  migration: "\u{1F4E6}",
-  mlops: "\u{1F9EA}",
-  "note-taking": "\u{1F4DD}",
-  productivity: "\u{2705}",
-  "red-teaming": "\u{1F6E1}",
-  research: "\u{1F50D}",
-  security: "\u{1F512}",
-  "smart-home": "\u{1F3E0}",
-  "social-media": "\u{1F4F1}",
-  "software-development": "\u{1F4BB}",
-  translation: "\u{1F30D}",
-  other: "\u{1F4E6}",
-};
+  apple: '\u{f179}',
+  'autonomous-ai-agents': '\u{1F916}',
+  blockchain: '\u{26D3}',
+  communication: '\u{1F4AC}',
+  creative: '\u{1F3A8}',
+  'data-science': '\u{1F4CA}',
+  devops: '\u{2699}',
+  dogfood: '\u{1F436}',
+  domain: '\u{1F310}',
+  email: '\u{2709}',
+  feeds: '\u{1F4E1}',
+  gaming: '\u{1F3AE}',
+  gifs: '\u{1F3AC}',
+  github: '\u{1F4BB}',
+  health: '\u{2764}',
+  'inference-sh': '\u{26A1}',
+  leisure: '\u{2615}',
+  mcp: '\u{1F50C}',
+  media: '\u{1F3B5}',
+  migration: '\u{1F4E6}',
+  mlops: '\u{1F9EA}',
+  'note-taking': '\u{1F4DD}',
+  productivity: '\u{2705}',
+  'red-teaming': '\u{1F6E1}',
+  research: '\u{1F50D}',
+  security: '\u{1F512}',
+  'smart-home': '\u{1F3E0}',
+  'social-media': '\u{1F4F1}',
+  'software-development': '\u{1F4BB}',
+  translation: '\u{1F30D}',
+  other: '\u{1F4E6}'
+}
 
-const SOURCE_CONFIG: Record<
-  string,
-  { label: string; color: string; bg: string; border: string; icon: string }
-> = {
-  "built-in": {
-    label: "Built-in",
-    color: "#4D5943",
-    bg: "rgba(77, 89, 67, 0.10)",
-    border: "rgba(77, 89, 67, 0.22)",
-    icon: "\u{2713}",
+const SOURCE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; icon: string }> = {
+  'built-in': {
+    label: 'Built-in',
+    color: '#4D5943',
+    bg: 'rgba(77, 89, 67, 0.10)',
+    border: 'rgba(77, 89, 67, 0.22)',
+    icon: '\u{2713}'
   },
   optional: {
-    label: "Optional",
-    color: "#3A452F",
-    bg: "rgba(58, 69, 47, 0.10)",
-    border: "rgba(58, 69, 47, 0.22)",
-    icon: "\u{2B50}",
+    label: 'Optional',
+    color: '#3A452F',
+    bg: 'rgba(58, 69, 47, 0.10)',
+    border: 'rgba(58, 69, 47, 0.22)',
+    icon: '\u{2B50}'
   },
   Anthropic: {
-    label: "Anthropic",
-    color: "#5F6C52",
-    bg: "rgba(95, 108, 82, 0.12)",
-    border: "rgba(95, 108, 82, 0.24)",
-    icon: "\u{25C6}",
+    label: 'Anthropic',
+    color: '#5F6C52',
+    bg: 'rgba(95, 108, 82, 0.12)',
+    border: 'rgba(95, 108, 82, 0.24)',
+    icon: '\u{25C6}'
   },
   LobeHub: {
-    label: "LobeHub",
-    color: "#6E6E68",
-    bg: "rgba(110, 110, 104, 0.12)",
-    border: "rgba(110, 110, 104, 0.24)",
-    icon: "\u{25CB}",
+    label: 'LobeHub',
+    color: '#6E6E68',
+    bg: 'rgba(110, 110, 104, 0.12)',
+    border: 'rgba(110, 110, 104, 0.24)',
+    icon: '\u{25CB}'
   },
-  "skills.sh": {
-    label: "skills.sh",
-    color: "#71806E",
-    bg: "rgba(113, 128, 110, 0.12)",
-    border: "rgba(113, 128, 110, 0.24)",
-    icon: "\u{2734}",
+  'skills.sh': {
+    label: 'skills.sh',
+    color: '#71806E',
+    bg: 'rgba(113, 128, 110, 0.12)',
+    border: 'rgba(113, 128, 110, 0.24)',
+    icon: '\u{2734}'
   },
   ClawHub: {
-    label: "ClawHub",
-    color: "#1a1915",
-    bg: "rgba(21, 21, 21, 0.08)",
-    border: "rgba(21, 21, 21, 0.18)",
-    icon: "\u{2726}",
+    label: 'ClawHub',
+    color: '#1a1915',
+    bg: 'rgba(21, 21, 21, 0.08)',
+    border: 'rgba(21, 21, 21, 0.18)',
+    icon: '\u{2726}'
   },
-  "browse.sh": {
-    label: "browse.sh",
-    color: "#4D5943",
-    bg: "rgba(77, 89, 67, 0.10)",
-    border: "rgba(77, 89, 67, 0.22)",
-    icon: "\u{29BF}",
+  'browse.sh': {
+    label: 'browse.sh',
+    color: '#4D5943',
+    bg: 'rgba(77, 89, 67, 0.10)',
+    border: 'rgba(77, 89, 67, 0.22)',
+    icon: '\u{29BF}'
   },
   OpenAI: {
-    label: "OpenAI",
-    color: "#3A452F",
-    bg: "rgba(58, 69, 47, 0.10)",
-    border: "rgba(58, 69, 47, 0.22)",
-    icon: "\u{2737}",
+    label: 'OpenAI',
+    color: '#3A452F',
+    bg: 'rgba(58, 69, 47, 0.10)',
+    border: 'rgba(58, 69, 47, 0.22)',
+    icon: '\u{2737}'
   },
   HuggingFace: {
-    label: "HuggingFace",
-    color: "#5F6C52",
-    bg: "rgba(95, 108, 82, 0.12)",
-    border: "rgba(95, 108, 82, 0.24)",
-    icon: "\u{1F917}",
+    label: 'HuggingFace',
+    color: '#5F6C52',
+    bg: 'rgba(95, 108, 82, 0.12)',
+    border: 'rgba(95, 108, 82, 0.24)',
+    icon: '\u{1F917}'
   },
   NVIDIA: {
-    label: "NVIDIA",
-    color: "#6E6E68",
-    bg: "rgba(110, 110, 104, 0.12)",
-    border: "rgba(110, 110, 104, 0.24)",
-    icon: "\u{25B6}",
+    label: 'NVIDIA',
+    color: '#6E6E68',
+    bg: 'rgba(110, 110, 104, 0.12)',
+    border: 'rgba(110, 110, 104, 0.24)',
+    icon: '\u{25B6}'
   },
   VoltAgent: {
-    label: "VoltAgent",
-    color: "#71806E",
-    bg: "rgba(113, 128, 110, 0.12)",
-    border: "rgba(113, 128, 110, 0.24)",
-    icon: "\u{26A1}",
+    label: 'VoltAgent',
+    color: '#71806E',
+    bg: 'rgba(113, 128, 110, 0.12)',
+    border: 'rgba(113, 128, 110, 0.24)',
+    icon: '\u{26A1}'
   },
   GitHub: {
-    label: "GitHub",
-    color: "#1a1915",
-    bg: "rgba(21, 21, 21, 0.08)",
-    border: "rgba(21, 21, 21, 0.18)",
-    icon: "\u{2756}",
+    label: 'GitHub',
+    color: '#1a1915',
+    bg: 'rgba(21, 21, 21, 0.08)',
+    border: 'rgba(21, 21, 21, 0.18)',
+    icon: '\u{2756}'
   },
-  "Well-Known": {
-    label: "Well-Known",
-    color: "#4D5943",
-    bg: "rgba(77, 89, 67, 0.10)",
-    border: "rgba(77, 89, 67, 0.22)",
-    icon: "\u{2756}",
+  'Well-Known': {
+    label: 'Well-Known',
+    color: '#4D5943',
+    bg: 'rgba(77, 89, 67, 0.10)',
+    border: 'rgba(77, 89, 67, 0.22)',
+    icon: '\u{2756}'
   },
   gstack: {
-    label: "gstack",
-    color: "#3A452F",
-    bg: "rgba(58, 69, 47, 0.10)",
-    border: "rgba(58, 69, 47, 0.22)",
-    icon: "\u{2756}",
+    label: 'gstack',
+    color: '#3A452F',
+    bg: 'rgba(58, 69, 47, 0.10)',
+    border: 'rgba(58, 69, 47, 0.22)',
+    icon: '\u{2756}'
   },
   MiniMax: {
-    label: "MiniMax",
-    color: "#5F6C52",
-    bg: "rgba(95, 108, 82, 0.12)",
-    border: "rgba(95, 108, 82, 0.24)",
-    icon: "\u{2756}",
-  },
-};
+    label: 'MiniMax',
+    color: '#5F6C52',
+    bg: 'rgba(95, 108, 82, 0.12)',
+    border: 'rgba(95, 108, 82, 0.24)',
+    icon: '\u{2756}'
+  }
+}
 
 const SOURCE_ORDER = [
-  "all",
-  "built-in",
-  "optional",
-  "Anthropic",
-  "OpenAI",
-  "HuggingFace",
-  "NVIDIA",
-  "skills.sh",
-  "ClawHub",
-  "browse.sh",
-  "LobeHub",
-  "VoltAgent",
-  "Well-Known",
-  "GitHub",
-  "gstack",
-  "MiniMax",
-];
+  'all',
+  'built-in',
+  'optional',
+  'Anthropic',
+  'OpenAI',
+  'HuggingFace',
+  'NVIDIA',
+  'skills.sh',
+  'ClawHub',
+  'browse.sh',
+  'LobeHub',
+  'VoltAgent',
+  'Well-Known',
+  'GitHub',
+  'gstack',
+  'MiniMax'
+]
 
 function highlightMatch(text: string, query: string): React.ReactNode {
-  if (!query || !text) return text;
-  const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx === -1) return text;
+  if (!query || !text) return text
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return text
   return (
     <>
       {text.slice(0, idx)}
       <mark className={styles.highlight}>{text.slice(idx, idx + query.length)}</mark>
       {text.slice(idx + query.length)}
     </>
-  );
+  )
 }
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
+function CopyButton({ label = 'Copy', text }: { label?: string; text: string }) {
+  const [copied, setCopied] = useState(false)
   const onCopy = useCallback(
     (e: React.MouseEvent) => {
-      e.stopPropagation();
+      e.stopPropagation()
       navigator.clipboard?.writeText(text).then(
         () => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1500)
         },
-        () => {},
-      );
+        () => {}
+      )
     },
-    [text],
-  );
+    [text]
+  )
   return (
     <button
       className={styles.copyBtn}
       onClick={onCopy}
       title="Copy install command"
-      aria-label="Copy install command"
+      aria-label={label === 'Install' ? 'Install skill' : 'Copy install command'}
     >
       {copied ? (
         <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
@@ -272,9 +269,9 @@ function CopyButton({ text }: { text: string }) {
           <path d="M4.5 6A1.5 1.5 0 003 7.5v9A1.5 1.5 0 004.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a1.5 1.5 0 00-.44-1.06L9.44 6.439A1.5 1.5 0 008.378 6H4.5z" />
         </svg>
       )}
-      <span className={styles.copyBtnLabel}>{copied ? "Copied" : "Copy"}</span>
+      <span className={styles.copyBtnLabel}>{copied ? 'Copied' : label}</span>
     </button>
-  );
+  )
 }
 
 function SkillCard({
@@ -285,42 +282,37 @@ function SkillCard({
   onCategoryClick,
   onTagClick,
   style,
-  onPick,
+  onPick
 }: {
-  skill: Skill;
-  query: string;
-  expanded: boolean;
-  onToggle: () => void;
-  onCategoryClick: (cat: string) => void;
-  onTagClick: (tag: string) => void;
-  style?: React.CSSProperties;
+  skill: Skill
+  query: string
+  expanded: boolean
+  onToggle: () => void
+  onCategoryClick: (cat: string) => void
+  onTagClick: (tag: string) => void
+  style?: React.CSSProperties
   /** Picker embed mode: render "+ Add to this Agent" and call this. */
-  onPick?: (skill: Skill) => void;
+  onPick?: (skill: Skill) => void
 }) {
-  const src = SOURCE_CONFIG[skill.source] || SOURCE_CONFIG["optional"];
-  const icon = CATEGORY_ICONS[skill.category] || "\u{1F4E6}";
+  const src = SOURCE_CONFIG[skill.source] || SOURCE_CONFIG['optional']
+  const icon = CATEGORY_ICONS[skill.category] || '\u{1F4E6}'
+  const installCmd = skill.installCmd || `work4you skills install ${skill.name}`
 
   return (
-    <div
-      className={`${styles.card} ${expanded ? styles.cardExpanded : ""}`}
-      onClick={onToggle}
-      style={style}
-    >
+    <div className={`${styles.card} ${expanded ? styles.cardExpanded : ''}`} onClick={onToggle} style={style}>
       <div className={styles.cardAccent} style={{ background: src.color }} />
 
       <div className={styles.cardInner}>
         <div className={styles.cardTop}>
           <span className={styles.cardIcon}>{icon}</span>
           <div className={styles.cardTitleGroup}>
-            <h3 className={styles.cardTitle}>
-              {highlightMatch(skill.name, query)}
-            </h3>
+            <h3 className={styles.cardTitle}>{highlightMatch(skill.name, query)}</h3>
             <span
               className={styles.sourcePill}
               style={{
                 color: src.color,
                 background: src.bg,
-                borderColor: src.border,
+                borderColor: src.border
               }}
             >
               {src.icon} {src.label}
@@ -328,24 +320,24 @@ function SkillCard({
           </div>
         </div>
 
-        <p className={`${styles.cardDesc} ${expanded ? styles.cardDescFull : ""}`}>
-          {highlightMatch(skill.description || "No description available.", query)}
+        <p className={`${styles.cardDesc} ${expanded ? styles.cardDescFull : ''}`}>
+          {highlightMatch(skill.description || 'No description available.', query)}
         </p>
 
         <div className={styles.cardMeta}>
           <button
             className={styles.catButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              onCategoryClick(skill.category);
+            onClick={e => {
+              e.stopPropagation()
+              onCategoryClick(skill.category)
             }}
             title={`Filter by ${skill.categoryLabel}`}
           >
             {skill.categoryLabel || skill.category}
           </button>
-          {skill.platforms?.map((p) => (
+          {skill.platforms?.map(p => (
             <span key={p} className={styles.platformPill}>
-              {p === "macos" ? "\u{F8FF} macOS" : p === "linux" ? "\u{1F427} Linux" : p}
+              {p === 'macos' ? '\u{F8FF} macOS' : p === 'linux' ? '\u{1F427} Linux' : p}
             </span>
           ))}
         </div>
@@ -358,15 +350,17 @@ function SkillCard({
                 <p className={styles.overviewText}>{skill.overview}</p>
               </div>
             )}
-            {(skill.envVars?.length || skill.commands?.length) ? (
+            {skill.envVars?.length || skill.commands?.length ? (
               <div className={styles.prereqBlock}>
                 <span className={styles.detailLabel}>Prerequisites</span>
                 {skill.envVars?.length ? (
                   <div className={styles.prereqRow}>
                     <span className={styles.prereqKind}>env</span>
                     <span className={styles.prereqList}>
-                      {skill.envVars.map((v) => (
-                        <code key={v} className={styles.prereqItem}>{v}</code>
+                      {skill.envVars.map(v => (
+                        <code key={v} className={styles.prereqItem}>
+                          {v}
+                        </code>
                       ))}
                     </span>
                   </div>
@@ -375,8 +369,10 @@ function SkillCard({
                   <div className={styles.prereqRow}>
                     <span className={styles.prereqKind}>cmd</span>
                     <span className={styles.prereqList}>
-                      {skill.commands.map((c) => (
-                        <code key={c} className={styles.prereqItem}>{c}</code>
+                      {skill.commands.map(c => (
+                        <code key={c} className={styles.prereqItem}>
+                          {c}
+                        </code>
                       ))}
                     </span>
                   </div>
@@ -385,13 +381,13 @@ function SkillCard({
             ) : null}
             {skill.tags?.length > 0 && (
               <div className={styles.tagRow}>
-                {skill.tags.map((tag) => (
+                {skill.tags.map(tag => (
                   <button
                     key={tag}
                     className={styles.tagPill}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTagClick(tag);
+                    onClick={e => {
+                      e.stopPropagation()
+                      onTagClick(tag)
                     }}
                   >
                     {tag}
@@ -418,28 +414,15 @@ function SkillCard({
               </div>
             )}
             <div className={styles.installHint}>
-              <code>{skill.installCmd || `work4you skills install ${skill.name}`}</code>
-              <CopyButton
-                text={skill.installCmd || `work4you skills install ${skill.name}`}
-              />
+              <code>{installCmd}</code>
+              <CopyButton text={installCmd} />
             </div>
-            {onPick ? (
-              <button
-                className={styles.pickBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPick(skill);
-                }}
-              >
-                + Add to this Agent
-              </button>
-            ) : null}
             <div className={styles.cardLinks}>
               {skill.docsPath ? (
                 <a
                   className={styles.docsLink}
                   href={`/docs/user-guide/skills/${skill.docsPath}`}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={e => e.stopPropagation()}
                 >
                   View full documentation →
                 </a>
@@ -449,7 +432,7 @@ function SkillCard({
                   href={skill.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={e => e.stopPropagation()}
                 >
                   View source ↗
                 </a>
@@ -457,9 +440,18 @@ function SkillCard({
             </div>
           </div>
         )}
+        <div className={styles.cardCta} onClick={e => e.stopPropagation()}>
+          {onPick ? (
+            <button className={styles.pickBtn} onClick={() => onPick(skill)}>
+              + Add to this Agent
+            </button>
+          ) : (
+            <CopyButton label="Install" text={installCmd} />
+          )}
+        </div>
       </div>
     </div>
-  );
+  )
 }
 
 function StatCard({ value, label, color }: { value: number; label: string; color: string }) {
@@ -470,33 +462,26 @@ function StatCard({ value, label, color }: { value: number; label: string; color
       </span>
       <span className={styles.statLabel}>{label}</span>
     </div>
-  );
+  )
 }
 
-const PAGE_SIZE = 60;
+const PAGE_SIZE = 60
 
 // Routes Docusaurus serves the static API JSON from. `baseUrl` is `/docs/`,
 // `static/api/` ends up at `/docs/api/`. Hardcoding here is fine because the
 // same `baseUrl` is enforced repo-wide; if it ever changes, this is the only
 // place that needs to follow.
-const SKILLS_URL = "/docs/api/skills.json";
-const META_URL = "/docs/api/skills-meta.json";
+const SKILLS_URL = '/docs/api/skills.json'
+const META_URL = '/docs/api/skills-meta.json'
 
 function buildSearchHaystack(s: Skill): string {
   // Pre-compute the lowercase blob the search filter scans. Done once at
   // load time instead of per-keystroke per-skill. With 50k+ skills the
   // per-keystroke variant was unusably slow.
-  return [
-    s.name,
-    s.description,
-    s.overview,
-    s.categoryLabel,
-    s.author,
-    ...(s.tags || []),
-  ]
+  return [s.name, s.description, s.overview, s.categoryLabel, s.author, ...(s.tags || [])]
     .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+    .join(' ')
+    .toLowerCase()
 }
 
 export default function SkillsDashboard() {
@@ -510,231 +495,231 @@ export default function SkillsDashboard() {
   // there is no origin to trust in this direction; parents must validate
   // event.origin themselves before acting on the message.
   const pickerMode =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("embed") === "picker";
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embed') === 'picker'
 
-  const pickSkill = useCallback(
-    (skill: Skill) => {
-      if (typeof window === "undefined" || window.parent === window) return;
-      window.parent.postMessage(
-        {
-          type: "work4you-skill-pick",
-          name: skill.name,
-          identifier: skill.identifier || skill.name,
-          installCmd: skill.installCmd || `work4you skills install ${skill.name}`,
-          source: skill.source,
-        },
-        "*"
-      );
-    },
-    []
-  );
+  useEffect(() => {
+    if (!pickerMode) return
+    const root = document.documentElement
+    const prevTheme = root.getAttribute('data-theme')
+    root.setAttribute('data-theme', 'dark')
+    root.dataset.skillsPicker = '1'
+    return () => {
+      delete root.dataset.skillsPicker
+      if (prevTheme) root.setAttribute('data-theme', prevTheme)
+      else root.removeAttribute('data-theme')
+    }
+  }, [pickerMode])
+
+  const pickSkill = useCallback((skill: Skill) => {
+    if (typeof window === 'undefined' || window.parent === window) return
+    window.parent.postMessage(
+      {
+        type: 'work4you-skill-pick',
+        name: skill.name,
+        identifier: skill.identifier || skill.name,
+        installCmd: skill.installCmd || `work4you skills install ${skill.name}`,
+        source: skill.source
+      },
+      '*'
+    )
+  }, [])
 
   // Lazy-loaded data. Was bundled into the JS chunk (~22 MB at 50k skills,
   // which made the initial page load unusable on mobile). Now fetched on
   // mount from the same CDN that serves the docs.
-  const [data, setData] = useState<{ skills: Skill[]; meta: IndexMeta } | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [data, setData] = useState<{ skills: Skill[]; meta: IndexMeta } | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('')
   // Debounced copy of `search` — used by the filter. Without the debounce,
   // typing into the search box ran .filter() over the whole catalog on
   // every keystroke, which on a 50k-item list felt like the page had
   // hung. 150ms gives a snappy feel without lagging behind the user.
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [expandedCard, setExpandedCard] = useState<string | null>(null)
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
+    let cancelled = false
+    ;(async () => {
       try {
         const [sk, mt] = await Promise.all([
-          fetch(SKILLS_URL).then((r) => {
-            if (!r.ok) throw new Error(`skills.json HTTP ${r.status}`);
-            return r.json();
+          fetch(SKILLS_URL).then(r => {
+            if (!r.ok) throw new Error(`skills.json HTTP ${r.status}`)
+            return r.json()
           }),
-          fetch(META_URL).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
-        ]);
-        if (cancelled) return;
-        const skillsArr = Array.isArray(sk) ? (sk as Skill[]) : [];
+          fetch(META_URL)
+            .then(r => (r.ok ? r.json() : {}))
+            .catch(() => ({}))
+        ])
+        if (cancelled) return
+        const skillsArr = Array.isArray(sk) ? (sk as Skill[]) : []
         // Stamp the precomputed search haystack onto each row.
-        for (const s of skillsArr) s._search = buildSearchHaystack(s);
-        setData({ skills: skillsArr, meta: mt || {} });
+        for (const s of skillsArr) s._search = buildSearchHaystack(s)
+        setData({ skills: skillsArr, meta: mt || {} })
       } catch (err) {
-        if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : String(err));
+        if (cancelled) return
+        setLoadError(err instanceof Error ? err.message : String(err))
       }
-    })();
+    })()
     return () => {
-      cancelled = true;
-    };
-  }, []);
+      cancelled = true
+    }
+  }, [])
 
   // Debounce the search input — 150ms feels instant while preventing the
   // filter from running on every individual keystroke.
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 150);
-    return () => clearTimeout(t);
-  }, [search]);
+    const t = setTimeout(() => setDebouncedSearch(search), 150)
+    return () => clearTimeout(t)
+  }, [search])
 
-  const allSkillsLocal: Skill[] = data?.skills ?? [];
-  const indexMetaLocal: IndexMeta = data?.meta ?? indexMeta;
+  const allSkillsLocal: Skill[] = data?.skills ?? []
+  const indexMetaLocal: IndexMeta = data?.meta ?? indexMeta
+
+  const officialPool = useMemo(
+    () => allSkillsLocal.filter(s => s.source === 'built-in' || s.source === 'optional'),
+    [allSkillsLocal]
+  )
+  const showFeatured = !debouncedSearch && sourceFilter === 'all' && categoryFilter === 'all' && officialPool.length > 0
+  const featured = officialPool.slice(0, 8)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
-        e.preventDefault();
-        searchRef.current?.focus();
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT') {
+        e.preventDefault()
+        searchRef.current?.focus()
       }
-      if (e.key === "Escape") {
-        searchRef.current?.blur();
-        setExpandedCard(null);
+      if (e.key === 'Escape') {
+        searchRef.current?.blur()
+        setExpandedCard(null)
       }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const sources = useMemo(() => {
-    const set = new Set(allSkillsLocal.map((s) => s.source));
-    return SOURCE_ORDER.filter((s) => s === "all" || set.has(s));
-  }, [allSkillsLocal]);
+    const set = new Set(allSkillsLocal.map(s => s.source))
+    return SOURCE_ORDER.filter(s => s === 'all' || set.has(s))
+  }, [allSkillsLocal])
+  const registryCount = Math.max(0, sources.length - 1)
 
   const categoryEntries = useMemo(() => {
-    const pool =
-      sourceFilter === "all"
-        ? allSkillsLocal
-        : allSkillsLocal.filter((s) => s.source === sourceFilter);
-    const map = new Map<string, { label: string; count: number }>();
+    const pool = sourceFilter === 'all' ? allSkillsLocal : allSkillsLocal.filter(s => s.source === sourceFilter)
+    const map = new Map<string, { label: string; count: number }>()
     for (const s of pool) {
-      const key = s.category || "uncategorized";
-      const existing = map.get(key);
+      const key = s.category || 'uncategorized'
+      const existing = map.get(key)
       if (existing) {
-        existing.count++;
+        existing.count++
       } else {
         map.set(key, {
-          label: s.categoryLabel || s.category || "Uncategorized",
-          count: 1,
-        });
+          label: s.categoryLabel || s.category || 'Uncategorized',
+          count: 1
+        })
       }
     }
     return Array.from(map.entries())
       .sort((a, b) => b[1].count - a[1].count)
-      .map(([key, { label, count }]) => ({ key, label, count }));
-  }, [sourceFilter, allSkillsLocal]);
+      .map(([key, { label, count }]) => ({ key, label, count }))
+  }, [sourceFilter, allSkillsLocal])
 
   const filtered = useMemo(() => {
-    const q = debouncedSearch.toLowerCase().trim();
-    return allSkillsLocal.filter((s) => {
-      if (sourceFilter !== "all" && s.source !== sourceFilter) return false;
-      if (categoryFilter !== "all" && s.category !== categoryFilter) return false;
+    const q = debouncedSearch.toLowerCase().trim()
+    return allSkillsLocal.filter(s => {
+      if (sourceFilter !== 'all' && s.source !== sourceFilter) return false
+      if (categoryFilter !== 'all' && s.category !== categoryFilter) return false
       if (q) {
         // _search is pre-built in the load effect — single .includes() per row.
-        return (s._search || "").includes(q);
+        return (s._search || '').includes(q)
       }
-      return true;
-    });
-  }, [debouncedSearch, sourceFilter, categoryFilter, allSkillsLocal]);
+      return true
+    })
+  }, [debouncedSearch, sourceFilter, categoryFilter, allSkillsLocal])
 
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-    setExpandedCard(null);
-  }, [debouncedSearch, sourceFilter, categoryFilter]);
+    setVisibleCount(PAGE_SIZE)
+    setExpandedCard(null)
+  }, [debouncedSearch, sourceFilter, categoryFilter])
 
-  const visible = filtered.slice(0, visibleCount);
-  const hasMore = visibleCount < filtered.length;
+  const visible = filtered.slice(0, visibleCount)
+  const hasMore = visibleCount < filtered.length
 
-  const handleSourceChange = useCallback(
-    (src: string) => {
-      setSourceFilter(src);
-      setCategoryFilter("all");
-    },
-    []
-  );
+  const handleSourceChange = useCallback((src: string) => {
+    setSourceFilter(src)
+    setCategoryFilter('all')
+  }, [])
 
   const handleCategoryClick = useCallback((cat: string) => {
-    setCategoryFilter(cat);
-    gridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    setSidebarOpen(false);
-  }, []);
+    setCategoryFilter(cat)
+    gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setSidebarOpen(false)
+  }, [])
 
   const handleTagClick = useCallback((tag: string) => {
-    setSearch(tag);
-    searchRef.current?.focus();
-  }, []);
+    setSearch(tag)
+    searchRef.current?.focus()
+  }, [])
 
   const clearAll = useCallback(() => {
-    setSearch("");
-    setSourceFilter("all");
-    setCategoryFilter("all");
-  }, []);
+    setSearch('')
+    setSourceFilter('all')
+    setCategoryFilter('all')
+  }, [])
 
   return (
-    <Layout
-      title="Skills Hub"
-      description="Browse all skills and plugins available for Work4You"
-    >
-      <div className={`${styles.page} ${pickerMode ? styles.pickerMode : ""}`}>
+    <Layout title="Skills Hub" description="Browse all skills and plugins available for Work4You">
+      <div className={`${styles.page} ${pickerMode ? styles.pickerMode : ''}`}>
         <header className={styles.hero}>
           <div className={styles.heroGlow} />
           <div className={styles.heroContent}>
             <p className={styles.heroEyebrow}>Work4You</p>
             <h1 className={styles.heroTitle}>Skills Hub</h1>
             <p className={styles.heroSub}>
-              Discover, search, and install from{" "}
-              <strong className={styles.heroAccent}>
-                {data ? allSkillsLocal.length.toLocaleString() : "…"}
-              </strong>{" "}
-              skills across {sources.length - 1} registries
-              {loadError && (
-                <span style={{ color: "#f87171", marginLeft: 8 }}>
-                  · failed to load catalog ({loadError})
-                </span>
+              Discover, search, and install skills
+              {data && (
+                <>
+                  {' '}
+                  — <strong className={styles.heroAccent}>{allSkillsLocal.length.toLocaleString()}</strong> across the
+                  catalog
+                  {registryCount > 0 ? ` · ${registryCount} ${registryCount === 1 ? 'registry' : 'registries'}` : ''}
+                </>
               )}
+              {loadError && <span className={styles.loadError}>· failed to load catalog ({loadError})</span>}
             </p>
             {(indexMetaLocal?.indexGeneratedAt || indexMetaLocal?.extractedAt) && (
-              <p className={styles.heroSub} style={{ fontSize: "0.85rem", opacity: 0.75 }}>
-                Catalog refreshed{" "}
+              <p className={styles.heroSub} style={{ fontSize: '0.85rem', opacity: 0.75 }}>
+                Catalog refreshed{' '}
                 <span title={indexMetaLocal.indexGeneratedAt || indexMetaLocal.extractedAt}>
-                  {formatRelativeTime(
-                    indexMetaLocal.indexGeneratedAt || indexMetaLocal.extractedAt,
-                  ) || "recently"}
-                </span>
-                {" "}· auto-rebuilt twice daily
+                  {formatRelativeTime(indexMetaLocal.indexGeneratedAt || indexMetaLocal.extractedAt) || 'recently'}
+                </span>{' '}
+                · auto-rebuilt twice daily
               </p>
             )}
 
             <div className={styles.statsRow}>
               <StatCard
-                value={allSkillsLocal.filter((s) => s.source === "built-in").length}
+                value={allSkillsLocal.filter(s => s.source === 'built-in').length}
                 label="Built-in"
                 color="#4D5943"
               />
               <StatCard
-                value={allSkillsLocal.filter((s) => s.source === "optional").length}
+                value={allSkillsLocal.filter(s => s.source === 'optional').length}
                 label="Optional"
                 color="#6E6E68"
               />
               <StatCard
-                value={
-                  allSkillsLocal.filter(
-                    (s) => s.source !== "built-in" && s.source !== "optional"
-                  ).length
-                }
+                value={allSkillsLocal.filter(s => s.source !== 'built-in' && s.source !== 'optional').length}
                 label="Community"
                 color="#3A452F"
               />
-              <StatCard
-                value={new Set(allSkillsLocal.map((s) => s.category)).size}
-                label="Categories"
-                color="#5F6C52"
-              />
+              <StatCard value={new Set(allSkillsLocal.map(s => s.category)).size} label="Categories" color="#5F6C52" />
             </div>
           </div>
         </header>
@@ -751,13 +736,13 @@ export default function SkillsDashboard() {
             <input
               ref={searchRef}
               type="text"
-              placeholder='Search skills... (press "/" to focus)'
+              placeholder="Search skills by name, category, or tag"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
               className={styles.searchInput}
             />
             {search && (
-              <button className={styles.clearBtn} onClick={() => setSearch("")}>
+              <button className={styles.clearBtn} onClick={() => setSearch('')}>
                 <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
                   <path
                     fillRule="evenodd"
@@ -770,41 +755,59 @@ export default function SkillsDashboard() {
           </div>
 
           <div className={styles.sourcePills}>
-            {sources.map((src) => {
-              const active = sourceFilter === src;
-              const conf = SOURCE_CONFIG[src];
-              const count =
-                src === "all"
-                  ? allSkillsLocal.length
-                  : allSkillsLocal.filter((s) => s.source === src).length;
+            {sources.map(src => {
+              const active = sourceFilter === src
+              const conf = SOURCE_CONFIG[src]
+              const count = src === 'all' ? allSkillsLocal.length : allSkillsLocal.filter(s => s.source === src).length
               return (
                 <button
                   key={src}
-                  className={`${styles.srcPill} ${active ? styles.srcPillActive : ""}`}
+                  className={`${styles.srcPill} ${active ? styles.srcPillActive : ''}`}
                   onClick={() => handleSourceChange(src)}
                   style={
                     active && conf
                       ? ({
-                          "--pill-color": conf.color,
-                          "--pill-bg": conf.bg,
-                          "--pill-border": conf.border,
+                          '--pill-color': conf.color,
+                          '--pill-bg': conf.bg,
+                          '--pill-border': conf.border
                         } as React.CSSProperties)
                       : undefined
                   }
                 >
-                  {src === "all" ? "All" : conf?.label || src}
+                  {src === 'all' ? 'All' : conf?.label || src}
                   <span className={styles.srcCount}>{count}</span>
                 </button>
-              );
+              )
             })}
           </div>
+
+          {categoryEntries.length > 0 && (
+            <nav aria-label="Browse by category" className={styles.catChips}>
+              <button
+                className={`${styles.catChip} ${categoryFilter === 'all' ? styles.catChipActive : ''}`}
+                onClick={() => setCategoryFilter('all')}
+                type="button"
+              >
+                All
+                <span className={styles.catChipCount}>{filtered.length}</span>
+              </button>
+              {categoryEntries.map(cat => (
+                <button
+                  key={cat.key}
+                  className={`${styles.catChip} ${categoryFilter === cat.key ? styles.catChipActive : ''}`}
+                  onClick={() => handleCategoryClick(cat.key)}
+                  type="button"
+                >
+                  {cat.label}
+                  <span className={styles.catChipCount}>{cat.count}</span>
+                </button>
+              ))}
+            </nav>
+          )}
         </div>
 
         <div className={styles.layout}>
-          <button
-            className={styles.sidebarToggle}
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
+          <button className={styles.sidebarToggle} onClick={() => setSidebarOpen(!sidebarOpen)}>
             <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
               <path
                 fillRule="evenodd"
@@ -813,43 +816,41 @@ export default function SkillsDashboard() {
               />
             </svg>
             Categories
-            {categoryFilter !== "all" && (
+            {categoryFilter !== 'all' && (
               <span className={styles.activeCatBadge}>
-                {categoryEntries.find((c) => c.key === categoryFilter)?.label}
+                {categoryEntries.find(c => c.key === categoryFilter)?.label}
               </span>
             )}
           </button>
 
-          <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ""}`}>
+          <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
             <div className={styles.sidebarHeader}>
               <h2 className={styles.sidebarTitle}>Categories</h2>
-              {categoryFilter !== "all" && (
-                <button className={styles.sidebarClear} onClick={() => setCategoryFilter("all")}>
+              {categoryFilter !== 'all' && (
+                <button className={styles.sidebarClear} onClick={() => setCategoryFilter('all')}>
                   Clear
                 </button>
               )}
             </div>
             <nav className={styles.catList}>
               <button
-                className={`${styles.catItem} ${categoryFilter === "all" ? styles.catItemActive : ""}`}
+                className={`${styles.catItem} ${categoryFilter === 'all' ? styles.catItemActive : ''}`}
                 onClick={() => {
-                  setCategoryFilter("all");
-                  setSidebarOpen(false);
+                  setCategoryFilter('all')
+                  setSidebarOpen(false)
                 }}
               >
-                <span className={styles.catItemIcon}>{"\u{1F4CB}"}</span>
+                <span className={styles.catItemIcon}>{'\u{1F4CB}'}</span>
                 <span className={styles.catItemLabel}>All Skills</span>
                 <span className={styles.catItemCount}>{filtered.length}</span>
               </button>
-              {categoryEntries.map((cat) => (
+              {categoryEntries.map(cat => (
                 <button
                   key={cat.key}
-                  className={`${styles.catItem} ${categoryFilter === cat.key ? styles.catItemActive : ""}`}
+                  className={`${styles.catItem} ${categoryFilter === cat.key ? styles.catItemActive : ''}`}
                   onClick={() => handleCategoryClick(cat.key)}
                 >
-                  <span className={styles.catItemIcon}>
-                    {CATEGORY_ICONS[cat.key] || "\u{1F4E6}"}
-                  </span>
+                  <span className={styles.catItemIcon}>{CATEGORY_ICONS[cat.key] || '\u{1F4E6}'}</span>
                   <span className={styles.catItemLabel}>{cat.label}</span>
                   <span className={styles.catItemCount}>{cat.count}</span>
                 </button>
@@ -858,28 +859,27 @@ export default function SkillsDashboard() {
           </aside>
 
           <main className={styles.main} ref={gridRef}>
-            {(search || sourceFilter !== "all" || categoryFilter !== "all") && (
+            {(search || sourceFilter !== 'all' || categoryFilter !== 'all') && (
               <div className={styles.filterSummary}>
                 <span className={styles.filterCount}>
-                  {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+                  {filtered.length} result{filtered.length !== 1 ? 's' : ''}
                 </span>
                 {search && (
                   <span className={styles.filterChip}>
                     &ldquo;{search}&rdquo;
-                    <button onClick={() => setSearch("")}>&times;</button>
+                    <button onClick={() => setSearch('')}>&times;</button>
                   </span>
                 )}
-                {sourceFilter !== "all" && (
+                {sourceFilter !== 'all' && (
                   <span className={styles.filterChip}>
                     {SOURCE_CONFIG[sourceFilter]?.label || sourceFilter}
-                    <button onClick={() => setSourceFilter("all")}>&times;</button>
+                    <button onClick={() => setSourceFilter('all')}>&times;</button>
                   </span>
                 )}
-                {categoryFilter !== "all" && (
+                {categoryFilter !== 'all' && (
                   <span className={styles.filterChip}>
-                    {categoryEntries.find((c) => c.key === categoryFilter)?.label ||
-                      categoryFilter}
-                    <button onClick={() => setCategoryFilter("all")}>&times;</button>
+                    {categoryEntries.find(c => c.key === categoryFilter)?.label || categoryFilter}
+                    <button onClick={() => setCategoryFilter('all')}>&times;</button>
                   </span>
                 )}
                 <button className={styles.clearAllBtn} onClick={clearAll}>
@@ -892,38 +892,57 @@ export default function SkillsDashboard() {
               <div className={styles.empty}>
                 <div className={styles.loadingSpinner} />
                 <h3 className={styles.emptyTitle}>Loading the catalog…</h3>
-                <p className={styles.emptyDesc}>
-                  Fetching 88k+ skills across every registry. One moment.
-                </p>
+                <p className={styles.emptyDesc}>Official skills, then any community registries that are published.</p>
               </div>
             ) : visible.length > 0 ? (
               <>
+                {showFeatured && (
+                  <section className={styles.featured}>
+                    <div className={styles.featuredHead}>
+                      <p className={styles.sectionKicker}>Official</p>
+                      <h2 className={styles.featuredTitle}>Featured skills</h2>
+                    </div>
+                    <div className={styles.featuredGrid}>
+                      {featured.map((skill, i) => {
+                        const key = `featured-${skill.source}-${skill.name}-${i}`
+                        return (
+                          <SkillCard
+                            key={key}
+                            skill={skill}
+                            query={search}
+                            expanded={expandedCard === key}
+                            onToggle={() => setExpandedCard(expandedCard === key ? null : key)}
+                            onCategoryClick={handleCategoryClick}
+                            onTagClick={handleTagClick}
+                            onPick={pickerMode ? pickSkill : undefined}
+                          />
+                        )
+                      })}
+                    </div>
+                  </section>
+                )}
+                {showFeatured && <p className={styles.sectionKicker}>All skills</p>}
                 <div className={styles.grid}>
                   {visible.map((skill, i) => {
-                    const key = `${skill.source}-${skill.name}-${i}`;
+                    const key = `${skill.source}-${skill.name}-${i}`
                     return (
                       <SkillCard
                         key={key}
                         skill={skill}
                         query={search}
                         expanded={expandedCard === key}
-                        onToggle={() =>
-                          setExpandedCard(expandedCard === key ? null : key)
-                        }
+                        onToggle={() => setExpandedCard(expandedCard === key ? null : key)}
                         onCategoryClick={handleCategoryClick}
                         onTagClick={handleTagClick}
                         style={{ animationDelay: `${Math.min(i, 20) * 25}ms` }}
                         onPick={pickerMode ? pickSkill : undefined}
                       />
-                    );
+                    )
                   })}
                 </div>
                 {hasMore && (
                   <div className={styles.loadMoreWrap}>
-                    <button
-                      className={styles.loadMoreBtn}
-                      onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
-                    >
+                    <button className={styles.loadMoreBtn} onClick={() => setVisibleCount(v => v + PAGE_SIZE)}>
                       Show more ({filtered.length - visibleCount} remaining)
                     </button>
                   </div>
@@ -931,11 +950,9 @@ export default function SkillsDashboard() {
               </>
             ) : (
               <div className={styles.empty}>
-                <div className={styles.emptyIcon}>{"\u{1F50D}"}</div>
+                <div className={styles.emptyIcon}>{'\u{1F50D}'}</div>
                 <h3 className={styles.emptyTitle}>No skills found</h3>
-                <p className={styles.emptyDesc}>
-                  Try a different search term or clear your filters.
-                </p>
+                <p className={styles.emptyDesc}>Try a different search term or clear your filters.</p>
                 <button className={styles.emptyReset} onClick={clearAll}>
                   Reset all filters
                 </button>
@@ -945,9 +962,7 @@ export default function SkillsDashboard() {
         </div>
       </div>
 
-      {sidebarOpen && (
-        <div className={styles.backdrop} onClick={() => setSidebarOpen(false)} />
-      )}
+      {sidebarOpen && <div className={styles.backdrop} onClick={() => setSidebarOpen(false)} />}
     </Layout>
-  );
+  )
 }
