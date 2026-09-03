@@ -17,6 +17,7 @@ const selectToolsetProvider = vi.fn()
 const getUsageAnalytics = vi.fn()
 const getProfiles = vi.fn()
 const getSkillContent = vi.fn()
+const createSkill = vi.fn()
 
 // Partial mock: keep the real module (SkillsView pulls in @/store/profile,
 // whose import-time subscription calls setApiRequestProfile) and stub only the
@@ -33,7 +34,14 @@ vi.mock('@/work4you', async importOriginal => ({
   selectToolsetProvider: (toolset: string, provider: string) => selectToolsetProvider(toolset, provider),
   getUsageAnalytics: (days: number, profile?: null | string) => getUsageAnalytics(days, profile),
   getProfiles: () => getProfiles(),
-  getSkillContent: (name: string, profile?: null | string) => getSkillContent(name, profile)
+  getSkillContent: (name: string, profile?: null | string) => getSkillContent(name, profile),
+  createSkill: (skill: { category?: string; content: string; name: string }, profile?: null | string) =>
+    createSkill(skill, profile)
+}))
+
+// CodeEditor is CodeMirror; create/edit only needs the form chrome around it.
+vi.mock('@/components/chat/code-editor', () => ({
+  CodeEditor: () => null
 }))
 
 // Notifications hit nanostores/timers we don't care about here.
@@ -81,6 +89,22 @@ async function renderSkills() {
   return result!
 }
 
+async function renderSkillsTab() {
+  const { SkillsView } = await import('./index')
+  let result: ReturnType<typeof render>
+  await act(async () => {
+    result = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/skills']}>
+          <SkillsView />
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+  })
+
+  return result!
+}
+
 beforeEach(() => {
   getSkills.mockResolvedValue([])
   getToolsets.mockResolvedValue([toolset()])
@@ -92,6 +116,7 @@ beforeEach(() => {
     path: '/skills/web-research/SKILL.md',
     content: '---\nname: web-research\nversion: 1.2.0\nauthor: Work4You\n---\n\n# Web Research\n\nDeep research steps.'
   })
+  createSkill.mockResolvedValue({ success: true, message: "Skill 'expense-report' created." })
   // Single profile by default → the scope selector stays hidden (>1 gate),
   // so existing tests see unchanged single-profile behavior.
   getProfiles.mockResolvedValue({ profiles: [{ name: 'default', is_default: true }] })
@@ -427,5 +452,114 @@ describe('SkillsView toolset management', () => {
     } finally {
       delete (window as { work4youDesktop?: unknown }).work4youDesktop
     }
+  })
+})
+
+describe('SkillsView new skill', () => {
+  it('keeps New skill off the Tools tab', async () => {
+    await renderSkills()
+
+    await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    expect(screen.queryByRole('button', { name: 'New skill' })).toBeNull()
+  })
+
+  it('shows New skill on an empty Skills list', async () => {
+    await renderSkillsTab()
+
+    expect(await screen.findByRole('button', { name: 'New skill' })).toBeTruthy()
+  })
+
+  it('creates a skill through POST /api/skills with the template body', async () => {
+    await renderSkillsTab()
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'New skill' }))
+    })
+
+    const name = await screen.findByPlaceholderText('my-skill')
+    const save = screen.getByRole('button', { name: 'Create skill' })
+
+    expect(save.hasAttribute('disabled')).toBe(true)
+
+    await act(async () => {
+      fireEvent.change(name, { target: { value: 'expense-report' } })
+    })
+
+    expect(save.hasAttribute('disabled')).toBe(false)
+
+    await act(async () => {
+      fireEvent.click(save)
+    })
+
+    await waitFor(() => expect(createSkill).toHaveBeenCalled())
+    expect(createSkill.mock.calls[0][0]).toEqual({
+      name: 'expense-report',
+      content: expect.stringContaining('description: One-line description of when to use this skill.')
+    })
+    expect(createSkill.mock.calls[0][0].content).toContain('name: my-skill')
+  })
+
+  it('scopes create to the Capabilities profile selector', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    getProfiles.mockResolvedValue({
+      profiles: [
+        { name: 'default', is_default: true },
+        { name: 'researcher', is_default: false }
+      ]
+    })
+
+    await renderSkillsTab()
+
+    const trigger = await screen.findByRole('combobox')
+    await act(async () => {
+      fireEvent.click(trigger)
+    })
+    const option = await screen.findByRole('option', { name: 'researcher' })
+    await act(async () => {
+      fireEvent.click(option)
+    })
+
+    await waitFor(() => expect(getSkills).toHaveBeenCalledWith('researcher'))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'New skill' }))
+    })
+    await act(async () => {
+      fireEvent.change(await screen.findByPlaceholderText('my-skill'), { target: { value: 'notes' } })
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create skill' }))
+    })
+
+    await waitFor(() => expect(createSkill).toHaveBeenCalled())
+    expect(createSkill.mock.calls[0][1]).toBe('researcher')
+  })
+
+  it('discards a create draft when the profile scope changes', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    getProfiles.mockResolvedValue({
+      profiles: [
+        { name: 'default', is_default: true },
+        { name: 'researcher', is_default: false }
+      ]
+    })
+
+    await renderSkillsTab()
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'New skill' }))
+    })
+    expect(await screen.findByPlaceholderText('my-skill')).toBeTruthy()
+
+    const trigger = screen.getByRole('combobox')
+    await act(async () => {
+      fireEvent.click(trigger)
+    })
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('option', { name: 'researcher' }))
+    })
+
+    await waitFor(() => expect(screen.queryByPlaceholderText('my-skill')).toBeNull())
+    expect(createSkill).not.toHaveBeenCalled()
   })
 })

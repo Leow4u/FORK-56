@@ -1079,6 +1079,12 @@ export interface Translations {
     emptyNoneAvailable: (noun: string) => string
     changesApplyNewSessions: string
     skillUpdated: string
+    skillCreated: string
+    newSkill: string
+    createSkill: string
+    nameRequired: string
+    newSkillNamePlaceholder: string
+    newSkillCategoryPlaceholder: string
     edit: string
     archive: string
     skillArchivedTitle: string

@@ -42,6 +42,39 @@ export function setSkillEnabled(
   })
 }
 
+function profileNameFromScope(profile?: ProfileScope): string | undefined {
+  if (!profile) {
+    return undefined
+  }
+
+  const name = typeof profile === 'object' ? profile.profile : profile
+  const trimmed = (name ?? '').trim()
+
+  return trimmed || undefined
+}
+
+/** Create a local SKILL.md — same `POST /api/skills` path the web dashboard uses.
+ *  Profile goes in the body: the handler reads `SkillCreate.profile`, not the
+ *  query string. `capabilityScoped` still tags the Electron route. */
+export function createSkill(
+  skill: { category?: string; content: string; name: string },
+  profile?: ProfileScope
+): Promise<{ message?: string; path?: string; success: boolean }> {
+  const profileName = profileNameFromScope(profile)
+
+  return window.work4youDesktop.api<{ message?: string; path?: string; success: boolean }>({
+    ...capabilityScoped(profile),
+    path: '/api/skills',
+    method: 'POST',
+    body: {
+      name: skill.name,
+      content: skill.content,
+      ...(skill.category ? { category: skill.category } : {}),
+      ...(profileName ? { profile: profileName } : {})
+    }
+  })
+}
+
 export function getStarmapGraph(): Promise<StarmapGraph> {
   return work4youApi<StarmapGraph>({
     ...profileScoped(),

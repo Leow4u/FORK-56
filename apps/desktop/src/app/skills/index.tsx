@@ -9,6 +9,7 @@ import { CodeEditor } from '@/components/chat/code-editor'
 import { PageLoader } from '@/components/page-loader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CountSkeleton } from '@/components/ui/skeleton'
 import type { DesktopRosterAgent } from '@/global'
@@ -24,6 +25,7 @@ import { notify, notifyError } from '@/store/notifications'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import type { SkillInfo, ToolsetInfo } from '@/types/work4you'
 import {
+  createSkill,
   editLearningNode,
   getLearningNode,
   getProfiles,
@@ -69,6 +71,17 @@ import { $skillsSortDesc, $toolsetsSortDesc } from './store'
 // Skills tab now (EmbeddedHubPicker below the installed list). Legacy
 // `?tab=hub` links fall back to 'skills' via useRouteEnumParam.
 const SKILLS_MODES = ['skills', 'toolsets', 'mcp'] as const
+
+// Same stub the web New-skill dialog seeds — YAML name/description + a body.
+const CREATE_SKILL_TEMPLATE = `---
+name: my-skill
+description: One-line description of when to use this skill.
+---
+
+# My Skill
+
+Numbered steps, exact commands, and pitfalls go here.
+`
 
 // Skills + toolsets live in the RQ cache so switching tabs/pages paints the
 // cached lists instantly (no reload flash) and mount only fires a deduped
@@ -589,9 +602,13 @@ export function SkillsView({
 
   // Learned/local skills are editable + archivable, mirroring the memory
   // graph (same /api/learning/node endpoints — delete archives, restorable
-  // via `work4you curator restore`).
-  const [skillEditor, setSkillEditor] = useState<null | { content: string; name: string }>(null)
+  // via `work4you curator restore`). Create uses POST /api/skills (the web
+  // New-skill write path) in this same pane — learning/node cannot create.
+  const [skillEditor, setSkillEditor] = useState<null | { content: string; mode: 'create' | 'edit'; name: string }>(
+    null
+  )
   const [skillDraft, setSkillDraft] = useState('')
+  const [skillCategory, setSkillCategory] = useState('')
   const [skillSaving, setSkillSaving] = useState(false)
   const [archiveTarget, setArchiveTarget] = useState<null | string>(null)
   // Bumped on profile switch so an in-flight openSkillEditor fetch from profile
@@ -605,8 +622,16 @@ export function SkillsView({
     skillEditorEpoch.current += 1
     setSkillEditor(null)
     setSkillDraft('')
+    setSkillCategory('')
     setArchiveTarget(null)
   })
+
+  const openSkillCreate = () => {
+    skillEditorEpoch.current += 1
+    setSkillEditor({ content: CREATE_SKILL_TEMPLATE, mode: 'create', name: '' })
+    setSkillDraft(CREATE_SKILL_TEMPLATE)
+    setSkillCategory('')
+  }
 
   const openSkillEditor = async (name: string) => {
     const epoch = skillEditorEpoch.current
@@ -618,7 +643,7 @@ export function SkillsView({
         return
       }
 
-      setSkillEditor({ content: node.content, name })
+      setSkillEditor({ content: node.content, mode: 'edit', name })
       setSkillDraft(node.content)
     } catch (err) {
       notifyError(err, name)
@@ -627,6 +652,54 @@ export function SkillsView({
 
   const saveSkillEdit = async () => {
     if (!skillEditor) {
+      return
+    }
+
+    if (skillEditor.mode === 'create') {
+      const name = skillEditor.name.trim()
+
+      if (!name) {
+        notifyError(new Error(t.skills.nameRequired), t.skills.nameRequired)
+        return
+      }
+
+      if (!skillDraft.trim()) {
+        return
+      }
+
+      const epoch = skillEditorEpoch.current
+
+      setSkillSaving(true)
+
+      try {
+        await createSkill(
+          {
+            name,
+            content: skillDraft,
+            ...(skillCategory.trim() ? { category: skillCategory.trim() } : {})
+          },
+          scopeProfile
+        )
+
+        if (skillEditorEpoch.current !== epoch) {
+          return
+        }
+
+        notify({
+          kind: 'success',
+          title: t.skills.skillCreated,
+          message: t.skills.appliesToNewSessions(name)
+        })
+        setSkillEditor(null)
+        setSkillCategory('')
+        setSelectedSkill(name)
+        void refreshCapabilities()
+      } catch (err) {
+        notifyError(err, name)
+      } finally {
+        setSkillSaving(false)
+      }
+
       return
     }
 
@@ -648,26 +721,94 @@ export function SkillsView({
     }
   }
 
+  const creating = skillEditor?.mode === 'create'
+  const createName = creating ? skillEditor.name : ''
+  const canSaveSkill =
+    Boolean(skillEditor) &&
+    !skillSaving &&
+    skillDraft.trim().length > 0 &&
+    (!creating || createName.trim().length > 0)
+
   const skillEditorPane = skillEditor && (
     <DetailPane
       actions={
-        <Button disabled={skillSaving} onClick={() => void saveSkillEdit()} size="xs">
-          {skillSaving ? t.common.saving : t.common.save}
+        <Button disabled={!canSaveSkill} onClick={() => void saveSkillEdit()} size="xs">
+          {skillSaving ? t.common.saving : creating ? t.skills.createSkill : t.common.save}
         </Button>
       }
+      defaultHeight={creating ? 360 : undefined}
       id="skill-editor"
-      onClose={() => setSkillEditor(null)}
-      title={<span className="text-[0.68rem] font-normal text-muted-foreground/60">{skillEditor.name}/SKILL.md</span>}
+      onClose={() => {
+        setSkillEditor(null)
+        setSkillCategory('')
+      }}
+      title={
+        <span className="text-[0.68rem] font-normal text-muted-foreground/60">
+          {creating ? t.skills.newSkill : `${skillEditor.name}/SKILL.md`}
+        </span>
+      }
     >
-      <CodeEditor
-        filePath="SKILL.md"
-        initialValue={skillEditor.content}
-        key={skillEditor.name}
-        onCancel={() => setSkillEditor(null)}
-        onChange={setSkillDraft}
-        onSave={() => void saveSkillEdit()}
-      />
+      <div className="flex h-full min-h-0 flex-col">
+        {creating && (
+          <div className="flex shrink-0 gap-2 border-b border-(--ui-stroke-tertiary) px-3 py-2">
+            <Input
+              aria-label={t.skills.newSkillNamePlaceholder}
+              autoFocus
+              onChange={event =>
+                setSkillEditor(current =>
+                  current?.mode === 'create' ? { ...current, name: event.target.value } : current
+                )
+              }
+              placeholder={t.skills.newSkillNamePlaceholder}
+              value={createName}
+            />
+            <Input
+              aria-label={t.skills.newSkillCategoryPlaceholder}
+              onChange={event => setSkillCategory(event.target.value)}
+              placeholder={t.skills.newSkillCategoryPlaceholder}
+              value={skillCategory}
+            />
+          </div>
+        )}
+        <CodeEditor
+          className="min-h-0 flex-1"
+          filePath="SKILL.md"
+          initialValue={skillEditor.content}
+          key={creating ? '__create__' : skillEditor.name}
+          focusOnMount={!creating}
+          onCancel={() => {
+            setSkillEditor(null)
+            setSkillCategory('')
+          }}
+          onChange={setSkillDraft}
+          onSave={() => void saveSkillEdit()}
+        />
+      </div>
     </DetailPane>
+  )
+
+  const skillsListStrip = (
+    <ListStrip
+      left={sortButton(skillsSortDesc, () => $skillsSortDesc.set(!$skillsSortDesc.get()))}
+      right={
+        <>
+          <Button onClick={openSkillCreate} size="xs" variant="ghost">
+            {t.skills.newSkill}
+          </Button>
+          <ListStripMenu
+            items={[
+              {
+                disabled: bulkBusy,
+                label: t.skills.disableUnused,
+                onSelect: () => void disableUnused()
+              }
+            ]}
+            label={t.skills.tabSkills}
+            toggle={bulkSwitch(allSkillsEnabled)}
+          />
+        </>
+      }
+    />
   )
 
   // Selecting a different scope is the same staleness hazard as an app-wide
@@ -698,6 +839,7 @@ export function SkillsView({
     skillEditorEpoch.current += 1
     setSkillEditor(null)
     setSkillDraft('')
+    setSkillCategory('')
     setArchiveTarget(null)
   }
 
@@ -823,31 +965,16 @@ export function SkillsView({
               // short window shrinks the HUB, never the list: the sort strip
               // and "changes apply" footer can no longer be starved to 0px
               // and painted over by the hub header.
-              visibleSkills.length === 0 ? (
-                capabilityEmpty('skills')
-              ) : (
-                <MasterDetail pane={skillEditorPane} resizeId="capabilities-split" split="wide">
-                  <ListColumn
-                    header={
-                      <ListStrip
-                        left={sortButton(skillsSortDesc, () => $skillsSortDesc.set(!$skillsSortDesc.get()))}
-                        right={
-                          <ListStripMenu
-                            items={[
-                              {
-                                disabled: bulkBusy,
-                                label: t.skills.disableUnused,
-                                onSelect: () => void disableUnused()
-                              }
-                            ]}
-                            label={t.skills.tabSkills}
-                            toggle={bulkSwitch(allSkillsEnabled)}
-                          />
-                        }
-                      />
-                    }
-                  >
-                    {visibleSkills.map(skill => (
+              <MasterDetail pane={skillEditorPane} resizeId="capabilities-split" split="wide">
+                <ListColumn header={skillsListStrip}>
+                  {visibleSkills.length === 0 ? (
+                    <p className="px-2 py-4 text-[0.68rem] leading-relaxed text-muted-foreground/70">
+                      {query.trim()
+                        ? t.skills.emptyNothingMatches(query.trim())
+                        : t.skills.emptyNoneAvailable('skills')}
+                    </p>
+                  ) : (
+                    visibleSkills.map(skill => (
                       <CapRow
                         active={activeSkill?.name === skill.name}
                         busy={bulkBusy}
@@ -860,20 +987,20 @@ export function SkillsView({
                         title={skill.name}
                         toggleLabel={skill.name}
                       />
-                    ))}
-                  </ListColumn>
-                  <DetailColumn footer={t.skills.changesApplyNewSessions}>
-                    {activeSkill && (
-                      <SkillDetail
-                        onArchive={() => setArchiveTarget(activeSkill.name)}
-                        onEdit={() => void openSkillEditor(activeSkill.name)}
-                        profile={scopeProfile}
-                        skill={activeSkill}
-                      />
-                    )}
-                  </DetailColumn>
-                </MasterDetail>
-              )
+                    ))
+                  )}
+                </ListColumn>
+                <DetailColumn footer={t.skills.changesApplyNewSessions}>
+                  {activeSkill && (
+                    <SkillDetail
+                      onArchive={() => setArchiveTarget(activeSkill.name)}
+                      onEdit={() => void openSkillEditor(activeSkill.name)}
+                      profile={scopeProfile}
+                      skill={activeSkill}
+                    />
+                  )}
+                </DetailColumn>
+              </MasterDetail>
             ) : visibleToolsets.length === 0 ? (
               capabilityEmpty('tools')
             ) : (

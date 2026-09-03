@@ -62,6 +62,8 @@ interface CodeEditorProps {
   /** Fires with the primary cursor offset whenever the selection moves. */
   onCursorChange?: (pos: number) => void
   onSave?: () => void
+  /** Focus the buffer on mount. Off when a sibling field (create-name) should win. */
+  focusOnMount?: boolean
 }
 
 // Focus treatment for the active range: a subtle wash on its lines, and
@@ -187,7 +189,8 @@ export function CodeEditor({
   onChange,
   onCursorChange,
   onFormatJsonError,
-  onSave
+  onSave,
+  focusOnMount = true
 }: CodeEditorProps) {
   const { resolvedMode } = useTheme()
   const hostRef = useRef<HTMLDivElement | null>(null)
@@ -308,8 +311,11 @@ export function CodeEditor({
     }
 
     // Focus on mount so entering edit mode (button or double-click) lands the
-    // caret in the buffer ready to type, no extra click required.
-    view.focus()
+    // caret in the buffer ready to type, no extra click required. Create mode
+    // skips this so the name field can keep autoFocus.
+    if (focusOnMount) {
+      view.focus()
+    }
 
     return () => {
       view.destroy()
