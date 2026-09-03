@@ -6,6 +6,7 @@ import type * as ReactRouterDom from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { queryClient } from '@/lib/query-client'
+import { clearPaneHeightOverride } from '@/store/panes'
 import type * as Work4YouApi from '@/work4you'
 
 const getSkills = vi.fn()
@@ -127,6 +128,7 @@ afterEach(() => {
   vi.clearAllMocks()
   // Shared singleton client — drop cached skills/toolsets so each test refetches.
   queryClient.clear()
+  clearPaneHeightOverride('capabilities-hub')
 })
 
 describe('SkillsView toolset management', () => {
@@ -291,14 +293,20 @@ describe('SkillsView toolset management', () => {
     expect(await screen.findByText(/Deep research steps/)).toBeTruthy()
   })
 
-  it('hub picker refuses to reinstall an already-installed skill', async () => {
+  it('hub picker stays collapsed until Browse, then refuses to reinstall an already-installed skill', async () => {
     const { notify } = await import('@/store/notifications')
     const { EmbeddedHubPicker } = await import('./embedded-hub-picker')
 
     render(<EmbeddedHubPicker installedNames={new Set(['web-research'])} profile={null} />)
 
-    // The picker is expanded by default — the hub iframe is live on mount.
+    expect(document.querySelector('iframe')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Browse the full hub' })).toBeTruthy()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Browse the full hub' }))
+    })
     expect(document.querySelector('iframe')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Hide the hub browser' })).toBeTruthy()
 
     await act(async () => {
       window.dispatchEvent(
@@ -317,7 +325,7 @@ describe('SkillsView toolset management', () => {
     )
   })
 
-  it('mounts the hub iframe lazily and keeps it (hidden) across tab switches', async () => {
+  it('mounts the hub iframe on Browse and keeps it (hidden) across tab switches', async () => {
     // On a non-Skills tab the docs-site iframe must not exist at all — an
     // eagerly mounted hub is exactly the Capabilities lag bug.
     await renderSkills() // ?tab=toolsets
@@ -326,7 +334,7 @@ describe('SkillsView toolset management', () => {
     cleanup()
 
     // Embedded mode drives tabs through local state (the route hooks are
-    // mocked here), starting on Skills: the picker mounts with the tab.
+    // mocked here), starting on Skills: hub chrome mounts collapsed.
     const { SkillsView } = await import('./index')
     await act(async () => {
       render(
@@ -338,6 +346,10 @@ describe('SkillsView toolset management', () => {
       )
     })
 
+    expect(document.querySelector('iframe')).toBeNull()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Browse the full hub' }))
+    })
     const iframe = document.querySelector('iframe')
     expect(iframe).toBeTruthy()
     expect(iframe!.closest('section')!.classList.contains('hidden')).toBe(false)
