@@ -724,10 +724,7 @@ export function SkillsView({
   const creating = skillEditor?.mode === 'create'
   const createName = creating ? skillEditor.name : ''
   const canSaveSkill =
-    Boolean(skillEditor) &&
-    !skillSaving &&
-    skillDraft.trim().length > 0 &&
-    (!creating || createName.trim().length > 0)
+    Boolean(skillEditor) && !skillSaving && skillDraft.trim().length > 0 && (!creating || createName.trim().length > 0)
 
   const skillEditorPane = skillEditor && (
     <DetailPane
