@@ -607,6 +607,7 @@ export function SkillsView({
   const [skillEditor, setSkillEditor] = useState<null | { content: string; mode: 'create' | 'edit'; name: string }>(
     null
   )
+
   const [skillDraft, setSkillDraft] = useState('')
   const [skillCategory, setSkillCategory] = useState('')
   const [skillSaving, setSkillSaving] = useState(false)
@@ -660,6 +661,7 @@ export function SkillsView({
 
       if (!name) {
         notifyError(new Error(t.skills.nameRequired), t.skills.nameRequired)
+
         return
       }
 
@@ -722,6 +724,7 @@ export function SkillsView({
   }
 
   const creating = skillEditor?.mode === 'create'
+
   const createName = creating ? skillEditor.name : ''
   const canSaveSkill =
     Boolean(skillEditor) && !skillSaving && skillDraft.trim().length > 0 && (!creating || createName.trim().length > 0)
@@ -770,9 +773,9 @@ export function SkillsView({
         <CodeEditor
           className="min-h-0 flex-1"
           filePath="SKILL.md"
+          focusOnMount={!creating}
           initialValue={skillEditor.content}
           key={creating ? '__create__' : skillEditor.name}
-          focusOnMount={!creating}
           onCancel={() => {
             setSkillEditor(null)
             setSkillCategory('')
