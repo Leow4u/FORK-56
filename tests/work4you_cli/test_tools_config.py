@@ -1219,3 +1219,69 @@ def test_explicit_plugin_toolset_admitted_against_real_a2a_plugin(monkeypatch):
         f"plugin-provided 'a2a' toolset dropped by _get_platform_tools "
         f"(Layer 2 of #81163); enabled={sorted(enabled)}"
     )
+
+
+def test_toolset_presence_contract():
+    """Every configurable toolset has a presence class; STT is not a model tool."""
+    from work4you_cli.tools_config import (
+        ALWAYS_ON_TOOLSETS,
+        TOOLSET_PRESENCE_ALWAYS_ON,
+        TOOLSET_PRESENCE_CONFIG_ONLY,
+        TOOLSET_PRESENCE_CONNECTED,
+        _CONFIG_ONLY_TOOLSETS,
+        toolset_is_toggleable,
+        toolset_presence,
+    )
+
+    configurable = {k for k, _, _ in CONFIGURABLE_TOOLSETS}
+    assert ALWAYS_ON_TOOLSETS <= configurable
+    assert _CONFIG_ONLY_TOOLSETS <= configurable
+    assert "terminal" in ALWAYS_ON_TOOLSETS
+    assert "file" in ALWAYS_ON_TOOLSETS
+    assert toolset_presence("stt") == TOOLSET_PRESENCE_CONFIG_ONLY
+    assert toolset_presence("spotify") == TOOLSET_PRESENCE_CONNECTED
+    assert not toolset_is_toggleable("terminal")
+    assert toolset_is_toggleable("spotify")
+    for name in configurable:
+        presence = toolset_presence(name)
+        assert presence in {
+            TOOLSET_PRESENCE_ALWAYS_ON,
+            TOOLSET_PRESENCE_CONNECTED,
+            TOOLSET_PRESENCE_CONFIG_ONLY,
+        }
+        assert toolset_is_toggleable(name) == (presence == TOOLSET_PRESENCE_CONNECTED)
+
+
+def test_cli_always_on_toolsets_survive_an_omitted_saved_list():
+    """A leftover Hermes disable (saved list without terminal/file) must not
+    strip base capability from desktop/web/TUI sessions."""
+    from work4you_cli.tools_config import ALWAYS_ON_TOOLSETS
+
+    config = {"platform_toolsets": {"cli": ["spotify"]}}
+    enabled = _get_platform_tools(config, "cli", include_default_mcp_servers=False)
+    assert ALWAYS_ON_TOOLSETS <= enabled
+    assert "spotify" in enabled
+
+
+def test_always_on_union_is_cli_only():
+    """Messaging platforms keep their own saved lists — do not inject
+    core CLI toolsets onto Telegram because they are always-on for desktop."""
+    config = {"platform_toolsets": {"telegram": ["spotify"]}}
+    enabled = _get_platform_tools(config, "telegram", include_default_mcp_servers=False)
+    assert "spotify" in enabled
+    assert "terminal" not in enabled
+    assert "file" not in enabled
+
+
+def test_agent_disabled_toolsets_still_overrides_always_on():
+    """Blank slate / power-user suppression still wins after the always-on union."""
+    config = {
+        "platform_toolsets": {"cli": ["file", "terminal"]},
+        "agent": {"disabled_toolsets": ["memory", "web"]},
+    }
+    enabled = _get_platform_tools(config, "cli", include_default_mcp_servers=False)
+    assert "file" in enabled
+    assert "terminal" in enabled
+    assert "memory" not in enabled
+    assert "web" not in enabled
+

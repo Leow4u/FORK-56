@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { isDesktopToolsetVisible } from './desktop-toolsets'
+import { isDesktopToolsetVisible, isToolsetToggleable } from './desktop-toolsets'
 
 describe('isDesktopToolsetVisible', () => {
-  it('hides platform-coupled and internal toolsets', () => {
-    for (const name of ['discord', 'discord_admin', 'yuanbao', 'context_engine', 'moa']) {
+  it('hides platform-coupled, internal, and non-model toolsets', () => {
+    for (const name of ['discord', 'discord_admin', 'yuanbao', 'context_engine', 'moa', 'stt']) {
       expect(isDesktopToolsetVisible(name)).toBe(false)
     }
   })
@@ -13,5 +13,13 @@ describe('isDesktopToolsetVisible', () => {
     for (const name of ['web', 'browser', 'terminal', 'file', 'memory', 'vision', 'image_gen']) {
       expect(isDesktopToolsetVisible(name)).toBe(true)
     }
+  })
+})
+
+describe('isToolsetToggleable', () => {
+  it('treats always-on toolsets as not toggleable', () => {
+    expect(isToolsetToggleable({ name: 'browser' })).toBe(false)
+    expect(isToolsetToggleable({ name: 'image_gen' })).toBe(true)
+    expect(isToolsetToggleable({ name: 'stt' })).toBe(false)
   })
 })

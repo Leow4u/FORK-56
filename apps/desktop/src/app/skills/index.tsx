@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CountSkeleton } from '@/components/ui/skeleton'
 import type { DesktopRosterAgent } from '@/global'
 import { useI18n } from '@/i18n'
-import { isDesktopToolsetVisible } from '@/lib/desktop-toolsets'
+import { isDesktopToolsetVisible, isToolsetToggleable } from '@/lib/desktop-toolsets'
 import { compactNumber } from '@/lib/format'
 import { queryClient } from '@/lib/query-client'
 import { invalidateSlashCompletions } from '@/lib/slash-completion-cache'
@@ -423,7 +423,10 @@ export function SkillsView({
   // state target the WHOLE tab, never the search-filtered view — a tab-wide
   // control that silently scoped to the current query would be a lie.
   const bulkSkills = skills ?? []
-  const bulkToolsets = useMemo(() => (toolsets ?? []).filter(ts => isDesktopToolsetVisible(ts.name)), [toolsets])
+  const bulkToolsets = useMemo(
+    () => (toolsets ?? []).filter(ts => isDesktopToolsetVisible(ts.name) && isToolsetToggleable(ts)),
+    [toolsets]
+  )
 
   // Installed-name set for the hub picker's already-installed guard — the
   // UNFILTERED list on purpose (search must not make a skill look absent).
@@ -488,6 +491,10 @@ export function SkillsView({
   }
 
   async function handleToggleToolset(toolset: ToolsetInfo, enabled: boolean) {
+    if (!isToolsetToggleable(toolset)) {
+      return
+    }
+
     const scopedToolsetKey = [...TOOLSETS_QUERY_KEY, scopeKey]
 
     const writeScoped = (fn: (cur: ToolsetInfo[] | undefined) => ToolsetInfo[] | undefined) =>
@@ -1010,13 +1017,19 @@ export function SkillsView({
                   header={
                     <ListStrip
                       left={sortButton(toolsetsSortDesc, () => $toolsetsSortDesc.set(!$toolsetsSortDesc.get()))}
-                      right={<ListStripMenu label={t.skills.tabToolsets} toggle={bulkSwitch(allToolsetsEnabled)} />}
+                      right={
+                        <ListStripMenu
+                          label={t.skills.tabToolsets}
+                          toggle={bulkToolsets.length > 0 ? bulkSwitch(allToolsetsEnabled) : undefined}
+                        />
+                      }
                     />
                   }
                 >
                   {visibleToolsets.map(toolset => {
                     const label = toolsetDisplayLabel(toolset)
                     const calls = toolCalls ? toolsetCalls(toolset, toolCalls) : null
+                    const toggleable = isToolsetToggleable(toolset)
 
                     return (
                       <CapRow
@@ -1034,10 +1047,10 @@ export function SkillsView({
                           )
                         }
                         onSelect={() => setSelectedToolset(toolset.name)}
-                        onToggle={checked => void handleToggleToolset(toolset, checked)}
+                        onToggle={toggleable ? checked => void handleToggleToolset(toolset, checked) : undefined}
                         subtitle={asText(toolset.description)}
                         title={label}
-                        toggleLabel={t.skills.toggleToolset(label, !toolset.enabled)}
+                        toggleLabel={toggleable ? t.skills.toggleToolset(label, !toolset.enabled) : undefined}
                       />
                     )
                   })}

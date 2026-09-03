@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { Check, ExternalLink, KeyRound, Loader2, Terminal, X } from "lucide-react";
+import { isToolsetToggleable } from "@/lib/desktop-toolsets";
 import { api } from "@/lib/api";
 import type {
   ToolsetConfig,
@@ -36,6 +37,7 @@ interface Props {
  * post-setup install hook (npm/pip/binary) with a live log tail.
  */
 export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Props) {
+  const toggleable = isToolsetToggleable(toolset);
   const navigate = useNavigate();
   const { toast, showToast } = useToast();
   const [config, setConfig] = useState<ToolsetConfig | null>(null);
@@ -244,26 +246,28 @@ export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Pr
             <span className="font-mondwest text-display text-base tracking-wider">
               {labelText}
             </span>
-            <Badge tone={enabled ? "success" : "outline"} className="text-xs">
-              {enabled ? "Active" : "Inactive"}
+            <Badge tone={enabled || !toggleable ? "success" : "outline"} className="text-xs">
+              {toggleable ? (enabled ? "Active" : "Inactive") : "Active"}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
             {toolset.description}
           </p>
-          <div className="mt-3 flex items-center gap-2">
-            <Switch
-              checked={enabled}
-              onCheckedChange={(v) => void handleToggle(v)}
-              disabled={toggling}
-              aria-label={`Enable toolset for ${platformText}`}
-            />
-            <span className="text-xs text-muted-foreground">
-              {enabled
-                ? `Enabled for ${platformText}`
-                : `Disabled for ${platformText}`}
-            </span>
-          </div>
+          {toggleable && (
+            <div className="mt-3 flex items-center gap-2">
+              <Switch
+                checked={enabled}
+                onCheckedChange={(v) => void handleToggle(v)}
+                disabled={toggling}
+                aria-label={`Enable toolset for ${platformText}`}
+              />
+              <span className="text-xs text-muted-foreground">
+                {enabled
+                  ? `Enabled for ${platformText}`
+                  : `Disabled for ${platformText}`}
+              </span>
+            </div>
+          )}
         </header>
 
         {/* Body — provider matrix */}
@@ -274,8 +278,9 @@ export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Pr
             </div>
           ) : !config?.has_category ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
-              This toolset has no configurable backends — toggle it on or off
-              above. It works with no provider selection or API keys.
+              {toggleable
+                ? "This toolset has no configurable backends — toggle it on or off above. It works with no provider selection or API keys."
+                : "Always available. There is nothing to configure here."}
             </p>
           ) : config.providers.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">

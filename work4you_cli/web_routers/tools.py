@@ -64,6 +64,8 @@ async def get_toolsets(profile: Optional[str] = None):
         _toolset_has_keys,
         get_work4you_subscription_features,
         gui_toolset_label,
+        toolset_is_toggleable,
+        toolset_presence,
     )
     from work4you_cli.platforms import platform_label
     from toolsets import resolve_toolset
@@ -116,6 +118,8 @@ async def get_toolsets(profile: Optional[str] = None):
             "available": is_enabled,
             "configured": _toolset_has_keys(name, config, features=features),
             "tools": tools,
+            "presence": toolset_presence(name),
+            "toggleable": toolset_is_toggleable(name),
         })
     return result
 
@@ -132,15 +136,31 @@ async def toggle_toolset(name: str, body: ToolsetToggle, profile: Optional[str] 
     """
     from work4you_cli.tools_config import (
         _CONFIG_ONLY_TOOLSETS,
+        TOOLSET_PRESENCE_CONFIG_ONLY,
         _get_effective_configurable_toolsets,
         _get_platform_tools,
         _save_platform_tools,
         _toolset_configuration_platform,
+        toolset_is_toggleable,
+        toolset_presence,
     )
 
     valid = {ts_key for ts_key, _, _ in _get_effective_configurable_toolsets()}
     if name not in valid:
         raise HTTPException(status_code=400, detail=f"Unknown toolset: {name}")
+
+    if not toolset_is_toggleable(name) and not body.enabled:
+        if toolset_presence(name) == TOOLSET_PRESENCE_CONFIG_ONLY:
+            detail = (
+                "This capability is not a model toolset and cannot be "
+                "disabled from Capabilities."
+            )
+        else:
+            detail = (
+                "This toolset is always on and cannot be disabled from "
+                "Capabilities."
+            )
+        raise HTTPException(status_code=400, detail=detail)
 
     target_platform = _toolset_configuration_platform(name)
 

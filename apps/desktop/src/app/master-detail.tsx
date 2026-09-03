@@ -423,17 +423,18 @@ interface CapRowProps {
   enabled: boolean
   meta?: ReactNode
   onSelect: () => void
-  onToggle: (checked: boolean) => void
+  /** Omit to hide the switch (always-on toolsets are not a checklist). */
+  onToggle?: (checked: boolean) => void
   rowId?: string
   /** Second line under the name (category, description, status). Rows grow to h-11. */
   subtitle?: ReactNode
   title: string
-  toggleLabel: string
+  toggleLabel?: string
 }
 
-// The one row used by all three lists. Fixed height, always-visible switch —
-// state reads from the switch + dimmed title, toggling never requires
-// selecting first. Off rows dim; the switch itself dims when off.
+// The one row used by all three lists. Fixed height; the switch is optional —
+// always-on toolsets omit it so Capabilities is not a schema checklist.
+// State reads from the switch when present + dimmed title when off.
 export function CapRow({
   active,
   busy,
@@ -484,15 +485,17 @@ export function CapRow({
           </span>
         )}
       </RowButton>
-      <Switch
-        aria-label={toggleLabel}
-        checked={enabled}
-        className={cn('mr-1.5 shrink-0 cursor-pointer', !enabled && 'opacity-60')}
-        disabled={busy}
-        onCheckedChange={onToggle}
-        size="xs"
-        title={toggleLabel}
-      />
+      {onToggle != null && (
+        <Switch
+          aria-label={toggleLabel}
+          checked={enabled}
+          className={cn('mr-1.5 shrink-0 cursor-pointer', !enabled && 'opacity-60')}
+          disabled={busy}
+          onCheckedChange={onToggle}
+          size="xs"
+          title={toggleLabel}
+        />
+      )}
     </div>
   )
 }

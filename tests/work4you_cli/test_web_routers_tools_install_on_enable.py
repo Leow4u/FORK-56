@@ -103,11 +103,28 @@ class TestToggleToolsetInstallOnEnable:
         )
 
         resp = self.client.put(
-            "/api/tools/toolsets/computer_use", json={"enabled": False}
+            "/api/tools/toolsets/spotify", json={"enabled": False}
         )
         assert resp.status_code == 200
         assert resp.json()["post_setup_started"] is None
         assert calls == []
+
+    def test_disable_always_on_toolset_is_rejected(self):
+        resp = self.client.put(
+            "/api/tools/toolsets/terminal", json={"enabled": False}
+        )
+        assert resp.status_code == 400
+        detail = resp.json()["detail"]
+        assert "always on" in detail.lower()
+
+    def test_toolsets_listing_includes_presence_contract(self):
+        listing = {t["name"]: t for t in self.client.get("/api/tools/toolsets").json()}
+        assert listing["terminal"]["presence"] == "always_on"
+        assert listing["terminal"]["toggleable"] is False
+        assert listing["spotify"]["presence"] == "connected"
+        assert listing["spotify"]["toggleable"] is True
+        assert listing["stt"]["presence"] == "config_only"
+        assert listing["stt"]["toggleable"] is False
 
     def test_spawn_failure_does_not_fail_the_toggle(self, monkeypatch):
         import work4you_cli.tools_config as tools_config

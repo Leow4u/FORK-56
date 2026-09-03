@@ -62,13 +62,15 @@ vi.mock('react-router', async importOriginal => ({
 
 function toolset(overrides: Record<string, unknown> = {}) {
   return {
-    name: 'web',
-    label: 'Web Search',
-    description: 'web_search, web_extract',
+    name: 'image_gen',
+    label: 'Image Generation',
+    description: 'image_generate',
     enabled: true,
     available: true,
     configured: true,
-    tools: ['web_search', 'web_extract'],
+    tools: ['image_generate'],
+    presence: 'connected',
+    toggleable: true,
     ...overrides
   }
 }
@@ -109,7 +111,7 @@ async function renderSkillsTab() {
 beforeEach(() => {
   getSkills.mockResolvedValue([])
   getToolsets.mockResolvedValue([toolset()])
-  setToolsetEnabled.mockResolvedValue({ ok: true, name: 'web', enabled: false })
+  setToolsetEnabled.mockResolvedValue({ ok: true, name: 'image_gen', enabled: false })
   getToolsetConfig.mockResolvedValue({ has_category: true, active_provider: null, providers: [] })
   getUsageAnalytics.mockResolvedValue({ tools: [] })
   getSkillContent.mockResolvedValue({
@@ -136,7 +138,7 @@ describe('SkillsView toolset management', () => {
     await renderSkills()
 
     // The switch names the action, so an enabled toolset offers to turn it off.
-    const sw = await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    const sw = await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })
     expect(sw.getAttribute('aria-checked')).toBe('true')
 
     await act(async () => {
@@ -144,18 +146,53 @@ describe('SkillsView toolset management', () => {
     })
 
     await waitFor(() => expect(setToolsetEnabled).toHaveBeenCalled())
-    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['web', false])
+    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['image_gen', false])
   })
 
-  it('renders toolset titles without leading emoji', async () => {
-    getToolsets.mockResolvedValue([toolset({ name: 'cronjob', label: '⏰ Cron Jobs', description: 'cron tools' })])
+  it('does not render an on/off switch for always-on toolsets', async () => {
+    getToolsets.mockResolvedValue([
+      toolset({
+        name: 'terminal',
+        label: 'Terminal & Processes',
+        description: 'terminal, process',
+        tools: ['terminal', 'process'],
+        presence: 'always_on',
+        toggleable: false
+      })
+    ])
 
     await renderSkills()
 
-    // The label renders in both the row and the auto-selected detail header, so
-    // assert via the switch's (emoji-stripped) accessible name and the absence
-    // of the emoji rather than a single-match text lookup.
-    await screen.findByRole('switch', { name: 'Turn Cron Jobs toolset off' })
+    expect((await screen.findAllByText('Terminal & Processes')).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('switch')).toBeNull()
+    expect(setToolsetEnabled).not.toHaveBeenCalled()
+  })
+
+  it('hides speech-to-text from the Tools list', async () => {
+    getToolsets.mockResolvedValue([
+      toolset(),
+      toolset({
+        name: 'stt',
+        label: 'Speech-to-Text',
+        description: 'voice transcription',
+        tools: [],
+        presence: 'config_only',
+        toggleable: false
+      })
+    ])
+
+    await renderSkills()
+
+    expect(await screen.findAllByText('Image Generation')).toBeTruthy()
+    expect(screen.queryByText('Speech-to-Text')).toBeNull()
+  })
+
+  it('renders toolset titles without leading emoji', async () => {
+    getToolsets.mockResolvedValue([toolset({ name: 'cronjob', label: '⏰ Cron Jobs', description: 'cron tools', presence: 'always_on', toggleable: false })])
+
+    await renderSkills()
+
+    expect((await screen.findAllByText('Cron Jobs')).length).toBeGreaterThan(0)
     expect(screen.queryByText(/⏰/)).toBeNull()
   })
 
@@ -165,9 +202,9 @@ describe('SkillsView toolset management', () => {
     // and renders its config panel directly, which fetches on mount.
     await renderSkills()
 
-    await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    await screen.findAllByText('Image Generation')
     await waitFor(() => expect(getToolsetConfig).toHaveBeenCalled())
-    expect(getToolsetConfig.mock.calls[0][0]).toBe('web')
+    expect(getToolsetConfig.mock.calls[0][0]).toBe('image_gen')
   })
 
   it('scopes Tools config to the profile chosen in the selector', async () => {
@@ -329,7 +366,7 @@ describe('SkillsView toolset management', () => {
     // On a non-Skills tab the docs-site iframe must not exist at all — an
     // eagerly mounted hub is exactly the Capabilities lag bug.
     await renderSkills() // ?tab=toolsets
-    await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    await screen.findAllByText('Image Generation')
     expect(document.querySelector('iframe')).toBeNull()
     cleanup()
 
@@ -471,7 +508,7 @@ describe('SkillsView new skill', () => {
   it('keeps New skill off the Tools tab', async () => {
     await renderSkills()
 
-    await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    await screen.findAllByText('Image Generation')
     expect(screen.queryByRole('button', { name: 'New skill' })).toBeNull()
   })
 

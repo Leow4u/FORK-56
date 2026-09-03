@@ -164,6 +164,68 @@ _DEFAULT_OFF_TOOLSETS = {"homeassistant", "spotify", "discord", "discord_admin",
 # existing tool" flow and the GUI provider matrix instead.
 _CONFIG_ONLY_TOOLSETS = {"stt"}
 
+# Presence classes for Capabilities → Tools (desktop + web). The CLI
+# ``work4you tools`` curses checklist is unchanged: it remains the
+# power-user / blank-slate surface. GUI Capabilities is not a schema
+# checklist — see ALWAYS_ON_TOOLSETS.
+#
+# always_on: core agent work. No on/off in Capabilities. ``check_fn`` may
+# still hide schemas when a backend is unreachable (Docker daemon down, …).
+# connected: exists when the external world / entitlement is ready (Spotify,
+# HA, paid image/video, …). Still toggleable in this PR; later PRs replace
+# the toggle with connect/NAS.
+# config_only: not a model toolset (STT). Does not belong on Tools.
+TOOLSET_PRESENCE_ALWAYS_ON = "always_on"
+TOOLSET_PRESENCE_CONNECTED = "connected"
+TOOLSET_PRESENCE_CONFIG_ONLY = "config_only"
+
+ALWAYS_ON_TOOLSETS = frozenset({
+    "web",
+    "browser",
+    "terminal",
+    "file",
+    "code_execution",
+    "vision",
+    "skills",
+    "todo",
+    "memory",
+    "session_search",
+    "clarify",
+    "delegation",
+    "cronjob",
+    "computer_use",
+})
+
+
+def toolset_presence(name: str) -> str:
+    """Return the Capabilities presence class for a configurable toolset key."""
+    if name in _CONFIG_ONLY_TOOLSETS:
+        return TOOLSET_PRESENCE_CONFIG_ONLY
+    if name in ALWAYS_ON_TOOLSETS:
+        return TOOLSET_PRESENCE_ALWAYS_ON
+    return TOOLSET_PRESENCE_CONNECTED
+
+
+def toolset_is_toggleable(name: str) -> bool:
+    """True when Capabilities may expose an on/off switch for ``name``."""
+    return toolset_presence(name) == TOOLSET_PRESENCE_CONNECTED
+
+
+def _ensure_always_on_toolsets(enabled_toolsets: Set[str], platform: str) -> None:
+    """Re-add core toolsets on the CLI/desktop/web platform.
+
+    A leftover Hermes toggle (or a saved ``platform_toolsets.cli`` list
+    that omitted ``terminal`` / ``file``) must not strip base capability
+    from GUI sessions. Messaging platforms keep their own saved lists.
+    ``agent.disabled_toolsets`` still subtracts after this, so blank slate
+    keeps working.
+    """
+    if platform != "cli":
+        return
+    for ts_key in ALWAYS_ON_TOOLSETS:
+        if _toolset_allowed_for_platform(ts_key, platform):
+            enabled_toolsets.add(ts_key)
+
 
 def _xai_credentials_present() -> bool:
     """Cheap, side-effect-free check for usable xAI credentials.
@@ -2663,6 +2725,10 @@ def _get_platform_tools(
             enabled_toolsets.update(enabled_mcp_servers)
     else:
         enabled_toolsets.update(explicit_mcp_servers)
+
+    # Core toolsets are not a per-user checklist on CLI/desktop/web.
+    # Re-add them before agent.disabled_toolsets so blank slate still wins.
+    _ensure_always_on_toolsets(enabled_toolsets, platform)
 
     # Honor agent.disabled_toolsets from config.yaml — allows users to
     # globally suppress specific toolsets (e.g. "memory") across all

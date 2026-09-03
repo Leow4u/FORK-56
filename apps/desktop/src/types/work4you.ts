@@ -1016,6 +1016,10 @@ export interface ToolsetInfo {
   label: string
   name: string
   tools: string[]
+  /** Capabilities presence class from the backend. Absent on older gateways. */
+  presence?: 'always_on' | 'connected' | 'config_only' | string
+  /** False when Capabilities must not expose an on/off switch. */
+  toggleable?: boolean
 }
 
 export interface ToolEnvVar {

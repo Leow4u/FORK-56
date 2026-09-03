@@ -34,6 +34,18 @@ const apiMocks = vi.hoisted(() => ({
       enabled: true,
       configured: true,
       tools: ["browser_navigate"],
+      presence: "always_on",
+      toggleable: false,
+    },
+    {
+      name: "stt",
+      label: "Speech-to-Text",
+      description: "voice transcription",
+      enabled: true,
+      configured: true,
+      tools: [],
+      presence: "config_only",
+      toggleable: false,
     },
     {
       name: "discord",
@@ -156,6 +168,8 @@ describe("SkillsPage (Capabilities)", () => {
     expect(text).toContain("Browser");
     expect(text).toContain("Drive a real browser");
     expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
+    expect(text).not.toContain("Speech-to-Text");
+    expect(text).not.toContain("voice transcription");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");
   });

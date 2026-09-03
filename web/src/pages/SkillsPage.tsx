@@ -71,7 +71,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@work4you/ui/ui/components/dialog";
-import { isDesktopToolsetVisible } from "@/lib/desktop-toolsets";
+import { isDesktopToolsetVisible, isToolsetToggleable } from "@/lib/desktop-toolsets";
 import { cn } from "@/lib/utils";
 import { Input } from "@work4you/ui/ui/components/input";
 import { useI18n } from "@/i18n";
@@ -673,12 +673,14 @@ export default function SkillsPage() {
                                   {labelText}
                                 </span>
                                 <Badge
-                                  tone={ts.enabled ? "success" : "outline"}
+                                  tone={ts.enabled || !isToolsetToggleable(ts) ? "success" : "outline"}
                                   className="text-xs"
                                 >
-                                  {ts.enabled
-                                    ? t.common.active
-                                    : t.common.inactive}
+                                  {isToolsetToggleable(ts)
+                                    ? ts.enabled
+                                      ? t.common.active
+                                      : t.common.inactive
+                                    : t.common.active}
                                 </Badge>
                               </div>
                               <p className="text-xs text-text-secondary mb-2">
