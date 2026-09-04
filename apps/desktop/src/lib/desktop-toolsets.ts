@@ -11,9 +11,9 @@
 // `work4you_cli/tools_config.py` (`a2a`, `bfl`).
 //
 // Core agent toolsets are also hidden here: the user must not see or configure
-// them in Capabilities. Files sidebar, Skills Hub, Settings → Workspace
-// `code_execution.mode`, Settings → Memory & Context, and Settings → Models
-// are different surfaces and stay. Keep in sync with
+// them in Capabilities. Files sidebar, Skills Hub, the Cron page (`/cron`),
+// Settings → Workspace `code_execution.mode`, Settings → Memory & Context,
+// and Settings → Models are different surfaces and stay. Keep in sync with
 // web/src/lib/desktop-toolsets.ts.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Platform-coupled — only meaningful when that platform is the active
@@ -41,7 +41,11 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Native BFL FLUX 3 extras (keyframes / continuation). Hide the catalog
   // row and leave the toolset off — `video_gen` / `video_generate` stays the
   // user-facing video surface. CLI `work4you tools enable bfl` still works.
-  'bfl'
+  'bfl',
+  // Agent scheduling tool. Hide the Capabilities row only. Dedicated Cron
+  // UI (`/cron`), chat sidebar jobs, CLI `work4you cron`, and the runtime
+  // `cronjob` tool stay.
+  'cronjob'
 ])
 
 // BYOK credentials for hidden Web Search / Browser cloud vendors.

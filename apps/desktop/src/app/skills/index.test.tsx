@@ -148,15 +148,15 @@ describe('SkillsView toolset management', () => {
   })
 
   it('renders toolset titles without leading emoji', async () => {
-    getToolsets.mockResolvedValue([toolset({ name: 'cronjob', label: '⏰ Cron Jobs', description: 'cron tools' })])
+    getToolsets.mockResolvedValue([toolset({ name: 'tts', label: '🔊 Text-to-Speech', description: 'tts tools' })])
 
     await renderSkills()
 
     // The label renders in both the row and the auto-selected detail header, so
     // assert via the switch's (emoji-stripped) accessible name and the absence
     // of the emoji rather than a single-match text lookup.
-    await screen.findByRole('switch', { name: 'Turn Cron Jobs toolset off' })
-    expect(screen.queryByText(/⏰/)).toBeNull()
+    await screen.findByRole('switch', { name: 'Turn Text-to-Speech toolset off' })
+    expect(screen.queryByText(/🔊/)).toBeNull()
   })
 
   it('renders the provider config panel inline for the selected toolset', async () => {
@@ -185,7 +185,8 @@ describe('SkillsView toolset management', () => {
       toolset({ name: 'clarify', label: 'Clarifying Questions', tools: ['clarify'] }),
       toolset({ name: 'a2a', label: 'A2A', description: 'Agent-to-Agent protocol', tools: ['a2a_call'] }),
       toolset({ name: 'video_gen', label: 'Video Generation', tools: ['video_generate'] }),
-      toolset({ name: 'bfl', label: 'BFL FLUX 3 Video', tools: ['bfl_flux3_text_to_video'] })
+      toolset({ name: 'bfl', label: 'BFL FLUX 3 Video', tools: ['bfl_flux3_text_to_video'] }),
+      toolset({ name: 'cronjob', label: 'Cron Jobs', tools: ['cronjob'] })
     ])
 
     await renderSkills()
@@ -203,6 +204,7 @@ describe('SkillsView toolset management', () => {
     expect(screen.queryByText('Clarifying Questions')).toBeNull()
     expect(screen.queryByText('A2A')).toBeNull()
     expect(screen.queryByText('BFL FLUX 3 Video')).toBeNull()
+    expect(screen.queryByText('Cron Jobs')).toBeNull()
     expect(screen.queryByText('skill_manage')).toBeNull()
     expect(screen.queryByRole('switch', { name: /Skills toolset/ })).toBeNull()
     expect(setToolsetEnabled).not.toHaveBeenCalled()

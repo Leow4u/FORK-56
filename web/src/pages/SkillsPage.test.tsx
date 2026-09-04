@@ -140,6 +140,14 @@ const apiMocks = vi.hoisted(() => ({
       tools: ["bfl_flux3_text_to_video"],
     },
     {
+      name: "cronjob",
+      label: "Cron Jobs",
+      description: "create/list/update/pause/resume/run, with optional attached skills",
+      enabled: true,
+      configured: true,
+      tools: ["cronjob"],
+    },
+    {
       name: "discord",
       label: "Discord",
       description: "Platform-coupled; not a dashboard toggle",
@@ -277,6 +285,8 @@ describe("SkillsPage (Capabilities)", () => {
     expect(text).not.toContain("Agent-to-Agent protocol");
     expect(text).not.toContain("BFL FLUX 3 Video");
     expect(text).not.toContain("bfl_flux3_");
+    expect(text).not.toContain("Cron Jobs");
+    expect(text).not.toContain("create/list/update/pause/resume/run");
     expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");
