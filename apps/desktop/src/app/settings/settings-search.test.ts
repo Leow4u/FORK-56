@@ -56,6 +56,24 @@ describe('settings search index', () => {
     expect(entries.some(entry => entry.id === 'config-field:tts.openai.voice')).toBe(false)
   })
 
+  it('indexes OpenAI voice when TTS is Work4You Subscription', () => {
+    const schema: Record<string, ConfigFieldSchema> = {
+      'tts.edge.voice': { type: 'string' },
+      'tts.openai.voice': { type: 'string' },
+      'tts.openai.model': { type: 'string' }
+    }
+
+    const config = {
+      tts: { provider: 'work4you', openai: { voice: 'alloy', model: 'gpt-4o-mini-tts' } }
+    } as unknown as Work4YouConfigRecord
+
+    const entries = buildConfigSearchEntries(schema, config, searchCopy)
+
+    expect(entries.some(entry => entry.id === 'config-field:tts.openai.voice')).toBe(true)
+    expect(entries.some(entry => entry.id === 'config-field:tts.openai.model')).toBe(true)
+    expect(entries.some(entry => entry.id === 'config-field:tts.edge.voice')).toBe(false)
+  })
+
   it('discovers future tool and setting entries entirely from backend metadata', () => {
     const vars = {
       FUTURE_CRAWLER_API_KEY: envVar('tool', {
@@ -99,15 +117,34 @@ describe('settings search index', () => {
   it('uses AND matching across labels, context, descriptions, and raw keys', () => {
     const entries = buildCredentialSearchEntries(
       {
-        BRAVE_SEARCH_API_KEY: envVar('tool', { description: 'Search public web pages.' }),
-        FIRECRAWL_API_KEY: envVar('tool', { description: 'Extract public web pages.' })
+        HOMEASSISTANT_TOKEN: envVar('tool', { description: 'Connect home tools.' }),
+        ELEVENLABS_API_KEY: envVar('tool', { description: 'Generate speech.' })
       },
       { settings: 'Settings', tools: 'Tools' },
       { settings: Settings2, tools: Wrench }
     )
 
-    expect(filterSettingsSearchEntries(entries, 'brave tools')[0]?.id).toBe('credential:BRAVE_SEARCH_API_KEY')
-    expect(filterSettingsSearchEntries(entries, 'firecrawl extract')[0]?.id).toBe('credential:FIRECRAWL_API_KEY')
-    expect(filterSettingsSearchEntries(entries, 'brave extract')).toEqual([])
+    expect(filterSettingsSearchEntries(entries, 'home tools')[0]?.id).toBe('credential:HOMEASSISTANT_TOKEN')
+    expect(filterSettingsSearchEntries(entries, 'eleven speech')[0]?.id).toBe('credential:ELEVENLABS_API_KEY')
+    expect(filterSettingsSearchEntries(entries, 'home generate')).toEqual([])
+  })
+
+  it('omits BYOK web-search, browser-cloud, Home Assistant, and image-gen vendor credentials from Settings search', () => {
+    const entries = buildCredentialSearchEntries(
+      {
+        BRAVE_SEARCH_API_KEY: envVar('tool', { description: 'Search public web pages.' }),
+        FIRECRAWL_API_KEY: envVar('tool', { description: 'Extract public web pages.' }),
+        BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive a cloud browser.' }),
+        HASS_TOKEN: envVar('tool', { description: 'Home Assistant Long-Lived Access Token.' }),
+        HASS_URL: envVar('tool', { description: 'Home Assistant URL.' }),
+        FAL_KEY: envVar('tool', { description: 'Generate images.' }),
+        KREA_API_KEY: envVar('tool', { description: 'Generate images with Krea.' }),
+        ELEVENLABS_API_KEY: envVar('tool', { description: 'Generate speech.' })
+      },
+      { settings: 'Settings', tools: 'Tools' },
+      { settings: Settings2, tools: Wrench }
+    )
+
+    expect(entries.map(entry => entry.id)).toEqual(['credential:ELEVENLABS_API_KEY'])
   })
 })

@@ -30,6 +30,9 @@
  *     (keys mirror desktop Settings → Safety).
  *   - voice — TTS/STT providers and voice tuning (keys + voiceFieldVisible
  *     mirror desktop Settings → Voice).
+ *   - image_video — Image Generation and Video Generation (Work4You
+ *     Subscription + models; same panels that used to live in Capabilities
+ *     → Tools).
  *   - memory — memory toggles/budgets, provider + context engine
  *     (ProvidersCard), and compression keys (mirrors desktop Settings →
  *     Memory & Context).
@@ -37,7 +40,7 @@
  *     (keys mirror desktop Settings → Advanced).
  */
 
-import { Brain, Cpu, KeyRound, Lock, MessageCircle, Mic, Monitor, Palette, Server, Wrench, X, Zap } from "lucide-react";
+import { Brain, Cpu, Image, KeyRound, Lock, MessageCircle, Mic, Monitor, Palette, Server, Wrench, X, Zap } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -52,6 +55,7 @@ import { useI18n } from "@/i18n";
 import { PluginSlot } from "@/plugins";
 import { AppearanceSettingsSection } from "@/components/appearance-panels";
 import { FallbackModelsField } from "@/components/FallbackModelsField";
+import { ImageVideoSettings } from "@/components/ImageVideoSettings";
 import { SettingsConfigSection } from "@/components/SettingsConfigSection";
 import { ADVANCED_CONFIG_KEYS } from "@/lib/advanced-settings";
 import {
@@ -386,6 +390,12 @@ const SECTIONS: SettingsSection[] = [
         schemaFallback={VOICE_SCHEMA_FALLBACKS}
       />
     ),
+  },
+  {
+    id: "image_video",
+    label: "Image & Video",
+    icon: Image,
+    render: () => <ImageVideoSettings />,
   },
   {
     // Where the agent keeps memory + which context engine compacts it —

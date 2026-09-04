@@ -62,13 +62,13 @@ vi.mock('react-router', async importOriginal => ({
 
 function toolset(overrides: Record<string, unknown> = {}) {
   return {
-    name: 'web',
-    label: 'Web Search',
-    description: 'web_search, web_extract',
+    name: 'google_meet',
+    label: 'Google Meet',
+    description: 'google meet',
     enabled: true,
     available: true,
     configured: true,
-    tools: ['web_search', 'web_extract'],
+    tools: ['google_meet_schedule'],
     ...overrides
   }
 }
@@ -109,7 +109,7 @@ async function renderSkillsTab() {
 beforeEach(() => {
   getSkills.mockResolvedValue([])
   getToolsets.mockResolvedValue([toolset()])
-  setToolsetEnabled.mockResolvedValue({ ok: true, name: 'web', enabled: false })
+  setToolsetEnabled.mockResolvedValue({ ok: true, name: 'google_meet', enabled: false })
   getToolsetConfig.mockResolvedValue({ has_category: true, active_provider: null, providers: [] })
   getUsageAnalytics.mockResolvedValue({ tools: [] })
   getSkillContent.mockResolvedValue({
@@ -136,7 +136,7 @@ describe('SkillsView toolset management', () => {
     await renderSkills()
 
     // The switch names the action, so an enabled toolset offers to turn it off.
-    const sw = await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    const sw = await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
     expect(sw.getAttribute('aria-checked')).toBe('true')
 
     await act(async () => {
@@ -144,19 +144,21 @@ describe('SkillsView toolset management', () => {
     })
 
     await waitFor(() => expect(setToolsetEnabled).toHaveBeenCalled())
-    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['web', false])
+    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['google_meet', false])
   })
 
   it('renders toolset titles without leading emoji', async () => {
-    getToolsets.mockResolvedValue([toolset({ name: 'cronjob', label: '⏰ Cron Jobs', description: 'cron tools' })])
+    getToolsets.mockResolvedValue([
+      toolset({ name: 'google_meet', label: '🎬 Google Meet', description: 'meet tools', tools: ['google_meet_schedule'] })
+    ])
 
     await renderSkills()
 
     // The label renders in both the row and the auto-selected detail header, so
     // assert via the switch's (emoji-stripped) accessible name and the absence
     // of the emoji rather than a single-match text lookup.
-    await screen.findByRole('switch', { name: 'Turn Cron Jobs toolset off' })
-    expect(screen.queryByText(/⏰/)).toBeNull()
+    await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
+    expect(screen.queryByText(/🎬/)).toBeNull()
   })
 
   it('renders the provider config panel inline for the selected toolset', async () => {
@@ -165,9 +167,101 @@ describe('SkillsView toolset management', () => {
     // and renders its config panel directly, which fetches on mount.
     await renderSkills()
 
-    await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
     await waitFor(() => expect(getToolsetConfig).toHaveBeenCalled())
-    expect(getToolsetConfig.mock.calls[0][0]).toBe('web')
+    expect(getToolsetConfig.mock.calls[0][0]).toBe('google_meet')
+  })
+
+  it('hides core agent toolsets from Capabilities Tools entirely', async () => {
+    getToolsets.mockResolvedValue([
+      toolset(),
+      toolset({ name: 'image_gen', label: 'Image Generation', tools: ['image_generate'] }),
+      toolset({ name: 'web', label: 'Web Search & Scraping', tools: ['web_search'] }),
+      toolset({ name: 'memory', label: 'Memory', tools: ['memory_search'] }),
+      toolset({ name: 'browser', label: 'Browser Automation', tools: ['browser_navigate'] }),
+      toolset({ name: 'terminal', label: 'Terminal & Processes', tools: ['terminal'] }),
+      toolset({ name: 'file', label: 'File Operations', tools: ['read_file'] }),
+      toolset({ name: 'code_execution', label: 'Code Execution', tools: ['execute_code'] }),
+      toolset({ name: 'skills', label: 'Skills', tools: ['skill_manage'] }),
+      toolset({ name: 'computer_use', label: 'Computer Use', tools: ['computer_use'] }),
+      toolset({ name: 'vision', label: 'Vision / Image Analysis', tools: ['vision_analyze'] }),
+      toolset({ name: 'clarify', label: 'Clarifying Questions', tools: ['clarify'] }),
+      toolset({ name: 'a2a', label: 'A2A', description: 'Agent-to-Agent protocol', tools: ['a2a_call'] }),
+      toolset({ name: 'video_gen', label: 'Video Generation', tools: ['video_generate'] }),
+      toolset({ name: 'bfl', label: 'BFL FLUX 3 Video', tools: ['bfl_flux3_text_to_video'] }),
+      toolset({ name: 'cronjob', label: 'Cron Jobs', tools: ['cronjob'] }),
+      toolset({
+        name: 'homeassistant',
+        label: 'Home Assistant',
+        description: 'smart home device control',
+        tools: ['ha_list_entities']
+      }),
+      toolset({ name: 'session_search', label: 'Session Search', tools: ['session_search_recall'] }),
+      toolset({ name: 'spotify', label: 'Spotify', tools: ['spotify_playback'] }),
+      toolset({ name: 'delegation', label: 'Task Delegation', tools: ['delegate_task'] }),
+      toolset({ name: 'todo', label: 'Task Planning', tools: ['todo'] }),
+      toolset({ name: 'video', label: 'Video Analysis', tools: ['video_analyze'] }),
+      toolset({ name: 'x_search', label: 'X (Twitter) Search', tools: ['x_search'] }),
+      toolset({ name: 'stt', label: 'Speech-to-Text', description: 'voice transcription' }),
+      toolset({ name: 'tts', label: 'Text-to-Speech', description: 'text_to_speech' })
+    ])
+
+    await renderSkills()
+
+    expect(await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })).toBeTruthy()
+    expect(screen.queryByRole('switch', { name: /Image Generation/ })).toBeNull()
+    expect(screen.queryByRole('switch', { name: /Video Generation/ })).toBeNull()
+    expect(screen.queryByText('Image Generation')).toBeNull()
+    expect(screen.queryByText('Video Generation')).toBeNull()
+    expect(screen.queryByText('Web Search & Scraping')).toBeNull()
+    expect(screen.queryByText('Memory')).toBeNull()
+    expect(screen.queryByText('Browser Automation')).toBeNull()
+    expect(screen.queryByText('Terminal & Processes')).toBeNull()
+    expect(screen.queryByText('File Operations')).toBeNull()
+    expect(screen.queryByText('Code Execution')).toBeNull()
+    expect(screen.queryByText('Computer Use')).toBeNull()
+    expect(screen.queryByText('Vision / Image Analysis')).toBeNull()
+    expect(screen.queryByText('Clarifying Questions')).toBeNull()
+    expect(screen.queryByText('A2A')).toBeNull()
+    expect(screen.queryByText('BFL FLUX 3 Video')).toBeNull()
+    expect(screen.queryByText('Cron Jobs')).toBeNull()
+    expect(screen.queryByText('Home Assistant')).toBeNull()
+    expect(screen.queryByText('smart home device control')).toBeNull()
+    expect(screen.queryByText('Session Search')).toBeNull()
+    expect(screen.queryByText('Spotify')).toBeNull()
+    expect(screen.queryByText('Task Delegation')).toBeNull()
+    expect(screen.queryByText('Task Planning')).toBeNull()
+    expect(screen.queryByText('Video Analysis')).toBeNull()
+    expect(screen.queryByText('X (Twitter) Search')).toBeNull()
+    expect(screen.queryByText('Speech-to-Text')).toBeNull()
+    expect(screen.queryByText('Text-to-Speech')).toBeNull()
+    expect(screen.queryByText('skill_manage')).toBeNull()
+    expect(screen.queryByRole('switch', { name: /Skills toolset/ })).toBeNull()
+    expect(setToolsetEnabled).not.toHaveBeenCalled()
+  })
+
+  it('hides the Tools tab when every remaining toolset is already hidden', async () => {
+    getToolsets.mockResolvedValue([
+      toolset({ name: 'image_gen', label: 'Image Generation', tools: ['image_generate'] }),
+      toolset({ name: 'web', label: 'Web Search & Scraping', tools: ['web_search'] }),
+      toolset({ name: 'stt', label: 'Speech-to-Text', description: 'voice transcription' }),
+      toolset({ name: 'tts', label: 'Text-to-Speech', description: 'text_to_speech' })
+    ])
+
+    await renderSkills()
+
+    expect(await screen.findByRole('button', { name: 'New skill' })).toBeTruthy()
+    expect(document.querySelector('[data-tour="tab-toolsets"]')).toBeNull()
+    expect(screen.queryByRole('switch', { name: /toolset/ })).toBeNull()
+    expect(screen.queryByText('Image Generation')).toBeNull()
+    expect(screen.queryByText('Web Search & Scraping')).toBeNull()
+  })
+
+  it('keeps the Tools tab when a leftover plugin toolset is still visible', async () => {
+    await renderSkills()
+
+    expect(await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })).toBeTruthy()
+    expect(document.querySelector('[data-tour="tab-toolsets"]')).toBeTruthy()
   })
 
   it('scopes Tools config to the profile chosen in the selector', async () => {
@@ -329,7 +423,7 @@ describe('SkillsView toolset management', () => {
     // On a non-Skills tab the docs-site iframe must not exist at all — an
     // eagerly mounted hub is exactly the Capabilities lag bug.
     await renderSkills() // ?tab=toolsets
-    await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
     expect(document.querySelector('iframe')).toBeNull()
     cleanup()
 
@@ -365,11 +459,9 @@ describe('SkillsView toolset management', () => {
     expect(kept!.closest('section')!.classList.contains('hidden')).toBe(true)
   })
 
-  it('shows a vision explainer that deep-links to Settings → Models', async () => {
-    // Vision has no TOOL_CATEGORIES provider matrix — its model lives in the
-    // auxiliary model config, so the detail pane must point there instead of
-    // rendering an empty panel.
+  it('hides Vision from Capabilities Tools including the Settings deep-link', async () => {
     getToolsets.mockResolvedValue([
+      toolset(),
       toolset({
         name: 'vision',
         label: 'Vision / Image Analysis',
@@ -377,20 +469,14 @@ describe('SkillsView toolset management', () => {
         tools: ['vision_analyze']
       })
     ])
-    getToolsetConfig.mockResolvedValue({ has_category: false, active_provider: null, providers: [] })
 
     await renderSkills()
 
-    expect(await screen.findByText(/auxiliary model configuration/)).toBeTruthy()
-    const link = screen.getByRole('button', { name: /Choose vision model in Settings/ })
-
-    await act(async () => {
-      fireEvent.click(link)
-    })
-
-    // Internal route change into the Models section with the aux slot target —
-    // consumed by ModelSettings' deep-link highlight. Never an external URL.
-    await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/settings?tab=config:model&aux=vision'))
+    expect(await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })).toBeTruthy()
+    expect(screen.queryByText('Vision / Image Analysis')).toBeNull()
+    expect(screen.queryByText(/auxiliary model configuration/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Choose vision model in Settings/ })).toBeNull()
+    expect(navigateSpy).not.toHaveBeenCalled()
   })
 
   it('fixedConnection pins every read to the target connection', async () => {
@@ -471,7 +557,7 @@ describe('SkillsView new skill', () => {
   it('keeps New skill off the Tools tab', async () => {
     await renderSkills()
 
-    await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
     expect(screen.queryByRole('button', { name: 'New skill' })).toBeNull()
   })
 

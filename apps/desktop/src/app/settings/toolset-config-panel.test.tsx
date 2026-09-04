@@ -265,15 +265,15 @@ describe('ToolsetConfigPanel', () => {
     getToolsetConfig.mockResolvedValue(
       config({
         name: 'image_gen',
-        active_provider: 'FAL.ai',
+        active_provider: 'Work4You Subscription',
         providers: [
           {
-            name: 'FAL.ai',
-            badge: 'paid',
-            tag: 'Multi-model image generation',
+            name: 'Work4You Subscription',
+            badge: 'subscription',
+            tag: 'Managed FAL image generation billed to your subscription',
             env_vars: [],
             post_setup: null,
-            requires_work4you_auth: false,
+            requires_work4you_auth: true,
             is_active: true
           }
         ]
@@ -282,7 +282,7 @@ describe('ToolsetConfigPanel', () => {
     getToolsetModels.mockResolvedValue({
       name: 'image_gen',
       has_models: true,
-      provider: 'FAL.ai',
+      provider: 'Work4You Subscription',
       plugin: 'fal',
       models: [
         { id: 'z-image-turbo', display: 'Z-Image Turbo', speed: 'fast', strengths: 'cheap drafts', price: '$0.005' },
@@ -298,11 +298,238 @@ describe('ToolsetConfigPanel', () => {
     // Both catalog rows render with their picker metadata.
     expect(await screen.findByText('Z-Image Turbo')).toBeTruthy()
     expect(screen.getByText('FLUX 2 Pro')).toBeTruthy()
-    expect(getToolsetModels).toHaveBeenCalledWith('image_gen', 'FAL.ai')
+    expect(getToolsetModels).toHaveBeenCalledWith('image_gen', 'Work4You Subscription')
 
     // Picking a different model persists via the model endpoint.
     fireEvent.click(screen.getByRole('button', { name: /FLUX 2 Pro/ }))
-    await waitFor(() => expect(selectToolsetModel).toHaveBeenCalledWith('image_gen', 'flux-2-pro', 'FAL.ai'))
+    await waitFor(() =>
+      expect(selectToolsetModel).toHaveBeenCalledWith('image_gen', 'flux-2-pro', 'Work4You Subscription')
+    )
+  })
+
+  it('hides Image Generation BYOK backends including Work4You Portal (image)', async () => {
+    getToolsetConfig.mockResolvedValue(
+      config({
+        name: 'image_gen',
+        active_provider: 'Work4You Subscription',
+        providers: [
+          {
+            name: 'Work4You Subscription',
+            badge: 'subscription',
+            tag: 'Managed FAL image generation billed to your subscription',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: true,
+            is_active: true
+          },
+          {
+            name: 'FAL.ai',
+            badge: 'paid',
+            tag: 'Bring your own FAL key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'DeepInfra',
+            badge: 'paid',
+            tag: 'Bring your own DeepInfra key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'Work4You Portal (image)',
+            badge: 'subscription',
+            tag: 'OpenRouter-backed portal image generation',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: true,
+            is_active: false
+          },
+          {
+            name: 'OpenAI',
+            badge: 'paid',
+            tag: 'Bring your own OpenAI key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          }
+        ]
+      })
+    )
+    getToolsetModels.mockResolvedValue({
+      name: 'image_gen',
+      has_models: true,
+      provider: 'Work4You Subscription',
+      plugin: 'fal',
+      models: [{ id: 'z-image-turbo', display: 'Z-Image Turbo', speed: 'fast', strengths: '', price: '' }],
+      current: 'z-image-turbo',
+      default: 'z-image-turbo'
+    })
+
+    const { ToolsetConfigPanel } = await import('./toolset-config-panel')
+    render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="image_gen" />)
+
+    expect(await screen.findByRole('button', { name: /Work4You Subscription/ })).toBeTruthy()
+    expect(await screen.findByText('Z-Image Turbo')).toBeTruthy()
+    expect(screen.queryByText('FAL.ai')).toBeNull()
+    expect(screen.queryByText('DeepInfra')).toBeNull()
+    expect(screen.queryByText('Work4You Portal (image)')).toBeNull()
+    expect(screen.queryByText('OpenAI')).toBeNull()
+  })
+
+  it('hides Video Generation BYOK backends including DeepInfra, FAL, and xAI Grok Imagine', async () => {
+    getToolsetConfig.mockResolvedValue(
+      config({
+        name: 'video_gen',
+        active_provider: 'Work4You Subscription',
+        providers: [
+          {
+            name: 'Work4You Subscription',
+            badge: 'subscription',
+            tag: 'Managed FAL video generation billed to your subscription',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: true,
+            is_active: true
+          },
+          {
+            name: 'DeepInfra',
+            badge: 'paid',
+            tag: 'Bring your own DeepInfra key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'FAL',
+            badge: 'paid',
+            tag: 'Bring your own FAL key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'xAI Grok Imagine',
+            badge: 'paid',
+            tag: 'Bring your own xAI key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          }
+        ]
+      })
+    )
+    getToolsetModels.mockResolvedValue({
+      name: 'video_gen',
+      has_models: true,
+      provider: 'Work4You Subscription',
+      plugin: 'fal',
+      models: [{ id: 'pixverse-v6', display: 'Pixverse v6', speed: 'fast', strengths: '', price: '' }],
+      current: 'pixverse-v6',
+      default: 'pixverse-v6'
+    })
+
+    const { ToolsetConfigPanel } = await import('./toolset-config-panel')
+    render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="video_gen" />)
+
+    expect(await screen.findByRole('button', { name: /Work4You Subscription/ })).toBeTruthy()
+    expect(await screen.findByText('Pixverse v6')).toBeTruthy()
+    expect(screen.queryByText('DeepInfra')).toBeNull()
+    expect(screen.queryByText('FAL')).toBeNull()
+    expect(screen.queryByText('xAI Grok Imagine')).toBeNull()
+  })
+
+  it('hides Speech-to-Text BYOK backends and Local Whisper', async () => {
+    getToolsetConfig.mockResolvedValue(
+      config({
+        name: 'stt',
+        active_provider: 'Work4You Subscription',
+        providers: [
+          {
+            name: 'Local Whisper',
+            badge: '★ recommended · free',
+            tag: 'faster-whisper on-device, no API key',
+            env_vars: [],
+            post_setup: 'faster_whisper',
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'Work4You Subscription',
+            badge: 'subscription',
+            tag: 'Managed OpenAI transcription billed to your subscription',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: true,
+            is_active: true
+          },
+          {
+            name: 'OpenAI',
+            badge: 'paid',
+            tag: 'whisper-1, gpt-4o-transcribe',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'Groq',
+            badge: 'free tier',
+            tag: 'Whisper large-v3 family',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'xAI',
+            badge: '',
+            tag: 'grok-stt',
+            env_vars: [],
+            post_setup: 'xai_grok',
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'ElevenLabs Scribe',
+            badge: 'paid',
+            tag: 'scribe_v2',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'DeepInfra',
+            badge: 'paid',
+            tag: 'Live STT catalog',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          }
+        ]
+      })
+    )
+
+    const { ToolsetConfigPanel } = await import('./toolset-config-panel')
+    render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="stt" />)
+
+    expect(await screen.findByRole('button', { name: /Work4You Subscription/ })).toBeTruthy()
+    expect(screen.queryByText('Local Whisper')).toBeNull()
+    expect(screen.queryByText('OpenAI')).toBeNull()
+    expect(screen.queryByText('Groq')).toBeNull()
+    expect(screen.queryByText('xAI')).toBeNull()
+    expect(screen.queryByText('ElevenLabs Scribe')).toBeNull()
+    expect(screen.queryByText('DeepInfra')).toBeNull()
   })
 
   it('does not fetch model catalogs for toolsets without them', async () => {

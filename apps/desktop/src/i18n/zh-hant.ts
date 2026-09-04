@@ -299,6 +299,7 @@ export const zhHant = defineLocale({
       safety: '安全性',
       memory: '記憶與上下文',
       voice: '語音',
+      image_video: '影像與影片',
       advanced: '進階'
     },
     searchPlaceholder: {

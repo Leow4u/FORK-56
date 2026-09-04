@@ -122,6 +122,13 @@ export function clearsEnabledToolsets(prev: Work4YouConfigRecord, next: Work4You
   return hadToolsets && clearsToolsets
 }
 
+/** Work4You Subscription stores `tts.provider` / `stt.provider` as
+ *  `work4you`, but voice/model live under the `openai` nested section — the
+ *  managed openai-audio gateway reads `tts.openai.voice` / `tts.openai.model`. */
+function voiceNestedBackend(stored: string): string {
+  return stored === 'work4you' ? 'openai' : stored
+}
+
 // Voice renders only fields for the selected TTS/STT provider. Search and the
 // page share this rule so every indexed field can actually mount when opened.
 export function voiceFieldVisible(key: string, config: Work4YouConfigRecord): boolean {
@@ -137,7 +144,8 @@ export function voiceFieldVisible(key: string, config: Work4YouConfigRecord): bo
     return false
   }
 
-  return provider === String(getNested(config, `${domain}.provider`) ?? '')
+  const stored = String(getNested(config, `${domain}.provider`) ?? '')
+  return provider === voiceNestedBackend(stored)
 }
 
 export function inferFieldSchema(value: unknown): ConfigFieldSchema {

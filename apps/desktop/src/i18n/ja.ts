@@ -306,6 +306,7 @@ export const ja = defineLocale({
       safety: '安全性',
       memory: 'メモリとコンテキスト',
       voice: '音声',
+      image_video: '画像と動画',
       advanced: '詳細'
     },
     searchPlaceholder: {

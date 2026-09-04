@@ -30,6 +30,12 @@ vi.mock("@/components/appearance-panels", () => ({
   ),
 }));
 
+vi.mock("@/components/ImageVideoSettings", () => ({
+  ImageVideoSettings: () => (
+    <div data-testid="image-video-settings">image and video settings</div>
+  ),
+}));
+
 vi.mock("@/pages/PluginsPage", () => ({
   ProvidersCard: () => (
     <div data-testid="providers-card">memory and context providers</div>
@@ -285,6 +291,21 @@ describe("SettingsPage", () => {
     expect(section?.textContent).toContain("voice.auto_tts");
     expect(
       container.querySelector('[data-testid="model-settings-panel"]'),
+    ).toBeNull();
+  });
+
+  it("renders the Image & Video section with the hosted toolset panels", async () => {
+    await renderPage("/settings?section=image_video");
+    const active = container.querySelector('[aria-current="true"]');
+    expect(active?.textContent).toContain("Image & Video");
+    expect(
+      container.querySelector('[data-testid="image-video-settings"]'),
+    ).toBeTruthy();
+    expect(
+      container.querySelector('[data-testid="model-settings-panel"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-testid="settings-config-section"]'),
     ).toBeNull();
   });
 

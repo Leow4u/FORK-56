@@ -117,6 +117,31 @@ def test_get_platform_tools_homeassistant_uses_active_profile_token(monkeypatch)
         secret_scope.set_multiplex_active(False)
 
 
+def test_get_platform_tools_x_search_stays_off_when_xai_credentials_present(monkeypatch):
+    """X (Twitter) Search stays default-off even when Grok/xAI keys exist.
+
+    XAI_API_KEY is also a chat-model credential. Auto-enabling x_search
+    because the user chats with Grok would turn Twitter search on without
+    an explicit opt-in. Spotify and Video Analysis stay off too.
+    """
+    monkeypatch.setenv("XAI_API_KEY", "fake-xai-key")
+    monkeypatch.setattr(
+        "work4you_cli.tools_config._xai_credentials_present", lambda: True
+    )
+
+    cli_enabled = _get_platform_tools({}, "cli")
+    assert "x_search" not in cli_enabled
+    assert "spotify" not in cli_enabled
+    assert "video" not in cli_enabled
+
+
+def test_get_platform_tools_x_search_survives_explicit_enable():
+    """CLI / saved platform_toolsets can still turn X Search on."""
+    config = {"platform_toolsets": {"cli": ["work4you-cli", "x_search"]}}
+    enabled = _get_platform_tools(config, "cli")
+    assert "x_search" in enabled
+
+
 # ─── #35527: platform-restricted default-off toolsets (discord/discord_admin)
 # are stripped by _DEFAULT_OFF_TOOLSETS even when the user explicitly opts in
 # via the platform's native composite. The composite ``work4you-discord``
@@ -1128,6 +1153,28 @@ def test_platforms_whose_composite_excludes_it_are_left_narrow():
             include_default_mcp_servers=False,
         )
         assert not (_RECENTLY_SHIPPED_TOOLSETS & enabled), platform
+
+
+def test_composite_does_not_enable_bfl_unless_explicitly_listed():
+    """BFL FLUX 3 tools live in core, so a composite *could* turn them on.
+    They are default-off: ``video_generate`` is the user-facing video
+    surface. An explicit ``bfl`` entry still enables them so later
+    reactivation via ``work4you tools enable bfl`` keeps working.
+    """
+    on_composite = _get_platform_tools(
+        {"platform_toolsets": {"cli": ["work4you-cli"]}},
+        "cli",
+        include_default_mcp_servers=False,
+    )
+    assert "bfl" not in on_composite
+    assert "video_gen" not in on_composite
+
+    on_explicit = _get_platform_tools(
+        {"platform_toolsets": {"cli": ["work4you-cli", "bfl"]}},
+        "cli",
+        include_default_mcp_servers=False,
+    )
+    assert "bfl" in on_explicit
 
 
 # Regression for issue #81163 (Layer 2): an explicitly-listed plugin toolset
