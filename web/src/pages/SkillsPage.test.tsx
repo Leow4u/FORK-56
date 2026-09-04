@@ -100,6 +100,14 @@ const apiMocks = vi.hoisted(() => ({
       tools: ["computer_use"],
     },
     {
+      name: "vision",
+      label: "Vision / Image Analysis",
+      description: "vision_analyze",
+      enabled: true,
+      configured: true,
+      tools: ["vision_analyze"],
+    },
+    {
       name: "discord",
       label: "Discord",
       description: "Platform-coupled; not a dashboard toggle",
@@ -228,6 +236,8 @@ describe("SkillsPage (Capabilities)", () => {
     expect(text).not.toContain("Code Execution");
     expect(text).not.toContain("Manage installed skills as a toolset");
     expect(text).not.toContain("Computer Use");
+    expect(text).not.toContain("Vision / Image Analysis");
+    expect(text).not.toContain("vision_analyze");
     expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");

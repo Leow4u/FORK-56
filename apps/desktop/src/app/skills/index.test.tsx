@@ -180,7 +180,8 @@ describe('SkillsView toolset management', () => {
       toolset({ name: 'file', label: 'File Operations', tools: ['read_file'] }),
       toolset({ name: 'code_execution', label: 'Code Execution', tools: ['execute_code'] }),
       toolset({ name: 'skills', label: 'Skills', tools: ['skill_manage'] }),
-      toolset({ name: 'computer_use', label: 'Computer Use', tools: ['computer_use'] })
+      toolset({ name: 'computer_use', label: 'Computer Use', tools: ['computer_use'] }),
+      toolset({ name: 'vision', label: 'Vision / Image Analysis', tools: ['vision_analyze'] })
     ])
 
     await renderSkills()
@@ -193,6 +194,7 @@ describe('SkillsView toolset management', () => {
     expect(screen.queryByText('File Operations')).toBeNull()
     expect(screen.queryByText('Code Execution')).toBeNull()
     expect(screen.queryByText('Computer Use')).toBeNull()
+    expect(screen.queryByText('Vision / Image Analysis')).toBeNull()
     expect(screen.queryByText('skill_manage')).toBeNull()
     expect(screen.queryByRole('switch', { name: /Skills toolset/ })).toBeNull()
     expect(setToolsetEnabled).not.toHaveBeenCalled()
@@ -393,11 +395,9 @@ describe('SkillsView toolset management', () => {
     expect(kept!.closest('section')!.classList.contains('hidden')).toBe(true)
   })
 
-  it('shows a vision explainer that deep-links to Settings → Models', async () => {
-    // Vision has no TOOL_CATEGORIES provider matrix — its model lives in the
-    // auxiliary model config, so the detail pane must point there instead of
-    // rendering an empty panel.
+  it('hides Vision from Capabilities Tools including the Settings deep-link', async () => {
     getToolsets.mockResolvedValue([
+      toolset(),
       toolset({
         name: 'vision',
         label: 'Vision / Image Analysis',
@@ -405,20 +405,14 @@ describe('SkillsView toolset management', () => {
         tools: ['vision_analyze']
       })
     ])
-    getToolsetConfig.mockResolvedValue({ has_category: false, active_provider: null, providers: [] })
 
     await renderSkills()
 
-    expect(await screen.findByText(/auxiliary model configuration/)).toBeTruthy()
-    const link = screen.getByRole('button', { name: /Choose vision model in Settings/ })
-
-    await act(async () => {
-      fireEvent.click(link)
-    })
-
-    // Internal route change into the Models section with the aux slot target —
-    // consumed by ModelSettings' deep-link highlight. Never an external URL.
-    await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/settings?tab=config:model&aux=vision'))
+    expect(await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })).toBeTruthy()
+    expect(screen.queryByText('Vision / Image Analysis')).toBeNull()
+    expect(screen.queryByText(/auxiliary model configuration/)).toBeNull()
+    expect(screen.queryByRole('button', { name: /Choose vision model in Settings/ })).toBeNull()
+    expect(navigateSpy).not.toHaveBeenCalled()
   })
 
   it('fixedConnection pins every read to the target connection', async () => {

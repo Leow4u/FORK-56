@@ -10,8 +10,9 @@
 // runtime gating are untouched.
 //
 // Core agent toolsets are also hidden here: the user must not see or configure
-// them in Capabilities. Files sidebar, Skills Hub, and Settings → Workspace
-// `code_execution.mode` are different surfaces and stay. Keep in sync with
+// them in Capabilities. Files sidebar, Skills Hub, Settings → Workspace
+// `code_execution.mode`, Settings → Memory & Context, and Settings → Models
+// are different surfaces and stay. Keep in sync with
 // web/src/lib/desktop-toolsets.ts.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Platform-coupled — only meaningful when that platform is the active
@@ -30,7 +31,8 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'code_execution',
   'skills',
   'memory',
-  'computer_use'
+  'computer_use',
+  'vision'
 ])
 
 // BYOK credentials for hidden Web Search / Browser cloud vendors.
