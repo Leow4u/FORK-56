@@ -1130,6 +1130,28 @@ def test_platforms_whose_composite_excludes_it_are_left_narrow():
         assert not (_RECENTLY_SHIPPED_TOOLSETS & enabled), platform
 
 
+def test_composite_does_not_enable_bfl_unless_explicitly_listed():
+    """BFL FLUX 3 tools live in core, so a composite *could* turn them on.
+    They are default-off: ``video_generate`` is the user-facing video
+    surface. An explicit ``bfl`` entry still enables them so later
+    reactivation via ``work4you tools enable bfl`` keeps working.
+    """
+    on_composite = _get_platform_tools(
+        {"platform_toolsets": {"cli": ["work4you-cli"]}},
+        "cli",
+        include_default_mcp_servers=False,
+    )
+    assert "bfl" not in on_composite
+    assert "video_gen" not in on_composite
+
+    on_explicit = _get_platform_tools(
+        {"platform_toolsets": {"cli": ["work4you-cli", "bfl"]}},
+        "cli",
+        include_default_mcp_servers=False,
+    )
+    assert "bfl" in on_explicit
+
+
 # Regression for issue #81163 (Layer 2): an explicitly-listed plugin toolset
 # in ``platform_toolsets.<platform>`` must survive the filter, not be dropped
 # because it isn't a built-in CONFIGURABLE_TOOLSETS entry.

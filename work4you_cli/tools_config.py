@@ -147,13 +147,18 @@ def gui_toolset_label(label: str) -> str:
 # who want it opt in via `work4you tools` → Video Generation, which walks
 # them through provider + model selection.
 #
+# BFL FLUX 3 native tools (keyframes / continuation) stay in the tree and in
+# core tools so an explicit `platform_toolsets` entry or
+# `work4you tools enable bfl` can turn them back on. They are default-off so
+# they do not sit next to `video_generate` on every session.
+#
 # X search is off by default for users without xAI credentials, but
 # auto-enables when SuperGrok OAuth tokens are stored OR XAI_API_KEY is
 # set — mirroring the HASS_TOKEN → homeassistant auto-enable below. The
 # `work4you tools` → X (Twitter) Search setup walks users through credential
 # setup. The tool's check_fn means the schema still won't appear to the
 # model if the credential later goes missing or expires.
-_DEFAULT_OFF_TOOLSETS = {"homeassistant", "spotify", "discord", "discord_admin", "video", "video_gen", "x_search", "a2a"}
+_DEFAULT_OFF_TOOLSETS = {"homeassistant", "spotify", "discord", "discord_admin", "video", "video_gen", "x_search", "a2a", "bfl"}
 
 
 # Config-only capabilities: they appear in `work4you tools` for provider/API-key
@@ -2357,12 +2362,10 @@ def _exempt_explicit_platform_native(
 #: Landing late — or leaving an entry here for a second release — converts a
 #: back-fill into a stuck checkbox.
 #:
-#: Not gated on a Work4You sign-in here: the six ``bfl_flux3_*`` tools carry
-#: ``check_fn=check_bfl_requirements``, so an enabled toolset still ships zero
-#: schemas to a user with no Work4You credential — the same split Home Assistant
-#: uses. Probing the portal from this path would put a network call on every
-#: CLI start, gateway session and cron tick.
-_RECENTLY_SHIPPED_TOOLSETS = frozenset({"bfl"})
+#: Empty is the steady state between first-release windows. ``bfl`` used this
+#: slot on first ship; it is now default-off, so absence must mean declined
+#: (or never opted in) rather than "never offered".
+_RECENTLY_SHIPPED_TOOLSETS = frozenset()
 
 
 def _enable_recently_shipped_toolsets(
