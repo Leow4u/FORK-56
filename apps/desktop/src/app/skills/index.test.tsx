@@ -182,8 +182,14 @@ describe('SkillsView toolset management', () => {
     expect(screen.getAllByText('Memory').length).toBeGreaterThan(0)
     expect(screen.queryByRole('switch', { name: /Web Search/ })).toBeNull()
     expect(screen.queryByRole('switch', { name: /Memory/ })).toBeNull()
-    expect(getToolsetConfig).not.toHaveBeenCalled()
     expect(setToolsetEnabled).not.toHaveBeenCalled()
+
+    // Memory has no vendor picker; the empty panel may still load. Web Search
+    // must not mount the Firecrawl/Tavily/… matrix.
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('Web Search & Scraping')[0])
+    })
+    expect(getToolsetConfig.mock.calls.map(call => call[0])).not.toContain('web')
   })
 
   it('scopes Tools config to the profile chosen in the selector', async () => {
