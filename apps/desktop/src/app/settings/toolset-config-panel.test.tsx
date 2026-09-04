@@ -382,6 +382,91 @@ describe('ToolsetConfigPanel', () => {
     expect(screen.queryByText('OpenAI')).toBeNull()
   })
 
+  it('hides Speech-to-Text BYOK backends and Local Whisper', async () => {
+    getToolsetConfig.mockResolvedValue(
+      config({
+        name: 'stt',
+        active_provider: 'Work4You Subscription',
+        providers: [
+          {
+            name: 'Local Whisper',
+            badge: '★ recommended · free',
+            tag: 'faster-whisper on-device, no API key',
+            env_vars: [],
+            post_setup: 'faster_whisper',
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'Work4You Subscription',
+            badge: 'subscription',
+            tag: 'Managed OpenAI transcription billed to your subscription',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: true,
+            is_active: true
+          },
+          {
+            name: 'OpenAI',
+            badge: 'paid',
+            tag: 'whisper-1, gpt-4o-transcribe',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'Groq',
+            badge: 'free tier',
+            tag: 'Whisper large-v3 family',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'xAI',
+            badge: '',
+            tag: 'grok-stt',
+            env_vars: [],
+            post_setup: 'xai_grok',
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'ElevenLabs Scribe',
+            badge: 'paid',
+            tag: 'scribe_v2',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'DeepInfra',
+            badge: 'paid',
+            tag: 'Live STT catalog',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          }
+        ]
+      })
+    )
+
+    const { ToolsetConfigPanel } = await import('./toolset-config-panel')
+    render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="stt" />)
+
+    expect(await screen.findByRole('button', { name: /Work4You Subscription/ })).toBeTruthy()
+    expect(screen.queryByText('Local Whisper')).toBeNull()
+    expect(screen.queryByText('OpenAI')).toBeNull()
+    expect(screen.queryByText('Groq')).toBeNull()
+    expect(screen.queryByText('xAI')).toBeNull()
+    expect(screen.queryByText('ElevenLabs Scribe')).toBeNull()
+    expect(screen.queryByText('DeepInfra')).toBeNull()
+  })
+
   it('does not fetch model catalogs for toolsets without them', async () => {
     const { ToolsetConfigPanel } = await import('./toolset-config-panel')
     render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="tts" />)

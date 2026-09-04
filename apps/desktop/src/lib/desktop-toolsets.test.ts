@@ -87,11 +87,26 @@ describe('isCapabilitiesToolsetProviderVisible', () => {
     }
   })
 
+  it('keeps only Work4You Subscription on Speech-to-Text', () => {
+    expect(isCapabilitiesToolsetProviderVisible('stt', 'Work4You Subscription')).toBe(true)
+    for (const name of [
+      'Local Whisper',
+      'OpenAI',
+      'Groq',
+      'xAI',
+      'ElevenLabs Scribe',
+      'DeepInfra'
+    ]) {
+      expect(isCapabilitiesToolsetProviderVisible('stt', name)).toBe(false)
+    }
+  })
+
   it('does not prefix-match other Subscription rows', () => {
     expect(
       isCapabilitiesToolsetProviderVisible('browser', 'Work4You Subscription (Browser Use cloud)')
     ).toBe(true)
     expect(isCapabilitiesToolsetProviderVisible('video_gen', 'FAL.ai')).toBe(true)
     expect(isCapabilitiesToolsetProviderVisible('tts', 'Microsoft Edge TTS')).toBe(true)
+    expect(isCapabilitiesToolsetProviderVisible('tts', 'Work4You Subscription')).toBe(true)
   })
 })

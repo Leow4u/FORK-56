@@ -101,9 +101,11 @@ const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
   'DEEPINFRA_API_KEY'
 ])
 
-/** Exact picker-row name of the managed FAL image backend. Do not
+/** Exact picker-row name of the managed Subscription backend. Do not
  *  prefix-match — browser uses "Work4You Subscription (Browser Use cloud)". */
 export const IMAGE_GEN_SUBSCRIPTION_PROVIDER = 'Work4You Subscription'
+
+const SUBSCRIPTION_ONLY_TOOLSETS = new Set(['image_gen', 'stt'])
 
 export function isDesktopToolsetVisible(name: string): boolean {
   return !DESKTOP_HIDDEN_TOOLSETS.has(name)
@@ -113,12 +115,11 @@ export function isCapabilitiesVendorCredentialHidden(key: string): boolean {
   return HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS.has(key)
 }
 
-/** Image Generation keeps only the managed Subscription row so the user
- *  can pick a model. BYOK backends (FAL.ai, DeepInfra, Krea, OpenAI, Codex,
- *  OpenRouter, xAI) and "Work4You Portal (image)" stay off this pane. Other
- *  toolsets are unfiltered. Runtime selection is unchanged. */
+/** Image Generation and Speech-to-Text keep only the managed Subscription
+ *  row. BYOK backends and Local Whisper stay off those panes. Other
+ *  toolsets (including TTS) are unfiltered. Runtime selection is unchanged. */
 export function isCapabilitiesToolsetProviderVisible(toolset: string, providerName: string): boolean {
-  if (toolset !== 'image_gen') {
+  if (!SUBSCRIPTION_ONLY_TOOLSETS.has(toolset)) {
     return true
   }
 
