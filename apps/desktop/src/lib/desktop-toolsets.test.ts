@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { isCapabilitiesToolsetProviderVisible, isCapabilitiesVendorCredentialHidden, isDesktopToolsetVisible } from './desktop-toolsets'
+import {
+  isCapabilitiesToolsetProviderVisible,
+  isCapabilitiesVendorCredentialHidden,
+  isDesktopToolsetVisible
+} from './desktop-toolsets'
 
 const HIDDEN_CORE_TOOLSETS = [
   'web',
@@ -75,6 +79,7 @@ describe('Capabilities vendor credentials', () => {
 describe('isCapabilitiesToolsetProviderVisible', () => {
   it('keeps only Work4You Subscription on Image Generation', () => {
     expect(isCapabilitiesToolsetProviderVisible('image_gen', 'Work4You Subscription')).toBe(true)
+
     for (const name of [
       'FAL.ai',
       'DeepInfra',
@@ -91,29 +96,22 @@ describe('isCapabilitiesToolsetProviderVisible', () => {
 
   it('keeps only Work4You Subscription on Speech-to-Text', () => {
     expect(isCapabilitiesToolsetProviderVisible('stt', 'Work4You Subscription')).toBe(true)
-    for (const name of [
-      'Local Whisper',
-      'OpenAI',
-      'Groq',
-      'xAI',
-      'ElevenLabs Scribe',
-      'DeepInfra'
-    ]) {
+
+    for (const name of ['Local Whisper', 'OpenAI', 'Groq', 'xAI', 'ElevenLabs Scribe', 'DeepInfra']) {
       expect(isCapabilitiesToolsetProviderVisible('stt', name)).toBe(false)
     }
   })
 
   it('keeps only Work4You Subscription on Video Generation', () => {
     expect(isCapabilitiesToolsetProviderVisible('video_gen', 'Work4You Subscription')).toBe(true)
+
     for (const name of ['DeepInfra', 'FAL', 'FAL.ai', 'xAI Grok Imagine']) {
       expect(isCapabilitiesToolsetProviderVisible('video_gen', name)).toBe(false)
     }
   })
 
   it('does not prefix-match other Subscription rows', () => {
-    expect(
-      isCapabilitiesToolsetProviderVisible('browser', 'Work4You Subscription (Browser Use cloud)')
-    ).toBe(true)
+    expect(isCapabilitiesToolsetProviderVisible('browser', 'Work4You Subscription (Browser Use cloud)')).toBe(true)
     expect(isCapabilitiesToolsetProviderVisible('tts', 'Microsoft Edge TTS')).toBe(true)
     expect(isCapabilitiesToolsetProviderVisible('tts', 'Work4You Subscription')).toBe(true)
   })

@@ -149,7 +149,12 @@ describe('SkillsView toolset management', () => {
 
   it('renders toolset titles without leading emoji', async () => {
     getToolsets.mockResolvedValue([
-      toolset({ name: 'google_meet', label: '🎬 Google Meet', description: 'meet tools', tools: ['google_meet_schedule'] })
+      toolset({
+        name: 'google_meet',
+        label: '🎬 Google Meet',
+        description: 'meet tools',
+        tools: ['google_meet_schedule']
+      })
     ])
 
     await renderSkills()
