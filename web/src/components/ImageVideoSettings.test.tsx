@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
@@ -128,10 +129,12 @@ describe("ImageVideoSettings", () => {
   });
 
   afterEach(() => {
-    act(() => {
-      root.unmount();
-    });
-    container.remove();
+    if (root) {
+      act(() => {
+        root.unmount();
+      });
+    }
+    container?.remove();
     vi.clearAllMocks();
   });
 
