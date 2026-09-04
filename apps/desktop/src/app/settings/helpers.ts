@@ -145,6 +145,7 @@ export function voiceFieldVisible(key: string, config: Work4YouConfigRecord): bo
   }
 
   const stored = String(getNested(config, `${domain}.provider`) ?? '')
+
   return provider === voiceNestedBackend(stored)
 }
 
