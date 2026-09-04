@@ -28,8 +28,16 @@ const apiMocks = vi.hoisted(() => ({
   ]),
   getToolsets: vi.fn(async () => [
     {
+      name: "image_gen",
+      label: "Image Generation",
+      description: "Generate images",
+      enabled: true,
+      configured: true,
+      tools: ["image_generate"],
+    },
+    {
       name: "browser",
-      label: "Browser",
+      label: "Browser Automation",
       description: "Drive a real browser",
       enabled: true,
       configured: true,
@@ -50,6 +58,46 @@ const apiMocks = vi.hoisted(() => ({
       enabled: true,
       configured: true,
       tools: ["memory_search"],
+    },
+    {
+      name: "terminal",
+      label: "Terminal & Processes",
+      description: "Run shell commands",
+      enabled: true,
+      configured: true,
+      tools: ["terminal"],
+    },
+    {
+      name: "file",
+      label: "File Operations",
+      description: "Read and write files",
+      enabled: true,
+      configured: true,
+      tools: ["read_file"],
+    },
+    {
+      name: "code_execution",
+      label: "Code Execution",
+      description: "Run code in a sandbox",
+      enabled: true,
+      configured: true,
+      tools: ["execute_code"],
+    },
+    {
+      name: "skills",
+      label: "Skills",
+      description: "Manage installed skills as a toolset",
+      enabled: true,
+      configured: true,
+      tools: ["skill_manage"],
+    },
+    {
+      name: "computer_use",
+      label: "Computer Use",
+      description: "Drive the desktop with cua-driver",
+      enabled: true,
+      configured: true,
+      tools: ["computer_use"],
     },
     {
       name: "discord",
@@ -169,10 +217,17 @@ describe("SkillsPage (Capabilities)", () => {
   it("renders the toolsets grid under ?tab=tools", async () => {
     await renderPage("/skills?tab=tools");
     const text = container.textContent ?? "";
-    expect(text).toContain("Browser");
-    expect(text).toContain("Drive a real browser");
-    expect(text).toContain("Web Search & Scraping");
-    expect(text).toContain("Memory");
+    expect(text).toContain("Image Generation");
+    expect(text).toContain("Generate images");
+    expect(text).not.toContain("Browser Automation");
+    expect(text).not.toContain("Drive a real browser");
+    expect(text).not.toContain("Web Search & Scraping");
+    expect(text).not.toContain("Persistent memory across sessions");
+    expect(text).not.toContain("Terminal & Processes");
+    expect(text).not.toContain("File Operations");
+    expect(text).not.toContain("Code Execution");
+    expect(text).not.toContain("Manage installed skills as a toolset");
+    expect(text).not.toContain("Computer Use");
     expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");

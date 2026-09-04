@@ -1,44 +1,39 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  isCapabilitiesToolsetConfigHidden,
-  isCapabilitiesToolsetToggleHidden,
-  isDesktopToolsetVisible,
-  isWebSearchVendorCredentialHidden
-} from './desktop-toolsets'
+import { isCapabilitiesVendorCredentialHidden, isDesktopToolsetVisible } from './desktop-toolsets'
+
+const HIDDEN_CORE_TOOLSETS = [
+  'web',
+  'browser',
+  'terminal',
+  'file',
+  'code_execution',
+  'skills',
+  'memory',
+  'computer_use'
+]
 
 describe('isDesktopToolsetVisible', () => {
-  it('hides platform-coupled and internal toolsets', () => {
-    for (const name of ['discord', 'discord_admin', 'yuanbao', 'context_engine', 'moa']) {
+  it('hides platform-coupled, internal, and core agent toolsets', () => {
+    for (const name of ['discord', 'discord_admin', 'yuanbao', 'context_engine', 'moa', ...HIDDEN_CORE_TOOLSETS]) {
       expect(isDesktopToolsetVisible(name)).toBe(false)
     }
   })
 
-  it('keeps ordinary user-facing toolsets', () => {
-    for (const name of ['web', 'browser', 'terminal', 'file', 'memory', 'vision', 'image_gen']) {
+  it('keeps other user-facing toolsets', () => {
+    for (const name of ['vision', 'image_gen', 'cronjob', 'homeassistant']) {
       expect(isDesktopToolsetVisible(name)).toBe(true)
     }
   })
 })
 
-describe('Capabilities operator hides', () => {
-  it('hides the Web Search and Memory toggles without removing the rows', () => {
-    expect(isCapabilitiesToolsetToggleHidden('web')).toBe(true)
-    expect(isCapabilitiesToolsetToggleHidden('memory')).toBe(true)
-    expect(isCapabilitiesToolsetToggleHidden('browser')).toBe(false)
-    expect(isDesktopToolsetVisible('web')).toBe(true)
-    expect(isDesktopToolsetVisible('memory')).toBe(true)
-  })
-
-  it('hides the Web Search vendor picker, not Memory settings', () => {
-    expect(isCapabilitiesToolsetConfigHidden('web')).toBe(true)
-    expect(isCapabilitiesToolsetConfigHidden('memory')).toBe(false)
-    expect(isCapabilitiesToolsetConfigHidden('browser')).toBe(false)
-  })
-
-  it('hides BYOK web-search credentials and leaves model keys alone', () => {
+describe('Capabilities vendor credentials', () => {
+  it('hides BYOK web-search and browser-cloud credentials', () => {
     for (const key of [
       'BRAVE_SEARCH_API_KEY',
+      'BROWSERBASE_API_KEY',
+      'BROWSER_USE_API_KEY',
+      'CAMOFOX_URL',
       'EXA_API_KEY',
       'FIRECRAWL_API_KEY',
       'FIRECRAWL_API_URL',
@@ -46,11 +41,13 @@ describe('Capabilities operator hides', () => {
       'SEARXNG_URL',
       'TAVILY_API_KEY'
     ]) {
-      expect(isWebSearchVendorCredentialHidden(key)).toBe(true)
+      expect(isCapabilitiesVendorCredentialHidden(key)).toBe(true)
     }
+  })
 
-    expect(isWebSearchVendorCredentialHidden('XAI_API_KEY')).toBe(false)
-    expect(isWebSearchVendorCredentialHidden('BROWSERBASE_API_KEY')).toBe(false)
-    expect(isWebSearchVendorCredentialHidden('OPENROUTER_API_KEY')).toBe(false)
+  it('leaves model keys and remaining tool keys alone', () => {
+    expect(isCapabilitiesVendorCredentialHidden('XAI_API_KEY')).toBe(false)
+    expect(isCapabilitiesVendorCredentialHidden('OPENROUTER_API_KEY')).toBe(false)
+    expect(isCapabilitiesVendorCredentialHidden('FAL_KEY')).toBe(false)
   })
 })

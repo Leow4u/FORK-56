@@ -99,29 +99,30 @@ describe('settings search index', () => {
   it('uses AND matching across labels, context, descriptions, and raw keys', () => {
     const entries = buildCredentialSearchEntries(
       {
-        BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive cloud browsers.' }),
+        HOMEASSISTANT_TOKEN: envVar('tool', { description: 'Connect home tools.' }),
         FAL_KEY: envVar('tool', { description: 'Generate images.' })
       },
       { settings: 'Settings', tools: 'Tools' },
       { settings: Settings2, tools: Wrench }
     )
 
-    expect(filterSettingsSearchEntries(entries, 'browser tools')[0]?.id).toBe('credential:BROWSERBASE_API_KEY')
+    expect(filterSettingsSearchEntries(entries, 'home tools')[0]?.id).toBe('credential:HOMEASSISTANT_TOKEN')
     expect(filterSettingsSearchEntries(entries, 'fal generate')[0]?.id).toBe('credential:FAL_KEY')
-    expect(filterSettingsSearchEntries(entries, 'browser generate')).toEqual([])
+    expect(filterSettingsSearchEntries(entries, 'home generate')).toEqual([])
   })
 
-  it('omits BYOK web-search credentials from Settings search', () => {
+  it('omits BYOK web-search and browser-cloud credentials from Settings search', () => {
     const entries = buildCredentialSearchEntries(
       {
         BRAVE_SEARCH_API_KEY: envVar('tool', { description: 'Search public web pages.' }),
         FIRECRAWL_API_KEY: envVar('tool', { description: 'Extract public web pages.' }),
-        BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive a cloud browser.' })
+        BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive a cloud browser.' }),
+        FAL_KEY: envVar('tool', { description: 'Generate images.' })
       },
       { settings: 'Settings', tools: 'Tools' },
       { settings: Settings2, tools: Wrench }
     )
 
-    expect(entries.map(entry => entry.id)).toEqual(['credential:BROWSERBASE_API_KEY'])
+    expect(entries.map(entry => entry.id)).toEqual(['credential:FAL_KEY'])
   })
 })

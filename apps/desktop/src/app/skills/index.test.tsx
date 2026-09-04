@@ -62,13 +62,13 @@ vi.mock('react-router', async importOriginal => ({
 
 function toolset(overrides: Record<string, unknown> = {}) {
   return {
-    name: 'browser',
-    label: 'Browser Automation',
-    description: 'browser_navigate, browser_click',
+    name: 'image_gen',
+    label: 'Image Generation',
+    description: 'image_generate',
     enabled: true,
     available: true,
     configured: true,
-    tools: ['browser_navigate', 'browser_click'],
+    tools: ['image_generate'],
     ...overrides
   }
 }
@@ -109,7 +109,7 @@ async function renderSkillsTab() {
 beforeEach(() => {
   getSkills.mockResolvedValue([])
   getToolsets.mockResolvedValue([toolset()])
-  setToolsetEnabled.mockResolvedValue({ ok: true, name: 'browser', enabled: false })
+  setToolsetEnabled.mockResolvedValue({ ok: true, name: 'image_gen', enabled: false })
   getToolsetConfig.mockResolvedValue({ has_category: true, active_provider: null, providers: [] })
   getUsageAnalytics.mockResolvedValue({ tools: [] })
   getSkillContent.mockResolvedValue({
@@ -136,7 +136,7 @@ describe('SkillsView toolset management', () => {
     await renderSkills()
 
     // The switch names the action, so an enabled toolset offers to turn it off.
-    const sw = await screen.findByRole('switch', { name: 'Turn Browser Automation toolset off' })
+    const sw = await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })
     expect(sw.getAttribute('aria-checked')).toBe('true')
 
     await act(async () => {
@@ -144,7 +144,7 @@ describe('SkillsView toolset management', () => {
     })
 
     await waitFor(() => expect(setToolsetEnabled).toHaveBeenCalled())
-    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['browser', false])
+    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['image_gen', false])
   })
 
   it('renders toolset titles without leading emoji', async () => {
@@ -165,31 +165,37 @@ describe('SkillsView toolset management', () => {
     // and renders its config panel directly, which fetches on mount.
     await renderSkills()
 
-    await screen.findByRole('switch', { name: 'Turn Browser Automation toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })
     await waitFor(() => expect(getToolsetConfig).toHaveBeenCalled())
-    expect(getToolsetConfig.mock.calls[0][0]).toBe('browser')
+    expect(getToolsetConfig.mock.calls[0][0]).toBe('image_gen')
   })
 
-  it('keeps Web Search and Memory rows without a toggle or vendor picker', async () => {
+  it('hides core agent toolsets from Capabilities Tools entirely', async () => {
     getToolsets.mockResolvedValue([
-      toolset({ name: 'web', label: 'Web Search & Scraping', description: 'web_search, web_extract', tools: ['web_search', 'web_extract'] }),
-      toolset({ name: 'memory', label: 'Memory', description: 'persistent memory', tools: ['memory_search'] })
+      toolset(),
+      toolset({ name: 'web', label: 'Web Search & Scraping', tools: ['web_search'] }),
+      toolset({ name: 'memory', label: 'Memory', tools: ['memory_search'] }),
+      toolset({ name: 'browser', label: 'Browser Automation', tools: ['browser_navigate'] }),
+      toolset({ name: 'terminal', label: 'Terminal & Processes', tools: ['terminal'] }),
+      toolset({ name: 'file', label: 'File Operations', tools: ['read_file'] }),
+      toolset({ name: 'code_execution', label: 'Code Execution', tools: ['execute_code'] }),
+      toolset({ name: 'skills', label: 'Skills', tools: ['skill_manage'] }),
+      toolset({ name: 'computer_use', label: 'Computer Use', tools: ['computer_use'] })
     ])
 
     await renderSkills()
 
-    expect((await screen.findAllByText('Web Search & Scraping')).length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Memory').length).toBeGreaterThan(0)
-    expect(screen.queryByRole('switch', { name: /Web Search/ })).toBeNull()
-    expect(screen.queryByRole('switch', { name: /Memory/ })).toBeNull()
+    expect(await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })).toBeTruthy()
+    expect(screen.queryByText('Web Search & Scraping')).toBeNull()
+    expect(screen.queryByText('Memory')).toBeNull()
+    expect(screen.queryByText('Browser Automation')).toBeNull()
+    expect(screen.queryByText('Terminal & Processes')).toBeNull()
+    expect(screen.queryByText('File Operations')).toBeNull()
+    expect(screen.queryByText('Code Execution')).toBeNull()
+    expect(screen.queryByText('Computer Use')).toBeNull()
+    expect(screen.queryByText('skill_manage')).toBeNull()
+    expect(screen.queryByRole('switch', { name: /Skills toolset/ })).toBeNull()
     expect(setToolsetEnabled).not.toHaveBeenCalled()
-
-    // Memory has no vendor picker; the empty panel may still load. Web Search
-    // must not mount the Firecrawl/Tavily/… matrix.
-    await act(async () => {
-      fireEvent.click(screen.getAllByText('Web Search & Scraping')[0])
-    })
-    expect(getToolsetConfig.mock.calls.map(call => call[0])).not.toContain('web')
   })
 
   it('scopes Tools config to the profile chosen in the selector', async () => {
@@ -351,7 +357,7 @@ describe('SkillsView toolset management', () => {
     // On a non-Skills tab the docs-site iframe must not exist at all — an
     // eagerly mounted hub is exactly the Capabilities lag bug.
     await renderSkills() // ?tab=toolsets
-    await screen.findByRole('switch', { name: 'Turn Browser Automation toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })
     expect(document.querySelector('iframe')).toBeNull()
     cleanup()
 
@@ -493,7 +499,7 @@ describe('SkillsView new skill', () => {
   it('keeps New skill off the Tools tab', async () => {
     await renderSkills()
 
-    await screen.findByRole('switch', { name: 'Turn Browser Automation toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })
     expect(screen.queryByRole('button', { name: 'New skill' })).toBeNull()
   })
 

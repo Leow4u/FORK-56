@@ -14,11 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CountSkeleton } from '@/components/ui/skeleton'
 import type { DesktopRosterAgent } from '@/global'
 import { useI18n } from '@/i18n'
-import {
-  isCapabilitiesToolsetConfigHidden,
-  isCapabilitiesToolsetToggleHidden,
-  isDesktopToolsetVisible
-} from '@/lib/desktop-toolsets'
+import { isDesktopToolsetVisible } from '@/lib/desktop-toolsets'
 import { compactNumber } from '@/lib/format'
 import { queryClient } from '@/lib/query-client'
 import { invalidateSlashCompletions } from '@/lib/slash-completion-cache'
@@ -427,13 +423,7 @@ export function SkillsView({
   // state target the WHOLE tab, never the search-filtered view — a tab-wide
   // control that silently scoped to the current query would be a lie.
   const bulkSkills = skills ?? []
-  const bulkToolsets = useMemo(
-    () =>
-      (toolsets ?? []).filter(
-        ts => isDesktopToolsetVisible(ts.name) && !isCapabilitiesToolsetToggleHidden(ts.name)
-      ),
-    [toolsets]
-  )
+  const bulkToolsets = useMemo(() => (toolsets ?? []).filter(ts => isDesktopToolsetVisible(ts.name)), [toolsets])
 
   // Installed-name set for the hub picker's already-installed guard — the
   // UNFILTERED list on purpose (search must not make a skill look absent).
@@ -1027,7 +1017,6 @@ export function SkillsView({
                   {visibleToolsets.map(toolset => {
                     const label = toolsetDisplayLabel(toolset)
                     const calls = toolCalls ? toolsetCalls(toolset, toolCalls) : null
-                    const hideToggle = isCapabilitiesToolsetToggleHidden(toolset.name)
 
                     return (
                       <CapRow
@@ -1045,12 +1034,10 @@ export function SkillsView({
                           )
                         }
                         onSelect={() => setSelectedToolset(toolset.name)}
-                        onToggle={
-                          hideToggle ? undefined : checked => void handleToggleToolset(toolset, checked)
-                        }
+                        onToggle={checked => void handleToggleToolset(toolset, checked)}
                         subtitle={asText(toolset.description)}
                         title={label}
-                        toggleLabel={hideToggle ? undefined : t.skills.toggleToolset(label, !toolset.enabled)}
+                        toggleLabel={t.skills.toggleToolset(label, !toolset.enabled)}
                       />
                     )
                   })}
@@ -1280,10 +1267,7 @@ function ToolsetDetail({
       {/* "Configured" as a resting state is noise — only the warn state earns a pill. */}
       <DetailHeader
         description={asText(toolset.description) || t.skills.noDescription}
-        pills={
-          !isCapabilitiesToolsetConfigHidden(toolset.name) &&
-          !toolset.configured && <PanelPill tone="warn">{t.skills.needsKeys}</PanelPill>
-        }
+        pills={!toolset.configured && <PanelPill tone="warn">{t.skills.needsKeys}</PanelPill>}
         title={label}
       />
       {tools.length > 0 && (
@@ -1320,14 +1304,12 @@ function ToolsetDetail({
       )}
       {toolset.name === 'computer_use' && <ComputerUsePanel onConfiguredChange={onConfiguredChange} />}
       {toolset.name === 'terminal' && <TerminalBackendPanel onConfiguredChange={onConfiguredChange} />}
-      {!isCapabilitiesToolsetConfigHidden(toolset.name) && (
-        <ToolsetConfigPanel
-          key={`${toolset.name}:${profileScopeKey(profile)}`}
-          onConfiguredChange={onConfiguredChange}
-          profile={profile}
-          toolset={toolset.name}
-        />
-      )}
+      <ToolsetConfigPanel
+        key={`${toolset.name}:${profileScopeKey(profile)}`}
+        onConfiguredChange={onConfiguredChange}
+        profile={profile}
+        toolset={toolset.name}
+      />
     </>
   )
 }

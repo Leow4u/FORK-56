@@ -1,4 +1,4 @@
-import { isWebSearchVendorCredentialHidden } from '@/lib/desktop-toolsets'
+import { isCapabilitiesVendorCredentialHidden } from '@/lib/desktop-toolsets'
 import type { IconComponent } from '@/lib/icons'
 import { normalize } from '@/lib/text'
 import type { ConfigFieldSchema, EnvVarInfo, Work4YouConfigRecord } from '@/types/work4you'
@@ -127,7 +127,7 @@ export function buildCredentialSearchEntries(
     .flatMap(([key, info]) => {
       const view = credentialSettingsView(info)
 
-      if (!view || isWebSearchVendorCredentialHidden(key)) {
+      if (!view || isCapabilitiesVendorCredentialHidden(key)) {
         return []
       }
 

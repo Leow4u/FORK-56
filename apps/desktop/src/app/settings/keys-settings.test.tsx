@@ -68,7 +68,7 @@ describe('KeysSettings', () => {
 
     await renderKeysSettings('tools')
 
-    expect(screen.getByText('BROWSERBASE')).toBeTruthy()
+    expect(screen.queryByText('BROWSERBASE')).toBeNull()
     expect(screen.getByText('FAL')).toBeTruthy()
     expect(screen.queryByText('FIRECRAWL')).toBeNull()
     expect(screen.queryByText('GATEWAY PROXY')).toBeNull()
@@ -97,7 +97,7 @@ describe('KeysSettings', () => {
 
   it('expands and highlights a deep-linked credential card', async () => {
     getEnvVars.mockResolvedValue({
-      BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive a cloud browser.' }),
+      FAL_KEY: envVar('tool', { description: 'Generate images.' }),
       FIRECRAWL_API_KEY: envVar('tool', { description: 'Crawl and extract websites.' })
     })
 
@@ -106,18 +106,18 @@ describe('KeysSettings', () => {
     render(
       <MemoryRouter initialEntries={['/settings?tab=keys']}>
         <KeysSettings view="tools" />
-        <DeepLinkButton target="BROWSERBASE_API_KEY" />
+        <DeepLinkButton target="FAL_KEY" />
       </MemoryRouter>
     )
 
-    expect(await screen.findByText('BROWSERBASE')).toBeTruthy()
+    expect(await screen.findByText('FAL')).toBeTruthy()
     expect(screen.queryByText('FIRECRAWL')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Open key' }))
 
     await waitFor(() => {
-      const target = globalThis.document.getElementById('credential-key-BROWSERBASE_API_KEY')
+      const target = globalThis.document.getElementById('credential-key-FAL_KEY')
       expect(target?.classList).toContain('setting-field-highlight')
     })
-    expect(screen.getByText('Drive a cloud browser.')).toBeTruthy()
+    expect(screen.getByText('Generate images.')).toBeTruthy()
   })
 })

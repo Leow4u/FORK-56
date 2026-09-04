@@ -17,10 +17,6 @@ import { Switch } from "@work4you/ui/ui/components/switch";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { Toast } from "@work4you/ui/ui/components/toast";
 import { cn, themedBody } from "@/lib/utils";
-import {
-  isCapabilitiesToolsetConfigHidden,
-  isCapabilitiesToolsetToggleHidden,
-} from "@/lib/desktop-toolsets";
 
 interface Props {
   /** The toolset whose backends are being configured. */
@@ -255,26 +251,24 @@ export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Pr
           <p className="text-xs text-muted-foreground mt-1">
             {toolset.description}
           </p>
-          {!isCapabilitiesToolsetToggleHidden(toolset.name) && (
-            <div className="mt-3 flex items-center gap-2">
-              <Switch
-                checked={enabled}
-                onCheckedChange={(v) => void handleToggle(v)}
-                disabled={toggling}
-                aria-label={`Enable toolset for ${platformText}`}
-              />
-              <span className="text-xs text-muted-foreground">
-                {enabled
-                  ? `Enabled for ${platformText}`
-                  : `Disabled for ${platformText}`}
-              </span>
-            </div>
-          )}
+          <div className="mt-3 flex items-center gap-2">
+            <Switch
+              checked={enabled}
+              onCheckedChange={(v) => void handleToggle(v)}
+              disabled={toggling}
+              aria-label={`Enable toolset for ${platformText}`}
+            />
+            <span className="text-xs text-muted-foreground">
+              {enabled
+                ? `Enabled for ${platformText}`
+                : `Disabled for ${platformText}`}
+            </span>
+          </div>
         </header>
 
         {/* Body — provider matrix */}
         <div className="flex-1 min-h-0 overflow-y-auto p-5 pt-4 space-y-4">
-          {isCapabilitiesToolsetConfigHidden(toolset.name) ? null : loading ? (
+          {loading ? (
             <div className="flex items-center justify-center py-10">
               <Spinner />
             </div>

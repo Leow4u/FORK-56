@@ -8,6 +8,11 @@
 // slash commands (`desktop-slash-commands.ts`): one documented block-list, one
 // predicate. Hiding a toolset only removes its row — its enabled state and
 // runtime gating are untouched.
+//
+// Core agent toolsets are also hidden here: the user must not see or configure
+// them in Capabilities. Files sidebar, Skills Hub, and Settings → Workspace
+// `code_execution.mode` are different surfaces and stay. Keep in sync with
+// web/src/lib/desktop-toolsets.ts.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Platform-coupled — only meaningful when that platform is the active
   // adapter; `work4you tools` restricts these off the CLI too.
@@ -16,26 +21,32 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'yuanbao',
   // Internal plumbing, not a user capability toggle.
   'context_engine',
-  'moa'
+  'moa',
+  // Always-on agent work — not a Capabilities catalog the user configures.
+  'web',
+  'browser',
+  'terminal',
+  'file',
+  'code_execution',
+  'skills',
+  'memory',
+  'computer_use'
 ])
 
-// Capabilities rows that stay visible, but without an on/off switch. Runtime
-// enablement is unchanged (CLI `work4you tools` still owns that). Keep in sync
-// with web/src/lib/desktop-toolsets.ts.
-const CAPABILITIES_TOGGLE_HIDDEN_TOOLSETS = new Set(['web', 'memory'])
-
-// Capabilities detail that must not expose a vendor picker or key fields.
-// Memory has no provider matrix here (Settings → Memory & Context owns that).
-const CAPABILITIES_CONFIG_HIDDEN_TOOLSETS = new Set(['web'])
-
-// BYOK web-search credentials. Work4You Subscription uses the Portal token
-// against firecrawl-gateway.work4you.ai; users must not paste vendor keys.
+// BYOK credentials for hidden Web Search / Browser cloud vendors.
+// Work4You Subscription uses the Portal token; users must not paste vendor keys.
 // Keep XAI_API_KEY visible — it is also the Grok model credential.
-const HIDDEN_WEB_SEARCH_VENDOR_CREDENTIALS = new Set([
+const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
   'BRAVE_SEARCH_API_KEY',
+  'BROWSERBASE_API_KEY',
+  'BROWSERBASE_PROJECT_ID',
+  'BROWSER_USE_API_KEY',
+  'CAMOFOX_API_KEY',
+  'CAMOFOX_URL',
   'EXA_API_KEY',
   'FIRECRAWL_API_KEY',
   'FIRECRAWL_API_URL',
+  'FIRECRAWL_BROWSER_TTL',
   'PARALLEL_API_KEY',
   'SEARXNG_URL',
   'TAVILY_API_KEY',
@@ -46,14 +57,6 @@ export function isDesktopToolsetVisible(name: string): boolean {
   return !DESKTOP_HIDDEN_TOOLSETS.has(name)
 }
 
-export function isCapabilitiesToolsetToggleHidden(name: string): boolean {
-  return CAPABILITIES_TOGGLE_HIDDEN_TOOLSETS.has(name)
-}
-
-export function isCapabilitiesToolsetConfigHidden(name: string): boolean {
-  return CAPABILITIES_CONFIG_HIDDEN_TOOLSETS.has(name)
-}
-
-export function isWebSearchVendorCredentialHidden(key: string): boolean {
-  return HIDDEN_WEB_SEARCH_VENDOR_CREDENTIALS.has(key)
+export function isCapabilitiesVendorCredentialHidden(key: string): boolean {
+  return HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS.has(key)
 }

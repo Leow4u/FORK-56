@@ -71,10 +71,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@work4you/ui/ui/components/dialog";
-import {
-  isCapabilitiesToolsetToggleHidden,
-  isDesktopToolsetVisible,
-} from "@/lib/desktop-toolsets";
+import { isDesktopToolsetVisible } from "@/lib/desktop-toolsets";
 import { cn } from "@/lib/utils";
 import { Input } from "@work4you/ui/ui/components/input";
 import { useI18n } from "@/i18n";
@@ -715,18 +712,16 @@ export default function SkillsPage() {
                                     : t.skills.disabledForCli}
                                 </span>
                               )}
-                              {!isCapabilitiesToolsetToggleHidden(ts.name) && (
-                                <div className="mt-3">
-                                  <Button
-                                    size="sm"
-                                    outlined
-                                    onClick={() => setConfigToolset(ts)}
-                                    prefix={<Wrench />}
-                                  >
-                                    Configure
-                                  </Button>
-                                </div>
-                              )}
+                              <div className="mt-3">
+                                <Button
+                                  size="sm"
+                                  outlined
+                                  onClick={() => setConfigToolset(ts)}
+                                  prefix={<Wrench />}
+                                >
+                                  Configure
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </CardContent>
