@@ -186,7 +186,13 @@ describe('SkillsView toolset management', () => {
       toolset({ name: 'a2a', label: 'A2A', description: 'Agent-to-Agent protocol', tools: ['a2a_call'] }),
       toolset({ name: 'video_gen', label: 'Video Generation', tools: ['video_generate'] }),
       toolset({ name: 'bfl', label: 'BFL FLUX 3 Video', tools: ['bfl_flux3_text_to_video'] }),
-      toolset({ name: 'cronjob', label: 'Cron Jobs', tools: ['cronjob'] })
+      toolset({ name: 'cronjob', label: 'Cron Jobs', tools: ['cronjob'] }),
+      toolset({
+        name: 'homeassistant',
+        label: 'Home Assistant',
+        description: 'smart home device control',
+        tools: ['ha_list_entities']
+      })
     ])
 
     await renderSkills()
@@ -205,6 +211,8 @@ describe('SkillsView toolset management', () => {
     expect(screen.queryByText('A2A')).toBeNull()
     expect(screen.queryByText('BFL FLUX 3 Video')).toBeNull()
     expect(screen.queryByText('Cron Jobs')).toBeNull()
+    expect(screen.queryByText('Home Assistant')).toBeNull()
+    expect(screen.queryByText('smart home device control')).toBeNull()
     expect(screen.queryByText('skill_manage')).toBeNull()
     expect(screen.queryByRole('switch', { name: /Skills toolset/ })).toBeNull()
     expect(setToolsetEnabled).not.toHaveBeenCalled()

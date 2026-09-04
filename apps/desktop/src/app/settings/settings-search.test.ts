@@ -111,12 +111,14 @@ describe('settings search index', () => {
     expect(filterSettingsSearchEntries(entries, 'home generate')).toEqual([])
   })
 
-  it('omits BYOK web-search and browser-cloud credentials from Settings search', () => {
+  it('omits BYOK web-search, browser-cloud, and Home Assistant credentials from Settings search', () => {
     const entries = buildCredentialSearchEntries(
       {
         BRAVE_SEARCH_API_KEY: envVar('tool', { description: 'Search public web pages.' }),
         FIRECRAWL_API_KEY: envVar('tool', { description: 'Extract public web pages.' }),
         BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive a cloud browser.' }),
+        HASS_TOKEN: envVar('tool', { description: 'Home Assistant Long-Lived Access Token.' }),
+        HASS_URL: envVar('tool', { description: 'Home Assistant URL.' }),
         FAL_KEY: envVar('tool', { description: 'Generate images.' })
       },
       { settings: 'Settings', tools: 'Tools' },

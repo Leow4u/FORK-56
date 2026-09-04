@@ -148,6 +148,14 @@ const apiMocks = vi.hoisted(() => ({
       tools: ["cronjob"],
     },
     {
+      name: "homeassistant",
+      label: "Home Assistant",
+      description: "smart home device control",
+      enabled: true,
+      configured: true,
+      tools: ["ha_list_entities", "ha_get_state", "ha_list_services", "ha_call_service"],
+    },
+    {
       name: "discord",
       label: "Discord",
       description: "Platform-coupled; not a dashboard toggle",
@@ -287,6 +295,9 @@ describe("SkillsPage (Capabilities)", () => {
     expect(text).not.toContain("bfl_flux3_");
     expect(text).not.toContain("Cron Jobs");
     expect(text).not.toContain("create/list/update/pause/resume/run");
+    expect(text).not.toContain("Home Assistant");
+    expect(text).not.toContain("smart home device control");
+    expect(text).not.toContain("ha_list_entities");
     expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");

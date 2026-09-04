@@ -59,6 +59,7 @@ describe('KeysSettings', () => {
       BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive a cloud browser.' }),
       FAL_KEY: envVar('tool', { description: 'Generate images.' }),
       FIRECRAWL_API_KEY: envVar('tool', { description: 'Crawl and extract websites.' }),
+      HASS_TOKEN: envVar('tool', { description: 'Home Assistant Long-Lived Access Token.' }),
       GATEWAY_PROXY: envVar('setting', { description: 'Gateway reverse proxy.' }),
       TELEGRAM_BOT_TOKEN: envVar('messaging', {
         channel_managed: true,
@@ -71,6 +72,7 @@ describe('KeysSettings', () => {
     expect(screen.queryByText('BROWSERBASE')).toBeNull()
     expect(screen.getByText('FAL')).toBeTruthy()
     expect(screen.queryByText('FIRECRAWL')).toBeNull()
+    expect(screen.queryByText('HASS')).toBeNull()
     expect(screen.queryByText('GATEWAY PROXY')).toBeNull()
     expect(screen.queryByText('TELEGRAM BOT')).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()

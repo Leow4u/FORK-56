@@ -8,7 +8,7 @@
 // slash commands (`desktop-slash-commands.ts`): one documented block-list, one
 // predicate. Hiding a toolset only removes its Capabilities row. Runtime
 // enablement is unchanged unless that toolset is also default-off in
-// `work4you_cli/tools_config.py` (`a2a`, `bfl`).
+// `work4you_cli/tools_config.py` (`a2a`, `bfl`, `homeassistant`).
 //
 // Core agent toolsets are also hidden here: the user must not see or configure
 // them in Capabilities. Files sidebar, Skills Hub, the Cron page (`/cron`),
@@ -45,12 +45,18 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Agent scheduling tool. Hide the Capabilities row only. Dedicated Cron
   // UI (`/cron`), chat sidebar jobs, CLI `work4you cron`, and the runtime
   // `cronjob` tool stay.
-  'cronjob'
+  'cronjob',
+  // Smart-home REST tools (ha_*). Already default-off without HASS_TOKEN.
+  // Hide the catalog row and leave it off. CLI still lists it; token auto-
+  // enable stays so a later opt-in via `work4you tools` / .env still works.
+  // The Home Assistant messaging channel is a different surface.
+  'homeassistant'
 ])
 
-// BYOK credentials for hidden Web Search / Browser cloud vendors.
-// Work4You Subscription uses the Portal token; users must not paste vendor keys.
-// Keep XAI_API_KEY visible — it is also the Grok model credential.
+// BYOK credentials for hidden Web Search / Browser cloud vendors and
+// Home Assistant. Work4You Subscription uses the Portal token; users must
+// not paste vendor keys. Keep XAI_API_KEY visible — it is also the Grok
+// model credential.
 const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
   'BRAVE_SEARCH_API_KEY',
   'BROWSERBASE_API_KEY',
@@ -65,7 +71,9 @@ const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
   'PARALLEL_API_KEY',
   'SEARXNG_URL',
   'TAVILY_API_KEY',
-  'TAVILY_BASE_URL'
+  'TAVILY_BASE_URL',
+  'HASS_TOKEN',
+  'HASS_URL'
 ])
 
 export function isDesktopToolsetVisible(name: string): boolean {

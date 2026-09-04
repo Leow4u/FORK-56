@@ -15,7 +15,8 @@ const HIDDEN_CORE_TOOLSETS = [
   'clarify',
   'a2a',
   'bfl',
-  'cronjob'
+  'cronjob',
+  'homeassistant'
 ]
 
 describe('isDesktopToolsetVisible', () => {
@@ -26,14 +27,14 @@ describe('isDesktopToolsetVisible', () => {
   })
 
   it('keeps other user-facing toolsets', () => {
-    for (const name of ['image_gen', 'homeassistant', 'tts', 'video_gen']) {
+    for (const name of ['image_gen', 'tts', 'video_gen', 'todo']) {
       expect(isDesktopToolsetVisible(name)).toBe(true)
     }
   })
 })
 
 describe('Capabilities vendor credentials', () => {
-  it('hides BYOK web-search and browser-cloud credentials', () => {
+  it('hides BYOK web-search, browser-cloud, and Home Assistant credentials', () => {
     for (const key of [
       'BRAVE_SEARCH_API_KEY',
       'BROWSERBASE_API_KEY',
@@ -44,7 +45,9 @@ describe('Capabilities vendor credentials', () => {
       'FIRECRAWL_API_URL',
       'PARALLEL_API_KEY',
       'SEARXNG_URL',
-      'TAVILY_API_KEY'
+      'TAVILY_API_KEY',
+      'HASS_TOKEN',
+      'HASS_URL'
     ]) {
       expect(isCapabilitiesVendorCredentialHidden(key)).toBe(true)
     }

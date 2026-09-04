@@ -2,7 +2,7 @@
 //
 // Same block-list as apps/desktop/src/lib/desktop-toolsets.ts. Hiding a row
 // does not change enabled state unless that toolset is also default-off in
-// `work4you_cli/tools_config.py` (`a2a`, `bfl`). Files sidebar, Skills Hub,
+// `work4you_cli/tools_config.py` (`a2a`, `bfl`, `homeassistant`). Files sidebar, Skills Hub,
 // the Cron page (`/cron`), Settings → Workspace `code_execution.mode`,
 // Settings → Memory & Context, and Settings → Models stay on their own surfaces.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
@@ -29,7 +29,11 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Agent scheduling tool. Hide the Capabilities row only. Dedicated Cron
   // UI (`/cron`), chat sidebar jobs, CLI `work4you cron`, and the runtime
   // `cronjob` tool stay.
-  'cronjob'
+  'cronjob',
+  // Smart-home REST tools (ha_*). Already default-off without HASS_TOKEN.
+  // Hide the catalog row and leave it off. Messaging Home Assistant is a
+  // different surface.
+  'homeassistant'
 ])
 
 const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
@@ -46,7 +50,9 @@ const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
   'PARALLEL_API_KEY',
   'SEARXNG_URL',
   'TAVILY_API_KEY',
-  'TAVILY_BASE_URL'
+  'TAVILY_BASE_URL',
+  'HASS_TOKEN',
+  'HASS_URL'
 ])
 
 export function isDesktopToolsetVisible(name: string): boolean {
