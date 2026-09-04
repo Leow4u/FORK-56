@@ -83,7 +83,7 @@ const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
  *  prefix-match — browser uses "Work4You Subscription (Browser Use cloud)". */
 export const IMAGE_GEN_SUBSCRIPTION_PROVIDER = 'Work4You Subscription'
 
-const SUBSCRIPTION_ONLY_TOOLSETS = new Set(['image_gen', 'stt'])
+const SUBSCRIPTION_ONLY_TOOLSETS = new Set(['image_gen', 'stt', 'video_gen'])
 
 export function isDesktopToolsetVisible(name: string): boolean {
   return !DESKTOP_HIDDEN_TOOLSETS.has(name)
@@ -93,9 +93,10 @@ export function isCapabilitiesVendorCredentialHidden(key: string): boolean {
   return HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS.has(key)
 }
 
-/** Image Generation keeps only the managed Subscription row. Speech-to-Text
- *  and Text-to-Speech are hidden from the catalog; the STT filter still applies
- *  if its pane is opened. Settings → Voice is the TTS surface. */
+/** Image Generation and Video Generation keep only the managed Subscription
+ *  row plus the model picker. Speech-to-Text and Text-to-Speech are hidden
+ *  from the catalog; the STT filter still applies if its pane is opened.
+ *  Settings → Voice is the TTS surface. */
 export function isCapabilitiesToolsetProviderVisible(toolset: string, providerName: string): boolean {
   if (!SUBSCRIPTION_ONLY_TOOLSETS.has(toolset)) {
     return true

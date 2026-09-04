@@ -103,11 +103,17 @@ describe('isCapabilitiesToolsetProviderVisible', () => {
     }
   })
 
+  it('keeps only Work4You Subscription on Video Generation', () => {
+    expect(isCapabilitiesToolsetProviderVisible('video_gen', 'Work4You Subscription')).toBe(true)
+    for (const name of ['DeepInfra', 'FAL', 'FAL.ai', 'xAI Grok Imagine']) {
+      expect(isCapabilitiesToolsetProviderVisible('video_gen', name)).toBe(false)
+    }
+  })
+
   it('does not prefix-match other Subscription rows', () => {
     expect(
       isCapabilitiesToolsetProviderVisible('browser', 'Work4You Subscription (Browser Use cloud)')
     ).toBe(true)
-    expect(isCapabilitiesToolsetProviderVisible('video_gen', 'FAL.ai')).toBe(true)
     expect(isCapabilitiesToolsetProviderVisible('tts', 'Microsoft Edge TTS')).toBe(true)
     expect(isCapabilitiesToolsetProviderVisible('tts', 'Work4You Subscription')).toBe(true)
   })

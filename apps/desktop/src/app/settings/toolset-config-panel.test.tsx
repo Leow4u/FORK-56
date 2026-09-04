@@ -382,6 +382,71 @@ describe('ToolsetConfigPanel', () => {
     expect(screen.queryByText('OpenAI')).toBeNull()
   })
 
+  it('hides Video Generation BYOK backends including DeepInfra, FAL, and xAI Grok Imagine', async () => {
+    getToolsetConfig.mockResolvedValue(
+      config({
+        name: 'video_gen',
+        active_provider: 'Work4You Subscription',
+        providers: [
+          {
+            name: 'Work4You Subscription',
+            badge: 'subscription',
+            tag: 'Managed FAL video generation billed to your subscription',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: true,
+            is_active: true
+          },
+          {
+            name: 'DeepInfra',
+            badge: 'paid',
+            tag: 'Bring your own DeepInfra key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'FAL',
+            badge: 'paid',
+            tag: 'Bring your own FAL key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'xAI Grok Imagine',
+            badge: 'paid',
+            tag: 'Bring your own xAI key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          }
+        ]
+      })
+    )
+    getToolsetModels.mockResolvedValue({
+      name: 'video_gen',
+      has_models: true,
+      provider: 'Work4You Subscription',
+      plugin: 'fal',
+      models: [{ id: 'pixverse-v6', display: 'Pixverse v6', speed: 'fast', strengths: '', price: '' }],
+      current: 'pixverse-v6',
+      default: 'pixverse-v6'
+    })
+
+    const { ToolsetConfigPanel } = await import('./toolset-config-panel')
+    render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="video_gen" />)
+
+    expect(await screen.findByRole('button', { name: /Work4You Subscription/ })).toBeTruthy()
+    expect(await screen.findByText('Pixverse v6')).toBeTruthy()
+    expect(screen.queryByText('DeepInfra')).toBeNull()
+    expect(screen.queryByText('FAL')).toBeNull()
+    expect(screen.queryByText('xAI Grok Imagine')).toBeNull()
+  })
+
   it('hides Speech-to-Text BYOK backends and Local Whisper', async () => {
     getToolsetConfig.mockResolvedValue(
       config({
