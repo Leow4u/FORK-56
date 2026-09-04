@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { EnvVarInfo } from "@/lib/api";
+import { isWebSearchVendorCredentialHidden } from "@/lib/desktop-toolsets";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Toast } from "@work4you/ui/ui/components/toast";
 import { useConfirmDelete } from "@work4you/ui/hooks/use-confirm-delete";
@@ -630,6 +631,7 @@ export type EnvCredentialsView =
 /** Internal Work4You portal/relay keys stay on the operator /env surface only. */
 function isUserFacingEnvKey(key: string, view: EnvCredentialsView): boolean {
   if (view === "operator") return true;
+  if (isWebSearchVendorCredentialHidden(key)) return false;
   return !key.startsWith("WORK4YOU_");
 }
 

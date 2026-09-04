@@ -62,13 +62,13 @@ vi.mock('react-router', async importOriginal => ({
 
 function toolset(overrides: Record<string, unknown> = {}) {
   return {
-    name: 'web',
-    label: 'Web Search',
-    description: 'web_search, web_extract',
+    name: 'browser',
+    label: 'Browser Automation',
+    description: 'browser_navigate, browser_click',
     enabled: true,
     available: true,
     configured: true,
-    tools: ['web_search', 'web_extract'],
+    tools: ['browser_navigate', 'browser_click'],
     ...overrides
   }
 }
@@ -109,7 +109,7 @@ async function renderSkillsTab() {
 beforeEach(() => {
   getSkills.mockResolvedValue([])
   getToolsets.mockResolvedValue([toolset()])
-  setToolsetEnabled.mockResolvedValue({ ok: true, name: 'web', enabled: false })
+  setToolsetEnabled.mockResolvedValue({ ok: true, name: 'browser', enabled: false })
   getToolsetConfig.mockResolvedValue({ has_category: true, active_provider: null, providers: [] })
   getUsageAnalytics.mockResolvedValue({ tools: [] })
   getSkillContent.mockResolvedValue({
@@ -136,7 +136,7 @@ describe('SkillsView toolset management', () => {
     await renderSkills()
 
     // The switch names the action, so an enabled toolset offers to turn it off.
-    const sw = await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    const sw = await screen.findByRole('switch', { name: 'Turn Browser Automation toolset off' })
     expect(sw.getAttribute('aria-checked')).toBe('true')
 
     await act(async () => {
@@ -144,7 +144,7 @@ describe('SkillsView toolset management', () => {
     })
 
     await waitFor(() => expect(setToolsetEnabled).toHaveBeenCalled())
-    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['web', false])
+    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['browser', false])
   })
 
   it('renders toolset titles without leading emoji', async () => {
@@ -165,9 +165,25 @@ describe('SkillsView toolset management', () => {
     // and renders its config panel directly, which fetches on mount.
     await renderSkills()
 
-    await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Browser Automation toolset off' })
     await waitFor(() => expect(getToolsetConfig).toHaveBeenCalled())
-    expect(getToolsetConfig.mock.calls[0][0]).toBe('web')
+    expect(getToolsetConfig.mock.calls[0][0]).toBe('browser')
+  })
+
+  it('keeps Web Search and Memory rows without a toggle or vendor picker', async () => {
+    getToolsets.mockResolvedValue([
+      toolset({ name: 'web', label: 'Web Search & Scraping', description: 'web_search, web_extract', tools: ['web_search', 'web_extract'] }),
+      toolset({ name: 'memory', label: 'Memory', description: 'persistent memory', tools: ['memory_search'] })
+    ])
+
+    await renderSkills()
+
+    expect((await screen.findAllByText('Web Search & Scraping')).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Memory').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('switch', { name: /Web Search/ })).toBeNull()
+    expect(screen.queryByRole('switch', { name: /Memory/ })).toBeNull()
+    expect(getToolsetConfig).not.toHaveBeenCalled()
+    expect(setToolsetEnabled).not.toHaveBeenCalled()
   })
 
   it('scopes Tools config to the profile chosen in the selector', async () => {
@@ -329,7 +345,7 @@ describe('SkillsView toolset management', () => {
     // On a non-Skills tab the docs-site iframe must not exist at all — an
     // eagerly mounted hub is exactly the Capabilities lag bug.
     await renderSkills() // ?tab=toolsets
-    await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Browser Automation toolset off' })
     expect(document.querySelector('iframe')).toBeNull()
     cleanup()
 
@@ -471,7 +487,7 @@ describe('SkillsView new skill', () => {
   it('keeps New skill off the Tools tab', async () => {
     await renderSkills()
 
-    await screen.findByRole('switch', { name: 'Turn Web Search toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Browser Automation toolset off' })
     expect(screen.queryByRole('button', { name: 'New skill' })).toBeNull()
   })
 

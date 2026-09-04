@@ -2,6 +2,7 @@ import { useStore } from '@nanostores/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useI18n } from '@/i18n'
+import { isWebSearchVendorCredentialHidden } from '@/lib/desktop-toolsets'
 import { $settingsScopeOverride } from '@/store/settings-scope'
 
 import { CredentialKeyCard, credentialPlaceholder, credentialRowLabel } from './credential-key-ui'
@@ -52,7 +53,12 @@ export function KeysSettings({ view }: KeysSettingsProps) {
     const cats = VIEW_CATEGORIES[view]
 
     return Object.entries(vars)
-      .filter(([, info]) => !info.channel_managed && cats.includes(asText(info.category)))
+      .filter(
+        ([key, info]) =>
+          !info.channel_managed &&
+          cats.includes(asText(info.category)) &&
+          !isWebSearchVendorCredentialHidden(key)
+      )
       .sort(([a], [b]) => a.localeCompare(b))
   }, [vars, view])
 

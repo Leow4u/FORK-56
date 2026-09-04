@@ -36,6 +36,22 @@ const apiMocks = vi.hoisted(() => ({
       tools: ["browser_navigate"],
     },
     {
+      name: "web",
+      label: "Web Search & Scraping",
+      description: "Search and extract public pages",
+      enabled: true,
+      configured: true,
+      tools: ["web_search", "web_extract"],
+    },
+    {
+      name: "memory",
+      label: "Memory",
+      description: "Persistent memory across sessions",
+      enabled: true,
+      configured: true,
+      tools: ["memory_search"],
+    },
+    {
       name: "discord",
       label: "Discord",
       description: "Platform-coupled; not a dashboard toggle",
@@ -155,9 +171,15 @@ describe("SkillsPage (Capabilities)", () => {
     const text = container.textContent ?? "";
     expect(text).toContain("Browser");
     expect(text).toContain("Drive a real browser");
+    expect(text).toContain("Web Search & Scraping");
+    expect(text).toContain("Memory");
     expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");
+    const configureButtons = Array.from(container.querySelectorAll("button")).filter((b) =>
+      b.textContent?.includes("Configure"),
+    );
+    expect(configureButtons).toHaveLength(1);
   });
 
   it("renders the embedded MCP page under ?tab=mcp", async () => {

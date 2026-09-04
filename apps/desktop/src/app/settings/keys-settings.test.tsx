@@ -56,7 +56,8 @@ function DeepLinkButton({ target }: { target: string }) {
 describe('KeysSettings', () => {
   it('lists tools and excludes settings / channel-managed credentials', async () => {
     getEnvVars.mockResolvedValue({
-      BRAVE_SEARCH_API_KEY: envVar('tool', { description: 'Search the web with Brave.' }),
+      BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive a cloud browser.' }),
+      FAL_KEY: envVar('tool', { description: 'Generate images.' }),
       FIRECRAWL_API_KEY: envVar('tool', { description: 'Crawl and extract websites.' }),
       GATEWAY_PROXY: envVar('setting', { description: 'Gateway reverse proxy.' }),
       TELEGRAM_BOT_TOKEN: envVar('messaging', {
@@ -67,8 +68,9 @@ describe('KeysSettings', () => {
 
     await renderKeysSettings('tools')
 
-    expect(screen.getByText('BRAVE SEARCH')).toBeTruthy()
-    expect(screen.getByText('FIRECRAWL')).toBeTruthy()
+    expect(screen.getByText('BROWSERBASE')).toBeTruthy()
+    expect(screen.getByText('FAL')).toBeTruthy()
+    expect(screen.queryByText('FIRECRAWL')).toBeNull()
     expect(screen.queryByText('GATEWAY PROXY')).toBeNull()
     expect(screen.queryByText('TELEGRAM BOT')).toBeNull()
     expect(screen.queryByRole('combobox')).toBeNull()
@@ -95,7 +97,7 @@ describe('KeysSettings', () => {
 
   it('expands and highlights a deep-linked credential card', async () => {
     getEnvVars.mockResolvedValue({
-      BRAVE_SEARCH_API_KEY: envVar('tool', { description: 'Search the web with Brave.' }),
+      BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive a cloud browser.' }),
       FIRECRAWL_API_KEY: envVar('tool', { description: 'Crawl and extract websites.' })
     })
 
@@ -104,17 +106,18 @@ describe('KeysSettings', () => {
     render(
       <MemoryRouter initialEntries={['/settings?tab=keys']}>
         <KeysSettings view="tools" />
-        <DeepLinkButton target="FIRECRAWL_API_KEY" />
+        <DeepLinkButton target="BROWSERBASE_API_KEY" />
       </MemoryRouter>
     )
 
-    expect(await screen.findByText('BRAVE SEARCH')).toBeTruthy()
+    expect(await screen.findByText('BROWSERBASE')).toBeTruthy()
+    expect(screen.queryByText('FIRECRAWL')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Open key' }))
 
     await waitFor(() => {
-      const target = globalThis.document.getElementById('credential-key-FIRECRAWL_API_KEY')
+      const target = globalThis.document.getElementById('credential-key-BROWSERBASE_API_KEY')
       expect(target?.classList).toContain('setting-field-highlight')
     })
-    expect(screen.getByText('Crawl and extract websites.')).toBeTruthy()
+    expect(screen.getByText('Drive a cloud browser.')).toBeTruthy()
   })
 })
