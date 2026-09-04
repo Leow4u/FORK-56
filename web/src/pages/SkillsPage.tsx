@@ -416,6 +416,21 @@ export default function SkillsPage() {
     });
   }, [toolsets, search, lowerSearch]);
 
+  // Same leftover-plugin gate as desktop: hide the Tools tab when nothing
+  // would render, and treat a stale `?tab=tools` deep-link as Skills.
+  const hasVisibleToolsets = useMemo(
+    () => toolsets.some((ts) => isDesktopToolsetVisible(ts.name)),
+    [toolsets],
+  );
+  const displayTab = tab === "tools" && !hasVisibleToolsets ? "skills" : tab;
+
+  useLayoutEffect(() => {
+    if (loading) return;
+    if (tab !== "tools") return;
+    if (hasVisibleToolsets) return;
+    selectTab("skills");
+  }, [hasVisibleToolsets, loading, selectTab, tab]);
+
   /* ---- Loading ---- */
   if (loading) {
     return (
@@ -431,11 +446,11 @@ export default function SkillsPage() {
       <Toast toast={toast} />
 
       <Segmented
-        value={tab}
+        value={displayTab}
         onChange={(v) => selectTab(v)}
         options={[
           { value: "skills", label: "Skills" },
-          { value: "tools", label: "Tools" },
+          ...(hasVisibleToolsets ? [{ value: "tools", label: "Tools" }] : []),
           { value: "mcp", label: "MCP" },
         ]}
       />
@@ -448,7 +463,7 @@ export default function SkillsPage() {
         {t.skills.cacheNote ?? "Changes apply to new sessions."}
       </p>
 
-      {tab === "mcp" ? (
+      {displayTab === "mcp" ? (
         <Suspense
           fallback={
             <div className="flex items-center justify-center py-24">
@@ -458,7 +473,7 @@ export default function SkillsPage() {
         >
           <McpPage embedded />
         </Suspense>
-      ) : tab === "skills" ? (
+      ) : displayTab === "skills" ? (
       <div className="flex flex-col sm:flex-row sm:items-start gap-4">
         <aside aria-label={t.skills.title} className="sm:w-56 sm:shrink-0">
           <div className="sm:sticky sm:top-0">

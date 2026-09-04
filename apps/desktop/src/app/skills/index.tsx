@@ -326,6 +326,16 @@ export function SkillsView({
     staleTime: 0
   })
 
+  // Capabilities → Tools is a leftover-plugin surface. When every shipped
+  // toolset is already hidden, the tab itself would be an empty pane — drop
+  // it, and treat a stale `?tab=toolsets` deep-link as Skills.
+  const showToolsTab = Boolean(toolsets && visibleToolsetCount(toolsets) > 0)
+  const displayMode: (typeof SKILLS_MODES)[number] = mode === 'toolsets' && !showToolsTab ? 'skills' : mode
+
+  if (displayMode === 'skills' && !hubMounted) {
+    setHubMounted(true)
+  }
+
   // Optimistic write-through against the scoped Skills key: toggles/bulk/
   // archive repaint instantly; the next background refetch reconciles.
   const setSkills = useCallback(
@@ -378,7 +388,7 @@ export function SkillsView({
   // the first time Toolsets is shown, never on Skills or MCP, so it can't
   // starve the MCP tab's config load. Absent → toolsets sort A–Z until it lands.
   useEffect(() => {
-    if (mode !== 'toolsets' || toolCalls !== null) {
+    if (displayMode !== 'toolsets' || toolCalls !== null) {
       return
     }
 
@@ -394,7 +404,7 @@ export function SkillsView({
       .catch(() => live() && setToolCalls({}))
 
     return () => void (cancelled = true)
-  }, [mode, scopeKey, scopeProfile, toolCalls])
+  }, [displayMode, scopeKey, scopeProfile, toolCalls])
 
   // On an app-wide profile switch the analytics cache is scope-keyed, but our
   // local toolCalls state isn't — leaving it non-null would keep the lazy
@@ -432,7 +442,7 @@ export function SkillsView({
   // Rotating placeholder nudges from the user's own data — teach that search
   // understands categories and tool names, not just titles.
   const searchHints = useMemo(() => {
-    if (mode === 'skills' && skills?.length) {
+    if (displayMode === 'skills' && skills?.length) {
       const counts = new Map<string, number>()
 
       for (const skill of skills) {
@@ -446,7 +456,7 @@ export function SkillsView({
         .map(([category]) => t.common.tryHint(category.toLowerCase()))
     }
 
-    if (mode === 'toolsets' && toolsets?.length) {
+    if (displayMode === 'toolsets' && toolsets?.length) {
       return toolsets
         .filter(ts => isDesktopToolsetVisible(ts.name) && toolNames(ts).length > 0)
         .slice(0, 5)
@@ -454,7 +464,7 @@ export function SkillsView({
     }
 
     return undefined
-  }, [mode, skills, toolsets, t])
+  }, [displayMode, skills, toolsets, t])
 
   // Keep a valid selection: fall back to the first visible row when the
   // current selection is filtered out (or nothing is selected yet).
@@ -539,7 +549,7 @@ export function SkillsView({
 
       notify({ kind: 'success', title: t.skills.bulkUpdated(done), message: '' })
     } catch (err) {
-      notifyError(err, t.skills.failedToUpdate(mode === 'skills' ? t.skills.tabSkills : t.skills.tabToolsets))
+      notifyError(err, t.skills.failedToUpdate(displayMode === 'skills' ? t.skills.tabSkills : t.skills.tabToolsets))
     } finally {
       invalidateSlashCompletions()
       setBulkBusy(false)
@@ -547,7 +557,7 @@ export function SkillsView({
   }
 
   const bulkToggle = (enabled: boolean) =>
-    mode === 'skills'
+    displayMode === 'skills'
       ? bulkApply(
           bulkSkills.filter(row => row.enabled !== enabled),
           [],
@@ -909,21 +919,23 @@ export function SkillsView({
   return (
     <PageSearchShell
       {...props}
-      activeTab={mode}
+      activeTab={displayMode}
       onSearchChange={setQuery}
       onTabChange={id => setMode(id as (typeof SKILLS_MODES)[number])}
       searchHints={searchHints}
       searchPlaceholder={
-        mode === 'skills'
+        displayMode === 'skills'
           ? t.skills.searchSkills
-          : mode === 'mcp'
+          : displayMode === 'mcp'
             ? t.settings.searchPlaceholder.mcp
             : t.skills.searchToolsets
       }
       searchValue={query}
       tabs={[
         { id: 'skills', label: t.skills.tabSkills, meta: skills?.length ?? null },
-        { id: 'toolsets', label: t.skills.tabToolsets, meta: toolsets ? visibleToolsetCount(toolsets) : null },
+        ...(showToolsTab
+          ? [{ id: 'toolsets', label: t.skills.tabToolsets, meta: visibleToolsetCount(toolsets ?? []) }]
+          : []),
         { id: 'mcp', label: t.skills.tabMcp }
       ]}
     >
@@ -933,8 +945,8 @@ export function SkillsView({
       <div className="flex h-full flex-col">
         {profileScopeSelector}
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className={mode === 'skills' ? 'min-h-40 flex-1 overflow-hidden' : 'min-h-0 flex-1'}>
-            {mode === 'mcp' ? (
+          <div className={displayMode === 'skills' ? 'min-h-40 flex-1 overflow-hidden' : 'min-h-0 flex-1'}>
+            {displayMode === 'mcp' ? (
               // The gateway instance backs ONLY the live `reload.mcp` RPC, and
               // it is the ACTIVE gateway's socket — for a scope pinned to a
               // different backend that RPC would hot-reload the wrong
@@ -959,7 +971,7 @@ export function SkillsView({
               />
             ) : !skills || !toolsets ? (
               <PageLoader label={t.skills.loading} />
-            ) : mode === 'skills' ? (
+            ) : displayMode === 'skills' ? (
               // Installed skills on top, the Skills Hub browser underneath —
               // discovery sits with management. The list region keeps a floor
               // (min-h-40, on the wrapper above) so a tall hub viewport or a
@@ -1063,7 +1075,11 @@ export function SkillsView({
               install call, and remounting on scope change would reload the
               site for no data benefit. */}
           {hubMounted && (
-            <EmbeddedHubPicker hidden={mode !== 'skills'} installedNames={installedSkillNames} profile={scopeProfile} />
+            <EmbeddedHubPicker
+              hidden={displayMode !== 'skills'}
+              installedNames={installedSkillNames}
+              profile={scopeProfile}
+            />
           )}
         </div>
       </div>

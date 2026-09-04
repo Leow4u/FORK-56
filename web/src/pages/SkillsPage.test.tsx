@@ -395,6 +395,46 @@ describe("SkillsPage (Capabilities)", () => {
     expect(configureButtons).toHaveLength(1);
   });
 
+  it("hides the Tools tab when every remaining toolset is already hidden", async () => {
+    apiMocks.getToolsets.mockResolvedValue([
+      {
+        name: "image_gen",
+        label: "Image Generation",
+        description: "Generate images",
+        enabled: true,
+        configured: true,
+        tools: ["image_generate"],
+      },
+      {
+        name: "web",
+        label: "Web Search & Scraping",
+        description: "Search and extract public pages",
+        enabled: true,
+        configured: true,
+        tools: ["web_search", "web_extract"],
+      },
+      {
+        name: "stt",
+        label: "Speech-to-Text",
+        description: "voice transcription",
+        enabled: true,
+        configured: true,
+        tools: ["stt_transcribe"],
+      },
+    ]);
+    await renderPage("/skills?tab=tools");
+    const radios = Array.from(container.querySelectorAll('[role="radio"]')).map(
+      (el) => el.textContent,
+    );
+    expect(radios).toEqual(["Skills", "MCP"]);
+    expect(container.textContent).toContain("learned-skill");
+    expect(container.textContent).not.toContain("Google Meet");
+    expect(container.textContent).not.toContain("Image Generation");
+    expect(container.querySelector('[data-testid="location"]')?.textContent).toBe(
+      "/skills",
+    );
+  });
+
   it("renders the embedded MCP page under ?tab=mcp", async () => {
     await renderPage("/skills?tab=mcp");
     const mcp = container.querySelector('[data-testid="mcp-page"]');

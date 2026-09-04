@@ -240,6 +240,30 @@ describe('SkillsView toolset management', () => {
     expect(setToolsetEnabled).not.toHaveBeenCalled()
   })
 
+  it('hides the Tools tab when every remaining toolset is already hidden', async () => {
+    getToolsets.mockResolvedValue([
+      toolset({ name: 'image_gen', label: 'Image Generation', tools: ['image_generate'] }),
+      toolset({ name: 'web', label: 'Web Search & Scraping', tools: ['web_search'] }),
+      toolset({ name: 'stt', label: 'Speech-to-Text', description: 'voice transcription' }),
+      toolset({ name: 'tts', label: 'Text-to-Speech', description: 'text_to_speech' })
+    ])
+
+    await renderSkills()
+
+    expect(await screen.findByRole('button', { name: 'New skill' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Tools/ })).toBeNull()
+    expect(screen.queryByRole('switch', { name: /toolset/ })).toBeNull()
+    expect(screen.queryByText('Image Generation')).toBeNull()
+    expect(screen.queryByText('Web Search & Scraping')).toBeNull()
+  })
+
+  it('keeps the Tools tab when a leftover plugin toolset is still visible', async () => {
+    await renderSkills()
+
+    expect(await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Tools/ })).toBeTruthy()
+  })
+
   it('scopes Tools config to the profile chosen in the selector', async () => {
     // Two profiles → the "Configuring:" selector renders. Picking a non-active
     // profile must re-fetch toolsets scoped to THAT profile.
