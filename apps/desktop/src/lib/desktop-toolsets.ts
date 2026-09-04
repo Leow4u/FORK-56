@@ -6,8 +6,9 @@
 // `work4you tools` already platform-restricts on the CLI) and internal plumbing
 // that isn't a user-facing capability. Mirror the curation approach used for
 // slash commands (`desktop-slash-commands.ts`): one documented block-list, one
-// predicate. Hiding a toolset only removes its Capabilities row — enabled
-// state, tool registration, and runtime gating stay exactly as they are.
+// predicate. Hiding a toolset only removes its Capabilities row. Runtime
+// enablement is unchanged unless that toolset is also default-off in
+// `work4you_cli/tools_config.py` (`a2a`, `bfl`).
 //
 // Core agent toolsets are also hidden here: the user must not see or configure
 // them in Capabilities. Files sidebar, Skills Hub, Settings → Workspace
@@ -36,7 +37,11 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'clarify',
   // Specialist plugin, off by default. Hide the catalog row; do not enable it.
   // A later dedicated UI can collect a peer URL/token on top of this plugin.
-  'a2a'
+  'a2a',
+  // Native BFL FLUX 3 extras (keyframes / continuation). Hide the catalog
+  // row and leave the toolset off — `video_gen` / `video_generate` stays the
+  // user-facing video surface. CLI `work4you tools enable bfl` still works.
+  'bfl'
 ])
 
 // BYOK credentials for hidden Web Search / Browser cloud vendors.

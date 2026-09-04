@@ -124,6 +124,22 @@ const apiMocks = vi.hoisted(() => ({
       tools: ["a2a_call"],
     },
     {
+      name: "video_gen",
+      label: "Video Generation",
+      description: "video_generate (text/image/reference)",
+      enabled: true,
+      configured: true,
+      tools: ["video_generate"],
+    },
+    {
+      name: "bfl",
+      label: "BFL FLUX 3 Video",
+      description: "bfl_flux3_*",
+      enabled: true,
+      configured: true,
+      tools: ["bfl_flux3_text_to_video"],
+    },
+    {
       name: "discord",
       label: "Discord",
       description: "Platform-coupled; not a dashboard toggle",
@@ -243,6 +259,8 @@ describe("SkillsPage (Capabilities)", () => {
     const text = container.textContent ?? "";
     expect(text).toContain("Image Generation");
     expect(text).toContain("Generate images");
+    expect(text).toContain("Video Generation");
+    expect(text).toContain("video_generate (text/image/reference)");
     expect(text).not.toContain("Browser Automation");
     expect(text).not.toContain("Drive a real browser");
     expect(text).not.toContain("Web Search & Scraping");
@@ -257,13 +275,15 @@ describe("SkillsPage (Capabilities)", () => {
     expect(text).not.toContain("Clarifying Questions");
     expect(text).not.toContain("Ask the user a clarifying question");
     expect(text).not.toContain("Agent-to-Agent protocol");
+    expect(text).not.toContain("BFL FLUX 3 Video");
+    expect(text).not.toContain("bfl_flux3_");
     expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");
     const configureButtons = Array.from(container.querySelectorAll("button")).filter((b) =>
       b.textContent?.includes("Configure"),
     );
-    expect(configureButtons).toHaveLength(1);
+    expect(configureButtons).toHaveLength(2);
   });
 
   it("renders the embedded MCP page under ?tab=mcp", async () => {

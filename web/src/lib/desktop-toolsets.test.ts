@@ -13,7 +13,8 @@ const HIDDEN_CORE_TOOLSETS = [
   'computer_use',
   'vision',
   'clarify',
-  'a2a'
+  'a2a',
+  'bfl'
 ]
 
 describe('isDesktopToolsetVisible', () => {
@@ -24,7 +25,7 @@ describe('isDesktopToolsetVisible', () => {
   })
 
   it('keeps other user-facing toolsets', () => {
-    for (const name of ['image_gen', 'cronjob', 'homeassistant', 'tts']) {
+    for (const name of ['image_gen', 'cronjob', 'homeassistant', 'tts', 'video_gen']) {
       expect(isDesktopToolsetVisible(name)).toBe(true)
     }
   })

@@ -1,9 +1,10 @@
 // Curation for the Capabilities → Tools list.
 //
 // Same block-list as apps/desktop/src/lib/desktop-toolsets.ts. Hiding a row
-// does not change enabled state, tool registration, or runtime gating.
-// Files sidebar, Skills Hub, Settings → Workspace `code_execution.mode`,
-// Settings → Memory & Context, and Settings → Models stay on their own surfaces.
+// does not change enabled state unless that toolset is also default-off in
+// `work4you_cli/tools_config.py` (`a2a`, `bfl`). Files sidebar, Skills Hub,
+// Settings → Workspace `code_execution.mode`, Settings → Memory & Context,
+// and Settings → Models stay on their own surfaces.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'discord',
   'discord_admin',
@@ -21,7 +22,10 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'vision',
   'clarify',
   // Specialist plugin, off by default. Hide the catalog row; do not enable it.
-  'a2a'
+  'a2a',
+  // Native BFL FLUX 3 extras. Hide the catalog row; leave the toolset off.
+  // `video_gen` stays visible. CLI `work4you tools enable bfl` still works.
+  'bfl'
 ])
 
 const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([

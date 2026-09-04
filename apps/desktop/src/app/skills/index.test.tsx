@@ -183,12 +183,15 @@ describe('SkillsView toolset management', () => {
       toolset({ name: 'computer_use', label: 'Computer Use', tools: ['computer_use'] }),
       toolset({ name: 'vision', label: 'Vision / Image Analysis', tools: ['vision_analyze'] }),
       toolset({ name: 'clarify', label: 'Clarifying Questions', tools: ['clarify'] }),
-      toolset({ name: 'a2a', label: 'A2A', description: 'Agent-to-Agent protocol', tools: ['a2a_call'] })
+      toolset({ name: 'a2a', label: 'A2A', description: 'Agent-to-Agent protocol', tools: ['a2a_call'] }),
+      toolset({ name: 'video_gen', label: 'Video Generation', tools: ['video_generate'] }),
+      toolset({ name: 'bfl', label: 'BFL FLUX 3 Video', tools: ['bfl_flux3_text_to_video'] })
     ])
 
     await renderSkills()
 
     expect(await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })).toBeTruthy()
+    expect(await screen.findByRole('switch', { name: 'Turn Video Generation toolset off' })).toBeTruthy()
     expect(screen.queryByText('Web Search & Scraping')).toBeNull()
     expect(screen.queryByText('Memory')).toBeNull()
     expect(screen.queryByText('Browser Automation')).toBeNull()
@@ -199,6 +202,7 @@ describe('SkillsView toolset management', () => {
     expect(screen.queryByText('Vision / Image Analysis')).toBeNull()
     expect(screen.queryByText('Clarifying Questions')).toBeNull()
     expect(screen.queryByText('A2A')).toBeNull()
+    expect(screen.queryByText('BFL FLUX 3 Video')).toBeNull()
     expect(screen.queryByText('skill_manage')).toBeNull()
     expect(screen.queryByRole('switch', { name: /Skills toolset/ })).toBeNull()
     expect(setToolsetEnabled).not.toHaveBeenCalled()
