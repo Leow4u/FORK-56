@@ -19,7 +19,9 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'memory',
   'computer_use',
   'vision',
-  'clarify'
+  'clarify',
+  // Specialist plugin, off by default. Hide the catalog row; do not enable it.
+  'a2a'
 ])
 
 const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([

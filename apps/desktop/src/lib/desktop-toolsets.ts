@@ -33,7 +33,10 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'memory',
   'computer_use',
   'vision',
-  'clarify'
+  'clarify',
+  // Specialist plugin, off by default. Hide the catalog row; do not enable it.
+  // A later dedicated UI can collect a peer URL/token on top of this plugin.
+  'a2a'
 ])
 
 // BYOK credentials for hidden Web Search / Browser cloud vendors.
