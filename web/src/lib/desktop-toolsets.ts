@@ -1,9 +1,9 @@
 // Curation for the Capabilities → Tools list.
 //
 // Same block-list as apps/desktop/src/lib/desktop-toolsets.ts. Hiding a row
-// does not change enabled state or runtime gating. Files sidebar, Skills Hub,
-// Settings → Workspace `code_execution.mode`, Settings → Memory & Context,
-// and Settings → Models stay on their own surfaces.
+// does not change enabled state, tool registration, or runtime gating.
+// Files sidebar, Skills Hub, Settings → Workspace `code_execution.mode`,
+// Settings → Memory & Context, and Settings → Models stay on their own surfaces.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'discord',
   'discord_admin',
@@ -18,7 +18,8 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'skills',
   'memory',
   'computer_use',
-  'vision'
+  'vision',
+  'clarify'
 ])
 
 const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([

@@ -181,7 +181,8 @@ describe('SkillsView toolset management', () => {
       toolset({ name: 'code_execution', label: 'Code Execution', tools: ['execute_code'] }),
       toolset({ name: 'skills', label: 'Skills', tools: ['skill_manage'] }),
       toolset({ name: 'computer_use', label: 'Computer Use', tools: ['computer_use'] }),
-      toolset({ name: 'vision', label: 'Vision / Image Analysis', tools: ['vision_analyze'] })
+      toolset({ name: 'vision', label: 'Vision / Image Analysis', tools: ['vision_analyze'] }),
+      toolset({ name: 'clarify', label: 'Clarifying Questions', tools: ['clarify'] })
     ])
 
     await renderSkills()
@@ -195,6 +196,7 @@ describe('SkillsView toolset management', () => {
     expect(screen.queryByText('Code Execution')).toBeNull()
     expect(screen.queryByText('Computer Use')).toBeNull()
     expect(screen.queryByText('Vision / Image Analysis')).toBeNull()
+    expect(screen.queryByText('Clarifying Questions')).toBeNull()
     expect(screen.queryByText('skill_manage')).toBeNull()
     expect(screen.queryByRole('switch', { name: /Skills toolset/ })).toBeNull()
     expect(setToolsetEnabled).not.toHaveBeenCalled()

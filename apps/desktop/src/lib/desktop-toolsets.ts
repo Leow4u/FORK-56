@@ -6,8 +6,8 @@
 // `work4you tools` already platform-restricts on the CLI) and internal plumbing
 // that isn't a user-facing capability. Mirror the curation approach used for
 // slash commands (`desktop-slash-commands.ts`): one documented block-list, one
-// predicate. Hiding a toolset only removes its row — its enabled state and
-// runtime gating are untouched.
+// predicate. Hiding a toolset only removes its Capabilities row — enabled
+// state, tool registration, and runtime gating stay exactly as they are.
 //
 // Core agent toolsets are also hidden here: the user must not see or configure
 // them in Capabilities. Files sidebar, Skills Hub, Settings → Workspace
@@ -32,7 +32,8 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'skills',
   'memory',
   'computer_use',
-  'vision'
+  'vision',
+  'clarify'
 ])
 
 // BYOK credentials for hidden Web Search / Browser cloud vendors.

@@ -11,7 +11,8 @@ const HIDDEN_CORE_TOOLSETS = [
   'skills',
   'memory',
   'computer_use',
-  'vision'
+  'vision',
+  'clarify'
 ]
 
 describe('isDesktopToolsetVisible', () => {

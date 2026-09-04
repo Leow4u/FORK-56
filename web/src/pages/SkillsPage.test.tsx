@@ -108,6 +108,14 @@ const apiMocks = vi.hoisted(() => ({
       tools: ["vision_analyze"],
     },
     {
+      name: "clarify",
+      label: "Clarifying Questions",
+      description: "Ask the user a clarifying question",
+      enabled: true,
+      configured: true,
+      tools: ["clarify"],
+    },
+    {
       name: "discord",
       label: "Discord",
       description: "Platform-coupled; not a dashboard toggle",
@@ -238,6 +246,8 @@ describe("SkillsPage (Capabilities)", () => {
     expect(text).not.toContain("Computer Use");
     expect(text).not.toContain("Vision / Image Analysis");
     expect(text).not.toContain("vision_analyze");
+    expect(text).not.toContain("Clarifying Questions");
+    expect(text).not.toContain("Ask the user a clarifying question");
     expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");
