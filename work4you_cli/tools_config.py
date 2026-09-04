@@ -152,12 +152,11 @@ def gui_toolset_label(label: str) -> str:
 # `work4you tools enable bfl` can turn them back on. They are default-off so
 # they do not sit next to `video_generate` on every session.
 #
-# X search is off by default for users without xAI credentials, but
-# auto-enables when SuperGrok OAuth tokens are stored OR XAI_API_KEY is
-# set — mirroring the HASS_TOKEN → homeassistant auto-enable below. The
-# `work4you tools` → X (Twitter) Search setup walks users through credential
-# setup. The tool's check_fn means the schema still won't appear to the
-# model if the credential later goes missing or expires.
+# X search stays default-off. `XAI_API_KEY` is also the Grok chat-model
+# credential, so presence of that key must not auto-enable Twitter search.
+# Explicit `platform_toolsets` / `work4you tools enable x_search` still turns
+# it on. The tool's check_fn still gates the schema if credentials later
+# go missing.
 _DEFAULT_OFF_TOOLSETS = {"homeassistant", "spotify", "discord", "discord_admin", "video", "video_gen", "x_search", "a2a", "bfl"}
 
 
@@ -173,13 +172,11 @@ _CONFIG_ONLY_TOOLSETS = {"stt"}
 def _xai_credentials_present() -> bool:
     """Cheap, side-effect-free check for usable xAI credentials.
 
-    Used to auto-enable the ``x_search`` toolset when the user has either
-    completed xAI Grok OAuth (SuperGrok / Premium+) or set
-    ``XAI_API_KEY``. Does NOT hit the network — only inspects the local
-    auth store and environment. The tool's runtime ``check_fn`` still
-    gates schema registration if creds later expire or get revoked.
-    Also reused by ``provider_readiness_status`` for ``post_setup:
-    "xai_grok"`` picker rows (xAI TTS, Grok OAuth x_search).
+    Used by ``provider_readiness_status`` for ``post_setup: "xai_grok"``
+    picker rows (xAI TTS, Grok OAuth x_search). Does NOT auto-enable the
+    ``x_search`` toolset — that toolset stays default-off even when a Grok
+    chat key is present. Does NOT hit the network — only inspects the local
+    auth store and environment.
     """
     try:
         from work4you_cli.auth import _read_xai_oauth_tokens
@@ -2514,23 +2511,6 @@ def _get_platform_tools(
             if ts_tools and ts_tools.issubset(all_tool_names):
                 enabled_toolsets.add(ts_key)
 
-        # Auto-enable ``x_search`` when xAI credentials are configured.
-        # Unlike ``homeassistant`` (whose ``ha_*`` tools live inside the
-        # platform composite and thus pass the subset check above),
-        # ``x_search`` is its own one-tool toolset that the composite does
-        # NOT include, so the subset loop never picks it up. Inject it
-        # directly here, mirroring the HASS_TOKEN → ``homeassistant`` rule
-        # below: once you have working creds, you don't have to also click
-        # through ``work4you tools`` to flip the toolset on. Only fires when
-        # the user has not yet saved an explicit toolset list — once they
-        # do, the saved list is authoritative.
-        x_search_auto_enabled = (
-            _toolset_allowed_for_platform("x_search", platform)
-            and _xai_credentials_present()
-        )
-        if x_search_auto_enabled:
-            enabled_toolsets.add("x_search")
-
         default_off = set(_DEFAULT_OFF_TOOLSETS)
         # Legacy safety: if the platform's own name matches a default-off
         # toolset (e.g. `homeassistant` platform + `homeassistant` toolset),
@@ -2548,11 +2528,9 @@ def _get_platform_tools(
         # regressed after #14798 made cron honor per-platform tool config.
         if "homeassistant" in default_off and _homeassistant_credentials_present():
             default_off.remove("homeassistant")
-        # Symmetric carve-out for x_search auto-enable (see the inject
-        # block above). Without this, the default_off subtraction would
-        # strip the entry we just added.
-        if x_search_auto_enabled and "x_search" in default_off:
-            default_off.remove("x_search")
+        # x_search stays in default_off even when xAI/Grok credentials are
+        # present. XAI_API_KEY is a chat-model key; it must not turn Twitter
+        # search on. Opt in via `work4you tools enable x_search`.
         _exempt_explicit_platform_native(
             default_off, platform, explicitly_configured=explicitly_configured
         )

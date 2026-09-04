@@ -117,6 +117,31 @@ def test_get_platform_tools_homeassistant_uses_active_profile_token(monkeypatch)
         secret_scope.set_multiplex_active(False)
 
 
+def test_get_platform_tools_x_search_stays_off_when_xai_credentials_present(monkeypatch):
+    """X (Twitter) Search stays default-off even when Grok/xAI keys exist.
+
+    XAI_API_KEY is also a chat-model credential. Auto-enabling x_search
+    because the user chats with Grok would turn Twitter search on without
+    an explicit opt-in. Spotify and Video Analysis stay off too.
+    """
+    monkeypatch.setenv("XAI_API_KEY", "fake-xai-key")
+    monkeypatch.setattr(
+        "work4you_cli.tools_config._xai_credentials_present", lambda: True
+    )
+
+    cli_enabled = _get_platform_tools({}, "cli")
+    assert "x_search" not in cli_enabled
+    assert "spotify" not in cli_enabled
+    assert "video" not in cli_enabled
+
+
+def test_get_platform_tools_x_search_survives_explicit_enable():
+    """CLI / saved platform_toolsets can still turn X Search on."""
+    config = {"platform_toolsets": {"cli": ["work4you-cli", "x_search"]}}
+    enabled = _get_platform_tools(config, "cli")
+    assert "x_search" in enabled
+
+
 # ─── #35527: platform-restricted default-off toolsets (discord/discord_admin)
 # are stripped by _DEFAULT_OFF_TOOLSETS even when the user explicitly opts in
 # via the platform's native composite. The composite ``work4you-discord``
