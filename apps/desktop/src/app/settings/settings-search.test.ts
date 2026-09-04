@@ -100,18 +100,18 @@ describe('settings search index', () => {
     const entries = buildCredentialSearchEntries(
       {
         HOMEASSISTANT_TOKEN: envVar('tool', { description: 'Connect home tools.' }),
-        FAL_KEY: envVar('tool', { description: 'Generate images.' })
+        ELEVENLABS_API_KEY: envVar('tool', { description: 'Generate speech.' })
       },
       { settings: 'Settings', tools: 'Tools' },
       { settings: Settings2, tools: Wrench }
     )
 
     expect(filterSettingsSearchEntries(entries, 'home tools')[0]?.id).toBe('credential:HOMEASSISTANT_TOKEN')
-    expect(filterSettingsSearchEntries(entries, 'fal generate')[0]?.id).toBe('credential:FAL_KEY')
+    expect(filterSettingsSearchEntries(entries, 'eleven speech')[0]?.id).toBe('credential:ELEVENLABS_API_KEY')
     expect(filterSettingsSearchEntries(entries, 'home generate')).toEqual([])
   })
 
-  it('omits BYOK web-search, browser-cloud, and Home Assistant credentials from Settings search', () => {
+  it('omits BYOK web-search, browser-cloud, Home Assistant, and image-gen vendor credentials from Settings search', () => {
     const entries = buildCredentialSearchEntries(
       {
         BRAVE_SEARCH_API_KEY: envVar('tool', { description: 'Search public web pages.' }),
@@ -119,12 +119,14 @@ describe('settings search index', () => {
         BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive a cloud browser.' }),
         HASS_TOKEN: envVar('tool', { description: 'Home Assistant Long-Lived Access Token.' }),
         HASS_URL: envVar('tool', { description: 'Home Assistant URL.' }),
-        FAL_KEY: envVar('tool', { description: 'Generate images.' })
+        FAL_KEY: envVar('tool', { description: 'Generate images.' }),
+        KREA_API_KEY: envVar('tool', { description: 'Generate images with Krea.' }),
+        ELEVENLABS_API_KEY: envVar('tool', { description: 'Generate speech.' })
       },
       { settings: 'Settings', tools: 'Tools' },
       { settings: Settings2, tools: Wrench }
     )
 
-    expect(entries.map(entry => entry.id)).toEqual(['credential:FAL_KEY'])
+    expect(entries.map(entry => entry.id)).toEqual(['credential:ELEVENLABS_API_KEY'])
   })
 })

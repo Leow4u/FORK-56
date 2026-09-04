@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { Check, ExternalLink, KeyRound, Loader2, Terminal, X } from "lucide-react";
@@ -16,6 +16,7 @@ import { Badge } from "@work4you/ui/ui/components/badge";
 import { Switch } from "@work4you/ui/ui/components/switch";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { Toast } from "@work4you/ui/ui/components/toast";
+import { isCapabilitiesToolsetProviderVisible } from "@/lib/desktop-toolsets";
 import { cn, themedBody } from "@/lib/utils";
 
 interface Props {
@@ -122,6 +123,14 @@ export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Pr
       if (timer) clearTimeout(timer);
     };
   }, [postSetupTrigger, showToast, loadConfig, onChanged]);
+
+  const providers = useMemo(
+    () =>
+      (config?.providers ?? []).filter((provider) =>
+        isCapabilitiesToolsetProviderVisible(toolset.name, provider.name),
+      ),
+    [config, toolset.name],
+  );
 
   const handleToggle = async (next: boolean) => {
     setToggling(true);
@@ -277,12 +286,12 @@ export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Pr
               This toolset has no configurable backends — toggle it on or off
               above. It works with no provider selection or API keys.
             </p>
-          ) : config.providers.length === 0 ? (
+          ) : providers.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
               No providers are available for this toolset in this install.
             </p>
           ) : (
-            config.providers.map((provider) => {
+            providers.map((provider) => {
               const isActive = provider.name === activeProvider;
               return (
                 <div

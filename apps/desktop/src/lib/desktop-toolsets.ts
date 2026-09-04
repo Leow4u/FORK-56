@@ -53,10 +53,11 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'homeassistant'
 ])
 
-// BYOK credentials for hidden Web Search / Browser cloud vendors and
-// Home Assistant. Work4You Subscription uses the Portal token; users must
-// not paste vendor keys. Keep XAI_API_KEY visible — it is also the Grok
-// model credential.
+// BYOK credentials for hidden Web Search / Browser cloud vendors, Home
+// Assistant, and Image Generation vendor backends. Work4You Subscription
+// uses the Portal token; users must not paste vendor keys. Keep
+// OPENAI_API_KEY / OPENROUTER_API_KEY / XAI_API_KEY visible — they are
+// also chat-model credentials.
 const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
   'BRAVE_SEARCH_API_KEY',
   'BROWSERBASE_API_KEY',
@@ -73,8 +74,15 @@ const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
   'TAVILY_API_KEY',
   'TAVILY_BASE_URL',
   'HASS_TOKEN',
-  'HASS_URL'
+  'HASS_URL',
+  'FAL_KEY',
+  'KREA_API_KEY',
+  'DEEPINFRA_API_KEY'
 ])
+
+/** Exact picker-row name of the managed FAL image backend. Do not
+ *  prefix-match — browser uses "Work4You Subscription (Browser Use cloud)". */
+export const IMAGE_GEN_SUBSCRIPTION_PROVIDER = 'Work4You Subscription'
 
 export function isDesktopToolsetVisible(name: string): boolean {
   return !DESKTOP_HIDDEN_TOOLSETS.has(name)
@@ -82,4 +90,16 @@ export function isDesktopToolsetVisible(name: string): boolean {
 
 export function isCapabilitiesVendorCredentialHidden(key: string): boolean {
   return HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS.has(key)
+}
+
+/** Image Generation keeps only the managed Subscription row so the user
+ *  can pick a model. BYOK backends (FAL.ai, DeepInfra, Krea, OpenAI, Codex,
+ *  OpenRouter, xAI) and "Work4You Portal (image)" stay off this pane. Other
+ *  toolsets are unfiltered. Runtime selection is unchanged. */
+export function isCapabilitiesToolsetProviderVisible(toolset: string, providerName: string): boolean {
+  if (toolset !== 'image_gen') {
+    return true
+  }
+
+  return providerName === IMAGE_GEN_SUBSCRIPTION_PROVIDER
 }

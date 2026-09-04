@@ -5,6 +5,7 @@ import { SETTINGS_ROUTE } from '@/app/routes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/i18n'
+import { isCapabilitiesToolsetProviderVisible } from '@/lib/desktop-toolsets'
 import { Check, Loader2, Save, Terminal } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { upsertDesktopActionTask } from '@/store/activity'
@@ -564,7 +565,10 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange, profile }: Too
     void refresh()
   }, [refresh])
 
-  const providers = useMemo(() => cfg?.providers ?? [], [cfg])
+  const providers = useMemo(
+    () => (cfg?.providers ?? []).filter(provider => isCapabilitiesToolsetProviderVisible(toolset, provider.name)),
+    [cfg, toolset]
+  )
 
   // Default the expanded provider to the one actually active in config
   // (`is_active` / `cfg.active_provider`, mirroring the CLI picker), then the

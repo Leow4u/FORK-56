@@ -265,15 +265,15 @@ describe('ToolsetConfigPanel', () => {
     getToolsetConfig.mockResolvedValue(
       config({
         name: 'image_gen',
-        active_provider: 'FAL.ai',
+        active_provider: 'Work4You Subscription',
         providers: [
           {
-            name: 'FAL.ai',
-            badge: 'paid',
-            tag: 'Multi-model image generation',
+            name: 'Work4You Subscription',
+            badge: 'subscription',
+            tag: 'Managed FAL image generation billed to your subscription',
             env_vars: [],
             post_setup: null,
-            requires_work4you_auth: false,
+            requires_work4you_auth: true,
             is_active: true
           }
         ]
@@ -282,7 +282,7 @@ describe('ToolsetConfigPanel', () => {
     getToolsetModels.mockResolvedValue({
       name: 'image_gen',
       has_models: true,
-      provider: 'FAL.ai',
+      provider: 'Work4You Subscription',
       plugin: 'fal',
       models: [
         { id: 'z-image-turbo', display: 'Z-Image Turbo', speed: 'fast', strengths: 'cheap drafts', price: '$0.005' },
@@ -298,11 +298,88 @@ describe('ToolsetConfigPanel', () => {
     // Both catalog rows render with their picker metadata.
     expect(await screen.findByText('Z-Image Turbo')).toBeTruthy()
     expect(screen.getByText('FLUX 2 Pro')).toBeTruthy()
-    expect(getToolsetModels).toHaveBeenCalledWith('image_gen', 'FAL.ai')
+    expect(getToolsetModels).toHaveBeenCalledWith('image_gen', 'Work4You Subscription')
 
     // Picking a different model persists via the model endpoint.
     fireEvent.click(screen.getByRole('button', { name: /FLUX 2 Pro/ }))
-    await waitFor(() => expect(selectToolsetModel).toHaveBeenCalledWith('image_gen', 'flux-2-pro', 'FAL.ai'))
+    await waitFor(() =>
+      expect(selectToolsetModel).toHaveBeenCalledWith('image_gen', 'flux-2-pro', 'Work4You Subscription')
+    )
+  })
+
+  it('hides Image Generation BYOK backends including Work4You Portal (image)', async () => {
+    getToolsetConfig.mockResolvedValue(
+      config({
+        name: 'image_gen',
+        active_provider: 'Work4You Subscription',
+        providers: [
+          {
+            name: 'Work4You Subscription',
+            badge: 'subscription',
+            tag: 'Managed FAL image generation billed to your subscription',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: true,
+            is_active: true
+          },
+          {
+            name: 'FAL.ai',
+            badge: 'paid',
+            tag: 'Bring your own FAL key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'DeepInfra',
+            badge: 'paid',
+            tag: 'Bring your own DeepInfra key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          },
+          {
+            name: 'Work4You Portal (image)',
+            badge: 'subscription',
+            tag: 'OpenRouter-backed portal image generation',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: true,
+            is_active: false
+          },
+          {
+            name: 'OpenAI',
+            badge: 'paid',
+            tag: 'Bring your own OpenAI key',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: false
+          }
+        ]
+      })
+    )
+    getToolsetModels.mockResolvedValue({
+      name: 'image_gen',
+      has_models: true,
+      provider: 'Work4You Subscription',
+      plugin: 'fal',
+      models: [{ id: 'z-image-turbo', display: 'Z-Image Turbo', speed: 'fast', strengths: '', price: '' }],
+      current: 'z-image-turbo',
+      default: 'z-image-turbo'
+    })
+
+    const { ToolsetConfigPanel } = await import('./toolset-config-panel')
+    render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="image_gen" />)
+
+    expect(await screen.findByRole('button', { name: /Work4You Subscription/ })).toBeTruthy()
+    expect(await screen.findByText('Z-Image Turbo')).toBeTruthy()
+    expect(screen.queryByText('FAL.ai')).toBeNull()
+    expect(screen.queryByText('DeepInfra')).toBeNull()
+    expect(screen.queryByText('Work4You Portal (image)')).toBeNull()
+    expect(screen.queryByText('OpenAI')).toBeNull()
   })
 
   it('does not fetch model catalogs for toolsets without them', async () => {

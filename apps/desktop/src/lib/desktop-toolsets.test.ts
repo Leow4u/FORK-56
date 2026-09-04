@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isCapabilitiesVendorCredentialHidden, isDesktopToolsetVisible } from './desktop-toolsets'
+import { isCapabilitiesToolsetProviderVisible, isCapabilitiesVendorCredentialHidden, isDesktopToolsetVisible } from './desktop-toolsets'
 
 const HIDDEN_CORE_TOOLSETS = [
   'web',
@@ -34,7 +34,7 @@ describe('isDesktopToolsetVisible', () => {
 })
 
 describe('Capabilities vendor credentials', () => {
-  it('hides BYOK web-search, browser-cloud, and Home Assistant credentials', () => {
+  it('hides BYOK web-search, browser-cloud, Home Assistant, and image-gen vendor credentials', () => {
     for (const key of [
       'BRAVE_SEARCH_API_KEY',
       'BROWSERBASE_API_KEY',
@@ -47,7 +47,10 @@ describe('Capabilities vendor credentials', () => {
       'SEARXNG_URL',
       'TAVILY_API_KEY',
       'HASS_TOKEN',
-      'HASS_URL'
+      'HASS_URL',
+      'FAL_KEY',
+      'KREA_API_KEY',
+      'DEEPINFRA_API_KEY'
     ]) {
       expect(isCapabilitiesVendorCredentialHidden(key)).toBe(true)
     }
@@ -56,6 +59,33 @@ describe('Capabilities vendor credentials', () => {
   it('leaves model keys and remaining tool keys alone', () => {
     expect(isCapabilitiesVendorCredentialHidden('XAI_API_KEY')).toBe(false)
     expect(isCapabilitiesVendorCredentialHidden('OPENROUTER_API_KEY')).toBe(false)
-    expect(isCapabilitiesVendorCredentialHidden('FAL_KEY')).toBe(false)
+    expect(isCapabilitiesVendorCredentialHidden('OPENAI_API_KEY')).toBe(false)
+    expect(isCapabilitiesVendorCredentialHidden('ELEVENLABS_API_KEY')).toBe(false)
+  })
+})
+
+describe('isCapabilitiesToolsetProviderVisible', () => {
+  it('keeps only Work4You Subscription on Image Generation', () => {
+    expect(isCapabilitiesToolsetProviderVisible('image_gen', 'Work4You Subscription')).toBe(true)
+    for (const name of [
+      'FAL.ai',
+      'DeepInfra',
+      'Krea',
+      'OpenAI',
+      'OpenAI (Codex auth)',
+      'OpenRouter (image)',
+      'Work4You Portal (image)',
+      'xAI Grok Imagine (image)'
+    ]) {
+      expect(isCapabilitiesToolsetProviderVisible('image_gen', name)).toBe(false)
+    }
+  })
+
+  it('does not prefix-match other Subscription rows', () => {
+    expect(
+      isCapabilitiesToolsetProviderVisible('browser', 'Work4You Subscription (Browser Use cloud)')
+    ).toBe(true)
+    expect(isCapabilitiesToolsetProviderVisible('video_gen', 'FAL.ai')).toBe(true)
+    expect(isCapabilitiesToolsetProviderVisible('tts', 'Microsoft Edge TTS')).toBe(true)
   })
 })

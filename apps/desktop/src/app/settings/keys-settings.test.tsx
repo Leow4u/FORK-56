@@ -57,8 +57,9 @@ describe('KeysSettings', () => {
   it('lists tools and excludes settings / channel-managed credentials', async () => {
     getEnvVars.mockResolvedValue({
       BROWSERBASE_API_KEY: envVar('tool', { description: 'Drive a cloud browser.' }),
-      FAL_KEY: envVar('tool', { description: 'Generate images.' }),
+      ELEVENLABS_API_KEY: envVar('tool', { description: 'Generate speech.' }),
       FIRECRAWL_API_KEY: envVar('tool', { description: 'Crawl and extract websites.' }),
+      FAL_KEY: envVar('tool', { description: 'Generate images.' }),
       HASS_TOKEN: envVar('tool', { description: 'Home Assistant Long-Lived Access Token.' }),
       GATEWAY_PROXY: envVar('setting', { description: 'Gateway reverse proxy.' }),
       TELEGRAM_BOT_TOKEN: envVar('messaging', {
@@ -70,7 +71,8 @@ describe('KeysSettings', () => {
     await renderKeysSettings('tools')
 
     expect(screen.queryByText('BROWSERBASE')).toBeNull()
-    expect(screen.getByText('FAL')).toBeTruthy()
+    expect(screen.getByText('ELEVENLABS')).toBeTruthy()
+    expect(screen.queryByText('FAL')).toBeNull()
     expect(screen.queryByText('FIRECRAWL')).toBeNull()
     expect(screen.queryByText('HASS')).toBeNull()
     expect(screen.queryByText('GATEWAY PROXY')).toBeNull()
@@ -99,8 +101,9 @@ describe('KeysSettings', () => {
 
   it('expands and highlights a deep-linked credential card', async () => {
     getEnvVars.mockResolvedValue({
-      FAL_KEY: envVar('tool', { description: 'Generate images.' }),
-      FIRECRAWL_API_KEY: envVar('tool', { description: 'Crawl and extract websites.' })
+      ELEVENLABS_API_KEY: envVar('tool', { description: 'Generate speech.' }),
+      FIRECRAWL_API_KEY: envVar('tool', { description: 'Crawl and extract websites.' }),
+      FAL_KEY: envVar('tool', { description: 'Generate images.' })
     })
 
     const { KeysSettings } = await import('./keys-settings')
@@ -108,18 +111,19 @@ describe('KeysSettings', () => {
     render(
       <MemoryRouter initialEntries={['/settings?tab=keys']}>
         <KeysSettings view="tools" />
-        <DeepLinkButton target="FAL_KEY" />
+        <DeepLinkButton target="ELEVENLABS_API_KEY" />
       </MemoryRouter>
     )
 
-    expect(await screen.findByText('FAL')).toBeTruthy()
+    expect(await screen.findByText('ELEVENLABS')).toBeTruthy()
     expect(screen.queryByText('FIRECRAWL')).toBeNull()
+    expect(screen.queryByText('FAL')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Open key' }))
 
     await waitFor(() => {
-      const target = globalThis.document.getElementById('credential-key-FAL_KEY')
+      const target = globalThis.document.getElementById('credential-key-ELEVENLABS_API_KEY')
       expect(target?.classList).toContain('setting-field-highlight')
     })
-    expect(screen.getByText('Generate images.')).toBeTruthy()
+    expect(screen.getByText('Generate speech.')).toBeTruthy()
   })
 })
