@@ -56,6 +56,24 @@ describe('settings search index', () => {
     expect(entries.some(entry => entry.id === 'config-field:tts.openai.voice')).toBe(false)
   })
 
+  it('indexes OpenAI voice when TTS is Work4You Subscription', () => {
+    const schema: Record<string, ConfigFieldSchema> = {
+      'tts.edge.voice': { type: 'string' },
+      'tts.openai.voice': { type: 'string' },
+      'tts.openai.model': { type: 'string' }
+    }
+
+    const config = {
+      tts: { provider: 'work4you', openai: { voice: 'alloy', model: 'gpt-4o-mini-tts' } }
+    } as unknown as Work4YouConfigRecord
+
+    const entries = buildConfigSearchEntries(schema, config, searchCopy)
+
+    expect(entries.some(entry => entry.id === 'config-field:tts.openai.voice')).toBe(true)
+    expect(entries.some(entry => entry.id === 'config-field:tts.openai.model')).toBe(true)
+    expect(entries.some(entry => entry.id === 'config-field:tts.edge.voice')).toBe(false)
+  })
+
   it('discovers future tool and setting entries entirely from backend metadata', () => {
     const vars = {
       FUTURE_CRAWLER_API_KEY: envVar('tool', {

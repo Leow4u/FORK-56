@@ -63,6 +63,12 @@ export const VOICE_SCHEMA_FALLBACKS: Record<string, Record<string, unknown>> = {
   },
 };
 
+/** Work4You Subscription stores provider as `work4you` but voice/model live
+ *  under the `openai` nested section (openai-audio gateway). */
+function voiceNestedBackend(stored: string): string {
+  return stored === "work4you" ? "openai" : stored;
+}
+
 /** Show only the active TTS/STT provider sub-fields (desktop parity). */
 export function voiceFieldVisible(
   key: string,
@@ -80,7 +86,8 @@ export function voiceFieldVisible(
     return false;
   }
 
-  return provider === String(getNestedValue(config, `${domain}.provider`) ?? "");
+  const stored = String(getNestedValue(config, `${domain}.provider`) ?? "");
+  return provider === voiceNestedBackend(stored);
 }
 
 export function inferFieldSchema(value: unknown): Record<string, unknown> {
