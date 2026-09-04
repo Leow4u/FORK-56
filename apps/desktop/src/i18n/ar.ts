@@ -379,6 +379,7 @@ export const ar = defineLocale({
       safety: 'الأمان',
       memory: 'الذاكرة والسياق',
       voice: 'الصوت',
+      image_video: 'الصورة والفيديو',
       advanced: 'متقدم'
     },
     searchPlaceholder: {

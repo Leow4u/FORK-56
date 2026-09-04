@@ -24,7 +24,9 @@ const HIDDEN_CORE_TOOLSETS = [
   'video',
   'x_search',
   'stt',
-  'tts'
+  'tts',
+  'image_gen',
+  'video_gen'
 ]
 
 describe('isDesktopToolsetVisible', () => {
@@ -34,10 +36,8 @@ describe('isDesktopToolsetVisible', () => {
     }
   })
 
-  it('keeps other user-facing toolsets', () => {
-    for (const name of ['image_gen', 'video_gen']) {
-      expect(isDesktopToolsetVisible(name)).toBe(true)
-    }
+  it('keeps leftover plugin toolsets that are not in the hide list', () => {
+    expect(isDesktopToolsetVisible('google_meet')).toBe(true)
   })
 })
 

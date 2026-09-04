@@ -14,8 +14,8 @@
 // Core agent toolsets are also hidden here: the user must not see or configure
 // them in Capabilities. Files sidebar, Skills Hub, the Cron page (`/cron`),
 // Settings → Workspace `code_execution.mode`, Settings → Memory & Context,
-// Settings → Models, and Settings → Voice are different surfaces and stay. Keep
-// in sync with web/src/lib/desktop-toolsets.ts.
+// Settings → Models, Settings → Voice, and Settings → Image & Video are
+// different surfaces and stay. Keep in sync with web/src/lib/desktop-toolsets.ts.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Platform-coupled — only meaningful when that platform is the active
   // adapter; `work4you tools` restricts these off the CLI too.
@@ -40,8 +40,8 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // A later dedicated UI can collect a peer URL/token on top of this plugin.
   'a2a',
   // Native BFL FLUX 3 extras (keyframes / continuation). Hide the catalog
-  // row and leave the toolset off — `video_gen` / `video_generate` stays the
-  // user-facing video surface. CLI `work4you tools enable bfl` still works.
+  // row and leave the toolset off — Video Generation lives in Settings →
+  // Image & Video. CLI `work4you tools enable bfl` still works.
   'bfl',
   // Agent scheduling tool. Hide the Capabilities row only. Dedicated Cron
   // UI (`/cron`), chat sidebar jobs, CLI `work4you cron`, and the runtime
@@ -66,7 +66,7 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // chat todo UI stay.
   'todo',
   // `video_analyze`. Already default-off. Hide the catalog row and leave it
-  // off. `video_gen` / Video Generation stays the user-facing video surface.
+  // off. Video Generation (`video_gen`) lives in Settings → Image & Video.
   'video',
   // xAI Twitter/X search. Already default-off. Hide the catalog row and leave
   // it off — `XAI_API_KEY` is also a Grok chat-model key and must not turn
@@ -81,7 +81,17 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Subscription (same openai-audio gateway as STT). Voice and model stay in
   // Settings → Voice (`tts.openai.voice` / `tts.openai.model`). Do not add
   // `tts` to `_DEFAULT_OFF_TOOLSETS`. CLI `work4you tools` still lists it.
-  'tts'
+  'tts',
+  // Image Generation. Hide the Capabilities row. Runtime stays on with
+  // Work4You Subscription (Portal token → fal-queue gateway). Settings →
+  // Image & Video is the surface (Subscription + models). Do not add
+  // `image_gen` to `_DEFAULT_OFF_TOOLSETS`. CLI `work4you tools` still lists it.
+  'image_gen',
+  // Video Generation. Hide the Capabilities row. Runtime stays as the
+  // user already has it (default-off in Python; Subscription enables it).
+  // Settings → Image & Video is the surface (Subscription + models). Do not
+  // add `video_gen` to `_DEFAULT_OFF_TOOLSETS` from this hide. CLI stays.
+  'video_gen'
 ])
 
 // BYOK credentials for hidden Web Search / Browser cloud vendors, Home
@@ -117,6 +127,10 @@ export const IMAGE_GEN_SUBSCRIPTION_PROVIDER = 'Work4You Subscription'
 
 const SUBSCRIPTION_ONLY_TOOLSETS = new Set(['image_gen', 'stt', 'video_gen'])
 
+/** Settings → Image & Video hosts these two. Hidden from Capabilities Tools;
+ *  `GET /api/tools/toolsets` still returns them. */
+export const SETTINGS_IMAGE_VIDEO_TOOLSETS = ['image_gen', 'video_gen'] as const
+
 export function isDesktopToolsetVisible(name: string): boolean {
   return !DESKTOP_HIDDEN_TOOLSETS.has(name)
 }
@@ -126,9 +140,10 @@ export function isCapabilitiesVendorCredentialHidden(key: string): boolean {
 }
 
 /** Image Generation and Video Generation keep only the managed Subscription
- *  row plus the model picker. Speech-to-Text and Text-to-Speech are hidden
- *  from the catalog; the STT filter still applies if its pane is opened.
- *  Settings → Voice is the TTS surface. Runtime selection is unchanged. */
+ *  row plus the model picker (Settings → Image & Video hosts the pane).
+ *  Speech-to-Text and Text-to-Speech are hidden from the catalog; the STT
+ *  filter still applies if its pane is opened. Settings → Voice is the
+ *  TTS surface. Runtime selection is unchanged. */
 export function isCapabilitiesToolsetProviderVisible(toolset: string, providerName: string): boolean {
   if (!SUBSCRIPTION_ONLY_TOOLSETS.has(toolset)) {
     return true

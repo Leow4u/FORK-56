@@ -483,6 +483,7 @@ export const en: Translations = {
       safety: 'Safety',
       memory: 'Memory & Context',
       voice: 'Voice',
+      image_video: 'Image & Video',
       advanced: 'Advanced'
     },
     searchPlaceholder: {

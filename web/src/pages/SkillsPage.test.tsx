@@ -28,6 +28,14 @@ const apiMocks = vi.hoisted(() => ({
   ]),
   getToolsets: vi.fn(async () => [
     {
+      name: "google_meet",
+      label: "Google Meet",
+      description: "meet scheduling",
+      enabled: true,
+      configured: true,
+      tools: ["google_meet_schedule"],
+    },
+    {
       name: "image_gen",
       label: "Image Generation",
       description: "Generate images",
@@ -337,10 +345,12 @@ describe("SkillsPage (Capabilities)", () => {
   it("renders the toolsets grid under ?tab=tools", async () => {
     await renderPage("/skills?tab=tools");
     const text = container.textContent ?? "";
-    expect(text).toContain("Image Generation");
-    expect(text).toContain("Generate images");
-    expect(text).toContain("Video Generation");
-    expect(text).toContain("video_generate (text/image/reference)");
+    expect(text).toContain("Google Meet");
+    expect(text).toContain("meet scheduling");
+    expect(text).not.toContain("Image Generation");
+    expect(text).not.toContain("Generate images");
+    expect(text).not.toContain("Video Generation");
+    expect(text).not.toContain("video_generate (text/image/reference)");
     expect(text).not.toContain("Browser Automation");
     expect(text).not.toContain("Drive a real browser");
     expect(text).not.toContain("Web Search & Scraping");
@@ -382,7 +392,7 @@ describe("SkillsPage (Capabilities)", () => {
     const configureButtons = Array.from(container.querySelectorAll("button")).filter((b) =>
       b.textContent?.includes("Configure"),
     );
-    expect(configureButtons).toHaveLength(2);
+    expect(configureButtons).toHaveLength(1);
   });
 
   it("renders the embedded MCP page under ?tab=mcp", async () => {

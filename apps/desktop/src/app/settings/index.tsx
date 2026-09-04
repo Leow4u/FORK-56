@@ -44,6 +44,7 @@ import { BillingSettings } from './billing'
 import { ConfigSettings } from './config-settings'
 import { SECTIONS } from './constants'
 import { GatewaySettings } from './gateway-settings'
+import { ImageVideoSettings } from './image-video-settings'
 import { KeybindSettings } from './keybind-settings'
 import { KEYS_VIEWS, KeysSettings, type KeysView } from './keys-settings'
 import { NotificationsSettings } from './notifications-settings'
@@ -367,6 +368,10 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
   const activeSettingsContent =
     activeView === 'config:appearance' ? (
       <AppearanceSettings />
+    ) : activeView === 'config:image_video' ? (
+      // Empty `keys: []` like Appearance — intercept before the generic
+      // config: branch or ConfigSettings would render EmptyState.
+      <ImageVideoSettings />
     ) : activeView === 'about' ? (
       <AboutSettings />
     ) : activeView === 'gateway' || activeView === 'connections' ? (

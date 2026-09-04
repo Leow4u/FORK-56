@@ -62,13 +62,13 @@ vi.mock('react-router', async importOriginal => ({
 
 function toolset(overrides: Record<string, unknown> = {}) {
   return {
-    name: 'image_gen',
-    label: 'Image Generation',
-    description: 'image_generate',
+    name: 'google_meet',
+    label: 'Google Meet',
+    description: 'google meet',
     enabled: true,
     available: true,
     configured: true,
-    tools: ['image_generate'],
+    tools: ['google_meet_schedule'],
     ...overrides
   }
 }
@@ -109,7 +109,7 @@ async function renderSkillsTab() {
 beforeEach(() => {
   getSkills.mockResolvedValue([])
   getToolsets.mockResolvedValue([toolset()])
-  setToolsetEnabled.mockResolvedValue({ ok: true, name: 'image_gen', enabled: false })
+  setToolsetEnabled.mockResolvedValue({ ok: true, name: 'google_meet', enabled: false })
   getToolsetConfig.mockResolvedValue({ has_category: true, active_provider: null, providers: [] })
   getUsageAnalytics.mockResolvedValue({ tools: [] })
   getSkillContent.mockResolvedValue({
@@ -136,7 +136,7 @@ describe('SkillsView toolset management', () => {
     await renderSkills()
 
     // The switch names the action, so an enabled toolset offers to turn it off.
-    const sw = await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })
+    const sw = await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
     expect(sw.getAttribute('aria-checked')).toBe('true')
 
     await act(async () => {
@@ -144,12 +144,12 @@ describe('SkillsView toolset management', () => {
     })
 
     await waitFor(() => expect(setToolsetEnabled).toHaveBeenCalled())
-    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['image_gen', false])
+    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['google_meet', false])
   })
 
   it('renders toolset titles without leading emoji', async () => {
     getToolsets.mockResolvedValue([
-      toolset({ name: 'video_gen', label: '🎬 Video Generation', description: 'video tools', tools: ['video_generate'] })
+      toolset({ name: 'google_meet', label: '🎬 Google Meet', description: 'meet tools', tools: ['google_meet_schedule'] })
     ])
 
     await renderSkills()
@@ -157,7 +157,7 @@ describe('SkillsView toolset management', () => {
     // The label renders in both the row and the auto-selected detail header, so
     // assert via the switch's (emoji-stripped) accessible name and the absence
     // of the emoji rather than a single-match text lookup.
-    await screen.findByRole('switch', { name: 'Turn Video Generation toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
     expect(screen.queryByText(/🎬/)).toBeNull()
   })
 
@@ -167,14 +167,15 @@ describe('SkillsView toolset management', () => {
     // and renders its config panel directly, which fetches on mount.
     await renderSkills()
 
-    await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
     await waitFor(() => expect(getToolsetConfig).toHaveBeenCalled())
-    expect(getToolsetConfig.mock.calls[0][0]).toBe('image_gen')
+    expect(getToolsetConfig.mock.calls[0][0]).toBe('google_meet')
   })
 
   it('hides core agent toolsets from Capabilities Tools entirely', async () => {
     getToolsets.mockResolvedValue([
       toolset(),
+      toolset({ name: 'image_gen', label: 'Image Generation', tools: ['image_generate'] }),
       toolset({ name: 'web', label: 'Web Search & Scraping', tools: ['web_search'] }),
       toolset({ name: 'memory', label: 'Memory', tools: ['memory_search'] }),
       toolset({ name: 'browser', label: 'Browser Automation', tools: ['browser_navigate'] }),
@@ -207,8 +208,11 @@ describe('SkillsView toolset management', () => {
 
     await renderSkills()
 
-    expect(await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })).toBeTruthy()
-    expect(await screen.findByRole('switch', { name: 'Turn Video Generation toolset off' })).toBeTruthy()
+    expect(await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })).toBeTruthy()
+    expect(screen.queryByRole('switch', { name: /Image Generation/ })).toBeNull()
+    expect(screen.queryByRole('switch', { name: /Video Generation/ })).toBeNull()
+    expect(screen.queryByText('Image Generation')).toBeNull()
+    expect(screen.queryByText('Video Generation')).toBeNull()
     expect(screen.queryByText('Web Search & Scraping')).toBeNull()
     expect(screen.queryByText('Memory')).toBeNull()
     expect(screen.queryByText('Browser Automation')).toBeNull()
@@ -395,7 +399,7 @@ describe('SkillsView toolset management', () => {
     // On a non-Skills tab the docs-site iframe must not exist at all — an
     // eagerly mounted hub is exactly the Capabilities lag bug.
     await renderSkills() // ?tab=toolsets
-    await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
     expect(document.querySelector('iframe')).toBeNull()
     cleanup()
 
@@ -444,7 +448,7 @@ describe('SkillsView toolset management', () => {
 
     await renderSkills()
 
-    expect(await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })).toBeTruthy()
+    expect(await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })).toBeTruthy()
     expect(screen.queryByText('Vision / Image Analysis')).toBeNull()
     expect(screen.queryByText(/auxiliary model configuration/)).toBeNull()
     expect(screen.queryByRole('button', { name: /Choose vision model in Settings/ })).toBeNull()
@@ -529,7 +533,7 @@ describe('SkillsView new skill', () => {
   it('keeps New skill off the Tools tab', async () => {
     await renderSkills()
 
-    await screen.findByRole('switch', { name: 'Turn Image Generation toolset off' })
+    await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
     expect(screen.queryByRole('button', { name: 'New skill' })).toBeNull()
   })
 

@@ -5,8 +5,8 @@
 // `work4you_cli/tools_config.py` (`a2a`, `bfl`, `homeassistant`, `spotify`,
 // `video`, `x_search`). Files sidebar, Skills Hub,
 // the Cron page (`/cron`), Settings → Workspace `code_execution.mode`,
-// Settings → Memory & Context, Settings → Models, and Settings → Voice stay
-// on their own surfaces.
+// Settings → Memory & Context, Settings → Models, Settings → Voice, and
+// Settings → Image & Video stay on their own surfaces.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'discord',
   'discord_admin',
@@ -26,7 +26,7 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Specialist plugin, off by default. Hide the catalog row; do not enable it.
   'a2a',
   // Native BFL FLUX 3 extras. Hide the catalog row; leave the toolset off.
-  // `video_gen` stays visible. CLI `work4you tools enable bfl` still works.
+  // Video Generation lives in Settings → Image & Video. CLI stays.
   'bfl',
   // Agent scheduling tool. Hide the Capabilities row only. Dedicated Cron
   // UI (`/cron`), chat sidebar jobs, CLI `work4you cron`, and the runtime
@@ -44,7 +44,8 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'delegation',
   // `todo` tool. Hide the Capabilities row only. Composer todo UI stays.
   'todo',
-  // `video_analyze`. Already default-off. `video_gen` stays visible.
+  // `video_analyze`. Already default-off. Video Generation lives in
+  // Settings → Image & Video.
   'video',
   // xAI Twitter/X search. Already default-off. Leave it off — Grok keys
   // must not auto-enable it. CLI `work4you tools enable x_search` still works.
@@ -54,7 +55,15 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'stt',
   // Text-to-Speech. Hide the Capabilities row. Runtime stays on with Work4You
   // Subscription. Voice and model stay in Settings → Voice. Do not default-off.
-  'tts'
+  'tts',
+  // Image Generation. Hide the Capabilities row. Runtime stays on with
+  // Work4You Subscription. Settings → Image & Video is the surface.
+  // Do not add `image_gen` to `_DEFAULT_OFF_TOOLSETS`.
+  'image_gen',
+  // Video Generation. Hide the Capabilities row. Settings → Image & Video
+  // is the surface. Do not add `video_gen` to `_DEFAULT_OFF_TOOLSETS` from
+  // this hide. CLI stays.
+  'video_gen'
 ])
 
 const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
@@ -85,6 +94,10 @@ export const IMAGE_GEN_SUBSCRIPTION_PROVIDER = 'Work4You Subscription'
 
 const SUBSCRIPTION_ONLY_TOOLSETS = new Set(['image_gen', 'stt', 'video_gen'])
 
+/** Settings → Image & Video hosts these two. Hidden from Capabilities Tools;
+ *  `GET /api/tools/toolsets` still returns them. */
+export const SETTINGS_IMAGE_VIDEO_TOOLSETS = ['image_gen', 'video_gen'] as const
+
 export function isDesktopToolsetVisible(name: string): boolean {
   return !DESKTOP_HIDDEN_TOOLSETS.has(name)
 }
@@ -94,9 +107,9 @@ export function isCapabilitiesVendorCredentialHidden(key: string): boolean {
 }
 
 /** Image Generation and Video Generation keep only the managed Subscription
- *  row plus the model picker. Speech-to-Text and Text-to-Speech are hidden
- *  from the catalog; the STT filter still applies if its pane is opened.
- *  Settings → Voice is the TTS surface. */
+ *  row (Settings → Image & Video hosts the pane). Speech-to-Text and
+ *  Text-to-Speech are hidden from the catalog; the STT filter still applies
+ *  if its pane is opened. Settings → Voice is the TTS surface. */
 export function isCapabilitiesToolsetProviderVisible(toolset: string, providerName: string): boolean {
   if (!SUBSCRIPTION_ONLY_TOOLSETS.has(toolset)) {
     return true

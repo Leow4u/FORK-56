@@ -472,6 +472,7 @@ export const zh: Translations = {
       safety: '安全',
       memory: '记忆与上下文',
       voice: '语音',
+      image_video: '图像与视频',
       advanced: '高级'
     },
     searchPlaceholder: {

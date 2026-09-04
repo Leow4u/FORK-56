@@ -25,9 +25,12 @@ interface Props {
   /** Optional profile to scope config reads/writes to (Skills page profile
    *  selector). Omitted = the dashboard process's own profile. */
   profile?: string;
-  onClose: () => void;
+  onClose?: () => void;
   /** Called after a toggle/provider/key change so the parent grid refreshes. */
   onChanged: () => void;
+  /** Settings → Image & Video hosts the pane inline (no overlay). Capabilities
+   *  Tools still opens the portal drawer. */
+  embedded?: boolean;
 }
 
 /**
@@ -36,7 +39,13 @@ interface Props {
  * the toolset on/off, pick a provider, enter API keys, and run a provider's
  * post-setup install hook (npm/pip/binary) with a live log tail.
  */
-export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Props) {
+export function ToolsetConfigDrawer({
+  toolset,
+  profile,
+  onClose,
+  onChanged,
+  embedded = false,
+}: Props) {
   const navigate = useNavigate();
   const { toast, showToast } = useToast();
   const [config, setConfig] = useState<ToolsetConfig | null>(null);
@@ -224,19 +233,16 @@ export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Pr
   const labelText = toolset.label?.trim() || toolset.name;
   const platformText = toolset.platform_label?.trim() || toolset.platform;
 
-  return createPortal(
+  const card = (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-background/85 p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className={cn(
+        themedBody,
+        embedded
+          ? "relative w-full border border-border bg-card flex flex-col"
+          : "relative w-full max-w-2xl max-h-[85vh] border border-border bg-card shadow-2xl flex flex-col",
+      )}
     >
-      <div
-        className={cn(
-          themedBody,
-          "relative w-full max-w-2xl max-h-[85vh] border border-border bg-card shadow-2xl flex flex-col",
-        )}
-      >
+      {!embedded && (
         <Button
           ghost
           size="xs"
@@ -246,6 +252,7 @@ export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Pr
         >
           <X />
         </Button>
+      )}
 
         {/* Header — toolset identity + enable toggle */}
         <header className="p-5 pb-3 border-b border-border">
@@ -476,7 +483,26 @@ export function ToolsetConfigDrawer({ toolset, profile, onClose, onChanged }: Pr
             </div>
           )}
         </div>
-      </div>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        {card}
+        <Toast toast={toast} />
+      </>
+    );
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-background/85 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+    >
+      {card}
       <Toast toast={toast} />
     </div>,
     document.body,

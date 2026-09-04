@@ -2,6 +2,7 @@ import {
   Box,
   Brain,
   type IconComponent,
+  ImageIcon,
   Lock,
   MessageCircle,
   Mic,
@@ -736,6 +737,12 @@ export const SECTIONS: DesktopConfigSection[] = [
       'voice.record_key',
       'voice.max_recording_seconds'
     ]
+  },
+  {
+    id: 'image_video',
+    label: 'Image & Video',
+    icon: ImageIcon,
+    keys: []
   },
   {
     id: 'advanced',
