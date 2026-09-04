@@ -23,7 +23,8 @@ const HIDDEN_CORE_TOOLSETS = [
   'todo',
   'video',
   'x_search',
-  'stt'
+  'stt',
+  'tts'
 ]
 
 describe('isDesktopToolsetVisible', () => {
@@ -34,7 +35,7 @@ describe('isDesktopToolsetVisible', () => {
   })
 
   it('keeps other user-facing toolsets', () => {
-    for (const name of ['image_gen', 'tts', 'video_gen']) {
+    for (const name of ['image_gen', 'video_gen']) {
       expect(isDesktopToolsetVisible(name)).toBe(true)
     }
   })

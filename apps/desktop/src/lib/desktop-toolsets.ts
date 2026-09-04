@@ -14,8 +14,8 @@
 // Core agent toolsets are also hidden here: the user must not see or configure
 // them in Capabilities. Files sidebar, Skills Hub, the Cron page (`/cron`),
 // Settings → Workspace `code_execution.mode`, Settings → Memory & Context,
-// and Settings → Models are different surfaces and stay. Keep in sync with
-// web/src/lib/desktop-toolsets.ts.
+// Settings → Models, and Settings → Voice are different surfaces and stay. Keep
+// in sync with web/src/lib/desktop-toolsets.ts.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Platform-coupled — only meaningful when that platform is the active
   // adapter; `work4you tools` restricts these off the CLI too.
@@ -76,7 +76,12 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Subscription (Portal token → openai-audio gateway) is the managed backend.
   // Do not add `stt` to `_DEFAULT_OFF_TOOLSETS`. CLI `work4you tools` still
   // lists it. Settings → Voice is a different surface.
-  'stt'
+  'stt',
+  // Text-to-Speech. Hide the Capabilities row. Runtime stays on with Work4You
+  // Subscription (same openai-audio gateway as STT). Voice and model stay in
+  // Settings → Voice (`tts.openai.voice` / `tts.openai.model`). Do not add
+  // `tts` to `_DEFAULT_OFF_TOOLSETS`. CLI `work4you tools` still lists it.
+  'tts'
 ])
 
 // BYOK credentials for hidden Web Search / Browser cloud vendors, Home
@@ -121,9 +126,9 @@ export function isCapabilitiesVendorCredentialHidden(key: string): boolean {
 }
 
 /** Image Generation keeps only the managed Subscription row. Speech-to-Text
- *  is hidden from the catalog; the same filter still applies if its pane is
- *  opened. BYOK backends and Local Whisper stay off that pane. Other
- *  toolsets (including TTS) are unfiltered. Runtime selection is unchanged. */
+ *  and Text-to-Speech are hidden from the catalog; the STT filter still applies
+ *  if its pane is opened. Settings → Voice is the TTS surface. Runtime
+ *  selection is unchanged. */
 export function isCapabilitiesToolsetProviderVisible(toolset: string, providerName: string): boolean {
   if (!SUBSCRIPTION_ONLY_TOOLSETS.has(toolset)) {
     return true

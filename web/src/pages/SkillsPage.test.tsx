@@ -132,6 +132,22 @@ const apiMocks = vi.hoisted(() => ({
       tools: ["video_generate"],
     },
     {
+      name: "stt",
+      label: "Speech-to-Text",
+      description: "voice transcription (gateway voice messages + voice mode)",
+      enabled: true,
+      configured: true,
+      tools: [],
+    },
+    {
+      name: "tts",
+      label: "Text-to-Speech",
+      description: "text_to_speech",
+      enabled: true,
+      configured: true,
+      tools: ["text_to_speech"],
+    },
+    {
       name: "bfl",
       label: "BFL FLUX 3 Video",
       description: "bfl_flux3_*",
@@ -356,6 +372,10 @@ describe("SkillsPage (Capabilities)", () => {
     expect(text).not.toContain("Video Analysis");
     expect(text).not.toContain("video_analyze");
     expect(text).not.toContain("X (Twitter) Search");
+    expect(text).not.toContain("Speech-to-Text");
+    expect(text).not.toContain("voice transcription (gateway voice messages + voice mode)");
+    expect(text).not.toContain("Text-to-Speech");
+    expect(text).not.toContain("text_to_speech");
     expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");

@@ -148,15 +148,17 @@ describe('SkillsView toolset management', () => {
   })
 
   it('renders toolset titles without leading emoji', async () => {
-    getToolsets.mockResolvedValue([toolset({ name: 'tts', label: '🔊 Text-to-Speech', description: 'tts tools' })])
+    getToolsets.mockResolvedValue([
+      toolset({ name: 'video_gen', label: '🎬 Video Generation', description: 'video tools', tools: ['video_generate'] })
+    ])
 
     await renderSkills()
 
     // The label renders in both the row and the auto-selected detail header, so
     // assert via the switch's (emoji-stripped) accessible name and the absence
     // of the emoji rather than a single-match text lookup.
-    await screen.findByRole('switch', { name: 'Turn Text-to-Speech toolset off' })
-    expect(screen.queryByText(/🔊/)).toBeNull()
+    await screen.findByRole('switch', { name: 'Turn Video Generation toolset off' })
+    expect(screen.queryByText(/🎬/)).toBeNull()
   })
 
   it('renders the provider config panel inline for the selected toolset', async () => {
@@ -198,7 +200,9 @@ describe('SkillsView toolset management', () => {
       toolset({ name: 'delegation', label: 'Task Delegation', tools: ['delegate_task'] }),
       toolset({ name: 'todo', label: 'Task Planning', tools: ['todo'] }),
       toolset({ name: 'video', label: 'Video Analysis', tools: ['video_analyze'] }),
-      toolset({ name: 'x_search', label: 'X (Twitter) Search', tools: ['x_search'] })
+      toolset({ name: 'x_search', label: 'X (Twitter) Search', tools: ['x_search'] }),
+      toolset({ name: 'stt', label: 'Speech-to-Text', description: 'voice transcription' }),
+      toolset({ name: 'tts', label: 'Text-to-Speech', description: 'text_to_speech' })
     ])
 
     await renderSkills()
@@ -225,6 +229,8 @@ describe('SkillsView toolset management', () => {
     expect(screen.queryByText('Task Planning')).toBeNull()
     expect(screen.queryByText('Video Analysis')).toBeNull()
     expect(screen.queryByText('X (Twitter) Search')).toBeNull()
+    expect(screen.queryByText('Speech-to-Text')).toBeNull()
+    expect(screen.queryByText('Text-to-Speech')).toBeNull()
     expect(screen.queryByText('skill_manage')).toBeNull()
     expect(screen.queryByRole('switch', { name: /Skills toolset/ })).toBeNull()
     expect(setToolsetEnabled).not.toHaveBeenCalled()

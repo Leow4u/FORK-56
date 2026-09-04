@@ -5,7 +5,8 @@
 // `work4you_cli/tools_config.py` (`a2a`, `bfl`, `homeassistant`, `spotify`,
 // `video`, `x_search`). Files sidebar, Skills Hub,
 // the Cron page (`/cron`), Settings → Workspace `code_execution.mode`,
-// Settings → Memory & Context, and Settings → Models stay on their own surfaces.
+// Settings → Memory & Context, Settings → Models, and Settings → Voice stay
+// on their own surfaces.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'discord',
   'discord_admin',
@@ -50,7 +51,10 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'x_search',
   // Speech-to-Text. Hide the Capabilities row. Runtime stays on with Work4You
   // Subscription. Do not default-off. CLI and Settings → Voice stay.
-  'stt'
+  'stt',
+  // Text-to-Speech. Hide the Capabilities row. Runtime stays on with Work4You
+  // Subscription. Voice and model stay in Settings → Voice. Do not default-off.
+  'tts'
 ])
 
 const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
@@ -90,8 +94,8 @@ export function isCapabilitiesVendorCredentialHidden(key: string): boolean {
 }
 
 /** Image Generation keeps only the managed Subscription row. Speech-to-Text
- *  is hidden from the catalog; the same filter still applies if its pane is
- *  opened. Other toolsets (including TTS) are unfiltered. */
+ *  and Text-to-Speech are hidden from the catalog; the STT filter still applies
+ *  if its pane is opened. Settings → Voice is the TTS surface. */
 export function isCapabilitiesToolsetProviderVisible(toolset: string, providerName: string): boolean {
   if (!SUBSCRIPTION_ONLY_TOOLSETS.has(toolset)) {
     return true
