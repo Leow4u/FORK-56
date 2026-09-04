@@ -38,6 +38,25 @@ def test_resolve_managed_tool_gateway_derives_vendor_origin_from_shared_domain()
     assert result.managed_mode is True
 
 
+def test_resolve_managed_tool_gateway_derives_fal_queue_origin_from_shared_domain():
+    with patch.dict(
+        os.environ,
+        {
+            "TOOL_GATEWAY_DOMAIN": "work4you.ai",
+        },
+        clear=False,
+    ), patch.object(managed_tool_gateway, "managed_work4you_tools_enabled", return_value=True):
+        result = resolve_managed_tool_gateway(
+            "fal-queue",
+            token_reader=lambda: "work4you-token",
+        )
+
+    assert result is not None
+    assert result.gateway_origin == "https://fal-queue-gateway.work4you.ai"
+    assert result.work4you_user_token == "work4you-token"
+    assert result.managed_mode is True
+
+
 def test_resolve_managed_tool_gateway_uses_vendor_specific_override():
     with patch.dict(
         os.environ,
