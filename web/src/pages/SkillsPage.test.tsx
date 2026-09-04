@@ -156,6 +156,54 @@ const apiMocks = vi.hoisted(() => ({
       tools: ["ha_list_entities", "ha_get_state", "ha_list_services", "ha_call_service"],
     },
     {
+      name: "session_search",
+      label: "Session Search",
+      description: "search past conversations",
+      enabled: true,
+      configured: true,
+      tools: ["session_search_recall"],
+    },
+    {
+      name: "spotify",
+      label: "Spotify",
+      description: "playback, search, playlists, library",
+      enabled: true,
+      configured: true,
+      tools: ["spotify_playback"],
+    },
+    {
+      name: "delegation",
+      label: "Task Delegation",
+      description: "delegate_task",
+      enabled: true,
+      configured: true,
+      tools: ["delegate_task"],
+    },
+    {
+      name: "todo",
+      label: "Task Planning",
+      description: "todo",
+      enabled: true,
+      configured: true,
+      tools: ["todo"],
+    },
+    {
+      name: "video",
+      label: "Video Analysis",
+      description: "video_analyze (requires video-capable model)",
+      enabled: true,
+      configured: true,
+      tools: ["video_analyze"],
+    },
+    {
+      name: "x_search",
+      label: "X (Twitter) Search",
+      description: "x_search (requires xAI OAuth or XAI_API_KEY)",
+      enabled: true,
+      configured: true,
+      tools: ["x_search"],
+    },
+    {
       name: "discord",
       label: "Discord",
       description: "Platform-coupled; not a dashboard toggle",
@@ -298,6 +346,16 @@ describe("SkillsPage (Capabilities)", () => {
     expect(text).not.toContain("Home Assistant");
     expect(text).not.toContain("smart home device control");
     expect(text).not.toContain("ha_list_entities");
+    expect(text).not.toContain("Session Search");
+    expect(text).not.toContain("search past conversations");
+    expect(text).not.toContain("playback, search, playlists, library");
+    expect(text).not.toContain("Spotify");
+    expect(text).not.toContain("Task Delegation");
+    expect(text).not.toContain("delegate_task");
+    expect(text).not.toContain("Task Planning");
+    expect(text).not.toContain("Video Analysis");
+    expect(text).not.toContain("video_analyze");
+    expect(text).not.toContain("X (Twitter) Search");
     expect(text).not.toContain("Platform-coupled; not a dashboard toggle");
     // Skills list is not shown on the Tools tab.
     expect(text).not.toContain("learned-skill");

@@ -2,7 +2,8 @@
 //
 // Same block-list as apps/desktop/src/lib/desktop-toolsets.ts. Hiding a row
 // does not change enabled state unless that toolset is also default-off in
-// `work4you_cli/tools_config.py` (`a2a`, `bfl`, `homeassistant`). Files sidebar, Skills Hub,
+// `work4you_cli/tools_config.py` (`a2a`, `bfl`, `homeassistant`, `spotify`,
+// `video`, `x_search`). Files sidebar, Skills Hub,
 // the Cron page (`/cron`), Settings → Workspace `code_execution.mode`,
 // Settings → Memory & Context, and Settings → Models stay on their own surfaces.
 const DESKTOP_HIDDEN_TOOLSETS = new Set([
@@ -33,7 +34,20 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Smart-home REST tools (ha_*). Already default-off without HASS_TOKEN.
   // Hide the catalog row and leave it off. Messaging Home Assistant is a
   // different surface.
-  'homeassistant'
+  'homeassistant',
+  // Past-conversation recall. Hide the Capabilities row only.
+  'session_search',
+  // Already default-off. Hide the catalog row and leave it off.
+  'spotify',
+  // Subagent spawn. Hide the Capabilities row only.
+  'delegation',
+  // `todo` tool. Hide the Capabilities row only. Composer todo UI stays.
+  'todo',
+  // `video_analyze`. Already default-off. `video_gen` stays visible.
+  'video',
+  // xAI Twitter/X search. Already default-off. Leave it off — Grok keys
+  // must not auto-enable it. CLI `work4you tools enable x_search` still works.
+  'x_search'
 ])
 
 const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([

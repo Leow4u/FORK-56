@@ -192,7 +192,13 @@ describe('SkillsView toolset management', () => {
         label: 'Home Assistant',
         description: 'smart home device control',
         tools: ['ha_list_entities']
-      })
+      }),
+      toolset({ name: 'session_search', label: 'Session Search', tools: ['session_search_recall'] }),
+      toolset({ name: 'spotify', label: 'Spotify', tools: ['spotify_playback'] }),
+      toolset({ name: 'delegation', label: 'Task Delegation', tools: ['delegate_task'] }),
+      toolset({ name: 'todo', label: 'Task Planning', tools: ['todo'] }),
+      toolset({ name: 'video', label: 'Video Analysis', tools: ['video_analyze'] }),
+      toolset({ name: 'x_search', label: 'X (Twitter) Search', tools: ['x_search'] })
     ])
 
     await renderSkills()
@@ -213,6 +219,12 @@ describe('SkillsView toolset management', () => {
     expect(screen.queryByText('Cron Jobs')).toBeNull()
     expect(screen.queryByText('Home Assistant')).toBeNull()
     expect(screen.queryByText('smart home device control')).toBeNull()
+    expect(screen.queryByText('Session Search')).toBeNull()
+    expect(screen.queryByText('Spotify')).toBeNull()
+    expect(screen.queryByText('Task Delegation')).toBeNull()
+    expect(screen.queryByText('Task Planning')).toBeNull()
+    expect(screen.queryByText('Video Analysis')).toBeNull()
+    expect(screen.queryByText('X (Twitter) Search')).toBeNull()
     expect(screen.queryByText('skill_manage')).toBeNull()
     expect(screen.queryByRole('switch', { name: /Skills toolset/ })).toBeNull()
     expect(setToolsetEnabled).not.toHaveBeenCalled()

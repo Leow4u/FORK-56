@@ -8,7 +8,8 @@
 // slash commands (`desktop-slash-commands.ts`): one documented block-list, one
 // predicate. Hiding a toolset only removes its Capabilities row. Runtime
 // enablement is unchanged unless that toolset is also default-off in
-// `work4you_cli/tools_config.py` (`a2a`, `bfl`, `homeassistant`).
+// `work4you_cli/tools_config.py` (`a2a`, `bfl`, `homeassistant`, `spotify`,
+// `video`, `x_search`).
 //
 // Core agent toolsets are also hidden here: the user must not see or configure
 // them in Capabilities. Files sidebar, Skills Hub, the Cron page (`/cron`),
@@ -50,7 +51,27 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // Hide the catalog row and leave it off. CLI still lists it; token auto-
   // enable stays so a later opt-in via `work4you tools` / .env still works.
   // The Home Assistant messaging channel is a different surface.
-  'homeassistant'
+  'homeassistant',
+  // Past-conversation recall tool. Hide the Capabilities row only. Session
+  // list / sidebar search and CLI stay.
+  'session_search',
+  // Spotify playback plugin. Already default-off. Hide the catalog row and
+  // leave it off. CLI `work4you tools enable spotify` / `work4you auth
+  // spotify` still work. Chat Spotify URL embeds are a different surface.
+  'spotify',
+  // Subagent spawn (`delegate_task`). Hide the Capabilities row only. The
+  // Agents page, composer subagent stack, and runtime stay.
+  'delegation',
+  // `todo` tool. Hide the Capabilities row only. Composer status stack and
+  // chat todo UI stay.
+  'todo',
+  // `video_analyze`. Already default-off. Hide the catalog row and leave it
+  // off. `video_gen` / Video Generation stays the user-facing video surface.
+  'video',
+  // xAI Twitter/X search. Already default-off. Hide the catalog row and leave
+  // it off — `XAI_API_KEY` is also a Grok chat-model key and must not turn
+  // this toolset on. CLI `work4you tools enable x_search` still works.
+  'x_search'
 ])
 
 // BYOK credentials for hidden Web Search / Browser cloud vendors, Home
