@@ -47,7 +47,10 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   'video',
   // xAI Twitter/X search. Already default-off. Leave it off — Grok keys
   // must not auto-enable it. CLI `work4you tools enable x_search` still works.
-  'x_search'
+  'x_search',
+  // Speech-to-Text. Hide the Capabilities row. Runtime stays on with Work4You
+  // Subscription. Do not default-off. CLI and Settings → Voice stay.
+  'stt'
 ])
 
 const HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS = new Set([
@@ -86,9 +89,9 @@ export function isCapabilitiesVendorCredentialHidden(key: string): boolean {
   return HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS.has(key)
 }
 
-/** Image Generation and Speech-to-Text keep only the managed Subscription
- *  row. BYOK backends and Local Whisper stay off those panes. Other
- *  toolsets (including TTS) are unfiltered. Runtime selection is unchanged. */
+/** Image Generation keeps only the managed Subscription row. Speech-to-Text
+ *  is hidden from the catalog; the same filter still applies if its pane is
+ *  opened. Other toolsets (including TTS) are unfiltered. */
 export function isCapabilitiesToolsetProviderVisible(toolset: string, providerName: string): boolean {
   if (!SUBSCRIPTION_ONLY_TOOLSETS.has(toolset)) {
     return true

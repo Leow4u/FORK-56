@@ -71,7 +71,12 @@ const DESKTOP_HIDDEN_TOOLSETS = new Set([
   // xAI Twitter/X search. Already default-off. Hide the catalog row and leave
   // it off — `XAI_API_KEY` is also a Grok chat-model key and must not turn
   // this toolset on. CLI `work4you tools enable x_search` still works.
-  'x_search'
+  'x_search',
+  // Speech-to-Text. Hide the Capabilities row. Runtime stays on — Work4You
+  // Subscription (Portal token → openai-audio gateway) is the managed backend.
+  // Do not add `stt` to `_DEFAULT_OFF_TOOLSETS`. CLI `work4you tools` still
+  // lists it. Settings → Voice is a different surface.
+  'stt'
 ])
 
 // BYOK credentials for hidden Web Search / Browser cloud vendors, Home
@@ -115,8 +120,9 @@ export function isCapabilitiesVendorCredentialHidden(key: string): boolean {
   return HIDDEN_CAPABILITIES_VENDOR_CREDENTIALS.has(key)
 }
 
-/** Image Generation and Speech-to-Text keep only the managed Subscription
- *  row. BYOK backends and Local Whisper stay off those panes. Other
+/** Image Generation keeps only the managed Subscription row. Speech-to-Text
+ *  is hidden from the catalog; the same filter still applies if its pane is
+ *  opened. BYOK backends and Local Whisper stay off that pane. Other
  *  toolsets (including TTS) are unfiltered. Runtime selection is unchanged. */
 export function isCapabilitiesToolsetProviderVisible(toolset: string, providerName: string): boolean {
   if (!SUBSCRIPTION_ONLY_TOOLSETS.has(toolset)) {
