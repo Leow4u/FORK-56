@@ -251,7 +251,7 @@ describe('SkillsView toolset management', () => {
     await renderSkills()
 
     expect(await screen.findByRole('button', { name: 'New skill' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Tools/ })).toBeNull()
+    expect(document.querySelector('[data-tour="tab-toolsets"]')).toBeNull()
     expect(screen.queryByRole('switch', { name: /toolset/ })).toBeNull()
     expect(screen.queryByText('Image Generation')).toBeNull()
     expect(screen.queryByText('Web Search & Scraping')).toBeNull()
@@ -261,7 +261,7 @@ describe('SkillsView toolset management', () => {
     await renderSkills()
 
     expect(await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Tools/ })).toBeTruthy()
+    expect(document.querySelector('[data-tour="tab-toolsets"]')).toBeTruthy()
   })
 
   it('scopes Tools config to the profile chosen in the selector', async () => {
