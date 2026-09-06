@@ -3062,8 +3062,7 @@ def list_authenticated_providers(
         elif work4you_slug == "work4you":
             # Official Work4You catalog is the curated manifesto only.
             # Portal recommended-models is default/hint data, not a second list.
-            from work4you_cli.models import collapse_work4you_house_model_ids
-            model_ids = collapse_work4you_house_model_ids(curated.get("work4you", []))
+            model_ids = curated.get("work4you", [])
         else:
             # Unified pathway — see Section 1 rationale. Fall back to the
             # curated dict (with models.dev merge for preferred providers)
@@ -3863,25 +3862,7 @@ def list_authenticated_providers(
     # provider's row (matched by slug) so it is selectable and shown. Done as a
     # post-pass so it covers every provider section uniformly, regardless of
     # which branch emitted the row.
-    #
-    # House-model leftover ids (DeepSeek Flash -0731) are the same Operis row
-    # as Gemini 3.8 Flash — collapse before inject so a leftover pin cannot
-    # render a second identical Operis line.
-    from work4you_cli.models import (
-        canonical_work4you_house_model_id,
-        collapse_work4you_house_model_ids,
-        is_work4you_house_model,
-    )
-    for _row in results:
-        _models = _row.get("models") or []
-        if _models and any(is_work4you_house_model(m) for m in _models):
-            collapsed = collapse_work4you_house_model_ids(list(_models))
-            if collapsed != list(_models):
-                _row["models"] = collapsed
-                if "total_models" in _row:
-                    _row["total_models"] = len(collapsed)
     if current_model:
-        current_model = canonical_work4you_house_model_id(current_model)
         for _row in results:
             if not _row.get("is_current") or _row.get("native_catalog_empty"):
                 continue

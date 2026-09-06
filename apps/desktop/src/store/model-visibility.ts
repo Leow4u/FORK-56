@@ -1,6 +1,5 @@
 import { atom } from 'nanostores'
 
-import { isWork4YouHouseModel, WORK4YOU_HOUSE_MODEL_ID } from '@/lib/model-status-label'
 import { persistString, storedString } from '@/lib/storage'
 import type { ModelOptionProvider } from '@/types/work4you'
 
@@ -37,25 +36,11 @@ export interface ModelFamily {
  *  become a single family (one row, one toggle). Order is preserved by the
  *  base model's position. A `…-fast` model with no base stands on its own. */
 export function collapseModelFamilies(models: readonly string[]): ModelFamily[] {
-  const collapsedHouse: string[] = []
-  let sawHouse = false
-  for (const model of models) {
-    if (isWork4YouHouseModel(model)) {
-      if (sawHouse) {
-        continue
-      }
-      collapsedHouse.push(WORK4YOU_HOUSE_MODEL_ID)
-      sawHouse = true
-      continue
-    }
-    collapsedHouse.push(model)
-  }
-
-  const present = new Set(collapsedHouse)
+  const present = new Set(models)
   const families: ModelFamily[] = []
   const consumed = new Set<string>()
 
-  for (const model of collapsedHouse) {
+  for (const model of models) {
     if (consumed.has(model)) {
       continue
     }

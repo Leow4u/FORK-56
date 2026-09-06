@@ -20,7 +20,7 @@ import { usePointerQuiet } from '@/components/ui/keyboard-first'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useI18n } from '@/i18n'
 import { modelOptionsQueryKey, requestModelOptions } from '@/lib/model-options'
-import { displayModelName, isWork4YouHouseModel, modelDisplayParts } from '@/lib/model-status-label'
+import { displayModelName, modelDisplayParts } from '@/lib/model-status-label'
 import { DEFAULT_REASONING_EFFORT, reasoningEffortLabel } from '@/lib/reasoning-effort'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
@@ -262,9 +262,7 @@ export function ModelCatalogMenu({
     row.kind === 'moa'
       ? current.provider === 'moa' && row.preset === current.model
       : isCurrentProvider(row.provider, current.provider) &&
-        (row.family.id === current.model ||
-          row.family.fastId === current.model ||
-          (isWork4YouHouseModel(row.family.id) && isWork4YouHouseModel(current.model)))
+        (row.family.id === current.model || row.family.fastId === current.model)
 
   const autoIndex = q
     ? kbRows.length > 0
@@ -600,12 +598,7 @@ function groupModels(
     // SEARCHING the pin is skipped: a query means "show me matches".
     const activeId =
       !q && isCurrentProvider(provider, current.provider) && current.model
-        ? allFamilies.find(
-            family =>
-              family.id === current.model ||
-              family.fastId === current.model ||
-              (isWork4YouHouseModel(family.id) && isWork4YouHouseModel(current.model))
-          )?.id
+        ? allFamilies.find(family => family.id === current.model || family.fastId === current.model)?.id
         : undefined
 
     const families = allFamilies.filter(family => shown.has(family.id) || family.id === activeId)

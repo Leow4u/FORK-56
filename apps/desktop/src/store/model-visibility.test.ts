@@ -84,16 +84,6 @@ describe('model visibility', () => {
     expect(families.map(f => f.id)).toEqual(['claude-opus-4-5'])
   })
 
-  it('collapses leftover and canonical Operis house ids into one family', () => {
-    const families = collapseModelFamilies([
-      'deepseek/deepseek-v4-flash-0731',
-      'google/gemini-3.8-flash',
-      'anthropic/claude-fable-5'
-    ])
-
-    expect(families.map(f => f.id)).toEqual(['google/gemini-3.8-flash', 'anthropic/claude-fable-5'])
-  })
-
   it('keeps a date-pinned snapshot standing alone when it has no alias', () => {
     const families = collapseModelFamilies(['claude-opus-4-5-20251101', 'claude-haiku-4-5-20251001'])
 

@@ -121,28 +121,6 @@ describe('the catalog owns model curation', () => {
     })
   })
 
-  it('shows one Operis row when leftover and canonical house ids are both listed', async () => {
-    getGlobalModelOptions.mockResolvedValue({
-      providers: [
-        {
-          models: [
-            'deepseek/deepseek-v4-flash-0731',
-            'google/gemini-3.8-flash',
-            'anthropic/claude-fable-5'
-          ],
-          name: 'Work4You Portal',
-          slug: 'work4you'
-        }
-      ]
-    })
-
-    renderMenu()
-
-    const operis = await screen.findAllByText('Operis 4.0 Flash')
-    expect(operis).toHaveLength(1)
-    expect(screen.getByText(/Fable 5/i)).toBeTruthy()
-  })
-
   it('offers Edit Models without the host wiring it up', async () => {
     renderMenu()
     await screen.findByText(/Gemini 3\.1 Pro/i)
