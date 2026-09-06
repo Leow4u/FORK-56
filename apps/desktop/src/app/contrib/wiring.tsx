@@ -1066,13 +1066,7 @@ export function ContribWiring({ children }: { children: ReactNode }) {
         {/* HUD mode has no titlebar to hang these off — the clusters are
             `fixed`, so without this they'd float over the chat as orphaned
             buttons. Exits are the ⌘⇧H toggle and ⌘W. */}
-        {!isHudWindow() && (
-          <TitlebarControls
-            leftTools={leftTitlebarTools}
-            onOpenSettings={() => navigate(SETTINGS_ROUTE)}
-            tools={rightTitlebarTools}
-          />
-        )}
+        {!isHudWindow() && <TitlebarControls leftTools={leftTitlebarTools} tools={rightTitlebarTools} />}
         {children}
       </div>
 
