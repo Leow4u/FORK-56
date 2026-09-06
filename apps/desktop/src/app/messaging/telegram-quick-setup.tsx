@@ -309,7 +309,12 @@ export function TelegramQuickSetup({
         </div>
       )}
 
-      {error && <p className="mt-2 text-xs leading-5 text-destructive">{error}</p>}
+      {/* Idle/waiting errors (start failure, session expiry) sit under the
+          card intro; ready-phase errors render next to the allowlist controls
+          they belong to, so they can't be missed at the far corner. */}
+      {error && (!setup || phase === 'waiting') && (
+        <p className="mt-2 text-xs leading-5 text-destructive">{error}</p>
+      )}
 
       {setup && qrDataUrl && (
         <div className="mt-3 flex flex-wrap items-start gap-4">
@@ -385,6 +390,7 @@ export function TelegramQuickSetup({
                       {q.add}
                     </Button>
                   </div>
+                  {error && <p className="mt-2 text-xs leading-5 text-destructive">{error}</p>}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
