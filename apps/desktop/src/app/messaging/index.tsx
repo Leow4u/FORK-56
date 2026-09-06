@@ -41,6 +41,7 @@ import { ListRow } from '../settings/primitives'
 import { SettingsProfileScope } from '../settings/profile-scope'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
+import { DiscordQuickSetup } from './discord-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { TelegramQuickSetup } from './telegram-quick-setup'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
@@ -87,6 +88,12 @@ const trimEdits = (edits: Record<string, string>): Record<string, string> =>
 
 const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging']): string => {
   switch (error.code) {
+    case 'discordToken':
+      return m.envErrors.discordToken
+
+    case 'discordUserId':
+      return m.envErrors.discordUserId(error.value)
+
     case 'slackMemberId':
       return m.envErrors.slackMemberId(error.value)
 
@@ -783,6 +790,14 @@ function PlatformDetail({
         />
       )}
 
+      {platform.id === 'discord' && (
+        <DiscordQuickSetup
+          configured={platform.configured}
+          onApplied={onQuickSetupApplied}
+          scopeProfile={scopeProfile}
+        />
+      )}
+
       {platform.id === 'whatsapp' && (
         <WhatsAppQuickSetup
           allowedUsersSet={Boolean(platform.whatsapp_setup?.allowed_users_set)}
@@ -953,7 +968,7 @@ const PLATFORM_INTRO: Record<string, string> = {
   telegram:
     'In Telegram, talk to @BotFather, run /newbot, and copy the token it gives you. Then grab your numeric user ID from @userinfobot.',
   discord:
-    'Open the Discord Developer Portal, create an application, add a Bot, then copy its token. Invite the bot to your server with the right scopes.',
+    'Create an application with a Bot in the Discord Developer Portal and paste its token into Quick setup above — Work4You builds the invite link and points you at the required intents. A bot that connects but never replies almost always has the Message Content Intent turned off.',
   slack:
     'Create a Slack app, enable Socket Mode, install it to your workspace, then copy the bot token and app-level token.',
   mattermost:

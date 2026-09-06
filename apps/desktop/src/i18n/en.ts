@@ -1591,6 +1591,10 @@ export const en: Translations = {
     testFailed: name => `${name} test failed`,
     fixHighlighted: 'Fix the highlighted fields, then save again.',
     envErrors: {
+      discordToken:
+        'Paste the complete bot token from the Discord Developer Portal (Bot → Reset Token) — three dot-separated parts.',
+      discordUserId: (value: string) =>
+        `${value} is not a numeric Discord user ID. Enable Developer Mode in Discord, then right-click a user → Copy User ID.`,
       slackMemberId: (value: string) => `${value} does not look like a Slack member ID. Use IDs like U01ABC2DEF3.`,
       slackTokenPrefix: (prefix: string) => `This token must start with ${prefix}`,
       telegramToken: 'Paste the complete token from @BotFather (for example, 123456789:ABC…).',
@@ -1609,6 +1613,28 @@ export const en: Translations = {
         bot: 'Bot',
         'self-chat': 'Self-chat'
       }
+    },
+    discordQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        'Paste the bot token and Work4You reads the application ID from it — then it builds the server invite link and points you at the two intents the bot needs. Saving enables the channel.',
+      replacesExisting: 'Discord is already configured — saving here replaces the stored token.',
+      tokenLabel: 'Bot token',
+      tokenPlaceholder: 'Paste Discord bot token',
+      tokenHelp: 'Discord Developer Portal → your application → Bot → Reset Token.',
+      appDetected: (id: string) => `Application detected — ID ${id}`,
+      inviteHelp: 'Invite the bot to your server. The link pre-selects the recommended permissions.',
+      inviteButton: 'Invite bot to your server',
+      intentsHelp: 'On the Bot page, enable Message Content Intent and Server Members Intent, then save.',
+      intentsWarning: 'A bot that connects but never replies almost always has these intents turned off.',
+      intentsButton: 'Open bot settings',
+      allowedUsersLabel: 'Allowed Discord user IDs',
+      allowedUsersPlaceholder: '123456789012345678, 234567890123456789',
+      allowedUsersHelp:
+        'Optional. Comma-separated numeric user IDs allowed to DM the bot. Leave empty to approve people through pairing requests here instead.',
+      saved: 'Discord saved and enabled. Restart the gateway to connect.',
+      saveFailed: 'Failed to save Discord setup'
     },
     telegramQuickSetup: {
       title: 'Quick setup',

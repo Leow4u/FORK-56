@@ -1383,6 +1383,10 @@ export const ja = defineLocale({
     testFailed: name => `${name} のテストに失敗しました`,
     fixHighlighted: 'ハイライトされた項目を修正してから、もう一度保存してください。',
     envErrors: {
+      discordToken:
+        'Discord 開発者ポータル（Bot → Reset Token）から完全なボットトークンを貼り付けてください。ドットで区切られた 3 つの部分で構成されます。',
+      discordUserId: (value: string) =>
+        `${value} は数字の Discord ユーザー ID ではありません。Discord で開発者モードを有効にし、ユーザーを右クリック → ユーザー ID をコピーしてください。`,
       slackMemberId: (value: string) =>
         `${value} は Slack メンバー ID ではないようです。U01ABC2DEF3 のような ID を使用してください。`,
       slackTokenPrefix: (prefix: string) => `このトークンは ${prefix} で始まる必要があります`,
@@ -1402,6 +1406,28 @@ export const ja = defineLocale({
         bot: 'ボット',
         'self-chat': 'セルフチャット'
       }
+    },
+    discordQuickSetup: {
+      title: 'クイックセットアップ',
+      recommended: 'おすすめ',
+      intro:
+        'ボットトークンを貼り付けると、Work4You がそこからアプリケーション ID を読み取り、サーバー招待リンクを生成して、ボットに必要な 2 つのインテントへ案内します。保存するとチャンネルが有効になります。',
+      replacesExisting: 'Discord はすでに設定済みです。ここで保存すると、保存済みのトークンが置き換えられます。',
+      tokenLabel: 'ボットトークン',
+      tokenPlaceholder: 'Discord ボットトークンを貼り付け',
+      tokenHelp: 'Discord 開発者ポータル → アプリケーション → Bot → Reset Token。',
+      appDetected: (id: string) => `アプリケーションを検出 — ID ${id}`,
+      inviteHelp: 'ボットをサーバーに招待します。リンクには推奨権限があらかじめ選択されています。',
+      inviteButton: 'ボットをサーバーに招待',
+      intentsHelp: 'Bot ページで Message Content Intent と Server Members Intent を有効にして保存してください。',
+      intentsWarning: '接続はできるのに返信しないボットは、ほぼ確実にこれらのインテントが無効になっています。',
+      intentsButton: 'ボット設定を開く',
+      allowedUsersLabel: '許可する Discord ユーザー ID',
+      allowedUsersPlaceholder: '123456789012345678, 234567890123456789',
+      allowedUsersHelp:
+        '任意。ボットに DM できる数字のユーザー ID をカンマ区切りで入力します。空のままにすると、ここでペアリング リクエストを承認する方式になります。',
+      saved: 'Discord を保存して有効にしました。接続するにはゲートウェイを再起動してください。',
+      saveFailed: 'Discord 設定の保存に失敗しました'
     },
     telegramQuickSetup: {
       title: 'クイックセットアップ',

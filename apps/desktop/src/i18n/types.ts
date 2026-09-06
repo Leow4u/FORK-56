@@ -1405,6 +1405,8 @@ export interface Translations {
     testFailed: (name: string) => string
     fixHighlighted: string
     envErrors: {
+      discordToken: string
+      discordUserId: (value: string) => string
       slackMemberId: (value: string) => string
       slackTokenPrefix: (prefix: string) => string
       telegramToken: string
@@ -1414,6 +1416,26 @@ export interface Translations {
     /** Localized labels for env keys rendered as a segmented picker
      *  (FIELD_OPTIONS), keyed by env key then by option value. */
     envOptions: Record<string, Record<string, string>>
+    discordQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      tokenLabel: string
+      tokenPlaceholder: string
+      tokenHelp: string
+      appDetected: (id: string) => string
+      inviteHelp: string
+      inviteButton: string
+      intentsHelp: string
+      intentsWarning: string
+      intentsButton: string
+      allowedUsersLabel: string
+      allowedUsersPlaceholder: string
+      allowedUsersHelp: string
+      saved: string
+      saveFailed: string
+    }
     telegramQuickSetup: {
       title: string
       recommended: string

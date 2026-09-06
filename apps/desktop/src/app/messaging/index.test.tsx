@@ -210,8 +210,8 @@ describe('MessagingView pairing', () => {
               description: 'Bot token.',
               is_password: true,
               is_set: false,
-              key: 'DISCORD_BOT_TOKEN',
-              prompt: 'Discord bot token',
+              key: 'TEAMS_APP_PASSWORD',
+              prompt: 'Teams app password',
               redacted_value: null,
               required: true,
               url: null
@@ -223,7 +223,7 @@ describe('MessagingView pairing', () => {
 
     await renderMessaging()
 
-    const input = await screen.findByLabelText('Bot token')
+    const input = await screen.findByLabelText('Teams app password')
     fireEvent.change(input, { target: { value: 'abc-123' } })
 
     const save = await screen.findByRole('button', { name: /Save & enable/ })
@@ -234,7 +234,7 @@ describe('MessagingView pairing', () => {
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith('teams', {
         enabled: true,
-        env: { DISCORD_BOT_TOKEN: 'abc-123' }
+        env: { TEAMS_APP_PASSWORD: 'abc-123' }
       })
     )
   })
@@ -250,8 +250,8 @@ describe('MessagingView pairing', () => {
               description: 'Bot token.',
               is_password: true,
               is_set: true,
-              key: 'DISCORD_BOT_TOKEN',
-              prompt: 'Discord bot token',
+              key: 'TEAMS_APP_PASSWORD',
+              prompt: 'Teams app password',
               redacted_value: 'abc…123',
               required: true,
               url: null
@@ -263,14 +263,14 @@ describe('MessagingView pairing', () => {
 
     await renderMessaging()
 
-    fireEvent.change(await screen.findByLabelText('Bot token'), { target: { value: 'new-token' } })
+    fireEvent.change(await screen.findByLabelText('Teams app password'), { target: { value: 'new-token' } })
 
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: /Save changes/ }))
     })
 
     await waitFor(() =>
-      expect(updateMessagingPlatform).toHaveBeenCalledWith('teams', { env: { DISCORD_BOT_TOKEN: 'new-token' } })
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('teams', { env: { TEAMS_APP_PASSWORD: 'new-token' } })
     )
   })
 

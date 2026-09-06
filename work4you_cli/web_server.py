@@ -8536,7 +8536,9 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "discord": {
         "name": "Discord",
         "description": "Connect Work4You to Discord DMs, channels, and threads.",
-        "docs_url": "https://discord.com/developers/applications",
+        # The Work4You setup guide (intents, invite URL, permissions), not the
+        # raw Developer Portal — the portal stays linked on the token field.
+        "docs_url": "https://work4you.ai/docs/user-guide/messaging/discord",
         "env_vars": (
             "DISCORD_BOT_TOKEN",
             "DISCORD_ALLOWED_USERS",
