@@ -52,31 +52,23 @@ function installDesktopMock(state: DesktopBootstrapState) {
   return desktop
 }
 
-// Resolve the instant a node commits, via MutationObserver rather than
-// waitFor's polling timer. findBy* only settles on a timer tick, by which
-// point React has already drained its passive effects — that hides any bug
-// living in the window between paint and effect.
-function whenPresent(text: string): Promise<HTMLElement> {
-  return new Promise(resolve => {
-    const existing = screen.queryByText(text)
-
-    if (existing) {
-      resolve(existing)
-
-      return
+// Entry point for the remote-connect form tests: the first-run chooser is
+// gone (local install auto-starts), so FirstRunRemoteForm is reached through
+// the unsupported-platform screen's "Connect existing" button instead.
+function unsupportedPlatformState(): DesktopBootstrapState {
+  return bootstrapState({
+    unsupportedPlatform: {
+      platform: 'darwin',
+      activeRoot: '/Users/me/.work4you/work4you',
+      installCommand: 'curl -fsSL https://example.invalid/install.sh | sh',
+      docsUrl: 'https://example.invalid/docs'
     }
-
-    const observer = new MutationObserver(() => {
-      const node = screen.queryByText(text)
-
-      if (node) {
-        observer.disconnect()
-        resolve(node)
-      }
-    })
-
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true })
   })
+}
+
+async function openRemoteForm() {
+  fireEvent.click(await screen.findByText('Connect existing'))
+  expect(await screen.findByText('Gateway URL')).toBeTruthy()
 }
 
 beforeEach(() => {
@@ -90,23 +82,7 @@ afterEach(() => {
 })
 
 describe('DesktopInstallOverlay first-run setup', () => {
-  it('shows the remote/local choice without installer progress', async () => {
-    installDesktopMock(
-      bootstrapState({
-        setupChoice: { platform: 'win32', activeRoot: 'C:\\Users\\me\\AppData\\Local\\work4you\\work4you' }
-      })
-    )
-
-    render(<DesktopInstallOverlay />)
-
-    expect(await screen.findByText('Set up Work4You Desktop')).toBeTruthy()
-    expect(screen.getByText('Connect to existing Work4You')).toBeTruthy()
-    expect(screen.getByText('Install Work4You locally')).toBeTruthy()
-    expect(screen.queryByText(/steps complete/i)).toBeNull()
-    expect(screen.queryByText(/Fetching installer manifest/i)).toBeNull()
-  })
-
-  it('continues local bootstrap only when Install Work4You locally is selected', async () => {
+  it('auto-continues into the local install without pausing on a chooser', async () => {
     const desktop = installDesktopMock(
       bootstrapState({
         setupChoice: { platform: 'win32', activeRoot: 'C:\\Users\\me\\AppData\\Local\\work4you\\work4you' }
@@ -115,64 +91,64 @@ describe('DesktopInstallOverlay first-run setup', () => {
 
     render(<DesktopInstallOverlay />)
 
-    fireEvent.click(await screen.findByText('Install Work4You locally'))
+    expect(await screen.findByText('Setting up Work4You')).toBeTruthy()
+    await waitFor(() => expect(desktop.continueBootstrapLocal).toHaveBeenCalledTimes(1))
 
-    expect(desktop.continueBootstrapLocal).toHaveBeenCalledTimes(1)
-    expect(screen.getByText('Set up Work4You Desktop')).toBeTruthy()
+    // The chooser is gone: no remote/local cards, only the install-path note.
+    expect(screen.queryByText('Connect to existing Work4You')).toBeNull()
+    expect(screen.queryByText('Install Work4You locally')).toBeNull()
+    expect(screen.getByText('Will install to')).toBeTruthy()
+    expect(screen.getByText('C:\\Users\\me\\AppData\\Local\\work4you\\work4you')).toBeTruthy()
+  })
 
+  it('does not refire the local start while one is already in flight', async () => {
+    const desktop = installDesktopMock(
+      bootstrapState({
+        setupChoice: { platform: 'win32', activeRoot: 'C:\\Users\\me\\AppData\\Local\\work4you\\work4you' }
+      })
+    )
+
+    render(<DesktopInstallOverlay />)
+
+    await waitFor(() => expect(desktop.continueBootstrapLocal).toHaveBeenCalledTimes(1))
+
+    // A repeated setup-choice snapshot for the same root must not double-fire.
     act(() => {
-      desktop.emitBootstrapEvent({ type: 'manifest', protocolVersion: 1, stages: [] })
+      desktop.emitBootstrapEvent({
+        type: 'setup-choice',
+        active: true,
+        platform: 'win32',
+        activeRoot: 'C:\\Users\\me\\AppData\\Local\\work4you\\work4you'
+      })
     })
-
-    await waitFor(() => expect(screen.queryByText('Set up Work4You Desktop')).toBeNull())
-    expect(screen.getByText(/Fetching installer manifest/i)).toBeTruthy()
-  })
-
-  it('surfaces a recoverable error when the local-bootstrap bridge is unavailable', async () => {
-    const desktop = installDesktopMock(
-      bootstrapState({
-        setupChoice: { platform: 'win32', activeRoot: 'C:\\Users\\me\\AppData\\Local\\work4you\\work4you' }
-      })
-    )
-
-    desktop.continueBootstrapLocal = undefined as never
-    render(<DesktopInstallOverlay />)
-
-    const install = (await screen.findByText('Install Work4You locally')).closest('button') as HTMLButtonElement
-    fireEvent.click(install)
-
-    expect(
-      await screen.findByText('Local installation could not start. Restart Work4You Desktop and try again.')
-    ).toBeTruthy()
-    expect(install.disabled).toBe(false)
-  })
-
-  it('keeps the local-start error when the first snapshot commits under the click', async () => {
-    const desktop = installDesktopMock(
-      bootstrapState({
-        setupChoice: { platform: 'win32', activeRoot: 'C:\\Users\\me\\AppData\\Local\\work4you\\work4you' }
-      })
-    )
-
-    desktop.continueBootstrapLocal = undefined as never
-    render(<DesktopInstallOverlay />)
-
-    // Click the instant the choice paints, before React drains the passive
-    // effect that reacts to the first snapshot. A loaded runner hits this
-    // window by accident; observing the DOM directly hits it every time.
-    const install = (await whenPresent('Install Work4You locally')).closest('button') as HTMLButtonElement
-    fireEvent.click(install)
 
     await act(async () => {
       await Promise.resolve()
     })
 
-    expect(
-      screen.queryByText('Local installation could not start. Restart Work4You Desktop and try again.')
-    ).toBeTruthy()
+    expect(desktop.continueBootstrapLocal).toHaveBeenCalledTimes(1)
   })
 
-  it('clears a stale local-start error when a repair presents a different root', async () => {
+  it('hands off to installer progress when the manifest arrives', async () => {
+    const desktop = installDesktopMock(
+      bootstrapState({
+        setupChoice: { platform: 'win32', activeRoot: 'C:\\Users\\me\\AppData\\Local\\work4you\\work4you' }
+      })
+    )
+
+    render(<DesktopInstallOverlay />)
+
+    await waitFor(() => expect(desktop.continueBootstrapLocal).toHaveBeenCalledTimes(1))
+
+    act(() => {
+      desktop.emitBootstrapEvent({ type: 'manifest', protocolVersion: 1, stages: [] })
+    })
+
+    await waitFor(() => expect(screen.queryByText('Will install to')).toBeNull())
+    expect(screen.getByText(/Fetching installer manifest/i)).toBeTruthy()
+  })
+
+  it('surfaces a recoverable error with a retry when the local-bootstrap bridge is unavailable', async () => {
     const desktop = installDesktopMock(
       bootstrapState({
         setupChoice: { platform: 'win32', activeRoot: 'C:\\Users\\me\\AppData\\Local\\work4you\\work4you' }
@@ -182,63 +158,88 @@ describe('DesktopInstallOverlay first-run setup', () => {
     desktop.continueBootstrapLocal = undefined as never
     render(<DesktopInstallOverlay />)
 
-    fireEvent.click((await screen.findByText('Install Work4You locally')).closest('button') as HTMLButtonElement)
     expect(
       await screen.findByText('Local installation could not start. Restart Work4You Desktop and try again.')
     ).toBeTruthy()
 
+    // A failed start must not relaunch on its own — it waits for the retry.
+    const retryFn = vi.fn().mockResolvedValue({ ok: true })
+    desktop.continueBootstrapLocal = retryFn as never
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(retryFn).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByText('Install Work4You locally'))
+
+    await waitFor(() => expect(retryFn).toHaveBeenCalledTimes(1))
+    await waitFor(() =>
+      expect(
+        screen.queryByText('Local installation could not start. Restart Work4You Desktop and try again.')
+      ).toBeNull()
+    )
+  })
+
+  it('restarts the local install when a repair presents a different root', async () => {
+    const desktop = installDesktopMock(
+      bootstrapState({
+        setupChoice: { platform: 'win32', activeRoot: 'C:\\Users\\me\\AppData\\Local\\work4you\\work4you' }
+      })
+    )
+
+    desktop.continueBootstrapLocal = undefined as never
+    render(<DesktopInstallOverlay />)
+
+    expect(
+      await screen.findByText('Local installation could not start. Restart Work4You Desktop and try again.')
+    ).toBeTruthy()
+
+    const repairedFn = vi.fn().mockResolvedValue({ ok: true })
+    desktop.continueBootstrapLocal = repairedFn as never
+
     act(() => {
       desktop.emitBootstrapEvent({
         type: 'setup-choice',
-        active: false,
+        active: true,
         platform: 'win32',
         activeRoot: 'C:\\Users\\me\\AppData\\Local\\work4you\\work4you-repaired'
       })
     })
 
+    await waitFor(() => expect(repairedFn).toHaveBeenCalledTimes(1))
     expect(screen.queryByText('Local installation could not start. Restart Work4You Desktop and try again.')).toBeNull()
+    expect(screen.getByText('C:\\Users\\me\\AppData\\Local\\work4you\\work4you-repaired')).toBeTruthy()
   })
 
-  it('opens the remote connection form from the first-run choice', async () => {
-    installDesktopMock(
-      bootstrapState({
-        setupChoice: { platform: 'linux', activeRoot: '/home/me/.work4you/work4you' }
-      })
-    )
+  it('opens the remote connection form from the unsupported-platform screen', async () => {
+    installDesktopMock(unsupportedPlatformState())
 
     render(<DesktopInstallOverlay />)
 
-    fireEvent.click(await screen.findByText('Connect to existing Work4You'))
+    expect(await screen.findByText('Work4You needs a one-time install')).toBeTruthy()
 
-    expect(await screen.findByText('Gateway URL')).toBeTruthy()
+    await openRemoteForm()
+
     expect(screen.getByText('Test connection')).toBeTruthy()
     expect(screen.getByText('Apply and reconnect')).toBeTruthy()
   })
 
-  it('returns from the remote connection form to the first-run choice', async () => {
-    installDesktopMock(
-      bootstrapState({
-        setupChoice: { platform: 'linux', activeRoot: '/home/me/.work4you/work4you' }
-      })
-    )
+  it('returns from the remote connection form to the unsupported-platform screen', async () => {
+    installDesktopMock(unsupportedPlatformState())
 
     render(<DesktopInstallOverlay />)
 
-    fireEvent.click(await screen.findByText('Connect to existing Work4You'))
-    expect(await screen.findByText('Gateway URL')).toBeTruthy()
+    await screen.findByText('Work4You needs a one-time install')
+    await openRemoteForm()
 
     fireEvent.click(screen.getByText('Back'))
 
-    expect(await screen.findByText('Set up Work4You Desktop')).toBeTruthy()
-    expect(screen.getByText('Install Work4You locally')).toBeTruthy()
+    expect(await screen.findByText('Work4You needs a one-time install')).toBeTruthy()
+    expect(screen.getByText('Connect existing')).toBeTruthy()
   })
 
   it('requires a successful token connection test before applying remote config', async () => {
-    const desktop = installDesktopMock(
-      bootstrapState({
-        setupChoice: { platform: 'linux', activeRoot: '/home/me/.work4you/work4you' }
-      })
-    )
+    const desktop = installDesktopMock(unsupportedPlatformState())
 
     desktop.probeConnectionConfig.mockResolvedValue({
       authMode: 'token',
@@ -261,7 +262,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
 
     render(<DesktopInstallOverlay />)
 
-    fireEvent.click(await screen.findByText('Connect to existing Work4You'))
+    await openRemoteForm()
     fireEvent.change(await screen.findByPlaceholderText('https://gateway.example.com/work4you'), {
       target: { value: 'https://gateway.example.com/work4you' }
     })
@@ -304,11 +305,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
   })
 
   it('ignores a completed probe after the gateway URL becomes invalid', async () => {
-    const desktop = installDesktopMock(
-      bootstrapState({
-        setupChoice: { platform: 'linux', activeRoot: '/home/me/.work4you/work4you' }
-      })
-    )
+    const desktop = installDesktopMock(unsupportedPlatformState())
 
     let resolveProbe: ((result: DesktopConnectionProbeResult) => void) | undefined
 
@@ -320,7 +317,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
 
     render(<DesktopInstallOverlay />)
 
-    fireEvent.click(await screen.findByText('Connect to existing Work4You'))
+    await openRemoteForm()
     const urlInput = await screen.findByPlaceholderText('https://gateway.example.com/work4you')
     fireEvent.change(urlInput, { target: { value: 'https://gateway.example.com/work4you' } })
 
@@ -348,11 +345,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
   })
 
   it('does not enable Apply when credentials change during a connection test', async () => {
-    const desktop = installDesktopMock(
-      bootstrapState({
-        setupChoice: { platform: 'linux', activeRoot: '/home/me/.work4you/work4you' }
-      })
-    )
+    const desktop = installDesktopMock(unsupportedPlatformState())
 
     desktop.probeConnectionConfig.mockResolvedValue({
       authMode: 'token',
@@ -373,7 +366,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
 
     render(<DesktopInstallOverlay />)
 
-    fireEvent.click(await screen.findByText('Connect to existing Work4You'))
+    await openRemoteForm()
     fireEvent.change(await screen.findByPlaceholderText('https://gateway.example.com/work4you'), {
       target: { value: 'https://gateway.example.com/work4you' }
     })
@@ -401,11 +394,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
   })
 
   it('restores remote apply controls when applying the tested connection fails', async () => {
-    const desktop = installDesktopMock(
-      bootstrapState({
-        setupChoice: { platform: 'linux', activeRoot: '/home/me/.work4you/work4you' }
-      })
-    )
+    const desktop = installDesktopMock(unsupportedPlatformState())
 
     desktop.probeConnectionConfig.mockResolvedValue({
       authMode: 'token',
@@ -424,7 +413,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
 
     render(<DesktopInstallOverlay />)
 
-    fireEvent.click(await screen.findByText('Connect to existing Work4You'))
+    await openRemoteForm()
     fireEvent.change(await screen.findByPlaceholderText('https://gateway.example.com/work4you'), {
       target: { value: 'https://gateway.example.com/work4you' }
     })
@@ -448,11 +437,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
   })
 
   it('signs in, tests, and applies a password-style remote gateway', async () => {
-    const desktop = installDesktopMock(
-      bootstrapState({
-        setupChoice: { platform: 'linux', activeRoot: '/home/me/.work4you/work4you' }
-      })
-    )
+    const desktop = installDesktopMock(unsupportedPlatformState())
 
     desktop.probeConnectionConfig.mockResolvedValue({
       authMode: 'oauth',
@@ -476,7 +461,7 @@ describe('DesktopInstallOverlay first-run setup', () => {
 
     render(<DesktopInstallOverlay />)
 
-    fireEvent.click(await screen.findByText('Connect to existing Work4You'))
+    await openRemoteForm()
     fireEvent.change(await screen.findByPlaceholderText('https://gateway.example.com/work4you'), {
       target: { value: 'https://gateway.example.com/work4you' }
     })
