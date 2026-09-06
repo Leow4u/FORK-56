@@ -672,9 +672,15 @@ WORK4YOU_HOUSE_MODEL_DISPLAY = "Operis 4.0 Flash"
 
 
 def is_work4you_house_model(model_id: str) -> bool:
-    """Return True if *model_id* is the Free-plan house model (Operis)."""
+    """Return True if *model_id* is the Free-plan house model (Operis).
+
+    Matches the canonical id, any ``vendor/.../deepseek-v4-flash-0731`` prefix,
+    and the bare trailing slug the CLI splash/status bar use after stripping
+    the vendor. Sibling DeepSeek ids (``deepseek-v4-flash``, ``v4-pro``) stay
+    out — those are paid catalog models, not Operis.
+    """
     mid = (model_id or "").strip().lower()
-    return mid == WORK4YOU_HOUSE_MODEL_ID or mid.endswith("/deepseek-v4-flash-0731")
+    return mid == "deepseek-v4-flash-0731" or mid.endswith("/deepseek-v4-flash-0731")
 
 
 def _is_model_free(model_id: str, pricing: dict[str, dict[str, str]]) -> bool:

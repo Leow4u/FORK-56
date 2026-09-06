@@ -1,6 +1,7 @@
 import { Box, Text, useStdout } from '@work4you/ink'
 
 import { artWidth, hero, HERO_WIDTH, logo } from '../banner.js'
+import { houseModelDisplayName } from '../lib/house-model.js'
 import type { Theme } from '../theme.js'
 import type { PanelSection, SessionInfo } from '../types.js'
 
@@ -143,7 +144,7 @@ export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
   const leftW = Math.min((artWidth(heroLines) || HERO_WIDTH) + 4, Math.floor(cols * 0.45))
   const wide = cols >= 48 && leftW + 28 < cols
   const w = Math.max(20, wide ? cols - leftW - 14 : cols - 12)
-  const modelShort = info.model.split('/').pop() || info.model
+  const modelShort = houseModelDisplayName(info.model)
   const unconfigured = !info.model.trim() || info.model.trim().toLowerCase() === 'unknown'
   const yolo = Boolean(process.env.WORK4YOU_YOLO_MODE)
   const profile = info.profile_name && info.profile_name !== 'default' ? info.profile_name : ''

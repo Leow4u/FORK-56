@@ -75,6 +75,15 @@ class TestCLIStatusBar:
 
         assert snapshot["session_title"] == "user-profiles"
 
+    def test_house_model_status_bar_shows_operis_not_deepseek(self):
+        cli_obj = _make_cli("deepseek/deepseek-v4-flash-0731")
+        snapshot = cli_obj._get_status_bar_snapshot()
+
+        assert snapshot["model_short"] == "Operis 4.0 Flash"
+        assert "deepseek" not in snapshot["model_short"].lower()
+        # Wire id stays on the snapshot for fallback/debug; chrome uses model_short.
+        assert snapshot["model_name"] == "deepseek/deepseek-v4-flash-0731"
+
     def test_status_bar_config_helper_treats_persisted_off_as_hidden(self):
         for value in (False, "off", "false", "hidden", "no", "0"):
             assert cli_mod._status_bar_visible_from_display_config({"tui_statusbar": value}) is False

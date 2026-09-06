@@ -12,6 +12,7 @@ import { FACES } from '../content/faces.js'
 import { VERBS } from '../content/verbs.js'
 import { fmtDuration } from '../domain/messages.js'
 import { stickyPromptFromViewport } from '../domain/viewport.js'
+import { isWork4YouHouseModel, WORK4YOU_HOUSE_MODEL_DISPLAY } from '../lib/house-model.js'
 import { buildSubagentTree, treeTotals, widthByDepth } from '../lib/subagentTree.js'
 import { fmtK } from '../lib/text.js'
 import { useScrollbarSnapshot, useViewportSnapshot } from '../lib/viewportStore.js'
@@ -425,8 +426,12 @@ const effortLabel = (effort?: string) => {
   return value && value !== 'medium' && value !== 'normal' && value !== 'default' ? value : ''
 }
 
-const shortModelLabel = (model: string) =>
-  model
+const shortModelLabel = (model: string) => {
+  if (isWork4YouHouseModel(model)) {
+    return WORK4YOU_HOUSE_MODEL_DISPLAY
+  }
+
+  return model
     .split('/')
     .pop()!
     .replace(/^claude[-_]/, '')
@@ -434,6 +439,7 @@ const shortModelLabel = (model: string) =>
     .replace(/[-_]/g, ' ')
     .replace(/\b(\d+)\s+(\d+)\b/g, '$1.$2')
     .trim()
+}
 
 const modelLabel = (model: string, effort?: string, fast?: boolean) =>
   [shortModelLabel(model), effortLabel(effort), fast ? 'fast' : ''].filter(Boolean).join(' ')
