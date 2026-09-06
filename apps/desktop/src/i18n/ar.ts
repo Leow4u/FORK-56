@@ -1233,6 +1233,32 @@ export const ar = defineLocale({
         'self-chat': 'محادثة ذاتية'
       }
     },
+    slackQuickSetup: {
+      title: 'الإعداد السريع',
+      recommended: 'موصى به',
+      intro:
+        'أنشئ تطبيق Slack من ملف manifest مُولَّد — لصقة واحدة تضبط كل نطاقات الأذونات واشتراكات الأحداث وSocket Mode وأوامر السلاش. ثم ثبِّت التطبيق والصق الرمزين هنا.',
+      replacesExisting: 'بيانات اعتماد Slack مضبوطة بالفعل — الحفظ هنا يستبدل الرموز الحالية.',
+      manifestHelp: 'انسخ الـ manifest، ثم في Slack اختر «From a manifest»، وحدد مساحة العمل، والصقه وأنشئ التطبيق.',
+      copyManifest: 'نسخ manifest التطبيق',
+      manifestCopied: 'تم نسخ الـ manifest',
+      manifestCopyFailed: 'فشل نسخ manifest الخاص بـ Slack',
+      createApp: 'إنشاء تطبيق في Slack',
+      botTokenLabel: 'رمز البوت',
+      botTokenHelp: 'ثبِّت التطبيق في مساحة العمل (Settings → Install App)، ثم الصق Bot User OAuth Token — يبدأ بـ xoxb-.',
+      botTokenPlaceholder: 'xoxb-...',
+      appTokenLabel: 'رمز مستوى التطبيق',
+      appTokenHelp:
+        'في Basic Information → App-Level Tokens أنشئ رمزًا بنطاق connections:write والصقه — يبدأ بـ xapp-. لا يستطيع Slack إصدار الرموز من الـ manifest، لذا تبقى هذه الخطوة يدوية.',
+      appTokenPlaceholder: 'xapp-...',
+      allowedUsersLabel: 'معرّفات أعضاء Slack المسموح بهم',
+      allowedUsersHelp:
+        'اختياري: معرّفات أعضاء Slack مفصولة بفواصل (الملف الشخصي → ⋯ → نسخ معرّف العضو). اتركه فارغًا وسيحصل أي شخص يراسل البوت على رمز اقتران توافق عليه هنا.',
+      allowedUsersPlaceholder: 'U01ABC2DEF3,U04XYZ9GHI7',
+      bothTokensRequired: 'الصق الرمزين معًا — رمز البوت (xoxb-) ورمز مستوى التطبيق (xapp-).',
+      saved: 'تم حفظ Slack وتفعيله. أعد تشغيل البوابة للاتصال.',
+      saveFailed: 'فشل حفظ إعداد Slack'
+    },
     telegramQuickSetup: {
       title: 'إعداد سريع',
       recommended: 'موصى به',

@@ -1610,6 +1610,34 @@ export const en: Translations = {
         'self-chat': 'Self-chat'
       }
     },
+    slackQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        'Create the Slack app from a generated manifest — one paste configures every permission scope, event subscription, Socket Mode, and slash command. Then install the app and paste its two tokens here.',
+      replacesExisting: 'Slack credentials are already configured — saving here replaces the current tokens.',
+      manifestHelp:
+        'Copy the manifest, then on Slack choose "From a manifest", pick your workspace, paste it, and create the app.',
+      copyManifest: 'Copy app manifest',
+      manifestCopied: 'Manifest copied',
+      manifestCopyFailed: 'Failed to copy the Slack manifest',
+      createApp: 'Create app on Slack',
+      botTokenLabel: 'Bot token',
+      botTokenHelp:
+        'Install the app to your workspace (Settings → Install App), then paste the Bot User OAuth Token — it starts with xoxb-.',
+      botTokenPlaceholder: 'xoxb-...',
+      appTokenLabel: 'App-level token',
+      appTokenHelp:
+        'In Basic Information → App-Level Tokens, generate a token with the connections:write scope and paste it — it starts with xapp-. Slack cannot mint tokens from a manifest, so this step stays manual.',
+      appTokenPlaceholder: 'xapp-...',
+      allowedUsersLabel: 'Allowed Slack member IDs',
+      allowedUsersHelp:
+        'Optional: comma-separated Slack member IDs (profile → ⋯ → Copy member ID). Leave empty and anyone who DMs the bot gets a pairing code you approve here.',
+      allowedUsersPlaceholder: 'U01ABC2DEF3,U04XYZ9GHI7',
+      bothTokensRequired: 'Paste both tokens — the bot token (xoxb-) and the app-level token (xapp-).',
+      saved: 'Slack saved and enabled. Restart the gateway to connect.',
+      saveFailed: 'Failed to save Slack setup'
+    },
     telegramQuickSetup: {
       title: 'Quick setup',
       recommended: 'Recommended',

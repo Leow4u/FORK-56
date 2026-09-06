@@ -42,6 +42,7 @@ import { SettingsProfileScope } from '../settings/profile-scope'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
 import { PlatformAvatar } from './platform-icon'
+import { SlackQuickSetup } from './slack-quick-setup'
 import { TelegramQuickSetup } from './telegram-quick-setup'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
 import { WhatsAppQuickSetup } from './whatsapp-quick-setup'
@@ -783,6 +784,10 @@ function PlatformDetail({
         />
       )}
 
+      {platform.id === 'slack' && (
+        <SlackQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
+      )}
+
       {platform.id === 'whatsapp' && (
         <WhatsAppQuickSetup
           allowedUsersSet={Boolean(platform.whatsapp_setup?.allowed_users_set)}
@@ -955,7 +960,7 @@ const PLATFORM_INTRO: Record<string, string> = {
   discord:
     'Open the Discord Developer Portal, create an application, add a Bot, then copy its token. Invite the bot to your server with the right scopes.',
   slack:
-    'Create a Slack app, enable Socket Mode, install it to your workspace, then copy the bot token and app-level token.',
+    'Use Quick setup above: paste the generated manifest when creating your Slack app and every scope, event subscription, and slash command is configured at once — a missed channels:history scope is why bots answer DMs but stay silent in channels. Then install the app and paste the two tokens.',
   mattermost:
     'On your Mattermost server, create a bot account or personal access token, then paste the server URL and token here.',
   matrix: 'Sign in to your homeserver with the bot account, then copy the access token, user ID, and homeserver URL.',

@@ -1364,6 +1364,32 @@ export const zhHant = defineLocale({
         'self-chat': '自我對話'
       }
     },
+    slackQuickSetup: {
+      title: '快速設定',
+      recommended: '推薦',
+      intro:
+        '用產生的資訊清單（manifest）建立 Slack 應用程式——貼上一次即可設定所有權限範圍、事件訂閱、Socket Mode 和斜線指令。然後安裝應用程式，並在此貼上兩個權杖。',
+      replacesExisting: 'Slack 憑證已設定——在此儲存會取代目前的權杖。',
+      manifestHelp: '複製資訊清單，然後在 Slack 中選擇「From a manifest」，選定工作區，貼上並建立應用程式。',
+      copyManifest: '複製應用程式資訊清單',
+      manifestCopied: '資訊清單已複製',
+      manifestCopyFailed: '複製 Slack 資訊清單失敗',
+      createApp: '在 Slack 建立應用程式',
+      botTokenLabel: 'Bot 權杖',
+      botTokenHelp: '將應用程式安裝到工作區（Settings → Install App），然後貼上 Bot User OAuth Token——以 xoxb- 開頭。',
+      botTokenPlaceholder: 'xoxb-...',
+      appTokenLabel: 'App 層級權杖',
+      appTokenHelp:
+        '在 Basic Information → App-Level Tokens 中產生帶 connections:write 範圍的權杖並貼上——以 xapp- 開頭。Slack 無法透過資訊清單簽發權杖，此步驟需手動完成。',
+      appTokenPlaceholder: 'xapp-...',
+      allowedUsersLabel: '允許的 Slack 成員 ID',
+      allowedUsersHelp:
+        '選填：逗號分隔的 Slack 成員 ID（個人檔案 → ⋯ → 複製成員 ID）。留空則任何私訊機器人的人會收到配對碼，由你在此核准。',
+      allowedUsersPlaceholder: 'U01ABC2DEF3,U04XYZ9GHI7',
+      bothTokensRequired: '請貼上兩個權杖——bot 權杖（xoxb-）和 app 層級權杖（xapp-）。',
+      saved: 'Slack 已儲存並啟用。重新啟動閘道以連線。',
+      saveFailed: '儲存 Slack 設定失敗'
+    },
     telegramQuickSetup: {
       title: '快速設定',
       recommended: '建議',

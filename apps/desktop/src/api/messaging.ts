@@ -4,6 +4,7 @@ import type {
   MessagingPlatformUpdate,
   PairingResponse,
   PairingUser,
+  SlackManifestResponse,
   TelegramOnboardingApplyResponse,
   TelegramOnboardingStartResponse,
   TelegramOnboardingStatusResponse,
@@ -46,6 +47,17 @@ export function testMessagingPlatform(
     ...profileScoped(profile),
     path: `/api/messaging/platforms/${encodeURIComponent(platformId)}/test`,
     method: 'POST'
+  })
+}
+
+// -- Slack manifest-first onboarding ------------------------------------------
+// The manifest is generated from the backend's command registry (slash
+// commands change with the install), so it cannot be built client-side. Not
+// profile-scoped: the manifest describes the app, not any profile's state.
+
+export function getSlackManifest(): Promise<SlackManifestResponse> {
+  return work4youApi<SlackManifestResponse>({
+    path: '/api/messaging/slack/manifest'
   })
 }
 

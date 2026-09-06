@@ -1800,6 +1800,32 @@ export const zh: Translations = {
         'self-chat': '自聊'
       }
     },
+    slackQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro:
+        '用生成的清单（manifest）创建 Slack 应用——一次粘贴即可配置所有权限范围、事件订阅、Socket Mode 和斜杠命令。然后安装应用，并在此粘贴两个令牌。',
+      replacesExisting: 'Slack 凭据已配置——在此保存会替换当前令牌。',
+      manifestHelp: '复制清单，然后在 Slack 中选择「From a manifest」，选定工作区，粘贴并创建应用。',
+      copyManifest: '复制应用清单',
+      manifestCopied: '清单已复制',
+      manifestCopyFailed: '复制 Slack 清单失败',
+      createApp: '在 Slack 创建应用',
+      botTokenLabel: 'Bot 令牌',
+      botTokenHelp: '将应用安装到工作区（Settings → Install App），然后粘贴 Bot User OAuth Token——以 xoxb- 开头。',
+      botTokenPlaceholder: 'xoxb-...',
+      appTokenLabel: 'App 级令牌',
+      appTokenHelp:
+        '在 Basic Information → App-Level Tokens 中生成带 connections:write 范围的令牌并粘贴——以 xapp- 开头。Slack 无法通过清单签发令牌，此步骤需手动完成。',
+      appTokenPlaceholder: 'xapp-...',
+      allowedUsersLabel: '允许的 Slack 成员 ID',
+      allowedUsersHelp:
+        '可选：逗号分隔的 Slack 成员 ID（个人资料 → ⋯ → 复制成员 ID）。留空则任何私信机器人的人会收到配对码，由你在此批准。',
+      allowedUsersPlaceholder: 'U01ABC2DEF3,U04XYZ9GHI7',
+      bothTokensRequired: '请粘贴两个令牌——bot 令牌（xoxb-）和 app 级令牌（xapp-）。',
+      saved: 'Slack 已保存并启用。重启网关以连接。',
+      saveFailed: '保存 Slack 设置失败'
+    },
     telegramQuickSetup: {
       title: '快速设置',
       recommended: '推荐',
@@ -1965,7 +1991,8 @@ export const zh: Translations = {
         '在 Telegram 中，与 @BotFather 对话，运行 /newbot，复制它给你的令牌。然后从 @userinfobot 获取你的数字用户 ID。',
       discord:
         '打开 Discord 开发者门户，创建应用，添加 Bot，然后复制其令牌。用正确的权限范围把机器人邀请到你的服务器。',
-      slack: '创建 Slack 应用，启用 Socket Mode，安装到你的工作区，然后复制 bot 令牌和 app 级令牌。',
+      slack:
+        '优先使用上方的快速设置：创建 Slack 应用时粘贴生成的清单（manifest），所有权限范围、事件订阅和斜杠命令一次配置完成——漏掉 channels:history 权限正是机器人只回私信、在频道中不响应的原因。然后安装应用并粘贴两个令牌。',
       mattermost: '在你的 Mattermost 服务器上，创建机器人账户或个人访问令牌，然后在此粘贴服务器 URL 和令牌。',
       matrix: '用机器人账户登录你的 homeserver，然后复制访问令牌、用户 ID 和 homeserver URL。',
       signal: '在可访问的位置运行 signal-cli REST 桥接，然后把 Work4You 指向该 URL 和已注册的电话号码。',
