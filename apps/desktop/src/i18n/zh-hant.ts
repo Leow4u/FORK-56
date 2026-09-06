@@ -1349,6 +1349,10 @@ export const zhHant = defineLocale({
       discordToken: '請貼上來自 Discord 開發者入口的完整 bot Token（Bot → Reset Token）——由三段以點分隔的部分組成。',
       discordUserId: (value: string) =>
         `${value} 不是有效的 Discord 數字使用者 ID。請在 Discord 中啟用開發者模式，然後在使用者上按右鍵 → 複製使用者 ID。`,
+      emailAddress: (value: string) => `${value} 不像是電子郵件地址。`,
+      emailHost: (value: string) =>
+        `${value} 不是有效的郵件伺服器主機名稱。請使用類似 imap.gmail.com 的主機名稱——不要包含 http:// 或空格。`,
+      emailPort: (value: string) => `${value} 不是有效的連接埠。請使用 1 到 65535 之間的數字。`,
       slackMemberId: (value: string) => `${value} 不像是 Slack 成員 ID。請使用類似 U01ABC2DEF3 的 ID。`,
       slackTokenPrefix: (prefix: string) => `此 Token 必須以 ${prefix} 開頭`,
       telegramToken: '請貼上來自 @BotFather 的完整 Token（例如 123456789:ABC…）。',
@@ -1387,6 +1391,32 @@ export const zhHant = defineLocale({
       allowedUsersHelp: '選填。允許私訊機器人的數字使用者 ID，以逗號分隔。留空則改為在此透過配對請求核准。',
       saved: 'Discord 已儲存並啟用。請重新啟動閘道以連線。',
       saveFailed: '儲存 Discord 設定失敗'
+    },
+    emailQuickSetup: {
+      title: '快速設定',
+      recommended: '建議',
+      intro: '選擇你的郵件供應商，Work4You 會自動填寫郵件伺服器。請使用專用信箱——代理會讀取並回覆其中的所有郵件。',
+      replacesExisting: '電子郵件已設定完成。在此儲存會取代已儲存的信箱設定。',
+      addressLabel: '電子郵件地址',
+      addressHelp: '代理用來收發郵件的信箱。',
+      addressPlaceholder: 'agent@example.com',
+      providerLabel: '供應商',
+      providerCustom: '自訂',
+      imapHostLabel: 'IMAP 主機',
+      imapPortLabel: 'IMAP 連接埠',
+      smtpHostLabel: 'SMTP 主機',
+      smtpPortLabel: 'SMTP 連接埠',
+      passwordLabel: '密碼',
+      passwordHelp: '對於 Gmail、Outlook、Yahoo 和 iCloud，必須使用應用程式專用密碼——一般帳戶密碼無法用於 IMAP。',
+      passwordPlaceholder: '應用程式專用密碼',
+      createAppPassword: '建立應用程式專用密碼',
+      allowedUsersLabel: '允許的寄件者',
+      allowedUsersHelp: '建議設定。逗號分隔的允許與代理對話的地址——其他人的郵件會被忽略。',
+      allowedUsersPlaceholder: 'you@example.com, teammate@example.com',
+      addressAndPasswordRequired: '請先輸入電子郵件地址和密碼。',
+      hostsRequired: '請輸入 IMAP 和 SMTP 主機，或選擇一個供應商。',
+      saved: '電子郵件已儲存並啟用。重新啟動閘道以連線。',
+      saveFailed: '無法儲存電子郵件設定。'
     },
     slackQuickSetup: {
       title: '快速設定',
@@ -1542,6 +1572,24 @@ export const zhHant = defineLocale({
         placeholder: '貼上 Slack app Token'
       },
       SLACK_ALLOWED_USERS: { label: '允許的 Slack 使用者 ID', help: '建議設定。逗號分隔的 Slack 使用者 ID。' },
+      EMAIL_ADDRESS: {
+        label: '電子郵件地址',
+        help: '代理用來收發郵件的信箱。請使用專用帳戶。',
+        placeholder: 'agent@example.com'
+      },
+      EMAIL_PASSWORD: {
+        label: '密碼',
+        help: '對於 Gmail/Outlook/Yahoo/iCloud，請使用應用程式專用密碼，而不是帳戶密碼。'
+      },
+      EMAIL_IMAP_HOST: { label: 'IMAP 主機', help: '收件伺服器。', placeholder: 'imap.gmail.com' },
+      EMAIL_IMAP_PORT: { label: 'IMAP 連接埠', help: '預設 993（SSL）。', placeholder: '993' },
+      EMAIL_SMTP_HOST: { label: 'SMTP 主機', help: '寄件伺服器。', placeholder: 'smtp.gmail.com' },
+      EMAIL_SMTP_PORT: { label: 'SMTP 連接埠', help: '預設 587（STARTTLS）；SSL 使用 465。', placeholder: '587' },
+      EMAIL_ALLOWED_USERS: {
+        label: '允許的寄件者',
+        help: '建議設定。逗號分隔的允許與代理對話的地址——其他人會被忽略。',
+        placeholder: 'you@example.com'
+      },
       MATTERMOST_URL: { label: '伺服器 URL', placeholder: 'https://mattermost.example.com' },
       MATTERMOST_TOKEN: { label: 'Bot Token' },
       MATTERMOST_ALLOWED_USERS: { label: '允許的使用者 ID', help: '建議設定。逗號分隔的 Mattermost 使用者 ID。' },

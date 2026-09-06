@@ -1407,6 +1407,9 @@ export interface Translations {
     envErrors: {
       discordToken: string
       discordUserId: (value: string) => string
+      emailAddress: (value: string) => string
+      emailHost: (value: string) => string
+      emailPort: (value: string) => string
       slackMemberId: (value: string) => string
       slackTokenPrefix: (prefix: string) => string
       telegramToken: string
@@ -1433,6 +1436,32 @@ export interface Translations {
       allowedUsersLabel: string
       allowedUsersPlaceholder: string
       allowedUsersHelp: string
+      saved: string
+      saveFailed: string
+    }
+    emailQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      addressLabel: string
+      addressHelp: string
+      addressPlaceholder: string
+      providerLabel: string
+      providerCustom: string
+      imapHostLabel: string
+      imapPortLabel: string
+      smtpHostLabel: string
+      smtpPortLabel: string
+      passwordLabel: string
+      passwordHelp: string
+      passwordPlaceholder: string
+      createAppPassword: string
+      allowedUsersLabel: string
+      allowedUsersHelp: string
+      allowedUsersPlaceholder: string
+      addressAndPasswordRequired: string
+      hostsRequired: string
       saved: string
       saveFailed: string
     }

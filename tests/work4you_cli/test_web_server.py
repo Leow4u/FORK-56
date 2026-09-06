@@ -1494,6 +1494,119 @@ class TestWebServerEndpoints:
         assert "matrix" in rows
         assert rows["matrix"]["enabled"] is True
 
+    def test_email_catalog_exposes_ports_and_the_email_guide(self):
+        """The Email card must surface both port knobs and link the dedicated
+        Email guide (app passwords, provider hosts), not the messaging index.
+        """
+        resp = self.client.get("/api/messaging/platforms")
+        assert resp.status_code == 200
+        rows = {row["id"]: row for row in resp.json()["platforms"]}
+        email = rows["email"]
+
+        keys = {field["key"] for field in email["env_vars"]}
+        assert {
+            "EMAIL_ADDRESS",
+            "EMAIL_PASSWORD",
+            "EMAIL_IMAP_HOST",
+            "EMAIL_SMTP_HOST",
+            "EMAIL_IMAP_PORT",
+            "EMAIL_SMTP_PORT",
+        } <= keys
+        assert email["docs_url"].rstrip("/").endswith("messaging/email")
+
+    def test_email_test_endpoint_runs_the_live_probe(self, monkeypatch):
+        """When email is enabled + configured, /test runs the live IMAP/SMTP
+        probe with the saved credentials instead of stopping at the
+        gateway-not-running gate (credentials are provable without a gateway).
+        """
+        import work4you_cli.web_server as ws
+        from work4you_cli.config import load_config, save_config, save_env_value
+
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["email"] = {"enabled": True}
+        save_config(cfg)
+        save_env_value("EMAIL_ADDRESS", "agent@example.com")
+        save_env_value("EMAIL_PASSWORD", "app-password")
+        save_env_value("EMAIL_IMAP_HOST", "imap.example.com")
+        save_env_value("EMAIL_SMTP_HOST", "smtp.example.com")
+
+        seen: dict = {}
+
+        def fake_live_test(env):
+            seen.update(env)
+            return False, "IMAP login to imap.example.com:993 failed: nope"
+
+        monkeypatch.setattr(ws, "_email_live_test", fake_live_test)
+
+        resp = self.client.post("/api/messaging/platforms/email/test")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["ok"] is False
+        assert "IMAP login" in body["message"]
+        # The probe received the saved credentials, defaults left to the probe.
+        assert seen["EMAIL_ADDRESS"] == "agent@example.com"
+        assert seen["EMAIL_SMTP_HOST"] == "smtp.example.com"
+
+        monkeypatch.setattr(ws, "_email_live_test", lambda env: (True, "ok"))
+        body = self.client.post("/api/messaging/platforms/email/test").json()
+        assert body["ok"] is True
+        assert "Restart the gateway" in body["message"]
+
+    def test_email_live_test_flags_auth_failures_with_app_password_hint(
+        self, monkeypatch
+    ):
+        import imaplib
+        import smtplib
+
+        import work4you_cli.web_server as ws
+
+        env = {
+            "EMAIL_ADDRESS": "agent@example.com",
+            "EMAIL_PASSWORD": "regular-password",
+            "EMAIL_IMAP_HOST": "imap.example.com",
+            "EMAIL_SMTP_HOST": "smtp.example.com",
+        }
+
+        class FailingIMAP:
+            def __init__(self, host, port, timeout=None):
+                pass
+
+            def login(self, user, password):
+                raise imaplib.IMAP4.error("AUTHENTICATIONFAILED")
+
+            def logout(self):
+                pass
+
+        monkeypatch.setattr(imaplib, "IMAP4_SSL", FailingIMAP)
+        ok, message = ws._email_live_test(env)
+        assert ok is False
+        assert "app password" in message
+
+        class PassingIMAP(FailingIMAP):
+            def login(self, user, password):
+                return "OK", []
+
+        class PassingSMTP:
+            def __init__(self, host, port, timeout=None):
+                seen_smtp.append((host, port))
+
+            def starttls(self):
+                pass
+
+            def login(self, user, password):
+                return 235, b"ok"
+
+            def quit(self):
+                pass
+
+        seen_smtp: list = []
+        monkeypatch.setattr(imaplib, "IMAP4_SSL", PassingIMAP)
+        monkeypatch.setattr(smtplib, "SMTP", PassingSMTP)
+        ok, message = ws._email_live_test(env)
+        assert ok is True
+        # Default ports applied when the optional port vars are unset.
+        assert seen_smtp == [("smtp.example.com", 587)]
+
     def test_slack_manifest_endpoint_is_paste_ready(self):
         """The manifest endpoint must emit a create-app-ready manifest.
 

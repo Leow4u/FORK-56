@@ -8604,7 +8604,9 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "email": {
         "name": "Email",
         "description": "Talk to Work4You through an IMAP/SMTP mailbox.",
-        "docs_url": "https://work4you.ai/docs/user-guide/messaging/",
+        # The dedicated Email guide (app passwords, provider hosts, access
+        # control), not the messaging index.
+        "docs_url": "https://work4you.ai/docs/user-guide/messaging/email",
         "env_vars": (
             "EMAIL_ADDRESS",
             "EMAIL_PASSWORD",
@@ -10387,6 +10389,76 @@ async def update_messaging_platform(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+def _email_live_test(env: dict[str, str]) -> tuple[bool, str]:
+    """Actually log in to the configured IMAP and SMTP servers.
+
+    Unlike chat platforms (whose credentials only a live gateway connection
+    can prove), an IMAP/SMTP login is a self-contained check the dashboard
+    can run in seconds with the stdlib — the same probe the adapter performs
+    on connect(). This catches the two classic setup failures (regular
+    password instead of an app password, wrong host) without a save →
+    restart → read-the-logs round trip.
+    """
+    import imaplib
+    import smtplib
+
+    address = (env.get("EMAIL_ADDRESS") or "").strip()
+    password = env.get("EMAIL_PASSWORD") or ""
+    imap_host = (env.get("EMAIL_IMAP_HOST") or "").strip()
+    smtp_host = (env.get("EMAIL_SMTP_HOST") or "").strip()
+
+    def _port(key: str, default: int) -> int:
+        try:
+            return int((env.get(key) or "").strip() or default)
+        except ValueError:
+            return default
+
+    imap_port = _port("EMAIL_IMAP_PORT", 993)
+    smtp_port = _port("EMAIL_SMTP_PORT", 587)
+
+    try:
+        imap = imaplib.IMAP4_SSL(imap_host, imap_port, timeout=15)
+        try:
+            imap.login(address, password)
+        finally:
+            try:
+                imap.logout()
+            except Exception:
+                pass
+    except imaplib.IMAP4.error as exc:
+        return False, (
+            f"IMAP login to {imap_host}:{imap_port} failed: {exc}. "
+            "For Gmail/Outlook the password must be an app password, "
+            "not the account password."
+        )
+    except Exception as exc:
+        return False, f"IMAP connection to {imap_host}:{imap_port} failed: {exc}"
+
+    try:
+        if smtp_port == 465:
+            smtp = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15)
+        else:
+            smtp = smtplib.SMTP(smtp_host, smtp_port, timeout=15)
+            smtp.starttls()
+        try:
+            smtp.login(address, password)
+        finally:
+            try:
+                smtp.quit()
+            except Exception:
+                pass
+    except smtplib.SMTPAuthenticationError as exc:
+        return False, (
+            f"SMTP authentication failed for {address}: {exc}. "
+            "For Gmail/Outlook the password must be an app password, "
+            "not the account password."
+        )
+    except Exception as exc:
+        return False, f"SMTP connection to {smtp_host}:{smtp_port} failed: {exc}"
+
+    return True, "IMAP and SMTP logins succeeded."
+
+
 @app.post("/api/messaging/platforms/{platform_id}/test")
 async def test_messaging_platform(platform_id: str, profile: Optional[str] = None):
     entry = _catalog_lookup(platform_id)
@@ -10403,15 +10475,16 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
                 if scoped_dir is not None
                 else read_runtime_status()
             )
-            return _messaging_platform_payload(
+            payload = _messaging_platform_payload(
                 entry,
                 env_on_disk,
                 runtime,
                 scoped=scoped_dir is not None,
                 profile_home=scoped_dir,
             )
+            return payload, env_on_disk, scoped_dir is not None
 
-    payload = await asyncio.to_thread(_run)
+    payload, env_on_disk, profile_scoped = await asyncio.to_thread(_run)
     if not payload["enabled"]:
         message = f"{entry['name']} is disabled. Enable it, then restart the gateway."
         return {"ok": False, "state": payload["state"], "message": message}
@@ -10427,6 +10500,37 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
             else "Platform setup is incomplete."
         )
         return {"ok": False, "state": payload["state"], "message": message}
+    if platform_id == "email":
+        # Email credentials can be proven directly (see _email_live_test) —
+        # no live gateway connection required, so run this before the
+        # gateway_running gate instead of behind it.
+        # Same env-resolution rule as the payload builder: when profile-scoped,
+        # judge only the profile's own .env — os.environ carries the ROOT
+        # install's credentials.
+        live_env = {
+            key: (env_on_disk.get(key) or ("" if profile_scoped else os.getenv(key, "")))
+            for key in (
+                "EMAIL_ADDRESS",
+                "EMAIL_PASSWORD",
+                "EMAIL_IMAP_HOST",
+                "EMAIL_IMAP_PORT",
+                "EMAIL_SMTP_HOST",
+                "EMAIL_SMTP_PORT",
+            )
+        }
+        ok, message = await asyncio.to_thread(_email_live_test, live_env)
+        if not ok:
+            return {"ok": False, "state": payload["state"], "message": message}
+        if payload["state"] == "connected":
+            return {"ok": True, "state": payload["state"], "message": "Email is connected."}
+        return {
+            "ok": True,
+            "state": payload["state"],
+            "message": (
+                "Credentials verified — IMAP and SMTP logins succeeded. "
+                "Restart the gateway to connect."
+            ),
+        }
     if not payload["gateway_running"]:
         return {
             "ok": False,

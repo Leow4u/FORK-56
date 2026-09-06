@@ -42,6 +42,7 @@ import { SettingsProfileScope } from '../settings/profile-scope'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
 import { DiscordQuickSetup } from './discord-quick-setup'
+import { EmailQuickSetup } from './email-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackQuickSetup } from './slack-quick-setup'
 import { TelegramQuickSetup } from './telegram-quick-setup'
@@ -94,6 +95,15 @@ const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging'])
 
     case 'discordUserId':
       return m.envErrors.discordUserId(error.value)
+
+    case 'emailAddress':
+      return m.envErrors.emailAddress(error.value)
+
+    case 'emailHost':
+      return m.envErrors.emailHost(error.value)
+
+    case 'emailPort':
+      return m.envErrors.emailPort(error.value)
 
     case 'slackMemberId':
       return m.envErrors.slackMemberId(error.value)
@@ -813,6 +823,10 @@ function PlatformDetail({
         />
       )}
 
+      {platform.id === 'email' && (
+        <EmailQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
+      )}
+
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
         <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
@@ -988,7 +1002,7 @@ const PLATFORM_INTRO: Record<string, string> = {
   homeassistant:
     'In Home Assistant, open your profile and create a long-lived access token. Paste it here along with your HA URL.',
   email:
-    'Use a dedicated mailbox. For Gmail/Workspace, create an app password and use imap.gmail.com / smtp.gmail.com.',
+    'Use Quick setup above with a dedicated mailbox — pick your provider and the IMAP/SMTP hosts are filled in for you. Accounts with 2FA (Gmail, Outlook) need an app password, not the account password, and only senders on the allowlist get replies.',
   sms: 'Get your Twilio Account SID and Auth Token from the Twilio console, plus a phone number that can send SMS.',
   dingtalk: 'Create a DingTalk app in the developer console, then copy the Client ID (App key) and Client Secret here.',
   feishu:

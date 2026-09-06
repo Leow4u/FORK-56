@@ -7,6 +7,10 @@
 import { DISCORD_BOT_TOKEN_RE, normalizeDiscordBotToken } from './discord-token'
 
 export const TELEGRAM_USER_ID_RE = /^\d+$/
+export const EMAIL_ADDRESS_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+// A bare hostname: users paste "https://imap.gmail.com" or values with spaces
+// often enough that both are worth catching before a failed connect.
+const EMAIL_HOST_RE = /^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$/
 const TELEGRAM_BOT_TOKEN_RE = /^\d+:[A-Za-z0-9_-]{30,}$/
 const SLACK_MEMBER_ID_RE = /^[UW][A-Z0-9]{2,}$/
 // Discord user ids are numeric snowflakes (17-20 digits today; the regex
@@ -25,11 +29,26 @@ const SLACK_TOKEN_PREFIXES: Record<string, string> = {
 export type MessagingEnvError =
   | { code: 'discordToken' }
   | { code: 'discordUserId'; value: string }
+  | { code: 'emailAddress'; value: string }
+  | { code: 'emailHost'; value: string }
+  | { code: 'emailPort'; value: string }
   | { code: 'slackMemberId'; value: string }
   | { code: 'slackTokenPrefix'; prefix: string }
   | { code: 'telegramToken' }
   | { code: 'telegramUserId'; value: string }
   | { code: 'whatsappNumber'; value: string }
+
+/** First allowlist entry that is neither an email address nor the "*"
+ *  wildcard the gateway honors — or null when the list looks fine. */
+export function findInvalidEmailSender(value: string): null | string {
+  return (
+    value
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .find(part => part !== '*' && !EMAIL_ADDRESS_RE.test(part)) ?? null
+  )
+}
 
 /** First allowlist entry that is neither a numeric snowflake nor the "*"
  *  wildcard the gateway honors — or null when the list looks fine. */
@@ -104,6 +123,30 @@ export function validateMessagingEnv(key: string, value: string): MessagingEnvEr
 
     if (invalid) {
       return { code: 'whatsappNumber', value: invalid }
+    }
+  }
+
+  if (key === 'EMAIL_ADDRESS' && !EMAIL_ADDRESS_RE.test(trimmed)) {
+    return { code: 'emailAddress', value: trimmed }
+  }
+
+  if (key === 'EMAIL_ALLOWED_USERS') {
+    const invalid = findInvalidEmailSender(trimmed)
+
+    if (invalid) {
+      return { code: 'emailAddress', value: invalid }
+    }
+  }
+
+  if ((key === 'EMAIL_IMAP_HOST' || key === 'EMAIL_SMTP_HOST') && !EMAIL_HOST_RE.test(trimmed)) {
+    return { code: 'emailHost', value: trimmed }
+  }
+
+  if (key === 'EMAIL_IMAP_PORT' || key === 'EMAIL_SMTP_PORT') {
+    const port = Number(trimmed)
+
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return { code: 'emailPort', value: trimmed }
     }
   }
 
