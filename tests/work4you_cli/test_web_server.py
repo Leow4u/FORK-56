@@ -1469,6 +1469,31 @@ class TestWebServerEndpoints:
             Platform._value2member_map_.pop("pseudofake", None)
             Platform._member_map_.pop("PSEUDOFAKE", None)
 
+    def test_hidden_messaging_platforms_stay_off_the_channels_list(self):
+        """Curated hidden channels are dropped from the Messaging catalog —
+        unless the profile already enabled one, in which case it must stay
+        listed so the active channel can still be managed from the UI.
+        """
+        import work4you_cli.web_server as web_server
+        from work4you_cli.config import load_config, save_config
+
+        resp = self.client.get("/api/messaging/platforms")
+        assert resp.status_code == 200
+        ids = {row["id"] for row in resp.json()["platforms"]}
+        assert not (ids & web_server._HIDDEN_MESSAGING_PLATFORMS)
+        # The headline channels are unaffected by the curation.
+        assert {"telegram", "discord", "slack", "whatsapp"} <= ids
+
+        # An already-enabled hidden platform stays visible and manageable.
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["matrix"] = {"enabled": True}
+        save_config(cfg)
+
+        resp = self.client.get("/api/messaging/platforms")
+        rows = {row["id"]: row for row in resp.json()["platforms"]}
+        assert "matrix" in rows
+        assert rows["matrix"]["enabled"] is True
+
 
 
 

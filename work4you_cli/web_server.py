@@ -8797,6 +8797,36 @@ _PLATFORM_ORDER: tuple[str, ...] = (
     "webhook",
 )
 
+# Curated out of the Messaging/Channels UI (dashboard AND desktop both render
+# this endpoint's list verbatim). These channels stay fully functional — the
+# gateway still loads them, `work4you setup`/config.yaml/.env still configure
+# them, and PUT /api/messaging/platforms/{id} still accepts them — they are
+# only dropped from the catalog listing. A hidden platform that a profile has
+# already ENABLED is still listed, so an active channel never becomes
+# unmanageable from the UI.
+_HIDDEN_MESSAGING_PLATFORMS: frozenset[str] = frozenset({
+    "mattermost",
+    "matrix",
+    "signal",
+    "bluebubbles",
+    "homeassistant",
+    "dingtalk",
+    "feishu",
+    "wecom",
+    "wecom_callback",
+    "weixin",
+    "qqbot",
+    "yuanbao",
+    "buzz",
+    "photon",
+    "irc",
+    "line",
+    "ntfy",
+    "raft",
+    "relay",
+    "simplex",
+})
+
 # Display labels for env vars not in OPTIONAL_ENV_VARS (HOME_CHANNEL_*, bridge
 # toggles, Twilio, HASS, Email, etc.). Anything missing from OPTIONAL_ENV_VARS
 # falls back here so the UI can still render a friendly label.
@@ -10205,18 +10235,24 @@ async def get_messaging_platforms(profile: Optional[str] = None):
                 if scoped_dir is not None
                 else read_runtime_status()
             )
+            payloads = [
+                _messaging_platform_payload(
+                    entry,
+                    env_on_disk,
+                    runtime,
+                    scoped=scoped_dir is not None,
+                    profile_home=scoped_dir,
+                )
+                for entry in _messaging_platform_catalog()
+            ]
             return {
                 "env_path": str(get_env_path()),
                 "gateway_start_command": _gateway_display_command(profile, "start"),
                 "platforms": [
-                    _messaging_platform_payload(
-                        entry,
-                        env_on_disk,
-                        runtime,
-                        scoped=scoped_dir is not None,
-                        profile_home=scoped_dir,
-                    )
-                    for entry in _messaging_platform_catalog()
+                    payload
+                    for payload in payloads
+                    if payload["enabled"]
+                    or payload["id"] not in _HIDDEN_MESSAGING_PLATFORMS
                 ]
             }
 
