@@ -1782,6 +1782,9 @@ export const zh: Translations = {
     testFailed: name => `${name} 测试失败`,
     fixHighlighted: '请修正高亮标出的字段，然后重新保存。',
     envErrors: {
+      discordToken: '请粘贴来自 Discord 开发者门户的完整 bot 令牌（Bot → Reset Token）——由三段以点分隔的部分组成。',
+      discordUserId: (value: string) =>
+        `${value} 不是有效的 Discord 数字用户 ID。请在 Discord 中启用开发者模式，然后右键用户 → 复制用户 ID。`,
       slackMemberId: (value: string) => `${value} 不像是 Slack 成员 ID。请使用类似 U01ABC2DEF3 的 ID。`,
       slackTokenPrefix: (prefix: string) => `此令牌必须以 ${prefix} 开头`,
       telegramToken: '请粘贴来自 @BotFather 的完整令牌（例如 123456789:ABC…）。',
@@ -1799,6 +1802,26 @@ export const zh: Translations = {
         bot: '机器人',
         'self-chat': '自聊'
       }
+    },
+    discordQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro: '粘贴 bot 令牌，Work4You 会从中读取应用 ID——随后生成服务器邀请链接，并指引你开启 bot 所需的两个意图（Intents）。保存后频道即启用。',
+      replacesExisting: 'Discord 已配置——在此保存会替换已存储的令牌。',
+      tokenLabel: 'Bot 令牌',
+      tokenPlaceholder: '粘贴 Discord bot 令牌',
+      tokenHelp: 'Discord 开发者门户 → 你的应用 → Bot → Reset Token。',
+      appDetected: (id: string) => `已检测到应用——ID ${id}`,
+      inviteHelp: '邀请 bot 加入你的服务器。链接已预选推荐权限。',
+      inviteButton: '邀请 bot 加入服务器',
+      intentsHelp: '在 Bot 页面启用 Message Content Intent 和 Server Members Intent，然后保存。',
+      intentsWarning: 'bot 能连接却从不回复，几乎都是因为这些意图未开启。',
+      intentsButton: '打开 bot 设置',
+      allowedUsersLabel: '允许的 Discord 用户 ID',
+      allowedUsersPlaceholder: '123456789012345678, 234567890123456789',
+      allowedUsersHelp: '可选。允许私信 bot 的数字用户 ID，逗号分隔。留空则改为在此处通过配对请求审批。',
+      saved: 'Discord 已保存并启用。重启网关以连接。',
+      saveFailed: '保存 Discord 设置失败'
     },
     slackQuickSetup: {
       title: '快速设置',

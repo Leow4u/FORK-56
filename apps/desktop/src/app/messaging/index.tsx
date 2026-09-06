@@ -41,6 +41,7 @@ import { ListRow } from '../settings/primitives'
 import { SettingsProfileScope } from '../settings/profile-scope'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
+import { DiscordQuickSetup } from './discord-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackQuickSetup } from './slack-quick-setup'
 import { TelegramQuickSetup } from './telegram-quick-setup'
@@ -88,6 +89,12 @@ const trimEdits = (edits: Record<string, string>): Record<string, string> =>
 
 const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging']): string => {
   switch (error.code) {
+    case 'discordToken':
+      return m.envErrors.discordToken
+
+    case 'discordUserId':
+      return m.envErrors.discordUserId(error.value)
+
     case 'slackMemberId':
       return m.envErrors.slackMemberId(error.value)
 
@@ -784,6 +791,14 @@ function PlatformDetail({
         />
       )}
 
+      {platform.id === 'discord' && (
+        <DiscordQuickSetup
+          configured={platform.configured}
+          onApplied={onQuickSetupApplied}
+          scopeProfile={scopeProfile}
+        />
+      )}
+
       {platform.id === 'slack' && (
         <SlackQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
       )}
@@ -958,7 +973,7 @@ const PLATFORM_INTRO: Record<string, string> = {
   telegram:
     'In Telegram, talk to @BotFather, run /newbot, and copy the token it gives you. Then grab your numeric user ID from @userinfobot.',
   discord:
-    'Open the Discord Developer Portal, create an application, add a Bot, then copy its token. Invite the bot to your server with the right scopes.',
+    'Create an application with a Bot in the Discord Developer Portal and paste its token into Quick setup above — Work4You builds the invite link and points you at the required intents. A bot that connects but never replies almost always has the Message Content Intent turned off.',
   slack:
     'Use Quick setup above: paste the generated manifest when creating your Slack app and every scope, event subscription, and slash command is configured at once — a missed channels:history scope is why bots answer DMs but stay silent in channels. Then install the app and paste the two tokens.',
   mattermost:

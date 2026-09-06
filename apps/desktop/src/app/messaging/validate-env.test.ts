@@ -64,8 +64,29 @@ describe('validateMessagingEnv', () => {
     })
   })
 
+  it('rejects a malformed Discord bot token and accepts a real-shaped one', () => {
+    expect(validateMessagingEnv('DISCORD_BOT_TOKEN', 'anything-goes')).toEqual({ code: 'discordToken' })
+    // Three dot-separated base64url segments, as issued by the Developer
+    // Portal. Assembled at runtime so no token-shaped literal lives in the
+    // source (GitHub push protection flags those).
+    const token = [btoa('1086042810000000000').replace(/=+$/, ''), 'GXk2ap', 'tW0abcDEFghiJKLmnoPQRstuVWxyz1234567890'].join('.')
+
+    expect(validateMessagingEnv('DISCORD_BOT_TOKEN', token)).toBeNull()
+    // "Bot <token>" pastes from Authorization-header snippets are normalized.
+    expect(validateMessagingEnv('DISCORD_BOT_TOKEN', `Bot ${token}`)).toBeNull()
+  })
+
+  it('validates Discord snowflake ids but honors the * allow-all wildcard', () => {
+    expect(validateMessagingEnv('DISCORD_ALLOWED_USERS', '123456789012345678, *')).toBeNull()
+    expect(validateMessagingEnv('DISCORD_ALLOWED_USERS', '123456789012345678,, ')).toBeNull()
+    expect(validateMessagingEnv('DISCORD_ALLOWED_USERS', '123456789012345678, @carla')).toEqual({
+      code: 'discordUserId',
+      value: '@carla'
+    })
+  })
+
   it('leaves keys without a client-checkable shape alone', () => {
-    expect(validateMessagingEnv('DISCORD_BOT_TOKEN', 'anything-goes')).toBeNull()
+    expect(validateMessagingEnv('MATTERMOST_TOKEN', 'anything-goes')).toBeNull()
     expect(validateMessagingEnv('TELEGRAM_PROXY', 'socks5://127.0.0.1:1080')).toBeNull()
   })
 })
