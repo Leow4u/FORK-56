@@ -13,13 +13,13 @@ import { Switch } from '@/components/ui/switch'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
-import { ExternalLink, Save, Trash2 } from '@/lib/icons'
+import { ExternalLink, RefreshCw, Save, Trash2 } from '@/lib/icons'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import { $changeEventsAvailable, $pairingChangeTick, $platformsChangeTick } from '@/store/live-sync'
 import { notify, notifyError } from '@/store/notifications'
 import { $settingsScopeOverride } from '@/store/settings-scope'
-import { runGatewayRestart } from '@/store/system-actions'
+import { $gatewayRestarting, runGatewayRestart } from '@/store/system-actions'
 import {
   approvePairing,
   getMessagingPlatforms,
@@ -28,6 +28,7 @@ import {
   type MessagingPlatformInfo,
   type PairingUser,
   revokePairing,
+  testMessagingPlatform,
   updateMessagingPlatform
 } from '@/work4you'
 
@@ -41,6 +42,8 @@ import { SettingsProfileScope } from '../settings/profile-scope'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
 import { PlatformAvatar } from './platform-icon'
+import { TelegramQuickSetup } from './telegram-quick-setup'
+import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
 
 interface MessagingViewProps extends React.ComponentProps<'section'> {
   setStatusbarItemGroup?: SetStatusbarItemGroup
@@ -80,6 +83,19 @@ const trimEdits = (edits: Record<string, string>): Record<string, string> =>
       .map(([k, v]) => [k, v.trim()])
       .filter(([, v]) => v)
   )
+
+const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging']): string => {
+  switch (error.code) {
+    case 'slackMemberId':
+      return m.envErrors.slackMemberId(error.value)
+    case 'slackTokenPrefix':
+      return m.envErrors.slackTokenPrefix(error.prefix)
+    case 'telegramToken':
+      return m.envErrors.telegramToken
+    case 'telegramUserId':
+      return m.envErrors.telegramUserId(error.value)
+  }
+}
 
 /** Stable row identity: a user id is only unique within its platform. */
 const pairingKey = (user: PairingUser) => `${user.platform}:${user.user_id}`
@@ -143,6 +159,9 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   const [approving, setApproving] = useState<null | string>(null)
   const [pendingRevoke, setPendingRevoke] = useState<null | PairingUser>(null)
   const [edits, setEdits] = useState<EditMap>({})
+  // Localized client-side validation messages, keyed platform → env key.
+  // Set only on a rejected save; cleared as soon as the field is edited.
+  const [fieldErrors, setFieldErrors] = useState<EditMap>({})
   const [query, setQuery] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const [saving, setSaving] = useState<string | null>(null)
@@ -213,6 +232,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
     setPlatforms(null)
     setPairing({ approved: [], pending: [] })
     setEdits({})
+    setFieldErrors({})
   }, [scopeProfile])
 
   const changeEventsAvailable = useStore($changeEventsAvailable)
@@ -330,20 +350,63 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
       return
     }
 
+    // Catch shape mistakes (truncated token, non-numeric ids) before paying a
+    // save → restart → startup_failed round trip. The backend stays the
+    // authority on whether the credential actually works.
+    const errors: Record<string, string> = {}
+
+    for (const [key, value] of Object.entries(env)) {
+      const invalid = validateMessagingEnv(key, value)
+
+      if (invalid) {
+        errors[key] = envErrorMessage(invalid, m)
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(current => ({ ...current, [platform.id]: errors }))
+      notify({ kind: 'error', title: m.failedSave(platform.name), message: m.fixHighlighted })
+
+      return
+    }
+
+    setFieldErrors(current => ({ ...current, [platform.id]: {} }))
+
+    // Saving credentials on a disabled channel also turns it on — one gesture
+    // instead of save + hunt for the toggle, mirroring the web dashboard's
+    // "Save & enable". The switch stays the way to turn a channel off.
+    const enabling = !platform.enabled
     setSaving(`env:${platform.id}`)
 
     try {
-      await updateMessagingPlatform(platform.id, { env }, scopeProfile)
+      await updateMessagingPlatform(platform.id, enabling ? { enabled: true, env } : { env }, scopeProfile)
       setEdits(current => ({ ...current, [platform.id]: {} }))
       await refreshPlatforms()
       notify({
         kind: 'success',
         title: m.setupSaved(platform.name),
-        message: m.restartToReconnect,
+        message: enabling ? m.restartToApply : m.restartToReconnect,
         action: restartGatewayAction
       })
     } catch (err) {
       notifyError(err, m.failedSave(platform.name))
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  async function handleTest(platform: MessagingPlatformInfo) {
+    setSaving(`test:${platform.id}`)
+
+    try {
+      const result = await testMessagingPlatform(platform.id, scopeProfile)
+      notify({
+        kind: result.ok ? 'success' : 'error',
+        title: result.ok ? m.testPassed(platform.name) : m.testFailed(platform.name),
+        message: result.message
+      })
+    } catch (err) {
+      notifyError(err, m.testFailed(platform.name))
     } finally {
       setSaving(null)
     }
@@ -460,6 +523,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                     <PlatformActionBar
                       hasEdits={Object.keys(trimEdits(edits[selected.id] || {})).length > 0}
                       onSave={() => void handleSave(selected)}
+                      onTest={() => void handleTest(selected)}
                       onToggle={enabled => void handleToggle(selected, enabled)}
                       platform={selected}
                       saving={saving}
@@ -472,9 +536,10 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                     approved={approvedByPlatform[selected.id] ?? []}
                     approving={approving}
                     edits={edits[selected.id] || {}}
+                    fieldErrors={fieldErrors[selected.id] || {}}
                     onApprove={user => void handleApprove(user)}
                     onClear={key => void handleClear(selected, key)}
-                    onEdit={(key, value) =>
+                    onEdit={(key, value) => {
                       setEdits(current => ({
                         ...current,
                         [selected.id]: {
@@ -482,11 +547,24 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                           [key]: value
                         }
                       }))
-                    }
+                      // A rejected value being retyped shouldn't keep its stale
+                      // error under the field.
+                      setFieldErrors(current => {
+                        if (!current[selected.id]?.[key]) {
+                          return current
+                        }
+
+                        const { [key]: _cleared, ...rest } = current[selected.id]
+
+                        return { ...current, [selected.id]: rest }
+                      })
+                    }}
+                    onQuickSetupApplied={() => void refreshAll()}
                     onRevoke={setPendingRevoke}
                     pending={pendingByPlatform[selected.id] ?? []}
                     platform={selected}
                     saving={saving}
+                    scopeProfile={scopeProfile}
                   />
                 )}
               </DetailColumn>
@@ -560,24 +638,30 @@ function PlatformDetail({
   approved,
   approving,
   edits,
+  fieldErrors,
   onApprove,
   onClear,
   onEdit,
+  onQuickSetupApplied,
   onRevoke,
   pending,
   platform,
-  saving
+  saving,
+  scopeProfile
 }: {
   approved: PairingUser[]
   approving: null | string
   edits: Record<string, string>
+  fieldErrors: Record<string, string>
   onApprove: (user: PairingUser) => void
   onClear: (key: string) => void
   onEdit: (key: string, value: string) => void
+  onQuickSetupApplied: () => void
   onRevoke: (user: PairingUser) => void
   pending: PairingUser[]
   platform: MessagingPlatformInfo
   saving: string | null
+  scopeProfile: null | string
 }) {
   const { t } = useI18n()
   const m = t.messaging
@@ -669,6 +753,16 @@ function PlatformDetail({
         </section>
       )}
 
+      {/* QR-first onboarding drives the same backend pairing flow as the web
+          dashboard; the credential fields below stay as the manual path. */}
+      {platform.id === 'telegram' && (
+        <TelegramQuickSetup
+          configured={platform.configured}
+          onApplied={onQuickSetupApplied}
+          scopeProfile={scopeProfile}
+        />
+      )}
+
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
         <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
@@ -708,6 +802,7 @@ function PlatformDetail({
             requiredFields.map(field => (
               <MessagingField
                 edits={edits}
+                error={fieldErrors[field.key]}
                 field={field}
                 key={field.key}
                 onClear={onClear}
@@ -730,6 +825,7 @@ function PlatformDetail({
             {optionalFields.map(field => (
               <MessagingField
                 edits={edits}
+                error={fieldErrors[field.key]}
                 field={field}
                 key={field.key}
                 onClear={onClear}
@@ -756,6 +852,7 @@ function PlatformDetail({
               {advancedFields.map(field => (
                 <MessagingField
                   edits={edits}
+                  error={fieldErrors[field.key]}
                   field={field}
                   key={field.key}
                   onClear={onClear}
@@ -774,12 +871,14 @@ function PlatformDetail({
 function PlatformActionBar({
   hasEdits,
   onSave,
+  onTest,
   onToggle,
   platform,
   saving
 }: {
   hasEdits: boolean
   onSave: () => void
+  onTest: () => void
   onToggle: (enabled: boolean) => void
   platform: MessagingPlatformInfo
   saving: string | null
@@ -787,6 +886,7 @@ function PlatformActionBar({
   const { t } = useI18n()
   const m = t.messaging
   const isSavingEnv = saving === `env:${platform.id}`
+  const isTesting = saving === `test:${platform.id}`
 
   return (
     <>
@@ -800,9 +900,16 @@ function PlatformActionBar({
 
       <div className="ml-auto flex items-center gap-2">
         {hasEdits && <span className="text-xs text-muted-foreground">{m.unsavedChanges}</span>}
+        {/* Probes saved credentials without a gateway restart — only useful
+            once the channel is set up. */}
+        {platform.configured && (
+          <Button disabled={isTesting} onClick={onTest} size="sm" variant="ghost">
+            {isTesting ? m.testing : m.test}
+          </Button>
+        )}
         <Button disabled={!hasEdits || isSavingEnv} onClick={onSave} size="sm">
           <Save />
-          {isSavingEnv ? m.saving : m.saveChanges}
+          {isSavingEnv ? m.saving : platform.enabled ? m.saveChanges : m.saveAndEnable}
         </Button>
       </div>
     </>
@@ -851,12 +958,14 @@ const introCopy = (platform: MessagingPlatformInfo, m: Translations['messaging']
 
 function MessagingField({
   edits,
+  error,
   field,
   onClear,
   onEdit,
   saving
 }: {
   edits: Record<string, string>
+  error?: string
   field: MessagingEnvVarInfo
   onClear: (key: string) => void
   onEdit: (key: string, value: string) => void
@@ -902,7 +1011,16 @@ function MessagingField({
           )}
         </div>
       }
-      description={copy.help}
+      description={
+        error ? (
+          <>
+            {copy.help && <span className="block">{copy.help}</span>}
+            <span className="block text-destructive">{error}</span>
+          </>
+        ) : (
+          copy.help
+        )
+      }
       title={
         <span className="flex flex-wrap items-center gap-2">
           <label htmlFor={fieldId}>{copy.label}</label>
@@ -919,19 +1037,42 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 function PlatformHint({ platform }: { platform: MessagingPlatformInfo }) {
   const { t } = useI18n()
+  const m = t.messaging
+  const restarting = useStore($gatewayRestarting)
 
-  if (!platform.enabled || platform.state === 'connected') {
+  // Off: one guiding sentence instead of decoding the pill pair — what to do
+  // next depends only on whether credentials are already in place.
+  if (!platform.enabled) {
+    return (
+      <p className="mt-2 text-xs leading-5 text-muted-foreground">
+        {platform.configured ? m.hintEnableToConnect : m.hintSetupFirst}
+      </p>
+    )
+  }
+
+  if (platform.state === 'connected') {
     return null
   }
 
-  const hint =
-    platform.state === 'pending_restart'
-      ? t.messaging.hintPendingRestart
-      : platform.gateway_running
-        ? null
-        : t.messaging.hintGatewayStopped
+  const needsRestart = platform.state === 'pending_restart'
 
-  return hint ? <p className="mt-2 text-xs leading-5 text-muted-foreground">{hint}</p> : null
+  if (!needsRestart && platform.gateway_running) {
+    return null
+  }
+
+  // Persistent, actionable version of the toast: the restart the channel is
+  // waiting on stays one click away for as long as the state says so.
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <p className="text-xs leading-5 text-muted-foreground">
+        {needsRestart ? m.hintPendingRestart : m.hintGatewayStopped}
+      </p>
+      <Button disabled={restarting} onClick={() => void runGatewayRestart()} size="sm" variant="secondary">
+        <RefreshCw />
+        {restarting ? m.restartingGateway : m.restartGateway}
+      </Button>
+    </div>
+  )
 }
 
 function StatePill({ children, tone }: { children: string; tone: StatusTone }) {

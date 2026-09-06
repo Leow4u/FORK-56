@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type * as NanostoresModule from 'nanostores'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -7,6 +8,7 @@ import type { MessagingPlatformInfo } from '@/types/work4you'
 
 const getMessagingPlatforms = vi.fn()
 const updateMessagingPlatform = vi.fn()
+const testMessagingPlatform = vi.fn()
 const getPairing = vi.fn()
 const approvePairing = vi.fn()
 const revokePairing = vi.fn()
@@ -14,11 +16,17 @@ const openExternalLink = vi.fn()
 
 vi.mock('@/work4you', () => ({
   approvePairing: (platformId: string, requestId: string) => approvePairing(platformId, requestId),
+  applyTelegramOnboarding: vi.fn(),
+  cancelTelegramOnboarding: vi.fn(),
+  getActionStatus: vi.fn(),
   getMessagingPlatforms: () => getMessagingPlatforms(),
   getPairing: () => getPairing(),
   getProfiles: vi.fn(async () => ({ profiles: [] })),
+  getTelegramOnboardingStatus: vi.fn(),
   revokePairing: (platformId: string, userId: string) => revokePairing(platformId, userId),
   setApiRequestProfile: vi.fn(),
+  startTelegramOnboarding: vi.fn(),
+  testMessagingPlatform: (id: string) => testMessagingPlatform(id),
   updateMessagingPlatform: (id: string, body: unknown) => updateMessagingPlatform(id, body)
 }))
 
@@ -42,9 +50,11 @@ vi.mock('@/store/notifications', () => ({
   notifyError: vi.fn()
 }))
 
-vi.mock('@/store/system-actions', () => ({
-  runGatewayRestart: vi.fn()
-}))
+vi.mock('@/store/system-actions', async () => {
+  const { atom } = await vi.importActual<typeof NanostoresModule>('nanostores')
+
+  return { $gatewayRestarting: atom(false), runGatewayRestart: vi.fn() }
+})
 
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
@@ -180,6 +190,153 @@ describe('MessagingView pairing', () => {
 
     expect((await screen.findAllByText('Microsoft Teams')).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+  })
+
+  it('saves credentials and enables a disabled channel in one gesture', async () => {
+    // "Save & enable": entering credentials on an off channel should not
+    // require hunting for the toggle afterwards — the save body carries
+    // enabled: true. The switch remains the way to turn a channel off.
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        platform({
+          enabled: false,
+          env_vars: [
+            {
+              advanced: false,
+              description: 'Bot token.',
+              is_password: true,
+              is_set: false,
+              key: 'DISCORD_BOT_TOKEN',
+              prompt: 'Discord bot token',
+              redacted_value: null,
+              required: true,
+              url: null
+            }
+          ]
+        })
+      ]
+    })
+
+    await renderMessaging()
+
+    const input = await screen.findByLabelText('Bot token')
+    fireEvent.change(input, { target: { value: 'abc-123' } })
+
+    const save = await screen.findByRole('button', { name: /Save & enable/ })
+    await act(async () => {
+      fireEvent.click(save)
+    })
+
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('teams', {
+        enabled: true,
+        env: { DISCORD_BOT_TOKEN: 'abc-123' }
+      })
+    )
+  })
+
+  it('keeps plain saves on an enabled channel from touching the toggle', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        platform({
+          enabled: true,
+          env_vars: [
+            {
+              advanced: false,
+              description: 'Bot token.',
+              is_password: true,
+              is_set: true,
+              key: 'DISCORD_BOT_TOKEN',
+              prompt: 'Discord bot token',
+              redacted_value: 'abc…123',
+              required: true,
+              url: null
+            }
+          ]
+        })
+      ]
+    })
+
+    await renderMessaging()
+
+    fireEvent.change(await screen.findByLabelText('Bot token'), { target: { value: 'new-token' } })
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /Save changes/ }))
+    })
+
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('teams', { env: { DISCORD_BOT_TOKEN: 'new-token' } })
+    )
+  })
+
+  it('blocks the save and shows the field error for a malformed Telegram token', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        platform({
+          id: 'telegram',
+          name: 'Telegram',
+          env_vars: [
+            {
+              advanced: false,
+              description: 'Bot token.',
+              is_password: true,
+              is_set: false,
+              key: 'TELEGRAM_BOT_TOKEN',
+              prompt: 'Telegram bot token',
+              redacted_value: null,
+              required: true,
+              url: null
+            }
+          ]
+        })
+      ]
+    })
+
+    await renderMessaging()
+
+    // Only the numeric bot-id half of the token — the classic paste mistake.
+    fireEvent.change(await screen.findByLabelText('Bot token'), { target: { value: '123456789' } })
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /Save & enable/ }))
+    })
+
+    expect(updateMessagingPlatform).not.toHaveBeenCalled()
+    expect(await screen.findByText(/complete token from @BotFather/)).toBeTruthy()
+
+    // Editing the rejected value clears the stale error immediately.
+    fireEvent.change(screen.getByLabelText('Bot token'), { target: { value: '123456789:' } })
+    expect(screen.queryByText(/complete token from @BotFather/)).toBeNull()
+  })
+
+  it('runs the connection test from the action bar and reports the result', async () => {
+    const { notify } = await import('@/store/notifications')
+
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ configured: true, enabled: true })] })
+    testMessagingPlatform.mockResolvedValue({ message: 'Connected as @bot', ok: true })
+
+    await renderMessaging()
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Test' }))
+    })
+
+    await waitFor(() => expect(testMessagingPlatform).toHaveBeenCalledWith('teams'))
+    await waitFor(() =>
+      expect(notify).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: 'success', message: 'Connected as @bot' })
+      )
+    )
+  })
+
+  it('hides the connection test until the channel has credentials to probe', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ configured: false })] })
+
+    await renderMessaging()
+
+    expect((await screen.findAllByText('Microsoft Teams')).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: 'Test' })).toBeNull()
   })
 
   it('refetches pending rows on pairing.changed, not on platforms.changed', async () => {

@@ -265,6 +265,34 @@ export interface MessagingPlatformTestResponse {
   state?: null | string
 }
 
+// -- Telegram QR onboarding ---------------------------------------------------
+// Server-driven quick setup: the backend creates the bot through a pairing
+// deep-link, detects the owner's user id, then saves credentials + enables the
+// platform + restarts the gateway in one apply call.
+
+export interface TelegramOnboardingStartResponse {
+  deep_link: string
+  expires_at: string
+  pairing_id: string
+  qr_payload: string
+  suggested_username: string
+}
+
+export type TelegramOnboardingStatusResponse =
+  | { bot_username: string; expires_at: string; owner_user_id?: string; status: 'ready' }
+  | { expires_at: string; status: 'waiting' }
+
+export interface TelegramOnboardingApplyResponse {
+  bot_username?: string
+  needs_restart: boolean
+  ok: boolean
+  platform: 'telegram'
+  restart_action?: string
+  restart_error?: string
+  restart_pid?: null | number
+  restart_started?: boolean
+}
+
 // -- Webhooks (subscription CRUD) --------------------------------------------
 // Incoming HTTP event routes served by the webhook gateway platform. Backed by
 // the same JSON store the CLI/dashboard use; per-route HMAC secrets are
