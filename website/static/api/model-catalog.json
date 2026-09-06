@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-09-06T19:50:00Z",
+  "updated_at": "2026-09-06T20:07:40Z",
   "metadata": {
     "source": "work4you repo",
     "docs": "https://work4you.ai/docs/reference/model-catalog"
@@ -191,7 +191,6 @@
       "models": [
         {
           "id": "google/gemini-3.8-flash",
-          "description": "Operis 4.0 Flash",
           "default": true
         },
         {
