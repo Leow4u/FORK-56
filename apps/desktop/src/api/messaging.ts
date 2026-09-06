@@ -4,6 +4,9 @@ import type {
   MessagingPlatformUpdate,
   PairingResponse,
   PairingUser,
+  TelegramOnboardingApplyResponse,
+  TelegramOnboardingStartResponse,
+  TelegramOnboardingStatusResponse,
   WebhookCreatePayload,
   WebhookCreateResponse,
   WebhookEnableResponse,
@@ -40,6 +43,45 @@ export function testMessagingPlatform(
     ...profileScoped(profile),
     path: `/api/messaging/platforms/${encodeURIComponent(platformId)}/test`,
     method: 'POST'
+  })
+}
+
+// -- Telegram QR onboarding ---------------------------------------------------
+// The pairing session itself is in-memory on the backend (no profile), but the
+// final apply writes credentials, so it must carry the settings scope — the
+// endpoint reads the profile off the body first, then the query string.
+
+export function startTelegramOnboarding(botName?: string): Promise<TelegramOnboardingStartResponse> {
+  return work4youApi<TelegramOnboardingStartResponse>({
+    path: '/api/messaging/telegram/onboarding/start',
+    method: 'POST',
+    body: botName ? { bot_name: botName } : {}
+  })
+}
+
+export function getTelegramOnboardingStatus(pairingId: string): Promise<TelegramOnboardingStatusResponse> {
+  return work4youApi<TelegramOnboardingStatusResponse>({
+    path: `/api/messaging/telegram/onboarding/${encodeURIComponent(pairingId)}`
+  })
+}
+
+export function applyTelegramOnboarding(
+  pairingId: string,
+  allowedUserIds: string[],
+  profile?: null | string
+): Promise<TelegramOnboardingApplyResponse> {
+  return work4youApi<TelegramOnboardingApplyResponse>({
+    ...profileScoped(profile),
+    path: `/api/messaging/telegram/onboarding/${encodeURIComponent(pairingId)}/apply`,
+    method: 'POST',
+    body: { allowed_user_ids: allowedUserIds, ...profileScoped(profile) }
+  })
+}
+
+export function cancelTelegramOnboarding(pairingId: string): Promise<{ ok: boolean }> {
+  return work4youApi<{ ok: boolean }>({
+    path: `/api/messaging/telegram/onboarding/${encodeURIComponent(pairingId)}`,
+    method: 'DELETE'
   })
 }
 

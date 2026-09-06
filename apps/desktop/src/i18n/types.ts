@@ -1379,6 +1379,10 @@ export interface Translations {
     unknown: string
     hintPendingRestart: string
     hintGatewayStopped: string
+    hintSetupFirst: string
+    hintEnableToConnect: string
+    restartGateway: string
+    restartingGateway: string
     credentialsSet: string
     needsSetup: string
     gatewayStopped: string
@@ -1393,7 +1397,46 @@ export interface Translations {
     unsavedChanges: string
     saving: string
     saveChanges: string
+    saveAndEnable: string
     saved: string
+    test: string
+    testing: string
+    testPassed: (name: string) => string
+    testFailed: (name: string) => string
+    fixHighlighted: string
+    envErrors: {
+      slackMemberId: (value: string) => string
+      slackTokenPrefix: (prefix: string) => string
+      telegramToken: string
+      telegramUserId: (value: string) => string
+    }
+    telegramQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      createWithQr: string
+      starting: string
+      waiting: string
+      qrAlt: string
+      openTelegram: string
+      expiresIn: (value: string) => string
+      expired: string
+      sessionExpired: string
+      startFailed: string
+      ready: string
+      allowedUsers: string
+      ownerDetected: string
+      addAtLeastOne: string
+      userIdPlaceholder: string
+      userIdMustBeNumeric: string
+      add: string
+      removeUserAria: (id: string) => string
+      saveAndRestart: string
+      replacesExisting: string
+      saved: string
+      savedRestartFailed: (detail: string) => string
+      restartFailedExit: (code: number) => string
+    }
     replaceValue: string
     openDocs: string
     clearField: (key: string) => string
