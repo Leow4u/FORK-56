@@ -1349,7 +1349,20 @@ export const zhHant = defineLocale({
       slackMemberId: (value: string) => `${value} 不像是 Slack 成員 ID。請使用類似 U01ABC2DEF3 的 ID。`,
       slackTokenPrefix: (prefix: string) => `此 Token 必須以 ${prefix} 開頭`,
       telegramToken: '請貼上來自 @BotFather 的完整 Token（例如 123456789:ABC…）。',
-      telegramUserId: (value: string) => `${value} 不是有效的 Telegram 數字使用者 ID。`
+      telegramUserId: (value: string) => `${value} 不是有效的 Telegram 數字使用者 ID。`,
+      whatsappNumber: (value: string) => `${value} 不像是 WhatsApp 號碼。請使用含國碼的完整號碼，例如 15551234567。`
+    },
+    envOptions: {
+      WHATSAPP_DM_POLICY: {
+        pairing: '配對',
+        allowlist: '允許清單',
+        open: '開放',
+        disabled: '停用'
+      },
+      WHATSAPP_MODE: {
+        bot: '機器人',
+        'self-chat': '自我對話'
+      }
     },
     telegramQuickSetup: {
       title: '快速設定',
@@ -1376,6 +1389,45 @@ export const zhHant = defineLocale({
       replacesExisting: 'Telegram 憑證已設定——儲存新的 QR Code 設定會取代目前的機器人。',
       saved: 'Telegram 已儲存；閘道正在重新啟動…',
       savedRestartFailed: (detail: string) => `Telegram 已儲存；閘道重新啟動失敗${detail}`,
+      restartFailedExit: (code: number) => `閘道重新啟動失敗（結束碼 ${code}）——請手動重新啟動`
+    },
+    whatsappQuickSetup: {
+      title: '快速設定',
+      recommended: '建議',
+      intro:
+        'Work4You 會啟動內建的 WhatsApp 橋接並顯示 QR code——用手機上的 WhatsApp 掃描即可連結帳號。儲存後會啟用此頻道並自動重新啟動閘道。',
+      replacesExisting: '已設定 WhatsApp 工作階段——儲存新的 QR 配對後將取代目前連結的帳號。',
+      modeLabel: '模式',
+      modeBot: '機器人',
+      modeSelfChat: '自我對話',
+      modeBotHelp: '由一個專用 WhatsApp 帳號擔任機器人，其他人直接傳訊息給它。',
+      modeSelfChatHelp: '你自己的帳號透過「傳訊息給自己」回應，Work4You 會在你的自我對話中回覆。',
+      allowedUsersLabel: '允許的 WhatsApp 號碼',
+      allowedUsersPlaceholder: '15551234567,15557654321',
+      allowKeepSaved: '留空以保留已儲存的允許清單。',
+      allowSelfChatAuto: '留空時，儲存後會自動允許已連結的帳號。',
+      allowPairingFallback: '不在清單上的號碼會收到配對碼，你可以在此處的待處理請求中核准。',
+      pairWithQr: '掃碼配對',
+      starting: '正在啟動…',
+      preparing: '正在準備 WhatsApp 橋接（首次執行需安裝相依套件，可能需要幾分鐘）…',
+      startingBridge: '正在啟動 WhatsApp 配對橋接…',
+      waiting: '在手機上開啟 WhatsApp → 設定 → 已連結的裝置 → 連結裝置，然後掃描此 QR code。',
+      waitingForQr: '正在等待 WhatsApp 提供 QR code…',
+      scanHint: '請透過 WhatsApp 的「已連結的裝置」掃描——不要使用相機應用程式。',
+      qrAlt: 'WhatsApp 設定 QR code',
+      expiresIn: (value: string) => `將於 ${value} 後過期`,
+      expired: '已過期',
+      sessionExpired: 'WhatsApp QR 設定已過期。請重新開始設定。',
+      startFailed: 'WhatsApp QR 設定啟動失敗',
+      linkedAs: (label: string) => `已連結為 ${label}`,
+      deviceLinked: 'WhatsApp 裝置已連結',
+      openChatLink: '開啟聊天',
+      stepSaveRestart: '儲存——Work4You 會儲存設定、啟用此頻道並重新啟動閘道。',
+      stepMessageBot: '重新啟動後，用另一個 WhatsApp 帳號傳訊息給已連結的帳號。',
+      stepMessageSelf: '重新啟動後，在已連結帳號上開啟「傳訊息給自己」，向 Work4You 傳送一則訊息。',
+      saveAndRestart: '儲存並重新啟動',
+      saved: 'WhatsApp 已儲存；閘道正在重新啟動…',
+      savedRestartFailed: (detail: string) => `WhatsApp 已儲存；閘道重新啟動失敗${detail}`,
       restartFailedExit: (code: number) => `閘道重新啟動失敗（結束碼 ${code}）——請手動重新啟動`
     },
     replaceValue: '取代目前值',
@@ -1460,7 +1512,14 @@ export const zhHant = defineLocale({
         label: '啟用 WhatsApp 橋接',
         help: '由下方切換開關自動設定。除非確知需要，否則請勿變更。'
       },
-      WHATSAPP_MODE: { label: '橋接模式' },
+      WHATSAPP_MODE: {
+        label: '橋接模式',
+        help: '機器人：他人直接傳訊息給專用帳號。自我對話：你自己的帳號透過「傳訊息給自己」回應。'
+      },
+      WHATSAPP_DM_POLICY: {
+        label: '私訊政策',
+        help: '配對：陌生傳送者會收到核准碼。允許清單：僅限上方號碼。開放：所有人（需開啟全員允許）。停用：不接收私訊。'
+      },
       WHATSAPP_ALLOWED_USERS: {
         label: '允許的 WhatsApp 使用者',
         help: '建議設定。逗號分隔的電話號碼或 WhatsApp ID。'

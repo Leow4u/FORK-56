@@ -44,6 +44,26 @@ describe('validateMessagingEnv', () => {
     })
   })
 
+  it('flags the first non-phone WhatsApp allowlist entry by value', () => {
+    expect(validateMessagingEnv('WHATSAPP_ALLOWED_USERS', '15551234567, carla, 15557654321')).toEqual({
+      code: 'whatsappNumber',
+      value: 'carla'
+    })
+    expect(validateMessagingEnv('WHATSAPP_ALLOWED_USERS', '15551234567,15557654321,')).toBeNull()
+  })
+
+  it('accepts +, contact-card separators, JIDs, and the * wildcard for WhatsApp', () => {
+    expect(validateMessagingEnv('WHATSAPP_ALLOWED_USERS', '+1 (555) 123-4567')).toBeNull()
+    // Full JIDs (group/LID/user forms) are gateway-native identifiers.
+    expect(validateMessagingEnv('WHATSAPP_ALLOWED_USERS', '120363041234567890@g.us')).toBeNull()
+    expect(validateMessagingEnv('WHATSAPP_ALLOWED_USERS', '*')).toBeNull()
+    // Too short to be a phone number — a typo, not a country-code quirk.
+    expect(validateMessagingEnv('WHATSAPP_ALLOWED_USERS', '123')).toEqual({
+      code: 'whatsappNumber',
+      value: '123'
+    })
+  })
+
   it('leaves keys without a client-checkable shape alone', () => {
     expect(validateMessagingEnv('DISCORD_BOT_TOKEN', 'anything-goes')).toBeNull()
     expect(validateMessagingEnv('TELEGRAM_PROXY', 'socks5://127.0.0.1:1080')).toBeNull()

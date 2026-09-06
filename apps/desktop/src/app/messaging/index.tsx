@@ -44,6 +44,7 @@ import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 import { PlatformAvatar } from './platform-icon'
 import { TelegramQuickSetup } from './telegram-quick-setup'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
+import { WhatsAppQuickSetup } from './whatsapp-quick-setup'
 
 interface MessagingViewProps extends React.ComponentProps<'section'> {
   setStatusbarItemGroup?: SetStatusbarItemGroup
@@ -88,12 +89,18 @@ const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging'])
   switch (error.code) {
     case 'slackMemberId':
       return m.envErrors.slackMemberId(error.value)
+
     case 'slackTokenPrefix':
       return m.envErrors.slackTokenPrefix(error.prefix)
+
     case 'telegramToken':
       return m.envErrors.telegramToken
+
     case 'telegramUserId':
       return m.envErrors.telegramUserId(error.value)
+
+    case 'whatsappNumber':
+      return m.envErrors.whatsappNumber(error.value)
   }
 }
 
@@ -111,6 +118,14 @@ function byPlatform(rows: PairingUser[]): Record<string, PairingUser[]> {
   }
 
   return grouped
+}
+
+/** Env keys with a small closed set of valid values render as a segmented
+ *  picker instead of a free-text input — nobody should have to guess that
+ *  "self-chat" or "pairing" are the magic words. */
+const FIELD_OPTIONS: Record<string, string[]> = {
+  WHATSAPP_DM_POLICY: ['pairing', 'allowlist', 'open', 'disabled'],
+  WHATSAPP_MODE: ['bot', 'self-chat']
 }
 
 const FIELD_COPY: Record<string, { advanced?: boolean }> = {
@@ -672,6 +687,11 @@ function PlatformDetail({
   const advancedFields = platform.env_vars.filter(field => !field.required && fieldCopy(field, m).advanced)
   const hiddenCount = advancedFields.length
 
+  // Saved env values come back redacted; the WhatsApp payload mirrors the
+  // saved bridge mode so its picker can highlight the active choice.
+  const currentFieldValue = (field: MessagingEnvVarInfo) =>
+    field.key === 'WHATSAPP_MODE' ? platform.whatsapp_setup?.mode : undefined
+
   return (
     <>
       <header className="flex items-start gap-3">
@@ -763,6 +783,16 @@ function PlatformDetail({
         />
       )}
 
+      {platform.id === 'whatsapp' && (
+        <WhatsAppQuickSetup
+          allowedUsersSet={Boolean(platform.whatsapp_setup?.allowed_users_set)}
+          configured={platform.configured}
+          onApplied={onQuickSetupApplied}
+          savedMode={platform.whatsapp_setup?.mode}
+          scopeProfile={scopeProfile}
+        />
+      )}
+
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
         <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
@@ -801,6 +831,7 @@ function PlatformDetail({
           {requiredFields.length > 0 ? (
             requiredFields.map(field => (
               <MessagingField
+                current={currentFieldValue(field)}
                 edits={edits}
                 error={fieldErrors[field.key]}
                 field={field}
@@ -824,6 +855,7 @@ function PlatformDetail({
           <div className="mt-3 grid gap-1">
             {optionalFields.map(field => (
               <MessagingField
+                current={currentFieldValue(field)}
                 edits={edits}
                 error={fieldErrors[field.key]}
                 field={field}
@@ -851,6 +883,7 @@ function PlatformDetail({
             <div className="mt-3 grid gap-1">
               {advancedFields.map(field => (
                 <MessagingField
+                  current={currentFieldValue(field)}
                   edits={edits}
                   error={fieldErrors[field.key]}
                   field={field}
@@ -929,7 +962,7 @@ const PLATFORM_INTRO: Record<string, string> = {
   signal:
     'Run a signal-cli REST bridge somewhere reachable, then point Work4You at the URL and the registered phone number.',
   whatsapp:
-    'Start the WhatsApp bridge that ships with Work4You, scan the QR code on first run, then enable the platform.',
+    'Use Quick setup above: Work4You starts the bundled WhatsApp bridge and shows a QR code to scan from Linked Devices. No token is needed here.',
   bluebubbles:
     'Run BlueBubbles Server on a Mac with iMessage, expose its API, then point Work4You at the URL with the server password.',
   homeassistant:
@@ -957,6 +990,7 @@ const introCopy = (platform: MessagingPlatformInfo, m: Translations['messaging']
   m.platformIntro[platform.id] || PLATFORM_INTRO[platform.id] || platform.description
 
 function MessagingField({
+  current,
   edits,
   error,
   field,
@@ -964,6 +998,7 @@ function MessagingField({
   onEdit,
   saving
 }: {
+  current?: null | string
   edits: Record<string, string>
   error?: string
   field: MessagingEnvVarInfo
@@ -975,19 +1010,38 @@ function MessagingField({
   const m = t.messaging
   const copy = fieldCopy(field, m)
   const fieldId = `messaging-field-${field.key}`
+  const options = FIELD_OPTIONS[field.key]
+  // The backend redacts every saved env value, so a picker can only highlight
+  // the saved choice when the platform payload mirrors it back (`current`).
+  const selected = edits[field.key] || current || ''
 
   return (
     <ListRow
       action={
         <div className="flex items-center gap-2">
-          <Input
-            className={CREDENTIAL_CONTROL_CLASS}
-            id={fieldId}
-            onChange={event => onEdit(field.key, event.target.value)}
-            placeholder={field.is_set ? field.redacted_value || m.replaceValue : copy.placeholder}
-            type={field.is_password ? 'password' : 'text'}
-            value={edits[field.key] || ''}
-          />
+          {options ? (
+            <div aria-label={copy.label} className="flex flex-wrap items-center gap-1.5" role="group">
+              {options.map(option => (
+                <Button
+                  key={option}
+                  onClick={() => onEdit(field.key, option)}
+                  size="sm"
+                  variant={selected === option ? 'secondary' : 'ghost'}
+                >
+                  {m.envOptions[field.key]?.[option] || option}
+                </Button>
+              ))}
+            </div>
+          ) : (
+            <Input
+              className={CREDENTIAL_CONTROL_CLASS}
+              id={fieldId}
+              onChange={event => onEdit(field.key, event.target.value)}
+              placeholder={field.is_set ? field.redacted_value || m.replaceValue : copy.placeholder}
+              type={field.is_password ? 'password' : 'text'}
+              value={edits[field.key] || ''}
+            />
+          )}
           {field.url && (
             <Tip label={m.openDocs}>
               <Button asChild className="size-8 shrink-0" variant="ghost">
@@ -1023,7 +1077,7 @@ function MessagingField({
       }
       title={
         <span className="flex flex-wrap items-center gap-2">
-          <label htmlFor={fieldId}>{copy.label}</label>
+          {options ? <span>{copy.label}</span> : <label htmlFor={fieldId}>{copy.label}</label>}
           {field.is_set && <span className="text-[0.66rem] font-medium text-primary">{m.saved}</span>}
         </span>
       }

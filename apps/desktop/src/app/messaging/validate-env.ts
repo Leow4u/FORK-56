@@ -7,6 +7,10 @@
 export const TELEGRAM_USER_ID_RE = /^\d+$/
 const TELEGRAM_BOT_TOKEN_RE = /^\d+:[A-Za-z0-9_-]{30,}$/
 const SLACK_MEMBER_ID_RE = /^[UW][A-Z0-9]{2,}$/
+// Phone digits with an optional +; separators users paste from contact cards
+// are stripped before matching. Entries containing "@" are full WhatsApp JIDs
+// (user/group/LID forms) the gateway accepts verbatim, so they skip this check.
+export const WHATSAPP_PHONE_RE = /^\+?\d{5,20}$/
 
 const SLACK_TOKEN_PREFIXES: Record<string, string> = {
   SLACK_BOT_TOKEN: 'xoxb-',
@@ -18,6 +22,20 @@ export type MessagingEnvError =
   | { code: 'slackTokenPrefix'; prefix: string }
   | { code: 'telegramToken' }
   | { code: 'telegramUserId'; value: string }
+  | { code: 'whatsappNumber'; value: string }
+
+/** First allowlist entry that is neither a phone number, a full JID, nor the
+ *  "*" wildcard the gateway honors — or null when the list looks fine. */
+export function findInvalidWhatsAppUser(value: string): null | string {
+  return (
+    value
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .find(part => part !== '*' && !part.includes('@') && !WHATSAPP_PHONE_RE.test(part.replace(/[\s()-]/g, ''))) ??
+    null
+  )
+}
 
 /** Returns a structured error for a known-bad value, or null when the value
  *  is empty (clearing is always allowed) or has no client-checkable shape. */
@@ -48,6 +66,14 @@ export function validateMessagingEnv(key: string, value: string): MessagingEnvEr
 
   if (expectedPrefix && !trimmed.startsWith(expectedPrefix)) {
     return { code: 'slackTokenPrefix', prefix: expectedPrefix }
+  }
+
+  if (key === 'WHATSAPP_ALLOWED_USERS') {
+    const invalid = findInvalidWhatsAppUser(trimmed)
+
+    if (invalid) {
+      return { code: 'whatsappNumber', value: invalid }
+    }
   }
 
   if (key === 'SLACK_ALLOWED_USERS') {

@@ -10,7 +10,10 @@ import type {
   WebhookCreatePayload,
   WebhookCreateResponse,
   WebhookEnableResponse,
-  WebhooksResponse
+  WebhooksResponse,
+  WhatsAppOnboardingApplyResponse,
+  WhatsAppOnboardingMode,
+  WhatsAppOnboardingStatusResponse
 } from '@/types/work4you'
 
 import { profileScoped, work4youApi } from './client'
@@ -81,6 +84,51 @@ export function applyTelegramOnboarding(
 export function cancelTelegramOnboarding(pairingId: string): Promise<{ ok: boolean }> {
   return work4youApi<{ ok: boolean }>({
     path: `/api/messaging/telegram/onboarding/${encodeURIComponent(pairingId)}`,
+    method: 'DELETE'
+  })
+}
+
+// -- WhatsApp QR onboarding ---------------------------------------------------
+// The backend spawns the bundled Node.js bridge for Linked Devices pairing.
+// Start/apply read the profile off the body (the session dir and the saved
+// credentials are both profile-scoped); status/cancel key on the pairing id.
+
+export function startWhatsAppOnboarding(
+  mode: WhatsAppOnboardingMode,
+  allowedUsers: string,
+  profile?: null | string
+): Promise<WhatsAppOnboardingStatusResponse> {
+  return work4youApi<WhatsAppOnboardingStatusResponse>({
+    ...profileScoped(profile),
+    path: '/api/messaging/whatsapp/onboarding/start',
+    method: 'POST',
+    // The endpoint resolves the session directory from the body's profile.
+    body: { mode, allowed_users: allowedUsers, ...profileScoped(profile) }
+  })
+}
+
+export function getWhatsAppOnboardingStatus(pairingId: string): Promise<WhatsAppOnboardingStatusResponse> {
+  return work4youApi<WhatsAppOnboardingStatusResponse>({
+    path: `/api/messaging/whatsapp/onboarding/${encodeURIComponent(pairingId)}`
+  })
+}
+
+export function applyWhatsAppOnboarding(
+  pairingId: string,
+  body: { allowed_users?: string; mode?: WhatsAppOnboardingMode },
+  profile?: null | string
+): Promise<WhatsAppOnboardingApplyResponse> {
+  return work4youApi<WhatsAppOnboardingApplyResponse>({
+    ...profileScoped(profile),
+    path: `/api/messaging/whatsapp/onboarding/${encodeURIComponent(pairingId)}/apply`,
+    method: 'POST',
+    body: { ...body, ...profileScoped(profile) }
+  })
+}
+
+export function cancelWhatsAppOnboarding(pairingId: string): Promise<{ ok: boolean }> {
+  return work4youApi<{ ok: boolean }>({
+    path: `/api/messaging/whatsapp/onboarding/${encodeURIComponent(pairingId)}`,
     method: 'DELETE'
   })
 }

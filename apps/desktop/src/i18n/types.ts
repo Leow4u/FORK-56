@@ -1409,7 +1409,11 @@ export interface Translations {
       slackTokenPrefix: (prefix: string) => string
       telegramToken: string
       telegramUserId: (value: string) => string
+      whatsappNumber: (value: string) => string
     }
+    /** Localized labels for env keys rendered as a segmented picker
+     *  (FIELD_OPTIONS), keyed by env key then by option value. */
+    envOptions: Record<string, Record<string, string>>
     telegramQuickSetup: {
       title: string
       recommended: string
@@ -1433,6 +1437,44 @@ export interface Translations {
       removeUserAria: (id: string) => string
       saveAndRestart: string
       replacesExisting: string
+      saved: string
+      savedRestartFailed: (detail: string) => string
+      restartFailedExit: (code: number) => string
+    }
+    whatsappQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      modeLabel: string
+      modeBot: string
+      modeSelfChat: string
+      modeBotHelp: string
+      modeSelfChatHelp: string
+      allowedUsersLabel: string
+      allowedUsersPlaceholder: string
+      allowKeepSaved: string
+      allowSelfChatAuto: string
+      allowPairingFallback: string
+      pairWithQr: string
+      starting: string
+      preparing: string
+      startingBridge: string
+      waiting: string
+      waitingForQr: string
+      scanHint: string
+      qrAlt: string
+      expiresIn: (value: string) => string
+      expired: string
+      sessionExpired: string
+      startFailed: string
+      linkedAs: (label: string) => string
+      deviceLinked: string
+      openChatLink: string
+      stepSaveRestart: string
+      stepMessageBot: string
+      stepMessageSelf: string
+      saveAndRestart: string
       saved: string
       savedRestartFailed: (detail: string) => string
       restartFailedExit: (code: number) => string
