@@ -1414,6 +1414,29 @@ export interface Translations {
     /** Localized labels for env keys rendered as a segmented picker
      *  (FIELD_OPTIONS), keyed by env key then by option value. */
     envOptions: Record<string, Record<string, string>>
+    slackQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      manifestHelp: string
+      copyManifest: string
+      manifestCopied: string
+      manifestCopyFailed: string
+      createApp: string
+      botTokenLabel: string
+      botTokenHelp: string
+      botTokenPlaceholder: string
+      appTokenLabel: string
+      appTokenHelp: string
+      appTokenPlaceholder: string
+      allowedUsersLabel: string
+      allowedUsersHelp: string
+      allowedUsersPlaceholder: string
+      bothTokensRequired: string
+      saved: string
+      saveFailed: string
+    }
     telegramQuickSetup: {
       title: string
       recommended: string

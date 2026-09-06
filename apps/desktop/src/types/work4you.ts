@@ -274,6 +274,13 @@ export interface MessagingPlatformTestResponse {
   state?: null | string
 }
 
+/** Full Slack app manifest (scopes, events, Socket Mode, slash commands) for
+ *  Create New App → From an app manifest. Opaque to the client — it is only
+ *  ever serialized back to JSON for the clipboard. */
+export interface SlackManifestResponse {
+  manifest: Record<string, unknown>
+}
+
 // -- Telegram QR onboarding ---------------------------------------------------
 // Server-driven quick setup: the backend creates the bot through a pairing
 // deep-link, detects the owner's user id, then saves credentials + enables the

@@ -1403,6 +1403,34 @@ export const ja = defineLocale({
         'self-chat': 'セルフチャット'
       }
     },
+    slackQuickSetup: {
+      title: 'クイックセットアップ',
+      recommended: '推奨',
+      intro:
+        '生成されたマニフェストから Slack アプリを作成——1 回の貼り付けで、すべての権限スコープ、イベントサブスクリプション、Socket Mode、スラッシュコマンドが設定されます。その後アプリをインストールし、2 つのトークンをここに貼り付けてください。',
+      replacesExisting: 'Slack の認証情報は設定済みです——ここで保存すると現在のトークンが置き換えられます。',
+      manifestHelp:
+        'マニフェストをコピーし、Slack で「From a manifest」を選択してワークスペースを選び、貼り付けてアプリを作成します。',
+      copyManifest: 'アプリマニフェストをコピー',
+      manifestCopied: 'マニフェストをコピーしました',
+      manifestCopyFailed: 'Slack マニフェストのコピーに失敗しました',
+      createApp: 'Slack でアプリを作成',
+      botTokenLabel: 'ボットトークン',
+      botTokenHelp:
+        'アプリをワークスペースにインストール（Settings → Install App）し、Bot User OAuth Token を貼り付けます——xoxb- で始まります。',
+      botTokenPlaceholder: 'xoxb-...',
+      appTokenLabel: 'アプリレベルトークン',
+      appTokenHelp:
+        'Basic Information → App-Level Tokens で connections:write スコープ付きのトークンを生成して貼り付けます——xapp- で始まります。Slack はマニフェストからトークンを発行できないため、この手順は手動です。',
+      appTokenPlaceholder: 'xapp-...',
+      allowedUsersLabel: '許可する Slack メンバー ID',
+      allowedUsersHelp:
+        '任意：カンマ区切りの Slack メンバー ID（プロフィール → ⋯ → メンバー ID をコピー）。空のままにすると、ボットに DM した人にペアリングコードが発行され、ここで承認できます。',
+      allowedUsersPlaceholder: 'U01ABC2DEF3,U04XYZ9GHI7',
+      bothTokensRequired: '両方のトークンを貼り付けてください——ボットトークン（xoxb-）とアプリレベルトークン（xapp-）。',
+      saved: 'Slack を保存して有効化しました。接続するにはゲートウェイを再起動してください。',
+      saveFailed: 'Slack 設定の保存に失敗しました'
+    },
     telegramQuickSetup: {
       title: 'クイックセットアップ',
       recommended: 'おすすめ',

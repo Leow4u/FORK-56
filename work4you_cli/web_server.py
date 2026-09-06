@@ -8546,7 +8546,9 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "slack": {
         "name": "Slack",
         "description": "Use Work4You from Slack via Socket Mode. Add allowed Slack member IDs so connected bots can respond.",
-        "docs_url": "https://api.slack.com/apps",
+        # The Work4You setup guide (manifest path, scopes, Socket Mode), not
+        # the raw Slack portal — that stays linked on the token fields.
+        "docs_url": "https://work4you.ai/docs/user-guide/messaging/slack",
         "env_vars": ("SLACK_BOT_TOKEN", "SLACK_APP_TOKEN", "SLACK_ALLOWED_USERS"),
         "required_env": ("SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"),
     },
@@ -10446,6 +10448,28 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
         "state": payload["state"],
         "message": "Setup looks complete, but the gateway has not reported a connection yet. Restart the gateway.",
     }
+
+
+@app.get("/api/messaging/slack/manifest")
+async def get_slack_manifest():
+    """Full Slack app manifest for Create New App → From an app manifest.
+
+    Same generator as ``work4you slack manifest`` (scopes, event
+    subscriptions, Socket Mode, and every gateway slash command), so the
+    dashboards can offer copy-paste app creation instead of walking users
+    through adding 13+ scopes by hand. Uses the Agent messaging experience
+    because Slack requires it for NEW apps — which is the only flow the
+    quick setup card drives; existing apps keep using the CLI's view flags.
+    """
+    from work4you_cli.slack_cli import _build_full_manifest
+
+    manifest = await asyncio.to_thread(
+        _build_full_manifest,
+        "Work4You",
+        "Your Work4You agent on Slack",
+        messaging_experience="agent",
+    )
+    return {"manifest": manifest}
 
 
 # ---------------------------------------------------------------------------

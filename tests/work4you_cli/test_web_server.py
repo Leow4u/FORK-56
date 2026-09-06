@@ -1494,6 +1494,35 @@ class TestWebServerEndpoints:
         assert "matrix" in rows
         assert rows["matrix"]["enabled"] is True
 
+    def test_slack_manifest_endpoint_is_paste_ready(self):
+        """The manifest endpoint must emit a create-app-ready manifest.
+
+        Contract, not snapshot: Socket Mode on (Work4You's only transport),
+        the scopes users most often forget by hand, the message events the
+        adapter needs to see anything, at least one slash command derived
+        from the registry, and the Agent view Slack requires for new apps.
+        """
+        resp = self.client.get("/api/messaging/slack/manifest")
+        assert resp.status_code == 200
+        manifest = resp.json()["manifest"]
+
+        assert manifest["settings"]["socket_mode_enabled"] is True
+
+        scopes = manifest["oauth_config"]["scopes"]["bot"]
+        assert "chat:write" in scopes
+        # The most commonly missed scope — without it the bot only works in DMs.
+        assert "channels:history" in scopes
+
+        events = manifest["settings"]["event_subscriptions"]["bot_events"]
+        assert "message.im" in events
+        assert "message.channels" in events
+
+        slashes = manifest["features"]["slash_commands"]
+        assert len(slashes) >= 1
+        assert all(entry["command"].startswith("/") for entry in slashes)
+
+        assert "agent_view" in manifest["features"]
+
 
 
 
