@@ -143,6 +143,7 @@ import {
 } from '../../routes'
 import type { SidebarNavItem } from '../../types'
 
+import { AccountFooter } from './account-footer'
 import { SidebarCronJobsSection } from './cron-jobs-section'
 import { SidebarFilterMenu } from './filter-menu'
 import { SidebarLoadMoreRow } from './load-more-row'
@@ -1876,6 +1877,9 @@ export function ChatSidebar({
           <ProfileRail />
         </div>
       </SidebarContent>
+      {/* Account (Portal login) footer — sits below everything, including the
+          Profile Rail. Renders nothing when signed out. */}
+      <AccountFooter />
       <ProjectDialog />
       {/* One mount for the whole app. The header of WorktreeDialog tells why. */}
       <WorktreeDialog />

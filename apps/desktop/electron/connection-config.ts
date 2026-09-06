@@ -59,6 +59,12 @@ const PRIVY_SESSION_COOKIE_VARIANTS = [
 // `privy-token` is minted. Distinguishing the two is what lets a cold start
 // silently renew instead of demanding a re-login (#73495).
 const PRIVY_ACCESS_COOKIE_VARIANTS = ['__Host-privy-token', '__Secure-privy-token', 'privy-token']
+// The Privy IDENTITY token — set alongside the access token at portal login.
+// Its JWT payload carries the user's linked accounts (email, google, ...),
+// which is where the signed-in account's email address comes from. We decode
+// it locally for display only; it is never used as a credential, so no
+// signature verification is required.
+const PRIVY_ID_TOKEN_COOKIE_VARIANTS = ['__Host-privy-id-token', '__Secure-privy-id-token', 'privy-id-token']
 // Keep this aligned with work4you_cli.profiles.validate_profile_name(). `default`
 // is the built-in root alias; these names cannot be created as profiles.
 const RESERVED_REMOTE_PROFILES = new Set(['work4you', 'test', 'tmp', 'root', 'sudo'])
@@ -916,6 +922,76 @@ function cookiesHavePrivyAccessToken(cookies) {
   return cookies.some(c => c && c.value && PRIVY_ACCESS_COOKIE_VARIANTS.includes(c.name))
 }
 
+// Decode a JWT's payload segment without verifying the signature. Fine here:
+// the value never acts as a credential — we only read display fields out of a
+// token the trusted portal itself set in our own partition's cookie jar.
+function decodeJwtPayload(token) {
+  try {
+    const segment = String(token).split('.')[1]
+
+    if (!segment) {
+      return null
+    }
+
+    const payload = JSON.parse(Buffer.from(segment.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'))
+
+    return payload && typeof payload === 'object' ? payload : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The signed-in Portal account's email address, read from the Privy IDENTITY
+ * token cookie (`privy-id-token`) that lands alongside the access token at
+ * login. Privy encodes the user's linked accounts as a JSON string claim
+ * (`linked_accounts`); a native email login carries `type: "email"` +
+ * `address`, while social logins (google, ...) carry an `email` field.
+ * Returns null when the jar has no identity token or nothing decodable —
+ * callers treat that as "no email to show", never as an error.
+ */
+function emailFromPrivyCookies(cookies) {
+  if (!Array.isArray(cookies)) {
+    return null
+  }
+
+  const cookie = cookies.find(c => c && c.value && PRIVY_ID_TOKEN_COOKIE_VARIANTS.includes(c.name))
+
+  if (!cookie) {
+    return null
+  }
+
+  const payload = decodeJwtPayload(cookie.value)
+
+  if (!payload) {
+    return null
+  }
+
+  let accounts = payload.linked_accounts
+
+  if (typeof accounts === 'string') {
+    try {
+      accounts = JSON.parse(accounts)
+    } catch {
+      return null
+    }
+  }
+
+  if (!Array.isArray(accounts)) {
+    return null
+  }
+
+  const native = accounts.find(a => a && a.type === 'email' && typeof a.address === 'string' && a.address.trim())
+
+  if (native) {
+    return native.address.trim()
+  }
+
+  const social = accounts.find(a => a && typeof a.email === 'string' && a.email.trim())
+
+  return social ? social.email.trim() : null
+}
+
 export {
   apiRequestRegistryConnectionId,
   AT_COOKIE_VARIANTS,
@@ -927,6 +1003,7 @@ export {
   cookiesHavePrivyAccessToken,
   cookiesHavePrivySession,
   cookiesHaveSession,
+  emailFromPrivyCookies,
   gatewayTicketFailure,
   gatewayWsUrlIpcResult,
   hostLabelFromBaseUrl,
