@@ -1395,8 +1395,14 @@ export const ja = defineLocale({
       slackMemberId: (value: string) =>
         `${value} は Slack メンバー ID ではないようです。U01ABC2DEF3 のような ID を使用してください。`,
       slackTokenPrefix: (prefix: string) => `このトークンは ${prefix} で始まる必要があります`,
+      smsNumber: (value: string) =>
+        `${value} は E.164 形式の電話番号ではありません。+ 付きの完全な番号（例: +15551234567）を使用してください。`,
+      smsWebhookUrl: (value: string) =>
+        `${value} は有効な webhook URL ではありません。https://your-domain.com/webhooks/twilio のような完全な公開 URL を使用してください。`,
       telegramToken: '@BotFather から受け取った完全なトークンを貼り付けてください（例: 123456789:ABC…）。',
       telegramUserId: (value: string) => `${value} は数字の Telegram ユーザー ID ではありません。`,
+      twilioAccountSid:
+        'Twilio コンソールのダッシュボードから完全な Account SID を貼り付けてください。AC で始まり、32 文字が続きます。',
       whatsappNumber: (value: string) =>
         `${value} は WhatsApp の番号として正しくないようです。国番号付きの完全な番号（例: 15551234567）を使用してください。`
     },
@@ -1463,6 +1469,30 @@ export const ja = defineLocale({
       hostsRequired: 'IMAP と SMTP のホストを入力するか、プロバイダーを選択してください。',
       saved: 'メールを保存して有効にしました。接続するにはゲートウェイを再起動してください。',
       saveFailed: 'メール設定を保存できませんでした。'
+    },
+    smsQuickSetup: {
+      title: 'クイックセットアップ',
+      recommended: '推奨',
+      intro:
+        'Twilio の認証情報を貼り付け、受信 SMS の配信先を Twilio に設定します。受信には公開 webhook URL が必要です。Work4You をローカルで実行している場合は、cloudflared や ngrok などのトンネルで先に公開してください。',
+      replacesExisting: 'SMS はすでに設定済みです。ここで保存すると、保存済みの Twilio 設定が置き換えられます。',
+      credentialsHelp: 'Twilio コンソールのダッシュボードにある Account SID と Auth Token。',
+      accountSidLabel: 'Account SID',
+      accountSidPlaceholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      openConsole: 'Twilio コンソールを開く',
+      authTokenLabel: 'Auth Token',
+      authTokenPlaceholder: 'Twilio Auth Token',
+      phoneHelp: 'SMS 対応の Twilio 電話番号（E.164 形式）。',
+      phoneLabel: 'Twilio 電話番号',
+      webhookHelp: '公開 webhook URL — Twilio が受信 SMS をここに配信します。パスは /webhooks/twilio です。',
+      webhookLabel: '公開 webhook URL',
+      webhookHint:
+        '同じ URL を Twilio コンソールの Phone Numbers → Active Numbers → Messaging → "A message comes in" に貼り付けてください。これがないとゲートウェイは起動を拒否します（Twilio リクエスト署名の検証に使用）。',
+      allowedUsersHelp: '推奨。エージェントに SMS を送れる電話番号をカンマ区切りで指定します。それ以外は無視されます。',
+      allowedUsersLabel: '許可する送信者',
+      allFieldsRequired: 'まず Account SID、Auth Token、電話番号、webhook URL を入力してください。',
+      saved: 'SMS を保存して有効にしました。接続するにはゲートウェイを再起動してください。',
+      saveFailed: 'SMS 設定を保存できませんでした。'
     },
     slackQuickSetup: {
       title: 'クイックセットアップ',
@@ -1658,6 +1688,30 @@ export const ja = defineLocale({
         label: '許可する送信者',
         help: '推奨。エージェントと会話できるアドレスをカンマ区切りで指定します——それ以外は無視されます。',
         placeholder: 'you@example.com'
+      },
+      TWILIO_ACCOUNT_SID: {
+        label: 'Twilio Account SID',
+        help: 'Twilio コンソールのダッシュボードから。AC で始まります。',
+        placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      },
+      TWILIO_AUTH_TOKEN: {
+        label: 'Twilio Auth Token',
+        help: 'Twilio コンソールのダッシュボード、Account SID の隣にあります。'
+      },
+      TWILIO_PHONE_NUMBER: {
+        label: 'Twilio 電話番号',
+        help: 'Twilio アカウントの SMS 対応番号（E.164 形式）。',
+        placeholder: '+15551234567'
+      },
+      SMS_WEBHOOK_URL: {
+        label: '公開 webhook URL',
+        help: 'Twilio が受信 SMS を配信する先 — Twilio コンソールに設定した URL と同じもの。署名検証に必須です。',
+        placeholder: 'https://your-domain.com/webhooks/twilio'
+      },
+      SMS_ALLOWED_USERS: {
+        label: '許可する送信者',
+        help: '推奨。エージェントに SMS を送れる E.164 電話番号をカンマ区切りで指定します。それ以外は無視されます。',
+        placeholder: '+15559876543'
       },
       MATTERMOST_URL: { label: 'サーバー URL', placeholder: 'https://mattermost.example.com' },
       MATTERMOST_TOKEN: { label: 'ボットトークン' },

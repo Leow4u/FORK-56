@@ -8,6 +8,10 @@ import { DISCORD_BOT_TOKEN_RE, normalizeDiscordBotToken } from './discord-token'
 
 export const TELEGRAM_USER_ID_RE = /^\d+$/
 export const EMAIL_ADDRESS_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+// Twilio Account SIDs are "AC" + 32 hex chars, verbatim from the console.
+export const TWILIO_ACCOUNT_SID_RE = /^AC[0-9a-fA-F]{32}$/
+// Strict E.164 — Twilio numbers and the SMS allowlist require the + form.
+export const E164_PHONE_RE = /^\+[1-9]\d{1,14}$/
 // A bare hostname: users paste "https://imap.gmail.com" or values with spaces
 // often enough that both are worth catching before a failed connect.
 const EMAIL_HOST_RE = /^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$/
@@ -34,8 +38,11 @@ export type MessagingEnvError =
   | { code: 'emailPort'; value: string }
   | { code: 'slackMemberId'; value: string }
   | { code: 'slackTokenPrefix'; prefix: string }
+  | { code: 'smsNumber'; value: string }
+  | { code: 'smsWebhookUrl'; value: string }
   | { code: 'telegramToken' }
   | { code: 'telegramUserId'; value: string }
+  | { code: 'twilioAccountSid' }
   | { code: 'whatsappNumber'; value: string }
 
 /** First allowlist entry that is neither an email address nor the "*"
@@ -148,6 +155,30 @@ export function validateMessagingEnv(key: string, value: string): MessagingEnvEr
     if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
       return { code: 'emailPort', value: trimmed }
     }
+  }
+
+  if (key === 'TWILIO_ACCOUNT_SID' && !TWILIO_ACCOUNT_SID_RE.test(trimmed)) {
+    return { code: 'twilioAccountSid' }
+  }
+
+  if (key === 'TWILIO_PHONE_NUMBER' && !E164_PHONE_RE.test(trimmed)) {
+    return { code: 'smsNumber', value: trimmed }
+  }
+
+  if (key === 'SMS_ALLOWED_USERS') {
+    const invalid = trimmed
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .find(part => part !== '*' && !E164_PHONE_RE.test(part))
+
+    if (invalid) {
+      return { code: 'smsNumber', value: invalid }
+    }
+  }
+
+  if (key === 'SMS_WEBHOOK_URL' && (!/^https?:\/\/\S+$/.test(trimmed) || trimmed.includes(' '))) {
+    return { code: 'smsWebhookUrl', value: trimmed }
   }
 
   if (key === 'SLACK_ALLOWED_USERS') {

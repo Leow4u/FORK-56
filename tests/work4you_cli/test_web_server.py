@@ -1607,6 +1607,150 @@ class TestWebServerEndpoints:
         # Default ports applied when the optional port vars are unset.
         assert seen_smtp == [("smtp.example.com", 587)]
 
+    def test_sms_catalog_surfaces_everything_the_adapter_requires(self):
+        """The SMS card must require every var the adapter hard-fails without
+        at connect() (from-number, public webhook URL), surface the allowlist
+        (SMS_* prefix — setup_hidden_env says allowlists stay visible), and
+        link the dedicated SMS guide instead of the generic Twilio console.
+        """
+        resp = self.client.get("/api/messaging/platforms")
+        assert resp.status_code == 200
+        rows = {row["id"]: row for row in resp.json()["platforms"]}
+        sms = rows["sms"]
+
+        keys = {field["key"] for field in sms["env_vars"]}
+        assert {
+            "TWILIO_ACCOUNT_SID",
+            "TWILIO_AUTH_TOKEN",
+            "TWILIO_PHONE_NUMBER",
+            "SMS_WEBHOOK_URL",
+            "SMS_ALLOWED_USERS",
+        } <= keys
+        # Self-configuring knob stays hidden (suffix rule).
+        assert "SMS_HOME_CHANNEL" not in keys
+
+        required = {field["key"] for field in sms["env_vars"] if field["required"]}
+        assert required == {
+            "TWILIO_ACCOUNT_SID",
+            "TWILIO_AUTH_TOKEN",
+            "TWILIO_PHONE_NUMBER",
+            "SMS_WEBHOOK_URL",
+        }
+        assert sms["docs_url"].rstrip("/").endswith("messaging/sms")
+
+    def test_sms_test_endpoint_runs_the_live_probe(self, monkeypatch):
+        """When SMS is enabled + configured, /test verifies the Twilio
+        credentials via the REST API instead of stopping at the
+        gateway-not-running gate."""
+        import work4you_cli.web_server as ws
+        from work4you_cli.config import load_config, save_config, save_env_value
+
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["sms"] = {"enabled": True}
+        save_config(cfg)
+        sid = "AC" + "0" * 32
+        save_env_value("TWILIO_ACCOUNT_SID", sid)
+        save_env_value("TWILIO_AUTH_TOKEN", "auth-token")
+        save_env_value("TWILIO_PHONE_NUMBER", "+15551234567")
+        save_env_value("SMS_WEBHOOK_URL", "https://example.com/webhooks/twilio")
+
+        seen: dict = {}
+
+        def fake_live_test(env):
+            seen.update(env)
+            return False, "Twilio rejected the credentials. Check the Account SID."
+
+        monkeypatch.setattr(ws, "_sms_live_test", fake_live_test)
+
+        resp = self.client.post("/api/messaging/platforms/sms/test")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["ok"] is False
+        assert "Twilio rejected" in body["message"]
+        assert seen["TWILIO_ACCOUNT_SID"] == sid
+        assert seen["TWILIO_PHONE_NUMBER"] == "+15551234567"
+
+        monkeypatch.setattr(ws, "_sms_live_test", lambda env: (True, "ok"))
+        body = self.client.post("/api/messaging/platforms/sms/test").json()
+        assert body["ok"] is True
+        assert "Restart the gateway" in body["message"]
+
+    def test_sms_test_endpoint_reports_missing_webhook_url_before_probing(self):
+        """A card missing the adapter-required SMS_WEBHOOK_URL is not
+        'configured' — /test must say what is missing instead of probing."""
+        from work4you_cli.config import load_config, save_config, save_env_value
+
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["sms"] = {"enabled": True}
+        save_config(cfg)
+        save_env_value("TWILIO_ACCOUNT_SID", "AC" + "0" * 32)
+        save_env_value("TWILIO_AUTH_TOKEN", "auth-token")
+        save_env_value("TWILIO_PHONE_NUMBER", "+15551234567")
+        # Sibling tests in this file save a webhook URL into the same isolated
+        # WORK4YOU_HOME — this test is specifically about its absence.
+        save_env_value("SMS_WEBHOOK_URL", "")
+
+        body = self.client.post("/api/messaging/platforms/sms/test").json()
+        assert body["ok"] is False
+        assert "SMS_WEBHOOK_URL" in body["message"]
+
+    def test_sms_live_test_distinguishes_auth_and_number_failures(self, monkeypatch):
+        import io
+        import urllib.error
+        import urllib.request
+
+        import work4you_cli.web_server as ws
+
+        sid = "AC" + "0" * 32
+        env = {
+            "TWILIO_ACCOUNT_SID": sid,
+            "TWILIO_AUTH_TOKEN": "bad-token",
+            "TWILIO_PHONE_NUMBER": "+15551234567",
+        }
+
+        def raise_401(request, timeout=None):
+            raise urllib.error.HTTPError(request.full_url, 401, "Unauthorized", {}, io.BytesIO(b""))
+
+        monkeypatch.setattr(urllib.request, "urlopen", raise_401)
+        ok, message = ws._sms_live_test(env)
+        assert ok is False
+        assert "rejected the credentials" in message
+
+        class FakeResponse:
+            status = 200
+
+            def __init__(self, payload: bytes):
+                self._payload = payload
+
+            def read(self):
+                return self._payload
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        def ok_account_no_numbers(request, timeout=None):
+            if "IncomingPhoneNumbers" in request.full_url:
+                return FakeResponse(b'{"incoming_phone_numbers": []}')
+            return FakeResponse(b"{}")
+
+        monkeypatch.setattr(urllib.request, "urlopen", ok_account_no_numbers)
+        ok, message = ws._sms_live_test(env)
+        assert ok is False
+        assert "not a phone number on" in message
+
+        def ok_everything(request, timeout=None):
+            if "IncomingPhoneNumbers" in request.full_url:
+                return FakeResponse(b'{"incoming_phone_numbers": [{"sid": "PN1"}]}')
+            return FakeResponse(b"{}")
+
+        monkeypatch.setattr(urllib.request, "urlopen", ok_everything)
+        ok, message = ws._sms_live_test(env)
+        assert ok is True
+        assert "verified" in message
+
     def test_slack_manifest_endpoint_is_paste_ready(self):
         """The manifest endpoint must emit a create-app-ready manifest.
 

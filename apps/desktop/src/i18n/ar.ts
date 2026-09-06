@@ -1224,8 +1224,13 @@ export const ar = defineLocale({
       emailPort: (value: string) => `${value} ليس منفذًا صالحًا. استخدم رقمًا بين 1 و65535.`,
       slackMemberId: (value: string) => `${value} لا يبدو معرف عضو Slack. استخدم معرفات مثل U01ABC2DEF3.`,
       slackTokenPrefix: (prefix: string) => `يجب أن يبدأ هذا الرمز بـ ${prefix}`,
+      smsNumber: (value: string) =>
+        `${value} ليس رقم هاتف بتنسيق E.164. استخدم الرقم الكامل مع علامة + في البداية، مثل +15551234567.`,
+      smsWebhookUrl: (value: string) =>
+        `${value} ليس عنوان webhook صالحًا. استخدم عنوان URL العام الكامل، مثل https://your-domain.com/webhooks/twilio.`,
       telegramToken: 'الصق الرمز الكامل من @BotFather (مثال: 123456789:ABC…).',
       telegramUserId: (value: string) => `${value} ليس معرف مستخدم Telegram رقميًا.`,
+      twilioAccountSid: 'الصق Account SID الكامل من لوحة تحكم Twilio — يبدأ بـ AC متبوعًا بـ 32 حرفًا.',
       whatsappNumber: (value: string) =>
         `${value} لا يبدو رقم WhatsApp صحيحًا. استخدم أرقامًا كاملة مع رمز الدولة، مثل 15551234567.`
     },
@@ -1290,6 +1295,30 @@ export const ar = defineLocale({
       hostsRequired: 'أدخل مضيفي IMAP وSMTP، أو اختر مزودًا.',
       saved: 'تم حفظ البريد الإلكتروني وتفعيله. أعد تشغيل البوابة للاتصال.',
       saveFailed: 'تعذر حفظ إعدادات البريد الإلكتروني.'
+    },
+    smsQuickSetup: {
+      title: 'الإعداد السريع',
+      recommended: 'موصى به',
+      intro:
+        'الصق بيانات اعتماد Twilio وأخبر Twilio أين يسلّم الرسائل النصية الواردة. تتطلب الرسائل الواردة عنوان webhook عامًا — إذا كان Work4You يعمل على جهازك المحلي، فاكشفه أولًا عبر نفق مثل cloudflared أو ngrok.',
+      replacesExisting: 'الرسائل النصية مهيأة بالفعل. الحفظ هنا يستبدل إعدادات Twilio المخزنة.',
+      credentialsHelp: 'Account SID و Auth Token، من لوحة تحكم Twilio.',
+      accountSidLabel: 'Account SID',
+      accountSidPlaceholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      openConsole: 'افتح لوحة تحكم Twilio',
+      authTokenLabel: 'Auth Token',
+      authTokenPlaceholder: 'رمز مصادقة Twilio',
+      phoneHelp: 'رقم هاتف Twilio الداعم للرسائل النصية، بتنسيق E.164.',
+      phoneLabel: 'رقم هاتف Twilio',
+      webhookHelp: 'عنوان webhook العام — حيث يسلّم Twilio الرسائل الواردة. المسار هو ‎/webhooks/twilio.',
+      webhookLabel: 'عنوان webhook العام',
+      webhookHint:
+        'الصق نفس العنوان في لوحة تحكم Twilio ضمن Phone Numbers ← Active Numbers ← Messaging ← "A message comes in". البوابة ترفض البدء بدونه (يُستخدم للتحقق من توقيعات طلبات Twilio).',
+      allowedUsersHelp: 'موصى به. أرقام هواتف مفصولة بفواصل يُسمح لها بمراسلة الوكيل — يتم تجاهل الآخرين.',
+      allowedUsersLabel: 'المرسلون المسموح بهم',
+      allFieldsRequired: 'أدخل أولًا Account SID و Auth Token ورقم الهاتف وعنوان webhook.',
+      saved: 'تم حفظ الرسائل النصية وتفعيلها. أعد تشغيل البوابة للاتصال.',
+      saveFailed: 'تعذر حفظ إعدادات الرسائل النصية.'
     },
     slackQuickSetup: {
       title: 'الإعداد السريع',
@@ -1493,6 +1522,30 @@ export const ar = defineLocale({
         label: 'المرسلون المسموح بهم',
         help: 'موصى به. عناوين مفصولة بفواصل يُسمح لها بمحادثة الوكيل — يتم تجاهل الآخرين.',
         placeholder: 'you@example.com'
+      },
+      TWILIO_ACCOUNT_SID: {
+        label: 'Twilio Account SID',
+        help: 'من لوحة تحكم Twilio. يبدأ بـ AC.',
+        placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      },
+      TWILIO_AUTH_TOKEN: {
+        label: 'Twilio Auth Token',
+        help: 'من لوحة تحكم Twilio، بجوار Account SID.'
+      },
+      TWILIO_PHONE_NUMBER: {
+        label: 'رقم هاتف Twilio',
+        help: 'رقم داعم للرسائل النصية من حساب Twilio الخاص بك، بتنسيق E.164.',
+        placeholder: '+15551234567'
+      },
+      SMS_WEBHOOK_URL: {
+        label: 'عنوان webhook العام',
+        help: 'حيث يسلّم Twilio الرسائل الواردة — نفس العنوان المهيأ في لوحة تحكم Twilio. مطلوب للتحقق من التوقيع.',
+        placeholder: 'https://your-domain.com/webhooks/twilio'
+      },
+      SMS_ALLOWED_USERS: {
+        label: 'المرسلون المسموح بهم',
+        help: 'موصى به. أرقام هواتف E.164 مفصولة بفواصل يُسمح لها بمراسلة الوكيل — يتم تجاهل الآخرين.',
+        placeholder: '+15559876543'
       },
       MATTERMOST_URL: {
         label: 'رابط الخادم',

@@ -1355,8 +1355,13 @@ export const zhHant = defineLocale({
       emailPort: (value: string) => `${value} 不是有效的連接埠。請使用 1 到 65535 之間的數字。`,
       slackMemberId: (value: string) => `${value} 不像是 Slack 成員 ID。請使用類似 U01ABC2DEF3 的 ID。`,
       slackTokenPrefix: (prefix: string) => `此 Token 必須以 ${prefix} 開頭`,
+      smsNumber: (value: string) =>
+        `${value} 不是 E.164 格式的電話號碼。請使用含 + 前綴的完整號碼，例如 +15551234567。`,
+      smsWebhookUrl: (value: string) =>
+        `${value} 不是有效的 webhook URL。請使用完整的公開 URL，例如 https://your-domain.com/webhooks/twilio。`,
       telegramToken: '請貼上來自 @BotFather 的完整 Token（例如 123456789:ABC…）。',
       telegramUserId: (value: string) => `${value} 不是有效的 Telegram 數字使用者 ID。`,
+      twilioAccountSid: '請貼上 Twilio 控制台儀表板中的完整 Account SID——以 AC 開頭，後接 32 個字元。',
       whatsappNumber: (value: string) => `${value} 不像是 WhatsApp 號碼。請使用含國碼的完整號碼，例如 15551234567。`
     },
     envOptions: {
@@ -1417,6 +1422,30 @@ export const zhHant = defineLocale({
       hostsRequired: '請輸入 IMAP 和 SMTP 主機，或選擇一個供應商。',
       saved: '電子郵件已儲存並啟用。重新啟動閘道以連線。',
       saveFailed: '無法儲存電子郵件設定。'
+    },
+    smsQuickSetup: {
+      title: '快速設定',
+      recommended: '建議',
+      intro:
+        '貼上你的 Twilio 憑證，並告訴 Twilio 將收到的簡訊投遞到哪裡。接收簡訊需要一個公開的 webhook URL——如果 Work4You 在本機執行，請先用 cloudflared 或 ngrok 之類的通道公開它。',
+      replacesExisting: '簡訊已設定完成。在此儲存會取代已儲存的 Twilio 設定。',
+      credentialsHelp: 'Account SID 和 Auth Token，來自 Twilio 控制台儀表板。',
+      accountSidLabel: 'Account SID',
+      accountSidPlaceholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      openConsole: '開啟 Twilio 控制台',
+      authTokenLabel: 'Auth Token',
+      authTokenPlaceholder: 'Twilio Auth Token',
+      phoneHelp: '你的支援簡訊的 Twilio 電話號碼（E.164 格式）。',
+      phoneLabel: 'Twilio 電話號碼',
+      webhookHelp: '公開 webhook URL——Twilio 將收到的簡訊投遞到這裡。路徑為 /webhooks/twilio。',
+      webhookLabel: '公開 webhook URL',
+      webhookHint:
+        '將同一 URL 貼到 Twilio 控制台的 Phone Numbers → Active Numbers → Messaging → "A message comes in"。沒有它閘道會拒絕啟動（用於驗證 Twilio 請求簽章）。',
+      allowedUsersHelp: '建議設定。逗號分隔的允許與代理對話的電話號碼——其他人會被忽略。',
+      allowedUsersLabel: '允許的傳送者',
+      allFieldsRequired: '請先輸入 Account SID、Auth Token、電話號碼和 webhook URL。',
+      saved: '簡訊已儲存並啟用。重新啟動閘道以連線。',
+      saveFailed: '無法儲存簡訊設定。'
     },
     slackQuickSetup: {
       title: '快速設定',
@@ -1589,6 +1618,30 @@ export const zhHant = defineLocale({
         label: '允許的寄件者',
         help: '建議設定。逗號分隔的允許與代理對話的地址——其他人會被忽略。',
         placeholder: 'you@example.com'
+      },
+      TWILIO_ACCOUNT_SID: {
+        label: 'Twilio Account SID',
+        help: '來自 Twilio 控制台儀表板。以 AC 開頭。',
+        placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      },
+      TWILIO_AUTH_TOKEN: {
+        label: 'Twilio Auth Token',
+        help: '來自 Twilio 控制台儀表板，在 Account SID 旁邊。'
+      },
+      TWILIO_PHONE_NUMBER: {
+        label: 'Twilio 電話號碼',
+        help: '你的 Twilio 帳戶中支援簡訊的號碼（E.164 格式）。',
+        placeholder: '+15551234567'
+      },
+      SMS_WEBHOOK_URL: {
+        label: '公開 webhook URL',
+        help: 'Twilio 將收到的簡訊投遞到這裡——與 Twilio 控制台中設定的 URL 相同。簽章驗證必需。',
+        placeholder: 'https://your-domain.com/webhooks/twilio'
+      },
+      SMS_ALLOWED_USERS: {
+        label: '允許的傳送者',
+        help: '建議設定。逗號分隔的允許與代理對話的 E.164 電話號碼——其他人會被忽略。',
+        placeholder: '+15559876543'
       },
       MATTERMOST_URL: { label: '伺服器 URL', placeholder: 'https://mattermost.example.com' },
       MATTERMOST_TOKEN: { label: 'Bot Token' },

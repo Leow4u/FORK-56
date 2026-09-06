@@ -1601,8 +1601,14 @@ export const en: Translations = {
       emailPort: (value: string) => `${value} is not a valid port. Use a number between 1 and 65535.`,
       slackMemberId: (value: string) => `${value} does not look like a Slack member ID. Use IDs like U01ABC2DEF3.`,
       slackTokenPrefix: (prefix: string) => `This token must start with ${prefix}`,
+      smsNumber: (value: string) =>
+        `${value} is not a phone number in E.164 format. Use the full number with a leading +, like +15551234567.`,
+      smsWebhookUrl: (value: string) =>
+        `${value} is not a valid webhook URL. Use the full public URL, like https://your-domain.com/webhooks/twilio.`,
       telegramToken: 'Paste the complete token from @BotFather (for example, 123456789:ABC…).',
       telegramUserId: (value: string) => `${value} is not a numeric Telegram user ID.`,
+      twilioAccountSid:
+        'Paste the complete Account SID from the Twilio console dashboard — it starts with AC followed by 32 characters.',
       whatsappNumber: (value: string) =>
         `${value} does not look like a WhatsApp number. Use full numbers with country code, like 15551234567.`
     },
@@ -1668,6 +1674,31 @@ export const en: Translations = {
       hostsRequired: 'Enter the IMAP and SMTP hosts, or pick a provider.',
       saved: 'Email saved and enabled. Restart the gateway to connect.',
       saveFailed: 'Could not save the email settings.'
+    },
+    smsQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        'Paste your Twilio credentials and tell Twilio where to deliver incoming texts. Inbound SMS needs a public webhook URL — if Work4You runs on your local machine, expose it with a tunnel like cloudflared or ngrok first.',
+      replacesExisting: 'SMS is already configured. Saving here replaces the stored Twilio settings.',
+      credentialsHelp: 'Account SID and Auth Token, from the Twilio console dashboard.',
+      accountSidLabel: 'Account SID',
+      accountSidPlaceholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      openConsole: 'Open Twilio console',
+      authTokenLabel: 'Auth token',
+      authTokenPlaceholder: 'Twilio auth token',
+      phoneHelp: 'Your SMS-capable Twilio phone number, in E.164 format.',
+      phoneLabel: 'Twilio phone number',
+      webhookHelp: 'Public webhook URL — where Twilio delivers incoming texts. The path is /webhooks/twilio.',
+      webhookLabel: 'Public webhook URL',
+      webhookHint:
+        'Paste this same URL in the Twilio console under Phone Numbers → Active Numbers → Messaging → "A message comes in". The gateway refuses to start without it (it validates Twilio request signatures).',
+      allowedUsersHelp:
+        'Recommended. Comma-separated phone numbers allowed to text the agent — everyone else is ignored.',
+      allowedUsersLabel: 'Allowed senders',
+      allFieldsRequired: 'Enter the Account SID, Auth Token, phone number, and webhook URL first.',
+      saved: 'SMS saved and enabled. Restart the gateway to connect.',
+      saveFailed: 'Could not save the SMS settings.'
     },
     slackQuickSetup: {
       title: 'Quick setup',
@@ -1875,6 +1906,30 @@ export const en: Translations = {
         label: 'Allowed senders',
         help: 'Recommended. Comma-separated addresses allowed to talk to the agent — everyone else is ignored.',
         placeholder: 'you@example.com'
+      },
+      TWILIO_ACCOUNT_SID: {
+        label: 'Twilio Account SID',
+        help: 'From the Twilio console dashboard. Starts with AC.',
+        placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      },
+      TWILIO_AUTH_TOKEN: {
+        label: 'Twilio Auth Token',
+        help: 'From the Twilio console dashboard, next to the Account SID.'
+      },
+      TWILIO_PHONE_NUMBER: {
+        label: 'Twilio phone number',
+        help: 'SMS-capable number from your Twilio account, in E.164 format.',
+        placeholder: '+15551234567'
+      },
+      SMS_WEBHOOK_URL: {
+        label: 'Public webhook URL',
+        help: 'Where Twilio delivers incoming texts — the same URL configured in the Twilio console. Required for signature validation.',
+        placeholder: 'https://your-domain.com/webhooks/twilio'
+      },
+      SMS_ALLOWED_USERS: {
+        label: 'Allowed senders',
+        help: 'Recommended. Comma-separated E.164 phone numbers allowed to text the agent — everyone else is ignored.',
+        placeholder: '+15559876543'
       },
       MATTERMOST_URL: { label: 'Server URL', placeholder: 'https://mattermost.example.com' },
       MATTERMOST_TOKEN: { label: 'Bot token' },

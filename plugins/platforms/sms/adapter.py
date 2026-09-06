@@ -504,10 +504,24 @@ async def _standalone_send(
 
 
 def _is_connected(config) -> bool:
-    """SMS is connected when Twilio credentials are present. Mirrors the legacy
-    _PLATFORM_CONNECTED_CHECKERS[Platform.SMS] = bool(TWILIO_ACCOUNT_SID)."""
+    """SMS is configured when everything connect() hard-fails without is set.
+
+    The legacy checker mirrored _PLATFORM_CONNECTED_CHECKERS[Platform.SMS] =
+    bool(TWILIO_ACCOUNT_SID), but connect() refuses to start without a
+    from-number (sms_missing_phone_number) and without a public webhook URL
+    for Twilio signature validation (sms_missing_webhook_url) unless the
+    dev-only SMS_INSECURE_NO_SIGNATURE escape hatch is on. Reporting
+    "configured" short of that just moves the failure to a fatal error at
+    gateway startup.
+    """
     import work4you_cli.gateway as gateway_mod
-    return bool((gateway_mod.get_env_value("TWILIO_ACCOUNT_SID") or "").strip())
+
+    def _val(name: str) -> str:
+        return (gateway_mod.get_env_value(name) or "").strip()
+
+    if not (_val("TWILIO_ACCOUNT_SID") and _val("TWILIO_AUTH_TOKEN") and _val("TWILIO_PHONE_NUMBER")):
+        return False
+    return bool(_val("SMS_WEBHOOK_URL")) or _val("SMS_INSECURE_NO_SIGNATURE").lower() == "true"
 
 
 def _build_adapter(config):
