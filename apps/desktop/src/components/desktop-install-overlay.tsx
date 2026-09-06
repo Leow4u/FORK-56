@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { BrandMark } from '@/components/brand-mark'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,7 @@ import type {
   DesktopBootstrapState
 } from '@/global'
 import { useI18n } from '@/i18n'
-import { AlertCircle, ChevronDown, ChevronRight, Globe, iconSize, Loader2, Monitor } from '@/lib/icons'
+import { AlertCircle, ChevronDown, ChevronRight, Globe, iconSize } from '@/lib/icons'
 import { capitalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 
@@ -361,6 +361,40 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
   const localStarting = forActiveRoot && localStart.starting
   const localStartError = forActiveRoot ? localStart.error : null
 
+  const startLocalInstall = useCallback(async () => {
+    setLocalStart({ root: activeRoot, starting: true, error: null })
+
+    try {
+      const desktop = window.work4youDesktop
+
+      if (!desktop || typeof desktop.continueBootstrapLocal !== 'function') {
+        throw new Error(copy.localStartUnavailable)
+      }
+
+      await desktop.continueBootstrapLocal()
+    } catch (err) {
+      setLocalStart({ root: activeRoot, starting: false, error: errorMessage(err) })
+    }
+  }, [activeRoot, copy.localStartUnavailable])
+
+  // First-run has a single path: local install. When main presents the setup
+  // choice, continue straight into the local bootstrap instead of pausing on
+  // a chooser — the remote-connect flow stays reachable from Settings →
+  // Gateways and from the unsupported-platform screen below. Guarded per
+  // activeRoot: a failed start waits for the user's explicit retry instead of
+  // relaunching in a loop, and a repair presenting a fresh root starts again.
+  useEffect(() => {
+    if (!state.setupChoice) {
+      return
+    }
+
+    if (forActiveRoot && (localStart.starting || localStart.error !== null)) {
+      return
+    }
+
+    void startLocalInstall()
+  }, [forActiveRoot, localStart.error, localStart.starting, startLocalInstall, state.setupChoice])
+
   // Mount logic: show whenever a bootstrap is in flight, completed-with-error,
   // or actively running with a manifest. Hide entirely after a successful
   // completion so the rest of the UI can take over.
@@ -397,68 +431,41 @@ export function DesktopInstallOverlay({ enabled = true }: DesktopInstallOverlayP
   }
 
   if (state.setupChoice) {
+    // No first-run chooser: the local install is the only first-run path, so
+    // this screen only bridges the moment between the setup-choice snapshot
+    // and the installer manifest taking over (or surfaces a failed start with
+    // a retry). Remote connect stays available post-install in Settings →
+    // Gateways; FirstRunRemoteForm remains wired for the unsupported-platform
+    // screen below.
     return (
       <div className="fixed inset-0 z-(--z-setup) flex items-center justify-center bg-background/90 p-4 backdrop-blur-md">
         <div className="w-full max-w-2xl rounded-xl border border-(--stroke-work4you) bg-card p-8 shadow-work4you">
           <div className="flex items-start gap-4">
             <BrandMark className="size-11 shrink-0" />
             <div className="min-w-0">
-              <h2 className="text-xl font-semibold tracking-tight">{copy.setupChoiceTitle}</h2>
-              <p className="mt-1.5 text-sm text-muted-foreground">{copy.setupChoiceDesc}</p>
+              <h2 className="text-xl font-semibold tracking-tight">{copy.settingUpTitle}</h2>
+              <p className="mt-1.5 text-sm text-muted-foreground">{copy.installLocalDesc}</p>
             </div>
-          </div>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <button
-              className="rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) p-4 text-left transition hover:bg-(--chrome-action-hover)"
-              onClick={() => setRemoteOpen(true)}
-              type="button"
-            >
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Globe className="size-4 text-muted-foreground" />
-                <span>{copy.connectExistingTitle}</span>
-              </div>
-              <p className="mt-2 text-sm leading-5 text-muted-foreground">{copy.connectExistingDesc}</p>
-            </button>
-
-            <button
-              className="rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) p-4 text-left transition hover:bg-(--chrome-action-hover) disabled:cursor-wait disabled:opacity-60"
-              disabled={localStarting}
-              onClick={async () => {
-                setLocalStart({ root: activeRoot, starting: true, error: null })
-
-                try {
-                  const desktop = window.work4youDesktop
-
-                  if (!desktop || typeof desktop.continueBootstrapLocal !== 'function') {
-                    throw new Error(copy.localStartUnavailable)
-                  }
-
-                  await desktop.continueBootstrapLocal()
-                } catch (err) {
-                  setLocalStart({ root: activeRoot, starting: false, error: errorMessage(err) })
-                }
-              }}
-              type="button"
-            >
-              <div className="flex items-center gap-2 text-sm font-medium">
-                {localStarting ? (
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                ) : (
-                  <Monitor className="size-4 text-muted-foreground" />
-                )}
-                <span>{copy.installLocalTitle}</span>
-              </div>
-              <p className="mt-2 text-sm leading-5 text-muted-foreground">{copy.installLocalDesc}</p>
-            </button>
           </div>
 
           {localStartError ? (
-            <div className="mt-4 flex items-start gap-2 text-sm text-destructive">
-              <AlertCircle className="mt-0.5 size-4 shrink-0" />
-              <span>{localStartError}</span>
+            <>
+              <div className="mt-6 flex items-start gap-2 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                <span>{localStartError}</span>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button onClick={() => void startLocalInstall()} size="sm" variant="default">
+                  {copy.installLocalTitle}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="mt-6 flex items-center gap-2.5 text-sm text-muted-foreground">
+              <Loader className="size-5" type="fourier-flow" />
+              <span>{copy.fetchingManifest}</span>
             </div>
-          ) : null}
+          )}
 
           <div className="mt-6 text-xs text-muted-foreground">
             {copy.installTo}{' '}
