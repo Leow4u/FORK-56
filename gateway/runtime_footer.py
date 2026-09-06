@@ -56,10 +56,16 @@ def _home_relative_cwd(cwd: str) -> str:
 
 
 def _model_short(model: Optional[str]) -> str:
-    """Drop ``vendor/`` prefix for readability (``openai/gpt-5.4`` → ``gpt-5.4``)."""
+    """Drop ``vendor/`` prefix for readability (``openai/gpt-5.4`` → ``gpt-5.4``).
+
+    The Free-plan house model renders as Operis, not the DeepSeek wire id.
+    """
     if not model:
         return ""
-    return model.rsplit("/", 1)[-1]
+    from work4you_cli.model_switch import format_model_for_display
+
+    label = format_model_for_display(model)
+    return label.rsplit("/", 1)[-1] if "/" in label else label
 
 
 def resolve_footer_config(

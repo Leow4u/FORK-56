@@ -968,7 +968,10 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
             if _preset:
                 _agg = _preset.get("aggregator") or {}
                 _am = str(_agg.get("model") or "")
-                agg_label = _am.split("/")[-1] if "/" in _am else _am
+                from work4you_cli.model_switch import format_model_for_display
+
+                _am_disp = format_model_for_display(_am)
+                agg_label = _am_disp.split("/")[-1] if "/" in _am_disp else _am_disp
         except Exception:
             agg_label = ""
         if len(preset_name) > 28:
@@ -987,7 +990,11 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
             f"[dim {dim}]— run /model or work4you setup[/]"
         )
     else:
-        model_short = model.split("/")[-1] if "/" in model else model
+        from work4you_cli.model_switch import format_model_for_display
+
+        model_short = format_model_for_display(model)
+        if "/" in model_short:
+            model_short = model_short.split("/")[-1]
         if model_short.endswith(".gguf"):
             model_short = model_short[:-5]
         if len(model_short) > 28:

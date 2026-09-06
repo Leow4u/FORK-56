@@ -10,6 +10,9 @@ describe("model-status-label", () => {
     expect(
       displayModelName("work4you/deepseek/deepseek-v4-flash-0731"),
     ).toBe("Operis 4.0 Flash");
+    expect(displayModelName("deepseek-v4-flash-0731")).toBe(
+      "Operis 4.0 Flash",
+    );
     expect(
       formatModelStatusLabel("deepseek/deepseek-v4-flash-0731", {
         reasoningEffort: "medium",

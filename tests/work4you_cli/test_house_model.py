@@ -25,8 +25,22 @@ def test_house_model_id_is_dated_deepseek_flash():
     assert WORK4YOU_HOUSE_MODEL_DISPLAY == "Operis 4.0 Flash"
     assert is_work4you_house_model(WORK4YOU_HOUSE_MODEL_ID)
     assert is_work4you_house_model("openrouter/deepseek-v4-flash-0731")
+    assert is_work4you_house_model("deepseek-v4-flash-0731")
+    assert is_work4you_house_model("work4you/deepseek/deepseek-v4-flash-0731")
     assert not is_work4you_house_model("deepseek/deepseek-v4-flash")
     assert not is_work4you_house_model("openrouter/free")
+
+
+def test_house_model_display_hides_deepseek_wire_id():
+    """Splash/status chrome must show Operis, never the DeepSeek slug."""
+    from work4you_cli.model_switch import format_model_for_display
+
+    assert format_model_for_display(WORK4YOU_HOUSE_MODEL_ID) == WORK4YOU_HOUSE_MODEL_DISPLAY
+    assert format_model_for_display("deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_DISPLAY
+    assert format_model_for_display("openrouter/deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_DISPLAY
+    assert "deepseek" not in format_model_for_display(WORK4YOU_HOUSE_MODEL_ID).lower()
+    assert format_model_for_display("deepseek/deepseek-v4-flash") == "deepseek/deepseek-v4-flash"
+    assert format_model_for_display("anthropic/claude-opus-4.8") == "anthropic/claude-opus-4.8"
 
 
 def test_silent_default_is_house_model():

@@ -6069,17 +6069,21 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
         # _try_activate_fallback() switches provider/model.
         agent = getattr(self, "agent", None)
         model_name = (getattr(agent, "model", None) or self.model or "unknown")
-        # Friendly display: prefer reverse-alias from config.yaml ``model_aliases:``
-        # before slash/length truncation. This turns long Palantir RIDs like
-        # ``ri.language-model-service..language-model.anthropic-claude-4-7-opus``
-        # into the user's chosen short name (e.g. ``opus-4.7``) in the status bar.
-        model_short = _reverse_alias_for_display(model_name)
-        if model_short == model_name:
-            model_short = model_name.split("/")[-1] if "/" in model_name else model_name
-            # Strip Palantir RID prefixes via the shared display formatter so
-            # this site and ``ModelSwitchResult`` confirmation can't drift.
-            from work4you_cli.model_switch import format_model_for_display
-            model_short = format_model_for_display(model_short)
+        # House model (Operis) first so the status bar never shows the
+        # DeepSeek wire id. Otherwise prefer reverse-alias from config.yaml
+        # ``model_aliases:`` before slash truncation (Palantir RIDs).
+        from work4you_cli.model_switch import format_model_for_display
+        from work4you_cli.models import is_work4you_house_model
+
+        model_short = format_model_for_display(model_name)
+        if not is_work4you_house_model(model_name):
+            aliased = _reverse_alias_for_display(model_name)
+            if aliased != model_name:
+                model_short = aliased
+            else:
+                model_short = (
+                    model_short.split("/")[-1] if "/" in model_short else model_short
+                )
         if model_short.endswith(".gguf"):
             model_short = model_short[:-5]
         if len(model_short) > 26:
@@ -8854,8 +8858,12 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
             tool_count = len(tools) if tools else 0
             tool_status = f"{tool_count} tools"
 
-        # Format model name (shorten if needed)
-        model_short = self.model.split("/")[-1] if "/" in self.model else self.model
+        # Format model name (shorten if needed). House model → Operis.
+        from work4you_cli.model_switch import format_model_for_display
+
+        model_short = format_model_for_display(self.model)
+        if "/" in model_short:
+            model_short = model_short.split("/")[-1]
         if len(model_short) > 30:
             model_short = model_short[:27] + "..."
 
