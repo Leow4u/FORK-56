@@ -94,8 +94,8 @@ CLI 界面中使用的文字字符串。
 |----|------|--------|
 | `agent_name` | 横幅标题和状态显示中的名称 | `Work4You` |
 | `welcome` | CLI 启动时显示的欢迎消息 | `Welcome to Work4You! Type your message or /help for commands.` |
-| `goodbye` | 退出时显示的消息 | `Goodbye! ⚕` |
-| `response_label` | 响应框标题上的标签 | ` ⚕ Work4You ` |
+| `goodbye` | 退出时显示的消息 | `Goodbye! ◆` |
+| `response_label` | 响应框标题上的标签 | ` ◆ Work4You ` |
 | `prompt_symbol` | 用户输入 prompt 前的符号（裸 token，渲染器会在后面添加空格） | `❯` |
 | `help_header` | `/help` 命令输出的标题文字 | `(^_^)? Available Commands` |
 
@@ -105,8 +105,8 @@ CLI 界面中使用的文字字符串。
 |----|------|------|--------|
 | `tool_prefix` | 字符串 | CLI 中工具输出行的前缀字符 | `┊` |
 | `tool_emojis` | 字典 | 各工具的 emoji 覆盖，用于 spinner 和进度显示（`{tool_name: emoji}`） | `{}` |
-| `banner_logo` | 字符串 | Rich 标记 ASCII 艺术 logo（替换默认的 WORK4YOU 横幅） | `""` |
-| `banner_hero` | 字符串 | Rich 标记英雄艺术图（替换默认的双蛇杖图案） | `""` |
+| `banner_logo` | 字符串 | Rich 标记 ASCII 艺术 logo（可选；默认闪屏不显示巨型字标） | `""` |
+| `banner_hero` | 字符串 | Rich 标记英雄艺术图（替换默认的 Work4You 像素标） | `""` |
 
 ## 自定义皮肤
 

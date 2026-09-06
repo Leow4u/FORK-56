@@ -1,27 +1,17 @@
-"""Tests for banner skills display — terminal-width-aware truncation."""
+"""Splash must not dump the skills catalog — that lives on /skills and /help."""
 
-import os
 from unittest.mock import patch
 
 from rich.console import Console
 
 import work4you_cli.banner as banner
-import model_tools
-import tools.mcp_tool
 
 
 def _build_banner_with_skills(skills_by_category, term_width=160):
-    """Helper: build banner with given skills and return captured output."""
     with (
-        patch.object(
-            model_tools,
-            "check_tool_availability",
-            return_value=([], []),
-        ),
-        patch.object(banner, "get_available_skills", return_value=skills_by_category),
         patch.object(banner, "get_update_result", return_value=None),
-        patch.object(tools.mcp_tool, "get_mcp_status", return_value=[]),
-        patch("shutil.get_terminal_size", return_value=os.terminal_size((term_width, 50))),
+        patch.object(banner, "get_latest_release_tag", return_value=None),
+        patch("shutil.get_terminal_size", return_value=__import__("os").terminal_size((term_width, 50))),
     ):
         console = Console(
             record=True, force_terminal=False, color_system=None, width=term_width
@@ -30,38 +20,32 @@ def _build_banner_with_skills(skills_by_category, term_width=160):
             console=console,
             model="anthropic/test-model",
             cwd="/tmp/project",
-            tools=[],
+            skills_by_category=skills_by_category,
         )
         return console.export_text()
 
 
-def test_wide_terminal_shows_more_than_8_skills():
-    """A wide terminal should display more than 8 skills per category."""
-    # 15 skills in one category
+def test_splash_hides_skills_on_wide_terminal():
     skills = {"research": [f"skill-{i:02d}" for i in range(15)]}
     text = _build_banner_with_skills(skills, term_width=200)
+    assert "Available Skills" not in text
+    assert "skill-00" not in text
+    assert "skill-08" not in text
+    assert "test-model" in text
+    assert "/tmp/project" in text
 
-    # With a 200-char terminal, more than 8 should be visible.
-    # The old code always truncated at 8; we should see at least 9 now.
-    assert "skill-08" in text, f"Expected skill-08 in output for wide terminal: {text}"
 
-
-def test_small_category_shows_all_skills():
-    """Categories with few skills should show all of them regardless of width."""
+def test_splash_hides_skills_on_narrow_terminal():
     skills = {"security": ["auth", "vault"]}
     text = _build_banner_with_skills(skills, term_width=80)
+    assert "auth" not in text
+    assert "vault" not in text
+    assert "Available Skills" not in text
+    assert "test-model" in text
 
-    assert "auth" in text
-    assert "vault" in text
-    # No "+N more" indicator for small categories
-    assert "+2 more" not in text
 
-
-def test_skills_respect_category_label_width():
-    """Skills display should account for the category label prefix width."""
-    # A category with a long name should have less room for skills
+def test_long_category_names_do_not_leak_into_splash():
     skills = {"very-long-category-name": [f"skill-{i:02d}" for i in range(10)]}
     text = _build_banner_with_skills(skills, term_width=120)
-
-    # Should still show at least some skills
-    assert "skill-00" in text
+    assert "very-long-category-name" not in text
+    assert "skill-00" not in text

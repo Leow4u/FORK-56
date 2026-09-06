@@ -1,6 +1,8 @@
-"""Welcome banner, ASCII art, skills summary, and update check for the CLI.
+"""Welcome splash, ASCII art, skills index, and update check for the CLI.
 
-Pure display functions with no Work4YouCLI state dependency.
+Pure display functions with no Work4YouCLI state dependency. The startup
+splash is a compact session box (mark + model/cwd/session). Tools, skills,
+and MCP stay on ``/help``, ``/tools``, and ``/skills``.
 """
 import json
 import logging
@@ -67,28 +69,17 @@ def _skin_color(key: str, fallback: str) -> str:
 
 from work4you_cli import __version__ as VERSION, __release_date__ as RELEASE_DATE
 
-WORK4YOU_LOGO = """[bold #FFD700]██╗  ██╗███████╗██████╗ ███╗   ███╗███████╗███████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
-[bold #FFD700]██║  ██║██╔════╝██╔══██╗████╗ ████║██╔════╝██╔════╝      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
-[#FFBF00]███████║█████╗  ██████╔╝██╔████╔██║█████╗  ███████╗█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║[/]
-[#FFBF00]██╔══██║██╔══╝  ██╔══██╗██║╚██╔╝██║██╔══╝  ╚════██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║[/]
-[#CD7F32]██║  ██║███████╗██║  ██║██║ ╚═╝ ██║███████╗███████║      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║[/]
-[#CD7F32]╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝[/]"""
-
-WORK4YOU_HERO = """[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⣀⣀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀⠀⠀⠀⠀⢀⣠⣴⣾⣿⣿⣇⠸⣿⣿⠇⣸⣿⣿⣷⣦⣄⡀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⢀⣠⣴⣶⠿⠋⣩⡿⣿⡿⠻⣿⡇⢠⡄⢸⣿⠟⢿⣿⢿⣍⠙⠿⣶⣦⣄⡀⠀[/]
-[#FFBF00]⠀⠀⠉⠉⠁⠶⠟⠋⠀⠉⠀⢀⣈⣁⡈⢁⣈⣁⡀⠀⠉⠀⠙⠻⠶⠈⠉⠉⠀⠀[/]
-[#FFD700]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⣿⡿⠛⢁⡈⠛⢿⣿⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFD700]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠿⣿⣦⣤⣈⠁⢠⣴⣿⠿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠻⢿⣿⣦⡉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢷⣦⣈⠛⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣴⠦⠈⠙⠿⣦⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣤⡈⠁⢤⣿⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠷⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⠑⢶⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠁⢰⡆⠈⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⠈⣡⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]"""
+# Compact pixel mark derived from the Work4You favicon
+# (apps/desktop/public/work4you-icon.png). Default splash does not print a
+# giant wordmark — skins that set ``banner_logo`` still can.
+WORK4YOU_HERO = """[#FFD700]     ██  ▄[/]
+[#FFD700]  █▄███▄██▄[/]
+[#FFBF00] ██████████▄[/]
+[#FFBF00]██████████▀[/]
+[#FFBF00]  ▀█████████[/]
+[#CD7F32]▄███████▀██[/]
+[#CD7F32] ▀██▀███▄[/]
+[#B8860B]  ▀▀ ████[/]"""
 
 
 
@@ -106,9 +97,9 @@ def get_available_skills() -> Dict[str, List[str]]:
     handles platform gating (``platforms:`` frontmatter) and respects the
     user's ``skills.disabled`` config list.
 
-    Cached per-process: this feeds only the startup banner, whose snapshot
-    is taken once anyway, and the underlying skills-tree walk costs ~100ms.
-    ``prefetch_banner_data()`` uses the cache to pay that walk off-thread.
+    Cached per-process. The TUI gateway still sends this catalog in session
+    info; the startup splash does not list skills. The underlying skills-tree
+    walk costs ~100ms. ``prefetch_banner_data()`` pays that walk off-thread.
     """
     global _available_skills_cache
     if _available_skills_cache is not None:
@@ -656,12 +647,12 @@ def prefetch_banner_data():
     """Warm the banner's subprocess/I/O-heavy inputs in a daemon thread.
 
     ``build_welcome_banner`` needs git state (2-4 ``git rev-parse``/
-    ``describe`` subprocesses, ~130ms) and the skills index (a skills-tree
-    rglob, ~110ms). Both are cached per-process by their own modules, so
-    warming them here while the main thread pays the CPU-bound ``cli`` /
-    prompt_toolkit imports overlaps subprocess waits and file I/O (which
-    release the GIL) with import work. Idempotent; failures are irrelevant
-    because the banner recomputes anything missing.
+    ``describe`` subprocesses, ~130ms) for the version label. The skills
+    index (a skills-tree rglob, ~110ms) is still warmed for the TUI
+    gateway. Both are cached per-process, so warming them here while the
+    main thread pays CPU-bound ``cli`` / prompt_toolkit imports overlaps
+    I/O with import work. Idempotent; failures are irrelevant because
+    callers recompute anything missing.
     """
     global _banner_data_prefetch_started
     if _banner_data_prefetch_started:
@@ -759,17 +750,6 @@ def _format_context_length(tokens: int) -> str:
             return f"{rounded}K"
         return f"{val:.1f}K"
     return str(tokens)
-
-
-def _display_toolset_name(toolset_name: str) -> str:
-    """Normalize internal/legacy toolset identifiers for banner display."""
-    if not toolset_name:
-        return "unknown"
-    return (
-        toolset_name[:-6]
-        if toolset_name.endswith("_tools")
-        else toolset_name
-    )
 
 
 # =========================================================================
@@ -932,62 +912,51 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
                          provider: str = None,
                          availability: Dict[str, Any] = None,
                          skills_by_category: Dict[str, List[str]] = None):
-    """Build and print a welcome banner with hero on left and info on right.
+    """Print a compact splash: pixel mark + session facts.
+
+    Catalog arguments (``tools``, ``availability``, ``skills_by_category``,
+    ``get_toolset_for_tool``, ``enabled_toolsets``) are accepted for caller
+    compatibility and ignored. Tools, skills, and MCP live on ``/help``,
+    ``/tools``, and ``/skills`` — not on the opening splash.
 
     Args:
         console: Rich Console instance.
         model: Current model name.
         cwd: Current working directory.
-        tools: List of tool definitions.
-        enabled_toolsets: List of enabled toolset names.
         session_id: Session identifier.
-        get_toolset_for_tool: Callable to map tool name -> toolset name.
         context_length: Model's context window size in tokens.
         provider: Active provider id. When ``"moa"``, ``model`` is a MoA
             preset name and the banner renders the aggregator instead of a
             bare model slug.
-        availability: Optional precomputed result of
-            ``compute_toolset_availability`` (e.g. replayed from the banner
-            snapshot). When provided together with ``get_toolset_for_tool``,
-            this function performs no ``model_tools`` import at all.
     """
+    # Keep catalog kwargs on the signature so existing callers (show_banner,
+    # /clear, tests) do not break; splash no longer renders them.
+    _ = (tools, enabled_toolsets, get_toolset_for_tool, availability, skills_by_category)
+
     from rich.panel import Panel
     from rich.table import Table
-    if get_toolset_for_tool is None:
-        from model_tools import get_toolset_for_tool
-
-    tools = tools or []
-    enabled_toolsets = enabled_toolsets or []
-
-    if availability is None:
-        availability = compute_toolset_availability(enabled_toolsets)
-    unavailable_toolsets = availability.get("unavailable_toolsets", [])
-    lazy_tools = set(availability.get("lazy_tools", []))
-    disabled_tools = set(availability.get("disabled_tools", []))
-    _enabled_ts = {str(t) for t in enabled_toolsets}
 
     layout_table = Table.grid(padding=(0, 2))
     layout_table.add_column("left", justify="center")
     layout_table.add_column("right", justify="left")
 
-    # Resolve skin colors once for the entire banner
     accent = _skin_color("banner_accent", "#FFBF00")
     dim = _skin_color("banner_dim", "#B8860B")
     text = _skin_color("banner_text", "#FFF8DC")
     session_color = _skin_color("session_border", "#8B8682")
 
-    # Use skin's custom hero art if provided
     try:
         from work4you_cli.skin_engine import get_active_skin
         _bskin = get_active_skin()
-        _hero = _bskin.banner_hero if hasattr(_bskin, 'banner_hero') and _bskin.banner_hero else WORK4YOU_HERO
+        _hero = _bskin.banner_hero if getattr(_bskin, "banner_hero", "") else WORK4YOU_HERO
     except Exception:
         _bskin = None
         _hero = WORK4YOU_HERO
-    left_lines = ["", _hero, ""]
+
+    left_content = "\n".join(["", _hero, ""])
+    right_lines: List[str] = []
+
     if (provider or "").strip().lower() == "moa":
-        # MoA virtual provider: ``model`` is a preset name. Show the preset and
-        # its aggregator so the banner is meaningful instead of a bare slug.
         preset_name = model
         agg_label = ""
         try:
@@ -1005,204 +974,38 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
         if len(preset_name) > 28:
             preset_name = preset_name[:25] + "..."
         agg_str = f" [dim {dim}]·[/] [dim {dim}]agg {agg_label}[/]" if agg_label else ""
-        ctx_str = f" [dim {dim}]·[/] [dim {dim}]{_format_context_length(context_length)} context[/]" if context_length else ""
-        left_lines.append(f"[{accent}]MoA: {preset_name}[/]{agg_str}{ctx_str} [dim {dim}]·[/] [dim {dim}]Work4You[/]")
+        ctx_str = (
+            f" [dim {dim}]·[/] [dim {dim}]{_format_context_length(context_length)} context[/]"
+            if context_length else ""
+        )
+        right_lines.append(
+            f"[{accent}]MoA: {preset_name}[/]{agg_str}{ctx_str}"
+        )
+    elif not (model or "").strip() or (model or "").strip().lower() == "unknown":
+        right_lines.append(
+            f"[bold red]no model configured[/] "
+            f"[dim {dim}]— run /model or work4you setup[/]"
+        )
     else:
-        if not (model or "").strip() or (model or "").strip().lower() == "unknown":
-            # Unconfigured install: say so in red instead of a blank/"unknown"
-            # slug — this is the single clearest place to tell the user what
-            # is wrong and how to fix it.
-            left_lines.append(
-                f"[bold red]no model configured[/] "
-                f"[dim {dim}]— run /model or work4you setup[/]"
-            )
-        else:
-            model_short = model.split("/")[-1] if "/" in model else model
-            if model_short.endswith(".gguf"):
-                model_short = model_short[:-5]
-            if len(model_short) > 28:
-                model_short = model_short[:25] + "..."
-            ctx_str = f" [dim {dim}]·[/] [dim {dim}]{_format_context_length(context_length)} context[/]" if context_length else ""
-            left_lines.append(f"[{accent}]{model_short}[/]{ctx_str} [dim {dim}]·[/] [dim {dim}]Work4You[/]")
+        model_short = model.split("/")[-1] if "/" in model else model
+        if model_short.endswith(".gguf"):
+            model_short = model_short[:-5]
+        if len(model_short) > 28:
+            model_short = model_short[:25] + "..."
+        ctx_str = (
+            f" [dim {dim}]·[/] [dim {dim}]{_format_context_length(context_length)} context[/]"
+            if context_length else ""
+        )
+        right_lines.append(f"[{accent}]{model_short}[/]{ctx_str}")
 
     if os.getenv("WORK4YOU_YOLO_MODE"):
-        left_lines.append(f"[bold red]⚠ YOLO mode[/] [dim {dim}]— all approval prompts bypassed[/]")
-    left_lines.append(f"[dim {dim}]{cwd}[/]")
+        right_lines.append(
+            f"[bold red]⚠ YOLO mode[/] [dim {dim}]— all approval prompts bypassed[/]"
+        )
+    right_lines.append(f"[dim {dim}]{cwd}[/]")
     if session_id:
-        left_lines.append(f"[dim {session_color}]Session: {session_id}[/]")
-    left_content = "\n".join(left_lines)
+        right_lines.append(f"[dim {session_color}]Session: {session_id}[/]")
 
-    right_lines = [f"[bold {accent}]Available Tools[/]"]
-    toolsets_dict: Dict[str, list] = {}
-
-    for tool in tools:
-        tool_name = tool["function"]["name"]
-        toolset = _display_toolset_name(get_toolset_for_tool(tool_name) or "other")
-        toolsets_dict.setdefault(toolset, []).append(tool_name)
-
-    for item in unavailable_toolsets:
-        toolset_id = item.get("id", item.get("name", "unknown"))
-        display_name = _display_toolset_name(toolset_id)
-        if display_name not in toolsets_dict:
-            toolsets_dict[display_name] = []
-        for tool_name in item.get("tools", []):
-            if tool_name not in toolsets_dict[display_name]:
-                toolsets_dict[display_name].append(tool_name)
-
-    sorted_toolsets = sorted(toolsets_dict.keys())
-    display_toolsets = sorted_toolsets[:8]
-    remaining_toolsets = len(sorted_toolsets) - 8
-
-    for toolset in display_toolsets:
-        tool_names = toolsets_dict[toolset]
-        colored_names = []
-        for name in sorted(tool_names):
-            if name in disabled_tools:
-                colored_names.append(f"[red]{name}[/]")
-            elif name in lazy_tools:
-                colored_names.append(f"[yellow]{name}[/]")
-            else:
-                colored_names.append(f"[{text}]{name}[/]")
-
-        tools_str = ", ".join(colored_names)
-        if len(", ".join(sorted(tool_names))) > 45:
-            short_names = []
-            length = 0
-            for name in sorted(tool_names):
-                if length + len(name) + 2 > 42:
-                    short_names.append("...")
-                    break
-                short_names.append(name)
-                length += len(name) + 2
-            colored_names = []
-            for name in short_names:
-                if name == "...":
-                    colored_names.append("[dim]...[/]")
-                elif name in disabled_tools:
-                    colored_names.append(f"[red]{name}[/]")
-                elif name in lazy_tools:
-                    colored_names.append(f"[yellow]{name}[/]")
-                else:
-                    colored_names.append(f"[{text}]{name}[/]")
-            tools_str = ", ".join(colored_names)
-
-        right_lines.append(f"[dim {dim}]{toolset}:[/] {tools_str}")
-
-    if remaining_toolsets > 0:
-        right_lines.append(f"[dim {dim}](and {remaining_toolsets} more toolsets...)[/]")
-
-    # MCP Servers section (only if configured). Probe cheaply first: the
-    # full get_mcp_status() path resolves portable plugin MCP servers,
-    # which JOINS the in-flight background plugin discovery (~100ms on the
-    # startup path). When neither config.yaml nor the persisted plugin
-    # key cache mentions any MCP server, skip the section outright.
-    mcp_status = []
-    try:
-        from work4you_cli.config import load_config as _load_cfg
-        _has_native_mcp = bool((_load_cfg() or {}).get("mcp_servers"))
-    except Exception:
-        _has_native_mcp = True  # can't tell — take the full path
-    _has_portable_mcp = False
-    if not _has_native_mcp:
-        try:
-            from work4you_cli.plugins import get_portable_mcp_server_names_nowait
-            _has_portable_mcp = bool(get_portable_mcp_server_names_nowait())
-        except Exception:
-            _has_portable_mcp = True  # can't tell — take the full path
-    if _has_native_mcp or _has_portable_mcp:
-        try:
-            from tools.mcp_tool import get_mcp_status
-            mcp_status = get_mcp_status()
-        except Exception:
-            mcp_status = []
-
-    if mcp_status:
-        right_lines.append("")
-        right_lines.append(f"[bold {accent}]MCP Servers[/]")
-        for srv in mcp_status:
-            status = srv.get("status")
-            if srv["connected"]:
-                right_lines.append(
-                    f"[dim {dim}]{srv['name']}[/] [{text}]({srv['transport']})[/] "
-                    f"[dim {dim}]—[/] [{text}]{srv['tools']} tool(s)[/]"
-                )
-            elif srv.get("disabled") or status == "disabled":
-                right_lines.append(
-                    f"[dim {dim}]{srv['name']}[/] [dim]({srv['transport']})[/] "
-                    f"[dim {dim}]— disabled[/]"
-                )
-            elif status == "connecting":
-                right_lines.append(
-                    f"[dim {dim}]{srv['name']}[/] [dim]({srv['transport']})[/] "
-                    f"[yellow]— connecting[/]"
-                )
-            elif status == "configured":
-                right_lines.append(
-                    f"[dim {dim}]{srv['name']}[/] [dim]({srv['transport']})[/] "
-                    f"[dim {dim}]— configured[/]"
-                )
-            else:
-                right_lines.append(
-                    f"[red]{srv['name']}[/] [dim]({srv['transport']})[/] "
-                    f"[red]— failed[/]"
-                )
-
-    right_lines.append("")
-    right_lines.append(f"[bold {accent}]Available Skills[/]")
-    # The skills catalog is only reachable when the `skills` toolset is enabled
-    # (it exposes skill_view / skill_manage). When it's disabled — e.g. a Blank
-    # Slate install — the agent literally cannot load any skill, so advertising
-    # the on-disk catalog here is misleading. Reflect the real state instead.
-    _skills_enabled = (not _enabled_ts) or ("skills" in _enabled_ts)
-    if _skills_enabled:
-        if skills_by_category is None:
-            skills_by_category = get_available_skills()
-        total_skills = sum(len(s) for s in skills_by_category.values())
-    else:
-        skills_by_category = {}
-        total_skills = 0
-
-    # Dynamically size skills display based on terminal width.
-    # Rich grid with 2 columns; right column gets roughly 60% of terminal.
-    _term_cols = shutil.get_terminal_size().columns
-    _right_col_width = max(int(_term_cols * 0.6) - 10, 30)
-
-    if not _skills_enabled:
-        right_lines.append(f"[dim {dim}]Skills toolset disabled[/]")
-    elif skills_by_category:
-        for category in sorted(skills_by_category.keys()):
-            skill_names = sorted(skills_by_category[category])
-            # Account for "category: " prefix
-            _prefix_len = len(category) + 2
-            _avail = max(_right_col_width - _prefix_len, 20)
-            # Accumulate skills until we run out of space
-            parts, length = [], 0
-            for i, name in enumerate(skill_names):
-                _sep = ", " if parts else ""
-                _needed = len(_sep) + len(name)
-                # Estimate indicator size IF we were to add this skill then stop
-                _after = len(skill_names) - (i + 1)  # remaining after adding this
-                _ind_len = len(f", +{_after} more") if _after > 0 else 0
-                if parts and length + _needed + _ind_len > _avail:
-                    remaining = len(skill_names) - len(parts)
-                    parts.append(f"+{remaining} more")
-                    break
-                parts.append(name)
-                length += _needed
-            skills_str = ", ".join(parts)
-            right_lines.append(f"[dim {dim}]{category}:[/] [{text}]{skills_str}[/]")
-    else:
-        right_lines.append(f"[dim {dim}]No skills installed[/]")
-
-    right_lines.append("")
-    mcp_connected = sum(1 for s in mcp_status if s["connected"]) if mcp_status else 0
-    summary_parts = [f"{len(tools)} tools", f"{total_skills} skills"]
-    if mcp_connected:
-        summary_parts.append(f"{mcp_connected} MCP servers")
-    summary_parts.append("/help for commands")
-    # Indicate when the codex_app_server runtime is active so users
-    # understand why tool counts may not match what's actually reachable
-    # (codex builds its own tool list inside the spawned subprocess).
     try:
         from work4you_cli.codex_runtime_switch import get_current_runtime
         from work4you_cli.config import load_config as _load_cfg
@@ -1213,24 +1016,17 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
             )
     except Exception:
         pass
-    # Show active profile name when not 'default'
+
     try:
         from work4you_cli.profiles import get_active_profile_name
         _profile_name = get_active_profile_name()
         if _profile_name and _profile_name != "default":
             right_lines.append(f"[bold {accent}]Profile:[/] [{text}]{_profile_name}[/]")
     except Exception:
-        pass  # Never break the banner over a profiles.py bug
+        pass
 
-    right_lines.append(f"[dim {dim}]{' · '.join(summary_parts)}[/]")
+    right_lines.append(f"[dim {dim}]/help for commands[/]")
 
-    # Update check — use prefetched result if available. NEVER block the
-    # banner on it: the prefetch does git/network work that rarely finishes
-    # before the banner renders, so a blocking wait here just adds its full
-    # timeout to every startup (500ms of the banner path pre-fix). If the
-    # result isn't ready yet, defer the warning line: a daemon thread waits
-    # for the prefetch and prints the same notice above the prompt when it
-    # lands (prompt_toolkit's patch_stdout renders late prints safely).
     try:
         behind = get_update_result(timeout=0.05)
         if behind is None and not _update_check_done.is_set():
@@ -1238,10 +1034,9 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
         elif behind is not None and behind != 0:
             right_lines.append(_format_update_notice(behind))
     except Exception:
-        pass  # Never break the banner over an update check
+        pass
 
-    right_content = "\n".join(right_lines)
-    layout_table.add_row(left_content, right_content)
+    layout_table.add_row(left_content, "\n".join(right_lines))
 
     title_color = _skin_color("banner_title", "#FFD700")
     border_color = _skin_color("banner_border", "#CD7F32")
@@ -1261,8 +1056,8 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
 
     console.print()
     term_width = shutil.get_terminal_size().columns
-    if term_width >= 95:
-        _logo = _bskin.banner_logo if _bskin and hasattr(_bskin, 'banner_logo') and _bskin.banner_logo else WORK4YOU_LOGO
+    _logo = getattr(_bskin, "banner_logo", "") if _bskin else ""
+    if term_width >= 95 and _logo:
         console.print(_logo)
         console.print()
     console.print(outer_panel)

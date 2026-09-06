@@ -1,36 +1,10 @@
 import { Box, Text, useStdout } from '@work4you/ink'
-import { useEffect, useState } from 'react'
-import unicodeSpinners from 'unicode-animations'
 
-import { artWidth, hero, HERO_WIDTH, logo, LOGO_WIDTH } from '../banner.js'
-import { mix } from '../lib/color.js'
-import { flat } from '../lib/text.js'
+import { artWidth, hero, HERO_WIDTH, logo } from '../banner.js'
 import type { Theme } from '../theme.js'
 import type { PanelSection, SessionInfo } from '../types.js'
 
-import { Accordion } from './accordion.js'
-import { ShimmerRows } from './loaders.js'
 import { WidgetGrid } from './widgetGrid.js'
-
-const LOADER_TICK_MS = 120
-
-function InlineLoader({ label, t }: { label: string; t: Theme }) {
-  const [tick, setTick] = useState(0)
-  const spinner = unicodeSpinners.braille
-  const frame = spinner.frames[tick % spinner.frames.length] ?? '⠋'
-
-  useEffect(() => {
-    const id = setInterval(() => setTick(n => n + 1), Math.max(LOADER_TICK_MS, spinner.interval))
-
-    return () => clearInterval(id)
-  }, [spinner.interval])
-
-  return (
-    <Text color={t.color.muted} wrap="truncate">
-      <Text color={t.color.accent}>{frame}</Text> {label}
-    </Text>
-  )
-}
 
 export function ArtLines({ lines }: { lines: [string, string][] }) {
   // No `opaque`: the banner is top-level content with nothing behind it, so
@@ -49,14 +23,8 @@ export function ArtLines({ lines }: { lines: [string, string][] }) {
   )
 }
 
-// Responsive Banner: full art → compact rule → text → hidden.
-//
-// Terminals can't scale glyphs, so "responsive" means picking a layout that
-// fits the available columns. Thresholds are picked so each tier reads
-// comfortably without forcing wrap or truncation drift on box-drawing edges.
-const TAG_FULL = 'Work4You · Messenger of the Digital Gods'
-const TAG_MID = 'Messenger of the Digital Gods'
-const TAG_TINY = 'Work4You'
+// Custom-skin wordmark only. Default splash is SessionPanel (pixel mark +
+// session facts) — no giant logo, no mythology tagline.
 const HIDE_BELOW = 34
 const COMPACT_FROM = 58
 
@@ -82,19 +50,10 @@ function CompactBanner({ cols, t }: { cols: number; t: Theme }) {
   // -4 keeps a margin so exact-edge rows don't trip terminal pending-wrap.
   const w = Math.max(28, cols - 4)
 
-  // No `opaque` (see ArtLines): the dashed rules are glyphs and the tagline's
-  // centering spaces carry the text's own fg style, so every cell paints with
-  // a real see-through background. The opaque fill was writing default-bg
-  // spaces that a transparent terminal renders as black bars.
-  // NOT bold: on Cursor's transparent-background terminal, a full-width run
-  // of BOLD box-drawing dashes renders with an opaque black cell background
-  // (the plain-dash rule right below renders clean — pixel-diffed live; the
-  // only stylistic delta was bold). Bold on short label runs is fine; bold on
-  // full-width box-drawing rows is what triggers the slab.
   return (
     <Box flexDirection="column" height={3} marginBottom={1} width={w}>
       <Text color={t.color.primary}>{ruleIn(t.brand.name, w)}</Text>
-      <Text color={t.color.muted}>{centerIn(TAG_FULL, w)}</Text>
+      <Text color={t.color.muted}>{centerIn(t.brand.name, w)}</Text>
       <Text color={t.color.primary}>{'─'.repeat(w)}</Text>
     </Box>
   )
@@ -104,17 +63,13 @@ export function Banner({ maxWidth, t }: { maxWidth?: number; t: Theme }) {
   const term = useStdout().stdout?.columns ?? 80
   const cols = Math.max(1, Math.min(term, maxWidth ?? term))
 
-  if (cols < HIDE_BELOW) {
+  if (!t.bannerLogo || cols < HIDE_BELOW) {
     return null
   }
 
-  const logoLines = logo(t.color, t.bannerLogo || undefined)
-  const logoW = t.bannerLogo ? artWidth(logoLines) : LOGO_WIDTH
+  const logoLines = logo(t.color, t.bannerLogo)
+  const logoW = artWidth(logoLines)
 
-  // Each tier renders its rows through a single-column WidgetGrid sized to
-  // the available columns — same visual output as the old plain flex column
-  // (cells clip where truncate-end used to), but the banner is now a
-  // layout-engine surface.
   if (cols >= logoW + 2) {
     return (
       <Box flexDirection="column" marginBottom={1}>
@@ -130,7 +85,7 @@ export function Banner({ maxWidth, t }: { maxWidth?: number; t: Theme }) {
             {
               children: (
                 <Text color={t.color.muted} wrap="truncate-end">
-                  {t.brand.icon} {TAG_FULL}
+                  {t.brand.icon} {t.brand.name}
                 </Text>
               ),
               id: 'banner-tagline'
@@ -156,7 +111,6 @@ export function Banner({ maxWidth, t }: { maxWidth?: number; t: Theme }) {
   }
 
   const name = cols >= 52 ? t.brand.name : (t.brand.name.split(' ')[0] ?? t.brand.name)
-  const tag = cols >= 64 ? TAG_FULL : cols >= 46 ? TAG_MID : TAG_TINY
 
   return (
     <Box flexDirection="column" marginBottom={1}>
@@ -175,14 +129,6 @@ export function Banner({ maxWidth, t }: { maxWidth?: number; t: Theme }) {
               </Text>
             ),
             id: 'banner-name'
-          },
-          {
-            children: (
-              <Text color={t.color.muted} wrap="truncate-end">
-                {t.brand.icon} {tag}
-              </Text>
-            ),
-            id: 'banner-tag'
           }
         ]}
       />
@@ -190,279 +136,68 @@ export function Banner({ maxWidth, t }: { maxWidth?: number; t: Theme }) {
   )
 }
 
-// ── Skeleton ─────────────────────────────────────────────────────────
-//
-// Lazy sections render shimmer rows shaped like the real content (label
-// block + value run) instead of a blank gap that pops when data lands.
-// Row widths mirror the typical toolsets listing.
-const SKELETON_ROWS: readonly (readonly [number, number])[] = [
-  [7, 30],
-  [7, 9],
-  [14, 12],
-  [12, 12],
-  [7, 7],
-  [10, 13]
-]
-
-// ── SessionPanel ─────────────────────────────────────────────────────
-
-const SKILLS_MAX = 8
-const TOOLSETS_MAX = 8
-
 export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
   const term = useStdout().stdout?.columns ?? 100
   const cols = Math.max(20, Math.min(term, maxWidth ?? term))
   const heroLines = hero(t.color, t.bannerHero || undefined)
-  const leftW = Math.min((artWidth(heroLines) || HERO_WIDTH) + 4, Math.floor(cols * 0.4))
-  const wide = cols >= 90 && leftW + 40 < cols
+  const leftW = Math.min((artWidth(heroLines) || HERO_WIDTH) + 4, Math.floor(cols * 0.45))
+  const wide = cols >= 48 && leftW + 28 < cols
   const w = Math.max(20, wide ? cols - leftW - 14 : cols - 12)
-  const lineBudget = Math.max(12, w - 2)
-  const strip = (s: string) => (s.endsWith('_tools') ? s.slice(0, -6) : s)
+  const modelShort = info.model.split('/').pop() || info.model
+  const unconfigured = !info.model.trim() || info.model.trim().toLowerCase() === 'unknown'
+  const yolo = Boolean(process.env.WORK4YOU_YOLO_MODE)
+  const profile = info.profile_name && info.profile_name !== 'default' ? info.profile_name : ''
 
-  // Hierarchy: labels lead in the label tone; member lists recede in the
-  // muted/text midpoint. Anchoring on MUTED (mid-luminance by construction)
-  // keeps the fade readable on both poles even when polarity detection is
-  // wrong — surface-relative blends go invisible when text is already pale.
-  const listFade = mix(t.color.muted, t.color.text, 0.5)
-
-  // ── Local collapse state for each section ──
-  const [toolsOpen, setToolsOpen] = useState(true)
-  const [skillsOpen, setSkillsOpen] = useState(false)
-  const [systemOpen, setSystemOpen] = useState(false)
-  const [mcpOpen, setMcpOpen] = useState(false)
-
-  const truncLine = (pfx: string, items: string[]) => {
-    let line = ''
-    let shown = 0
-
-    for (const item of [...items].sort()) {
-      const next = line ? `${line}, ${item}` : item
-
-      if (pfx.length + next.length > lineBudget) {
-        return line ? `${line}, …+${items.length - shown}` : `${item}, …`
-      }
-
-      line = next
-      shown++
-    }
-
-    return line
-  }
-
-  // ── Collapsible skills section ──
-  const skillEntries = Object.entries(info.skills).sort()
-  const skillsTotal = flat(info.skills).length
-  const skillsCatCount = skillEntries.length
-
-  const skillsBody = () => {
-    if (info.lazy && skillEntries.length === 0) {
-      return <InlineLoader label="scanning skills" t={t} />
-    }
-
-    const shown = skillEntries.slice(0, SKILLS_MAX)
-    const overflow = skillEntries.length - SKILLS_MAX
-
-    return (
-      <>
-        {shown.map(([k, vs]) => (
-          <Text key={k} wrap="truncate">
-            <Text color={t.color.label}>{strip(k)}: </Text>
-            <Text color={listFade}>{truncLine(strip(k) + ': ', vs)}</Text>
-          </Text>
-        ))}
-        {overflow > 0 && <Text color={t.color.muted}>(and {overflow} more categories…)</Text>}
-      </>
-    )
-  }
-
-  // ── Collapsible tools section ──
-  const toolEntries = Object.entries(info.tools).sort()
-  const toolsTotal = flat(info.tools).length
-
-  // MCP headline counts *connected* servers, not configured-but-disabled ones,
-  // so it matches the classic CLI banner (`sum(s.connected)` in
-  // work4you_cli/banner.py) and the "connected" label on the collapse toggle.
-  const mcpServers = info.mcp_servers ?? []
-  const mcpConnected = mcpServers.filter(s => s.connected).length
-
-  const toolsBody = () => {
-    if (info.lazy && toolEntries.length === 0) {
-      return <ShimmerRows color={listFade} highlight={t.color.label} rows={SKELETON_ROWS} />
-    }
-
-    const shown = toolEntries.slice(0, TOOLSETS_MAX)
-    const overflow = toolEntries.length - TOOLSETS_MAX
-
-    return (
-      <>
-        {shown.map(([k, vs]) => (
-          <Text key={k} wrap="truncate">
-            <Text color={t.color.label}>{strip(k)}: </Text>
-            <Text color={listFade}>{truncLine(strip(k) + ': ', vs)}</Text>
-          </Text>
-        ))}
-        {overflow > 0 && <Text color={t.color.muted}>(and {overflow} more toolsets…)</Text>}
-      </>
-    )
-  }
-
-  // ── Collapsible MCP section ──
-  const mcpBody = () => (
-    <>
-      {(info.mcp_servers ?? []).map(s => (
-        <Text key={s.name} wrap="truncate">
-          <Text color={t.color.muted}>{`  ${s.name} `}</Text>
-          <Text color={t.color.muted}>{`[${s.transport}]`}</Text>
-          <Text color={t.color.muted}>: </Text>
-          {s.connected ? (
-            <Text color={t.color.text}>
-              {s.tools} tool{s.tools === 1 ? '' : 's'}
-            </Text>
-          ) : s.disabled || s.status === 'disabled' ? (
-            <Text color={t.color.muted}>disabled</Text>
-          ) : s.status === 'connecting' ? (
-            <Text color={t.color.warn}>connecting</Text>
-          ) : s.status === 'configured' ? (
-            <Text color={t.color.muted}>configured</Text>
-          ) : (
-            <Text color={t.color.error}>failed</Text>
-          )}
-        </Text>
-      ))}
-    </>
-  )
-
-  // ── System prompt body ──
-  const sysPromptLen = (info.system_prompt ?? '').length
-
-  const systemBody = () => {
-    if (sysPromptLen === 0) {
-      return <Text color={t.color.muted}>No system prompt loaded.</Text>
-    }
-
-    return <Text color={t.color.muted}>{info.system_prompt}</Text>
-  }
-
-  // The wide layout is a real two-column grid: a fixed-width hero track and a
-  // flexible info track (grid-template-columns: <leftW> 1fr, gap 2) — the
-  // terminal equivalent of the desktop pane shell's fixed-vs-flex tracks.
-  // Narrow drops to a single flexible track. Track math reproduces the old
-  // hand-rolled widths exactly: usable = (leftW + 2 + w) - gap = leftW + w.
-  const heroColumn = wide ? (
+  const heroColumn = (
     <Box flexDirection="column" width="100%">
       <ArtLines lines={heroLines} />
-      <Text />
+    </Box>
+  )
 
-      <Text color={t.color.accent}>
-        {info.model.split('/').pop()}
-        <Text color={t.color.muted}> · Work4You</Text>
+  const infoColumn = (
+    <Box flexDirection="column" width="100%">
+      <Text bold color={t.color.primary} wrap="truncate-end">
+        {t.brand.name}
+        {info.version ? ` v${info.version}` : ''}
+        {info.release_date ? ` (${info.release_date})` : ''}
       </Text>
+
+      {unconfigured ? (
+        <Text color={t.color.error} wrap="truncate-end">
+          no model configured
+          <Text color={t.color.muted}> — run /model or work4you setup</Text>
+        </Text>
+      ) : (
+        <Text color={t.color.accent} wrap="truncate-end">
+          {modelShort}
+        </Text>
+      )}
 
       <Text color={t.color.muted} wrap="truncate-end">
         {info.cwd || process.cwd()}
       </Text>
 
       {sid && (
-        <Text>
+        <Text wrap="truncate-end">
           <Text color={t.color.sessionLabel}>Session: </Text>
           <Text color={t.color.sessionBorder}>{sid}</Text>
         </Text>
       )}
-    </Box>
-  ) : null
 
-  const infoColumn = (
-    <Box flexDirection="column" width="100%">
-      {wide ? (
-        <Box justifyContent="center" marginBottom={1}>
-          <Text bold color={t.color.primary}>
-            {t.brand.name}
-            {info.version ? ` v${info.version}` : ''}
-            {info.release_date ? ` (${info.release_date})` : ''}
-          </Text>
-        </Box>
-      ) : (
-        // Narrow layout hides the hero column; surface model/cwd/session
-        // here so they aren't lost.
-        <Box flexDirection="column" marginBottom={1}>
-          <Text color={t.color.accent} wrap="truncate-end">
-            {info.model.split('/').pop()}
-            <Text color={t.color.muted}> · Work4You</Text>
-          </Text>
-          <Text color={t.color.muted} wrap="truncate-end">
-            {info.cwd || process.cwd()}
-          </Text>
-          {sid && (
-            <Text wrap="truncate-end">
-              <Text color={t.color.sessionLabel}>Session: </Text>
-              <Text color={t.color.sessionBorder}>{sid}</Text>
-            </Text>
-          )}
-        </Box>
+      {yolo && (
+        <Text color={t.color.error} wrap="truncate-end">
+          YOLO mode — all approval prompts bypassed
+        </Text>
       )}
 
-      {/* ── Tools (expanded by default) ── */}
-      <Box flexDirection="column" marginTop={1}>
-        <Accordion onToggle={() => setToolsOpen(v => !v)} open={toolsOpen} t={t} title="Available Tools">
-          {toolsBody()}
-        </Accordion>
-      </Box>
-
-      {/* ── Skills (collapsed by default) ── */}
-      <Box flexDirection="column" marginTop={1}>
-        <Accordion
-          count={skillsTotal}
-          onToggle={() => setSkillsOpen(v => !v)}
-          open={skillsOpen}
-          suffix={skillsCatCount > 0 ? `in ${skillsCatCount} categor${skillsCatCount === 1 ? 'y' : 'ies'}` : undefined}
-          t={t}
-          title="Available Skills"
-        >
-          {skillsBody()}
-        </Accordion>
-      </Box>
-
-      {/* ── System Prompt (collapsed by default) ── */}
-      {sysPromptLen > 0 && (
-        <Box flexDirection="column" marginTop={1}>
-          <Accordion
-            onToggle={() => setSystemOpen(v => !v)}
-            open={systemOpen}
-            suffix={`— ${sysPromptLen.toLocaleString()} chars`}
-            t={t}
-            title="System Prompt"
-          >
-            {systemBody()}
-          </Accordion>
-        </Box>
+      {profile && (
+        <Text wrap="truncate-end">
+          <Text color={t.color.accent}>Profile: </Text>
+          <Text color={t.color.text}>{profile}</Text>
+        </Text>
       )}
 
-      {/* ── MCP Servers (collapsed by default) ── */}
-      {mcpServers.length > 0 && (
-        <Box flexDirection="column" marginTop={1}>
-          <Accordion
-            count={mcpConnected}
-            onToggle={() => setMcpOpen(v => !v)}
-            open={mcpOpen}
-            suffix="connected"
-            t={t}
-            title="MCP Servers"
-          >
-            {mcpBody()}
-          </Accordion>
-        </Box>
-      )}
-
-      <Text />
-
-      <Text color={t.color.text}>
-        {/* Lazy boot: never print "0 tools · 0 skills" while counts load. */}
-        {info.lazy && !toolsTotal ? '… ' : `${toolsTotal} `}tools{' · '}
-        {info.lazy && !skillsTotal ? '… ' : `${skillsTotal} `}skills
-        {mcpConnected ? ` · ${mcpConnected} MCP` : ''}
-        {' · '}
-        <Text color={t.color.muted}>/help for commands</Text>
-      </Text>
+      <Text color={t.color.muted}>/help for commands</Text>
 
       {typeof info.update_behind === 'number' && info.update_behind > 0 && (
         <Text bold color={t.color.warn}>
@@ -497,14 +232,17 @@ export function SessionPanel({ info, maxWidth, sid, t }: SessionPanelProps) {
         gap={2}
         paddingX={0}
         paddingY={0}
-        rowGap={0}
+        rowGap={1}
         widgets={
           wide
             ? [
                 { children: heroColumn, id: 'session-hero' },
                 { children: infoColumn, id: 'session-info' }
               ]
-            : [{ children: infoColumn, id: 'session-info' }]
+            : [
+                { children: heroColumn, id: 'session-hero' },
+                { children: infoColumn, id: 'session-info' }
+              ]
         }
       />
     </Box>

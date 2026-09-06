@@ -82,14 +82,14 @@ for the exact supported subset and trust boundary.
 <img className="docs-terminal-figure" src="/docs/img/docs/cli-layout.svg" alt="Stylized preview of the Work4You CLI layout showing the banner, conversation area, and fixed input prompt." />
 <p className="docs-figure-caption">The Work4You CLI banner, conversation stream, and fixed input prompt rendered as a stable docs figure instead of fragile text art.</p>
 
-The welcome banner shows your model, terminal backend, working directory, available tools, and installed skills at a glance.
+The welcome splash shows your model, working directory, and session. Tools, skills, and MCP stay on `/help`, `/tools`, and `/skills`.
 
 ### Status Bar
 
 A persistent status bar sits above the input area, updating in real time:
 
 ```
- ⚕ claude-sonnet-4-20250514 │ 12.4K/200K │ [██████░░░░] 6% │ $0.06 │ 15m
+  ◆ claude-sonnet-4-20250514 │ 12.4K/200K │ [██████░░░░] 6% │ $0.06 │ 15m
 ```
 
 | Element | Description |
@@ -474,7 +474,7 @@ Each `/background` prompt spawns a **completely separate agent session** in a da
 When a background task finishes, the result appears as a panel in your terminal:
 
 ```
-╭─ ⚕ Work4You (background #1) ──────────────────────────────────╮
+╭─ ◆ Work4You (background #1) ──────────────────────────────────╮
 │ Found 3 errors in syslog from today:                         │
 │ 1. OOM killer invoked at 03:22 — killed process nginx        │
 │ 2. Disk I/O error on /dev/sda1 at 07:15                      │
