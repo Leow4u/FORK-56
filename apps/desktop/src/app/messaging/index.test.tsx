@@ -328,9 +328,7 @@ describe('MessagingView pairing', () => {
 
     await waitFor(() => expect(testMessagingPlatform).toHaveBeenCalledWith('teams'))
     await waitFor(() =>
-      expect(notify).toHaveBeenCalledWith(
-        expect.objectContaining({ kind: 'success', message: 'Connected as @bot' })
-      )
+      expect(notify).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success', message: 'Connected as @bot' }))
     )
   })
 

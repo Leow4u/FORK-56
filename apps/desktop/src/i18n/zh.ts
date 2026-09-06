@@ -1806,7 +1806,8 @@ export const zh: Translations = {
     discordQuickSetup: {
       title: '快速设置',
       recommended: '推荐',
-      intro: '粘贴 bot 令牌，Work4You 会从中读取应用 ID——随后生成服务器邀请链接，并指引你开启 bot 所需的两个意图（Intents）。保存后频道即启用。',
+      intro:
+        '粘贴 bot 令牌，Work4You 会从中读取应用 ID——随后生成服务器邀请链接，并指引你开启 bot 所需的两个意图（Intents）。保存后频道即启用。',
       replacesExisting: 'Discord 已配置——在此保存会替换已存储的令牌。',
       tokenLabel: 'Bot 令牌',
       tokenPlaceholder: '粘贴 Discord bot 令牌',
@@ -1852,7 +1853,8 @@ export const zh: Translations = {
     telegramQuickSetup: {
       title: '快速设置',
       recommended: '推荐',
-      intro: '扫描二维码并在 Telegram 中确认——Work4You 会自动创建机器人并检测你的 Telegram 用户 ID。想用自己的机器人？请改用下方的凭据字段。',
+      intro:
+        '扫描二维码并在 Telegram 中确认——Work4You 会自动创建机器人并检测你的 Telegram 用户 ID。想用自己的机器人？请改用下方的凭据字段。',
       createWithQr: '通过二维码创建',
       starting: '启动中…',
       waiting: '等待你在 Telegram 中确认…',

@@ -1370,7 +1370,8 @@ export const zhHant = defineLocale({
     discordQuickSetup: {
       title: '快速設定',
       recommended: '建議',
-      intro: '貼上 bot Token，Work4You 會從中讀取應用程式 ID——接著產生伺服器邀請連結，並指引你開啟機器人所需的兩個 Intents。儲存後即啟用此頻道。',
+      intro:
+        '貼上 bot Token，Work4You 會從中讀取應用程式 ID——接著產生伺服器邀請連結，並指引你開啟機器人所需的兩個 Intents。儲存後即啟用此頻道。',
       replacesExisting: 'Discord 已設定完成——在此儲存會取代已儲存的 Token。',
       tokenLabel: 'Bot Token',
       tokenPlaceholder: '貼上 Discord bot Token',
@@ -1416,7 +1417,8 @@ export const zhHant = defineLocale({
     telegramQuickSetup: {
       title: '快速設定',
       recommended: '建議',
-      intro: '掃描 QR Code 並在 Telegram 中確認——Work4You 會自動建立機器人並偵測你的 Telegram 使用者 ID。想用自己的機器人？請改用下方的憑證欄位。',
+      intro:
+        '掃描 QR Code 並在 Telegram 中確認——Work4You 會自動建立機器人並偵測你的 Telegram 使用者 ID。想用自己的機器人？請改用下方的憑證欄位。',
       createWithQr: '透過 QR Code 建立',
       starting: '啟動中…',
       waiting: '等待你在 Telegram 中確認…',

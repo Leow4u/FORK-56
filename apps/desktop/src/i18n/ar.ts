@@ -1222,7 +1222,8 @@ export const ar = defineLocale({
       slackTokenPrefix: (prefix: string) => `يجب أن يبدأ هذا الرمز بـ ${prefix}`,
       telegramToken: 'الصق الرمز الكامل من @BotFather (مثال: 123456789:ABC…).',
       telegramUserId: (value: string) => `${value} ليس معرف مستخدم Telegram رقميًا.`,
-      whatsappNumber: (value: string) => `${value} لا يبدو رقم WhatsApp صحيحًا. استخدم أرقامًا كاملة مع رمز الدولة، مثل 15551234567.`
+      whatsappNumber: (value: string) =>
+        `${value} لا يبدو رقم WhatsApp صحيحًا. استخدم أرقامًا كاملة مع رمز الدولة، مثل 15551234567.`
     },
     envOptions: {
       WHATSAPP_DM_POLICY: {
@@ -1270,7 +1271,8 @@ export const ar = defineLocale({
       manifestCopyFailed: 'فشل نسخ manifest الخاص بـ Slack',
       createApp: 'إنشاء تطبيق في Slack',
       botTokenLabel: 'رمز البوت',
-      botTokenHelp: 'ثبِّت التطبيق في مساحة العمل (Settings → Install App)، ثم الصق Bot User OAuth Token — يبدأ بـ xoxb-.',
+      botTokenHelp:
+        'ثبِّت التطبيق في مساحة العمل (Settings → Install App)، ثم الصق Bot User OAuth Token — يبدأ بـ xoxb-.',
       botTokenPlaceholder: 'xoxb-...',
       appTokenLabel: 'رمز مستوى التطبيق',
       appTokenHelp:
