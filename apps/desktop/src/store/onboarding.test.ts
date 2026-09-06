@@ -314,7 +314,7 @@ describe('OAuth onboarding', () => {
     vi.restoreAllMocks()
   })
 
-  it('clears stale readiness errors after OAuth succeeds and model confirmation is shown', async () => {
+  it('clears stale readiness errors after OAuth succeeds and completes onboarding directly', async () => {
     const model = 'anthropic/claude-opus-4.8'
     const calls: { body?: unknown; path: string }[] = []
 
@@ -389,12 +389,10 @@ describe('OAuth onboarding', () => {
 
     const state = $desktopOnboarding.get()
     expect(state.reason).toBeNull()
-    expect(state.flow.status).toBe('confirming_model')
-
-    if (state.flow.status === 'confirming_model') {
-      expect(state.flow.label).toBe('Work4You Portal')
-      expect(state.flow.currentModel).toBe(model)
-    }
+    // No confirm-model stop: connect lands straight in the app with the
+    // recommended default already persisted via /api/model/set.
+    expect(state.flow.status).toBe('idle')
+    expect(state.configured).toBe(true)
 
     expect(calls.some(c => c.path === '/api/model/set')).toBe(true)
 

@@ -31,13 +31,13 @@ export type OnboardingFlow =
   | { copied: boolean; provider: OAuthProvider; status: 'external_pending' }
   | { provider: OAuthProvider; status: 'success' }
   | {
-      // After successful credential acquisition, before completing
-      // onboarding: show the user which model they're getting and let
-      // them change it. providerSlug is the model.options slug for the
-      // just-authenticated provider (used to persist the chosen model
-      // via /api/model/set). The change-model UI uses the existing
-      // ModelPickerDialog, which fetches its own model list from
-      // /api/model/options — no need to cache the list here.
+      // Model-confirm card. No longer part of the live connect flow —
+      // completeWithModelConfirm finishes onboarding directly — but the
+      // state, panel, and actions are retained (reachable via the DEV
+      // onboarding preview, `?onboarding=confirm`). providerSlug is the
+      // model.options slug for the just-authenticated provider (used to
+      // persist a changed model via /api/model/set); the change-model UI
+      // reuses ModelPickerDialog, which fetches its own model list.
       currentModel: string
       label: string
       providerSlug: string
@@ -292,9 +292,11 @@ async function fetchProviderDefaultModel(
   }
 }
 
-// After OAuth/API-key success: reload the backend env, verify runtime,
-// then either show the model-confirm step or fall straight through to
-// completion if we can't determine a default.
+// After OAuth/API-key success: reload the backend env, persist the
+// recommended default model (when resolvable), verify runtime, and complete
+// onboarding directly — connect lands straight in the app with no confirm
+// stop. The model stays visible and changeable at any time from the chat
+// status bar (the same ModelPickerDialog the old confirm card opened).
 //
 // onFail receives the runtime-readiness `reason` from checkRuntime so
 // the caller can fold it into a user-facing error — same contract as
@@ -339,22 +341,12 @@ async function completeWithModelConfirm(
     return
   }
 
-  if (!defaults) {
-    // Couldn't get a sensible default — proceed without confirm step.
-    notifyReady(providerLabel)
-    completeDesktopOnboarding()
-    ctx.onCompleted?.()
-
-    return
-  }
-
-  setFlow({
-    status: 'confirming_model',
-    providerSlug: defaults.providerSlug,
-    currentModel: defaults.defaultModel,
-    label: providerLabel,
-    saving: false
-  })
+  // Whether or not a default was resolvable, everything is already decided
+  // and persisted by this point — finish the same way the no-default path
+  // always has: success toast + straight into the app.
+  notifyReady(providerLabel)
+  completeDesktopOnboarding()
+  ctx.onCompleted?.()
 }
 
 function providerResolutionFailure(reason: null | string) {
@@ -926,10 +918,11 @@ export async function setOnboardingModel(model: string) {
   }
 }
 
-// User clicked "Start chatting" on the confirm card. Finalizes onboarding
-// — the model was already persisted by completeWithModelConfirm (or by
-// setOnboardingModel if they changed it), so all that's left is to mark
-// onboarding done and unblock the rest of the app.
+// User clicked "Start chatting" on the confirm card (now only reachable via
+// the DEV onboarding preview). Finalizes onboarding — the model was already
+// persisted by completeWithModelConfirm (or by setOnboardingModel if they
+// changed it), so all that's left is to mark onboarding done and unblock the
+// rest of the app.
 export function confirmOnboardingModel(ctx: OnboardingContext) {
   const { flow } = $desktopOnboarding.get()
 
@@ -938,8 +931,8 @@ export function confirmOnboardingModel(ctx: OnboardingContext) {
   }
 
   // No success toast here: the confirm-model screen already showed "<provider>
-  // connected." notifyReady is reserved for completion paths that SKIP this
-  // screen (no-default fallthrough, local endpoint) so feedback isn't lost.
+  // connected." notifyReady is reserved for completion paths that skip this
+  // screen (the connect flow itself, local endpoint) so feedback isn't lost.
   completeDesktopOnboarding()
   ctx.onCompleted?.()
 }
