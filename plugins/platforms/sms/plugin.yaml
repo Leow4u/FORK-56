@@ -22,8 +22,16 @@ requires_env:
     prompt: "Twilio phone number"
     password: false
 optional_env:
+  # Required by the adapter to START (Twilio signature validation) unless
+  # SMS_INSECURE_NO_SIGNATURE=true, but kept out of requires_env so the
+  # insecure-dev escape hatch stays usable; the messaging catalog marks it
+  # required for the setup UIs.
+  - name: SMS_WEBHOOK_URL
+    description: "Public webhook URL configured in the Twilio console (e.g. https://example.com/webhooks/twilio)"
+    prompt: "Public webhook URL"
+    password: false
   - name: SMS_ALLOWED_USERS
-    description: "Comma-separated phone numbers allowed to talk to the bot"
+    description: "Comma-separated phone numbers allowed to talk to the bot (E.164)"
     prompt: "Allowed users (comma-separated)"
     password: false
   - name: SMS_HOME_CHANNEL

@@ -1791,8 +1791,13 @@ export const zh: Translations = {
       emailPort: (value: string) => `${value} 不是有效的端口。请使用 1 到 65535 之间的数字。`,
       slackMemberId: (value: string) => `${value} 不像是 Slack 成员 ID。请使用类似 U01ABC2DEF3 的 ID。`,
       slackTokenPrefix: (prefix: string) => `此令牌必须以 ${prefix} 开头`,
+      smsNumber: (value: string) =>
+        `${value} 不是 E.164 格式的电话号码。请使用带 + 前缀的完整号码，例如 +15551234567。`,
+      smsWebhookUrl: (value: string) =>
+        `${value} 不是有效的 webhook URL。请使用完整的公网 URL，例如 https://your-domain.com/webhooks/twilio。`,
       telegramToken: '请粘贴来自 @BotFather 的完整令牌（例如 123456789:ABC…）。',
       telegramUserId: (value: string) => `${value} 不是有效的 Telegram 数字用户 ID。`,
+      twilioAccountSid: '请粘贴 Twilio 控制台仪表盘中的完整 Account SID——以 AC 开头，后跟 32 个字符。',
       whatsappNumber: (value: string) => `${value} 不像是 WhatsApp 号码。请使用带国家代码的完整号码，例如 15551234567。`
     },
     envOptions: {
@@ -1853,6 +1858,30 @@ export const zh: Translations = {
       hostsRequired: '请输入 IMAP 和 SMTP 主机，或选择一个提供商。',
       saved: '电子邮件已保存并启用。重启网关以连接。',
       saveFailed: '无法保存电子邮件设置。'
+    },
+    smsQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro:
+        '粘贴你的 Twilio 凭据，并告诉 Twilio 将收到的短信投递到哪里。接收短信需要一个公网 webhook URL——如果 Work4You 运行在本地，请先用 cloudflared 或 ngrok 之类的隧道暴露它。',
+      replacesExisting: '短信已配置。在此保存会替换已存储的 Twilio 设置。',
+      credentialsHelp: 'Account SID 和 Auth Token，来自 Twilio 控制台仪表盘。',
+      accountSidLabel: 'Account SID',
+      accountSidPlaceholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+      openConsole: '打开 Twilio 控制台',
+      authTokenLabel: 'Auth Token',
+      authTokenPlaceholder: 'Twilio Auth Token',
+      phoneHelp: '你的支持短信的 Twilio 电话号码（E.164 格式）。',
+      phoneLabel: 'Twilio 电话号码',
+      webhookHelp: '公网 webhook URL——Twilio 将收到的短信投递到这里。路径为 /webhooks/twilio。',
+      webhookLabel: '公网 webhook URL',
+      webhookHint:
+        '将同一 URL 粘贴到 Twilio 控制台的 Phone Numbers → Active Numbers → Messaging → "A message comes in"。没有它网关将拒绝启动（用于验证 Twilio 请求签名）。',
+      allowedUsersHelp: '推荐。逗号分隔的允许与代理对话的电话号码——其他人会被忽略。',
+      allowedUsersLabel: '允许的发送者',
+      allFieldsRequired: '请先输入 Account SID、Auth Token、电话号码和 webhook URL。',
+      saved: '短信已保存并启用。重启网关以连接。',
+      saveFailed: '无法保存短信设置。'
     },
     slackQuickSetup: {
       title: '快速设置',
@@ -2034,6 +2063,30 @@ export const zh: Translations = {
         help: '推荐。逗号分隔的允许与代理对话的地址——其他人会被忽略。',
         placeholder: 'you@example.com'
       },
+      TWILIO_ACCOUNT_SID: {
+        label: 'Twilio Account SID',
+        help: '来自 Twilio 控制台仪表盘。以 AC 开头。',
+        placeholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      },
+      TWILIO_AUTH_TOKEN: {
+        label: 'Twilio Auth Token',
+        help: '来自 Twilio 控制台仪表盘，在 Account SID 旁边。'
+      },
+      TWILIO_PHONE_NUMBER: {
+        label: 'Twilio 电话号码',
+        help: '你的 Twilio 账户中支持短信的号码（E.164 格式）。',
+        placeholder: '+15551234567'
+      },
+      SMS_WEBHOOK_URL: {
+        label: '公网 webhook URL',
+        help: 'Twilio 将收到的短信投递到这里——与 Twilio 控制台中配置的 URL 相同。签名验证必需。',
+        placeholder: 'https://your-domain.com/webhooks/twilio'
+      },
+      SMS_ALLOWED_USERS: {
+        label: '允许的发送者',
+        help: '推荐。逗号分隔的允许与代理对话的 E.164 电话号码——其他人会被忽略。',
+        placeholder: '+15559876543'
+      },
       MATTERMOST_URL: { label: '服务器 URL', placeholder: 'https://mattermost.example.com' },
       MATTERMOST_TOKEN: { label: 'Bot 令牌' },
       MATTERMOST_ALLOWED_USERS: { label: '允许的用户 ID', help: '推荐。逗号分隔的 Mattermost 用户 ID。' },
@@ -2075,7 +2128,7 @@ export const zh: Translations = {
       homeassistant: '在 Home Assistant 中打开你的个人资料并创建长期访问令牌。把它连同你的 HA URL 一起粘贴到这里。',
       email:
         '使用上方的快速设置并搭配专用邮箱——选择你的提供商，IMAP/SMTP 主机会自动填写。启用了两步验证的账户（Gmail、Outlook）需要应用专用密码，而不是账户密码；只有允许列表中的发件人才会收到回复。',
-      sms: '从 Twilio 控制台获取你的 Account SID 和 Auth Token，以及一个可发送短信的电话号码。',
+      sms: '使用上方的快速设置。除了 Twilio 凭据和支持短信的电话号码外，接收短信还需要一个公网 webhook URL——Twilio 必须能访问你的机器（本地运行请使用 cloudflared 或 ngrok 之类的隧道），并且同一 URL 需要填入 Twilio 控制台。',
       dingtalk: '在开发者控制台创建钉钉应用，然后在此复制 Client ID(App key) 和 Client Secret。',
       feishu: '创建飞书 / Lark 应用，配置机器人能力，复制 App ID、App secret 和事件加密密钥。',
       wecom: '在企业微信中添加群机器人，复制其 webhook key 作为 WECOM_BOT_ID。仅可发送——双向请用企业微信 (应用) 选项。',

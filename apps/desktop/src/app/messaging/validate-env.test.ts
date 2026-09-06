@@ -44,6 +44,45 @@ describe('validateMessagingEnv', () => {
     })
   })
 
+  it('requires the AC-prefixed 32-hex shape for Twilio Account SIDs', () => {
+    // Built at runtime so the literal never matches credential-shaped push
+    // protection patterns.
+    const sid = 'AC' + 'a'.repeat(32)
+
+    expect(validateMessagingEnv('TWILIO_ACCOUNT_SID', sid)).toBeNull()
+    expect(validateMessagingEnv('TWILIO_ACCOUNT_SID', 'SK' + 'a'.repeat(32))).toEqual({ code: 'twilioAccountSid' })
+    expect(validateMessagingEnv('TWILIO_ACCOUNT_SID', 'AC123')).toEqual({ code: 'twilioAccountSid' })
+  })
+
+  it('requires strict E.164 for the Twilio from-number', () => {
+    expect(validateMessagingEnv('TWILIO_PHONE_NUMBER', '+15551234567')).toBeNull()
+    expect(validateMessagingEnv('TWILIO_PHONE_NUMBER', '15551234567')).toEqual({
+      code: 'smsNumber',
+      value: '15551234567'
+    })
+    expect(validateMessagingEnv('TWILIO_PHONE_NUMBER', '+1 555 123 4567')).toEqual({
+      code: 'smsNumber',
+      value: '+1 555 123 4567'
+    })
+  })
+
+  it('validates the SMS allowlist as E.164, honoring the * wildcard', () => {
+    expect(validateMessagingEnv('SMS_ALLOWED_USERS', '+15551234567, *,')).toBeNull()
+    expect(validateMessagingEnv('SMS_ALLOWED_USERS', '+15551234567, 5559876543')).toEqual({
+      code: 'smsNumber',
+      value: '5559876543'
+    })
+  })
+
+  it('requires a scheme on the SMS webhook URL', () => {
+    expect(validateMessagingEnv('SMS_WEBHOOK_URL', 'https://example.com/webhooks/twilio')).toBeNull()
+    expect(validateMessagingEnv('SMS_WEBHOOK_URL', 'http://example.com/webhooks/twilio')).toBeNull()
+    expect(validateMessagingEnv('SMS_WEBHOOK_URL', 'example.com/webhooks/twilio')).toEqual({
+      code: 'smsWebhookUrl',
+      value: 'example.com/webhooks/twilio'
+    })
+  })
+
   it('flags the first non-phone WhatsApp allowlist entry by value', () => {
     expect(validateMessagingEnv('WHATSAPP_ALLOWED_USERS', '15551234567, carla, 15557654321')).toEqual({
       code: 'whatsappNumber',
@@ -66,6 +105,7 @@ describe('validateMessagingEnv', () => {
 
   it('rejects a malformed Discord bot token and accepts a real-shaped one', () => {
     expect(validateMessagingEnv('DISCORD_BOT_TOKEN', 'anything-goes')).toEqual({ code: 'discordToken' })
+
     // Three dot-separated base64url segments, as issued by the Developer
     // Portal. Assembled at runtime so no token-shaped literal lives in the
     // source (GitHub push protection flags those).

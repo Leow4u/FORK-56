@@ -8623,9 +8623,31 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "sms": {
         "name": "SMS (Twilio)",
         "description": "Send and receive text messages via Twilio.",
-        "docs_url": "https://www.twilio.com/console",
-        "env_vars": ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN"),
-        "required_env": ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN"),
+        # The dedicated SMS guide (webhook exposure, tunnels, allowlist), not
+        # the generic Twilio console.
+        "docs_url": "https://work4you.ai/docs/user-guide/messaging/sms",
+        "env_vars": (
+            "TWILIO_ACCOUNT_SID",
+            "TWILIO_AUTH_TOKEN",
+            "TWILIO_PHONE_NUMBER",
+            "SMS_WEBHOOK_URL",
+        ),
+        # Everything the adapter hard-fails without at connect(): it refuses
+        # to start with no from-number (sms_missing_phone_number) and with no
+        # public webhook URL for signature validation (sms_missing_webhook_url)
+        # — "configured" must not report true short of that.
+        "required_env": (
+            "TWILIO_ACCOUNT_SID",
+            "TWILIO_AUTH_TOKEN",
+            "TWILIO_PHONE_NUMBER",
+            "SMS_WEBHOOK_URL",
+        ),
+        # SMS credentials are env-only, but the gateway force-enables the
+        # platform and seeds api_key from just TWILIO_ACCOUNT_SID/AUTH_TOKEN,
+        # which the generic "has api_key → connected" ladder then reports as
+        # configured. Re-check the real required set on top (see
+        # _messaging_platform_payload).
+        "strict_env_required": True,
     },
     "dingtalk": {
         "name": "DingTalk",
@@ -9071,7 +9093,11 @@ def _platform_env_prefixes(platform_id: str) -> tuple[str, ...]:
         "email": ("EMAIL_",),
         "homeassistant": ("HASS_",),
         "qqbot": ("QQ_", "QQBOT_"),
-        "sms": ("TWILIO_",),
+        # Credentials are TWILIO_*; gateway knobs (webhook URL, allowlist)
+        # are SMS_*. Without the second prefix the card silently dropped
+        # SMS_ALLOWED_USERS — the one decision setup_hidden_env.py says must
+        # stay visible — and the adapter-required SMS_WEBHOOK_URL.
+        "sms": ("TWILIO_", "SMS_"),
         "wecom": ("WECOM_BOT_", "WECOM_SECRET"),
         "wecom_callback": ("WECOM_CALLBACK_",),
     }
@@ -9159,6 +9185,7 @@ def _build_catalog_entry(
         "docs_url": override.get("docs_url", ""),
         "env_vars": env_vars,
         "required_env": required_env,
+        "strict_env_required": bool(override.get("strict_env_required")),
     }
 
 
@@ -9273,6 +9300,15 @@ def _messaging_platform_payload(
                 platform_config
                 and gateway_config._is_platform_connected(platform, platform_config)
             )
+            # Platforms with env-only credentials can be "connected" per the
+            # generic gateway ladder (a seeded api_key is enough) while still
+            # missing vars their adapter hard-fails without at connect().
+            # Opt-in via strict_env_required in the catalog override.
+            if configured and entry.get("strict_env_required"):
+                configured = all(
+                    env_on_disk.get(key) or os.getenv(key, "")
+                    for key in entry["required_env"]
+                )
             home_channel = (
                 platform_config.home_channel.to_dict()
                 if platform_config and platform_config.home_channel
@@ -10459,6 +10495,66 @@ def _email_live_test(env: dict[str, str]) -> tuple[bool, str]:
     return True, "IMAP and SMTP logins succeeded."
 
 
+def _sms_live_test(env: dict[str, str]) -> tuple[bool, str]:
+    """Verify Twilio credentials and the from-number against the REST API.
+
+    Same rationale as ``_email_live_test``: the credentials are provable with
+    two small authenticated GETs, no gateway connection required. Catches the
+    classic failures (wrong/revoked auth token, a from-number that belongs to
+    a different Twilio account or has a typo) before the save → restart →
+    read-the-logs round trip.
+    """
+    import base64
+    import json as _json
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    sid = (env.get("TWILIO_ACCOUNT_SID") or "").strip()
+    token = env.get("TWILIO_AUTH_TOKEN") or ""
+    number = (env.get("TWILIO_PHONE_NUMBER") or "").strip()
+
+    auth = base64.b64encode(f"{sid}:{token}".encode("ascii")).decode("ascii")
+
+    def _get(url: str) -> tuple[int, dict]:
+        request = urllib.request.Request(url, headers={"Authorization": f"Basic {auth}"})
+        try:
+            with urllib.request.urlopen(request, timeout=15) as resp:
+                return resp.status, _json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            return exc.code, {}
+
+    try:
+        status, _ = _get(f"https://api.twilio.com/2010-04-01/Accounts/{sid}.json")
+    except Exception as exc:
+        return False, f"Could not reach the Twilio API: {exc}"
+
+    if status in (401, 403):
+        return False, (
+            "Twilio rejected the credentials. Check the Account SID and Auth "
+            "Token on the Twilio console dashboard."
+        )
+    if status >= 400:
+        return False, f"Twilio API returned HTTP {status} for the account lookup."
+
+    if number:
+        query = urllib.parse.urlencode({"PhoneNumber": number})
+        try:
+            status, body = _get(
+                f"https://api.twilio.com/2010-04-01/Accounts/{sid}/IncomingPhoneNumbers.json?{query}"
+            )
+        except Exception as exc:
+            return False, f"Could not reach the Twilio API: {exc}"
+        if status < 400 and not body.get("incoming_phone_numbers"):
+            return False, (
+                f"Credentials are valid, but {number} is not a phone number on "
+                "this Twilio account. Check Phone Numbers → Manage → Active "
+                "Numbers in the Twilio console."
+            )
+
+    return True, "Twilio credentials and phone number verified."
+
+
 @app.post("/api/messaging/platforms/{platform_id}/test")
 async def test_messaging_platform(platform_id: str, profile: Optional[str] = None):
     entry = _catalog_lookup(platform_id)
@@ -10500,6 +10596,26 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
             else "Platform setup is incomplete."
         )
         return {"ok": False, "state": payload["state"], "message": message}
+    if platform_id == "sms":
+        # Twilio credentials are provable with the REST API directly (see
+        # _sms_live_test) — run before the gateway_running gate, like email.
+        live_env = {
+            key: (env_on_disk.get(key) or ("" if profile_scoped else os.getenv(key, "")))
+            for key in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER")
+        }
+        ok, message = await asyncio.to_thread(_sms_live_test, live_env)
+        if not ok:
+            return {"ok": False, "state": payload["state"], "message": message}
+        if payload["state"] == "connected":
+            return {"ok": True, "state": payload["state"], "message": "SMS (Twilio) is connected."}
+        return {
+            "ok": True,
+            "state": payload["state"],
+            "message": (
+                "Credentials verified with the Twilio API. "
+                "Restart the gateway to connect."
+            ),
+        }
     if platform_id == "email":
         # Email credentials can be proven directly (see _email_live_test) —
         # no live gateway connection required, so run this before the

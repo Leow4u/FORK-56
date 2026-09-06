@@ -1412,8 +1412,11 @@ export interface Translations {
       emailPort: (value: string) => string
       slackMemberId: (value: string) => string
       slackTokenPrefix: (prefix: string) => string
+      smsNumber: (value: string) => string
+      smsWebhookUrl: (value: string) => string
       telegramToken: string
       telegramUserId: (value: string) => string
+      twilioAccountSid: string
       whatsappNumber: (value: string) => string
     }
     /** Localized labels for env keys rendered as a segmented picker
@@ -1462,6 +1465,28 @@ export interface Translations {
       allowedUsersPlaceholder: string
       addressAndPasswordRequired: string
       hostsRequired: string
+      saved: string
+      saveFailed: string
+    }
+    smsQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      credentialsHelp: string
+      accountSidLabel: string
+      accountSidPlaceholder: string
+      openConsole: string
+      authTokenLabel: string
+      authTokenPlaceholder: string
+      phoneHelp: string
+      phoneLabel: string
+      webhookHelp: string
+      webhookLabel: string
+      webhookHint: string
+      allowedUsersHelp: string
+      allowedUsersLabel: string
+      allFieldsRequired: string
       saved: string
       saveFailed: string
     }

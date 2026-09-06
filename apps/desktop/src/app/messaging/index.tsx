@@ -45,6 +45,7 @@ import { DiscordQuickSetup } from './discord-quick-setup'
 import { EmailQuickSetup } from './email-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackQuickSetup } from './slack-quick-setup'
+import { SmsQuickSetup } from './sms-quick-setup'
 import { TelegramQuickSetup } from './telegram-quick-setup'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
 import { WhatsAppQuickSetup } from './whatsapp-quick-setup'
@@ -111,11 +112,20 @@ const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging'])
     case 'slackTokenPrefix':
       return m.envErrors.slackTokenPrefix(error.prefix)
 
+    case 'smsNumber':
+      return m.envErrors.smsNumber(error.value)
+
+    case 'smsWebhookUrl':
+      return m.envErrors.smsWebhookUrl(error.value)
+
     case 'telegramToken':
       return m.envErrors.telegramToken
 
     case 'telegramUserId':
       return m.envErrors.telegramUserId(error.value)
+
+    case 'twilioAccountSid':
+      return m.envErrors.twilioAccountSid
 
     case 'whatsappNumber':
       return m.envErrors.whatsappNumber(error.value)
@@ -827,6 +837,10 @@ function PlatformDetail({
         <EmailQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
       )}
 
+      {platform.id === 'sms' && (
+        <SmsQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
+      )}
+
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
         <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
@@ -1003,7 +1017,7 @@ const PLATFORM_INTRO: Record<string, string> = {
     'In Home Assistant, open your profile and create a long-lived access token. Paste it here along with your HA URL.',
   email:
     'Use Quick setup above with a dedicated mailbox — pick your provider and the IMAP/SMTP hosts are filled in for you. Accounts with 2FA (Gmail, Outlook) need an app password, not the account password, and only senders on the allowlist get replies.',
-  sms: 'Get your Twilio Account SID and Auth Token from the Twilio console, plus a phone number that can send SMS.',
+  sms: 'Use Quick setup above. Besides the Twilio credentials and an SMS-capable phone number, inbound texts need a public webhook URL — Twilio must be able to reach your machine (use a tunnel like cloudflared or ngrok if you run locally), and the same URL goes into the Twilio console.',
   dingtalk: 'Create a DingTalk app in the developer console, then copy the Client ID (App key) and Client Secret here.',
   feishu:
     'Create a Feishu / Lark app, configure the bot capability, and copy the App ID, App secret, and event encryption keys.',
