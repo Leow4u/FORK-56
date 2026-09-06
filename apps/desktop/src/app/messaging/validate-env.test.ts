@@ -89,6 +89,35 @@ describe('validateMessagingEnv', () => {
     })
   })
 
+  it('validates the email address and each allowlisted sender', () => {
+    expect(validateMessagingEnv('EMAIL_ADDRESS', 'agent@example.com')).toBeNull()
+    expect(validateMessagingEnv('EMAIL_ADDRESS', 'not-an-address')).toEqual({
+      code: 'emailAddress',
+      value: 'not-an-address'
+    })
+    expect(validateMessagingEnv('EMAIL_ALLOWED_USERS', 'you@example.com, *')).toBeNull()
+    expect(validateMessagingEnv('EMAIL_ALLOWED_USERS', 'you@example.com, carla')).toEqual({
+      code: 'emailAddress',
+      value: 'carla'
+    })
+  })
+
+  it('rejects mail hosts pasted with a scheme and out-of-range ports', () => {
+    expect(validateMessagingEnv('EMAIL_IMAP_HOST', 'imap.gmail.com')).toBeNull()
+    expect(validateMessagingEnv('EMAIL_IMAP_HOST', 'https://imap.gmail.com')).toEqual({
+      code: 'emailHost',
+      value: 'https://imap.gmail.com'
+    })
+    expect(validateMessagingEnv('EMAIL_SMTP_HOST', 'smtp host')).toEqual({
+      code: 'emailHost',
+      value: 'smtp host'
+    })
+    expect(validateMessagingEnv('EMAIL_SMTP_PORT', '587')).toBeNull()
+    expect(validateMessagingEnv('EMAIL_IMAP_PORT', '993')).toBeNull()
+    expect(validateMessagingEnv('EMAIL_SMTP_PORT', 'abc')).toEqual({ code: 'emailPort', value: 'abc' })
+    expect(validateMessagingEnv('EMAIL_IMAP_PORT', '70000')).toEqual({ code: 'emailPort', value: '70000' })
+  })
+
   it('leaves keys without a client-checkable shape alone', () => {
     expect(validateMessagingEnv('MATTERMOST_TOKEN', 'anything-goes')).toBeNull()
     expect(validateMessagingEnv('TELEGRAM_PROXY', 'socks5://127.0.0.1:1080')).toBeNull()

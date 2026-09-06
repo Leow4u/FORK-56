@@ -1218,6 +1218,10 @@ export const ar = defineLocale({
       discordToken: 'الصق رمز البوت الكامل من بوابة مطوري Discord ‏(Bot → Reset Token) — ثلاثة أجزاء مفصولة بنقاط.',
       discordUserId: (value: string) =>
         `${value} ليس معرف مستخدم Discord رقميًا. فعّل وضع المطور في Discord، ثم انقر بزر الفأرة الأيمن على المستخدم → نسخ معرف المستخدم.`,
+      emailAddress: (value: string) => `${value} لا يبدو عنوان بريد إلكتروني.`,
+      emailHost: (value: string) =>
+        `${value} ليس اسم مضيف خادم بريد صالحًا. استخدم اسم مضيف مثل imap.gmail.com — بدون http:// أو مسافات.`,
+      emailPort: (value: string) => `${value} ليس منفذًا صالحًا. استخدم رقمًا بين 1 و65535.`,
       slackMemberId: (value: string) => `${value} لا يبدو معرف عضو Slack. استخدم معرفات مثل U01ABC2DEF3.`,
       slackTokenPrefix: (prefix: string) => `يجب أن يبدأ هذا الرمز بـ ${prefix}`,
       telegramToken: 'الصق الرمز الكامل من @BotFather (مثال: 123456789:ABC…).',
@@ -1258,6 +1262,34 @@ export const ar = defineLocale({
         'اختياري. معرّفات رقمية مفصولة بفواصل للمستخدمين المسموح لهم بمراسلة البوت مباشرة. اتركه فارغًا للموافقة على الأشخاص عبر طلبات الاقتران هنا بدلًا من ذلك.',
       saved: 'تم حفظ Discord وتفعيله. أعد تشغيل البوابة للاتصال.',
       saveFailed: 'فشل حفظ إعداد Discord'
+    },
+    emailQuickSetup: {
+      title: 'الإعداد السريع',
+      recommended: 'موصى به',
+      intro:
+        'اختر مزود البريد وسيملأ Work4You خوادم البريد تلقائيًا. استخدم صندوق بريد مخصصًا — يقرأ الوكيل كل ما فيه ويرد عليه.',
+      replacesExisting: 'البريد الإلكتروني مهيأ بالفعل. الحفظ هنا يستبدل إعدادات الصندوق المخزنة.',
+      addressLabel: 'عنوان البريد الإلكتروني',
+      addressHelp: 'صندوق البريد الذي سيقرأ منه الوكيل ويرسل.',
+      addressPlaceholder: 'agent@example.com',
+      providerLabel: 'المزود',
+      providerCustom: 'مخصص',
+      imapHostLabel: 'مضيف IMAP',
+      imapPortLabel: 'منفذ IMAP',
+      smtpHostLabel: 'مضيف SMTP',
+      smtpPortLabel: 'منفذ SMTP',
+      passwordLabel: 'كلمة المرور',
+      passwordHelp:
+        'بالنسبة إلى Gmail وOutlook وYahoo وiCloud يجب استخدام كلمة مرور تطبيق — كلمة مرور الحساب العادية لا تعمل مع IMAP.',
+      passwordPlaceholder: 'كلمة مرور التطبيق',
+      createAppPassword: 'إنشاء كلمة مرور تطبيق',
+      allowedUsersLabel: 'المرسلون المسموح بهم',
+      allowedUsersHelp: 'موصى به. عناوين مفصولة بفواصل يُسمح لها بمحادثة الوكيل — يتم تجاهل بريد أي شخص آخر.',
+      allowedUsersPlaceholder: 'you@example.com, teammate@example.com',
+      addressAndPasswordRequired: 'أدخل عنوان البريد الإلكتروني وكلمة المرور أولًا.',
+      hostsRequired: 'أدخل مضيفي IMAP وSMTP، أو اختر مزودًا.',
+      saved: 'تم حفظ البريد الإلكتروني وتفعيله. أعد تشغيل البوابة للاتصال.',
+      saveFailed: 'تعذر حفظ إعدادات البريد الإلكتروني.'
     },
     slackQuickSetup: {
       title: 'الإعداد السريع',
@@ -1439,6 +1471,28 @@ export const ar = defineLocale({
       SLACK_ALLOWED_USERS: {
         label: 'معرّفات مستخدمي Slack المسموح بهم',
         help: 'موصى به. معرّفات مستخدمي Slack مفصولة بفواصل.'
+      },
+      EMAIL_ADDRESS: {
+        label: 'عنوان البريد الإلكتروني',
+        help: 'صندوق البريد الذي يقرأ منه الوكيل ويرسل. استخدم حسابًا مخصصًا.',
+        placeholder: 'agent@example.com'
+      },
+      EMAIL_PASSWORD: {
+        label: 'كلمة المرور',
+        help: 'بالنسبة إلى Gmail/Outlook/Yahoo/iCloud استخدم كلمة مرور تطبيق، وليس كلمة مرور الحساب.'
+      },
+      EMAIL_IMAP_HOST: { label: 'مضيف IMAP', help: 'خادم البريد الوارد.', placeholder: 'imap.gmail.com' },
+      EMAIL_IMAP_PORT: { label: 'منفذ IMAP', help: 'الافتراضي 993 (SSL).', placeholder: '993' },
+      EMAIL_SMTP_HOST: { label: 'مضيف SMTP', help: 'خادم البريد الصادر.', placeholder: 'smtp.gmail.com' },
+      EMAIL_SMTP_PORT: {
+        label: 'منفذ SMTP',
+        help: 'الافتراضي 587 (STARTTLS)؛ استخدم 465 لـ SSL.',
+        placeholder: '587'
+      },
+      EMAIL_ALLOWED_USERS: {
+        label: 'المرسلون المسموح بهم',
+        help: 'موصى به. عناوين مفصولة بفواصل يُسمح لها بمحادثة الوكيل — يتم تجاهل الآخرين.',
+        placeholder: 'you@example.com'
       },
       MATTERMOST_URL: {
         label: 'رابط الخادم',

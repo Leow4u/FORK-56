@@ -1785,6 +1785,10 @@ export const zh: Translations = {
       discordToken: '请粘贴来自 Discord 开发者门户的完整 bot 令牌（Bot → Reset Token）——由三段以点分隔的部分组成。',
       discordUserId: (value: string) =>
         `${value} 不是有效的 Discord 数字用户 ID。请在 Discord 中启用开发者模式，然后右键用户 → 复制用户 ID。`,
+      emailAddress: (value: string) => `${value} 不像是电子邮件地址。`,
+      emailHost: (value: string) =>
+        `${value} 不是有效的邮件服务器主机名。请使用类似 imap.gmail.com 的主机名——不要包含 http:// 或空格。`,
+      emailPort: (value: string) => `${value} 不是有效的端口。请使用 1 到 65535 之间的数字。`,
       slackMemberId: (value: string) => `${value} 不像是 Slack 成员 ID。请使用类似 U01ABC2DEF3 的 ID。`,
       slackTokenPrefix: (prefix: string) => `此令牌必须以 ${prefix} 开头`,
       telegramToken: '请粘贴来自 @BotFather 的完整令牌（例如 123456789:ABC…）。',
@@ -1823,6 +1827,32 @@ export const zh: Translations = {
       allowedUsersHelp: '可选。允许私信 bot 的数字用户 ID，逗号分隔。留空则改为在此处通过配对请求审批。',
       saved: 'Discord 已保存并启用。重启网关以连接。',
       saveFailed: '保存 Discord 设置失败'
+    },
+    emailQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro: '选择你的邮箱提供商，Work4You 会自动填写邮件服务器。请使用专用邮箱——代理会读取并回复其中的所有邮件。',
+      replacesExisting: '电子邮件已配置。在此保存会替换已存储的邮箱设置。',
+      addressLabel: '电子邮件地址',
+      addressHelp: '代理用来收发邮件的邮箱。',
+      addressPlaceholder: 'agent@example.com',
+      providerLabel: '提供商',
+      providerCustom: '自定义',
+      imapHostLabel: 'IMAP 主机',
+      imapPortLabel: 'IMAP 端口',
+      smtpHostLabel: 'SMTP 主机',
+      smtpPortLabel: 'SMTP 端口',
+      passwordLabel: '密码',
+      passwordHelp: '对于 Gmail、Outlook、Yahoo 和 iCloud，必须使用应用专用密码——普通账户密码无法用于 IMAP。',
+      passwordPlaceholder: '应用专用密码',
+      createAppPassword: '创建应用专用密码',
+      allowedUsersLabel: '允许的发件人',
+      allowedUsersHelp: '推荐。逗号分隔的允许与代理对话的地址——其他人的邮件会被忽略。',
+      allowedUsersPlaceholder: 'you@example.com, teammate@example.com',
+      addressAndPasswordRequired: '请先输入电子邮件地址和密码。',
+      hostsRequired: '请输入 IMAP 和 SMTP 主机，或选择一个提供商。',
+      saved: '电子邮件已保存并启用。重启网关以连接。',
+      saveFailed: '无法保存电子邮件设置。'
     },
     slackQuickSetup: {
       title: '快速设置',
@@ -1986,6 +2016,24 @@ export const zh: Translations = {
         placeholder: '粘贴 Slack app 令牌'
       },
       SLACK_ALLOWED_USERS: { label: '允许的 Slack 用户 ID', help: '推荐。逗号分隔的 Slack 用户 ID。' },
+      EMAIL_ADDRESS: {
+        label: '电子邮件地址',
+        help: '代理用来收发邮件的邮箱。请使用专用账户。',
+        placeholder: 'agent@example.com'
+      },
+      EMAIL_PASSWORD: {
+        label: '密码',
+        help: '对于 Gmail/Outlook/Yahoo/iCloud，请使用应用专用密码，而不是账户密码。'
+      },
+      EMAIL_IMAP_HOST: { label: 'IMAP 主机', help: '收件服务器。', placeholder: 'imap.gmail.com' },
+      EMAIL_IMAP_PORT: { label: 'IMAP 端口', help: '默认 993（SSL）。', placeholder: '993' },
+      EMAIL_SMTP_HOST: { label: 'SMTP 主机', help: '发件服务器。', placeholder: 'smtp.gmail.com' },
+      EMAIL_SMTP_PORT: { label: 'SMTP 端口', help: '默认 587（STARTTLS）；SSL 使用 465。', placeholder: '587' },
+      EMAIL_ALLOWED_USERS: {
+        label: '允许的发件人',
+        help: '推荐。逗号分隔的允许与代理对话的地址——其他人会被忽略。',
+        placeholder: 'you@example.com'
+      },
       MATTERMOST_URL: { label: '服务器 URL', placeholder: 'https://mattermost.example.com' },
       MATTERMOST_TOKEN: { label: 'Bot 令牌' },
       MATTERMOST_ALLOWED_USERS: { label: '允许的用户 ID', help: '推荐。逗号分隔的 Mattermost 用户 ID。' },
@@ -2025,7 +2073,8 @@ export const zh: Translations = {
       bluebubbles:
         '在装有 iMessage 的 Mac 上运行 BlueBubbles Server，暴露其 API，然后用服务器密码把 Work4You 指向该 URL。',
       homeassistant: '在 Home Assistant 中打开你的个人资料并创建长期访问令牌。把它连同你的 HA URL 一起粘贴到这里。',
-      email: '使用专用邮箱。对于 Gmail/Workspace,创建应用专用密码并使用 imap.gmail.com / smtp.gmail.com。',
+      email:
+        '使用上方的快速设置并搭配专用邮箱——选择你的提供商，IMAP/SMTP 主机会自动填写。启用了两步验证的账户（Gmail、Outlook）需要应用专用密码，而不是账户密码；只有允许列表中的发件人才会收到回复。',
       sms: '从 Twilio 控制台获取你的 Account SID 和 Auth Token，以及一个可发送短信的电话号码。',
       dingtalk: '在开发者控制台创建钉钉应用，然后在此复制 Client ID(App key) 和 Client Secret。',
       feishu: '创建飞书 / Lark 应用，配置机器人能力，复制 App ID、App secret 和事件加密密钥。',

@@ -1388,6 +1388,10 @@ export const ja = defineLocale({
         'Discord 開発者ポータル（Bot → Reset Token）から完全なボットトークンを貼り付けてください。ドットで区切られた 3 つの部分で構成されます。',
       discordUserId: (value: string) =>
         `${value} は数字の Discord ユーザー ID ではありません。Discord で開発者モードを有効にし、ユーザーを右クリック → ユーザー ID をコピーしてください。`,
+      emailAddress: (value: string) => `${value} はメールアドレスのようには見えません。`,
+      emailHost: (value: string) =>
+        `${value} は有効なメールサーバーのホスト名ではありません。imap.gmail.com のようなホスト名を使用してください（http:// や空白は不可）。`,
+      emailPort: (value: string) => `${value} は有効なポートではありません。1 から 65535 の数字を使用してください。`,
       slackMemberId: (value: string) =>
         `${value} は Slack メンバー ID ではないようです。U01ABC2DEF3 のような ID を使用してください。`,
       slackTokenPrefix: (prefix: string) => `このトークンは ${prefix} で始まる必要があります`,
@@ -1429,6 +1433,36 @@ export const ja = defineLocale({
         '任意。ボットに DM できる数字のユーザー ID をカンマ区切りで入力します。空のままにすると、ここでペアリング リクエストを承認する方式になります。',
       saved: 'Discord を保存して有効にしました。接続するにはゲートウェイを再起動してください。',
       saveFailed: 'Discord 設定の保存に失敗しました'
+    },
+    emailQuickSetup: {
+      title: 'クイックセットアップ',
+      recommended: '推奨',
+      intro:
+        'プロバイダーを選ぶと Work4You がメールサーバーを自動入力します。専用のメールボックスを使用してください——エージェントはその中のすべてのメールを読み、返信します。',
+      replacesExisting:
+        'メールはすでに設定済みです。ここで保存すると、保存済みのメールボックス設定が置き換えられます。',
+      addressLabel: 'メールアドレス',
+      addressHelp: 'エージェントが送受信に使用するメールボックス。',
+      addressPlaceholder: 'agent@example.com',
+      providerLabel: 'プロバイダー',
+      providerCustom: 'カスタム',
+      imapHostLabel: 'IMAP ホスト',
+      imapPortLabel: 'IMAP ポート',
+      smtpHostLabel: 'SMTP ホスト',
+      smtpPortLabel: 'SMTP ポート',
+      passwordLabel: 'パスワード',
+      passwordHelp:
+        'Gmail、Outlook、Yahoo、iCloud ではアプリパスワードが必要です——通常のアカウントパスワードは IMAP では使えません。',
+      passwordPlaceholder: 'アプリパスワード',
+      createAppPassword: 'アプリパスワードを作成',
+      allowedUsersLabel: '許可する送信者',
+      allowedUsersHelp:
+        '推奨。エージェントと会話できるアドレスをカンマ区切りで指定します——それ以外からのメールは無視されます。',
+      allowedUsersPlaceholder: 'you@example.com, teammate@example.com',
+      addressAndPasswordRequired: 'まずメールアドレスとパスワードを入力してください。',
+      hostsRequired: 'IMAP と SMTP のホストを入力するか、プロバイダーを選択してください。',
+      saved: 'メールを保存して有効にしました。接続するにはゲートウェイを再起動してください。',
+      saveFailed: 'メール設定を保存できませんでした。'
     },
     slackQuickSetup: {
       title: 'クイックセットアップ',
@@ -1602,6 +1636,28 @@ export const ja = defineLocale({
       SLACK_ALLOWED_USERS: {
         label: '許可する Slack ユーザー ID',
         help: '推奨。カンマ区切りの Slack ユーザー ID。'
+      },
+      EMAIL_ADDRESS: {
+        label: 'メールアドレス',
+        help: 'エージェントが送受信に使用するメールボックス。専用アカウントを使用してください。',
+        placeholder: 'agent@example.com'
+      },
+      EMAIL_PASSWORD: {
+        label: 'パスワード',
+        help: 'Gmail/Outlook/Yahoo/iCloud ではアカウントパスワードではなくアプリパスワードを使用してください。'
+      },
+      EMAIL_IMAP_HOST: { label: 'IMAP ホスト', help: '受信メールサーバー。', placeholder: 'imap.gmail.com' },
+      EMAIL_IMAP_PORT: { label: 'IMAP ポート', help: '既定は 993（SSL）。', placeholder: '993' },
+      EMAIL_SMTP_HOST: { label: 'SMTP ホスト', help: '送信メールサーバー。', placeholder: 'smtp.gmail.com' },
+      EMAIL_SMTP_PORT: {
+        label: 'SMTP ポート',
+        help: '既定は 587（STARTTLS）。SSL の場合は 465。',
+        placeholder: '587'
+      },
+      EMAIL_ALLOWED_USERS: {
+        label: '許可する送信者',
+        help: '推奨。エージェントと会話できるアドレスをカンマ区切りで指定します——それ以外は無視されます。',
+        placeholder: 'you@example.com'
       },
       MATTERMOST_URL: { label: 'サーバー URL', placeholder: 'https://mattermost.example.com' },
       MATTERMOST_TOKEN: { label: 'ボットトークン' },

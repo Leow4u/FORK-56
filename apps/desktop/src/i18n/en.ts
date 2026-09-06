@@ -1595,6 +1595,10 @@ export const en: Translations = {
         'Paste the complete bot token from the Discord Developer Portal (Bot → Reset Token) — three dot-separated parts.',
       discordUserId: (value: string) =>
         `${value} is not a numeric Discord user ID. Enable Developer Mode in Discord, then right-click a user → Copy User ID.`,
+      emailAddress: (value: string) => `${value} does not look like an email address.`,
+      emailHost: (value: string) =>
+        `${value} is not a valid mail server host. Use a bare hostname like imap.gmail.com — no http:// or spaces.`,
+      emailPort: (value: string) => `${value} is not a valid port. Use a number between 1 and 65535.`,
       slackMemberId: (value: string) => `${value} does not look like a Slack member ID. Use IDs like U01ABC2DEF3.`,
       slackTokenPrefix: (prefix: string) => `This token must start with ${prefix}`,
       telegramToken: 'Paste the complete token from @BotFather (for example, 123456789:ABC…).',
@@ -1635,6 +1639,35 @@ export const en: Translations = {
         'Optional. Comma-separated numeric user IDs allowed to DM the bot. Leave empty to approve people through pairing requests here instead.',
       saved: 'Discord saved and enabled. Restart the gateway to connect.',
       saveFailed: 'Failed to save Discord setup'
+    },
+    emailQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        'Pick your provider and Work4You fills in the mail servers. Use a dedicated mailbox — the agent reads and answers everything in it.',
+      replacesExisting: 'Email is already configured. Saving here replaces the stored mailbox settings.',
+      addressLabel: 'Email address',
+      addressHelp: 'The mailbox the agent will read and send from.',
+      addressPlaceholder: 'agent@example.com',
+      providerLabel: 'Provider',
+      providerCustom: 'Custom',
+      imapHostLabel: 'IMAP host',
+      imapPortLabel: 'IMAP port',
+      smtpHostLabel: 'SMTP host',
+      smtpPortLabel: 'SMTP port',
+      passwordLabel: 'Password',
+      passwordHelp:
+        'For Gmail, Outlook, Yahoo, and iCloud this must be an app password — the regular account password will not work with IMAP.',
+      passwordPlaceholder: 'App password',
+      createAppPassword: 'Create app password',
+      allowedUsersLabel: 'Allowed senders',
+      allowedUsersHelp:
+        'Recommended. Comma-separated addresses allowed to talk to the agent — mail from anyone else is ignored.',
+      allowedUsersPlaceholder: 'you@example.com, teammate@example.com',
+      addressAndPasswordRequired: 'Enter the email address and password first.',
+      hostsRequired: 'Enter the IMAP and SMTP hosts, or pick a provider.',
+      saved: 'Email saved and enabled. Restart the gateway to connect.',
+      saveFailed: 'Could not save the email settings.'
     },
     slackQuickSetup: {
       title: 'Quick setup',
@@ -1817,6 +1850,32 @@ export const en: Translations = {
         placeholder: 'Paste Slack app token'
       },
       SLACK_ALLOWED_USERS: { label: 'Allowed Slack user IDs', help: 'Recommended. Comma-separated Slack user IDs.' },
+      EMAIL_ADDRESS: {
+        label: 'Email address',
+        help: 'The mailbox the agent reads and sends from. Use a dedicated account.',
+        placeholder: 'agent@example.com'
+      },
+      EMAIL_PASSWORD: {
+        label: 'Password',
+        help: 'For Gmail/Outlook/Yahoo/iCloud use an app password, not the account password.'
+      },
+      EMAIL_IMAP_HOST: {
+        label: 'IMAP host',
+        help: 'Incoming mail server.',
+        placeholder: 'imap.gmail.com'
+      },
+      EMAIL_IMAP_PORT: { label: 'IMAP port', help: 'Default 993 (SSL).', placeholder: '993' },
+      EMAIL_SMTP_HOST: {
+        label: 'SMTP host',
+        help: 'Outgoing mail server.',
+        placeholder: 'smtp.gmail.com'
+      },
+      EMAIL_SMTP_PORT: { label: 'SMTP port', help: 'Default 587 (STARTTLS); use 465 for SSL.', placeholder: '587' },
+      EMAIL_ALLOWED_USERS: {
+        label: 'Allowed senders',
+        help: 'Recommended. Comma-separated addresses allowed to talk to the agent — everyone else is ignored.',
+        placeholder: 'you@example.com'
+      },
       MATTERMOST_URL: { label: 'Server URL', placeholder: 'https://mattermost.example.com' },
       MATTERMOST_TOKEN: { label: 'Bot token' },
       MATTERMOST_ALLOWED_USERS: {
