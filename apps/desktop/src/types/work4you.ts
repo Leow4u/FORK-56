@@ -232,6 +232,15 @@ export interface MessagingPlatformInfo {
   name: string
   state?: null | string
   updated_at?: null | string
+  whatsapp_setup?: null | WhatsAppSetupInfo
+}
+
+/** WhatsApp-only summary the backend attaches to its platform payload so the
+ *  UI can show the saved bridge mode without reading redacted env values. */
+export interface WhatsAppSetupInfo {
+  allowed_users_set?: boolean
+  home_channel_set?: boolean
+  mode?: string
 }
 
 export interface MessagingPlatformsResponse {
@@ -287,6 +296,38 @@ export interface TelegramOnboardingApplyResponse {
   needs_restart: boolean
   ok: boolean
   platform: 'telegram'
+  restart_action?: string
+  restart_error?: string
+  restart_pid?: null | number
+  restart_started?: boolean
+}
+
+// -- WhatsApp QR onboarding ---------------------------------------------------
+// Server-driven quick setup: the backend spawns the bundled Node.js bridge,
+// streams its QR payload for Linked Devices pairing, and reports the linked
+// account. One apply call saves the mode/allowlist, enables the platform, and
+// restarts the gateway. When a session already exists on disk, start returns
+// `connected` immediately with the linked account details.
+
+export type WhatsAppOnboardingMode = 'bot' | 'self-chat'
+
+export interface WhatsAppOnboardingStatusResponse {
+  account_id?: null | string
+  account_name?: null | string
+  account_phone?: null | string
+  allowed_users: string
+  error?: null | string
+  expires_at: string
+  mode: WhatsAppOnboardingMode
+  pairing_id: string
+  qr_payload?: null | string
+  status: 'cancelled' | 'connected' | 'error' | 'expired' | 'installing' | 'starting' | 'waiting'
+}
+
+export interface WhatsAppOnboardingApplyResponse {
+  needs_restart: boolean
+  ok: boolean
+  platform: 'whatsapp'
   restart_action?: string
   restart_error?: string
   restart_pid?: null | number

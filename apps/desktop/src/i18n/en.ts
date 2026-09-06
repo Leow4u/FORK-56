@@ -1594,7 +1594,21 @@ export const en: Translations = {
       slackMemberId: (value: string) => `${value} does not look like a Slack member ID. Use IDs like U01ABC2DEF3.`,
       slackTokenPrefix: (prefix: string) => `This token must start with ${prefix}`,
       telegramToken: 'Paste the complete token from @BotFather (for example, 123456789:ABC…).',
-      telegramUserId: (value: string) => `${value} is not a numeric Telegram user ID.`
+      telegramUserId: (value: string) => `${value} is not a numeric Telegram user ID.`,
+      whatsappNumber: (value: string) =>
+        `${value} does not look like a WhatsApp number. Use full numbers with country code, like 15551234567.`
+    },
+    envOptions: {
+      WHATSAPP_DM_POLICY: {
+        pairing: 'Pairing',
+        allowlist: 'Allowlist',
+        open: 'Open',
+        disabled: 'Disabled'
+      },
+      WHATSAPP_MODE: {
+        bot: 'Bot',
+        'self-chat': 'Self-chat'
+      }
     },
     telegramQuickSetup: {
       title: 'Quick setup',
@@ -1622,6 +1636,46 @@ export const en: Translations = {
       replacesExisting: 'Telegram credentials are already configured — a new QR setup replaces the current bot when you save.',
       saved: 'Telegram saved; gateway restarting...',
       savedRestartFailed: (detail: string) => `Telegram saved; gateway restart failed${detail}`,
+      restartFailedExit: (code: number) => `Gateway restart failed (exit ${code}) — restart it manually`
+    },
+    whatsappQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        'Work4You starts its bundled WhatsApp bridge and shows a QR code — scan it from WhatsApp on your phone and the account is linked. Saving enables the channel and restarts the gateway for you.',
+      replacesExisting:
+        'A WhatsApp session is already configured — a new QR pairing replaces the linked account when you save.',
+      modeLabel: 'Mode',
+      modeBot: 'Bot',
+      modeSelfChat: 'Self-chat',
+      modeBotHelp: 'A dedicated WhatsApp account acts as the bot. Others message it directly.',
+      modeSelfChatHelp: 'Your own account answers from Message Yourself. Work4You replies where you write to yourself.',
+      allowedUsersLabel: 'Allowed WhatsApp numbers',
+      allowedUsersPlaceholder: '15551234567,15557654321',
+      allowKeepSaved: 'Leave empty to keep the saved allowlist.',
+      allowSelfChatAuto: 'Leave empty and the linked account is allowed automatically when you save.',
+      allowPairingFallback: 'Numbers not on the list get a pairing code you approve from the pending requests here.',
+      pairWithQr: 'Pair with QR',
+      starting: 'Starting...',
+      preparing: 'Preparing the WhatsApp bridge (first run installs its dependencies — this can take a few minutes)...',
+      startingBridge: 'Starting the WhatsApp pairing bridge...',
+      waiting: 'On your phone, open WhatsApp → Settings → Linked devices → Link a device, then scan this code.',
+      waitingForQr: 'Waiting for WhatsApp to provide a QR code...',
+      scanHint: 'Scan from WhatsApp Linked Devices — not with the camera app.',
+      qrAlt: 'WhatsApp setup QR code',
+      expiresIn: (value: string) => `Expires in ${value}`,
+      expired: 'Expired',
+      sessionExpired: 'WhatsApp QR setup expired. Start a new setup to try again.',
+      startFailed: 'WhatsApp QR setup failed to start',
+      linkedAs: (label: string) => `Linked as ${label}`,
+      deviceLinked: 'WhatsApp device linked',
+      openChatLink: 'Open chat',
+      stepSaveRestart: 'Save — Work4You stores the setup, enables the channel, and restarts the gateway.',
+      stepMessageBot: 'After the restart, message the linked account from another WhatsApp account.',
+      stepMessageSelf: 'After the restart, open Message Yourself on the linked account and send Work4You a message.',
+      saveAndRestart: 'Save and restart',
+      saved: 'WhatsApp saved; gateway restarting...',
+      savedRestartFailed: (detail: string) => `WhatsApp saved; gateway restart failed${detail}`,
       restartFailedExit: (code: number) => `Gateway restart failed (exit ${code}) — restart it manually`
     },
     replaceValue: 'Replace current value',
@@ -1732,7 +1786,14 @@ export const en: Translations = {
         label: 'Enable WhatsApp bridge',
         help: 'Set automatically by the toggle below. Leave alone unless you know you need it.'
       },
-      WHATSAPP_MODE: { label: 'Bridge mode' },
+      WHATSAPP_MODE: {
+        label: 'Bridge mode',
+        help: 'Bot: a dedicated account others message. Self-chat: your own account answers from Message Yourself.'
+      },
+      WHATSAPP_DM_POLICY: {
+        label: 'Direct message policy',
+        help: 'Pairing: unknown senders get an approval code. Allowlist: only the numbers above. Open: everyone (needs allow-all opt-in). Disabled: no DMs.'
+      },
       WHATSAPP_ALLOWED_USERS: {
         label: 'Allowed WhatsApp users',
         help: 'Recommended. Comma-separated phone numbers or WhatsApp IDs.'

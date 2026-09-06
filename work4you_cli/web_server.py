@@ -8579,7 +8579,9 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "whatsapp": {
         "name": "WhatsApp",
         "description": "Use Work4You through the bundled WhatsApp bridge with QR-based auth.",
-        "docs_url": "https://github.com/tulir/whatsmeow",
+        # The Work4You setup guide, not the bridge library's repo — this URL is
+        # what the dashboards' "Open setup guide" button opens.
+        "docs_url": "https://work4you.ai/docs/user-guide/messaging/whatsapp",
         "env_vars": (
             "WHATSAPP_ENABLED",
             "WHATSAPP_MODE",

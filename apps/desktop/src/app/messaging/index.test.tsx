@@ -17,15 +17,19 @@ const openExternalLink = vi.fn()
 vi.mock('@/work4you', () => ({
   approvePairing: (platformId: string, requestId: string) => approvePairing(platformId, requestId),
   applyTelegramOnboarding: vi.fn(),
+  applyWhatsAppOnboarding: vi.fn(),
   cancelTelegramOnboarding: vi.fn(),
+  cancelWhatsAppOnboarding: vi.fn(),
   getActionStatus: vi.fn(),
   getMessagingPlatforms: () => getMessagingPlatforms(),
   getPairing: () => getPairing(),
   getProfiles: vi.fn(async () => ({ profiles: [] })),
   getTelegramOnboardingStatus: vi.fn(),
+  getWhatsAppOnboardingStatus: vi.fn(),
   revokePairing: (platformId: string, userId: string) => revokePairing(platformId, userId),
   setApiRequestProfile: vi.fn(),
   startTelegramOnboarding: vi.fn(),
+  startWhatsAppOnboarding: vi.fn(),
   testMessagingPlatform: (id: string) => testMessagingPlatform(id),
   updateMessagingPlatform: (id: string, body: unknown) => updateMessagingPlatform(id, body)
 }))
@@ -337,6 +341,47 @@ describe('MessagingView pairing', () => {
 
     expect((await screen.findAllByText('Microsoft Teams')).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Test' })).toBeNull()
+  })
+
+  it('renders closed-set env keys as a picker and saves the chosen value', async () => {
+    // WHATSAPP_DM_POLICY has four magic words nobody should have to guess —
+    // the picker turns the free-text env field into labeled choices.
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        platform({
+          id: 'whatsapp',
+          name: 'WhatsApp',
+          enabled: true,
+          env_vars: [
+            {
+              advanced: false,
+              description: 'DM policy.',
+              is_password: false,
+              is_set: false,
+              key: 'WHATSAPP_DM_POLICY',
+              prompt: 'DM policy',
+              redacted_value: null,
+              required: false,
+              url: null
+            }
+          ]
+        })
+      ]
+    })
+
+    await renderMessaging()
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Allowlist' }))
+    })
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /Save changes/ }))
+    })
+
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('whatsapp', { env: { WHATSAPP_DM_POLICY: 'allowlist' } })
+    )
   })
 
   it('refetches pending rows on pairing.changed, not on platforms.changed', async () => {

@@ -1785,7 +1785,20 @@ export const zh: Translations = {
       slackMemberId: (value: string) => `${value} 不像是 Slack 成员 ID。请使用类似 U01ABC2DEF3 的 ID。`,
       slackTokenPrefix: (prefix: string) => `此令牌必须以 ${prefix} 开头`,
       telegramToken: '请粘贴来自 @BotFather 的完整令牌（例如 123456789:ABC…）。',
-      telegramUserId: (value: string) => `${value} 不是有效的 Telegram 数字用户 ID。`
+      telegramUserId: (value: string) => `${value} 不是有效的 Telegram 数字用户 ID。`,
+      whatsappNumber: (value: string) => `${value} 不像是 WhatsApp 号码。请使用带国家代码的完整号码，例如 15551234567。`
+    },
+    envOptions: {
+      WHATSAPP_DM_POLICY: {
+        pairing: '配对',
+        allowlist: '白名单',
+        open: '开放',
+        disabled: '禁用'
+      },
+      WHATSAPP_MODE: {
+        bot: '机器人',
+        'self-chat': '自聊'
+      }
     },
     telegramQuickSetup: {
       title: '快速设置',
@@ -1812,6 +1825,45 @@ export const zh: Translations = {
       replacesExisting: 'Telegram 凭据已配置——保存新的二维码设置会替换当前机器人。',
       saved: 'Telegram 已保存；网关正在重启…',
       savedRestartFailed: (detail: string) => `Telegram 已保存；网关重启失败${detail}`,
+      restartFailedExit: (code: number) => `网关重启失败（退出码 ${code}）——请手动重启`
+    },
+    whatsappQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro:
+        'Work4You 会启动内置的 WhatsApp 桥接并显示二维码——用手机上的 WhatsApp 扫描即可关联账号。保存后会启用该渠道并自动重启网关。',
+      replacesExisting: '已配置 WhatsApp 会话——保存新的二维码配对后将替换当前关联的账号。',
+      modeLabel: '模式',
+      modeBot: '机器人',
+      modeSelfChat: '自聊',
+      modeBotHelp: '由一个专用 WhatsApp 账号充当机器人，其他人直接给它发消息。',
+      modeSelfChatHelp: '你自己的账号通过“给自己发消息”应答，Work4You 会在你的自聊中回复。',
+      allowedUsersLabel: '允许的 WhatsApp 号码',
+      allowedUsersPlaceholder: '15551234567,15557654321',
+      allowKeepSaved: '留空以保留已保存的白名单。',
+      allowSelfChatAuto: '留空时，保存后会自动允许已关联的账号。',
+      allowPairingFallback: '不在名单上的号码会收到配对码，你可在此处的待处理请求中批准。',
+      pairWithQr: '扫码配对',
+      starting: '正在启动…',
+      preparing: '正在准备 WhatsApp 桥接（首次运行需安装依赖，可能需要几分钟）…',
+      startingBridge: '正在启动 WhatsApp 配对桥接…',
+      waiting: '在手机上打开 WhatsApp → 设置 → 已关联的设备 → 关联设备，然后扫描此二维码。',
+      waitingForQr: '正在等待 WhatsApp 提供二维码…',
+      scanHint: '请通过 WhatsApp 的“已关联的设备”扫描——不要使用相机应用。',
+      qrAlt: 'WhatsApp 设置二维码',
+      expiresIn: (value: string) => `将在 ${value} 后过期`,
+      expired: '已过期',
+      sessionExpired: 'WhatsApp 二维码设置已过期。请重新开始设置。',
+      startFailed: 'WhatsApp 二维码设置启动失败',
+      linkedAs: (label: string) => `已关联为 ${label}`,
+      deviceLinked: 'WhatsApp 设备已关联',
+      openChatLink: '打开聊天',
+      stepSaveRestart: '保存——Work4You 会保存设置、启用该渠道并重启网关。',
+      stepMessageBot: '重启后，用另一个 WhatsApp 账号给已关联的账号发消息。',
+      stepMessageSelf: '重启后，在已关联账号上打开“给自己发消息”，向 Work4You 发送一条消息。',
+      saveAndRestart: '保存并重启',
+      saved: 'WhatsApp 已保存；网关正在重启…',
+      savedRestartFailed: (detail: string) => `WhatsApp 已保存；网关重启失败${detail}`,
       restartFailedExit: (code: number) => `网关重启失败（退出码 ${code}）——请手动重启`
     },
     replaceValue: '替换当前值',
@@ -1898,7 +1950,14 @@ export const zh: Translations = {
       SIGNAL_ACCOUNT: { label: '电话号码', help: '在 signal-cli 桥接中注册的号码。' },
       SIGNAL_ALLOWED_USERS: { label: '允许的 Signal 用户', help: '推荐。逗号分隔的 Signal 标识符。' },
       WHATSAPP_ENABLED: { label: '启用 WhatsApp 桥接', help: '由下方开关自动设置。除非确知需要，否则请勿改动。' },
-      WHATSAPP_MODE: { label: '桥接模式' },
+      WHATSAPP_MODE: {
+        label: '桥接模式',
+        help: '机器人：他人直接发消息给专用账号。自聊：你自己的账号通过“给自己发消息”应答。'
+      },
+      WHATSAPP_DM_POLICY: {
+        label: '私信策略',
+        help: '配对：陌生发送者会收到审批码。白名单：仅限上方号码。开放：所有人（需开启全员允许）。禁用：不接收私信。'
+      },
       WHATSAPP_ALLOWED_USERS: { label: '允许的 WhatsApp 用户', help: '推荐。逗号分隔的电话号码或 WhatsApp ID。' }
     },
     platformIntro: {

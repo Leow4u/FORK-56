@@ -1218,7 +1218,20 @@ export const ar = defineLocale({
       slackMemberId: (value: string) => `${value} لا يبدو معرف عضو Slack. استخدم معرفات مثل U01ABC2DEF3.`,
       slackTokenPrefix: (prefix: string) => `يجب أن يبدأ هذا الرمز بـ ${prefix}`,
       telegramToken: 'الصق الرمز الكامل من @BotFather (مثال: 123456789:ABC…).',
-      telegramUserId: (value: string) => `${value} ليس معرف مستخدم Telegram رقميًا.`
+      telegramUserId: (value: string) => `${value} ليس معرف مستخدم Telegram رقميًا.`,
+      whatsappNumber: (value: string) => `${value} لا يبدو رقم WhatsApp صحيحًا. استخدم أرقامًا كاملة مع رمز الدولة، مثل 15551234567.`
+    },
+    envOptions: {
+      WHATSAPP_DM_POLICY: {
+        pairing: 'الاقتران',
+        allowlist: 'قائمة السماح',
+        open: 'مفتوح',
+        disabled: 'معطّل'
+      },
+      WHATSAPP_MODE: {
+        bot: 'بوت',
+        'self-chat': 'محادثة ذاتية'
+      }
     },
     telegramQuickSetup: {
       title: 'إعداد سريع',
@@ -1246,6 +1259,45 @@ export const ar = defineLocale({
       replacesExisting: 'بيانات اعتماد Telegram مهيأة بالفعل — سيحل إعداد QR جديد محل البوت الحالي عند الحفظ.',
       saved: 'تم حفظ Telegram؛ جار إعادة تشغيل البوابة...',
       savedRestartFailed: (detail: string) => `تم حفظ Telegram؛ فشلت إعادة تشغيل البوابة${detail}`,
+      restartFailedExit: (code: number) => `فشلت إعادة تشغيل البوابة (رمز الخروج ${code}) — أعد التشغيل يدويًا`
+    },
+    whatsappQuickSetup: {
+      title: 'إعداد سريع',
+      recommended: 'موصى به',
+      intro:
+        'يشغّل Work4You جسر WhatsApp المدمج ويعرض رمز QR — امسحه من تطبيق WhatsApp على هاتفك ليتم ربط الحساب. عند الحفظ يتم تفعيل القناة وإعادة تشغيل البوابة تلقائيًا.',
+      replacesExisting: 'توجد جلسة WhatsApp مُعدّة بالفعل — حفظ اقتران QR جديد سيستبدل الحساب المرتبط الحالي.',
+      modeLabel: 'الوضع',
+      modeBot: 'بوت',
+      modeSelfChat: 'محادثة ذاتية',
+      modeBotHelp: 'حساب WhatsApp مخصص يعمل كبوت، ويراسله الآخرون مباشرة.',
+      modeSelfChatHelp: 'حسابك الشخصي يرد من «مراسلة نفسك». يرد Work4You حيث تكتب لنفسك.',
+      allowedUsersLabel: 'أرقام WhatsApp المسموح بها',
+      allowedUsersPlaceholder: '15551234567,15557654321',
+      allowKeepSaved: 'اتركه فارغًا للاحتفاظ بقائمة السماح المحفوظة.',
+      allowSelfChatAuto: 'اتركه فارغًا وسيُسمح للحساب المرتبط تلقائيًا عند الحفظ.',
+      allowPairingFallback: 'الأرقام غير المدرجة تتلقى رمز اقتران يمكنك اعتماده من الطلبات المعلّقة هنا.',
+      pairWithQr: 'الاقتران عبر QR',
+      starting: 'جارٍ البدء...',
+      preparing: 'جارٍ تجهيز جسر WhatsApp (التشغيل الأول يثبّت الاعتمادات — قد يستغرق بضع دقائق)...',
+      startingBridge: 'جارٍ تشغيل جسر اقتران WhatsApp...',
+      waiting: 'على هاتفك، افتح WhatsApp ← الإعدادات ← الأجهزة المرتبطة ← ربط جهاز، ثم امسح هذا الرمز.',
+      waitingForQr: 'في انتظار رمز QR من WhatsApp...',
+      scanHint: 'امسح من «الأجهزة المرتبطة» في WhatsApp — وليس بتطبيق الكاميرا.',
+      qrAlt: 'رمز QR لإعداد WhatsApp',
+      expiresIn: (value: string) => `تنتهي الصلاحية خلال ${value}`,
+      expired: 'انتهت الصلاحية',
+      sessionExpired: 'انتهت صلاحية إعداد QR لـ WhatsApp. ابدأ إعدادًا جديدًا للمحاولة مرة أخرى.',
+      startFailed: 'فشل بدء إعداد QR لـ WhatsApp',
+      linkedAs: (label: string) => `مرتبط كـ ${label}`,
+      deviceLinked: 'تم ربط جهاز WhatsApp',
+      openChatLink: 'فتح المحادثة',
+      stepSaveRestart: 'احفظ — يخزّن Work4You الإعداد ويفعّل القناة ويعيد تشغيل البوابة.',
+      stepMessageBot: 'بعد إعادة التشغيل، راسل الحساب المرتبط من حساب WhatsApp آخر.',
+      stepMessageSelf: 'بعد إعادة التشغيل، افتح «مراسلة نفسك» على الحساب المرتبط وأرسل رسالة إلى Work4You.',
+      saveAndRestart: 'حفظ وإعادة التشغيل',
+      saved: 'تم حفظ WhatsApp؛ جار إعادة تشغيل البوابة...',
+      savedRestartFailed: (detail: string) => `تم حفظ WhatsApp؛ فشلت إعادة تشغيل البوابة${detail}`,
       restartFailedExit: (code: number) => `فشلت إعادة تشغيل البوابة (رمز الخروج ${code}) — أعد التشغيل يدويًا`
     },
     replaceValue: 'استبدال القيمة',
@@ -1379,7 +1431,12 @@ export const ar = defineLocale({
         help: 'يُضبط تلقائيا عبر المفتاح أدناه. اتركه دون تغيير ما لم تكن متأكدا من حاجتك إليه.'
       },
       WHATSAPP_MODE: {
-        label: 'وضع الجسر'
+        label: 'وضع الجسر',
+        help: 'بوت: يراسل الآخرون حسابًا مخصصًا مباشرة. محادثة ذاتية: حسابك الشخصي يرد من «مراسلة نفسك».'
+      },
+      WHATSAPP_DM_POLICY: {
+        label: 'سياسة الرسائل المباشرة',
+        help: 'الاقتران: يتلقى المرسلون غير المعروفين رمز اعتماد. قائمة السماح: الأرقام أعلاه فقط. مفتوح: الجميع (يتطلب تفعيل السماح للكل). معطّل: لا رسائل مباشرة.'
       },
       WHATSAPP_ALLOWED_USERS: {
         label: 'مستخدمو WhatsApp المسموح بهم',
