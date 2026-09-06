@@ -25,6 +25,7 @@ import {
   cookiesHavePrivyAccessToken,
   cookiesHavePrivySession,
   cookiesHaveSession,
+  emailFromPrivyCookies,
   gatewayTicketFailure,
   gatewayWsUrlIpcResult,
   isGatewayAuthRejection,
@@ -1046,6 +1047,77 @@ test('cookiesHavePrivyAccessToken is false for empty values, gateway cookies, an
   assert.equal(cookiesHavePrivyAccessToken(null), false)
   assert.equal(cookiesHavePrivyAccessToken(undefined), false)
   assert.equal(cookiesHavePrivyAccessToken([]), false)
+})
+
+// --- emailFromPrivyCookies (account email from the privy-id-token identity JWT) ---
+
+// Build an unsigned JWT-shaped token whose payload carries the given claims —
+// the same three-segment shape Privy sets; only the payload matters here.
+function fakeIdToken(claims: Record<string, unknown>) {
+  const enc = (obj: unknown) => Buffer.from(JSON.stringify(obj)).toString('base64url')
+
+  return `${enc({ alg: 'ES256', typ: 'JWT' })}.${enc(claims)}.sig`
+}
+
+test('emailFromPrivyCookies reads a native email login from linked_accounts (JSON-string claim)', () => {
+  const token = fakeIdToken({
+    sub: 'did:privy:abc',
+    linked_accounts: JSON.stringify([{ type: 'email', address: 'user@example.com' }])
+  })
+
+  assert.equal(emailFromPrivyCookies([{ name: 'privy-id-token', value: token }]), 'user@example.com')
+})
+
+test('emailFromPrivyCookies accepts secured cookie-name prefixes and an already-parsed array claim', () => {
+  const token = fakeIdToken({
+    linked_accounts: [{ type: 'email', address: 'host@example.com' }]
+  })
+
+  assert.equal(emailFromPrivyCookies([{ name: '__Host-privy-id-token', value: token }]), 'host@example.com')
+  assert.equal(emailFromPrivyCookies([{ name: '__Secure-privy-id-token', value: token }]), 'host@example.com')
+})
+
+test('emailFromPrivyCookies falls back to a social login email when no native email account exists', () => {
+  const token = fakeIdToken({
+    linked_accounts: JSON.stringify([
+      { type: 'wallet', address: '0xabc' },
+      { type: 'google_oauth', email: 'social@example.com', name: 'User' }
+    ])
+  })
+
+  assert.equal(emailFromPrivyCookies([{ name: 'privy-id-token', value: token }]), 'social@example.com')
+})
+
+test('emailFromPrivyCookies prefers the native email account over social emails', () => {
+  const token = fakeIdToken({
+    linked_accounts: JSON.stringify([
+      { type: 'google_oauth', email: 'social@example.com' },
+      { type: 'email', address: 'native@example.com' }
+    ])
+  })
+
+  assert.equal(emailFromPrivyCookies([{ name: 'privy-id-token', value: token }]), 'native@example.com')
+})
+
+test('emailFromPrivyCookies never uses the ACCESS token — only the identity token carries accounts', () => {
+  // The access token (`privy-token`) has no linked_accounts; a jar holding
+  // only it (a perfectly signed-in state) must yield null, not garbage.
+  const accessToken = fakeIdToken({ sub: 'did:privy:abc' })
+
+  assert.equal(emailFromPrivyCookies([{ name: 'privy-token', value: accessToken }]), null)
+})
+
+test('emailFromPrivyCookies returns null for malformed tokens, empty jars, and non-arrays', () => {
+  assert.equal(emailFromPrivyCookies([{ name: 'privy-id-token', value: 'not-a-jwt' }]), null)
+  assert.equal(emailFromPrivyCookies([{ name: 'privy-id-token', value: '' }]), null)
+  assert.equal(
+    emailFromPrivyCookies([{ name: 'privy-id-token', value: fakeIdToken({ linked_accounts: 'not json' }) }]),
+    null
+  )
+  assert.equal(emailFromPrivyCookies([{ name: 'privy-id-token', value: fakeIdToken({}) }]), null)
+  assert.equal(emailFromPrivyCookies([]), null)
+  assert.equal(emailFromPrivyCookies(null), null)
+  assert.equal(emailFromPrivyCookies(undefined), null)
 })
 
 // --- tokenPreview ---

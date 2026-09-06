@@ -71,6 +71,7 @@ import {
   cookiesHavePrivyAccessToken,
   cookiesHavePrivySession,
   cookiesHaveSession,
+  emailFromPrivyCookies,
   gatewayTicketFailure,
   gatewayWsUrlIpcResult,
   hostLabelFromBaseUrl,
@@ -7529,6 +7530,31 @@ async function hasPortalAccessToken() {
   }
 }
 
+// The signed-in Portal account's email, decoded locally from the Privy
+// IDENTITY token cookie that lands alongside the access token at login
+// (see emailFromPrivyCookies). Display-only — no network call, no
+// verification. Null when signed out or when the jar has no identity token.
+async function portalAccountEmail() {
+  const sess = getOauthSession()
+
+  if (!sess) {
+    return null
+  }
+
+  const portalBaseUrl = resolvePortalBaseUrl()
+  const parsed = new URL(portalBaseUrl)
+
+  try {
+    return emailFromPrivyCookies(await sess.cookies.get({ url: portalBaseUrl }))
+  } catch {
+    try {
+      return emailFromPrivyCookies(await sess.cookies.get({ domain: parsed.hostname }))
+    } catch {
+      return null
+    }
+  }
+}
+
 // Bounded silent renewal of the short-lived Privy access token (#73495).
 //
 // After a Desktop restart the long-lived `privy-session` / `privy-refresh-token`
@@ -12912,7 +12938,8 @@ ipcMain.handle('work4you:connection-config:oauth-logout', async (_event, rawUrl)
 // per-agent cascade. See the discovery/cascade helpers above.
 ipcMain.handle('work4you:cloud:status', async () => ({
   portalBaseUrl: resolvePortalBaseUrl(),
-  signedIn: await hasLivePortalSession()
+  signedIn: await hasLivePortalSession(),
+  email: await portalAccountEmail()
 }))
 ipcMain.handle('work4you:cloud:login', async () => {
   await openPortalLoginWindow()

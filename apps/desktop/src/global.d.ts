@@ -948,6 +948,10 @@ export interface DesktopCloudStatus {
   // portal authenticates via Privy, so this reflects the privy-token cookie, NOT
   // the work4you gateway session cookies. See cookiesHavePrivySession.
   signedIn: boolean
+  // The signed-in account's email, decoded locally from the Privy identity
+  // token cookie (`privy-id-token`). Null when signed out or when the jar has
+  // no identity token; absent on shells that predate the field.
+  email?: null | string
 }
 
 // A discovered Work4You Cloud agent — the trimmed DTO from NAS GET /api/agents.
