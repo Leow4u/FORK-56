@@ -12,6 +12,8 @@ name: Deploy Cloud Runtime (Golden Image)
 # Build 2026-08-28b: rebuild to ship the quiet new-session hero (#137)
 # on top of the unified visual identity (#134) in the bundled dashboard.
 # Build 2026-09-01: rebuild to ship Settings overlay dashboard (#166).
+# Build 2026-09-06: rebuild to ship hidden messaging channels (#205) and
+# the Telegram/WhatsApp desktop quick-setup rounds (#206, #209).
 
 on:
   workflow_dispatch:
