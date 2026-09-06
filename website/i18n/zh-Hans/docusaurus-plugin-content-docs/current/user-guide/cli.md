@@ -52,14 +52,14 @@ work4you -w -z "Fix issue #123"     # 在 worktree 中以单次查询模式运�
 <img className="docs-terminal-figure" src="/img/docs/cli-layout.svg" alt="Work4You CLI 布局的风格化预览，展示了横幅、对话区域和固定输入提示符。" />
 <p className="docs-figure-caption">Work4You CLI 横幅、对话流和固定输入提示符，以稳定的文档图示形式呈现，而非脆弱的文字艺术。</p>
 
-欢迎横幅一目了然地显示当前模型、终端后端、工作目录、可用工具和已安装的 skill。
+欢迎闪屏显示当前模型、工作目录和会话。工具、skill 和 MCP 仍在 `/help`、`/tools` 和 `/skills`。
 
 ### 状态栏
 
 一个持久状态栏位于输入区域上方，实时更新：
 
 ```
- ⚕ claude-sonnet-4-20250514 │ 12.4K/200K │ [██████░░░░] 6% │ $0.06 │ 15m
+  ◆ claude-sonnet-4-20250514 │ 12.4K/200K │ [██████░░░░] 6% │ $0.06 │ 15m
 ```
 
 | 元素 | 描述 |
@@ -407,7 +407,7 @@ Work4You 立即确认任务并将提示符还给你：
 后台任务完成时，结果会以面板形式出现在终端中：
 
 ```
-╭─ ⚕ Work4You (background #1) ──────────────────────────────────╮
+╭─ ◆ Work4You (background #1) ──────────────────────────────────╮
 │ Found 3 errors in syslog from today:                         │
 │ 1. OOM killer invoked at 03:22 — killed process nginx        │
 │ 2. Disk I/O error on /dev/sda1 at 07:15                      │

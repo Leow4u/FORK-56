@@ -92,6 +92,17 @@ class TestCompactBannerSkinIntegration:
         assert "Poseidon Agent" in banner
         assert "WORK4YOU WORK4YOU" not in banner
 
+    def test_default_compact_banner_uses_work4you_mark(self):
+        set_active_skin("default")
+
+        with patch("cli.shutil.get_terminal_size", return_value=SimpleNamespace(columns=90)), \
+             patch.dict(_build_compact_banner.__globals__, {"format_banner_version_label": lambda: "Work4You v0.1.0 (test)"}):
+            banner = _build_compact_banner()
+
+        assert "◆ Work4You" in banner
+        assert "WORK4YOU WORK4YOU" not in banner
+        assert "⚕" not in banner
+
     def test_poseidon_compact_banner_uses_skin_colors(self):
         set_active_skin("poseidon")
         skin = get_active_skin()

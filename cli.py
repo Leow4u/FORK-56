@@ -4550,31 +4550,8 @@ class ChatConsole:
         """
         yield self
 
-# ASCII Art - WORK4YOU logo (full width, single line - requires ~95 char terminal)
-WORK4YOU_LOGO = """[bold #FFD700]██╗  ██╗███████╗██████╗ ███╗   ███╗███████╗███████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
-[bold #FFD700]██║  ██║██╔════╝██╔══██╗████╗ ████║██╔════╝██╔════╝      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
-[#FFBF00]███████║█████╗  ██████╔╝██╔████╔██║█████╗  ███████╗█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║[/]
-[#FFBF00]██╔══██║██╔══╝  ██╔══██╗██║╚██╔╝██║██╔══╝  ╚════██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║[/]
-[#CD7F32]██║  ██║███████╗██║  ██║██║ ╚═╝ ██║███████╗███████║      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║[/]
-[#CD7F32]╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝[/]"""
-
-# ASCII Art - Work4You Hero (compact, fits in left panel)
-WORK4YOU_HERO = """[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⣀⣀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀⠀⠀⠀⠀⢀⣠⣴⣾⣿⣿⣇⠸⣿⣿⠇⣸⣿⣿⣷⣦⣄⡀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⢀⣠⣴⣶⠿⠋⣩⡿⣿⡿⠻⣿⡇⢠⡄⢸⣿⠟⢿⣿⢿⣍⠙⠿⣶⣦⣄⡀⠀[/]
-[#FFBF00]⠀⠀⠉⠉⠁⠶⠟⠋⠀⠉⠀⢀⣈⣁⡈⢁⣈⣁⡀⠀⠉⠀⠙⠻⠶⠈⠉⠉⠀⠀[/]
-[#FFD700]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⣿⡿⠛⢁⡈⠛⢿⣿⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFD700]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠿⣿⣦⣤⣈⠁⢠⣴⣿⠿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠻⢿⣿⣦⡉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢷⣦⣈⠛⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣴⠦⠈⠙⠿⣦⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣤⡈⠁⢤⣿⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠷⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⠑⢶⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠁⢰⡆⠈⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠳⠈⣡⠞⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]"""
-
+# ASCII Art - Work4You pixel mark lives in work4you_cli.banner.WORK4YOU_HERO.
+# Compact/narrow-terminal splash is assembled by _build_compact_banner().
 
 
 def _build_compact_banner() -> str:
@@ -4591,8 +4568,8 @@ def _build_compact_banner() -> str:
     dim_color = _skin.get_color("banner_dim", "#B8860B") if _skin else "#B8860B"
 
     if skin_name == "default":
-        line1 = "⚕ WORK4YOU WORK4YOU - AI Agent Framework"
-        tiny_line = "⚕ WORK4YOU WORK4YOU"
+        line1 = "◆ Work4You"
+        tiny_line = "◆ Work4You"
     else:
         agent_name = _skin.get_branding("agent_name", "Work4You") if _skin else "Work4You"
         line1 = f"{agent_name} - AI Agent Framework"
@@ -6870,7 +6847,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
             yolo_active = self._is_session_yolo_active()
             goal_segment = self._status_bar_goal_segment(snapshot)
             if width < 52:
-                text = f"{battery_prefix}⚕ {snapshot['model_short']} · {duration_label}"
+                text = f"{battery_prefix}◆ {snapshot['model_short']} · {duration_label}"
                 if goal_segment:
                     text += f" · {goal_segment}"
                 if focus_label:
@@ -6879,7 +6856,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                     text += " · ⚠ YOLO"
                 return self._right_align_status_title(text, session_title, width)
             if width < 76:
-                parts = [f"⚕ {snapshot['model_short']}", percent_label]
+                parts = [f"◆ {snapshot['model_short']}", percent_label]
                 if battery_label:
                     parts.insert(0, battery_label)
                 compressions = snapshot.get("compressions", 0)
@@ -6911,7 +6888,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                 context_label = "ctx --"
 
             compressions = snapshot.get("compressions", 0)
-            parts = [f"⚕ {snapshot['model_short']}", context_label, percent_label]
+            parts = [f"◆ {snapshot['model_short']}", context_label, percent_label]
             if battery_label:
                 parts.insert(0, battery_label)
             if compressions:
@@ -6940,7 +6917,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                 parts.append("⚠ YOLO")
             return self._right_align_status_title(" │ ".join(parts), session_title, width)
         except Exception:
-            return f"⚕ {self.model if getattr(self, 'model', None) else 'Work4You'}"
+            return f"◆ {self.model if getattr(self, 'model', None) else 'Work4You'}"
 
     def _get_status_bar_fragments(self):
         if not self._status_bar_visible or getattr(self, '_model_picker_state', None):
@@ -6963,7 +6940,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
 
             if width < 52:
                 frags = [
-                    ("class:status-bar", " ⚕ "),
+                    ("class:status-bar", " ◆ "),
                     ("class:status-bar-strong", snapshot["model_short"]),
                     ("class:status-bar-dim", " · "),
                     ("class:status-bar-dim", duration_label),
@@ -6987,7 +6964,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                     bg_proc_count = snapshot.get("active_background_processes", 0)
                     bg_subagent_count = snapshot.get("active_background_subagents", 0)
                     frags = [
-                        ("class:status-bar", " ⚕ "),
+                        ("class:status-bar", " ◆ "),
                         ("class:status-bar-strong", snapshot["model_short"]),
                         ("class:status-bar-dim", " · "),
                         (self._status_bar_context_style(percent), percent_label),
@@ -7032,7 +7009,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                     bg_proc_count = snapshot.get("active_background_processes", 0)
                     bg_subagent_count = snapshot.get("active_background_subagents", 0)
                     frags = [
-                        ("class:status-bar", " ⚕ "),
+                        ("class:status-bar", " ◆ "),
                         ("class:status-bar-strong", snapshot["model_short"]),
                         ("class:status-bar-dim", " │ "),
                         ("class:status-bar-dim", context_label),
@@ -7102,7 +7079,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                     frags.append(("class:status-bar-strong", stash_indicator))
 
             # Battery is the first status-bar element when enabled: prepend it
-            # ahead of the leading ⚕ marker in whichever width tier ran above.
+            # ahead of the leading ◆ marker in whichever width tier ran above.
             if battery_label:
                 frags[0:0] = [
                     ("class:status-bar", " "),
@@ -7743,10 +7720,10 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
             try:
                 from work4you_cli.skin_engine import get_active_skin
                 _skin = get_active_skin()
-                label = _skin.get_branding("response_label", "⚕ Work4You")
+                label = _skin.get_branding("response_label", "◆ Work4You")
                 _text_hex = _skin.get_color("banner_text", "#FFF8DC")
             except Exception:
-                label = "⚕ Work4You"
+                label = "◆ Work4You"
                 _text_hex = "#FFF8DC"
             # Build a true-color ANSI escape for the response text color
             # so streamed content matches the Rich Panel appearance.
@@ -8226,14 +8203,14 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
             self.preloaded_skills = loaded_skills
 
     def show_banner(self):
-        """Display the welcome banner in Claude Code style."""
+        """Display the compact Work4You welcome splash."""
         self.console.clear()
         ctx_len = None
         if hasattr(self, 'agent') and self.agent and hasattr(self.agent, 'context_compressor'):
             ctx_len = self.agent.context_compressor.context_length
         
-        # Auto-compact for narrow terminals — the full banner with hero
-        # + tool list needs ~80 columns minimum to render without wrapping.
+        # Auto-compact for narrow terminals — the pixel-mark panel needs
+        # ~80 columns to sit beside the session facts without wrapping.
         term_width = shutil.get_terminal_size().columns
         use_compact = self.compact or term_width < 80
         
@@ -8241,115 +8218,20 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
             self._console_print(_build_compact_banner())
             self._show_status()
         else:
-            # Warm-launch fast path: replay last launch's tool panel when the
-            # snapshot fingerprint (config.yaml + .env + checkout rev +
-            # toolsets) is unchanged, skipping the ~0.5-0.9s cold
-            # get_tool_definitions walk. The agent's REAL tool list is still
-            # computed fresh at first message; a background refresh below
-            # re-verifies the snapshot so any drift self-heals next launch.
-            from work4you_cli.banner import (
-                compute_toolset_availability,
-                load_banner_snapshot,
-                save_banner_snapshot,
-            )
-
-            snapshot = None
-            try:
-                snapshot = load_banner_snapshot(self.enabled_toolsets)
-            except Exception:
-                snapshot = None
-
-            # Get terminal working directory (where commands will execute)
             cwd = os.getenv("TERMINAL_CWD", os.getcwd())
-
-            if snapshot is not None:
-                self._defer_tool_warnings = True
-                toolset_map = snapshot["toolset_map"]
-                build_welcome_banner(
-                    console=self.console,
-                    model=self.model,
-                    cwd=cwd,
-                    tools=snapshot["tools"],
-                    enabled_toolsets=self.enabled_toolsets,
-                    session_id=self.session_id,
-                    get_toolset_for_tool=lambda name: toolset_map.get(name),
-                    context_length=ctx_len,
-                    provider=self.provider,
-                    availability=snapshot["availability"],
-                    skills_by_category=snapshot.get("skills_by_category"),
-                )
-
-                def _refresh_banner_snapshot() -> None:
-                    try:
-                        from model_tools import get_toolset_for_tool
-                        tools = get_tool_definitions(
-                            enabled_toolsets=self.enabled_toolsets, quiet_mode=True
-                        )
-                        availability = compute_toolset_availability(self.enabled_toolsets)
-                        tmap = {
-                            t["function"]["name"]: get_toolset_for_tool(t["function"]["name"])
-                            for t in tools
-                        }
-                        for item in availability.get("unavailable_toolsets", []):
-                            for name in item.get("tools", []):
-                                tmap.setdefault(
-                                    name, item.get("id", item.get("name", ""))
-                                )
-                        save_banner_snapshot(
-                            tools, self.enabled_toolsets, availability, tmap
-                        )
-                    except Exception:
-                        logger.debug("banner snapshot refresh failed", exc_info=True)
-
-                threading.Thread(
-                    target=_refresh_banner_snapshot,
-                    name="banner-snapshot-refresh",
-                    daemon=True,
-                ).start()
-            else:
-                # Cold path: compute everything live, then persist the snapshot
-                # so the next launch replays it.
-                from model_tools import get_toolset_for_tool
-                tools = get_tool_definitions(enabled_toolsets=self.enabled_toolsets, quiet_mode=True)
-                availability = compute_toolset_availability(self.enabled_toolsets)
-
-                build_welcome_banner(
-                    console=self.console,
-                    model=self.model,
-                    cwd=cwd,
-                    tools=tools,
-                    enabled_toolsets=self.enabled_toolsets,
-                    session_id=self.session_id,
-                    context_length=ctx_len,
-                    provider=self.provider,
-                    availability=availability,
-                )
-                try:
-                    tmap = {
-                        t["function"]["name"]: get_toolset_for_tool(t["function"]["name"])
-                        for t in tools
-                    }
-                    for item in availability.get("unavailable_toolsets", []):
-                        for name in item.get("tools", []):
-                            tmap.setdefault(name, item.get("id", item.get("name", "")))
-                    save_banner_snapshot(tools, self.enabled_toolsets, availability, tmap)
-                except Exception:
-                    logger.debug("banner snapshot save failed", exc_info=True)
+            build_welcome_banner(
+                console=self.console,
+                model=self.model,
+                cwd=cwd,
+                session_id=self.session_id,
+                context_length=ctx_len,
+                provider=self.provider,
+            )
         
         # Tool discovery is intentionally deferred on the Termux bare prompt
         # path; availability warnings are shown once tools are initialized.
-        # On the snapshot fast path (warm launch), the check walks every
-        # check_fn (~180ms) — run it in the background refresh thread instead
-        # and let its output land above the prompt (patch_stdout-safe).
         if os.environ.get("WORK4YOU_DEFER_AGENT_STARTUP") != "1":
-            if getattr(self, "_defer_tool_warnings", False):
-                threading.Thread(
-                    target=self._show_tool_availability_warnings,
-                    name="tool-availability-warnings",
-                    daemon=True,
-                ).start()
-            else:
-                self._show_tool_availability_warnings()
+            self._show_tool_availability_warnings()
 
         # Warn about low context lengths (common with local servers). Keep
         # this tied to the runtime guard so guidance cannot drift again.
@@ -11426,7 +11308,6 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                 if self.compact or term_w < 80:
                     cc.print(_build_compact_banner())
                 else:
-                    tools = get_tool_definitions(enabled_toolsets=self.enabled_toolsets, quiet_mode=True)
                     cwd = os.getenv("TERMINAL_CWD", os.getcwd())
                     ctx_len = None
                     if hasattr(self, 'agent') and self.agent and hasattr(self.agent, 'context_compressor'):
@@ -11435,8 +11316,6 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                         console=cc,
                         model=self.model,
                         cwd=cwd,
-                        tools=tools,
-                        enabled_toolsets=self.enabled_toolsets,
                         session_id=self.session_id,
                         context_length=ctx_len,
                         provider=self.provider,
@@ -15833,7 +15712,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                         if not _streaming_box_opened:
                             _streaming_box_opened = True
                             w = self._scrollback_box_width(getattr(self.console, "width", 80))
-                            label = " ⚕ Work4You "
+                            label = " ◆ Work4You "
                             if self.show_timestamps:
                                 label = f"{label}{datetime.now().strftime(getattr(self, 'timestamp_format', '%H:%M'))} "
                             fill = w - 2 - Work4YouCLI._status_bar_display_width(label)
@@ -16265,11 +16144,11 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                 try:
                     from work4you_cli.skin_engine import get_active_skin
                     _skin = get_active_skin()
-                    label = _skin.get_branding("response_label", "⚕ Work4You")
+                    label = _skin.get_branding("response_label", "◆ Work4You")
                     _resp_color = _maybe_remap_for_light_mode(_skin.get_color("response_border", "#CD7F32"))
                     _resp_text = _maybe_remap_for_light_mode(_skin.get_color("banner_text", "#FFF8DC"))
                 except Exception:
-                    label = "⚕ Work4You"
+                    label = "◆ Work4You"
                     _resp_color = _maybe_remap_for_light_mode("#CD7F32")
                     _resp_text = _maybe_remap_for_light_mode("#FFF8DC")
 
@@ -16633,9 +16512,9 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
         else:
             try:
                 from work4you_cli.skin_engine import get_active_goodbye
-                goodbye = get_active_goodbye("Goodbye! ⚕")
+                goodbye = get_active_goodbye("Goodbye! ◆")
             except Exception:
-                goodbye = "Goodbye! ⚕"
+                goodbye = "Goodbye! ◆"
             print(goodbye)
 
     def _get_tui_prompt_symbols(self) -> tuple[str, str]:
@@ -16724,7 +16603,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
         if self._command_running:
             return _state_fragment("class:prompt-working", self._command_spinner_frame())
         if self._agent_running:
-            return _state_fragment("class:prompt-working", "⚕")
+            return _state_fragment("class:prompt-working", "◆")
         if self._voice_mode:
             return _state_fragment("class:voice-prompt", "🎤")
         return [("class:prompt", symbol)]

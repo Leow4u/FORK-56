@@ -94,8 +94,8 @@ Text strings used throughout the CLI interface.
 |-----|-------------|---------|
 | `agent_name` | Name shown in banner title and status display | `Work4You` |
 | `welcome` | Welcome message shown at CLI startup | `Welcome to Work4You! Type your message or /help for commands.` |
-| `goodbye` | Message shown on exit | `Goodbye! ⚕` |
-| `response_label` | Label on the response box header | ` ⚕ Work4You ` |
+| `goodbye` | Message shown on exit | `Goodbye! ◆` |
+| `response_label` | Label on the response box header | ` ◆ Work4You ` |
 | `prompt_symbol` | Symbol before the user input prompt (bare token, renderers add a trailing space) | `❯` |
 | `help_header` | Header text for the `/help` command output | `(^_^)? Available Commands` |
 
@@ -105,8 +105,8 @@ Text strings used throughout the CLI interface.
 |-----|------|-------------|---------|
 | `tool_prefix` | string | Character prefixed to tool output lines in the CLI | `┊` |
 | `tool_emojis` | dict | Per-tool emoji overrides for spinners and progress (`{tool_name: emoji}`) | `{}` |
-| `banner_logo` | string | Rich-markup ASCII art logo (replaces the default WORK4YOU banner) | `""` |
-| `banner_hero` | string | Rich-markup hero art (replaces the default hero art) | `""` |
+| `banner_logo` | string | Rich-markup ASCII art logo (optional; default splash has none) | `""` |
+| `banner_hero` | string | Rich-markup hero art (replaces the default Work4You pixel mark) | `""` |
 
 ## Custom skins
 
