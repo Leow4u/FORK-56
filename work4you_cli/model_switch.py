@@ -402,9 +402,10 @@ _OPAQUE_MODEL_PREFIXES: tuple[str, ...] = (
 def format_model_for_display(model_name: str) -> str:
     """Return a human-friendly form of *model_name* for CLI status output.
 
-    The Free-plan house model keeps its wire id (DeepSeek Flash dated
-    snapshot) but renders as Operis so splash/status/picker chrome never
-    leak the upstream name. Also strips known opaque proxy prefixes
+    The Free-plan house model keeps its wire id (Gemini 3.8 Flash, plus
+    the legacy DeepSeek Flash dated snapshot) but renders as Operis so
+    splash/status/picker chrome never leak the upstream name. Also strips
+    known opaque proxy prefixes
     (Palantir Foundry's ``ri.language-model-service..language-model.*``)
     and returns the trailing slug. Falls through to the original string
     for everything else, so real model IDs (``claude-4-7-opus-20260101``,
@@ -1496,6 +1497,7 @@ def switch_model(
         ModelSwitchResult with all information the caller needs.
     """
     from work4you_cli.models import (
+        canonical_work4you_house_model_id,
         copilot_model_api_mode,
         detect_provider_for_model,
         validate_requested_model,
@@ -1507,7 +1509,7 @@ def switch_model(
     from work4you_cli.runtime_provider import resolve_runtime_provider
 
     resolved_alias = ""
-    new_model = raw_input.strip()
+    new_model = canonical_work4you_house_model_id(raw_input.strip())
     target_provider = current_provider
     resolved_moa_preset = False
 

@@ -26005,8 +26005,12 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
             return
         if not persisted:
             return
+        from work4you_cli.models import canonical_work4you_house_model_id
+        persisted_model = persisted.get("model")
+        if persisted_model:
+            persisted_model = canonical_work4you_house_model_id(str(persisted_model))
         override: Dict[str, Any] = {
-            "model": persisted.get("model"),
+            "model": persisted_model,
             "provider": persisted.get("provider"),
             "base_url": persisted.get("base_url"),
         }
@@ -26050,7 +26054,9 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
         override = _apply_state.conversation.model_override if _apply_state else None
         if not override:
             return model, runtime_kwargs
-        model = override.get("model", model)
+        from work4you_cli.models import canonical_work4you_house_model_id
+        raw_model = override.get("model", model)
+        model = canonical_work4you_house_model_id(str(raw_model)) if raw_model else raw_model
         for key in ("provider", "api_key", "base_url", "api_mode", "credential_pool"):
             val = override.get(key)
             if val is not None:

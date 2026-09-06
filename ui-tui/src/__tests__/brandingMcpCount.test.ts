@@ -86,12 +86,15 @@ describe('TUI splash SessionPanel', () => {
     expect(frame).not.toContain('HERMES')
   })
 
-  it('shows Operis 4.0 Flash instead of the DeepSeek house-model wire id', async () => {
-    const frame = await renderSplash(baseInfo({ model: 'deepseek/deepseek-v4-flash-0731' }))
+  it('shows Operis 4.0 Flash instead of the house-model wire id', async () => {
+    for (const model of ['google/gemini-3.8-flash', 'deepseek/deepseek-v4-flash-0731']) {
+      const frame = await renderSplash(baseInfo({ model }))
 
-    expect(frame).toContain('Operis 4.0 Flash')
-    expect(frame).not.toContain('deepseek-v4-flash-0731')
-    expect(frame).not.toContain('deepseek-v4-flash')
+      expect(frame).toContain('Operis 4.0 Flash')
+      expect(frame).not.toContain('gemini-3.8-flash')
+      expect(frame).not.toContain('deepseek-v4-flash-0731')
+      expect(frame).not.toContain('deepseek-v4-flash')
+    }
   })
 
   it('does not dump skill names from session info', async () => {

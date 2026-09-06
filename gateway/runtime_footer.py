@@ -58,7 +58,7 @@ def _home_relative_cwd(cwd: str) -> str:
 def _model_short(model: Optional[str]) -> str:
     """Drop ``vendor/`` prefix for readability (``openai/gpt-5.4`` → ``gpt-5.4``).
 
-    The Free-plan house model renders as Operis, not the DeepSeek wire id.
+    The Free-plan house model renders as Operis, not the Gemini / legacy DeepSeek wire id.
     """
     if not model:
         return ""

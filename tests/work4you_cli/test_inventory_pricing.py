@@ -95,7 +95,8 @@ def test_apply_pricing_gates_work4you_without_live_prices(monkeypatch):
     """Free-plan lock uses the house-model partition even when pricing is empty."""
     monkeypatch.setattr(models_mod, "get_pricing_for_provider", lambda slug, **kw: {})
     monkeypatch.setattr(models_mod, "check_work4you_free_tier", lambda *, force_fresh=False: True)
-    house = "deepseek/deepseek-v4-flash-0731"
+    from work4you_cli.models import WORK4YOU_HOUSE_MODEL_ID
+    house = WORK4YOU_HOUSE_MODEL_ID
     rows = [{"slug": "work4you", "models": [house, "z-ai/glm-5.2"]}]
     inv._apply_pricing(rows)
     assert rows[0]["free_tier"] is True

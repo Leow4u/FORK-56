@@ -16,3 +16,11 @@ def test_filter_indices_surfaces_k3_for_kimi_query():
     assert "k3" in ranked
 
 
+def test_filter_indices_surfaces_house_model_for_operis_query():
+    from work4you_cli.models import WORK4YOU_HOUSE_MODEL_ID
+
+    models = [WORK4YOU_HOUSE_MODEL_ID, "z-ai/glm-5.2", "deepseek/deepseek-v4-flash-0731"]
+    haystacks = [model_search_text(m) for m in models]
+    ranked = [models[i] for i in _filter_indices(haystacks, "operis")]
+    assert WORK4YOU_HOUSE_MODEL_ID in ranked
+    assert "deepseek/deepseek-v4-flash-0731" in ranked

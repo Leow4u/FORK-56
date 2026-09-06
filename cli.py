@@ -6070,7 +6070,7 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
         agent = getattr(self, "agent", None)
         model_name = (getattr(agent, "model", None) or self.model or "unknown")
         # House model (Operis) first so the status bar never shows the
-        # DeepSeek wire id. Otherwise prefer reverse-alias from config.yaml
+        # Gemini / legacy DeepSeek wire id. Otherwise prefer reverse-alias from config.yaml
         # ``model_aliases:`` before slash truncation (Palantir RIDs).
         from work4you_cli.model_switch import format_model_for_display
         from work4you_cli.models import is_work4you_house_model
@@ -8493,6 +8493,8 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
         stored_model = (session_meta or {}).get("model")
         if not stored_model:
             return
+        from work4you_cli.models import canonical_work4you_house_model_id
+        stored_model = canonical_work4you_house_model_id(str(stored_model))
         # An explicit -m / --model on the command line overrides resume.
         if getattr(self, "_explicit_model_override", False):
             return
@@ -18983,6 +18985,12 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
             if not state:
                 return []
             stage = state.get("stage", "provider")
+            from work4you_cli.model_switch import format_model_for_display
+            from work4you_cli.models import (
+                WORK4YOU_HOUSE_MODEL_DISPLAY,
+                is_work4you_house_model,
+            )
+
             if stage == "provider":
                 title = "⚙ Model Picker — Select Provider"
                 choices = []
@@ -18994,7 +19002,10 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                         label += "  ← current"
                     choices.append(label)
                 choices.append("Cancel")
-                hint = f"Current: {state.get('current_model', 'unknown')} on {state.get('current_provider', 'unknown')}"
+                hint = (
+                    f"Current: {format_model_for_display(state.get('current_model', 'unknown'))}"
+                    f" on {state.get('current_provider', 'unknown')}"
+                )
             else:
                 provider_data = state.get("provider_data") or {}
                 model_list = state.get("model_list") or []
@@ -19032,6 +19043,12 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
             _append_blank_panel_line(lines, 'class:clarify-border', box_width)
             for idx in range(scroll_offset, scroll_offset + visible):
                 choice = choices[idx]
+                if (
+                    stage != "provider"
+                    and choice not in ("← Back", "Cancel")
+                    and is_work4you_house_model(choice)
+                ):
+                    choice = WORK4YOU_HOUSE_MODEL_DISPLAY
                 style = 'class:clarify-selected' if idx == selected else 'class:clarify-choice'
                 prefix = '❯ ' if idx == selected else '  '
                 for wrapped in _wrap_panel_text(prefix + choice, inner_text_width, subsequent_indent='  '):
