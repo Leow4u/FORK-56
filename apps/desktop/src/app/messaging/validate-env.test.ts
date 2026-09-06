@@ -69,7 +69,11 @@ describe('validateMessagingEnv', () => {
     // Three dot-separated base64url segments, as issued by the Developer
     // Portal. Assembled at runtime so no token-shaped literal lives in the
     // source (GitHub push protection flags those).
-    const token = [btoa('1086042810000000000').replace(/=+$/, ''), 'GXk2ap', 'tW0abcDEFghiJKLmnoPQRstuVWxyz1234567890'].join('.')
+    const token = [
+      btoa('1086042810000000000').replace(/=+$/, ''),
+      'GXk2ap',
+      'tW0abcDEFghiJKLmnoPQRstuVWxyz1234567890'
+    ].join('.')
 
     expect(validateMessagingEnv('DISCORD_BOT_TOKEN', token)).toBeNull()
     // "Bot <token>" pastes from Authorization-header snippets are normalized.

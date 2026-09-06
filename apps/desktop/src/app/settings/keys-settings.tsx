@@ -55,9 +55,7 @@ export function KeysSettings({ view }: KeysSettingsProps) {
     return Object.entries(vars)
       .filter(
         ([key, info]) =>
-          !info.channel_managed &&
-          cats.includes(asText(info.category)) &&
-          !isCapabilitiesVendorCredentialHidden(key)
+          !info.channel_managed && cats.includes(asText(info.category)) && !isCapabilitiesVendorCredentialHidden(key)
       )
       .sort(([a], [b]) => a.localeCompare(b))
   }, [vars, view])

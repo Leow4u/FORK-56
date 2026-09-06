@@ -1356,7 +1356,8 @@ export const ja = defineLocale({
     unknown: '不明',
     hintPendingRestart: 'この変更を適用するにはゲートウェイを再起動してください。',
     hintGatewayStopped: 'ゲートウェイが停止しています。再起動すると接続されます。',
-    hintSetupFirst: '下に認証情報を入力して保存してください。チャンネルがオンになり、ゲートウェイの再起動後に接続されます。',
+    hintSetupFirst:
+      '下に認証情報を入力して保存してください。チャンネルがオンになり、ゲートウェイの再起動後に接続されます。',
     hintEnableToConnect: '認証情報は保存済みです。チャンネルをオンにしてゲートウェイを再起動すると接続されます。',
     restartGateway: 'ゲートウェイを再起動',
     restartingGateway: '再起動中...',
@@ -1453,7 +1454,8 @@ export const ja = defineLocale({
       allowedUsersHelp:
         '任意：カンマ区切りの Slack メンバー ID（プロフィール → ⋯ → メンバー ID をコピー）。空のままにすると、ボットに DM した人にペアリングコードが発行され、ここで承認できます。',
       allowedUsersPlaceholder: 'U01ABC2DEF3,U04XYZ9GHI7',
-      bothTokensRequired: '両方のトークンを貼り付けてください——ボットトークン（xoxb-）とアプリレベルトークン（xapp-）。',
+      bothTokensRequired:
+        '両方のトークンを貼り付けてください——ボットトークン（xoxb-）とアプリレベルトークン（xapp-）。',
       saved: 'Slack を保存して有効化しました。接続するにはゲートウェイを再起動してください。',
       saveFailed: 'Slack 設定の保存に失敗しました'
     },
@@ -1480,22 +1482,26 @@ export const ja = defineLocale({
       add: '追加',
       removeUserAria: (id: string) => `${id} を削除`,
       saveAndRestart: '保存して再起動',
-      replacesExisting: 'Telegram の認証情報は設定済みです。新しい QR セットアップを保存すると現在のボットが置き換えられます。',
+      replacesExisting:
+        'Telegram の認証情報は設定済みです。新しい QR セットアップを保存すると現在のボットが置き換えられます。',
       saved: 'Telegram を保存しました。ゲートウェイを再起動しています...',
       savedRestartFailed: (detail: string) => `Telegram を保存しましたが、ゲートウェイの再起動に失敗しました${detail}`,
-      restartFailedExit: (code: number) => `ゲートウェイの再起動に失敗しました（終了コード ${code}）。手動で再起動してください`
+      restartFailedExit: (code: number) =>
+        `ゲートウェイの再起動に失敗しました（終了コード ${code}）。手動で再起動してください`
     },
     whatsappQuickSetup: {
       title: 'クイックセットアップ',
       recommended: 'おすすめ',
       intro:
         'Work4You が同梱の WhatsApp ブリッジを起動して QR コードを表示します。スマートフォンの WhatsApp でスキャンすればアカウントが連携されます。保存するとチャンネルが有効になり、ゲートウェイが自動で再起動されます。',
-      replacesExisting: 'WhatsApp セッションは設定済みです。新しい QR ペアリングを保存すると、現在連携中のアカウントが置き換えられます。',
+      replacesExisting:
+        'WhatsApp セッションは設定済みです。新しい QR ペアリングを保存すると、現在連携中のアカウントが置き換えられます。',
       modeLabel: 'モード',
       modeBot: 'ボット',
       modeSelfChat: 'セルフチャット',
       modeBotHelp: '専用の WhatsApp アカウントがボットとして動作し、他のユーザーが直接メッセージを送ります。',
-      modeSelfChatHelp: '自分のアカウントが「自分へのメッセージ」で応答します。Work4You は自分宛のチャットに返信します。',
+      modeSelfChatHelp:
+        '自分のアカウントが「自分へのメッセージ」で応答します。Work4You は自分宛のチャットに返信します。',
       allowedUsersLabel: '許可する WhatsApp 番号',
       allowedUsersPlaceholder: '15551234567,15557654321',
       allowKeepSaved: '空欄のままにすると保存済みの許可リストを維持します。',
@@ -1505,7 +1511,8 @@ export const ja = defineLocale({
       starting: '開始しています...',
       preparing: 'WhatsApp ブリッジを準備しています（初回は依存関係のインストールに数分かかることがあります）...',
       startingBridge: 'WhatsApp ペアリングブリッジを起動しています...',
-      waiting: 'スマートフォンで WhatsApp → 設定 → リンク済みのデバイス → デバイスをリンク を開き、このコードをスキャンしてください。',
+      waiting:
+        'スマートフォンで WhatsApp → 設定 → リンク済みのデバイス → デバイスをリンク を開き、このコードをスキャンしてください。',
       waitingForQr: 'WhatsApp からの QR コードを待っています...',
       scanHint: 'カメラアプリではなく、WhatsApp の「リンク済みのデバイス」からスキャンしてください。',
       qrAlt: 'WhatsApp セットアップ QR コード',
@@ -1518,11 +1525,13 @@ export const ja = defineLocale({
       openChatLink: 'チャットを開く',
       stepSaveRestart: '保存する — Work4You が設定を保存し、チャンネルを有効化してゲートウェイを再起動します。',
       stepMessageBot: '再起動後、別の WhatsApp アカウントから連携アカウントにメッセージを送ってください。',
-      stepMessageSelf: '再起動後、連携アカウントで「自分へのメッセージ」を開き、Work4You にメッセージを送ってください。',
+      stepMessageSelf:
+        '再起動後、連携アカウントで「自分へのメッセージ」を開き、Work4You にメッセージを送ってください。',
       saveAndRestart: '保存して再起動',
       saved: 'WhatsApp を保存しました。ゲートウェイを再起動しています...',
       savedRestartFailed: (detail: string) => `WhatsApp を保存しましたが、ゲートウェイの再起動に失敗しました${detail}`,
-      restartFailedExit: (code: number) => `ゲートウェイの再起動に失敗しました（終了コード ${code}）。手動で再起動してください`
+      restartFailedExit: (code: number) =>
+        `ゲートウェイの再起動に失敗しました（終了コード ${code}）。手動で再起動してください`
     },
     replaceValue: '現在の値を置き換え',
     openDocs: 'ドキュメントを開く',

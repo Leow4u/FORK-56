@@ -331,9 +331,7 @@ export function WhatsAppQuickSetup({
     [setup, tick]
   )
 
-  const linkedLabel = setup?.account_phone
-    ? `+${setup.account_phone}`
-    : setup?.account_name || setup?.account_id || ''
+  const linkedLabel = setup?.account_phone ? `+${setup.account_phone}` : setup?.account_name || setup?.account_id || ''
 
   const chatUrl = setup?.account_phone ? `https://wa.me/${setup.account_phone}` : ''
 

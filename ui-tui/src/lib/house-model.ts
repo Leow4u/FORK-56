@@ -5,6 +5,7 @@ export const WORK4YOU_HOUSE_MODEL_DISPLAY = 'Operis 4.0 Flash'
 
 export function isWork4YouHouseModel(model: string): boolean {
   const slug = model.trim().toLowerCase().split('/').pop() || ''
+
   return slug === 'gemini-3.8-flash' || slug === 'deepseek-v4-flash-0731'
 }
 

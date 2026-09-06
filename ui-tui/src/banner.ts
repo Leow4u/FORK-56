@@ -64,8 +64,7 @@ const colorize = (art: string[], gradient: readonly number[], c: ThemeColors): L
 
 export const HERO_WIDTH = Math.max(...HERO_ART.map(line => line.length))
 
-export const logo = (_c: ThemeColors, customLogo?: string): Line[] =>
-  customLogo ? parseRichMarkup(customLogo) : []
+export const logo = (_c: ThemeColors, customLogo?: string): Line[] => (customLogo ? parseRichMarkup(customLogo) : [])
 
 export const hero = (c: ThemeColors, customHero?: string): Line[] =>
   customHero ? parseRichMarkup(customHero) : colorize(HERO_ART, HERO_GRADIENT, c)

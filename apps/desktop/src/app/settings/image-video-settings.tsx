@@ -27,17 +27,19 @@ export function ImageVideoSettings() {
 function ImageVideoSettingsInner({ scopeProfile }: { scopeProfile: ProfileScope }) {
   const { t } = useI18n()
   const [pending, setPending] = useState<string | null>(null)
+
   const toolsetsQuery = useQuery({
     queryFn: () => getToolsets(scopeProfile),
     queryKey: ['settings-image-video-toolsets', scopeProfile]
   })
 
-  const rows = SETTINGS_IMAGE_VIDEO_TOOLSETS.map(name => (toolsetsQuery.data ?? []).find(ts => ts.name === name)).filter(
-    (ts): ts is ToolsetInfo => Boolean(ts)
-  )
+  const rows = SETTINGS_IMAGE_VIDEO_TOOLSETS.map(name =>
+    (toolsetsQuery.data ?? []).find(ts => ts.name === name)
+  ).filter((ts): ts is ToolsetInfo => Boolean(ts))
 
   async function handleToggle(toolset: ToolsetInfo, enabled: boolean) {
     setPending(toolset.name)
+
     try {
       await setToolsetEnabled(toolset.name, enabled, scopeProfile)
       await toolsetsQuery.refetch()
@@ -49,7 +51,14 @@ function ImageVideoSettingsInner({ scopeProfile }: { scopeProfile: ProfileScope 
   }
 
   if (toolsetsQuery.isLoading) {
-    return <SettingsSkeleton sections={[{ heading: true, rows: 2 }, { heading: true, rows: 2 }]} />
+    return (
+      <SettingsSkeleton
+        sections={[
+          { heading: true, rows: 2 },
+          { heading: true, rows: 2 }
+        ]}
+      />
+    )
   }
 
   if (toolsetsQuery.isError) {

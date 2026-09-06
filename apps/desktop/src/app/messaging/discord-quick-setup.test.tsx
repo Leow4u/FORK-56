@@ -35,7 +35,11 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-async function renderQuickSetup({ configured = false, onApplied = vi.fn(), scopeProfile = null as null | string } = {}) {
+async function renderQuickSetup({
+  configured = false,
+  onApplied = vi.fn(),
+  scopeProfile = null as null | string
+} = {}) {
   const { DiscordQuickSetup } = await import('./discord-quick-setup')
 
   await act(async () => {

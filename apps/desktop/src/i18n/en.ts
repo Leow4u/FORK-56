@@ -1687,7 +1687,8 @@ export const en: Translations = {
       add: 'Add',
       removeUserAria: (id: string) => `Remove ${id}`,
       saveAndRestart: 'Save and restart',
-      replacesExisting: 'Telegram credentials are already configured — a new QR setup replaces the current bot when you save.',
+      replacesExisting:
+        'Telegram credentials are already configured — a new QR setup replaces the current bot when you save.',
       saved: 'Telegram saved; gateway restarting...',
       savedRestartFailed: (detail: string) => `Telegram saved; gateway restart failed${detail}`,
       restartFailedExit: (code: number) => `Gateway restart failed (exit ${code}) — restart it manually`
