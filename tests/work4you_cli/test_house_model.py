@@ -49,6 +49,22 @@ def test_legacy_house_id_canonicalizes_to_gemini_38():
     assert canonical_work4you_house_model_id("deepseek/deepseek-v4-flash") == "deepseek/deepseek-v4-flash"
 
 
+def test_collapse_house_ids_keeps_one_canonical_operis_row():
+    from work4you_cli.models import collapse_work4you_house_model_ids
+
+    collapsed = collapse_work4you_house_model_ids(
+        [
+            "deepseek/deepseek-v4-flash-0731",
+            WORK4YOU_HOUSE_MODEL_ID,
+            "anthropic/claude-fable-5",
+            "deepseek-v4-flash-0731",
+        ]
+    )
+    assert collapsed == [WORK4YOU_HOUSE_MODEL_ID, "anthropic/claude-fable-5"]
+    assert collapsed.count(WORK4YOU_HOUSE_MODEL_ID) == 1
+    assert "deepseek/deepseek-v4-flash-0731" not in collapsed
+
+
 def test_house_model_display_hides_upstream_wire_id():
     """Splash/status chrome must show Operis, never Gemini or DeepSeek slugs."""
     from work4you_cli.model_switch import format_model_for_display

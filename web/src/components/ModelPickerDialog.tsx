@@ -17,6 +17,7 @@ import { modelSearchText } from "@/lib/model-search-text";
 import {
   isWork4YouHouseModel,
   WORK4YOU_HOUSE_MODEL_DISPLAY,
+  WORK4YOU_HOUSE_MODEL_ID,
 } from "@/lib/model-status-label";
 
 /**
@@ -253,10 +254,21 @@ export function ModelPickerDialog(props: Props) {
     }
   };
 
-  const models = useMemo(
-    () => selectedProvider?.models ?? [],
-    [selectedProvider],
-  );
+  const models = useMemo(() => {
+    const raw = selectedProvider?.models ?? [];
+    const out: string[] = [];
+    let sawHouse = false;
+    for (const mid of raw) {
+      if (isWork4YouHouseModel(mid)) {
+        if (sawHouse) continue;
+        out.push(WORK4YOU_HOUSE_MODEL_ID);
+        sawHouse = true;
+      } else {
+        out.push(mid);
+      }
+    }
+    return out;
+  }, [selectedProvider]);
 
   const trimmedQuery = query.trim();
 
@@ -708,7 +720,9 @@ function ModelColumn({
         models.map(({ model: m, positions }) => {
           const active = m === selectedModel;
           const isCurrent =
-            m === currentModel && provider.slug === currentProviderSlug;
+            provider.slug === currentProviderSlug &&
+            (m === currentModel ||
+              (isWork4YouHouseModel(m) && isWork4YouHouseModel(currentModel)));
           const locked = (provider.unavailable_models ?? []).includes(m);
           const label = isWork4YouHouseModel(m)
             ? WORK4YOU_HOUSE_MODEL_DISPLAY

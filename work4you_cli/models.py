@@ -696,6 +696,26 @@ def canonical_work4you_house_model_id(model_id: str) -> str:
     return model_id or ""
 
 
+def collapse_work4you_house_model_ids(model_ids: list[str]) -> list[str]:
+    """Keep one Operis row (canonical wire id); drop leftover house aliases.
+
+    Leftover ``deepseek-v4-flash-0731`` pins were being injected next to
+    ``google/gemini-3.8-flash``. Overlay labels both Operis, so pickers
+    showed two identical rows. Same rewrite the request path already does.
+    """
+    out: list[str] = []
+    saw_house = False
+    for mid in model_ids:
+        if is_work4you_house_model(mid):
+            if saw_house:
+                continue
+            out.append(WORK4YOU_HOUSE_MODEL_ID)
+            saw_house = True
+        else:
+            out.append(mid)
+    return out
+
+
 def _is_model_free(model_id: str, pricing: dict[str, dict[str, str]]) -> bool:
     """Return True if *model_id* has zero-cost prompt AND completion pricing."""
     p = pricing.get(model_id)
