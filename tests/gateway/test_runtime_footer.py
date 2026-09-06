@@ -30,6 +30,8 @@ from gateway.runtime_footer import (
         (None, ""),
         ("deepseek/deepseek-v4-flash-0731", "Operis 4.0 Flash"),
         ("deepseek-v4-flash-0731", "Operis 4.0 Flash"),
+        ("google/gemini-3.8-flash", "Operis 4.0 Flash"),
+        ("gemini-3.8-flash", "Operis 4.0 Flash"),
     ],
 )
 def test_model_short_drops_vendor_prefix(model, expected):

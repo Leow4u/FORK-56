@@ -3,12 +3,12 @@
 export type ModelPricing = { prompt?: string; completion?: string }
 
 /** Billed house model on Free. Ceiling is existing NAS authorize/debit. */
-export const HOUSE_MODEL_ID = 'deepseek/deepseek-v4-flash-0731'
+export const HOUSE_MODEL_ID = 'google/gemini-3.8-flash'
 export const HOUSE_MODEL_DISPLAY = 'Operis 4.0 Flash'
 
 export function isHouseModel(modelId: string): boolean {
-  const id = modelId.trim().toLowerCase()
-  return id === HOUSE_MODEL_ID || id.endsWith('/deepseek-v4-flash-0731')
+  const slug = modelId.trim().toLowerCase().split('/').pop() || ''
+  return slug === 'gemini-3.8-flash' || slug === 'deepseek-v4-flash-0731'
 }
 
 export function isZeroPrice(pricing: ModelPricing | null | undefined): boolean {

@@ -102,13 +102,14 @@ OPENROUTER_MODELS: list[tuple[str, str]] = [
     # Google
     ("google/gemini-3.1-pro-preview",          ""),
     ("google/gemini-3.7-flash",                ""),
+    ("google/gemini-3.8-flash",                "Operis 4.0 Flash"),
     # xAI
     ("x-ai/grok-4.6",                          ""),
     # DeepSeek
     ("deepseek/deepseek-v4-pro",               ""),
     ("deepseek/deepseek-v4-pro-0813",          "dated snapshot of v4-pro"),
     ("deepseek/deepseek-v4-flash",             ""),
-    ("deepseek/deepseek-v4-flash-0731",        "Operis 4.0 Flash"),
+    ("deepseek/deepseek-v4-flash-0731",        ""),
     # Qwen
     ("qwen/qwen3.8-max",                       ""),
     # MoonshotAI
@@ -261,7 +262,7 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
     "work4you": [
         # House model (Operis) first so leftover Settings picks land here.
         # Paid DeepSeek siblings stay on the OpenRouter snapshot, not here.
-        "deepseek/deepseek-v4-flash-0731",
+        "google/gemini-3.8-flash",
         # Anthropic
         "anthropic/claude-fable-5",
         "anthropic/claude-opus-5",
@@ -360,6 +361,7 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
     "gemini": [
         "gemini-3.1-pro-preview",
         "gemini-3-pro-preview",
+        "gemini-3.8-flash",
         "gemini-3.6-flash",
         "gemini-3.1-flash-lite-preview",
     ],
@@ -667,20 +669,31 @@ _PROVIDER_MODELS["ai-gateway"] = [mid for mid, _ in VERCEL_AI_GATEWAY_MODELS]
 # surface it to users as-is — no local allowlist filtering.
 
 # Billed house model on Free (Operis). Not $0 — NAS authorize/debit is the ceiling.
-WORK4YOU_HOUSE_MODEL_ID = "deepseek/deepseek-v4-flash-0731"
+WORK4YOU_HOUSE_MODEL_ID = "google/gemini-3.8-flash"
 WORK4YOU_HOUSE_MODEL_DISPLAY = "Operis 4.0 Flash"
+_WORK4YOU_HOUSE_MODEL_SLUGS = frozenset({"gemini-3.8-flash", "deepseek-v4-flash-0731"})
 
 
 def is_work4you_house_model(model_id: str) -> bool:
     """Return True if *model_id* is the Free-plan house model (Operis).
 
-    Matches the canonical id, any ``vendor/.../deepseek-v4-flash-0731`` prefix,
-    and the bare trailing slug the CLI splash/status bar use after stripping
-    the vendor. Sibling DeepSeek ids (``deepseek-v4-flash``, ``v4-pro``) stay
-    out — those are paid catalog models, not Operis.
+    Matches the canonical Gemini 3.8 Flash id, the legacy DeepSeek Flash
+    dated snapshot, any vendor prefix, and the bare trailing slug splash
+    and status chrome use after stripping the vendor. Sibling ids
+    (``gemini-3.7-flash``, ``deepseek-v4-flash``) stay out — those are paid
+    catalog models, not Operis.
     """
     mid = (model_id or "").strip().lower()
-    return mid == "deepseek-v4-flash-0731" or mid.endswith("/deepseek-v4-flash-0731")
+    if not mid:
+        return False
+    return mid.rsplit("/", 1)[-1] in _WORK4YOU_HOUSE_MODEL_SLUGS
+
+
+def canonical_work4you_house_model_id(model_id: str) -> str:
+    """Rewrite a house-model id (canonical or legacy) to the current wire id."""
+    if is_work4you_house_model(model_id):
+        return WORK4YOU_HOUSE_MODEL_ID
+    return model_id or ""
 
 
 def _is_model_free(model_id: str, pricing: dict[str, dict[str, str]]) -> bool:
@@ -742,9 +755,12 @@ def partition_work4you_models_by_tier(
 
     selectable: list[str] = []
     unavailable: list[str] = []
+    saw_house = False
     for mid in model_ids:
         if is_work4you_house_model(mid):
-            selectable.append(mid)
+            if not saw_house:
+                selectable.append(WORK4YOU_HOUSE_MODEL_ID)
+                saw_house = True
         else:
             unavailable.append(mid)
     return (selectable, unavailable)
@@ -1468,6 +1484,9 @@ def pick_silent_default_model(model_ids: list[str], provider: str = "openrouter"
     preferred = get_preferred_silent_default_model(provider)
     if preferred in model_ids:
         return preferred
+    for mid in model_ids:
+        if is_work4you_house_model(mid):
+            return WORK4YOU_HOUSE_MODEL_ID
     return model_ids[0] if model_ids else ""
 
 

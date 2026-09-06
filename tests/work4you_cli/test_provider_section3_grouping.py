@@ -89,6 +89,7 @@ class TestFormatModelForDisplay:
         from work4you_cli.models import WORK4YOU_HOUSE_MODEL_DISPLAY, WORK4YOU_HOUSE_MODEL_ID
 
         assert format_model_for_display(WORK4YOU_HOUSE_MODEL_ID) == WORK4YOU_HOUSE_MODEL_DISPLAY
+        assert format_model_for_display("gemini-3.8-flash") == WORK4YOU_HOUSE_MODEL_DISPLAY
         assert format_model_for_display("deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_DISPLAY
 
 

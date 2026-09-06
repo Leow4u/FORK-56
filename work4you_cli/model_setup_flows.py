@@ -597,7 +597,8 @@ def _model_flow_nous(config, current_model="", args=None):
             save_env_value("OPENAI_BASE_URL", "")
             save_env_value("OPENAI_API_KEY", "")
         save_config(config)
-        print(f"Default model set to: {selected} (via Work4You Portal)")
+        from work4you_cli.model_switch import format_model_for_display
+        print(f"Default model set to: {format_model_for_display(selected)} (via Work4You Portal)")
         # Offer Tool Gateway enablement for paid subscribers
         prompt_enable_tool_gateway(config)
     else:

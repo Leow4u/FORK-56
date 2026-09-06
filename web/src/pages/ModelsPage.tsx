@@ -37,6 +37,7 @@ import { Badge } from "@work4you/ui/ui/components/badge";
 import { Switch } from "@work4you/ui/ui/components/switch";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
+import { isWork4YouHouseModel, WORK4YOU_HOUSE_MODEL_DISPLAY } from "@/lib/model-status-label";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { useI18n } from "@/i18n";
 import { PluginSlot } from "@/plugins";
@@ -79,6 +80,7 @@ function formatCost(n: number): string {
 
 /** Short model name: strip vendor prefix like "openrouter/" or "anthropic/". */
 function shortModelName(model: string): string {
+  if (isWork4YouHouseModel(model)) return WORK4YOU_HOUSE_MODEL_DISPLAY;
   const slashIdx = model.indexOf("/");
   if (slashIdx > 0) return model.slice(slashIdx + 1);
   return model;

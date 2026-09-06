@@ -10,6 +10,7 @@
  */
 const MODEL_SEARCH_ALIASES: Record<string, readonly string[]> = {
   k3: ["kimi-k3", "kimi"],
+  "google/gemini-3.8-flash": ["operis", "operis 4.0 flash"],
   "deepseek/deepseek-v4-flash-0731": ["operis", "operis 4.0 flash"],
 };
 

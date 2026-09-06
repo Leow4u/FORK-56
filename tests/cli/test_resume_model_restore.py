@@ -82,6 +82,14 @@ def test_restore_session_model_restores_model_and_provider():
     assert stub._explicit_base_url == "https://f/v1"
 
 
+def test_restore_session_model_remaps_legacy_house_id():
+    from work4you_cli.models import WORK4YOU_HOUSE_MODEL_ID
+
+    stub = _make_stub()
+    stub._restore_session_model(_row(model="deepseek/deepseek-v4-flash-0731"))
+    assert stub.model == WORK4YOU_HOUSE_MODEL_ID
+
+
 def test_restore_session_model_explicit_cli_flag_wins():
     stub = _make_stub(model="cli-flag-model", _explicit_model_override=True)
     stub._restore_session_model(_row())

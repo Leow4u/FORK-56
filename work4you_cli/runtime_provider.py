@@ -346,9 +346,14 @@ def _get_model_config() -> Dict[str, Any]:
             detected = _auto_detect_local_model(base_url)
             if detected:
                 cfg["default"] = detected
+        from work4you_cli.models import canonical_work4you_house_model_id
+        remapped = canonical_work4you_house_model_id(str(cfg.get("default") or "").strip())
+        if remapped:
+            cfg["default"] = remapped
         return cfg
     if isinstance(model_cfg, str) and model_cfg.strip():
-        return {"default": model_cfg.strip()}
+        from work4you_cli.models import canonical_work4you_house_model_id
+        return {"default": canonical_work4you_house_model_id(model_cfg.strip())}
     return {}
 
 

@@ -17,7 +17,7 @@ import {
   type AuthorizeOk,
 } from './billing.js'
 import { config } from './config.js'
-import { isAllowedOnFreePlan } from './model-access.js'
+import { HOUSE_MODEL_ID, isAllowedOnFreePlan, isHouseModel } from './model-access.js'
 import { getModelPricing, openRouterFetch } from './openrouter.js'
 import {
   checkAndConsumeRateLimit,
@@ -102,6 +102,12 @@ async function requireBillingGates(c: Context<AppEnv>, next: Next) {
   c.set('billing', authz)
 
   const body = await c.req.json().catch(() => ({}))
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    const rec = body as { model?: unknown }
+    if (typeof rec.model === 'string' && isHouseModel(rec.model)) {
+      rec.model = HOUSE_MODEL_ID
+    }
+  }
   c.set('body', body)
 
   const estimatedTokens = estimateRequestTokens(body)

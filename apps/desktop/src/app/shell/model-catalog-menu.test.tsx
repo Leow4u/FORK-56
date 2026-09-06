@@ -101,7 +101,7 @@ describe('the catalog owns model curation', () => {
     getGlobalModelOptions.mockResolvedValue({
       providers: [
         {
-          models: ['deepseek/deepseek-v4-flash-0731', 'z-ai/glm-5.2'],
+          models: ['google/gemini-3.8-flash', 'z-ai/glm-5.2'],
           name: 'Work4You Portal',
           slug: 'work4you',
           unavailable_models: ['z-ai/glm-5.2']
@@ -117,7 +117,7 @@ describe('the catalog owns model curation', () => {
 
     fireEvent.click(screen.getByText('Operis 4.0 Flash'))
     await vi.waitFor(() => {
-      expect(select).toHaveBeenCalledWith('deepseek/deepseek-v4-flash-0731', 'work4you')
+      expect(select).toHaveBeenCalledWith('google/gemini-3.8-flash', 'work4you')
     })
   })
 

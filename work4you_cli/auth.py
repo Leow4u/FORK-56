@@ -7641,9 +7641,22 @@ def _prompt_model_selection(
     and unselectable, with an upgrade link to *portal_url*.
     """
     from work4you_cli.models import (
+        WORK4YOU_HOUSE_MODEL_DISPLAY,
+        canonical_work4you_house_model_id,
+        is_work4you_house_model,
         _format_price_per_mtok,
         compute_sale_discount,
     )
+
+    def _row_name(mid: str) -> str:
+        return WORK4YOU_HOUSE_MODEL_DISPLAY if is_work4you_house_model(mid) else mid
+
+    def _is_current(mid: str) -> bool:
+        if not current_model:
+            return False
+        return canonical_work4you_house_model_id(mid) == canonical_work4you_house_model_id(
+            current_model
+        )
 
     _unavailable = unavailable_models or []
     # Sale chrome (★ / -N% / was) is Work4You Portal-only — never for OpenRouter
@@ -7666,15 +7679,21 @@ def _prompt_model_selection(
             include_kinds=_kinds,
         ):
             return None
-        return mid
+        return canonical_work4you_house_model_id(mid)
 
-    # Reorder: current model first, then the rest (deduplicated)
+    # Reorder: current model first, then the rest (deduplicated). House
+    # ids (canonical + legacy) collapse to the current wire id.
     ordered = []
-    if current_model and current_model in model_ids:
-        ordered.append(current_model)
+    if current_model:
+        current_wire = canonical_work4you_house_model_id(current_model)
+        if current_wire in model_ids:
+            ordered.append(current_wire)
+        elif current_model in model_ids:
+            ordered.append(current_model)
     for mid in model_ids:
-        if mid not in ordered:
-            ordered.append(mid)
+        wire = canonical_work4you_house_model_id(mid)
+        if wire not in ordered:
+            ordered.append(wire)
 
     # All models for column-width computation (selectable + unavailable)
     all_models = list(ordered) + list(_unavailable)
@@ -7684,7 +7703,7 @@ def _prompt_model_selection(
     # Leave room for a leading "★ " on sale rows (Work4You only).
     name_pad = 3 if sale_chrome else 2
     name_col = (
-        max((len(m) for m in all_models), default=0) + name_pad
+        max((len(_row_name(m)) for m in all_models), default=0) + name_pad
         if has_pricing
         else 0
     )
@@ -7742,9 +7761,10 @@ def _prompt_model_selection(
 
     def _label_segments(mid):
         """Build a rich radiolist row: yellow ★/% , dim was, plain prices."""
+        row_name = _row_name(mid)
         if not has_pricing:
-            segs: list[tuple[str, str | None]] = [(mid, None)]
-            if mid == current_model:
+            segs: list[tuple[str, str | None]] = [(row_name, None)]
+            if _is_current(mid):
                 segs.append(("  ← currently in use", None))
             return segs
 
@@ -7757,10 +7777,10 @@ def _prompt_model_selection(
         if on_sale:
             name_segs: list[tuple[str, str | None]] = [
                 ("★ ", "yellow"),
-                (f"{mid:<{name_col - star_w}}", None),
+                (f"{row_name:<{name_col - star_w}}", None),
             ]
         else:
-            name_segs = [(f"{mid:<{name_col}}", None)]
+            name_segs = [(f"{row_name:<{name_col}}", None)]
 
         price_part = f" {inp:>{price_col}}  {out:>{price_col}}"
         if has_cache:
@@ -7769,7 +7789,7 @@ def _prompt_model_selection(
         if on_sale:
             segs.append((f"  -{pct}%", "yellow"))
             segs.append((f"  was {was_inp}/{was_out}", "dim"))
-        if mid == current_model:
+        if _is_current(mid):
             segs.append(("  ← currently in use", None))
         return segs
 
@@ -9369,7 +9389,8 @@ def _login_nous(args, pconfig: ProviderConfig) -> None:
         )
         if selected_model:
             _save_model_choice(selected_model)
-            print(f"Default model set to: {selected_model}")
+            from work4you_cli.model_switch import format_model_for_display
+            print(f"Default model set to: {format_model_for_display(selected_model)}")
         print(f"  Config updated: {config_path} (model.provider=work4you)")
 
     except KeyboardInterrupt:
