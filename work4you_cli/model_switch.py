@@ -402,10 +402,12 @@ _OPAQUE_MODEL_PREFIXES: tuple[str, ...] = (
 def format_model_for_display(model_name: str) -> str:
     """Return a human-friendly form of *model_name* for CLI status output.
 
-    Strips known opaque proxy prefixes (Palantir Foundry's
-    ``ri.language-model-service..language-model.*``) and returns the
-    trailing slug. Falls through to the original string for everything
-    else, so real model IDs (``claude-4-7-opus-20260101``,
+    The Free-plan house model keeps its wire id (DeepSeek Flash dated
+    snapshot) but renders as Operis so splash/status/picker chrome never
+    leak the upstream name. Also strips known opaque proxy prefixes
+    (Palantir Foundry's ``ri.language-model-service..language-model.*``)
+    and returns the trailing slug. Falls through to the original string
+    for everything else, so real model IDs (``claude-4-7-opus-20260101``,
     ``gpt-5-4``, ``meta-llama/Llama-3.3-70B-Instruct``) are untouched.
 
     This is a DISPLAY-ONLY helper. Do NOT use the return value for any
@@ -414,6 +416,15 @@ def format_model_for_display(model_name: str) -> str:
     """
     if not model_name:
         return model_name
+    # Lazy: models.py imports MODEL_ALIASES from this module inside a
+    # function. A top-level import here would cycle at startup.
+    from work4you_cli.models import (
+        WORK4YOU_HOUSE_MODEL_DISPLAY,
+        is_work4you_house_model,
+    )
+
+    if is_work4you_house_model(model_name):
+        return WORK4YOU_HOUSE_MODEL_DISPLAY
     for prefix in _OPAQUE_MODEL_PREFIXES:
         if model_name.startswith(prefix):
             tail = model_name[len(prefix):]

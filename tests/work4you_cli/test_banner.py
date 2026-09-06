@@ -89,6 +89,14 @@ def test_splash_shows_session_facts_not_catalog():
     assert "HERMES AGENT" not in out
 
 
+def test_splash_shows_operis_not_deepseek_house_id():
+    """Free-plan house model is Operis on the splash, not the DeepSeek wire id."""
+    out = _render_splash(model="deepseek/deepseek-v4-flash-0731", provider="work4you")
+    assert "Operis 4.0 Flash" in out
+    assert "deepseek-v4-flash-0731" not in out
+    assert "deepseek-v4-flash" not in out
+
+
 def test_splash_does_not_print_default_wordmark():
     """Default splash has no giant WORK4YOU / HERMES lettering."""
     out = _render_splash()

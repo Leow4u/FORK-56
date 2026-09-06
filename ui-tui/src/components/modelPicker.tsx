@@ -6,6 +6,7 @@ import { TUI_SESSION_MODEL_FLAG } from '../domain/slash.js'
 import type { GatewayClient } from '../gatewayClient.js'
 import type { ModelOptionProvider, ModelOptionsResponse } from '../gatewayTypes.js'
 import { fuzzyRank } from '../lib/fuzzy.js'
+import { isWork4YouHouseModel, WORK4YOU_HOUSE_MODEL_DISPLAY } from '../lib/house-model.js'
 import { modelSearchText } from '../lib/model-search-text.js'
 import { asRpcResult, rpcErrorMessage } from '../lib/rpc.js'
 import type { Theme } from '../theme.js'
@@ -675,10 +676,7 @@ export function ModelPicker({
         const prefix = modelIdx === idx ? '▸ ' : row === currentModel ? '* ' : '  '
         const locked = (provider?.unavailable_models ?? []).includes(row)
 
-        const label =
-          row === 'deepseek/deepseek-v4-flash-0731' || row.toLowerCase().endsWith('/deepseek-v4-flash-0731')
-            ? 'Operis 4.0 Flash'
-            : row
+        const label = isWork4YouHouseModel(row) ? WORK4YOU_HOUSE_MODEL_DISPLAY : row
 
         return (
           <Text
