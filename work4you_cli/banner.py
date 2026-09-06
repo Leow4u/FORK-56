@@ -953,7 +953,7 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
         _bskin = None
         _hero = WORK4YOU_HERO
 
-    left_content = "\n".join(["", _hero, ""])
+    left_content = _hero
     right_lines: List[str] = []
 
     if (provider or "").strip().lower() == "moa":
