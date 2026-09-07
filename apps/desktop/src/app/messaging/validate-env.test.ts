@@ -250,6 +250,29 @@ describe('validateMessagingEnv', () => {
     expect(validateMessagingEnv('WEBHOOK_PORT', '70000')).toEqual({ code: 'emailPort', value: '70000' })
   })
 
+  it('validates A2A port, host, token, peer tokens, and public URL', () => {
+    expect(validateMessagingEnv('A2A_PORT', '9900')).toBeNull()
+    expect(validateMessagingEnv('A2A_PORT', 'abc')).toEqual({ code: 'emailPort', value: 'abc' })
+    expect(validateMessagingEnv('A2A_PORT', '70000')).toEqual({ code: 'emailPort', value: '70000' })
+    expect(validateMessagingEnv('A2A_HOST', '127.0.0.1')).toBeNull()
+    expect(validateMessagingEnv('A2A_HOST', '0.0.0.0')).toBeNull()
+    expect(validateMessagingEnv('A2A_HOST', 'http://127.0.0.1')).toEqual({
+      code: 'apiServerHost',
+      value: 'http://127.0.0.1'
+    })
+    expect(validateMessagingEnv('A2A_BEARER_TOKEN', 'a'.repeat(16))).toBeNull()
+    expect(validateMessagingEnv('A2A_BEARER_TOKEN', 'short')).toEqual({ code: 'apiServerKey' })
+    expect(validateMessagingEnv('A2A_BEARER_TOKEN', 'changeme')).toEqual({ code: 'apiServerKey' })
+    expect(validateMessagingEnv('A2A_PEER_TOKENS', 'alice:tok1,bob:tok2')).toBeNull()
+    expect(validateMessagingEnv('A2A_PEER_TOKENS', 'alice')).toEqual({ code: 'a2aPeerTokens', value: 'alice' })
+    expect(validateMessagingEnv('A2A_PEER_TOKENS', 'alice:')).toEqual({ code: 'a2aPeerTokens', value: 'alice:' })
+    expect(validateMessagingEnv('A2A_PUBLIC_URL', 'https://tunnel.example')).toBeNull()
+    expect(validateMessagingEnv('A2A_PUBLIC_URL', 'tunnel.example')).toEqual({
+      code: 'a2aPublicUrl',
+      value: 'tunnel.example'
+    })
+  })
+
   it('rejects weak global webhook secrets and the INSECURE_NO_AUTH sentinel', () => {
     expect(validateMessagingEnv('WEBHOOK_SECRET', 'a'.repeat(16))).toBeNull()
     // Optional field: empty passes (routes can carry their own secrets).

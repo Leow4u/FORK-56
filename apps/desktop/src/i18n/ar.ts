@@ -1215,6 +1215,10 @@ export const ar = defineLocale({
     testFailed: name => `فشل اختبار ${name}`,
     fixHighlighted: 'صحّح الحقول المميزة ثم احفظ مرة أخرى.',
     envErrors: {
+      a2aPeerTokens: (value: string) =>
+        `${value} ليست زوج name:token. استخدم alice:tok1,bob:tok2 — يحتاج كل قرين إلى اسم ورمز.`,
+      a2aPublicUrl: (value: string) =>
+        `${value} ليس عنوان URL عاماً صالحاً. استخدم عنوان http(s) كاملاً مثل https://your-tunnel.example.`,
       apiServerCorsOrigin: (value: string) =>
         `${value} ليس أصل (origin) متصفح. استخدم أصولاً كاملة مثل https://chat.example.com (أو * للسماح للجميع).`,
       apiServerHost: (value: string) =>
@@ -1395,6 +1399,67 @@ export const ar = defineLocale({
       tunnelHint:
         'يجب أن تتمكن الخدمة المرسلة من الوصول إلى هذا المنفذ. إذا كان Work4You يعمل على جهازك المحلي، فاكشفه عبر نفق مثل cloudflared أو ngrok.',
       manageRoutes: 'إدارة مسارات Webhook'
+    },
+    a2aQuickSetup: {
+      title: 'الإعداد السريع',
+      recommended: 'موصى به',
+      intro:
+        'لـ A2A اتجاهان مستقلان. الوارد يجعل Work4You هذا قابلاً للاستدعاء من وكلاء آخرين. الصادر يتيح لوكيلك استدعاء الأقران الذين تضيفهم أدناه. تفعيل القناة لا يشغّل أدوات الصادر — تبقى معطّلة حتى تفعّلها هنا.',
+      replacesExisting: 'إعداد A2A الوارد موجود بالفعل. الحفظ هنا يحدّث الربط والرمز.',
+      inboundTitle: 'وارد — اجعل نفسك قابلاً للاستدعاء',
+      inboundHelp:
+        'لا حاجة لرمز على المضيف المحلي. يستمع المستمع على 127.0.0.1:9900 ويقدّم بطاقة وكيل يمكن للوكلاء الآخرين جلبها.',
+      tokenHelp: 'رمز Bearer مشترك اختياري. مطلوب فقط إذا كان هذا المستمع سيقبل أقراناً بعيدين.',
+      tokenLabel: 'رمز Bearer',
+      tokenPlaceholder: 'انقر توليد، أو اتركه فارغاً للمضيف المحلي فقط',
+      generateToken: 'توليد رمز',
+      tokenWarning: 'أي شخص يملك هذا الرمز يمكنه إرسال مهام إلى وكيلك. عامله ككلمة مرور.',
+      bindLabel: 'من يمكنه الوصول إليك',
+      bindLocalhost: 'هذا الجهاز فقط (127.0.0.1)',
+      bindRemote: 'الشبكة (0.0.0.0) — يتطلب رمزاً',
+      remoteNeedsToken: 'يلزم رمز Bearer قبل أن يقبل المستمع اتصالات بعيدة.',
+      cardTitle: 'عنوان URL لبطاقة الوكيل',
+      cardHint:
+        'يجلب الأقران هذا العنوان لاكتشاف وكيلك. خلف نفق أو وكيل عكسي، عيّن عنوان URL عاماً حتى تعلن البطاقة عن عنوان قابل للتوجيه.',
+      copyCardUrl: 'انسخ عنوان بطاقة الوكيل',
+      publicUrlLabel: 'عنوان URL عام (اختياري)',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp: 'يُعلن على بطاقة الوكيل عندما تكون خلف نفق أو وكيل عكسي.',
+      networkExposedWarning:
+        'الربط البعيد يحتاج رمزاً. بدونه يبقى المحوّل على المضيف المحلي فقط — ولّد رمزاً أولاً.',
+      saved: 'تم حفظ A2A الوارد وتفعيله. أعد تشغيل البوابة لبدء المستمع.',
+      saveFailed: 'تعذّر حفظ إعدادات A2A الواردة.',
+      outboundTitle: 'صادر — استدعِ وكلاء آخرين',
+      outboundHelp:
+        'أضف أقراناً بأسماء، ثم فعّل مجموعة أدوات a2a حتى يتمكن الوكيل من اكتشافهم واستدعائهم. هذا مستقل عن الوارد.',
+      peerNameLabel: 'اسم القرين',
+      peerNamePlaceholder: 'researcher',
+      peerUrlLabel: 'عنوان URL للقرين',
+      peerUrlPlaceholder: 'http://research-box.local:9900',
+      peerTokenLabel: 'رمز القرين (اختياري)',
+      peerTokenPlaceholder: 'رمز Bearer الذي يتوقعه القرين',
+      peerCapsLabel: 'القدرات (اختياري)',
+      peerCapsPlaceholder: 'web_search, research',
+      addPeer: 'إضافة قرين',
+      addingPeer: 'جارٍ الإضافة…',
+      peerAdded: 'تم حفظ القرين.',
+      peerAddFailed: 'تعذّرت إضافة القرين.',
+      peerDeleted: 'تمت إزالة القرين.',
+      peerDeleteFailed: 'تعذّرت إزالة القرين.',
+      noPeers: 'لا يوجد أقران صادرون بعد — هذه البطاقة تجعلك قابلاً للاستدعاء فقط حتى تضيف واحداً.',
+      peerHasAuth: 'لديه رمز',
+      peerNoAuth: 'بدون رمز',
+      deletePeer: 'إزالة',
+      enableOutbound: 'تفعيل أدوات الصادر',
+      outboundEnabled: 'تم تفعيل أدوات الصادر. أعد تشغيل البوابة إذا كانت هناك جلسة قيد التشغيل.',
+      outboundEnableFailed: 'تعذّر تفعيل مجموعة أدوات a2a.',
+      outboundAlreadyOn: 'أدوات الصادر مفعّلة.',
+      outboundOffWarning:
+        'الوارد مفعّل، لكن أدوات الصادر ما زالت معطّلة — لا يمكن للوكيل استدعاء الأقران حتى تفعّلها.',
+      nameRequired: 'أدخل اسم القرين وعنوان URL أولاً.',
+      copied: 'تم النسخ إلى الحافظة.',
+      copyFailed: 'تعذّر النسخ إلى الحافظة.',
+      openGuide: 'دليل A2A'
     },
     smsQuickSetup: {
       title: 'الإعداد السريع',
@@ -1754,6 +1819,29 @@ export const ar = defineLocale({
         label: 'أصول CORS',
         placeholder: 'https://chat.example.com',
         help: 'مطلوب فقط لواجهات المتصفح التي تستدعي API مباشرة. التكاملات من خادم إلى خادم لا تحتاج CORS.'
+      },
+      A2A_BEARER_TOKEN: {
+        label: 'رمز Bearer مشترك',
+        help: 'اختياري. مطلوب مع ربط غير محلي حتى يصادق الأقران البعيدون. عامله ككلمة مرور.'
+      },
+      A2A_PEER_TOKENS: {
+        label: 'رموز لكل قرين',
+        help: 'اختياري. أزواج name:token (alice:tok1,bob:tok2). لكل وكيل بعيد اعتماده الخاص.'
+      },
+      A2A_HOST: {
+        label: 'عنوان الربط',
+        placeholder: '127.0.0.1',
+        help: 'الافتراضي 127.0.0.1 (هذا الجهاز فقط). استخدم 0.0.0.0 فقط بعد تعيين رمز — وإلا يبقى المحوّل على المضيف المحلي.'
+      },
+      A2A_PORT: { label: 'المنفذ', placeholder: '9900' },
+      A2A_AGENT_NAME: {
+        label: 'اسم الوكيل',
+        help: 'الاسم المعلن على بطاقة الوكيل. الافتراضي مشتق من اسم المضيف.'
+      },
+      A2A_PUBLIC_URL: {
+        label: 'عنوان URL عام',
+        placeholder: 'https://your-tunnel.example',
+        help: 'عنوان قابل للتوجيه يُعلن على بطاقة الوكيل عندما تكون خلف نفق أو وكيل عكسي.'
       }
     },
     platformIntro: {}

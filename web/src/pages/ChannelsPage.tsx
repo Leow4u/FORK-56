@@ -15,12 +15,14 @@ import {
   CheckCircle2,
   ExternalLink,
   Info,
+  Plus,
   PlugZap,
   QrCode,
   Radio,
   RotateCw,
   Save,
   Settings2,
+  Trash2,
   WifiOff,
   X,
 } from "lucide-react";
@@ -42,6 +44,7 @@ import { useToast } from "@work4you/ui/hooks/use-toast";
 const PairingPage = lazy(() => import("@/pages/PairingPage"));
 import { api } from "@/lib/api";
 import type {
+  A2AAgentInfo,
   MessagingPlatform,
   MessagingPlatformEnvVar,
   MessagingPlatformUpdate,
@@ -106,6 +109,39 @@ function validateMessagingEnvField(field: MessagingPlatformEnvVar, value: string
     return `${field.prompt || field.key} must start with ${expectedPrefix}`;
   }
 
+  if (field.key === "A2A_PORT") {
+    const port = Number(trimmed);
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return `${trimmed} is not a valid port. Use a number between 1 and 65535.`;
+    }
+  }
+
+  if (field.key === "A2A_HOST" && (/\s/.test(trimmed) || trimmed.includes("://") || trimmed.includes("/"))) {
+    return `${trimmed} is not a valid bind address. Use a bare hostname or IP like 127.0.0.1 — no http:// or paths.`;
+  }
+
+  if (field.key === "A2A_BEARER_TOKEN" && (trimmed.length < 16 || /^(changeme|your_api_key|placeholder|example)$/i.test(trimmed))) {
+    return "The bearer token must be at least 16 characters and not a placeholder.";
+  }
+
+  if (field.key === "A2A_PEER_TOKENS") {
+    const invalid = trimmed
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .find((part) => {
+        const sep = part.indexOf(":");
+        return sep < 1 || !part.slice(sep + 1).trim();
+      });
+    if (invalid) {
+      return `${invalid} is not a name:token pair. Use alice:tok1,bob:tok2.`;
+    }
+  }
+
+  if (field.key === "A2A_PUBLIC_URL" && (!/^https?:\/\/\S+$/.test(trimmed) || trimmed.includes(" "))) {
+    return `${trimmed} is not a valid public URL. Use the full http(s) address.`;
+  }
+
   if (field.key === "SLACK_ALLOWED_USERS") {
     // Mirror the gateway's parse (gateway/platforms/slack.py): drop empty
     // entries so a trailing/interior comma isn't rejected here. "*" is the
@@ -121,6 +157,147 @@ function validateMessagingEnvField(field: MessagingPlatformEnvVar, value: string
   }
 
   return null;
+}
+
+function A2ASetupHint() {
+  const [agents, setAgents] = useState<A2AAgentInfo[]>([]);
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [token, setToken] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const reload = useCallback(() => {
+    api
+      .getA2AAgents()
+      .then((res) => setAgents(res.agents))
+      .catch(() => setError("Could not load A2A peers."));
+  }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  async function addPeer() {
+    const peerName = name.trim();
+    const peerUrl = url.trim();
+    if (!peerName || !peerUrl) {
+      setError("Enter a peer name and URL first.");
+      return;
+    }
+    if (!/^https?:\/\/\S+$/.test(peerUrl) || peerUrl.includes(" ")) {
+      setError("Peer URL must be an http(s):// address with no spaces.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await api.createA2AAgent({
+        name: peerName,
+        url: peerUrl,
+        ...(token.trim() ? { token: token.trim() } : {}),
+      });
+      setName("");
+      setUrl("");
+      setToken("");
+      reload();
+    } catch (addError) {
+      setError(addError instanceof Error ? addError.message : String(addError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removePeer(peerName: string) {
+    setBusy(true);
+    setError("");
+    try {
+      await api.deleteA2AAgent(peerName);
+      reload();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : String(deleteError));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-2 text-sm text-muted-foreground">
+      <p>
+        Two independent directions: inbound exposes Work4You as an A2A agent
+        (Agent Card at <code className="font-courier text-xs">/.well-known/agent-card.json</code>
+        ; localhost-only until you set a token). Outbound is named peers plus
+        the <code className="font-courier text-xs">a2a</code> toolset — enabling
+        the channel does not turn those tools on.
+      </p>
+      <p>
+        Default bind is <code className="font-courier text-xs">127.0.0.1:9900</code>.
+        Behind a tunnel, set <code className="font-courier text-xs">A2A_PUBLIC_URL</code> so
+        the card advertises a routable address.
+      </p>
+      <div className="grid gap-1.5">
+        <span className="text-xs font-medium text-foreground">Outbound peers</span>
+        {agents.length === 0 ? (
+          <p className="text-xs text-amber-600 dark:text-amber-500">
+            No outbound peers yet — this card only makes you callable until you add one.
+          </p>
+        ) : (
+          <ul className="grid gap-1 text-xs">
+            {agents.map((agent) => (
+              <li className="flex flex-wrap items-center gap-2" key={agent.name}>
+                <code className="font-courier text-foreground">{agent.name}</code>
+                <span className="break-all">{agent.url}</span>
+                <span>{agent.has_auth ? "Has token" : "No token"}</span>
+                <Button
+                  disabled={busy}
+                  onClick={() => void removePeer(agent.name)}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Remove
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="grid gap-1.5">
+          <Input
+            aria-label="Peer name"
+            className="text-base leading-6 sm:text-xs sm:leading-4"
+            disabled={busy}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="researcher"
+            value={name}
+          />
+          <Input
+            aria-label="Peer URL"
+            className="text-base leading-6 sm:text-xs sm:leading-4"
+            disabled={busy}
+            onChange={(event) => setUrl(event.target.value)}
+            placeholder="http://research-box.local:9900"
+            value={url}
+          />
+          <Input
+            aria-label="Peer token"
+            className="text-base leading-6 sm:text-xs sm:leading-4"
+            disabled={busy}
+            onChange={(event) => setToken(event.target.value)}
+            placeholder="Optional bearer token"
+            type="password"
+            value={token}
+          />
+          <div>
+            <Button disabled={busy} onClick={() => void addPeer()} size="sm" variant="outline">
+              <Plus className="h-3 w-3" />
+              Add peer
+            </Button>
+          </div>
+        </div>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
+    </div>
+  );
 }
 
 function formatExpiry(expiresAt: string): string {
@@ -577,6 +754,7 @@ export default function ChannelsPage() {
                   </Link>
                 </div>
               )}
+              {editing.id === "a2a" && <A2ASetupHint />}
               <p className="text-xs text-muted-foreground">
                 {editing.description}
               </p>

@@ -1602,6 +1602,7 @@ from work4you_cli.web_models import (  # noqa: F401
     MCPCatalogInstall,
     PairingApprove,
     PairingRevoke,
+    A2AAgentCreate,
     WebhookCreate,
     WebhookEnabledToggle,
     CredentialPoolAdd,
@@ -8807,6 +8808,31 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
         # left users with a listener that silently never came up.
         "required_env": ("API_SERVER_KEY",),
     },
+    "a2a": {
+        "name": "A2A",
+        "description": (
+            "Let Work4You talk to other agents — and be called by them — "
+            "over the open Agent-to-Agent protocol."
+        ),
+        "docs_url": "https://work4you.ai/docs/user-guide/messaging/a2a",
+        # A2A_ALLOW_ALL_USERS / A2A_HOME_CHANNEL stay hidden by suffix.
+        # A2A_PUBLIC_URL is the one extra field peers need behind a tunnel.
+        "env_vars": (
+            "A2A_PEER_TOKENS",
+            "A2A_BEARER_TOKEN",
+            "A2A_HOST",
+            "A2A_PORT",
+            "A2A_AGENT_NAME",
+            "A2A_PUBLIC_URL",
+        ),
+        "required_env": (),
+        # Localhost + port 9900 is a valid inbound setup — no credential
+        # required. Without setup_free the unscoped path reported
+        # configured=False (is_connected used to look at extra.enabled /
+        # A2A_PORT-in-env) and the card stacked "Needs setup" on a channel
+        # whose copy says no token is needed for localhost.
+        "setup_free": True,
+    },
     "webhook": {
         "name": "Webhooks",
         "description": "Receive events from GitHub, GitLab, and other webhook sources.",
@@ -8866,6 +8892,7 @@ _PLATFORM_ORDER: tuple[str, ...] = (
     "yuanbao",
     "api_server",
     "webhook",
+    "a2a",
 )
 
 # Curated out of the Messaging/Channels UI (dashboard AND desktop both render
@@ -10955,6 +10982,146 @@ def _webhook_live_test(
     )
 
 
+_A2A_DEFAULT_PORT = 9900
+
+
+def _a2a_has_inbound_token(env: dict[str, str]) -> bool:
+    return bool(
+        (env.get("A2A_BEARER_TOKEN") or "").strip()
+        or (env.get("A2A_PEER_TOKENS") or "").strip()
+    )
+
+
+def _a2a_resolve_endpoint(
+    env: dict[str, str], extra: dict
+) -> tuple[str, int | None, str, str]:
+    """Resolve the inbound bind the same way the adapter does.
+
+    Env A2A_PORT wins, then platforms.a2a.extra.port, then 9900. Host follows
+    ``security.resolve_bind_host``: a non-loopback A2A_HOST is ignored until a
+    token is set. Returns (host, port, probe_host, error) — port is None when
+    the env value is unusable.
+    """
+    raw_port = (env.get("A2A_PORT") or "").strip()
+    if raw_port:
+        try:
+            port = int(raw_port)
+        except ValueError:
+            return "", None, "", f"A2A_PORT must be a number, got {raw_port!r}."
+        if not 1 <= port <= 65535:
+            return "", None, "", (
+                f"A2A_PORT must be between 1 and 65535, got {port}."
+            )
+    else:
+        try:
+            port = int(extra.get("port", _A2A_DEFAULT_PORT))
+        except (TypeError, ValueError):
+            port = _A2A_DEFAULT_PORT
+
+    requested = (
+        (env.get("A2A_HOST") or "").strip()
+        or str(extra.get("host") or "").strip()
+        or "127.0.0.1"
+    )
+    loopback = {"127.0.0.1", "localhost", "::1"}
+    host = requested if requested in loopback or _a2a_has_inbound_token(env) else "127.0.0.1"
+    probe_host = "127.0.0.1" if host in {"0.0.0.0", "::", "*"} else host
+    return host, port, probe_host, ""
+
+
+def _a2a_card_url(env: dict[str, str], probe_host: str, port: int) -> str:
+    public = (env.get("A2A_PUBLIC_URL") or "").strip().rstrip("/")
+    base = public or f"http://{probe_host}:{port}"
+    return f"{base}/.well-known/agent-card.json"
+
+
+def _a2a_live_test(
+    env: dict[str, str],
+    extra: dict,
+    peer_count: int,
+    gateway_running: bool,
+) -> tuple[bool, str]:
+    """Prove the A2A listener end-to-end: GET /health on the real port.
+
+    Localhost /health is unauthenticated, so this is as cheap as the webhook
+    probe. The message also says whether any outbound peer exists — enabling
+    inbound only makes Work4You callable; calling other agents needs
+    ``a2a_agents`` + the ``a2a`` toolset.
+    """
+    host, port, probe_host, port_error = _a2a_resolve_endpoint(env, extra)
+    if port is None:
+        return False, port_error
+
+    bind_note = (
+        "remote (bearer auth)"
+        if _a2a_has_inbound_token(env)
+        else "localhost-only"
+    )
+    card_url = _a2a_card_url(env, probe_host, port)
+
+    if not gateway_running:
+        return True, (
+            f"A2A starts with the gateway. Start it, then peers can fetch "
+            f"{card_url} ({bind_note})."
+        )
+
+    try:
+        req = urllib.request.Request(
+            f"http://{probe_host}:{port}/health", method="GET"
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status != 200:
+                return False, (
+                    f"The listener on {probe_host}:{port} answered /health "
+                    f"with HTTP {resp.status} — that port may belong to "
+                    "another service."
+                )
+    except Exception:
+        return False, (
+            f"The gateway is running but nothing answered on "
+            f"{probe_host}:{port}. Restart the gateway so the A2A "
+            "listener comes up, or check `work4you logs` for a port conflict."
+        )
+
+    peer_note = (
+        "No outbound peers configured yet — this card only makes you "
+        "callable until you add a peer."
+        if peer_count <= 0
+        else (
+            f"{peer_count} outbound peer"
+            f"{'' if peer_count == 1 else 's'} configured."
+        )
+    )
+    return True, (
+        f"Listener is up on port {port} ({bind_note}). Agent Card: "
+        f"{card_url}. {peer_note}"
+    )
+
+
+def _a2a_load_agents() -> dict[str, Any]:
+    cfg = load_config() or {}
+    agents = cfg.get("a2a_agents") or {}
+    return agents if isinstance(agents, dict) else {}
+
+
+def _a2a_agent_public(name: str, entry: dict[str, Any]) -> dict[str, Any]:
+    auth = entry.get("auth") if isinstance(entry.get("auth"), dict) else {}
+    caps = entry.get("capabilities") or []
+    if isinstance(caps, str):
+        caps = [part.strip() for part in caps.split(",") if part.strip()]
+    try:
+        timeout = int(entry.get("timeout") or 120)
+    except (TypeError, ValueError):
+        timeout = 120
+    return {
+        "name": name,
+        "url": str(entry.get("url") or ""),
+        "has_auth": bool(str((auth or {}).get("token") or "").strip()),
+        "capabilities": list(caps),
+        "timeout": timeout,
+    }
+
+
 @app.post("/api/messaging/platforms/{platform_id}/test")
 async def test_messaging_platform(platform_id: str, profile: Optional[str] = None):
     entry = _catalog_lookup(platform_id)
@@ -11090,6 +11257,38 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
             env_port,
             extra,
             active_routes,
+            bool(payload["gateway_running"]),
+        )
+        return {"ok": ok, "state": payload["state"], "message": message}
+    if platform_id == "a2a":
+        # Localhost /health is unauthenticated — same cheap probe as webhook.
+        # Peers live in config.yaml ``a2a_agents``, so collect them under the
+        # same profile scope the payload used.
+        def _collect_a2a_info():
+            with _profile_scope(profile):
+                cfg = load_config() or {}
+                plat = (cfg.get("platforms") or {}).get("a2a") or {}
+                extra = plat.get("extra") or {} if isinstance(plat, dict) else {}
+                if not isinstance(extra, dict):
+                    extra = {}
+                return extra, len(_a2a_load_agents())
+
+        extra, peer_count = await asyncio.to_thread(_collect_a2a_info)
+        live_env = {
+            key: (env_on_disk.get(key) or ("" if profile_scoped else os.getenv(key, "")))
+            for key in (
+                "A2A_PORT",
+                "A2A_HOST",
+                "A2A_BEARER_TOKEN",
+                "A2A_PEER_TOKENS",
+                "A2A_PUBLIC_URL",
+            )
+        }
+        ok, message = await asyncio.to_thread(
+            _a2a_live_test,
+            live_env,
+            extra,
+            peer_count,
             bool(payload["gateway_running"]),
         )
         return {"ok": ok, "state": payload["state"], "message": message}
@@ -14597,6 +14796,101 @@ async def set_webhook_enabled(name: str, body: WebhookEnabledToggle):
     subs[key]["enabled"] = bool(body.enabled)
     wh._save_subscriptions(subs)
     return {"ok": True, "name": key, "enabled": bool(body.enabled)}
+
+
+_A2A_AGENT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+
+def _a2a_agents_public() -> list[dict[str, Any]]:
+    agents = _a2a_load_agents()
+    rows: list[dict[str, Any]] = []
+    for name, entry in agents.items():
+        if isinstance(entry, dict):
+            rows.append(_a2a_agent_public(str(name), entry))
+    return rows
+
+
+@app.get("/api/a2a/agents")
+async def list_a2a_agents(profile: Optional[str] = None):
+    """List outbound A2A peers. Tokens are never returned — only ``has_auth``."""
+
+    def _run():
+        with _profile_scope(profile):
+            return {"agents": _a2a_agents_public()}
+
+    return await asyncio.to_thread(_run)
+
+
+@app.post("/api/a2a/agents")
+async def create_a2a_agent(body: A2AAgentCreate, profile: Optional[str] = None):
+    """Add an outbound A2A peer to ``a2a_agents`` in the profile's config.yaml."""
+    scope = (body.profile or profile or "").strip() or None
+    name = (body.name or "").strip()
+    if not _A2A_AGENT_NAME_RE.match(name):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid name. Use letters, digits, hyphens, or underscores.",
+        )
+    url = (body.url or "").strip()
+    if not re.match(r"^https?://\S+$", url) or " " in url:
+        raise HTTPException(
+            status_code=400,
+            detail="Peer URL must be an http(s):// address with no spaces.",
+        )
+    caps = [
+        part.strip()
+        for part in (body.capabilities or [])
+        if isinstance(part, str) and part.strip()
+    ]
+    timeout = body.timeout if body.timeout and body.timeout > 0 else 120
+    token = (body.token or "").strip()
+    entry: dict[str, Any] = {"url": url.rstrip("/"), "timeout": timeout}
+    if caps:
+        entry["capabilities"] = caps
+    if token:
+        entry["auth"] = {"type": "bearer", "token": token}
+
+    def _run():
+        with _CONFIG_MUTATION_LOCK:
+            with _profile_scope(scope):
+                config = load_config() or {}
+                agents = config.get("a2a_agents")
+                if not isinstance(agents, dict):
+                    agents = {}
+                if name in agents:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"An A2A peer named '{name}' already exists.",
+                    )
+                agents[name] = entry
+                config["a2a_agents"] = agents
+                save_config(config)
+                return _a2a_agent_public(name, entry)
+
+    return await asyncio.to_thread(_run)
+
+
+@app.delete("/api/a2a/agents/{name}")
+async def delete_a2a_agent(name: str, profile: Optional[str] = None):
+    key = (name or "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="Peer name is required.")
+
+    def _run():
+        with _CONFIG_MUTATION_LOCK:
+            with _profile_scope(profile):
+                config = load_config() or {}
+                agents = config.get("a2a_agents")
+                if not isinstance(agents, dict) or key not in agents:
+                    raise HTTPException(
+                        status_code=404, detail=f"No A2A peer named '{key}'."
+                    )
+                del agents[key]
+                config["a2a_agents"] = agents
+                save_config(config)
+                return {"ok": True, "name": key}
+
+    return await asyncio.to_thread(_run)
 
 
 # ---------------------------------------------------------------------------

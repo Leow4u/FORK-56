@@ -77,6 +77,7 @@ const PROFILE_SCOPED_PREFIXES = [
   "/api/env",
   "/api/mcp",
   "/api/messaging/platforms",
+  "/api/a2a",
   "/api/messaging/telegram/onboarding",
   "/api/messaging/whatsapp/onboarding",
   "/api/model/info",
@@ -1376,6 +1377,17 @@ export const api = {
         body: JSON.stringify({ enabled }),
       },
     ),
+  getA2AAgents: () => fetchJSON<A2AAgentsResponse>("/api/a2a/agents"),
+  createA2AAgent: (body: A2AAgentCreate) =>
+    fetchJSON<A2AAgentInfo>("/api/a2a/agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  deleteA2AAgent: (name: string) =>
+    fetchJSON<{ ok: boolean; name: string }>(`/api/a2a/agents/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    }),
 
   // ── Admin: Credential pool ──────────────────────────────────────────
   getCredentialPool: () =>
@@ -1890,6 +1902,26 @@ export interface WebhookEnableResponse {
   restart_action?: string;
   restart_pid?: number | null;
   restart_error?: string;
+}
+
+export interface A2AAgentInfo {
+  capabilities: string[];
+  has_auth: boolean;
+  name: string;
+  timeout: number;
+  url: string;
+}
+
+export interface A2AAgentsResponse {
+  agents: A2AAgentInfo[];
+}
+
+export interface A2AAgentCreate {
+  capabilities?: string[];
+  name: string;
+  timeout?: number;
+  token?: string;
+  url: string;
 }
 
 export interface WebhookCreate {

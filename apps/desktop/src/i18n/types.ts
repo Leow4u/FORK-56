@@ -1405,6 +1405,8 @@ export interface Translations {
     testFailed: (name: string) => string
     fixHighlighted: string
     envErrors: {
+      a2aPeerTokens: (value: string) => string
+      a2aPublicUrl: (value: string) => string
       apiServerCorsOrigin: (value: string) => string
       apiServerHost: (value: string) => string
       apiServerKey: string
@@ -1548,6 +1550,61 @@ export interface Translations {
       noRoutes: string
       tunnelHint: string
       manageRoutes: string
+    }
+    a2aQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      inboundTitle: string
+      inboundHelp: string
+      tokenHelp: string
+      tokenLabel: string
+      tokenPlaceholder: string
+      generateToken: string
+      tokenWarning: string
+      bindLabel: string
+      bindLocalhost: string
+      bindRemote: string
+      remoteNeedsToken: string
+      cardTitle: string
+      cardHint: string
+      copyCardUrl: string
+      publicUrlLabel: string
+      publicUrlPlaceholder: string
+      publicUrlHelp: string
+      networkExposedWarning: string
+      saved: string
+      saveFailed: string
+      outboundTitle: string
+      outboundHelp: string
+      peerNameLabel: string
+      peerNamePlaceholder: string
+      peerUrlLabel: string
+      peerUrlPlaceholder: string
+      peerTokenLabel: string
+      peerTokenPlaceholder: string
+      peerCapsLabel: string
+      peerCapsPlaceholder: string
+      addPeer: string
+      addingPeer: string
+      peerAdded: string
+      peerAddFailed: string
+      peerDeleted: string
+      peerDeleteFailed: string
+      noPeers: string
+      peerHasAuth: string
+      peerNoAuth: string
+      deletePeer: string
+      enableOutbound: string
+      outboundEnabled: string
+      outboundEnableFailed: string
+      outboundAlreadyOn: string
+      outboundOffWarning: string
+      nameRequired: string
+      copied: string
+      copyFailed: string
+      openGuide: string
     }
     smsQuickSetup: {
       title: string

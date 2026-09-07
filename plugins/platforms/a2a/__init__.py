@@ -35,11 +35,15 @@ def validate_config(config) -> bool:
 
 
 def is_connected(config) -> bool:
-    """Considered 'connected' when the platform is explicitly enabled.
+    """Inbound A2A is configured as soon as the operator enables it.
 
-    The gateway only instantiates enabled platforms, so reaching here means the
-    operator opted in; the adapter itself enforces bind safety.
+    Host/port have safe defaults (127.0.0.1:9900, localhost-only without a
+    token). Enablement lives on ``PlatformConfig.enabled`` — the old
+    ``extra.enabled`` / ``A2A_PORT``-in-env check never saw a toggle-on as
+    connected unless the user happened to write a port into ``.env``.
     """
+    if getattr(config, "enabled", False):
+        return True
     extra = getattr(config, "extra", {}) or {}
     return bool(extra.get("enabled")) or bool(os.getenv("A2A_PORT"))
 

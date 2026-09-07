@@ -95,6 +95,8 @@ export type MessagingEnvError =
   | { code: 'telegramToken' }
   | { code: 'telegramUserId'; value: string }
   | { code: 'twilioAccountSid' }
+  | { code: 'a2aPeerTokens'; value: string }
+  | { code: 'a2aPublicUrl'; value: string }
   | { code: 'webhookSecret' }
   | { code: 'whatsappNumber'; value: string }
 
@@ -287,6 +289,42 @@ export function validateMessagingEnv(key: string, value: string): MessagingEnvEr
 
   if (key === 'WEBHOOK_SECRET' && !isUsableWebhookSecret(trimmed)) {
     return { code: 'webhookSecret' }
+  }
+
+  if (key === 'A2A_PORT') {
+    const port = Number(trimmed)
+
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return { code: 'emailPort', value: trimmed }
+    }
+  }
+
+  if (key === 'A2A_HOST' && (/\s/.test(trimmed) || trimmed.includes('://') || trimmed.includes('/'))) {
+    return { code: 'apiServerHost', value: trimmed }
+  }
+
+  if (key === 'A2A_BEARER_TOKEN' && !isUsableApiServerKey(trimmed)) {
+    return { code: 'apiServerKey' }
+  }
+
+  if (key === 'A2A_PEER_TOKENS') {
+    const invalid = trimmed
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .find(part => {
+        const sep = part.indexOf(':')
+
+        return sep < 1 || !part.slice(sep + 1).trim()
+      })
+
+    if (invalid) {
+      return { code: 'a2aPeerTokens', value: invalid }
+    }
+  }
+
+  if (key === 'A2A_PUBLIC_URL' && (!/^https?:\/\/\S+$/.test(trimmed) || trimmed.includes(' '))) {
+    return { code: 'a2aPublicUrl', value: trimmed }
   }
 
   if (key === 'API_SERVER_CORS_ORIGINS') {
