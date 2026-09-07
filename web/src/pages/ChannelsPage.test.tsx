@@ -136,4 +136,91 @@ describe("ChannelsPage (Messaging)", () => {
     expect(pairing?.getAttribute("data-embedded")).toBe("true");
     expect(container.textContent ?? "").not.toContain("Workspace bot");
   });
+
+  it("shows Graph webhook hint plus the catalog env fields", async () => {
+    apiMocks.getMessagingPlatforms.mockResolvedValueOnce({
+      env_path: "~/.work4you/.env",
+      gateway_start_command: "work4you gateway start",
+      platforms: [
+        {
+          id: "msgraph_webhook",
+          name: "Microsoft Graph Webhook",
+          description: "Receive Microsoft Graph change notifications.",
+          docs_url: "https://work4you.ai/docs/user-guide/messaging/msgraph-webhook",
+          enabled: false,
+          configured: false,
+          gateway_running: false,
+          state: "disabled",
+          error_code: null,
+          error_message: null,
+          updated_at: null,
+          home_channel: null,
+          env_vars: [
+            {
+              key: "MSGRAPH_WEBHOOK_CLIENT_STATE",
+              prompt: "Graph clientState secret",
+              required: true,
+              is_set: false,
+              is_password: true,
+              description: "",
+              help: null,
+              redacted_value: null,
+            },
+            {
+              key: "MSGRAPH_WEBHOOK_HOST",
+              prompt: "Graph webhook bind host",
+              required: false,
+              is_set: false,
+              is_password: false,
+              description: "",
+              help: null,
+              redacted_value: null,
+            },
+            {
+              key: "MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS",
+              prompt: "Allowed source CIDRs",
+              required: false,
+              is_set: false,
+              is_password: false,
+              description: "",
+              help: null,
+              redacted_value: null,
+            },
+            {
+              key: "MSGRAPH_WEBHOOK_PUBLIC_URL",
+              prompt: "Public HTTPS origin",
+              required: false,
+              is_set: false,
+              is_password: false,
+              description: "",
+              help: null,
+              redacted_value: null,
+            },
+          ],
+        },
+      ],
+    });
+
+    await renderPage();
+    expect(container.textContent ?? "").toContain("Microsoft Graph Webhook");
+
+    const configure = Array.from(container.querySelectorAll("button")).find((button) =>
+      (button.textContent ?? "").includes("Configure"),
+    );
+    expect(configure).toBeTruthy();
+    await act(async () => {
+      configure?.click();
+    });
+
+    const text = container.textContent ?? "";
+    expect(text).toContain("Inbound listener only");
+    expect(text).toContain("Generate secret");
+    expect(text).toContain("Bind localhost");
+    expect(text).toContain("/msgraph/webhook");
+    expect(text).toContain("Graph clientState secret");
+    expect(text).toContain("Allowed source CIDRs");
+    expect(text).toContain("Public HTTPS origin");
+    expect(text).not.toContain("MSGRAPH_WEBHOOK_ENABLED");
+    expect(text).not.toContain("MSGRAPH_TENANT_ID");
+  });
 });
