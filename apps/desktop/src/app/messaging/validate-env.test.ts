@@ -352,6 +352,82 @@ describe('validateMessagingEnv', () => {
     })
   })
 
+  it('validates WhatsApp Cloud API ids, secrets, allowlist, bind, and https origin', () => {
+    // Meta's Phone number ID is a 15-17 digit internal id.
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_PHONE_NUMBER_ID', '7794189252778687')).toBeNull()
+    // The #1 wizard mistake: the phone number itself (10-12 digits).
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_PHONE_NUMBER_ID', '15556422442')).toEqual({
+      code: 'whatsappCloudPhoneNumberPasted'
+    })
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_PHONE_NUMBER_ID', '+1 555 642 2442')).toEqual({
+      code: 'whatsappCloudPhoneNumberId',
+      value: '+1 555 642 2442'
+    })
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_PHONE_NUMBER_ID', '12345')).toEqual({
+      code: 'whatsappCloudPhoneNumberId',
+      value: '12345'
+    })
+
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_ACCESS_TOKEN', `EAA${'x'.repeat(120)}`)).toBeNull()
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_ACCESS_TOKEN', `sk-${'x'.repeat(120)}`)).toEqual({
+      code: 'whatsappCloudAccessToken'
+    })
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_ACCESS_TOKEN', 'EAAtruncated')).toEqual({
+      code: 'whatsappCloudAccessToken'
+    })
+
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_APP_SECRET', '0123456789abcdef0123456789ABCDEF')).toBeNull()
+    // An access token pasted where the app secret belongs.
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_APP_SECRET', `EAA${'x'.repeat(120)}`)).toEqual({
+      code: 'whatsappCloudAppSecret'
+    })
+
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_VERIFY_TOKEN', 'v'.repeat(32))).toBeNull()
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_VERIFY_TOKEN', 'short')).toEqual({ code: 'whatsappCloudVerifyToken' })
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_VERIFY_TOKEN', 'has a space in it!!')).toEqual({
+      code: 'whatsappCloudVerifyToken'
+    })
+
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_APP_ID', '1234567890123456')).toBeNull()
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_WABA_ID', 'my-business')).toEqual({
+      code: 'whatsappCloudNumericId',
+      value: 'my-business'
+    })
+
+    // Same allowlist rules as the QR-bridge card: digits with country code,
+    // full JIDs verbatim, "*" wildcard, trailing comma dropped.
+    expect(
+      validateMessagingEnv(
+        'WHATSAPP_CLOUD_ALLOWED_USERS',
+        '15551234567, +44 7700 900123, 5511999999999@s.whatsapp.net, *,'
+      )
+    ).toBeNull()
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_ALLOWED_USERS', '15551234567, alice')).toEqual({
+      code: 'whatsappNumber',
+      value: 'alice'
+    })
+
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_WEBHOOK_PORT', '8090')).toBeNull()
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_WEBHOOK_PORT', '70000')).toEqual({ code: 'emailPort', value: '70000' })
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_WEBHOOK_HOST', '127.0.0.1')).toBeNull()
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_WEBHOOK_HOST', 'https://bot.example/')).toEqual({
+      code: 'apiServerHost',
+      value: 'https://bot.example/'
+    })
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_WEBHOOK_PATH', '/whatsapp/webhook')).toBeNull()
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_WEBHOOK_PATH', 'whatsapp webhook')).toEqual({
+      code: 'whatsappCloudWebhookPath',
+      value: 'whatsapp webhook'
+    })
+
+    // Meta refuses a plain-HTTP callback URL.
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_PUBLIC_URL', 'https://tunnel.example')).toBeNull()
+    expect(validateMessagingEnv('WHATSAPP_CLOUD_PUBLIC_URL', 'http://tunnel.example')).toEqual({
+      code: 'whatsappCloudPublicUrl',
+      value: 'http://tunnel.example'
+    })
+  })
+
   it('generates keys that pass the startup guard', () => {
     expect(isUsableApiServerKey('a'.repeat(16))).toBe(true)
     expect(isUsableApiServerKey('changeme')).toBe(false)

@@ -1431,6 +1431,14 @@ export interface Translations {
       teamsGuid: (value: string) => string
       teamsPublicUrl: (value: string) => string
       webhookSecret: string
+      whatsappCloudAccessToken: string
+      whatsappCloudAppSecret: string
+      whatsappCloudNumericId: (value: string) => string
+      whatsappCloudPhoneNumberId: (value: string) => string
+      whatsappCloudPhoneNumberPasted: string
+      whatsappCloudPublicUrl: (value: string) => string
+      whatsappCloudVerifyToken: string
+      whatsappCloudWebhookPath: (value: string) => string
       whatsappNumber: (value: string) => string
     }
     /** Localized labels for env keys rendered as a segmented picker
@@ -1682,6 +1690,56 @@ export interface Translations {
       openWarning: string
       pipelineTitle: string
       pipelineHelp: string
+      saved: string
+      saveFailed: string
+      copied: string
+      copyFailed: string
+      openGuide: string
+    }
+    whatsappCloudQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      credentialsHelp: string
+      phoneNumberIdLabel: string
+      phoneNumberIdPlaceholder: string
+      phoneNumberIdHelp: string
+      accessTokenLabel: string
+      accessTokenPlaceholder: string
+      accessTokenHelp: string
+      appSecretLabel: string
+      appSecretPlaceholder: string
+      appSecretHelp: string
+      secretKeepPlaceholder: string
+      openMeta: string
+      verifyTokenLabel: string
+      verifyTokenPlaceholder: string
+      verifyTokenHelp: string
+      verifyTokenSavedHint: string
+      generateVerifyToken: string
+      copyVerifyToken: string
+      phoneNumberIdRequired: string
+      accessTokenRequired: string
+      appSecretRequired: string
+      verifyTokenRequired: string
+      bindLabel: string
+      bindLocalhost: string
+      bindRemote: string
+      bindHelp: string
+      callbackTitle: string
+      callbackHint: string
+      copyCallback: string
+      publicUrlLabel: string
+      publicUrlPlaceholder: string
+      publicUrlHelp: string
+      tunnelWarning: string
+      allowedUsersLabel: string
+      allowedUsersPlaceholder: string
+      allowedUsersHelp: string
+      openWarning: string
+      afterSaveTitle: string
+      afterSaveHelp: string
       saved: string
       saveFailed: string
       copied: string

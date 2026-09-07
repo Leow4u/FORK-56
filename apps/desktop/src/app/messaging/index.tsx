@@ -56,6 +56,7 @@ import { TeamsQuickSetup } from './teams-quick-setup'
 import { TelegramQuickSetup } from './telegram-quick-setup'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
 import { WebhookRoutesPanel } from './webhook-routes-panel'
+import { WhatsAppCloudQuickSetup } from './whatsapp-cloud-quick-setup'
 import { WhatsAppQuickSetup } from './whatsapp-quick-setup'
 
 interface MessagingViewProps extends React.ComponentProps<'section'> {
@@ -176,6 +177,30 @@ const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging'])
 
     case 'webhookSecret':
       return m.envErrors.webhookSecret
+
+    case 'whatsappCloudAccessToken':
+      return m.envErrors.whatsappCloudAccessToken
+
+    case 'whatsappCloudAppSecret':
+      return m.envErrors.whatsappCloudAppSecret
+
+    case 'whatsappCloudNumericId':
+      return m.envErrors.whatsappCloudNumericId(error.value)
+
+    case 'whatsappCloudPhoneNumberId':
+      return m.envErrors.whatsappCloudPhoneNumberId(error.value)
+
+    case 'whatsappCloudPhoneNumberPasted':
+      return m.envErrors.whatsappCloudPhoneNumberPasted
+
+    case 'whatsappCloudPublicUrl':
+      return m.envErrors.whatsappCloudPublicUrl(error.value)
+
+    case 'whatsappCloudVerifyToken':
+      return m.envErrors.whatsappCloudVerifyToken
+
+    case 'whatsappCloudWebhookPath':
+      return m.envErrors.whatsappCloudWebhookPath(error.value)
 
     case 'whatsappNumber':
       return m.envErrors.whatsappNumber(error.value)
@@ -945,6 +970,15 @@ function PlatformDetail({
         />
       )}
 
+      {platform.id === 'whatsapp_cloud' && (
+        <WhatsAppCloudQuickSetup
+          configured={platform.configured}
+          envVars={platform.env_vars}
+          onApplied={onQuickSetupApplied}
+          scopeProfile={scopeProfile}
+        />
+      )}
+
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
         <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
@@ -1142,7 +1176,9 @@ const PLATFORM_INTRO: Record<string, string> = {
   msgraph_webhook:
     'Inbound listener only — Microsoft Graph POSTs change notifications here (meetings, Outlook, chat). This is not the Teams chat bot. Use Quick setup above to generate the clientState secret, bind localhost behind a tunnel, and copy the notification URL. A network bind needs source CIDRs. Subscriptions are created with `work4you teams-pipeline subscribe`; Azure app credentials stay on the Teams / pipeline cards.',
   teams:
-    'The Teams chat bot: people message it in a personal chat, a group chat, or a channel and Work4You answers. Register a bot in Azure, then use Quick setup above to paste the three ids and copy the messaging endpoint Azure needs. Teams reaches your bot over the public internet, so a local install needs a tunnel — a bot that installs but never answers almost always has the endpoint still pointing at localhost.'
+    'The Teams chat bot: people message it in a personal chat, a group chat, or a channel and Work4You answers. Register a bot in Azure, then use Quick setup above to paste the three ids and copy the messaging endpoint Azure needs. Teams reaches your bot over the public internet, so a local install needs a tunnel — a bot that installs but never answers almost always has the endpoint still pointing at localhost.',
+  whatsapp_cloud:
+    "Meta's official WhatsApp Business API — a business number that people message, with no phone or QR code to keep online (the WhatsApp card above is the personal-number bridge). Use Quick setup above: paste the Phone number ID, a permanent access token, and the app secret from the Meta developer dashboard, then copy the callback URL into Meta's webhook settings. Meta reaches your machine over the public internet, so a local install needs a tunnel, and the API Setup token expires after 24 hours — use a System User token."
 }
 
 const introCopy = (platform: MessagingPlatformInfo, m: Translations['messaging']) =>
