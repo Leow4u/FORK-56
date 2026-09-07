@@ -206,6 +206,9 @@ CASES = {
         _lanes(frontend=True),
     ),
     # Fail open: CI-config / empty / blank diffs run everything.
+    # Empty stdin also sets ci_review (fail-closed review gate) so a
+    # rate-limited compare that never listed files cannot skip the
+    # ci-reviewed label. Recover the list in detect-changes instead.
     ".github change → all": ([".github/workflows/tests.yml"], DEFAULT),
     "action change → all": ([".github/actions/detect-changes/action.yml"], DEFAULT),
     "empty diff → all": ([], DEFAULT),
