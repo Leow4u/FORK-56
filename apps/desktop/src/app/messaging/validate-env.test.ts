@@ -312,6 +312,46 @@ describe('validateMessagingEnv', () => {
     })
   })
 
+  it('validates Teams GUIDs, allowlist, bind, and https endpoint', () => {
+    const guid = '3fa85f64-5717-4562-b3fc-2c963f66afa6'
+
+    expect(validateMessagingEnv('TEAMS_CLIENT_ID', guid)).toBeNull()
+    expect(validateMessagingEnv('TEAMS_TENANT_ID', guid.toUpperCase())).toBeNull()
+    // The app display name is the classic paste into the client id field.
+    expect(validateMessagingEnv('TEAMS_CLIENT_ID', 'work4you-bot')).toEqual({
+      code: 'teamsGuid',
+      value: 'work4you-bot'
+    })
+    expect(validateMessagingEnv('TEAMS_TENANT_ID', 'contoso.onmicrosoft.com')).toEqual({
+      code: 'teamsGuid',
+      value: 'contoso.onmicrosoft.com'
+    })
+
+    // Allowlist takes AAD object ids; "*" is the allow-all wildcard and a
+    // trailing comma is dropped, mirroring the adapter's parse.
+    expect(validateMessagingEnv('TEAMS_ALLOWED_USERS', `${guid}, ${guid},`)).toBeNull()
+    expect(validateMessagingEnv('TEAMS_ALLOWED_USERS', '*')).toBeNull()
+    expect(validateMessagingEnv('TEAMS_ALLOWED_USERS', `${guid}, ana@contoso.com`)).toEqual({
+      code: 'teamsGuid',
+      value: 'ana@contoso.com'
+    })
+
+    expect(validateMessagingEnv('TEAMS_PORT', '3978')).toBeNull()
+    expect(validateMessagingEnv('TEAMS_PORT', '70000')).toEqual({ code: 'emailPort', value: '70000' })
+    expect(validateMessagingEnv('TEAMS_HOST', '0.0.0.0')).toBeNull()
+    expect(validateMessagingEnv('TEAMS_HOST', 'https://bot.example/')).toEqual({
+      code: 'apiServerHost',
+      value: 'https://bot.example/'
+    })
+
+    // The Bot Framework refuses a plain-HTTP messaging endpoint.
+    expect(validateMessagingEnv('TEAMS_PUBLIC_URL', 'https://tunnel.example')).toBeNull()
+    expect(validateMessagingEnv('TEAMS_PUBLIC_URL', 'http://tunnel.example')).toEqual({
+      code: 'teamsPublicUrl',
+      value: 'http://tunnel.example'
+    })
+  })
+
   it('generates keys that pass the startup guard', () => {
     expect(isUsableApiServerKey('a'.repeat(16))).toBe(true)
     expect(isUsableApiServerKey('changeme')).toBe(false)

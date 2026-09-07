@@ -68,15 +68,15 @@ function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatform
     enabled: false,
     env_vars: [],
     gateway_running: true,
-    id: 'teams',
-    name: 'Microsoft Teams',
+    id: 'mattermost',
+    name: 'Mattermost',
     state: 'disabled',
     ...patch
   }
 }
 
 beforeEach(() => {
-  updateMessagingPlatform.mockResolvedValue({ ok: true, platform: 'teams' })
+  updateMessagingPlatform.mockResolvedValue({ ok: true, platform: 'mattermost' })
   getPairing.mockResolvedValue({ approved: [], pending: [] })
 })
 
@@ -101,7 +101,7 @@ async function renderMessaging() {
 
 describe('MessagingView setup-guide link', () => {
   it('hides the setup-guide button for a plugin platform with no docs URL', async () => {
-    // Teams (and other plugin platforms) ship an empty docs_url. Rendering an
+    // Some plugin platforms ship an empty docs_url. Rendering an
     // anchor with href="" let Electron resolve it to the app's own packaged
     // index.html and fail with an OS "file not found" dialog. The button must
     // simply not appear when there is no guide to open.
@@ -109,12 +109,12 @@ describe('MessagingView setup-guide link', () => {
 
     await renderMessaging()
 
-    expect((await screen.findAllByText('Microsoft Teams')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Mattermost')).length).toBeGreaterThan(0)
     expect(screen.queryByText('Open setup guide')).toBeNull()
   })
 
   it('opens a real docs URL through the validated external opener', async () => {
-    const docsUrl = 'https://work4you.ai/docs/user-guide/messaging/teams'
+    const docsUrl = 'https://work4you.ai/docs/user-guide/messaging/mattermost'
     getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ docs_url: docsUrl })] })
 
     await renderMessaging()
@@ -131,7 +131,7 @@ describe('MessagingView setup-guide link', () => {
 describe('MessagingView pairing', () => {
   const pendingUser = {
     age_minutes: 3,
-    platform: 'teams',
+    platform: 'mattermost',
     request_id: 'a1b2c3d4e5f60718',
     user_id: '7712345',
     user_name: 'Bee'
@@ -152,7 +152,7 @@ describe('MessagingView pairing', () => {
       fireEvent.click(approve)
     })
 
-    await waitFor(() => expect(approvePairing).toHaveBeenCalledWith('teams', 'a1b2c3d4e5f60718'))
+    await waitFor(() => expect(approvePairing).toHaveBeenCalledWith('mattermost', 'a1b2c3d4e5f60718'))
   })
 
   it('restores the pending row when approval fails', async () => {
@@ -180,7 +180,7 @@ describe('MessagingView pairing', () => {
 
     await renderMessaging()
 
-    expect((await screen.findAllByText('Microsoft Teams')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Mattermost')).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
     expect(screen.queryByText(/Pending requests/)).toBeNull()
   })
@@ -192,7 +192,7 @@ describe('MessagingView pairing', () => {
 
     await renderMessaging()
 
-    expect((await screen.findAllByText('Microsoft Teams')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Mattermost')).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
   })
 
@@ -210,8 +210,8 @@ describe('MessagingView pairing', () => {
               description: 'Bot token.',
               is_password: true,
               is_set: false,
-              key: 'TEAMS_APP_PASSWORD',
-              prompt: 'Teams app password',
+              key: 'MATTERMOST_TOKEN',
+              prompt: 'Mattermost bot token',
               redacted_value: null,
               required: true,
               url: null
@@ -223,7 +223,7 @@ describe('MessagingView pairing', () => {
 
     await renderMessaging()
 
-    const input = await screen.findByLabelText('Teams app password')
+    const input = await screen.findByLabelText('Bot token')
     fireEvent.change(input, { target: { value: 'abc-123' } })
 
     const save = await screen.findByRole('button', { name: /Save & enable/ })
@@ -232,9 +232,9 @@ describe('MessagingView pairing', () => {
     })
 
     await waitFor(() =>
-      expect(updateMessagingPlatform).toHaveBeenCalledWith('teams', {
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('mattermost', {
         enabled: true,
-        env: { TEAMS_APP_PASSWORD: 'abc-123' }
+        env: { MATTERMOST_TOKEN: 'abc-123' }
       })
     )
   })
@@ -250,8 +250,8 @@ describe('MessagingView pairing', () => {
               description: 'Bot token.',
               is_password: true,
               is_set: true,
-              key: 'TEAMS_APP_PASSWORD',
-              prompt: 'Teams app password',
+              key: 'MATTERMOST_TOKEN',
+              prompt: 'Mattermost bot token',
               redacted_value: 'abc…123',
               required: true,
               url: null
@@ -263,14 +263,14 @@ describe('MessagingView pairing', () => {
 
     await renderMessaging()
 
-    fireEvent.change(await screen.findByLabelText('Teams app password'), { target: { value: 'new-token' } })
+    fireEvent.change(await screen.findByLabelText('Bot token'), { target: { value: 'new-token' } })
 
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: /Save changes/ }))
     })
 
     await waitFor(() =>
-      expect(updateMessagingPlatform).toHaveBeenCalledWith('teams', { env: { TEAMS_APP_PASSWORD: 'new-token' } })
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('mattermost', { env: { MATTERMOST_TOKEN: 'new-token' } })
     )
   })
 
@@ -326,7 +326,7 @@ describe('MessagingView pairing', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Test' }))
     })
 
-    await waitFor(() => expect(testMessagingPlatform).toHaveBeenCalledWith('teams'))
+    await waitFor(() => expect(testMessagingPlatform).toHaveBeenCalledWith('mattermost'))
     await waitFor(() =>
       expect(notify).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success', message: 'Connected as @bot' }))
     )
@@ -337,7 +337,7 @@ describe('MessagingView pairing', () => {
 
     await renderMessaging()
 
-    expect((await screen.findAllByText('Microsoft Teams')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Mattermost')).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Test' })).toBeNull()
   })
 

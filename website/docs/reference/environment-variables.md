@@ -720,7 +720,8 @@ The Microsoft Teams platform adapter (Bot Framework / Azure AD), distinct from t
 | `TEAMS_TENANT_ID` | Azure AD tenant ID hosting the bot application. |
 | `TEAMS_HOST` | Webhook bind host (default: unset → dual-stack, all interfaces IPv4+IPv6). |
 | `TEAMS_PORT` | Webhook listen port (Bot Framework default: `3978`). |
-| `TEAMS_ALLOWED_USERS` | Comma-separated Teams user IDs / UPNs allowed to talk to the bot. |
+| `TEAMS_PUBLIC_URL` | Public HTTPS origin of the tunnel / reverse proxy in front of the listener. The dashboard appends `/api/messages` to build the messaging endpoint you register in Azure. |
+| `TEAMS_ALLOWED_USERS` | Comma-separated AAD object IDs allowed to talk to the bot (`teams status --verbose` prints them). |
 | `TEAMS_ALLOW_ALL_USERS` | Allow any Teams user to trigger the bot (dev only). |
 | `TEAMS_HOME_CHANNEL` | Default chat/channel ID for cron / notification delivery. |
 | `TEAMS_HOME_CHANNEL_NAME` | Display name for the Teams home channel. |

@@ -36,6 +36,10 @@ export const GOOGLE_CHAT_SUBSCRIPTION_RE = /^projects\/[^/\s]+\/subscriptions\/[
 // GCP project ids: 6-30 chars, lowercase letters / digits / hyphens, starts
 // with a letter, doesn't end with a hyphen (cloud.google.com naming rules).
 export const GOOGLE_CLOUD_PROJECT_ID_RE = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/
+// Azure AD app ids, tenant ids and user object ids are all plain GUIDs. Users
+// paste the app display name or a UPN into these fields often enough that the
+// shape is worth catching before a save → restart → MISSING_CREDENTIALS trip.
+export const AAD_GUID_RE = /^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/
 
 // Mirrors _PLACEHOLDER_SECRET_VALUES in work4you_cli/auth.py — the gateway's
 // startup guard rejects these outright, so catch them before a save.
@@ -100,6 +104,8 @@ export type MessagingEnvError =
   | { code: 'msgraphCidr'; value: string }
   | { code: 'msgraphClientState' }
   | { code: 'msgraphPublicUrl'; value: string }
+  | { code: 'teamsGuid'; value: string }
+  | { code: 'teamsPublicUrl'; value: string }
   | { code: 'webhookSecret' }
   | { code: 'whatsappNumber'; value: string }
 
@@ -360,6 +366,40 @@ export function validateMessagingEnv(key: string, value: string): MessagingEnvEr
     if (invalid) {
       return { code: 'msgraphCidr', value: invalid }
     }
+  }
+
+  if ((key === 'TEAMS_CLIENT_ID' || key === 'TEAMS_TENANT_ID') && !AAD_GUID_RE.test(trimmed)) {
+    return { code: 'teamsGuid', value: trimmed }
+  }
+
+  if (key === 'TEAMS_ALLOWED_USERS') {
+    // Mirror the adapter's parse: drop empty entries so a trailing comma isn't
+    // rejected, and let "*" through as the allow-all wildcard.
+    const invalid = trimmed
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .find(part => part !== '*' && !AAD_GUID_RE.test(part))
+
+    if (invalid) {
+      return { code: 'teamsGuid', value: invalid }
+    }
+  }
+
+  if (key === 'TEAMS_PORT') {
+    const port = Number(trimmed)
+
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return { code: 'emailPort', value: trimmed }
+    }
+  }
+
+  if (key === 'TEAMS_HOST' && (/\s/.test(trimmed) || trimmed.includes('://') || trimmed.includes('/'))) {
+    return { code: 'apiServerHost', value: trimmed }
+  }
+
+  if (key === 'TEAMS_PUBLIC_URL' && (!/^https:\/\/\S+$/.test(trimmed) || trimmed.includes(' '))) {
+    return { code: 'teamsPublicUrl', value: trimmed }
   }
 
   if (key === 'API_SERVER_CORS_ORIGINS') {

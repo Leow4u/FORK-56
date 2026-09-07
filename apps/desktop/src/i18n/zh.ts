@@ -1818,6 +1818,10 @@ export const zh: Translations = {
       msgraphClientState: 'clientState 密钥至少 16 个字符，且不能是占位符。请使用“生成密钥”（openssl rand -hex 32）。',
       msgraphPublicUrl: (value: string) =>
         `${value} 不是有效的公网 URL。Graph 拒绝 HTTP——请使用 https:// 源，例如 https://your-tunnel.example。`,
+      teamsGuid: (value: string) =>
+        `${value} 不是 Azure AD GUID。请使用 Azure 门户中的 ID，例如 00000000-0000-0000-0000-000000000000——不要填应用名称或 UPN。`,
+      teamsPublicUrl: (value: string) =>
+        `${value} 不是有效的公网 URL。Teams 拒绝纯 HTTP 端点——请使用 https:// 源，例如 https://your-tunnel.example。`,
       webhookSecret:
         '请使用 16 个字符以上的随机密钥。"INSECURE_NO_AUTH" 会在所有回退到此全局密钥的路由上禁用签名验证。',
       whatsappNumber: (value: string) => `${value} 不像是 WhatsApp 号码。请使用带国家代码的完整号码，例如 15551234567。`
@@ -2057,6 +2061,52 @@ export const zh: Translations = {
       copied: '已复制到剪贴板。',
       copyFailed: '无法复制到剪贴板。',
       openGuide: 'Graph webhook 指南'
+    },
+    teamsQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro:
+        '这是 Teams 聊天机器人——用户给它发消息，Work4You 回复。粘贴 Azure 机器人注册的三个 ID，然后把下面的消息端点复制到 Azure。Teams 从公网调用你的机器人，因此本地安装需要先开隧道。',
+      replacesExisting: 'Teams 已配置。在此保存会替换已存的机器人凭据与绑定。',
+      credentialsHelp:
+        '来自 Azure 机器人注册：应用（客户端）ID、目录（租户）ID 和客户端密钥。`teams app create` 会打印这三项。',
+      clientIdLabel: '应用（客户端）ID',
+      tenantIdLabel: '目录（租户）ID',
+      clientSecretLabel: '客户端密钥',
+      guidPlaceholder: '00000000-0000-0000-0000-000000000000',
+      secretPlaceholder: '粘贴客户端密钥值',
+      secretKeepPlaceholder: '已保存——留空则保持不变',
+      secretWarning: '客户端密钥在 Azure 中只显示一次，会按你选择的周期过期，且持有者可完全操控你的机器人。请当作密码对待。',
+      openPortal: 'Azure 门户',
+      idsRequired: '请先填写客户端 ID 与租户 ID——缺少它们适配器将拒绝启动。',
+      secretRequired: '请先填写客户端密钥——缺少它适配器将拒绝启动。',
+      bindLabel: '谁可以访问机器人监听器',
+      bindLocalhost: '仅本机（127.0.0.1）',
+      bindRemote: '网络（0.0.0.0）',
+      bindHelp: '在隧道或反向代理后面应选本机。只有当 Teams 流量直达这台机器时才选网络。',
+      endpointTitle: '机器人消息端点',
+      endpointHint:
+        '在 Azure 中注册此 URL（机器人设置 → 消息端点，或 `teams app update --endpoint`）。Work4You 监听 /api/messages 路径。',
+      copyEndpoint: '复制端点',
+      publicUrlLabel: '公网 HTTPS 源',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp:
+        'Teams 拒绝纯 HTTP 端点。请在隧道或反向代理处终止 TLS，然后粘贴 https:// 源——上面的端点会随之更新。',
+      tunnelWarning:
+        '没有公网源时端点指向 localhost，而 Teams 无法访问：机器人能安装但永不回复。请启动隧道（cloudflared、ngrok）并粘贴其 https:// 源。',
+      allowedUsersLabel: '允许的用户',
+      allowedUsersPlaceholder: '00000000-0000-0000-0000-000000000000, …',
+      allowedUsersHelp:
+        '逗号分隔的 Azure AD 对象 ID——运行 `teams status --verbose` 可查看给机器人发消息者的 ID。用 * 允许租户内所有人。',
+      openWarning: '没有白名单时，租户内任何能找到机器人的人都能操控你的智能体。至少加入你自己的对象 ID。',
+      pipelineTitle: '会议与 Graph 通知',
+      pipelineHelp:
+        '会议转录和其他 Graph 变更通知走单独的 Graph webhook 卡片，用 `work4you teams-pipeline subscribe` 订阅。此卡片只负责聊天机器人。',
+      saved: 'Teams 已保存并启用。重启网关即可启动机器人监听器。',
+      saveFailed: '无法保存 Teams 设置。',
+      copied: '已复制到剪贴板。',
+      copyFailed: '无法复制到剪贴板。',
+      openGuide: 'Teams 指南'
     },
     smsQuickSetup: {
       title: '快速设置',
@@ -2410,7 +2460,37 @@ export const zh: Translations = {
         label: '公网 HTTPS 源',
         placeholder: 'https://your-tunnel.example',
         help: 'Graph 拒绝 HTTP。粘贴 /msgraph/webhook 前面的 https:// 源。'
-      }
+      },
+      TEAMS_CLIENT_ID: {
+        label: '应用（客户端）ID',
+        placeholder: '00000000-0000-0000-0000-000000000000',
+        help: 'Azure 机器人注册 ID。`teams app create` 会打印它。'
+      },
+      TEAMS_TENANT_ID: {
+        label: '目录（租户）ID',
+        placeholder: '00000000-0000-0000-0000-000000000000',
+        help: '机器人注册所在的 Azure AD 租户。'
+      },
+      TEAMS_CLIENT_SECRET: {
+        label: '客户端密钥',
+        help: '在 Azure 中只显示一次，并按你选择的周期过期。持有者可完全操控你的机器人。'
+      },
+      TEAMS_ALLOWED_USERS: {
+        label: '允许的用户',
+        placeholder: '00000000-0000-0000-0000-000000000000',
+        help: '逗号分隔的 Azure AD 对象 ID（`teams status --verbose`）。用 * 允许整个租户。'
+      },
+      TEAMS_PUBLIC_URL: {
+        label: '公网 HTTPS 源',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Teams 拒绝纯 HTTP。粘贴 /api/messages 前面的 https:// 源。'
+      },
+      TEAMS_HOST: {
+        label: '绑定地址',
+        placeholder: '127.0.0.1',
+        help: '快速设置默认 127.0.0.1（隧道/代理）。留空则绑定所有接口，IPv4 与 IPv6。'
+      },
+      TEAMS_PORT: { label: '端口', placeholder: '3978' }
     },
     platformIntro: {
       telegram:

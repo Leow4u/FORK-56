@@ -4658,6 +4658,9 @@ def _gateway_display_command(profile: Optional[str], verb: str) -> str:
 _TELEGRAM_BOT_TOKEN_RE = re.compile(r"\d+:[A-Za-z0-9_-]{30,}")
 _TELEGRAM_USER_ID_RE = re.compile(r"\d+")
 _SLACK_MEMBER_ID_RE = re.compile(r"[UW][A-Z0-9]{2,}")
+# Azure AD app/tenant IDs and AAD object IDs are all plain GUIDs. Users paste
+# the app *name* or a UPN into these fields often enough to be worth catching.
+_AAD_GUID_RE = re.compile(r"[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}")
 
 
 def _validate_messaging_env_value(platform_id: str, key: str, value: str) -> None:
@@ -4726,6 +4729,60 @@ def _validate_messaging_env_value(platform_id: str, key: str, value: str) -> Non
                         status_code=400,
                         detail="MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS entries must be CIDRs like 52.96.0.0/14.",
                     )
+        return
+
+    if platform_id == "teams":
+        if key in {"TEAMS_CLIENT_ID", "TEAMS_TENANT_ID"} and not _AAD_GUID_RE.fullmatch(
+            value
+        ):
+            label = "client" if key == "TEAMS_CLIENT_ID" else "tenant"
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"{key} must be the Azure AD {label} ID GUID, such as "
+                    "00000000-0000-0000-0000-000000000000."
+                ),
+            )
+        if key == "TEAMS_ALLOWED_USERS":
+            for chunk in (part.strip() for part in value.split(",")):
+                if chunk and chunk != "*" and not _AAD_GUID_RE.fullmatch(chunk):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "TEAMS_ALLOWED_USERS entries must be AAD object ID GUIDs "
+                            "(run `teams status --verbose`), not names or UPNs."
+                        ),
+                    )
+        if key == "TEAMS_PORT":
+            try:
+                port = int(value)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail="TEAMS_PORT must be a number between 1 and 65535.",
+                ) from exc
+            if not 1 <= port <= 65535:
+                raise HTTPException(
+                    status_code=400,
+                    detail="TEAMS_PORT must be a number between 1 and 65535.",
+                )
+        if key == "TEAMS_HOST" and (
+            "://" in value or "/" in value or any(ch.isspace() for ch in value)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="TEAMS_HOST must be a bare hostname or IP like 127.0.0.1.",
+            )
+        if key == "TEAMS_PUBLIC_URL" and (
+            not value.lower().startswith("https://") or " " in value
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "TEAMS_PUBLIC_URL must be an https:// origin — the Bot Framework "
+                    "refuses a plain-HTTP messaging endpoint."
+                ),
+            )
         return
 
     if platform_id != "slack":
@@ -8795,12 +8852,22 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
         "env_vars": ("QQ_APP_ID", "QQ_CLIENT_SECRET", "QQ_ALLOWED_USERS"),
         "required_env": ("QQ_APP_ID", "QQ_CLIENT_SECRET"),
     },
-    # Teams ships as a platform plugin, so its name/env vars come from the
-    # plugin registry. Only the docs link needs an override here so the
-    # Channels page can point at the Microsoft Teams setup guide.
+    # Teams ships as a platform plugin, so its name comes from the plugin
+    # registry. The docs link and the field order are pinned here: the quick
+    # setup builds the bot messaging endpoint from the public origin + bind,
+    # so those three want to sit together instead of in discovery order.
     "teams": {
         "description": "Connect Work4You to Microsoft Teams chats via the Bot Framework.",
         "docs_url": "https://work4you.ai/docs/user-guide/messaging/teams",
+        "env_vars": (
+            "TEAMS_CLIENT_ID",
+            "TEAMS_CLIENT_SECRET",
+            "TEAMS_TENANT_ID",
+            "TEAMS_ALLOWED_USERS",
+            "TEAMS_PUBLIC_URL",
+            "TEAMS_HOST",
+            "TEAMS_PORT",
+        ),
     },
     # Bundled platform plugins: name comes from the plugin registry label;
     # give each a human description (the registry's install_hint is a
@@ -8933,6 +9000,7 @@ _PLATFORM_ORDER: tuple[str, ...] = (
     "telegram",
     "discord",
     "slack",
+    "teams",
     "mattermost",
     "matrix",
     "whatsapp",
@@ -11316,6 +11384,140 @@ def _msgraph_live_test(
     )
 
 
+_TEAMS_DEFAULT_PORT = 3978
+_TEAMS_WEBHOOK_PATH = "/api/messages"
+
+
+def _teams_resolve_endpoint(
+    env: dict[str, str], extra: dict
+) -> tuple[str, int | None, str, str]:
+    """Resolve the inbound bind the same way ``TeamsAdapter.__init__`` does.
+
+    Env wins over ``platforms.teams.extra``, then 3978 / all-interfaces. An
+    unset host means the adapter binds dual-stack, so probe loopback. Returns
+    (host, port, probe_host, error).
+    """
+    raw_port = (env.get("TEAMS_PORT") or "").strip()
+    if raw_port:
+        try:
+            port = int(raw_port)
+        except ValueError:
+            return "", None, "", f"TEAMS_PORT must be a number, got {raw_port!r}."
+        if not 1 <= port <= 65535:
+            return "", None, "", f"TEAMS_PORT must be between 1 and 65535, got {port}."
+    else:
+        try:
+            port = int(extra.get("port", _TEAMS_DEFAULT_PORT))
+        except (TypeError, ValueError):
+            port = _TEAMS_DEFAULT_PORT
+
+    host = (env.get("TEAMS_HOST") or "").strip() or str(extra.get("host") or "").strip()
+    probe_host = "127.0.0.1" if not host or host in {"0.0.0.0", "::", "*"} else host
+    return host, port, probe_host, ""
+
+
+def _teams_messaging_endpoint(
+    env: dict[str, str], extra: dict, probe_host: str, port: int
+) -> str:
+    """The URL that has to be registered as the bot's messaging endpoint."""
+    public = (
+        (env.get("TEAMS_PUBLIC_URL") or "").strip()
+        or str(extra.get("public_url") or "").strip()
+    ).rstrip("/")
+    if public:
+        return f"{public}{_TEAMS_WEBHOOK_PATH}"
+    return f"http://{probe_host}:{port}{_TEAMS_WEBHOOK_PATH}"
+
+
+def _teams_live_test(
+    env: dict[str, str], extra: dict, gateway_running: bool
+) -> tuple[bool, str]:
+    """Prove the Teams listener: GET /health on the resolved port.
+
+    The three Bot Framework credentials are required to start. ``/health`` is
+    unauthenticated (``TeamsAdapter.connect`` registers it next to the SDK's
+    ``/api/messages``), so localhost can prove the process is up without
+    touching Microsoft. Reaching the bot from Teams additionally needs the
+    public HTTPS endpoint registered in Azure, which no local probe can check.
+    """
+    missing = [
+        key
+        for key, extra_key in (
+            ("TEAMS_CLIENT_ID", "client_id"),
+            ("TEAMS_CLIENT_SECRET", "client_secret"),
+            ("TEAMS_TENANT_ID", "tenant_id"),
+        )
+        if not ((env.get(key) or "").strip() or str(extra.get(extra_key) or "").strip())
+    ]
+    if missing:
+        return False, (
+            f"Set {', '.join(missing)} first. The adapter refuses to start without "
+            "all three Bot Framework credentials (`teams app create` prints them)."
+        )
+
+    host, port, probe_host, port_error = _teams_resolve_endpoint(env, extra)
+    if port is None:
+        return False, port_error
+
+    endpoint = _teams_messaging_endpoint(env, extra, probe_host, port)
+    public_set = bool(
+        (env.get("TEAMS_PUBLIC_URL") or "").strip()
+        or str(extra.get("public_url") or "").strip()
+    )
+    tunnel_note = (
+        ""
+        if public_set
+        else (
+            " Teams cannot reach localhost — put a tunnel or reverse proxy in front "
+            "and set TEAMS_PUBLIC_URL so this endpoint is the public https:// one."
+        )
+    )
+
+    if not gateway_running:
+        return True, (
+            "Microsoft Teams starts with the gateway. Start it, then register "
+            f"{endpoint} as the bot messaging endpoint "
+            f"(`teams app update --endpoint`).{tunnel_note}"
+        )
+
+    try:
+        req = urllib.request.Request(f"http://{probe_host}:{port}/health", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            status = resp.status
+            body = resp.read()
+    except urllib.error.HTTPError as exc:
+        return False, (
+            f"The listener on {probe_host}:{port} answered /health with HTTP "
+            f"{exc.code} — that port may belong to another service."
+        )
+    except Exception:
+        return False, (
+            f"The gateway is running but nothing answered on {probe_host}:{port}. "
+            "Restart the gateway so Teams comes up, or check `work4you logs` for "
+            "missing credentials, a failed SDK install, or a port conflict."
+        )
+
+    if status != 200:
+        return False, (
+            f"The listener on {probe_host}:{port} answered /health with HTTP "
+            f"{status} — that port may belong to another service."
+        )
+
+    if body.decode("utf-8", "replace").strip() != "ok":
+        return False, (
+            f"Something is listening on {probe_host}:{port} but /health did not "
+            "answer 'ok' — that port probably belongs to another service."
+        )
+
+    bind_note = "network-exposed" if host and host not in _MSGRAPH_LOOPBACK else (
+        "localhost-only" if host else "all interfaces"
+    )
+    return True, (
+        f"Listener is up on port {port} ({bind_note}). Register {endpoint} as the "
+        f"bot messaging endpoint.{tunnel_note}"
+    )
+
+
 def _a2a_load_agents() -> dict[str, Any]:
     cfg = load_config() or {}
     agents = cfg.get("a2a_agents") or {}
@@ -11537,6 +11739,38 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
         }
         ok, message = await asyncio.to_thread(
             _msgraph_live_test,
+            live_env,
+            extra,
+            bool(payload["gateway_running"]),
+        )
+        return {"ok": ok, "state": payload["state"], "message": message}
+    if platform_id == "teams":
+        # GET /health is unauthenticated and local — same cheap probe as the
+        # Graph listener. Bind + public origin live in .env and
+        # platforms.teams.extra, so collect extra under the payload's profile.
+        def _collect_teams_info():
+            with _profile_scope(profile):
+                cfg = load_config() or {}
+                plat = (cfg.get("platforms") or {}).get("teams") or {}
+                extra = plat.get("extra") or {} if isinstance(plat, dict) else {}
+                if not isinstance(extra, dict):
+                    extra = {}
+                return extra
+
+        extra = await asyncio.to_thread(_collect_teams_info)
+        live_env = {
+            key: (env_on_disk.get(key) or ("" if profile_scoped else os.getenv(key, "")))
+            for key in (
+                "TEAMS_CLIENT_ID",
+                "TEAMS_CLIENT_SECRET",
+                "TEAMS_TENANT_ID",
+                "TEAMS_PORT",
+                "TEAMS_HOST",
+                "TEAMS_PUBLIC_URL",
+            )
+        }
+        ok, message = await asyncio.to_thread(
+            _teams_live_test,
             live_env,
             extra,
             bool(payload["gateway_running"]),

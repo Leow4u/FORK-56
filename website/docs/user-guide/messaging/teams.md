@@ -100,7 +100,16 @@ TEAMS_TENANT_ID=<your-tenant-id>
 # Restrict access to specific users (recommended)
 # Use AAD object IDs from `teams status --verbose`
 TEAMS_ALLOWED_USERS=<your-aad-object-id>
+
+# The public HTTPS origin from Step 2, so the dashboard shows the messaging
+# endpoint Azure needs (this origin + /api/messages) instead of localhost
+TEAMS_PUBLIC_URL=https://<your-tunnel-url>
 ```
+
+The dashboard's Channels page and the desktop app's Teams quick setup both read
+`TEAMS_PUBLIC_URL`, show the resulting messaging endpoint with a copy button, and
+warn while it is still pointing at localhost — the state where the bot installs
+but never answers.
 
 ---
 
@@ -168,6 +177,7 @@ Open the printed link in your browser — it opens directly in the Teams client.
 | `TEAMS_HOME_CHANNEL` | Conversation ID for cron/proactive message delivery |
 | `TEAMS_HOME_CHANNEL_NAME` | Display name for the home channel |
 | `TEAMS_PORT` | Webhook port (default: `3978`) |
+| `TEAMS_PUBLIC_URL` | Public HTTPS origin of the tunnel / reverse proxy; the dashboard appends `/api/messages` |
 
 ### config.yaml
 

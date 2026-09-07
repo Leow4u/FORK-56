@@ -1382,6 +1382,10 @@ export const zhHant = defineLocale({
       msgraphClientState: 'clientState 密鑰至少 16 個字元，且不能是佔位符。請使用「產生密鑰」（openssl rand -hex 32）。',
       msgraphPublicUrl: (value: string) =>
         `${value} 不是有效的公開 URL。Graph 拒絕 HTTP——請使用 https:// 來源，例如 https://your-tunnel.example。`,
+      teamsGuid: (value: string) =>
+        `${value} 不是 Azure AD GUID。請使用 Azure 門戶中的 ID，例如 00000000-0000-0000-0000-000000000000——不要填應用名稱或 UPN。`,
+      teamsPublicUrl: (value: string) =>
+        `${value} 不是有效的公開 URL。Teams 拒絕純 HTTP 端點——請使用 https:// 來源，例如 https://your-tunnel.example。`,
       webhookSecret:
         '請使用 16 個字元以上的隨機密鑰。「INSECURE_NO_AUTH」會在所有回退到此全域密鑰的路由上停用簽名驗證。',
       whatsappNumber: (value: string) => `${value} 不像是 WhatsApp 號碼。請使用含國碼的完整號碼，例如 15551234567。`
@@ -1621,6 +1625,52 @@ export const zhHant = defineLocale({
       copied: '已複製到剪貼簿。',
       copyFailed: '無法複製到剪貼簿。',
       openGuide: 'Graph webhook 指南'
+    },
+    teamsQuickSetup: {
+      title: '快速設定',
+      recommended: '建議',
+      intro:
+        '這是 Teams 聊天機器人——使用者傳訊息給它，Work4You 回覆。貼上 Azure 機器人註冊的三個 ID，然後把下面的訊息端點複製到 Azure。Teams 從公網呼叫你的機器人，因此本機安裝需要先開通道。',
+      replacesExisting: 'Teams 已設定。在此儲存會取代已存的機器人憑證與繫結。',
+      credentialsHelp:
+        '來自 Azure 機器人註冊：應用程式（用戶端）ID、目錄（租戶）ID 與用戶端密鑰。`teams app create` 會印出這三項。',
+      clientIdLabel: '應用程式（用戶端）ID',
+      tenantIdLabel: '目錄（租戶）ID',
+      clientSecretLabel: '用戶端密鑰',
+      guidPlaceholder: '00000000-0000-0000-0000-000000000000',
+      secretPlaceholder: '貼上用戶端密鑰值',
+      secretKeepPlaceholder: '已儲存——留空則保持不變',
+      secretWarning: '用戶端密鑰在 Azure 中只顯示一次，會依你選擇的週期到期，且持有者可完全操控你的機器人。請當作密碼對待。',
+      openPortal: 'Azure 門戶',
+      idsRequired: '請先填寫用戶端 ID 與租戶 ID——缺少它們配接器將拒絕啟動。',
+      secretRequired: '請先填寫用戶端密鑰——缺少它配接器將拒絕啟動。',
+      bindLabel: '誰可以存取機器人監聽器',
+      bindLocalhost: '僅本機（127.0.0.1）',
+      bindRemote: '網路（0.0.0.0）',
+      bindHelp: '在通道或反向代理後面應選本機。只有當 Teams 流量直達這台機器時才選網路。',
+      endpointTitle: '機器人訊息端點',
+      endpointHint:
+        '在 Azure 中註冊此 URL（機器人設定 → 訊息端點，或 `teams app update --endpoint`）。Work4You 監聽 /api/messages 路徑。',
+      copyEndpoint: '複製端點',
+      publicUrlLabel: '公開 HTTPS 來源',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp:
+        'Teams 拒絕純 HTTP 端點。請在通道或反向代理處終止 TLS，然後貼上 https:// 來源——上面的端點會隨之更新。',
+      tunnelWarning:
+        '沒有公開來源時端點指向 localhost，而 Teams 無法存取：機器人能安裝但永不回覆。請啟動通道（cloudflared、ngrok）並貼上其 https:// 來源。',
+      allowedUsersLabel: '允許的使用者',
+      allowedUsersPlaceholder: '00000000-0000-0000-0000-000000000000, …',
+      allowedUsersHelp:
+        '逗號分隔的 Azure AD 物件 ID——執行 `teams status --verbose` 可查看傳訊給機器人者的 ID。用 * 允許租戶內所有人。',
+      openWarning: '沒有允許清單時，租戶內任何能找到機器人的人都能操控你的代理。至少加入你自己的物件 ID。',
+      pipelineTitle: '會議與 Graph 通知',
+      pipelineHelp:
+        '會議轉錄和其他 Graph 變更通知走單獨的 Graph webhook 卡片，用 `work4you teams-pipeline subscribe` 訂閱。此卡片只負責聊天機器人。',
+      saved: 'Teams 已儲存並啟用。重新啟動閘道即可啟動機器人監聽器。',
+      saveFailed: '無法儲存 Teams 設定。',
+      copied: '已複製到剪貼簿。',
+      copyFailed: '無法複製到剪貼簿。',
+      openGuide: 'Teams 指南'
     },
     smsQuickSetup: {
       title: '快速設定',
@@ -1975,7 +2025,37 @@ export const zhHant = defineLocale({
         label: '公開 HTTPS 來源',
         placeholder: 'https://your-tunnel.example',
         help: 'Graph 拒絕 HTTP。貼上 /msgraph/webhook 前面的 https:// 來源。'
-      }
+      },
+      TEAMS_CLIENT_ID: {
+        label: '應用程式（用戶端）ID',
+        placeholder: '00000000-0000-0000-0000-000000000000',
+        help: 'Azure 機器人註冊 ID。`teams app create` 會印出它。'
+      },
+      TEAMS_TENANT_ID: {
+        label: '目錄（租戶）ID',
+        placeholder: '00000000-0000-0000-0000-000000000000',
+        help: '機器人註冊所在的 Azure AD 租戶。'
+      },
+      TEAMS_CLIENT_SECRET: {
+        label: '用戶端密鑰',
+        help: '在 Azure 中只顯示一次，並依你選擇的週期到期。持有者可完全操控你的機器人。'
+      },
+      TEAMS_ALLOWED_USERS: {
+        label: '允許的使用者',
+        placeholder: '00000000-0000-0000-0000-000000000000',
+        help: '逗號分隔的 Azure AD 物件 ID（`teams status --verbose`）。用 * 允許整個租戶。'
+      },
+      TEAMS_PUBLIC_URL: {
+        label: '公開 HTTPS 來源',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Teams 拒絕純 HTTP。貼上 /api/messages 前面的 https:// 來源。'
+      },
+      TEAMS_HOST: {
+        label: '繫結位址',
+        placeholder: '127.0.0.1',
+        help: '快速設定預設 127.0.0.1（通道/代理）。留空則繫結所有介面，IPv4 與 IPv6。'
+      },
+      TEAMS_PORT: { label: '埠', placeholder: '3978' }
     },
     platformIntro: {}
   },
