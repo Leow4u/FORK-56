@@ -472,6 +472,9 @@ def _env_enablement() -> dict | None:
     service_url = os.getenv("TEAMS_SERVICE_URL", "").strip()
     if service_url:
         seed["service_url"] = service_url
+    public_url = os.getenv("TEAMS_PUBLIC_URL", "").strip()
+    if public_url:
+        seed["public_url"] = public_url
     home = os.getenv("TEAMS_HOME_CHANNEL", "").strip()
     if home:
         seed["home_channel"] = {
@@ -805,6 +808,16 @@ class TeamsAdapter(BasePlatformAdapter):
             )
             return False
 
+        # Prevent two profiles from running the same bot registration: both
+        # would race for the messaging port and Teams would deliver to
+        # whichever bound first.
+        if not self._acquire_platform_lock(
+            "teams-bot-app",
+            f"{self._tenant_id}:{self._client_id}",
+            "Teams bot registration",
+        ):
+            return False
+
         try:
             # Set up aiohttp app first — the bridge adapter wires SDK routes into it.
             # client_max_size: Bot Framework activities are JSON (caps out well
@@ -853,6 +866,16 @@ class TeamsAdapter(BasePlatformAdapter):
             return True
 
         except Exception as e:
+            # A half-started listener must not keep the bot app locked, or the
+            # reconnect watcher can never re-acquire it.
+            if self._runner:
+                try:
+                    await self._runner.cleanup()
+                except Exception:
+                    pass
+                self._runner = None
+            self._app = None
+            self._release_platform_lock()
             self._set_fatal_error(
                 "CONNECT_FAILED",
                 f"Teams connection failed: {e}",
@@ -867,6 +890,8 @@ class TeamsAdapter(BasePlatformAdapter):
             await self._runner.cleanup()
             self._runner = None
         self._app = None
+        # Release the scoped lock so another profile can use this bot app
+        self._release_platform_lock()
         self._mark_disconnected()
         logger.info("[teams] Disconnected")
 

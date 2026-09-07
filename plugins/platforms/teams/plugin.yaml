@@ -34,8 +34,12 @@ optional_env:
     description: "Webhook bind host (default: unset → dual-stack, all interfaces IPv4+IPv6)"
     prompt: "Webhook host"
     password: false
+  - name: TEAMS_PUBLIC_URL
+    description: "Public HTTPS origin registered as the bot messaging endpoint (tunnel or reverse proxy); the path is /api/messages"
+    prompt: "Public HTTPS origin"
+    password: false
   - name: TEAMS_ALLOWED_USERS
-    description: "Comma-separated Teams user IDs / UPNs allowed to talk to the bot"
+    description: "Comma-separated AAD object IDs allowed to talk to the bot (teams status --verbose)"
     prompt: "Allowed users (comma-separated)"
     password: false
   - name: TEAMS_ALLOW_ALL_USERS
