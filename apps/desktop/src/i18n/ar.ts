@@ -1222,6 +1222,12 @@ export const ar = defineLocale({
       emailHost: (value: string) =>
         `${value} ليس اسم مضيف خادم بريد صالحًا. استخدم اسم مضيف مثل imap.gmail.com — بدون http:// أو مسافات.`,
       emailPort: (value: string) => `${value} ليس منفذًا صالحًا. استخدم رقمًا بين 1 و65535.`,
+      googleChatEventsUrl: (value: string) =>
+        `${value} ليس عنوان استدعاء صالحًا. استخدم عنوان HTTPS العام الكامل، مثل https://your-domain.com/chat/events.`,
+      googleChatProjectId: (value: string) =>
+        `${value} ليس معرّف مشروع Google Cloud صالحًا — أحرف صغيرة وأرقام وشرطات فقط، مثل my-project-id.`,
+      googleChatSubscription: (value: string) =>
+        `${value} ليس مسار اشتراك Pub/Sub كاملاً. استخدم projects/<project>/subscriptions/<name>.`,
       slackMemberId: (value: string) => `${value} لا يبدو معرف عضو Slack. استخدم معرفات مثل U01ABC2DEF3.`,
       slackTokenPrefix: (prefix: string) => `يجب أن يبدأ هذا الرمز بـ ${prefix}`,
       smsNumber: (value: string) =>
@@ -1295,6 +1301,51 @@ export const ar = defineLocale({
       hostsRequired: 'أدخل مضيفي IMAP وSMTP، أو اختر مزودًا.',
       saved: 'تم حفظ البريد الإلكتروني وتفعيله. أعد تشغيل البوابة للاتصال.',
       saveFailed: 'تعذر حفظ إعدادات البريد الإلكتروني.'
+    },
+    googleChatQuickSetup: {
+      title: 'الإعداد السريع',
+      recommended: 'موصى به',
+      intro:
+        'اختر طريقة وصول أحداث Google Chat إلى Work4You، واملأ حقول ذلك الوضع فقط ثم احفظ. يتطلب حساب Google Workspace وتطبيق Chat مُعدًّا في وحدة تحكم Google Cloud.',
+      replacesExisting: 'Google Chat مُعدّ بالفعل. الحفظ هنا يستبدل الإعدادات المخزنة.',
+      modePubsub: 'Pub/Sub (موصى به)',
+      modeHttp: 'استدعاء HTTP',
+      pubsubModeHint:
+        'يسحب Work4You الأحداث من اشتراك Cloud Pub/Sub — دون حاجة إلى عنوان URL عام. الأنسب للأجهزة خلف NAT أو جدار حماية.',
+      httpModeHint:
+        'يدفع Google الأحداث إلى نقطة نهاية HTTPS عامة على نطاقك. يتطلب عنوانًا يمكن الوصول إليه من الإنترنت.',
+      saJsonHelp: 'مفتاح حساب الخدمة — مسار ملف JSON الذي نزّلته، أو محتوى JSON نفسه.',
+      saJsonLabel: 'JSON حساب الخدمة',
+      saJsonHint:
+        'اختياري إذا كان الجهاز يملك بيانات الاعتماد الافتراضية للتطبيق (gcloud auth application-default login)؛ وإلا فهو مطلوب.',
+      openConsole: 'افتح وحدة تحكم Google Cloud',
+      projectHelp: 'معرّف مشروع Google Cloud الذي يستضيف تطبيق Chat وموضوع Pub/Sub.',
+      projectLabel: 'معرّف المشروع',
+      subscriptionHelp: 'مسار اشتراك Pub/Sub الكامل الذي تسحب البوابة الأحداث منه.',
+      subscriptionLabel: 'مسار الاشتراك',
+      eventsUrlHelp: 'عنوان HTTPS العام الذي يدفع Google Chat الأحداث إليه.',
+      eventsUrlLabel: 'عنوان أحداث HTTP',
+      saEmailHelp:
+        'البريد الإلكتروني لحساب الخدمة الذي يوقّع Google به رموز الأحداث — يُستخدم للتحقق من الطلبات الواردة.',
+      saEmailLabel: 'بريد حساب خدمة التطبيق',
+      audienceHelp: 'اختياري. جمهور الرمز (audience) — يكون افتراضيًا عنوان الأحداث عند تركه فارغًا.',
+      audienceLabel: 'جمهور الرمز',
+      allowedUsersHelp:
+        'موصى به. عناوين بريد حسابات Google المسموح لها بمحادثة الوكيل مفصولة بفواصل — يُتجاهل الجميع عداها.',
+      allowedUsersLabel: 'المستخدمون المسموح لهم',
+      checklistTitle: 'في وحدة تحكم Google Cloud',
+      pubsubStep1: 'فعّل Google Chat API و Pub/Sub API.',
+      pubsubStep2: 'أنشئ موضوعًا وامنح chat-api-push@system.gserviceaccount.com دور Pub/Sub Publisher عليه.',
+      pubsubStep3: 'أنشئ اشتراكًا على الموضوع وامنح حساب الخدمة دوري Pub/Sub Subscriber و Viewer عليه.',
+      pubsubStep4: 'في إعدادات Chat API، وجّه إعدادات الاتصال (Connection settings) إلى ذلك الموضوع.',
+      httpStep1: 'فعّل Google Chat API.',
+      httpStep2: 'في إعدادات Chat API، اضبط إعدادات الاتصال على App URL مع عنوان الأحداث الخاص بك.',
+      openChatApi: 'افتح إعدادات Chat API',
+      projectMismatch: 'معرّف المشروع لا يطابق المشروع داخل مسار الاشتراك.',
+      pubsubFieldsRequired: 'أدخل معرّف المشروع ومسار الاشتراك أولاً.',
+      httpFieldsRequired: 'أدخل عنوان الأحداث وبريد حساب خدمة التطبيق أولاً.',
+      saved: 'تم حفظ Google Chat وتفعيله. أعد تشغيل البوابة للاتصال.',
+      saveFailed: 'تعذّر حفظ إعدادات Google Chat.'
     },
     smsQuickSetup: {
       title: 'الإعداد السريع',
@@ -1522,6 +1573,40 @@ export const ar = defineLocale({
         label: 'المرسلون المسموح بهم',
         help: 'موصى به. عناوين مفصولة بفواصل يُسمح لها بمحادثة الوكيل — يتم تجاهل الآخرين.',
         placeholder: 'you@example.com'
+      },
+      GOOGLE_CHAT_SERVICE_ACCOUNT_JSON: {
+        label: 'JSON حساب الخدمة',
+        help: 'مسار ملف المفتاح الذي نزّلته، أو محتوى JSON نفسه. اتركه فارغًا لاستخدام بيانات الاعتماد الافتراضية للتطبيق.',
+        placeholder: '/path/to/service-account.json'
+      },
+      GOOGLE_CHAT_PROJECT_ID: {
+        label: 'معرّف المشروع',
+        help: 'مشروع Google Cloud الذي يستضيف تطبيق Chat وموضوع Pub/Sub (وضع Pub/Sub).',
+        placeholder: 'my-project-id'
+      },
+      GOOGLE_CHAT_SUBSCRIPTION_NAME: {
+        label: 'مسار الاشتراك',
+        help: 'مسار اشتراك Pub/Sub الكامل الذي تسحب البوابة الأحداث منه (وضع Pub/Sub).',
+        placeholder: 'projects/my-project-id/subscriptions/work4you-chat'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_URL: {
+        label: 'عنوان أحداث HTTP',
+        help: 'عنوان HTTPS العام الذي يدفع Google Chat الأحداث إليه (وضع استدعاء HTTP).',
+        placeholder: 'https://your-domain.com/chat/events'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE: {
+        label: 'جمهور الرمز',
+        help: 'اختياري. جمهور رموز الأحداث الموقعة من Google — الافتراضي هو عنوان الأحداث.'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL: {
+        label: 'بريد حساب خدمة التطبيق',
+        help: 'البريد الإلكتروني لحساب الخدمة الذي يوقّع Google به رموز الأحداث (وضع استدعاء HTTP).',
+        placeholder: 'work4you-chat@my-project-id.iam.gserviceaccount.com'
+      },
+      GOOGLE_CHAT_ALLOWED_USERS: {
+        label: 'المستخدمون المسموح لهم',
+        help: 'موصى به. عناوين بريد حسابات Google المسموح لها بمحادثة الوكيل مفصولة بفواصل — يُتجاهل الجميع عداها.',
+        placeholder: 'you@yourcompany.com'
       },
       TWILIO_ACCOUNT_SID: {
         label: 'Twilio Account SID',

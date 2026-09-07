@@ -1410,6 +1410,9 @@ export interface Translations {
       emailAddress: (value: string) => string
       emailHost: (value: string) => string
       emailPort: (value: string) => string
+      googleChatEventsUrl: (value: string) => string
+      googleChatProjectId: (value: string) => string
+      googleChatSubscription: (value: string) => string
       slackMemberId: (value: string) => string
       slackTokenPrefix: (prefix: string) => string
       smsNumber: (value: string) => string
@@ -1465,6 +1468,45 @@ export interface Translations {
       allowedUsersPlaceholder: string
       addressAndPasswordRequired: string
       hostsRequired: string
+      saved: string
+      saveFailed: string
+    }
+    googleChatQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      modePubsub: string
+      modeHttp: string
+      pubsubModeHint: string
+      httpModeHint: string
+      saJsonHelp: string
+      saJsonLabel: string
+      saJsonHint: string
+      openConsole: string
+      projectHelp: string
+      projectLabel: string
+      subscriptionHelp: string
+      subscriptionLabel: string
+      eventsUrlHelp: string
+      eventsUrlLabel: string
+      saEmailHelp: string
+      saEmailLabel: string
+      audienceHelp: string
+      audienceLabel: string
+      allowedUsersHelp: string
+      allowedUsersLabel: string
+      checklistTitle: string
+      pubsubStep1: string
+      pubsubStep2: string
+      pubsubStep3: string
+      pubsubStep4: string
+      httpStep1: string
+      httpStep2: string
+      openChatApi: string
+      projectMismatch: string
+      pubsubFieldsRequired: string
+      httpFieldsRequired: string
       saved: string
       saveFailed: string
     }

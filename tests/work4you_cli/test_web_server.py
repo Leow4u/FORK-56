@@ -1607,6 +1607,136 @@ class TestWebServerEndpoints:
         # Default ports applied when the optional port vars are unset.
         assert seen_smtp == [("smtp.example.com", 587)]
 
+    def test_google_chat_catalog_reflects_the_two_inbound_modes(self):
+        """Google Chat has no unconditionally-required var (SA JSON falls back
+        to ADC; inbound is Pub/Sub OR HTTP callbacks). The card must expose
+        both mode groups via required_env_any, keep a mode-grouped field
+        order (not alphabetical), and link the Work4You guide."""
+        resp = self.client.get("/api/messaging/platforms")
+        assert resp.status_code == 200
+        rows = {row["id"]: row for row in resp.json()["platforms"]}
+        gchat = rows["google_chat"]
+
+        keys = [field["key"] for field in gchat["env_vars"]]
+        assert {
+            "GOOGLE_CHAT_SERVICE_ACCOUNT_JSON",
+            "GOOGLE_CHAT_PROJECT_ID",
+            "GOOGLE_CHAT_SUBSCRIPTION_NAME",
+            "GOOGLE_CHAT_HTTP_EVENTS_URL",
+            "GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE",
+            "GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL",
+            "GOOGLE_CHAT_ALLOWED_USERS",
+        } <= set(keys)
+        # Self-configuring knob stays hidden (suffix rule).
+        assert "GOOGLE_CHAT_HOME_CHANNEL" not in keys
+        # Mode grouping: the audience derives its default from the events URL,
+        # so it must render after it; project pairs with subscription.
+        assert keys.index("GOOGLE_CHAT_HTTP_EVENTS_URL") < keys.index(
+            "GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE"
+        )
+        assert keys.index("GOOGLE_CHAT_PROJECT_ID") < keys.index(
+            "GOOGLE_CHAT_SUBSCRIPTION_NAME"
+        )
+
+        assert not any(field["required"] for field in gchat["env_vars"])
+        assert gchat["docs_url"].rstrip("/").endswith("messaging/google_chat")
+
+    def test_google_chat_test_reports_the_mode_options_when_unconfigured(self):
+        """With only the (optional) SA JSON set, the platform is NOT
+        configured — /test must spell out the two inbound-mode options
+        instead of the generic 'setup is incomplete'."""
+        from work4you_cli.config import load_config, save_config, save_env_value
+
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["google_chat"] = {"enabled": True}
+        save_config(cfg)
+        save_env_value("GOOGLE_CHAT_SERVICE_ACCOUNT_JSON", "/tmp/sa.json")
+
+        body = self.client.post("/api/messaging/platforms/google_chat/test").json()
+        assert body["ok"] is False
+        assert "GOOGLE_CHAT_PROJECT_ID + GOOGLE_CHAT_SUBSCRIPTION_NAME" in body["message"]
+        assert "GOOGLE_CHAT_HTTP_EVENTS_URL" in body["message"]
+
+    def test_google_chat_test_endpoint_runs_the_live_probe(self, monkeypatch):
+        """Once one inbound-mode group is complete (here: Pub/Sub), /test must
+        route into _google_chat_live_test with the profile's env and pass its
+        verdict through — instead of the old generic gateway-running check.
+
+        Uses a scoped profile so `configured` is computed from env alone (the
+        default-profile path consults the gateway plugin registry, which needs
+        google-cloud-pubsub installed — not a test dependency)."""
+        import work4you_cli.web_server as ws
+        from work4you_cli import profiles as profiles_mod
+
+        profiles_mod.get_profile_dir("worker").mkdir(parents=True)
+        resp = self.client.put(
+            "/api/messaging/platforms/google_chat?profile=worker",
+            json={
+                "enabled": True,
+                "env": {
+                    "GOOGLE_CHAT_PROJECT_ID": "my-project",
+                    "GOOGLE_CHAT_SUBSCRIPTION_NAME": (
+                        "projects/my-project/subscriptions/work4you-sub"
+                    ),
+                },
+            },
+        )
+        assert resp.status_code == 200
+
+        seen: dict = {}
+
+        def fake_live_test(env):
+            seen.update(env)
+            return False, "Pub/Sub subscription was not found."
+
+        monkeypatch.setattr(ws, "_google_chat_live_test", fake_live_test)
+        body = self.client.post(
+            "/api/messaging/platforms/google_chat/test?profile=worker"
+        ).json()
+        assert body["ok"] is False
+        assert "not found" in body["message"]
+        assert seen["GOOGLE_CHAT_PROJECT_ID"] == "my-project"
+
+        monkeypatch.setattr(
+            ws, "_google_chat_live_test", lambda env: (True, "Credentials verified.")
+        )
+        body = self.client.post(
+            "/api/messaging/platforms/google_chat/test?profile=worker"
+        ).json()
+        assert body["ok"] is True
+        assert "Restart the gateway" in body["message"]
+
+    def test_google_chat_live_test_validates_config_before_touching_google(self):
+        """The pre-credential validation layer must catch the classic setup
+        mistakes with actionable messages, without any network or google-lib
+        dependency."""
+        import work4you_cli.web_server as ws
+
+        ok, message = ws._google_chat_live_test({})
+        assert ok is False
+        assert "one inbound mode" in message
+
+        ok, message = ws._google_chat_live_test(
+            {"GOOGLE_CHAT_SUBSCRIPTION_NAME": "work4you-sub"}
+        )
+        assert ok is False
+        assert "projects/<project>/subscriptions/<subscription>" in message
+
+        ok, message = ws._google_chat_live_test(
+            {
+                "GOOGLE_CHAT_PROJECT_ID": "other-project",
+                "GOOGLE_CHAT_SUBSCRIPTION_NAME": "projects/my-project/subscriptions/s",
+            }
+        )
+        assert ok is False
+        assert "does not match" in message
+
+        ok, message = ws._google_chat_live_test(
+            {"GOOGLE_CHAT_HTTP_EVENTS_URL": "https://example.com/chat"}
+        )
+        assert ok is False
+        assert "GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL" in message
+
     def test_sms_catalog_surfaces_everything_the_adapter_requires(self):
         """The SMS card must require every var the adapter hard-fails without
         at connect() (from-number, public webhook URL), surface the allowlist

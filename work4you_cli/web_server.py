@@ -8670,8 +8670,32 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     },
     "google_chat": {
         "name": "Google Chat",
-        "description": "Connect Work4You to Google Chat via Cloud Pub/Sub.",
+        "description": (
+            "Connect Work4You to Google Chat via Cloud Pub/Sub or HTTP callbacks."
+        ),
         "docs_url": "https://work4you.ai/docs/user-guide/messaging/google_chat",
+        # Logical, mode-grouped order. Without this the card falls back to
+        # alphabetical discovery, which puts the HTTP token audience above
+        # the callback URL it defaults to and buries the project ID.
+        "env_vars": (
+            "GOOGLE_CHAT_SERVICE_ACCOUNT_JSON",
+            "GOOGLE_CHAT_PROJECT_ID",
+            "GOOGLE_CHAT_SUBSCRIPTION_NAME",
+            "GOOGLE_CHAT_HTTP_EVENTS_URL",
+            "GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE",
+            "GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL",
+            "GOOGLE_CHAT_ALLOWED_USERS",
+        ),
+        # Nothing is unconditionally required: the SA JSON falls back to
+        # Application Default Credentials (its own description says "leave
+        # empty"), and inbound needs EITHER Pub/Sub (project + subscription)
+        # OR the HTTP events URL. The OR lives in required_env_any; the
+        # registry's required_env=[SA JSON] was wrong in both directions.
+        "required_env": (),
+        "required_env_any": (
+            ("GOOGLE_CHAT_PROJECT_ID", "GOOGLE_CHAT_SUBSCRIPTION_NAME"),
+            ("GOOGLE_CHAT_HTTP_EVENTS_URL",),
+        ),
     },
     "wecom": {
         "name": "WeCom (group bot)",
@@ -9186,6 +9210,11 @@ def _build_catalog_entry(
         "env_vars": env_vars,
         "required_env": required_env,
         "strict_env_required": bool(override.get("strict_env_required")),
+        # Tuple of alternative env-var groups — the platform is configured
+        # when ANY one group is fully present (on top of required_env).
+        # Used for platforms whose adapter accepts alternative inbound
+        # modes (Google Chat: Pub/Sub OR HTTP callbacks).
+        "required_env_any": tuple(override.get("required_env_any", ())),
     }
 
 
@@ -9290,6 +9319,11 @@ def _messaging_platform_payload(
             enabled = False
             home_channel = None
         configured = all(env_on_disk.get(key) for key in entry["required_env"])
+        if configured and entry.get("required_env_any"):
+            configured = any(
+                all(env_on_disk.get(key) for key in group)
+                for group in entry["required_env_any"]
+            )
     else:
         try:
             gateway_config, platform, platform_config = _gateway_platform_config(
@@ -9320,6 +9354,14 @@ def _messaging_platform_payload(
                 env_on_disk.get(key) or os.getenv(key, "")
                 for key in entry["required_env"]
             )
+            if configured and entry.get("required_env_any"):
+                configured = any(
+                    all(
+                        env_on_disk.get(key) or os.getenv(key, "")
+                        for key in group
+                    )
+                    for group in entry["required_env_any"]
+                )
             home_channel = None
 
     state = (
@@ -10555,6 +10597,139 @@ def _sms_live_test(env: dict[str, str]) -> tuple[bool, str]:
     return True, "Twilio credentials and phone number verified."
 
 
+_GCHAT_SUBSCRIPTION_RE = re.compile(
+    r"^projects/(?P<project>[^/]+)/subscriptions/[^/]+$"
+)
+_CHAT_BOT_SCOPES = ["https://www.googleapis.com/auth/chat.bot"]
+
+
+def _google_chat_live_test(env: dict[str, str]) -> tuple[bool, str]:
+    """Verify Google Chat credentials and (in Pub/Sub mode) the subscription.
+
+    Mirrors what the adapter's connect() checks at gateway startup — where a
+    failure only surfaces as a fatal log line — so the Test button can report
+    the same actionable errors (bad SA JSON, missing subscription, missing
+    Pub/Sub Subscriber IAM) without a save → restart → read-the-logs loop.
+    """
+    project = (env.get("GOOGLE_CHAT_PROJECT_ID") or env.get("GOOGLE_CLOUD_PROJECT") or "").strip()
+    subscription = (
+        env.get("GOOGLE_CHAT_SUBSCRIPTION_NAME") or env.get("GOOGLE_CHAT_SUBSCRIPTION") or ""
+    ).strip()
+    http_events_url = (env.get("GOOGLE_CHAT_HTTP_EVENTS_URL") or "").strip()
+    sa_value = (
+        env.get("GOOGLE_CHAT_SERVICE_ACCOUNT_JSON")
+        or env.get("GOOGLE_APPLICATION_CREDENTIALS")
+        or ""
+    ).strip()
+
+    if not subscription and not http_events_url:
+        return False, (
+            "Set up one inbound mode first: Pub/Sub (GOOGLE_CHAT_PROJECT_ID + "
+            "GOOGLE_CHAT_SUBSCRIPTION_NAME) or HTTP callbacks "
+            "(GOOGLE_CHAT_HTTP_EVENTS_URL)."
+        )
+
+    if subscription:
+        match = _GCHAT_SUBSCRIPTION_RE.match(subscription)
+        if not match:
+            return False, (
+                "GOOGLE_CHAT_SUBSCRIPTION_NAME must look like "
+                "projects/<project>/subscriptions/<subscription>."
+            )
+        if project and match.group("project") != project:
+            return False, (
+                f"GOOGLE_CHAT_PROJECT_ID ({project}) does not match the project "
+                f"inside the subscription path ({match.group('project')})."
+            )
+    elif not (env.get("GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL") or "").strip():
+        return False, (
+            "HTTP callback mode also needs "
+            "GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL — without it every "
+            "incoming event is rejected as unverifiable."
+        )
+
+    try:
+        from google.oauth2 import service_account as _sa
+        from google.auth.transport.requests import Request as _GoogleAuthRequest
+    except ImportError:
+        return False, (
+            "Google Chat libraries are not installed. Run `work4you setup` and "
+            "pick Google Chat to install them."
+        )
+
+    credentials = None
+    if sa_value:
+        try:
+            if sa_value.lstrip().startswith("{"):
+                info = json.loads(sa_value)
+            else:
+                sa_path = Path(sa_value).expanduser()
+                if not sa_path.exists():
+                    return False, f"Service Account JSON file not found at {sa_value}."
+                info = json.loads(sa_path.read_text(encoding="utf-8"))
+            credentials = _sa.Credentials.from_service_account_info(
+                info, scopes=_CHAT_BOT_SCOPES
+            )
+        except json.JSONDecodeError as exc:
+            return False, f"Service Account JSON is not valid JSON: {exc}."
+        except Exception as exc:
+            return False, f"Could not load the Service Account credentials: {exc}."
+    else:
+        try:
+            import google.auth as _google_auth
+
+            credentials, _ = _google_auth.default(scopes=_CHAT_BOT_SCOPES)
+        except Exception:
+            return False, (
+                "No Service Account JSON configured and Application Default "
+                "Credentials are unavailable on this machine. Paste the SA "
+                "JSON key path (or inline JSON)."
+            )
+
+    try:
+        credentials.refresh(_GoogleAuthRequest())
+    except Exception as exc:
+        return False, f"Google rejected the credentials: {exc}"
+
+    if subscription:
+        try:
+            from google.api_core import exceptions as _gax_exceptions
+            from google.cloud import pubsub_v1 as _pubsub_v1
+        except ImportError:
+            return False, (
+                "google-cloud-pubsub is not installed. Run `work4you setup` and "
+                "pick Google Chat to install it."
+            )
+        try:
+            subscriber = _pubsub_v1.SubscriberClient(credentials=credentials)
+            try:
+                subscriber.get_subscription(
+                    request={"subscription": subscription}, timeout=15.0
+                )
+            finally:
+                subscriber.close()
+        except _gax_exceptions.NotFound:
+            return False, (
+                f"Pub/Sub subscription {subscription} was not found — check the "
+                "path and that the subscription exists."
+            )
+        except _gax_exceptions.PermissionDenied:
+            return False, (
+                "The Service Account lacks Pub/Sub Subscriber (and Viewer) on "
+                "the subscription. Grant both on the subscription itself, and "
+                "remember chat-api-push@system.gserviceaccount.com needs "
+                "Pub/Sub Publisher on the topic."
+            )
+        except Exception as exc:
+            return False, f"Pub/Sub subscription check failed: {exc}"
+        return True, "Credentials verified and the Pub/Sub subscription is reachable."
+
+    return True, (
+        "Credentials verified. HTTP callback mode — make sure the Chat app in "
+        "the Google Cloud console points at your events URL."
+    )
+
+
 @app.post("/api/messaging/platforms/{platform_id}/test")
 async def test_messaging_platform(platform_id: str, profile: Optional[str] = None):
     entry = _catalog_lookup(platform_id)
@@ -10590,12 +10765,44 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
             for field in payload["env_vars"]
             if field["required"] and not field["is_set"]
         ]
-        message = (
-            f"Missing required setup: {', '.join(missing)}"
-            if missing
-            else "Platform setup is incomplete."
-        )
+        if missing:
+            message = f"Missing required setup: {', '.join(missing)}"
+        elif entry.get("required_env_any"):
+            # Alternative-mode platforms: no single var is "required", the
+            # user must complete one of the groups. Spell the options out.
+            options = " OR ".join(
+                " + ".join(group) for group in entry["required_env_any"]
+            )
+            message = f"Complete one of the setup options first: {options}"
+        else:
+            message = "Platform setup is incomplete."
         return {"ok": False, "state": payload["state"], "message": message}
+    if platform_id == "google_chat":
+        # Credentials + subscription are provable directly against Google's
+        # APIs (see _google_chat_live_test) — run before the gateway gate.
+        live_env = {
+            key: (env_on_disk.get(key) or ("" if profile_scoped else os.getenv(key, "")))
+            for key in (
+                "GOOGLE_CHAT_SERVICE_ACCOUNT_JSON",
+                "GOOGLE_APPLICATION_CREDENTIALS",
+                "GOOGLE_CHAT_PROJECT_ID",
+                "GOOGLE_CLOUD_PROJECT",
+                "GOOGLE_CHAT_SUBSCRIPTION_NAME",
+                "GOOGLE_CHAT_SUBSCRIPTION",
+                "GOOGLE_CHAT_HTTP_EVENTS_URL",
+                "GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL",
+            )
+        }
+        ok, message = await asyncio.to_thread(_google_chat_live_test, live_env)
+        if not ok:
+            return {"ok": False, "state": payload["state"], "message": message}
+        if payload["state"] == "connected":
+            return {"ok": True, "state": payload["state"], "message": "Google Chat is connected."}
+        return {
+            "ok": True,
+            "state": payload["state"],
+            "message": f"{message} Restart the gateway to connect.",
+        }
     if platform_id == "sms":
         # Twilio credentials are provable with the REST API directly (see
         # _sms_live_test) — run before the gateway_running gate, like email.

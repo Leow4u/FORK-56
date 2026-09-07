@@ -43,6 +43,7 @@ import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
 import { DiscordQuickSetup } from './discord-quick-setup'
 import { EmailQuickSetup } from './email-quick-setup'
+import { GoogleChatQuickSetup } from './google-chat-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackQuickSetup } from './slack-quick-setup'
 import { SmsQuickSetup } from './sms-quick-setup'
@@ -105,6 +106,15 @@ const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging'])
 
     case 'emailPort':
       return m.envErrors.emailPort(error.value)
+
+    case 'googleChatEventsUrl':
+      return m.envErrors.googleChatEventsUrl(error.value)
+
+    case 'googleChatProjectId':
+      return m.envErrors.googleChatProjectId(error.value)
+
+    case 'googleChatSubscription':
+      return m.envErrors.googleChatSubscription(error.value)
 
     case 'slackMemberId':
       return m.envErrors.slackMemberId(error.value)
@@ -841,6 +851,14 @@ function PlatformDetail({
         <SmsQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
       )}
 
+      {platform.id === 'google_chat' && (
+        <GoogleChatQuickSetup
+          configured={platform.configured}
+          onApplied={onQuickSetupApplied}
+          scopeProfile={scopeProfile}
+        />
+      )}
+
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
         <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
@@ -1028,6 +1046,8 @@ const PLATFORM_INTRO: Record<string, string> = {
   weixin:
     "Run `work4you gateway setup`, select Weixin, then scan and confirm the QR code with a personal WeChat account. Work4You connects through Tencent's iLink Bot API and saves the credentials.",
   qqbot: 'Register an app on the QQ Open Platform (q.qq.com) and copy the App ID and Client Secret.',
+  google_chat:
+    'Use Quick setup above — pick how events reach Work4You: Cloud Pub/Sub (recommended, no public URL) or an HTTPS callback endpoint. Needs a Google Workspace account, a Chat app in the Google Cloud console, and a Service Account key (or Application Default Credentials).',
   api_server:
     'Expose Work4You as an OpenAI-compatible API. Set an auth key, then point Open WebUI / LobeChat / etc. at the host:port.',
   webhook:

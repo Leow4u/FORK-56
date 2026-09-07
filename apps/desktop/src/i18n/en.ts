@@ -1599,6 +1599,12 @@ export const en: Translations = {
       emailHost: (value: string) =>
         `${value} is not a valid mail server host. Use a bare hostname like imap.gmail.com — no http:// or spaces.`,
       emailPort: (value: string) => `${value} is not a valid port. Use a number between 1 and 65535.`,
+      googleChatEventsUrl: (value: string) =>
+        `${value} is not a valid callback URL. Use the full public HTTPS URL, like https://your-domain.com/chat/events.`,
+      googleChatProjectId: (value: string) =>
+        `${value} is not a valid Google Cloud project ID — lowercase letters, digits, and hyphens, like my-project-id.`,
+      googleChatSubscription: (value: string) =>
+        `${value} is not a full Pub/Sub subscription path. Use projects/<project>/subscriptions/<name>.`,
       slackMemberId: (value: string) => `${value} does not look like a Slack member ID. Use IDs like U01ABC2DEF3.`,
       slackTokenPrefix: (prefix: string) => `This token must start with ${prefix}`,
       smsNumber: (value: string) =>
@@ -1674,6 +1680,52 @@ export const en: Translations = {
       hostsRequired: 'Enter the IMAP and SMTP hosts, or pick a provider.',
       saved: 'Email saved and enabled. Restart the gateway to connect.',
       saveFailed: 'Could not save the email settings.'
+    },
+    googleChatQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        'Pick how Google Chat events reach Work4You, fill in that mode only, and save. Needs a Google Workspace account and a Chat app configured in the Google Cloud console.',
+      replacesExisting: 'Google Chat is already configured. Saving here replaces the stored settings.',
+      modePubsub: 'Pub/Sub (recommended)',
+      modeHttp: 'HTTP callback',
+      pubsubModeHint:
+        'Work4You pulls events from a Cloud Pub/Sub subscription — no public URL needed. Best for machines behind NAT or a firewall.',
+      httpModeHint:
+        'Google pushes events to a public HTTPS endpoint on your domain. Requires a URL reachable from the internet.',
+      saJsonHelp: 'Service Account key — a path to the downloaded JSON file, or the JSON itself.',
+      saJsonLabel: 'Service Account JSON',
+      saJsonHint:
+        'Optional when the machine has Application Default Credentials (gcloud auth application-default login); otherwise required.',
+      openConsole: 'Open Google Cloud console',
+      projectHelp: 'Google Cloud project ID that hosts the Chat app and the Pub/Sub topic.',
+      projectLabel: 'Project ID',
+      subscriptionHelp: 'Full Pub/Sub subscription path the gateway pulls events from.',
+      subscriptionLabel: 'Subscription path',
+      eventsUrlHelp: 'Public HTTPS URL Google Chat pushes events to.',
+      eventsUrlLabel: 'HTTP events URL',
+      saEmailHelp: 'Service Account email Google signs event tokens with — used to verify incoming requests.',
+      saEmailLabel: 'App service account email',
+      audienceHelp: 'Optional. Token audience — defaults to the events URL when left empty.',
+      audienceLabel: 'Token audience',
+      allowedUsersHelp:
+        'Recommended. Comma-separated Google account emails allowed to talk to the agent — everyone else is ignored.',
+      allowedUsersLabel: 'Allowed users',
+      checklistTitle: 'In the Google Cloud console',
+      pubsubStep1: 'Enable the Google Chat API and the Pub/Sub API.',
+      pubsubStep2:
+        'Create a topic, and grant chat-api-push@system.gserviceaccount.com the Pub/Sub Publisher role on it.',
+      pubsubStep3:
+        'Create a subscription on the topic, and grant your Service Account Pub/Sub Subscriber and Viewer on it.',
+      pubsubStep4: 'In the Chat API configuration, set Connection settings to that topic.',
+      httpStep1: 'Enable the Google Chat API.',
+      httpStep2: 'In the Chat API configuration, set Connection settings to App URL with your events URL.',
+      openChatApi: 'Open Chat API configuration',
+      projectMismatch: 'The project ID does not match the project inside the subscription path.',
+      pubsubFieldsRequired: 'Enter the project ID and the subscription path first.',
+      httpFieldsRequired: 'Enter the events URL and the app service account email first.',
+      saved: 'Google Chat saved and enabled. Restart the gateway to connect.',
+      saveFailed: 'Could not save the Google Chat settings.'
     },
     smsQuickSetup: {
       title: 'Quick setup',
@@ -1930,6 +1982,40 @@ export const en: Translations = {
         label: 'Allowed senders',
         help: 'Recommended. Comma-separated E.164 phone numbers allowed to text the agent — everyone else is ignored.',
         placeholder: '+15559876543'
+      },
+      GOOGLE_CHAT_SERVICE_ACCOUNT_JSON: {
+        label: 'Service Account JSON',
+        help: 'Path to the downloaded key file, or the JSON itself. Leave empty to use Application Default Credentials.',
+        placeholder: '/path/to/service-account.json'
+      },
+      GOOGLE_CHAT_PROJECT_ID: {
+        label: 'Project ID',
+        help: 'Google Cloud project that hosts the Chat app and the Pub/Sub topic (Pub/Sub mode).',
+        placeholder: 'my-project-id'
+      },
+      GOOGLE_CHAT_SUBSCRIPTION_NAME: {
+        label: 'Subscription path',
+        help: 'Full Pub/Sub subscription path the gateway pulls events from (Pub/Sub mode).',
+        placeholder: 'projects/my-project-id/subscriptions/work4you-chat'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_URL: {
+        label: 'HTTP events URL',
+        help: 'Public HTTPS URL Google Chat pushes events to (HTTP callback mode).',
+        placeholder: 'https://your-domain.com/chat/events'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE: {
+        label: 'Token audience',
+        help: 'Optional. Audience of the Google-signed event tokens — defaults to the events URL.'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL: {
+        label: 'App service account email',
+        help: 'Service Account email Google signs event tokens with (HTTP callback mode).',
+        placeholder: 'work4you-chat@my-project-id.iam.gserviceaccount.com'
+      },
+      GOOGLE_CHAT_ALLOWED_USERS: {
+        label: 'Allowed users',
+        help: 'Recommended. Comma-separated Google account emails allowed to talk to the agent — everyone else is ignored.',
+        placeholder: 'you@yourcompany.com'
       },
       MATTERMOST_URL: { label: 'Server URL', placeholder: 'https://mattermost.example.com' },
       MATTERMOST_TOKEN: { label: 'Bot token' },
