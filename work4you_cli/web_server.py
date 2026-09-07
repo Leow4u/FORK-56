@@ -4785,6 +4785,131 @@ def _validate_messaging_env_value(platform_id: str, key: str, value: str) -> Non
             )
         return
 
+    if platform_id == "whatsapp_cloud":
+        # Same shape checks as the `work4you whatsapp-cloud` wizard
+        # (work4you_cli/setup_whatsapp_cloud.py) so both surfaces reject the
+        # same paste mistakes before a save → restart → fatal round trip.
+        if key == "WHATSAPP_CLOUD_PHONE_NUMBER_ID":
+            if not value.isdigit():
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "WHATSAPP_CLOUD_PHONE_NUMBER_ID must be numeric — no '+', "
+                        "spaces, or dashes."
+                    ),
+                )
+            if 10 <= len(value) <= 12:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "That looks like a phone number. WHATSAPP_CLOUD_PHONE_NUMBER_ID "
+                        "is Meta's internal Phone number ID (15-17 digits), shown "
+                        "just below the From dropdown in API Setup."
+                    ),
+                )
+            if not 13 <= len(value) <= 20:
+                raise HTTPException(
+                    status_code=400,
+                    detail="WHATSAPP_CLOUD_PHONE_NUMBER_ID should be 13-20 digits.",
+                )
+        if key == "WHATSAPP_CLOUD_ACCESS_TOKEN":
+            if not value.startswith("EAA"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "WHATSAPP_CLOUD_ACCESS_TOKEN must be a Meta access token, "
+                        "which starts with EAA (API Setup → Generate access token, "
+                        "or a System User token from Business Settings)."
+                    ),
+                )
+            if len(value) < 100:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"WHATSAPP_CLOUD_ACCESS_TOKEN looks truncated ({len(value)} "
+                        "characters; Meta tokens are 100+)."
+                    ),
+                )
+        if key == "WHATSAPP_CLOUD_APP_SECRET" and not re.fullmatch(
+            r"[0-9a-fA-F]{32}", value
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "WHATSAPP_CLOUD_APP_SECRET must be the 32-character hex App "
+                    "secret from App settings → Basic — not an access token."
+                ),
+            )
+        if key == "WHATSAPP_CLOUD_VERIFY_TOKEN" and (
+            len(value) < 16 or any(ch.isspace() for ch in value)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "WHATSAPP_CLOUD_VERIFY_TOKEN must be at least 16 characters "
+                    "with no spaces — use Generate token."
+                ),
+            )
+        if key in {"WHATSAPP_CLOUD_APP_ID", "WHATSAPP_CLOUD_WABA_ID"} and not (
+            value.isdigit() and 10 <= len(value) <= 25
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=f"{key} must be the numeric id from the Meta dashboard.",
+            )
+        if key == "WHATSAPP_CLOUD_ALLOWED_USERS":
+            for chunk in (part.strip() for part in value.split(",")):
+                if not chunk or chunk == "*" or "@" in chunk:
+                    continue
+                digits = re.sub(r"[\s()\-]", "", chunk)
+                if not re.fullmatch(r"\+?\d{5,20}", digits):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            "WHATSAPP_CLOUD_ALLOWED_USERS entries must be WhatsApp "
+                            "numbers with country code (like 15551234567), "
+                            "comma-separated."
+                        ),
+                    )
+        if key == "WHATSAPP_CLOUD_WEBHOOK_PORT":
+            try:
+                port = int(value)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail="WHATSAPP_CLOUD_WEBHOOK_PORT must be a number between 1 and 65535.",
+                ) from exc
+            if not 1 <= port <= 65535:
+                raise HTTPException(
+                    status_code=400,
+                    detail="WHATSAPP_CLOUD_WEBHOOK_PORT must be a number between 1 and 65535.",
+                )
+        if key == "WHATSAPP_CLOUD_WEBHOOK_HOST" and (
+            "://" in value or "/" in value or any(ch.isspace() for ch in value)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="WHATSAPP_CLOUD_WEBHOOK_HOST must be a bare hostname or IP like 127.0.0.1.",
+            )
+        if key == "WHATSAPP_CLOUD_WEBHOOK_PATH" and (
+            not value.startswith("/") or "://" in value or any(ch.isspace() for ch in value)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="WHATSAPP_CLOUD_WEBHOOK_PATH must be a path like /whatsapp/webhook.",
+            )
+        if key == "WHATSAPP_CLOUD_PUBLIC_URL" and (
+            not value.lower().startswith("https://") or " " in value
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "WHATSAPP_CLOUD_PUBLIC_URL must be an https:// origin — Meta "
+                    "refuses a plain-HTTP callback URL."
+                ),
+            )
+        return
+
     if platform_id != "slack":
         return
 
@@ -8983,8 +9108,35 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     },
     "whatsapp_cloud": {
         "name": "WhatsApp Cloud API",
-        "description": "Use Work4You via Meta's hosted WhatsApp Cloud API (no local bridge).",
+        "description": (
+            "Chat with Work4You on a WhatsApp Business number through Meta's "
+            "official Cloud API — no phone, QR code, or local bridge."
+        ),
         "docs_url": "https://work4you.ai/docs/user-guide/messaging/whatsapp-cloud",
+        # Pinned order: the two the adapter refuses to start without, then the
+        # two Meta's webhook needs (verify handshake + HMAC), then the
+        # allowlist and the tunnel origin. Bind / ids / API version are
+        # advanced in OPTIONAL_ENV_VARS. ALLOW_ALL_USERS / HOME_CHANNEL stay
+        # hidden by suffix.
+        "env_vars": (
+            "WHATSAPP_CLOUD_PHONE_NUMBER_ID",
+            "WHATSAPP_CLOUD_ACCESS_TOKEN",
+            "WHATSAPP_CLOUD_APP_SECRET",
+            "WHATSAPP_CLOUD_VERIFY_TOKEN",
+            "WHATSAPP_CLOUD_ALLOWED_USERS",
+            "WHATSAPP_CLOUD_PUBLIC_URL",
+            "WHATSAPP_CLOUD_WEBHOOK_HOST",
+            "WHATSAPP_CLOUD_WEBHOOK_PORT",
+            "WHATSAPP_CLOUD_WEBHOOK_PATH",
+            "WHATSAPP_CLOUD_APP_ID",
+            "WHATSAPP_CLOUD_WABA_ID",
+            "WHATSAPP_CLOUD_API_VERSION",
+        ),
+        # WhatsAppCloudAdapter.connect() sets a fatal error without these two.
+        "required_env": (
+            "WHATSAPP_CLOUD_PHONE_NUMBER_ID",
+            "WHATSAPP_CLOUD_ACCESS_TOKEN",
+        ),
     },
     "relay": {
         "name": "Relay (experimental)",
@@ -9004,6 +9156,7 @@ _PLATFORM_ORDER: tuple[str, ...] = (
     "mattermost",
     "matrix",
     "whatsapp",
+    "whatsapp_cloud",
     "signal",
     "bluebubbles",
     "homeassistant",
@@ -11518,6 +11671,275 @@ def _teams_live_test(
     )
 
 
+_WHATSAPP_CLOUD_DEFAULT_PORT = 8090
+_WHATSAPP_CLOUD_DEFAULT_PATH = "/whatsapp/webhook"
+_WHATSAPP_CLOUD_DEFAULT_API_VERSION = "v20.0"
+_WHATSAPP_CLOUD_GRAPH_BASE = "https://graph.facebook.com"
+
+
+def _whatsapp_cloud_resolve_endpoint(
+    env: dict[str, str], extra: dict
+) -> tuple[str, int | None, str, str, str]:
+    """Resolve the inbound bind the way ``WhatsAppCloudAdapter.__init__`` does.
+
+    Env wins over ``platforms.whatsapp_cloud.extra``, then 8090 /
+    ``/whatsapp/webhook`` / all interfaces. An unset host means dual-stack, so
+    probe loopback. Returns (host, port, path, probe_host, error).
+    """
+    raw_port = (env.get("WHATSAPP_CLOUD_WEBHOOK_PORT") or "").strip()
+    if raw_port:
+        try:
+            port = int(raw_port)
+        except ValueError:
+            return "", None, "", "", f"WHATSAPP_CLOUD_WEBHOOK_PORT must be a number, got {raw_port!r}."
+        if not 1 <= port <= 65535:
+            return "", None, "", "", f"WHATSAPP_CLOUD_WEBHOOK_PORT must be between 1 and 65535, got {port}."
+    else:
+        try:
+            port = int(extra.get("webhook_port", _WHATSAPP_CLOUD_DEFAULT_PORT))
+        except (TypeError, ValueError):
+            port = _WHATSAPP_CLOUD_DEFAULT_PORT
+
+    host = (env.get("WHATSAPP_CLOUD_WEBHOOK_HOST") or "").strip() or str(
+        extra.get("webhook_host") or ""
+    ).strip()
+    probe_host = "127.0.0.1" if not host or host in {"0.0.0.0", "::", "*"} else host
+
+    path = (env.get("WHATSAPP_CLOUD_WEBHOOK_PATH") or "").strip() or str(
+        extra.get("webhook_path") or _WHATSAPP_CLOUD_DEFAULT_PATH
+    ).strip() or _WHATSAPP_CLOUD_DEFAULT_PATH
+    if not path.startswith("/"):
+        path = f"/{path}"
+    return host, port, path, probe_host, ""
+
+
+def _whatsapp_cloud_callback_url(
+    env: dict[str, str], extra: dict, probe_host: str, port: int, path: str
+) -> str:
+    """The callback URL to paste into Meta's webhook configuration dialog."""
+    public = (
+        (env.get("WHATSAPP_CLOUD_PUBLIC_URL") or "").strip()
+        or str(extra.get("public_url") or "").strip()
+    ).rstrip("/")
+    if public:
+        return f"{public}{path}"
+    return f"http://{probe_host}:{port}{path}"
+
+
+def _whatsapp_cloud_graph_probe(env: dict[str, str], extra: dict) -> tuple[bool, str]:
+    """Prove the access token against Graph: GET /<version>/<phone_number_id>.
+
+    Same rationale as ``_sms_live_test``: the credential pair is provable with
+    one small authenticated GET, no gateway required. Catches the classic
+    failures (expired 24h temporary token, a phone *number* pasted where the
+    Phone number ID belongs, a token from a different app) before the save →
+    restart → read-the-logs round trip. Returns the display number on success.
+    """
+    phone_id = (
+        (env.get("WHATSAPP_CLOUD_PHONE_NUMBER_ID") or "").strip()
+        or str(extra.get("phone_number_id") or "").strip()
+    )
+    token = (env.get("WHATSAPP_CLOUD_ACCESS_TOKEN") or "").strip() or str(
+        extra.get("access_token") or ""
+    ).strip()
+    version = (env.get("WHATSAPP_CLOUD_API_VERSION") or "").strip() or str(
+        extra.get("api_version") or _WHATSAPP_CLOUD_DEFAULT_API_VERSION
+    ).strip()
+
+    url = (
+        f"{_WHATSAPP_CLOUD_GRAPH_BASE}/{version}/{phone_id}"
+        "?fields=display_phone_number,verified_name,quality_rating"
+    )
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            status = resp.status
+            body = resp.read()
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+        try:
+            body = exc.read()
+        except Exception:
+            body = b""
+    except Exception as exc:
+        return False, f"Could not reach the Meta Graph API: {exc}"
+
+    try:
+        payload = json.loads(body.decode("utf-8")) if body else {}
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+
+    if status >= 400:
+        error = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+        code = error.get("code")
+        detail = str(error.get("message") or "").strip()
+        if code == 190 or status == 401:
+            return False, (
+                "Meta rejected the access token (expired or revoked). A token "
+                "from API Setup lasts 24 hours — generate a permanent one under "
+                "Business Settings → System Users and save it here."
+            )
+        if code == 100 or status == 404:
+            return False, (
+                f"Meta has no phone number with ID {phone_id} for this token. "
+                "Paste the Phone number ID from API Setup (not the phone "
+                "number), and make sure the token's app owns that number."
+            )
+        if status == 403:
+            return False, (
+                "The token is valid but lacks permission for this number. Add "
+                "whatsapp_business_messaging and whatsapp_business_management "
+                "to the System User token."
+            )
+        suffix = f": {detail}" if detail else "."
+        return False, f"Meta Graph API returned HTTP {status}{suffix}"
+
+    display = str(payload.get("display_phone_number") or "").strip()
+    name = str(payload.get("verified_name") or "").strip()
+    who = " ".join(part for part in (display, f"({name})" if name else "") if part)
+    return True, (
+        f"Meta confirmed the access token for {who}."
+        if who
+        else "Meta confirmed the access token and Phone number ID."
+    )
+
+
+def _whatsapp_cloud_live_test(
+    env: dict[str, str], extra: dict, gateway_running: bool
+) -> tuple[bool, str]:
+    """Prove WhatsApp Cloud API setup: Graph credentials, then GET /health.
+
+    The credential pair is checked against Meta first (see
+    ``_whatsapp_cloud_graph_probe``). ``/health`` is unauthenticated (the
+    adapter registers it next to the webhook route) and reports whether the
+    verify token and app secret are configured — the two things Meta's webhook
+    needs that the adapter only warns about in the logs.
+    """
+    missing = [
+        key
+        for key, extra_key in (
+            ("WHATSAPP_CLOUD_PHONE_NUMBER_ID", "phone_number_id"),
+            ("WHATSAPP_CLOUD_ACCESS_TOKEN", "access_token"),
+        )
+        if not ((env.get(key) or "").strip() or str(extra.get(extra_key) or "").strip())
+    ]
+    if missing:
+        return False, (
+            f"Set {', '.join(missing)} first. The adapter refuses to start without "
+            "both (API Setup in the Meta developer dashboard shows them)."
+        )
+
+    ok, graph_note = _whatsapp_cloud_graph_probe(env, extra)
+    if not ok:
+        return False, graph_note
+
+    host, port, path, probe_host, port_error = _whatsapp_cloud_resolve_endpoint(env, extra)
+    if port is None:
+        return False, port_error
+
+    callback = _whatsapp_cloud_callback_url(env, extra, probe_host, port, path)
+    public_set = bool(
+        (env.get("WHATSAPP_CLOUD_PUBLIC_URL") or "").strip()
+        or str(extra.get("public_url") or "").strip()
+    )
+    tunnel_note = (
+        ""
+        if public_set
+        else (
+            " Meta cannot reach localhost — put a tunnel or reverse proxy in front "
+            "and set WHATSAPP_CLOUD_PUBLIC_URL so this callback is the public https:// one."
+        )
+    )
+    verify_set = bool(
+        (env.get("WHATSAPP_CLOUD_VERIFY_TOKEN") or "").strip()
+        or str(extra.get("verify_token") or "").strip()
+    )
+    secret_set = bool(
+        (env.get("WHATSAPP_CLOUD_APP_SECRET") or "").strip()
+        or str(extra.get("app_secret") or "").strip()
+    )
+    webhook_notes = []
+    if not verify_set:
+        webhook_notes.append(
+            "WHATSAPP_CLOUD_VERIFY_TOKEN is empty, so Meta's webhook verification "
+            "handshake will fail."
+        )
+    if not secret_set:
+        webhook_notes.append(
+            "WHATSAPP_CLOUD_APP_SECRET is empty, so incoming messages will be "
+            "refused (HTTP 503) until it is set."
+        )
+    webhook_note = (" " + " ".join(webhook_notes)) if webhook_notes else ""
+
+    if not gateway_running:
+        return True, (
+            f"{graph_note} WhatsApp Cloud API starts with the gateway. Start it, "
+            f"then register {callback} as the callback URL in Meta's webhook "
+            f"configuration.{tunnel_note}{webhook_note}"
+        )
+
+    try:
+        req = urllib.request.Request(f"http://{probe_host}:{port}/health", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            status = resp.status
+            body = resp.read()
+    except urllib.error.HTTPError as exc:
+        return False, (
+            f"{graph_note} But the listener on {probe_host}:{port} answered /health "
+            f"with HTTP {exc.code} — that port may belong to another service."
+        )
+    except Exception:
+        return False, (
+            f"{graph_note} But the gateway is running and nothing answered on "
+            f"{probe_host}:{port}. Restart the gateway so WhatsApp Cloud API comes "
+            "up, or check `work4you logs` for a port conflict."
+        )
+
+    if status != 200:
+        return False, (
+            f"{graph_note} But the listener on {probe_host}:{port} answered /health "
+            f"with HTTP {status} — that port may belong to another service."
+        )
+
+    try:
+        health = json.loads(body.decode("utf-8"))
+    except Exception:
+        health = None
+    if not isinstance(health, dict) or health.get("platform") != "whatsapp_cloud":
+        return False, (
+            f"Something is listening on {probe_host}:{port} but /health is not the "
+            "WhatsApp Cloud API listener — that port probably belongs to another service."
+        )
+
+    live_notes = []
+    if health.get("verify_token_configured") is False:
+        live_notes.append(
+            "The running listener has no verify token — Meta's webhook verification "
+            "will fail until WHATSAPP_CLOUD_VERIFY_TOKEN is set and the gateway restarted."
+        )
+    if health.get("app_secret_configured") is False:
+        live_notes.append(
+            "The running listener has no app secret — incoming messages are refused "
+            "until WHATSAPP_CLOUD_APP_SECRET is set and the gateway restarted."
+        )
+    counts = ""
+    accepted = health.get("accepted")
+    duplicates = health.get("duplicates")
+    if isinstance(accepted, int) and isinstance(duplicates, int):
+        counts = f" Webhooks accepted={accepted} duplicates={duplicates}."
+    bind_note = "network-exposed" if host and host not in _MSGRAPH_LOOPBACK else (
+        "localhost-only" if host else "all interfaces"
+    )
+    live_note = (" " + " ".join(live_notes)) if live_notes else ""
+    return True, (
+        f"{graph_note} Listener is up on port {port} ({bind_note}). Register "
+        f"{callback} as the callback URL in Meta's webhook configuration."
+        f"{tunnel_note}{live_note}{counts}"
+    )
+
+
 def _a2a_load_agents() -> dict[str, Any]:
     cfg = load_config() or {}
     agents = cfg.get("a2a_agents") or {}
@@ -11771,6 +12193,42 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
         }
         ok, message = await asyncio.to_thread(
             _teams_live_test,
+            live_env,
+            extra,
+            bool(payload["gateway_running"]),
+        )
+        return {"ok": ok, "state": payload["state"], "message": message}
+    if platform_id == "whatsapp_cloud":
+        # Credentials are provable against Meta's Graph API directly (see
+        # _whatsapp_cloud_graph_probe) — run before the gateway gate, like
+        # sms. Bind / secrets may also live in platforms.whatsapp_cloud.extra,
+        # so collect extra under the payload's profile.
+        def _collect_whatsapp_cloud_info():
+            with _profile_scope(profile):
+                cfg = load_config() or {}
+                plat = (cfg.get("platforms") or {}).get("whatsapp_cloud") or {}
+                extra = plat.get("extra") or {} if isinstance(plat, dict) else {}
+                if not isinstance(extra, dict):
+                    extra = {}
+                return extra
+
+        extra = await asyncio.to_thread(_collect_whatsapp_cloud_info)
+        live_env = {
+            key: (env_on_disk.get(key) or ("" if profile_scoped else os.getenv(key, "")))
+            for key in (
+                "WHATSAPP_CLOUD_PHONE_NUMBER_ID",
+                "WHATSAPP_CLOUD_ACCESS_TOKEN",
+                "WHATSAPP_CLOUD_APP_SECRET",
+                "WHATSAPP_CLOUD_VERIFY_TOKEN",
+                "WHATSAPP_CLOUD_PUBLIC_URL",
+                "WHATSAPP_CLOUD_WEBHOOK_HOST",
+                "WHATSAPP_CLOUD_WEBHOOK_PORT",
+                "WHATSAPP_CLOUD_WEBHOOK_PATH",
+                "WHATSAPP_CLOUD_API_VERSION",
+            )
+        }
+        ok, message = await asyncio.to_thread(
+            _whatsapp_cloud_live_test,
             live_env,
             extra,
             bool(payload["gateway_running"]),
