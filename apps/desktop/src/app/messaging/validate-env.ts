@@ -30,12 +30,22 @@ const SLACK_TOKEN_PREFIXES: Record<string, string> = {
   SLACK_APP_TOKEN: 'xapp-'
 }
 
+// Full Pub/Sub resource path — the adapter passes it verbatim to the
+// subscriber client, so a bare subscription name fails at gateway start.
+export const GOOGLE_CHAT_SUBSCRIPTION_RE = /^projects\/[^/\s]+\/subscriptions\/[^/\s]+$/
+// GCP project ids: 6-30 chars, lowercase letters / digits / hyphens, starts
+// with a letter, doesn't end with a hyphen (cloud.google.com naming rules).
+export const GOOGLE_CLOUD_PROJECT_ID_RE = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/
+
 export type MessagingEnvError =
   | { code: 'discordToken' }
   | { code: 'discordUserId'; value: string }
   | { code: 'emailAddress'; value: string }
   | { code: 'emailHost'; value: string }
   | { code: 'emailPort'; value: string }
+  | { code: 'googleChatEventsUrl'; value: string }
+  | { code: 'googleChatProjectId'; value: string }
+  | { code: 'googleChatSubscription'; value: string }
   | { code: 'slackMemberId'; value: string }
   | { code: 'slackTokenPrefix'; prefix: string }
   | { code: 'smsNumber'; value: string }
@@ -179,6 +189,30 @@ export function validateMessagingEnv(key: string, value: string): MessagingEnvEr
 
   if (key === 'SMS_WEBHOOK_URL' && (!/^https?:\/\/\S+$/.test(trimmed) || trimmed.includes(' '))) {
     return { code: 'smsWebhookUrl', value: trimmed }
+  }
+
+  if (key === 'GOOGLE_CHAT_SUBSCRIPTION_NAME' && !GOOGLE_CHAT_SUBSCRIPTION_RE.test(trimmed)) {
+    return { code: 'googleChatSubscription', value: trimmed }
+  }
+
+  if (key === 'GOOGLE_CHAT_PROJECT_ID' && !GOOGLE_CLOUD_PROJECT_ID_RE.test(trimmed)) {
+    return { code: 'googleChatProjectId', value: trimmed }
+  }
+
+  if (key === 'GOOGLE_CHAT_ALLOWED_USERS') {
+    const invalid = findInvalidEmailSender(trimmed)
+
+    if (invalid) {
+      return { code: 'emailAddress', value: invalid }
+    }
+  }
+
+  if (key === 'GOOGLE_CHAT_HTTP_EVENTS_URL' && (!/^https?:\/\/\S+$/.test(trimmed) || trimmed.includes(' '))) {
+    return { code: 'googleChatEventsUrl', value: trimmed }
+  }
+
+  if (key === 'GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL' && !EMAIL_ADDRESS_RE.test(trimmed)) {
+    return { code: 'emailAddress', value: trimmed }
   }
 
   if (key === 'SLACK_ALLOWED_USERS') {

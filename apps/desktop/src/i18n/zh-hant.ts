@@ -1353,6 +1353,12 @@ export const zhHant = defineLocale({
       emailHost: (value: string) =>
         `${value} 不是有效的郵件伺服器主機名稱。請使用類似 imap.gmail.com 的主機名稱——不要包含 http:// 或空格。`,
       emailPort: (value: string) => `${value} 不是有效的連接埠。請使用 1 到 65535 之間的數字。`,
+      googleChatEventsUrl: (value: string) =>
+        `${value} 不是有效的回呼 URL。請使用完整的公開 HTTPS URL，例如 https://your-domain.com/chat/events。`,
+      googleChatProjectId: (value: string) =>
+        `${value} 不是有效的 Google Cloud 專案 ID——只能包含小寫字母、數字和連字號，例如 my-project-id。`,
+      googleChatSubscription: (value: string) =>
+        `${value} 不是完整的 Pub/Sub 訂閱路徑。請使用 projects/<project>/subscriptions/<name>。`,
       slackMemberId: (value: string) => `${value} 不像是 Slack 成員 ID。請使用類似 U01ABC2DEF3 的 ID。`,
       slackTokenPrefix: (prefix: string) => `此 Token 必須以 ${prefix} 開頭`,
       smsNumber: (value: string) =>
@@ -1422,6 +1428,46 @@ export const zhHant = defineLocale({
       hostsRequired: '請輸入 IMAP 和 SMTP 主機，或選擇一個供應商。',
       saved: '電子郵件已儲存並啟用。重新啟動閘道以連線。',
       saveFailed: '無法儲存電子郵件設定。'
+    },
+    googleChatQuickSetup: {
+      title: '快速設定',
+      recommended: '推薦',
+      intro:
+        '選擇 Google Chat 事件送達 Work4You 的方式，只需填寫該模式的欄位並儲存。需要 Google Workspace 帳戶，並在 Google Cloud 主控台中設定好 Chat 應用程式。',
+      replacesExisting: 'Google Chat 已設定。在此儲存會取代已儲存的設定。',
+      modePubsub: 'Pub/Sub（推薦）',
+      modeHttp: 'HTTP 回呼',
+      pubsubModeHint: 'Work4You 從 Cloud Pub/Sub 訂閱拉取事件——無需公開 URL。適合位於 NAT 或防火牆後的機器。',
+      httpModeHint: 'Google 將事件推送到你網域上的公開 HTTPS 端點。要求該 URL 可從網際網路存取。',
+      saJsonHelp: '服務帳戶金鑰——已下載 JSON 檔案的路徑，或直接貼上 JSON 內容。',
+      saJsonLabel: '服務帳戶 JSON',
+      saJsonHint: '機器上有應用程式預設憑證（gcloud auth application-default login）時可留空；否則必填。',
+      openConsole: '開啟 Google Cloud 主控台',
+      projectHelp: '託管 Chat 應用程式和 Pub/Sub 主題的 Google Cloud 專案 ID。',
+      projectLabel: '專案 ID',
+      subscriptionHelp: '閘道拉取事件所用的完整 Pub/Sub 訂閱路徑。',
+      subscriptionLabel: '訂閱路徑',
+      eventsUrlHelp: 'Google Chat 推送事件的公開 HTTPS URL。',
+      eventsUrlLabel: 'HTTP 事件 URL',
+      saEmailHelp: 'Google 用於簽署事件權杖的服務帳戶信箱——用於驗證傳入請求。',
+      saEmailLabel: '應用程式服務帳戶信箱',
+      audienceHelp: '選填。權杖受眾（audience）——留空時預設為事件 URL。',
+      audienceLabel: '權杖受眾',
+      allowedUsersHelp: '推薦。逗號分隔的允許與代理對話的 Google 帳戶信箱——其他人會被忽略。',
+      allowedUsersLabel: '允許的使用者',
+      checklistTitle: '在 Google Cloud 主控台中',
+      pubsubStep1: '啟用 Google Chat API 和 Pub/Sub API。',
+      pubsubStep2: '建立主題，並將 Pub/Sub Publisher 角色授予 chat-api-push@system.gserviceaccount.com。',
+      pubsubStep3: '在該主題上建立訂閱，並把 Pub/Sub Subscriber 和 Viewer 授予你的服務帳戶。',
+      pubsubStep4: '在 Chat API 設定中，將連線設定（Connection settings）指向該主題。',
+      httpStep1: '啟用 Google Chat API。',
+      httpStep2: '在 Chat API 設定中，將連線設定為 App URL 並填入你的事件 URL。',
+      openChatApi: '開啟 Chat API 設定',
+      projectMismatch: '專案 ID 與訂閱路徑中的專案不一致。',
+      pubsubFieldsRequired: '請先填寫專案 ID 和訂閱路徑。',
+      httpFieldsRequired: '請先填寫事件 URL 和應用程式服務帳戶信箱。',
+      saved: 'Google Chat 已儲存並啟用。重新啟動閘道即可連線。',
+      saveFailed: '無法儲存 Google Chat 設定。'
     },
     smsQuickSetup: {
       title: '快速設定',
@@ -1618,6 +1664,40 @@ export const zhHant = defineLocale({
         label: '允許的寄件者',
         help: '建議設定。逗號分隔的允許與代理對話的地址——其他人會被忽略。',
         placeholder: 'you@example.com'
+      },
+      GOOGLE_CHAT_SERVICE_ACCOUNT_JSON: {
+        label: '服務帳戶 JSON',
+        help: '已下載金鑰檔案的路徑，或直接貼上 JSON。留空則使用應用程式預設憑證。',
+        placeholder: '/path/to/service-account.json'
+      },
+      GOOGLE_CHAT_PROJECT_ID: {
+        label: '專案 ID',
+        help: '託管 Chat 應用程式和 Pub/Sub 主題的 Google Cloud 專案（Pub/Sub 模式）。',
+        placeholder: 'my-project-id'
+      },
+      GOOGLE_CHAT_SUBSCRIPTION_NAME: {
+        label: '訂閱路徑',
+        help: '閘道拉取事件所用的完整 Pub/Sub 訂閱路徑（Pub/Sub 模式）。',
+        placeholder: 'projects/my-project-id/subscriptions/work4you-chat'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_URL: {
+        label: 'HTTP 事件 URL',
+        help: 'Google Chat 推送事件的公開 HTTPS URL（HTTP 回呼模式）。',
+        placeholder: 'https://your-domain.com/chat/events'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE: {
+        label: '權杖受眾',
+        help: '選填。Google 簽署事件權杖的受眾——預設為事件 URL。'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL: {
+        label: '應用程式服務帳戶信箱',
+        help: 'Google 用於簽署事件權杖的服務帳戶信箱（HTTP 回呼模式）。',
+        placeholder: 'work4you-chat@my-project-id.iam.gserviceaccount.com'
+      },
+      GOOGLE_CHAT_ALLOWED_USERS: {
+        label: '允許的使用者',
+        help: '推薦。逗號分隔的允許與代理對話的 Google 帳戶信箱——其他人會被忽略。',
+        placeholder: 'you@yourcompany.com'
       },
       TWILIO_ACCOUNT_SID: {
         label: 'Twilio Account SID',

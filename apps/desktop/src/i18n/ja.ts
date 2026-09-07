@@ -1392,6 +1392,12 @@ export const ja = defineLocale({
       emailHost: (value: string) =>
         `${value} は有効なメールサーバーのホスト名ではありません。imap.gmail.com のようなホスト名を使用してください（http:// や空白は不可）。`,
       emailPort: (value: string) => `${value} は有効なポートではありません。1 から 65535 の数字を使用してください。`,
+      googleChatEventsUrl: (value: string) =>
+        `${value} は有効なコールバック URL ではありません。https://your-domain.com/chat/events のような完全な公開 HTTPS URL を使用してください。`,
+      googleChatProjectId: (value: string) =>
+        `${value} は有効な Google Cloud プロジェクト ID ではありません。my-project-id のように小文字・数字・ハイフンのみ使用できます。`,
+      googleChatSubscription: (value: string) =>
+        `${value} は完全な Pub/Sub サブスクリプションパスではありません。projects/<project>/subscriptions/<name> を使用してください。`,
       slackMemberId: (value: string) =>
         `${value} は Slack メンバー ID ではないようです。U01ABC2DEF3 のような ID を使用してください。`,
       slackTokenPrefix: (prefix: string) => `このトークンは ${prefix} で始まる必要があります`,
@@ -1469,6 +1475,53 @@ export const ja = defineLocale({
       hostsRequired: 'IMAP と SMTP のホストを入力するか、プロバイダーを選択してください。',
       saved: 'メールを保存して有効にしました。接続するにはゲートウェイを再起動してください。',
       saveFailed: 'メール設定を保存できませんでした。'
+    },
+    googleChatQuickSetup: {
+      title: 'クイックセットアップ',
+      recommended: '推奨',
+      intro:
+        'Google Chat のイベントを Work4You に届ける方式を選び、そのモードの項目だけ入力して保存します。Google Workspace アカウントと、Google Cloud コンソールで設定済みの Chat アプリが必要です。',
+      replacesExisting: 'Google Chat は設定済みです。ここで保存すると既存の設定が置き換えられます。',
+      modePubsub: 'Pub/Sub（推奨）',
+      modeHttp: 'HTTP コールバック',
+      pubsubModeHint:
+        'Work4You が Cloud Pub/Sub サブスクリプションからイベントを取得します。公開 URL は不要で、NAT やファイアウォール内のマシンに最適です。',
+      httpModeHint:
+        'Google があなたのドメイン上の公開 HTTPS エンドポイントにイベントをプッシュします。インターネットから到達可能な URL が必要です。',
+      saJsonHelp: 'サービスアカウントキー——ダウンロードした JSON ファイルのパス、または JSON そのもの。',
+      saJsonLabel: 'サービスアカウント JSON',
+      saJsonHint:
+        'マシンにアプリケーションのデフォルト認証情報（gcloud auth application-default login）があれば省略可能。なければ必須です。',
+      openConsole: 'Google Cloud コンソールを開く',
+      projectHelp: 'Chat アプリと Pub/Sub トピックをホストする Google Cloud プロジェクト ID。',
+      projectLabel: 'プロジェクト ID',
+      subscriptionHelp: 'ゲートウェイがイベントを取得する完全な Pub/Sub サブスクリプションパス。',
+      subscriptionLabel: 'サブスクリプションパス',
+      eventsUrlHelp: 'Google Chat がイベントをプッシュする公開 HTTPS URL。',
+      eventsUrlLabel: 'HTTP イベント URL',
+      saEmailHelp:
+        'Google がイベントトークンの署名に使うサービスアカウントのメール——受信リクエストの検証に使用します。',
+      saEmailLabel: 'アプリのサービスアカウントメール',
+      audienceHelp: '任意。トークンのオーディエンス——空欄の場合はイベント URL が使われます。',
+      audienceLabel: 'トークンオーディエンス',
+      allowedUsersHelp:
+        '推奨。エージェントと会話できる Google アカウントのメールをカンマ区切りで指定——それ以外は無視されます。',
+      allowedUsersLabel: '許可ユーザー',
+      checklistTitle: 'Google Cloud コンソールで',
+      pubsubStep1: 'Google Chat API と Pub/Sub API を有効にします。',
+      pubsubStep2:
+        'トピックを作成し、chat-api-push@system.gserviceaccount.com に Pub/Sub Publisher ロールを付与します。',
+      pubsubStep3:
+        'そのトピックにサブスクリプションを作成し、サービスアカウントに Pub/Sub Subscriber と Viewer を付与します。',
+      pubsubStep4: 'Chat API の設定で、接続設定（Connection settings）をそのトピックに向けます。',
+      httpStep1: 'Google Chat API を有効にします。',
+      httpStep2: 'Chat API の設定で、接続設定を App URL にしてイベント URL を入力します。',
+      openChatApi: 'Chat API の設定を開く',
+      projectMismatch: 'プロジェクト ID がサブスクリプションパス内のプロジェクトと一致しません。',
+      pubsubFieldsRequired: 'まずプロジェクト ID とサブスクリプションパスを入力してください。',
+      httpFieldsRequired: 'まずイベント URL とアプリのサービスアカウントメールを入力してください。',
+      saved: 'Google Chat を保存して有効にしました。ゲートウェイを再起動すると接続します。',
+      saveFailed: 'Google Chat の設定を保存できませんでした。'
     },
     smsQuickSetup: {
       title: 'クイックセットアップ',
@@ -1688,6 +1741,40 @@ export const ja = defineLocale({
         label: '許可する送信者',
         help: '推奨。エージェントと会話できるアドレスをカンマ区切りで指定します——それ以外は無視されます。',
         placeholder: 'you@example.com'
+      },
+      GOOGLE_CHAT_SERVICE_ACCOUNT_JSON: {
+        label: 'サービスアカウント JSON',
+        help: 'ダウンロードしたキーファイルのパス、または JSON そのもの。空欄でアプリケーションのデフォルト認証情報を使用します。',
+        placeholder: '/path/to/service-account.json'
+      },
+      GOOGLE_CHAT_PROJECT_ID: {
+        label: 'プロジェクト ID',
+        help: 'Chat アプリと Pub/Sub トピックをホストする Google Cloud プロジェクト（Pub/Sub モード）。',
+        placeholder: 'my-project-id'
+      },
+      GOOGLE_CHAT_SUBSCRIPTION_NAME: {
+        label: 'サブスクリプションパス',
+        help: 'ゲートウェイがイベントを取得する完全な Pub/Sub サブスクリプションパス（Pub/Sub モード）。',
+        placeholder: 'projects/my-project-id/subscriptions/work4you-chat'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_URL: {
+        label: 'HTTP イベント URL',
+        help: 'Google Chat がイベントをプッシュする公開 HTTPS URL（HTTP コールバックモード）。',
+        placeholder: 'https://your-domain.com/chat/events'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE: {
+        label: 'トークンオーディエンス',
+        help: '任意。Google が署名するイベントトークンのオーディエンス——既定はイベント URL。'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL: {
+        label: 'アプリのサービスアカウントメール',
+        help: 'Google がイベントトークンの署名に使うサービスアカウントのメール（HTTP コールバックモード）。',
+        placeholder: 'work4you-chat@my-project-id.iam.gserviceaccount.com'
+      },
+      GOOGLE_CHAT_ALLOWED_USERS: {
+        label: '許可ユーザー',
+        help: '推奨。エージェントと会話できる Google アカウントのメールをカンマ区切りで指定——それ以外は無視されます。',
+        placeholder: 'you@yourcompany.com'
       },
       TWILIO_ACCOUNT_SID: {
         label: 'Twilio Account SID',

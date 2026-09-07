@@ -1789,6 +1789,12 @@ export const zh: Translations = {
       emailHost: (value: string) =>
         `${value} 不是有效的邮件服务器主机名。请使用类似 imap.gmail.com 的主机名——不要包含 http:// 或空格。`,
       emailPort: (value: string) => `${value} 不是有效的端口。请使用 1 到 65535 之间的数字。`,
+      googleChatEventsUrl: (value: string) =>
+        `${value} 不是有效的回调 URL。请使用完整的公网 HTTPS URL，例如 https://your-domain.com/chat/events。`,
+      googleChatProjectId: (value: string) =>
+        `${value} 不是有效的 Google Cloud 项目 ID——只能包含小写字母、数字和连字符，例如 my-project-id。`,
+      googleChatSubscription: (value: string) =>
+        `${value} 不是完整的 Pub/Sub 订阅路径。请使用 projects/<project>/subscriptions/<name>。`,
       slackMemberId: (value: string) => `${value} 不像是 Slack 成员 ID。请使用类似 U01ABC2DEF3 的 ID。`,
       slackTokenPrefix: (prefix: string) => `此令牌必须以 ${prefix} 开头`,
       smsNumber: (value: string) =>
@@ -1858,6 +1864,46 @@ export const zh: Translations = {
       hostsRequired: '请输入 IMAP 和 SMTP 主机，或选择一个提供商。',
       saved: '电子邮件已保存并启用。重启网关以连接。',
       saveFailed: '无法保存电子邮件设置。'
+    },
+    googleChatQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro:
+        '选择 Google Chat 事件送达 Work4You 的方式，只需填写该模式的字段并保存。需要 Google Workspace 账户，并在 Google Cloud 控制台中配置好 Chat 应用。',
+      replacesExisting: 'Google Chat 已配置。在此保存会替换已存储的设置。',
+      modePubsub: 'Pub/Sub（推荐）',
+      modeHttp: 'HTTP 回调',
+      pubsubModeHint: 'Work4You 从 Cloud Pub/Sub 订阅拉取事件——无需公网 URL。适合位于 NAT 或防火墙后的机器。',
+      httpModeHint: 'Google 将事件推送到你域名上的公网 HTTPS 端点。要求该 URL 可从互联网访问。',
+      saJsonHelp: '服务账号密钥——已下载 JSON 文件的路径，或直接粘贴 JSON 内容。',
+      saJsonLabel: '服务账号 JSON',
+      saJsonHint: '机器上有应用默认凭据（gcloud auth application-default login）时可留空；否则必填。',
+      openConsole: '打开 Google Cloud 控制台',
+      projectHelp: '托管 Chat 应用和 Pub/Sub 主题的 Google Cloud 项目 ID。',
+      projectLabel: '项目 ID',
+      subscriptionHelp: '网关拉取事件所用的完整 Pub/Sub 订阅路径。',
+      subscriptionLabel: '订阅路径',
+      eventsUrlHelp: 'Google Chat 推送事件的公网 HTTPS URL。',
+      eventsUrlLabel: 'HTTP 事件 URL',
+      saEmailHelp: 'Google 用于签名事件令牌的服务账号邮箱——用于校验传入请求。',
+      saEmailLabel: '应用服务账号邮箱',
+      audienceHelp: '可选。令牌受众（audience）——留空时默认为事件 URL。',
+      audienceLabel: '令牌受众',
+      allowedUsersHelp: '推荐。逗号分隔的允许与代理对话的 Google 账户邮箱——其他人会被忽略。',
+      allowedUsersLabel: '允许的用户',
+      checklistTitle: '在 Google Cloud 控制台中',
+      pubsubStep1: '启用 Google Chat API 和 Pub/Sub API。',
+      pubsubStep2: '创建主题，并将 Pub/Sub Publisher 角色授予 chat-api-push@system.gserviceaccount.com。',
+      pubsubStep3: '在该主题上创建订阅，并把 Pub/Sub Subscriber 和 Viewer 授予你的服务账号。',
+      pubsubStep4: '在 Chat API 配置中，将连接设置（Connection settings）指向该主题。',
+      httpStep1: '启用 Google Chat API。',
+      httpStep2: '在 Chat API 配置中，将连接设置为 App URL 并填入你的事件 URL。',
+      openChatApi: '打开 Chat API 配置',
+      projectMismatch: '项目 ID 与订阅路径中的项目不一致。',
+      pubsubFieldsRequired: '请先填写项目 ID 和订阅路径。',
+      httpFieldsRequired: '请先填写事件 URL 和应用服务账号邮箱。',
+      saved: 'Google Chat 已保存并启用。重启网关即可连接。',
+      saveFailed: '无法保存 Google Chat 设置。'
     },
     smsQuickSetup: {
       title: '快速设置',
@@ -2063,6 +2109,40 @@ export const zh: Translations = {
         help: '推荐。逗号分隔的允许与代理对话的地址——其他人会被忽略。',
         placeholder: 'you@example.com'
       },
+      GOOGLE_CHAT_SERVICE_ACCOUNT_JSON: {
+        label: '服务账号 JSON',
+        help: '已下载密钥文件的路径，或直接粘贴 JSON。留空则使用应用默认凭据。',
+        placeholder: '/path/to/service-account.json'
+      },
+      GOOGLE_CHAT_PROJECT_ID: {
+        label: '项目 ID',
+        help: '托管 Chat 应用和 Pub/Sub 主题的 Google Cloud 项目（Pub/Sub 模式）。',
+        placeholder: 'my-project-id'
+      },
+      GOOGLE_CHAT_SUBSCRIPTION_NAME: {
+        label: '订阅路径',
+        help: '网关拉取事件所用的完整 Pub/Sub 订阅路径（Pub/Sub 模式）。',
+        placeholder: 'projects/my-project-id/subscriptions/work4you-chat'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_URL: {
+        label: 'HTTP 事件 URL',
+        help: 'Google Chat 推送事件的公网 HTTPS URL（HTTP 回调模式）。',
+        placeholder: 'https://your-domain.com/chat/events'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_AUDIENCE: {
+        label: '令牌受众',
+        help: '可选。Google 签名事件令牌的受众——默认为事件 URL。'
+      },
+      GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL: {
+        label: '应用服务账号邮箱',
+        help: 'Google 用于签名事件令牌的服务账号邮箱（HTTP 回调模式）。',
+        placeholder: 'work4you-chat@my-project-id.iam.gserviceaccount.com'
+      },
+      GOOGLE_CHAT_ALLOWED_USERS: {
+        label: '允许的用户',
+        help: '推荐。逗号分隔的允许与代理对话的 Google 账户邮箱——其他人会被忽略。',
+        placeholder: 'you@yourcompany.com'
+      },
       TWILIO_ACCOUNT_SID: {
         label: 'Twilio Account SID',
         help: '来自 Twilio 控制台仪表盘。以 AC 开头。',
@@ -2129,6 +2209,8 @@ export const zh: Translations = {
       email:
         '使用上方的快速设置并搭配专用邮箱——选择你的提供商，IMAP/SMTP 主机会自动填写。启用了两步验证的账户（Gmail、Outlook）需要应用专用密码，而不是账户密码；只有允许列表中的发件人才会收到回复。',
       sms: '使用上方的快速设置。除了 Twilio 凭据和支持短信的电话号码外，接收短信还需要一个公网 webhook URL——Twilio 必须能访问你的机器（本地运行请使用 cloudflared 或 ngrok 之类的隧道），并且同一 URL 需要填入 Twilio 控制台。',
+      google_chat:
+        '使用上方的快速设置——选择事件送达 Work4You 的方式：Cloud Pub/Sub（推荐，无需公网 URL）或 HTTPS 回调端点。需要 Google Workspace 账户、在 Google Cloud 控制台中配置的 Chat 应用，以及服务账号密钥（或应用默认凭据）。',
       dingtalk: '在开发者控制台创建钉钉应用，然后在此复制 Client ID(App key) 和 Client Secret。',
       feishu: '创建飞书 / Lark 应用，配置机器人能力，复制 App ID、App secret 和事件加密密钥。',
       wecom: '在企业微信中添加群机器人，复制其 webhook key 作为 WECOM_BOT_ID。仅可发送——双向请用企业微信 (应用) 选项。',

@@ -158,6 +158,56 @@ describe('validateMessagingEnv', () => {
     expect(validateMessagingEnv('EMAIL_IMAP_PORT', '70000')).toEqual({ code: 'emailPort', value: '70000' })
   })
 
+  it('requires the full Pub/Sub subscription path for Google Chat', () => {
+    expect(
+      validateMessagingEnv('GOOGLE_CHAT_SUBSCRIPTION_NAME', 'projects/my-project/subscriptions/work4you-chat')
+    ).toBeNull()
+    expect(validateMessagingEnv('GOOGLE_CHAT_SUBSCRIPTION_NAME', 'work4you-chat')).toEqual({
+      code: 'googleChatSubscription',
+      value: 'work4you-chat'
+    })
+    expect(validateMessagingEnv('GOOGLE_CHAT_SUBSCRIPTION_NAME', 'projects/my-project/topics/work4you-chat')).toEqual({
+      code: 'googleChatSubscription',
+      value: 'projects/my-project/topics/work4you-chat'
+    })
+  })
+
+  it('validates the Google Cloud project id shape', () => {
+    expect(validateMessagingEnv('GOOGLE_CHAT_PROJECT_ID', 'my-project-id')).toBeNull()
+    expect(validateMessagingEnv('GOOGLE_CHAT_PROJECT_ID', 'My Project!')).toEqual({
+      code: 'googleChatProjectId',
+      value: 'My Project!'
+    })
+    // Too short — GCP project ids are at least 6 characters.
+    expect(validateMessagingEnv('GOOGLE_CHAT_PROJECT_ID', 'abc')).toEqual({
+      code: 'googleChatProjectId',
+      value: 'abc'
+    })
+  })
+
+  it('validates Google Chat allowlist emails, the events URL, and the SA email', () => {
+    expect(validateMessagingEnv('GOOGLE_CHAT_ALLOWED_USERS', 'you@yourcompany.com, *')).toBeNull()
+    expect(validateMessagingEnv('GOOGLE_CHAT_ALLOWED_USERS', 'you@yourcompany.com, carla')).toEqual({
+      code: 'emailAddress',
+      value: 'carla'
+    })
+    expect(validateMessagingEnv('GOOGLE_CHAT_HTTP_EVENTS_URL', 'https://example.com/chat/events')).toBeNull()
+    expect(validateMessagingEnv('GOOGLE_CHAT_HTTP_EVENTS_URL', 'example.com/chat/events')).toEqual({
+      code: 'googleChatEventsUrl',
+      value: 'example.com/chat/events'
+    })
+    expect(
+      validateMessagingEnv(
+        'GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL',
+        'work4you-chat@my-project.iam.gserviceaccount.com'
+      )
+    ).toBeNull()
+    expect(validateMessagingEnv('GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL', 'not-an-email')).toEqual({
+      code: 'emailAddress',
+      value: 'not-an-email'
+    })
+  })
+
   it('leaves keys without a client-checkable shape alone', () => {
     expect(validateMessagingEnv('MATTERMOST_TOKEN', 'anything-goes')).toBeNull()
     expect(validateMessagingEnv('TELEGRAM_PROXY', 'socks5://127.0.0.1:1080')).toBeNull()
