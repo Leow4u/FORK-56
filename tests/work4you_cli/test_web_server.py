@@ -2223,6 +2223,195 @@ class TestWebServerEndpoints:
         assert ok is False
         assert "9911" in message
 
+    def test_msgraph_webhook_catalog_requires_client_state_and_hides_enable(self):
+        """The listener refuses to start without client_state, so the card
+        must show that field as required — not setup_free. ENABLED / allow-all
+        / home-channel stay hidden."""
+        resp = self.client.get("/api/messaging/platforms")
+        assert resp.status_code == 200
+        rows = {row["id"]: row for row in resp.json()["platforms"]}
+        graph = rows["msgraph_webhook"]
+
+        keys = {field["key"] for field in graph["env_vars"]}
+        assert {
+            "MSGRAPH_WEBHOOK_CLIENT_STATE",
+            "MSGRAPH_WEBHOOK_HOST",
+            "MSGRAPH_WEBHOOK_PORT",
+            "MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES",
+            "MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS",
+            "MSGRAPH_WEBHOOK_PUBLIC_URL",
+        } <= keys
+        assert "MSGRAPH_WEBHOOK_ENABLED" not in keys
+        assert "MSGRAPH_WEBHOOK_ALLOW_ALL_USERS" not in keys
+        assert "MSGRAPH_WEBHOOK_HOME_CHANNEL" not in keys
+        required = {field["key"] for field in graph["env_vars"] if field["required"]}
+        assert required == {"MSGRAPH_WEBHOOK_CLIENT_STATE"}
+        assert graph["docs_url"].rstrip("/").endswith("messaging/msgraph-webhook")
+        assert graph.get("setup_free") is not True
+        assert graph["configured"] is False
+        # Disabled wins the state ladder; the "Needs setup" pill is
+        # configured=False, not the state string.
+        assert graph["state"] == "disabled"
+
+    def test_msgraph_webhook_test_endpoint_runs_the_live_probe(self, monkeypatch):
+        import work4you_cli.web_server as ws
+        from work4you_cli.config import load_config, save_config, save_env_value
+
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["msgraph_webhook"] = {
+            "enabled": True,
+            "extra": {"host": "127.0.0.1", "port": 8647},
+        }
+        save_config(cfg)
+        save_env_value("MSGRAPH_WEBHOOK_CLIENT_STATE", "a" * 32)
+        save_env_value("MSGRAPH_WEBHOOK_PORT", "8647")
+
+        seen: dict = {}
+
+        def fake_live_test(env, extra, gateway_running):
+            seen["env"] = env
+            seen["extra_port"] = extra.get("port")
+            seen["gateway_running"] = gateway_running
+            return True, "Listener is up on port 8647."
+
+        monkeypatch.setattr(ws, "_msgraph_live_test", fake_live_test)
+
+        body = self.client.post("/api/messaging/platforms/msgraph_webhook/test").json()
+        assert body["ok"] is True
+        assert "Listener is up" in body["message"]
+        assert seen["env"]["MSGRAPH_WEBHOOK_CLIENT_STATE"] == "a" * 32
+        assert seen["env"]["MSGRAPH_WEBHOOK_PORT"] == "8647"
+        assert seen["extra_port"] == 8647
+
+    def test_msgraph_resolve_endpoint_prefers_env_then_config(self):
+        import work4you_cli.web_server as ws
+
+        host, port, probe, err = ws._msgraph_resolve_endpoint(
+            {"MSGRAPH_WEBHOOK_PORT": "8647", "MSGRAPH_WEBHOOK_HOST": "127.0.0.1"},
+            {"port": 7000},
+        )
+        assert (host, port, probe, err) == ("127.0.0.1", 8647, "127.0.0.1", "")
+
+        host, port, probe, err = ws._msgraph_resolve_endpoint({}, {"port": 7000})
+        assert port == 7000
+        assert err == ""
+
+        host, port, probe, err = ws._msgraph_resolve_endpoint({}, {})
+        assert port == 8646
+        assert probe == "127.0.0.1"
+
+        host, port, probe, err = ws._msgraph_resolve_endpoint(
+            {"MSGRAPH_WEBHOOK_PORT": "notaport"}, {}
+        )
+        assert port is None
+        assert "MSGRAPH_WEBHOOK_PORT" in err
+
+        host, port, probe, err = ws._msgraph_resolve_endpoint(
+            {"MSGRAPH_WEBHOOK_PORT": "70000"}, {}
+        )
+        assert port is None
+        assert "65535" in err
+
+        host, port, probe, err = ws._msgraph_resolve_endpoint(
+            {"MSGRAPH_WEBHOOK_HOST": "0.0.0.0"}, {}
+        )
+        assert host == "0.0.0.0"
+        assert probe == "127.0.0.1"
+
+    def test_msgraph_live_test_reports_secret_cidr_and_listener_state(self, monkeypatch):
+        import io
+        import urllib.error
+
+        import work4you_cli.web_server as ws
+
+        ok, message = ws._msgraph_live_test({}, {}, gateway_running=False)
+        assert ok is False
+        assert "CLIENT_STATE" in message
+
+        secret = {"MSGRAPH_WEBHOOK_CLIENT_STATE": "a" * 32}
+        ok, message = ws._msgraph_live_test(secret, {}, gateway_running=False)
+        assert ok is False
+        assert "ALLOWED_SOURCE_CIDRS" in message
+
+        loopback = {**secret, "MSGRAPH_WEBHOOK_HOST": "127.0.0.1"}
+        ok, message = ws._msgraph_live_test(loopback, {}, gateway_running=False)
+        assert ok is True
+        assert "starts with the gateway" in message
+        assert "/msgraph/webhook" in message
+        assert "localhost-only" in message
+
+        class _Resp:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return b'{"accepted": 3, "duplicates": 1}'
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", lambda *a, **k: _Resp())
+        ok, message = ws._msgraph_live_test(loopback, {}, gateway_running=True)
+        assert ok is True
+        assert "Listener is up on port 8646" in message
+        assert "accepted=3" in message
+
+        def _forbidden(*a, **k):
+            raise urllib.error.HTTPError(
+                "http://127.0.0.1:8646/health", 403, "Forbidden", {}, io.BytesIO(b"")
+            )
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", _forbidden)
+        network = {
+            **secret,
+            "MSGRAPH_WEBHOOK_HOST": "0.0.0.0",
+            "MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS": "52.96.0.0/14",
+        }
+        ok, message = ws._msgraph_live_test(network, {}, gateway_running=True)
+        assert ok is True
+        assert "403" in message
+        assert "allowlist" in message
+
+        def _boom(*a, **k):
+            raise OSError("refused")
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", _boom)
+        ok, message = ws._msgraph_live_test(
+            {**loopback, "MSGRAPH_WEBHOOK_PORT": "8655"}, {}, gateway_running=True
+        )
+        assert ok is False
+        assert "8655" in message
+
+    def test_msgraph_put_rejects_bad_bind_secret_url_and_cidrs(self):
+        from work4you_cli import profiles as profiles_mod
+
+        profiles_mod.get_profile_dir("graph").mkdir(parents=True)
+
+        def put(env):
+            return self.client.put(
+                "/api/messaging/platforms/msgraph_webhook?profile=graph",
+                json={"enabled": True, "env": env},
+            )
+
+        assert put({"MSGRAPH_WEBHOOK_PORT": "abc"}).status_code == 400
+        assert put({"MSGRAPH_WEBHOOK_HOST": "http://127.0.0.1"}).status_code == 400
+        assert put({"MSGRAPH_WEBHOOK_CLIENT_STATE": "short"}).status_code == 400
+        assert put({"MSGRAPH_WEBHOOK_PUBLIC_URL": "http://example.com"}).status_code == 400
+        assert put({"MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS": "52.96.0.0"}).status_code == 400
+
+        ok = put(
+            {
+                "MSGRAPH_WEBHOOK_CLIENT_STATE": "a" * 32,
+                "MSGRAPH_WEBHOOK_HOST": "127.0.0.1",
+                "MSGRAPH_WEBHOOK_PORT": "8646",
+                "MSGRAPH_WEBHOOK_PUBLIC_URL": "https://tunnel.example",
+                "MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS": "52.96.0.0/14",
+            }
+        )
+        assert ok.status_code == 200
+
     def test_a2a_agents_crud_never_returns_tokens(self):
         from work4you_cli.config import load_config
 

@@ -1625,6 +1625,12 @@ export const en: Translations = {
       telegramUserId: (value: string) => `${value} is not a numeric Telegram user ID.`,
       twilioAccountSid:
         'Paste the complete Account SID from the Twilio console dashboard — it starts with AC followed by 32 characters.',
+      msgraphCidr: (value: string) =>
+        `${value} is not a CIDR. Use entries like 52.96.0.0/14 (comma-separated Microsoft Graph egress ranges).`,
+      msgraphClientState:
+        'The clientState secret must be at least 16 characters and not a placeholder. Use Generate secret (openssl rand -hex 32).',
+      msgraphPublicUrl: (value: string) =>
+        `${value} is not a valid public URL. Graph refuses HTTP — use an https:// origin, like https://your-tunnel.example.`,
       webhookSecret:
         'Use a random secret of 16+ characters. "INSECURE_NO_AUTH" disables signature validation on every route that falls back to this global secret.',
       whatsappNumber: (value: string) =>
@@ -1840,6 +1846,49 @@ export const en: Translations = {
       copied: 'Copied to the clipboard.',
       copyFailed: 'Could not copy to the clipboard.',
       openGuide: 'A2A guide'
+    },
+    msgraphQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        'This card is the inbound Graph listener only. Microsoft Graph POSTs change notifications here — it is not the Teams chat bot. Generate a clientState secret, bind localhost behind a tunnel or add source CIDRs for a network bind, then register the notification URL with Graph.',
+      replacesExisting: 'Graph webhook is already configured. Saving here updates the secret and bind.',
+      secretHelp: 'Shared clientState secret. Graph echoes it on every notification — generate with openssl rand -hex 32.',
+      secretLabel: 'clientState secret',
+      secretPlaceholder: 'Click Generate, or paste a 32-byte hex secret',
+      generateSecret: 'Generate secret',
+      copySecret: 'Copy secret',
+      secretWarning: 'Anyone with this secret can forge Graph notifications. Treat it like a password.',
+      secretRequired: 'Generate a clientState first — the listener refuses to start without it.',
+      bindLabel: 'Who can reach the listener',
+      bindLocalhost: 'This machine only (127.0.0.1)',
+      bindRemote: 'Network (0.0.0.0) — requires source CIDRs',
+      remoteNeedsCidrs: 'A network bind requires source CIDRs (Microsoft Graph egress ranges).',
+      notificationTitle: 'Notification URL',
+      notificationHint:
+        'Register this URL with Graph. Behind a tunnel, set the public HTTPS origin so the copied URL is what Graph can reach.',
+      copyNotificationUrl: 'Copy notification URL',
+      handshakeHint:
+        'Graph first GETs this path with ?validationToken=… — the listener echoes the token. Then it POSTs change notifications. No subscriptions CRUD lives on this card.',
+      publicUrlLabel: 'Public HTTPS origin (optional)',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp: 'Graph refuses HTTP. Terminate TLS at a reverse proxy or tunnel, then paste the https:// origin.',
+      resourcesLabel: 'Accepted resources (optional)',
+      resourcesPlaceholder: 'communications/onlineMeetings, chats/*/messages',
+      resourcesHelp: 'Comma-separated Graph resource paths. Empty accepts every resource the listener sees.',
+      cidrsLabel: 'Source CIDRs',
+      cidrsPlaceholder: '52.96.0.0/14, 13.107.64.0/18',
+      cidrsHelp: 'Required for a network bind. /health uses the same allowlist — a local Test can then return 403 while the process is up.',
+      networkExposedWarning:
+        'A remote bind needs source CIDRs. Without them the adapter refuses to start — paste Microsoft Graph egress ranges first.',
+      pipelineTitle: 'Subscriptions and Teams chat',
+      pipelineHelp:
+        'Create Graph subscriptions with `work4you teams-pipeline subscribe`. Chat replies go through the separate Teams bot card. Azure tenant / client / secret stay there — not on this listener.',
+      saved: 'Graph webhook saved and enabled. Restart the gateway to start the listener.',
+      saveFailed: 'Could not save the Graph webhook settings.',
+      copied: 'Copied to the clipboard.',
+      copyFailed: 'Could not copy to the clipboard.',
+      openGuide: 'Graph webhook guide'
     },
     smsQuickSetup: {
       title: 'Quick setup',
@@ -2208,6 +2257,31 @@ export const en: Translations = {
         label: 'Public URL',
         placeholder: 'https://your-tunnel.example',
         help: 'Routable URL advertised on the Agent Card when you sit behind a tunnel or reverse proxy.'
+      },
+      MSGRAPH_WEBHOOK_CLIENT_STATE: {
+        label: 'clientState secret',
+        help: 'Shared secret Graph echoes on every notification. Generate with openssl rand -hex 32. The listener refuses to start without it.'
+      },
+      MSGRAPH_WEBHOOK_HOST: {
+        label: 'Bind address',
+        placeholder: '127.0.0.1',
+        help: 'Default in Quick setup is 127.0.0.1 (tunnel/proxy). A network bind (0.0.0.0) requires source CIDRs.'
+      },
+      MSGRAPH_WEBHOOK_PORT: { label: 'Port', placeholder: '8646' },
+      MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES: {
+        label: 'Accepted resources',
+        placeholder: 'communications/onlineMeetings',
+        help: 'Optional. Comma-separated Graph resource paths. Empty accepts every resource.'
+      },
+      MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS: {
+        label: 'Source CIDRs',
+        placeholder: '52.96.0.0/14',
+        help: 'Required for a non-loopback bind. Microsoft Graph egress ranges. /health uses the same allowlist.'
+      },
+      MSGRAPH_WEBHOOK_PUBLIC_URL: {
+        label: 'Public HTTPS origin',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Graph refuses HTTP. Paste the https:// origin in front of /msgraph/webhook.'
       }
     },
     platformIntro: {}

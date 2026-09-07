@@ -973,6 +973,7 @@ class TestWebhookPortBridging:
         monkeypatch.setenv("WORK4YOU_HOME", str(work4you_home))
         monkeypatch.delenv("MSGRAPH_WEBHOOK_ENABLED", raising=False)
         monkeypatch.delenv("MSGRAPH_WEBHOOK_PORT", raising=False)
+        monkeypatch.delenv("MSGRAPH_WEBHOOK_HOST", raising=False)
         monkeypatch.delenv("MSGRAPH_WEBHOOK_CLIENT_STATE", raising=False)
 
         config = load_gateway_config()
@@ -985,6 +986,22 @@ class TestWebhookPortBridging:
         # explicit extra: wins over top-level
         assert ms.extra.get("secret") == "extra-secret"
         assert ms.extra.get("client_state") == "my-client-state"
+
+    def test_msgraph_webhook_host_env_merges_into_extra(self, tmp_path, monkeypatch):
+        work4you_home = tmp_path / ".work4you"
+        work4you_home.mkdir()
+        (work4you_home / "config.yaml").write_text("platforms: {}\n", encoding="utf-8")
+        monkeypatch.setenv("WORK4YOU_HOME", str(work4you_home))
+        monkeypatch.setenv("MSGRAPH_WEBHOOK_HOST", "127.0.0.1")
+        monkeypatch.setenv("MSGRAPH_WEBHOOK_CLIENT_STATE", "env-client-state-value")
+        monkeypatch.delenv("MSGRAPH_WEBHOOK_ENABLED", raising=False)
+        monkeypatch.delenv("MSGRAPH_WEBHOOK_PORT", raising=False)
+
+        config = load_gateway_config()
+
+        ms = config.platforms[Platform.MSGRAPH_WEBHOOK]
+        assert ms.extra.get("host") == "127.0.0.1"
+        assert ms.extra.get("client_state") == "env-client-state-value"
 
 
 class TestHomeChannelEnvOverrides:

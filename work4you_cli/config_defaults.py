@@ -4815,6 +4815,55 @@ OPTIONAL_ENV_VARS = {
         "password": True,
         "category": "messaging",
     },
+    "MSGRAPH_WEBHOOK_ENABLED": {
+        "description": "Enable the Microsoft Graph webhook listener (true/1/yes).",
+        "prompt": "Enable Microsoft Graph webhook (true/false)",
+        "url": "https://work4you.ai/docs/user-guide/messaging/msgraph-webhook",
+        "password": False,
+        "category": "messaging",
+    },
+    "MSGRAPH_WEBHOOK_CLIENT_STATE": {
+        "description": "Shared secret Graph echoes in every notification (hmac.compare_digest). Generate with openssl rand -hex 32.",
+        "prompt": "Graph clientState secret",
+        "url": "https://work4you.ai/docs/user-guide/messaging/msgraph-webhook",
+        "password": True,
+        "category": "messaging",
+    },
+    "MSGRAPH_WEBHOOK_PORT": {
+        "description": "Port the Microsoft Graph webhook listener binds to (default: 8646).",
+        "prompt": "Graph webhook port (default 8646)",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+    },
+    "MSGRAPH_WEBHOOK_HOST": {
+        "description": "Inbound bind host. Defaults to all interfaces; loopback (127.0.0.1) is the safe tunnel/proxy setup. A non-loopback bind requires MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS.",
+        "prompt": "Graph webhook bind host (default all interfaces)",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+    },
+    "MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES": {
+        "description": "Comma-separated Graph resource paths/patterns (e.g. communications/onlineMeetings,chats/*/messages). Empty = accept all.",
+        "prompt": "Accepted Graph resources (or empty for all)",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+    },
+    "MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS": {
+        "description": "Comma-separated CIDR ranges allowed to POST (Microsoft Graph egress). Required for a non-loopback bind. Empty = allow all on loopback only.",
+        "prompt": "Allowed source CIDRs (required for 0.0.0.0)",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+    },
+    "MSGRAPH_WEBHOOK_PUBLIC_URL": {
+        "description": "Public HTTPS origin you register with Graph (reverse proxy or tunnel). The notification path is /msgraph/webhook. Graph refuses non-HTTPS endpoints.",
+        "prompt": "Public HTTPS origin for Graph (or empty)",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+    },
 
     # ── Agent settings ──
     # NOTE: MESSAGING_CWD was removed here — use terminal.cwd in config.yaml

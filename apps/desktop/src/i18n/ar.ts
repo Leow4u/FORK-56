@@ -1247,6 +1247,12 @@ export const ar = defineLocale({
       telegramToken: 'الصق الرمز الكامل من @BotFather (مثال: 123456789:ABC…).',
       telegramUserId: (value: string) => `${value} ليس معرف مستخدم Telegram رقميًا.`,
       twilioAccountSid: 'الصق Account SID الكامل من لوحة تحكم Twilio — يبدأ بـ AC متبوعًا بـ 32 حرفًا.',
+      msgraphCidr: (value: string) =>
+        `${value} ليس CIDR. استخدم إدخالات مثل 52.96.0.0/14 (نطاقات خروج Microsoft Graph مفصولة بفواصل).`,
+      msgraphClientState:
+        'يجب أن يكون سر clientState بطول 16 حرفاً على الأقل وليس عنصر نائب. استخدم توليد السر (openssl rand -hex 32).',
+      msgraphPublicUrl: (value: string) =>
+        `${value} ليس عنوان URL عاماً صالحاً. Graph يرفض HTTP — استخدم أصلاً https:// مثل https://your-tunnel.example.`,
       webhookSecret:
         'استخدم سراً عشوائياً من 16 حرفاً أو أكثر. «INSECURE_NO_AUTH» يعطّل التحقق من التوقيع على كل مسار يعتمد على هذا السر العام.',
       whatsappNumber: (value: string) =>
@@ -1460,6 +1466,49 @@ export const ar = defineLocale({
       copied: 'تم النسخ إلى الحافظة.',
       copyFailed: 'تعذّر النسخ إلى الحافظة.',
       openGuide: 'دليل A2A'
+    },
+    msgraphQuickSetup: {
+      title: 'الإعداد السريع',
+      recommended: 'موصى به',
+      intro:
+        'هذه البطاقة مستمع Graph الوارد فقط. Microsoft Graph يرسل إشعارات التغيير إلى هنا — ليست روبوت دردشة Teams. ولّد سر clientState، واربط المضيف المحلي خلف نفق أو أضف CIDR المصدر للربط الشبكي، ثم سجّل عنوان الإشعار لدى Graph.',
+      replacesExisting: 'Webhook الخاص بـ Graph مهيأ بالفعل. الحفظ هنا يحدّث السر والربط.',
+      secretHelp: 'سر clientState المشترك. يعيده Graph في كل إشعار — ولّده بـ openssl rand -hex 32.',
+      secretLabel: 'سر clientState',
+      secretPlaceholder: 'انقر توليد، أو الصق سراً سداسياً من 32 بايت',
+      generateSecret: 'توليد سر',
+      copySecret: 'نسخ السر',
+      secretWarning: 'أي شخص يملك هذا السر يمكنه تزوير إشعارات Graph. عامله ككلمة مرور.',
+      secretRequired: 'ولّد clientState أولاً — يرفض المستمع البدء بدونه.',
+      bindLabel: 'من يمكنه الوصول إلى المستمع',
+      bindLocalhost: 'هذا الجهاز فقط (127.0.0.1)',
+      bindRemote: 'الشبكة (0.0.0.0) — يتطلب CIDR المصدر',
+      remoteNeedsCidrs: 'الربط الشبكي يتطلب CIDR المصدر (نطاقات خروج Microsoft Graph).',
+      notificationTitle: 'عنوان URL للإشعار',
+      notificationHint:
+        'سجّل هذا العنوان لدى Graph. خلف نفق، عيّن أصل HTTPS العام حتى يكون العنوان المنسوخ هو ما يصل إليه Graph.',
+      copyNotificationUrl: 'نسخ عنوان الإشعار',
+      handshakeHint:
+        'Graph يطلب أولاً هذا المسار بـ GET مع ?validationToken=… — يرد المستمع بالرمز. ثم يرسل إشعارات التغيير بـ POST. لا يوجد CRUD للاشتراكات على هذه البطاقة.',
+      publicUrlLabel: 'أصل HTTPS عام (اختياري)',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp: 'Graph يرفض HTTP. أنهِ TLS عند وكيل عكسي أو نفق، ثم الصق أصل https://.',
+      resourcesLabel: 'الموارد المقبولة (اختياري)',
+      resourcesPlaceholder: 'communications/onlineMeetings, chats/*/messages',
+      resourcesHelp: 'مسارات موارد Graph مفصولة بفواصل. الفارغ يقبل كل مورد يراه المستمع.',
+      cidrsLabel: 'CIDR المصدر',
+      cidrsPlaceholder: '52.96.0.0/14, 13.107.64.0/18',
+      cidrsHelp: 'مطلوب للربط الشبكي. يستخدم /health نفس القائمة — قد يعيد Test المحلي 403 بينما العملية تعمل.',
+      networkExposedWarning:
+        'الربط البعيد يحتاج CIDR المصدر. بدونها يرفض المحوّل البدء — الصق نطاقات خروج Microsoft Graph أولاً.',
+      pipelineTitle: 'الاشتراكات ودردشة Teams',
+      pipelineHelp:
+        'أنشئ اشتراكات Graph بـ `work4you teams-pipeline subscribe`. ردود الدردشة تمر عبر بطاقة روبوت Teams المنفصلة. يبقى مستأجر Azure / العميل / السر هناك — ليس على هذا المستمع.',
+      saved: 'تم حفظ Webhook الخاص بـ Graph وتفعيله. أعد تشغيل البوابة لبدء المستمع.',
+      saveFailed: 'تعذّر حفظ إعدادات Webhook الخاص بـ Graph.',
+      copied: 'تم النسخ إلى الحافظة.',
+      copyFailed: 'تعذّر النسخ إلى الحافظة.',
+      openGuide: 'دليل Graph webhook'
     },
     smsQuickSetup: {
       title: 'الإعداد السريع',
@@ -1842,6 +1891,31 @@ export const ar = defineLocale({
         label: 'عنوان URL عام',
         placeholder: 'https://your-tunnel.example',
         help: 'عنوان قابل للتوجيه يُعلن على بطاقة الوكيل عندما تكون خلف نفق أو وكيل عكسي.'
+      },
+      MSGRAPH_WEBHOOK_CLIENT_STATE: {
+        label: 'سر clientState',
+        help: 'سر مشترك يعيده Graph في كل إشعار. ولّده بـ openssl rand -hex 32. يرفض المستمع البدء بدونه.'
+      },
+      MSGRAPH_WEBHOOK_HOST: {
+        label: 'عنوان الربط',
+        placeholder: '127.0.0.1',
+        help: 'الافتراضي في الإعداد السريع هو 127.0.0.1 (نفق/وكيل). الربط الشبكي (0.0.0.0) يتطلب CIDR المصدر.'
+      },
+      MSGRAPH_WEBHOOK_PORT: { label: 'المنفذ', placeholder: '8646' },
+      MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES: {
+        label: 'الموارد المقبولة',
+        placeholder: 'communications/onlineMeetings',
+        help: 'اختياري. مسارات موارد Graph مفصولة بفواصل. الفارغ يقبل كل مورد.'
+      },
+      MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS: {
+        label: 'CIDR المصدر',
+        placeholder: '52.96.0.0/14',
+        help: 'مطلوب للربط غير الحلقي. نطاقات خروج Microsoft Graph. يستخدم /health نفس القائمة.'
+      },
+      MSGRAPH_WEBHOOK_PUBLIC_URL: {
+        label: 'أصل HTTPS عام',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Graph يرفض HTTP. الصق أصل https:// أمام /msgraph/webhook.'
       }
     },
     platformIntro: {}

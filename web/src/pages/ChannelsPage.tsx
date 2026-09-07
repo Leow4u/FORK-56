@@ -6,6 +6,8 @@ import {
   useLayoutEffect,
   useMemo,
   useState,
+  type Dispatch,
+  type SetStateAction,
 } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
@@ -13,6 +15,7 @@ import {
   Bot,
   Check,
   CheckCircle2,
+  Copy,
   ExternalLink,
   Info,
   Plus,
@@ -142,6 +145,39 @@ function validateMessagingEnvField(field: MessagingPlatformEnvVar, value: string
     return `${trimmed} is not a valid public URL. Use the full http(s) address.`;
   }
 
+  if (field.key === "MSGRAPH_WEBHOOK_PORT") {
+    const port = Number(trimmed);
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return `${trimmed} is not a valid port. Use a number between 1 and 65535.`;
+    }
+  }
+
+  if (field.key === "MSGRAPH_WEBHOOK_HOST" && (/\s/.test(trimmed) || trimmed.includes("://") || trimmed.includes("/"))) {
+    return `${trimmed} is not a valid bind address. Use a bare hostname or IP like 127.0.0.1 — no http:// or paths.`;
+  }
+
+  if (
+    field.key === "MSGRAPH_WEBHOOK_CLIENT_STATE" &&
+    (trimmed.length < 16 || /^(changeme|your_api_key|placeholder|example)$/i.test(trimmed))
+  ) {
+    return "The clientState secret must be at least 16 characters and not a placeholder.";
+  }
+
+  if (field.key === "MSGRAPH_WEBHOOK_PUBLIC_URL" && (!/^https:\/\/\S+$/.test(trimmed) || trimmed.includes(" "))) {
+    return `${trimmed} is not a valid public URL. Graph refuses HTTP — use an https:// origin.`;
+  }
+
+  if (field.key === "MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS") {
+    const invalid = trimmed
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .find((part) => !part.includes("/"));
+    if (invalid) {
+      return `${invalid} is not a CIDR. Use entries like 52.96.0.0/14.`;
+    }
+  }
+
   if (field.key === "SLACK_ALLOWED_USERS") {
     // Mirror the gateway's parse (gateway/platforms/slack.py): drop empty
     // entries so a trailing/interior comma isn't rejected here. "*" is the
@@ -157,6 +193,98 @@ function validateMessagingEnvField(field: MessagingPlatformEnvVar, value: string
   }
 
   return null;
+}
+
+function generateMsgraphClientState(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function MSGraphSetupHint({
+  draftEnv,
+  setDraftEnv,
+}: {
+  draftEnv: Record<string, string>;
+  setDraftEnv: Dispatch<SetStateAction<Record<string, string>>>;
+}) {
+  const host = (draftEnv.MSGRAPH_WEBHOOK_HOST || "").trim();
+  const port = (draftEnv.MSGRAPH_WEBHOOK_PORT || "").trim() || "8646";
+  const publicUrl = (draftEnv.MSGRAPH_WEBHOOK_PUBLIC_URL || "").trim().replace(/\/+$/, "");
+  const cidrs = (draftEnv.MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS || "").trim();
+  const probeHost = !host || host === "0.0.0.0" || host === "::" || host === "*" ? "127.0.0.1" : host;
+  const notifyUrl = publicUrl ? `${publicUrl}/msgraph/webhook` : `http://${probeHost}:${port}/msgraph/webhook`;
+  const network = Boolean(host) && !["127.0.0.1", "localhost", "::1"].includes(host.toLowerCase());
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* clipboard may be unavailable */
+    }
+  }
+
+  return (
+    <div className="grid gap-2 text-sm text-muted-foreground">
+      <p>
+        Inbound listener only — Microsoft Graph POSTs change notifications here
+        (meetings, Outlook, chat). This is not the Teams chat bot. Generate a
+        clientState secret, bind localhost behind a tunnel, and copy the
+        notification URL.
+      </p>
+      <p>
+        Graph first GETs <code className="font-courier text-xs">/msgraph/webhook?validationToken=…</code>
+        {" "}(the listener echoes the token), then POSTs notifications. Create
+        subscriptions with <code className="font-courier text-xs">work4you teams-pipeline subscribe</code>
+        . Azure tenant / client / secret stay on the Teams / pipeline cards.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          onClick={() =>
+            setDraftEnv((prev) => ({
+              ...prev,
+              MSGRAPH_WEBHOOK_CLIENT_STATE: generateMsgraphClientState(),
+            }))
+          }
+          outlined
+          size="sm"
+        >
+          Generate secret
+        </Button>
+        <Button
+          onClick={() =>
+            setDraftEnv((prev) => ({ ...prev, MSGRAPH_WEBHOOK_HOST: "127.0.0.1" }))
+          }
+          outlined
+          size="sm"
+        >
+          Bind localhost
+        </Button>
+        <Button
+          onClick={() =>
+            setDraftEnv((prev) => ({ ...prev, MSGRAPH_WEBHOOK_HOST: "0.0.0.0" }))
+          }
+          outlined
+          size="sm"
+        >
+          Bind network
+        </Button>
+      </div>
+      {network && !cidrs && (
+        <p className="text-xs text-amber-600 dark:text-amber-500">
+          A network bind requires MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS
+          (Microsoft Graph egress ranges). /health uses the same allowlist.
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <code className="font-courier break-all text-foreground">{notifyUrl}</code>
+        <Button onClick={() => void copyText(notifyUrl)} outlined size="sm">
+          <Copy className="h-3 w-3" />
+          Copy URL
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 function A2ASetupHint() {
@@ -448,6 +576,18 @@ export default function ChannelsPage() {
       setFieldErrors(nextFieldErrors);
       showToast("Fix the highlighted fields before saving.", "error");
       return;
+    }
+    if (editing.id === "msgraph_webhook") {
+      const host = (draftEnv.MSGRAPH_WEBHOOK_HOST || "").trim().toLowerCase();
+      const network = Boolean(host) && !["127.0.0.1", "localhost", "::1"].includes(host);
+      const cidrs = (draftEnv.MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS || "").trim();
+      const cidrsSet = editing.env_vars.some(
+        (field) => field.key === "MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS" && field.is_set,
+      );
+      if (network && !cidrs && !cidrsSet) {
+        showToast("A network bind requires source CIDRs (Microsoft Graph egress ranges).", "error");
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -755,6 +895,9 @@ export default function ChannelsPage() {
                 </div>
               )}
               {editing.id === "a2a" && <A2ASetupHint />}
+              {editing.id === "msgraph_webhook" && (
+                <MSGraphSetupHint draftEnv={draftEnv} setDraftEnv={setDraftEnv} />
+              )}
               <p className="text-xs text-muted-foreground">
                 {editing.description}
               </p>

@@ -25,6 +25,16 @@ import { cn } from '@/lib/utils'
 // enough to stay legible. At small sizes the bars blend into a distinctive
 // silhouette; the wide triangular spacing preserves the logo's identity.
 // ---------------------------------------------------------------------------
+function MsgraphWebhookIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24" {...props}>
+      <rect height="10" rx="1.6" width="16" x="4" y="7" />
+      <path d="M8 7V5.8A2.8 2.8 0 0 1 10.8 3h2.4A2.8 2.8 0 0 1 16 5.8V7" strokeLinecap="round" />
+      <path d="M9 12h6M9 15h3.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function A2AIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" {...props}>
@@ -80,6 +90,7 @@ const PLATFORM_ICONS: Record<string, PlatformIconSpec> = {
   webhook: { Icon: LinkIcon, color: '#71717A', kind: 'generic' },
   api_server: { Icon: Globe, color: '#64748B', kind: 'generic' },
   a2a: { Icon: A2AIcon, color: '#6366F1', kind: 'generic' },
+  msgraph_webhook: { Icon: MsgraphWebhookIcon, color: '#0078D4', kind: 'generic' },
   weixin: { Icon: SiWechat, color: '#07C160', kind: 'brand' },
   qqbot: { Icon: SiQq, color: '#EB1923', kind: 'brand' },
   yuanbao: { Icon: SiBilibili, color: '#FB7299', kind: 'brand' }
