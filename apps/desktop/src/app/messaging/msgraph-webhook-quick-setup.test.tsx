@@ -171,7 +171,7 @@ describe('MsgraphWebhookQuickSetup', () => {
     await save()
 
     expect(updateMessagingPlatform).not.toHaveBeenCalled()
-    expect(screen.getByText(/source CIDRs/)).toBeTruthy()
+    expect(screen.getByText(/A network bind requires source CIDRs/)).toBeTruthy()
   })
 
   it('saves a remote bind when CIDRs are provided', async () => {
