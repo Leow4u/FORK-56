@@ -251,8 +251,8 @@ function A2ASetupHint() {
                 <Button
                   disabled={busy}
                   onClick={() => void removePeer(agent.name)}
+                  outlined
                   size="sm"
-                  variant="outline"
                 >
                   <Trash2 className="h-3 w-3" />
                   Remove
@@ -288,7 +288,7 @@ function A2ASetupHint() {
             value={token}
           />
           <div>
-            <Button disabled={busy} onClick={() => void addPeer()} size="sm" variant="outline">
+            <Button disabled={busy} onClick={() => void addPeer()} outlined size="sm">
               <Plus className="h-3 w-3" />
               Add peer
             </Button>
