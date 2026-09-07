@@ -1809,6 +1809,8 @@ export const zh: Translations = {
       telegramToken: '请粘贴来自 @BotFather 的完整令牌（例如 123456789:ABC…）。',
       telegramUserId: (value: string) => `${value} 不是有效的 Telegram 数字用户 ID。`,
       twilioAccountSid: '请粘贴 Twilio 控制台仪表盘中的完整 Account SID——以 AC 开头，后跟 32 个字符。',
+      webhookSecret:
+        '请使用 16 个字符以上的随机密钥。"INSECURE_NO_AUTH" 会在所有回退到此全局密钥的路由上禁用签名验证。',
       whatsappNumber: (value: string) => `${value} 不像是 WhatsApp 号码。请使用带国家代码的完整号码，例如 15551234567。`
     },
     envOptions: {
@@ -1934,6 +1936,21 @@ export const zh: Translations = {
       openGuide: 'Open WebUI 指南',
       saved: 'API 服务器已保存并启用。重启网关即可启动。',
       saveFailed: '无法保存 API 服务器设置。'
+    },
+    webhookRoutesPanel: {
+      title: 'Webhook 路由',
+      startHere: '从这里开始',
+      intro:
+        '路由决定此频道接收什么：每条路由都有自己的 URL 和签名密钥。请在 Webhooks 页面创建和管理路由——只启用频道而不建路由，监听器不会接受任何请求。',
+      baseUrlLabel: '端点格式',
+      copyBaseUrl: '复制基础 URL',
+      copied: '已复制到剪贴板。',
+      copyFailed: '无法复制到剪贴板。',
+      routeCount: (active: number, total: number) =>
+        active === total ? `已配置 ${total} 条路由。` : `${total} 条路由中有 ${active} 条处于活动状态。`,
+      noRoutes: '还没有路由——在创建第一条路由之前，监听器不会接受任何请求。',
+      tunnelHint: '发送方服务必须能访问该端口。如果 Work4You 运行在本地，请用 cloudflared 或 ngrok 之类的隧道暴露它。',
+      manageRoutes: '管理 Webhook 路由'
     },
     smsQuickSetup: {
       title: '快速设置',
@@ -2269,7 +2286,8 @@ export const zh: Translations = {
       qqbot: '在 QQ 开放平台 (q.qq.com) 注册一个应用，复制 App ID 和 Client Secret。',
       api_server:
         '把 Work4You 暴露为兼容 OpenAI 的 API。在上方的快速设置中生成一个强密钥，然后把 Open WebUI / LobeChat / 你自己的聊天前端指向它显示的基础 URL。密钥授予完整的智能体访问权限（包括终端）——请像密码一样对待。',
-      webhook: '运行一个 HTTP 服务器，供其他工具 (GitHub、GitLab、自定义应用)POST。用 secret 验证签名。'
+      webhook:
+        '把来自 GitHub、GitLab、Stripe 或你自己应用的事件变成智能体运行。每条路由都是独立的 URL 和签名密钥——请在上方"Webhook 路由"中创建和管理；至少要有一条路由才会接收任何请求。下方的可选字段是监听端口和全局回退密钥。'
     }
   },
 
@@ -2321,6 +2339,9 @@ export const zh: Translations = {
     fieldSkillsPlaceholder: '以逗号分隔的技能名称（可选）',
     fieldDeliver: '投递到',
     fieldDeliverOnly: '仅投递载荷',
+    fieldDeliverTarget: '投递目标',
+    fieldDeliverTargetPlaceholder: '例如 Telegram 聊天 ID、Slack 频道、邮箱地址',
+    fieldDeliverTargetHelp: '响应发送到的聊天、频道或地址。留空则使用该平台的主频道。',
     fieldPrompt: '提示词',
     fieldPromptPlaceholder: '此 Webhook 触发时给智能体的说明（可选）',
     nameRequired: '需要名称',

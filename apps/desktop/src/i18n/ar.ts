@@ -1243,6 +1243,8 @@ export const ar = defineLocale({
       telegramToken: 'الصق الرمز الكامل من @BotFather (مثال: 123456789:ABC…).',
       telegramUserId: (value: string) => `${value} ليس معرف مستخدم Telegram رقميًا.`,
       twilioAccountSid: 'الصق Account SID الكامل من لوحة تحكم Twilio — يبدأ بـ AC متبوعًا بـ 32 حرفًا.',
+      webhookSecret:
+        'استخدم سراً عشوائياً من 16 حرفاً أو أكثر. «INSECURE_NO_AUTH» يعطّل التحقق من التوقيع على كل مسار يعتمد على هذا السر العام.',
       whatsappNumber: (value: string) =>
         `${value} لا يبدو رقم WhatsApp صحيحًا. استخدم أرقامًا كاملة مع رمز الدولة، مثل 15551234567.`
     },
@@ -1377,6 +1379,22 @@ export const ar = defineLocale({
       openGuide: 'دليل Open WebUI',
       saved: 'تم حفظ خادم API وتفعيله. أعد تشغيل البوابة لبدء تشغيله.',
       saveFailed: 'تعذّر حفظ إعدادات خادم API.'
+    },
+    webhookRoutesPanel: {
+      title: 'مسارات Webhook',
+      startHere: 'ابدأ من هنا',
+      intro:
+        'المسارات هي ما تستقبله هذه القناة: كل مسار له عنوان URL خاص وسر توقيع خاص. أنشئها وأدرها من صفحة Webhooks — تفعيل القناة بدون مسار يترك مستمعاً لا يقبل أي شيء.',
+      baseUrlLabel: 'نمط نقطة النهاية',
+      copyBaseUrl: 'انسخ عنوان URL الأساسي',
+      copied: 'تم النسخ إلى الحافظة.',
+      copyFailed: 'تعذّر النسخ إلى الحافظة.',
+      routeCount: (active: number, total: number) =>
+        active === total ? `${total} مسار مُعدّ.` : `${active} من ${total} مسارات نشطة.`,
+      noRoutes: 'لا توجد مسارات بعد — لن يقبل المستمع أي شيء حتى تنشئ مساراً.',
+      tunnelHint:
+        'يجب أن تتمكن الخدمة المرسلة من الوصول إلى هذا المنفذ. إذا كان Work4You يعمل على جهازك المحلي، فاكشفه عبر نفق مثل cloudflared أو ngrok.',
+      manageRoutes: 'إدارة مسارات Webhook'
     },
     smsQuickSetup: {
       title: 'الإعداد السريع',

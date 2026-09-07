@@ -33,6 +33,16 @@ interface CreatedWebhook {
   secret: string;
 }
 
+// Deliver targets that accept an explicit chat/channel/address id. Without
+// one, delivery falls back to the platform's home channel — fine for a
+// personal setup, silently wrong for anything else, so ask while creating.
+const CHAT_TARGET_DELIVERS: ReadonlySet<string> = new Set([
+  "telegram",
+  "discord",
+  "slack",
+  "email",
+]);
+
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(() => {
@@ -73,6 +83,7 @@ export default function WebhooksPage() {
   const [description, setDescription] = useState("");
   const [events, setEvents] = useState("");
   const [deliver, setDeliver] = useState("log");
+  const [deliverChatId, setDeliverChatId] = useState("");
   const [deliverOnly, setDeliverOnly] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [skills, setSkills] = useState("");
@@ -180,6 +191,7 @@ export default function WebhooksPage() {
     setDescription("");
     setEvents("");
     setDeliver("log");
+    setDeliverChatId("");
     setDeliverOnly(false);
     setPrompt("");
     setSkills("");
@@ -207,6 +219,10 @@ export default function WebhooksPage() {
         description: description.trim() || undefined,
         events: eventsList.length ? eventsList : undefined,
         deliver,
+        deliver_chat_id:
+          CHAT_TARGET_DELIVERS.has(deliver) && deliverChatId.trim()
+            ? deliverChatId.trim()
+            : undefined,
         deliver_only: deliverOnly,
         prompt: prompt.trim() || undefined,
         skills: skillsList.length ? skillsList : undefined,
@@ -450,6 +466,24 @@ export default function WebhooksPage() {
                     </label>
                   </div>
                 </div>
+
+                {CHAT_TARGET_DELIVERS.has(deliver) && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="webhook-deliver-target">
+                      Deliver target (chat/channel/address)
+                    </Label>
+                    <Input
+                      id="webhook-deliver-target"
+                      placeholder="e.g. Telegram chat ID, Slack channel, email address"
+                      value={deliverChatId}
+                      onChange={(e) => setDeliverChatId(e.target.value)}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      Leave empty to deliver to the platform&apos;s home
+                      channel.
+                    </span>
+                  </div>
+                )}
 
                 <div className="grid gap-2">
                   <Label htmlFor="webhook-prompt">Prompt</Label>

@@ -62,6 +62,20 @@ export function isUsableApiServerKey(value: string): boolean {
   return cleaned.length >= 16 && !API_SERVER_KEY_PLACEHOLDERS.has(cleaned.toLowerCase())
 }
 
+/** The webhook adapter treats "INSECURE_NO_AUTH" as a skip-HMAC sentinel meant
+ *  for curl testing only — as the GLOBAL secret it silently disables signature
+ *  validation on every route that falls back to it. Reject it (any casing)
+ *  plus the usual placeholders and anything too short to be a real HMAC key. */
+export function isUsableWebhookSecret(value: string): boolean {
+  const cleaned = value.trim()
+
+  return (
+    cleaned.length >= 16 &&
+    cleaned.toUpperCase() !== 'INSECURE_NO_AUTH' &&
+    !API_SERVER_KEY_PLACEHOLDERS.has(cleaned.toLowerCase())
+  )
+}
+
 export type MessagingEnvError =
   | { code: 'apiServerCorsOrigin'; value: string }
   | { code: 'apiServerHost'; value: string }
@@ -81,6 +95,7 @@ export type MessagingEnvError =
   | { code: 'telegramToken' }
   | { code: 'telegramUserId'; value: string }
   | { code: 'twilioAccountSid' }
+  | { code: 'webhookSecret' }
   | { code: 'whatsappNumber'; value: string }
 
 /** First allowlist entry that is neither an email address nor the "*"
@@ -260,6 +275,18 @@ export function validateMessagingEnv(key: string, value: string): MessagingEnvEr
   // which make the bind fail at gateway start.
   if (key === 'API_SERVER_HOST' && (/\s/.test(trimmed) || trimmed.includes('://') || trimmed.includes('/'))) {
     return { code: 'apiServerHost', value: trimmed }
+  }
+
+  if (key === 'WEBHOOK_PORT') {
+    const port = Number(trimmed)
+
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return { code: 'emailPort', value: trimmed }
+    }
+  }
+
+  if (key === 'WEBHOOK_SECRET' && !isUsableWebhookSecret(trimmed)) {
+    return { code: 'webhookSecret' }
   }
 
   if (key === 'API_SERVER_CORS_ORIGINS') {

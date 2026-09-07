@@ -1621,6 +1621,8 @@ export const en: Translations = {
       telegramUserId: (value: string) => `${value} is not a numeric Telegram user ID.`,
       twilioAccountSid:
         'Paste the complete Account SID from the Twilio console dashboard — it starts with AC followed by 32 characters.',
+      webhookSecret:
+        'Use a random secret of 16+ characters. "INSECURE_NO_AUTH" disables signature validation on every route that falls back to this global secret.',
       whatsappNumber: (value: string) =>
         `${value} does not look like a WhatsApp number. Use full numbers with country code, like 15551234567.`
     },
@@ -1757,6 +1759,22 @@ export const en: Translations = {
       openGuide: 'Open WebUI guide',
       saved: 'API server saved and enabled. Restart the gateway to start it.',
       saveFailed: 'Could not save the API server settings.'
+    },
+    webhookRoutesPanel: {
+      title: 'Webhook routes',
+      startHere: 'Start here',
+      intro:
+        'Routes are what this channel receives: each one is its own URL with its own signing secret. Create and manage them on the Webhooks page — enabling the channel without a route leaves a listener that accepts nothing.',
+      baseUrlLabel: 'Endpoint pattern',
+      copyBaseUrl: 'Copy base URL',
+      copied: 'Copied to the clipboard.',
+      copyFailed: 'Could not copy to the clipboard.',
+      routeCount: (active: number, total: number) =>
+        active === total ? `${total} route${total === 1 ? '' : 's'} configured.` : `${active} of ${total} routes active.`,
+      noRoutes: 'No routes yet — the listener accepts nothing until you create one.',
+      tunnelHint:
+        'The sending service must be able to reach this port. If Work4You runs on your local machine, expose it with a tunnel like cloudflared or ngrok.',
+      manageRoutes: 'Manage webhook routes'
     },
     smsQuickSetup: {
       title: 'Quick setup',
@@ -2155,6 +2173,9 @@ export const en: Translations = {
     fieldSkillsPlaceholder: 'comma-separated skill names (optional)',
     fieldDeliver: 'Deliver to',
     fieldDeliverOnly: 'Deliver payload only',
+    fieldDeliverTarget: 'Deliver target',
+    fieldDeliverTargetPlaceholder: 'e.g. Telegram chat ID, Slack channel, email address',
+    fieldDeliverTargetHelp: "Chat, channel, or address the response goes to. Leave empty to use the platform's home channel.",
     fieldPrompt: 'Prompt',
     fieldPromptPlaceholder: 'Instructions for the agent when this webhook fires (optional)',
     nameRequired: 'Name required',

@@ -243,6 +243,25 @@ describe('validateMessagingEnv', () => {
     })
   })
 
+  it('validates the webhook listener port range', () => {
+    expect(validateMessagingEnv('WEBHOOK_PORT', '8644')).toBeNull()
+    expect(validateMessagingEnv('WEBHOOK_PORT', 'abc')).toEqual({ code: 'emailPort', value: 'abc' })
+    expect(validateMessagingEnv('WEBHOOK_PORT', '0')).toEqual({ code: 'emailPort', value: '0' })
+    expect(validateMessagingEnv('WEBHOOK_PORT', '70000')).toEqual({ code: 'emailPort', value: '70000' })
+  })
+
+  it('rejects weak global webhook secrets and the INSECURE_NO_AUTH sentinel', () => {
+    expect(validateMessagingEnv('WEBHOOK_SECRET', 'a'.repeat(16))).toBeNull()
+    // Optional field: empty passes (routes can carry their own secrets).
+    expect(validateMessagingEnv('WEBHOOK_SECRET', '')).toBeNull()
+    expect(validateMessagingEnv('WEBHOOK_SECRET', 'short')).toEqual({ code: 'webhookSecret' })
+    // The skip-HMAC sentinel is for curl testing — as the global secret it
+    // silently disables signature validation, in any casing.
+    expect(validateMessagingEnv('WEBHOOK_SECRET', 'INSECURE_NO_AUTH')).toEqual({ code: 'webhookSecret' })
+    expect(validateMessagingEnv('WEBHOOK_SECRET', 'insecure_no_auth')).toEqual({ code: 'webhookSecret' })
+    expect(validateMessagingEnv('WEBHOOK_SECRET', 'your_api_key_here')).toEqual({ code: 'webhookSecret' })
+  })
+
   it('generates keys that pass the startup guard', () => {
     expect(isUsableApiServerKey('a'.repeat(16))).toBe(true)
     expect(isUsableApiServerKey('changeme')).toBe(false)

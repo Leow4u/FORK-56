@@ -1415,6 +1415,8 @@ export const ja = defineLocale({
       telegramUserId: (value: string) => `${value} は数字の Telegram ユーザー ID ではありません。`,
       twilioAccountSid:
         'Twilio コンソールのダッシュボードから完全な Account SID を貼り付けてください。AC で始まり、32 文字が続きます。',
+      webhookSecret:
+        '16 文字以上のランダムなシークレットを使用してください。「INSECURE_NO_AUTH」は、このグローバルシークレットにフォールバックするすべてのルートで署名検証を無効にします。',
       whatsappNumber: (value: string) =>
         `${value} は WhatsApp の番号として正しくないようです。国番号付きの完全な番号（例: 15551234567）を使用してください。`
     },
@@ -1553,6 +1555,22 @@ export const ja = defineLocale({
       openGuide: 'Open WebUI ガイド',
       saved: 'API サーバーを保存して有効にしました。ゲートウェイを再起動すると起動します。',
       saveFailed: 'API サーバーの設定を保存できませんでした。'
+    },
+    webhookRoutesPanel: {
+      title: 'Webhook ルート',
+      startHere: 'ここから開始',
+      intro:
+        'ルートがこのチャンネルの受信内容を決めます。各ルートは固有の URL と署名シークレットを持ちます。ルートは Webhooks ページで作成・管理してください。ルートなしでチャンネルを有効にしても、リスナーは何も受け付けません。',
+      baseUrlLabel: 'エンドポイントの形式',
+      copyBaseUrl: 'ベース URL をコピー',
+      copied: 'クリップボードにコピーしました。',
+      copyFailed: 'クリップボードにコピーできませんでした。',
+      routeCount: (active: number, total: number) =>
+        active === total ? `${total} 件のルートが設定済みです。` : `${total} 件中 ${active} 件のルートが有効です。`,
+      noRoutes: 'ルートがまだありません。最初のルートを作成するまで、リスナーは何も受け付けません。',
+      tunnelHint:
+        '送信側サービスがこのポートに到達できる必要があります。Work4You をローカルで実行している場合は、cloudflared や ngrok などのトンネルで公開してください。',
+      manageRoutes: 'Webhook ルートを管理'
     },
     smsQuickSetup: {
       title: 'クイックセットアップ',
