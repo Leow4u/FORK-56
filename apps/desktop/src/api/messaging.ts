@@ -246,10 +246,7 @@ export function getA2AAgents(profile?: null | string): Promise<A2AAgentsResponse
   })
 }
 
-export function createA2AAgent(
-  body: A2AAgentCreatePayload,
-  profile?: null | string
-): Promise<A2AAgentInfo> {
+export function createA2AAgent(body: A2AAgentCreatePayload, profile?: null | string): Promise<A2AAgentInfo> {
   return work4youApi<A2AAgentInfo>({
     ...profileScoped(profile),
     path: '/api/a2a/agents',
