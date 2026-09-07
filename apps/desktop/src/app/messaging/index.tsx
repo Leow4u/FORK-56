@@ -52,6 +52,7 @@ import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackQuickSetup } from './slack-quick-setup'
 import { SmsQuickSetup } from './sms-quick-setup'
+import { TeamsQuickSetup } from './teams-quick-setup'
 import { TelegramQuickSetup } from './telegram-quick-setup'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
 import { WebhookRoutesPanel } from './webhook-routes-panel'
@@ -121,6 +122,12 @@ const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging'])
 
     case 'msgraphPublicUrl':
       return m.envErrors.msgraphPublicUrl(error.value)
+
+    case 'teamsGuid':
+      return m.envErrors.teamsGuid(error.value)
+
+    case 'teamsPublicUrl':
+      return m.envErrors.teamsPublicUrl(error.value)
 
     case 'discordToken':
       return m.envErrors.discordToken
@@ -211,6 +218,10 @@ const FIELD_COPY: Record<string, { advanced?: boolean }> = {
   QQ_ALLOW_ALL_USERS: { advanced: true },
   QQBOT_HOME_CHANNEL: { advanced: true },
   QQBOT_HOME_CHANNEL_NAME: { advanced: true },
+  // Quick setup writes the bind from its "who can reach the bot" choice, so
+  // the raw host/port only matter when a port is already taken.
+  TEAMS_HOST: { advanced: true },
+  TEAMS_PORT: { advanced: true },
   WHATSAPP_ENABLED: { advanced: true },
   WHATSAPP_MODE: { advanced: true }
 }
@@ -925,6 +936,15 @@ function PlatformDetail({
         />
       )}
 
+      {platform.id === 'teams' && (
+        <TeamsQuickSetup
+          configured={platform.configured}
+          envVars={platform.env_vars}
+          onApplied={onQuickSetupApplied}
+          scopeProfile={scopeProfile}
+        />
+      )}
+
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
         <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
@@ -1120,7 +1140,9 @@ const PLATFORM_INTRO: Record<string, string> = {
     'Turn events from GitHub, GitLab, Stripe, or your own apps into agent runs. Each route is its own URL with its own signing secret — create and manage routes in "Webhook routes" above; nothing is received until at least one route exists. The optional fields below are the listener port and a global fallback secret.',
   a2a: 'Two independent directions: inbound exposes Work4You as an A2A agent (Agent Card at /.well-known/agent-card.json; localhost-only until you set a token). Outbound is the a2a toolset plus named peers in Quick setup above — enabling the channel does not turn those tools on. The optional fields below are the bind, tokens, public URL, and advertised name.',
   msgraph_webhook:
-    'Inbound listener only — Microsoft Graph POSTs change notifications here (meetings, Outlook, chat). This is not the Teams chat bot. Use Quick setup above to generate the clientState secret, bind localhost behind a tunnel, and copy the notification URL. A network bind needs source CIDRs. Subscriptions are created with `work4you teams-pipeline subscribe`; Azure app credentials stay on the Teams / pipeline cards.'
+    'Inbound listener only — Microsoft Graph POSTs change notifications here (meetings, Outlook, chat). This is not the Teams chat bot. Use Quick setup above to generate the clientState secret, bind localhost behind a tunnel, and copy the notification URL. A network bind needs source CIDRs. Subscriptions are created with `work4you teams-pipeline subscribe`; Azure app credentials stay on the Teams / pipeline cards.',
+  teams:
+    'The Teams chat bot: people message it in a personal chat, a group chat, or a channel and Work4You answers. Register a bot in Azure, then use Quick setup above to paste the three ids and copy the messaging endpoint Azure needs. Teams reaches your bot over the public internet, so a local install needs a tunnel — a bot that installs but never answers almost always has the endpoint still pointing at localhost.'
 }
 
 const introCopy = (platform: MessagingPlatformInfo, m: Translations['messaging']) =>

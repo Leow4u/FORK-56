@@ -77,6 +77,9 @@ const PLATFORM_ICONS: Record<string, PlatformIconSpec> = {
   discord: { Icon: SiDiscord, color: '#5865F2', kind: 'brand' },
   // Slack removed from Simple Icons by Salesforce request — letter monogram.
   slack: { color: '#4A154B', kind: 'brand', monogram: 'S' },
+  // Microsoft marks are likewise absent from Simple Icons — Teams purple
+  // monogram keeps it distinct from the blue Graph listener card.
+  teams: { color: '#6264A7', kind: 'brand', monogram: 'T' },
   mattermost: { Icon: SiMattermost, color: '#0058CC', kind: 'brand' },
   matrix: { Icon: SiMatrix, color: '#000000', kind: 'brand' },
   signal: { Icon: SiSignal, color: '#3A76F0', kind: 'brand' },

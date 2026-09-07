@@ -1631,6 +1631,10 @@ export const en: Translations = {
         'The clientState secret must be at least 16 characters and not a placeholder. Use Generate secret (openssl rand -hex 32).',
       msgraphPublicUrl: (value: string) =>
         `${value} is not a valid public URL. Graph refuses HTTP — use an https:// origin, like https://your-tunnel.example.`,
+      teamsGuid: (value: string) =>
+        `${value} is not an Azure AD GUID. Use the id from the Azure portal, like 00000000-0000-0000-0000-000000000000 — not an app name or a UPN.`,
+      teamsPublicUrl: (value: string) =>
+        `${value} is not a valid public URL. Teams refuses a plain-HTTP endpoint — use an https:// origin, like https://your-tunnel.example.`,
       webhookSecret:
         'Use a random secret of 16+ characters. "INSECURE_NO_AUTH" disables signature validation on every route that falls back to this global secret.',
       whatsappNumber: (value: string) =>
@@ -1889,6 +1893,55 @@ export const en: Translations = {
       copied: 'Copied to the clipboard.',
       copyFailed: 'Could not copy to the clipboard.',
       openGuide: 'Graph webhook guide'
+    },
+    teamsQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        'This is the Teams chat bot — people message it and Work4You answers. Paste the three ids from your Azure bot registration, then copy the messaging endpoint below into Azure. Teams calls your bot from the internet, so a local install needs a tunnel first.',
+      replacesExisting: 'Teams is already configured. Saving here replaces the stored bot credentials and bind.',
+      credentialsHelp:
+        'From the Azure bot registration: Application (client) ID, Directory (tenant) ID, and a client secret. `teams app create` prints all three.',
+      clientIdLabel: 'Application (client) ID',
+      tenantIdLabel: 'Directory (tenant) ID',
+      clientSecretLabel: 'Client secret',
+      guidPlaceholder: '00000000-0000-0000-0000-000000000000',
+      secretPlaceholder: 'Paste the client secret value',
+      secretKeepPlaceholder: 'Saved — leave empty to keep it',
+      secretWarning:
+        'The client secret is shown once in Azure, expires on the schedule you picked, and lets anyone drive your bot. Treat it like a password.',
+      openPortal: 'Azure portal',
+      idsRequired: 'Enter the client ID and tenant ID first — the adapter refuses to start without them.',
+      secretRequired: 'Enter the client secret first — the adapter refuses to start without it.',
+      bindLabel: 'Who can reach the bot listener',
+      bindLocalhost: 'This machine only (127.0.0.1)',
+      bindRemote: 'Network (0.0.0.0)',
+      bindHelp:
+        'Localhost is the right answer behind a tunnel or reverse proxy. Pick network only when Teams traffic arrives straight at this machine.',
+      endpointTitle: 'Bot messaging endpoint',
+      endpointHint:
+        'Register this URL in Azure (Bot settings → Messaging endpoint, or `teams app update --endpoint`). Work4You listens on the /api/messages path.',
+      copyEndpoint: 'Copy endpoint',
+      publicUrlLabel: 'Public HTTPS origin',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp:
+        'Teams refuses a plain-HTTP endpoint. Terminate TLS at a tunnel or reverse proxy, then paste the https:// origin — the endpoint above updates to match.',
+      tunnelWarning:
+        'Without a public origin the endpoint points at localhost, which Teams cannot reach: the bot installs but never answers. Start a tunnel (cloudflared, ngrok) and paste its https:// origin.',
+      allowedUsersLabel: 'Allowed users',
+      allowedUsersPlaceholder: '00000000-0000-0000-0000-000000000000, …',
+      allowedUsersHelp:
+        'Comma-separated Azure AD object IDs — run `teams status --verbose` to read the id of whoever messaged the bot. Use * to allow everyone in the tenant.',
+      openWarning:
+        'With no allowlist, anyone who can find the bot in your tenant can drive your agent. Add at least your own object ID.',
+      pipelineTitle: 'Meetings and Graph notifications',
+      pipelineHelp:
+        'Meeting transcripts and other Graph change notifications arrive on the separate Graph webhook card and are subscribed with `work4you teams-pipeline subscribe`. This card only carries the chat bot.',
+      saved: 'Teams saved and enabled. Restart the gateway to start the bot listener.',
+      saveFailed: 'Could not save the Teams settings.',
+      copied: 'Copied to the clipboard.',
+      copyFailed: 'Could not copy to the clipboard.',
+      openGuide: 'Teams guide'
     },
     smsQuickSetup: {
       title: 'Quick setup',
@@ -2282,7 +2335,37 @@ export const en: Translations = {
         label: 'Public HTTPS origin',
         placeholder: 'https://your-tunnel.example',
         help: 'Graph refuses HTTP. Paste the https:// origin in front of /msgraph/webhook.'
-      }
+      },
+      TEAMS_CLIENT_ID: {
+        label: 'Application (client) ID',
+        placeholder: '00000000-0000-0000-0000-000000000000',
+        help: 'The Azure bot registration id. `teams app create` prints it.'
+      },
+      TEAMS_TENANT_ID: {
+        label: 'Directory (tenant) ID',
+        placeholder: '00000000-0000-0000-0000-000000000000',
+        help: 'The Azure AD tenant the bot is registered in.'
+      },
+      TEAMS_CLIENT_SECRET: {
+        label: 'Client secret',
+        help: 'Shown once in Azure and expires on the schedule you picked. Anyone holding it can drive your bot.'
+      },
+      TEAMS_ALLOWED_USERS: {
+        label: 'Allowed users',
+        placeholder: '00000000-0000-0000-0000-000000000000',
+        help: 'Comma-separated Azure AD object IDs (`teams status --verbose`). Use * to allow the whole tenant.'
+      },
+      TEAMS_PUBLIC_URL: {
+        label: 'Public HTTPS origin',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Teams refuses plain HTTP. Paste the https:// origin in front of /api/messages.'
+      },
+      TEAMS_HOST: {
+        label: 'Bind address',
+        placeholder: '127.0.0.1',
+        help: 'Default in Quick setup is 127.0.0.1 (tunnel/proxy). Empty binds every interface, IPv4 and IPv6.'
+      },
+      TEAMS_PORT: { label: 'Port', placeholder: '3978' }
     },
     platformIntro: {}
   },

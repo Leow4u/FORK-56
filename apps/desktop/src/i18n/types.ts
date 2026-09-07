@@ -1428,6 +1428,8 @@ export interface Translations {
       msgraphCidr: (value: string) => string
       msgraphClientState: string
       msgraphPublicUrl: (value: string) => string
+      teamsGuid: (value: string) => string
+      teamsPublicUrl: (value: string) => string
       webhookSecret: string
       whatsappNumber: (value: string) => string
     }
@@ -1639,6 +1641,45 @@ export interface Translations {
       cidrsPlaceholder: string
       cidrsHelp: string
       networkExposedWarning: string
+      pipelineTitle: string
+      pipelineHelp: string
+      saved: string
+      saveFailed: string
+      copied: string
+      copyFailed: string
+      openGuide: string
+    }
+    teamsQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      credentialsHelp: string
+      clientIdLabel: string
+      tenantIdLabel: string
+      clientSecretLabel: string
+      guidPlaceholder: string
+      secretPlaceholder: string
+      secretKeepPlaceholder: string
+      secretWarning: string
+      openPortal: string
+      idsRequired: string
+      secretRequired: string
+      bindLabel: string
+      bindLocalhost: string
+      bindRemote: string
+      bindHelp: string
+      endpointTitle: string
+      endpointHint: string
+      copyEndpoint: string
+      publicUrlLabel: string
+      publicUrlPlaceholder: string
+      publicUrlHelp: string
+      tunnelWarning: string
+      allowedUsersLabel: string
+      allowedUsersPlaceholder: string
+      allowedUsersHelp: string
+      openWarning: string
       pipelineTitle: string
       pipelineHelp: string
       saved: string
