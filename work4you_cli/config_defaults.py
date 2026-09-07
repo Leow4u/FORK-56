@@ -4737,12 +4737,14 @@ OPTIONAL_ENV_VARS = {
         "advanced": True,
     },
     "API_SERVER_KEY": {
-        "description": "Bearer token for API server authentication. Required whenever the API server is enabled; server refuses to start without it.",
-        "prompt": "API server auth key",
+        "description": "Bearer token for API server authentication (16+ characters, no placeholders). Required whenever the API server is enabled; the server refuses to start without it.",
+        "prompt": "API server auth key (16+ characters)",
         "url": None,
         "password": True,
         "category": "messaging",
-        "advanced": True,
+        # Not "advanced": it's the one credential the adapter hard-requires
+        # to start; burying it left the channel's REQUIRED section empty.
+        "advanced": False,
     },
     "API_SERVER_PORT": {
         "description": "Port for the API server (default: 8642).",
@@ -4763,6 +4765,14 @@ OPTIONAL_ENV_VARS = {
     "API_SERVER_MODEL_NAME": {
         "description": "Model name advertised on /v1/models. Defaults to the profile name (or 'work4you' for the default profile). Useful for multi-user setups with OpenWebUI.",
         "prompt": "API server model name",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+        "advanced": True,
+    },
+    "API_SERVER_CORS_ORIGINS": {
+        "description": "Comma-separated list of browser origins allowed to call the API server directly (CORS), e.g. https://chat.example.com. Only needed for browser-side frontends; server-to-server integrations don't need CORS.",
+        "prompt": "API server CORS origins",
         "url": None,
         "password": False,
         "category": "messaging",

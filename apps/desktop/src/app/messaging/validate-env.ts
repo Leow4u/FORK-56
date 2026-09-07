@@ -37,7 +37,35 @@ export const GOOGLE_CHAT_SUBSCRIPTION_RE = /^projects\/[^/\s]+\/subscriptions\/[
 // with a letter, doesn't end with a hyphen (cloud.google.com naming rules).
 export const GOOGLE_CLOUD_PROJECT_ID_RE = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/
 
+// Mirrors _PLACEHOLDER_SECRET_VALUES in work4you_cli/auth.py — the gateway's
+// startup guard rejects these outright, so catch them before a save.
+const API_SERVER_KEY_PLACEHOLDERS = new Set([
+  '*',
+  '**',
+  '***',
+  'changeme',
+  'your_api_key',
+  'your_api_key_here',
+  'your-api-key',
+  'placeholder',
+  'example',
+  'dummy',
+  'null',
+  'none'
+])
+
+/** Same strength bar as the adapter's startup guard (has_usable_secret with
+ *  min_length=16): the API server refuses to start on anything weaker. */
+export function isUsableApiServerKey(value: string): boolean {
+  const cleaned = value.trim()
+
+  return cleaned.length >= 16 && !API_SERVER_KEY_PLACEHOLDERS.has(cleaned.toLowerCase())
+}
+
 export type MessagingEnvError =
+  | { code: 'apiServerCorsOrigin'; value: string }
+  | { code: 'apiServerHost'; value: string }
+  | { code: 'apiServerKey' }
   | { code: 'discordToken' }
   | { code: 'discordUserId'; value: string }
   | { code: 'emailAddress'; value: string }
@@ -213,6 +241,37 @@ export function validateMessagingEnv(key: string, value: string): MessagingEnvEr
 
   if (key === 'GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL' && !EMAIL_ADDRESS_RE.test(trimmed)) {
     return { code: 'emailAddress', value: trimmed }
+  }
+
+  if (key === 'API_SERVER_KEY' && !isUsableApiServerKey(trimmed)) {
+    return { code: 'apiServerKey' }
+  }
+
+  if (key === 'API_SERVER_PORT') {
+    const port = Number(trimmed)
+
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return { code: 'emailPort', value: trimmed }
+    }
+  }
+
+  // Loose on purpose (hostnames, IPv4, IPv6, 0.0.0.0 are all fine) — only
+  // catch pasted URLs ("http://…", trailing paths) and stray whitespace,
+  // which make the bind fail at gateway start.
+  if (key === 'API_SERVER_HOST' && (/\s/.test(trimmed) || trimmed.includes('://') || trimmed.includes('/'))) {
+    return { code: 'apiServerHost', value: trimmed }
+  }
+
+  if (key === 'API_SERVER_CORS_ORIGINS') {
+    const invalid = trimmed
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .find(part => part !== '*' && !/^https?:\/\/\S+$/.test(part))
+
+    if (invalid) {
+      return { code: 'apiServerCorsOrigin', value: invalid }
+    }
   }
 
   if (key === 'SLACK_ALLOWED_USERS') {

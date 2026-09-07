@@ -1737,6 +1737,199 @@ class TestWebServerEndpoints:
         assert ok is False
         assert "GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL" in message
 
+    def test_api_server_catalog_requires_the_key_and_drops_the_dead_enable_var(self):
+        """The adapter refuses to start without a strong API_SERVER_KEY
+        (startup guard in gateway/platforms/api_server.py), so the catalog
+        must mark it required. API_SERVER_ENABLED is not read anywhere as an
+        env var — enablement is the platform toggle — so exposing it as an
+        editable .env field was a trap. CORS origins are honored by the
+        adapter and must be settable from the UI."""
+        resp = self.client.get("/api/messaging/platforms")
+        assert resp.status_code == 200
+        rows = {row["id"]: row for row in resp.json()["platforms"]}
+        api = rows["api_server"]
+
+        keys = {field["key"] for field in api["env_vars"]}
+        assert {
+            "API_SERVER_KEY",
+            "API_SERVER_PORT",
+            "API_SERVER_HOST",
+            "API_SERVER_MODEL_NAME",
+            "API_SERVER_CORS_ORIGINS",
+        } <= keys
+        assert "API_SERVER_ENABLED" not in keys
+
+        required = {field["key"] for field in api["env_vars"] if field["required"]}
+        assert required == {"API_SERVER_KEY"}
+        assert api["docs_url"].rstrip("/").endswith("messaging/open-webui")
+
+    def test_messaging_payload_exposes_plaintext_for_non_secret_fields_only(self):
+        """Connection-style channels need the real (non-secret) values to
+        render a copyable base URL; secrets must stay redacted-only."""
+        from work4you_cli.config import save_env_value
+
+        save_env_value("API_SERVER_KEY", "k" * 24)
+        save_env_value("API_SERVER_PORT", "9000")
+
+        resp = self.client.get("/api/messaging/platforms")
+        rows = {row["id"]: row for row in resp.json()["platforms"]}
+        fields = {field["key"]: field for field in rows["api_server"]["env_vars"]}
+
+        assert fields["API_SERVER_PORT"]["value"] == "9000"
+        assert fields["API_SERVER_KEY"]["value"] is None
+        assert fields["API_SERVER_KEY"]["is_set"] is True
+        assert fields["API_SERVER_KEY"]["redacted_value"]
+        assert "k" * 24 not in str(fields["API_SERVER_KEY"]["redacted_value"])
+
+    def test_api_server_test_endpoint_runs_the_live_probe(self, monkeypatch):
+        """Once enabled + configured, /test must route into
+        _api_server_live_test and pass its verdict through — instead of
+        stopping at the generic gateway-running gate.
+
+        Uses a scoped profile so `configured` is computed from env alone,
+        keeping the test independent of the gateway plugin registry."""
+        import work4you_cli.web_server as ws
+        from work4you_cli import profiles as profiles_mod
+
+        profiles_mod.get_profile_dir("apiworker").mkdir(parents=True)
+        resp = self.client.put(
+            "/api/messaging/platforms/api_server?profile=apiworker",
+            json={
+                "enabled": True,
+                "env": {"API_SERVER_KEY": "s" * 24, "API_SERVER_PORT": "9000"},
+            },
+        )
+        assert resp.status_code == 200
+
+        seen: dict = {}
+
+        def fake_live_test(env, gateway_running):
+            seen.update(env)
+            seen["gateway_running"] = gateway_running
+            return False, "nothing answered on 127.0.0.1:9000"
+
+        monkeypatch.setattr(ws, "_api_server_live_test", fake_live_test)
+        body = self.client.post(
+            "/api/messaging/platforms/api_server/test?profile=apiworker"
+        ).json()
+        assert body["ok"] is False
+        assert "nothing answered" in body["message"]
+        assert seen["API_SERVER_KEY"] == "s" * 24
+        assert seen["API_SERVER_PORT"] == "9000"
+
+        monkeypatch.setattr(
+            ws,
+            "_api_server_live_test",
+            lambda env, gateway_running: (True, "API server is live."),
+        )
+        body = self.client.post(
+            "/api/messaging/platforms/api_server/test?profile=apiworker"
+        ).json()
+        assert body["ok"] is True
+        assert "live" in body["message"]
+
+    def test_api_server_test_reports_the_missing_key_when_unconfigured(self):
+        """An enabled-but-keyless api_server must fail /test with the missing
+        var spelled out — the old catalog (required_env=()) reported the setup
+        as complete and fell through to a useless generic message."""
+        from work4you_cli import profiles as profiles_mod
+
+        profiles_mod.get_profile_dir("apibare").mkdir(parents=True)
+        resp = self.client.put(
+            "/api/messaging/platforms/api_server?profile=apibare",
+            json={"enabled": True, "env": {}},
+        )
+        assert resp.status_code == 200
+
+        body = self.client.post(
+            "/api/messaging/platforms/api_server/test?profile=apibare"
+        ).json()
+        assert body["ok"] is False
+        assert "API_SERVER_KEY" in body["message"]
+
+    def test_api_server_live_test_mirrors_the_startup_guard(self, monkeypatch):
+        """Key checks run without any network: missing and weak/placeholder
+        keys produce actionable messages, and a strong key with the gateway
+        down reports 'restart to start' instead of probing."""
+        import work4you_cli.web_server as ws
+
+        ok, message = ws._api_server_live_test({}, gateway_running=True)
+        assert ok is False
+        assert "API_SERVER_KEY is not set" in message
+
+        ok, message = ws._api_server_live_test(
+            {"API_SERVER_KEY": "short"}, gateway_running=True
+        )
+        assert ok is False
+        assert "16 characters" in message
+
+        ok, message = ws._api_server_live_test(
+            {"API_SERVER_KEY": "x" * 24, "API_SERVER_PORT": "notaport"},
+            gateway_running=True,
+        )
+        assert ok is False
+        assert "must be a number" in message
+
+        ok, message = ws._api_server_live_test(
+            {"API_SERVER_KEY": "x" * 24, "API_SERVER_PORT": "70000"},
+            gateway_running=True,
+        )
+        assert ok is False
+        assert "between 1 and 65535" in message
+
+        ok, message = ws._api_server_live_test(
+            {"API_SERVER_KEY": "x" * 24, "API_SERVER_PORT": "9000"},
+            gateway_running=False,
+        )
+        assert ok is True
+        assert "Restart the gateway" in message
+        assert "9000" in message
+
+    def test_api_server_live_test_probes_health_and_key_match(self, monkeypatch):
+        """With the gateway up, the probe distinguishes a dead port, a key
+        mismatch (401 from /v1/models), and a healthy listener."""
+        import io
+        import urllib.error
+
+        import work4you_cli.web_server as ws
+
+        env = {"API_SERVER_KEY": "x" * 24}
+
+        def dead_port(req, timeout=0):
+            raise OSError("connection refused")
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", dead_port)
+        ok, message = ws._api_server_live_test(env, gateway_running=True)
+        assert ok is False
+        assert "nothing answered" in message
+        assert "127.0.0.1:8642" in message
+
+        class _Resp:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        def key_mismatch(req, timeout=0):
+            if req.full_url.endswith("/health"):
+                return _Resp()
+            raise urllib.error.HTTPError(
+                req.full_url, 401, "Unauthorized", {}, io.BytesIO(b"")
+            )
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", key_mismatch)
+        ok, message = ws._api_server_live_test(env, gateway_running=True)
+        assert ok is False
+        assert "does not match the running server" in message
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", lambda req, timeout=0: _Resp())
+        ok, message = ws._api_server_live_test(env, gateway_running=True)
+        assert ok is True
+        assert "http://127.0.0.1:8642/v1" in message
+
     def test_sms_catalog_surfaces_everything_the_adapter_requires(self):
         """The SMS card must require every var the adapter hard-fails without
         at connect() (from-number, public webhook URL), surface the allowlist

@@ -8789,15 +8789,23 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
     "api_server": {
         "name": "API server",
         "description": "Expose Work4You as an OpenAI-compatible HTTP API for tools like Open WebUI.",
-        "docs_url": "https://work4you.ai/docs/user-guide/messaging/",
+        "docs_url": "https://work4you.ai/docs/user-guide/messaging/open-webui",
+        # API_SERVER_ENABLED is deliberately NOT listed: no gateway code reads
+        # it as an env var (enablement is platforms.api_server.enabled in
+        # config.yaml — the UI toggle — or auto-enable on a usable key, see
+        # gateway/config.py). Surfacing it as an editable .env field was a
+        # trap: typing "true" there changed nothing.
         "env_vars": (
-            "API_SERVER_ENABLED",
             "API_SERVER_KEY",
             "API_SERVER_PORT",
             "API_SERVER_HOST",
             "API_SERVER_MODEL_NAME",
+            "API_SERVER_CORS_ORIGINS",
         ),
-        "required_env": (),
+        # The adapter refuses to start without a strong key (startup guard in
+        # gateway/platforms/api_server.py) — it IS required, and hiding that
+        # left users with a listener that silently never came up.
+        "required_env": ("API_SERVER_KEY",),
     },
     "webhook": {
         "name": "Webhooks",
@@ -9291,13 +9299,19 @@ def _messaging_platform_payload(
         # (loaded at startup) and would falsely report the root credentials
         # as the profile's.
         value = env_on_disk.get(key) or ("" if scoped else os.getenv(key, ""))
+        info = _messaging_env_info(key)
         env_vars.append(
             {
                 "key": key,
                 "required": key in entry["required_env"],
                 "is_set": bool(value),
                 "redacted_value": redact_key(value) if value else None,
-                **_messaging_env_info(key),
+                # Plaintext for NON-secret fields only (ports, hosts, model
+                # names, allowlists). Connection-style channels (api_server)
+                # need the real values to render a copyable base URL; secrets
+                # stay redacted-only.
+                "value": value if value and not info["is_password"] else None,
+                **info,
             }
         )
 
@@ -10730,6 +10744,114 @@ def _google_chat_live_test(env: dict[str, str]) -> tuple[bool, str]:
     )
 
 
+def _api_server_key_is_usable(key: str) -> bool:
+    """Same strength bar as the adapter's startup guard (16+ chars, no placeholder)."""
+    try:
+        from work4you_cli.auth import has_usable_secret
+    except ImportError:
+        return len(key.strip()) >= 16
+    return has_usable_secret(key, min_length=16)
+
+
+def _api_server_resolve_endpoint(env: dict[str, str]) -> tuple[str, int, str]:
+    """Resolve (bind_host, port, probe_host) for the API server from env values.
+
+    Falls back to the adapter defaults (127.0.0.1:8642). Wildcard binds are
+    probed on loopback — the dashboard and gateway share a network namespace
+    in every supported deployment (same reasoning as _gateway_fire_endpoint).
+    """
+    host = (env.get("API_SERVER_HOST") or "").strip() or "127.0.0.1"
+    raw_port = (env.get("API_SERVER_PORT") or "").strip()
+    try:
+        port = int(raw_port) if raw_port else 8642
+    except ValueError:
+        port = 8642
+    probe_host = "127.0.0.1" if host in {"0.0.0.0", "::", "*"} else host
+    return host, port, probe_host
+
+
+def _api_server_live_test(env: dict[str, str], gateway_running: bool) -> tuple[bool, str]:
+    """Verify the API server key strength and, when the gateway runs, the listener.
+
+    The adapter refuses to start with a weak/placeholder key and only logs the
+    refusal — from the UI the failure is invisible. This mirrors that guard,
+    then proves the listener end-to-end: GET /health (is anything on the
+    port?) and GET /v1/models with the Bearer key (does the key on disk match
+    the running server?).
+    """
+    key = (env.get("API_SERVER_KEY") or "").strip()
+    if not key:
+        return False, (
+            "API_SERVER_KEY is not set. The server refuses to start without "
+            "one — generate a strong key (16+ characters)."
+        )
+    if not _api_server_key_is_usable(key):
+        return False, (
+            "API_SERVER_KEY is too short or a placeholder. The server refuses "
+            "to start with keys under 16 characters — this endpoint dispatches "
+            "terminal-capable agent work, so generate a strong random key."
+        )
+
+    host, port, probe_host = _api_server_resolve_endpoint(env)
+    raw_port = (env.get("API_SERVER_PORT") or "").strip()
+    if raw_port:
+        try:
+            configured_port = int(raw_port)
+        except ValueError:
+            return False, f"API_SERVER_PORT must be a number, got {raw_port!r}."
+        if not 1 <= configured_port <= 65535:
+            return False, f"API_SERVER_PORT must be between 1 and 65535, got {configured_port}."
+
+    if not gateway_running:
+        return True, (
+            f"Key looks strong. Restart the gateway to start the API server "
+            f"on {host}:{port}."
+        )
+
+    base = f"http://{probe_host}:{port}"
+    try:
+        req = urllib.request.Request(f"{base}/health", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status != 200:
+                return False, (
+                    f"The listener on {probe_host}:{port} answered /health "
+                    f"with HTTP {resp.status} — that port may belong to "
+                    "another service."
+                )
+    except Exception:
+        return False, (
+            f"The gateway is running but nothing answered on "
+            f"{probe_host}:{port}. The API server may have refused to start "
+            "(weak key at launch time, port in use) — check `work4you logs`, "
+            "then restart the gateway."
+        )
+
+    try:
+        req = urllib.request.Request(
+            f"{base}/v1/models",
+            method="GET",
+            headers={"Authorization": f"Bearer {key}"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status == 200:
+                return True, (
+                    f"API server is live at {base}/v1 and the key is valid."
+                )
+            return False, (
+                f"Unexpected response from /v1/models: HTTP {resp.status}."
+            )
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            return False, (
+                "The API server is listening, but the key on disk does not "
+                "match the running server. Restart the gateway to load the "
+                "new key."
+            )
+        return False, f"Unexpected response from /v1/models: HTTP {exc.code}."
+    except Exception as exc:
+        return False, f"Could not query /v1/models: {exc}"
+
+
 @app.post("/api/messaging/platforms/{platform_id}/test")
 async def test_messaging_platform(platform_id: str, profile: Optional[str] = None):
     entry = _catalog_lookup(platform_id)
@@ -10823,6 +10945,19 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
                 "Restart the gateway to connect."
             ),
         }
+    if platform_id == "api_server":
+        # The listener is local — provable end-to-end in milliseconds (see
+        # _api_server_live_test): key strength first (the adapter refuses to
+        # start on weak keys and only logs it), then /health + authed
+        # /v1/models against the real port when the gateway runs.
+        live_env = {
+            key: (env_on_disk.get(key) or ("" if profile_scoped else os.getenv(key, "")))
+            for key in ("API_SERVER_KEY", "API_SERVER_PORT", "API_SERVER_HOST")
+        }
+        ok, message = await asyncio.to_thread(
+            _api_server_live_test, live_env, bool(payload["gateway_running"])
+        )
+        return {"ok": ok, "state": payload["state"], "message": message}
     if platform_id == "email":
         # Email credentials can be proven directly (see _email_live_test) —
         # no live gateway connection required, so run this before the

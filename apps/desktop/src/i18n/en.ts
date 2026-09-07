@@ -1591,6 +1591,12 @@ export const en: Translations = {
     testFailed: name => `${name} test failed`,
     fixHighlighted: 'Fix the highlighted fields, then save again.',
     envErrors: {
+      apiServerCorsOrigin: (value: string) =>
+        `${value} is not a browser origin. Use full origins like https://chat.example.com (or * to allow all).`,
+      apiServerHost: (value: string) =>
+        `${value} is not a valid bind address. Use a bare hostname or IP like 127.0.0.1 or 0.0.0.0 — no http:// or paths.`,
+      apiServerKey:
+        'The API key must be at least 16 characters and not a placeholder — the server refuses to start with a weaker one. Use Generate key.',
       discordToken:
         'Paste the complete bot token from the Discord Developer Portal (Bot → Reset Token) — three dot-separated parts.',
       discordUserId: (value: string) =>
@@ -1726,6 +1732,31 @@ export const en: Translations = {
       httpFieldsRequired: 'Enter the events URL and the app service account email first.',
       saved: 'Google Chat saved and enabled. Restart the gateway to connect.',
       saveFailed: 'Could not save the Google Chat settings.'
+    },
+    apiServerQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        'Turn Work4You into an OpenAI-compatible API for tools like Open WebUI, LobeChat, or your own chat frontend. Generate a strong key, save, and copy the connection details below into the other tool.',
+      replacesExisting: 'The API server is already configured. Saving here replaces the stored key.',
+      keyHelp: 'API key the external tool authenticates with (16+ characters).',
+      keyLabel: 'API key',
+      keyPlaceholder: 'Click Generate key, or paste your own',
+      generateKey: 'Generate key',
+      keyWarning:
+        'Anyone with this key can run your agent — terminal and files included. Treat it like a password: keep it in your server-side config, never in a public web page.',
+      keyRequired: 'Generate or paste an API key first.',
+      connectionTitle: 'Connect your tool',
+      connectionHint: 'In the external tool, add an OpenAI-compatible provider with this base URL and your key.',
+      copyBaseUrl: 'Copy base URL',
+      copied: 'Copied to the clipboard.',
+      copyFailed: 'Could not copy to the clipboard.',
+      modelHint: (model: string) => `Model name to select in the tool: ${model}`,
+      networkExposedWarning:
+        'The server is bound to a network-reachable address — anyone on the network with the key can run agent commands on this machine. Prefer a reverse proxy with HTTPS.',
+      openGuide: 'Open WebUI guide',
+      saved: 'API server saved and enabled. Restart the gateway to start it.',
+      saveFailed: 'Could not save the API server settings.'
     },
     smsQuickSetup: {
       title: 'Quick setup',
@@ -2052,6 +2083,25 @@ export const en: Translations = {
       WHATSAPP_ALLOWED_USERS: {
         label: 'Allowed WhatsApp users',
         help: 'Recommended. Comma-separated phone numbers or WhatsApp IDs.'
+      },
+      API_SERVER_KEY: {
+        label: 'API key',
+        help: 'Bearer token external tools authenticate with. 16+ characters — the server refuses to start with a weaker key.'
+      },
+      API_SERVER_PORT: { label: 'Port', placeholder: '8642' },
+      API_SERVER_HOST: {
+        label: 'Bind address',
+        placeholder: '127.0.0.1',
+        help: 'Default 127.0.0.1 (this machine only). Use 0.0.0.0 to accept connections from the network — the key then guards remote access.'
+      },
+      API_SERVER_MODEL_NAME: {
+        label: 'Model name',
+        help: "Name advertised on /v1/models. Defaults to the profile name (or 'work4you')."
+      },
+      API_SERVER_CORS_ORIGINS: {
+        label: 'CORS origins',
+        placeholder: 'https://chat.example.com',
+        help: 'Only for browser-side frontends calling the API directly. Server-to-server integrations don’t need CORS.'
       }
     },
     platformIntro: {}

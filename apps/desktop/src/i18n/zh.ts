@@ -1782,6 +1782,11 @@ export const zh: Translations = {
     testFailed: name => `${name} 测试失败`,
     fixHighlighted: '请修正高亮标出的字段，然后重新保存。',
     envErrors: {
+      apiServerCorsOrigin: (value: string) =>
+        `${value} 不是浏览器源（origin）。请使用完整的源，例如 https://chat.example.com（或 * 允许全部）。`,
+      apiServerHost: (value: string) =>
+        `${value} 不是有效的绑定地址。请使用纯主机名或 IP，例如 127.0.0.1 或 0.0.0.0——不要带 http:// 或路径。`,
+      apiServerKey: 'API 密钥至少需要 16 个字符且不能是占位符——密钥太弱时服务器会拒绝启动。请使用"生成密钥"。',
       discordToken: '请粘贴来自 Discord 开发者门户的完整 bot 令牌（Bot → Reset Token）——由三段以点分隔的部分组成。',
       discordUserId: (value: string) =>
         `${value} 不是有效的 Discord 数字用户 ID。请在 Discord 中启用开发者模式，然后右键用户 → 复制用户 ID。`,
@@ -1904,6 +1909,31 @@ export const zh: Translations = {
       httpFieldsRequired: '请先填写事件 URL 和应用服务账号邮箱。',
       saved: 'Google Chat 已保存并启用。重启网关即可连接。',
       saveFailed: '无法保存 Google Chat 设置。'
+    },
+    apiServerQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro:
+        '把 Work4You 变成兼容 OpenAI 的 API，供 Open WebUI、LobeChat 或你自己的聊天前端使用。生成一个强密钥，保存后把下方的连接信息复制到对应工具中。',
+      replacesExisting: 'API 服务器已配置。在此保存会替换已存储的密钥。',
+      keyHelp: '外部工具用来鉴权的 API 密钥（16 个字符以上）。',
+      keyLabel: 'API 密钥',
+      keyPlaceholder: '点击"生成密钥"，或粘贴你自己的',
+      generateKey: '生成密钥',
+      keyWarning:
+        '持有此密钥的任何人都能运行你的智能体——包括终端和文件。请像密码一样对待它：只放在服务器端配置中，绝不要放进公开网页。',
+      keyRequired: '请先生成或粘贴一个 API 密钥。',
+      connectionTitle: '连接你的工具',
+      connectionHint: '在外部工具中添加一个兼容 OpenAI 的提供商，填入此基础 URL 和你的密钥。',
+      copyBaseUrl: '复制基础 URL',
+      copied: '已复制到剪贴板。',
+      copyFailed: '无法复制到剪贴板。',
+      modelHint: (model: string) => `在工具中选择的模型名称：${model}`,
+      networkExposedWarning:
+        '服务器绑定在可从网络访问的地址上——网络上持有密钥的任何人都能在这台机器上运行智能体命令。建议使用带 HTTPS 的反向代理。',
+      openGuide: 'Open WebUI 指南',
+      saved: 'API 服务器已保存并启用。重启网关即可启动。',
+      saveFailed: '无法保存 API 服务器设置。'
     },
     smsQuickSetup: {
       title: '快速设置',
@@ -2190,7 +2220,26 @@ export const zh: Translations = {
         label: '私信策略',
         help: '配对：陌生发送者会收到审批码。白名单：仅限上方号码。开放：所有人（需开启全员允许）。禁用：不接收私信。'
       },
-      WHATSAPP_ALLOWED_USERS: { label: '允许的 WhatsApp 用户', help: '推荐。逗号分隔的电话号码或 WhatsApp ID。' }
+      WHATSAPP_ALLOWED_USERS: { label: '允许的 WhatsApp 用户', help: '推荐。逗号分隔的电话号码或 WhatsApp ID。' },
+      API_SERVER_KEY: {
+        label: 'API 密钥',
+        help: '外部工具鉴权用的 Bearer 令牌。16 个字符以上——密钥太弱时服务器会拒绝启动。'
+      },
+      API_SERVER_PORT: { label: '端口', placeholder: '8642' },
+      API_SERVER_HOST: {
+        label: '绑定地址',
+        placeholder: '127.0.0.1',
+        help: '默认 127.0.0.1（仅本机）。使用 0.0.0.0 可接受来自网络的连接——此时由密钥保护远程访问。'
+      },
+      API_SERVER_MODEL_NAME: {
+        label: '模型名称',
+        help: '在 /v1/models 上公布的名称。默认为配置档名称（或 work4you）。'
+      },
+      API_SERVER_CORS_ORIGINS: {
+        label: 'CORS 源',
+        placeholder: 'https://chat.example.com',
+        help: '仅浏览器端前端直接调用 API 时需要。服务器到服务器的集成不需要 CORS。'
+      }
     },
     platformIntro: {
       telegram:
@@ -2219,7 +2268,7 @@ export const zh: Translations = {
         '运行 `work4you gateway setup`，选择 Weixin，然后使用个人微信账号扫描并确认二维码。Work4You 会通过腾讯 iLink Bot API 连接并保存凭据。',
       qqbot: '在 QQ 开放平台 (q.qq.com) 注册一个应用，复制 App ID 和 Client Secret。',
       api_server:
-        '把 Work4You 暴露为兼容 OpenAI 的 API。设置一个鉴权密钥，然后把 Open WebUI / LobeChat 等指向 host:port。',
+        '把 Work4You 暴露为兼容 OpenAI 的 API。在上方的快速设置中生成一个强密钥，然后把 Open WebUI / LobeChat / 你自己的聊天前端指向它显示的基础 URL。密钥授予完整的智能体访问权限（包括终端）——请像密码一样对待。',
       webhook: '运行一个 HTTP 服务器，供其他工具 (GitHub、GitLab、自定义应用)POST。用 secret 验证签名。'
     }
   },

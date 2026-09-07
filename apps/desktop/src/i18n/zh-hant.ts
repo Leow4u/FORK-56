@@ -1346,6 +1346,11 @@ export const zhHant = defineLocale({
     testFailed: name => `${name} 測試失敗`,
     fixHighlighted: '請修正標示的欄位，然後再儲存一次。',
     envErrors: {
+      apiServerCorsOrigin: (value: string) =>
+        `${value} 不是瀏覽器來源（origin）。請使用完整的來源，例如 https://chat.example.com（或 * 允許全部）。`,
+      apiServerHost: (value: string) =>
+        `${value} 不是有效的繫結位址。請使用純主機名稱或 IP，例如 127.0.0.1 或 0.0.0.0——不要帶 http:// 或路徑。`,
+      apiServerKey: 'API 金鑰至少需要 16 個字元且不能是佔位符——金鑰太弱時伺服器會拒絕啟動。請使用「產生金鑰」。',
       discordToken: '請貼上來自 Discord 開發者入口的完整 bot Token（Bot → Reset Token）——由三段以點分隔的部分組成。',
       discordUserId: (value: string) =>
         `${value} 不是有效的 Discord 數字使用者 ID。請在 Discord 中啟用開發者模式，然後在使用者上按右鍵 → 複製使用者 ID。`,
@@ -1468,6 +1473,31 @@ export const zhHant = defineLocale({
       httpFieldsRequired: '請先填寫事件 URL 和應用程式服務帳戶信箱。',
       saved: 'Google Chat 已儲存並啟用。重新啟動閘道即可連線。',
       saveFailed: '無法儲存 Google Chat 設定。'
+    },
+    apiServerQuickSetup: {
+      title: '快速設定',
+      recommended: '建議',
+      intro:
+        '把 Work4You 變成相容 OpenAI 的 API，供 Open WebUI、LobeChat 或你自己的聊天前端使用。產生一組強金鑰，儲存後把下方的連線資訊複製到對應工具中。',
+      replacesExisting: 'API 伺服器已設定。在此儲存會取代已儲存的金鑰。',
+      keyHelp: '外部工具用來驗證的 API 金鑰（16 個字元以上）。',
+      keyLabel: 'API 金鑰',
+      keyPlaceholder: '點選「產生金鑰」，或貼上你自己的',
+      generateKey: '產生金鑰',
+      keyWarning:
+        '持有此金鑰的任何人都能執行你的代理——包括終端機和檔案。請像密碼一樣對待它：只放在伺服器端設定中，絕不要放進公開網頁。',
+      keyRequired: '請先產生或貼上一組 API 金鑰。',
+      connectionTitle: '連接你的工具',
+      connectionHint: '在外部工具中新增一個相容 OpenAI 的提供者，填入此基礎 URL 和你的金鑰。',
+      copyBaseUrl: '複製基礎 URL',
+      copied: '已複製到剪貼簿。',
+      copyFailed: '無法複製到剪貼簿。',
+      modelHint: (model: string) => `在工具中選擇的模型名稱：${model}`,
+      networkExposedWarning:
+        '伺服器繫結在可從網路存取的位址上——網路上持有金鑰的任何人都能在這台機器上執行代理指令。建議使用帶 HTTPS 的反向代理。',
+      openGuide: 'Open WebUI 指南',
+      saved: 'API 伺服器已儲存並啟用。重新啟動閘道即可啟動。',
+      saveFailed: '無法儲存 API 伺服器設定。'
     },
     smsQuickSetup: {
       title: '快速設定',
@@ -1755,6 +1785,25 @@ export const zhHant = defineLocale({
       WHATSAPP_ALLOWED_USERS: {
         label: '允許的 WhatsApp 使用者',
         help: '建議設定。逗號分隔的電話號碼或 WhatsApp ID。'
+      },
+      API_SERVER_KEY: {
+        label: 'API 金鑰',
+        help: '外部工具驗證用的 Bearer 權杖。16 個字元以上——金鑰太弱時伺服器會拒絕啟動。'
+      },
+      API_SERVER_PORT: { label: '連接埠', placeholder: '8642' },
+      API_SERVER_HOST: {
+        label: '繫結位址',
+        placeholder: '127.0.0.1',
+        help: '預設 127.0.0.1（僅本機）。使用 0.0.0.0 可接受來自網路的連線——此時由金鑰保護遠端存取。'
+      },
+      API_SERVER_MODEL_NAME: {
+        label: '模型名稱',
+        help: '在 /v1/models 上公佈的名稱。預設為設定檔名稱（或 work4you）。'
+      },
+      API_SERVER_CORS_ORIGINS: {
+        label: 'CORS 來源',
+        placeholder: 'https://chat.example.com',
+        help: '僅瀏覽器端前端直接呼叫 API 時需要。伺服器對伺服器的整合不需要 CORS。'
       }
     },
     platformIntro: {}

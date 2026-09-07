@@ -1405,6 +1405,9 @@ export interface Translations {
     testFailed: (name: string) => string
     fixHighlighted: string
     envErrors: {
+      apiServerCorsOrigin: (value: string) => string
+      apiServerHost: (value: string) => string
+      apiServerKey: string
       discordToken: string
       discordUserId: (value: string) => string
       emailAddress: (value: string) => string
@@ -1507,6 +1510,28 @@ export interface Translations {
       projectMismatch: string
       pubsubFieldsRequired: string
       httpFieldsRequired: string
+      saved: string
+      saveFailed: string
+    }
+    apiServerQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      keyHelp: string
+      keyLabel: string
+      keyPlaceholder: string
+      generateKey: string
+      keyWarning: string
+      keyRequired: string
+      connectionTitle: string
+      connectionHint: string
+      copyBaseUrl: string
+      copied: string
+      copyFailed: string
+      modelHint: (model: string) => string
+      networkExposedWarning: string
+      openGuide: string
       saved: string
       saveFailed: string
     }
