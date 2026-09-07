@@ -48,6 +48,7 @@ import { ApiServerQuickSetup } from './api-server-quick-setup'
 import { DiscordQuickSetup } from './discord-quick-setup'
 import { EmailQuickSetup } from './email-quick-setup'
 import { GoogleChatQuickSetup } from './google-chat-quick-setup'
+import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackQuickSetup } from './slack-quick-setup'
 import { SmsQuickSetup } from './sms-quick-setup'
@@ -111,6 +112,15 @@ const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging'])
 
     case 'a2aPublicUrl':
       return m.envErrors.a2aPublicUrl(error.value)
+
+    case 'msgraphCidr':
+      return m.envErrors.msgraphCidr(error.value)
+
+    case 'msgraphClientState':
+      return m.envErrors.msgraphClientState
+
+    case 'msgraphPublicUrl':
+      return m.envErrors.msgraphPublicUrl(error.value)
 
     case 'discordToken':
       return m.envErrors.discordToken
@@ -906,6 +916,15 @@ function PlatformDetail({
         />
       )}
 
+      {platform.id === 'msgraph_webhook' && (
+        <MsgraphWebhookQuickSetup
+          configured={platform.configured}
+          envVars={platform.env_vars}
+          onApplied={onQuickSetupApplied}
+          scopeProfile={scopeProfile}
+        />
+      )}
+
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
         <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
@@ -1099,7 +1118,9 @@ const PLATFORM_INTRO: Record<string, string> = {
     'Expose Work4You as an OpenAI-compatible API. Generate a strong key in Quick setup above, then point Open WebUI / LobeChat / your own chat frontend at the base URL it shows. The key grants full agent access (terminal included) — treat it like a password.',
   webhook:
     'Turn events from GitHub, GitLab, Stripe, or your own apps into agent runs. Each route is its own URL with its own signing secret — create and manage routes in "Webhook routes" above; nothing is received until at least one route exists. The optional fields below are the listener port and a global fallback secret.',
-  a2a: 'Two independent directions: inbound exposes Work4You as an A2A agent (Agent Card at /.well-known/agent-card.json; localhost-only until you set a token). Outbound is the a2a toolset plus named peers in Quick setup above — enabling the channel does not turn those tools on. The optional fields below are the bind, tokens, public URL, and advertised name.'
+  a2a: 'Two independent directions: inbound exposes Work4You as an A2A agent (Agent Card at /.well-known/agent-card.json; localhost-only until you set a token). Outbound is the a2a toolset plus named peers in Quick setup above — enabling the channel does not turn those tools on. The optional fields below are the bind, tokens, public URL, and advertised name.',
+  msgraph_webhook:
+    'Inbound listener only — Microsoft Graph POSTs change notifications here (meetings, Outlook, chat). This is not the Teams chat bot. Use Quick setup above to generate the clientState secret, bind localhost behind a tunnel, and copy the notification URL. A network bind needs source CIDRs. Subscriptions are created with `work4you teams-pipeline subscribe`; Azure app credentials stay on the Teams / pipeline cards.'
 }
 
 const introCopy = (platform: MessagingPlatformInfo, m: Translations['messaging']) =>

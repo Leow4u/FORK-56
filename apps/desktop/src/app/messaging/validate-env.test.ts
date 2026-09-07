@@ -285,6 +285,33 @@ describe('validateMessagingEnv', () => {
     expect(validateMessagingEnv('WEBHOOK_SECRET', 'your_api_key_here')).toEqual({ code: 'webhookSecret' })
   })
 
+  it('validates Graph webhook bind, secret, https URL, and CIDRs', () => {
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_PORT', '8646')).toBeNull()
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_PORT', 'abc')).toEqual({ code: 'emailPort', value: 'abc' })
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_HOST', '127.0.0.1')).toBeNull()
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_HOST', 'http://127.0.0.1')).toEqual({
+      code: 'apiServerHost',
+      value: 'http://127.0.0.1'
+    })
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_CLIENT_STATE', 'a'.repeat(16))).toBeNull()
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_CLIENT_STATE', 'short')).toEqual({ code: 'msgraphClientState' })
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_CLIENT_STATE', 'changeme')).toEqual({ code: 'msgraphClientState' })
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_PUBLIC_URL', 'https://tunnel.example')).toBeNull()
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_PUBLIC_URL', 'http://tunnel.example')).toEqual({
+      code: 'msgraphPublicUrl',
+      value: 'http://tunnel.example'
+    })
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_PUBLIC_URL', 'not-a-url')).toEqual({
+      code: 'msgraphPublicUrl',
+      value: 'not-a-url'
+    })
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS', '52.96.0.0/14, 13.107.64.0/18')).toBeNull()
+    expect(validateMessagingEnv('MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS', '52.96.0.0')).toEqual({
+      code: 'msgraphCidr',
+      value: '52.96.0.0'
+    })
+  })
+
   it('generates keys that pass the startup guard', () => {
     expect(isUsableApiServerKey('a'.repeat(16))).toBe(true)
     expect(isUsableApiServerKey('changeme')).toBe(false)

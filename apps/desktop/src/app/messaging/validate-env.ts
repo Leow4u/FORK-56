@@ -97,6 +97,9 @@ export type MessagingEnvError =
   | { code: 'twilioAccountSid' }
   | { code: 'a2aPeerTokens'; value: string }
   | { code: 'a2aPublicUrl'; value: string }
+  | { code: 'msgraphCidr'; value: string }
+  | { code: 'msgraphClientState' }
+  | { code: 'msgraphPublicUrl'; value: string }
   | { code: 'webhookSecret' }
   | { code: 'whatsappNumber'; value: string }
 
@@ -325,6 +328,38 @@ export function validateMessagingEnv(key: string, value: string): MessagingEnvEr
 
   if (key === 'A2A_PUBLIC_URL' && (!/^https?:\/\/\S+$/.test(trimmed) || trimmed.includes(' '))) {
     return { code: 'a2aPublicUrl', value: trimmed }
+  }
+
+  if (key === 'MSGRAPH_WEBHOOK_PORT') {
+    const port = Number(trimmed)
+
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return { code: 'emailPort', value: trimmed }
+    }
+  }
+
+  if (key === 'MSGRAPH_WEBHOOK_HOST' && (/\s/.test(trimmed) || trimmed.includes('://') || trimmed.includes('/'))) {
+    return { code: 'apiServerHost', value: trimmed }
+  }
+
+  if (key === 'MSGRAPH_WEBHOOK_CLIENT_STATE' && !isUsableApiServerKey(trimmed)) {
+    return { code: 'msgraphClientState' }
+  }
+
+  if (key === 'MSGRAPH_WEBHOOK_PUBLIC_URL' && (!/^https:\/\/\S+$/.test(trimmed) || trimmed.includes(' '))) {
+    return { code: 'msgraphPublicUrl', value: trimmed }
+  }
+
+  if (key === 'MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS') {
+    const invalid = trimmed
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .find(part => !part.includes('/'))
+
+    if (invalid) {
+      return { code: 'msgraphCidr', value: invalid }
+    }
   }
 
   if (key === 'API_SERVER_CORS_ORIGINS') {

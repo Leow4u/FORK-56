@@ -2262,6 +2262,7 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
     # Microsoft Graph webhook platform
     msgraph_webhook_enabled = is_truthy_value(getenv("MSGRAPH_WEBHOOK_ENABLED", ""))
     msgraph_webhook_port = getenv("MSGRAPH_WEBHOOK_PORT")
+    msgraph_webhook_host = getenv("MSGRAPH_WEBHOOK_HOST", "")
     msgraph_webhook_client_state = getenv("MSGRAPH_WEBHOOK_CLIENT_STATE", "")
     msgraph_webhook_resources = getenv("MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES", "")
     msgraph_webhook_allowed_cidrs = getenv(
@@ -2271,6 +2272,7 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
         msgraph_webhook_enabled
         or Platform.MSGRAPH_WEBHOOK in config.platforms
         or msgraph_webhook_port
+        or msgraph_webhook_host
         or msgraph_webhook_client_state
         or msgraph_webhook_resources
         or msgraph_webhook_allowed_cidrs
@@ -2286,6 +2288,10 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
                 )
             except ValueError:
                 pass
+        if msgraph_webhook_host.strip():
+            config.platforms[Platform.MSGRAPH_WEBHOOK].extra["host"] = (
+                msgraph_webhook_host.strip()
+            )
         if msgraph_webhook_client_state:
             config.platforms[Platform.MSGRAPH_WEBHOOK].extra["client_state"] = (
                 msgraph_webhook_client_state

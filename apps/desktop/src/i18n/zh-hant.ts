@@ -1377,6 +1377,11 @@ export const zhHant = defineLocale({
       telegramToken: '請貼上來自 @BotFather 的完整 Token（例如 123456789:ABC…）。',
       telegramUserId: (value: string) => `${value} 不是有效的 Telegram 數字使用者 ID。`,
       twilioAccountSid: '請貼上 Twilio 控制台儀表板中的完整 Account SID——以 AC 開頭，後接 32 個字元。',
+      msgraphCidr: (value: string) =>
+        `${value} 不是 CIDR。請使用類似 52.96.0.0/14 的項目（逗號分隔的 Microsoft Graph 出口網段）。`,
+      msgraphClientState: 'clientState 密鑰至少 16 個字元，且不能是佔位符。請使用「產生密鑰」（openssl rand -hex 32）。',
+      msgraphPublicUrl: (value: string) =>
+        `${value} 不是有效的公開 URL。Graph 拒絕 HTTP——請使用 https:// 來源，例如 https://your-tunnel.example。`,
       webhookSecret:
         '請使用 16 個字元以上的隨機密鑰。「INSECURE_NO_AUTH」會在所有回退到此全域密鑰的路由上停用簽名驗證。',
       whatsappNumber: (value: string) => `${value} 不像是 WhatsApp 號碼。請使用含國碼的完整號碼，例如 15551234567。`
@@ -1575,6 +1580,47 @@ export const zhHant = defineLocale({
       copied: '已複製到剪貼簿。',
       copyFailed: '無法複製到剪貼簿。',
       openGuide: 'A2A 指南'
+    },
+    msgraphQuickSetup: {
+      title: '快速設定',
+      recommended: '建議',
+      intro:
+        '此卡片只是入站 Graph 監聽器。Microsoft Graph 會向這裡 POST 變更通知——它不是 Teams 聊天機器人。產生 clientState 密鑰，在通道後繫結本機，或為網路繫結新增來源 CIDR，然後向 Graph 註冊通知 URL。',
+      replacesExisting: 'Graph webhook 已設定。在此儲存會更新密鑰和繫結。',
+      secretHelp: '共用的 clientState 密鑰。Graph 會在每則通知中回傳——用 openssl rand -hex 32 產生。',
+      secretLabel: 'clientState 密鑰',
+      secretPlaceholder: '點擊產生，或貼上 32 位元組十六進位密鑰',
+      generateSecret: '產生密鑰',
+      copySecret: '複製密鑰',
+      secretWarning: '持有此密鑰的任何人都能偽造 Graph 通知。請像密碼一樣對待。',
+      secretRequired: '請先產生 clientState——沒有它監聽器會拒絕啟動。',
+      bindLabel: '誰可以存取監聽器',
+      bindLocalhost: '僅本機 (127.0.0.1)',
+      bindRemote: '網路 (0.0.0.0) — 需要來源 CIDR',
+      remoteNeedsCidrs: '網路繫結需要來源 CIDR（Microsoft Graph 出口網段）。',
+      notificationTitle: '通知 URL',
+      notificationHint: '向 Graph 註冊此 URL。如果在通道後面，請設定公開 HTTPS 來源，以便複製的 URL 是 Graph 能存取的位址。',
+      copyNotificationUrl: '複製通知 URL',
+      handshakeHint:
+        'Graph 會先用 ?validationToken=… GET 此路徑——監聽器回顯該權杖。然後 POST 變更通知。此卡片沒有訂閱 CRUD。',
+      publicUrlLabel: '公開 HTTPS 來源（可選）',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp: 'Graph 拒絕 HTTP。在反向代理或通道處終止 TLS，然後貼上 https:// 來源。',
+      resourcesLabel: '接受的資源（可選）',
+      resourcesPlaceholder: 'communications/onlineMeetings, chats/*/messages',
+      resourcesHelp: '逗號分隔的 Graph 資源路徑。留空則接受監聽器看到的所有資源。',
+      cidrsLabel: '來源 CIDR',
+      cidrsPlaceholder: '52.96.0.0/14, 13.107.64.0/18',
+      cidrsHelp: '網路繫結必需。/health 使用同一允許清單——本機 Test 可能回傳 403，但程序仍在執行。',
+      networkExposedWarning: '遠端繫結需要來源 CIDR。沒有它們轉接器會拒絕啟動——請先貼上 Microsoft Graph 出口網段。',
+      pipelineTitle: '訂閱與 Teams 聊天',
+      pipelineHelp:
+        '用 `work4you teams-pipeline subscribe` 建立 Graph 訂閱。聊天回覆走單獨的 Teams 機器人卡片。Azure 租戶 / 用戶端 / 密鑰留在那邊——不在此監聽器上。',
+      saved: 'Graph webhook 已儲存並啟用。重新啟動閘道即可啟動監聽器。',
+      saveFailed: '無法儲存 Graph webhook 設定。',
+      copied: '已複製到剪貼簿。',
+      copyFailed: '無法複製到剪貼簿。',
+      openGuide: 'Graph webhook 指南'
     },
     smsQuickSetup: {
       title: '快速設定',
@@ -1904,6 +1950,31 @@ export const zhHant = defineLocale({
         label: '公開 URL',
         placeholder: 'https://your-tunnel.example',
         help: '在通道或反向代理後面時，公布在 Agent Card 上的可路由 URL。'
+      },
+      MSGRAPH_WEBHOOK_CLIENT_STATE: {
+        label: 'clientState 密鑰',
+        help: 'Graph 在每則通知中回傳的共用密鑰。用 openssl rand -hex 32 產生。沒有它監聽器會拒絕啟動。'
+      },
+      MSGRAPH_WEBHOOK_HOST: {
+        label: '繫結位址',
+        placeholder: '127.0.0.1',
+        help: '快速設定預設 127.0.0.1（通道/代理）。網路繫結 (0.0.0.0) 需要來源 CIDR。'
+      },
+      MSGRAPH_WEBHOOK_PORT: { label: '連接埠', placeholder: '8646' },
+      MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES: {
+        label: '接受的資源',
+        placeholder: 'communications/onlineMeetings',
+        help: '可選。逗號分隔的 Graph 資源路徑。留空則接受所有資源。'
+      },
+      MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS: {
+        label: '來源 CIDR',
+        placeholder: '52.96.0.0/14',
+        help: '非回環繫結必需。Microsoft Graph 出口網段。/health 使用同一允許清單。'
+      },
+      MSGRAPH_WEBHOOK_PUBLIC_URL: {
+        label: '公開 HTTPS 來源',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Graph 拒絕 HTTP。貼上 /msgraph/webhook 前面的 https:// 來源。'
       }
     },
     platformIntro: {}

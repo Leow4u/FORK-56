@@ -1813,6 +1813,11 @@ export const zh: Translations = {
       telegramToken: '请粘贴来自 @BotFather 的完整令牌（例如 123456789:ABC…）。',
       telegramUserId: (value: string) => `${value} 不是有效的 Telegram 数字用户 ID。`,
       twilioAccountSid: '请粘贴 Twilio 控制台仪表盘中的完整 Account SID——以 AC 开头，后跟 32 个字符。',
+      msgraphCidr: (value: string) =>
+        `${value} 不是 CIDR。请使用类似 52.96.0.0/14 的条目（逗号分隔的 Microsoft Graph 出口网段）。`,
+      msgraphClientState: 'clientState 密钥至少 16 个字符，且不能是占位符。请使用“生成密钥”（openssl rand -hex 32）。',
+      msgraphPublicUrl: (value: string) =>
+        `${value} 不是有效的公网 URL。Graph 拒绝 HTTP——请使用 https:// 源，例如 https://your-tunnel.example。`,
       webhookSecret:
         '请使用 16 个字符以上的随机密钥。"INSECURE_NO_AUTH" 会在所有回退到此全局密钥的路由上禁用签名验证。',
       whatsappNumber: (value: string) => `${value} 不像是 WhatsApp 号码。请使用带国家代码的完整号码，例如 15551234567。`
@@ -2011,6 +2016,47 @@ export const zh: Translations = {
       copied: '已复制到剪贴板。',
       copyFailed: '无法复制到剪贴板。',
       openGuide: 'A2A 指南'
+    },
+    msgraphQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro:
+        '此卡片只是入站 Graph 监听器。Microsoft Graph 会向这里 POST 变更通知——它不是 Teams 聊天机器人。生成 clientState 密钥，在隧道后绑定本机，或为网络绑定添加源 CIDR，然后向 Graph 注册通知 URL。',
+      replacesExisting: 'Graph webhook 已配置。在此保存会更新密钥和绑定。',
+      secretHelp: '共享的 clientState 密钥。Graph 会在每条通知中回传——用 openssl rand -hex 32 生成。',
+      secretLabel: 'clientState 密钥',
+      secretPlaceholder: '点击生成，或粘贴 32 字节十六进制密钥',
+      generateSecret: '生成密钥',
+      copySecret: '复制密钥',
+      secretWarning: '持有此密钥的任何人都能伪造 Graph 通知。请像密码一样对待。',
+      secretRequired: '请先生成 clientState——没有它监听器会拒绝启动。',
+      bindLabel: '谁可以访问监听器',
+      bindLocalhost: '仅本机 (127.0.0.1)',
+      bindRemote: '网络 (0.0.0.0) — 需要源 CIDR',
+      remoteNeedsCidrs: '网络绑定需要源 CIDR（Microsoft Graph 出口网段）。',
+      notificationTitle: '通知 URL',
+      notificationHint: '向 Graph 注册此 URL。如果在隧道后面，请设置公网 HTTPS 源，以便复制的 URL 是 Graph 能访问的地址。',
+      copyNotificationUrl: '复制通知 URL',
+      handshakeHint:
+        'Graph 会先用 ?validationToken=… GET 此路径——监听器回显该令牌。然后 POST 变更通知。此卡片没有订阅 CRUD。',
+      publicUrlLabel: '公网 HTTPS 源（可选）',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp: 'Graph 拒绝 HTTP。在反向代理或隧道处终止 TLS，然后粘贴 https:// 源。',
+      resourcesLabel: '接受的资源（可选）',
+      resourcesPlaceholder: 'communications/onlineMeetings, chats/*/messages',
+      resourcesHelp: '逗号分隔的 Graph 资源路径。留空则接受监听器看到的所有资源。',
+      cidrsLabel: '源 CIDR',
+      cidrsPlaceholder: '52.96.0.0/14, 13.107.64.0/18',
+      cidrsHelp: '网络绑定必需。/health 使用同一白名单——本地 Test 可能返回 403，但进程仍在运行。',
+      networkExposedWarning: '远程绑定需要源 CIDR。没有它们适配器会拒绝启动——请先粘贴 Microsoft Graph 出口网段。',
+      pipelineTitle: '订阅与 Teams 聊天',
+      pipelineHelp:
+        '用 `work4you teams-pipeline subscribe` 创建 Graph 订阅。聊天回复走单独的 Teams 机器人卡片。Azure 租户 / 客户端 / 密钥留在那边——不在此监听器上。',
+      saved: 'Graph webhook 已保存并启用。重启网关即可启动监听器。',
+      saveFailed: '无法保存 Graph webhook 设置。',
+      copied: '已复制到剪贴板。',
+      copyFailed: '无法复制到剪贴板。',
+      openGuide: 'Graph webhook 指南'
     },
     smsQuickSetup: {
       title: '快速设置',
@@ -2339,6 +2385,31 @@ export const zh: Translations = {
         label: '公网 URL',
         placeholder: 'https://your-tunnel.example',
         help: '在隧道或反向代理后面时，公布在 Agent Card 上的可路由 URL。'
+      },
+      MSGRAPH_WEBHOOK_CLIENT_STATE: {
+        label: 'clientState 密钥',
+        help: 'Graph 在每条通知中回传的共享密钥。用 openssl rand -hex 32 生成。没有它监听器会拒绝启动。'
+      },
+      MSGRAPH_WEBHOOK_HOST: {
+        label: '绑定地址',
+        placeholder: '127.0.0.1',
+        help: '快速设置默认 127.0.0.1（隧道/代理）。网络绑定 (0.0.0.0) 需要源 CIDR。'
+      },
+      MSGRAPH_WEBHOOK_PORT: { label: '端口', placeholder: '8646' },
+      MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES: {
+        label: '接受的资源',
+        placeholder: 'communications/onlineMeetings',
+        help: '可选。逗号分隔的 Graph 资源路径。留空则接受所有资源。'
+      },
+      MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS: {
+        label: '源 CIDR',
+        placeholder: '52.96.0.0/14',
+        help: '非回环绑定必需。Microsoft Graph 出口网段。/health 使用同一白名单。'
+      },
+      MSGRAPH_WEBHOOK_PUBLIC_URL: {
+        label: '公网 HTTPS 源',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Graph 拒绝 HTTP。粘贴 /msgraph/webhook 前面的 https:// 源。'
       }
     },
     platformIntro: {
@@ -2371,7 +2442,9 @@ export const zh: Translations = {
         '把 Work4You 暴露为兼容 OpenAI 的 API。在上方的快速设置中生成一个强密钥，然后把 Open WebUI / LobeChat / 你自己的聊天前端指向它显示的基础 URL。密钥授予完整的智能体访问权限（包括终端）——请像密码一样对待。',
       webhook:
         '把来自 GitHub、GitLab、Stripe 或你自己应用的事件变成智能体运行。每条路由都是独立的 URL 和签名密钥——请在上方"Webhook 路由"中创建和管理；至少要有一条路由才会接收任何请求。下方的可选字段是监听端口和全局回退密钥。',
-      a2a: '两个独立方向：入站把 Work4You 暴露为 A2A 智能体（Agent Card 位于 /.well-known/agent-card.json；设置令牌前仅限本机）。出站是上方快速设置中的 a2a 工具集和命名对等体——启用频道不会打开这些工具。下方的可选字段是绑定、令牌、公网 URL 和公布名称。'
+      a2a: '两个独立方向：入站把 Work4You 暴露为 A2A 智能体（Agent Card 位于 /.well-known/agent-card.json；设置令牌前仅限本机）。出站是上方快速设置中的 a2a 工具集和命名对等体——启用频道不会打开这些工具。下方的可选字段是绑定、令牌、公网 URL 和公布名称。',
+      msgraph_webhook:
+        '仅入站监听器——Microsoft Graph 向这里 POST 变更通知（会议、Outlook、聊天）。这不是 Teams 聊天机器人。请用上方快速设置生成 clientState 密钥，在隧道后绑定本机，并复制通知 URL。网络绑定需要源 CIDR。订阅用 `work4you teams-pipeline subscribe` 创建；Azure 应用凭据留在 Teams / 流水线卡片上。'
     }
   },
 

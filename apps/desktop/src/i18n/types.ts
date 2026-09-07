@@ -1425,6 +1425,9 @@ export interface Translations {
       telegramToken: string
       telegramUserId: (value: string) => string
       twilioAccountSid: string
+      msgraphCidr: (value: string) => string
+      msgraphClientState: string
+      msgraphPublicUrl: (value: string) => string
       webhookSecret: string
       whatsappNumber: (value: string) => string
     }
@@ -1602,6 +1605,44 @@ export interface Translations {
       outboundAlreadyOn: string
       outboundOffWarning: string
       nameRequired: string
+      copied: string
+      copyFailed: string
+      openGuide: string
+    }
+    msgraphQuickSetup: {
+      title: string
+      recommended: string
+      intro: string
+      replacesExisting: string
+      secretHelp: string
+      secretLabel: string
+      secretPlaceholder: string
+      generateSecret: string
+      copySecret: string
+      secretWarning: string
+      secretRequired: string
+      bindLabel: string
+      bindLocalhost: string
+      bindRemote: string
+      remoteNeedsCidrs: string
+      notificationTitle: string
+      notificationHint: string
+      copyNotificationUrl: string
+      handshakeHint: string
+      publicUrlLabel: string
+      publicUrlPlaceholder: string
+      publicUrlHelp: string
+      resourcesLabel: string
+      resourcesPlaceholder: string
+      resourcesHelp: string
+      cidrsLabel: string
+      cidrsPlaceholder: string
+      cidrsHelp: string
+      networkExposedWarning: string
+      pipelineTitle: string
+      pipelineHelp: string
+      saved: string
+      saveFailed: string
       copied: string
       copyFailed: string
       openGuide: string

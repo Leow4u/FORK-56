@@ -62,9 +62,14 @@ SETUP_HIDDEN_ENV_SUFFIXES = (
 #                        true + config.yaml false shows "off" in the UI while
 #                        the listener runs). The GUI keeps its toggles; the
 #                        env var keeps working for `work4you setup` and .env.
+#
+#   MSGRAPH_WEBHOOK_ENABLED
+#                        same class as WEBHOOK_ENABLED: the gateway reads it,
+#                        but the Messaging card already has an enable toggle.
 SETUP_HIDDEN_ENV_NAMES = frozenset({
     "API_SERVER_ENABLED",
     "WEBHOOK_ENABLED",
+    "MSGRAPH_WEBHOOK_ENABLED",
 })
 
 

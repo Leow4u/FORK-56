@@ -4680,6 +4680,54 @@ def _validate_messaging_env_value(platform_id: str, key: str, value: str) -> Non
                 )
         return
 
+    if platform_id == "msgraph_webhook":
+        if key == "MSGRAPH_WEBHOOK_PORT":
+            try:
+                port = int(value)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail="MSGRAPH_WEBHOOK_PORT must be a number between 1 and 65535.",
+                ) from exc
+            if not 1 <= port <= 65535:
+                raise HTTPException(
+                    status_code=400,
+                    detail="MSGRAPH_WEBHOOK_PORT must be a number between 1 and 65535.",
+                )
+        if key == "MSGRAPH_WEBHOOK_HOST" and (
+            "://" in value or "/" in value or any(ch.isspace() for ch in value)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="MSGRAPH_WEBHOOK_HOST must be a bare hostname or IP like 127.0.0.1.",
+            )
+        if key == "MSGRAPH_WEBHOOK_CLIENT_STATE":
+            if len(value) < 16 or value.lower() in {
+                "changeme",
+                "your_api_key",
+                "placeholder",
+                "example",
+            }:
+                raise HTTPException(
+                    status_code=400,
+                    detail="MSGRAPH_WEBHOOK_CLIENT_STATE must be at least 16 characters and not a placeholder.",
+                )
+        if key == "MSGRAPH_WEBHOOK_PUBLIC_URL" and (
+            not value.lower().startswith("https://") or " " in value
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="MSGRAPH_WEBHOOK_PUBLIC_URL must be an https:// origin (Graph refuses HTTP).",
+            )
+        if key == "MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS":
+            for chunk in (part.strip() for part in value.split(",")):
+                if chunk and "/" not in chunk:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS entries must be CIDRs like 52.96.0.0/14.",
+                    )
+        return
+
     if platform_id != "slack":
         return
 
@@ -8853,7 +8901,18 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
         "name": "Microsoft Graph Webhook",
         "description": "Receive Microsoft Graph change notifications (Teams meetings, Outlook, …).",
         "docs_url": "https://work4you.ai/docs/user-guide/messaging/msgraph-webhook",
-        "required_env": (),
+        # MSGRAPH_WEBHOOK_ENABLED is hidden by name (duplicate of the card
+        # toggle). ALLOW_ALL / HOME_CHANNEL stay hidden by suffix. This is
+        # NOT setup_free: the adapter refuses to start without client_state.
+        "env_vars": (
+            "MSGRAPH_WEBHOOK_CLIENT_STATE",
+            "MSGRAPH_WEBHOOK_HOST",
+            "MSGRAPH_WEBHOOK_PORT",
+            "MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES",
+            "MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS",
+            "MSGRAPH_WEBHOOK_PUBLIC_URL",
+        ),
+        "required_env": ("MSGRAPH_WEBHOOK_CLIENT_STATE",),
     },
     "whatsapp_cloud": {
         "name": "WhatsApp Cloud API",
@@ -8892,6 +8951,7 @@ _PLATFORM_ORDER: tuple[str, ...] = (
     "yuanbao",
     "api_server",
     "webhook",
+    "msgraph_webhook",
     "a2a",
 )
 
@@ -11098,6 +11158,164 @@ def _a2a_live_test(
     )
 
 
+_MSGRAPH_DEFAULT_PORT = 8646
+_MSGRAPH_DEFAULT_PATH = "/msgraph/webhook"
+_MSGRAPH_LOOPBACK = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def _msgraph_has_client_state(env: dict[str, str], extra: dict) -> bool:
+    return bool(
+        (env.get("MSGRAPH_WEBHOOK_CLIENT_STATE") or "").strip()
+        or str(extra.get("client_state") or "").strip()
+    )
+
+
+def _msgraph_cidrs(env: dict[str, str], extra: dict) -> list[str]:
+    raw = (env.get("MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS") or "").strip()
+    if raw:
+        return [part.strip() for part in raw.split(",") if part.strip()]
+    extra_cidrs = extra.get("allowed_source_cidrs") or []
+    if isinstance(extra_cidrs, str):
+        return [part.strip() for part in extra_cidrs.split(",") if part.strip()]
+    if isinstance(extra_cidrs, (list, tuple, set)):
+        return [str(part).strip() for part in extra_cidrs if str(part).strip()]
+    return []
+
+
+def _msgraph_resolve_endpoint(
+    env: dict[str, str], extra: dict
+) -> tuple[str, int | None, str, str]:
+    """Resolve the inbound bind the same way the adapter does.
+
+    Env port/host win, then platforms.msgraph_webhook.extra, then 8646 /
+    all-interfaces. Returns (host, port, probe_host, error).
+    """
+    raw_port = (env.get("MSGRAPH_WEBHOOK_PORT") or "").strip()
+    if raw_port:
+        try:
+            port = int(raw_port)
+        except ValueError:
+            return "", None, "", f"MSGRAPH_WEBHOOK_PORT must be a number, got {raw_port!r}."
+        if not 1 <= port <= 65535:
+            return "", None, "", (
+                f"MSGRAPH_WEBHOOK_PORT must be between 1 and 65535, got {port}."
+            )
+    else:
+        try:
+            port = int(extra.get("port", _MSGRAPH_DEFAULT_PORT))
+        except (TypeError, ValueError):
+            port = _MSGRAPH_DEFAULT_PORT
+
+    host = (
+        (env.get("MSGRAPH_WEBHOOK_HOST") or "").strip()
+        or str(extra.get("host") or "").strip()
+    )
+    probe_host = "127.0.0.1" if not host or host in {"0.0.0.0", "::", "*"} else host
+    return host, port, probe_host, ""
+
+
+def _msgraph_notification_url(
+    env: dict[str, str], extra: dict, probe_host: str, port: int
+) -> str:
+    public = (env.get("MSGRAPH_WEBHOOK_PUBLIC_URL") or "").strip().rstrip("/")
+    path = str(extra.get("webhook_path") or _MSGRAPH_DEFAULT_PATH).strip() or _MSGRAPH_DEFAULT_PATH
+    if not path.startswith("/"):
+        path = f"/{path}"
+    if public:
+        return f"{public}{path}"
+    return f"http://{probe_host}:{port}{path}"
+
+
+def _msgraph_live_test(
+    env: dict[str, str], extra: dict, gateway_running: bool
+) -> tuple[bool, str]:
+    """Prove the Graph webhook listener: GET /health on the resolved port.
+
+    ``client_state`` is required to start. A network bind without source CIDRs
+    is refused (same as the adapter). /health is also CIDR-gated, so a 403
+    from localhost on a production bind means the process is up, not down.
+    """
+    if not _msgraph_has_client_state(env, extra):
+        return False, (
+            "Set MSGRAPH_WEBHOOK_CLIENT_STATE first. The listener refuses to "
+            "start without this shared secret (generate with openssl rand -hex 32)."
+        )
+
+    host, port, probe_host, port_error = _msgraph_resolve_endpoint(env, extra)
+    if port is None:
+        return False, port_error
+
+    network = host.lower() not in _MSGRAPH_LOOPBACK if host else True
+    cidrs = _msgraph_cidrs(env, extra)
+    if network and not cidrs:
+        return False, (
+            "A network bind requires MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS "
+            "(Microsoft Graph egress ranges), or bind to 127.0.0.1 behind a "
+            "tunnel or reverse proxy."
+        )
+
+    notify_url = _msgraph_notification_url(env, extra, probe_host, port)
+    bind_note = "network-exposed" if network else "localhost-only"
+
+    if not gateway_running:
+        return True, (
+            f"Microsoft Graph webhook starts with the gateway. Start it, then "
+            f"register {notify_url} as the Graph notification URL ({bind_note}). "
+            "Graph requires a public HTTPS origin — terminate TLS at a reverse "
+            "proxy or tunnel."
+        )
+
+    try:
+        req = urllib.request.Request(
+            f"http://{probe_host}:{port}/health", method="GET"
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            status = resp.status
+            body = resp.read()
+    except urllib.error.HTTPError as exc:
+        if exc.code == 403:
+            return True, (
+                f"The listener on {probe_host}:{port} answered /health with "
+                "HTTP 403 — the source-IP allowlist is active (expected for a "
+                f"production bind). The process is up. Register {notify_url} "
+                "with Graph; probe /health from an allowed Microsoft egress IP."
+            )
+        return False, (
+            f"The listener on {probe_host}:{port} answered /health with "
+            f"HTTP {exc.code} — that port may belong to another service."
+        )
+    except Exception:
+        return False, (
+            f"The gateway is running but nothing answered on "
+            f"{probe_host}:{port}. Restart the gateway so the Graph webhook "
+            "comes up, or check `work4you logs` for a missing client_state, "
+            "a network bind without CIDRs, or a port conflict."
+        )
+
+    if status != 200:
+        return False, (
+            f"The listener on {probe_host}:{port} answered /health with "
+            f"HTTP {status} — that port may belong to another service."
+        )
+
+    accepted = duplicates = None
+    try:
+        payload = json.loads(body.decode("utf-8"))
+        if isinstance(payload, dict):
+            accepted = payload.get("accepted")
+            duplicates = payload.get("duplicates")
+    except Exception:
+        payload = None
+
+    counts = ""
+    if isinstance(accepted, int) and isinstance(duplicates, int):
+        counts = f" accepted={accepted} duplicates={duplicates}."
+    return True, (
+        f"Listener is up on port {port} ({bind_note}). Register {notify_url} "
+        f"with Graph.{counts}"
+    )
+
+
 def _a2a_load_agents() -> dict[str, Any]:
     cfg = load_config() or {}
     agents = cfg.get("a2a_agents") or {}
@@ -11289,6 +11507,38 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
             live_env,
             extra,
             peer_count,
+            bool(payload["gateway_running"]),
+        )
+        return {"ok": ok, "state": payload["state"], "message": message}
+    if platform_id == "msgraph_webhook":
+        # GET /health is the cheap local probe. client_state + CIDR rules
+        # live in .env and platforms.msgraph_webhook.extra, so collect extra
+        # under the same profile scope the payload used.
+        def _collect_msgraph_info():
+            with _profile_scope(profile):
+                cfg = load_config() or {}
+                plat = (cfg.get("platforms") or {}).get("msgraph_webhook") or {}
+                extra = plat.get("extra") or {} if isinstance(plat, dict) else {}
+                if not isinstance(extra, dict):
+                    extra = {}
+                return extra
+
+        extra = await asyncio.to_thread(_collect_msgraph_info)
+        live_env = {
+            key: (env_on_disk.get(key) or ("" if profile_scoped else os.getenv(key, "")))
+            for key in (
+                "MSGRAPH_WEBHOOK_CLIENT_STATE",
+                "MSGRAPH_WEBHOOK_PORT",
+                "MSGRAPH_WEBHOOK_HOST",
+                "MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES",
+                "MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS",
+                "MSGRAPH_WEBHOOK_PUBLIC_URL",
+            )
+        }
+        ok, message = await asyncio.to_thread(
+            _msgraph_live_test,
+            live_env,
+            extra,
             bool(payload["gateway_running"]),
         )
         return {"ok": ok, "state": payload["state"], "message": message}
