@@ -223,4 +223,68 @@ describe("ChannelsPage (Messaging)", () => {
     expect(text).not.toContain("MSGRAPH_WEBHOOK_ENABLED");
     expect(text).not.toContain("MSGRAPH_TENANT_ID");
   });
+
+  it("shows the Teams hint with the messaging endpoint and its warnings", async () => {
+    apiMocks.getMessagingPlatforms.mockResolvedValueOnce({
+      env_path: "~/.work4you/.env",
+      gateway_start_command: "work4you gateway start",
+      platforms: [
+        {
+          id: "teams",
+          name: "Microsoft Teams",
+          description: "Connect Work4You to Microsoft Teams chats via the Bot Framework.",
+          docs_url: "https://work4you.ai/docs/user-guide/messaging/teams",
+          enabled: false,
+          configured: false,
+          gateway_running: false,
+          state: "disabled",
+          error_code: null,
+          error_message: null,
+          updated_at: null,
+          home_channel: null,
+          env_vars: [
+            {
+              key: "TEAMS_CLIENT_ID",
+              prompt: "Application (client) ID",
+              required: true,
+              is_set: false,
+              is_password: false,
+              description: "",
+              help: null,
+              redacted_value: null,
+            },
+            {
+              key: "TEAMS_PUBLIC_URL",
+              prompt: "Public HTTPS origin",
+              required: false,
+              is_set: false,
+              is_password: false,
+              description: "",
+              help: null,
+              redacted_value: null,
+            },
+          ],
+        },
+      ],
+    });
+
+    await renderPage();
+
+    const configure = Array.from(container.querySelectorAll("button")).find((button) =>
+      (button.textContent ?? "").includes("Configure"),
+    );
+    await act(async () => {
+      configure?.click();
+    });
+
+    const text = container.textContent ?? "";
+    expect(text).toContain("The Teams chat bot");
+    // The endpoint falls back to the local bind until a public origin is set,
+    // and that fallback is exactly what Teams cannot reach.
+    expect(text).toContain("http://127.0.0.1:3978/api/messages");
+    expect(text).toContain("Copy endpoint");
+    expect(text).toContain("which Teams cannot reach");
+    expect(text).toContain("anyone who can find the bot in your tenant");
+    expect(text).toContain("Application (client) ID");
+  });
 });

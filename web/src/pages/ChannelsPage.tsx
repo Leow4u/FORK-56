@@ -83,6 +83,8 @@ function stateBadge(state: string) {
 const TELEGRAM_USER_ID_RE = /^\d+$/;
 const TELEGRAM_BOT_TOKEN_RE = /^\d+:[A-Za-z0-9_-]{30,}$/;
 const SLACK_MEMBER_ID_RE = /^[UW][A-Z0-9]{2,}$/;
+// Azure AD app ids, tenant ids and user object ids are all plain GUIDs.
+const AAD_GUID_RE = /^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/;
 const SLACK_TOKEN_PREFIXES: Record<string, string> = {
   SLACK_BOT_TOKEN: "xoxb-",
   SLACK_APP_TOKEN: "xapp-",
@@ -176,6 +178,36 @@ function validateMessagingEnvField(field: MessagingPlatformEnvVar, value: string
     if (invalid) {
       return `${invalid} is not a CIDR. Use entries like 52.96.0.0/14.`;
     }
+  }
+
+  if ((field.key === "TEAMS_CLIENT_ID" || field.key === "TEAMS_TENANT_ID") && !AAD_GUID_RE.test(trimmed)) {
+    return `${trimmed} is not an Azure AD GUID. Use the id from the Azure portal, like 00000000-0000-0000-0000-000000000000.`;
+  }
+
+  if (field.key === "TEAMS_ALLOWED_USERS") {
+    const invalid = trimmed
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .find((part) => part !== "*" && !AAD_GUID_RE.test(part));
+    if (invalid) {
+      return `${invalid} is not an Azure AD object ID. Run \`teams status --verbose\` to read it, or use * for the whole tenant.`;
+    }
+  }
+
+  if (field.key === "TEAMS_PORT") {
+    const port = Number(trimmed);
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return `${trimmed} is not a valid port. Use a number between 1 and 65535.`;
+    }
+  }
+
+  if (field.key === "TEAMS_HOST" && (/\s/.test(trimmed) || trimmed.includes("://") || trimmed.includes("/"))) {
+    return `${trimmed} is not a valid bind address. Use a bare hostname or IP like 127.0.0.1 — no http:// or paths.`;
+  }
+
+  if (field.key === "TEAMS_PUBLIC_URL" && (!/^https:\/\/\S+$/.test(trimmed) || trimmed.includes(" "))) {
+    return `${trimmed} is not a valid public URL. Teams refuses plain HTTP — use an https:// origin.`;
   }
 
   if (field.key === "SLACK_ALLOWED_USERS") {
@@ -281,6 +313,81 @@ function MSGraphSetupHint({
         <Button onClick={() => void copyText(notifyUrl)} outlined size="sm">
           <Copy className="h-3 w-3" />
           Copy URL
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function TeamsSetupHint({
+  draftEnv,
+  setDraftEnv,
+}: {
+  draftEnv: Record<string, string>;
+  setDraftEnv: Dispatch<SetStateAction<Record<string, string>>>;
+}) {
+  const host = (draftEnv.TEAMS_HOST || "").trim();
+  const port = (draftEnv.TEAMS_PORT || "").trim() || "3978";
+  const publicUrl = (draftEnv.TEAMS_PUBLIC_URL || "").trim().replace(/\/+$/, "");
+  const probeHost = !host || host === "0.0.0.0" || host === "::" || host === "*" ? "127.0.0.1" : host;
+  const endpoint = publicUrl ? `${publicUrl}/api/messages` : `http://${probeHost}:${port}/api/messages`;
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* clipboard may be unavailable */
+    }
+  }
+
+  return (
+    <div className="grid gap-2 text-sm text-muted-foreground">
+      <p>
+        The Teams chat bot — people message it and Work4You answers. Paste the
+        three ids from your Azure bot registration
+        (<code className="font-courier text-xs">teams app create</code> prints
+        them), then register the messaging endpoint below in Azure.
+      </p>
+      <p>
+        Teams calls your bot from the public internet, so a local install needs
+        a tunnel or reverse proxy first: set the https:// origin in{" "}
+        <code className="font-courier text-xs">TEAMS_PUBLIC_URL</code> and the
+        endpoint below follows it. Meeting transcripts and other Graph
+        notifications arrive on the separate Graph webhook card.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          onClick={() => setDraftEnv((prev) => ({ ...prev, TEAMS_HOST: "127.0.0.1" }))}
+          outlined
+          size="sm"
+        >
+          Bind localhost
+        </Button>
+        <Button
+          onClick={() => setDraftEnv((prev) => ({ ...prev, TEAMS_HOST: "0.0.0.0" }))}
+          outlined
+          size="sm"
+        >
+          Bind network
+        </Button>
+      </div>
+      {!publicUrl && (
+        <p className="text-xs text-amber-600 dark:text-amber-500">
+          Without TEAMS_PUBLIC_URL the endpoint points at localhost, which Teams
+          cannot reach: the bot installs but never answers.
+        </p>
+      )}
+      {!(draftEnv.TEAMS_ALLOWED_USERS || "").trim() && (
+        <p className="text-xs text-amber-600 dark:text-amber-500">
+          With no TEAMS_ALLOWED_USERS, anyone who can find the bot in your
+          tenant can drive your agent.
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <code className="font-courier break-all text-foreground">{endpoint}</code>
+        <Button onClick={() => void copyText(endpoint)} outlined size="sm">
+          <Copy className="h-3 w-3" />
+          Copy endpoint
         </Button>
       </div>
     </div>
@@ -897,6 +1004,9 @@ export default function ChannelsPage() {
               {editing.id === "a2a" && <A2ASetupHint />}
               {editing.id === "msgraph_webhook" && (
                 <MSGraphSetupHint draftEnv={draftEnv} setDraftEnv={setDraftEnv} />
+              )}
+              {editing.id === "teams" && (
+                <TeamsSetupHint draftEnv={draftEnv} setDraftEnv={setDraftEnv} />
               )}
               <p className="text-xs text-muted-foreground">
                 {editing.description}
