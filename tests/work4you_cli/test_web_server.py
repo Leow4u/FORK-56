@@ -2092,8 +2092,9 @@ class TestWebServerEndpoints:
         assert "A2A_HOME_CHANNEL" not in keys
         assert not any(field["required"] for field in a2a["env_vars"])
         assert a2a["docs_url"].rstrip("/").endswith("messaging/a2a")
-        # setup_free must keep the card off "Needs setup" whether the
-        # plugin ships enabled-by-default (gateway_stopped here) or not.
+        # setup_free keeps the card off "Needs setup". is_connected must
+        # stay a real opt-in (extra.enabled / A2A_PORT) so multiplex and
+        # the setup wizard do not auto-enable inbound A2A.
         assert a2a["configured"] is True
         assert a2a["state"] != "not_configured"
 

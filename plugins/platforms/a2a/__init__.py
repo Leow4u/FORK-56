@@ -35,15 +35,19 @@ def validate_config(config) -> bool:
 
 
 def is_connected(config) -> bool:
-    """Inbound A2A is configured as soon as the operator enables it.
+    """True only on an explicit inbound opt-in, never on ``config.enabled``.
 
-    Host/port have safe defaults (127.0.0.1:9900, localhost-only without a
-    token). Enablement lives on ``PlatformConfig.enabled`` — the old
-    ``extra.enabled`` / ``A2A_PORT``-in-env check never saw a toggle-on as
-    connected unless the user happened to write a port into ``.env``.
+    ``load_gateway_config`` and ``_platform_status`` probe plugins with a
+    synthetic ``PlatformConfig(enabled=True)`` to ask "would this be
+    configured if we turned it on?". Treating that flag as connected
+    auto-enables inbound A2A on every profile, which then fails multiplex
+    startup (A2A binds a port) and skips the setup-wizard gateway section.
+
+    Dashboard ``setup_free`` already marks the Messaging card configured
+    without this hook. A YAML ``platforms.a2a.enabled: true`` still wins
+    at runtime because the enablement gate skips ``is_connected`` when
+    the user already wrote enabled.
     """
-    if getattr(config, "enabled", False):
-        return True
     extra = getattr(config, "extra", {}) or {}
     return bool(extra.get("enabled")) or bool(os.getenv("A2A_PORT"))
 
