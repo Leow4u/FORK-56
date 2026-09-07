@@ -85,6 +85,8 @@ const TELEGRAM_BOT_TOKEN_RE = /^\d+:[A-Za-z0-9_-]{30,}$/;
 const SLACK_MEMBER_ID_RE = /^[UW][A-Z0-9]{2,}$/;
 // Azure AD app ids, tenant ids and user object ids are all plain GUIDs.
 const AAD_GUID_RE = /^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/;
+// Meta App secrets are 32 hex characters (App settings → Basic).
+const WHATSAPP_CLOUD_APP_SECRET_RE = /^[0-9a-fA-F]{32}$/;
 const SLACK_TOKEN_PREFIXES: Record<string, string> = {
   SLACK_BOT_TOKEN: "xoxb-",
   SLACK_APP_TOKEN: "xapp-",
@@ -208,6 +210,67 @@ function validateMessagingEnvField(field: MessagingPlatformEnvVar, value: string
 
   if (field.key === "TEAMS_PUBLIC_URL" && (!/^https:\/\/\S+$/.test(trimmed) || trimmed.includes(" "))) {
     return `${trimmed} is not a valid public URL. Teams refuses plain HTTP — use an https:// origin.`;
+  }
+
+  // Mirrors the `work4you whatsapp-cloud` wizard's shape checks and the
+  // gateway's PUT validator, so the same mistake is named the same way.
+  if (field.key === "WHATSAPP_CLOUD_PHONE_NUMBER_ID") {
+    if (!/^\d+$/.test(trimmed)) {
+      return `${trimmed} is not a Phone number ID. Meta shows it as 15-17 digits under the From dropdown in WhatsApp → API Setup.`;
+    }
+    // A real phone number is 10-12 digits; Meta's Phone number ID is 15-17.
+    if (trimmed.length >= 10 && trimmed.length <= 12) {
+      return "That looks like the phone number itself. Meta wants the Phone number ID — the 15-17 digit id under the From dropdown in API Setup.";
+    }
+    if (trimmed.length < 13 || trimmed.length > 20) {
+      return `${trimmed} is not a Phone number ID. Meta shows it as 15-17 digits under the From dropdown in WhatsApp → API Setup.`;
+    }
+  }
+
+  if (field.key === "WHATSAPP_CLOUD_ACCESS_TOKEN" && (!trimmed.startsWith("EAA") || trimmed.length < 100)) {
+    return "Paste the complete Meta access token — it starts with EAA and is well over 100 characters. Use a System User token; the API Setup one expires after 24 hours.";
+  }
+
+  if (field.key === "WHATSAPP_CLOUD_APP_SECRET" && !WHATSAPP_CLOUD_APP_SECRET_RE.test(trimmed)) {
+    return "The App secret is 32 hexadecimal characters, from Meta App settings → Basic → App secret (click Show). Not the access token.";
+  }
+
+  if (field.key === "WHATSAPP_CLOUD_VERIFY_TOKEN" && (trimmed.length < 16 || /\s/.test(trimmed))) {
+    return "The verify token must be at least 16 characters with no spaces. Use Generate token, then paste the same value into Meta.";
+  }
+
+  if ((field.key === "WHATSAPP_CLOUD_APP_ID" || field.key === "WHATSAPP_CLOUD_WABA_ID") && !/^\d{10,25}$/.test(trimmed)) {
+    return `${trimmed} is not a numeric Meta id. Copy the digits shown in the Meta developer dashboard.`;
+  }
+
+  if (field.key === "WHATSAPP_CLOUD_ALLOWED_USERS") {
+    const invalid = trimmed
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .find((part) => part !== "*" && !part.includes("@") && !/^\+?\d{5,20}$/.test(part.replace(/[\s()-]/g, "")));
+    if (invalid) {
+      return `${invalid} does not look like a WhatsApp number. Use full numbers with country code and no +, like 15551234567.`;
+    }
+  }
+
+  if (field.key === "WHATSAPP_CLOUD_WEBHOOK_PORT") {
+    const port = Number(trimmed);
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return `${trimmed} is not a valid port. Use a number between 1 and 65535.`;
+    }
+  }
+
+  if (field.key === "WHATSAPP_CLOUD_WEBHOOK_HOST" && (/\s/.test(trimmed) || trimmed.includes("://") || trimmed.includes("/"))) {
+    return `${trimmed} is not a valid bind address. Use a bare hostname or IP like 127.0.0.1 — no http:// or paths.`;
+  }
+
+  if (field.key === "WHATSAPP_CLOUD_WEBHOOK_PATH" && (!trimmed.startsWith("/") || /\s/.test(trimmed) || trimmed.includes("://"))) {
+    return `${trimmed} is not a webhook path. Use a path starting with /, like /whatsapp/webhook.`;
+  }
+
+  if (field.key === "WHATSAPP_CLOUD_PUBLIC_URL" && (!/^https:\/\/\S+$/.test(trimmed) || trimmed.includes(" "))) {
+    return `${trimmed} is not a valid public URL. Meta refuses HTTP — use an https:// origin.`;
   }
 
   if (field.key === "SLACK_ALLOWED_USERS") {
@@ -388,6 +451,98 @@ function TeamsSetupHint({
         <Button onClick={() => void copyText(endpoint)} outlined size="sm">
           <Copy className="h-3 w-3" />
           Copy endpoint
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function WhatsAppCloudSetupHint({
+  draftEnv,
+  setDraftEnv,
+}: {
+  draftEnv: Record<string, string>;
+  setDraftEnv: Dispatch<SetStateAction<Record<string, string>>>;
+}) {
+  const host = (draftEnv.WHATSAPP_CLOUD_WEBHOOK_HOST || "").trim();
+  const port = (draftEnv.WHATSAPP_CLOUD_WEBHOOK_PORT || "").trim() || "8090";
+  const rawPath = (draftEnv.WHATSAPP_CLOUD_WEBHOOK_PATH || "").trim() || "/whatsapp/webhook";
+  const path = rawPath.startsWith("/") ? rawPath : `/${rawPath}`;
+  const publicUrl = (draftEnv.WHATSAPP_CLOUD_PUBLIC_URL || "").trim().replace(/\/+$/, "");
+  const probeHost = !host || host === "0.0.0.0" || host === "::" || host === "*" ? "127.0.0.1" : host;
+  const callbackUrl = publicUrl ? `${publicUrl}${path}` : `http://${probeHost}:${port}${path}`;
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* clipboard may be unavailable */
+    }
+  }
+
+  return (
+    <div className="grid gap-2 text-sm text-muted-foreground">
+      <p>
+        Meta&apos;s official WhatsApp Business API — a business number people
+        message, with no phone or QR code to keep online (the WhatsApp card is
+        the personal-number bridge). Paste the Phone number ID, a permanent
+        access token, and the App secret from the Meta developer dashboard,
+        then register the callback URL below in Meta.
+      </p>
+      <p>
+        Meta calls your machine from the public internet, so a local install
+        needs a tunnel or reverse proxy first: set the https:// origin in{" "}
+        <code className="font-courier text-xs">WHATSAPP_CLOUD_PUBLIC_URL</code>{" "}
+        and the callback below follows it. The token shown in API Setup expires
+        after 24 hours — create a System User token instead. Generate a verify
+        token here and paste the same value into Meta&apos;s webhook dialog.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          onClick={() =>
+            setDraftEnv((prev) => ({
+              ...prev,
+              WHATSAPP_CLOUD_VERIFY_TOKEN: generateMsgraphClientState(),
+            }))
+          }
+          outlined
+          size="sm"
+        >
+          Generate verify token
+        </Button>
+        <Button
+          onClick={() => setDraftEnv((prev) => ({ ...prev, WHATSAPP_CLOUD_WEBHOOK_HOST: "127.0.0.1" }))}
+          outlined
+          size="sm"
+        >
+          Bind localhost
+        </Button>
+        <Button
+          onClick={() => setDraftEnv((prev) => ({ ...prev, WHATSAPP_CLOUD_WEBHOOK_HOST: "0.0.0.0" }))}
+          outlined
+          size="sm"
+        >
+          Bind network
+        </Button>
+      </div>
+      {!publicUrl && (
+        <p className="text-xs text-amber-600 dark:text-amber-500">
+          Without WHATSAPP_CLOUD_PUBLIC_URL the callback points at localhost,
+          which Meta cannot reach: the webhook fails to verify and no message
+          ever arrives.
+        </p>
+      )}
+      {!(draftEnv.WHATSAPP_CLOUD_ALLOWED_USERS || "").trim() && (
+        <p className="text-xs text-amber-600 dark:text-amber-500">
+          With no WHATSAPP_CLOUD_ALLOWED_USERS, anyone who messages your
+          business number can drive your agent.
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <code className="font-courier break-all text-foreground">{callbackUrl}</code>
+        <Button onClick={() => void copyText(callbackUrl)} outlined size="sm">
+          <Copy className="h-3 w-3" />
+          Copy callback URL
         </Button>
       </div>
     </div>
@@ -1007,6 +1162,9 @@ export default function ChannelsPage() {
               )}
               {editing.id === "teams" && (
                 <TeamsSetupHint draftEnv={draftEnv} setDraftEnv={setDraftEnv} />
+              )}
+              {editing.id === "whatsapp_cloud" && (
+                <WhatsAppCloudSetupHint draftEnv={draftEnv} setDraftEnv={setDraftEnv} />
               )}
               <p className="text-xs text-muted-foreground">
                 {editing.description}

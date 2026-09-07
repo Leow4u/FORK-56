@@ -1220,3 +1220,50 @@ class TestApiServerEnvOverride:
         assert config.platforms[Platform.API_SERVER].enabled is False
         # The key is still wired through for the shared listener.
         assert config.platforms[Platform.API_SERVER].extra.get("key") == api_server_key
+
+
+class TestWhatsAppCloudEnvOverride:
+    _ENV = {
+        "WHATSAPP_CLOUD_PHONE_NUMBER_ID": "7794189252778687",
+        "WHATSAPP_CLOUD_ACCESS_TOKEN": "EAA" + "x" * 120,
+        "WHATSAPP_CLOUD_PUBLIC_URL": "https://tunnel.example",
+    }
+
+    def test_env_credentials_do_not_reenable_explicitly_disabled_platform(self):
+        """The dashboard / desktop card toggle writes
+        ``platforms.whatsapp_cloud.enabled: false``. That must survive
+        _apply_env_overrides() even with the credential pair in .env —
+        before, the branch force-set enabled=True and the toggle did nothing."""
+        config = GatewayConfig(
+            platforms={
+                Platform.WHATSAPP_CLOUD: PlatformConfig(
+                    enabled=False,
+                    extra={"_enabled_explicit": True},
+                ),
+            },
+        )
+
+        with patch.dict(os.environ, self._ENV, clear=True):
+            _apply_env_overrides(config)
+
+        cloud = config.platforms[Platform.WHATSAPP_CLOUD]
+        assert cloud.enabled is False
+        # Credentials still flow into extra so is_connected() / the dashboard
+        # can report "configured" for a disabled-but-set-up channel.
+        assert cloud.extra.get("phone_number_id") == "7794189252778687"
+        assert cloud.extra.get("public_url") == "https://tunnel.example"
+
+    def test_env_credentials_enable_platform_without_yaml_or_with_implicit_off(self):
+        """Env-only setups (no yaml block, or a block that never wrote
+        ``enabled``) keep auto-enabling on the credential pair."""
+        config = GatewayConfig()
+        with patch.dict(os.environ, self._ENV, clear=True):
+            _apply_env_overrides(config)
+        assert config.platforms[Platform.WHATSAPP_CLOUD].enabled is True
+
+        config = GatewayConfig(
+            platforms={Platform.WHATSAPP_CLOUD: PlatformConfig(enabled=False)},
+        )
+        with patch.dict(os.environ, self._ENV, clear=True):
+            _apply_env_overrides(config)
+        assert config.platforms[Platform.WHATSAPP_CLOUD].enabled is True

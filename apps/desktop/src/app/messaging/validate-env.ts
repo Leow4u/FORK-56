@@ -40,6 +40,9 @@ export const GOOGLE_CLOUD_PROJECT_ID_RE = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/
 // paste the app display name or a UPN into these fields often enough that the
 // shape is worth catching before a save → restart → MISSING_CREDENTIALS trip.
 export const AAD_GUID_RE = /^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$/
+// Meta App secrets are 32 hex characters (App settings → Basic). Access tokens
+// (EAA…) get pasted into this field often enough to be worth catching.
+export const WHATSAPP_CLOUD_APP_SECRET_RE = /^[0-9a-fA-F]{32}$/
 
 // Mirrors _PLACEHOLDER_SECRET_VALUES in work4you_cli/auth.py — the gateway's
 // startup guard rejects these outright, so catch them before a save.
@@ -107,6 +110,14 @@ export type MessagingEnvError =
   | { code: 'teamsGuid'; value: string }
   | { code: 'teamsPublicUrl'; value: string }
   | { code: 'webhookSecret' }
+  | { code: 'whatsappCloudAccessToken' }
+  | { code: 'whatsappCloudAppSecret' }
+  | { code: 'whatsappCloudNumericId'; value: string }
+  | { code: 'whatsappCloudPhoneNumberId'; value: string }
+  | { code: 'whatsappCloudPhoneNumberPasted' }
+  | { code: 'whatsappCloudPublicUrl'; value: string }
+  | { code: 'whatsappCloudVerifyToken' }
+  | { code: 'whatsappCloudWebhookPath'; value: string }
   | { code: 'whatsappNumber'; value: string }
 
 /** First allowlist entry that is neither an email address nor the "*"
@@ -400,6 +411,73 @@ export function validateMessagingEnv(key: string, value: string): MessagingEnvEr
 
   if (key === 'TEAMS_PUBLIC_URL' && (!/^https:\/\/\S+$/.test(trimmed) || trimmed.includes(' '))) {
     return { code: 'teamsPublicUrl', value: trimmed }
+  }
+
+  // Mirrors the `work4you whatsapp-cloud` wizard's shape checks
+  // (work4you_cli/setup_whatsapp_cloud.py) and the gateway's PUT validator.
+  if (key === 'WHATSAPP_CLOUD_PHONE_NUMBER_ID') {
+    if (!/^\d+$/.test(trimmed)) {
+      return { code: 'whatsappCloudPhoneNumberId', value: trimmed }
+    }
+
+    // A real phone number is 10-12 digits; Meta's Phone number ID is 15-17.
+    if (trimmed.length >= 10 && trimmed.length <= 12) {
+      return { code: 'whatsappCloudPhoneNumberPasted' }
+    }
+
+    if (trimmed.length < 13 || trimmed.length > 20) {
+      return { code: 'whatsappCloudPhoneNumberId', value: trimmed }
+    }
+  }
+
+  if (key === 'WHATSAPP_CLOUD_ACCESS_TOKEN' && (!trimmed.startsWith('EAA') || trimmed.length < 100)) {
+    return { code: 'whatsappCloudAccessToken' }
+  }
+
+  if (key === 'WHATSAPP_CLOUD_APP_SECRET' && !WHATSAPP_CLOUD_APP_SECRET_RE.test(trimmed)) {
+    return { code: 'whatsappCloudAppSecret' }
+  }
+
+  if (key === 'WHATSAPP_CLOUD_VERIFY_TOKEN' && (trimmed.length < 16 || /\s/.test(trimmed))) {
+    return { code: 'whatsappCloudVerifyToken' }
+  }
+
+  if ((key === 'WHATSAPP_CLOUD_APP_ID' || key === 'WHATSAPP_CLOUD_WABA_ID') && !/^\d{10,25}$/.test(trimmed)) {
+    return { code: 'whatsappCloudNumericId', value: trimmed }
+  }
+
+  if (key === 'WHATSAPP_CLOUD_ALLOWED_USERS') {
+    const invalid = findInvalidWhatsAppUser(trimmed)
+
+    if (invalid) {
+      return { code: 'whatsappNumber', value: invalid }
+    }
+  }
+
+  if (key === 'WHATSAPP_CLOUD_WEBHOOK_PORT') {
+    const port = Number(trimmed)
+
+    if (!/^\d+$/.test(trimmed) || port < 1 || port > 65535) {
+      return { code: 'emailPort', value: trimmed }
+    }
+  }
+
+  if (
+    key === 'WHATSAPP_CLOUD_WEBHOOK_HOST' &&
+    (/\s/.test(trimmed) || trimmed.includes('://') || trimmed.includes('/'))
+  ) {
+    return { code: 'apiServerHost', value: trimmed }
+  }
+
+  if (
+    key === 'WHATSAPP_CLOUD_WEBHOOK_PATH' &&
+    (!trimmed.startsWith('/') || /\s/.test(trimmed) || trimmed.includes('://'))
+  ) {
+    return { code: 'whatsappCloudWebhookPath', value: trimmed }
+  }
+
+  if (key === 'WHATSAPP_CLOUD_PUBLIC_URL' && (!/^https:\/\/\S+$/.test(trimmed) || trimmed.includes(' '))) {
+    return { code: 'whatsappCloudPublicUrl', value: trimmed }
   }
 
   if (key === 'API_SERVER_CORS_ORIGINS') {

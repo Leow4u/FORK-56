@@ -84,6 +84,9 @@ const PLATFORM_ICONS: Record<string, PlatformIconSpec> = {
   matrix: { Icon: SiMatrix, color: '#000000', kind: 'brand' },
   signal: { Icon: SiSignal, color: '#3A76F0', kind: 'brand' },
   whatsapp: { Icon: SiWhatsapp, color: '#25D366', kind: 'brand' },
+  // Same glyph, WhatsApp's teal — the Cloud API card must read as WhatsApp
+  // yet stay distinguishable from the QR-bridge card right above it.
+  whatsapp_cloud: { Icon: SiWhatsapp, color: '#128C7E', kind: 'brand' },
   bluebubbles: { Icon: SiApple, color: '#0BD318', kind: 'brand' },
   photon: { Icon: PhotonIcon, color: '#6366F1', kind: 'brand' },
   homeassistant: { Icon: SiHomeassistant, color: '#18BCF2', kind: 'brand' },

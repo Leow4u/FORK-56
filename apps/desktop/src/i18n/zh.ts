@@ -1824,6 +1824,21 @@ export const zh: Translations = {
         `${value} 不是有效的公网 URL。Teams 拒绝纯 HTTP 端点——请使用 https:// 源，例如 https://your-tunnel.example。`,
       webhookSecret:
         '请使用 16 个字符以上的随机密钥。"INSECURE_NO_AUTH" 会在所有回退到此全局密钥的路由上禁用签名验证。',
+      whatsappCloudAccessToken:
+        '请粘贴完整的 Meta 访问令牌——以 EAA 开头，长度远超 100 个字符。请使用系统用户令牌；API 设置页里的令牌 24 小时后过期。',
+      whatsappCloudAppSecret:
+        '应用密钥是 32 个十六进制字符，位于 Meta 应用设置 → 基本 → 应用密钥（点击“显示”）。不是访问令牌。',
+      whatsappCloudNumericId: (value: string) =>
+        `${value} 不是数字形式的 Meta ID。请复制 Meta 开发者面板中显示的数字。`,
+      whatsappCloudPhoneNumberId: (value: string) =>
+        `${value} 不是电话号码 ID。Meta 在 WhatsApp → API 设置的“发件人”下拉框下方以 15-17 位数字显示它。`,
+      whatsappCloudPhoneNumberPasted:
+        '这看起来是电话号码本身。Meta 需要的是电话号码 ID——API 设置页“发件人”下拉框下方显示的 15-17 位数字 ID。',
+      whatsappCloudPublicUrl: (value: string) =>
+        `${value} 不是有效的公网 URL。Meta 拒绝 HTTP——请使用 https:// 源，例如 https://your-tunnel.example。`,
+      whatsappCloudVerifyToken: '验证令牌至少需要 16 个字符且不含空格。请使用“生成令牌”，然后把同一个值粘贴到 Meta。',
+      whatsappCloudWebhookPath: (value: string) =>
+        `${value} 不是 webhook 路径。请使用以 / 开头的路径，例如 /whatsapp/webhook。`,
       whatsappNumber: (value: string) => `${value} 不像是 WhatsApp 号码。请使用带国家代码的完整号码，例如 15551234567。`
     },
     envOptions: {
@@ -2039,7 +2054,8 @@ export const zh: Translations = {
       bindRemote: '网络 (0.0.0.0) — 需要源 CIDR',
       remoteNeedsCidrs: '网络绑定需要源 CIDR（Microsoft Graph 出口网段）。',
       notificationTitle: '通知 URL',
-      notificationHint: '向 Graph 注册此 URL。如果在隧道后面，请设置公网 HTTPS 源，以便复制的 URL 是 Graph 能访问的地址。',
+      notificationHint:
+        '向 Graph 注册此 URL。如果在隧道后面，请设置公网 HTTPS 源，以便复制的 URL 是 Graph 能访问的地址。',
       copyNotificationUrl: '复制通知 URL',
       handshakeHint:
         'Graph 会先用 ?validationToken=… GET 此路径——监听器回显该令牌。然后 POST 变更通知。此卡片没有订阅 CRUD。',
@@ -2076,7 +2092,8 @@ export const zh: Translations = {
       guidPlaceholder: '00000000-0000-0000-0000-000000000000',
       secretPlaceholder: '粘贴客户端密钥值',
       secretKeepPlaceholder: '已保存——留空则保持不变',
-      secretWarning: '客户端密钥在 Azure 中只显示一次，会按你选择的周期过期，且持有者可完全操控你的机器人。请当作密码对待。',
+      secretWarning:
+        '客户端密钥在 Azure 中只显示一次，会按你选择的周期过期，且持有者可完全操控你的机器人。请当作密码对待。',
       openPortal: 'Azure 门户',
       idsRequired: '请先填写客户端 ID 与租户 ID——缺少它们适配器将拒绝启动。',
       secretRequired: '请先填写客户端密钥——缺少它适配器将拒绝启动。',
@@ -2107,6 +2124,66 @@ export const zh: Translations = {
       copied: '已复制到剪贴板。',
       copyFailed: '无法复制到剪贴板。',
       openGuide: 'Teams 指南'
+    },
+    whatsappCloudQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro:
+        'Meta 官方的 WhatsApp Business API——一个供用户发消息的企业号码，无需保持手机或二维码在线。从 Meta 开发者面板粘贴三个值，生成验证令牌，然后把下方的回调 URL 复制到 Meta 的 webhook 设置中。Meta 会从互联网访问你的机器，因此本地安装需要先启动隧道。',
+      replacesExisting: 'WhatsApp Cloud API 已配置。在此保存会替换已存储的 Meta 凭据和绑定。',
+      credentialsHelp:
+        '来自 Meta 开发者面板（WhatsApp → API 设置，以及应用设置 → 基本）。`work4you whatsapp-cloud` 会询问同样的三个值。',
+      phoneNumberIdLabel: '电话号码 ID',
+      phoneNumberIdPlaceholder: '123456789012345',
+      phoneNumberIdHelp:
+        'API 设置页“发件人”下拉框下方的 15-17 位数字 ID——不是电话号码本身，也不是 WhatsApp 商业账户 ID。',
+      accessTokenLabel: '访问令牌',
+      accessTokenPlaceholder: 'EAA…',
+      accessTokenHelp:
+        '以 EAA 开头。API 设置页中的令牌 24 小时后过期；请创建一个拥有 whatsapp_business_messaging 权限的系统用户，并生成永久令牌。',
+      appSecretLabel: '应用密钥',
+      appSecretPlaceholder: '32 个十六进制字符',
+      appSecretHelp:
+        '应用设置 → 基本 → 应用密钥（点击“显示”）。用于签名 Meta 发送的每个 webhook——没有它，入站消息会被拒绝。',
+      secretKeepPlaceholder: '已保存——留空以保留',
+      openMeta: 'Meta 开发者面板',
+      verifyTokenLabel: 'Webhook 验证令牌',
+      verifyTokenPlaceholder: '任意 16 个字符以上的随机字符串',
+      verifyTokenHelp:
+        '由你自定的共享密钥。Meta 会在 webhook 握手时回传它，因此请把同一个值粘贴到 Meta 的“验证令牌”字段。',
+      verifyTokenSavedHint: '已保存一个验证令牌。只有在同时更新 Meta 中的值时才生成新的。',
+      generateVerifyToken: '生成令牌',
+      copyVerifyToken: '复制令牌',
+      phoneNumberIdRequired: '请先输入电话号码 ID——没有它适配器无法启动。',
+      accessTokenRequired: '请先输入访问令牌——没有它适配器无法启动。',
+      appSecretRequired: '请先输入应用密钥——没有它所有入站消息都会被拒绝。',
+      verifyTokenRequired: '请先生成或输入验证令牌——没有它 Meta 的 webhook 握手会失败。',
+      bindLabel: '谁可以访问 webhook 监听器',
+      bindLocalhost: '仅本机 (127.0.0.1)',
+      bindRemote: '网络 (0.0.0.0)',
+      bindHelp: '在隧道或反向代理之后，localhost 是正确选择。只有当 Meta 流量直接到达本机时才选择网络。',
+      callbackTitle: 'Webhook 回调 URL',
+      callbackHint:
+        '把它和验证令牌一起粘贴到 Meta（WhatsApp → 配置 → Webhook → 编辑），然后订阅 messages 字段。Work4You 监听 /whatsapp/webhook 路径。',
+      copyCallback: '复制回调 URL',
+      publicUrlLabel: '公网 HTTPS 源',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp:
+        'Meta 拒绝纯 HTTP 回调。在隧道或反向代理处终止 TLS，然后粘贴 https:// 源——上方的回调 URL 会随之更新。',
+      tunnelWarning:
+        '没有公网源时，回调指向 localhost，Meta 无法访问：webhook 验证失败，永远收不到消息。请启动隧道（cloudflared、ngrok）并粘贴其 https:// 源。',
+      allowedUsersLabel: '允许的 WhatsApp 号码',
+      allowedUsersPlaceholder: '15551234567, 447700900123',
+      allowedUsersHelp: '逗号分隔、带国家代码、不含 + 的号码。只有这些发送者能联系到智能体；其他人会被忽略。',
+      openWarning: '没有允许列表时，任何给你的企业号码发消息的人都能驾驭你的智能体。至少添加你自己的号码。',
+      afterSaveTitle: '保存之后',
+      afterSaveHelp:
+        '重启网关，然后在 Meta 的 webhook 对话框中点击“验证并保存”。使用本卡片上的“测试连接”对照 Meta 检查令牌并确认监听器已启动。',
+      saved: 'WhatsApp Cloud API 已保存并启用。重启网关以启动 webhook 监听器。',
+      saveFailed: '无法保存 WhatsApp Cloud API 设置。',
+      copied: '已复制到剪贴板。',
+      copyFailed: '无法复制到剪贴板。',
+      openGuide: 'WhatsApp Cloud API 指南'
     },
     smsQuickSetup: {
       title: '快速设置',
@@ -2490,7 +2567,46 @@ export const zh: Translations = {
         placeholder: '127.0.0.1',
         help: '快速设置默认 127.0.0.1（隧道/代理）。留空则绑定所有接口，IPv4 与 IPv6。'
       },
-      TEAMS_PORT: { label: '端口', placeholder: '3978' }
+      TEAMS_PORT: { label: '端口', placeholder: '3978' },
+      WHATSAPP_CLOUD_PHONE_NUMBER_ID: {
+        label: '电话号码 ID',
+        placeholder: '123456789012345',
+        help: 'Meta → WhatsApp → API 设置中“发件人”下拉框下方的 15-17 位数字 ID。不是电话号码。'
+      },
+      WHATSAPP_CLOUD_ACCESS_TOKEN: {
+        label: '访问令牌',
+        placeholder: 'EAA…',
+        help: '以 EAA 开头。请使用系统用户永久令牌——API 设置页的令牌 24 小时后过期。'
+      },
+      WHATSAPP_CLOUD_APP_SECRET: {
+        label: '应用密钥',
+        placeholder: '32 个十六进制字符',
+        help: '应用设置 → 基本 → 应用密钥。为每个 webhook 签名；没有它入站消息会被拒绝。'
+      },
+      WHATSAPP_CLOUD_VERIFY_TOKEN: {
+        label: 'Webhook 验证令牌',
+        help: '由你自定并粘贴到 Meta webhook 对话框的随机字符串。快速设置可以生成一个。'
+      },
+      WHATSAPP_CLOUD_ALLOWED_USERS: {
+        label: '允许的 WhatsApp 号码',
+        placeholder: '15551234567, 447700900123',
+        help: '逗号分隔、带国家代码、不含 + 的号码。其他人会被忽略。'
+      },
+      WHATSAPP_CLOUD_PUBLIC_URL: {
+        label: '公网 HTTPS 源',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Meta 拒绝 HTTP。请粘贴位于 /whatsapp/webhook 之前的 https:// 源。'
+      },
+      WHATSAPP_CLOUD_WEBHOOK_HOST: {
+        label: '绑定地址',
+        placeholder: '127.0.0.1',
+        help: '快速设置中的默认值是 127.0.0.1（隧道/代理）。留空则绑定所有接口（IPv4 和 IPv6）。'
+      },
+      WHATSAPP_CLOUD_WEBHOOK_PORT: { label: '端口', placeholder: '8090' },
+      WHATSAPP_CLOUD_WEBHOOK_PATH: { label: 'Webhook 路径', placeholder: '/whatsapp/webhook' },
+      WHATSAPP_CLOUD_APP_ID: { label: 'Meta 应用 ID', placeholder: '1234567890123456' },
+      WHATSAPP_CLOUD_WABA_ID: { label: 'WhatsApp 商业账户 ID', placeholder: '1234567890123456' },
+      WHATSAPP_CLOUD_API_VERSION: { label: 'Graph API 版本', placeholder: 'v20.0' }
     },
     platformIntro: {
       telegram:

@@ -2412,6 +2412,307 @@ class TestWebServerEndpoints:
         )
         assert ok.status_code == 200
 
+    def test_whatsapp_cloud_catalog_lists_fields_and_requires_the_credential_pair(self):
+        """The adapter sets a fatal error without phone_number_id + access_token,
+        so the card must show both as required (not an empty form). The webhook
+        secrets, allowlist and tunnel origin are visible; bind / ids are
+        advanced; ALLOW_ALL / HOME_CHANNEL stay hidden."""
+        resp = self.client.get("/api/messaging/platforms")
+        assert resp.status_code == 200
+        rows = {row["id"]: row for row in resp.json()["platforms"]}
+        cloud = rows["whatsapp_cloud"]
+
+        fields = {field["key"]: field for field in cloud["env_vars"]}
+        assert {
+            "WHATSAPP_CLOUD_PHONE_NUMBER_ID",
+            "WHATSAPP_CLOUD_ACCESS_TOKEN",
+            "WHATSAPP_CLOUD_APP_SECRET",
+            "WHATSAPP_CLOUD_VERIFY_TOKEN",
+            "WHATSAPP_CLOUD_ALLOWED_USERS",
+            "WHATSAPP_CLOUD_PUBLIC_URL",
+            "WHATSAPP_CLOUD_WEBHOOK_HOST",
+            "WHATSAPP_CLOUD_WEBHOOK_PORT",
+        } <= set(fields)
+        assert "WHATSAPP_CLOUD_ALLOW_ALL_USERS" not in fields
+        assert "WHATSAPP_CLOUD_HOME_CHANNEL" not in fields
+        required = {key for key, field in fields.items() if field["required"]}
+        assert required == {"WHATSAPP_CLOUD_PHONE_NUMBER_ID", "WHATSAPP_CLOUD_ACCESS_TOKEN"}
+        # Secrets are password fields; the bind knobs fold under Advanced.
+        assert fields["WHATSAPP_CLOUD_ACCESS_TOKEN"]["is_password"] is True
+        assert fields["WHATSAPP_CLOUD_APP_SECRET"]["is_password"] is True
+        assert fields["WHATSAPP_CLOUD_PHONE_NUMBER_ID"]["is_password"] is False
+        assert fields["WHATSAPP_CLOUD_WEBHOOK_PORT"]["advanced"] is True
+        assert fields["WHATSAPP_CLOUD_PHONE_NUMBER_ID"]["advanced"] is False
+        # Labels come from OPTIONAL_ENV_VARS, not the raw key.
+        assert fields["WHATSAPP_CLOUD_PHONE_NUMBER_ID"]["prompt"] != "WHATSAPP_CLOUD_PHONE_NUMBER_ID"
+        assert cloud["docs_url"].rstrip("/").endswith("messaging/whatsapp-cloud")
+        assert cloud.get("setup_free") is not True
+        assert cloud["configured"] is False
+        assert cloud["state"] == "disabled"
+        # Sits next to the QR-bridge WhatsApp card instead of trailing the list.
+        ids = [row["id"] for row in resp.json()["platforms"]]
+        assert ids.index("whatsapp_cloud") == ids.index("whatsapp") + 1
+
+    def test_whatsapp_cloud_test_endpoint_names_missing_credentials_then_runs_probe(
+        self, monkeypatch
+    ):
+        import work4you_cli.web_server as ws
+        from work4you_cli.config import load_config, save_config, save_env_value
+
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["whatsapp_cloud"] = {
+            "enabled": True,
+            "extra": {"webhook_port": 8091},
+        }
+        save_config(cfg)
+
+        body = self.client.post("/api/messaging/platforms/whatsapp_cloud/test").json()
+        assert body["ok"] is False
+        assert "WHATSAPP_CLOUD_PHONE_NUMBER_ID" in body["message"]
+        assert "WHATSAPP_CLOUD_ACCESS_TOKEN" in body["message"]
+
+        save_env_value("WHATSAPP_CLOUD_PHONE_NUMBER_ID", "7794189252778687")
+        save_env_value("WHATSAPP_CLOUD_ACCESS_TOKEN", "EAA" + "x" * 120)
+        save_env_value("WHATSAPP_CLOUD_PUBLIC_URL", "https://tunnel.example")
+
+        seen: dict = {}
+
+        def fake_live_test(env, extra, gateway_running):
+            seen["env"] = env
+            seen["extra_port"] = extra.get("webhook_port")
+            seen["gateway_running"] = gateway_running
+            return True, "Listener is up on port 8091."
+
+        monkeypatch.setattr(ws, "_whatsapp_cloud_live_test", fake_live_test)
+
+        body = self.client.post("/api/messaging/platforms/whatsapp_cloud/test").json()
+        assert body["ok"] is True
+        assert "Listener is up" in body["message"]
+        assert seen["env"]["WHATSAPP_CLOUD_PHONE_NUMBER_ID"] == "7794189252778687"
+        assert seen["env"]["WHATSAPP_CLOUD_PUBLIC_URL"] == "https://tunnel.example"
+        assert seen["extra_port"] == 8091
+
+    def test_whatsapp_cloud_resolve_endpoint_prefers_env_then_config(self):
+        import work4you_cli.web_server as ws
+
+        host, port, path, probe, err = ws._whatsapp_cloud_resolve_endpoint(
+            {
+                "WHATSAPP_CLOUD_WEBHOOK_PORT": "8091",
+                "WHATSAPP_CLOUD_WEBHOOK_HOST": "127.0.0.1",
+                "WHATSAPP_CLOUD_WEBHOOK_PATH": "hooks/wa",
+            },
+            {"webhook_port": 7000, "webhook_path": "/other"},
+        )
+        assert (host, port, path, probe, err) == ("127.0.0.1", 8091, "/hooks/wa", "127.0.0.1", "")
+
+        host, port, path, probe, err = ws._whatsapp_cloud_resolve_endpoint(
+            {}, {"webhook_port": 7000, "webhook_host": "0.0.0.0"}
+        )
+        assert (port, path, probe, err) == (7000, "/whatsapp/webhook", "127.0.0.1", "")
+        assert host == "0.0.0.0"
+
+        host, port, path, probe, err = ws._whatsapp_cloud_resolve_endpoint({}, {})
+        assert (port, path, probe) == (8090, "/whatsapp/webhook", "127.0.0.1")
+
+        _, port, _, _, err = ws._whatsapp_cloud_resolve_endpoint(
+            {"WHATSAPP_CLOUD_WEBHOOK_PORT": "notaport"}, {}
+        )
+        assert port is None
+        assert "WHATSAPP_CLOUD_WEBHOOK_PORT" in err
+
+        _, port, _, _, err = ws._whatsapp_cloud_resolve_endpoint(
+            {"WHATSAPP_CLOUD_WEBHOOK_PORT": "70000"}, {}
+        )
+        assert port is None
+        assert "65535" in err
+
+        assert ws._whatsapp_cloud_callback_url(
+            {"WHATSAPP_CLOUD_PUBLIC_URL": "https://tunnel.example/"}, {}, "127.0.0.1", 8090, "/whatsapp/webhook"
+        ) == "https://tunnel.example/whatsapp/webhook"
+        assert ws._whatsapp_cloud_callback_url(
+            {}, {"public_url": "https://cfg.example"}, "127.0.0.1", 8090, "/whatsapp/webhook"
+        ) == "https://cfg.example/whatsapp/webhook"
+        assert ws._whatsapp_cloud_callback_url(
+            {}, {}, "127.0.0.1", 8090, "/whatsapp/webhook"
+        ) == "http://127.0.0.1:8090/whatsapp/webhook"
+
+    def test_whatsapp_cloud_live_test_reports_graph_and_listener_state(self, monkeypatch):
+        import io
+        import urllib.error
+
+        import work4you_cli.web_server as ws
+
+        ok, message = ws._whatsapp_cloud_live_test({}, {}, gateway_running=False)
+        assert ok is False
+        assert "WHATSAPP_CLOUD_PHONE_NUMBER_ID" in message
+
+        creds = {
+            "WHATSAPP_CLOUD_PHONE_NUMBER_ID": "7794189252778687",
+            "WHATSAPP_CLOUD_ACCESS_TOKEN": "EAA" + "x" * 120,
+        }
+
+        class _Resp:
+            def __init__(self, payload: bytes, status: int = 200):
+                self._payload = payload
+                self.status = status
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return self._payload
+
+        calls: list[str] = []
+
+        def _graph_ok(req, *a, **k):
+            calls.append(req.full_url)
+            assert req.get_header("Authorization") == "Bearer " + creds["WHATSAPP_CLOUD_ACCESS_TOKEN"]
+            return _Resp(b'{"display_phone_number": "+1 555-0100", "verified_name": "Acme"}')
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", _graph_ok)
+        ok, message = ws._whatsapp_cloud_live_test(creds, {}, gateway_running=False)
+        assert ok is True
+        assert "+1 555-0100" in message and "Acme" in message
+        assert "starts with the gateway" in message
+        assert "http://127.0.0.1:8090/whatsapp/webhook" in message
+        assert "WHATSAPP_CLOUD_PUBLIC_URL" in message  # tunnel warning
+        assert "VERIFY_TOKEN is empty" in message
+        assert "APP_SECRET is empty" in message
+        assert calls and "/v20.0/7794189252778687" in calls[0]
+
+        full = {
+            **creds,
+            "WHATSAPP_CLOUD_VERIFY_TOKEN": "v" * 32,
+            "WHATSAPP_CLOUD_APP_SECRET": "a" * 32,
+            "WHATSAPP_CLOUD_PUBLIC_URL": "https://tunnel.example",
+        }
+        ok, message = ws._whatsapp_cloud_live_test(full, {}, gateway_running=False)
+        assert ok is True
+        assert "https://tunnel.example/whatsapp/webhook" in message
+        assert "is empty" not in message
+        assert "cannot reach localhost" not in message
+
+        # Expired token: Graph answers 190 → actionable message, no /health probe.
+        def _graph_expired(req, *a, **k):
+            raise urllib.error.HTTPError(
+                req.full_url,
+                401,
+                "Unauthorized",
+                {},
+                io.BytesIO(b'{"error": {"message": "Error validating access token", "code": 190}}'),
+            )
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", _graph_expired)
+        ok, message = ws._whatsapp_cloud_live_test(full, {}, gateway_running=True)
+        assert ok is False
+        assert "24 hours" in message
+
+        def _graph_wrong_id(req, *a, **k):
+            raise urllib.error.HTTPError(
+                req.full_url,
+                400,
+                "Bad Request",
+                {},
+                io.BytesIO(b'{"error": {"message": "Unsupported get request", "code": 100}}'),
+            )
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", _graph_wrong_id)
+        ok, message = ws._whatsapp_cloud_live_test(full, {}, gateway_running=True)
+        assert ok is False
+        assert "Phone number ID" in message
+
+        # Gateway running: Graph OK, then /health from the real adapter.
+        def _graph_then_health(req, *a, **k):
+            if "graph.facebook.com" in req.full_url:
+                return _Resp(b'{"display_phone_number": "+1 555-0100"}')
+            return _Resp(
+                b'{"status": "ok", "platform": "whatsapp_cloud", "verify_token_configured": false,'
+                b' "app_secret_configured": true, "accepted": 4, "duplicates": 1}'
+            )
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", _graph_then_health)
+        ok, message = ws._whatsapp_cloud_live_test(full, {}, gateway_running=True)
+        assert ok is True
+        assert "Listener is up on port 8090" in message
+        assert "no verify token" in message
+        assert "no app secret" not in message
+        assert "accepted=4" in message
+
+        # Something else on the port.
+        def _graph_then_other(req, *a, **k):
+            if "graph.facebook.com" in req.full_url:
+                return _Resp(b"{}")
+            return _Resp(b"ok")
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", _graph_then_other)
+        ok, message = ws._whatsapp_cloud_live_test(full, {}, gateway_running=True)
+        assert ok is False
+        assert "another service" in message
+
+        def _graph_then_refused(req, *a, **k):
+            if "graph.facebook.com" in req.full_url:
+                return _Resp(b"{}")
+            raise OSError("refused")
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", _graph_then_refused)
+        ok, message = ws._whatsapp_cloud_live_test(
+            {**full, "WHATSAPP_CLOUD_WEBHOOK_PORT": "8095"}, {}, gateway_running=True
+        )
+        assert ok is False
+        assert "8095" in message
+
+    def test_whatsapp_cloud_put_rejects_wrong_field_shapes(self):
+        from work4you_cli import profiles as profiles_mod
+
+        profiles_mod.get_profile_dir("wa").mkdir(parents=True)
+
+        def put(env):
+            return self.client.put(
+                "/api/messaging/platforms/whatsapp_cloud?profile=wa",
+                json={"enabled": True, "env": env},
+            )
+
+        # The #1 wizard mistake: the phone number where the Phone number ID goes.
+        phone = put({"WHATSAPP_CLOUD_PHONE_NUMBER_ID": "15556422442"})
+        assert phone.status_code == 400
+        assert "phone number" in phone.json()["detail"].lower()
+        assert put({"WHATSAPP_CLOUD_PHONE_NUMBER_ID": "+1 555 642 2442"}).status_code == 400
+        assert put({"WHATSAPP_CLOUD_ACCESS_TOKEN": "sk-" + "x" * 120}).status_code == 400
+        assert put({"WHATSAPP_CLOUD_ACCESS_TOKEN": "EAAshort"}).status_code == 400
+        assert put({"WHATSAPP_CLOUD_APP_SECRET": "EAA" + "x" * 120}).status_code == 400
+        assert put({"WHATSAPP_CLOUD_VERIFY_TOKEN": "short"}).status_code == 400
+        assert put({"WHATSAPP_CLOUD_ALLOWED_USERS": "alice"}).status_code == 400
+        assert put({"WHATSAPP_CLOUD_WEBHOOK_PORT": "abc"}).status_code == 400
+        assert put({"WHATSAPP_CLOUD_WEBHOOK_HOST": "http://127.0.0.1"}).status_code == 400
+        assert put({"WHATSAPP_CLOUD_WEBHOOK_PATH": "whatsapp webhook"}).status_code == 400
+        assert put({"WHATSAPP_CLOUD_PUBLIC_URL": "http://example.com"}).status_code == 400
+        assert put({"WHATSAPP_CLOUD_APP_ID": "my-app"}).status_code == 400
+
+        ok = put(
+            {
+                "WHATSAPP_CLOUD_PHONE_NUMBER_ID": "7794189252778687",
+                "WHATSAPP_CLOUD_ACCESS_TOKEN": "EAA" + "x" * 120,
+                "WHATSAPP_CLOUD_APP_SECRET": "0123456789abcdef0123456789abcdef",
+                "WHATSAPP_CLOUD_VERIFY_TOKEN": "v" * 32,
+                "WHATSAPP_CLOUD_ALLOWED_USERS": "15551234567, +44 7700 900123, 5511999999999@s.whatsapp.net, *",
+                "WHATSAPP_CLOUD_WEBHOOK_HOST": "127.0.0.1",
+                "WHATSAPP_CLOUD_WEBHOOK_PORT": "8090",
+                "WHATSAPP_CLOUD_WEBHOOK_PATH": "/whatsapp/webhook",
+                "WHATSAPP_CLOUD_PUBLIC_URL": "https://tunnel.example",
+            }
+        )
+        assert ok.status_code == 200
+        row = self.client.get("/api/messaging/platforms?profile=wa").json()
+        cloud = next(p for p in row["platforms"] if p["id"] == "whatsapp_cloud")
+        assert cloud["configured"] is True
+        assert cloud["enabled"] is True
+        token = next(f for f in cloud["env_vars"] if f["key"] == "WHATSAPP_CLOUD_ACCESS_TOKEN")
+        assert token["is_set"] is True
+        assert token["value"] is None  # secrets stay redacted
+
     def test_a2a_agents_crud_never_returns_tokens(self):
         from work4you_cli.config import load_config
 

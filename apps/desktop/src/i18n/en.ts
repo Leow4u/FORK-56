@@ -1637,6 +1637,22 @@ export const en: Translations = {
         `${value} is not a valid public URL. Teams refuses a plain-HTTP endpoint — use an https:// origin, like https://your-tunnel.example.`,
       webhookSecret:
         'Use a random secret of 16+ characters. "INSECURE_NO_AUTH" disables signature validation on every route that falls back to this global secret.',
+      whatsappCloudAccessToken:
+        'Paste the complete Meta access token — it starts with EAA and is well over 100 characters. Use a System User token; the API Setup one expires after 24 hours.',
+      whatsappCloudAppSecret:
+        'The App secret is 32 hexadecimal characters, from Meta App settings → Basic → App secret (click Show). Not the access token.',
+      whatsappCloudNumericId: (value: string) =>
+        `${value} is not a numeric Meta id. Copy the digits shown in the Meta developer dashboard.`,
+      whatsappCloudPhoneNumberId: (value: string) =>
+        `${value} is not a Phone number ID. Meta shows it as 15-17 digits under the From dropdown in WhatsApp → API Setup.`,
+      whatsappCloudPhoneNumberPasted:
+        'That looks like the phone number itself. Meta wants the Phone number ID — the 15-17 digit id shown under the From dropdown in API Setup.',
+      whatsappCloudPublicUrl: (value: string) =>
+        `${value} is not a valid public URL. Meta refuses HTTP — use an https:// origin, like https://your-tunnel.example.`,
+      whatsappCloudVerifyToken:
+        'The verify token must be at least 16 characters with no spaces. Use Generate token, then paste the same value into Meta.',
+      whatsappCloudWebhookPath: (value: string) =>
+        `${value} is not a webhook path. Use a path starting with /, like /whatsapp/webhook.`,
       whatsappNumber: (value: string) =>
         `${value} does not look like a WhatsApp number. Use full numbers with country code, like 15551234567.`
     },
@@ -1784,7 +1800,9 @@ export const en: Translations = {
       copied: 'Copied to the clipboard.',
       copyFailed: 'Could not copy to the clipboard.',
       routeCount: (active: number, total: number) =>
-        active === total ? `${total} route${total === 1 ? '' : 's'} configured.` : `${active} of ${total} routes active.`,
+        active === total
+          ? `${total} route${total === 1 ? '' : 's'} configured.`
+          : `${active} of ${total} routes active.`,
       noRoutes: 'No routes yet — the listener accepts nothing until you create one.',
       tunnelHint:
         'The sending service must be able to reach this port. If Work4You runs on your local machine, expose it with a tunnel like cloudflared or ngrok.',
@@ -1857,7 +1875,8 @@ export const en: Translations = {
       intro:
         'This card is the inbound Graph listener only. Microsoft Graph POSTs change notifications here — it is not the Teams chat bot. Generate a clientState secret, bind localhost behind a tunnel or add source CIDRs for a network bind, then register the notification URL with Graph.',
       replacesExisting: 'Graph webhook is already configured. Saving here updates the secret and bind.',
-      secretHelp: 'Shared clientState secret. Graph echoes it on every notification — generate with openssl rand -hex 32.',
+      secretHelp:
+        'Shared clientState secret. Graph echoes it on every notification — generate with openssl rand -hex 32.',
       secretLabel: 'clientState secret',
       secretPlaceholder: 'Click Generate, or paste a 32-byte hex secret',
       generateSecret: 'Generate secret',
@@ -1882,7 +1901,8 @@ export const en: Translations = {
       resourcesHelp: 'Comma-separated Graph resource paths. Empty accepts every resource the listener sees.',
       cidrsLabel: 'Source CIDRs',
       cidrsPlaceholder: '52.96.0.0/14, 13.107.64.0/18',
-      cidrsHelp: 'Required for a network bind. /health uses the same allowlist — a local Test can then return 403 while the process is up.',
+      cidrsHelp:
+        'Required for a network bind. /health uses the same allowlist — a local Test can then return 403 while the process is up.',
       networkExposedWarning:
         'A remote bind needs source CIDRs. Without them the adapter refuses to start — paste Microsoft Graph egress ranges first.',
       pipelineTitle: 'Subscriptions and Teams chat',
@@ -1942,6 +1962,70 @@ export const en: Translations = {
       copied: 'Copied to the clipboard.',
       copyFailed: 'Could not copy to the clipboard.',
       openGuide: 'Teams guide'
+    },
+    whatsappCloudQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        "Meta's official WhatsApp Business API — a business number people message, with no phone or QR code to keep online. Paste three values from the Meta developer dashboard, generate a verify token, then copy the callback URL below into Meta's webhook settings. Meta calls your machine from the internet, so a local install needs a tunnel first.",
+      replacesExisting:
+        'WhatsApp Cloud API is already configured. Saving here replaces the stored Meta credentials and bind.',
+      credentialsHelp:
+        'From the Meta developer dashboard (WhatsApp → API Setup and App settings → Basic). `work4you whatsapp-cloud` asks for the same three values.',
+      phoneNumberIdLabel: 'Phone number ID',
+      phoneNumberIdPlaceholder: '123456789012345',
+      phoneNumberIdHelp:
+        'The 15-17 digit id under the From dropdown in API Setup — not the phone number itself and not the WhatsApp Business Account ID.',
+      accessTokenLabel: 'Access token',
+      accessTokenPlaceholder: 'EAA…',
+      accessTokenHelp:
+        'Starts with EAA. The token in API Setup expires after 24 hours; create a System User with whatsapp_business_messaging permission and generate a permanent token instead.',
+      appSecretLabel: 'App secret',
+      appSecretPlaceholder: '32 hexadecimal characters',
+      appSecretHelp:
+        'App settings → Basic → App secret (click Show). Signs every webhook Meta sends — without it inbound messages are refused.',
+      secretKeepPlaceholder: 'Saved — leave empty to keep it',
+      openMeta: 'Meta developer dashboard',
+      verifyTokenLabel: 'Webhook verify token',
+      verifyTokenPlaceholder: 'Any random string of 16+ characters',
+      verifyTokenHelp:
+        "A shared secret you invent. Meta sends it back during the webhook handshake, so paste the same value into Meta's Verify token field.",
+      verifyTokenSavedHint: 'A verify token is already saved. Generate a new one only if you also update it in Meta.',
+      generateVerifyToken: 'Generate token',
+      copyVerifyToken: 'Copy token',
+      phoneNumberIdRequired: 'Enter the Phone number ID first — the adapter refuses to start without it.',
+      accessTokenRequired: 'Enter the access token first — the adapter refuses to start without it.',
+      appSecretRequired: 'Enter the App secret first — every inbound message is refused without it.',
+      verifyTokenRequired: "Generate or enter a verify token first — Meta's webhook handshake fails without it.",
+      bindLabel: 'Who can reach the webhook listener',
+      bindLocalhost: 'This machine only (127.0.0.1)',
+      bindRemote: 'Network (0.0.0.0)',
+      bindHelp:
+        'Localhost is the right answer behind a tunnel or reverse proxy. Pick network only when Meta traffic arrives straight at this machine.',
+      callbackTitle: 'Webhook callback URL',
+      callbackHint:
+        'Paste this in Meta (WhatsApp → Configuration → Webhook → Edit), together with the verify token, then subscribe to the messages field. Work4You listens on the /whatsapp/webhook path.',
+      copyCallback: 'Copy callback URL',
+      publicUrlLabel: 'Public HTTPS origin',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp:
+        'Meta refuses a plain-HTTP callback. Terminate TLS at a tunnel or reverse proxy, then paste the https:// origin — the callback URL above updates to match.',
+      tunnelWarning:
+        'Without a public origin the callback points at localhost, which Meta cannot reach: the webhook fails to verify and no message ever arrives. Start a tunnel (cloudflared, ngrok) and paste its https:// origin.',
+      allowedUsersLabel: 'Allowed WhatsApp numbers',
+      allowedUsersPlaceholder: '15551234567, 447700900123',
+      allowedUsersHelp:
+        'Comma-separated numbers with country code and no +. Only these senders reach the agent; everyone else is ignored.',
+      openWarning:
+        'With no allowlist, anyone who messages your business number can drive your agent. Add at least your own number.',
+      afterSaveTitle: 'After saving',
+      afterSaveHelp:
+        "Restart the gateway, then click Verify and save in Meta's webhook dialog. Use Test connection on this card to check the token against Meta and confirm the listener is up.",
+      saved: 'WhatsApp Cloud API saved and enabled. Restart the gateway to start the webhook listener.',
+      saveFailed: 'Could not save the WhatsApp Cloud API settings.',
+      copied: 'Copied to the clipboard.',
+      copyFailed: 'Could not copy to the clipboard.',
+      openGuide: 'WhatsApp Cloud API guide'
     },
     smsQuickSetup: {
       title: 'Quick setup',
@@ -2365,7 +2449,46 @@ export const en: Translations = {
         placeholder: '127.0.0.1',
         help: 'Default in Quick setup is 127.0.0.1 (tunnel/proxy). Empty binds every interface, IPv4 and IPv6.'
       },
-      TEAMS_PORT: { label: 'Port', placeholder: '3978' }
+      TEAMS_PORT: { label: 'Port', placeholder: '3978' },
+      WHATSAPP_CLOUD_PHONE_NUMBER_ID: {
+        label: 'Phone number ID',
+        placeholder: '123456789012345',
+        help: 'The 15-17 digit id under the From dropdown in Meta → WhatsApp → API Setup. Not the phone number.'
+      },
+      WHATSAPP_CLOUD_ACCESS_TOKEN: {
+        label: 'Access token',
+        placeholder: 'EAA…',
+        help: 'Starts with EAA. Use a System User permanent token — the API Setup one expires after 24 hours.'
+      },
+      WHATSAPP_CLOUD_APP_SECRET: {
+        label: 'App secret',
+        placeholder: '32 hexadecimal characters',
+        help: 'App settings → Basic → App secret. Signs every webhook; inbound messages are refused without it.'
+      },
+      WHATSAPP_CLOUD_VERIFY_TOKEN: {
+        label: 'Webhook verify token',
+        help: "A random string you invent and paste into Meta's webhook dialog. Quick setup can generate one."
+      },
+      WHATSAPP_CLOUD_ALLOWED_USERS: {
+        label: 'Allowed WhatsApp numbers',
+        placeholder: '15551234567, 447700900123',
+        help: 'Comma-separated numbers with country code, no +. Everyone else is ignored.'
+      },
+      WHATSAPP_CLOUD_PUBLIC_URL: {
+        label: 'Public HTTPS origin',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Meta refuses HTTP. Paste the https:// origin in front of /whatsapp/webhook.'
+      },
+      WHATSAPP_CLOUD_WEBHOOK_HOST: {
+        label: 'Bind address',
+        placeholder: '127.0.0.1',
+        help: 'Default in Quick setup is 127.0.0.1 (tunnel/proxy). Empty binds every interface, IPv4 and IPv6.'
+      },
+      WHATSAPP_CLOUD_WEBHOOK_PORT: { label: 'Port', placeholder: '8090' },
+      WHATSAPP_CLOUD_WEBHOOK_PATH: { label: 'Webhook path', placeholder: '/whatsapp/webhook' },
+      WHATSAPP_CLOUD_APP_ID: { label: 'Meta App ID', placeholder: '1234567890123456' },
+      WHATSAPP_CLOUD_WABA_ID: { label: 'WhatsApp Business Account ID', placeholder: '1234567890123456' },
+      WHATSAPP_CLOUD_API_VERSION: { label: 'Graph API version', placeholder: 'v20.0' }
     },
     platformIntro: {}
   },
@@ -2420,7 +2543,8 @@ export const en: Translations = {
     fieldDeliverOnly: 'Deliver payload only',
     fieldDeliverTarget: 'Deliver target',
     fieldDeliverTargetPlaceholder: 'e.g. Telegram chat ID, Slack channel, email address',
-    fieldDeliverTargetHelp: "Chat, channel, or address the response goes to. Leave empty to use the platform's home channel.",
+    fieldDeliverTargetHelp:
+      "Chat, channel, or address the response goes to. Leave empty to use the platform's home channel.",
     fieldPrompt: 'Prompt',
     fieldPromptPlaceholder: 'Instructions for the agent when this webhook fires (optional)',
     nameRequired: 'Name required',

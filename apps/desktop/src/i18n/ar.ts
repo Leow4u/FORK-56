@@ -1259,6 +1259,22 @@ export const ar = defineLocale({
         `${value} ليس عنوان URL عاماً صالحاً. Teams يرفض نقطة نهاية HTTP عادية — استخدم أصلاً https:// مثل https://your-tunnel.example.`,
       webhookSecret:
         'استخدم سراً عشوائياً من 16 حرفاً أو أكثر. «INSECURE_NO_AUTH» يعطّل التحقق من التوقيع على كل مسار يعتمد على هذا السر العام.',
+      whatsappCloudAccessToken:
+        'الصق رمز وصول Meta كاملاً — يبدأ بـ EAA ويتجاوز 100 حرف بكثير. استخدم رمز مستخدم النظام؛ رمز إعداد API ينتهي بعد 24 ساعة.',
+      whatsappCloudAppSecret:
+        'سر التطبيق هو 32 حرفاً سداسياً عشرياً، من إعدادات تطبيق Meta → أساسي → سر التطبيق (انقر «إظهار»). ليس رمز الوصول.',
+      whatsappCloudNumericId: (value: string) =>
+        `${value} ليس معرّف Meta رقمياً. انسخ الأرقام المعروضة في لوحة مطوّري Meta.`,
+      whatsappCloudPhoneNumberId: (value: string) =>
+        `${value} ليس معرّف رقم الهاتف. تعرضه Meta كـ 15-17 رقماً تحت قائمة «من» في WhatsApp → إعداد API.`,
+      whatsappCloudPhoneNumberPasted:
+        'يبدو هذا رقم الهاتف نفسه. تريد Meta معرّف رقم الهاتف — المعرّف المكوّن من 15-17 رقماً المعروض تحت قائمة «من» في إعداد API.',
+      whatsappCloudPublicUrl: (value: string) =>
+        `${value} ليس عنوان URL عاماً صالحاً. ترفض Meta HTTP — استخدم أصل https://، مثل https://your-tunnel.example.`,
+      whatsappCloudVerifyToken:
+        'يجب أن يكون رمز التحقق 16 حرفاً على الأقل بدون مسافات. استخدم «إنشاء رمز»، ثم الصق القيمة نفسها في Meta.',
+      whatsappCloudWebhookPath: (value: string) =>
+        `${value} ليس مسار webhook. استخدم مساراً يبدأ بـ /، مثل /whatsapp/webhook.`,
       whatsappNumber: (value: string) =>
         `${value} لا يبدو رقم WhatsApp صحيحًا. استخدم أرقامًا كاملة مع رمز الدولة، مثل 15551234567.`
     },
@@ -1435,8 +1451,7 @@ export const ar = defineLocale({
       publicUrlLabel: 'عنوان URL عام (اختياري)',
       publicUrlPlaceholder: 'https://your-tunnel.example',
       publicUrlHelp: 'يُعلن على بطاقة الوكيل عندما تكون خلف نفق أو وكيل عكسي.',
-      networkExposedWarning:
-        'الربط البعيد يحتاج رمزاً. بدونه يبقى المحوّل على المضيف المحلي فقط — ولّد رمزاً أولاً.',
+      networkExposedWarning: 'الربط البعيد يحتاج رمزاً. بدونه يبقى المحوّل على المضيف المحلي فقط — ولّد رمزاً أولاً.',
       saved: 'تم حفظ A2A الوارد وتفعيله. أعد تشغيل البوابة لبدء المستمع.',
       saveFailed: 'تعذّر حفظ إعدادات A2A الواردة.',
       outboundTitle: 'صادر — استدعِ وكلاء آخرين',
@@ -1464,8 +1479,7 @@ export const ar = defineLocale({
       outboundEnabled: 'تم تفعيل أدوات الصادر. أعد تشغيل البوابة إذا كانت هناك جلسة قيد التشغيل.',
       outboundEnableFailed: 'تعذّر تفعيل مجموعة أدوات a2a.',
       outboundAlreadyOn: 'أدوات الصادر مفعّلة.',
-      outboundOffWarning:
-        'الوارد مفعّل، لكن أدوات الصادر ما زالت معطّلة — لا يمكن للوكيل استدعاء الأقران حتى تفعّلها.',
+      outboundOffWarning: 'الوارد مفعّل، لكن أدوات الصادر ما زالت معطّلة — لا يمكن للوكيل استدعاء الأقران حتى تفعّلها.',
       nameRequired: 'أدخل اسم القرين وعنوان URL أولاً.',
       copied: 'تم النسخ إلى الحافظة.',
       copyFailed: 'تعذّر النسخ إلى الحافظة.',
@@ -1562,6 +1576,68 @@ export const ar = defineLocale({
       copied: 'تم النسخ إلى الحافظة.',
       copyFailed: 'تعذّر النسخ إلى الحافظة.',
       openGuide: 'دليل Teams'
+    },
+    whatsappCloudQuickSetup: {
+      title: 'الإعداد السريع',
+      recommended: 'موصى به',
+      intro:
+        'واجهة WhatsApp Business API الرسمية من Meta — رقم أعمال يراسله الناس، دون هاتف أو رمز QR يجب إبقاؤه متصلاً. الصق ثلاث قيم من لوحة مطوّري Meta، وأنشئ رمز تحقق، ثم انسخ عنوان رد الاتصال أدناه إلى إعدادات webhook في Meta. تصل Meta إلى جهازك عبر الإنترنت، لذا يحتاج التثبيت المحلي إلى نفق أولاً.',
+      replacesExisting: 'WhatsApp Cloud API مُعدّ بالفعل. الحفظ هنا يستبدل بيانات اعتماد Meta والربط المخزّنين.',
+      credentialsHelp:
+        'من لوحة مطوّري Meta (WhatsApp → إعداد API، وإعدادات التطبيق → أساسي). يطلب `work4you whatsapp-cloud` القيم الثلاث نفسها.',
+      phoneNumberIdLabel: 'معرّف رقم الهاتف',
+      phoneNumberIdPlaceholder: '123456789012345',
+      phoneNumberIdHelp:
+        'المعرّف المكوّن من 15-17 رقماً تحت قائمة «من» في إعداد API — ليس رقم الهاتف نفسه وليس معرّف حساب WhatsApp Business.',
+      accessTokenLabel: 'رمز الوصول',
+      accessTokenPlaceholder: 'EAA…',
+      accessTokenHelp:
+        'يبدأ بـ EAA. الرمز في إعداد API ينتهي بعد 24 ساعة؛ أنشئ مستخدم نظام بصلاحية whatsapp_business_messaging وأنشئ رمزاً دائماً بدلاً منه.',
+      appSecretLabel: 'سر التطبيق',
+      appSecretPlaceholder: '32 حرفاً سداسياً عشرياً',
+      appSecretHelp:
+        'إعدادات التطبيق → أساسي → سر التطبيق (انقر «إظهار»). يوقّع كل webhook ترسله Meta — بدونه تُرفض الرسائل الواردة.',
+      secretKeepPlaceholder: 'محفوظ — اتركه فارغاً للإبقاء عليه',
+      openMeta: 'لوحة مطوّري Meta',
+      verifyTokenLabel: 'رمز تحقق webhook',
+      verifyTokenPlaceholder: 'أي سلسلة عشوائية من 16 حرفاً أو أكثر',
+      verifyTokenHelp:
+        'سر مشترك تختاره أنت. تعيده Meta أثناء مصافحة webhook، لذا الصق القيمة نفسها في حقل «رمز التحقق» في Meta.',
+      verifyTokenSavedHint: 'رمز تحقق محفوظ بالفعل. أنشئ رمزاً جديداً فقط إذا كنت ستحدّثه في Meta أيضاً.',
+      generateVerifyToken: 'إنشاء رمز',
+      copyVerifyToken: 'نسخ الرمز',
+      phoneNumberIdRequired: 'أدخل معرّف رقم الهاتف أولاً — يرفض المحوّل البدء بدونه.',
+      accessTokenRequired: 'أدخل رمز الوصول أولاً — يرفض المحوّل البدء بدونه.',
+      appSecretRequired: 'أدخل سر التطبيق أولاً — تُرفض كل رسالة واردة بدونه.',
+      verifyTokenRequired: 'أنشئ أو أدخل رمز تحقق أولاً — تفشل مصافحة webhook في Meta بدونه.',
+      bindLabel: 'من يمكنه الوصول إلى مستمع webhook',
+      bindLocalhost: 'هذا الجهاز فقط (127.0.0.1)',
+      bindRemote: 'الشبكة (0.0.0.0)',
+      bindHelp:
+        'localhost هو الخيار الصحيح خلف نفق أو وكيل عكسي. اختر الشبكة فقط عندما تصل حركة Meta مباشرة إلى هذا الجهاز.',
+      callbackTitle: 'عنوان رد اتصال webhook',
+      callbackHint:
+        'الصق هذا في Meta (WhatsApp → التكوين → Webhook → تعديل) مع رمز التحقق، ثم اشترك في حقل messages. يستمع Work4You على المسار /whatsapp/webhook.',
+      copyCallback: 'نسخ عنوان رد الاتصال',
+      publicUrlLabel: 'أصل HTTPS عام',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp:
+        'ترفض Meta رد اتصال HTTP عادي. أنهِ TLS عند نفق أو وكيل عكسي، ثم الصق أصل https:// — يتحدّث عنوان رد الاتصال أعلاه تبعاً لذلك.',
+      tunnelWarning:
+        'بدون أصل عام يشير رد الاتصال إلى localhost الذي لا تستطيع Meta الوصول إليه: يفشل التحقق من webhook ولا تصل أي رسالة أبداً. شغّل نفقاً (cloudflared أو ngrok) والصق أصله https://.',
+      allowedUsersLabel: 'أرقام WhatsApp المسموح بها',
+      allowedUsersPlaceholder: '15551234567, 447700900123',
+      allowedUsersHelp:
+        'أرقام مفصولة بفواصل مع رمز الدولة وبدون +. هؤلاء المرسلون فقط يصلون إلى الوكيل؛ يُتجاهل الآخرون.',
+      openWarning: 'بدون قائمة سماح، يمكن لأي شخص يراسل رقم أعمالك أن يقود وكيلك. أضف رقمك الخاص على الأقل.',
+      afterSaveTitle: 'بعد الحفظ',
+      afterSaveHelp:
+        'أعد تشغيل البوابة، ثم انقر «تحقق واحفظ» في مربع حوار webhook في Meta. استخدم «اختبار الاتصال» في هذه البطاقة للتحقق من الرمز لدى Meta والتأكد من أن المستمع يعمل.',
+      saved: 'تم حفظ WhatsApp Cloud API وتفعيله. أعد تشغيل البوابة لبدء مستمع webhook.',
+      saveFailed: 'تعذّر حفظ إعدادات WhatsApp Cloud API.',
+      copied: 'تم النسخ إلى الحافظة.',
+      copyFailed: 'تعذّر النسخ إلى الحافظة.',
+      openGuide: 'دليل WhatsApp Cloud API'
     },
     smsQuickSetup: {
       title: 'الإعداد السريع',
@@ -1999,7 +2075,46 @@ export const ar = defineLocale({
         placeholder: '127.0.0.1',
         help: 'الافتراضي في الإعداد السريع هو 127.0.0.1 (نفق/وكيل). تركه فارغاً يربط كل الواجهات، IPv4 و IPv6.'
       },
-      TEAMS_PORT: { label: 'المنفذ', placeholder: '3978' }
+      TEAMS_PORT: { label: 'المنفذ', placeholder: '3978' },
+      WHATSAPP_CLOUD_PHONE_NUMBER_ID: {
+        label: 'معرّف رقم الهاتف',
+        placeholder: '123456789012345',
+        help: 'المعرّف المكوّن من 15-17 رقماً تحت قائمة «من» في Meta → WhatsApp → إعداد API. ليس رقم الهاتف.'
+      },
+      WHATSAPP_CLOUD_ACCESS_TOKEN: {
+        label: 'رمز الوصول',
+        placeholder: 'EAA…',
+        help: 'يبدأ بـ EAA. استخدم رمز مستخدم نظام دائماً — رمز إعداد API ينتهي بعد 24 ساعة.'
+      },
+      WHATSAPP_CLOUD_APP_SECRET: {
+        label: 'سر التطبيق',
+        placeholder: '32 حرفاً سداسياً عشرياً',
+        help: 'إعدادات التطبيق → أساسي → سر التطبيق. يوقّع كل webhook؛ تُرفض الرسائل الواردة بدونه.'
+      },
+      WHATSAPP_CLOUD_VERIFY_TOKEN: {
+        label: 'رمز تحقق webhook',
+        help: 'سلسلة عشوائية تختارها وتلصقها في مربع حوار webhook في Meta. يمكن للإعداد السريع إنشاء واحدة.'
+      },
+      WHATSAPP_CLOUD_ALLOWED_USERS: {
+        label: 'أرقام WhatsApp المسموح بها',
+        placeholder: '15551234567, 447700900123',
+        help: 'أرقام مفصولة بفواصل مع رمز الدولة وبدون +. يُتجاهل الآخرون.'
+      },
+      WHATSAPP_CLOUD_PUBLIC_URL: {
+        label: 'أصل HTTPS عام',
+        placeholder: 'https://your-tunnel.example',
+        help: 'ترفض Meta HTTP. الصق أصل https:// الذي يسبق /whatsapp/webhook.'
+      },
+      WHATSAPP_CLOUD_WEBHOOK_HOST: {
+        label: 'عنوان الربط',
+        placeholder: '127.0.0.1',
+        help: 'الافتراضي في الإعداد السريع هو 127.0.0.1 (نفق/وكيل). الفارغ يربط كل الواجهات، IPv4 و IPv6.'
+      },
+      WHATSAPP_CLOUD_WEBHOOK_PORT: { label: 'المنفذ', placeholder: '8090' },
+      WHATSAPP_CLOUD_WEBHOOK_PATH: { label: 'مسار webhook', placeholder: '/whatsapp/webhook' },
+      WHATSAPP_CLOUD_APP_ID: { label: 'معرّف تطبيق Meta', placeholder: '1234567890123456' },
+      WHATSAPP_CLOUD_WABA_ID: { label: 'معرّف حساب WhatsApp Business', placeholder: '1234567890123456' },
+      WHATSAPP_CLOUD_API_VERSION: { label: 'إصدار Graph API', placeholder: 'v20.0' }
     },
     platformIntro: {}
   },

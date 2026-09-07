@@ -1991,8 +1991,15 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
     if whatsapp_cloud_phone_id and whatsapp_cloud_token:
         if Platform.WHATSAPP_CLOUD not in config.platforms:
             config.platforms[Platform.WHATSAPP_CLOUD] = PlatformConfig()
-        config.platforms[Platform.WHATSAPP_CLOUD].enabled = True
-        config.platforms[Platform.WHATSAPP_CLOUD].extra.update({
+        wa_cloud_config = config.platforms[Platform.WHATSAPP_CLOUD]
+        # Respect an explicit ``enabled: false`` (the dashboard / desktop card
+        # toggle writes platforms.whatsapp_cloud.enabled). Same marker the
+        # Slack branch reads; before this, credentials in .env re-enabled the
+        # adapter on every load and the toggle silently did nothing.
+        wa_cloud_explicit = bool(wa_cloud_config.extra.get("_enabled_explicit", False))
+        if not wa_cloud_config.enabled and not wa_cloud_explicit:
+            wa_cloud_config.enabled = True
+        wa_cloud_config.extra.update({
             "phone_number_id": whatsapp_cloud_phone_id,
             "access_token": whatsapp_cloud_token,
         })
@@ -2028,6 +2035,11 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
         wa_cloud_api_version = getenv("WHATSAPP_CLOUD_API_VERSION")
         if wa_cloud_api_version:
             config.platforms[Platform.WHATSAPP_CLOUD].extra["api_version"] = wa_cloud_api_version
+        # Public HTTPS origin of the tunnel / reverse proxy. Not used by the
+        # adapter itself; the dashboard derives the Meta callback URL from it.
+        wa_cloud_public_url = getenv("WHATSAPP_CLOUD_PUBLIC_URL")
+        if wa_cloud_public_url:
+            config.platforms[Platform.WHATSAPP_CLOUD].extra["public_url"] = wa_cloud_public_url
     whatsapp_cloud_home = getenv("WHATSAPP_CLOUD_HOME_CHANNEL")
     if whatsapp_cloud_home and Platform.WHATSAPP_CLOUD in config.platforms:
         config.platforms[Platform.WHATSAPP_CLOUD].home_channel = HomeChannel(

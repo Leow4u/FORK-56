@@ -1431,6 +1431,22 @@ export const ja = defineLocale({
         `${value} は有効な公開 URL ではありません。Teams は平文 HTTP のエンドポイントを拒否します。https://your-tunnel.example のような https:// オリジンを使ってください。`,
       webhookSecret:
         '16 文字以上のランダムなシークレットを使用してください。「INSECURE_NO_AUTH」は、このグローバルシークレットにフォールバックするすべてのルートで署名検証を無効にします。',
+      whatsappCloudAccessToken:
+        'Meta のアクセストークン全体を貼り付けてください。EAA で始まり、100 文字を大きく超えます。システムユーザーのトークンを使用してください。API セットアップのトークンは 24 時間で期限切れになります。',
+      whatsappCloudAppSecret:
+        'アプリシークレットは 32 文字の 16 進数で、Meta のアプリ設定 → ベーシック → アプリシークレット（「表示」をクリック）にあります。アクセストークンではありません。',
+      whatsappCloudNumericId: (value: string) =>
+        `${value} は数値の Meta ID ではありません。Meta 開発者ダッシュボードに表示されている数字をコピーしてください。`,
+      whatsappCloudPhoneNumberId: (value: string) =>
+        `${value} は電話番号 ID ではありません。Meta では WhatsApp → API セットアップの「送信元」ドロップダウンの下に 15〜17 桁の数字で表示されます。`,
+      whatsappCloudPhoneNumberPasted:
+        'これは電話番号そのもののようです。Meta が必要とするのは電話番号 ID です。API セットアップの「送信元」ドロップダウンの下に表示される 15〜17 桁の ID を使用してください。',
+      whatsappCloudPublicUrl: (value: string) =>
+        `${value} は有効な公開 URL ではありません。Meta は HTTP を拒否します。https://your-tunnel.example のような https:// オリジンを使用してください。`,
+      whatsappCloudVerifyToken:
+        '検証トークンは空白を含まない 16 文字以上にしてください。「トークンを生成」を使い、同じ値を Meta に貼り付けてください。',
+      whatsappCloudWebhookPath: (value: string) =>
+        `${value} は Webhook パスではありません。/whatsapp/webhook のように / で始まるパスを使用してください。`,
       whatsappNumber: (value: string) =>
         `${value} は WhatsApp の番号として正しくないようです。国番号付きの完全な番号（例: 15551234567）を使用してください。`
     },
@@ -1599,7 +1615,8 @@ export const ja = defineLocale({
       tokenLabel: 'Bearer トークン',
       tokenPlaceholder: '生成をクリック。空欄ならローカルホストのみ',
       generateToken: 'トークンを生成',
-      tokenWarning: 'このトークンを持つ人は誰でもエージェントにタスクを送れます。パスワードと同じように扱ってください。',
+      tokenWarning:
+        'このトークンを持つ人は誰でもエージェントにタスクを送れます。パスワードと同じように扱ってください。',
       bindLabel: '誰が到達できるか',
       bindLocalhost: 'このマシンのみ (127.0.0.1)',
       bindRemote: 'ネットワーク (0.0.0.0) — トークン必須',
@@ -1653,12 +1670,14 @@ export const ja = defineLocale({
       intro:
         'このカードはインバウンド Graph リスナーだけです。Microsoft Graph が変更通知を POST します。Teams チャットボットではありません。clientState シークレットを生成し、トンネル背後でローカルホストにバインドするか、ネットワークバインド用のソース CIDR を追加してから、通知 URL を Graph に登録してください。',
       replacesExisting: 'Graph webhook はすでに設定済みです。ここで保存するとシークレットとバインドが更新されます。',
-      secretHelp: '共有 clientState シークレット。Graph は各通知でこれをエコーします。openssl rand -hex 32 で生成します。',
+      secretHelp:
+        '共有 clientState シークレット。Graph は各通知でこれをエコーします。openssl rand -hex 32 で生成します。',
       secretLabel: 'clientState シークレット',
       secretPlaceholder: '生成をクリックするか、32 バイトの hex シークレットを貼り付け',
       generateSecret: 'シークレットを生成',
       copySecret: 'シークレットをコピー',
-      secretWarning: 'このシークレットを持つ人は誰でも Graph 通知を偽造できます。パスワードと同じように扱ってください。',
+      secretWarning:
+        'このシークレットを持つ人は誰でも Graph 通知を偽造できます。パスワードと同じように扱ってください。',
       secretRequired: '先に clientState を生成してください。無いとリスナーは起動を拒否します。',
       bindLabel: '誰がリスナーに到達できるか',
       bindLocalhost: 'このマシンのみ (127.0.0.1)',
@@ -1672,13 +1691,15 @@ export const ja = defineLocale({
         'Graph は最初に ?validationToken=… でこのパスを GET し、リスナーがトークンをエコーします。その後変更通知を POST します。このカードに購読 CRUD はありません。',
       publicUrlLabel: '公開 HTTPS オリジン（任意）',
       publicUrlPlaceholder: 'https://your-tunnel.example',
-      publicUrlHelp: 'Graph は HTTP を拒否します。リバースプロキシまたはトンネルで TLS を終端し、https:// オリジンを貼り付けてください。',
+      publicUrlHelp:
+        'Graph は HTTP を拒否します。リバースプロキシまたはトンネルで TLS を終端し、https:// オリジンを貼り付けてください。',
       resourcesLabel: '受け入れるリソース（任意）',
       resourcesPlaceholder: 'communications/onlineMeetings, chats/*/messages',
       resourcesHelp: 'カンマ区切りの Graph リソースパス。空ならリスナーが見るすべてのリソースを受け入れます。',
       cidrsLabel: 'ソース CIDR',
       cidrsPlaceholder: '52.96.0.0/14, 13.107.64.0/18',
-      cidrsHelp: 'ネットワークバインドに必須。/health も同じ許可リストを使います。ローカル Test は 403 でもプロセスは稼働中です。',
+      cidrsHelp:
+        'ネットワークバインドに必須。/health も同じ許可リストを使います。ローカル Test は 403 でもプロセスは稼働中です。',
       networkExposedWarning:
         'リモートバインドにはソース CIDR が必要です。無いとアダプターは起動を拒否します。先に Microsoft Graph 出力レンジを貼り付けてください。',
       pipelineTitle: '購読と Teams チャット',
@@ -1738,6 +1759,72 @@ export const ja = defineLocale({
       copied: 'クリップボードにコピーしました。',
       copyFailed: 'クリップボードにコピーできませんでした。',
       openGuide: 'Teams ガイド'
+    },
+    whatsappCloudQuickSetup: {
+      title: 'クイックセットアップ',
+      recommended: '推奨',
+      intro:
+        'Meta 公式の WhatsApp Business API です。ユーザーがメッセージを送るビジネス番号で、スマートフォンや QR コードをオンラインに保つ必要はありません。Meta 開発者ダッシュボードから 3 つの値を貼り付け、検証トークンを生成し、下のコールバック URL を Meta の Webhook 設定にコピーしてください。Meta はインターネット経由でこのマシンにアクセスするため、ローカルインストールではまずトンネルが必要です。',
+      replacesExisting:
+        'WhatsApp Cloud API はすでに設定されています。ここで保存すると、保存済みの Meta 認証情報とバインドが置き換えられます。',
+      credentialsHelp:
+        'Meta 開発者ダッシュボード（WhatsApp → API セットアップ、およびアプリ設定 → ベーシック）から取得します。`work4you whatsapp-cloud` も同じ 3 つの値を尋ねます。',
+      phoneNumberIdLabel: '電話番号 ID',
+      phoneNumberIdPlaceholder: '123456789012345',
+      phoneNumberIdHelp:
+        'API セットアップの「送信元」ドロップダウンの下にある 15〜17 桁の ID です。電話番号そのものでも、WhatsApp Business アカウント ID でもありません。',
+      accessTokenLabel: 'アクセストークン',
+      accessTokenPlaceholder: 'EAA…',
+      accessTokenHelp:
+        'EAA で始まります。API セットアップのトークンは 24 時間で期限切れになります。whatsapp_business_messaging 権限を持つシステムユーザーを作成し、永続トークンを生成してください。',
+      appSecretLabel: 'アプリシークレット',
+      appSecretPlaceholder: '32 文字の 16 進数',
+      appSecretHelp:
+        'アプリ設定 → ベーシック → アプリシークレット（「表示」をクリック）。Meta が送信するすべての Webhook に署名します。これがないと受信メッセージは拒否されます。',
+      secretKeepPlaceholder: '保存済み — 空のままにすると保持されます',
+      openMeta: 'Meta 開発者ダッシュボード',
+      verifyTokenLabel: 'Webhook 検証トークン',
+      verifyTokenPlaceholder: '16 文字以上の任意のランダムな文字列',
+      verifyTokenHelp:
+        '自分で決める共有シークレットです。Meta は Webhook ハンドシェイク時にこれを返すため、同じ値を Meta の「検証トークン」フィールドに貼り付けてください。',
+      verifyTokenSavedHint: '検証トークンはすでに保存されています。Meta 側も更新する場合のみ新しく生成してください。',
+      generateVerifyToken: 'トークンを生成',
+      copyVerifyToken: 'トークンをコピー',
+      phoneNumberIdRequired: 'まず電話番号 ID を入力してください。これがないとアダプターは起動を拒否します。',
+      accessTokenRequired: 'まずアクセストークンを入力してください。これがないとアダプターは起動を拒否します。',
+      appSecretRequired: 'まずアプリシークレットを入力してください。これがないとすべての受信メッセージが拒否されます。',
+      verifyTokenRequired:
+        'まず検証トークンを生成または入力してください。これがないと Meta の Webhook ハンドシェイクは失敗します。',
+      bindLabel: 'Webhook リスナーにアクセスできる範囲',
+      bindLocalhost: 'このマシンのみ (127.0.0.1)',
+      bindRemote: 'ネットワーク (0.0.0.0)',
+      bindHelp:
+        'トンネルやリバースプロキシの背後では localhost が正解です。Meta のトラフィックがこのマシンに直接届く場合のみネットワークを選択してください。',
+      callbackTitle: 'Webhook コールバック URL',
+      callbackHint:
+        'これを検証トークンとともに Meta（WhatsApp → 設定 → Webhook → 編集）に貼り付け、messages フィールドをサブスクライブしてください。Work4You は /whatsapp/webhook パスで待ち受けます。',
+      copyCallback: 'コールバック URL をコピー',
+      publicUrlLabel: '公開 HTTPS オリジン',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp:
+        'Meta はプレーン HTTP のコールバックを拒否します。トンネルまたはリバースプロキシで TLS を終端し、https:// オリジンを貼り付けてください。上のコールバック URL が連動して更新されます。',
+      tunnelWarning:
+        '公開オリジンがないと、コールバックは Meta が到達できない localhost を指します。Webhook の検証に失敗し、メッセージは一切届きません。トンネル（cloudflared、ngrok）を起動し、その https:// オリジンを貼り付けてください。',
+      allowedUsersLabel: '許可する WhatsApp 番号',
+      allowedUsersPlaceholder: '15551234567, 447700900123',
+      allowedUsersHelp:
+        '国番号付き、+ なしの番号をカンマ区切りで指定します。これらの送信者のみがエージェントに届き、それ以外は無視されます。',
+      openWarning:
+        '許可リストがないと、ビジネス番号にメッセージを送った誰でもエージェントを操作できます。少なくとも自分の番号を追加してください。',
+      afterSaveTitle: '保存後',
+      afterSaveHelp:
+        'ゲートウェイを再起動し、Meta の Webhook ダイアログで「確認して保存」をクリックしてください。このカードの「接続をテスト」で Meta に対してトークンを確認し、リスナーが起動していることを確かめられます。',
+      saved:
+        'WhatsApp Cloud API を保存して有効にしました。Webhook リスナーを起動するにはゲートウェイを再起動してください。',
+      saveFailed: 'WhatsApp Cloud API の設定を保存できませんでした。',
+      copied: 'クリップボードにコピーしました。',
+      copyFailed: 'クリップボードにコピーできませんでした。',
+      openGuide: 'WhatsApp Cloud API ガイド'
     },
     smsQuickSetup: {
       title: 'クイックセットアップ',
@@ -2151,7 +2238,46 @@ export const ja = defineLocale({
         placeholder: '127.0.0.1',
         help: 'クイックセットアップの既定は 127.0.0.1 (トンネル/プロキシ)。空にすると IPv4 と IPv6 の全インターフェースにバインドします。'
       },
-      TEAMS_PORT: { label: 'ポート', placeholder: '3978' }
+      TEAMS_PORT: { label: 'ポート', placeholder: '3978' },
+      WHATSAPP_CLOUD_PHONE_NUMBER_ID: {
+        label: '電話番号 ID',
+        placeholder: '123456789012345',
+        help: 'Meta → WhatsApp → API セットアップの「送信元」ドロップダウンの下にある 15〜17 桁の ID。電話番号ではありません。'
+      },
+      WHATSAPP_CLOUD_ACCESS_TOKEN: {
+        label: 'アクセストークン',
+        placeholder: 'EAA…',
+        help: 'EAA で始まります。システムユーザーの永続トークンを使用してください。API セットアップのトークンは 24 時間で期限切れになります。'
+      },
+      WHATSAPP_CLOUD_APP_SECRET: {
+        label: 'アプリシークレット',
+        placeholder: '32 文字の 16 進数',
+        help: 'アプリ設定 → ベーシック → アプリシークレット。すべての Webhook に署名します。これがないと受信メッセージは拒否されます。'
+      },
+      WHATSAPP_CLOUD_VERIFY_TOKEN: {
+        label: 'Webhook 検証トークン',
+        help: '自分で決めて Meta の Webhook ダイアログに貼り付けるランダムな文字列。クイックセットアップで生成できます。'
+      },
+      WHATSAPP_CLOUD_ALLOWED_USERS: {
+        label: '許可する WhatsApp 番号',
+        placeholder: '15551234567, 447700900123',
+        help: '国番号付き、+ なしの番号をカンマ区切りで指定します。それ以外は無視されます。'
+      },
+      WHATSAPP_CLOUD_PUBLIC_URL: {
+        label: '公開 HTTPS オリジン',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Meta は HTTP を拒否します。/whatsapp/webhook の前に置く https:// オリジンを貼り付けてください。'
+      },
+      WHATSAPP_CLOUD_WEBHOOK_HOST: {
+        label: 'バインドアドレス',
+        placeholder: '127.0.0.1',
+        help: 'クイックセットアップのデフォルトは 127.0.0.1（トンネル/プロキシ）。空にするとすべてのインターフェース（IPv4 と IPv6）にバインドします。'
+      },
+      WHATSAPP_CLOUD_WEBHOOK_PORT: { label: 'ポート', placeholder: '8090' },
+      WHATSAPP_CLOUD_WEBHOOK_PATH: { label: 'Webhook パス', placeholder: '/whatsapp/webhook' },
+      WHATSAPP_CLOUD_APP_ID: { label: 'Meta アプリ ID', placeholder: '1234567890123456' },
+      WHATSAPP_CLOUD_WABA_ID: { label: 'WhatsApp Business アカウント ID', placeholder: '1234567890123456' },
+      WHATSAPP_CLOUD_API_VERSION: { label: 'Graph API バージョン', placeholder: 'v20.0' }
     },
     platformIntro: {}
   },

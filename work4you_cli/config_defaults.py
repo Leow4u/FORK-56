@@ -4864,6 +4864,100 @@ OPTIONAL_ENV_VARS = {
         "password": False,
         "category": "messaging",
     },
+    # WhatsApp Cloud API (Meta's hosted Business Platform — not the Baileys
+    # QR bridge). The adapter reads these in gateway/config.py; the CLI wizard
+    # is `work4you whatsapp-cloud`. Listed here so the dashboard / desktop
+    # Channels card can render labelled fields instead of an empty form.
+    "WHATSAPP_CLOUD_PHONE_NUMBER_ID": {
+        "description": "Meta's Phone number ID (15-17 digits, shown under the From dropdown in API Setup) — not the phone number itself.",
+        "prompt": "Phone number ID",
+        "url": "https://developers.facebook.com/apps",
+        "password": False,
+        "category": "messaging",
+    },
+    "WHATSAPP_CLOUD_ACCESS_TOKEN": {
+        "description": "Meta access token (starts with EAA). Use a System User permanent token — the API Setup temporary token expires after 24 hours.",
+        "prompt": "Access token",
+        "url": "https://business.facebook.com/settings/system-users",
+        "password": True,
+        "category": "messaging",
+    },
+    "WHATSAPP_CLOUD_APP_SECRET": {
+        "description": "Meta App secret (32 hex characters, App settings → Basic). Verifies X-Hub-Signature-256 on every webhook — inbound messages are refused without it.",
+        "prompt": "App secret",
+        "url": None,
+        "password": True,
+        "category": "messaging",
+    },
+    "WHATSAPP_CLOUD_VERIFY_TOKEN": {
+        "description": "Shared secret Meta sends in the webhook verification handshake. Any random string; paste the same value in Meta's webhook dialog.",
+        "prompt": "Webhook verify token",
+        "url": None,
+        "password": True,
+        "category": "messaging",
+    },
+    "WHATSAPP_CLOUD_ALLOWED_USERS": {
+        "description": "Comma-separated WhatsApp numbers (country code, no +) allowed to message the agent. Everyone else is ignored.",
+        "prompt": "Allowed WhatsApp numbers",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+    },
+    "WHATSAPP_CLOUD_PUBLIC_URL": {
+        "description": "Public HTTPS origin in front of the webhook listener (tunnel or reverse proxy). The callback URL you register with Meta is this origin + the webhook path.",
+        "prompt": "Public HTTPS origin (or empty)",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+    },
+    "WHATSAPP_CLOUD_WEBHOOK_HOST": {
+        "description": "Inbound bind host. Empty binds every interface (IPv4 + IPv6); 127.0.0.1 is the right choice behind a tunnel or reverse proxy.",
+        "prompt": "Webhook bind host (default all interfaces)",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+        "advanced": True,
+    },
+    "WHATSAPP_CLOUD_WEBHOOK_PORT": {
+        "description": "Port the webhook listener binds to (default: 8090).",
+        "prompt": "Webhook port (default 8090)",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+        "advanced": True,
+    },
+    "WHATSAPP_CLOUD_WEBHOOK_PATH": {
+        "description": "Path Meta POSTs webhooks to (default: /whatsapp/webhook).",
+        "prompt": "Webhook path (default /whatsapp/webhook)",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+        "advanced": True,
+    },
+    "WHATSAPP_CLOUD_APP_ID": {
+        "description": "Meta App ID (numeric). Optional — used for diagnostics.",
+        "prompt": "Meta App ID",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+        "advanced": True,
+    },
+    "WHATSAPP_CLOUD_WABA_ID": {
+        "description": "WhatsApp Business Account ID (numeric). Optional — used for diagnostics.",
+        "prompt": "WhatsApp Business Account ID",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+        "advanced": True,
+    },
+    "WHATSAPP_CLOUD_API_VERSION": {
+        "description": "Graph API version for outbound calls (default: v20.0). Rarely needs changing.",
+        "prompt": "Graph API version (default v20.0)",
+        "url": None,
+        "password": False,
+        "category": "messaging",
+        "advanced": True,
+    },
 
     # ── Agent settings ──
     # NOTE: MESSAGING_CWD was removed here — use terminal.cwd in config.yaml
