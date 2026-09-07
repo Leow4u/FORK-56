@@ -63,6 +63,7 @@ import { Button } from "@work4you/ui/ui/components/button";
 import { ListItem } from "@work4you/ui/ui/components/list-item";
 import { Segmented } from "@work4you/ui/ui/components/segmented";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { PageLoader } from "@/components/page-loader";
 import { Switch } from "@work4you/ui/ui/components/switch";
 import {
   Dialog,
@@ -433,11 +434,7 @@ export default function SkillsPage() {
 
   /* ---- Loading ---- */
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Spinner className="text-2xl text-primary" />
-      </div>
-    );
+    return <PageLoader className="py-24" />;
   }
 
   return (
@@ -465,11 +462,7 @@ export default function SkillsPage() {
 
       {displayTab === "mcp" ? (
         <Suspense
-          fallback={
-            <div className="flex items-center justify-center py-24">
-              <Spinner className="text-2xl text-primary" />
-            </div>
-          }
+          fallback={<PageLoader className="py-24" />}
         >
           <McpPage embedded />
         </Suspense>

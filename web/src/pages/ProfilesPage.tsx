@@ -22,7 +22,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import spinners from "unicode-animations";
 import { H2 } from "@work4you/ui/ui/components/typography/h2";
 import { api } from "@/lib/api";
 import type { ActiveProfileInfo, ProfileInfo } from "@/lib/api";
@@ -44,40 +43,12 @@ import {
 import { Checkbox } from "@work4you/ui/ui/components/checkbox";
 import { useI18n } from "@/i18n";
 import { usePageHeader } from "@/contexts/usePageHeader";
+import { PageLoader } from "@/components/page-loader";
 import { cn, themedBody } from "@/lib/utils";
 
 // Mirrors work4you_cli/profiles.py::_PROFILE_ID_RE so we can reject obviously
 // invalid names (uppercase, spaces, …) before round-tripping a doomed POST.
 const PROFILE_NAME_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
-
-/** Braille unicode spinner (`unicode-animations`); static first frame when reduced motion is preferred. */
-function ProfilesLoadingSpinner() {
-  const { frames, interval } = spinners.braille;
-  const [frameIndex, setFrameIndex] = useState(0);
-
-  useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      return;
-    }
-    const id = window.setInterval(
-      () => setFrameIndex((i) => (i + 1) % frames.length),
-      interval,
-    );
-    return () => window.clearInterval(id);
-  }, [frames.length, interval]);
-
-  return (
-    <span
-      aria-hidden
-      className="inline-block select-none font-mono text-xl leading-none text-muted-foreground"
-    >
-      {frames[frameIndex]}
-    </span>
-  );
-}
 
 /**
  * Per-card "⋯" actions menu. Holds every action for the profile (set active,
@@ -775,15 +746,12 @@ export default function ProfilesPage() {
 
   if (loading) {
     return (
-      <div
+      <PageLoader
         aria-busy="true"
         aria-live="polite"
-        className="flex items-center justify-center py-24"
-      >
-        <span className="sr-only">{t.common.loading}</span>
-
-        <ProfilesLoadingSpinner />
-      </div>
+        className="py-24"
+        label={t.common.loading}
+      />
     );
   }
 

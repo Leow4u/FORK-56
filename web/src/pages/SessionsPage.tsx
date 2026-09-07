@@ -55,6 +55,7 @@ import { Checkbox } from "@work4you/ui/ui/components/checkbox";
 import { ListItem } from "@work4you/ui/ui/components/list-item";
 import { Segmented } from "@work4you/ui/ui/components/segmented";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { PageLoader } from "@/components/page-loader";
 import { Badge } from "@work4you/ui/ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@work4you/ui/ui/components/card";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
@@ -1564,11 +1565,7 @@ export default function SessionsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Spinner className="text-2xl text-primary" />
-      </div>
-    );
+    return <PageLoader className="py-24" />;
   }
 
   return (

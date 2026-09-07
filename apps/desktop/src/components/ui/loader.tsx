@@ -23,7 +23,8 @@ export const LOADER_TYPES = [
   'cardioid-heart',
   'heart-wave',
   'spiral-search',
-  'fourier-flow'
+  'fourier-flow',
+  'orbit-ring'
 ] as const
 
 export type LoaderType = (typeof LOADER_TYPES)[number]
@@ -37,6 +38,7 @@ interface LoaderCurve {
   durationMs: number
   name: string
   particleCount: number
+  pathOpacity: number
   point: (progress: number, detailScale: number) => Point
   pulseDurationMs: number
   rotate: boolean
@@ -56,6 +58,7 @@ interface BaseCurveOptions extends Pick<
   LoaderCurve,
   'durationMs' | 'particleCount' | 'pulseDurationMs' | 'strokeWidth' | 'trailSpan'
 > {
+  pathOpacity?: number
   point?: LoaderCurve['point']
   rotate?: boolean
   rotationDurationMs?: number
@@ -312,6 +315,25 @@ const LOADER_CURVES: Record<LoaderType, LoaderCurve> = {
         y: 50 + y
       }
     }
+  },
+  'orbit-ring': {
+    ...baseCurve('Orbit Ring', {
+      durationMs: 1050,
+      particleCount: 56,
+      pathOpacity: 0,
+      pulseDurationMs: 8000,
+      strokeWidth: 3.2,
+      trailSpan: 0.24
+    }),
+    point(progress) {
+      const t = progress * TWO_PI
+      const r = 27.5
+
+      return {
+        x: 50 + Math.cos(t) * r,
+        y: 50 + Math.sin(t) * r
+      }
+    }
   }
 }
 
@@ -374,7 +396,7 @@ export function Loader({
       <svg aria-hidden="true" className="size-full overflow-visible" fill="none" viewBox="0 0 100 100">
         <g ref={groupRef}>
           <path
-            opacity="0.1"
+            opacity={config.pathOpacity}
             ref={pathRef}
             stroke="currentColor"
             strokeLinecap="round"
@@ -401,6 +423,7 @@ function baseCurve(name: string, options: BaseCurveOptions): LoaderCurve {
     durationMs: options.durationMs,
     name,
     particleCount: options.particleCount,
+    pathOpacity: options.pathOpacity ?? 0.1,
     point: options.point ?? (() => ({ x: 50, y: 50 })),
     pulseDurationMs: options.pulseDurationMs,
     rotate: options.rotate ?? false,

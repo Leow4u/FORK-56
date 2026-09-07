@@ -193,8 +193,8 @@ Notes:
 ## Feedback & empty/error/loading states
 
 - **Loading:** `Loader` (`src/components/ui/loader.tsx`) — animated math/ascii
-  curves (`lemniscate-bloom` for long ops). Never ship the literal text
-  "Loading…".
+  curves (`orbit-ring` for page loads, `lemniscate-bloom` for long ops). Never
+  ship the literal text "Loading…".
 - **Errors:** `ErrorState` + the canonical `ErrorIcon` (no bg chip). One look
   for the React boundary, in-dialog errors, and the boot-failure banner. Pass
   nodes for title/description so Radix `DialogTitle`/`Description` can flow

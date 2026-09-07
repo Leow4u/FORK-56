@@ -37,6 +37,7 @@ import { Input } from "@work4you/ui/ui/components/input";
 import { Label } from "@work4you/ui/ui/components/label";
 import { Segmented } from "@work4you/ui/ui/components/segmented";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { PageLoader } from "@/components/page-loader";
 import { Switch } from "@work4you/ui/ui/components/switch";
 import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { Toast } from "@work4you/ui/ui/components/toast";
@@ -989,18 +990,12 @@ export default function ChannelsPage() {
 
       {tab === "pairing" ? (
         <Suspense
-          fallback={
-            <div className="flex items-center justify-center py-24">
-              <Spinner className="text-2xl text-primary" />
-            </div>
-          }
+          fallback={<PageLoader className="py-24" />}
         >
           <PairingPage embedded />
         </Suspense>
       ) : loading ? (
-        <div className="flex items-center justify-center py-24">
-          <Spinner className="text-2xl text-primary" />
-        </div>
+        <PageLoader className="py-24" />
       ) : (
         <>
       {/* Restart banner */}

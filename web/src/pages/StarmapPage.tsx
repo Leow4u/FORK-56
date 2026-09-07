@@ -1,8 +1,8 @@
 import { useStore } from "@nanostores/react";
-import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { useEffect, useState } from "react";
 
 import { StarMap } from "@/app/starmap/star-map";
+import { PageLoader } from "@/components/page-loader";
 import { EmptyState } from "@/components/ui/empty-state";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { useProfileScope } from "@/contexts/useProfileScope";
@@ -61,16 +61,11 @@ export default function StarmapPage() {
           title={t.starmap.loadFailed}
         />
       ) : !shown && loading ? (
-        <div
+        <PageLoader
           aria-busy="true"
-          aria-label={t.starmap.loading}
-          className="flex min-h-0 flex-1 items-center justify-center"
-        >
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner />
-            <span>{t.starmap.loading}</span>
-          </div>
-        </div>
+          className="min-h-0 flex-1"
+          label={t.starmap.loading}
+        />
       ) : shown && shown.nodes.length === 0 && !imported ? (
         <EmptyState
           className="min-h-0 flex-1"

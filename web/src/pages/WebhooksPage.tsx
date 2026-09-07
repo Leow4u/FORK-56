@@ -13,6 +13,7 @@ import { Badge } from "@work4you/ui/ui/components/badge";
 import { Button } from "@work4you/ui/ui/components/button";
 import { Select, SelectOption } from "@work4you/ui/ui/components/select";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { PageLoader } from "@/components/page-loader";
 import { H2 } from "@work4you/ui/ui/components/typography/h2";
 import { api } from "@/lib/api";
 import type { WebhookRoute, WebhooksResponse } from "@/lib/api";
@@ -297,11 +298,7 @@ export default function WebhooksPage() {
   }, [setEnd, enabled, enabling, loading]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Spinner className="text-2xl text-primary" />
-      </div>
-    );
+    return <PageLoader className="py-24" />;
   }
 
   const pendingName = webhookDelete.pendingId ?? "";

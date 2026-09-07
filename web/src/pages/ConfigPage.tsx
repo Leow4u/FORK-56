@@ -44,6 +44,7 @@ import { AutoField } from "@/components/AutoField";
 import { Button } from "@work4you/ui/ui/components/button";
 import { ListItem } from "@work4you/ui/ui/components/list-item";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { PageLoader } from "@/components/page-loader";
 import { Card, CardContent, CardHeader, CardTitle } from "@work4you/ui/ui/components/card";
 import { ConfirmDialog } from "@work4you/ui/ui/components/confirm-dialog";
 import { Input } from "@work4you/ui/ui/components/input";
@@ -368,11 +369,7 @@ export default function ConfigPage() {
 
   /* ---- Loading ---- */
   if (!config || !schema) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Spinner className="text-2xl text-primary" />
-      </div>
-    );
+    return <PageLoader className="py-24" />;
   }
 
   /* ---- Render field list (shared between search & normal) ---- */
