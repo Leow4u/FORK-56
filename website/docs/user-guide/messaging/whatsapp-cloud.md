@@ -32,6 +32,34 @@ work4you whatsapp-cloud
 
 The wizard walks you through every credential, validates each one as you paste it (catches the #1 setup trap — pasting a phone number into the Phone Number ID field), and prints exact follow-up instructions for the parts that need to happen outside the wizard (starting cloudflared, configuring Meta's webhook dashboard).
 
+### From the dashboard or the desktop app
+
+The same setup is available without a terminal. Open **Channels** in the
+dashboard (`work4you dashboard`) or **Messaging** in the desktop app, pick
+**WhatsApp Cloud API** (it sits right after the WhatsApp QR bridge), and use
+**Quick setup**:
+
+- paste the **Phone number ID**, a permanent **Access token**, and the **App
+  secret** — the same shape checks as the wizard run as you type, so a phone
+  number pasted where the Phone number ID belongs is named as such before you
+  save;
+- click **Generate token** for the **Webhook verify token** and copy it into
+  Meta's webhook dialog;
+- choose who can reach the listener (**This machine only** behind a tunnel or
+  reverse proxy, **Network** when Meta traffic arrives straight at the box);
+- paste your tunnel's https:// origin into **Public HTTPS origin** — the
+  **callback URL** shown on the card updates to `<origin>/whatsapp/webhook`,
+  ready to copy into Meta. While the origin is empty the card warns that the
+  callback still points at localhost, which Meta cannot reach;
+- optionally list the **Allowed WhatsApp numbers**; the card warns while the
+  allowlist is empty.
+
+After **Save & enable**, restart the gateway, then use **Test connection** on
+the card: it proves the token against Meta's Graph API (reporting the display
+number, or the exact Graph error for an expired or foreign token) and probes
+the local `/health` endpoint to confirm the listener is up with the verify
+token and app secret configured.
+
 The rest of this page is the manual reference.
 
 ---
@@ -142,7 +170,12 @@ Once your tunnel is running:
    ```bash
    python -c "import secrets; print(secrets.token_urlsafe(32))"
    ```
-   Save it as `WHATSAPP_CLOUD_VERIFY_TOKEN` in `~/.work4you/.env`.
+   Save it as `WHATSAPP_CLOUD_VERIFY_TOKEN` in `~/.work4you/.env`.  (The
+   dashboard and desktop Quick setup have a **Generate token** button that
+   does the same.)
+   Optionally save the tunnel origin as `WHATSAPP_CLOUD_PUBLIC_URL` so the
+   dashboard and desktop app show the finished callback URL instead of
+   `http://127.0.0.1:8090/whatsapp/webhook`.
 3. Start the Work4You gateway: `work4you gateway`.
 4. In the Meta App Dashboard → **WhatsApp → Configuration** (or **Use cases → Customize → Configuration** depending on UI version) → click **Edit** on the Webhook section.
 5. Fill in:
@@ -228,6 +261,7 @@ All settings live in `~/.work4you/.env`.  Required values are in **bold**.
 | `WHATSAPP_CLOUD_WEBHOOK_HOST` | unset (dual-stack: all interfaces, IPv4+IPv6) | Interface the webhook server binds to. |
 | `WHATSAPP_CLOUD_WEBHOOK_PORT` | `8090` | Port the webhook server binds to.  Must match the port your tunnel forwards. |
 | `WHATSAPP_CLOUD_WEBHOOK_PATH` | `/whatsapp/webhook` | URL path Meta posts to. |
+| `WHATSAPP_CLOUD_PUBLIC_URL` | — | Public HTTPS origin of the tunnel / reverse proxy in front of the listener. The dashboard and desktop app append the webhook path to build the callback URL you register in Meta. |
 | `WHATSAPP_CLOUD_API_VERSION` | `v20.0` | Meta Graph API version. Only override if a newer version is recommended in Meta's docs. |
 | `WHATSAPP_CLOUD_HOME_CHANNEL` | — | wa_id to use as the bot's home channel (for cron jobs etc). |
 

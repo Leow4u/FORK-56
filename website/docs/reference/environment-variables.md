@@ -380,6 +380,7 @@ These are set automatically by the Docker terminal backend when `proxy.enabled: 
 | `WHATSAPP_CLOUD_WEBHOOK_HOST` | Interface the inbound webhook server binds to (default `0.0.0.0`) |
 | `WHATSAPP_CLOUD_WEBHOOK_PORT` | Port the inbound webhook server binds to (default `8090`) |
 | `WHATSAPP_CLOUD_WEBHOOK_PATH` | URL path Meta posts inbound messages to (default `/whatsapp/webhook`) |
+| `WHATSAPP_CLOUD_PUBLIC_URL` | Public HTTPS origin of the tunnel / reverse proxy in front of the listener. The dashboard and desktop app append the webhook path to build the callback URL you register in Meta. |
 | `WHATSAPP_CLOUD_API_VERSION` | Meta Graph API version to call (default `v20.0`) |
 | `WHATSAPP_CLOUD_HOME_CHANNEL` | `wa_id` to use as the bot's home channel (for cron jobs etc.) |
 | `WHATSAPP_CLOUD_DM_POLICY` | DM gating for the Cloud adapter (`open`/`allowlist`/`disabled`); falls back to `WHATSAPP_DM_POLICY` when unset |
