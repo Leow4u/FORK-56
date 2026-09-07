@@ -88,9 +88,11 @@ export function A2AQuickSetup({
   const queryClient = useQueryClient()
 
   const [token, setToken] = useState('')
+
   const [bindMode, setBindMode] = useState<'localhost' | 'remote'>(
     a2aIsNetworkExposed(envVars) && a2aHasInboundToken(envVars) ? 'remote' : 'localhost'
   )
+
   const [publicUrl, setPublicUrl] = useState(envValue(envVars, 'A2A_PUBLIC_URL'))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -107,6 +109,7 @@ export function A2AQuickSetup({
       ? m.envErrors.apiServerKey
       : ''
     : ''
+
   const publicUrlError = publicUrl.trim()
     ? (() => {
         const invalid = validateMessagingEnv('A2A_PUBLIC_URL', publicUrl)
@@ -142,18 +145,21 @@ export function A2AQuickSetup({
       value: bindMode === 'remote' ? '0.0.0.0' : '127.0.0.1'
     }
   ])
+
   const networkWarning = bindMode === 'remote' && !token.trim() && !a2aHasInboundToken(envVars)
 
   const agentsQuery = useQuery({
     queryKey: ['a2a-agents', scopeProfile ?? profileScope],
     queryFn: () => getA2AAgents(scopeProfile)
   })
+
   const toolsetsQuery = useQuery({
     queryKey: ['toolsets', scopeProfile ?? profileScope],
     queryFn: () => getToolsets(scopeProfile)
   })
 
   const agents = agentsQuery.data?.agents ?? []
+
   const outboundOn = useMemo(
     () => toolsetsQuery.data?.some(toolset => toolset.name === 'a2a' && toolset.enabled) ?? false,
     [toolsetsQuery.data]

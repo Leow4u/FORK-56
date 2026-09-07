@@ -2092,8 +2092,10 @@ class TestWebServerEndpoints:
         assert "A2A_HOME_CHANNEL" not in keys
         assert not any(field["required"] for field in a2a["env_vars"])
         assert a2a["docs_url"].rstrip("/").endswith("messaging/a2a")
+        # setup_free must keep the card off "Needs setup" whether the
+        # plugin ships enabled-by-default (gateway_stopped here) or not.
         assert a2a["configured"] is True
-        assert a2a["state"] == "disabled"
+        assert a2a["state"] != "not_configured"
 
     def test_a2a_test_endpoint_runs_the_live_probe(self, monkeypatch):
         """Once enabled, /test must route into _a2a_live_test with the

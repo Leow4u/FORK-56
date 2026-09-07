@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type * as NanostoresModule from 'nanostores'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -218,7 +218,7 @@ describe('A2AQuickSetup', () => {
     getA2AAgents.mockResolvedValue({ agents: [peer('researcher', 'http://research-box.local:9900')] })
     await renderQuickSetup({ scopeProfile: 'work' })
 
-    expect(screen.getByText('researcher')).toBeTruthy()
+    await waitFor(() => expect(screen.getByText('researcher')).toBeTruthy())
     expect(screen.getByText('http://research-box.local:9900')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('Peer name'), { target: { value: 'coder' } })
