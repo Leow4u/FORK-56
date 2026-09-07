@@ -81,9 +81,11 @@ export function MsgraphWebhookQuickSetup({
   const q = m.msgraphQuickSetup
 
   const [secret, setSecret] = useState('')
+
   const [bindMode, setBindMode] = useState<'localhost' | 'remote'>(
     msgraphIsNetworkExposed(envVars) ? 'remote' : 'localhost'
   )
+
   const [publicUrl, setPublicUrl] = useState(envValue(envVars, 'MSGRAPH_WEBHOOK_PUBLIC_URL'))
   const [resources, setResources] = useState(envValue(envVars, 'MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES'))
   const [cidrs, setCidrs] = useState(envValue(envVars, 'MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS'))
