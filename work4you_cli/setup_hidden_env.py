@@ -53,8 +53,18 @@ SETUP_HIDDEN_ENV_SUFFIXES = (
 #                        UI toggle) or auto-enable on a usable key (see
 #                        gateway/config.py). Offering it as an editable .env
 #                        field was a trap: typing "true" changed nothing.
+#
+#   WEBHOOK_ENABLED      the gateway DOES read this one (gateway/config.py) —
+#                        it stays a supported CLI/.env switch. But in the GUI
+#                        it was a free-text boolean next to the card's own
+#                        enable toggle AND the Webhooks page's Enable button:
+#                        three competing enable paths that can disagree (env
+#                        true + config.yaml false shows "off" in the UI while
+#                        the listener runs). The GUI keeps its toggles; the
+#                        env var keeps working for `work4you setup` and .env.
 SETUP_HIDDEN_ENV_NAMES = frozenset({
     "API_SERVER_ENABLED",
+    "WEBHOOK_ENABLED",
 })
 
 

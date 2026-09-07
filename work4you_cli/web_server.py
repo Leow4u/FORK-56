@@ -8811,8 +8811,17 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
         "name": "Webhooks",
         "description": "Receive events from GitHub, GitLab, and other webhook sources.",
         "docs_url": "https://work4you.ai/docs/user-guide/messaging/webhooks/",
-        "env_vars": ("WEBHOOK_ENABLED", "WEBHOOK_PORT", "WEBHOOK_SECRET"),
+        # WEBHOOK_ENABLED is deliberately absent: it works from .env/CLI, but
+        # the GUI already has two enable affordances (card toggle + Webhooks
+        # page). See setup_hidden_env.py.
+        "env_vars": ("WEBHOOK_PORT", "WEBHOOK_SECRET"),
         "required_env": (),
+        # No credential is required — routes carry their own HMAC secrets, and
+        # they're managed on the Webhooks page, not this card. Without this
+        # flag the card showed a "Needs setup" pill (configured=False merely
+        # because the platform wasn't in gateway config yet) right under the
+        # copy saying "this platform does not need a token here".
+        "setup_free": True,
     },
     "msgraph_webhook": {
         "name": "Microsoft Graph Webhook",
@@ -9223,6 +9232,10 @@ def _build_catalog_entry(
         # Used for platforms whose adapter accepts alternative inbound
         # modes (Google Chat: Pub/Sub OR HTTP callbacks).
         "required_env_any": tuple(override.get("required_env_any", ())),
+        # True when the platform needs no .env credential at all (webhooks:
+        # per-route secrets live on the Webhooks page). "configured" is then
+        # always True — enablement is the only setup step.
+        "setup_free": bool(override.get("setup_free")),
     }
 
 
@@ -9377,6 +9390,14 @@ def _messaging_platform_payload(
                     for group in entry["required_env_any"]
                 )
             home_channel = None
+
+    # Credential-free platforms (webhooks) have nothing to configure on this
+    # card — routes and their secrets live on the Webhooks page. Before this,
+    # a disabled webhook platform reported configured=False (it simply wasn't
+    # in gateway config yet), so the card stacked a "Needs setup" pill on top
+    # of "Disabled" while its own copy said no token is needed here.
+    if entry.get("setup_free"):
+        configured = True
 
     state = (
         runtime_platform.get("state") if isinstance(runtime_platform, dict) else None
@@ -10852,6 +10873,88 @@ def _api_server_live_test(env: dict[str, str], gateway_running: bool) -> tuple[b
         return False, f"Could not query /v1/models: {exc}"
 
 
+def _webhook_resolve_port(env_port: str, extra: dict) -> tuple[int | None, str]:
+    """Resolve the webhook listener port the same way the gateway does.
+
+    Env WEBHOOK_PORT wins, then platforms.webhook.extra.port, then the 8644
+    default. Returns (port, error_message) — port is None when the env value
+    is unusable.
+    """
+    raw = (env_port or "").strip()
+    if raw:
+        try:
+            port = int(raw)
+        except ValueError:
+            return None, f"WEBHOOK_PORT must be a number, got {raw!r}."
+        if not 1 <= port <= 65535:
+            return None, f"WEBHOOK_PORT must be between 1 and 65535, got {port}."
+        return port, ""
+    try:
+        port = int(extra.get("port", 8644))
+    except (TypeError, ValueError):
+        port = 8644
+    return port, ""
+
+
+def _webhook_live_test(
+    env_port: str,
+    extra: dict,
+    active_routes: int,
+    gateway_running: bool,
+) -> tuple[bool, str]:
+    """Prove the webhook listener end-to-end: GET /health on the real port.
+
+    The adapter's health endpoint is unauthenticated and local, so unlike the
+    chat platforms this is provable in milliseconds. On success the message
+    also says whether any route exists — an enabled listener with zero routes
+    accepts nothing, and that gap is invisible from the card otherwise.
+    """
+    port, port_error = _webhook_resolve_port(env_port, extra)
+    if port is None:
+        return False, port_error
+
+    host = str(extra.get("host") or "").strip()
+    probe_host = "127.0.0.1" if not host or host in {"0.0.0.0", "::", "*"} else host
+
+    if not gateway_running:
+        return True, (
+            f"The webhook listener starts with the gateway. Start the "
+            f"gateway, then point services at "
+            f"http://{probe_host}:{port}/webhooks/<route>."
+        )
+
+    try:
+        req = urllib.request.Request(
+            f"http://{probe_host}:{port}/health", method="GET"
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status != 200:
+                return False, (
+                    f"The listener on {probe_host}:{port} answered /health "
+                    f"with HTTP {resp.status} — that port may belong to "
+                    "another service."
+                )
+    except Exception:
+        return False, (
+            f"The gateway is running but nothing answered on "
+            f"{probe_host}:{port}. Restart the gateway so the webhook "
+            "listener comes up, or check `work4you logs` for a port conflict."
+        )
+
+    if active_routes <= 0:
+        return True, (
+            f"Listener is up on port {port}, but no webhook routes exist "
+            "yet — the server accepts nothing until you create one on the "
+            "Webhooks page."
+        )
+    plural = "route" if active_routes == 1 else "routes"
+    return True, (
+        f"Listener is up on port {port} with {active_routes} active "
+        f"{plural}. Point services at "
+        f"http://{probe_host}:{port}/webhooks/<route>."
+    )
+
+
 @app.post("/api/messaging/platforms/{platform_id}/test")
 async def test_messaging_platform(platform_id: str, profile: Optional[str] = None):
     entry = _catalog_lookup(platform_id)
@@ -10956,6 +11059,38 @@ async def test_messaging_platform(platform_id: str, profile: Optional[str] = Non
         }
         ok, message = await asyncio.to_thread(
             _api_server_live_test, live_env, bool(payload["gateway_running"])
+        )
+        return {"ok": ok, "state": payload["state"], "message": message}
+    if platform_id == "webhook":
+        # The listener is local and /health is unauthenticated — provable
+        # directly (see _webhook_live_test). Route definitions live in the
+        # profile's config.yaml + subscriptions file, so collect them under
+        # the same profile scope the payload used.
+        def _collect_webhook_info():
+            with _profile_scope(profile):
+                import work4you_cli.webhook as wh
+
+                extra = wh._get_webhook_config().get("extra", {}) or {}
+                routes: Dict[str, Any] = dict(extra.get("routes") or {})
+                routes.update(wh._load_subscriptions())
+                active = sum(
+                    1
+                    for route in routes.values()
+                    if isinstance(route, dict)
+                    and route.get("enabled", True) is not False
+                )
+                return extra, active
+
+        extra, active_routes = await asyncio.to_thread(_collect_webhook_info)
+        env_port = env_on_disk.get("WEBHOOK_PORT") or (
+            "" if profile_scoped else os.getenv("WEBHOOK_PORT", "")
+        )
+        ok, message = await asyncio.to_thread(
+            _webhook_live_test,
+            env_port,
+            extra,
+            active_routes,
+            bool(payload["gateway_running"]),
         )
         return {"ok": ok, "state": payload["state"], "message": message}
     if platform_id == "email":

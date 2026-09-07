@@ -1930,6 +1930,146 @@ class TestWebServerEndpoints:
         assert ok is True
         assert "http://127.0.0.1:8642/v1" in message
 
+    def test_webhook_catalog_hides_the_enable_var_and_needs_no_setup(self):
+        """WEBHOOK_ENABLED stays a working .env/CLI switch, but the GUI card
+        already has two enable affordances (toggle + Webhooks page button), so
+        a free-text boolean field was a third competing enable path. And with
+        no required credential (routes carry their own secrets), the card must
+        never report not-configured: before setup_free it stacked a "Needs
+        setup" pill on top of "Disabled" while its own copy said no token is
+        needed here."""
+        resp = self.client.get("/api/messaging/platforms")
+        assert resp.status_code == 200
+        rows = {row["id"]: row for row in resp.json()["platforms"]}
+        webhook = rows["webhook"]
+
+        keys = {field["key"] for field in webhook["env_vars"]}
+        assert {"WEBHOOK_PORT", "WEBHOOK_SECRET"} <= keys
+        assert "WEBHOOK_ENABLED" not in keys
+        assert not any(field["required"] for field in webhook["env_vars"])
+        assert webhook["docs_url"].rstrip("/").endswith("messaging/webhooks")
+
+        # Disabled platform: state says so, but configured must stay True.
+        assert webhook["configured"] is True
+        assert webhook["state"] == "disabled"
+
+    def test_webhook_test_endpoint_runs_the_live_probe(self, monkeypatch):
+        """Once enabled, /test must route into _webhook_live_test with the
+        env port and the merged route count — instead of stopping at the
+        generic gateway-running gate."""
+        import work4you_cli.web_server as ws
+        from work4you_cli.config import load_config, save_config, save_env_value
+
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["webhook"] = {"enabled": True}
+        save_config(cfg)
+        save_env_value("WEBHOOK_PORT", "9644")
+
+        seen: dict = {}
+
+        def fake_live_test(env_port, extra, active_routes, gateway_running):
+            seen["env_port"] = env_port
+            seen["active_routes"] = active_routes
+            seen["gateway_running"] = gateway_running
+            return True, "Listener is up on port 9644."
+
+        monkeypatch.setattr(ws, "_webhook_live_test", fake_live_test)
+
+        body = self.client.post("/api/messaging/platforms/webhook/test").json()
+        assert body["ok"] is True
+        assert "Listener is up" in body["message"]
+        assert seen["env_port"] == "9644"
+        assert seen["active_routes"] == 0
+
+    def test_webhook_test_counts_config_and_dashboard_routes(self, monkeypatch):
+        """The adapter merges config.yaml routes with dashboard-created
+        subscriptions, so the probe's route count must see both — and skip
+        explicitly disabled ones."""
+        import work4you_cli.web_server as ws
+        import work4you_cli.webhook as wh
+        from work4you_cli.config import load_config, save_config
+
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["webhook"] = {
+            "enabled": True,
+            "extra": {"routes": {"from-config": {"secret": "s" * 20}}},
+        }
+        save_config(cfg)
+        wh._save_subscriptions(
+            {
+                "from-dashboard": {"secret": "s" * 20},
+                "switched-off": {"secret": "s" * 20, "enabled": False},
+            }
+        )
+
+        seen: dict = {}
+
+        def fake_live_test(env_port, extra, active_routes, gateway_running):
+            seen["active_routes"] = active_routes
+            return True, "ok"
+
+        monkeypatch.setattr(ws, "_webhook_live_test", fake_live_test)
+        body = self.client.post("/api/messaging/platforms/webhook/test").json()
+        assert body["ok"] is True
+        assert seen["active_routes"] == 2
+
+    def test_webhook_resolve_port_prefers_env_then_config(self):
+        """Port resolution mirrors the gateway: env wins, then extra.port,
+        then the 8644 default — with unusable env values rejected loudly."""
+        import work4you_cli.web_server as ws
+
+        assert ws._webhook_resolve_port("9001", {"port": 7000}) == (9001, "")
+        assert ws._webhook_resolve_port("", {"port": 7000}) == (7000, "")
+        assert ws._webhook_resolve_port("", {}) == (8644, "")
+        assert ws._webhook_resolve_port("", {"port": "junk"}) == (8644, "")
+
+        port, error = ws._webhook_resolve_port("notaport", {})
+        assert port is None
+        assert "must be a number" in error
+
+        port, error = ws._webhook_resolve_port("70000", {})
+        assert port is None
+        assert "between 1 and 65535" in error
+
+    def test_webhook_live_test_reports_listener_and_route_state(self, monkeypatch):
+        """Gateway down → guidance (not a failure); dead port → failure with
+        the probe address; healthy listener → success that also says whether
+        any route exists, since a route-less listener accepts nothing."""
+        import work4you_cli.web_server as ws
+
+        ok, message = ws._webhook_live_test("", {}, 0, gateway_running=False)
+        assert ok is True
+        assert "starts with the gateway" in message
+        assert "8644" in message
+
+        def dead_port(req, timeout=0):
+            raise OSError("connection refused")
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", dead_port)
+        ok, message = ws._webhook_live_test("", {}, 1, gateway_running=True)
+        assert ok is False
+        assert "nothing answered" in message
+        assert "127.0.0.1:8644" in message
+
+        class _Resp:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", lambda req, timeout=0: _Resp())
+        ok, message = ws._webhook_live_test("", {}, 0, gateway_running=True)
+        assert ok is True
+        assert "no webhook routes exist" in message
+
+        ok, message = ws._webhook_live_test("9644", {}, 3, gateway_running=True)
+        assert ok is True
+        assert "3 active routes" in message
+        assert "9644" in message
+
     def test_sms_catalog_surfaces_everything_the_adapter_requires(self):
         """The SMS card must require every var the adapter hard-fails without
         at connect() (from-number, public webhook URL), surface the allowlist

@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import {
   AlertTriangle,
   Bot,
@@ -560,6 +560,21 @@ export default function ChannelsPage() {
                     You can leave allowed users blank. Work4You will then send new DM
                     users a code that you approve from the Pairing tab.
                   </p>
+                </div>
+              )}
+              {editing.id === "webhook" && (
+                <div className="grid gap-2 text-sm text-muted-foreground">
+                  <p>
+                    Webhook setup lives on the Webhooks page: each route is its
+                    own URL with its own signing secret, and the listener
+                    accepts nothing until at least one route exists.
+                  </p>
+                  <Link
+                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                    to="/webhooks"
+                  >
+                    Manage webhook routes <ExternalLink className="h-3 w-3" />
+                  </Link>
                 </div>
               )}
               <p className="text-xs text-muted-foreground">

@@ -1423,6 +1423,7 @@ export interface Translations {
       telegramToken: string
       telegramUserId: (value: string) => string
       twilioAccountSid: string
+      webhookSecret: string
       whatsappNumber: (value: string) => string
     }
     /** Localized labels for env keys rendered as a segmented picker
@@ -1534,6 +1535,19 @@ export interface Translations {
       openGuide: string
       saved: string
       saveFailed: string
+    }
+    webhookRoutesPanel: {
+      title: string
+      startHere: string
+      intro: string
+      baseUrlLabel: string
+      copyBaseUrl: string
+      copied: string
+      copyFailed: string
+      routeCount: (active: number, total: number) => string
+      noRoutes: string
+      tunnelHint: string
+      manageRoutes: string
     }
     smsQuickSetup: {
       title: string
@@ -1728,6 +1742,9 @@ export interface Translations {
     fieldSkillsPlaceholder: string
     fieldDeliver: string
     fieldDeliverOnly: string
+    fieldDeliverTarget: string
+    fieldDeliverTargetPlaceholder: string
+    fieldDeliverTargetHelp: string
     fieldPrompt: string
     fieldPromptPlaceholder: string
     nameRequired: string

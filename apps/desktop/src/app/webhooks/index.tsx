@@ -55,6 +55,11 @@ import { ListRow } from '../settings/primitives'
 
 const DELIVER_OPTIONS: readonly string[] = ['log', 'telegram', 'discord', 'slack', 'email', 'github_comment']
 
+/** Deliver targets that accept an explicit chat/channel/address id. Without
+ *  one, delivery falls back to the platform's home channel — fine for a
+ *  personal setup, silently wrong for anything else, so ask while creating. */
+export const CHAT_TARGET_DELIVERS: ReadonlySet<string> = new Set(['telegram', 'discord', 'slack', 'email'])
+
 interface CreatedWebhook {
   secret: string
   url: string
@@ -98,6 +103,7 @@ export function WebhooksView({ onClose }: WebhooksViewProps) {
   const [description, setDescription] = useState('')
   const [events, setEvents] = useState('')
   const [deliver, setDeliver] = useState('log')
+  const [deliverChatId, setDeliverChatId] = useState('')
   const [deliverOnly, setDeliverOnly] = useState(false)
   const [prompt, setPrompt] = useState('')
   const [skills, setSkills] = useState('')
@@ -192,6 +198,7 @@ export function WebhooksView({ onClose }: WebhooksViewProps) {
     setDescription('')
     setEvents('')
     setDeliver('log')
+    setDeliverChatId('')
     setDeliverOnly(false)
     setPrompt('')
     setSkills('')
@@ -228,6 +235,7 @@ export function WebhooksView({ onClose }: WebhooksViewProps) {
 
       const res = await createWebhook({
         deliver,
+        deliver_chat_id: CHAT_TARGET_DELIVERS.has(deliver) && deliverChatId.trim() ? deliverChatId.trim() : undefined,
         deliver_only: deliverOnly,
         description: description.trim() || undefined,
         events: eventsList.length ? eventsList : undefined,
@@ -245,7 +253,7 @@ export function WebhooksView({ onClose }: WebhooksViewProps) {
     } finally {
       setCreating(false)
     }
-  }, [deliver, deliverOnly, description, events, name, prompt, reload, resetForm, skills, w])
+  }, [deliver, deliverChatId, deliverOnly, description, events, name, prompt, reload, resetForm, skills, w])
 
   const handleToggle = useCallback(
     async (subName: string, nextEnabled: boolean) => {
@@ -509,6 +517,18 @@ export function WebhooksView({ onClose }: WebhooksViewProps) {
                   </div>
                 </Field>
               </div>
+
+              {CHAT_TARGET_DELIVERS.has(deliver) && (
+                <Field htmlFor="webhook-deliver-target" label={w.fieldDeliverTarget}>
+                  <Input
+                    id="webhook-deliver-target"
+                    onChange={e => setDeliverChatId(e.target.value)}
+                    placeholder={w.fieldDeliverTargetPlaceholder}
+                    value={deliverChatId}
+                  />
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{w.fieldDeliverTargetHelp}</p>
+                </Field>
+              )}
 
               <DialogFooter>
                 <Button disabled={creating} size="sm" type="submit">

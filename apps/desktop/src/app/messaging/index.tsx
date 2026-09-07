@@ -1,6 +1,7 @@
 import { useStore } from '@nanostores/react'
 import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 
 import { PageLoader } from '@/components/page-loader'
 import { StatusDot, type StatusTone } from '@/components/status-dot'
@@ -36,6 +37,7 @@ import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
 import { DetailColumn, ListColumn, MasterDetail } from '../master-detail'
 import { PageSearchShell } from '../page-search-shell'
+import { WEBHOOKS_ROUTE } from '../routes'
 import { CREDENTIAL_CONTROL_CLASS } from '../settings/credential-key-ui'
 import { ListRow } from '../settings/primitives'
 import { SettingsProfileScope } from '../settings/profile-scope'
@@ -50,6 +52,7 @@ import { SlackQuickSetup } from './slack-quick-setup'
 import { SmsQuickSetup } from './sms-quick-setup'
 import { TelegramQuickSetup } from './telegram-quick-setup'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
+import { WebhookRoutesPanel } from './webhook-routes-panel'
 import { WhatsAppQuickSetup } from './whatsapp-quick-setup'
 
 interface MessagingViewProps extends React.ComponentProps<'section'> {
@@ -146,6 +149,9 @@ const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging'])
 
     case 'twilioAccountSid':
       return m.envErrors.twilioAccountSid
+
+    case 'webhookSecret':
+      return m.envErrors.webhookSecret
 
     case 'whatsappNumber':
       return m.envErrors.whatsappNumber(error.value)
@@ -728,6 +734,7 @@ function PlatformDetail({
 }) {
   const { t } = useI18n()
   const m = t.messaging
+  const navigate = useNavigate()
   const [showAdvanced, setShowAdvanced] = useState(false)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -877,6 +884,10 @@ function PlatformDetail({
           scopeProfile={scopeProfile}
         />
       )}
+
+      {/* Webhook setup lives on the dedicated Webhooks page (routes + their
+          secrets), not on this card — bridge straight to it. */}
+      {platform.id === 'webhook' && <WebhookRoutesPanel onManageRoutes={() => void navigate(WEBHOOKS_ROUTE)} />}
 
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
@@ -1070,7 +1081,7 @@ const PLATFORM_INTRO: Record<string, string> = {
   api_server:
     'Expose Work4You as an OpenAI-compatible API. Generate a strong key in Quick setup above, then point Open WebUI / LobeChat / your own chat frontend at the base URL it shows. The key grants full agent access (terminal included) — treat it like a password.',
   webhook:
-    'Run an HTTP server that other tools (GitHub, GitLab, custom apps) can POST to. Use the secret to verify signatures.'
+    'Turn events from GitHub, GitLab, Stripe, or your own apps into agent runs. Each route is its own URL with its own signing secret — create and manage routes in "Webhook routes" above; nothing is received until at least one route exists. The optional fields below are the listener port and a global fallback secret.'
 }
 
 const introCopy = (platform: MessagingPlatformInfo, m: Translations['messaging']) =>
