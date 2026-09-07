@@ -46,8 +46,8 @@ vi.mock("@/contexts/useProfileScope", () => ({
   useProfileScope: () => ({ profile: "" }),
 }));
 
-vi.mock("@work4you/ui/ui/components/spinner", () => ({
-  Spinner: () => <span>spinner</span>,
+vi.mock("@/components/page-loader", () => ({
+  PageLoader: ({ label }: { label?: string }) => <span>{label ?? "loader"}</span>,
 }));
 
 function emptyGraph(): StarmapGraph {

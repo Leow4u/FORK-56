@@ -133,10 +133,10 @@ export const CenteredThreadSpinner: FC = () => {
       <Loader
         aria-hidden="true"
         className="size-12 text-midground/70"
-        pathSteps={220}
+        pathSteps={180}
         role="presentation"
-        strokeScale={0.72}
-        type="rose-curve"
+        strokeScale={0.85}
+        type="orbit-ring"
       />
     </div>
   )

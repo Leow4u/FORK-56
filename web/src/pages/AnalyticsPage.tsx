@@ -19,6 +19,7 @@ import type {
 import { timeAgo } from "@/lib/utils";
 import { Button } from "@work4you/ui/ui/components/button";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
+import { PageLoader } from "@/components/page-loader";
 import { Stats } from "@work4you/ui/ui/components/stats";
 import { Card, CardContent, CardHeader, CardTitle } from "@work4you/ui/ui/components/card";
 import { usePageHeader } from "@/contexts/usePageHeader";
@@ -522,11 +523,7 @@ export default function AnalyticsPage() {
         </Card>
       )}
 
-      {showTokens && loading && !data && (
-        <div className="flex items-center justify-center py-24">
-          <Spinner className="text-2xl text-primary" />
-        </div>
-      )}
+      {showTokens && loading && !data && <PageLoader className="py-24" />}
 
       {showTokens && error && (
         <Card>
