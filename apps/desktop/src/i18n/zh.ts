@@ -1782,6 +1782,10 @@ export const zh: Translations = {
     testFailed: name => `${name} 测试失败`,
     fixHighlighted: '请修正高亮标出的字段，然后重新保存。',
     envErrors: {
+      a2aPeerTokens: (value: string) =>
+        `${value} 不是 name:token 配对。请使用 alice:tok1,bob:tok2 — 每个对等体都需要名称和令牌。`,
+      a2aPublicUrl: (value: string) =>
+        `${value} 不是有效的公网 URL。请使用完整的 http(s) 地址，例如 https://your-tunnel.example。`,
       apiServerCorsOrigin: (value: string) =>
         `${value} 不是浏览器源（origin）。请使用完整的源，例如 https://chat.example.com（或 * 允许全部）。`,
       apiServerHost: (value: string) =>
@@ -1951,6 +1955,62 @@ export const zh: Translations = {
       noRoutes: '还没有路由——在创建第一条路由之前，监听器不会接受任何请求。',
       tunnelHint: '发送方服务必须能访问该端口。如果 Work4You 运行在本地，请用 cloudflared 或 ngrok 之类的隧道暴露它。',
       manageRoutes: '管理 Webhook 路由'
+    },
+    a2aQuickSetup: {
+      title: '快速设置',
+      recommended: '推荐',
+      intro:
+        'A2A 有两个独立方向。入站让其他智能体可以调用此 Work4You。出站让你的智能体调用下方添加的对等体。启用频道不会打开出站工具——它们会保持关闭，直到你在此启用。',
+      replacesExisting: 'A2A 入站已配置。在此保存会更新绑定地址和令牌。',
+      inboundTitle: '入站 — 可被调用',
+      inboundHelp: '本机不需要令牌。监听器绑定 127.0.0.1:9900，并提供其他智能体可获取的 Agent Card。',
+      tokenHelp: '可选的共享 Bearer 令牌。仅当此监听器需要接受远程对等体时才需要。',
+      tokenLabel: 'Bearer 令牌',
+      tokenPlaceholder: '点击生成，或留空仅限本机',
+      generateToken: '生成令牌',
+      tokenWarning: '持有此令牌的任何人都能向你的智能体发送任务。请像密码一样对待它。',
+      bindLabel: '谁可以访问你',
+      bindLocalhost: '仅本机 (127.0.0.1)',
+      bindRemote: '网络 (0.0.0.0) — 需要令牌',
+      remoteNeedsToken: '监听器接受远程连接之前必须设置 Bearer 令牌。',
+      cardTitle: 'Agent Card URL',
+      cardHint: '对等体通过此 URL 发现你的智能体。如果在隧道或反向代理后面，请设置公网 URL，以便卡片公布可路由的地址。',
+      copyCardUrl: '复制 Agent Card URL',
+      publicUrlLabel: '公网 URL（可选）',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp: '在隧道或反向代理后面时，会公布在 Agent Card 上。',
+      networkExposedWarning: '远程绑定需要令牌。没有令牌时适配器仍只监听本机——请先生成令牌。',
+      saved: 'A2A 入站已保存并启用。重启网关即可启动监听器。',
+      saveFailed: '无法保存 A2A 入站设置。',
+      outboundTitle: '出站 — 调用其他智能体',
+      outboundHelp: '添加命名对等体，然后启用 a2a 工具集，智能体才能发现并调用它们。这与入站相互独立。',
+      peerNameLabel: '对等体名称',
+      peerNamePlaceholder: 'researcher',
+      peerUrlLabel: '对等体 URL',
+      peerUrlPlaceholder: 'http://research-box.local:9900',
+      peerTokenLabel: '对等体令牌（可选）',
+      peerTokenPlaceholder: '对等体期望的 Bearer 令牌',
+      peerCapsLabel: '能力（可选）',
+      peerCapsPlaceholder: 'web_search, research',
+      addPeer: '添加对等体',
+      addingPeer: '正在添加…',
+      peerAdded: '对等体已保存。',
+      peerAddFailed: '无法添加对等体。',
+      peerDeleted: '对等体已移除。',
+      peerDeleteFailed: '无法移除对等体。',
+      noPeers: '还没有出站对等体——在添加之前，此卡片只让你可被调用。',
+      peerHasAuth: '有令牌',
+      peerNoAuth: '无令牌',
+      deletePeer: '移除',
+      enableOutbound: '启用出站工具',
+      outboundEnabled: '出站工具已启用。如果会话已在运行，请重启网关。',
+      outboundEnableFailed: '无法启用 a2a 工具集。',
+      outboundAlreadyOn: '出站工具已开启。',
+      outboundOffWarning: '入站已开启，但出站工具仍关闭——启用之前智能体无法调用对等体。',
+      nameRequired: '请先输入对等体名称和 URL。',
+      copied: '已复制到剪贴板。',
+      copyFailed: '无法复制到剪贴板。',
+      openGuide: 'A2A 指南'
     },
     smsQuickSetup: {
       title: '快速设置',
@@ -2256,6 +2316,29 @@ export const zh: Translations = {
         label: 'CORS 源',
         placeholder: 'https://chat.example.com',
         help: '仅浏览器端前端直接调用 API 时需要。服务器到服务器的集成不需要 CORS。'
+      },
+      A2A_BEARER_TOKEN: {
+        label: '共享 Bearer 令牌',
+        help: '可选。与非本机绑定一起使用，以便远程对等体进行身份验证。请像密码一样对待。'
+      },
+      A2A_PEER_TOKENS: {
+        label: '按对等体令牌',
+        help: '可选。name:token 配对（alice:tok1,bob:tok2）。每个远程智能体使用自己的凭据。'
+      },
+      A2A_HOST: {
+        label: '绑定地址',
+        placeholder: '127.0.0.1',
+        help: '默认 127.0.0.1（仅本机）。只有设置令牌后才使用 0.0.0.0——否则适配器仍只监听本机。'
+      },
+      A2A_PORT: { label: '端口', placeholder: '9900' },
+      A2A_AGENT_NAME: {
+        label: '智能体名称',
+        help: '在 Agent Card 上公布的名称。默认为基于主机名的值。'
+      },
+      A2A_PUBLIC_URL: {
+        label: '公网 URL',
+        placeholder: 'https://your-tunnel.example',
+        help: '在隧道或反向代理后面时，公布在 Agent Card 上的可路由 URL。'
       }
     },
     platformIntro: {
@@ -2287,7 +2370,8 @@ export const zh: Translations = {
       api_server:
         '把 Work4You 暴露为兼容 OpenAI 的 API。在上方的快速设置中生成一个强密钥，然后把 Open WebUI / LobeChat / 你自己的聊天前端指向它显示的基础 URL。密钥授予完整的智能体访问权限（包括终端）——请像密码一样对待。',
       webhook:
-        '把来自 GitHub、GitLab、Stripe 或你自己应用的事件变成智能体运行。每条路由都是独立的 URL 和签名密钥——请在上方"Webhook 路由"中创建和管理；至少要有一条路由才会接收任何请求。下方的可选字段是监听端口和全局回退密钥。'
+        '把来自 GitHub、GitLab、Stripe 或你自己应用的事件变成智能体运行。每条路由都是独立的 URL 和签名密钥——请在上方"Webhook 路由"中创建和管理；至少要有一条路由才会接收任何请求。下方的可选字段是监听端口和全局回退密钥。',
+      a2a: '两个独立方向：入站把 Work4You 暴露为 A2A 智能体（Agent Card 位于 /.well-known/agent-card.json；设置令牌前仅限本机）。出站是上方快速设置中的 a2a 工具集和命名对等体——启用频道不会打开这些工具。下方的可选字段是绑定、令牌、公网 URL 和公布名称。'
     }
   },
 

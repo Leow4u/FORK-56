@@ -60,6 +60,10 @@ optional_env:
     description: "Name advertised on this agent's Agent Card (default: hostname-derived)."
     prompt: "A2A agent name"
     password: false
+  - name: A2A_PUBLIC_URL
+    description: "Routable URL advertised on the Agent Card (reverse proxies, tunnels, Kubernetes)."
+    prompt: "A2A public URL (or empty)"
+    password: false
   - name: A2A_ALLOW_ALL_USERS
     description: "Allow any authenticated A2A peer to reach the agent (dev only)."
     prompt: "Allow all A2A peers? (true/false)"

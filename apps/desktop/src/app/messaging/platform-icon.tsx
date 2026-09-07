@@ -25,6 +25,16 @@ import { cn } from '@/lib/utils'
 // enough to stay legible. At small sizes the bars blend into a distinctive
 // silhouette; the wide triangular spacing preserves the logo's identity.
 // ---------------------------------------------------------------------------
+function A2AIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" {...props}>
+      <circle cx="5.5" cy="12" r="2.6" />
+      <circle cx="18.5" cy="12" r="2.6" />
+      <path d="M9.4 9.4h4.4l-1.15-1.25M14.6 14.6H10.2l1.15 1.25" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 function PhotonIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg fill="currentColor" viewBox="0 0 24 24" {...props}>
@@ -69,6 +79,7 @@ const PLATFORM_ICONS: Record<string, PlatformIconSpec> = {
   sms: { Icon: MessageSquareText, color: '#F43F5E', kind: 'generic' },
   webhook: { Icon: LinkIcon, color: '#71717A', kind: 'generic' },
   api_server: { Icon: Globe, color: '#64748B', kind: 'generic' },
+  a2a: { Icon: A2AIcon, color: '#6366F1', kind: 'generic' },
   weixin: { Icon: SiWechat, color: '#07C160', kind: 'brand' },
   qqbot: { Icon: SiQq, color: '#EB1923', kind: 'brand' },
   yuanbao: { Icon: SiBilibili, color: '#FB7299', kind: 'brand' }

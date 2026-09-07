@@ -73,6 +73,26 @@ class TestBindSafety:
         assert security.resolve_bind_host() == "localhost"
 
 
+class TestIsConnected:
+    """Inbound A2A opts in via extra.enabled or A2A_PORT, not config.enabled."""
+
+    def test_synthetic_enabled_probe_is_not_enough(self, monkeypatch):
+        """The enablement gate probes with PlatformConfig(enabled=True)."""
+        from plugins.platforms.a2a import is_connected
+
+        monkeypatch.delenv("A2A_PORT", raising=False)
+        assert is_connected(SimpleNamespace(enabled=True, extra={})) is False
+        assert is_connected(SimpleNamespace(enabled=False, extra={})) is False
+
+    def test_legacy_extra_enabled_and_port_env_still_count(self, monkeypatch):
+        from plugins.platforms.a2a import is_connected
+
+        monkeypatch.delenv("A2A_PORT", raising=False)
+        assert is_connected(SimpleNamespace(enabled=False, extra={"enabled": True})) is True
+        monkeypatch.setenv("A2A_PORT", "9900")
+        assert is_connected(SimpleNamespace(enabled=False, extra={})) is True
+
+
 class TestPeerIdentity:
     """authenticate() maps presented credentials to identities; the body
     never asserts who the peer is."""

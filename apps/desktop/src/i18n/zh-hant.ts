@@ -1346,6 +1346,10 @@ export const zhHant = defineLocale({
     testFailed: name => `${name} 測試失敗`,
     fixHighlighted: '請修正標示的欄位，然後再儲存一次。',
     envErrors: {
+      a2aPeerTokens: (value: string) =>
+        `${value} 不是 name:token 配對。請使用 alice:tok1,bob:tok2 — 每個對等體都需要名稱和權杖。`,
+      a2aPublicUrl: (value: string) =>
+        `${value} 不是有效的公開 URL。請使用完整的 http(s) 位址，例如 https://your-tunnel.example。`,
       apiServerCorsOrigin: (value: string) =>
         `${value} 不是瀏覽器來源（origin）。請使用完整的來源，例如 https://chat.example.com（或 * 允許全部）。`,
       apiServerHost: (value: string) =>
@@ -1515,6 +1519,62 @@ export const zhHant = defineLocale({
       noRoutes: '還沒有路由——在建立第一條路由之前，監聽器不會接受任何請求。',
       tunnelHint: '傳送方服務必須能存取該連接埠。如果 Work4You 在本機執行，請用 cloudflared 或 ngrok 之類的通道公開它。',
       manageRoutes: '管理 Webhook 路由'
+    },
+    a2aQuickSetup: {
+      title: '快速設定',
+      recommended: '建議',
+      intro:
+        'A2A 有兩個獨立方向。入站讓其他代理可以呼叫此 Work4You。出站讓你的代理呼叫下方新增的對等體。啟用頻道不會開啟出站工具——它們會保持關閉，直到你在此啟用。',
+      replacesExisting: 'A2A 入站已設定。在此儲存會更新繫結位址和權杖。',
+      inboundTitle: '入站 — 可被呼叫',
+      inboundHelp: '本機不需要權杖。監聽器繫結 127.0.0.1:9900，並提供其他代理可取得的 Agent Card。',
+      tokenHelp: '可選的共用 Bearer 權杖。僅當此監聽器需要接受遠端對等體時才需要。',
+      tokenLabel: 'Bearer 權杖',
+      tokenPlaceholder: '點擊產生，或留空僅限本機',
+      generateToken: '產生權杖',
+      tokenWarning: '持有此權杖的任何人都能向你的代理傳送任務。請像密碼一樣對待它。',
+      bindLabel: '誰可以存取你',
+      bindLocalhost: '僅本機 (127.0.0.1)',
+      bindRemote: '網路 (0.0.0.0) — 需要權杖',
+      remoteNeedsToken: '監聽器接受遠端連線之前必須設定 Bearer 權杖。',
+      cardTitle: 'Agent Card URL',
+      cardHint: '對等體透過此 URL 發現你的代理。如果在通道或反向代理後面，請設定公開 URL，以便卡片公布可路由的位址。',
+      copyCardUrl: '複製 Agent Card URL',
+      publicUrlLabel: '公開 URL（可選）',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp: '在通道或反向代理後面時，會公布在 Agent Card 上。',
+      networkExposedWarning: '遠端繫結需要權杖。沒有權杖時轉接器仍只監聽本機——請先產生權杖。',
+      saved: 'A2A 入站已儲存並啟用。重新啟動閘道即可啟動監聽器。',
+      saveFailed: '無法儲存 A2A 入站設定。',
+      outboundTitle: '出站 — 呼叫其他代理',
+      outboundHelp: '新增命名對等體，然後啟用 a2a 工具集，代理才能發現並呼叫它們。這與入站相互獨立。',
+      peerNameLabel: '對等體名稱',
+      peerNamePlaceholder: 'researcher',
+      peerUrlLabel: '對等體 URL',
+      peerUrlPlaceholder: 'http://research-box.local:9900',
+      peerTokenLabel: '對等體權杖（可選）',
+      peerTokenPlaceholder: '對等體期望的 Bearer 權杖',
+      peerCapsLabel: '能力（可選）',
+      peerCapsPlaceholder: 'web_search, research',
+      addPeer: '新增對等體',
+      addingPeer: '正在新增…',
+      peerAdded: '對等體已儲存。',
+      peerAddFailed: '無法新增對等體。',
+      peerDeleted: '對等體已移除。',
+      peerDeleteFailed: '無法移除對等體。',
+      noPeers: '還沒有出站對等體——在新增之前，此卡片只讓你可被呼叫。',
+      peerHasAuth: '有權杖',
+      peerNoAuth: '無權杖',
+      deletePeer: '移除',
+      enableOutbound: '啟用出站工具',
+      outboundEnabled: '出站工具已啟用。如果工作階段已在執行，請重新啟動閘道。',
+      outboundEnableFailed: '無法啟用 a2a 工具集。',
+      outboundAlreadyOn: '出站工具已開啟。',
+      outboundOffWarning: '入站已開啟，但出站工具仍關閉——啟用之前代理無法呼叫對等體。',
+      nameRequired: '請先輸入對等體名稱和 URL。',
+      copied: '已複製到剪貼簿。',
+      copyFailed: '無法複製到剪貼簿。',
+      openGuide: 'A2A 指南'
     },
     smsQuickSetup: {
       title: '快速設定',
@@ -1821,6 +1881,29 @@ export const zhHant = defineLocale({
         label: 'CORS 來源',
         placeholder: 'https://chat.example.com',
         help: '僅瀏覽器端前端直接呼叫 API 時需要。伺服器對伺服器的整合不需要 CORS。'
+      },
+      A2A_BEARER_TOKEN: {
+        label: '共用 Bearer 權杖',
+        help: '可選。與非本機繫結一起使用，以便遠端對等體進行身分驗證。請像密碼一樣對待。'
+      },
+      A2A_PEER_TOKENS: {
+        label: '依對等體權杖',
+        help: '可選。name:token 配對（alice:tok1,bob:tok2）。每個遠端代理使用自己的憑證。'
+      },
+      A2A_HOST: {
+        label: '繫結位址',
+        placeholder: '127.0.0.1',
+        help: '預設 127.0.0.1（僅本機）。只有設定權杖後才使用 0.0.0.0——否則轉接器仍只監聽本機。'
+      },
+      A2A_PORT: { label: '連接埠', placeholder: '9900' },
+      A2A_AGENT_NAME: {
+        label: '代理名稱',
+        help: '在 Agent Card 上公布的名稱。預設為基於主機名的值。'
+      },
+      A2A_PUBLIC_URL: {
+        label: '公開 URL',
+        placeholder: 'https://your-tunnel.example',
+        help: '在通道或反向代理後面時，公布在 Agent Card 上的可路由 URL。'
       }
     },
     platformIntro: {}

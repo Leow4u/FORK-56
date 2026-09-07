@@ -35,10 +35,18 @@ def validate_config(config) -> bool:
 
 
 def is_connected(config) -> bool:
-    """Considered 'connected' when the platform is explicitly enabled.
+    """True only on an explicit inbound opt-in, never on ``config.enabled``.
 
-    The gateway only instantiates enabled platforms, so reaching here means the
-    operator opted in; the adapter itself enforces bind safety.
+    ``load_gateway_config`` and ``_platform_status`` probe plugins with a
+    synthetic ``PlatformConfig(enabled=True)`` to ask "would this be
+    configured if we turned it on?". Treating that flag as connected
+    auto-enables inbound A2A on every profile, which then fails multiplex
+    startup (A2A binds a port) and skips the setup-wizard gateway section.
+
+    Dashboard ``setup_free`` already marks the Messaging card configured
+    without this hook. A YAML ``platforms.a2a.enabled: true`` still wins
+    at runtime because the enablement gate skips ``is_connected`` when
+    the user already wrote enabled.
     """
     extra = getattr(config, "extra", {}) or {}
     return bool(extra.get("enabled")) or bool(os.getenv("A2A_PORT"))

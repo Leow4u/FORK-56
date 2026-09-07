@@ -2070,6 +2070,214 @@ class TestWebServerEndpoints:
         assert "3 active routes" in message
         assert "9644" in message
 
+    def test_a2a_catalog_needs_no_setup_and_hides_allow_all(self):
+        """Localhost + port 9900 is a valid inbound setup — no credential is
+        required. A2A_ALLOW_ALL_USERS / A2A_HOME_CHANNEL stay hidden by suffix;
+        A2A_PUBLIC_URL is the extra field peers need behind a tunnel."""
+        resp = self.client.get("/api/messaging/platforms")
+        assert resp.status_code == 200
+        rows = {row["id"]: row for row in resp.json()["platforms"]}
+        a2a = rows["a2a"]
+
+        keys = {field["key"] for field in a2a["env_vars"]}
+        assert {
+            "A2A_PEER_TOKENS",
+            "A2A_BEARER_TOKEN",
+            "A2A_HOST",
+            "A2A_PORT",
+            "A2A_AGENT_NAME",
+            "A2A_PUBLIC_URL",
+        } <= keys
+        assert "A2A_ALLOW_ALL_USERS" not in keys
+        assert "A2A_HOME_CHANNEL" not in keys
+        assert not any(field["required"] for field in a2a["env_vars"])
+        assert a2a["docs_url"].rstrip("/").endswith("messaging/a2a")
+        # setup_free keeps the card off "Needs setup". is_connected must
+        # stay a real opt-in (extra.enabled / A2A_PORT) so multiplex and
+        # the setup wizard do not auto-enable inbound A2A.
+        assert a2a["configured"] is True
+        assert a2a["state"] != "not_configured"
+
+    def test_a2a_test_endpoint_runs_the_live_probe(self, monkeypatch):
+        """Once enabled, /test must route into _a2a_live_test with the
+        env + extra bind and the outbound peer count."""
+        import work4you_cli.web_server as ws
+        from work4you_cli.config import load_config, save_config, save_env_value
+
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["a2a"] = {"enabled": True}
+        save_config(cfg)
+        save_env_value("A2A_PORT", "9901")
+
+        seen: dict = {}
+
+        def fake_live_test(env, extra, peer_count, gateway_running):
+            seen["env"] = env
+            seen["peer_count"] = peer_count
+            seen["gateway_running"] = gateway_running
+            return True, "Listener is up on port 9901."
+
+        monkeypatch.setattr(ws, "_a2a_live_test", fake_live_test)
+
+        body = self.client.post("/api/messaging/platforms/a2a/test").json()
+        assert body["ok"] is True
+        assert "Listener is up" in body["message"]
+        assert seen["env"]["A2A_PORT"] == "9901"
+        assert seen["peer_count"] == 0
+
+    def test_a2a_test_counts_outbound_peers(self, monkeypatch):
+        import work4you_cli.web_server as ws
+        from work4you_cli.config import load_config, save_config
+
+        cfg = load_config()
+        cfg.setdefault("platforms", {})["a2a"] = {
+            "enabled": True,
+            "extra": {"port": 9910},
+        }
+        cfg["a2a_agents"] = {
+            "researcher": {"url": "http://127.0.0.1:9902"},
+            "coder": {"url": "http://127.0.0.1:9903"},
+        }
+        save_config(cfg)
+
+        seen: dict = {}
+
+        def fake_live_test(env, extra, peer_count, gateway_running):
+            seen["peer_count"] = peer_count
+            seen["extra_port"] = extra.get("port")
+            return True, "ok"
+
+        monkeypatch.setattr(ws, "_a2a_live_test", fake_live_test)
+        body = self.client.post("/api/messaging/platforms/a2a/test").json()
+        assert body["ok"] is True
+        assert seen["peer_count"] == 2
+        assert seen["extra_port"] == 9910
+
+    def test_a2a_resolve_endpoint_prefers_env_then_config(self):
+        import work4you_cli.web_server as ws
+
+        host, port, probe, err = ws._a2a_resolve_endpoint(
+            {"A2A_PORT": "9901", "A2A_HOST": "127.0.0.1"}, {"port": 7000}
+        )
+        assert (host, port, probe, err) == ("127.0.0.1", 9901, "127.0.0.1", "")
+
+        host, port, probe, err = ws._a2a_resolve_endpoint({}, {"port": 7000})
+        assert port == 7000
+        assert err == ""
+
+        host, port, probe, err = ws._a2a_resolve_endpoint({}, {})
+        assert port == 9900
+
+        host, port, probe, err = ws._a2a_resolve_endpoint({"A2A_PORT": "notaport"}, {})
+        assert port is None
+        assert "A2A_PORT" in err
+
+        host, port, probe, err = ws._a2a_resolve_endpoint({"A2A_PORT": "70000"}, {})
+        assert port is None
+        assert "65535" in err
+
+        # Non-loopback host is ignored until a token is set.
+        host, port, probe, err = ws._a2a_resolve_endpoint(
+            {"A2A_HOST": "0.0.0.0"}, {}
+        )
+        assert host == "127.0.0.1"
+        host, port, probe, err = ws._a2a_resolve_endpoint(
+            {"A2A_HOST": "0.0.0.0", "A2A_BEARER_TOKEN": "secret-token-123456"}, {}
+        )
+        assert host == "0.0.0.0"
+        assert probe == "127.0.0.1"
+
+    def test_a2a_live_test_reports_listener_and_peer_state(self, monkeypatch):
+        import work4you_cli.web_server as ws
+
+        ok, message = ws._a2a_live_test({}, {}, 0, gateway_running=False)
+        assert ok is True
+        assert "starts with the gateway" in message
+        assert "agent-card.json" in message
+        assert "localhost-only" in message
+
+        class _Resp:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", lambda *a, **k: _Resp())
+        ok, message = ws._a2a_live_test({}, {}, 1, gateway_running=True)
+        assert ok is True
+        assert "Listener is up on port 9900" in message
+        assert "1 outbound peer" in message
+
+        ok, message = ws._a2a_live_test({}, {}, 0, gateway_running=True)
+        assert ok is True
+        assert "No outbound peers" in message
+
+        def _boom(*a, **k):
+            raise OSError("refused")
+
+        monkeypatch.setattr(ws.urllib.request, "urlopen", _boom)
+        ok, message = ws._a2a_live_test({"A2A_PORT": "9911"}, {}, 0, gateway_running=True)
+        assert ok is False
+        assert "9911" in message
+
+    def test_a2a_agents_crud_never_returns_tokens(self):
+        from work4you_cli.config import load_config
+
+        created = self.client.post(
+            "/api/a2a/agents",
+            json={
+                "name": "researcher",
+                "url": "http://research-box.local:9900",
+                "token": "super-secret-peer-token",
+                "capabilities": ["web_search", "research"],
+                "timeout": 90,
+            },
+        )
+        assert created.status_code == 200
+        row = created.json()
+        assert row["name"] == "researcher"
+        assert row["url"] == "http://research-box.local:9900"
+        assert row["has_auth"] is True
+        assert row["capabilities"] == ["web_search", "research"]
+        assert row["timeout"] == 90
+        assert "token" not in row
+        assert "auth" not in row
+        assert "super-secret-peer-token" not in created.text
+
+        listed = self.client.get("/api/a2a/agents").json()
+        assert [agent["name"] for agent in listed["agents"]] == ["researcher"]
+        assert listed["agents"][0]["has_auth"] is True
+        assert "token" not in listed["agents"][0]
+
+        on_disk = load_config()["a2a_agents"]["researcher"]
+        assert on_disk["auth"]["token"] == "super-secret-peer-token"
+
+        clash = self.client.post(
+            "/api/a2a/agents",
+            json={"name": "researcher", "url": "http://other.local:9900"},
+        )
+        assert clash.status_code == 409
+
+        bad = self.client.post(
+            "/api/a2a/agents",
+            json={"name": "bad name", "url": "http://127.0.0.1:9900"},
+        )
+        assert bad.status_code == 400
+
+        no_scheme = self.client.post(
+            "/api/a2a/agents",
+            json={"name": "coder", "url": "research-box.local:9900"},
+        )
+        assert no_scheme.status_code == 400
+
+        deleted = self.client.delete("/api/a2a/agents/researcher")
+        assert deleted.status_code == 200
+        assert self.client.get("/api/a2a/agents").json()["agents"] == []
+        assert self.client.delete("/api/a2a/agents/researcher").status_code == 404
+
     def test_sms_catalog_surfaces_everything_the_adapter_requires(self):
         """The SMS card must require every var the adapter hard-fails without
         at connect() (from-number, public webhook URL), surface the allowlist

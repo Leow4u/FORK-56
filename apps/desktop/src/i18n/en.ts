@@ -1591,6 +1591,10 @@ export const en: Translations = {
     testFailed: name => `${name} test failed`,
     fixHighlighted: 'Fix the highlighted fields, then save again.',
     envErrors: {
+      a2aPeerTokens: (value: string) =>
+        `${value} is not a name:token pair. Use alice:tok1,bob:tok2 — each peer needs both a name and a token.`,
+      a2aPublicUrl: (value: string) =>
+        `${value} is not a valid public URL. Use the full http(s) address, like https://your-tunnel.example.`,
       apiServerCorsOrigin: (value: string) =>
         `${value} is not a browser origin. Use full origins like https://chat.example.com (or * to allow all).`,
       apiServerHost: (value: string) =>
@@ -1775,6 +1779,67 @@ export const en: Translations = {
       tunnelHint:
         'The sending service must be able to reach this port. If Work4You runs on your local machine, expose it with a tunnel like cloudflared or ngrok.',
       manageRoutes: 'Manage webhook routes'
+    },
+    a2aQuickSetup: {
+      title: 'Quick setup',
+      recommended: 'Recommended',
+      intro:
+        'A2A has two independent directions. Inbound makes this Work4You callable by other agents. Outbound lets your agent call peers you add below. Enabling the channel does not turn on outbound tools — those stay off until you enable them here.',
+      replacesExisting: 'A2A inbound is already configured. Saving here updates the bind and token.',
+      inboundTitle: 'Inbound — be callable',
+      inboundHelp:
+        'No token is required for localhost. The listener binds 127.0.0.1:9900 and serves an Agent Card other agents can fetch.',
+      tokenHelp: 'Optional shared bearer token. Required only if this listener should accept remote peers.',
+      tokenLabel: 'Bearer token',
+      tokenPlaceholder: 'Click Generate, or leave empty for localhost-only',
+      generateToken: 'Generate token',
+      tokenWarning: 'Anyone with this token can send tasks to your agent. Treat it like a password.',
+      bindLabel: 'Who can reach you',
+      bindLocalhost: 'This machine only (127.0.0.1)',
+      bindRemote: 'Network (0.0.0.0) — requires a token',
+      remoteNeedsToken: 'A bearer token is required before the listener can accept remote connections.',
+      cardTitle: 'Agent Card URL',
+      cardHint:
+        'Peers fetch this URL to discover your agent. Behind a tunnel or reverse proxy, set the public URL so the card advertises a routable address.',
+      copyCardUrl: 'Copy Agent Card URL',
+      publicUrlLabel: 'Public URL (optional)',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp: 'Advertised on the Agent Card when you sit behind a tunnel or reverse proxy.',
+      networkExposedWarning:
+        'A remote bind needs a token. Without one the adapter still listens on localhost only — generate a token first.',
+      saved: 'A2A inbound saved and enabled. Restart the gateway to start the listener.',
+      saveFailed: 'Could not save the A2A inbound settings.',
+      outboundTitle: 'Outbound — call other agents',
+      outboundHelp:
+        'Add named peers, then enable the a2a toolset so the agent can discover and call them. This is independent of inbound.',
+      peerNameLabel: 'Peer name',
+      peerNamePlaceholder: 'researcher',
+      peerUrlLabel: 'Peer URL',
+      peerUrlPlaceholder: 'http://research-box.local:9900',
+      peerTokenLabel: 'Peer token (optional)',
+      peerTokenPlaceholder: 'Bearer token the peer expects',
+      peerCapsLabel: 'Capabilities (optional)',
+      peerCapsPlaceholder: 'web_search, research',
+      addPeer: 'Add peer',
+      addingPeer: 'Adding…',
+      peerAdded: 'Peer saved.',
+      peerAddFailed: 'Could not add the peer.',
+      peerDeleted: 'Peer removed.',
+      peerDeleteFailed: 'Could not remove the peer.',
+      noPeers: 'No outbound peers yet — this card only makes you callable until you add one.',
+      peerHasAuth: 'Has token',
+      peerNoAuth: 'No token',
+      deletePeer: 'Remove',
+      enableOutbound: 'Enable outbound tools',
+      outboundEnabled: 'Outbound tools enabled. Restart the gateway if a session is already running.',
+      outboundEnableFailed: 'Could not enable the a2a toolset.',
+      outboundAlreadyOn: 'Outbound tools are on.',
+      outboundOffWarning:
+        'Inbound is on, but outbound tools are still off — the agent cannot call peers until you enable them.',
+      nameRequired: 'Enter a peer name and URL first.',
+      copied: 'Copied to the clipboard.',
+      copyFailed: 'Could not copy to the clipboard.',
+      openGuide: 'A2A guide'
     },
     smsQuickSetup: {
       title: 'Quick setup',
@@ -2120,6 +2185,29 @@ export const en: Translations = {
         label: 'CORS origins',
         placeholder: 'https://chat.example.com',
         help: 'Only for browser-side frontends calling the API directly. Server-to-server integrations don’t need CORS.'
+      },
+      A2A_BEARER_TOKEN: {
+        label: 'Shared bearer token',
+        help: 'Optional. Required together with a non-localhost bind so remote peers can authenticate. Treat it like a password.'
+      },
+      A2A_PEER_TOKENS: {
+        label: 'Per-peer tokens',
+        help: 'Optional. name:token pairs (alice:tok1,bob:tok2). Each remote agent gets its own credential.'
+      },
+      A2A_HOST: {
+        label: 'Bind address',
+        placeholder: '127.0.0.1',
+        help: 'Default 127.0.0.1 (this machine only). Use 0.0.0.0 only after setting a token — otherwise the adapter stays on localhost.'
+      },
+      A2A_PORT: { label: 'Port', placeholder: '9900' },
+      A2A_AGENT_NAME: {
+        label: 'Agent name',
+        help: 'Name advertised on the Agent Card. Defaults to a hostname-derived value.'
+      },
+      A2A_PUBLIC_URL: {
+        label: 'Public URL',
+        placeholder: 'https://your-tunnel.example',
+        help: 'Routable URL advertised on the Agent Card when you sit behind a tunnel or reverse proxy.'
       }
     },
     platformIntro: {}

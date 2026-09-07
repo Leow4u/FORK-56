@@ -396,6 +396,27 @@ export interface WebhookEnableResponse {
   restart_started?: boolean
 }
 
+/** Public A2A peer row — the backend never returns the bearer token. */
+export interface A2AAgentInfo {
+  capabilities: string[]
+  has_auth: boolean
+  name: string
+  timeout: number
+  url: string
+}
+
+export interface A2AAgentsResponse {
+  agents: A2AAgentInfo[]
+}
+
+export interface A2AAgentCreatePayload {
+  capabilities?: string[]
+  name: string
+  timeout?: number
+  token?: string
+  url: string
+}
+
 export interface GatewayReadyPayload {
   skin?: unknown
 }

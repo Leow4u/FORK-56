@@ -1,4 +1,7 @@
 import type {
+  A2AAgentCreatePayload,
+  A2AAgentInfo,
+  A2AAgentsResponse,
   MessagingPlatformsResponse,
   MessagingPlatformTestResponse,
   MessagingPlatformUpdate,
@@ -229,5 +232,36 @@ export function setWebhookEnabled(
     path: `/api/webhooks/${encodeURIComponent(name)}/enabled`,
     method: 'PUT',
     body: { enabled }
+  })
+}
+
+// -- A2A outbound peers -------------------------------------------------------
+// Named peers live in the profile's config.yaml (a2a_agents). Tokens are
+// write-only: list/create responses expose has_auth only.
+
+export function getA2AAgents(profile?: null | string): Promise<A2AAgentsResponse> {
+  return work4youApi<A2AAgentsResponse>({
+    ...profileScoped(profile),
+    path: '/api/a2a/agents'
+  })
+}
+
+export function createA2AAgent(
+  body: A2AAgentCreatePayload,
+  profile?: null | string
+): Promise<A2AAgentInfo> {
+  return work4youApi<A2AAgentInfo>({
+    ...profileScoped(profile),
+    path: '/api/a2a/agents',
+    method: 'POST',
+    body: { ...body, ...(profile ? { profile } : {}) }
+  })
+}
+
+export function deleteA2AAgent(name: string, profile?: null | string): Promise<{ name: string; ok: boolean }> {
+  return work4youApi<{ name: string; ok: boolean }>({
+    ...profileScoped(profile),
+    path: `/api/a2a/agents/${encodeURIComponent(name)}`,
+    method: 'DELETE'
   })
 }

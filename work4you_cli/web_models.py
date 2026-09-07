@@ -457,6 +457,15 @@ class PairingRevoke(BaseModel):
 
 # --- from web_server.py (originally lines 13793-13804) ---
 
+class A2AAgentCreate(BaseModel):
+    name: str
+    url: str
+    token: Optional[str] = None
+    capabilities: List[str] = []
+    timeout: Optional[int] = None
+    profile: Optional[str] = None
+
+
 class WebhookCreate(BaseModel):
     name: str
     description: Optional[str] = None

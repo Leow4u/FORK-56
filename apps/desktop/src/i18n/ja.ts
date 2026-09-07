@@ -1384,6 +1384,10 @@ export const ja = defineLocale({
     testFailed: name => `${name} のテストに失敗しました`,
     fixHighlighted: 'ハイライトされた項目を修正してから、もう一度保存してください。',
     envErrors: {
+      a2aPeerTokens: (value: string) =>
+        `${value} は name:token のペアではありません。alice:tok1,bob:tok2 のように、各ピアに名前とトークンが必要です。`,
+      a2aPublicUrl: (value: string) =>
+        `${value} は有効な公開 URL ではありません。https://your-tunnel.example のような完全な http(s) アドレスを使ってください。`,
       apiServerCorsOrigin: (value: string) =>
         `${value} はブラウザーのオリジンではありません。https://chat.example.com のような完全なオリジン（または * で全許可）を使用してください。`,
       apiServerHost: (value: string) =>
@@ -1571,6 +1575,67 @@ export const ja = defineLocale({
       tunnelHint:
         '送信側サービスがこのポートに到達できる必要があります。Work4You をローカルで実行している場合は、cloudflared や ngrok などのトンネルで公開してください。',
       manageRoutes: 'Webhook ルートを管理'
+    },
+    a2aQuickSetup: {
+      title: 'クイックセットアップ',
+      recommended: '推奨',
+      intro:
+        'A2A には独立した 2 方向があります。インバウンドはこの Work4You を他のエージェントから呼び出せるようにします。アウトバウンドは下で追加したピアをエージェントが呼べるようにします。チャンネルを有効にしてもアウトバウンドツールはオンになりません。ここで有効化するまでオフのままです。',
+      replacesExisting: 'A2A インバウンドはすでに設定済みです。ここで保存するとバインドとトークンが更新されます。',
+      inboundTitle: 'インバウンド — 呼び出しを受ける',
+      inboundHelp:
+        'ローカルホストではトークンは不要です。リスナーは 127.0.0.1:9900 にバインドし、他のエージェントが取得できる Agent Card を提供します。',
+      tokenHelp: '任意の共有 Bearer トークン。このリスナーがリモートピアを受け付ける場合にのみ必要です。',
+      tokenLabel: 'Bearer トークン',
+      tokenPlaceholder: '生成をクリック。空欄ならローカルホストのみ',
+      generateToken: 'トークンを生成',
+      tokenWarning: 'このトークンを持つ人は誰でもエージェントにタスクを送れます。パスワードと同じように扱ってください。',
+      bindLabel: '誰が到達できるか',
+      bindLocalhost: 'このマシンのみ (127.0.0.1)',
+      bindRemote: 'ネットワーク (0.0.0.0) — トークン必須',
+      remoteNeedsToken: 'リスナーがリモート接続を受け付ける前に Bearer トークンが必要です。',
+      cardTitle: 'Agent Card URL',
+      cardHint:
+        'ピアはこの URL を取得してエージェントを発見します。トンネルやリバースプロキシの背後では、カードが到達可能なアドレスを広告するよう公開 URL を設定してください。',
+      copyCardUrl: 'Agent Card URL をコピー',
+      publicUrlLabel: '公開 URL（任意）',
+      publicUrlPlaceholder: 'https://your-tunnel.example',
+      publicUrlHelp: 'トンネルやリバースプロキシの背後にいるとき、Agent Card に広告されます。',
+      networkExposedWarning:
+        'リモートバインドにはトークンが必要です。トークンが無いとアダプターはローカルホストのままです。先にトークンを生成してください。',
+      saved: 'A2A インバウンドを保存して有効にしました。ゲートウェイを再起動するとリスナーが起動します。',
+      saveFailed: 'A2A インバウンドの設定を保存できませんでした。',
+      outboundTitle: 'アウトバウンド — 他のエージェントを呼ぶ',
+      outboundHelp:
+        '名前付きピアを追加し、a2a ツールセットを有効にするとエージェントがそれらを発見して呼べます。インバウンドとは独立しています。',
+      peerNameLabel: 'ピア名',
+      peerNamePlaceholder: 'researcher',
+      peerUrlLabel: 'ピア URL',
+      peerUrlPlaceholder: 'http://research-box.local:9900',
+      peerTokenLabel: 'ピアトークン（任意）',
+      peerTokenPlaceholder: 'ピアが期待する Bearer トークン',
+      peerCapsLabel: '能力（任意）',
+      peerCapsPlaceholder: 'web_search, research',
+      addPeer: 'ピアを追加',
+      addingPeer: '追加中…',
+      peerAdded: 'ピアを保存しました。',
+      peerAddFailed: 'ピアを追加できませんでした。',
+      peerDeleted: 'ピアを削除しました。',
+      peerDeleteFailed: 'ピアを削除できませんでした。',
+      noPeers: 'アウトバウンドピアはまだありません。追加するまで、このカードは呼び出しを受けるだけです。',
+      peerHasAuth: 'トークンあり',
+      peerNoAuth: 'トークンなし',
+      deletePeer: '削除',
+      enableOutbound: 'アウトバウンドツールを有効化',
+      outboundEnabled: 'アウトバウンドツールを有効にしました。セッションが実行中ならゲートウェイを再起動してください。',
+      outboundEnableFailed: 'a2a ツールセットを有効にできませんでした。',
+      outboundAlreadyOn: 'アウトバウンドツールはオンです。',
+      outboundOffWarning:
+        'インバウンドはオンですが、アウトバウンドツールはオフのままです。有効化するまでエージェントはピアを呼べません。',
+      nameRequired: '先にピア名と URL を入力してください。',
+      copied: 'クリップボードにコピーしました。',
+      copyFailed: 'クリップボードにコピーできませんでした。',
+      openGuide: 'A2A ガイド'
     },
     smsQuickSetup: {
       title: 'クイックセットアップ',
@@ -1906,6 +1971,29 @@ export const ja = defineLocale({
         label: 'CORS オリジン',
         placeholder: 'https://chat.example.com',
         help: 'ブラウザー側フロントエンドが API を直接呼ぶ場合のみ必要。サーバー間連携に CORS は不要です。'
+      },
+      A2A_BEARER_TOKEN: {
+        label: '共有 Bearer トークン',
+        help: '任意。ローカルホスト以外にバインドするときは必須です。パスワードと同じように扱ってください。'
+      },
+      A2A_PEER_TOKENS: {
+        label: 'ピアごとのトークン',
+        help: '任意。name:token のペア（alice:tok1,bob:tok2）。各リモートエージェントが独自の資格情報を持ちます。'
+      },
+      A2A_HOST: {
+        label: 'バインドアドレス',
+        placeholder: '127.0.0.1',
+        help: '既定は 127.0.0.1（このマシンのみ）。0.0.0.0 はトークン設定後だけ使ってください。無いとアダプターはローカルホストのままです。'
+      },
+      A2A_PORT: { label: 'ポート', placeholder: '9900' },
+      A2A_AGENT_NAME: {
+        label: 'エージェント名',
+        help: 'Agent Card で広告される名前。既定はホスト名から導出されます。'
+      },
+      A2A_PUBLIC_URL: {
+        label: '公開 URL',
+        placeholder: 'https://your-tunnel.example',
+        help: 'トンネルやリバースプロキシの背後にいるとき、Agent Card に広告される到達可能な URL。'
       }
     },
     platformIntro: {}

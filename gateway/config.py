@@ -436,6 +436,7 @@ PORT_BINDING_PLATFORM_VALUES = frozenset({
     "sms",
     "whatsapp_cloud",
     "line",
+    "a2a",
 })
 
 # Platforms whose port-binding status depends on connection mode. Feishu in
