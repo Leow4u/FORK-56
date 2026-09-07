@@ -209,6 +209,9 @@ export interface MessagingEnvVarInfo {
   redacted_value: null | string
   required: boolean
   url: null | string
+  /** Plaintext value for NON-secret fields only (ports, hosts, model names);
+   *  always null for is_password fields. */
+  value?: null | string
 }
 
 export interface MessagingHomeChannel {

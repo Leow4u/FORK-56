@@ -1384,6 +1384,12 @@ export const ja = defineLocale({
     testFailed: name => `${name} のテストに失敗しました`,
     fixHighlighted: 'ハイライトされた項目を修正してから、もう一度保存してください。',
     envErrors: {
+      apiServerCorsOrigin: (value: string) =>
+        `${value} はブラウザーのオリジンではありません。https://chat.example.com のような完全なオリジン（または * で全許可）を使用してください。`,
+      apiServerHost: (value: string) =>
+        `${value} は有効なバインドアドレスではありません。127.0.0.1 や 0.0.0.0 のようなホスト名または IP を使用してください（http:// やパスは不要）。`,
+      apiServerKey:
+        'API キーは 16 文字以上で、プレースホルダーは使えません。弱いキーではサーバーが起動を拒否します。「キーを生成」を使用してください。',
       discordToken:
         'Discord 開発者ポータル（Bot → Reset Token）から完全なボットトークンを貼り付けてください。ドットで区切られた 3 つの部分で構成されます。',
       discordUserId: (value: string) =>
@@ -1522,6 +1528,31 @@ export const ja = defineLocale({
       httpFieldsRequired: 'まずイベント URL とアプリのサービスアカウントメールを入力してください。',
       saved: 'Google Chat を保存して有効にしました。ゲートウェイを再起動すると接続します。',
       saveFailed: 'Google Chat の設定を保存できませんでした。'
+    },
+    apiServerQuickSetup: {
+      title: 'クイックセットアップ',
+      recommended: '推奨',
+      intro:
+        'Work4You を OpenAI 互換 API として公開し、Open WebUI・LobeChat・自作のチャットフロントエンドから利用できます。強力なキーを生成して保存し、下の接続情報を相手ツールにコピーしてください。',
+      replacesExisting: 'API サーバーは設定済みです。ここで保存すると保存済みのキーを置き換えます。',
+      keyHelp: '外部ツールが認証に使う API キー（16 文字以上）。',
+      keyLabel: 'API キー',
+      keyPlaceholder: '「キーを生成」をクリックするか、自分のキーを貼り付け',
+      generateKey: 'キーを生成',
+      keyWarning:
+        'このキーを持つ人は誰でもエージェントを実行できます（ターミナルとファイルを含む）。パスワードと同じように扱い、サーバー側の設定にのみ保存し、公開ページには絶対に置かないでください。',
+      keyRequired: 'まず API キーを生成するか貼り付けてください。',
+      connectionTitle: 'ツールを接続',
+      connectionHint: '外部ツールで OpenAI 互換プロバイダーを追加し、このベース URL とキーを入力します。',
+      copyBaseUrl: 'ベース URL をコピー',
+      copied: 'クリップボードにコピーしました。',
+      copyFailed: 'クリップボードにコピーできませんでした。',
+      modelHint: (model: string) => `ツールで選択するモデル名：${model}`,
+      networkExposedWarning:
+        'サーバーはネットワークから到達可能なアドレスにバインドされています。キーを持つネットワーク上の誰でもこのマシンでエージェントコマンドを実行できます。HTTPS 付きリバースプロキシの利用を推奨します。',
+      openGuide: 'Open WebUI ガイド',
+      saved: 'API サーバーを保存して有効にしました。ゲートウェイを再起動すると起動します。',
+      saveFailed: 'API サーバーの設定を保存できませんでした。'
     },
     smsQuickSetup: {
       title: 'クイックセットアップ',
@@ -1838,6 +1869,25 @@ export const ja = defineLocale({
       WHATSAPP_ALLOWED_USERS: {
         label: '許可する WhatsApp ユーザー',
         help: '推奨。カンマ区切りの電話番号または WhatsApp ID。'
+      },
+      API_SERVER_KEY: {
+        label: 'API キー',
+        help: '外部ツールが認証に使う Bearer トークン。16 文字以上——弱いキーではサーバーが起動を拒否します。'
+      },
+      API_SERVER_PORT: { label: 'ポート', placeholder: '8642' },
+      API_SERVER_HOST: {
+        label: 'バインドアドレス',
+        placeholder: '127.0.0.1',
+        help: '既定は 127.0.0.1（このマシンのみ）。0.0.0.0 にするとネットワークからの接続を受け付けます——その場合はキーがリモートアクセスを守ります。'
+      },
+      API_SERVER_MODEL_NAME: {
+        label: 'モデル名',
+        help: '/v1/models で公開される名前。既定はプロファイル名（または work4you）。'
+      },
+      API_SERVER_CORS_ORIGINS: {
+        label: 'CORS オリジン',
+        placeholder: 'https://chat.example.com',
+        help: 'ブラウザー側フロントエンドが API を直接呼ぶ場合のみ必要。サーバー間連携に CORS は不要です。'
       }
     },
     platformIntro: {}

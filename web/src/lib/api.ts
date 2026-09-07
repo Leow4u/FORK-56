@@ -1795,6 +1795,8 @@ export interface MessagingPlatformEnvVar {
   required: boolean;
   is_set: boolean;
   redacted_value: string | null;
+  /** Plaintext value for NON-secret fields only; always null for passwords. */
+  value?: string | null;
   description: string;
   prompt: string;
   help: string;

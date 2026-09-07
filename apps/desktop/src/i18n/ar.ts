@@ -1215,6 +1215,12 @@ export const ar = defineLocale({
     testFailed: name => `فشل اختبار ${name}`,
     fixHighlighted: 'صحّح الحقول المميزة ثم احفظ مرة أخرى.',
     envErrors: {
+      apiServerCorsOrigin: (value: string) =>
+        `${value} ليس أصل (origin) متصفح. استخدم أصولاً كاملة مثل https://chat.example.com (أو * للسماح للجميع).`,
+      apiServerHost: (value: string) =>
+        `${value} ليس عنوان ربط صالحاً. استخدم اسم مضيف أو عنوان IP مثل 127.0.0.1 أو 0.0.0.0 — بدون http://‎ أو مسارات.`,
+      apiServerKey:
+        'يجب أن يكون مفتاح API ‏16 حرفاً على الأقل وليس قيمة مؤقتة — يرفض الخادم البدء بمفتاح أضعف. استخدم «توليد مفتاح».',
       discordToken: 'الصق رمز البوت الكامل من بوابة مطوري Discord ‏(Bot → Reset Token) — ثلاثة أجزاء مفصولة بنقاط.',
       discordUserId: (value: string) =>
         `${value} ليس معرف مستخدم Discord رقميًا. فعّل وضع المطور في Discord، ثم انقر بزر الفأرة الأيمن على المستخدم → نسخ معرف المستخدم.`,
@@ -1346,6 +1352,31 @@ export const ar = defineLocale({
       httpFieldsRequired: 'أدخل عنوان الأحداث وبريد حساب خدمة التطبيق أولاً.',
       saved: 'تم حفظ Google Chat وتفعيله. أعد تشغيل البوابة للاتصال.',
       saveFailed: 'تعذّر حفظ إعدادات Google Chat.'
+    },
+    apiServerQuickSetup: {
+      title: 'الإعداد السريع',
+      recommended: 'موصى به',
+      intro:
+        'حوّل Work4You إلى واجهة API متوافقة مع OpenAI لأدوات مثل Open WebUI و LobeChat أو واجهة الدردشة الخاصة بك. ولّد مفتاحاً قوياً، احفظ، ثم انسخ تفاصيل الاتصال أدناه إلى الأداة الأخرى.',
+      replacesExisting: 'خادم API مُعدّ بالفعل. الحفظ هنا يستبدل المفتاح المخزّن.',
+      keyHelp: 'مفتاح API الذي تستخدمه الأداة الخارجية للمصادقة (16 حرفاً أو أكثر).',
+      keyLabel: 'مفتاح API',
+      keyPlaceholder: 'انقر «توليد مفتاح» أو الصق مفتاحك الخاص',
+      generateKey: 'توليد مفتاح',
+      keyWarning:
+        'أي شخص يملك هذا المفتاح يمكنه تشغيل وكيلك — بما في ذلك الطرفية والملفات. تعامل معه كأنه كلمة مرور: احتفظ به في إعدادات الخادم فقط، ولا تضعه أبداً في صفحة ويب عامة.',
+      keyRequired: 'ولّد أو الصق مفتاح API أولاً.',
+      connectionTitle: 'اربط أداتك',
+      connectionHint: 'في الأداة الخارجية، أضف مزوداً متوافقاً مع OpenAI بعنوان URL الأساسي هذا ومفتاحك.',
+      copyBaseUrl: 'انسخ عنوان URL الأساسي',
+      copied: 'تم النسخ إلى الحافظة.',
+      copyFailed: 'تعذّر النسخ إلى الحافظة.',
+      modelHint: (model: string) => `اسم النموذج الذي تختاره في الأداة: ${model}`,
+      networkExposedWarning:
+        'الخادم مرتبط بعنوان يمكن الوصول إليه من الشبكة — أي شخص على الشبكة يملك المفتاح يمكنه تنفيذ أوامر الوكيل على هذا الجهاز. يُفضّل استخدام وكيل عكسي مع HTTPS.',
+      openGuide: 'دليل Open WebUI',
+      saved: 'تم حفظ خادم API وتفعيله. أعد تشغيل البوابة لبدء تشغيله.',
+      saveFailed: 'تعذّر حفظ إعدادات خادم API.'
     },
     smsQuickSetup: {
       title: 'الإعداد السريع',
@@ -1686,6 +1717,25 @@ export const ar = defineLocale({
       WHATSAPP_ALLOWED_USERS: {
         label: 'مستخدمو WhatsApp المسموح بهم',
         help: 'موصى به. أرقام هواتف أو معرّفات WhatsApp مفصولة بفواصل.'
+      },
+      API_SERVER_KEY: {
+        label: 'مفتاح API',
+        help: 'رمز Bearer الذي تستخدمه الأدوات الخارجية للمصادقة. 16 حرفاً أو أكثر — يرفض الخادم البدء بمفتاح أضعف.'
+      },
+      API_SERVER_PORT: { label: 'المنفذ', placeholder: '8642' },
+      API_SERVER_HOST: {
+        label: 'عنوان الربط',
+        placeholder: '127.0.0.1',
+        help: 'الافتراضي 127.0.0.1 (هذا الجهاز فقط). استخدم 0.0.0.0 لقبول الاتصالات من الشبكة — عندها يحمي المفتاح الوصول عن بُعد.'
+      },
+      API_SERVER_MODEL_NAME: {
+        label: 'اسم النموذج',
+        help: 'الاسم المعلن على ‎/v1/models. الافتراضي اسم الملف الشخصي (أو work4you).'
+      },
+      API_SERVER_CORS_ORIGINS: {
+        label: 'أصول CORS',
+        placeholder: 'https://chat.example.com',
+        help: 'مطلوب فقط لواجهات المتصفح التي تستدعي API مباشرة. التكاملات من خادم إلى خادم لا تحتاج CORS.'
       }
     },
     platformIntro: {}

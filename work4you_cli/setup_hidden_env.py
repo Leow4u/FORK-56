@@ -46,6 +46,17 @@ SETUP_HIDDEN_ENV_SUFFIXES = (
     "_PROXY",
 )
 
+# Exact-name hides, for vars whose problem isn't a shared suffix:
+#
+#   API_SERVER_ENABLED   no gateway code reads it as an env var — enablement
+#                        is platforms.api_server.enabled in config.yaml (the
+#                        UI toggle) or auto-enable on a usable key (see
+#                        gateway/config.py). Offering it as an editable .env
+#                        field was a trap: typing "true" changed nothing.
+SETUP_HIDDEN_ENV_NAMES = frozenset({
+    "API_SERVER_ENABLED",
+})
+
 
 def is_setup_hidden_env(name: str) -> bool:
     """True when a var is self-configuring and shouldn't appear in setup forms.
@@ -53,4 +64,4 @@ def is_setup_hidden_env(name: str) -> bool:
     Callers must still keep any var a platform lists as *required* — hiding a
     required credential would make that platform unconfigurable from the UI.
     """
-    return name.endswith(SETUP_HIDDEN_ENV_SUFFIXES)
+    return name in SETUP_HIDDEN_ENV_NAMES or name.endswith(SETUP_HIDDEN_ENV_SUFFIXES)

@@ -41,6 +41,7 @@ import { ListRow } from '../settings/primitives'
 import { SettingsProfileScope } from '../settings/profile-scope'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
+import { ApiServerQuickSetup } from './api-server-quick-setup'
 import { DiscordQuickSetup } from './discord-quick-setup'
 import { EmailQuickSetup } from './email-quick-setup'
 import { GoogleChatQuickSetup } from './google-chat-quick-setup'
@@ -92,6 +93,15 @@ const trimEdits = (edits: Record<string, string>): Record<string, string> =>
 
 const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging']): string => {
   switch (error.code) {
+    case 'apiServerCorsOrigin':
+      return m.envErrors.apiServerCorsOrigin(error.value)
+
+    case 'apiServerHost':
+      return m.envErrors.apiServerHost(error.value)
+
+    case 'apiServerKey':
+      return m.envErrors.apiServerKey
+
     case 'discordToken':
       return m.envErrors.discordToken
 
@@ -859,6 +869,15 @@ function PlatformDetail({
         />
       )}
 
+      {platform.id === 'api_server' && (
+        <ApiServerQuickSetup
+          configured={platform.configured}
+          envVars={platform.env_vars}
+          onApplied={onQuickSetupApplied}
+          scopeProfile={scopeProfile}
+        />
+      )}
+
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
         <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
@@ -1049,7 +1068,7 @@ const PLATFORM_INTRO: Record<string, string> = {
   google_chat:
     'Use Quick setup above — pick how events reach Work4You: Cloud Pub/Sub (recommended, no public URL) or an HTTPS callback endpoint. Needs a Google Workspace account, a Chat app in the Google Cloud console, and a Service Account key (or Application Default Credentials).',
   api_server:
-    'Expose Work4You as an OpenAI-compatible API. Set an auth key, then point Open WebUI / LobeChat / etc. at the host:port.',
+    'Expose Work4You as an OpenAI-compatible API. Generate a strong key in Quick setup above, then point Open WebUI / LobeChat / your own chat frontend at the base URL it shows. The key grants full agent access (terminal included) — treat it like a password.',
   webhook:
     'Run an HTTP server that other tools (GitHub, GitLab, custom apps) can POST to. Use the secret to verify signatures.'
 }

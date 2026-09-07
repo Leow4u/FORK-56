@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { validateMessagingEnv } from './validate-env'
+import { isUsableApiServerKey, validateMessagingEnv } from './validate-env'
 
 describe('validateMessagingEnv', () => {
   it('accepts empty values so clearing a field is never blocked', () => {
@@ -206,6 +206,47 @@ describe('validateMessagingEnv', () => {
       code: 'emailAddress',
       value: 'not-an-email'
     })
+  })
+
+  it('mirrors the API server startup guard on the key (16+ chars, no placeholders)', () => {
+    expect(validateMessagingEnv('API_SERVER_KEY', 'a'.repeat(16))).toBeNull()
+    expect(validateMessagingEnv('API_SERVER_KEY', 'short-key')).toEqual({ code: 'apiServerKey' })
+    // Placeholder values the adapter rejects even when long enough is not a
+    // case here — placeholders in the list are all short — but the canonical
+    // ones must be caught regardless of casing.
+    expect(validateMessagingEnv('API_SERVER_KEY', 'CHANGEME')).toEqual({ code: 'apiServerKey' })
+    expect(validateMessagingEnv('API_SERVER_KEY', 'your_api_key_here')).toEqual({ code: 'apiServerKey' })
+  })
+
+  it('validates the API server port range and bind address shape', () => {
+    expect(validateMessagingEnv('API_SERVER_PORT', '8642')).toBeNull()
+    expect(validateMessagingEnv('API_SERVER_PORT', 'abc')).toEqual({ code: 'emailPort', value: 'abc' })
+    expect(validateMessagingEnv('API_SERVER_PORT', '70000')).toEqual({ code: 'emailPort', value: '70000' })
+    expect(validateMessagingEnv('API_SERVER_HOST', '127.0.0.1')).toBeNull()
+    expect(validateMessagingEnv('API_SERVER_HOST', '0.0.0.0')).toBeNull()
+    expect(validateMessagingEnv('API_SERVER_HOST', 'my-server.local')).toBeNull()
+    expect(validateMessagingEnv('API_SERVER_HOST', 'http://127.0.0.1')).toEqual({
+      code: 'apiServerHost',
+      value: 'http://127.0.0.1'
+    })
+    expect(validateMessagingEnv('API_SERVER_HOST', '127.0.0.1/v1')).toEqual({
+      code: 'apiServerHost',
+      value: '127.0.0.1/v1'
+    })
+  })
+
+  it('requires full origins in the API server CORS list', () => {
+    expect(validateMessagingEnv('API_SERVER_CORS_ORIGINS', 'https://chat.example.com, *')).toBeNull()
+    expect(validateMessagingEnv('API_SERVER_CORS_ORIGINS', 'chat.example.com')).toEqual({
+      code: 'apiServerCorsOrigin',
+      value: 'chat.example.com'
+    })
+  })
+
+  it('generates keys that pass the startup guard', () => {
+    expect(isUsableApiServerKey('a'.repeat(16))).toBe(true)
+    expect(isUsableApiServerKey('changeme')).toBe(false)
+    expect(isUsableApiServerKey('  short  ')).toBe(false)
   })
 
   it('leaves keys without a client-checkable shape alone', () => {
