@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { fireEvent } from "@testing-library/dom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router";
@@ -41,6 +42,7 @@ const apiMocks = vi.hoisted(() => ({
     ],
     approved: [],
   })),
+  updateMessagingPlatform: vi.fn(async () => ({ ok: true })),
   restartGateway: vi.fn(async () => ({
     ok: true,
     name: "gateway-restart",
@@ -107,6 +109,7 @@ describe("ChannelsPage (Messaging)", () => {
     localStorage.clear();
     apiMocks.getMessagingPlatforms.mockClear();
     apiMocks.getPairing.mockClear();
+    apiMocks.updateMessagingPlatform.mockClear();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -286,5 +289,103 @@ describe("ChannelsPage (Messaging)", () => {
     expect(text).toContain("which Teams cannot reach");
     expect(text).toContain("anyone who can find the bot in your tenant");
     expect(text).toContain("Application (client) ID");
+  });
+
+  it("shows the WhatsApp Cloud API hint with the callback URL, its warnings, and a verify token generator", async () => {
+    const envVar = (key: string, prompt: string, required = false, isPassword = false) => ({
+      key,
+      prompt,
+      required,
+      is_set: false,
+      is_password: isPassword,
+      description: "",
+      help: null,
+      redacted_value: null,
+    });
+    apiMocks.getMessagingPlatforms.mockResolvedValueOnce({
+      env_path: "~/.work4you/.env",
+      gateway_start_command: "work4you gateway start",
+      platforms: [
+        {
+          id: "whatsapp_cloud",
+          name: "WhatsApp Cloud API",
+          description: "Meta's official WhatsApp Business Cloud API.",
+          docs_url: "https://work4you.ai/docs/user-guide/messaging/whatsapp-cloud",
+          enabled: false,
+          configured: false,
+          gateway_running: false,
+          state: "disabled",
+          error_code: null,
+          error_message: null,
+          updated_at: null,
+          home_channel: null,
+          env_vars: [
+            envVar("WHATSAPP_CLOUD_PHONE_NUMBER_ID", "Phone number ID", true),
+            envVar("WHATSAPP_CLOUD_ACCESS_TOKEN", "Access token", true, true),
+            envVar("WHATSAPP_CLOUD_VERIFY_TOKEN", "Webhook verify token", false, true),
+            envVar("WHATSAPP_CLOUD_PUBLIC_URL", "Public HTTPS origin (or empty)"),
+          ],
+        },
+      ],
+    });
+
+    await renderPage();
+
+    const configure = Array.from(container.querySelectorAll("button")).find((button) =>
+      (button.textContent ?? "").includes("Configure"),
+    );
+    await act(async () => {
+      configure?.click();
+    });
+
+    let text = container.textContent ?? "";
+    expect(text).toContain("official WhatsApp Business API");
+    // The callback falls back to the local bind until a public origin is set,
+    // and that fallback is exactly what Meta cannot reach.
+    expect(text).toContain("http://127.0.0.1:8090/whatsapp/webhook");
+    expect(text).toContain("Copy callback URL");
+    expect(text).toContain("which Meta cannot reach");
+    expect(text).toContain("anyone who messages your business number");
+    expect(text).toContain("Phone number ID");
+
+    // Generate fills the (password) verify token field with a 64-hex secret.
+    const generate = Array.from(container.querySelectorAll("button")).find((button) =>
+      (button.textContent ?? "").includes("Generate verify token"),
+    );
+    expect(generate).toBeTruthy();
+    await act(async () => {
+      generate?.click();
+    });
+    const verifyInput = container.querySelector<HTMLInputElement>("#field-WHATSAPP_CLOUD_VERIFY_TOKEN");
+    expect(verifyInput?.value).toMatch(/^[0-9a-f]{64}$/);
+
+    // A public origin swaps the callback to the tunnel and clears the warning.
+    const publicUrlInput = container.querySelector<HTMLInputElement>("#field-WHATSAPP_CLOUD_PUBLIC_URL");
+    expect(publicUrlInput).toBeTruthy();
+    await act(async () => {
+      fireEvent.change(publicUrlInput as HTMLInputElement, { target: { value: "https://tunnel.example/" } });
+    });
+    text = container.textContent ?? "";
+    expect(text).toContain("https://tunnel.example/whatsapp/webhook");
+    expect(text).not.toContain("which Meta cannot reach");
+
+    // Saving with a phone *number* pasted into the Phone number ID is refused
+    // with the specific hint, and the API is never called.
+    const tokenInput = container.querySelector<HTMLInputElement>("#field-WHATSAPP_CLOUD_ACCESS_TOKEN");
+    const phoneInput = container.querySelector<HTMLInputElement>("#field-WHATSAPP_CLOUD_PHONE_NUMBER_ID");
+    await act(async () => {
+      fireEvent.change(tokenInput as HTMLInputElement, { target: { value: `EAA${"x".repeat(120)}` } });
+      fireEvent.change(phoneInput as HTMLInputElement, { target: { value: "15551234567" } });
+    });
+    const save = Array.from(container.querySelectorAll("button")).find((button) =>
+      /Save/.test(button.textContent ?? ""),
+    );
+    expect(save).toBeTruthy();
+    await act(async () => {
+      save?.click();
+    });
+    text = container.textContent ?? "";
+    expect(text).toContain("looks like the phone number itself");
+    expect(apiMocks.updateMessagingPlatform).not.toHaveBeenCalled();
   });
 });
