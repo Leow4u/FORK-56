@@ -87,6 +87,8 @@ The downloadable Windows installer is the electron-builder NSIS pack (`npm run d
 
 Public downloads (`https://work4you.ai/downloads/Work4You-Setup.exe` and `.dmg`) redirect to GitHub `releases/latest`, which is the `desktop-v*` installer series. A plain **Run workflow** on `Release Desktop Installer` (empty `tag`) bumps that series (for example `desktop-v0.0.8` → `desktop-v0.0.9`), tags the run's commit so the asar install-stamp matches, and marks the new release Latest. Pass `tag=latest` to rebuild the current Latest in place, or `tag=desktop-vX.Y.Z` for an explicit tag. Do not use `apps/bootstrap-installer` `package.json` — that is the Tauri setup wizard, not the Electron app.
 
+Packaged **Update now** (Windows/macOS) downloads that installer instead of running `work4you update`. CLI/source installs still use the git rebuild path.
+
 Local `npm run dist:win` packs an NSIS/MSI for development and does not Authenticode-sign (electron-builder's `winCodeSign` path is disabled on purpose). macOS notarization still uses `APPLE_*` / `CSC_LINK` when those credentials are present.
 
 ### How it works

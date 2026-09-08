@@ -3286,6 +3286,8 @@ export const en: Translations = {
     availableTitleBackend: 'Backend update available',
     availableBodyBackend: 'A newer version of the connected Work4You backend is ready to install.',
     availableBodyNoChangelog: 'A newer version is ready. Release notes aren’t available for this install type.',
+    availableBodyInstaller:
+      'A new Work4You installer is ready. It replaces the app in about a minute — no long rebuild from source.',
     updateNow: 'Update now',
     maybeLater: 'Maybe later',
     moreChanges: count => `+ ${count} more change${count === 1 ? '' : 's'} included.`,
@@ -3301,6 +3303,8 @@ export const en: Translations = {
     done: 'Done',
     applyingBody:
       'The Work4You updater takes over in its own window and reopens Work4You automatically when it’s done. Please don’t reopen Work4You yourself while it’s updating.',
+    applyingBodyInstaller:
+      'Downloading the signed installer. Work4You will close so the installer can replace the app. Don’t reopen it yourself until setup finishes.',
     applyingBodyBackend:
       'The remote backend is applying the update and will restart. Work4You reconnects automatically when it’s back.',
     applyingClose: 'This window will close while the update runs, then Work4You reopens on its own.',

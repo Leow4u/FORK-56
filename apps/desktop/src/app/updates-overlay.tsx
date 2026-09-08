@@ -111,7 +111,9 @@ export function UpdatesOverlay() {
         onOpenAutoFocus={preventCloseButtonAutoFocus}
         showCloseButton={phase !== 'applying'}
       >
-        {phase === 'applying' && <ApplyingView apply={apply} isBackend={isBackend} />}
+        {phase === 'applying' && (
+          <ApplyingView apply={apply} isBackend={isBackend} isInstaller={status?.channel === 'installer'} />
+        )}
 
         {phase === 'manual' && (
           <ManualView command={apply.command ?? null} message={apply.message} onDone={() => handleClose(false)} />
@@ -239,7 +241,7 @@ function IdleView({
   // backend, not the local client — say so. When there are no commit rows to
   // show (e.g. pip/non-git backend), degrade to honest "no release notes" copy
   // instead of generic filler.
-  const { title, body } = resolveUpdateCopy({ target, shownItems, copy: u })
+  const { title, body } = resolveUpdateCopy({ target, shownItems, copy: u, channel: status.channel })
 
   return (
     <div className="grid gap-5 px-6 pb-6 pt-7 pr-8">
@@ -275,7 +277,9 @@ function IdleView({
         </Button>
       </div>
 
-      {remaining > 0 && <p className="text-center text-xs text-muted-foreground">{u.moreChanges(remaining)}</p>}
+      {remaining > 0 && shownItems > 0 && (
+        <p className="text-center text-xs text-muted-foreground">{u.moreChanges(remaining)}</p>
+      )}
     </div>
   )
 }
@@ -382,11 +386,19 @@ function GuiSkewView({ message, onDone }: { message?: string; onDone: () => void
   )
 }
 
-function ApplyingView({ apply, isBackend }: { apply: UpdateApplyState; isBackend: boolean }) {
+function ApplyingView({
+  apply,
+  isBackend,
+  isInstaller
+}: {
+  apply: UpdateApplyState
+  isBackend: boolean
+  isInstaller: boolean
+}) {
   const { t } = useI18n()
   const u = t.updates
   const label = u.stages[apply.stage as DesktopUpdateStage] ?? u.stages.idle
-  const body = isBackend ? u.applyingBodyBackend : u.applyingBody
+  const body = isBackend ? u.applyingBodyBackend : isInstaller ? u.applyingBodyInstaller : u.applyingBody
   const currentMessage = apply.message.trim()
   const recentLog = apply.log.slice(-4)
 

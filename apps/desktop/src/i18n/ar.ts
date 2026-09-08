@@ -2713,6 +2713,7 @@ export const ar = defineLocale({
     availableTitleBackend: 'يتوفر تحديث للواجهة الخلفية',
     availableBodyBackend: 'إصدار أحدث من واجهة Work4You الخلفية المتصلة جاهز للتثبيت.',
     availableBodyNoChangelog: 'إصدار أحدث جاهز. ملاحظات الإصدار غير متاحة لنوع التثبيت هذا.',
+    availableBodyInstaller: 'مثبّت Work4You جديد جاهز. يستبدل التطبيق في نحو دقيقة — دون إعادة بناء طويلة من المصدر.',
     updateNow: 'التحديث الآن',
     maybeLater: 'ربما لاحقا',
     moreChanges: count => `+ ${count} تغيير${count === 1 ? '' : 'ات'} إضافي مُضمَّن.`,
@@ -2727,6 +2728,8 @@ export const ar = defineLocale({
     done: 'تم',
     applyingBody:
       'يتولّى مُحدِّث Work4You المهمة في نافذته الخاصة ويعيد فتح Work4You تلقائيا عند الانتهاء. الرجاء عدم إعادة فتح Work4You بنفسك أثناء التحديث.',
+    applyingBodyInstaller:
+      'جارٍ تنزيل المثبّت الموقّع. سيُغلق Work4You حتى يتمكن المثبّت من استبدال التطبيق. لا تُعِد فتحه بنفسك حتى ينتهي الإعداد.',
     applyingBodyBackend:
       'تطبّق الواجهة الخلفية البعيدة التحديث وستعيد التشغيل. يعيد Work4You الاتصال تلقائيا عند عودتها.',
     applyingClose: 'ستُغلق هذه النافذة أثناء تشغيل التحديث، ثم يعيد Work4You فتح نفسه تلقائيا.',

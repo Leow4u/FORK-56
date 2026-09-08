@@ -205,7 +205,14 @@ export function reportInstallMethodWarning(message: string | undefined): void {
  * on every new commit. The snooze is persisted, so it survives relaunches too.
  */
 export function maybeNotifyUpdateAvailable(status: DesktopUpdateStatus | null) {
-  if (!status || status.supported === false || status.error || !status.targetSha) {
+  if (!status || status.supported === false || status.error) {
+    return
+  }
+
+  // Git checks need a target SHA to know what "latest" is. The installer
+  // channel can still toast from updateAvailable when GitHub Latest is known
+  // but the tag's commit could not be resolved.
+  if (!status.targetSha && status.channel !== 'installer') {
     return
   }
 

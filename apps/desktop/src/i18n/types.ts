@@ -2563,6 +2563,7 @@ export interface Translations {
     availableTitleBackend: string
     availableBodyBackend: string
     availableBodyNoChangelog: string
+    availableBodyInstaller: string
     updateNow: string
     maybeLater: string
     moreChanges: (count: number) => string
@@ -2577,6 +2578,7 @@ export interface Translations {
     copied: string
     done: string
     applyingBody: string
+    applyingBodyInstaller: string
     applyingBodyBackend: string
     applyingClose: string
     errorTitle: string
