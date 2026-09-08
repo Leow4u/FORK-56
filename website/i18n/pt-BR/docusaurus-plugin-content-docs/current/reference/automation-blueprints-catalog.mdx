@@ -1,0 +1,38 @@
+---
+sidebar_position: 7
+title: "Automation Blueprints Catalog"
+description: "Automações prontas para uso — configure uma a partir do dashboard, CLI, TUI, qualquer mensageiro ou do aplicativo desktop."
+---
+
+import AutomationBlueprintsCatalog from '@site/src/components/AutomationBlueprintsCatalog';
+
+# Automation Blueprints
+
+Automation Blueprints são automações prontas para uso. Escolha uma, preencha
+alguns campos e o Work4You a agenda como um cron job — sem precisar de
+sintaxe cron.
+
+Todo blueprint funciona em **todas as superfícies**:
+
+- **Dashboard / aplicativo desktop** — abra a página Cron, mude para a aba
+  **Blueprints**, preencha o formulário e clique em *Schedule it*.
+- **CLI, TUI e mensageiros** — digite `/blueprint <nome>` (por exemplo,
+  `/blueprint morning-brief`) e o Work4You pergunta o que precisa saber, uma
+  pergunta de cada vez, e então agenda a tarefa. A correspondência do nome é
+  tolerante — um prefixo ou uma grafia aproximada é reconhecido. Usuários
+  avançados podem pular as perguntas informando os valores diretamente:
+  `/blueprint morning-brief time=08:00`.
+- **Aplicativo desktop** — clique em **Send to App** em qualquer blueprint e
+  ele abre com o comando já carregado no seu campo de composição.
+
+Blueprints nunca agendam nada silenciosamente — você sempre confirma antes de
+o job ser criado. Gerencie os jobs criados a qualquer momento com `/cron`.
+
+<AutomationBlueprintsCatalog />
+
+## Criando o seu próprio
+
+Um blueprint nada mais é do que uma skill com um bloco
+`metadata.work4you.blueprint` no frontmatter do seu `SKILL.md`. Veja
+[Creating Skills → Automation Blueprints](../developer-guide/creating-skills.md) para
+o esquema de slots e como publicar um.
