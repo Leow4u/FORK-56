@@ -210,9 +210,10 @@ import {
   downloadHttpsToFile,
   downloadProgressPercent,
   installerDownloadDest,
-  packagedInstallerSpawn,
+  packagedInstallerApplySpawn,
   resolvePackagedInstallerApplyPlan,
-  shouldUsePackagedInstallerUpdate
+  shouldUsePackagedInstallerUpdate,
+  writePackagedWindowsHandoffScript
 } from './packaged-installer-update'
 import {
   createParentStartMarkerResolver,
@@ -3524,10 +3525,14 @@ async function applyPackagedInstallerUpdates() {
     percent: 100
   })
 
-  const spawned = packagedInstallerSpawn({
+  const installDir = IS_WINDOWS ? path.dirname(process.execPath) : null
+  const spawned = packagedInstallerApplySpawn({
     platform: process.platform,
     installerPath: dest,
-    installDir: IS_WINDOWS ? path.dirname(process.execPath) : null
+    installDir,
+    desktopPid: process.pid,
+    relaunchExe: process.execPath,
+    handoffScriptPath: IS_WINDOWS ? writePackagedWindowsHandoffScript(destDir) : dest
   })
 
   const child = spawnUpdaterProcess(spawned.command, spawned.args, {

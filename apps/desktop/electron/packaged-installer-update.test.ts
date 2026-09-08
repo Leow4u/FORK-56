@@ -6,6 +6,9 @@
  */
 
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 
 import { test } from 'vitest'
 
@@ -18,8 +21,13 @@ import {
   isDesktopReleaseTag,
   isGitSha,
   nsisSilentArgs,
+  nsisSilentCommandLine,
+  NSIS_SILENT_UPDATE_FLAGS,
+  PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1,
+  packagedInstallerApplySpawn,
   packagedInstallerAssetName,
   packagedInstallerSpawn,
+  packagedWindowsHandoffExtraArgs,
   parseCommitSha,
   parseGithubRelease,
   resolveInstallerDownloadUrl,
@@ -27,6 +35,7 @@ import {
   sameGitCommit,
   selectReleaseAsset,
   shouldUsePackagedInstallerUpdate,
+  writePackagedWindowsHandoffScript,
   WINDOWS_SETUP_ASSET
 } from './packaged-installer-update'
 
@@ -138,13 +147,24 @@ test('compareStampToRelease: missing stamp still offers Latest (cannot prove cur
   })
 })
 
-test('nsisSilentArgs puts unquoted /D last', () => {
-  assert.deepEqual(nsisSilentArgs(null), ['/S'])
+test('nsisSilentArgs puts --force-run before unquoted /D', () => {
+  assert.deepEqual(nsisSilentArgs(null), ['/S', '--updated', '--force-run'])
   assert.deepEqual(nsisSilentArgs('C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You'), [
     '/S',
+    '--updated',
+    '--force-run',
     '/D=C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You'
   ])
-  assert.deepEqual(nsisSilentArgs('C:\\Program Files\\Work4You'), ['/S', '/D=C:\\Program Files\\Work4You'])
+  assert.deepEqual(nsisSilentArgs('C:\\Program Files\\Work4You'), [
+    '/S',
+    '--updated',
+    '--force-run',
+    '/D=C:\\Program Files\\Work4You'
+  ])
+  assert.equal(
+    nsisSilentCommandLine('C:\\Program Files\\Work4You'),
+    '/S --updated --force-run /D=C:\\Program Files\\Work4You'
+  )
 })
 
 test('packagedInstallerSpawn uses silent NSIS on Windows and open on macOS', () => {
@@ -156,13 +176,98 @@ test('packagedInstallerSpawn uses silent NSIS on Windows and open on macOS', () 
     }),
     {
       command: 'C:\\Temp\\Work4You-Setup.exe',
-      args: ['/S', '/D=C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You']
+      args: [
+        '/S',
+        '--updated',
+        '--force-run',
+        '/D=C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You'
+      ]
     }
   )
   assert.deepEqual(packagedInstallerSpawn({ platform: 'darwin', installerPath: '/tmp/Work4You.dmg' }), {
     command: '/usr/bin/open',
     args: ['/tmp/Work4You.dmg']
   })
+})
+
+test('packagedInstallerApplySpawn waits then relaunches on Windows via cmd start', () => {
+  const scriptPath = 'C:\\Temp\\work4you-packaged-installer-handoff.ps1'
+  const installerPath = 'C:\\Temp\\Work4You-Setup.exe'
+  const installDir = 'C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You'
+  const relaunchExe = 'C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You\\Work4You.exe'
+  const spawned = packagedInstallerApplySpawn({
+    platform: 'win32',
+    installerPath,
+    installDir,
+    desktopPid: 4242,
+    relaunchExe,
+    handoffScriptPath: scriptPath
+  })
+
+  assert.equal(spawned.command, 'cmd.exe')
+  assert.deepEqual(spawned.args, [
+    '/d',
+    '/s',
+    '/c',
+    'start',
+    '',
+    '/min',
+    'powershell',
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-File',
+    scriptPath,
+    ...packagedWindowsHandoffExtraArgs({
+      desktopPid: 4242,
+      installerPath,
+      installDir,
+      relaunchExe
+    })
+  ])
+  assert.equal(spawned.args.at(-1), installDir)
+  assert.ok(!spawned.args.some(arg => arg.startsWith('/D=')))
+})
+
+test('packagedInstallerApplySpawn still opens the DMG on macOS', () => {
+  assert.deepEqual(
+    packagedInstallerApplySpawn({
+      platform: 'darwin',
+      installerPath: '/tmp/Work4You.dmg',
+      desktopPid: 1,
+      relaunchExe: '/Applications/Work4You.app',
+      handoffScriptPath: '/tmp/unused.ps1'
+    }),
+    {
+      command: '/usr/bin/open',
+      args: ['/tmp/Work4You.dmg']
+    }
+  )
+})
+
+test('writePackagedWindowsHandoffScript writes the orchestrator next to the installer', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'w4y-handoff-'))
+
+  try {
+    const dest = writePackagedWindowsHandoffScript(tmp)
+    assert.equal(dest, path.join(tmp, 'work4you-packaged-installer-handoff.ps1'))
+    assert.equal(fs.readFileSync(dest, 'utf8'), PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1)
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test('Windows handoff script carries the same NSIS flags and waits for the desktop PID', () => {
+  for (const flag of NSIS_SILENT_UPDATE_FLAGS) {
+    assert.ok(
+      PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1.includes(flag),
+      `handoff script must pass NSIS flag ${flag}`
+    )
+  }
+
+  assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Wait-Process/)
+  assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Win32_Process/)
+  assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Start-DesktopDetached/)
 })
 
 test('downloadProgressPercent leaves headroom under 100 until spawn', () => {
