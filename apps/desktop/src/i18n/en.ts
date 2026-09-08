@@ -3412,6 +3412,10 @@ export const en: Translations = {
   onboarding: {
     headerTitle: "Let's get you setup with Work4You",
     headerDesc: 'Connect a model provider to start chatting. Most options take one click.',
+    signInToContinue: 'Sign in to continue',
+    sessionExpired: 'Your Work4You Portal session expired. Sign in again to keep chatting.',
+    continueWithPortal: 'Continue with Work4You Portal',
+    opensBrowser: 'Opens your browser',
     preparingInstall: 'Work4You is finishing install. This usually takes under a minute on first run.',
     starting: 'Starting Work4You…',
     lookingUpProviders: 'Looking up providers...',

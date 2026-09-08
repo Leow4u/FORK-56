@@ -2671,6 +2671,10 @@ export interface Translations {
   onboarding: {
     headerTitle: string
     headerDesc: string
+    signInToContinue: string
+    sessionExpired: string
+    continueWithPortal: string
+    opensBrowser: string
     preparingInstall: string
     starting: string
     lookingUpProviders: string

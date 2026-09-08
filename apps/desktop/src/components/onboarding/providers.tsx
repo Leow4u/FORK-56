@@ -23,6 +23,9 @@ const orderOf = (p: OAuthProvider) => PROVIDER_DISPLAY[p.id]?.order ?? 99
 export const sortProviders = (providers: OAuthProvider[]) =>
   [...providers].sort((a, b) => orderOf(a) - orderOf(b) || a.name.localeCompare(b.name))
 
+const FEATURED_ROW_CLASS =
+  'group relative flex w-full items-center justify-between gap-4 rounded-[8px] bg-primary/[0.06] px-3 py-2.5 text-left transition-colors hover:bg-primary/10'
+
 export function FeaturedProviderRow({
   onSelect,
   provider
@@ -34,11 +37,7 @@ export function FeaturedProviderRow({
   const loggedIn = provider.status?.logged_in
 
   return (
-    <button
-      className="group relative flex w-full items-center justify-between gap-4 rounded-[8px] bg-primary/[0.06] px-3 py-2.5 text-left transition-colors hover:bg-primary/10"
-      onClick={() => onSelect(provider)}
-      type="button"
-    >
+    <button className={FEATURED_ROW_CLASS} onClick={() => onSelect(provider)} type="button">
       <span aria-hidden className="arc-border arc-reverse arc-work4you" />
       <div className="min-w-0">
         <div className="flex items-center gap-2">
@@ -55,6 +54,31 @@ export function FeaturedProviderRow({
           )}
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">{t.onboarding.featuredPitch}</p>
+      </div>
+      <ChevronRight className="size-4 shrink-0 text-primary transition group-hover:translate-x-0.5" />
+    </button>
+  )
+}
+
+/** Returning-user Portal door: same tint as the featured row, no BrandMark,
+ *  Recommended chip, or first-run pitch. Header already owns the mark. */
+export function ContinuePortalRow({
+  onSelect,
+  provider
+}: {
+  onSelect: (provider: OAuthProvider) => void
+  provider: OAuthProvider
+}) {
+  const { t } = useI18n()
+
+  return (
+    <button className={FEATURED_ROW_CLASS} onClick={() => onSelect(provider)} type="button">
+      <span aria-hidden className="arc-border arc-reverse arc-work4you" />
+      <div className="min-w-0">
+        <span className="text-[length:var(--conversation-text-font-size)] font-semibold">
+          {t.onboarding.continueWithPortal}
+        </span>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{t.onboarding.opensBrowser}</p>
       </div>
       <ChevronRight className="size-4 shrink-0 text-primary transition group-hover:translate-x-0.5" />
     </button>

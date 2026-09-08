@@ -5,7 +5,7 @@ import { $desktopOnboarding, type DesktopOnboardingState, type OnboardingContext
 import { makeOAuthProvider } from '@/test/oauth-provider'
 import type { OAuthProvider } from '@/types/work4you'
 
-import { Picker } from '.'
+import { DesktopOnboardingOverlay, Picker } from '.'
 
 function setProviders(providers: OAuthProvider[], patch: Partial<DesktopOnboardingState> = {}) {
   $desktopOnboarding.set({
@@ -18,6 +18,7 @@ function setProviders(providers: OAuthProvider[], patch: Partial<DesktopOnboardi
     firstRunSkipped: false,
     manual: false,
     localEndpoint: false,
+    reauth: false,
     ...patch
   } satisfies DesktopOnboardingState)
 }
@@ -33,6 +34,14 @@ afterEach(() => {
     // jsdom localStorage should always be present; ignore if not.
   }
 
+  try {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('onboarding')
+    window.history.replaceState(window.history.state, '', url)
+  } catch {
+    // jsdom location should always be present; ignore if not.
+  }
+
   $desktopOnboarding.set({
     configured: null,
     flow: { status: 'idle' },
@@ -42,7 +51,8 @@ afterEach(() => {
     requested: false,
     firstRunSkipped: false,
     manual: false,
-    localEndpoint: false
+    localEndpoint: false,
+    reauth: false
   })
 })
 
@@ -57,6 +67,22 @@ describe('onboarding Picker', () => {
     expect(screen.queryByText('Anthropic API Key')).toBeNull()
     expect(screen.queryByText('OpenRouter')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Other providers' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'I have an API key' })).toBeNull()
+    expect(screen.queryByRole('button', { name: "I'll choose a provider later" })).toBeNull()
+    expect(screen.getByRole('button', { name: /Work4You Portal/ }).querySelector('img')).toBeTruthy()
+  })
+
+  it('Portal reauth offers continue, not Recommended or a BrandMark in the control', () => {
+    setProviders([makeOAuthProvider('work4you', 'Work4You Portal')], { reauth: true })
+    render(<Picker ctx={ctx} />)
+
+    const continueRow = screen.getByRole('button', { name: /Continue with Work4You Portal/ })
+    expect(continueRow).toBeTruthy()
+    expect(continueRow.querySelector('img')).toBeNull()
+    expect(screen.getByText('Opens your browser')).toBeTruthy()
+    expect(screen.queryByText('Recommended')).toBeNull()
+    expect(screen.queryByText(/300\+ frontier models/)).toBeNull()
+    expect(screen.queryByText('Fireworks AI')).toBeNull()
     expect(screen.queryByRole('button', { name: 'I have an API key' })).toBeNull()
     expect(screen.queryByRole('button', { name: "I'll choose a provider later" })).toBeNull()
   })
@@ -150,6 +176,55 @@ describe('onboarding Picker', () => {
       expect($desktopOnboarding.get().flow.status).toBe('awaiting_user')
     } finally {
       Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('onboarding')
+        window.history.replaceState(window.history.state, '', url)
+      } catch {
+        // ignore
+      }
     }
+  })
+})
+
+describe('DesktopOnboardingOverlay reauth chrome', () => {
+  const requestGateway: OnboardingContext['requestGateway'] = async () => undefined as never
+
+  it('shows Sign in to continue and hides the technical banner', () => {
+    setProviders([makeOAuthProvider('work4you', 'Work4You Portal')], {
+      configured: false,
+      reauth: true,
+      reason:
+        'No access token found for Work4You Portal login. setup.status reports configured credentials, but runtime resolution still failed.'
+    })
+    render(<DesktopOnboardingOverlay enabled={false} profile="default" requestGateway={requestGateway} />)
+
+    expect(screen.getByText('Sign in to continue')).toBeTruthy()
+    expect(screen.getByText('Your Work4You Portal session expired. Sign in again to keep chatting.')).toBeTruthy()
+    expect(screen.queryByText(/setup.status/)).toBeNull()
+    expect(screen.queryByText(/No access token found/)).toBeNull()
+    expect(screen.queryByText("Let's get you setup with Work4You")).toBeNull()
+  })
+
+  it('hides a Portal token banner even before the reauth flag is set', () => {
+    setProviders([makeOAuthProvider('work4you', 'Work4You Portal')], {
+      configured: false,
+      reauth: false,
+      reason:
+        'No access token found for Work4You Portal login. setup.status reports configured credentials, but runtime resolution still failed.'
+    })
+    render(<DesktopOnboardingOverlay enabled={false} profile="default" requestGateway={requestGateway} />)
+
+    expect(screen.queryByText(/setup.status/)).toBeNull()
+    expect(screen.getByText("Let's get you setup with Work4You")).toBeTruthy()
+  })
+
+  it('keeps first-run header copy when reauth is false', () => {
+    setProviders([makeOAuthProvider('work4you', 'Work4You Portal')], { configured: false, reauth: false })
+    render(<DesktopOnboardingOverlay enabled={false} profile="default" requestGateway={requestGateway} />)
+
+    expect(screen.getByText("Let's get you setup with Work4You")).toBeTruthy()
+    expect(screen.getByText(/300\+ frontier models/)).toBeTruthy()
+    expect(screen.queryByText('Sign in to continue')).toBeNull()
   })
 })

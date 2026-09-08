@@ -24,12 +24,15 @@ describe('onboardingPreviewMode', () => {
     expect(onboardingPreviewMode()).toBe('picker')
   })
 
-  it('maps login and confirm previews', () => {
+  it('maps login, confirm, and reauth previews', () => {
     setSearch('?onboarding=login')
     expect(onboardingPreviewMode()).toBe('login')
 
     setSearch('?onboarding=confirm')
     expect(onboardingPreviewMode()).toBe('confirm')
+
+    setSearch('?onboarding=reauth')
+    expect(onboardingPreviewMode()).toBe('reauth')
   })
 
   it('ignores unknown values', () => {

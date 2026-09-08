@@ -1,6 +1,6 @@
 import { atom } from 'nanostores'
 
-import { isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
+import { isPortalSessionReauthReason, isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
 import { evaluateRuntimeReadiness, type RuntimeReadinessResult } from '@/lib/runtime-readiness'
 import { setMainModelAssignment } from '@/store/cron-model-impact'
 import { notify, notifyError } from '@/store/notifications'
@@ -73,6 +73,12 @@ export interface DesktopOnboardingState {
    *  custom endpoint"). Forces the API-key form with the local option
    *  preselected instead of the OAuth picker. */
   localEndpoint: boolean
+  /** True when runtime failed because the Work4You Portal session is gone
+   *  (no access token / not logged in / unusable JWT), not because no provider
+   *  is configured. The overlay keeps the same Portal-only door but swaps
+   *  first-run chrome for a continue-to-sign-in variant. False for every
+   *  other not-ready reason (empty OpenRouter key, first-run, timeouts). */
+  reauth: boolean
 }
 
 export interface OnboardingContext {
@@ -153,7 +159,8 @@ const INITIAL: DesktopOnboardingState = {
   requested: false,
   firstRunSkipped: readCachedSkipped(),
   manual: false,
-  localEndpoint: false
+  localEndpoint: false,
+  reauth: false
 }
 
 export const $desktopOnboarding = atom<DesktopOnboardingState>(INITIAL)
@@ -379,7 +386,9 @@ async function refreshProviders() {
 }
 
 export function requestDesktopOnboarding(reason = DEFAULT_ONBOARDING_REASON) {
-  patch({ reason: reason.trim() || DEFAULT_ONBOARDING_REASON, requested: true })
+  const next = reason.trim() || DEFAULT_ONBOARDING_REASON
+
+  patch({ reason: next, requested: true, reauth: isPortalSessionReauthReason(next) })
 }
 
 /** Credential warning delivered passively (session create/activate/resume
@@ -426,6 +435,7 @@ export function startManualOnboarding(reason: null | string = DEFAULT_MANUAL_ONB
     manual: true,
     requested: true,
     localEndpoint: false,
+    reauth: false,
     // `null` opts out of the prompt banner entirely (e.g. when the user already
     // picked a specific provider and we auto-start its sign-in).
     reason: reason ? reason.trim() || DEFAULT_ONBOARDING_REASON : null,
@@ -446,6 +456,7 @@ export function startManualLocalEndpoint(reason: null | string = null) {
     manual: true,
     requested: true,
     localEndpoint: true,
+    reauth: false,
     mode: 'apikey',
     reason: reason ? reason.trim() || DEFAULT_ONBOARDING_REASON : null,
     flow: { status: 'idle' }
@@ -483,7 +494,7 @@ export function clearPendingProviderOAuth() {
 export function closeManualOnboarding() {
   pendingProviderOAuthId = null
 
-  patch({ manual: false, requested: false, localEndpoint: false, flow: { status: 'idle' } })
+  patch({ manual: false, requested: false, localEndpoint: false, reauth: false, flow: { status: 'idle' } })
 }
 
 export function completeDesktopOnboarding() {
@@ -501,7 +512,8 @@ export function completeDesktopOnboarding() {
     requested: false,
     firstRunSkipped: false,
     manual: false,
-    localEndpoint: false
+    localEndpoint: false,
+    reauth: false
   })
 }
 
@@ -514,7 +526,14 @@ export function completeDesktopOnboarding() {
 export function dismissFirstRunOnboarding() {
   clearPoll()
   writeCachedSkipped(true)
-  patch({ firstRunSkipped: true, requested: false, manual: false, localEndpoint: false, flow: { status: 'idle' } })
+  patch({
+    firstRunSkipped: true,
+    requested: false,
+    manual: false,
+    localEndpoint: false,
+    reauth: false,
+    flow: { status: 'idle' }
+  })
 }
 
 export function setOnboardingMode(mode: OnboardingMode) {
@@ -562,7 +581,7 @@ export async function refreshOnboarding(ctx: OnboardingContext) {
   const reason = runtime.reason || state.reason || DEFAULT_ONBOARDING_REASON
 
   writeCachedConfigured(false)
-  patch({ configured: false, reason })
+  patch({ configured: false, reason, reauth: isPortalSessionReauthReason(reason) })
 
   if (state.providers !== null && !state.requested) {
     return false

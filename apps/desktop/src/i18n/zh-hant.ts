@@ -2855,7 +2855,8 @@ export const zhHant = defineLocale({
     done: '完成',
     applyingBody:
       'Work4You 更新程式會在自己的視窗中接管，並在完成後自動重新開啟 Work4You。更新期間請勿自行重新開啟 Work4You。',
-    applyingBodyInstaller: '正在下載已簽署的安裝程式。Work4You 將關閉以便安裝程式取代應用程式。安裝完成前請勿自行重新開啟。',
+    applyingBodyInstaller:
+      '正在下載已簽署的安裝程式。Work4You 將關閉以便安裝程式取代應用程式。安裝完成前請勿自行重新開啟。',
     applyingBodyBackend: '遠端後端正在套用更新並將重新啟動。恢復後 Work4You 會自動重新連線。',
     applyingClose: '此視窗會在更新期間關閉，隨後 Work4You 會自動重新開啟。',
     errorTitle: '更新未完成',
@@ -2957,6 +2958,10 @@ export const zhHant = defineLocale({
   onboarding: {
     headerTitle: '開始設定 Work4You',
     headerDesc: '連線模型提供方即可開始聊天。大多數選項只需一次點擊。',
+    signInToContinue: '登入以繼續',
+    sessionExpired: '你的 Work4You Portal 工作階段已過期。請重新登入以繼續聊天。',
+    continueWithPortal: '使用 Work4You Portal 繼續',
+    opensBrowser: '將開啟瀏覽器',
     preparingInstall: 'Work4You 正在完成安裝。首次執行通常不到一分鐘。',
     starting: '正在啟動 Work4You…',
     lookingUpProviders: '正在查詢提供方...',

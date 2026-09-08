@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isProviderSetupErrorMessage } from './provider-setup-errors'
+import { isPortalSessionReauthReason, isProviderSetupErrorMessage } from './provider-setup-errors'
 
 describe('isProviderSetupErrorMessage', () => {
   it('matches generic missing-provider copy', () => {
@@ -40,5 +40,37 @@ describe('isProviderSetupErrorMessage', () => {
     expect(isProviderSetupErrorMessage('')).toBe(false)
     expect(isProviderSetupErrorMessage(null)).toBe(false)
     expect(isProviderSetupErrorMessage(undefined)).toBe(false)
+  })
+})
+
+describe('isPortalSessionReauthReason', () => {
+  it('matches Portal token / login failures, including the setup.status suffix', () => {
+    expect(isPortalSessionReauthReason('No access token found for Work4You Portal login.')).toBe(true)
+    expect(
+      isPortalSessionReauthReason(
+        'No access token found for Work4You Portal login. setup.status reports configured credentials, but runtime resolution still failed.'
+      )
+    ).toBe(true)
+    expect(isPortalSessionReauthReason('Work4You is not logged into Work4You Portal.')).toBe(true)
+    expect(
+      isPortalSessionReauthReason(
+        'Work4You Portal access token is not a usable inference JWT (missing typical claims).'
+      )
+    ).toBe(true)
+    expect(isPortalSessionReauthReason('Session expired and no refresh token is available.')).toBe(true)
+  })
+
+  it('does not treat generic checksDisagree or other providers as Portal reauth', () => {
+    expect(
+      isPortalSessionReauthReason(
+        'No usable credentials found for openrouter. setup.status reports configured credentials, but runtime resolution still failed.'
+      )
+    ).toBe(false)
+    expect(
+      isPortalSessionReauthReason('setup.status reports configured credentials, but runtime resolution still failed.')
+    ).toBe(false)
+    expect(isPortalSessionReauthReason('No inference provider is configured.')).toBe(false)
+    expect(isPortalSessionReauthReason('')).toBe(false)
+    expect(isPortalSessionReauthReason(null)).toBe(false)
   })
 })

@@ -2955,7 +2955,8 @@ export const ja = defineLocale({
     availableBodyBackend: '接続中の Work4You バックエンドの新しいバージョンをインストールできます。',
     availableBodyNoChangelog:
       '新しいバージョンを利用できます。このインストール形式ではリリースノートは表示できません。',
-    availableBodyInstaller: '新しい Work4You インストーラーの準備ができました。ソースからの長い再ビルドなしで、約1分でアプリを置き換えます。',
+    availableBodyInstaller:
+      '新しい Work4You インストーラーの準備ができました。ソースからの長い再ビルドなしで、約1分でアプリを置き換えます。',
     updateNow: '今すぐ更新',
     maybeLater: '後で',
     moreChanges: count => `さらに ${count} 件の変更が含まれています。`,
@@ -3084,6 +3085,11 @@ export const ja = defineLocale({
   onboarding: {
     headerTitle: 'Work4You のセットアップをしましょう',
     headerDesc: 'チャットを始めるにはモデルプロバイダーを接続してください。ほとんどのオプションはワンクリックです。',
+    signInToContinue: '続行するにはサインインしてください',
+    sessionExpired:
+      'Work4You Portal のセッションの期限が切れました。チャットを続けるには、もう一度サインインしてください。',
+    continueWithPortal: 'Work4You Portal で続ける',
+    opensBrowser: 'ブラウザーが開きます',
     preparingInstall: 'Work4You はインストールを完了中です。初回実行では通常 1 分以内に完了します。',
     starting: 'Work4You を起動中…',
     lookingUpProviders: 'プロバイダーを検索中...',
