@@ -3526,6 +3526,7 @@ async function applyPackagedInstallerUpdates() {
   })
 
   const installDir = IS_WINDOWS ? path.dirname(process.execPath) : null
+
   const spawned = packagedInstallerApplySpawn({
     platform: process.platform,
     installerPath: dest,

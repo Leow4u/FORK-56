@@ -246,6 +246,7 @@ export function packagedWindowsHandoffExtraArgs(opts: {
     '-RelaunchExe',
     opts.relaunchExe
   ]
+
   const dir = typeof opts.installDir === 'string' ? opts.installDir.trim() : ''
 
   if (dir) {

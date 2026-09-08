@@ -20,9 +20,9 @@ import {
   githubLatestReleaseApiUrl,
   isDesktopReleaseTag,
   isGitSha,
+  NSIS_SILENT_UPDATE_FLAGS,
   nsisSilentArgs,
   nsisSilentCommandLine,
-  NSIS_SILENT_UPDATE_FLAGS,
   PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1,
   packagedInstallerApplySpawn,
   packagedInstallerAssetName,
@@ -35,8 +35,8 @@ import {
   sameGitCommit,
   selectReleaseAsset,
   shouldUsePackagedInstallerUpdate,
-  writePackagedWindowsHandoffScript,
-  WINDOWS_SETUP_ASSET
+  WINDOWS_SETUP_ASSET,
+  writePackagedWindowsHandoffScript
 } from './packaged-installer-update'
 
 const LATEST_SHA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
@@ -195,6 +195,7 @@ test('packagedInstallerApplySpawn waits then relaunches on Windows via cmd start
   const installerPath = 'C:\\Temp\\Work4You-Setup.exe'
   const installDir = 'C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You'
   const relaunchExe = 'C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You\\Work4You.exe'
+
   const spawned = packagedInstallerApplySpawn({
     platform: 'win32',
     installerPath,
