@@ -143,6 +143,7 @@ export function GatewayConnectingOverlay() {
       )}
     >
       <div
+        aria-label={label}
         className={cn(
           'grid justify-items-center text-center transition duration-300 ease-out',
           leaving ? 'translate-y-2 opacity-0 saturate-0' : 'translate-y-0 opacity-100 saturate-100'
@@ -162,7 +163,9 @@ export function GatewayConnectingOverlay() {
           )}
           <BrandMark className="col-start-1 row-start-1 size-16" />
         </div>
-        <p className="mt-7 text-sm leading-5 text-muted-foreground">{label}</p>
+        <p aria-hidden="true" className="mt-7 text-sm leading-5 text-muted-foreground">
+          {label}
+        </p>
       </div>
     </div>
   )

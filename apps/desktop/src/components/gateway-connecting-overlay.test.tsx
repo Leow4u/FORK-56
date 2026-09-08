@@ -1,6 +1,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import { en } from '@/i18n/en'
 import { $desktopBoot } from '@/store/boot'
 import { $gatewaySwitching } from '@/store/gateway-switch'
 import { $desktopOnboarding } from '@/store/onboarding'
@@ -75,10 +76,11 @@ describe('connecting overlay vs recovery surface', () => {
     })
 
     expect(isConnectingShown()).toBe(true)
-    expect(screen.getByRole('status', { name: 'Connecting Work4You…' })).toBeTruthy()
+    expect(screen.getByRole('status', { name: en.boot.connectingWork4You })).toBeTruthy()
+    expect(screen.getByText(en.boot.connectingWork4You)).toBeTruthy()
     expect(screen.queryByText('CONNECTING')).toBeNull()
     expect(document.querySelector('.font-mono.uppercase')).toBeNull()
-    const status = screen.getByRole('status', { name: 'Connecting Work4You…' })
+    const status = screen.getByRole('status', { name: en.boot.connectingWork4You })
     expect(status.querySelector('svg')).not.toBeNull()
     expect(status.querySelectorAll('circle').length).toBeGreaterThan(8)
     const img = document.querySelector('img[src*="work4you-icon.png"]')
