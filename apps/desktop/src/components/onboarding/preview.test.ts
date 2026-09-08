@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { onboardingPreviewMode } from './preview'
+import { connectingPreviewMode, onboardingPreviewMode } from './preview'
 
 describe('onboardingPreviewMode', () => {
   const originalLocation = window.location
@@ -41,5 +41,13 @@ describe('onboardingPreviewMode', () => {
 
     setSearch('')
     expect(onboardingPreviewMode()).toBeNull()
+  })
+
+  it('connecting=1 loops the cold-boot overlay', () => {
+    setSearch('?connecting=1')
+    expect(connectingPreviewMode()).toBe(true)
+
+    setSearch('')
+    expect(connectingPreviewMode()).toBe(false)
   })
 })

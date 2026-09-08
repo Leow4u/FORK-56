@@ -2,6 +2,7 @@ import { useStore } from '@nanostores/react'
 import { useEffect, useRef, useState } from 'react'
 
 import { BrandMark } from '@/components/brand-mark'
+import { connectingPreviewMode } from '@/components/onboarding/preview'
 import { Loader } from '@/components/ui/loader'
 import { prefersReducedMotion } from '@/hooks/use-media-query'
 import { useI18n } from '@/i18n'
@@ -15,31 +16,18 @@ const MARK_OUT_MS = 360
 const POST_MARK_HOLD_MS = 300
 const OVERLAY_OUT_MS = 520
 // Preview-only: how long to "connect" for, and the pause before replaying.
+// `?connecting=1` (connectingPreviewMode) loops this overlay in DEV.
 const PREVIEW_CONNECT_MS = 2600
 const PREVIEW_REPLAY_MS = 1100
 
 type Phase = 'live' | 'mark-out' | 'overlay-out' | 'gone'
-
-// Dev affordance: a warm Cmd+R reconnects almost instantly, so the overlay
-// only flashes. Load with `?connecting=1` to force a looping preview.
-function forcedPreview(): boolean {
-  if (!import.meta.env.DEV || typeof window === 'undefined') {
-    return false
-  }
-
-  try {
-    return new URLSearchParams(window.location.search).get('connecting') === '1'
-  } catch {
-    return false
-  }
-}
 
 export function GatewayConnectingOverlay() {
   const { t } = useI18n()
   const gatewayState = useStore($gatewayState)
   const boot = useStore($desktopBoot)
   const gatewaySwitching = useStore($gatewaySwitching)
-  const [previewing] = useState(forcedPreview)
+  const [previewing] = useState(connectingPreviewMode)
   const reduce = prefersReducedMotion()
   // Under reduced motion, skip the multi-phase exit choreography (mark-out →
   // hold → overlay fade) and jump straight to gone so the overlay unmounts
