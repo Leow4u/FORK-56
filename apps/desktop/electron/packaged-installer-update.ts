@@ -627,11 +627,10 @@ export function downloadHttpsToFile(
 }
 
 /** Spawn recipe after the installer file is on disk. */
-export function packagedInstallerSpawn(opts: {
-  platform: string
-  installerPath: string
-  installDir?: string | null
-}): { args: string[]; command: string } {
+export function packagedInstallerSpawn(opts: { platform: string; installerPath: string; installDir?: string | null }): {
+  args: string[]
+  command: string
+} {
   if (opts.platform === 'win32') {
     return { command: opts.installerPath, args: nsisSilentArgs(opts.installDir) }
   }

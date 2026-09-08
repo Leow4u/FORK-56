@@ -102,8 +102,7 @@ export function TeamsQuickSetup({
 
   const previewVars: MessagingEnvVarInfo[] = [
     ...envVars.filter(
-      field =>
-        field.key !== 'TEAMS_PUBLIC_URL' && field.key !== 'TEAMS_HOST' && field.key !== 'TEAMS_PORT'
+      field => field.key !== 'TEAMS_PUBLIC_URL' && field.key !== 'TEAMS_HOST' && field.key !== 'TEAMS_PORT'
     ),
     {
       advanced: false,
@@ -270,9 +269,7 @@ export function TeamsQuickSetup({
                   setClientSecret(event.target.value)
                   setError('')
                 }}
-                placeholder={
-                  envIsSet(envVars, 'TEAMS_CLIENT_SECRET') ? q.secretKeepPlaceholder : q.secretPlaceholder
-                }
+                placeholder={envIsSet(envVars, 'TEAMS_CLIENT_SECRET') ? q.secretKeepPlaceholder : q.secretPlaceholder}
                 type="password"
                 value={clientSecret}
               />
@@ -340,9 +337,7 @@ export function TeamsQuickSetup({
           </label>
           {publicUrlError && <p className="mt-1.5 text-xs leading-5 text-destructive">{publicUrlError}</p>}
           <p className="mt-1.5 max-w-xl">{q.publicUrlHelp}</p>
-          {tunnelWarning && (
-            <p className="mt-1.5 max-w-xl text-amber-600 dark:text-amber-500">{q.tunnelWarning}</p>
-          )}
+          {tunnelWarning && <p className="mt-1.5 max-w-xl text-amber-600 dark:text-amber-500">{q.tunnelWarning}</p>}
         </div>
 
         <div>

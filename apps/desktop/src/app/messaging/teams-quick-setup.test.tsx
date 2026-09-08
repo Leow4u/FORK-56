@@ -82,12 +82,7 @@ async function renderQuickSetup({
 
   await act(async () => {
     render(
-      <TeamsQuickSetup
-        configured={configured}
-        envVars={envVars}
-        onApplied={onApplied}
-        scopeProfile={scopeProfile}
-      />
+      <TeamsQuickSetup configured={configured} envVars={envVars} onApplied={onApplied} scopeProfile={scopeProfile} />
     )
   })
 
@@ -111,9 +106,9 @@ describe('helpers', () => {
     const { teamsMessagingEndpoint } = await import('./teams-quick-setup')
 
     expect(teamsMessagingEndpoint([])).toBe('http://127.0.0.1:3978/api/messages')
-    expect(
-      teamsMessagingEndpoint([envVar('TEAMS_PORT', '3999'), envVar('TEAMS_HOST', 'bot.local')])
-    ).toBe('http://bot.local:3999/api/messages')
+    expect(teamsMessagingEndpoint([envVar('TEAMS_PORT', '3999'), envVar('TEAMS_HOST', 'bot.local')])).toBe(
+      'http://bot.local:3999/api/messages'
+    )
     // An all-interfaces bind is not a reachable address to hand Azure.
     expect(teamsMessagingEndpoint([envVar('TEAMS_HOST', '0.0.0.0')])).toBe('http://127.0.0.1:3978/api/messages')
     expect(teamsMessagingEndpoint([envVar('TEAMS_PUBLIC_URL', 'https://tunnel.example/')])).toBe(
