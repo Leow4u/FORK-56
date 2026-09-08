@@ -9,6 +9,9 @@ describe('BrandMark', () => {
 
     const img = document.querySelector('img[src*="work4you-icon.png"]')
     expect(img).toBeTruthy()
+    expect(img?.className).toContain('bg-transparent')
+    expect(img?.className).not.toContain('bg-white')
+    expect(img?.parentElement?.className).toContain('bg-transparent')
     expect(img?.parentElement?.className).not.toContain('bg-white')
   })
 })
