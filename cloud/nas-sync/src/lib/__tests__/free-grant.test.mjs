@@ -3,8 +3,8 @@
  * Run: node --test cloud/nas-sync/src/lib/__tests__/free-grant.test.mjs
  *
  * Mirrors shouldRolloverFreeCycle / shouldUpgradeLegacyFreeGrant (tiers.ts)
- * and isFreePlanPayload / catalogTierCopy (billing-client.ts) so we don't
- * need the Next/Prisma graph.
+ * and isFreePlanPayload / catalogTierCopy / isCurrentCatalogTier /
+ * markCatalogCurrent (billing-client.ts) so we don't need the Next/Prisma graph.
  */
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
@@ -167,5 +167,74 @@ describe('catalogTierCopy', () => {
     })
     assert.equal(copy.title, 'Plus ($20/mês)')
     assert.equal(copy.bonus, '$22 créditos mensais')
+  })
+})
+
+function isPaidSubscriptionCurrent(current) {
+  if (!current?.tierId || current.tierId === 'free') return false
+  return (current.tierName || '').trim().toLowerCase() !== 'free'
+}
+
+function isCurrentCatalogTier(tier, current) {
+  if (!isPaidSubscriptionCurrent(current)) {
+    return isFreeCatalogTier(tier)
+  }
+  return Boolean(tier.isCurrent) || tier.tierId === current.tierId
+}
+
+function markCatalogCurrent(tiers, current) {
+  return tiers.map((tier) => ({
+    ...tier,
+    isCurrent: isPaidSubscriptionCurrent(current)
+      ? tier.tierId === current.tierId
+      : isFreeCatalogTier(tier),
+  }))
+}
+
+const PAID_ONLY = [
+  { tierId: 'plus', name: 'Plus', isCurrent: true },
+  { tierId: 'super', name: 'Super', isCurrent: false },
+  { tierId: 'ultra', name: 'Ultra', isCurrent: false },
+]
+
+describe('isCurrentCatalogTier', () => {
+  it('never treats Plus as current when subscription.current is null', () => {
+    assert.equal(isCurrentCatalogTier(PAID_ONLY[0], null), false)
+    assert.equal(isCurrentCatalogTier({ tierId: 'free', name: 'Free' }, null), true)
+  })
+
+  it('matches a paid current by tier id', () => {
+    assert.equal(
+      isCurrentCatalogTier(PAID_ONLY[0], { tierId: 'plus', tierName: 'Plus' }),
+      true,
+    )
+    assert.equal(
+      isCurrentCatalogTier(PAID_ONLY[1], { tierId: 'plus', tierName: 'Plus' }),
+      false,
+    )
+  })
+})
+
+describe('markCatalogCurrent', () => {
+  it('stamps only Free when current is null, even if Plus arrived as isCurrent', () => {
+    const stamped = markCatalogCurrent(
+      [{ tierId: 'free', name: 'Free' }, ...PAID_ONLY],
+      null,
+    )
+    assert.deepEqual(
+      stamped.map((t) => [t.tierId, t.isCurrent]),
+      [
+        ['free', true],
+        ['plus', false],
+        ['super', false],
+        ['ultra', false],
+      ],
+    )
+  })
+
+  it('stamps the matching paid tier', () => {
+    const stamped = markCatalogCurrent(PAID_ONLY, { tierId: 'super', tierName: 'Super' })
+    assert.equal(stamped.find((t) => t.tierId === 'super')?.isCurrent, true)
+    assert.equal(stamped.find((t) => t.tierId === 'plus')?.isCurrent, false)
   })
 })
