@@ -102,8 +102,8 @@ for call-site shadow or border inventions.
 | `--chrome-action-hover` | hover fill for quiet controls |
 | `--theme-primary`, `--ui-accent` | brand/accent |
 
-Never hardcode `border-gray-*`, `bg-white`, `text-black`, etc. The white tile in
-`BrandMark` is the one sanctioned literal (the mark needs a fixed backdrop).
+Never hardcode `border-gray-*`, `bg-white`, `text-black`, etc. `BrandMark` uses
+the PNG's own alpha — do not put a white (or any) tile behind it.
 
 ## Buttons — one component
 
@@ -245,9 +245,9 @@ Notes:
   action. Do not introduce a third icon set or mix styles within one control
   group.
 - **`BrandMark`** (`src/components/brand-mark.tsx`) is the brand glyph — the
-  `work4you-icon` mark on a white tile, softly rounded, identical in light/dark.
-  It replaced scattered Sparkles glyphs in updates / onboarding / about. Use it
-  for hero/brand moments; don't reintroduce decorative star/sparkle icons.
+  `work4you-icon` mark with its own transparent alpha, no tile. It replaced
+  scattered Sparkles glyphs in updates / onboarding / about. Use it for
+  hero/brand moments; don't reintroduce decorative star/sparkle icons.
 
 ## Motion
 

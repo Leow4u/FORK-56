@@ -76,7 +76,6 @@ describe('connecting overlay vs recovery surface', () => {
     expect(isConnectingShown()).toBe(true)
     expect(screen.queryByText(/connecting/i)).toBeNull()
     const mark = document.querySelector('img[src*="work4you-icon.png"]')?.parentElement
-    expect(mark?.className).toContain('bg-transparent')
     expect(mark?.className).not.toContain('bg-white')
   })
 
