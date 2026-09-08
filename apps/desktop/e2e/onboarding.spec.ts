@@ -4,7 +4,7 @@
  *
  * Launches the app with an empty config.yaml (no providers). The renderer
  * should detect the unconfigured state and show the DesktopOnboardingOverlay
- * with the Work4You Portal account door.
+ * with the Work4You Portal account door (Get started).
  *
  * Prerequisite: `npm run build` must have been run so dist/ exists.
  */
@@ -35,7 +35,7 @@ test.describe('onboarding with no provider configured', () => {
     await waitForOnboarding(fixture.page, 90_000)
   })
 
-  test('onboarding shows the Work4You Portal account door', async () => {
+  test('onboarding shows the Work4You Portal Get started door', async () => {
     if (!fixture) {
       test.skip(true, 'Previous test failed — no app running')
 
@@ -50,10 +50,12 @@ test.describe('onboarding with no provider configured', () => {
       return root?.textContent ?? ''
     })
 
-    expect(rootText).toMatch(/Work4You Portal/)
+    expect(rootText).toMatch(/Get started/)
+    expect(rootText).toMatch(/Work4You Desktop/)
     expect(rootText).not.toMatch(/I'll choose a provider later/)
     expect(rootText).not.toMatch(/I have an API key/)
     expect(rootText).not.toMatch(/Other providers/)
+    expect(rootText).not.toMatch(/Recommended/)
   })
 
   test('screenshot of onboarding overlay', async () => {

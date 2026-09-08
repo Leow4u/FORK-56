@@ -223,7 +223,9 @@ Notes:
   open the rail automatically.
 - Install, onboarding, connecting, boot failure, and reauthentication are
   distinct states with shared visual primitives. Preserve their recovery
-  semantics when unifying appearance.
+  semantics when unifying appearance. First-run welcome is full-bleed on
+  the chat surface (BrandMark, title, one line, one primary action) like
+  the connecting overlay; Portal reauth and manual provider pick stay carded.
 - Respect `AppShell` overlay ownership. Persistent terminal/content layers,
   route overlays, dialogs, and boot surfaces must not compete through ad-hoc
   z-index literals. Pick a rung of the ladder in `styles.css` instead —
