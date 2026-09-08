@@ -226,7 +226,10 @@ export function deriveBillingView(
     refillRow: autoReloadRow(billing),
     status: 'normal',
     summary: [
-      { label: 'Balance', value: isFreePlan(billing, subscription) ? EMPTY_BILLING_VALUE : displayBalance(billing) },
+      {
+        label: 'Balance',
+        value: isFreePlan(billing, subscription) ? freeAllowanceStatus(billing) : displayBalance(billing)
+      },
       { label: 'Plan', value: isFreePlan(billing, subscription) ? 'Free' : displayPlan(subscription, billing.usage) },
       {
         label: 'Auto-refill',
@@ -325,12 +328,37 @@ function noCardNotice(billing: BillingStateResponse): BillingNoticeView | undefi
   }
 }
 
+function isFreeCatalogTier(tier: { name?: string; tier_id?: string }): boolean {
+  return (tier.name || '').trim().toLowerCase() === 'free' || (tier.tier_id || '').trim().toLowerCase() === 'free'
+}
+
+function isPaidSubscriptionCurrent(
+  current: null | undefined | NonNullable<SubscriptionStateResponse['current']>
+): boolean {
+  if (!current?.tier_id || current.tier_id === 'free') {
+    return false
+  }
+
+  return (current.tier_name || '').trim().toLowerCase() !== 'free'
+}
+
 // The active tier from the UNFILTERED catalog — a grandfathered current tier is
 // is_enabled:false, so it must still resolve here (by is_current or matching id).
+// A Free account (`current: null`) may only resolve to a Free catalog tile —
+// never a stale `is_current` on Plus, and never the cheapest remaining paid tier.
 function findCurrentTier(subscription: null | SubscriptionStateResponse): SubscriptionTierOption | undefined {
   const current = subscription?.current
+  const tiers = subscription?.tiers
 
-  return subscription?.tiers?.find(tier => tier.is_current || tier.tier_id === current?.tier_id)
+  if (!tiers?.length) {
+    return undefined
+  }
+
+  if (!isPaidSubscriptionCurrent(current)) {
+    return tiers.find(isFreeCatalogTier)
+  }
+
+  return tiers.find(tier => tier.is_current || tier.tier_id === current?.tier_id)
 }
 
 // Whether this account can change plans in-app: a personal (non-team) subscription
@@ -483,9 +511,10 @@ function pendingTransition(
  * current tier: current = inert marker; higher = "Choose ↗" opening the portal with
  * the tier pre-selected; lower = an in-app "Downgrade" (chargeless, scheduled via the
  * gateway). The already-scheduled downgrade target renders as an inert "Scheduled"
- * marker; other lower tiers stay actionable (picking one reschedules). With no active
- * subscription the lowest-order ($0 / free) tier stands in as the current plan, so
- * there is no "subscribe to Free" upgrade and no downgrade state.
+ * marker; other lower tiers stay actionable (picking one reschedules). With no paid
+ * subscription only a Free catalog tile may stand in as current — never the cheapest
+ * paid tier — so there is no "subscribe to Free" upgrade and no false "Current plan"
+ * on Plus. If the catalog omits Free, paid tiles are all upgrades.
  *
  * Empty unless `capable`: only a plans-capable account gets actionable tiles, and the
  * plan card / deep-link gate on the same verdict — so the grid never mints an
@@ -504,7 +533,6 @@ function derivePlanTiers(
   }
 
   const allTiers = subscription.tiers ?? []
-  const current = subscription.current
   const explicitCurrent = findCurrentTier(subscription)
 
   // The grid shows the enabled catalog plus the grandfathered current tier (so it
@@ -518,17 +546,16 @@ function derivePlanTiers(
     return []
   }
 
-  // No active subscription → the lowest-order ($0 / free) tier stands in as the
-  // current plan: inert, never a "subscribe to Free" upgrade, and (being lowest)
-  // never leaving room for a downgrade.
-  const currentTier = explicitCurrent ?? (current == null ? gridTiers[0] : undefined)
+  // No paid subscription → a Free tile (if present) is current. Do not fall back
+  // to gridTiers[0]: NAS often omits Free, and that leftover was Plus.
+  const currentTier = explicitCurrent
   const currentOrder = currentTier?.tier_order
   const manageBase = subscription.portal_url ?? fallbackPortalUrl
   // Only a downgrade has a target tier to mark; a cancellation has none.
   const pendingName = pending?.kind === 'downgrade' ? pending.tierName : null
 
   return gridTiers.map((tier): BillingPlanTierView => {
-    const freeTile = (tier.name || '').trim().toLowerCase() === 'free' || tier.tier_id === 'free'
+    const freeTile = isFreeCatalogTier(tier)
 
     const base: BillingPlanTierBase = {
       // Free never names the hidden monthly grant (or a $0/mo price).
@@ -698,13 +725,12 @@ function deriveUsageRows(
 
   if (free) {
     const resetAt = formatBillingDate(current?.cycle_ends_at ?? usage?.renews_at)
-    const balance = parseAmount(billing.balance_usd)
-    const usedUp = balance != null && balance <= 0
+    const allowance = freeAllowanceStatus(billing)
     rows.push({
       caption: resetAt !== EMPTY_BILLING_VALUE ? `Resets ${resetAt}` : 'Resets next cycle',
       id: 'subscription_credits',
       title: "This month's allowance",
-      value: usedUp ? 'Used for this cycle' : 'Available'
+      value: allowance === 'Free' ? 'Available' : allowance
     })
 
     return rows
@@ -780,6 +806,17 @@ function deriveUsageRows(
 
 function displayBalance(billing: BillingStateResponse): string {
   return nonEmpty(billing.balance_display) ?? formatMoney(billing.balance_usd)
+}
+
+/** Free never shows dollars. Known remaining → Available / Used; unknown → Free. */
+function freeAllowanceStatus(billing: BillingStateResponse): string {
+  const balance = parseAmount(billing.balance_usd)
+
+  if (balance == null) {
+    return 'Free'
+  }
+
+  return balance <= 0 ? 'Used for this cycle' : 'Available'
 }
 
 function displayPlan(subscription: null | SubscriptionStateResponse, usage?: UsageModelData): string {

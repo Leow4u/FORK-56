@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils'
 import { Pill } from '../primitives'
 
 import { BillingRefusalInline } from './inline-feedback'
-import { TierArt } from './tier-art'
 import { type BillingPlanTierView, formatBillingDate, formatMonthlyCreditsDelta } from './use-billing-state'
 import { type DowngradePhase, useDowngradeFlow } from './use-subscription-change'
 
@@ -136,18 +135,15 @@ function PlanCard({ flow, tier }: { flow: DowngradeFlow; tier: BillingPlanTierVi
       ref={cardRef}
       tabIndex={-1}
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <TierArt name={tier.name} />
-        <div className="min-w-0">
-          <div className="truncate text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
-            {tier.name}
-          </div>
-          {tier.priceDisplay ? (
-            <div className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-              {tier.priceDisplay}/mo
-            </div>
-          ) : null}
+      <div className="min-w-0">
+        <div className="truncate text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
+          {tier.name}
         </div>
+        {tier.priceDisplay ? (
+          <div className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+            {tier.priceDisplay}/mo
+          </div>
+        ) : null}
       </div>
 
       {tier.creditsDisplay && (
