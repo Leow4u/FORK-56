@@ -139,8 +139,10 @@ export function GatewayConnectingOverlay() {
       )}
     >
       <BrandMark
+        // Splash mark, not a badge: drop BrandMark's white tile so the PNG's
+        // own alpha sits on the overlay surface.
         className={cn(
-          'size-16 transition duration-300 ease-out',
+          'size-16 overflow-visible rounded-none bg-transparent transition duration-300 ease-out',
           leaving ? 'translate-y-2 opacity-0 saturate-0' : 'translate-y-0 opacity-100 saturate-100'
         )}
       />
