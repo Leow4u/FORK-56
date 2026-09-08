@@ -1,5 +1,5 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { en } from '@/i18n/en'
 import { $desktopBoot } from '@/store/boot'
@@ -50,8 +50,14 @@ function resetStores() {
   })
 }
 
-beforeEach(resetStores)
-afterEach(cleanup)
+beforeEach(() => {
+  resetStores()
+  vi.useFakeTimers()
+})
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 // The connecting overlay is the existing BrandMark (work4you-icon.png), not
 // the recovery copy. Match the mark so "Lost connection…" cannot false-positive.
@@ -61,7 +67,7 @@ const isRecoveryShown = () =>
   Boolean(screen.queryByText(/use local gateway/i) || screen.queryByText(/retry/i) || screen.queryByText(/sign in/i))
 
 describe('connecting overlay vs recovery surface', () => {
-  it('cold boot shows BrandMark, Connecting Work4You, and the page-load orbit-ring', async () => {
+  it('cold boot shows BrandMark and Connecting Work4You with sequential dots', async () => {
     $desktopBoot.set({
       ...$desktopBoot.get(),
       error: null,
@@ -77,12 +83,24 @@ describe('connecting overlay vs recovery surface', () => {
 
     expect(isConnectingShown()).toBe(true)
     expect(screen.getByRole('status', { name: en.boot.connectingWork4You })).toBeTruthy()
-    expect(screen.getByText(en.boot.connectingWork4You)).toBeTruthy()
+    expect(screen.getByText(/Connecting Work4You/)).toBeTruthy()
     expect(screen.queryByText('CONNECTING')).toBeNull()
     expect(document.querySelector('.font-mono.uppercase')).toBeNull()
     const status = screen.getByRole('status', { name: en.boot.connectingWork4You })
-    expect(status.querySelector('svg')).not.toBeNull()
-    expect(status.querySelectorAll('circle').length).toBeGreaterThan(8)
+    expect(status.querySelector('svg')).toBeNull()
+    expect(status.textContent).toBe('Connecting Work4You.')
+    await act(async () => {
+      vi.advanceTimersByTime(420)
+    })
+    expect(status.textContent).toBe('Connecting Work4You..')
+    await act(async () => {
+      vi.advanceTimersByTime(420)
+    })
+    expect(status.textContent).toBe('Connecting Work4You...')
+    await act(async () => {
+      vi.advanceTimersByTime(420)
+    })
+    expect(status.textContent).toBe('Connecting Work4You.')
     const img = document.querySelector('img[src*="work4you-icon.png"]')
     const mark = img?.parentElement
     expect(img?.className).toContain('bg-transparent')

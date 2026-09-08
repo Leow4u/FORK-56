@@ -271,8 +271,8 @@ export function DesktopOnboardingOverlay({
     }
   }, [ctx, onboarding.flow.status, onboarding.manual, onboarding.providers, preview])
 
-  // `?connecting=1` owns the screen — don't cover BrandMark + orbit-ring
-  // with the Preparing card while the browser has no IPC bridge.
+  // `?connecting=1` owns the screen — don't cover BrandMark + Connecting
+  // Work4You with the Preparing card while the browser has no IPC bridge.
   if (connectingPreviewMode()) {
     return null
   }

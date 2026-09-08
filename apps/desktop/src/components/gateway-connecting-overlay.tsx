@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react'
 
 import { BrandMark } from '@/components/brand-mark'
 import { connectingPreviewMode } from '@/components/onboarding/preview'
-import { Loader } from '@/components/ui/loader'
 import { prefersReducedMotion } from '@/hooks/use-media-query'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
@@ -15,6 +14,12 @@ import { $gatewayState } from '@/store/session'
 const MARK_OUT_MS = 360
 const POST_MARK_HOLD_MS = 300
 const OVERLAY_OUT_MS = 520
+const ELLIPSIS_TICK_MS = 420
+
+function connectingPhrase(label: string) {
+  return label.replace(/[.…]+$/u, '')
+}
+
 // Preview-only: how long to "connect" for, and the pause before replaying.
 // `?connecting=1` (connectingPreviewMode) loops this overlay in DEV.
 const PREVIEW_CONNECT_MS = 2600
@@ -28,6 +33,7 @@ export function GatewayConnectingOverlay() {
   const boot = useStore($desktopBoot)
   const gatewaySwitching = useStore($gatewaySwitching)
   const [previewing] = useState(connectingPreviewMode)
+  const [dots, setDots] = useState(1)
   const reduce = prefersReducedMotion()
   // Under reduced motion, skip the multi-phase exit choreography (mark-out →
   // hold → overlay fade) and jump straight to gone so the overlay unmounts
@@ -104,6 +110,19 @@ export function GatewayConnectingOverlay() {
     }
   }, [phase, previewing])
 
+  // Sequential `.` `..` `...` on the status line — motion without a Loader.
+  useEffect(() => {
+    if (reduce || phase !== 'live') {
+      return
+    }
+
+    const id = window.setInterval(() => {
+      setDots(n => (n === 3 ? 1 : n + 1))
+    }, ELLIPSIS_TICK_MS)
+
+    return () => window.clearInterval(id)
+  }, [phase, reduce])
+
   // Boot failed — BootFailureOverlay owns the screen; don't linger behind it.
   if (boot.error && !previewing) {
     return null
@@ -122,6 +141,7 @@ export function GatewayConnectingOverlay() {
   const leaving = phase !== 'live'
   const overlayHidden = phase === 'overlay-out' || phase === 'gone'
   const label = t.boot.connectingWork4You
+  const phrase = connectingPhrase(label)
 
   return (
     <div
@@ -138,21 +158,16 @@ export function GatewayConnectingOverlay() {
         )}
         role="status"
       >
-        <div className="grid place-items-center">
-          {reduce ? null : (
-            <Loader
-              aria-hidden="true"
-              className="col-start-1 row-start-1 size-32 text-primary/70"
-              pathSteps={180}
-              role="presentation"
-              strokeScale={0.85}
-              type="orbit-ring"
-            />
-          )}
-          <BrandMark className="col-start-1 row-start-1 size-16" />
-        </div>
+        <BrandMark className="size-16" />
         <p aria-hidden="true" className="mt-7 text-sm leading-5 text-muted-foreground">
-          {label}
+          {reduce ? (
+            label
+          ) : (
+            <>
+              {phrase}
+              <span className="inline-block w-[3ch] text-start">{'.'.repeat(dots)}</span>
+            </>
+          )}
         </p>
       </div>
     </div>
