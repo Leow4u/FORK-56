@@ -1,26 +1,22 @@
 import { useStore } from '@nanostores/react'
 import { useEffect, useRef, useState } from 'react'
 
-import { DecodeText } from '@/components/ui/decode-text'
+import { BrandMark } from '@/components/brand-mark'
 import { prefersReducedMotion } from '@/hooks/use-media-query'
 import { cn } from '@/lib/utils'
 import { $desktopBoot } from '@/store/boot'
 import { $gatewaySwitching } from '@/store/gateway-switch'
 import { $gatewayState } from '@/store/session'
 
-// Decode mechanics live in the shared <DecodeText> primitive
-// (components/ui/decode-text.tsx). "CONN" stays legible via prefix={4}.
-const TEXT = 'CONNECTING'
-
-// Exit choreography (ms): text fades down + out, hold, then the overlay fades.
-const TEXT_OUT_MS = 360
-const POST_TEXT_HOLD_MS = 300
+// Exit choreography (ms): mark fades down + out, hold, then the overlay fades.
+const MARK_OUT_MS = 360
+const POST_MARK_HOLD_MS = 300
 const OVERLAY_OUT_MS = 520
 // Preview-only: how long to "connect" for, and the pause before replaying.
 const PREVIEW_CONNECT_MS = 2600
 const PREVIEW_REPLAY_MS = 1100
 
-type Phase = 'live' | 'text-out' | 'overlay-out' | 'gone'
+type Phase = 'live' | 'mark-out' | 'overlay-out' | 'gone'
 
 // Dev affordance: a warm Cmd+R reconnects almost instantly, so the overlay
 // only flashes. Load with `?connecting=1` to force a looping preview.
@@ -42,7 +38,7 @@ export function GatewayConnectingOverlay() {
   const gatewaySwitching = useStore($gatewaySwitching)
   const [previewing] = useState(forcedPreview)
   const reduce = prefersReducedMotion()
-  // Under reduced motion, skip the multi-phase exit choreography (text-out →
+  // Under reduced motion, skip the multi-phase exit choreography (mark-out →
   // hold → overlay fade) and jump straight to gone so the overlay unmounts
   // the instant the gateway opens. E2E screenshots rely on this to avoid
   // catching the overlay mid-fade.
@@ -59,7 +55,7 @@ export function GatewayConnectingOverlay() {
   // healthy boot, flaky networks / sleep-wake can drop the socket and flip the
   // gateway state back to closed/error while the app reconnects. Do not cover
   // the chat then — users should still be able to type drafts, open settings,
-  // and recover instead of staring at a modal CONNECTING screen.
+  // and recover instead of staring at a modal connecting screen.
   const initialBootActive = boot.visible || boot.running || boot.progress < 100
 
   const connecting =
@@ -81,24 +77,24 @@ export function GatewayConnectingOverlay() {
     }
 
     if (previewing) {
-      const id = window.setTimeout(() => setPhase('text-out'), PREVIEW_CONNECT_MS)
+      const id = window.setTimeout(() => setPhase('mark-out'), PREVIEW_CONNECT_MS)
 
       return () => window.clearTimeout(id)
     }
 
     if (gatewayState === 'open' && shownRef.current) {
       // Under reduced motion, skip the multi-phase exit choreography
-      // (text-out → hold → overlay fade) and jump straight to gone so the
+      // (mark-out → hold → overlay fade) and jump straight to gone so the
       // overlay unmounts the instant the gateway opens. E2E screenshots
       // rely on this to avoid catching the overlay mid-fade.
-      setPhase(reduce ? 'gone' : 'text-out')
+      setPhase(reduce ? 'gone' : 'mark-out')
     }
   }, [phase, previewing, gatewayState, reduce])
 
-  // Advance the exit choreography: text-out -> overlay-out -> gone.
+  // Advance the exit choreography: mark-out -> overlay-out -> gone.
   useEffect(() => {
-    if (phase === 'text-out') {
-      const id = window.setTimeout(() => setPhase('overlay-out'), TEXT_OUT_MS + POST_TEXT_HOLD_MS)
+    if (phase === 'mark-out') {
+      const id = window.setTimeout(() => setPhase('overlay-out'), MARK_OUT_MS + POST_MARK_HOLD_MS)
 
       return () => window.clearTimeout(id)
     }
@@ -142,15 +138,11 @@ export function GatewayConnectingOverlay() {
         overlayHidden ? 'pointer-events-none opacity-0' : 'opacity-100'
       )}
     >
-      <DecodeText
-        active={phase === 'live' && (previewing || connecting)}
+      <BrandMark
         className={cn(
-          'pl-[0.4em] text-(--theme-primary) transition duration-300 ease-out',
+          'size-16 transition duration-300 ease-out',
           leaving ? 'translate-y-2 opacity-0 saturate-0' : 'translate-y-0 opacity-100 saturate-100'
         )}
-        cursor
-        prefix={4}
-        text={TEXT}
       />
     </div>
   )
