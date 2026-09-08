@@ -3,6 +3,8 @@ import type { IncomingMessage } from 'node:http'
 import https from 'node:https'
 import path from 'node:path'
 
+import { wrapHandoffForDetachedConsole } from './updater-process'
+
 /**
  * Packaged-app update channel: download the published NSIS/DMG installer
  * instead of running `work4you update` (git pull + uv + electron-builder).
@@ -201,18 +203,147 @@ export function resolveReleaseCommitSha(release: ParsedDesktopRelease): string |
 }
 
 /**
- * NSIS silent install. `/D=` must be last and unquoted even when the path has
- * spaces (NSIS command-line contract). Omit `/D` when the install dir is empty
- * so a previous install location from the uninstaller registry still wins.
+ * NSIS silent flags for a packaged self-update.
+ *
+ * `/S` skips the assisted finish page, which is also where electron-builder
+ * normally launches the app (`MUI_FINISHPAGE_RUN`). Without `--force-run`
+ * the assisted installer therefore replaces the files and exits — the window
+ * closes and nothing comes back. `--updated` tells CHECK_APP_RUNNING to
+ * wait briefly for us to quit instead of killing Work4You.exe immediately.
+ * `/D=` must stay last and unquoted even when the path has spaces.
  */
+export const NSIS_SILENT_UPDATE_FLAGS = ['/S', '--updated', '--force-run'] as const
+
 export function nsisSilentArgs(installDir?: string | null): string[] {
   const dir = typeof installDir === 'string' ? installDir.trim() : ''
 
   if (!dir) {
-    return ['/S']
+    return [...NSIS_SILENT_UPDATE_FLAGS]
   }
 
-  return ['/S', `/D=${dir}`]
+  return [...NSIS_SILENT_UPDATE_FLAGS, `/D=${dir}`]
+}
+
+export function nsisSilentCommandLine(installDir?: string | null): string {
+  return nsisSilentArgs(installDir).join(' ')
+}
+
+export function packagedWindowsHandoffScriptPath(tmpDir: string): string {
+  return path.join(tmpDir, 'work4you-packaged-installer-handoff.ps1')
+}
+
+export function packagedWindowsHandoffExtraArgs(opts: {
+  desktopPid: number
+  installerPath: string
+  installDir?: string | null
+  relaunchExe: string
+}): string[] {
+  const args = [
+    '-DesktopPid',
+    String(opts.desktopPid),
+    '-InstallerPath',
+    opts.installerPath,
+    '-RelaunchExe',
+    opts.relaunchExe
+  ]
+
+  const dir = typeof opts.installDir === 'string' ? opts.installDir.trim() : ''
+
+  if (dir) {
+    args.push('-InstallDir', dir)
+  }
+
+  return args
+}
+
+/**
+ * Detached Windows orchestrator: wait for the desktop PID to exit, run
+ * silent NSIS, then relaunch Work4You.exe if the installer did not.
+ *
+ * Lives as a string (written to %TEMP% at apply time) so a packaged asar
+ * does not depend on a repo checkout. Spawn it through
+ * wrapHandoffForDetachedConsole — a bare hidden powershell.exe dies before
+ * -File processing.
+ */
+export const PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1 = [
+  'param(',
+  '  [Parameter(Mandatory = $true)][int]$DesktopPid,',
+  '  [Parameter(Mandatory = $true)][string]$InstallerPath,',
+  '  [Parameter(Mandatory = $true)][string]$RelaunchExe,',
+  "  [string]$InstallDir = ''",
+  ')',
+  "$ErrorActionPreference = 'Stop'",
+  'function Test-DesktopRunning([string]$Exe) {',
+  '  if (-not $Exe) { return $false }',
+  '  try {',
+  '    $want = [IO.Path]::GetFullPath($Exe)',
+  '    $hit = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |',
+  "      Where-Object { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -eq $want) }",
+  '    return [bool]$hit',
+  '  } catch {',
+  '    return $false',
+  '  }',
+  '}',
+  'function Start-DesktopDetached([string]$Exe) {',
+  '  if (-not $Exe -or -not (Test-Path -LiteralPath $Exe)) { return $false }',
+  '  $workDir = Split-Path -Parent $Exe',
+  '  try {',
+  '    $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{',
+  "      CommandLine = ('\"{0}\"' -f $Exe)",
+  '      CurrentDirectory = $workDir',
+  '    } -ErrorAction Stop',
+  '    if ($r -and $r.ReturnValue -eq 0) { return $true }',
+  '  } catch {}',
+  '  try {',
+  '    $p = Start-Process -FilePath $Exe -WorkingDirectory $workDir -PassThru',
+  '    Start-Sleep -Milliseconds 800',
+  '    return ($p -and -not $p.HasExited)',
+  '  } catch {',
+  '    return $false',
+  '  }',
+  '}',
+  'if ($DesktopPid -gt 0) {',
+  '  try { Wait-Process -Id $DesktopPid -Timeout 120 -ErrorAction SilentlyContinue } catch {}',
+  '}',
+  'Start-Sleep -Seconds 2',
+  "if (-not (Test-Path -LiteralPath $InstallerPath)) { throw \"installer missing: $InstallerPath\" }",
+  "$nsis = '/S --updated --force-run'",
+  'if ($InstallDir -and $InstallDir.Trim()) {',
+  "  $nsis = \"/S --updated --force-run /D=$($InstallDir.Trim())\"",
+  '}',
+  '$psi = New-Object System.Diagnostics.ProcessStartInfo',
+  '$psi.FileName = $InstallerPath',
+  '$psi.Arguments = $nsis',
+  '$psi.WorkingDirectory = Split-Path -Parent $InstallerPath',
+  '$psi.UseShellExecute = $false',
+  '$psi.CreateNoWindow = $true',
+  '$installer = [System.Diagnostics.Process]::Start($psi)',
+  'if (-not $installer) { throw "failed to start NSIS installer" }',
+  '$installer.WaitForExit()',
+  '$exeDeadline = (Get-Date).AddSeconds(90)',
+  'while (-not (Test-Path -LiteralPath $RelaunchExe)) {',
+  '  if ((Get-Date) -ge $exeDeadline) { break }',
+  '  Start-Sleep -Milliseconds 400',
+  '}',
+  '$runDeadline = (Get-Date).AddSeconds(20)',
+  'while ((Get-Date) -lt $runDeadline) {',
+  '  if (Test-DesktopRunning $RelaunchExe) { exit 0 }',
+  '  Start-Sleep -Milliseconds 400',
+  '}',
+  'if (-not (Start-DesktopDetached $RelaunchExe)) { exit 1 }',
+  'exit 0',
+  ''
+].join('\n')
+
+export function writePackagedWindowsHandoffScript(
+  tmpDir: string,
+  writeFile: (file: string, contents: string, encoding: BufferEncoding) => void = fs.writeFileSync
+): string {
+  fs.mkdirSync(tmpDir, { recursive: true })
+  const dest = packagedWindowsHandoffScriptPath(tmpDir)
+  writeFile(dest, PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, 'utf8')
+
+  return dest
 }
 
 export function compareStampToRelease(opts: {
@@ -626,11 +757,12 @@ export function downloadHttpsToFile(
   })
 }
 
-/** Spawn recipe after the installer file is on disk. */
-export function packagedInstallerSpawn(opts: { platform: string; installerPath: string; installDir?: string | null }): {
-  args: string[]
-  command: string
-} {
+/** Direct installer spawn (macOS `open` / raw NSIS). Windows apply uses the handoff wrap. */
+export function packagedInstallerSpawn(opts: {
+  platform: string
+  installerPath: string
+  installDir?: string | null
+}): { args: string[]; command: string } {
   if (opts.platform === 'win32') {
     return { command: opts.installerPath, args: nsisSilentArgs(opts.installDir) }
   }
@@ -640,4 +772,42 @@ export function packagedInstallerSpawn(opts: { platform: string; installerPath: 
   }
 
   throw new Error('No packaged installer spawn recipe for this platform.')
+}
+
+/**
+ * What `applyPackagedInstallerUpdates` actually detaches.
+ *
+ * Windows: cmd start → powershell waits for our PID, runs silent NSIS
+ * (`--force-run`), then relaunches Work4You.exe if the installer did not.
+ * macOS: `open` the DMG (user drags to Applications).
+ */
+export function packagedInstallerApplySpawn(opts: {
+  platform: string
+  installerPath: string
+  installDir?: string | null
+  desktopPid: number
+  relaunchExe: string
+  handoffScriptPath: string
+}): { args: string[]; command: string } {
+  if (opts.platform === 'win32') {
+    return wrapHandoffForDetachedConsole(
+      {
+        command: 'powershell',
+        args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', opts.handoffScriptPath],
+        scriptPath: opts.handoffScriptPath
+      },
+      packagedWindowsHandoffExtraArgs({
+        desktopPid: opts.desktopPid,
+        installerPath: opts.installerPath,
+        installDir: opts.installDir,
+        relaunchExe: opts.relaunchExe
+      })
+    )
+  }
+
+  return packagedInstallerSpawn({
+    platform: opts.platform,
+    installerPath: opts.installerPath,
+    installDir: opts.installDir
+  })
 }

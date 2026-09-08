@@ -295,6 +295,7 @@
       "perMachine": false,
       "shortcutName": "Work4You",
       "uninstallDisplayName": "Work4You",
+      "include": "electron/installer.nsh",
       "warningsAsErrors": false
     }
   }
