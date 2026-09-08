@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { $desktopOnboarding, type DesktopOnboardingState, type OnboardingContext } from '@/store/onboarding'
@@ -57,19 +57,23 @@ afterEach(() => {
 })
 
 describe('onboarding Picker', () => {
-  it('first-run offers only Work4You Portal — no labs, API key, or skip', () => {
+  it('first-run offers only Get started — no labs, API key, or skip', () => {
     setProviders([makeOAuthProvider('anthropic', 'Anthropic Claude'), makeOAuthProvider('work4you', 'Work4You Portal')])
     render(<Picker ctx={ctx} />)
 
-    expect(screen.getByText('Work4You Portal')).toBeTruthy()
-    expect(screen.getByText('Recommended')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Work4You Desktop' })).toBeTruthy()
+    expect(screen.getByText('The fastest way to start chatting.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeTruthy()
+    expect(document.querySelector('img[src*="work4you-icon.png"]')).toBeTruthy()
+    expect(screen.queryByText('Work4You Portal')).toBeNull()
+    expect(screen.queryByText('Recommended')).toBeNull()
+    expect(screen.queryByText(/300\+ frontier models/)).toBeNull()
     expect(screen.queryByText('Fireworks AI')).toBeNull()
     expect(screen.queryByText('Anthropic API Key')).toBeNull()
     expect(screen.queryByText('OpenRouter')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Other providers' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'I have an API key' })).toBeNull()
     expect(screen.queryByRole('button', { name: "I'll choose a provider later" })).toBeNull()
-    expect(screen.getByRole('button', { name: /Work4You Portal/ }).querySelector('img')).toBeTruthy()
   })
 
   it('Portal reauth offers continue, not Recommended or a BrandMark in the control', () => {
@@ -94,8 +98,9 @@ describe('onboarding Picker', () => {
     ])
     render(<Picker ctx={ctx} />)
 
-    expect(screen.getByText('Work4You Portal')).toBeTruthy()
-    expect(screen.getByText('Recommended')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeTruthy()
+    expect(screen.queryByText('Work4You Portal')).toBeNull()
+    expect(screen.queryByText('Recommended')).toBeNull()
     expect(screen.queryByText('Fireworks AI')).toBeNull()
     expect(screen.queryByText('Anthropic API Key')).toBeNull()
     expect(screen.queryByText('ChatGPT or Codex Subscription')).toBeNull()
@@ -171,7 +176,7 @@ describe('onboarding Picker', () => {
     try {
       setProviders([makeOAuthProvider('work4you', 'Work4You Portal')])
       render(<Picker ctx={ctx} />)
-      fireEvent.click(screen.getByRole('button', { name: /Work4You Portal/ }))
+      fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
 
       expect($desktopOnboarding.get().flow.status).toBe('awaiting_user')
     } finally {
@@ -219,12 +224,41 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
     expect(screen.getByText("Let's get you setup with Work4You")).toBeTruthy()
   })
 
-  it('keeps first-run header copy when reauth is false', () => {
+  it('keeps first-run preparing header when reauth is false and overlay is not ready', () => {
     setProviders([makeOAuthProvider('work4you', 'Work4You Portal')], { configured: false, reauth: false })
     render(<DesktopOnboardingOverlay enabled={false} profile="default" requestGateway={requestGateway} />)
 
     expect(screen.getByText("Let's get you setup with Work4You")).toBeTruthy()
     expect(screen.getByText(/300\+ frontier models/)).toBeTruthy()
     expect(screen.queryByText('Sign in to continue')).toBeNull()
+  })
+
+  it('first-run overlay is a full-bleed Get started door', async () => {
+    const originalLocation = window.location
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, search: '?onboarding=1' }
+    })
+
+    try {
+      render(<DesktopOnboardingOverlay enabled={false} profile="default" requestGateway={requestGateway} />)
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Get started' })).toBeTruthy())
+      expect(screen.getByRole('heading', { name: 'Work4You Desktop' })).toBeTruthy()
+      expect(screen.getByText('The fastest way to start chatting.')).toBeTruthy()
+      expect(screen.queryByText("Let's get you setup with Work4You")).toBeNull()
+      expect(screen.queryByText('Recommended')).toBeNull()
+      expect(screen.queryByText('Work4You Portal')).toBeNull()
+      expect(screen.queryByText('Sign in to continue')).toBeNull()
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.delete('onboarding')
+        window.history.replaceState(window.history.state, '', url)
+      } catch {
+        // ignore
+      }
+    }
   })
 })

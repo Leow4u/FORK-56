@@ -280,7 +280,7 @@ export function DesktopOnboardingOverlay({
     return null
   }
 
-  const { flow } = onboarding
+  const { flow, manual, reauth } = onboarding
   // Show the launch reason only when it's a meaningful, caller-supplied prompt —
   // suppress the generic defaults (useless noise) and provider-setup errors
   // (those are surfaced by FlowPanel, not as a banner).
@@ -288,7 +288,7 @@ export function DesktopOnboardingOverlay({
 
   const reason =
     rawReason &&
-    !onboarding.reauth &&
+    !reauth &&
     !isPortalSessionReauthReason(rawReason) &&
     !isProviderSetupErrorMessage(rawReason) &&
     rawReason !== DEFAULT_ONBOARDING_REASON &&
@@ -299,16 +299,18 @@ export function DesktopOnboardingOverlay({
   // In manual mode the app is already configured, so the flow is "ready"
   // immediately — no runtime gate needed. Otherwise wait for the readiness
   // check (configured === false) before showing the picker.
-  const ready = Boolean(preview) || onboarding.manual || (enabled && onboarding.configured === false)
+  const ready = Boolean(preview) || manual || (enabled && onboarding.configured === false)
   const showPicker = flow.status === 'idle' || flow.status === 'success'
-  // The final "you're in" screen drops the card chrome and floats centered on
-  // the surface — same bare, cinematic treatment as the connecting overlay.
-  const bare = ready && !showPicker && flow.status === 'confirming_model'
+  // First-run welcome and the final "you're in" screen drop the card chrome
+  // and float on the chat surface — same bare treatment as the connecting overlay.
+  const firstRunWelcome = ready && showPicker && !manual && !reauth
+  const bare = firstRunWelcome || (ready && !showPicker && flow.status === 'confirming_model')
 
   return (
     <div
       className={cn(
-        'fixed inset-0 z-(--z-onboarding) flex items-center justify-center bg-(--ui-chat-surface-background) p-6 transition-opacity duration-[520ms] ease-out',
+        'fixed inset-0 z-(--z-onboarding) bg-(--ui-chat-surface-background) transition-opacity duration-[520ms] ease-out',
+        bare ? 'grid place-items-center' : 'flex items-center justify-center p-6',
         // On the bare confirm screen, hold the surface (text-out + hold) so the
         // per-element exit plays before it dissolves.
         bare && leaving ? '[transition-delay:660ms]' : '',
@@ -317,19 +319,19 @@ export function DesktopOnboardingOverlay({
     >
       <div
         className={cn(
-          'relative w-full max-w-[45rem] transition-all duration-500 ease-out',
+          'relative transition-all duration-500 ease-out',
           bare
             ? ''
-            : 'overflow-hidden rounded-xl border border-(--stroke-work4you) bg-(--ui-chat-bubble-background) shadow-work4you',
-          // Bare confirm screen orchestrates its own per-element exit; the
-          // carded states use the simple lift/blur dissolve.
+            : 'w-full max-w-[45rem] overflow-hidden rounded-xl border border-(--stroke-work4you) bg-(--ui-chat-bubble-background) shadow-work4you',
+          // Bare screens orchestrate their own exit; the carded states use the
+          // simple lift/blur dissolve.
           leaving && !bare
             ? '-translate-y-1 scale-[0.985] opacity-0 blur-[2px]'
             : 'translate-y-0 scale-100 opacity-100 blur-0'
         )}
       >
-        {showPicker || !ready ? <Header /> : null}
-        {onboarding.manual ? (
+        {!firstRunWelcome && (showPicker || !ready) ? <Header /> : null}
+        {manual ? (
           <Button
             aria-label={t.common.close}
             className="absolute right-3 top-3 z-10 text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
@@ -340,8 +342,8 @@ export function DesktopOnboardingOverlay({
             <Codicon name="close" size="1rem" />
           </Button>
         ) : null}
-        <div className="grid gap-3 p-5">
-          {reason ? <ReasonNotice reason={reason} /> : null}
+        <div className={cn(firstRunWelcome ? '' : 'grid gap-3 p-5')}>
+          {reason && !firstRunWelcome ? <ReasonNotice reason={reason} /> : null}
           {ready ? (
             showPicker ? (
               <Picker ctx={ctx} />
@@ -460,29 +462,51 @@ function startPickerOAuth(provider: OAuthProvider, ctx: OnboardingContext) {
   void startProviderOAuth(provider, ctx)
 }
 
-function FirstRunAccountPicker({ ctx }: { ctx: OnboardingContext }) {
+function portalFromCatalog(providers: OAuthProvider[] | null) {
+  return providers?.find(p => p.id === FEATURED_ID) ?? fallbackPortalProvider()
+}
+
+function FirstRunWelcome({ ctx }: { ctx: OnboardingContext }) {
   const { t } = useI18n()
-  const { providers, reauth } = useStore($desktopOnboarding)
+  const { providers } = useStore($desktopOnboarding)
 
   if (providers === null) {
     return <Status>{t.onboarding.lookingUpProviders}</Status>
   }
 
-  // First-run is the Portal account door. Labs, API keys, and skip stay on
+  // First-run is one Portal door. Labs, API keys, and skip stay on
   // Settings → Providers (manual mode). If the catalog omitted Portal, still
   // offer only that account — never fall through to other labs or a key form.
-  // Portal reauth keeps that same single door, with continue chrome instead of
-  // the first-run Recommended pitch.
-  const portal = providers.find(p => p.id === FEATURED_ID) ?? fallbackPortalProvider()
+  const portal = portalFromCatalog(providers)
+
+  return (
+    <div className="grid justify-items-center text-center">
+      <BrandMark className="size-16" />
+      <h1 className="mt-7 text-3xl font-semibold tracking-tight">{t.onboarding.welcomeTitle}</h1>
+      <p className="mt-3 text-sm leading-5 text-muted-foreground">{t.onboarding.welcomeSubtitle}</p>
+      <Button className="mt-14" onClick={() => startPickerOAuth(portal, ctx)} size="lg">
+        {t.onboarding.getStarted}
+      </Button>
+    </div>
+  )
+}
+
+function FirstRunAccountPicker({ ctx }: { ctx: OnboardingContext }) {
+  const { t } = useI18n()
+  const { providers } = useStore($desktopOnboarding)
+
+  if (providers === null) {
+    return <Status>{t.onboarding.lookingUpProviders}</Status>
+  }
+
+  // Portal reauth keeps the card door, with continue chrome instead of the
+  // first-run welcome.
+  const portal = portalFromCatalog(providers)
 
   return (
     <div className="grid gap-2">
       <div className="grid max-h-[60dvh] gap-2 overflow-y-auto p-1">
-        {reauth ? (
-          <ContinuePortalRow onSelect={p => startPickerOAuth(p, ctx)} provider={portal} />
-        ) : (
-          <FeaturedProviderRow onSelect={p => startPickerOAuth(p, ctx)} provider={portal} />
-        )}
+        <ContinuePortalRow onSelect={p => startPickerOAuth(p, ctx)} provider={portal} />
       </div>
     </div>
   )
@@ -490,7 +514,7 @@ function FirstRunAccountPicker({ ctx }: { ctx: OnboardingContext }) {
 
 export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const { t } = useI18n()
-  const { localEndpoint, manual, mode, providers } = useStore($desktopOnboarding)
+  const { localEndpoint, manual, mode, providers, reauth } = useStore($desktopOnboarding)
   const [showAll, setShowAll] = useState(readShowAll)
   // Which key-form option to preselect when we flip to 'apikey' mode. The
   // OpenRouter row selects its key; the generic link lands on the first option.
@@ -506,7 +530,7 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const apiKeyOptions = useApiKeyCatalog()
 
   if (!manual) {
-    return <FirstRunAccountPicker ctx={ctx} />
+    return reauth ? <FirstRunAccountPicker ctx={ctx} /> : <FirstRunWelcome ctx={ctx} />
   }
 
   // localEndpoint forces the key form regardless of `mode` (which a manual

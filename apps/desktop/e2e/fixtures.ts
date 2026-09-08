@@ -691,6 +691,10 @@ export async function waitForOnboarding(page: Page, timeoutMs = 60_000): Promise
       const text = root.textContent ?? ''
 
       return (
+        text.includes('Get started') ||
+        text.includes('Work4You Desktop') ||
+        text.includes('Work4You Portal') ||
+        text.includes('Sign in to continue') ||
         text.includes('provider') ||
         text.includes('Provider') ||
         text.includes('Choose') ||

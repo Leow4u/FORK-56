@@ -2675,6 +2675,9 @@ export interface Translations {
     sessionExpired: string
     continueWithPortal: string
     opensBrowser: string
+    welcomeTitle: string
+    welcomeSubtitle: string
+    getStarted: string
     preparingInstall: string
     starting: string
     lookingUpProviders: string

@@ -6,7 +6,7 @@
  * provider pointing at a mock inference server. When the app boots, the
  * runtime readiness check should detect the working provider and dismiss the
  * onboarding overlay — landing straight on the chat UI without ever showing
- * the "Let's get you setup with Work4You" screen.
+ * the first-run welcome screen.
  *
  * If these tests fail, the mock backend config isn't getting the app past
  * onboarding — the chat interaction tests (chat.spec.ts) will also fail
@@ -40,15 +40,15 @@ test.describe('mock backend gets past setup screen', () => {
   test('onboarding overlay is not shown', async () => {
     const page = fixture!.page
 
-    // The onboarding overlay renders "Let's get you setup with Work4You"
-    // when the runtime check fails to find a working provider. With the mock
-    // backend configured, the runtime check should pass and the overlay
-    // returns null — this text should NOT be present in the DOM.
+    // The onboarding overlay renders first-run welcome copy ("Work4You Desktop"
+    // / "Get started") when the runtime check fails to find a working provider.
+    // With the mock backend configured, the runtime check should pass and the
+    // overlay returns null — that welcome copy should NOT be present in the DOM.
     await page.waitForFunction(
       () => {
         const text = document.body.textContent ?? ''
 
-        return !text.includes("Let's get you setup")
+        return !text.includes("Let's get you setup") && !text.includes('The fastest way to start chatting.')
       },
       undefined,
       { timeout: 30_000 },
