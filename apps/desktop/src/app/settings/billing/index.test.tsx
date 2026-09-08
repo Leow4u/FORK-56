@@ -225,6 +225,22 @@ describe('BillingSettings', () => {
     expect(screen.getByRole('button', { name: 'Save' }).hasAttribute('disabled')).toBe(true)
   })
 
+  it('shows Available on Free without a usage Progress or dollar amounts', async () => {
+    const fixture = billingDevFixtures['free-personal']
+
+    apiMocks.fetchBillingState.mockResolvedValue(fixture.billing)
+    apiMocks.fetchSubscriptionState.mockResolvedValue(fixture.subscription)
+
+    renderBilling()
+
+    expect((await screen.findAllByText('Available')).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Free').length).toBeGreaterThan(0)
+    expect(screen.getByText("This month's allowance")).toBeTruthy()
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.queryByText(/\$5/)).toBeNull()
+    expect(screen.queryByText(/\$0\.10/)).toBeNull()
+  })
+
   it('navigates to the in-app plans grid from the plan card and back', async () => {
     const fixture = billingDevFixtures['free-personal']
 
@@ -245,6 +261,29 @@ describe('BillingSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to billing' }))
 
     expect(await screen.findByRole('button', { name: 'View plans' })).toBeTruthy()
+  })
+
+  it('does not mark Plus as Current plan when Free is missing from the catalog', async () => {
+    const fixture = billingDevFixtures['free-personal']
+    const subscription = fixture.subscription.ok ? fixture.subscription.data : null
+
+    expect(subscription).not.toBeNull()
+
+    apiMocks.fetchBillingState.mockResolvedValue(fixture.billing)
+    apiMocks.fetchSubscriptionState.mockResolvedValue(
+      okSubscription({
+        ...subscription!,
+        tiers: (subscription!.tiers ?? []).filter(tier => tier.name !== 'Free')
+      })
+    )
+
+    renderBilling()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View plans' }))
+
+    expect(await screen.findByText('Plans')).toBeTruthy()
+    expect(screen.queryByText('Current plan')).toBeNull()
+    expect(screen.getAllByRole('button', { name: /Choose/ }).length).toBe(3)
   })
 
   it('renders the current marker and an actionable downgrade when deep-linked to the plans grid', async () => {
@@ -626,7 +665,7 @@ describe('BillingSettings', () => {
     expect(subscriptionTrack.querySelector('.bg-destructive')).toBeTruthy()
   })
 
-  it('renders an empty neutral usage track when a row has no bar data', async () => {
+  it('omits a usage Progress when the row has no bar data', async () => {
     const fixture = billingDevFixtures['no-subscription']
 
     apiMocks.fetchBillingState.mockResolvedValue(
@@ -644,13 +683,8 @@ describe('BillingSettings', () => {
     renderBilling()
 
     await screen.findByText('Subscription credits')
-    const subscriptionTrack = screen.getByRole('progressbar', { name: 'Subscription credits usage' })
-
-    expect(subscriptionTrack.getAttribute('aria-valuenow')).toBe('0')
-    expect(subscriptionTrack.classList.contains('text-destructive')).toBe(false)
-    // Empty tracks are the plain shared primitive now — no hatched placeholder.
-    expect(subscriptionTrack.classList.contains('dither')).toBe(false)
-    expect(subscriptionTrack.classList.contains('bg-muted')).toBe(true)
+    expect(screen.queryByRole('progressbar', { name: 'Subscription credits usage' })).toBeNull()
+    expect(screen.queryByRole('progressbar', { name: 'Subscription credits remaining' })).toBeNull()
 
     const monthlyCapTrack = screen.getByRole('progressbar', { name: 'Monthly spend cap used' })
 

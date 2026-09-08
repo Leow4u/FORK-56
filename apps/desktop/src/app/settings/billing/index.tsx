@@ -311,35 +311,37 @@ function BuyCreditsOutcome({
   )
 }
 
-function UsageBar({ bar, fallbackLabel }: { bar?: BillingUsageRowView['bar']; fallbackLabel: string }) {
-  const resolvedBar = bar ?? {
-    label: `${fallbackLabel} usage`,
-    state: 'neutral',
-    tone: 'topup',
-    value: 0
-  }
-
+function UsageBar({ bar }: { bar: NonNullable<BillingUsageRowView['bar']> }) {
   // Plain shared primitive — no bespoke track chrome. Only the fill tone carries
   // billing meaning: destructive when over-limit, green for healthy remaining
   // credits, muted otherwise. Color rides the sanctioned `fillClassName` override.
-  const isOk = resolvedBar.state === 'ok' && (resolvedBar.tone === 'subscription' || resolvedBar.tone === 'topup')
+  const isOk = bar.state === 'ok' && (bar.tone === 'subscription' || bar.tone === 'topup')
 
   return (
     <Progress
-      aria-label={resolvedBar.label}
-      destructive={resolvedBar.state === 'danger'}
-      fillClassName={resolvedBar.state === 'danger' ? undefined : isOk ? 'bg-(--ui-green)' : 'bg-muted-foreground/45'}
-      fillStyle={{ minWidth: resolvedBar.value > 0 ? 4 : undefined }}
+      aria-label={bar.label}
+      destructive={bar.state === 'danger'}
+      fillClassName={bar.state === 'danger' ? undefined : isOk ? 'bg-(--ui-green)' : 'bg-muted-foreground/45'}
+      fillStyle={{ minWidth: bar.value > 0 ? 4 : undefined }}
       size="lg"
-      value={resolvedBar.value}
+      value={bar.value}
     />
   )
 }
 
 function UsageRow({ row }: { row: BillingUsageRowView }) {
+  const hasBar = row.bar != null
+
   return (
     <div className="@container">
-      <div className="grid min-w-0 gap-2 py-3 @xl:grid-cols-[minmax(0,180px)_minmax(0,1fr)_220px] @xl:items-center @xl:gap-4">
+      <div
+        className={cn(
+          'grid min-w-0 gap-2 py-3 @xl:items-center @xl:gap-4',
+          hasBar
+            ? '@xl:grid-cols-[minmax(0,180px)_minmax(0,1fr)_220px]'
+            : '@xl:grid-cols-[minmax(0,1fr)_220px]'
+        )}
+      >
         <div className="min-w-0">
           <div className="text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
             {row.title}
@@ -348,9 +350,11 @@ function UsageRow({ row }: { row: BillingUsageRowView }) {
             {row.caption}
           </div>
         </div>
-        <div className="min-w-0">
-          <UsageBar bar={row.bar} fallbackLabel={row.title} />
-        </div>
+        {row.bar ? (
+          <div className="min-w-0">
+            <UsageBar bar={row.bar} />
+          </div>
+        ) : null}
         <div
           className={cn(
             'min-w-0 whitespace-nowrap text-[length:var(--conversation-text-font-size)] font-medium tabular-nums @xl:w-[220px] @xl:flex-none @xl:text-right',

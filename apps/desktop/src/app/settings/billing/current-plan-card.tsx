@@ -3,7 +3,6 @@ import { ExternalLink } from '@/lib/icons'
 
 import { BillingRefusalInline } from './inline-feedback'
 import { openExternal } from './open-external'
-import { TierArt } from './tier-art'
 import type { BillingPlanCardView } from './use-billing-state'
 import { useResumeFlow } from './use-subscription-change'
 
@@ -13,22 +12,19 @@ export function CurrentPlanCard({ onViewPlans, plan }: { onViewPlans: () => void
   return (
     <div className="@container">
       <div className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center">
-        <div className="flex min-w-0 items-center gap-3">
-          <TierArt name={plan.tierName} />
-          <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-              <span className="truncate text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
-                {plan.tierName}
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+            <span className="truncate text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
+              {plan.tierName}
+            </span>
+            {plan.price && (
+              <span className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+                {plan.price}/mo
               </span>
-              {plan.price && (
-                <span className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-                  {plan.price}/mo
-                </span>
-              )}
-            </div>
-            <div className="mt-1 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-              {plan.caption}
-            </div>
+            )}
+          </div>
+          <div className="mt-1 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+            {plan.caption}
           </div>
         </div>
         <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 @xl:justify-end">

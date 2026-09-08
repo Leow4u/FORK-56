@@ -308,12 +308,57 @@ describe('derivePlanCard (current-plan card)', () => {
     expect(view.plan?.link).toBeUndefined()
     expect(view.plan?.price).toBeUndefined()
     expect(view.summary).toContainEqual({ label: 'Plan', value: 'Free' })
-    expect(view.summary.find(item => item.label === 'Balance')?.value).toBe('—')
+    expect(view.summary.find(item => item.label === 'Balance')?.value).toBe('Available')
     expect(view.usageRows).toEqual([
       expect.objectContaining({
+        bar: undefined,
         id: 'subscription_credits',
         title: "This month's allowance",
         value: 'Available'
+      })
+    ])
+    expect(view.usageRows.some(row => /\$/.test(row.value))).toBe(false)
+  })
+
+  it('shows Free on Balance when remaining is unknown, without dollars', () => {
+    const fixture = billingDevFixtures['free-personal']
+    const billing = fixture.billing.ok ? fixture.billing.data : null
+
+    expect(billing).not.toBeNull()
+
+    const view = deriveBillingView(
+      okBilling({ ...billing!, balance_display: '', balance_usd: null }),
+      fixture.subscription
+    )
+
+    expect(view.summary.find(item => item.label === 'Balance')?.value).toBe('Free')
+    expect(view.usageRows).toEqual([
+      expect.objectContaining({
+        bar: undefined,
+        id: 'subscription_credits',
+        value: 'Available'
+      })
+    ])
+    expect(view.usageRows.some(row => /\$/.test(row.value))).toBe(false)
+  })
+
+  it('shows Used for this cycle on Free when the hidden grant is spent', () => {
+    const fixture = billingDevFixtures['free-personal']
+    const billing = fixture.billing.ok ? fixture.billing.data : null
+
+    expect(billing).not.toBeNull()
+
+    const view = deriveBillingView(
+      okBilling({ ...billing!, balance_display: '$0', balance_usd: '0' }),
+      fixture.subscription
+    )
+
+    expect(view.summary.find(item => item.label === 'Balance')?.value).toBe('Used for this cycle')
+    expect(view.usageRows).toEqual([
+      expect.objectContaining({
+        bar: undefined,
+        id: 'subscription_credits',
+        value: 'Used for this cycle'
       })
     ])
     expect(view.usageRows.some(row => /\$/.test(row.value))).toBe(false)
@@ -566,7 +611,7 @@ describe('derivePlanTiers (plans grid)', () => {
     expect(byName.Plus.priceDisplay).toBe('$20')
   })
 
-  it('still lists a tier whose name has no art mapping (text-only card, no layout break)', () => {
+  it('still lists a paid tier whose name is unknown (text-only card, no layout break)', () => {
     const view = deriveBillingView(
       okBilling(todayBillingState),
       okSubscription({
@@ -596,8 +641,9 @@ describe('derivePlanTiers (plans grid)', () => {
       })
     )
 
-    // The unknown-named paid tier still lists (art resolves to null → text-only).
+    // Unknown paid names still list as text cards.
     expect(view.tiers.map(tier => tier.name)).toEqual(['Free', 'Mystery'])
+    expect(view.tiers.find(tier => tier.name === 'Free')?.state).toBe('current')
     expect(view.tiers.find(tier => tier.name === 'Mystery')?.state).toBe('upgrade')
   })
 
@@ -721,6 +767,58 @@ describe('derivePlanTiers (plans grid)', () => {
     )
 
     expect(view.tiers.map(tier => tier.name)).toEqual(['Plus'])
+    expect(view.tiers[0]?.state).toBe('upgrade')
+    expect(view.tiers.some(tier => tier.state === 'current')).toBe(false)
+  })
+
+  it('does not mark Plus current when Free is absent from the catalog and current is null', () => {
+    const view = deriveBillingView(
+      okBilling({
+        ...todayBillingState,
+        usage: { ...todayBillingState.usage, plan_name: 'Free' }
+      }),
+      okSubscription({
+        ...todaySubscriptionState,
+        can_change_plan: true,
+        context: 'personal',
+        current: null,
+        tiers: [
+          {
+            dollars_per_month_display: '$20',
+            is_current: true,
+            is_enabled: true,
+            monthly_credits: '22',
+            name: 'Plus',
+            tier_id: 'plus',
+            tier_order: 1
+          },
+          {
+            dollars_per_month_display: '$100',
+            is_current: false,
+            is_enabled: true,
+            monthly_credits: '110',
+            name: 'Super',
+            tier_id: 'super',
+            tier_order: 2
+          },
+          {
+            dollars_per_month_display: '$200',
+            is_current: false,
+            is_enabled: true,
+            monthly_credits: '220',
+            name: 'Ultra',
+            tier_id: 'ultra',
+            tier_order: 3
+          }
+        ]
+      })
+    )
+
+    expect(view.plan?.tierName).toBe('Free')
+    expect(view.plan?.action?.label).toBe('View plans')
+    expect(view.tiers.map(tier => tier.name)).toEqual(['Plus', 'Super', 'Ultra'])
+    expect(view.tiers.every(tier => tier.state === 'upgrade')).toBe(true)
+    expect(view.tiers.some(tier => tier.state === 'current')).toBe(false)
   })
 })
 
