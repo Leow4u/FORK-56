@@ -51,16 +51,37 @@ function resetStores() {
 beforeEach(resetStores)
 afterEach(cleanup)
 
-// The connecting overlay renders "CONN" + a scrambled tail inside one
-// uppercase span; match that node specifically so the recovery overlay's
-// "Lost connection…" copy doesn't read as a false positive.
-const isConnectingShown = () =>
-  screen.queryAllByText((_, el) => /^CONN[/\\|\-_=+<>~:*A-Z]*$/.test(el?.textContent?.trim() ?? '')).length > 0
+// The connecting overlay is the existing BrandMark (work4you-icon.png), not
+// the recovery copy. Match the mark so "Lost connection…" cannot false-positive.
+const isConnectingShown = () => Boolean(document.querySelector('img[src*="work4you-icon.png"]'))
 
 const isRecoveryShown = () =>
   Boolean(screen.queryByText(/use local gateway/i) || screen.queryByText(/retry/i) || screen.queryByText(/sign in/i))
 
 describe('connecting overlay vs recovery surface', () => {
+  it('cold boot shows BrandMark without CONNECTING text', async () => {
+    $desktopBoot.set({
+      ...$desktopBoot.get(),
+      error: null,
+      progress: 4,
+      running: true,
+      visible: true
+    })
+    setGatewayState('closed')
+
+    await act(async () => {
+      render(<GatewayConnectingOverlay />)
+    })
+
+    expect(isConnectingShown()).toBe(true)
+    expect(screen.queryByText(/connecting/i)).toBeNull()
+    const img = document.querySelector('img[src*="work4you-icon.png"]')
+    const mark = img?.parentElement
+    expect(img?.className).toContain('bg-transparent')
+    expect(mark?.className).toContain('bg-transparent')
+    expect(mark?.className).not.toContain('bg-white')
+  })
+
   it('hard initial-boot failure surfaces the recovery overlay (the working path)', async () => {
     // failDesktopBoot() ran: error set, gateway never opened.
     $desktopBoot.set({
