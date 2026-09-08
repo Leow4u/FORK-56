@@ -211,6 +211,12 @@ export function resolveReleaseCommitSha(release: ParsedDesktopRelease): string |
  * closes and nothing comes back. `--updated` tells CHECK_APP_RUNNING to
  * wait briefly for us to quit instead of killing Work4You.exe immediately.
  * `/D=` must stay last and unquoted even when the path has spaces.
+ *
+ * Older clients omit `--force-run`. `electron/installer.nsh` (`customInstall`)
+ * relaunches those installs, but it must not `!insertmacro StartApp` —
+ * that macro declares `Var startAppArgs` on every insert, and
+ * installSection.nsh inserts StartApp again via `doStartApp`, so NSIS
+ * fails with `variable "startAppArgs" already declared`.
  */
 export const NSIS_SILENT_UPDATE_FLAGS = ['/S', '--updated', '--force-run'] as const
 
