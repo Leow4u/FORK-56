@@ -226,7 +226,10 @@ export function deriveBillingView(
     refillRow: autoReloadRow(billing),
     status: 'normal',
     summary: [
-      { label: 'Balance', value: isFreePlan(billing, subscription) ? freeAllowanceStatus(billing) : displayBalance(billing) },
+      {
+        label: 'Balance',
+        value: isFreePlan(billing, subscription) ? freeAllowanceStatus(billing) : displayBalance(billing)
+      },
       { label: 'Plan', value: isFreePlan(billing, subscription) ? 'Free' : displayPlan(subscription, billing.usage) },
       {
         label: 'Auto-refill',

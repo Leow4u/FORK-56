@@ -337,9 +337,7 @@ function UsageRow({ row }: { row: BillingUsageRowView }) {
       <div
         className={cn(
           'grid min-w-0 gap-2 py-3 @xl:items-center @xl:gap-4',
-          hasBar
-            ? '@xl:grid-cols-[minmax(0,180px)_minmax(0,1fr)_220px]'
-            : '@xl:grid-cols-[minmax(0,1fr)_220px]'
+          hasBar ? '@xl:grid-cols-[minmax(0,180px)_minmax(0,1fr)_220px]' : '@xl:grid-cols-[minmax(0,1fr)_220px]'
         )}
       >
         <div className="min-w-0">

@@ -309,14 +309,13 @@ describe('derivePlanCard (current-plan card)', () => {
     expect(view.plan?.price).toBeUndefined()
     expect(view.summary).toContainEqual({ label: 'Plan', value: 'Free' })
     expect(view.summary.find(item => item.label === 'Balance')?.value).toBe('Available')
-    expect(view.usageRows).toEqual([
-      expect.objectContaining({
-        bar: undefined,
-        id: 'subscription_credits',
-        title: "This month's allowance",
-        value: 'Available'
-      })
-    ])
+    expect(view.usageRows).toHaveLength(1)
+    expect(view.usageRows[0]).toMatchObject({
+      id: 'subscription_credits',
+      title: "This month's allowance",
+      value: 'Available'
+    })
+    expect(view.usageRows[0]?.bar).toBeUndefined()
     expect(view.usageRows.some(row => /\$/.test(row.value))).toBe(false)
   })
 
@@ -332,13 +331,13 @@ describe('derivePlanCard (current-plan card)', () => {
     )
 
     expect(view.summary.find(item => item.label === 'Balance')?.value).toBe('Free')
-    expect(view.usageRows).toEqual([
-      expect.objectContaining({
-        bar: undefined,
-        id: 'subscription_credits',
-        value: 'Available'
-      })
-    ])
+    expect(view.usageRows).toHaveLength(1)
+    expect(view.usageRows[0]).toMatchObject({
+      id: 'subscription_credits',
+      title: "This month's allowance",
+      value: 'Available'
+    })
+    expect(view.usageRows[0]?.bar).toBeUndefined()
     expect(view.usageRows.some(row => /\$/.test(row.value))).toBe(false)
   })
 
@@ -354,13 +353,13 @@ describe('derivePlanCard (current-plan card)', () => {
     )
 
     expect(view.summary.find(item => item.label === 'Balance')?.value).toBe('Used for this cycle')
-    expect(view.usageRows).toEqual([
-      expect.objectContaining({
-        bar: undefined,
-        id: 'subscription_credits',
-        value: 'Used for this cycle'
-      })
-    ])
+    expect(view.usageRows).toHaveLength(1)
+    expect(view.usageRows[0]).toMatchObject({
+      id: 'subscription_credits',
+      title: "This month's allowance",
+      value: 'Used for this cycle'
+    })
+    expect(view.usageRows[0]?.bar).toBeUndefined()
     expect(view.usageRows.some(row => /\$/.test(row.value))).toBe(false)
   })
 

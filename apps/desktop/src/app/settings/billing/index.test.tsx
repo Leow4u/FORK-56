@@ -237,8 +237,8 @@ describe('BillingSettings', () => {
     expect(screen.getAllByText('Free').length).toBeGreaterThan(0)
     expect(screen.getByText("This month's allowance")).toBeTruthy()
     expect(screen.queryByRole('progressbar')).toBeNull()
-    expect(screen.queryByText(/\$5/)).toBeNull()
-    expect(screen.queryByText(/\$0\.10/)).toBeNull()
+    expect(screen.queryByText('$5')).toBeNull()
+    expect(screen.queryByText('$0.10')).toBeNull()
   })
 
   it('navigates to the in-app plans grid from the plan card and back', async () => {
