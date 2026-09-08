@@ -433,8 +433,6 @@ export const ar = defineLocale({
         window: 'النافذة كاملة',
         sidebar: 'الشريط الجانبي فقط'
       },
-      backdropTitle: 'خلفية النافذة',
-      backdropDesc: 'اختيار مقدار مزج خلفية سطح المكتب مع سطح Work4You.',
       introSplashTitle: 'شاشة المقدمة',
       introSplashDesc: 'الشعار النصي والعبارة التمهيدية في محادثة فارغة.',
       reactionsTitle: 'تفاعلات الرسائل',

@@ -358,8 +358,6 @@ export const zhHant = defineLocale({
         window: '整個視窗',
         sidebar: '僅側邊欄'
       },
-      backdropTitle: '聊天背景',
-      backdropDesc: '對話後方那張淡淡的雕像圖片。',
       introSplashTitle: '開場標識',
       introSplashDesc: '空白對話中顯示的字標和提示語。',
       reactionsTitle: '訊息回應',

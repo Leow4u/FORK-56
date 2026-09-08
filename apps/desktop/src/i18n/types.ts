@@ -439,8 +439,6 @@ export interface Translations {
         window: string
         sidebar: string
       }
-      backdropTitle: string
-      backdropDesc: string
       introSplashTitle: string
       introSplashDesc: string
       reactionsTitle: string

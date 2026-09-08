@@ -153,15 +153,6 @@ export function useSettingsSearchCatalog(enabled: boolean) {
       : []),
     {
       context: appearanceContext,
-      description: appearance.backdropDesc,
-      icon: Palette,
-      id: `setting:${APPEARANCE_SETTING_IDS.backdrop}`,
-      keywords: ['background', 'blur'],
-      label: appearance.backdropTitle,
-      target: { setting: APPEARANCE_SETTING_IDS.backdrop, view: 'config:appearance' }
-    },
-    {
-      context: appearanceContext,
       description: appearance.introSplashDesc,
       icon: Palette,
       id: `setting:${APPEARANCE_SETTING_IDS.introSplash}`,

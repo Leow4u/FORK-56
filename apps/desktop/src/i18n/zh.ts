@@ -531,8 +531,6 @@ export const zh: Translations = {
         window: '整个窗口',
         sidebar: '仅侧边栏'
       },
-      backdropTitle: '聊天背景',
-      backdropDesc: '对话后方那张淡淡的雕像图片。',
       introSplashTitle: '开场标识',
       introSplashDesc: '空白对话中显示的字标和提示语。',
       reactionsTitle: '消息回应',
