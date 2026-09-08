@@ -278,7 +278,7 @@ export const PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1 = [
   '  try {',
   '    $want = [IO.Path]::GetFullPath($Exe)',
   '    $hit = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |',
-  "      Where-Object { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -eq $want) }",
+  '      Where-Object { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -eq $want) }',
   '    return [bool]$hit',
   '  } catch {',
   '    return $false',
@@ -289,7 +289,7 @@ export const PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1 = [
   '  $workDir = Split-Path -Parent $Exe',
   '  try {',
   '    $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{',
-  "      CommandLine = ('\"{0}\"' -f $Exe)",
+  '      CommandLine = (\'"{0}"\' -f $Exe)',
   '      CurrentDirectory = $workDir',
   '    } -ErrorAction Stop',
   '    if ($r -and $r.ReturnValue -eq 0) { return $true }',
@@ -306,10 +306,10 @@ export const PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1 = [
   '  try { Wait-Process -Id $DesktopPid -Timeout 120 -ErrorAction SilentlyContinue } catch {}',
   '}',
   'Start-Sleep -Seconds 2',
-  "if (-not (Test-Path -LiteralPath $InstallerPath)) { throw \"installer missing: $InstallerPath\" }",
+  'if (-not (Test-Path -LiteralPath $InstallerPath)) { throw "installer missing: $InstallerPath" }',
   "$nsis = '/S --updated --force-run'",
   'if ($InstallDir -and $InstallDir.Trim()) {',
-  "  $nsis = \"/S --updated --force-run /D=$($InstallDir.Trim())\"",
+  '  $nsis = "/S --updated --force-run /D=$($InstallDir.Trim())"',
   '}',
   '$psi = New-Object System.Diagnostics.ProcessStartInfo',
   '$psi.FileName = $InstallerPath',
@@ -758,11 +758,10 @@ export function downloadHttpsToFile(
 }
 
 /** Direct installer spawn (macOS `open` / raw NSIS). Windows apply uses the handoff wrap. */
-export function packagedInstallerSpawn(opts: {
-  platform: string
-  installerPath: string
-  installDir?: string | null
-}): { args: string[]; command: string } {
+export function packagedInstallerSpawn(opts: { platform: string; installerPath: string; installDir?: string | null }): {
+  args: string[]
+  command: string
+} {
   if (opts.platform === 'win32') {
     return { command: opts.installerPath, args: nsisSilentArgs(opts.installDir) }
   }
