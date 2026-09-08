@@ -3536,7 +3536,9 @@ async function applyPackagedInstallerUpdates() {
     stdio: 'ignore'
   })
 
-  rememberLog(`[updates] launched packaged installer: ${spawned.command} ${spawned.args.join(' ')} (${plan.releaseTag})`)
+  rememberLog(
+    `[updates] launched packaged installer: ${spawned.command} ${spawned.args.join(' ')} (${plan.releaseTag})`
+  )
 
   const dwellStartedAt = Date.now()
   const handoffOutcome = await observeUpdaterHandoff(child, UPDATE_HANDOFF_DWELL_MS)

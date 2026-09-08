@@ -181,6 +181,7 @@ describe('onboarding Picker', () => {
       expect($desktopOnboarding.get().flow.status).toBe('awaiting_user')
     } finally {
       Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+
       try {
         const url = new URL(window.location.href)
         url.searchParams.delete('onboarding')
@@ -252,6 +253,7 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
       expect(screen.queryByText('Sign in to continue')).toBeNull()
     } finally {
       Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+
       try {
         const url = new URL(window.location.href)
         url.searchParams.delete('onboarding')

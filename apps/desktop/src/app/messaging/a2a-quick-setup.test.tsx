@@ -142,9 +142,7 @@ describe('helpers', () => {
 
     expect(a2aIsLocalhostOnly([])).toBe(true)
     expect(a2aIsNetworkExposed([envVar('A2A_HOST', '0.0.0.0')])).toBe(true)
-    expect(
-      a2aIsLocalhostOnly([envVar('A2A_HOST', '0.0.0.0'), envVar('A2A_BEARER_TOKEN', null, true)])
-    ).toBe(false)
+    expect(a2aIsLocalhostOnly([envVar('A2A_HOST', '0.0.0.0'), envVar('A2A_BEARER_TOKEN', null, true)])).toBe(false)
     expect(a2aIsLocalhostOnly([envVar('A2A_HOST', '0.0.0.0')])).toBe(true)
   })
 
