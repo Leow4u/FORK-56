@@ -66,6 +66,7 @@ export const zh: Translations = {
 
   boot: {
     ready: 'Work4You 桌面版已就绪',
+    connectingWork4You: '正在连接 Work4You…',
     desktopBootFailedWithMessage: message => `桌面启动失败：${message}`,
     steps: {
       connectingGateway: '正在连接桌面网关',

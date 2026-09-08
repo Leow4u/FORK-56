@@ -2,7 +2,9 @@ import { useStore } from '@nanostores/react'
 import { useEffect, useRef, useState } from 'react'
 
 import { BrandMark } from '@/components/brand-mark'
+import { Loader } from '@/components/ui/loader'
 import { prefersReducedMotion } from '@/hooks/use-media-query'
+import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { $desktopBoot } from '@/store/boot'
 import { $gatewaySwitching } from '@/store/gateway-switch'
@@ -33,6 +35,7 @@ function forcedPreview(): boolean {
 }
 
 export function GatewayConnectingOverlay() {
+  const { t } = useI18n()
   const gatewayState = useStore($gatewayState)
   const boot = useStore($desktopBoot)
   const gatewaySwitching = useStore($gatewaySwitching)
@@ -130,6 +133,7 @@ export function GatewayConnectingOverlay() {
 
   const leaving = phase !== 'live'
   const overlayHidden = phase === 'overlay-out' || phase === 'gone'
+  const label = t.boot.connectingWork4You
 
   return (
     <div
@@ -138,12 +142,28 @@ export function GatewayConnectingOverlay() {
         overlayHidden ? 'pointer-events-none opacity-0' : 'opacity-100'
       )}
     >
-      <BrandMark
+      <div
         className={cn(
-          'size-16 transition duration-300 ease-out',
+          'grid justify-items-center text-center transition duration-300 ease-out',
           leaving ? 'translate-y-2 opacity-0 saturate-0' : 'translate-y-0 opacity-100 saturate-100'
         )}
-      />
+        role="status"
+      >
+        <div className="grid place-items-center">
+          {reduce ? null : (
+            <Loader
+              aria-hidden="true"
+              className="col-start-1 row-start-1 size-32 text-primary/70"
+              pathSteps={180}
+              role="presentation"
+              strokeScale={0.85}
+              type="orbit-ring"
+            />
+          )}
+          <BrandMark className="col-start-1 row-start-1 size-16" />
+        </div>
+        <p className="mt-7 text-sm leading-5 text-muted-foreground">{label}</p>
+      </div>
     </div>
   )
 }

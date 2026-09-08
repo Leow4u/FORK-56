@@ -60,7 +60,7 @@ const isRecoveryShown = () =>
   Boolean(screen.queryByText(/use local gateway/i) || screen.queryByText(/retry/i) || screen.queryByText(/sign in/i))
 
 describe('connecting overlay vs recovery surface', () => {
-  it('cold boot shows BrandMark without CONNECTING text', async () => {
+  it('cold boot shows BrandMark, Connecting Work4You, and the page-load orbit-ring', async () => {
     $desktopBoot.set({
       ...$desktopBoot.get(),
       error: null,
@@ -75,7 +75,12 @@ describe('connecting overlay vs recovery surface', () => {
     })
 
     expect(isConnectingShown()).toBe(true)
-    expect(screen.queryByText(/connecting/i)).toBeNull()
+    expect(screen.getByRole('status', { name: 'Connecting Work4You…' })).toBeTruthy()
+    expect(screen.queryByText('CONNECTING')).toBeNull()
+    expect(document.querySelector('.font-mono.uppercase')).toBeNull()
+    const status = screen.getByRole('status', { name: 'Connecting Work4You…' })
+    expect(status.querySelector('svg')).not.toBeNull()
+    expect(status.querySelectorAll('circle').length).toBeGreaterThan(8)
     const img = document.querySelector('img[src*="work4you-icon.png"]')
     const mark = img?.parentElement
     expect(img?.className).toContain('bg-transparent')

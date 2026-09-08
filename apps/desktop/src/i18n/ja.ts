@@ -66,6 +66,7 @@ export const ja = defineLocale({
 
   boot: {
     ready: 'Work4You Desktop の準備ができました',
+    connectingWork4You: 'Work4You に接続中…',
     desktopBootFailedWithMessage: message => `デスクトップの起動に失敗しました: ${message}`,
     steps: {
       connectingGateway: 'ライブデスクトップゲートウェイに接続中',

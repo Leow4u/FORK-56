@@ -226,6 +226,8 @@ Notes:
   semantics when unifying appearance. First-run welcome is full-bleed on
   the chat surface (BrandMark, title, one line, one primary action) like
   the connecting overlay; Portal reauth and manual provider pick stay carded.
+  Cold-boot connecting is that same full-bleed BrandMark plus the page-load
+  `orbit-ring` Loader and `boot.connectingWork4You` — not DecodeText CONNECTING.
 - Respect `AppShell` overlay ownership. Persistent terminal/content layers,
   route overlays, dialogs, and boot surfaces must not compete through ad-hoc
   z-index literals. Pick a rung of the ladder in `styles.css` instead —
