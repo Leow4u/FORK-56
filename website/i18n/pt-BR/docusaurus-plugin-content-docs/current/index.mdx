@@ -1,0 +1,157 @@
+---
+slug: /
+sidebar_position: 0
+title: "Documentação do Work4You"
+description: "Documentação do Work4You — um agente de IA que aprende sobre o seu negócio e assume trabalho de verdade."
+hide_table_of_contents: true
+displayed_sidebar: docs
+---
+
+import Link from "@docusaurus/Link";
+
+# Work4You
+Um agente de IA que aprende sobre a sua empresa, se conecta aos sistemas que você já usa, e assume trabalho de verdade — começando com um processo e se expandindo conforme prova seu valor. Construído pela [Work4You](https://work4you.ai).
+
+<div
+  style={{
+    display: "flex",
+    gap: "1rem",
+    marginBottom: "2rem",
+    flexWrap: "wrap",
+  }}
+>
+  <Link
+    to="/getting-started/installation"
+    style={{
+      display: "inline-block",
+      padding: "0.6rem 1.2rem",
+      backgroundColor: "#1a1915",
+      color: "#F5F4EE",
+      borderRadius: "8px",
+      fontWeight: 600,
+      textDecoration: "none",
+    }}
+  >
+    Comece Agora →
+  </Link>
+  <Link
+    to="/user-guide/bot-mode"
+    style={{
+      display: "inline-block",
+      padding: "0.6rem 1.2rem",
+      backgroundColor: "#C9D2BC",
+      color: "#1a1915",
+      borderRadius: "8px",
+      textDecoration: "none",
+    }}
+  >
+    Explorar o Bot Mode
+  </Link>
+  <a
+    href="https://work4you.ai/"
+    style={{
+      display: "inline-block",
+      padding: "0.6rem 1.2rem",
+      backgroundColor: "#C9D2BC",
+      color: "#1a1915",
+      borderRadius: "8px",
+      textDecoration: "none",
+    }}
+  >
+    Baixar o Desktop
+  </a>
+  <a
+    href="https://github.com/Leow4u/FORK-56"
+    style={{
+      display: "inline-block",
+      padding: "0.6rem 1.2rem",
+      backgroundColor: "#C9D2BC",
+      color: "#1a1915",
+      borderRadius: "8px",
+      textDecoration: "none",
+    }}
+  >
+    Ver no GitHub
+  </a>
+</div>
+
+## Instalação
+
+### Windows ou macOS
+
+Para instalar facilmente as aplicações de linha de comando e desktop, [baixe o instalador do Work4You Desktop](https://work4you.ai/) do nosso site e execute-o.
+
+### Sem o Work4You Desktop:
+
+Para uma instalação somente de linha de comando, sem o Work4You Desktop, execute:
+
+#### Linux / macOS / WSL2 / Android (Termux)
+
+```bash
+curl -fsSL https://work4you.ai/install.sh | bash
+```
+
+#### Windows (nativo)
+
+Execute no powershell:
+
+```powershell
+iex (irm https://work4you.ai/install.ps1)
+```
+
+Veja o **[Guia de Instalação](/getting-started/installation)** completo para saber o que o instalador faz, o layout por usuário vs root, e notas específicas do Windows. Para a matriz completa de suporte de plataforma, veja **[Suporte de Plataforma](/getting-started/platform-support)**.
+
+:::tip Caminho mais rápido para um agente funcionando
+Depois de instalar, rode `work4you setup --portal` — um único OAuth cobre um modelo mais as quatro ferramentas do Tool Gateway (busca na web, geração de imagem, TTS, navegador). Veja [Work4You Portal](/integrations/work4you-portal).
+:::
+
+## O que é o Work4You?
+
+Não é um copiloto de código preso a uma IDE nem um wrapper de chatbot em torno de uma única API. É um **agente autônomo** que fica mais capaz quanto mais tempo roda. Ele vive onde você o colocar — um VPS de $5, um cluster de GPU, ou infraestrutura serverless (Daytona, Modal) que custa quase nada quando ocioso. Fale com ele pelo Telegram enquanto ele trabalha em uma VM na nuvem na qual você nunca faz SSH. Ele não fica preso ao seu laptop.
+
+## Links Rápidos
+
+|                                                                         |                                                                       |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 🚀 **[Instalação](/getting-started/installation)**                    | Instale em 60 segundos no Linux, macOS, WSL2, Windows nativo ou Android        |
+| 📖 **[Tutorial Quickstart](/getting-started/quickstart)**               | Sua primeira conversa e os principais recursos para experimentar                       |
+| 🗺️ **[Trilha de Aprendizado](/getting-started/learning-path)**                  | Encontre a documentação certa para o seu nível de experiência                         |
+| ⚙️ **[Configuração](/user-guide/configuration)**                       | Arquivo de configuração, provedores, modelos e opções                           |
+| 💬 **[Gateway de Mensagens](/user-guide/messaging)**                       | Configure Telegram, Discord, Slack, WhatsApp, Teams, e mais             |
+| 🤖 **[Bot Mode](/user-guide/bot-mode)**                                | Bots nomeados com seu próprio modelo, memória, skills e conversas  |
+| 🔧 **[Ferramentas e Toolsets](/user-guide/features/tools)**                   | Mais de 60 ferramentas embutidas e como configurá-las                          |
+| 🧠 **[Sistema de Memória](/user-guide/features/memory)**                     | Memória persistente que cresce entre sessões                          |
+| 📚 **[Sistema de Skills](/user-guide/features/skills)**                     | Memória procedural que o agente cria e reutiliza                          |
+| 🔌 **[Integração MCP](/user-guide/features/mcp)**                      | Conecte-se a servidores MCP, filtre suas ferramentas, e estenda o Work4You com segurança  |
+| 🧭 **[Usando MCP com o Work4You](/guides/use-mcp-with-work4you)**               | Padrões práticos de configuração MCP, exemplos e tutoriais                 |
+| 🎙️ **[Modo de Voz](/user-guide/features/voice-mode)**                    | Interação por voz em tempo real na CLI, Telegram, Discord, e chamadas de voz do Discord |
+| 🗣️ **[Usando o Modo de Voz com o Work4You](/guides/use-voice-mode-with-work4you)** | Configuração prática e padrões de uso para os fluxos de voz do Work4You          |
+| 🎭 **[Personalidade & SOUL.md](/user-guide/features/personality)**        | Defina a voz padrão do Work4You com um SOUL.md global                    |
+| 📄 **[Arquivos de Contexto](/user-guide/features/context-files)**              | Arquivos de contexto de projeto que moldam cada conversa                   |
+| 🔒 **[Segurança](/user-guide/security)**                                 | Aprovação de comandos, autorização, isolamento em contêiner                  |
+| 💡 **[Dicas e Boas Práticas](/guides/tips)**                            | Vitórias rápidas para aproveitar ao máximo o Work4You                              |
+| 🏗️ **[Arquitetura](/developer-guide/architecture)**                    | Como funciona por baixo dos panos                                           |
+| ❓ **[FAQ e Solução de Problemas](/reference/faq)**                          | Perguntas comuns e soluções                                           |
+
+## Principais Recursos
+
+- **Um ciclo de aprendizado fechado** — Memória curada pelo agente com lembretes periódicos, criação autônoma de skills, autoaperfeiçoamento de skills durante o uso, recuperação entre sessões via FTS5 com resumo por LLM, e modelagem dialética de usuário via [Honcho](https://github.com/plastic-labs/honcho)
+- **Roda em qualquer lugar, não só no seu laptop** — 6 backends de terminal: local, Docker, SSH, Daytona, Singularity, Modal. Daytona e Modal oferecem persistência serverless — seu ambiente hiberna quando ocioso, custando quase nada
+- **Vive onde você está** — CLI, Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Mattermost, Email, SMS, DingTalk, Feishu, WeCom, Weixin, QQ Bot, Yuanbao, BlueBubbles, Home Assistant, Microsoft Teams, Google Chat, e mais — mais de 20 plataformas a partir de um único gateway
+- **Construído por treinadores de modelos** — Criado pela [Work4You](https://work4you.ai), o laboratório por trás do Work4You, Nomos e Psyche. Funciona com [Work4You Portal](https://portal.work4you.ai), [OpenRouter](https://openrouter.ai), OpenAI, ou qualquer endpoint
+- **Automações agendadas** — Cron embutido com entrega para qualquer plataforma
+- **[Bot Mode](/user-guide/bot-mode)** — Construa uma equipe duradoura de Bots especialistas que trabalham juntos em grupos e através de `@menções`
+- **Delega e paraleliza** — Cria subagentes isolados para fluxos de trabalho paralelos. A Chamada Programática de Ferramentas via `execute_code` reduz pipelines de múltiplas etapas a chamadas de inferência únicas
+- **Skills em padrão aberto** — Compatível com [agentskills.io](https://agentskills.io). As skills são portáveis, compartilháveis, e contribuídas pela comunidade através do Skills Hub
+- **Controle total da web** — Busca, extração, navegação, visão, geração de imagem, TTS — uma única assinatura via [Work4You Portal](/integrations/work4you-portal) reúne todos eles
+- **Suporte a MCP** — Conecte-se a qualquer servidor MCP para capacidades de ferramentas estendidas
+- **Pronto para pesquisa** — Processamento em lote, exportação de trajetória, treinamento RL com o Atropos. Construído pela [Work4You](https://work4you.ai) — o laboratório por trás dos modelos Work4You, Nomos e Psyche
+
+## Para LLMs e agentes de codificação
+
+Pontos de entrada legíveis por máquina para esta documentação:
+
+- **[`/llms.txt`](/llms.txt)** — índice curado de todas as páginas de documentação com descrições curtas. ~17 KB, seguro para carregar no contexto de um LLM.
+- **[`/llms-full.txt`](/llms-full.txt)** — todas as páginas de documentação concatenadas em um único arquivo markdown para ingestão de uma só vez. ~1,8 MB.
+
+Ambos os arquivos também resolvem em `/docs/llms.txt` e `/docs/llms-full.txt`. Gerados novamente a cada deploy.

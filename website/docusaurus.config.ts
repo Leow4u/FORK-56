@@ -24,14 +24,14 @@ const config: Config = {
 
   i18n: {
     defaultLocale: 'en',
-    locales: ['en', 'zh-Hans'],
+    locales: ['en', 'pt-BR'],
     localeConfigs: {
       en: {
         label: 'English',
       },
-      'zh-Hans': {
-        label: '简体中文',
-        htmlLang: 'zh-Hans',
+      'pt-BR': {
+        label: 'Português (BR)',
+        htmlLang: 'pt-BR',
       },
     },
   },
@@ -149,16 +149,6 @@ const config: Config = {
           label: 'Home',
           position: 'right',
         },
-        {
-          href: 'https://github.com/Leow4u/FORK-56',
-          label: 'GitHub',
-          position: 'right',
-        },
-        {
-          href: 'https://work4you.ai',
-          label: 'Discord',
-          position: 'right',
-        },
       ],
     },
     footer: {
@@ -176,8 +166,6 @@ const config: Config = {
         {
           title: 'Community',
           items: [
-            { label: 'Discord', href: 'https://work4you.ai' },
-            { label: 'GitHub Issues', href: 'https://github.com/Leow4u/FORK-56/issues' },
             { label: 'Skills Hub', href: 'https://agentskills.io' },
           ],
         },
@@ -185,7 +173,6 @@ const config: Config = {
           title: 'More',
           items: [
             { label: 'Desktop Download', href: 'https://work4you.ai/' },
-            { label: 'GitHub', href: 'https://github.com/Leow4u/FORK-56' },
             { label: 'Work4You', href: 'https://work4you.ai' },
           ],
         },
