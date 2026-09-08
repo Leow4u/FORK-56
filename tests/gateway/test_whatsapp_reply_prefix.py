@@ -73,6 +73,23 @@ class TestConfigYamlBridging:
 # ---------------------------------------------------------------------------
 
 
+class TestDefaultReplyPrefix:
+    """Default self-chat header is the Work4You banner without the caduceus."""
+
+    def test_self_chat_default_omits_caduceus(self, monkeypatch):
+        from gateway.platforms.whatsapp_common import WhatsAppBehaviorMixin
+
+        mixin = WhatsAppBehaviorMixin()
+        mixin._reply_prefix = None
+        monkeypatch.delenv("WHATSAPP_REPLY_PREFIX", raising=False)
+        monkeypatch.setenv("WHATSAPP_MODE", "self-chat")
+
+        prefix = mixin._effective_reply_prefix()
+        assert "⚕" not in prefix
+        assert "*Work4You*" in prefix
+        assert "────────────" in prefix
+
+
 class TestAdapterInit:
     """Test that WhatsAppAdapter reads reply_prefix from config.extra."""
 
