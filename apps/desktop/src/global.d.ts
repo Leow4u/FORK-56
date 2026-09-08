@@ -539,6 +539,8 @@ export interface DesktopUpdateCommit {
 export interface DesktopUpdateStatus {
   supported: boolean
   updateAvailable?: boolean
+  /** Packaged Windows/macOS uses the published installer; source installs use git. */
+  channel?: 'git' | 'installer'
   branch?: string
   currentBranch?: string
   reason?: string
@@ -552,6 +554,8 @@ export interface DesktopUpdateStatus {
   /** Backend only: the version string the backend reports for itself. */
   currentVersion?: string
   targetSha?: string
+  /** Packaged installer channel: GitHub `desktop-v*` tag being offered. */
+  releaseTag?: string
   commits?: DesktopUpdateCommit[]
   dirty?: boolean
   fetchedAt?: number

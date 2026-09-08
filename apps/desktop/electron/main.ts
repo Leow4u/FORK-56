@@ -205,6 +205,16 @@ import { runNativeLogin } from './native-oauth-login'
 import { loadNativeTokenSet, type NativeTokenStoreIo, persistNativeTokenSet } from './native-token-store'
 import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
 import {
+  checkPackagedInstallerUpdate,
+  createGithubFetchJson,
+  downloadHttpsToFile,
+  downloadProgressPercent,
+  installerDownloadDest,
+  packagedInstallerSpawn,
+  resolvePackagedInstallerApplyPlan,
+  shouldUsePackagedInstallerUpdate
+} from './packaged-installer-update'
+import {
   createParentStartMarkerResolver,
   electronProcessStartMarker,
   parentWatchdogEnv
@@ -2737,6 +2747,19 @@ async function resolveHealedBranch(updateRoot, branch) {
 }
 
 async function checkUpdates() {
+  // Packaged Windows/macOS: the published Setup.exe / DMG already contains the
+  // compiled desktop app. Checking git-behind on the cloned runtime would offer
+  // a 10–15 minute `work4you update` rebuild that still leaves this binary stale.
+  if (shouldUsePackagedInstallerUpdate({ isPackaged: IS_PACKAGED, platform: process.platform })) {
+    return checkPackagedInstallerUpdate({
+      stampCommit: INSTALL_STAMP?.commit ?? null,
+      platform: process.platform,
+      fetchJson: createGithubFetchJson(),
+      compareBehind: (currentSha, targetSha) =>
+        fetchCompareBehindCount({ currentSha, originUrl: OFFICIAL_REPO_HTTPS_URL, targetSha })
+    })
+  }
+
   const updateRoot = resolveUpdateRoot()
   let { branch } = readDesktopUpdateConfig()
   const gitDir = path.join(updateRoot, '.git')
@@ -3438,16 +3461,109 @@ async function releaseBackendLock(updateRoot, tag) {
   return { unlocked: false }
 }
 
-// applyUpdates — hand off to the installer's --update flow, then exit.
-//
-// The desktop is a pure consumer: it does NOT git pull / pip install / rebuild
-// itself (the old open-coded git dance lived here and drifted from
-// `work4you update`). Instead we spawn the staged Work4You-Setup binary with
-// --update and quit, so it can run `work4you update` (which refuses while we
-// hold the venv shim) and rebuild the desktop with our exe already gone.
-//
-// Detection (checkUpdates / commit changelog / "N behind") stays in the UI;
-// only this apply action changed.
+// Packaged Windows/macOS: download the signed Setup.exe / DMG from GitHub
+// Latest and spawn it, then quit so files unlock. This is the Chrome-style
+// path — minutes, not a source rebuild. Source/CLI installs keep the
+// `work4you update` hand-off below.
+async function applyPackagedInstallerUpdates() {
+  const handoffConflict = updateHandoffConflict(WORK4YOU_HOME)
+
+  if (handoffConflict) {
+    rememberLog(`[updates] refusing packaged installer: ${handoffConflict.message}`)
+    emitUpdateProgress({ stage: 'error', message: handoffConflict.message, percent: null })
+
+    return { ok: false, error: 'update-already-running', message: handoffConflict.message }
+  }
+
+  emitUpdateProgress({
+    stage: 'fetch',
+    message: 'Downloading the signed Work4You installer…',
+    percent: 0
+  })
+
+  let plan
+
+  try {
+    plan = await resolvePackagedInstallerApplyPlan({
+      platform: process.platform,
+      fetchJson: createGithubFetchJson()
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    emitUpdateProgress({ stage: 'error', message, percent: null })
+
+    return { ok: false, error: 'fetch-failed', message }
+  }
+
+  const destDir = path.join(os.tmpdir(), 'work4you-desktop-update')
+  const dest = installerDownloadDest(destDir, plan.assetName)
+
+  try {
+    await downloadHttpsToFile(plan.downloadUrl, dest, {
+      onProgress: (received, total) => {
+        emitUpdateProgress({
+          stage: 'fetch',
+          message: 'Downloading the signed Work4You installer…',
+          percent: downloadProgressPercent(received, total)
+        })
+      }
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    rememberLog(`[updates] installer download failed: ${message}`)
+    emitUpdateProgress({ stage: 'error', message: `Could not download the installer: ${message}`, percent: null })
+
+    return { ok: false, error: 'download-failed', message }
+  }
+
+  emitUpdateProgress({
+    stage: 'restart',
+    message: IS_WINDOWS
+      ? 'The installer will replace Work4You. This window will close; don’t reopen it yourself — it comes back when setup finishes.'
+      : 'Opening the disk image. Drag Work4You to Applications, then reopen the app.',
+    percent: 100
+  })
+
+  const spawned = packagedInstallerSpawn({
+    platform: process.platform,
+    installerPath: dest,
+    installDir: IS_WINDOWS ? path.dirname(process.execPath) : null
+  })
+
+  const child = spawnUpdaterProcess(spawned.command, spawned.args, {
+    cwd: os.tmpdir(),
+    detached: true,
+    stdio: 'ignore'
+  })
+
+  rememberLog(`[updates] launched packaged installer: ${spawned.command} ${spawned.args.join(' ')} (${plan.releaseTag})`)
+
+  const dwellStartedAt = Date.now()
+  const handoffOutcome = await observeUpdaterHandoff(child, UPDATE_HANDOFF_DWELL_MS)
+
+  if (!handoffOutcome.ok) {
+    const message = `Installer failed to start: ${handoffOutcome.message}. Work4You will keep running — try again, or download ${plan.assetName} from work4you.ai/downloads.`
+
+    rememberLog(`[updates] packaged installer spawn not viable: ${handoffOutcome.message}`)
+    emitUpdateProgress({ stage: 'error', message, percent: null })
+
+    return { ok: false, error: 'updater-spawn-failed', message }
+  }
+
+  isQuittingForHandoff = true
+  setTimeout(
+    () => {
+      app.quit()
+    },
+    Math.max(0, UPDATE_HANDOFF_DWELL_MS - (Date.now() - dwellStartedAt))
+  )
+
+  return { ok: true, handedOff: true, updater: spawned.command }
+}
+
+// applyUpdates — packaged installs use applyPackagedInstallerUpdates();
+// source/CLI installs hand off to `work4you update` (script or staged
+// work4you-setup), then exit so the venv shim unlocks.
 async function applyUpdates(opts: { stopSafeBlockers?: boolean } = {}) {
   if (updateInFlight) {
     throw new Error('An update is already in progress.')
@@ -3456,6 +3572,10 @@ async function applyUpdates(opts: { stopSafeBlockers?: boolean } = {}) {
   updateInFlight = true
 
   try {
+    if (shouldUsePackagedInstallerUpdate({ isPackaged: IS_PACKAGED, platform: process.platform })) {
+      return await applyPackagedInstallerUpdates()
+    }
+
     const updater = resolveUpdaterBinary()
 
     if (!updater && !IS_WINDOWS) {

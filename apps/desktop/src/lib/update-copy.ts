@@ -9,6 +9,7 @@
  */
 
 export type UpdateTarget = 'client' | 'backend'
+export type UpdateChannel = 'git' | 'installer'
 
 export interface UpdateCopyStrings {
   availableTitle: string
@@ -16,6 +17,7 @@ export interface UpdateCopyStrings {
   availableTitleBackend: string
   availableBodyBackend: string
   availableBodyNoChangelog: string
+  availableBodyInstaller: string
 }
 
 export interface ResolveUpdateCopyInput {
@@ -23,6 +25,7 @@ export interface ResolveUpdateCopyInput {
   /** Number of commit rows actually shown in the changelog. 0 → no notes. */
   shownItems: number
   copy: UpdateCopyStrings
+  channel?: UpdateChannel
 }
 
 export interface UpdateCopyResult {
@@ -30,8 +33,12 @@ export interface UpdateCopyResult {
   body: string
 }
 
-export function resolveUpdateCopy({ target, shownItems, copy }: ResolveUpdateCopyInput): UpdateCopyResult {
+export function resolveUpdateCopy({ target, shownItems, copy, channel }: ResolveUpdateCopyInput): UpdateCopyResult {
   const title = target === 'backend' ? copy.availableTitleBackend : copy.availableTitle
+
+  if (channel === 'installer' && target === 'client') {
+    return { title, body: copy.availableBodyInstaller }
+  }
 
   const body =
     shownItems === 0

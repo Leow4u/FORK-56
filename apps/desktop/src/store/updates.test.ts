@@ -132,6 +132,18 @@ describe('maybeNotifyUpdateAvailable', () => {
     expect(notifySpy).toHaveBeenCalledTimes(1)
     expect(notifySpy.mock.calls[0]?.[0]).toMatchObject({ message: 'A new update is available.' })
   })
+
+  it('notifies for packaged installer updates even without a target SHA', () => {
+    maybeNotifyUpdateAvailable(
+      status({ targetSha: undefined, channel: 'installer', updateAvailable: true, behind: null })
+    )
+    expect(notifySpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('stays quiet for git checks with no target SHA', () => {
+    maybeNotifyUpdateAvailable(status({ targetSha: undefined, behind: 3 }))
+    expect(notifySpy).not.toHaveBeenCalled()
+  })
 })
 
 describe('reportBackendContract', () => {

@@ -473,6 +473,8 @@ npm run pack         # unpacked app under release/ (no installer)
 
 The Windows installer people download (`Work4You-Setup.exe`) is the electron-builder NSIS pack (`npm run dist:win:nsis`), Authenticode-signed in CI with Work4You's SSL.com eSigner certificate. The macOS installer (`Work4You.dmg`) is the electron-builder DMG (`npm run dist:mac:dmg`). A manual **Run workflow** on `Release Desktop Installer` with an empty `tag` bumps the public `desktop-v*` GitHub Latest (the URL `work4you.ai/downloads` redirects to). `tag=latest` rebuilds that Latest in place. A run that skips signing does not publish that unsigned binary to GitHub Releases. Local `npm run dist:win` packs are unsigned development artifacts. macOS notarization still runs when `CSC_LINK` / `CSC_KEY_PASSWORD` / `APPLE_*` are present.
 
+**Update now** in a packaged Windows or macOS app downloads that same signed installer and runs it (silent NSIS on Windows; opens the DMG on Mac). It does **not** run `work4you update` (git pull + dependency rebuild), which is what source and CLI installs still use and can take many minutes. The installer replaces the desktop app; the local agent checkout under `WORK4YOU_HOME` is unchanged.
+
 ### macOS permissions and local rebuilds (TCC)
 
 macOS remembers permission grants (Full Disk Access, Desktop/Downloads/Documents,

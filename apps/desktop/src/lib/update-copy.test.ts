@@ -7,7 +7,9 @@ const copy = {
   availableBody: 'A new version of Work4You is ready to install.',
   availableTitleBackend: 'Backend update available',
   availableBodyBackend: 'A newer version of the connected Work4You backend is ready to install.',
-  availableBodyNoChangelog: 'A newer version is ready. Release notes aren’t available for this install type.'
+  availableBodyNoChangelog: 'A newer version is ready. Release notes aren’t available for this install type.',
+  availableBodyInstaller:
+    'A new Work4You installer is ready. It replaces the app in about a minute — no long rebuild from source.'
 }
 
 describe('resolveUpdateCopy', () => {
@@ -34,5 +36,12 @@ describe('resolveUpdateCopy', () => {
     const r = resolveUpdateCopy({ target: 'client', shownItems: 0, copy })
     expect(r.title).toBe('New update available')
     expect(r.body).toBe(copy.availableBodyNoChangelog)
+  })
+
+  it('packaged installer channel: names the fast installer path, even with no changelog', () => {
+    const r = resolveUpdateCopy({ target: 'client', shownItems: 0, copy, channel: 'installer' })
+    expect(r.title).toBe('New update available')
+    expect(r.body).toBe(copy.availableBodyInstaller)
+    expect(r.body).toContain('installer')
   })
 })

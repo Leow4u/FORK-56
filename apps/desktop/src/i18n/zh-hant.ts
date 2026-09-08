@@ -2840,6 +2840,7 @@ export const zhHant = defineLocale({
     availableTitleBackend: '後端有可用更新',
     availableBodyBackend: '已連接的 Work4You 後端有新版本可安裝。',
     availableBodyNoChangelog: '已有新版本可用。此安裝方式無法顯示更新日誌。',
+    availableBodyInstaller: '新的 Work4You 安裝程式已就緒。大約一分鐘即可取代應用程式，無需從原始碼長時間重新建置。',
     updateNow: '立即更新',
     maybeLater: '稍後再說',
     moreChanges: count => `另有 ${count} 項變更。`,
@@ -2854,6 +2855,7 @@ export const zhHant = defineLocale({
     done: '完成',
     applyingBody:
       'Work4You 更新程式會在自己的視窗中接管，並在完成後自動重新開啟 Work4You。更新期間請勿自行重新開啟 Work4You。',
+    applyingBodyInstaller: '正在下載已簽署的安裝程式。Work4You 將關閉以便安裝程式取代應用程式。安裝完成前請勿自行重新開啟。',
     applyingBodyBackend: '遠端後端正在套用更新並將重新啟動。恢復後 Work4You 會自動重新連線。',
     applyingClose: '此視窗會在更新期間關閉，隨後 Work4You 會自動重新開啟。',
     errorTitle: '更新未完成',
