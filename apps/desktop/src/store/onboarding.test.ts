@@ -25,6 +25,7 @@ function baseState(overrides: Partial<DesktopOnboardingState> = {}): DesktopOnbo
     firstRunSkipped: false,
     manual: false,
     localEndpoint: false,
+    reauth: false,
     ...overrides
   }
 }
@@ -44,6 +45,20 @@ function emptyOpenRouterGateway(): OnboardingContext['requestGateway'] {
 
     if (method === 'setup.runtime_check') {
       return { error: 'No usable credentials found for openrouter.', ok: false, provider: 'openrouter' } as never
+    }
+
+    throw new Error(`unexpected gateway method: ${method}`)
+  }
+}
+
+function portalTokenGateway(): OnboardingContext['requestGateway'] {
+  return async method => {
+    if (method === 'setup.status') {
+      return { provider_configured: true } as never
+    }
+
+    if (method === 'setup.runtime_check') {
+      return { error: 'No access token found for Work4You Portal login.', ok: false, provider: 'work4you' } as never
     }
 
     throw new Error(`unexpected gateway method: ${method}`)
@@ -203,7 +218,39 @@ describe('refreshOnboarding', () => {
     expect(ready).toBe(false)
     expect($desktopOnboarding.get().configured).toBe(false)
     expect($desktopOnboarding.get().reason).toContain('No usable credentials found for openrouter.')
+    expect($desktopOnboarding.get().reauth).toBe(false)
     expect(window.localStorage.getItem('work4you-desktop-onboarded-v1')).toBeNull()
+  })
+
+  it('marks Portal token failures as reauth, not generic first-run', async () => {
+    installApiMock(vi.fn())
+    window.localStorage.setItem('work4you-desktop-onboarded-v1', '1')
+    $desktopOnboarding.set(
+      baseState({
+        configured: true,
+        providers: [makeOAuthProvider('work4you', 'Work4You Portal')],
+        reason: null,
+        requested: false
+      })
+    )
+
+    const ready = await refreshOnboarding(onboardingContext(portalTokenGateway()))
+
+    expect(ready).toBe(false)
+    expect($desktopOnboarding.get().configured).toBe(false)
+    expect($desktopOnboarding.get().reauth).toBe(true)
+    expect($desktopOnboarding.get().reason).toContain('No access token found for Work4You Portal login.')
+    expect(window.localStorage.getItem('work4you-desktop-onboarded-v1')).toBeNull()
+  })
+
+  it('requestDesktopOnboarding sets reauth only for Portal token reasons', () => {
+    $desktopOnboarding.set(baseState())
+    requestDesktopOnboarding('No usable credentials found for openrouter.')
+    expect($desktopOnboarding.get().reauth).toBe(false)
+
+    requestDesktopOnboarding('No access token found for Work4You Portal login.')
+    expect($desktopOnboarding.get().reauth).toBe(true)
+    expect($desktopOnboarding.get().requested).toBe(true)
   })
 
   it('keeps a keyless custom runtime out of setup', async () => {
@@ -219,7 +266,8 @@ describe('refreshOnboarding', () => {
     expect($desktopOnboarding.get()).toMatchObject({
       configured: true,
       reason: null,
-      requested: false
+      requested: false,
+      reauth: false
     })
   })
 

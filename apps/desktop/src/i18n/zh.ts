@@ -3548,6 +3548,10 @@ export const zh: Translations = {
   onboarding: {
     headerTitle: '开始设置 Work4You',
     headerDesc: '连接模型提供方即可开始对话。大多数选项只需一次点击。',
+    signInToContinue: '登录以继续',
+    sessionExpired: '你的 Work4You Portal 会话已过期。请重新登录以继续对话。',
+    continueWithPortal: '使用 Work4You Portal 继续',
+    opensBrowser: '将打开浏览器',
     preparingInstall: 'Work4You 正在完成安装。首次运行通常不到一分钟。',
     starting: '正在启动 Work4You…',
     lookingUpProviders: '正在查找提供方...',

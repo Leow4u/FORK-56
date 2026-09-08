@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { useI18n } from '@/i18n'
 import { Check, ChevronDown, ChevronLeft, KeyRound, Loader2 } from '@/lib/icons'
-import { isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
+import { isPortalSessionReauthReason, isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
 import { cn } from '@/lib/utils'
 import { $desktopBoot, type DesktopBootState } from '@/store/boot'
 import {
@@ -31,6 +31,7 @@ import { getGlobalModelOptions } from '@/work4you'
 import { DocsLink, FlowPanel, Status } from './flow'
 import { onboardingPreviewMode, type OnboardingPreviewMode } from './preview'
 import {
+  ContinuePortalRow,
   FeaturedProviderRow,
   FireworksProviderRow,
   OpenRouterProviderRow,
@@ -39,6 +40,7 @@ import {
 } from './providers'
 
 export {
+  ContinuePortalRow,
   FeaturedProviderRow,
   FireworksProviderRow,
   KeyProviderRow,
@@ -286,6 +288,8 @@ export function DesktopOnboardingOverlay({
 
   const reason =
     rawReason &&
+    !onboarding.reauth &&
+    !isPortalSessionReauthReason(rawReason) &&
     !isProviderSetupErrorMessage(rawReason) &&
     rawReason !== DEFAULT_ONBOARDING_REASON &&
     rawReason !== DEFAULT_MANUAL_ONBOARDING_REASON
@@ -392,15 +396,18 @@ function Preparing({ boot }: { boot: DesktopBootState }) {
 
 function Header() {
   const { t } = useI18n()
-  const { manual } = useStore($desktopOnboarding)
+  const { manual, reauth } = useStore($desktopOnboarding)
+  const portalReauth = reauth && !manual
 
   return (
     <div className="flex items-start gap-4 bg-(--ui-chat-bubble-background) px-5 pt-5 pb-1">
       <BrandMark className="size-11 shrink-0" />
       <div className="min-w-0">
-        <h2 className="text-xl font-semibold tracking-tight">{t.onboarding.headerTitle}</h2>
+        <h2 className="text-xl font-semibold tracking-tight">
+          {portalReauth ? t.onboarding.signInToContinue : t.onboarding.headerTitle}
+        </h2>
         <p className="mt-1.5 text-sm leading-5 text-muted-foreground">
-          {manual ? t.onboarding.headerDesc : t.onboarding.featuredPitch}
+          {portalReauth ? t.onboarding.sessionExpired : manual ? t.onboarding.headerDesc : t.onboarding.featuredPitch}
         </p>
       </div>
     </div>
@@ -455,7 +462,7 @@ function startPickerOAuth(provider: OAuthProvider, ctx: OnboardingContext) {
 
 function FirstRunAccountPicker({ ctx }: { ctx: OnboardingContext }) {
   const { t } = useI18n()
-  const { providers } = useStore($desktopOnboarding)
+  const { providers, reauth } = useStore($desktopOnboarding)
 
   if (providers === null) {
     return <Status>{t.onboarding.lookingUpProviders}</Status>
@@ -464,12 +471,18 @@ function FirstRunAccountPicker({ ctx }: { ctx: OnboardingContext }) {
   // First-run is the Portal account door. Labs, API keys, and skip stay on
   // Settings → Providers (manual mode). If the catalog omitted Portal, still
   // offer only that account — never fall through to other labs or a key form.
+  // Portal reauth keeps that same single door, with continue chrome instead of
+  // the first-run Recommended pitch.
   const portal = providers.find(p => p.id === FEATURED_ID) ?? fallbackPortalProvider()
 
   return (
     <div className="grid gap-2">
       <div className="grid max-h-[60dvh] gap-2 overflow-y-auto p-1">
-        <FeaturedProviderRow onSelect={p => startPickerOAuth(p, ctx)} provider={portal} />
+        {reauth ? (
+          <ContinuePortalRow onSelect={p => startPickerOAuth(p, ctx)} provider={portal} />
+        ) : (
+          <FeaturedProviderRow onSelect={p => startPickerOAuth(p, ctx)} provider={portal} />
+        )}
       </div>
     </div>
   )
@@ -784,6 +797,7 @@ function seedOnboardingPreview(mode: OnboardingPreviewMode) {
     requested: true,
     firstRunSkipped: false,
     manual: false,
-    localEndpoint: false
+    localEndpoint: false,
+    reauth: mode === 'reauth'
   })
 }
