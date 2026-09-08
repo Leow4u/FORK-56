@@ -112,6 +112,7 @@ export interface Translations {
 
   boot: {
     ready: string
+    connectingWork4You: string
     desktopBootFailedWithMessage: (message: string) => string
     steps: {
       connectingGateway: string

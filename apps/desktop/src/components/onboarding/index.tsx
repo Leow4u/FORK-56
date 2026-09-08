@@ -29,7 +29,7 @@ import type { ModelOptionProvider, OAuthProvider } from '@/types/work4you'
 import { getGlobalModelOptions } from '@/work4you'
 
 import { DocsLink, FlowPanel, Status } from './flow'
-import { onboardingPreviewMode, type OnboardingPreviewMode } from './preview'
+import { connectingPreviewMode, onboardingPreviewMode, type OnboardingPreviewMode } from './preview'
 import {
   ContinuePortalRow,
   FeaturedProviderRow,
@@ -270,6 +270,12 @@ export function DesktopOnboardingOverlay({
       clearPendingProviderOAuth()
     }
   }, [ctx, onboarding.flow.status, onboarding.manual, onboarding.providers, preview])
+
+  // `?connecting=1` owns the screen — don't cover BrandMark + Connecting
+  // Work4You with the Preparing card while the browser has no IPC bridge.
+  if (connectingPreviewMode()) {
+    return null
+  }
 
   // Mount from frame 1 so we replace the boot overlay seamlessly. The
   // configured field stays null until the runtime check resolves; only then

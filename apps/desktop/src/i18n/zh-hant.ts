@@ -66,6 +66,7 @@ export const zhHant = defineLocale({
 
   boot: {
     ready: 'Work4You Desktop 已就緒',
+    connectingWork4You: '正在連線 Work4You…',
     desktopBootFailedWithMessage: message => `桌面啟動失敗：${message}`,
     steps: {
       connectingGateway: '正在連線桌面閘道',

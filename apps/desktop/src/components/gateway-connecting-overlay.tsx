@@ -2,7 +2,9 @@ import { useStore } from '@nanostores/react'
 import { useEffect, useRef, useState } from 'react'
 
 import { BrandMark } from '@/components/brand-mark'
+import { connectingPreviewMode } from '@/components/onboarding/preview'
 import { prefersReducedMotion } from '@/hooks/use-media-query'
+import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { $desktopBoot } from '@/store/boot'
 import { $gatewaySwitching } from '@/store/gateway-switch'
@@ -12,31 +14,26 @@ import { $gatewayState } from '@/store/session'
 const MARK_OUT_MS = 360
 const POST_MARK_HOLD_MS = 300
 const OVERLAY_OUT_MS = 520
+const ELLIPSIS_TICK_MS = 420
+
+function connectingPhrase(label: string) {
+  return label.replace(/[.…]+$/u, '')
+}
+
 // Preview-only: how long to "connect" for, and the pause before replaying.
+// `?connecting=1` (connectingPreviewMode) loops this overlay in DEV.
 const PREVIEW_CONNECT_MS = 2600
 const PREVIEW_REPLAY_MS = 1100
 
 type Phase = 'live' | 'mark-out' | 'overlay-out' | 'gone'
 
-// Dev affordance: a warm Cmd+R reconnects almost instantly, so the overlay
-// only flashes. Load with `?connecting=1` to force a looping preview.
-function forcedPreview(): boolean {
-  if (!import.meta.env.DEV || typeof window === 'undefined') {
-    return false
-  }
-
-  try {
-    return new URLSearchParams(window.location.search).get('connecting') === '1'
-  } catch {
-    return false
-  }
-}
-
 export function GatewayConnectingOverlay() {
+  const { t } = useI18n()
   const gatewayState = useStore($gatewayState)
   const boot = useStore($desktopBoot)
   const gatewaySwitching = useStore($gatewaySwitching)
-  const [previewing] = useState(forcedPreview)
+  const [previewing] = useState(connectingPreviewMode)
+  const [dots, setDots] = useState(1)
   const reduce = prefersReducedMotion()
   // Under reduced motion, skip the multi-phase exit choreography (mark-out →
   // hold → overlay fade) and jump straight to gone so the overlay unmounts
@@ -113,6 +110,19 @@ export function GatewayConnectingOverlay() {
     }
   }, [phase, previewing])
 
+  // Sequential `.` `..` `...` on the status line — motion without a Loader.
+  useEffect(() => {
+    if (reduce || phase !== 'live') {
+      return
+    }
+
+    const id = window.setInterval(() => {
+      setDots(n => (n === 3 ? 1 : n + 1))
+    }, ELLIPSIS_TICK_MS)
+
+    return () => window.clearInterval(id)
+  }, [phase, reduce])
+
   // Boot failed — BootFailureOverlay owns the screen; don't linger behind it.
   if (boot.error && !previewing) {
     return null
@@ -130,6 +140,8 @@ export function GatewayConnectingOverlay() {
 
   const leaving = phase !== 'live'
   const overlayHidden = phase === 'overlay-out' || phase === 'gone'
+  const label = t.boot.connectingWork4You
+  const phrase = connectingPhrase(label)
 
   return (
     <div
@@ -138,12 +150,26 @@ export function GatewayConnectingOverlay() {
         overlayHidden ? 'pointer-events-none opacity-0' : 'opacity-100'
       )}
     >
-      <BrandMark
+      <div
+        aria-label={label}
         className={cn(
-          'size-16 transition duration-300 ease-out',
+          'grid justify-items-center text-center transition duration-300 ease-out',
           leaving ? 'translate-y-2 opacity-0 saturate-0' : 'translate-y-0 opacity-100 saturate-100'
         )}
-      />
+        role="status"
+      >
+        <BrandMark className="size-16" />
+        <p aria-hidden="true" className="mt-7 text-sm leading-5 text-muted-foreground">
+          {reduce ? (
+            label
+          ) : (
+            <>
+              {phrase}
+              <span className="inline-block w-[3ch] text-start">{'.'.repeat(dots)}</span>
+            </>
+          )}
+        </p>
+      </div>
     </div>
   )
 }

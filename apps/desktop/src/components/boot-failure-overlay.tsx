@@ -20,7 +20,7 @@ import {
   signInLabel,
   sshFailureMessage
 } from './boot-failure-reauth'
-import { onboardingPreviewMode } from './onboarding/preview'
+import { connectingPreviewMode, onboardingPreviewMode } from './onboarding/preview'
 
 // The recovery "Gateway settings" view embeds the real Settings → Gateway panel
 // (identical URL/auth/test/save controls — no parallel form to drift). Lazy so
@@ -66,7 +66,9 @@ export function BootFailureOverlay() {
   // progress; the recovery overlay is for hard failures, which it covers via a
   // higher z-index regardless of onboarding state.
   const suppressed =
-    Boolean(onboardingPreviewMode()) || (onboarding.flow.status !== 'idle' && onboarding.flow.status !== 'error')
+    Boolean(onboardingPreviewMode()) ||
+    connectingPreviewMode() ||
+    (onboarding.flow.status !== 'idle' && onboarding.flow.status !== 'error')
 
   useEffect(() => {
     if (!visible) {

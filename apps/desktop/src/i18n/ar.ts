@@ -59,6 +59,7 @@ export const ar = defineLocale({
   },
   boot: {
     ready: 'Work4You Desktop جاهز',
+    connectingWork4You: 'جار الاتصال بـ Work4You…',
     desktopBootFailedWithMessage: message => `فشل تشغيل سطح المكتب: ${message}`,
     steps: {
       connectingGateway: 'جار الاتصال ببوابة سطح المكتب',

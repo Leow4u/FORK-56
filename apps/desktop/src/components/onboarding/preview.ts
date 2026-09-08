@@ -24,3 +24,16 @@ export function onboardingPreviewMode(): OnboardingPreviewMode | null {
 
   return null
 }
+
+/** Loop the cold-boot connecting overlay. Boot failure stays out of the way. */
+export function connectingPreviewMode(): boolean {
+  if (!import.meta.env.DEV || typeof window === 'undefined') {
+    return false
+  }
+
+  try {
+    return new URLSearchParams(window.location.search).get('connecting') === '1'
+  } catch {
+    return false
+  }
+}

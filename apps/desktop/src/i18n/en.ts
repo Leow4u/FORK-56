@@ -66,6 +66,7 @@ export const en: Translations = {
 
   boot: {
     ready: 'Work4You Desktop is ready',
+    connectingWork4You: 'Connecting Work4You…',
     desktopBootFailedWithMessage: message => `Desktop boot failed: ${message}`,
     steps: {
       connectingGateway: 'Connecting live desktop gateway',
