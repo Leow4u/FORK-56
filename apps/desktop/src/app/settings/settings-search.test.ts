@@ -4,6 +4,7 @@ import { Settings2, Wrench } from '@/lib/icons'
 import type { ConfigFieldSchema, Work4YouConfigRecord } from '@/types/work4you'
 
 import {
+  APPEARANCE_SETTING_IDS,
   buildConfigSearchEntries,
   buildCredentialSearchEntries,
   credentialSettingsView,
@@ -146,5 +147,10 @@ describe('settings search index', () => {
     )
 
     expect(entries.map(entry => entry.id)).toEqual(['credential:ELEVENLABS_API_KEY'])
+  })
+
+  it('does not expose a chat backdrop appearance setting', () => {
+    expect('backdrop' in APPEARANCE_SETTING_IDS).toBe(false)
+    expect(Object.values(APPEARANCE_SETTING_IDS)).not.toContain('appearance.backdrop')
   })
 })

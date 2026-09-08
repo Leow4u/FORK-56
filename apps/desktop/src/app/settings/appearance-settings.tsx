@@ -13,7 +13,6 @@ import { Check, Download, Loader2, Palette, Trash2 } from '@/lib/icons'
 import { selectableCardClass } from '@/lib/selectable-card'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
-import { $backdrop, setBackdrop } from '@/store/backdrop'
 import { $composerPopoutGesturesEnabled, setComposerPopoutGesturesEnabled } from '@/store/composer-popout'
 import { $embedAllowed, $embedMode, clearEmbedAllowed, type EmbedMode, setEmbedMode } from '@/store/embed-consent'
 import { $introSplash, setIntroSplash } from '@/store/intro-splash'
@@ -352,7 +351,6 @@ export function AppearanceSettings() {
   const translucency = useStore($translucency)
   const glassMode = translucency.mode === 'glass' && GLASS_SUPPORTED
   const reactionsEnabled = useStore($reactionsEnabled)
-  const backdrop = useStore($backdrop)
   const introSplash = useStore($introSplash)
   const installs = useStore($marketplaceInstalls)
   const profiles = useStore($profiles)
@@ -666,25 +664,6 @@ export function AppearanceSettings() {
             title={a.translucencyTitle}
           />
         )}
-
-        <ListRow
-          action={
-            <SegmentedControl
-              onChange={id => {
-                triggerHaptic('selection')
-                setBackdrop(id === 'on')
-              }}
-              options={[
-                { id: 'off', label: t.common.off },
-                { id: 'on', label: t.common.on }
-              ]}
-              value={backdrop ? 'on' : 'off'}
-            />
-          }
-          description={a.backdropDesc}
-          id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.backdrop)}
-          title={a.backdropTitle}
-        />
 
         <ListRow
           action={
