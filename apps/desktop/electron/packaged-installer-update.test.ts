@@ -120,17 +120,17 @@ test('compareStampToRelease: identical stamp is up to date', () => {
 })
 
 test('compareStampToRelease: compareBehind 0 means stamp is not behind (local pack ahead)', () => {
-  assert.deepEqual(
-    compareStampToRelease({ stampCommit: STAMP_SHA, releaseSha: LATEST_SHA, compareBehind: 0 }),
-    { updateAvailable: false, behind: 0 }
-  )
+  assert.deepEqual(compareStampToRelease({ stampCommit: STAMP_SHA, releaseSha: LATEST_SHA, compareBehind: 0 }), {
+    updateAvailable: false,
+    behind: 0
+  })
 })
 
 test('compareStampToRelease: compareBehind > 0 offers the installer', () => {
-  assert.deepEqual(
-    compareStampToRelease({ stampCommit: STAMP_SHA, releaseSha: LATEST_SHA, compareBehind: 12 }),
-    { updateAvailable: true, behind: 12 }
-  )
+  assert.deepEqual(compareStampToRelease({ stampCommit: STAMP_SHA, releaseSha: LATEST_SHA, compareBehind: 12 }), {
+    updateAvailable: true,
+    behind: 12
+  })
 })
 
 test('compareStampToRelease: differing SHAs without a compare count stay honest (null behind)', () => {

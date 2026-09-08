@@ -129,6 +129,7 @@ export function EmailQuickSetup({
         EMAIL_IMAP_HOST: imapHost,
         EMAIL_SMTP_HOST: smtpHost
       }
+
       const users = allowedUsers.trim()
 
       if (users) {
