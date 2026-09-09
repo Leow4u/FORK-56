@@ -2368,6 +2368,7 @@ class MCPServerTask:
         "_idle_timeout_seconds", "_max_lifetime_seconds", "_recycled_reason",
         "initialize_result", "_ping_unsupported", "_list_cache_meta",
         "_reconnect_retries", "_session_proven", "_was_parked",
+        "_work4you_apps_rebootstrap_attempted",
     )
 
     def __init__(self, name: str):
@@ -2402,6 +2403,7 @@ class MCPServerTask:
         # until the session proves healthy again — used to log the
         # parked→revived transition exactly once.
         self._was_parked: bool = False
+        self._work4you_apps_rebootstrap_attempted: bool = False
         self._auth_type: str = ""
         self._refresh_lock = asyncio.Lock()
         # MCP stdio sessions are a single JSON-RPC stream. Some servers emit
@@ -2837,6 +2839,7 @@ class MCPServerTask:
         if not self._session_proven:
             self._session_proven = True
             self._reconnect_retries = 0
+            self._work4you_apps_rebootstrap_attempted = False
             if self._was_parked:
                 self._was_parked = False
                 logger.warning(
@@ -3809,9 +3812,9 @@ class MCPServerTask:
         while True:
             try:
                 if self._is_http():
-                    lifecycle_reason = await self._run_http(config)
+                    lifecycle_reason = await self._run_http(self._config)
                 else:
-                    lifecycle_reason = await self._run_stdio(config)
+                    lifecycle_reason = await self._run_stdio(self._config)
                 # Transport returned cleanly. Two cases:
                 #  - _shutdown_event was set: exit the run loop entirely.
                 #  - _reconnect_event was set (auth recovery): loop back and
@@ -3911,6 +3914,22 @@ class MCPServerTask:
                 # (e.g. "BrokenPipeError: ").
                 root = _unwrap_exception_group(exc)
                 failure_class = _classify_mcp_failure(root)
+                if (
+                    _is_auth_error(root)
+                    and _is_work4you_apps_server(self.name)
+                    and not self._work4you_apps_rebootstrap_attempted
+                ):
+                    self._work4you_apps_rebootstrap_attempted = True
+                    if refresh_work4you_apps_mcp_config(self):
+                        logger.info(
+                            "MCP server '%s': re-bootstrapped Work4You Apps "
+                            "token after 401; retrying connect",
+                            self.name,
+                        )
+                        self._error = None
+                        if self._shutdown_event.is_set():
+                            return
+                        continue
                 if self._is_recycled_stdio():
                     logger.warning(
                         "MCP server '%s': lazy reconnect after stdio recycle "
@@ -4666,6 +4685,36 @@ def _get_auth_error_types() -> tuple:
     return _AUTH_ERROR_TYPES
 
 
+def _is_work4you_apps_server(name: str) -> bool:
+    return (name or "").strip() == "work4you_apps"
+
+
+def refresh_work4you_apps_mcp_config(server: "MCPServerTask") -> bool:
+    """Re-issue the Work4You Apps broker token and reload this server's config.
+
+    The broker TokenStore is process-local; a Fly restart 401s with
+    ``unknown_mcp_token``. Re-bootstrap writes a new Bearer to ``.env``.
+    Returns True when ``server._config`` was replaced so the next
+    ``_run_http`` uses the new token. Does not change ``enabled``.
+    """
+    if not _is_work4you_apps_server(getattr(server, "name", "")):
+        return False
+    try:
+        from work4you_cli.connectors import maybe_bootstrap_work4you_apps
+
+        if not maybe_bootstrap_work4you_apps(skip_if_installed=False):
+            return False
+    except Exception:
+        logger.debug("work4you_apps re-bootstrap after 401 failed", exc_info=True)
+        return False
+    fresh_all = _load_mcp_config()
+    fresh = fresh_all.get(server.name)
+    if not isinstance(fresh, dict):
+        return False
+    server._config = fresh
+    return True
+
+
 def _is_auth_error(exc: BaseException) -> bool:
     """Return True if ``exc`` indicates an MCP OAuth failure.
 
@@ -4719,20 +4768,35 @@ def _handle_auth_error_and_retry(
     if not _is_auth_error(exc):
         return None
 
-    from tools.mcp_oauth_manager import get_manager
-    manager = get_manager()
+    recovered = False
+    if _is_work4you_apps_server(server_name):
+        with _lock:
+            srv = _servers.get(server_name)
+        if srv is not None:
+            try:
+                recovered = refresh_work4you_apps_mcp_config(srv)
+            except Exception as rec_exc:
+                logger.warning(
+                    "MCP '%s': Work4You Apps token refresh failed: %s",
+                    server_name, rec_exc,
+                )
+                recovered = False
 
-    async def _recover():
-        return await manager.handle_401(server_name, None)
+    if not recovered:
+        from tools.mcp_oauth_manager import get_manager
+        manager = get_manager()
 
-    try:
-        recovered = _run_on_mcp_loop(_recover, timeout=10)
-    except Exception as rec_exc:
-        logger.warning(
-            "MCP OAuth '%s': recovery attempt failed: %s",
-            server_name, rec_exc,
-        )
-        recovered = False
+        async def _recover():
+            return await manager.handle_401(server_name, None)
+
+        try:
+            recovered = _run_on_mcp_loop(_recover, timeout=10)
+        except Exception as rec_exc:
+            logger.warning(
+                "MCP OAuth '%s': recovery attempt failed: %s",
+                server_name, rec_exc,
+            )
+            recovered = False
 
     if recovered:
         with _lock:
