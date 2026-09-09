@@ -96,3 +96,27 @@ def test_unread_streaming_response_does_not_crash_and_falls_back_to_exception_me
     summary = AIAgent._summarize_api_error(err)
     assert "HTTP 429" in summary
     assert "Gemini HTTP 429: quota exceeded" in summary
+
+
+def test_openrouter_provider_wrapper_surfaces_inner_schema_error():
+    """Users must see Gemini's schema 400, not OpenRouter's outer wrapper."""
+    err = Exception("Error code: 400 - {'error': {'message': 'Provider returned error'}}")
+    err.status_code = 400
+    err.body = {
+        "error": {
+            "message": "Provider returned error",
+            "code": 400,
+            "metadata": {
+                "provider_name": "Google AI Studio",
+                "raw": (
+                    'Invalid JSON payload received. Unknown name "additionalProperties" '
+                    "at 'tools.function_declarations.parameters': Cannot find field."
+                ),
+            },
+        }
+    }
+    summary = AIAgent._summarize_api_error(err)
+    assert "Provider returned error" not in summary
+    assert "Cannot find field" in summary
+    assert "HTTP 400" in summary
+    assert "Google AI Studio" in summary

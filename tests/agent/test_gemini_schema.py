@@ -1,8 +1,10 @@
 """Tests for agent.gemini_schema — OpenAI→Gemini tool parameter translation."""
 
 from agent.gemini_schema import (
+    is_gemini_model,
     sanitize_gemini_schema,
     sanitize_gemini_tool_parameters,
+    sanitize_gemini_tools,
 )
 
 
@@ -167,3 +169,40 @@ class TestSanitizeGeminiToolParameters:
         assert "1440" in aad["description"]
         # And the string-enum sibling is untouched.
         assert cleaned["properties"]["action"]["enum"] == ["create_thread"]
+
+
+class TestIsGeminiModel:
+    def test_matches_aggregator_and_bare_slugs(self):
+        assert is_gemini_model("gemini-3.8-flash") is True
+        assert is_gemini_model("google/gemini-3.8-flash") is True
+        assert is_gemini_model("work4you/google/gemini-3.8-flash") is True
+        assert is_gemini_model("gemini") is True
+
+    def test_rejects_non_gemini(self):
+        assert is_gemini_model(None) is False
+        assert is_gemini_model("") is False
+        assert is_gemini_model("anthropic/claude-sonnet-4.6") is False
+        assert is_gemini_model("google/gemma-3-12b") is False
+        assert is_gemini_model("moonshotai/kimi-k2.6") is False
+
+
+class TestSanitizeGeminiTools:
+    def test_strips_additional_properties_from_openai_tool_list(self):
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "search",
+                    "parameters": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"q": {"type": "string"}},
+                    },
+                },
+            }
+        ]
+        out = sanitize_gemini_tools(tools)
+        params = out[0]["function"]["parameters"]
+        assert "additionalProperties" not in params
+        assert params["properties"]["q"]["type"] == "string"
+

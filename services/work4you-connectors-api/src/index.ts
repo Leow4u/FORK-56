@@ -12,7 +12,7 @@ import { config } from './config.js'
 import { createComposioClient } from './composio.js'
 import { TokenStore } from './tokens.js'
 
-const tokens = new TokenStore()
+const tokens = new TokenStore(process.env.TOKEN_STORE_PATH)
 const composio = createComposioClient({
   apiBase: config.composioApiBase,
   apiKey: config.hasComposioKey() ? config.composioApiKey : '',

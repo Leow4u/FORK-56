@@ -280,6 +280,36 @@ class TestAssembly:
         # activation happened; here it didn't).
         assert "tool_search" not in names
 
+    def test_sanitize_after_assemble_fills_tool_call_arguments_properties(self):
+        """tool_call.arguments is born as {type: object} with no properties.
+
+        Gemini and llama.cpp 400 on that shape. sanitize_tool_schemas already
+        injects properties: {} — but only if it runs AFTER assemble_tool_defs.
+        """
+        from tools.schema_sanitizer import sanitize_tool_schemas
+        from tools.tool_search import assemble_tool_defs, ToolSearchConfig
+
+        self._register_mcp("mcp_schema_probe_create")
+        assembled = assemble_tool_defs(
+            [
+                _td("terminal", "Run shell"),
+                _td("mcp_schema_probe_create", "Deferred MCP capability"),
+            ],
+            context_length=200_000,
+            config=ToolSearchConfig.from_raw({"enabled": "on"}),
+        )
+        assert assembled.activated
+        raw_call = next(
+            t for t in assembled.tool_defs if t["function"]["name"] == "tool_call"
+        )
+        assert "properties" not in raw_call["function"]["parameters"]["properties"]["arguments"]
+        sanitized = sanitize_tool_schemas(assembled.tool_defs)
+        tool_call = next(
+            t for t in sanitized if t["function"]["name"] == "tool_call"
+        )
+        args_schema = tool_call["function"]["parameters"]["properties"]["arguments"]
+        assert args_schema.get("properties") == {}
+
 
 # ---------------------------------------------------------------------------
 # Bridge dispatch

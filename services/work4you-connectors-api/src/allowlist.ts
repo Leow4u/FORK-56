@@ -314,8 +314,17 @@ export function isAllowlisted(slug: string): boolean {
   return BY_SLUG.has(slug)
 }
 
-export function sessionToolkitSlugs(): string[] {
-  return ALLOWLIST.map((app) => app.slug)
+export function sessionToolkitSlugs(connected: readonly string[] = []): string[] {
+  // Only connected (plus authorize-time extra) allowlisted slugs. Empty is
+  // intentional — enabling the full catalog on every session dumps unused
+  // Composio schemas onto the agent and 400s Gemini via tool_call.
+  const wanted = new Set(
+    connected.map((slug) => slug.trim().toLowerCase()).filter(Boolean),
+  )
+  if (wanted.size === 0) {
+    return []
+  }
+  return ALLOWLIST.map((app) => app.slug).filter((slug) => wanted.has(slug))
 }
 
 export function authConfigsFromEnv(

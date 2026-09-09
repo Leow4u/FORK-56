@@ -30,13 +30,14 @@ test('createSession posts user_id, allowlist, and callback_url', async () => {
     callbackUrl: 'https://connectors-api.work4you.ai/connected',
     fetchImpl,
   })
-  const session = await client.createSession('portal-sub-1', { gmail: 'ac_gmail' })
+  const session = await client.createSession('portal-sub-1', { gmail: 'ac_gmail' }, ['gmail'])
   assert.equal(session.sessionId, 'sess-1')
   assert.equal(calls.length, 1)
   assert.equal(calls[0].url, 'https://backend.composio.dev/api/v3.1/tool_router/session')
   assert.equal(calls[0].body.user_id, 'portal-sub-1')
   const toolkits = calls[0].body.toolkits as { enable: string[] }
-  assert.deepEqual(toolkits.enable, sessionToolkitSlugs())
+  assert.deepEqual(toolkits.enable, ['gmail'])
+  assert.deepEqual(sessionToolkitSlugs(), [])
   for (const blocked of BLOCKED_SESSION_SLUGS) {
     assert.equal(toolkits.enable.includes(blocked), false, blocked)
   }

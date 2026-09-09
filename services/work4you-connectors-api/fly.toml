@@ -11,6 +11,7 @@ primary_region = "gru"
   PORTAL_ISSUER = "https://portal.work4you.ai"
   PUBLIC_BASE_URL = "https://connectors-api.work4you.ai"
   COMPOSIO_API_BASE = "https://backend.composio.dev"
+  TOKEN_STORE_PATH = "/app/data/mcp-tokens.json"
 
 [http_service]
   internal_port = 8080

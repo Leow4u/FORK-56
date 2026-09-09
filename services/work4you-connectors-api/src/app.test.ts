@@ -34,14 +34,20 @@ class FakeComposio implements ComposioPort {
   sessions = new Map<string, ComposioSession>()
   accounts = new Map<string, ConnectedAccount[]>()
   createdFor: string[] = []
+  lastEnable: string[] = []
   updated: Array<{ sessionId: string; slugs: string[] }> = []
   authorized: Array<{ sessionId: string; toolkit: string; callbackUrl: string }> = []
   disabled: string[] = []
   createCalls = 0
 
-  async createSession(userId: string): Promise<ComposioSession> {
+  async createSession(
+    userId: string,
+    _authConfigs: Record<string, string> = {},
+    enable: string[] = [],
+  ): Promise<ComposioSession> {
     this.createCalls += 1
     this.createdFor.push(userId)
+    this.lastEnable = [...enable]
     const session: ComposioSession = {
       sessionId: `sess-${userId}`,
       mcpUrl: `https://mcp.composio.dev/${userId}`,
@@ -55,7 +61,8 @@ class FakeComposio implements ComposioPort {
   }
 
   async updateSessionToolkits(sessionId: string, slugs: string[]): Promise<void> {
-    this.updated.push({ sessionId, slugs })
+    this.lastEnable = [...slugs]
+    this.updated.push({ sessionId, slugs: [...slugs] })
   }
 
   async authorize(sessionId: string, toolkit: string, callbackUrl: string) {
@@ -72,6 +79,12 @@ class FakeComposio implements ComposioPort {
 
   async disableAccount(accountId: string): Promise<void> {
     this.disabled.push(accountId)
+    for (const [userId, rows] of this.accounts) {
+      this.accounts.set(
+        userId,
+        rows.map((row) => (row.id === accountId ? { ...row, status: 'INACTIVE' } : row)),
+      )
+    }
   }
 }
 
@@ -168,6 +181,8 @@ test('bootstrap issues an opaque MCP token and never echoes the Composio key', a
   const dumped = JSON.stringify(body)
   assert.equal(dumped.includes('ak_test'), false)
   assert.deepEqual(composio.createdFor, ['user-a'])
+  assert.deepEqual(composio.lastEnable, [])
+  assert.deepEqual(body.connected, [])
 })
 
 test('bootstrap reuses the session for the same sub', async () => {
@@ -242,6 +257,7 @@ test('authorize allowlisted slug returns a connect link', async () => {
   const body = await res.json()
   assert.equal(body.redirect_url, 'https://connect.composio.dev/hubspot')
   assert.equal(composio.authorized[0]?.toolkit, 'hubspot')
+  assert.deepEqual(composio.lastEnable, ['hubspot'])
 })
 
 test('wait reports connected once the account is ACTIVE', async () => {
@@ -257,6 +273,7 @@ test('wait reports connected once the account is ACTIVE', async () => {
   const body = await res.json()
   assert.equal(body.connected, true)
   assert.equal(body.status, 'active')
+  assert.deepEqual(composio.lastEnable, ['gmail'])
 })
 
 test('disconnect disables the matching account', async () => {
@@ -271,6 +288,24 @@ test('disconnect disables the matching account', async () => {
   })
   assert.equal(res.status, 200)
   assert.deepEqual(composio.disabled, ['ca-gmail'])
+  assert.deepEqual(composio.lastEnable, [])
+})
+
+test('bootstrap with an ACTIVE account enables only that toolkit', async () => {
+  const composio = new FakeComposio()
+  composio.accounts.set('user-a', [
+    { id: 'ca-gmail', toolkit: 'gmail', status: 'ACTIVE' },
+    { id: 'ca-notion', toolkit: 'notion', status: 'ACTIVE' },
+  ])
+  const { app } = harness({ composio })
+  const res = await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.deepEqual(body.connected, ['gmail'])
+  assert.deepEqual(composio.lastEnable, ['gmail'])
 })
 
 test('MCP proxy rejects unknown tokens and isolates users', async () => {
@@ -333,16 +368,23 @@ test('connected page is a close-this-window landing', async () => {
 })
 
 test('allowlist never enables blocked native/search slugs', () => {
-  const enabled = new Set(sessionToolkitSlugs())
+  assert.deepEqual(sessionToolkitSlugs(), [])
+  const enabled = new Set(sessionToolkitSlugs(['gmail', 'notion', ...BLOCKED_SESSION_SLUGS, ...POPULAR_SLUGS]))
   for (const blocked of BLOCKED_SESSION_SLUGS) {
     assert.equal(enabled.has(blocked), false, blocked)
     assert.equal(isAllowlisted(blocked), false, blocked)
   }
+  assert.ok(enabled.has('gmail'))
+  assert.equal(enabled.has('notion'), false)
   assert.ok(getAllowlistApp('gmail'))
   assert.equal(sectionForComposioCategory('not a real category'), 'other')
   assert.equal(sectionForComposioCategory('crm'), 'crm')
   for (const slug of POPULAR_SLUGS) {
-    assert.ok(enabled.has(slug), slug)
+    if (isAllowlisted(slug)) {
+      assert.ok(enabled.has(slug), slug)
+    } else {
+      assert.equal(enabled.has(slug), false, slug)
+    }
   }
   assert.equal(ALLOWLIST.filter((app) => app.slug === 'canva').length, 1)
   assert.equal(ALLOWLIST.filter((app) => app.slug === 'canva_mcp').length, 1)

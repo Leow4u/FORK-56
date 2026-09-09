@@ -1,5 +1,3 @@
-import { sessionToolkitSlugs } from './allowlist.js'
-
 export type ConnectionStatus = 'disconnected' | 'initiated' | 'active' | 'expired'
 
 export type ComposioSession = {
@@ -14,7 +12,11 @@ export type ConnectedAccount = {
 }
 
 export interface ComposioPort {
-  createSession(userId: string, authConfigs: Record<string, string>): Promise<ComposioSession>
+  createSession(
+    userId: string,
+    authConfigs: Record<string, string>,
+    enable: string[],
+  ): Promise<ComposioSession>
   getSession(sessionId: string): Promise<ComposioSession | null>
   updateSessionToolkits(sessionId: string, slugs: string[]): Promise<void>
   authorize(
@@ -86,10 +88,10 @@ export function createComposioClient(opts: {
   }
 
   return {
-    async createSession(userId, authConfigs) {
+    async createSession(userId, authConfigs, enable) {
       const payload: Record<string, unknown> = {
         user_id: userId,
-        toolkits: { enable: sessionToolkitSlugs() },
+        toolkits: { enable },
         manage_connections: {
           enable: true,
           callback_url: opts.callbackUrl,
