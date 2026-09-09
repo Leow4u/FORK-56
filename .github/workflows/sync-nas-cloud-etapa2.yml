@@ -147,6 +147,8 @@ jobs:
           cp cloud/nas-sync/src/lib/tiers.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/org-billing.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/billing-client.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/stripe-presentment.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/subscription-ops.ts nas/src/lib/
           mkdir -p nas/src/app/api/internal/billing/authorize
           cp cloud/nas-sync/src/app/api/internal/billing/authorize/route.ts nas/src/app/api/internal/billing/authorize/
           cp cloud/nas-sync/src/app/api/agents/route.ts nas/src/app/api/agents/
@@ -160,6 +162,12 @@ jobs:
           cp cloud/nas-sync/src/app/api/oauth/self-hosted-client/\[id\]/route.ts nas/src/app/api/oauth/self-hosted-client/\[id\]/
           mkdir -p nas/src/app/api/account
           cp cloud/nas-sync/src/app/api/account/route.ts nas/src/app/api/account/
+          mkdir -p nas/src/app/api/billing/charge
+          mkdir -p nas/src/app/api/billing/payment-method/setup
+          mkdir -p nas/src/app/api/billing/subscription/checkout
+          cp cloud/nas-sync/src/app/api/billing/charge/route.ts nas/src/app/api/billing/charge/
+          cp cloud/nas-sync/src/app/api/billing/payment-method/setup/route.ts nas/src/app/api/billing/payment-method/setup/
+          cp cloud/nas-sync/src/app/api/billing/subscription/checkout/route.ts nas/src/app/api/billing/subscription/checkout/
           cp cloud/nas-sync/src/portal/pages/org/CloudPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.module.css nas/src/portal/pages/org/
@@ -199,6 +207,8 @@ jobs:
             src/lib/tiers.ts \
             src/lib/org-billing.ts \
             src/lib/billing-client.ts \
+            src/lib/stripe-presentment.ts \
+            src/lib/subscription-ops.ts \
             src/app/api/internal/billing/authorize/route.ts \
             src/app/api/agents/route.ts \
             src/app/api/agents/\[id\]/route.ts \
@@ -208,6 +218,9 @@ jobs:
             src/app/api/oauth/self-hosted-client/route.ts \
             src/app/api/oauth/self-hosted-client/\[id\]/route.ts \
             src/app/api/account/route.ts \
+            src/app/api/billing/charge/route.ts \
+            src/app/api/billing/payment-method/setup/route.ts \
+            src/app/api/billing/subscription/checkout/route.ts \
             src/portal/pages/org/CloudPage.tsx \
             src/portal/pages/org/LocalDashboardsPage.tsx \
             src/portal/pages/org/LocalDashboardsPage.module.css \

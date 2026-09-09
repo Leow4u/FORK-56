@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   catalogTierCopy,
+  CARD_PRESENTMENT_NOTE,
   isCurrentCatalogTier,
   type BillingStatePayload,
   type SubscriptionStatePayload,
@@ -229,6 +230,7 @@ export function ManageSubscriptionPage() {
             ? ` · ${billing.card.brand} ···· ${billing.card.last4}`
             : ' · sem cartão (Checkout pede cartão)'}
         </p>
+        <p className={styles.rowMeta}>{CARD_PRESENTMENT_NOTE}</p>
         <ul className={styles.tierList}>
           {tiers.map((t) => {
             const isCurrent = isCurrentCatalogTier(t, subscription?.current)

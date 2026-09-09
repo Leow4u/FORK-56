@@ -11,6 +11,7 @@ import {
   freeAllowanceUsedUp,
   isCurrentCatalogTier,
   isFreePlanPayload,
+  CARD_PRESENTMENT_NOTE,
   type BillingStatePayload,
   type SubscriptionStatePayload,
 } from '@/lib/billing-client'
@@ -462,6 +463,7 @@ export function BillingPage() {
                 </button>
               </div>
             )}
+            <p className={styles.rowMeta}>{CARD_PRESENTMENT_NOTE}</p>
           </section>
 
           <section className={styles.card} aria-labelledby="sub-title">
@@ -527,6 +529,7 @@ export function BillingPage() {
               Recarregar agora
             </button>
           </div>
+          <p className={styles.rowMeta}>{CARD_PRESENTMENT_NOTE}</p>
 
           {topupOpen ? (
             <div className={styles.topupPanel}>
@@ -608,6 +611,7 @@ export function BillingPage() {
                 ? ` · ${billing.card.brand} ···· ${billing.card.last4}`
                 : ''}
             </p>
+            <p className={styles.rowMeta}>{CARD_PRESENTMENT_NOTE}</p>
             <ul className={styles.tierList}>
               {subscription.tiers.map((t) => {
                 const isCurrent = isCurrentCatalogTier(t, subscription.current)

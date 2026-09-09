@@ -76,6 +76,10 @@ export function formatUsdDisplay(raw: string): string {
   return `$${n.toFixed(2)}`
 }
 
+/** Card presentment is BRL on the BR Stripe account; ledger/catalog stay USD. */
+export const CARD_PRESENTMENT_NOTE =
+  'A cobrança no cartão é em reais (BRL). Créditos e custos de modelo continuam em dólares (USD).'
+
 /**
  * True only when the Portal plan is positively Free. Unknown stays false so
  * paid dollar surfaces remain visible. NAS Free is `current: null` plus
