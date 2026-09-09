@@ -6,6 +6,7 @@ import {
   composioLogoImgSrc,
   type DirectoryApp,
   directoryAppDescription,
+  directoryAppDisplayName,
   directoryAppLogoUrl,
   filterDirectoryApps,
   findComposioDirectoryApp,
@@ -14,7 +15,8 @@ import {
   mcpCatalogPrimaryAction,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
-  mcpDirectoryShowsConnected
+  mcpDirectoryShowsConnected,
+  mcpSetupCardIdentity
 } from '@work4you/shared'
 import { describe, expect, it } from 'vitest'
 
@@ -239,5 +241,48 @@ describe('directoryAppLogoUrl', () => {
     expect(composioCdnUrlFromProtocolRequest('work4you-logo://mark/unreal-engine')).toBe(
       'https://logos.composio.dev/api/unreal-engine'
     )
+  })
+})
+
+describe('mcpSetupCardIdentity', () => {
+  it('uses the official Gmail mark and product tagline over the tool reason', () => {
+    expect(
+      mcpSetupCardIdentity({
+        composioApp: app({
+          description: 'Draft replies, summarize threads, & search your inbox',
+          id: 'gmail',
+          name: 'Gmail',
+          source: 'composio'
+        }),
+        reason: 'User asked to connect Gmail',
+        server: 'gmail',
+        sourceLine: 'Work4You Apps'
+      })
+    ).toEqual({
+      logo: 'https://logos.composio.dev/api/gmail',
+      name: 'Gmail',
+      subtitle: 'Draft replies, summarize threads, & search your inbox'
+    })
+  })
+
+  it('falls back to the agent reason when the directory has no description', () => {
+    expect(
+      mcpSetupCardIdentity({
+        reason: 'Search the inbox from this chat',
+        server: 'gmail'
+      })
+    ).toEqual({
+      logo: null,
+      name: 'Gmail',
+      subtitle: 'Search the inbox from this chat'
+    })
+  })
+
+  it('allows a CDN mark for public catalog slugs, never for custom MCP names', () => {
+    expect(mcpSetupCardIdentity({ nativeLogo: true, server: 'figma' }).logo).toBe(
+      'https://logos.composio.dev/api/figma'
+    )
+    expect(mcpSetupCardIdentity({ nativeLogo: false, server: 'my-internal' }).logo).toBeNull()
+    expect(directoryAppDisplayName('hugging_face')).toBe('Hugging Face')
   })
 })

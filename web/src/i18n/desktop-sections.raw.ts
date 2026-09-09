@@ -85,6 +85,7 @@ export const desktopSections = {
       enableAction: 'Enable',
       authorizeAction: 'Authorize',
       connectAction: 'Connect',
+      helpersHeader: 'Connectors that can help',
       decline: 'Not now',
       declined: 'Declined',
       installed: server => `Installed ${server}`,
@@ -904,7 +905,7 @@ export const desktopSections = {
     importMap: 'Import a map',
     importBtn: 'Load',
     importEmpty: 'Paste a map code to load it.',
-    importSuccess: (nodes) => `Loaded a map with ${nodes} ${nodes === 1 ? 'node' : 'nodes'}.`,
+    importSuccess: nodes => `Loaded a map with ${nodes} ${nodes === 1 ? 'node' : 'nodes'}.`,
     importedBadge: 'imported map',
     resetToMine: 'Back to my map'
   }

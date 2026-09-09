@@ -2,24 +2,21 @@
 
 import { type ToolCallMessagePartProps, useAuiState } from '@assistant-ui/react'
 import { useStore } from '@nanostores/react'
-import { type DirectoryApp, findComposioDirectoryApp } from '@work4you/shared'
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type DirectoryApp, findComposioDirectoryApp, mcpSetupCardIdentity } from '@work4you/shared'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useSessionView } from '@/app/chat/session-view'
+import { McpSetupCard } from '@/components/assistant-ui/mcp-setup-card'
 import { ToolFallback } from '@/components/assistant-ui/tool/fallback'
-import { WIDGET_SHELL_CLASS } from '@/components/chat/widget-shell'
 import { Button } from '@/components/ui/button'
-import { Codicon } from '@/components/ui/codicon'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/i18n'
 import { connectWork4YouApp } from '@/lib/composio-connect'
 import { triggerHaptic } from '@/lib/haptics'
 import { AlertCircle, CheckCircle2, Loader2 } from '@/lib/icons'
-import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { completeMcpDesktopOAuth, McpOAuthCancelled } from '@/lib/mcp-dashboard-oauth'
 import { directoryEntry } from '@/lib/mcp-directory'
 import { prettyName } from '@/lib/text'
-import { cn } from '@/lib/utils'
 import { $gateway } from '@/store/gateway'
 import { clearMcpSetupRequest, type McpSetupOutcome, sessionMcpSetupRequest } from '@/store/mcp-setup'
 import { notifyError } from '@/store/notifications'
@@ -77,20 +74,35 @@ function readSetupResult(result: unknown): SettledResult {
   return parseMaybeObject(result) as SettledResult
 }
 
-const SHELL_CLASS = `${WIDGET_SHELL_CLASS} text-[length:var(--conversation-text-font-size)] text-(--ui-text-primary)`
-
 // Same platform sniff the approval bar uses for its accelerator hint.
 const isMac = typeof navigator !== 'undefined' && /Mac|iP(hone|ad|od)/.test(navigator.platform)
 
-const ICON_CLASS = 'mt-px size-4 shrink-0 text-(--ui-text-tertiary)'
+const STATUS_ICON_CLASS = 'size-4 shrink-0 text-(--ui-text-tertiary)'
 
-function SetupLine({ children, trailing }: { children: ReactNode; trailing?: ReactNode }) {
-  return (
-    <div className="flex items-start gap-2">
-      <div className="min-w-0 flex-1">{children}</div>
-      {trailing}
-    </div>
-  )
+function useDirectoryApp(server: string) {
+  const [composioApp, setComposioApp] = useState<DirectoryApp | null | undefined>(undefined)
+
+  useEffect(() => {
+    let cancelled = false
+
+    void getConnectorsDirectory()
+      .then(directory => {
+        if (!cancelled) {
+          setComposioApp(findComposioDirectoryApp(directory.apps, server) ?? null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setComposioApp(null)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [server])
+
+  return composioApp
 }
 
 export const McpSetupTool = (props: ToolCallMessagePartProps) => {
@@ -121,7 +133,15 @@ function McpSetupSettled({ args, result }: ToolCallMessagePartProps) {
 
   const server = fromResult.server || fromArgs.server
   const status = fromResult.status ?? 'error'
-  const displayName = prettyName(server)
+  const composioApp = useDirectoryApp(server)
+
+  const identity = mcpSetupCardIdentity({
+    composioApp,
+    nativeLogo: Boolean(directoryEntry(server)),
+    server
+  })
+
+  const displayName = identity.name
 
   const line =
     status === 'installed'
@@ -139,30 +159,24 @@ function McpSetupSettled({ args, result }: ToolCallMessagePartProps) {
   const ok = status === 'installed' || status === 'enabled' || status === 'authorized'
   const neutral = status === 'declined' || status === 'unanswered'
   const toolCount = Array.isArray(fromResult.tools) ? fromResult.tools.length : 0
-  const brand = brandFor(server)
+  const subtitle = ok && toolCount > 0 ? copy.toolCount(toolCount) : !ok && !neutral ? (fromResult.detail ?? '') : ''
 
   return (
-    <div className={cn(SHELL_CLASS, 'my-1.5 grid gap-1.5')} data-slot="mcp-setup-inline">
-      <SetupLine
-        trailing={
-          ok ? (
-            <CheckCircle2 aria-hidden className={cn(ICON_CLASS, 'text-emerald-400')} />
-          ) : neutral && brand ? (
-            <brand.Icon aria-hidden className="mt-px size-4 shrink-0 opacity-60" style={brandGlyphStyle(brand)} />
-          ) : neutral ? (
-            <Codicon className={ICON_CLASS} name="plug" size="1rem" />
-          ) : (
-            <AlertCircle aria-hidden className={cn(ICON_CLASS, 'text-destructive')} />
-          )
-        }
-      >
-        <span className={cn('font-medium', neutral && 'italic text-(--ui-text-tertiary)')}>{line}</span>
-        {ok && toolCount > 0 && <span className="ml-2 text-(--ui-text-tertiary)">{copy.toolCount(toolCount)}</span>}
-        {!ok && !neutral && fromResult.detail ? (
-          <p className="mt-0.5 text-(--ui-text-secondary)">{fromResult.detail}</p>
-        ) : null}
-      </SetupLine>
-    </div>
+    <McpSetupCard
+      label={line}
+      logo={identity.logo}
+      markName={identity.name}
+      muted={neutral}
+      statusIcon={
+        ok ? (
+          <CheckCircle2 aria-hidden className={`${STATUS_ICON_CLASS} text-emerald-400`} />
+        ) : neutral ? null : (
+          <AlertCircle aria-hidden className={`${STATUS_ICON_CLASS} text-destructive`} />
+        )
+      }
+      subtitle={subtitle}
+      title={line}
+    />
   )
 }
 
@@ -185,7 +199,7 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
   const [envDraft, setEnvDraft] = useState<Record<string, string>>({})
   const [entry, setEntry] = useState<McpCatalogEntry | null | undefined>(undefined)
   const [envOpen, setEnvOpen] = useState(false)
-  const [composioApp, setComposioApp] = useState<DirectoryApp | null | undefined>(undefined)
+  const composioApp = useDirectoryApp(server)
   // Set when the user cancels mid-flight (a stuck OAuth tab, a hung install).
   // The in-flight flow checks it at every poll boundary and aborts via the
   // CANCELLED sentinel; the declined respond has already been sent by then.
@@ -194,28 +208,6 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
   // Race: tool.start fires a tick before mcp.setup.request — hold the buttons
   // until the gateway request is wired (same spinner rule as clarify).
   const ready = Boolean(request?.requestId)
-
-  useEffect(() => {
-    let cancelled = false
-
-    void getConnectorsDirectory()
-      .then(directory => {
-        if (cancelled) {
-          return
-        }
-
-        setComposioApp(findComposioDirectoryApp(directory.apps, server) ?? null)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setComposioApp(null)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [server])
 
   const respond = useCallback(
     async (outcome: McpSetupOutcome) => {
@@ -481,13 +473,14 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
       ? (entry?.url ?? known?.url ?? copy.catalogSource)
       : null
 
-  const brand = brandFor(server)
-
-  const trailingIcon = brand ? (
-    <brand.Icon aria-hidden className="mt-px size-4 shrink-0" style={brandGlyphStyle(brand)} />
-  ) : (
-    <Codicon className={ICON_CLASS} name="plug" size="1rem" />
-  )
+  const identity = mcpSetupCardIdentity({
+    catalogDescription: known?.description,
+    composioApp,
+    nativeLogo: Boolean(known || entry),
+    reason,
+    server,
+    sourceLine
+  })
 
   // ⌘/Ctrl+Enter → approve, Esc → decline/cancel. Same accelerators, same
   // guard shape as the approval bar (tool/approval.tsx). Unlike approve, Esc
@@ -532,20 +525,41 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
 
   if (!ready) {
     return (
-      <div className={cn(SHELL_CLASS, 'my-1.5 flex items-center gap-2')} data-slot="mcp-setup-inline">
-        <Loader2 aria-hidden className="size-4 animate-spin text-(--ui-text-tertiary)" />
-        <span className="text-(--ui-text-tertiary)">{title}</span>
-      </div>
+      <McpSetupCard
+        header={copy.helpersHeader}
+        label={title}
+        logo={identity.logo}
+        markName={identity.name}
+        ready={false}
+        subtitle={identity.subtitle}
+        title={identity.name}
+      />
     )
   }
 
   return (
-    <div className={cn(SHELL_CLASS, 'my-1.5 grid gap-1.5')} data-slot="mcp-setup-inline">
-      <SetupLine trailing={trailingIcon}>
-        <span className="font-medium leading-(--conversation-line-height)">{title}</span>
-        {reason ? <p className="mt-0.5 text-(--ui-text-secondary)">{reason}</p> : null}
-        {sourceLine && <p className="mt-0.5 truncate text-[0.6875rem] text-(--ui-text-tertiary)">{sourceLine}</p>}
-      </SetupLine>
+    <McpSetupCard
+      action={
+        <Button className="rounded-full" disabled={working} onClick={() => void approve()} size="sm" variant="outline">
+          {working ? <Loader2 className="animate-spin" /> : actionLabel}
+          {!working && <span className="text-[0.625rem] text-(--ui-text-tertiary)">{isMac ? '⌘⏎' : 'Ctrl⏎'}</span>}
+        </Button>
+      }
+      decline={
+        // Never disabled: while a flow is in flight this is the cancel —
+        // a stuck OAuth tab or hung install must always have a way out.
+        <Button className="justify-self-start" onClick={decline} size="inline" variant="text">
+          {working ? t.common.cancel : copy.decline}
+          <span className="text-[0.625rem] opacity-55">Esc</span>
+        </Button>
+      }
+      header={copy.helpersHeader}
+      label={title}
+      logo={identity.logo}
+      markName={identity.name}
+      subtitle={identity.subtitle}
+      title={identity.name}
+    >
       {envOpen && entry && entry.required_env.length > 0 && (
         <div className="grid gap-2" data-slot="mcp-setup-env">
           <p className="text-[0.6875rem] text-(--ui-text-tertiary)">{copy.envRequired}</p>
@@ -565,34 +579,6 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
           ))}
         </div>
       )}
-      {/* Same strip as the tool approval bar (tool/approval.tsx): a bordered
-          primary-tinted action plus a quiet ghost decline, with the matching
-          keyboard hints. One consent vocabulary across the transcript. */}
-      <div className="flex items-center gap-2.5">
-        <div className="inline-flex h-6 items-stretch overflow-hidden rounded-md border border-primary/25 bg-primary/10 text-primary">
-          <Button
-            className="h-full gap-1 rounded-none px-2 text-xs font-medium text-primary hover:bg-primary/15 hover:text-primary"
-            disabled={working}
-            onClick={() => void approve()}
-            size="xs"
-            variant="ghost"
-          >
-            {working ? <Loader2 className="size-3 animate-spin" /> : actionLabel}
-            {!working && <span className="text-[0.625rem] text-primary/60">{isMac ? '⌘⏎' : 'Ctrl⏎'}</span>}
-          </Button>
-        </div>
-        {/* Never disabled: while a flow is in flight this is the cancel —
-            a stuck OAuth tab or hung install must always have a way out. */}
-        <Button
-          className="h-6 gap-1.5 rounded-md px-1.5 text-xs font-normal text-(--ui-text-tertiary) hover:text-foreground"
-          onClick={decline}
-          size="xs"
-          variant="ghost"
-        >
-          {working ? t.common.cancel : copy.decline}
-          <span className="text-[0.625rem] opacity-55">Esc</span>
-        </Button>
-      </div>
-    </div>
+    </McpSetupCard>
   )
 }

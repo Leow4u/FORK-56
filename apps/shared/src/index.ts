@@ -72,6 +72,7 @@ export {
   DIRECTORY_SECTION_LABELS,
   type DirectoryApp,
   directoryAppDescription,
+  directoryAppDisplayName,
   directoryAppLogoUrl,
   type DirectorySectionGroup,
   type DirectorySectionId,
@@ -84,7 +85,8 @@ export {
   type McpDirectoryFilter,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
-  mcpDirectoryShowsConnected
+  mcpDirectoryShowsConnected,
+  mcpSetupCardIdentity
 } from './mcp-directory'
 export { skillInvocationText } from './skill-scaffold'
 export {
