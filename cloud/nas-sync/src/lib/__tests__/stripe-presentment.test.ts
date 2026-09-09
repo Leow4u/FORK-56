@@ -6,10 +6,48 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   assertPriceMatchesPresentment,
+  customerNeedsPresentmentRotate,
   getStripePresentmentCurrency,
+  isCustomerCurrencyConflict,
   PricePresentmentMismatchError,
   usdToPresentmentCents,
 } from '../stripe-presentment.ts'
+
+describe('customerNeedsPresentmentRotate', () => {
+  it('keeps a customer with no locked currency', () => {
+    assert.equal(customerNeedsPresentmentRotate({ currency: null }, 'brl'), false)
+    assert.equal(customerNeedsPresentmentRotate({ currency: '' }, 'brl'), false)
+  })
+
+  it('rotates when Stripe locked the customer to USD', () => {
+    assert.equal(
+      customerNeedsPresentmentRotate({ currency: 'usd' }, 'brl'),
+      true,
+    )
+  })
+
+  it('rotates a deleted customer', () => {
+    assert.equal(customerNeedsPresentmentRotate({ deleted: true }, 'brl'), true)
+  })
+})
+
+describe('isCustomerCurrencyConflict', () => {
+  it('detects the Stripe mix-currency error in pt-BR and en', () => {
+    assert.equal(
+      isCustomerCurrencyConflict(
+        'Não é possível combinar moedas para um mesmo cliente. Este cliente possui uma sessão de finalização de compra ativa no modo de assinatura com a moeda USD.',
+      ),
+      true,
+    )
+    assert.equal(
+      isCustomerCurrencyConflict(
+        'You cannot combine currencies for a customer. This customer has an active checkout session in subscription mode with the currency USD.',
+      ),
+      true,
+    )
+    assert.equal(isCustomerCurrencyConflict('No such price: price_abc'), false)
+  })
+})
 
 describe('getStripePresentmentCurrency', () => {
   it('defaults to brl', () => {

@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
       subscriptionTypeId,
       customerId,
       typeof body.returnPath === 'string' ? body.returnPath : undefined,
+      actor.user.email,
     )
     return NextResponse.json(session)
   } catch (err) {

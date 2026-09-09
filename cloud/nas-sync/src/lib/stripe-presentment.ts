@@ -82,3 +82,26 @@ export function assertPriceMatchesPresentment(
     )
   }
 }
+
+/** True when Stripe already locked this Customer to another currency. */
+export function customerNeedsPresentmentRotate(
+  customer: { deleted?: boolean | null; currency?: string | null },
+  presentment: PresentmentCurrency,
+): boolean {
+  if (customer.deleted) return true
+  const currency = (customer.currency || '').trim().toLowerCase()
+  if (!currency) return false
+  return currency !== presentment
+}
+
+/** Stripe refuses a BRL Price on a Customer that still has USD Checkout/subscriptions. */
+export function isCustomerCurrencyConflict(message: string): boolean {
+  const m = message.toLowerCase()
+  return (
+    m.includes('combinar moedas') ||
+    m.includes('combine currencies') ||
+    m.includes('cannot mix currencies') ||
+    m.includes('mixing currencies') ||
+    m.includes('currencies on a single customer')
+  )
+}

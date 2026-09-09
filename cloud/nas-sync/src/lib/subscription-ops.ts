@@ -6,9 +6,11 @@ import type { Org } from '@prisma/client'
 import type Stripe from 'stripe'
 import { prisma } from './db'
 import { getStripe, portalBaseUrl } from './stripe'
+import { reconcileCustomerPresentment, rotateStripeCustomer } from './stripe-customer'
 import {
   assertPriceMatchesPresentment,
   getStripePresentmentCurrency,
+  isCustomerCurrencyConflict,
 } from './stripe-presentment'
 import {
   getTier,
@@ -546,6 +548,7 @@ export async function createSubscriptionCheckout(
   targetTierId: string,
   customerId: string,
   returnPath?: string,
+  email?: string | null,
 ): Promise<{ url: string; sessionId: string }> {
   const target = getTier(targetTierId)
   if (!isPaidTierId(target.tierId)) {
@@ -556,17 +559,23 @@ export async function createSubscriptionCheckout(
   const presentment = getStripePresentmentCurrency()
   const stripePrice = await stripe.prices.retrieve(priceId)
   assertPriceMatchesPresentment(stripePrice, presentment)
+  const readyCustomerId = await reconcileCustomerPresentment(
+    org,
+    customerId,
+    email,
+    presentment,
+  )
   const base = portalBaseUrl()
   const success =
     returnPath && returnPath.startsWith('/')
       ? `${base}${returnPath}`
       : `${base}/orgs/${org.slug}/billing?plan=upgraded`
 
-  const session = await stripe.checkout.sessions.create({
-    mode: 'subscription',
-    customer: customerId,
+  const params = {
+    mode: 'subscription' as const,
+    customer: readyCustomerId,
     line_items: [{ price: priceId, quantity: 1 }],
-    payment_method_types: ['card'],
+    payment_method_types: ['card' as const],
     success_url: success,
     cancel_url: `${base}/manage-subscription?org_id=${encodeURIComponent(org.id)}&plan=${encodeURIComponent(target.tierId)}`,
     client_reference_id: org.id,
@@ -583,9 +592,32 @@ export async function createSubscriptionCheckout(
         presentmentCurrency: presentment,
       },
     },
-  })
-  if (!session.url) throw new Error('checkout_missing_url')
-  return { url: session.url, sessionId: session.id }
+  }
+
+  try {
+    const session = await stripe.checkout.sessions.create(params)
+    if (!session.url) throw new Error('checkout_missing_url')
+    return { url: session.url, sessionId: session.id }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'stripe_error'
+    if (!isCustomerCurrencyConflict(message)) throw err
+    const rotatedId = await reconcileCustomerPresentment(
+      org,
+      readyCustomerId,
+      email,
+      presentment,
+    )
+    const retryCustomerId =
+      rotatedId !== readyCustomerId
+        ? rotatedId
+        : await rotateStripeCustomer(org, readyCustomerId, email)
+    const session = await stripe.checkout.sessions.create({
+      ...params,
+      customer: retryCustomerId,
+    })
+    if (!session.url) throw new Error('checkout_missing_url')
+    return { url: session.url, sessionId: session.id }
+  }
 }
 
 /** Apply org tier from an active Stripe subscription object. */

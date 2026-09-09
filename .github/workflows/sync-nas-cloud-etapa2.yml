@@ -149,6 +149,7 @@ jobs:
           cp cloud/nas-sync/src/lib/billing-client.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/stripe-presentment.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/subscription-ops.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/stripe-customer.ts nas/src/lib/
           mkdir -p nas/src/app/api/internal/billing/authorize
           cp cloud/nas-sync/src/app/api/internal/billing/authorize/route.ts nas/src/app/api/internal/billing/authorize/
           cp cloud/nas-sync/src/app/api/agents/route.ts nas/src/app/api/agents/
@@ -209,6 +210,7 @@ jobs:
             src/lib/billing-client.ts \
             src/lib/stripe-presentment.ts \
             src/lib/subscription-ops.ts \
+            src/lib/stripe-customer.ts \
             src/app/api/internal/billing/authorize/route.ts \
             src/app/api/agents/route.ts \
             src/app/api/agents/\[id\]/route.ts \
