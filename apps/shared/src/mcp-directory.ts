@@ -252,6 +252,40 @@ export function directoryAppDescription(app: Pick<DirectoryApp, 'description' | 
   return app.description
 }
 
+/** Catalog / toolkit slugs (`gmail`, `hugging_face`) → the label the card shows. */
+export function directoryAppDisplayName(name: string): string {
+  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+/**
+ * Chat setup card identity: official toolkit mark + product name + tagline.
+ * Custom MCP URLs never get a CDN mark — `nativeLogo` is only for public
+ * catalog slugs, not private hosts.
+ */
+export function mcpSetupCardIdentity(input: {
+  catalogDescription?: null | string
+  composioApp?: null | Pick<DirectoryApp, 'description' | 'id' | 'logo' | 'name' | 'notes' | 'source'>
+  nativeLogo?: boolean
+  reason?: string
+  server: string
+  sourceLine?: null | string
+}): { logo: string | null; name: string; subtitle: string } {
+  const app = input.composioApp ?? null
+  const name = directoryAppDisplayName((app?.name || input.server).trim() || input.server)
+  const logo = app
+    ? directoryAppLogoUrl(app)
+    : input.nativeLogo
+      ? directoryAppLogoUrl({ id: input.server, source: 'native' })
+      : null
+  const subtitle =
+    (app ? directoryAppDescription(app).trim() : '') ||
+    (input.reason ?? '').trim() ||
+    (input.catalogDescription ?? '').trim() ||
+    (input.sourceLine ?? '').trim()
+
+  return { logo, name, subtitle }
+}
+
 export async function completeComposioConnect(opts: {
   authorize: () => Promise<{ redirect_url?: string }>
   wait: () => Promise<{ connected?: boolean }>

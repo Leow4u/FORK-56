@@ -3174,6 +3174,7 @@ export interface Translations {
       enableAction: string
       authorizeAction: string
       connectAction: string
+      helpersHeader: string
       decline: string
       declined: string
       installed: (server: string) => string

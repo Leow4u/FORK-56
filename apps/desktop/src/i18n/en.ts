@@ -3948,6 +3948,7 @@ export const en: Translations = {
       enableAction: 'Enable',
       authorizeAction: 'Authorize',
       connectAction: 'Connect',
+      helpersHeader: 'Connectors that can help',
       decline: 'Not now',
       declined: 'Declined',
       installed: server => `Installed ${server}`,

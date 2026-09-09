@@ -4069,6 +4069,7 @@ export const zh: Translations = {
       enableAction: '启用',
       authorizeAction: '授权',
       connectAction: '连接',
+      helpersHeader: '可能有帮助的连接器',
       decline: '暂不',
       declined: '已拒绝',
       installed: server => `已安装 ${server}`,
