@@ -149,7 +149,7 @@ from tools.browser_tool import cleanup_browser
 # Agent internals extracted to agent/ package for modularity
 from agent.memory_manager import sanitize_context
 from agent.memory_provider import is_trivial_prompt
-from agent.error_classifier import FailoverReason
+from agent.error_classifier import FailoverReason, unwrap_openrouter_raw_error_message
 from agent.redact import redact_sensitive_text
 from agent.message_content import flatten_message_text
 from agent.session_activity import ActivityProvenance
@@ -2714,6 +2714,23 @@ class AIAgent:
         # JSON body errors from OpenAI/Anthropic SDKs
         body = getattr(error, "body", None)
         if isinstance(body, dict):
+            unwrapped = unwrap_openrouter_raw_error_message(body)
+            if unwrapped:
+                status_code = getattr(error, "status_code", None)
+                prefix = f"HTTP {status_code}: " if status_code else ""
+                msg = AIAgent._coerce_api_error_detail(unwrapped)
+                upstream = None
+                err_obj = body.get("error")
+                if isinstance(err_obj, dict):
+                    meta = err_obj.get("metadata")
+                    if isinstance(meta, dict):
+                        name = meta.get("provider_name")
+                        if isinstance(name, str) and name.strip():
+                            upstream = name.strip()
+                detail = f"{prefix}{msg[:300]}"
+                if upstream:
+                    detail = f"{detail} (upstream: {upstream})"
+                return AIAgent._decorate_xai_entitlement_error(detail)
             msg = body.get("error", {}).get("message") if isinstance(body.get("error"), dict) else body.get("message")
             if msg:
                 status_code = getattr(error, "status_code", None)
@@ -2740,6 +2757,9 @@ class AIAgent:
                 except (json.JSONDecodeError, TypeError):
                     payload = None
                 if isinstance(payload, dict):
+                    unwrapped = unwrap_openrouter_raw_error_message(payload)
+                    if unwrapped:
+                        return redact_sensitive_text(f"{prefix}{unwrapped[:300]}")
                     err = payload.get("error")
                     if isinstance(err, dict) and err.get("message"):
                         return redact_sensitive_text(f"{prefix}{str(err['message'])[:300]}")

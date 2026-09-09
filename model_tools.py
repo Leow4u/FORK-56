@@ -602,28 +602,12 @@ def _compute_tool_definitions(
     global _last_resolved_tool_names
     _last_resolved_tool_names = [t["function"]["name"] for t in filtered_tools]
 
-    # Sanitize schemas for broad backend compatibility. llama.cpp's
-    # json-schema-to-grammar converter (used by its OAI server to build
-    # GBNF tool-call parsers) rejects some shapes that cloud providers
-    # silently accept — bare "type": "object" with no properties,
-    # string-valued schema nodes from malformed MCP servers, etc. This
-    # is a no-op for schemas that are already well-formed.
-    try:
-        from tools.schema_sanitizer import sanitize_tool_schemas
-        filtered_tools = sanitize_tool_schemas(filtered_tools)
-    except Exception as e:  # pragma: no cover — defensive
-        logger.warning("Schema sanitization skipped: %s", e)
-
     # ── Tool Search (progressive disclosure) ────────────────────────────
     # Conditionally replace MCP + plugin (non-core) tools with three bridge
     # tools (tool_search / tool_describe / tool_call) when the deferrable
     # surface exceeds the configured threshold (default 10% of context
     # window). Core Work4You tools (toolsets._WORK4YOU_CORE_TOOLS) are NEVER
     # deferred. See tools/tool_search.py for full design notes.
-    #
-    # This is deliberately the last step before returning — sanitization
-    # has already normalized schemas, and the assembly is idempotent in
-    # case some caller invokes get_tool_definitions twice.
     try:
         from tools.tool_search import assemble_tool_defs, load_config as _load_ts_config
         ts_cfg = _load_ts_config()
@@ -648,6 +632,16 @@ def _compute_tool_definitions(
             filtered_tools = assembly.tool_defs
     except Exception as e:  # pragma: no cover — never break tool loading
         logger.warning("Tool search assembly skipped: %s", e)
+
+    # Sanitize the tools that actually go on the wire. Must run AFTER
+    # assemble_tool_defs: the tool_call bridge is born with
+    # ``arguments: {type: object}`` and no ``properties``, which Gemini and
+    # llama.cpp 400. sanitize_tool_schemas already repairs that shape.
+    try:
+        from tools.schema_sanitizer import sanitize_tool_schemas
+        filtered_tools = sanitize_tool_schemas(filtered_tools)
+    except Exception as e:  # pragma: no cover — defensive
+        logger.warning("Schema sanitization skipped: %s", e)
 
     return filtered_tools
 

@@ -454,6 +454,54 @@ class TestChatCompletionsKimi:
         # The parameters dict is passed through untouched (no synthetic type)
         assert "type" not in kw["tools"][0]["function"]["parameters"]["properties"]["q"]
 
+    def test_gemini_tool_schemas_are_sanitized_by_model_name(self, transport):
+        """Work4You / OpenRouter chat_completions must last-mile sanitize Gemini."""
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "search",
+                    "description": "Search",
+                    "parameters": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"q": {"type": "string"}},
+                    },
+                },
+            },
+        ]
+        kw = transport.build_kwargs(
+            model="google/gemini-3.8-flash",
+            messages=[{"role": "user", "content": "Hi"}],
+            tools=tools,
+            max_tokens_param_fn=lambda n: {"max_tokens": n},
+        )
+        params = kw["tools"][0]["function"]["parameters"]
+        assert "additionalProperties" not in params
+        assert params["properties"]["q"]["type"] == "string"
+
+    def test_claude_tools_are_not_gemini_sanitized(self, transport):
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "search",
+                    "parameters": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"q": {"type": "string"}},
+                    },
+                },
+            },
+        ]
+        kw = transport.build_kwargs(
+            model="anthropic/claude-sonnet-4.6",
+            messages=[{"role": "user", "content": "Hi"}],
+            tools=tools,
+            max_tokens_param_fn=lambda n: {"max_tokens": n},
+        )
+        assert kw["tools"][0]["function"]["parameters"]["additionalProperties"] is False
+
 
 class TestChatCompletionsLmStudioReasoning:
     """LM Studio publishes per-model reasoning ``allowed_options``. When the

@@ -459,6 +459,22 @@ _REQUEST_VALIDATION_PATTERNS = [
     "unsupported_parameter",
 ]
 
+# Upstream model rejected the tools[] JSON Schema (Gemini proto Schema,
+# llama.cpp GBNF, Moonshot flavored JSON Schema). These 400s are
+# deterministic for the current tools array: compressing context or
+# falling back to another model with the same schemas does not help.
+_TOOL_SCHEMA_400_PATTERNS = [
+    "cannot find field",
+    "property is not defined",
+    "additionalproperties",
+    "invalid json payload",
+    "invalid_function_parameters",
+    "unrecognized schema",
+    "missing properties",
+    "is not a valid moonshot flavored json schema",
+    "invalid tool parameters schema",
+]
+
 # OpenRouter aggregator policy-block patterns.
 #
 # When a user's OpenRouter account privacy setting (or a per-request
@@ -763,25 +779,11 @@ def classify_api_error(
     # "context length exceeded") is only in the inner JSON.
     _raw_msg = str(error).lower()
     _body_msg = ""
-    _metadata_msg = ""
+    _metadata_msg = unwrap_openrouter_raw_error_message(body).lower()
     if isinstance(body, dict):
         _err_obj = body.get("error", {})
         if isinstance(_err_obj, dict):
             _body_msg = str(_err_obj.get("message") or "").lower()
-            # Parse metadata.raw for wrapped provider errors
-            _metadata = _err_obj.get("metadata", {})
-            if isinstance(_metadata, dict):
-                _raw_json = _metadata.get("raw") or ""
-                if isinstance(_raw_json, str) and _raw_json.strip():
-                    try:
-                        import json
-                        _inner = json.loads(_raw_json)
-                        if isinstance(_inner, dict):
-                            _inner_err = _inner.get("error", {})
-                            if isinstance(_inner_err, dict):
-                                _metadata_msg = str(_inner_err.get("message") or "").lower()
-                    except (json.JSONDecodeError, TypeError):
-                        pass
         if not _body_msg:
             _body_msg = str(body.get("message") or "").lower()
     # Combine all message sources for pattern matching
@@ -1582,28 +1584,44 @@ def _classify_400(
             error_context=_billing_ambiguity_context(error_msg),
         )
 
+    # Tool-schema 400s: Gemini / llama.cpp / Moonshot rejected tools[].
+    # Must run before the generic-short-message heuristic — OpenRouter wraps
+    # these as "Provider returned error" (< 30 chars), which would otherwise
+    # look like a bare 400 and compress a healthy session.
+    if any(p in error_msg for p in _TOOL_SCHEMA_400_PATTERNS):
+        return result_fn(
+            FailoverReason.format_error,
+            retryable=False,
+            should_fallback=False,
+            should_compress=False,
+        )
+
     # Generic 400 + large session → probable context overflow
     # Anthropic sometimes returns a bare "Error" message when context is too large
     err_body_msg = ""
     if isinstance(body, dict):
-        err_obj = body.get("error", {})
-        if isinstance(err_obj, dict):
-            err_body_msg = str(err_obj.get("message") or "").strip().lower()
-        # Responses API (and some providers) use flat body: {"message": "..."}
-        if not err_body_msg:
-            err_body_msg = str(body.get("message") or "").strip().lower()
-        # litellm / Bedrock proxies use a custom shape: {"errorMessage": "...",
-        # "errorCode": "...", "errorArgs": {"reason": "..."}}.  Without these
-        # keys err_body_msg stays "" and a long, descriptive rejection is
-        # wrongly treated as a "generic" (bare) error below, which — on a
-        # large session — mis-routes into the compression loop.  Recognize
-        # them so the is_generic heuristic sees the real message length.
-        if not err_body_msg:
-            err_body_msg = str(body.get("errorMessage") or "").strip().lower()
-        if not err_body_msg:
-            _args = body.get("errorArgs")
-            if isinstance(_args, dict):
-                err_body_msg = str(_args.get("reason") or "").strip().lower()
+        unwrapped = unwrap_openrouter_raw_error_message(body)
+        if unwrapped:
+            err_body_msg = unwrapped.strip().lower()
+        else:
+            err_obj = body.get("error", {})
+            if isinstance(err_obj, dict):
+                err_body_msg = str(err_obj.get("message") or "").strip().lower()
+            # Responses API (and some providers) use flat body: {"message": "..."}
+            if not err_body_msg:
+                err_body_msg = str(body.get("message") or "").strip().lower()
+            # litellm / Bedrock proxies use a custom shape: {"errorMessage": "...",
+            # "errorCode": "...", "errorArgs": {"reason": "..."}}.  Without these
+            # keys err_body_msg stays "" and a long, descriptive rejection is
+            # wrongly treated as a "generic" (bare) error below, which — on a
+            # large session — mis-routes into the compression loop.  Recognize
+            # them so the is_generic heuristic sees the real message length.
+            if not err_body_msg:
+                err_body_msg = str(body.get("errorMessage") or "").strip().lower()
+            if not err_body_msg:
+                _args = body.get("errorArgs")
+                if isinstance(_args, dict):
+                    err_body_msg = str(_args.get("reason") or "").strip().lower()
     is_generic = len(err_body_msg) < 30 or err_body_msg in {"error", ""}
     # Absolute token/message-count thresholds are only a proxy for smaller
     # context windows.  Large-context sessions can have many messages while
@@ -1942,6 +1960,9 @@ def _extract_message(error: Exception, body: dict) -> str:
     """Extract the most informative error message."""
     # Try structured body first
     if body:
+        unwrapped = unwrap_openrouter_raw_error_message(body)
+        if unwrapped:
+            return unwrapped[:500]
         error_obj = body.get("error", {})
         if isinstance(error_obj, dict):
             msg = error_obj.get("message", "")
@@ -1962,6 +1983,52 @@ def _extract_message(error: Exception, body: dict) -> str:
                 return reason.strip()[:500]
     # Fallback to str(error)
     return str(error)[:500]
+
+
+def unwrap_openrouter_raw_error_message(body: Any) -> str:
+    """Return the inner upstream message from OpenRouter's wrapper, if any.
+
+    OpenRouter wraps upstream model errors as::
+
+        {"error": {"message": "Provider returned error",
+                   "metadata": {"provider_name": "...", "raw": "<inner>"}}}
+
+    ``raw`` may be a JSON object string, a nested dict, or plain text.
+    Empty string when this is not that wrapper.
+    """
+    if not isinstance(body, dict):
+        return ""
+    err = body.get("error")
+    if not isinstance(err, dict):
+        return ""
+    if str(err.get("message") or "").strip().lower() != "provider returned error":
+        return ""
+    metadata = err.get("metadata")
+    if not isinstance(metadata, dict):
+        return ""
+    raw = metadata.get("raw")
+    if isinstance(raw, dict):
+        inner_err = raw.get("error")
+        if isinstance(inner_err, dict) and inner_err.get("message"):
+            return str(inner_err["message"]).strip()
+        if raw.get("message"):
+            return str(raw["message"]).strip()
+        return ""
+    if not isinstance(raw, str) or not raw.strip():
+        return ""
+    text = raw.strip()
+    try:
+        import json
+        inner = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return text
+    if isinstance(inner, dict):
+        inner_err = inner.get("error")
+        if isinstance(inner_err, dict) and inner_err.get("message"):
+            return str(inner_err["message"]).strip()
+        if inner.get("message"):
+            return str(inner["message"]).strip()
+    return text
 
 
 def _is_openrouter_upstream_error(body: Any, provider: str) -> bool:

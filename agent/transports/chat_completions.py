@@ -12,6 +12,7 @@ reasoning configuration, temperature handling, and extra_body assembly.
 import json
 from typing import Any, Dict
 
+from agent.gemini_schema import is_gemini_model, sanitize_gemini_tools
 from agent.lmstudio_reasoning import resolve_lmstudio_effort
 from agent.moonshot_schema import is_moonshot_model, sanitize_moonshot_tools
 from agent.prompt_builder import DEVELOPER_ROLE_MODELS
@@ -159,6 +160,25 @@ def _build_gemini_thinking_config(model: str, reasoning_config: dict | None) -> 
             )
 
     return thinking_config
+
+
+def _sanitize_tools_for_destination_model(
+    model: str, tools: list[dict[str, Any]] | None
+) -> list[dict[str, Any]] | None:
+    """Last-mile schema rewrite keyed on the destination model, not the HTTP client.
+
+    Aggregator routes (Work4You, OpenRouter) share one Chat Completions client.
+    Moonshot and Gemini each reject OpenAI-flavored schemas the other accepts,
+    so the rewrite has to follow the model slug the same way
+    ``is_moonshot_model`` already does.
+    """
+    if not tools:
+        return tools
+    if is_moonshot_model(model):
+        return sanitize_moonshot_tools(tools)
+    if is_gemini_model(model):
+        return sanitize_gemini_tools(tools)
+    return tools
 
 
 def _snake_case_gemini_thinking_config(config: dict | None) -> dict | None:
@@ -528,11 +548,7 @@ class ChatCompletionsTransport(ProviderTransport):
 
         # Tools
         if tools:
-            # Moonshot/Kimi uses a stricter flavored JSON Schema.  Rewriting
-            # tool parameters here keeps aggregator routes (Work4You, OpenRouter,
-            # etc.) compatible, in addition to direct moonshot.ai endpoints.
-            if is_moonshot_model(model):
-                tools = sanitize_moonshot_tools(tools)
+            tools = _sanitize_tools_for_destination_model(model, tools)
             api_kwargs["tools"] = tools
 
         # max_tokens resolution — priority: ephemeral > user > provider default
@@ -768,10 +784,9 @@ class ChatCompletionsTransport(ProviderTransport):
         if timeout is not None:
             api_kwargs["timeout"] = timeout
 
-        # Tools — apply Moonshot/Kimi schema sanitization regardless of path
+        # Tools — last-mile rewrite by destination model (Moonshot / Gemini)
         if tools:
-            if is_moonshot_model(model):
-                tools = sanitize_moonshot_tools(tools)
+            tools = _sanitize_tools_for_destination_model(model, tools)
             api_kwargs["tools"] = tools
 
         # max_tokens resolution — priority: ephemeral > user > profile default

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 # Gemini's ``FunctionDeclaration.parameters`` field accepts the ``Schema``
 # object, which is only a subset of OpenAPI 3.0 / JSON Schema.  Strip fields
@@ -138,3 +138,43 @@ def sanitize_gemini_tool_parameters(parameters: Any) -> Dict[str, Any]:
     if not cleaned:
         return {"type": "object", "properties": {}}
     return cleaned
+
+
+def sanitize_gemini_tools(tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Apply ``sanitize_gemini_tool_parameters`` to every tool's parameters."""
+    if not tools:
+        return tools
+
+    sanitized: List[Dict[str, Any]] = []
+    any_change = False
+    for tool in tools:
+        if not isinstance(tool, dict):
+            sanitized.append(tool)
+            continue
+        fn = tool.get("function")
+        if not isinstance(fn, dict):
+            sanitized.append(tool)
+            continue
+        params = fn.get("parameters")
+        repaired = sanitize_gemini_tool_parameters(params)
+        if repaired != params:
+            any_change = True
+            sanitized.append({**tool, "function": {**fn, "parameters": repaired}})
+        else:
+            sanitized.append(tool)
+
+    return sanitized if any_change else tools
+
+
+def is_gemini_model(model: str | None) -> bool:
+    """True for Gemini slugs, including aggregator prefixes.
+
+    Matches ``gemini-3.8-flash``, ``google/gemini-3.8-flash``, and
+    ``work4you/google/gemini-3.8-flash``. Detection by model name covers
+    Work4You / OpenRouter routes whose base URL is the aggregator's, not
+    ``generativelanguage.googleapis.com``.
+    """
+    if not model:
+        return False
+    tail = model.strip().lower().rsplit("/", 1)[-1]
+    return tail.startswith("gemini-") or tail == "gemini"

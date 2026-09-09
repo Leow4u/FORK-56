@@ -1101,6 +1101,63 @@ class TestOpenRouterUpstreamRateLimit:
         assert result.should_rotate_credential is True
 
 
+class TestOpenRouterUpstreamToolSchema400:
+    """OpenRouter wraps Gemini/llama.cpp schema 400s as 'Provider returned error'.
+
+    Compressing context or blindly falling back with the same tools[] cannot
+    fix a schema rejection. Surface format_error and stop the overflow loop.
+    """
+
+    def _wrapped(self, inner: str, status_code=400):
+        return MockAPIError(
+            "Provider returned error",
+            status_code=status_code,
+            body={
+                "error": {
+                    "message": "Provider returned error",
+                    "code": status_code,
+                    "metadata": {
+                        "provider_name": "Google",
+                        "raw": inner,
+                    },
+                }
+            },
+        )
+
+    def test_gemini_schema_400_is_format_error_not_overflow(self):
+        e = self._wrapped(
+            'Invalid JSON payload received. Unknown name "additionalProperties" '
+            "at 'tools[0].function_declarations[0].parameters': Cannot find field."
+        )
+        result = classify_api_error(
+            e,
+            provider="work4you",
+            model="google/gemini-3.8-flash",
+            approx_tokens=180000,
+            context_length=200000,
+            num_messages=120,
+        )
+        assert result.reason == FailoverReason.format_error
+        assert result.retryable is False
+        assert result.should_compress is False
+        assert result.should_fallback is False
+        assert "cannot find field" in result.message.lower()
+
+    def test_short_outer_message_does_not_compress_when_inner_is_schema(self):
+        e = self._wrapped("*** items.required[0]: property is not defined")
+        result = classify_api_error(
+            e,
+            provider="openrouter",
+            model="google/gemini-3.8-flash",
+            approx_tokens=180000,
+            context_length=200000,
+            num_messages=400,
+        )
+        assert result.reason == FailoverReason.format_error
+        assert result.should_compress is False
+        assert result.should_fallback is False
+
+
 
 
 
