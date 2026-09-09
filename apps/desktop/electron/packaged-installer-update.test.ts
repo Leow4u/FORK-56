@@ -176,12 +176,7 @@ test('packagedInstallerSpawn uses silent NSIS on Windows and open on macOS', () 
     }),
     {
       command: 'C:\\Temp\\Work4You-Setup.exe',
-      args: [
-        '/S',
-        '--updated',
-        '--force-run',
-        '/D=C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You'
-      ]
+      args: ['/S', '--updated', '--force-run', '/D=C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You']
     }
   )
   assert.deepEqual(packagedInstallerSpawn({ platform: 'darwin', installerPath: '/tmp/Work4You.dmg' }), {
@@ -260,10 +255,7 @@ test('writePackagedWindowsHandoffScript writes the orchestrator next to the inst
 
 test('Windows handoff script carries the same NSIS flags and waits for the desktop PID', () => {
   for (const flag of NSIS_SILENT_UPDATE_FLAGS) {
-    assert.ok(
-      PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1.includes(flag),
-      `handoff script must pass NSIS flag ${flag}`
-    )
+    assert.ok(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1.includes(flag), `handoff script must pass NSIS flag ${flag}`)
   }
 
   assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Wait-Process/)
