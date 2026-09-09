@@ -370,6 +370,78 @@ class TestClawHubSource(unittest.TestCase):
         self.assertEqual(results[0].identifier, "only-skill")
         mock_write_cache.assert_called_once()
 
+    @patch("tools.skills_hub.time.sleep")
+    @patch("tools.skills_hub._write_index_cache")
+    @patch("tools.skills_hub._read_index_cache", return_value=None)
+    @patch("tools.skills_hub.httpx.get")
+    def test_catalog_walk_retries_429_then_continues(
+        self, mock_get, _mock_read_cache, mock_write_cache, mock_sleep
+    ):
+        """A single 429 mid-walk must retry and keep paginating, not abort."""
+        page_calls = {"n": 0}
+
+        def side_effect(url, *args, **kwargs):
+            if not url.endswith("/skills"):
+                return _MockResponse(status_code=404, json_data={})
+            idx = page_calls["n"]
+            page_calls["n"] += 1
+            if idx == 1:
+                return _MockResponse(status_code=429, json_data={}, headers={"Retry-After": "0"})
+            if idx == 0:
+                return _MockResponse(
+                    status_code=200,
+                    json_data={
+                        "items": [{"slug": "first", "displayName": "First"}],
+                        "nextCursor": "cursor-2",
+                    },
+                )
+            return _MockResponse(
+                status_code=200,
+                json_data={"items": [{"slug": "second", "displayName": "Second"}]},
+            )
+
+        mock_get.side_effect = side_effect
+        results = self.src._load_catalog_index()
+        self.assertEqual({m.identifier for m in results}, {"first", "second"})
+        mock_write_cache.assert_called_once()
+        mock_sleep.assert_called()
+
+    @patch("tools.skills_hub.time.sleep")
+    @patch("tools.skills_hub._write_index_cache")
+    @patch("tools.skills_hub._read_index_cache", return_value=None)
+    @patch("tools.skills_hub.httpx.get")
+    def test_catalog_walk_http_error_does_not_poison_cache(
+        self, mock_get, _mock_read_cache, mock_write_cache, _mock_sleep
+    ):
+        """Giving up on a page must return what we have and must not cache it.
+
+        Regression: a mid-walk 5xx used to `break` and then write the partial
+        catalog to `clawhub_catalog_v1`, so the skills-index health floor
+        kept seeing ~8k ClawHub skills until the cache TTL expired.
+        """
+        page_calls = {"n": 0}
+
+        def side_effect(url, *args, **kwargs):
+            if not url.endswith("/skills"):
+                return _MockResponse(status_code=404, json_data={})
+            idx = page_calls["n"]
+            page_calls["n"] += 1
+            if idx == 0:
+                return _MockResponse(
+                    status_code=200,
+                    json_data={
+                        "items": [{"slug": "only-ok", "displayName": "Only OK"}],
+                        "nextCursor": "cursor-2",
+                    },
+                )
+            return _MockResponse(status_code=503, json_data={})
+
+        mock_get.side_effect = side_effect
+        results = self.src._load_catalog_index()
+        self.assertEqual([m.identifier for m in results], ["only-ok"])
+        mock_write_cache.assert_not_called()
+        self.assertEqual(page_calls["n"], 1 + ClawHubSource.CATALOG_PAGE_ATTEMPTS)
+
     def test_parse_identifier_accepts_clawhub_shapes(self):
         self.assertEqual(ClawHubSource._parse_identifier("skillopt"), ("skillopt", None))
         self.assertEqual(ClawHubSource._parse_identifier("clawhub/skillopt"), ("skillopt", None))

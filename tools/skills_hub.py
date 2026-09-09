@@ -2199,11 +2199,20 @@ class ClawHubSource(SkillSource):
 
     BASE_URL = "https://clawhub.ai/api/v1"
 
+    # Identify ourselves. Datacenter defaults (python-httpx) get challenged
+    # or dropped by ClawHub's edge; a named UA recovers the listing in CI.
+    HTTP_HEADERS = {
+        "User-Agent": "Work4You-SkillsHub/1.0 (+https://work4you.ai)",
+        "Accept": "application/json",
+    }
+
     # Wall-clock budget for a full catalog walk. ClawHub has 50k+ skills and
     # the walk is sequential (~250 requests, each under per-request
     # timeout=30 so nothing errors), so an unbounded walk can block for
     # minutes. Bound it so a slow/large catalog cannot hang the caller.
     CATALOG_WALK_BUDGET_SECONDS = 12
+
+    CATALOG_PAGE_ATTEMPTS = 3
 
     def source_id(self) -> str:
         return "clawhub"
@@ -2605,8 +2614,9 @@ class ClawHubSource(SkillSource):
 
         Caching: only a *complete* catalog (cursor exhausted or page cap) is
         written to the shared ``clawhub_catalog_v1`` cache. A walk truncated by
-        ``max_items`` OR the wall-clock budget is partial, so caching it would
-        poison the full-catalog cache with an incomplete slice.
+        ``max_items``, the wall-clock budget, OR a transport/HTTP error is
+        partial, so caching it would poison the full-catalog cache with an
+        incomplete slice.
         """
         cache_key = "clawhub_catalog_v1"
         cached = _read_index_cache(cache_key)
@@ -2633,6 +2643,7 @@ class ClawHubSource(SkillSource):
         )
         hit_deadline = False
         hit_max_items = False
+        hit_error = False
 
         for _ in range(max_pages):
             if deadline is not None and time.monotonic() > deadline:
@@ -2642,12 +2653,14 @@ class ClawHubSource(SkillSource):
             if cursor:
                 params["cursor"] = cursor
 
+            resp = self._fetch_catalog_page(params)
+            if resp is None:
+                hit_error = True
+                break
             try:
-                resp = httpx.get(f"{self.BASE_URL}/skills", params=params, timeout=30)
-                if resp.status_code != 200:
-                    break
                 data = resp.json()
-            except (httpx.HTTPError, json.JSONDecodeError):
+            except (json.JSONDecodeError, ValueError):
+                hit_error = True
                 break
 
             items = data.get("items", []) if isinstance(data, dict) else []
@@ -2688,12 +2701,54 @@ class ClawHubSource(SkillSource):
                 break
 
         # Only cache a walk that reached a natural stop (cursor exhausted or
-        # page cap). A walk truncated by the wall-clock budget OR by max_items
-        # is partial, so writing it would poison the shared full-catalog cache
-        # with incomplete data.
-        if not hit_deadline and not hit_max_items:
+        # page cap). A walk truncated by the wall-clock budget, by max_items,
+        # or by a transport/HTTP error is partial — caching it would poison
+        # the shared full-catalog cache and the skills-index health floor.
+        if not hit_deadline and not hit_max_items and not hit_error:
             _write_index_cache(cache_key, [_skill_meta_to_dict(s) for s in results])
         return results
+
+    def _fetch_catalog_page(self, params: Dict[str, Any]) -> Optional[Any]:
+        """GET one ``/api/v1/skills`` listing page with retries.
+
+        Returns the HTTP response on success, or ``None`` when the page is
+        unrecoverable (hard 4xx other than 429, or retries exhausted). A
+        ``None`` is an incomplete walk — callers must not cache it.
+        """
+        url = f"{self.BASE_URL}/skills"
+        for attempt in range(self.CATALOG_PAGE_ATTEMPTS):
+            try:
+                resp = httpx.get(
+                    url,
+                    params=params,
+                    headers=self.HTTP_HEADERS,
+                    timeout=30,
+                )
+            except (httpx.HTTPError, OSError) as exc:
+                if attempt < self.CATALOG_PAGE_ATTEMPTS - 1:
+                    time.sleep(2 ** attempt)
+                    continue
+                logger.warning("ClawHub catalog page failed after retries: %s", exc)
+                return None
+
+            if resp.status_code == 200:
+                return resp
+            if resp.status_code == 429 or resp.status_code >= 500:
+                if attempt < self.CATALOG_PAGE_ATTEMPTS - 1:
+                    retry_after = resp.headers.get("Retry-After")
+                    try:
+                        delay = float(retry_after) if retry_after else float(2 ** attempt)
+                    except (TypeError, ValueError):
+                        delay = float(2 ** attempt)
+                    time.sleep(min(delay, 30.0))
+                    continue
+                logger.warning(
+                    "ClawHub catalog page HTTP %s after retries", resp.status_code
+                )
+                return None
+            logger.warning("ClawHub catalog page HTTP %s", resp.status_code)
+            return None
+        return None
 
     def _get_json(self, url: str, timeout: int = 20) -> Optional[Any]:
         try:
