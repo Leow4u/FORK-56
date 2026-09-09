@@ -56,6 +56,16 @@ function pickAccount(
   return matches.find((a) => a.status === 'ACTIVE') ?? matches[0]
 }
 
+function connectedToolkitSlugs(
+  accounts: Awaited<ReturnType<ComposioPort['listAccounts']>>,
+  extra: readonly string[] = [],
+): string[] {
+  const active = accounts
+    .filter((a) => a.status === 'ACTIVE')
+    .map((a) => a.toolkit)
+  return sessionToolkitSlugs([...active, ...extra])
+}
+
 function mapApp(
   slug: string,
   name: string,
@@ -79,8 +89,19 @@ function mapApp(
   }
 }
 
-async function ensureSession(deps: AppDeps, userId: string) {
-  const enable = sessionToolkitSlugs()
+async function ensureSession(
+  deps: AppDeps,
+  userId: string,
+  extraEnable: readonly string[] = [],
+  exclude: readonly string[] = [],
+) {
+  const accounts = await deps.composio.listAccounts(userId)
+  const excluded = new Set(exclude.map((slug) => slug.trim().toLowerCase()).filter(Boolean))
+  const filtered = excluded.size
+    ? accounts.filter((a) => !excluded.has(a.toolkit.trim().toLowerCase()))
+    : accounts
+  const enable = connectedToolkitSlugs(filtered, extraEnable)
+  const connected = connectedToolkitSlugs(filtered)
   const authConfigs = authConfigsFromEnv(deps.config.authConfigId)
   const existing = deps.tokens.getBySub(userId)
   if (existing) {
@@ -91,16 +112,18 @@ async function ensureSession(deps: AppDeps, userId: string) {
         token: existing.token,
         sessionId: existing.sessionId,
         mcpUrl: session.mcpUrl,
+        connected,
       }
     }
     deps.tokens.revokeBySub(userId)
   }
-  const created = await deps.composio.createSession(userId, authConfigs)
+  const created = await deps.composio.createSession(userId, authConfigs, enable)
   const record = deps.tokens.issue(userId, created.sessionId, created.mcpUrl)
   return {
     token: record.token,
     sessionId: created.sessionId,
     mcpUrl: created.mcpUrl,
+    connected,
   }
 }
 
@@ -187,6 +210,7 @@ export function createApp(deps: AppDeps) {
         token: session.token,
       },
       user_id: user.sub,
+      connected: session.connected,
     })
   })
 
@@ -224,7 +248,7 @@ export function createApp(deps: AppDeps) {
     if (!isAllowlisted(slug) || BLOCKED_SESSION_SLUGS.includes(slug)) {
       return jsonError(c, 404, 'unknown_app')
     }
-    const session = await ensureSession(deps, user.sub)
+    const session = await ensureSession(deps, user.sub, [slug])
     const body = (await c.req.json().catch(() => ({}))) as { callback_url?: string }
     const callbackUrl = body.callback_url || `${deps.config.publicBaseUrl}/connected`
     const link = await deps.composio.authorize(session.sessionId, slug, callbackUrl)
@@ -253,6 +277,7 @@ export function createApp(deps: AppDeps) {
       const accounts = await deps.composio.listAccounts(user.sub)
       const account = pickAccount(accounts, slug)
       if (account?.status === 'ACTIVE') {
+        await ensureSession(deps, user.sub)
         return c.json({ slug, status: 'active', connected: true })
       }
       if (Date.now() - started >= timeoutMs) {
@@ -280,6 +305,9 @@ export function createApp(deps: AppDeps) {
     if (account) {
       await deps.composio.disableAccount(account.id)
     }
+    // Exclude the slug even if Composio still reports ACTIVE — disable is
+    // not always visible on the very next listAccounts call.
+    await ensureSession(deps, user.sub, [], [slug])
     return c.json({ slug, disconnected: true })
   })
 

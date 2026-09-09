@@ -9,10 +9,12 @@ from work4you_cli.connectors import (
     WORK4YOU_APPS_TOKEN_ENV,
     ConnectorError,
     bootstrap_work4you_apps,
+    disconnect_app,
     inject_work4you_apps,
     maybe_bootstrap_work4you_apps,
     merge_directory,
     resolve_portal_token,
+    wait_app,
 )
 from work4you_cli.connectors_catalog import COMPOSIO_CATALOG, NATIVE_POPULAR
 from work4you_cli.mcp_config import _get_mcp_servers, _save_mcp_server
@@ -123,6 +125,7 @@ class TestInjectAndBootstrap:
         assert servers["notion"]["url"] == "https://mcp.notion.com/mcp"
         apps = servers[WORK4YOU_APPS_SERVER_NAME]
         assert apps["url"] == "https://connectors-api.work4you.ai/mcp"
+        assert apps["enabled"] is False
         env_text = (get_work4you_home() / ".env").read_text()
         assert f"{WORK4YOU_APPS_TOKEN_ENV}=w4y-c-testtoken" in env_text
         assert "COMPOSIO_API_KEY" not in env_text
@@ -172,6 +175,135 @@ class TestInjectAndBootstrap:
         assert WORK4YOU_APPS_SERVER_NAME in servers
         env_text = (get_work4you_home() / ".env").read_text()
         assert "w4y-c-from-broker" in env_text
+        assert servers[WORK4YOU_APPS_SERVER_NAME]["enabled"] is False
+        assert result["mcp"]["enabled"] is False
+
+    def test_bootstrap_enables_hidden_server_when_an_app_is_connected(
+        self, _isolate_work4you_home, monkeypatch
+    ):
+        import work4you_cli.connectors as connectors
+
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(method, path, **kwargs):
+            assert method == "POST"
+            assert path == "/v1/bootstrap"
+            return {
+                "mcp": {
+                    "url": "https://connectors-api.work4you.ai/mcp",
+                    "token": "w4y-c-connected",
+                },
+                "user_id": "user-sub-1",
+                "connected": ["gmail"],
+            }
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        result = bootstrap_work4you_apps()
+        servers = _get_mcp_servers()
+        assert servers[WORK4YOU_APPS_SERVER_NAME]["enabled"] is True
+        assert result["mcp"]["enabled"] is True
+        assert result["connected"] == ["gmail"]
+
+    def test_rebootstrap_preserves_enabled_when_refreshing_token(
+        self, _isolate_work4you_home, monkeypatch
+    ):
+        import work4you_cli.connectors as connectors
+
+        inject_work4you_apps(
+            mcp_url="https://connectors-api.work4you.ai/mcp",
+            token="w4y-c-old",
+            enabled=True,
+        )
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(method, path, **kwargs):
+            return {
+                "mcp": {
+                    "url": "https://connectors-api.work4you.ai/mcp",
+                    "token": "w4y-c-new",
+                },
+                "connected": [],
+            }
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        bootstrap_work4you_apps()
+        servers = _get_mcp_servers()
+        assert servers[WORK4YOU_APPS_SERVER_NAME]["enabled"] is True
+        env_text = (get_work4you_home() / ".env").read_text()
+        assert "w4y-c-new" in env_text
+
+    def test_wait_enables_hidden_server_after_oauth(
+        self, _isolate_work4you_home, monkeypatch
+    ):
+        import work4you_cli.connectors as connectors
+
+        inject_work4you_apps(
+            mcp_url="https://connectors-api.work4you.ai/mcp",
+            token="w4y-c-wait",
+            enabled=False,
+        )
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(method, path, **kwargs):
+            assert path == "/v1/apps/gmail/wait"
+            return {"slug": "gmail", "status": "active", "connected": True}
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        result = wait_app("gmail")
+        assert result["connected"] is True
+        assert _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]["enabled"] is True
+
+    def test_disconnect_last_app_disables_hidden_server(
+        self, _isolate_work4you_home, monkeypatch
+    ):
+        import work4you_cli.connectors as connectors
+
+        inject_work4you_apps(
+            mcp_url="https://connectors-api.work4you.ai/mcp",
+            token="w4y-c-disc",
+            enabled=True,
+        )
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(method, path, **kwargs):
+            if path == "/v1/apps/gmail/disconnect":
+                return {"slug": "gmail", "disconnected": True}
+            if path == "/v1/apps":
+                return {"apps": [{"slug": "gmail", "status": "disconnected", "connected": False}]}
+            raise AssertionError(path)
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        disconnect_app("gmail")
+        assert _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]["enabled"] is False
+
+    def test_maybe_bootstrap_skip_false_reissues_when_installed(
+        self, _isolate_work4you_home, monkeypatch
+    ):
+        import work4you_cli.connectors as connectors
+
+        inject_work4you_apps(
+            mcp_url="https://connectors-api.work4you.ai/mcp",
+            token="w4y-c-already",
+            enabled=False,
+        )
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+        called = {"n": 0}
+
+        def fake_broker(method, path, **kwargs):
+            called["n"] += 1
+            return {
+                "mcp": {
+                    "url": "https://connectors-api.work4you.ai/mcp",
+                    "token": "w4y-c-reissued",
+                },
+                "connected": [],
+            }
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        assert maybe_bootstrap_work4you_apps(skip_if_installed=False) is True
+        assert called["n"] == 1
+        env_text = (get_work4you_home() / ".env").read_text()
+        assert "w4y-c-reissued" in env_text
 
     def test_maybe_bootstrap_noops_without_portal(self, _isolate_work4you_home, monkeypatch):
         import work4you_cli.connectors as connectors

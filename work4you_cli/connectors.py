@@ -115,21 +115,77 @@ def broker_request(
         raise ConnectorError("connectors broker returned non-JSON", status=502) from exc
 
 
-def inject_work4you_apps(*, mcp_url: str, token: str) -> Dict[str, Any]:
-    """Upsert the hidden MCP server + env token. Does not replace ``mcp_servers``."""
+def inject_work4you_apps(
+    *,
+    mcp_url: str,
+    token: str,
+    enabled: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Upsert the hidden MCP server + env token. Does not replace ``mcp_servers``.
+
+    ``enabled`` defaults to the existing entry (or False on first inject) so a
+    token refresh cannot dump Composio tools onto a session that has no
+    connected app, and cannot disable a live server that already had one.
+    """
     if not mcp_url or not token:
         raise ConnectorError("bootstrap missing mcp url or token", status=502)
     if "composio" in token.lower() or token.startswith("ak_"):
         raise ConnectorError("refusing to persist a Composio project key", status=500)
     save_env_value(WORK4YOU_APPS_TOKEN_ENV, token)
+    existing = _get_mcp_servers().get(WORK4YOU_APPS_SERVER_NAME)
+    existing_enabled = False
+    if isinstance(existing, dict):
+        existing_enabled = bool(existing.get("enabled", False))
+    if enabled is None:
+        enabled = existing_enabled
     server_config = {
         "url": mcp_url,
         "headers": {"Authorization": f"Bearer ${{{WORK4YOU_APPS_TOKEN_ENV}}}"},
-        "enabled": True,
+        "enabled": bool(enabled),
     }
     if not _save_mcp_server(WORK4YOU_APPS_SERVER_NAME, server_config):
         raise ConnectorError("work4you_apps MCP server was rejected", status=400)
     return server_config
+
+
+def _connected_slugs(payload: Any) -> List[str]:
+    if not isinstance(payload, dict):
+        return []
+    connected = payload.get("connected")
+    if isinstance(connected, list):
+        return [str(item).strip() for item in connected if str(item).strip()]
+    apps = payload.get("apps")
+    if not isinstance(apps, list):
+        return []
+    slugs: List[str] = []
+    for app in apps:
+        if not isinstance(app, Mapping):
+            continue
+        status = str(app.get("status") or "").lower()
+        if app.get("connected") or status == "active":
+            slug = str(app.get("slug") or "").strip()
+            if slug:
+                slugs.append(slug)
+    return slugs
+
+
+def _composio_has_connected_apps(token: str) -> bool:
+    try:
+        payload = broker_request("GET", "/v1/apps", token=token, timeout=8.0)
+    except ConnectorError:
+        return False
+    return bool(_connected_slugs(payload))
+
+
+def _set_work4you_apps_enabled(enabled: bool) -> None:
+    current = _get_mcp_servers().get(WORK4YOU_APPS_SERVER_NAME)
+    if not isinstance(current, dict):
+        return
+    if bool(current.get("enabled", False)) == bool(enabled):
+        return
+    updated = dict(current)
+    updated["enabled"] = bool(enabled)
+    _save_mcp_server(WORK4YOU_APPS_SERVER_NAME, updated)
 
 
 def bootstrap_work4you_apps(*, timeout: float = 30.0) -> Dict[str, Any]:
@@ -143,15 +199,25 @@ def bootstrap_work4you_apps(*, timeout: float = 30.0) -> Dict[str, Any]:
         raise ConnectorError("bootstrap missing mcp payload", status=502)
     mcp_url = str(mcp.get("url") or "")
     mcp_token = str(mcp.get("token") or "")
-    inject_work4you_apps(mcp_url=mcp_url, token=mcp_token)
+    connected = _connected_slugs(payload)
+    existing = _get_mcp_servers().get(WORK4YOU_APPS_SERVER_NAME)
+    if connected:
+        enabled = True
+    elif isinstance(existing, dict):
+        enabled = bool(existing.get("enabled", False))
+    else:
+        enabled = False
+    inject_work4you_apps(mcp_url=mcp_url, token=mcp_token, enabled=enabled)
     return {
         "ok": True,
         "mcp": {
             "name": WORK4YOU_APPS_SERVER_NAME,
             "url": mcp_url,
             "token_env": WORK4YOU_APPS_TOKEN_ENV,
+            "enabled": enabled,
         },
         "user_id": payload.get("user_id"),
+        "connected": connected,
     }
 
 
@@ -305,20 +371,29 @@ def wait_app(slug: str, *, timeout_ms: int = 25_000) -> Dict[str, Any]:
     if not token:
         raise ConnectorError("portal_login_required", status=401)
     timeout_s = max(5.0, min(timeout_ms / 1000.0, 30.0) + 5.0)
-    return broker_request(
+    result = broker_request(
         "GET",
         f"/v1/apps/{slug}/wait",
         token=token,
         params={"timeout_ms": timeout_ms},
         timeout=timeout_s,
     )
+    status = str(result.get("status") or "").lower() if isinstance(result, dict) else ""
+    if isinstance(result, dict) and (result.get("connected") or status == "active"):
+        # Persist enabled=true for the next session. Do not rediscover MCP
+        # tools here: swapping the toolset mid-conversation breaks prompt cache.
+        _set_work4you_apps_enabled(True)
+    return result
 
 
 def disconnect_app(slug: str) -> Dict[str, Any]:
     token = resolve_portal_token()
     if not token:
         raise ConnectorError("portal_login_required", status=401)
-    return broker_request("POST", f"/v1/apps/{slug}/disconnect", token=token, json={})
+    result = broker_request("POST", f"/v1/apps/{slug}/disconnect", token=token, json={})
+    if not _composio_has_connected_apps(token):
+        _set_work4you_apps_enabled(False)
+    return result
 
 
 def work4you_apps_installed() -> bool:
