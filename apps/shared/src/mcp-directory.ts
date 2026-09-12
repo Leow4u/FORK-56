@@ -272,11 +272,13 @@ export function mcpSetupCardIdentity(input: {
 }): { logo: string | null; name: string; subtitle: string } {
   const app = input.composioApp ?? null
   const name = directoryAppDisplayName((app?.name || input.server).trim() || input.server)
+
   const logo = app
     ? directoryAppLogoUrl(app)
     : input.nativeLogo
       ? directoryAppLogoUrl({ id: input.server, source: 'native' })
       : null
+
   const subtitle =
     (app ? directoryAppDescription(app).trim() : '') ||
     (input.reason ?? '').trim() ||

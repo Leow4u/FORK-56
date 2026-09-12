@@ -917,8 +917,7 @@ export const en: Translations = {
     },
     profileScope: {
       appliesTo: 'Editing profile',
-      editsProfile: profile =>
-        `These settings only change the “${profile}” profile. Other profiles stay independent.`
+      editsProfile: profile => `These settings only change the “${profile}” profile. Other profiles stay independent.`
     },
     mcp: {
       loading: 'Loading MCP servers...',

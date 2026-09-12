@@ -767,8 +767,7 @@ export const ar = defineLocale({
     },
     profileScope: {
       appliesTo: 'الملف قيد التحرير',
-      editsProfile: profile =>
-        `هذه الصفحة تعدّل الملف الشخصي «${profile}» فقط. الملفات الأخرى غير مرتبطة.`
+      editsProfile: profile => `هذه الصفحة تعدّل الملف الشخصي «${profile}» فقط. الملفات الأخرى غير مرتبطة.`
     },
     mcp: {
       loading: 'جار تحميل خوادم MCP...',

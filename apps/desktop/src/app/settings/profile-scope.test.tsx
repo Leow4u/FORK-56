@@ -53,7 +53,9 @@ describe('SettingsProfileScope', () => {
     expect(screen.getByText('Editing profile')).toBeTruthy()
     // Following the active profile still names the home being edited so the
     // chips cannot be read as a multi-profile bind.
-    expect(screen.getByText('These settings only change the “default” profile. Other profiles stay independent.')).toBeTruthy()
+    expect(
+      screen.getByText('These settings only change the “default” profile. Other profiles stay independent.')
+    ).toBeTruthy()
     expect($settingsScopeOverride.get()).toBeNull()
   })
 
@@ -64,10 +66,14 @@ describe('SettingsProfileScope', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: 'coder' }))
     expect($settingsScopeOverride.get()).toBe('coder')
-    expect(screen.getByText('These settings only change the “coder” profile. Other profiles stay independent.')).toBeTruthy()
+    expect(
+      screen.getByText('These settings only change the “coder” profile. Other profiles stay independent.')
+    ).toBeTruthy()
 
     fireEvent.click(screen.getByRole('radio', { name: 'default' }))
     expect($settingsScopeOverride.get()).toBeNull()
-    expect(screen.getByText('These settings only change the “default” profile. Other profiles stay independent.')).toBeTruthy()
+    expect(
+      screen.getByText('These settings only change the “default” profile. Other profiles stay independent.')
+    ).toBeTruthy()
   })
 })
