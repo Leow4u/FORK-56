@@ -23,6 +23,10 @@ function loadIsolation() {
   return context.__iso
 }
 
+function snapshot(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
 test('Fresh is the default clone-from; reset restores the same sentinel', () => {
   const iso = loadIsolation()
   assert.equal(iso.FRESH_CLONE_FROM, '__none__')
@@ -33,7 +37,7 @@ test('Fresh is the default clone-from; reset restores the same sentinel', () => 
 test('Fresh create does not clone or overlay launch credentials', () => {
   const iso = loadIsolation()
   assert.equal(iso.isFreshProfileCreate('__none__'), true)
-  assert.deepEqual(iso.profilesCreateIsolationParams('__none__', false), {
+  assert.deepEqual(snapshot(iso.profilesCreateIsolationParams('__none__', false)), {
     clone_from: null,
     mirror_credentials: false
   })
@@ -44,7 +48,7 @@ test('Fresh create does not clone or overlay launch credentials', () => {
 test('explicit clone copies the named source without overlaying launch .env', () => {
   const iso = loadIsolation()
   assert.equal(iso.isFreshProfileCreate('default'), false)
-  assert.deepEqual(iso.profilesCreateIsolationParams('default', false), {
+  assert.deepEqual(snapshot(iso.profilesCreateIsolationParams('default', false)), {
     clone_from: 'default',
     mirror_credentials: false
   })
@@ -53,7 +57,7 @@ test('explicit clone copies the named source without overlaying launch .env', ()
 
 test('remote clone uses the target machine default, still without launch .env overlay', () => {
   const iso = loadIsolation()
-  assert.deepEqual(iso.profilesCreateIsolationParams('leo', true), {
+  assert.deepEqual(snapshot(iso.profilesCreateIsolationParams('leo', true)), {
     clone_from: 'default',
     mirror_credentials: false
   })

@@ -28,7 +28,7 @@ describe('CreateProfileDialog', () => {
 
     render(<CreateProfileDialog onClose={() => undefined} open profiles={[defaultProfile]} />)
 
-    expect(screen.getByText('None (blank)')).toBeTruthy()
+    expect(screen.getByRole('combobox').textContent).toContain('None (blank)')
     expect(screen.getByText(/independent Work4You environments/)).toBeTruthy()
   })
 })
