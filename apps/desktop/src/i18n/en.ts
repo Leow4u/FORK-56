@@ -387,7 +387,7 @@ export const en: Translations = {
         title: 'Agent plugins',
         blurb:
           'Plugins you installed into the Work4You backend — tools, skills, MCP servers, hooks, and slash commands. Portable ones are Agent Plugins packages (skills + MCP bundles that work in other agents too). Toggles apply to new sessions.',
-        appliesTo: 'Applies to:',
+        appliesTo: 'Editing profile:',
         empty: 'No agent plugins installed yet.',
         loadFailed: 'Could not load agent plugins',
         portable: 'portable',
@@ -916,8 +916,9 @@ export const en: Translations = {
       pill: 'Search'
     },
     profileScope: {
-      appliesTo: 'Applies to',
-      editsProfile: profile => `Changes on this page apply to the “${profile}” profile.`
+      appliesTo: 'Editing profile',
+      editsProfile: profile =>
+        `These settings only change the “${profile}” profile. Other profiles stay independent.`
     },
     mcp: {
       loading: 'Loading MCP servers...',

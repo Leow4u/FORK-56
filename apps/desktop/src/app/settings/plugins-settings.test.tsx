@@ -165,7 +165,7 @@ describe('PluginsSettings', () => {
     renderSettings()
 
     await waitFor(() => expect(getProfiles).toHaveBeenCalled())
-    expect(screen.queryByText('Applies to:')).toBeNull()
+    expect(screen.queryByText('Editing profile:')).toBeNull()
   })
 
   it('lists the active profile scope without a profile param and reloads scoped on change', async () => {
@@ -182,7 +182,7 @@ describe('PluginsSettings', () => {
 
     // Active profile scope: no profile param — older backends unchanged.
     await waitFor(() => expect(requestGateway).toHaveBeenCalledWith('plugins.manage', { action: 'list' }))
-    await waitFor(() => expect(screen.getByText('Applies to:')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Editing profile:')).toBeTruthy())
   })
 
   it('sends toggles through the selected profile scope', async () => {
@@ -209,7 +209,7 @@ describe('PluginsSettings', () => {
 
     renderSettings()
 
-    await waitFor(() => expect(screen.getByText('Applies to:')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('Editing profile:')).toBeTruthy())
 
     // Select the non-active profile scope.
     fireEvent.click(screen.getByRole('combobox'))

@@ -866,8 +866,9 @@ export const ja = defineLocale({
       pill: '検索'
     },
     profileScope: {
-      appliesTo: '適用対象',
-      editsProfile: profile => `このページの変更は「${profile}」プロファイルに適用されます。`
+      appliesTo: '編集中のプロファイル',
+      editsProfile: profile =>
+        `このページは「${profile}」プロファイルだけを編集します。他のプロファイルには連動しません。`
     },
     mcp: {
       loading: 'MCP サーバーを読み込み中...',

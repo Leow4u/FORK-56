@@ -19,7 +19,9 @@ def work4you_root(tmp_path, monkeypatch):
     root = tmp_path / "work4you_home"
     root.mkdir()
     (root / ".env").write_text(
-        "OPENAI_API_KEY=sk-launch\nWORK4YOU_APPS_MCP_TOKEN=w4y-c-launch-home\n",
+        "OPENAI_API_KEY=sk-launch\n"
+        "WORK4YOU_APPS_MCP_TOKEN=w4y-c-launch-home\n"
+        "WHATSAPP_TOKEN=wa-launch\n",
         encoding="utf-8",
     )
     monkeypatch.setenv("WORK4YOU_HOME", str(root))
@@ -62,7 +64,48 @@ def test_mirror_credentials_strips_apps_mcp_token(work4you_root, monkeypatch):
     assert dest.is_file()
     text = dest.read_text(encoding="utf-8")
     assert "OPENAI_API_KEY=sk-launch" in text
+    assert "WHATSAPP_TOKEN=wa-launch" in text
     assert "WORK4YOU_APPS_MCP_TOKEN" not in text
     assert "w4y-c-launch-home" not in text
     launch = (work4you_root / ".env").read_text(encoding="utf-8")
     assert "WORK4YOU_APPS_MCP_TOKEN=w4y-c-launch-home" in launch
+
+
+def _stub_profile_side_effects(monkeypatch):
+    from work4you_cli import profiles as profiles_mod
+
+    monkeypatch.setattr(profiles_mod, "create_wrapper_script", lambda *a, **k: None)
+    monkeypatch.setattr(profiles_mod, "seed_profile_skills", lambda *a, **k: None)
+    monkeypatch.setattr(profiles_mod, "check_alias_collision", lambda *_a, **_k: "skip")
+
+
+def test_fresh_create_does_not_copy_launch_env(work4you_root, monkeypatch):
+    """Omitting mirror_credentials must not inherit WhatsApp / API keys."""
+    _stub_profile_side_effects(monkeypatch)
+
+    result = _result(_call("profiles.create", {"name": "leo", "share_auth": True}))
+    assert result.get("ok") is True or "path" in result or "name" in result
+    dest = Path(work4you_root) / "profiles" / "leo" / ".env"
+    assert dest.is_file()
+    text = dest.read_text(encoding="utf-8")
+    assert "OPENAI_API_KEY" not in text
+    assert "WHATSAPP_TOKEN" not in text
+    assert "sk-launch" not in text
+    assert "wa-launch" not in text
+    assert "WORK4YOU_APPS_MCP_TOKEN" not in text
+
+
+def test_explicit_mirror_false_does_not_copy_launch_env(work4you_root, monkeypatch):
+    _stub_profile_side_effects(monkeypatch)
+
+    result = _result(
+        _call(
+            "profiles.create",
+            {"name": "isolated", "mirror_credentials": False},
+        )
+    )
+    assert result.get("ok") is True or "path" in result or "name" in result
+    dest = Path(work4you_root) / "profiles" / "isolated" / ".env"
+    text = dest.read_text(encoding="utf-8")
+    assert "OPENAI_API_KEY" not in text
+    assert "WHATSAPP_TOKEN" not in text

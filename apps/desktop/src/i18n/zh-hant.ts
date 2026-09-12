@@ -843,8 +843,8 @@ export const zhHant = defineLocale({
       pill: '搜尋'
     },
     profileScope: {
-      appliesTo: '套用至',
-      editsProfile: profile => `此頁面的變更將套用至「${profile}」設定檔。`
+      appliesTo: '正在編輯的設定檔',
+      editsProfile: profile => `此頁面只會變更「${profile}」設定檔。其他設定檔互不連動。`
     },
     mcp: {
       loading: '正在載入 MCP 伺服器...',
