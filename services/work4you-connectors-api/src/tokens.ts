@@ -5,6 +5,7 @@ import { dirname } from 'node:path'
 export type McpTokenRecord = {
   token: string
   sub: string
+  entityId: string
   sessionId: string
   composioMcpUrl: string
   createdAt: number
@@ -12,7 +13,7 @@ export type McpTokenRecord = {
 
 export class TokenStore {
   private byToken = new Map<string, McpTokenRecord>()
-  private bySub = new Map<string, string>()
+  private byEntityId = new Map<string, string>()
   private persistPath: string | null
 
   constructor(persistPath?: string | null) {
@@ -21,19 +22,25 @@ export class TokenStore {
     this.loadFromDisk()
   }
 
-  issue(sub: string, sessionId: string, composioMcpUrl: string): McpTokenRecord {
-    const existingId = this.bySub.get(sub)
+  issue(
+    entityId: string,
+    sessionId: string,
+    composioMcpUrl: string,
+    sub: string,
+  ): McpTokenRecord {
+    const existingId = this.byEntityId.get(entityId)
     if (existingId) this.byToken.delete(existingId)
     const token = `w4y-c-${randomBytes(24).toString('hex')}`
     const record: McpTokenRecord = {
       token,
       sub,
+      entityId,
       sessionId,
       composioMcpUrl,
       createdAt: Date.now(),
     }
     this.byToken.set(token, record)
-    this.bySub.set(sub, token)
+    this.byEntityId.set(entityId, token)
     this.persistToDisk()
     return record
   }
@@ -42,15 +49,15 @@ export class TokenStore {
     return this.byToken.get(token)
   }
 
-  getBySub(sub: string): McpTokenRecord | undefined {
-    const token = this.bySub.get(sub)
+  getByEntityId(entityId: string): McpTokenRecord | undefined {
+    const token = this.byEntityId.get(entityId)
     return token ? this.byToken.get(token) : undefined
   }
 
-  revokeBySub(sub: string): void {
-    const token = this.bySub.get(sub)
+  revokeByEntityId(entityId: string): void {
+    const token = this.byEntityId.get(entityId)
     if (token) this.byToken.delete(token)
-    this.bySub.delete(sub)
+    this.byEntityId.delete(entityId)
     this.persistToDisk()
   }
 
@@ -78,13 +85,16 @@ export class TokenStore {
       const rec = row as Record<string, unknown>
       const token = typeof rec.token === 'string' ? rec.token : ''
       const sub = typeof rec.sub === 'string' ? rec.sub : ''
+      const entityId = typeof rec.entityId === 'string' ? rec.entityId : ''
       const sessionId = typeof rec.sessionId === 'string' ? rec.sessionId : ''
       const composioMcpUrl = typeof rec.composioMcpUrl === 'string' ? rec.composioMcpUrl : ''
       const createdAt = typeof rec.createdAt === 'number' ? rec.createdAt : Date.now()
-      if (!token.startsWith('w4y-c-') || !sub || !sessionId || !composioMcpUrl) continue
-      const record: McpTokenRecord = { token, sub, sessionId, composioMcpUrl, createdAt }
+      // Pre-isolation rows keyed only by person `sub` are skipped — no
+      // grandfathering. Those homes re-bootstrap into sub::{profile}.
+      if (!token.startsWith('w4y-c-') || !sub || !entityId || !sessionId || !composioMcpUrl) continue
+      const record: McpTokenRecord = { token, sub, entityId, sessionId, composioMcpUrl, createdAt }
       this.byToken.set(token, record)
-      this.bySub.set(sub, token)
+      this.byEntityId.set(entityId, token)
     }
   }
 

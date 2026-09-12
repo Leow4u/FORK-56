@@ -8,6 +8,10 @@ in user config.
 Directory merge: native ``optional-mcps/`` catalog + Composio allowlist, one
 grid, native name wins on collision. ``work4you_apps`` is hidden from the
 directory (it may still appear in the raw MCP JSON editor).
+
+Broker isolation is ``{Portal sub}::{profile}``. ``broker_request`` sends
+``X-Work4You-Profile`` from the scoped home, never the sticky
+``active_profile`` file.
 """
 
 from __future__ import annotations
@@ -34,6 +38,7 @@ _log = logging.getLogger(__name__)
 DEFAULT_CONNECTORS_API_BASE = "https://connectors-api.work4you.ai"
 WORK4YOU_APPS_SERVER_NAME = "work4you_apps"
 WORK4YOU_APPS_TOKEN_ENV = "WORK4YOU_APPS_MCP_TOKEN"
+WORK4YOU_APPS_PROFILE_HEADER = "X-Work4You-Profile"
 
 
 class ConnectorError(RuntimeError):
@@ -69,6 +74,21 @@ def resolve_portal_token() -> Optional[str]:
     return token
 
 
+def scoped_apps_profile_name() -> str:
+    """Profile suffix for Composio entity isolation.
+
+    Comes from the scoped home (``get_active_profile_name``), never the
+    sticky ``active_profile`` file. Unrecognized homes (``custom``) map to
+    ``default`` — that home is the install's default profile.
+    """
+    from work4you_cli.profiles import get_active_profile_name
+
+    name = (get_active_profile_name() or "").strip()
+    if not name or name == "custom":
+        return "default"
+    return name
+
+
 def broker_request(
     method: str,
     path: str,
@@ -83,6 +103,7 @@ def broker_request(
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
+        WORK4YOU_APPS_PROFILE_HEADER: scoped_apps_profile_name(),
     }
     try:
         with httpx.Client(timeout=timeout) as client:
@@ -217,6 +238,7 @@ def bootstrap_work4you_apps(*, timeout: float = 30.0) -> Dict[str, Any]:
             "enabled": enabled,
         },
         "user_id": payload.get("user_id"),
+        "entity_id": payload.get("entity_id"),
         "connected": connected,
     }
 

@@ -178,9 +178,10 @@ test('bootstrap issues an opaque MCP token and never echoes the Composio key', a
   assert.equal(body.mcp.token_env, 'WORK4YOU_APPS_MCP_TOKEN')
   assert.match(body.mcp.token, /^w4y-c-[0-9a-f]+$/)
   assert.equal(body.user_id, 'user-a')
+  assert.equal(body.entity_id, 'user-a::default')
   const dumped = JSON.stringify(body)
   assert.equal(dumped.includes('ak_test'), false)
-  assert.deepEqual(composio.createdFor, ['user-a'])
+  assert.deepEqual(composio.createdFor, ['user-a::default'])
   assert.deepEqual(composio.lastEnable, [])
   assert.deepEqual(body.connected, [])
 })
@@ -262,7 +263,7 @@ test('authorize allowlisted slug returns a connect link', async () => {
 
 test('wait reports connected once the account is ACTIVE', async () => {
   const composio = new FakeComposio()
-  composio.accounts.set('user-a', [
+  composio.accounts.set('user-a::default', [
     { id: 'ca-1', toolkit: 'gmail', status: 'ACTIVE' },
   ])
   const { app } = harness({ composio })
@@ -278,7 +279,7 @@ test('wait reports connected once the account is ACTIVE', async () => {
 
 test('disconnect disables the matching account', async () => {
   const composio = new FakeComposio()
-  composio.accounts.set('user-a', [
+  composio.accounts.set('user-a::default', [
     { id: 'ca-gmail', toolkit: 'gmail', status: 'ACTIVE' },
   ])
   const { app } = harness({ composio })
@@ -293,7 +294,7 @@ test('disconnect disables the matching account', async () => {
 
 test('bootstrap with an ACTIVE account enables only that toolkit', async () => {
   const composio = new FakeComposio()
-  composio.accounts.set('user-a', [
+  composio.accounts.set('user-a::default', [
     { id: 'ca-gmail', toolkit: 'gmail', status: 'ACTIVE' },
     { id: 'ca-notion', toolkit: 'notion', status: 'ACTIVE' },
   ])
@@ -335,7 +336,9 @@ test('MCP proxy rejects unknown tokens and isolates users', async () => {
   const tokenB = (await bootB.json()).mcp.token as string
   assert.notEqual(tokenA, tokenB)
   assert.equal(tokens.get(tokenA)?.sub, 'user-a')
+  assert.equal(tokens.get(tokenA)?.entityId, 'user-a::default')
   assert.equal(tokens.get(tokenB)?.sub, 'user-b')
+  assert.equal(tokens.get(tokenB)?.entityId, 'user-b::default')
 
   const denied = await app.request('/mcp', {
     method: 'POST',
@@ -354,9 +357,107 @@ test('MCP proxy rejects unknown tokens and isolates users', async () => {
   })
   assert.equal(proxied.status, 200)
   assert.equal(hits.length, 1)
-  assert.equal(hits[0].url, 'https://mcp.composio.dev/user-a')
+  assert.equal(hits[0].url, 'https://mcp.composio.dev/user-a::default')
   assert.equal(hits[0].apiKey, 'ak_test')
   assert.equal(hits[0].authorization, null)
+})
+
+test('same Portal JWT with default vs leo homes gets two Composio sessions', async () => {
+  const { app, composio, tokens } = harness()
+  const defaultRes = await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  const leoRes = await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'x-work4you-profile': 'leo',
+    },
+  })
+  assert.equal(defaultRes.status, 200)
+  assert.equal(leoRes.status, 200)
+  const defaultBody = await defaultRes.json()
+  const leoBody = await leoRes.json()
+  assert.equal(defaultBody.user_id, 'user-a')
+  assert.equal(leoBody.user_id, 'user-a')
+  assert.equal(defaultBody.entity_id, 'user-a::default')
+  assert.equal(leoBody.entity_id, 'user-a::leo')
+  assert.notEqual(defaultBody.mcp.token, leoBody.mcp.token)
+  assert.equal(composio.createCalls, 2)
+  assert.deepEqual(composio.createdFor, ['user-a::default', 'user-a::leo'])
+  assert.equal(tokens.get(defaultBody.mcp.token)?.entityId, 'user-a::default')
+  assert.equal(tokens.get(leoBody.mcp.token)?.entityId, 'user-a::leo')
+  assert.equal(tokens.get(defaultBody.mcp.token)?.sub, 'user-a')
+  assert.equal(tokens.get(leoBody.mcp.token)?.sub, 'user-a')
+
+  const leoAgain = await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'x-work4you-profile': 'leo',
+    },
+  })
+  assert.equal(leoAgain.status, 200)
+  assert.equal(composio.createCalls, 2)
+  const leoAgainBody = await leoAgain.json()
+  assert.equal(leoAgainBody.mcp.token, leoBody.mcp.token)
+})
+
+test('disconnecting Gmail on leo does not disable default home Gmail', async () => {
+  const composio = new FakeComposio()
+  composio.accounts.set('user-a::default', [
+    { id: 'ca-gmail-default', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  composio.accounts.set('user-a::leo', [
+    { id: 'ca-gmail-leo', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  const { app } = harness({ composio })
+  const res = await app.request('/v1/apps/gmail/disconnect', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'x-work4you-profile': 'leo',
+    },
+  })
+  assert.equal(res.status, 200)
+  assert.deepEqual(composio.disabled, ['ca-gmail-leo'])
+  const defaultAccounts = await composio.listAccounts('user-a::default')
+  const leoAccounts = await composio.listAccounts('user-a::leo')
+  assert.equal(defaultAccounts[0]?.status, 'ACTIVE')
+  assert.equal(leoAccounts[0]?.status, 'INACTIVE')
+})
+
+test('invalid X-Work4You-Profile is 400', async () => {
+  const { app, composio } = harness()
+  for (const profile of ['Leo', '../x', 'has space', 'a'.repeat(65)]) {
+    const res = await app.request('/v1/bootstrap', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer jwt_a',
+        'x-work4you-profile': profile,
+      },
+    })
+    assert.equal(res.status, 400, profile)
+    const body = await res.json()
+    assert.equal(body.error, 'invalid_profile')
+  }
+  assert.equal(composio.createCalls, 0)
+})
+
+test('empty X-Work4You-Profile is the default home', async () => {
+  const { app, composio } = harness()
+  const res = await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'x-work4you-profile': '  ',
+    },
+  })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.entity_id, 'user-a::default')
+  assert.deepEqual(composio.createdFor, ['user-a::default'])
 })
 
 test('connected page is a close-this-window landing', async () => {

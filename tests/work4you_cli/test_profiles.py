@@ -44,6 +44,7 @@ from work4you_cli.profiles import (
     NO_BUNDLED_SKILLS_MARKER,
     backfill_profile_envs,
     profiles_to_serve,
+    strip_work4you_apps_mcp_token,
 )
 from work4you_cli.config import DEFAULT_CONFIG
 
@@ -140,7 +141,9 @@ class TestCreateProfile:
         default_home = tmp_path / ".work4you"
         # Create source config files in default profile
         (default_home / "config.yaml").write_text("model: test")
-        (default_home / ".env").write_text("KEY=val")
+        (default_home / ".env").write_text(
+            "KEY=val\nWORK4YOU_APPS_MCP_TOKEN=w4y-c-source-token\n"
+        )
         (default_home / "SOUL.md").write_text("Be helpful.")
 
         profile_dir = create_profile("coder", clone_config=True, no_alias=True)
@@ -148,7 +151,10 @@ class TestCreateProfile:
         cloned_config = yaml.safe_load((profile_dir / "config.yaml").read_text())
         assert cloned_config["_config_version"] == DEFAULT_CONFIG["_config_version"]
         assert cloned_config["model"] == "test"
-        assert (profile_dir / ".env").read_text().strip() == "KEY=val"
+        cloned_env = (profile_dir / ".env").read_text()
+        assert "KEY=val" in cloned_env
+        assert "WORK4YOU_APPS_MCP_TOKEN" not in cloned_env
+        assert "w4y-c-source-token" not in cloned_env
         assert (profile_dir / "SOUL.md").read_text() == "Be helpful."
 
 
@@ -1019,7 +1025,9 @@ class TestEdgeCases:
         # Create source profile with config
         source_dir = create_profile("source", no_alias=True)
         (source_dir / "config.yaml").write_text("model: cloned")
-        (source_dir / ".env").write_text("SECRET=yes")
+        (source_dir / ".env").write_text(
+            "SECRET=yes\nWORK4YOU_APPS_MCP_TOKEN=w4y-c-named-source\n"
+        )
 
         target_dir = create_profile(
             "target", clone_from="source", clone_config=True, no_alias=True,
@@ -1027,8 +1035,32 @@ class TestEdgeCases:
         cloned_config = yaml.safe_load((target_dir / "config.yaml").read_text())
         assert cloned_config["_config_version"] == DEFAULT_CONFIG["_config_version"]
         assert cloned_config["model"] == "cloned"
-        assert (target_dir / ".env").read_text().strip() == "SECRET=yes"
+        cloned_env = (target_dir / ".env").read_text()
+        assert "SECRET=yes" in cloned_env
+        assert "WORK4YOU_APPS_MCP_TOKEN" not in cloned_env
 
+    def test_clone_all_strips_apps_mcp_token(self, profile_env):
+        tmp_path = profile_env
+        default_home = tmp_path / ".work4you"
+        (default_home / ".env").write_text(
+            "OPENAI_API_KEY=sk-keep\nWORK4YOU_APPS_MCP_TOKEN=w4y-c-clone-all\n"
+        )
+        profile_dir = create_profile("cloneall", clone_all=True, no_alias=True)
+        cloned_env = (profile_dir / ".env").read_text()
+        assert "OPENAI_API_KEY=sk-keep" in cloned_env
+        assert "WORK4YOU_APPS_MCP_TOKEN" not in cloned_env
+
+    def test_strip_apps_mcp_token_handles_export_form(self, tmp_path):
+        env_path = tmp_path / ".env"
+        env_path.write_text(
+            "FOO=1\nexport WORK4YOU_APPS_MCP_TOKEN=w4y-c-exported\nBAR=2\n"
+        )
+        assert strip_work4you_apps_mcp_token(env_path) is True
+        text = env_path.read_text()
+        assert "FOO=1" in text
+        assert "BAR=2" in text
+        assert "WORK4YOU_APPS_MCP_TOKEN" not in text
+        assert strip_work4you_apps_mcp_token(env_path) is False
 
 
 class TestProfilesToServe:

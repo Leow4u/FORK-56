@@ -5,12 +5,22 @@ Fly app **`work4you-connectors-api`** at **`https://connectors-api.work4you.ai`*
 This is the server-side Work4You Apps store. Desktop and the dashboard never
 talk to Composio and never see `COMPOSIO_API_KEY`. They:
 
-1. Send the user's **Portal JWT** to this service (`sub` is the isolation key).
+1. Send the user's **Portal JWT** plus `X-Work4You-Profile` (the scoped
+   home name) to this service. Isolation is `entity_id = {sub}::{profile}`
+   (example: `usr_abc::default`, `usr_abc::leo`). Missing/empty profile
+   means the `default` home. `sub` still comes only from the verified JWT;
+   clients never send it. `sub === "default"` is still rejected (that string
+   is a person id, not a home suffix).
 2. Install one hidden MCP server named `work4you_apps` that points at
-   `https://connectors-api.work4you.ai/mcp` with a per-user opaque token
+   `https://connectors-api.work4you.ai/mcp` with a **per-home** opaque token
    (`WORK4YOU_APPS_MCP_TOKEN`).
 3. The agent uses the existing MCP client. This process proxies Streamable HTTP
-   to the Composio session MCP URL and injects `x-api-key`.
+   to the Composio session MCP URL and injects `x-api-key`. `/mcp` is
+   unchanged: the opaque `w4y-c-` token already selects the session.
+
+There is **no migration** of older sessions keyed only by `sub`. Beta homes
+must reconnect after deploy. Clone / `mirror_credentials` must not copy
+`WORK4YOU_APPS_MCP_TOKEN` (the local control plane strips it).
 
 Static Portal `sk-work4you-…` keys are **rejected**. Those identities would mix
 people in Composio. Missing / `default` `sub` is also rejected.
@@ -21,7 +31,7 @@ people in Composio. Missing / `default` `sub` is also rejected.
 |-------|---------|
 | `GET /healthz` | Liveness |
 | `POST /v1/bootstrap` | Get-or-create Composio session; return MCP URL + opaque token |
-| `GET /v1/apps` | Allowlisted apps + connection status for this `sub` |
+| `GET /v1/apps` | Allowlisted apps + connection status for this `sub::{profile}` |
 | `POST /v1/apps/:slug/authorize` | Composio Connect Link for that toolkit |
 | `GET /v1/apps/:slug/wait` | Poll until `ACTIVE` (cap 25s) |
 | `POST /v1/apps/:slug/disconnect` | Disable the connected account |
@@ -74,5 +84,6 @@ npm run typecheck
 npm run dev
 ```
 
-Control-plane callers must send `Authorization: Bearer <Portal JWT>`. The MCP
-proxy uses `Authorization: Bearer <w4y-c-…>` issued by `/v1/bootstrap`.
+Control-plane callers must send `Authorization: Bearer <Portal JWT>` and
+`X-Work4You-Profile: <home>` (omit or empty → `default`). The MCP proxy uses
+`Authorization: Bearer <w4y-c-…>` issued by `/v1/bootstrap`.

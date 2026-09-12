@@ -259,6 +259,8 @@ def _(rid, params: dict) -> dict:
     ``mirror_credentials`` (default true) — copy the launch profile's
     ``.env`` and ``auth.json`` into the new profile, and inherit its
     model.provider/model.default when no explicit pin is given.
+    ``WORK4YOU_APPS_MCP_TOKEN`` is stripped from the copied ``.env`` so
+    the new home does not share the launch home's Composio session.
 
     Credential mirroring exists because ``create_profile()`` deliberately
     seeds a comment-only ``.env`` and never copies ``auth.json`` (OAuth
@@ -357,6 +359,12 @@ def _(rid, params: dict) -> dict:
                 try:
                     os.chmod(str(dst_env), 0o600)
                 except OSError:
+                    pass
+                try:
+                    from work4you_cli.profiles import strip_work4you_apps_mcp_token
+
+                    strip_work4you_apps_mcp_token(dst_env)
+                except Exception:
                     pass
                 mirrored["env"] = True
         except Exception:

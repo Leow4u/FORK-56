@@ -1,7 +1,8 @@
 /**
  * Work4You Apps connector broker.
  *
- * Portal JWT (sub) → Composio tool-router session → Streamable HTTP MCP proxy.
+ * Portal JWT (sub) + X-Work4You-Profile → Composio tool-router session
+ * keyed `sub::{profile}` → Streamable HTTP MCP proxy.
  * The platform COMPOSIO_API_KEY never leaves this process.
  */
 import { serve } from '@hono/node-server'

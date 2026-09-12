@@ -378,6 +378,88 @@ class TestInjectAndBootstrap:
         assert resolve_portal_token() is None
 
 
+class TestBrokerProfileHeader:
+    def _capture_broker(self, monkeypatch):
+        import work4you_cli.connectors as connectors
+
+        captured = {}
+
+        class FakeResp:
+            status_code = 200
+            content = b'{"ok":true}'
+
+            def json(self):
+                return {"ok": True}
+
+        class FakeClient:
+            def __init__(self, timeout=None):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def request(self, method, url, headers=None, json=None, params=None):
+                captured["headers"] = dict(headers or {})
+                captured["url"] = url
+                return FakeResp()
+
+        monkeypatch.setattr(connectors.httpx, "Client", FakeClient)
+        return captured
+
+    def test_broker_request_sends_default_profile_header(
+        self, _isolate_work4you_home, monkeypatch
+    ):
+        import work4you_cli.connectors as connectors
+
+        captured = self._capture_broker(monkeypatch)
+        connectors.broker_request("GET", "/v1/apps", token="portal-jwt")
+        assert captured["headers"]["Authorization"] == "Bearer portal-jwt"
+        assert captured["headers"][connectors.WORK4YOU_APPS_PROFILE_HEADER] == "default"
+
+    def test_broker_request_sends_named_profile_from_scoped_home(
+        self, _isolate_work4you_home, monkeypatch
+    ):
+        import work4you_cli.connectors as connectors
+        from work4you_cli.profiles import create_profile, get_profile_dir
+        from work4you_constants import (
+            reset_work4you_home_override,
+            set_work4you_home_override,
+        )
+
+        create_profile("leo", no_alias=True)
+        captured = self._capture_broker(monkeypatch)
+        token = set_work4you_home_override(str(get_profile_dir("leo")))
+        try:
+            connectors.broker_request("POST", "/v1/bootstrap", token="portal-jwt")
+        finally:
+            reset_work4you_home_override(token)
+        assert captured["headers"][connectors.WORK4YOU_APPS_PROFILE_HEADER] == "leo"
+
+    def test_broker_request_ignores_sticky_active_profile(
+        self, _isolate_work4you_home, monkeypatch
+    ):
+        import work4you_cli.connectors as connectors
+        from work4you_cli.profiles import create_profile, set_active_profile
+
+        create_profile("leo", no_alias=True)
+        set_active_profile("leo")
+        captured = self._capture_broker(monkeypatch)
+        connectors.broker_request("GET", "/v1/apps", token="portal-jwt")
+        assert captured["headers"][connectors.WORK4YOU_APPS_PROFILE_HEADER] == "default"
+
+    def test_custom_home_maps_to_default_profile_suffix(self, monkeypatch):
+        import work4you_cli.connectors as connectors
+
+        monkeypatch.setattr(
+            "work4you_cli.profiles.get_active_profile_name",
+            lambda: "custom",
+        )
+        assert connectors.scoped_apps_profile_name() == "default"
+
+
 class TestDirectoryApi:
     @pytest.fixture(autouse=True)
     def _setup(self, _isolate_work4you_home, monkeypatch):
