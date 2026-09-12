@@ -16,6 +16,20 @@ import { ComposioHttpError, statusFromAccount, type ComposioPort } from './compo
 import { proxyMcp, type FetchLike } from './mcp-proxy.js'
 import type { TokenStore } from './tokens.js'
 
+/** Same regex as work4you_cli.profiles._PROFILE_ID_RE. */
+export const PROFILE_ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/
+
+export function profileFromHeader(raw: string | undefined): string | { error: 'invalid_profile' } {
+  const value = (raw ?? '').trim()
+  if (!value) return 'default'
+  if (!PROFILE_ID_RE.test(value)) return { error: 'invalid_profile' }
+  return value
+}
+
+export function composioEntityId(sub: string, profile: string): string {
+  return `${sub}::${profile}`
+}
+
 export interface AppConfig {
   publicBaseUrl: string
   composioApiKey: string
@@ -91,11 +105,12 @@ function mapApp(
 
 async function ensureSession(
   deps: AppDeps,
-  userId: string,
+  entityId: string,
+  sub: string,
   extraEnable: readonly string[] = [],
   exclude: readonly string[] = [],
 ) {
-  const accounts = await deps.composio.listAccounts(userId)
+  const accounts = await deps.composio.listAccounts(entityId)
   const excluded = new Set(exclude.map((slug) => slug.trim().toLowerCase()).filter(Boolean))
   const filtered = excluded.size
     ? accounts.filter((a) => !excluded.has(a.toolkit.trim().toLowerCase()))
@@ -103,7 +118,7 @@ async function ensureSession(
   const enable = connectedToolkitSlugs(filtered, extraEnable)
   const connected = connectedToolkitSlugs(filtered)
   const authConfigs = authConfigsFromEnv(deps.config.authConfigId)
-  const existing = deps.tokens.getBySub(userId)
+  const existing = deps.tokens.getByEntityId(entityId)
   if (existing) {
     const session = await deps.composio.getSession(existing.sessionId)
     if (session) {
@@ -115,10 +130,10 @@ async function ensureSession(
         connected,
       }
     }
-    deps.tokens.revokeBySub(userId)
+    deps.tokens.revokeByEntityId(entityId)
   }
-  const created = await deps.composio.createSession(userId, authConfigs, enable)
-  const record = deps.tokens.issue(userId, created.sessionId, created.mcpUrl)
+  const created = await deps.composio.createSession(entityId, authConfigs, enable)
+  const record = deps.tokens.issue(entityId, created.sessionId, created.mcpUrl, sub)
   return {
     token: record.token,
     sessionId: created.sessionId,
@@ -132,6 +147,25 @@ function requireComposio(c: Context, deps: AppDeps) {
     return jsonError(c, 503, 'upstream_not_configured')
   }
   return null
+}
+
+type ScopedUser = {
+  user: ConnectorClaims
+  profile: string
+  entityId: string
+}
+
+async function requireScopedUser(
+  c: Context,
+  deps: AppDeps,
+): Promise<ScopedUser | Response> {
+  const user = await requireUser(c, deps)
+  if (user instanceof Response) return user
+  const profile = profileFromHeader(c.req.header('x-work4you-profile'))
+  if (typeof profile !== 'string') {
+    return jsonError(c, 400, profile.error)
+  }
+  return { user, profile, entityId: composioEntityId(user.sub, profile) }
 }
 
 export function createApp(deps: AppDeps) {
@@ -148,6 +182,7 @@ export function createApp(deps: AppDeps) {
         'Accept',
         'mcp-session-id',
         'Mcp-Session-Id',
+        'X-Work4You-Profile',
       ],
       allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     }),
@@ -198,9 +233,9 @@ export function createApp(deps: AppDeps) {
   app.post('/v1/bootstrap', async (c) => {
     const blocked = requireComposio(c, deps)
     if (blocked) return blocked
-    const user = await requireUser(c, deps)
-    if (user instanceof Response) return user
-    const session = await ensureSession(deps, user.sub)
+    const scoped = await requireScopedUser(c, deps)
+    if (scoped instanceof Response) return scoped
+    const session = await ensureSession(deps, scoped.entityId, scoped.user.sub)
     return c.json({
       mcp: {
         name: 'work4you_apps',
@@ -209,7 +244,8 @@ export function createApp(deps: AppDeps) {
         token_env: 'WORK4YOU_APPS_MCP_TOKEN',
         token: session.token,
       },
-      user_id: user.sub,
+      user_id: scoped.user.sub,
+      entity_id: scoped.entityId,
       connected: session.connected,
     })
   })
@@ -217,10 +253,10 @@ export function createApp(deps: AppDeps) {
   app.get('/v1/apps', async (c) => {
     const blocked = requireComposio(c, deps)
     if (blocked) return blocked
-    const user = await requireUser(c, deps)
-    if (user instanceof Response) return user
-    await ensureSession(deps, user.sub)
-    const accounts = await deps.composio.listAccounts(user.sub)
+    const scoped = await requireScopedUser(c, deps)
+    if (scoped instanceof Response) return scoped
+    await ensureSession(deps, scoped.entityId, scoped.user.sub)
+    const accounts = await deps.composio.listAccounts(scoped.entityId)
     const apps = ALLOWLIST.map((app) => {
       const account = pickAccount(accounts, app.slug)
       return mapApp(
@@ -242,13 +278,13 @@ export function createApp(deps: AppDeps) {
   app.post('/v1/apps/:slug/authorize', async (c) => {
     const blocked = requireComposio(c, deps)
     if (blocked) return blocked
-    const user = await requireUser(c, deps)
-    if (user instanceof Response) return user
+    const scoped = await requireScopedUser(c, deps)
+    if (scoped instanceof Response) return scoped
     const slug = c.req.param('slug')
     if (!isAllowlisted(slug) || BLOCKED_SESSION_SLUGS.includes(slug)) {
       return jsonError(c, 404, 'unknown_app')
     }
-    const session = await ensureSession(deps, user.sub, [slug])
+    const session = await ensureSession(deps, scoped.entityId, scoped.user.sub, [slug])
     const body = (await c.req.json().catch(() => ({}))) as { callback_url?: string }
     const callbackUrl = body.callback_url || `${deps.config.publicBaseUrl}/connected`
     const link = await deps.composio.authorize(session.sessionId, slug, callbackUrl)
@@ -262,8 +298,8 @@ export function createApp(deps: AppDeps) {
   app.get('/v1/apps/:slug/wait', async (c) => {
     const blocked = requireComposio(c, deps)
     if (blocked) return blocked
-    const user = await requireUser(c, deps)
-    if (user instanceof Response) return user
+    const scoped = await requireScopedUser(c, deps)
+    if (scoped instanceof Response) return scoped
     const slug = c.req.param('slug')
     if (!isAllowlisted(slug)) {
       return jsonError(c, 404, 'unknown_app')
@@ -274,10 +310,10 @@ export function createApp(deps: AppDeps) {
       : 25_000
     const started = Date.now()
     for (;;) {
-      const accounts = await deps.composio.listAccounts(user.sub)
+      const accounts = await deps.composio.listAccounts(scoped.entityId)
       const account = pickAccount(accounts, slug)
       if (account?.status === 'ACTIVE') {
-        await ensureSession(deps, user.sub)
+        await ensureSession(deps, scoped.entityId, scoped.user.sub)
         return c.json({ slug, status: 'active', connected: true })
       }
       if (Date.now() - started >= timeoutMs) {
@@ -294,20 +330,20 @@ export function createApp(deps: AppDeps) {
   app.post('/v1/apps/:slug/disconnect', async (c) => {
     const blocked = requireComposio(c, deps)
     if (blocked) return blocked
-    const user = await requireUser(c, deps)
-    if (user instanceof Response) return user
+    const scoped = await requireScopedUser(c, deps)
+    if (scoped instanceof Response) return scoped
     const slug = c.req.param('slug')
     if (!isAllowlisted(slug)) {
       return jsonError(c, 404, 'unknown_app')
     }
-    const accounts = await deps.composio.listAccounts(user.sub)
+    const accounts = await deps.composio.listAccounts(scoped.entityId)
     const account = pickAccount(accounts, slug)
     if (account) {
       await deps.composio.disableAccount(account.id)
     }
     // Exclude the slug even if Composio still reports ACTIVE — disable is
     // not always visible on the very next listAccounts call.
-    await ensureSession(deps, user.sub, [], [slug])
+    await ensureSession(deps, scoped.entityId, scoped.user.sub, [], [slug])
     return c.json({ slug, disconnected: true })
   })
 
