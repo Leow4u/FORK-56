@@ -2,7 +2,7 @@ import { atom, computed } from 'nanostores'
 
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 
-// ── Shared settings "Applies to" scope ──────────────────────────────────────
+// ── Shared settings "editing profile" scope ─────────────────────────────────
 // One selection shared by every config-backed settings page (Model, Workspace,
 // Safety, Memory & Context, Voice, Tools & Keys) and the Messaging overlay, so
 // picking a profile on one page carries to the next instead of resetting per

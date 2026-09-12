@@ -45,7 +45,7 @@ describe('GatewaySettings', () => {
     expect(getConnectionConfig).not.toHaveBeenCalledWith(expect.any(String))
 
     // The legacy per-profile scope switcher must not render.
-    expect(screen.queryByText('Applies to')).toBeNull()
+    expect(screen.queryByText('Editing profile')).toBeNull()
     expect(screen.queryByText('All profiles')).toBeNull()
     expect(screen.queryByText('Use default gateway')).toBeNull()
   })

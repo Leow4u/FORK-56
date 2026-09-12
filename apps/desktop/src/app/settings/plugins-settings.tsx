@@ -181,7 +181,7 @@ function AgentPluginsSection() {
   const error = useStore($agentPluginsError)
   const [query, setQuery] = useState('')
 
-  // 'Applies to' profile scope: which profile's plugins we list/toggle.
+  // Which profile's plugins we list/toggle (not a multi-profile bind).
   // Defaults to the app-wide active profile; overriding it here lets the user
   // manage ANY profile's plugins without switching the whole app (same
   // pattern as the Capabilities scope selector in app/skills). null = the

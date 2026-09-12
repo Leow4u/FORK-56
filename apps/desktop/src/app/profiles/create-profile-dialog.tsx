@@ -22,6 +22,9 @@ import { createProfile, updateProfileSoul } from '@/work4you'
 
 const PROFILE_NAME_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/
 
+/** GUI create is Fresh unless the user explicitly picks a clone source. */
+export const DEFAULT_CREATE_CLONE_FROM: null | string = null
+
 export function isValidProfileName(name: string): boolean {
   return PROFILE_NAME_RE.test(name.trim())
 }
@@ -43,7 +46,7 @@ export function CreateProfileDialog({
   const { t } = useI18n()
   const p = t.profiles
   const [name, setName] = useState('')
-  const [cloneFrom, setCloneFrom] = useState<null | string>('default')
+  const [cloneFrom, setCloneFrom] = useState<null | string>(DEFAULT_CREATE_CLONE_FROM)
   const [soul, setSoul] = useState('')
   const [status, setStatus] = useState<'done' | 'idle' | 'saving'>('idle')
   const [error, setError] = useState<null | string>(null)
@@ -54,7 +57,7 @@ export function CreateProfileDialog({
     }
 
     setName('')
-    setCloneFrom('default')
+    setCloneFrom(DEFAULT_CREATE_CLONE_FROM)
     setSoul('')
     setError(null)
     setStatus('idle')

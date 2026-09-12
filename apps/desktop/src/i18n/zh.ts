@@ -377,7 +377,7 @@ export const zh: Translations = {
         title: '智能体插件',
         blurb:
           '你安装到 Work4You 后端的插件——工具、技能、MCP 服务器、钩子和斜杠命令。「便携」插件是 Agent Plugins 标准包（技能 + MCP 组合，也可在其他智能体中使用）。开关在新会话中生效。',
-        appliesTo: '应用于：',
+        appliesTo: '正在编辑：',
         empty: '尚未安装智能体插件。',
         loadFailed: '无法加载智能体插件',
         portable: '便携',
@@ -1117,8 +1117,8 @@ export const zh: Translations = {
       pill: '搜索'
     },
     profileScope: {
-      appliesTo: '应用于',
-      editsProfile: profile => `此页面的更改将应用于“${profile}”配置文件。`
+      appliesTo: '正在编辑',
+      editsProfile: profile => `此页面只修改“${profile}”配置文件。其他配置文件互不关联。`
     },
     mcp: {
       loading: '正在加载 MCP 服务器...',

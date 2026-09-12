@@ -6,13 +6,14 @@ import { cn } from '@/lib/utils'
 import { $activeGatewayProfile, $profiles, normalizeProfileKey, refreshProfiles } from '@/store/profile'
 import { $settingsScopeOverride, setSettingsScope } from '@/store/settings-scope'
 
-// The same chip affordance the Gateway page uses for its per-profile
-// connection overrides (gateway-settings ScopeChip). That one stays local to
-// gateway-settings — its `null` chip means "all profiles", while here every
-// chip is a concrete profile whose config the page edits.
+// The same chip affordance the Gateway page used for per-profile connection
+// overrides. That one stayed local to gateway-settings (and its `null` chip
+// meant "all profiles"). Here every chip is a concrete profile whose config
+// this page is *editing* — not a multi-bind of channels onto several homes.
 export function ScopeChip({ active, label, onSelect }: { active: boolean; label: string; onSelect: () => void }) {
   return (
     <button
+      aria-checked={active}
       className={cn(
         'rounded-full border px-3 py-1 text-[length:var(--conversation-caption-font-size)] transition',
         active
@@ -20,6 +21,7 @@ export function ScopeChip({ active, label, onSelect }: { active: boolean; label:
           : 'border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover)'
       )}
       onClick={onSelect}
+      role="radio"
       type="button"
     >
       {label}
@@ -27,12 +29,12 @@ export function ScopeChip({ active, label, onSelect }: { active: boolean; label:
   )
 }
 
-/** Shared "Applies to" profile selector for the config-backed settings pages
- *  (Model, Workspace, Safety, Memory & Context, Voice, Tools & Keys) and the
- *  Messaging overlay. Backed by one nanostore ($settingsScopeOverride) so the
- *  selection persists across pages. Hidden with fewer than two profiles, so
- *  single-profile users never see it and every request keeps its unscoped
- *  default shape. */
+/** Shared "which profile am I editing" selector for the config-backed settings
+ *  pages (Model, Workspace, Safety, Memory & Context, Voice, Tools & Keys)
+ *  and the Messaging overlay. Backed by one nanostore ($settingsScopeOverride)
+ *  so the selection persists across pages. Hidden with fewer than two
+ *  profiles, so single-profile users never see it and every request keeps its
+ *  unscoped default shape. */
 export function SettingsProfileScope({ className }: { className?: string }) {
   const { t } = useI18n()
   const scope = t.settings.profileScope
@@ -57,7 +59,7 @@ export function SettingsProfileScope({ className }: { className?: string }) {
       <div className="text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-secondary)">
         {scope.appliesTo}
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div aria-label={scope.appliesTo} className="flex flex-wrap gap-1.5" role="radiogroup">
         {profiles.map(profile => (
           <ScopeChip
             active={normalizeProfileKey(profile.name) === selected}
@@ -67,11 +69,9 @@ export function SettingsProfileScope({ className }: { className?: string }) {
           />
         ))}
       </div>
-      {override !== null ? (
-        <p className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-          {scope.editsProfile(selected)}
-        </p>
-      ) : null}
+      <p className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+        {scope.editsProfile(selected)}
+      </p>
     </div>
   )
 }

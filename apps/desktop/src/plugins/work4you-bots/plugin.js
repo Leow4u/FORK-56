@@ -6155,6 +6155,29 @@ function EditProfileDialog({ bot, open, onClose }) {
 }
 
 // ── create dialog ────────────────────────────────────────────────────────────
+// Fresh create (no clone) must not inherit the launch home's config, skills,
+// .env, or messaging tokens. The GUI default is this sentinel; Clone from
+// default remains an explicit opt-in.
+const FRESH_CLONE_FROM = '__none__'
+
+function isFreshProfileCreate(cloneFrom) {
+  return cloneFrom == null || cloneFrom === '' || cloneFrom === FRESH_CLONE_FROM
+}
+
+function capabilityCatalogSource(cloneFrom, remoteTarget = false) {
+  if (isFreshProfileCreate(cloneFrom)) return 'fresh'
+  return remoteTarget ? 'default' : cloneFrom
+}
+
+function profilesCreateIsolationParams(cloneFrom, remoteTarget = false) {
+  const fresh = isFreshProfileCreate(cloneFrom)
+  return {
+    clone_from: fresh ? null : remoteTarget ? 'default' : cloneFrom,
+    // Clones already copy the source .env via create_profile. Fresh must not
+    // overlay the launch home's WhatsApp tokens / API keys.
+    mirror_credentials: false
+  }
+}
 
 function CreateAgentDialog({ open, onClose, roster }) {
   const [name, setName] = useState('')
@@ -6175,7 +6198,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
   const [color, setColor] = useState(AVATAR_COLORS[3])
   const [image, setImage] = useState(null)
   const [advanced, setAdvanced] = useState(false)
-  const [cloneFrom, setCloneFrom] = useState('default')
+  const [cloneFrom, setCloneFrom] = useState(FRESH_CLONE_FROM)
   const [model, setModel] = useState('')
   const [provider, setProvider] = useState('')
   const [soul, setSoul] = useState('')
@@ -6275,10 +6298,8 @@ function CreateAgentDialog({ open, onClose, roster }) {
     setColor(AVATAR_COLORS[3])
     setImage(null)
     setAdvanced(false)
-    // Same default as the initial useState — resetting to '__none__' made
-    // the second agent you create silently start from a fresh profile
-    // instead of cloning the main one like the first dialog open did.
-    setCloneFrom('default')
+    // Same default as the initial useState — Fresh, not clone-from-default.
+    setCloneFrom(FRESH_CLONE_FROM)
     setModel('')
     setProvider('')
     setSoul('')
@@ -6297,19 +6318,39 @@ function CreateAgentDialog({ open, onClose, roster }) {
     flightRef.current = null
   }
 
-  // Capability catalog for the tabs: the profile doesn't exist yet, so show
-  // what it WILL have — the clone source's catalog, else the main profile's.
-  const capSource = cloneFrom === '__none__' ? 'default' : cloneFrom
+  // Capability catalog for the staging tabs: a clone preview shows that
+  // source's list. Fresh must NOT fall back to default's catalog — that made
+  // a blank agent look like it already had the main profile's skills/MCP.
+  const capSource = capabilityCatalogSource(cloneFrom, remoteTarget)
+  const capSourceRef = useRef(capSource)
+  capSourceRef.current = capSource
   const ensureCaps = () => {
-    if ((caps && caps.source === capSource) || capsFailed) {
+    if (capsFailed) {
       return
     }
 
+    if (capSource === 'fresh') {
+      if (!caps || caps.source !== 'fresh') {
+        setCaps({ source: 'fresh', skills: [], toolsets: [], mcp: [] })
+      }
+      return
+    }
+
+    if (caps && caps.source === capSource) {
+      return
+    }
+
+    const requested = capSource
+
     Promise.all([
-      requestForTarget('profiles.describe', { name: remoteTarget ? 'default' : capSource }),
+      requestForTarget('profiles.describe', { name: requested }),
       requestForTarget('mcp.catalog', {}).catch(() => null)
     ])
       .then(([res, cat]) => {
+        if (capSourceRef.current !== requested) {
+          return
+        }
+
         // Full MCP menu = the profile's configured servers + the bundled
         // catalog (installable). Configured entries win on name clash.
         const configured = res.mcp_servers || []
@@ -6317,7 +6358,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
         const catalog = ((cat && cat.servers) || []).filter(s => !have.has(s.name))
 
         setCaps({
-          source: capSource,
+          source: requested,
           skills: res.skills || [],
           toolsets: res.toolsets || [],
           mcp: [
@@ -6334,8 +6375,22 @@ function CreateAgentDialog({ open, onClose, roster }) {
           ]
         })
       })
-      .catch(() => setCapsFailed(true))
+      .catch(() => {
+        if (capSourceRef.current === requested) {
+          setCapsFailed(true)
+        }
+      })
   }
+
+  useEffect(() => {
+    if (!open || !advanced) {
+      return
+    }
+    if (advTab === 'general' || advTab === 'capabilities') {
+      return
+    }
+    ensureCaps()
+  }, [open, advanced, advTab, capSource])
 
   const toggleCap = (kind, name, enabled) => {
     setDirtyCaps(prev => ({ ...prev, [kind === 'mcp' ? 'mcp' : kind]: true }))
@@ -6375,10 +6430,11 @@ function CreateAgentDialog({ open, onClose, roster }) {
         name: slug,
         description: descriptionText,
         // Clone sources are profiles of the TARGET backend. The picker's
-        // roster is the local one, so a remote create always starts from the
-        // remote machine's default (or fresh) — never a local profile name
-        // the remote box doesn't have.
-        clone_from: cloneFrom === '__none__' ? null : remoteTarget ? 'default' : cloneFrom,
+        // roster is the local one, so a remote clone uses that machine's
+        // default — never a local profile name the remote box doesn't have.
+        // Fresh (the dialog default) sends clone_from: null and does not
+        // overlay the launch home's .env / WhatsApp tokens.
+        ...profilesCreateIsolationParams(cloneFrom, remoteTarget),
         no_skills: noSkills,
         // Shared (not copied) auth keeps ONE OAuth/token pool with the main
         // profile, so refreshes can't invalidate each other. Older gateways
@@ -6710,8 +6766,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
                             labeled(
                               remoteTarget ? `Clone from profile (on ${targetLabel})` : 'Clone from profile',
                               jsxs(Select, {
-                                disabled: remoteTarget,
-                                value: remoteTarget ? 'default' : cloneFrom,
+                                value: cloneFrom,
                                 onValueChange: value => {
                                   setCloneFrom(value)
                                   setCaps(null)
@@ -6728,7 +6783,9 @@ function CreateAgentDialog({ open, onClose, roster }) {
                                         value: '__none__',
                                         children: 'Fresh profile (bundled skills)'
                                       }),
-                                      ...roster.map(b => jsx(SelectItem, { value: b.name, children: b.name }, b.name))
+                                      ...(remoteTarget
+                                        ? [jsx(SelectItem, { value: 'default', children: 'default' }, 'default')]
+                                        : roster.map(b => jsx(SelectItem, { value: b.name, children: b.name }, b.name)))
                                     ]
                                   })
                                 ]
@@ -6763,13 +6820,13 @@ function CreateAgentDialog({ open, onClose, roster }) {
                                   checked: shareAuth,
                                   onCheckedChange: value => setShareAuth(Boolean(value))
                                 }),
-                                'Share keys & accounts with the main profile'
+                                'Share OAuth logins with the main profile'
                               ]
                             }),
                             jsx('div', {
                               className: 'pl-6 pt-0.5 text-[0.7rem] leading-5 text-(--ui-text-tertiary)',
                               children:
-                                'Subscriptions, OAuth logins, and API keys stay shared (not copied), so token refreshes never invalidate each other. Uncheck for an isolated snapshot copy.'
+                                'OAuth logins stay shared (not copied), so token refreshes never invalidate each other. Uncheck for an isolated auth snapshot. Fresh does not copy .env or WhatsApp from the main profile — pick Clone to copy those.'
                             }),
                             jsxs('label', {
                               className: 'flex items-center gap-2 text-xs text-(--ui-text-secondary)',
@@ -6834,7 +6891,13 @@ function CreateAgentDialog({ open, onClose, roster }) {
                                   className: 'px-2 py-3 text-center text-xs text-(--ui-text-tertiary)',
                                   children: '“Create empty” is checked — no bundled skills will be installed.'
                                 })
-                              : jsxs('div', {
+                              : caps.source === 'fresh'
+                                ? jsx('div', {
+                                    className: 'px-2 py-3 text-center text-xs text-(--ui-text-tertiary)',
+                                    children:
+                                      'Fresh profile — bundled skills are seeded after create. Open Capabilities after naming the agent to edit the real catalog, or clone a profile to preview its skills here.'
+                                  })
+                                : jsxs('div', {
                                   className: 'grid gap-1.5',
                                   children: [
                                     jsx(Input, {

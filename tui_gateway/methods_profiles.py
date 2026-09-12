@@ -256,7 +256,7 @@ def _(rid, params: dict) -> dict:
     ``clone_from`` (source profile; omitted = fresh profile with bundled
     skills), ``clone_all``, ``no_skills``, ``soul`` (SOUL.md content),
     ``model`` + ``provider`` (optional model pin, best-effort), and
-    ``mirror_credentials`` (default true) — copy the launch profile's
+    ``mirror_credentials`` (default false) — copy the launch profile's
     ``.env`` and ``auth.json`` into the new profile, and inherit its
     model.provider/model.default when no explicit pin is given.
     ``WORK4YOU_APPS_MCP_TOKEN`` is stripped from the copied ``.env`` so
@@ -267,10 +267,11 @@ def _(rid, params: dict) -> dict:
     tokens / credential pools), so a profile created headlessly from a
     plugin was born with NO inference provider — the first message failed
     with "No inference provider configured" and there is no interactive
-    ``work4you setup`` in that flow to recover. A profile spawned as an
-    always-available teammate must be able to think out of the box; callers
-    that want an isolated/credential-free profile pass
-    ``mirror_credentials: false``.
+    ``work4you setup`` in that flow to recover. Callers that want a
+    think-out-of-the-box teammate pass ``mirror_credentials: true``. GUI
+    Fresh creates omit the flag (or send false) so they do not inherit
+    WhatsApp tokens / ``.env`` from the launch home. Clones already copy
+    the source ``.env`` via ``create_profile()``.
     """
 
     def _has_real_env_content(env_path) -> bool:
@@ -327,11 +328,13 @@ def _(rid, params: dict) -> dict:
         except Exception:
             pass
 
-    # Credential + provider mirroring (default ON): a headless-created
-    # profile must be able to run a first turn. Copy the launch profile's
-    # .env (only over the seeded comment-only stub — never clobber real
-    # secrets a clone brought along) and auth.json (only when absent), then
-    # inherit model.provider/model.default unless the caller pinned a model.
+    # Credential + provider mirroring (default OFF): Fresh GUI / Bot Mode
+    # creates must not inherit the launch home's .env (WhatsApp tokens,
+    # API keys). Callers that want a think-out-of-the-box teammate pass
+    # ``mirror_credentials: true``. Copy then overlays the launch .env
+    # only over the seeded comment-only stub — never clobber real secrets
+    # a clone brought along — and auth.json only when absent, then inherit
+    # model.provider/model.default unless the caller pinned a model.
     #
     # ``share_auth`` (default false): SKIP the auth.json copy so the new
     # profile reads OAuth/token state through the global-root fallback
@@ -340,12 +343,18 @@ def _(rid, params: dict) -> dict:
     # state — the first refresh in either store invalidates the other
     # for single-use refresh tokens. Sharing keeps one live token pool
     # for the main profile and every bot. Static .env keys still copy
-    # (no refresh semantics, so copying is safe).
+    # only when mirroring is on (no refresh semantics, so copying is
+    # safe for that opt-in).
+    def _want_mirror_credentials() -> bool:
+        if "mirror_credentials" not in params:
+            return False
+        return is_truthy_value(params.get("mirror_credentials"))
+
     mirrored = {"env": False, "auth": False, "model_inherited": False, "voice": False}
     share_auth = is_truthy_value(params.get("share_auth", False))
     if share_auth:
         mirrored["auth"] = "shared"
-    if is_truthy_value(params.get("mirror_credentials", True)):
+    if _want_mirror_credentials():
         import shutil
 
         from work4you_constants import get_work4you_home
@@ -438,7 +447,7 @@ def _(rid, params: dict) -> dict:
         except Exception:
             return False
 
-    if is_truthy_value(params.get("mirror_credentials", True)):
+    if _want_mirror_credentials():
         mirrored["voice"] = _mirror_voice_sections()
 
     if model and provider:
@@ -449,7 +458,7 @@ def _(rid, params: dict) -> dict:
             model_set = True
         except Exception:
             pass
-    elif is_truthy_value(params.get("mirror_credentials", True)):
+    elif _want_mirror_credentials():
         # No explicit pin: inherit the launch profile's provider+model so the
         # first turn resolves. Gate on the MODEL SECTION being absent, not on
         # config.yaml existing — earlier mirroring steps (voice sections,

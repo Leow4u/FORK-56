@@ -286,7 +286,7 @@ export default function ProfilesPage() {
   // Create modal
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newName, setNewName] = useState("");
-  const [cloneFrom, setCloneFrom] = useState<string | null>("default");
+  const [cloneFrom, setCloneFrom] = useState<string | null>(null);
   const [cloneAll, setCloneAll] = useState(false);
   const [noSkills, setNoSkills] = useState(false);
   const [newDescription, setNewDescription] = useState("");
@@ -429,7 +429,7 @@ export default function ProfilesPage() {
       setNewDescription("");
       setNoSkills(false);
       setCloneAll(false);
-      setCloneFrom("default");
+      setCloneFrom(null);
       setModelChoice("");
       setCreateModalOpen(false);
       load();
