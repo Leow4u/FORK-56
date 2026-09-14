@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto'
-
 import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
 
@@ -62,6 +60,15 @@ async function requireUser(c: Context, deps: AppDeps): Promise<ConnectorClaims |
     const message = err instanceof Error ? err.message : 'unauthorized'
     return jsonError(c, 401, 'unauthorized', message)
   }
+}
+
+function pickAccount(
+  accounts: Awaited<ReturnType<ComposioPort['listAccounts']>>,
+  slug: string,
+) {
+  const requested = slug.trim().toLowerCase()
+  const matches = accounts.filter((a) => a.toolkit.trim().toLowerCase() === requested)
+  return matches.find((a) => a.status === 'ACTIVE') ?? matches[0]
 }
 
 function storedToolkitSlugs(
@@ -164,12 +171,6 @@ async function requireScopedUser(
   return { user, profile, entityId: composioEntityId(user.sub, profile) }
 }
 
-type PendingConnect = {
-  entityId: string
-  slug: string
-  exp: number
-}
-
 const CONNECTED_HTML = `<!doctype html>
 <html lang="en">
   <head>
@@ -194,13 +195,6 @@ const CONNECTED_HTML = `<!doctype html>
 export function createApp(deps: AppDeps) {
   const app = new Hono()
   const sleep = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)))
-  const pendingConnect = new Map<string, PendingConnect>()
-
-  function prunePendingConnect(now = Date.now()) {
-    for (const [nonce, row] of pendingConnect) {
-      if (row.exp <= now) pendingConnect.delete(nonce)
-    }
-  }
 
   app.use(
     '*',
@@ -237,31 +231,7 @@ export function createApp(deps: AppDeps) {
     }),
   )
 
-  app.get('/connected', async (c) => {
-    const nonce = (c.req.query('w4y') ?? '').trim()
-    const status = (c.req.query('status') ?? '').trim().toLowerCase()
-    const accountId = (
-      c.req.query('connected_account_id') ??
-      c.req.query('connectedAccountId') ??
-      ''
-    ).trim()
-    const row = nonce ? pendingConnect.get(nonce) : undefined
-    if (row && row.exp > Date.now() && status === 'success' && accountId) {
-      pendingConnect.delete(nonce)
-      const account = await deps.composio.getAccount(accountId)
-      const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
-      const requested = row.slug.trim().toLowerCase()
-      if (!toolkit || toolkit === requested) {
-        const record = deps.tokens.getByEntityId(row.entityId)
-        if (record) {
-          await ensureSession(deps, row.entityId, record.sub)
-          deps.tokens.stampApp(row.entityId, row.slug, account?.id || accountId)
-          await ensureSession(deps, row.entityId, record.sub)
-        }
-      }
-    }
-    return c.html(CONNECTED_HTML)
-  })
+  app.get('/connected', (c) => c.html(CONNECTED_HTML))
 
   app.post('/v1/bootstrap', async (c) => {
     const blocked = requireComposio(c, deps)
@@ -335,20 +305,7 @@ export function createApp(deps: AppDeps) {
     }
     const session = await ensureSession(deps, scoped.entityId, scoped.user.sub, [slug])
     const body = (await c.req.json().catch(() => ({}))) as { callback_url?: string }
-    const customCallback = (body.callback_url ?? '').trim()
-    prunePendingConnect()
-    let callbackUrl = customCallback || `${deps.config.publicBaseUrl}/connected`
-    if (!customCallback) {
-      const nonce = randomUUID()
-      pendingConnect.set(nonce, {
-        entityId: scoped.entityId,
-        slug,
-        exp: Date.now() + 15 * 60 * 1000,
-      })
-      const connected = new URL(`${deps.config.publicBaseUrl}/connected`)
-      connected.searchParams.set('w4y', nonce)
-      callbackUrl = connected.toString()
-    }
+    const callbackUrl = body.callback_url || `${deps.config.publicBaseUrl}/connected`
     const link = await deps.composio.authorize(session.sessionId, slug, callbackUrl)
     return c.json({
       slug,
@@ -382,12 +339,23 @@ export function createApp(deps: AppDeps) {
     const started = Date.now()
     let lastStatus: string | undefined
     for (;;) {
+      // Original Connect detector (#175 / #251): after browser OAuth,
+      // Composio attaches the account to THIS entity's user_id. Directory
+      // and ensureSession stay on stored slugs (#253); wait still uses
+      // listAccounts(this entityId), not the project list.
+      const accounts = await deps.composio.listAccounts(scoped.entityId)
+      const listed = pickAccount(accounts, slug)
+      if (listed?.status === 'ACTIVE') {
+        await ensureSession(deps, scoped.entityId, scoped.user.sub)
+        deps.tokens.stampApp(scoped.entityId, slug, listed.id)
+        await ensureSession(deps, scoped.entityId, scoped.user.sub)
+        return c.json({ slug, status: 'active', connected: true })
+      }
       const account = await deps.composio.getAccount(connectionId)
-      lastStatus = account?.status
+      lastStatus = account?.status ?? listed?.status
       const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
-      // THIS connection_id is the isolation key. Stamp the requested slug when
-      // Composio marks it ACTIVE, including when toolkit is still empty.
-      // A different allowlisted toolkit on this id is not this Connect.
+      // /link's id can stay INITIATED while OAuth minted a different ca_.
+      // When that id itself is ACTIVE for this slug, stamp it too.
       if (account?.status === 'ACTIVE' && (!toolkit || toolkit === requested)) {
         await ensureSession(deps, scoped.entityId, scoped.user.sub)
         deps.tokens.stampApp(scoped.entityId, slug, account.id)
@@ -395,11 +363,9 @@ export function createApp(deps: AppDeps) {
         return c.json({ slug, status: 'active', connected: true })
       }
       if (Date.now() - started >= timeoutMs) {
-        // A slice timeout is "still pending on this connection_id", not
-        // abandon. Dropping extraEnable here made the desktop treat the first
-        // not-ACTIVE poll as Connect failure (~2s with no id, or the first
-        // 25s slice with an id). Session cleanup stays on stamp / disconnect /
-        // bootstrap from this HOME's connected_apps.
+        // A slice timeout is "still pending", not abandon. Session cleanup
+        // stays on stamp / disconnect / bootstrap from this HOME's
+        // connected_apps.
         return c.json({
           slug,
           status: lastStatus ? statusFromAccount(lastStatus) : 'initiated',

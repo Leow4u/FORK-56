@@ -324,7 +324,22 @@ test('authorize allowlisted slug returns a connect link', async () => {
   assert.equal(body.redirect_url, 'https://connect.composio.dev/hubspot')
   assert.equal(body.connection_id, 'ca-hubspot')
   assert.equal(composio.authorized[0]?.toolkit, 'hubspot')
+  assert.equal(composio.authorized[0]?.callbackUrl, 'https://connectors-api.work4you.ai/connected')
   assert.deepEqual(composio.lastEnable, ['hubspot'])
+})
+
+test('authorize default callback is the static /connected landing', async () => {
+  const { app, composio } = harness()
+  const res = await app.request('/v1/apps/gmail/authorize', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'content-type': 'application/json',
+    },
+    body: '{}',
+  })
+  assert.equal(res.status, 200)
+  assert.equal(composio.authorized[0]?.callbackUrl, 'https://connectors-api.work4you.ai/connected')
 })
 
 test('wait reports connected once THIS connection_id is ACTIVE', async () => {
@@ -346,7 +361,6 @@ test('wait reports connected once THIS connection_id is ACTIVE', async () => {
   assert.deepEqual(composio.lastEnable, ['gmail'])
   assert.deepEqual(tokens.getByEntityId('user-a::default')?.connectedSlugs, ['gmail'])
   assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, 'ca-1')
-  assert.equal(composio.listCalls, 0)
 })
 
 test('wait stamps THIS ACTIVE connection_id when toolkit is still empty', async () => {
@@ -366,7 +380,6 @@ test('wait stamps THIS ACTIVE connection_id when toolkit is still empty', async 
   assert.equal(body.connected, true)
   assert.equal(body.status, 'active')
   assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, 'ca-1')
-  assert.equal(composio.listCalls, 0)
 })
 
 test('wait does not stamp THIS ACTIVE connection_id for a different toolkit', async () => {
@@ -386,7 +399,6 @@ test('wait does not stamp THIS ACTIVE connection_id for a different toolkit', as
   assert.equal(body.connected, false)
   assert.equal(body.status, 'active')
   assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
-  assert.equal(composio.listCalls, 0)
 })
 
 test('wait without connection_id does not treat another home Gmail as connected', async () => {
@@ -430,7 +442,6 @@ test('wait slice timeout does not drop extraEnable for a pending connection_id',
   assert.equal(body.connected, false)
   assert.equal(body.status, 'initiated')
   assert.equal(composio.updated.length, updatesAfterBootstrap)
-  assert.equal(composio.listCalls, 0)
 })
 
 test('disconnect disables only the stored account id for this entity', async () => {
@@ -694,20 +705,21 @@ test('connected callback without authorize nonce does not stamp another home Gma
   assert.equal(composio.listCalls, 0)
 })
 
-test('connected callback stamps THIS home when authorize nonce matches the callback account', async () => {
+test('wait stamps THIS home when this entity listAccounts is ACTIVE and /link id is still INITIATED', async () => {
   const composio = new FakeComposio()
   composio.accountsById.set('ca-gmail', {
     id: 'ca-gmail',
     toolkit: 'gmail',
     status: 'INITIATED',
   })
-  composio.accountsById.set('ca-callback', {
-    id: 'ca-callback',
-    toolkit: 'gmail',
-    status: 'ACTIVE',
-  })
+  composio.accounts.set('user-a::default', [
+    { id: 'ca-gmail-leaked', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  composio.accounts.set('user-a::leona', [
+    { id: 'ca-callback', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
   const { app, tokens } = harness({ composio })
-  const authorize = await app.request('/v1/apps/gmail/authorize', {
+  await app.request('/v1/bootstrap', {
     method: 'POST',
     headers: {
       authorization: 'Bearer jwt_a',
@@ -716,19 +728,6 @@ test('connected callback stamps THIS home when authorize nonce matches the callb
     },
     body: '{}',
   })
-  assert.equal(authorize.status, 200)
-  const started = await authorize.json()
-  assert.equal(started.connection_id, 'ca-gmail')
-  const callback = composio.authorized[0]?.callbackUrl ?? ''
-  const nonce = new URL(callback).searchParams.get('w4y')
-  assert.ok(nonce)
-  const landing = await app.request(
-    `/connected?w4y=${nonce}&status=success&connected_account_id=ca-callback`,
-  )
-  assert.equal(landing.status, 200)
-  assert.match(await landing.text(), /close this window/i)
-  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, 'ca-callback')
-  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
   const wait = await app.request('/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-gmail', {
     headers: {
       authorization: 'Bearer jwt_a',
@@ -739,7 +738,42 @@ test('connected callback stamps THIS home when authorize nonce matches the callb
   const body = await wait.json()
   assert.equal(body.connected, true)
   assert.equal(body.status, 'active')
-  assert.equal(composio.listCalls, 0)
+  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, 'ca-callback')
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
+})
+
+test('wait does not stamp THIS home from another entity listAccounts while THIS /link id is pending', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-gmail', {
+    id: 'ca-gmail',
+    toolkit: 'gmail',
+    status: 'INITIATED',
+  })
+  composio.accounts.set('user-a::default', [
+    { id: 'ca-gmail-leaked', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  const { app, tokens } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'content-type': 'application/json',
+      'x-work4you-profile': 'leona',
+    },
+    body: '{}',
+  })
+  const wait = await app.request('/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-gmail', {
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'x-work4you-profile': 'leona',
+    },
+  })
+  assert.equal(wait.status, 200)
+  const body = await wait.json()
+  assert.equal(body.connected, false)
+  assert.equal(body.status, 'initiated')
+  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, undefined)
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
 })
 
 test('allowlist never enables blocked native/search slugs', () => {
