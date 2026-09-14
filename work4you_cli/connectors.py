@@ -443,8 +443,7 @@ def wait_app(
         params=params,
         timeout=timeout_s,
     )
-    status = str(result.get("status") or "").lower() if isinstance(result, dict) else ""
-    if isinstance(result, dict) and (result.get("connected") or status == "active"):
+    if isinstance(result, dict) and result.get("connected"):
         slugs = local_connected_slugs()
         if slug.strip() and slug.lower() not in _slug_keys(slugs):
             slugs = [*slugs, slug.strip()]

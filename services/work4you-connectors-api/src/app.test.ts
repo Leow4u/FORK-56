@@ -349,6 +349,46 @@ test('wait reports connected once THIS connection_id is ACTIVE', async () => {
   assert.equal(composio.listCalls, 0)
 })
 
+test('wait stamps THIS ACTIVE connection_id when toolkit is still empty', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-1', { id: 'ca-1', toolkit: '', status: 'ACTIVE' })
+  const { app, tokens } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a', 'content-type': 'application/json' },
+    body: '{}',
+  })
+  const res = await app.request('/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-1', {
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.connected, true)
+  assert.equal(body.status, 'active')
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, 'ca-1')
+  assert.equal(composio.listCalls, 0)
+})
+
+test('wait does not stamp THIS ACTIVE connection_id for a different toolkit', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-1', { id: 'ca-1', toolkit: 'notion', status: 'ACTIVE' })
+  const { app, tokens } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a', 'content-type': 'application/json' },
+    body: '{}',
+  })
+  const res = await app.request('/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-1', {
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.connected, false)
+  assert.equal(body.status, 'active')
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
+  assert.equal(composio.listCalls, 0)
+})
+
 test('wait without connection_id does not treat another home Gmail as connected', async () => {
   const composio = new FakeComposio()
   composio.accounts.set('user-a::leo', [

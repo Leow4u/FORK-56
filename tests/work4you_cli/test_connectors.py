@@ -364,6 +364,29 @@ class TestInjectAndBootstrap:
         assert apps["enabled"] is False
         assert "gmail" not in (apps.get("connected_apps") or [])
 
+    def test_wait_active_without_connected_does_not_stamp_this_home(
+        self, _isolate_work4you_home, monkeypatch
+    ):
+        import work4you_cli.connectors as connectors
+
+        inject_work4you_apps(
+            mcp_url="https://connectors-api.work4you.ai/mcp",
+            token="w4y-c-wait-active-unconnected",
+            enabled=False,
+        )
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(method, path, **kwargs):
+            assert path == "/v1/apps/gmail/wait"
+            return {"slug": "gmail", "status": "active", "connected": False}
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        result = wait_app("gmail", timeout_ms=0, connection_id="ca-other")
+        assert result["connected"] is False
+        apps = _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]
+        assert apps["enabled"] is False
+        assert "gmail" not in (apps.get("connected_apps") or [])
+
     def test_disconnect_last_app_disables_hidden_server(
         self, _isolate_work4you_home, monkeypatch
     ):

@@ -327,8 +327,12 @@ export function createApp(deps: AppDeps) {
     for (;;) {
       const account = await deps.composio.getAccount(connectionId)
       lastStatus = account?.status
+      const requested = slug.trim().toLowerCase()
       const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
-      if (account?.status === 'ACTIVE' && toolkit === slug.trim().toLowerCase()) {
+      // THIS connection_id is the isolation key. Stamp the requested slug when
+      // Composio marks it ACTIVE, including when toolkit is still empty.
+      // A different allowlisted toolkit on this id is not this Connect.
+      if (account?.status === 'ACTIVE' && (!toolkit || toolkit === requested)) {
         await ensureSession(deps, scoped.entityId, scoped.user.sub)
         deps.tokens.stampApp(scoped.entityId, slug, account.id)
         await ensureSession(deps, scoped.entityId, scoped.user.sub)
