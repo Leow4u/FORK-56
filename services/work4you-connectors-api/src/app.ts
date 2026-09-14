@@ -72,10 +72,17 @@ function pickAccount(
 }
 
 /** Default OAuth landing. Composio keeps these query params and appends status + connected_account_id. */
-function connectCallbackUrl(publicBaseUrl: string, entityId: string, slug: string): string {
+function connectCallbackUrl(
+  publicBaseUrl: string,
+  entityId: string,
+  slug: string,
+  sessionId?: string,
+): string {
   const url = new URL(`${publicBaseUrl.replace(/\/$/, '')}/connected`)
   url.searchParams.set('entity_id', entityId)
   url.searchParams.set('slug', slug)
+  const sid = (sessionId ?? '').trim()
+  if (sid) url.searchParams.set('session_id', sid)
   return url.toString()
 }
 
@@ -222,21 +229,53 @@ async function ensureSession(
   }
 }
 
+function portalSubFromEntityId(entityId: string): string {
+  const idx = entityId.lastIndexOf('::')
+  return idx === -1 ? entityId : entityId.slice(0, idx)
+}
+
 async function stampFromConnectedQuery(
   deps: AppDeps,
   entityId: string,
   slug: string,
   accountId: string,
+  requestedSessionId: string,
 ): Promise<void> {
   if (!isAllowlisted(slug) || BLOCKED_SESSION_SLUGS.includes(slug)) return
-  const record = deps.tokens.getByEntityId(entityId)
-  if (!record) return
-  const account = await deps.composio.getAccount(accountId)
   const requested = slug.trim().toLowerCase()
+  const account = await deps.composio.getAccount(accountId)
   const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
-  if (account?.status !== 'ACTIVE') return
   if (toolkit && toolkit !== requested) return
-  await stampThisHome(deps, entityId, record.sub, slug, account.id, record.sessionId)
+  if (account?.status === 'EXPIRED') return
+  // Composio's callback status=success is the OAuth completion signal.
+  // getAccount(callback ca_) can still be INITIATED for a beat (or this
+  // machine has no TokenStore after a Fly replace). Pin THIS HOME's
+  // session anyway — wait's /link id stays INITIATED until we do.
+  const pinId = (account?.id || accountId).trim()
+  if (!pinId) return
+  const record = deps.tokens.getByEntityId(entityId)
+  let sessionId = record?.sessionId ?? ''
+  const requestedSid = requestedSessionId.trim()
+  if (!sessionId && requestedSid) {
+    const session = await deps.composio.getSession(requestedSid)
+    if (session?.userId === entityId) sessionId = requestedSid
+  }
+  if (!sessionId) return
+  const session = await deps.composio.getSession(sessionId)
+  if (session?.userId !== entityId) return
+  const sub = record?.sub || portalSubFromEntityId(entityId)
+  if (!sub) return
+  try {
+    await deps.composio.pinSessionAccount(sessionId, slug, pinId)
+  } catch (err) {
+    console.error('[work4you-connectors-api] /connected pin session account failed', err)
+  }
+  if (!deps.tokens.getByEntityId(entityId)) {
+    deps.tokens.issue(entityId, session.sessionId, session.mcpUrl, sub)
+  }
+  if (account?.status === 'ACTIVE') {
+    await stampThisHome(deps, entityId, sub, slug, pinId, sessionId)
+  }
 }
 
 function requireComposio(c: Context, deps: AppDeps) {
@@ -330,11 +369,12 @@ export function createApp(deps: AppDeps) {
     const accountId = (c.req.query('connected_account_id') ?? '').trim()
     const entityId = (c.req.query('entity_id') ?? '').trim()
     const slug = (c.req.query('slug') ?? '').trim()
+    const sessionId = (c.req.query('session_id') ?? '').trim()
     // Identity must come from authorize's callback_url. A bare
     // /connected?connected_account_id= must not stamp another HOME.
     if (status === 'success' && accountId && entityId && slug) {
       try {
-        await stampFromConnectedQuery(deps, entityId, slug, accountId)
+        await stampFromConnectedQuery(deps, entityId, slug, accountId, sessionId)
       } catch (err) {
         console.error('[work4you-connectors-api] /connected stamp failed', err)
       }
@@ -417,7 +457,12 @@ export function createApp(deps: AppDeps) {
     const body = (await c.req.json().catch(() => ({}))) as { callback_url?: string }
     const callbackUrl =
       (typeof body.callback_url === 'string' && body.callback_url.trim()) ||
-      connectCallbackUrl(deps.config.publicBaseUrl, scoped.entityId, slug)
+      connectCallbackUrl(
+        deps.config.publicBaseUrl,
+        scoped.entityId,
+        slug,
+        session.sessionId,
+      )
     const link = await deps.composio.authorize(session.sessionId, slug, callbackUrl)
     return c.json({
       slug,
@@ -447,7 +492,13 @@ export function createApp(deps: AppDeps) {
     const requested = slug.trim().toLowerCase()
     const stampedId = deps.tokens.getByEntityId(scoped.entityId)?.accountIds[requested]
     if (stampedId) {
-      return c.json({ slug, status: 'active', connected: true })
+      const record = deps.tokens.getByEntityId(scoped.entityId)
+      return c.json({
+        slug,
+        status: 'active',
+        connected: true,
+        ...(record?.token ? { token: record.token, session_id: record.sessionId } : {}),
+      })
     }
     const started = Date.now()
     let lastStatus: string | undefined
@@ -473,7 +524,13 @@ export function createApp(deps: AppDeps) {
             listedToolkit.id,
             sessionId,
           )
-          return c.json({ slug, status: 'active', connected: true })
+          const record = deps.tokens.getByEntityId(scoped.entityId)
+          return c.json({
+            slug,
+            status: 'active',
+            connected: true,
+            ...(record?.token ? { token: record.token, session_id: record.sessionId } : {}),
+          })
         }
       }
       // Official wait_for_connection: retrieve(/link connected_account_id).
@@ -482,7 +539,13 @@ export function createApp(deps: AppDeps) {
       const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
       if (account?.status === 'ACTIVE' && (!toolkit || toolkit === requested)) {
         await stampThisHome(deps, scoped.entityId, scoped.user.sub, slug, account.id)
-        return c.json({ slug, status: 'active', connected: true })
+        const record = deps.tokens.getByEntityId(scoped.entityId)
+        return c.json({
+          slug,
+          status: 'active',
+          connected: true,
+          ...(record?.token ? { token: record.token, session_id: record.sessionId } : {}),
+        })
       }
       // Original Connect listed this entity (and Portal sub). Other profile
       // entity ids are not listed — directory and wait-without-id stay on
@@ -491,7 +554,13 @@ export function createApp(deps: AppDeps) {
       const listed = pickAccount(accounts, slug)
       if (listed?.status === 'ACTIVE') {
         await stampThisHome(deps, scoped.entityId, scoped.user.sub, slug, listed.id)
-        return c.json({ slug, status: 'active', connected: true })
+        const record = deps.tokens.getByEntityId(scoped.entityId)
+        return c.json({
+          slug,
+          status: 'active',
+          connected: true,
+          ...(record?.token ? { token: record.token, session_id: record.sessionId } : {}),
+        })
       }
       lastStatus = account?.status ?? listed?.status
       if (Date.now() - started >= timeoutMs) {

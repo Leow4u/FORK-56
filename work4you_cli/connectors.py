@@ -481,9 +481,17 @@ def wait_app(
         slugs = local_connected_slugs()
         if slug.strip() and slug.lower() not in _slug_keys(slugs):
             slugs = [*slugs, slug.strip()]
+        sid = str(result.get("session_id") or "").strip()
         # Persist enabled=true for the next session. Do not rediscover MCP
         # tools here: swapping the toolset mid-conversation breaks prompt cache.
-        _write_work4you_apps_state(connected_apps=slugs, enabled=True)
+        _write_work4you_apps_state(
+            connected_apps=slugs,
+            enabled=True,
+            session_id=sid or None,
+        )
+        tok = str(result.get("token") or "").strip()
+        if tok:
+            save_env_value(WORK4YOU_APPS_TOKEN_ENV, tok)
     return result
 
 

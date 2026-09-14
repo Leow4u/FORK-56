@@ -333,7 +333,13 @@ class TestInjectAndBootstrap:
         def fake_broker(method, path, **kwargs):
             assert path == "/v1/apps/gmail/wait"
             assert kwargs.get("params", {}).get("connection_id") == "ca-gmail"
-            return {"slug": "gmail", "status": "active", "connected": True}
+            return {
+                "slug": "gmail",
+                "status": "active",
+                "connected": True,
+                "token": "w4y-c-wait-refreshed",
+                "session_id": "sess-after-wait",
+            }
 
         monkeypatch.setattr(connectors, "broker_request", fake_broker)
         result = wait_app("gmail", connection_id="ca-gmail")
@@ -341,6 +347,9 @@ class TestInjectAndBootstrap:
         apps = _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]
         assert apps["enabled"] is True
         assert apps["connected_apps"] == ["gmail"]
+        assert apps["composio_session_id"] == "sess-after-wait"
+        env_text = (get_work4you_home() / ".env").read_text()
+        assert "w4y-c-wait-refreshed" in env_text
 
     def test_wait_pending_does_not_stamp_connected_apps(
         self, _isolate_work4you_home, monkeypatch
