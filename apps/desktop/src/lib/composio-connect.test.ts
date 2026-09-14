@@ -1,16 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const bootstrapConnectors = vi.fn(async () => ({ ok: true }))
-const authorizeConnector = vi.fn(async () => ({
-  redirect_url: 'https://connect.example/gmail',
-  connection_id: 'ca-gmail'
+const { authorizeConnector, bootstrapConnectors, waitConnector } = vi.hoisted(() => ({
+  authorizeConnector: vi.fn(async () => ({
+    redirect_url: 'https://connect.example/gmail',
+    connection_id: 'ca-gmail'
+  })),
+  bootstrapConnectors: vi.fn(async () => ({ ok: true })),
+  waitConnector: vi.fn(async () => ({ connected: true }))
 }))
-const waitConnector = vi.fn(async () => ({ connected: true }))
 
 vi.mock('@/api/mcp', () => ({
-  authorizeConnector: (...args: unknown[]) => authorizeConnector(...args),
-  bootstrapConnectors: (...args: unknown[]) => bootstrapConnectors(...args),
-  waitConnector: (...args: unknown[]) => waitConnector(...args)
+  authorizeConnector,
+  bootstrapConnectors,
+  waitConnector
 }))
 
 describe('connectWork4YouApp', () => {
