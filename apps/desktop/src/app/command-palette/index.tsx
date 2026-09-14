@@ -4,6 +4,8 @@ import { Dialog as DialogPrimitive } from 'radix-ui'
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
+import { visibleMcpServerNames } from '@work4you/shared'
+
 import {
   HUD_HEADING,
   HUD_ITEM,
@@ -652,7 +654,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     const raw = configQuery.data?.mcp_servers
 
     return raw && typeof raw === 'object' && !Array.isArray(raw)
-      ? Object.keys(raw as Record<string, unknown>).sort()
+      ? visibleMcpServerNames(Object.keys(raw as Record<string, unknown>)).sort()
       : []
   }, [configQuery.data])
 

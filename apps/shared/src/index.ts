@@ -80,13 +80,15 @@ export {
   findComposioDirectoryApp,
   groupDirectorySections,
   HIDDEN_DIRECTORY_IDS,
+  isHiddenMcpRuntimeServer,
   isTrustedComposioLogoUrl,
   mcpCatalogPrimaryAction,
   type McpDirectoryFilter,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
   mcpDirectoryShowsConnected,
-  mcpSetupCardIdentity
+  mcpSetupCardIdentity,
+  visibleMcpServerNames
 } from './mcp-directory'
 export { skillInvocationText } from './skill-scaffold'
 export {

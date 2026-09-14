@@ -25,7 +25,7 @@ vi.mock('@/store/session', () => ({
   $gatewayState: { get: () => 'closed', subscribe: () => () => {} }
 }))
 
-const { shouldNotifyOnTransition } = await import('./mcp-health')
+const { shouldNotifyOnTransition, shouldSweepMcpHealth } = await import('./mcp-health')
 
 type Status = 'error' | 'needs-auth' | 'ok'
 
@@ -52,5 +52,20 @@ describe('shouldNotifyOnTransition', () => {
     ['error', 'ok', false]
   ])('previous=%s next=%s → notify=%s', (previous, next, expected) => {
     expect(shouldNotifyOnTransition(previous, next)).toBe(expected)
+  })
+})
+
+describe('shouldSweepMcpHealth', () => {
+  const http = { url: 'https://mcp.example/linear' }
+  const stdio = { command: 'npx', args: ['-y', 'ctx7'] }
+
+  it('sweeps an enabled user HTTP server', () => {
+    expect(shouldSweepMcpHealth('linear', http)).toBe(true)
+  })
+
+  it('skips stdio, disabled HTTP, and the hidden Work4You Apps runtime', () => {
+    expect(shouldSweepMcpHealth('ctx7', stdio)).toBe(false)
+    expect(shouldSweepMcpHealth('linear', { ...http, enabled: false })).toBe(false)
+    expect(shouldSweepMcpHealth('work4you_apps', { url: 'https://connectors-api.work4you.ai/mcp' })).toBe(false)
   })
 })

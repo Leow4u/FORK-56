@@ -41,6 +41,7 @@ import {
   directoryAppLogoUrl,
   filterDirectoryApps,
   groupDirectorySections,
+  isHiddenMcpRuntimeServer,
   isTrustedComposioLogoUrl,
   type DirectoryApp,
   type McpDirectoryFilter,
@@ -488,7 +489,7 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
     }));
     const known = new Set(rows.map((app) => app.id));
     for (const server of servers) {
-      if (server.name === "work4you_apps" || known.has(server.name)) continue;
+      if (isHiddenMcpRuntimeServer(server.name) || known.has(server.name)) continue;
       rows.push({
         id: server.name,
         name: server.name,

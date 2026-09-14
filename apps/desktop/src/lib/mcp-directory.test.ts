@@ -11,12 +11,14 @@ import {
   filterDirectoryApps,
   findComposioDirectoryApp,
   groupDirectorySections,
+  isHiddenMcpRuntimeServer,
   isTrustedComposioLogoUrl,
   mcpCatalogPrimaryAction,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
   mcpDirectoryShowsConnected,
-  mcpSetupCardIdentity
+  mcpSetupCardIdentity,
+  visibleMcpServerNames
 } from '@work4you/shared'
 import { describe, expect, it } from 'vitest'
 
@@ -83,9 +85,29 @@ describe('filterDirectoryApps', () => {
     expect(visible.map(row => row.id)).toEqual(['gmail', 'notion'])
   })
 
+  it('does not hide a user-installed server that happens to contain apps in the name', () => {
+    const visible = filterDirectoryApps(
+      [...apps, app({ id: 'my_apps', name: 'My Apps', source: 'custom', connected: true })],
+      { filter: 'all', query: '', section: null }
+    )
+    expect(visible.map(row => row.id)).toEqual(['gmail', 'notion', 'my_apps'])
+  })
+
   it('connected filter drops unconnected apps', () => {
     const visible = filterDirectoryApps(apps, { filter: 'connected', query: '', section: null })
     expect(visible.map(row => row.id)).toEqual(['gmail'])
+  })
+})
+
+describe('isHiddenMcpRuntimeServer / visibleMcpServerNames', () => {
+  it('treats only the plumbing id as hidden', () => {
+    expect(isHiddenMcpRuntimeServer('work4you_apps')).toBe(true)
+    expect(isHiddenMcpRuntimeServer('gmail')).toBe(false)
+    expect(isHiddenMcpRuntimeServer('my_apps')).toBe(false)
+  })
+
+  it('drops the plumbing id from command-palette / list names and keeps user servers', () => {
+    expect(visibleMcpServerNames(['linear', 'work4you_apps', 'ctx7'])).toEqual(['linear', 'ctx7'])
   })
 })
 
