@@ -167,7 +167,7 @@ test('listAccounts reads ACTIVE from nested state on v3.1', async () => {
   })
   const accounts = await client.listAccounts('user-a::leona')
   assert.deepEqual(urls, [
-    'https://backend.composio.dev/api/v3.1/connected_accounts?user_ids=user-a%3A%3Aleona',
+    'https://backend.composio.dev/api/v3.1/connected_accounts?user_ids=user-a%3A%3Aleona&account_type=ALL',
   ])
   assert.equal(accounts.length, 2)
   assert.equal(accounts[0]?.status, 'INITIATED')

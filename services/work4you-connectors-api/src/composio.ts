@@ -262,6 +262,9 @@ export function createComposioClient(opts: {
     async listAccounts(userId) {
       const params = new URLSearchParams()
       params.append('user_ids', userId)
+      // v3.1 defaults to PRIVATE only. Tool-router OAuth often lands as
+      // SHARED; omitting this made wait miss the ACTIVE ca_ after Google.
+      params.append('account_type', 'ALL')
       const paths = [
         `/api/v3.1/connected_accounts?${params.toString()}`,
         `/api/v3/connected_accounts?${params.toString()}`,
