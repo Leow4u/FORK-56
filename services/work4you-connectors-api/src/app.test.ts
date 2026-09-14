@@ -41,6 +41,7 @@ class FakeComposio implements ComposioPort {
   disabled: string[] = []
   createCalls = 0
   listCalls = 0
+  listUserIds: string[] = []
 
   async createSession(
     userId: string,
@@ -93,6 +94,7 @@ class FakeComposio implements ComposioPort {
 
   async listAccounts(userId: string): Promise<ConnectedAccount[]> {
     this.listCalls += 1
+    this.listUserIds.push(userId)
     return this.accounts.get(userId) ?? []
   }
 
@@ -328,18 +330,22 @@ test('authorize allowlisted slug returns a connect link', async () => {
   assert.deepEqual(composio.lastEnable, ['hubspot'])
 })
 
-test('authorize default callback is the static /connected landing', async () => {
+test('authorize default callback carries this HOME on /connected', async () => {
   const { app, composio } = harness()
   const res = await app.request('/v1/apps/gmail/authorize', {
     method: 'POST',
     headers: {
       authorization: 'Bearer jwt_a',
       'content-type': 'application/json',
+      'x-work4you-profile': 'leona',
     },
     body: '{}',
   })
   assert.equal(res.status, 200)
-  assert.equal(composio.authorized[0]?.callbackUrl, 'https://connectors-api.work4you.ai/connected')
+  const expected = new URL('https://connectors-api.work4you.ai/connected')
+  expected.searchParams.set('entity_id', 'user-a::leona')
+  expected.searchParams.set('slug', 'gmail')
+  assert.equal(composio.authorized[0]?.callbackUrl, expected.toString())
 })
 
 test('wait reports connected once THIS connection_id is ACTIVE', async () => {
@@ -405,6 +411,9 @@ test('wait without connection_id does not treat another home Gmail as connected'
   const composio = new FakeComposio()
   composio.accounts.set('user-a::leo', [
     { id: 'ca-gmail-leaked', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  composio.accounts.set('user-a', [
+    { id: 'ca-gmail-portal', toolkit: 'gmail', status: 'ACTIVE' },
   ])
   const { app } = harness({ composio })
   const res = await app.request('/v1/apps/gmail/wait?timeout_ms=0', {
@@ -684,7 +693,7 @@ test('connected page is a close-this-window landing', async () => {
   assert.match(html, /close this window/i)
 })
 
-test('connected callback without authorize nonce does not stamp another home Gmail', async () => {
+test('connected callback without entity_id does not stamp another home Gmail', async () => {
   const composio = new FakeComposio()
   composio.accountsById.set('ca-gmail-leaked', {
     id: 'ca-gmail-leaked',
@@ -703,6 +712,33 @@ test('connected callback without authorize nonce does not stamp another home Gma
   assert.equal(res.status, 200)
   assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
   assert.equal(composio.listCalls, 0)
+})
+
+test('connected callback with this HOME entity_id stamps the OAuth account', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca_pBEYml0xR6OU', {
+    id: 'ca_pBEYml0xR6OU',
+    toolkit: 'gmail',
+    status: 'ACTIVE',
+  })
+  const { app, tokens } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'content-type': 'application/json',
+      'x-work4you-profile': 'leona',
+    },
+    body: '{}',
+  })
+  const res = await app.request(
+    '/connected?entity_id=user-a%3A%3Aleona&slug=gmail&status=success&connected_account_id=ca_pBEYml0xR6OU',
+  )
+  assert.equal(res.status, 200)
+  const html = await res.text()
+  assert.match(html, /close this window/i)
+  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, 'ca_pBEYml0xR6OU')
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
 })
 
 test('wait stamps THIS home when this entity listAccounts is ACTIVE and /link id is still INITIATED', async () => {
@@ -742,7 +778,41 @@ test('wait stamps THIS home when this entity listAccounts is ACTIVE and /link id
   assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
 })
 
-test('wait does not stamp THIS home from another entity listAccounts while THIS /link id is pending', async () => {
+test('wait stamps THIS home from Portal sub listAccounts when entity list is empty', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-gmail', {
+    id: 'ca-gmail',
+    toolkit: 'gmail',
+    status: 'INITIATED',
+  })
+  composio.accounts.set('user-a', [
+    { id: 'ca_pBEYml0xR6OU', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  const { app, tokens } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'content-type': 'application/json',
+      'x-work4you-profile': 'leona',
+    },
+    body: '{}',
+  })
+  const wait = await app.request('/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-gmail', {
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'x-work4you-profile': 'leona',
+    },
+  })
+  assert.equal(wait.status, 200)
+  const body = await wait.json()
+  assert.equal(body.connected, true)
+  assert.equal(body.status, 'active')
+  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, 'ca_pBEYml0xR6OU')
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
+})
+
+test('wait does not stamp leona from default profile entity listAccounts', async () => {
   const composio = new FakeComposio()
   composio.accountsById.set('ca-gmail', {
     id: 'ca-gmail',
@@ -751,6 +821,44 @@ test('wait does not stamp THIS home from another entity listAccounts while THIS 
   })
   composio.accounts.set('user-a::default', [
     { id: 'ca-gmail-leaked', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  const { app, tokens } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'content-type': 'application/json',
+      'x-work4you-profile': 'leona',
+    },
+    body: '{}',
+  })
+  const wait = await app.request('/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-gmail', {
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'x-work4you-profile': 'leona',
+    },
+  })
+  assert.equal(wait.status, 200)
+  const body = await wait.json()
+  assert.equal(body.connected, false)
+  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, undefined)
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
+  assert.equal(composio.listUserIds.includes('user-a::default'), false)
+  assert.deepEqual([...new Set(composio.listUserIds)].sort(), ['user-a', 'user-a::leona'])
+})
+
+test('wait does not stamp THIS home from another Portal user listAccounts while THIS /link id is pending', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-gmail', {
+    id: 'ca-gmail',
+    toolkit: 'gmail',
+    status: 'INITIATED',
+  })
+  composio.accounts.set('user-b', [
+    { id: 'ca-other-portal', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  composio.accounts.set('user-b::default', [
+    { id: 'ca-other-portal', toolkit: 'gmail', status: 'ACTIVE' },
   ])
   const { app, tokens } = harness({ composio })
   await app.request('/v1/bootstrap', {

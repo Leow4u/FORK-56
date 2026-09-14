@@ -71,6 +71,40 @@ function pickAccount(
   return matches.find((a) => a.status === 'ACTIVE') ?? matches[0]
 }
 
+/** Default OAuth landing. Composio keeps these query params and appends status + connected_account_id. */
+function connectCallbackUrl(publicBaseUrl: string, entityId: string, slug: string): string {
+  const url = new URL(`${publicBaseUrl.replace(/\/$/, '')}/connected`)
+  url.searchParams.set('entity_id', entityId)
+  url.searchParams.set('slug', slug)
+  return url.toString()
+}
+
+async function listedAccountsForConnect(
+  deps: AppDeps,
+  scoped: ScopedUser,
+): Promise<Awaited<ReturnType<ComposioPort['listAccounts']>>> {
+  // #175 listed Portal `sub`. #251 listed `sub::{profile}`. OAuth often
+  // tags the minted ca_ with `sub` (no ::profile), so wait must query both.
+  // Other profile entity ids (sub::default vs sub::leona) are not listed —
+  // directory and wait-without-id stay on this HOME's stored slugs.
+  const userIds = [scoped.entityId]
+  if (scoped.user.sub && scoped.user.sub !== scoped.entityId) {
+    userIds.push(scoped.user.sub)
+  }
+  const byId = new Map<string, Awaited<ReturnType<ComposioPort['listAccounts']>>[number]>()
+  for (const userId of userIds) {
+    const rows = await deps.composio.listAccounts(userId)
+    for (const row of rows) {
+      if (!row.id) continue
+      const prev = byId.get(row.id)
+      if (!prev || (row.status === 'ACTIVE' && prev.status !== 'ACTIVE')) {
+        byId.set(row.id, row)
+      }
+    }
+  }
+  return [...byId.values()]
+}
+
 function storedToolkitSlugs(
   connected: readonly string[] | undefined,
   extra: readonly string[] = [],
@@ -143,6 +177,25 @@ async function ensureSession(
     mcpUrl: created.mcpUrl,
     connected,
   }
+}
+
+async function stampFromConnectedQuery(
+  deps: AppDeps,
+  entityId: string,
+  slug: string,
+  accountId: string,
+): Promise<void> {
+  if (!isAllowlisted(slug) || BLOCKED_SESSION_SLUGS.includes(slug)) return
+  const record = deps.tokens.getByEntityId(entityId)
+  if (!record) return
+  const account = await deps.composio.getAccount(accountId)
+  const requested = slug.trim().toLowerCase()
+  const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
+  if (account?.status !== 'ACTIVE') return
+  if (toolkit && toolkit !== requested) return
+  await ensureSession(deps, entityId, record.sub)
+  deps.tokens.stampApp(entityId, slug, account.id)
+  await ensureSession(deps, entityId, record.sub)
 }
 
 function requireComposio(c: Context, deps: AppDeps) {
@@ -231,7 +284,22 @@ export function createApp(deps: AppDeps) {
     }),
   )
 
-  app.get('/connected', (c) => c.html(CONNECTED_HTML))
+  app.get('/connected', async (c) => {
+    const status = (c.req.query('status') ?? '').trim().toLowerCase()
+    const accountId = (c.req.query('connected_account_id') ?? '').trim()
+    const entityId = (c.req.query('entity_id') ?? '').trim()
+    const slug = (c.req.query('slug') ?? '').trim()
+    // Identity must come from authorize's callback_url. A bare
+    // /connected?connected_account_id= must not stamp another HOME.
+    if (status === 'success' && accountId && entityId && slug) {
+      try {
+        await stampFromConnectedQuery(deps, entityId, slug, accountId)
+      } catch (err) {
+        console.error('[work4you-connectors-api] /connected stamp failed', err)
+      }
+    }
+    return c.html(CONNECTED_HTML)
+  })
 
   app.post('/v1/bootstrap', async (c) => {
     const blocked = requireComposio(c, deps)
@@ -305,7 +373,9 @@ export function createApp(deps: AppDeps) {
     }
     const session = await ensureSession(deps, scoped.entityId, scoped.user.sub, [slug])
     const body = (await c.req.json().catch(() => ({}))) as { callback_url?: string }
-    const callbackUrl = body.callback_url || `${deps.config.publicBaseUrl}/connected`
+    const callbackUrl =
+      (typeof body.callback_url === 'string' && body.callback_url.trim()) ||
+      connectCallbackUrl(deps.config.publicBaseUrl, scoped.entityId, slug)
     const link = await deps.composio.authorize(session.sessionId, slug, callbackUrl)
     return c.json({
       slug,
@@ -339,10 +409,9 @@ export function createApp(deps: AppDeps) {
     const started = Date.now()
     let lastStatus: string | undefined
     for (;;) {
-      // Original Connect detector (#175 / #251): after browser OAuth,
-      // Composio attaches the account to THIS entity's user_id. Status is
-      // on state.val.status (same as getAccount). Directory stays on stored slugs.
-      const accounts = await deps.composio.listAccounts(scoped.entityId)
+      // Original Connect detector (#175): listAccounts(Portal sub) after
+      // browser OAuth. Also list this entity (#251). Directory stays on stored slugs.
+      const accounts = await listedAccountsForConnect(deps, scoped)
       const listed = pickAccount(accounts, slug)
       if (listed?.status === 'ACTIVE') {
         await ensureSession(deps, scoped.entityId, scoped.user.sub)
