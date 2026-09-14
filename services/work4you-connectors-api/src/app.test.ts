@@ -673,6 +673,75 @@ test('connected page is a close-this-window landing', async () => {
   assert.match(html, /close this window/i)
 })
 
+test('connected callback without authorize nonce does not stamp another home Gmail', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-gmail-leaked', {
+    id: 'ca-gmail-leaked',
+    toolkit: 'gmail',
+    status: 'ACTIVE',
+  })
+  const { app, tokens } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a', 'content-type': 'application/json' },
+    body: '{}',
+  })
+  const res = await app.request(
+    '/connected?status=success&connected_account_id=ca-gmail-leaked',
+  )
+  assert.equal(res.status, 200)
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
+  assert.equal(composio.listCalls, 0)
+})
+
+test('connected callback stamps THIS home when authorize nonce matches the callback account', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-gmail', {
+    id: 'ca-gmail',
+    toolkit: 'gmail',
+    status: 'INITIATED',
+  })
+  composio.accountsById.set('ca-callback', {
+    id: 'ca-callback',
+    toolkit: 'gmail',
+    status: 'ACTIVE',
+  })
+  const { app, tokens } = harness({ composio })
+  const authorize = await app.request('/v1/apps/gmail/authorize', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'content-type': 'application/json',
+      'x-work4you-profile': 'leona',
+    },
+    body: '{}',
+  })
+  assert.equal(authorize.status, 200)
+  const started = await authorize.json()
+  assert.equal(started.connection_id, 'ca-gmail')
+  const callback = composio.authorized[0]?.callbackUrl ?? ''
+  const nonce = new URL(callback).searchParams.get('w4y')
+  assert.ok(nonce)
+  const landing = await app.request(
+    `/connected?w4y=${nonce}&status=success&connected_account_id=ca-callback`,
+  )
+  assert.equal(landing.status, 200)
+  assert.match(await landing.text(), /close this window/i)
+  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, 'ca-callback')
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
+  const wait = await app.request('/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-gmail', {
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'x-work4you-profile': 'leona',
+    },
+  })
+  assert.equal(wait.status, 200)
+  const body = await wait.json()
+  assert.equal(body.connected, true)
+  assert.equal(body.status, 'active')
+  assert.equal(composio.listCalls, 0)
+})
+
 test('allowlist never enables blocked native/search slugs', () => {
   assert.deepEqual(sessionToolkitSlugs(), [])
   const enabled = new Set(sessionToolkitSlugs(['gmail', 'notion', ...BLOCKED_SESSION_SLUGS, ...POPULAR_SLUGS]))
