@@ -31,7 +31,7 @@ import { resolveComposioLogoSrc } from '@/lib/composio-logo'
 import { compactNumber } from '@/lib/format'
 import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
-import { completeMcpDesktopOAuth, McpOAuthCancelled } from '@/lib/mcp-dashboard-oauth'
+import { completeMcpDesktopOAuth } from '@/lib/mcp-dashboard-oauth'
 import { mcpCatalogPrimaryAction, type McpDirectoryFilter } from '@/lib/mcp-directory-filter'
 import { type McpImportEntry, parseMcpImport } from '@/lib/mcp-import'
 import { NEEDS_AUTH_RE, PROBE_TTL_MS, probeCache, probeKey, serverFingerprint } from '@/lib/mcp-probe-cache'
@@ -445,7 +445,6 @@ export function McpTab({
   const [directoryFilter, setDirectoryFilter] = useState<McpDirectoryFilter>('discover')
   const [sectionFilter, setSectionFilter] = useState<string>('all')
   const [connectingSlug, setConnectingSlug] = useState<null | string>(null)
-  const composioConnectCancelRef = useRef(false)
   const [adminOpen, setAdminOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<null | string>(null)
 
@@ -629,8 +628,6 @@ export function McpTab({
     setSectionFilter('all')
     setAdminOpen(false)
     setAuthing(null)
-    composioConnectCancelRef.current = true
-    setConnectingSlug(null)
     setDirty(false)
     setDraft('')
     setDocVersion(version => version + 1)
@@ -1145,11 +1142,6 @@ export function McpTab({
   const activeEntry = savedEntry ?? draftEntry
 
   const connectComposioApp = async (app: DirectoryApp) => {
-    if (connectingSlug === app.id) {
-      composioConnectCancelRef.current = true
-      return
-    }
-
     if (app.needs_login) {
       notify({
         kind: 'error',
@@ -1160,20 +1152,13 @@ export function McpTab({
       return
     }
 
-    const epoch = profileEpoch.current
-    composioConnectCancelRef.current = false
     setConnectingSlug(app.id)
 
     try {
       const ok = await connectWork4YouApp(app.id, {
-        cancelled: () => composioConnectCancelRef.current || profileEpoch.current !== epoch,
         open: url => window.work4youDesktop.openExternal(url),
         profile: profile ?? undefined
       })
-
-      if (profileEpoch.current !== epoch) {
-        return
-      }
 
       if (ok) {
         await silentReload()
@@ -1186,15 +1171,9 @@ export function McpTab({
 
       await directoryQuery.refetch()
     } catch (err) {
-      if (profileEpoch.current !== epoch || err instanceof McpOAuthCancelled) {
-        return
-      }
-
       notifyError(err, m.catalogInstallFailed(app.name))
     } finally {
-      if (profileEpoch.current === epoch) {
-        setConnectingSlug(null)
-      }
+      setConnectingSlug(null)
     }
   }
 
@@ -1370,6 +1349,7 @@ export function McpTab({
                                   </Button>
                                 ) : (
                                   <Button
+                                    disabled={busy}
                                     onClick={() => void connectComposioApp(app)}
                                     size="xs"
                                     variant="text"

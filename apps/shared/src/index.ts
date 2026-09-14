@@ -60,7 +60,6 @@ export {
 } from './json-rpc-gateway'
 export {
   completeComposioConnect,
-  COMPOSIO_CONNECT_CANCELLED,
   COMPOSIO_LOGO_PROTOCOL,
   COMPOSIO_LOGOS_ORIGIN,
   composioAppsToSuggestible,

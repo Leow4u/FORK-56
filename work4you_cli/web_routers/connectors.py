@@ -104,17 +104,12 @@ async def authorize_connector(
 
 
 @router.get("/api/connectors/apps/{slug}/wait")
-async def wait_connector(
-    slug: str,
-    timeout_ms: int = 25_000,
-    profile: Optional[str] = None,
-    connection_id: Optional[str] = None,
-):
+async def wait_connector(slug: str, timeout_ms: int = 25_000, profile: Optional[str] = None):
     from work4you_cli.connectors import wait_app
 
     def _run():
         with _profile_scope(profile):
-            return wait_app(slug, timeout_ms=timeout_ms, connection_id=connection_id)
+            return wait_app(slug, timeout_ms=timeout_ms)
 
     try:
         return await asyncio.to_thread(_run)

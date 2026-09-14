@@ -112,35 +112,6 @@ class TestMergeDirectory:
         popular = {row["id"] for row in apps if row["popular"]}
         assert popular == set(NATIVE_POPULAR)
 
-    def test_composio_connected_follows_home_slugs_not_broker(self):
-        apps = merge_directory(
-            native_entries=[],
-            native_state={},
-            composio_apps=[
-                {
-                    "slug": "gmail",
-                    "name": "Gmail",
-                    "section": "email",
-                    "connected": True,
-                    "status": "active",
-                },
-                {
-                    "slug": "hubspot",
-                    "name": "HubSpot",
-                    "section": "crm",
-                    "connected": False,
-                    "status": "disconnected",
-                },
-            ],
-            portal_ok=True,
-            local_connected=["hubspot"],
-        )
-        by_id = {row["id"]: row for row in apps}
-        assert by_id["gmail"]["connected"] is False
-        assert by_id["gmail"]["status"] == "disconnected"
-        assert by_id["hubspot"]["connected"] is True
-        assert by_id["hubspot"]["status"] == "active"
-
 
 class TestInjectAndBootstrap:
     def test_inject_upserts_without_replacing_other_servers(self, _isolate_work4you_home):
@@ -162,7 +133,6 @@ class TestInjectAndBootstrap:
         assert f"Bearer ${{{WORK4YOU_APPS_TOKEN_ENV}}}" in config_text
         assert "COMPOSIO_API_KEY" not in config_text
         assert "w4y-c-testtoken" not in config_text
-        assert apps.get("connected_apps") == []
 
     def test_inject_refuses_composio_project_key(self, _isolate_work4you_home):
         with pytest.raises(ConnectorError):
@@ -189,7 +159,6 @@ class TestInjectAndBootstrap:
             assert method == "POST"
             assert path == "/v1/bootstrap"
             assert kwargs["token"] == "portal-jwt"
-            assert kwargs.get("json") == {"connected_apps": []}
             return {
                 "mcp": {
                     "url": "https://connectors-api.work4you.ai/mcp",
@@ -209,68 +178,16 @@ class TestInjectAndBootstrap:
         assert servers[WORK4YOU_APPS_SERVER_NAME]["enabled"] is False
         assert result["mcp"]["enabled"] is False
 
-    def test_inject_preserves_connected_apps_on_token_refresh(self, _isolate_work4you_home):
-        inject_work4you_apps(
-            mcp_url="https://connectors-api.work4you.ai/mcp",
-            token="w4y-c-old",
-            enabled=True,
-        )
-        entry = dict(_get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME])
-        entry["connected_apps"] = ["gmail"]
-        _save_mcp_server(WORK4YOU_APPS_SERVER_NAME, entry)
-        inject_work4you_apps(
-            mcp_url="https://connectors-api.work4you.ai/mcp",
-            token="w4y-c-new",
-            enabled=True,
-        )
-        apps = _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]
-        assert apps["connected_apps"] == ["gmail"]
-        assert apps["enabled"] is True
-
-    def test_bootstrap_enables_hidden_server_when_home_has_connected_apps(
+    def test_bootstrap_enables_hidden_server_when_an_app_is_connected(
         self, _isolate_work4you_home, monkeypatch
     ):
         import work4you_cli.connectors as connectors
 
-        inject_work4you_apps(
-            mcp_url="https://connectors-api.work4you.ai/mcp",
-            token="w4y-c-old",
-            enabled=False,
-        )
-        entry = dict(_get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME])
-        entry["connected_apps"] = ["gmail"]
-        _save_mcp_server(WORK4YOU_APPS_SERVER_NAME, entry)
         monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
 
         def fake_broker(method, path, **kwargs):
             assert method == "POST"
             assert path == "/v1/bootstrap"
-            assert kwargs.get("json") == {"connected_apps": ["gmail"]}
-            return {
-                "mcp": {
-                    "url": "https://connectors-api.work4you.ai/mcp",
-                    "token": "w4y-c-connected",
-                },
-                "user_id": "user-sub-1",
-                "connected": [],
-            }
-
-        monkeypatch.setattr(connectors, "broker_request", fake_broker)
-        result = bootstrap_work4you_apps()
-        servers = _get_mcp_servers()
-        assert servers[WORK4YOU_APPS_SERVER_NAME]["enabled"] is True
-        assert servers[WORK4YOU_APPS_SERVER_NAME]["connected_apps"] == ["gmail"]
-        assert result["mcp"]["enabled"] is True
-        assert result["connected"] == ["gmail"]
-
-    def test_bootstrap_ignores_broker_connected_when_home_has_none(
-        self, _isolate_work4you_home, monkeypatch
-    ):
-        import work4you_cli.connectors as connectors
-
-        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
-
-        def fake_broker(method, path, **kwargs):
             return {
                 "mcp": {
                     "url": "https://connectors-api.work4you.ai/mcp",
@@ -283,9 +200,9 @@ class TestInjectAndBootstrap:
         monkeypatch.setattr(connectors, "broker_request", fake_broker)
         result = bootstrap_work4you_apps()
         servers = _get_mcp_servers()
-        assert servers[WORK4YOU_APPS_SERVER_NAME]["enabled"] is False
-        assert servers[WORK4YOU_APPS_SERVER_NAME]["connected_apps"] == []
-        assert result["connected"] == []
+        assert servers[WORK4YOU_APPS_SERVER_NAME]["enabled"] is True
+        assert result["mcp"]["enabled"] is True
+        assert result["connected"] == ["gmail"]
 
     def test_rebootstrap_preserves_enabled_when_refreshing_token(
         self, _isolate_work4you_home, monkeypatch
@@ -329,63 +246,12 @@ class TestInjectAndBootstrap:
 
         def fake_broker(method, path, **kwargs):
             assert path == "/v1/apps/gmail/wait"
-            assert kwargs.get("params", {}).get("connection_id") == "ca-gmail"
             return {"slug": "gmail", "status": "active", "connected": True}
 
         monkeypatch.setattr(connectors, "broker_request", fake_broker)
-        result = wait_app("gmail", connection_id="ca-gmail")
+        result = wait_app("gmail")
         assert result["connected"] is True
-        apps = _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]
-        assert apps["enabled"] is True
-        assert apps["connected_apps"] == ["gmail"]
-
-    def test_wait_pending_does_not_stamp_connected_apps(
-        self, _isolate_work4you_home, monkeypatch
-    ):
-        import work4you_cli.connectors as connectors
-
-        inject_work4you_apps(
-            mcp_url="https://connectors-api.work4you.ai/mcp",
-            token="w4y-c-wait-pending",
-            enabled=False,
-        )
-        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
-
-        def fake_broker(method, path, **kwargs):
-            assert path == "/v1/apps/gmail/wait"
-            assert kwargs.get("params", {}).get("connection_id") == "ca-gmail"
-            assert kwargs.get("params", {}).get("timeout_ms") == 0
-            return {"slug": "gmail", "status": "initiated", "connected": False}
-
-        monkeypatch.setattr(connectors, "broker_request", fake_broker)
-        result = wait_app("gmail", timeout_ms=0, connection_id="ca-gmail")
-        assert result["connected"] is False
-        apps = _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]
-        assert apps["enabled"] is False
-        assert "gmail" not in (apps.get("connected_apps") or [])
-
-    def test_wait_active_without_connected_does_not_stamp_this_home(
-        self, _isolate_work4you_home, monkeypatch
-    ):
-        import work4you_cli.connectors as connectors
-
-        inject_work4you_apps(
-            mcp_url="https://connectors-api.work4you.ai/mcp",
-            token="w4y-c-wait-active-unconnected",
-            enabled=False,
-        )
-        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
-
-        def fake_broker(method, path, **kwargs):
-            assert path == "/v1/apps/gmail/wait"
-            return {"slug": "gmail", "status": "active", "connected": False}
-
-        monkeypatch.setattr(connectors, "broker_request", fake_broker)
-        result = wait_app("gmail", timeout_ms=0, connection_id="ca-other")
-        assert result["connected"] is False
-        apps = _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]
-        assert apps["enabled"] is False
-        assert "gmail" not in (apps.get("connected_apps") or [])
+        assert _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]["enabled"] is True
 
     def test_disconnect_last_app_disables_hidden_server(
         self, _isolate_work4you_home, monkeypatch
@@ -397,21 +263,18 @@ class TestInjectAndBootstrap:
             token="w4y-c-disc",
             enabled=True,
         )
-        entry = dict(_get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME])
-        entry["connected_apps"] = ["gmail"]
-        _save_mcp_server(WORK4YOU_APPS_SERVER_NAME, entry)
         monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
 
         def fake_broker(method, path, **kwargs):
             if path == "/v1/apps/gmail/disconnect":
                 return {"slug": "gmail", "disconnected": True}
+            if path == "/v1/apps":
+                return {"apps": [{"slug": "gmail", "status": "disconnected", "connected": False}]}
             raise AssertionError(path)
 
         monkeypatch.setattr(connectors, "broker_request", fake_broker)
         disconnect_app("gmail")
-        apps = _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]
-        assert apps["enabled"] is False
-        assert apps["connected_apps"] == []
+        assert _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]["enabled"] is False
 
     def test_maybe_bootstrap_skip_false_reissues_when_installed(
         self, _isolate_work4you_home, monkeypatch
@@ -513,88 +376,6 @@ class TestInjectAndBootstrap:
 
         monkeypatch.setattr(auth, "resolve_work4you_access_token", lambda: "sk-work4you-abc")
         assert resolve_portal_token() is None
-
-
-class TestBrokerProfileHeader:
-    def _capture_broker(self, monkeypatch):
-        import work4you_cli.connectors as connectors
-
-        captured = {}
-
-        class FakeResp:
-            status_code = 200
-            content = b'{"ok":true}'
-
-            def json(self):
-                return {"ok": True}
-
-        class FakeClient:
-            def __init__(self, timeout=None):
-                pass
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *args):
-                return False
-
-            def request(self, method, url, headers=None, json=None, params=None):
-                captured["headers"] = dict(headers or {})
-                captured["url"] = url
-                return FakeResp()
-
-        monkeypatch.setattr(connectors.httpx, "Client", FakeClient)
-        return captured
-
-    def test_broker_request_sends_default_profile_header(
-        self, _isolate_work4you_home, monkeypatch
-    ):
-        import work4you_cli.connectors as connectors
-
-        captured = self._capture_broker(monkeypatch)
-        connectors.broker_request("GET", "/v1/apps", token="portal-jwt")
-        assert captured["headers"]["Authorization"] == "Bearer portal-jwt"
-        assert captured["headers"][connectors.WORK4YOU_APPS_PROFILE_HEADER] == "default"
-
-    def test_broker_request_sends_named_profile_from_scoped_home(
-        self, _isolate_work4you_home, monkeypatch
-    ):
-        import work4you_cli.connectors as connectors
-        from work4you_cli.profiles import create_profile, get_profile_dir
-        from work4you_constants import (
-            reset_work4you_home_override,
-            set_work4you_home_override,
-        )
-
-        create_profile("leo", no_alias=True)
-        captured = self._capture_broker(monkeypatch)
-        token = set_work4you_home_override(str(get_profile_dir("leo")))
-        try:
-            connectors.broker_request("POST", "/v1/bootstrap", token="portal-jwt")
-        finally:
-            reset_work4you_home_override(token)
-        assert captured["headers"][connectors.WORK4YOU_APPS_PROFILE_HEADER] == "leo"
-
-    def test_broker_request_ignores_sticky_active_profile(
-        self, _isolate_work4you_home, monkeypatch
-    ):
-        import work4you_cli.connectors as connectors
-        from work4you_cli.profiles import create_profile, set_active_profile
-
-        create_profile("leo", no_alias=True)
-        set_active_profile("leo")
-        captured = self._capture_broker(monkeypatch)
-        connectors.broker_request("GET", "/v1/apps", token="portal-jwt")
-        assert captured["headers"][connectors.WORK4YOU_APPS_PROFILE_HEADER] == "default"
-
-    def test_custom_home_maps_to_default_profile_suffix(self, monkeypatch):
-        import work4you_cli.connectors as connectors
-
-        monkeypatch.setattr(
-            "work4you_cli.profiles.get_active_profile_name",
-            lambda: "custom",
-        )
-        assert connectors.scoped_apps_profile_name() == "default"
 
 
 class TestDirectoryApi:

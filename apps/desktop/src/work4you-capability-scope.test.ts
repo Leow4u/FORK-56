@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  getConnectorsDirectory,
   getMcpCatalog,
   getSkillContent,
   getSkills,
@@ -57,7 +56,6 @@ describe('capability helpers are connection-scoped', () => {
     void getToolsets()
     void getWork4YouConfigRecord()
     void getMcpCatalog()
-    void getConnectorsDirectory()
     void getUsageAnalytics(30)
 
     for (const call of api.mock.calls) {
@@ -83,7 +81,6 @@ describe('capability helpers are connection-scoped', () => {
     void setSkillEnabled('arxiv', false, { connectionId: 'homelab', profile: 'inbox-bot' })
     void setToolsetEnabled('browser', true, { connectionId: 'homelab', profile: 'inbox-bot' })
     void saveMcpServers({}, { connectionId: 'homelab', profile: 'inbox-bot' })
-    void getConnectorsDirectory({ connectionId: 'homelab', profile: 'inbox-bot' })
     void installSkillFromHub('official/research/arxiv', { connectionId: 'homelab', profile: 'inbox-bot' })
 
     for (const call of api.mock.calls) {

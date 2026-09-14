@@ -67,7 +67,6 @@ const apiMocks = vi.hoisted(() => ({
   bootstrapConnectors: vi.fn(async () => ({ ok: true })),
   authorizeConnector: vi.fn(async () => ({
     redirect_url: "https://connect.example/gmail",
-    connection_id: "ca-gmail",
   })),
   waitConnector: vi.fn(async () => ({ connected: true })),
   disconnectConnector: vi.fn(async () => ({ disconnected: true })),
@@ -187,7 +186,6 @@ describe("McpPage directory", () => {
     apiMocks.bootstrapConnectors.mockResolvedValue({ ok: true });
     apiMocks.authorizeConnector.mockResolvedValue({
       redirect_url: "https://connect.example/gmail",
-      connection_id: "ca-gmail",
     });
     apiMocks.waitConnector.mockResolvedValue({ connected: true });
     container = document.createElement("div");
@@ -358,7 +356,7 @@ describe("McpPage directory", () => {
     expect(apiMocks.installMcpCatalogEntry).not.toHaveBeenCalled();
     expect(apiMocks.bootstrapConnectors).toHaveBeenCalled();
     expect(apiMocks.authorizeConnector).toHaveBeenCalledWith("gmail");
-    expect(apiMocks.waitConnector).toHaveBeenCalledWith("gmail", "ca-gmail");
+    expect(apiMocks.waitConnector).toHaveBeenCalledWith("gmail");
     expect(window.open).toHaveBeenCalled();
   });
 
