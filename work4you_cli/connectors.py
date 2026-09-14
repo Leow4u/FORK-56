@@ -472,8 +472,11 @@ def maybe_bootstrap_work4you_apps(*, skip_if_installed: bool = True) -> bool:
     """Best-effort inject of the hidden ``work4you_apps`` MCP server.
 
     Used on Portal login and MCP discovery so the Work4You Apps session exists
-    before the first Capabilities/chat Connect. Never raises: a down broker
-    or a missing Portal login is a no-op. Returns True when bootstrap ran.
+    before the first Capabilities/chat Connect, and so this HOME's
+    ``connected_apps`` is applied to the Fly session (native ``mcp.json`` load).
+    ``skip_if_installed=True`` only injects a missing server and will not
+    disarm a leaked toolkit. Never raises: a down broker or a missing Portal
+    login is a no-op. Returns True when bootstrap ran.
     """
     try:
         if not resolve_portal_token():
