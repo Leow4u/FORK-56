@@ -18,10 +18,10 @@ import { completeMcpDesktopOAuth, McpOAuthCancelled } from '@/lib/mcp-dashboard-
 import { directoryEntry } from '@/lib/mcp-directory'
 import { prettyName } from '@/lib/text'
 import { $gateway } from '@/store/gateway'
-import { $activeGatewayProfile } from '@/store/profile'
-import { $sessions, rememberedSessionProfile } from '@/store/session'
 import { clearMcpSetupRequest, type McpSetupOutcome, sessionMcpSetupRequest } from '@/store/mcp-setup'
 import { notifyError } from '@/store/notifications'
+import { $activeGatewayProfile } from '@/store/profile'
+import { $sessions, rememberedSessionProfile } from '@/store/session'
 import { invalidateMcpSuggestionIndex } from '@/store/suggestion-providers/mcp'
 import {
   addMcpServer,
