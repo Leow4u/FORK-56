@@ -1,10 +1,9 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
+import { visibleMcpServerNames } from '@work4you/shared'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-
-import { visibleMcpServerNames } from '@work4you/shared'
 
 import {
   HUD_HEADING,
