@@ -138,6 +138,44 @@ test('getAccount falls back to v3 when v3.1 returns 404', async () => {
   ])
 })
 
+test('listAccounts reads ACTIVE from nested state on v3.1', async () => {
+  const urls: string[] = []
+  const fetchImpl: typeof fetch = async (input) => {
+    urls.push(String(input))
+    return new Response(
+      JSON.stringify({
+        items: [
+          {
+            id: 'ca-link',
+            toolkit: { slug: 'gmail' },
+            status: 'INITIATED',
+          },
+          {
+            id: 'ca-oauth',
+            toolkit: { slug: 'gmail' },
+            state: { val: { status: 'ACTIVE' } },
+          },
+        ],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  }
+  const client = createComposioClient({
+    apiBase: 'https://backend.composio.dev',
+    apiKey: 'ak_secret',
+    fetchImpl,
+  })
+  const accounts = await client.listAccounts('user-a::leona')
+  assert.deepEqual(urls, [
+    'https://backend.composio.dev/api/v3.1/connected_accounts?user_ids=user-a%3A%3Aleona',
+  ])
+  assert.equal(accounts.length, 2)
+  assert.equal(accounts[0]?.status, 'INITIATED')
+  assert.equal(accounts[1]?.id, 'ca-oauth')
+  assert.equal(accounts[1]?.toolkit, 'gmail')
+  assert.equal(accounts[1]?.status, 'ACTIVE')
+})
+
 test('getAccount returns null on 404', async () => {
   let calls = 0
   const fetchImpl: typeof fetch = async () => {

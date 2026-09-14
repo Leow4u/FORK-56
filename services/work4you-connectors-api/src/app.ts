@@ -340,9 +340,8 @@ export function createApp(deps: AppDeps) {
     let lastStatus: string | undefined
     for (;;) {
       // Original Connect detector (#175 / #251): after browser OAuth,
-      // Composio attaches the account to THIS entity's user_id. Directory
-      // and ensureSession stay on stored slugs (#253); wait still uses
-      // listAccounts(this entityId), not the project list.
+      // Composio attaches the account to THIS entity's user_id. Status is
+      // on state.val.status (same as getAccount). Directory stays on stored slugs.
       const accounts = await deps.composio.listAccounts(scoped.entityId)
       const listed = pickAccount(accounts, slug)
       if (listed?.status === 'ACTIVE') {

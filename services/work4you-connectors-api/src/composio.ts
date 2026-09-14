@@ -262,33 +262,34 @@ export function createComposioClient(opts: {
     async listAccounts(userId) {
       const params = new URLSearchParams()
       params.append('user_ids', userId)
-      const json = await request(
-        'GET',
+      const paths = [
+        `/api/v3.1/connected_accounts?${params.toString()}`,
         `/api/v3/connected_accounts?${params.toString()}`,
-      )
+      ]
+      let json: unknown = null
+      for (const path of paths) {
+        try {
+          json = await request('GET', path)
+          break
+        } catch (err) {
+          if (err instanceof ComposioHttpError && (err.status === 404 || err.status === 410)) {
+            continue
+          }
+          throw err
+        }
+      }
+      if (!json) return []
       const row = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>
       const items = Array.isArray(row.items)
         ? row.items
         : Array.isArray(row.data)
           ? row.data
           : []
+      // Same parser as getAccount: Composio puts ACTIVE on state.val.status.
+      // Top-level item.status was empty, so wait never saw OAuth complete.
       return items
-        .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object')
-        .map((item) => {
-          const toolkitObj =
-            item.toolkit && typeof item.toolkit === 'object'
-              ? (item.toolkit as Record<string, unknown>)
-              : null
-          const toolkit = String(
-            toolkitObj?.slug || item.toolkit_slug || item.appName || '',
-          )
-          return {
-            id: String(item.id || item.connected_account_id || ''),
-            toolkit,
-            status: String(item.status || '').toUpperCase(),
-          }
-        })
-        .filter((item) => item.id && item.toolkit)
+        .map((item) => parseConnectedAccount(item, ''))
+        .filter((item): item is ConnectedAccount => !!item && !!item.id)
     },
 
     async disableAccount(accountId) {
