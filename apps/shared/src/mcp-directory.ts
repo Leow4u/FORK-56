@@ -297,11 +297,47 @@ export function mcpSetupCardIdentity(input: {
   return { logo, name, subtitle }
 }
 
+export const COMPOSIO_CONNECT_CANCELLED = 'composio_connect_cancelled'
+
+/** Same ceiling as native dashboard MCP OAuth (`_MCP_DASHBOARD_OAUTH_TTL`). */
+const COMPOSIO_CONNECT_MAX_WAIT_MS = 15 * 60 * 1000
+
+function composioConnectAccountId(started: {
+  connection_id?: string | null
+  redirect_url?: string
+}): string | null {
+  const direct = (started.connection_id ?? '').trim()
+
+  if (direct) {
+    return direct
+  }
+
+  const redirect = started.redirect_url ?? ''
+
+  try {
+    const parsed = new URL(redirect)
+
+    for (const key of ['connected_account_id', 'connectedAccountId', 'connection_id', 'connectionId']) {
+      const value = parsed.searchParams.get(key)?.trim()
+
+      if (value) {
+        return value
+      }
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
 export async function completeComposioConnect(opts: {
   authorize: () => Promise<{ redirect_url?: string; connection_id?: string | null }>
-  wait: (connectionId?: string | null) => Promise<{ connected?: boolean }>
+  wait: (connectionId?: string | null) => Promise<{ connected?: boolean; status?: string }>
   open: (url: string) => void | Promise<void>
   sleep?: (ms: number) => Promise<void>
+  cancelled?: () => boolean
+  maxWaitMs?: number
 }): Promise<boolean> {
   const started = await opts.authorize()
   const url = started.redirect_url
@@ -310,19 +346,47 @@ export async function completeComposioConnect(opts: {
     throw new Error('missing_redirect_url')
   }
 
-  await opts.open(url)
-  const connectionId = started.connection_id ?? null
-  const result = await opts.wait(connectionId)
+  const connectionId = composioConnectAccountId(started)
 
-  if (result.connected) {
-    return true
+  if (!connectionId) {
+    // `/wait` without an id is fail-closed isolation (another HOME's app).
+    // Calling it here turned "OAuth just opened" into Setup failed in ~2s.
+    throw new Error('missing_connection_id')
   }
 
-  const sleep = opts.sleep ?? ((ms: number) => new Promise(r => setTimeout(r, ms)))
-  await sleep(1500)
-  const retry = await opts.wait(connectionId)
+  await opts.open(url)
 
-  return Boolean(retry.connected)
+  const sleep = opts.sleep ?? ((ms: number) => new Promise(r => setTimeout(r, ms)))
+  const maxWaitMs = opts.maxWaitMs ?? COMPOSIO_CONNECT_MAX_WAIT_MS
+  const deadline = Date.now() + Math.max(0, maxWaitMs)
+
+  for (;;) {
+    if (opts.cancelled?.()) {
+      throw new Error(COMPOSIO_CONNECT_CANCELLED)
+    }
+
+    const result = await opts.wait(connectionId)
+
+    if (result.connected) {
+      return true
+    }
+
+    if (opts.cancelled?.()) {
+      throw new Error(COMPOSIO_CONNECT_CANCELLED)
+    }
+
+    const status = (result.status ?? '').trim().toLowerCase()
+
+    if (status === 'expired') {
+      return false
+    }
+
+    if (Date.now() >= deadline) {
+      return false
+    }
+
+    await sleep(1000)
+  }
 }
 
 export function composioAppSuggestKeywords(app: { id: string; name: string }): string[] {

@@ -214,6 +214,9 @@ export function waitConnector(
 ): Promise<{ connected: boolean; status?: string; slug?: string }> {
   const params = new URLSearchParams()
 
+  // Client loop owns the human wait; each /wait is one getAccount.
+  params.set('timeout_ms', '0')
+
   if (connectionId) {
     params.set('connection_id', connectionId)
   }
