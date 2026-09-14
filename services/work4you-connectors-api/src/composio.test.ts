@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { BLOCKED_SESSION_SLUGS, sessionToolkitSlugs } from './allowlist.js'
-import { createComposioClient, statusFromAccount } from './composio.js'
+import { connectedAccountIdFromLinkPayload, createComposioClient, statusFromAccount } from './composio.js'
 
 test('statusFromAccount maps Composio account states', () => {
   assert.equal(statusFromAccount('ACTIVE'), 'active')
@@ -10,6 +10,24 @@ test('statusFromAccount maps Composio account states', () => {
   assert.equal(statusFromAccount('INITIATED'), 'initiated')
   assert.equal(statusFromAccount('INITIALIZING'), 'initiated')
   assert.equal(statusFromAccount(''), 'disconnected')
+})
+
+test('connectedAccountIdFromLinkPayload does not treat link_token as the account id', () => {
+  assert.equal(
+    connectedAccountIdFromLinkPayload({
+      link_token: 'lt-gmail',
+      redirect_url: 'https://connect.composio.dev/gmail',
+    }),
+    null,
+  )
+  assert.equal(
+    connectedAccountIdFromLinkPayload({
+      link_token: 'lt-gmail',
+      redirect_url: 'https://connect.composio.dev/gmail',
+      data: { id: 'lt-gmail' },
+    }),
+    null,
+  )
 })
 
 test('createSession posts user_id, allowlist, and callback_url', async () => {

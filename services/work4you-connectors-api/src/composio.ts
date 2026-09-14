@@ -126,8 +126,10 @@ export function connectedAccountIdFromLinkPayload(
   redirectUrl = '',
 ): string | null {
   if (json && typeof json === 'object') {
-    const fromBody = accountIdFromRecord(json as Record<string, unknown>)
-    if (fromBody) return fromBody
+    const row = json as Record<string, unknown>
+    const linkToken = firstTrimmedString(row.link_token)
+    const fromBody = accountIdFromRecord(row)
+    if (fromBody && fromBody !== linkToken) return fromBody
   }
   return accountIdFromRedirect(redirectUrl)
 }

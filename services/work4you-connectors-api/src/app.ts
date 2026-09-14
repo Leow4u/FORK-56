@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
 
@@ -162,9 +164,43 @@ async function requireScopedUser(
   return { user, profile, entityId: composioEntityId(user.sub, profile) }
 }
 
+type PendingConnect = {
+  entityId: string
+  slug: string
+  exp: number
+}
+
+const CONNECTED_HTML = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connected</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #0b0b0c; color: #f5f5f4; }
+      main { text-align: center; max-width: 28rem; padding: 2rem; }
+      h1 { font-size: 1.25rem; font-weight: 600; }
+      p { color: #a8a29e; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You're connected</h1>
+      <p>You can close this window and return to Work4You.</p>
+    </main>
+  </body>
+</html>`
+
 export function createApp(deps: AppDeps) {
   const app = new Hono()
   const sleep = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)))
+  const pendingConnect = new Map<string, PendingConnect>()
+
+  function prunePendingConnect(now = Date.now()) {
+    for (const [nonce, row] of pendingConnect) {
+      if (row.exp <= now) pendingConnect.delete(nonce)
+    }
+  }
 
   app.use(
     '*',
@@ -201,28 +237,31 @@ export function createApp(deps: AppDeps) {
     }),
   )
 
-  app.get('/connected', (c) =>
-    c.html(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Connected</title>
-    <style>
-      body { font-family: ui-sans-serif, system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #0b0b0c; color: #f5f5f4; }
-      main { text-align: center; max-width: 28rem; padding: 2rem; }
-      h1 { font-size: 1.25rem; font-weight: 600; }
-      p { color: #a8a29e; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>You're connected</h1>
-      <p>You can close this window and return to Work4You.</p>
-    </main>
-  </body>
-</html>`),
-  )
+  app.get('/connected', async (c) => {
+    const nonce = (c.req.query('w4y') ?? '').trim()
+    const status = (c.req.query('status') ?? '').trim().toLowerCase()
+    const accountId = (
+      c.req.query('connected_account_id') ??
+      c.req.query('connectedAccountId') ??
+      ''
+    ).trim()
+    const row = nonce ? pendingConnect.get(nonce) : undefined
+    if (row && row.exp > Date.now() && status === 'success' && accountId) {
+      pendingConnect.delete(nonce)
+      const account = await deps.composio.getAccount(accountId)
+      const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
+      const requested = row.slug.trim().toLowerCase()
+      if (!toolkit || toolkit === requested) {
+        const record = deps.tokens.getByEntityId(row.entityId)
+        if (record) {
+          await ensureSession(deps, row.entityId, record.sub)
+          deps.tokens.stampApp(row.entityId, row.slug, account?.id || accountId)
+          await ensureSession(deps, row.entityId, record.sub)
+        }
+      }
+    }
+    return c.html(CONNECTED_HTML)
+  })
 
   app.post('/v1/bootstrap', async (c) => {
     const blocked = requireComposio(c, deps)
@@ -296,7 +335,20 @@ export function createApp(deps: AppDeps) {
     }
     const session = await ensureSession(deps, scoped.entityId, scoped.user.sub, [slug])
     const body = (await c.req.json().catch(() => ({}))) as { callback_url?: string }
-    const callbackUrl = body.callback_url || `${deps.config.publicBaseUrl}/connected`
+    const customCallback = (body.callback_url ?? '').trim()
+    prunePendingConnect()
+    let callbackUrl = customCallback || `${deps.config.publicBaseUrl}/connected`
+    if (!customCallback) {
+      const nonce = randomUUID()
+      pendingConnect.set(nonce, {
+        entityId: scoped.entityId,
+        slug,
+        exp: Date.now() + 15 * 60 * 1000,
+      })
+      const connected = new URL(`${deps.config.publicBaseUrl}/connected`)
+      connected.searchParams.set('w4y', nonce)
+      callbackUrl = connected.toString()
+    }
     const link = await deps.composio.authorize(session.sessionId, slug, callbackUrl)
     return c.json({
       slug,
@@ -322,12 +374,16 @@ export function createApp(deps: AppDeps) {
     if (!connectionId) {
       return c.json({ slug, status: 'disconnected', connected: false })
     }
+    const requested = slug.trim().toLowerCase()
+    const stampedId = deps.tokens.getByEntityId(scoped.entityId)?.accountIds[requested]
+    if (stampedId) {
+      return c.json({ slug, status: 'active', connected: true })
+    }
     const started = Date.now()
     let lastStatus: string | undefined
     for (;;) {
       const account = await deps.composio.getAccount(connectionId)
       lastStatus = account?.status
-      const requested = slug.trim().toLowerCase()
       const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
       // THIS connection_id is the isolation key. Stamp the requested slug when
       // Composio marks it ACTIVE, including when toolkit is still empty.
