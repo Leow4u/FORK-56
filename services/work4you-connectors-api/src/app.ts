@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto'
-
 import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
 
@@ -17,20 +15,6 @@ import { AuthError, type ConnectorClaims } from './auth.js'
 import { ComposioHttpError, statusFromAccount, type ComposioPort } from './composio.js'
 import { proxyMcp, type FetchLike } from './mcp-proxy.js'
 import type { TokenStore } from './tokens.js'
-
-/** Same regex as work4you_cli.profiles._PROFILE_ID_RE. */
-export const PROFILE_ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/
-
-export function profileFromHeader(raw: string | undefined): string | { error: 'invalid_profile' } {
-  const value = (raw ?? '').trim()
-  if (!value) return 'default'
-  if (!PROFILE_ID_RE.test(value)) return { error: 'invalid_profile' }
-  return value
-}
-
-export function composioEntityId(sub: string, profile: string): string {
-  return `${sub}::${profile}`
-}
 
 export interface AppConfig {
   publicBaseUrl: string
@@ -64,16 +48,22 @@ async function requireUser(c: Context, deps: AppDeps): Promise<ConnectorClaims |
   }
 }
 
-function storedToolkitSlugs(
-  connected: readonly string[] | undefined,
+function pickAccount(
+  accounts: Awaited<ReturnType<ComposioPort['listAccounts']>>,
+  slug: string,
+) {
+  const matches = accounts.filter((a) => a.toolkit === slug)
+  return matches.find((a) => a.status === 'ACTIVE') ?? matches[0]
+}
+
+function connectedToolkitSlugs(
+  accounts: Awaited<ReturnType<ComposioPort['listAccounts']>>,
   extra: readonly string[] = [],
-  exclude: readonly string[] = [],
 ): string[] {
-  const excluded = new Set(exclude.map((slug) => slug.trim().toLowerCase()).filter(Boolean))
-  const base = [...(connected ?? []), ...extra].filter(
-    (slug) => !excluded.has(slug.trim().toLowerCase()),
-  )
-  return sessionToolkitSlugs(base)
+  const active = accounts
+    .filter((a) => a.status === 'ACTIVE')
+    .map((a) => a.toolkit)
+  return sessionToolkitSlugs([...active, ...extra])
 }
 
 function mapApp(
@@ -101,22 +91,23 @@ function mapApp(
 
 async function ensureSession(
   deps: AppDeps,
-  entityId: string,
-  sub: string,
+  userId: string,
   extraEnable: readonly string[] = [],
   exclude: readonly string[] = [],
-  baseSlugs?: readonly string[],
 ) {
-  const existing = deps.tokens.getByEntityId(entityId)
-  const stored = baseSlugs ?? existing?.connectedSlugs ?? []
-  const enable = storedToolkitSlugs(stored, extraEnable, exclude)
-  const connected = storedToolkitSlugs(stored, [], exclude)
+  const accounts = await deps.composio.listAccounts(userId)
+  const excluded = new Set(exclude.map((slug) => slug.trim().toLowerCase()).filter(Boolean))
+  const filtered = excluded.size
+    ? accounts.filter((a) => !excluded.has(a.toolkit.trim().toLowerCase()))
+    : accounts
+  const enable = connectedToolkitSlugs(filtered, extraEnable)
+  const connected = connectedToolkitSlugs(filtered)
   const authConfigs = authConfigsFromEnv(deps.config.authConfigId)
+  const existing = deps.tokens.getBySub(userId)
   if (existing) {
     const session = await deps.composio.getSession(existing.sessionId)
     if (session) {
       await deps.composio.updateSessionToolkits(existing.sessionId, enable)
-      if (baseSlugs) deps.tokens.replaceConnectedSlugs(entityId, connected)
       return {
         token: existing.token,
         sessionId: existing.sessionId,
@@ -124,12 +115,10 @@ async function ensureSession(
         connected,
       }
     }
+    deps.tokens.revokeBySub(userId)
   }
-  const created = await deps.composio.createSession(entityId, authConfigs, enable)
-  const record = deps.tokens.issue(entityId, created.sessionId, created.mcpUrl, sub, {
-    connectedSlugs: connected,
-    accountIds: existing?.accountIds,
-  })
+  const created = await deps.composio.createSession(userId, authConfigs, enable)
+  const record = deps.tokens.issue(userId, created.sessionId, created.mcpUrl)
   return {
     token: record.token,
     sessionId: created.sessionId,
@@ -145,62 +134,9 @@ function requireComposio(c: Context, deps: AppDeps) {
   return null
 }
 
-type ScopedUser = {
-  user: ConnectorClaims
-  profile: string
-  entityId: string
-}
-
-async function requireScopedUser(
-  c: Context,
-  deps: AppDeps,
-): Promise<ScopedUser | Response> {
-  const user = await requireUser(c, deps)
-  if (user instanceof Response) return user
-  const profile = profileFromHeader(c.req.header('x-work4you-profile'))
-  if (typeof profile !== 'string') {
-    return jsonError(c, 400, profile.error)
-  }
-  return { user, profile, entityId: composioEntityId(user.sub, profile) }
-}
-
-type PendingConnect = {
-  entityId: string
-  slug: string
-  exp: number
-}
-
-const CONNECTED_HTML = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Connected</title>
-    <style>
-      body { font-family: ui-sans-serif, system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #0b0b0c; color: #f5f5f4; }
-      main { text-align: center; max-width: 28rem; padding: 2rem; }
-      h1 { font-size: 1.25rem; font-weight: 600; }
-      p { color: #a8a29e; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>You're connected</h1>
-      <p>You can close this window and return to Work4You.</p>
-    </main>
-  </body>
-</html>`
-
 export function createApp(deps: AppDeps) {
   const app = new Hono()
   const sleep = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)))
-  const pendingConnect = new Map<string, PendingConnect>()
-
-  function prunePendingConnect(now = Date.now()) {
-    for (const [nonce, row] of pendingConnect) {
-      if (row.exp <= now) pendingConnect.delete(nonce)
-    }
-  }
 
   app.use(
     '*',
@@ -212,7 +148,6 @@ export function createApp(deps: AppDeps) {
         'Accept',
         'mcp-session-id',
         'Mcp-Session-Id',
-        'X-Work4You-Profile',
       ],
       allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     }),
@@ -237,49 +172,35 @@ export function createApp(deps: AppDeps) {
     }),
   )
 
-  app.get('/connected', async (c) => {
-    const nonce = (c.req.query('w4y') ?? '').trim()
-    const status = (c.req.query('status') ?? '').trim().toLowerCase()
-    const accountId = (
-      c.req.query('connected_account_id') ??
-      c.req.query('connectedAccountId') ??
-      ''
-    ).trim()
-    const row = nonce ? pendingConnect.get(nonce) : undefined
-    if (row && row.exp > Date.now() && status === 'success' && accountId) {
-      pendingConnect.delete(nonce)
-      const account = await deps.composio.getAccount(accountId)
-      const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
-      const requested = row.slug.trim().toLowerCase()
-      if (!toolkit || toolkit === requested) {
-        const record = deps.tokens.getByEntityId(row.entityId)
-        if (record) {
-          await ensureSession(deps, row.entityId, record.sub)
-          deps.tokens.stampApp(row.entityId, row.slug, account?.id || accountId)
-          await ensureSession(deps, row.entityId, record.sub)
-        }
-      }
-    }
-    return c.html(CONNECTED_HTML)
-  })
+  app.get('/connected', (c) =>
+    c.html(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connected</title>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; background: #0b0b0c; color: #f5f5f4; }
+      main { text-align: center; max-width: 28rem; padding: 2rem; }
+      h1 { font-size: 1.25rem; font-weight: 600; }
+      p { color: #a8a29e; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You're connected</h1>
+      <p>You can close this window and return to Work4You.</p>
+    </main>
+  </body>
+</html>`),
+  )
 
   app.post('/v1/bootstrap', async (c) => {
     const blocked = requireComposio(c, deps)
     if (blocked) return blocked
-    const scoped = await requireScopedUser(c, deps)
-    if (scoped instanceof Response) return scoped
-    const body = (await c.req.json().catch(() => ({}))) as { connected_apps?: unknown }
-    const homeSlugs = Array.isArray(body.connected_apps)
-      ? sessionToolkitSlugs(body.connected_apps.map((item) => String(item)))
-      : undefined
-    const session = await ensureSession(
-      deps,
-      scoped.entityId,
-      scoped.user.sub,
-      [],
-      [],
-      homeSlugs,
-    )
+    const user = await requireUser(c, deps)
+    if (user instanceof Response) return user
+    const session = await ensureSession(deps, user.sub)
     return c.json({
       mcp: {
         name: 'work4you_apps',
@@ -288,8 +209,7 @@ export function createApp(deps: AppDeps) {
         token_env: 'WORK4YOU_APPS_MCP_TOKEN',
         token: session.token,
       },
-      user_id: scoped.user.sub,
-      entity_id: scoped.entityId,
+      user_id: user.sub,
       connected: session.connected,
     })
   })
@@ -297,26 +217,21 @@ export function createApp(deps: AppDeps) {
   app.get('/v1/apps', async (c) => {
     const blocked = requireComposio(c, deps)
     if (blocked) return blocked
-    const scoped = await requireScopedUser(c, deps)
-    if (scoped instanceof Response) return scoped
-    // Directory paint must not create/arm a tool-router session. Native MCP
-    // badges read this HOME's mcp.json; Apps badges read this entity's stored
-    // slugs. listAccounts is not a per-home install list.
-    const connected = new Set(
-      (deps.tokens.getByEntityId(scoped.entityId)?.connectedSlugs ?? []).map((slug) =>
-        slug.trim().toLowerCase(),
-      ),
-    )
-    const apps = ALLOWLIST.map((app) =>
-      mapApp(
+    const user = await requireUser(c, deps)
+    if (user instanceof Response) return user
+    await ensureSession(deps, user.sub)
+    const accounts = await deps.composio.listAccounts(user.sub)
+    const apps = ALLOWLIST.map((app) => {
+      const account = pickAccount(accounts, app.slug)
+      return mapApp(
         app.slug,
         app.name,
         app.description,
         app.section,
         Boolean(app.popular) || POPULAR_SLUGS.includes(app.slug),
-        connected.has(app.slug.trim().toLowerCase()) ? 'ACTIVE' : undefined,
-      ),
-    )
+        account?.status,
+      )
+    })
     return c.json({
       apps,
       sections: [...SECTION_IDS],
@@ -327,28 +242,15 @@ export function createApp(deps: AppDeps) {
   app.post('/v1/apps/:slug/authorize', async (c) => {
     const blocked = requireComposio(c, deps)
     if (blocked) return blocked
-    const scoped = await requireScopedUser(c, deps)
-    if (scoped instanceof Response) return scoped
+    const user = await requireUser(c, deps)
+    if (user instanceof Response) return user
     const slug = c.req.param('slug')
     if (!isAllowlisted(slug) || BLOCKED_SESSION_SLUGS.includes(slug)) {
       return jsonError(c, 404, 'unknown_app')
     }
-    const session = await ensureSession(deps, scoped.entityId, scoped.user.sub, [slug])
+    const session = await ensureSession(deps, user.sub, [slug])
     const body = (await c.req.json().catch(() => ({}))) as { callback_url?: string }
-    const customCallback = (body.callback_url ?? '').trim()
-    prunePendingConnect()
-    let callbackUrl = customCallback || `${deps.config.publicBaseUrl}/connected`
-    if (!customCallback) {
-      const nonce = randomUUID()
-      pendingConnect.set(nonce, {
-        entityId: scoped.entityId,
-        slug,
-        exp: Date.now() + 15 * 60 * 1000,
-      })
-      const connected = new URL(`${deps.config.publicBaseUrl}/connected`)
-      connected.searchParams.set('w4y', nonce)
-      callbackUrl = connected.toString()
-    }
+    const callbackUrl = body.callback_url || `${deps.config.publicBaseUrl}/connected`
     const link = await deps.composio.authorize(session.sessionId, slug, callbackUrl)
     return c.json({
       slug,
@@ -360,8 +262,8 @@ export function createApp(deps: AppDeps) {
   app.get('/v1/apps/:slug/wait', async (c) => {
     const blocked = requireComposio(c, deps)
     if (blocked) return blocked
-    const scoped = await requireScopedUser(c, deps)
-    if (scoped instanceof Response) return scoped
+    const user = await requireUser(c, deps)
+    if (user instanceof Response) return user
     const slug = c.req.param('slug')
     if (!isAllowlisted(slug)) {
       return jsonError(c, 404, 'unknown_app')
@@ -370,39 +272,18 @@ export function createApp(deps: AppDeps) {
     const timeoutMs = Number.isFinite(rawTimeout)
       ? Math.max(0, Math.min(rawTimeout, 25_000))
       : 25_000
-    const connectionId = (c.req.query('connection_id') ?? '').trim()
-    if (!connectionId) {
-      return c.json({ slug, status: 'disconnected', connected: false })
-    }
-    const requested = slug.trim().toLowerCase()
-    const stampedId = deps.tokens.getByEntityId(scoped.entityId)?.accountIds[requested]
-    if (stampedId) {
-      return c.json({ slug, status: 'active', connected: true })
-    }
     const started = Date.now()
-    let lastStatus: string | undefined
     for (;;) {
-      const account = await deps.composio.getAccount(connectionId)
-      lastStatus = account?.status
-      const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
-      // THIS connection_id is the isolation key. Stamp the requested slug when
-      // Composio marks it ACTIVE, including when toolkit is still empty.
-      // A different allowlisted toolkit on this id is not this Connect.
-      if (account?.status === 'ACTIVE' && (!toolkit || toolkit === requested)) {
-        await ensureSession(deps, scoped.entityId, scoped.user.sub)
-        deps.tokens.stampApp(scoped.entityId, slug, account.id)
-        await ensureSession(deps, scoped.entityId, scoped.user.sub)
+      const accounts = await deps.composio.listAccounts(user.sub)
+      const account = pickAccount(accounts, slug)
+      if (account?.status === 'ACTIVE') {
+        await ensureSession(deps, user.sub)
         return c.json({ slug, status: 'active', connected: true })
       }
       if (Date.now() - started >= timeoutMs) {
-        // A slice timeout is "still pending on this connection_id", not
-        // abandon. Dropping extraEnable here made the desktop treat the first
-        // not-ACTIVE poll as Connect failure (~2s with no id, or the first
-        // 25s slice with an id). Session cleanup stays on stamp / disconnect /
-        // bootstrap from this HOME's connected_apps.
         return c.json({
           slug,
-          status: lastStatus ? statusFromAccount(lastStatus) : 'initiated',
+          status: account ? statusFromAccount(account.status) : 'disconnected',
           connected: false,
         })
       }
@@ -413,20 +294,20 @@ export function createApp(deps: AppDeps) {
   app.post('/v1/apps/:slug/disconnect', async (c) => {
     const blocked = requireComposio(c, deps)
     if (blocked) return blocked
-    const scoped = await requireScopedUser(c, deps)
-    if (scoped instanceof Response) return scoped
+    const user = await requireUser(c, deps)
+    if (user instanceof Response) return user
     const slug = c.req.param('slug')
     if (!isAllowlisted(slug)) {
       return jsonError(c, 404, 'unknown_app')
     }
-    const existing = deps.tokens.getByEntityId(scoped.entityId)
-    const accountId = deps.tokens.unstampApp(scoped.entityId, slug)
-    if (accountId) {
-      await deps.composio.disableAccount(accountId)
+    const accounts = await deps.composio.listAccounts(user.sub)
+    const account = pickAccount(accounts, slug)
+    if (account) {
+      await deps.composio.disableAccount(account.id)
     }
-    if (existing) {
-      await ensureSession(deps, scoped.entityId, scoped.user.sub, [], [slug])
-    }
+    // Exclude the slug even if Composio still reports ACTIVE — disable is
+    // not always visible on the very next listAccounts call.
+    await ensureSession(deps, user.sub, [], [slug])
     return c.json({ slug, disconnected: true })
   })
 

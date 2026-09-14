@@ -1,10 +1,8 @@
 /**
  * Portal JWT verification for the connectors broker.
  *
- * Person isolation is JWT `sub`. Composio sessions are keyed
- * `sub::{profile}` so homes do not share connected accounts.
- * Static `sk-work4you-…` keys are rejected: those mint `api_key:…`
- * identities and would mix people in Composio.
+ * Isolation key is `sub`. Static `sk-work4you-…` keys are rejected: those
+ * mint `api_key:…` identities and would mix people in Composio.
  */
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose'
 import { config } from './config.js'

@@ -20,8 +20,6 @@ import { prettyName } from '@/lib/text'
 import { $gateway } from '@/store/gateway'
 import { clearMcpSetupRequest, type McpSetupOutcome, sessionMcpSetupRequest } from '@/store/mcp-setup'
 import { notifyError } from '@/store/notifications'
-import { $activeGatewayProfile } from '@/store/profile'
-import { $sessions, rememberedSessionProfile } from '@/store/session'
 import { invalidateMcpSuggestionIndex } from '@/store/suggestion-providers/mcp'
 import {
   addMcpServer,
@@ -81,23 +79,13 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iP(hone|ad|od)/.test(navi
 
 const STATUS_ICON_CLASS = 'size-4 shrink-0 text-(--ui-text-tertiary)'
 
-function useSessionCapabilityProfile(): string {
-  const view = useSessionView()
-  const storedId = useStore(view.$storedId)
-  const runtimeId = useStore(view.$runtimeId)
-  const sessions = useStore($sessions)
-  const activeProfile = useStore($activeGatewayProfile)
-
-  return rememberedSessionProfile(sessions, storedId || runtimeId, activeProfile)
-}
-
-function useDirectoryApp(server: string, profile?: string) {
+function useDirectoryApp(server: string) {
   const [composioApp, setComposioApp] = useState<DirectoryApp | null | undefined>(undefined)
 
   useEffect(() => {
     let cancelled = false
 
-    void getConnectorsDirectory(profile)
+    void getConnectorsDirectory()
       .then(directory => {
         if (!cancelled) {
           setComposioApp(findComposioDirectoryApp(directory.apps, server) ?? null)
@@ -112,7 +100,7 @@ function useDirectoryApp(server: string, profile?: string) {
     return () => {
       cancelled = true
     }
-  }, [profile, server])
+  }, [server])
 
   return composioApp
 }
@@ -145,8 +133,7 @@ function McpSetupSettled({ args, result }: ToolCallMessagePartProps) {
 
   const server = fromResult.server || fromArgs.server
   const status = fromResult.status ?? 'error'
-  const profile = useSessionCapabilityProfile()
-  const composioApp = useDirectoryApp(server, profile)
+  const composioApp = useDirectoryApp(server)
 
   const identity = mcpSetupCardIdentity({
     composioApp,
@@ -212,8 +199,7 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
   const [envDraft, setEnvDraft] = useState<Record<string, string>>({})
   const [entry, setEntry] = useState<McpCatalogEntry | null | undefined>(undefined)
   const [envOpen, setEnvOpen] = useState(false)
-  const profile = useSessionCapabilityProfile()
-  const composioApp = useDirectoryApp(server, profile)
+  const composioApp = useDirectoryApp(server)
   // Set when the user cancels mid-flight (a stuck OAuth tab, a hung install).
   // The in-flight flow checks it at every poll boundary and aborts via the
   // CANCELLED sentinel; the declined respond has already been sent by then.
@@ -295,7 +281,7 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
     }
 
     try {
-      const directory = await getConnectorsDirectory(profile).catch(() => null)
+      const directory = await getConnectorsDirectory().catch(() => null)
       const composio = directory ? findComposioDirectoryApp(directory.apps, server) : undefined
 
       if (composio) {
@@ -313,9 +299,7 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
         }
 
         const ok = await connectWork4YouApp(composio.id, {
-          cancelled: () => cancelRef.current,
-          open: url => window.work4youDesktop.openExternal(url),
-          profile
+          open: url => window.work4youDesktop.openExternal(url)
         })
 
         if (cancelRef.current) {
@@ -459,7 +443,7 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
     } finally {
       setWorking(false)
     }
-  }, [action, copy, entry, envDraft, profile, respond, server])
+  }, [action, copy, entry, envDraft, respond, server])
 
   const title = composioApp
     ? copy.connectTitle(prettyName(composioApp.name || server))

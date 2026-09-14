@@ -8,8 +8,6 @@ import { prettyName } from '@/lib/text'
 import { type ComposerSuggestion, registerDraftProvider } from '@/store/composer-suggestions'
 import { $gateway } from '@/store/gateway'
 import { notifyError } from '@/store/notifications'
-import { $activeGatewayProfile } from '@/store/profile'
-import { $sessions, rememberedSessionProfile } from '@/store/session'
 import {
   addMcpServer,
   authMcpServer,
@@ -209,11 +207,8 @@ export function matchSuggestions(text: string, index: KeywordEntry[]): McpMatch[
 async function connect(known: SuggestibleServer, sessionId: string | null, cancelled: () => boolean): Promise<void> {
   try {
     if (known.source === 'composio') {
-      const profile = rememberedSessionProfile($sessions.get(), sessionId, $activeGatewayProfile.get())
       const ok = await connectWork4YouApp(known.server, {
-        cancelled,
-        open: url => window.work4youDesktop.openExternal(url),
-        profile
+        open: url => window.work4youDesktop.openExternal(url)
       })
 
       if (cancelled()) {

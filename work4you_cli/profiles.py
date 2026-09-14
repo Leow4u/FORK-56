@@ -137,89 +137,6 @@ _CLONE_ALL_HISTORY_EXCLUDE_ROOT: frozenset[str] = frozenset({
 # Delete the marker file to opt back in.
 NO_BUNDLED_SKILLS_MARKER = ".no-bundled-skills"
 
-# Per-home Composio session token. Clone / credential-mirror copy ``.env``
-# into a new home; sharing this value would bind both homes to the same
-# broker session. Stripped from the destination file without touching
-# ``os.environ`` or depending on process ``WORK4YOU_HOME``.
-_WORK4YOU_APPS_MCP_TOKEN = "WORK4YOU_APPS_MCP_TOKEN"
-_WORK4YOU_APPS_SERVER_NAME = "work4you_apps"
-
-
-def strip_work4you_apps_mcp_token(env_path: Path) -> bool:
-    """Remove ``WORK4YOU_APPS_MCP_TOKEN`` from ``env_path``.
-
-    Returns True when a matching assignment was removed. Does not mutate
-    ``os.environ`` — the launch profile may still need its own token.
-    """
-    if not env_path.is_file():
-        return False
-    try:
-        text = env_path.read_text(encoding="utf-8-sig", errors="replace")
-    except OSError:
-        return False
-
-    def _defines(line: str) -> bool:
-        stripped = line.strip()
-        if stripped.startswith("export "):
-            stripped = stripped[7:].lstrip()
-        return stripped.startswith(f"{_WORK4YOU_APPS_MCP_TOKEN}=")
-
-    lines = text.splitlines(keepends=True)
-    new_lines = [line for line in lines if not _defines(line)]
-    if len(new_lines) == len(lines):
-        return False
-    try:
-        env_path.write_text("".join(new_lines), encoding="utf-8")
-    except OSError:
-        return False
-    return True
-
-
-def strip_work4you_apps_home_state(config_path: Path) -> bool:
-    """Drop Apps install stamps from a cloned ``config.yaml``.
-
-    ``mcp_servers.work4you_apps.connected_apps`` is this HOME's equivalent of
-    an installed native MCP. Copying it would mark Gmail connected on the
-    clone without OAuth. Also disables the hidden server so a stripped token
-    cannot load another home's toolkits.
-    """
-    if not config_path.is_file():
-        return False
-    try:
-        import yaml
-
-        data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    except Exception:
-        return False
-    if not isinstance(data, dict):
-        return False
-    servers = data.get("mcp_servers")
-    if not isinstance(servers, dict):
-        return False
-    entry = servers.get(_WORK4YOU_APPS_SERVER_NAME)
-    if not isinstance(entry, dict):
-        return False
-    changed = False
-    if entry.get("connected_apps"):
-        entry["connected_apps"] = []
-        changed = True
-    if entry.get("enabled"):
-        entry["enabled"] = False
-        changed = True
-    if not changed:
-        return False
-    servers[_WORK4YOU_APPS_SERVER_NAME] = entry
-    data["mcp_servers"] = servers
-    try:
-        config_path.write_text(
-            yaml.safe_dump(data, sort_keys=False, default_flow_style=False),
-            encoding="utf-8",
-        )
-    except OSError:
-        return False
-    return True
-
-
 def has_bundled_skills_opt_out(profile_dir: Path) -> bool:
     """Return True if the profile opted out of bundled-skill seeding."""
     try:
@@ -1292,11 +1209,6 @@ def create_profile(
         except OSError:
             pass  # best-effort — save_env_value creates the file on demand
 
-    # Clone / clone-all copy the source ``.env``. That file may contain a
-    # live Apps MCP token for the SOURCE home; the new home must bootstrap
-    # its own Composio session (``sub::{profile}``).
-    strip_work4you_apps_mcp_token(env_path)
-
     # Seed a default SOUL.md so the user has a file to customize immediately.
     # Skipped when the profile already has one (from --clone / --clone-all).
     soul_path = profile_dir / "SOUL.md"
@@ -1327,11 +1239,6 @@ def create_profile(
     # explicit runtime/history stripping above.
     if not clone_all:
         _migrate_profile_config_if_outdated(profile_dir)
-
-    # Clone copies mcp_servers.work4you_apps including connected_apps, which
-    # is this HOME's install list. Strip it after migrate so a cloned home
-    # does not inherit Gmail-connected without OAuth.
-    strip_work4you_apps_home_state(profile_dir / "config.yaml")
 
     # Persist description if the caller provided one. Done last so a
     # partial-create failure doesn't strand a description file in an

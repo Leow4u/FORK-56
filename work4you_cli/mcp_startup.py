@@ -101,10 +101,7 @@ def start_background_mcp_discovery(*, logger, thread_name: str) -> None:
                 try:
                     from work4you_cli.connectors import maybe_bootstrap_work4you_apps
 
-                    # Sync HOME connected_apps onto the Fly session, even when
-                    # work4you_apps is already in mcp.json. Skipping would leave
-                    # a leaked Composio toolkit armed on a Fresh home.
-                    maybe_bootstrap_work4you_apps(skip_if_installed=False)
+                    maybe_bootstrap_work4you_apps(skip_if_installed=True)
                 except Exception:
                     logger.debug(
                         "work4you_apps bootstrap during MCP discovery failed",

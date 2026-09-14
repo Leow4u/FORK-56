@@ -24,7 +24,6 @@ export interface ComposioPort {
     toolkit: string,
     callbackUrl: string,
   ): Promise<{ redirectUrl: string; connectedAccountId: string | null }>
-  getAccount(accountId: string): Promise<ConnectedAccount | null>
   listAccounts(userId: string): Promise<ConnectedAccount[]>
   disableAccount(accountId: string): Promise<void>
 }
@@ -40,99 +39,6 @@ export class ComposioHttpError extends Error {
 }
 
 type FetchLike = typeof fetch
-
-const LINK_ACCOUNT_ID_KEYS = [
-  'connected_account_id',
-  'connectedAccountId',
-  'connection_id',
-  'connectionId',
-] as const
-
-function firstTrimmedString(value: unknown): string | null {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim()
-  return trimmed ? trimmed : null
-}
-
-function accountIdFromRecord(row: Record<string, unknown>): string | null {
-  for (const key of LINK_ACCOUNT_ID_KEYS) {
-    const found = firstTrimmedString(row[key])
-    if (found) return found
-  }
-  const nested = row.connected_account ?? row.connectedAccount ?? row.data
-  if (nested && typeof nested === 'object') {
-    const nestedId = accountIdFromRecord(nested as Record<string, unknown>)
-    if (nestedId) return nestedId
-    const id = firstTrimmedString((nested as Record<string, unknown>).id)
-    if (id) return id
-  }
-  return null
-}
-
-function accountIdFromRedirect(redirectUrl: string): string | null {
-  try {
-    const parsed = new URL(redirectUrl)
-    for (const key of LINK_ACCOUNT_ID_KEYS) {
-      const found = firstTrimmedString(parsed.searchParams.get(key))
-      if (found) return found
-    }
-  } catch {
-    return null
-  }
-  return null
-}
-
-function composioAccountStatus(nested: Record<string, unknown>): string {
-  const direct = firstTrimmedString(nested.status)
-  if (direct) return direct.toUpperCase()
-  const state = nested.state
-  if (!state || typeof state !== 'object') return ''
-  const rec = state as Record<string, unknown>
-  const inner = rec.val && typeof rec.val === 'object' ? (rec.val as Record<string, unknown>) : rec
-  const nestedStatus = firstTrimmedString(inner.status)
-  return nestedStatus ? nestedStatus.toUpperCase() : ''
-}
-
-function composioAccountToolkit(nested: Record<string, unknown>): string {
-  const toolkitObj =
-    nested.toolkit && typeof nested.toolkit === 'object'
-      ? (nested.toolkit as Record<string, unknown>)
-      : null
-  return (
-    firstTrimmedString(toolkitObj?.slug) ||
-    firstTrimmedString(nested.toolkit_slug) ||
-    firstTrimmedString(nested.appName) ||
-    (typeof nested.toolkit === 'string' ? firstTrimmedString(nested.toolkit) : null) ||
-    ''
-  )
-}
-
-function parseConnectedAccount(json: unknown, fallbackId: string): ConnectedAccount | null {
-  const item = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>
-  const nested =
-    item.item && typeof item.item === 'object' ? (item.item as Record<string, unknown>) : item
-  const id = firstTrimmedString(nested.id) || firstTrimmedString(nested.connected_account_id) || fallbackId
-  if (!id) return null
-  return {
-    id,
-    toolkit: composioAccountToolkit(nested),
-    status: composioAccountStatus(nested),
-  }
-}
-
-/** Composio /link payloads vary; this is the same account id wait() must poll. */
-export function connectedAccountIdFromLinkPayload(
-  json: unknown,
-  redirectUrl = '',
-): string | null {
-  if (json && typeof json === 'object') {
-    const row = json as Record<string, unknown>
-    const linkToken = firstTrimmedString(row.link_token)
-    const fromBody = accountIdFromRecord(row)
-    if (fromBody && fromBody !== linkToken) return fromBody
-  }
-  return accountIdFromRedirect(redirectUrl)
-}
 
 export function createComposioClient(opts: {
   apiBase: string
@@ -224,7 +130,7 @@ export function createComposioClient(opts: {
     async authorize(sessionId, toolkit, callbackUrl) {
       const json = await request(
         'POST',
-        `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}/link`,
+        `/api/v3/tool_router/session/${encodeURIComponent(sessionId)}/link`,
         { toolkit, callback_url: callbackUrl },
       )
       const row = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>
@@ -234,29 +140,12 @@ export function createComposioClient(opts: {
       if (!redirectUrl) {
         throw new ComposioHttpError('composio_authorize_missing_url', 502, json)
       }
-      return {
-        redirectUrl,
-        connectedAccountId: connectedAccountIdFromLinkPayload(json, redirectUrl),
-      }
-    },
-
-    async getAccount(accountId) {
-      const paths = [
-        `/api/v3.1/connected_accounts/${encodeURIComponent(accountId)}`,
-        `/api/v3/connected_accounts/${encodeURIComponent(accountId)}`,
-      ]
-      for (const path of paths) {
-        try {
-          const json = await request('GET', path)
-          return parseConnectedAccount(json, accountId)
-        } catch (err) {
-          if (err instanceof ComposioHttpError && (err.status === 404 || err.status === 410)) {
-            continue
-          }
-          throw err
-        }
-      }
-      return null
+      const connectedAccountId = row.connected_account_id
+        ? String(row.connected_account_id)
+        : row.connectedAccountId
+          ? String(row.connectedAccountId)
+          : null
+      return { redirectUrl, connectedAccountId }
     },
 
     async listAccounts(userId) {
@@ -316,6 +205,6 @@ export function statusFromAccount(status: string): ConnectionStatus {
   const s = status.toUpperCase()
   if (s === 'ACTIVE') return 'active'
   if (s === 'EXPIRED') return 'expired'
-  if (s === 'INITIATED' || s === 'INITIATING' || s === 'INITIALIZING') return 'initiated'
+  if (s === 'INITIATED' || s === 'INITIATING') return 'initiated'
   return 'disconnected'
 }
