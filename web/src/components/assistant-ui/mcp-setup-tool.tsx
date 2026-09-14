@@ -303,7 +303,11 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
         if (popup) popup.opener = null
 
         try {
-          const ok = await connectWork4YouApp(composio.id, url => openComposioConnectUrl(url, popup))
+          const ok = await connectWork4YouApp(
+            composio.id,
+            url => openComposioConnectUrl(url, popup),
+            () => cancelRef.current
+          )
 
           if (cancelRef.current) {
             throw CANCELLED

@@ -335,14 +335,14 @@ export function createApp(deps: AppDeps) {
         return c.json({ slug, status: 'active', connected: true })
       }
       if (Date.now() - started >= timeoutMs) {
-        // Drop authorize-time extraEnable so an abandoned OAuth does not
-        // leave this entity's session armed with another home's toolkit.
-        if (deps.tokens.getByEntityId(scoped.entityId)) {
-          await ensureSession(deps, scoped.entityId, scoped.user.sub)
-        }
+        // A slice timeout is "still pending on this connection_id", not
+        // abandon. Dropping extraEnable here made the desktop treat the first
+        // not-ACTIVE poll as Connect failure (~2s with no id, or the first
+        // 25s slice with an id). Session cleanup stays on stamp / disconnect /
+        // bootstrap from this HOME's connected_apps.
         return c.json({
           slug,
-          status: lastStatus ? statusFromAccount(lastStatus) : 'disconnected',
+          status: lastStatus ? statusFromAccount(lastStatus) : 'initiated',
           connected: false,
         })
       }

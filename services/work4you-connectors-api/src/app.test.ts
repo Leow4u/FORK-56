@@ -322,6 +322,7 @@ test('authorize allowlisted slug returns a connect link', async () => {
   assert.equal(res.status, 200)
   const body = await res.json()
   assert.equal(body.redirect_url, 'https://connect.composio.dev/hubspot')
+  assert.equal(body.connection_id, 'ca-hubspot')
   assert.equal(composio.authorized[0]?.toolkit, 'hubspot')
   assert.deepEqual(composio.lastEnable, ['hubspot'])
 })
@@ -365,6 +366,31 @@ test('wait without connection_id does not treat another home Gmail as connected'
   assert.equal(body.connected, false)
   assert.equal(composio.listCalls, 0)
   assert.equal(composio.createCalls, 0)
+})
+
+test('wait slice timeout does not drop extraEnable for a pending connection_id', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-pending', {
+    id: 'ca-pending',
+    toolkit: 'gmail',
+    status: 'INITIATED',
+  })
+  const { app } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a', 'content-type': 'application/json' },
+    body: '{}',
+  })
+  const updatesAfterBootstrap = composio.updated.length
+  const res = await app.request('/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-pending', {
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.connected, false)
+  assert.equal(body.status, 'initiated')
+  assert.equal(composio.updated.length, updatesAfterBootstrap)
+  assert.equal(composio.listCalls, 0)
 })
 
 test('disconnect disables only the stored account id for this entity', async () => {

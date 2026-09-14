@@ -41,6 +41,59 @@ export class ComposioHttpError extends Error {
 
 type FetchLike = typeof fetch
 
+const LINK_ACCOUNT_ID_KEYS = [
+  'connected_account_id',
+  'connectedAccountId',
+  'connection_id',
+  'connectionId',
+] as const
+
+function firstTrimmedString(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
+function accountIdFromRecord(row: Record<string, unknown>): string | null {
+  for (const key of LINK_ACCOUNT_ID_KEYS) {
+    const found = firstTrimmedString(row[key])
+    if (found) return found
+  }
+  const nested = row.connected_account ?? row.connectedAccount ?? row.data
+  if (nested && typeof nested === 'object') {
+    const nestedId = accountIdFromRecord(nested as Record<string, unknown>)
+    if (nestedId) return nestedId
+    const id = firstTrimmedString((nested as Record<string, unknown>).id)
+    if (id) return id
+  }
+  return null
+}
+
+function accountIdFromRedirect(redirectUrl: string): string | null {
+  try {
+    const parsed = new URL(redirectUrl)
+    for (const key of LINK_ACCOUNT_ID_KEYS) {
+      const found = firstTrimmedString(parsed.searchParams.get(key))
+      if (found) return found
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+/** Composio /link payloads vary; this is the same account id wait() must poll. */
+export function connectedAccountIdFromLinkPayload(
+  json: unknown,
+  redirectUrl = '',
+): string | null {
+  if (json && typeof json === 'object') {
+    const fromBody = accountIdFromRecord(json as Record<string, unknown>)
+    if (fromBody) return fromBody
+  }
+  return accountIdFromRedirect(redirectUrl)
+}
+
 export function createComposioClient(opts: {
   apiBase: string
   apiKey: string
@@ -141,12 +194,10 @@ export function createComposioClient(opts: {
       if (!redirectUrl) {
         throw new ComposioHttpError('composio_authorize_missing_url', 502, json)
       }
-      const connectedAccountId = row.connected_account_id
-        ? String(row.connected_account_id)
-        : row.connectedAccountId
-          ? String(row.connectedAccountId)
-          : null
-      return { redirectUrl, connectedAccountId }
+      return {
+        redirectUrl,
+        connectedAccountId: connectedAccountIdFromLinkPayload(json, redirectUrl),
+      }
     },
 
     async getAccount(accountId) {

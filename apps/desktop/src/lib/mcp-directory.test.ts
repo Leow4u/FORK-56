@@ -110,7 +110,10 @@ describe('completeComposioConnect', () => {
     const opened: string[] = []
 
     const connected = await completeComposioConnect({
-      authorize: async () => ({ redirect_url: 'https://connect.example/hubspot' }),
+      authorize: async () => ({
+        redirect_url: 'https://connect.example/hubspot',
+        connection_id: 'ca-hubspot'
+      }),
       wait: async () => ({ connected: true }),
       open: url => {
         opened.push(url)
@@ -141,22 +144,110 @@ describe('completeComposioConnect', () => {
     expect(waits).toEqual(['ca-gmail'])
   })
 
-  it('retries wait once when the first poll is still pending', async () => {
-    let waits = 0
+  it('polls wait on this id until ACTIVE; the first pending poll is not failure', async () => {
+    const waits: Array<string | null | undefined> = []
 
     const connected = await completeComposioConnect({
-      authorize: async () => ({ redirect_url: 'https://connect.example/slack' }),
-      wait: async () => {
-        waits += 1
+      authorize: async () => ({
+        redirect_url: 'https://connect.example/slack',
+        connection_id: 'ca-slack'
+      }),
+      wait: async connectionId => {
+        waits.push(connectionId)
 
-        return { connected: waits > 1 }
+        return { connected: waits.length > 2, status: waits.length > 2 ? 'active' : 'initiated' }
       },
       open: () => undefined,
       sleep: async () => undefined
     })
 
     expect(connected).toBe(true)
-    expect(waits).toBe(2)
+    expect(waits).toEqual(['ca-slack', 'ca-slack', 'ca-slack'])
+  })
+
+  it('does not call wait without a connection id', async () => {
+    const waits: Array<string | null | undefined> = []
+    const opened: string[] = []
+
+    await expect(
+      completeComposioConnect({
+        authorize: async () => ({ redirect_url: 'https://connect.example/gmail' }),
+        wait: async connectionId => {
+          waits.push(connectionId)
+
+          return { connected: true }
+        },
+        open: url => {
+          opened.push(url)
+        }
+      })
+    ).rejects.toThrow('missing_connection_id')
+
+    expect(waits).toEqual([])
+    expect(opened).toEqual([])
+  })
+
+  it('reads the account id from the redirect query when authorize omits connection_id', async () => {
+    const waits: Array<string | null | undefined> = []
+
+    const connected = await completeComposioConnect({
+      authorize: async () => ({
+        redirect_url: 'https://connect.example/gmail?connected_account_id=ca-from-url'
+      }),
+      wait: async connectionId => {
+        waits.push(connectionId)
+
+        return { connected: true }
+      },
+      open: () => undefined
+    })
+
+    expect(connected).toBe(true)
+    expect(waits).toEqual(['ca-from-url'])
+  })
+
+  it('stops polling when this connection_id is expired', async () => {
+    let waits = 0
+
+    const connected = await completeComposioConnect({
+      authorize: async () => ({
+        redirect_url: 'https://connect.example/gmail',
+        connection_id: 'ca-gmail'
+      }),
+      wait: async () => {
+        waits += 1
+
+        return { connected: false, status: 'expired' }
+      },
+      open: () => undefined,
+      sleep: async () => undefined
+    })
+
+    expect(connected).toBe(false)
+    expect(waits).toBe(1)
+  })
+
+  it('throws composio_connect_cancelled when the caller cancels after a pending poll', async () => {
+    let waits = 0
+
+    await expect(
+      completeComposioConnect({
+        authorize: async () => ({
+          redirect_url: 'https://connect.example/gmail',
+          connection_id: 'ca-gmail'
+        }),
+        wait: async () => {
+          waits += 1
+
+          return { connected: false, status: 'initiated' }
+        },
+        open: () => undefined,
+        cancelled: () => waits > 0,
+        sleep: async () => undefined
+      })
+    ).rejects.toThrow('composio_connect_cancelled')
+
+    expect(waits).toBe(1)
   })
 })
 

@@ -211,6 +211,7 @@ async function connect(known: SuggestibleServer, sessionId: string | null, cance
     if (known.source === 'composio') {
       const profile = rememberedSessionProfile($sessions.get(), sessionId, $activeGatewayProfile.get())
       const ok = await connectWork4YouApp(known.server, {
+        cancelled,
         open: url => window.work4youDesktop.openExternal(url),
         profile
       })

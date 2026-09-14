@@ -90,3 +90,56 @@ test('getSession returns null on 404', async () => {
   const session = await client.getSession('gone')
   assert.equal(session, null)
 })
+
+test('authorize reads connected account id from /link JSON shapes and redirect query', async () => {
+  const cases: Array<{ body: Record<string, unknown>; expected: string }> = [
+    {
+      body: { redirect_url: 'https://connect.composio.dev/gmail', connected_account_id: 'ca-a' },
+      expected: 'ca-a',
+    },
+    {
+      body: { redirectUrl: 'https://connect.composio.dev/gmail', connectedAccountId: 'ca-b' },
+      expected: 'ca-b',
+    },
+    {
+      body: { redirect_url: 'https://connect.composio.dev/gmail', connection_id: 'ca-c' },
+      expected: 'ca-c',
+    },
+    {
+      body: {
+        redirect_url: 'https://connect.composio.dev/gmail',
+        data: { connected_account_id: 'ca-d' },
+      },
+      expected: 'ca-d',
+    },
+    {
+      body: {
+        redirect_url: 'https://connect.composio.dev/gmail',
+        connected_account: { id: 'ca-e' },
+      },
+      expected: 'ca-e',
+    },
+    {
+      body: {
+        redirect_url: 'https://connect.composio.dev/gmail?connected_account_id=ca-f',
+      },
+      expected: 'ca-f',
+    },
+  ]
+
+  for (const row of cases) {
+    const fetchImpl: typeof fetch = async () =>
+      new Response(JSON.stringify(row.body), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    const client = createComposioClient({
+      apiBase: 'https://backend.composio.dev',
+      apiKey: 'ak_secret',
+      fetchImpl,
+    })
+    const link = await client.authorize('sess-1', 'gmail', 'https://connectors-api.work4you.ai/connected')
+    assert.equal(link.redirectUrl, String(row.body.redirect_url || row.body.redirectUrl))
+    assert.equal(link.connectedAccountId, row.expected, JSON.stringify(row.body))
+  }
+})

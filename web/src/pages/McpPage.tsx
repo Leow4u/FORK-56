@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { KeyRound, Power, Search, Trash2, X, Zap } from "lucide-react";
 import { Badge } from "@work4you/ui/ui/components/badge";
 import { Button } from "@work4you/ui/ui/components/button";
@@ -30,7 +30,7 @@ import {
   buildMcpServerCreate,
   type McpTransport,
 } from "@/lib/mcp-server-create";
-import { completeMcpDashboardOAuth } from "@/lib/mcp-dashboard-oauth";
+import { completeMcpDashboardOAuth, McpOAuthCancelled } from "@/lib/mcp-dashboard-oauth";
 import { brandFor, brandGlyphStyle } from "@/lib/mcp-brands";
 import { mcpCatalogPrimaryAction } from "@/lib/mcp-directory-filter";
 import { connectWork4YouApp, openComposioConnectUrl } from "@/lib/composio-connect";
@@ -186,6 +186,7 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
     useState<McpDirectoryFilter>("discover");
   const [sectionFilter, setSectionFilter] = useState("all");
   const [connectingSlug, setConnectingSlug] = useState<string | null>(null);
+  const composioConnectCancelRef = useRef(false);
   const closeInstallModal = useCallback(() => setInstallEntry(null), []);
   const installModalRef = useModalBehavior({
     open: installEntry !== null,
@@ -402,16 +403,23 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
   };
 
   const handleConnectComposio = async (app: DirectoryApp) => {
+    if (connectingSlug === app.id) {
+      composioConnectCancelRef.current = true;
+      return;
+    }
     if (app.needs_login) {
       showToast("Sign in to Work4You to connect this app.", "error");
       return;
     }
     const popup = window.open("about:blank", "_blank");
     if (popup) popup.opener = null;
+    composioConnectCancelRef.current = false;
     setConnectingSlug(app.id);
     try {
-      const ok = await connectWork4YouApp(app.id, (url) =>
-        openComposioConnectUrl(url, popup),
+      const ok = await connectWork4YouApp(
+        app.id,
+        (url) => openComposioConnectUrl(url, popup),
+        () => composioConnectCancelRef.current,
       );
       if (ok) {
         try {
@@ -427,6 +435,9 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
       await loadDirectory();
     } catch (e) {
       popup?.close();
+      if (e instanceof McpOAuthCancelled) {
+        return;
+      }
       showToast(`Failed to connect: ${e}`, "error");
     } finally {
       setConnectingSlug(null);
@@ -1025,7 +1036,7 @@ export default function McpPage({ embedded = false }: { embedded?: boolean }) {
                                 ? void handleDisconnectComposio(app)
                                 : void handleConnectComposio(app)
                             }
-                            disabled={busy}
+                            disabled={busy && app.connected}
                             prefix={busy ? <Spinner /> : undefined}
                           >
                             {busy

@@ -35,4 +35,19 @@ describe('connectWork4YouApp', () => {
     expect(authorizeConnector).toHaveBeenCalledWith('gmail', 'tester')
     expect(waitConnector).toHaveBeenCalledWith('gmail', 'tester', 'ca-gmail')
   })
+
+  it('maps a user cancel onto McpOAuthCancelled and does not treat pending as success', async () => {
+    const { connectWork4YouApp } = await import('./composio-connect')
+    const { McpOAuthCancelled } = await import('./mcp-dashboard-oauth')
+
+    await expect(
+      connectWork4YouApp('gmail', {
+        cancelled: () => true,
+        open: () => undefined,
+        profile: 'tester'
+      })
+    ).rejects.toBeInstanceOf(McpOAuthCancelled)
+
+    expect(waitConnector).not.toHaveBeenCalled()
+  })
 })

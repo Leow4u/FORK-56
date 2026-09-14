@@ -1300,6 +1300,9 @@ export const api = {
   waitConnector: (slug: string, connectionId?: string | null) => {
     const params = new URLSearchParams();
 
+    // Client loop owns the human wait; each /wait is one getAccount.
+    params.set("timeout_ms", "0");
+
     if (connectionId) {
       params.set("connection_id", connectionId);
     }

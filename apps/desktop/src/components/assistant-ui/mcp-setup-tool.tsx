@@ -313,6 +313,7 @@ function McpSetupPending({ args }: ToolCallMessagePartProps) {
         }
 
         const ok = await connectWork4YouApp(composio.id, {
+          cancelled: () => cancelRef.current,
           open: url => window.work4youDesktop.openExternal(url),
           profile
         })
