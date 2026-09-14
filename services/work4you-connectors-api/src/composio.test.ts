@@ -8,6 +8,7 @@ test('statusFromAccount maps Composio account states', () => {
   assert.equal(statusFromAccount('ACTIVE'), 'active')
   assert.equal(statusFromAccount('EXPIRED'), 'expired')
   assert.equal(statusFromAccount('INITIATED'), 'initiated')
+  assert.equal(statusFromAccount('INITIALIZING'), 'initiated')
   assert.equal(statusFromAccount(''), 'disconnected')
 })
 
@@ -48,7 +49,7 @@ test('createSession posts user_id, allowlist, and callback_url', async () => {
 
 test('getAccount reads one connected account by id', async () => {
   const fetchImpl: typeof fetch = async (input) => {
-    assert.equal(String(input), 'https://backend.composio.dev/api/v3/connected_accounts/ca-1')
+    assert.equal(String(input), 'https://backend.composio.dev/api/v3.1/connected_accounts/ca-1')
     return new Response(
       JSON.stringify({
         id: 'ca-1',
@@ -69,14 +70,69 @@ test('getAccount reads one connected account by id', async () => {
   assert.equal(account?.status, 'ACTIVE')
 })
 
+test('getAccount reads ACTIVE from nested state when top-level status is missing', async () => {
+  const fetchImpl: typeof fetch = async () =>
+    new Response(
+      JSON.stringify({
+        id: 'ca-1',
+        toolkit: { slug: 'gmail' },
+        state: { val: { status: 'ACTIVE' } },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  const client = createComposioClient({
+    apiBase: 'https://backend.composio.dev',
+    apiKey: 'ak_secret',
+    fetchImpl,
+  })
+  const account = await client.getAccount('ca-1')
+  assert.equal(account?.status, 'ACTIVE')
+  assert.equal(account?.toolkit, 'gmail')
+})
+
+test('getAccount falls back to v3 when v3.1 returns 404', async () => {
+  const urls: string[] = []
+  const fetchImpl: typeof fetch = async (input) => {
+    urls.push(String(input))
+    if (String(input).includes('/api/v3.1/')) {
+      return new Response('{"error":"missing"}', { status: 404 })
+    }
+    return new Response(
+      JSON.stringify({
+        id: 'ca-1',
+        status: 'ACTIVE',
+        toolkit: { slug: 'gmail' },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  }
+  const client = createComposioClient({
+    apiBase: 'https://backend.composio.dev',
+    apiKey: 'ak_secret',
+    fetchImpl,
+  })
+  const account = await client.getAccount('ca-1')
+  assert.equal(account?.id, 'ca-1')
+  assert.equal(account?.status, 'ACTIVE')
+  assert.deepEqual(urls, [
+    'https://backend.composio.dev/api/v3.1/connected_accounts/ca-1',
+    'https://backend.composio.dev/api/v3/connected_accounts/ca-1',
+  ])
+})
+
 test('getAccount returns null on 404', async () => {
-  const fetchImpl: typeof fetch = async () => new Response('{"error":"missing"}', { status: 404 })
+  let calls = 0
+  const fetchImpl: typeof fetch = async () => {
+    calls += 1
+    return new Response('{"error":"missing"}', { status: 404 })
+  }
   const client = createComposioClient({
     apiBase: 'https://backend.composio.dev',
     apiKey: 'ak_secret',
     fetchImpl,
   })
   assert.equal(await client.getAccount('gone'), null)
+  assert.equal(calls, 2)
 })
 
 test('getSession returns null on 404', async () => {
@@ -93,6 +149,14 @@ test('getSession returns null on 404', async () => {
 
 test('authorize reads connected account id from /link JSON shapes and redirect query', async () => {
   const cases: Array<{ body: Record<string, unknown>; expected: string }> = [
+    {
+      body: {
+        link_token: 'lt-gmail',
+        redirect_url: 'https://connect.composio.dev/gmail',
+        connected_account_id: 'ca_pxlY9GfmtUyl2',
+      },
+      expected: 'ca_pxlY9GfmtUyl2',
+    },
     {
       body: { redirect_url: 'https://connect.composio.dev/gmail', connected_account_id: 'ca-a' },
       expected: 'ca-a',
@@ -128,17 +192,23 @@ test('authorize reads connected account id from /link JSON shapes and redirect q
   ]
 
   for (const row of cases) {
-    const fetchImpl: typeof fetch = async () =>
-      new Response(JSON.stringify(row.body), {
-        status: 200,
+    const urls: string[] = []
+    const fetchImpl: typeof fetch = async (input) => {
+      urls.push(String(input))
+      return new Response(JSON.stringify(row.body), {
+        status: 201,
         headers: { 'content-type': 'application/json' },
       })
+    }
     const client = createComposioClient({
       apiBase: 'https://backend.composio.dev',
       apiKey: 'ak_secret',
       fetchImpl,
     })
     const link = await client.authorize('sess-1', 'gmail', 'https://connectors-api.work4you.ai/connected')
+    assert.deepEqual(urls, [
+      'https://backend.composio.dev/api/v3.1/tool_router/session/sess-1/link',
+    ])
     assert.equal(link.redirectUrl, String(row.body.redirect_url || row.body.redirectUrl))
     assert.equal(link.connectedAccountId, row.expected, JSON.stringify(row.body))
   }

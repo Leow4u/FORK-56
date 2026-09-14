@@ -82,6 +82,44 @@ function accountIdFromRedirect(redirectUrl: string): string | null {
   return null
 }
 
+function composioAccountStatus(nested: Record<string, unknown>): string {
+  const direct = firstTrimmedString(nested.status)
+  if (direct) return direct.toUpperCase()
+  const state = nested.state
+  if (!state || typeof state !== 'object') return ''
+  const rec = state as Record<string, unknown>
+  const inner = rec.val && typeof rec.val === 'object' ? (rec.val as Record<string, unknown>) : rec
+  const nestedStatus = firstTrimmedString(inner.status)
+  return nestedStatus ? nestedStatus.toUpperCase() : ''
+}
+
+function composioAccountToolkit(nested: Record<string, unknown>): string {
+  const toolkitObj =
+    nested.toolkit && typeof nested.toolkit === 'object'
+      ? (nested.toolkit as Record<string, unknown>)
+      : null
+  return (
+    firstTrimmedString(toolkitObj?.slug) ||
+    firstTrimmedString(nested.toolkit_slug) ||
+    firstTrimmedString(nested.appName) ||
+    (typeof nested.toolkit === 'string' ? firstTrimmedString(nested.toolkit) : null) ||
+    ''
+  )
+}
+
+function parseConnectedAccount(json: unknown, fallbackId: string): ConnectedAccount | null {
+  const item = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>
+  const nested =
+    item.item && typeof item.item === 'object' ? (item.item as Record<string, unknown>) : item
+  const id = firstTrimmedString(nested.id) || firstTrimmedString(nested.connected_account_id) || fallbackId
+  if (!id) return null
+  return {
+    id,
+    toolkit: composioAccountToolkit(nested),
+    status: composioAccountStatus(nested),
+  }
+}
+
 /** Composio /link payloads vary; this is the same account id wait() must poll. */
 export function connectedAccountIdFromLinkPayload(
   json: unknown,
@@ -184,7 +222,7 @@ export function createComposioClient(opts: {
     async authorize(sessionId, toolkit, callbackUrl) {
       const json = await request(
         'POST',
-        `/api/v3/tool_router/session/${encodeURIComponent(sessionId)}/link`,
+        `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}/link`,
         { toolkit, callback_url: callbackUrl },
       )
       const row = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>
@@ -201,36 +239,22 @@ export function createComposioClient(opts: {
     },
 
     async getAccount(accountId) {
-      try {
-        const json = await request(
-          'GET',
-          `/api/v3/connected_accounts/${encodeURIComponent(accountId)}`,
-        )
-        const item = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>
-        const nested =
-          item.item && typeof item.item === 'object'
-            ? (item.item as Record<string, unknown>)
-            : item
-        const toolkitObj =
-          nested.toolkit && typeof nested.toolkit === 'object'
-            ? (nested.toolkit as Record<string, unknown>)
-            : null
-        const toolkit = String(
-          toolkitObj?.slug || nested.toolkit_slug || nested.appName || '',
-        )
-        const id = String(nested.id || nested.connected_account_id || accountId)
-        if (!id) return null
-        return {
-          id,
-          toolkit,
-          status: String(nested.status || '').toUpperCase(),
+      const paths = [
+        `/api/v3.1/connected_accounts/${encodeURIComponent(accountId)}`,
+        `/api/v3/connected_accounts/${encodeURIComponent(accountId)}`,
+      ]
+      for (const path of paths) {
+        try {
+          const json = await request('GET', path)
+          return parseConnectedAccount(json, accountId)
+        } catch (err) {
+          if (err instanceof ComposioHttpError && (err.status === 404 || err.status === 410)) {
+            continue
+          }
+          throw err
         }
-      } catch (err) {
-        if (err instanceof ComposioHttpError && (err.status === 404 || err.status === 410)) {
-          return null
-        }
-        throw err
       }
+      return null
     },
 
     async listAccounts(userId) {
@@ -290,6 +314,6 @@ export function statusFromAccount(status: string): ConnectionStatus {
   const s = status.toUpperCase()
   if (s === 'ACTIVE') return 'active'
   if (s === 'EXPIRED') return 'expired'
-  if (s === 'INITIATED' || s === 'INITIATING') return 'initiated'
+  if (s === 'INITIATED' || s === 'INITIATING' || s === 'INITIALIZING') return 'initiated'
   return 'disconnected'
 }
