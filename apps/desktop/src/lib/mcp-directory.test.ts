@@ -90,6 +90,7 @@ describe('filterDirectoryApps', () => {
       [...apps, app({ id: 'my_apps', name: 'My Apps', source: 'custom', connected: true })],
       { filter: 'all', query: '', section: null }
     )
+
     expect(visible.map(row => row.id)).toEqual(['gmail', 'notion', 'my_apps'])
   })
 
