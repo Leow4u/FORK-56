@@ -269,3 +269,59 @@ test('authorize reads connected account id from /link JSON shapes and redirect q
     assert.equal(link.connectedAccountId, row.expected, JSON.stringify(row.body))
   }
 })
+
+test('getSession reads config.user_id', async () => {
+  const fetchImpl: typeof fetch = async (input) => {
+    assert.equal(
+      String(input),
+      'https://backend.composio.dev/api/v3.1/tool_router/session/sess-1',
+    )
+    return new Response(
+      JSON.stringify({
+        session_id: 'sess-1',
+        mcp: { url: 'https://mcp.composio.dev/s1' },
+        config: { user_id: 'user-a::leona' },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  }
+  const client = createComposioClient({
+    apiBase: 'https://backend.composio.dev',
+    apiKey: 'ak_secret',
+    fetchImpl,
+  })
+  const session = await client.getSession('sess-1')
+  assert.equal(session?.sessionId, 'sess-1')
+  assert.equal(session?.userId, 'user-a::leona')
+})
+
+test('listSessionToolkits reads ACTIVE connected_account for this toolkit', async () => {
+  const urls: string[] = []
+  const fetchImpl: typeof fetch = async (input) => {
+    urls.push(String(input))
+    return new Response(
+      JSON.stringify({
+        items: [
+          {
+            slug: 'gmail',
+            connected_account: { id: 'ca-oauth', status: 'ACTIVE' },
+          },
+        ],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  }
+  const client = createComposioClient({
+    apiBase: 'https://backend.composio.dev',
+    apiKey: 'ak_secret',
+    fetchImpl,
+  })
+  const accounts = await client.listSessionToolkits('sess-1', 'gmail')
+  assert.deepEqual(urls, [
+    'https://backend.composio.dev/api/v3.1/tool_router/session/sess-1/toolkits?limit=50&toolkits=gmail',
+  ])
+  assert.equal(accounts.length, 1)
+  assert.equal(accounts[0]?.id, 'ca-oauth')
+  assert.equal(accounts[0]?.toolkit, 'gmail')
+  assert.equal(accounts[0]?.status, 'ACTIVE')
+})

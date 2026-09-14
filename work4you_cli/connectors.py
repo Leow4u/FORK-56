@@ -145,6 +145,7 @@ def inject_work4you_apps(
     mcp_url: str,
     token: str,
     enabled: Optional[bool] = None,
+    session_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Upsert the hidden MCP server + env token. Does not replace ``mcp_servers``.
 
@@ -160,17 +161,22 @@ def inject_work4you_apps(
     existing = _get_mcp_servers().get(WORK4YOU_APPS_SERVER_NAME)
     existing_enabled = False
     connected_apps: List[str] = []
+    existing_session = ""
     if isinstance(existing, dict):
         existing_enabled = bool(existing.get("enabled", False))
         connected_apps = _normalize_slugs(existing.get("connected_apps"))
+        existing_session = str(existing.get("composio_session_id") or "").strip()
     if enabled is None:
         enabled = existing_enabled
-    server_config = {
+    server_config: Dict[str, Any] = {
         "url": mcp_url,
         "headers": {"Authorization": f"Bearer ${{{WORK4YOU_APPS_TOKEN_ENV}}}"},
         "enabled": bool(enabled),
         "connected_apps": connected_apps,
     }
+    sid = (session_id or "").strip() or existing_session
+    if sid:
+        server_config["composio_session_id"] = sid
     if not _save_mcp_server(WORK4YOU_APPS_SERVER_NAME, server_config):
         raise ConnectorError("work4you_apps MCP server was rejected", status=400)
     return server_config
@@ -201,6 +207,14 @@ def local_connected_slugs() -> List[str]:
     return _normalize_slugs(entry.get("connected_apps"))
 
 
+def local_composio_session_id() -> str:
+    """This HOME's Composio tool-router session id, if authorize/bootstrap saved it."""
+    entry = _get_mcp_servers().get(WORK4YOU_APPS_SERVER_NAME)
+    if not isinstance(entry, dict):
+        return ""
+    return str(entry.get("composio_session_id") or "").strip()
+
+
 def _slug_keys(slugs: Iterable[str]) -> set[str]:
     return {str(slug).strip().lower() for slug in slugs if str(slug).strip()}
 
@@ -209,6 +223,7 @@ def _write_work4you_apps_state(
     *,
     connected_apps: Optional[List[str]] = None,
     enabled: Optional[bool] = None,
+    session_id: Optional[str] = None,
 ) -> None:
     current = _get_mcp_servers().get(WORK4YOU_APPS_SERVER_NAME)
     if not isinstance(current, dict):
@@ -218,6 +233,12 @@ def _write_work4you_apps_state(
         updated["connected_apps"] = _normalize_slugs(connected_apps)
     if enabled is not None:
         updated["enabled"] = bool(enabled)
+    if session_id is not None:
+        sid = str(session_id).strip()
+        if sid:
+            updated["composio_session_id"] = sid
+        else:
+            updated.pop("composio_session_id", None)
     if updated == current:
         return
     _save_mcp_server(WORK4YOU_APPS_SERVER_NAME, updated)
@@ -249,7 +270,12 @@ def bootstrap_work4you_apps(*, timeout: float = 30.0) -> Dict[str, Any]:
         enabled = bool(existing.get("enabled", False))
     else:
         enabled = False
-    inject_work4you_apps(mcp_url=mcp_url, token=mcp_token, enabled=enabled)
+    inject_work4you_apps(
+        mcp_url=mcp_url,
+        token=mcp_token,
+        enabled=enabled,
+        session_id=str(payload.get("session_id") or "") if isinstance(payload, dict) else None,
+    )
     return {
         "ok": True,
         "mcp": {
@@ -414,12 +440,17 @@ def authorize_app(slug: str, *, callback_url: Optional[str] = None) -> Dict[str,
     body: Dict[str, Any] = {}
     if callback_url:
         body["callback_url"] = callback_url
-    return broker_request(
+    result = broker_request(
         "POST",
         f"/v1/apps/{slug}/authorize",
         token=token,
         json=body or {},
     )
+    if isinstance(result, dict):
+        sid = str(result.get("session_id") or "").strip()
+        if sid:
+            _write_work4you_apps_state(session_id=sid)
+    return result
 
 
 def wait_app(
@@ -436,6 +467,9 @@ def wait_app(
     conn = (connection_id or "").strip()
     if conn:
         params["connection_id"] = conn
+    session_id = local_composio_session_id()
+    if session_id:
+        params["session_id"] = session_id
     result = broker_request(
         "GET",
         f"/v1/apps/{slug}/wait",

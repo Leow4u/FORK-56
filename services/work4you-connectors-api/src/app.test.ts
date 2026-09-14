@@ -39,9 +39,13 @@ class FakeComposio implements ComposioPort {
   updated: Array<{ sessionId: string; slugs: string[] }> = []
   authorized: Array<{ sessionId: string; toolkit: string; callbackUrl: string }> = []
   disabled: string[] = []
+  pinned: Array<{ sessionId: string; toolkit: string; accountId: string }> = []
+  toolkitAccounts = new Map<string, ConnectedAccount[]>()
   createCalls = 0
   listCalls = 0
+  toolkitCalls = 0
   listUserIds: string[] = []
+  toolkitSessionIds: string[] = []
 
   async createSession(
     userId: string,
@@ -54,6 +58,7 @@ class FakeComposio implements ComposioPort {
     const session: ComposioSession = {
       sessionId: `sess-${userId}`,
       mcpUrl: `https://mcp.composio.dev/${userId}`,
+      userId,
     }
     this.sessions.set(session.sessionId, session)
     return session
@@ -66,6 +71,19 @@ class FakeComposio implements ComposioPort {
   async updateSessionToolkits(sessionId: string, slugs: string[]): Promise<void> {
     this.lastEnable = [...slugs]
     this.updated.push({ sessionId, slugs: [...slugs] })
+  }
+
+  async listSessionToolkits(sessionId: string, toolkit?: string): Promise<ConnectedAccount[]> {
+    this.toolkitCalls += 1
+    this.toolkitSessionIds.push(sessionId)
+    const rows = this.toolkitAccounts.get(sessionId) ?? []
+    const requested = (toolkit ?? '').trim().toLowerCase()
+    if (!requested) return rows
+    return rows.filter((row) => row.toolkit.trim().toLowerCase() === requested)
+  }
+
+  async pinSessionAccount(sessionId: string, toolkit: string, accountId: string): Promise<void> {
+    this.pinned.push({ sessionId, toolkit, accountId })
   }
 
   async authorize(sessionId: string, toolkit: string, callbackUrl: string) {
@@ -267,6 +285,7 @@ test('listing apps paints connected from stored slugs, not listAccounts', async 
     body: JSON.stringify({ connected_apps: ['gmail'] }),
   })
   composio.listCalls = 0
+  composio.toolkitCalls = 0
   const res = await app.request('/v1/apps', {
     headers: { authorization: 'Bearer jwt_a' },
   })
@@ -277,6 +296,7 @@ test('listing apps paints connected from stored slugs, not listAccounts', async 
   assert.equal(gmail.connected, true)
   assert.equal(hubspot.connected, false)
   assert.equal(composio.listCalls, 0)
+  assert.equal(composio.toolkitCalls, 0)
 })
 
 test('listing apps does not create a session or read listAccounts', async () => {
@@ -294,6 +314,7 @@ test('listing apps does not create a session or read listAccounts', async () => 
   assert.equal(gmail.connected, false)
   assert.equal(composio.createCalls, 0)
   assert.equal(composio.listCalls, 0)
+  assert.equal(composio.toolkitCalls, 0)
 })
 
 test('authorize unknown or blocked slug is 404', async () => {
@@ -325,6 +346,7 @@ test('authorize allowlisted slug returns a connect link', async () => {
   const body = await res.json()
   assert.equal(body.redirect_url, 'https://connect.composio.dev/hubspot')
   assert.equal(body.connection_id, 'ca-hubspot')
+  assert.equal(body.session_id, 'sess-user-a::default')
   assert.equal(composio.authorized[0]?.toolkit, 'hubspot')
   assert.equal(composio.authorized[0]?.callbackUrl, 'https://connectors-api.work4you.ai/connected')
   assert.deepEqual(composio.lastEnable, ['hubspot'])
@@ -427,6 +449,7 @@ test('wait without connection_id does not treat another home Gmail as connected'
   assert.equal(body.connected, false)
   assert.equal(composio.listCalls, 0)
   assert.equal(composio.createCalls, 0)
+  assert.equal(composio.toolkitCalls, 0)
 })
 
 test('wait slice timeout does not drop extraEnable for a pending connection_id', async () => {
@@ -881,6 +904,155 @@ test('wait does not stamp THIS home from another Portal user listAccounts while 
   assert.equal(body.connected, false)
   assert.equal(body.status, 'initiated')
   assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, undefined)
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
+})
+
+test('wait stamps THIS home from THIS session.toolkits while /link id is still INITIATED', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-gmail', {
+    id: 'ca-gmail',
+    toolkit: 'gmail',
+    status: 'INITIATED',
+  })
+  composio.toolkitAccounts.set('sess-user-a::leona', [
+    { id: 'ca-oauth', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  composio.toolkitAccounts.set('sess-user-a::default', [
+    { id: 'ca-default', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  const { app, tokens } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'content-type': 'application/json',
+      'x-work4you-profile': 'leona',
+    },
+    body: '{}',
+  })
+  const wait = await app.request('/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-gmail', {
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'x-work4you-profile': 'leona',
+    },
+  })
+  assert.equal(wait.status, 200)
+  const body = await wait.json()
+  assert.equal(body.connected, true)
+  assert.equal(body.status, 'active')
+  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, 'ca-oauth')
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
+  assert.deepEqual(composio.toolkitSessionIds, ['sess-user-a::leona'])
+  assert.equal(composio.pinned[0]?.accountId, 'ca-oauth')
+})
+
+test('wait does not stamp leona from default profile session.toolkits', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-gmail', {
+    id: 'ca-gmail',
+    toolkit: 'gmail',
+    status: 'INITIATED',
+  })
+  composio.toolkitAccounts.set('sess-user-a::default', [
+    { id: 'ca-default', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  const { app, tokens } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'content-type': 'application/json',
+      'x-work4you-profile': 'leona',
+    },
+    body: '{}',
+  })
+  const wait = await app.request(
+    '/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-gmail&session_id=sess-user-a%3A%3Adefault',
+    {
+      headers: {
+        authorization: 'Bearer jwt_a',
+        'x-work4you-profile': 'leona',
+      },
+    },
+  )
+  assert.equal(wait.status, 200)
+  const body = await wait.json()
+  assert.equal(body.connected, false)
+  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, undefined)
+  assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
+  assert.equal(composio.toolkitSessionIds.includes('sess-user-a::default'), false)
+})
+
+test('wait does not stamp THIS home from another Portal user session.toolkits', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-gmail', {
+    id: 'ca-gmail',
+    toolkit: 'gmail',
+    status: 'INITIATED',
+  })
+  composio.sessions.set('sess-user-b::default', {
+    sessionId: 'sess-user-b::default',
+    mcpUrl: 'https://mcp.composio.dev/user-b::default',
+    userId: 'user-b::default',
+  })
+  composio.toolkitAccounts.set('sess-user-b::default', [
+    { id: 'ca-other-portal', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  const { app, tokens } = harness({ composio })
+  await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'content-type': 'application/json',
+      'x-work4you-profile': 'leona',
+    },
+    body: '{}',
+  })
+  const wait = await app.request(
+    '/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-gmail&session_id=sess-user-b%3A%3Adefault',
+    {
+      headers: {
+        authorization: 'Bearer jwt_a',
+        'x-work4you-profile': 'leona',
+      },
+    },
+  )
+  assert.equal(wait.status, 200)
+  const body = await wait.json()
+  assert.equal(body.connected, false)
+  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, undefined)
+  assert.equal(composio.toolkitSessionIds.includes('sess-user-b::default'), false)
+})
+
+test('wait without a local token stamps from query session_id only when user_id is THIS entity', async () => {
+  const composio = new FakeComposio()
+  composio.accountsById.set('ca-gmail', {
+    id: 'ca-gmail',
+    toolkit: 'gmail',
+    status: 'INITIATED',
+  })
+  composio.sessions.set('sess-user-a::leona', {
+    sessionId: 'sess-user-a::leona',
+    mcpUrl: 'https://mcp.composio.dev/user-a::leona',
+    userId: 'user-a::leona',
+  })
+  composio.toolkitAccounts.set('sess-user-a::leona', [
+    { id: 'ca-oauth', toolkit: 'gmail', status: 'ACTIVE' },
+  ])
+  const { app, tokens } = harness({ composio })
+  const wait = await app.request(
+    '/v1/apps/gmail/wait?timeout_ms=0&connection_id=ca-gmail&session_id=sess-user-a%3A%3Aleona',
+    {
+      headers: {
+        authorization: 'Bearer jwt_a',
+        'x-work4you-profile': 'leona',
+      },
+    },
+  )
+  assert.equal(wait.status, 200)
+  const body = await wait.json()
+  assert.equal(body.connected, true)
+  assert.equal(tokens.getByEntityId('user-a::leona')?.accountIds.gmail, 'ca-oauth')
   assert.equal(tokens.getByEntityId('user-a::default')?.accountIds.gmail, undefined)
 })
 

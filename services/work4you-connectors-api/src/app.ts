@@ -140,6 +140,49 @@ function mapApp(
   }
 }
 
+async function thisHomeSessionId(
+  deps: AppDeps,
+  entityId: string,
+  requestedSessionId: string,
+): Promise<string> {
+  // This HOME's token wins. A query session_id is only used when this
+  // machine has no record, and only if Composio says user_id === entityId.
+  const record = deps.tokens.getByEntityId(entityId)
+  if (record?.sessionId) return record.sessionId
+  const requested = requestedSessionId.trim()
+  if (!requested) return ''
+  const session = await deps.composio.getSession(requested)
+  if (session?.userId === entityId) return requested
+  return ''
+}
+
+async function stampThisHome(
+  deps: AppDeps,
+  entityId: string,
+  sub: string,
+  slug: string,
+  accountId: string,
+  sessionId?: string,
+): Promise<void> {
+  if (!deps.tokens.getByEntityId(entityId) && sessionId) {
+    const session = await deps.composio.getSession(sessionId)
+    if (session?.userId === entityId) {
+      deps.tokens.issue(entityId, session.sessionId, session.mcpUrl, sub)
+    }
+  }
+  await ensureSession(deps, entityId, sub)
+  deps.tokens.stampApp(entityId, slug, accountId)
+  await ensureSession(deps, entityId, sub)
+  const record = deps.tokens.getByEntityId(entityId)
+  if (record?.sessionId) {
+    try {
+      await deps.composio.pinSessionAccount(record.sessionId, slug, accountId)
+    } catch (err) {
+      console.error('[work4you-connectors-api] pin session account failed', err)
+    }
+  }
+}
+
 async function ensureSession(
   deps: AppDeps,
   entityId: string,
@@ -193,9 +236,7 @@ async function stampFromConnectedQuery(
   const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
   if (account?.status !== 'ACTIVE') return
   if (toolkit && toolkit !== requested) return
-  await ensureSession(deps, entityId, record.sub)
-  deps.tokens.stampApp(entityId, slug, account.id)
-  await ensureSession(deps, entityId, record.sub)
+  await stampThisHome(deps, entityId, record.sub, slug, account.id, record.sessionId)
 }
 
 function requireComposio(c: Context, deps: AppDeps) {
@@ -328,6 +369,7 @@ export function createApp(deps: AppDeps) {
       },
       user_id: scoped.user.sub,
       entity_id: scoped.entityId,
+      session_id: session.sessionId,
       connected: session.connected,
     })
   })
@@ -381,6 +423,7 @@ export function createApp(deps: AppDeps) {
       slug,
       redirect_url: link.redirectUrl,
       connection_id: link.connectedAccountId,
+      session_id: session.sessionId,
     })
   })
 
@@ -409,27 +452,48 @@ export function createApp(deps: AppDeps) {
     const started = Date.now()
     let lastStatus: string | undefined
     for (;;) {
-      // Original Connect detector (#175): listAccounts(Portal sub) after
-      // browser OAuth. Also list this entity (#251). Directory stays on stored slugs.
+      // Official detector (docs.composio.dev/docs/authentication/manually-authenticating):
+      // session.toolkits() → connected_account.status === ACTIVE. Isolated to
+      // THIS HOME's session (token session_id, or query session_id whose
+      // user_id === this entity). Never another profile's session.
+      const sessionId = await thisHomeSessionId(
+        deps,
+        scoped.entityId,
+        c.req.query('session_id') ?? '',
+      )
+      if (sessionId) {
+        const toolkits = await deps.composio.listSessionToolkits(sessionId, slug)
+        const listedToolkit = pickAccount(toolkits, slug)
+        if (listedToolkit?.status === 'ACTIVE') {
+          await stampThisHome(
+            deps,
+            scoped.entityId,
+            scoped.user.sub,
+            slug,
+            listedToolkit.id,
+            sessionId,
+          )
+          return c.json({ slug, status: 'active', connected: true })
+        }
+      }
+      // Official wait_for_connection: retrieve(/link connected_account_id).
+      const account = await deps.composio.getAccount(connectionId)
+      lastStatus = account?.status
+      const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
+      if (account?.status === 'ACTIVE' && (!toolkit || toolkit === requested)) {
+        await stampThisHome(deps, scoped.entityId, scoped.user.sub, slug, account.id)
+        return c.json({ slug, status: 'active', connected: true })
+      }
+      // Original Connect listed this entity (and Portal sub). Other profile
+      // entity ids are not listed — directory and wait-without-id stay on
+      // this HOME's stored slugs.
       const accounts = await listedAccountsForConnect(deps, scoped)
       const listed = pickAccount(accounts, slug)
       if (listed?.status === 'ACTIVE') {
-        await ensureSession(deps, scoped.entityId, scoped.user.sub)
-        deps.tokens.stampApp(scoped.entityId, slug, listed.id)
-        await ensureSession(deps, scoped.entityId, scoped.user.sub)
+        await stampThisHome(deps, scoped.entityId, scoped.user.sub, slug, listed.id)
         return c.json({ slug, status: 'active', connected: true })
       }
-      const account = await deps.composio.getAccount(connectionId)
       lastStatus = account?.status ?? listed?.status
-      const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
-      // /link's id can stay INITIATED while OAuth minted a different ca_.
-      // When that id itself is ACTIVE for this slug, stamp it too.
-      if (account?.status === 'ACTIVE' && (!toolkit || toolkit === requested)) {
-        await ensureSession(deps, scoped.entityId, scoped.user.sub)
-        deps.tokens.stampApp(scoped.entityId, slug, account.id)
-        await ensureSession(deps, scoped.entityId, scoped.user.sub)
-        return c.json({ slug, status: 'active', connected: true })
-      }
       if (Date.now() - started >= timeoutMs) {
         // A slice timeout is "still pending", not abandon. Session cleanup
         // stays on stamp / disconnect / bootstrap from this HOME's

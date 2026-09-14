@@ -3,6 +3,8 @@ export type ConnectionStatus = 'disconnected' | 'initiated' | 'active' | 'expire
 export type ComposioSession = {
   sessionId: string
   mcpUrl: string
+  /** Tool-router `config.user_id`. Wait uses this to refuse another HOME's session. */
+  userId?: string
 }
 
 export type ConnectedAccount = {
@@ -19,6 +21,9 @@ export interface ComposioPort {
   ): Promise<ComposioSession>
   getSession(sessionId: string): Promise<ComposioSession | null>
   updateSessionToolkits(sessionId: string, slugs: string[]): Promise<void>
+  /** Official Connect status: GET .../session/{id}/toolkits (session.toolkits()). */
+  listSessionToolkits(sessionId: string, toolkit?: string): Promise<ConnectedAccount[]>
+  pinSessionAccount(sessionId: string, toolkit: string, accountId: string): Promise<void>
   authorize(
     sessionId: string,
     toolkit: string,
@@ -120,6 +125,32 @@ function parseConnectedAccount(json: unknown, fallbackId: string): ConnectedAcco
   }
 }
 
+/** session.toolkits() item: connected when connected_account.status === 'ACTIVE'. */
+function parseSessionToolkitAccount(item: unknown, fallbackToolkit: string): ConnectedAccount | null {
+  if (!item || typeof item !== 'object') return null
+  const rec = item as Record<string, unknown>
+  const connection = rec.connection && typeof rec.connection === 'object'
+    ? (rec.connection as Record<string, unknown>)
+    : rec
+  const nestedRaw = rec.connected_account ?? rec.connectedAccount
+    ?? connection.connected_account ?? connection.connectedAccount ?? connection
+  const nested =
+    nestedRaw && typeof nestedRaw === 'object' ? (nestedRaw as Record<string, unknown>) : null
+  if (!nested) return null
+  const id = firstTrimmedString(nested.id) || firstTrimmedString(nested.connected_account_id)
+  if (!id) return null
+  const slug =
+    firstTrimmedString(rec.slug) ||
+    composioAccountToolkit(rec) ||
+    composioAccountToolkit(nested) ||
+    fallbackToolkit
+  return {
+    id,
+    toolkit: slug,
+    status: composioAccountStatus(nested),
+  }
+}
+
 /** Composio /link payloads vary; this is the same account id wait() must poll. */
 export function connectedAccountIdFromLinkPayload(
   json: unknown,
@@ -178,7 +209,10 @@ export function createComposioClient(opts: {
     if (!sessionId || !mcpUrl) {
       throw new ComposioHttpError('composio_session_malformed', 502, json)
     }
-    return { sessionId, mcpUrl }
+    const config =
+      row.config && typeof row.config === 'object' ? (row.config as Record<string, unknown>) : {}
+    const userId = firstTrimmedString(config.user_id) || firstTrimmedString(row.user_id) || undefined
+    return { sessionId, mcpUrl, userId }
   }
 
   return {
@@ -218,6 +252,40 @@ export function createComposioClient(opts: {
         'PATCH',
         `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}`,
         { toolkits: { enable: slugs } },
+      )
+    },
+
+    async listSessionToolkits(sessionId, toolkit) {
+      const params = new URLSearchParams()
+      params.set('limit', '50')
+      const slug = (toolkit ?? '').trim()
+      if (slug) params.set('toolkits', slug)
+      try {
+        const json = await request(
+          'GET',
+          `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}/toolkits?${params.toString()}`,
+        )
+        const row = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>
+        const items = Array.isArray(row.items) ? row.items : []
+        return items
+          .map((item) => parseSessionToolkitAccount(item, slug))
+          .filter((item): item is ConnectedAccount => !!item && !!item.id)
+      } catch (err) {
+        if (err instanceof ComposioHttpError && (err.status === 404 || err.status === 410)) {
+          return []
+        }
+        throw err
+      }
+    },
+
+    async pinSessionAccount(sessionId, toolkit, accountId) {
+      const slug = toolkit.trim()
+      const id = accountId.trim()
+      if (!slug || !id) return
+      await request(
+        'PATCH',
+        `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}`,
+        { connected_accounts: { [slug]: [id] } },
       )
     },
 

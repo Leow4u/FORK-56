@@ -8,6 +8,7 @@ from work4you_cli.connectors import (
     WORK4YOU_APPS_SERVER_NAME,
     WORK4YOU_APPS_TOKEN_ENV,
     ConnectorError,
+    authorize_app,
     bootstrap_work4you_apps,
     disconnect_app,
     inject_work4you_apps,
@@ -217,6 +218,7 @@ class TestInjectAndBootstrap:
         )
         entry = dict(_get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME])
         entry["connected_apps"] = ["gmail"]
+        entry["composio_session_id"] = "sess-this-home"
         _save_mcp_server(WORK4YOU_APPS_SERVER_NAME, entry)
         inject_work4you_apps(
             mcp_url="https://connectors-api.work4you.ai/mcp",
@@ -226,6 +228,7 @@ class TestInjectAndBootstrap:
         apps = _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]
         assert apps["connected_apps"] == ["gmail"]
         assert apps["enabled"] is True
+        assert apps["composio_session_id"] == "sess-this-home"
 
     def test_bootstrap_enables_hidden_server_when_home_has_connected_apps(
         self, _isolate_work4you_home, monkeypatch
@@ -386,6 +389,77 @@ class TestInjectAndBootstrap:
         apps = _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]
         assert apps["enabled"] is False
         assert "gmail" not in (apps.get("connected_apps") or [])
+
+    def test_wait_sends_this_home_session_id(self, _isolate_work4you_home, monkeypatch):
+        import work4you_cli.connectors as connectors
+
+        inject_work4you_apps(
+            mcp_url="https://connectors-api.work4you.ai/mcp",
+            token="w4y-c-wait-session",
+            enabled=False,
+            session_id="sess-this-home",
+        )
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(method, path, **kwargs):
+            assert path == "/v1/apps/gmail/wait"
+            assert kwargs.get("params", {}).get("connection_id") == "ca-gmail"
+            assert kwargs.get("params", {}).get("session_id") == "sess-this-home"
+            return {"slug": "gmail", "status": "initiated", "connected": False}
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        result = wait_app("gmail", timeout_ms=0, connection_id="ca-gmail")
+        assert result["connected"] is False
+
+    def test_wait_does_not_send_session_id_when_this_home_has_none(
+        self, _isolate_work4you_home, monkeypatch
+    ):
+        import work4you_cli.connectors as connectors
+
+        inject_work4you_apps(
+            mcp_url="https://connectors-api.work4you.ai/mcp",
+            token="w4y-c-wait-no-session",
+            enabled=False,
+        )
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(method, path, **kwargs):
+            assert path == "/v1/apps/gmail/wait"
+            assert "session_id" not in (kwargs.get("params") or {})
+            return {"slug": "gmail", "status": "initiated", "connected": False}
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        result = wait_app("gmail", timeout_ms=0, connection_id="ca-gmail")
+        assert result["connected"] is False
+
+    def test_authorize_persists_this_home_session_id(self, _isolate_work4you_home, monkeypatch):
+        import work4you_cli.connectors as connectors
+
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+
+        def fake_broker(method, path, **kwargs):
+            if path == "/v1/bootstrap":
+                return {
+                    "mcp": {
+                        "url": "https://connectors-api.work4you.ai/mcp",
+                        "token": "w4y-c-auth",
+                    },
+                    "session_id": "sess-from-bootstrap",
+                }
+            if path == "/v1/apps/gmail/authorize":
+                return {
+                    "slug": "gmail",
+                    "redirect_url": "https://connect.composio.dev/gmail",
+                    "connection_id": "ca-gmail",
+                    "session_id": "sess-this-home",
+                }
+            raise AssertionError(path)
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        result = authorize_app("gmail")
+        assert result["connection_id"] == "ca-gmail"
+        apps = _get_mcp_servers()[WORK4YOU_APPS_SERVER_NAME]
+        assert apps["composio_session_id"] == "sess-this-home"
 
     def test_disconnect_last_app_disables_hidden_server(
         self, _isolate_work4you_home, monkeypatch
