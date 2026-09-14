@@ -356,7 +356,7 @@ describe("McpPage directory", () => {
     expect(apiMocks.installMcpCatalogEntry).not.toHaveBeenCalled();
     expect(apiMocks.bootstrapConnectors).toHaveBeenCalled();
     expect(apiMocks.authorizeConnector).toHaveBeenCalledWith("gmail");
-    expect(apiMocks.waitConnector).toHaveBeenCalledWith("gmail");
+    expect(apiMocks.waitConnector).toHaveBeenCalledWith("gmail", undefined);
     expect(window.open).toHaveBeenCalled();
   });
 

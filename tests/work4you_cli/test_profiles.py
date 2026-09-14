@@ -44,6 +44,7 @@ from work4you_cli.profiles import (
     NO_BUNDLED_SKILLS_MARKER,
     backfill_profile_envs,
     profiles_to_serve,
+    strip_work4you_apps_home_state,
     strip_work4you_apps_mcp_token,
 )
 from work4you_cli.config import DEFAULT_CONFIG
@@ -140,7 +141,14 @@ class TestCreateProfile:
         tmp_path = profile_env
         default_home = tmp_path / ".work4you"
         # Create source config files in default profile
-        (default_home / "config.yaml").write_text("model: test")
+        (default_home / "config.yaml").write_text(
+            "model: test\n"
+            "mcp_servers:\n"
+            "  work4you_apps:\n"
+            "    url: https://connectors-api.work4you.ai/mcp\n"
+            "    enabled: true\n"
+            "    connected_apps: [gmail]\n"
+        )
         (default_home / ".env").write_text(
             "KEY=val\nWORK4YOU_APPS_MCP_TOKEN=w4y-c-source-token\n"
         )
@@ -151,6 +159,9 @@ class TestCreateProfile:
         cloned_config = yaml.safe_load((profile_dir / "config.yaml").read_text())
         assert cloned_config["_config_version"] == DEFAULT_CONFIG["_config_version"]
         assert cloned_config["model"] == "test"
+        apps = (cloned_config.get("mcp_servers") or {}).get("work4you_apps") or {}
+        assert not apps.get("connected_apps")
+        assert not apps.get("enabled")
         cloned_env = (profile_dir / ".env").read_text()
         assert "KEY=val" in cloned_env
         assert "WORK4YOU_APPS_MCP_TOKEN" not in cloned_env
@@ -1061,6 +1072,26 @@ class TestEdgeCases:
         assert "BAR=2" in text
         assert "WORK4YOU_APPS_MCP_TOKEN" not in text
         assert strip_work4you_apps_mcp_token(env_path) is False
+
+    def test_strip_apps_home_state_clears_connected_apps(self, tmp_path):
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(
+            "mcp_servers:\n"
+            "  work4you_apps:\n"
+            "    url: https://connectors-api.work4you.ai/mcp\n"
+            "    enabled: true\n"
+            "    connected_apps: [gmail, hubspot]\n"
+            "  notion:\n"
+            "    url: https://mcp.notion.com/mcp\n"
+            "    enabled: true\n"
+        )
+        assert strip_work4you_apps_home_state(config_path) is True
+        data = yaml.safe_load(config_path.read_text())
+        apps = data["mcp_servers"]["work4you_apps"]
+        assert apps["connected_apps"] == []
+        assert apps["enabled"] is False
+        assert data["mcp_servers"]["notion"]["enabled"] is True
+        assert strip_work4you_apps_home_state(config_path) is False
 
 
 class TestProfilesToServe:

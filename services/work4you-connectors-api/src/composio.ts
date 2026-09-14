@@ -24,6 +24,7 @@ export interface ComposioPort {
     toolkit: string,
     callbackUrl: string,
   ): Promise<{ redirectUrl: string; connectedAccountId: string | null }>
+  getAccount(accountId: string): Promise<ConnectedAccount | null>
   listAccounts(userId: string): Promise<ConnectedAccount[]>
   disableAccount(accountId: string): Promise<void>
 }
@@ -146,6 +147,39 @@ export function createComposioClient(opts: {
           ? String(row.connectedAccountId)
           : null
       return { redirectUrl, connectedAccountId }
+    },
+
+    async getAccount(accountId) {
+      try {
+        const json = await request(
+          'GET',
+          `/api/v3/connected_accounts/${encodeURIComponent(accountId)}`,
+        )
+        const item = (json && typeof json === 'object' ? json : {}) as Record<string, unknown>
+        const nested =
+          item.item && typeof item.item === 'object'
+            ? (item.item as Record<string, unknown>)
+            : item
+        const toolkitObj =
+          nested.toolkit && typeof nested.toolkit === 'object'
+            ? (nested.toolkit as Record<string, unknown>)
+            : null
+        const toolkit = String(
+          toolkitObj?.slug || nested.toolkit_slug || nested.appName || '',
+        )
+        const id = String(nested.id || nested.connected_account_id || accountId)
+        if (!id) return null
+        return {
+          id,
+          toolkit,
+          status: String(nested.status || '').toUpperCase(),
+        }
+      } catch (err) {
+        if (err instanceof ComposioHttpError && (err.status === 404 || err.status === 410)) {
+          return null
+        }
+        throw err
+      }
     },
 
     async listAccounts(userId) {

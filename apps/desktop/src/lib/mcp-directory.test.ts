@@ -121,6 +121,26 @@ describe('completeComposioConnect', () => {
     expect(opened).toEqual(['https://connect.example/hubspot'])
   })
 
+  it('passes authorize connection_id into wait', async () => {
+    const waits: Array<string | null | undefined> = []
+
+    const connected = await completeComposioConnect({
+      authorize: async () => ({
+        redirect_url: 'https://connect.example/gmail',
+        connection_id: 'ca-gmail'
+      }),
+      wait: async connectionId => {
+        waits.push(connectionId)
+
+        return { connected: true }
+      },
+      open: () => undefined
+    })
+
+    expect(connected).toBe(true)
+    expect(waits).toEqual(['ca-gmail'])
+  })
+
   it('retries wait once when the first poll is still pending', async () => {
     let waits = 0
 

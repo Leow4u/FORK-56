@@ -9,6 +9,10 @@ Directory merge: native ``optional-mcps/`` catalog + Composio allowlist, one
 grid, native name wins on collision. ``work4you_apps`` is hidden from the
 directory (it may still appear in the raw MCP JSON editor).
 
+``connected`` for a Composio row is this HOME's ``mcp_servers.work4you_apps.connected_apps``,
+the same shape as a native MCP install in ``mcp.json``. The Fly broker is OAuth +
+execute for ``{sub}::{profile}``; it is not the install list.
+
 Broker isolation is ``{Portal sub}::{profile}``. ``broker_request`` sends
 ``X-Work4You-Profile`` from the scoped home, never the sticky
 ``active_profile`` file.
@@ -155,57 +159,67 @@ def inject_work4you_apps(
     save_env_value(WORK4YOU_APPS_TOKEN_ENV, token)
     existing = _get_mcp_servers().get(WORK4YOU_APPS_SERVER_NAME)
     existing_enabled = False
+    connected_apps: List[str] = []
     if isinstance(existing, dict):
         existing_enabled = bool(existing.get("enabled", False))
+        connected_apps = _normalize_slugs(existing.get("connected_apps"))
     if enabled is None:
         enabled = existing_enabled
     server_config = {
         "url": mcp_url,
         "headers": {"Authorization": f"Bearer ${{{WORK4YOU_APPS_TOKEN_ENV}}}"},
         "enabled": bool(enabled),
+        "connected_apps": connected_apps,
     }
     if not _save_mcp_server(WORK4YOU_APPS_SERVER_NAME, server_config):
         raise ConnectorError("work4you_apps MCP server was rejected", status=400)
     return server_config
 
 
-def _connected_slugs(payload: Any) -> List[str]:
-    if not isinstance(payload, dict):
-        return []
-    connected = payload.get("connected")
-    if isinstance(connected, list):
-        return [str(item).strip() for item in connected if str(item).strip()]
-    apps = payload.get("apps")
-    if not isinstance(apps, list):
+def _normalize_slugs(raw: Any) -> List[str]:
+    if not isinstance(raw, list):
         return []
     slugs: List[str] = []
-    for app in apps:
-        if not isinstance(app, Mapping):
+    seen: set[str] = set()
+    for item in raw:
+        slug = str(item).strip()
+        if not slug:
             continue
-        status = str(app.get("status") or "").lower()
-        if app.get("connected") or status == "active":
-            slug = str(app.get("slug") or "").strip()
-            if slug:
-                slugs.append(slug)
+        key = slug.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        slugs.append(slug)
     return slugs
 
 
-def _composio_has_connected_apps(token: str) -> bool:
-    try:
-        payload = broker_request("GET", "/v1/apps", token=token, timeout=8.0)
-    except ConnectorError:
-        return False
-    return bool(_connected_slugs(payload))
+def local_connected_slugs() -> List[str]:
+    """Composio slugs installed in this HOME — native MCP's ``is_installed``."""
+    entry = _get_mcp_servers().get(WORK4YOU_APPS_SERVER_NAME)
+    if not isinstance(entry, dict):
+        return []
+    return _normalize_slugs(entry.get("connected_apps"))
 
 
-def _set_work4you_apps_enabled(enabled: bool) -> None:
+def _slug_keys(slugs: Iterable[str]) -> set[str]:
+    return {str(slug).strip().lower() for slug in slugs if str(slug).strip()}
+
+
+def _write_work4you_apps_state(
+    *,
+    connected_apps: Optional[List[str]] = None,
+    enabled: Optional[bool] = None,
+) -> None:
     current = _get_mcp_servers().get(WORK4YOU_APPS_SERVER_NAME)
     if not isinstance(current, dict):
         return
-    if bool(current.get("enabled", False)) == bool(enabled):
-        return
     updated = dict(current)
-    updated["enabled"] = bool(enabled)
+    if connected_apps is not None:
+        updated["connected_apps"] = _normalize_slugs(connected_apps)
+    if enabled is not None:
+        updated["enabled"] = bool(enabled)
+    if updated == current:
+        return
     _save_mcp_server(WORK4YOU_APPS_SERVER_NAME, updated)
 
 
@@ -214,15 +228,22 @@ def bootstrap_work4you_apps(*, timeout: float = 30.0) -> Dict[str, Any]:
     token = resolve_portal_token()
     if not token:
         raise ConnectorError("portal_login_required", status=401)
-    payload = broker_request("POST", "/v1/bootstrap", token=token, timeout=timeout)
+    local_slugs = local_connected_slugs()
+    payload = broker_request(
+        "POST",
+        "/v1/bootstrap",
+        token=token,
+        json={"connected_apps": local_slugs},
+        timeout=timeout,
+    )
     mcp = payload.get("mcp") if isinstance(payload, dict) else None
     if not isinstance(mcp, dict):
         raise ConnectorError("bootstrap missing mcp payload", status=502)
     mcp_url = str(mcp.get("url") or "")
     mcp_token = str(mcp.get("token") or "")
-    connected = _connected_slugs(payload)
     existing = _get_mcp_servers().get(WORK4YOU_APPS_SERVER_NAME)
-    if connected:
+    # HOME slugs are the install list. Broker ``connected`` is not.
+    if local_slugs:
         enabled = True
     elif isinstance(existing, dict):
         enabled = bool(existing.get("enabled", False))
@@ -237,9 +258,9 @@ def bootstrap_work4you_apps(*, timeout: float = 30.0) -> Dict[str, Any]:
             "token_env": WORK4YOU_APPS_TOKEN_ENV,
             "enabled": enabled,
         },
-        "user_id": payload.get("user_id"),
-        "entity_id": payload.get("entity_id"),
-        "connected": connected,
+        "user_id": payload.get("user_id") if isinstance(payload, dict) else None,
+        "entity_id": payload.get("entity_id") if isinstance(payload, dict) else None,
+        "connected": local_slugs,
     }
 
 
@@ -275,10 +296,15 @@ def _native_row(entry: Any, *, installed: bool, enabled: bool) -> Dict[str, Any]
     }
 
 
-def _composio_row(app: Mapping[str, Any], *, portal_ok: bool) -> Dict[str, Any]:
+def _composio_row(
+    app: Mapping[str, Any],
+    *,
+    portal_ok: bool,
+    local_connected: Iterable[str],
+) -> Dict[str, Any]:
     slug = str(app.get("slug") or "")
-    status = str(app.get("status") or "disconnected").lower()
-    connected = bool(app.get("connected")) or status == "active"
+    connected = portal_ok and slug.lower() in _slug_keys(local_connected)
+    status = "active" if connected else "disconnected"
     provided = app.get("logo")
     logo = (
         provided
@@ -310,8 +336,15 @@ def merge_directory(
     native_state: Mapping[str, tuple],
     composio_apps: Optional[Iterable[Mapping[str, Any]]],
     portal_ok: bool,
+    local_connected: Optional[Iterable[str]] = None,
 ) -> List[Dict[str, Any]]:
-    """One directory: natives + Composio gaps. Native name wins on collision."""
+    """One directory: natives + Composio gaps. Native name wins on collision.
+
+    Composio ``connected`` is this HOME's ``connected_apps``, not the broker
+    inventory. Native rows still use ``native_state`` (``is_installed`` /
+    ``is_enabled``).
+    """
+    local_slugs = list(local_connected or [])
     native_rows: List[Dict[str, Any]] = []
     native_ids = set()
     for entry in native_entries:
@@ -334,7 +367,7 @@ def merge_directory(
             continue
         if slug.lower() in native_ids:
             continue
-        composio_rows.append(_composio_row(app, portal_ok=portal_ok))
+        composio_rows.append(_composio_row(app, portal_ok=portal_ok, local_connected=local_slugs))
 
     return native_rows + composio_rows
 
@@ -363,6 +396,7 @@ def list_directory() -> Dict[str, Any]:
         native_state=state,
         composio_apps=composio_apps,
         portal_ok=portal_ok,
+        local_connected=local_connected_slugs(),
     )
     return {
         "apps": apps,
@@ -388,23 +422,35 @@ def authorize_app(slug: str, *, callback_url: Optional[str] = None) -> Dict[str,
     )
 
 
-def wait_app(slug: str, *, timeout_ms: int = 25_000) -> Dict[str, Any]:
+def wait_app(
+    slug: str,
+    *,
+    timeout_ms: int = 25_000,
+    connection_id: Optional[str] = None,
+) -> Dict[str, Any]:
     token = resolve_portal_token()
     if not token:
         raise ConnectorError("portal_login_required", status=401)
     timeout_s = max(5.0, min(timeout_ms / 1000.0, 30.0) + 5.0)
+    params: Dict[str, Any] = {"timeout_ms": timeout_ms}
+    conn = (connection_id or "").strip()
+    if conn:
+        params["connection_id"] = conn
     result = broker_request(
         "GET",
         f"/v1/apps/{slug}/wait",
         token=token,
-        params={"timeout_ms": timeout_ms},
+        params=params,
         timeout=timeout_s,
     )
     status = str(result.get("status") or "").lower() if isinstance(result, dict) else ""
     if isinstance(result, dict) and (result.get("connected") or status == "active"):
+        slugs = local_connected_slugs()
+        if slug.strip() and slug.lower() not in _slug_keys(slugs):
+            slugs = [*slugs, slug.strip()]
         # Persist enabled=true for the next session. Do not rediscover MCP
         # tools here: swapping the toolset mid-conversation breaks prompt cache.
-        _set_work4you_apps_enabled(True)
+        _write_work4you_apps_state(connected_apps=slugs, enabled=True)
     return result
 
 
@@ -413,8 +459,8 @@ def disconnect_app(slug: str) -> Dict[str, Any]:
     if not token:
         raise ConnectorError("portal_login_required", status=401)
     result = broker_request("POST", f"/v1/apps/{slug}/disconnect", token=token, json={})
-    if not _composio_has_connected_apps(token):
-        _set_work4you_apps_enabled(False)
+    remaining = [item for item in local_connected_slugs() if item.lower() != slug.strip().lower()]
+    _write_work4you_apps_state(connected_apps=remaining, enabled=bool(remaining))
     return result
 
 

@@ -197,8 +197,8 @@ export function bootstrapConnectors(profile?: ProfileScope): Promise<{ ok: boole
 export function authorizeConnector(
   slug: string,
   profile?: ProfileScope
-): Promise<{ redirect_url: string; slug?: string }> {
-  return window.work4youDesktop.api<{ redirect_url: string; slug?: string }>({
+): Promise<{ redirect_url: string; slug?: string; connection_id?: string | null }> {
+  return window.work4youDesktop.api<{ redirect_url: string; slug?: string; connection_id?: string | null }>({
     ...capabilityScoped(profile),
     path: `/api/connectors/apps/${encodeURIComponent(slug)}/authorize`,
     method: 'POST',
@@ -209,11 +209,20 @@ export function authorizeConnector(
 
 export function waitConnector(
   slug: string,
-  profile?: ProfileScope
+  profile?: ProfileScope,
+  connectionId?: string | null
 ): Promise<{ connected: boolean; status?: string; slug?: string }> {
+  const params = new URLSearchParams()
+
+  if (connectionId) {
+    params.set('connection_id', connectionId)
+  }
+
+  const query = params.toString()
+
   return window.work4youDesktop.api<{ connected: boolean; status?: string; slug?: string }>({
     ...capabilityScoped(profile),
-    path: `/api/connectors/apps/${encodeURIComponent(slug)}/wait`,
+    path: `/api/connectors/apps/${encodeURIComponent(slug)}/wait${query ? `?${query}` : ''}`,
     timeoutMs: 60_000
   })
 }

@@ -77,6 +77,45 @@ test('TokenStore revokeByEntityId drops the record from disk', () => {
   assert.equal(reloaded.getByEntityId('user-a::default'), undefined)
 })
 
+test('TokenStore persists connectedSlugs and accountIds across reload', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'w4y-tokens-'))
+  const path = join(dir, 'mcp-tokens.json')
+  const store = new TokenStore(path)
+  store.issue('user-a::default', 'sess-1', 'https://mcp.example/a', 'user-a', {
+    connectedSlugs: ['gmail'],
+    accountIds: { gmail: 'ca-gmail-default' },
+  })
+  store.stampApp('user-a::default', 'hubspot', 'ca-hubspot')
+  const reloaded = new TokenStore(path)
+  const row = reloaded.getByEntityId('user-a::default')
+  assert.deepEqual(row?.connectedSlugs, ['gmail', 'hubspot'])
+  assert.equal(row?.accountIds.gmail, 'ca-gmail-default')
+  assert.equal(row?.accountIds.hubspot, 'ca-hubspot')
+})
+
+test('TokenStore issue for the same entityId keeps connected slugs', () => {
+  const store = new TokenStore()
+  store.issue('user-a::default', 'sess-1', 'https://mcp.example/a', 'user-a', {
+    connectedSlugs: ['gmail'],
+    accountIds: { gmail: 'ca-1' },
+  })
+  const second = store.issue('user-a::default', 'sess-2', 'https://mcp.example/a2', 'user-a')
+  assert.deepEqual(second.connectedSlugs, ['gmail'])
+  assert.equal(second.accountIds.gmail, 'ca-1')
+})
+
+test('TokenStore unstampApp drops the slug and returns the stored account id', () => {
+  const store = new TokenStore()
+  store.issue('user-a::leo', 'sess-leo', 'https://mcp.example/leo', 'user-a', {
+    connectedSlugs: ['gmail'],
+    accountIds: { gmail: 'ca-gmail-leo' },
+  })
+  const id = store.unstampApp('user-a::leo', 'gmail')
+  assert.equal(id, 'ca-gmail-leo')
+  assert.deepEqual(store.getByEntityId('user-a::leo')?.connectedSlugs, [])
+  assert.equal(store.getByEntityId('user-a::leo')?.accountIds.gmail, undefined)
+})
+
 test('TokenStore skips persisted rows without entityId', () => {
   const dir = mkdtempSync(join(tmpdir(), 'w4y-tokens-'))
   const path = join(dir, 'mcp-tokens.json')
