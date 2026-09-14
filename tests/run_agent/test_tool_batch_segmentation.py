@@ -112,14 +112,18 @@ class TestPlanToolBatchSegments:
 
 
     def test_never_parallel_tool_is_a_barrier(self):
-        calls = [
-            _tc("web_search", call_id="r1"),
-            _tc("web_search", call_id="r2"),
-            _tc("clarify", '{"question":"?"}', call_id="c1"),
-        ]
-        segments = _plan_tool_batch_segments(calls)
-        assert _kinds(segments) == ["parallel", "sequential"]
-        assert [tc.id for tc in segments[1][1]] == ["c1"]
+        for name, args in (
+            ("clarify", '{"question":"?"}'),
+            ("setup_mcp", '{"server":"gmail"}'),
+        ):
+            calls = [
+                _tc("web_search", call_id="r1"),
+                _tc("web_search", call_id="r2"),
+                _tc(name, args, call_id="c1"),
+            ]
+            segments = _plan_tool_batch_segments(calls)
+            assert _kinds(segments) == ["parallel", "sequential"], name
+            assert [tc.id for tc in segments[1][1]] == ["c1"]
 
 
 
