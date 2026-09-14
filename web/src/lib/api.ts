@@ -1289,7 +1289,7 @@ export const api = {
       body: "{}",
     }),
   authorizeConnector: (slug: string) =>
-    fetchJSON<{ redirect_url: string; slug?: string }>(
+    fetchJSON<{ redirect_url: string; slug?: string; connection_id?: string | null }>(
       `/api/connectors/apps/${encodeURIComponent(slug)}/authorize`,
       {
         method: "POST",
@@ -1297,10 +1297,19 @@ export const api = {
         body: "{}",
       },
     ),
-  waitConnector: (slug: string) =>
-    fetchJSON<{ connected: boolean; status?: string }>(
-      `/api/connectors/apps/${encodeURIComponent(slug)}/wait`,
-    ),
+  waitConnector: (slug: string, connectionId?: string | null) => {
+    const params = new URLSearchParams();
+
+    if (connectionId) {
+      params.set("connection_id", connectionId);
+    }
+
+    const query = params.toString();
+
+    return fetchJSON<{ connected: boolean; status?: string }>(
+      `/api/connectors/apps/${encodeURIComponent(slug)}/wait${query ? `?${query}` : ""}`,
+    );
+  },
   disconnectConnector: (slug: string) =>
     fetchJSON<{ disconnected?: boolean }>(
       `/api/connectors/apps/${encodeURIComponent(slug)}/disconnect`,

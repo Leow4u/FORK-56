@@ -15,7 +15,7 @@ export async function connectWork4YouApp(
 
   return completeComposioConnect({
     authorize: () => authorizeConnector(slug, opts.profile),
-    wait: () => waitConnector(slug, opts.profile),
+    wait: connectionId => waitConnector(slug, opts.profile, connectionId),
     open: opts.open
   })
 }

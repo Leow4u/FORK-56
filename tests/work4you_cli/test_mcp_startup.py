@@ -163,7 +163,7 @@ def test_portable_only_mcp_configuration_opens_startup_gate(monkeypatch):
 
 
 def test_discovery_bootstraps_work4you_apps_when_portal_and_empty_servers(monkeypatch):
-    calls = {"bootstrap": 0, "mcp": 0}
+    calls = {"bootstrap": 0, "mcp": 0, "skip_if_installed": None}
 
     monkeypatch.setitem(
         sys.modules,
@@ -175,15 +175,18 @@ def test_discovery_bootstraps_work4you_apps_when_portal_and_empty_servers(monkey
         "work4you_cli.agent_plugins",
         types.SimpleNamespace(has_enabled_agent_plugin_mcp=lambda _config: False),
     )
+
+    def fake_bootstrap(**kwargs):
+        calls["bootstrap"] += 1
+        calls["skip_if_installed"] = kwargs.get("skip_if_installed")
+        return True
+
     monkeypatch.setitem(
         sys.modules,
         "work4you_cli.connectors",
         types.SimpleNamespace(
             resolve_portal_token=lambda: "portal-jwt",
-            maybe_bootstrap_work4you_apps=lambda **_k: calls.__setitem__(
-                "bootstrap", calls["bootstrap"] + 1
-            )
-            or True,
+            maybe_bootstrap_work4you_apps=fake_bootstrap,
         ),
     )
     monkeypatch.setitem(
@@ -213,6 +216,7 @@ def test_discovery_bootstraps_work4you_apps_when_portal_and_empty_servers(monkey
     mcp_startup._mcp_discovery_thread.join(timeout=1.0)
 
     assert calls["bootstrap"] == 1
+    assert calls["skip_if_installed"] is False
     assert calls["mcp"] == 1
 
 

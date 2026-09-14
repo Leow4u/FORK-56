@@ -62,22 +62,16 @@ async function requireUser(c: Context, deps: AppDeps): Promise<ConnectorClaims |
   }
 }
 
-function pickAccount(
-  accounts: Awaited<ReturnType<ComposioPort['listAccounts']>>,
-  slug: string,
-) {
-  const matches = accounts.filter((a) => a.toolkit === slug)
-  return matches.find((a) => a.status === 'ACTIVE') ?? matches[0]
-}
-
-function connectedToolkitSlugs(
-  accounts: Awaited<ReturnType<ComposioPort['listAccounts']>>,
+function storedToolkitSlugs(
+  connected: readonly string[] | undefined,
   extra: readonly string[] = [],
+  exclude: readonly string[] = [],
 ): string[] {
-  const active = accounts
-    .filter((a) => a.status === 'ACTIVE')
-    .map((a) => a.toolkit)
-  return sessionToolkitSlugs([...active, ...extra])
+  const excluded = new Set(exclude.map((slug) => slug.trim().toLowerCase()).filter(Boolean))
+  const base = [...(connected ?? []), ...extra].filter(
+    (slug) => !excluded.has(slug.trim().toLowerCase()),
+  )
+  return sessionToolkitSlugs(base)
 }
 
 function mapApp(
@@ -109,20 +103,18 @@ async function ensureSession(
   sub: string,
   extraEnable: readonly string[] = [],
   exclude: readonly string[] = [],
+  baseSlugs?: readonly string[],
 ) {
-  const accounts = await deps.composio.listAccounts(entityId)
-  const excluded = new Set(exclude.map((slug) => slug.trim().toLowerCase()).filter(Boolean))
-  const filtered = excluded.size
-    ? accounts.filter((a) => !excluded.has(a.toolkit.trim().toLowerCase()))
-    : accounts
-  const enable = connectedToolkitSlugs(filtered, extraEnable)
-  const connected = connectedToolkitSlugs(filtered)
-  const authConfigs = authConfigsFromEnv(deps.config.authConfigId)
   const existing = deps.tokens.getByEntityId(entityId)
+  const stored = baseSlugs ?? existing?.connectedSlugs ?? []
+  const enable = storedToolkitSlugs(stored, extraEnable, exclude)
+  const connected = storedToolkitSlugs(stored, [], exclude)
+  const authConfigs = authConfigsFromEnv(deps.config.authConfigId)
   if (existing) {
     const session = await deps.composio.getSession(existing.sessionId)
     if (session) {
       await deps.composio.updateSessionToolkits(existing.sessionId, enable)
+      if (baseSlugs) deps.tokens.replaceConnectedSlugs(entityId, connected)
       return {
         token: existing.token,
         sessionId: existing.sessionId,
@@ -130,10 +122,12 @@ async function ensureSession(
         connected,
       }
     }
-    deps.tokens.revokeByEntityId(entityId)
   }
   const created = await deps.composio.createSession(entityId, authConfigs, enable)
-  const record = deps.tokens.issue(entityId, created.sessionId, created.mcpUrl, sub)
+  const record = deps.tokens.issue(entityId, created.sessionId, created.mcpUrl, sub, {
+    connectedSlugs: connected,
+    accountIds: existing?.accountIds,
+  })
   return {
     token: record.token,
     sessionId: created.sessionId,
@@ -235,7 +229,18 @@ export function createApp(deps: AppDeps) {
     if (blocked) return blocked
     const scoped = await requireScopedUser(c, deps)
     if (scoped instanceof Response) return scoped
-    const session = await ensureSession(deps, scoped.entityId, scoped.user.sub)
+    const body = (await c.req.json().catch(() => ({}))) as { connected_apps?: unknown }
+    const homeSlugs = Array.isArray(body.connected_apps)
+      ? sessionToolkitSlugs(body.connected_apps.map((item) => String(item)))
+      : undefined
+    const session = await ensureSession(
+      deps,
+      scoped.entityId,
+      scoped.user.sub,
+      [],
+      [],
+      homeSlugs,
+    )
     return c.json({
       mcp: {
         name: 'work4you_apps',
@@ -255,19 +260,24 @@ export function createApp(deps: AppDeps) {
     if (blocked) return blocked
     const scoped = await requireScopedUser(c, deps)
     if (scoped instanceof Response) return scoped
-    await ensureSession(deps, scoped.entityId, scoped.user.sub)
-    const accounts = await deps.composio.listAccounts(scoped.entityId)
-    const apps = ALLOWLIST.map((app) => {
-      const account = pickAccount(accounts, app.slug)
-      return mapApp(
+    // Directory paint must not create/arm a tool-router session. Native MCP
+    // badges read this HOME's mcp.json; Apps badges read this entity's stored
+    // slugs. listAccounts is not a per-home install list.
+    const connected = new Set(
+      (deps.tokens.getByEntityId(scoped.entityId)?.connectedSlugs ?? []).map((slug) =>
+        slug.trim().toLowerCase(),
+      ),
+    )
+    const apps = ALLOWLIST.map((app) =>
+      mapApp(
         app.slug,
         app.name,
         app.description,
         app.section,
         Boolean(app.popular) || POPULAR_SLUGS.includes(app.slug),
-        account?.status,
-      )
-    })
+        connected.has(app.slug.trim().toLowerCase()) ? 'ACTIVE' : undefined,
+      ),
+    )
     return c.json({
       apps,
       sections: [...SECTION_IDS],
@@ -308,18 +318,31 @@ export function createApp(deps: AppDeps) {
     const timeoutMs = Number.isFinite(rawTimeout)
       ? Math.max(0, Math.min(rawTimeout, 25_000))
       : 25_000
+    const connectionId = (c.req.query('connection_id') ?? '').trim()
+    if (!connectionId) {
+      return c.json({ slug, status: 'disconnected', connected: false })
+    }
     const started = Date.now()
+    let lastStatus: string | undefined
     for (;;) {
-      const accounts = await deps.composio.listAccounts(scoped.entityId)
-      const account = pickAccount(accounts, slug)
-      if (account?.status === 'ACTIVE') {
+      const account = await deps.composio.getAccount(connectionId)
+      lastStatus = account?.status
+      const toolkit = (account?.toolkit ?? '').trim().toLowerCase()
+      if (account?.status === 'ACTIVE' && toolkit === slug.trim().toLowerCase()) {
+        await ensureSession(deps, scoped.entityId, scoped.user.sub)
+        deps.tokens.stampApp(scoped.entityId, slug, account.id)
         await ensureSession(deps, scoped.entityId, scoped.user.sub)
         return c.json({ slug, status: 'active', connected: true })
       }
       if (Date.now() - started >= timeoutMs) {
+        // Drop authorize-time extraEnable so an abandoned OAuth does not
+        // leave this entity's session armed with another home's toolkit.
+        if (deps.tokens.getByEntityId(scoped.entityId)) {
+          await ensureSession(deps, scoped.entityId, scoped.user.sub)
+        }
         return c.json({
           slug,
-          status: account ? statusFromAccount(account.status) : 'disconnected',
+          status: lastStatus ? statusFromAccount(lastStatus) : 'disconnected',
           connected: false,
         })
       }
@@ -336,14 +359,14 @@ export function createApp(deps: AppDeps) {
     if (!isAllowlisted(slug)) {
       return jsonError(c, 404, 'unknown_app')
     }
-    const accounts = await deps.composio.listAccounts(scoped.entityId)
-    const account = pickAccount(accounts, slug)
-    if (account) {
-      await deps.composio.disableAccount(account.id)
+    const existing = deps.tokens.getByEntityId(scoped.entityId)
+    const accountId = deps.tokens.unstampApp(scoped.entityId, slug)
+    if (accountId) {
+      await deps.composio.disableAccount(accountId)
     }
-    // Exclude the slug even if Composio still reports ACTIVE — disable is
-    // not always visible on the very next listAccounts call.
-    await ensureSession(deps, scoped.entityId, scoped.user.sub, [], [slug])
+    if (existing) {
+      await ensureSession(deps, scoped.entityId, scoped.user.sub, [], [slug])
+    }
     return c.json({ slug, disconnected: true })
   })
 

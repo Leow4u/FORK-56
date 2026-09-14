@@ -287,8 +287,8 @@ export function mcpSetupCardIdentity(input: {
 }
 
 export async function completeComposioConnect(opts: {
-  authorize: () => Promise<{ redirect_url?: string }>
-  wait: () => Promise<{ connected?: boolean }>
+  authorize: () => Promise<{ redirect_url?: string; connection_id?: string | null }>
+  wait: (connectionId?: string | null) => Promise<{ connected?: boolean }>
   open: (url: string) => void | Promise<void>
   sleep?: (ms: number) => Promise<void>
 }): Promise<boolean> {
@@ -300,7 +300,8 @@ export async function completeComposioConnect(opts: {
   }
 
   await opts.open(url)
-  const result = await opts.wait()
+  const connectionId = started.connection_id ?? null
+  const result = await opts.wait(connectionId)
 
   if (result.connected) {
     return true
@@ -308,7 +309,7 @@ export async function completeComposioConnect(opts: {
 
   const sleep = opts.sleep ?? ((ms: number) => new Promise(r => setTimeout(r, ms)))
   await sleep(1500)
-  const retry = await opts.wait()
+  const retry = await opts.wait(connectionId)
 
   return Boolean(retry.connected)
 }

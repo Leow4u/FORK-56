@@ -46,6 +46,39 @@ test('createSession posts user_id, allowlist, and callback_url', async () => {
   assert.deepEqual(calls[0].body.auth_configs, { gmail: 'ac_gmail' })
 })
 
+test('getAccount reads one connected account by id', async () => {
+  const fetchImpl: typeof fetch = async (input) => {
+    assert.equal(String(input), 'https://backend.composio.dev/api/v3/connected_accounts/ca-1')
+    return new Response(
+      JSON.stringify({
+        id: 'ca-1',
+        status: 'ACTIVE',
+        toolkit: { slug: 'gmail' },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  }
+  const client = createComposioClient({
+    apiBase: 'https://backend.composio.dev',
+    apiKey: 'ak_secret',
+    fetchImpl,
+  })
+  const account = await client.getAccount('ca-1')
+  assert.equal(account?.id, 'ca-1')
+  assert.equal(account?.toolkit, 'gmail')
+  assert.equal(account?.status, 'ACTIVE')
+})
+
+test('getAccount returns null on 404', async () => {
+  const fetchImpl: typeof fetch = async () => new Response('{"error":"missing"}', { status: 404 })
+  const client = createComposioClient({
+    apiBase: 'https://backend.composio.dev',
+    apiKey: 'ak_secret',
+    fetchImpl,
+  })
+  assert.equal(await client.getAccount('gone'), null)
+})
+
 test('getSession returns null on 404', async () => {
   const fetchImpl: typeof fetch = async () =>
     new Response('{"error":"missing"}', { status: 404 })
