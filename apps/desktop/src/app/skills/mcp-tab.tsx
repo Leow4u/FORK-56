@@ -7,7 +7,8 @@ import {
   directoryAppDescription,
   directoryAppLogoUrl,
   filterDirectoryApps,
-  groupDirectorySections
+  groupDirectorySections,
+  isHiddenMcpRuntimeServer
 } from '@work4you/shared'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -471,6 +472,10 @@ export function McpTab({
   }
 
   const focusServer = (name: string) => {
+    if (isHiddenMcpRuntimeServer(name)) {
+      return
+    }
+
     setSelectedName(name)
     syncEditorCursor(name)
   }
@@ -522,7 +527,7 @@ export function McpTab({
     const known = new Set(rows.map(app => app.id))
 
     for (const serverName of names) {
-      if (serverName === 'work4you_apps' || known.has(serverName)) {
+      if (isHiddenMcpRuntimeServer(serverName) || known.has(serverName)) {
         continue
       }
 
@@ -655,7 +660,7 @@ export function McpTab({
     elementId: serverName => `mcp-server-${serverName}`,
     onResolve: focusServer,
     param: 'server',
-    ready: serverName => blocks.some(block => block.name === serverName)
+    ready: serverName => !isHiddenMcpRuntimeServer(serverName) && blocks.some(block => block.name === serverName)
   })
 
   const runProbe = async (serverName: string) => {
@@ -758,7 +763,11 @@ export function McpTab({
   // the cache, so revisiting the page doesn't respawn/reconnect the fleet.
   useEffect(() => {
     for (const [serverName, server] of Object.entries(servers)) {
-      if (!serverEnabled(server) || probesRef.current[serverName] !== undefined) {
+      if (
+        isHiddenMcpRuntimeServer(serverName) ||
+        !serverEnabled(server) ||
+        probesRef.current[serverName] !== undefined
+      ) {
         continue
       }
 
@@ -1232,7 +1241,7 @@ export function McpTab({
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        {selected && activeEntry ? (
+        {selected && activeEntry && !isHiddenMcpRuntimeServer(selected) ? (
           <ServerConfig
             authing={authing === selected}
             cost={costFor(selected, activeEntry)}
@@ -1419,7 +1428,7 @@ export function McpTab({
 
             const block = blocks.find(b => next >= b.from && next <= b.to)
 
-            if (block) {
+            if (block && !isHiddenMcpRuntimeServer(block.name)) {
               setSelectedName(block.name)
             }
           }}

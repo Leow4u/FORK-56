@@ -6,11 +6,15 @@
  *
  * Scope is deliberate: stdio servers are NEVER probed here. Probing a stdio
  * server SPAWNS a local process, so a background timer would silently launch
- * user-configured commands every half hour. Only url-shaped servers (HTTP/SSE
- * — where OAuth expiry actually lives) are swept, sequentially, and through
- * the same probe cache the MCP page uses so neither surface re-probes what
- * the other just learned.
+ * user-configured commands every half hour. Hidden runtime servers
+ * (`work4you_apps`) are also skipped — they are plumbing, not a server the
+ * user installed. Only url-shaped user servers (HTTP/SSE — where OAuth
+ * expiry actually lives) are swept, sequentially, and through the same probe
+ * cache the MCP page uses so neither surface re-probes what the other just
+ * learned.
  */
+
+import { isHiddenMcpRuntimeServer } from '@work4you/shared'
 
 import { translateNow } from '@/i18n'
 import { classifyProbe, freshProbe, probeCache, probeKey } from '@/lib/mcp-probe-cache'
@@ -35,6 +39,14 @@ export type McpHealthStatus = 'error' | 'needs-auth' | 'ok'
  */
 export function shouldNotifyOnTransition(previous: McpHealthStatus | null, next: McpHealthStatus): boolean {
   return (next === 'error' || next === 'needs-auth') && previous !== next
+}
+
+const isUrlServer = (server: Record<string, unknown>): boolean =>
+  typeof server.url === 'string' && server.enabled !== false
+
+/** User-installed HTTP/SSE MCP only. Hidden runtime servers and stdio stay quiet. */
+export function shouldSweepMcpHealth(name: string, server: Record<string, unknown>): boolean {
+  return !isHiddenMcpRuntimeServer(name) && isUrlServer(server)
 }
 
 // Last-known status per (profile, server) — the transition memory — and the
@@ -86,9 +98,6 @@ function recordResult(profileKey: string, name: string, status: McpHealthStatus)
   })
 }
 
-const isUrlServer = (server: Record<string, unknown>): boolean =>
-  typeof server.url === 'string' && server.enabled !== false
-
 async function sweep(): Promise<void> {
   const epoch = sweepEpoch
   const profileKey = normalizeProfileKey($activeGatewayProfile.get())
@@ -112,7 +121,7 @@ async function sweep(): Promise<void> {
     raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, Record<string, unknown>>) : {}
 
   for (const [name, server] of Object.entries(servers)) {
-    if (!isUrlServer(server)) {
+    if (!shouldSweepMcpHealth(name, server)) {
       continue
     }
 

@@ -36,7 +36,18 @@ export const DIRECTORY_SECTION_LABELS: Record<DirectorySectionId | 'popular' | '
   custom: 'Your servers'
 }
 
+/** Plumbing MCP ids the user did not install. Hidden from the Apps directory,
+ *  health toasts, the MCP list/detail pane, and the command palette. The
+ *  Advanced mcp.json editor still shows them — that document is the config. */
 export const HIDDEN_DIRECTORY_IDS = new Set(['work4you_apps'])
+
+export function isHiddenMcpRuntimeServer(id: string): boolean {
+  return HIDDEN_DIRECTORY_IDS.has(id)
+}
+
+export function visibleMcpServerNames(names: readonly string[]): string[] {
+  return names.filter(name => !isHiddenMcpRuntimeServer(name))
+}
 
 export interface DirectoryApp {
   id: string
@@ -179,7 +190,7 @@ export function filterDirectoryApps(
   opts: { filter: McpDirectoryFilter; query: string; section: string | null }
 ): DirectoryApp[] {
   return apps.filter(app => {
-    if (HIDDEN_DIRECTORY_IDS.has(app.id)) {
+    if (isHiddenMcpRuntimeServer(app.id)) {
       return false
     }
 
