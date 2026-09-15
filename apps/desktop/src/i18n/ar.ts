@@ -2518,7 +2518,6 @@ export const ar = defineLocale({
   },
   composer: {
     message: 'الرسالة',
-    emptyReady: 'Work4You جاهز',
     wakingProfile: profile => `جار إيقاظ ${profile}`,
     placeholderStarting: 'جار بدء Work4You...',
     placeholderReconnecting: 'جار إعادة الاتصال...',

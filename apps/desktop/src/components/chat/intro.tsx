@@ -1,6 +1,5 @@
 import { useState } from 'react'
 
-import { useI18n } from '@/i18n'
 import { capitalize, normalize } from '@/lib/text'
 
 import introCopyJsonl from './intro-copy.jsonl?raw'
@@ -145,12 +144,6 @@ function pickCopy(copies: IntroCopy[], seed = 0): IntroCopy {
   return copies[Math.abs(seed) % copies.length] || FALLBACK_COPY[0]
 }
 
-function headlineIsReadyCopy(headline: string, ready: string): boolean {
-  const strip = (value: string) => normalize(value).replace(/[.!?…]+$/u, '')
-
-  return strip(headline) === strip(ready)
-}
-
 function resolveCopy(personality?: string, seed?: number): IntroCopy {
   const personalityKey = normalizeKey(personality)
 
@@ -162,11 +155,8 @@ function resolveCopy(personality?: string, seed?: number): IntroCopy {
 }
 
 export function Intro({ personality, seed }: IntroProps) {
-  const { t } = useI18n()
   const [mountSeed] = useState(() => Math.floor(Math.random() * 100000))
   const copy = resolveCopy(personality, mountSeed + (seed ?? 0))
-  const ready = t.composer.emptyReady
-  const showReady = !headlineIsReadyCopy(copy.headline, ready)
 
   return (
     <div
@@ -174,15 +164,6 @@ export function Intro({ personality, seed }: IntroProps) {
       data-slot="aui_intro"
     >
       <div className="mx-auto w-full min-w-0 max-w-md">
-        {showReady ? (
-          <p
-            className="mb-2 text-xs font-normal text-(--ui-text-tertiary)"
-            data-slot="aui_intro_ready"
-          >
-            {ready}
-          </p>
-        ) : null}
-
         <p
           className="mb-1.5 text-xl font-semibold leading-snug tracking-tight text-foreground"
           data-slot="aui_intro_headline"

@@ -13,31 +13,27 @@ describe('Intro', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
   })
 
-  it('keeps a Work4You is ready kicker above the personality headline', () => {
+  it('does not paint a Work4You is ready kicker above the personality headline', () => {
     const { container } = render(<Intro personality="helpful" seed={0} />)
 
     const intro = container.querySelector('[data-slot="aui_intro"]')
-    const ready = intro?.querySelector('[data-slot="aui_intro_ready"]')
     const headline = intro?.querySelector('[data-slot="aui_intro_headline"]')
     const body = intro?.querySelector('[data-slot="aui_intro_body"]')
 
-    expect(ready?.textContent?.trim()).toBe('Work4You is ready')
+    expect(intro?.querySelector('[data-slot="aui_intro_ready"]')).toBeNull()
     expect(headline?.textContent?.trim()).toBe('Ready when you are')
     expect(headline?.textContent?.trim()).not.toBe('WORK4YOU')
     expect(body?.textContent?.trim().length).toBeGreaterThan(20)
+    expect(screen.queryByText('Work4You is ready')).toBeNull()
     expect(screen.queryByLabelText('WORK4YOU')).toBeNull()
     expect(container.querySelector('.fit-text')).toBeNull()
   })
 
-  it('does not duplicate Work4You is ready when the personality headline already says it', () => {
+  it('keeps personality headlines even when they mention ready', () => {
     const { container } = render(<Intro personality="none" seed={0} />)
 
-    const intro = container.querySelector('[data-slot="aui_intro"]')
-    const ready = intro?.querySelector('[data-slot="aui_intro_ready"]')
-    const headline = intro?.querySelector('[data-slot="aui_intro_headline"]')
-
-    expect(ready).toBeNull()
-    expect(headline?.textContent?.trim()).toBe('Work4You is ready.')
+    expect(container.querySelector('[data-slot="aui_intro_ready"]')).toBeNull()
+    expect(container.querySelector('[data-slot="aui_intro_headline"]')?.textContent?.trim()).toBe('Work4You is ready.')
   })
 
   it('keeps the empty-state copy quiet and sentence-case', () => {
@@ -50,17 +46,11 @@ describe('Intro', () => {
     expect(headline?.className).toMatch(/font-semibold/)
   })
 
-  it('ranks kicker, splash headline, and body by weight', () => {
+  it('ranks splash headline above body by weight', () => {
     const { container } = render(<Intro personality="helpful" seed={0} />)
 
-    const ready = container.querySelector('[data-slot="aui_intro_ready"]')
     const headline = container.querySelector('[data-slot="aui_intro_headline"]')
     const body = container.querySelector('[data-slot="aui_intro_body"]')
-
-    expect(ready?.className).toMatch(/text-xs/)
-    expect(ready?.className).toMatch(/font-normal/)
-    expect(ready?.className).not.toMatch(/font-medium/)
-    expect(ready?.className).not.toMatch(/tracking-tight/)
 
     expect(headline?.className).toMatch(/text-xl/)
     expect(headline?.className).toMatch(/font-semibold/)
