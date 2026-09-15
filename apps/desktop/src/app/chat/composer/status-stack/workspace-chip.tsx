@@ -1,10 +1,9 @@
 import { useStore } from '@nanostores/react'
 
-import { composerFloatingPill } from '@/components/chat/composer-dock'
+import { composerFooterChip } from '@/components/chat/composer-dock'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
 import { FolderOpen } from '@/lib/icons'
-import { cn } from '@/lib/utils'
 import { $projectTree } from '@/store/projects'
 
 import { emptyWorkspaceChipLabel } from './workspace-chip-label'
@@ -23,20 +22,13 @@ export function WorkspaceChipRow({ cwd, messagesEmpty }: { cwd?: null | string; 
   }
 
   return (
-    <WorkspaceSelectMenu side="top" tooltip={tip}>
-      <button
-        aria-label={selectLabel}
-        className={cn(
-          composerFloatingPill,
-          'min-w-0 max-w-48',
-          'data-[state=open]:bg-(--chrome-action-hover) data-[state=open]:text-foreground'
-        )}
-        data-slot="workspace-chip"
-        type="button"
-      >
-        <FolderOpen aria-hidden className="size-3.5 shrink-0" />
-        <span className="truncate">{label}</span>
-      </button>
-    </WorkspaceSelectMenu>
+    <div className="flex min-w-0 items-center" data-slot="composer-workspace-footer">
+      <WorkspaceSelectMenu side="top" tooltip={tip}>
+        <button aria-label={selectLabel} className={composerFooterChip} data-slot="workspace-chip" type="button">
+          <FolderOpen aria-hidden className="size-3.5 shrink-0" />
+          <span className="truncate">{label}</span>
+        </button>
+      </WorkspaceSelectMenu>
+    </div>
   )
 }

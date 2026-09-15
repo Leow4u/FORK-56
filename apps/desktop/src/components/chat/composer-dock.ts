@@ -52,6 +52,19 @@ export const composerFloatingPill = cn(
 )
 
 /**
+ * Select workspace on the empty-chat footer — icon + label, no nested pill
+ * chrome. It sits on the composer island, so a bordered fill would read as a
+ * card-in-card. Size matches the action-row controls; the call site owns
+ * placement and width caps.
+ */
+export const composerFooterChip = cn(
+  'inline-flex h-(--composer-control-size) min-w-0 max-w-48 shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-1.5',
+  'text-xs font-normal text-(--ui-text-secondary) transition-colors',
+  'hover:bg-(--chrome-action-hover) hover:text-foreground',
+  'data-[state=open]:bg-(--chrome-action-hover) data-[state=open]:text-foreground'
+)
+
+/**
  * Shared grid for the chrome-free floating strips that bracket the composer —
  * the micro-action pills above the surface and the `composer.underside` slot
  * below it.
