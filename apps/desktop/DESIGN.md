@@ -211,6 +211,10 @@ Notes:
   existing components under `src/components/assistant-ui` and
   `src/app/chat/composer`; do not fork a second markdown, message, tool-call, or
   approval renderer for one feature.
+- **Composer context bar** — empty-chat workspace picker. `composerContextBar`
+  in `composer-dock.ts`: inset secondary well, `--ui-stroke-tertiary` hairline,
+  muted fill, `rounded-xl`. The well is the container; do not nest a floating
+  pill inside it. Occupied chat keeps the coding-status strip, not this well.
 - **Inline widgets** — a tool result that renders as a panel the user reads or
   acts on (clarify, artifact card) wears `WIDGET_SHELL_CLASS`
   (`src/components/chat/widget-shell.ts`): shared radius, the

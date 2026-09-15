@@ -2979,7 +2979,8 @@ button[data-slot='aui_msg-reactions'] svg {
 /* The coding/cwd/git-branch strip is NOT a dock sibling — it renders inside
    `composer-surface` (it's meant to inherit the composer's width and top
    radius), so the rule above never reaches it. Same intent, own selector. */
-[data-hud-shell] .coding-status-bar {
+[data-hud-shell] .coding-status-bar,
+[data-hud-shell] [data-slot='workspace-chip'] {
   display: none !important;
 }
 

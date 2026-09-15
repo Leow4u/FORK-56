@@ -1329,7 +1329,6 @@ export function ChatBar({
                   >
                     <div className="flex translate-y-[3px] items-start gap-(--composer-control-gap) self-start [grid-area:menu]">
                       {contextMenu}
-                      <WorkspaceChipRow cwd={cwd} messagesEmpty={messagesEmpty} />
                       <ContribSlot area={COMPOSER_AREAS.leading} />
                     </div>
                     <div className="min-w-0 [grid-area:input]">{input}</div>
@@ -1338,6 +1337,7 @@ export function ChatBar({
                       {controls}
                     </div>
                   </div>
+                  <WorkspaceChipRow cwd={cwd} messagesEmpty={messagesEmpty} />
                   <ContribSlot area={COMPOSER_AREAS.bottom} />
                 </div>
               </div>

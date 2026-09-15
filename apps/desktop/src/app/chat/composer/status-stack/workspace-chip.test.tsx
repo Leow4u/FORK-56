@@ -126,16 +126,19 @@ describe('WorkspaceChipRow', () => {
     expect(chip.textContent).not.toContain('Aplicativos')
   })
 
-  it('uses the composer pill silhouette so the empty-chat chip stays readable', () => {
+  it('uses the composer settings well so the empty-chat chip reads as a secondary container', () => {
     renderChip(<WorkspaceChipRow messagesEmpty />)
 
     const chip = screen.getByRole('button', { name: 'Select workspace' })
     const icon = chip.querySelector('svg')
 
-    expect(chip.className).toContain('h-(--composer-control-size)')
-    expect(chip.className).toContain('rounded-full')
-    expect(chip.className).toContain('border-border/65')
+    expect(chip.className).toContain('h-8')
+    expect(chip.className).toContain('w-full')
+    expect(chip.className).toContain('mt-1')
+    expect(chip.className).toContain('rounded-xl')
+    expect(chip.className).toContain('border-(--ui-stroke-tertiary)')
     expect(chip.className).toContain('text-(--ui-text-secondary)')
+    expect(chip.className).not.toContain('rounded-full')
     expect(chip.className).not.toContain('muted-foreground')
     expect(icon?.classList.contains('size-3.5')).toBe(true)
   })

@@ -52,6 +52,20 @@ export const composerFloatingPill = cn(
 )
 
 /**
+ * Secondary settings well on the composer — the empty-chat workspace picker.
+ * Inset outlined tray: tertiary hairline, muted fill, `rounded-xl` (one step
+ * below the composer). The well IS the container; do not nest a floating pill
+ * inside it. Call site owns placement; this owns chrome, height, and type.
+ */
+export const composerContextBar = cn(
+  'mt-1 flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 rounded-xl px-3 text-left',
+  'border border-(--ui-stroke-tertiary) bg-[color-mix(in_srgb,var(--ui-base)_8%,transparent)]',
+  'text-xs font-normal text-(--ui-text-secondary) transition-colors',
+  'hover:bg-(--chrome-action-hover) hover:text-foreground',
+  'data-[state=open]:bg-(--chrome-action-hover) data-[state=open]:text-foreground'
+)
+
+/**
  * Shared grid for the chrome-free floating strips that bracket the composer —
  * the micro-action pills above the surface and the `composer.underside` slot
  * below it.
