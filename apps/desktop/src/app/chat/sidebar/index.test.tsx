@@ -6,7 +6,9 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { $cronJobs } from '@/store/cron'
 import {
+  $pinnedSessionIds,
   $sidebarAgentsGrouped,
+  pinSession,
   resetSidebarView,
   setSidebarAgentsGrouped,
   setSidebarShowArchived
@@ -105,7 +107,9 @@ function seedHomeSidebar() {
   $projectDialog.set(null)
   $sessionsLoading.set(false)
   $sessions.set([makeSessionInfo({ id: 'cli-1', last_active: 2, source: 'desktop', title: 'Recent chat' })])
-  $messagingSessions.set([makeSessionInfo({ id: 'wa-1', last_active: 1, source: 'whatsapp', title: 'WhatsApp thread' })])
+  $messagingSessions.set([
+    makeSessionInfo({ id: 'wa-1', last_active: 1, source: 'whatsapp', title: 'WhatsApp thread' })
+  ])
   $cronJobs.set([{ enabled: true, id: 'job-1', name: 'Nightly' } as CronJob])
   $projectTree.set([
     treeNode({ id: '__no_project__', isNoProject: true, label: 'No project', sessionCount: 1 }),
@@ -121,6 +125,7 @@ describe('ChatSidebar date grouping keeps Projects next to Recents', () => {
     $sessions.set([])
     $messagingSessions.set([])
     $cronJobs.set([])
+    $pinnedSessionIds.set([])
     $projectScope.set(ALL_PROJECTS)
     $projectDialog.set(null)
     setSidebarAgentsGrouped(false)
@@ -130,6 +135,7 @@ describe('ChatSidebar date grouping keeps Projects next to Recents', () => {
   it('shows Projects, Sessions, WhatsApp, and Cron jobs together', () => {
     renderSidebar()
 
+    expect(screen.queryByTestId('section-Pinned')).toBeNull()
     expect(screen.getByTestId('section-Projects').getAttribute('data-content')).toBe('overview')
     expect(screen.getByTestId('section-Sessions').getAttribute('data-content')).toBe('sessions')
     expect(screen.getByTestId('section-WhatsApp').getAttribute('data-content')).toBe('sessions')
@@ -137,6 +143,13 @@ describe('ChatSidebar date grouping keeps Projects next to Recents', () => {
     expect(screen.getByRole('button', { name: 'New project' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Home' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Demo' })).toBeTruthy()
+  })
+
+  it('shows Pinned only after a conversation is pinned', () => {
+    pinSession('cli-1')
+    renderSidebar()
+
+    expect(screen.getByTestId('section-Pinned')).toBeTruthy()
   })
 
   it('opens the existing create-project dialog from the Projects header', () => {
