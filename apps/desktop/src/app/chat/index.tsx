@@ -673,6 +673,7 @@ const ChatViewContent = memo(function ChatViewContent({
               focusKey={activeSessionId}
               gateway={gateway}
               maxRecordingSeconds={maxVoiceRecordingSeconds}
+              messagesEmpty={messagesEmpty}
               onAddContextRef={onAddContextRef}
               onAddUrl={onAddUrl}
               onAttachDroppedItems={onAttachDroppedItems}
