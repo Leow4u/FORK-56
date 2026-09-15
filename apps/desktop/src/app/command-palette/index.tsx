@@ -69,16 +69,9 @@ import {
   setCommandPaletteOpen
 } from '@/store/command-palette'
 import { $bindings, bindingsFor } from '@/store/keybinds'
-import { $dismissedAutoProjectIds, filterVisibleProjects } from '@/store/layout'
 import { openPetGenerate } from '@/store/pet-generate'
 import { openBrowserTab } from '@/store/preview'
-import {
-  $projectTree,
-  goToProject,
-  openFolderAsProject,
-  openProjectCreate,
-  requestStartWorkSession
-} from '@/store/projects'
+import { openFolderAsProject, openProjectCreate, requestStartWorkSession } from '@/store/projects'
 import { $connection } from '@/store/session'
 import { runGatewayRestart } from '@/store/system-actions'
 import {
@@ -170,19 +163,16 @@ interface PaletteGroup {
 }
 
 function workspaceItemIcon(item: WorkspacePaletteItem): IconComponent {
-  if (item.kind === 'open-folder') {
-    return codiconIcon('folder-opened')
-  }
+  switch (item.kind) {
+    case 'open-folder':
+      return codiconIcon('folder-opened')
 
-  if (item.kind === 'remote') {
-    return codiconIcon('remote')
-  }
+    case 'remote':
+      return codiconIcon('remote')
 
-  if (item.kind === 'new-project') {
-    return Plus
+    case 'new-project':
+      return Plus
   }
-
-  return codiconIcon(item.icon || (item.isNoProject ? 'home' : 'folder-library'))
 }
 
 function workspaceGroupsToPalette(groups: WorkspacePaletteGroup[]): PaletteGroup[] {
@@ -190,21 +180,17 @@ function workspaceGroupsToPalette(groups: WorkspacePaletteGroup[]): PaletteGroup
     heading: group.heading,
     items: group.items.map(item => ({
       action: item.action,
-      comboHint: item.comboHint,
       icon: workspaceItemIcon(item),
       id: item.id,
       keywords: item.keywords,
       label: item.label,
-      modLabel: item.modLabel,
-      run: item.run,
-      runWithEvent: item.runWithEvent
+      run: item.run
     }))
   }))
 }
 
 function workspacePaletteHandlers(navigate: ReturnType<typeof useNavigate>): WorkspacePaletteHandlers {
   return {
-    goToProject,
     newProject: openProjectCreate,
     openFolder: () => {
       void openFolderAsProject()
@@ -622,8 +608,6 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
   const pendingSeed = useStore($commandPaletteSeed)
   const bindings = useStore($bindings)
   const worktrees = useStore($repoWorktrees)
-  const projectTree = useStore($projectTree)
-  const dismissedAutoProjects = useStore($dismissedAutoProjectIds)
   const navigate = useNavigate()
 
   const { availableThemes, clearThemePreview, mode, previewTheme, resolvedMode, setMode, setTheme, themeName } =
@@ -822,32 +806,26 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
 
     return workspaceGroupsToPalette(
       buildWorkspacePaletteGroups(
-        filterVisibleProjects(projectTree, dismissedAutoProjects),
         {
           newProject: t.sidebar.projects.newButton,
-          newSessionInProject: cc.newSessionInProject,
           openFolder: cc.openFolder,
-          projects: cc.projects,
           remote: cc.remote
         },
         workspacePaletteHandlers(navigate)
       )
     )
-  }, [dismissedAutoProjects, navigate, projectTree, t])
+  }, [navigate, t])
 
   const baseGroups = useMemo<PaletteGroup[]>(() => {
     const settingsTab = (tab: string) => `${SETTINGS_ROUTE}?tab=${tab}`
     const cc = t.commandCenter
 
-    // Projects are the primary way the desktop scopes work, so they're jumpable
-    // from the palette. Plain select is a pure scope switch (sidebar enters the
-    // project — never spends main); ⌘-Enter / ⌘-click also starts a new session
-    // at the project root (stacked as a tab when main holds a chat), previewed
-    // by the label swap while ⌘ is held. Rows carry the project's own codicon,
-    // matching the sidebar. Open folder is the ⌘O upsert; Remote opens the
-    // in-app remote folder picker when already connected, otherwise Settings →
-    // Gateway; New project opens the existing create dialog. The same rows
-    // back the Select workspace page.
+    // Sidebar → Projects is the unique workspace tree. This palette group is
+    // Open folder / Remote / New project only — the same rows as Select
+    // workspace, not a second `$projectTree`. Open folder is the ⌘O upsert;
+    // Remote opens the in-app remote folder picker when already connected,
+    // otherwise Settings → Gateway; New project opens the existing create
+    // dialog.
     const projectGroup: PaletteGroup = {
       heading: cc.projects,
       items: workspacePaletteGroups.flatMap(group => group.items)
@@ -884,7 +862,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
           {
             icon: FolderOpen,
             id: 'nav-select-workspace',
-            keywords: ['workspace', 'project', 'folder', 'switch', 'open', 'home', 'recents', 'select'],
+            keywords: ['workspace', 'project', 'folder', 'switch', 'open', 'select'],
             label: cc.selectWorkspace,
             to: SELECT_WORKSPACE_PAGE
           },
