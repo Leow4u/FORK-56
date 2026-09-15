@@ -21,6 +21,7 @@ import {
   endSessionMutation,
   enterProject,
   exitProjectScope,
+  goToProject,
   openProjectCreate,
   pickProjectFolder,
   projectIdForCwd,
@@ -115,6 +116,13 @@ describe('project scope', () => {
   it('persists the scope to localStorage', () => {
     enterProject('p_abc')
     expect(window.localStorage.getItem('work4you.desktop.projectScope')).toBe('p_abc')
+  })
+
+  it('goToProject enters the project and flips the sidebar into grouped mode', () => {
+    setSidebarAgentsGrouped(false)
+    goToProject('p_123')
+    expect($projectScope.get()).toBe('p_123')
+    expect($sidebarAgentsGrouped.get()).toBe(true)
   })
 })
 

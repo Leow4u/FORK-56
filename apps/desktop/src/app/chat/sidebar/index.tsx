@@ -91,9 +91,9 @@ import {
   $removedSessionIds,
   $reposScanning,
   ALL_PROJECTS,
-  enterProject,
   exitProjectScope,
   fetchProjectSessions,
+  goToProject,
   openProjectCreate,
   refreshProjects,
   refreshProjectTree,
@@ -181,9 +181,8 @@ import { CONTEXT_SPLIT_KIT, SplitSubmenu } from './split-submenu'
 const NON_SESSION_INITIAL_ROWS = 3
 const NON_SESSION_LOAD_STEP = 10
 
-// How long after connecting to warm the project tree for someone who isn't in
-// the grouped view. Long enough that the flat list — the thing actually on
-// screen — has the connection to itself first.
+// How long after connecting to backfill PR lookups from transcripts. Same
+// delay the flat list used to give the connection before a tree warm.
 const PROJECT_TREE_WARM_MS = 2_000
 
 const SIDEBAR_NAV: SidebarNavItem[] = [
@@ -707,9 +706,9 @@ export function ChatSidebar({
   const gatewayReady = gatewayState === 'open'
 
   // The backend project tree is a structural snapshot, NOT a per-message feed.
-  // Refresh it on structural edges only — entering the grouped view, a profile
-  // switch, gateway (re)connect — plus the once-per-run disk scan. Live session
-  // changes between refreshes are reflected by the in-memory overlay
+  // Refresh it on structural edges — a profile switch, gateway (re)connect —
+  // plus the once-per-run disk scan while grouped. Live session changes
+  // between refreshes are reflected by the in-memory overlay
   // (overlayLiveLanes / overlayLivePreviews) off `$sessions`, so a turn
   // completing does NOT re-run the heavy list_sessions_rich scan. Project
   // mutations refresh the tree from their own store actions.
@@ -718,9 +717,9 @@ export function ChatSidebar({
       return
     }
 
-    if (worktreeGroupingActive) {
-      void refreshProjects()
+    void refreshProjects()
 
+    if (worktreeGroupingActive) {
       // The all-profiles tree is served off every profile's databases at once
       // and deliberately leaves discovery out — a repo with no sessions is the
       // same repo in every profile, so scanning here would multiply empty lanes
@@ -741,13 +740,10 @@ export function ChatSidebar({
       return
     }
 
-    // Flat view: warm the tree in the background anyway. Fetching it only on
-    // the switch meant the first switch of every run paid for the whole round
-    // trip behind a skeleton, and the menu's Project filter had nothing to
-    // list until you'd visited the grouped view at least once.
-    const warm = window.setTimeout(() => void refreshProjectTree(), PROJECT_TREE_WARM_MS)
-
-    return () => window.clearTimeout(warm)
+    // Flat view still paints the Projects overview (Home + folders), so the
+    // tree has to arrive with the connection — not two seconds later, which
+    // was only a warm-up for the Project filter / first grouping switch.
+    void refreshProjectTree()
   }, [activeConnectionId, worktreeGroupingActive, showAllProfiles, profileScope, gatewayReady])
 
   // Sessions the branch join can't answer for get one look at their own
@@ -1103,14 +1099,22 @@ export function ChatSidebar({
   // matching the flat Recents list. Keyed by project id for the rows.
   const overviewPreviews = useMemo<Record<string, SessionInfo[]>>(
     () =>
-      overlayLivePreviews(projectOverview ?? [], agentSessions, projects, PROJECT_PREVIEW_COUNT, {
+      overlayLivePreviews(projectModel, agentSessions, projects, PROJECT_PREVIEW_COUNT, {
         removed: removedSessionIds,
         // Rank before the trim, so "3 priciest in this project" isn't "3 most
         // recent, priciest first".
         rankIds: sortOrderIds
       }),
-    [projectOverview, agentSessions, projects, removedSessionIds, sortOrderIds]
+    [projectModel, agentSessions, projects, removedSessionIds, sortOrderIds]
   )
+
+  // Date grouping keeps Recents + messaging + cron on screen; the same overview
+  // the grouped Sessions section already knows how to render sits above Recents
+  // so Projects / Home are reachable without flipping the grouping toggle.
+  // Hidden while searching, while looking at Archived, and once grouping is
+  // already `project` (that Sessions section *is* the overview / drill-in).
+  const showFlatProjectOverview =
+    !worktreeGroupingActive && !showArchived && (projectModel.length > 0 || projectTreeLoading)
 
   const onEnterProject = useCallback(
     (id: string) => {
@@ -1120,7 +1124,11 @@ export function ChatSidebar({
         syncProjectCwd(project)
       }
 
-      enterProject(id)
+      // Same path as the command palette: flip into grouped mode and enter, so
+      // the existing drill-in (EnteredProjectContent) takes over. `enterProject`
+      // alone would change `$projectScope` while date grouping still paints the
+      // flat list — new chats would silently re-home with no visual enter.
+      goToProject(id)
     },
     [projectModel, syncProjectCwd]
   )
@@ -1620,6 +1628,56 @@ export function ChatSidebar({
                 sessions={pinnedSessions}
                 showProfileTags={showAllProfiles}
                 sortable={pinnedSessions.length > 1}
+              />
+            )}
+
+            {!trimmedQuery && showFlatProjectOverview && (
+              <SidebarSessionsSection
+                activeProjectId={activeProjectId}
+                activeSessionId={activeSidebarSessionId}
+                card={cardRows}
+                collapsible={false}
+                contentClassName="flex flex-col gap-px rounded-lg pb-2 pt-1"
+                dndSensors={dndSensors}
+                emptyState={null}
+                headerAction={
+                  !showAllProfiles ? (
+                    <Tip label={s.projects.newButton}>
+                      <Button
+                        aria-label={s.projects.newButton}
+                        className={HEADER_ACTION_BTN}
+                        onClick={event => {
+                          event.stopPropagation()
+                          openProjectCreate()
+                        }}
+                        size="icon-xs"
+                        variant="ghost"
+                      >
+                        <Codicon name="add" size="0.75rem" />
+                      </Button>
+                    </Tip>
+                  ) : undefined
+                }
+                label={s.projects.sectionLabel}
+                onArchiveSession={onArchiveSession}
+                onBranchSession={onBranchSession}
+                onDeleteSession={onDeleteSession}
+                onEnterProject={onEnterProject}
+                onNewSessionInWorkspace={onNewSessionInWorkspace}
+                onReorderProjects={showAllProfiles ? undefined : reorderProjects}
+                onResumeSession={onResumeSession}
+                onToggle={() => undefined}
+                onTogglePin={pinSession}
+                onToggleUnread={toggleUnread}
+                open
+                pinned={false}
+                projectOverview={projectModel}
+                projectOverviewPreviews={overviewPreviews}
+                projectsLoading={projectTreeLoading}
+                rootClassName="shrink-0 p-0 pb-1"
+                sessions={[]}
+                showProfileTags={showAllProfiles}
+                sortable={false}
               />
             )}
 
