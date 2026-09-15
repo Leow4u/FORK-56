@@ -2616,7 +2616,6 @@ export const zhHant = defineLocale({
 
   composer: {
     message: '訊息',
-    emptyReady: 'Work4You 已就緒',
     wakingProfile: profile => `正在喚醒 ${profile}…`,
     placeholderStarting: '正在啟動 Work4You...',
     placeholderReconnecting: '正在重新連線至 Work4You…',

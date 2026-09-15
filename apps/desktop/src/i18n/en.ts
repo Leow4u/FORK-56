@@ -3022,7 +3022,6 @@ export const en: Translations = {
 
   composer: {
     message: 'Message',
-    emptyReady: 'Work4You is ready',
     wakingProfile: profile => `Waking up ${profile}…`,
     placeholderStarting: 'Starting Work4You...',
     placeholderReconnecting: 'Reconnecting to Work4You…',

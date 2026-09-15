@@ -2729,7 +2729,6 @@ export const ja = defineLocale({
 
   composer: {
     message: 'メッセージ',
-    emptyReady: 'Work4You の準備ができました',
     wakingProfile: profile => `${profile} を起動中…`,
     placeholderStarting: 'Work4You を起動中...',
     placeholderReconnecting: 'Work4You に再接続中…',
