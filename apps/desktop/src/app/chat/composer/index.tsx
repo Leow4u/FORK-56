@@ -1273,6 +1273,7 @@ export function ChatBar({
                     onOpenWorktree={openInWorktree}
                     onSwitchBranch={handleSwitchBranch}
                     repoPath={cwd}
+                    showWorkspaceName={!messagesEmpty}
                   />
                 </div>
                 <div
