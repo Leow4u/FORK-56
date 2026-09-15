@@ -126,16 +126,20 @@ describe('WorkspaceChipRow', () => {
     expect(chip.textContent).not.toContain('Aplicativos')
   })
 
-  it('uses the composer pill silhouette so the empty-chat chip stays readable', () => {
-    renderChip(<WorkspaceChipRow messagesEmpty />)
+  it('uses a quiet footer chip, not a nested bordered pill', () => {
+    const { container } = renderChip(<WorkspaceChipRow messagesEmpty />)
 
     const chip = screen.getByRole('button', { name: 'Select workspace' })
     const icon = chip.querySelector('svg')
+    const footer = container.querySelector('[data-slot="composer-workspace-footer"]')
 
+    expect(footer).toBeTruthy()
+    expect(footer?.contains(chip)).toBe(true)
     expect(chip.className).toContain('h-(--composer-control-size)')
     expect(chip.className).toContain('rounded-full')
-    expect(chip.className).toContain('border-border/65')
     expect(chip.className).toContain('text-(--ui-text-secondary)')
+    expect(chip.className).not.toContain('border-border/65')
+    expect(chip.className).not.toContain('bg-(--composer-fill)')
     expect(chip.className).not.toContain('muted-foreground')
     expect(icon?.classList.contains('size-3.5')).toBe(true)
   })
@@ -145,5 +149,6 @@ describe('WorkspaceChipRow', () => {
 
     expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
     expect(container.querySelector('[data-slot="workspace-chip"]')).toBeNull()
+    expect(container.querySelector('[data-slot="composer-workspace-footer"]')).toBeNull()
   })
 })
