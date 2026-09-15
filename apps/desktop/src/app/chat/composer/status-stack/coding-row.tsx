@@ -17,9 +17,13 @@ import { DiffCount } from '@/components/ui/diff-count'
 import type { Work4YouGitBranch } from '@/global'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
+import { FolderOpen } from '@/lib/icons'
+import { cn } from '@/lib/utils'
 import { openWorktreeDialog, registerRepoStatusCwd, repoStatusForCwd, repoWorktreesForCwd } from '@/store/coding-status'
 import { notifyError } from '@/store/notifications'
 import { $pullRequestsByBranch, branchPrKey, refreshPullRequests } from '@/store/pull-requests'
+
+import { ContextDot, WorkspaceConnectionSegment, WorkspaceNameButton } from './workspace-context-parts'
 
 // Tiny uppercase section header, matching the composer "+" menu's labels.
 const MENU_SECTION = 'text-[0.625rem] font-semibold uppercase tracking-wider text-(--ui-text-tertiary)'
@@ -43,6 +47,8 @@ interface CodingStatusRowProps {
   onSwitchBranch?: (branch: string) => Promise<void>
   /** Repo root path for the worktree dialog. */
   repoPath?: null | string
+  /** Occupied chat: paint workspace name on this strip. Empty chat uses Select workspace. */
+  showWorkspaceName?: boolean
 }
 
 /**
@@ -59,7 +65,8 @@ export const CodingStatusRow = memo(function CodingStatusRow({
   onOpen,
   onOpenWorktree,
   onSwitchBranch,
-  repoPath
+  repoPath,
+  showWorkspaceName = false
 }: CodingStatusRowProps) {
   const { t } = useI18n()
   const s = t.statusStack.coding
@@ -115,7 +122,21 @@ export const CodingStatusRow = memo(function CodingStatusRow({
   }
 
   if (!status) {
-    return null
+    if (!showWorkspaceName) {
+      return null
+    }
+
+    return (
+      <StatusRow
+        className="coding-status-bar min-h-7 rounded-t-[inherit] rounded-b-none border-b border-(--ui-stroke-tertiary) px-3.5 py-1.5 hover:bg-transparent"
+        leading={<FolderOpen aria-hidden className="size-3 text-muted-foreground/80" />}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-1" data-slot="workspace-context-strip">
+          <WorkspaceNameButton cwd={resolvedRepoPath} />
+          <WorkspaceConnectionSegment />
+        </div>
+      </StatusRow>
+    )
   }
 
   const branchLabel = status.detached ? s.detached : status.branch || s.noBranch
@@ -204,7 +225,10 @@ export const CodingStatusRow = memo(function CodingStatusRow({
     <>
       <ActionsContextMenu contentClassName="w-60" disabled={!onBranchOff} items={renderBranchItems}>
         <StatusRow
-          className="coding-status-bar min-h-7 rounded-none border-b border-(--ui-stroke-tertiary) px-3.5 py-1.5 hover:bg-transparent"
+          className={cn(
+            'coding-status-bar min-h-7 rounded-b-none border-b border-(--ui-stroke-tertiary) px-3.5 py-1.5 hover:bg-transparent',
+            showWorkspaceName ? 'rounded-t-[inherit]' : 'rounded-none'
+          )}
           // Static branch glyph — never the loading spinner. This row only renders
           // once `status` exists, so a spinner here only ever fired on *refreshes*
           // of an already-loaded repo (window focus, turn settle), reading as an
@@ -217,7 +241,13 @@ export const CodingStatusRow = memo(function CodingStatusRow({
             </button>
           }
         >
-          <div className="flex min-w-0 flex-1 items-center gap-1">
+          <div className="flex min-w-0 flex-1 items-center gap-1" data-slot="workspace-context-strip">
+            {showWorkspaceName ? (
+              <>
+                <WorkspaceNameButton cwd={resolvedRepoPath} />
+                <ContextDot />
+              </>
+            ) : null}
             {/* PR number first, right against the leading git glyph — the chip
                 borrows that icon instead of carrying a second one of its own
                 (`showIcon={false}`), so the row reads glyph → #number → branch. */}
@@ -231,6 +261,8 @@ export const CodingStatusRow = memo(function CodingStatusRow({
                 {branchLabel}
               </span>
             </button>
+
+            <WorkspaceConnectionSegment />
 
             {/* Worktree path + copy — plain muted text, not a chip. Always in the
                 flex so hover doesn't reflow the row; opacity alone reveals the

@@ -1,0 +1,48 @@
+import { cleanup, render, screen } from '@testing-library/react'
+import { atom } from 'nanostores'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import type { DesktopConnectionsRegistry, Work4YouConnection } from '@/global'
+import { $connectionsRegistry } from '@/store/connections'
+import { $connection } from '@/store/session'
+
+vi.mock('@/store/coding-status', () => ({
+  registerRepoStatusCwd: () => undefined,
+  repoStatusForCwd: () => atom(null),
+  repoWorktreesForCwd: () => atom([])
+}))
+
+const { CodingStatusRow } = await import('./coding-row')
+
+afterEach(() => {
+  cleanup()
+  $connectionsRegistry.set(null)
+  $connection.set(null)
+})
+
+describe('CodingStatusRow without git', () => {
+  it('stays hidden on an empty chat', () => {
+    const { container } = render(<CodingStatusRow repoPath="/repos/notes" />)
+
+    expect(container.querySelector('.coding-status-bar')).toBeNull()
+  })
+
+  it('paints name · connection on an occupied chat', () => {
+    $connectionsRegistry.set({
+      connections: [
+        { id: 'local', kind: 'local', label: 'This device', tokenPreview: null, tokenSet: false },
+        { id: 'cloud', kind: 'cloud', label: 'Work4You Cloud', tokenPreview: null, tokenSet: false }
+      ],
+      primary: 'local',
+      secureTokenStorage: true,
+      version: 2
+    } satisfies DesktopConnectionsRegistry)
+    $connection.set({ connectionId: 'cloud' } as Work4YouConnection)
+
+    render(<CodingStatusRow repoPath="/repos/notes" showWorkspaceName />)
+
+    expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('notes')
+    expect(screen.getByText('Work4You Cloud')).toBeTruthy()
+    expect(screen.queryByText('bb/hitbox')).toBeNull()
+  })
+})
