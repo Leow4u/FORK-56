@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
 import { $projectTree } from '@/store/projects'
 
-import { workspaceChipLabel } from './workspace-chip-label'
+import { emptyWorkspaceChipLabel, workspaceChipLabel } from './workspace-chip-label'
 
 function treeNode(over: Partial<SidebarProjectTree> & Pick<SidebarProjectTree, 'id' | 'label'>): SidebarProjectTree {
   return {
@@ -35,5 +35,28 @@ describe('workspaceChipLabel', () => {
     $projectTree.set([])
 
     expect(workspaceChipLabel('/Users/me/www/work4you', 'Home')).toBe('work4you')
+  })
+})
+
+describe('emptyWorkspaceChipLabel', () => {
+  afterEach(() => {
+    $projectTree.set([])
+  })
+
+  it('keeps the Select workspace CTA when there is no cwd', () => {
+    expect(emptyWorkspaceChipLabel('', 'Select workspace')).toBe('Select workspace')
+    expect(emptyWorkspaceChipLabel(null, 'Select workspace')).toBe('Select workspace')
+  })
+
+  it('keeps the CTA for a cwd that is not a named project', () => {
+    $projectTree.set([])
+
+    expect(emptyWorkspaceChipLabel('/Users/leona', 'Select workspace')).toBe('Select workspace')
+  })
+
+  it('names the explicit project that owns the cwd', () => {
+    $projectTree.set([treeNode({ id: 'p_cars', label: 'Carros Eduardo', path: '/Users/leona/Aplicativos' })])
+
+    expect(emptyWorkspaceChipLabel('/Users/leona/Aplicativos', 'Select workspace')).toBe('Carros Eduardo')
   })
 })

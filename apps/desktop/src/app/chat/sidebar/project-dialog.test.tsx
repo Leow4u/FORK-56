@@ -1,10 +1,17 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type * as Nanostores from 'nanostores'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { closeProjectDialog, createProject, goToProject } from '@/store/projects'
+
 import { ProjectDialog } from './project-dialog'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.mocked(createProject).mockClear()
+  vi.mocked(goToProject).mockClear()
+  vi.mocked(closeProjectDialog).mockClear()
+})
 
 vi.mock('@/i18n', () => ({
   useI18n: () => ({
@@ -52,8 +59,13 @@ vi.mock('@/store/projects', () => ({
   $projectDialog,
   addProjectFolder: vi.fn(),
   closeProjectDialog: vi.fn(),
-  createProject: vi.fn(),
+  createProject: vi.fn(async () => ({
+    id: 'p_cars',
+    name: 'Carros Eduardo',
+    primary_path: '/Users/test/my-folder'
+  })),
   generateProjectIdea: vi.fn(),
+  goToProject: vi.fn(),
   pickProjectFolder: vi.fn(async () => '/Users/test/my-folder'),
   renameProject: vi.fn()
 }))
@@ -83,5 +95,21 @@ describe('ProjectDialog', () => {
 
     const button = await screen.findByRole('button', { name: 'Remove folder' })
     expect(tipTrigger(button)).toBeTruthy()
+  })
+
+  it('enters the created project and anchors a new session', async () => {
+    render(<ProjectDialog />)
+
+    fireEvent.change(screen.getByPlaceholderText('Project name'), { target: { value: 'Carros Eduardo' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    await screen.findByRole('button', { name: 'Remove folder' })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => {
+      expect(createProject).toHaveBeenCalledWith(
+        expect.objectContaining({ folders: ['/Users/test/my-folder'], name: 'Carros Eduardo', use: true })
+      )
+      expect(goToProject).toHaveBeenCalledWith('p_cars', { newSession: true })
+    })
   })
 })

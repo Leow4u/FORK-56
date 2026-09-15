@@ -25,6 +25,7 @@ import {
   closeProjectDialog,
   createProject,
   generateProjectIdea,
+  goToProject,
   pickProjectFolder,
   renameProject
 } from '@/store/projects'
@@ -122,9 +123,22 @@ export function ProjectDialog() {
     }
 
     // A project owns sessions by folder (cwd-prefix), so creation requires at
-    // least one — a folder-less project couldn't hold a session anyway.
+    // least one — a folder-less project couldn't hold a session anyway. After
+    // the write, enter the project and anchor a fresh session so the composer
+    // chip can name it (open-folder-as-project already does this; create did not).
     if (mode === 'create' && trimmed && folders.length) {
-      await runSubmit(() => createProject({ folders, idea: idea.trim() || undefined, name: trimmed, use: true }))
+      await runSubmit(async () => {
+        const created = await createProject({
+          folders,
+          idea: idea.trim() || undefined,
+          name: trimmed,
+          use: true
+        })
+
+        if (created) {
+          goToProject(created.id, { newSession: true })
+        }
+      })
     }
   }
 

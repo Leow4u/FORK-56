@@ -100,11 +100,30 @@ describe('WorkspaceChipRow', () => {
     expect(openProjectCreate).toHaveBeenCalledOnce()
   })
 
-  it('keeps the visible label Select workspace even when a cwd is set', () => {
+  it('keeps the visible label Select workspace when a cwd is not a named project', () => {
     renderChip(<WorkspaceChipRow cwd="/repos/website/src" messagesEmpty />)
 
     expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('Select workspace')
     expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).not.toContain('website')
+  })
+
+  it('paints the named project on the empty-chat chip', () => {
+    $projectTree.set([
+      {
+        id: 'p_cars',
+        label: 'Carros Eduardo',
+        path: '/Users/leona/Aplicativos',
+        repos: [],
+        sessionCount: 0
+      } satisfies SidebarProjectTree
+    ])
+    renderChip(<WorkspaceChipRow cwd="/Users/leona/Aplicativos" messagesEmpty />)
+
+    const chip = screen.getByRole('button', { name: 'Select workspace' })
+
+    expect(chip.textContent).toContain('Carros Eduardo')
+    expect(chip.textContent).not.toContain('Select workspace')
+    expect(chip.textContent).not.toContain('Aplicativos')
   })
 
   it('uses the composer pill silhouette so the empty-chat chip stays readable', () => {
