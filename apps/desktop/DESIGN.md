@@ -214,8 +214,8 @@ Notes:
 - **Composer context bar** — empty-chat workspace picker. A second capsule
   (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
   card as a sibling vessel, not a well inside it: same width, same
-  `rounded-2xl`, the surface hairline, a complete rounded top of its own.
-  The prompt card sits slightly on the tray (`--shadow-composer`); occupied
+  `rounded-3xl`, the surface hairline, a complete rounded top of its own.
+  The prompt card sits slightly on the tray (`shadow-work4you`); occupied
   chat keeps the coding-status strip.
 - **Inline widgets** — a tool result that renders as a panel the user reads or
   acts on (clarify, artifact card) wears `WIDGET_SHELL_CLASS`

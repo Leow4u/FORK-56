@@ -470,14 +470,14 @@
     --composer-control-size: 1.5rem;
     --composer-control-primary-size: 1.625rem;
     --composer-control-gap: 0.25rem;
-    --composer-row-gap: 0.25rem;
+    --composer-row-gap: 0.375rem;
     --composer-ring-strength: 1;
-    --composer-surface-pad-x: 0.5rem;
-    --composer-surface-pad-y: 0.3125rem;
+    --composer-surface-pad-x: 0.75rem;
+    --composer-surface-pad-y: 0.5rem;
     --composer-input-min-height: 1.625rem;
     --composer-input-max-height: 9.375rem;
     --composer-input-inline-min-width: 8rem;
-    --composer-fallback-height: 2.75rem;
+    --composer-fallback-height: 3.125rem;
     --composer-measured-height: calc(0.5rem + var(--composer-shell-pad-block-end) + var(--composer-fallback-height));
     --composer-surface-measured-height: var(--composer-fallback-height);
     --thread-viewport-height: max(
@@ -1740,13 +1740,9 @@ body.guest-pointer-lock :is(webview, iframe) {
 
 /* Empty-chat stack: the prompt card must be opaque enough that the tray
    behind it never shows through the body — only through the bottom corner
-   cutouts — and a contact shadow lifts it off the second capsule. */
+   cutouts. Elevation comes from the surface's `shadow-work4you`. */
 [data-slot='composer-root'][data-context-bar] {
   --composer-fill: color-mix(in srgb, var(--dt-card) 96%, var(--dt-background));
-}
-
-[data-slot='composer-root'][data-context-bar] [data-slot='composer-surface'] {
-  box-shadow: var(--shadow-composer);
 }
 
 [data-slot='composer-root'][data-thread-scrolled-up] {

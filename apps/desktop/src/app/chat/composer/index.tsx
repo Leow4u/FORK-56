@@ -1187,7 +1187,7 @@ export function ChatBar({
           />
           <ComposerPrimitive.Root
             className={cn(
-              'group/composer relative w-full overflow-visible rounded-2xl',
+              'group/composer relative w-full overflow-visible rounded-3xl',
               messagesEmpty && 'z-10',
               poppedOut && 'bg-transparent',
               dragging && 'cursor-grabbing select-none touch-none'
@@ -1251,7 +1251,7 @@ export function ChatBar({
               {hudMode && busy && <span aria-hidden className="arc-border arc-composer" />}
               <div
                 className={cn(
-                  'group/composer-surface relative z-4 isolate grid grid-rows-[auto_1fr] overflow-hidden rounded-[inherit] border border-[color-mix(in_srgb,var(--dt-composer-ring)_calc(18%*var(--composer-ring-strength)),var(--dt-input))]',
+                  'group/composer-surface relative z-4 isolate grid grid-rows-[auto_1fr] overflow-hidden rounded-[inherit] border border-[color-mix(in_srgb,var(--dt-composer-ring)_calc(18%*var(--composer-ring-strength)),var(--dt-input))] shadow-work4you',
                   COMPOSER_DROP_FADE_CLASS,
                   dragActive && COMPOSER_DROP_ACTIVE_CLASS
                 )}
@@ -1371,7 +1371,7 @@ export function ChatBarFallback() {
   return (
     <div
       className={cn(
-        'group/composer absolute bottom-0 left-1/2 z-30 w-[min(var(--composer-width),calc(100%-2rem))] max-w-full -translate-x-1/2 rounded-2xl pt-2 pb-[var(--composer-shell-pad-block-end)]',
+        'group/composer absolute bottom-0 left-1/2 z-30 w-[min(var(--composer-width),calc(100%-2rem))] max-w-full -translate-x-1/2 rounded-3xl pt-2 pb-[var(--composer-shell-pad-block-end)]',
         'bg-linear-to-b from-transparent to-background/55'
       )}
       data-slot="composer-root"

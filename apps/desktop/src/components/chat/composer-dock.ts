@@ -60,7 +60,7 @@ export const composerFloatingPill = cn(
  * the radius) lets the prompt card sit on the tray without covering it.
  */
 export const composerContextShell = cn(
-  'relative z-0 mx-[5px] -mt-1.5 flex items-center rounded-2xl px-3 py-1.5',
+  'relative z-0 mx-[5px] -mt-1.5 flex items-center rounded-3xl px-3 py-1.5',
   'border border-(--ui-stroke-secondary)',
   'bg-[color-mix(in_srgb,var(--dt-card)_72%,transparent)]',
   composerSurfaceGlass

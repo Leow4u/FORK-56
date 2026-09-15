@@ -134,11 +134,10 @@ describe('WorkspaceChipRow', () => {
     const icon = chip.querySelector('svg')
 
     expect(shell).not.toBeNull()
-    expect(shell?.className).toContain('rounded-2xl')
+    expect(shell?.className).toContain('rounded-3xl')
     expect(shell?.className).toContain('border-(--ui-stroke-secondary)')
     expect(shell?.className).toContain('-mt-1.5')
     expect(shell?.className).toContain('py-1.5')
-    expect(shell?.className).not.toContain('pt-[1.125rem]')
     expect(chip.className).toContain('h-7')
     expect(chip.className).toContain('max-w-full')
     expect(chip.className).not.toContain('rounded-full')
@@ -152,5 +151,6 @@ describe('WorkspaceChipRow', () => {
 
     expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
     expect(container.querySelector('[data-slot="workspace-chip"]')).toBeNull()
+    expect(container.querySelector('[data-slot="composer-context-bar"]')).toBeNull()
   })
 })
