@@ -204,9 +204,7 @@ export const CodingStatusRow = memo(function CodingStatusRow({
     <>
       <ActionsContextMenu contentClassName="w-60" disabled={!onBranchOff} items={renderBranchItems}>
         <StatusRow
-          // The base "where am I working" strip is part of the composer surface
-          // itself, so it inherits the composer's width and clipped top radius.
-          className="coding-status-bar min-h-7 rounded-t-[inherit] rounded-b-none border-b border-(--ui-stroke-tertiary) px-3.5 py-1.5 hover:bg-transparent"
+          className="coding-status-bar min-h-7 rounded-none border-b border-(--ui-stroke-tertiary) px-3.5 py-1.5 hover:bg-transparent"
           // Static branch glyph — never the loading spinner. This row only renders
           // once `status` exists, so a spinner here only ever fired on *refreshes*
           // of an already-loaded repo (window focus, turn settle), reading as an

@@ -69,6 +69,7 @@ describe('HUD mode', () => {
   it('keeps the voice controls inline and offers no exit in the docked composer', () => {
     renderControls()
 
+    expect(screen.getByLabelText('Context usage')).toBeTruthy()
     expect(screen.getByLabelText('Voice dictation')).toBeTruthy()
     expect(screen.getByLabelText('Read replies aloud')).toBeTruthy()
     expect(screen.queryByLabelText('Exit HUD mode')).toBeNull()
