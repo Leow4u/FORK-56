@@ -17,8 +17,9 @@ import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 import { makeSessionInfo } from '@/test/session-info'
 import type { CronJob } from '@/types/work4you'
 
-import { ChatSidebar } from './index'
 import type { SidebarProjectTree } from './projects'
+
+import { ChatSidebar } from './index'
 
 beforeAll(() => {
   stubResizeObserver()
