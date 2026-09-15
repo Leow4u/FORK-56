@@ -422,6 +422,7 @@ export function SidebarSessionsSection({
         previewSessions={projectOverviewPreviews?.[project.id]}
         project={project}
         renderRows={renderRows}
+        repoWorktrees={projectRepoWorktrees}
       />
     )
 

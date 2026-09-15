@@ -184,7 +184,7 @@ export function WorkspaceHeader({
   icon,
   label,
   onToggle,
-  open,
+  open = true,
   title,
   ref,
   ...rest
@@ -193,11 +193,18 @@ export function WorkspaceHeader({
   emphasis?: boolean
   icon: React.ReactNode
   label: string
-  onToggle: () => void
-  open: boolean
+  onToggle?: () => void
+  open?: boolean
   /** Hover tooltip — the lane's full on-disk path (worktree / repo root). */
   title?: string
 } & React.ComponentProps<'div'>) {
+  const labelRow = (
+    <>
+      <SidebarRowLead>{icon}</SidebarRowLead>
+      <LaneLabel label={label} title={title ? `${label}\n${title}` : label} />
+    </>
+  )
+
   return (
     <div
       className={cn(
@@ -207,21 +214,24 @@ export function WorkspaceHeader({
       ref={ref}
       {...rest}
     >
-      <button
-        className={cn(
-          'flex min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left',
-          emphasis ? 'hover:text-foreground' : 'hover:text-(--ui-text-secondary)'
-        )}
-        onClick={onToggle}
-        type="button"
-      >
-        <SidebarRowLead>{icon}</SidebarRowLead>
-        <LaneLabel label={label} title={title ? `${label}\n${title}` : label} />
-        <DisclosureCaret
-          className="shrink-0 text-(--ui-text-tertiary) opacity-0 transition group-hover/workspace:opacity-100"
-          open={open}
-        />
-      </button>
+      {onToggle ? (
+        <button
+          className={cn(
+            'flex min-w-0 flex-1 items-center gap-1.5 bg-transparent text-left',
+            emphasis ? 'hover:text-foreground' : 'hover:text-(--ui-text-secondary)'
+          )}
+          onClick={onToggle}
+          type="button"
+        >
+          {labelRow}
+          <DisclosureCaret
+            className="shrink-0 text-(--ui-text-tertiary) opacity-0 transition group-hover/workspace:opacity-100"
+            open={open}
+          />
+        </button>
+      ) : (
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">{labelRow}</div>
+      )}
       {action}
     </div>
   )

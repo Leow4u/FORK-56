@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { SessionInfo } from '@/work4you'
 
@@ -8,6 +8,8 @@ import { ProjectOverviewRow } from './overview-row'
 import type { SidebarProjectTree } from './workspace-groups'
 
 afterEach(cleanup)
+
+const { nodeOpen } = vi.hoisted(() => ({ nodeOpen: { current: false } }))
 
 vi.mock('@/i18n', () => ({
   useI18n: () => ({
@@ -27,7 +29,13 @@ vi.mock('@/i18n', () => ({
 vi.mock('./model', () => ({
   PROJECT_PREVIEW_COUNT: 3,
   latestProjectSessions: () => [],
-  useWorkspaceNodeOpen: () => [false, vi.fn()]
+  useWorkspaceNodeOpen: () => [nodeOpen.current, vi.fn()]
+}))
+
+vi.mock('./entered-content', () => ({
+  EnteredProjectContent: ({ project }: { project: SidebarProjectTree }) => (
+    <div data-testid="overview-lanes">{project.repos.map(repo => repo.label).join(',')}</div>
+  )
 }))
 
 // ProjectMenu (the kebab) has its own dedicated test file — stub it here so
@@ -39,11 +47,20 @@ vi.mock('./project-menu', () => ({
   ProjectMenu: () => null
 }))
 
-const project = { id: 'p1', label: 'Test D' } as unknown as SidebarProjectTree
+const project = { id: 'p1', label: 'Test D', repos: [] } as unknown as SidebarProjectTree
+
+const repoProject = {
+  id: 'p_web',
+  label: 'Website',
+  repos: [{ groups: [], id: '/repos/website', label: 'website', path: '/repos/website', sessionCount: 0 }]
+} as unknown as SidebarProjectTree
 
 const tipTrigger = (el: HTMLElement) => el.closest('[data-slot="tooltip-trigger"]')
 
 describe('ProjectOverviewRow', () => {
+  beforeEach(() => {
+    nodeOpen.current = false
+  })
   it('wraps the "new session" add button in a Tip with the project-scoped label', () => {
     render(<ProjectOverviewRow onNewSession={vi.fn()} project={project} />)
 
@@ -91,5 +108,35 @@ describe('ProjectOverviewRow', () => {
     const { container } = render(<ProjectOverviewRow project={project} />)
 
     expect(container.querySelector('[data-sessions-project="p1"]')).toBeTruthy()
+  })
+
+  it('offers a disclosure when the project has repos even without session previews', () => {
+    render(<ProjectOverviewRow project={repoProject} />)
+
+    expect(screen.getByRole('button', { name: 'Show Website sessions' })).toBeTruthy()
+    expect(screen.queryByTestId('overview-lanes')).toBeNull()
+  })
+
+  it('paints repo lanes on the overview without entering the project', () => {
+    nodeOpen.current = true
+    render(<ProjectOverviewRow project={repoProject} />)
+
+    expect(screen.getByTestId('overview-lanes').textContent).toBe('website')
+  })
+
+  it('does not paint repo lanes under Home', () => {
+    nodeOpen.current = true
+
+    const home = {
+      id: '__no_project__',
+      isNoProject: true,
+      label: 'Home',
+      path: null,
+      repos: [{ groups: [], id: 'none', label: 'Home', path: null, sessionCount: 1 }]
+    } as unknown as SidebarProjectTree
+
+    render(<ProjectOverviewRow project={home} />)
+
+    expect(screen.queryByTestId('overview-lanes')).toBeNull()
   })
 })

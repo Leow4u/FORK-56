@@ -33,6 +33,27 @@ const projectSessions = (project: SidebarProjectTree): SessionInfo[] =>
 export const projectTreeCwd = (project: SidebarProjectTree): null | string =>
   project.path || project.repos.find(repo => repo.path)?.path || null
 
+/** Unique git roots from the overview tree — Home has none. */
+export function overviewRepoPaths(projects: readonly SidebarProjectTree[]): string[] {
+  const paths = new Set<string>()
+
+  for (const project of projects) {
+    if (project.isNoProject) {
+      continue
+    }
+
+    for (const repo of project.repos) {
+      const path = repo.path?.trim()
+
+      if (path) {
+        paths.add(path)
+      }
+    }
+  }
+
+  return [...paths]
+}
+
 // Overview rows carry their activity stamp from the backend (lanes are empty in
 // overview mode), falling back to loaded session times when present.
 const projectActivityTime = (project: SidebarProjectTree): number =>

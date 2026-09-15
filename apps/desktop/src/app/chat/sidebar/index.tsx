@@ -157,6 +157,7 @@ import {
   orderProjectsByIds,
   overlayLiveLanes,
   overlayLivePreviews,
+  overviewRepoPaths,
   PROJECT_PREVIEW_COUNT,
   ProjectBackRow,
   ProjectMenu,
@@ -1005,17 +1006,28 @@ export function ChatSidebar({
     [enteredProject]
   )
 
+  const overviewRepoPathList = useMemo(() => overviewRepoPaths(projectModel), [projectModel])
+
   // git worktree list is a VISUAL-only enhancer (empty lanes); never membership.
   const inEnteredProject = Boolean(enteredProject && !showAllProfiles)
+  const listingProjectOverview = !showArchived && !inProject
   const [scopedRepoWorktrees] = useRepoWorktreeMap(scopedRepoPaths, inEnteredProject)
+
+  const [overviewRepoWorktrees] = useRepoWorktreeMap(
+    overviewRepoPathList,
+    listingProjectOverview && !showAllProfiles && overviewRepoPathList.length > 0
+  )
+
+  const probeWorktrees = inEnteredProject || (listingProjectOverview && !showAllProfiles)
 
   // Re-probe worktree lanes on out-of-band git changes the renderer can't see.
   // A turn can `git worktree add/remove` in the terminal (e.g. you ask Work4You to
   // "remove that worktree"), and the window never blurs during an in-app chat,
   // so nothing would otherwise re-run the visual probe. Re-sync when a working
   // session settles (its turn finished) or the window refocuses (an external
-  // terminal may have changed things) — only while a project is entered, and
-  // only the cheap per-repo `git worktree list`, never the heavy tree scan.
+  // terminal may have changed things) — while a project is entered OR the
+  // overview is listing repo lanes, and only the cheap per-repo
+  // `git worktree list`, never the heavy tree scan.
   //
   // Listened to rather than rendered from: a settling turn is a side effect,
   // and reading it with `useStore` repainted this whole component — every
@@ -1023,7 +1035,7 @@ export function ChatSidebar({
   // markup. The rows subscribe to their own status, so nothing above them needs
   // to re-render for one of them to change color.
   useEffect(() => {
-    if (!inEnteredProject) {
+    if (!probeWorktrees) {
       return
     }
 
@@ -1039,10 +1051,10 @@ export function ChatSidebar({
         refreshWorktrees()
       }
     })
-  }, [inEnteredProject])
+  }, [probeWorktrees])
 
   useEffect(() => {
-    if (!inEnteredProject) {
+    if (!probeWorktrees) {
       return
     }
 
@@ -1050,7 +1062,7 @@ export function ChatSidebar({
     window.addEventListener('focus', onFocus)
 
     return () => window.removeEventListener('focus', onFocus)
-  }, [inEnteredProject])
+  }, [probeWorktrees])
 
   const lastProjectCwdSyncRef = useRef<null | string>(null)
 
@@ -1673,6 +1685,7 @@ export function ChatSidebar({
                 pinned={false}
                 projectOverview={projectModel}
                 projectOverviewPreviews={overviewPreviews}
+                projectRepoWorktrees={overviewRepoWorktrees}
                 projectsLoading={projectTreeLoading}
                 rootClassName="shrink-0 p-0 pb-1"
                 sessions={[]}
@@ -1857,7 +1870,7 @@ export function ChatSidebar({
                 projectContent={inProject ? enteredProjectContent : undefined}
                 projectOverview={projectOverview}
                 projectOverviewPreviews={overviewPreviews}
-                projectRepoWorktrees={inProject ? scopedRepoWorktrees : undefined}
+                projectRepoWorktrees={inProject ? scopedRepoWorktrees : overviewRepoWorktrees}
                 projectsLoading={worktreeGroupingActive ? projectTreeLoading : false}
                 removedSessionIds={inProject ? removedSessionIds : undefined}
                 rootClassName={cn(

@@ -43,7 +43,8 @@ export function EnteredProjectContent({
   onNewSession,
   repoWorktrees,
   liveSessions,
-  removedSessionIds
+  removedSessionIds,
+  lanesOnly = false
 }: {
   project: SidebarProjectTree
   renderRows: (sessions: SessionInfo[]) => React.ReactNode
@@ -51,6 +52,9 @@ export function EnteredProjectContent({
   repoWorktrees?: Record<string, Work4YouGitWorktree[]>
   liveSessions?: SessionInfo[]
   removedSessionIds?: ReadonlySet<string>
+  // Overview: paint repo/worktree headers without the empty-lane "No sessions"
+  // placeholder (overview payloads strip session rows).
+  lanesOnly?: boolean
 }) {
   if (!project.repos.length) {
     return null
@@ -70,6 +74,7 @@ export function EnteredProjectContent({
         <RepoFlatSection
           discoveredWorktrees={repo.path ? repoWorktrees?.[repo.path] : undefined}
           key={repo.id}
+          lanesOnly={lanesOnly}
           liveSessions={liveSessions}
           onNewSession={onNewSession}
           removedSessionIds={removedSessionIds}
@@ -89,7 +94,8 @@ function RepoFlatSection({
   onNewSession,
   discoveredWorktrees,
   liveSessions,
-  removedSessionIds
+  removedSessionIds,
+  lanesOnly = false
 }: {
   repo: SidebarWorkspaceTree
   showHeader: boolean
@@ -98,6 +104,7 @@ function RepoFlatSection({
   discoveredWorktrees?: Work4YouGitWorktree[]
   liveSessions?: SessionInfo[]
   removedSessionIds?: ReadonlySet<string>
+  lanesOnly?: boolean
 }) {
   const { t } = useI18n()
   const s = t.sidebar
@@ -113,14 +120,14 @@ function RepoFlatSection({
   // lanes before the snapshot carries their sessions — get the new row. The
   // overlay drops lanes it empties, so re-merge to restore still-real worktrees.
   const overlaidGroups = useMemo(() => {
-    if (!(liveSessions?.length || removedSessionIds?.size)) {
+    if (lanesOnly || !(liveSessions?.length || removedSessionIds?.size)) {
       return mergedGroups
     }
 
     const { groups } = overlayRepoLanes({ ...repo, groups: mergedGroups }, liveSessions ?? [], removedSessionIds)
 
     return mergeRepoWorktreeGroups({ id: repo.id, path: repo.path, groups }, discoveredWorktrees)
-  }, [repo, mergedGroups, discoveredWorktrees, liveSessions, removedSessionIds])
+  }, [repo, mergedGroups, discoveredWorktrees, lanesOnly, liveSessions, removedSessionIds])
 
   const discoveredWorktreePaths = useMemo(
     () =>
@@ -171,6 +178,7 @@ function RepoFlatSection({
         <SidebarWorkspaceGroup
           group={group}
           key={group.id}
+          lanesOnly={lanesOnly}
           // The kanban bucket is read-only: it aggregates many task worktrees, so
           // "new session here" and "remove worktree" have no single target.
           onNewSession={group.isKanban ? undefined : onNewSession}
