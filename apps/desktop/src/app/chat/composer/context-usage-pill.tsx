@@ -39,6 +39,7 @@ export function ContextUsagePill({ busy, sessionId }: { busy: boolean; sessionId
   const copy = useI18n().t.shell.statusbar
   const scope = useComposerScope()
   const primaryUsage = useStore($currentUsage)
+
   const sessionUsage = useStoreSelector($sessionStates, states =>
     sessionId ? (states[sessionId]?.usage ?? null) : null
   )

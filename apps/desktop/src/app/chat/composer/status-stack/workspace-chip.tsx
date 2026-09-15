@@ -1,5 +1,4 @@
 import { useStore } from '@nanostores/react'
-import { useMemo } from 'react'
 
 import { SELECT_WORKSPACE_PAGE } from '@/app/command-palette/workspace-palette'
 import { StatusRow } from '@/components/chat/status-row'
@@ -16,8 +15,8 @@ export function WorkspaceChipRow({ cwd }: { cwd?: null | string }) {
   const { t } = useI18n()
   const homeLabel = t.sidebar.projects.home
   const selectLabel = t.commandCenter.selectWorkspace
-  const projectTree = useStore($projectTree)
-  const label = useMemo(() => workspaceChipLabel(cwd, homeLabel), [cwd, homeLabel, projectTree])
+  useStore($projectTree)
+  const label = workspaceChipLabel(cwd, homeLabel)
   const path = (cwd ?? '').trim()
   const tip = path ? `${selectLabel} — ${displayPath(path)}` : selectLabel
 
