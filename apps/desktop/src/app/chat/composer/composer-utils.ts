@@ -27,7 +27,7 @@ export const COMPOSER_COMPACT_PILL_PX = 560
 // which is when the composer should expand to the stacked layout.
 export const COMPOSER_SINGLE_LINE_MAX_PX = 36
 
-/** Empty chat keeps the input on its own row so Select workspace can sit in the footer. */
+/** Empty chat stacks the prompt above the action row so the sibling context capsule can sit under the prompt card. */
 export function composerActionStacked(stacked: boolean, messagesEmpty: boolean): boolean {
   return stacked || messagesEmpty
 }

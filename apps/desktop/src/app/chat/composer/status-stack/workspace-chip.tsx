@@ -1,6 +1,6 @@
 import { useStore } from '@nanostores/react'
 
-import { composerFooterChip } from '@/components/chat/composer-dock'
+import { composerContextBar, composerContextShell } from '@/components/chat/composer-dock'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
 import { FolderOpen } from '@/lib/icons'
@@ -22,9 +22,9 @@ export function WorkspaceChipRow({ cwd, messagesEmpty }: { cwd?: null | string; 
   }
 
   return (
-    <div className="flex min-w-0 items-center" data-slot="composer-workspace-footer">
+    <div className={composerContextShell} data-slot="composer-context-bar">
       <WorkspaceSelectMenu side="top" tooltip={tip}>
-        <button aria-label={selectLabel} className={composerFooterChip} data-slot="workspace-chip" type="button">
+        <button aria-label={selectLabel} className={composerContextBar} data-slot="workspace-chip" type="button">
           <FolderOpen aria-hidden className="size-3.5 shrink-0" />
           <span className="truncate">{label}</span>
         </button>

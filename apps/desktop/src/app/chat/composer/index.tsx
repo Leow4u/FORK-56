@@ -1188,9 +1188,11 @@ export function ChatBar({
           <ComposerPrimitive.Root
             className={cn(
               'group/composer relative w-full overflow-visible rounded-3xl',
+              messagesEmpty && 'z-10',
               poppedOut && 'bg-transparent',
               dragging && 'cursor-grabbing select-none touch-none'
             )}
+            data-context-bar={messagesEmpty ? '' : undefined}
             data-drag-active={dragActive ? '' : undefined}
             data-hud-grabbing={hudGrabbing ? '' : undefined}
             data-popped-out={poppedOut ? '' : undefined}
@@ -1337,12 +1339,12 @@ export function ChatBar({
                       {controls}
                     </div>
                   </div>
-                  <WorkspaceChipRow cwd={cwd} messagesEmpty={messagesEmpty} />
                   <ContribSlot area={COMPOSER_AREAS.bottom} />
                 </div>
               </div>
             </div>
           </ComposerPrimitive.Root>
+          <WorkspaceChipRow cwd={cwd} messagesEmpty={messagesEmpty} />
           {/* Underside: chrome-free strip BELOW the composer. Outside the root
               for the same reason as the micro actions — it must not fall inside
               the pop-out drag region. Same px as the strip above, so the two

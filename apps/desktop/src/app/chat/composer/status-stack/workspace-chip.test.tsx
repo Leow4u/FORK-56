@@ -126,20 +126,22 @@ describe('WorkspaceChipRow', () => {
     expect(chip.textContent).not.toContain('Aplicativos')
   })
 
-  it('uses a quiet footer chip, not a nested bordered pill', () => {
+  it('paints Select workspace as a second capsule stacked under the prompt card', () => {
     const { container } = renderChip(<WorkspaceChipRow messagesEmpty />)
 
     const chip = screen.getByRole('button', { name: 'Select workspace' })
+    const shell = container.querySelector('[data-slot="composer-context-bar"]')
     const icon = chip.querySelector('svg')
-    const footer = container.querySelector('[data-slot="composer-workspace-footer"]')
 
-    expect(footer).toBeTruthy()
-    expect(footer?.contains(chip)).toBe(true)
-    expect(chip.className).toContain('h-(--composer-control-size)')
-    expect(chip.className).toContain('rounded-full')
-    expect(chip.className).toContain('text-(--ui-text-secondary)')
-    expect(chip.className).not.toContain('border-border/65')
-    expect(chip.className).not.toContain('bg-(--composer-fill)')
+    expect(shell).not.toBeNull()
+    expect(shell?.className).toContain('rounded-3xl')
+    expect(shell?.className).toContain('border-(--ui-stroke-secondary)')
+    expect(shell?.className).toContain('-mt-1.5')
+    expect(shell?.className).toContain('py-1.5')
+    expect(chip.className).toContain('h-7')
+    expect(chip.className).toContain('max-w-full')
+    expect(chip.className).not.toContain('rounded-full')
+    expect(chip.className).not.toContain('rounded-xl')
     expect(chip.className).not.toContain('muted-foreground')
     expect(icon?.classList.contains('size-3.5')).toBe(true)
   })
@@ -149,6 +151,6 @@ describe('WorkspaceChipRow', () => {
 
     expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
     expect(container.querySelector('[data-slot="workspace-chip"]')).toBeNull()
-    expect(container.querySelector('[data-slot="composer-workspace-footer"]')).toBeNull()
+    expect(container.querySelector('[data-slot="composer-context-bar"]')).toBeNull()
   })
 })

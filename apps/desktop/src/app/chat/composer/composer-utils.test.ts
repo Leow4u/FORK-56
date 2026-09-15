@@ -97,7 +97,7 @@ describe('pickPlaceholder', () => {
 })
 
 describe('composerActionStacked', () => {
-  it('stacks empty chat so the input stays its own row above the footer chip', () => {
+  it('stacks empty chat even when the composer is still inline', () => {
     expect(composerActionStacked(false, true)).toBe(true)
     expect(composerActionStacked(true, false)).toBe(true)
     expect(composerActionStacked(true, true)).toBe(true)
