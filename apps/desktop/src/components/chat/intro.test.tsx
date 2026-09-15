@@ -13,22 +13,36 @@ describe('Intro', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0)
   })
 
-  it('renders the personality headline instead of a WORK4YOU wordmark', () => {
-    render(<Intro seed={0} />)
+  it('keeps a Work4You is ready kicker above the personality headline', () => {
+    const { container } = render(<Intro personality="helpful" seed={0} />)
 
-    const intro = document.querySelector('[data-slot="aui_intro"]')
-    const [headline, body] = Array.from(intro?.querySelectorAll('p') ?? [])
+    const intro = container.querySelector('[data-slot="aui_intro"]')
+    const ready = intro?.querySelector('[data-slot="aui_intro_ready"]')
+    const headline = intro?.querySelector('[data-slot="aui_intro_headline"]')
+    const body = intro?.querySelector('[data-slot="aui_intro_body"]')
 
-    expect(headline?.textContent?.trim()).toBeTruthy()
+    expect(ready?.textContent?.trim()).toBe('Work4You is ready')
+    expect(headline?.textContent?.trim()).toBe('Ready when you are')
     expect(headline?.textContent?.trim()).not.toBe('WORK4YOU')
     expect(body?.textContent?.trim().length).toBeGreaterThan(20)
     expect(screen.queryByLabelText('WORK4YOU')).toBeNull()
-    expect(document.querySelector('.fit-text')).toBeNull()
+    expect(container.querySelector('.fit-text')).toBeNull()
+  })
+
+  it('does not duplicate Work4You is ready when the personality headline already says it', () => {
+    const { container } = render(<Intro personality="none" seed={0} />)
+
+    const intro = container.querySelector('[data-slot="aui_intro"]')
+    const ready = intro?.querySelector('[data-slot="aui_intro_ready"]')
+    const headline = intro?.querySelector('[data-slot="aui_intro_headline"]')
+
+    expect(ready).toBeNull()
+    expect(headline?.textContent?.trim()).toBe('Work4You is ready.')
   })
 
   it('keeps the empty-state copy quiet and sentence-case', () => {
-    const { container } = render(<Intro seed={0} />)
-    const headline = container.querySelector('[data-slot="aui_intro"] p')
+    const { container } = render(<Intro personality="helpful" seed={0} />)
+    const headline = container.querySelector('[data-slot="aui_intro_headline"]')
 
     expect(headline?.className).not.toMatch(/uppercase/)
     expect(headline?.className).not.toMatch(/Collapse/)

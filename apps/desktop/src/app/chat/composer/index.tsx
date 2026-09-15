@@ -90,6 +90,7 @@ export function ChatBar({
   focusKey,
   gateway,
   maxRecordingSeconds = 120,
+  messagesEmpty = false,
   queueSessionKey,
   sessionId,
   state,
@@ -1260,7 +1261,7 @@ export function ChatBar({
                   )}
                 />
                 <div className="min-w-0">
-                  <WorkspaceChipRow cwd={cwd} />
+                  <WorkspaceChipRow cwd={cwd} messagesEmpty={messagesEmpty} />
                   <CodingStatusRow
                     onBranchOff={handleBranchOff}
                     onConvertBranch={handleConvertBranch}
