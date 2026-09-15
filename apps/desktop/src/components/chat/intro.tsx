@@ -175,10 +175,7 @@ export function Intro({ personality, seed }: IntroProps) {
     >
       <div className="mx-auto w-full min-w-0 max-w-md">
         {showReady ? (
-          <p
-            className="mb-2 text-xs font-normal text-(--ui-text-tertiary)"
-            data-slot="aui_intro_ready"
-          >
+          <p className="mb-2 text-xs font-normal text-(--ui-text-tertiary)" data-slot="aui_intro_ready">
             {ready}
           </p>
         ) : null}
