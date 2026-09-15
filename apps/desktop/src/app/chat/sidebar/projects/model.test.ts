@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { orderProjectsByIds, sortProjectsForOverview } from './model'
+import { orderProjectsByIds, overviewRepoPaths, sortProjectsForOverview } from './model'
 import { NO_PROJECT_ID, type SidebarProjectTree } from './workspace-groups'
 
 function makeProject(id: string, sessionCount: number): SidebarProjectTree {
@@ -74,5 +74,31 @@ describe('sortProjectsForOverview', () => {
     const projects = [makeProject('scanned', 0), active, home()]
 
     expect(ids(sortProjectsForOverview(projects, 'active'))).toEqual([NO_PROJECT_ID, 'active', 'scanned'])
+  })
+})
+
+describe('overviewRepoPaths', () => {
+  it('collects unique repo roots and skips Home', () => {
+    const homeProject = home()
+    homeProject.repos = [{ groups: [], id: 'none', label: 'Home', path: null, sessionCount: 1 }]
+
+    const website: SidebarProjectTree = {
+      ...makeProject('website', 2),
+      repos: [
+        { groups: [], id: '/repos/website', label: 'website', path: '/repos/website', sessionCount: 2 },
+        { groups: [], id: '/repos/docs', label: 'docs', path: '/repos/docs', sessionCount: 0 }
+      ]
+    }
+
+    const duplicateRoot: SidebarProjectTree = {
+      ...makeProject('also-website', 1),
+      repos: [{ groups: [], id: '/repos/website', label: 'website', path: '/repos/website', sessionCount: 1 }]
+    }
+
+    expect(overviewRepoPaths([homeProject, website, duplicateRoot])).toEqual(['/repos/website', '/repos/docs'])
+  })
+
+  it('returns an empty list when every project is Home or pathless', () => {
+    expect(overviewRepoPaths([home(), { ...makeProject('empty', 0), path: null, repos: [] }])).toEqual([])
   })
 })

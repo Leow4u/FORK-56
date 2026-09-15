@@ -35,9 +35,18 @@ interface SidebarWorkspaceGroupProps {
   // When set (linked worktree rows), shows a remove affordance that runs a real
   // `git worktree remove`.
   onRemove?: () => void
+  // Overview structure: repo/worktree headers only. Session rows stay on the
+  // project preview / drill-in — overview lanes have empty `sessions` arrays.
+  lanesOnly?: boolean
 }
 
-export function SidebarWorkspaceGroup({ group, renderRows, onNewSession, onRemove }: SidebarWorkspaceGroupProps) {
+export function SidebarWorkspaceGroup({
+  group,
+  renderRows,
+  onNewSession,
+  onRemove,
+  lanesOnly = false
+}: SidebarWorkspaceGroupProps) {
   const { t } = useI18n()
   const s = t.sidebar
   const isProfileGroup = group.mode === 'profile'
@@ -158,13 +167,13 @@ export function SidebarWorkspaceGroup({ group, renderRows, onNewSession, onRemov
             }
             icon={leadingIcon}
             label={group.label}
-            onToggle={toggleOpen}
-            open={open}
+            onToggle={lanesOnly ? undefined : toggleOpen}
+            open={lanesOnly ? true : open}
             title={group.path ? displayPath(group.path) : undefined}
           />
         </WorkspaceContextMenu>
       )}
-      {open && (
+      {open && !lanesOnly && (
         <>
           {visibleSessions.length === 0 ? (
             <div className="min-h-7 pl-2 text-[0.75rem] leading-7 text-(--ui-text-quaternary)">{s.noSessions}</div>

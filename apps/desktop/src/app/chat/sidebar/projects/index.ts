@@ -2,6 +2,7 @@
 export { EnteredProjectContent } from './entered-content'
 export {
   orderProjectsByIds,
+  overviewRepoPaths,
   PROJECT_PREVIEW_COUNT,
   projectTreeCwd,
   sortProjectsForOverview,

@@ -1,7 +1,15 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { StartWorkButton, WorkspaceAddButton, WorkspaceMenu, WorkspaceShowMoreButton } from './workspace-header'
+import { Codicon } from '@/components/ui/codicon'
+
+import {
+  StartWorkButton,
+  WorkspaceAddButton,
+  WorkspaceHeader,
+  WorkspaceMenu,
+  WorkspaceShowMoreButton
+} from './workspace-header'
 
 afterEach(cleanup)
 
@@ -77,5 +85,14 @@ describe('StartWorkButton', () => {
 
     const button = screen.getByRole('button', { name: 'New worktree' })
     expect(tipTrigger(button)).toBeTruthy()
+  })
+})
+
+describe('WorkspaceHeader', () => {
+  it('renders a static label without a toggle when onToggle is omitted', () => {
+    render(<WorkspaceHeader icon={<Codicon name="git-branch" size="0.75rem" />} label="main" />)
+
+    expect(screen.getByTitle('main')).toBeTruthy()
+    expect(screen.queryByRole('button')).toBeNull()
   })
 })

@@ -2,6 +2,7 @@ import type * as React from 'react'
 import { useRef } from 'react'
 
 import { Codicon } from '@/components/ui/codicon'
+import type { Work4YouGitWorktree } from '@/global'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import type { SessionInfo } from '@/work4you'
@@ -19,10 +20,13 @@ import {
   SidebarRowShell
 } from '../chrome'
 
+import { EnteredProjectContent } from './entered-content'
 import { latestProjectSessions, PROJECT_PREVIEW_COUNT, useWorkspaceNodeOpen } from './model'
 import { ProjectContextMenu, ProjectMenu } from './project-menu'
 import type { SidebarProjectTree } from './workspace-groups'
 import { WorkspaceAddButton } from './workspace-header'
+
+const emptyOverviewRows = () => null
 
 // A bare color dot (no icon) or an icon glyph — tinted by `color` when set, else
 // the lead's default tertiary. The glyph wrapper centers + caps size either way.
@@ -67,6 +71,7 @@ interface ProjectOverviewRowProps {
   renderRows?: (sessions: SessionInfo[]) => React.ReactNode
   activeProjectId?: null | string
   previewSessions?: SessionInfo[]
+  repoWorktrees?: Record<string, Work4YouGitWorktree[]>
   reorderable?: boolean
   dragging?: boolean
   dragHandleProps?: React.HTMLAttributes<HTMLElement>
@@ -81,6 +86,7 @@ export function ProjectOverviewRow({
   renderRows,
   activeProjectId,
   previewSessions,
+  repoWorktrees,
   reorderable = false,
   dragging = false,
   dragHandleProps,
@@ -96,6 +102,11 @@ export function ProjectOverviewRow({
   const rowRef = useRef<HTMLDivElement>(null)
   const fetched = (previewSessions ?? []).slice(0, PROJECT_PREVIEW_COUNT)
   const preview = renderRows ? (fetched.length ? fetched : latestProjectSessions(project, PROJECT_PREVIEW_COUNT)) : []
+  // Home is a session bucket, not a folder tree. Real projects already carry
+  // repo nodes in the overview payload (empty session arrays); expanding paints
+  // those lanes plus live `git worktree list` rows without a drill-in.
+  const hasLanes = Boolean(!project.isNoProject && project.repos.length)
+  const canExpand = hasLanes || preview.length > 0
 
   const lead = reorderable ? (
     <SidebarRowGrab
@@ -150,9 +161,7 @@ export function ProjectOverviewRow({
       }}
       ref={rowRef}
       toggle={
-        preview.length > 0
-          ? { ariaLabel: s.projects.toggle(project.label, !open), onToggle: toggleOpen, open }
-          : undefined
+        canExpand ? { ariaLabel: s.projects.toggle(project.label, !open), onToggle: toggleOpen, open } : undefined
       }
       totals={{ costUsd: project.totalCostUsd ?? 0, tokens: project.totalTokens ?? 0 }}
     />
@@ -171,6 +180,17 @@ export function ProjectOverviewRow({
         <ProjectContextMenu isActive={isActive} project={project}>
           {shell}
         </ProjectContextMenu>
+      )}
+      {open && hasLanes && (
+        <SidebarRowNest data-slot="project-overview-lanes">
+          <EnteredProjectContent
+            lanesOnly
+            onNewSession={onNewSession}
+            project={project}
+            renderRows={renderRows ?? emptyOverviewRows}
+            repoWorktrees={repoWorktrees}
+          />
+        </SidebarRowNest>
       )}
       {open && preview.length > 0 && <SidebarRowNest>{renderRows?.(preview)}</SidebarRowNest>}
     </div>
