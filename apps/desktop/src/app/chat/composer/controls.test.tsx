@@ -66,6 +66,18 @@ afterEach(() => {
 // row instead of floating above the bar in a reserved strip. The docked
 // composer keeps every control inline and shows no exit.
 describe('HUD mode', () => {
+  it('hides the context meter on an empty chat', () => {
+    renderControls({ messagesEmpty: true })
+
+    expect(screen.queryByLabelText('Context usage')).toBeNull()
+  })
+
+  it('keeps the context meter once the transcript has messages', () => {
+    renderControls({ messagesEmpty: false })
+
+    expect(screen.getByLabelText('Context usage')).toBeTruthy()
+  })
+
   it('keeps the voice controls inline and offers no exit in the docked composer', () => {
     renderControls()
 

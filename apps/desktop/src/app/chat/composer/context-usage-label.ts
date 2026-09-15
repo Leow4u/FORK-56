@@ -1,6 +1,6 @@
 import type { ContextBreakdown, UsageStats } from '@/types/work4you'
 
-/** Occupancy for the always-on composer meter — 0% when the session has no max. */
+/** Occupancy for the composer meter — 0% when the session has no max. */
 export function contextUsagePercent(usage: Pick<UsageStats, 'context_percent'>): number {
   return Math.max(0, Math.min(100, Math.round(usage.context_percent ?? 0)))
 }

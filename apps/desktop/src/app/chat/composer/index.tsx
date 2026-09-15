@@ -987,6 +987,7 @@ export function ChatBar({
       }}
       disabled={disabled}
       hasComposerPayload={hasComposerPayload}
+      messagesEmpty={messagesEmpty}
       onDictate={dictate}
       onQueue={queueDraft}
       onToggleAutoSpeak={handleToggleAutoSpeak}
