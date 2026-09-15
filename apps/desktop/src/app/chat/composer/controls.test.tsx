@@ -61,11 +61,7 @@ afterEach(() => {
   $hudMode.set(false)
 })
 
-// The HUD is a Spotlight bar a few hundred pixels wide: the four voice
-// controls fold into one menu there, and the way out of HUD mode joins the
-// row instead of floating above the bar in a reserved strip. The docked
-// composer keeps every control inline and shows no exit.
-describe('HUD mode', () => {
+describe('empty chat context meter', () => {
   it('hides the context meter on an empty chat', () => {
     renderControls({ messagesEmpty: true })
 
@@ -77,7 +73,13 @@ describe('HUD mode', () => {
 
     expect(screen.getByLabelText('Context usage')).toBeTruthy()
   })
+})
 
+// The HUD is a Spotlight bar a few hundred pixels wide: the four voice
+// controls fold into one menu there, and the way out of HUD mode joins the
+// row instead of floating above the bar in a reserved strip. The docked
+// composer keeps every control inline and shows no exit.
+describe('HUD mode', () => {
   it('keeps the voice controls inline and offers no exit in the docked composer', () => {
     renderControls()
 
