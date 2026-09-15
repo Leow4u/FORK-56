@@ -52,14 +52,24 @@ export const composerFloatingPill = cn(
 )
 
 /**
- * Secondary settings well on the composer — the empty-chat workspace picker.
- * Inset outlined tray: tertiary hairline, muted fill, `rounded-xl` (one step
- * below the composer). The well IS the container; do not nest a floating pill
- * inside it. Call site owns placement; this owns chrome, height, and type.
+ * Second composer capsule — empty-chat workspace settings. A SIBLING of the
+ * prompt card, never a well inside it: same width (5px grab-margin inset),
+ * same radius, same hairline as the surface. Symmetric padding so the lower
+ * card keeps a visible rounded TOP — a deep tuck + extra top pad hides that
+ * edge and the pair reads as one nested vessel. Slight overlap (less than
+ * the radius) lets the prompt card sit on the tray without covering it.
  */
+export const composerContextShell = cn(
+  'relative z-0 mx-[5px] -mt-1.5 flex items-center rounded-2xl px-3 py-1.5',
+  'border border-(--ui-stroke-secondary)',
+  'bg-[color-mix(in_srgb,var(--dt-card)_72%,transparent)]',
+  composerSurfaceGlass
+)
+
+/** Quiet control inside the context capsule. The shell is the container;
+ *  this trigger must not grow a second border. */
 export const composerContextBar = cn(
-  'mt-1 flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 rounded-xl px-3 text-left',
-  'border border-(--ui-stroke-tertiary) bg-[color-mix(in_srgb,var(--ui-base)_8%,transparent)]',
+  'inline-flex h-7 min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-left',
   'text-xs font-normal text-(--ui-text-secondary) transition-colors',
   'hover:bg-(--chrome-action-hover) hover:text-foreground',
   'data-[state=open]:bg-(--chrome-action-hover) data-[state=open]:text-foreground'

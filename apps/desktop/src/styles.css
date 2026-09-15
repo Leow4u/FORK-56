@@ -1738,6 +1738,17 @@ body.guest-pointer-lock :is(webview, iframe) {
   --composer-fill: color-mix(in srgb, var(--dt-card) 72%, transparent);
 }
 
+/* Empty-chat stack: the prompt card must be opaque enough that the tray
+   behind it never shows through the body — only through the bottom corner
+   cutouts — and a contact shadow lifts it off the second capsule. */
+[data-slot='composer-root'][data-context-bar] {
+  --composer-fill: color-mix(in srgb, var(--dt-card) 96%, var(--dt-background));
+}
+
+[data-slot='composer-root'][data-context-bar] [data-slot='composer-surface'] {
+  box-shadow: var(--shadow-composer);
+}
+
 [data-slot='composer-root'][data-thread-scrolled-up] {
   --composer-fill: color-mix(in srgb, var(--dt-card) 48%, transparent);
 }
@@ -2980,7 +2991,7 @@ button[data-slot='aui_msg-reactions'] svg {
    `composer-surface` (it's meant to inherit the composer's width and top
    radius), so the rule above never reaches it. Same intent, own selector. */
 [data-hud-shell] .coding-status-bar,
-[data-hud-shell] [data-slot='workspace-chip'] {
+[data-hud-shell] [data-slot='composer-context-bar'] {
   display: none !important;
 }
 

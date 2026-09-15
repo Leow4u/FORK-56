@@ -126,19 +126,23 @@ describe('WorkspaceChipRow', () => {
     expect(chip.textContent).not.toContain('Aplicativos')
   })
 
-  it('uses the composer settings well so the empty-chat chip reads as a secondary container', () => {
-    renderChip(<WorkspaceChipRow messagesEmpty />)
+  it('paints Select workspace as a second capsule stacked under the prompt card', () => {
+    const { container } = renderChip(<WorkspaceChipRow messagesEmpty />)
 
     const chip = screen.getByRole('button', { name: 'Select workspace' })
+    const shell = container.querySelector('[data-slot="composer-context-bar"]')
     const icon = chip.querySelector('svg')
 
-    expect(chip.className).toContain('h-8')
-    expect(chip.className).toContain('w-full')
-    expect(chip.className).toContain('mt-1')
-    expect(chip.className).toContain('rounded-xl')
-    expect(chip.className).toContain('border-(--ui-stroke-tertiary)')
-    expect(chip.className).toContain('text-(--ui-text-secondary)')
+    expect(shell).not.toBeNull()
+    expect(shell?.className).toContain('rounded-2xl')
+    expect(shell?.className).toContain('border-(--ui-stroke-secondary)')
+    expect(shell?.className).toContain('-mt-1.5')
+    expect(shell?.className).toContain('py-1.5')
+    expect(shell?.className).not.toContain('pt-[1.125rem]')
+    expect(chip.className).toContain('h-7')
+    expect(chip.className).toContain('max-w-full')
     expect(chip.className).not.toContain('rounded-full')
+    expect(chip.className).not.toContain('rounded-xl')
     expect(chip.className).not.toContain('muted-foreground')
     expect(icon?.classList.contains('size-3.5')).toBe(true)
   })
