@@ -1368,6 +1368,7 @@ export const en: Translations = {
     openFolder: 'Open folder as project…',
     openFolderAt: path => `Open folder as project — ${path}`,
     newSessionInProject: project => `New session in ${project}`,
+    selectWorkspace: 'Select workspace',
     commands: 'Commands',
     startInBranch: branch => `New conversation in ${branch}`,
     commandCenter: 'Command Center',

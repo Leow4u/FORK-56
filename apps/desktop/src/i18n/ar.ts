@@ -1014,6 +1014,7 @@ export const ar = defineLocale({
     searchPlaceholder: 'ابحث عن أمر أو إعداد...',
     goTo: 'انتقال إلى',
     goToSession: 'الانتقال إلى الجلسة',
+    selectWorkspace: 'اختيار مساحة العمل',
     branches: 'الفروع',
     startInBranch: branch => `محادثة جديدة في ${branch}`,
     commandCenter: 'مركز الأوامر',

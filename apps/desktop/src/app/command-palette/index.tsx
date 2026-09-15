@@ -32,6 +32,7 @@ import {
   Cpu,
   Download,
   Egg,
+  FolderOpen,
   GitBranch,
   Globe,
   type IconComponent,
@@ -70,7 +71,13 @@ import { $bindings, bindingsFor } from '@/store/keybinds'
 import { $dismissedAutoProjectIds, filterVisibleProjects } from '@/store/layout'
 import { openPetGenerate } from '@/store/pet-generate'
 import { openBrowserTab } from '@/store/preview'
-import { $projectTree, goToProject, openFolderAsProject, requestStartWorkSession } from '@/store/projects'
+import {
+  $projectTree,
+  goToProject,
+  openFolderAsProject,
+  openProjectCreate,
+  requestStartWorkSession
+} from '@/store/projects'
 import { $connection } from '@/store/session'
 import { runGatewayRestart } from '@/store/system-actions'
 import {
@@ -109,6 +116,12 @@ import { usePaletteContributions } from './contrib'
 import { HighlightWatcher } from './highlight-watcher'
 import { MarketplaceThemePage } from './marketplace-theme-page'
 import { PetInlineToggle, PetPalettePage } from './pet-palette-page'
+import {
+  buildWorkspacePaletteGroups,
+  SELECT_WORKSPACE_PAGE,
+  type WorkspacePaletteGroup,
+  type WorkspacePaletteItem
+} from './workspace-palette'
 
 interface PaletteItem {
   /** Keybind action id — its live combo renders as a hotkey hint. */
@@ -151,6 +164,43 @@ interface PaletteGroup {
    *  "Install theme…" entry pinned atop the theme picker). */
   heading?: string
   items: PaletteItem[]
+}
+
+function workspaceItemIcon(item: WorkspacePaletteItem): IconComponent {
+  if (item.kind === 'open-folder') {
+    return codiconIcon('folder-opened')
+  }
+
+  if (item.kind === 'new-project') {
+    return Plus
+  }
+
+  return codiconIcon(item.icon || (item.isNoProject ? 'home' : 'folder-library'))
+}
+
+function workspaceGroupsToPalette(groups: WorkspacePaletteGroup[]): PaletteGroup[] {
+  return groups.map(group => ({
+    heading: group.heading,
+    items: group.items.map(item => ({
+      action: item.action,
+      comboHint: item.comboHint,
+      icon: workspaceItemIcon(item),
+      id: item.id,
+      keywords: item.keywords,
+      label: item.label,
+      modLabel: item.modLabel,
+      run: item.run,
+      runWithEvent: item.runWithEvent
+    }))
+  }))
+}
+
+const WORKSPACE_PALETTE_HANDLERS = {
+  goToProject,
+  newProject: openProjectCreate,
+  openFolder: () => {
+    void openFolderAsProject()
+  }
 }
 
 // Nested page → its parent, so Back / Esc step up one level instead of closing
@@ -748,6 +798,23 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     [t, worktrees]
   )
 
+  const workspacePaletteGroups = useMemo<PaletteGroup[]>(() => {
+    const cc = t.commandCenter
+
+    return workspaceGroupsToPalette(
+      buildWorkspacePaletteGroups(
+        filterVisibleProjects(projectTree, dismissedAutoProjects),
+        {
+          newProject: t.sidebar.projects.newButton,
+          newSessionInProject: cc.newSessionInProject,
+          openFolder: cc.openFolder,
+          projects: cc.projects
+        },
+        WORKSPACE_PALETTE_HANDLERS
+      )
+    )
+  }, [dismissedAutoProjects, projectTree, t])
+
   const baseGroups = useMemo<PaletteGroup[]>(() => {
     const settingsTab = (tab: string) => `${SETTINGS_ROUTE}?tab=${tab}`
     const cc = t.commandCenter
@@ -757,29 +824,11 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     // project — never spends main); ⌘-Enter / ⌘-click also starts a new session
     // at the project root (stacked as a tab when main holds a chat), previewed
     // by the label swap while ⌘ is held. Rows carry the project's own codicon,
-    // matching the sidebar. The pinned "Open folder…" row is the ⌘O upsert.
+    // matching the sidebar. Open folder is the ⌘O upsert; New project opens the
+    // existing create dialog. The same rows back the Select workspace page.
     const projectGroup: PaletteGroup = {
       heading: cc.projects,
-      items: [
-        {
-          action: 'workspace.openFolder',
-          icon: codiconIcon('folder-opened'),
-          id: 'project-open-folder',
-          keywords: ['open', 'folder', 'directory', 'project', 'add', 'import', 'workspace'],
-          label: cc.openFolder,
-          run: () => void openFolderAsProject()
-        },
-        ...filterVisibleProjects(projectTree, dismissedAutoProjects).map(project => ({
-          comboHint: 'mod+enter',
-          icon: codiconIcon(project.icon || (project.isNoProject ? 'home' : 'folder-library')),
-          id: `project-${project.id}`,
-          keywords: ['project', 'workspace', 'go to', project.label, ...(project.path ? [project.path] : [])],
-          label: project.label,
-          modLabel: cc.newSessionInProject(project.label),
-          runWithEvent: (event?: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean }) =>
-            goToProject(project.id, { newSession: Boolean(event?.metaKey || event?.ctrlKey) })
-        }))
-      ]
+      items: workspacePaletteGroups.flatMap(group => group.items)
     }
 
     // Group order is the tiebreaker rankGroups falls back on (stable sort), and
@@ -810,6 +859,13 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
                 }
               ]
             : []),
+          {
+            icon: FolderOpen,
+            id: 'nav-select-workspace',
+            keywords: ['workspace', 'project', 'folder', 'switch', 'open', 'home', 'recents', 'select'],
+            label: cc.selectWorkspace,
+            to: SELECT_WORKSPACE_PAGE
+          },
           {
             action: 'nav.settings',
             icon: Settings,
@@ -999,13 +1055,12 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     contributedItems,
-    dismissedAutoProjects,
     go,
-    projectTree,
     selectTick,
     settingsSectionLabel,
     t,
-    updateVersionLabel
+    updateVersionLabel,
+    workspacePaletteGroups
   ])
 
   // The long, granular lists (settings fields, API keys, MCP servers, archived
@@ -1386,9 +1441,25 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
         title: t.commandCenter.nav.settings.title,
         placeholder: t.settings.search.placeholder,
         groups: settingsPageGroups
+      },
+      [SELECT_WORKSPACE_PAGE]: {
+        title: t.commandCenter.selectWorkspace,
+        placeholder: t.commandCenter.searchPlaceholder,
+        groups: workspacePaletteGroups
       }
     }),
-    [availableThemes, mode, previewTheme, resolvedMode, setMode, setTheme, settingsPageGroups, t, themeName]
+    [
+      availableThemes,
+      mode,
+      previewTheme,
+      resolvedMode,
+      setMode,
+      setTheme,
+      settingsPageGroups,
+      t,
+      themeName,
+      workspacePaletteGroups
+    ]
   )
 
   const activePage = page ? subPages[page] : null
