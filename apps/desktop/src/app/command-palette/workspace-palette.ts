@@ -107,6 +107,7 @@ export function buildWorkspacePaletteGroups(
   const actions: WorkspacePaletteGroup = {
     items: buildWorkspaceActionItems(copy, handlers)
   }
+
   const recents = buildWorkspaceProjectItems(projects, copy, handlers)
 
   if (recents.length === 0) {

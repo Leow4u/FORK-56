@@ -52,6 +52,7 @@ describe('buildWorkspacePaletteGroups', () => {
 
   it('wires existing store actions without inventing a Home row', () => {
     const wired = handlers()
+
     const groups = buildWorkspacePaletteGroups(
       [
         { id: 'p_demo', label: 'Demo', path: '/work/demo' },
