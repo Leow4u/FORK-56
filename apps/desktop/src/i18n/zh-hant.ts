@@ -1174,6 +1174,7 @@ export const zhHant = defineLocale({
     goToSession: '前往工作階段',
     remote: '遠端…',
     selectWorkspace: '選擇工作區',
+    selectWorkspacePlaceholder: '開啟資料夾、連線遠端或新增專案',
     branches: '分支',
     startInBranch: branch => `在 ${branch} 中開始新對話`,
     commandCenter: '命令中心',
@@ -2620,15 +2621,7 @@ export const zhHant = defineLocale({
     placeholderStarting: '正在啟動 Work4You...',
     placeholderReconnecting: '正在重新連線至 Work4You…',
     placeholderFollowUp: '傳送後續訊息',
-    newSessionPlaceholders: [
-      '我們要建立什麼？',
-      '給 Work4You 一個任務',
-      '您在想什麼？',
-      '描述您需要什麼',
-      '我們該處理什麼？',
-      '盡管問',
-      '從一個目標開始'
-    ],
+    newSessionPlaceholders: ['問任何事情'],
     followUpPlaceholders: [
       '傳送後續訊息',
       '補充更多脈絡',

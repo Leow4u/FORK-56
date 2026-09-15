@@ -1370,6 +1370,7 @@ export const en: Translations = {
     newSessionInProject: project => `New session in ${project}`,
     remote: 'Remote…',
     selectWorkspace: 'Select workspace',
+    selectWorkspacePlaceholder: 'Open a folder, go remote, or create a project',
     commands: 'Commands',
     startInBranch: branch => `New conversation in ${branch}`,
     commandCenter: 'Command Center',
@@ -3026,15 +3027,8 @@ export const en: Translations = {
     placeholderStarting: 'Starting Work4You...',
     placeholderReconnecting: 'Reconnecting to Work4You…',
     placeholderFollowUp: 'Send follow-up',
-    newSessionPlaceholders: [
-      'What are we building?',
-      'Give Work4You a task',
-      "What's on your mind?",
-      'Describe what you need',
-      'What should we tackle?',
-      'Ask anything',
-      'Start with a goal'
-    ],
+    // Empty chat: a short input hint. Personality lives in the intro splash.
+    newSessionPlaceholders: ['Ask anything'],
     followUpPlaceholders: [
       'Send a follow-up',
       'Add more context',

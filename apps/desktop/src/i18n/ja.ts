@@ -1211,6 +1211,7 @@ export const ja = defineLocale({
     goToSession: 'セッションへ移動',
     remote: 'リモート…',
     selectWorkspace: 'ワークスペースを選択',
+    selectWorkspacePlaceholder: 'フォルダーを開く、リモート、または新規プロジェクト',
     branches: 'ブランチ',
     startInBranch: branch => `${branch} で新しい会話`,
     commandCenter: 'コマンドセンター',
@@ -2733,15 +2734,7 @@ export const ja = defineLocale({
     placeholderStarting: 'Work4You を起動中...',
     placeholderReconnecting: 'Work4You に再接続中…',
     placeholderFollowUp: 'フォローアップを送信',
-    newSessionPlaceholders: [
-      '何を作りますか？',
-      'Work4You にタスクを与える',
-      '何か考えていることはありますか？',
-      '必要なことを説明してください',
-      '何に取り組みますか？',
-      '何でも聞いてください',
-      '目標から始める'
-    ],
+    newSessionPlaceholders: ['何でも聞いてください'],
     followUpPlaceholders: [
       'フォローアップを送信',
       'さらにコンテキストを追加',

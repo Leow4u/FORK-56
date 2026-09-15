@@ -1562,6 +1562,7 @@ export const zh: Translations = {
     newSessionInProject: project => `在 ${project} 中新建会话`,
     remote: '远程…',
     selectWorkspace: '选择工作区',
+    selectWorkspacePlaceholder: '打开文件夹、连接远程或新建项目',
     commands: '命令',
     startInBranch: branch => `在 ${branch} 中开始新对话`,
     commandCenter: '命令中心',
@@ -3173,15 +3174,7 @@ export const zh: Translations = {
     placeholderStarting: '正在启动 Work4You…',
     placeholderReconnecting: '正在重新连接 Work4You…',
     placeholderFollowUp: '发送后续消息',
-    newSessionPlaceholders: [
-      '我们要构建什么？',
-      '给 Work4You 一个任务',
-      '你在想什么？',
-      '描述你需要什么',
-      '我们该处理什么？',
-      '随便问点什么',
-      '从一个目标开始'
-    ],
+    newSessionPlaceholders: ['问任何事情'],
     followUpPlaceholders: [
       '发送后续消息',
       '补充更多上下文',
