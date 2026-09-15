@@ -1,10 +1,14 @@
 /**
- * Select-workspace nested palette page.
+ * Select-workspace actions.
  *
- * The unique project tree lives in Sidebar → Projects. This page is the
+ * The unique project tree lives in Sidebar → Projects. This list is the
  * open/create/connect surface only: Open folder, Remote, and New project
  * reuse the existing store actions. No second copy of `$projectTree`.
+ * The composer chip menu and the ⌘K nested page both render these rows.
  */
+
+import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
+import { openFolderAsProject, openProjectCreate } from '@/store/projects'
 
 export const SELECT_WORKSPACE_PAGE = 'workspace'
 
@@ -58,6 +62,24 @@ export function runWorkspaceRemoteAction(isRemote: boolean, handlers: WorkspaceR
   }
 
   handlers.openGatewaySettings()
+}
+
+/** Same Open folder / Remote / New project wiring the chip menu and ⌘K page share. */
+export function createWorkspacePaletteHandlers(openGatewaySettings: () => void): WorkspacePaletteHandlers {
+  return {
+    newProject: openProjectCreate,
+    openFolder: () => {
+      void openFolderAsProject()
+    },
+    openRemote: () => {
+      runWorkspaceRemoteAction(isDesktopFsRemoteMode(), {
+        openGatewaySettings,
+        openRemoteFolder: () => {
+          void openFolderAsProject()
+        }
+      })
+    }
+  }
 }
 
 export function buildWorkspaceActionItems(

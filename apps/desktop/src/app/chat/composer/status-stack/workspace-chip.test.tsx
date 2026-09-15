@@ -1,40 +1,112 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { MemoryRouter } from 'react-router'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { SELECT_WORKSPACE_PAGE } from '@/app/command-palette/workspace-palette'
+import type { SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
 import { $commandPaletteOpen, $commandPalettePage, closeCommandPalette } from '@/store/command-palette'
+import { $projectTree } from '@/store/projects'
+import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
 import { WorkspaceChipRow } from './workspace-chip'
+
+const { openFolderAsProject, openProjectCreate } = vi.hoisted(() => ({
+  openFolderAsProject: vi.fn(async () => undefined),
+  openProjectCreate: vi.fn()
+}))
+
+vi.mock('@/store/projects', async importOriginal => {
+  const actual = await importOriginal<Record<string, unknown>>()
+
+  return {
+    ...actual,
+    openFolderAsProject,
+    openProjectCreate
+  }
+})
+
+beforeAll(() => {
+  stubResizeObserver()
+  stubMenuDomApis()
+})
 
 afterEach(() => {
   cleanup()
   closeCommandPalette()
+  openFolderAsProject.mockClear()
+  openProjectCreate.mockClear()
+  $projectTree.set([])
 })
 
+function renderChip(ui: ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>)
+}
+
+async function openSelectWorkspace() {
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'Select workspace' }), { button: 0 })
+
+  return waitFor(() => screen.getByRole('menu'))
+}
+
 describe('WorkspaceChipRow', () => {
-  it('paints Select workspace on an empty chat and opens the picker', () => {
-    render(<WorkspaceChipRow messagesEmpty />)
+  it('paints Select workspace on an empty chat and opens a menu on the chip', async () => {
+    renderChip(<WorkspaceChipRow messagesEmpty />)
 
     const chip = screen.getByRole('button', { name: 'Select workspace' })
 
     expect(chip.textContent).toContain('Select workspace')
     expect(chip.textContent).not.toContain('Home')
 
-    fireEvent.click(chip)
+    await openSelectWorkspace()
 
-    expect($commandPaletteOpen.get()).toBe(true)
-    expect($commandPalettePage.get()).toBe(SELECT_WORKSPACE_PAGE)
+    expect($commandPaletteOpen.get()).toBe(false)
+    expect($commandPalettePage.get()).toBeNull()
+    expect(screen.getByRole('menuitem', { name: /Open folder as project/ })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /Remote/ })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /New project/ })).toBeTruthy()
+  })
+
+  it('keeps the project tree out of the chip menu', async () => {
+    $projectTree.set([
+      {
+        id: 'p_dute',
+        label: 'DuteLog',
+        path: '/repos/dute',
+        repos: [],
+        sessionCount: 0
+      } satisfies SidebarProjectTree
+    ])
+    renderChip(<WorkspaceChipRow messagesEmpty />)
+
+    await openSelectWorkspace()
+
+    expect(screen.queryByRole('menuitem', { name: 'DuteLog' })).toBeNull()
+    expect(screen.getAllByRole('menuitem')).toHaveLength(3)
+  })
+
+  it('runs Open folder and New project from the attached menu', async () => {
+    renderChip(<WorkspaceChipRow messagesEmpty />)
+
+    await openSelectWorkspace()
+    fireEvent.click(screen.getByRole('menuitem', { name: /Open folder as project/ }))
+
+    expect(openFolderAsProject).toHaveBeenCalledOnce()
+
+    await openSelectWorkspace()
+    fireEvent.click(screen.getByRole('menuitem', { name: /New project/ }))
+
+    expect(openProjectCreate).toHaveBeenCalledOnce()
   })
 
   it('keeps the visible label Select workspace even when a cwd is set', () => {
-    render(<WorkspaceChipRow cwd="/repos/website/src" messagesEmpty />)
+    renderChip(<WorkspaceChipRow cwd="/repos/website/src" messagesEmpty />)
 
     expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('Select workspace')
     expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).not.toContain('website')
   })
 
   it('stays off the composer once the transcript has messages', () => {
-    const { container } = render(<WorkspaceChipRow cwd="/repos/website" messagesEmpty={false} />)
+    const { container } = renderChip(<WorkspaceChipRow cwd="/repos/website" messagesEmpty={false} />)
 
     expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
     expect(container.querySelector('[data-slot="workspace-chip"]')).toBeNull()
