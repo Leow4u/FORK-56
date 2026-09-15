@@ -1619,7 +1619,10 @@ export function ChatSidebar({
               />
             )}
 
-            {!trimmedQuery && (
+            {/* Same as Cron: only mount when there is a resolved pin to show.
+                Shift-click / row menu / Command Center still pin; the header
+                is not a permanent empty teaching slot. */}
+            {!trimmedQuery && pinnedSessions.length > 0 && (
               <SidebarSessionsSection
                 activeSessionId={activeSidebarSessionId}
                 contentClassName="flex flex-col gap-px rounded-lg pb-2 pt-1"
