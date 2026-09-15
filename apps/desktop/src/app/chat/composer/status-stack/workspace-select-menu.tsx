@@ -33,7 +33,15 @@ function workspaceItemGlyph(kind: WorkspacePaletteItem['kind']) {
   }
 }
 
-export function WorkspaceSelectMenu({ children, tooltip }: { children: ReactNode; tooltip: string }) {
+export function WorkspaceSelectMenu({
+  children,
+  side = 'bottom',
+  tooltip
+}: {
+  children: ReactNode
+  side?: 'bottom' | 'top'
+  tooltip: string
+}) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -76,7 +84,7 @@ export function WorkspaceSelectMenu({ children, tooltip }: { children: ReactNode
         align="start"
         className="min-w-52 p-1"
         data-slot="workspace-select-menu"
-        side="bottom"
+        side={side}
         sideOffset={4}
       >
         {items.map(item => (

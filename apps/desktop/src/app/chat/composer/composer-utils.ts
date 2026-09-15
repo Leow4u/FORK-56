@@ -27,6 +27,11 @@ export const COMPOSER_COMPACT_PILL_PX = 560
 // which is when the composer should expand to the stacked layout.
 export const COMPOSER_SINGLE_LINE_MAX_PX = 36
 
+/** Empty chat parks Select workspace on the action row so the surface stays one card. */
+export function composerActionStacked(stacked: boolean, messagesEmpty: boolean): boolean {
+  return stacked || messagesEmpty
+}
+
 export const COMPOSER_FADE_BACKGROUND =
   'linear-gradient(to bottom, transparent, color-mix(in srgb, var(--dt-background) 10%, transparent))'
 

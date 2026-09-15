@@ -30,6 +30,7 @@ import { AttachmentList } from './attachments'
 import {
   acceptsTriggerCompletion,
   COMPOSER_FADE_BACKGROUND,
+  composerActionStacked,
   type QueueEditState,
   slashArgStage
 } from './composer-utils'
@@ -330,6 +331,8 @@ export function ChatBar({
     editorRef,
     poppedOut
   })
+
+  const actionStacked = composerActionStacked(stacked, messagesEmpty)
 
   const hasComposerPayload = hasText || attachments.length > 0
   const canSubmit = busy || hasComposerPayload
@@ -997,7 +1000,7 @@ export function ChatBar({
   )
 
   const input = (
-    <div className={cn('relative', stacked ? 'w-full' : 'min-w-(--composer-input-inline-min-width) flex-1')}>
+    <div className={cn('relative', actionStacked ? 'w-full' : 'min-w-(--composer-input-inline-min-width) flex-1')}>
       <div
         aria-disabled={inputDisabled ? true : undefined}
         aria-label={t.composer.message}
@@ -1006,8 +1009,8 @@ export function ChatBar({
         className={cn(
           'min-h-[1.625rem] min-h-(--composer-input-min-height) max-h-(--composer-input-max-height) cursor-text overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere] bg-transparent pb-1 pr-1 pt-1 leading-normal text-foreground outline-none disabled:cursor-not-allowed',
           '**:data-ref-text:cursor-default',
-          stacked && 'pl-3',
-          stacked ? 'w-full' : 'min-w-(--composer-input-inline-min-width) flex-1'
+          actionStacked && 'pl-3',
+          actionStacked ? 'w-full' : 'min-w-(--composer-input-inline-min-width) flex-1'
         )}
         contentEditable={!inputDisabled}
         data-placeholder={placeholder}
@@ -1261,7 +1264,6 @@ export function ChatBar({
                   )}
                 />
                 <div className="min-w-0">
-                  <WorkspaceChipRow cwd={cwd} messagesEmpty={messagesEmpty} />
                   <CodingStatusRow
                     onBranchOff={handleBranchOff}
                     onConvertBranch={handleConvertBranch}
@@ -1319,13 +1321,14 @@ export function ChatBar({
                   <div
                     className={cn(
                       'grid w-full',
-                      stacked
+                      actionStacked
                         ? 'grid-cols-[auto_1fr] gap-(--composer-row-gap) [grid-template-areas:"input_input"_"menu_controls"]'
                         : 'grid-cols-[auto_1fr_auto] items-center gap-(--composer-control-gap) [grid-template-areas:"menu_input_controls"]'
                     )}
                   >
                     <div className="flex translate-y-[3px] items-start gap-(--composer-control-gap) self-start [grid-area:menu]">
                       {contextMenu}
+                      <WorkspaceChipRow cwd={cwd} messagesEmpty={messagesEmpty} />
                       <ContribSlot area={COMPOSER_AREAS.leading} />
                     </div>
                     <div className="min-w-0 [grid-area:input]">{input}</div>
