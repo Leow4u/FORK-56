@@ -1,14 +1,16 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { atom } from 'nanostores'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ReactElement } from 'react'
+import { MemoryRouter } from 'react-router'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { SELECT_WORKSPACE_PAGE } from '@/app/command-palette/workspace-palette'
 import type { DesktopConnectionsRegistry, Work4YouConnection } from '@/global'
-import { $commandPaletteOpen, $commandPalettePage, closeCommandPalette } from '@/store/command-palette'
+import { $commandPaletteOpen, closeCommandPalette } from '@/store/command-palette'
 import { $connectionsRegistry } from '@/store/connections'
 import { $notifications, clearNotifications } from '@/store/notifications'
 import { $projectTree } from '@/store/projects'
 import { $connection } from '@/store/session'
+import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
 vi.mock('@/store/coding-status', () => ({
   registerRepoStatusCwd: () => undefined,
@@ -28,6 +30,11 @@ vi.mock('@/store/coding-status', () => ({
 
 const { CodingStatusRow } = await import('./coding-row')
 
+beforeAll(() => {
+  stubResizeObserver()
+  stubMenuDomApis()
+})
+
 function registry(over: Partial<DesktopConnectionsRegistry> = {}): DesktopConnectionsRegistry {
   return {
     connections: [],
@@ -36,6 +43,10 @@ function registry(over: Partial<DesktopConnectionsRegistry> = {}): DesktopConnec
     version: 2,
     ...over
   }
+}
+
+function renderRow(ui: ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>)
 }
 
 afterEach(() => {
@@ -50,7 +61,7 @@ describe('CodingStatusRow', () => {
   it('opens the review pane from the branch and the diff counts, never the bar itself', () => {
     const onOpen = vi.fn()
 
-    const { container } = render(<CodingStatusRow onOpen={onOpen} repoPath="/repo" />)
+    const { container } = renderRow(<CodingStatusRow onOpen={onOpen} repoPath="/repo" />)
 
     const bar = container.querySelector<HTMLElement>('.coding-status-bar')
 
@@ -67,7 +78,7 @@ describe('CodingStatusRow', () => {
   })
 
   it('wraps the click targets without adding a layout box', () => {
-    const { container } = render(<CodingStatusRow onOpen={() => undefined} repoPath="/repo" />)
+    const { container } = renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/repo" />)
 
     // `display: contents` is what keeps the branch label and the counts direct
     // flex children of the row — the hit areas cost nothing visually.
@@ -78,7 +89,7 @@ describe('CodingStatusRow', () => {
   })
 
   it('parks the copy glyph against the end of the path, not the end of the row', () => {
-    render(<CodingStatusRow onOpen={() => undefined} repoPath="/Users/someone/www/repo" />)
+    renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/Users/someone/www/repo" />)
 
     const path = screen.getByText('~/www/repo')
 
@@ -96,7 +107,7 @@ describe('CodingStatusRow', () => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
     clearNotifications()
 
-    render(<CodingStatusRow onOpen={() => undefined} repoPath="/Users/someone/www/repo" />)
+    renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/Users/someone/www/repo" />)
 
     // Painted tildified, copied raw.
     expect(screen.getByText('~/www/repo')).toBeTruthy()
@@ -112,7 +123,7 @@ describe('CodingStatusRow', () => {
   })
 
   it('keeps name off the empty-chat coding row', () => {
-    render(<CodingStatusRow onOpen={() => undefined} repoPath="/repos/website" />)
+    renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/repos/website" />)
 
     expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
     expect(screen.getByText('bb/hitbox')).toBeTruthy()
@@ -129,7 +140,7 @@ describe('CodingStatusRow', () => {
       }
     ])
 
-    const { container } = render(
+    const { container } = renderRow(
       <CodingStatusRow onOpen={() => undefined} repoPath="/repos/website" showWorkspaceName />
     )
 
@@ -152,7 +163,7 @@ describe('CodingStatusRow', () => {
     )
     $connection.set({ connectionId: 'local' } as Work4YouConnection)
 
-    render(<CodingStatusRow onOpen={() => undefined} repoPath="/repo" showWorkspaceName />)
+    renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/repo" showWorkspaceName />)
 
     expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('repo')
     expect(screen.getByText('bb/hitbox')).toBeTruthy()
@@ -160,12 +171,15 @@ describe('CodingStatusRow', () => {
     expect(screen.queryByText('Work4You Cloud')).toBeNull()
   })
 
-  it('opens Select workspace from the occupied name', () => {
-    render(<CodingStatusRow onOpen={() => undefined} repoPath="/repo" showWorkspaceName />)
+  it('opens Select workspace from the occupied name', async () => {
+    renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/repo" showWorkspaceName />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select workspace' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Select workspace' }), { button: 0 })
 
-    expect($commandPaletteOpen.get()).toBe(true)
-    expect($commandPalettePage.get()).toBe(SELECT_WORKSPACE_PAGE)
+    expect(await screen.findByRole('menu')).toBeTruthy()
+    expect($commandPaletteOpen.get()).toBe(false)
+    expect(screen.getByRole('menuitem', { name: /Open folder as project/ })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /Remote/ })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /New project/ })).toBeTruthy()
   })
 })

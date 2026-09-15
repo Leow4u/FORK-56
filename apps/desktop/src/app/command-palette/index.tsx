@@ -20,7 +20,6 @@ import { HighlightMatches } from '@/components/ui/highlight-matches'
 import { KbdCombo } from '@/components/ui/kbd'
 import { useI18n } from '@/i18n'
 import { sessionTitle } from '@/lib/chat-runtime'
-import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
 import {
   Activity,
   AppWindow,
@@ -71,7 +70,7 @@ import {
 import { $bindings, bindingsFor } from '@/store/keybinds'
 import { openPetGenerate } from '@/store/pet-generate'
 import { openBrowserTab } from '@/store/preview'
-import { openFolderAsProject, openProjectCreate, requestStartWorkSession } from '@/store/projects'
+import { openFolderAsProject, requestStartWorkSession } from '@/store/projects'
 import { $connection } from '@/store/session'
 import { runGatewayRestart } from '@/store/system-actions'
 import {
@@ -112,10 +111,9 @@ import { MarketplaceThemePage } from './marketplace-theme-page'
 import { PetInlineToggle, PetPalettePage } from './pet-palette-page'
 import {
   buildWorkspacePaletteGroups,
-  runWorkspaceRemoteAction,
+  createWorkspacePaletteHandlers,
   SELECT_WORKSPACE_PAGE,
   type WorkspacePaletteGroup,
-  type WorkspacePaletteHandlers,
   type WorkspacePaletteItem
 } from './workspace-palette'
 
@@ -189,23 +187,10 @@ function workspaceGroupsToPalette(groups: WorkspacePaletteGroup[]): PaletteGroup
   }))
 }
 
-function workspacePaletteHandlers(navigate: ReturnType<typeof useNavigate>): WorkspacePaletteHandlers {
-  return {
-    newProject: openProjectCreate,
-    openFolder: () => {
-      void openFolderAsProject()
-    },
-    openRemote: () => {
-      runWorkspaceRemoteAction(isDesktopFsRemoteMode(), {
-        openGatewaySettings: () => {
-          navigateToWorkspacePage(navigate, `${SETTINGS_ROUTE}?tab=gateway`)
-        },
-        openRemoteFolder: () => {
-          void openFolderAsProject()
-        }
-      })
-    }
-  }
+function workspacePaletteHandlers(navigate: ReturnType<typeof useNavigate>) {
+  return createWorkspacePaletteHandlers(() => {
+    navigateToWorkspacePage(navigate, `${SETTINGS_ROUTE}?tab=gateway`)
+  })
 }
 
 // Nested page → its parent, so Back / Esc step up one level instead of closing

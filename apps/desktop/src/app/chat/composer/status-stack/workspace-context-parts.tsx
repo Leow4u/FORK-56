@@ -1,15 +1,13 @@
 import { useStore } from '@nanostores/react'
 
-import { SELECT_WORKSPACE_PAGE } from '@/app/command-palette/workspace-palette'
-import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
-import { openCommandPalettePage } from '@/store/command-palette'
 import { $activeConnectionId, $connectionsRegistry } from '@/store/connections'
 import { $projectTree } from '@/store/projects'
 
 import { workspaceChipLabel } from './workspace-chip-label'
 import { workspaceConnectionLabel } from './workspace-connection-label'
+import { WorkspaceSelectMenu } from './workspace-select-menu'
 
 export function ContextDot() {
   return (
@@ -29,20 +27,18 @@ export function WorkspaceNameButton({ cwd }: { cwd?: null | string }) {
   const tip = path ? `${selectLabel} — ${displayPath(path)}` : selectLabel
 
   return (
-    <Tip label={tip} side="top">
+    <WorkspaceSelectMenu tooltip={tip}>
       <button
         aria-label={selectLabel}
         className="min-w-0 max-w-36 truncate rounded-md px-0.5 text-xs font-normal text-muted-foreground/92 hover:bg-(--chrome-action-hover) hover:text-foreground"
         data-slot="workspace-name"
-        onClick={event => {
-          event.stopPropagation()
-          openCommandPalettePage(SELECT_WORKSPACE_PAGE)
-        }}
+        onClick={event => event.stopPropagation()}
+        onPointerDown={event => event.stopPropagation()}
         type="button"
       >
         {name}
       </button>
-    </Tip>
+    </WorkspaceSelectMenu>
   )
 }
 

@@ -1,13 +1,32 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
+import { openFolderAsProject, openProjectCreate } from '@/store/projects'
 
 import {
   buildWorkspacePaletteGroups,
+  createWorkspacePaletteHandlers,
   runWorkspaceRemoteAction,
   WORKSPACE_NEW_PROJECT_ID,
   WORKSPACE_OPEN_FOLDER_ID,
   WORKSPACE_REMOTE_ID,
   workspaceRemoteTarget
 } from './workspace-palette'
+
+vi.mock('@/lib/desktop-fs', () => ({
+  isDesktopFsRemoteMode: vi.fn(() => false)
+}))
+
+vi.mock('@/store/projects', () => ({
+  openFolderAsProject: vi.fn(async () => undefined),
+  openProjectCreate: vi.fn()
+}))
+
+afterEach(() => {
+  vi.mocked(openFolderAsProject).mockClear()
+  vi.mocked(openProjectCreate).mockClear()
+  vi.mocked(isDesktopFsRemoteMode).mockReturnValue(false)
+})
 
 const copy = {
   newProject: 'New project',
@@ -91,5 +110,39 @@ describe('runWorkspaceRemoteAction', () => {
 
     expect(openGatewaySettings).toHaveBeenCalledOnce()
     expect(openRemoteFolder).not.toHaveBeenCalled()
+  })
+})
+
+describe('createWorkspacePaletteHandlers', () => {
+  it('reuses Open folder and New project store actions', () => {
+    const handlers = createWorkspacePaletteHandlers(vi.fn())
+
+    handlers.openFolder()
+    handlers.newProject()
+
+    expect(openFolderAsProject).toHaveBeenCalledOnce()
+    expect(openProjectCreate).toHaveBeenCalledOnce()
+  })
+
+  it('sends Remote to Gateway settings while the connection is local', () => {
+    vi.mocked(isDesktopFsRemoteMode).mockReturnValue(false)
+    const openGatewaySettings = vi.fn()
+    const handlers = createWorkspacePaletteHandlers(openGatewaySettings)
+
+    handlers.openRemote()
+
+    expect(openGatewaySettings).toHaveBeenCalledOnce()
+    expect(openFolderAsProject).not.toHaveBeenCalled()
+  })
+
+  it('opens a remote folder picker when already on a remote connection', () => {
+    vi.mocked(isDesktopFsRemoteMode).mockReturnValue(true)
+    const openGatewaySettings = vi.fn()
+    const handlers = createWorkspacePaletteHandlers(openGatewaySettings)
+
+    handlers.openRemote()
+
+    expect(openFolderAsProject).toHaveBeenCalledOnce()
+    expect(openGatewaySettings).not.toHaveBeenCalled()
   })
 })

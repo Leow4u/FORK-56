@@ -1,10 +1,13 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { atom } from 'nanostores'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ReactElement } from 'react'
+import { MemoryRouter } from 'react-router'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { DesktopConnectionsRegistry, Work4YouConnection } from '@/global'
 import { $connectionsRegistry } from '@/store/connections'
 import { $connection } from '@/store/session'
+import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
 vi.mock('@/store/coding-status', () => ({
   registerRepoStatusCwd: () => undefined,
@@ -14,6 +17,15 @@ vi.mock('@/store/coding-status', () => ({
 
 const { CodingStatusRow } = await import('./coding-row')
 
+beforeAll(() => {
+  stubResizeObserver()
+  stubMenuDomApis()
+})
+
+function renderRow(ui: ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>)
+}
+
 afterEach(() => {
   cleanup()
   $connectionsRegistry.set(null)
@@ -22,7 +34,7 @@ afterEach(() => {
 
 describe('CodingStatusRow without git', () => {
   it('stays hidden on an empty chat', () => {
-    const { container } = render(<CodingStatusRow repoPath="/repos/notes" />)
+    const { container } = renderRow(<CodingStatusRow repoPath="/repos/notes" />)
 
     expect(container.querySelector('.coding-status-bar')).toBeNull()
   })
@@ -39,7 +51,7 @@ describe('CodingStatusRow without git', () => {
     } satisfies DesktopConnectionsRegistry)
     $connection.set({ connectionId: 'cloud' } as Work4YouConnection)
 
-    render(<CodingStatusRow repoPath="/repos/notes" showWorkspaceName />)
+    renderRow(<CodingStatusRow repoPath="/repos/notes" showWorkspaceName />)
 
     expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('notes')
     expect(screen.getByText('Work4You Cloud')).toBeTruthy()
