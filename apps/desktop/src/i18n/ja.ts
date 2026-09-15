@@ -1209,6 +1209,7 @@ export const ja = defineLocale({
     searchPlaceholder: 'セッション、ビュー、アクションを検索',
     goTo: '移動',
     goToSession: 'セッションへ移動',
+    remote: 'リモート…',
     selectWorkspace: 'ワークスペースを選択',
     branches: 'ブランチ',
     startInBranch: branch => `${branch} で新しい会話`,

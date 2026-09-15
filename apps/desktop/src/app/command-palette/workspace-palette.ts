@@ -2,13 +2,16 @@
  * Select-workspace nested palette page.
  *
  * Recents are `$projectTree` (including Home). Open folder and New project
- * reuse the existing store actions — no extra dialog, remote tab, or recents
- * store.
+ * reuse the existing store actions. Remote is one extra action row — not a
+ * tab or a recents store: already-remote connections open the in-app
+ * RemoteFolderPicker via `openFolderAsProject`; local connections deep-link
+ * to Settings → Gateway.
  */
 
 export const SELECT_WORKSPACE_PAGE = 'workspace'
 
 export const WORKSPACE_OPEN_FOLDER_ID = 'project-open-folder'
+export const WORKSPACE_REMOTE_ID = 'project-remote'
 export const WORKSPACE_NEW_PROJECT_ID = 'project-new'
 
 export function workspaceProjectItemId(projectId: string): string {
@@ -28,17 +31,26 @@ export interface WorkspacePaletteCopy {
   newSessionInProject: (project: string) => string
   openFolder: string
   projects: string
+  remote: string
 }
 
 export interface WorkspacePaletteHandlers {
   goToProject: (id: string, options?: { newSession?: boolean }) => void
   newProject: () => void
   openFolder: () => void
+  openRemote: () => void
 }
+
+export interface WorkspaceRemoteHandlers {
+  openGatewaySettings: () => void
+  openRemoteFolder: () => void
+}
+
+export type WorkspaceRemoteTarget = 'gateway-settings' | 'open-remote-folder'
 
 export interface WorkspacePaletteItem {
   id: string
-  kind: 'new-project' | 'open-folder' | 'project'
+  kind: 'new-project' | 'open-folder' | 'project' | 'remote'
   keywords: string[]
   label: string
   action?: string
@@ -56,9 +68,24 @@ export interface WorkspacePaletteGroup {
   items: WorkspacePaletteItem[]
 }
 
+/** Already on a remote gateway → browse its folders. Otherwise → Settings → Gateway. */
+export function workspaceRemoteTarget(isRemote: boolean): WorkspaceRemoteTarget {
+  return isRemote ? 'open-remote-folder' : 'gateway-settings'
+}
+
+export function runWorkspaceRemoteAction(isRemote: boolean, handlers: WorkspaceRemoteHandlers): void {
+  if (workspaceRemoteTarget(isRemote) === 'open-remote-folder') {
+    handlers.openRemoteFolder()
+
+    return
+  }
+
+  handlers.openGatewaySettings()
+}
+
 export function buildWorkspaceActionItems(
-  copy: Pick<WorkspacePaletteCopy, 'newProject' | 'openFolder'>,
-  handlers: Pick<WorkspacePaletteHandlers, 'newProject' | 'openFolder'>
+  copy: Pick<WorkspacePaletteCopy, 'newProject' | 'openFolder' | 'remote'>,
+  handlers: Pick<WorkspacePaletteHandlers, 'newProject' | 'openFolder' | 'openRemote'>
 ): WorkspacePaletteItem[] {
   return [
     {
@@ -68,6 +95,13 @@ export function buildWorkspaceActionItems(
       keywords: ['open', 'folder', 'directory', 'project', 'add', 'import', 'workspace'],
       label: copy.openFolder,
       run: handlers.openFolder
+    },
+    {
+      id: WORKSPACE_REMOTE_ID,
+      kind: 'remote',
+      keywords: ['remote', 'ssh', 'cloud', 'gateway', 'folder', 'connect', 'server', 'workspace'],
+      label: copy.remote,
+      run: handlers.openRemote
     },
     {
       id: WORKSPACE_NEW_PROJECT_ID,

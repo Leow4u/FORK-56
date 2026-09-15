@@ -1208,6 +1208,7 @@ export interface Translations {
     openFolder: string
     openFolderAt: (path: string) => string
     newSessionInProject: (project: string) => string
+    remote: string
     selectWorkspace: string
     commands: string
     startInBranch: (branch: string) => string

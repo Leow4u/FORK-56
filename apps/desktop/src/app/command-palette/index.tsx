@@ -20,6 +20,7 @@ import { HighlightMatches } from '@/components/ui/highlight-matches'
 import { KbdCombo } from '@/components/ui/kbd'
 import { useI18n } from '@/i18n'
 import { sessionTitle } from '@/lib/chat-runtime'
+import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
 import {
   Activity,
   AppWindow,
@@ -118,8 +119,10 @@ import { MarketplaceThemePage } from './marketplace-theme-page'
 import { PetInlineToggle, PetPalettePage } from './pet-palette-page'
 import {
   buildWorkspacePaletteGroups,
+  runWorkspaceRemoteAction,
   SELECT_WORKSPACE_PAGE,
   type WorkspacePaletteGroup,
+  type WorkspacePaletteHandlers,
   type WorkspacePaletteItem
 } from './workspace-palette'
 
@@ -171,6 +174,10 @@ function workspaceItemIcon(item: WorkspacePaletteItem): IconComponent {
     return codiconIcon('folder-opened')
   }
 
+  if (item.kind === 'remote') {
+    return codiconIcon('remote')
+  }
+
   if (item.kind === 'new-project') {
     return Plus
   }
@@ -195,11 +202,23 @@ function workspaceGroupsToPalette(groups: WorkspacePaletteGroup[]): PaletteGroup
   }))
 }
 
-const WORKSPACE_PALETTE_HANDLERS = {
-  goToProject,
-  newProject: openProjectCreate,
-  openFolder: () => {
-    void openFolderAsProject()
+function workspacePaletteHandlers(navigate: ReturnType<typeof useNavigate>): WorkspacePaletteHandlers {
+  return {
+    goToProject,
+    newProject: openProjectCreate,
+    openFolder: () => {
+      void openFolderAsProject()
+    },
+    openRemote: () => {
+      runWorkspaceRemoteAction(isDesktopFsRemoteMode(), {
+        openGatewaySettings: () => {
+          navigateToWorkspacePage(navigate, `${SETTINGS_ROUTE}?tab=gateway`)
+        },
+        openRemoteFolder: () => {
+          void openFolderAsProject()
+        }
+      })
+    }
   }
 }
 
@@ -808,12 +827,13 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
           newProject: t.sidebar.projects.newButton,
           newSessionInProject: cc.newSessionInProject,
           openFolder: cc.openFolder,
-          projects: cc.projects
+          projects: cc.projects,
+          remote: cc.remote
         },
-        WORKSPACE_PALETTE_HANDLERS
+        workspacePaletteHandlers(navigate)
       )
     )
-  }, [dismissedAutoProjects, projectTree, t])
+  }, [dismissedAutoProjects, navigate, projectTree, t])
 
   const baseGroups = useMemo<PaletteGroup[]>(() => {
     const settingsTab = (tab: string) => `${SETTINGS_ROUTE}?tab=${tab}`
@@ -824,8 +844,10 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     // project — never spends main); ⌘-Enter / ⌘-click also starts a new session
     // at the project root (stacked as a tab when main holds a chat), previewed
     // by the label swap while ⌘ is held. Rows carry the project's own codicon,
-    // matching the sidebar. Open folder is the ⌘O upsert; New project opens the
-    // existing create dialog. The same rows back the Select workspace page.
+    // matching the sidebar. Open folder is the ⌘O upsert; Remote opens the
+    // in-app remote folder picker when already connected, otherwise Settings →
+    // Gateway; New project opens the existing create dialog. The same rows
+    // back the Select workspace page.
     const projectGroup: PaletteGroup = {
       heading: cc.projects,
       items: workspacePaletteGroups.flatMap(group => group.items)
@@ -1053,15 +1075,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     // live state through `detail()`, so the groups must rebuild after a select
     // that kept the palette open — eslint only sees an unused dep.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    contributedItems,
-    go,
-    selectTick,
-    settingsSectionLabel,
-    t,
-    updateVersionLabel,
-    workspacePaletteGroups
-  ])
+  }, [contributedItems, go, selectTick, settingsSectionLabel, t, updateVersionLabel, workspacePaletteGroups])
 
   // The long, granular lists (settings fields, API keys, MCP servers, archived
   // chats) only surface once the user types — otherwise they'd bury the

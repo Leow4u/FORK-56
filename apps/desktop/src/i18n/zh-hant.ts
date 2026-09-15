@@ -1172,6 +1172,7 @@ export const zhHant = defineLocale({
     searchPlaceholder: '搜尋工作階段、檢視和動作',
     goTo: '前往',
     goToSession: '前往工作階段',
+    remote: '遠端…',
     selectWorkspace: '選擇工作區',
     branches: '分支',
     startInBranch: branch => `在 ${branch} 中開始新對話`,
