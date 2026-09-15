@@ -41,6 +41,7 @@ export function ComposerControls({
   conversation,
   disabled,
   hasComposerPayload,
+  messagesEmpty = false,
   sessionId,
   state,
   voiceStatus,
@@ -56,6 +57,8 @@ export function ComposerControls({
   conversation: ConversationProps
   disabled: boolean
   hasComposerPayload: boolean
+  /** Empty transcript: hide the 0% meter; the workspace chip is the empty-state control. */
+  messagesEmpty?: boolean
   sessionId?: null | string
   state: ChatBarState
   voiceStatus: VoiceStatus
@@ -79,7 +82,7 @@ export function ComposerControls({
 
   return (
     <div className="ml-auto flex shrink-0 items-center gap-(--composer-control-gap)">
-      <ContextUsagePill busy={busy} sessionId={sessionId} />
+      {messagesEmpty ? null : <ContextUsagePill busy={busy} sessionId={sessionId} />}
       <ModelPill compact={compactModelPill} disabled={disabled} model={state.model} />
       {/* The HUD is a Spotlight bar a few hundred pixels wide, so the four
           separate voice toggles fold into one menu there and leave the row to

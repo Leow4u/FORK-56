@@ -61,6 +61,20 @@ afterEach(() => {
   $hudMode.set(false)
 })
 
+describe('empty chat context meter', () => {
+  it('hides the context meter on an empty chat', () => {
+    renderControls({ messagesEmpty: true })
+
+    expect(screen.queryByLabelText('Context usage')).toBeNull()
+  })
+
+  it('keeps the context meter once the transcript has messages', () => {
+    renderControls({ messagesEmpty: false })
+
+    expect(screen.getByLabelText('Context usage')).toBeTruthy()
+  })
+})
+
 // The HUD is a Spotlight bar a few hundred pixels wide: the four voice
 // controls fold into one menu there, and the way out of HUD mode joins the
 // row instead of floating above the bar in a reserved strip. The docked
