@@ -1210,6 +1210,7 @@ export interface Translations {
     newSessionInProject: (project: string) => string
     remote: string
     selectWorkspace: string
+    selectWorkspacePlaceholder: string
     commands: string
     startInBranch: (branch: string) => string
     commandCenter: string

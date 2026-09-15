@@ -1016,6 +1016,7 @@ export const ar = defineLocale({
     goToSession: 'الانتقال إلى الجلسة',
     remote: 'بعيد…',
     selectWorkspace: 'اختيار مساحة العمل',
+    selectWorkspacePlaceholder: 'افتح مجلدًا أو اتصل عن بُعد أو أنشئ مشروعًا',
     branches: 'الفروع',
     startInBranch: branch => `محادثة جديدة في ${branch}`,
     commandCenter: 'مركز الأوامر',

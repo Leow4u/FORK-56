@@ -1370,6 +1370,7 @@ export const en: Translations = {
     newSessionInProject: project => `New session in ${project}`,
     remote: 'Remote…',
     selectWorkspace: 'Select workspace',
+    selectWorkspacePlaceholder: 'Open a folder, go remote, or create a project',
     commands: 'Commands',
     startInBranch: branch => `New conversation in ${branch}`,
     commandCenter: 'Command Center',

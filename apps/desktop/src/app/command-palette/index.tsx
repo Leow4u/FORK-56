@@ -1421,7 +1421,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
       },
       [SELECT_WORKSPACE_PAGE]: {
         title: t.commandCenter.selectWorkspace,
-        placeholder: t.commandCenter.searchPlaceholder,
+        placeholder: t.commandCenter.selectWorkspacePlaceholder,
         groups: workspacePaletteGroups
       }
     }),

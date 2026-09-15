@@ -1211,6 +1211,7 @@ export const ja = defineLocale({
     goToSession: 'セッションへ移動',
     remote: 'リモート…',
     selectWorkspace: 'ワークスペースを選択',
+    selectWorkspacePlaceholder: 'フォルダーを開く、リモート、または新規プロジェクト',
     branches: 'ブランチ',
     startInBranch: branch => `${branch} で新しい会話`,
     commandCenter: 'コマンドセンター',

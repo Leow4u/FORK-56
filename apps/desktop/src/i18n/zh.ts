@@ -1562,6 +1562,7 @@ export const zh: Translations = {
     newSessionInProject: project => `在 ${project} 中新建会话`,
     remote: '远程…',
     selectWorkspace: '选择工作区',
+    selectWorkspacePlaceholder: '打开文件夹、连接远程或新建项目',
     commands: '命令',
     startInBranch: branch => `在 ${branch} 中开始新对话`,
     commandCenter: '命令中心',
