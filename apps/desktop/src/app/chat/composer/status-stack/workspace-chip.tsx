@@ -1,6 +1,8 @@
+import { composerFloatingPill } from '@/components/chat/composer-dock'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
 import { FolderOpen } from '@/lib/icons'
+import { cn } from '@/lib/utils'
 
 import { WorkspaceSelectMenu } from './workspace-select-menu'
 
@@ -18,11 +20,15 @@ export function WorkspaceChipRow({ cwd, messagesEmpty }: { cwd?: null | string; 
     <WorkspaceSelectMenu side="top" tooltip={tip}>
       <button
         aria-label={selectLabel}
-        className="flex h-(--composer-control-size) min-w-0 max-w-48 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs font-normal text-muted-foreground/92 hover:bg-(--chrome-action-hover) hover:text-foreground"
+        className={cn(
+          composerFloatingPill,
+          'min-w-0 max-w-48',
+          'data-[state=open]:bg-(--chrome-action-hover) data-[state=open]:text-foreground'
+        )}
         data-slot="workspace-chip"
         type="button"
       >
-        <FolderOpen aria-hidden className="size-3 shrink-0" />
+        <FolderOpen aria-hidden className="size-3.5 shrink-0" />
         <span className="truncate">{selectLabel}</span>
       </button>
     </WorkspaceSelectMenu>

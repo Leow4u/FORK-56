@@ -57,7 +57,6 @@ describe('WorkspaceChipRow', () => {
     expect(chip.textContent).toContain('Select workspace')
     expect(chip.textContent).not.toContain('Home')
     expect(chip.getAttribute('data-slot')).toBe('workspace-chip')
-    expect(chip.className).toContain('h-(--composer-control-size)')
     expect(container.querySelector('.group\\/status-row')).toBeNull()
 
     await openSelectWorkspace()
@@ -106,6 +105,20 @@ describe('WorkspaceChipRow', () => {
 
     expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('Select workspace')
     expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).not.toContain('website')
+  })
+
+  it('uses the composer pill silhouette so the empty-chat chip stays readable', () => {
+    renderChip(<WorkspaceChipRow messagesEmpty />)
+
+    const chip = screen.getByRole('button', { name: 'Select workspace' })
+    const icon = chip.querySelector('svg')
+
+    expect(chip.className).toContain('h-(--composer-control-size)')
+    expect(chip.className).toContain('rounded-full')
+    expect(chip.className).toContain('border-border/65')
+    expect(chip.className).toContain('text-(--ui-text-secondary)')
+    expect(chip.className).not.toContain('muted-foreground')
+    expect(icon?.classList.contains('size-3.5')).toBe(true)
   })
 
   it('stays off the composer once the transcript has messages', () => {
