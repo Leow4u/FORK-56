@@ -50,12 +50,15 @@ async function openSelectWorkspace() {
 
 describe('WorkspaceChipRow', () => {
   it('paints Select workspace on an empty chat and opens a menu on the chip', async () => {
-    renderChip(<WorkspaceChipRow messagesEmpty />)
+    const { container } = renderChip(<WorkspaceChipRow messagesEmpty />)
 
     const chip = screen.getByRole('button', { name: 'Select workspace' })
 
     expect(chip.textContent).toContain('Select workspace')
     expect(chip.textContent).not.toContain('Home')
+    expect(chip.getAttribute('data-slot')).toBe('workspace-chip')
+    expect(chip.className).toContain('h-(--composer-control-size)')
+    expect(container.querySelector('.group\\/status-row')).toBeNull()
 
     await openSelectWorkspace()
 

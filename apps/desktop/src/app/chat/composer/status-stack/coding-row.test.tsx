@@ -129,6 +129,17 @@ describe('CodingStatusRow', () => {
     expect(screen.getByText('bb/hitbox')).toBeTruthy()
   })
 
+  it('rounds the git bar as the top of the composer card', () => {
+    for (const showWorkspaceName of [false, true]) {
+      const { container, unmount } = renderRow(
+        <CodingStatusRow onOpen={() => undefined} repoPath="/repo" showWorkspaceName={showWorkspaceName} />
+      )
+
+      expect(container.querySelector('.coding-status-bar')?.className).toContain('rounded-t-[inherit]')
+      unmount()
+    }
+  })
+
   it('paints name · branch on one occupied strip', () => {
     $projectTree.set([
       {

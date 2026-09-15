@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   acceptsTriggerCompletion,
+  composerActionStacked,
   isPendingDraftPersistCurrent,
   type PendingDraftPersist,
   pickPlaceholder,
@@ -92,6 +93,15 @@ describe('pickPlaceholder', () => {
   it('returns a member of the pool', () => {
     const pool = ['a', 'b', 'c'] as const
     expect(pool).toContain(pickPlaceholder(pool))
+  })
+})
+
+describe('composerActionStacked', () => {
+  it('parks empty chat on the action row even when the composer is still inline', () => {
+    expect(composerActionStacked(false, true)).toBe(true)
+    expect(composerActionStacked(true, false)).toBe(true)
+    expect(composerActionStacked(true, true)).toBe(true)
+    expect(composerActionStacked(false, false)).toBe(false)
   })
 })
 
