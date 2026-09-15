@@ -3174,7 +3174,15 @@ export const zh: Translations = {
     placeholderStarting: '正在启动 Work4You…',
     placeholderReconnecting: '正在重新连接 Work4You…',
     placeholderFollowUp: '发送后续消息',
-    newSessionPlaceholders: ['问任何事情'],
+    newSessionPlaceholders: [
+      '我们要构建什么？',
+      '给 Work4You 一个任务',
+      '你在想什么？',
+      '描述你需要什么',
+      '我们该处理什么？',
+      '随便问点什么',
+      '从一个目标开始'
+    ],
     followUpPlaceholders: [
       '发送后续消息',
       '补充更多上下文',

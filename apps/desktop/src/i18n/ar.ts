@@ -2523,7 +2523,7 @@ export const ar = defineLocale({
     placeholderStarting: 'جار بدء Work4You...',
     placeholderReconnecting: 'جار إعادة الاتصال...',
     placeholderFollowUp: 'اكتب متابعة...',
-    newSessionPlaceholders: ['اسأل أي شيء'],
+    newSessionPlaceholders: ['اسأل Work4You عن شيء...', 'اطلب من Work4You تنفيذ مهمة...', 'ابدأ محادثة جديدة...'],
     followUpPlaceholders: ['اكتب متابعة...', 'أضف توجيها...', 'اسأل سؤالا آخر...'],
     startVoice: 'بدء الصوت',
     openDirective: 'فتح',

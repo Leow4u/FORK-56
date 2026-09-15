@@ -3027,8 +3027,15 @@ export const en: Translations = {
     placeholderStarting: 'Starting Work4You...',
     placeholderReconnecting: 'Reconnecting to Work4You…',
     placeholderFollowUp: 'Send follow-up',
-    // Empty chat: a short input hint. Personality lives in the intro splash.
-    newSessionPlaceholders: ['Ask anything'],
+    newSessionPlaceholders: [
+      'What are we building?',
+      'Give Work4You a task',
+      "What's on your mind?",
+      'Describe what you need',
+      'What should we tackle?',
+      'Ask anything',
+      'Start with a goal'
+    ],
     followUpPlaceholders: [
       'Send a follow-up',
       'Add more context',

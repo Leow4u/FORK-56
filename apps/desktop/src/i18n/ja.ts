@@ -2734,7 +2734,15 @@ export const ja = defineLocale({
     placeholderStarting: 'Work4You を起動中...',
     placeholderReconnecting: 'Work4You に再接続中…',
     placeholderFollowUp: 'フォローアップを送信',
-    newSessionPlaceholders: ['何でも聞いてください'],
+    newSessionPlaceholders: [
+      '何を作りますか？',
+      'Work4You にタスクを与える',
+      '何か考えていることはありますか？',
+      '必要なことを説明してください',
+      '何に取り組みますか？',
+      '何でも聞いてください',
+      '目標から始める'
+    ],
     followUpPlaceholders: [
       'フォローアップを送信',
       'さらにコンテキストを追加',

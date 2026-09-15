@@ -2621,7 +2621,15 @@ export const zhHant = defineLocale({
     placeholderStarting: '正在啟動 Work4You...',
     placeholderReconnecting: '正在重新連線至 Work4You…',
     placeholderFollowUp: '傳送後續訊息',
-    newSessionPlaceholders: ['問任何事情'],
+    newSessionPlaceholders: [
+      '我們要建立什麼？',
+      '給 Work4You 一個任務',
+      '您在想什麼？',
+      '描述您需要什麼',
+      '我們該處理什麼？',
+      '盡管問',
+      '從一個目標開始'
+    ],
     followUpPlaceholders: [
       '傳送後續訊息',
       '補充更多脈絡',
