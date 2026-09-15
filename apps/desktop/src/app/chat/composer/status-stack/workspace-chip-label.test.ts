@@ -5,9 +5,7 @@ import { $projectTree } from '@/store/projects'
 
 import { workspaceChipLabel } from './workspace-chip-label'
 
-function treeNode(
-  over: Partial<SidebarProjectTree> & Pick<SidebarProjectTree, 'id' | 'label'>
-): SidebarProjectTree {
+function treeNode(over: Partial<SidebarProjectTree> & Pick<SidebarProjectTree, 'id' | 'label'>): SidebarProjectTree {
   return {
     path: null,
     repos: [],
