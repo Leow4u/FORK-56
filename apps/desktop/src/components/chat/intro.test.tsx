@@ -49,4 +49,27 @@ describe('Intro', () => {
     expect(headline?.className).toMatch(/text-xl/)
     expect(headline?.className).toMatch(/font-semibold/)
   })
+
+  it('ranks kicker, splash headline, and body by weight', () => {
+    const { container } = render(<Intro personality="helpful" seed={0} />)
+
+    const ready = container.querySelector('[data-slot="aui_intro_ready"]')
+    const headline = container.querySelector('[data-slot="aui_intro_headline"]')
+    const body = container.querySelector('[data-slot="aui_intro_body"]')
+
+    expect(ready?.className).toMatch(/text-xs/)
+    expect(ready?.className).toMatch(/font-normal/)
+    expect(ready?.className).not.toMatch(/font-medium/)
+    expect(ready?.className).not.toMatch(/tracking-tight/)
+
+    expect(headline?.className).toMatch(/text-xl/)
+    expect(headline?.className).toMatch(/font-semibold/)
+    expect(headline?.className).toMatch(/text-foreground/)
+
+    expect(body?.className).toMatch(/text-sm/)
+    expect(body?.className).toMatch(/font-normal/)
+    expect(body?.className).not.toMatch(/text-xl/)
+    expect(body?.className).not.toMatch(/font-semibold/)
+    expect(body?.className).not.toMatch(/tracking-tight/)
+  })
 })

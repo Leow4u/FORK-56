@@ -176,7 +176,7 @@ export function Intro({ personality, seed }: IntroProps) {
       <div className="mx-auto w-full min-w-0 max-w-md">
         {showReady ? (
           <p
-            className="mb-2 text-[0.8125rem] font-medium tracking-tight text-muted-foreground"
+            className="mb-2 text-xs font-normal text-(--ui-text-tertiary)"
             data-slot="aui_intro_ready"
           >
             {ready}
@@ -190,7 +190,10 @@ export function Intro({ personality, seed }: IntroProps) {
           {copy.headline}
         </p>
 
-        <p className="m-0 text-center leading-normal tracking-tight" data-slot="aui_intro_body">
+        <p
+          className="m-0 text-center text-sm font-normal leading-normal text-(--ui-text-secondary)"
+          data-slot="aui_intro_body"
+        >
           {copy.body}
         </p>
       </div>
