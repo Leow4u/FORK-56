@@ -851,6 +851,7 @@ export async function createProject(input: CreateProjectInput): Promise<ProjectI
 
     if (input.use) {
       $activeProjectId.set(created.id)
+      enterProject(created.id)
     }
 
     setSidebarAgentsGrouped(true)

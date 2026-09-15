@@ -14,6 +14,7 @@ import {
   $projectTree,
   $removedSessionIds,
   $sessionMutationsInFlight,
+  $startWorkSessionRequest,
   $worktreeRefreshToken,
   ALL_PROJECTS,
   beginSessionMutation,
@@ -123,6 +124,25 @@ describe('project scope', () => {
     goToProject('p_123')
     expect($projectScope.get()).toBe('p_123')
     expect($sidebarAgentsGrouped.get()).toBe(true)
+  })
+
+  it('goToProject with newSession anchors a draft at the project root', () => {
+    $startWorkSessionRequest.set(null)
+    $projectTree.set([
+      {
+        id: 'p_demo',
+        label: 'Demo',
+        path: '/srv/demo',
+        repos: [],
+        sessionCount: 0
+      }
+    ])
+
+    goToProject('p_demo', { newSession: true })
+
+    expect($projectScope.get()).toBe('p_demo')
+    expect($startWorkSessionRequest.get()?.path).toBe('/srv/demo')
+    expect($startWorkSessionRequest.get()?.openTab).toBe(true)
   })
 })
 
@@ -353,6 +373,7 @@ describe('createProject', () => {
     vi.clearAllMocks()
     setSidebarAgentsGrouped(false)
     $activeProjectId.set(null)
+    $projectScope.set(ALL_PROJECTS)
     $projectsRpcAvailable.set(null)
   })
 
@@ -377,6 +398,7 @@ describe('createProject', () => {
     expect(request).toHaveBeenCalledWith('projects.create', expect.objectContaining({ name: 'Demo' }))
     expect($sidebarAgentsGrouped.get()).toBe(true)
     expect($activeProjectId.get()).toBe('p_new')
+    expect($projectScope.get()).toBe('p_new')
   })
 
   it('marks the backend stale and surfaces a friendly error when projects.create is missing', async () => {
