@@ -4036,13 +4036,14 @@ export const zh: Translations = {
     approval: {
       gatewayDisconnected: 'Work4You 网关未连接',
       sendFailed: '无法发送审批响应',
-      run: '运行',
-      command: '命令',
+      title: '允许运行此命令？',
+      allow: '允许',
+      notNow: '暂不',
+      more: '更多',
       moreOptions: '更多审批选项',
       allowSession: '允许本会话',
       alwaysAllowMenu: '始终允许…',
       jumpToApproval: '需要审批',
-      reject: '拒绝',
       alwaysTitle: '始终允许此命令？',
       alwaysDescription: pattern =>
         `这会将“${pattern}”模式加入永久允许列表 (~/.work4you/config.yaml)。Work4You 对类似命令将不再询问，包括当前会话和未来会话。`,

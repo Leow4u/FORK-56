@@ -3570,13 +3570,14 @@ export const ja = defineLocale({
     approval: {
       gatewayDisconnected: 'Work4You ゲートウェイが接続されていません',
       sendFailed: '承認応答を送信できませんでした',
-      run: '実行',
-      command: 'コマンド',
+      title: 'このコマンドを許可しますか？',
+      allow: '許可',
+      notNow: '今はしない',
+      more: 'その他',
       moreOptions: 'その他の承認オプション',
       allowSession: 'このセッションで許可',
       alwaysAllowMenu: '常に許可…',
       jumpToApproval: '承認が必要',
-      reject: '拒否',
       alwaysTitle: 'このコマンドを常に許可しますか？',
       alwaysDescription: pattern =>
         `これにより "${pattern}" パターンが永続的な許可リスト (~/.work4you/config.yaml) に追加されます。Work4You はこのセッションや将来のセッションで、このようなコマンドについて再度尋ねません。`,
