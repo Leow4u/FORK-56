@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { $toolDisclosureStates, $toolViewMode } from '@/store/tool-view'
 
-import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime } from '../test-utils'
+import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime, userMessage } from '../test-utils'
 import { Thread } from '.'
 
 const createdAt = new Date('2026-06-03T00:00:00.000Z')
@@ -146,6 +146,26 @@ describe('product-mode settle fold', () => {
     expect(await screen.findByText('Forty-two.')).toBeTruthy()
     expect(container.querySelector('[data-slot="aui_worked-for"]')).toBeNull()
     expect(container.querySelector('[data-slot="aui_thinking-disclosure"]')).toBeTruthy()
+  })
+
+  it('does not leave a files closer on a previous folded turn', async () => {
+    const { container } = render(
+      <ThreadRuntime
+        messages={[
+          userMessage('user-deck', 'Make the deck.'),
+          settledWorkMessage(),
+          userMessage('user-ask', 'What is the answer?'),
+          thoughtOnlyMessage()
+        ]}
+      >
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByText('Forty-two.')).toBeTruthy()
+    expect(await screen.findByText('Worked for 18m')).toBeTruthy()
+    expect(container.querySelector('[data-slot="aui_changed-files"]')).toBeNull()
+    expect(container.textContent).not.toContain('1 file changed')
   })
 
   it('keeps the live staircase while the turn is running', async () => {

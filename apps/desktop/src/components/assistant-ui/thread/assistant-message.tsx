@@ -255,9 +255,11 @@ export const AssistantMessage: FC<{
           onBranchInNewChat={onBranchInNewChat}
         />
       )}
-      {/* Last thing in the turn — under the action bar, the way Cursor ends a
-          turn on its summary rather than burying it above the controls. */}
-      <ChangedFilesCard parts={fold.kind === 'host' ? fold.parts : settledParts} />
+      {/* Last thing in the newest turn — under the action bar, the way Cursor
+          ends a turn on its summary rather than burying it above the controls.
+          A folded host still has to be the tail: older Worked-for rows keep
+          their diary, not a stack of stale files cards. */}
+      <ChangedFilesCard parts={fold.kind === 'host' && isLastMessage ? fold.parts : settledParts} />
     </MessagePrimitive.Root>
   )
 }
