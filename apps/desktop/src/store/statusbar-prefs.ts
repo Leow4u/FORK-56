@@ -1,7 +1,9 @@
 import { Codecs, persistentAtom } from '@/lib/persisted'
 
 const STATUSBAR_HIDDEN_STORAGE_KEY = 'work4you.desktop.statusbarHidden'
-const STATUSBAR_VISIBLE_STORAGE_KEY = 'work4you.desktop.statusbarVisible'
+// `.off` so a stored `true` from the old on-by-default key does not keep the
+// bar up. Same atom, same toggle — only the birth default actually applies.
+const STATUSBAR_VISIBLE_STORAGE_KEY = 'work4you.desktop.statusbarVisible.off'
 
 // Whole-bar visibility, VS Code's `workbench.statusBar.visible`. Off by default
 // — the bar is there when the user asks for it (`view.toggleStatusbar` / the
