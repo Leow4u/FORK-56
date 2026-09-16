@@ -153,13 +153,14 @@ def build_models_payload(
       ``{model: {fast, reasoning}}`` so pickers can gate the model-options
       controls (fast toggle / reasoning) to what each model actually
       supports, instead of offering knobs the backend would reject.
-    - ``featured``: add a per-row ``featured_models`` list — the newest few
-      models per lab (by models.dev release_date, ranked within the row's own
-      models; see ``_FEATURED_PER_LAB``) for aggregator providers that serve
-      dozens of models across many labs. Pickers default their visible set to
-      these; the rest of ``models`` stays reachable via search / show-all. Empty
-      for single-lab providers (callers fall back to top-N). Derived live from
-      models.dev — no allowlist.
+    - ``featured``: add a per-row ``featured_models`` list. Work4You Portal
+      uses the official picker shortlist (``WORK4YOU_FEATURED_MODEL_IDS``);
+      other aggregator rows keep the newest few models per lab (by models.dev
+      release_date, ranked within the row's own models; see
+      ``_FEATURED_PER_LAB``). Pickers default their visible set to these; the
+      rest of ``models`` stays reachable via search / show-all / Edit Models
+      (toggle off). Empty for single-lab providers (callers fall back to
+      top-N).
     - ``force_fresh_work4you_tier``: bypass the short Work4You free-tier cache when
       selecting Portal-recommended Work4You models and applying tier gating. Keep
       this false for UI picker opens; explicit auth/model flows can opt in
@@ -447,23 +448,42 @@ def _apply_capabilities(rows: list[dict]) -> None:
 _FEATURED_PER_LAB = 5
 
 
+def _work4you_featured_shortlist(models: list) -> list[str]:
+    """Return the official Portal picker shortlist present on this row.
+
+    Membership is the curated ``WORK4YOU_FEATURED_MODEL_IDS`` set; order
+    follows the row's own catalog so the composer does not reshuffle.
+    Ids missing from the live/curated row are dropped.
+    """
+    from work4you_cli.models import WORK4YOU_FEATURED_MODEL_IDS
+
+    present = {str(model) for model in models}
+    order = {str(model): index for index, model in enumerate(models)}
+    featured = [model_id for model_id in WORK4YOU_FEATURED_MODEL_IDS if model_id in present]
+    return sorted(featured, key=lambda model_id: order[model_id])
+
+
 def _apply_featured(rows: list[dict]) -> None:
     """Attach a ``featured_models`` shortlist to each aggregator provider row.
 
-    Aggregator providers (work4you, openrouter) serve dozens of models across many
-    labs, so a flat "top-N" default would drop whole labs from the picker.
-    Instead we surface the ``_FEATURED_PER_LAB`` newest models per lab (the
-    vendor segment of a ``vendor/model`` id), ranked by models.dev
-    ``release_date`` among that row's OWN models — never against the current
-    date, so the choice is stable as models age. Same-date ties (and labs whose
-    models lack a date) fall back to the row's curated order, which is already
-    flagship-first, so a lab keeps its headliners rather than an arbitrary slice.
+    Work4You Portal uses the official picker shortlist
+    (``WORK4YOU_FEATURED_MODEL_IDS``) so Edit Models toggles start on for
+    those rows and off for the rest of the official catalog.
 
-    Derived live from the models.dev catalog already loaded on this path (same
-    source as pricing/capabilities) — there is no hand-maintained allowlist to
-    keep in sync. Non-aggregator providers (a single lab, local endpoints,
-    custom proxies) get an empty list and callers fall back to their existing
-    top-N behaviour; splitting one lab into a shortlist would just hide models.
+    Other aggregator providers (openrouter) serve dozens of models across
+    many labs, so a flat "top-N" default would drop whole labs from the
+    picker. Instead we surface the ``_FEATURED_PER_LAB`` newest models per
+    lab (the vendor segment of a ``vendor/model`` id), ranked by models.dev
+    ``release_date`` among that row's OWN models — never against the current
+    date, so the choice is stable as models age. Same-date ties (and labs
+    whose models lack a date) fall back to the row's curated order, which is
+    already flagship-first, so a lab keeps its headliners rather than an
+    arbitrary slice.
+
+    Non-aggregator providers (a single lab, local endpoints, custom
+    proxies) get an empty list and callers fall back to their existing
+    top-N behaviour; splitting one lab into a shortlist would just hide
+    models.
     """
     try:
         from agent.models_dev import get_model_info
@@ -473,6 +493,10 @@ def _apply_featured(rows: list[dict]) -> None:
     for row in rows:
         slug = str(row.get("slug") or "").strip().lower()
         models = row.get("models") or []
+
+        if slug == "work4you":
+            row["featured_models"] = _work4you_featured_shortlist(models)
+            continue
 
         # Group models by lab; only multi-lab aggregators get a shortlist.
         by_lab: dict[str, list[tuple[int, str, str]]] = {}

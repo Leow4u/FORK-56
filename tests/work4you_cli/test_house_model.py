@@ -156,3 +156,27 @@ def test_free_tier_collapses_legacy_and_canonical_house_ids():
     assert selectable == [WORK4YOU_HOUSE_MODEL_ID]
     assert "google/gemini-3.7-flash" in unavailable
     assert "deepseek/deepseek-v4-flash-0731" not in selectable
+
+
+def test_featured_shortlist_is_official_and_excludes_house():
+    """Default-on picker rows stay inside the official catalog and skip Operis."""
+    from work4you_cli.models import WORK4YOU_FEATURED_MODEL_IDS, _PROVIDER_MODELS
+
+    official = set(_PROVIDER_MODELS["work4you"])
+    featured = WORK4YOU_FEATURED_MODEL_IDS
+    assert featured
+    assert set(featured) <= official
+    assert WORK4YOU_HOUSE_MODEL_ID not in featured
+    assert "anthropic/claude-fable-5" in featured
+    assert "anthropic/claude-opus-5" in featured
+    assert "anthropic/claude-sonnet-5" in featured
+    assert "openai/gpt-5.6-sol" in featured
+    assert "openai/gpt-5.6-terra" in featured
+    assert "openai/gpt-5.6-luna-pro" in featured
+    assert "google/gemini-3.7-flash" in featured
+    assert "x-ai/grok-4.6" in featured
+    assert "qwen/qwen3.8-max" in featured
+    assert "z-ai/glm-5.2" in featured
+    assert "anthropic/claude-opus-4.8" not in featured
+    assert "anthropic/claude-haiku-4.5" not in featured
+    assert "google/gemini-3.1-pro-preview" not in featured
