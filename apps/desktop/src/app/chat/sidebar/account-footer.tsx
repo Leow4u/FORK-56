@@ -182,28 +182,19 @@ export function AccountFooter() {
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-        {!clientUpdate.unknown ? (
+        {clientUpdate.hasUpdate ? (
           <button
             aria-label={updateLabel}
             className={cn(
-              'group/update flex h-5 shrink-0 items-center overflow-hidden rounded-md px-1',
-              'bg-primary/15 text-primary transition-colors duration-100',
-              'hover:bg-primary/25 hover:transition-none [-webkit-app-region:no-drag]'
+              'flex h-5 shrink-0 items-center rounded-full px-2 text-[0.6875rem] font-medium',
+              'bg-(--dt-midground) text-(--dt-midground-foreground)',
+              'transition-opacity duration-100 hover:opacity-90 hover:transition-none',
+              '[-webkit-app-region:no-drag]'
             )}
             onClick={() => openUpdateOverlayFor('client')}
             type="button"
           >
-            <Codicon aria-hidden="true" name="cloud-download" size="0.7rem" />
-            <span
-              className={cn(
-                'max-w-0 overflow-hidden text-[0.6875rem] font-medium whitespace-nowrap opacity-0',
-                'transition-[max-width,margin,opacity] duration-150',
-                'group-hover/update:ml-1 group-hover/update:max-w-16 group-hover/update:opacity-100',
-                'group-focus-visible/update:ml-1 group-focus-visible/update:max-w-16 group-focus-visible/update:opacity-100'
-              )}
-            >
-              {updateLabel}
-            </span>
+            {updateLabel}
           </button>
         ) : null}
       </div>
