@@ -55,6 +55,7 @@ export function AccountFooter() {
   const signedIn = Boolean(email)
   const triggerLabel = email ?? menu.account
   const updateLabel = t.common.update
+
   const clientUpdate = resolveVersionStatus({
     applying: updateApply.applying || updateApply.stage === 'restart',
     applyMessage: updateApply.message,
