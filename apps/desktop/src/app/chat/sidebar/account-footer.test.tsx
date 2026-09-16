@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { $updateOverlayOpen, $updateOverlayTarget, $updateStatus, resetUpdateApplyState } from '@/store/updates'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
 import { ACCOUNT_CONTACT_URL, ACCOUNT_DOCS_URL, AccountFooter } from './account-footer'
@@ -16,6 +17,9 @@ const initialDesktop = desktopWindow.work4youDesktop
 
 afterEach(() => {
   cleanup()
+  $updateStatus.set(null)
+  $updateOverlayOpen.set(false)
+  resetUpdateApplyState()
 
   if (initialDesktop) {
     desktopWindow.work4youDesktop = initialDesktop
@@ -196,6 +200,41 @@ describe('AccountFooter', () => {
     await openMenu('Account')
     expect(await screen.findByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: /^log out$/i })).toBeNull()
+  })
+
+  it('keeps the update chip off when the client is current', async () => {
+    installCloud({ signedIn: false, email: null })
+    $updateStatus.set({ behind: 0, fetchedAt: 0, supported: true, updateAvailable: false })
+
+    renderFooter()
+
+    expect(await screen.findByRole('button', { name: 'Account' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Update' })).toBeNull()
+  })
+
+  it('parks the client update chip beside Account and opens the existing overlay', async () => {
+    installCloud({ signedIn: false, email: null })
+    $updateStatus.set({
+      behind: 3,
+      currentSha: '7d2ca4bdeadbeef',
+      fetchedAt: 0,
+      supported: true
+    })
+
+    renderFooter()
+
+    expect(await screen.findByRole('button', { name: 'Account' })).toBeTruthy()
+
+    const chip = screen.getByRole('button', { name: 'Update' })
+
+    expect(chip.textContent).toMatch(/update/i)
+    expect(chip.textContent).not.toMatch(/0\.20\.4/i)
+    expect(chip.textContent).not.toMatch(/7d2ca4b/i)
+
+    fireEvent.click(chip)
+
+    expect($updateOverlayOpen.get()).toBe(true)
+    expect($updateOverlayTarget.get()).toBe('client')
   })
 
   it('picks the email up when the window regains focus after a portal sign-in', async () => {

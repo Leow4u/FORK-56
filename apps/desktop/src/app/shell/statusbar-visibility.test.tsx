@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { StatusbarControls, type StatusbarItem } from '@/app/shell/statusbar-controls'
 import {
@@ -16,10 +16,15 @@ beforeAll(() => {
   stubMenuDomApis()
 })
 
+beforeEach(() => {
+  $statusbarHiddenIds.set([...STATUSBAR_HIDDEN_BY_DEFAULT])
+  $statusbarVisible.set(false)
+})
+
 afterEach(() => {
   cleanup()
   $statusbarHiddenIds.set([...STATUSBAR_HIDDEN_BY_DEFAULT])
-  $statusbarVisible.set(true)
+  $statusbarVisible.set(false)
 })
 
 const item = (id: string, label: string, extra: Partial<StatusbarItem> = {}): StatusbarItem => ({
@@ -163,10 +168,11 @@ describe('reset to defaults', () => {
   })
 
   it('leaves whole-bar visibility alone — reset is about items, not the bar', async () => {
-    // Set to the NON-default so a reset that wrongly restored bar visibility too
-    // would flip this back to true and fail. StatusbarControls doesn't read the
-    // atom (the controller gates the mount), so the menu is still reachable here.
-    $statusbarVisible.set(false)
+    // Set to the NON-default (visible) so a reset that wrongly restored bar
+    // visibility too would flip this back to false and fail. StatusbarControls
+    // doesn't read the atom (the controller gates the mount), so the menu is
+    // still reachable here.
+    $statusbarVisible.set(true)
     $statusbarHiddenIds.set([])
 
     const statusbar = bar([item('gateway-health', 'Gateway')])
@@ -175,12 +181,22 @@ describe('reset to defaults', () => {
     fireEvent.click(await screen.findByRole('menuitem', { name: /reset to defaults/i }))
 
     expect($statusbarHiddenIds.get()).toEqual([...STATUSBAR_HIDDEN_BY_DEFAULT])
-    expect($statusbarVisible.get()).toBe(false)
+    expect($statusbarVisible.get()).toBe(true)
   })
 })
 
 describe('whole-bar visibility', () => {
+  it('starts hidden — toggle is the way onto the bar', () => {
+    expect($statusbarVisible.get()).toBe(false)
+    toggleStatusbarVisible()
+    expect($statusbarVisible.get()).toBe(true)
+    toggleStatusbarVisible()
+    expect($statusbarVisible.get()).toBe(false)
+  })
+
   it('hides the bar from the context menu, leaving the keybind as the way back', async () => {
+    $statusbarVisible.set(true)
+
     const statusbar = bar([item('gateway-health', 'Gateway')])
 
     openContextMenu(statusbar)
