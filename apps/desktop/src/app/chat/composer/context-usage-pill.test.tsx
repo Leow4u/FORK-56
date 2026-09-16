@@ -8,7 +8,8 @@ import { $sessionStates } from '@/store/session-states'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 import type { UsageStats } from '@/types/work4you'
 
-import { ContextUsagePill } from './context-usage-pill'
+import { contextUsageOccupancyTip } from './context-usage-label'
+import { ComposerContextUsage, ContextUsagePill } from './context-usage-pill'
 
 const usage: UsageStats = {
   calls: 1,
@@ -19,6 +20,8 @@ const usage: UsageStats = {
   output: 0,
   total: 0
 }
+
+const occupancy = contextUsageOccupancyTip(usage, (used, max) => `${used} / ${max} Tokens`)
 
 beforeAll(() => {
   stubResizeObserver()
@@ -31,21 +34,51 @@ afterEach(() => {
   $sessionStates.set({})
 })
 
-describe('ContextUsagePill', () => {
-  it('stays on the composer at 0% when the session has no context max', () => {
-    render(<ContextUsagePill busy={false} />)
+async function occupancyTooltip(name = 'Context usage') {
+  const trigger = screen.getByRole('button', { name })
 
-    expect(screen.getByRole('button', { name: 'Context usage' }).textContent).toBe('0%')
+  fireEvent.pointerMove(trigger, { pointerType: 'mouse' })
+
+  return screen.findByRole('tooltip')
+}
+
+describe('ComposerContextUsage', () => {
+  it('hides when the host says the meter is off', () => {
+    const { container } = render(<ComposerContextUsage busy={false} hidden />)
+
+    expect(container.querySelector('[data-slot="composer-context-usage"]')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Context usage' })).toBeNull()
   })
 
-  it('paints primary occupancy and opens the existing breakdown panel', async () => {
+  it('shows the chip when the host leaves it visible', () => {
+    const { container } = render(<ComposerContextUsage busy={false} hidden={false} />)
+
+    expect(container.querySelector('[data-slot="composer-context-usage"]')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Context usage' })).toBeTruthy()
+  })
+})
+
+describe('ContextUsagePill', () => {
+  it('keeps occupancy off the chip when the session has no context max', async () => {
+    render(<ContextUsagePill busy={false} />)
+
+    const trigger = screen.getByRole('button', { name: 'Context usage' })
+
+    expect(trigger.textContent).toBe('')
+    expect(trigger.querySelector('[data-slot="context-usage-ring"]')?.getAttribute('data-percent')).toBe('0')
+    expect((await occupancyTooltip()).textContent).toBe('0%')
+  })
+
+  it('shows occupancy on hover and opens the existing breakdown panel', async () => {
     $currentUsage.set(usage)
 
     render(<ContextUsagePill busy={false} sessionId="runtime-1" />)
 
     const trigger = screen.getByRole('button', { name: 'Context usage' })
 
-    expect(trigger.textContent).toBe('47%')
+    expect(trigger.textContent).toBe('')
+    expect(trigger.querySelector('[data-slot="context-usage-ring"]')?.getAttribute('data-percent')).toBe('47')
+    expect((await occupancyTooltip()).textContent).toBe(occupancy)
 
     fireEvent.pointerDown(trigger, { button: 0 })
 
@@ -53,12 +86,12 @@ describe('ContextUsagePill', () => {
     expect(screen.getByText('47% Full')).toBeTruthy()
   })
 
-  it('reads a tile session from $sessionStates instead of the primary gauge', () => {
+  it('reads a tile session from $sessionStates instead of the primary gauge', async () => {
     $currentUsage.set(usage)
     $sessionStates.set({
       'tile-runtime': {
         ...createClientSessionState('stored-1'),
-        usage: { ...usage, context_percent: 12 }
+        usage: { ...usage, context_percent: 12, context_used: 32_000 }
       }
     })
 
@@ -68,6 +101,9 @@ describe('ContextUsagePill', () => {
       </ComposerScopeProvider>
     )
 
-    expect(screen.getByRole('button', { name: 'Context usage' }).textContent).toBe('12%')
+    const trigger = screen.getByRole('button', { name: 'Context usage' })
+
+    expect(trigger.querySelector('[data-slot="context-usage-ring"]')?.getAttribute('data-percent')).toBe('12')
+    expect((await occupancyTooltip()).textContent).toContain('12%')
   })
 })

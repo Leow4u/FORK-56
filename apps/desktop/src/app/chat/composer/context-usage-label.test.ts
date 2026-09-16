@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import type { ContextBreakdown, UsageStats } from '@/types/work4you'
 
-import { contextUsagePercent, contextUsagePercentLabel, mergeContextGaugeUsage } from './context-usage-label'
+import {
+  contextUsageOccupancyTip,
+  contextUsagePercent,
+  contextUsagePercentLabel,
+  mergeContextGaugeUsage
+} from './context-usage-label'
 
 const usage: UsageStats = {
   calls: 1,
@@ -22,6 +27,18 @@ describe('contextUsagePercent', () => {
     expect(contextUsagePercent({})).toBe(0)
     expect(contextUsagePercentLabel({})).toBe('0%')
     expect(contextUsagePercentLabel(usage)).toBe('47%')
+  })
+})
+
+describe('contextUsageOccupancyTip', () => {
+  const tokenSummary = (used: string, max: string) => `${used} / ${max} Tokens`
+
+  it('joins percent with used/max when the window is known', () => {
+    expect(contextUsageOccupancyTip(usage, tokenSummary)).toBe('47% · ~128.2k / 272k Tokens')
+  })
+
+  it('falls back to percent alone when the session has no max', () => {
+    expect(contextUsageOccupancyTip({}, tokenSummary)).toBe('0%')
   })
 })
 
