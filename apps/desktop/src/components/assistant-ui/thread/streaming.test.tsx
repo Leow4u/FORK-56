@@ -690,6 +690,7 @@ describe('assistant-ui streaming renderer', () => {
   it('shows the command prompt and exit code for terminal calls', async () => {
     const { container } = render(<MessageHarness message={assistantTerminalMessage()} />)
 
+    fireEvent.click(await screen.findByRole('button', { name: /worked/i }))
     fireEvent.click(container.querySelector('[data-tool-row] button')!)
 
     await waitFor(() => {

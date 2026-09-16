@@ -14,7 +14,8 @@ describe('deriveChangedFiles', () => {
       {
         type: 'tool-call',
         toolName: 'write_file',
-        args: { path: 'deck.pptx' }
+        args: { path: 'deck.pptx' },
+        result: { path: 'deck.pptx' }
       },
       {
         type: 'tool-call',
