@@ -3,10 +3,11 @@ import { Codecs, persistentAtom } from '@/lib/persisted'
 const STATUSBAR_HIDDEN_STORAGE_KEY = 'work4you.desktop.statusbarHidden'
 const STATUSBAR_VISIBLE_STORAGE_KEY = 'work4you.desktop.statusbarVisible'
 
-// Whole-bar visibility, VS Code's `workbench.statusBar.visible`. On by default.
-// Hiding it unmounts the bar (its 15s status poll goes with it), so the way back
-// is the `view.toggleStatusbar` keybind or the ⌘K row, never the bar itself.
-export const $statusbarVisible = persistentAtom(STATUSBAR_VISIBLE_STORAGE_KEY, true, Codecs.bool)
+// Whole-bar visibility, VS Code's `workbench.statusBar.visible`. Off by default
+// — the bar is there when the user asks for it (`view.toggleStatusbar` / the
+// context-menu row), not on first launch. Hiding it unmounts the bar (its 15s
+// status poll goes with it), so the way back is the keybind or the ⌘K row.
+export const $statusbarVisible = persistentAtom(STATUSBAR_VISIBLE_STORAGE_KEY, false, Codecs.bool)
 
 export function toggleStatusbarVisible() {
   $statusbarVisible.set(!$statusbarVisible.get())

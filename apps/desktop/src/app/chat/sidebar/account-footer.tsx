@@ -1,3 +1,4 @@
+import { useStore } from '@nanostores/react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -14,7 +15,10 @@ import { useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
 import { triggerHaptic } from '@/lib/haptics'
 import { cn } from '@/lib/utils'
+import { resolveVersionStatus } from '@/lib/version-status'
 import { notify, notifyError } from '@/store/notifications'
+import { $connection } from '@/store/session'
+import { $desktopVersion, $updateApply, $updateStatus, openUpdateOverlayFor } from '@/store/updates'
 
 import { SETTINGS_ROUTE } from '../../routes'
 
@@ -34,7 +38,7 @@ export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 // BrowserWindow, so focus returning to the main window is the natural
 // "state may have changed" signal — no polling, no new IPC surface.
 const rowClass = cn(
-  'flex h-7 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-xs',
+  'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs',
   'text-(--ui-text-tertiary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag]',
   'hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none'
 )
@@ -43,9 +47,28 @@ export function AccountFooter() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [email, setEmail] = useState<null | string>(null)
+  const connection = useStore($connection)
+  const desktopVersion = useStore($desktopVersion)
+  const updateApply = useStore($updateApply)
+  const updateStatus = useStore($updateStatus)
   const menu = t.accountMenu
   const signedIn = Boolean(email)
   const triggerLabel = email ?? menu.account
+  const updateLabel = t.common.update
+
+  const clientUpdate = resolveVersionStatus({
+    applying: updateApply.applying || updateApply.stage === 'restart',
+    applyMessage: updateApply.message,
+    behind: updateStatus?.behind ?? 0,
+    branch: updateStatus?.branch,
+    copy: t.shell.statusbar,
+    remote: connection?.mode === 'remote',
+    restarting: updateApply.stage === 'restart',
+    sha: updateStatus?.currentSha?.slice(0, 7) ?? null,
+    target: 'client',
+    updateAvailable: updateStatus?.updateAvailable,
+    version: desktopVersion?.appVersion
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -123,41 +146,67 @@ export function AccountFooter() {
 
   return (
     <SidebarFooter className="shrink-0 border-t border-(--ui-stroke-tertiary) px-1.5 py-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className={rowClass} title={triggerLabel} type="button">
-            <span className="truncate">{triggerLabel}</span>
+      <div className="flex min-w-0 items-center gap-1">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className={rowClass} title={triggerLabel} type="button">
+              <span className="truncate">{triggerLabel}</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side="top">
+            <DropdownMenuItem onSelect={openSettings}>
+              <Codicon aria-hidden="true" name="settings-gear" size="0.8rem" />
+              {menu.settings}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={openDocs}>
+              <Codicon aria-hidden="true" name="book" size="0.8rem" />
+              {menu.docs}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={openShortcuts}>
+              <Codicon aria-hidden="true" name="keyboard" size="0.8rem" />
+              {menu.shortcuts}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={openContact}>
+              <Codicon aria-hidden="true" name="mail" size="0.8rem" />
+              {menu.contactUs}
+            </DropdownMenuItem>
+            {signedIn ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={signOut}>
+                  <Codicon aria-hidden="true" name="sign-out" size="0.8rem" />
+                  {menu.logOut}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {clientUpdate.hasUpdate ? (
+          <button
+            aria-label={updateLabel}
+            className={cn(
+              'group/update flex h-5 shrink-0 items-center overflow-hidden rounded-md px-1',
+              'bg-primary/15 text-primary transition-colors duration-100',
+              'hover:bg-primary/25 hover:transition-none [-webkit-app-region:no-drag]'
+            )}
+            onClick={() => openUpdateOverlayFor('client')}
+            type="button"
+          >
+            <Codicon aria-hidden="true" name="cloud-download" size="0.7rem" />
+            <span
+              className={cn(
+                'max-w-0 overflow-hidden text-[0.6875rem] font-medium whitespace-nowrap opacity-0',
+                'transition-[max-width,margin,opacity] duration-150',
+                'group-hover/update:ml-1 group-hover/update:max-w-16 group-hover/update:opacity-100',
+                'group-focus-visible/update:ml-1 group-focus-visible/update:max-w-16 group-focus-visible/update:opacity-100'
+              )}
+            >
+              {updateLabel}
+            </span>
           </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" side="top">
-          <DropdownMenuItem onSelect={openSettings}>
-            <Codicon aria-hidden="true" name="settings-gear" size="0.8rem" />
-            {menu.settings}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={openDocs}>
-            <Codicon aria-hidden="true" name="book" size="0.8rem" />
-            {menu.docs}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={openShortcuts}>
-            <Codicon aria-hidden="true" name="keyboard" size="0.8rem" />
-            {menu.shortcuts}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={openContact}>
-            <Codicon aria-hidden="true" name="mail" size="0.8rem" />
-            {menu.contactUs}
-          </DropdownMenuItem>
-          {signedIn ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={signOut}>
-                <Codicon aria-hidden="true" name="sign-out" size="0.8rem" />
-                {menu.logOut}
-              </DropdownMenuItem>
-            </>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        ) : null}
+      </div>
     </SidebarFooter>
   )
 }
