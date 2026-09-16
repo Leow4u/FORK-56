@@ -70,9 +70,23 @@ function renderPanel(onSelectModel = vi.fn()) {
   return { onSelectModel, content }
 }
 
+async function openModelsCatalog() {
+  const trigger = await screen.findByRole('menuitem', { name: /^Models\b/ })
+  fireEvent.pointerMove(trigger, { pointerType: 'mouse' })
+  fireEvent.pointerEnter(trigger, { pointerType: 'mouse' })
+
+  if (screen.queryByRole('textbox', { name: 'Search models' })) {
+    return
+  }
+
+  fireEvent.click(trigger)
+  await screen.findByRole('textbox', { name: 'Search models' })
+}
+
 describe('ModelMenuPanel MoA presets', () => {
   it('selecting a MoA preset switches PERSISTENTLY via onSelectModel (not the one-shot dispatch)', async () => {
     const { content, onSelectModel } = renderPanel()
+    await openModelsCatalog()
 
     // moaOptions is async (useQuery) — wait for the preset row to mount.
     const row = await content.findByText('MoA: BeastMode')
@@ -88,6 +102,7 @@ describe('ModelMenuPanel MoA presets', () => {
     $currentProvider.set('moa')
     $currentModel.set('BeastMode')
     const { content } = renderPanel()
+    await openModelsCatalog()
 
     const row = await content.findByText('MoA: BeastMode')
     // The check codicon renders as a sibling within the same row item.
@@ -97,6 +112,7 @@ describe('ModelMenuPanel MoA presets', () => {
 
   it('keeps the virtual moa provider out of the main model groups (presets section only)', async () => {
     const { content } = renderPanel()
+    await openModelsCatalog()
 
     await content.findByText('MoA: BeastMode')
 
@@ -114,6 +130,7 @@ describe('ModelMenuPanel MoA presets', () => {
   it('renders presets from the catalog even before a session exists', async () => {
     $activeSessionId.set('')
     const { onSelectModel, content } = renderPanel()
+    await openModelsCatalog()
 
     const row = await content.findByText('MoA: BeastMode')
     fireEvent.click(row)
@@ -135,6 +152,7 @@ describe('ModelMenuPanel current selection', () => {
     })
 
     const { content } = renderPanel()
+    await openModelsCatalog()
 
     const currentRow = (await content.findByText(/Gemini 3\.1 Pro/i)).closest('[role="menuitem"]')
     const staleRow = content.getByText('Deepseek Chat').closest('[role="menuitem"]')
@@ -158,6 +176,7 @@ describe('ModelMenuPanel search', () => {
     $currentProvider.set('deepseek')
     $currentModel.set('deepseek-v4-pro')
     const { content } = renderPanel()
+    await openModelsCatalog()
 
     await content.findByText(/Deepseek V4 Pro/i)
 
@@ -172,6 +191,7 @@ describe('ModelMenuPanel search', () => {
 
   it('Enter in the search field commits the first match', async () => {
     const { content, onSelectModel } = renderPanel()
+    await openModelsCatalog()
 
     await content.findByText('DeepSeek')
 
@@ -196,6 +216,7 @@ describe('ModelMenuPanel search', () => {
 
   it('Enter with no matches is a no-op (menu stays put, nothing selected)', async () => {
     const { content, onSelectModel } = renderPanel()
+    await openModelsCatalog()
 
     await content.findByText('DeepSeek')
 
@@ -208,6 +229,7 @@ describe('ModelMenuPanel search', () => {
 
   it('arrows move the selection without leaving the input; Enter commits the stepped row', async () => {
     const { content, onSelectModel } = renderPanel()
+    await openModelsCatalog()
 
     await content.findByText('DeepSeek')
 
@@ -235,6 +257,7 @@ describe('ModelMenuPanel search', () => {
     $currentProvider.set('google')
     $currentModel.set('gemini-3.1-pro')
     const { content, onSelectModel } = renderPanel()
+    await openModelsCatalog()
 
     await content.findByText('DeepSeek')
 
@@ -246,6 +269,7 @@ describe('ModelMenuPanel search', () => {
 
   it('filters MoA presets by the query instead of leaving them as phantom first matches', async () => {
     const { content, onSelectModel } = renderPanel()
+    await openModelsCatalog()
 
     await content.findByText('MoA: BeastMode')
 
@@ -269,6 +293,7 @@ describe('ModelMenuPanel search', () => {
 describe('ModelMenuPanel provider collapse', () => {
   it('shows all provider models by default (none collapsed)', async () => {
     const { content } = renderPanel()
+    await openModelsCatalog()
 
     await content.findByText('DeepSeek')
     expect(content.queryByText('Deepseek V4 Pro')).not.toBeNull()
@@ -277,6 +302,7 @@ describe('ModelMenuPanel provider collapse', () => {
 
   it('collapses provider models when header is clicked', async () => {
     const { content } = renderPanel()
+    await openModelsCatalog()
 
     const header = await content.findByText('DeepSeek')
     fireEvent.click(header)
@@ -288,6 +314,7 @@ describe('ModelMenuPanel provider collapse', () => {
 
   it('expands provider models when header is clicked again', async () => {
     const { content } = renderPanel()
+    await openModelsCatalog()
 
     const header = await content.findByText('DeepSeek')
     // Collapse
@@ -304,6 +331,7 @@ describe('ModelMenuPanel provider collapse', () => {
     $currentProvider.set('deepseek')
     $currentModel.set('deepseek-v4-pro')
     const { content } = renderPanel()
+    await openModelsCatalog()
 
     const header = await content.findByText('DeepSeek')
     fireEvent.click(header)
@@ -317,6 +345,7 @@ describe('ModelMenuPanel provider collapse', () => {
 
   it('bypasses collapse when search is active', async () => {
     const { content } = renderPanel()
+    await openModelsCatalog()
 
     const header = await content.findByText('DeepSeek')
     fireEvent.click(header)
@@ -341,6 +370,7 @@ describe('ModelMenuPanel provider collapse', () => {
 
   it('toggles collapse via keyboard Enter on header', async () => {
     const { content } = renderPanel()
+    await openModelsCatalog()
 
     const header = await content.findByText('DeepSeek')
     // Radix DropdownMenuItem fires onSelect on Enter from the onKeyDown handler
@@ -365,6 +395,7 @@ describe('ModelMenuPanel provider collapse', () => {
     // Profile A: both providers present, render + unmount.
     getGlobalModelOptions.mockResolvedValueOnce({ providers: MOCK_PROVIDERS })
     const a = renderPanel()
+    await openModelsCatalog()
     await a.content.findByText('DeepSeek')
     a.content.unmount()
 
@@ -373,6 +404,7 @@ describe('ModelMenuPanel provider collapse', () => {
     // must survive — pruning it would lose state across a profile switch.
     getGlobalModelOptions.mockResolvedValueOnce({ providers: [DEEPSEEK_PROVIDER, MOA_PROVIDER] })
     const b = renderPanel()
+    await openModelsCatalog()
     await b.content.findByText('DeepSeek')
 
     expect($collapsedProviders.get()).toEqual(['deepseek', 'google'])
@@ -385,6 +417,7 @@ describe('ModelMenuPanel provider collapse', () => {
     // First load: both providers present.
     getGlobalModelOptions.mockResolvedValueOnce({ providers: MOCK_PROVIDERS })
     const a = renderPanel()
+    await openModelsCatalog()
     await a.content.findByText('DeepSeek')
     a.content.unmount()
 
@@ -394,6 +427,7 @@ describe('ModelMenuPanel provider collapse', () => {
     // single refresh.
     getGlobalModelOptions.mockResolvedValueOnce({ providers: [DEEPSEEK_PROVIDER, MOA_PROVIDER] })
     const b = renderPanel()
+    await openModelsCatalog()
     await b.content.findByText('DeepSeek')
 
     expect($collapsedProviders.get()).toContain('google')

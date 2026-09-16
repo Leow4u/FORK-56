@@ -13,6 +13,7 @@ import {
   dropdownMenuSectionLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
+  DropdownMenuSubContent,
   DropdownMenuSubTrigger
 } from '@/components/ui/dropdown-menu'
 import { HighlightMatches } from '@/components/ui/highlight-matches'
@@ -38,7 +39,7 @@ import { $defaultReasoningEffort } from '@/store/session'
 import type { ModelOptionProvider, ModelOptionsResponse } from '@/types/work4you'
 import type { Work4YouGateway } from '@/work4you'
 
-import { type FastControl, ModelEditSubmenu, resolveFastControl } from './model-edit-submenu'
+import { ActiveModelOptions, type FastControl, resolveFastControl } from './model-edit-submenu'
 
 /** Whether a catalog row represents the session's current provider. Custom
  *  providers report the canonical `custom:<key>` identity from `model.options`
@@ -54,10 +55,37 @@ function familyIsLocked(family: ModelFamily, provider: ModelOptionProvider): boo
   return unavailable.has(family.id) || Boolean(family.fastId && unavailable.has(family.fastId))
 }
 
+function resolveActiveOptions(
+  providers: ModelOptionProvider[],
+  current: ModelChoice
+): { familyId: string; fastControl: FastControl; reasoning: boolean } {
+  const provider = providers.find(row => isCurrentProvider(row, current.provider))
+
+  if (!provider) {
+    return {
+      familyId: current.model,
+      fastControl: resolveFastControl(current.model, [], false, current.fast),
+      reasoning: false
+    }
+  }
+
+  const family = collapseModelFamilies(provider.models ?? []).find(
+    row => row.id === current.model || row.fastId === current.model
+  )
+  const familyId = family?.id ?? current.model
+  const caps = provider.capabilities?.[familyId]
+
+  return {
+    familyId,
+    fastControl: resolveFastControl(current.model, provider.models ?? [], caps?.fast ?? false, current.fast),
+    reasoning: caps?.reasoning ?? true
+  }
+}
+
 // Lets the host dropdown (model-pill, a kanban field trigger, …) hand the panel
 // a way to dismiss itself so clicking a model row commits + closes, while the
-// hover-revealed edit submenu (reasoning/fast) stays open to play with (its
-// items preventDefault on select).
+// session options (thinking/fast/effort) stay open to play with (their items
+// preventDefault on select).
 export const ModelMenuCloseContext = createContext<() => void>(() => {})
 
 /** One model choice, everything a caller needs to act on a selection.
@@ -96,7 +124,7 @@ export interface ModelMenuController {
 
 interface ModelCatalogMenuProps {
   controller: ModelMenuController
-  /** Rows appended under the catalog (Refresh Models, Edit Models, …). */
+  /** Rows appended under the catalog (Refresh Models, Add Models, …). */
   footer?: ReactNode
   gateway?: Work4YouGateway
   /** Render the virtual `moa` provider's presets as a selectable section.
@@ -116,11 +144,11 @@ interface ProviderGroup {
 }
 
 /**
- * THE model catalog menu: searchable, provider-grouped, `-fast` families
- * collapsed to one row, per-row hover submenu for thinking/effort/fast, full
- * keyboard selection. Shared verbatim by the composer's model pill and by
- * plugin surfaces that pick a model without a session behind it — so the two
- * can never drift apart.
+ * THE model catalog menu: session Thinking/Fast/Effort on the root, catalog
+ * behind Models (search, provider-grouped list, MoA, Refresh, Add Models).
+ * `-fast` families collapse to one row. Shared verbatim by the composer's
+ * model pill and by plugin surfaces that pick a model without a session
+ * behind it — so the two can never drift apart.
  */
 export function ModelCatalogMenu({
   controller,
@@ -137,7 +165,7 @@ export function ModelCatalogMenu({
   const [search, setSearch] = useState('')
   const collapsedProviders = useStoreCollapsed()
   const defaultEffort = useDefaultEffort()
-  // Which models the user curated in Edit Models. Read HERE rather than taken
+  // Which models the user curated in Add Models. Read HERE rather than taken
   // as a prop: it's one global preference, so every surface that shows a
   // catalog must show the same shortlist. A per-caller opt-in is how the board
   // and the composer would end up disagreeing about what "my models" means.
@@ -326,228 +354,243 @@ export function ModelCatalogMenu({
   // Rows are hover-selectable, so they go inert with the pointer.
   const quietRows = pointerQuiet && 'pointer-events-none'
 
+  const active = resolveActiveOptions(pickerProviders, current)
+  const currentName =
+    current.provider === 'moa' ? current.model : current.model ? modelDisplayParts(current.model).name : ''
+  const showSessionOptions = Boolean(current.model) && current.provider !== 'moa'
+  // A lone provider group has nothing to contrast — hide the collapse header
+  // (Work4You Portal on first launch). Two or more labs keep the label.
+  const showProviderHeaders = groups.length > 1
+
   return (
     <>
-      <DropdownMenuSearch
-        aria-label={copy.search}
-        onKeyDown={event => {
-          // Claim arrows and Enter from Radix so DOM focus stays in the input
-          // and Enter commits the highlighted row without a DownArrow first.
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault()
-            event.stopPropagation()
-            stepKb(event.key === 'ArrowDown' ? 1 : -1)
-          } else if (event.key === 'Enter') {
-            event.preventDefault()
-            event.stopPropagation()
-            commitKbRow()
+      {showSessionOptions ? (
+        <ActiveModelOptions
+          defaultEffort={defaultEffort}
+          effort={current.effort}
+          fastControl={active.fastControl}
+          onSelectModel={nextModel => controller.select(nextModel, current.provider)}
+          onSetOptions={patch =>
+            controller.setOptions(patch, {
+              isActive: true,
+              model: active.familyId,
+              provider: current.provider
+            })
           }
-        }}
-        onValueChange={value => {
-          setSearch(value)
-          setKbOverride(null)
-        }}
-        placeholder={copy.search}
-        value={search}
-      />
-
-      <DropdownMenuSeparator className="mx-0" />
-
-      {loading ? (
-        <DropdownMenuGroup className="py-1">
-          {Array.from({ length: 4 }, (_, index) => (
-            <DropdownMenuItem
-              className={dropdownMenuRow}
-              disabled
-              key={index}
-              onSelect={event => event.preventDefault()}
-            >
-              <Skeleton className="h-4 w-full" />
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-      ) : error ? (
-        <DropdownMenuItem className={dropdownMenuRow} disabled>
-          {error}
-        </DropdownMenuItem>
-      ) : groups.length === 0 && moaPresets.length === 0 ? (
-        <DropdownMenuItem className={dropdownMenuRow} disabled>
-          {copy.noModels}
-        </DropdownMenuItem>
-      ) : (
-        <div className={cn('max-h-[max(150px,30dvh)] overflow-y-auto py-0.5', quietRows)} ref={listRef}>
-          {groups.map(group => {
-            const slug = group.provider.slug
-
-            // Collapsed when the user stored it (and not while searching, which
-            // spans every model regardless of collapse state).
-            const collapsed = collapsedProviders.includes(slug) && !search
-
-            return (
-              <DropdownMenuGroup className="py-0.5" key={slug}>
-                <DropdownMenuItem
-                  className="group/label flex w-full items-center gap-1 px-2 pb-0.5 pt-0.5 text-[0.625rem] font-semibold uppercase tracking-wider text-(--ui-text-tertiary) cursor-pointer !bg-transparent focus:!bg-transparent"
-                  onSelect={event => {
-                    event.preventDefault()
-                    toggleCollapsedProvider(slug)
-                  }}
-                  textValue=""
-                >
-                  <span className="truncate">
-                    <HighlightMatches query={search} text={group.provider.name} />
-                  </span>
-                  <DisclosureCaret
-                    className="shrink-0 text-(--ui-text-tertiary) opacity-0 transition group-hover/label:opacity-100"
-                    open={!collapsed}
-                    size="0.625rem"
-                  />
-                </DropdownMenuItem>
-                {!collapsed &&
-                  group.families.map(family => {
-                    // The active id may be the base or its -fast sibling; either
-                    // way this one family row represents both.
-                    const activeId =
-                      isCurrentProvider(group.provider, current.provider) &&
-                      (current.model === family.id || current.model === family.fastId)
-                        ? current.model
-                        : null
-
-                    const isCurrent = activeId !== null
-                    const name = modelDisplayParts(family.id).name
-                    const caps = group.provider.capabilities?.[family.id]
-
-                    // Effective settings for this row: the live choice when it's
-                    // the active model, otherwise its remembered preset. Row
-                    // label AND submenu read from these so they never disagree.
-                    const preset = controller.presetFor(group.provider.slug, family.id)
-                    const effEffort = isCurrent ? current.effort : (preset.effort ?? '')
-                    const effFast = isCurrent ? current.fast : (preset.fast ?? false)
-
-                    const fastControl: FastControl = resolveFastControl(
-                      activeId ?? family.id,
-                      group.provider.models ?? [],
-                      caps?.fast ?? false,
-                      effFast
-                    )
-
-                    const meta = [
-                      fastControl.kind !== 'none' && fastControl.on ? copy.fast : null,
-                      (caps?.reasoning ?? true) ? reasoningEffortLabel(effEffort || defaultEffort) : null
-                    ]
-                      .filter(Boolean)
-                      .join(' ')
-
-                    // Clicking the row commits the model and closes; the edit
-                    // submenu (reasoning/fast) is reached by HOVER, so you can
-                    // tweak those without the click dismissing everything.
-                    const locked = familyIsLocked(family, group.provider)
-
-                    const activate = () => {
-                      if (locked) {
-                        return
-                      }
-
-                      if (!isCurrent) {
-                        void selectFamily(family, group.provider)
-                      }
-
-                      closeMenu()
-                    }
-
-                    return (
-                      <DropdownMenuSub key={`${group.provider.slug}:${family.id}`}>
-                        <DropdownMenuSubTrigger
-                          hideChevron
-                          onClick={activate}
-                          onKeyDown={event => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              activate()
-                            }
-                          }}
-                          {...kbRowProps(
-                            `${group.provider.slug}:${family.id}`,
-                            locked ? 'cursor-not-allowed opacity-45' : undefined
-                          )}
-                        >
-                          <span className="min-w-0 flex-1 truncate">
-                            <HighlightMatches query={search} text={name} />
-                            {meta ? <span className="text-(--ui-text-tertiary)"> {meta}</span> : null}
-                          </span>
-                          {locked ? (
-                            <span className="ml-auto shrink-0 text-[0.62rem] uppercase tracking-wide opacity-80">
-                              {pickerCopy.pro}
-                            </span>
-                          ) : isCurrent ? (
-                            <Codicon className="ml-auto text-foreground" name="check" size="0.75rem" />
-                          ) : null}
-                        </DropdownMenuSubTrigger>
-                        <ModelEditSubmenu
-                          defaultEffort={defaultEffort}
-                          effort={effEffort}
-                          fastControl={fastControl}
-                          isActive={isCurrent}
-                          model={family.id}
-                          onSelectModel={nextModel => controller.select(nextModel, group.provider.slug)}
-                          onSetOptions={patch =>
-                            controller.setOptions(patch, {
-                              isActive: isCurrent,
-                              model: family.id,
-                              provider: group.provider.slug
-                            })
-                          }
-                          provider={group.provider.slug}
-                          reasoning={caps?.reasoning ?? true}
-                        />
-                      </DropdownMenuSub>
-                    )
-                  })}
-              </DropdownMenuGroup>
-            )
-          })}
-        </div>
-      )}
-
-      {shownMoaPresets.length > 0 ? (
-        <div className={cn(quietRows)}>
-          <DropdownMenuSeparator className="mx-0" />
-          <DropdownMenuLabel className={dropdownMenuSectionLabel}>MoA presets</DropdownMenuLabel>
-          {shownMoaPresets.map(preset => {
-            const isCurrentMoa = current.provider === 'moa' && current.model === preset
-
-            return (
-              <DropdownMenuItem
-                key={`moa:${preset}`}
-                onSelect={event => {
-                  event.preventDefault()
-                  void selectMoaPreset(preset)
-                }}
-                {...kbRowProps(`moa:${preset}`)}
-              >
-                <span className="min-w-0 flex-1 truncate">
-                  MoA: <HighlightMatches query={search} text={preset} />
-                </span>
-                {isCurrentMoa ? <Codicon className="ml-auto text-foreground" name="check" size="0.75rem" /> : null}
-              </DropdownMenuItem>
-            )
-          })}
-        </div>
+          reasoning={active.reasoning}
+        />
       ) : null}
 
-      {/* Curation belongs to the catalog, not to one host: wherever you can
-          pick a model you can say which models you want, and the shortlist is
-          the same everywhere because it's one stored preference. It shares the
-          host footer's group rather than opening a second one, so a host that
-          contributes rows (the composer's Refresh Models) keeps the single
-          trailing block it has always rendered. */}
-      <DropdownMenuSeparator className="mx-0" />
-      {footer}
-      <DropdownMenuItem
-        className={cn(dropdownMenuRow, 'text-(--ui-text-tertiary)')}
-        onSelect={() => setModelVisibilityOpen(true)}
-      >
-        <Codicon name="settings-gear" size="0.75rem" />
-        {copy.editModels}
-      </DropdownMenuItem>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger className={dropdownMenuRow}>
+          <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+            <span>{copy.models}</span>
+            {currentName ? <span className="truncate text-(--ui-text-tertiary)">{currentName}</span> : null}
+          </span>
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className="w-64 p-0" sideOffset={4}>
+          <DropdownMenuSearch
+            aria-label={copy.search}
+            onKeyDown={event => {
+              // Claim arrows and Enter from Radix so DOM focus stays in the input
+              // and Enter commits the highlighted row without a DownArrow first.
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault()
+                event.stopPropagation()
+                stepKb(event.key === 'ArrowDown' ? 1 : -1)
+              } else if (event.key === 'Enter') {
+                event.preventDefault()
+                event.stopPropagation()
+                commitKbRow()
+              }
+            }}
+            onValueChange={value => {
+              setSearch(value)
+              setKbOverride(null)
+            }}
+            placeholder={copy.search}
+            value={search}
+          />
+
+          <DropdownMenuSeparator className="mx-0" />
+
+          {loading ? (
+            <DropdownMenuGroup className="py-1">
+              {Array.from({ length: 4 }, (_, index) => (
+                <DropdownMenuItem
+                  className={dropdownMenuRow}
+                  disabled
+                  key={index}
+                  onSelect={event => event.preventDefault()}
+                >
+                  <Skeleton className="h-4 w-full" />
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          ) : error ? (
+            <DropdownMenuItem className={dropdownMenuRow} disabled>
+              {error}
+            </DropdownMenuItem>
+          ) : groups.length === 0 && moaPresets.length === 0 ? (
+            <DropdownMenuItem className={dropdownMenuRow} disabled>
+              {copy.noModels}
+            </DropdownMenuItem>
+          ) : (
+            <div className={cn('max-h-[max(150px,30dvh)] overflow-y-auto py-0.5', quietRows)} ref={listRef}>
+              {groups.map(group => {
+                const slug = group.provider.slug
+
+                // Collapsed when the user stored it (and not while searching, which
+                // spans every model regardless of collapse state). A hidden header
+                // cannot un-collapse a group, so a lone lab always stays open.
+                const collapsed = showProviderHeaders && collapsedProviders.includes(slug) && !search
+
+                return (
+                  <DropdownMenuGroup className="py-0.5" key={slug}>
+                    {showProviderHeaders ? (
+                      <DropdownMenuItem
+                        className="group/label flex w-full items-center gap-1 px-2 pb-0.5 pt-0.5 text-[0.625rem] font-semibold uppercase tracking-wider text-(--ui-text-tertiary) cursor-pointer !bg-transparent focus:!bg-transparent"
+                        onSelect={event => {
+                          event.preventDefault()
+                          toggleCollapsedProvider(slug)
+                        }}
+                        textValue=""
+                      >
+                        <span className="truncate">
+                          <HighlightMatches query={search} text={group.provider.name} />
+                        </span>
+                        <DisclosureCaret
+                          className="shrink-0 text-(--ui-text-tertiary) opacity-0 transition group-hover/label:opacity-100"
+                          open={!collapsed}
+                          size="0.625rem"
+                        />
+                      </DropdownMenuItem>
+                    ) : null}
+                    {!collapsed &&
+                      group.families.map(family => {
+                        // The active id may be the base or its -fast sibling; either
+                        // way this one family row represents both.
+                        const activeId =
+                          isCurrentProvider(group.provider, current.provider) &&
+                          (current.model === family.id || current.model === family.fastId)
+                            ? current.model
+                            : null
+
+                        const isCurrent = activeId !== null
+                        const name = modelDisplayParts(family.id).name
+                        const caps = group.provider.capabilities?.[family.id]
+
+                        // Effective settings for this row: the live choice when it's
+                        // the active model, otherwise its remembered preset. The
+                        // compact label still mirrors those so the list and the
+                        // session options never disagree.
+                        const preset = controller.presetFor(group.provider.slug, family.id)
+                        const effEffort = isCurrent ? current.effort : (preset.effort ?? '')
+                        const effFast = isCurrent ? current.fast : (preset.fast ?? false)
+
+                        const fastControl: FastControl = resolveFastControl(
+                          activeId ?? family.id,
+                          group.provider.models ?? [],
+                          caps?.fast ?? false,
+                          effFast
+                        )
+
+                        const meta = [
+                          fastControl.kind !== 'none' && fastControl.on ? copy.fast : null,
+                          (caps?.reasoning ?? true) ? reasoningEffortLabel(effEffort || defaultEffort) : null
+                        ]
+                          .filter(Boolean)
+                          .join(' ')
+
+                        const locked = familyIsLocked(family, group.provider)
+
+                        const activate = () => {
+                          if (locked) {
+                            return
+                          }
+
+                          if (!isCurrent) {
+                            void selectFamily(family, group.provider)
+                          }
+
+                          closeMenu()
+                        }
+
+                        return (
+                          <DropdownMenuItem
+                            key={`${group.provider.slug}:${family.id}`}
+                            onSelect={event => {
+                              event.preventDefault()
+                              activate()
+                            }}
+                            {...kbRowProps(
+                              `${group.provider.slug}:${family.id}`,
+                              locked ? 'cursor-not-allowed opacity-45' : undefined
+                            )}
+                          >
+                            <span className="min-w-0 flex-1 truncate">
+                              <HighlightMatches query={search} text={name} />
+                              {meta ? <span className="text-(--ui-text-tertiary)"> {meta}</span> : null}
+                            </span>
+                            {locked ? (
+                              <span className="ml-auto shrink-0 text-[0.62rem] uppercase tracking-wide opacity-80">
+                                {pickerCopy.pro}
+                              </span>
+                            ) : isCurrent ? (
+                              <Codicon className="ml-auto text-foreground" name="check" size="0.75rem" />
+                            ) : null}
+                          </DropdownMenuItem>
+                        )
+                      })}
+                  </DropdownMenuGroup>
+                )
+              })}
+            </div>
+          )}
+
+          {shownMoaPresets.length > 0 ? (
+            <div className={cn(quietRows)}>
+              <DropdownMenuSeparator className="mx-0" />
+              <DropdownMenuLabel className={dropdownMenuSectionLabel}>MoA presets</DropdownMenuLabel>
+              {shownMoaPresets.map(preset => {
+                const isCurrentMoa = current.provider === 'moa' && current.model === preset
+
+                return (
+                  <DropdownMenuItem
+                    key={`moa:${preset}`}
+                    onSelect={event => {
+                      event.preventDefault()
+                      void selectMoaPreset(preset)
+                    }}
+                    {...kbRowProps(`moa:${preset}`)}
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      MoA: <HighlightMatches query={search} text={preset} />
+                    </span>
+                    {isCurrentMoa ? <Codicon className="ml-auto text-foreground" name="check" size="0.75rem" /> : null}
+                  </DropdownMenuItem>
+                )
+              })}
+            </div>
+          ) : null}
+
+          {/* Curation belongs to the catalog, not to one host: wherever you can
+              pick a model you can say which models you want, and the shortlist is
+              the same everywhere because it's one stored preference. It shares the
+              host footer's group rather than opening a second one, so a host that
+              contributes rows (the composer's Refresh Models) keeps the single
+              trailing block it has always rendered. */}
+          <DropdownMenuSeparator className="mx-0" />
+          {footer}
+          <DropdownMenuItem
+            className={cn(dropdownMenuRow, 'text-(--ui-text-tertiary)')}
+            onSelect={() => setModelVisibilityOpen(true)}
+          >
+            <Codicon name="settings-gear" size="0.75rem" />
+            {copy.editModels}
+          </DropdownMenuItem>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
     </>
   )
 }

@@ -1,14 +1,9 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent } from '@/components/ui/dropdown-menu'
 
-import { type FastControl, ModelEditSubmenu } from './model-edit-submenu'
+import { ActiveModelOptions, type FastControl } from './model-edit-submenu'
 
 // Radix calls these on open; jsdom doesn't implement them.
 beforeAll(() => {
@@ -22,12 +17,10 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-// Render the submenu inside an open menu/sub so its content (switches) mounts.
-function renderSubmenu(opts: {
+function renderOptions(opts: {
   defaultEffort?: string
   effort?: string
   fastControl: FastControl
-  isActive?: boolean
   onSelectModel?: (model: string) => void
   onSetOptions: (patch: { effort?: string; fast?: boolean }) => void
   reasoning: boolean
@@ -35,34 +28,26 @@ function renderSubmenu(opts: {
   return render(
     <DropdownMenu open>
       <DropdownMenuContent>
-        <DropdownMenuSub open>
-          <DropdownMenuSubTrigger>edit</DropdownMenuSubTrigger>
-          <ModelEditSubmenu
-            defaultEffort={opts.defaultEffort ?? 'medium'}
-            effort={opts.effort ?? 'medium'}
-            fastControl={opts.fastControl}
-            isActive={opts.isActive ?? true}
-            model="m1"
-            onSelectModel={opts.onSelectModel ?? vi.fn()}
-            onSetOptions={opts.onSetOptions}
-            provider="p1"
-            reasoning={opts.reasoning}
-          />
-        </DropdownMenuSub>
+        <ActiveModelOptions
+          defaultEffort={opts.defaultEffort ?? 'medium'}
+          effort={opts.effort ?? 'medium'}
+          fastControl={opts.fastControl}
+          onSelectModel={opts.onSelectModel ?? vi.fn()}
+          onSetOptions={opts.onSetOptions}
+          reasoning={opts.reasoning}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   )
 }
 
-// The submenu is PURE: it reports edits and never writes to a session, a
+// The panel is PURE: it reports edits and never writes to a session, a
 // preset store, or the gateway. That's the invariant that lets the same
-// component drive a live chat session AND a detached per-task override — if it
-// ever writes directly again, picking an effort for a kanban card would reach
-// over and change the user's live chat.
-describe('ModelEditSubmenu reports edits without performing them', () => {
+// controls drive a live chat session AND a detached per-task override.
+describe('ActiveModelOptions reports edits without performing them', () => {
   it('param fast: reports the toggle', () => {
     const onSetOptions = vi.fn()
-    renderSubmenu({ fastControl: { kind: 'param', on: true }, onSetOptions, reasoning: false })
+    renderOptions({ fastControl: { kind: 'param', on: true }, onSetOptions, reasoning: false })
 
     fireEvent.click(screen.getByRole('switch'))
 
@@ -71,9 +56,8 @@ describe('ModelEditSubmenu reports edits without performing them', () => {
 
   it('thinking: toggling off reports the none level', () => {
     const onSetOptions = vi.fn()
-    renderSubmenu({ fastControl: { kind: 'none' }, onSetOptions, reasoning: true })
+    renderOptions({ fastControl: { kind: 'none' }, onSetOptions, reasoning: true })
 
-    // Thinking starts on (medium); toggling it off reports 'none'.
     fireEvent.click(screen.getByRole('switch'))
 
     expect(onSetOptions).toHaveBeenCalledWith({ effort: 'none' })
@@ -81,7 +65,7 @@ describe('ModelEditSubmenu reports edits without performing them', () => {
 
   it('thinking: toggling back on restores the row level, not the hardcoded default', () => {
     const onSetOptions = vi.fn()
-    renderSubmenu({
+    renderOptions({
       defaultEffort: 'high',
       effort: 'none',
       fastControl: { kind: 'none' },
@@ -94,30 +78,29 @@ describe('ModelEditSubmenu reports edits without performing them', () => {
     expect(onSetOptions).toHaveBeenCalledWith({ effort: 'high' })
   })
 
-  it('variant fast: swaps the model only when the row is active', () => {
-    const onSelectModel = vi.fn()
-    const onSetOptions = vi.fn()
-
-    renderSubmenu({
-      fastControl: { baseId: 'm1', fastId: 'm1-fast', kind: 'variant', on: false },
-      isActive: false,
-      onSelectModel,
-      onSetOptions,
-      reasoning: false
+  it('hides Effort while thinking is off', () => {
+    renderOptions({
+      effort: 'none',
+      fastControl: { kind: 'none' },
+      onSetOptions: vi.fn(),
+      reasoning: true
     })
 
-    fireEvent.click(screen.getByRole('switch'))
-
-    // Inactive rows stay preference-only — no model switch.
-    expect(onSetOptions).toHaveBeenCalledWith({ fast: true })
-    expect(onSelectModel).not.toHaveBeenCalled()
+    expect(screen.getByText('Thinking')).toBeTruthy()
+    expect(screen.queryByText('Effort')).toBeNull()
   })
 
-  it('variant fast: active row swaps to the -fast sibling', () => {
+  it('hides Fast when the model has no fast control', () => {
+    renderOptions({ fastControl: { kind: 'none' }, onSetOptions: vi.fn(), reasoning: true })
+
+    expect(screen.queryByText('Fast')).toBeNull()
+  })
+
+  it('variant fast: swaps to the -fast sibling', () => {
     const onSelectModel = vi.fn()
     const onSetOptions = vi.fn()
 
-    renderSubmenu({
+    renderOptions({
       fastControl: { baseId: 'm1', fastId: 'm1-fast', kind: 'variant', on: false },
       onSelectModel,
       onSetOptions,
@@ -126,6 +109,15 @@ describe('ModelEditSubmenu reports edits without performing them', () => {
 
     fireEvent.click(screen.getByRole('switch'))
 
+    expect(onSetOptions).toHaveBeenCalledWith({ fast: true })
     expect(onSelectModel).toHaveBeenCalledWith('m1-fast')
+  })
+
+  it('renders nothing when the model has no options', () => {
+    renderOptions({ fastControl: { kind: 'none' }, onSetOptions: vi.fn(), reasoning: false })
+
+    expect(screen.queryByText('Thinking')).toBeNull()
+    expect(screen.queryByText('Fast')).toBeNull()
+    expect(screen.queryByText('Effort')).toBeNull()
   })
 })

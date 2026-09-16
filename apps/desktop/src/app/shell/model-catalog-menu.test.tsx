@@ -40,14 +40,27 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+async function openModelsCatalog() {
+  const trigger = await screen.findByRole('menuitem', { name: /^Models\b/ })
+  fireEvent.pointerMove(trigger, { pointerType: 'mouse' })
+  fireEvent.pointerEnter(trigger, { pointerType: 'mouse' })
+
+  if (screen.queryByRole('textbox', { name: 'Search models' })) {
+    return
+  }
+
+  fireEvent.click(trigger)
+  await screen.findByRole('textbox', { name: 'Search models' })
+}
+
 // A minimal controller — these tests are about the CATALOG's own behaviour
 // (what it lists, what it offers), not about what any host does with a pick.
-function renderMenu() {
+function renderMenu(current?: Partial<ModelMenuController['current']>) {
   const select = vi.fn()
 
   const controller: ModelMenuController = {
     applyPreset: vi.fn(),
-    current: { effort: '', fast: false, model: '', provider: '' },
+    current: { effort: '', fast: false, model: '', provider: '', ...current },
     presetFor: () => ({}),
     select,
     setOptions: vi.fn()
@@ -65,7 +78,7 @@ function renderMenu() {
     </QueryClientProvider>
   )
 
-  return select
+  return { select, setOptions: controller.setOptions }
 }
 
 // Curation is ONE global preference, so it belongs to the catalog rather than
@@ -73,10 +86,11 @@ function renderMenu() {
 // the kanban board would end up disagreeing about what "my models" means —
 // which is exactly the drift extracting this component was meant to prevent.
 describe('the catalog owns model curation', () => {
-  it('honours the stored Edit Models shortlist', async () => {
+  it('honours the stored Add Models shortlist', async () => {
     setVisibleModels(new Set([modelVisibilityKey('google', 'gemini-2.5-flash')]))
 
     renderMenu()
+    await openModelsCatalog()
 
     await screen.findByText(/Gemini 2\.5 Flash/i)
     expect(screen.queryByText(/Gemini 3\.1 Pro/i)).toBeNull()
@@ -86,6 +100,7 @@ describe('the catalog owns model curation', () => {
     setVisibleModels(new Set([modelVisibilityKey('google', 'gemini-2.5-flash')]))
 
     renderMenu()
+    await openModelsCatalog()
     await screen.findByText(/Gemini 2\.5 Flash/i)
 
     const input = screen.getByRole('textbox', { name: 'Search models' })
@@ -109,7 +124,8 @@ describe('the catalog owns model curation', () => {
       ]
     })
 
-    const select = renderMenu()
+    const { select } = renderMenu()
+    await openModelsCatalog()
 
     await screen.findByText('Operis 4.0')
     fireEvent.click(screen.getByText(/Glm 5\.2/i))
@@ -121,12 +137,89 @@ describe('the catalog owns model curation', () => {
     })
   })
 
-  it('offers Edit Models without the host wiring it up', async () => {
+  it('offers Add Models without the host wiring it up', async () => {
     renderMenu()
+    await openModelsCatalog()
     await screen.findByText(/Gemini 3\.1 Pro/i)
 
-    fireEvent.click(screen.getByText('Edit Models…'))
+    fireEvent.click(screen.getByText('Add Models'))
 
     expect($modelVisibilityOpen.get()).toBe(true)
+  })
+})
+
+describe('the catalog menu layout', () => {
+  it('hides the provider header when only one group is visible', async () => {
+    getGlobalModelOptions.mockResolvedValue({
+      providers: [
+        {
+          models: ['openai/gpt-5.6-luna'],
+          name: 'Work4You Portal',
+          slug: 'work4you'
+        }
+      ]
+    })
+
+    renderMenu()
+    await openModelsCatalog()
+    await screen.findByText('Operis 4.0')
+
+    expect(screen.queryByText('Work4You Portal')).toBeNull()
+  })
+
+  it('keeps provider headers when more than one group is visible', async () => {
+    getGlobalModelOptions.mockResolvedValue({
+      providers: [
+        { models: ['gemini-3.1-pro'], name: 'Google', slug: 'google' },
+        { models: ['deepseek-chat'], name: 'DeepSeek', slug: 'deepseek' }
+      ]
+    })
+
+    renderMenu()
+    await openModelsCatalog()
+    await screen.findByText('Google')
+    expect(screen.getByText('DeepSeek')).toBeTruthy()
+  })
+
+  it('keeps the catalog behind Models and session options on the root', async () => {
+    getGlobalModelOptions.mockResolvedValue({
+      providers: [
+        {
+          capabilities: { 'gemini-3.1-pro': { fast: true, reasoning: true } },
+          models: ['gemini-3.1-pro'],
+          name: 'Google',
+          slug: 'google'
+        }
+      ]
+    })
+
+    renderMenu({ effort: 'high', fast: true, model: 'gemini-3.1-pro', provider: 'google' })
+
+    expect(screen.getByText('Thinking')).toBeTruthy()
+    expect(screen.getByText('Fast')).toBeTruthy()
+    expect(screen.getByText('Effort')).toBeTruthy()
+    expect(screen.queryByRole('textbox', { name: 'Search models' })).toBeNull()
+
+    await openModelsCatalog()
+    expect(screen.getByRole('textbox', { name: 'Search models' })).toBeTruthy()
+    expect(screen.getByText(/Gemini 3\.1 Pro/i)).toBeTruthy()
+  })
+
+  it('hides Fast when the active model has no fast capability', async () => {
+    getGlobalModelOptions.mockResolvedValue({
+      providers: [
+        {
+          capabilities: { 'gemini-2.5-flash': { fast: false, reasoning: true } },
+          models: ['gemini-2.5-flash'],
+          name: 'Google',
+          slug: 'google'
+        }
+      ]
+    })
+
+    renderMenu({ effort: 'medium', model: 'gemini-2.5-flash', provider: 'google' })
+
+    expect(screen.getByText('Thinking')).toBeTruthy()
+    expect(screen.queryByText('Fast')).toBeNull()
   })
 })

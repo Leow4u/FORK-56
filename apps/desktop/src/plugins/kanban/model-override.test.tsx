@@ -94,8 +94,22 @@ describe('the shared catalog menu, driven by an override controller', () => {
     return onChange
   }
 
+  async function openModelsCatalog() {
+    const trigger = await screen.findByRole('menuitem', { name: /^Models\b/ })
+    fireEvent.pointerMove(trigger, { pointerType: 'mouse' })
+    fireEvent.pointerEnter(trigger, { pointerType: 'mouse' })
+
+    if (screen.queryByRole('textbox', { name: 'Search models' })) {
+      return
+    }
+
+    fireEvent.click(trigger)
+    await screen.findByRole('textbox', { name: 'Search models' })
+  }
+
   it('lists the catalog and reports a picked model', async () => {
     const onChange = renderMenu()
+    await openModelsCatalog()
 
     // Rows render the display name; the controller receives the raw id.
     fireEvent.click(await screen.findByText(/Gemini 3\.1 Pro/i))
@@ -115,6 +129,7 @@ describe('the shared catalog menu, driven by an override controller', () => {
     })
 
     renderMenu()
+    await openModelsCatalog()
     await screen.findByText(/Gemini 3\.1 Pro/i)
 
     expect(screen.queryByText(/BeastMode/)).toBeNull()
