@@ -24,3 +24,12 @@ def test_filter_indices_surfaces_house_model_for_operis_query():
     ranked = [models[i] for i in _filter_indices(haystacks, "operis")]
     assert WORK4YOU_HOUSE_MODEL_ID in ranked
     assert "deepseek/deepseek-v4-flash-0731" in ranked
+
+
+def test_house_search_aliases_omit_retired_flash_name():
+    from work4you_cli.models import WORK4YOU_HOUSE_MODEL_ID
+
+    hay = model_search_text(WORK4YOU_HOUSE_MODEL_ID)
+    assert "operis" in hay
+    assert "operis 4.0" in hay
+    assert "flash" not in hay
