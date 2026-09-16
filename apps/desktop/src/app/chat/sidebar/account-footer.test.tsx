@@ -2,7 +2,13 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { $updateOverlayOpen, $updateOverlayTarget, $updateStatus, resetUpdateApplyState } from '@/store/updates'
+import {
+  $desktopVersion,
+  $updateOverlayOpen,
+  $updateOverlayTarget,
+  $updateStatus,
+  resetUpdateApplyState
+} from '@/store/updates'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
 import { ACCOUNT_CONTACT_URL, ACCOUNT_DOCS_URL, AccountFooter } from './account-footer'
@@ -17,6 +23,7 @@ const initialDesktop = desktopWindow.work4youDesktop
 
 afterEach(() => {
   cleanup()
+  $desktopVersion.set(null)
   $updateStatus.set(null)
   $updateOverlayOpen.set(false)
   resetUpdateApplyState()
@@ -202,9 +209,8 @@ describe('AccountFooter', () => {
     expect(screen.queryByRole('menuitem', { name: /^log out$/i })).toBeNull()
   })
 
-  it('keeps the update chip off when the client is current', async () => {
+  it('keeps the update chip off until the client has a version', async () => {
     installCloud({ signedIn: false, email: null })
-    $updateStatus.set({ behind: 0, fetchedAt: 0, supported: true, updateAvailable: false })
 
     renderFooter()
 
@@ -235,6 +241,25 @@ describe('AccountFooter', () => {
 
     expect($updateOverlayOpen.get()).toBe(true)
     expect($updateOverlayTarget.get()).toBe('client')
+  })
+
+  it('still parks the chip beside Account when the client is current', async () => {
+    installCloud({ signedIn: false, email: null })
+    $desktopVersion.set({
+      appVersion: '0.20.4',
+      electronVersion: '1',
+      nodeVersion: '1',
+      platform: 'linux',
+      work4youRoot: '/tmp'
+    })
+    $updateStatus.set({ behind: 0, fetchedAt: 0, supported: true, updateAvailable: false })
+
+    renderFooter()
+
+    const chip = await screen.findByRole('button', { name: 'Update' })
+
+    expect(chip.textContent).toMatch(/update/i)
+    expect(chip.textContent).not.toMatch(/0\.20\.4/i)
   })
 
   it('picks the email up when the window regains focus after a portal sign-in', async () => {

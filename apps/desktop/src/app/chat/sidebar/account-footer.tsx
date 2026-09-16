@@ -182,7 +182,7 @@ export function AccountFooter() {
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
-        {clientUpdate.hasUpdate ? (
+        {!clientUpdate.unknown ? (
           <button
             aria-label={updateLabel}
             className={cn(
