@@ -94,7 +94,7 @@ OPENROUTER_MODELS: list[tuple[str, str]] = [
     ("openai/gpt-5.6-sol-pro",                 ""),
     ("openai/gpt-5.6-terra",                   ""),
     ("openai/gpt-5.6-terra-pro",               ""),
-    ("openai/gpt-5.6-luna",                    ""),
+    ("openai/gpt-5.6-luna",                    "Operis 4.0"),
     ("openai/gpt-5.6-luna-pro",                ""),
     ("openai/gpt-5.5",                         ""),
     ("openai/gpt-5.5-pro",                     ""),
@@ -102,7 +102,7 @@ OPENROUTER_MODELS: list[tuple[str, str]] = [
     # Google
     ("google/gemini-3.1-pro-preview",          ""),
     ("google/gemini-3.7-flash",                ""),
-    ("google/gemini-3.8-flash",                "Operis 4.0 Flash"),
+    ("google/gemini-3.8-flash",                ""),
     # xAI
     ("x-ai/grok-4.6",                          ""),
     # DeepSeek
@@ -261,8 +261,8 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
     "moa": ["default"],
     "work4you": [
         # House model (Operis) first so leftover Settings picks land here.
-        # Paid DeepSeek siblings stay on the OpenRouter snapshot, not here.
-        "google/gemini-3.8-flash",
+        # Paid DeepSeek / Gemini Flash siblings stay on the OpenRouter snapshot.
+        "openai/gpt-5.6-luna",
         # Anthropic
         "anthropic/claude-fable-5",
         "anthropic/claude-opus-5",
@@ -274,7 +274,6 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
         "openai/gpt-5.6-sol-pro",
         "openai/gpt-5.6-terra",
         "openai/gpt-5.6-terra-pro",
-        "openai/gpt-5.6-luna",
         "openai/gpt-5.6-luna-pro",
         "openai/gpt-5.5",
         "openai/gpt-5.5-pro",
@@ -669,19 +668,23 @@ _PROVIDER_MODELS["ai-gateway"] = [mid for mid, _ in VERCEL_AI_GATEWAY_MODELS]
 # surface it to users as-is — no local allowlist filtering.
 
 # Billed house model on Free (Operis). Not $0 — NAS authorize/debit is the ceiling.
-WORK4YOU_HOUSE_MODEL_ID = "google/gemini-3.8-flash"
-WORK4YOU_HOUSE_MODEL_DISPLAY = "Operis 4.0 Flash"
-_WORK4YOU_HOUSE_MODEL_SLUGS = frozenset({"gemini-3.8-flash", "deepseek-v4-flash-0731"})
+WORK4YOU_HOUSE_MODEL_ID = "openai/gpt-5.6-luna"
+WORK4YOU_HOUSE_MODEL_DISPLAY = "Operis 4.0"
+_WORK4YOU_HOUSE_MODEL_SLUGS = frozenset({
+    "gpt-5.6-luna",
+    "gemini-3.8-flash",
+    "deepseek-v4-flash-0731",
+})
 
 
 def is_work4you_house_model(model_id: str) -> bool:
     """Return True if *model_id* is the Free-plan house model (Operis).
 
-    Matches the canonical Gemini 3.8 Flash id, the legacy DeepSeek Flash
-    dated snapshot, any vendor prefix, and the bare trailing slug splash
-    and status chrome use after stripping the vendor. Sibling ids
-    (``gemini-3.7-flash``, ``deepseek-v4-flash``) stay out — those are paid
-    catalog models, not Operis.
+    Matches the canonical GPT-5.6 Luna id, leftover Gemini 3.8 Flash and
+    DeepSeek Flash dated-snapshot sessions, any vendor prefix, and the bare
+    trailing slug splash and status chrome use after stripping the vendor.
+    Sibling ids (``gpt-5.6-luna-pro``, ``gemini-3.7-flash``,
+    ``deepseek-v4-flash``) stay out — those are paid catalog models, not Operis.
     """
     mid = (model_id or "").strip().lower()
     if not mid:

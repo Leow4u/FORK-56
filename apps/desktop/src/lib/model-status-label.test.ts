@@ -5,10 +5,13 @@ import { reasoningEffortLabel } from './reasoning-effort'
 
 describe('model-status-label', () => {
   it('formats display names consistently', () => {
-    expect(displayModelName('google/gemini-3.8-flash')).toBe('Operis 4.0 Flash')
-    expect(displayModelName('gemini-3.8-flash')).toBe('Operis 4.0 Flash')
-    expect(displayModelName('deepseek/deepseek-v4-flash-0731')).toBe('Operis 4.0 Flash')
-    expect(displayModelName('deepseek-v4-flash-0731')).toBe('Operis 4.0 Flash')
+    expect(displayModelName('openai/gpt-5.6-luna')).toBe('Operis 4.0')
+    expect(displayModelName('gpt-5.6-luna')).toBe('Operis 4.0')
+    expect(displayModelName('google/gemini-3.8-flash')).toBe('Operis 4.0')
+    expect(displayModelName('gemini-3.8-flash')).toBe('Operis 4.0')
+    expect(displayModelName('deepseek/deepseek-v4-flash-0731')).toBe('Operis 4.0')
+    expect(displayModelName('deepseek-v4-flash-0731')).toBe('Operis 4.0')
+    expect(displayModelName('openai/gpt-5.6-luna-pro')).not.toBe('Operis 4.0')
     expect(displayModelName('anthropic/claude-opus-4.8-fast')).toBe('Opus 4.8')
     expect(displayModelName('openai/gpt-5.5-fast')).toBe('GPT-5.5')
     expect(displayModelName('deepseek/deepseek-v4-pro-thinking')).toBe('Deepseek V4 Pro')

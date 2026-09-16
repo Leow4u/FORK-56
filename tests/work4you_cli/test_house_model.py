@@ -21,13 +21,18 @@ def test_official_catalog_is_curated_without_openrouter_free():
     assert "deepseek/deepseek-v4-flash" not in ids
     assert "deepseek/deepseek-v4-flash-0731" not in ids
     assert "google/gemini-3.7-flash" in ids
-    assert ids.count("google/gemini-3.8-flash") == 1
+    assert "google/gemini-3.8-flash" not in ids
+    assert ids.count("openai/gpt-5.6-luna") == 1
+    assert "openai/gpt-5.6-luna-pro" in ids
 
 
-def test_house_model_id_is_gemini_38_flash():
-    assert WORK4YOU_HOUSE_MODEL_ID == "google/gemini-3.8-flash"
-    assert WORK4YOU_HOUSE_MODEL_DISPLAY == "Operis 4.0 Flash"
+def test_house_model_id_is_gpt56_luna():
+    assert WORK4YOU_HOUSE_MODEL_ID == "openai/gpt-5.6-luna"
+    assert WORK4YOU_HOUSE_MODEL_DISPLAY == "Operis 4.0"
     assert is_work4you_house_model(WORK4YOU_HOUSE_MODEL_ID)
+    assert is_work4you_house_model("gpt-5.6-luna")
+    assert is_work4you_house_model("openrouter/gpt-5.6-luna")
+    assert is_work4you_house_model("work4you/openai/gpt-5.6-luna")
     assert is_work4you_house_model("gemini-3.8-flash")
     assert is_work4you_house_model("openrouter/gemini-3.8-flash")
     assert is_work4you_house_model("work4you/google/gemini-3.8-flash")
@@ -35,30 +40,40 @@ def test_house_model_id_is_gemini_38_flash():
     assert is_work4you_house_model("openrouter/deepseek-v4-flash-0731")
     assert is_work4you_house_model("deepseek-v4-flash-0731")
     assert is_work4you_house_model("work4you/deepseek/deepseek-v4-flash-0731")
+    assert not is_work4you_house_model("openai/gpt-5.6-luna-pro")
+    assert not is_work4you_house_model("gpt-5.6-luna-pro")
     assert not is_work4you_house_model("deepseek/deepseek-v4-flash")
     assert not is_work4you_house_model("google/gemini-3.7-flash")
     assert not is_work4you_house_model("gemini-3.7-flash")
     assert not is_work4you_house_model("openrouter/free")
 
 
-def test_legacy_house_id_canonicalizes_to_gemini_38():
+def test_legacy_house_id_canonicalizes_to_luna():
     assert canonical_work4you_house_model_id("deepseek/deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_ID
     assert canonical_work4you_house_model_id("deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_ID
+    assert canonical_work4you_house_model_id("google/gemini-3.8-flash") == WORK4YOU_HOUSE_MODEL_ID
+    assert canonical_work4you_house_model_id("gemini-3.8-flash") == WORK4YOU_HOUSE_MODEL_ID
     assert canonical_work4you_house_model_id(WORK4YOU_HOUSE_MODEL_ID) == WORK4YOU_HOUSE_MODEL_ID
     assert canonical_work4you_house_model_id("google/gemini-3.7-flash") == "google/gemini-3.7-flash"
     assert canonical_work4you_house_model_id("deepseek/deepseek-v4-flash") == "deepseek/deepseek-v4-flash"
+    assert canonical_work4you_house_model_id("openai/gpt-5.6-luna-pro") == "openai/gpt-5.6-luna-pro"
 
 
 def test_house_model_display_hides_upstream_wire_id():
-    """Splash/status chrome must show Operis, never Gemini or DeepSeek slugs."""
+    """Splash/status chrome must show Operis, never the upstream wire id."""
     from work4you_cli.model_switch import format_model_for_display
 
     assert format_model_for_display(WORK4YOU_HOUSE_MODEL_ID) == WORK4YOU_HOUSE_MODEL_DISPLAY
+    assert format_model_for_display("gpt-5.6-luna") == WORK4YOU_HOUSE_MODEL_DISPLAY
     assert format_model_for_display("gemini-3.8-flash") == WORK4YOU_HOUSE_MODEL_DISPLAY
     assert format_model_for_display("deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_DISPLAY
     assert format_model_for_display("openrouter/deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_DISPLAY
-    assert "gemini" not in format_model_for_display(WORK4YOU_HOUSE_MODEL_ID).lower()
-    assert "deepseek" not in format_model_for_display(WORK4YOU_HOUSE_MODEL_ID).lower()
+    shown = format_model_for_display(WORK4YOU_HOUSE_MODEL_ID).lower()
+    assert "gemini" not in shown
+    assert "deepseek" not in shown
+    assert "luna" not in shown
+    assert "gpt" not in shown
+    assert "flash" not in shown
     assert format_model_for_display("deepseek/deepseek-v4-flash") == "deepseek/deepseek-v4-flash"
     assert format_model_for_display("google/gemini-3.7-flash") == "google/gemini-3.7-flash"
     assert format_model_for_display("anthropic/claude-opus-4.8") == "anthropic/claude-opus-4.8"
@@ -84,7 +99,7 @@ def test_house_model_is_not_zero_price_free():
     from work4you_cli.models import _is_model_free
 
     pricing = {
-        WORK4YOU_HOUSE_MODEL_ID: {"prompt": "0.00075", "completion": "0.00375"},
+        WORK4YOU_HOUSE_MODEL_ID: {"prompt": "0.0002", "completion": "0.0012"},
     }
     assert _is_model_free(WORK4YOU_HOUSE_MODEL_ID, pricing) is False
     assert is_work4you_house_model(WORK4YOU_HOUSE_MODEL_ID)
@@ -104,7 +119,7 @@ def test_free_tier_recommended_default_prefers_house():
     pricing = {
         "anthropic/claude-fable-5": {"prompt": "0.003", "completion": "0.015"},
         "openrouter/free": {"prompt": "0", "completion": "0"},
-        WORK4YOU_HOUSE_MODEL_ID: {"prompt": "0.00075", "completion": "0.00375"},
+        WORK4YOU_HOUSE_MODEL_ID: {"prompt": "0.0002", "completion": "0.0012"},
         "z-ai/glm-5.2": {"prompt": "0.0014", "completion": "0.0044"},
         "google/gemini-3.7-flash": {"prompt": "0.0005", "completion": "0.003"},
     }
