@@ -22,7 +22,6 @@ import { useI18n } from '@/i18n'
 import { messagePaintWeight } from '@/lib/render-weight'
 import { isLastAssistantInTurn, isMessageInLastTurn } from '@/lib/turn-fold'
 import { cn } from '@/lib/utils'
-import { $toolViewMode } from '@/store/tool-view'
 import {
   onScrollToBottomRequest,
   onThreadEditClose,
@@ -30,6 +29,7 @@ import {
   resetThreadScroll,
   setThreadAtBottom
 } from '@/store/thread-scroll'
+import { $toolViewMode } from '@/store/tool-view'
 import { isSecondaryWindow } from '@/store/windows'
 
 import { MessageRenderBoundary } from '../message-render-boundary'

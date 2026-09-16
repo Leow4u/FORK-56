@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { $toolDisclosureStates, $toolViewMode } from '@/store/tool-view'
 
 import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime, userMessage } from '../test-utils'
+
 import { Thread } from '.'
 
 const createdAt = new Date('2026-06-03T00:00:00.000Z')
