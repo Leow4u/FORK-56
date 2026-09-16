@@ -85,8 +85,8 @@ type AnnotatedModelOption = {
 
 const FALLBACK_MODELS: AnnotatedModelOption[] = [
   {
-    id: 'google/gemini-3.8-flash',
-    name: 'Operis 4.0 Flash',
+    id: 'openai/gpt-5.6-luna',
+    name: 'Operis 4.0',
     free: false,
     locked: false,
   },

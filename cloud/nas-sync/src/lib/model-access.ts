@@ -16,12 +16,12 @@ export type AnnotatedModel = {
 }
 
 /** Billed house model on Free. Ceiling is existing NAS authorize/debit. */
-export const HOUSE_MODEL_ID = 'google/gemini-3.8-flash'
-export const HOUSE_MODEL_DISPLAY = 'Operis 4.0 Flash'
+export const HOUSE_MODEL_ID = 'openai/gpt-5.6-luna'
+export const HOUSE_MODEL_DISPLAY = 'Operis 4.0'
 
 /** Official Work4You catalog — same as `_PROVIDER_MODELS["work4you"]`. */
 export const OFFICIAL_WORK4YOU_MODEL_IDS: readonly string[] = [
-  'google/gemini-3.8-flash',
+  'openai/gpt-5.6-luna',
   'anthropic/claude-fable-5',
   'anthropic/claude-opus-5',
   'anthropic/claude-opus-4.8',
@@ -31,7 +31,6 @@ export const OFFICIAL_WORK4YOU_MODEL_IDS: readonly string[] = [
   'openai/gpt-5.6-sol-pro',
   'openai/gpt-5.6-terra',
   'openai/gpt-5.6-terra-pro',
-  'openai/gpt-5.6-luna',
   'openai/gpt-5.6-luna-pro',
   'openai/gpt-5.5',
   'openai/gpt-5.5-pro',
@@ -54,9 +53,15 @@ export const OFFICIAL_WORK4YOU_MODEL_IDS: readonly string[] = [
 export const OFFICIAL_PAID_VISION_MODEL = 'google/gemini-3.7-flash'
 export const OFFICIAL_PAID_COMPACTION_MODEL = 'openai/gpt-5.4-mini'
 
+const HOUSE_MODEL_SLUGS = new Set([
+  'gpt-5.6-luna',
+  'gemini-3.8-flash',
+  'deepseek-v4-flash-0731',
+])
+
 export function isHouseModel(modelId: string): boolean {
   const slug = modelId.trim().toLowerCase().split('/').pop() || ''
-  return slug === 'gemini-3.8-flash' || slug === 'deepseek-v4-flash-0731'
+  return HOUSE_MODEL_SLUGS.has(slug)
 }
 
 export function isOfficialWork4YouModel(modelId: string): boolean {

@@ -101,7 +101,7 @@ describe('the catalog owns model curation', () => {
     getGlobalModelOptions.mockResolvedValue({
       providers: [
         {
-          models: ['google/gemini-3.8-flash', 'z-ai/glm-5.2'],
+          models: ['openai/gpt-5.6-luna', 'z-ai/glm-5.2'],
           name: 'Work4You Portal',
           slug: 'work4you',
           unavailable_models: ['z-ai/glm-5.2']
@@ -111,13 +111,13 @@ describe('the catalog owns model curation', () => {
 
     const select = renderMenu()
 
-    await screen.findByText('Operis 4.0 Flash')
+    await screen.findByText('Operis 4.0')
     fireEvent.click(screen.getByText(/Glm 5\.2/i))
     expect(select).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByText('Operis 4.0 Flash'))
+    fireEvent.click(screen.getByText('Operis 4.0'))
     await vi.waitFor(() => {
-      expect(select).toHaveBeenCalledWith('google/gemini-3.8-flash', 'work4you')
+      expect(select).toHaveBeenCalledWith('openai/gpt-5.6-luna', 'work4you')
     })
   })
 

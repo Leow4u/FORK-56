@@ -95,8 +95,10 @@ def test_splash_shows_operis_not_house_wire_id():
 
     for wire_id in (WORK4YOU_HOUSE_MODEL_ID, "deepseek/deepseek-v4-flash-0731"):
         out = _render_splash(model=wire_id, provider="work4you")
-        assert "Operis 4.0 Flash" in out
+        assert "Operis 4.0" in out
+        assert "Operis 4.0 Flash" not in out
         assert "gemini-3.8-flash" not in out
+        assert "gpt-5.6-luna" not in out
         assert "deepseek-v4-flash-0731" not in out
         assert "deepseek-v4-flash" not in out
 

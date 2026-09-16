@@ -402,9 +402,10 @@ _OPAQUE_MODEL_PREFIXES: tuple[str, ...] = (
 def format_model_for_display(model_name: str) -> str:
     """Return a human-friendly form of *model_name* for CLI status output.
 
-    The Free-plan house model keeps its wire id (Gemini 3.8 Flash, plus
-    the legacy DeepSeek Flash dated snapshot) but renders as Operis so
-    splash/status/picker chrome never leak the upstream name. Also strips
+    The Free-plan house model keeps its wire id (GPT-5.6 Luna, plus
+    leftover Gemini 3.8 Flash and DeepSeek Flash dated-snapshot sessions)
+    but renders as Operis so splash/status/picker chrome never leak the
+    upstream name. Also strips
     known opaque proxy prefixes
     (Palantir Foundry's ``ri.language-model-service..language-model.*``)
     and returns the trailing slug. Falls through to the original string
