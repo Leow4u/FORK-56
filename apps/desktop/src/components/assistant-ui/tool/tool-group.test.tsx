@@ -6,7 +6,7 @@ import { $displayTimestamps } from '@/store/display-timestamps'
 import { clearAllPrompts, setApprovalRequest } from '@/store/prompts'
 import { $activeSessionId } from '@/store/session'
 import { clearDismissedToolRows } from '@/store/tool-dismiss'
-import { $toolDisclosureStates } from '@/store/tool-view'
+import { $toolDisclosureStates, $toolViewMode } from '@/store/tool-view'
 
 import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime } from '../test-utils'
 import { Thread } from '../thread'
@@ -389,6 +389,7 @@ beforeEach(() => {
   clearAllPrompts()
   $activeSessionId.set('sess-1')
   $toolDisclosureStates.set({})
+  $toolViewMode.set('technical')
   clearDismissedToolRows()
 })
 
@@ -396,6 +397,7 @@ afterEach(() => {
   cleanup()
   clearAllPrompts()
   $activeSessionId.set(null)
+  $toolViewMode.set('product')
   clearDismissedToolRows()
 })
 

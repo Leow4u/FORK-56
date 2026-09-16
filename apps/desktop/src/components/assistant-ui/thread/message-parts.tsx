@@ -62,7 +62,7 @@ const DelegateToolPart: FC<TimelineToolCallProps> = props => {
   )
 }
 
-const ChainToolFallback: FC<TimelineToolCallProps> = props => {
+export const ChainToolFallback: FC<TimelineToolCallProps> = props => {
   // todo parts are hoisted to a dedicated panel above the message content.
   if (props.toolName === 'todo') {
     return null

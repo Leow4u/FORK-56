@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { $reasoningCollapsedByDefault } from '@/store/reasoning-disclosure'
+import { $toolViewMode } from '@/store/tool-view'
 
 import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime } from '../test-utils'
 
@@ -442,6 +443,7 @@ describe('assistant-ui streaming renderer', () => {
   beforeEach(() => {
     resizeObservers.clear()
     $reasoningCollapsedByDefault.set(false)
+    $toolViewMode.set('product')
   })
 
   it('renders assistant text incrementally before completion', async () => {
@@ -482,7 +484,7 @@ describe('assistant-ui streaming renderer', () => {
     expect(container.querySelector('[data-slot="aui_composer-clearance"]')).toBeNull()
   })
 
-  it('suppresses the action footer on sealed interim messages, keeping it on the final reply', () => {
+  it('folds sealed interim commentary behind Worked-for and keeps the footer on the final reply', () => {
     const { container } = render(
       <TranscriptHarness
         messages={[
@@ -494,12 +496,11 @@ describe('assistant-ui streaming renderer', () => {
       />
     )
 
-    // Interim commentary stays visible…
-    expect(container.textContent).toContain('Let me check the files.')
-    expect(container.textContent).toContain('Now applying the patch.')
+    expect(container.querySelector('[data-slot="aui_worked-for"]')?.textContent).toContain('Worked')
     expect(container.textContent).toContain('All done — patch applied.')
+    expect(container.textContent).not.toContain('Let me check the files.')
+    expect(container.textContent).not.toContain('Now applying the patch.')
 
-    // …but only the turn's final reply carries the copy/refresh action bar.
     const actionBars = container.querySelectorAll('[data-slot="aui_msg-actions"]')
     expect(actionBars).toHaveLength(1)
 
@@ -508,6 +509,29 @@ describe('assistant-ui streaming renderer', () => {
     )
 
     expect(finalRoot?.querySelector('[data-slot="aui_msg-actions"]')).toBeTruthy()
+
+    fireEvent.click(container.querySelector('[data-slot="aui_worked-for"] button') as HTMLElement)
+
+    expect(container.textContent).toContain('Let me check the files.')
+    expect(container.textContent).toContain('Now applying the patch.')
+  })
+
+  it('keeps interim commentary visible in Technical mode', () => {
+    $toolViewMode.set('technical')
+
+    const { container } = render(
+      <TranscriptHarness
+        messages={[
+          userMessage(),
+          assistantInterimMessage('Let me check the files.'),
+          assistantMessage('All done — patch applied.', false)
+        ]}
+      />
+    )
+
+    expect(container.querySelector('[data-slot="aui_worked-for"]')).toBeNull()
+    expect(container.textContent).toContain('Let me check the files.')
+    expect(container.textContent).toContain('All done — patch applied.')
   })
 
   it('renders assistant provider errors inline', () => {
