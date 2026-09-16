@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils'
 import { $hudMode, closeHud } from '@/store/hud'
 import { $wakeWord, toggleWakeWord } from '@/store/wake-word'
 
-import { ContextUsagePill } from './context-usage-pill'
 import { ACTIVE_ICON_BTN, GHOST_ICON_BTN, PRIMARY_ICON_BTN } from './control-classes'
 import type { ConversationStatus } from './hooks/use-voice-conversation'
 import { ModelPill } from './model-pill'
@@ -41,8 +40,6 @@ export function ComposerControls({
   conversation,
   disabled,
   hasComposerPayload,
-  messagesEmpty = false,
-  sessionId,
   state,
   voiceStatus,
   onDictate,
@@ -57,9 +54,6 @@ export function ComposerControls({
   conversation: ConversationProps
   disabled: boolean
   hasComposerPayload: boolean
-  /** Empty transcript: hide the 0% meter; the workspace chip is the empty-state control. */
-  messagesEmpty?: boolean
-  sessionId?: null | string
   state: ChatBarState
   voiceStatus: VoiceStatus
   onDictate: () => void
@@ -82,7 +76,6 @@ export function ComposerControls({
 
   return (
     <div className="ml-auto flex shrink-0 items-center gap-(--composer-control-gap)">
-      {messagesEmpty ? null : <ContextUsagePill busy={busy} sessionId={sessionId} />}
       <ModelPill compact={compactModelPill} disabled={disabled} model={state.model} />
       {/* The HUD is a Spotlight bar a few hundred pixels wide, so the four
           separate voice toggles fold into one menu there and leave the row to

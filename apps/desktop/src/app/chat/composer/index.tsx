@@ -36,6 +36,7 @@ import {
 } from './composer-utils'
 import { ContextMenu } from './context-menu'
 import { COMPOSER_AREAS, runComposerMiddleware } from './contrib'
+import { ComposerContextUsage } from './context-usage-pill'
 import { ComposerControls } from './controls'
 import { ComposerDirectiveActions } from './directive-actions'
 import { COMPOSER_DROP_ACTIVE_CLASS, COMPOSER_DROP_FADE_CLASS } from './drop-affordance'
@@ -990,11 +991,9 @@ export function ChatBar({
       }}
       disabled={disabled}
       hasComposerPayload={hasComposerPayload}
-      messagesEmpty={messagesEmpty}
       onDictate={dictate}
       onQueue={queueDraft}
       onToggleAutoSpeak={handleToggleAutoSpeak}
-      sessionId={sessionId}
       state={state}
       voiceStatus={voiceStatus}
     />
@@ -1351,6 +1350,11 @@ export function ChatBar({
               bracket the composer on one vertical line. */}
           <div className={cn(composerFloatingStrip, 'px-[5px] pt-1.5 empty:hidden')}>
             <ContribSlot area={COMPOSER_AREAS.underside} />
+            <ComposerContextUsage
+              busy={busy}
+              hidden={messagesEmpty || voiceConversationActive}
+              sessionId={sessionId}
+            />
           </div>
         </div>
       </ComposerPrimitive.Unstable_TriggerPopoverRoot>

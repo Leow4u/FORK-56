@@ -61,17 +61,11 @@ afterEach(() => {
   $hudMode.set(false)
 })
 
-describe('empty chat context meter', () => {
-  it('hides the context meter on an empty chat', () => {
-    renderControls({ messagesEmpty: true })
+describe('composer control row', () => {
+  it('does not keep the context meter inside the surface', () => {
+    renderControls()
 
     expect(screen.queryByLabelText('Context usage')).toBeNull()
-  })
-
-  it('keeps the context meter once the transcript has messages', () => {
-    renderControls({ messagesEmpty: false })
-
-    expect(screen.getByLabelText('Context usage')).toBeTruthy()
   })
 })
 
@@ -83,7 +77,7 @@ describe('HUD mode', () => {
   it('keeps the voice controls inline and offers no exit in the docked composer', () => {
     renderControls()
 
-    expect(screen.getByLabelText('Context usage')).toBeTruthy()
+    expect(screen.queryByLabelText('Context usage')).toBeNull()
     expect(screen.getByLabelText('Voice dictation')).toBeTruthy()
     expect(screen.getByLabelText('Read replies aloud')).toBeTruthy()
     expect(screen.queryByLabelText('Exit HUD mode')).toBeNull()
