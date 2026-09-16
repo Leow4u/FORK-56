@@ -95,14 +95,10 @@ describe('the shared catalog menu, driven by an override controller', () => {
   }
 
   async function openModelsCatalog() {
-    const trigger = await screen.findByRole('menuitem', { name: /^Models\b/ })
+    const label = await screen.findByText('Models')
+    const trigger = label.closest('[role="menuitem"]') ?? label
     fireEvent.pointerMove(trigger, { pointerType: 'mouse' })
     fireEvent.pointerEnter(trigger, { pointerType: 'mouse' })
-
-    if (screen.queryByRole('textbox', { name: 'Search models' })) {
-      return
-    }
-
     fireEvent.click(trigger)
     await screen.findByRole('textbox', { name: 'Search models' })
   }

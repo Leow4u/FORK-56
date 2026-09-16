@@ -41,14 +41,10 @@ afterEach(() => {
 })
 
 async function openModelsCatalog() {
-  const trigger = await screen.findByRole('menuitem', { name: /^Models\b/ })
+  const label = await screen.findByText('Models')
+  const trigger = label.closest('[role="menuitem"]') ?? label
   fireEvent.pointerMove(trigger, { pointerType: 'mouse' })
   fireEvent.pointerEnter(trigger, { pointerType: 'mouse' })
-
-  if (screen.queryByRole('textbox', { name: 'Search models' })) {
-    return
-  }
-
   fireEvent.click(trigger)
   await screen.findByRole('textbox', { name: 'Search models' })
 }
@@ -195,14 +191,16 @@ describe('the catalog menu layout', () => {
 
     renderMenu({ effort: 'high', fast: true, model: 'gemini-3.1-pro', provider: 'google' })
 
-    expect(screen.getByText('Thinking')).toBeTruthy()
+    await screen.findByText('Thinking')
     expect(screen.getByText('Fast')).toBeTruthy()
     expect(screen.getByText('Effort')).toBeTruthy()
     expect(screen.queryByRole('textbox', { name: 'Search models' })).toBeNull()
 
     await openModelsCatalog()
     expect(screen.getByRole('textbox', { name: 'Search models' })).toBeTruthy()
-    expect(screen.getByText(/Gemini 3\.1 Pro/i)).toBeTruthy()
+    expect(
+      screen.getAllByText(/Gemini 3\.1 Pro/i).some(el => el.closest('[data-slot="dropdown-menu-item"]'))
+    ).toBe(true)
   })
 
   it('hides Fast when the active model has no fast capability', async () => {
@@ -219,7 +217,7 @@ describe('the catalog menu layout', () => {
 
     renderMenu({ effort: 'medium', model: 'gemini-2.5-flash', provider: 'google' })
 
-    expect(screen.getByText('Thinking')).toBeTruthy()
+    await screen.findByText('Thinking')
     expect(screen.queryByText('Fast')).toBeNull()
   })
 })

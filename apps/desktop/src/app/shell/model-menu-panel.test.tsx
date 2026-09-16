@@ -71,14 +71,10 @@ function renderPanel(onSelectModel = vi.fn()) {
 }
 
 async function openModelsCatalog() {
-  const trigger = await screen.findByRole('menuitem', { name: /^Models\b/ })
+  const label = await screen.findByText('Models')
+  const trigger = label.closest('[role="menuitem"]') ?? label
   fireEvent.pointerMove(trigger, { pointerType: 'mouse' })
   fireEvent.pointerEnter(trigger, { pointerType: 'mouse' })
-
-  if (screen.queryByRole('textbox', { name: 'Search models' })) {
-    return
-  }
-
   fireEvent.click(trigger)
   await screen.findByRole('textbox', { name: 'Search models' })
 }
@@ -154,7 +150,10 @@ describe('ModelMenuPanel current selection', () => {
     const { content } = renderPanel()
     await openModelsCatalog()
 
-    const currentRow = (await content.findByText(/Gemini 3\.1 Pro/i)).closest('[role="menuitem"]')
+    const currentLabel = screen
+      .getAllByText(/Gemini 3\.1 Pro/i)
+      .find(el => el.closest('[data-slot="dropdown-menu-item"]'))
+    const currentRow = currentLabel?.closest('[role="menuitem"]')
     const staleRow = content.getByText('Deepseek Chat').closest('[role="menuitem"]')
 
     expect(currentRow?.querySelector('.codicon-check')).not.toBeNull()
@@ -170,7 +169,12 @@ describe('ModelMenuPanel search', () => {
   // Highlighted labels are split across <mark> nodes, so single-text-node
   // queries miss them — match on the row span's composed textContent.
   const rowWithText = (content: ReturnType<typeof renderPanel>['content'], pattern: RegExp) =>
-    content.queryByText((_, element) => element?.tagName === 'SPAN' && pattern.test(element.textContent ?? ''))
+    content.queryByText(
+      (_, element) =>
+        element?.tagName === 'SPAN' &&
+        pattern.test(element.textContent ?? '') &&
+        Boolean(element.closest('[data-slot="dropdown-menu-item"]'))
+    )
 
   it('hides the non-matching current model while a query is active', async () => {
     $currentProvider.set('deepseek')
@@ -178,7 +182,9 @@ describe('ModelMenuPanel search', () => {
     const { content } = renderPanel()
     await openModelsCatalog()
 
-    await content.findByText(/Deepseek V4 Pro/i)
+    await vi.waitFor(() => {
+      expect(rowWithText(content, /Deepseek V4 Pro/i)).not.toBeNull()
+    })
 
     const input = screen.getByRole('textbox', { name: 'Search models' })
     fireEvent.change(input, { target: { value: 'gemini' } })
@@ -339,7 +345,9 @@ describe('ModelMenuPanel provider collapse', () => {
     // The current provider is collapsible like any other — clicking its header
     // hides its models rather than forcing them to stay open.
     await vi.waitFor(() => {
-      expect(content.queryByText('Deepseek V4 Pro')).toBeNull()
+      expect(
+        screen.queryAllByText('Deepseek V4 Pro').find(el => el.closest('[data-slot="dropdown-menu-item"]'))
+      ).toBeUndefined()
     })
   })
 
@@ -405,7 +413,8 @@ describe('ModelMenuPanel provider collapse', () => {
     getGlobalModelOptions.mockResolvedValueOnce({ providers: [DEEPSEEK_PROVIDER, MOA_PROVIDER] })
     const b = renderPanel()
     await openModelsCatalog()
-    await b.content.findByText('DeepSeek')
+    // One picker group now — Path A hides the DeepSeek header, but the rows stay.
+    await screen.findByText(/Deepseek V4 Pro/i)
 
     expect($collapsedProviders.get()).toEqual(['deepseek', 'google'])
   })
@@ -428,7 +437,7 @@ describe('ModelMenuPanel provider collapse', () => {
     getGlobalModelOptions.mockResolvedValueOnce({ providers: [DEEPSEEK_PROVIDER, MOA_PROVIDER] })
     const b = renderPanel()
     await openModelsCatalog()
-    await b.content.findByText('DeepSeek')
+    await screen.findByText(/Deepseek V4 Pro/i)
 
     expect($collapsedProviders.get()).toContain('google')
     expect($collapsedProviders.get()).toContain('deepseek')

@@ -65,7 +65,9 @@ function resolveActiveOptions(
     return {
       familyId: current.model,
       fastControl: resolveFastControl(current.model, [], false, current.fast),
-      reasoning: false
+      // Same default as the inventory: show the effort dial until a catalog
+      // row says otherwise. Hiding it on a loading miss is the worse flash.
+      reasoning: true
     }
   }
 
@@ -382,7 +384,10 @@ export function ModelCatalogMenu({
       ) : null}
 
       <DropdownMenuSub>
-        <DropdownMenuSubTrigger className={dropdownMenuRow}>
+        <DropdownMenuSubTrigger
+          aria-label={currentName ? `${copy.models} ${currentName}` : copy.models}
+          className={dropdownMenuRow}
+        >
           <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
             <span>{copy.models}</span>
             {currentName ? <span className="truncate text-(--ui-text-tertiary)">{currentName}</span> : null}
