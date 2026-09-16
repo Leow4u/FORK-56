@@ -506,7 +506,8 @@ export const en: Translations = {
       colorMode: 'Color Mode',
       colorModeDesc: 'Pick a fixed mode or let Work4You follow your system setting.',
       toolViewTitle: 'Tool Call Display',
-      toolViewDesc: 'Product folds a finished turn into one Worked-for line. Technical keeps the tool log and payloads.',
+      toolViewDesc:
+        'Product folds a finished turn into one Worked-for line. Technical keeps the tool log and payloads.',
       reasoningCollapsedTitle: 'Collapse thinking by default',
       reasoningCollapsedDesc: 'Keep streamed reasoning available without expanding it until you open it.',
       uiScaleTitle: 'UI Scale',
