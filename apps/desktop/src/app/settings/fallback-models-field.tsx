@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useI18n } from '@/i18n'
 import { Plus, X } from '@/lib/icons'
+import { displayModelName } from '@/lib/model-status-label'
 import { cn } from '@/lib/utils'
 import { getGlobalModelOptions } from '@/work4you'
 
@@ -143,7 +144,7 @@ export function FallbackModelsField({
               <SelectContent>
                 {modelItems.map(model => (
                   <SelectItem key={model} value={model}>
-                    {model}
+                    {displayModelName(model)}
                   </SelectItem>
                 ))}
               </SelectContent>

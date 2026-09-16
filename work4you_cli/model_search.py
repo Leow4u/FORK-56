@@ -16,6 +16,7 @@ _MODEL_SEARCH_ALIASES: dict[str, tuple[str, ...]] = {
     "openai/gpt-5.6-luna": ("operis", "operis 4.0"),
     "google/gemini-3.8-flash": ("operis", "operis 4.0"),
     "deepseek/deepseek-v4-flash-0731": ("operis", "operis 4.0"),
+    "tencent/hy3": ("hunyuan", "hunyuan 3"),
 }
 
 # Lowercased wire id → canonical public slug it aliases. Used by picker

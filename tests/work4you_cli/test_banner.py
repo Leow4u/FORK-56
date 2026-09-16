@@ -62,12 +62,13 @@ def test_build_welcome_banner_title_falls_back_when_no_tag():
 
 
 def test_build_welcome_banner_non_moa_unchanged(tmp_path, monkeypatch):
-    """A normal provider still renders the bare model slug, no MoA prefix."""
+    """A normal provider still renders the commercial name, no MoA prefix."""
     monkeypatch.setenv("WORK4YOU_HOME", str(tmp_path / ".work4you"))
     (tmp_path / ".work4you").mkdir()
 
     out = _render_splash(model="anthropic/claude-opus-4.8", provider="openrouter")
-    assert "claude-opus-4.8" in out
+    assert "Claude Opus 4.8" in out
+    assert "claude-opus-4.8" not in out
     assert "MoA:" not in out
 
 
@@ -76,7 +77,7 @@ def test_splash_shows_session_facts_not_catalog():
     out = _render_splash(
         skills_by_category={"research": ["skill-00", "skill-01"]},
     )
-    assert "claude-opus-4.8" in out
+    assert "Claude Opus 4.8" in out
     assert "/tmp/project" in out
     assert "Session: abc123" in out
     assert "/help for commands" in out

@@ -14,10 +14,7 @@ import { cn, themedBody } from "@/lib/utils";
 import { fuzzyRank } from "@/lib/fuzzy";
 import { queryMatchesProviderOnly } from "@/lib/model-picker-filter";
 import { modelSearchText } from "@/lib/model-search-text";
-import {
-  isWork4YouHouseModel,
-  WORK4YOU_HOUSE_MODEL_DISPLAY,
-} from "@/lib/model-status-label";
+import { displayModelName } from "@/lib/model-status-label";
 
 /**
  * Two-stage model picker modal.
@@ -710,9 +707,7 @@ function ModelColumn({
           const isCurrent =
             m === currentModel && provider.slug === currentProviderSlug;
           const locked = (provider.unavailable_models ?? []).includes(m);
-          const label = isWork4YouHouseModel(m)
-            ? WORK4YOU_HOUSE_MODEL_DISPLAY
-            : m;
+          const label = displayModelName(m);
 
           return (
             <ListItem

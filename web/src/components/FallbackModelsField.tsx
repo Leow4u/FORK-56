@@ -10,6 +10,7 @@ import { Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
+import { displayModelName } from "@/lib/model-status-label";
 import { Button } from "@work4you/ui/ui/components/button";
 import { Select, SelectOption } from "@work4you/ui/ui/components/select";
 import { Spinner } from "@work4you/ui/ui/components/spinner";
@@ -174,7 +175,7 @@ export function FallbackModelsField({
             >
               {modelItems.map((model) => (
                 <SelectOption key={model} value={model}>
-                  {model}
+                  {displayModelName(model)}
                 </SelectOption>
               ))}
             </Select>

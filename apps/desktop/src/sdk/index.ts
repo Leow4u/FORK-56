@@ -1030,6 +1030,9 @@ export { triggerHaptic as haptic } from '@/lib/haptics'
 export * as icons from '@/lib/icons'
 export { type KeybindContribution, KEYBINDS_AREA } from '@/lib/keybinds/actions'
 export { formatModifierToken } from '@/lib/keybinds/combo'
+/** Commercial catalog chrome — Operis 4.0, Claude Opus 5, … — same helper the
+ *  composer / settings pickers use. Plugins must not print raw wire ids. */
+export { displayModelName, modelDisplayParts } from '@/lib/model-status-label'
 /** The app's deterministic identity color for a name (profiles, assignees,
  *  authors) + its translucent tag fill — so plugin-rendered identities read
  *  the same hue as everywhere else. */

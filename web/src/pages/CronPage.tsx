@@ -12,6 +12,7 @@ import { Spinner } from "@work4you/ui/ui/components/spinner";
 import { PageLoader } from "@/components/page-loader";
 import { H2 } from "@work4you/ui/ui/components/typography/h2";
 import { api } from "@/lib/api";
+import { displayModelName } from "@/lib/model-status-label";
 import type {
   CronJob,
   CronDeliveryTarget,
@@ -250,7 +251,10 @@ function CronAdvancedFields({
               <SelectOption value="">Default</SelectOption>
               {selectOptions(
                 form.model,
-                models.map((model) => ({ value: model, label: model })),
+                models.map((model) => ({
+                  value: model,
+                  label: displayModelName(model),
+                })),
               )}
             </Select>
           </div>
@@ -607,10 +611,9 @@ function getJobMode(job: CronJob): string {
 }
 
 function getModelDisplay(job: CronJob): string {
-  const provider = asText(job.provider);
   const model = asText(job.model);
-  if (provider && model) return `${provider}/${model}`;
-  return model || provider;
+  if (model) return displayModelName(model);
+  return asText(job.provider);
 }
 
 function getJobProfile(job: CronJob): string {

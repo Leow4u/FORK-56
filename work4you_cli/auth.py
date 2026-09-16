@@ -7640,16 +7640,15 @@ def _prompt_model_selection(
     If *unavailable_models* is provided, those models are shown grayed out
     and unselectable, with an upgrade link to *portal_url*.
     """
+    from work4you_cli.model_switch import format_model_for_display
     from work4you_cli.models import (
-        WORK4YOU_HOUSE_MODEL_DISPLAY,
         canonical_work4you_house_model_id,
-        is_work4you_house_model,
         _format_price_per_mtok,
         compute_sale_discount,
     )
 
     def _row_name(mid: str) -> str:
-        return WORK4YOU_HOUSE_MODEL_DISPLAY if is_work4you_house_model(mid) else mid
+        return format_model_for_display(mid)
 
     def _is_current(mid: str) -> bool:
         if not current_model:

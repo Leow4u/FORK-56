@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useI18n } from '@/i18n'
 import { AlertTriangle, Loader2 } from '@/lib/icons'
-import { displayModelName, isWork4YouHouseModel } from '@/lib/model-status-label'
+import { displayModelName } from '@/lib/model-status-label'
 import { DEFAULT_REASONING_EFFORT, REASONING_EFFORT_VALUES } from '@/lib/reasoning-effort'
 import { cn } from '@/lib/utils'
 import { setMainModelAssignment } from '@/store/cron-model-impact'
@@ -49,7 +49,7 @@ function unavailableModelsFor(providers: ModelOptionProvider[], slug: string): S
 }
 
 function settingsModelLabel(model: string): string {
-  return isWork4YouHouseModel(model) ? displayModelName(model) : model
+  return displayModelName(model)
 }
 
 // Skeleton mirror of the Model settings DOM so the page keeps its shape while

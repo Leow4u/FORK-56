@@ -18986,10 +18986,6 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
                 return []
             stage = state.get("stage", "provider")
             from work4you_cli.model_switch import format_model_for_display
-            from work4you_cli.models import (
-                WORK4YOU_HOUSE_MODEL_DISPLAY,
-                is_work4you_house_model,
-            )
 
             if stage == "provider":
                 title = "⚙ Model Picker — Select Provider"
@@ -19043,12 +19039,8 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
             _append_blank_panel_line(lines, 'class:clarify-border', box_width)
             for idx in range(scroll_offset, scroll_offset + visible):
                 choice = choices[idx]
-                if (
-                    stage != "provider"
-                    and choice not in ("← Back", "Cancel")
-                    and is_work4you_house_model(choice)
-                ):
-                    choice = WORK4YOU_HOUSE_MODEL_DISPLAY
+                if stage != "provider" and choice not in ("← Back", "Cancel"):
+                    choice = format_model_for_display(choice)
                 style = 'class:clarify-selected' if idx == selected else 'class:clarify-choice'
                 prefix = '❯ ' if idx == selected else '  '
                 for wrapped in _wrap_panel_text(prefix + choice, inner_text_width, subsequent_indent='  '):

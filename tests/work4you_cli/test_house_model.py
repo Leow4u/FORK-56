@@ -75,8 +75,22 @@ def test_house_model_display_hides_upstream_wire_id():
     assert "gpt" not in shown
     assert "flash" not in shown
     assert format_model_for_display("deepseek/deepseek-v4-flash") == "deepseek/deepseek-v4-flash"
-    assert format_model_for_display("google/gemini-3.7-flash") == "google/gemini-3.7-flash"
-    assert format_model_for_display("anthropic/claude-opus-4.8") == "anthropic/claude-opus-4.8"
+    assert format_model_for_display("google/gemini-3.7-flash") == "Gemini 3.7 Flash"
+    assert format_model_for_display("anthropic/claude-opus-4.8") == "Claude Opus 4.8"
+
+
+def test_official_catalog_uses_curated_commercial_names():
+    from work4you_cli.model_switch import format_model_for_display
+
+    assert format_model_for_display("anthropic/claude-fable-5") == "Claude Fable 5"
+    assert format_model_for_display("anthropic/claude-opus-5") == "Claude Opus 5"
+    assert format_model_for_display("openai/gpt-5.6-luna-pro") == "GPT-5.6 Luna Pro"
+    assert format_model_for_display("openai/gpt-5.6-sol-pro") == "GPT-5.6 Sol Pro"
+    assert format_model_for_display("google/gemini-3.1-pro-preview") == "Gemini 3.1 Pro"
+    assert format_model_for_display("tencent/hy3") == "Hunyuan 3"
+    assert format_model_for_display("xiaomi/mimo-v2.5-pro") == "MiMo 2.5 Pro"
+    assert format_model_for_display("nvidia/nemotron-3-super-120b-a12b") == "Nemotron 3 Super"
+    assert format_model_for_display("anthropic/claude-opus-4.8-fast") == "Claude Opus 4.8"
 
 
 def test_silent_default_is_house_model():

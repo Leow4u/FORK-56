@@ -11,11 +11,15 @@ describe('model-status-label', () => {
     expect(displayModelName('gemini-3.8-flash')).toBe('Operis 4.0')
     expect(displayModelName('deepseek/deepseek-v4-flash-0731')).toBe('Operis 4.0')
     expect(displayModelName('deepseek-v4-flash-0731')).toBe('Operis 4.0')
-    expect(displayModelName('openai/gpt-5.6-luna-pro')).not.toBe('Operis 4.0')
-    expect(displayModelName('anthropic/claude-opus-4.8-fast')).toBe('Opus 4.8')
+    expect(displayModelName('openai/gpt-5.6-luna-pro')).toBe('GPT-5.6 Luna Pro')
+    expect(displayModelName('anthropic/claude-opus-4.8-fast')).toBe('Claude Opus 4.8')
+    expect(displayModelName('anthropic/claude-opus-5')).toBe('Claude Opus 5')
     expect(displayModelName('openai/gpt-5.5-fast')).toBe('GPT-5.5')
     expect(displayModelName('deepseek/deepseek-v4-pro-thinking')).toBe('Deepseek V4 Pro')
     expect(displayModelName('openai/gpt-5.5')).toBe('GPT-5.5')
+    expect(displayModelName('google/gemini-3.1-pro-preview')).toBe('Gemini 3.1 Pro')
+    expect(displayModelName('tencent/hy3')).toBe('Hunyuan 3')
+    expect(displayModelName('z-ai/glm-5.2')).toBe('GLM 5.2')
   })
 
   it('strips trailing date-pin snapshots from the display name', () => {

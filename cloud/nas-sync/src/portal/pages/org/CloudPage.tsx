@@ -520,7 +520,10 @@ export function CloudPage() {
                 {agent.cpus} vCPU · {agent.diskGb} GB disco
               </p>
               {agent.model ? (
-                <p className={styles.cardModel}>{agent.model}</p>
+                <p className={styles.cardModel}>
+                  {createModels.find((m) => m.id === agent.model)?.name ||
+                    agent.model}
+                </p>
               ) : null}
               {agent.updateAvailable ? (
                 <p className={styles.cardWarn}>

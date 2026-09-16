@@ -8,8 +8,7 @@ import { buildPaidServiceAccess } from './account-entitlement'
 import { getTier } from './tiers'
 import {
   annotateModels,
-  HOUSE_MODEL_DISPLAY,
-  isHouseModel,
+  officialModelDisplayName,
   OFFICIAL_WORK4YOU_MODEL_IDS,
   orgHasPaidPlan,
   pickDefaultUnlocked,
@@ -84,7 +83,7 @@ export async function fetchAnnotatedModelsForOrg(args: {
       const live = liveById.get(id)
       return {
         id,
-        name: isHouseModel(id) ? HOUSE_MODEL_DISPLAY : live?.name || id,
+        name: officialModelDisplayName(id),
         pricing: live?.pricing,
       }
     }),

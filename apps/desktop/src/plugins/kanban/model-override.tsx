@@ -15,6 +15,7 @@ import {
   Button,
   cn,
   Codicon,
+  displayModelName,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
@@ -41,14 +42,14 @@ export const EMPTY_OVERRIDE: TaskModelOverride = { effort: '', model: '', provid
 export const isInherited = (value: TaskModelOverride): boolean =>
   !value.model.trim() && !value.provider.trim() && !value.effort.trim()
 
-/** The trigger's label: `provider: model · High`, or the inherit copy. */
+/** The trigger's label: commercial model name · High, or the inherit copy. */
 export function overrideLabel(value: TaskModelOverride, inheritCopy: string): string {
   if (isInherited(value)) {
     return inheritCopy
   }
 
   const model = value.model.trim()
-  const base = model ? (value.provider.trim() ? `${value.provider}: ${model}` : model) : inheritCopy
+  const base = model ? displayModelName(model) : inheritCopy
   const effort = value.effort.trim() ? reasoningEffortLabel(value.effort) : ''
 
   return effort ? `${base} · ${effort}` : base
