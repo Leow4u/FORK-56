@@ -378,6 +378,7 @@ const ThreadMessageListInner: FC<ThreadMessageListProps> = ({
   )
 
   const toolViewMode = useStore($toolViewMode)
+
   const weightSignature = useAuiState(s => {
     const roles = s.thread.messages.map(message => message.role)
     const threadRunning = s.thread.isRunning

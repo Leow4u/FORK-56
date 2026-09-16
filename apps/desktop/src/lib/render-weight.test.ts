@@ -117,7 +117,9 @@ describe('messagePaintWeight', () => {
     ]
 
     expect(messagePaintWeight(parts, { foldSettledDiary: true })).toBeLessThan(messagePaintWeight(parts))
-    expect(messagePaintWeight(parts, { foldSettledDiary: true })).toBe(messagePaintWeight([{ type: 'text', text: 'Here is the deck.' }]) + 1)
+    expect(messagePaintWeight(parts, { foldSettledDiary: true })).toBe(
+      messagePaintWeight([{ type: 'text', text: 'Here is the deck.' }]) + 1
+    )
   })
 
   it('charges a hidden interim nothing', () => {
