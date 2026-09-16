@@ -93,7 +93,7 @@ async def test_model_global_persists_when_config_has_flat_string_model(tmp_path,
 
     # Sanity: the handler returned a success-looking message (not a crash log).
     assert result is not None
-    assert "gpt-5.5" in result
+    assert "GPT-5.5" in result
 
     # The persist block must have rewritten config.yaml as a nested dict.
     written = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))

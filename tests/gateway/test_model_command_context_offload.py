@@ -112,7 +112,7 @@ async def test_context_resolution_runs_off_the_loop_thread(tmp_path, monkeypatch
     runner = _runner_with_store(tmp_path, monkeypatch)
     result = await runner._handle_model_command(_event("/model gpt-5.5"))
 
-    assert result is not None and "gpt-5.5" in result
+    assert result is not None and "GPT-5.5" in result
     assert seen.get("threads"), "handler never resolved the context length"
     assert all(th is not loop_thread for th in seen["threads"]), (
         "resolve_display_context_length ran on the event loop thread — "
@@ -140,7 +140,7 @@ async def test_warning_enrichment_is_offloaded(tmp_path, monkeypatch):
     runner = _runner_with_store(tmp_path, monkeypatch)
     result = await runner._handle_model_command(_event("/model gpt-5.5"))
 
-    assert result is not None and "gpt-5.5" in result
+    assert result is not None and "GPT-5.5" in result
     assert context_switch_guard.enrich_model_switch_warnings_for_gateway in offloaded, (
         "enrich_model_switch_warnings_for_gateway must be dispatched via "
         "asyncio.to_thread (it was called inline on the event loop instead)"
