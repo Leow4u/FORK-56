@@ -2772,6 +2772,7 @@ export interface Translations {
     modelMenu: {
       search: string
       noModels: string
+      models: string
       editModels: string
       refreshModels: string
       fast: string

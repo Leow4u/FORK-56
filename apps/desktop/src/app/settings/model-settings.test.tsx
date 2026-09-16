@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { displayModelName } from '@/lib/model-status-label'
+
 // Radix Select calls scrollIntoView on its items when the content opens; jsdom
 // doesn't implement it (nor hasPointerCapture / releasePointerCapture), so stub
 // them to let the dropdown open in tests.
@@ -247,7 +249,7 @@ describe('ModelSettings', () => {
 
     const modelSelect = (await screen.findAllByRole('combobox'))[1]
     fireEvent.click(modelSelect)
-    fireEvent.click(await screen.findByRole('option', { name: 'qwen3:latest' }))
+    fireEvent.click(await screen.findByRole('option', { name: displayModelName('qwen3:latest') }))
 
     fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
 
@@ -479,7 +481,7 @@ describe('ModelSettings MoA preset editor', () => {
       await vi.advanceTimersByTimeAsync(700)
 
       fireEvent.click(slotSelects().ref1Model)
-      fireEvent.click(await screen.findByRole('option', { name: 'anthropic/claude-opus-4.8' }))
+      fireEvent.click(await screen.findByRole('option', { name: displayModelName('anthropic/claude-opus-4.8') }))
       await vi.advanceTimersByTimeAsync(700)
 
       expect(saveMoaModels).toHaveBeenCalledTimes(1)

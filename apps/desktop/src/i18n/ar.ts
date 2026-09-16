@@ -2926,7 +2926,8 @@ export const ar = defineLocale({
     modelMenu: {
       search: 'البحث عن نموذج...',
       noModels: 'لا توجد نماذج',
-      editModels: 'تحرير النماذج',
+      models: 'النماذج',
+      editModels: 'إضافة نماذج',
       refreshModels: 'تحديث النماذج',
       fast: 'سريع'
     },

@@ -3072,7 +3072,8 @@ export const zhHant = defineLocale({
     modelMenu: {
       search: '搜尋模型',
       noModels: '找不到模型',
-      editModels: '編輯模型…',
+      models: '模型',
+      editModels: '新增模型',
       refreshModels: '重新整理模型',
       fast: '快速'
     },
