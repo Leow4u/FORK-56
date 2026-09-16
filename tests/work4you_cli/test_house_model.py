@@ -167,6 +167,7 @@ def test_featured_shortlist_is_official_and_includes_house():
     assert featured
     assert set(featured) <= official
     assert featured[0] == WORK4YOU_HOUSE_MODEL_ID
+    assert WORK4YOU_HOUSE_MODEL_ID in featured
     assert "anthropic/claude-fable-5" in featured
     assert "anthropic/claude-opus-5" in featured
     assert "anthropic/claude-sonnet-5" in featured

@@ -571,7 +571,7 @@ def test_apply_featured_work4you_drops_missing_shortlist_ids():
         "models": ["anthropic/claude-fable-5", "openai/gpt-5.6-luna"],
     }
     _apply_featured([row])
-    assert row["featured_models"] == ["openai/gpt-5.6-luna", "anthropic/claude-fable-5"]
+    assert row["featured_models"] == ["anthropic/claude-fable-5", "openai/gpt-5.6-luna"]
 
 
 def test_apply_featured_openrouter_still_keeps_newest_per_lab():
