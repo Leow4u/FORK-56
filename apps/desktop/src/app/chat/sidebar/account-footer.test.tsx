@@ -47,8 +47,8 @@ function installCloud(status: {
   return { logout, openExternal, statusFn }
 }
 
-function openMenu(triggerName: string) {
-  const trigger = screen.getByRole('button', { name: triggerName })
+async function openMenu(triggerName: string) {
+  const trigger = await screen.findByRole('button', { name: triggerName })
 
   fireEvent.pointerDown(trigger, { button: 0 })
 
@@ -103,7 +103,7 @@ describe('AccountFooter', () => {
     installCloud({ signedIn: true, email: 'user@example.com' })
 
     renderFooter()
-    openMenu('user@example.com')
+    await openMenu('user@example.com')
 
     fireEvent.click(await screen.findByRole('menuitem', { name: /^settings$/i }))
     expect(screen.getByTestId('location').textContent).toBe('/settings')
@@ -113,7 +113,7 @@ describe('AccountFooter', () => {
     installCloud({ signedIn: true, email: 'user@example.com' })
 
     renderFooter()
-    openMenu('user@example.com')
+    await openMenu('user@example.com')
 
     fireEvent.click(await screen.findByRole('menuitem', { name: /^shortcuts$/i }))
     expect(screen.getByTestId('location').textContent).toBe('/settings?tab=keybinds')
@@ -123,12 +123,12 @@ describe('AccountFooter', () => {
     const { openExternal } = installCloud({ signedIn: true, email: 'user@example.com' })
 
     renderFooter()
-    openMenu('user@example.com')
+    await openMenu('user@example.com')
 
     fireEvent.click(await screen.findByRole('menuitem', { name: /^docs$/i }))
     expect(openExternal).toHaveBeenCalledWith(ACCOUNT_DOCS_URL)
 
-    openMenu('user@example.com')
+    await openMenu('user@example.com')
     fireEvent.click(await screen.findByRole('menuitem', { name: /^contact us$/i }))
     expect(openExternal).toHaveBeenCalledWith(ACCOUNT_CONTACT_URL)
   })
@@ -137,7 +137,7 @@ describe('AccountFooter', () => {
     const { logout } = installCloud({ signedIn: true, email: 'user@example.com' })
 
     renderFooter()
-    openMenu('user@example.com')
+    await openMenu('user@example.com')
 
     fireEvent.click(await screen.findByRole('menuitem', { name: /^log out$/i }))
 
@@ -148,7 +148,7 @@ describe('AccountFooter', () => {
     expect(logout).toHaveBeenCalledTimes(1)
     expect(await screen.findByRole('button', { name: 'Account' })).toBeTruthy()
 
-    openMenu('Account')
+    await openMenu('Account')
     expect(await screen.findByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: /^log out$/i })).toBeNull()
   })
@@ -174,12 +174,12 @@ describe('AccountFooter', () => {
     expect(screen.queryByRole('menuitem', { name: /^log out$/i })).toBeNull()
   })
 
-  it('keeps the account menu without the desktop bridge (web / tests)', () => {
+  it('keeps the account menu without the desktop bridge (web / tests)', async () => {
     delete desktopWindow.work4youDesktop
 
     renderFooter()
 
-    openMenu('Account')
+    await openMenu('Account')
     expect(screen.getByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: /^log out$/i })).toBeNull()
   })
@@ -193,7 +193,7 @@ describe('AccountFooter', () => {
       await statusFn.mock.results[0]?.value
     })
 
-    openMenu('Account')
+    await openMenu('Account')
     expect(await screen.findByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
     expect(screen.queryByRole('menuitem', { name: /^log out$/i })).toBeNull()
   })
