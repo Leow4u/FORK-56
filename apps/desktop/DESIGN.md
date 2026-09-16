@@ -216,7 +216,8 @@ Notes:
   card as a sibling vessel, not a well inside it: same width, same
   `rounded-3xl`, the surface hairline, a complete rounded top of its own.
   The prompt card sits slightly on the tray (`shadow-work4you`); occupied
-  chat keeps the coding-status strip.
+  git chats keep the coding-status strip. Without git, occupied composer
+  is the prompt card only.
 - **Inline widgets** — a tool result that renders as a panel the user reads or
   acts on (clarify, artifact card) wears `WIDGET_SHELL_CLASS`
   (`src/components/chat/widget-shell.ts`): shared radius, the

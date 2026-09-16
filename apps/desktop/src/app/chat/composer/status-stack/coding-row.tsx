@@ -17,7 +17,6 @@ import { DiffCount } from '@/components/ui/diff-count'
 import type { Work4YouGitBranch } from '@/global'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
-import { FolderOpen } from '@/lib/icons'
 import { openWorktreeDialog, registerRepoStatusCwd, repoStatusForCwd, repoWorktreesForCwd } from '@/store/coding-status'
 import { notifyError } from '@/store/notifications'
 import { $pullRequestsByBranch, branchPrKey, refreshPullRequests } from '@/store/pull-requests'
@@ -46,7 +45,8 @@ interface CodingStatusRowProps {
   onSwitchBranch?: (branch: string) => Promise<void>
   /** Repo root path for the worktree dialog. */
   repoPath?: null | string
-  /** Occupied chat: paint workspace name as quiet identity. Empty chat uses Select workspace. */
+  /** Occupied git chat: paint workspace name as quiet identity on the branch strip.
+   *  Empty chat uses Select workspace. Ungitted occupied composer has no folder bar. */
   showWorkspaceName?: boolean
 }
 
@@ -121,21 +121,7 @@ export const CodingStatusRow = memo(function CodingStatusRow({
   }
 
   if (!status) {
-    if (!showWorkspaceName) {
-      return null
-    }
-
-    return (
-      <StatusRow
-        className="coding-status-bar min-h-7 rounded-t-[inherit] rounded-b-none border-b border-(--ui-stroke-tertiary) px-3.5 py-1.5 hover:bg-transparent"
-        leading={<FolderOpen aria-hidden className="size-3 text-muted-foreground/80" />}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-1" data-slot="workspace-context-strip">
-          <WorkspaceNameButton cwd={resolvedRepoPath} />
-          <WorkspaceConnectionSegment />
-        </div>
-      </StatusRow>
-    )
+    return null
   }
 
   const branchLabel = status.detached ? s.detached : status.branch || s.noBranch
