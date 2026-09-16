@@ -3915,13 +3915,14 @@ export const en: Translations = {
     approval: {
       gatewayDisconnected: 'Work4You gateway is not connected',
       sendFailed: 'Could not send approval response',
-      run: 'Run',
-      command: 'Command',
+      title: 'Allow this command?',
+      allow: 'Allow',
+      notNow: 'Not now',
+      more: 'More',
       moreOptions: 'More approval options',
       allowSession: 'Allow this session',
       alwaysAllowMenu: 'Always allow…',
       jumpToApproval: 'Approval needed',
-      reject: 'Reject',
       alwaysTitle: 'Always allow this command?',
       alwaysDescription: pattern =>
         `This adds the “${pattern}” pattern to your permanent allowlist (~/.work4you/config.yaml). Work4You won’t ask again for commands like this — in this session or any future one.`,

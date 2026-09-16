@@ -3239,13 +3239,14 @@ export const ar = defineLocale({
     approval: {
       gatewayDisconnected: 'البوابة غير متصلة',
       sendFailed: 'فشل الإرسال',
-      run: 'تشغيل',
-      command: 'الأمر',
+      title: 'السماح بهذا الأمر؟',
+      allow: 'سماح',
+      notNow: 'ليس الآن',
+      more: 'المزيد',
       moreOptions: 'خيارات إضافية',
       allowSession: 'السماح لهذه الجلسة',
       alwaysAllowMenu: 'السماح دائما',
       jumpToApproval: 'الموافقة مطلوبة',
-      reject: 'رفض',
       alwaysTitle: 'السماح دائما',
       alwaysDescription: pattern => `السماح دائما بالأوامر المطابقة لـ ${pattern}`,
       alwaysAllow: 'السماح دائما'

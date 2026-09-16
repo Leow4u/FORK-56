@@ -3142,13 +3142,14 @@ export interface Translations {
     approval: {
       gatewayDisconnected: string
       sendFailed: string
-      run: string
-      command: string
+      title: string
+      allow: string
+      notNow: string
+      more: string
       moreOptions: string
       allowSession: string
       alwaysAllowMenu: string
       jumpToApproval: string
-      reject: string
       alwaysTitle: string
       alwaysDescription: (pattern: string) => string
       alwaysAllow: string

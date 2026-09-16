@@ -3426,13 +3426,14 @@ export const zhHant = defineLocale({
     approval: {
       gatewayDisconnected: 'Work4You 閘道未連線',
       sendFailed: '無法傳送核准回應',
-      run: '執行',
-      command: '指令',
+      title: '允許執行此指令？',
+      allow: '允許',
+      notNow: '暫不',
+      more: '更多',
       moreOptions: '更多核准選項',
       allowSession: '允許本工作階段',
       alwaysAllowMenu: '一律允許…',
       jumpToApproval: '需要核准',
-      reject: '拒絕',
       alwaysTitle: '一律允許此指令？',
       alwaysDescription: pattern =>
         `這會將「${pattern}」模式加入永久允許清單（~/.work4you/config.yaml）。Work4You 對類似指令將不再詢問，包括目前工作階段和未來工作階段。`,
