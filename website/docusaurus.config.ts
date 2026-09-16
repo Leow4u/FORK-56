@@ -167,6 +167,7 @@ const config: Config = {
           title: 'Community',
           items: [
             { label: 'Skills Hub', href: 'https://agentskills.io' },
+            { label: 'Contact Us', href: 'https://work4you.ai/contact/' },
           ],
         },
         {
