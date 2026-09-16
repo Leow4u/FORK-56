@@ -219,6 +219,15 @@ export const ja = defineLocale({
     openStarmap: 'メモリグラフを開く'
   },
 
+  accountMenu: {
+    account: 'アカウント',
+    settings: '設定',
+    docs: 'ドキュメント',
+    shortcuts: 'ショートカット',
+    contactUs: 'お問い合わせ',
+    logOut: 'ログアウト'
+  },
+
   language: {
     label: '言語',
     description: 'デスクトップインターフェイスの言語を選択します。',

@@ -213,6 +213,15 @@ export const zhHant = defineLocale({
     openStarmap: '開啟記憶圖譜'
   },
 
+  accountMenu: {
+    account: '帳戶',
+    settings: '設定',
+    docs: '文件',
+    shortcuts: '快捷鍵',
+    contactUs: '聯絡我們',
+    logOut: '登出'
+  },
+
   language: {
     label: '語言',
     description: '選擇桌面介面的語言。',

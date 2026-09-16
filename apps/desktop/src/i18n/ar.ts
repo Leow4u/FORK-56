@@ -191,6 +191,16 @@ export const ar = defineLocale({
     layoutEditor: 'محرر التخطيط',
     layoutEditorTitle: modifier => `محرر التخطيط — انقر مع ${modifier} لإعادة ضبط التخطيط`
   },
+
+  accountMenu: {
+    account: 'الحساب',
+    settings: 'الإعدادات',
+    docs: 'الوثائق',
+    shortcuts: 'الاختصارات',
+    contactUs: 'تواصل معنا',
+    logOut: 'تسجيل الخروج'
+  },
+
   keybinds: {
     title: 'اختصارات لوحة المفاتيح',
     subtitle: open => `انقر على اختصار لإعادة تعيينه · ${open} يعيد فتح هذه اللوحة.`,

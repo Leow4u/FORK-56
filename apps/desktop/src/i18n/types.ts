@@ -264,6 +264,15 @@ export interface Translations {
     layoutEditorTitle: (modifier: string) => string
   }
 
+  accountMenu: {
+    account: string
+    settings: string
+    docs: string
+    shortcuts: string
+    contactUs: string
+    logOut: string
+  }
+
   keybinds: {
     title: string
     subtitle: (open: string) => string
