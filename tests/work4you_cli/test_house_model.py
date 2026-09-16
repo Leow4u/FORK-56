@@ -158,15 +158,15 @@ def test_free_tier_collapses_legacy_and_canonical_house_ids():
     assert "deepseek/deepseek-v4-flash-0731" not in selectable
 
 
-def test_featured_shortlist_is_official_and_excludes_house():
-    """Default-on picker rows stay inside the official catalog and skip Operis."""
+def test_featured_shortlist_is_official_and_includes_house():
+    """Default-on picker rows stay inside the official catalog and keep Operis."""
     from work4you_cli.models import WORK4YOU_FEATURED_MODEL_IDS, _PROVIDER_MODELS
 
     official = set(_PROVIDER_MODELS["work4you"])
     featured = WORK4YOU_FEATURED_MODEL_IDS
     assert featured
     assert set(featured) <= official
-    assert WORK4YOU_HOUSE_MODEL_ID not in featured
+    assert featured[0] == WORK4YOU_HOUSE_MODEL_ID
     assert "anthropic/claude-fable-5" in featured
     assert "anthropic/claude-opus-5" in featured
     assert "anthropic/claude-sonnet-5" in featured

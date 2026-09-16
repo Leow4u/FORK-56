@@ -269,6 +269,7 @@ describe('featured defaults', () => {
       'moonshotai/kimi-k3'
     ]
     const featured = [
+      'openai/gpt-5.6-luna',
       'anthropic/claude-fable-5',
       'anthropic/claude-opus-5',
       'anthropic/claude-sonnet-5',
@@ -282,9 +283,9 @@ describe('featured defaults', () => {
     ]
     const visible = defaultVisibleKeys([featuredProvider('work4you', catalog, featured)])
 
+    expect(visible.has(modelVisibilityKey('work4you', 'openai/gpt-5.6-luna'))).toBe(true)
     expect(visible.has(modelVisibilityKey('work4you', 'anthropic/claude-fable-5'))).toBe(true)
     expect(visible.has(modelVisibilityKey('work4you', 'openai/gpt-5.6-luna-pro'))).toBe(true)
-    expect(visible.has(modelVisibilityKey('work4you', 'openai/gpt-5.6-luna'))).toBe(false)
     expect(visible.has(modelVisibilityKey('work4you', 'anthropic/claude-opus-4.8'))).toBe(false)
     expect(visible.has(modelVisibilityKey('work4you', 'google/gemini-3.1-pro-preview'))).toBe(false)
     expect(visible.has(modelVisibilityKey('work4you', 'moonshotai/kimi-k3'))).toBe(false)

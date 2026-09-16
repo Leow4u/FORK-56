@@ -679,7 +679,9 @@ _WORK4YOU_HOUSE_MODEL_SLUGS = frozenset({
 # Default-on composer / Edit Models shortlist for the Portal picker.
 # Inventory attaches these as ``featured_models``; every other official
 # catalog id stays in ``models`` with the visibility toggle off.
+# Operis (house) stays on so a Free first-run still sees the selected model.
 WORK4YOU_FEATURED_MODEL_IDS: tuple[str, ...] = (
+    WORK4YOU_HOUSE_MODEL_ID,
     "anthropic/claude-fable-5",
     "anthropic/claude-opus-5",
     "anthropic/claude-sonnet-5",

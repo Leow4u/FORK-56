@@ -555,12 +555,11 @@ def test_apply_featured_work4you_uses_official_shortlist():
     featured = row["featured_models"]
     assert featured == [model for model in catalog if model in WORK4YOU_FEATURED_MODEL_IDS]
     assert set(featured) == set(WORK4YOU_FEATURED_MODEL_IDS)
-    assert WORK4YOU_HOUSE_MODEL_ID not in featured
+    assert WORK4YOU_HOUSE_MODEL_ID in featured
     assert "anthropic/claude-opus-4.8" not in featured
     assert "openai/gpt-5.6-sol-pro" not in featured
     assert "google/gemini-3.1-pro-preview" not in featured
     # Off-toggle models stay in the catalog.
-    assert WORK4YOU_HOUSE_MODEL_ID in catalog
     assert "anthropic/claude-opus-4.8" in catalog
 
 
@@ -572,7 +571,7 @@ def test_apply_featured_work4you_drops_missing_shortlist_ids():
         "models": ["anthropic/claude-fable-5", "openai/gpt-5.6-luna"],
     }
     _apply_featured([row])
-    assert row["featured_models"] == ["anthropic/claude-fable-5"]
+    assert row["featured_models"] == ["openai/gpt-5.6-luna", "anthropic/claude-fable-5"]
 
 
 def test_apply_featured_openrouter_still_keeps_newest_per_lab():
