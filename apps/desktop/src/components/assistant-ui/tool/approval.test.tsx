@@ -71,11 +71,16 @@ describe('PendingToolApproval', () => {
     setRequest('chmod -R 777 /tmp/x')
     render(<PendingToolApproval part={part('terminal')} />)
 
-    expect(screen.getByRole('group', { name: 'Allow this command?' })).toBeTruthy()
+    const panel = screen.getByRole('group', { name: 'Allow this command?' })
+
+    expect(panel).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Allow' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Not now' })).toBeTruthy()
     expect(screen.getByText('dangerous command')).toBeTruthy()
     expect(screen.getByText('chmod -R 777 /tmp/x')).toBeTruthy()
+    // Widget contract: the panel is the read surface; actions sit below it.
+    expect(within(panel).queryByRole('button', { name: 'Allow' })).toBeNull()
+    expect(within(panel).queryByRole('button', { name: 'Not now' })).toBeNull()
   })
 
   it('sends approval.respond {choice: "once"} and clears the request on Allow', async () => {

@@ -172,26 +172,26 @@ const ApprovalCard: FC<{ request: ApprovalRequest; surface: 'floating' | 'inline
 
   return (
     <div
-      aria-label={copy.title}
-      className={cn(APPROVAL_SHELL_CLASS, surface === 'inline' && 'mt-1.5')}
+      className={cn(surface === 'inline' && 'mt-1.5')}
       data-slot={surface === 'inline' ? 'tool-approval-inline' : 'tool-approval-actions'}
-      role="group"
     >
-      <p className="font-medium leading-(--conversation-line-height)">{copy.title}</p>
-      {reason ? <p className="mt-0.5 text-[0.6875rem] text-(--ui-text-tertiary)">{reason}</p> : null}
-      {command ? (
-        <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-[0.75rem] leading-snug text-(--ui-text-secondary)">
-          {command}
-        </pre>
-      ) : null}
+      <div aria-label={copy.title} className={APPROVAL_SHELL_CLASS} role="group">
+        <p className="font-medium leading-(--conversation-line-height)">{copy.title}</p>
+        {reason ? <p className="mt-0.5 text-[0.6875rem] text-(--ui-text-tertiary)">{reason}</p> : null}
+        {command ? (
+          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-[0.75rem] leading-snug text-(--ui-text-secondary)">
+            {command}
+          </pre>
+        ) : null}
+      </div>
 
-      <div className="mt-3 flex items-center justify-end gap-1">
+      <div className="mt-1 flex items-center justify-end gap-1">
         {hasMoreOptions && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button aria-label={copy.moreOptions} disabled={busy} size="xs" variant="text">
                 {copy.more}
-                <ChevronDown className="size-3" />
+                <ChevronDown />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-44">
@@ -215,10 +215,10 @@ const ApprovalCard: FC<{ request: ApprovalRequest; surface: 'floating' | 'inline
         )}
 
         <Button disabled={busy} onClick={() => void respond('deny')} size="xs" variant="text">
-          {submitting === 'deny' ? <Loader2 className="size-3 animate-spin" /> : copy.notNow}
+          {submitting === 'deny' ? <Loader2 className="animate-spin" /> : copy.notNow}
         </Button>
         <Button disabled={busy} onClick={() => void respond('once')} size="xs">
-          {submitting === 'once' ? <Loader2 className="size-3 animate-spin" /> : copy.allow}
+          {submitting === 'once' ? <Loader2 className="animate-spin" /> : copy.allow}
         </Button>
       </div>
 
