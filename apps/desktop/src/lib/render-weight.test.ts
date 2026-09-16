@@ -108,6 +108,22 @@ describe('messagePaintWeight', () => {
     expect(messagePaintWeight(parts)).toBeLessThan(messageStoreWeight(parts) / 5)
   })
 
+  it('prices a folded product turn as one diary line plus the answer', () => {
+    const parts = [
+      { type: 'reasoning', text: 'x'.repeat(RENDER_WEIGHT_CHARS * 8) },
+      bigResult(RENDER_WEIGHT_CHARS * 40),
+      bigResult(RENDER_WEIGHT_CHARS * 40),
+      { type: 'text', text: 'Here is the deck.' }
+    ]
+
+    expect(messagePaintWeight(parts, { foldSettledDiary: true })).toBeLessThan(messagePaintWeight(parts))
+    expect(messagePaintWeight(parts, { foldSettledDiary: true })).toBe(messagePaintWeight([{ type: 'text', text: 'Here is the deck.' }]) + 1)
+  })
+
+  it('charges a hidden interim nothing', () => {
+    expect(messagePaintWeight([{ type: 'text', text: 'Let me look.' }], { hidden: true })).toBe(0)
+  })
+
   it('bounds a message of many enormous parts', () => {
     const parts = Array.from({ length: 50 }, () => ({
       type: 'text',

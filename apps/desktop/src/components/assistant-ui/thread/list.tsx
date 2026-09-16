@@ -20,6 +20,7 @@ import { type GetTargetScrollTop, useStickToBottom } from 'use-stick-to-bottom'
 import { usePaneLifecycle } from '@/components/pane-shell/pane-visibility'
 import { useI18n } from '@/i18n'
 import { messagePaintWeight } from '@/lib/render-weight'
+import { isLastAssistantInTurn, isMessageInLastTurn } from '@/lib/turn-fold'
 import { cn } from '@/lib/utils'
 import {
   onScrollToBottomRequest,
@@ -28,6 +29,7 @@ import {
   resetThreadScroll,
   setThreadAtBottom
 } from '@/store/thread-scroll'
+import { $toolViewMode } from '@/store/tool-view'
 import { isSecondaryWindow } from '@/store/windows'
 
 import { MessageRenderBoundary } from '../message-render-boundary'
@@ -42,10 +44,10 @@ export type MessageGroup = { id: string; weight: number } & (
 
 // DOM is bounded by a render-cost budget, not a message/turn count. The
 // currency is `messagePaintWeight`: what a turn actually MOUNTS, which is what
-// the grouping decides rather than what the payload weighs. A settled run of
-// twelve reads is one grey summary line, a thought is one collapsed
-// disclosure, a hoisted `todo` is nothing — while a diff, an image card or a
-// wall of markdown really does build DOM and is charged for it.
+// the grouping decides rather than what the payload weighs. A settled Product
+// turn is one Worked-for line plus the answer; Technical still prices each
+// collapsed thought/run. A hoisted `todo` is nothing — while a stay-out card
+// or a wall of markdown really does build DOM and is charged for it.
 //
 // Pricing by payload instead had the budget counting work that never mounts:
 // one tool-heavy turn measured 84-281 units of tool JSON that painted as a
@@ -375,9 +377,27 @@ const ThreadMessageListInner: FC<ThreadMessageListProps> = ({
     s.thread.messages.map((message, index) => `${index}:${message.id}:${message.role}`).join('\n')
   )
 
-  const weightSignature = useAuiState(s =>
-    s.thread.messages.map(message => messagePaintWeight(message.content)).join(',')
-  )
+  const toolViewMode = useStore($toolViewMode)
+  const weightSignature = useAuiState(s => {
+    const roles = s.thread.messages.map(message => message.role)
+    const threadRunning = s.thread.isRunning
+
+    return s.thread.messages
+      .map((message, index) => {
+        const running = message.status?.type === 'running'
+        const live = threadRunning && isMessageInLastTurn(roles, index)
+        const fold = toolViewMode === 'product' && !running && !live
+        const host = isLastAssistantInTurn(roles, index)
+
+        return String(
+          messagePaintWeight(message.content, {
+            foldSettledDiary: fold && host,
+            hidden: fold && !host && message.role === 'assistant'
+          })
+        )
+      })
+      .join(',')
+  })
 
   const { t } = useI18n()
   // Row structure is memoized on the STRUCTURAL signature only, so streaming
