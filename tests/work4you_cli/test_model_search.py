@@ -33,3 +33,10 @@ def test_house_search_aliases_omit_retired_flash_name():
     assert "operis" in hay
     assert "operis 4.0" in hay
     assert "flash" not in hay
+
+
+def test_filter_indices_surfaces_hy3_for_hunyuan_query():
+    models = ["tencent/hy3", "z-ai/glm-5.2"]
+    haystacks = [model_search_text(m) for m in models]
+    ranked = [models[i] for i in _filter_indices(haystacks, "hunyuan")]
+    assert "tencent/hy3" in ranked

@@ -699,6 +699,53 @@ def canonical_work4you_house_model_id(model_id: str) -> str:
     return model_id or ""
 
 
+# Cursor-style commercial labels for the official Work4You catalog.
+# Display only — wire ids stay unchanged. House (Operis) is not listed here.
+_CURATED_MODEL_DISPLAY: dict[str, str] = {
+    "claude-fable-5": "Claude Fable 5",
+    "claude-opus-5": "Claude Opus 5",
+    "claude-opus-4.8": "Claude Opus 4.8",
+    "claude-sonnet-5": "Claude Sonnet 5",
+    "claude-haiku-4.5": "Claude Haiku 4.5",
+    "gpt-5.6-sol": "GPT-5.6 Sol",
+    "gpt-5.6-sol-pro": "GPT-5.6 Sol Pro",
+    "gpt-5.6-terra": "GPT-5.6 Terra",
+    "gpt-5.6-terra-pro": "GPT-5.6 Terra Pro",
+    "gpt-5.6-luna-pro": "GPT-5.6 Luna Pro",
+    "gpt-5.5": "GPT-5.5",
+    "gpt-5.5-pro": "GPT-5.5 Pro",
+    "gpt-5.4-mini": "GPT-5.4 Mini",
+    "gemini-3.1-pro-preview": "Gemini 3.1 Pro",
+    "gemini-3.7-flash": "Gemini 3.7 Flash",
+    "grok-4.6": "Grok 4.6",
+    "qwen3.8-max": "Qwen 3.8 Max",
+    "kimi-k3": "Kimi K3",
+    "minimax-m3": "MiniMax M3",
+    "glm-5.2": "GLM 5.2",
+    "glm-5.1": "GLM 5.1",
+    "mimo-v2.5-pro": "MiMo 2.5 Pro",
+    "hy3": "Hunyuan 3",
+    "step-3.7-flash": "Step 3.7 Flash",
+    "nemotron-3-super-120b-a12b": "Nemotron 3 Super",
+    "fugu-ultra": "Fugu Ultra",
+}
+_CURATED_VARIANT_SUFFIXES = ("-fast", "-thinking", "-latest")
+
+
+def curated_model_display(model_id: str) -> str | None:
+    """Return the commercial chrome label for an official catalog slug, or None."""
+    slug = (model_id or "").strip().lower().rsplit("/", 1)[-1]
+    if not slug:
+        return None
+    found = _CURATED_MODEL_DISPLAY.get(slug)
+    if found:
+        return found
+    for suffix in _CURATED_VARIANT_SUFFIXES:
+        if slug.endswith(suffix):
+            return _CURATED_MODEL_DISPLAY.get(slug[: -len(suffix)])
+    return None
+
+
 def _is_model_free(model_id: str, pricing: dict[str, dict[str, str]]) -> bool:
     """Return True if *model_id* has zero-cost prompt AND completion pricing."""
     p = pricing.get(model_id)

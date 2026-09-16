@@ -405,7 +405,8 @@ def format_model_for_display(model_name: str) -> str:
     The Free-plan house model keeps its wire id (GPT-5.6 Luna, plus
     leftover Gemini 3.8 Flash and DeepSeek Flash dated-snapshot sessions)
     but renders as Operis so splash/status/picker chrome never leak the
-    upstream name. Also strips
+    upstream name. Official catalog ids use the curated commercial label
+    (``Claude Opus 5``, ``Hunyuan 3``, …). Also strips
     known opaque proxy prefixes
     (Palantir Foundry's ``ri.language-model-service..language-model.*``)
     and returns the trailing slug. Falls through to the original string
@@ -422,11 +423,15 @@ def format_model_for_display(model_name: str) -> str:
     # function. A top-level import here would cycle at startup.
     from work4you_cli.models import (
         WORK4YOU_HOUSE_MODEL_DISPLAY,
+        curated_model_display,
         is_work4you_house_model,
     )
 
     if is_work4you_house_model(model_name):
         return WORK4YOU_HOUSE_MODEL_DISPLAY
+    curated = curated_model_display(model_name)
+    if curated:
+        return curated
     for prefix in _OPAQUE_MODEL_PREFIXES:
         if model_name.startswith(prefix):
             tail = model_name[len(prefix):]

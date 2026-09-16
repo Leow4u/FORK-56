@@ -28,10 +28,12 @@ describe("model-status-label", () => {
   });
 
   it("does not treat paid Luna, DeepSeek, or Gemini siblings as Operis", () => {
-    expect(displayModelName("openai/gpt-5.6-luna-pro")).not.toBe("Operis 4.0");
+    expect(displayModelName("openai/gpt-5.6-luna-pro")).toBe("GPT-5.6 Luna Pro");
     expect(displayModelName("deepseek/deepseek-v4-flash")).not.toBe(
       "Operis 4.0",
     );
-    expect(displayModelName("google/gemini-3.7-flash")).not.toBe("Operis 4.0");
+    expect(displayModelName("google/gemini-3.7-flash")).toBe("Gemini 3.7 Flash");
+    expect(displayModelName("anthropic/claude-opus-5")).toBe("Claude Opus 5");
+    expect(displayModelName("tencent/hy3")).toBe("Hunyuan 3");
   });
 });
