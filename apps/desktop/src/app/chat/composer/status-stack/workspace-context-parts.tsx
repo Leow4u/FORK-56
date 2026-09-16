@@ -7,7 +7,6 @@ import { $projectTree } from '@/store/projects'
 
 import { workspaceChipLabel } from './workspace-chip-label'
 import { workspaceConnectionLabel } from './workspace-connection-label'
-import { WorkspaceSelectMenu } from './workspace-select-menu'
 
 export function ContextDot() {
   return (
@@ -17,28 +16,23 @@ export function ContextDot() {
   )
 }
 
+/** Occupied-chat identity only. Setup (Open folder / Remote / New project) stays
+ *  on empty-chat Select workspace and Sidebar → Projects. */
 export function WorkspaceNameButton({ cwd }: { cwd?: null | string }) {
   const { t } = useI18n()
   const homeLabel = t.sidebar.projects.home
-  const selectLabel = t.commandCenter.selectWorkspace
   useStore($projectTree)
   const name = workspaceChipLabel(cwd, homeLabel)
   const path = (cwd ?? '').trim()
-  const tip = path ? `${selectLabel} — ${displayPath(path)}` : selectLabel
 
   return (
-    <WorkspaceSelectMenu tooltip={tip}>
-      <button
-        aria-label={selectLabel}
-        className="min-w-0 max-w-36 truncate rounded-md px-0.5 text-xs font-normal text-muted-foreground/92 hover:bg-(--chrome-action-hover) hover:text-foreground"
-        data-slot="workspace-name"
-        onClick={event => event.stopPropagation()}
-        onPointerDown={event => event.stopPropagation()}
-        type="button"
-      >
-        {name}
-      </button>
-    </WorkspaceSelectMenu>
+    <span
+      className="min-w-0 max-w-36 truncate text-xs font-normal text-muted-foreground/92"
+      data-slot="workspace-name"
+      title={path ? displayPath(path) : name}
+    >
+      {name}
+    </span>
   )
 }
 

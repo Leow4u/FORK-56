@@ -53,7 +53,9 @@ describe('CodingStatusRow without git', () => {
 
     renderRow(<CodingStatusRow repoPath="/repos/notes" showWorkspaceName />)
 
-    expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('notes')
+    expect(screen.getByText('notes')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
+    expect(screen.queryByRole('menu')).toBeNull()
     expect(screen.getByText('Work4You Cloud')).toBeTruthy()
     expect(screen.queryByText('bb/hitbox')).toBeNull()
   })
