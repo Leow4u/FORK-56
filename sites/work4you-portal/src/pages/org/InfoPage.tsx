@@ -72,9 +72,9 @@ export function InfoPage() {
           <ul className={styles.modelList}>
             {AGENTIC_MODEL_SUGGESTIONS.map((row) => (
               <li key={row.id} className={styles.modelRow}>
-                <p className={styles.modelId}>{row.id}</p>
+                <p className={styles.modelId}>{row.label}</p>
                 <p className={styles.modelNote}>
-                  {row.label} — {row.note}
+                  <code>{row.id}</code> — {row.note}
                 </p>
               </li>
             ))}

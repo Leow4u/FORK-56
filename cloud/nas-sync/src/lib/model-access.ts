@@ -159,7 +159,7 @@ export function annotateModels(params: {
     }
     out.push({
       id: m.id,
-      name: m.name || m.id,
+      name: officialModelDisplayName(m.id),
       free: false,
       locked: !params.paidPlan,
       pricing: m.pricing,

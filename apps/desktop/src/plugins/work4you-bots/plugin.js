@@ -81,6 +81,12 @@ const blobatarSvg = typeof sdk === 'undefined' ? undefined : sdk.blobatarSvg
 // Budgeted render loop (fps cap + observability pause + dormancy + teardown).
 // Feature-detected: older desktops fall back to the hand-rolled clock below.
 const createBudgetedLoop = typeof sdk === 'undefined' ? undefined : sdk.createBudgetedLoop
+// Commercial catalog chrome (Operis 4.0, Claude Opus 5, …). Older SDKs without
+// the export keep the wire id so the plugin still loads on a stale desktop.
+const displayModelName =
+  typeof sdk === 'undefined' || typeof sdk.displayModelName !== 'function'
+    ? mid => String(mid || '')
+    : sdk.displayModelName
 
 const ID = 'work4you-bots'
 const ROSTER_KEY = [ID, 'roster']
@@ -5298,7 +5304,7 @@ function ModelPicker({ value, onChange, placeholderModel = 'gateway default' }) 
               children: [
                 jsx(SelectTrigger, { className: 'h-8 rounded-md', children: jsx(SelectValue, {}) }),
                 jsx(SelectContent, {
-                  children: models.map(m => jsx(SelectItem, { value: m, children: m }, m))
+                  children: models.map(m => jsx(SelectItem, { value: m, children: displayModelName(m) }, m))
                 })
               ]
             })

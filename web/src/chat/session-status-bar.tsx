@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { displayModelName } from "@/lib/model-status-label";
 import { cn } from "@/lib/utils";
 
 import type { ThinChatSessionInfo, ThinChatSessionUsage } from "./session-info";
@@ -31,10 +32,9 @@ export function SessionStatusBar({
   reconnecting = false,
   className,
 }: SessionStatusBarProps) {
-  const model =
-    info.model && info.provider
-      ? `${info.provider}/${info.model}`
-      : info.model || info.provider;
+  const model = info.model
+    ? displayModelName(info.model)
+    : info.provider || "";
 
   const hasUsage =
     usage &&

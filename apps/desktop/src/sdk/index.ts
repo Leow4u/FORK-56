@@ -1047,6 +1047,9 @@ export {
   type ReasoningEffort,
   reasoningEffortLabel
 } from '@/lib/reasoning-effort'
+/** Commercial catalog chrome — Operis 4.0, Claude Opus 5, … — same helper the
+ *  composer / settings pickers use. Plugins must not print raw wire ids. */
+export { displayModelName, modelDisplayParts } from '@/lib/model-status-label'
 /** The app's own gateway-readiness evaluation (setup.status +
  *  setup.runtime_check, reconciled) — pass `host.request`. Don't hand-roll
  *  readiness from raw RPC shapes. */

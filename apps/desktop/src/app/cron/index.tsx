@@ -31,6 +31,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { type Translations, useI18n } from '@/i18n'
 import { AlertTriangle } from '@/lib/icons'
 import { requestModelOptions } from '@/lib/model-options'
+import { displayModelName } from '@/lib/model-status-label'
 import { asText } from '@/lib/text'
 import { $cronFocusJobId, $cronJobs, invalidateCronJobsRequests, setCronFocusJobId } from '@/store/cron'
 import { $changeEventsAvailable, $cronChangeTick } from '@/store/live-sync'
@@ -140,7 +141,8 @@ function jobDeliver(job: CronJob): string {
 }
 
 function jobModel(job: CronJob): string {
-  return asText(job.model).trim()
+  const raw = asText(job.model).trim()
+  return raw ? displayModelName(raw) : ''
 }
 
 function jobProvider(job: CronJob): string {
@@ -1346,8 +1348,8 @@ function CronEditorDialog({
                   <SelectContent>
                     <SelectItem value={MODEL_DEFAULT_VALUE}>{c.modelDefault}</SelectItem>
                     {!modelChoiceKnown && (
-                      <SelectItem className="font-mono" value={modelChoice}>
-                        {modelChoice.slice(modelChoice.indexOf(':') + 1)}
+                      <SelectItem value={modelChoice}>
+                        {displayModelName(modelChoice.slice(modelChoice.indexOf(':') + 1))}
                       </SelectItem>
                     )}
                     {modelProviders.map(provider => (
@@ -1355,11 +1357,10 @@ function CronEditorDialog({
                         <SelectLabel>{provider.name}</SelectLabel>
                         {(provider.models ?? []).map(model => (
                           <SelectItem
-                            className="font-mono"
                             key={`${provider.slug}:${model}`}
                             value={`${provider.slug}:${model}`}
                           >
-                            {model}
+                            {displayModelName(model)}
                           </SelectItem>
                         ))}
                       </SelectGroup>

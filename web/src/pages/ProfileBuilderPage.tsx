@@ -22,6 +22,7 @@ import {
   type McpServerDraft,
   type McpTransport,
 } from "@/lib/mcp-server-create";
+import { displayModelName } from "@/lib/model-status-label";
 import { cn } from "@/lib/utils";
 
 // Profile name rule mirrors the backend (`^[a-z0-9][a-z0-9_-]{0,63}$`).
@@ -108,7 +109,7 @@ export default function ProfileBuilderPage() {
             flat.push({
               provider: prov.slug,
               model: m,
-              label: `${prov.name} · ${m}`,
+              label: `${prov.name} · ${displayModelName(m)}`,
             });
           }
         }
@@ -215,7 +216,12 @@ export default function ProfileBuilderPage() {
     if (!modelChoices) return [];
     const f = modelFilter.trim().toLowerCase();
     if (!f) return modelChoices;
-    return modelChoices.filter((c) => c.label.toLowerCase().includes(f));
+    return modelChoices.filter(
+      (c) =>
+        c.label.toLowerCase().includes(f) ||
+        c.model.toLowerCase().includes(f) ||
+        c.provider.toLowerCase().includes(f),
+    );
   }, [modelChoices, modelFilter]);
 
   const filteredSkills = useMemo(() => {

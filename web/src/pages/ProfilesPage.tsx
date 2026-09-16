@@ -44,6 +44,7 @@ import { Checkbox } from "@work4you/ui/ui/components/checkbox";
 import { useI18n } from "@/i18n";
 import { usePageHeader } from "@/contexts/usePageHeader";
 import { PageLoader } from "@/components/page-loader";
+import { displayModelName } from "@/lib/model-status-label";
 import { cn, themedBody } from "@/lib/utils";
 
 // Mirrors work4you_cli/profiles.py::_PROFILE_ID_RE so we can reject obviously
@@ -352,7 +353,7 @@ export default function ProfilesPage() {
             flat.push({
               provider: prov.slug,
               model: m,
-              label: `${prov.name} · ${m}`,
+              label: `${prov.name} · ${displayModelName(m)}`,
             });
           }
         }
@@ -641,7 +642,7 @@ export default function ProfilesPage() {
     setModelSaving(true);
     try {
       await api.setProfileModel(name, picked.provider, picked.model);
-      showToast(`${L.modelSaved}: ${picked.model}`, "success");
+      showToast(`${L.modelSaved}: ${displayModelName(picked.model)}`, "success");
       setProfiles((prev) =>
         prev.map((p) =>
           p.name === name
@@ -1175,7 +1176,7 @@ export default function ProfilesPage() {
                       <div className="mt-auto flex flex-col gap-0.5 pt-1 text-xs text-muted-foreground">
                         {p.model && (
                           <span className="truncate">
-                            {t.profiles.model}: {p.model}
+                            {t.profiles.model}: {displayModelName(p.model)}
                             {p.provider ? ` (${p.provider})` : ""}
                           </span>
                         )}

@@ -16,7 +16,7 @@ const apiMocks = vi.hoisted(() => ({
         slug: "openai-codex",
         models: ["gpt-5.4-mini"],
       },
-      { name: "Work4You", slug: "work4you", models: ["work4you-4"] },
+      { name: "Work4You", slug: "work4you", models: ["work4you-4", "openai/gpt-5.6-luna"] },
     ],
   })),
 }));
@@ -91,6 +91,13 @@ describe("FallbackModelsField", () => {
     expect(container.textContent).toContain("Add fallback");
     expect(container.textContent).not.toContain("[object Object]");
     expect(apiMocks.getModelOptions).toHaveBeenCalled();
+  });
+
+  it("labels catalog rows with the commercial name, not the wire id", async () => {
+    await renderField([{ provider: "work4you", model: "openai/gpt-5.6-luna" }]);
+
+    expect(container.textContent).toContain("Operis 4.0");
+    expect(container.textContent).not.toContain("openai/gpt-5.6-luna");
   });
 
   it("shows an empty-state hint when there are no fallbacks", async () => {
