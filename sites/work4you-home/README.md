@@ -29,3 +29,6 @@ npm run build
 Pages like Preços / Plataforma / Portal are **out of this home** for now.
 Rebuild them one by one and wire to the fork later — do not reintroduce
 duplicate login/portal CTAs on the landing.
+
+`/contact/` is a coming-soon placeholder (form later). Keep the Nav CTAs as
+they are; the footer is what points at Contact.

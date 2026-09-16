@@ -31,6 +31,10 @@
     "message": "Skills Hub",
     "description": "The label of footer link with label=Skills Hub linking to https://agentskills.io"
   },
+  "link.item.label.Contact Us": {
+    "message": "Fale conosco",
+    "description": "The label of footer link with label=Contact Us linking to https://work4you.ai/contact/"
+  },
   "link.item.label.Desktop Download": {
     "message": "Baixar Desktop",
     "description": "The label of footer link with label=Desktop Download linking to https://work4you.ai/"

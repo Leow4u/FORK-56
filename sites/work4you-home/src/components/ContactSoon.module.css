@@ -1,0 +1,37 @@
+.page {
+  min-height: calc(100vh - 12rem);
+  display: grid;
+  align-items: center;
+  padding: clamp(3rem, 8vw, 6rem) 0;
+}
+
+.inner {
+  max-width: 36rem;
+}
+
+.title {
+  margin: 0.85rem 0 0;
+  font-size: clamp(2.4rem, 5.5vw, 3.6rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+
+.soon {
+  margin: 1.25rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mata);
+}
+
+.lead {
+  margin: 1rem 0 0;
+  max-width: 32rem;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}

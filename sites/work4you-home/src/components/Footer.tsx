@@ -7,7 +7,8 @@ export function Footer() {
         <p className={styles.brand}>Work4You</p>
         <nav className={styles.links} aria-label="Footer">
           <a href="https://work4you.ai/docs/">Docs</a>
-          <a href="#install">Install</a>
+          <a href="/#install">Install</a>
+          <a href="/contact/">Contato</a>
           <a href="https://portal.work4you.ai/login">Fazer login</a>
           <a href="https://github.com/Leow4u/FORK-56">GitHub</a>
         </nav>

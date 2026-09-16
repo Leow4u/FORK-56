@@ -217,6 +217,15 @@ export const zh: Translations = {
     layoutEditorTitle: mod => `布局编辑器 — ${mod} 点击重置布局`
   },
 
+  accountMenu: {
+    account: '账户',
+    settings: '设置',
+    docs: '文档',
+    shortcuts: '快捷键',
+    contactUs: '联系我们',
+    logOut: '退出登录'
+  },
+
   keybinds: {
     title: '键盘快捷键',
     subtitle: open => `点击快捷键即可重新绑定 · ${open} 可重新打开此面板。`,

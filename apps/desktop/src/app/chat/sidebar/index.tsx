@@ -1951,8 +1951,8 @@ export function ChatSidebar({
           <ProfileRail />
         </div>
       </SidebarContent>
-      {/* Account (Portal login) footer — sits below everything, including the
-          Profile Rail. Renders nothing when signed out. */}
+      {/* Account footer is the human Portal login — below the Profile Rail,
+          never a substitute for it. Always shows the account menu. */}
       <AccountFooter />
       <ProjectDialog />
       {/* One mount for the whole app. The header of WorktreeDialog tells why. */}

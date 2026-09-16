@@ -4,7 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
-import { AccountFooter } from './account-footer'
+import { ACCOUNT_CONTACT_URL, ACCOUNT_DOCS_URL, AccountFooter } from './account-footer'
 
 beforeAll(() => {
   stubResizeObserver()
@@ -26,20 +26,41 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-function installCloudStatus(status: { email?: null | string; portalBaseUrl?: string; signedIn: boolean }) {
+function installCloud(status: {
+  email?: null | string
+  logout?: ReturnType<typeof vi.fn>
+  openExternal?: ReturnType<typeof vi.fn>
+  signedIn: boolean
+}) {
   const statusFn = vi.fn(async () => ({ portalBaseUrl: 'https://portal.example', ...status }))
+  const logout =
+    status.logout ??
+    vi.fn(async () => ({
+      ok: true,
+      portalBaseUrl: 'https://portal.example',
+      signedIn: false
+    }))
+  const openExternal = status.openExternal ?? vi.fn(async () => undefined)
 
-  desktopWindow.work4youDesktop = { cloud: { status: statusFn } }
+  desktopWindow.work4youDesktop = { cloud: { logout, status: statusFn }, openExternal }
 
-  return statusFn
+  return { logout, openExternal, statusFn }
+}
+
+async function openMenu(triggerName: string) {
+  const trigger = await screen.findByRole('button', { name: triggerName })
+
+  fireEvent.pointerDown(trigger, { button: 0 })
+
+  return trigger
 }
 
 // Records where the footer's actions navigate to, so the tests assert the
-// REAL router outcome (landing on /settings) instead of a mocked callback.
+// REAL router outcome instead of a mocked callback.
 function LocationProbe() {
   const location = useLocation()
 
-  return <div data-testid="location">{location.pathname}</div>
+  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>
 }
 
 function renderFooter() {
@@ -61,8 +82,8 @@ function renderFooter() {
 }
 
 describe('AccountFooter', () => {
-  it('shows the account email and opens the user menu with a Settings entry', async () => {
-    installCloudStatus({ signedIn: true, email: 'user@example.com' })
+  it('shows the Portal email and a full account menu including Log Out', async () => {
+    installCloud({ signedIn: true, email: 'user@example.com' })
 
     renderFooter()
 
@@ -71,12 +92,69 @@ describe('AccountFooter', () => {
 
     fireEvent.pointerDown(trigger, { button: 0 })
 
-    fireEvent.click(await screen.findByRole('menuitem', { name: /open settings/i }))
+    expect(await screen.findByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /^docs$/i })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /^shortcuts$/i })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /^contact us$/i })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /^log out$/i })).toBeTruthy()
+  })
+
+  it('navigates to Settings from the account menu', async () => {
+    installCloud({ signedIn: true, email: 'user@example.com' })
+
+    renderFooter()
+    await openMenu('user@example.com')
+
+    fireEvent.click(await screen.findByRole('menuitem', { name: /^settings$/i }))
     expect(screen.getByTestId('location').textContent).toBe('/settings')
   })
 
-  it('falls back to a direct settings button when signed out (titlebar-gear parity)', async () => {
-    const statusFn = installCloudStatus({ signedIn: false, email: null })
+  it('navigates to Keyboard shortcuts from the account menu', async () => {
+    installCloud({ signedIn: true, email: 'user@example.com' })
+
+    renderFooter()
+    await openMenu('user@example.com')
+
+    fireEvent.click(await screen.findByRole('menuitem', { name: /^shortcuts$/i }))
+    expect(screen.getByTestId('location').textContent).toBe('/settings?tab=keybinds')
+  })
+
+  it('opens Docs and Contact Us in the system browser', async () => {
+    const { openExternal } = installCloud({ signedIn: true, email: 'user@example.com' })
+
+    renderFooter()
+    await openMenu('user@example.com')
+
+    fireEvent.click(await screen.findByRole('menuitem', { name: /^docs$/i }))
+    expect(openExternal).toHaveBeenCalledWith(ACCOUNT_DOCS_URL)
+
+    await openMenu('user@example.com')
+    fireEvent.click(await screen.findByRole('menuitem', { name: /^contact us$/i }))
+    expect(openExternal).toHaveBeenCalledWith(ACCOUNT_CONTACT_URL)
+  })
+
+  it('signs out of the Portal account and drops Log Out from the menu', async () => {
+    const { logout } = installCloud({ signedIn: true, email: 'user@example.com' })
+
+    renderFooter()
+    await openMenu('user@example.com')
+
+    fireEvent.click(await screen.findByRole('menuitem', { name: /^log out$/i }))
+
+    await act(async () => {
+      await logout.mock.results[0]?.value
+    })
+
+    expect(logout).toHaveBeenCalledTimes(1)
+    expect(await screen.findByRole('button', { name: 'Account' })).toBeTruthy()
+
+    await openMenu('Account')
+    expect(await screen.findByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /^log out$/i })).toBeNull()
+  })
+
+  it('shows the same menu without Log Out when there is no Portal email', async () => {
+    const { statusFn } = installCloud({ signedIn: false, email: null })
 
     renderFooter()
 
@@ -84,23 +162,30 @@ describe('AccountFooter', () => {
       await statusFn.mock.results[0]?.value
     })
 
-    const button = screen.getByRole('button', { name: 'Open settings' })
+    const trigger = screen.getByRole('button', { name: 'Account' })
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
 
-    fireEvent.click(button)
-    expect(screen.getByTestId('location').textContent).toBe('/settings')
+    fireEvent.pointerDown(trigger, { button: 0 })
+
+    expect(await screen.findByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /^docs$/i })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /^shortcuts$/i })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: /^contact us$/i })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /^log out$/i })).toBeNull()
   })
 
-  it('keeps the settings button reachable without the desktop bridge (web / tests)', () => {
+  it('keeps the account menu without the desktop bridge (web / tests)', async () => {
     delete desktopWindow.work4youDesktop
 
     renderFooter()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }))
-    expect(screen.getByTestId('location').textContent).toBe('/settings')
+    await openMenu('Account')
+    expect(screen.getByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /^log out$/i })).toBeNull()
   })
 
-  it('keeps the settings button when the shell predates the email field (signed in, no email)', async () => {
-    const statusFn = installCloudStatus({ signedIn: true })
+  it('keeps Log Out off when signed in but the shell has no email field', async () => {
+    const { statusFn } = installCloud({ signedIn: true })
 
     renderFooter()
 
@@ -108,11 +193,13 @@ describe('AccountFooter', () => {
       await statusFn.mock.results[0]?.value
     })
 
-    expect(screen.getByRole('button', { name: 'Open settings' })).toBeTruthy()
+    await openMenu('Account')
+    expect(await screen.findByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /^log out$/i })).toBeNull()
   })
 
   it('picks the email up when the window regains focus after a portal sign-in', async () => {
-    const statusFn = installCloudStatus({ signedIn: false, email: null })
+    const { statusFn } = installCloud({ signedIn: false, email: null })
 
     renderFooter()
 

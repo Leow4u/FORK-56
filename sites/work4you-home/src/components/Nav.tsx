@@ -10,7 +10,7 @@ export function Nav() {
           Docs
         </a>
 
-        <a className={styles.brand} href="#top" aria-label="Work4You">
+        <a className={styles.brand} href="/" aria-label="Work4You">
           <img
             src="/brand/work4you-logo.png"
             alt="Work4You"
