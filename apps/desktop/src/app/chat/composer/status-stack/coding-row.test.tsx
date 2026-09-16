@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { DesktopConnectionsRegistry, Work4YouConnection } from '@/global'
-import { $commandPaletteOpen, closeCommandPalette } from '@/store/command-palette'
+import { closeCommandPalette } from '@/store/command-palette'
 import { $connectionsRegistry } from '@/store/connections'
 import { $notifications, clearNotifications } from '@/store/notifications'
 import { $projectTree } from '@/store/projects'
@@ -176,21 +176,20 @@ describe('CodingStatusRow', () => {
 
     renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/repo" showWorkspaceName />)
 
-    expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('repo')
+    expect(screen.getByText('repo')).toBeTruthy()
     expect(screen.getByText('bb/hitbox')).toBeTruthy()
     expect(screen.getByText('This device')).toBeTruthy()
     expect(screen.queryByText('Work4You Cloud')).toBeNull()
   })
 
-  it('opens Select workspace from the occupied name', async () => {
-    renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/repo" showWorkspaceName />)
+  it('keeps Select workspace off the occupied name', () => {
+    const { container } = renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/repo" showWorkspaceName />)
 
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Select workspace' }), { button: 0 })
+    fireEvent.pointerDown(screen.getByText('repo'), { button: 0 })
 
-    expect(await screen.findByRole('menu')).toBeTruthy()
-    expect($commandPaletteOpen.get()).toBe(false)
-    expect(screen.getByRole('menuitem', { name: /Open folder as project/ })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: /Remote/ })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: /New project/ })).toBeTruthy()
+    expect(container.querySelector('[data-slot="workspace-name"]')?.tagName).toBe('SPAN')
+    expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: /Open folder as project/ })).toBeNull()
   })
 })

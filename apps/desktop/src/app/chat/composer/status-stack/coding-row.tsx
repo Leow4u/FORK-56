@@ -46,7 +46,7 @@ interface CodingStatusRowProps {
   onSwitchBranch?: (branch: string) => Promise<void>
   /** Repo root path for the worktree dialog. */
   repoPath?: null | string
-  /** Occupied chat: paint workspace name on this strip. Empty chat uses Select workspace. */
+  /** Occupied chat: paint workspace name as quiet identity. Empty chat uses Select workspace. */
   showWorkspaceName?: boolean
 }
 
