@@ -488,10 +488,11 @@ export interface ModelOptionProvider {
   slug: string
   total_models?: number
   warning?: string
-  /** Curated shortlist (one flagship per lab) the picker shows by default for
-   *  aggregator providers that serve dozens of models across many labs. Empty
-   *  for providers with no manifest entry — the picker falls back to top-N.
-   *  The rest of `models` stays reachable via search / Edit Models. */
+  /** Curated shortlist the picker shows by default. Work4You Portal sends
+   *  the official Edit Models on-set; other aggregators send their lab
+   *  headliners. Empty for providers with no shortlist — the picker falls
+   *  back to top-N. The rest of `models` stays reachable via search /
+   *  Edit Models (toggle off). */
   featured_models?: string[]
   /** True when the provider has usable credentials. False for canonical
    *  providers surfaced by `include_unconfigured` that the user hasn't set up

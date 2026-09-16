@@ -676,6 +676,24 @@ _WORK4YOU_HOUSE_MODEL_SLUGS = frozenset({
     "deepseek-v4-flash-0731",
 })
 
+# Default-on composer / Edit Models shortlist for the Portal picker.
+# Inventory attaches these as ``featured_models``; every other official
+# catalog id stays in ``models`` with the visibility toggle off.
+# Operis (house) stays on so a Free first-run still sees the selected model.
+WORK4YOU_FEATURED_MODEL_IDS: tuple[str, ...] = (
+    WORK4YOU_HOUSE_MODEL_ID,
+    "anthropic/claude-fable-5",
+    "anthropic/claude-opus-5",
+    "anthropic/claude-sonnet-5",
+    "openai/gpt-5.6-sol",
+    "openai/gpt-5.6-terra",
+    "openai/gpt-5.6-luna-pro",
+    "google/gemini-3.7-flash",
+    "x-ai/grok-4.6",
+    "qwen/qwen3.8-max",
+    "z-ai/glm-5.2",
+)
+
 
 def is_work4you_house_model(model_id: str) -> bool:
     """Return True if *model_id* is the Free-plan house model (Operis).

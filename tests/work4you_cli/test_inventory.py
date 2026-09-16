@@ -543,5 +543,66 @@ def _apply_featured_with_dates(rows, dates: dict[str, str]):
         inventory._apply_featured(rows)
 
 
+def test_apply_featured_work4you_uses_official_shortlist():
+    """Portal featured toggles follow the curated shortlist, not 5-per-lab."""
+    from work4you_cli.inventory import _apply_featured
+    from work4you_cli.models import WORK4YOU_FEATURED_MODEL_IDS, WORK4YOU_HOUSE_MODEL_ID, _PROVIDER_MODELS
+
+    catalog = list(_PROVIDER_MODELS["work4you"])
+    row = {"slug": "work4you", "models": catalog}
+    _apply_featured([row])
+
+    featured = row["featured_models"]
+    assert featured == [model for model in catalog if model in WORK4YOU_FEATURED_MODEL_IDS]
+    assert set(featured) == set(WORK4YOU_FEATURED_MODEL_IDS)
+    assert WORK4YOU_HOUSE_MODEL_ID in featured
+    assert "anthropic/claude-opus-4.8" not in featured
+    assert "openai/gpt-5.6-sol-pro" not in featured
+    assert "google/gemini-3.1-pro-preview" not in featured
+    # Off-toggle models stay in the catalog.
+    assert "anthropic/claude-opus-4.8" in catalog
+
+
+def test_apply_featured_work4you_drops_missing_shortlist_ids():
+    from work4you_cli.inventory import _apply_featured
+
+    row = {
+        "slug": "work4you",
+        "models": ["anthropic/claude-fable-5", "openai/gpt-5.6-luna"],
+    }
+    _apply_featured([row])
+    assert row["featured_models"] == ["anthropic/claude-fable-5", "openai/gpt-5.6-luna"]
+
+
+def test_apply_featured_openrouter_still_keeps_newest_per_lab():
+    rows = [{
+        "slug": "openrouter",
+        "models": [
+            "anthropic/old",
+            "anthropic/mid",
+            "anthropic/new",
+            "anthropic/newer",
+            "anthropic/newest",
+            "anthropic/extra",
+            "google/gemini",
+        ],
+    }]
+    dates = {
+        "anthropic/old": "2024-01-01",
+        "anthropic/mid": "2024-06-01",
+        "anthropic/new": "2025-01-01",
+        "anthropic/newer": "2025-06-01",
+        "anthropic/newest": "2026-01-01",
+        "anthropic/extra": "2026-06-01",
+        "google/gemini": "2026-01-01",
+    }
+    _apply_featured_with_dates(rows, dates)
+    featured = rows[0]["featured_models"]
+    assert "google/gemini" in featured
+    assert "anthropic/extra" in featured
+    assert "anthropic/old" not in featured
+    assert rows[0]["models"][0] == "anthropic/old"
+
+
 
 

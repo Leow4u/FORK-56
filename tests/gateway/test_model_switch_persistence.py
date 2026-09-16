@@ -250,7 +250,7 @@ class TestOneTurnNeverPersisted:
             self._event("/model gpt-5.5 --once")
         )
 
-        assert result is not None and "gpt-5.5" in result
+        assert result is not None and "GPT-5.5" in result
         # In-memory override installed for the next turn + restore queued...
         assert runner._session_model_overrides[sk]["model"] == "gpt-5.5"
         assert sk in runner._pending_one_turn_model_restores

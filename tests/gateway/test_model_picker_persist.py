@@ -188,7 +188,7 @@ async def test_picker_tap_global_flag_persists(tmp_path, monkeypatch, seed_model
     confirmation = await _drive_picker(_make_runner(adapter), _make_event("/model --global"))
 
     assert confirmation is not None
-    assert "gpt-5.5" in confirmation
+    assert "GPT-5.5" in confirmation
     written = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
     assert isinstance(written["model"], dict), (
         "model: should be coerced to a dict, got %r" % (written["model"],)
@@ -247,7 +247,7 @@ async def test_multiplex_picker_global_persists_only_named_profile(
     finally:
         set_multiplex_active(False)
 
-    assert "gpt-5.5" in confirmation
+    assert "GPT-5.5" in confirmation
     assert yaml.safe_load((default_home / "config.yaml").read_text()) == default_cfg
     written = yaml.safe_load((named_home / "config.yaml").read_text())
     assert written["marker"] == "named"

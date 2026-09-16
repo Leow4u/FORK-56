@@ -250,6 +250,47 @@ describe('featured defaults', () => {
     expect(visible.has(modelVisibilityKey('work4you', 'anthropic/haiku'))).toBe(false)
   })
 
+  it('starts Portal Edit Models toggles from the official featured shortlist', () => {
+    const catalog = [
+      'openai/gpt-5.6-luna',
+      'anthropic/claude-fable-5',
+      'anthropic/claude-opus-5',
+      'anthropic/claude-opus-4.8',
+      'anthropic/claude-sonnet-5',
+      'openai/gpt-5.6-sol',
+      'openai/gpt-5.6-sol-pro',
+      'openai/gpt-5.6-terra',
+      'openai/gpt-5.6-luna-pro',
+      'google/gemini-3.1-pro-preview',
+      'google/gemini-3.7-flash',
+      'x-ai/grok-4.6',
+      'qwen/qwen3.8-max',
+      'z-ai/glm-5.2',
+      'moonshotai/kimi-k3'
+    ]
+    const featured = [
+      'openai/gpt-5.6-luna',
+      'anthropic/claude-fable-5',
+      'anthropic/claude-opus-5',
+      'anthropic/claude-sonnet-5',
+      'openai/gpt-5.6-sol',
+      'openai/gpt-5.6-terra',
+      'openai/gpt-5.6-luna-pro',
+      'google/gemini-3.7-flash',
+      'x-ai/grok-4.6',
+      'qwen/qwen3.8-max',
+      'z-ai/glm-5.2'
+    ]
+    const visible = defaultVisibleKeys([featuredProvider('work4you', catalog, featured)])
+
+    expect(visible.has(modelVisibilityKey('work4you', 'openai/gpt-5.6-luna'))).toBe(true)
+    expect(visible.has(modelVisibilityKey('work4you', 'anthropic/claude-fable-5'))).toBe(true)
+    expect(visible.has(modelVisibilityKey('work4you', 'openai/gpt-5.6-luna-pro'))).toBe(true)
+    expect(visible.has(modelVisibilityKey('work4you', 'anthropic/claude-opus-4.8'))).toBe(false)
+    expect(visible.has(modelVisibilityKey('work4you', 'google/gemini-3.1-pro-preview'))).toBe(false)
+    expect(visible.has(modelVisibilityKey('work4you', 'moonshotai/kimi-k3'))).toBe(false)
+  })
+
   it('falls back to top-N when a provider ships no featured list', () => {
     const plain = provider('ollama', ['qwen3:latest', 'llama3.2:latest'])
 
