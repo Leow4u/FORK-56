@@ -10,7 +10,7 @@ export function Channels() {
       title="O mesmo agente, no WhatsApp e no terminal."
       flip
       scene={
-        <Scene src="/media/river-mist.png">
+        <Scene src="/media/river-mist.png" position="center 55%">
           <ProductWindow
             title="Messaging · WhatsApp ligado"
             sidebar={

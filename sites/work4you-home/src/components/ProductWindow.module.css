@@ -1,5 +1,5 @@
 .window {
-  width: min(100%, 38rem);
+  width: min(100%, 32.5rem);
   background: #fff;
   border: 1px solid var(--linha);
   border-radius: 14px;
@@ -42,12 +42,15 @@
 .body,
 .bodySolo {
   display: grid;
-  min-height: 13.5rem;
+  min-height: 0;
 }
 
 .body {
-  grid-template-columns: 10.5rem minmax(0, 1fr);
-  min-height: 16.25rem;
+  grid-template-columns: 9.6rem minmax(0, 1fr);
+}
+
+.roomy {
+  min-height: 15.5rem;
 }
 
 .bodySolo .main {
@@ -108,11 +111,11 @@
 }
 
 .bubble {
-  margin: 0 0 0.45rem;
-  padding: 0.52rem 0.62rem;
+  margin: 0 0 0.38rem;
+  padding: 0.42rem 0.55rem;
   border-radius: 9px;
   background: #f4f3ee;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   line-height: 1.45;
   letter-spacing: 0.005em;
   word-spacing: 0.04em;

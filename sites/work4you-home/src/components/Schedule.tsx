@@ -9,7 +9,7 @@ export function Schedule() {
       title="O que se repete, o bot assume."
       flip
       scene={
-        <Scene src="/media/dusk-ridge.png">
+        <Scene src="/media/dusk-ridge.png" position="center 40%">
           <ProductWindow title="Novo cronjob · Analista Financeiro">
             <Field label="Nome" value="Briefing de segunda" />
             <Field label="Quando" value="Toda segunda · 09:00" />

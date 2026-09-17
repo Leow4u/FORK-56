@@ -17,8 +17,9 @@ export function Hero() {
       </div>
 
       <div className={`shell ${styles.visual}`}>
-        <Scene src="/media/hero-hills.jpg" tall>
+        <Scene src="/media/hero-hills.jpg" tall position="center 42%">
           <ProductWindow
+            roomy
             title="Sessions · Nova sessão"
             sidebar={
               <>

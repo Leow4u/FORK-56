@@ -2,6 +2,7 @@
   padding: clamp(3.4rem, 7vw, 5.6rem) 0 clamp(3.8rem, 8vw, 6rem);
   border-top: 1px solid var(--linha);
   background: color-mix(in srgb, var(--nevoa) 42%, var(--papel));
+  scroll-margin-top: 5.5rem;
 }
 
 .inner {

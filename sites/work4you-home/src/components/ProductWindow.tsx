@@ -6,6 +6,7 @@ interface ProductWindowProps {
   sidebar?: ReactNode
   footer?: ReactNode
   children: ReactNode
+  roomy?: boolean
 }
 
 export function ProductWindow({
@@ -13,6 +14,7 @@ export function ProductWindow({
   sidebar,
   footer,
   children,
+  roomy = false,
 }: ProductWindowProps) {
   return (
     <div className={styles.window}>
@@ -24,7 +26,9 @@ export function ProductWindow({
         </span>
         <span className={styles.title}>{title}</span>
       </div>
-      <div className={sidebar ? styles.body : styles.bodySolo}>
+      <div
+        className={`${sidebar ? styles.body : styles.bodySolo}${roomy ? ` ${styles.roomy}` : ''}`}
+      >
         {sidebar ? <aside className={styles.sidebar}>{sidebar}</aside> : null}
         <div className={styles.main}>
           {children}

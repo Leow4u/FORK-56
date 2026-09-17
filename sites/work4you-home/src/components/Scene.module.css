@@ -3,8 +3,8 @@
   isolation: isolate;
   display: grid;
   place-items: center;
-  min-height: 20.5rem;
-  padding: clamp(1.2rem, 3vw, 2rem);
+  min-height: 24.5rem;
+  padding: clamp(1.6rem, 3.6vw, 2.6rem);
   border-radius: 20px;
   overflow: hidden;
   border: 1px solid var(--linha);
@@ -32,8 +32,8 @@
   z-index: 1;
   background: linear-gradient(
     180deg,
-    rgba(26, 25, 21, 0.04),
-    rgba(26, 25, 21, 0.16)
+    rgba(26, 25, 21, 0.08),
+    rgba(26, 25, 21, 0.22)
   );
   pointer-events: none;
 }

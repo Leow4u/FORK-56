@@ -16,7 +16,7 @@ export function Tools() {
       id="ferramentas"
       title="Conecta as ferramentas que você já usa."
       scene={
-        <Scene src="/media/pine-fog.png">
+        <Scene src="/media/pine-fog.png" position="center 80%">
           <ProductWindow title="Capabilities · MCP">
             <div className={styles.grid}>
               {APPS.map((app) => (

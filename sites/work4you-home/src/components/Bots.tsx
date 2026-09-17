@@ -15,7 +15,7 @@ export function Bots() {
       eyebrow="No mesmo app"
       title="Bots que trabalham juntos. Sem outro download."
       scene={
-        <Scene src="/media/dawn-valley.png">
+        <Scene src="/media/dawn-valley.png" position="center 70%">
           <ProductWindow
             title="Bots · Fechamento da semana"
             sidebar={

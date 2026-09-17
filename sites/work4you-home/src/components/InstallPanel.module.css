@@ -2,6 +2,7 @@
   width: min(100%, 36rem);
   margin-inline: auto;
   text-align: left;
+  scroll-margin-top: 6rem;
 }
 
 .tabs {
