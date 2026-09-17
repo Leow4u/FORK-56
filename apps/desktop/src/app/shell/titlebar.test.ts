@@ -8,10 +8,10 @@ import {
   TITLEBAR_FALLBACK_WINDOW_BUTTON_X,
   TITLEBAR_ICON_SIZE,
   TITLEBAR_MAC_TRAFFIC_LIGHTS_Y_NUDGE,
+  titlebarButtonClass,
   titlebarControlsPosition,
   titlebarControlsYNudge,
   titlebarIconSizeCss,
-  titlebarButtonClass,
   titlebarToolsRightCss,
   titlebarToolsWidthCss
 } from './titlebar'
