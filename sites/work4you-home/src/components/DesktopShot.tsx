@@ -6,5 +6,11 @@ interface DesktopShotProps {
 }
 
 export function DesktopShot({ src, alt }: DesktopShotProps) {
-  return <img className={styles.shot} src={src} alt={alt} />
+  return (
+    <div className={styles.lift}>
+      <figure className={styles.frame}>
+        <img className={styles.shot} src={src} alt={alt} />
+      </figure>
+    </div>
+  )
 }

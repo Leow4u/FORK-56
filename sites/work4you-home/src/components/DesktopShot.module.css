@@ -1,8 +1,48 @@
+.lift {
+  width: 100%;
+  filter: drop-shadow(0 22px 48px rgba(26, 25, 21, 0.22));
+}
+
+.frame {
+  position: relative;
+  margin: 0;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 70%,
+    rgba(0, 0, 0, 0.45) 88%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 70%,
+    rgba(0, 0, 0, 0.45) 88%,
+    transparent 100%
+  );
+}
+
+.frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(26, 25, 21, 0.08);
+  pointer-events: none;
+}
+
 .shot {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 0;
   border: 0;
-  box-shadow: 0 22px 56px rgba(26, 25, 21, 0.2);
+}
+
+@media (max-width: 640px) {
+  .frame {
+    border-radius: 10px;
+  }
 }
