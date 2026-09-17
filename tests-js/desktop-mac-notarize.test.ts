@@ -10,6 +10,10 @@
  * afterSign still exists for local `dist:mac`. CI sets
  * WORK4YOU_SKIP_AFTERSIGN_NOTARIZE=1 and notarizes the DMG later
  * (run 35249919145 hung 88 minutes in afterSign `notarytool --wait`).
+ *
+ * Run 35261884765 uploaded Work4You.dmg (id 3b7b6623-...) then Apple was
+ * still In Progress when `submit --wait --timeout 1200` fired. Submit and
+ * wait are split in `notary-config.mjs` / `notary-run.mjs`.
  */
 
 import assert from 'node:assert/strict'

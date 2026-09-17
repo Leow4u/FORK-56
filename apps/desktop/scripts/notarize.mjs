@@ -3,20 +3,17 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 
-import {
-  NOTARY_EXEC_TIMEOUT_MS,
-  NOTARY_WAIT_TIMEOUT_SEC,
-  notarytoolProfileSubmitArgs,
-  notarytoolSubmitArgs,
-  shouldSkipAfterSignNotarize,
-} from './notary-config.mjs'
+import { shouldSkipAfterSignNotarize } from './notary-config.mjs'
+import { createXcrunRunner, submitAndWaitNotary } from './notary-run.mjs'
+
+const LOCAL_TOOL_TIMEOUT_MS = 5 * 60 * 1000
 
 function run(command, args) {
   return new Promise((resolve, reject) => {
-    execFile(command, args, { timeout: NOTARY_EXEC_TIMEOUT_MS }, (error, stdout, stderr) => {
+    execFile(command, args, { timeout: LOCAL_TOOL_TIMEOUT_MS }, (error, stdout, stderr) => {
       if (error) {
         if (error.killed) {
-          reject(new Error(`${command} timed out after ${NOTARY_WAIT_TIMEOUT_SEC}s`))
+          reject(new Error(`${command} timed out after ${LOCAL_TOOL_TIMEOUT_MS / 1000}s`))
           return
         }
         reject(
@@ -61,6 +58,11 @@ function resolveApiKeyPath(rawValue) {
   }
 }
 
+async function notarizeZip(zipPath, auth) {
+  const runXcrun = createXcrunRunner()
+  await submitAndWaitNotary({ artifactPath: zipPath, auth, run: runXcrun })
+}
+
 export default async function notarize(context) {
   const { electronPlatformName, appOutDir, packager } = context
   if (electronPlatformName !== 'darwin') return
@@ -79,43 +81,28 @@ export default async function notarize(context) {
     throw new Error(`Cannot notarize missing app bundle: ${appPath}`)
   }
 
+  const zipPath = path.join(appOutDir, `${appName}.zip`)
   const profile = String(process.env.APPLE_NOTARY_PROFILE || '').trim()
-  if (profile) {
-    const zipPath = path.join(appOutDir, `${appName}.zip`)
-    console.log('[macos-signing] afterSign: zipping app for notarytool')
-    await run('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', appPath, zipPath])
-    console.log(
-      `[macos-signing] afterSign: submitting zip (wait timeout ${NOTARY_WAIT_TIMEOUT_SEC}s)`
-    )
-    await run('xcrun', notarytoolProfileSubmitArgs(zipPath, profile))
-    await run('xcrun', ['stapler', 'staple', '-v', appPath])
-    try {
-      fs.rmSync(zipPath, { force: true })
-    } catch {
-      // Best-effort cleanup.
-    }
-    return
-  }
-
   const keyId = String(process.env.APPLE_API_KEY_ID || '').trim()
   const issuer = String(process.env.APPLE_API_ISSUER || '').trim()
   const rawApiKey = process.env.APPLE_API_KEY
-  if (!rawApiKey || !keyId || !issuer) {
+
+  if (!profile && (!rawApiKey || !keyId || !issuer)) {
     console.log(
       'Skipping notarization: APPLE_API_KEY, APPLE_API_KEY_ID, and APPLE_API_ISSUER are not fully configured.'
     )
     return
   }
 
-  const { keyPath, cleanup } = resolveApiKeyPath(rawApiKey)
-  const zipPath = path.join(appOutDir, `${appName}.zip`)
+  const { keyPath, cleanup } = profile
+    ? { keyPath: '', cleanup: () => {} }
+    : resolveApiKeyPath(rawApiKey)
+  const auth = profile ? { profile } : { keyPath, keyId, issuer }
+
   try {
     console.log('[macos-signing] afterSign: zipping app for notarytool')
     await run('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', appPath, zipPath])
-    console.log(
-      `[macos-signing] afterSign: submitting zip (wait timeout ${NOTARY_WAIT_TIMEOUT_SEC}s)`
-    )
-    await run('xcrun', notarytoolSubmitArgs(zipPath, { keyPath, keyId, issuer }))
+    await notarizeZip(zipPath, auth)
     await run('xcrun', ['stapler', 'staple', '-v', appPath])
   } finally {
     try {
