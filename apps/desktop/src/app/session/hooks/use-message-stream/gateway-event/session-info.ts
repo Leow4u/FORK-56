@@ -24,7 +24,7 @@ import {
 } from '@/store/session'
 import { reportInstallMethodWarning } from '@/store/updates'
 
-import { finalizeInterruptedMessages } from '../../use-prompt-actions/rewind'
+import { finalizeInterruptedMessages, stampLastTurnDuration, wallClockDurationS } from '../../use-prompt-actions/rewind'
 import { hasSessionInfoStatePatch, PRE_TURN_LIVE_SETTLE_GRACE_MS, sessionInfoStatePatch } from '../utils'
 
 import type { GatewayEventContext } from './types'
@@ -282,6 +282,12 @@ export function handleSessionInfoEvent(ctx: GatewayEventContext): boolean {
           // and the session accepted no further input.
           recoveredWithoutPayload = state.awaitingResponse && !state.sawAssistantPayload
 
+          // Same wall-clock as message.complete — read before this return
+          // nulls turnStartedAt. A running=false heartbeat that wins the
+          // race used to settle the turn with no durationS, so Worked
+          // dropped the seconds.
+          const durationS = wallClockDurationS(state.turnStartedAt)
+
           return {
             ...state,
             awaitingResponse: false,
@@ -295,7 +301,10 @@ export function handleSessionInfoEvent(ctx: GatewayEventContext): boolean {
             // finalizeInterruptedMessages un-pends kept text and drops
             // empty placeholders; on the normal path message.complete
             // already settled everything and this is a no-op.
-            messages: finalizeInterruptedMessages(state.messages, state.streamId, occurredAt),
+            messages: stampLastTurnDuration(
+              finalizeInterruptedMessages(state.messages, state.streamId, occurredAt),
+              durationS
+            ),
             pendingBranchGroup: null,
             streamId: null,
             turnStartedAt: null,

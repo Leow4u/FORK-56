@@ -133,6 +133,41 @@ describe('session.info settles a turn that produced no assistant payload', () =>
   const startTurn = (sessionId: string) =>
     act(() => stream.handleEvent({ payload: {}, session_id: sessionId, type: 'message.start' }))
 
+  it('stamps last-turn durationS when running=false settles a live turn', () => {
+    mountStream()
+
+    act(() => {
+      sessionStates!.set(ACTIVE_SID, {
+        ...createClientSessionState(),
+        awaitingResponse: true,
+        busy: true,
+        messages: [
+          {
+            id: 'user-1',
+            parts: [{ text: 'go', type: 'text' }],
+            role: 'user'
+          },
+          {
+            id: 'assistant-1',
+            parts: [{ text: 'working', type: 'text' }],
+            pending: true,
+            role: 'assistant'
+          }
+        ],
+        sawAssistantPayload: true,
+        turnLive: true,
+        turnStartedAt: Date.now() - 171_000
+      })
+    })
+
+    sessionInfo(ACTIVE_SID, { running: false })
+
+    const assistant = sessionStates!.get(ACTIVE_SID)!.messages.find(message => message.id === 'assistant-1')
+
+    expect(assistant?.pending).toBe(false)
+    expect(assistant?.durationS).toBeGreaterThanOrEqual(171)
+  })
+
   it('leaves the session sendable after a started turn ends with no payload', async () => {
     mountStream()
 

@@ -31,6 +31,8 @@ import { setSessionTodos } from '@/store/todos'
 
 import type { ClientSessionState } from '../../../types'
 
+import { stampLastTurnDuration, wallClockDurationS } from '../use-prompt-actions/rewind'
+
 import { useGatewayEventHandler } from './gateway-event'
 import { completionErrorText, delegateTaskPayloads, MAX_STREAM_FLUSH_GAP_MS, STREAM_DELTA_FLUSH_MS } from './utils'
 
@@ -597,9 +599,7 @@ export function useMessageStream({
 
         // Wall-clock seconds this turn actually ran (message.start stamped
         // turnStartedAt). Read BEFORE the state return below nulls it.
-        const durationS = state.turnStartedAt
-          ? Math.max(1, Math.round((Date.now() - state.turnStartedAt) / 1000))
-          : undefined
+        const durationS = wallClockDurationS(state.turnStartedAt)
 
         const replaceTextPart = (parts: ChatMessagePart[]) => {
           const visibleFinalText = stripGeneratedImageEchoes(finalText, generatedImageEchoSources(parts)).trim()
@@ -717,7 +717,7 @@ export function useMessageStream({
         // degraded websocket leaves its tool row spinning forever. The turn is
         // provably done here — nothing can still be running — so seal any
         // tool-call parts that never saw their completion event.
-        nextMessages = sealOpenToolParts(nextMessages)
+        nextMessages = stampLastTurnDuration(sealOpenToolParts(nextMessages), durationS)
 
         const hasInlineError = nextMessages.some(m => m.role === 'assistant' && m.error && !m.hidden)
         const lastVisible = [...nextMessages].reverse().find(m => !m.hidden)
@@ -787,9 +787,7 @@ export function useMessageStream({
         const prev = state.messages
         const error = errorMessage.trim() || 'Work4You reported an error'
 
-        const durationS = state.turnStartedAt
-          ? Math.max(1, Math.round((Date.now() - state.turnStartedAt) / 1000))
-          : undefined
+        const durationS = wallClockDurationS(state.turnStartedAt)
 
         const nextMessages = prev.some(m => m.id === streamId)
           ? prev.map(message =>
@@ -821,7 +819,7 @@ export function useMessageStream({
 
         return {
           ...state,
-          messages: nextMessages,
+          messages: stampLastTurnDuration(nextMessages, durationS),
           streamId: null,
           pendingBranchGroup: null,
           sawAssistantPayload: true,

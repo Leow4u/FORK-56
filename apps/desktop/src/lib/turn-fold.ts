@@ -138,16 +138,17 @@ export function formatWorkedDuration(seconds: number): string {
     return `${Math.max(1, whole)}s`
   }
 
-  const minutes = Math.round(whole / 60)
+  const minutes = Math.floor(whole / 60)
+  const rest = whole % 60
 
   if (minutes < 60) {
-    return `${minutes}m`
+    return rest > 0 ? `${minutes}m ${rest}s` : `${minutes}m`
   }
 
   const hours = Math.floor(minutes / 60)
-  const rest = minutes % 60
+  const mins = minutes % 60
 
-  return rest > 0 ? `${hours}h ${rest}m` : `${hours}h`
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
 }
 
 export function workedForLabel(
