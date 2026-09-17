@@ -159,9 +159,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || startsWith(github.event.release.tag_name, 'desktop-v')
     name: Build macOS installer
     runs-on: macos-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     outputs:
-      macos_signed: ${{ steps.verify_macos.outcome == 'success' }}
+      macos_signed: ${{ steps.verify_macos.outcome == 'success' && steps.notarize_macos.outcome == 'success' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -240,6 +240,7 @@ jobs:
           fi
           mkdir -p dist
           cp "$dmg" dist/Work4You.dmg
+          ls -lh dist/Work4You.dmg
 
       - name: Verify Developer ID signature
         id: verify_macos
@@ -250,7 +251,11 @@ jobs:
           codesign --verify --deep --strict "$app"
           codesign -dv --verbose=2 "$app" 2>&1 | python3 scripts/ci/prepare_macos_signing.py --check-codesign-dv
 
+      # Run 35261884765: submit --wait --timeout 1200 uploaded the DMG
+      # (id 3b7b6623-b2c4-4f6b-8ee6-ed71db5b7c42) then Apple was still
+      # In Progress at 20 minutes. Submit first, log the id, wait 60 minutes.
       - name: Notarize and staple DMG
+        id: notarize_macos
         if: ${{ steps.prepare_macos.outcome == 'success' }}
         env:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}

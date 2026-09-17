@@ -3,29 +3,30 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFile } from 'node:child_process'
 
-import {
-  NOTARY_EXEC_TIMEOUT_MS,
-  NOTARY_WAIT_TIMEOUT_SEC,
-  notarytoolProfileSubmitArgs,
-  notarytoolSubmitArgs,
-} from './notary-config.mjs'
+import { createXcrunRunner, submitAndWaitNotary } from './notary-run.mjs'
 
-function run(command, args) {
+const STAPLE_TIMEOUT_MS = 5 * 60 * 1000
+
+function runStaple(artifactPath) {
   return new Promise((resolve, reject) => {
-    execFile(command, args, { timeout: NOTARY_EXEC_TIMEOUT_MS }, (error, stdout, stderr) => {
-      if (error) {
-        if (error.killed) {
-          reject(new Error(`${command} timed out after ${NOTARY_WAIT_TIMEOUT_SEC}s`))
+    execFile(
+      'xcrun',
+      ['stapler', 'staple', '-v', artifactPath],
+      { timeout: STAPLE_TIMEOUT_MS },
+      (error, stdout, stderr) => {
+        if (stdout?.trim()) console.log(stdout.trimEnd())
+        if (stderr?.trim()) console.error(stderr.trimEnd())
+        if (error) {
+          if (error.killed) {
+            reject(new Error(`xcrun stapler timed out after ${STAPLE_TIMEOUT_MS / 1000}s`))
+            return
+          }
+          reject(new Error(`xcrun failed: ${stderr?.trim() || stdout?.trim() || error.message}`))
           return
         }
-        // Intentionally omit args from the rejection message: callers pass
-        // notarization credentials (key id, issuer, key file path) here, and
-        // surfacing them in error output would land in CI logs.
-        reject(new Error(`${command} failed: ${stderr?.trim() || stdout?.trim() || error.message}`))
-        return
+        resolve()
       }
-      resolve()
-    })
+    )
   })
 }
 
@@ -53,6 +54,12 @@ function resolveApiKeyPath(rawValue) {
   }
 }
 
+async function notarizeWithAuth(artifactPath, auth) {
+  const run = createXcrunRunner()
+  await submitAndWaitNotary({ artifactPath, auth, run })
+  await runStaple(artifactPath)
+}
+
 async function main() {
   const artifactPath = process.argv[2]
   if (!artifactPath || !existsSync(artifactPath)) {
@@ -61,12 +68,7 @@ async function main() {
 
   const profile = String(process.env.APPLE_NOTARY_PROFILE || '').trim()
   if (profile) {
-    console.log(
-      `[macos-signing] notarize-artifact: submitting ${artifactPath} ` +
-        `(wait timeout ${NOTARY_WAIT_TIMEOUT_SEC}s)`
-    )
-    await run('xcrun', notarytoolProfileSubmitArgs(artifactPath, profile))
-    await run('xcrun', ['stapler', 'staple', '-v', artifactPath])
+    await notarizeWithAuth(artifactPath, { profile })
     return
   }
 
@@ -79,12 +81,7 @@ async function main() {
 
   const { keyPath, cleanup } = resolveApiKeyPath(rawApiKey)
   try {
-    console.log(
-      `[macos-signing] notarize-artifact: submitting ${artifactPath} ` +
-        `(wait timeout ${NOTARY_WAIT_TIMEOUT_SEC}s)`
-    )
-    await run('xcrun', notarytoolSubmitArgs(artifactPath, { keyPath, keyId, issuer }))
-    await run('xcrun', ['stapler', 'staple', '-v', artifactPath])
+    await notarizeWithAuth(artifactPath, { keyPath, keyId, issuer })
   } finally {
     cleanup()
   }
