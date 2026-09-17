@@ -153,6 +153,7 @@ describe('ModelMenuPanel current selection', () => {
     const currentLabel = screen
       .getAllByText(/Gemini 3\.1 Pro/i)
       .find(el => el.closest('[data-slot="dropdown-menu-item"]'))
+
     const currentRow = currentLabel?.closest('[role="menuitem"]')
     const staleRow = content.getByText('Deepseek Chat').closest('[role="menuitem"]')
 

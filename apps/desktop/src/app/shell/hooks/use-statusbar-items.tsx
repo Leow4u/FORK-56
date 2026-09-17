@@ -40,11 +40,7 @@ import { $focusedRuntimeId, $focusedSessionState, $focusedStoredSessionId } from
 import { $statusbarHiddenIds } from '@/store/statusbar-prefs'
 import { $subagentsBySession, activeSubagentCount, failedSubagentCount } from '@/store/subagents'
 import { $gatewayRestarting } from '@/store/system-actions'
-import {
-  $backendUpdateApply,
-  $backendUpdateStatus,
-  openUpdateOverlayFor
-} from '@/store/updates'
+import { $backendUpdateApply, $backendUpdateStatus, openUpdateOverlayFor } from '@/store/updates'
 import type { StatusResponse, UsageStats } from '@/types/work4you'
 
 import { CRON_ROUTE, SETTINGS_ROUTE, WEBHOOKS_ROUTE } from '../../routes'

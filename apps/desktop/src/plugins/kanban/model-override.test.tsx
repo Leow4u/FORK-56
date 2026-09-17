@@ -44,12 +44,12 @@ describe('override label', () => {
   })
 
   it('shows the commercial model name · Effort', () => {
-    expect(
-      overrideLabel({ effort: 'high', model: 'google/gemini-3.1-pro-preview', provider: 'google' }, 'x')
-    ).toBe('Gemini 3.1 Pro · High')
-    expect(
-      overrideLabel({ effort: 'medium', model: 'openai/gpt-5.6-luna', provider: 'work4you' }, 'x')
-    ).toBe('Operis 4.0 · Med')
+    expect(overrideLabel({ effort: 'high', model: 'google/gemini-3.1-pro-preview', provider: 'google' }, 'x')).toBe(
+      'Gemini 3.1 Pro · High'
+    )
+    expect(overrideLabel({ effort: 'medium', model: 'openai/gpt-5.6-luna', provider: 'work4you' }, 'x')).toBe(
+      'Operis 4.0 · Med'
+    )
   })
 
   it('a depth-only pin is still an override', () => {
