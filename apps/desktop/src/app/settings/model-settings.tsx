@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { Codicon } from '@/components/ui/codicon'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -849,7 +850,14 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                       return (
                         <SelectItem disabled={locked} key={model} value={model}>
                           {settingsModelLabel(model)}
-                          {locked ? ` · ${t.modelPicker.pro}` : ''}
+                          {locked ? (
+                            <Codicon
+                              className="ml-1 opacity-80"
+                              name="lock"
+                              size="0.75rem"
+                              title={t.modelPicker.proNeedsSubscription}
+                            />
+                          ) : null}
                         </SelectItem>
                       )
                     })}
@@ -1013,7 +1021,14 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                               return (
                                 <SelectItem disabled={locked} key={model} value={model}>
                                   {settingsModelLabel(model)}
-                                  {locked ? ` · ${t.modelPicker.pro}` : ''}
+                                  {locked ? (
+                                    <Codicon
+                                      className="ml-1 opacity-80"
+                                      name="lock"
+                                      size="0.75rem"
+                                      title={t.modelPicker.proNeedsSubscription}
+                                    />
+                                  ) : null}
                                 </SelectItem>
                               )
                             })}
@@ -1226,7 +1241,14 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                           return (
                             <SelectItem disabled={locked} key={model} value={model}>
                               {settingsModelLabel(model)}
-                              {locked ? ` · ${t.modelPicker.pro}` : ''}
+                              {locked ? (
+                                <Codicon
+                                  className="ml-1 opacity-80"
+                                  name="lock"
+                                  size="0.75rem"
+                                  title={t.modelPicker.proNeedsSubscription}
+                                />
+                              ) : null}
                             </SelectItem>
                           )
                         })}
@@ -1322,7 +1344,14 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
                         return (
                           <SelectItem disabled={locked} key={model} value={model}>
                             {settingsModelLabel(model)}
-                            {locked ? ` · ${t.modelPicker.pro}` : ''}
+                            {locked ? (
+                              <Codicon
+                                className="ml-1 opacity-80"
+                                name="lock"
+                                size="0.75rem"
+                                title={t.modelPicker.proNeedsSubscription}
+                              />
+                            ) : null}
                           </SelectItem>
                         )
                       })}

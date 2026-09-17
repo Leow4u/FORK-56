@@ -9238,7 +9238,7 @@ def _define_discord_view_classes() -> None:
             for model_id in models[:25]:
                 short = model_id.split("/")[-1] if "/" in model_id else model_id
                 if model_id in locked:
-                    short = f"Pro · {short}"
+                    short = f"🔒 · {short}"
                 option_kwargs = {}
                 if model_id in locked:
                     option_kwargs["description"] = "Available on a paid plan"

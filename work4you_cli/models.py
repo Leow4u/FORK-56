@@ -975,13 +975,18 @@ _free_tier_cache: tuple[bool, float] | None = None  # (result, timestamp)
 
 
 def check_work4you_free_tier(*, force_fresh: bool = False) -> bool:
-    """Check if the current Work4You Portal user is on a free (unpaid) tier.
+    """True when the Portal *plan* is Free (see ``is_work4you_free_plan``).
+
+    Distinct from ``Work4YouPortalAccountInfo.is_free_tier``, which follows
+    credit entitlement (``paid_service_access``). A Free account with usable
+    credits must still lock paid catalog rows; a depleted Plus account must
+    not.
 
     Results are cached for ``_FREE_TIER_CACHE_TTL`` seconds to avoid
     hitting the Portal API on every call.  The cache is short-lived so
     that an account upgrade is reflected within a few minutes.
 
-    Returns True only when entitlement is known to be free.  Unknown/error
+    Returns True only when the plan is known to be Free.  Unknown/error
     states return False so this compatibility wrapper does not block users.
     """
     global _free_tier_cache
@@ -992,10 +997,13 @@ def check_work4you_free_tier(*, force_fresh: bool = False) -> bool:
             return cached_result
 
     try:
-        from work4you_cli.work4you_account import get_work4you_portal_account_info
+        from work4you_cli.work4you_account import (
+            get_work4you_portal_account_info,
+            is_work4you_free_plan,
+        )
 
         account_info = get_work4you_portal_account_info(force_fresh=force_fresh)
-        result = account_info.is_free_tier
+        result = is_work4you_free_plan(account_info)
         _free_tier_cache = (result, now)
         return result
     except Exception:

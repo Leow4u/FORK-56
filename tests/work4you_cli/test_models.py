@@ -5,7 +5,11 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from unittest.mock import patch, MagicMock
 
-from work4you_cli.work4you_account import Work4YouPortalAccountInfo
+from work4you_cli.work4you_account import (
+    Work4YouPaidServiceAccessInfo,
+    Work4YouPortalAccountInfo,
+    Work4YouPortalSubscriptionInfo,
+)
 from work4you_cli.models import (
     OPENROUTER_MODELS, fetch_openrouter_models, model_ids, detect_provider_for_model,
     is_work4you_free_tier, partition_work4you_models_by_tier,
@@ -332,15 +336,42 @@ class TestCheckWork4YouFreeTierCache:
     def teardown_method(self):
         _models_mod._free_tier_cache = None
 
+    def _free_plan_with_credits(self):
+        return Work4YouPortalAccountInfo(
+            logged_in=True,
+            source="account_api",
+            fresh=True,
+            subscription=Work4YouPortalSubscriptionInfo(
+                plan="Free", tier=0, monthly_charge=0, monthly_credits=5
+            ),
+            paid_service_access=True,
+            paid_service_access_info=Work4YouPaidServiceAccessInfo(
+                subscription_tier=0,
+                active_subscription_is_paid=False,
+                subscription_monthly_charge=0,
+            ),
+        )
+
+    def _depleted_plus(self):
+        return Work4YouPortalAccountInfo(
+            logged_in=True,
+            source="account_api",
+            fresh=True,
+            subscription=Work4YouPortalSubscriptionInfo(
+                plan="Plus", tier=1, monthly_charge=20, monthly_credits=22
+            ),
+            paid_service_access=False,
+            paid_service_access_info=Work4YouPaidServiceAccessInfo(
+                subscription_tier=1,
+                active_subscription_is_paid=True,
+                subscription_monthly_charge=20,
+            ),
+        )
+
     @patch("work4you_cli.work4you_account.get_work4you_portal_account_info")
     def test_result_is_cached(self, mock_account):
         """Second call within TTL returns cached result without account lookup."""
-        mock_account.return_value = Work4YouPortalAccountInfo(
-            logged_in=True,
-            source="jwt",
-            fresh=False,
-            paid_service_access=False,
-        )
+        mock_account.return_value = self._free_plan_with_credits()
         result1 = check_work4you_free_tier()
         result2 = check_work4you_free_tier()
 
@@ -348,15 +379,32 @@ class TestCheckWork4YouFreeTierCache:
         assert result2 is True
         assert mock_account.call_count == 1
 
+    @patch("work4you_cli.work4you_account.get_work4you_portal_account_info")
+    def test_free_plan_with_credits_is_free(self, mock_account):
+        """Free + usable credits still locks the paid catalog (plan, not credits)."""
+        mock_account.return_value = self._free_plan_with_credits()
+        assert check_work4you_free_tier() is True
+
+    @patch("work4you_cli.work4you_account.get_work4you_portal_account_info")
+    def test_depleted_plus_is_not_free(self, mock_account):
+        """Plus with no remaining credits must not look like a Free plan."""
+        mock_account.return_value = self._depleted_plus()
+        assert check_work4you_free_tier() is False
+
+    @patch("work4you_cli.work4you_account.get_work4you_portal_account_info")
+    def test_credit_only_signal_is_not_a_free_plan(self, mock_account):
+        """paid_service_access=False without a plan is unknown, not Free."""
+        mock_account.return_value = Work4YouPortalAccountInfo(
+            logged_in=True,
+            source="jwt",
+            fresh=False,
+            paid_service_access=False,
+        )
+        assert check_work4you_free_tier() is False
 
     @patch("work4you_cli.work4you_account.get_work4you_portal_account_info")
     def test_force_fresh_bypasses_cache(self, mock_account):
-        mock_account.return_value = Work4YouPortalAccountInfo(
-            logged_in=True,
-            source="account_api",
-            fresh=True,
-            paid_service_access=True,
-        )
+        mock_account.return_value = self._depleted_plus()
 
         assert check_work4you_free_tier() is False
         assert check_work4you_free_tier(force_fresh=True) is False

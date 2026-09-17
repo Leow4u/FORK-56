@@ -688,7 +688,7 @@ export function ModelPicker({
           >
             {prefix}
             {idx + 1}. {label}
-            {locked ? '  Pro' : ''}
+            {locked ? '  🔒' : ''}
           </Text>
         )
       })}

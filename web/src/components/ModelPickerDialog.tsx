@@ -7,7 +7,7 @@ import { Label } from "@work4you/ui/ui/components/label";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { api } from "@/lib/api";
 import type { GatewayClient } from "@/lib/gatewayClient";
-import { Check, Loader2, RefreshCw, Search, X } from "lucide-react";
+import { Check, Loader2, Lock, RefreshCw, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn, themedBody } from "@/lib/utils";
@@ -728,9 +728,10 @@ function ModelColumn({
                 <HighlightedText text={label} positions={label === m ? positions : []} />
               </span>
               {locked && (
-                <span className="text-[0.62rem] uppercase tracking-wide opacity-80 shrink-0">
-                  Pro
-                </span>
+                <Lock
+                  aria-label="Available on a paid plan"
+                  className="h-3 w-3 shrink-0 opacity-80"
+                />
               )}
               {isCurrent && !locked && <CurrentTag />}
             </ListItem>
