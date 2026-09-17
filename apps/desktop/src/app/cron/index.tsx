@@ -142,6 +142,7 @@ function jobDeliver(job: CronJob): string {
 
 function jobModel(job: CronJob): string {
   const raw = asText(job.model).trim()
+
   return raw ? displayModelName(raw) : ''
 }
 
@@ -1356,10 +1357,7 @@ function CronEditorDialog({
                       <SelectGroup key={provider.slug}>
                         <SelectLabel>{provider.name}</SelectLabel>
                         {(provider.models ?? []).map(model => (
-                          <SelectItem
-                            key={`${provider.slug}:${model}`}
-                            value={`${provider.slug}:${model}`}
-                          >
+                          <SelectItem key={`${provider.slug}:${model}`} value={`${provider.slug}:${model}`}>
                             {displayModelName(model)}
                           </SelectItem>
                         ))}

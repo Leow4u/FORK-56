@@ -232,7 +232,12 @@ describe('wallClockDurationS', () => {
 describe('stampLastTurnDuration', () => {
   it('fills the last turn and leaves older assistants alone', () => {
     const stamped = stampLastTurnDuration(
-      [row('u1', 'user', 'first'), row('a1', 'assistant', 'old'), row('u2', 'user', 'next'), row('a2', 'assistant', 'live')],
+      [
+        row('u1', 'user', 'first'),
+        row('a1', 'assistant', 'old'),
+        row('u2', 'user', 'next'),
+        row('a2', 'assistant', 'live')
+      ],
       171
     )
 

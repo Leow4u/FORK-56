@@ -74,6 +74,7 @@ function resolveActiveOptions(
   const family = collapseModelFamilies(provider.models ?? []).find(
     row => row.id === current.model || row.fastId === current.model
   )
+
   const familyId = family?.id ?? current.model
   const caps = provider.capabilities?.[familyId]
 
@@ -357,8 +358,10 @@ export function ModelCatalogMenu({
   const quietRows = pointerQuiet && 'pointer-events-none'
 
   const active = resolveActiveOptions(pickerProviders, current)
+
   const currentName =
     current.provider === 'moa' ? current.model : current.model ? modelDisplayParts(current.model).name : ''
+
   const showSessionOptions = Boolean(current.model) && current.provider !== 'moa'
   // A lone provider group has nothing to contrast — hide the collapse header
   // (Work4You Portal on first launch). Two or more labs keep the label.

@@ -66,11 +66,7 @@ export function lastAnswerBoundaryIndex(parts: readonly unknown[]): number {
   return last
 }
 
-export function classifyPart(
-  part: unknown,
-  index: number,
-  lastToolIndex: number
-): TurnFoldRole {
+export function classifyPart(part: unknown, index: number, lastToolIndex: number): TurnFoldRole {
   const type = partType(part)
 
   if (type === 'text') {
@@ -188,7 +184,10 @@ export function isLastAssistantInTurn(roles: readonly string[], index: number): 
   return true
 }
 
-export function assistantTurnSlice<T extends { id: string; role?: string }>(messages: readonly T[], messageId: string): T[] {
+export function assistantTurnSlice<T extends { id: string; role?: string }>(
+  messages: readonly T[],
+  messageId: string
+): T[] {
   const index = messages.findIndex(message => message.id === messageId)
 
   if (index < 0) {
