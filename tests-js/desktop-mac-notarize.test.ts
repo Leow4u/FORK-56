@@ -1,5 +1,5 @@
 /**
- * Invariant: macOS notarization stays on the fork's afterSign hook.
+ * Invariant: electron-builder must not run @electron/notarize.
  *
  * electron-builder 26 auto-runs `@electron/notarize` whenever APPLE_API_KEY
  * is set, unless `mac.notarize` is explicitly false. That built-in path
@@ -7,9 +7,9 @@
  * "Usage: notarytool <subcommand>" when the secret is inline PEM
  * (Release Desktop run 35248432787).
  *
- * The fork already writes that key in `scripts/notarize.mjs` (afterSign)
- * and `scripts/notarize-artifact.mjs` (DMG). These two fields must stay
- * paired so CI does not invent a third notary path.
+ * afterSign still exists for local `dist:mac`. CI sets
+ * WORK4YOU_SKIP_AFTERSIGN_NOTARIZE=1 and notarizes the DMG later
+ * (run 35249919145 hung 88 minutes in afterSign `notarytool --wait`).
  */
 
 import assert from 'node:assert/strict'
@@ -32,7 +32,7 @@ function loadDesktopBuild(): {
   return pkg.build
 }
 
-test('mac notarize stays on afterSign, not electron-builder @electron/notarize', () => {
+test('mac notarize stays off electron-builder @electron/notarize', () => {
   const build = loadDesktopBuild()
   assert.equal(
     build.afterSign,
@@ -45,3 +45,4 @@ test('mac notarize stays on afterSign, not electron-builder @electron/notarize',
     'mac.notarize must be false so electron-builder 26 does not pass inline APPLE_API_KEY to @electron/notarize'
   )
 })
+

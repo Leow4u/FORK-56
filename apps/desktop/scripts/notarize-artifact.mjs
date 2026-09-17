@@ -3,10 +3,21 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFile } from 'node:child_process'
 
+import {
+  NOTARY_EXEC_TIMEOUT_MS,
+  NOTARY_WAIT_TIMEOUT_SEC,
+  notarytoolProfileSubmitArgs,
+  notarytoolSubmitArgs,
+} from './notary-config.mjs'
+
 function run(command, args) {
   return new Promise((resolve, reject) => {
-    execFile(command, args, (error, stdout, stderr) => {
+    execFile(command, args, { timeout: NOTARY_EXEC_TIMEOUT_MS }, (error, stdout, stderr) => {
       if (error) {
+        if (error.killed) {
+          reject(new Error(`${command} timed out after ${NOTARY_WAIT_TIMEOUT_SEC}s`))
+          return
+        }
         // Intentionally omit args from the rejection message: callers pass
         // notarization credentials (key id, issuer, key file path) here, and
         // surfacing them in error output would land in CI logs.
@@ -50,7 +61,11 @@ async function main() {
 
   const profile = String(process.env.APPLE_NOTARY_PROFILE || '').trim()
   if (profile) {
-    await run('xcrun', ['notarytool', 'submit', artifactPath, '--keychain-profile', profile, '--wait'])
+    console.log(
+      `[macos-signing] notarize-artifact: submitting ${artifactPath} ` +
+        `(wait timeout ${NOTARY_WAIT_TIMEOUT_SEC}s)`
+    )
+    await run('xcrun', notarytoolProfileSubmitArgs(artifactPath, profile))
     await run('xcrun', ['stapler', 'staple', '-v', artifactPath])
     return
   }
@@ -64,14 +79,21 @@ async function main() {
 
   const { keyPath, cleanup } = resolveApiKeyPath(rawApiKey)
   try {
-    await run('xcrun', ['notarytool', 'submit', artifactPath, '--key', keyPath, '--key-id', keyId, '--issuer', issuer, '--wait'])
+    console.log(
+      `[macos-signing] notarize-artifact: submitting ${artifactPath} ` +
+        `(wait timeout ${NOTARY_WAIT_TIMEOUT_SEC}s)`
+    )
+    await run('xcrun', notarytoolSubmitArgs(artifactPath, { keyPath, keyId, issuer }))
     await run('xcrun', ['stapler', 'staple', '-v', artifactPath])
   } finally {
     cleanup()
   }
 }
 
-main().catch(() => {
+main().catch((error) => {
   console.error('Notarization failed. Check configuration and command output in secure CI logs.')
+  if (error?.message) {
+    console.error(error.message)
+  }
   process.exit(1)
 })
