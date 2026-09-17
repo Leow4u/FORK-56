@@ -223,6 +223,11 @@ Notes:
   (`src/components/chat/widget-shell.ts`): shared radius, the
   `--ui-widget-surface-background` fill, no border. Its actions sit *outside*
   the panel, below it. Don't give one widget its own radius or fill.
+- **Thread right-edge chrome** — the transcript scrollbar (`[data-slot='aui_thread-viewport']`)
+  is the one grabable bar on a long chat: `--thread-scrollbar-size` (10px), a
+  faint track, and a stronger thumb than the app-wide 4px gutters. The
+  conversation timeline rail sits just inside that size so ticks and the thumb
+  never share a hit target. Don't cover the gutter with overlay controls.
 - Bordered surfaces in the transcript (tables, fences, callouts, attachments)
   use `--ui-stroke-tertiary`. Not `border-border` — that's the app-wide
   default and reads too hot against the thread.
