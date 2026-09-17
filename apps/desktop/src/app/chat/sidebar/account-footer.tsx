@@ -39,7 +39,7 @@ export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 // "state may have changed" signal — no polling, no new IPC surface.
 const rowClass = cn(
   'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs',
-  'text-(--ui-text-tertiary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag]',
+  'text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag]',
   'hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none'
 )
 

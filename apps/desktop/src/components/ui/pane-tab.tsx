@@ -39,7 +39,7 @@ const TAB_ACTIVE_UNDERLINE = 'shadow-[inset_0_-2px_0_var(--pane-tab-active-accen
 // a darkening wash to register at all. `--tab-face` tracks the wash — the same
 // mix flattened onto `--tab-bg` — so the close gradient matches what shows.
 const TAB_IDLE =
-  'text-(--ui-text-tertiary) [--tab-bg:var(--pane-tab-strip-bg,var(--ui-sidebar-surface-background))] hover:shadow-[inset_0_0_0_100vmax_color-mix(in_srgb,#000_var(--ui-tab-hover-darken),transparent)] hover:[--tab-face:color-mix(in_srgb,#000_var(--ui-tab-hover-darken),var(--tab-bg))] hover:text-(--ui-text-secondary)'
+  'text-(--ui-text-secondary) [--tab-bg:var(--pane-tab-strip-bg,var(--ui-sidebar-surface-background))] hover:shadow-[inset_0_0_0_100vmax_color-mix(in_srgb,#000_var(--ui-tab-hover-darken),transparent)] hover:[--tab-face:color-mix(in_srgb,#000_var(--ui-tab-hover-darken),var(--tab-bg))] hover:text-foreground'
 
 // A tab riding a multi-tab selection: an accent wash over whatever surface the
 // tab sits on. A background-image gradient (not a shadow) so it stacks cleanly
@@ -255,9 +255,8 @@ export const PaneTabStrip = React.forwardRef<HTMLDivElement, PaneTabStripProps>(
 ) {
   return (
     <div
-      // Strip and active tab both sit on the sidebar surface, so the bar reads
-      // as one piece of chrome with the titlebar above it. No bottom rule — the
-      // active tab's primary underline is the only seam.
+      // Default strip sits on the rail. The main chat zone overrides both
+      // fills to the stage so tabs belong to the palco, not the sidebar.
       className={cn(
         'group/pane-header relative flex h-7 shrink-0 select-none bg-(--ui-sidebar-surface-background) [-webkit-app-region:no-drag] [--pane-tab-active-bg:var(--ui-sidebar-surface-background)]',
         className

@@ -247,10 +247,11 @@
     --z-onboarding-popover: 1310;
     --z-setup: 1400;
     --z-crash: 1500;
+    /* Rail well — same mix as the sidebar so the stage-corner bite matches. */
     --ui-bg-chrome: color-mix(
       in srgb,
-      var(--theme-background-seed) var(--theme-mix-chrome),
-      var(--theme-neutral-chrome)
+      var(--theme-sidebar-seed) var(--theme-mix-sidebar),
+      var(--theme-neutral-sidebar)
     );
     --ui-bg-sidebar: color-mix(
       in srgb,
@@ -345,8 +346,10 @@
     --ui-sash-hover-background: color-mix(in srgb, var(--ui-accent) 6%, transparent);
     --ui-surface-background: var(--ui-bg-editor);
     --ui-sidebar-surface-background: var(--ui-bg-sidebar);
-    --ui-chat-surface-background: var(--ui-bg-chrome);
-    --ui-editor-surface-background: var(--ui-bg-chrome);
+    /* Chat + editor sit one step brighter than the rail (the stage). */
+    --ui-chat-surface-background: var(--ui-bg-editor);
+    --ui-editor-surface-background: var(--ui-bg-editor);
+    --ui-stage-radius: 0.75rem;
     /* The integrated terminal wears the transcript's background, not the
        editor's — it reads as part of the conversation surface. Its own token so
        the two can diverge without dragging the terminal along, and so a skin
@@ -367,7 +370,7 @@
     --ui-inline-code-foreground: color-mix(in srgb, #141414 88%, transparent);
     --ui-selection-background: color-mix(in srgb, #ffd24a 55%, transparent);
 
-    --dt-background: var(--ui-bg-chrome);
+    --dt-background: var(--ui-bg-editor);
     --dt-foreground: var(--ui-text-primary);
     --dt-card: var(--ui-bg-editor);
     --dt-card-foreground: var(--ui-text-primary);

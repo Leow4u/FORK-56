@@ -8,12 +8,20 @@ import {
   TITLEBAR_FALLBACK_WINDOW_BUTTON_X,
   TITLEBAR_ICON_SIZE,
   TITLEBAR_MAC_TRAFFIC_LIGHTS_Y_NUDGE,
+  titlebarButtonClass,
   titlebarControlsPosition,
   titlebarControlsYNudge,
   titlebarIconSizeCss,
   titlebarToolsRightCss,
   titlebarToolsWidthCss
 } from './titlebar'
+
+describe('titlebar chrome', () => {
+  it('keeps tool icons on secondary text, not muted wash', () => {
+    expect(titlebarButtonClass).toContain('text-(--ui-text-secondary)')
+    expect(titlebarButtonClass).not.toContain('text-muted-foreground')
+  })
+})
 
 describe('titlebar sizing', () => {
   it('uses 24×24 hit targets and 13.9px glyphs', () => {
