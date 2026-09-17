@@ -15,15 +15,13 @@ export function Scene({
   position = 'center',
 }: SceneProps) {
   return (
-    <div
-      className={`${styles.scene} ${tall ? styles.tall : ''}`}
-      aria-hidden="true"
-    >
+    <div className={`${styles.scene} ${tall ? styles.tall : ''}`}>
       <img
         src={src}
         alt=""
         className={styles.bg}
         style={{ objectPosition: position }}
+        aria-hidden="true"
       />
       <div className={styles.stage}>{children}</div>
     </div>

@@ -11,7 +11,10 @@ export function Channels() {
       title="O mesmo agente, no WhatsApp e no terminal."
       scene={
         <Scene src="/media/river-mist.png" position="center 55%">
-          <DesktopShot src="/media/product/messaging.jpg" />
+          <DesktopShot
+            src="/media/product/messaging.jpg"
+            alt="Work4You desktop — Messaging, WhatsApp"
+          />
         </Scene>
       }
     >

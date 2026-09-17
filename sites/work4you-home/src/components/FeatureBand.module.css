@@ -2,6 +2,10 @@
   padding: clamp(3rem, 6vw, 5rem) 0;
 }
 
+.stackSection {
+  padding-bottom: 0;
+}
+
 .split {
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
@@ -60,7 +64,8 @@
   margin-bottom: 1.4rem;
 }
 
-.visual {
+.visual,
+.bleed {
   min-width: 0;
 }
 

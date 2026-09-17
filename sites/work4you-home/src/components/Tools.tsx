@@ -10,7 +10,10 @@ export function Tools() {
       title="Conecta as ferramentas que você já usa."
       scene={
         <Scene src="/media/pine-fog.png" position="center 80%">
-          <DesktopShot src="/media/product/capabilities.jpg" />
+          <DesktopShot
+            src="/media/product/capabilities.jpg"
+            alt="Work4You desktop — Capabilities / MCP"
+          />
         </Scene>
       }
     >

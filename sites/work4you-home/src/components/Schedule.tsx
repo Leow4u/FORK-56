@@ -10,7 +10,10 @@ export function Schedule() {
       title="O que se repete, o bot assume."
       scene={
         <Scene src="/media/dusk-ridge.png" position="center 40%">
-          <DesktopShot src="/media/product/cron.jpg" />
+          <DesktopShot
+            src="/media/product/cron.jpg"
+            alt="Work4You desktop — New Cronjob"
+          />
         </Scene>
       }
     >

@@ -11,7 +11,10 @@ export function Bots() {
       title="Bots que trabalham juntos. Sem outro download."
       scene={
         <Scene src="/media/dawn-valley.png" position="center 70%">
-          <DesktopShot src="/media/product/bots.jpg" />
+          <DesktopShot
+            src="/media/product/bots.jpg"
+            alt="Work4You desktop — Bots em group chat"
+          />
         </Scene>
       }
     >

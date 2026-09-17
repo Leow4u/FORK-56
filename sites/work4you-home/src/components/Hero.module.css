@@ -20,6 +20,7 @@
 
 .visual {
   margin-top: clamp(1.6rem, 3.5vw, 2.4rem);
+  width: 100%;
 }
 
 @media (max-width: 640px) {

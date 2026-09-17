@@ -3,17 +3,15 @@
   isolation: isolate;
   display: grid;
   place-items: center;
-  min-height: 18rem;
-  padding: clamp(1.1rem, 2.4vw, 1.8rem);
-  border-radius: 20px;
+  width: 100%;
+  min-height: 20rem;
+  padding: clamp(2.2rem, 5vw, 4.2rem) 0;
   overflow: hidden;
-  border: 1px solid var(--linha);
-  background: var(--nevoa);
-  box-shadow: var(--shadow-soft);
 }
 
 .tall {
-  min-height: 26rem;
+  min-height: 28rem;
+  padding: clamp(2.6rem, 6vw, 5.2rem) 0;
 }
 
 .bg {
@@ -32,8 +30,8 @@
   z-index: 1;
   background: linear-gradient(
     180deg,
-    rgba(26, 25, 21, 0.08),
-    rgba(26, 25, 21, 0.22)
+    rgba(26, 25, 21, 0.05),
+    rgba(26, 25, 21, 0.16)
   );
   pointer-events: none;
 }
@@ -41,7 +39,7 @@
 .stage {
   position: relative;
   z-index: 2;
-  width: 100%;
+  width: min(100% - 2rem, 76rem);
   display: grid;
   place-items: center;
 }
@@ -49,7 +47,7 @@
 @media (max-width: 640px) {
   .scene,
   .tall {
-    min-height: 16.5rem;
-    padding: 1rem 0.75rem;
+    min-height: 14rem;
+    padding: 1.4rem 0;
   }
 }

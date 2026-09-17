@@ -30,9 +30,9 @@ export function FeatureBand({
 
   if (stack) {
     return (
-      <section className={styles.section} id={id}>
+      <section className={`${styles.section} ${styles.stackSection}`} id={id}>
         <div className={`shell ${styles.stackCopy}`}>{copy}</div>
-        <div className={`shell ${styles.visual}`}>{scene}</div>
+        <div className={styles.bleed}>{scene}</div>
       </section>
     )
   }
