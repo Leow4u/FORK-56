@@ -44,8 +44,15 @@ const INJECTED_FONT_URLS = new Set<string>()
 const resolveMode = (mode: ThemeMode, systemDark = matchesQuery('(prefers-color-scheme: dark)')): 'light' | 'dark' =>
   mode === 'system' ? (systemDark ? 'dark' : 'light') : mode
 
-const normalizeSkin = (name: string | null): string =>
-  name && resolveTheme(name) && !RETIRED_SKINS.has(name) ? name : DEFAULT_SKIN_NAME
+const normalizeSkin = (name: string | null): string => {
+  if (!name) {
+    return DEFAULT_SKIN_NAME
+  }
+
+  const resolved = resolveTheme(name)
+
+  return resolved && !RETIRED_SKINS.has(resolved.name) ? resolved.name : DEFAULT_SKIN_NAME
+}
 
 const normalizeMode = (value: string | null): ThemeMode =>
   value === 'light' || value === 'dark' || value === 'system' ? value : 'light'

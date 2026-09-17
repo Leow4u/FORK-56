@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { BUILTIN_THEMES, DEFAULT_SKIN_NAME } from './presets'
+import { BUILTIN_THEMES, DEFAULT_SKIN_NAME, work4youOliveTheme } from './presets'
 import {
   $marketplaceInstalls,
   $userThemes,
@@ -56,6 +56,13 @@ describe('user theme registry', () => {
 
   it('resolves built-ins through the same lookup', () => {
     expect(resolveTheme(DEFAULT_SKIN_NAME)).toBe(BUILTIN_THEMES[DEFAULT_SKIN_NAME])
+  })
+
+  it('resolves the retired Blue id to the Olive built-in, without a second card', () => {
+    expect(resolveTheme('work4you-blue')).toBe(work4youOliveTheme)
+    expect(resolveTheme('work4you-olive')).toBe(work4youOliveTheme)
+    expect(listAllThemes().filter(theme => theme.name === 'work4you-olive')).toHaveLength(1)
+    expect(listAllThemes().some(theme => theme.name === 'work4you-blue')).toBe(false)
   })
 
   it('refuses to shadow a built-in name', () => {

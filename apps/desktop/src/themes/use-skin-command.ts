@@ -1,14 +1,18 @@
 import { useCallback } from 'react'
 
 import { useTheme } from './context'
+import { SKIN_ALIASES } from './presets'
 
-// Retired skin names land on the canonical Work4You skin so old muscle memory works.
+// Retired skin names land on the canonical skin so old muscle memory works.
 const ALIASES: Record<string, string> = {
   ares: 'ember',
   default: 'work4you',
   gold: 'work4you',
   work4you: 'work4you',
-  'work4you-light': 'work4you'
+  'work4you-light': 'work4you',
+  blue: 'work4you-olive',
+  'work4you blue': 'work4you-olive',
+  ...SKIN_ALIASES
 }
 
 export function useSkinCommand() {

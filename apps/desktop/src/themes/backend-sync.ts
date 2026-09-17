@@ -19,7 +19,7 @@
 import type { Work4YouSkin } from '@work4you/shared/skin'
 import { atom } from 'nanostores'
 
-import { BUILTIN_THEMES } from './presets'
+import { BUILTIN_THEMES, canonicalSkinName } from './presets'
 import { skinToDesktopTheme } from './skin'
 import type { DesktopTheme } from './types'
 
@@ -63,7 +63,7 @@ export function ingestBackendSkin(skin: Work4YouSkin | undefined | null, { apply
   // skip the registry step here and let it flow through the apply logic below.
   // Built-in names (mono/slate/…) already have a hand-tuned desktop palette — we
   // never shadow it, but the name is still a valid apply target.
-  if (name !== 'default' && !BUILTIN_THEMES[name]) {
+  if (name !== 'default' && !BUILTIN_THEMES[canonicalSkinName(name)]) {
     const theme = skinToDesktopTheme(skin as Work4YouSkin)
 
     if (!theme) {

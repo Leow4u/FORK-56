@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { __resetBackendSkinSync, ingestBackendSkin } from './backend-sync'
 import { skinPref, ThemeProvider, useTheme } from './context'
-import { midnightTheme } from './presets'
+import { midnightTheme, work4youOliveTheme } from './presets'
 
 // The live-authoring loop: Work4You writes/edits one skin file and every surface
 // repaints. An in-place edit keeps the NAME — only the palette moves.
@@ -136,5 +136,28 @@ describe('ThemeProvider highlight preview', () => {
 
     act(() => ctx.previewTheme('does-not-exist', 'dark'))
     expect(cssVar('--theme-foreground')).toBe(painted)
+  })
+
+  it('commits the retired Blue name as Olive', () => {
+    renderProbe()
+
+    act(() => ctx.setTheme('work4you-blue'))
+
+    expect(ctx.themeName).toBe('work4you-olive')
+    expect(skinPref.resolve('default')).toBe('work4you-olive')
+    expect(cssVar('--theme-background-seed')).toBe(work4youOliveTheme.colors.background)
+    expect(cssVar('--theme-sidebar-seed')).toBe(work4youOliveTheme.colors.sidebarBackground)
+  })
+
+  it('previews Olive from the retired Blue name without persisting', () => {
+    renderProbe()
+
+    const committed = ctx.themeName
+
+    act(() => ctx.previewTheme('work4you-blue', 'dark'))
+
+    expect(cssVar('--theme-foreground')).toBe(work4youOliveTheme.darkColors?.foreground)
+    expect(ctx.themeName).toBe(committed)
+    expect(skinPref.resolve('default')).toBe(committed)
   })
 })
