@@ -41,7 +41,7 @@ export function Features() {
         <h2 className={styles.title}>O mesmo agente, em todo lugar.</h2>
         <div className={styles.grid}>
           {features.map((feature) => (
-            <article key={feature.n} className={styles.card}>
+            <article key={feature.n} className={styles.item}>
               <span className={styles.n}>{feature.n}</span>
               <h3>{feature.title}</h3>
               <p>{feature.body}</p>

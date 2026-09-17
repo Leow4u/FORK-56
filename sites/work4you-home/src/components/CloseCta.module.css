@@ -1,0 +1,43 @@
+.section {
+  scroll-margin-top: 5.5rem;
+}
+
+.scene {
+  min-height: 42rem;
+  padding-top: clamp(3.6rem, 8vw, 6.2rem);
+  padding-bottom: clamp(4.8rem, 10vw, 7.8rem);
+}
+
+.card {
+  width: min(100%, 38rem);
+  padding: clamp(1.5rem, 3vw, 2.1rem) clamp(1.2rem, 3vw, 1.9rem)
+    clamp(1.4rem, 3vw, 1.85rem);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--papel) 93%, transparent);
+  border: 1px solid rgba(250, 249, 245, 0.55);
+  box-shadow: 0 22px 56px rgba(26, 25, 21, 0.2);
+  backdrop-filter: blur(12px);
+  text-align: center;
+}
+
+.title {
+  margin: 0 auto 1.1rem;
+  max-width: 16ch;
+  font-size: clamp(1.85rem, 3.6vw, 2.45rem);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  word-spacing: 0.06em;
+  line-height: 1.18;
+  text-wrap: balance;
+}
+
+.download {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.35rem;
+}
+
+.download:empty {
+  display: none;
+  margin: 0;
+}
