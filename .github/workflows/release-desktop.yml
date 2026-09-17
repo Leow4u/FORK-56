@@ -54,6 +54,8 @@ on:
     paths:
       - .github/workflows/release-desktop.yml
       - scripts/ci/prepare_macos_signing.py
+      - scripts/ci/publish_desktop_release.py
+      - scripts/ci/resolve_desktop_release_tag.py
       - apps/desktop/**
       - apps/shared/**
 
@@ -277,7 +279,7 @@ jobs:
     name: Publish desktop release
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -298,6 +300,7 @@ jobs:
             exit 0
           fi
           latest="$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name || true)"
+          latest_assets="$(gh api "repos/${{ github.repository }}/releases/latest" --jq '.assets[].name' || true)"
           tags="$(gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[].tag_name' || true)"
           input_tag=""
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -307,34 +310,21 @@ jobs:
             --event workflow_dispatch \
             --input-tag "$input_tag" \
             --github-latest "$latest" \
-            --desktop-tags "$tags" >> "$GITHUB_OUTPUT"
+            --desktop-tags "$tags" \
+            --latest-assets "$latest_assets" >> "$GITHUB_OUTPUT"
 
+      # Run 35266198169: signed/notarized installers, then
+      # `gh release upload` of Work4You-Setup.exe hit HTTP 500 and left
+      # desktop-v0.0.71 as Latest with zero assets. Draft until both files
+      # land; retry 5xx/403; rebuild Latest in place when it is hollow.
       - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="${{ steps.tag.outputs.tag }}"
-          create="${{ steps.tag.outputs.create }}"
-          repo="${{ github.repository }}"
-          notes="Signed Windows NSIS app (npm run dist:win:nsis) and signed/notarized macOS DMG (npm run dist:mac:dmg). Downloads from [work4you.ai](https://work4you.ai/) redirect here."
-          echo "Publishing $tag (create=$create) from ${{ github.sha }}"
-          # `on: release` (and a dispatch that races a just-created tag) already
-          # owns $tag. `gh release create` then 422s ("tag_name already exists")
-          # and `set -e` skipped upload — desktop-v0.0.9 shipped as Latest with
-          # no .exe/.dmg. Always land on edit+upload when the release exists.
-          if ! gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
-            if ! gh release create "$tag" \
-              --repo "$repo" \
-              --target "${{ github.sha }}" \
-              --latest \
-              --title "Work4You Desktop ${tag#desktop-v}" \
-              --notes "$notes"; then
-              echo "create failed (tag may already exist); uploading in place"
-            fi
-          fi
-          # Do not require `release view` here: the 0.0.9 miss was view failing
-          # while the tag already existed. edit+upload is the source of truth.
-          gh release edit "$tag" --repo "$repo" --latest
-          gh release upload "$tag" --repo "$repo" installers/windows-installer/Work4You-Setup.exe --clobber
-          gh release upload "$tag" --repo "$repo" installers/macos-installer/Work4You.dmg --clobber
+          python scripts/ci/publish_desktop_release.py \
+            --tag "${{ steps.tag.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --exe installers/windows-installer/Work4You-Setup.exe \
+            --dmg installers/macos-installer/Work4You.dmg

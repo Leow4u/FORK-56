@@ -18,7 +18,10 @@ Rules:
   highest ``desktop-v*`` tag (rebuild in place).
 * dispatch with empty / ``next`` / ``bump`` → bump the patch of that same
   base tag and create a new Latest so the Git tag, asar install-stamp, and
-  download URL all point at this run's commit.
+  download URL all point at this run's commit. If Latest is a ``desktop-v*``
+  tag that is missing ``Work4You-Setup.exe`` or ``Work4You.dmg`` (run
+  35266198169 left ``desktop-v0.0.71`` empty after an upload HTTP 500),
+  rebuild that tag in place instead of bumping.
 
 Used by ``.github/workflows/release-desktop.yml``. No network I/O — the
 workflow feeds GitHub's current tags in as data.
@@ -36,6 +39,7 @@ BARE_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 FIRST_TAG = "desktop-v0.0.1"
 BUMP_ALIASES = frozenset({"", "next", "bump"})
 LATEST_ALIASES = frozenset({"latest"})
+REQUIRED_INSTALLERS = frozenset({"Work4You-Setup.exe", "Work4You.dmg"})
 
 
 class ResolveError(ValueError):
@@ -98,6 +102,12 @@ def base_desktop_tag(github_latest: str, all_tags: list[str]) -> str | None:
     return highest_desktop_tag(all_tags)
 
 
+def latest_assets_complete(names: list[str]) -> bool:
+    """True when Latest already has both public installers."""
+    have = {name.strip() for name in names if name.strip()}
+    return REQUIRED_INSTALLERS <= have
+
+
 def resolve_desktop_release_tag(
     *,
     event: str,
@@ -105,6 +115,7 @@ def resolve_desktop_release_tag(
     input_tag: str = "",
     github_latest: str = "",
     all_tags: list[str] | None = None,
+    latest_assets: list[str] | None = None,
 ) -> ResolvedDesktopTag:
     tags = list(all_tags or [])
     if event == "release":
@@ -131,6 +142,11 @@ def resolve_desktop_release_tag(
             return ResolvedDesktopTag(tag=base, create=False)
         if base is None:
             return ResolvedDesktopTag(tag=FIRST_TAG, create=True)
+        # desktop-v0.0.71 (run 35266198169) became Latest with zero assets
+        # after upload HTTP 500. When we *know* Latest is incomplete, rebuild
+        # in place instead of bumping (None = assets not queried).
+        if latest_assets is not None and not latest_assets_complete(latest_assets):
+            return ResolvedDesktopTag(tag=base, create=False)
         return ResolvedDesktopTag(tag=bump_patch(base), create=True)
 
     explicit = normalize_explicit_tag(raw)
@@ -166,6 +182,11 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="newline- or comma-separated existing release tags",
     )
+    parser.add_argument(
+        "--latest-assets",
+        default=None,
+        help="newline- or comma-separated asset names on GitHub Latest",
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -175,6 +196,9 @@ def main(argv: list[str] | None = None) -> int:
             input_tag=args.input_tag,
             github_latest=args.github_latest,
             all_tags=_split_tags(args.desktop_tags),
+            latest_assets=(
+                None if args.latest_assets is None else _split_tags(args.latest_assets)
+            ),
         )
     except ResolveError as exc:
         print(f"::error::{exc}", file=sys.stderr)
