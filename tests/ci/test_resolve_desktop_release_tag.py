@@ -50,6 +50,28 @@ def test_dispatch_empty_bumps_github_latest_not_bootstrap_003():
     assert resolved == mod.ResolvedDesktopTag(tag="desktop-v0.0.9", create=True)
 
 
+def test_dispatch_empty_rebuilds_latest_when_installers_missing():
+    resolved = mod.resolve_desktop_release_tag(
+        event="workflow_dispatch",
+        input_tag="",
+        github_latest="desktop-v0.0.71",
+        all_tags=[*EXISTING, "desktop-v0.0.71"],
+        latest_assets=[],
+    )
+    assert resolved == mod.ResolvedDesktopTag(tag="desktop-v0.0.71", create=False)
+
+
+def test_dispatch_empty_still_bumps_when_latest_has_both_installers():
+    resolved = mod.resolve_desktop_release_tag(
+        event="workflow_dispatch",
+        input_tag="bump",
+        github_latest="desktop-v0.0.71",
+        all_tags=[*EXISTING, "desktop-v0.0.71"],
+        latest_assets=["Work4You-Setup.exe", "Work4You.dmg"],
+    )
+    assert resolved == mod.ResolvedDesktopTag(tag="desktop-v0.0.72", create=True)
+
+
 def test_dispatch_empty_ignores_non_desktop_github_latest():
     resolved = mod.resolve_desktop_release_tag(
         event="workflow_dispatch",
@@ -126,3 +148,22 @@ def test_cli_writes_github_output(capsys):
     )
     assert code == 0
     assert capsys.readouterr().out == "tag=desktop-v0.0.9\ncreate=true\n"
+
+
+def test_cli_rebuilds_hollow_latest(capsys):
+    code = mod.main(
+        [
+            "--event",
+            "workflow_dispatch",
+            "--input-tag",
+            "",
+            "--github-latest",
+            "desktop-v0.0.71",
+            "--desktop-tags",
+            "desktop-v0.0.70,desktop-v0.0.71",
+            "--latest-assets",
+            "",
+        ]
+    )
+    assert code == 0
+    assert capsys.readouterr().out == "tag=desktop-v0.0.71\ncreate=false\n"
