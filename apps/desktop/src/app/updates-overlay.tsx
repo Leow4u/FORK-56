@@ -111,9 +111,7 @@ export function UpdatesOverlay() {
         onOpenAutoFocus={preventCloseButtonAutoFocus}
         showCloseButton={phase !== 'applying'}
       >
-        {phase === 'applying' && (
-          <ApplyingView apply={apply} isBackend={isBackend} isInstaller={status?.channel === 'installer'} />
-        )}
+        {phase === 'applying' && <ApplyingView apply={apply} />}
 
         {phase === 'manual' && (
           <ManualView command={apply.command ?? null} message={apply.message} onDone={() => handleClose(false)} />
@@ -386,21 +384,10 @@ function GuiSkewView({ message, onDone }: { message?: string; onDone: () => void
   )
 }
 
-function ApplyingView({
-  apply,
-  isBackend,
-  isInstaller
-}: {
-  apply: UpdateApplyState
-  isBackend: boolean
-  isInstaller: boolean
-}) {
+function ApplyingView({ apply }: { apply: UpdateApplyState }) {
   const { t } = useI18n()
   const u = t.updates
   const label = u.stages[apply.stage as DesktopUpdateStage] ?? u.stages.idle
-  const body = isBackend ? u.applyingBodyBackend : isInstaller ? u.applyingBodyInstaller : u.applyingBody
-  const currentMessage = apply.message.trim()
-  const recentLog = apply.log.slice(-4)
 
   const percent =
     typeof apply.percent === 'number' && Number.isFinite(apply.percent)
@@ -408,36 +395,21 @@ function ApplyingView({
       : null
 
   return (
-    <div className="grid gap-5 px-6 pb-6 pt-7">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <Loader className="size-16" label={label} type="lemniscate-bloom" />
-
-        <DialogTitle className="text-center text-xl">{label}</DialogTitle>
-        <DialogDescription className="text-center text-sm">{body}</DialogDescription>
-
-        {currentMessage ? (
-          <p className="max-w-lg break-words text-center text-xs leading-5 text-muted-foreground">{currentMessage}</p>
-        ) : null}
+    <div className="grid gap-6 px-8 pb-8 pt-10">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <BrandMark className="size-12" />
+        <DialogTitle className="text-center text-lg font-medium tracking-tight">{label}</DialogTitle>
+        <DialogDescription className="sr-only">{label}</DialogDescription>
       </div>
 
       <Progress
+        animated={percent === null}
         aria-label={label}
+        fillClassName="bg-midground"
         indeterminate={percent === null}
-        size="lg"
+        size="default"
         value={percent === null ? 0 : percent / 100}
       />
-
-      {recentLog.length > 1 ? (
-        <div className="max-h-24 overflow-hidden rounded-md border border-border/70 bg-muted/35 px-3 py-2 text-left font-mono text-[11px] leading-4 text-muted-foreground">
-          {recentLog.map((entry, index) => (
-            <div className="truncate" key={`${entry.at}-${index}`}>
-              {entry.message}
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      <p className="text-center text-xs text-muted-foreground">{u.applyingClose}</p>
     </div>
   )
 }
