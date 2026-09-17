@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { work4youTheme } from '@/themes/presets'
 
 import {
-  MAIN_STAGE_TAB_STRIP_CLASS,
-  WINDOW_TITLEBAR_RAIL_CLASS,
   isMainStageZone,
-  mainStageCornerClass
+  MAIN_STAGE_TAB_STRIP_CLASS,
+  mainStageCornerClass,
+  WINDOW_TITLEBAR_RAIL_CLASS
 } from './stage-chrome'
 
 describe('mainStageCornerClass', () => {
