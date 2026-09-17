@@ -49,6 +49,7 @@
   background: var(--tinta);
   border-radius: var(--radius-pill);
   padding: 0.55rem 1rem;
+  white-space: nowrap;
   transition: background 0.15s ease;
 }
 

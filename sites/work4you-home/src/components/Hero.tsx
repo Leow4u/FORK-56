@@ -14,19 +14,37 @@ function detectTab(): Tab {
   return /windows/i.test(navigator.userAgent) ? 'windows' : 'unix'
 }
 
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    try {
+      const field = document.createElement('textarea')
+      field.value = text
+      field.setAttribute('readonly', '')
+      field.style.position = 'fixed'
+      field.style.left = '-9999px'
+      document.body.appendChild(field)
+      field.select()
+      const ok = document.execCommand('copy')
+      field.remove()
+      return ok
+    } catch {
+      return false
+    }
+  }
+}
+
 export function Hero() {
   const initial = useMemo(() => detectTab(), [])
   const [tab, setTab] = useState<Tab>(initial)
   const [copied, setCopied] = useState(false)
 
   async function copyCommand() {
-    try {
-      await navigator.clipboard.writeText(INSTALL_COMMANDS[tab])
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1600)
-    } catch {
-      setCopied(false)
-    }
+    const ok = await copyText(INSTALL_COMMANDS[tab])
+    setCopied(ok)
+    if (ok) window.setTimeout(() => setCopied(false), 1600)
   }
 
   return (

@@ -13,8 +13,9 @@
   margin: 0.75rem 0 0;
   font-size: clamp(2.35rem, 5.2vw, 3.45rem);
   font-weight: 800;
-  line-height: 1.12;
-  letter-spacing: -0.02em;
+  line-height: 1.16;
+  letter-spacing: -0.015em;
+  word-spacing: 0.06em;
   color: var(--tinta);
   text-wrap: balance;
 }
