@@ -45,6 +45,7 @@ function installCloud(status: {
   signedIn: boolean
 }) {
   const statusFn = vi.fn(async () => ({ portalBaseUrl: 'https://portal.example', ...status }))
+
   const logout =
     status.logout ??
     vi.fn(async () => ({
@@ -52,6 +53,7 @@ function installCloud(status: {
       portalBaseUrl: 'https://portal.example',
       signedIn: false
     }))
+
   const openExternal = status.openExternal ?? vi.fn(async () => undefined)
 
   desktopWindow.work4youDesktop = { cloud: { logout, status: statusFn }, openExternal }

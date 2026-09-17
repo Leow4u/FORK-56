@@ -339,7 +339,8 @@ export const ja = defineLocale({
       colorMode: 'カラーモード',
       colorModeDesc: '固定モードを選ぶか、Work4You をシステム設定に合わせます。',
       toolViewTitle: 'ツール呼び出しの表示',
-      toolViewDesc: 'プロダクト表示は完了したターンを Worked-for 1 行に畳みます。テクニカル表示はツールログと入出力を残します。',
+      toolViewDesc:
+        'プロダクト表示は完了したターンを Worked-for 1 行に畳みます。テクニカル表示はツールログと入出力を残します。',
       reasoningCollapsedTitle: '思考ブロックをデフォルトで折りたたむ',
       reasoningCollapsedDesc: 'ストリーミング中の推論を、開くまで折りたたんだまま利用できるようにします。',
       uiScaleTitle: 'UI スケール',

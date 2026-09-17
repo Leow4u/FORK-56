@@ -1350,11 +1350,7 @@ export function ChatBar({
               bracket the composer on one vertical line. */}
           <div className={cn(composerFloatingStrip, 'px-[5px] pt-1.5 empty:hidden')}>
             <ContribSlot area={COMPOSER_AREAS.underside} />
-            <ComposerContextUsage
-              busy={busy}
-              hidden={messagesEmpty || voiceConversationActive}
-              sessionId={sessionId}
-            />
+            <ComposerContextUsage busy={busy} hidden={messagesEmpty || voiceConversationActive} sessionId={sessionId} />
           </div>
         </div>
       </ComposerPrimitive.Unstable_TriggerPopoverRoot>

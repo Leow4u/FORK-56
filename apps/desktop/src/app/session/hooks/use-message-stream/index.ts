@@ -30,7 +30,6 @@ import { upsertSubagent } from '@/store/subagents'
 import { setSessionTodos } from '@/store/todos'
 
 import type { ClientSessionState } from '../../../types'
-
 import { stampLastTurnDuration, wallClockDurationS } from '../use-prompt-actions/rewind'
 
 import { useGatewayEventHandler } from './gateway-event'

@@ -200,9 +200,9 @@ describe('the catalog menu layout', () => {
 
     await openModelsCatalog()
     expect(screen.getByRole('textbox', { name: 'Search models' })).toBeTruthy()
-    expect(
-      screen.getAllByText(/Gemini 3\.1 Pro/i).some(el => el.closest('[data-slot="dropdown-menu-item"]'))
-    ).toBe(true)
+    expect(screen.getAllByText(/Gemini 3\.1 Pro/i).some(el => el.closest('[data-slot="dropdown-menu-item"]'))).toBe(
+      true
+    )
   })
 
   it('hides Fast when the active model has no fast capability', async () => {

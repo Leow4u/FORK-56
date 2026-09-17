@@ -13,6 +13,7 @@ import {
 
 const thought = (text: string) => ({ type: 'reasoning', text })
 const text = (value: string) => ({ type: 'text', text: value })
+
 const tool = (toolName: string, extra: Record<string, unknown> = {}) => ({
   type: 'tool-call',
   toolName,

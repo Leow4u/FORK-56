@@ -15,11 +15,7 @@ import { $currentUsage } from '@/store/session'
 import { $sessionStates } from '@/store/session-states'
 import type { UsageStats } from '@/types/work4you'
 
-import {
-  contextUsageOccupancyTip,
-  contextUsagePercent,
-  mergeContextGaugeUsage
-} from './context-usage-label'
+import { contextUsageOccupancyTip, contextUsagePercent, mergeContextGaugeUsage } from './context-usage-label'
 import { useComposerScope } from './scope'
 
 const EMPTY_USAGE: UsageStats = { calls: 0, input: 0, output: 0, total: 0 }
