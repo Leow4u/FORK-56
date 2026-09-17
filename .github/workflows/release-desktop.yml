@@ -5,8 +5,8 @@ name: Release Desktop Installer
 #   ESIGNER_USERNAME, ESIGNER_PASSWORD, ESIGNER_CREDENTIAL_ID, ESIGNER_TOTP_SECRET
 # Script: scripts/ci/sign_windows_esigner.py
 #
-# macOS Developer ID + notarization (electron-builder signs the .app; afterSign
-# staples it; this workflow then notarizes the DMG). Required repo secrets:
+# macOS Developer ID + notarization (electron-builder signs the .app; CI skips
+# afterSign notary and this workflow notarizes the DMG). Required repo secrets:
 #   CSC_P12_BASE64, CSC_KEY_PASSWORD,
 #   APPLE_API_KEY, APPLE_API_KEY_ID, APPLE_API_ISSUER
 # Script: scripts/ci/prepare_macos_signing.py
@@ -209,20 +209,18 @@ jobs:
       # CSC_NAME / CSC_KEYCHAIN come from GITHUB_ENV after keychain import.
       # Never set CSC_LINK / CSC_KEY_PASSWORD here — CSC_LINK makes
       # electron-builder rebuild a temp keychain (run 35235301249).
-      # APPLE_* feed afterSign (`scripts/notarize.mjs`), which writes an
-      # inline .p8 to a temp file. They must stay out of @electron/notarize:
-      # electron-builder 26 auto-runs that when APPLE_API_KEY is set and
-      # passes the PEM as `--key` (run 35248432787). `mac.notarize` is
-      # false so only afterSign runs. Empty APPLE_* on the unsigned path
-      # so notarize.mjs skips instead of submitting an ad-hoc bundle.
+      # Do not pass APPLE_* here. electron-builder 26 auto-runs
+      # @electron/notarize when APPLE_API_KEY is set (run 35248432787),
+      # and afterSign `notarytool --wait` with no timeout hung 88 minutes
+      # after a successful Developer ID sign (run 35249919145, killed
+      # pid 38554). `mac.notarize` is false; afterSign no-ops via
+      # WORK4YOU_SKIP_AFTERSIGN_NOTARIZE; the DMG step notarizes.
       - name: Build macOS DMG installer
         working-directory: apps/desktop
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ steps.prepare_macos.outcome == 'success' && 'true' || 'false' }}
           CSC_NAME: ${{ steps.prepare_macos.outcome == 'success' && steps.prepare_macos.outputs.identity || '' }}
-          APPLE_API_KEY: ${{ steps.prepare_macos.outcome == 'success' && secrets.APPLE_API_KEY || '' }}
-          APPLE_API_KEY_ID: ${{ steps.prepare_macos.outcome == 'success' && secrets.APPLE_API_KEY_ID || '' }}
-          APPLE_API_ISSUER: ${{ steps.prepare_macos.outcome == 'success' && secrets.APPLE_API_ISSUER || '' }}
+          WORK4YOU_SKIP_AFTERSIGN_NOTARIZE: "1"
         run: npm run build && npm run builder -- --mac dmg --publish never
 
       - name: Stage macOS artifact
