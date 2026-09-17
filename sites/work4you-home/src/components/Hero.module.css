@@ -22,49 +22,8 @@
   margin-top: clamp(1.6rem, 3.5vw, 2.4rem);
 }
 
-.empty {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  margin: 0;
-  padding: 1.4rem 0.4rem 1rem;
-  font-size: 1.15rem;
-  font-weight: 800;
-  letter-spacing: -0.015em;
-  word-spacing: 0.05em;
-  line-height: 1.25;
-}
-
-.composer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-top: auto;
-  padding: 0.62rem 0.75rem;
-  border-radius: 10px;
-  background: #f4f3ee;
-  color: var(--grafite);
-  font-size: 0.78rem;
-  letter-spacing: 0.005em;
-  word-spacing: 0.04em;
-}
-
-.composer em {
-  flex: 0 0 auto;
-  font-style: normal;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--oliva-esc);
-  white-space: nowrap;
-}
-
 @media (max-width: 640px) {
   .title {
     max-width: 14ch;
-  }
-
-  .composer {
-    flex-wrap: wrap;
   }
 }

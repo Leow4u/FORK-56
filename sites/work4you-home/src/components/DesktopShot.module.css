@@ -1,0 +1,8 @@
+.shot {
+  display: block;
+  width: min(100%, 72rem);
+  border-radius: 12px;
+  border: 1px solid var(--linha);
+  box-shadow: 0 18px 48px rgba(26, 25, 21, 0.16);
+  background: #fff;
+}

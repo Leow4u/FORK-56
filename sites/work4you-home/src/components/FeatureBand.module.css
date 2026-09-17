@@ -56,9 +56,12 @@
   font-weight: 700;
 }
 
+.stackCopy {
+  margin-bottom: 1.4rem;
+}
+
 .visual {
   min-width: 0;
-  min-height: 24.5rem;
 }
 
 @media (max-width: 900px) {

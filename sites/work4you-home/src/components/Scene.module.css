@@ -3,8 +3,8 @@
   isolation: isolate;
   display: grid;
   place-items: center;
-  min-height: 24.5rem;
-  padding: clamp(1.6rem, 3.6vw, 2.6rem);
+  min-height: 18rem;
+  padding: clamp(1.1rem, 2.4vw, 1.8rem);
   border-radius: 20px;
   overflow: hidden;
   border: 1px solid var(--linha);

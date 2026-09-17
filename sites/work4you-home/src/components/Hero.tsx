@@ -1,9 +1,5 @@
+import { DesktopShot } from './DesktopShot'
 import { HeroCtas } from './Ctas'
-import {
-  ProductWindow,
-  RailItem,
-  RailLabel,
-} from './ProductWindow'
 import { Scene } from './Scene'
 import styles from './Hero.module.css'
 
@@ -18,26 +14,7 @@ export function Hero() {
 
       <div className={`shell ${styles.visual}`}>
         <Scene src="/media/hero-hills.jpg" tall position="center 42%">
-          <ProductWindow
-            roomy
-            title="Sessions · Nova sessão"
-            sidebar={
-              <>
-                <RailLabel>Projetos</RailLabel>
-                <RailItem>Home</RailItem>
-                <RailItem current>Briefing das 9h</RailItem>
-                <RailItem>Relatório semanal</RailItem>
-              </>
-            }
-            footer={
-              <div className={styles.composer}>
-                <span>Comece com uma meta…</span>
-                <em>Operis 4.0 Médio</em>
-              </div>
-            }
-          >
-            <p className={styles.empty}>Pronto quando você estiver.</p>
-          </ProductWindow>
+          <DesktopShot src="/media/product/sessions.jpg" />
         </Scene>
       </div>
     </section>

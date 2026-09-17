@@ -1,24 +1,16 @@
+import { DesktopShot } from './DesktopShot'
 import { FeatureBand } from './FeatureBand'
-import { Field, ProductWindow } from './ProductWindow'
 import { Scene } from './Scene'
 
 export function Schedule() {
   return (
     <FeatureBand
       id="agenda"
+      stack
       title="O que se repete, o bot assume."
-      flip
       scene={
         <Scene src="/media/dusk-ridge.png" position="center 40%">
-          <ProductWindow title="Novo cronjob · Analista Financeiro">
-            <Field label="Nome" value="Briefing de segunda" />
-            <Field label="Quando" value="Toda segunda · 09:00" />
-            <Field
-              label="Continuidade"
-              value="Ligada — o bot lê o último output."
-              tone="ok"
-            />
-          </ProductWindow>
+          <DesktopShot src="/media/product/cron.jpg" />
         </Scene>
       }
     >
