@@ -104,3 +104,74 @@ def test_apply_pricing_gates_work4you_without_live_prices(monkeypatch):
     assert "z-ai/glm-5.2" in rows[0]["unavailable_models"]
 
 
+def test_apply_pricing_gates_free_plan_even_with_credits(monkeypatch):
+    """Beta Free + credits must still populate unavailable_models."""
+    from work4you_cli.models import WORK4YOU_HOUSE_MODEL_ID
+    from work4you_cli.work4you_account import (
+        Work4YouPaidServiceAccessInfo,
+        Work4YouPortalAccountInfo,
+        Work4YouPortalSubscriptionInfo,
+    )
+
+    monkeypatch.setattr(models_mod, "get_pricing_for_provider", lambda slug, **kw: {})
+    monkeypatch.setattr(
+        "work4you_cli.work4you_account.get_work4you_portal_account_info",
+        lambda *, force_fresh=False: Work4YouPortalAccountInfo(
+            logged_in=True,
+            source="account_api",
+            fresh=True,
+            subscription=Work4YouPortalSubscriptionInfo(
+                plan="Free", tier=0, monthly_charge=0, monthly_credits=5
+            ),
+            paid_service_access=True,
+            paid_service_access_info=Work4YouPaidServiceAccessInfo(
+                subscription_tier=0,
+                active_subscription_is_paid=False,
+                subscription_monthly_charge=0,
+            ),
+        ),
+    )
+    house = WORK4YOU_HOUSE_MODEL_ID
+    rows = [{"slug": "work4you", "models": [house, "anthropic/claude-opus-4.6"]}]
+    models_mod._free_tier_cache = None
+    inv._apply_pricing(rows)
+    assert rows[0]["free_tier"] is True
+    assert house not in rows[0]["unavailable_models"]
+    assert "anthropic/claude-opus-4.6" in rows[0]["unavailable_models"]
+
+
+def test_apply_pricing_does_not_gate_depleted_plus(monkeypatch):
+    """Depleted Plus is still a paid plan — picker stays unlocked."""
+    from work4you_cli.models import WORK4YOU_HOUSE_MODEL_ID
+    from work4you_cli.work4you_account import (
+        Work4YouPaidServiceAccessInfo,
+        Work4YouPortalAccountInfo,
+        Work4YouPortalSubscriptionInfo,
+    )
+
+    monkeypatch.setattr(models_mod, "get_pricing_for_provider", lambda slug, **kw: {})
+    monkeypatch.setattr(
+        "work4you_cli.work4you_account.get_work4you_portal_account_info",
+        lambda *, force_fresh=False: Work4YouPortalAccountInfo(
+            logged_in=True,
+            source="account_api",
+            fresh=True,
+            subscription=Work4YouPortalSubscriptionInfo(
+                plan="Plus", tier=1, monthly_charge=20, monthly_credits=0
+            ),
+            paid_service_access=False,
+            paid_service_access_info=Work4YouPaidServiceAccessInfo(
+                subscription_tier=1,
+                active_subscription_is_paid=True,
+                subscription_monthly_charge=20,
+            ),
+        ),
+    )
+    house = WORK4YOU_HOUSE_MODEL_ID
+    rows = [{"slug": "work4you", "models": [house, "anthropic/claude-opus-4.6"]}]
+    models_mod._free_tier_cache = None
+    inv._apply_pricing(rows)
+    assert rows[0]["free_tier"] is False
+    assert rows[0]["unavailable_models"] == []
+
+
