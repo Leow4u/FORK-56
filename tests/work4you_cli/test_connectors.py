@@ -371,6 +371,12 @@ class TestInjectAndBootstrap:
         slugs = {app["slug"] for app in COMPOSIO_CATALOG}
         assert "apollo" in slugs
 
+    def test_trello_is_on_the_composio_allowlist(self):
+        by_slug = {app["slug"]: app for app in COMPOSIO_CATALOG}
+        assert by_slug["trello"]["name"] == "Trello"
+        assert by_slug["trello"]["section"] == "productivity"
+        assert by_slug["trello"].get("popular") is not True
+
     def test_static_api_keys_are_not_portal_tokens(self, monkeypatch):
         import work4you_cli.auth as auth
 
