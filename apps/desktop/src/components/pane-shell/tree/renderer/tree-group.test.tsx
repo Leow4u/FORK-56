@@ -68,9 +68,39 @@ describe('TreeGroup', () => {
     render(<TreeGroup node={terminalGroup(false)} parentAxis="column" />)
 
     expect(toggle('Minimize').querySelector('i')!.className).toContain('codicon-chevron-down')
+    expect(globalThis.document.querySelector('[data-tree-group="terminal-zone"]')?.className).not.toContain(
+      'rounded-tl-(--ui-stage-radius)'
+    )
 
     render(<TreeGroup node={terminalGroup(true)} parentAxis="column" />)
 
     expect(toggle('Restore').querySelector('i')!.className).toContain('codicon-chevron-up')
+  })
+
+  it('rounds the top rail-facing corner of the conversation stage only', () => {
+    disposePane = registry.register({
+      area: 'panes',
+      data: { placement: 'main' },
+      id: 'workspace',
+      render: () => <div>Chat</div>,
+      title: 'Workspace'
+    })
+    vi.stubGlobal('CSS', { escape: (value: string) => value })
+
+    render(
+      <TreeGroup
+        node={{
+          active: 'workspace',
+          headerHidden: true,
+          id: 'main-zone',
+          panes: ['workspace'],
+          type: 'group'
+        }}
+      />
+    )
+
+    const stage = globalThis.document.querySelector('[data-tree-group="main-zone"]')
+    expect(stage?.className).toContain('rounded-tl-(--ui-stage-radius)')
+    expect(stage?.className).not.toMatch(/rounded-bl|m-[0-9]|inset/)
   })
 })

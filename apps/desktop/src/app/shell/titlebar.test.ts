@@ -11,9 +11,17 @@ import {
   titlebarControlsPosition,
   titlebarControlsYNudge,
   titlebarIconSizeCss,
+  titlebarButtonClass,
   titlebarToolsRightCss,
   titlebarToolsWidthCss
 } from './titlebar'
+
+describe('titlebar chrome', () => {
+  it('keeps tool icons on secondary text, not muted wash', () => {
+    expect(titlebarButtonClass).toContain('text-(--ui-text-secondary)')
+    expect(titlebarButtonClass).not.toContain('text-muted-foreground')
+  })
+})
 
 describe('titlebar sizing', () => {
   it('uses 24×24 hit targets and 13.9px glyphs', () => {
