@@ -180,11 +180,19 @@ jobs:
         with:
           python-version: "3.11"
 
+      # cryptography loads the OpenSSL 3 / PBES2 .p12 Windows exports and
+      # re-writes PBESv1 SHA1+3DES so macOS `security import` succeeds.
+      # Pin matches pyproject.toml (CI-only pip must be ==exact).
+      - name: Install macOS signing Python deps
+        if: ${{ github.event_name == 'release' || inputs.skip_macos_signing != true }}
+        run: python3 -m pip install --disable-pip-version-check --no-input 'cryptography==50.0.0'
+
       - name: Prepare Developer ID certificate
         id: prepare_macos
         if: ${{ github.event_name == 'release' || inputs.skip_macos_signing != true }}
         env:
           CSC_P12_BASE64: ${{ secrets.CSC_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: python3 scripts/ci/prepare_macos_signing.py --require
 
       - name: Warn unsigned macOS installer
