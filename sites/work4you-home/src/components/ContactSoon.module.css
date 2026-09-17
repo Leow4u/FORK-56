@@ -10,12 +10,13 @@
 }
 
 .title {
-  margin: 0.85rem 0 0;
-  font-size: clamp(2.4rem, 5.5vw, 3.6rem);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -0.035em;
-  color: var(--ink);
+  margin: 0.75rem 0 0;
+  font-size: clamp(2.35rem, 5.2vw, 3.45rem);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: var(--tinta);
+  text-wrap: balance;
 }
 
 .soon {
@@ -23,9 +24,9 @@
   font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--mata);
+  color: var(--oliva);
 }
 
 .lead {
@@ -33,5 +34,5 @@
   max-width: 32rem;
   font-size: 1.02rem;
   line-height: 1.55;
-  color: var(--ink-soft);
+  color: var(--grafite);
 }

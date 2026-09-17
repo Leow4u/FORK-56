@@ -4,6 +4,7 @@ import {
   INSTALL_COMMANDS,
   type InstallPlatform,
 } from '../lib/downloads'
+import { Platforms } from './Platforms'
 import styles from './Hero.module.css'
 
 type Tab = InstallPlatform
@@ -38,6 +39,11 @@ export function Hero() {
             <br />
             cresce com você.
           </h1>
+          <p className={styles.lead}>
+            Desktop, terminal e os canais que você já usa — um agente, uma
+            memória.
+          </p>
+          <Platforms />
 
           <div className={styles.block} id="download">
             <p className="mono-label">Baixar aplicativo desktop</p>
@@ -79,7 +85,11 @@ export function Hero() {
             </div>
             <div className={styles.code}>
               <code>{INSTALL_COMMANDS[tab]}</code>
-              <button type="button" onClick={() => void copyCommand()}>
+              <button
+                type="button"
+                className={copied ? styles.copied : undefined}
+                onClick={() => void copyCommand()}
+              >
                 {copied ? 'Copiado' : 'Copiar'}
               </button>
             </div>
