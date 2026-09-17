@@ -1,8 +1,9 @@
 """Tests for scripts/ci/prepare_macos_signing.py.
 
-Covers the empty-CSC_LINK footgun, Base64 gating, Team ID parsing, and
-re-export of OpenSSL 3 / PBES2 PKCS#12 to PBESv1 SHA1+3DES (the form
-macOS security import accepts). Never talks to Apple or electron-builder.
+Covers the empty-CSC_LINK footgun, Base64 gating, Team ID parsing,
+re-export of OpenSSL 3 / PBES2 PKCS#12 to PBESv1 SHA1+3DES, and the
+CI keychain import that must use the keychain password (not CSC_KEY_PASSWORD)
+for set-key-partition-list. Never talks to Apple or electron-builder.
 """
 
 from __future__ import annotations
@@ -362,3 +363,255 @@ def test_check_codesign_dv_accepts_developer_id(monkeypatch, capsys):
     )
     assert mod.main(["--check-codesign-dv"]) == 0
     assert "TeamIdentifier=ABCD123456" in capsys.readouterr().out
+
+
+_REAL_CI_SUBJECT = (
+    "C=US,O=WORK4YOU TECNOLOGIA LTDA,OU=SNR5Q85JN2,"
+    "CN=Developer ID Application: WORK4YOU TECNOLOGIA LTDA (SNR5Q85JN2),"
+    "UID=SNR5Q85JN2"
+)
+_REAL_CI_IDENTITY = (
+    "Developer ID Application: WORK4YOU TECNOLOGIA LTDA (SNR5Q85JN2)"
+)
+
+
+class _FakeSecurity:
+    def __init__(
+        self,
+        *,
+        identities: str = '  1) AABBCC "Work4You Test"\n',
+        keychains: str = '    "/Users/runner/Library/Keychains/login.keychain-db"\n',
+        fail_on: str | None = None,
+    ):
+        self.calls: list[list[str]] = []
+        self.identities = identities
+        self.keychains = keychains
+        self.fail_on = fail_on
+
+    def __call__(self, args: list[str]) -> str:
+        assert args and args[0] == "security"
+        self.calls.append(list(args))
+        verb = args[1]
+        if self.fail_on and verb == self.fail_on:
+            raise mod.PrepareError(f"security {verb} failed")
+        if verb == "find-identity":
+            return self.identities
+        if verb == "list-keychains" and "-s" not in args:
+            return self.keychains
+        return ""
+
+
+def _flag(args: list[str], name: str) -> str:
+    return args[args.index(name) + 1]
+
+
+def test_codesign_identity_from_rfc4514():
+    assert mod.codesign_identity_from_rfc4514(_REAL_CI_SUBJECT) == _REAL_CI_IDENTITY
+    assert mod.codesign_identity_from_rfc4514("CN=Foo\\, Bar,O=X") == "Foo, Bar"
+    with pytest.raises(mod.PrepareError, match="missing CN"):
+        mod.codesign_identity_from_rfc4514("O=WORK4YOU,C=US")
+
+
+def test_generate_keychain_password_is_hex():
+    first = mod.generate_keychain_password()
+    second = mod.generate_keychain_password()
+    assert first != second
+    assert len(first) == 32
+    int(first, 16)
+
+
+def test_parse_keychain_list():
+    text = (
+        '    "/Users/runner/Library/Keychains/login.keychain-db"\n'
+        '    "/Library/Keychains/System.keychain"\n'
+    )
+    assert mod.parse_keychain_list(text) == [
+        "/Users/runner/Library/Keychains/login.keychain-db",
+        "/Library/Keychains/System.keychain",
+    ]
+
+
+def test_redact_security_argv_hides_passwords():
+    rendered = mod.redact_security_argv(
+        ["security", "set-key-partition-list", "-k", "super-secret", "kc"]
+    )
+    assert "super-secret" not in rendered
+    assert "-k ***" in rendered
+
+
+def test_run_security_missing_binary(monkeypatch):
+    def _boom(*_args, **_kwargs):
+        raise FileNotFoundError("security")
+
+    monkeypatch.setattr(mod.subprocess, "run", _boom)
+    with pytest.raises(mod.PrepareError, match="requires macOS"):
+        mod.run_security(["security", "list-keychains"])
+
+
+def test_run_security_redacts_password_in_error(monkeypatch):
+    class _Result:
+        returncode = 1
+        stderr = "bad password super-secret leaked"
+        stdout = ""
+
+    monkeypatch.setattr(mod.subprocess, "run", lambda *_a, **_k: _Result())
+    with pytest.raises(mod.PrepareError) as exc:
+        mod.run_security(
+            ["security", "unlock-keychain", "-p", "super-secret", "kc"]
+        )
+    assert "super-secret" not in str(exc.value)
+    assert "***" in str(exc.value)
+
+
+def test_import_uses_keychain_password_not_p12_password(tmp_path):
+    p12 = tmp_path / "cert.p12"
+    p12.write_bytes(_p12_bytes())
+    keychain = tmp_path / "signing.keychain-db"
+    fake = _FakeSecurity(identities=f'  1) AA "{_REAL_CI_IDENTITY}"\n')
+    p12_password = "p12-secret"
+    keychain_password = "kc-secret"
+    mod.import_developer_id_keychain(
+        p12_path=p12,
+        p12_password=p12_password,
+        identity=_REAL_CI_IDENTITY,
+        keychain_path=keychain,
+        keychain_password=keychain_password,
+        run=fake,
+    )
+    verbs = [call[1] for call in fake.calls]
+    assert verbs[:4] == [
+        "create-keychain",
+        "set-keychain-settings",
+        "unlock-keychain",
+        "import",
+    ]
+    assert "set-key-partition-list" in verbs
+    create = next(call for call in fake.calls if call[1] == "create-keychain")
+    unlocks = [call for call in fake.calls if call[1] == "unlock-keychain"]
+    imported = next(call for call in fake.calls if call[1] == "import")
+    partition = next(
+        call for call in fake.calls if call[1] == "set-key-partition-list"
+    )
+    assert _flag(create, "-p") == keychain_password
+    assert all(_flag(call, "-p") == keychain_password for call in unlocks)
+    assert _flag(imported, "-P") == p12_password
+    assert _flag(partition, "-k") == keychain_password
+    assert _flag(partition, "-k") != p12_password
+    assert "/usr/bin/codesign" in imported
+    search = next(
+        call
+        for call in fake.calls
+        if call[1] == "list-keychains" and "-s" in call
+    )
+    assert str(keychain.resolve()) == search[search.index("-s") + 1]
+
+
+def test_import_find_identity_miss_fails_closed(tmp_path):
+    p12 = tmp_path / "cert.p12"
+    p12.write_bytes(_p12_bytes())
+    fake = _FakeSecurity(identities="  0 valid identities found\n")
+    with pytest.raises(mod.PrepareError, match="does not contain"):
+        mod.import_developer_id_keychain(
+            p12_path=p12,
+            p12_password="p12-secret",
+            identity=_REAL_CI_IDENTITY,
+            keychain_path=tmp_path / "signing.keychain-db",
+            keychain_password="kc-secret",
+            run=fake,
+        )
+
+
+def test_write_signing_outputs_keychain_omits_csc_link(tmp_path):
+    env = tmp_path / "github.env"
+    out = tmp_path / "github.output"
+    p12 = tmp_path / "cert.p12"
+    p12.write_bytes(_p12_bytes())
+    keychain = tmp_path / "signing.keychain-db"
+    keychain.write_bytes(b"")
+    mod.write_signing_outputs(
+        enabled=True,
+        p12_path=p12,
+        github_env=env,
+        github_output=out,
+        identity=_REAL_CI_IDENTITY,
+        keychain_path=keychain,
+    )
+    text = env.read_text(encoding="utf-8")
+    assert "CSC_LINK" not in text
+    assert f"CSC_NAME={_REAL_CI_IDENTITY}" in text
+    assert f"CSC_KEYCHAIN={keychain.resolve()}" in text
+    assert "CSC_IDENTITY_AUTO_DISCOVERY=true" in text
+    assert out.read_text(encoding="utf-8") == (
+        f"signing=true\nidentity={_REAL_CI_IDENTITY}\n"
+        f"keychain={keychain.resolve()}\n"
+    )
+
+
+def test_main_import_keychain_writes_csc_name_not_csc_link(tmp_path, monkeypatch, capsys):
+    env = tmp_path / "github.env"
+    out = tmp_path / "github.output"
+    dest = tmp_path / "out" / "developer-id.p12"
+    keychain = tmp_path / "out" / "signing.keychain-db"
+    monkeypatch.setenv("CSC_P12_BASE64", base64.b64encode(_real_p12()).decode("ascii"))
+    monkeypatch.setenv("CSC_KEY_PASSWORD", _TEST_PASSWORD)
+    fake = _FakeSecurity()
+    monkeypatch.setattr(mod, "_run_security", fake)
+    monkeypatch.setattr(mod, "generate_keychain_password", lambda: "kc-hex-password")
+    code = mod.main(
+        [
+            "--require",
+            "--import-keychain",
+            "--output",
+            str(dest),
+            "--keychain",
+            str(keychain),
+            "--github-env",
+            str(env),
+            "--github-output",
+            str(out),
+        ]
+    )
+    assert code == 0
+    env_text = env.read_text(encoding="utf-8")
+    assert "CSC_LINK" not in env_text
+    assert "CSC_NAME=Work4You Test" in env_text
+    partition = next(
+        call for call in fake.calls if call[1] == "set-key-partition-list"
+    )
+    imported = next(call for call in fake.calls if call[1] == "import")
+    assert _flag(partition, "-k") == "kc-hex-password"
+    assert _flag(imported, "-P") == _TEST_PASSWORD
+    assert "imported Developer ID" in capsys.readouterr().out
+    assert out.read_text(encoding="utf-8") == (
+        "signing=true\nidentity=Work4You Test\n"
+        f"keychain={keychain.resolve()}\n"
+    )
+
+
+def test_main_import_keychain_failure_does_not_write_env(tmp_path, monkeypatch):
+    env = tmp_path / "github.env"
+    out = tmp_path / "github.output"
+    dest = tmp_path / "out" / "developer-id.p12"
+    monkeypatch.setenv("CSC_P12_BASE64", base64.b64encode(_real_p12()).decode("ascii"))
+    monkeypatch.setenv("CSC_KEY_PASSWORD", _TEST_PASSWORD)
+    monkeypatch.setattr(
+        mod, "_run_security", _FakeSecurity(fail_on="set-key-partition-list")
+    )
+    code = mod.main(
+        [
+            "--require",
+            "--import-keychain",
+            "--output",
+            str(dest),
+            "--keychain",
+            str(tmp_path / "out" / "signing.keychain-db"),
+            "--github-env",
+            str(env),
+            "--github-output",
+            str(out),
+        ]
+    )
+    assert code == 2
+    assert dest.exists()
+    assert not env.exists()
+    assert not out.exists()

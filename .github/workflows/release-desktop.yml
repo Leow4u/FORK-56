@@ -13,7 +13,10 @@ name: Release Desktop Installer
 # Never put CSC_LINK in the build `env:` block. GitHub injects missing secrets
 # as empty strings; electron-builder then treats CSC_LINK as a cert path and
 # fails with "apps/desktop not a file" (desktop-v0.0.5 run 33462742230).
-# The prepare step writes CSC_LINK to GITHUB_ENV only after a real .p12 lands.
+# Do not write CSC_LINK to GITHUB_ENV either: electron-builder 26 then builds
+# a temp keychain and fails set-key-partition-list / SecKeychainUnlock on
+# macos-26 (Release Desktop run 35235301249). Prepare imports the .p12 into
+# a CI keychain and writes CSC_NAME / CSC_KEYCHAIN instead.
 #
 # Public .exe/.dmg live on GitHub releases/latest (desktop-v* series).
 # workflow_dispatch must NOT read apps/bootstrap-installer/package.json —
@@ -193,7 +196,7 @@ jobs:
         env:
           CSC_P12_BASE64: ${{ secrets.CSC_P12_BASE64 }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-        run: python3 scripts/ci/prepare_macos_signing.py --require
+        run: python3 scripts/ci/prepare_macos_signing.py --require --import-keychain
 
       - name: Warn unsigned macOS installer
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_macos_signing == true }}
@@ -203,15 +206,16 @@ jobs:
       # `--publish never` is the same flag `npm run pack` already uses so
       # electron-builder 26 does not infer onTagOrDraft from CI + GITHUB_TOKEN
       # (#87758) and race the Work4You.dmg upload below.
-      # CSC_LINK is written to GITHUB_ENV by prepare_macos only after a real
-      # .p12 is on disk — never set it from ${{ secrets.* }} here.
+      # CSC_NAME / CSC_KEYCHAIN come from GITHUB_ENV after keychain import.
+      # Never set CSC_LINK / CSC_KEY_PASSWORD here — CSC_LINK makes
+      # electron-builder rebuild a temp keychain (run 35235301249).
       # APPLE_* stay empty on the unsigned path so notarize.mjs skips instead
       # of submitting an ad-hoc bundle (secrets are now populated).
       - name: Build macOS DMG installer
         working-directory: apps/desktop
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          CSC_KEY_PASSWORD: ${{ steps.prepare_macos.outcome == 'success' && secrets.CSC_KEY_PASSWORD || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ steps.prepare_macos.outcome == 'success' && 'true' || 'false' }}
+          CSC_NAME: ${{ steps.prepare_macos.outcome == 'success' && steps.prepare_macos.outputs.identity || '' }}
           APPLE_API_KEY: ${{ steps.prepare_macos.outcome == 'success' && secrets.APPLE_API_KEY || '' }}
           APPLE_API_KEY_ID: ${{ steps.prepare_macos.outcome == 'success' && secrets.APPLE_API_KEY_ID || '' }}
           APPLE_API_ISSUER: ${{ steps.prepare_macos.outcome == 'success' && secrets.APPLE_API_ISSUER || '' }}
