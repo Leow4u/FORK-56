@@ -209,8 +209,12 @@ jobs:
       # CSC_NAME / CSC_KEYCHAIN come from GITHUB_ENV after keychain import.
       # Never set CSC_LINK / CSC_KEY_PASSWORD here — CSC_LINK makes
       # electron-builder rebuild a temp keychain (run 35235301249).
-      # APPLE_* stay empty on the unsigned path so notarize.mjs skips instead
-      # of submitting an ad-hoc bundle (secrets are now populated).
+      # APPLE_* feed afterSign (`scripts/notarize.mjs`), which writes an
+      # inline .p8 to a temp file. They must stay out of @electron/notarize:
+      # electron-builder 26 auto-runs that when APPLE_API_KEY is set and
+      # passes the PEM as `--key` (run 35248432787). `mac.notarize` is
+      # false so only afterSign runs. Empty APPLE_* on the unsigned path
+      # so notarize.mjs skips instead of submitting an ad-hoc bundle.
       - name: Build macOS DMG installer
         working-directory: apps/desktop
         env:
