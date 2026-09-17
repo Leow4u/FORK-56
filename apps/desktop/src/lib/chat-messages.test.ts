@@ -478,6 +478,25 @@ describe('preserveLocalAssistantErrors', () => {
     expect(message.parts[0]).toMatchObject({ completedAt: 3, timestamp: 1, type: 'text' })
   })
 
+  it('keeps the live Worked duration when hydration has no clock', () => {
+    const durable = toChatMessages([{ role: 'assistant', content: 'Done.', timestamp: 3 }])
+
+    const live: ChatMessage[] = [
+      {
+        completedAt: 3,
+        durationS: 171,
+        id: 'assistant-stream',
+        parts: [{ completedAt: 3, text: 'Done.', timestamp: 1, type: 'text' }],
+        role: 'assistant',
+        timestamp: 1
+      }
+    ]
+
+    const [message] = preserveLocalAssistantErrors(durable, live)
+
+    expect(message.durationS).toBe(171)
+  })
+
   it('preserves a local user+error pair when hydration omits the failed turn', () => {
     const nextMessages: ChatMessage[] = [
       {

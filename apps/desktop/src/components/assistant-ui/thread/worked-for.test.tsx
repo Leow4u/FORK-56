@@ -23,7 +23,7 @@ function meta(durationS?: number) {
   }
 }
 
-function settledWorkMessage(): ThreadMessage {
+function settledWorkMessage(durationS = 18 * 60): ThreadMessage {
   return {
     id: 'assistant-folded',
     role: 'assistant',
@@ -57,7 +57,7 @@ function settledWorkMessage(): ThreadMessage {
     ],
     status: { type: 'complete', reason: 'stop' },
     createdAt,
-    metadata: meta(18 * 60)
+    metadata: meta(durationS)
   } as unknown as ThreadMessage
 }
 
@@ -120,6 +120,16 @@ describe('product-mode settle fold', () => {
     expect(container.textContent).not.toContain('Explored 2 files')
     expect(container.querySelector('[data-slot="aui_thinking-disclosure"]')).toBeNull()
     expect(container.querySelector('[data-slot="aui_turn-duration"]')).toBeNull()
+  })
+
+  it('keeps leftover seconds on the Worked-for line', async () => {
+    render(
+      <ThreadRuntime messages={[settledWorkMessage(2 * 60 + 51)]}>
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByText('Worked for 2m 51s')).toBeTruthy()
   })
 
   it('expands the diary on click', async () => {

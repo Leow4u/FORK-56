@@ -8,6 +8,8 @@ import {
   applyReloadOptimistic,
   applyRewindOptimistic,
   finalizeInterruptedMessages,
+  stampLastTurnDuration,
+  wallClockDurationS,
   planEdit,
   planReload,
   planRestore,
@@ -216,6 +218,32 @@ describe('rebindSurvivorRowIds', () => {
     const messages = [user('u0', 7)]
 
     expect(rebindSurvivorRowIds(messages, [7])[0]).toBe(messages[0])
+  })
+})
+
+describe('wallClockDurationS', () => {
+  it('rounds the existing turnStartedAt seed to whole seconds', () => {
+    expect(wallClockDurationS(1_000, 172_000)).toBe(171)
+    expect(wallClockDurationS(null)).toBeUndefined()
+    expect(wallClockDurationS(undefined)).toBeUndefined()
+  })
+})
+
+describe('stampLastTurnDuration', () => {
+  it('fills the last turn and leaves older assistants alone', () => {
+    const stamped = stampLastTurnDuration(
+      [row('u1', 'user', 'first'), row('a1', 'assistant', 'old'), row('u2', 'user', 'next'), row('a2', 'assistant', 'live')],
+      171
+    )
+
+    expect(stamped[1]?.durationS).toBeUndefined()
+    expect(stamped[3]?.durationS).toBe(171)
+  })
+
+  it('does not overwrite a duration already on the bubble', () => {
+    const stamped = stampLastTurnDuration([row('a1', 'assistant', 'live', { durationS: 12 })], 171)
+
+    expect(stamped[0]?.durationS).toBe(12)
   })
 })
 

@@ -84,10 +84,12 @@ describe('classifyTurnParts', () => {
 describe('workedForLabel', () => {
   it('uses a compact clock once the turn lasted a second', () => {
     expect(formatWorkedDuration(18 * 60)).toBe('18m')
+    expect(formatWorkedDuration(2 * 60 + 51)).toBe('2m 51s')
     expect(formatWorkedDuration(45)).toBe('45s')
     expect(formatWorkedDuration(2 * 3600)).toBe('2h')
     expect(formatWorkedDuration(2 * 3600 + 10 * 60)).toBe('2h 10m')
     expect(workedForLabel(18 * 60, copy)).toBe('Worked for 18m')
+    expect(workedForLabel(2 * 60 + 51, copy)).toBe('Worked for 2m 51s')
     expect(workedForLabel(undefined, copy)).toBe('Worked')
     expect(workedForLabel(0.4, copy)).toBe('Worked')
   })

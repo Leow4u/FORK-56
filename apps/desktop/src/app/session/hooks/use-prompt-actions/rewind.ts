@@ -326,6 +326,32 @@ export async function runRewindSubmit(
 }
 
 /** Cancel/stop finalize: drop empty pending/stream placeholders, un-pend the rest. */
+/** Wall-clock seconds from the existing turnStartedAt seed (ms epoch). */
+export function wallClockDurationS(turnStartedAt: null | number | undefined, now = Date.now()): number | undefined {
+  return typeof turnStartedAt === 'number' ? Math.max(1, Math.round((now - turnStartedAt) / 1000)) : undefined
+}
+
+/** Fill durationS on the last user-turn's assistants — never overwrite a stamp. */
+export function stampLastTurnDuration(messages: ChatMessage[], durationS: number | undefined): ChatMessage[] {
+  if (durationS === undefined) {
+    return messages
+  }
+
+  let lastUser = -1
+
+  for (let index = 0; index < messages.length; index++) {
+    if (messages[index].role === 'user') {
+      lastUser = index
+    }
+  }
+
+  return messages.map((message, index) =>
+    index > lastUser && message.role === 'assistant' && message.durationS === undefined
+      ? { ...message, durationS }
+      : message
+  )
+}
+
 export function finalizeInterruptedMessages(
   messages: ChatMessage[],
   streamId?: null | string,
