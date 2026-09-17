@@ -64,7 +64,7 @@ export const work4youTheme: DesktopTheme = {
     composerRing: OLIVE,
     destructive: '#B3402E',
     destructiveForeground: '#FFFFFF',
-    sidebarBackground: '#F1EFE8', // rail — one step below paper, same family
+    sidebarBackground: '#F6F5F0', // rail — half-step below paper, same family
     sidebarBorder: '#E6E4DC',
     userBubble: '#F1EFE9',
     userBubbleBorder: '#E6E4DC'
