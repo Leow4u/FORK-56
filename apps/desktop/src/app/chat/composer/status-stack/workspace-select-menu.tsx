@@ -1,12 +1,10 @@
 import { type ReactNode, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
 
 import {
   buildWorkspaceActionItems,
   createWorkspacePaletteHandlers,
   type WorkspacePaletteItem
 } from '@/app/command-palette/workspace-palette'
-import { navigateToWorkspacePage, SETTINGS_ROUTE } from '@/app/routes'
 import { Codicon } from '@/components/ui/codicon'
 import {
   DropdownMenu,
@@ -25,9 +23,6 @@ function workspaceItemGlyph(kind: WorkspacePaletteItem['kind']) {
     case 'open-folder':
       return 'folder-opened'
 
-    case 'remote':
-      return 'remote'
-
     case 'new-project':
       return 'add'
   }
@@ -43,24 +38,16 @@ export function WorkspaceSelectMenu({
   tooltip: string
 }) {
   const { t } = useI18n()
-  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
 
-  const handlers = useMemo(
-    () =>
-      createWorkspacePaletteHandlers(() => {
-        navigateToWorkspacePage(navigate, `${SETTINGS_ROUTE}?tab=gateway`)
-      }),
-    [navigate]
-  )
+  const handlers = useMemo(() => createWorkspacePaletteHandlers(), [])
 
   const items = useMemo(
     () =>
       buildWorkspaceActionItems(
         {
           newProject: t.sidebar.projects.newButton,
-          openFolder: t.commandCenter.openFolder,
-          remote: t.commandCenter.remote
+          openFolder: t.commandCenter.openFolder
         },
         handlers
       ),

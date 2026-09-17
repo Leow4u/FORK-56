@@ -16,7 +16,7 @@ export function ContextDot() {
   )
 }
 
-/** Occupied-chat identity only. Setup (Open folder / Remote / New project) stays
+/** Occupied-chat identity only. Setup (Open folder / New project) stays
  *  on empty-chat Select workspace and Sidebar → Projects. */
 export function WorkspaceNameButton({ cwd }: { cwd?: null | string }) {
   const { t } = useI18n()
