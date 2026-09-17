@@ -3,27 +3,32 @@
 
 GitHub injects missing secrets as empty strings. Passing ``CSC_LINK=""`` makes
 electron-builder treat the working directory as a cert path and fail with
-"apps/desktop not a file" (desktop-v0.0.5 run 33462742230). This script writes
-``CSC_LINK`` to ``GITHUB_ENV`` only when ``CSC_P12_BASE64`` opens with
-``CSC_KEY_PASSWORD`` and is re-exported as a macOS-importable ``.p12``.
-The private key never goes to stdout.
-
-Used by ``.github/workflows/release-desktop.yml``. Decode + re-export — signing
-still happens inside electron-builder (``@electron/osx-sign``).
+"apps/desktop not a file" (desktop-v0.0.5 run 33462742230).
 
 OpenSSL 3 (Git for Windows, current Homebrew) writes PKCS#12 with PBES2 /
 AES-256. macOS ``security import`` then fails with
 ``MAC verification failed during PKCS12 import (wrong password?)`` even when
 the password is correct (Release Desktop run 35232340078). This script loads
 the blob with ``cryptography`` and writes PBESv1 SHA1 + 3DES, which
-Security.framework accepts. ``openssl pkcs12 -export -legacy`` is not required
-on the machine that created the ``.p12``.
+Security.framework accepts.
+
+electron-builder 26 still creates its own temp keychain when ``CSC_LINK`` is
+set, then fails ``security set-key-partition-list`` with
+``SecKeychainUnlock: The user name or passphrase you entered is not correct``
+on ``macos-26`` (Release Desktop run 35235301249). ``--import-keychain``
+imports the re-exported ``.p12`` into a CI keychain we unlock ourselves and
+writes ``CSC_NAME`` / ``CSC_KEYCHAIN`` — never ``CSC_LINK`` — so
+``@electron/osx-sign`` signs with the already-imported identity.
+
+The private key never goes to stdout.
+
+Used by ``.github/workflows/release-desktop.yml``.
 
 GitHub Actions secrets (repo Settings → Secrets and variables → Actions):
 
 * ``CSC_P12_BASE64`` — Developer ID Application ``.p12``, standard Base64
 * ``CSC_KEY_PASSWORD`` — export password for that ``.p12`` (needed here to
-  re-export, and later by the builder step)
+  re-export and import; the builder step must not see ``CSC_LINK``)
 * ``APPLE_API_KEY`` / ``APPLE_API_KEY_ID`` / ``APPLE_API_ISSUER`` — notary
   (``apps/desktop/scripts/notarize.mjs``)
 
@@ -31,6 +36,7 @@ Usage::
 
     python scripts/ci/prepare_macos_signing.py
     python scripts/ci/prepare_macos_signing.py --require
+    python scripts/ci/prepare_macos_signing.py --require --import-keychain
     python scripts/ci/prepare_macos_signing.py --print-app apps/desktop/release
     python scripts/ci/prepare_macos_signing.py --check-codesign-dv < codesign-dv.txt
 """
@@ -40,12 +46,24 @@ from __future__ import annotations
 import argparse
 import base64
 import os
+import secrets
+import subprocess
 import sys
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 
 P12_FILENAME = "work4you-developer-id.p12"
+KEYCHAIN_FILENAME = "work4you-signing.keychain-db"
 APP_BUNDLE_NAME = "Work4You.app"
+_PASSWORD_FLAGS = frozenset({"-p", "-P", "-k"})
+_IMPORT_TRUSTED_TOOLS = (
+    "/usr/bin/codesign",
+    "/usr/bin/security",
+    "/usr/bin/productbuild",
+)
+
+SecurityFn = Callable[[list[str]], str]
 
 
 class PrepareError(RuntimeError):
@@ -63,7 +81,9 @@ macOS desktop signing needs a Developer ID Application certificate as Base64.
 4. Re-run the "Release Desktop Installer" workflow.
 
 Never pass CSC_LINK as an empty string. Missing secrets must omit the
-variable so electron-builder does not treat "" as a cert path.
+variable so electron-builder does not treat "" as a cert path. The signed
+CI path also must not pass CSC_LINK after a successful keychain import —
+electron-builder would rebuild a temp keychain and fail to unlock it.
 """
 
 # DER OID 1.2.840.113549.1.12.1.3 — pbeWithSHAAnd3-KeyTripleDES-CBC
@@ -166,6 +186,204 @@ def macos_compatible_p12(data: bytes, password: str | None) -> tuple[bytes, str]
     return out, cert.subject.rfc4514_string()
 
 
+def codesign_identity_from_rfc4514(subject: str) -> str:
+    """Return the ``CN=`` value from an RFC4514 subject.
+
+    ``codesign`` / ``CSC_NAME`` want the Common Name
+    (``Developer ID Application: … (TEAMID)``), not the full DN.
+    """
+    parts: list[str] = []
+    buf: list[str] = []
+    escaped = False
+    for char in str(subject or ""):
+        if escaped:
+            buf.append(char)
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if char == ",":
+            parts.append("".join(buf))
+            buf = []
+            continue
+        buf.append(char)
+    if buf:
+        parts.append("".join(buf))
+    for part in parts:
+        stripped = part.strip()
+        if stripped.startswith("CN="):
+            identity = stripped[3:]
+            if identity:
+                return identity
+    raise PrepareError("Developer ID subject is missing CN=")
+
+
+def generate_keychain_password() -> str:
+    """Hex-only password. ``security -k`` breaks on many punctuation chars."""
+    return secrets.token_hex(16)
+
+
+def security_secrets(args: Sequence[str]) -> list[str]:
+    """Return ``-p`` / ``-P`` / ``-k`` values from a ``security`` argv."""
+    found: list[str] = []
+    hide_next = False
+    for arg in args:
+        if hide_next:
+            found.append(arg)
+            hide_next = False
+            continue
+        if arg in _PASSWORD_FLAGS:
+            hide_next = True
+    return found
+
+
+def redact_security_argv(args: Sequence[str]) -> str:
+    redacted: list[str] = []
+    hide_next = False
+    for arg in args:
+        if hide_next:
+            redacted.append("***")
+            hide_next = False
+            continue
+        if arg in _PASSWORD_FLAGS:
+            redacted.append(arg)
+            hide_next = True
+            continue
+        redacted.append(arg)
+    return " ".join(redacted)
+
+
+def redact_secrets(text: str, secrets_to_hide: Sequence[str]) -> str:
+    out = text
+    for secret in secrets_to_hide:
+        if secret:
+            out = out.replace(secret, "***")
+    return out
+
+
+def run_security(args: list[str]) -> str:
+    """Run ``security`` with argv (no shell). Passwords never go to stdout."""
+    try:
+        completed = subprocess.run(
+            args,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        raise PrepareError(
+            "security(1) not found; --import-keychain requires macOS"
+        ) from exc
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "").strip()
+        hidden = security_secrets(args)
+        raise PrepareError(
+            f"{redact_security_argv(args)} failed: "
+            f"{redact_secrets(detail, hidden)}"
+        )
+    return completed.stdout
+
+
+_run_security: SecurityFn = run_security
+
+
+def parse_keychain_list(text: str) -> list[str]:
+    """Parse ``security list-keychains`` quoted paths."""
+    paths: list[str] = []
+    for line in str(text or "").splitlines():
+        stripped = line.strip().strip('"')
+        if stripped:
+            paths.append(stripped)
+    return paths
+
+
+def import_developer_id_keychain(
+    *,
+    p12_path: Path,
+    p12_password: str,
+    identity: str,
+    keychain_path: Path,
+    keychain_password: str,
+    run: SecurityFn | None = None,
+) -> None:
+    """Import the Developer ID .p12 into a CI keychain we can unlock.
+
+    ``set-key-partition-list -k`` must use the *keychain* password, not
+    ``CSC_KEY_PASSWORD``. Mixing those two is the macos-26 unlock failure.
+    """
+    runner = run or _run_security
+    if not p12_password:
+        raise PrepareError(
+            "CSC_KEY_PASSWORD is empty; it is required to import the "
+            "Developer ID .p12"
+        )
+    if not keychain_password:
+        raise PrepareError("keychain password must not be empty")
+    if not identity:
+        raise PrepareError("codesign identity is empty")
+
+    keychain_path.parent.mkdir(parents=True, exist_ok=True)
+    resolved = str(keychain_path.resolve())
+    if keychain_path.exists():
+        try:
+            runner(["security", "delete-keychain", resolved])
+        except PrepareError:
+            pass
+        keychain_path.unlink(missing_ok=True)
+
+    runner(["security", "create-keychain", "-p", keychain_password, resolved])
+    runner(["security", "set-keychain-settings", "-lut", "21600", resolved])
+    runner(["security", "unlock-keychain", "-p", keychain_password, resolved])
+
+    import_args = [
+        "security",
+        "import",
+        str(p12_path.resolve()),
+        "-k",
+        resolved,
+        "-P",
+        p12_password,
+    ]
+    for tool in _IMPORT_TRUSTED_TOOLS:
+        import_args.extend(["-T", tool])
+    runner(import_args)
+
+    # Unlock again immediately before partition-list. macos-26 has been
+    # observed to reject set-key-partition-list when the keychain is not
+    # freshly unlocked, even after a successful create/import.
+    runner(["security", "unlock-keychain", "-p", keychain_password, resolved])
+    runner(
+        [
+            "security",
+            "set-key-partition-list",
+            "-S",
+            "apple-tool:,apple:,codesign:",
+            "-s",
+            "-k",
+            keychain_password,
+            resolved,
+        ]
+    )
+
+    existing = parse_keychain_list(
+        runner(["security", "list-keychains", "-d", "user"])
+    )
+    ordered = [resolved]
+    for path in existing:
+        if Path(path).resolve() != keychain_path.resolve():
+            ordered.append(path)
+    runner(["security", "list-keychains", "-d", "user", "-s", *ordered])
+
+    found = runner(
+        ["security", "find-identity", "-v", "-p", "codesigning", resolved]
+    )
+    if identity not in found:
+        raise PrepareError(
+            f"imported keychain does not contain {identity}"
+        )
+
+
 def append_github_file(path: Path | None, text: str) -> None:
     if path is None:
         return
@@ -180,9 +398,31 @@ def write_signing_outputs(
     p12_path: Path | None,
     github_env: Path | None,
     github_output: Path | None,
+    identity: str | None = None,
+    keychain_path: Path | None = None,
 ) -> None:
-    """Write GITHUB_ENV / GITHUB_OUTPUT. Never writes CSC_LINK when disabled."""
+    """Write GITHUB_ENV / GITHUB_OUTPUT.
+
+    Keychain mode writes ``CSC_NAME`` / ``CSC_KEYCHAIN`` and never
+    ``CSC_LINK``. The p12-link mode is the local / non-CI fallback.
+    """
     if enabled:
+        if keychain_path is not None:
+            if not identity:
+                raise PrepareError("signed prepare is missing CSC_NAME")
+            append_github_file(github_env, f"CSC_NAME={identity}\n")
+            append_github_file(
+                github_env, f"CSC_KEYCHAIN={keychain_path.resolve()}\n"
+            )
+            append_github_file(
+                github_env, "CSC_IDENTITY_AUTO_DISCOVERY=true\n"
+            )
+            append_github_file(github_output, "signing=true\n")
+            append_github_file(github_output, f"identity={identity}\n")
+            append_github_file(
+                github_output, f"keychain={keychain_path.resolve()}\n"
+            )
+            return
         if p12_path is None:
             raise PrepareError("signed prepare is missing the .p12 path")
         # electron-builder needs an absolute path; a relative one can resolve
@@ -225,6 +465,11 @@ def default_p12_path() -> Path:
     return Path(root) / "work4you-macos-signing" / P12_FILENAME
 
 
+def default_keychain_path() -> Path:
+    root = os.environ.get("RUNNER_TEMP") or os.environ.get("TMPDIR") or "/tmp"
+    return Path(root) / "work4you-macos-signing" / KEYCHAIN_FILENAME
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
     parser.add_argument(
@@ -233,10 +478,27 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Fail when CSC_P12_BASE64 is missing (signed CI path).",
     )
     parser.add_argument(
+        "--import-keychain",
+        action="store_true",
+        help=(
+            "Import the .p12 into a CI keychain and omit CSC_LINK so "
+            "electron-builder does not create its own keychain."
+        ),
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=None,
         help="Where to write the .p12 (default: RUNNER_TEMP/work4you-macos-signing/).",
+    )
+    parser.add_argument(
+        "--keychain",
+        type=Path,
+        default=None,
+        help=(
+            "Keychain path (default: RUNNER_TEMP/work4you-macos-signing/"
+            f"{KEYCHAIN_FILENAME})."
+        ),
     )
     parser.add_argument(
         "--github-env",
@@ -305,18 +567,43 @@ def main(argv: list[str] | None = None) -> int:
         dest = args.output or default_p12_path()
         password = os.environ.get("CSC_KEY_PASSWORD")
         converted, subject = macos_compatible_p12(decode_p12_base64(raw), password)
+        identity = codesign_identity_from_rfc4514(subject)
         p12_path = write_p12(converted, dest)
+        keychain_path = None
+        if args.import_keychain:
+            if not password:
+                raise PrepareError(
+                    "CSC_KEY_PASSWORD is empty; it is required to import the "
+                    "Developer ID .p12"
+                )
+            keychain_path = args.keychain or default_keychain_path()
+            import_developer_id_keychain(
+                p12_path=p12_path,
+                p12_password=password,
+                identity=identity,
+                keychain_path=keychain_path,
+                keychain_password=generate_keychain_password(),
+            )
         write_signing_outputs(
             enabled=True,
             p12_path=p12_path,
             github_env=github_env,
             github_output=github_output,
+            identity=identity,
+            keychain_path=keychain_path,
         )
-        print(
-            f"[macos-signing] wrote macOS-compatible Developer ID .p12 "
-            f"({p12_path.stat().st_size} bytes, PBESv1 3DES, {subject})",
-            flush=True,
-        )
+        if keychain_path is not None:
+            print(
+                f"[macos-signing] imported Developer ID into keychain "
+                f"({p12_path.stat().st_size} bytes, PBESv1 3DES, {identity})",
+                flush=True,
+            )
+        else:
+            print(
+                f"[macos-signing] wrote macOS-compatible Developer ID .p12 "
+                f"({p12_path.stat().st_size} bytes, PBESv1 3DES, {subject})",
+                flush=True,
+            )
         return 0
     except PrepareError as exc:
         message = str(exc)
