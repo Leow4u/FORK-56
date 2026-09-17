@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   BUILTIN_THEME_LIST,
   BUILTIN_THEMES,
+  canonicalSkinName,
   DEFAULT_TYPOGRAPHY,
   EMOJI_FALLBACK,
-  canonicalSkinName,
   work4youOliveTheme,
   work4youTheme
 } from './presets'
