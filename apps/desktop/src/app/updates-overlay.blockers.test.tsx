@@ -73,6 +73,49 @@ describe('formatBlockerCommandLine', () => {
   })
 })
 
+describe('ApplyingView', () => {
+  afterEach(() => {
+    cleanup()
+    $updateOverlayOpen.set(false)
+    $updateOverlayTarget.set('client')
+    $updateStatus.set(null)
+    resetUpdateApplyState()
+  })
+
+  it('keeps the applying sheet to a title and olive bar', async () => {
+    $updateOverlayOpen.set(true)
+    $updateStatus.set({
+      supported: true,
+      updateAvailable: true,
+      behind: 1,
+      channel: 'installer',
+      commits: []
+    } as DesktopUpdateStatus)
+    $updateApply.set({
+      applying: true,
+      stage: 'fetch',
+      message: 'Downloading the signed Work4You installer',
+      percent: 42,
+      error: null,
+      command: null,
+      log: [
+        { at: 1, message: 'Downloading the signed Work4You installer', stage: 'fetch' },
+        { at: 2, message: 'Downloading the signed Work4You installer', stage: 'fetch' },
+        { at: 3, message: 'Downloading the signed Work4You installer', stage: 'fetch' }
+      ]
+    })
+
+    await renderUpdatesOverlay()
+
+    expect(screen.getByRole('heading', { name: /downloading/i })).toBeTruthy()
+    const bar = screen.getByRole('progressbar', { name: /downloading/i })
+    expect(bar.querySelector('[class*="midground"]')).toBeTruthy()
+    expect(screen.queryByText(/signed installer/i)).toBeNull()
+    expect(screen.queryByText(/this window will close/i)).toBeNull()
+    expect(screen.queryByText(/don't reopen/i)).toBeNull()
+  })
+})
+
 describe('BlockerView', () => {
   afterEach(() => {
     cleanup()

@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 import { resolveVersionStatus } from '@/lib/version-status'
 import { notify, notifyError } from '@/store/notifications'
 import { $connection } from '@/store/session'
-import { $desktopVersion, $updateApply, $updateStatus, openUpdateOverlayFor } from '@/store/updates'
+import { $desktopVersion, $updateApply, $updateStatus, startActiveUpdate } from '@/store/updates'
 
 import { SETTINGS_ROUTE } from '../../routes'
 
@@ -191,7 +191,7 @@ export function AccountFooter() {
               'transition-opacity duration-100 hover:opacity-90 hover:transition-none',
               '[-webkit-app-region:no-drag]'
             )}
-            onClick={() => openUpdateOverlayFor('client')}
+            onClick={() => startActiveUpdate()}
             type="button"
           >
             {updateLabel}
