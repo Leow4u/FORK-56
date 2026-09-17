@@ -28,7 +28,9 @@ function loadDesktopBuild(): {
   const pkg = JSON.parse(fs.readFileSync(DESKTOP_PKG, 'utf8')) as {
     build?: { afterSign?: string; mac?: { notarize?: boolean } }
   }
+
   assert.ok(pkg.build && typeof pkg.build === 'object', 'apps/desktop package.json must have a build field')
+
   return pkg.build
 }
 

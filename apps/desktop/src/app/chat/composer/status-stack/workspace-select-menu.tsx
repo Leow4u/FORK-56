@@ -88,11 +88,7 @@ export function WorkspaceSelectMenu({
         sideOffset={4}
       >
         {items.map(item => (
-          <DropdownMenuItem
-            className={cn(dropdownMenuRow, 'rounded-md')}
-            key={item.id}
-            onSelect={() => item.run?.()}
-          >
+          <DropdownMenuItem className={cn(dropdownMenuRow, 'rounded-md')} key={item.id} onSelect={() => item.run?.()}>
             <Codicon name={workspaceItemGlyph(item.kind)} size="0.75rem" />
             <span className="min-w-0 flex-1 truncate">{item.label}</span>
           </DropdownMenuItem>

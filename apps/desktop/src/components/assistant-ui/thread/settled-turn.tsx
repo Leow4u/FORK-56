@@ -33,9 +33,7 @@ const PASSTHROUGH = { kind: 'passthrough' } as const
 const HIDE = { kind: 'hide' } as const
 
 export type TurnFoldView =
-  | typeof HIDE
-  | typeof PASSTHROUGH
-  | { classified: FoldPart[]; durationS?: number; kind: 'host'; parts: unknown[] }
+  typeof HIDE | typeof PASSTHROUGH | { classified: FoldPart[]; durationS?: number; kind: 'host'; parts: unknown[] }
 
 type ThreadFoldMessage = {
   content: unknown
@@ -164,6 +162,7 @@ function renderDiary(entries: readonly FoldPart[]): ReactNode[] {
       }
 
       index += 1
+
       continue
     }
 
@@ -177,6 +176,7 @@ function renderDiary(entries: readonly FoldPart[]): ReactNode[] {
       }
 
       nodes.push(<DiaryTools key={`tools:${start}:${partToolName(part)}`} tools={tools} />)
+
       continue
     }
 
@@ -205,6 +205,7 @@ export function useTurnFold(productMode: boolean): TurnFoldView {
     }
 
     const assistants = assistantTurnSlice(messages, message.id)
+
     const signature = assistants
       .map(entry => `${entry.id}:${messageContentParts(entry).length}:${messageDurationS(entry) ?? ''}`)
       .join('|')
@@ -230,9 +231,8 @@ export function useTurnFold(productMode: boolean): TurnFoldView {
     }
 
     const host = isLastAssistantInTurn(roles, index)
-    const value: TurnFoldView = host
-      ? { classified, durationS: turnDurationS(assistants), kind: 'host', parts }
-      : HIDE
+
+    const value: TurnFoldView = host ? { classified, durationS: turnDurationS(assistants), kind: 'host', parts } : HIDE
 
     cache.current = { signature, value }
 
@@ -250,6 +250,7 @@ export const SettledProductTurn: FC<{
   const open = persistedOpen ?? false
   const diary = classifiedByRole(classified, 'diary')
   const cards = classifiedByRole(classified, 'card')
+
   const answers = classifiedByRole(classified, 'answer')
     .map(entry => partText(entry.part).trim())
     .filter(Boolean)
@@ -264,7 +265,10 @@ export const SettledProductTurn: FC<{
         {renderDiary(diary)}
       </WorkedForDisclosure>
       {cards.map((entry, index) => (
-        <ChainToolFallback key={asToolPart(entry.part).toolCallId || `card:${index}`} {...toolPartProps(asToolPart(entry.part))} />
+        <ChainToolFallback
+          key={asToolPart(entry.part).toolCallId || `card:${index}`}
+          {...toolPartProps(asToolPart(entry.part))}
+        />
       ))}
       {answers.map((text, index) => (
         <MarkdownTextContent isRunning={false} key={`answer:${index}`} text={text} />

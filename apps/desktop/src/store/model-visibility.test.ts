@@ -268,6 +268,7 @@ describe('featured defaults', () => {
       'z-ai/glm-5.2',
       'moonshotai/kimi-k3'
     ]
+
     const featured = [
       'openai/gpt-5.6-luna',
       'anthropic/claude-fable-5',
@@ -281,6 +282,7 @@ describe('featured defaults', () => {
       'qwen/qwen3.8-max',
       'z-ai/glm-5.2'
     ]
+
     const visible = defaultVisibleKeys([featuredProvider('work4you', catalog, featured)])
 
     expect(visible.has(modelVisibilityKey('work4you', 'openai/gpt-5.6-luna'))).toBe(true)
