@@ -10,7 +10,7 @@ import { TreeGroup } from './tree-group'
 
 let root: null | Root = null
 let container: HTMLDivElement | null = null
-let disposePane: (() => void) | null = null
+const disposePanes: Array<() => void> = []
 
 function render(ui: ReactNode) {
   if (!container) {
@@ -46,31 +46,35 @@ afterEach(() => {
   }
 
   container?.remove()
-  disposePane?.()
+  while (disposePanes.length) {
+    disposePanes.pop()?.()
+  }
   root = null
   container = null
-  disposePane = null
   vi.unstubAllGlobals()
 })
 
 describe('TreeGroup', () => {
   it('points the docked-zone chevron in the collapse or restore action direction', () => {
-    disposePane = registry.register({
-      area: 'panes',
-      data: { height: '12rem' },
-      id: 'terminal',
-      render: () => <div>Terminal</div>,
-      title: 'Terminal'
-    })
+    disposePanes.push(
+      registry.register({
+        area: 'panes',
+        data: { height: '12rem' },
+        id: 'terminal',
+        render: () => <div>Terminal</div>,
+        title: 'Terminal'
+      })
+    )
     // jsdom does not implement CSS.escape, which the real tab-strip effect uses.
     vi.stubGlobal('CSS', { escape: (value: string) => value })
 
     render(<TreeGroup node={terminalGroup(false)} parentAxis="column" />)
 
     expect(toggle('Minimize').querySelector('i')!.className).toContain('codicon-chevron-down')
-    expect(globalThis.document.querySelector('[data-tree-group="terminal-zone"]')?.className).not.toContain(
-      'rounded-tl-(--ui-stage-radius)'
-    )
+    const rail = globalThis.document.querySelector('[data-tree-group="terminal-zone"]')
+    expect(rail?.className).toContain('bg-(--ui-sidebar-surface-background)')
+    expect(rail?.className).not.toContain('rounded-tl-(--ui-stage-radius)')
+    expect(rail?.className).not.toContain('--ui-chat-surface-background')
 
     render(<TreeGroup node={terminalGroup(true)} parentAxis="column" />)
 
@@ -78,13 +82,15 @@ describe('TreeGroup', () => {
   })
 
   it('rounds the top rail-facing corner of the conversation stage only', () => {
-    disposePane = registry.register({
-      area: 'panes',
-      data: { placement: 'main' },
-      id: 'workspace',
-      render: () => <div>Chat</div>,
-      title: 'Workspace'
-    })
+    disposePanes.push(
+      registry.register({
+        area: 'panes',
+        data: { placement: 'main' },
+        id: 'workspace',
+        render: () => <div>Chat</div>,
+        title: 'Workspace'
+      })
+    )
     vi.stubGlobal('CSS', { escape: (value: string) => value })
 
     render(
@@ -100,7 +106,71 @@ describe('TreeGroup', () => {
     )
 
     const stage = globalThis.document.querySelector('[data-tree-group="main-zone"]')
+    expect(stage?.className).toContain('bg-(--ui-chat-surface-background)')
     expect(stage?.className).toContain('rounded-tl-(--ui-stage-radius)')
+    expect(stage?.className).toContain('rounded-tr-(--ui-stage-radius)')
     expect(stage?.className).not.toMatch(/rounded-bl|m-[0-9]|inset/)
+  })
+
+  it('paints the Bots roster and a main-placement Cronjobs tile on the rail', () => {
+    disposePanes.push(
+      registry.register({
+        area: 'panes',
+        data: { placement: 'left' },
+        id: 'sessions',
+        render: () => <div>Sessions</div>,
+        title: 'Sessions'
+      }),
+      registry.register({
+        area: 'panes',
+        data: { hideOnly: true, placement: 'left' },
+        id: 'work4you-bots:pane',
+        render: () => <div>Bots</div>,
+        title: 'Bots'
+      }),
+      registry.register({
+        area: 'panes',
+        data: { placement: 'main' },
+        id: 'work4you-bots:routines',
+        render: () => <div>Cronjobs</div>,
+        title: 'Cronjobs'
+      })
+    )
+    vi.stubGlobal('CSS', { escape: (value: string) => value })
+
+    render(
+      <TreeGroup
+        node={{
+          active: 'work4you-bots:pane',
+          headerHidden: false,
+          id: 'sessions-zone',
+          panes: ['sessions', 'work4you-bots:pane'],
+          type: 'group'
+        }}
+      />
+    )
+
+    const bots = globalThis.document.querySelector('[data-tree-group="sessions-zone"]')
+    expect(bots?.className).toContain('bg-(--ui-sidebar-surface-background)')
+    expect(bots?.className).not.toContain('--ui-chat-surface-background')
+    expect(bots?.className).not.toContain('rounded-tl-(--ui-stage-radius)')
+
+    render(
+      <TreeGroup
+        node={{
+          active: 'work4you-bots:routines',
+          headerHidden: false,
+          id: 'routines-zone',
+          panes: ['work4you-bots:routines'],
+          type: 'group'
+        }}
+      />
+    )
+
+    const cron = globalThis.document.querySelector('[data-tree-group="routines-zone"]')
+    expect(cron?.className).toContain('bg-(--ui-sidebar-surface-background)')
+    expect(cron?.className).not.toContain('--ui-chat-surface-background')
+    expect(cron?.className).not.toContain('rounded-tl-(--ui-stage-radius)')
+    expect(cron?.className).not.toContain('rounded-tr-(--ui-stage-radius)')
   })
 })
