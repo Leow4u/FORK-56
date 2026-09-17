@@ -7,7 +7,6 @@ export function Hero() {
   return (
     <section className={styles.hero} id="top">
       <div className={`shell ${styles.intro}`}>
-        <p className="mono-label">Open source · MIT license</p>
         <h1 className={styles.title}>Agente de IA que cresce com você.</h1>
         <HeroCtas />
       </div>
