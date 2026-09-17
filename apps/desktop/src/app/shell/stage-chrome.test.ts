@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { work4youTheme } from '@/themes/presets'
 
-import { isMainStageZone, MAIN_STAGE_TAB_STRIP_CLASS, mainStageCornerClass } from './stage-chrome'
+import {
+  MAIN_STAGE_TAB_STRIP_CLASS,
+  WINDOW_TITLEBAR_RAIL_CLASS,
+  isMainStageZone,
+  mainStageCornerClass
+} from './stage-chrome'
 
 describe('mainStageCornerClass', () => {
   it('rounds only the top corner that faces the sidebar', () => {
@@ -22,6 +27,13 @@ describe('isMainStageZone', () => {
   it('marks the conversation zone, not side chrome', () => {
     expect(isMainStageZone(['workspace', 'session-tile:abc'], isStagePane)).toBe(true)
     expect(isMainStageZone(['sessions', 'files'], isStagePane)).toBe(false)
+  })
+})
+
+describe('window titlebar rail', () => {
+  it('paints the titlebar with the sidebar, not the chat stage', () => {
+    expect(WINDOW_TITLEBAR_RAIL_CLASS).toContain('--ui-sidebar-surface-background')
+    expect(WINDOW_TITLEBAR_RAIL_CLASS).not.toContain('chat-surface')
   })
 })
 

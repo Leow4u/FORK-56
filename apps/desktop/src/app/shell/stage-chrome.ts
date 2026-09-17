@@ -1,10 +1,13 @@
 /**
  * Rail vs stage chrome — the ChatGPT-style join.
  *
- * The window well and sidebar share the rail. The main chat zone is the
- * brighter stage. A radius on the rail-facing TOP corner is the curve;
- * there is no inset/gutter around the chat.
+ * The window well, window titlebar, and sidebar share the rail. The main
+ * chat zone is the brighter stage. A radius on the rail-facing TOP corner
+ * is the curve; there is no inset/gutter around the chat.
  */
+
+/** Window titlebar — same fill as the sidebar, not the bright chat stage. */
+export const WINDOW_TITLEBAR_RAIL_CLASS = 'bg-(--ui-sidebar-surface-background)'
 
 /** Tab strip on the stage — same fill as the chat, not the sidebar rail. */
 export const MAIN_STAGE_TAB_STRIP_CLASS =
