@@ -4,6 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import {
   $desktopVersion,
+  $updateApply,
   $updateOverlayOpen,
   $updateOverlayTarget,
   $updateStatus,
@@ -226,8 +227,13 @@ describe('AccountFooter', () => {
     expect(screen.queryByRole('button', { name: 'Update' })).toBeNull()
   })
 
-  it('parks the client update chip beside Account and opens the existing overlay', async () => {
+  it('starts the existing apply from the Account chip, same as Update now', async () => {
     installCloud({ signedIn: false, email: null })
+    const apply = vi.fn(async () => ({ handedOff: true, ok: true }))
+    desktopWindow.work4youDesktop = {
+      ...(desktopWindow.work4youDesktop as object),
+      updates: { apply, check: vi.fn() }
+    }
     $updateStatus.set({
       behind: 3,
       currentSha: '7d2ca4bdeadbeef',
@@ -249,6 +255,10 @@ describe('AccountFooter', () => {
 
     expect($updateOverlayOpen.get()).toBe(true)
     expect($updateOverlayTarget.get()).toBe('client')
+    await vi.waitFor(() => {
+      expect(apply).toHaveBeenCalled()
+    })
+    expect($updateApply.get().applying).toBe(true)
   })
 
   it('picks the email up when the window regains focus after a portal sign-in', async () => {
