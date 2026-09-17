@@ -19,19 +19,42 @@ const SYSTEM_MONO = 'Menlo, Monaco, "SF Mono", "Courier Prime", monospace, ' + E
 
 export const DEFAULT_TYPOGRAPHY: DesktopThemeTypography = { fontSans: SYSTEM_SANS, fontMono: SYSTEM_MONO }
 
-const WORK4YOU_BLUE = '#0053FD'
-const PSYCHE_BLUE = '#1540B1'
-const PSYCHE_WARM = '#FFE6CB'
-
-const work4youTint = (pct: number) => `color-mix(in srgb, ${WORK4YOU_BLUE} ${pct}%, #FFFFFF)`
-const work4youTintTransparent = (pct: number) => `color-mix(in srgb, ${WORK4YOU_BLUE} ${pct}%, transparent)`
-
 // Unified Work4You brand seeds — shared with the portal/docs/dashboard
 // "papel · tinta · oliva" identity (paper canvas, ink text, olive accent).
 const PAPER = '#FAF9F5'
 const INK = '#1A1915'
 const OLIVE = '#4D5943'
 const SAGE = '#C9D2BC'
+
+// Glass-olive scale — one stop per former Blue role, not a single accent swap.
+// Light: mist canvas / cooler rail / leaf-into-white tints (same mix %).
+// Dark: forest ladder + warm cream type (same counterpoint Blue used on navy).
+const LEAF = '#4F6F2F'
+const FOREST = '#4B7328'
+const CREAM = '#FFE6CB'
+const MIST = '#F7FAF5'
+const RAIL = '#F2F7EE'
+const NIGHT = '#33521B'
+const NIGHT_CARD = '#3A5B20'
+const NIGHT_MUTED = '#456626'
+const NIGHT_POPOVER = '#3F6022'
+const NIGHT_SECONDARY = '#4B6D29'
+const NIGHT_BORDER = '#5B7939'
+const NIGHT_INPUT = '#263F15'
+const NIGHT_RAIL = '#294415'
+const NIGHT_RAIL_BORDER = '#4B692D'
+const NIGHT_BUBBLE = '#3C5D22'
+const NIGHT_BUBBLE_BORDER = '#6B8943'
+const NIGHT_MIST = '#D2E2C1'
+const NIGHT_WASH = '#EEF5E7'
+const NIGHT_BLOOM = '#F6FAF3'
+const GLASS_INK = '#181A16'
+const GLASS_MUTED_INK = '#6C7665'
+const GLASS_SECONDARY_INK = '#293123'
+const GLASS_ACCENT_INK = '#262F20'
+
+const oliveTint = (pct: number) => `color-mix(in srgb, ${LEAF} ${pct}%, #FFFFFF)`
+const oliveTintTransparent = (pct: number) => `color-mix(in srgb, ${LEAF} ${pct}%, transparent)`
 
 /**
  * Work4You — canonical Work4You desktop identity. Unified brand look: warm
@@ -105,66 +128,68 @@ export const work4youTheme: DesktopTheme = {
 }
 
 /**
- * Work4You Blue — the previous desktop identity (glass neutrals with Work4You
- * blue accents, psyche navy dark mode), kept selectable as its own skin.
+ * Work4You Olive — the former Blue glass skin, recast as a multi-stop olive
+ * scale. Same structure (mist canvas, cooler rail, color-mix tints, forest
+ * dark ladder, warm cream type); every blue stop has an olive counterpart.
+ * Distinct from the paper `work4you` skin, where olive is only an accent.
  */
-export const work4youBlueTheme: DesktopTheme = {
-  name: 'work4you-blue',
-  label: 'Work4You Blue',
-  description: 'Glass neutrals with Work4You blue accents',
+export const work4youOliveTheme: DesktopTheme = {
+  name: 'work4you-olive',
+  label: 'Work4You Olive',
+  description: 'Glass neutrals with Work4You olive accents',
   colors: {
-    background: '#F8FAFF',
-    foreground: '#17171A',
+    background: MIST,
+    foreground: GLASS_INK,
     card: '#FFFFFF',
-    cardForeground: '#17171A',
-    muted: work4youTint(5),
-    mutedForeground: '#666678',
+    cardForeground: GLASS_INK,
+    muted: oliveTint(5),
+    mutedForeground: GLASS_MUTED_INK,
     popover: '#FFFFFF',
-    popoverForeground: '#17171A',
-    primary: WORK4YOU_BLUE,
+    popoverForeground: GLASS_INK,
+    primary: LEAF,
     primaryForeground: '#FCFCFC',
-    secondary: work4youTint(7),
-    secondaryForeground: '#242432',
-    accent: work4youTint(10),
-    accentForeground: '#202030',
-    border: work4youTintTransparent(22),
-    input: work4youTintTransparent(30),
-    ring: WORK4YOU_BLUE,
-    midground: WORK4YOU_BLUE,
-    composerRing: WORK4YOU_BLUE,
+    secondary: oliveTint(7),
+    secondaryForeground: GLASS_SECONDARY_INK,
+    accent: oliveTint(10),
+    accentForeground: GLASS_ACCENT_INK,
+    border: oliveTintTransparent(22),
+    input: oliveTintTransparent(30),
+    ring: LEAF,
+    midground: LEAF,
+    composerRing: LEAF,
     destructive: '#C72E4D',
     destructiveForeground: '#FFFFFF',
-    sidebarBackground: '#F3F7FF',
-    sidebarBorder: work4youTintTransparent(18),
-    userBubble: work4youTint(6),
-    userBubbleBorder: work4youTintTransparent(24)
+    sidebarBackground: RAIL,
+    sidebarBorder: oliveTintTransparent(18),
+    userBubble: oliveTint(6),
+    userBubbleBorder: oliveTintTransparent(24)
   },
   darkColors: {
-    background: '#0D2F86',
-    foreground: PSYCHE_WARM,
-    card: '#12378F',
-    cardForeground: PSYCHE_WARM,
-    muted: '#183F9A',
-    mutedForeground: '#B5C7F3',
-    popover: '#123A96',
-    popoverForeground: PSYCHE_WARM,
-    primary: PSYCHE_WARM,
-    primaryForeground: '#0D2F86',
-    secondary: '#1B45A4',
-    secondaryForeground: '#E0E8FF',
-    accent: PSYCHE_BLUE,
-    accentForeground: '#F0F4FF',
-    border: '#3158AD',
-    input: '#0B2566',
-    ring: PSYCHE_WARM,
-    midground: WORK4YOU_BLUE,
-    composerRing: PSYCHE_WARM,
+    background: NIGHT,
+    foreground: CREAM,
+    card: NIGHT_CARD,
+    cardForeground: CREAM,
+    muted: NIGHT_MUTED,
+    mutedForeground: NIGHT_MIST,
+    popover: NIGHT_POPOVER,
+    popoverForeground: CREAM,
+    primary: CREAM,
+    primaryForeground: NIGHT,
+    secondary: NIGHT_SECONDARY,
+    secondaryForeground: NIGHT_WASH,
+    accent: FOREST,
+    accentForeground: NIGHT_BLOOM,
+    border: NIGHT_BORDER,
+    input: NIGHT_INPUT,
+    ring: CREAM,
+    midground: LEAF,
+    composerRing: CREAM,
     destructive: '#C0473A',
     destructiveForeground: '#FEF2F2',
-    sidebarBackground: '#09286F',
-    sidebarBorder: '#234A9C',
-    userBubble: '#143B91',
-    userBubbleBorder: '#3A63BD'
+    sidebarBackground: NIGHT_RAIL,
+    sidebarBorder: NIGHT_RAIL_BORDER,
+    userBubble: NIGHT_BUBBLE,
+    userBubbleBorder: NIGHT_BUBBLE_BORDER
   },
   typography: {
     fontSans: SYSTEM_SANS,
@@ -355,7 +380,7 @@ export const slateTheme: DesktopTheme = {
 
 export const BUILTIN_THEMES: Record<string, DesktopTheme> = {
   work4you: work4youTheme,
-  'work4you-blue': work4youBlueTheme,
+  'work4you-olive': work4youOliveTheme,
   midnight: midnightTheme,
   ember: emberTheme,
   mono: monoTheme,
@@ -367,3 +392,12 @@ export const BUILTIN_THEME_LIST = Object.values(BUILTIN_THEMES)
 
 /** Skin used when nothing is persisted or the persisted name is retired. */
 export const DEFAULT_SKIN_NAME = 'work4you'
+
+/** Retired built-in ids that still resolve — one card, not a second Blue entry. */
+export const SKIN_ALIASES: Record<string, string> = {
+  'work4you-blue': 'work4you-olive'
+}
+
+export function canonicalSkinName(name: string): string {
+  return SKIN_ALIASES[name] ?? SKIN_ALIASES[name.toLowerCase()] ?? name
+}

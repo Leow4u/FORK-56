@@ -46,3 +46,12 @@ describe.each(cases)('per-profile $name', ({ pref, fallback, a, b, junk }) => {
     expect(pref.resolve('work')).toBe(fallback)
   })
 })
+
+describe('retired Blue skin', () => {
+  beforeEach(() => window.localStorage.clear())
+
+  it('rewrites a persisted work4you-blue assignment onto Olive', () => {
+    skinPref.assign('work', 'work4you-blue')
+    expect(skinPref.resolve('work')).toBe('work4you-olive')
+  })
+})

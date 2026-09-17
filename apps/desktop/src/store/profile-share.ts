@@ -17,7 +17,7 @@ import { isLayoutNode, normalize } from '@/components/pane-shell/tree/model'
 import { $layoutTree, markActivePreset, persistTree } from '@/components/pane-shell/tree/store'
 import { translateNow } from '@/i18n'
 import { modePref, skinPref, type ThemeMode } from '@/themes/context'
-import { BUILTIN_THEMES } from '@/themes/presets'
+import { BUILTIN_THEMES, canonicalSkinName } from '@/themes/presets'
 import type { DesktopTheme } from '@/themes/types'
 import { $userThemes, installUserTheme, resolveTheme } from '@/themes/user-themes'
 import type { ProfileDesktopOverlay } from '@/types/work4you'
@@ -51,7 +51,7 @@ export function buildDesktopOverlay(profile: string): ProfileDesktopOverlay {
   // Bundle the full definition of any non-built-in theme the skin points at,
   // so the receiver's picker can resolve it. Built-ins resolve by name.
   const themes: Record<string, unknown> = {}
-  const userTheme = BUILTIN_THEMES[skin] ? undefined : $userThemes.get()[skin]
+  const userTheme = BUILTIN_THEMES[canonicalSkinName(skin)] ? undefined : $userThemes.get()[skin]
 
   if (userTheme) {
     themes[userTheme.name] = userTheme
