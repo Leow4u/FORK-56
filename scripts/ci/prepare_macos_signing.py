@@ -7,14 +7,22 @@ electron-builder treat the working directory as a cert path and fail with
 ``CSC_LINK`` to ``GITHUB_ENV`` only when ``CSC_P12_BASE64`` decodes to a real
 ``.p12``. The private key never goes to stdout.
 
-Used by ``.github/workflows/release-desktop.yml``. Decode-only — signing still
-happens inside electron-builder (``@electron/osx-sign``).
+Used by ``.github/workflows/release-desktop.yml``. Decode + re-export — signing
+still happens inside electron-builder (``@electron/osx-sign``).
+
+OpenSSL 3 (Git for Windows, current Homebrew) writes PKCS#12 with PBES2 /
+AES-256. macOS ``security import`` then fails with
+``MAC verification failed during PKCS12 import (wrong password?)`` even when
+the password is correct (Release Desktop run 35232340078). This script loads
+the blob with ``cryptography`` and writes PBESv1 SHA1 + 3DES, which
+Security.framework accepts. ``openssl pkcs12 -export -legacy`` is not required
+on the machine that created the ``.p12``.
 
 GitHub Actions secrets (repo Settings → Secrets and variables → Actions):
 
 * ``CSC_P12_BASE64`` — Developer ID Application ``.p12``, standard Base64
-* ``CSC_KEY_PASSWORD`` — export password for that ``.p12`` (read by the
-  builder step, not by this script)
+* ``CSC_KEY_PASSWORD`` — export password for that ``.p12`` (needed here to
+  re-export, and later by the builder step)
 * ``APPLE_API_KEY`` / ``APPLE_API_KEY_ID`` / ``APPLE_API_ISSUER`` — notary
   (``apps/desktop/scripts/notarize.mjs``)
 
@@ -46,7 +54,8 @@ class PrepareError(RuntimeError):
 SETUP_HELP = """\
 macOS desktop signing needs a Developer ID Application certificate as Base64.
 
-1. Export the Developer ID Application cert + private key as a .p12.
+1. Export the Developer ID Application cert + private key as a .p12
+   (OpenSSL 3 / Windows is fine; this script re-exports for macOS).
 2. Base64-encode it (do not commit the file).
 3. Add GitHub Actions secrets: CSC_P12_BASE64, CSC_KEY_PASSWORD,
    APPLE_API_KEY, APPLE_API_KEY_ID, APPLE_API_ISSUER.
@@ -55,6 +64,9 @@ macOS desktop signing needs a Developer ID Application certificate as Base64.
 Never pass CSC_LINK as an empty string. Missing secrets must omit the
 variable so electron-builder does not treat "" as a cert path.
 """
+
+# DER OID 1.2.840.113549.1.12.1.3 — pbeWithSHAAnd3-KeyTripleDES-CBC
+_PBESV1_SHA1_3DES_OID = bytes.fromhex("060a2a864886f70d010c0103")
 
 
 def decode_p12_base64(raw: str) -> bytes:
@@ -76,6 +88,81 @@ def write_p12(data: bytes, dest: Path) -> Path:
     dest.write_bytes(data)
     dest.chmod(0o600)
     return dest
+
+
+def _password_bytes(password: str | None) -> bytes | None:
+    """Return PKCS#12 password bytes, or None when GitHub injected empty."""
+    if password is None:
+        return None
+    if password == "":
+        return None
+    return password.encode("utf-8")
+
+
+def _load_pkcs12(data: bytes, password: bytes | None):
+    try:
+        from cryptography.hazmat.primitives.serialization.pkcs12 import (
+            load_key_and_certificates,
+        )
+    except ImportError as exc:
+        raise PrepareError(
+            "cryptography is required to prepare the Developer ID .p12. "
+            "CI: python3 -m pip install 'cryptography==50.0.0'"
+        ) from exc
+    try:
+        return load_key_and_certificates(data, password)
+    except ValueError as exc:
+        raise PrepareError(
+            "CSC_KEY_PASSWORD does not open CSC_P12_BASE64 "
+            "(wrong password, or the blob is not a readable PKCS#12)"
+        ) from exc
+
+
+def macos_compatible_p12(data: bytes, password: str | None) -> tuple[bytes, str]:
+    """Re-export PKCS#12 as PBESv1 SHA1+3DES for macOS ``security import``.
+
+    Returns ``(p12_bytes, subject_rfc4514)``. The password is never written
+    to stdout. Raises PrepareError when the password is missing, wrong, or
+    the bag has no key/certificate.
+    """
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.serialization import PrivateFormat
+    from cryptography.hazmat.primitives.serialization.pkcs12 import (
+        PBES,
+        serialize_key_and_certificates,
+    )
+
+    pwd = _password_bytes(password)
+    if pwd is None:
+        raise PrepareError(
+            "CSC_KEY_PASSWORD is empty; it is required to re-export the "
+            "Developer ID .p12 for macOS security import"
+        )
+    key, cert, additional = _load_pkcs12(data, pwd)
+    if key is None or cert is None:
+        raise PrepareError(
+            "PKCS#12 is missing the Developer ID private key or certificate"
+        )
+    encryption = (
+        PrivateFormat.PKCS12.encryption_builder()
+        .kdf_rounds(2048)
+        .key_cert_algorithm(PBES.PBESv1SHA1And3KeyTripleDESCBC)
+        .hmac_hash(hashes.SHA1())
+        .build(pwd)
+    )
+    out = serialize_key_and_certificates(
+        name=b"Work4You Developer ID",
+        key=key,
+        cert=cert,
+        cas=list(additional) if additional else None,
+        encryption_algorithm=encryption,
+    )
+    if _PBESV1_SHA1_3DES_OID not in out:
+        raise PrepareError(
+            "re-exported PKCS#12 is missing PBESv1 SHA1+3DES "
+            "(macOS security import will reject it)"
+        )
+    return out, cert.subject.rfc4514_string()
 
 
 def append_github_file(path: Path | None, text: str) -> None:
@@ -215,14 +302,20 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         dest = args.output or default_p12_path()
-        p12_path = write_p12(decode_p12_base64(raw), dest)
+        password = os.environ.get("CSC_KEY_PASSWORD")
+        converted, subject = macos_compatible_p12(decode_p12_base64(raw), password)
+        p12_path = write_p12(converted, dest)
         write_signing_outputs(
             enabled=True,
             p12_path=p12_path,
             github_env=github_env,
             github_output=github_output,
         )
-        print(f"[macos-signing] wrote Developer ID .p12 ({p12_path.stat().st_size} bytes)", flush=True)
+        print(
+            f"[macos-signing] wrote macOS-compatible Developer ID .p12 "
+            f"({p12_path.stat().st_size} bytes, PBESv1 3DES, {subject})",
+            flush=True,
+        )
         return 0
     except PrepareError as exc:
         message = str(exc)
