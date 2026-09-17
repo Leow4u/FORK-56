@@ -12,7 +12,13 @@
 import { useStore } from '@nanostores/react'
 import { type CSSProperties, Fragment, type ReactNode, type RefObject, useRef, useState } from 'react'
 
-import { isMainStageZone, MAIN_STAGE_TAB_STRIP_CLASS, mainStageCornerClass } from '@/app/shell/stage-chrome'
+import {
+  isMainStageZone,
+  MAIN_STAGE_SURFACE_CLASS,
+  MAIN_STAGE_TAB_STRIP_CLASS,
+  mainStageCornerClass,
+  RAIL_ZONE_SURFACE_CLASS
+} from '@/app/shell/stage-chrome'
 import { ActionsContextMenu, type MenuKit, renderActionItem } from '@/components/ui/actions-menu'
 import { Codicon } from '@/components/ui/codicon'
 import { DecodeText } from '@/components/ui/decode-text'
@@ -30,7 +36,6 @@ import { ContribBoundary, ContribRender } from '@/contrib/react/boundary'
 import { useContributions } from '@/contrib/react/use-contributions'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
-import { $panesFlipped } from '@/store/layout'
 
 import { $layoutEditMode } from '../../edit-mode'
 import { useWindowControlsOverlap } from '../../geometry'
@@ -214,7 +219,6 @@ export function TreeGroup({
   const wcOverlap = useWindowControlsOverlap(ref, true)
 
   const hiddenPanes = useStore($hiddenTreePanes)
-  const panesFlipped = useStore($panesFlipped)
   const narrow = useStore($narrowViewport)
   const newSessionTabAction = useStore($newSessionTabAction)
   const panesWithCloser = useStore($panesWithCloser)
@@ -284,7 +288,7 @@ export function TreeGroup({
   // header IS the collapsed form, exactly as before.
   const verticalCollapse = Boolean(node.minimized) && parentAxis === 'row' && !isEmpty
   const headerVisible = !isEmpty && !verticalCollapse && (Boolean(node.minimized) || !headerHidden)
-  const isStage = isMainStageZone(shown, id => isMainStripPane(id) || isSessionStripPane(id))
+  const isStage = isMainStageZone(shown, isSessionStripPane)
 
   // Keep the activated tab — and, on the last one, the trailing "+" — inside
   // the strip's scroll window. Opening a tab past the right edge otherwise
@@ -368,8 +372,9 @@ export function TreeGroup({
   return (
     <div
       className={cn(
-        'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-(--ui-editor-surface-background)',
-        isStage && mainStageCornerClass(!panesFlipped)
+        'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
+        isStage ? MAIN_STAGE_SURFACE_CLASS : RAIL_ZONE_SURFACE_CLASS,
+        isStage && mainStageCornerClass()
       )}
       data-tree-group={node.id}
       // Advertises the visible tab strip so panes can drop their own

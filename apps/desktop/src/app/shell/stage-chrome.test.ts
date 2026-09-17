@@ -4,20 +4,20 @@ import { work4youTheme } from '@/themes/presets'
 
 import {
   isMainStageZone,
+  MAIN_STAGE_SURFACE_CLASS,
   MAIN_STAGE_TAB_STRIP_CLASS,
   mainStageCornerClass,
+  RAIL_ZONE_SURFACE_CLASS,
   WINDOW_TITLEBAR_RAIL_CLASS
 } from './stage-chrome'
 
 describe('mainStageCornerClass', () => {
-  it('rounds only the top corner that faces the sidebar', () => {
-    expect(mainStageCornerClass(true)).toBe('rounded-tl-(--ui-stage-radius)')
-    expect(mainStageCornerClass(false)).toBe('rounded-tr-(--ui-stage-radius)')
+  it('rounds both top corners into the rail', () => {
+    expect(mainStageCornerClass()).toBe('rounded-tl-(--ui-stage-radius) rounded-tr-(--ui-stage-radius)')
   })
 
   it('does not inset the stage or round the bottom', () => {
-    expect(mainStageCornerClass(true)).not.toMatch(/rounded-bl|m-|p-|inset/)
-    expect(mainStageCornerClass(false)).not.toMatch(/rounded-br|m-|p-|inset/)
+    expect(mainStageCornerClass()).not.toMatch(/rounded-bl|rounded-br|m-|p-|inset/)
   })
 })
 
@@ -28,12 +28,26 @@ describe('isMainStageZone', () => {
     expect(isMainStageZone(['workspace', 'session-tile:abc'], isStagePane)).toBe(true)
     expect(isMainStageZone(['sessions', 'files'], isStagePane)).toBe(false)
   })
+
+  it('does not treat a main-placement chrome tile as the stage', () => {
+    expect(isMainStageZone(['work4you-bots:routines'], isStagePane)).toBe(false)
+    expect(isMainStageZone(['sessions', 'work4you-bots:pane'], isStagePane)).toBe(false)
+  })
 })
 
 describe('window titlebar rail', () => {
   it('paints the titlebar with the sidebar, not the chat stage', () => {
     expect(WINDOW_TITLEBAR_RAIL_CLASS).toContain('--ui-sidebar-surface-background')
     expect(WINDOW_TITLEBAR_RAIL_CLASS).not.toContain('chat-surface')
+  })
+})
+
+describe('zone surfaces', () => {
+  it('keeps side chrome on the rail and the conversation on the stage', () => {
+    expect(RAIL_ZONE_SURFACE_CLASS).toContain('--ui-sidebar-surface-background')
+    expect(RAIL_ZONE_SURFACE_CLASS).not.toContain('chat-surface')
+    expect(MAIN_STAGE_SURFACE_CLASS).toContain('--ui-chat-surface-background')
+    expect(MAIN_STAGE_SURFACE_CLASS).not.toContain('sidebar-surface')
   })
 })
 
