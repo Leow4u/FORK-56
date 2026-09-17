@@ -115,7 +115,7 @@ def test_main_empty_without_require_omits_csc_link(tmp_path, monkeypatch):
         ]
     )
     assert code == 0
-    assert "CSC_LINK" not in env.read_text(encoding="utf-8")
+    assert not env.exists()
     assert out.read_text(encoding="utf-8") == "signing=false\n"
 
 
