@@ -30,7 +30,9 @@ GitHub Actions secrets (repo Settings → Secrets and variables → Actions):
 * ``CSC_KEY_PASSWORD`` — export password for that ``.p12`` (needed here to
   re-export and import; the builder step must not see ``CSC_LINK``)
 * ``APPLE_API_KEY`` / ``APPLE_API_KEY_ID`` / ``APPLE_API_ISSUER`` — notary
-  (``apps/desktop/scripts/notarize.mjs``)
+  (``apps/desktop/scripts/notarize.mjs`` afterSign, then
+  ``notarize-artifact.mjs`` for the DMG). Keep ``mac.notarize: false`` so
+  electron-builder 26 does not pass the inline ``.p8`` to ``@electron/notarize``.
 
 Usage::
 
