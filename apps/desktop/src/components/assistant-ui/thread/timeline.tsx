@@ -319,10 +319,12 @@ const ActiveThreadTimeline: FC = () => {
     return null
   }
 
+  // Sit just inside the transcript scrollbar so the ticks stay clickable
+  // without covering the 10px thumb the user actually drags.
   return (
     <div
       aria-label="Conversation timeline"
-      className="group/timeline pointer-events-auto absolute right-0 top-1/2 z-40 flex -translate-y-1/2 flex-col items-end"
+      className="group/timeline pointer-events-auto absolute top-1/2 z-40 flex -translate-y-1/2 flex-col items-end right-[length:var(--thread-scrollbar-size,0.625rem)]"
       data-slot="thread-timeline"
       data-suppress-pane-reveal=""
       onMouseEnter={keepOpen}
@@ -400,7 +402,7 @@ const TimelineTicks: FC<{
     {entries.map((entry, index) => (
       <button
         aria-label={entry.preview}
-        className="flex h-2 w-7 cursor-pointer items-center justify-end pr-1"
+        className="flex h-2.5 w-8 cursor-pointer items-center justify-end pr-0.5"
         key={entry.id}
         onClick={() => onJump(entry.id)}
         type="button"
@@ -408,8 +410,10 @@ const TimelineTicks: FC<{
       >
         <span
           className={cn(
-            'block h-px w-3 transition-opacity duration-100 ease-out',
-            index === activeIndex ? 'bg-(--theme-primary)' : 'dither text-(--ui-text-quaternary) opacity-70'
+            'block rounded-full transition-[width,height,opacity,background-color] duration-100 ease-out',
+            index === activeIndex
+              ? 'h-[3px] w-4 bg-(--theme-primary)'
+              : 'h-[2px] w-3.5 bg-(--ui-text-tertiary) opacity-80'
           )}
           ref={listRef(tickRefs, index)}
         />

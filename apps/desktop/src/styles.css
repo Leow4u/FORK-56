@@ -1425,6 +1425,42 @@ body.guest-pointer-lock :is(webview, iframe) {
     .scrollbar-fade:hover {
       scrollbar-color: color-mix(in srgb, var(--dt-midground) 18%, transparent) transparent;
     }
+
+    /* Transcript scroller — same grabable treatment as the webkit path. */
+    .scrollbar-dt [data-slot='aui_thread-viewport'] {
+      scrollbar-width: auto;
+      scrollbar-color: color-mix(in srgb, var(--dt-midground) 36%, transparent)
+        color-mix(in srgb, var(--dt-midground) 8%, transparent);
+    }
+  }
+
+  /* Transcript scroller: the one bar you drag on a long chat. Wider and
+     stronger than the app-wide 4px gutters so it stays grabable; the
+     timeline rail sits just inside --thread-scrollbar-size so the two
+     never share a hit target. */
+  .thread-right-chrome {
+    --thread-scrollbar-size: 0.625rem;
+  }
+
+  .scrollbar-dt [data-slot='aui_thread-viewport']:not(.scrollbar-overlay)::-webkit-scrollbar {
+    width: var(--thread-scrollbar-size, 0.625rem);
+    height: var(--thread-scrollbar-size, 0.625rem);
+  }
+
+  .scrollbar-dt [data-slot='aui_thread-viewport']:not(.scrollbar-overlay)::-webkit-scrollbar-track,
+  .scrollbar-dt [data-slot='aui_thread-viewport']:not(.scrollbar-overlay)::-webkit-scrollbar-corner {
+    background: color-mix(in srgb, var(--dt-midground) 8%, transparent);
+  }
+
+  .scrollbar-dt [data-slot='aui_thread-viewport']:not(.scrollbar-overlay)::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--dt-midground) 36%, transparent);
+    border-radius: 9999rem;
+    background-clip: padding-box;
+  }
+
+  .scrollbar-dt [data-slot='aui_thread-viewport']:not(.scrollbar-overlay)::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--dt-midground) 58%, transparent);
+    background-clip: padding-box;
   }
 }
 

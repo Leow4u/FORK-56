@@ -92,6 +92,29 @@ describe('ThreadTimeline in a background tab', () => {
   })
 })
 
+describe('ThreadTimeline right-edge chrome', () => {
+  it('sits inside the transcript scrollbar instead of covering it', () => {
+    messages = transcript(6)
+
+    const { container } = renderTimeline()
+    const rail = container.querySelector<HTMLElement>('[data-slot="thread-timeline"]')!
+
+    expect(rail.className).toContain('--thread-scrollbar-size')
+    expect(rail.className).not.toMatch(/\bright-0\b/)
+  })
+
+  it('paints solid ticks instead of a dithered 1px hairline', () => {
+    messages = transcript(6)
+
+    const { container } = renderTimeline()
+    const ticks = Array.from(container.querySelectorAll('[data-slot="thread-timeline-ticks"] span'))
+
+    expect(ticks.length).toBe(6)
+    expect(ticks.every(tick => !tick.className.includes('dither'))).toBe(true)
+    expect(ticks.some(tick => tick.className.includes('theme-primary'))).toBe(true)
+  })
+})
+
 describe('ThreadTimeline popover', () => {
   it('builds no rows until the rail is hovered', () => {
     messages = transcript(6)
