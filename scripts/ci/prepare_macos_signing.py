@@ -4,8 +4,9 @@
 GitHub injects missing secrets as empty strings. Passing ``CSC_LINK=""`` makes
 electron-builder treat the working directory as a cert path and fail with
 "apps/desktop not a file" (desktop-v0.0.5 run 33462742230). This script writes
-``CSC_LINK`` to ``GITHUB_ENV`` only when ``CSC_P12_BASE64`` decodes to a real
-``.p12``. The private key never goes to stdout.
+``CSC_LINK`` to ``GITHUB_ENV`` only when ``CSC_P12_BASE64`` opens with
+``CSC_KEY_PASSWORD`` and is re-exported as a macOS-importable ``.p12``.
+The private key never goes to stdout.
 
 Used by ``.github/workflows/release-desktop.yml``. Decode + re-export — signing
 still happens inside electron-builder (``@electron/osx-sign``).
