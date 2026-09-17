@@ -14,6 +14,7 @@ import type { Work4YouGateway } from '../work4you'
 
 import { InlineNotice } from './notifications'
 import { Button } from './ui/button'
+import { Codicon } from './ui/codicon'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { HighlightMatches } from './ui/highlight-matches'
@@ -233,7 +234,12 @@ function ModelResults({
                     <HighlightMatches query={search} text={displayModelName(model)} />
                   </span>
                   {locked && (
-                    <span className="shrink-0 text-[0.62rem] uppercase tracking-wide opacity-80">{copy.pro}</span>
+                    <Codicon
+                      className="shrink-0 opacity-80"
+                      name="lock"
+                      size="0.75rem"
+                      title={copy.proNeedsSubscription}
+                    />
                   )}
                   <ModelPrice isCurrent={isCurrent} price={price} />
                 </CommandItem>

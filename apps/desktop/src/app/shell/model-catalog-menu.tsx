@@ -538,9 +538,12 @@ export function ModelCatalogMenu({
                               {meta ? <span className="text-(--ui-text-tertiary)"> {meta}</span> : null}
                             </span>
                             {locked ? (
-                              <span className="ml-auto shrink-0 text-[0.62rem] uppercase tracking-wide opacity-80">
-                                {pickerCopy.pro}
-                              </span>
+                              <Codicon
+                                className="ml-auto shrink-0 opacity-80"
+                                name="lock"
+                                size="0.75rem"
+                                title={pickerCopy.proNeedsSubscription}
+                              />
                             ) : isCurrent ? (
                               <Codicon className="ml-auto text-foreground" name="check" size="0.75rem" />
                             ) : null}

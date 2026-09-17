@@ -2201,7 +2201,7 @@ class GatewaySlashCommandsMixin:
                     if p["models"]:
                         locked = set(p.get("unavailable_models") or [])
                         model_strs = ", ".join(
-                            f"`{m}` (Pro)" if m in locked else f"`{m}`"
+                            f"`{m}` 🔒" if m in locked else f"`{m}`"
                             for m in p["models"]
                         )
                         extra = t("gateway.model.more_models_suffix", count=p["total_models"] - len(p["models"])) if p["total_models"] > len(p["models"]) else ""

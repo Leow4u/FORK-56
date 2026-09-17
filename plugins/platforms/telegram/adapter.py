@@ -6626,7 +6626,7 @@ class TelegramAdapter(BasePlatformAdapter):
             abs_idx = start + i
             short = model_id.split("/")[-1] if "/" in model_id else model_id
             if model_id in locked:
-                short = f"Pro · {short}"
+                short = f"🔒 · {short}"
             if len(short) > 38:
                 short = short[:35] + "..."
             buttons.append(

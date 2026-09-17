@@ -124,6 +124,8 @@ describe('the catalog owns model curation', () => {
     await openModelsCatalog()
 
     await screen.findByText('Operis 4.0')
+    expect(document.querySelector('.codicon-lock')).not.toBeNull()
+    expect(screen.queryByText('Pro')).toBeNull()
     fireEvent.click(screen.getByText(/Glm 5\.2/i))
     expect(select).not.toHaveBeenCalled()
 
