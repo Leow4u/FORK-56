@@ -165,9 +165,6 @@ function workspaceItemIcon(item: WorkspacePaletteItem): IconComponent {
     case 'open-folder':
       return codiconIcon('folder-opened')
 
-    case 'remote':
-      return codiconIcon('remote')
-
     case 'new-project':
       return Plus
   }
@@ -185,12 +182,6 @@ function workspaceGroupsToPalette(groups: WorkspacePaletteGroup[]): PaletteGroup
       run: item.run
     }))
   }))
-}
-
-function workspacePaletteHandlers(navigate: ReturnType<typeof useNavigate>) {
-  return createWorkspacePaletteHandlers(() => {
-    navigateToWorkspacePage(navigate, `${SETTINGS_ROUTE}?tab=gateway`)
-  })
 }
 
 // Nested page → its parent, so Back / Esc step up one level instead of closing
@@ -793,24 +784,21 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
       buildWorkspacePaletteGroups(
         {
           newProject: t.sidebar.projects.newButton,
-          openFolder: cc.openFolder,
-          remote: cc.remote
+          openFolder: cc.openFolder
         },
-        workspacePaletteHandlers(navigate)
+        createWorkspacePaletteHandlers()
       )
     )
-  }, [navigate, t])
+  }, [t])
 
   const baseGroups = useMemo<PaletteGroup[]>(() => {
     const settingsTab = (tab: string) => `${SETTINGS_ROUTE}?tab=${tab}`
     const cc = t.commandCenter
 
     // Sidebar → Projects is the unique workspace tree. This palette group is
-    // Open folder / Remote / New project only — the same rows as Select
-    // workspace, not a second `$projectTree`. Open folder is the ⌘O upsert;
-    // Remote opens the in-app remote folder picker when already connected,
-    // otherwise Settings → Gateway; New project opens the existing create
-    // dialog.
+    // Open folder / New project only — the same rows as Select workspace, not
+    // a second `$projectTree`. Open folder is the ⌘O upsert; New project opens
+    // the existing create dialog. Gateway / Cloud / SSH stay in Settings.
     const projectGroup: PaletteGroup = {
       heading: cc.projects,
       items: workspacePaletteGroups.flatMap(group => group.items)

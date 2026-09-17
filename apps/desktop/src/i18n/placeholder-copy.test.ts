@@ -22,6 +22,7 @@ describe('empty-chat placeholder copy', () => {
 
       expect(selectWorkspacePlaceholder.trim().length).toBeGreaterThan(0)
       expect(selectWorkspacePlaceholder).not.toBe(searchPlaceholder)
+      expect(selectWorkspacePlaceholder).not.toMatch(/remote|リモート|远程|遠端|عن بُعد/i)
     }
   })
 })

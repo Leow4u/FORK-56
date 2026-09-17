@@ -64,7 +64,7 @@ describe('WorkspaceChipRow', () => {
     expect($commandPaletteOpen.get()).toBe(false)
     expect($commandPalettePage.get()).toBeNull()
     expect(screen.getByRole('menuitem', { name: /Open folder as project/ })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: /Remote/ })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /Remote/ })).toBeNull()
     expect(screen.getByRole('menuitem', { name: /New project/ })).toBeTruthy()
   })
 
@@ -83,7 +83,7 @@ describe('WorkspaceChipRow', () => {
     await openSelectWorkspace()
 
     expect(screen.queryByRole('menuitem', { name: 'DuteLog' })).toBeNull()
-    expect(screen.getAllByRole('menuitem')).toHaveLength(3)
+    expect(screen.getAllByRole('menuitem')).toHaveLength(2)
   })
 
   it('runs Open folder and New project from the attached menu', async () => {
