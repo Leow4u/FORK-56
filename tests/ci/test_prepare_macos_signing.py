@@ -373,6 +373,7 @@ _REAL_CI_SUBJECT = (
 _REAL_CI_IDENTITY = (
     "Developer ID Application: WORK4YOU TECNOLOGIA LTDA (SNR5Q85JN2)"
 )
+_REAL_CI_CSC_NAME = "WORK4YOU TECNOLOGIA LTDA (SNR5Q85JN2)"
 
 
 class _FakeSecurity:
@@ -410,6 +411,22 @@ def test_codesign_identity_from_rfc4514():
     assert mod.codesign_identity_from_rfc4514("CN=Foo\\, Bar,O=X") == "Foo, Bar"
     with pytest.raises(mod.PrepareError, match="missing CN"):
         mod.codesign_identity_from_rfc4514("O=WORK4YOU,C=US")
+
+
+def test_electron_builder_csc_name_strips_certificate_prefix():
+    assert mod.electron_builder_csc_name(_REAL_CI_IDENTITY) == _REAL_CI_CSC_NAME
+    assert mod.electron_builder_csc_name(_REAL_CI_CSC_NAME) == _REAL_CI_CSC_NAME
+    assert mod.electron_builder_csc_name("Work4You Local Signing") == (
+        "Work4You Local Signing"
+    )
+    assert (
+        mod.electron_builder_csc_name("Apple Development: Work4You Test")
+        == "Work4You Test"
+    )
+    with pytest.raises(mod.PrepareError, match="empty"):
+        mod.electron_builder_csc_name("Developer ID Application:")
+    with pytest.raises(mod.PrepareError, match="empty"):
+        mod.electron_builder_csc_name("")
 
 
 def test_generate_keychain_password_is_hex():
@@ -538,11 +555,12 @@ def test_write_signing_outputs_keychain_omits_csc_link(tmp_path):
     )
     text = env.read_text(encoding="utf-8")
     assert "CSC_LINK" not in text
-    assert f"CSC_NAME={_REAL_CI_IDENTITY}" in text
+    assert f"CSC_NAME={_REAL_CI_CSC_NAME}" in text
+    assert "Developer ID Application:" not in text
     assert f"CSC_KEYCHAIN={keychain.resolve()}" in text
     assert "CSC_IDENTITY_AUTO_DISCOVERY=true" in text
     assert out.read_text(encoding="utf-8") == (
-        f"signing=true\nidentity={_REAL_CI_IDENTITY}\n"
+        f"signing=true\nidentity={_REAL_CI_CSC_NAME}\n"
         f"keychain={keychain.resolve()}\n"
     )
 

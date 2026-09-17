@@ -186,11 +186,25 @@ def macos_compatible_p12(data: bytes, password: str | None) -> tuple[bytes, str]
     return out, cert.subject.rfc4514_string()
 
 
+# electron-builder / app-builder-lib reject these on CSC_NAME and then
+# pick the certificate type themselves (Release Desktop run 35247427752).
+_ELECTRON_BUILDER_IDENTITY_PREFIXES = (
+    "Developer ID Application:",
+    "Developer ID Installer:",
+    "Apple Development:",
+    "Apple Distribution:",
+    "Mac Developer:",
+    "3rd Party Mac Developer Application:",
+    "3rd Party Mac Developer Installer:",
+)
+
+
 def codesign_identity_from_rfc4514(subject: str) -> str:
     """Return the ``CN=`` value from an RFC4514 subject.
 
-    ``codesign`` / ``CSC_NAME`` want the Common Name
-    (``Developer ID Application: … (TEAMID)``), not the full DN.
+    Used to verify ``security find-identity``. ``CSC_NAME`` must go through
+    ``electron_builder_csc_name`` first — electron-builder already strips /
+    forbids the certificate-type prefix.
     """
     parts: list[str] = []
     buf: list[str] = []
@@ -217,6 +231,31 @@ def codesign_identity_from_rfc4514(subject: str) -> str:
             if identity:
                 return identity
     raise PrepareError("Developer ID subject is missing CN=")
+
+
+def electron_builder_csc_name(identity: str) -> str:
+    """Return the qualifier electron-builder accepts as ``CSC_NAME``.
+
+    Passing the codesign Common Name
+    (``Developer ID Application: WORK4YOU … (TEAMID)``) makes electron-builder
+    26 exit immediately:
+    ``Please remove prefix "Developer ID Application:" from the specified
+    name — appropriate certificate will be chosen automatically``.
+    The same convention is already used for local rebuilds
+    (``desktop.macos_signing_identity`` is a bare name, not a codesign CN).
+    """
+    name = str(identity or "").strip()
+    if not name:
+        raise PrepareError("codesign identity is empty")
+    for prefix in _ELECTRON_BUILDER_IDENTITY_PREFIXES:
+        if name.startswith(prefix):
+            name = name[len(prefix) :].strip()
+            break
+    if not name:
+        raise PrepareError(
+            "CSC_NAME is empty after removing the certificate-type prefix"
+        )
+    return name
 
 
 def generate_keychain_password() -> str:
@@ -410,7 +449,8 @@ def write_signing_outputs(
         if keychain_path is not None:
             if not identity:
                 raise PrepareError("signed prepare is missing CSC_NAME")
-            append_github_file(github_env, f"CSC_NAME={identity}\n")
+            csc_name = electron_builder_csc_name(identity)
+            append_github_file(github_env, f"CSC_NAME={csc_name}\n")
             append_github_file(
                 github_env, f"CSC_KEYCHAIN={keychain_path.resolve()}\n"
             )
@@ -418,7 +458,7 @@ def write_signing_outputs(
                 github_env, "CSC_IDENTITY_AUTO_DISCOVERY=true\n"
             )
             append_github_file(github_output, "signing=true\n")
-            append_github_file(github_output, f"identity={identity}\n")
+            append_github_file(github_output, f"identity={csc_name}\n")
             append_github_file(
                 github_output, f"keychain={keychain_path.resolve()}\n"
             )
