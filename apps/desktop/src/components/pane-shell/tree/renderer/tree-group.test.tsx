@@ -46,9 +46,11 @@ afterEach(() => {
   }
 
   container?.remove()
+
   while (disposePanes.length) {
     disposePanes.pop()?.()
   }
+
   root = null
   container = null
   vi.unstubAllGlobals()
