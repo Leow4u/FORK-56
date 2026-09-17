@@ -50,6 +50,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/release-desktop.yml
+      - scripts/ci/prepare_macos_signing.py
       - apps/desktop/**
       - apps/shared/**
 
