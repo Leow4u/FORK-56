@@ -1,30 +1,33 @@
 .hero {
-  padding: clamp(2.4rem, 5.5vw, 4.2rem) 0 clamp(2.4rem, 5vw, 3.4rem);
+  padding: 2.75rem 0 2rem;
 }
 
 .intro {
-  text-align: center;
+  text-align: left;
 }
 
 .title {
-  margin: 0 auto 1.15rem;
-  max-width: 16ch;
-  font-size: clamp(2.35rem, 5.4vw, 3.55rem);
-  font-weight: 800;
-  line-height: 1.14;
-  letter-spacing: -0.015em;
-  word-spacing: 0.06em;
+  margin: 0 0 1rem;
+  max-width: 22ch;
+  font-size: 1.625rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
   color: var(--tinta);
-  text-wrap: balance;
 }
 
 .visual {
-  margin-top: clamp(1.6rem, 3.5vw, 2.4rem);
+  margin-top: 1.75rem;
   width: 100%;
 }
 
 @media (max-width: 640px) {
+  .hero {
+    padding: 1.75rem 0 1.4rem;
+  }
+
   .title {
-    max-width: 14ch;
+    max-width: 16ch;
+    font-size: 1.35rem;
   }
 }

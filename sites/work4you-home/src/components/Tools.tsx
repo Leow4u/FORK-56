@@ -6,7 +6,6 @@ export function Tools() {
   return (
     <FeatureBand
       id="ferramentas"
-      stack
       title="Conecta as ferramentas que você já usa."
       scene={
         <Scene src="/media/pine-fog.png" position="center 80%">

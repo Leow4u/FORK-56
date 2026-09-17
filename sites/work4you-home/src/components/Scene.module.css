@@ -4,14 +4,24 @@
   display: grid;
   place-items: center;
   width: 100%;
-  min-height: 22rem;
-  padding: clamp(2.4rem, 5vw, 4.2rem) 0 clamp(3.4rem, 7.5vw, 6rem);
   overflow: hidden;
 }
 
+.frame {
+  min-height: 22rem;
+  padding: 3.25rem 4rem 3.75rem;
+  border-radius: 16px;
+}
+
 .tall {
-  min-height: 32rem;
-  padding: clamp(2.8rem, 6vw, 5rem) 0 clamp(4rem, 9vw, 7.2rem);
+  min-height: 28rem;
+  padding: 3.75rem 5rem 4.5rem;
+}
+
+.bleed {
+  min-height: 22rem;
+  padding: clamp(2.4rem, 5vw, 4.2rem) 0 clamp(3.4rem, 7.5vw, 6rem);
+  border-radius: 0;
 }
 
 .bg {
@@ -30,8 +40,8 @@
   z-index: 1;
   background: linear-gradient(
     180deg,
-    rgba(26, 25, 21, 0.03),
-    rgba(26, 25, 21, 0.1)
+    rgba(26, 25, 21, 0.02),
+    rgba(26, 25, 21, 0.08)
   );
   pointer-events: none;
 }
@@ -39,19 +49,51 @@
 .stage {
   position: relative;
   z-index: 2;
-  width: min(100% - 5rem, 70rem);
+  width: min(78%, 40rem);
   display: grid;
   place-items: center;
 }
 
+.bleed .stage {
+  width: min(100% - 5rem, 70rem);
+}
+
+.wide .stage {
+  width: min(92%, 68rem);
+}
+
+.wide.tall {
+  min-height: 32rem;
+  padding: 3.4rem 3rem 4rem;
+}
+
 @media (max-width: 640px) {
-  .scene,
+  .frame,
   .tall {
+    min-height: 14rem;
+    padding: 1.15rem 1rem 1.4rem;
+    border-radius: 12px;
+  }
+
+  .bleed {
     min-height: 14rem;
     padding: 1.5rem 0 2.2rem;
   }
 
   .stage {
-    width: min(100% - 1.75rem, 70rem);
+    width: min(86%, 40rem);
+  }
+
+  .wide .stage {
+    width: min(94%, 40rem);
+  }
+
+  .wide.tall {
+    min-height: 16rem;
+    padding: 1.15rem 0.85rem 1.5rem;
+  }
+
+  .bleed .stage {
+    width: min(100% - 1.75rem, 40rem);
   }
 }

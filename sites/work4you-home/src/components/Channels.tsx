@@ -7,7 +7,7 @@ export function Channels() {
   return (
     <FeatureBand
       id="canais"
-      stack
+      flip
       title="O mesmo agente, no WhatsApp e no terminal."
       scene={
         <Scene src="/media/river-mist.png" position="center 55%">

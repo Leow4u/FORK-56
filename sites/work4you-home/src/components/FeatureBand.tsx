@@ -8,7 +8,7 @@ interface FeatureBandProps {
   children: ReactNode
   scene: ReactNode
   flip?: boolean
-  stack?: boolean
+  wideVisual?: boolean
 }
 
 export function FeatureBand({
@@ -18,29 +18,18 @@ export function FeatureBand({
   children,
   scene,
   flip = false,
-  stack = false,
+  wideVisual = false,
 }: FeatureBandProps) {
-  const copy = (
-    <div className={styles.copy}>
-      {eyebrow ? <p className="mono-label">{eyebrow}</p> : null}
-      <h2 className={styles.title}>{title}</h2>
-      <div className={styles.body}>{children}</div>
-    </div>
-  )
-
-  if (stack) {
-    return (
-      <section className={`${styles.section} ${styles.stackSection}`} id={id}>
-        <div className={`shell ${styles.stackCopy}`}>{copy}</div>
-        <div className={styles.bleed}>{scene}</div>
-      </section>
-    )
-  }
-
   return (
     <section className={styles.section} id={id}>
-      <div className={`shell ${styles.split} ${flip ? styles.flip : ''}`}>
-        {copy}
+      <div
+        className={`shell ${styles.split} ${flip ? styles.flip : ''} ${wideVisual ? styles.wideVisual : ''}`}
+      >
+        <div className={styles.copy}>
+          {eyebrow ? <p className="mono-label">{eyebrow}</p> : null}
+          <h2 className={styles.title}>{title}</h2>
+          <div className={styles.body}>{children}</div>
+        </div>
         <div className={styles.visual}>{scene}</div>
       </div>
     </section>

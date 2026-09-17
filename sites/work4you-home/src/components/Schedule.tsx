@@ -6,7 +6,7 @@ export function Schedule() {
   return (
     <FeatureBand
       id="agenda"
-      stack
+      flip
       title="O que se repete, o bot assume."
       scene={
         <Scene src="/media/dusk-ridge.png" position="center 40%">

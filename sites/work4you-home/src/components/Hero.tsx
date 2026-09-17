@@ -11,11 +11,12 @@ export function Hero() {
         <HeroCtas />
       </div>
 
-      <div className={styles.visual}>
-        <Scene src="/media/hero-hills.jpg" tall position="center 42%">
+      <div className={`shell ${styles.visual}`}>
+        <Scene src="/media/hero-hills.jpg" tall wide position="center 42%">
           <DesktopShot
-            src="/media/product/sessions.jpg"
-            alt="Work4You desktop — Sessions"
+            src="/media/product/hero-loop.jpg"
+            video="/media/product/hero-loop.mp4"
+            alt="Work4You no desktop: conversa à esquerda e a landing no browser em localhost."
           />
         </Scene>
       </div>

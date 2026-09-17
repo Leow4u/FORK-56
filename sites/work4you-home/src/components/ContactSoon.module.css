@@ -1,17 +1,25 @@
 .page {
   min-height: calc(100vh - 12rem);
-  display: grid;
-  align-items: center;
-  padding: clamp(3rem, 8vw, 6rem) 0;
 }
 
-.inner {
-  max-width: 36rem;
+.scene {
+  min-height: calc(100vh - 12rem);
+}
+
+.card {
+  width: min(100%, 36rem);
+  padding: clamp(1.6rem, 3.4vw, 2.3rem) clamp(1.3rem, 3vw, 2rem)
+    clamp(1.5rem, 3vw, 2rem);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--papel) 93%, transparent);
+  border: 1px solid rgba(250, 249, 245, 0.5);
+  box-shadow: 0 22px 56px rgba(26, 25, 21, 0.22);
+  backdrop-filter: blur(12px);
 }
 
 .title {
   margin: 0.75rem 0 0;
-  font-size: clamp(2.35rem, 5.2vw, 3.45rem);
+  font-size: clamp(2.2rem, 5vw, 3.2rem);
   font-weight: 800;
   line-height: 1.16;
   letter-spacing: -0.015em;
@@ -21,7 +29,7 @@
 }
 
 .soon {
-  margin: 1.25rem 0 0;
+  margin: 1.1rem 0 0;
   font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 600;
@@ -31,9 +39,29 @@
 }
 
 .lead {
-  margin: 1rem 0 0;
+  margin: 0.9rem 0 0;
   max-width: 32rem;
   font-size: 1.02rem;
   line-height: 1.55;
   color: var(--grafite);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1.15rem;
+  margin-top: 1.35rem;
+}
+
+.links a {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--oliva);
+}
+
+.links a:hover {
+  color: var(--tinta);
 }

@@ -6,24 +6,27 @@ export function Bots() {
   return (
     <FeatureBand
       id="bots"
-      stack
-      eyebrow="No mesmo app"
-      title="Bots que trabalham juntos. Sem outro download."
+      eyebrow="Times de IA"
+      title="Delegue trabalho a colegas de equipe de IA."
+      wideVisual
       scene={
-        <Scene src="/media/dawn-valley.png" position="center 70%">
+        <Scene src="/media/dawn-valley.png" wide position="center 70%">
           <DesktopShot
-            src="/media/product/bots.jpg"
-            alt="Work4You desktop — Bots em group chat"
+            src="/media/product/bots-loop.jpg"
+            video="/media/product/bots-loop.mp4"
+            alt="Work4You: um time de bots no group chat, dividindo o trabalho e decidindo juntos."
           />
         </Scene>
       }
     >
       <p>
-        No Cursor, o Grok Bot é um produto à parte — “Baixe o Grok Bot”. No
-        Work4You os bots já estão na aba <em>Bots</em>: criam-se, falam entre si
-        e viram cron.
+        Os bots acessam suas ferramentas, usam como você e voltam com o
+        trabalho concluído.
       </p>
-      <p>Uma instalação. Uma memória.</p>
+      <p>
+        Crie times de IA que trabalham pra você. Tomam decisões. Perguntam
+        quando precisam perguntar.
+      </p>
     </FeatureBand>
   )
 }
