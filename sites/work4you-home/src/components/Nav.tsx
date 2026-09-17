@@ -19,9 +19,14 @@ export function Nav() {
           />
         </a>
 
-        <a className={styles.login} href={LOGIN}>
-          Fazer login
-        </a>
+        <div className={styles.actions}>
+          <a className={styles.side} href="/#download">
+            Baixar
+          </a>
+          <a className={styles.login} href={LOGIN}>
+            Fazer login
+          </a>
+        </div>
       </div>
     </header>
   )

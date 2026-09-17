@@ -1,0 +1,76 @@
+.section {
+  padding: clamp(3rem, 6vw, 5rem) 0;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: clamp(1.4rem, 4vw, 2.8rem);
+  align-items: center;
+}
+
+.flip {
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+}
+
+.flip .copy {
+  order: 2;
+}
+
+.copy {
+  min-width: 0;
+}
+
+.title {
+  margin: 0.65rem 0 0;
+  max-width: 16ch;
+  font-size: clamp(1.85rem, 3.4vw, 2.45rem);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  word-spacing: 0.06em;
+  line-height: 1.18;
+  text-wrap: balance;
+}
+
+.body {
+  margin-top: 0.85rem;
+  max-width: 34rem;
+}
+
+.body p {
+  margin: 0 0 0.7rem;
+  color: var(--grafite);
+  font-size: 1.02rem;
+  line-height: 1.55;
+  letter-spacing: 0.005em;
+  word-spacing: 0.04em;
+}
+
+.body p:last-child {
+  margin-bottom: 0;
+}
+
+.body em {
+  color: var(--oliva-esc);
+  font-style: normal;
+  font-weight: 700;
+}
+
+.visual {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .split,
+  .flip {
+    grid-template-columns: 1fr;
+  }
+
+  .flip .copy {
+    order: 0;
+  }
+
+  .title {
+    max-width: 20ch;
+  }
+}
