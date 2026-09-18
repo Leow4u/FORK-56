@@ -27,6 +27,20 @@ function snapshot(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
+function loadModelOptionsParams() {
+  const start = source.indexOf('const MODEL_OPTIONS_PARAMS')
+  const end = source.indexOf('function useModelOptions(')
+  assert.notEqual(start, -1, 'MODEL_OPTIONS_PARAMS is missing')
+  assert.ok(end > start, 'useModelOptions must follow MODEL_OPTIONS_PARAMS')
+  const context = {}
+  vm.runInNewContext(
+    `${source.slice(start, end)}\nglobalThis.__opts = MODEL_OPTIONS_PARAMS;\n`,
+    context,
+    { filename: 'model-options-params.js' }
+  )
+  return context.__opts
+}
+
 test('Fresh is the default clone-from; reset restores the same sentinel', () => {
   const iso = loadIsolation()
   assert.equal(iso.FRESH_CLONE_FROM, '__none__')
@@ -69,6 +83,13 @@ test('explicit clone copies the named source without overlaying launch .env', ()
     mirror_credentials: false
   })
   assert.equal(iso.capabilityCatalogSource('default'), 'default')
+})
+
+test('New Agent model.options lists only connected providers, like Settings', () => {
+  const params = loadModelOptionsParams()
+  assert.equal(params.explicit_only, true)
+  assert.notEqual(params.include_unconfigured, true)
+  assert.match(source, /host\.request\('model\.options', MODEL_OPTIONS_PARAMS\)/)
 })
 
 test('remote clone uses the target machine default, still without launch .env overlay', () => {

@@ -5157,11 +5157,15 @@ function BotRow({ bot, onDelete, onEdit, onGroup }) {
 }
 
 // ── model picker (provider/model dropdowns via model.options) ───────────────
+// Same flags as Settings → Model and the composer: only providers the user
+// connected. include_unconfigured would list Fireworks / OpenRouter / etc.
+// with no key, which New Agent cannot set up.
+const MODEL_OPTIONS_PARAMS = { explicit_only: true, refresh: true }
 
 function useModelOptions() {
   return useQuery({
     queryKey: [ID, 'model-options'],
-    queryFn: () => host.request('model.options', { include_unconfigured: true, explicit_only: false, refresh: true }),
+    queryFn: () => host.request('model.options', MODEL_OPTIONS_PARAMS),
     staleTime: 120000,
     retry: false
   })
@@ -5169,7 +5173,7 @@ function useModelOptions() {
 
 /**
  * Provider + model dropdowns from the gateway's configured inventory — the
- * same data the core model picker shows. `value = {provider, model}`;
+ * same data Settings and the composer show. `value = {provider, model}`;
  * onChange receives the merged patch.
  */
 function ModelPicker({ value, onChange, placeholderModel = 'gateway default' }) {
