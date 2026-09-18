@@ -18,11 +18,10 @@ export const PAGE_INSET_NEG_X = '-mx-[clamp(1.25rem,4vw,4rem)]'
 // for Tailwind's scanner (see PAGE_INSET_X note).
 export const PAGE_MAX_W = 'max-w-[75rem]'
 
-// Settings right-pane column: a centered reading width so label+control rows
-// don't sprawl across the overlay. OverlayMain fills with the chat stage
-// token; only the information is capped — this is not a full-stage fill.
-// Same rem as chat `--composer-width` (48rem); this class is Settings-only.
-export const PAGE_SETTINGS_MAX_W = 'max-w-[48rem]'
+// Settings right-pane column: centered on the stage, with 447px free on each
+// side (894px total). Floor at 36rem so a narrow overlay does not collapse.
+// Literal for Tailwind — do not interpolate.
+export const PAGE_SETTINGS_MAX_W = 'max-w-[min(100%,max(36rem,calc(100%-894px)))]'
 
 // Below this viewport width a docked sidebar leaves no room for content, so both
 // rails auto-collapse into the hover-reveal overlay. Single source of truth for
