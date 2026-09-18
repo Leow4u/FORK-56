@@ -1278,7 +1278,7 @@ export function McpTab({
                   description={
                     query.trim()
                       ? t.skills.noSkillsDesc
-                      : directoryFilter === 'available'
+                      : directoryFilter === 'discover'
                         ? m.catalogEmpty
                         : m.emptyDesc
                   }
@@ -1286,7 +1286,7 @@ export function McpTab({
                   title={
                     query.trim()
                       ? t.skills.noSkillsTitle
-                      : directoryFilter === 'available'
+                      : directoryFilter === 'discover'
                         ? m.tabCatalog
                         : m.emptyTitle
                   }

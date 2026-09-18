@@ -108,6 +108,22 @@ describe('McpTab directory chrome', () => {
     expect(screen.getAllByText('Instagram').length).toBeGreaterThan(0)
   })
 
+  it('uses catalog empty copy on Discover and server empty copy on Connected', async () => {
+    getConnectorsDirectory.mockResolvedValue({ apps: [], sections: [], portal: true })
+
+    await renderMcpTab()
+
+    await waitFor(() => expect(screen.getByText('No catalog entries available.')).toBeTruthy())
+    expect(screen.getByText('Catalog')).toBeTruthy()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Connected' }))
+    })
+
+    await waitFor(() => expect(screen.getByText('No MCP servers')).toBeTruthy())
+    expect(screen.getByText('Add a stdio or HTTP server to expose MCP tools.')).toBeTruthy()
+  })
+
   it('does not repeat Popular on Connected', async () => {
     await renderMcpTab()
 
