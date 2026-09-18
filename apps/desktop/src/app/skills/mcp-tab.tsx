@@ -1209,272 +1209,280 @@ export function McpTab({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className={cn('flex h-full min-h-0 w-full flex-col', MCP_CATALOG_COLUMN_CLASS)}>
-      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-(--ui-stroke-quaternary) px-3">
-        {!selected ? (
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            {MCP_DIRECTORY_VIEW_IDS.map(id => (
-              <TextTab
-                active={directoryFilter === id}
-                className="h-5 px-0.5 text-[0.65rem]"
-                key={id}
-                onClick={() => setDirectoryFilter(id)}
-              >
-                {directoryViewLabel(id)}
-              </TextTab>
-            ))}
-            <select
-              aria-label="Category"
-              className="h-5 max-w-[9rem] truncate bg-transparent text-[0.65rem] text-(--ui-text-secondary)"
-              onChange={event => setSectionFilter(event.currentTarget.value)}
-              value={sectionFilter}
-            >
-              <option value="all">All categories</option>
-              {DIRECTORY_SECTION_IDS.map(id => (
-                <option key={id} value={id}>
-                  {DIRECTORY_SECTION_LABELS[id]}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          <span className="min-w-0 flex-1" />
-        )}
-        <McpImportButton disabled={profilePending} onImport={importServers} />
-        <Button disabled={profilePending} onClick={addServer} size="xs" variant="text">
-          {m.newServer}
-        </Button>
-        <TextTab active={adminOpen} className="h-5 px-0.5 text-[0.65rem]" onClick={() => setAdminOpen(open => !open)}>
-          {t.settings.sections.advanced}
-        </TextTab>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {selected && activeEntry && !isHiddenMcpRuntimeServer(selected) ? (
-          <ServerConfig
-            authing={authing === selected}
-            cost={costFor(selected, activeEntry)}
-            description={catalogDescription(catalog, selected, activeEntry)}
-            entry={activeEntry}
-            name={selected}
-            onAuthenticate={() => void authenticate(selected)}
-            onBack={clearSelection}
-            onProbe={() => void runProbe(selected)}
-            onRemove={() => void removeServer(selected)}
-            onToggle={checked => void setServerEnabled(selected, checked)}
-            onToggleTool={toolName => void toggleTool(selected, toolName)}
-            probe={probes[selected]}
-            saved={savedEntry !== undefined}
-            saving={saving}
-          />
-        ) : (
-          <div className="h-full overflow-y-auto overscroll-contain p-3 [scrollbar-gutter:stable]">
-            {directoryEmpty ? (
-              <PanelEmpty
-                action={
-                  <Button onClick={addServer} size="sm">
-                    {m.newServer}
-                  </Button>
-                }
-                description={
-                  query.trim() ? t.skills.noSkillsDesc : directoryFilter === 'available' ? m.catalogEmpty : m.emptyDesc
-                }
-                icon="plug"
-                title={
-                  query.trim() ? t.skills.noSkillsTitle : directoryFilter === 'available' ? m.tabCatalog : m.emptyTitle
-                }
-              />
-            ) : (
-              <div className="flex flex-col gap-4">
-                {directoryQuery.isLoading ? <PageLoader className="min-h-24" label={m.catalogLoading} /> : null}
-                {directoryGroups.map(group => (
-                  <section className="flex flex-col gap-2" key={group.id}>
-                    <h2 className="px-0.5 text-[0.72rem] font-medium text-(--ui-text-tertiary)">{group.label}</h2>
-                    <div className={MCP_CATALOG_GRID_CLASS}>
-                      {group.apps.map(app => {
-                        const server = servers[app.id]
-
-                        if ((app.source === 'native' || app.source === 'custom') && server) {
-                          const status = statusOf(server, probes[app.id])
-                          const cost = costFor(app.id, server)
-
-                          return (
-                            <ConnectorCard
-                              description={app.description || catalogDescription(catalog, app.id, server)}
-                              displayName={app.name}
-                              key={`${group.id}-${app.id}`}
-                              logo={directoryAppLogoUrl(app)}
-                              name={app.id}
-                              onSelect={() => focusServer(app.id)}
-                              status={status}
-                              trailing={
-                                <>
-                                  <ServerIconActions
-                                    className="opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100"
-                                    onProbe={() => void runProbe(app.id)}
-                                    onRemove={() => void removeServer(app.id)}
-                                    probing={status === 'probing'}
-                                    saving={saving}
-                                  />
-                                  <ServerSwitch
-                                    disabled={saving}
-                                    enabled={serverEnabled(server)}
-                                    name={app.id}
-                                    onToggle={checked => void setServerEnabled(app.id, checked)}
-                                  />
-                                </>
-                              }
-                              unused={
-                                serverEnabled(server) &&
-                                status === 'ok' &&
-                                cost.tokens !== null &&
-                                cost.tokens > 0 &&
-                                cost.uses === 0
-                              }
-                            />
-                          )
-                        }
-
-                        if (app.source === 'composio') {
-                          const busy = connectingSlug === app.id
-
-                          return (
-                            <ConnectorCard
-                              description={directoryAppDescription(app)}
-                              displayName={app.name}
-                              key={`${group.id}-${app.id}`}
-                              logo={directoryAppLogoUrl(app)}
-                              name={app.id}
-                              status={app.connected ? 'ok' : 'unknown'}
-                              trailing={
-                                app.connected ? (
-                                  <Button
-                                    disabled={busy}
-                                    onClick={() => void disconnectComposioApp(app)}
-                                    size="xs"
-                                    variant="text"
-                                  >
-                                    {busy ? m.catalogInstalling : 'Disconnect'}
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    disabled={busy}
-                                    onClick={() => void connectComposioApp(app)}
-                                    size="xs"
-                                    variant="text"
-                                  >
-                                    {busy ? m.waitingForBrowser : t.common.connect}
-                                  </Button>
-                                )
-                              }
-                            />
-                          )
-                        }
-
-                        const catalogEntry = nativeCatalogByName.get(app.id.toLowerCase())
-
-                        if (!catalogEntry) {
-                          return (
-                            <ConnectorCard
-                              description={app.description}
-                              displayName={app.name}
-                              key={`${group.id}-${app.id}`}
-                              logo={directoryAppLogoUrl(app)}
-                              name={app.id}
-                              status="unknown"
-                            />
-                          )
-                        }
-
-                        return (
-                          <CatalogInstallCard
-                            entry={catalogEntry}
-                            key={`${group.id}-${app.id}`}
-                            onInstalled={onCatalogInstalled}
-                            profile={profile}
-                          />
-                        )
-                      })}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div
-        className={cn(
-          'flex min-h-0 flex-col overflow-hidden border-t border-(--ui-stroke-quaternary)',
-          adminOpen ? 'h-[min(42vh,22rem)] shrink-0' : 'hidden'
-        )}
-      >
-        <JsonDocumentEditor
-          apiRef={editorApi}
-          disabled={saving}
-          filePath="mcp.json"
-          header={
-            <>
-              mcp.json
-              {dirty && <span aria-hidden className="size-1.5 rounded-full bg-current/60" />}
-            </>
-          }
-          highlight={activeBlock ? { from: activeBlock.from, to: activeBlock.to } : null}
-          initialValue={draft}
-          onChange={next => {
-            setDraft(next)
-            setDirty(true)
-          }}
-          onCursorChange={next => {
-            setCursor(next)
-
-            // Directory selection is explicit. Only the open Advanced editor
-            // may retarget it — a hidden remount must not bounce the catalog.
-            if (!adminOpen) {
-              return
-            }
-
-            const block = blocks.find(b => next >= b.from && next <= b.to)
-
-            if (block && !isHiddenMcpRuntimeServer(block.name)) {
-              setSelectedName(block.name)
-            }
-          }}
-          onFormatJsonError={error => notifyError(new Error(error), m.invalidJson)}
-          onSave={() => void saveDoc()}
-          remountKey={`${docVersion}-${adminOpen ? 'open' : 'shut'}`}
-          trailing={
-            <Button disabled={saving || !dirty} onClick={() => void saveDoc()} size="xs">
-              {saving ? t.common.saving : t.common.save}
-            </Button>
-          }
-        />
-        <DetailPane
-          actions={
-            <span className="flex items-center gap-1.5">
-              {(['stdio', 'agent'] as const).map(kind => (
+        <div className="flex h-8 shrink-0 items-center gap-2 border-b border-(--ui-stroke-quaternary) px-3">
+          {!selected ? (
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              {MCP_DIRECTORY_VIEW_IDS.map(id => (
                 <TextTab
-                  active={logSource === kind}
+                  active={directoryFilter === id}
                   className="h-5 px-0.5 text-[0.65rem]"
-                  key={kind}
-                  onClick={() => setLogSource(kind)}
+                  key={id}
+                  onClick={() => setDirectoryFilter(id)}
                 >
-                  {kind}
+                  {directoryViewLabel(id)}
                 </TextTab>
               ))}
-            </span>
-          }
-          defaultHeight={120}
-          id="mcp-logs"
-          title={
-            <span className="text-[0.68rem] font-normal text-muted-foreground/60">
-              {selected && savedEntry ? selected : m.allServers}
-            </span>
-          }
+              <select
+                aria-label="Category"
+                className="h-5 max-w-[9rem] truncate bg-transparent text-[0.65rem] text-(--ui-text-secondary)"
+                onChange={event => setSectionFilter(event.currentTarget.value)}
+                value={sectionFilter}
+              >
+                <option value="all">All categories</option>
+                {DIRECTORY_SECTION_IDS.map(id => (
+                  <option key={id} value={id}>
+                    {DIRECTORY_SECTION_LABELS[id]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <span className="min-w-0 flex-1" />
+          )}
+          <McpImportButton disabled={profilePending} onImport={importServers} />
+          <Button disabled={profilePending} onClick={addServer} size="xs" variant="text">
+            {m.newServer}
+          </Button>
+          <TextTab active={adminOpen} className="h-5 px-0.5 text-[0.65rem]" onClick={() => setAdminOpen(open => !open)}>
+            {t.settings.sections.advanced}
+          </TextTab>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {selected && activeEntry && !isHiddenMcpRuntimeServer(selected) ? (
+            <ServerConfig
+              authing={authing === selected}
+              cost={costFor(selected, activeEntry)}
+              description={catalogDescription(catalog, selected, activeEntry)}
+              entry={activeEntry}
+              name={selected}
+              onAuthenticate={() => void authenticate(selected)}
+              onBack={clearSelection}
+              onProbe={() => void runProbe(selected)}
+              onRemove={() => void removeServer(selected)}
+              onToggle={checked => void setServerEnabled(selected, checked)}
+              onToggleTool={toolName => void toggleTool(selected, toolName)}
+              probe={probes[selected]}
+              saved={savedEntry !== undefined}
+              saving={saving}
+            />
+          ) : (
+            <div className="h-full overflow-y-auto overscroll-contain p-3 [scrollbar-gutter:stable]">
+              {directoryEmpty ? (
+                <PanelEmpty
+                  action={
+                    <Button onClick={addServer} size="sm">
+                      {m.newServer}
+                    </Button>
+                  }
+                  description={
+                    query.trim()
+                      ? t.skills.noSkillsDesc
+                      : directoryFilter === 'available'
+                        ? m.catalogEmpty
+                        : m.emptyDesc
+                  }
+                  icon="plug"
+                  title={
+                    query.trim()
+                      ? t.skills.noSkillsTitle
+                      : directoryFilter === 'available'
+                        ? m.tabCatalog
+                        : m.emptyTitle
+                  }
+                />
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {directoryQuery.isLoading ? <PageLoader className="min-h-24" label={m.catalogLoading} /> : null}
+                  {directoryGroups.map(group => (
+                    <section className="flex flex-col gap-2" key={group.id}>
+                      <h2 className="px-0.5 text-[0.72rem] font-medium text-(--ui-text-tertiary)">{group.label}</h2>
+                      <div className={MCP_CATALOG_GRID_CLASS}>
+                        {group.apps.map(app => {
+                          const server = servers[app.id]
+
+                          if ((app.source === 'native' || app.source === 'custom') && server) {
+                            const status = statusOf(server, probes[app.id])
+                            const cost = costFor(app.id, server)
+
+                            return (
+                              <ConnectorCard
+                                description={app.description || catalogDescription(catalog, app.id, server)}
+                                displayName={app.name}
+                                key={`${group.id}-${app.id}`}
+                                logo={directoryAppLogoUrl(app)}
+                                name={app.id}
+                                onSelect={() => focusServer(app.id)}
+                                status={status}
+                                trailing={
+                                  <>
+                                    <ServerIconActions
+                                      className="opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100"
+                                      onProbe={() => void runProbe(app.id)}
+                                      onRemove={() => void removeServer(app.id)}
+                                      probing={status === 'probing'}
+                                      saving={saving}
+                                    />
+                                    <ServerSwitch
+                                      disabled={saving}
+                                      enabled={serverEnabled(server)}
+                                      name={app.id}
+                                      onToggle={checked => void setServerEnabled(app.id, checked)}
+                                    />
+                                  </>
+                                }
+                                unused={
+                                  serverEnabled(server) &&
+                                  status === 'ok' &&
+                                  cost.tokens !== null &&
+                                  cost.tokens > 0 &&
+                                  cost.uses === 0
+                                }
+                              />
+                            )
+                          }
+
+                          if (app.source === 'composio') {
+                            const busy = connectingSlug === app.id
+
+                            return (
+                              <ConnectorCard
+                                description={directoryAppDescription(app)}
+                                displayName={app.name}
+                                key={`${group.id}-${app.id}`}
+                                logo={directoryAppLogoUrl(app)}
+                                name={app.id}
+                                status={app.connected ? 'ok' : 'unknown'}
+                                trailing={
+                                  app.connected ? (
+                                    <Button
+                                      disabled={busy}
+                                      onClick={() => void disconnectComposioApp(app)}
+                                      size="xs"
+                                      variant="text"
+                                    >
+                                      {busy ? m.catalogInstalling : 'Disconnect'}
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      disabled={busy}
+                                      onClick={() => void connectComposioApp(app)}
+                                      size="xs"
+                                      variant="text"
+                                    >
+                                      {busy ? m.waitingForBrowser : t.common.connect}
+                                    </Button>
+                                  )
+                                }
+                              />
+                            )
+                          }
+
+                          const catalogEntry = nativeCatalogByName.get(app.id.toLowerCase())
+
+                          if (!catalogEntry) {
+                            return (
+                              <ConnectorCard
+                                description={app.description}
+                                displayName={app.name}
+                                key={`${group.id}-${app.id}`}
+                                logo={directoryAppLogoUrl(app)}
+                                name={app.id}
+                                status="unknown"
+                              />
+                            )
+                          }
+
+                          return (
+                            <CatalogInstallCard
+                              entry={catalogEntry}
+                              key={`${group.id}-${app.id}`}
+                              onInstalled={onCatalogInstalled}
+                              profile={profile}
+                            />
+                          )
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div
+          className={cn(
+            'flex min-h-0 flex-col overflow-hidden border-t border-(--ui-stroke-quaternary)',
+            adminOpen ? 'h-[min(42vh,22rem)] shrink-0' : 'hidden'
+          )}
         >
-          <McpLogs emptyLabel={m.noOutput} server={selected && savedEntry ? selected : null} source={logSource} />
-        </DetailPane>
-      </div>
+          <JsonDocumentEditor
+            apiRef={editorApi}
+            disabled={saving}
+            filePath="mcp.json"
+            header={
+              <>
+                mcp.json
+                {dirty && <span aria-hidden className="size-1.5 rounded-full bg-current/60" />}
+              </>
+            }
+            highlight={activeBlock ? { from: activeBlock.from, to: activeBlock.to } : null}
+            initialValue={draft}
+            onChange={next => {
+              setDraft(next)
+              setDirty(true)
+            }}
+            onCursorChange={next => {
+              setCursor(next)
+
+              // Directory selection is explicit. Only the open Advanced editor
+              // may retarget it — a hidden remount must not bounce the catalog.
+              if (!adminOpen) {
+                return
+              }
+
+              const block = blocks.find(b => next >= b.from && next <= b.to)
+
+              if (block && !isHiddenMcpRuntimeServer(block.name)) {
+                setSelectedName(block.name)
+              }
+            }}
+            onFormatJsonError={error => notifyError(new Error(error), m.invalidJson)}
+            onSave={() => void saveDoc()}
+            remountKey={`${docVersion}-${adminOpen ? 'open' : 'shut'}`}
+            trailing={
+              <Button disabled={saving || !dirty} onClick={() => void saveDoc()} size="xs">
+                {saving ? t.common.saving : t.common.save}
+              </Button>
+            }
+          />
+          <DetailPane
+            actions={
+              <span className="flex items-center gap-1.5">
+                {(['stdio', 'agent'] as const).map(kind => (
+                  <TextTab
+                    active={logSource === kind}
+                    className="h-5 px-0.5 text-[0.65rem]"
+                    key={kind}
+                    onClick={() => setLogSource(kind)}
+                  >
+                    {kind}
+                  </TextTab>
+                ))}
+              </span>
+            }
+            defaultHeight={120}
+            id="mcp-logs"
+            title={
+              <span className="text-[0.68rem] font-normal text-muted-foreground/60">
+                {selected && savedEntry ? selected : m.allServers}
+              </span>
+            }
+          >
+            <McpLogs emptyLabel={m.noOutput} server={selected && savedEntry ? selected : null} source={logSource} />
+          </DetailPane>
+        </div>
       </div>
     </div>
   )
