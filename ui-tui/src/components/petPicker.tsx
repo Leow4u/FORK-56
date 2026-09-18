@@ -65,7 +65,7 @@ export function PetPicker({ gw, maxWidth, onClose, t }: PetPickerProps) {
 
     const matched = needle
       ? pets.filter(p => p.slug.toLowerCase().includes(needle) || p.displayName.toLowerCase().includes(needle))
-      : pets
+      : pets.filter(p => p.curated || p.installed || (enabled && p.slug === active))
 
     const rank = (p: GalleryPet) => (enabled && p.slug === active ? 4 : 0) + (p.installed ? 2 : 0) + (p.curated ? 1 : 0)
 

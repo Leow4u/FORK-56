@@ -246,12 +246,27 @@ export async function applyAdoptedPet(request: GatewayRequest, slug: string, dis
   await syncInfo(request)
 }
 
+function isHiddenGalleryPet(pet: GalleryPet): boolean {
+  return /^clawd(-|$)/i.test(pet.slug)
+}
+
+/** Empty Choose shelf: petdex curated pets, plus anything already yours. */
+function isDefaultShelfPet(pet: GalleryPet, gallery: PetGallery): boolean {
+  return Boolean(
+    pet.curated || pet.generated || pet.installed || (gallery.enabled && pet.slug === gallery.active)
+  )
+}
+
+function matchesGalleryQuery(pet: GalleryPet, needle: string): boolean {
+  return pet.slug.toLowerCase().includes(needle) || pet.displayName.toLowerCase().includes(needle)
+}
+
 /**
  * Filter (drop the internal `clawd*` pets + apply a search query) and rank the
- * gallery for a picker. Ranking has no popularity data, so it leans on the
- * signals we do have: active pet first, then installed, then curated. Shared by
- * the Cmd-K palette and the Settings grid so the two can't drift — each caller
- * applies its own cap and reads `.length` for the total.
+ * gallery for a picker. An empty query is the default shelf — curated pets and
+ * anything already installed or generated — not the full petdex dump. Typing a
+ * query searches the whole catalog. Shared by the Cmd-K palette and the
+ * Settings grid so the two can't drift; each caller applies its own cap.
  */
 export function rankedGalleryPets(gallery: PetGallery | null, query = ''): GalleryPet[] {
   if (!gallery) {
@@ -271,11 +286,17 @@ export function rankedGalleryPets(gallery: PetGallery | null, query = ''): Galle
     (p.curated ? 1 : 0)
 
   return gallery.pets
-    .filter(
-      p =>
-        !/^clawd(-|$)/i.test(p.slug) &&
-        (!needle || p.slug.toLowerCase().includes(needle) || p.displayName.toLowerCase().includes(needle))
-    )
+    .filter(p => {
+      if (isHiddenGalleryPet(p)) {
+        return false
+      }
+
+      if (needle) {
+        return matchesGalleryQuery(p, needle)
+      }
+
+      return isDefaultShelfPet(p, gallery)
+    })
     .sort((a, b) => rank(b) - rank(a))
 }
 

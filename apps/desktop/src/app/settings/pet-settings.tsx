@@ -108,10 +108,11 @@ export function PetSettings() {
     }).then(ok => ok && triggerHaptic('crisp'))
   }
 
-  // The petdex catalog is thousands of entries, so rank + cap how many render.
+  // Search can still hit thousands of petdex rows; the empty shelf does not.
   const RENDER_CAP = 60
   const sorted = rankedGalleryPets(gallery, query)
   const shown = sorted.slice(0, RENDER_CAP)
+  const catalogCount = pets.filter(pet => !/^clawd(-|$)/i.test(pet.slug)).length
 
   return (
     <>
@@ -248,6 +249,8 @@ export function PetSettings() {
                     <span className="text-(--ui-red)">{error}</span>
                   ) : sorted.length > RENDER_CAP ? (
                     copy.countCapped(RENDER_CAP, sorted.length)
+                  ) : !query.trim() && catalogCount > shown.length ? (
+                    copy.countCapped(shown.length, catalogCount)
                   ) : (
                     copy.count(sorted.length)
                   )}

@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { $petInfo, setPetInfo } from './pet'
-import { $petGallery, adoptPet, type GatewayRequest, loadPetGallery, resetPetGallery } from './pet-gallery'
+import {
+  $petGallery,
+  adoptPet,
+  type GalleryPet,
+  type GatewayRequest,
+  loadPetGallery,
+  rankedGalleryPets,
+  resetPetGallery
+} from './pet-gallery'
 
 function localGallery() {
   return {
@@ -206,5 +214,32 @@ describe('pet gallery pet.info sync', () => {
     const methods = requestMock.mock.calls.map(([method]) => method)
     expect(methods).toEqual(['pet.select', 'pet.info.meta'])
     expect($petInfo.get().spritesheetBase64).toBe('large-sprite-payload')
+  })
+})
+
+describe('rankedGalleryPets', () => {
+  const pets: GalleryPet[] = [
+    { slug: 'dalek', displayName: 'Dalek', installed: false },
+    { slug: 'nukey', displayName: 'Nukey', installed: false, curated: true },
+    { slug: 'boba', displayName: 'Boba', installed: true, curated: true },
+    { slug: 'homelander', displayName: 'Homelander', installed: false },
+    { slug: 'my-otter', displayName: 'My Otter', installed: true, generated: true },
+    { slug: 'clawd-test', displayName: 'Clawd', installed: false, curated: true }
+  ]
+
+  const gallery = { active: 'boba', enabled: true, pets }
+
+  it('keeps the empty shelf to curated pets plus anything already yours', () => {
+    expect(rankedGalleryPets(gallery, '').map(pet => pet.slug)).toEqual(['my-otter', 'boba', 'nukey'])
+  })
+
+  it('searches the full catalog once the user types', () => {
+    expect(rankedGalleryPets(gallery, 'dale').map(pet => pet.slug)).toEqual(['dalek'])
+    expect(rankedGalleryPets(gallery, 'home').map(pet => pet.slug)).toEqual(['homelander'])
+  })
+
+  it('never lists clawd placeholder pets', () => {
+    expect(rankedGalleryPets(gallery, 'clawd')).toEqual([])
+    expect(rankedGalleryPets(gallery, '').some(pet => pet.slug.startsWith('clawd'))).toBe(false)
   })
 })
