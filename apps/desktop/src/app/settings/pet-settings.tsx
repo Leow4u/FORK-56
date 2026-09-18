@@ -57,7 +57,6 @@ export function PetSettings() {
   const busySlug = useStore($petBusy)
   const petInfo = useStore($petInfo)
   const roam = useStore($petRoam)
-  const [query, setQuery] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<GalleryPet | null>(null)
   const [renameTarget, setRenameTarget] = useState<GalleryPet | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -108,10 +107,7 @@ export function PetSettings() {
     }).then(ok => ok && triggerHaptic('crisp'))
   }
 
-  // The petdex catalog is thousands of entries, so rank + cap how many render.
-  const RENDER_CAP = 60
-  const sorted = rankedGalleryPets(gallery, query)
-  const shown = sorted.slice(0, RENDER_CAP)
+  const shown = rankedGalleryPets(gallery)
 
   return (
     <>
@@ -130,15 +126,8 @@ export function PetSettings() {
           <ListRow
             below={
               <>
-                <input
-                  className="mt-3 w-full rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-1.5 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
-                  onChange={event => setQuery(event.target.value)}
-                  placeholder={copy.searchPlaceholder}
-                  spellCheck={false}
-                  value={query}
-                />
-                {/* Fixed-height scroll area so filtering never grows/shrinks the
-                  page (no layout thrash); the grid scrolls inside it. */}
+                {/* Fixed-height scroll area so the grid never grows/shrinks the
+                  page (no layout thrash). */}
                 <div className="mt-3 h-72 overflow-y-auto pr-1">
                   {status === 'loading' && pets.length === 0 ? (
                     // First load keeps the grid's shape rather than flashing the
@@ -154,13 +143,9 @@ export function PetSettings() {
                         </div>
                       ))}
                     </div>
-                  ) : pets.length === 0 ? (
+                  ) : pets.length === 0 || shown.length === 0 ? (
                     <p className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
                       {copy.unreachable}
-                    </p>
-                  ) : shown.length === 0 ? (
-                    <p className="wrap-anywhere text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-                      {copy.noMatch(query)}
                     </p>
                   ) : (
                     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -244,13 +229,7 @@ export function PetSettings() {
                 </div>
                 {/* Always-present status line so its appearance never shifts layout. */}
                 <p className="mt-2 min-h-4 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-                  {error ? (
-                    <span className="text-(--ui-red)">{error}</span>
-                  ) : sorted.length > RENDER_CAP ? (
-                    copy.countCapped(RENDER_CAP, sorted.length)
-                  ) : (
-                    copy.count(sorted.length)
-                  )}
+                  {error ? <span className="text-(--ui-red)">{error}</span> : copy.count(shown.length)}
                 </p>
               </>
             }

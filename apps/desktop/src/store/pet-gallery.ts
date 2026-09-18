@@ -41,6 +41,26 @@ export interface GalleryPet {
   generated?: boolean
 }
 
+/**
+ * Dev-owned Choose-a-pet defaults. The shelf is these slugs (in this order)
+ * plus pets the user generated. Users cannot browse or install the petdex
+ * catalog — append a slug here when we ship another default.
+ */
+export const DEFAULT_PET_SHELF_SLUGS = [
+  'savage-codex-hacker',
+  'claude-crab',
+  'senna-sprint',
+  'capvolt',
+  'snoop-dogg',
+  'max-2',
+  'jollio',
+  'vivi',
+  'fufu',
+  'purrcat'
+] as const
+
+const DEFAULT_PET_SHELF = new Set<string>(DEFAULT_PET_SHELF_SLUGS)
+
 export interface PetGallery {
   enabled: boolean
   active: string
@@ -137,10 +157,17 @@ export function loadPetGallery(request: GatewayRequest, options: { force?: boole
       ])
 
       if (local) {
-        $petGallery.set(local)
-        $petGalleryStatus.set('ready')
+        const kept = mergeShelfGallery(null, local)
+        $petGallery.set(kept)
         $petGalleryError.set(null)
         localOk = true
+
+        // The ten defaults arrive with the remote manifest. Local-only can be
+        // empty for a new profile — stay on the skeleton until phase 2 if we
+        // have nothing of our own to show yet.
+        if (kept.pets.length > 0) {
+          $petGalleryStatus.set('ready')
+        }
       }
     } catch (e) {
       if (isMissingRpcMethod(e)) {
@@ -155,18 +182,26 @@ export function loadPetGallery(request: GatewayRequest, options: { force?: boole
       galleryLoad = null
     }
 
-    // Phase 2: merge in the full petdex catalog in the background. A slow/failed
-    // manifest fetch never hides the local pets shown in phase 1.
+    // Phase 2: pull spritesheet metadata for the ten defaults. Drop the rest of
+    // the petdex catalog so Choose/Cmd-K cannot search or install from it.
     if (localOk) {
       try {
         const full = await petRpc<PetGallery>(request, 'pet.gallery')
 
         if (full) {
-          $petGallery.set(full)
+          $petGallery.set(mergeShelfGallery($petGallery.get(), full))
           $petGalleryStatus.set('ready')
+        } else if (!$petGallery.get()?.pets.length) {
+          $petGalleryStatus.set('error')
+          $petGalleryError.set('Could not reach the petdex gallery.')
         }
       } catch {
-        // Keep the local-only gallery; the petdex catalog just stays unmerged.
+        if ($petGallery.get()?.pets.length) {
+          $petGalleryStatus.set('ready')
+        } else if ($petGalleryStatus.get() === 'loading') {
+          $petGalleryStatus.set('error')
+          $petGalleryError.set('Could not reach the petdex gallery.')
+        }
       }
     }
   })()
@@ -241,17 +276,56 @@ export async function applyAdoptedPet(request: GatewayRequest, slug: string, dis
     active: slug,
     pets: gallery.pets.some(p => p.slug === slug)
       ? gallery.pets.map(p => (p.slug === slug ? { ...p, installed: true, displayName } : p))
-      : [...gallery.pets, { slug, displayName, installed: true, spritesheetUrl: '' }]
+      : [...gallery.pets, { slug, displayName, generated: true, installed: true, spritesheetUrl: '' }]
   }))
   await syncInfo(request)
 }
 
+function isHiddenGalleryPet(pet: GalleryPet): boolean {
+  return /^clawd(-|$)/i.test(pet.slug)
+}
+
+/** Shelf row: our ten defaults, a generated pet, or one already installed. */
+function keepOnShelf(pet: GalleryPet): boolean {
+  if (isHiddenGalleryPet(pet)) {
+    return false
+  }
+
+  return DEFAULT_PET_SHELF.has(pet.slug) || Boolean(pet.generated) || pet.installed
+}
+
+function mergeShelfGallery(current: PetGallery | null, incoming: PetGallery): PetGallery {
+  const bySlug = new Map<string, GalleryPet>()
+
+  for (const pet of current?.pets ?? []) {
+    if (keepOnShelf(pet)) {
+      bySlug.set(pet.slug, pet)
+    }
+  }
+
+  for (const pet of incoming.pets) {
+    if (keepOnShelf(pet)) {
+      bySlug.set(pet.slug, pet)
+    }
+  }
+
+  return { ...incoming, pets: [...bySlug.values()] }
+}
+
+function shelfIndex(slug: string): number {
+  const index = DEFAULT_PET_SHELF_SLUGS.indexOf(slug as (typeof DEFAULT_PET_SHELF_SLUGS)[number])
+
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index
+}
+
+function matchesGalleryQuery(pet: GalleryPet, needle: string): boolean {
+  return pet.slug.toLowerCase().includes(needle) || pet.displayName.toLowerCase().includes(needle)
+}
+
 /**
- * Filter (drop the internal `clawd*` pets + apply a search query) and rank the
- * gallery for a picker. Ranking has no popularity data, so it leans on the
- * signals we do have: active pet first, then installed, then curated. Shared by
- * the Cmd-K palette and the Settings grid so the two can't drift — each caller
- * applies its own cap and reads `.length` for the total.
+ * Filter and rank the Choose/Cmd-K shelf. The catalog is never listed — only
+ * the ten defaults, generated pets, and pets already installed. A query filters
+ * that shelf; it does not search petdex. Shared by the palette and Settings.
  */
 export function rankedGalleryPets(gallery: PetGallery | null, query = ''): GalleryPet[] {
   if (!gallery) {
@@ -260,23 +334,17 @@ export function rankedGalleryPets(gallery: PetGallery | null, query = ''): Galle
 
   const needle = normalize(query)
 
-  // User-generated pets first, then the active pet, then installed, then curated.
-  // Guard every term with a boolean — local-only pets omit curated/generated, and
-  // `Number(undefined)` is NaN, which poisons the sort (it would sink those pets
-  // below the render cap and hide them entirely).
-  const rank = (p: GalleryPet) =>
-    (p.generated ? 8 : 0) +
-    (gallery.enabled && p.slug === gallery.active ? 4 : 0) +
-    (p.installed ? 2 : 0) +
-    (p.curated ? 1 : 0)
-
   return gallery.pets
-    .filter(
-      p =>
-        !/^clawd(-|$)/i.test(p.slug) &&
-        (!needle || p.slug.toLowerCase().includes(needle) || p.displayName.toLowerCase().includes(needle))
-    )
-    .sort((a, b) => rank(b) - rank(a))
+    .filter(p => keepOnShelf(p) && (!needle || matchesGalleryQuery(p, needle)))
+    .sort((a, b) => {
+      const generated = Number(Boolean(b.generated)) - Number(Boolean(a.generated))
+
+      if (generated) {
+        return generated
+      }
+
+      return shelfIndex(a.slug) - shelfIndex(b.slug)
+    })
 }
 
 function patchGallery(fn: (gallery: PetGallery) => PetGallery): void {

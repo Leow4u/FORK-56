@@ -12,11 +12,29 @@ const VISIBLE = 10
 const MIN_WIDTH = 40
 const MAX_WIDTH = 90
 
+// Keep in sync with `DEFAULT_PET_SHELF_SLUGS` in apps/desktop/src/store/pet-gallery.ts.
+// Dev-owned defaults. Generated / already-installed pets also sit on the shelf.
+// The petdex catalog is not searchable and cannot be installed from here.
+const DEFAULT_PET_SHELF_SLUGS = [
+  'savage-codex-hacker',
+  'claude-crab',
+  'senna-sprint',
+  'capvolt',
+  'snoop-dogg',
+  'max-2',
+  'jollio',
+  'vivi',
+  'fufu',
+  'purrcat'
+] as const
+const DEFAULT_PET_SHELF = new Set<string>(DEFAULT_PET_SHELF_SLUGS)
+
 interface GalleryPet {
   slug: string
   displayName: string
   installed: boolean
   curated?: boolean
+  generated?: boolean
 }
 
 interface Gallery {
@@ -26,10 +44,10 @@ interface Gallery {
 }
 
 /**
- * Interactive petdex picker overlay. Pulls the gallery via `pet.gallery`,
- * filters as you type, and adopts the highlighted pet with `pet.select`
- * (install-on-demand). The mascot lights up live once `usePet` next polls —
- * no restart. This is the interactive sibling of the text `/pet <slug>` path.
+ * Interactive picker overlay. Shows the ten shipped defaults plus generated
+ * and already-installed pets. Typing filters that shelf only — it does not
+ * search the petdex catalog. Adopt with `pet.select`. The mascot lights up
+ * once `usePet` next polls — no restart.
  */
 export function PetPicker({ gw, maxWidth, onClose, t }: PetPickerProps) {
   const [gallery, setGallery] = useState<Gallery | null>(null)
@@ -47,7 +65,11 @@ export function PetPicker({ gw, maxWidth, onClose, t }: PetPickerProps) {
   useEffect(() => {
     gw.request<Gallery>('pet.gallery')
       .then(r => {
-        setGallery(r)
+        const pets = (r?.pets ?? []).filter(
+          p =>
+            !/^clawd(-|$)/i.test(p.slug) && (DEFAULT_PET_SHELF.has(p.slug) || p.generated || p.installed)
+        )
+        setGallery({ ...r, pets })
         setErr('')
       })
       .catch((e: unknown) => setErr(rpcErrorMessage(e)))
@@ -57,20 +79,28 @@ export function PetPicker({ gw, maxWidth, onClose, t }: PetPickerProps) {
   const enabled = gallery?.enabled ?? false
   const active = gallery?.active ?? ''
 
-  // Rank by the signals petdex gives us — active, then installed, then curated
-  // (its official set), then the rest — and hide the clawd placeholders.
   const view = useMemo(() => {
-    const pets = (gallery?.pets ?? []).filter(p => !/^clawd(-|$)/i.test(p.slug))
+    const pets = gallery?.pets ?? []
     const needle = query.trim().toLowerCase()
-
     const matched = needle
       ? pets.filter(p => p.slug.toLowerCase().includes(needle) || p.displayName.toLowerCase().includes(needle))
       : pets
+    const shelfIndex = (slug: string) => {
+      const index = DEFAULT_PET_SHELF_SLUGS.indexOf(slug as (typeof DEFAULT_PET_SHELF_SLUGS)[number])
 
-    const rank = (p: GalleryPet) => (enabled && p.slug === active ? 4 : 0) + (p.installed ? 2 : 0) + (p.curated ? 1 : 0)
+      return index === -1 ? Number.MAX_SAFE_INTEGER : index
+    }
 
-    return [...matched].sort((a, b) => rank(b) - rank(a))
-  }, [gallery, query, enabled, active])
+    return [...matched].sort((a, b) => {
+      const generated = Number(Boolean(b.generated)) - Number(Boolean(a.generated))
+
+      if (generated) {
+        return generated
+      }
+
+      return shelfIndex(a.slug) - shelfIndex(b.slug)
+    })
+  }, [gallery, query])
 
   const adopt = (slug: string) => {
     setBusy(true)
