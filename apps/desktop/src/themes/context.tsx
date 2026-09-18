@@ -20,8 +20,8 @@ import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { $backendThemes, $pendingSkinApply } from './backend-sync'
 import { hexToRgb, mix, readableOn } from './color'
 import { BUILTIN_THEME_LIST, DEFAULT_SKIN_NAME, DEFAULT_TYPOGRAPHY, work4youTheme } from './presets'
-import type { DesktopTheme, DesktopThemeColors } from './types'
 import { chatSelectionBackground, composerSelectionBackground } from './text-selection'
+import type { DesktopTheme, DesktopThemeColors } from './types'
 import { $userThemes, listAllThemes, resolveTheme } from './user-themes'
 
 // Legacy global skin (pre per-profile themes). Still the inheritance fallback
