@@ -37,6 +37,7 @@ import { OverlayIconButton } from '../overlays/overlay-chrome'
 import { OverlayMain, OverlayNav, type OverlayNavGroup, OverlaySplitLayout } from '../overlays/overlay-split-layout'
 import { OverlayView } from '../overlays/overlay-view'
 import { SKILLS_ROUTE } from '../routes'
+import { MAIN_STAGE_SURFACE_CLASS } from '../shell/stage-chrome'
 
 import { AboutSettings } from './about-settings'
 import { AppearanceSettings } from './appearance-settings'
@@ -412,7 +413,9 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       <OverlaySplitLayout>
         <OverlayNav footer={navFooter} groups={navGroups} header={searchPill} itemTone="quiet" />
 
-        <OverlayMain className="max-w-none bg-(--ui-bg-quaternary) px-0 pb-0">{activeSettingsContent}</OverlayMain>
+        <OverlayMain className={cn('max-w-none px-0 pb-0', MAIN_STAGE_SURFACE_CLASS)}>
+          {activeSettingsContent}
+        </OverlayMain>
       </OverlaySplitLayout>
     </OverlayView>
   )

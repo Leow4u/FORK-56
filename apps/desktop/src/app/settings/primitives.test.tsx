@@ -29,7 +29,11 @@ describe('SettingsGroup', () => {
       </SettingsGroup>
     )
 
-    expect(document.querySelector('[data-slot="settings-group"]')).toBeTruthy()
+    const well = document.querySelector('[data-slot="settings-group"]')
+
+    expect(well).toBeTruthy()
+    expect(well?.className).not.toContain('chat-surface-background')
+    expect(well?.className).not.toContain('rounded-xl')
     expect(screen.getByRole('heading', { level: 2, name: 'Language' })).toBeTruthy()
     expect(screen.getByText('Display language')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy()

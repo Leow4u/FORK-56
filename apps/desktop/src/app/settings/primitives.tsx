@@ -89,9 +89,9 @@ export function SectionHeading({
   )
 }
 
-// Rounded well on the gray Settings pane. Contrast comes from
-// `--ui-chat-surface-background` against OverlayMain's `--ui-bg-quaternary` —
-// no extra border, no nested card chrome. Optional quiet group label above.
+// Grouped rows on the Settings stage. OverlayMain already paints the chat
+// stage token, so this is spacing + an optional label — not a contrasting
+// well. Optional quiet group label above.
 export function SettingsGroup({
   aside,
   children,
@@ -108,7 +108,7 @@ export function SettingsGroup({
   return (
     <section className={cn('mb-6 last:mb-0', className)}>
       {title ? <SectionHeading aside={aside} meta={meta} title={title} variant="group" /> : null}
-      <div className="overflow-hidden rounded-xl bg-(--ui-chat-surface-background) px-4" data-slot="settings-group">
+      <div className="overflow-hidden px-4" data-slot="settings-group">
         {children}
       </div>
     </section>
