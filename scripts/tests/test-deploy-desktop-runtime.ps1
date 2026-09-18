@@ -52,8 +52,10 @@ try {
     Assert-True ($LASTEXITCODE -eq 0) "present bundle deploy failed: $LASTEXITCODE"
 
     $cfg = Get-Content -LiteralPath (Join-Path $destHome "work4you\venv\pyvenv.cfg") -Raw
-    Assert-True ($cfg -match [regex]::Escape((Join-Path $destHome "python"))) "pyvenv.cfg was not relocated"
-    Assert-True ($cfg -notmatch "runner") "builder path leaked into pyvenv.cfg"
+    $expectedPython = [System.IO.Path]::GetFullPath((Join-Path $destHome "python"))
+    $cfgNorm = ($cfg -replace '/', '\').ToLowerInvariant()
+    Assert-True ($cfgNorm.Contains($expectedPython.ToLowerInvariant())) "pyvenv.cfg was not relocated to $expectedPython`n$cfg"
+    Assert-True ($cfg -notmatch '(?i)C:\\Users\\runner\\python') "builder path leaked into pyvenv.cfg`n$cfg"
     Assert-True ((Get-Content -LiteralPath (Join-Path $destHome ".env") -Raw) -match "KEEP=1") "HOME .env was overwritten"
     Assert-True (Test-Path -LiteralPath (Join-Path $destHome "work4you\.work4you-bootstrap-complete")) "bootstrap marker missing"
     Assert-True (Test-Path -LiteralPath (Join-Path $destHome "SOUL.md")) "SOUL.md was not seeded"
