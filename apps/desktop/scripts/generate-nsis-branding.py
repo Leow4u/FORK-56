@@ -6,9 +6,9 @@ electron-builder's assisted installer uses MUI2:
   - inner-page header (right): 150 x 57, 24-bit BMP
 
 The default fallback is NSIS's stock nsis3-metro.bmp (blue laptop +
-download arrow). This script keeps that installer composition — a drawn
-computer as the hero, the Work4You mark discreet in the upper-right —
-on the desktop sage wash instead of metro blue.
+download arrow). We keep that exact laptop drawing (zlib-licensed NSIS
+art) and only recolor it onto the desktop sage wash, with the Work4You
+mark discreet in the upper-right in place of metro's diamond.
 """
 
 from __future__ import annotations
@@ -31,6 +31,8 @@ MUTED = (90, 103, 90)
 ROOT = Path(__file__).resolve().parents[1]
 ICON_PATH = ROOT / "assets" / "icon.png"
 OUT_DIR = ROOT / "assets" / "nsis"
+# White-on-transparent laptop/arrow lifted from nsis3-metro.bmp; diamond removed.
+METRO_LAPTOP = OUT_DIR / "src" / "metro-laptop.png"
 # Liberation is Arial-metric — closer to the Segoe UI the wizard actually uses.
 FONT_REGULAR = Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf")
 FONT_BOLD = Path("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf")
@@ -76,39 +78,13 @@ def _load_mark(width: int) -> Image.Image:
     return mark.resize((width, height), Image.Resampling.LANCZOS)
 
 
-def _draw_laptop(size: tuple[int, int]) -> Image.Image:
-    """Metro-like laptop: lid, inset screen, hinge, tapered base.
-
-    Drawn at 4x on a transparent layer so the downscale anti-aliases the
-    strokes. Coordinates are in the final 164x314 space.
-    """
-    scale = 4
-    layer = Image.new("RGBA", (size[0] * scale, size[1] * scale), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(layer)
-    stroke = (*ACCENT, 255)
-    screen = (232, 238, 232, 255)
-    inner = (*MUTED, 230)
-
-    def box(x0: float, y0: float, x1: float, y1: float) -> list[float]:
-        return [x0 * scale, y0 * scale, x1 * scale, y1 * scale]
-
-    def poly(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
-        return [(x * scale, y * scale) for x, y in points]
-
-    sw = max(3, int(2.1 * scale))
-
-    # Lid + screen. Parked in the lower half, same mass as nsis3-metro.
-    draw.rounded_rectangle(box(24, 126, 140, 236), radius=5 * scale, outline=stroke, width=sw)
-    draw.rounded_rectangle(box(30, 134, 134, 224), radius=3 * scale, fill=screen, outline=inner, width=max(2, scale))
-    # Camera
-    cx, cy, r = 82 * scale, 130 * scale, 1.3 * scale
-    draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=stroke)
-    # Hinge + deck
-    draw.rounded_rectangle(box(20, 236, 144, 242), radius=2 * scale, fill=stroke)
-    draw.polygon(poly([(8, 242), (156, 242), (162, 256), (2, 256)]), fill=stroke)
-    # Front-edge catch-light so the base reads as a slab, not a bar.
-    draw.line(poly([(16, 250), (148, 250)]), fill=(*BG_TOP, 200), width=max(2, scale))
-    return layer.resize(size, Image.Resampling.LANCZOS)
+def _tint_metro_laptop(color: tuple[int, int, int]) -> Image.Image:
+    """Recolor the original NSIS metro laptop; do not redraw it."""
+    src = Image.open(METRO_LAPTOP).convert("RGBA")
+    if src.size != SIDEBAR:
+        src = src.resize(SIDEBAR, Image.Resampling.LANCZOS)
+    fill = Image.new("RGB", src.size, color)
+    return Image.merge("RGBA", (*fill.split(), src.split()[-1]))
 
 
 def build_sidebar() -> Image.Image:
@@ -116,10 +92,10 @@ def build_sidebar() -> Image.Image:
     draw = ImageDraw.Draw(img)
     draw.rectangle((0, 0, 3, SIDEBAR[1] - 1), fill=ACCENT)
 
-    laptop = _draw_laptop(SIDEBAR)
+    laptop = _tint_metro_laptop(ACCENT)
     img.paste(laptop, (0, 0), laptop)
 
-    # Discreet mark — metro puts a small glyph top-right, not a hero icon.
+    # Discreet mark — metro puts a small glyph up top, not a hero icon.
     mark = _load_mark(22)
     img.paste(mark, (SIDEBAR[0] - mark.width - 12, 14), mark)
     return img
