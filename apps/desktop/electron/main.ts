@@ -58,6 +58,7 @@ import {
 } from './bootstrap-platform'
 import { decideBootstrapRepair } from './bootstrap-repair-guard'
 import { runBootstrap } from './bootstrap-runner'
+import { detectBundleSkew } from './bundle-skew'
 import {
   bundledDeployArgs,
   bundledPosixDeployArgs,
@@ -66,7 +67,6 @@ import {
   parseBundledRuntimeManifest,
   shouldDeployBundledRuntime
 } from './bundled-runtime'
-import { detectBundleSkew } from './bundle-skew'
 import { bindComposioLogoNetFetch, COMPOSIO_LOGO_PROTOCOL, handleComposioLogoProtocol } from './composio-logo'
 import { applyConnectionChange } from './connection-apply'
 import {
@@ -4325,6 +4325,7 @@ function tryDeployBundledRuntime() {
   rememberLog(`[bootstrap] deploying bundled runtime from ${bundleDir}`)
 
   let result
+
   if (IS_WINDOWS) {
     const script = path.join(bundleDir, 'deploy-desktop-runtime.ps1')
 

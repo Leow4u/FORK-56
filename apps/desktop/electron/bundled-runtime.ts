@@ -59,6 +59,7 @@ export function shouldDeployBundledRuntime(opts: {
   manifest: BundledRuntimeManifest | null | undefined
 }): boolean {
   const nativeHost = Boolean(opts.isWindows) || Boolean(opts.isMac)
+
   return Boolean(opts.isPackaged) && nativeHost && isPresentBundledRuntime(opts.manifest)
 }
 

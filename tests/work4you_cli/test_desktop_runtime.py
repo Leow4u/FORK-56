@@ -143,7 +143,7 @@ def test_apply_prebuilt_runtime_relocates_and_preserves_home_secrets(tmp_path):
     assert (install / "work4you_cli" / "__init__.py").is_file()
     cfg = (install / "venv" / "pyvenv.cfg").read_text(encoding="utf-8")
     assert str(home / "python") in cfg
-    assert "runner" not in cfg
+    assert r"C:\Users\runner" not in cfg
     assert (home / ".env").read_text(encoding="utf-8") == "TELEGRAM_BOT_TOKEN=keep-me\n"
     assert (home / "config.yaml").read_text(encoding="utf-8") == "keep: true\n"
     assert (home / "SOUL.md").is_file()

@@ -88,11 +88,12 @@ function Copy-ReplaceDirectory {
 }
 
 function Seed-HomeTemplates {
-    param([string]$Home, [string]$InstallDir)
+    # Do not name this parameter $Home — PowerShell's $HOME is read-only (pwsh 7).
+    param([string]$TargetDir, [string]$InstallDir)
     foreach ($name in @("cron", "sessions", "logs", "pairing", "hooks", "image_cache", "audio_cache", "memories", "skills")) {
-        New-Item -ItemType Directory -Force -Path (Join-Path $Home $name) | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $TargetDir $name) | Out-Null
     }
-    $envPath = Join-Path $Home ".env"
+    $envPath = Join-Path $TargetDir ".env"
     if (-not (Test-Path -LiteralPath $envPath)) {
         $example = Join-Path $InstallDir ".env.example"
         if (Test-Path -LiteralPath $example) {
@@ -101,14 +102,14 @@ function Seed-HomeTemplates {
             New-Item -ItemType File -Force -Path $envPath | Out-Null
         }
     }
-    $configPath = Join-Path $Home "config.yaml"
+    $configPath = Join-Path $TargetDir "config.yaml"
     if (-not (Test-Path -LiteralPath $configPath)) {
         $example = Join-Path $InstallDir "cli-config.yaml.example"
         if (Test-Path -LiteralPath $example) {
             Copy-Item -LiteralPath $example -Destination $configPath
         }
     }
-    $soulPath = Join-Path $Home "SOUL.md"
+    $soulPath = Join-Path $TargetDir "SOUL.md"
     if (-not (Test-Path -LiteralPath $soulPath)) {
         $soul = "You are Work4You, an intelligent AI assistant created by Work4You. You are helpful, knowledgeable, and direct. You assist users with a wide range of tasks including answering questions, writing and editing code, analyzing information, creative work, and executing actions via your tools. You communicate clearly, admit uncertainty when appropriate, and prioritize being genuinely useful over being verbose unless otherwise directed below. Be targeted and efficient in your exploration and investigations.`n"
         Write-Utf8NoBom -Path $soulPath -Text $soul
@@ -163,7 +164,7 @@ Copy-ReplaceDirectory -Source $bundleWork4You -Destination $installDir -Preserve
 $venvDir = Join-Path $installDir "venv"
 Update-PyvenvCfg -VenvDir $venvDir -PythonHome $pythonHome
 
-Seed-HomeTemplates -Home $Work4YouHome -InstallDir $installDir
+Seed-HomeTemplates -TargetDir $Work4YouHome -InstallDir $installDir
 Write-Utf8NoBom -Path (Join-Path $installDir ".install_method") -Text "desktop`n"
 
 $runtimeRef = [ordered]@{
