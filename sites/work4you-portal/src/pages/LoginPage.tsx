@@ -6,6 +6,7 @@ import {
 } from '@privy-io/react-auth'
 import { FormEvent, useMemo, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { safePortalNextPath } from '../lib/device-approve'
 import { personalOrgId } from '../lib/org'
 import styles from './LoginPage.module.css'
 
@@ -186,6 +187,10 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
   }
 
   if (authenticated && user) {
+    const next = safePortalNextPath(params.get('next'))
+    if (next) {
+      return <Navigate to={next} replace />
+    }
     return <Navigate to={`/orgs/${personalOrgId(user.id)}`} replace />
   }
 

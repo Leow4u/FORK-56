@@ -160,6 +160,12 @@ jobs:
           cp cloud/nas-sync/src/app/api/oauth/self-hosted-client/\[id\]/route.ts nas/src/app/api/oauth/self-hosted-client/\[id\]/
           mkdir -p nas/src/app/api/account
           cp cloud/nas-sync/src/app/api/account/route.ts nas/src/app/api/account/
+          cp cloud/nas-sync/src/app/layout.tsx nas/src/app/
+          cp cloud/nas-sync/src/app/favicon.ico nas/src/app/
+          mkdir -p nas/src/portal/pages nas/src/portal/lib
+          cp cloud/nas-sync/src/portal/lib/device-approve.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/pages/DeviceApprovePage.tsx nas/src/portal/pages/
+          cp cloud/nas-sync/src/portal/pages/DeviceApprovePage.module.css nas/src/portal/pages/
           cp cloud/nas-sync/src/portal/pages/org/CloudPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.module.css nas/src/portal/pages/org/
@@ -208,6 +214,11 @@ jobs:
             src/app/api/oauth/self-hosted-client/route.ts \
             src/app/api/oauth/self-hosted-client/\[id\]/route.ts \
             src/app/api/account/route.ts \
+            src/app/layout.tsx \
+            src/app/favicon.ico \
+            src/portal/lib/device-approve.ts \
+            src/portal/pages/DeviceApprovePage.tsx \
+            src/portal/pages/DeviceApprovePage.module.css \
             src/portal/pages/org/CloudPage.tsx \
             src/portal/pages/org/LocalDashboardsPage.tsx \
             src/portal/pages/org/LocalDashboardsPage.module.css \

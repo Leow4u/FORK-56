@@ -4,10 +4,12 @@ import '@/portal/styles/global.css'
 export const metadata: Metadata = {
   title: 'Work4You Portal',
   description: 'Portal Work4You',
+  // Next.js also emits src/app/favicon.ico automatically. That file must be
+  // the Work4You mark — a leftover Vercel triangle wins the browser tab.
   icons: {
     icon: [
-      { url: '/favicon.ico' },
       { url: '/brand/work4you-favicon-transparent-1024.png', type: 'image/png' },
+      { url: '/favicon.ico' },
     ],
     apple: '/brand/work4you-favicon-transparent-1024.png',
   },

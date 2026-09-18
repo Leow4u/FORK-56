@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { PortalShell } from './components/PortalShell'
 import { RequirePersonalOrg } from './components/RequireAuth'
+import { DeviceApprovePage } from './pages/DeviceApprovePage'
 import { LoginPage } from './pages/LoginPage'
 import { AccountSettingsPage } from './pages/org/AccountSettingsPage'
 import { AgentHomePage } from './pages/org/AgentHomePage'
@@ -16,6 +17,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<LoginPage initialMode="signup" />} />
+      <Route path="/device" element={<DeviceApprovePage />} />
 
       <Route
         path="/orgs/:orgId"
