@@ -63,6 +63,9 @@ _FALLBACK_SPEC = {
         "uv.lock",
         "work4you",
     ],
+    "prefixes": [
+        "scripts/whatsapp-bridge",
+    ],
     "include_root_python_modules": True,
 }
 
@@ -93,6 +96,23 @@ def runtime_files() -> frozenset[str]:
     spec = load_spec()
     files = spec.get("files") or _FALLBACK_SPEC["files"]
     return frozenset(str(name) for name in files)
+
+
+def runtime_prefixes() -> frozenset[str]:
+    """Nested trees that are payload even when their top-level dir is not.
+
+    WhatsApp's Baileys bridge lives at ``scripts/whatsapp-bridge``. Shipping
+    all of ``scripts/`` would drag installer/CI helpers into the consumer
+    tree; omitting the prefix leaves Pair-with-QR looking for a missing
+    ``bridge.js``.
+    """
+    spec = load_spec()
+    prefixes = spec.get("prefixes") or _FALLBACK_SPEC.get("prefixes") or ()
+    return frozenset(
+        normalize_zip_relpath(str(name))
+        for name in prefixes
+        if str(name).strip()
+    )
 
 
 def include_root_python_modules() -> bool:
@@ -134,6 +154,12 @@ def is_runtime_payload_path(relpath: str) -> bool:
     top = parts[0]
     if top in runtime_directories():
         return True
+    rel = "/".join(parts)
+    for prefix in runtime_prefixes():
+        if rel == prefix or rel.startswith(prefix + "/"):
+            return True
+        if prefix.startswith(rel + "/"):
+            return True
     if len(parts) == 1:
         if top in runtime_files():
             return True

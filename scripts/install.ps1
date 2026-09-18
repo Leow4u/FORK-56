@@ -2008,6 +2008,9 @@ $script:RuntimePayloadFiles = @(
     'LICENSE', 'README.md', 'cli-config.yaml.example', 'pyproject.toml',
     'setup.py', 'uv.lock', 'work4you'
 )
+$script:RuntimePayloadPrefixes = @(
+    'scripts/whatsapp-bridge'
+)
 $script:RuntimePayloadPreserve = @(
     'venv', 'bin', 'node_modules', '.git', '.env', '.install_method',
     '.work4you-bootstrap-complete', '.runtime-ref'
@@ -2030,6 +2033,10 @@ function Test-RuntimePayloadRelativePath {
     $parts = @($rel -split '/')
     $top = $parts[0]
     if ($script:RuntimePayloadDirs -contains $top) { return $true }
+    foreach ($prefix in $script:RuntimePayloadPrefixes) {
+        if ($rel -eq $prefix -or $rel.StartsWith("$prefix/")) { return $true }
+        if ($prefix.StartsWith("$rel/")) { return $true }
+    }
     if ($parts.Count -eq 1) {
         if ($script:RuntimePayloadFiles -contains $top) { return $true }
         if ($top -like '*.py') { return $true }

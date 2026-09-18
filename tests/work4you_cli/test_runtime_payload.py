@@ -21,6 +21,7 @@ def test_spec_json_matches_module_lists():
     spec = json.loads(rp.spec_path().read_text(encoding="utf-8"))
     assert set(spec["directories"]) == set(rp.runtime_directories())
     assert set(spec["files"]) == set(rp.runtime_files())
+    assert set(spec.get("prefixes") or []) == set(rp.runtime_prefixes())
     assert spec["include_root_python_modules"] is True
 
 
@@ -36,6 +37,15 @@ def test_is_runtime_payload_path_keeps_runtime_and_drops_monorepo_noise():
     assert not rp.is_runtime_payload_path("apps/desktop/package.json")
     assert not rp.is_runtime_payload_path("package.json")
     assert not rp.is_runtime_payload_path("../agent/x.py")
+
+
+def test_is_runtime_payload_path_keeps_whatsapp_bridge_not_installer_scripts():
+    assert rp.is_runtime_payload_path("scripts")
+    assert rp.is_runtime_payload_path("scripts/whatsapp-bridge")
+    assert rp.is_runtime_payload_path("scripts/whatsapp-bridge/bridge.js")
+    assert not rp.is_runtime_payload_path("scripts/install.ps1")
+    assert not rp.is_runtime_payload_path("scripts/run_tests.sh")
+    assert not rp.is_runtime_payload_path("scripts/ci/classify_changes.py")
 
 
 def test_strip_archive_root_drops_github_prefix():
@@ -57,6 +67,8 @@ def test_extract_runtime_zip_filters_and_preserves_nothing_from_excluded_trees(t
             "tests/test_x.py": b"def test_x(): pass\n",
             "apps/desktop/package.json": b"{}\n",
             "package.json": b"{}\n",
+            "scripts/whatsapp-bridge/bridge.js": b"module.exports = 1\n",
+            "scripts/install.ps1": b"Write-Host no\n",
         },
     )
     dest = tmp_path / "payload"
@@ -64,12 +76,15 @@ def test_extract_runtime_zip_filters_and_preserves_nothing_from_excluded_trees(t
     assert (dest / "agent" / "loop.py").read_text() == "print('agent')\n"
     assert (dest / "run_agent.py").read_text() == "ROOT = True\n"
     assert (dest / "pyproject.toml").exists()
+    assert (dest / "scripts" / "whatsapp-bridge" / "bridge.js").read_text() == "module.exports = 1\n"
     assert not (dest / "web").exists()
     assert not (dest / "website").exists()
     assert not (dest / "tests").exists()
     assert not (dest / "apps").exists()
     assert not (dest / "package.json").exists()
+    assert not (dest / "scripts" / "install.ps1").exists()
     assert "agent/loop.py" in written
+    assert "scripts/whatsapp-bridge/bridge.js" in written
     assert all(not path.startswith("web/") for path in written)
 
 

@@ -1300,6 +1300,9 @@ FILES = {
     "LICENSE", "README.md", "cli-config.yaml.example", "pyproject.toml",
     "setup.py", "uv.lock", "work4you",
 }
+PREFIXES = {
+    "scripts/whatsapp-bridge",
+}
 zip_path, dest = sys.argv[1], Path(sys.argv[2])
 dest.mkdir(parents=True, exist_ok=True)
 dest_real = dest.resolve()
@@ -1311,7 +1314,11 @@ with zipfile.ZipFile(zip_path) as zf:
             continue
         rel = "/".join(parts[1:])
         top = rel.split("/", 1)[0]
-        if top not in DIRS and not (
+        prefix_ok = any(
+            rel == prefix or rel.startswith(prefix + "/") or prefix.startswith(rel + "/")
+            for prefix in PREFIXES
+        )
+        if top not in DIRS and not prefix_ok and not (
             "/" not in rel and (top in FILES or top.endswith(".py"))
         ):
             continue

@@ -23,5 +23,8 @@
     "uv.lock",
     "work4you"
   ],
+  "prefixes": [
+    "scripts/whatsapp-bridge"
+  ],
   "include_root_python_modules": true
 }
