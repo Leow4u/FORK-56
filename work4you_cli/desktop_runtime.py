@@ -26,6 +26,7 @@ from work4you_cli.runtime_payload import (
     INSTALL_METHOD,
     write_runtime_ref,
 )
+from work4you_constants import venv_bin_dir
 
 MANIFEST_FILENAME = "manifest.json"
 MANIFEST_SCHEMA_VERSION = 1
@@ -296,10 +297,15 @@ def apply_prebuilt_runtime_bundle(
         write_bootstrap_marker(install_dir, pinned_commit=commit, pinned_branch=branch)
 
     # Match install.ps1 Set-PathVariable: expose ONLY the launchers on
-    # ``<install>/bin``, never venv/Scripts (that would shadow ``python``).
+    # ``<install>/bin``, never the venv executable dir (that would shadow
+    # ``python``). Walk both Windows and POSIX layouts so a Windows payload
+    # applied under Linux tests still finds ``venv/Scripts``.
     launcher_dest = install_dir / "bin"
     launcher_dest.mkdir(parents=True, exist_ok=True)
-    for launcher_src in (venv_dir / "Scripts", venv_dir / "bin"):
+    for launcher_src in (
+        venv_bin_dir(venv_dir, windows=True),
+        venv_bin_dir(venv_dir, windows=False),
+    ):
         if not launcher_src.is_dir():
             continue
         for launcher in ("work4you.exe", "work4you-acp.exe", "work4you", "work4you-acp"):
