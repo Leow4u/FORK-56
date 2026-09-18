@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { __resetBackendSkinSync, ingestBackendSkin } from './backend-sync'
 import { skinPref, ThemeProvider, useTheme } from './context'
 import { midnightTheme, work4youOliveTheme, work4youTheme } from './presets'
-import { chatSelectionBackground, COMPOSER_SELECTION_BACKGROUND } from './text-selection'
+import { chatSelectionBackground, composerSelectionBackground } from './text-selection'
 
 // The live-authoring loop: Work4You writes/edits one skin file and every surface
 // repaints. An in-place edit keeps the NAME — only the palette moves.
@@ -139,19 +139,18 @@ describe('ThemeProvider highlight preview', () => {
     expect(cssVar('--theme-foreground')).toBe(painted)
   })
 
-  it('paints brand-accent chat selection and GitHub composer selection', () => {
+  it('paints brand-accent chat and composer selection at two weights', () => {
     renderProbe()
 
-    expect(cssVar('--ui-selection-background')).toBe(
-      chatSelectionBackground(work4youTheme.colors.midground ?? work4youTheme.colors.ring, 'light')
-    )
-    expect(cssVar('--ui-composer-selection-background')).toBe(COMPOSER_SELECTION_BACKGROUND.light)
+    const paperAccent = work4youTheme.colors.midground ?? work4youTheme.colors.ring
+    expect(cssVar('--ui-selection-background')).toBe(chatSelectionBackground(paperAccent, 'light'))
+    expect(cssVar('--ui-composer-selection-background')).toBe(composerSelectionBackground('light'))
 
     act(() => ctx.previewTheme('midnight', 'dark'))
 
     const midnightAccent = midnightTheme.darkColors?.midground ?? midnightTheme.colors.midground ?? midnightTheme.colors.ring
     expect(cssVar('--ui-selection-background')).toBe(chatSelectionBackground(midnightAccent, 'dark'))
-    expect(cssVar('--ui-composer-selection-background')).toBe(COMPOSER_SELECTION_BACKGROUND.dark)
+    expect(cssVar('--ui-composer-selection-background')).toBe(composerSelectionBackground('dark'))
   })
 
   it('commits the retired Blue name as Olive', () => {

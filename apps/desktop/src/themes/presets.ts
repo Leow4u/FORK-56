@@ -24,7 +24,7 @@ export const DEFAULT_TYPOGRAPHY: DesktopThemeTypography = { fontSans: SYSTEM_SAN
 const PAPER = '#FAF9F5'
 const INK = '#1A1915'
 const OLIVE = '#4D5943'
-const SAGE = '#C9D2BC'
+export const SAGE = '#C9D2BC'
 
 // Glass-olive scale — one stop per former Blue role, not a single accent swap.
 // Light: mist canvas / cooler rail / leaf-into-white tints (same mix %).

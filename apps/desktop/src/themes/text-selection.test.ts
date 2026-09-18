@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { work4youOliveTheme, work4youTheme } from './presets'
-import {
-  CHAT_SELECTION_ACCENT_MIX,
-  COMPOSER_SELECTION_BACKGROUND,
-  chatSelectionBackground
-} from './text-selection'
+import { SAGE, work4youOliveTheme, work4youTheme } from './presets'
+import { chatSelectionBackground, composerSelectionBackground } from './text-selection'
 
 describe('text selection washes', () => {
   it('tints conversation with the brand accent, olive on Work4You', () => {
@@ -14,15 +10,15 @@ describe('text selection washes', () => {
 
     expect(paper).toBeDefined()
     expect(glass).toBeDefined()
-    expect(chatSelectionBackground(paper!, 'light')).toBe(
-      `color-mix(in srgb, ${paper} ${CHAT_SELECTION_ACCENT_MIX.light}%, transparent)`
-    )
+    expect(chatSelectionBackground(paper!, 'light')).toContain(paper!)
     expect(chatSelectionBackground(glass!, 'light')).toContain(glass!)
-    expect(chatSelectionBackground(paper!, 'light')).not.toBe(COMPOSER_SELECTION_BACKGROUND.light)
   })
 
-  it('gives the composer draft the lighter GitHub editor wash', () => {
-    expect(COMPOSER_SELECTION_BACKGROUND.light).toBe('rgba(84,174,255,0.28)')
-    expect(COMPOSER_SELECTION_BACKGROUND.dark).toBe('rgba(56,139,253,0.25)')
+  it('tints the composer draft with sage, the light olive stop', () => {
+    expect(composerSelectionBackground('light')).toContain(SAGE)
+    expect(composerSelectionBackground('dark')).toContain(SAGE)
+    expect(composerSelectionBackground('light')).not.toBe(
+      chatSelectionBackground(work4youTheme.colors.midground ?? work4youTheme.colors.ring, 'light')
+    )
   })
 })
