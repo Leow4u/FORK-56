@@ -205,9 +205,9 @@ if [ -z "$FOUND_PYTHON" ] || [ ! -x "$FOUND_PYTHON" ]; then
 fi
 FOUND_BIN="$(dirname "$FOUND_PYTHON")"
 if [ "$(basename "$FOUND_BIN")" = "bin" ]; then
-  FOUND_HOME="$(cd "$FOUND_BIN/.." && pwd)"
+  FOUND_HOME="$(cd "$FOUND_BIN/.." && pwd -P)"
 else
-  FOUND_HOME="$(cd "$FOUND_BIN" && pwd)"
+  FOUND_HOME="$(cd "$FOUND_BIN" && pwd -P)"
 fi
 echo "[runtime] copying CPython from $FOUND_HOME"
 cp -a "$FOUND_HOME" "$PYTHON_HOME"
