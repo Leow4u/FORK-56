@@ -125,6 +125,14 @@ done
 
 copy_replace_dir "$BUNDLE_DIR/work4you" "$INSTALL_DIR" .env .git
 
+python3 -c '
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from work4you_cli.desktop_runtime import rewrite_runtime_symlinks
+rewrite_runtime_symlinks(Path(sys.argv[2]))
+' "$INSTALL_DIR" "$WORK4YOU_HOME" || echo "[work4you] symlink rewrite skipped" >&2
+
 rewrite_pyvenv_cfg() {
   local cfg="$INSTALL_DIR/venv/pyvenv.cfg"
   if [ ! -f "$cfg" ]; then

@@ -143,6 +143,55 @@ def rewrite_pyvenv_cfg(text: str, python_home: str, *, executable: str | None = 
     return "\n".join(out) + ("\n" if text.endswith("\n") or not text else "\n")
 
 
+def rewrite_runtime_symlinks(root: Path) -> list[str]:
+    """Rewrite absolute / escaping symlinks so the tree can live inside a .app.
+
+    ``venv/bin/python`` from ``uv venv`` points at the builder CPython with an
+    absolute path. ``codesign --deep --strict`` then fails with
+    ``invalid destination for symbolic link in bundle`` when extraResources
+    copies that tree into ``Work4You.app``.
+    """
+    root = Path(root).resolve()
+    if not root.is_dir():
+        raise ValueError(f"runtime root is not a directory: {root}")
+
+    changed: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        for name in (*dirnames, *filenames):
+            path = Path(dirpath) / name
+            try:
+                if not path.is_symlink():
+                    continue
+            except OSError:
+                continue
+            raw = os.readlink(path)
+            immediate = Path(raw) if os.path.isabs(raw) else path.parent / raw
+            if not immediate.exists():
+                raise ValueError(f"broken symlink {path} -> {raw}")
+            resolved = immediate.resolve()
+            rel_name = Path(os.path.relpath(path, root)).as_posix()
+            try:
+                resolved.relative_to(root)
+            except ValueError:
+                if resolved.is_file():
+                    path.unlink()
+                    shutil.copy2(resolved, path)
+                    changed.append(rel_name)
+                    continue
+                raise ValueError(
+                    f"symlink {path} points outside the runtime tree: {raw}"
+                ) from None
+            new_rel = os.path.relpath(resolved, start=path.parent)
+            if os.name != "nt":
+                new_rel = new_rel.replace("\\", "/")
+            if new_rel == raw:
+                continue
+            path.unlink()
+            os.symlink(new_rel, path)
+            changed.append(rel_name)
+    return changed
+
+
 def write_pyvenv_cfg(venv_dir: Path, python_home: str) -> Path:
     cfg = Path(venv_dir) / "pyvenv.cfg"
     original = cfg.read_text(encoding="utf-8") if cfg.is_file() else "home = \n"
@@ -345,6 +394,7 @@ def apply_prebuilt_runtime_bundle(
         shutil.copytree(src, dest)
 
     _copy_replace_tree(bundle / "work4you", install_dir, preserve=INSTALL_PRESERVE)
+    rewrite_runtime_symlinks(home)
 
     venv_dir = install_dir / "venv"
     if venv_dir.is_dir() and python_home.is_dir():

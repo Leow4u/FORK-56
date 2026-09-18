@@ -173,6 +173,29 @@ def test_zip_only_writes_relative_zip_from_cwd_not_out_dir(tmp_path):
 
 
 @pytest.mark.linux_only
+def test_rewrite_symlinks_flag_relativizes_absolute_python(tmp_path):
+    root = tmp_path / "runtime"
+    target = root / "python" / "bin" / "python3"
+    target.parent.mkdir(parents=True)
+    target.write_text("#!/bin/sh\n", encoding="utf-8")
+    target.chmod(0o755)
+    link = root / "work4you" / "venv" / "bin" / "python"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(target)
+    result = subprocess.run(
+        [BASH, str(SCRIPT), "--rewrite-symlinks", str(root)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    raw = os.readlink(link)
+    assert not os.path.isabs(raw)
+    assert "rewrote" in result.stdout
+    assert (link.parent / raw).resolve() == target.resolve()
+
+
+@pytest.mark.linux_only
 def test_zip_only_missing_out_dir_fails(tmp_path):
     result = subprocess.run(
         [

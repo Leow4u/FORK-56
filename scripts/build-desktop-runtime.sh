@@ -14,6 +14,7 @@ RIPGREP_VERSION="14.1.1"
 ZIP_OUT=""
 SKIP_RELOCATE_TEST=0
 ZIP_ONLY=0
+REWRITE_SYMLINKS_DIR=""
 
 RESOLVE_UV_DIR=""
 PRINT_UV=0
@@ -28,6 +29,7 @@ while [ $# -gt 0 ]; do
     --zip-out) ZIP_OUT="${2:-}"; shift 2 ;;
     --skip-relocate-test) SKIP_RELOCATE_TEST=1; shift ;;
     --zip-only) ZIP_ONLY=1; shift ;;
+    --rewrite-symlinks) REWRITE_SYMLINKS_DIR="${2:-}"; shift 2 ;;
     --resolve-uv) RESOLVE_UV_DIR="${2:-}"; shift 2 ;;
     --print-uv) PRINT_UV=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 1 ;;
@@ -122,6 +124,25 @@ write_runtime_zip() {
     zip -qry "$ZIP_OUT" .
   )
 }
+
+rewrite_payload_symlinks() {
+  local tree="$1"
+  python3 - "$REPO_ROOT" "$tree" <<'PY'
+import sys
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[1])
+from work4you_cli.desktop_runtime import rewrite_runtime_symlinks
+
+changed = rewrite_runtime_symlinks(Path(sys.argv[2]))
+print(f"[runtime] rewrote {len(changed)} symlink(s) to stay inside the payload")
+PY
+}
+
+if [ -n "$REWRITE_SYMLINKS_DIR" ]; then
+  rewrite_payload_symlinks "$REWRITE_SYMLINKS_DIR"
+  exit 0
+fi
 
 if [ "$ZIP_ONLY" -eq 1 ]; then
   write_runtime_zip
@@ -297,6 +318,9 @@ payload = {
 }
 Path("""$OUT_DIR/manifest.json""").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 PY
+
+echo "[runtime] rewriting payload symlinks"
+rewrite_payload_symlinks "$OUT_DIR"
 
 if [ "$SKIP_RELOCATE_TEST" -eq 0 ]; then
   echo "[runtime] relocate self-test"

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
 import zipfile
 from pathlib import Path
+
+import pytest
 
 from work4you_cli.desktop_runtime import (
     apply_prebuilt_runtime_bundle,
@@ -16,6 +19,7 @@ from work4you_cli.desktop_runtime import (
     is_present_runtime_manifest,
     parse_runtime_manifest,
     rewrite_pyvenv_cfg,
+    rewrite_runtime_symlinks,
     runtime_zip_name,
     seed_home_templates,
     stub_runtime_manifest,
@@ -223,6 +227,54 @@ def test_apply_posix_bundle_writes_install_bin_launcher(tmp_path):
     assert str(home / "python") in cfg
     assert "bin/python3" in cfg
     assert "/builder/" not in cfg
+
+
+@pytest.mark.linux_only
+def test_rewrite_runtime_symlinks_converts_absolute_inside_link(tmp_path):
+    root = tmp_path / "runtime"
+    target = root / "python" / "bin" / "python3"
+    target.parent.mkdir(parents=True)
+    target.write_text("#!/bin/sh\n", encoding="utf-8")
+    target.chmod(0o755)
+    link = root / "work4you" / "venv" / "bin" / "python"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(target)
+    assert os.path.isabs(os.readlink(link))
+
+    changed = rewrite_runtime_symlinks(root)
+    assert "work4you/venv/bin/python" in changed
+    raw = os.readlink(link)
+    assert not os.path.isabs(raw)
+    assert (link.parent / raw).resolve() == target.resolve()
+
+
+@pytest.mark.linux_only
+def test_rewrite_runtime_symlinks_copies_outside_file(tmp_path):
+    root = tmp_path / "runtime"
+    root.mkdir()
+    outside = tmp_path / "builder" / "uv"
+    outside.parent.mkdir()
+    outside.write_text("#!/bin/sh\n", encoding="utf-8")
+    outside.chmod(0o755)
+    link = root / "bin" / "uv"
+    link.parent.mkdir()
+    link.symlink_to(outside)
+
+    changed = rewrite_runtime_symlinks(root)
+    assert "bin/uv" in changed
+    assert not link.is_symlink()
+    assert link.is_file()
+    assert link.read_text(encoding="utf-8") == "#!/bin/sh\n"
+
+
+@pytest.mark.linux_only
+def test_rewrite_runtime_symlinks_rejects_broken_link(tmp_path):
+    root = tmp_path / "runtime"
+    link = root / "bin" / "missing"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(root / "no-such-file")
+    with pytest.raises(ValueError, match="broken symlink"):
+        rewrite_runtime_symlinks(root)
 
 
 def test_is_prebuilt_runtime_root_requires_python_and_work4you(tmp_path):
