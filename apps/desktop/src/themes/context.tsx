@@ -21,7 +21,7 @@ import { $backendThemes, $pendingSkinApply } from './backend-sync'
 import { hexToRgb, mix, readableOn } from './color'
 import { BUILTIN_THEME_LIST, DEFAULT_SKIN_NAME, DEFAULT_TYPOGRAPHY, work4youTheme } from './presets'
 import type { DesktopTheme, DesktopThemeColors } from './types'
-import { textSelectionBackground } from './text-selection'
+import { chatSelectionBackground, COMPOSER_SELECTION_BACKGROUND } from './text-selection'
 import { $userThemes, listAllThemes, resolveTheme } from './user-themes'
 
 // Legacy global skin (pre per-profile themes). Still the inheritance fallback
@@ -235,8 +235,8 @@ function applyTheme(theme: DesktopTheme, mode: 'light' | 'dark') {
     '--dt-font-sans': typo.fontSans,
     '--dt-font-mono': typo.fontMono,
     '--noise-opacity-mul': isDark ? 'calc(0.04 / 0.21)' : 'calc(0.34 / 0.21)',
-    '--ui-selection-background': textSelectionBackground('chat', rendered),
-    '--ui-composer-selection-background': textSelectionBackground('composer', rendered)
+    '--ui-selection-background': chatSelectionBackground(midground, rendered),
+    '--ui-composer-selection-background': COMPOSER_SELECTION_BACKGROUND[rendered]
   }
 
   for (const [k, v] of Object.entries({ ...seeds, ...mixesFor(isDark), ...palette })) {

@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { __resetBackendSkinSync, ingestBackendSkin } from './backend-sync'
 import { skinPref, ThemeProvider, useTheme } from './context'
-import { midnightTheme, work4youOliveTheme } from './presets'
-import { CHAT_SELECTION_BACKGROUND, COMPOSER_SELECTION_BACKGROUND } from './text-selection'
+import { midnightTheme, work4youOliveTheme, work4youTheme } from './presets'
+import { chatSelectionBackground, COMPOSER_SELECTION_BACKGROUND } from './text-selection'
 
 // The live-authoring loop: Work4You writes/edits one skin file and every surface
 // repaints. An in-place edit keeps the NAME — only the palette moves.
@@ -139,15 +139,18 @@ describe('ThemeProvider highlight preview', () => {
     expect(cssVar('--theme-foreground')).toBe(painted)
   })
 
-  it('paints VS Code chat selection and GitHub composer selection', () => {
+  it('paints brand-accent chat selection and GitHub composer selection', () => {
     renderProbe()
 
-    expect(cssVar('--ui-selection-background')).toBe(CHAT_SELECTION_BACKGROUND.light)
+    expect(cssVar('--ui-selection-background')).toBe(
+      chatSelectionBackground(work4youTheme.colors.midground ?? work4youTheme.colors.ring, 'light')
+    )
     expect(cssVar('--ui-composer-selection-background')).toBe(COMPOSER_SELECTION_BACKGROUND.light)
 
     act(() => ctx.previewTheme('midnight', 'dark'))
 
-    expect(cssVar('--ui-selection-background')).toBe(CHAT_SELECTION_BACKGROUND.dark)
+    const midnightAccent = midnightTheme.darkColors?.midground ?? midnightTheme.colors.midground ?? midnightTheme.colors.ring
+    expect(cssVar('--ui-selection-background')).toBe(chatSelectionBackground(midnightAccent, 'dark'))
     expect(cssVar('--ui-composer-selection-background')).toBe(COMPOSER_SELECTION_BACKGROUND.dark)
   })
 

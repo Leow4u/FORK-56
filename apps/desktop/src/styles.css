@@ -368,9 +368,9 @@
     --ui-chat-bubble-opaque-background: var(--ui-bg-editor);
     --ui-inline-code-background: color-mix(in srgb, #141414 5%, transparent);
     --ui-inline-code-foreground: color-mix(in srgb, #141414 88%, transparent);
-    /* VS Code navy — conversation / sent text. Composer overrides with the
-       lighter GitHub editor wash (`--ui-composer-selection-background`). */
-    --ui-selection-background: #264f7899;
+    /* Brand accent (olive on Work4You) — conversation / sent text. Composer
+       overrides with the lighter GitHub editor wash. */
+    --ui-selection-background: color-mix(in srgb, var(--ui-accent) 58%, transparent);
     --ui-composer-selection-background: rgba(84,174,255,0.28);
 
     --dt-background: var(--ui-bg-editor);
@@ -548,7 +548,7 @@
 
     --ui-inline-code-background: color-mix(in srgb, #ffffff 7%, transparent);
     --ui-inline-code-foreground: color-mix(in srgb, #ffffff 88%, transparent);
-    --ui-selection-background: #264f78b3;
+    --ui-selection-background: color-mix(in srgb, var(--ui-accent) 46%, transparent);
     --ui-composer-selection-background: rgba(56,139,253,0.25);
     /* A dark card sits ABOVE the chrome (#161618 over #0d0d0e), so an inline
        widget wearing the raw card fill reads as a lit panel. Take it down a

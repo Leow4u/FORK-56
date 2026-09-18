@@ -1,11 +1,11 @@
 /**
- * Text-selection washes. Chat / sent copy uses the darker VS Code navy
- * (`#264f78`). The composer draft keeps the lighter GitHub editor highlight.
+ * Text-selection washes. Conversation / sent copy tints the brand accent
+ * (olive on Work4You). The composer draft keeps the lighter GitHub editor wash.
  */
 
-export const CHAT_SELECTION_BACKGROUND = {
-  light: '#264f7899',
-  dark: '#264f78b3'
+export const CHAT_SELECTION_ACCENT_MIX = {
+  light: 58,
+  dark: 46
 } as const
 
 export const COMPOSER_SELECTION_BACKGROUND = {
@@ -13,6 +13,6 @@ export const COMPOSER_SELECTION_BACKGROUND = {
   dark: 'rgba(56,139,253,0.25)'
 } as const
 
-export function textSelectionBackground(surface: 'chat' | 'composer', mode: 'light' | 'dark'): string {
-  return (surface === 'composer' ? COMPOSER_SELECTION_BACKGROUND : CHAT_SELECTION_BACKGROUND)[mode]
+export function chatSelectionBackground(accent: string, mode: 'light' | 'dark'): string {
+  return `color-mix(in srgb, ${accent} ${CHAT_SELECTION_ACCENT_MIX[mode]}%, transparent)`
 }
