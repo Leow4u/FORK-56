@@ -112,6 +112,10 @@ class TestMergeDirectory:
         popular = {row["id"] for row in apps if row["popular"]}
         assert popular == set(NATIVE_POPULAR)
 
+    def test_instagram_and_linkedin_are_popular_pins(self):
+        popular = {row["slug"] for row in COMPOSIO_CATALOG if row.get("popular")}
+        assert {"instagram", "linkedin"} <= popular
+
 
 class TestInjectAndBootstrap:
     def test_inject_upserts_without_replacing_other_servers(self, _isolate_work4you_home):

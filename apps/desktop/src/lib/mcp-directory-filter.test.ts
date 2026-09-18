@@ -4,7 +4,8 @@ import {
   mcpCatalogPrimaryAction,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
-  mcpDirectoryShowsConnected
+  mcpDirectoryShowsConnected,
+  mcpDirectoryShowsPopular
 } from './mcp-directory-filter'
 
 describe('mcpDirectoryQueryHit', () => {
@@ -34,6 +35,15 @@ describe('mcpDirectoryShowsConnected / available', () => {
   it('available hides the installed section', () => {
     expect(mcpDirectoryShowsConnected('available')).toBe(false)
     expect(mcpDirectoryShowsAvailable('available')).toBe(true)
+  })
+})
+
+describe('mcpDirectoryShowsPopular', () => {
+  it('pins Popular on Discover, not on Connected', () => {
+    expect(mcpDirectoryShowsPopular('discover')).toBe(true)
+    expect(mcpDirectoryShowsPopular('all')).toBe(true)
+    expect(mcpDirectoryShowsPopular('available')).toBe(true)
+    expect(mcpDirectoryShowsPopular('connected')).toBe(false)
   })
 })
 

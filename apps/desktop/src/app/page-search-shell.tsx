@@ -99,6 +99,7 @@ export function PageSearchShell({
                   hints={searchHints}
                   onChange={onSearchChange}
                   placeholder={searchPlaceholder}
+                  recede={false}
                   value={searchValue}
                 />
               )}

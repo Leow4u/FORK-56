@@ -4,5 +4,6 @@ export {
   type McpDirectoryFilter,
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
-  mcpDirectoryShowsConnected
+  mcpDirectoryShowsConnected,
+  mcpDirectoryShowsPopular
 } from '@work4you/shared'

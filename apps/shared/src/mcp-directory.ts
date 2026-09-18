@@ -180,6 +180,11 @@ export function mcpDirectoryShowsAvailable(filter: McpDirectoryFilter): boolean 
   return filter === 'all' || filter === 'available' || filter === 'discover'
 }
 
+/** Popular is a Discover pin. Connected should not repeat those cards. */
+export function mcpDirectoryShowsPopular(filter: McpDirectoryFilter): boolean {
+  return filter !== 'connected'
+}
+
 /** OAuth catalog entries use the same install handler; the label is Connect. */
 export function mcpCatalogPrimaryAction(authType: string | undefined): 'connect' | 'install' {
   return authType === 'oauth' ? 'connect' : 'install'
@@ -224,10 +229,16 @@ export interface DirectorySectionGroup {
  * Perplexity-style groups. Popular apps also appear in their type section.
  * `discover` and `all` both section; connected/available stay sectioned too
  * so the store never splits into a native-vs-Composio taxonomy.
+ * Pass `pinPopular: false` for Connected — the same apps already sit in
+ * their type section.
  */
-export function groupDirectorySections(apps: readonly DirectoryApp[]): DirectorySectionGroup[] {
+export function groupDirectorySections(
+  apps: readonly DirectoryApp[],
+  opts?: { pinPopular?: boolean }
+): DirectorySectionGroup[] {
   const groups: DirectorySectionGroup[] = []
-  const popular = apps.filter(app => app.popular)
+  const pinPopular = opts?.pinPopular !== false
+  const popular = pinPopular ? apps.filter(app => app.popular) : []
 
   if (popular.length) {
     groups.push({ id: 'popular', label: DIRECTORY_SECTION_LABELS.popular, apps: popular })
