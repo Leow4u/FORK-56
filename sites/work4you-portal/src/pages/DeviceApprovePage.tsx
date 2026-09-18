@@ -21,12 +21,13 @@ export function DeviceApprovePage() {
   const { ready, authenticated, getAccessToken } = usePrivy()
 
   const canSubmit = useMemo(() => canSubmitDeviceUserCode(userCode), [userCode])
+  const layoutPreview = import.meta.env.DEV && params.get('preview') === '1'
 
   useEffect(() => {
     document.title = done ? 'Dispositivo autorizado' : 'Autorizar dispositivo'
   }, [done])
 
-  if (ready && !authenticated) {
+  if (!layoutPreview && ready && !authenticated) {
     const next = deviceVerificationPath(userCode || initial)
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />
   }
@@ -62,7 +63,7 @@ export function DeviceApprovePage() {
     }
   }
 
-  if (!ready) {
+  if (!layoutPreview && !ready) {
     return (
       <div className={page.page}>
         <main className={page.main}>
