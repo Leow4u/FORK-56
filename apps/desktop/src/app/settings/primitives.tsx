@@ -20,6 +20,7 @@ export function SettingsContent({ children, bare = false }: { children: ReactNod
           'h-full min-h-0 overflow-y-auto',
           bare ? 'px-5 pb-6' : cn('mx-auto w-full pb-20', PAGE_SETTINGS_MAX_W, PAGE_INSET_X)
         )}
+        data-slot={bare ? undefined : 'settings-content'}
       >
         {children}
       </div>

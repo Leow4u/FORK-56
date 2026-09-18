@@ -20,10 +20,9 @@ export const PAGE_MAX_W = 'max-w-[75rem]'
 
 // Settings right-pane column: a centered reading width so label+control rows
 // don't sprawl across the overlay. OverlayMain fills with the chat stage
-// token; only the information is capped. Literal for Tailwind.
-// Chat transcript + composer use `--composer-width` in styles.css (48rem),
-// not this class.
-export const PAGE_SETTINGS_MAX_W = 'max-w-[42rem]'
+// token; only the information is capped — this is not a full-stage fill.
+// Same rem as chat `--composer-width` (48rem); this class is Settings-only.
+export const PAGE_SETTINGS_MAX_W = 'max-w-[48rem]'
 
 // Below this viewport width a docked sidebar leaves no room for content, so both
 // rails auto-collapse into the hover-reveal overlay. Single source of truth for
