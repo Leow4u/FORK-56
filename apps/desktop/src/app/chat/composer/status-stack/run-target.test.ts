@@ -30,11 +30,11 @@ describe('pickConnectionByKind', () => {
 })
 
 describe('resolveComposerRunTarget', () => {
-  it('follows the active registry row when it is Local or Cloud', () => {
+  it('follows the live descriptor over a stale Local registry id', () => {
     expect(
       resolveComposerRunTarget({
-        activeConnectionId: 'cloud-1',
-        connection: { mode: 'remote', remoteKind: 'url' },
+        activeConnectionId: 'local',
+        connection: { mode: 'remote', remoteKind: 'cloud' },
         connections: [local, cloud]
       })
     ).toBe('cloud')
@@ -45,6 +45,16 @@ describe('resolveComposerRunTarget', () => {
         connections: [local]
       })
     ).toBe('local')
+  })
+
+  it('falls back to the active registry row when the live backend is neither', () => {
+    expect(
+      resolveComposerRunTarget({
+        activeConnectionId: 'cloud-1',
+        connection: { mode: 'remote', remoteKind: 'url' },
+        connections: [local, cloud]
+      })
+    ).toBe('cloud')
   })
 
   it('treats a remote-shaped Cloud descriptor as Cloud', () => {
@@ -91,7 +101,7 @@ describe('lastCloudApplySource', () => {
   it('falls back to the in-session remember after Local apply wipes v1', () => {
     expect(
       lastCloudApplySource({
-        connection: { baseUrl: 'http://127.0.0.1:9', mode: 'local' },
+        connection: { baseUrl: 'http://127.0.0.1:9' },
         remembered: { cloudOrg: 'acme', remoteUrl: 'https://remembered.example' },
         saved: { cloudOrg: '', mode: 'local', remoteUrl: '' }
       })
@@ -101,7 +111,7 @@ describe('lastCloudApplySource', () => {
   it('returns null when Cloud has never been connected', () => {
     expect(
       lastCloudApplySource({
-        connection: { baseUrl: 'http://127.0.0.1:9', mode: 'local' },
+        connection: { baseUrl: 'http://127.0.0.1:9' },
         saved: { cloudOrg: '', mode: 'local', remoteUrl: '' }
       })
     ).toBeNull()

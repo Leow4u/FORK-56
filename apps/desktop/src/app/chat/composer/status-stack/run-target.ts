@@ -56,18 +56,20 @@ export function resolveComposerRunTarget(args: {
   connection: null | Pick<Work4YouConnection, 'mode' | 'remoteKind'>
   connections: readonly RegistryRow[]
 }): ComposerRunTarget | null {
-  const active = args.connections.find(connection => connection.id === args.activeConnectionId)
-
-  if (active?.kind === 'cloud' || active?.kind === 'local') {
-    return active.kind
-  }
-
+  // v1 apply does not always stamp a registry id. Prefer the live descriptor
+  // so a Cloud session is not painted (or no-op'd) as Local.
   if (args.connection?.remoteKind === 'cloud') {
     return 'cloud'
   }
 
   if (args.connection?.mode === 'local') {
     return 'local'
+  }
+
+  const active = args.connections.find(connection => connection.id === args.activeConnectionId)
+
+  if (active?.kind === 'cloud' || active?.kind === 'local') {
+    return active.kind
   }
 
   return null

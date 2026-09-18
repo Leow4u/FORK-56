@@ -72,12 +72,15 @@ export function ComposerRunTargetMenu({ side = 'top' }: { side?: 'bottom' | 'top
     const desktop = window.work4youDesktop
     const saved = (await desktop?.getConnectionConfig?.(null).catch(() => null)) ?? null
     const live = $connection.get()
+
     const cloud = lastCloudApplySource({
       connection: live,
       remembered: readRememberedComposerCloudApply(),
       saved
     })
+
     rememberComposerCloudApply(cloud)
+
     const intent = composerRunTargetIntent(target, {
       active: resolveComposerRunTarget({
         activeConnectionId: $activeConnectionId.get(),

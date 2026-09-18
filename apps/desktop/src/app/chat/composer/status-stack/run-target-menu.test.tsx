@@ -7,8 +7,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import type { DesktopConnectionConfig, DesktopConnectionsRegistry, Work4YouConnection } from '@/global'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
-import { ComposerRunTargetMenu } from './run-target-menu'
 import { _resetComposerRunTargetForTests } from './run-target'
+import { ComposerRunTargetMenu } from './run-target-menu'
 
 const navigate = vi.fn()
 const applyConnectionConfig = vi.fn(async () => undefined)
