@@ -1071,11 +1071,18 @@ def _write_gateway_update_exit_code(ok: bool) -> None:
         pass
 
 
-def _update_via_zip(args, *, had_desktop_app_before_update: bool = False) -> bool:
+def _update_via_zip(
+    args,
+    *,
+    had_desktop_app_before_update: bool = False,
+    runtime_payload: bool = False,
+) -> bool:
     """Update Work4You by downloading a ZIP archive.
 
     Used on Windows when git file I/O is broken (antivirus, NTFS filter
-    drivers causing 'Invalid argument' errors on file creation).
+    drivers causing 'Invalid argument' errors on file creation), and for
+    consumer desktop installs stamped ``desktop`` (filtered runtime payload,
+    no git clone / no ``git pull``).
 
     Returns ``False`` when a Desktop rebuild ran and failed; ``True`` otherwise.
     """
@@ -1084,6 +1091,8 @@ def _update_via_zip(args, *, had_desktop_app_before_update: bool = False) -> boo
     import tempfile
     import zipfile
     from urllib.request import urlretrieve
+
+    from work4you_cli.runtime_payload import github_archive_url
 
     # Snapshot the pre-update version before files are replaced so the
     # completion line can report the transition (prime-agent#630 port).
@@ -1094,9 +1103,10 @@ def _update_via_zip(args, *, had_desktop_app_before_update: bool = False) -> boo
     # channel but would silently ignore --branch and update from main even
     # if the user asked for something else — exactly the silent-divergence
     # bug --branch was added to prevent. Refuse to proceed in that case
-    # rather than lie.
+    # rather than lie. Desktop payload installs honor --branch: the archive
+    # URL is the update channel.
     branch = _m()._resolve_update_branch(args)
-    if branch != "main":
+    if branch != "main" and not runtime_payload:
         print(
             f"✗ --branch={branch} is not supported on the Windows ZIP-fallback "
             "update path."
@@ -1108,9 +1118,7 @@ def _update_via_zip(args, *, had_desktop_app_before_update: bool = False) -> boo
             f"--branch {branch}`, or update against main with `work4you update`."
         )
         _m().sys.exit(1)
-    zip_url = (
-        f"https://github.com/Leow4u/FORK-56/archive/refs/heads/{branch}.zip"
-    )
+    zip_url = github_archive_url(branch=branch)
 
     print("→ Downloading latest version...")
     tmp_dir = tempfile.mkdtemp(prefix="work4you-update-")
@@ -1119,45 +1127,55 @@ def _update_via_zip(args, *, had_desktop_app_before_update: bool = False) -> boo
         urlretrieve(zip_url, zip_path)
 
         print("→ Extracting...")
-        import stat as _stat
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            # Validate paths to prevent zip-slip (path traversal) AND reject
-            # symlink members. A GitHub source ZIP for work4you itself
-            # should never contain symlinks — they'd point outside the
-            # extracted tree and let an attacker who can compromise the
-            # update mirror plant arbitrary files via the update path.
-            tmp_dir_real = os.path.realpath(tmp_dir)
-            for member in zf.infolist():
-                member_path = os.path.realpath(os.path.join(tmp_dir, member.filename))
-                if (
-                    not member_path.startswith(tmp_dir_real + os.sep)
-                    and member_path != tmp_dir_real
-                ):
-                    raise ValueError(
-                        f"Zip-slip detected: {member.filename} escapes extraction directory"
-                    )
-                # Unix mode lives in the upper 16 bits of external_attr;
-                # mask to the file-type bits.
-                mode = (member.external_attr >> 16) & 0o170000
-                if _stat.S_ISLNK(mode):
-                    raise ValueError(
-                        f"ZIP contains unsupported symlink member: {member.filename}"
-                    )
-            zf.extractall(tmp_dir)
+        if runtime_payload:
+            from work4you_cli.runtime_payload import (
+                extract_runtime_zip,
+                list_payload_top_level,
+            )
 
-        # GitHub ZIPs extract to work4you-<branch>/
-        extracted = os.path.join(tmp_dir, f"work4you-{branch}")
-        if not os.path.isdir(extracted):
-            # Try to find it
-            for d in os.listdir(tmp_dir):
-                candidate = os.path.join(tmp_dir, d)
-                if os.path.isdir(candidate) and d != "__MACOSX":
-                    extracted = candidate
-                    break
+            extracted = os.path.join(tmp_dir, "payload")
+            extract_runtime_zip(zip_path, extracted)
+            entries = list_payload_top_level(extracted)
+        else:
+            import stat as _stat
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                # Validate paths to prevent zip-slip (path traversal) AND reject
+                # symlink members. A GitHub source ZIP for work4you itself
+                # should never contain symlinks — they'd point outside the
+                # extracted tree and let an attacker who can compromise the
+                # update mirror plant arbitrary files via the update path.
+                tmp_dir_real = os.path.realpath(tmp_dir)
+                for member in zf.infolist():
+                    member_path = os.path.realpath(os.path.join(tmp_dir, member.filename))
+                    if (
+                        not member_path.startswith(tmp_dir_real + os.sep)
+                        and member_path != tmp_dir_real
+                    ):
+                        raise ValueError(
+                            f"Zip-slip detected: {member.filename} escapes extraction directory"
+                        )
+                    # Unix mode lives in the upper 16 bits of external_attr;
+                    # mask to the file-type bits.
+                    mode = (member.external_attr >> 16) & 0o170000
+                    if _stat.S_ISLNK(mode):
+                        raise ValueError(
+                            f"ZIP contains unsupported symlink member: {member.filename}"
+                        )
+                zf.extractall(tmp_dir)
 
-        # Copy updated files over existing installation, preserving venv/node_modules/.git
-        preserve = {"venv", "node_modules", ".git", ".env"}
-        entries = [i for i in os.listdir(extracted) if i not in preserve]
+            # GitHub ZIPs extract to work4you-<branch>/
+            extracted = os.path.join(tmp_dir, f"work4you-{branch}")
+            if not os.path.isdir(extracted):
+                # Try to find it
+                for d in os.listdir(tmp_dir):
+                    candidate = os.path.join(tmp_dir, d)
+                    if os.path.isdir(candidate) and d != "__MACOSX":
+                        extracted = candidate
+                        break
+
+            # Copy updated files over existing installation, preserving venv/node_modules/.git
+            preserve = {"venv", "node_modules", ".git", ".env"}
+            entries = [i for i in os.listdir(extracted) if i not in preserve]
 
         # Two-phase replace (#76104). Phase 1 copies every entry — directories
         # AND top-level files — to a sibling staging path without touching
@@ -1224,6 +1242,18 @@ def _update_via_zip(args, *, had_desktop_app_before_update: bool = False) -> boo
         update_count = len(staged)
 
         print(f"✓ Updated {update_count} items from ZIP")
+        if runtime_payload:
+            from work4you_cli.config import stamp_install_method
+            from work4you_cli.runtime_payload import (
+                fetch_github_commit_sha,
+                write_runtime_ref,
+            )
+
+            stamp_install_method("desktop", project_root=_m().PROJECT_ROOT)
+            sha = fetch_github_commit_sha("Leow4u/FORK-56", branch) or ""
+            write_runtime_ref(
+                _m().PROJECT_ROOT, commit=sha, branch=branch, ref=branch
+            )
 
     except Exception as e:
         print(f"✗ ZIP update failed: {e}")
@@ -1328,12 +1358,16 @@ def _update_via_zip(args, *, had_desktop_app_before_update: bool = False) -> boo
         print("  Re-run `work4you update` to complete it.")
         _m().sys.exit(1)
 
-    node_failures = _update_node_dependencies()
-    _m()._build_web_ui(_m().PROJECT_ROOT / "web")
-    desktop_build_ok = _rebuild_desktop_after_update(
-        _m().PROJECT_ROOT / "apps" / "desktop",
-        had_desktop_app_before_update=had_desktop_app_before_update,
-    )
+    if runtime_payload:
+        node_failures = []
+        desktop_build_ok = True
+    else:
+        node_failures = _update_node_dependencies()
+        _m()._build_web_ui(_m().PROJECT_ROOT / "web")
+        desktop_build_ok = _rebuild_desktop_after_update(
+            _m().PROJECT_ROOT / "apps" / "desktop",
+            had_desktop_app_before_update=had_desktop_app_before_update,
+        )
 
     # Sync skills
     try:
@@ -2714,6 +2748,30 @@ def _run_logged_subprocess(cmd, *, cwd=None, env=None):
     _log_only_write(result.stdout or "")
     return result
 
+
+def _cmd_update_check_desktop(branch: str = "main") -> None:
+    """``work4you update --check`` for a desktop runtime-payload install."""
+    from work4you_cli.runtime_payload import compare_runtime_ref, read_runtime_ref
+
+    recorded = read_runtime_ref(_m().PROJECT_ROOT) or {}
+    local = str(recorded.get("commit") or "").strip()
+    target = (branch or str(recorded.get("branch") or "main")).strip() or "main"
+    behind = compare_runtime_ref(_m().PROJECT_ROOT, branch=target)
+    if behind is None:
+        print("✗ Couldn't reach the update source — try again later.")
+        sys.exit(1)
+    if behind == 0:
+        print("✓ Already up to date.")
+        if local:
+            print(f"  payload {local[:12]} ({target})")
+        return
+    print("↑ Update available.")
+    if local:
+        print(f"  current payload {local[:12]}")
+    cmd = "work4you update" if target == "main" else f"work4you update --branch {target}"
+    print(f"  run: {cmd}")
+
+
 def _cmd_update_check(branch: str = "main", *, branch_explicit: bool = False):
     """Implement ``work4you update --check``: fetch and report without installing.
 
@@ -2745,6 +2803,9 @@ def _cmd_update_check(branch: str = "main", *, branch_explicit: bool = False):
         sys.exit(1)
 
     git_dir = _m().PROJECT_ROOT / ".git"
+    if method == "desktop":
+        _cmd_update_check_desktop(branch)
+        return
     if not git_dir.exists():
         print("✗ Not a git repository — cannot check for updates.")
         sys.exit(1)
@@ -4795,6 +4856,21 @@ def _cmd_update_impl(args, gateway_mode: bool):
     # update path can remove the ignored release tree.
     desktop_dir = _m().PROJECT_ROOT / "apps" / "desktop"
     had_desktop_app_before_update = _desktop_app_present(desktop_dir)
+
+    from work4you_cli.config import detect_install_method as _detect_install_method
+
+    if _detect_install_method(_m().PROJECT_ROOT) == "desktop":
+        try:
+            desktop_build_ok = _update_via_zip(
+                args,
+                had_desktop_app_before_update=False,
+                runtime_payload=True,
+            )
+        finally:
+            _m()._resume_windows_gateways_after_update(_windows_gateway_resume)
+        if gateway_mode:
+            _write_gateway_update_exit_code(desktop_build_ok)
+        return
 
     # Try git-based update first, fall back to ZIP download on Windows
     # when git file I/O is broken (antivirus, NTFS filter drivers, etc.)

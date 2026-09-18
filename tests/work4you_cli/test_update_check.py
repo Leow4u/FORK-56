@@ -37,6 +37,26 @@ def test_check_for_updates_uses_cache(tmp_path, monkeypatch):
 
 
 
+def test_check_for_updates_desktop_compares_runtime_ref(tmp_path, monkeypatch):
+    """Consumer desktop installs have no git history; compare .runtime-ref."""
+    from work4you_cli.banner import check_for_updates
+
+    monkeypatch.setenv("WORK4YOU_HOME", str(tmp_path))
+    monkeypatch.delenv("WORK4YOU_REVISION", raising=False)
+    (tmp_path / "work4you").mkdir()
+    (tmp_path / "work4you" / ".install_method").write_text("desktop\n", encoding="utf-8")
+
+    with patch("work4you_cli.config.detect_install_method", return_value="desktop"), patch(
+        "work4you_cli.config.get_project_root", return_value=tmp_path / "work4you"
+    ), patch(
+        "work4you_cli.runtime_payload.compare_runtime_ref", return_value=-1
+    ) as compare:
+        result = check_for_updates()
+
+    assert result == -1
+    compare.assert_called_once()
+
+
 def test_prefetch_non_blocking():
     """prefetch_update_check() should return immediately without blocking."""
     import work4you_cli.banner as banner

@@ -47,6 +47,14 @@ def test_stamp_install_method_writes_code_scoped(tmp_path):
     assert not (home / ".install_method").exists()
 
 
+def test_desktop_stamp_is_a_supported_install_method(tmp_path):
+    (tmp_path / ".install_method").write_text("desktop\n")
+    with patch("work4you_cli.config.get_managed_system", return_value=None), \
+         patch("work4you_cli.config.get_work4you_home", return_value=tmp_path):
+        from work4you_cli.config import detect_install_method
+        assert detect_install_method(project_root=tmp_path) == "desktop"
+
+
 def test_container_without_stamp_is_not_docker(tmp_path):
     """An unstamped install in a generic container must NOT be flagged as docker.
 

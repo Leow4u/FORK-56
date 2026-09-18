@@ -426,7 +426,7 @@ def _install_method_project_root(project_root: Optional[Path] = None) -> Path:
 
 def detect_install_method(project_root: Optional[Path] = None) -> str:
     """Detect how Work4You was installed: 'apt', 'docker', 'nix', 'nixos',
-    'home-manager', 'git', or 'unknown'.
+    'home-manager', 'git', 'desktop', or 'unknown'.
 
     Resolution order:
     1. Code-scoped stamp ``<install tree>/.install_method`` (next to the
@@ -477,7 +477,16 @@ def detect_install_method(project_root: Optional[Path] = None) -> str:
     # "home-manager" is here because step 3 can return it. A stamp must name
     # every method that this function returns. Without it, the stamp of a
     # home-manager install gives "unknown".
-    supported_methods = {"apt", "docker", "nix", "nixos", "home-manager", "git", "unknown"}
+    supported_methods = {
+        "apt",
+        "desktop",
+        "docker",
+        "nix",
+        "nixos",
+        "home-manager",
+        "git",
+        "unknown",
+    }
 
     # 1. Code-scoped stamp — authoritative, immune to shared $WORK4YOU_HOME.
     try:

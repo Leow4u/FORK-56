@@ -72,7 +72,17 @@ param(
     #   * The canonical CLI one-liner (irm | iex) omits the flag too;
     #     terminal users don't need a desktop binary built for them, and
     #     `work4you desktop` already builds on demand.
-    [switch]$IncludeDesktop
+    [switch]$IncludeDesktop,
+
+    # --- Consumer desktop runtime payload ---------------------------------
+    # When set, Stage-Repository downloads the GitHub source ZIP and copies
+    # only the runtime allowlist (agent/tools/work4you_cli/...). No git
+    # clone, no git init, no web/website/tests/apps. Stamps .install_method
+    # "desktop" so `work4you update` replaces the payload instead of
+    # `git pull`. Existing valid git checkouts keep the git path (no
+    # conversion). The Electron first-launch runner and Work4You-Setup.exe
+    # pass this; the irm|iex CLI one-liner does not.
+    [switch]$RuntimePayload
 )
 
 $ErrorActionPreference = "Stop"
@@ -1983,11 +1993,215 @@ function Install-SystemPackages {
 }
 
 # ============================================================================
+# Desktop runtime payload (consumer Setup / first-launch)
+# ============================================================================
+# Keep these lists in lockstep with work4you_cli/data/runtime_payload.json.
+# The installer runs before work4you_cli exists on disk, so it cannot import
+# the Python module.
+
+$script:RuntimePayloadDirs = @(
+    'acp_adapter', 'agent', 'cron', 'gateway', 'locales', 'optional-mcps',
+    'optional-skills', 'plugins', 'providers', 'skills', 'tools',
+    'tui_gateway', 'work4you_cli'
+)
+$script:RuntimePayloadFiles = @(
+    'LICENSE', 'README.md', 'cli-config.yaml.example', 'pyproject.toml',
+    'setup.py', 'uv.lock', 'work4you'
+)
+$script:RuntimePayloadPreserve = @(
+    'venv', 'bin', 'node_modules', '.git', '.env', '.install_method',
+    '.work4you-bootstrap-complete', '.runtime-ref'
+)
+
+function Get-ZipPayloadRelativePath {
+    param([string]$FullName)
+    $n = ($FullName -replace '\\', '/').Trim('/')
+    if ([string]::IsNullOrWhiteSpace($n)) { return $null }
+    $slash = $n.IndexOf('/')
+    if ($slash -lt 0) { return $null }
+    return $n.Substring($slash + 1)
+}
+
+function Test-RuntimePayloadRelativePath {
+    param([string]$Rel)
+    if ([string]::IsNullOrWhiteSpace($Rel)) { return $false }
+    $rel = ($Rel -replace '\\', '/').Trim('/')
+    if ($rel -match '(^|/)\.\.(/|$)') { return $false }
+    $parts = @($rel -split '/')
+    $top = $parts[0]
+    if ($script:RuntimePayloadDirs -contains $top) { return $true }
+    if ($parts.Count -eq 1) {
+        if ($script:RuntimePayloadFiles -contains $top) { return $true }
+        if ($top -like '*.py') { return $true }
+    }
+    return $false
+}
+
+function Test-ValidGitCheckout {
+    param([string]$Dir)
+    if (-not (Test-Path -LiteralPath "$Dir\.git")) { return $false }
+    Push-Location $Dir
+    try {
+        $global:LASTEXITCODE = 0
+        $revParseOut = & git -c windows.appendAtomically=false rev-parse --is-inside-work-tree 2>&1
+        $revParseOk = ($LASTEXITCODE -eq 0) -and ($revParseOut -match "true")
+        $global:LASTEXITCODE = 0
+        $null = & git -c windows.appendAtomically=false status --short 2>&1
+        $statusOk = ($LASTEXITCODE -eq 0)
+        $global:LASTEXITCODE = 0
+        $null = & git -c windows.appendAtomically=false rev-parse --verify HEAD 2>&1
+        $hasCommit = ($LASTEXITCODE -eq 0)
+        return ($revParseOk -and $statusOk -and $hasCommit)
+    } catch {
+        return $false
+    } finally {
+        Pop-Location
+    }
+}
+
+function Resolve-RuntimePayloadCommit {
+    if ($Commit -and ($Commit -match '^[0-9a-fA-F]{7,40}$')) { return $Commit }
+    $ref = if ($Commit) { $Commit } elseif ($Tag) { $Tag } else { $Branch }
+    try {
+        $headers = @{
+            'User-Agent' = 'work4you-installer'
+            'Accept'     = 'application/vnd.github+json'
+        }
+        $resp = Invoke-RestMethod -Uri "https://api.github.com/repos/Leow4u/FORK-56/commits/$ref" -Headers $headers -UseBasicParsing
+        if ($resp.sha) { return [string]$resp.sha }
+    } catch {}
+    return $null
+}
+
+function Write-RuntimeRefFile {
+    param([string]$Dir, [string]$PinnedCommit, [string]$PinnedBranch)
+    $payload = [ordered]@{
+        commit     = $PinnedCommit
+        branch     = $PinnedBranch
+        ref        = $(if ($PinnedCommit) { $PinnedCommit } else { $PinnedBranch })
+        updated_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    }
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText(
+        (Join-Path $Dir ".runtime-ref"),
+        ($payload | ConvertTo-Json -Compress:$false),
+        $utf8NoBom
+    )
+}
+
+function Expand-RuntimePayloadZip {
+    param([string]$ZipPath, [string]$DestDir)
+    Add-Type -AssemblyName System.IO.Compression.FileSystem | Out-Null
+    New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
+    $destRoot = [System.IO.Path]::GetFullPath($DestDir)
+    if (-not $destRoot.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $destRoot = $destRoot + [System.IO.Path]::DirectorySeparatorChar
+    }
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($ZipPath)
+    try {
+        foreach ($entry in $zip.Entries) {
+            $rel = Get-ZipPayloadRelativePath $entry.FullName
+            if (-not $rel) { continue }
+            if (-not (Test-RuntimePayloadRelativePath $rel)) { continue }
+            $outPath = [System.IO.Path]::GetFullPath((Join-Path $DestDir ($rel -replace '/', [System.IO.Path]::DirectorySeparatorChar)))
+            if (-not $outPath.StartsWith($destRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Zip-slip detected: $($entry.FullName)"
+            }
+            if ($entry.FullName.EndsWith('/') -or $entry.FullName.EndsWith('\')) {
+                New-Item -ItemType Directory -Force -Path $outPath | Out-Null
+                continue
+            }
+            $parent = Split-Path -Parent $outPath
+            if (-not (Test-Path -LiteralPath $parent)) {
+                New-Item -ItemType Directory -Force -Path $parent | Out-Null
+            }
+            [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $outPath, $true)
+        }
+    } finally {
+        $zip.Dispose()
+    }
+}
+
+function Copy-RuntimePayloadTree {
+    param([string]$SourceDir, [string]$DestDir)
+    New-Item -ItemType Directory -Force -Path $DestDir | Out-Null
+    Get-ChildItem -LiteralPath $SourceDir -Force | ForEach-Object {
+        $name = $_.Name
+        if ($script:RuntimePayloadPreserve -contains $name) { return }
+        if (-not (Test-RuntimePayloadRelativePath $name)) { return }
+        $dest = Join-Path $DestDir $name
+        $staging = "$dest.work4you-payload-staging"
+        $backup = "$dest.work4you-payload-old"
+        if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force -ErrorAction SilentlyContinue }
+        if (Test-Path -LiteralPath $backup) { Remove-Item -LiteralPath $backup -Recurse -Force -ErrorAction SilentlyContinue }
+        if ($_.PSIsContainer) {
+            Copy-Item -LiteralPath $_.FullName -Destination $staging -Recurse -Force
+        } else {
+            Copy-Item -LiteralPath $_.FullName -Destination $staging -Force
+        }
+        if (Test-Path -LiteralPath $dest) {
+            Rename-Item -LiteralPath $dest -NewName (Split-Path -Leaf $backup)
+        }
+        Rename-Item -LiteralPath $staging -NewName (Split-Path -Leaf $dest)
+        if (Test-Path -LiteralPath $backup) {
+            Remove-Item -LiteralPath $backup -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Install-RuntimePayload {
+    Write-Info "Installing desktop runtime payload to $InstallDir (no git clone)..."
+
+    if ($Commit) {
+        $zipUrl = "https://github.com/Leow4u/FORK-56/archive/$Commit.zip"
+        $zipLabel = $Commit
+    } elseif ($Tag) {
+        $zipUrl = "https://github.com/Leow4u/FORK-56/archive/refs/tags/$Tag.zip"
+        $zipLabel = $Tag
+    } else {
+        $zipUrl = "https://github.com/Leow4u/FORK-56/archive/refs/heads/$Branch.zip"
+        $zipLabel = $Branch
+    }
+    $zipPath = Join-Path $env:TEMP "work4you-runtime-$zipLabel.zip"
+    $extractPath = Join-Path $env:TEMP "work4you-runtime-extract"
+
+    Write-Info "Downloading $zipUrl ..."
+    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing
+    if (Test-Path -LiteralPath $extractPath) { Remove-Item -LiteralPath $extractPath -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $extractPath | Out-Null
+    Expand-RuntimePayloadZip -ZipPath $zipPath -DestDir $extractPath
+
+    New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+    Copy-RuntimePayloadTree -SourceDir $extractPath -DestDir $InstallDir
+
+    $pinned = Resolve-RuntimePayloadCommit
+    if (-not $script:RuntimePayloadPinnedCommit) { $script:RuntimePayloadPinnedCommit = $pinned }
+    if ($pinned -and -not $Commit) { $script:RuntimePayloadPinnedCommit = $pinned }
+    $branchName = if ($Branch) { $Branch } else { "main" }
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText((Join-Path $InstallDir ".install_method"), "desktop`n", $utf8NoBom)
+    Write-RuntimeRefFile -Dir $InstallDir -PinnedCommit $(if ($pinned) { $pinned } else { "" }) -PinnedBranch $branchName
+
+    Remove-Item -LiteralPath $zipPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $extractPath -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Success "Desktop runtime payload ready"
+}
+
+# ============================================================================
 # Installation
 # ============================================================================
 
 function Install-Repository {
     Write-Info "Installing to $InstallDir..."
+
+    if ($RuntimePayload) {
+        if (Test-ValidGitCheckout $InstallDir) {
+            Write-Info "Existing git checkout found; keeping the git update path."
+        } else {
+            Install-RuntimePayload
+            return
+        }
+    }
 
     $didUpdate = $false
 
@@ -3067,6 +3281,18 @@ function Write-BootstrapMarker {
     # and the marker will fail desktop validation (pinnedCommit.length
     # >= 7) -- better to be invalid than wrong.
     $pinnedCommit = $Commit
+    if (-not $pinnedCommit -and $script:RuntimePayloadPinnedCommit) {
+        $pinnedCommit = $script:RuntimePayloadPinnedCommit
+    }
+    if (-not $pinnedCommit) {
+        $runtimeRefPath = Join-Path $InstallDir ".runtime-ref"
+        if (Test-Path -LiteralPath $runtimeRefPath) {
+            try {
+                $runtimeRef = Get-Content -LiteralPath $runtimeRefPath -Raw -ErrorAction Stop | ConvertFrom-Json
+                if ($runtimeRef.commit) { $pinnedCommit = [string]$runtimeRef.commit }
+            } catch {}
+        }
+    }
     if (-not $pinnedCommit) {
         # PS 5.1 doesn't support the ?. null-conditional operator, so
         # check Get-Command's result explicitly before reading .Source.
@@ -4516,15 +4742,21 @@ function Write-Completion {
 $InstallStages = @(
     @{ Name = "uv";               Title = "Installing uv package manager";        Category = "prereqs";      NeedsUserInput = $false; Worker = "Stage-Uv" }
     @{ Name = "python";           Title = "Verifying Python $PythonVersion";      Category = "prereqs";      NeedsUserInput = $false; Worker = "Stage-Python" }
-    @{ Name = "git";              Title = "Installing Git";                       Category = "prereqs";      NeedsUserInput = $false; Worker = "Stage-Git" }
+)
+if (-not $RuntimePayload) {
+    $InstallStages += @{ Name = "git"; Title = "Installing Git"; Category = "prereqs"; NeedsUserInput = $false; Worker = "Stage-Git" }
+}
+$InstallStages += @(
     @{ Name = "node";             Title = "Detecting Node.js";                    Category = "prereqs";      NeedsUserInput = $false; Worker = "Stage-Node" }
     @{ Name = "system-packages";  Title = "Installing ripgrep and ffmpeg";        Category = "prereqs";      NeedsUserInput = $false; Worker = "Stage-SystemPackages" }
-    @{ Name = "repository";       Title = "Cloning Work4You repository";            Category = "install";      NeedsUserInput = $false; Worker = "Stage-Repository" }
+    @{ Name = "repository";       Title = $(if ($RuntimePayload) { "Installing Work4You runtime" } else { "Cloning Work4You repository" }); Category = "install"; NeedsUserInput = $false; Worker = "Stage-Repository" }
     @{ Name = "venv";             Title = "Creating Python virtual environment";  Category = "install";      NeedsUserInput = $false; Worker = "Stage-Venv" }
     @{ Name = "dependencies";     Title = "Installing Python dependencies";       Category = "install";      NeedsUserInput = $false; Worker = "Stage-Dependencies" }
-    @{ Name = "node-deps";        Title = "Installing Node.js dependencies";      Category = "install";      NeedsUserInput = $false; Worker = "Stage-NodeDeps" }
 )
-if ($IncludeDesktop) {
+if (-not $RuntimePayload) {
+    $InstallStages += @{ Name = "node-deps"; Title = "Installing Node.js dependencies"; Category = "install"; NeedsUserInput = $false; Worker = "Stage-NodeDeps" }
+}
+if ($IncludeDesktop -and -not $RuntimePayload) {
     # Insert AFTER node-deps so workspace npm is already installed when
     # the desktop build runs. Inserted only when explicitly requested
     # (Work4You-Setup.exe), never via the irm|iex CLI one-liner.
@@ -4555,6 +4787,10 @@ $InstallStages += @(
 function Stage-Uv               { if (-not (Install-Uv))     { throw "uv installation failed" } }
 function Stage-Python           { Resolve-UvCmd; if (-not (Test-Python))    { throw "Python $PythonVersion not available" } }
 function Stage-Git              {
+    if ($RuntimePayload) {
+        $script:_StageSkippedReason = "Git is not required for desktop runtime payload installs"
+        return
+    }
     if (-not (Install-Git)) {
         if ($script:GitInstallFailureReason) { throw $script:GitInstallFailureReason }
         throw "Git not available and auto-install failed -- install from https://git-scm.com/download/win then re-run"
@@ -4575,7 +4811,13 @@ function Stage-SystemPackages   { Install-SystemPackages }
 function Stage-Repository       { Install-Repository }
 function Stage-Venv             { Resolve-UvCmd; Install-Venv }
 function Stage-Dependencies     { Resolve-UvCmd; Install-Dependencies }
-function Stage-NodeDeps         { Install-NodeDeps }
+function Stage-NodeDeps         {
+    if ($RuntimePayload) {
+        $script:_StageSkippedReason = "Node workspaces are not part of the desktop runtime payload"
+        return
+    }
+    Install-NodeDeps
+}
 function Stage-Desktop          { Install-DesktopVoiceDeps; Install-Desktop }
 function Stage-Path             { Set-PathVariable }
 function Stage-ConfigTemplates  { Copy-ConfigTemplates }

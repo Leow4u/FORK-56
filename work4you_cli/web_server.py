@@ -5252,15 +5252,16 @@ async def check_work4you_update(force: bool = False):
     ``POST /api/work4you/update`` actually runs ``work4you update``.
 
     Returns:
-        install_method: 'apt' | 'git' | 'docker' | 'nix' | 'nixos' | 'unknown'
+        install_method: 'apt' | 'git' | 'desktop' | 'docker' | 'nix' | 'nixos' | 'unknown'
         current_version: installed Work4You version string
         behind: commits behind upstream (>=1), 0 if up to date,
                 -1 if behind by an unknown count, or null if the
                 check could not run (offline, no remote, etc.)
         update_available: convenience bool (behind is non-zero and not null)
         can_apply: True when the dashboard's update button can apply it
-                   in place (git); False for other install methods where the
-                   user must update out-of-band
+                   in place (git checkout or desktop runtime payload);
+                   False for other install methods where the user must
+                   update out-of-band
         update_command: the recommended command for this install method
         message: human-readable guidance for non-applyable methods
         commits: for git installs that are behind, a list of the commits
@@ -5291,7 +5292,7 @@ async def check_work4you_update(force: bool = False):
         "current_version": __version__,
         "behind": None,
         "update_available": False,
-        "can_apply": install_method == "git",
+        "can_apply": install_method in {"git", "desktop"},
         "update_command": update_command,
         "message": None,
     }

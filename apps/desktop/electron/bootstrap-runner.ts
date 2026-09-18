@@ -77,10 +77,15 @@ function resolveCheckoutHead(activeRoot: string | null | undefined, opts: { exec
   try {
     const sha = run(['-c', 'windows.appendAtomically=false', 'rev-parse', 'HEAD'], activeRoot)
 
-    return isPinnedCommit(sha) ? sha : null
+    if (isPinnedCommit(sha)) {
+      return sha
+    }
   } catch {
-    return null
+    // No git checkout — desktop payload installs pin via .runtime-ref.
   }
+
+  return readRuntimeRefCommit(activeRoot)
+}
 }
 
 /** Prefer a real pin already written by install.ps1's bootstrap-marker stage. */
@@ -690,12 +695,49 @@ function buildPosixPinArgs({ installStamp, activeRoot, work4youHome, pinCommit =
   return args
 }
 
-async function fetchManifest({ scriptPath, installerKind, emit, work4youHome, activeRoot, installStamp, pinCommit }) {
+function buildRuntimePayloadArgs(installerKind, { existingGit = false } = {}) {
+  if (existingGit) {
+    return []
+  }
+
+  return installerKind === 'posix' ? ['--runtime-payload'] : ['-RuntimePayload']
+}
+
+function readRuntimeRefCommit(activeRoot: string | null | undefined): string | null {
+  if (!activeRoot) {
+    return null
+  }
+
+  try {
+    const raw = fs.readFileSync(path.join(activeRoot, '.runtime-ref'), 'utf8')
+    const parsed = JSON.parse(raw)
+
+    return parsed && isPinnedCommit(parsed.commit) ? parsed.commit : null
+  } catch {
+    return null
+  }
+}
+
+async function fetchManifest({
+  scriptPath,
+  installerKind,
+  emit,
+  work4youHome,
+  activeRoot,
+  installStamp,
+  pinCommit,
+  existingGit
+}) {
   const isPosix = installerKind === 'posix'
+  const payloadArgs = buildRuntimePayloadArgs(installerKind, { existingGit })
 
   const args = isPosix
-    ? ['--manifest', ...buildPosixPinArgs({ installStamp, activeRoot, work4youHome, pinCommit })]
-    : ['-Manifest', ...buildPinArgs(installStamp, { pinCommit })]
+    ? [
+        '--manifest',
+        ...buildPosixPinArgs({ installStamp, activeRoot, work4youHome, pinCommit }),
+        ...payloadArgs
+      ]
+    : ['-Manifest', ...buildPinArgs(installStamp, { pinCommit }), ...payloadArgs]
 
   const result = await (isPosix ? spawnBash : spawnPowerShell)(scriptPath, args, {
     emit,
@@ -761,12 +803,14 @@ async function runStage({
   activeRoot,
   abortSignal,
   installStamp,
-  pinCommit
+  pinCommit,
+  existingGit
 }) {
   const startedAt = Date.now()
   emit({ type: 'stage', name: stage.name, state: 'running' })
 
   const isPosix = installerKind === 'posix'
+  const payloadArgs = buildRuntimePayloadArgs(installerKind, { existingGit })
 
   const args = isPosix
     ? [
@@ -774,9 +818,17 @@ async function runStage({
         stage.name,
         '--non-interactive',
         '--json',
-        ...buildPosixPinArgs({ installStamp, activeRoot, work4youHome, pinCommit })
+        ...buildPosixPinArgs({ installStamp, activeRoot, work4youHome, pinCommit }),
+        ...payloadArgs
       ]
-    : ['-Stage', stage.name, '-NonInteractive', '-Json', ...buildPinArgs(installStamp, { pinCommit })]
+    : [
+        '-Stage',
+        stage.name,
+        '-NonInteractive',
+        '-Json',
+        ...buildPinArgs(installStamp, { pinCommit }),
+        ...payloadArgs
+      ]
 
   const result = await (isPosix ? spawnBash : spawnPowerShell)(scriptPath, args, {
     emit,
@@ -938,7 +990,8 @@ async function runBootstrap(opts) {
       work4youHome,
       activeRoot,
       installStamp,
-      pinCommit
+      pinCommit,
+      existingGit: existingCheckout
     })
 
     emit({
@@ -967,7 +1020,8 @@ async function runBootstrap(opts) {
         activeRoot,
         abortSignal,
         installStamp,
-        pinCommit
+        pinCommit,
+        existingGit: existingCheckout
       })
 
       if (ev.state === 'failed') {
@@ -1022,6 +1076,7 @@ async function runBootstrap(opts) {
 export {
   buildPinArgs,
   buildPosixPinArgs,
+  buildRuntimePayloadArgs,
   cachedScriptPath,
   hasExistingGitCheckout,
   installedAgentInstallScript,
@@ -1029,6 +1084,7 @@ export {
   isPinnedCommit,
   // Exposed for testability
   parseStageResult,
+  readRuntimeRefCommit,
   resolveCheckoutHead,
   resolveInstallScript,
   resolveLocalInstallScript,

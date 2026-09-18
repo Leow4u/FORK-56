@@ -92,6 +92,23 @@ def test_explicit_commit_pin_wins_over_head(tmp_path):
     assert payload["pinnedCommit"] == pinned
 
 
+def test_marker_reads_runtime_ref_when_git_is_absent(tmp_path):
+    """Desktop payload installs pin via .runtime-ref, not git HEAD."""
+    install_dir = tmp_path / "payload"
+    install_dir.mkdir()
+    (install_dir / ".runtime-ref").write_text(
+        json.dumps({"commit": "c" * 40, "branch": "main"}) + "\n",
+        encoding="utf-8",
+    )
+
+    result = run_write_marker(install_dir)
+    assert result.returncode == 0, result.stderr
+
+    payload = json.loads((install_dir / ".work4you-bootstrap-complete").read_text())
+    assert payload["schemaVersion"] == 1
+    assert payload["pinnedCommit"] == "c" * 40
+
+
 def test_no_marker_written_when_head_cannot_be_resolved(tmp_path):
     """A malformed marker is worse than none: absent means a clean re-bootstrap."""
     install_dir = tmp_path / "not-a-checkout"

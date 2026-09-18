@@ -1,0 +1,27 @@
+{
+  "directories": [
+    "acp_adapter",
+    "agent",
+    "cron",
+    "gateway",
+    "locales",
+    "optional-mcps",
+    "optional-skills",
+    "plugins",
+    "providers",
+    "skills",
+    "tools",
+    "tui_gateway",
+    "work4you_cli"
+  ],
+  "files": [
+    "LICENSE",
+    "README.md",
+    "cli-config.yaml.example",
+    "pyproject.toml",
+    "setup.py",
+    "uv.lock",
+    "work4you"
+  ],
+  "include_root_python_modules": true
+}

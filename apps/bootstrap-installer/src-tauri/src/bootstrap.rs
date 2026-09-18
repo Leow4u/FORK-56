@@ -170,14 +170,30 @@ pub async fn launch_work4you_desktop(
     install_root: String,
 ) -> Result<(), String> {
     let install_root = PathBuf::from(install_root);
-    let exe_path = resolve_work4you_desktop_exe(&install_root).ok_or_else(|| {
-        format!(
-            "Couldn't find a built Work4You desktop at {}. The desktop build step \
-             may have been skipped or failed. Run `work4you desktop` from a \
-             terminal to build and launch it.",
-            install_root.join("apps").join("desktop").join("release").display()
-        )
-    })?;
+    let exe_path = match resolve_work4you_desktop_exe(&install_root) {
+        Some(path) => path,
+        None if has_runtime_payload(&install_root) => {
+            tracing::info!(
+                ?install_root,
+                "runtime payload installed; no checkout-built desktop binary to launch"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+            app.exit(0);
+            return Ok(());
+        }
+        None => {
+            return Err(format!(
+                "Couldn't find a built Work4You desktop at {}. The desktop build step \
+                 may have been skipped or failed. Run `work4you desktop` from a \
+                 terminal to build and launch it.",
+                install_root
+                    .join("apps")
+                    .join("desktop")
+                    .join("release")
+                    .display()
+            ));
+        }
+    };
 
     tracing::info!(?exe_path, "launching Work4You desktop");
 
@@ -257,9 +273,14 @@ pub(crate) fn resolve_work4you_desktop_app(install_root: &std::path::Path) -> Op
 /// True when a prior install completed (bootstrap-complete marker present) AND a
 /// launchable desktop app exists on disk. Used by the installer's launcher fast
 /// path so a bare re-open just opens Work4You instead of re-running setup.
+pub(crate) fn has_runtime_payload(install_root: &std::path::Path) -> bool {
+    install_root.join("work4you_cli").join("main.py").is_file()
+}
+
 pub(crate) fn work4you_is_installed(install_root: &std::path::Path) -> bool {
     install_root.join(".work4you-bootstrap-complete").exists()
-        && resolve_work4you_desktop_exe(install_root).is_some()
+        && (resolve_work4you_desktop_exe(install_root).is_some()
+            || has_runtime_payload(install_root))
 }
 
 fn resolve_marker_commit(install_root: &Path, pin: &Pin) -> Option<String> {
@@ -269,6 +290,18 @@ fn resolve_marker_commit(install_root: &Path, pin: &Pin) -> Option<String> {
         .filter(|commit| !commit.trim().is_empty())
     {
         return Some(commit.clone());
+    }
+
+    if let Ok(raw) = std::fs::read_to_string(install_root.join(".runtime-ref")) {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) {
+            if let Some(commit) = value
+                .get("commit")
+                .and_then(|v| v.as_str())
+                .filter(|commit| !commit.trim().is_empty())
+            {
+                return Some(commit.to_string());
+            }
+        }
     }
 
     let output = std::process::Command::new("git")
@@ -933,6 +966,9 @@ fn build_pin_args(script: &install_script::ResolvedScript) -> Vec<String> {
         out.push("-Branch".to_string());
         out.push(b.clone());
     }
+    // Consumer Setup always installs the filtered runtime payload. Existing
+    // git checkouts keep the git path inside install.ps1 / install.sh.
+    out.push("-RuntimePayload".to_string());
     out
 }
 
@@ -1133,6 +1169,19 @@ mod tests {
         assert!(
             work4you_is_installed(&root),
             "atomically published marker must enable the installer fast path"
+        );
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn work4you_is_installed_accepts_runtime_payload_without_desktop_exe() {
+        let root = unique_tmp_dir("runtime-payload-installed");
+        std::fs::create_dir_all(root.join("work4you_cli")).unwrap();
+        std::fs::write(root.join("work4you_cli").join("main.py"), b"# runtime\n").unwrap();
+        std::fs::write(root.join(".work4you-bootstrap-complete"), b"{}").unwrap();
+        assert!(
+            work4you_is_installed(&root),
+            "marker + work4you_cli/main.py must count as installed"
         );
         let _ = std::fs::remove_dir_all(&root);
     }
