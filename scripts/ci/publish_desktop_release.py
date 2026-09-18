@@ -211,6 +211,7 @@ def publish_desktop_release(
     dmg: Path,
     notes: str,
     runner: Runner = default_run,
+    runtime_zip: Path | None = None,
 ) -> None:
     title = f"Work4You Desktop {tag.removeprefix('desktop-v')}"
     print(f"Publishing {tag} from {target}")
@@ -224,6 +225,8 @@ def publish_desktop_release(
     )
     upload_asset(runner, tag=tag, repo=repo, path=exe)
     upload_asset(runner, tag=tag, repo=repo, path=dmg)
+    if runtime_zip is not None:
+        upload_asset(runner, tag=tag, repo=repo, path=runtime_zip)
     names = list_release_assets(runner, tag, repo)
     if not has_required_assets(names):
         raise PublishError(
@@ -241,6 +244,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target", required=True, help="commit SHA for a new tag")
     parser.add_argument("--exe", required=True, type=Path)
     parser.add_argument("--dmg", required=True, type=Path)
+    parser.add_argument(
+        "--runtime-zip",
+        type=Path,
+        default=None,
+        help="Optional prebuilt Windows runtime zip (runtime-win-x64.zip)",
+    )
     parser.add_argument(
         "--notes",
         default=(
@@ -263,6 +272,7 @@ def main(argv: list[str] | None = None) -> int:
             exe=args.exe,
             dmg=args.dmg,
             notes=args.notes,
+            runtime_zip=args.runtime_zip,
         )
     except PublishError as exc:
         print(f"::error::{exc}", file=sys.stderr)

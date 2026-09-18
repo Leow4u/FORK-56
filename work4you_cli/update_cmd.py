@@ -1071,6 +1071,41 @@ def _write_gateway_update_exit_code(ok: bool) -> None:
         pass
 
 
+def _try_apply_prebuilt_runtime_update(tmp_dir: str) -> bool:
+    """Apply the published ``runtime-win-*.zip`` when the latest release has one.
+
+    Returns False on any miss so ``_update_via_zip`` can fall back to the
+    GitHub source archive + ``uv sync`` path (releases that predate this
+    payload, offline, wrong arch).
+    """
+    from urllib.request import urlretrieve
+
+    from work4you_cli.desktop_runtime import (
+        apply_prebuilt_runtime_bundle,
+        extract_prebuilt_runtime_zip,
+        github_prebuilt_runtime_zip_url,
+        is_prebuilt_runtime_zip,
+        runtime_zip_name,
+    )
+
+    arch = "arm64" if (os.environ.get("PROCESSOR_ARCHITECTURE") or "").upper() == "ARM64" else "x64"
+    url = github_prebuilt_runtime_zip_url(arch=arch)
+    zip_path = os.path.join(tmp_dir, runtime_zip_name(arch))
+    try:
+        print(f"→ Trying prebuilt desktop runtime {url}")
+        urlretrieve(url, zip_path)
+        if not is_prebuilt_runtime_zip(zip_path):
+            print("  prebuilt asset was not a runtime bundle; falling back to source ZIP")
+            return False
+        extracted = extract_prebuilt_runtime_zip(zip_path, os.path.join(tmp_dir, "prebuilt"))
+        home = _m().PROJECT_ROOT.parent
+        apply_prebuilt_runtime_bundle(extracted, home)
+        return True
+    except Exception as exc:
+        print(f"  prebuilt runtime unavailable ({exc}); falling back to source ZIP")
+        return False
+
+
 def _update_via_zip(
     args,
     *,
@@ -1122,12 +1157,23 @@ def _update_via_zip(
 
     print("→ Downloading latest version...")
     tmp_dir = tempfile.mkdtemp(prefix="work4you-update-")
+    applied_prebuilt = False
     try:
-        zip_path = os.path.join(tmp_dir, f"work4you-{branch}.zip")
-        urlretrieve(zip_url, zip_path)
+        if runtime_payload and branch == "main":
+            applied_prebuilt = _try_apply_prebuilt_runtime_update(tmp_dir)
+        if applied_prebuilt:
+            zip_path = ""
+        else:
+            zip_path = os.path.join(tmp_dir, f"work4you-{branch}.zip")
+            urlretrieve(zip_url, zip_path)
 
-        print("→ Extracting...")
-        if runtime_payload:
+        if applied_prebuilt:
+            print("✓ Applied prebuilt desktop runtime (no GitHub source ZIP, no PyPI sync)")
+        else:
+            print("→ Extracting...")
+        if applied_prebuilt:
+            pass
+        elif runtime_payload:
             from work4you_cli.runtime_payload import (
                 extract_runtime_zip,
                 list_payload_top_level,
@@ -1177,83 +1223,86 @@ def _update_via_zip(
             preserve = {"venv", "node_modules", ".git", ".env"}
             entries = [i for i in os.listdir(extracted) if i not in preserve]
 
-        # Two-phase replace (#76104). Phase 1 copies every entry — directories
-        # AND top-level files — to a sibling staging path without touching
-        # anything live; phase 2 swaps them all in with same-filesystem
-        # renames and rolls back every swap if any one fails. Replacing
-        # entries one-at-a-time (the previous shape) meant an interruption
-        # partway left `agent/` new and `tools/` stale — all files valid, the
-        # tree unbootable. Files matter as much as directories here: the repo
-        # root holds 20 first-party modules (run_agent.py, cli.py,
-        # work4you_constants.py, ...).
-        #
-        # Staging costs one extra copy of the tree on disk. Check up front so
-        # we fail with a clear message instead of running out mid-copy.
-        need = sum(
-            os.path.getsize(os.path.join(dirpath, f))
-            for entry in entries
-            for dirpath, _dirs, files in os.walk(os.path.join(extracted, entry))
-            for f in files
-        ) + sum(
-            os.path.getsize(os.path.join(extracted, e))
-            for e in entries
-            if os.path.isfile(os.path.join(extracted, e))
-        )
-        # Only the staging copy is new — the live tree already occupies its
-        # space and the swaps are renames, not copies. Ask for the staging
-        # copy plus 20% headroom rather than a full 2x, which would block
-        # updates that would have succeeded on exactly the space-constrained
-        # machines most likely to hit this path.
-        required = int(need * 1.2)
-        free = shutil.disk_usage(str(_m().PROJECT_ROOT)).free
-        if free < required:
-            raise RuntimeError(
-                f"not enough free disk space to stage the update safely "
-                f"(need ~{required // (1024 * 1024)} MB, have "
-                f"{free // (1024 * 1024)} MB)"
+        if applied_prebuilt:
+            update_count = 0
+        else:
+            # Two-phase replace (#76104). Phase 1 copies every entry — directories
+            # AND top-level files — to a sibling staging path without touching
+            # anything live; phase 2 swaps them all in with same-filesystem
+            # renames and rolls back every swap if any one fails. Replacing
+            # entries one-at-a-time (the previous shape) meant an interruption
+            # partway left `agent/` new and `tools/` stale — all files valid, the
+            # tree unbootable. Files matter as much as directories here: the repo
+            # root holds 20 first-party modules (run_agent.py, cli.py,
+            # work4you_constants.py, ...).
+            #
+            # Staging costs one extra copy of the tree on disk. Check up front so
+            # we fail with a clear message instead of running out mid-copy.
+            need = sum(
+                os.path.getsize(os.path.join(dirpath, f))
+                for entry in entries
+                for dirpath, _dirs, files in os.walk(os.path.join(extracted, entry))
+                for f in files
+            ) + sum(
+                os.path.getsize(os.path.join(extracted, e))
+                for e in entries
+                if os.path.isfile(os.path.join(extracted, e))
             )
+            # Only the staging copy is new — the live tree already occupies its
+            # space and the swaps are renames, not copies. Ask for the staging
+            # copy plus 20% headroom rather than a full 2x, which would block
+            # updates that would have succeeded on exactly the space-constrained
+            # machines most likely to hit this path.
+            required = int(need * 1.2)
+            free = shutil.disk_usage(str(_m().PROJECT_ROOT)).free
+            if free < required:
+                raise RuntimeError(
+                    f"not enough free disk space to stage the update safely "
+                    f"(need ~{required // (1024 * 1024)} MB, have "
+                    f"{free // (1024 * 1024)} MB)"
+                )
 
-        staged: list[tuple[str, str]] = []
-        try:
-            for item in entries:
-                src = os.path.join(extracted, item)
-                dst = os.path.join(str(_m().PROJECT_ROOT), item)
-                staged.append((_stage_replacement(src, dst), dst))
-        except Exception:
-            # Nothing is live yet; drop the partial staging copies so a retry
-            # starts from the same free space this attempt did.
-            _discard_staged(staged)
-            raise
+            staged: list[tuple[str, str]] = []
+            try:
+                for item in entries:
+                    src = os.path.join(extracted, item)
+                    dst = os.path.join(str(_m().PROJECT_ROOT), item)
+                    staged.append((_stage_replacement(src, dst), dst))
+            except Exception:
+                # Nothing is live yet; drop the partial staging copies so a retry
+                # starts from the same free space this attempt did.
+                _discard_staged(staged)
+                raise
 
-        try:
-            _commit_staged_replacements(staged)
-        except Exception:
-            # The rollback already restored every swapped entry, but staging
-            # copies for the not-yet-swapped entries (potentially most of a
-            # full tree) are still on disk. Drop them, or the retry's
-            # up-front free-space check — which runs BEFORE the lazy
-            # per-entry leftover cleanup — fails on litter this attempt
-            # left behind: the exact "retry fails harder" failure mode
-            # _discard_staged exists to prevent. Safe post-rollback: swapped
-            # entries' staging paths were renamed away, and _discard_staged
-            # skips paths that no longer exist.
-            _discard_staged(staged)
-            raise
-        update_count = len(staged)
+            try:
+                _commit_staged_replacements(staged)
+            except Exception:
+                # The rollback already restored every swapped entry, but staging
+                # copies for the not-yet-swapped entries (potentially most of a
+                # full tree) are still on disk. Drop them, or the retry's
+                # up-front free-space check — which runs BEFORE the lazy
+                # per-entry leftover cleanup — fails on litter this attempt
+                # left behind: the exact "retry fails harder" failure mode
+                # _discard_staged exists to prevent. Safe post-rollback: swapped
+                # entries' staging paths were renamed away, and _discard_staged
+                # skips paths that no longer exist.
+                _discard_staged(staged)
+                raise
+            update_count = len(staged)
 
-        print(f"✓ Updated {update_count} items from ZIP")
-        if runtime_payload:
-            from work4you_cli.config import stamp_install_method
-            from work4you_cli.runtime_payload import (
-                fetch_github_commit_sha,
-                write_runtime_ref,
-            )
+            print(f"✓ Updated {update_count} items from ZIP")
+            if runtime_payload:
+                from work4you_cli.config import stamp_install_method
+                from work4you_cli.runtime_payload import (
+                    fetch_github_commit_sha,
+                    write_runtime_ref,
+                )
 
-            stamp_install_method("desktop", project_root=_m().PROJECT_ROOT)
-            sha = fetch_github_commit_sha("Leow4u/FORK-56", branch) or ""
-            write_runtime_ref(
-                _m().PROJECT_ROOT, commit=sha, branch=branch, ref=branch
-            )
+                stamp_install_method("desktop", project_root=_m().PROJECT_ROOT)
+                sha = fetch_github_commit_sha("Leow4u/FORK-56", branch) or ""
+                write_runtime_ref(
+                    _m().PROJECT_ROOT, commit=sha, branch=branch, ref=branch
+                )
 
     except Exception as e:
         print(f"✗ ZIP update failed: {e}")
@@ -1277,6 +1326,19 @@ def _update_via_zip(
         )
     _m()._record_bytecode_fingerprint()
     _m()._refresh_bootstrap_cache_scripts(branch)
+
+    if applied_prebuilt:
+        import_ok, failing_module, import_error = _validate_critical_modules_import(
+            _m().PROJECT_ROOT
+        )
+        if not import_ok:
+            print()
+            print("✗ Update left the install in an unimportable state:")
+            print(f"  {failing_module}: {import_error}")
+            print()
+            print("  Re-run `work4you update` to complete it.")
+            _m().sys.exit(1)
+        return True
 
     # Reinstall Python dependencies. Prefer .[all], but if one optional extra
     # breaks on this machine, keep base deps and reinstall the remaining extras

@@ -13,10 +13,10 @@ const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 const RELEASE_ROOT = path.join(DESKTOP_ROOT, 'release')
 const PLATFORM = process.platform
 
-// Platform-specific packaged-app layout. The thin installer ships an Electron
-// app shell plus extraResources (install-stamp.json + native-deps/) -- it
-// no longer bundles the Work4You Python payload (that's fetched at first
-// launch via install.ps1 / install.sh, per the Phase 1 thin-installer flow).
+// Platform-specific packaged-app layout. The Windows installer ships the
+// Electron shell plus extraResources (install-stamp.json, icon, and a CI-built
+// Python runtime under resources/runtime). Dev packs without a present
+// runtime still fall back to install.ps1 at first launch.
 const APP = (() => {
   if (PLATFORM === 'darwin') {
     const appPath = path.join(RELEASE_ROOT, `mac-${ARCH}`, 'Work4You.app')
@@ -281,9 +281,10 @@ function launchFresh() {
   return { runtimeRoot: path.join(work4youHome, 'work4you', 'venv') }
 }
 
-// Validate the packaged bundle matches the thin-installer architecture:
-//   - The Work4You Python payload is NOT shipped (it's fetched at first
-//     launch via install.ps1's stage protocol).
+// Validate the packaged bundle:
+//   - The old fat-installer factory payload is not at resources/work4you/.
+//   - extraResources/runtime exists with a manifest (present:true on release
+//     CI; present:false on local packs without a prebuilt runtime).
 //   - install-stamp.json IS shipped in resources/ with a valid commit + branch.
 //   - node-pty IS shipped inside app.asar.unpacked/dist/node_modules/node-pty
 //     with package.json + lib/ + at least one .node binary (the renderer's
@@ -321,6 +322,30 @@ function validateBundle() {
   }
   if (!stamp.branch || typeof stamp.branch !== 'string') {
     die(`install-stamp.json is missing the branch field: ${JSON.stringify(stamp)}`)
+  }
+
+  const runtimeManifestPath = path.join(APP.resourcesPath, 'runtime', 'manifest.json')
+  if (!exists(runtimeManifestPath)) {
+    die(`Missing resources/runtime/manifest.json (required for Cursor-model Setup): ${runtimeManifestPath}`)
+  }
+  let runtimeManifest
+  try {
+    runtimeManifest = JSON.parse(fs.readFileSync(runtimeManifestPath, 'utf8'))
+  } catch (err) {
+    die(`runtime/manifest.json is not valid JSON: ${err.message}`)
+  }
+  if (runtimeManifest.schemaVersion !== 1) {
+    die(`runtime/manifest.json schemaVersion must be 1: ${JSON.stringify(runtimeManifest)}`)
+  }
+  if (runtimeManifest.present === true) {
+    const payloadMarker = path.join(APP.resourcesPath, 'runtime', 'work4you', 'work4you_cli', '__init__.py')
+    if (!exists(payloadMarker)) {
+      die(`present runtime is missing ${payloadMarker}`)
+    }
+    const deployScript = path.join(APP.resourcesPath, 'runtime', 'deploy-desktop-runtime.ps1')
+    if (!exists(deployScript)) {
+      die(`present runtime is missing ${deployScript}`)
+    }
   }
 
   // Positive assertion: node-pty native deps shipped

@@ -127,6 +127,14 @@ CASES = {
     # install.ps1 is a shell script Python never imports, but it's also not
     # provably prose, so python stays on (fail-open) alongside the Windows lane.
     "install.ps1 → installer": (["scripts/install.ps1"], _lanes(python=True, installer=True)),
+    "deploy-desktop-runtime.ps1 → installer": (
+        ["scripts/deploy-desktop-runtime.ps1"],
+        _lanes(python=True, installer=True),
+    ),
+    "build-desktop-runtime.ps1 → installer": (
+        ["scripts/build-desktop-runtime.ps1"],
+        _lanes(python=True, installer=True),
+    ),
     "installer test → installer": (
         ["scripts/tests/test-install-ps1-longpath.ps1"],
         _lanes(python=True, installer=True),

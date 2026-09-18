@@ -104,7 +104,12 @@ _MCP_CATALOG_FILES = {"work4you_cli/mcp_catalog.py"}
 # Windows installer + its PowerShell tests. These only run on a Windows runner,
 # so they get their own lane rather than riding along with ``python``.
 _INSTALLER_PATHS = ("scripts/tests/",)
-_INSTALLER_FILES = {"scripts/install.ps1", "scripts/install.cmd"}
+_INSTALLER_FILES = {
+    "scripts/install.ps1",
+    "scripts/install.cmd",
+    "scripts/deploy-desktop-runtime.ps1",
+    "scripts/build-desktop-runtime.ps1",
+}
 
 def _is_docs(p: str) -> bool:
     if p.startswith(("skills/", "optional-skills/")):

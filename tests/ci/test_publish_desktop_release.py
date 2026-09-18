@@ -130,3 +130,43 @@ def test_missing_local_installer_does_not_create_latest(tmp_path):
             runner=runner,
         )
     assert not any(call[1:3] == ["release", "edit"] for call in calls)
+
+
+def test_optional_runtime_zip_is_uploaded_when_present(tmp_path):
+    exe = tmp_path / "Work4You-Setup.exe"
+    dmg = tmp_path / "Work4You.dmg"
+    runtime = tmp_path / "runtime-win-x64.zip"
+    exe.write_bytes(b"exe")
+    dmg.write_bytes(b"dmg")
+    runtime.write_bytes(b"zip")
+    uploaded: list[str] = []
+
+    def runner(args):
+        if args[1:3] == ["release", "view"] and "--json" not in args:
+            return 1, "", "release not found"
+        if args[1:3] == ["release", "create"]:
+            return 0, "", ""
+        if args[1:3] == ["release", "upload"]:
+            uploaded.append(Path(args[-2]).name)
+            return 0, "", ""
+        if args[1:3] == ["release", "view"] and "--json" in args:
+            return (
+                0,
+                '{"assets":[{"name":"Work4You-Setup.exe"},{"name":"Work4You.dmg"},{"name":"runtime-win-x64.zip"}]}',
+                "",
+            )
+        if args[1:3] == ["release", "edit"]:
+            return 0, "", ""
+        raise AssertionError(args)
+
+    mod.publish_desktop_release(
+        tag="desktop-v0.0.71",
+        repo="Leow4u/FORK-56",
+        target="278e47ef",
+        exe=exe,
+        dmg=dmg,
+        notes="notes",
+        runner=runner,
+        runtime_zip=runtime,
+    )
+    assert uploaded == ["Work4You-Setup.exe", "Work4You.dmg", "runtime-win-x64.zip"]
