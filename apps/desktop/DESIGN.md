@@ -168,7 +168,7 @@ Notes:
 - **Gutters:** `PAGE_INSET_X` (`src/app/layout-constants.ts`) for page side
   padding; `PAGE_INSET_NEG_X` to bleed a child to the edge. Don't hardcode
   `px-6`/`px-8` on pages. Settings bodies also cap at `PAGE_SETTINGS_MAX_W`
-  so the column stays centered, with 447px of stage free on each side
+  so the column stays centered, with 247px of stage free on each side
   when the pane is wide enough — not a full-stage fill. Chat
   transcript and composer use `--composer-width` (48rem; narrow panes still
   `min(..., 100% - 2rem)`). Empty intro docks the composer at the
