@@ -48,15 +48,26 @@ def _git(cwd: Path, *args: str) -> str:
 
 
 def _extract_pin_block() -> str:
-    """Pull the commit-pin block out of install.sh's update_repo()."""
+    """Pull the git checkout pin/rollback block out of install.sh.
+
+    ``INSTALL_COMMIT`` is also used earlier to pick a GitHub zip URL for the
+    desktop runtime payload. That first ``if [ -n "$INSTALL_COMMIT" ]`` is a
+    no-op here (no checkout). The rollback tests must run the later block
+    that validates a hex SHA and may ``git checkout --detach``.
+    """
     text = INSTALL_SH.read_text()
     match = re.search(
-        r'if \[ -n "\$INSTALL_COMMIT" \]; then.*?\n    fi\n',
+        r'if \[ -n "\$INSTALL_COMMIT" \]; then\n'
+        r'        # Validate the commit argument:.*?\n    fi\n',
         text,
         re.DOTALL,
     )
-    assert match is not None, "commit-pin block not found in install.sh"
-    return match.group(0)
+    assert match is not None, "git commit-pin block not found in install.sh"
+    block = match.group(0)
+    assert "already newer" in block
+    assert "git checkout --detach" in block
+    assert "archive/" not in block
+    return block
 
 
 @pytest.fixture
@@ -93,6 +104,13 @@ def _run_pin_block(repo_dir: Path, commit: str, *, force: bool = False) -> str:
         text=True,
         check=True,
     ).stdout
+
+
+def test_extracted_pin_block_is_the_git_rollback_guard():
+    """The extractor must not land on the runtime-payload zip URL branch."""
+    block = _extract_pin_block()
+    assert "FORCE_COMMIT" in block
+    assert "rolling this install back" in block
 
 
 def test_stale_pin_does_not_rewind_a_newer_checkout(repo):
