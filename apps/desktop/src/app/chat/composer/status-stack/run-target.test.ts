@@ -1,10 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { composerRunTargetIntent, pickConnectionByKind, resolveComposerRunTarget } from './run-target'
+import {
+  _resetComposerRunTargetForTests,
+  composerCloudApplyPayload,
+  composerRunTargetIntent,
+  lastCloudApplySource,
+  pickConnectionByKind,
+  readRememberedComposerCloudApply,
+  rememberComposerCloudApply,
+  resolveComposerRunTarget
+} from './run-target'
 
 const local = { id: 'local', kind: 'local' as const }
 const cloud = { id: 'cloud-1', kind: 'cloud' as const }
 const remote = { id: 'homelab', kind: 'remote' as const }
+
+afterEach(() => {
+  _resetComposerRunTargetForTests()
+})
 
 describe('pickConnectionByKind', () => {
   it('returns the first Local or Cloud row and skips Remote', () => {
@@ -17,11 +30,11 @@ describe('pickConnectionByKind', () => {
 })
 
 describe('resolveComposerRunTarget', () => {
-  it('follows the active registry row when it is Local or Cloud', () => {
+  it('follows the live descriptor over a stale Local registry id', () => {
     expect(
       resolveComposerRunTarget({
-        activeConnectionId: 'cloud-1',
-        connection: { mode: 'remote', remoteKind: 'url' },
+        activeConnectionId: 'local',
+        connection: { mode: 'remote', remoteKind: 'cloud' },
         connections: [local, cloud]
       })
     ).toBe('cloud')
@@ -32,6 +45,16 @@ describe('resolveComposerRunTarget', () => {
         connections: [local]
       })
     ).toBe('local')
+  })
+
+  it('falls back to the active registry row when the live backend is neither', () => {
+    expect(
+      resolveComposerRunTarget({
+        activeConnectionId: 'cloud-1',
+        connection: { mode: 'remote', remoteKind: 'url' },
+        connections: [local, cloud]
+      })
+    ).toBe('cloud')
   })
 
   it('treats a remote-shaped Cloud descriptor as Cloud', () => {
@@ -55,28 +78,79 @@ describe('resolveComposerRunTarget', () => {
   })
 })
 
+describe('lastCloudApplySource', () => {
+  it('prefers the v1 cloud block', () => {
+    expect(
+      lastCloudApplySource({
+        connection: { baseUrl: 'https://live.example', remoteKind: 'cloud' },
+        remembered: { remoteUrl: 'https://remembered.example' },
+        saved: { cloudOrg: 'acme', mode: 'cloud', remoteUrl: 'https://saved.example/' }
+      })
+    ).toEqual({ cloudOrg: 'acme', remoteUrl: 'https://saved.example/' })
+  })
+
+  it('uses the live Cloud descriptor when v1 is no longer cloud', () => {
+    expect(
+      lastCloudApplySource({
+        connection: { baseUrl: 'https://live.example/', remoteKind: 'cloud' },
+        saved: { cloudOrg: '', mode: 'local', remoteUrl: '' }
+      })
+    ).toEqual({ remoteUrl: 'https://live.example/' })
+  })
+
+  it('falls back to the in-session remember after Local apply wipes v1', () => {
+    expect(
+      lastCloudApplySource({
+        connection: { baseUrl: 'http://127.0.0.1:9' },
+        remembered: { cloudOrg: 'acme', remoteUrl: 'https://remembered.example' },
+        saved: { cloudOrg: '', mode: 'local', remoteUrl: '' }
+      })
+    ).toEqual({ cloudOrg: 'acme', remoteUrl: 'https://remembered.example' })
+  })
+
+  it('returns null when Cloud has never been connected', () => {
+    expect(
+      lastCloudApplySource({
+        connection: { baseUrl: 'http://127.0.0.1:9' },
+        saved: { cloudOrg: '', mode: 'local', remoteUrl: '' }
+      })
+    ).toBeNull()
+  })
+})
+
+describe('rememberComposerCloudApply', () => {
+  it('keeps the last non-empty Cloud dashboard for this session', () => {
+    expect(readRememberedComposerCloudApply()).toBeNull()
+    rememberComposerCloudApply({ cloudOrg: 'acme', remoteUrl: ' https://agent.example/ ' })
+    expect(readRememberedComposerCloudApply()).toEqual({ cloudOrg: 'acme', remoteUrl: 'https://agent.example/' })
+    rememberComposerCloudApply({ remoteUrl: '' })
+    expect(readRememberedComposerCloudApply()).toEqual({ cloudOrg: 'acme', remoteUrl: 'https://agent.example/' })
+  })
+})
+
 describe('composerRunTargetIntent', () => {
-  it('selects the registered source when it is not already active', () => {
-    expect(composerRunTargetIntent('cloud', [local, cloud], 'local')).toEqual({
-      connectionId: 'cloud-1',
-      type: 'select'
-    })
-    expect(composerRunTargetIntent('local', [local, cloud], 'cloud-1')).toEqual({
-      connectionId: 'local',
-      type: 'select'
+  const savedCloud = { remoteUrl: 'https://agent.example' }
+
+  it('applies Cloud from the last dashboard URL without a registry row', () => {
+    expect(composerRunTargetIntent('cloud', { active: 'local', cloud: savedCloud })).toEqual({
+      payload: composerCloudApplyPayload(savedCloud),
+      type: 'apply'
     })
   })
 
-  it('no-ops when the source is already active', () => {
-    expect(composerRunTargetIntent('local', [local], 'local')).toEqual({ type: 'noop' })
-    expect(composerRunTargetIntent('cloud', [cloud], 'cloud-1')).toEqual({ type: 'noop' })
+  it('applies Local through the Settings apply door', () => {
+    expect(composerRunTargetIntent('local', { active: 'cloud', cloud: savedCloud })).toEqual({
+      payload: { mode: 'local' },
+      type: 'apply'
+    })
   })
 
-  it('opens Settings when Cloud is not in the registry', () => {
-    expect(composerRunTargetIntent('cloud', [local, remote], 'local')).toEqual({ type: 'settings' })
+  it('no-ops when the live backend is already the requested target', () => {
+    expect(composerRunTargetIntent('local', { active: 'local', cloud: savedCloud })).toEqual({ type: 'noop' })
+    expect(composerRunTargetIntent('cloud', { active: 'cloud', cloud: savedCloud })).toEqual({ type: 'noop' })
   })
 
-  it('does not invent a Local source', () => {
-    expect(composerRunTargetIntent('local', [remote], 'homelab')).toEqual({ type: 'noop' })
+  it('opens Settings when Cloud has never been connected', () => {
+    expect(composerRunTargetIntent('cloud', { active: 'local', cloud: null })).toEqual({ type: 'settings' })
   })
 })
