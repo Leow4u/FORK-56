@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { atom } from 'nanostores'
 import { MemoryRouter } from 'react-router'
+import type * as ReactRouterDom from 'react-router'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { DesktopConnectionsRegistry, Work4YouConnection } from '@/global'
@@ -10,14 +11,10 @@ import { ComposerRunTargetMenu } from './run-target-menu'
 
 const navigate = vi.fn()
 
-vi.mock('react-router', async importOriginal => {
-  const actual = await importOriginal<typeof import('react-router')>()
-
-  return {
-    ...actual,
-    useNavigate: () => navigate
-  }
-})
+vi.mock('react-router', async importOriginal => ({
+  ...(await importOriginal<typeof ReactRouterDom>()),
+  useNavigate: () => navigate
+}))
 
 vi.mock('@/store/connections', () => ({
   $activeConnectionId: atom<null | string>('local'),
