@@ -2802,10 +2802,11 @@ def _cmd_update_check(branch: str = "main", *, branch_explicit: bool = False):
         print(recommended_update_command_for_method(method))
         sys.exit(1)
 
-    git_dir = _m().PROJECT_ROOT / ".git"
     if method == "desktop":
         _cmd_update_check_desktop(branch)
         return
+
+    git_dir = _m().PROJECT_ROOT / ".git"
     if not git_dir.exists():
         print("✗ Not a git repository — cannot check for updates.")
         sys.exit(1)

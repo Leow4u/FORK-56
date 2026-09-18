@@ -86,11 +86,12 @@ def test_update_via_zip_honours_branch_for_runtime_payload(monkeypatch, tmp_path
         )
     assert "url" not in captured
 
-    with pytest.raises(RuntimeError, match="stop-before-extract"):
+    with pytest.raises(SystemExit) as exc:
         update_cmd._update_via_zip(
             SimpleNamespace(branch="release"),
             runtime_payload=True,
         )
+    assert exc.value.code == 1
     assert "/refs/heads/release.zip" in captured["url"]
 
 
