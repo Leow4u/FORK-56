@@ -86,7 +86,6 @@ function resolveCheckoutHead(activeRoot: string | null | undefined, opts: { exec
 
   return readRuntimeRefCommit(activeRoot)
 }
-}
 
 /** Prefer a real pin already written by install.ps1's bootstrap-marker stage. */
 function readExistingPinnedCommit(activeRoot: string | null | undefined): string | null {
