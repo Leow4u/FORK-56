@@ -97,10 +97,7 @@ test('resolveCheckoutHead reads .runtime-ref when git is absent', () => {
   try {
     const activeRoot = path.join(home, 'work4you')
     fs.mkdirSync(activeRoot, { recursive: true })
-    fs.writeFileSync(
-      path.join(activeRoot, '.runtime-ref'),
-      JSON.stringify({ commit: 'a'.repeat(40), branch: 'main' })
-    )
+    fs.writeFileSync(path.join(activeRoot, '.runtime-ref'), JSON.stringify({ commit: 'a'.repeat(40), branch: 'main' }))
     assert.equal(readRuntimeRefCommit(activeRoot), 'a'.repeat(40))
     assert.equal(
       resolveCheckoutHead(activeRoot, {

@@ -31,8 +31,10 @@ function nsisConfig(): Record<string, unknown> {
   const raw = JSON.parse(fs.readFileSync(DESKTOP_PKG, 'utf8')) as {
     build?: { nsis?: Record<string, unknown> }
   }
+
   const nsis = raw.build?.nsis
   assert.ok(nsis && typeof nsis === 'object', 'apps/desktop package.json must declare build.nsis')
+
   return nsis
 }
 

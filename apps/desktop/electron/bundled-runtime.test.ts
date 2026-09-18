@@ -32,7 +32,10 @@ describe('bundled runtime gate', () => {
     const stub = parseBundledRuntimeManifest({ schemaVersion: 1, present: false })
 
     assert.equal(shouldDeployBundledRuntime({ isPackaged: true, isWindows: true, manifest: present }), true)
-    assert.equal(shouldDeployBundledRuntime({ isPackaged: true, isWindows: false, isMac: true, manifest: present }), true)
+    assert.equal(
+      shouldDeployBundledRuntime({ isPackaged: true, isWindows: false, isMac: true, manifest: present }),
+      true
+    )
     assert.equal(shouldDeployBundledRuntime({ isPackaged: true, isWindows: true, manifest: stub }), false)
     assert.equal(shouldDeployBundledRuntime({ isPackaged: false, isWindows: true, manifest: present }), false)
     assert.equal(shouldDeployBundledRuntime({ isPackaged: true, isWindows: false, manifest: present }), false)

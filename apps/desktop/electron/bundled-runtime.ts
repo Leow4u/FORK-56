@@ -73,7 +73,17 @@ export function bundledDeployArgs(opts: {
   work4youHome: string
   installStampPath?: string | null
 }): string[] {
-  const args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', opts.bundleDir.replace(/\//g, '\\') + '\\' + BUNDLED_RUNTIME_DEPLOY_SCRIPT.replace(/\//g, '\\'), '-BundleDir', opts.bundleDir, '-Work4YouHome', opts.work4youHome]
+  const args = [
+    '-NoProfile',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-File',
+    opts.bundleDir.replace(/\//g, '\\') + '\\' + BUNDLED_RUNTIME_DEPLOY_SCRIPT.replace(/\//g, '\\'),
+    '-BundleDir',
+    opts.bundleDir,
+    '-Work4YouHome',
+    opts.work4youHome
+  ]
 
   if (opts.installStampPath) {
     args.push('-InstallStampPath', opts.installStampPath)

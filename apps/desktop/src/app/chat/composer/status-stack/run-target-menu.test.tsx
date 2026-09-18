@@ -162,9 +162,7 @@ describe('ComposerRunTargetMenu', () => {
       })
     )
     expect(navigate).not.toHaveBeenCalled()
-    expect(notify).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Gateway connection restarting' })
-    )
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: 'Gateway connection restarting' }))
   })
 
   it('opens Settings → Gateways when Cloud has never been connected', async () => {
