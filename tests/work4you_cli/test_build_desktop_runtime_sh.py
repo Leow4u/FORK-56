@@ -1,4 +1,4 @@
-"""POSIX runtime builder: resolve uv without capturing installer stdout."""
+"""POSIX runtime builder: uv path contract + zip output path."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import os
 import shutil
 import stat
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -137,3 +138,55 @@ def test_print_uv_ignores_installer_stdout_and_finds_bin_uv(tmp_path):
     assert "installing to" in result.stderr
     assert expected.is_file()
     assert os.access(expected, os.X_OK)
+
+
+@pytest.mark.linux_only
+def test_zip_only_writes_relative_zip_from_cwd_not_out_dir(tmp_path):
+    """CI failed after `cd $OUT_DIR` because --zip-out was dist/foo.zip."""
+    out = tmp_path / "runtime"
+    out.mkdir()
+    (out / "marker.txt").write_text("ok\n", encoding="utf-8")
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    result = subprocess.run(
+        [
+            BASH,
+            str(SCRIPT),
+            "--out-dir",
+            str(out),
+            "--zip-out",
+            "dist/runtime-darwin-arm64.zip",
+            "--zip-only",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+    )
+    dest = cwd / "dist" / "runtime-darwin-arm64.zip"
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert dest.is_file()
+    assert not (out / "dist" / "runtime-darwin-arm64.zip").exists()
+    with zipfile.ZipFile(dest) as archive:
+        assert "marker.txt" in archive.namelist()
+        assert archive.read("marker.txt") == b"ok\n"
+
+
+@pytest.mark.linux_only
+def test_zip_only_missing_out_dir_fails(tmp_path):
+    result = subprocess.run(
+        [
+            BASH,
+            str(SCRIPT),
+            "--out-dir",
+            str(tmp_path / "missing-runtime"),
+            "--zip-out",
+            str(tmp_path / "out.zip"),
+            "--zip-only",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "out-dir missing" in result.stderr
