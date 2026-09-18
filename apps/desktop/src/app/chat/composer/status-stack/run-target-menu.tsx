@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { SETTINGS_ROUTE } from '@/app/routes'
@@ -18,16 +18,24 @@ import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { Cloud, Loader2, Monitor } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import { $activeConnectionId, $connectionsRegistry, $pendingConnectionId, selectConnection } from '@/store/connections'
-import { notifyError } from '@/store/notifications'
+import { $activeConnectionId, $connectionsRegistry, $pendingConnectionId } from '@/store/connections'
+import { notify, notifyError } from '@/store/notifications'
 import { $connection } from '@/store/session'
 
-import { type ComposerRunTarget, composerRunTargetIntent, resolveComposerRunTarget } from './run-target'
+import {
+  type ComposerRunTarget,
+  composerRunTargetIntent,
+  lastCloudApplySource,
+  readRememberedComposerCloudApply,
+  rememberComposerCloudApply,
+  resolveComposerRunTarget
+} from './run-target'
 
 export function ComposerRunTargetMenu({ side = 'top' }: { side?: 'bottom' | 'top' }) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const applyingRef = useRef(false)
   const registry = useStore($connectionsRegistry)
   const activeConnectionId = useStore($activeConnectionId)
   const connection = useStore($connection)
@@ -35,14 +43,49 @@ export function ComposerRunTargetMenu({ side = 'top' }: { side?: 'bottom' | 'top
   const connections = registry?.connections ?? []
   const active = resolveComposerRunTarget({ activeConnectionId, connection, connections })
   const copy = t.settings.connections
-  const tooltip = t.settings.gateway.modeTitle
+  const gateway = t.settings.gateway
+  const tooltip = gateway.modeTitle
+
+  useEffect(() => {
+    rememberComposerCloudApply(
+      lastCloudApplySource({
+        connection,
+        remembered: readRememberedComposerCloudApply(),
+        saved: null
+      })
+    )
+  }, [connection])
 
   const choose = (target: string) => {
     if (target !== 'cloud' && target !== 'local') {
       return
     }
 
-    const intent = composerRunTargetIntent(target as ComposerRunTarget, connections, activeConnectionId)
+    void applyRunTarget(target)
+  }
+
+  const applyRunTarget = async (target: ComposerRunTarget) => {
+    if (applyingRef.current) {
+      return
+    }
+
+    const desktop = window.work4youDesktop
+    const saved = (await desktop?.getConnectionConfig?.(null).catch(() => null)) ?? null
+    const live = $connection.get()
+    const cloud = lastCloudApplySource({
+      connection: live,
+      remembered: readRememberedComposerCloudApply(),
+      saved
+    })
+    rememberComposerCloudApply(cloud)
+    const intent = composerRunTargetIntent(target, {
+      active: resolveComposerRunTarget({
+        activeConnectionId: $activeConnectionId.get(),
+        connection: live,
+        connections: $connectionsRegistry.get()?.connections ?? []
+      }),
+      cloud
+    })
 
     if (intent.type === 'settings') {
       triggerHaptic('selection')
@@ -55,11 +98,28 @@ export function ComposerRunTargetMenu({ side = 'top' }: { side?: 'bottom' | 'top
       return
     }
 
-    const selected = connections.find(row => row.id === intent.connectionId)
+    if (!desktop?.applyConnectionConfig) {
+      return
+    }
+
     triggerHaptic('selection')
-    void selectConnection(intent.connectionId).catch(error =>
-      notifyError(error, t.profiles.switchConnectionFailed(selected?.label ?? intent.connectionId))
-    )
+    applyingRef.current = true
+    $pendingConnectionId.set(target)
+
+    try {
+      await desktop.applyConnectionConfig(intent.payload)
+      rememberComposerCloudApply(
+        intent.payload.mode === 'cloud' && intent.payload.remoteUrl
+          ? { cloudOrg: intent.payload.cloudOrg, remoteUrl: intent.payload.remoteUrl }
+          : cloud
+      )
+      notify({ kind: 'success', message: gateway.restartingMessage, title: gateway.restartingTitle })
+    } catch (error) {
+      notifyError(error, gateway.applyFailed)
+    } finally {
+      applyingRef.current = false
+      $pendingConnectionId.set(null)
+    }
   }
 
   const setMenuOpen = (next: boolean) => {
