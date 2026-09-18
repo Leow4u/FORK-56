@@ -234,6 +234,44 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
     expect(screen.queryByText('Sign in to continue')).toBeNull()
   })
 
+  it('keeps a waiting panel after authorize instead of Get started', () => {
+    const portal = makeOAuthProvider('work4you', 'Work4You Portal')
+    setProviders([portal], {
+      configured: false,
+      flow: { provider: portal, status: 'success' }
+    })
+    render(<DesktopOnboardingOverlay enabled profile="default" requestGateway={requestGateway} />)
+
+    expect(screen.queryByRole('button', { name: 'Get started' })).toBeNull()
+    expect(screen.getByText('Work4You Portal connected. Picking a default model...')).toBeTruthy()
+  })
+
+  it('keeps the device-code waiting panel while Portal poll is in flight', () => {
+    const portal = makeOAuthProvider('work4you', 'Work4You Portal')
+    setProviders([portal], {
+      configured: false,
+      flow: {
+        copied: false,
+        provider: { ...portal, flow: 'device_code' },
+        start: {
+          expires_in: 600,
+          flow: 'device_code',
+          poll_interval: 5,
+          session_id: 'device-session',
+          user_code: '5X63-ZPDL',
+          verification_url: 'https://portal.work4you.ai/device?user_code=5X63-ZPDL'
+        },
+        status: 'polling'
+      }
+    })
+    render(<DesktopOnboardingOverlay enabled profile="default" requestGateway={requestGateway} />)
+
+    expect(screen.queryByRole('button', { name: 'Get started' })).toBeNull()
+    expect(screen.getByText('Waiting for you to authorize...')).toBeTruthy()
+    expect(screen.getByText('5')).toBeTruthy()
+    expect(screen.getByText('X')).toBeTruthy()
+  })
+
   it('first-run overlay is a full-bleed Get started door', async () => {
     const originalLocation = window.location
     Object.defineProperty(window, 'location', {

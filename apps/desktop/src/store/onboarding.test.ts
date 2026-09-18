@@ -6,11 +6,14 @@ import type { OAuthProvider } from '@/types/work4you'
 
 import {
   $desktopOnboarding,
+  cancelOnboardingFlow,
   type DesktopOnboardingState,
+  isOnboardingFlowInFlight,
   type OnboardingContext,
   refreshOnboarding,
   requestDesktopOnboarding,
   saveOnboardingLocalEndpoint,
+  startProviderOAuth,
   submitOnboardingCode
 } from './onboarding'
 
@@ -357,6 +360,7 @@ describe('OAuth onboarding', () => {
   })
 
   afterEach(() => {
+    cancelOnboardingFlow()
     window.localStorage.clear()
     $desktopOnboarding.set(baseState())
     vi.restoreAllMocks()
@@ -513,6 +517,99 @@ describe('OAuth onboarding', () => {
     expect(state.flow.status).toBe('error')
     expect(state.flow.status === 'error' ? state.flow.message : '').toContain('Confirm this expensive model.')
     expect(requestGatewayMock).not.toHaveBeenCalledWith('setup.runtime_check', expect.anything())
+  })
+
+  it('does not mint a second device code while a poll is in flight', async () => {
+    const startCalls: string[] = []
+    installApiMock(async ({ path }: { path: string }) => {
+      if (path === '/api/providers/oauth/work4you/start') {
+        startCalls.push(path)
+        return {
+          expires_in: 600,
+          flow: 'device_code',
+          poll_interval: 5,
+          session_id: 'device-session',
+          user_code: '5X63-ZPDL',
+          verification_url: 'https://portal.work4you.ai/device?user_code=5X63-ZPDL'
+        }
+      }
+
+      if (path.includes('/poll/')) {
+        return { status: 'pending' }
+      }
+
+      throw new Error(`unexpected api path: ${path}`)
+    })
+    Object.defineProperty(window, 'work4youDesktop', {
+      configurable: true,
+      value: {
+        ...window.work4youDesktop,
+        openExternal: vi.fn(async () => undefined)
+      }
+    })
+
+    const provider = { ...makeOAuthProvider('work4you', 'Work4You Portal'), flow: 'device_code' as const }
+    const ctx = onboardingContext(async () => {
+      throw new Error('unexpected gateway method')
+    })
+
+    await startProviderOAuth(provider, ctx)
+    await startProviderOAuth(provider, ctx)
+
+    expect(startCalls).toHaveLength(1)
+    expect($desktopOnboarding.get().flow.status).toBe('polling')
+    expect(isOnboardingFlowInFlight($desktopOnboarding.get().flow)).toBe(true)
+    cancelOnboardingFlow()
+  })
+
+  it('does not mint a second device code while the first start is still resolving', async () => {
+    let releaseStart: ((value: unknown) => void) | undefined
+    const started = new Promise(resolve => {
+      releaseStart = resolve
+    })
+    const startCalls: string[] = []
+
+    installApiMock(async ({ path }: { path: string }) => {
+      if (path === '/api/providers/oauth/work4you/start') {
+        startCalls.push(path)
+        await started
+        return {
+          expires_in: 600,
+          flow: 'device_code',
+          poll_interval: 5,
+          session_id: 'device-session',
+          user_code: 'ABCD-EFGH',
+          verification_url: 'https://portal.work4you.ai/device?user_code=ABCD-EFGH'
+        }
+      }
+
+      if (path.includes('/poll/')) {
+        return { status: 'pending' }
+      }
+
+      throw new Error(`unexpected api path: ${path}`)
+    })
+    Object.defineProperty(window, 'work4youDesktop', {
+      configurable: true,
+      value: {
+        ...window.work4youDesktop,
+        openExternal: vi.fn(async () => undefined)
+      }
+    })
+
+    const provider = { ...makeOAuthProvider('work4you', 'Work4You Portal'), flow: 'device_code' as const }
+    const ctx = onboardingContext(async () => {
+      throw new Error('unexpected gateway method')
+    })
+
+    const first = startProviderOAuth(provider, ctx)
+    const second = startProviderOAuth(provider, ctx)
+    releaseStart?.(undefined)
+    await Promise.all([first, second])
+
+    expect(startCalls).toHaveLength(1)
+    expect($desktopOnboarding.get().flow.status).toBe('polling')
+    cancelOnboardingFlow()
   })
 })
 
