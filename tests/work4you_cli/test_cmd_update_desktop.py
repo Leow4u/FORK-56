@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -139,3 +140,133 @@ def test_cmd_update_impl_uses_runtime_payload_for_desktop_method(monkeypatch, tm
     update_cmd._cmd_update_impl(SimpleNamespace(force=False, force_venv=False, yes=True), False)
     assert calls["runtime_payload"] is True
     assert calls["had_desktop"] is False
+
+
+def test_try_apply_prebuilt_runtime_update_applies_bundle(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_urlretrieve(url, dest):
+        captured["url"] = url
+        Path(dest).write_bytes(b"zip")
+
+    def fake_apply(extracted, home, **kwargs):
+        captured["extracted"] = Path(extracted)
+        captured["home"] = Path(home)
+        return home / "work4you"
+
+    monkeypatch.setattr("urllib.request.urlretrieve", fake_urlretrieve)
+    monkeypatch.setattr(update_cmd, "_m", lambda: SimpleNamespace(PROJECT_ROOT=tmp_path / "work4you"))
+    monkeypatch.setattr(
+        "work4you_cli.desktop_runtime.detect_prebuilt_runtime_target",
+        lambda: ("win32", "x64"),
+    )
+    monkeypatch.setattr(
+        "work4you_cli.desktop_runtime.is_prebuilt_runtime_zip", lambda _p: True
+    )
+    monkeypatch.setattr(
+        "work4you_cli.desktop_runtime.extract_prebuilt_runtime_zip",
+        lambda _z, dest: Path(dest),
+    )
+    monkeypatch.setattr(
+        "work4you_cli.desktop_runtime.apply_prebuilt_runtime_bundle", fake_apply
+    )
+
+    assert update_cmd._try_apply_prebuilt_runtime_update(str(tmp_path)) is True
+    assert captured["url"].endswith("/runtime-win-x64.zip")
+    assert captured["home"] == tmp_path
+
+
+def test_try_apply_prebuilt_runtime_update_uses_darwin_zip(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_urlretrieve(url, dest):
+        captured["url"] = url
+        raise OSError("stop")
+
+    monkeypatch.setattr("urllib.request.urlretrieve", fake_urlretrieve)
+    monkeypatch.setattr(update_cmd, "_m", lambda: SimpleNamespace(PROJECT_ROOT=tmp_path / "work4you"))
+    monkeypatch.setattr(
+        "work4you_cli.desktop_runtime.detect_prebuilt_runtime_target",
+        lambda: ("darwin", "arm64"),
+    )
+    assert update_cmd._try_apply_prebuilt_runtime_update(str(tmp_path)) is False
+    assert captured["url"].endswith("/runtime-darwin-arm64.zip")
+
+
+def test_try_apply_prebuilt_runtime_update_falls_back(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "urllib.request.urlretrieve",
+        lambda _url, _dest: (_ for _ in ()).throw(OSError("404")),
+    )
+    monkeypatch.setattr(update_cmd, "_m", lambda: SimpleNamespace(PROJECT_ROOT=tmp_path / "work4you"))
+    monkeypatch.setattr(
+        "work4you_cli.desktop_runtime.detect_prebuilt_runtime_target",
+        lambda: ("win32", "x64"),
+    )
+    assert update_cmd._try_apply_prebuilt_runtime_update(str(tmp_path)) is False
+
+
+def test_try_apply_prebuilt_runtime_update_skips_linux(monkeypatch, tmp_path):
+    called: list[str] = []
+    monkeypatch.setattr(
+        "work4you_cli.desktop_runtime.detect_prebuilt_runtime_target",
+        lambda: None,
+    )
+    monkeypatch.setattr(
+        "urllib.request.urlretrieve",
+        lambda url, dest: called.append(url),
+    )
+    monkeypatch.setattr(update_cmd, "_m", lambda: SimpleNamespace(PROJECT_ROOT=tmp_path / "work4you"))
+    assert update_cmd._try_apply_prebuilt_runtime_update(str(tmp_path)) is False
+    assert called == []
+
+
+def test_update_via_zip_tries_prebuilt_only_on_main(monkeypatch, tmp_path):
+    captured = []
+
+    def fake_prebuilt(_tmp):
+        captured.append("prebuilt")
+        return False
+
+    def fake_urlretrieve(url, dest):
+        captured.append(url)
+        raise RuntimeError("stop-before-extract")
+
+    monkeypatch.setattr(update_cmd, "_try_apply_prebuilt_runtime_update", fake_prebuilt)
+    monkeypatch.setattr(update_cmd, "_read_project_version", lambda: "0.0.0")
+    monkeypatch.setattr("urllib.request.urlretrieve", fake_urlretrieve)
+    monkeypatch.setattr(update_cmd, "_m", lambda: SimpleNamespace(
+        PROJECT_ROOT=tmp_path,
+        _resolve_update_branch=lambda _args: "main",
+        _capture_active_tool_dependencies=lambda: {},
+        sys=SimpleNamespace(exit=lambda code: (_ for _ in ()).throw(SystemExit(code))),
+    ))
+
+    with pytest.raises(SystemExit):
+        update_cmd._update_via_zip(SimpleNamespace(branch="main"), runtime_payload=True)
+    assert captured[0] == "prebuilt"
+    assert "/refs/heads/main.zip" in captured[1]
+
+
+def test_update_via_zip_skips_source_zip_when_prebuilt_applies(monkeypatch, tmp_path):
+    captured = []
+
+    monkeypatch.setattr(update_cmd, "_try_apply_prebuilt_runtime_update", lambda _tmp: True)
+    monkeypatch.setattr(update_cmd, "_read_project_version", lambda: "0.0.0")
+    monkeypatch.setattr(
+        "urllib.request.urlretrieve",
+        lambda url, dest: captured.append(url) or (_ for _ in ()).throw(RuntimeError(url)),
+    )
+    monkeypatch.setattr(update_cmd, "_validate_critical_modules_import", lambda _root: (True, None, None))
+    monkeypatch.setattr(update_cmd, "_m", lambda: SimpleNamespace(
+        PROJECT_ROOT=tmp_path,
+        _resolve_update_branch=lambda _args: "main",
+        _capture_active_tool_dependencies=lambda: {},
+        _clear_bytecode_cache=lambda _root: 0,
+        _record_bytecode_fingerprint=lambda: None,
+        _refresh_bootstrap_cache_scripts=lambda _branch: None,
+        sys=SimpleNamespace(exit=lambda code: (_ for _ in ()).throw(SystemExit(code))),
+    ))
+
+    assert update_cmd._update_via_zip(SimpleNamespace(branch="main"), runtime_payload=True) is True
+    assert captured == []

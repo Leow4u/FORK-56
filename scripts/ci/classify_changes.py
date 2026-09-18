@@ -101,10 +101,18 @@ _SCAN_FILES = {"setup.cfg", "pyproject.toml"}
 _MCP_CATALOG_PATHS = ("optional-mcps/",)
 _MCP_CATALOG_FILES = {"work4you_cli/mcp_catalog.py"}
 
-# Windows installer + its PowerShell tests. These only run on a Windows runner,
-# so they get their own lane rather than riding along with ``python``.
+# Desktop installer + its PowerShell tests. The Windows runner owns the
+# ``.ps1`` suite; POSIX deploy/build scripts still trip this lane (fail-open)
+# because they are the same Cursor-model payload recipe.
 _INSTALLER_PATHS = ("scripts/tests/",)
-_INSTALLER_FILES = {"scripts/install.ps1", "scripts/install.cmd"}
+_INSTALLER_FILES = {
+    "scripts/install.ps1",
+    "scripts/install.cmd",
+    "scripts/deploy-desktop-runtime.ps1",
+    "scripts/deploy-desktop-runtime.sh",
+    "scripts/build-desktop-runtime.ps1",
+    "scripts/build-desktop-runtime.sh",
+}
 
 def _is_docs(p: str) -> bool:
     if p.startswith(("skills/", "optional-skills/")):

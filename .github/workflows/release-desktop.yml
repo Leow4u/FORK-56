@@ -58,6 +58,10 @@ on:
       - scripts/ci/resolve_desktop_release_tag.py
       - apps/desktop/**
       - apps/shared/**
+      - scripts/build-desktop-runtime.ps1
+      - scripts/build-desktop-runtime.sh
+      - scripts/deploy-desktop-runtime.ps1
+      - scripts/deploy-desktop-runtime.sh
 
 permissions:
   contents: write
@@ -73,7 +77,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || startsWith(github.event.release.tag_name, 'desktop-v')
     name: Build Windows installer
     runs-on: windows-latest
-    timeout-minutes: 90
+    timeout-minutes: 150
     outputs:
       windows_signed: ${{ steps.sign.outcome == 'success' }}
     steps:
@@ -91,6 +95,22 @@ jobs:
         uses: ./.github/actions/retry
         with:
           command: npm ci
+
+      # Cursor-model payload: CPython + venv + allowlist + Node + rg, relocated
+      # and probed before electron-builder copies it into extraResources.
+      - name: Build prebuilt Windows runtime
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-desktop-runtime.ps1 `
+            -OutDir apps/desktop/build/runtime `
+            -ZipOut dist/runtime-win-x64.zip
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-runtime
+          path: dist/runtime-win-x64.zip
+          if-no-files-found: error
 
       # apps/desktop `dist:win:nsis` (`npm run build && npm run builder -- --win nsis`).
       # `--publish never` is the same flag `npm run pack` already uses so
@@ -161,7 +181,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || startsWith(github.event.release.tag_name, 'desktop-v')
     name: Build macOS installer
     runs-on: macos-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     outputs:
       macos_signed: ${{ steps.verify_macos.outcome == 'success' && steps.notarize_macos.outcome == 'success' }}
     steps:
@@ -203,6 +223,28 @@ jobs:
       - name: Warn unsigned macOS installer
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_macos_signing == true }}
         run: echo "::warning::Work4You.dmg will be UNSIGNED. Do not ship this artifact."
+
+      # Cursor-model payload: CPython + venv + allowlist + Node + rg, relocated
+      # and probed before electron-builder copies it into extraResources.
+      # macos-latest is typically arm64 → runtime-darwin-arm64.zip.
+      - name: Build prebuilt macOS runtime
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          arch="$(uname -m | tr '[:upper:]' '[:lower:]')"
+          case "$arch" in
+            arm64|aarch64) zip_name=runtime-darwin-arm64.zip ;;
+            *) zip_name=runtime-darwin-x64.zip ;;
+          esac
+          bash scripts/build-desktop-runtime.sh \
+            --out-dir apps/desktop/build/runtime \
+            --zip-out "dist/${zip_name}"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: macos-runtime
+          path: dist/runtime-darwin-*.zip
+          if-no-files-found: error
 
       # apps/desktop `dist:mac:dmg` (`npm run build && npm run builder -- --mac dmg`).
       # `--publish never` is the same flag `npm run pack` already uses so
@@ -322,9 +364,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          extra=()
+          if [ -f installers/windows-runtime/runtime-win-x64.zip ]; then
+            extra+=(--runtime-zip installers/windows-runtime/runtime-win-x64.zip)
+          fi
+          for zip in installers/macos-runtime/runtime-darwin-*.zip; do
+            if [ -f "$zip" ]; then
+              extra+=(--runtime-zip "$zip")
+            fi
+          done
           python scripts/ci/publish_desktop_release.py \
             --tag "${{ steps.tag.outputs.tag }}" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --exe installers/windows-installer/Work4You-Setup.exe \
-            --dmg installers/macos-installer/Work4You.dmg
+            --dmg installers/macos-installer/Work4You.dmg \
+            "${extra[@]}"

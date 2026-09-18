@@ -36,3 +36,11 @@ jobs:
       - name: 8.3 short-path normalization (Windows PowerShell 5.1)
         shell: powershell
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test-install-ps1-longpath.ps1
+
+      - name: Prebuilt runtime deploy (pwsh 7)
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test-deploy-desktop-runtime.ps1
+
+      - name: Prebuilt runtime deploy (Windows PowerShell 5.1)
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/tests/test-deploy-desktop-runtime.ps1

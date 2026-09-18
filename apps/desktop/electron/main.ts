@@ -1,4 +1,4 @@
-import { execFile, execFileSync, spawn } from 'node:child_process'
+import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import http from 'node:http'
@@ -59,6 +59,14 @@ import {
 import { decideBootstrapRepair } from './bootstrap-repair-guard'
 import { runBootstrap } from './bootstrap-runner'
 import { detectBundleSkew } from './bundle-skew'
+import {
+  bundledDeployArgs,
+  bundledPosixDeployArgs,
+  bundledRuntimeDir,
+  gitBashShouldBlockBoot,
+  parseBundledRuntimeManifest,
+  shouldDeployBundledRuntime
+} from './bundled-runtime'
 import { bindComposioLogoNetFetch, COMPOSIO_LOGO_PROTOCOL, handleComposioLogoProtocol } from './composio-logo'
 import { applyConnectionChange } from './connection-apply'
 import {
@@ -4268,6 +4276,110 @@ function isActiveRuntimeUsable() {
   )
 }
 
+function readBundledRuntimeManifestFromResources() {
+  const bundleDir = bundledRuntimeDir(process.resourcesPath)
+
+  if (!bundleDir) {
+    return { bundleDir: null, manifest: null }
+  }
+
+  const manifestPath = path.join(bundleDir, 'manifest.json')
+
+  if (!fileExists(manifestPath)) {
+    return { bundleDir, manifest: null }
+  }
+
+  try {
+    return {
+      bundleDir,
+      manifest: parseBundledRuntimeManifest(JSON.parse(fs.readFileSync(manifestPath, 'utf8')))
+    }
+  } catch {
+    return { bundleDir, manifest: null }
+  }
+}
+
+/**
+ * Copy the Setup extraResources runtime into WORK4YOU_HOME. Returns true only
+ * when the deploy exit code is 0 AND the existing venv probe passes — so a
+ * stub/dev pack (present:false, exit 0) does not skip the 13-stage fallback.
+ */
+function tryDeployBundledRuntime() {
+  const { bundleDir, manifest } = readBundledRuntimeManifestFromResources()
+
+  if (
+    !bundleDir ||
+    !shouldDeployBundledRuntime({
+      isPackaged: IS_PACKAGED,
+      isWindows: IS_WINDOWS,
+      isMac: IS_MAC,
+      manifest
+    })
+  ) {
+    return false
+  }
+
+  const stampPath = process.resourcesPath ? path.join(process.resourcesPath, 'install-stamp.json') : null
+  const stamp = stampPath && fileExists(stampPath) ? stampPath : null
+
+  rememberLog(`[bootstrap] deploying bundled runtime from ${bundleDir}`)
+
+  let result
+
+  if (IS_WINDOWS) {
+    const script = path.join(bundleDir, 'deploy-desktop-runtime.ps1')
+
+    if (!fileExists(script)) {
+      rememberLog(`[bootstrap] bundled runtime is present but ${script} is missing`)
+      return false
+    }
+
+    const powershell = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    result = spawnSync(
+      powershell,
+      bundledDeployArgs({
+        bundleDir,
+        work4youHome: WORK4YOU_HOME,
+        installStampPath: stamp
+      }),
+      hiddenWindowsChildOptions({
+        encoding: 'utf8',
+        timeout: 15 * 60 * 1000,
+        windowsHide: true
+      })
+    )
+  } else {
+    const script = path.join(bundleDir, 'deploy-desktop-runtime.sh')
+
+    if (!fileExists(script)) {
+      rememberLog(`[bootstrap] bundled runtime is present but ${script} is missing`)
+      return false
+    }
+
+    result = spawnSync(
+      '/bin/bash',
+      bundledPosixDeployArgs({
+        bundleDir,
+        work4youHome: WORK4YOU_HOME,
+        installStampPath: stamp
+      }),
+      {
+        encoding: 'utf8',
+        timeout: 15 * 60 * 1000
+      }
+    )
+  }
+
+  if (result.status !== 0) {
+    rememberLog(
+      `[bootstrap] bundled runtime deploy failed (status=${result.status}): ${(result.stderr || result.stdout || '').slice(0, 2000)}`
+    )
+    return false
+  }
+
+  return isActiveRuntimeUsable()
+}
+
 function activeRuntimeState() {
   // We DELIBERATELY do NOT verify that the checkout is currently at the
   // pinned commit -- users update via the in-app update path or `work4you
@@ -4736,7 +4848,14 @@ async function ensureRuntime(backend) {
   // will rewire startup to spawn the window first and route bootstrap events
   // to a renderer-side install overlay.
   if (backend.kind === 'bootstrap-needed') {
-    rememberLog('[bootstrap] no Work4You install found; starting first-launch bootstrap')
+    rememberLog('[bootstrap] no Work4You install found')
+
+    if (tryDeployBundledRuntime()) {
+      rememberLog('[bootstrap] bundled runtime deployed; skipping install.ps1 / install.sh stages')
+      return ensureRuntime(resolveWork4YouBackend(backend.args))
+    }
+
+    rememberLog('[bootstrap] starting first-launch bootstrap')
 
     if (await handOffWindowsBootstrapRecovery('bootstrap-needed')) {
       const handoffError: Error & { isBootstrapFailure?: boolean; bootstrapHandedOff?: boolean } = new Error(
@@ -4851,13 +4970,17 @@ async function ensureRuntime(backend) {
   // %LOCALAPPDATA%\work4you\git\, which findGitBash() picks up, so for any
   // user who completed the bootstrap this is a no-op. For users who got
   // here via an external `work4you` on PATH, this check still helps.
-  if (IS_WINDOWS && !findGitBash()) {
+  if (IS_WINDOWS && !findGitBash() && gitBashShouldBlockBoot()) {
     throw new Error(
       'Git for Windows is required for Work4You on Windows (provides Git Bash, ' +
         "which the agent's terminal tool uses). Install it from " +
         'https://git-scm.com/download/win or run `winget install -e --id Git.Git`, ' +
         'then relaunch Work4You.'
     )
+  }
+
+  if (IS_WINDOWS && !findGitBash()) {
+    rememberLog('[runtime] Git Bash not found; the terminal tool will be unavailable until Git is installed')
   }
 
   const venvPython = getVenvPython(VENV_ROOT)

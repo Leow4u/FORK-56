@@ -12,6 +12,16 @@
 ; before customInstall).
 
 !macro customInstall
+  ; Cursor-model Setup: copy the prebuilt runtime out of extraResources
+  ; during "Installing files" so first launch never runs install.ps1.
+  ; present:false (dev packs without a CI runtime) exits 0 and is a no-op.
+  nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\resources\runtime\deploy-desktop-runtime.ps1" -BundleDir "$INSTDIR\resources\runtime" -Work4YouHome "$LOCALAPPDATA\work4you" -InstallStampPath "$INSTDIR\resources\install-stamp.json"'
+  Pop $R9
+  ${if} $R9 != 0
+    MessageBox MB_OK|MB_ICONSTOP "Work4You runtime failed to install (exit $R9). Close other Work4You windows and run Setup again."
+    Abort
+  ${endIf}
+
   ${if} ${Silent}
     ${ifNot} ${isForceRun}
       HideWindow
