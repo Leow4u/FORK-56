@@ -14,6 +14,9 @@ RIPGREP_VERSION="14.1.1"
 ZIP_OUT=""
 SKIP_RELOCATE_TEST=0
 
+RESOLVE_UV_DIR=""
+PRINT_UV=0
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --repo-root) REPO_ROOT="${2:-}"; shift 2 ;;
@@ -23,9 +26,60 @@ while [ $# -gt 0 ]; do
     --ripgrep-version) RIPGREP_VERSION="${2:-}"; shift 2 ;;
     --zip-out) ZIP_OUT="${2:-}"; shift 2 ;;
     --skip-relocate-test) SKIP_RELOCATE_TEST=1; shift ;;
+    --resolve-uv) RESOLVE_UV_DIR="${2:-}"; shift 2 ;;
+    --print-uv) PRINT_UV=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 1 ;;
   esac
 done
+
+# Official uv installer may write $dir/uv or $dir/bin/uv. Prefer the root
+# copy so `cp -a "$UV_CMD" "$OUT_DIR/bin/uv"` stays a single file.
+resolve_uv_binary() {
+  local uv_dir="$1"
+  if [ -x "$uv_dir/uv" ]; then
+    echo "$uv_dir/uv"
+    return 0
+  fi
+  if [ -x "$uv_dir/bin/uv" ]; then
+    echo "$uv_dir/bin/uv"
+    return 0
+  fi
+  return 1
+}
+
+install_uv() {
+  if command -v uv >/dev/null 2>&1; then
+    command -v uv
+    return 0
+  fi
+  local uv_dir="${TMPDIR:-/tmp}/work4you-ci-uv"
+  mkdir -p "$uv_dir"
+  # install.sh prints "installing to …" on stdout. Command substitution
+  # must not capture that — only the resolved executable path belongs in
+  # UV_CMD. Official installer lands at $dir/uv or, more often, $dir/bin/uv.
+  curl -fsSL https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$uv_dir" UV_UNMANAGED_INSTALL="$uv_dir" sh >&2
+  local uv_bin
+  if uv_bin="$(resolve_uv_binary "$uv_dir")"; then
+    echo "$uv_bin"
+    return 0
+  fi
+  echo "failed to install uv under $uv_dir (looked for uv and bin/uv)" >&2
+  exit 1
+}
+
+if [ -n "$RESOLVE_UV_DIR" ]; then
+  if bin="$(resolve_uv_binary "$RESOLVE_UV_DIR")"; then
+    echo "$bin"
+    exit 0
+  fi
+  echo "uv binary not found under $RESOLVE_UV_DIR" >&2
+  exit 1
+fi
+
+if [ "$PRINT_UV" -eq 1 ]; then
+  install_uv
+  exit 0
+fi
 
 if [ -z "$REPO_ROOT" ]; then
   REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -50,22 +104,6 @@ case "$ARCH" in
   x86_64|amd64) ARCH="x64" ;;
   *) ARCH="x64" ;;
 esac
-
-install_uv() {
-  if command -v uv >/dev/null 2>&1; then
-    command -v uv
-    return 0
-  fi
-  local uv_dir="${TMPDIR:-/tmp}/work4you-ci-uv"
-  mkdir -p "$uv_dir"
-  curl -fsSL https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$uv_dir" sh
-  if [ -x "$uv_dir/uv" ]; then
-    echo "$uv_dir/uv"
-    return 0
-  fi
-  echo "failed to install uv" >&2
-  exit 1
-}
 
 UV_CMD="$(install_uv)"
 echo "[runtime] uv: $UV_CMD  arch=$ARCH"
