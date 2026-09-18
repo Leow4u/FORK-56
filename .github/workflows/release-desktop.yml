@@ -104,7 +104,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-desktop-runtime.ps1 `
             -OutDir apps/desktop/build/runtime `
-            -ZipOut dist/runtime-win-x64.zip
+            -ZipOut (Join-Path (Get-Location) "dist\runtime-win-x64.zip")
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -238,7 +238,7 @@ jobs:
           esac
           bash scripts/build-desktop-runtime.sh \
             --out-dir apps/desktop/build/runtime \
-            --zip-out "dist/${zip_name}"
+            --zip-out "$(pwd)/dist/${zip_name}"
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

@@ -13,6 +13,7 @@ NODE_FULL_VERSION="22.20.0"
 RIPGREP_VERSION="14.1.1"
 ZIP_OUT=""
 SKIP_RELOCATE_TEST=0
+ZIP_ONLY=0
 
 RESOLVE_UV_DIR=""
 PRINT_UV=0
@@ -26,6 +27,7 @@ while [ $# -gt 0 ]; do
     --ripgrep-version) RIPGREP_VERSION="${2:-}"; shift 2 ;;
     --zip-out) ZIP_OUT="${2:-}"; shift 2 ;;
     --skip-relocate-test) SKIP_RELOCATE_TEST=1; shift ;;
+    --zip-only) ZIP_ONLY=1; shift ;;
     --resolve-uv) RESOLVE_UV_DIR="${2:-}"; shift 2 ;;
     --print-uv) PRINT_UV=1; shift ;;
     *) echo "unknown argument: $1" >&2; exit 1 ;;
@@ -91,6 +93,40 @@ if [ -z "$OUT_DIR" ]; then
 fi
 mkdir -p "$(dirname "$OUT_DIR")"
 OUT_DIR="$(cd "$(dirname "$OUT_DIR")" && pwd)/$(basename "$OUT_DIR")"
+
+# zip runs after `cd "$OUT_DIR"`. A relative --zip-out (CI uses
+# dist/runtime-darwin-*.zip) would otherwise be created under OUT_DIR
+# and fail with "zip I/O error: No such file or directory".
+absolutize_path() {
+  local path="$1"
+  local dir base
+  dir="$(dirname "$path")"
+  base="$(basename "$path")"
+  mkdir -p "$dir"
+  echo "$(cd "$dir" && pwd)/$base"
+}
+
+write_runtime_zip() {
+  if [ -z "$ZIP_OUT" ]; then
+    return 0
+  fi
+  if [ ! -d "$OUT_DIR" ]; then
+    echo "out-dir missing for zip: $OUT_DIR" >&2
+    exit 1
+  fi
+  ZIP_OUT="$(absolutize_path "$ZIP_OUT")"
+  rm -f "$ZIP_OUT"
+  echo "[runtime] writing $ZIP_OUT"
+  (
+    cd "$OUT_DIR"
+    zip -qry "$ZIP_OUT" .
+  )
+}
+
+if [ "$ZIP_ONLY" -eq 1 ]; then
+  write_runtime_zip
+  exit 0
+fi
 
 SPEC="$REPO_ROOT/work4you_cli/data/runtime_payload.json"
 if [ ! -f "$SPEC" ]; then
@@ -279,14 +315,6 @@ if [ "$SKIP_RELOCATE_TEST" -eq 0 ]; then
   rm -rf "$TEST_HOME"
 fi
 
-if [ -n "$ZIP_OUT" ]; then
-  mkdir -p "$(dirname "$ZIP_OUT")"
-  rm -f "$ZIP_OUT"
-  echo "[runtime] writing $ZIP_OUT"
-  (
-    cd "$OUT_DIR"
-    zip -qry "$ZIP_OUT" .
-  )
-fi
+write_runtime_zip
 
 echo "[runtime] ready at $OUT_DIR"
