@@ -3313,6 +3313,8 @@ function createCanonicalChat(name, createRuntime) {
   }
 
   const run = (async () => {
+    const pinnedProvider = String(createRuntime?.provider || '').trim()
+    const pinnedModel = String(createRuntime?.model || '').trim()
     const res = await host.request('session.create', {
       profile: name,
       title: 'Bot Chat',
@@ -3321,7 +3323,7 @@ function createCanonicalChat(name, createRuntime) {
       // (deferred as pending_hidden until the row exists); older gateways
       // ignore the unknown param and it stays visible.
       hidden: true,
-      ...profilesCreateModelParams(createRuntime?.provider, createRuntime?.model)
+      ...(pinnedProvider && pinnedModel ? { provider: pinnedProvider, model: pinnedModel } : {})
     })
     const sid = res?.stored_session_id
     const runtime = res?.session_id

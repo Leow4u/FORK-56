@@ -13,12 +13,7 @@ function loadCanonicalCreation({ openSession, request }) {
     host: { openSession, request },
     saveBotMeta: (name, patch) => saved.push({ name, patch }),
     $hideBotChats: { get: () => false },
-    window: { setTimeout: callback => callback() },
-    profilesCreateModelParams: (provider, model) => {
-      const pinnedProvider = String(provider || '').trim()
-      const pinnedModel = String(model || '').trim()
-      return pinnedProvider && pinnedModel ? { provider: pinnedProvider, model: pinnedModel } : {}
-    }
+    window: { setTimeout: callback => callback() }
   }
   const section = source
     .slice(start, end)
