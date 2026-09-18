@@ -342,9 +342,13 @@ function validateBundle() {
     if (!exists(payloadMarker)) {
       die(`present runtime is missing ${payloadMarker}`)
     }
-    const deployScript = path.join(APP.resourcesPath, 'runtime', 'deploy-desktop-runtime.ps1')
-    if (!exists(deployScript)) {
-      die(`present runtime is missing ${deployScript}`)
+    const deployWin = path.join(APP.resourcesPath, 'runtime', 'deploy-desktop-runtime.ps1')
+    const deployPosix = path.join(APP.resourcesPath, 'runtime', 'deploy-desktop-runtime.sh')
+    if (PLATFORM === 'win32' && !exists(deployWin)) {
+      die(`present runtime is missing ${deployWin}`)
+    }
+    if (PLATFORM === 'darwin' && !exists(deployPosix)) {
+      die(`present runtime is missing ${deployPosix}`)
     }
   }
 

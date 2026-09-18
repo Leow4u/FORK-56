@@ -1072,25 +1072,29 @@ def _write_gateway_update_exit_code(ok: bool) -> None:
 
 
 def _try_apply_prebuilt_runtime_update(tmp_dir: str) -> bool:
-    """Apply the published ``runtime-win-*.zip`` when the latest release has one.
+    """Apply the published ``runtime-{win,darwin}-*.zip`` when Latest has one.
 
     Returns False on any miss so ``_update_via_zip`` can fall back to the
     GitHub source archive + ``uv sync`` path (releases that predate this
-    payload, offline, wrong arch).
+    payload, offline, wrong arch, Linux).
     """
     from urllib.request import urlretrieve
 
     from work4you_cli.desktop_runtime import (
         apply_prebuilt_runtime_bundle,
+        detect_prebuilt_runtime_target,
         extract_prebuilt_runtime_zip,
         github_prebuilt_runtime_zip_url,
         is_prebuilt_runtime_zip,
         runtime_zip_name,
     )
 
-    arch = "arm64" if (os.environ.get("PROCESSOR_ARCHITECTURE") or "").upper() == "ARM64" else "x64"
-    url = github_prebuilt_runtime_zip_url(arch=arch)
-    zip_path = os.path.join(tmp_dir, runtime_zip_name(arch))
+    target = detect_prebuilt_runtime_target()
+    if target is None:
+        return False
+    platform, arch = target
+    url = github_prebuilt_runtime_zip_url(arch=arch, platform=platform)
+    zip_path = os.path.join(tmp_dir, runtime_zip_name(arch, platform=platform))
     try:
         print(f"→ Trying prebuilt desktop runtime {url}")
         urlretrieve(url, zip_path)

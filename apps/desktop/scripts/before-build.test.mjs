@@ -13,6 +13,7 @@ test('ensureRuntimeResourceDir writes a stub manifest and copies the deploy scri
     const repoRoot = path.join(tempRoot, 'repo')
     fs.mkdirSync(path.join(repoRoot, 'scripts'), { recursive: true })
     fs.writeFileSync(path.join(repoRoot, 'scripts', 'deploy-desktop-runtime.ps1'), 'param()', 'utf8')
+    fs.writeFileSync(path.join(repoRoot, 'scripts', 'deploy-desktop-runtime.sh'), '#!/bin/bash', 'utf8')
 
     const first = ensureRuntimeResourceDir(desktopRoot, repoRoot)
     assert.equal(first.present, false)
@@ -21,6 +22,10 @@ test('ensureRuntimeResourceDir writes a stub manifest and copies the deploy scri
     assert.equal(
       fs.readFileSync(path.join(desktopRoot, 'build', 'runtime', 'deploy-desktop-runtime.ps1'), 'utf8'),
       'param()'
+    )
+    assert.equal(
+      fs.readFileSync(path.join(desktopRoot, 'build', 'runtime', 'deploy-desktop-runtime.sh'), 'utf8'),
+      '#!/bin/bash'
     )
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true })
@@ -41,10 +46,12 @@ test('ensureRuntimeResourceDir does not clobber a present CI runtime manifest', 
     const repoRoot = path.join(tempRoot, 'repo')
     fs.mkdirSync(path.join(repoRoot, 'scripts'), { recursive: true })
     fs.writeFileSync(path.join(repoRoot, 'scripts', 'deploy-desktop-runtime.ps1'), 'param()', 'utf8')
+    fs.writeFileSync(path.join(repoRoot, 'scripts', 'deploy-desktop-runtime.sh'), '#!/bin/bash', 'utf8')
 
     const result = ensureRuntimeResourceDir(desktopRoot, repoRoot)
     assert.equal(result.present, true)
     assert.equal(JSON.parse(fs.readFileSync(path.join(runtimeDir, 'manifest.json'), 'utf8')).present, true)
+    assert.equal(fs.existsSync(path.join(runtimeDir, 'deploy-desktop-runtime.sh')), true)
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true })
   }

@@ -1,13 +1,13 @@
-"""Prebuilt Windows desktop runtime (Cursor-model Setup payload).
+"""Prebuilt desktop runtime (Cursor-model Setup / DMG payload).
 
-Consumer Setup.exe ships a CI-built tree: portable CPython, a venv already
-synced with ``uv sync --extra all --locked``, the runtime allowlist, portable
-Node, and rg. NSIS / first-launch deploy copies that tree into
-``WORK4YOU_HOME`` and rewrites ``pyvenv.cfg`` so the existing desktop resolver
-(``venv\\Scripts\\python.exe`` + ``import work4you_cli``) works without a
-GitHub ZIP or on-device ``uv sync``.
+Consumer Windows Setup.exe and macOS Work4You.app ship a CI-built tree:
+portable CPython, a venv already synced with ``uv sync --extra all --locked``,
+the runtime allowlist, portable Node, and rg. NSIS (Windows) or first-open
+deploy (macOS) copies that tree into ``WORK4YOU_HOME`` and rewrites
+``pyvenv.cfg`` so the existing desktop resolver works without a GitHub ZIP or
+on-device ``uv sync``.
 
-Git / CLI / ``irm | iex`` installs are unchanged.
+Git / CLI / ``irm | iex`` / ``curl | bash`` installs are unchanged.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,11 +34,18 @@ MANIFEST_SCHEMA_VERSION = 1
 BOOTSTRAP_MARKER_FILENAME = ".work4you-bootstrap-complete"
 BOOTSTRAP_MARKER_SCHEMA_VERSION = 1
 DEPLOY_SCRIPT_FILENAME = "deploy-desktop-runtime.ps1"
+DEPLOY_SCRIPT_POSIX_FILENAME = "deploy-desktop-runtime.sh"
 
 PREBUILT_RUNTIME_ZIP_NAMES = {
-    "x64": "runtime-win-x64.zip",
-    "amd64": "runtime-win-x64.zip",
-    "arm64": "runtime-win-arm64.zip",
+    ("win32", "x64"): "runtime-win-x64.zip",
+    ("win32", "amd64"): "runtime-win-x64.zip",
+    ("win32", "arm64"): "runtime-win-arm64.zip",
+    ("darwin", "x64"): "runtime-darwin-x64.zip",
+    ("darwin", "amd64"): "runtime-darwin-x64.zip",
+    ("darwin", "arm64"): "runtime-darwin-arm64.zip",
+    ("linux", "x64"): "runtime-linux-x64.zip",
+    ("linux", "amd64"): "runtime-linux-x64.zip",
+    ("linux", "arm64"): "runtime-linux-arm64.zip",
 }
 
 # Home-level files the deploy must never clobber.
@@ -48,13 +56,67 @@ HOME_PRESERVE_FILES = frozenset({".env", "config.yaml", "SOUL.md"})
 INSTALL_PRESERVE = frozenset({".env", ".git"})
 
 
-def rewrite_pyvenv_cfg(text: str, python_home: str) -> str:
-    """Rewrite ``home`` / ``executable`` so a copied Windows venv can start."""
+def normalize_runtime_platform(platform: str | None = None) -> str:
+    raw = (platform or sys.platform or "").strip().lower()
+    if raw.startswith("win"):
+        return "win32"
+    if raw == "darwin":
+        return "darwin"
+    if raw.startswith("linux"):
+        return "linux"
+    return raw or "win32"
+
+
+def normalize_runtime_arch(arch: str | None = None) -> str:
+    key = (arch or "x64").strip().lower()
+    if key in {"amd64", "x86_64", "x64"}:
+        return "x64"
+    if key in {"arm64", "aarch64"}:
+        return "arm64"
+    return "x64"
+
+
+def detect_prebuilt_runtime_target() -> Optional[tuple[str, str]]:
+    """``(platform, arch)`` when this OS has a published desktop runtime zip."""
+    plat = normalize_runtime_platform()
+    if plat not in {"win32", "darwin"}:
+        return None
+    if plat == "win32":
+        env_arch = (os.environ.get("PROCESSOR_ARCHITECTURE") or "").upper()
+        arch = "arm64" if env_arch == "ARM64" else "x64"
+        return plat, arch
+    machine = ""
+    try:
+        machine = (os.uname().machine or "").lower()
+    except AttributeError:
+        machine = ""
+    arch = "arm64" if machine in {"arm64", "aarch64"} else "x64"
+    return plat, arch
+
+
+def resolve_bundle_python_executable(python_home: str) -> str:
+    """Interpreter path that belongs in a relocated ``pyvenv.cfg``."""
     home = str(python_home or "").rstrip("\\/")
     if not home:
         raise ValueError("python_home is required")
     windows_home = "\\" in home or (len(home) >= 2 and home[1] == ":")
-    executable = f"{home}\\python.exe" if windows_home else str(Path(home) / "python.exe")
+    if windows_home:
+        return f"{home}\\python.exe"
+    prefix = Path(home)
+    for rel in ("bin/python3", "bin/python", "python.exe"):
+        candidate = prefix.joinpath(*rel.split("/"))
+        if candidate.exists():
+            return str(candidate)
+    return str(prefix / "bin" / "python3")
+
+
+def rewrite_pyvenv_cfg(text: str, python_home: str, *, executable: str | None = None) -> str:
+    """Rewrite ``home`` / ``executable`` so a copied venv can start."""
+    home = str(python_home or "").rstrip("\\/")
+    if not home:
+        raise ValueError("python_home is required")
+    if not executable:
+        executable = resolve_bundle_python_executable(home)
     lines = str(text or "").splitlines()
     out: list[str] = []
     seen_home = False
@@ -120,19 +182,21 @@ def is_prebuilt_runtime_root(bundle_dir: Path) -> bool:
     return (root / "work4you").is_dir() and (root / "python").is_dir()
 
 
-def runtime_zip_name(arch: str = "x64") -> str:
-    key = (arch or "x64").strip().lower()
-    return PREBUILT_RUNTIME_ZIP_NAMES.get(key, PREBUILT_RUNTIME_ZIP_NAMES["x64"])
+def runtime_zip_name(arch: str = "x64", *, platform: str | None = None) -> str:
+    plat = normalize_runtime_platform(platform)
+    key = normalize_runtime_arch(arch)
+    return PREBUILT_RUNTIME_ZIP_NAMES.get((plat, key), PREBUILT_RUNTIME_ZIP_NAMES[("win32", "x64")])
 
 
 def github_prebuilt_runtime_zip_url(
     repo: str = DEFAULT_GITHUB_REPO,
     *,
     arch: str = "x64",
+    platform: str | None = None,
     tag: str = "latest",
 ) -> str:
     repo = (repo or DEFAULT_GITHUB_REPO).strip().strip("/")
-    asset = runtime_zip_name(arch)
+    asset = runtime_zip_name(arch, platform=platform)
     tag = (tag or "latest").strip() or "latest"
     if tag == "latest":
         return f"https://github.com/{repo}/releases/latest/download/{asset}"

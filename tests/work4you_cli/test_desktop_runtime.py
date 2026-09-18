@@ -8,6 +8,7 @@ from pathlib import Path
 
 from work4you_cli.desktop_runtime import (
     apply_prebuilt_runtime_bundle,
+    detect_prebuilt_runtime_target,
     extract_prebuilt_runtime_zip,
     github_prebuilt_runtime_zip_url,
     is_prebuilt_runtime_root,
@@ -57,12 +58,43 @@ def test_present_manifest_requires_schema_and_flag():
 
 
 def test_runtime_zip_url_and_name_are_arch_stable():
-    assert runtime_zip_name("x64") == "runtime-win-x64.zip"
-    assert runtime_zip_name("arm64") == "runtime-win-arm64.zip"
-    assert github_prebuilt_runtime_zip_url().endswith("/releases/latest/download/runtime-win-x64.zip")
-    assert "/releases/download/desktop-v1.2.3/" in github_prebuilt_runtime_zip_url(
-        tag="desktop-v1.2.3", arch="arm64"
+    assert runtime_zip_name("x64", platform="win32") == "runtime-win-x64.zip"
+    assert runtime_zip_name("arm64", platform="win32") == "runtime-win-arm64.zip"
+    assert runtime_zip_name("arm64", platform="darwin") == "runtime-darwin-arm64.zip"
+    assert runtime_zip_name("x64", platform="darwin") == "runtime-darwin-x64.zip"
+    assert github_prebuilt_runtime_zip_url(platform="win32").endswith(
+        "/releases/latest/download/runtime-win-x64.zip"
     )
+    assert github_prebuilt_runtime_zip_url(platform="darwin", arch="arm64").endswith(
+        "/releases/latest/download/runtime-darwin-arm64.zip"
+    )
+    assert "/releases/download/desktop-v1.2.3/" in github_prebuilt_runtime_zip_url(
+        tag="desktop-v1.2.3", arch="arm64", platform="win32"
+    )
+
+
+def test_rewrite_pyvenv_cfg_uses_posix_bin_python(tmp_path):
+    python_home = tmp_path / "python"
+    (python_home / "bin").mkdir(parents=True)
+    (python_home / "bin" / "python3").write_text("", encoding="utf-8")
+    rewritten = rewrite_pyvenv_cfg(
+        "home = /builder/python\nexecutable = /builder/python/bin/python3\n",
+        str(python_home),
+    )
+    assert f"home = {python_home}" in rewritten
+    assert f"executable = {python_home / 'bin' / 'python3'}" in rewritten
+    assert "/builder/" not in rewritten
+
+
+def test_detect_prebuilt_runtime_target_skips_linux(monkeypatch):
+    monkeypatch.setattr("work4you_cli.desktop_runtime.sys.platform", "linux")
+    assert detect_prebuilt_runtime_target() is None
+    monkeypatch.setattr("work4you_cli.desktop_runtime.sys.platform", "darwin")
+    monkeypatch.setattr(
+        "work4you_cli.desktop_runtime.os.uname",
+        lambda: type("U", (), {"machine": "arm64"})(),
+    )
+    assert detect_prebuilt_runtime_target() == ("darwin", "arm64")
 
 
 def _write_bundle(root: Path, *, commit: str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") -> Path:
@@ -164,6 +196,33 @@ def test_write_bootstrap_marker_rejects_short_commit_via_apply(tmp_path):
     assert not (home / "work4you" / ".work4you-bootstrap-complete").exists()
     write_bootstrap_marker(home / "work4you", pinned_commit="abcdefg")
     assert (home / "work4you" / ".work4you-bootstrap-complete").is_file()
+
+
+def test_apply_posix_bundle_writes_install_bin_launcher(tmp_path):
+    bundle = tmp_path / "bundle"
+    work4you = bundle / "work4you"
+    (work4you / "work4you_cli").mkdir(parents=True)
+    (work4you / "work4you_cli" / "__init__.py").write_text("__version__ = '0.0.0'\n", encoding="utf-8")
+    (work4you / "venv" / "bin").mkdir(parents=True)
+    (work4you / "venv" / "pyvenv.cfg").write_text(
+        "home = /builder/python\nexecutable = /builder/python/bin/python3\n",
+        encoding="utf-8",
+    )
+    (work4you / "venv" / "bin" / "work4you").write_text("#!/bin/sh\n", encoding="utf-8")
+    python_home = bundle / "python" / "bin"
+    python_home.mkdir(parents=True)
+    (python_home / "python3").write_text("", encoding="utf-8")
+    (bundle / "manifest.json").write_text(
+        json.dumps({"schemaVersion": 1, "present": True, "commit": "c" * 40, "branch": "main"}),
+        encoding="utf-8",
+    )
+    home = tmp_path / "home"
+    install = apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="c" * 40)
+    assert (install / "bin" / "work4you").is_file()
+    cfg = (install / "venv" / "pyvenv.cfg").read_text(encoding="utf-8")
+    assert str(home / "python") in cfg
+    assert "bin/python3" in cfg
+    assert "/builder/" not in cfg
 
 
 def test_is_prebuilt_runtime_root_requires_python_and_work4you(tmp_path):

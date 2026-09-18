@@ -3,6 +3,7 @@ import { describe, test } from 'vitest'
 
 import {
   bundledDeployArgs,
+  bundledPosixDeployArgs,
   bundledRuntimeDir,
   gitBashShouldBlockBoot,
   isPresentBundledRuntime,
@@ -25,14 +26,16 @@ describe('bundled runtime gate', () => {
     assert.equal(isPresentBundledRuntime(parseBundledRuntimeManifest({ schemaVersion: 1, present: true })), true)
   })
 
-  test('shouldDeployBundledRuntime is packaged Windows + present payload only', () => {
+  test('shouldDeployBundledRuntime is packaged Windows or macOS + present payload', () => {
     const present = parseBundledRuntimeManifest({ schemaVersion: 1, present: true })
     const stub = parseBundledRuntimeManifest({ schemaVersion: 1, present: false })
 
     assert.equal(shouldDeployBundledRuntime({ isPackaged: true, isWindows: true, manifest: present }), true)
+    assert.equal(shouldDeployBundledRuntime({ isPackaged: true, isWindows: false, isMac: true, manifest: present }), true)
     assert.equal(shouldDeployBundledRuntime({ isPackaged: true, isWindows: true, manifest: stub }), false)
     assert.equal(shouldDeployBundledRuntime({ isPackaged: false, isWindows: true, manifest: present }), false)
     assert.equal(shouldDeployBundledRuntime({ isPackaged: true, isWindows: false, manifest: present }), false)
+    assert.equal(shouldDeployBundledRuntime({ isPackaged: true, isWindows: false, isMac: true, manifest: stub }), false)
   })
 
   test('gitBashShouldBlockBoot is always false', () => {
@@ -57,5 +60,18 @@ describe('bundled runtime gate', () => {
     assert.ok(args.includes('-Work4YouHome'))
     assert.ok(args.includes('-InstallStampPath'))
     assert.ok(args.includes('C:\\Work4You\\resources\\install-stamp.json'))
+  })
+
+  test('bundledPosixDeployArgs runs the sh deploy script', () => {
+    const args = bundledPosixDeployArgs({
+      bundleDir: '/Applications/Work4You.app/Contents/Resources/runtime',
+      work4youHome: '/Users/ada/.work4you',
+      installStampPath: '/Applications/Work4You.app/Contents/Resources/install-stamp.json'
+    })
+
+    assert.ok(args[0].endsWith('/deploy-desktop-runtime.sh'))
+    assert.ok(args.includes('--bundle-dir'))
+    assert.ok(args.includes('/Users/ada/.work4you'))
+    assert.ok(args.includes('--install-stamp'))
   })
 })

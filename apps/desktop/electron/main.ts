@@ -60,6 +60,7 @@ import { decideBootstrapRepair } from './bootstrap-repair-guard'
 import { runBootstrap } from './bootstrap-runner'
 import {
   bundledDeployArgs,
+  bundledPosixDeployArgs,
   bundledRuntimeDir,
   gitBashShouldBlockBoot,
   parseBundledRuntimeManifest,
@@ -4306,32 +4307,67 @@ function readBundledRuntimeManifestFromResources() {
 function tryDeployBundledRuntime() {
   const { bundleDir, manifest } = readBundledRuntimeManifestFromResources()
 
-  if (!bundleDir || !shouldDeployBundledRuntime({ isPackaged: IS_PACKAGED, isWindows: IS_WINDOWS, manifest })) {
+  if (
+    !bundleDir ||
+    !shouldDeployBundledRuntime({
+      isPackaged: IS_PACKAGED,
+      isWindows: IS_WINDOWS,
+      isMac: IS_MAC,
+      manifest
+    })
+  ) {
     return false
   }
 
-  const script = path.join(bundleDir, 'deploy-desktop-runtime.ps1')
-
-  if (!fileExists(script)) {
-    rememberLog(`[bootstrap] bundled runtime is present but ${script} is missing`)
-    return false
-  }
-
-  const powershell = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
   const stampPath = process.resourcesPath ? path.join(process.resourcesPath, 'install-stamp.json') : null
-  const args = bundledDeployArgs({
-    bundleDir,
-    work4youHome: WORK4YOU_HOME,
-    installStampPath: stampPath && fileExists(stampPath) ? stampPath : null
-  })
+  const stamp = stampPath && fileExists(stampPath) ? stampPath : null
 
   rememberLog(`[bootstrap] deploying bundled runtime from ${bundleDir}`)
 
-  const result = spawnSync(powershell, args, hiddenWindowsChildOptions({
-    encoding: 'utf8',
-    timeout: 15 * 60 * 1000,
-    windowsHide: true
-  }))
+  let result
+  if (IS_WINDOWS) {
+    const script = path.join(bundleDir, 'deploy-desktop-runtime.ps1')
+
+    if (!fileExists(script)) {
+      rememberLog(`[bootstrap] bundled runtime is present but ${script} is missing`)
+      return false
+    }
+
+    const powershell = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    result = spawnSync(
+      powershell,
+      bundledDeployArgs({
+        bundleDir,
+        work4youHome: WORK4YOU_HOME,
+        installStampPath: stamp
+      }),
+      hiddenWindowsChildOptions({
+        encoding: 'utf8',
+        timeout: 15 * 60 * 1000,
+        windowsHide: true
+      })
+    )
+  } else {
+    const script = path.join(bundleDir, 'deploy-desktop-runtime.sh')
+
+    if (!fileExists(script)) {
+      rememberLog(`[bootstrap] bundled runtime is present but ${script} is missing`)
+      return false
+    }
+
+    result = spawnSync(
+      '/bin/bash',
+      bundledPosixDeployArgs({
+        bundleDir,
+        work4youHome: WORK4YOU_HOME,
+        installStampPath: stamp
+      }),
+      {
+        encoding: 'utf8',
+        timeout: 15 * 60 * 1000
+      }
+    )
+  }
 
   if (result.status !== 0) {
     rememberLog(
@@ -4814,7 +4850,7 @@ async function ensureRuntime(backend) {
     rememberLog('[bootstrap] no Work4You install found')
 
     if (tryDeployBundledRuntime()) {
-      rememberLog('[bootstrap] bundled runtime deployed; skipping install.ps1 stages')
+      rememberLog('[bootstrap] bundled runtime deployed; skipping install.ps1 / install.sh stages')
       return ensureRuntime(resolveWork4YouBackend(backend.args))
     }
 

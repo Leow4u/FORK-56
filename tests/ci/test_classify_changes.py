@@ -135,6 +135,14 @@ CASES = {
         ["scripts/build-desktop-runtime.ps1"],
         _lanes(python=True, installer=True),
     ),
+    "deploy-desktop-runtime.sh → installer": (
+        ["scripts/deploy-desktop-runtime.sh"],
+        _lanes(python=True, installer=True),
+    ),
+    "build-desktop-runtime.sh → installer": (
+        ["scripts/build-desktop-runtime.sh"],
+        _lanes(python=True, installer=True),
+    ),
     "installer test → installer": (
         ["scripts/tests/test-install-ps1-longpath.ps1"],
         _lanes(python=True, installer=True),
