@@ -216,6 +216,46 @@ describe('pet gallery pet.info sync', () => {
     expect(methods).toEqual(['pet.select', 'pet.info.meta'])
     expect($petInfo.get().spritesheetBase64).toBe('large-sprite-payload')
   })
+
+  it('drops the petdex catalog when merging the remote gallery', async () => {
+    const requestMock = vi.fn(async (method: string, params?: Record<string, unknown>) => {
+      if (method === 'pet.gallery') {
+        if (params?.localOnly) {
+          return {
+            enabled: true,
+            active: 'my-otter',
+            pets: [{ slug: 'my-otter', displayName: 'My Otter', generated: true, installed: true }]
+          }
+        }
+
+        return {
+          enabled: true,
+          active: 'my-otter',
+          pets: [
+            { slug: 'dalek', displayName: 'Dalek', installed: false },
+            { slug: 'my-otter', displayName: 'My Otter', generated: true, installed: true },
+            { slug: 'fufu', displayName: 'FuFu', installed: false },
+            { slug: 'clawd', displayName: 'Clawd', curated: true, installed: false }
+          ]
+        }
+      }
+
+      if (method === 'pet.info.meta') {
+        return { enabled: true, slug: 'my-otter', displayName: 'My Otter', scale: 0.33 }
+      }
+
+      throw new Error(`unexpected method: ${method}`)
+    })
+
+    await loadPetGallery(requestMock as unknown as GatewayRequest)
+
+    const slugs = ($petGallery.get()?.pets ?? []).map(pet => pet.slug)
+    expect(slugs).toContain('my-otter')
+    expect(slugs).toContain('fufu')
+    expect(slugs).not.toContain('dalek')
+    expect(slugs).not.toContain('clawd')
+    expect(rankedGalleryPets($petGallery.get(), 'dale')).toEqual([])
+  })
 })
 
 describe('rankedGalleryPets', () => {
@@ -235,20 +275,23 @@ describe('rankedGalleryPets', () => {
 
   const gallery = { active: 'my-otter', enabled: true, pets }
 
-  it('keeps the empty shelf to the dev-owned allowlist, in listed order', () => {
-    expect(rankedGalleryPets(gallery, '').map(pet => pet.slug)).toEqual([...DEFAULT_PET_SHELF_SLUGS])
+  it('puts generated pets on the shelf, then the ten defaults in listed order', () => {
+    expect(rankedGalleryPets(gallery, '').map(pet => pet.slug)).toEqual(['my-otter', ...DEFAULT_PET_SHELF_SLUGS])
   })
 
-  it('does not let installed or generated pets join the empty shelf', () => {
+  it('does not list catalog pets that are not ours', () => {
     const slugs = rankedGalleryPets(gallery, '').map(pet => pet.slug)
 
-    expect(slugs).not.toContain('my-otter')
+    expect(slugs).not.toContain('dalek')
+    expect(slugs).not.toContain('homelander')
     expect(slugs).not.toContain('nukey')
   })
 
-  it('searches the full catalog once the user types', () => {
-    expect(rankedGalleryPets(gallery, 'dale').map(pet => pet.slug)).toEqual(['dalek'])
-    expect(rankedGalleryPets(gallery, 'home').map(pet => pet.slug)).toEqual(['homelander'])
+  it('filters the shelf only — catalog search cannot install a new pet', () => {
+    expect(rankedGalleryPets(gallery, 'dale')).toEqual([])
+    expect(rankedGalleryPets(gallery, 'home')).toEqual([])
+    expect(rankedGalleryPets(gallery, 'otter').map(pet => pet.slug)).toEqual(['my-otter'])
+    expect(rankedGalleryPets(gallery, 'fufu').map(pet => pet.slug)).toEqual(['fufu'])
   })
 
   it('never lists clawd placeholder pets', () => {

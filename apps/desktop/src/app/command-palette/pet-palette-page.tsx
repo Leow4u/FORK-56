@@ -1,5 +1,5 @@
 /**
- * Cmd-K "Pets…" page — browse the petdex gallery, adopt/switch, toggle off.
+ * Cmd-K "Pets…" page — the ten defaults plus generated/installed pets.
  *
  * A thin view over the `pet-gallery` store: it subscribes to the shared atoms
  * and calls the store's actions. The store owns fetching, caching, the thumb
