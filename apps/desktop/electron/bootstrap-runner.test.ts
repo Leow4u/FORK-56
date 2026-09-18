@@ -8,11 +8,14 @@ import { test } from 'vitest'
 import {
   buildPinArgs,
   buildPosixPinArgs,
+  buildRuntimePayloadArgs,
   cachedScriptPath,
   hasExistingGitCheckout,
   installedAgentInstallScript,
   installRefForStamp,
   isPinnedCommit,
+  readRuntimeRefCommit,
+  resolveCheckoutHead,
   resolveInstallScript,
   resolveMarkerPinnedCommit,
   runBootstrap
@@ -76,6 +79,37 @@ test('existing checkout detection requires git metadata', () => {
 
     fs.mkdirSync(path.join(activeRoot, '.git'), { recursive: true })
     assert.equal(hasExistingGitCheckout(activeRoot), true)
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true })
+  }
+})
+
+test('fresh bootstrap passes the runtime payload flag; existing git checkouts do not', () => {
+  assert.deepEqual(buildRuntimePayloadArgs('powershell', { existingGit: false }), ['-RuntimePayload'])
+  assert.deepEqual(buildRuntimePayloadArgs('posix', { existingGit: false }), ['--runtime-payload'])
+  assert.deepEqual(buildRuntimePayloadArgs('powershell', { existingGit: true }), [])
+  assert.deepEqual(buildRuntimePayloadArgs('posix', { existingGit: true }), [])
+})
+
+test('resolveCheckoutHead reads .runtime-ref when git is absent', () => {
+  const home = mkTmpHome()
+
+  try {
+    const activeRoot = path.join(home, 'work4you')
+    fs.mkdirSync(activeRoot, { recursive: true })
+    fs.writeFileSync(
+      path.join(activeRoot, '.runtime-ref'),
+      JSON.stringify({ commit: 'a'.repeat(40), branch: 'main' })
+    )
+    assert.equal(readRuntimeRefCommit(activeRoot), 'a'.repeat(40))
+    assert.equal(
+      resolveCheckoutHead(activeRoot, {
+        execGit: () => {
+          throw new Error('not a git repo')
+        }
+      }),
+      'a'.repeat(40)
+    )
   } finally {
     fs.rmSync(home, { recursive: true, force: true })
   }

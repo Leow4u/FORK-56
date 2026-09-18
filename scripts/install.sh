@@ -82,6 +82,7 @@ STAGE_NAME=""
 JSON_OUTPUT=false
 NON_INTERACTIVE=false
 INCLUDE_DESKTOP=false
+RUNTIME_PAYLOAD=false
 
 # Detect non-interactive mode (e.g. curl | bash)
 # When stdin is not a terminal, read -p will fail with EOF,
@@ -147,6 +148,10 @@ while [[ $# -gt 0 ]]; do
             INCLUDE_DESKTOP=true
             shift
             ;;
+        --runtime-payload|-RuntimePayload)
+            RUNTIME_PAYLOAD=true
+            shift
+            ;;
         --dir)
             INSTALL_DIR="$2"
             INSTALL_DIR_EXPLICIT=true
@@ -183,6 +188,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --json         Print a JSON result frame for --stage"
             echo "  --non-interactive  Skip stages that require user input"
             echo "  --include-desktop  Also build the desktop app (apps/desktop -> Work4You.app)"
+            echo "  --runtime-payload  Consumer desktop install: filtered ZIP, no git clone"
             echo "  --dir PATH     Installation directory"
             echo "                   default (non-root):  ~/.work4you/work4you"
             echo "                   default (root, Linux): /usr/local/lib/work4you"
@@ -324,11 +330,21 @@ emit_manifest() {
     # a GUI install ends up with a launchable app; the Electron app's own
     # first-launch bootstrap and the CLI one-liner omit it (building the
     # desktop from inside the already-running app would clobber it).
+    # --runtime-payload omits node-deps and desktop: those need the full
+    # monorepo / apps/desktop tree which the payload does not install.
     local desktop_stage=""
-    if [ "$INCLUDE_DESKTOP" = true ]; then
+    if [ "$INCLUDE_DESKTOP" = true ] && [ "$RUNTIME_PAYLOAD" != true ]; then
         desktop_stage='{"name":"desktop","title":"Build desktop app","category":"runtime","needs_user_input":false},'
     fi
-    printf '%s' '{"protocol_version":1,"stages":[{"name":"prerequisites","title":"System prerequisites","category":"runtime","needs_user_input":false},{"name":"repository","title":"Download Work4You","category":"runtime","needs_user_input":false},{"name":"venv","title":"Create Python virtual environment","category":"runtime","needs_user_input":false},{"name":"python-deps","title":"Install Python dependencies","category":"runtime","needs_user_input":false},{"name":"node-deps","title":"Install browser-tool dependencies","category":"runtime","needs_user_input":false},{"name":"path","title":"Install work4you command","category":"runtime","needs_user_input":false},{"name":"config","title":"Prepare config and skills","category":"configuration","needs_user_input":false},{"name":"setup","title":"Configure API keys and settings","category":"configuration","needs_user_input":true},{"name":"gateway","title":"Configure gateway service","category":"configuration","needs_user_input":true},'"$desktop_stage"'{"name":"complete","title":"Finish install","category":"runtime","needs_user_input":false}]}'
+    local node_deps_stage=""
+    if [ "$RUNTIME_PAYLOAD" != true ]; then
+        node_deps_stage='{"name":"node-deps","title":"Install browser-tool dependencies","category":"runtime","needs_user_input":false},'
+    fi
+    local repo_title="Download Work4You"
+    if [ "$RUNTIME_PAYLOAD" = true ]; then
+        repo_title="Install Work4You runtime"
+    fi
+    printf '%s' '{"protocol_version":1,"stages":[{"name":"prerequisites","title":"System prerequisites","category":"runtime","needs_user_input":false},{"name":"repository","title":"'"$repo_title"'","category":"runtime","needs_user_input":false},{"name":"venv","title":"Create Python virtual environment","category":"runtime","needs_user_input":false},{"name":"python-deps","title":"Install Python dependencies","category":"runtime","needs_user_input":false},'"$node_deps_stage"'{"name":"path","title":"Install work4you command","category":"runtime","needs_user_input":false},{"name":"config","title":"Prepare config and skills","category":"configuration","needs_user_input":false},{"name":"setup","title":"Configure API keys and settings","category":"configuration","needs_user_input":true},{"name":"gateway","title":"Configure gateway service","category":"configuration","needs_user_input":true},'"$desktop_stage"'{"name":"complete","title":"Finish install","category":"runtime","needs_user_input":false}]}'
     printf '\n'
 }
 
@@ -726,6 +742,10 @@ attempt_install_git() {
 }
 
 check_git() {
+    if [ "$RUNTIME_PAYLOAD" = true ]; then
+        log_info "Skipping Git (desktop runtime payload)"
+        return 0
+    fi
     log_info "Checking Git..."
 
     # On fresh macOS /usr/bin/git is a stub that exits non-zero until CLT is installed.
@@ -1242,8 +1262,156 @@ show_manual_install_hint() {
 # Installation
 # ============================================================================
 
+# Keep these lists in lockstep with work4you_cli/data/runtime_payload.json.
+# The installer runs before work4you_cli exists on disk.
+install_runtime_payload() {
+    log_info "Installing desktop runtime payload to $INSTALL_DIR (no git clone)..."
+
+    local zip_url zip_label zip_path extract_path
+    if [ -n "$INSTALL_COMMIT" ]; then
+        zip_url="https://github.com/Leow4u/FORK-56/archive/${INSTALL_COMMIT}.zip"
+        zip_label="$INSTALL_COMMIT"
+    else
+        zip_url="https://github.com/Leow4u/FORK-56/archive/refs/heads/${BRANCH}.zip"
+        zip_label="$BRANCH"
+    fi
+    zip_path="${TMPDIR:-/tmp}/work4you-runtime-${zip_label}.zip"
+    extract_path="${TMPDIR:-/tmp}/work4you-runtime-extract-$$"
+    rm -rf "$extract_path"
+    mkdir -p "$extract_path"
+
+    log_info "Downloading $zip_url ..."
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$zip_url" -o "$zip_path"
+    else
+        wget -qO "$zip_path" "$zip_url"
+    fi
+
+    python3 - "$zip_path" "$extract_path" <<'PY'
+import os, stat, sys, zipfile
+from pathlib import Path
+
+DIRS = {
+    "acp_adapter", "agent", "cron", "gateway", "locales", "optional-mcps",
+    "optional-skills", "plugins", "providers", "skills", "tools",
+    "tui_gateway", "work4you_cli",
+}
+FILES = {
+    "LICENSE", "README.md", "cli-config.yaml.example", "pyproject.toml",
+    "setup.py", "uv.lock", "work4you",
+}
+zip_path, dest = sys.argv[1], Path(sys.argv[2])
+dest.mkdir(parents=True, exist_ok=True)
+dest_real = dest.resolve()
+with zipfile.ZipFile(zip_path) as zf:
+    for info in zf.infolist():
+        name = info.filename.replace("\\", "/").strip("/")
+        parts = [p for p in name.split("/") if p and p != "."]
+        if not parts or ".." in parts or len(parts) == 1:
+            continue
+        rel = "/".join(parts[1:])
+        top = rel.split("/", 1)[0]
+        if top not in DIRS and not (
+            "/" not in rel and (top in FILES or top.endswith(".py"))
+        ):
+            continue
+        mode = (info.external_attr >> 16) & 0o170000
+        if stat.S_ISLNK(mode):
+            raise SystemExit(f"symlink member refused: {info.filename}")
+        target = dest_real.joinpath(*rel.split("/")).resolve()
+        if target != dest_real and not str(target).startswith(str(dest_real) + os.sep):
+            raise SystemExit(f"zip-slip: {info.filename}")
+        if info.is_dir() or info.filename.endswith("/"):
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with zf.open(info) as src, open(target, "wb") as out:
+            out.write(src.read())
+PY
+
+    mkdir -p "$INSTALL_DIR"
+    # Overlay payload entries; never touch venv / stamps / .git.
+    python3 - "$extract_path" "$INSTALL_DIR" <<'PY'
+import os, shutil, sys
+from pathlib import Path
+
+PRESERVE = {
+    "venv", "bin", "node_modules", ".git", ".env", ".install_method",
+    ".work4you-bootstrap-complete", ".runtime-ref",
+}
+src, dest = Path(sys.argv[1]), Path(sys.argv[2])
+dest.mkdir(parents=True, exist_ok=True)
+for child in src.iterdir():
+    if child.name in PRESERVE:
+        continue
+    target = dest / child.name
+    staging = dest / (child.name + ".work4you-payload-staging")
+    backup = dest / (child.name + ".work4you-payload-old")
+    if staging.exists():
+        shutil.rmtree(staging) if staging.is_dir() else staging.unlink()
+    if backup.exists():
+        shutil.rmtree(backup) if backup.is_dir() else backup.unlink()
+    if child.is_dir():
+        shutil.copytree(child, staging)
+    else:
+        shutil.copy2(child, staging)
+    if target.exists():
+        target.rename(backup)
+    staging.rename(target)
+    if backup.exists():
+        shutil.rmtree(backup) if backup.is_dir() else backup.unlink()
+PY
+
+    local pinned=""
+    if printf '%s' "$INSTALL_COMMIT" | grep -qE '^[0-9a-fA-F]{7,40}$'; then
+        pinned="$INSTALL_COMMIT"
+    else
+        pinned="$(
+            curl -fsSL -H "Accept: application/vnd.github+json" -H "User-Agent: work4you-installer" \
+                "https://api.github.com/repos/Leow4u/FORK-56/commits/${INSTALL_COMMIT:-$BRANCH}" \
+                | python3 -c "import json,sys; print(json.load(sys.stdin).get('sha',''))" 2>/dev/null || true
+        )"
+    fi
+    if [ -n "$pinned" ]; then
+        INSTALL_COMMIT="$pinned"
+    fi
+    printf 'desktop\n' > "$INSTALL_DIR/.install_method"
+    python3 - "$INSTALL_DIR" "${pinned}" "$BRANCH" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+from pathlib import Path
+dest, commit, branch = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+(dest / ".runtime-ref").write_text(
+    json.dumps(
+        {
+            "commit": commit,
+            "branch": branch or "main",
+            "ref": commit or branch or "main",
+            "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        },
+        indent=2,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
+
+    rm -f "$zip_path"
+    rm -rf "$extract_path"
+    log_success "Desktop runtime payload ready"
+}
+
 clone_repo() {
     log_info "Installing to $INSTALL_DIR..."
+
+    if [ "$RUNTIME_PAYLOAD" = true ]; then
+        if [ -d "$INSTALL_DIR/.git" ] && git -C "$INSTALL_DIR" rev-parse --verify HEAD >/dev/null 2>&1; then
+            log_info "Existing git checkout found; keeping the git update path."
+        else
+            install_runtime_payload
+            return
+        fi
+    fi
 
     # An interrupted previous clone leaves a .git with no initial commit, where
     # the update path's `git stash` / `git checkout` abort with "You do not
@@ -2712,6 +2880,9 @@ write_bootstrap_marker() {
     # write one the desktop will reject -- an absent marker is a clean
     # "bootstrap needed", a malformed one is a confusing half-state.
     local pinned_commit="$INSTALL_COMMIT"
+    if [ -z "$pinned_commit" ] && [ -f "$INSTALL_DIR/.runtime-ref" ]; then
+        pinned_commit="$(python3 -c "import json; print(json.load(open(r'''$INSTALL_DIR/.runtime-ref''')).get('commit') or '')" 2>/dev/null || true)"
+    fi
     if [ -z "$pinned_commit" ]; then
         pinned_commit=$(git -C "$INSTALL_DIR" rev-parse HEAD 2>/dev/null) || pinned_commit=""
     fi
@@ -3360,6 +3531,10 @@ run_stage_body() {
             install_deps
             ;;
         node-deps)
+            if [ "$RUNTIME_PAYLOAD" = true ]; then
+                log_info "Skipping node-deps (desktop runtime payload)"
+                return 0
+            fi
             detect_os
             resolve_install_layout
             require_install_dir
@@ -3415,7 +3590,11 @@ run_stage_body() {
             # bind-mounted into a Docker gateway too), so a stamp there gets
             # clobbered by the container's 'docker' stamp and wrongly blocks
             # 'work4you update' on this host install. See detect_install_method().
-            echo "git" > "$INSTALL_DIR/.install_method"
+            if [ "$RUNTIME_PAYLOAD" = true ] && [ ! -d "$INSTALL_DIR/.git" ]; then
+                echo "desktop" > "$INSTALL_DIR/.install_method"
+            else
+                echo "git" > "$INSTALL_DIR/.install_method"
+            fi
             ;;
         *)
             log_error "Unknown stage: $stage"
@@ -3482,15 +3661,17 @@ main() {
     clone_repo
     setup_venv
     install_deps
-    install_node_deps || return
-    install_browser_use_cli
-    install_computer_use_driver
+    if [ "$RUNTIME_PAYLOAD" != true ]; then
+        install_node_deps || return
+        install_browser_use_cli
+        install_computer_use_driver
+    fi
     setup_path
     copy_config_templates
     run_setup_wizard
     maybe_start_gateway
 
-    if [ "$INCLUDE_DESKTOP" = true ]; then
+    if [ "$INCLUDE_DESKTOP" = true ] && [ "$RUNTIME_PAYLOAD" != true ]; then
         install_desktop_voice_deps
         install_desktop
     fi
@@ -3504,7 +3685,11 @@ main() {
     # gateway too), so a stamp there gets clobbered by the container's 'docker'
     # stamp and wrongly blocks 'work4you update' on this host install.
     # See detect_install_method().
-    echo "git" > "$INSTALL_DIR/.install_method"
+    if [ "$RUNTIME_PAYLOAD" = true ] && [ ! -d "$INSTALL_DIR/.git" ]; then
+        echo "desktop" > "$INSTALL_DIR/.install_method"
+    else
+        echo "git" > "$INSTALL_DIR/.install_method"
+    fi
 }
 
 if [ "$MANIFEST_MODE" = true ]; then

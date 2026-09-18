@@ -1207,6 +1207,26 @@ class TestWebServerEndpoints:
         assert check_data["update_command"] == "pkg upgrade work4you"
         assert "Termux APT" in check_data["message"]
 
+    def test_update_check_can_apply_desktop_runtime_payload(self, monkeypatch):
+        import work4you_cli.web_server as web_server
+
+        monkeypatch.setattr(web_server, "_dashboard_local_update_managed_externally", lambda: False)
+        monkeypatch.setattr(web_server, "detect_install_method", lambda _root: "desktop")
+        monkeypatch.setattr(
+            web_server, "recommended_update_command_for_method", lambda _method: "work4you update"
+        )
+        monkeypatch.setattr(
+            "work4you_cli.banner.check_for_updates", lambda: -1
+        )
+
+        check = self.client.get("/api/work4you/update/check")
+        assert check.status_code == 200
+        check_data = check.json()
+        assert check_data["install_method"] == "desktop"
+        assert check_data["can_apply"] is True
+        assert check_data["update_command"] == "work4you update"
+        assert check_data["update_available"] is True
+
     def test_update_work4you_spawns_with_action_id(self, monkeypatch):
         import work4you_cli.web_server as web_server
 

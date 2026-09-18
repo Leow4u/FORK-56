@@ -395,12 +395,14 @@ def check_for_updates() -> Optional[int]:
     # on `typeof === 'number' && > 0`) show nothing. The dashboard's REST
     # `/api/work4you/update/check` endpoint short-circuits docker the same way
     # (web_server.py); mirror that here so the banner/TUI surfaces agree.
+    install_method = None
     try:
         from work4you_cli.config import detect_install_method, get_project_root
-        if detect_install_method(get_project_root()) in {"docker", "apt"}:
+        install_method = detect_install_method(get_project_root())
+        if install_method in {"docker", "apt"}:
             return None
     except Exception:
-        pass
+        install_method = None
 
     # Read cache — invalidate if the embedded rev OR installed version has
     # changed since the last check.
@@ -417,7 +419,11 @@ def check_for_updates() -> Optional[int]:
     except Exception:
         pass
 
-    if embedded_rev:
+    if install_method == "desktop":
+        from work4you_cli.runtime_payload import compare_runtime_ref
+
+        behind = compare_runtime_ref(get_project_root())
+    elif embedded_rev:
         behind = _check_via_rev(embedded_rev)
     else:
         # Prefer the running code's location over the profile-scoped path.
