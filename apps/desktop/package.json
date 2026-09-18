@@ -297,7 +297,12 @@
       "shortcutName": "Work4You",
       "uninstallDisplayName": "Work4You",
       "include": "electron/installer.nsh",
-      "warningsAsErrors": false
+      "warningsAsErrors": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeader": "assets/nsis/installer-header.bmp",
+      "installerSidebar": "assets/nsis/installer-sidebar.bmp",
+      "uninstallerSidebar": "assets/nsis/uninstaller-sidebar.bmp"
     }
   }
 }
