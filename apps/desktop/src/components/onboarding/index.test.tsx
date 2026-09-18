@@ -31,8 +31,11 @@ function setProviders(providers: OAuthProvider[], patch: Partial<DesktopOnboardi
 const ctx: OnboardingContext = { requestGateway: async () => undefined as never }
 
 afterEach(() => {
-  cancelOnboardingFlow()
-  cleanup()
+  try {
+    cancelOnboardingFlow()
+  } finally {
+    cleanup()
+  }
 
   try {
     window.localStorage.clear()

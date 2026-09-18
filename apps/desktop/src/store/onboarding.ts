@@ -734,7 +734,11 @@ export function cancelOnboardingFlow() {
   const sessionId = sessionIdFor($desktopOnboarding.get().flow)
 
   if (sessionId) {
-    cancelOAuthSession(sessionId).catch(() => undefined)
+    try {
+      void cancelOAuthSession(sessionId).catch(() => undefined)
+    } catch {
+      // Missing preload bridge (tests, web preview) — still drop local state.
+    }
   }
 
   setFlow({ status: 'idle' })

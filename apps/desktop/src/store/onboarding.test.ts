@@ -611,6 +611,30 @@ describe('OAuth onboarding', () => {
     expect($desktopOnboarding.get().flow.status).toBe('polling')
     cancelOnboardingFlow()
   })
+
+  it('resets a device-code flow even when the desktop bridge is missing', () => {
+    Reflect.deleteProperty(window, 'work4youDesktop')
+    $desktopOnboarding.set(
+      baseState({
+        flow: {
+          copied: false,
+          provider: { ...makeOAuthProvider('work4you', 'Work4You Portal'), flow: 'device_code' },
+          start: {
+            expires_in: 600,
+            flow: 'device_code',
+            poll_interval: 5,
+            session_id: 'device-session',
+            user_code: '5X63-ZPDL',
+            verification_url: 'https://portal.work4you.ai/device?user_code=5X63-ZPDL'
+          },
+          status: 'polling'
+        }
+      })
+    )
+
+    expect(() => cancelOnboardingFlow()).not.toThrow()
+    expect($desktopOnboarding.get().flow.status).toBe('idle')
+  })
 })
 
 describe('saveOnboardingLocalEndpoint', () => {
