@@ -20,6 +20,7 @@ import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { $backendThemes, $pendingSkinApply } from './backend-sync'
 import { hexToRgb, mix, readableOn } from './color'
 import { BUILTIN_THEME_LIST, DEFAULT_SKIN_NAME, DEFAULT_TYPOGRAPHY, work4youTheme } from './presets'
+import { chatSelectionBackground, composerSelectionBackground } from './text-selection'
 import type { DesktopTheme, DesktopThemeColors } from './types'
 import { $userThemes, listAllThemes, resolveTheme } from './user-themes'
 
@@ -233,7 +234,9 @@ function applyTheme(theme: DesktopTheme, mode: 'light' | 'dark') {
     '--dt-user-bubble-border': c.userBubbleBorder ?? c.border,
     '--dt-font-sans': typo.fontSans,
     '--dt-font-mono': typo.fontMono,
-    '--noise-opacity-mul': isDark ? 'calc(0.04 / 0.21)' : 'calc(0.34 / 0.21)'
+    '--noise-opacity-mul': isDark ? 'calc(0.04 / 0.21)' : 'calc(0.34 / 0.21)',
+    '--ui-selection-background': chatSelectionBackground(midground, rendered),
+    '--ui-composer-selection-background': composerSelectionBackground(rendered)
   }
 
   for (const [k, v] of Object.entries({ ...seeds, ...mixesFor(isDark), ...palette })) {
