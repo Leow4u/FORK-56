@@ -19,8 +19,8 @@ export const PAGE_INSET_NEG_X = '-mx-[clamp(1.25rem,4vw,4rem)]'
 export const PAGE_MAX_W = 'max-w-[75rem]'
 
 // Settings right-pane column: a centered reading width so label+control rows
-// don't sprawl across the overlay. The gray pane behind this column can still
-// fill OverlayMain; only the information is capped. Literal for Tailwind.
+// don't sprawl across the overlay. OverlayMain fills with the chat stage
+// token; only the information is capped. Literal for Tailwind.
 // Chat uses the same 42rem via `--composer-width` in styles.css (transcript +
 // composer), not this class — keep the rem in sync if either cap moves.
 export const PAGE_SETTINGS_MAX_W = 'max-w-[42rem]'

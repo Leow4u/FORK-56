@@ -26,9 +26,6 @@ one-off at the call site.
 
 1. **Flat, not boxed.** No card-in-card, no divider borders inside a panel.
    Group with whitespace and a single hairline, never nested rounded boxes.
-   **Exception (Settings only):** `SettingsGroup` wells sit on the gray
-   Settings pane to match the centered label+control rhythm. They use a fill
-   token, not a second bordered card, and they do not nest inside each other.
 2. **Borderless elevation for floating panels.** Overlays float on
    `shadow-work4you` + a `--stroke-work4you` hairline, not thick framed boxes. In-panel
    structure may use token hairlines sparingly.
@@ -171,7 +168,7 @@ Notes:
 - **Gutters:** `PAGE_INSET_X` (`src/app/layout-constants.ts`) for page side
   padding; `PAGE_INSET_NEG_X` to bleed a child to the edge. Don't hardcode
   `px-6`/`px-8` on pages. Settings bodies also cap at `PAGE_SETTINGS_MAX_W`
-  (`max-w-[42rem]`) so the column stays centered in the gray pane. Chat
+  (`max-w-[42rem]`) so the column stays centered on the stage. Chat
   transcript and composer use the same 42rem via `--composer-width` (narrow
   panes still `min(..., 100% - 2rem)`). Empty intro docks the composer at the
   pane midline; a live thread docks it at the bottom. HUD keeps `--composer-width: 100%`.
@@ -181,12 +178,12 @@ Notes:
   `OverlayNav`; other overlays keep the default boxed active item.
 - **Rows:** `ListRow` (settings `primitives.tsx`) for label/description/action
   rows. Flat, flush-left; no per-row indentation that fights flush headers.
-- **Settings groups:** `SettingsGroup` is the one sanctioned well on the
-  Settings pane — `rounded-xl` + `--ui-chat-surface-background` against
-  OverlayMain's `--ui-bg-quaternary`. It is contrast, not card-in-card: no
-  extra border or shadow. Don't invent a second well. `SectionHeading
-  variant="page"` is the page H1; `variant="group"` is the quiet label above
-  a well. `variant="section"` is the legacy icon+label heading.
+- **Settings groups:** OverlayMain uses the same stage token as chat
+  (`--ui-chat-surface-background`). `SettingsGroup` is spacing + an optional
+  label on that stage, not a contrasting well. Don't invent a fill well.
+  `SectionHeading variant="page"` is the page H1; `variant="group"` is the
+  quiet label above a group. `variant="section"` is the legacy icon+label
+  heading.
 - **No dividers between rows** unless the list genuinely needs them; prefer
   spacing. When you do need one, it's a single `--ui-stroke-tertiary` hairline.
 
@@ -355,8 +352,7 @@ The detailed state contract lives in the scoped
 - [ ] No native `title=` on buttons?
 - [ ] Keybind hints on tipped buttons use `useKeybindHint` / `TipKeybindLabel`?
 - [ ] Overlay uses `shadow-work4you` + `border-(--stroke-work4you)`, no hard border?
-- [ ] Flat — no card-in-card, no gratuitous row dividers? (Settings `SettingsGroup`
-      wells on the gray pane are the documented exception.)
+- [ ] Flat — no card-in-card, no gratuitous row dividers?
 - [ ] No automatic navigation, focus steal, or pane opening from background
       events?
 - [ ] Direct manipulation paints immediately and rolls back cleanly on failure?
