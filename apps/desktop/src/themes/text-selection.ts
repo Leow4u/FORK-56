@@ -1,12 +1,11 @@
 /**
- * Text-selection washes. Chat / sent copy uses the VS Code integrated-terminal
- * highlight; the composer draft uses the GitHub editor highlight — the same
- * pair the terminal pane and CodeMirror already paint.
+ * Text-selection washes. Chat / sent copy uses the darker VS Code navy
+ * (`#264f78`). The composer draft keeps the lighter GitHub editor highlight.
  */
 
 export const CHAT_SELECTION_BACKGROUND = {
-  light: '#add6ff80',
-  dark: '#264f7866'
+  light: '#264f7899',
+  dark: '#264f78b3'
 } as const
 
 export const COMPOSER_SELECTION_BACKGROUND = {

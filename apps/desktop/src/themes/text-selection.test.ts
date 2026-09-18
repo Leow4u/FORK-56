@@ -9,14 +9,15 @@ import {
 } from './text-selection'
 
 describe('text selection washes', () => {
-  it('gives the conversation the VS Code terminal wash', () => {
+  it('keeps conversation on the darker VS Code navy, not the pale terminal wash', () => {
     expect(textSelectionBackground('chat', 'light')).toBe(CHAT_SELECTION_BACKGROUND.light)
     expect(textSelectionBackground('chat', 'dark')).toBe(CHAT_SELECTION_BACKGROUND.dark)
-    expect(terminalTheme('light').selectionBackground).toBe(CHAT_SELECTION_BACKGROUND.light)
-    expect(terminalTheme('dark').selectionBackground).toBe(CHAT_SELECTION_BACKGROUND.dark)
+    expect(CHAT_SELECTION_BACKGROUND.light.toLowerCase().startsWith('#264f78')).toBe(true)
+    expect(CHAT_SELECTION_BACKGROUND.dark.toLowerCase().startsWith('#264f78')).toBe(true)
+    expect(textSelectionBackground('chat', 'light')).not.toBe(terminalTheme('light').selectionBackground)
   })
 
-  it('gives the composer draft a lighter GitHub editor wash', () => {
+  it('gives the composer draft the lighter GitHub editor wash', () => {
     expect(textSelectionBackground('composer', 'light')).toBe(COMPOSER_SELECTION_BACKGROUND.light)
     expect(textSelectionBackground('composer', 'dark')).toBe(COMPOSER_SELECTION_BACKGROUND.dark)
     expect(textSelectionBackground('composer', 'light')).not.toBe(textSelectionBackground('chat', 'light'))
