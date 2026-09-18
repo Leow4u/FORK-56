@@ -18,6 +18,7 @@ import {
   confirmOnboardingModel,
   DEFAULT_MANUAL_ONBOARDING_REASON,
   DEFAULT_ONBOARDING_REASON,
+  isOnboardingFlowInFlight,
   type OnboardingContext,
   peekPendingProviderOAuth,
   refreshOnboarding,
@@ -306,11 +307,20 @@ export function DesktopOnboardingOverlay({
   // immediately — no runtime gate needed. Otherwise wait for the readiness
   // check (configured === false) before showing the picker.
   const ready = Boolean(preview) || manual || (enabled && onboarding.configured === false)
-  const showPicker = flow.status === 'idle' || flow.status === 'success'
+  const showPicker = flow.status === 'idle'
   // First-run welcome and the final "you're in" screen drop the card chrome
   // and float on the chat surface — same bare treatment as the connecting overlay.
   const firstRunWelcome = ready && showPicker && !manual && !reauth
-  const bare = firstRunWelcome || (ready && !showPicker && flow.status === 'confirming_model')
+  const firstRunConnecting =
+    ready &&
+    !manual &&
+    !reauth &&
+    (flow.status === 'starting' ||
+      flow.status === 'polling' ||
+      flow.status === 'submitting' ||
+      flow.status === 'success')
+  const bare =
+    firstRunWelcome || firstRunConnecting || (ready && !showPicker && flow.status === 'confirming_model')
 
   return (
     <div
@@ -336,7 +346,7 @@ export function DesktopOnboardingOverlay({
             : 'translate-y-0 scale-100 opacity-100 blur-0'
         )}
       >
-        {!firstRunWelcome && (showPicker || !ready) ? <Header /> : null}
+        {!firstRunWelcome && !firstRunConnecting && (showPicker || !ready) ? <Header /> : null}
         {manual ? (
           <Button
             aria-label={t.common.close}
@@ -348,7 +358,7 @@ export function DesktopOnboardingOverlay({
             <Codicon name="close" size="1rem" />
           </Button>
         ) : null}
-        <div className={cn(firstRunWelcome ? '' : 'grid gap-3 p-5')}>
+        <div className={cn(firstRunWelcome || firstRunConnecting ? '' : 'grid gap-3 p-5')}>
           {reason && !firstRunWelcome ? <ReasonNotice reason={reason} /> : null}
           {ready ? (
             showPicker ? (
@@ -455,6 +465,10 @@ function fallbackPortalProvider(): OAuthProvider {
 }
 
 function startPickerOAuth(provider: OAuthProvider, ctx: OnboardingContext) {
+  if (isOnboardingFlowInFlight($desktopOnboarding.get().flow)) {
+    return
+  }
+
   if (onboardingPreviewMode()) {
     // Stay in the DEV preview: show login chrome without calling the bridge.
     const next = new URL(window.location.href)

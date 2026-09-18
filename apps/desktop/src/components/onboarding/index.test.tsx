@@ -1,7 +1,12 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { $desktopOnboarding, type DesktopOnboardingState, type OnboardingContext } from '@/store/onboarding'
+import {
+  $desktopOnboarding,
+  cancelOnboardingFlow,
+  type DesktopOnboardingState,
+  type OnboardingContext
+} from '@/store/onboarding'
 import { makeOAuthProvider } from '@/test/oauth-provider'
 import type { OAuthProvider } from '@/types/work4you'
 
@@ -26,7 +31,11 @@ function setProviders(providers: OAuthProvider[], patch: Partial<DesktopOnboardi
 const ctx: OnboardingContext = { requestGateway: async () => undefined as never }
 
 afterEach(() => {
-  cleanup()
+  try {
+    cancelOnboardingFlow()
+  } finally {
+    cleanup()
+  }
 
   try {
     window.localStorage.clear()
@@ -232,6 +241,114 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
     expect(screen.getByText("Let's get you setup with Work4You")).toBeTruthy()
     expect(screen.getByText(/300\+ frontier models/)).toBeTruthy()
     expect(screen.queryByText('Sign in to continue')).toBeNull()
+  })
+
+  it('keeps a waiting panel after authorize instead of Get started', () => {
+    const portal = makeOAuthProvider('work4you', 'Work4You Portal')
+    setProviders([portal], {
+      configured: false,
+      flow: { provider: portal, status: 'success' }
+    })
+    render(<DesktopOnboardingOverlay enabled profile="default" requestGateway={requestGateway} />)
+
+    expect(screen.queryByRole('button', { name: 'Get started' })).toBeNull()
+    expect(screen.getByText('Work4You Portal connected. Picking a default model...')).toBeTruthy()
+  })
+
+  it('keeps the device-code waiting panel while Portal poll is in flight', () => {
+    const portal = makeOAuthProvider('work4you', 'Work4You Portal')
+    setProviders([portal], {
+      configured: false,
+      flow: {
+        copied: false,
+        provider: { ...portal, flow: 'device_code' },
+        start: {
+          expires_in: 600,
+          flow: 'device_code',
+          poll_interval: 5,
+          session_id: 'device-session',
+          user_code: '5X63-ZPDL',
+          verification_url: 'https://portal.work4you.ai/device?user_code=5X63-ZPDL'
+        },
+        status: 'polling'
+      }
+    })
+    render(<DesktopOnboardingOverlay enabled profile="default" requestGateway={requestGateway} />)
+
+    expect(screen.queryByRole('button', { name: 'Get started' })).toBeNull()
+    expect(screen.getByText('Waiting for you to authorize...')).toBeTruthy()
+    expect(screen.getByText('5')).toBeTruthy()
+    expect(screen.getByText('X')).toBeTruthy()
+  })
+
+  it('does not mint a second device code when Get started is clicked twice', async () => {
+    let releaseStart: ((value: unknown) => void) | undefined
+    const started = new Promise(resolve => {
+      releaseStart = resolve
+    })
+    const startCalls: string[] = []
+
+    Object.defineProperty(window, 'work4youDesktop', {
+      configurable: true,
+      value: {
+        api: async ({ path }: { path: string }) => {
+          if (path === '/api/providers/oauth/work4you/start') {
+            startCalls.push(path)
+            await started
+            return {
+              expires_in: 600,
+              flow: 'device_code',
+              poll_interval: 5,
+              session_id: 'device-session',
+              user_code: '5X63-ZPDL',
+              verification_url: 'https://portal.work4you.ai/device?user_code=5X63-ZPDL'
+            }
+          }
+
+          if (path.includes('/poll/')) {
+            return { status: 'pending' }
+          }
+
+          throw new Error(`unexpected api path: ${path}`)
+        },
+        openExternal: async () => undefined
+      }
+    })
+
+    const portal = { ...makeOAuthProvider('work4you', 'Work4You Portal'), flow: 'device_code' as const }
+    setProviders([portal], { configured: false })
+
+    const requestGateway: OnboardingContext['requestGateway'] = async method => {
+      if (method === 'setup.status') {
+        return { provider_configured: false } as never
+      }
+
+      if (method === 'setup.runtime_check') {
+        return { ok: false, error: 'No usable credentials found.' } as never
+      }
+
+      throw new Error(`unexpected gateway method: ${method}`)
+    }
+
+    render(<DesktopOnboardingOverlay enabled profile="default" requestGateway={requestGateway} />)
+
+    const getStarted = await waitFor(() => screen.getByRole('button', { name: 'Get started' }))
+    await act(async () => {
+      getStarted.click()
+      getStarted.click()
+    })
+
+    expect(startCalls).toHaveLength(1)
+    expect($desktopOnboarding.get().flow.status).toBe('starting')
+
+    releaseStart?.(undefined)
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Get started' })).toBeNull())
+    expect($desktopOnboarding.get().flow.status).toBe('polling')
+    expect(startCalls).toHaveLength(1)
+    expect(screen.getByText('Waiting for you to authorize...')).toBeTruthy()
+    expect(screen.getByText('5')).toBeTruthy()
+    expect(screen.getByText('X')).toBeTruthy()
   })
 
   it('first-run overlay is a full-bleed Get started door', async () => {

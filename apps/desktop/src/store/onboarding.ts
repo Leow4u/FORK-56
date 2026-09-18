@@ -46,6 +46,20 @@ export type OnboardingFlow =
     }
   | { message: string; provider?: OAuthProvider; start?: OAuthStartResponse; status: 'error' }
 
+const IN_FLIGHT_ONBOARDING_STATUSES = new Set<OnboardingFlow['status']>([
+  'starting',
+  'awaiting_user',
+  'polling',
+  'submitting',
+  'success',
+  'external_pending',
+  'confirming_model'
+])
+
+export function isOnboardingFlowInFlight(flow: OnboardingFlow): boolean {
+  return IN_FLIGHT_ONBOARDING_STATUSES.has(flow.status)
+}
+
 export interface DesktopOnboardingState {
   /** null until the first runtime check resolves. Seeded from localStorage so
    *  returning users skip the boot overlay entirely instead of flashing it
@@ -167,6 +181,7 @@ export const $desktopOnboarding = atom<DesktopOnboardingState>(INITIAL)
 
 let pollTimer: number | null = null
 let providersRefreshPromise: null | Promise<void> = null
+let startProviderOAuthLock = false
 
 const errMessage = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -499,6 +514,7 @@ export function closeManualOnboarding() {
 
 export function completeDesktopOnboarding() {
   clearPoll()
+  startProviderOAuthLock = false
   writeCachedConfigured(true)
   // A real provider is now connected, so any earlier "choose later" skip is
   // moot — clear it so the flag never lingers in a configured install.
@@ -613,10 +629,16 @@ async function openSignInUrl(url: string) {
 }
 
 export async function startProviderOAuth(provider: OAuthProvider, ctx: OnboardingContext) {
+  if (startProviderOAuthLock || isOnboardingFlowInFlight($desktopOnboarding.get().flow)) {
+    return
+  }
+
+  startProviderOAuthLock = true
   clearPoll()
 
   if (provider.flow === 'external') {
     setFlow({ status: 'external_pending', provider, copied: false })
+    startProviderOAuthLock = false
 
     return
   }
@@ -638,6 +660,8 @@ export async function startProviderOAuth(provider: OAuthProvider, ctx: Onboardin
     pollTimer = window.setInterval(() => void pollSession(provider, start, ctx), POLL_MS)
   } catch (error) {
     setFlow({ status: 'error', provider, message: `Could not start sign-in: ${errMessage(error)}` })
+  } finally {
+    startProviderOAuthLock = false
   }
 }
 
@@ -706,10 +730,15 @@ export async function submitOnboardingCode(ctx: OnboardingContext) {
 
 export function cancelOnboardingFlow() {
   clearPoll()
+  startProviderOAuthLock = false
   const sessionId = sessionIdFor($desktopOnboarding.get().flow)
 
   if (sessionId) {
-    cancelOAuthSession(sessionId).catch(() => undefined)
+    try {
+      void cancelOAuthSession(sessionId).catch(() => undefined)
+    } catch {
+      // Missing preload bridge (tests, web preview) — still drop local state.
+    }
   }
 
   setFlow({ status: 'idle' })
