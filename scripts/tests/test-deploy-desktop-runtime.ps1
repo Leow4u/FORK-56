@@ -38,25 +38,26 @@ try {
     } | ConvertTo-Json
     Set-Content -LiteralPath (Join-Path $bundle "manifest.json") -Value $manifest -Encoding ASCII
 
-    $home = Join-Path $scratch "home"
-    New-Item -ItemType Directory -Force -Path $home | Out-Null
-    Set-Content -LiteralPath (Join-Path $home ".env") -Value "KEEP=1`n" -Encoding ASCII
+    # Do not assign $home — it is the read-only $HOME automatic variable on pwsh 7.
+    $destHome = Join-Path $scratch "home"
+    New-Item -ItemType Directory -Force -Path $destHome | Out-Null
+    Set-Content -LiteralPath (Join-Path $destHome ".env") -Value "KEEP=1`n" -Encoding ASCII
 
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $deploy `
         -BundleDir $bundle `
-        -Work4YouHome $home `
+        -Work4YouHome $destHome `
         -PinnedCommit $commit `
         -PinnedBranch main `
         -SkipImportProbe
     Assert-True ($LASTEXITCODE -eq 0) "present bundle deploy failed: $LASTEXITCODE"
 
-    $cfg = Get-Content -LiteralPath (Join-Path $home "work4you\venv\pyvenv.cfg") -Raw
-    Assert-True ($cfg -match [regex]::Escape((Join-Path $home "python"))) "pyvenv.cfg was not relocated"
+    $cfg = Get-Content -LiteralPath (Join-Path $destHome "work4you\venv\pyvenv.cfg") -Raw
+    Assert-True ($cfg -match [regex]::Escape((Join-Path $destHome "python"))) "pyvenv.cfg was not relocated"
     Assert-True ($cfg -notmatch "runner") "builder path leaked into pyvenv.cfg"
-    Assert-True ((Get-Content -LiteralPath (Join-Path $home ".env") -Raw) -match "KEEP=1") "HOME .env was overwritten"
-    Assert-True (Test-Path -LiteralPath (Join-Path $home "work4you\.work4you-bootstrap-complete")) "bootstrap marker missing"
-    Assert-True (Test-Path -LiteralPath (Join-Path $home "SOUL.md")) "SOUL.md was not seeded"
-    Assert-True (Test-Path -LiteralPath (Join-Path $home "work4you\bin\work4you.exe")) "launcher was not copied to work4you\bin"
+    Assert-True ((Get-Content -LiteralPath (Join-Path $destHome ".env") -Raw) -match "KEEP=1") "HOME .env was overwritten"
+    Assert-True (Test-Path -LiteralPath (Join-Path $destHome "work4you\.work4you-bootstrap-complete")) "bootstrap marker missing"
+    Assert-True (Test-Path -LiteralPath (Join-Path $destHome "SOUL.md")) "SOUL.md was not seeded"
+    Assert-True (Test-Path -LiteralPath (Join-Path $destHome "work4you\bin\work4you.exe")) "launcher was not copied to work4you\bin"
 } finally {
     Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
 }

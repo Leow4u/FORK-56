@@ -47,15 +47,15 @@ function Update-PyvenvCfg {
     param([string]$VenvDir, [string]$PythonHome)
     $cfg = Join-Path $VenvDir "pyvenv.cfg"
     if (-not (Test-Path -LiteralPath $cfg)) { return }
-    $home = $PythonHome.TrimEnd('\', '/')
-    $executable = Join-Path $home "python.exe"
+    $pythonPrefix = $PythonHome.TrimEnd('\', '/')
+    $executable = Join-Path $pythonPrefix "python.exe"
     $lines = Get-Content -LiteralPath $cfg
     $seenHome = $false
     $seenExe = $false
     $out = New-Object System.Collections.Generic.List[string]
     foreach ($line in $lines) {
         if ($line -match '^\s*home\s*=') {
-            [void]$out.Add("home = $home")
+            [void]$out.Add("home = $pythonPrefix")
             $seenHome = $true
         } elseif ($line -match '^\s*executable\s*=') {
             [void]$out.Add("executable = $executable")
@@ -64,7 +64,7 @@ function Update-PyvenvCfg {
             [void]$out.Add($line)
         }
     }
-    if (-not $seenHome) { $out.Insert(0, "home = $home") }
+    if (-not $seenHome) { $out.Insert(0, "home = $pythonPrefix") }
     if (-not $seenExe) { [void]$out.Add("executable = $executable") }
     Write-Utf8NoBom -Path $cfg -Text (($out -join "`n") + "`n")
 }
