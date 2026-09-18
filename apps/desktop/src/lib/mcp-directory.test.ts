@@ -137,7 +137,8 @@ describe('groupDirectorySections', () => {
       { pinPopular: false }
     )
 
-    expect(groups.map(group => group.id)).toEqual(['email', 'social'])
+    expect(groups.map(group => group.id)).toEqual(['social', 'email'])
+    expect(groups.some(group => group.id === 'popular')).toBe(false)
     expect(mcpDirectoryShowsPopular('connected')).toBe(false)
   })
 })
