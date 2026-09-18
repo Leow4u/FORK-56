@@ -41,10 +41,16 @@ describe('device user codes', () => {
 
 describe('portal favicon', () => {
   it('is not the leftover Vercel triangle', () => {
-    const ico = readFileSync(join(here, '../../../app/favicon.ico'))
-    const digest = createHash('md5').update(ico).digest('hex')
-    assert.notEqual(digest, VERCEL_TRIANGLE_FAVICON_MD5)
-    assert.ok(ico.length > 1000)
-    assert.equal(ico.subarray(0, 4).toString('hex'), '00000100')
+    const nasIco = readFileSync(join(here, '../../../app/favicon.ico'))
+    const viteIco = readFileSync(
+      join(here, '../../../../../../sites/work4you-portal/public/favicon.ico')
+    )
+    for (const ico of [nasIco, viteIco]) {
+      const digest = createHash('md5').update(ico).digest('hex')
+      assert.notEqual(digest, VERCEL_TRIANGLE_FAVICON_MD5)
+      assert.ok(ico.length > 1000)
+      assert.equal(ico.subarray(0, 4).toString('hex'), '00000100')
+    }
+    assert.equal(nasIco.equals(viteIco), true)
   })
 })
