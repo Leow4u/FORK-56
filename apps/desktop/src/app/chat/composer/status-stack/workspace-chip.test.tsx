@@ -57,6 +57,7 @@ describe('WorkspaceChipRow', () => {
     expect(chip.textContent).toContain('Select workspace')
     expect(chip.textContent).not.toContain('Home')
     expect(chip.getAttribute('data-slot')).toBe('workspace-chip')
+    expect(screen.getByRole('button', { name: 'Connection mode' })).toBeTruthy()
     expect(container.querySelector('.group\\/status-row')).toBeNull()
 
     await openSelectWorkspace()
@@ -150,7 +151,9 @@ describe('WorkspaceChipRow', () => {
     const { container } = renderChip(<WorkspaceChipRow cwd="/repos/website" messagesEmpty={false} />)
 
     expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Connection mode' })).toBeNull()
     expect(container.querySelector('[data-slot="workspace-chip"]')).toBeNull()
+    expect(container.querySelector('[data-slot="composer-run-target"]')).toBeNull()
     expect(container.querySelector('[data-slot="composer-context-bar"]')).toBeNull()
   })
 })
