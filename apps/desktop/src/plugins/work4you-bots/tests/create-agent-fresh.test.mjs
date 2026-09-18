@@ -16,7 +16,7 @@ function loadIsolation() {
   assert.ok(end > start, 'CreateAgentDialog must follow the isolation helpers')
   const context = {}
   vm.runInNewContext(
-    `${source.slice(start, end)}\nglobalThis.__iso = { FRESH_CLONE_FROM, isFreshProfileCreate, capabilityCatalogSource, profilesCreateIsolationParams };\n`,
+    `${source.slice(start, end)}\nglobalThis.__iso = { FRESH_CLONE_FROM, DEFAULT_CREATE_PROVIDER, DEFAULT_CREATE_MODEL, isFreshProfileCreate, capabilityCatalogSource, profilesCreateIsolationParams, profilesCreateModelParams };\n`,
     context,
     { filename: 'create-isolation.js' }
   )
@@ -32,6 +32,22 @@ test('Fresh is the default clone-from; reset restores the same sentinel', () => 
   assert.equal(iso.FRESH_CLONE_FROM, '__none__')
   assert.match(source, /useState\(FRESH_CLONE_FROM\)/)
   assert.match(source, /setCloneFrom\(FRESH_CLONE_FROM\)/)
+})
+
+test('New Agent pins Work4You Portal + Operis, not Inherit', () => {
+  const iso = loadIsolation()
+  assert.equal(iso.DEFAULT_CREATE_PROVIDER, 'work4you')
+  assert.equal(iso.DEFAULT_CREATE_MODEL, 'openai/gpt-5.6-luna')
+  assert.match(source, /useState\(DEFAULT_CREATE_PROVIDER\)/)
+  assert.match(source, /useState\(DEFAULT_CREATE_MODEL\)/)
+  assert.match(source, /setProvider\(DEFAULT_CREATE_PROVIDER\)/)
+  assert.match(source, /setModel\(DEFAULT_CREATE_MODEL\)/)
+  assert.deepEqual(snapshot(iso.profilesCreateModelParams(iso.DEFAULT_CREATE_PROVIDER, iso.DEFAULT_CREATE_MODEL)), {
+    provider: 'work4you',
+    model: 'openai/gpt-5.6-luna'
+  })
+  assert.deepEqual(snapshot(iso.profilesCreateModelParams('', '')), {})
+  assert.deepEqual(snapshot(iso.profilesCreateModelParams('work4you', '')), {})
 })
 
 test('Fresh create does not clone or overlay launch credentials', () => {

@@ -13,7 +13,12 @@ function loadCanonicalCreation({ openSession, request }) {
     host: { openSession, request },
     saveBotMeta: (name, patch) => saved.push({ name, patch }),
     $hideBotChats: { get: () => false },
-    window: { setTimeout: callback => callback() }
+    window: { setTimeout: callback => callback() },
+    profilesCreateModelParams: (provider, model) => {
+      const pinnedProvider = String(provider || '').trim()
+      const pinnedModel = String(model || '').trim()
+      return pinnedProvider && pinnedModel ? { provider: pinnedProvider, model: pinnedModel } : {}
+    }
   }
   const section = source
     .slice(start, end)
@@ -59,4 +64,27 @@ test('regression: a failed intro keeps the pin', async () => {
   assert.deepEqual(JSON.parse(JSON.stringify(runtime.saved)), [
     { name: 'newbie', patch: { chat: 'new-bot-chat' } }
   ])
+})
+
+test('New Agent kickoff session.create pins Portal + Operis when given a runtime', async () => {
+  const creates = []
+  const runtime = loadCanonicalCreation({
+    openSession: async () => undefined,
+    request: async (method, params) => {
+      if (method === 'session.create') {
+        creates.push(params)
+        return { stored_session_id: 'finance-chat', session_id: 'rt-finance' }
+      }
+      return {}
+    }
+  })
+
+  assert.equal(
+    await runtime.createCanonicalChat('leo', { provider: 'work4you', model: 'openai/gpt-5.6-luna' }),
+    'finance-chat'
+  )
+  assert.equal(creates.length, 1)
+  assert.equal(creates[0].profile, 'leo')
+  assert.equal(creates[0].provider, 'work4you')
+  assert.equal(creates[0].model, 'openai/gpt-5.6-luna')
 })

@@ -3303,8 +3303,9 @@ async function openStoredBotChat(name, storedId, summary) {
 /** Create the bot's ONE forever chat: a real session opened with a kickoff
  *  message (the gateway prunes zero-message sessions, so the chat is born
  *  with the bot introducing itself). Pins the stored id in bot meta and
- *  returns it. */
-function createCanonicalChat(name) {
+ *  returns it. `createRuntime` pins provider/model on session.create so the
+ *  first agent build does not resolve `auto` against an empty Fresh profile. */
+function createCanonicalChat(name, createRuntime) {
   const inflight = canonicalCreations.get(name)
 
   if (inflight) {
@@ -3319,7 +3320,8 @@ function createCanonicalChat(name) {
       // plugin-owned. Core applies this via the generic `hidden` flag
       // (deferred as pending_hidden until the row exists); older gateways
       // ignore the unknown param and it stays visible.
-      hidden: true
+      hidden: true,
+      ...profilesCreateModelParams(createRuntime?.provider, createRuntime?.model)
     })
     const sid = res?.stored_session_id
     const runtime = res?.session_id
@@ -6165,6 +6167,12 @@ function EditProfileDialog({ bot, open, onClose }) {
 // .env, or messaging tokens. The GUI default is this sentinel; Clone from
 // default remains an explicit opt-in.
 const FRESH_CLONE_FROM = '__none__'
+// House-model pin (Work4You Portal + Operis 4.0). Fresh profiles have no
+// local auth.json / .env keys; Inherit left the first agent build on
+// `auto` and failed with no_provider_configured. Advanced can still pick
+// Inherit or another provider. Wire id matches work4you_cli.models.
+const DEFAULT_CREATE_PROVIDER = 'work4you'
+const DEFAULT_CREATE_MODEL = 'openai/gpt-5.6-luna'
 
 function isFreshProfileCreate(cloneFrom) {
   return cloneFrom == null || cloneFrom === '' || cloneFrom === FRESH_CLONE_FROM
@@ -6183,6 +6191,12 @@ function profilesCreateIsolationParams(cloneFrom, remoteTarget = false) {
     // overlay the launch home's WhatsApp tokens / API keys.
     mirror_credentials: false
   }
+}
+
+function profilesCreateModelParams(provider, model) {
+  const pinnedProvider = String(provider || '').trim()
+  const pinnedModel = String(model || '').trim()
+  return pinnedProvider && pinnedModel ? { provider: pinnedProvider, model: pinnedModel } : {}
 }
 
 function CreateAgentDialog({ open, onClose, roster }) {
@@ -6205,8 +6219,8 @@ function CreateAgentDialog({ open, onClose, roster }) {
   const [image, setImage] = useState(null)
   const [advanced, setAdvanced] = useState(false)
   const [cloneFrom, setCloneFrom] = useState(FRESH_CLONE_FROM)
-  const [model, setModel] = useState('')
-  const [provider, setProvider] = useState('')
+  const [model, setModel] = useState(DEFAULT_CREATE_MODEL)
+  const [provider, setProvider] = useState(DEFAULT_CREATE_PROVIDER)
   const [soul, setSoul] = useState('')
   const [noSkills, setNoSkills] = useState(false)
   const [shareAuth, setShareAuth] = useState(true)
@@ -6306,8 +6320,8 @@ function CreateAgentDialog({ open, onClose, roster }) {
     setAdvanced(false)
     // Same default as the initial useState — Fresh, not clone-from-default.
     setCloneFrom(FRESH_CLONE_FROM)
-    setModel('')
-    setProvider('')
+    setModel(DEFAULT_CREATE_MODEL)
+    setProvider(DEFAULT_CREATE_PROVIDER)
     setSoul('')
     setNoSkills(false)
     setShareAuth(true)
@@ -6447,7 +6461,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
         // ignore the param and copy — still functional, just forked.
         share_auth: shareAuth,
         soul: composeSoul({ name: slug, title, description, roster, customSoul: soul }),
-        ...(model.trim() && provider.trim() ? { model: model.trim(), provider: provider.trim() } : {})
+        ...profilesCreateModelParams(provider, model)
       })
 
       createdRef.current = slug
@@ -6532,6 +6546,9 @@ function CreateAgentDialog({ open, onClose, roster }) {
           : `Agent "${displayName({ name: slug, title })}" created`
       })
       const wasRemote = remoteTarget
+      // Snapshot before reset() restores the dialog defaults — a user who
+      // picked Inherit or another provider in Advanced must keep that pin.
+      const createRuntime = profilesCreateModelParams(provider, model)
       reset()
       onClose()
 
@@ -6549,7 +6566,8 @@ function CreateAgentDialog({ open, onClose, roster }) {
       // the first thing the user sees, and the pin exists from minute one.
       try {
         // Creates, pins, opens, and kicks off the intro in one flow.
-        const sid = await createCanonicalChat(slug)
+        // Pin Operis/Portal on the first session.create (not Inherit/auto).
+        const sid = await createCanonicalChat(slug, createRuntime)
 
         if (!sid && typeof host.newChat === 'function') {
           host.newChat(slug)
@@ -6807,7 +6825,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
                                   setModel(patch.model)
                                 }
                               },
-                              placeholderModel: 'inherited from launch profile'
+                              placeholderModel: 'Operis 4.0'
                             }),
                             labeled(
                               'SOUL.md (optional — replaces the generated persona)',
