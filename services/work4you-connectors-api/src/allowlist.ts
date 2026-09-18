@@ -144,6 +144,13 @@ export const ALLOWLIST: readonly AllowlistApp[] = [
     section: 'productivity',
   },
   {
+    slug: 'trello',
+    name: 'Trello',
+    description: 'Boards, lists, and cards.',
+    composioCategory: 'project management',
+    section: 'productivity',
+  },
+  {
     slug: 'reddit',
     name: 'Reddit',
     description: 'Posts, comments, and subreddits.',

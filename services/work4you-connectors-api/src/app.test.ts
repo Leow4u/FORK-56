@@ -214,6 +214,7 @@ test('apps catalog is the allowlist and never includes native/blocked slugs', as
   assert.ok(slugs.includes('gmail'))
   assert.ok(slugs.includes('googlecalendar'))
   assert.ok(slugs.includes('granola_mcp'))
+  assert.ok(slugs.includes('trello'))
   assert.equal(slugs.includes('notion'), false)
   assert.equal(slugs.includes('firecrawl'), false)
   assert.equal(slugs.includes('exa'), false)
@@ -221,6 +222,10 @@ test('apps catalog is the allowlist and never includes native/blocked slugs', as
   const granola = body.apps.find((row: { slug: string }) => row.slug === 'granola_mcp')
   assert.equal(granola.name, 'Granola')
   assert.equal(granola.logo, 'https://logos.composio.dev/api/granola_mcp')
+  const trello = body.apps.find((row: { slug: string }) => row.slug === 'trello')
+  assert.equal(trello.name, 'Trello')
+  assert.equal(trello.section, 'productivity')
+  assert.equal(trello.logo, 'https://logos.composio.dev/api/trello')
   const gmail = body.apps.find((row: { slug: string }) => row.slug === 'gmail')
   assert.equal(gmail.logo, 'https://logos.composio.dev/api/gmail')
   const instagram = body.apps.find((row: { slug: string }) => row.slug === 'instagram')
@@ -258,6 +263,23 @@ test('authorize allowlisted slug returns a connect link', async () => {
   assert.equal(body.redirect_url, 'https://connect.composio.dev/hubspot')
   assert.equal(composio.authorized[0]?.toolkit, 'hubspot')
   assert.deepEqual(composio.lastEnable, ['hubspot'])
+})
+
+test('authorize trello returns a connect link', async () => {
+  const { app, composio } = harness()
+  const res = await app.request('/v1/apps/trello/authorize', {
+    method: 'POST',
+    headers: {
+      authorization: 'Bearer jwt_a',
+      'content-type': 'application/json',
+    },
+    body: '{}',
+  })
+  assert.equal(res.status, 200)
+  const body = await res.json()
+  assert.equal(body.redirect_url, 'https://connect.composio.dev/trello')
+  assert.equal(composio.authorized[0]?.toolkit, 'trello')
+  assert.deepEqual(composio.lastEnable, ['trello'])
 })
 
 test('wait reports connected once the account is ACTIVE', async () => {
@@ -377,6 +399,10 @@ test('allowlist never enables blocked native/search slugs', () => {
   assert.ok(enabled.has('gmail'))
   assert.equal(enabled.has('notion'), false)
   assert.ok(getAllowlistApp('gmail'))
+  assert.ok(isAllowlisted('trello'))
+  assert.ok(sessionToolkitSlugs(['trello']).includes('trello'))
+  assert.equal(sessionToolkitSlugs([]).includes('trello'), false)
+  assert.ok(getAllowlistApp('trello'))
   assert.equal(sectionForComposioCategory('not a real category'), 'other')
   assert.equal(sectionForComposioCategory('crm'), 'crm')
   for (const slug of POPULAR_SLUGS) {

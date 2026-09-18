@@ -109,6 +109,7 @@ COMPOSIO_CATALOG: List[ComposioCatalogApp] = [
     {"slug": "youtube", "name": "YouTube", "description": "Channels, videos, and captions.", "section": "ai"},
     {"slug": "excel", "name": "Excel", "description": "Workbooks and spreadsheets.", "section": "files"},
     {"slug": "monday", "name": "Monday", "description": "Boards, items, and workspace updates.", "section": "productivity"},
+    {"slug": "trello", "name": "Trello", "description": "Boards, lists, and cards.", "section": "productivity"},
     {"slug": "reddit", "name": "Reddit", "description": "Posts, comments, and subreddits.", "section": "social"},
     {"slug": "reddit_ads", "name": "Reddit Ads", "description": "Reddit advertising campaigns.", "section": "marketing"},
     {"slug": "apollo", "name": "Apollo", "description": "Prospecting and sales sequences.", "section": "crm"},
