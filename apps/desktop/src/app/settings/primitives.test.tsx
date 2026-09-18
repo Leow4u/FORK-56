@@ -1,7 +1,9 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { ListRow, SectionHeading, SettingsGroup } from './primitives'
+import { PAGE_SETTINGS_MAX_W } from '../layout-constants'
+
+import { ListRow, SectionHeading, SettingsContent, SettingsGroup } from './primitives'
 
 afterEach(() => {
   cleanup()
@@ -18,6 +20,24 @@ describe('SectionHeading', () => {
     render(<SectionHeading title="Updates" variant="group" />)
 
     expect(screen.getByRole('heading', { level: 2, name: 'Updates' })).toBeTruthy()
+  })
+})
+
+describe('SettingsContent', () => {
+  it('keeps a centered capped column instead of filling the stage', () => {
+    render(
+      <SettingsContent>
+        <p>Body</p>
+      </SettingsContent>
+    )
+
+    const column = document.querySelector('[data-slot="settings-content"]')
+
+    expect(column).toBeTruthy()
+    expect(column?.className).toContain('mx-auto')
+    expect(column?.className).toContain(PAGE_SETTINGS_MAX_W)
+    expect(column?.className).not.toContain('max-w-none')
+    expect(column?.className).not.toContain('max-w-full')
   })
 })
 
