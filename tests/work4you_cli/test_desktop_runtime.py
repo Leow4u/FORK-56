@@ -268,6 +268,27 @@ def test_rewrite_runtime_symlinks_copies_outside_file(tmp_path):
 
 
 @pytest.mark.linux_only
+def test_rewrite_runtime_symlinks_materializes_outside_dir(tmp_path):
+    """uv's CPython prefix is often a symlink; cp -a would copy the link."""
+    real = tmp_path / "cpython-3.11.16"
+    (real / "bin").mkdir(parents=True)
+    (real / "bin" / "python3").write_text("#!/bin/sh\n", encoding="utf-8")
+    (real / "bin" / "python3").chmod(0o755)
+    alias = tmp_path / "cpython-3.11"
+    alias.symlink_to(real)
+    root = tmp_path / "runtime"
+    root.mkdir()
+    python = root / "python"
+    python.symlink_to(alias)
+
+    changed = rewrite_runtime_symlinks(root)
+    assert "python" in changed
+    assert python.is_dir()
+    assert not python.is_symlink()
+    assert (python / "bin" / "python3").is_file()
+
+
+@pytest.mark.linux_only
 def test_rewrite_runtime_symlinks_rejects_broken_link(tmp_path):
     root = tmp_path / "runtime"
     link = root / "bin" / "missing"

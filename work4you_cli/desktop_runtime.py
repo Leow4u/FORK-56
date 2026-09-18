@@ -178,6 +178,15 @@ def rewrite_runtime_symlinks(root: Path) -> list[str]:
                     shutil.copy2(resolved, path)
                     changed.append(rel_name)
                     continue
+                if resolved.is_dir():
+                    tmp = path.with_name(f".{path.name}.deref.{os.getpid()}")
+                    if tmp.exists():
+                        shutil.rmtree(tmp)
+                    shutil.copytree(resolved, tmp, symlinks=True)
+                    path.unlink()
+                    tmp.rename(path)
+                    changed.append(rel_name)
+                    continue
                 raise ValueError(
                     f"symlink {path} points outside the runtime tree: {raw}"
                 ) from None
