@@ -23,14 +23,19 @@ interface SearchFieldProps {
   onClear?: () => void
   inputRef?: RefObject<HTMLInputElement | null>
   trailingAction?: ReactNode
+  /**
+   * Page headers keep the field readable. Sidebars still recede until focus.
+   * Default stays the quiet sidebar treatment.
+   */
+  recede?: boolean
   'aria-label'?: string
 }
 
 /**
  * Shared search field used everywhere (sessions sidebar, pages, overlays,
  * command center, cron). No box — borderless until focus, then an underline.
- * Rests at low opacity until focused or filled. Width/placement come from
- * `containerClassName`.
+ * Sidebars recede until focus; page shells stay readable. Width/placement
+ * come from `containerClassName`.
  */
 export function SearchField({
   placeholder,
@@ -43,6 +48,7 @@ export function SearchField({
   onClear,
   inputRef,
   trailingAction,
+  recede = true,
   'aria-label': ariaLabel
 }: SearchFieldProps) {
   const { t } = useI18n()
@@ -61,8 +67,8 @@ export function SearchField({
         // container's flex min-width and the field bulldozes its siblings
         // instead of shrinking to fit its context.
         'inline-flex min-w-0 max-w-full items-center gap-1.5 border-b border-transparent px-0.5 transition-[color,border-color,opacity]',
-        // Recede until the user reaches for it.
-        !value && 'opacity-30 focus-within:opacity-100',
+        // Recede until the user reaches for it. Page shells pass recede={false}.
+        recede && !value && 'opacity-30 focus-within:opacity-100',
         containerClassName
       )}
     >

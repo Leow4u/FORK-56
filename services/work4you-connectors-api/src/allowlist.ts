@@ -36,6 +36,8 @@ export const POPULAR_SLUGS: readonly string[] = [
   'github',
   'hubspot',
   'canva',
+  'instagram',
+  'linkedin',
 ]
 
 export const SECTION_IDS: readonly DirectorySection[] = [
@@ -98,6 +100,7 @@ export const ALLOWLIST: readonly AllowlistApp[] = [
     description: 'Instagram Business or Creator accounts.',
     composioCategory: 'social media accounts',
     section: 'social',
+    popular: true,
   },
   {
     slug: 'github',
@@ -191,6 +194,7 @@ export const ALLOWLIST: readonly AllowlistApp[] = [
     description: 'Profile, posts, and networking.',
     composioCategory: 'social media accounts',
     section: 'social',
+    popular: true,
   },
   {
     slug: 'linkedin_ads',

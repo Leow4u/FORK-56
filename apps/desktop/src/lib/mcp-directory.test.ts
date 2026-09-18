@@ -17,6 +17,7 @@ import {
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
   mcpDirectoryShowsConnected,
+  mcpDirectoryShowsPopular,
   mcpSetupCardIdentity,
   visibleMcpServerNames
 } from '@work4you/shared'
@@ -125,6 +126,19 @@ describe('groupDirectorySections', () => {
     const email = groups.find(group => group.id === 'email')
     expect(email?.apps.map(row => row.id)).toEqual(['gmail'])
     expect(groups.at(-1)?.id).toBe('custom')
+  })
+
+  it('can skip the Popular pin so Connected lists each app once', () => {
+    const groups = groupDirectorySections(
+      [
+        app({ id: 'gmail', name: 'Gmail', source: 'composio', popular: true, section: 'email', connected: true }),
+        app({ id: 'instagram', name: 'Instagram', source: 'composio', section: 'social', connected: true })
+      ],
+      { pinPopular: false }
+    )
+
+    expect(groups.map(group => group.id)).toEqual(['email', 'social'])
+    expect(mcpDirectoryShowsPopular('connected')).toBe(false)
   })
 })
 

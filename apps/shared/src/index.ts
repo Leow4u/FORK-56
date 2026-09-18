@@ -87,6 +87,7 @@ export {
   mcpDirectoryQueryHit,
   mcpDirectoryShowsAvailable,
   mcpDirectoryShowsConnected,
+  mcpDirectoryShowsPopular,
   mcpSetupCardIdentity,
   visibleMcpServerNames
 } from './mcp-directory'

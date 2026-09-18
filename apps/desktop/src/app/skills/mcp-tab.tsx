@@ -32,7 +32,7 @@ import { compactNumber } from '@/lib/format'
 import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
 import { completeMcpDesktopOAuth } from '@/lib/mcp-dashboard-oauth'
-import { mcpCatalogPrimaryAction, type McpDirectoryFilter } from '@/lib/mcp-directory-filter'
+import { mcpCatalogPrimaryAction, mcpDirectoryShowsPopular } from '@/lib/mcp-directory-filter'
 import { type McpImportEntry, parseMcpImport } from '@/lib/mcp-import'
 import { NEEDS_AUTH_RE, PROBE_TTL_MS, probeCache, probeKey, serverFingerprint } from '@/lib/mcp-probe-cache'
 import { getServers, isServerShape, type McpServers, normalizeEntry } from '@/lib/mcp-servers'
@@ -66,6 +66,14 @@ import { DetailPane, ICON_BUTTON } from '../master-detail'
 import { PanelEmpty } from '../overlays/panel'
 import { prettyName } from '../settings/helpers'
 import { useDeepLinkHighlight } from '../settings/use-deep-link-highlight'
+
+import {
+  MCP_CATALOG_COLUMN_CLASS,
+  MCP_CATALOG_GRID_CLASS,
+  MCP_CONNECTOR_CARD_CLASS,
+  MCP_DIRECTORY_VIEW_IDS,
+  type McpDirectoryViewId
+} from './mcp-catalog-chrome'
 
 // The editor always speaks the ecosystem's mcp.json document format — names
 // are the JSON keys, transport is inferred from `command` vs `url` — so any
@@ -442,7 +450,7 @@ export function McpTab({
   const [dirty, setDirty] = useState(false)
   const [docVersion, setDocVersion] = useState(0)
   const [logSource, setLogSource] = useState<'stdio' | 'agent'>('stdio')
-  const [directoryFilter, setDirectoryFilter] = useState<McpDirectoryFilter>('discover')
+  const [directoryFilter, setDirectoryFilter] = useState<McpDirectoryViewId>('discover')
   const [sectionFilter, setSectionFilter] = useState<string>('all')
   const [connectingSlug, setConnectingSlug] = useState<null | string>(null)
   const [adminOpen, setAdminOpen] = useState(false)
@@ -550,7 +558,10 @@ export function McpTab({
     })
   }, [catalog, directoryFilter, directoryQuery.data, names, query, sectionFilter, servers])
 
-  const directoryGroups = useMemo(() => groupDirectorySections(directoryApps), [directoryApps])
+  const directoryGroups = useMemo(
+    () => groupDirectorySections(directoryApps, { pinPopular: mcpDirectoryShowsPopular(directoryFilter) }),
+    [directoryApps, directoryFilter]
+  )
 
   const resetDraft = (entries: McpServers) => {
     setDraft(wrapDoc(entries))
@@ -1192,26 +1203,23 @@ export function McpTab({
 
   const directoryEmpty = !selected && directoryApps.length === 0 && !directoryQuery.isLoading && !catalogQuery.isLoading
 
+  const directoryViewLabel = (id: McpDirectoryViewId) =>
+    id === 'connected' ? t.settings.providers.connected : 'Discover'
+
   return (
     <div className="flex h-full min-h-0 flex-col">
+      <div className={cn('flex h-full min-h-0 w-full flex-col', MCP_CATALOG_COLUMN_CLASS)}>
       <div className="flex h-8 shrink-0 items-center gap-2 border-b border-(--ui-stroke-quaternary) px-3">
         {!selected ? (
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            {(
-              [
-                ['discover', 'Discover'],
-                ['all', t.skills.all],
-                ['connected', t.settings.providers.connected],
-                ['available', 'Available']
-              ] as const
-            ).map(([id, label]) => (
+            {MCP_DIRECTORY_VIEW_IDS.map(id => (
               <TextTab
                 active={directoryFilter === id}
                 className="h-5 px-0.5 text-[0.65rem]"
                 key={id}
                 onClick={() => setDirectoryFilter(id)}
               >
-                {label}
+                {directoryViewLabel(id)}
               </TextTab>
             ))}
             <select
@@ -1281,7 +1289,7 @@ export function McpTab({
                 {directoryGroups.map(group => (
                   <section className="flex flex-col gap-2" key={group.id}>
                     <h2 className="px-0.5 text-[0.72rem] font-medium text-(--ui-text-tertiary)">{group.label}</h2>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className={MCP_CATALOG_GRID_CLASS}>
                       {group.apps.map(app => {
                         const server = servers[app.id]
 
@@ -1466,6 +1474,7 @@ export function McpTab({
         >
           <McpLogs emptyLabel={m.noOutput} server={selected && savedEntry ? selected : null} source={logSource} />
         </DetailPane>
+      </div>
       </div>
     </div>
   )
@@ -2086,28 +2095,25 @@ function ConnectorCard({
   )
 
   return (
-    <div
-      className="group/card flex min-h-[5.75rem] flex-col rounded-lg bg-(--ui-bg-secondary)/50 p-3 ring-1 ring-(--ui-stroke-quaternary)"
-      id={`mcp-server-${name}`}
-    >
-      <div className="flex items-start gap-2.5">
+    <div className={MCP_CONNECTOR_CARD_CLASS} id={`mcp-server-${name}`}>
+      <div className="flex items-center gap-2.5">
         {onSelect ? (
-          <button className="flex min-w-0 flex-1 items-start gap-2.5 text-left" onClick={onSelect} type="button">
-            <McpAvatar className="mt-0.5" logo={logo} name={name} status={status} />
+          <button className="flex min-w-0 flex-1 items-center gap-2.5 text-left" onClick={onSelect} type="button">
+            <McpAvatar logo={logo} name={name} status={status} />
             <span className="min-w-0 flex-1">
               {title}
               {description ? (
-                <span className="mt-0.5 line-clamp-2 text-[0.68rem] text-muted-foreground/70">{description}</span>
+                <span className="mt-0.5 line-clamp-1 text-[0.68rem] text-muted-foreground/70">{description}</span>
               ) : null}
             </span>
           </button>
         ) : (
-          <div className="flex min-w-0 flex-1 items-start gap-2.5">
-            <McpAvatar className="mt-0.5" logo={logo} name={name} status={status} />
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <McpAvatar logo={logo} name={name} status={status} />
             <div className="min-w-0 flex-1">
               {title}
               {description ? (
-                <p className="mt-0.5 line-clamp-2 text-[0.68rem] text-muted-foreground/70">{description}</p>
+                <p className="mt-0.5 line-clamp-1 text-[0.68rem] text-muted-foreground/70">{description}</p>
               ) : null}
               {children}
             </div>
