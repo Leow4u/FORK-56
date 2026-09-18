@@ -103,9 +103,6 @@ def _draw_laptop(size: tuple[int, int]) -> Image.Image:
     # Camera
     cx, cy, r = 82 * scale, 130 * scale, 1.3 * scale
     draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=stroke)
-    # Download chevron on the screen — installer cue, not a second brand mark.
-    draw.rectangle(box(78, 148, 86, 180), fill=stroke)
-    draw.polygon(poly([(64, 176), (100, 176), (82, 202)]), fill=stroke)
     # Hinge + deck
     draw.rounded_rectangle(box(20, 236, 144, 242), radius=2 * scale, fill=stroke)
     draw.polygon(poly([(8, 242), (156, 242), (162, 256), (2, 256)]), fill=stroke)
