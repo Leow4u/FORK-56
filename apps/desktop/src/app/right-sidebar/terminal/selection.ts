@@ -2,6 +2,7 @@ import type { ITheme, Terminal } from '@xterm/xterm'
 import type { CSSProperties } from 'react'
 
 import { isMacPlatform } from '@/lib/platform'
+import { CHAT_SELECTION_BACKGROUND } from '@/themes/text-selection'
 import type { DesktopTerminalPalette } from '@/themes/types'
 
 // VS Code's default integrated-terminal palette (terminalColorRegistry.ts) — a
@@ -12,7 +13,7 @@ const DARK_THEME: ITheme = {
   foreground: '#cccccc',
   cursor: '#cccccc',
   cursorAccent: '#1e1e1e',
-  selectionBackground: '#264f7866',
+  selectionBackground: CHAT_SELECTION_BACKGROUND.dark,
   black: '#000000',
   red: '#cd3131',
   green: '#0dbc79',
@@ -36,7 +37,7 @@ const LIGHT_THEME: ITheme = {
   foreground: '#333333',
   cursor: '#333333',
   cursorAccent: '#ffffff',
-  selectionBackground: '#add6ff80',
+  selectionBackground: CHAT_SELECTION_BACKGROUND.light,
   black: '#000000',
   red: '#cd3131',
   green: '#00bc00',

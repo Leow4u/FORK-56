@@ -368,7 +368,10 @@
     --ui-chat-bubble-opaque-background: var(--ui-bg-editor);
     --ui-inline-code-background: color-mix(in srgb, #141414 5%, transparent);
     --ui-inline-code-foreground: color-mix(in srgb, #141414 88%, transparent);
-    --ui-selection-background: color-mix(in srgb, #ffd24a 55%, transparent);
+    /* VS Code terminal wash — conversation / sent text. Composer overrides
+       with the lighter GitHub editor wash (`--ui-composer-selection-background`). */
+    --ui-selection-background: #add6ff80;
+    --ui-composer-selection-background: rgba(84,174,255,0.28);
 
     --dt-background: var(--ui-bg-editor);
     --dt-foreground: var(--ui-text-primary);
@@ -545,7 +548,8 @@
 
     --ui-inline-code-background: color-mix(in srgb, #ffffff 7%, transparent);
     --ui-inline-code-foreground: color-mix(in srgb, #ffffff 88%, transparent);
-    --ui-selection-background: color-mix(in srgb, #ffd24a 38%, transparent);
+    --ui-selection-background: #264f7866;
+    --ui-composer-selection-background: rgba(56,139,253,0.25);
     /* A dark card sits ABOVE the chrome (#161618 over #0d0d0e), so an inline
        widget wearing the raw card fill reads as a lit panel. Take it down a
        touch — still clearly a surface, no longer the brightest thing in the
@@ -749,6 +753,12 @@
 
   *::selection {
     background: var(--ui-selection-background);
+    color: inherit;
+  }
+
+  [data-slot='composer-rich-input']::selection,
+  [data-slot='composer-rich-input'] *::selection {
+    background: var(--ui-composer-selection-background);
     color: inherit;
   }
 }

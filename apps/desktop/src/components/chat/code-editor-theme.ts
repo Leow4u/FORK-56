@@ -3,6 +3,8 @@ import type { Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { tags as t } from '@lezer/highlight'
 
+import { COMPOSER_SELECTION_BACKGROUND } from '@/themes/text-selection'
+
 // GitHub "default" palettes, mirroring the read view's Shiki themes
 // (`github-light-default` / `github-dark-default`) so the spot editor matches
 // the preview it replaces. These are token *colors*; CodeMirror tokenizes with
@@ -90,7 +92,7 @@ export function githubEditorTheme(dark: boolean): Extension {
       {
         '&': { backgroundColor: 'transparent', color: p.fg },
         '&.cm-focused .cm-selectionBackground, .cm-content ::selection, .cm-selectionBackground': {
-          backgroundColor: dark ? 'rgba(56,139,253,0.25)' : 'rgba(84,174,255,0.28)'
+          backgroundColor: COMPOSER_SELECTION_BACKGROUND[dark ? 'dark' : 'light']
         },
         // Match the read view's gutter: dim, right-aligned line numbers.
         '.cm-content': { caretColor: p.fg },

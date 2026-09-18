@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { __resetBackendSkinSync, ingestBackendSkin } from './backend-sync'
 import { skinPref, ThemeProvider, useTheme } from './context'
 import { midnightTheme, work4youOliveTheme } from './presets'
+import { CHAT_SELECTION_BACKGROUND, COMPOSER_SELECTION_BACKGROUND } from './text-selection'
 
 // The live-authoring loop: Work4You writes/edits one skin file and every surface
 // repaints. An in-place edit keeps the NAME — only the palette moves.
@@ -136,6 +137,18 @@ describe('ThemeProvider highlight preview', () => {
 
     act(() => ctx.previewTheme('does-not-exist', 'dark'))
     expect(cssVar('--theme-foreground')).toBe(painted)
+  })
+
+  it('paints VS Code chat selection and GitHub composer selection', () => {
+    renderProbe()
+
+    expect(cssVar('--ui-selection-background')).toBe(CHAT_SELECTION_BACKGROUND.light)
+    expect(cssVar('--ui-composer-selection-background')).toBe(COMPOSER_SELECTION_BACKGROUND.light)
+
+    act(() => ctx.previewTheme('midnight', 'dark'))
+
+    expect(cssVar('--ui-selection-background')).toBe(CHAT_SELECTION_BACKGROUND.dark)
+    expect(cssVar('--ui-composer-selection-background')).toBe(COMPOSER_SELECTION_BACKGROUND.dark)
   })
 
   it('commits the retired Blue name as Olive', () => {

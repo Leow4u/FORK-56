@@ -31,7 +31,7 @@ export interface DesktopThemeColors {
   ring: string
   /**
    * Brand-accent stroke — focus rings, streaming cursors, active session
-   * pills, branded scrollbars, text selection. Falls back to `ring`.
+   * pills, branded scrollbars. Falls back to `ring`.
    * Aliased to the DS `--midground` token.
    */
   midground?: string
