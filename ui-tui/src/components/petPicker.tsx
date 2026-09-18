@@ -12,6 +12,22 @@ const VISIBLE = 10
 const MIN_WIDTH = 40
 const MAX_WIDTH = 90
 
+// Keep in sync with `DEFAULT_PET_SHELF_SLUGS` in apps/desktop/src/store/pet-gallery.ts.
+// Dev-owned empty-search shelf — users cannot add to it.
+const DEFAULT_PET_SHELF_SLUGS = [
+  'savage-codex-hacker',
+  'claude-crab',
+  'senna-sprint',
+  'capvolt',
+  'snoop-dogg',
+  'max-2',
+  'jollio',
+  'vivi',
+  'fufu',
+  'purrcat'
+] as const
+const DEFAULT_PET_SHELF = new Set<string>(DEFAULT_PET_SHELF_SLUGS)
+
 interface GalleryPet {
   slug: string
   displayName: string
@@ -65,11 +81,16 @@ export function PetPicker({ gw, maxWidth, onClose, t }: PetPickerProps) {
 
     const matched = needle
       ? pets.filter(p => p.slug.toLowerCase().includes(needle) || p.displayName.toLowerCase().includes(needle))
-      : pets.filter(p => p.curated || p.installed || (enabled && p.slug === active))
+      : pets.filter(p => DEFAULT_PET_SHELF.has(p.slug))
 
     const rank = (p: GalleryPet) => (enabled && p.slug === active ? 4 : 0) + (p.installed ? 2 : 0) + (p.curated ? 1 : 0)
+    const shelfIndex = (slug: string) => {
+      const index = DEFAULT_PET_SHELF_SLUGS.indexOf(slug as (typeof DEFAULT_PET_SHELF_SLUGS)[number])
 
-    return [...matched].sort((a, b) => rank(b) - rank(a))
+      return index === -1 ? Number.MAX_SAFE_INTEGER : index
+    }
+
+    return [...matched].sort((a, b) => (needle ? rank(b) - rank(a) : shelfIndex(a.slug) - shelfIndex(b.slug)))
   }, [gallery, query, enabled, active])
 
   const adopt = (slug: string) => {

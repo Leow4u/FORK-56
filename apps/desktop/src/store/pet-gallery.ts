@@ -41,6 +41,26 @@ export interface GalleryPet {
   generated?: boolean
 }
 
+/**
+ * Dev-owned Choose-a-pet shelf. Empty search shows only these slugs, in this
+ * order. Users cannot add to it — append a petdex slug here when we ship one.
+ * Typing in search still reaches the rest of the catalog.
+ */
+export const DEFAULT_PET_SHELF_SLUGS = [
+  'savage-codex-hacker',
+  'claude-crab',
+  'senna-sprint',
+  'capvolt',
+  'snoop-dogg',
+  'max-2',
+  'jollio',
+  'vivi',
+  'fufu',
+  'purrcat'
+] as const
+
+const DEFAULT_PET_SHELF = new Set<string>(DEFAULT_PET_SHELF_SLUGS)
+
 export interface PetGallery {
   enabled: boolean
   active: string
@@ -250,11 +270,15 @@ function isHiddenGalleryPet(pet: GalleryPet): boolean {
   return /^clawd(-|$)/i.test(pet.slug)
 }
 
-/** Empty Choose shelf: petdex curated pets, plus anything already yours. */
-function isDefaultShelfPet(pet: GalleryPet, gallery: PetGallery): boolean {
-  return Boolean(
-    pet.curated || pet.generated || pet.installed || (gallery.enabled && pet.slug === gallery.active)
-  )
+/** Empty Choose shelf: the dev-owned allowlist only. */
+function isDefaultShelfPet(pet: GalleryPet): boolean {
+  return DEFAULT_PET_SHELF.has(pet.slug)
+}
+
+function shelfIndex(slug: string): number {
+  const index = DEFAULT_PET_SHELF_SLUGS.indexOf(slug as (typeof DEFAULT_PET_SHELF_SLUGS)[number])
+
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index
 }
 
 function matchesGalleryQuery(pet: GalleryPet, needle: string): boolean {
@@ -263,10 +287,10 @@ function matchesGalleryQuery(pet: GalleryPet, needle: string): boolean {
 
 /**
  * Filter (drop the internal `clawd*` pets + apply a search query) and rank the
- * gallery for a picker. An empty query is the default shelf — curated pets and
- * anything already installed or generated — not the full petdex dump. Typing a
- * query searches the whole catalog. Shared by the Cmd-K palette and the
- * Settings grid so the two can't drift; each caller applies its own cap.
+ * gallery for a picker. An empty query is the dev-owned default shelf — not the
+ * full petdex dump and not a user-curated set. Typing a query searches the
+ * whole catalog. Shared by the Cmd-K palette and the Settings grid so the two
+ * can't drift; each caller applies its own cap.
  */
 export function rankedGalleryPets(gallery: PetGallery | null, query = ''): GalleryPet[] {
   if (!gallery) {
@@ -295,9 +319,9 @@ export function rankedGalleryPets(gallery: PetGallery | null, query = ''): Galle
         return matchesGalleryQuery(p, needle)
       }
 
-      return isDefaultShelfPet(p, gallery)
+      return isDefaultShelfPet(p)
     })
-    .sort((a, b) => rank(b) - rank(a))
+    .sort((a, b) => (needle ? rank(b) - rank(a) : shelfIndex(a.slug) - shelfIndex(b.slug)))
 }
 
 function patchGallery(fn: (gallery: PetGallery) => PetGallery): void {

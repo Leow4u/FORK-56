@@ -4,6 +4,7 @@ import { $petInfo, setPetInfo } from './pet'
 import {
   $petGallery,
   adoptPet,
+  DEFAULT_PET_SHELF_SLUGS,
   type GalleryPet,
   type GatewayRequest,
   loadPetGallery,
@@ -218,19 +219,31 @@ describe('pet gallery pet.info sync', () => {
 })
 
 describe('rankedGalleryPets', () => {
+  const shelf = DEFAULT_PET_SHELF_SLUGS.map(slug => ({
+    displayName: slug,
+    installed: slug === 'fufu',
+    slug
+  })) satisfies GalleryPet[]
   const pets: GalleryPet[] = [
     { slug: 'dalek', displayName: 'Dalek', installed: false },
     { slug: 'nukey', displayName: 'Nukey', installed: false, curated: true },
-    { slug: 'boba', displayName: 'Boba', installed: true, curated: true },
     { slug: 'homelander', displayName: 'Homelander', installed: false },
-    { slug: 'my-otter', displayName: 'My Otter', installed: true, generated: true },
-    { slug: 'clawd-test', displayName: 'Clawd', installed: false, curated: true }
+    { slug: 'my-otter', displayName: 'My Otter', generated: true, installed: true },
+    { slug: 'clawd-test', displayName: 'Clawd', curated: true, installed: false },
+    ...shelf
   ]
 
-  const gallery = { active: 'boba', enabled: true, pets }
+  const gallery = { active: 'my-otter', enabled: true, pets }
 
-  it('keeps the empty shelf to curated pets plus anything already yours', () => {
-    expect(rankedGalleryPets(gallery, '').map(pet => pet.slug)).toEqual(['my-otter', 'boba', 'nukey'])
+  it('keeps the empty shelf to the dev-owned allowlist, in listed order', () => {
+    expect(rankedGalleryPets(gallery, '').map(pet => pet.slug)).toEqual([...DEFAULT_PET_SHELF_SLUGS])
+  })
+
+  it('does not let installed or generated pets join the empty shelf', () => {
+    const slugs = rankedGalleryPets(gallery, '').map(pet => pet.slug)
+
+    expect(slugs).not.toContain('my-otter')
+    expect(slugs).not.toContain('nukey')
   })
 
   it('searches the full catalog once the user types', () => {
