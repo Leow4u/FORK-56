@@ -25,6 +25,10 @@ from work4you_cli.desktop_runtime import (
     stub_runtime_manifest,
     write_bootstrap_marker,
 )
+from work4you_cli.runtime_fingerprint import (
+    installed_runtime_is_current,
+    runtime_payload_fingerprint,
+)
 from work4you_cli.runtime_payload import read_runtime_ref
 
 
@@ -114,6 +118,7 @@ def _write_bundle(root: Path, *, commit: str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
     scripts = work4you / "venv" / "Scripts"
     scripts.mkdir()
     (scripts / "work4you.exe").write_bytes(b"launcher")
+    (scripts / "python.exe").write_bytes(b"py")
     (root / "python").mkdir()
     (root / "python" / "python.exe").write_bytes(b"py")
     (root / "node").mkdir()
@@ -227,6 +232,58 @@ def test_apply_posix_bundle_writes_install_bin_launcher(tmp_path):
     assert str(home / "python") in cfg
     assert "bin/python3" in cfg
     assert "/builder/" not in cfg
+
+
+def test_runtime_fingerprint_ignores_markers_and_venv(tmp_path):
+    bundle = _write_bundle(tmp_path / "bundle")
+    home = tmp_path / "home"
+    apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="b" * 40)
+    left = runtime_payload_fingerprint(bundle / "work4you", bundle / "python", bundle / "node")
+    right = runtime_payload_fingerprint(home / "work4you", home / "python", home / "node")
+    assert left == right
+    assert installed_runtime_is_current(bundle, home) is True
+    (home / "work4you" / ".runtime-ref").write_text("changed\n", encoding="utf-8")
+    (home / "work4you" / "venv" / "junk.bin").write_bytes(b"venv-only")
+    assert installed_runtime_is_current(bundle, home) is True
+
+
+def test_apply_prebuilt_skips_copy_when_payload_matches(tmp_path):
+    bundle = _write_bundle(tmp_path / "bundle")
+    home = tmp_path / "home"
+    apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="b" * 40)
+    (home / "python" / "CANARY.txt").write_text("keep\n", encoding="utf-8")
+    apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="c" * 40)
+    assert (home / "python" / "CANARY.txt").read_text(encoding="utf-8") == "keep\n"
+    assert read_runtime_ref(home / "work4you")["commit"] == "c" * 40
+
+
+def test_apply_prebuilt_copies_when_source_changes(tmp_path):
+    bundle = _write_bundle(tmp_path / "bundle")
+    home = tmp_path / "home"
+    apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="b" * 40)
+    (home / "python" / "CANARY.txt").write_text("keep\n", encoding="utf-8")
+    (bundle / "work4you" / "work4you_cli" / "__init__.py").write_text(
+        "__version__ = '0.0.1'\n", encoding="utf-8"
+    )
+    apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="b" * 40)
+    assert not (home / "python" / "CANARY.txt").exists()
+    assert "__version__ = '0.0.1'" in (home / "work4you" / "work4you_cli" / "__init__.py").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_apply_prebuilt_force_replaces_matching_payload(tmp_path):
+    bundle = _write_bundle(tmp_path / "bundle")
+    home = tmp_path / "home"
+    apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="b" * 40)
+    (home / "python" / "CANARY.txt").write_text("keep\n", encoding="utf-8")
+    apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="b" * 40, force=True)
+    assert not (home / "python" / "CANARY.txt").exists()
+
+
+def test_installed_runtime_is_current_false_when_home_empty(tmp_path):
+    bundle = _write_bundle(tmp_path / "bundle")
+    assert installed_runtime_is_current(bundle, tmp_path / "missing") is False
 
 
 @pytest.mark.linux_only

@@ -28,6 +28,7 @@ try {
     Set-Content -LiteralPath (Join-Path $work4you "cli-config.yaml.example") -Value "model: {}`n" -Encoding ASCII
     Set-Content -LiteralPath (Join-Path $work4you "venv\pyvenv.cfg") -Value "home = C:\Users\runner\python`nexecutable = C:\Users\runner\python\python.exe`n" -Encoding ASCII
     Set-Content -LiteralPath (Join-Path $work4you "venv\Scripts\work4you.exe") -Value "launcher" -Encoding ASCII
+    Set-Content -LiteralPath (Join-Path $work4you "venv\Scripts\python.exe") -Value "py" -Encoding ASCII
     Set-Content -LiteralPath (Join-Path $bundle "python\python.exe") -Value "py" -Encoding ASCII
     $commit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     $manifest = @{
@@ -60,6 +61,28 @@ try {
     Assert-True (Test-Path -LiteralPath (Join-Path $destHome "work4you\.work4you-bootstrap-complete")) "bootstrap marker missing"
     Assert-True (Test-Path -LiteralPath (Join-Path $destHome "SOUL.md")) "SOUL.md was not seeded"
     Assert-True (Test-Path -LiteralPath (Join-Path $destHome "work4you\bin\work4you.exe")) "launcher was not copied to work4you\bin"
+
+    $canary = Join-Path $destHome "python\CANARY.txt"
+    Set-Content -LiteralPath $canary -Value "keep`n" -Encoding ASCII
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $deploy `
+        -BundleDir $bundle `
+        -Work4YouHome $destHome `
+        -PinnedCommit $commit `
+        -PinnedBranch main `
+        -SkipImportProbe
+    Assert-True ($LASTEXITCODE -eq 0) "second deploy (skip) failed: $LASTEXITCODE"
+    Assert-True (Test-Path -LiteralPath $canary) "matching payload must not recopy python/"
+    Assert-True ((Get-Content -LiteralPath $canary -Raw) -match "keep") "canary overwritten on skip"
+
+    Set-Content -LiteralPath (Join-Path $work4you "work4you_cli\__init__.py") -Value "__version__='1'`n" -Encoding ASCII
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $deploy `
+        -BundleDir $bundle `
+        -Work4YouHome $destHome `
+        -PinnedCommit $commit `
+        -PinnedBranch main `
+        -SkipImportProbe
+    Assert-True ($LASTEXITCODE -eq 0) "third deploy (source change) failed: $LASTEXITCODE"
+    Assert-True (-not (Test-Path -LiteralPath $canary)) "changed source must recopy python/"
 } finally {
     Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
 }
