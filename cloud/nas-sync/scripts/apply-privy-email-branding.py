@@ -3,7 +3,7 @@
 
 OTP HTML is hosted by Privy. The non-Enterprise lever is app settings:
   name      → “Logging in to {name}”
-  logo_url  → PNG in the inbox (180×90 / 2:1 recommended; not SVG)
+  logo_url  → favicon PNG in the inbox (hosted on portal.work4you.ai)
 
 Auth: PRIVY_APP_ID + PRIVY_APP_SECRET (Basic app_id:app_secret).
 Canonical host: https://api.privy.io  (docs: REST API base URL).
@@ -24,11 +24,10 @@ import urllib.error
 import urllib.request
 
 DASHBOARD_APP_NAME = "Work4You"
-EMAIL_LOGO_URL = "https://portal.work4you.ai/brand/work4you-email-logo.png"
+EMAIL_LOGO_URL = "https://portal.work4you.ai/brand/work4you-favicon-transparent-1024.png"
 GITHUB_FALLBACK_LOGO_URL = (
-    "https://raw.githubusercontent.com/Leow4u/FORK-56/"
-    "cursor/portal-email-otp-step-de50/"
-    "sites/work4you-portal/public/brand/work4you-email-logo.png"
+    "https://raw.githubusercontent.com/Leow4u/FORK-56/main/"
+    "sites/work4you-portal/public/brand/work4you-favicon-transparent-1024.png"
 )
 USER_AGENT = "Work4You-Portal-Branding/1.0 (+https://portal.work4you.ai)"
 

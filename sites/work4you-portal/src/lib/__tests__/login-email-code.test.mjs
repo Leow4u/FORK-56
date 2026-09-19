@@ -80,25 +80,25 @@ describe('email OTP digits', () => {
 })
 
 describe('Privy email branding contract', () => {
-  it('uses the public Work4You name and hosted 180×90 PNG, not the dashboard slug', () => {
+  it('uses the public Work4You name and hosted favicon, not the dashboard slug', () => {
     assert.equal(PRIVY_EMAIL_BRANDING.dashboardAppName, 'Work4You')
     assert.notEqual(PRIVY_EMAIL_BRANDING.dashboardAppName.toLowerCase(), 'work4you-portal')
     assert.equal(
       PRIVY_EMAIL_BRANDING.emailLogoUrl,
-      'https://portal.work4you.ai/brand/work4you-email-logo.png',
+      'https://portal.work4you.ai/brand/work4you-favicon-transparent-1024.png',
     )
-    assert.equal(PRIVY_EMAIL_BRANDING.emailLogoWidth, 180)
-    assert.equal(PRIVY_EMAIL_BRANDING.emailLogoHeight, 90)
   })
 
-  it('ships a 180×90 PNG at the public email-logo path', () => {
+  it('ships a square PNG at the public favicon path used in OTP emails', () => {
     const pngPath = path.resolve(
       path.dirname(fileURLToPath(import.meta.url)),
-      '../../../public/brand/work4you-email-logo.png',
+      '../../../public/brand/work4you-favicon-transparent-1024.png',
     )
     const buf = fs.readFileSync(pngPath)
     assert.equal(buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), true)
-    assert.equal(buf.readUInt32BE(16), PRIVY_EMAIL_BRANDING.emailLogoWidth)
-    assert.equal(buf.readUInt32BE(20), PRIVY_EMAIL_BRANDING.emailLogoHeight)
+    const width = buf.readUInt32BE(16)
+    const height = buf.readUInt32BE(20)
+    assert.equal(width, height)
+    assert.ok(width >= 64)
   })
 })

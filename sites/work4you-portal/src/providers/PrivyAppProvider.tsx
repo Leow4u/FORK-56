@@ -17,8 +17,8 @@ export function PrivyAppProvider({ children }: PrivyAppProviderProps) {
       config={{
         loginMethods: ['email', 'google', 'github', 'discord', 'passkey'],
         appearance: {
-          // Modal-only. OTP emails use Dashboard Name + Logo
-          // (Work4You + /brand/work4you-email-logo.png), not this path.
+          // Modal-only. OTP emails use Dashboard Name + favicon
+          // (Work4You + /brand/work4you-favicon-transparent-1024.png).
           theme: '#F5F4EE',
           accentColor: '#4D5943',
           logo: '/brand/work4you-logo.png',
