@@ -67,7 +67,7 @@ const isRecoveryShown = () =>
   Boolean(screen.queryByText(/use local gateway/i) || screen.queryByText(/retry/i) || screen.queryByText(/sign in/i))
 
 describe('connecting overlay vs recovery surface', () => {
-  it('cold boot shows BrandMark and Connecting Work4You with sequential dots', async () => {
+  it('cold boot leaves the existing shell uncovered', async () => {
     $desktopBoot.set({
       ...$desktopBoot.get(),
       error: null,
@@ -81,31 +81,9 @@ describe('connecting overlay vs recovery surface', () => {
       render(<GatewayConnectingOverlay />)
     })
 
-    expect(isConnectingShown()).toBe(true)
-    expect(screen.getByRole('status', { name: en.boot.connectingWork4You })).toBeTruthy()
-    expect(screen.getByText(/Connecting Work4You/)).toBeTruthy()
-    expect(screen.queryByText('CONNECTING')).toBeNull()
-    expect(document.querySelector('.font-mono.uppercase')).toBeNull()
-    const status = screen.getByRole('status', { name: en.boot.connectingWork4You })
-    expect(status.querySelector('svg')).toBeNull()
-    expect(status.textContent).toBe('Connecting Work4You.')
-    await act(async () => {
-      vi.advanceTimersByTime(420)
-    })
-    expect(status.textContent).toBe('Connecting Work4You..')
-    await act(async () => {
-      vi.advanceTimersByTime(420)
-    })
-    expect(status.textContent).toBe('Connecting Work4You...')
-    await act(async () => {
-      vi.advanceTimersByTime(420)
-    })
-    expect(status.textContent).toBe('Connecting Work4You.')
-    const img = document.querySelector('img[src*="work4you-icon.png"]')
-    const mark = img?.parentElement
-    expect(img?.className).toContain('bg-transparent')
-    expect(mark?.className).toContain('bg-transparent')
-    expect(mark?.className).not.toContain('bg-white')
+    expect(isConnectingShown()).toBe(false)
+    expect(screen.queryByRole('status', { name: en.boot.connectingWork4You })).toBeNull()
+    expect(isRecoveryShown()).toBe(false)
   })
 
   it('hard initial-boot failure surfaces the recovery overlay (the working path)', async () => {
