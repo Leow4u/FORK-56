@@ -10,7 +10,7 @@ import {
   $sidebarAgentsGrouped,
   pinSession,
   resetSidebarView,
-  setSidebarAgentsGrouped,
+  setSidebarGrouping,
   setSidebarShowArchived
 } from '@/store/layout'
 import { $projectDialog, $projectScope, $projectTree, ALL_PROJECTS } from '@/store/projects'
@@ -102,7 +102,6 @@ function renderSidebar() {
 function seedHomeSidebar() {
   window.localStorage.clear()
   resetSidebarView()
-  setSidebarAgentsGrouped(false)
   $projectScope.set(ALL_PROJECTS)
   $projectDialog.set(null)
   $sessionsLoading.set(false)
@@ -117,27 +116,28 @@ function seedHomeSidebar() {
   ])
 }
 
-describe('ChatSidebar date grouping keeps Projects next to Recents', () => {
+function resetSidebarStores() {
+  $projectTree.set([])
+  $sessions.set([])
+  $messagingSessions.set([])
+  $cronJobs.set([])
+  $pinnedSessionIds.set([])
+  $projectScope.set(ALL_PROJECTS)
+  $projectDialog.set(null)
+  resetSidebarView()
+}
+
+describe('ChatSidebar Project grouping keeps messaging and cron', () => {
   beforeEach(seedHomeSidebar)
 
-  afterEach(() => {
-    $projectTree.set([])
-    $sessions.set([])
-    $messagingSessions.set([])
-    $cronJobs.set([])
-    $pinnedSessionIds.set([])
-    $projectScope.set(ALL_PROJECTS)
-    $projectDialog.set(null)
-    setSidebarAgentsGrouped(false)
-    setSidebarShowArchived(false)
-  })
+  afterEach(resetSidebarStores)
 
-  it('shows Projects, Sessions, WhatsApp, and Cron jobs together', () => {
+  it('shows Projects, WhatsApp, and Cron jobs together, without a parallel Sessions list', () => {
     renderSidebar()
 
     expect(screen.queryByTestId('section-Pinned')).toBeNull()
     expect(screen.getByTestId('section-Projects').getAttribute('data-content')).toBe('overview')
-    expect(screen.getByTestId('section-Sessions').getAttribute('data-content')).toBe('sessions')
+    expect(screen.queryByTestId('section-Sessions')).toBeNull()
     expect(screen.getByTestId('section-WhatsApp').getAttribute('data-content')).toBe('sessions')
     expect(screen.getByTestId('section-Cron jobs')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'New project' })).toBeTruthy()
@@ -158,23 +158,43 @@ describe('ChatSidebar date grouping keeps Projects next to Recents', () => {
     expect($projectDialog.get()).toEqual({ mode: 'create' })
   })
 
-  it('enters a project through goToProject so the existing drill-in replaces Recents', () => {
+  it('enters a project through goToProject and keeps WhatsApp and Cron', () => {
     renderSidebar()
     fireEvent.click(screen.getByRole('button', { name: 'Demo' }))
 
     expect($sidebarAgentsGrouped.get()).toBe(true)
     expect($projectScope.get()).toBe('p_demo')
     expect(screen.queryByTestId('section-Projects')).toBeNull()
-    expect(screen.queryByTestId('section-WhatsApp')).toBeNull()
-    expect(screen.queryByTestId('section-Cron jobs')).toBeNull()
+    expect(screen.getByTestId('section-WhatsApp')).toBeTruthy()
+    expect(screen.getByTestId('section-Cron jobs')).toBeTruthy()
     expect(screen.getByTestId('section-Demo').getAttribute('data-content')).toBe('entered')
   })
 
-  it('hides the always-visible Projects overview while Archived is on', () => {
+  it('hides the Projects overview while Archived is on', () => {
     setSidebarShowArchived(true)
     renderSidebar()
 
     expect(screen.queryByTestId('section-Projects')).toBeNull()
     expect(screen.getByTestId('section-Sessions')).toBeTruthy()
+    expect(screen.getByTestId('section-WhatsApp')).toBeTruthy()
+    expect(screen.getByTestId('section-Cron jobs')).toBeTruthy()
+  })
+})
+
+describe('ChatSidebar date grouping is recents-only', () => {
+  beforeEach(() => {
+    seedHomeSidebar()
+    setSidebarGrouping('date')
+  })
+
+  afterEach(resetSidebarStores)
+
+  it('shows Sessions, WhatsApp, and Cron jobs without a parallel Projects overview', () => {
+    renderSidebar()
+
+    expect(screen.queryByTestId('section-Projects')).toBeNull()
+    expect(screen.getByTestId('section-Sessions').getAttribute('data-content')).toBe('sessions')
+    expect(screen.getByTestId('section-WhatsApp').getAttribute('data-content')).toBe('sessions')
+    expect(screen.getByTestId('section-Cron jobs')).toBeTruthy()
   })
 })

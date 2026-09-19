@@ -220,11 +220,11 @@ export const $sidebarMessagingOpenIds = persistentAtom(
 // workspace's choice) — the "sidebar forgets my grouping every time I switch
 // workspaces" bug. The flat key keeps its historical name so an existing
 // choice survives the update.
-const $sidebarFlatAgentsGrouped = persistentAtom(SIDEBAR_AGENTS_GROUPED_STORAGE_KEY, false, Codecs.bool)
+const $sidebarFlatAgentsGrouped = persistentAtom(SIDEBAR_AGENTS_GROUPED_STORAGE_KEY, true, Codecs.bool)
 
 const $sidebarAllProfilesAgentsGrouped = persistentAtom(
   SIDEBAR_ALL_PROFILES_AGENTS_GROUPED_STORAGE_KEY,
-  false,
+  true,
   Codecs.bool
 )
 
@@ -235,9 +235,9 @@ export const $sidebarAgentsGrouped: ReadableAtom<boolean> = computed(
   (showAll, flat, allProfiles) => (showAll ? allProfiles : flat)
 )
 
-/** How the recents list is divided. `date` is the sidebar's long-standing
- *  default (Today / Yesterday / Last week dividers). `profile` only means
- *  anything while the sidebar is showing every profile at once. */
+/** How the recents list is divided. `date` is the fallback when the user
+ *  leaves Project (Today / Yesterday / Last week dividers). `profile` only
+ *  means anything while the sidebar is showing every profile at once. */
 export type SidebarGrouping = 'date' | 'profile' | 'project' | 'status'
 /** What ranks rows within whatever grouping is active. */
 export type SidebarOrdering = 'cost' | 'created' | 'manual' | 'status' | 'tokens' | 'updated'
@@ -279,7 +279,7 @@ const $sidebarFlatGrouping = persistentAtom<SidebarGrouping>(
 // All-profiles keeps its own grouping: `profile` only means anything there, and
 // a shared atom would either drag it into a scope where it means nothing or
 // reset the choice every time the user flips the rail. Both scopes still ship
-// by day — grouping by owner is something you go and pick.
+// as the project tree — grouping by owner is something you go and pick.
 const $sidebarAllProfilesGrouping = persistentAtom<SidebarGrouping>(
   SIDEBAR_ALL_PROFILES_GROUPING_STORAGE_KEY,
   'date',
@@ -289,7 +289,10 @@ const $sidebarAllProfilesGrouping = persistentAtom<SidebarGrouping>(
 // The sidebar as it ships. Declared once so the atoms below, "Reset to
 // defaults" and the "has this view been customized?" check can't drift apart —
 // they used to inline the same literals in three places.
-const SIDEBAR_DEFAULT_GROUPING: SidebarGrouping = 'date'
+// Project is the tree (Home + folders, history under each). Date/status live
+// on the fallback atoms and only apply once the user leaves Project.
+const SIDEBAR_DEFAULT_GROUPING: SidebarGrouping = 'project'
+const SIDEBAR_FALLBACK_FLAT_GROUPING: SidebarGrouping = 'date'
 const SIDEBAR_DEFAULT_ORDERING: SidebarOrdering = 'updated'
 const SIDEBAR_DEFAULT_ROW_META: SidebarRowMeta[] = ['preview', 'updated']
 
@@ -662,14 +665,15 @@ function clearSidebarFilters() {
 /** Every knob the filter menu owns, back to the sidebar as it ships. Ordering
  *  goes through its setter so a hand-dragged sequence is dropped along with it. */
 export function resetSidebarView() {
-  setSidebarGrouping(SIDEBAR_DEFAULT_GROUPING)
   // Both scopes, not just the one on screen: each keeps its own grouping (and
   // its own Project flag), so a reset that left the other customized would
-  // hand it back on the next flip.
-  $sidebarFlatGrouping.set(SIDEBAR_DEFAULT_GROUPING)
-  $sidebarAllProfilesGrouping.set(SIDEBAR_DEFAULT_GROUPING)
-  $sidebarFlatAgentsGrouped.set(false)
-  $sidebarAllProfilesAgentsGrouped.set(false)
+  // hand it back on the next flip. The flat atoms only hold date/status —
+  // Project lives on the grouped flags, which is why reset writes those true
+  // instead of stuffing 'project' into a date/status codec.
+  $sidebarFlatAgentsGrouped.set(true)
+  $sidebarAllProfilesAgentsGrouped.set(true)
+  $sidebarFlatGrouping.set(SIDEBAR_FALLBACK_FLAT_GROUPING)
+  $sidebarAllProfilesGrouping.set(SIDEBAR_FALLBACK_FLAT_GROUPING)
   setSidebarOrdering(SIDEBAR_DEFAULT_ORDERING)
   $sidebarRowMeta.set(SIDEBAR_DEFAULT_ROW_META)
   $sidebarCardRows.set(false)

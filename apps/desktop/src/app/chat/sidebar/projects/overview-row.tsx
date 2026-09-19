@@ -1,5 +1,5 @@
 import type * as React from 'react'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 
 import { Codicon } from '@/components/ui/codicon'
 import type { Work4YouGitWorktree } from '@/global'
@@ -21,10 +21,10 @@ import {
 } from '../chrome'
 
 import { EnteredProjectContent } from './entered-content'
-import { latestProjectSessions, PROJECT_PREVIEW_COUNT, useWorkspaceNodeOpen } from './model'
+import { latestProjectSessions, SIDEBAR_GROUP_PAGE, useWorkspaceNodeOpen } from './model'
 import { ProjectContextMenu, ProjectMenu } from './project-menu'
 import type { SidebarProjectTree } from './workspace-groups'
-import { WorkspaceAddButton } from './workspace-header'
+import { WorkspaceAddButton, WorkspaceShowMoreButton } from './workspace-header'
 
 const emptyOverviewRows = () => null
 
@@ -100,8 +100,16 @@ export function ProjectOverviewRow({
   // The appearance popover anchors here (the full row) so it opens flush with
   // the sidebar's content edge regardless of which side the sidebar is on.
   const rowRef = useRef<HTMLDivElement>(null)
-  const fetched = (previewSessions ?? []).slice(0, PROJECT_PREVIEW_COUNT)
-  const preview = renderRows ? (fetched.length ? fetched : latestProjectSessions(project, PROJECT_PREVIEW_COUNT)) : []
+  const [visibleCount, setVisibleCount] = useState(SIDEBAR_GROUP_PAGE)
+  const fetched = previewSessions ?? []
+  const preview = renderRows
+    ? fetched.length
+      ? fetched
+      : latestProjectSessions(project, Number.POSITIVE_INFINITY)
+    : []
+  const visiblePreview = preview.slice(0, visibleCount)
+  const hiddenCount = preview.length - visiblePreview.length
+  const nextCount = Math.min(SIDEBAR_GROUP_PAGE, hiddenCount)
   // Home is a session bucket, not a folder tree. Real projects already carry
   // repo nodes in the overview payload (empty session arrays); expanding paints
   // those lanes plus live `git worktree list` rows without a drill-in.
@@ -192,7 +200,18 @@ export function ProjectOverviewRow({
           />
         </SidebarRowNest>
       )}
-      {open && preview.length > 0 && <SidebarRowNest>{renderRows?.(preview)}</SidebarRowNest>}
+      {open && preview.length > 0 && (
+        <SidebarRowNest>
+          {renderRows?.(visiblePreview)}
+          {hiddenCount > 0 && (
+            <WorkspaceShowMoreButton
+              count={nextCount}
+              label={project.label}
+              onClick={() => setVisibleCount(count => count + SIDEBAR_GROUP_PAGE)}
+            />
+          )}
+        </SidebarRowNest>
+      )}
     </div>
   )
 }

@@ -20,14 +20,15 @@ vi.mock('@/i18n', () => ({
           enter: (label: string) => `Enter ${label}`,
           reorder: (label: string) => `Reorder ${label}`,
           toggle: (label: string, open: boolean) => `${open ? 'Show' : 'Hide'} ${label} sessions`
-        }
+        },
+        showMoreIn: (count: number, label: string) => `Show ${count} more in ${label}`
       }
     }
   })
 }))
 
 vi.mock('./model', () => ({
-  PROJECT_PREVIEW_COUNT: 3,
+  SIDEBAR_GROUP_PAGE: 5,
   latestProjectSessions: () => [],
   useWorkspaceNodeOpen: () => [nodeOpen.current, vi.fn()]
 }))
@@ -138,5 +139,38 @@ describe('ProjectOverviewRow', () => {
     render(<ProjectOverviewRow project={home} />)
 
     expect(screen.queryByTestId('overview-lanes')).toBeNull()
+  })
+
+  it('pages project history with Show more instead of a short teaser', () => {
+    nodeOpen.current = true
+    const sessions = Array.from({ length: 7 }, (_, index) => ({ id: `s${index}` }) as unknown as SessionInfo)
+
+    render(
+      <ProjectOverviewRow
+        previewSessions={sessions}
+        project={project}
+        renderRows={rows => <div data-testid="preview-ids">{rows.map(session => session.id).join(',')}</div>}
+      />
+    )
+
+    expect(screen.getByTestId('preview-ids').textContent).toBe('s0,s1,s2,s3,s4')
+    fireEvent.click(screen.getByRole('button', { name: 'Show 2 more in Test D' }))
+    expect(screen.getByTestId('preview-ids').textContent).toBe('s0,s1,s2,s3,s4,s5,s6')
+    expect(screen.queryByRole('button', { name: /Show .* more in Test D/ })).toBeNull()
+  })
+
+  it('does not offer Show more when the project history fits one page', () => {
+    nodeOpen.current = true
+
+    render(
+      <ProjectOverviewRow
+        previewSessions={[{ id: 's1' } as unknown as SessionInfo, { id: 's2' } as unknown as SessionInfo]}
+        project={project}
+        renderRows={rows => <div data-testid="preview-ids">{rows.map(session => session.id).join(',')}</div>}
+      />
+    )
+
+    expect(screen.getByTestId('preview-ids').textContent).toBe('s1,s2')
+    expect(screen.queryByRole('button', { name: /Show .* more in Test D/ })).toBeNull()
   })
 })
