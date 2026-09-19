@@ -2885,7 +2885,8 @@ export const ar = defineLocale({
     externalPending: provider =>
       `${provider} يسجل الدخول عبر أداة سطر الأوامر الخاصة به. شغّل هذا الأمر في الطرفية، ثم عد واختر "سجلت الدخول":`,
     signedIn: 'سجلت الدخول',
-    deviceCodeOpened: provider => `فتحنا ${provider} في المتصفح. أدخل هذا الرمز هناك:`,
+    deviceCodeOpened: provider =>
+      `فتحنا ${provider} في المتصفح. سجّل الدخول هناك أولاً — ثم أكّد رمز هذا الجهاز بعد الدخول:`,
     reopenVerification: 'إعادة فتح صفحة التحقق',
     copy: 'نسخ',
     defaultModel: 'النموذج الافتراضي',

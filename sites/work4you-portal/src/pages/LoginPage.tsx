@@ -9,6 +9,7 @@ import {
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { AuthProviderIcon } from '../components/AuthProviderIcons'
+import { EmailCodeBoxes } from '../components/EmailCodeBoxes'
 import { safePortalNextPath } from '../lib/device-approve'
 import {
   type AuthProviderId,
@@ -17,6 +18,15 @@ import {
 } from '../lib/last-used-provider'
 import { personalOrgId } from '../lib/org'
 import { savePendingProfile } from '../lib/pending-profile'
+import {
+  isCompleteEmailOtp,
+  isDevicePairingNext,
+  isLoginEmailCodePreview,
+  loginDevicePairingNotice,
+  loginEmailCodeCopy,
+  normalizeEmailOtp,
+  shouldShowLoginAlternatives,
+} from '../lib/login-email-code'
 import { isValidEmail, parseProfileName } from '../lib/profile-name'
 import { syncProfileAfterAuth } from '../lib/sync-profile'
 import styles from './LoginPage.module.css'
@@ -65,15 +75,19 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
   // Vite and Next.js both set NODE_ENV. import.meta.env.DEV fails the NAS typecheck.
   const layoutPreview =
     process.env.NODE_ENV !== 'production' && params.get('preview') === '1'
+  const previewEmailCode = isLoginEmailCodePreview(layoutPreview, params.get('step'))
   const startMode: AuthMode =
     modeFromQuery === 'signup' || initialMode === 'signup' ? 'signup' : 'login'
+  const devicePairing = isDevicePairingNext(params.get('next'))
 
   const [mode, setMode] = useState<AuthMode>(startMode)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() =>
+    previewEmailCode ? (params.get('email') || '').trim() : '',
+  )
   const [code, setCode] = useState('')
-  const [awaitingCode, setAwaitingCode] = useState(false)
+  const [awaitingCode, setAwaitingCode] = useState(previewEmailCode)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [lastUsed, setLastUsed] = useState<AuthProviderId | null>(null)
@@ -122,6 +136,13 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
     [mode],
   )
 
+  const codeCopy = useMemo(
+    () => loginEmailCodeCopy(email, devicePairing),
+    [devicePairing, email],
+  )
+  const pairingNotice = loginDevicePairingNotice(devicePairing)
+  const showAlternatives = shouldShowLoginAlternatives(awaitingCode)
+
   useEffect(() => {
     setLastUsed(readLastUsedProvider())
   }, [])
@@ -150,6 +171,31 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
     setNotice(null)
     setAwaitingCode(false)
     setCode('')
+  }
+
+  function onUseOtherEmail() {
+    setAwaitingCode(false)
+    setCode('')
+    setNotice(null)
+  }
+
+  async function onResendCode() {
+    const value = email.trim()
+    if (!isValidEmail(value)) {
+      setNotice('Informe um e-mail válido.')
+      return
+    }
+    setNotice(null)
+    setBusy(true)
+    try {
+      await sendCode({ email: value })
+      setNotice('Enviámos um novo código para o seu e-mail.')
+    } catch (error) {
+      const message = errorMessage(error)
+      setNotice(message || 'Não foi possível reenviar o código.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function onOAuth(id: OAuthProviderId) {
@@ -211,13 +257,15 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
     }
   }
 
-  async function onCodeSubmit(e: FormEvent) {
-    e.preventDefault()
-    const value = code.trim()
-    if (!value) {
-      setNotice('Informe o código recebido por e-mail.')
+  async function submitEmailCode(raw: string) {
+    const value = normalizeEmailOtp(raw)
+    if (!isCompleteEmailOtp(value) || busy || layoutPreview) {
+      if (!layoutPreview && !isCompleteEmailOtp(value)) {
+        setNotice('Informe o código de 6 dígitos recebido por e-mail.')
+      }
       return
     }
+    setCode(value)
     setNotice(null)
     setBusy(true)
     try {
@@ -227,6 +275,11 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
       setNotice(message || 'Código inválido. Tente de novo.')
       setBusy(false)
     }
+  }
+
+  async function onCodeSubmit(e: FormEvent) {
+    e.preventDefault()
+    await submitEmailCode(code)
   }
 
   if (!layoutPreview && !ready) {
@@ -264,63 +317,104 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
       </header>
 
       <main className={styles.main}>
+        {awaitingCode ? (
+          <section className={styles.codeCard} aria-labelledby="login-title">
+            <button
+              type="button"
+              className={styles.backBtn}
+              disabled={busy}
+              onClick={onUseOtherEmail}
+              aria-label={codeCopy.useOtherEmail}
+            >
+              ←
+            </button>
+            <div className={styles.mailIcon} aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="6" width="18" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
+                <path
+                  d="M4 8.2 12 13l8-4.8"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <h1 id="login-title" className={styles.codeTitle}>
+              {codeCopy.title}
+            </h1>
+            <p className={styles.codeLead}>
+              {codeCopy.leadBefore}{' '}
+              <strong className={styles.leadEmail}>{codeCopy.email || 'o seu e-mail'}</strong>{' '}
+              {codeCopy.leadAfter}
+            </p>
+            {codeCopy.deviceHint ? <p className={styles.hint}>{codeCopy.deviceHint}</p> : null}
+            <form className={styles.codeForm} onSubmit={(e) => void onCodeSubmit(e)}>
+              <EmailCodeBoxes
+                value={code}
+                disabled={busy}
+                labelledBy="login-title"
+                onChange={setCode}
+                onComplete={(value) => void submitEmailCode(value)}
+              />
+              <button type="submit" className={styles.srOnly}>
+                {codeCopy.title}
+              </button>
+            </form>
+            {notice ? <p className={styles.notice}>{notice}</p> : null}
+            <p className={styles.resendLine}>
+              {codeCopy.resendLead}{' '}
+              <button
+                type="button"
+                className={styles.switchBtn}
+                disabled={busy}
+                onClick={() => void onResendCode()}
+              >
+                {codeCopy.resend}
+              </button>
+            </p>
+          </section>
+        ) : (
         <section className={styles.stack} aria-labelledby="login-title">
           <p className={styles.eyebrow}>{copy.eyebrow}</p>
           <h1 id="login-title" className={styles.title}>
             {copy.title}
           </h1>
 
-          <div className={styles.providers} role="group" aria-label="Entrar com um provedor">
-            {OAUTH_PROVIDERS.map((p) => (
+          {pairingNotice ? <p className={styles.lead}>{pairingNotice}</p> : null}
+
+          {showAlternatives ? (
+            <div className={styles.providers} role="group" aria-label="Entrar com um provedor">
+              {OAUTH_PROVIDERS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={styles.provider}
+                  disabled={busy}
+                  aria-label={p.label}
+                  onClick={() => void onOAuth(p.id)}
+                >
+                  {lastUsed === p.id ? (
+                    <span className={styles.lastUsed}>Usado por último</span>
+                  ) : null}
+                  <AuthProviderIcon id={p.id} />
+                </button>
+              ))}
               <button
-                key={p.id}
                 type="button"
                 className={styles.provider}
                 disabled={busy}
-                aria-label={p.label}
-                onClick={() => void onOAuth(p.id)}
+                aria-label="Continuar com passkey"
+                onClick={() => void onPasskey()}
               >
-                {lastUsed === p.id ? (
+                {lastUsed === 'passkey' ? (
                   <span className={styles.lastUsed}>Usado por último</span>
                 ) : null}
-                <AuthProviderIcon id={p.id} />
+                <AuthProviderIcon id="passkey" />
               </button>
-            ))}
-            <button
-              type="button"
-              className={styles.provider}
-              disabled={busy}
-              aria-label="Continuar com passkey"
-              onClick={() => void onPasskey()}
-            >
-              {lastUsed === 'passkey' ? (
-                <span className={styles.lastUsed}>Usado por último</span>
-              ) : null}
-              <AuthProviderIcon id="passkey" />
-            </button>
-          </div>
+            </div>
+          ) : null}
 
-          {awaitingCode ? (
-            <form className={styles.emailForm} onSubmit={(e) => void onCodeSubmit(e)}>
-              <label className={styles.label} htmlFor="code">
-                Código
-              </label>
-              <input
-                id="code"
-                className={styles.input}
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="123456"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                disabled={busy}
-              />
-              <button type="submit" className={styles.primary} disabled={busy}>
-                Entrar
-              </button>
-            </form>
-          ) : (
             <form className={styles.emailForm} onSubmit={(e) => void onEmailSubmit(e)}>
               {mode === 'signup' ? (
                 <div className={styles.nameRow}>
@@ -373,17 +467,19 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
                 {copy.emailCta}
               </button>
             </form>
-          )}
 
           {notice ? <p className={styles.notice}>{notice}</p> : null}
 
-          <p className={styles.switch}>
-            {copy.switchLabel}{' '}
-            <button type="button" className={styles.switchBtn} onClick={switchMode}>
-              {copy.switchAction}
-            </button>
-          </p>
+          {showAlternatives ? (
+            <p className={styles.switch}>
+              {copy.switchLabel}{' '}
+              <button type="button" className={styles.switchBtn} onClick={switchMode}>
+                {copy.switchAction}
+              </button>
+            </p>
+          ) : null}
         </section>
+        )}
       </main>
 
       <footer className={styles.footer}>

@@ -52,6 +52,28 @@ describe('onboarding flow presentation', () => {
     expect(screen.getByRole('heading', { name: 'Work4You Portal connected' })).toBeTruthy()
   })
 
+  it('device-code polling asks to sign in first, not to type the token on login', () => {
+    renderFlow({
+      status: 'polling',
+      provider: { ...portal, flow: 'device_code' },
+      copied: false,
+      start: {
+        flow: 'device_code',
+        user_code: 'QRL7-LDXA',
+        verification_url: 'https://portal.work4you.ai/device?user_code=QRL7-LDXA',
+        expires_in: 600,
+        session_id: 'preview',
+        poll_interval: 2
+      }
+    })
+
+    expect(screen.getByRole('heading', { name: 'Sign in with Work4You Portal' })).toBeTruthy()
+    expect(screen.getByText(/Sign in there first/i)).toBeTruthy()
+    expect(screen.getByText(/confirm this device code/i)).toBeTruthy()
+    expect(screen.queryByText(/Enter this code there/i)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy()
+  })
+
   it('login keeps the authorization code step and Continue', () => {
     renderFlow({
       status: 'awaiting_user',

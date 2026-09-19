@@ -172,7 +172,13 @@ jobs:
           cp cloud/nas-sync/src/portal/lib/account-profile.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/last-used-provider.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/sync-profile.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/login-email-code.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/components/AuthProviderIcons.tsx nas/src/portal/components/
+          cp cloud/nas-sync/src/portal/components/EmailCodeBoxes.tsx nas/src/portal/components/
+          mkdir -p nas/public/brand
+          cp cloud/nas-sync/public/brand/work4you-favicon-transparent-1024.png nas/public/brand/
+          cp cloud/nas-sync/public/brand/work4you-logo.png nas/public/brand/
+          cp cloud/nas-sync/public/brand/work4you-email-logo.png nas/public/brand/
           cp cloud/nas-sync/src/portal/pages/LoginPage.tsx nas/src/portal/pages/
           cp cloud/nas-sync/src/portal/pages/LoginPage.module.css nas/src/portal/pages/
           cp cloud/nas-sync/src/portal/pages/DeviceApprovePage.tsx nas/src/portal/pages/
@@ -236,7 +242,12 @@ jobs:
             src/portal/lib/account-profile.ts \
             src/portal/lib/last-used-provider.ts \
             src/portal/lib/sync-profile.ts \
+            src/portal/lib/login-email-code.ts \
             src/portal/components/AuthProviderIcons.tsx \
+            src/portal/components/EmailCodeBoxes.tsx \
+            public/brand/work4you-favicon-transparent-1024.png \
+            public/brand/work4you-logo.png \
+            public/brand/work4you-email-logo.png \
             src/portal/pages/LoginPage.tsx \
             src/portal/pages/LoginPage.module.css \
             src/portal/pages/DeviceApprovePage.tsx \
