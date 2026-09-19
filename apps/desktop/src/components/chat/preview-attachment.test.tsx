@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import type * as MediaModule from '@/lib/media'
+import type * as PreviewStore from '@/store/preview'
 import { $previewTabs } from '@/store/preview'
 
 import { PreviewAttachment } from './preview-attachment'
@@ -14,7 +16,7 @@ vi.mock('@/lib/local-preview', () => ({
 }))
 
 vi.mock('@/lib/media', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/media')>('@/lib/media')
+  const actual = await vi.importActual<typeof MediaModule>('@/lib/media')
 
   return {
     ...actual,
@@ -23,7 +25,7 @@ vi.mock('@/lib/media', async () => {
 })
 
 vi.mock('@/store/preview', async () => {
-  const actual = await vi.importActual<typeof import('@/store/preview')>('@/store/preview')
+  const actual = await vi.importActual<typeof PreviewStore>('@/store/preview')
 
   return {
     ...actual,
