@@ -3459,7 +3459,8 @@ export const zh: Translations = {
     applyingBody:
       'Work4You 更新器会在自己的窗口中接管，并在完成后自动重新打开 Work4You。更新期间请不要自行重新打开 Work4You。',
     applyingBodyInstaller: '正在下载已签名的安装包。Work4You 将关闭以便安装包替换应用。安装完成前请不要自行重新打开。',
-    applyingBodyChrome: '正在下载桌面应用更新。Work4You 将关闭以便新外壳替换旧外壳。请不要自行重新打开——更新完成后会自动回来。',
+    applyingBodyChrome:
+      '正在下载桌面应用更新。Work4You 将关闭以便新外壳替换旧外壳。请不要自行重新打开——更新完成后会自动回来。',
     applyingBodyBackend: '远程后端正在应用更新并将重启。恢复后 Work4You 会自动重新连接。',
     applyingClose: '此窗口会在更新期间关闭，随后 Work4You 会自动重新打开。',
     errorTitle: '更新未完成',
@@ -3620,8 +3621,7 @@ export const zh: Translations = {
     waitingAuthorize: '等待你授权...',
     externalPending: provider => `${provider} 通过自己的 CLI 登录。请在终端运行此命令，然后回来选择“我已登录”：`,
     signedIn: '我已登录',
-    deviceCodeOpened: provider =>
-      `已在浏览器中打开 ${provider}。请先在该页面登录，登录后再确认此设备代码：`,
+    deviceCodeOpened: provider => `已在浏览器中打开 ${provider}。请先在该页面登录，登录后再确认此设备代码：`,
     reopenVerification: '重新打开验证页面',
     copy: '复制',
     defaultModel: '默认模型',

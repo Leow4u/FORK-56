@@ -382,7 +382,7 @@ export const PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1 = [
   'function Hide-HandoffConsole {',
   '  try {',
   "    if (-not ('HandoffNative' -as [type])) {",
-  '      Add-Type -Namespace Handoff -Name Native -MemberDefinition @\'',
+  "      Add-Type -Namespace Handoff -Name Native -MemberDefinition @'",
   '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();',
   '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);',
   "'@",
@@ -482,7 +482,7 @@ export const PACKAGED_WINDOWS_CHROME_HANDOFF_PS1 = [
   'function Hide-HandoffConsole {',
   '  try {',
   "    if (-not ('HandoffNative' -as [type])) {",
-  '      Add-Type -Namespace Handoff -Name Native -MemberDefinition @\'',
+  "      Add-Type -Namespace Handoff -Name Native -MemberDefinition @'",
   '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();',
   '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);',
   "'@",
@@ -735,6 +735,7 @@ export async function checkPackagedInstallerUpdate(
 
   if (deps.platform === 'win32') {
     const remoteFingerprint = await resolveRemoteRuntimeFingerprint(release, deps.fetchText)
+
     if (
       shouldApplyWindowsChromeZip({
         chromeAsset: selectReleaseAsset(release, WINDOWS_CHROME_ZIP_ASSET),
@@ -903,11 +904,7 @@ export function createGithubFetchText(
   return url => fetchHttpsText(url, { get, timeoutMs })
 }
 
-function fetchHttpsText(
-  url: string,
-  deps: { get: typeof https.get; timeoutMs: number },
-  hop = 0
-): Promise<string> {
+function fetchHttpsText(url: string, deps: { get: typeof https.get; timeoutMs: number }, hop = 0): Promise<string> {
   if (hop > MAX_REDIRECTS) {
     return Promise.reject(new Error('Too many redirects while fetching fingerprint'))
   }

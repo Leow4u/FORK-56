@@ -3490,9 +3490,7 @@ async function applyPackagedInstallerUpdates() {
   }
 
   const downloadingMessage = (kind: 'installer' | 'chrome') =>
-    kind === 'chrome'
-      ? 'Downloading the Work4You app update…'
-      : 'Downloading the signed Work4You installer…'
+    kind === 'chrome' ? 'Downloading the Work4You app update…' : 'Downloading the signed Work4You installer…'
 
   emitUpdateProgress({
     stage: 'fetch',
@@ -4378,6 +4376,7 @@ function tryDeployBundledRuntime() {
       'v1.0',
       'powershell.exe'
     )
+
     result = spawnSync(
       powershell,
       bundledDeployArgs({

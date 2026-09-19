@@ -102,11 +102,13 @@ export function ProjectOverviewRow({
   const rowRef = useRef<HTMLDivElement>(null)
   const [visibleCount, setVisibleCount] = useState(SIDEBAR_GROUP_PAGE)
   const fetched = previewSessions ?? []
+
   const preview = renderRows
     ? fetched.length
       ? fetched
       : latestProjectSessions(project, Number.POSITIVE_INFINITY)
     : []
+
   const visiblePreview = preview.slice(0, visibleCount)
   const hiddenCount = preview.length - visiblePreview.length
   const nextCount = Math.min(SIDEBAR_GROUP_PAGE, hiddenCount)

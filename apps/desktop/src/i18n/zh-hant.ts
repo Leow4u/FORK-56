@@ -3030,8 +3030,7 @@ export const zhHant = defineLocale({
     waitingAuthorize: '等待您授權...',
     externalPending: provider => `${provider} 透過自己的 CLI 登入。請在終端機執行此指令，然後回來選擇「我已登入」：`,
     signedIn: '我已登入',
-    deviceCodeOpened: provider =>
-      `已在瀏覽器中開啟 ${provider}。請先在該頁面登入，登入後再確認此裝置代碼：`,
+    deviceCodeOpened: provider => `已在瀏覽器中開啟 ${provider}。請先在該頁面登入，登入後再確認此裝置代碼：`,
     reopenVerification: '重新開啟驗證頁面',
     copy: '複製',
     defaultModel: '預設模型',

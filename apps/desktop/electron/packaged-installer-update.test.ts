@@ -56,8 +56,7 @@ function chromeAssets() {
   return [
     {
       name: WINDOWS_CHROME_ZIP_ASSET,
-      browser_download_url:
-        'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-win-x64.zip',
+      browser_download_url: 'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-win-x64.zip',
       size: 70_000_000,
       state: 'uploaded'
     },
