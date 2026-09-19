@@ -417,6 +417,11 @@ function Header() {
   const { t } = useI18n()
   const { manual, reauth } = useStore($desktopOnboarding)
   const portalReauth = reauth && !manual
+  const subtitle = portalReauth
+    ? t.onboarding.sessionExpired
+    : manual
+      ? t.onboarding.headerDesc
+      : null
 
   return (
     <div className="flex items-start gap-4 bg-(--ui-chat-bubble-background) px-5 pt-5 pb-1">
@@ -425,9 +430,9 @@ function Header() {
         <h2 className="text-xl font-semibold tracking-tight">
           {portalReauth ? t.onboarding.signInToContinue : t.onboarding.headerTitle}
         </h2>
-        <p className="mt-1.5 text-sm leading-5 text-muted-foreground">
-          {portalReauth ? t.onboarding.sessionExpired : manual ? t.onboarding.headerDesc : t.onboarding.featuredPitch}
-        </p>
+        {subtitle ? (
+          <p className="mt-1.5 text-sm leading-5 text-muted-foreground">{subtitle}</p>
+        ) : null}
       </div>
     </div>
   )
