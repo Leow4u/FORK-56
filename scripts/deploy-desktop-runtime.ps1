@@ -20,7 +20,8 @@ param(
     [string]$InstallStampPath = "",
     [string]$PinnedCommit = "",
     [string]$PinnedBranch = "main",
-    [switch]$SkipImportProbe
+    [switch]$SkipImportProbe,
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,6 +42,103 @@ function Get-RuntimeManifest {
     } catch {
         return $null
     }
+}
+
+# Keep in sync with work4you_cli/runtime_fingerprint.py
+$script:SkipSourceDirs = @{ venv = $true; '.git' = $true; '__pycache__' = $true; bin = $true }
+$script:SkipSourceFiles = @{
+    '.runtime-ref'                   = $true
+    '.runtime-payload'               = $true
+    '.work4you-bootstrap-complete'   = $true
+    '.install_method'                = $true
+}
+
+function Get-FileSha256Hex {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return "" }
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace("-", "").ToLowerInvariant()
+    } finally {
+        $stream.Dispose()
+        $sha.Dispose()
+    }
+}
+
+function Get-FirstExistingFile {
+    param([string]$Root, [string[]]$Relative)
+    foreach ($rel in $Relative) {
+        $candidate = Join-Path $Root ($rel -replace '/', [IO.Path]::DirectorySeparatorChar)
+        if (Test-Path -LiteralPath $candidate) { return $candidate }
+    }
+    return $null
+}
+
+function Get-SourceTreeSha256 {
+    param([string]$Root)
+    if (-not (Test-Path -LiteralPath $Root)) { return "" }
+    $rootFull = [IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
+    $prefixLen = $rootFull.Length
+    $files = @(Get-ChildItem -LiteralPath $rootFull -Recurse -File -Force -ErrorAction SilentlyContinue | Where-Object {
+        $rel = $_.FullName.Substring($prefixLen).TrimStart('\', '/')
+        $parts = @($rel -split '[\\/]')
+        foreach ($part in $parts[0..([Math]::Max(0, $parts.Length - 2))]) {
+            if ($script:SkipSourceDirs.ContainsKey($part)) { return $false }
+        }
+        if ($script:SkipSourceFiles.ContainsKey($_.Name)) { return $false }
+        if ($_.Name.EndsWith('.pyc')) { return $false }
+        return $true
+    } | Sort-Object { $_.FullName.Substring($prefixLen).TrimStart('\', '/').Replace('\', '/') })
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $nul = [byte[]](0)
+    foreach ($file in $files) {
+        $rel = $file.FullName.Substring($prefixLen).TrimStart('\', '/').Replace('\', '/')
+        $relBytes = [Text.Encoding]::UTF8.GetBytes($rel)
+        [void]$sha.TransformBlock($relBytes, 0, $relBytes.Length, $null, 0)
+        [void]$sha.TransformBlock($nul, 0, 1, $null, 0)
+        $bytes = [IO.File]::ReadAllBytes($file.FullName)
+        if ($bytes.Length -gt 0) {
+            [void]$sha.TransformBlock($bytes, 0, $bytes.Length, $null, 0)
+        }
+        [void]$sha.TransformBlock($nul, 0, 1, $null, 0)
+    }
+    [void]$sha.TransformFinalBlock([byte[]]::new(0), 0, 0)
+    $hex = [BitConverter]::ToString($sha.Hash).Replace("-", "").ToLowerInvariant()
+    $sha.Dispose()
+    return $hex
+}
+
+function Get-PayloadFingerprint {
+    param([string]$Work4YouRoot, [string]$PythonHome, [string]$NodeHome)
+    $source = Get-SourceTreeSha256 $Work4YouRoot
+    $pyPath = Get-FirstExistingFile $PythonHome @('python.exe', 'bin/python3', 'bin/python')
+    $nodePath = Get-FirstExistingFile $NodeHome @('node.exe', 'bin/node', 'node')
+    $py = if ($pyPath) { Get-FileSha256Hex $pyPath } else { "" }
+    $node = if ($nodePath) { Get-FileSha256Hex $nodePath } else { "" }
+    $text = "$source`n$py`n$node"
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [Text.Encoding]::UTF8.GetBytes($text)
+        return [BitConverter]::ToString($sha.ComputeHash($bytes)).Replace("-", "").ToLowerInvariant()
+    } finally {
+        $sha.Dispose()
+    }
+}
+
+function Test-InstalledRuntimeCurrent {
+    param([string]$Bundle, [string]$HomeDir)
+    $installDir = Join-Path $HomeDir "work4you"
+    $pythonHome = Join-Path $HomeDir "python"
+    $venvPy = Get-FirstExistingFile $installDir @('venv/Scripts/python.exe', 'venv/bin/python3', 'venv/bin/python')
+    if (-not (Test-Path -LiteralPath (Join-Path $Bundle "work4you"))) { return $false }
+    if (-not (Test-Path -LiteralPath (Join-Path $Bundle "python"))) { return $false }
+    if (-not (Test-Path -LiteralPath $installDir)) { return $false }
+    if (-not (Test-Path -LiteralPath $pythonHome)) { return $false }
+    if (-not $venvPy) { return $false }
+    $incoming = Get-PayloadFingerprint (Join-Path $Bundle "work4you") (Join-Path $Bundle "python") (Join-Path $Bundle "node")
+    $installed = Get-PayloadFingerprint $installDir $pythonHome (Join-Path $HomeDir "node")
+    return ($incoming -eq $installed)
 }
 
 function Update-PyvenvCfg {
@@ -145,6 +243,64 @@ if (-not $PinnedBranch) { $PinnedBranch = "main" }
 
 $installDir = Join-Path $Work4YouHome "work4you"
 $pythonHome = Join-Path $Work4YouHome "python"
+
+$skipCopy = -not $Force -and (Test-InstalledRuntimeCurrent -Bundle $BundleDir -HomeDir $Work4YouHome)
+if ($skipCopy -and -not $SkipImportProbe) {
+    $pythonExe = Join-Path $installDir "venv\Scripts\python.exe"
+    $probeOk = $false
+    if (Test-Path -LiteralPath $pythonExe) {
+        $prevPythonioencoding = $env:PYTHONIOENCODING
+        $prevPythonutf8 = $env:PYTHONUTF8
+        $env:PYTHONIOENCODING = "utf-8"
+        $env:PYTHONUTF8 = "1"
+        $env:PYTHONPATH = $installDir
+        try {
+            & $pythonExe -c "import work4you_cli" | Out-Null
+            if ($LASTEXITCODE -eq 0) { $probeOk = $true }
+        } catch {
+            $probeOk = $false
+        } finally {
+            if ($null -eq $prevPythonioencoding) { Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue } else { $env:PYTHONIOENCODING = $prevPythonioencoding }
+            if ($null -eq $prevPythonutf8) { Remove-Item Env:PYTHONUTF8 -ErrorAction SilentlyContinue } else { $env:PYTHONUTF8 = $prevPythonutf8 }
+        }
+    }
+    if (-not $probeOk) { $skipCopy = $false }
+}
+
+if ($skipCopy) {
+    Write-Host "[work4you] prebuilt runtime already current at $installDir; skipping copy"
+    Update-PyvenvCfg -VenvDir (Join-Path $installDir "venv") -PythonHome $pythonHome
+    Seed-HomeTemplates -TargetDir $Work4YouHome -InstallDir $installDir
+    Write-Utf8NoBom -Path (Join-Path $installDir ".install_method") -Text "desktop`n"
+    $runtimeRef = [ordered]@{
+        commit     = $PinnedCommit
+        branch     = $PinnedBranch
+        ref        = $(if ($PinnedCommit) { $PinnedCommit } else { $PinnedBranch })
+        updated_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    }
+    Write-Utf8NoBom -Path (Join-Path $installDir ".runtime-ref") -Text (($runtimeRef | ConvertTo-Json -Compress:$false) + "`n")
+    $launcherDir = Join-Path $installDir "bin"
+    New-Item -ItemType Directory -Force -Path $launcherDir | Out-Null
+    $venvDir = Join-Path $installDir "venv"
+    foreach ($launcher in @("work4you.exe", "work4you-acp.exe")) {
+        $src = Join-Path $venvDir "Scripts\$launcher"
+        $dest = Join-Path $launcherDir $launcher
+        if ((Test-Path -LiteralPath $src) -and -not (Test-Path -LiteralPath $dest)) {
+            Copy-Item -LiteralPath $src -Destination $dest -Force
+        }
+    }
+    if ($PinnedCommit -and $PinnedCommit.Length -ge 7) {
+        $marker = [ordered]@{
+            schemaVersion = 1
+            pinnedCommit  = $PinnedCommit
+            pinnedBranch  = $PinnedBranch
+            completedAt   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        }
+        Write-Utf8NoBom -Path (Join-Path $installDir ".work4you-bootstrap-complete") -Text (($marker | ConvertTo-Json -Compress:$false) + "`n")
+    }
+    Write-Host "[work4you] prebuilt runtime ready at $installDir"
+    exit 0
+}
 
 Write-Host "[work4you] deploying prebuilt runtime to $Work4YouHome"
 

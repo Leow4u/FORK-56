@@ -27,6 +27,7 @@ from work4you_cli.runtime_payload import (
     INSTALL_METHOD,
     write_runtime_ref,
 )
+from work4you_cli.runtime_fingerprint import installed_runtime_is_current
 from work4you_constants import venv_bin_dir
 
 MANIFEST_FILENAME = "manifest.json"
@@ -373,38 +374,15 @@ def _copy_replace_tree(src: Path, dest: Path, *, preserve: frozenset[str]) -> No
             shutil.copy2(entry, target)
 
 
-def apply_prebuilt_runtime_bundle(
-    bundle_dir: Path,
-    work4you_home: Path,
+def _finalize_prebuilt_home(
+    bundle: Path,
+    home: Path,
+    install_dir: Path,
+    python_home: Path,
     *,
-    pinned_commit: str = "",
-    pinned_branch: str = "main",
+    pinned_commit: str,
+    pinned_branch: str,
 ) -> Path:
-    """Copy a CI runtime bundle into ``WORK4YOU_HOME`` and relocate the venv.
-
-    Returns the install dir (``<home>/work4you``).
-    """
-    bundle = Path(bundle_dir)
-    if not is_prebuilt_runtime_root(bundle):
-        raise ValueError(f"not a prebuilt runtime bundle: {bundle}")
-
-    home = Path(work4you_home)
-    home.mkdir(parents=True, exist_ok=True)
-    install_dir = home / "work4you"
-    python_home = home / "python"
-
-    for name in ("python", "node", "bin"):
-        src = bundle / name
-        dest = home / name
-        if not src.is_dir():
-            continue
-        if dest.exists():
-            shutil.rmtree(dest, ignore_errors=True)
-        shutil.copytree(src, dest)
-
-    _copy_replace_tree(bundle / "work4you", install_dir, preserve=INSTALL_PRESERVE)
-    rewrite_runtime_symlinks(home)
-
     venv_dir = install_dir / "venv"
     if venv_dir.is_dir() and python_home.is_dir():
         write_pyvenv_cfg(venv_dir, str(python_home))
@@ -437,6 +415,63 @@ def apply_prebuilt_runtime_bundle(
                 shutil.copy2(src, launcher_dest / launcher)
 
     return install_dir
+
+
+def apply_prebuilt_runtime_bundle(
+    bundle_dir: Path,
+    work4you_home: Path,
+    *,
+    pinned_commit: str = "",
+    pinned_branch: str = "main",
+    force: bool = False,
+) -> Path:
+    """Copy a CI runtime bundle into ``WORK4YOU_HOME`` and relocate the venv.
+
+    When HOME already has the same payload (source + CPython + Node), skip the
+    copy and only refresh markers / ``pyvenv.cfg``. Pass ``force=True`` to
+    replace anyway (Repair).
+
+    Returns the install dir (``<home>/work4you``).
+    """
+    bundle = Path(bundle_dir)
+    if not is_prebuilt_runtime_root(bundle):
+        raise ValueError(f"not a prebuilt runtime bundle: {bundle}")
+
+    home = Path(work4you_home)
+    home.mkdir(parents=True, exist_ok=True)
+    install_dir = home / "work4you"
+    python_home = home / "python"
+
+    if not force and installed_runtime_is_current(bundle, home):
+        return _finalize_prebuilt_home(
+            bundle,
+            home,
+            install_dir,
+            python_home,
+            pinned_commit=pinned_commit,
+            pinned_branch=pinned_branch,
+        )
+
+    for name in ("python", "node", "bin"):
+        src = bundle / name
+        dest = home / name
+        if not src.is_dir():
+            continue
+        if dest.exists():
+            shutil.rmtree(dest, ignore_errors=True)
+        shutil.copytree(src, dest)
+
+    _copy_replace_tree(bundle / "work4you", install_dir, preserve=INSTALL_PRESERVE)
+    rewrite_runtime_symlinks(home)
+
+    return _finalize_prebuilt_home(
+        bundle,
+        home,
+        install_dir,
+        python_home,
+        pinned_commit=pinned_commit,
+        pinned_branch=pinned_branch,
+    )
 
 
 def stub_runtime_manifest() -> dict:

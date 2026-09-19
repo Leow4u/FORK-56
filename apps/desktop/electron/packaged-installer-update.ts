@@ -279,6 +279,22 @@ export const PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1 = [
   "  [string]$InstallDir = ''",
   ')',
   "$ErrorActionPreference = 'Stop'",
+  // cmd start /min gives PowerShell 5.1 a console so it survives a detached
+  // Electron spawn (hidden+detached dies before -File). Hide that console
+  // immediately so Update does not leave a black window on the desktop.
+  'function Hide-HandoffConsole {',
+  '  try {',
+  "    if (-not ('HandoffNative' -as [type])) {",
+  '      Add-Type -Namespace Handoff -Name Native -MemberDefinition @\'',
+  '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();',
+  '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);',
+  "'@",
+  '    }',
+  '    $hwnd = [Handoff.Native]::GetConsoleWindow()',
+  '    if ($hwnd -ne [IntPtr]::Zero) { [void][Handoff.Native]::ShowWindow($hwnd, 0) }',
+  '  } catch {}',
+  '}',
+  'Hide-HandoffConsole',
   'function Test-DesktopRunning([string]$Exe) {',
   '  if (-not $Exe) { return $false }',
   '  try {',
