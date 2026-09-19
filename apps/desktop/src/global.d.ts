@@ -539,8 +539,8 @@ export interface DesktopUpdateCommit {
 export interface DesktopUpdateStatus {
   supported: boolean
   updateAvailable?: boolean
-  /** Packaged Windows/macOS uses the published installer; source installs use git. */
-  channel?: 'git' | 'installer'
+  /** Packaged Windows/macOS uses the published installer or slim chrome zip; source installs use git. */
+  channel?: 'git' | 'installer' | 'chrome'
   branch?: string
   currentBranch?: string
   reason?: string

@@ -2574,6 +2574,7 @@ export interface Translations {
     availableBodyBackend: string
     availableBodyNoChangelog: string
     availableBodyInstaller: string
+    availableBodyChrome: string
     updateNow: string
     maybeLater: string
     moreChanges: (count: number) => string
@@ -2589,6 +2590,7 @@ export interface Translations {
     done: string
     applyingBody: string
     applyingBodyInstaller: string
+    applyingBodyChrome: string
     applyingBodyBackend: string
     applyingClose: string
     errorTitle: string

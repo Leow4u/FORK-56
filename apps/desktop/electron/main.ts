@@ -215,12 +215,15 @@ import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
 import {
   checkPackagedInstallerUpdate,
   createGithubFetchJson,
+  createGithubFetchText,
   downloadHttpsToFile,
   downloadProgressPercent,
   installerDownloadDest,
   packagedInstallerApplySpawn,
+  readInstalledRuntimeFingerprint,
   resolvePackagedInstallerApplyPlan,
   shouldUsePackagedInstallerUpdate,
+  writePackagedWindowsChromeHandoffScript,
   writePackagedWindowsHandoffScript
 } from './packaged-installer-update'
 import {
@@ -2764,6 +2767,8 @@ async function checkUpdates() {
       stampCommit: INSTALL_STAMP?.commit ?? null,
       platform: process.platform,
       fetchJson: createGithubFetchJson(),
+      fetchText: createGithubFetchText(),
+      localFingerprint: readInstalledRuntimeFingerprint(WORK4YOU_HOME),
       compareBehind: (currentSha, targetSha) =>
         fetchCompareBehindCount({ currentSha, originUrl: OFFICIAL_REPO_HTTPS_URL, targetSha })
     })
@@ -3484,9 +3489,14 @@ async function applyPackagedInstallerUpdates() {
     return { ok: false, error: 'update-already-running', message: handoffConflict.message }
   }
 
+  const downloadingMessage = (kind: 'installer' | 'chrome') =>
+    kind === 'chrome'
+      ? 'Downloading the Work4You app update…'
+      : 'Downloading the signed Work4You installer…'
+
   emitUpdateProgress({
     stage: 'fetch',
-    message: 'Downloading the signed Work4You installer…',
+    message: downloadingMessage('installer'),
     percent: 0
   })
 
@@ -3495,7 +3505,9 @@ async function applyPackagedInstallerUpdates() {
   try {
     plan = await resolvePackagedInstallerApplyPlan({
       platform: process.platform,
-      fetchJson: createGithubFetchJson()
+      fetchJson: createGithubFetchJson(),
+      fetchText: createGithubFetchText(),
+      localFingerprint: readInstalledRuntimeFingerprint(WORK4YOU_HOME)
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -3506,21 +3518,35 @@ async function applyPackagedInstallerUpdates() {
 
   const destDir = path.join(os.tmpdir(), 'work4you-desktop-update')
   const dest = installerDownloadDest(destDir, plan.assetName)
+  const fetchMessage = downloadingMessage(plan.kind)
+
+  emitUpdateProgress({
+    stage: 'fetch',
+    message: fetchMessage,
+    percent: 0
+  })
 
   try {
     await downloadHttpsToFile(plan.downloadUrl, dest, {
       onProgress: (received, total) => {
         emitUpdateProgress({
           stage: 'fetch',
-          message: 'Downloading the signed Work4You installer…',
+          message: fetchMessage,
           percent: downloadProgressPercent(received, total)
         })
       }
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    rememberLog(`[updates] installer download failed: ${message}`)
-    emitUpdateProgress({ stage: 'error', message: `Could not download the installer: ${message}`, percent: null })
+    rememberLog(`[updates] ${plan.kind} download failed: ${message}`)
+    emitUpdateProgress({
+      stage: 'error',
+      message:
+        plan.kind === 'chrome'
+          ? `Could not download the app update: ${message}`
+          : `Could not download the installer: ${message}`,
+      percent: null
+    })
 
     return { ok: false, error: 'download-failed', message }
   }
@@ -3528,7 +3554,9 @@ async function applyPackagedInstallerUpdates() {
   emitUpdateProgress({
     stage: 'restart',
     message: IS_WINDOWS
-      ? 'The installer will replace Work4You. This window will close; don’t reopen it yourself — it comes back when setup finishes.'
+      ? plan.kind === 'chrome'
+        ? 'Work4You will close so the new desktop shell can replace the old one. Don’t reopen it yourself — it comes back when the update finishes.'
+        : 'The installer will replace Work4You. This window will close; don’t reopen it yourself — it comes back when setup finishes.'
       : 'Opening the disk image. Drag Work4You to Applications, then reopen the app.',
     percent: 100
   })
@@ -3541,7 +3569,12 @@ async function applyPackagedInstallerUpdates() {
     installDir,
     desktopPid: process.pid,
     relaunchExe: process.execPath,
-    handoffScriptPath: IS_WINDOWS ? writePackagedWindowsHandoffScript(destDir) : dest
+    kind: plan.kind,
+    handoffScriptPath: IS_WINDOWS
+      ? plan.kind === 'chrome'
+        ? writePackagedWindowsChromeHandoffScript(destDir)
+        : writePackagedWindowsHandoffScript(destDir)
+      : dest
   })
 
   const child = spawnUpdaterProcess(spawned.command, spawned.args, {
@@ -3551,14 +3584,17 @@ async function applyPackagedInstallerUpdates() {
   })
 
   rememberLog(
-    `[updates] launched packaged installer: ${spawned.command} ${spawned.args.join(' ')} (${plan.releaseTag})`
+    `[updates] launched packaged ${plan.kind}: ${spawned.command} ${spawned.args.join(' ')} (${plan.releaseTag})`
   )
 
   const dwellStartedAt = Date.now()
   const handoffOutcome = await observeUpdaterHandoff(child, UPDATE_HANDOFF_DWELL_MS)
 
   if (!handoffOutcome.ok) {
-    const message = `Installer failed to start: ${handoffOutcome.message}. Work4You will keep running — try again, or download ${plan.assetName} from work4you.ai/downloads.`
+    const message =
+      plan.kind === 'chrome'
+        ? `App update failed to start: ${handoffOutcome.message}. Work4You will keep running — try again.`
+        : `Installer failed to start: ${handoffOutcome.message}. Work4You will keep running — try again, or download ${plan.assetName} from work4you.ai/downloads.`
 
     rememberLog(`[updates] packaged installer spawn not viable: ${handoffOutcome.message}`)
     emitUpdateProgress({ stage: 'error', message, percent: null })

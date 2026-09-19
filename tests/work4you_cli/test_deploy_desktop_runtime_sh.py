@@ -91,6 +91,9 @@ def test_deploy_desktop_runtime_sh_relocates_and_preserves_env(tmp_path):
     assert (home / "work4you" / ".work4you-bootstrap-complete").is_file()
     assert (home / "SOUL.md").is_file()
     assert (home / "work4you" / "bin" / "work4you").is_file()
+    fingerprint = (home / "work4you" / ".runtime-fingerprint").read_text(encoding="utf-8").strip()
+    assert len(fingerprint) == 64
+    assert all(char in "0123456789abcdef" for char in fingerprint)
 
 
 @pytest.mark.linux_only
@@ -139,3 +142,5 @@ def test_deploy_desktop_runtime_sh_skips_copy_when_payload_matches(tmp_path):
     assert second.returncode == 0, second.stdout + second.stderr
     assert "skipping copy" in second.stdout
     assert (home / "python" / "CANARY.txt").read_text(encoding="utf-8") == "keep\n"
+    fingerprint = (home / "work4you" / ".runtime-fingerprint").read_text(encoding="utf-8").strip()
+    assert len(fingerprint) == 64

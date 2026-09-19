@@ -2969,6 +2969,8 @@ export const ja = defineLocale({
       '新しいバージョンを利用できます。このインストール形式ではリリースノートは表示できません。',
     availableBodyInstaller:
       '新しい Work4You インストーラーの準備ができました。ソースからの長い再ビルドなしで、約1分でアプリを置き換えます。',
+    availableBodyChrome:
+      '新しい Work4You アプリ更新の準備ができました。デスクトップシェルだけを置き換え、既存のランタイムはそのままです。',
     updateNow: '今すぐ更新',
     maybeLater: '後で',
     moreChanges: count => `さらに ${count} 件の変更が含まれています。`,
@@ -2986,6 +2988,8 @@ export const ja = defineLocale({
       'Work4You アップデーターが独自のウィンドウで引き継ぎ、完了後に自動的に Work4You を再度開きます。更新中はご自分で Work4You を開き直さないでください。',
     applyingBodyInstaller:
       '署名済みインストーラーをダウンロードしています。インストーラーがアプリを置き換えられるよう Work4You を閉じます。セットアップが終わるまで自分で開き直さないでください。',
+    applyingBodyChrome:
+      'デスクトップアプリの更新をダウンロードしています。新しいシェルが古いシェルを置き換えられるよう Work4You を閉じます。自分で開き直さないでください。更新が終わると戻ってきます。',
     applyingBodyBackend:
       'リモートバックエンドが更新を適用して再起動します。復帰すると Work4You が自動的に再接続します。',
     applyingClose: 'このウィンドウは更新中に閉じ、その後 Work4You が自動的に再度開きます。',

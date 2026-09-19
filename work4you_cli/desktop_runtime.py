@@ -27,7 +27,11 @@ from work4you_cli.runtime_payload import (
     INSTALL_METHOD,
     write_runtime_ref,
 )
-from work4you_cli.runtime_fingerprint import installed_runtime_is_current
+from work4you_cli.runtime_fingerprint import (
+    installed_runtime_is_current,
+    runtime_payload_fingerprint,
+    write_runtime_fingerprint_file,
+)
 from work4you_constants import venv_bin_dir
 
 MANIFEST_FILENAME = "manifest.json"
@@ -413,6 +417,14 @@ def _finalize_prebuilt_home(
             src = launcher_src / launcher
             if src.is_file():
                 shutil.copy2(src, launcher_dest / launcher)
+
+    try:
+        write_runtime_fingerprint_file(
+            install_dir,
+            runtime_payload_fingerprint(install_dir, python_home, home / "node"),
+        )
+    except (OSError, ValueError):
+        pass
 
     return install_dir
 

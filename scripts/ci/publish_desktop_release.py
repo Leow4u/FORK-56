@@ -133,15 +133,21 @@ def has_required_assets(names: Sequence[str]) -> bool:
     return set(REQUIRED_ASSETS) <= have
 
 
+def normalize_optional_paths(
+    value: Path | str | Sequence[Path | str] | None,
+) -> list[Path]:
+    """Accept one path, many paths, or None. ``Path`` is a Sequence — check it first."""
+    if value is None:
+        return []
+    if isinstance(value, (str, os.PathLike)):
+        return [Path(value)]
+    return [Path(item) for item in value]
+
+
 def normalize_runtime_zips(
     runtime_zip: Path | str | Sequence[Path | str] | None,
 ) -> list[Path]:
-    """Accept one path, many paths, or None. ``Path`` is a Sequence — check it first."""
-    if runtime_zip is None:
-        return []
-    if isinstance(runtime_zip, (str, os.PathLike)):
-        return [Path(runtime_zip)]
-    return [Path(item) for item in runtime_zip]
+    return normalize_optional_paths(runtime_zip)
 
 
 def release_exists(runner: Runner, tag: str, repo: str) -> bool:
@@ -223,6 +229,8 @@ def publish_desktop_release(
     notes: str,
     runner: Runner = default_run,
     runtime_zip: Path | str | Sequence[Path | str] | None = None,
+    chrome_zip: Path | str | Sequence[Path | str] | None = None,
+    runtime_fingerprint: Path | str | Sequence[Path | str] | None = None,
 ) -> None:
     title = f"Work4You Desktop {tag.removeprefix('desktop-v')}"
     print(f"Publishing {tag} from {target}")
@@ -236,8 +244,12 @@ def publish_desktop_release(
     )
     upload_asset(runner, tag=tag, repo=repo, path=exe)
     upload_asset(runner, tag=tag, repo=repo, path=dmg)
-    for zip_path in normalize_runtime_zips(runtime_zip):
+    for zip_path in normalize_optional_paths(runtime_zip):
         upload_asset(runner, tag=tag, repo=repo, path=zip_path)
+    for zip_path in normalize_optional_paths(chrome_zip):
+        upload_asset(runner, tag=tag, repo=repo, path=zip_path)
+    for fingerprint_path in normalize_optional_paths(runtime_fingerprint):
+        upload_asset(runner, tag=tag, repo=repo, path=fingerprint_path)
     names = list_release_assets(runner, tag, repo)
     if not has_required_assets(names):
         raise PublishError(
@@ -266,6 +278,26 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
+        "--chrome-zip",
+        type=Path,
+        action="append",
+        default=None,
+        help=(
+            "Optional slim Windows Electron zip (Work4You-win-x64.zip). "
+            "Missing from Latest is not fatal; site downloads stay on Setup.exe."
+        ),
+    )
+    parser.add_argument(
+        "--runtime-fingerprint",
+        type=Path,
+        action="append",
+        default=None,
+        help=(
+            "Optional 64-hex payload id (runtime-win-x64.fingerprint). "
+            "Missing from Latest is not fatal."
+        ),
+    )
+    parser.add_argument(
         "--notes",
         default=(
             "Signed Windows NSIS app (npm run dist:win:nsis) and "
@@ -288,6 +320,8 @@ def main(argv: list[str] | None = None) -> int:
             dmg=args.dmg,
             notes=args.notes,
             runtime_zip=args.runtime_zip,
+            chrome_zip=args.chrome_zip,
+            runtime_fingerprint=args.runtime_fingerprint,
         )
     except PublishError as exc:
         print(f"::error::{exc}", file=sys.stderr)

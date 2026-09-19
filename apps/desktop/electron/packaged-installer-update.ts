@@ -7,12 +7,15 @@ import { wrapHandoffForDetachedConsole } from './updater-process'
 
 /**
  * Packaged-app update channel: download the published NSIS/DMG installer
+ * (or the slim Windows Electron zip when the runtime fingerprint matches)
  * instead of running `work4you update` (git pull + uv + electron-builder).
  *
  * .exe/.dmg users already get a complete desktop app from GitHub Latest
- * (`Work4You-Setup.exe` / `Work4You.dmg`). Rebuilding from the cloned runtime
- * takes 10–15 minutes on Windows and still leaves the compiled UI stale until
- * that pack finishes — the published installer is the fast path.
+ * (`Work4You-Setup.exe` / `Work4You.dmg`). Electron-only releases also publish
+ * `Work4You-win-x64.zip` (win-unpacked minus `resources/runtime`). Rebuilding
+ * from the cloned runtime takes 10–15 minutes on Windows and still leaves the
+ * compiled UI stale until that pack finishes — the published installer / chrome
+ * zip is the fast path.
  *
  * Source / CLI installs (`app.isPackaged === false`) keep the git hand-off.
  *
@@ -31,6 +34,10 @@ export const GITHUB_API_HEADERS: Readonly<Record<string, string>> = {
 
 export const WINDOWS_SETUP_ASSET = 'Work4You-Setup.exe'
 export const MACOS_DMG_ASSET = 'Work4You.dmg'
+/** Slim Electron overlay. Optional Latest asset — site downloads stay on Setup.exe. */
+export const WINDOWS_CHROME_ZIP_ASSET = 'Work4You-win-x64.zip'
+export const WINDOWS_RUNTIME_FINGERPRINT_ASSET = 'runtime-win-x64.fingerprint'
+export const RUNTIME_FINGERPRINT_FILENAME = '.runtime-fingerprint'
 
 /** Public CDN/site URLs that redirect to GitHub Latest (fallback if the API omits assets). */
 export const PUBLIC_INSTALLER_DOWNLOAD: Readonly<Record<'darwin' | 'win32', string>> = {
@@ -55,9 +62,11 @@ export interface ParsedDesktopRelease {
   assets: GithubReleaseAsset[]
 }
 
+export type PackagedApplyKind = 'installer' | 'chrome'
+
 export interface PackagedInstallerCheckResult {
   supported: boolean
-  channel: 'installer'
+  channel: PackagedApplyKind
   updateAvailable?: boolean
   reason?: string
   message?: string
@@ -198,6 +207,72 @@ export function selectReleaseAsset(release: ParsedDesktopRelease, assetName: str
   return release.assets.find(asset => asset.name.toLowerCase() === wanted) ?? null
 }
 
+export function parseRuntimeFingerprint(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const hex = value.trim().toLowerCase()
+
+  return /^[0-9a-f]{64}$/.test(hex) ? hex : null
+}
+
+export function readInstalledRuntimeFingerprint(
+  work4youHome: string,
+  readFile: (file: string, encoding: BufferEncoding) => string = (file, encoding) => fs.readFileSync(file, encoding)
+): string | null {
+  const dest = path.join(work4youHome, 'work4you', RUNTIME_FINGERPRINT_FILENAME)
+
+  try {
+    return parseRuntimeFingerprint(readFile(dest, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Prefer the slim Electron zip when Latest published one, unless both
+ * fingerprints exist and disagree (runtime payload changed → fat Setup.exe).
+ * Missing either fingerprint is fail-open to chrome: Electron-only releases
+ * keep the payload id stable, and the first hop onto this client still uses
+ * Setup.exe because older asars do not know the chrome asset.
+ */
+export function shouldApplyWindowsChromeZip(opts: {
+  chromeAsset: GithubReleaseAsset | null
+  remoteFingerprint?: string | null
+  localFingerprint?: string | null
+}): boolean {
+  if (!opts.chromeAsset) {
+    return false
+  }
+
+  const remote = parseRuntimeFingerprint(opts.remoteFingerprint)
+  const local = parseRuntimeFingerprint(opts.localFingerprint)
+
+  if (remote && local && remote !== local) {
+    return false
+  }
+
+  return true
+}
+
+async function resolveRemoteRuntimeFingerprint(
+  release: ParsedDesktopRelease,
+  fetchText?: (url: string) => Promise<string>
+): Promise<string | null> {
+  const asset = selectReleaseAsset(release, WINDOWS_RUNTIME_FINGERPRINT_ASSET)
+
+  if (!asset?.browserDownloadUrl || !fetchText) {
+    return null
+  }
+
+  try {
+    return parseRuntimeFingerprint(await fetchText(asset.browserDownloadUrl))
+  } catch {
+    return null
+  }
+}
+
 export function resolveReleaseCommitSha(release: ParsedDesktopRelease): string | null {
   return isGitSha(release.targetCommitish) ? release.targetCommitish.trim().toLowerCase() : null
 }
@@ -238,6 +313,10 @@ export function packagedWindowsHandoffScriptPath(tmpDir: string): string {
   return path.join(tmpDir, 'work4you-packaged-installer-handoff.ps1')
 }
 
+export function packagedWindowsChromeHandoffScriptPath(tmpDir: string): string {
+  return path.join(tmpDir, 'work4you-packaged-chrome-handoff.ps1')
+}
+
 export function packagedWindowsHandoffExtraArgs(opts: {
   desktopPid: number
   installerPath: string
@@ -260,6 +339,24 @@ export function packagedWindowsHandoffExtraArgs(opts: {
   }
 
   return args
+}
+
+export function packagedWindowsChromeHandoffExtraArgs(opts: {
+  desktopPid: number
+  chromeZipPath: string
+  installDir: string
+  relaunchExe: string
+}): string[] {
+  return [
+    '-DesktopPid',
+    String(opts.desktopPid),
+    '-ChromeZipPath',
+    opts.chromeZipPath,
+    '-InstallDir',
+    opts.installDir,
+    '-RelaunchExe',
+    opts.relaunchExe
+  ]
 }
 
 /**
@@ -368,6 +465,113 @@ export function writePackagedWindowsHandoffScript(
   return dest
 }
 
+/**
+ * Detached Windows orchestrator for the slim Electron zip: wait for the
+ * desktop PID, overlay the unpacked chrome onto the install dir, then
+ * relaunch. Does not run NSIS or deploy-desktop-runtime.ps1. Does not wipe
+ * leftover ``resources/runtime``.
+ */
+export const PACKAGED_WINDOWS_CHROME_HANDOFF_PS1 = [
+  'param(',
+  '  [Parameter(Mandatory = $true)][int]$DesktopPid,',
+  '  [Parameter(Mandatory = $true)][string]$ChromeZipPath,',
+  '  [Parameter(Mandatory = $true)][string]$InstallDir,',
+  '  [Parameter(Mandatory = $true)][string]$RelaunchExe',
+  ')',
+  "$ErrorActionPreference = 'Stop'",
+  'function Hide-HandoffConsole {',
+  '  try {',
+  "    if (-not ('HandoffNative' -as [type])) {",
+  '      Add-Type -Namespace Handoff -Name Native -MemberDefinition @\'',
+  '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();',
+  '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);',
+  "'@",
+  '    }',
+  '    $hwnd = [Handoff.Native]::GetConsoleWindow()',
+  '    if ($hwnd -ne [IntPtr]::Zero) { [void][Handoff.Native]::ShowWindow($hwnd, 0) }',
+  '  } catch {}',
+  '}',
+  'Hide-HandoffConsole',
+  'function Test-DesktopRunning([string]$Exe) {',
+  '  if (-not $Exe) { return $false }',
+  '  try {',
+  '    $want = [IO.Path]::GetFullPath($Exe)',
+  '    $hit = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |',
+  '      Where-Object { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -eq $want) }',
+  '    return [bool]$hit',
+  '  } catch {',
+  '    return $false',
+  '  }',
+  '}',
+  'function Start-DesktopDetached([string]$Exe) {',
+  '  if (-not $Exe -or -not (Test-Path -LiteralPath $Exe)) { return $false }',
+  '  $workDir = Split-Path -Parent $Exe',
+  '  try {',
+  '    $r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{',
+  '      CommandLine = (\'"{0}"\' -f $Exe)',
+  '      CurrentDirectory = $workDir',
+  '    } -ErrorAction Stop',
+  '    if ($r -and $r.ReturnValue -eq 0) { return $true }',
+  '  } catch {}',
+  '  try {',
+  '    $p = Start-Process -FilePath $Exe -WorkingDirectory $workDir -PassThru',
+  '    Start-Sleep -Milliseconds 800',
+  '    return ($p -and -not $p.HasExited)',
+  '  } catch {',
+  '    return $false',
+  '  }',
+  '}',
+  'function Copy-ChromeOverlay([string]$Src, [string]$Dest) {',
+  '  New-Item -ItemType Directory -Force -Path $Dest | Out-Null',
+  '  Get-ChildItem -LiteralPath $Src -Force | ForEach-Object {',
+  '    $target = Join-Path $Dest $_.Name',
+  '    if ($_.PSIsContainer) {',
+  '      Copy-ChromeOverlay $_.FullName $target',
+  '    } else {',
+  '      Copy-Item -LiteralPath $_.FullName -Destination $target -Force',
+  '    }',
+  '  }',
+  '}',
+  'if ($DesktopPid -gt 0) {',
+  '  try { Wait-Process -Id $DesktopPid -Timeout 120 -ErrorAction SilentlyContinue } catch {}',
+  '}',
+  'Start-Sleep -Seconds 2',
+  'if (-not (Test-Path -LiteralPath $ChromeZipPath)) { throw "chrome zip missing: $ChromeZipPath" }',
+  'if (-not $InstallDir -or -not (Test-Path -LiteralPath $InstallDir)) { throw "install dir missing: $InstallDir" }',
+  '$extract = Join-Path $env:TEMP ("work4you-chrome-" + [guid]::NewGuid().ToString("n"))',
+  'New-Item -ItemType Directory -Force -Path $extract | Out-Null',
+  'try {',
+  '  Expand-Archive -LiteralPath $ChromeZipPath -DestinationPath $extract -Force',
+  '  Copy-ChromeOverlay $extract $InstallDir',
+  '} finally {',
+  '  Remove-Item -LiteralPath $extract -Recurse -Force -ErrorAction SilentlyContinue',
+  '}',
+  '$exeDeadline = (Get-Date).AddSeconds(90)',
+  'while (-not (Test-Path -LiteralPath $RelaunchExe)) {',
+  '  if ((Get-Date) -ge $exeDeadline) { break }',
+  '  Start-Sleep -Milliseconds 400',
+  '}',
+  '$runDeadline = (Get-Date).AddSeconds(20)',
+  'while ((Get-Date) -lt $runDeadline) {',
+  '  if (Test-DesktopRunning $RelaunchExe) { exit 0 }',
+  '  Start-Sleep -Milliseconds 400',
+  '}',
+  'if (-not (Start-DesktopDetached $RelaunchExe)) { exit 1 }',
+  'exit 0',
+  ''
+].join('\n')
+
+export function writePackagedWindowsChromeHandoffScript(
+  tmpDir: string,
+  writeFile: (file: string, contents: string, encoding: BufferEncoding) => void = fs.writeFileSync
+): string {
+  fs.mkdirSync(tmpDir, { recursive: true })
+  const dest = packagedWindowsChromeHandoffScriptPath(tmpDir)
+  writeFile(dest, PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, 'utf8')
+
+  return dest
+}
+
 export function compareStampToRelease(opts: {
   stampCommit?: string | null
   releaseSha?: string | null
@@ -430,6 +634,8 @@ export interface CheckPackagedInstallerUpdateDeps {
   stampCommit?: string | null
   platform: string
   fetchJson: (url: string) => Promise<unknown>
+  fetchText?: (url: string) => Promise<string>
+  localFingerprint?: string | null
   compareBehind?: (currentSha: string, targetSha: string) => Promise<number | null>
   now?: () => number
   repo?: string
@@ -525,9 +731,24 @@ export async function checkPackagedInstallerUpdate(
     compareBehind
   })
 
+  let channel: PackagedApplyKind = 'installer'
+
+  if (deps.platform === 'win32') {
+    const remoteFingerprint = await resolveRemoteRuntimeFingerprint(release, deps.fetchText)
+    if (
+      shouldApplyWindowsChromeZip({
+        chromeAsset: selectReleaseAsset(release, WINDOWS_CHROME_ZIP_ASSET),
+        remoteFingerprint,
+        localFingerprint: deps.localFingerprint ?? null
+      })
+    ) {
+      channel = 'chrome'
+    }
+  }
+
   return {
     supported: true,
-    channel: 'installer',
+    channel,
     updateAvailable,
     behind,
     currentSha: stampCommit ?? undefined,
@@ -541,10 +762,13 @@ export async function checkPackagedInstallerUpdate(
 export interface ResolvePackagedInstallerApplyPlanDeps {
   platform: string
   fetchJson: (url: string) => Promise<unknown>
+  fetchText?: (url: string) => Promise<string>
+  localFingerprint?: string | null
   repo?: string
 }
 
 export interface PackagedInstallerApplyPlan {
+  kind: PackagedApplyKind
   assetName: string
   downloadUrl: string
   releaseTag: string
@@ -569,6 +793,29 @@ export async function resolvePackagedInstallerApplyPlan(
     throw new Error('Latest GitHub release is not a desktop-v* installer.')
   }
 
+  if (deps.platform === 'win32') {
+    const chromeAsset = selectReleaseAsset(release, WINDOWS_CHROME_ZIP_ASSET)
+    const remoteFingerprint = await resolveRemoteRuntimeFingerprint(release, deps.fetchText)
+
+    if (
+      shouldApplyWindowsChromeZip({
+        chromeAsset,
+        remoteFingerprint,
+        localFingerprint: deps.localFingerprint ?? null
+      }) &&
+      chromeAsset?.browserDownloadUrl
+    ) {
+      return {
+        kind: 'chrome',
+        assetName: WINDOWS_CHROME_ZIP_ASSET,
+        downloadUrl: chromeAsset.browserDownloadUrl,
+        releaseTag: release.tag,
+        releaseSha: resolveReleaseCommitSha(release),
+        size: chromeAsset.size ?? null
+      }
+    }
+  }
+
   const asset = selectReleaseAsset(release, assetName)
   const downloadUrl = resolveInstallerDownloadUrl({ platform: deps.platform, asset, repo })
 
@@ -577,6 +824,7 @@ export async function resolvePackagedInstallerApplyPlan(
   }
 
   return {
+    kind: 'installer',
     assetName,
     downloadUrl,
     releaseTag: release.tag,
@@ -646,6 +894,60 @@ export function createGithubFetchJson(
       req.on('timeout', () => req.destroy(new Error('GitHub API timeout')))
       req.on('error', reject)
     })
+}
+
+export function createGithubFetchText(
+  get: typeof https.get = https.get,
+  timeoutMs = GITHUB_JSON_TIMEOUT_MS
+): (url: string) => Promise<string> {
+  return url => fetchHttpsText(url, { get, timeoutMs })
+}
+
+function fetchHttpsText(
+  url: string,
+  deps: { get: typeof https.get; timeoutMs: number },
+  hop = 0
+): Promise<string> {
+  if (hop > MAX_REDIRECTS) {
+    return Promise.reject(new Error('Too many redirects while fetching fingerprint'))
+  }
+
+  return new Promise((resolve, reject) => {
+    const req = deps.get(
+      url,
+      {
+        headers: { 'User-Agent': GITHUB_API_HEADERS['User-Agent'] },
+        timeout: deps.timeoutMs
+      },
+      res => {
+        const status = res.statusCode || 0
+        const location = headerValue(res.headers, 'location')
+
+        if (status >= 300 && status < 400 && location) {
+          res.resume()
+          fetchHttpsText(location, deps, hop + 1).then(resolve, reject)
+
+          return
+        }
+
+        const chunks: Buffer[] = []
+        res.on('error', reject)
+        res.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
+        res.on('end', () => {
+          if (status >= 400) {
+            reject(new Error(`GitHub download ${status}`))
+
+            return
+          }
+
+          resolve(Buffer.concat(chunks).toString('utf8'))
+        })
+      }
+    )
+
+    req.on('timeout', () => req.destroy(new Error('GitHub download timeout')))
+    req.on('error', reject)
+  })
 }
 
 export interface DownloadHttpsToFileDeps {
@@ -809,20 +1111,31 @@ export function packagedInstallerApplySpawn(opts: {
   desktopPid: number
   relaunchExe: string
   handoffScriptPath: string
+  kind?: PackagedApplyKind
 }): { args: string[]; command: string } {
   if (opts.platform === 'win32') {
+    const extra =
+      opts.kind === 'chrome'
+        ? packagedWindowsChromeHandoffExtraArgs({
+            desktopPid: opts.desktopPid,
+            chromeZipPath: opts.installerPath,
+            installDir: typeof opts.installDir === 'string' ? opts.installDir : '',
+            relaunchExe: opts.relaunchExe
+          })
+        : packagedWindowsHandoffExtraArgs({
+            desktopPid: opts.desktopPid,
+            installerPath: opts.installerPath,
+            installDir: opts.installDir,
+            relaunchExe: opts.relaunchExe
+          })
+
     return wrapHandoffForDetachedConsole(
       {
         command: 'powershell',
         args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', opts.handoffScriptPath],
         scriptPath: opts.handoffScriptPath
       },
-      packagedWindowsHandoffExtraArgs({
-        desktopPid: opts.desktopPid,
-        installerPath: opts.installerPath,
-        installDir: opts.installDir,
-        relaunchExe: opts.relaunchExe
-      })
+      extra
     )
   }
 

@@ -36,6 +36,13 @@ def test_required_assets_need_both_installers():
     assert mod.has_required_assets([]) is False
     assert mod.has_required_assets(["Work4You-Setup.exe"]) is False
     assert mod.has_required_assets(["Work4You-Setup.exe", "Work4You.dmg"]) is True
+    # Chrome zip is optional — Latest can promote without it.
+    assert (
+        mod.has_required_assets(
+            ["Work4You-Setup.exe", "Work4You.dmg", "Work4You-win-x64.zip"]
+        )
+        is True
+    )
 
 
 def test_parse_asset_names_from_gh_json():
@@ -178,6 +185,9 @@ def test_normalize_runtime_zips_does_not_iterate_a_path():
     assert mod.normalize_runtime_zips(None) == []
     darwin = Path("/tmp/runtime-darwin-arm64.zip")
     assert mod.normalize_runtime_zips([single, darwin]) == [single, darwin]
+    chrome = Path("/tmp/Work4You-win-x64.zip")
+    assert mod.normalize_optional_paths(chrome) == [chrome]
+    assert mod.normalize_optional_paths(None) == []
 
 
 def test_multiple_runtime_zips_are_uploaded_when_present(tmp_path):
@@ -226,3 +236,85 @@ def test_multiple_runtime_zips_are_uploaded_when_present(tmp_path):
         "runtime-win-x64.zip",
         "runtime-darwin-arm64.zip",
     ]
+
+
+def test_optional_chrome_zip_and_fingerprint_are_uploaded_when_present(tmp_path):
+    exe = tmp_path / "Work4You-Setup.exe"
+    dmg = tmp_path / "Work4You.dmg"
+    chrome = tmp_path / "Work4You-win-x64.zip"
+    fingerprint = tmp_path / "runtime-win-x64.fingerprint"
+    exe.write_bytes(b"exe")
+    dmg.write_bytes(b"dmg")
+    chrome.write_bytes(b"chrome")
+    fingerprint.write_text("a" * 64 + "\n", encoding="utf-8")
+    uploaded: list[str] = []
+
+    def runner(args):
+        if args[1:3] == ["release", "view"] and "--json" not in args:
+            return 1, "", "release not found"
+        if args[1:3] == ["release", "create"]:
+            return 0, "", ""
+        if args[1:3] == ["release", "upload"]:
+            uploaded.append(Path(args[-2]).name)
+            return 0, "", ""
+        if args[1:3] == ["release", "view"] and "--json" in args:
+            return (
+                0,
+                '{"assets":[{"name":"Work4You-Setup.exe"},{"name":"Work4You.dmg"},'
+                '{"name":"Work4You-win-x64.zip"},{"name":"runtime-win-x64.fingerprint"}]}',
+                "",
+            )
+        if args[1:3] == ["release", "edit"]:
+            return 0, "", ""
+        raise AssertionError(args)
+
+    mod.publish_desktop_release(
+        tag="desktop-v0.0.71",
+        repo="Leow4u/FORK-56",
+        target="278e47ef",
+        exe=exe,
+        dmg=dmg,
+        notes="notes",
+        runner=runner,
+        chrome_zip=chrome,
+        runtime_fingerprint=fingerprint,
+    )
+    assert uploaded == [
+        "Work4You-Setup.exe",
+        "Work4You.dmg",
+        "Work4You-win-x64.zip",
+        "runtime-win-x64.fingerprint",
+    ]
+
+
+def test_missing_chrome_zip_still_promotes_latest(tmp_path):
+    exe = tmp_path / "Work4You-Setup.exe"
+    dmg = tmp_path / "Work4You.dmg"
+    exe.write_bytes(b"exe")
+    dmg.write_bytes(b"dmg")
+    verbs: list[list[str]] = []
+
+    def runner(args):
+        verbs.append(list(args[1:3]))
+        if args[1:3] == ["release", "view"] and "--json" not in args:
+            return 1, "", "release not found"
+        if args[1:3] == ["release", "create"]:
+            return 0, "", ""
+        if args[1:3] == ["release", "upload"]:
+            return 0, "", ""
+        if args[1:3] == ["release", "view"] and "--json" in args:
+            return 0, '{"assets":[{"name":"Work4You-Setup.exe"},{"name":"Work4You.dmg"}]}', ""
+        if args[1:3] == ["release", "edit"]:
+            return 0, "", ""
+        raise AssertionError(args)
+
+    mod.publish_desktop_release(
+        tag="desktop-v0.0.71",
+        repo="Leow4u/FORK-56",
+        target="278e47ef",
+        exe=exe,
+        dmg=dmg,
+        notes="notes",
+        runner=runner,
+    )
+    assert ["release", "edit"] in verbs
