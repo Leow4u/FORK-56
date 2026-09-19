@@ -19,3 +19,22 @@ export function normalizeDeviceUserCode(raw: string): string {
 export function canSubmitDeviceUserCode(userCode: string): boolean {
   return userCode.replace(/[^A-Z0-9]/gi, '').length >= 8
 }
+
+export function isDeviceAuthorizedPreview(
+  layoutPreview: boolean,
+  step: string | null | undefined,
+): boolean {
+  return layoutPreview && (step ?? '').trim().toLowerCase() === 'done'
+}
+
+export interface DeviceAuthorizedCopy {
+  title: string
+  hint: string
+}
+
+export function deviceAuthorizedCopy(): DeviceAuthorizedCopy {
+  return {
+    title: 'Autorizado',
+    hint: 'Feche essa janela e volte ao aplicativo.',
+  }
+}

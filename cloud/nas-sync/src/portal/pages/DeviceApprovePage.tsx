@@ -5,7 +5,9 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import {
   canSubmitDeviceUserCode,
+  deviceAuthorizedCopy,
   deviceVerificationPath,
+  isDeviceAuthorizedPreview,
   normalizeDeviceUserCode,
 } from '../lib/device-approve'
 import styles from './DeviceApprovePage.module.css'
@@ -21,12 +23,17 @@ export function DeviceApprovePage() {
   const { ready, authenticated, getAccessToken } = usePrivy()
 
   const canSubmit = useMemo(() => canSubmitDeviceUserCode(userCode), [userCode])
+  // Vite and Next.js both set NODE_ENV. import.meta.env.DEV fails the NAS typecheck.
+  const layoutPreview =
+    process.env.NODE_ENV !== 'production' && params.get('preview') === '1'
+  const showDone = done || isDeviceAuthorizedPreview(layoutPreview, params.get('step'))
+  const authorizedCopy = deviceAuthorizedCopy()
 
   useEffect(() => {
-    document.title = done ? 'Dispositivo autorizado' : 'Autorizar dispositivo'
-  }, [done])
+    document.title = showDone ? authorizedCopy.title : 'Autorizar dispositivo'
+  }, [authorizedCopy.title, showDone])
 
-  if (ready && !authenticated) {
+  if (!layoutPreview && ready && !authenticated) {
     const next = deviceVerificationPath(userCode || initial)
     return <Navigate to={`/login?next=${encodeURIComponent(next)}`} replace />
   }
@@ -62,7 +69,7 @@ export function DeviceApprovePage() {
     }
   }
 
-  if (!ready) {
+  if (!layoutPreview && !ready) {
     return (
       <div className={page.page}>
         <main className={page.main}>
@@ -84,45 +91,58 @@ export function DeviceApprovePage() {
       </header>
 
       <main className={page.main}>
-        <section className={page.card} aria-labelledby="device-title">
-          <p className={page.eyebrow}>Desktop</p>
-          <h1 id="device-title" className={page.title}>
-            Autorizar dispositivo
-          </h1>
-          {done ? (
-            <p className={styles.done}>
-              Autorizado. Pode voltar ao aplicativo — a sessão continua sozinha.
-            </p>
-          ) : (
-            <>
-              <p className={styles.lead}>
-                Confirme o código abaixo para ligar o Work4You Desktop à sua conta.
-              </p>
-              <form className={styles.form} onSubmit={(e) => void onSubmit(e)}>
-                <label className={page.label} htmlFor="user-code">
-                  Código do dispositivo
-                </label>
-                <input
-                  id="user-code"
-                  className={`${page.input} ${styles.code}`}
-                  value={userCode}
-                  onChange={(e) => setUserCode(normalizeDeviceUserCode(e.target.value))}
-                  autoComplete="one-time-code"
-                  spellCheck={false}
-                  aria-label="Código do dispositivo"
+        {showDone ? (
+          <section className={styles.doneCard} aria-labelledby="device-title">
+            <div className={styles.doneIcon} aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.6" />
+                <path
+                  d="M8.2 12.25 10.75 14.8 15.85 9.4"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
-                {error ? <p className={page.notice}>{error}</p> : null}
-                <button
-                  type="submit"
-                  className={page.primary}
-                  disabled={busy || !canSubmit}
-                >
-                  {busy ? 'A autorizar…' : 'Autorizar'}
-                </button>
-              </form>
-            </>
-          )}
-        </section>
+              </svg>
+            </div>
+            <h1 id="device-title" className={styles.doneTitle}>
+              {authorizedCopy.title}
+            </h1>
+            <p className={styles.doneHint}>{authorizedCopy.hint}</p>
+          </section>
+        ) : (
+          <section className={page.card} aria-labelledby="device-title">
+            <p className={page.eyebrow}>Desktop</p>
+            <h1 id="device-title" className={page.title}>
+              Autorizar dispositivo
+            </h1>
+            <p className={styles.lead}>
+              Confirme o código abaixo para ligar o Work4You Desktop à sua conta.
+            </p>
+            <form className={styles.form} onSubmit={(e) => void onSubmit(e)}>
+              <label className={page.label} htmlFor="user-code">
+                Código do dispositivo
+              </label>
+              <input
+                id="user-code"
+                className={`${page.input} ${styles.code}`}
+                value={userCode}
+                onChange={(e) => setUserCode(normalizeDeviceUserCode(e.target.value))}
+                autoComplete="one-time-code"
+                spellCheck={false}
+                aria-label="Código do dispositivo"
+              />
+              {error ? <p className={page.notice}>{error}</p> : null}
+              <button
+                type="submit"
+                className={page.primary}
+                disabled={busy || !canSubmit}
+              >
+                {busy ? 'A autorizar…' : 'Autorizar'}
+              </button>
+            </form>
+          </section>
+        )}
       </main>
 
       <footer className={page.footer}>
