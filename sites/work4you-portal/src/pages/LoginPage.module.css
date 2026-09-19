@@ -268,6 +268,112 @@
   cursor: not-allowed;
 }
 
+.codeCard {
+  position: relative;
+  width: min(100%, 400px);
+  background: #fff;
+  border: 1px solid var(--linha);
+  border-radius: 24px;
+  padding: 2.25rem 1.75rem 1.6rem;
+  text-align: center;
+}
+
+.backBtn {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  background: none;
+  color: var(--grafite);
+  font-size: 1.15rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.backBtn:hover {
+  color: var(--tinta);
+}
+
+.mailIcon {
+  width: 3.25rem;
+  height: 3.25rem;
+  margin: 0.25rem auto 1.15rem;
+  border-radius: 999px;
+  background: var(--nevoa);
+  color: var(--grafite);
+  display: grid;
+  place-items: center;
+}
+
+.mailIcon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.codeTitle {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+  color: var(--tinta);
+}
+
+.codeLead {
+  margin: 0.7rem 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--grafite);
+}
+
+.codeForm {
+  margin-top: 1.5rem;
+}
+
+.codeBoxes {
+  display: flex;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.codeBox {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1.5px solid var(--tinta);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--tinta);
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 0;
+}
+
+.codeBox:focus {
+  outline: 2px solid var(--oliva);
+  outline-offset: 1px;
+}
+
+.resendLine {
+  margin: 1.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--grafite);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .footer {
   display: flex;
   justify-content: center;

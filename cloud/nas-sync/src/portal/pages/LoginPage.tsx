@@ -9,6 +9,7 @@ import {
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { AuthProviderIcon } from '../components/AuthProviderIcons'
+import { EmailCodeBoxes } from '../components/EmailCodeBoxes'
 import { safePortalNextPath } from '../lib/device-approve'
 import {
   type AuthProviderId,
@@ -18,10 +19,12 @@ import {
 import { personalOrgId } from '../lib/org'
 import { savePendingProfile } from '../lib/pending-profile'
 import {
+  isCompleteEmailOtp,
   isDevicePairingNext,
   isLoginEmailCodePreview,
   loginDevicePairingNotice,
   loginEmailCodeCopy,
+  normalizeEmailOtp,
   shouldShowLoginAlternatives,
 } from '../lib/login-email-code'
 import { isValidEmail, parseProfileName } from '../lib/profile-name'
@@ -254,13 +257,15 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
     }
   }
 
-  async function onCodeSubmit(e: FormEvent) {
-    e.preventDefault()
-    const value = code.trim()
-    if (!value) {
-      setNotice('Informe o código recebido por e-mail.')
+  async function submitEmailCode(raw: string) {
+    const value = normalizeEmailOtp(raw)
+    if (!isCompleteEmailOtp(value) || busy || layoutPreview) {
+      if (!layoutPreview && !isCompleteEmailOtp(value)) {
+        setNotice('Informe o código de 6 dígitos recebido por e-mail.')
+      }
       return
     }
+    setCode(value)
     setNotice(null)
     setBusy(true)
     try {
@@ -270,6 +275,11 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
       setNotice(message || 'Código inválido. Tente de novo.')
       setBusy(false)
     }
+  }
+
+  async function onCodeSubmit(e: FormEvent) {
+    e.preventDefault()
+    await submitEmailCode(code)
   }
 
   if (!layoutPreview && !ready) {
@@ -307,29 +317,71 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
       </header>
 
       <main className={styles.main}>
+        {awaitingCode ? (
+          <section className={styles.codeCard} aria-labelledby="login-title">
+            <button
+              type="button"
+              className={styles.backBtn}
+              disabled={busy}
+              onClick={onUseOtherEmail}
+              aria-label={codeCopy.useOtherEmail}
+            >
+              ←
+            </button>
+            <div className={styles.mailIcon} aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="6" width="18" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
+                <path
+                  d="M4 8.2 12 13l8-4.8"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <h1 id="login-title" className={styles.codeTitle}>
+              {codeCopy.title}
+            </h1>
+            <p className={styles.codeLead}>
+              {codeCopy.leadBefore}{' '}
+              <strong className={styles.leadEmail}>{codeCopy.email || 'o seu e-mail'}</strong>{' '}
+              {codeCopy.leadAfter}
+            </p>
+            {codeCopy.deviceHint ? <p className={styles.hint}>{codeCopy.deviceHint}</p> : null}
+            <form className={styles.codeForm} onSubmit={(e) => void onCodeSubmit(e)}>
+              <EmailCodeBoxes
+                value={code}
+                disabled={busy}
+                labelledBy="login-title"
+                onChange={setCode}
+                onComplete={(value) => void submitEmailCode(value)}
+              />
+              <button type="submit" className={styles.srOnly}>
+                {codeCopy.title}
+              </button>
+            </form>
+            {notice ? <p className={styles.notice}>{notice}</p> : null}
+            <p className={styles.resendLine}>
+              {codeCopy.resendLead}{' '}
+              <button
+                type="button"
+                className={styles.switchBtn}
+                disabled={busy}
+                onClick={() => void onResendCode()}
+              >
+                {codeCopy.resend}
+              </button>
+            </p>
+          </section>
+        ) : (
         <section className={styles.stack} aria-labelledby="login-title">
-          <p className={styles.eyebrow}>{awaitingCode ? codeCopy.eyebrow : copy.eyebrow}</p>
+          <p className={styles.eyebrow}>{copy.eyebrow}</p>
           <h1 id="login-title" className={styles.title}>
-            {awaitingCode ? codeCopy.title : copy.title}
+            {copy.title}
           </h1>
 
-          {awaitingCode ? (
-            <p className={styles.lead}>
-              {codeCopy.leadBefore}{' '}
-              {codeCopy.email ? (
-                <strong className={styles.leadEmail}>{codeCopy.email}</strong>
-              ) : (
-                'o seu e-mail'
-              )}
-              .
-            </p>
-          ) : pairingNotice ? (
-            <p className={styles.lead}>{pairingNotice}</p>
-          ) : null}
-
-          {awaitingCode && codeCopy.deviceHint ? (
-            <p className={styles.hint}>{codeCopy.deviceHint}</p>
-          ) : null}
+          {pairingNotice ? <p className={styles.lead}>{pairingNotice}</p> : null}
 
           {showAlternatives ? (
             <div className={styles.providers} role="group" aria-label="Entrar com um provedor">
@@ -363,45 +415,6 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
             </div>
           ) : null}
 
-          {awaitingCode ? (
-            <form className={`${styles.emailForm} ${styles.codeForm}`} onSubmit={(e) => void onCodeSubmit(e)}>
-              <label className={styles.label} htmlFor="code">
-                {codeCopy.label}
-              </label>
-              <input
-                id="code"
-                className={styles.input}
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder={codeCopy.placeholder}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                disabled={busy}
-              />
-              <button type="submit" className={styles.primary} disabled={busy}>
-                {codeCopy.submit}
-              </button>
-              <div className={styles.secondaryActions}>
-                <button
-                  type="button"
-                  className={styles.switchBtn}
-                  disabled={busy}
-                  onClick={() => void onResendCode()}
-                >
-                  {codeCopy.resend}
-                </button>
-                <button
-                  type="button"
-                  className={styles.switchBtn}
-                  disabled={busy}
-                  onClick={onUseOtherEmail}
-                >
-                  {codeCopy.useOtherEmail}
-                </button>
-              </div>
-            </form>
-          ) : (
             <form className={styles.emailForm} onSubmit={(e) => void onEmailSubmit(e)}>
               {mode === 'signup' ? (
                 <div className={styles.nameRow}>
@@ -454,7 +467,6 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
                 {copy.emailCta}
               </button>
             </form>
-          )}
 
           {notice ? <p className={styles.notice}>{notice}</p> : null}
 
@@ -467,6 +479,7 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
             </p>
           ) : null}
         </section>
+        )}
       </main>
 
       <footer className={styles.footer}>
