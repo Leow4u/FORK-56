@@ -261,6 +261,9 @@ test('Windows handoff script carries the same NSIS flags and waits for the deskt
   assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Wait-Process/)
   assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Win32_Process/)
   assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Start-DesktopDetached/)
+  assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /Hide-HandoffConsole/)
+  assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /GetConsoleWindow/)
+  assert.match(PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1, /ShowWindow/)
 })
 
 test('downloadProgressPercent leaves headroom under 100 until spawn', () => {
