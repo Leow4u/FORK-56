@@ -17,6 +17,13 @@ import {
 } from '../lib/last-used-provider'
 import { personalOrgId } from '../lib/org'
 import { savePendingProfile } from '../lib/pending-profile'
+import {
+  isDevicePairingNext,
+  isLoginEmailCodePreview,
+  loginDevicePairingNotice,
+  loginEmailCodeCopy,
+  shouldShowLoginAlternatives,
+} from '../lib/login-email-code'
 import { isValidEmail, parseProfileName } from '../lib/profile-name'
 import { syncProfileAfterAuth } from '../lib/sync-profile'
 import styles from './LoginPage.module.css'
@@ -65,15 +72,19 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
   // Vite and Next.js both set NODE_ENV. import.meta.env.DEV fails the NAS typecheck.
   const layoutPreview =
     process.env.NODE_ENV !== 'production' && params.get('preview') === '1'
+  const previewEmailCode = isLoginEmailCodePreview(layoutPreview, params.get('step'))
   const startMode: AuthMode =
     modeFromQuery === 'signup' || initialMode === 'signup' ? 'signup' : 'login'
+  const devicePairing = isDevicePairingNext(params.get('next'))
 
   const [mode, setMode] = useState<AuthMode>(startMode)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() =>
+    previewEmailCode ? (params.get('email') || '').trim() : '',
+  )
   const [code, setCode] = useState('')
-  const [awaitingCode, setAwaitingCode] = useState(false)
+  const [awaitingCode, setAwaitingCode] = useState(previewEmailCode)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [lastUsed, setLastUsed] = useState<AuthProviderId | null>(null)
@@ -122,6 +133,13 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
     [mode],
   )
 
+  const codeCopy = useMemo(
+    () => loginEmailCodeCopy(email, devicePairing),
+    [devicePairing, email],
+  )
+  const pairingNotice = loginDevicePairingNotice(devicePairing)
+  const showAlternatives = shouldShowLoginAlternatives(awaitingCode)
+
   useEffect(() => {
     setLastUsed(readLastUsedProvider())
   }, [])
@@ -150,6 +168,31 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
     setNotice(null)
     setAwaitingCode(false)
     setCode('')
+  }
+
+  function onUseOtherEmail() {
+    setAwaitingCode(false)
+    setCode('')
+    setNotice(null)
+  }
+
+  async function onResendCode() {
+    const value = email.trim()
+    if (!isValidEmail(value)) {
+      setNotice('Informe um e-mail válido.')
+      return
+    }
+    setNotice(null)
+    setBusy(true)
+    try {
+      await sendCode({ email: value })
+      setNotice('Enviámos um novo código para o seu e-mail.')
+    } catch (error) {
+      const message = errorMessage(error)
+      setNotice(message || 'Não foi possível reenviar o código.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function onOAuth(id: OAuthProviderId) {
@@ -265,45 +308,65 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
 
       <main className={styles.main}>
         <section className={styles.stack} aria-labelledby="login-title">
-          <p className={styles.eyebrow}>{copy.eyebrow}</p>
+          <p className={styles.eyebrow}>{awaitingCode ? codeCopy.eyebrow : copy.eyebrow}</p>
           <h1 id="login-title" className={styles.title}>
-            {copy.title}
+            {awaitingCode ? codeCopy.title : copy.title}
           </h1>
 
-          <div className={styles.providers} role="group" aria-label="Entrar com um provedor">
-            {OAUTH_PROVIDERS.map((p) => (
+          {awaitingCode ? (
+            <p className={styles.lead}>
+              {codeCopy.leadBefore}{' '}
+              {codeCopy.email ? (
+                <strong className={styles.leadEmail}>{codeCopy.email}</strong>
+              ) : (
+                'o seu e-mail'
+              )}
+              .
+            </p>
+          ) : pairingNotice ? (
+            <p className={styles.lead}>{pairingNotice}</p>
+          ) : null}
+
+          {awaitingCode && codeCopy.deviceHint ? (
+            <p className={styles.hint}>{codeCopy.deviceHint}</p>
+          ) : null}
+
+          {showAlternatives ? (
+            <div className={styles.providers} role="group" aria-label="Entrar com um provedor">
+              {OAUTH_PROVIDERS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={styles.provider}
+                  disabled={busy}
+                  aria-label={p.label}
+                  onClick={() => void onOAuth(p.id)}
+                >
+                  {lastUsed === p.id ? (
+                    <span className={styles.lastUsed}>Usado por último</span>
+                  ) : null}
+                  <AuthProviderIcon id={p.id} />
+                </button>
+              ))}
               <button
-                key={p.id}
                 type="button"
                 className={styles.provider}
                 disabled={busy}
-                aria-label={p.label}
-                onClick={() => void onOAuth(p.id)}
+                aria-label="Continuar com passkey"
+                onClick={() => void onPasskey()}
               >
-                {lastUsed === p.id ? (
+                {lastUsed === 'passkey' ? (
                   <span className={styles.lastUsed}>Usado por último</span>
                 ) : null}
-                <AuthProviderIcon id={p.id} />
+                <AuthProviderIcon id="passkey" />
               </button>
-            ))}
-            <button
-              type="button"
-              className={styles.provider}
-              disabled={busy}
-              aria-label="Continuar com passkey"
-              onClick={() => void onPasskey()}
-            >
-              {lastUsed === 'passkey' ? (
-                <span className={styles.lastUsed}>Usado por último</span>
-              ) : null}
-              <AuthProviderIcon id="passkey" />
-            </button>
-          </div>
+            </div>
+          ) : null}
 
           {awaitingCode ? (
-            <form className={styles.emailForm} onSubmit={(e) => void onCodeSubmit(e)}>
+            <form className={`${styles.emailForm} ${styles.codeForm}`} onSubmit={(e) => void onCodeSubmit(e)}>
               <label className={styles.label} htmlFor="code">
-                Código
+                {codeCopy.label}
               </label>
               <input
                 id="code"
@@ -311,14 +374,32 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                placeholder="123456"
+                placeholder={codeCopy.placeholder}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 disabled={busy}
               />
               <button type="submit" className={styles.primary} disabled={busy}>
-                Entrar
+                {codeCopy.submit}
               </button>
+              <div className={styles.secondaryActions}>
+                <button
+                  type="button"
+                  className={styles.switchBtn}
+                  disabled={busy}
+                  onClick={() => void onResendCode()}
+                >
+                  {codeCopy.resend}
+                </button>
+                <button
+                  type="button"
+                  className={styles.switchBtn}
+                  disabled={busy}
+                  onClick={onUseOtherEmail}
+                >
+                  {codeCopy.useOtherEmail}
+                </button>
+              </div>
             </form>
           ) : (
             <form className={styles.emailForm} onSubmit={(e) => void onEmailSubmit(e)}>
@@ -377,12 +458,14 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
 
           {notice ? <p className={styles.notice}>{notice}</p> : null}
 
-          <p className={styles.switch}>
-            {copy.switchLabel}{' '}
-            <button type="button" className={styles.switchBtn} onClick={switchMode}>
-              {copy.switchAction}
-            </button>
-          </p>
+          {showAlternatives ? (
+            <p className={styles.switch}>
+              {copy.switchLabel}{' '}
+              <button type="button" className={styles.switchBtn} onClick={switchMode}>
+                {copy.switchAction}
+              </button>
+            </p>
+          ) : null}
         </section>
       </main>
 

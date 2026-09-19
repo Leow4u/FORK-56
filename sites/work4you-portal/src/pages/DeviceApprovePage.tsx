@@ -101,7 +101,7 @@ export function DeviceApprovePage() {
               </p>
               <form className={styles.form} onSubmit={(e) => void onSubmit(e)}>
                 <label className={page.label} htmlFor="user-code">
-                  Código
+                  Código do dispositivo
                 </label>
                 <input
                   id="user-code"

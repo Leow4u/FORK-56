@@ -93,6 +93,11 @@
   margin: 2rem 0 1.75rem;
 }
 
+.lead + .providers,
+.hint + .providers {
+  margin-top: 1.25rem;
+}
+
 .provider {
   position: relative;
   width: 52px;
@@ -132,10 +137,41 @@
   border-radius: 999px;
 }
 
+.lead {
+  margin: 0.85rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--grafite);
+}
+
+.leadEmail {
+  color: var(--tinta);
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--grafite);
+}
+
 .emailForm {
   display: grid;
   gap: 0.4rem;
   text-align: left;
+}
+
+.codeForm {
+  margin-top: 1.35rem;
+}
+
+.secondaryActions {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1.1rem;
+  justify-items: center;
 }
 
 .nameRow {
@@ -225,6 +261,11 @@
 
 .switchBtn:hover {
   color: var(--tinta);
+}
+
+.switchBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .footer {

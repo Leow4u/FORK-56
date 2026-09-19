@@ -3166,7 +3166,8 @@ export const ja = defineLocale({
     externalPending: provider =>
       `${provider} は独自の CLI からサインインします。ターミナルでこのコマンドを実行してから、戻って「サインインしました」を選択してください:`,
     signedIn: 'サインインしました',
-    deviceCodeOpened: provider => `${provider} をブラウザーで開きました。そこにこのコードを入力してください:`,
+    deviceCodeOpened: provider =>
+      `${provider} をブラウザーで開きました。まずそこでサインインし、その後このデバイスコードを確認してください:`,
     reopenVerification: '確認ページを再度開く',
     copy: 'コピー',
     defaultModel: 'デフォルトモデル',
