@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { $connection } from '@/store/session'
 
 import {
+  downloadDeliveredFile,
   downloadGatewayMediaFile,
   filePathFromMediaPath,
   gatewayMediaDataUrl,
@@ -252,5 +253,60 @@ describe('downloadGatewayMediaFile', () => {
     await expect(downloadGatewayMediaFile('/Users/me/project/report.md')).rejects.toThrow(
       'Desktop file download bridge'
     )
+  })
+})
+
+describe('downloadDeliveredFile', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    $connection.set(null)
+  })
+
+  it('uses the existing saveGatewayFile bridge when present', async () => {
+    const saveGatewayFile = vi.fn(async () => ({ path: '/tmp/out.xlsx', saved: true }))
+
+    vi.stubGlobal('window', { work4youDesktop: { saveGatewayFile } })
+    $connection.set({ mode: 'remote', profile: 'docker-gw' } as never)
+
+    await expect(downloadDeliveredFile('/home/user/out/sheet.xlsx')).resolves.toEqual({
+      path: '/tmp/out.xlsx',
+      saved: true
+    })
+    expect(saveGatewayFile).toHaveBeenCalledWith({
+      path: '/home/user/out/sheet.xlsx',
+      profile: 'docker-gw',
+      suggestedName: 'sheet.xlsx'
+    })
+  })
+
+  it('opens the resolved URL when only openExternal is available', async () => {
+    const openExternal = vi.fn(async () => undefined)
+
+    vi.stubGlobal('window', { work4youDesktop: { openExternal } })
+    $connection.set({ mode: 'local' } as never)
+
+    await expect(downloadDeliveredFile('/tmp/archive.zip')).resolves.toEqual({ saved: true })
+    expect(openExternal).toHaveBeenCalledWith('file:///tmp/archive.zip')
+  })
+
+  it('falls back to a browser download anchor without a desktop bridge', async () => {
+    const click = vi.fn()
+    const appendChild = vi.fn()
+    const remove = vi.fn()
+    const link = { click, download: '', href: '', rel: '', remove }
+
+    vi.stubGlobal('window', {})
+    vi.spyOn(document, 'createElement').mockReturnValue(link as unknown as HTMLAnchorElement)
+    vi.spyOn(document.body, 'appendChild').mockImplementation(appendChild)
+
+    $connection.set({ mode: 'remote', baseUrl: 'https://gw', token: 't' } as never)
+
+    await expect(downloadDeliveredFile('/tmp/brief.pdf')).resolves.toEqual({ saved: true })
+    expect(link.href).toBe('https://gw/api/files/download?path=%2Ftmp%2Fbrief.pdf&token=t')
+    expect(link.download).toBe('brief.pdf')
+    expect(appendChild).toHaveBeenCalled()
+    expect(click).toHaveBeenCalled()
+    expect(remove).toHaveBeenCalled()
   })
 })

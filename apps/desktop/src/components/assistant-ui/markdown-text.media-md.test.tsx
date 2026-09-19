@@ -41,6 +41,7 @@ describe('documents delivered via MEDIA', () => {
     // PreviewAttachment renders an "open preview" toggle; the old
     // MediaAttachment 'file' fallback rendered a bare "Open ..." anchor.
     expect(await screen.findByRole('button', { name: 'Open preview' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy()
     expect(screen.queryByText(/^Loading /)).toBeNull()
     expect(screen.getByText('report.md')).toBeTruthy()
   })
@@ -53,6 +54,7 @@ describe('documents delivered via MEDIA', () => {
       render(<MarkdownTextContent isRunning={false} text={`[${name}](${href})`} />)
 
       expect(await screen.findByRole('button', { name: 'Open preview' })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy()
       expect(screen.queryByText(/^Loading /)).toBeNull()
       expect(screen.getByText(name)).toBeTruthy()
     }

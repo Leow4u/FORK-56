@@ -542,6 +542,12 @@ export const desktopSections = {
     }
   },
 
+  fileMenu: {
+    download: 'Download',
+    downloadSaved: 'Saved',
+    downloadFailed: 'Download failed'
+  },
+
   preview: {
     tab: 'Preview',
     closePane: 'Close preview pane',
