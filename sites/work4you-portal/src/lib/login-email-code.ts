@@ -99,8 +99,12 @@ export function loginDevicePairingNotice(devicePairing: boolean): string {
  * Privy renders and sends the OTP email. The React app cannot change that HTML.
  * Dashboard → Configuration → UI components → Branding is the non-Enterprise lever:
  * Name appears as “Logging in to {name}”; Logo (public PNG URL) appears in the email.
+ * Privy recommends 180×90, 2:1, PNG (not SVG). Apply via:
+ *   python3 cloud/nas-sync/scripts/apply-privy-email-branding.py
  */
 export const PRIVY_EMAIL_BRANDING = {
   dashboardAppName: 'Work4You',
-  emailLogoUrl: 'https://portal.work4you.ai/brand/work4you-logo.png',
+  emailLogoUrl: 'https://portal.work4you.ai/brand/work4you-email-logo.png',
+  emailLogoWidth: 180,
+  emailLogoHeight: 90,
 } as const

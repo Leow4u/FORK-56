@@ -3,7 +3,10 @@
  * Run: node --experimental-strip-types --test sites/work4you-portal/src/lib/__tests__/login-email-code.test.mjs
  */
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
 import { describe, it } from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 import {
   PRIVY_EMAIL_BRANDING,
@@ -77,9 +80,25 @@ describe('email OTP digits', () => {
 })
 
 describe('Privy email branding contract', () => {
-  it('uses the public Work4You name and hosted PNG, not the dashboard slug', () => {
+  it('uses the public Work4You name and hosted 180×90 PNG, not the dashboard slug', () => {
     assert.equal(PRIVY_EMAIL_BRANDING.dashboardAppName, 'Work4You')
     assert.notEqual(PRIVY_EMAIL_BRANDING.dashboardAppName.toLowerCase(), 'work4you-portal')
-    assert.match(PRIVY_EMAIL_BRANDING.emailLogoUrl, /^https:\/\/portal\.work4you\.ai\/brand\/.+\.png$/)
+    assert.equal(
+      PRIVY_EMAIL_BRANDING.emailLogoUrl,
+      'https://portal.work4you.ai/brand/work4you-email-logo.png',
+    )
+    assert.equal(PRIVY_EMAIL_BRANDING.emailLogoWidth, 180)
+    assert.equal(PRIVY_EMAIL_BRANDING.emailLogoHeight, 90)
+  })
+
+  it('ships a 180×90 PNG at the public email-logo path', () => {
+    const pngPath = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '../../../public/brand/work4you-email-logo.png',
+    )
+    const buf = fs.readFileSync(pngPath)
+    assert.equal(buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), true)
+    assert.equal(buf.readUInt32BE(16), PRIVY_EMAIL_BRANDING.emailLogoWidth)
+    assert.equal(buf.readUInt32BE(20), PRIVY_EMAIL_BRANDING.emailLogoHeight)
   })
 })
