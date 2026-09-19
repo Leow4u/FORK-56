@@ -13,7 +13,7 @@ import { sessionRecency, type SidebarProjectTree } from './workspace-groups'
 // Page size when revealing more already-loaded rows within a workspace group.
 export const SIDEBAR_GROUP_PAGE = 5
 
-// Recent sessions previewed under each project in the overview.
+// Recent sessions previewed under a profile group (click the label for the rest).
 export const PROJECT_PREVIEW_COUNT = 3
 
 // Max concurrent `git worktree list` probes when a project spans many repos.
@@ -62,7 +62,7 @@ const projectActivityTime = (project: SidebarProjectTree): number =>
     projectSessions(project).reduce((latest, s) => Math.max(latest, sessionRecency(s)), 0)
   )
 
-// The project's most-recent sessions, for the overview preview under each row.
+// The project's sessions by recency — overview rows page this with Show more.
 export const latestProjectSessions = (project: SidebarProjectTree, limit: number): SessionInfo[] =>
   [...projectSessions(project)].sort((a, b) => sessionRecency(b) - sessionRecency(a)).slice(0, limit)
 

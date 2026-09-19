@@ -158,7 +158,6 @@ import {
   overlayLiveLanes,
   overlayLivePreviews,
   overviewRepoPaths,
-  PROJECT_PREVIEW_COUNT,
   ProjectBackRow,
   ProjectMenu,
   projectTreeCwd,
@@ -741,9 +740,8 @@ export function ChatSidebar({
       return
     }
 
-    // Flat view still paints the Projects overview (Home + folders), so the
-    // tree has to arrive with the connection — not two seconds later, which
-    // was only a warm-up for the Project filter / first grouping switch.
+    // Date/status still need the tree for the Project filter submenu, even
+    // though they no longer paint the overview above Recents.
     void refreshProjectTree()
   }, [activeConnectionId, worktreeGroupingActive, showAllProfiles, profileScope, gatewayReady])
 
@@ -1010,7 +1008,9 @@ export function ChatSidebar({
 
   // git worktree list is a VISUAL-only enhancer (empty lanes); never membership.
   const inEnteredProject = Boolean(enteredProject && !showAllProfiles)
-  const listingProjectOverview = !showArchived && !inProject
+  // Overview lanes only exist in Project grouping. Date/status paint Recents
+  // and must not pay for a git-worktree probe of folders they no longer show.
+  const listingProjectOverview = worktreeGroupingActive && !inProject
   const [scopedRepoWorktrees] = useRepoWorktreeMap(scopedRepoPaths, inEnteredProject)
 
   const [overviewRepoWorktrees] = useRepoWorktreeMap(
@@ -1111,22 +1111,14 @@ export function ChatSidebar({
   // matching the flat Recents list. Keyed by project id for the rows.
   const overviewPreviews = useMemo<Record<string, SessionInfo[]>>(
     () =>
-      overlayLivePreviews(projectModel, agentSessions, projects, PROJECT_PREVIEW_COUNT, {
+      overlayLivePreviews(projectModel, agentSessions, projects, Number.POSITIVE_INFINITY, {
         removed: removedSessionIds,
-        // Rank before the trim, so "3 priciest in this project" isn't "3 most
-        // recent, priciest first".
+        // Rank the full history; each overview row pages it with Show more so
+        // "priciest first" is not "3 most recent, then resorted".
         rankIds: sortOrderIds
       }),
     [projectModel, agentSessions, projects, removedSessionIds, sortOrderIds]
   )
-
-  // Date grouping keeps Recents + messaging + cron on screen; the same overview
-  // the grouped Sessions section already knows how to render sits above Recents
-  // so Projects / Home are reachable without flipping the grouping toggle.
-  // Hidden while searching, while looking at Archived, and once grouping is
-  // already `project` (that Sessions section *is* the overview / drill-in).
-  const showFlatProjectOverview =
-    !worktreeGroupingActive && !showArchived && (projectModel.length > 0 || projectTreeLoading)
 
   const onEnterProject = useCallback(
     (id: string) => {
@@ -1646,57 +1638,6 @@ export function ChatSidebar({
               />
             )}
 
-            {!trimmedQuery && showFlatProjectOverview && (
-              <SidebarSessionsSection
-                activeProjectId={activeProjectId}
-                activeSessionId={activeSidebarSessionId}
-                card={cardRows}
-                collapsible={false}
-                contentClassName="flex flex-col gap-px rounded-lg pb-2 pt-1"
-                dndSensors={dndSensors}
-                emptyState={null}
-                headerAction={
-                  !showAllProfiles ? (
-                    <Tip label={s.projects.newButton}>
-                      <Button
-                        aria-label={s.projects.newButton}
-                        className={HEADER_ACTION_BTN}
-                        onClick={event => {
-                          event.stopPropagation()
-                          openProjectCreate()
-                        }}
-                        size="icon-xs"
-                        variant="ghost"
-                      >
-                        <Codicon name="add" size="0.75rem" />
-                      </Button>
-                    </Tip>
-                  ) : undefined
-                }
-                label={s.projects.sectionLabel}
-                onArchiveSession={onArchiveSession}
-                onBranchSession={onBranchSession}
-                onDeleteSession={onDeleteSession}
-                onEnterProject={onEnterProject}
-                onNewSessionInWorkspace={onNewSessionInWorkspace}
-                onReorderProjects={showAllProfiles ? undefined : reorderProjects}
-                onResumeSession={onResumeSession}
-                onToggle={() => undefined}
-                onTogglePin={pinSession}
-                onToggleUnread={toggleUnread}
-                open
-                pinned={false}
-                projectOverview={projectModel}
-                projectOverviewPreviews={overviewPreviews}
-                projectRepoWorktrees={overviewRepoWorktrees}
-                projectsLoading={projectTreeLoading}
-                rootClassName="shrink-0 p-0 pb-1"
-                sessions={[]}
-                showProfileTags={showAllProfiles}
-                sortable={false}
-              />
-            )}
-
             {!trimmedQuery && (
               <SidebarSessionsSection
                 activeProjectId={activeProjectId}
@@ -1886,7 +1827,6 @@ export function ChatSidebar({
             )}
 
             {!trimmedQuery &&
-              !worktreeGroupingActive &&
               messagingGroups.map(group => {
                 const visible = messagingVisible[group.sourceId] ?? NON_SESSION_INITIAL_ROWS
                 const shownSessions = group.sessions.slice(0, visible)
@@ -1931,7 +1871,7 @@ export function ChatSidebar({
                 )
               })}
 
-            {!trimmedQuery && !worktreeGroupingActive && cronJobs.length > 0 && (
+            {!trimmedQuery && cronJobs.length > 0 && (
               <SidebarCronJobsSection
                 jobs={cronJobs}
                 label={s.cronJobs}

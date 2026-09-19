@@ -1023,6 +1023,26 @@ describe('overlayLivePreviews', () => {
 
     expect(previews[NO_PROJECT_ID].map(s => s.id)).toEqual(['fresh'])
   })
+
+  it('keeps the full project history when the overlay limit is unbounded', () => {
+    const project = projectNode({
+      id: '/www/app',
+      previewSessions: [
+        makeCwdSession('/www/app', { id: 'a', last_active: 3, started_at: 3 }),
+        makeCwdSession('/www/app', { id: 'b', last_active: 2, started_at: 2 }),
+        makeCwdSession('/www/app', { id: 'c', last_active: 1, started_at: 1 })
+      ]
+    })
+
+    const previews = overlayLivePreviews(
+      [project],
+      [makeCwdSession('/www/app', { id: 'd', last_active: 4, started_at: 4 })],
+      [],
+      Number.POSITIVE_INFINITY
+    )
+
+    expect(previews['/www/app'].map(s => s.id)).toEqual(['d', 'a', 'b', 'c'])
+  })
 })
 
 describe('excludeProjectSessions', () => {
