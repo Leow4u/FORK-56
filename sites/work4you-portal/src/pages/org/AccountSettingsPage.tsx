@@ -11,7 +11,10 @@ import {
 import { useCallback, useEffect, useState } from 'react'
 import { OrgPage } from '../../components/OrgPage'
 import pageStyles from '../../components/OrgPage.module.css'
+import { persistAccountProfile } from '../../lib/account-profile'
 import { displayName } from '../../lib/auth-display'
+import { readLocalProfile, saveLocalProfile } from '../../lib/pending-profile'
+import { parseProfileName, resolveProfileName } from '../../lib/profile-name'
 import {
   canUnlinkLinkedAccount,
   isProviderLinked,
@@ -62,8 +65,20 @@ export function AccountSettingsPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [unlinking, setUnlinking] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [savingName, setSavingName] = useState(false)
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
 
   const label = user ? displayName(user) : '—'
+  const existingName = user
+    ? resolveProfileName(user, [readLocalProfile(user.id)])
+    : null
+
+  useEffect(() => {
+    if (!existingName) return
+    setFirstName((current) => current || existingName.firstName)
+    setLastName((current) => current || existingName.lastName)
+  }, [existingName?.firstName, existingName?.lastName])
   const linked = portalLinkedAccounts(user)
   const allowUnlink = canUnlinkLinkedAccount(user)
 
@@ -168,6 +183,38 @@ export function AccountSettingsPage() {
     }
   }, [getAccessToken, logout])
 
+  async function saveProfileName() {
+    const profile = parseProfileName({ firstName, lastName })
+    if (!profile) {
+      setError('Informe o nome e o sobrenome.')
+      return
+    }
+    if (!user?.id) {
+      setError('Sessão expirada. Volte a iniciar sessão.')
+      return
+    }
+    setSavingName(true)
+    setError(null)
+    try {
+      const token = await getAccessToken()
+      if (!token) {
+        setError('Sessão expirada. Volte a iniciar sessão.')
+        return
+      }
+      const ok = await persistAccountProfile(token, profile)
+      saveLocalProfile(user.id, profile)
+      if (!ok) {
+        setError('O nome ficou nesta sessão. O account-service ainda não gravou no Privy.')
+        return
+      }
+      setToast('Nome gravado no perfil.')
+    } catch {
+      setError('Não foi possível gravar o nome.')
+    } finally {
+      setSavingName(false)
+    }
+  }
+
   const unlinkableProviders = LINKABLE_PROVIDERS.filter(
     (p) => !isProviderLinked(user, p.id),
   )
@@ -185,8 +232,47 @@ export function AccountSettingsPage() {
         <p className={pageStyles.panelText}>
           <strong>{label}</strong>
         </p>
+        <form
+          className={styles.profileForm}
+          onSubmit={(e) => {
+            e.preventDefault()
+            void saveProfileName()
+          }}
+        >
+          <div className={styles.profileRow}>
+            <label className={styles.profileLabel} htmlFor="settings-first-name">
+              Nome
+              <input
+                id="settings-first-name"
+                className={styles.profileInput}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                autoComplete="given-name"
+                disabled={savingName || !user}
+              />
+            </label>
+            <label className={styles.profileLabel} htmlFor="settings-last-name">
+              Sobrenome
+              <input
+                id="settings-last-name"
+                className={styles.profileInput}
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                autoComplete="family-name"
+                disabled={savingName || !user}
+              />
+            </label>
+          </div>
+          <button
+            type="submit"
+            className={pageStyles.primary}
+            disabled={savingName || !user}
+          >
+            {savingName ? 'A gravar…' : 'Gravar nome'}
+          </button>
+        </form>
         {user?.id ? (
-          <p className={pageStyles.panelText} style={{ marginTop: '0.5rem' }}>
+          <p className={pageStyles.panelText} style={{ marginTop: '0.75rem' }}>
             ID: {user.id}
           </p>
         ) : null}

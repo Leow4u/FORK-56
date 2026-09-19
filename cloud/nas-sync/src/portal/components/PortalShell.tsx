@@ -6,6 +6,7 @@ import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
 import { formatUsdDisplay, isFreePlanPayload } from '@/lib/billing-client'
 import { displayName } from '../lib/auth-display'
 import { PORTAL_NAV, navPath } from '../lib/portal-nav'
+import { syncProfileAfterAuth } from '../lib/sync-profile'
 import styles from './PortalShell.module.css'
 
 export function PortalShell() {
@@ -49,6 +50,10 @@ export function PortalShell() {
   useEffect(() => {
     void loadBalance()
   }, [loadBalance])
+
+  useEffect(() => {
+    void syncProfileAfterAuth(user, getAccessToken)
+  }, [user, getAccessToken])
 
   return (
     <div className={styles.shell}>

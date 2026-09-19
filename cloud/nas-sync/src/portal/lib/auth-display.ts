@@ -1,9 +1,9 @@
-import { readLocalProfile, readPendingProfile } from './pending-profile.ts'
+import { readLocalProfile, readPendingProfile } from './pending-profile'
 import {
   composeDisplayName,
   resolveProfileName,
   type PrivyProfileSource,
-} from './profile-name.ts'
+} from './profile-name'
 
 /** Display label for a Privy user — profile name, then email / OAuth handle / id. */
 export function displayName(user: PrivyProfileSource): string {

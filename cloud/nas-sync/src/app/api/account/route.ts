@@ -1,22 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { deletePortalAccount } from '@/lib/account-delete'
+import {
+  parseAccountProfileBody,
+  savePrivyAccountProfile,
+} from '@/lib/account-profile'
 import { prisma } from '@/lib/db'
 import { authorizationFromRequest } from '@/lib/request-auth'
 import { ensureUserAndOrg, verifyPrivyBearer } from '@/lib/privy'
 
 export const runtime = 'nodejs'
 
+async function callerFromRequest(req: NextRequest) {
+  const authHeader = authorizationFromRequest(req)
+  if (!authHeader) return null
+  const claims = await verifyPrivyBearer(authHeader)
+  if (!claims?.userId) return null
+  return claims
+}
+
+/**
+ * PATCH /api/account — persist first + last name on the Privy user profile.
+ * Auth: Privy bearer or privy-token cookie only (not OAuth access tokens).
+ */
+export async function PATCH(req: NextRequest) {
+  const claims = await callerFromRequest(req)
+  if (!claims?.userId) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  const body = await req.json().catch(() => null)
+  const profile = parseAccountProfileBody(body)
+  if (!profile) {
+    return NextResponse.json(
+      {
+        error: 'invalid_profile',
+        error_description: 'Informe nome e sobrenome.',
+      },
+      { status: 400 },
+    )
+  }
+
+  try {
+    const saved = await savePrivyAccountProfile(claims.userId, profile)
+    return NextResponse.json({
+      ok: true,
+      firstName: saved.firstName,
+      lastName: saved.lastName,
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'save_failed'
+    return NextResponse.json(
+      { error: 'server_error', error_description: msg },
+      { status: 500 },
+    )
+  }
+}
+
 /**
  * DELETE /api/account — permanently delete the caller's personal Portal account.
  * Auth: Privy bearer or privy-token cookie only (not OAuth access tokens).
  */
 export async function DELETE(req: NextRequest) {
-  const authHeader = authorizationFromRequest(req)
-  if (!authHeader) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
-
-  const claims = await verifyPrivyBearer(authHeader)
+  const claims = await callerFromRequest(req)
   if (!claims?.userId) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
