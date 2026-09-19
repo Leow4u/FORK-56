@@ -4331,10 +4331,17 @@ function tryDeployBundledRuntime() {
 
     if (!fileExists(script)) {
       rememberLog(`[bootstrap] bundled runtime is present but ${script} is missing`)
+
       return false
     }
 
-    const powershell = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    const powershell = path.join(
+      process.env.SystemRoot || 'C:\\Windows',
+      'System32',
+      'WindowsPowerShell',
+      'v1.0',
+      'powershell.exe'
+    )
     result = spawnSync(
       powershell,
       bundledDeployArgs({
@@ -4353,6 +4360,7 @@ function tryDeployBundledRuntime() {
 
     if (!fileExists(script)) {
       rememberLog(`[bootstrap] bundled runtime is present but ${script} is missing`)
+
       return false
     }
 
@@ -4374,6 +4382,7 @@ function tryDeployBundledRuntime() {
     rememberLog(
       `[bootstrap] bundled runtime deploy failed (status=${result.status}): ${(result.stderr || result.stdout || '').slice(0, 2000)}`
     )
+
     return false
   }
 
@@ -4852,6 +4861,7 @@ async function ensureRuntime(backend) {
 
     if (tryDeployBundledRuntime()) {
       rememberLog('[bootstrap] bundled runtime deployed; skipping install.ps1 / install.sh stages')
+
       return ensureRuntime(resolveWork4YouBackend(backend.args))
     }
 

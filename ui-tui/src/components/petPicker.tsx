@@ -27,6 +27,7 @@ const DEFAULT_PET_SHELF_SLUGS = [
   'fufu',
   'purrcat'
 ] as const
+
 const DEFAULT_PET_SHELF = new Set<string>(DEFAULT_PET_SHELF_SLUGS)
 
 interface GalleryPet {
@@ -66,9 +67,9 @@ export function PetPicker({ gw, maxWidth, onClose, t }: PetPickerProps) {
     gw.request<Gallery>('pet.gallery')
       .then(r => {
         const pets = (r?.pets ?? []).filter(
-          p =>
-            !/^clawd(-|$)/i.test(p.slug) && (DEFAULT_PET_SHELF.has(p.slug) || p.generated || p.installed)
+          p => !/^clawd(-|$)/i.test(p.slug) && (DEFAULT_PET_SHELF.has(p.slug) || p.generated || p.installed)
         )
+
         setGallery({ ...r, pets })
         setErr('')
       })
@@ -82,9 +83,11 @@ export function PetPicker({ gw, maxWidth, onClose, t }: PetPickerProps) {
   const view = useMemo(() => {
     const pets = gallery?.pets ?? []
     const needle = query.trim().toLowerCase()
+
     const matched = needle
       ? pets.filter(p => p.slug.toLowerCase().includes(needle) || p.displayName.toLowerCase().includes(needle))
       : pets
+
     const shelfIndex = (slug: string) => {
       const index = DEFAULT_PET_SHELF_SLUGS.indexOf(slug as (typeof DEFAULT_PET_SHELF_SLUGS)[number])
 

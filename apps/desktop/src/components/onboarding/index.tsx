@@ -311,6 +311,7 @@ export function DesktopOnboardingOverlay({
   // First-run welcome and the final "you're in" screen drop the card chrome
   // and float on the chat surface — same bare treatment as the connecting overlay.
   const firstRunWelcome = ready && showPicker && !manual && !reauth
+
   const firstRunConnecting =
     ready &&
     !manual &&
@@ -319,8 +320,8 @@ export function DesktopOnboardingOverlay({
       flow.status === 'polling' ||
       flow.status === 'submitting' ||
       flow.status === 'success')
-  const bare =
-    firstRunWelcome || firstRunConnecting || (ready && !showPicker && flow.status === 'confirming_model')
+
+  const bare = firstRunWelcome || firstRunConnecting || (ready && !showPicker && flow.status === 'confirming_model')
 
   return (
     <div

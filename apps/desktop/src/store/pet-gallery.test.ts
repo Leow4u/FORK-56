@@ -264,6 +264,7 @@ describe('rankedGalleryPets', () => {
     installed: slug === 'fufu',
     slug
   })) satisfies GalleryPet[]
+
   const pets: GalleryPet[] = [
     { slug: 'dalek', displayName: 'Dalek', installed: false },
     { slug: 'nukey', displayName: 'Nukey', installed: false, curated: true },

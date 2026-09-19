@@ -731,11 +731,7 @@ async function fetchManifest({
   const payloadArgs = buildRuntimePayloadArgs(installerKind, { existingGit })
 
   const args = isPosix
-    ? [
-        '--manifest',
-        ...buildPosixPinArgs({ installStamp, activeRoot, work4youHome, pinCommit }),
-        ...payloadArgs
-      ]
+    ? ['--manifest', ...buildPosixPinArgs({ installStamp, activeRoot, work4youHome, pinCommit }), ...payloadArgs]
     : ['-Manifest', ...buildPinArgs(installStamp, { pinCommit }), ...payloadArgs]
 
   const result = await (isPosix ? spawnBash : spawnPowerShell)(scriptPath, args, {
@@ -820,14 +816,7 @@ async function runStage({
         ...buildPosixPinArgs({ installStamp, activeRoot, work4youHome, pinCommit }),
         ...payloadArgs
       ]
-    : [
-        '-Stage',
-        stage.name,
-        '-NonInteractive',
-        '-Json',
-        ...buildPinArgs(installStamp, { pinCommit }),
-        ...payloadArgs
-      ]
+    : ['-Stage', stage.name, '-NonInteractive', '-Json', ...buildPinArgs(installStamp, { pinCommit }), ...payloadArgs]
 
   const result = await (isPosix ? spawnBash : spawnPowerShell)(scriptPath, args, {
     emit,

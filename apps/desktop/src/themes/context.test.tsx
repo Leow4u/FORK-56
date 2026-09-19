@@ -148,7 +148,8 @@ describe('ThemeProvider highlight preview', () => {
 
     act(() => ctx.previewTheme('midnight', 'dark'))
 
-    const midnightAccent = midnightTheme.darkColors?.midground ?? midnightTheme.colors.midground ?? midnightTheme.colors.ring
+    const midnightAccent =
+      midnightTheme.darkColors?.midground ?? midnightTheme.colors.midground ?? midnightTheme.colors.ring
     expect(cssVar('--ui-selection-background')).toBe(chatSelectionBackground(midnightAccent, 'dark'))
     expect(cssVar('--ui-composer-selection-background')).toBe(composerSelectionBackground('dark'))
   })
