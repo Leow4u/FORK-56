@@ -62,7 +62,9 @@ function errorMessage(error: unknown): string {
 export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
   const [params] = useSearchParams()
   const modeFromQuery = params.get('mode')
-  const layoutPreview = import.meta.env.DEV && params.get('preview') === '1'
+  // Vite and Next.js both set NODE_ENV. import.meta.env.DEV fails the NAS typecheck.
+  const layoutPreview =
+    process.env.NODE_ENV !== 'production' && params.get('preview') === '1'
   const startMode: AuthMode =
     modeFromQuery === 'signup' || initialMode === 'signup' ? 'signup' : 'login'
 
