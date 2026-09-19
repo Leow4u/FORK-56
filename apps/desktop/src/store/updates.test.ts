@@ -140,6 +140,13 @@ describe('maybeNotifyUpdateAvailable', () => {
     expect(notifySpy).toHaveBeenCalledTimes(1)
   })
 
+  it('notifies for slim chrome updates even without a target SHA', () => {
+    maybeNotifyUpdateAvailable(
+      status({ targetSha: undefined, channel: 'chrome', updateAvailable: true, behind: null })
+    )
+    expect(notifySpy).toHaveBeenCalledTimes(1)
+  })
+
   it('stays quiet for git checks with no target SHA', () => {
     maybeNotifyUpdateAvailable(status({ targetSha: undefined, behind: 3 }))
     expect(notifySpy).not.toHaveBeenCalled()

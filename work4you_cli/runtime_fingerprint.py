@@ -20,12 +20,15 @@ from typing import Iterable, Optional
 # participate in the payload id or a skip would never trigger after the
 # first install.
 SKIP_SOURCE_DIR_NAMES = frozenset({"venv", ".git", "__pycache__", "bin"})
+FINGERPRINT_FILENAME = ".runtime-fingerprint"
+
 SKIP_SOURCE_FILE_NAMES = frozenset(
     {
         ".runtime-ref",
         ".runtime-payload",
         ".work4you-bootstrap-complete",
         ".install_method",
+        FINGERPRINT_FILENAME,
     }
 )
 
@@ -111,6 +114,34 @@ def runtime_payload_fingerprint(
         hash_host_binary(Path(node_home) if node_home else Path(), _NODE_REL_PATHS),
     ]
     return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+
+def parse_runtime_fingerprint(text: str | None) -> str | None:
+    """Accept a 64-hex payload id, ignoring surrounding whitespace."""
+    if not text:
+        return None
+    hex_digest = str(text).strip().lower()
+    if len(hex_digest) != 64:
+        return None
+    if any(char not in "0123456789abcdef" for char in hex_digest):
+        return None
+    return hex_digest
+
+
+def write_runtime_fingerprint_file(
+    dest_dir: Path,
+    fingerprint: str,
+    *,
+    filename: str = FINGERPRINT_FILENAME,
+) -> Path:
+    parsed = parse_runtime_fingerprint(fingerprint)
+    if parsed is None:
+        raise ValueError("invalid runtime fingerprint")
+    dest = Path(dest_dir)
+    dest.mkdir(parents=True, exist_ok=True)
+    path = dest / filename
+    path.write_text(parsed + "\n", encoding="utf-8")
+    return path
 
 
 def venv_python_exists(install_dir: Path) -> bool:

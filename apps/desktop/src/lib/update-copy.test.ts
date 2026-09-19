@@ -9,7 +9,9 @@ const copy = {
   availableBodyBackend: 'A newer version of the connected Work4You backend is ready to install.',
   availableBodyNoChangelog: 'A newer version is ready. Release notes aren’t available for this install type.',
   availableBodyInstaller:
-    'A new Work4You installer is ready. It replaces the app in about a minute — no long rebuild from source.'
+    'A new Work4You installer is ready. It replaces the app in about a minute — no long rebuild from source.',
+  availableBodyChrome:
+    'A new Work4You app update is ready. It replaces the desktop shell only — your existing runtime stays in place.'
 }
 
 describe('resolveUpdateCopy', () => {
@@ -43,5 +45,13 @@ describe('resolveUpdateCopy', () => {
     expect(r.title).toBe('New update available')
     expect(r.body).toBe(copy.availableBodyInstaller)
     expect(r.body).toContain('installer')
+  })
+
+  it('packaged chrome channel: names the slim shell path, not the installer minute', () => {
+    const r = resolveUpdateCopy({ target: 'client', shownItems: 0, copy, channel: 'chrome' })
+    expect(r.title).toBe('New update available')
+    expect(r.body).toBe(copy.availableBodyChrome)
+    expect(r.body).not.toContain('installer')
+    expect(r.body).not.toContain('minute')
   })
 })

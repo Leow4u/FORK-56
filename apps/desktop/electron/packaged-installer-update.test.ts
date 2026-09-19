@@ -23,24 +23,53 @@ import {
   NSIS_SILENT_UPDATE_FLAGS,
   nsisSilentArgs,
   nsisSilentCommandLine,
+  PACKAGED_WINDOWS_CHROME_HANDOFF_PS1,
   PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1,
   packagedInstallerApplySpawn,
   packagedInstallerAssetName,
   packagedInstallerSpawn,
+  packagedWindowsChromeHandoffExtraArgs,
   packagedWindowsHandoffExtraArgs,
   parseCommitSha,
   parseGithubRelease,
+  parseRuntimeFingerprint,
+  readInstalledRuntimeFingerprint,
   resolveInstallerDownloadUrl,
   resolvePackagedInstallerApplyPlan,
   sameGitCommit,
   selectReleaseAsset,
+  shouldApplyWindowsChromeZip,
   shouldUsePackagedInstallerUpdate,
+  WINDOWS_CHROME_ZIP_ASSET,
   WINDOWS_SETUP_ASSET,
+  writePackagedWindowsChromeHandoffScript,
   writePackagedWindowsHandoffScript
 } from './packaged-installer-update'
 
 const LATEST_SHA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 const STAMP_SHA = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+
+const MATCHING_FINGERPRINT = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+const OTHER_FINGERPRINT = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+
+function chromeAssets() {
+  return [
+    {
+      name: WINDOWS_CHROME_ZIP_ASSET,
+      browser_download_url:
+        'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-win-x64.zip',
+      size: 70_000_000,
+      state: 'uploaded'
+    },
+    {
+      name: 'runtime-win-x64.fingerprint',
+      browser_download_url:
+        'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/runtime-win-x64.fingerprint',
+      size: 65,
+      state: 'uploaded'
+    }
+  ]
+}
 
 function releasePayload(overrides: Record<string, unknown> = {}) {
   return {
@@ -383,9 +412,209 @@ test('resolvePackagedInstallerApplyPlan returns the Setup.exe URL', async () => 
     fetchJson: async () => releasePayload()
   })
 
+  assert.equal(plan.kind, 'installer')
   assert.equal(plan.assetName, WINDOWS_SETUP_ASSET)
   assert.match(plan.downloadUrl, /Work4You-Setup\.exe$/)
   assert.equal(plan.releaseTag, 'desktop-v0.0.27')
+})
+
+test('parseRuntimeFingerprint accepts 64 hex and rejects junk', () => {
+  assert.equal(parseRuntimeFingerprint(MATCHING_FINGERPRINT), MATCHING_FINGERPRINT)
+  assert.equal(parseRuntimeFingerprint(`  ${MATCHING_FINGERPRINT.toUpperCase()}\n`), MATCHING_FINGERPRINT)
+  assert.equal(parseRuntimeFingerprint('not-a-fingerprint'), null)
+  assert.equal(parseRuntimeFingerprint(''), null)
+})
+
+test('readInstalledRuntimeFingerprint reads HOME/work4you/.runtime-fingerprint', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'w4y-fp-'))
+
+  try {
+    const dest = path.join(tmp, 'work4you')
+    fs.mkdirSync(dest)
+    fs.writeFileSync(path.join(dest, '.runtime-fingerprint'), `${MATCHING_FINGERPRINT}\n`)
+    assert.equal(readInstalledRuntimeFingerprint(tmp), MATCHING_FINGERPRINT)
+    assert.equal(readInstalledRuntimeFingerprint(path.join(tmp, 'missing')), null)
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test('shouldApplyWindowsChromeZip is fail-open unless both fingerprints differ', () => {
+  const chrome = {
+    name: WINDOWS_CHROME_ZIP_ASSET,
+    browserDownloadUrl: 'https://example.test/Work4You-win-x64.zip',
+    size: 1
+  }
+
+  assert.equal(shouldApplyWindowsChromeZip({ chromeAsset: null }), false)
+  assert.equal(shouldApplyWindowsChromeZip({ chromeAsset: chrome }), true)
+  assert.equal(
+    shouldApplyWindowsChromeZip({
+      chromeAsset: chrome,
+      remoteFingerprint: MATCHING_FINGERPRINT,
+      localFingerprint: MATCHING_FINGERPRINT
+    }),
+    true
+  )
+  assert.equal(
+    shouldApplyWindowsChromeZip({
+      chromeAsset: chrome,
+      remoteFingerprint: MATCHING_FINGERPRINT,
+      localFingerprint: OTHER_FINGERPRINT
+    }),
+    false
+  )
+  assert.equal(
+    shouldApplyWindowsChromeZip({
+      chromeAsset: chrome,
+      remoteFingerprint: MATCHING_FINGERPRINT,
+      localFingerprint: null
+    }),
+    true
+  )
+})
+
+test('resolvePackagedInstallerApplyPlan prefers chrome zip when fingerprints match', async () => {
+  const plan = await resolvePackagedInstallerApplyPlan({
+    platform: 'win32',
+    localFingerprint: MATCHING_FINGERPRINT,
+    fetchJson: async () =>
+      releasePayload({
+        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+      }),
+    fetchText: async url => {
+      assert.match(url, /runtime-win-x64\.fingerprint$/)
+
+      return MATCHING_FINGERPRINT
+    }
+  })
+
+  assert.equal(plan.kind, 'chrome')
+  assert.equal(plan.assetName, WINDOWS_CHROME_ZIP_ASSET)
+  assert.match(plan.downloadUrl, /Work4You-win-x64\.zip$/)
+})
+
+test('resolvePackagedInstallerApplyPlan keeps Setup.exe when fingerprints differ', async () => {
+  const plan = await resolvePackagedInstallerApplyPlan({
+    platform: 'win32',
+    localFingerprint: OTHER_FINGERPRINT,
+    fetchJson: async () =>
+      releasePayload({
+        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+      }),
+    fetchText: async () => MATCHING_FINGERPRINT
+  })
+
+  assert.equal(plan.kind, 'installer')
+  assert.equal(plan.assetName, WINDOWS_SETUP_ASSET)
+})
+
+test('resolvePackagedInstallerApplyPlan prefers chrome when Latest has the zip and no fingerprints', async () => {
+  const plan = await resolvePackagedInstallerApplyPlan({
+    platform: 'win32',
+    fetchJson: async () =>
+      releasePayload({
+        assets: [
+          ...(releasePayload().assets as object[]),
+          {
+            name: WINDOWS_CHROME_ZIP_ASSET,
+            browser_download_url:
+              'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-win-x64.zip',
+            size: 70_000_000,
+            state: 'uploaded'
+          }
+        ]
+      })
+  })
+
+  assert.equal(plan.kind, 'chrome')
+  assert.equal(plan.assetName, WINDOWS_CHROME_ZIP_ASSET)
+})
+
+test('resolvePackagedInstallerApplyPlan stays on the DMG on macOS even if chrome zip exists', async () => {
+  const plan = await resolvePackagedInstallerApplyPlan({
+    platform: 'darwin',
+    localFingerprint: MATCHING_FINGERPRINT,
+    fetchJson: async () =>
+      releasePayload({
+        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+      }),
+    fetchText: async () => MATCHING_FINGERPRINT
+  })
+
+  assert.equal(plan.kind, 'installer')
+  assert.match(plan.downloadUrl, /Work4You\.dmg$/)
+})
+
+test('checkPackagedInstallerUpdate reports chrome channel when the zip applies', async () => {
+  const result = await checkPackagedInstallerUpdate({
+    stampCommit: STAMP_SHA,
+    platform: 'win32',
+    localFingerprint: MATCHING_FINGERPRINT,
+    fetchJson: async () =>
+      releasePayload({
+        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+      }),
+    fetchText: async () => MATCHING_FINGERPRINT,
+    compareBehind: async () => 2
+  })
+
+  assert.equal(result.channel, 'chrome')
+  assert.equal(result.updateAvailable, true)
+})
+
+test('packagedInstallerApplySpawn uses chrome handoff args when kind is chrome', () => {
+  const scriptPath = 'C:\\Temp\\work4you-packaged-chrome-handoff.ps1'
+  const zipPath = 'C:\\Temp\\Work4You-win-x64.zip'
+  const installDir = 'C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You'
+  const relaunchExe = 'C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You\\Work4You.exe'
+
+  const spawned = packagedInstallerApplySpawn({
+    platform: 'win32',
+    installerPath: zipPath,
+    installDir,
+    desktopPid: 4242,
+    relaunchExe,
+    handoffScriptPath: scriptPath,
+    kind: 'chrome'
+  })
+
+  assert.equal(spawned.command, 'cmd.exe')
+  assert.deepEqual(
+    spawned.args.slice(-8),
+    packagedWindowsChromeHandoffExtraArgs({
+      desktopPid: 4242,
+      chromeZipPath: zipPath,
+      installDir,
+      relaunchExe
+    })
+  )
+  assert.ok(!spawned.args.some(arg => arg.startsWith('/D=')))
+  assert.ok(!spawned.args.includes('-InstallerPath'))
+})
+
+test('writePackagedWindowsChromeHandoffScript writes the overlay orchestrator', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'w4y-chrome-handoff-'))
+
+  try {
+    const dest = writePackagedWindowsChromeHandoffScript(tmp)
+    assert.equal(dest, path.join(tmp, 'work4you-packaged-chrome-handoff.ps1'))
+    assert.equal(fs.readFileSync(dest, 'utf8'), PACKAGED_WINDOWS_CHROME_HANDOFF_PS1)
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true })
+  }
+})
+
+test('Windows chrome handoff overlays the zip and does not run NSIS or wipe runtime', () => {
+  assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /Expand-Archive/)
+  assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /Copy-ChromeOverlay/)
+  assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /Wait-Process/)
+  assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /Start-DesktopDetached/)
+  assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /Hide-HandoffConsole/)
+  assert.ok(!PACKAGED_WINDOWS_CHROME_HANDOFF_PS1.includes('/S'))
+  assert.ok(!PACKAGED_WINDOWS_CHROME_HANDOFF_PS1.includes('--force-run'))
+  assert.ok(!PACKAGED_WINDOWS_CHROME_HANDOFF_PS1.includes('deploy-desktop-runtime'))
+  assert.ok(!PACKAGED_WINDOWS_CHROME_HANDOFF_PS1.includes('Remove-Item -LiteralPath $InstallDir'))
 })
 
 test('isGitSha rejects empty and branch names', () => {

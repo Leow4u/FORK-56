@@ -142,6 +142,30 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item $bundle.FullName dist/Work4You-Setup.exe
 
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0e869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      # Slim Electron overlay for in-app Update when the runtime fingerprint
+      # matches. Fail this job if pack fails — do not silently ship Latest
+      # without the chrome zip. Site / first install still use Setup.exe.
+      - name: Pack Windows chrome zip
+        shell: pwsh
+        run: |
+          python scripts/ci/pack_desktop_chrome_zip.py `
+            --unpacked apps/desktop/release/win-unpacked `
+            --out dist/Work4You-win-x64.zip `
+            --runtime-dir apps/desktop/build/runtime `
+            --fingerprint-out dist/runtime-win-x64.fingerprint
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-chrome
+          path: |
+            dist/Work4You-win-x64.zip
+            dist/runtime-win-x64.fingerprint
+          if-no-files-found: error
+
       - name: Warn unsigned Windows installer
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_windows_signing == true }}
         run: echo "::warning::Work4You-Setup.exe is UNSIGNED. Do not ship this artifact."
@@ -373,6 +397,12 @@ jobs:
               extra+=(--runtime-zip "$zip")
             fi
           done
+          if [ -f installers/windows-chrome/Work4You-win-x64.zip ]; then
+            extra+=(--chrome-zip installers/windows-chrome/Work4You-win-x64.zip)
+          fi
+          if [ -f installers/windows-chrome/runtime-win-x64.fingerprint ]; then
+            extra+=(--runtime-fingerprint installers/windows-chrome/runtime-win-x64.fingerprint)
+          fi
           python scripts/ci/publish_desktop_release.py \
             --tag "${{ steps.tag.outputs.tag }}" \
             --repo "${{ github.repository }}" \

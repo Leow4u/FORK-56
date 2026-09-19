@@ -61,6 +61,8 @@ try {
     Assert-True (Test-Path -LiteralPath (Join-Path $destHome "work4you\.work4you-bootstrap-complete")) "bootstrap marker missing"
     Assert-True (Test-Path -LiteralPath (Join-Path $destHome "SOUL.md")) "SOUL.md was not seeded"
     Assert-True (Test-Path -LiteralPath (Join-Path $destHome "work4you\bin\work4you.exe")) "launcher was not copied to work4you\bin"
+    $fp = (Get-Content -LiteralPath (Join-Path $destHome "work4you\.runtime-fingerprint") -Raw).Trim()
+    Assert-True ($fp -match '^[0-9a-f]{64}$') "runtime fingerprint missing or not 64 hex: $fp"
 
     $canary = Join-Path $destHome "python\CANARY.txt"
     Set-Content -LiteralPath $canary -Value "keep`n" -Encoding ASCII

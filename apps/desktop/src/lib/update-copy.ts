@@ -9,7 +9,7 @@
  */
 
 export type UpdateTarget = 'client' | 'backend'
-export type UpdateChannel = 'git' | 'installer'
+export type UpdateChannel = 'git' | 'installer' | 'chrome'
 
 export interface UpdateCopyStrings {
   availableTitle: string
@@ -18,6 +18,7 @@ export interface UpdateCopyStrings {
   availableBodyBackend: string
   availableBodyNoChangelog: string
   availableBodyInstaller: string
+  availableBodyChrome: string
 }
 
 export interface ResolveUpdateCopyInput {
@@ -35,6 +36,10 @@ export interface UpdateCopyResult {
 
 export function resolveUpdateCopy({ target, shownItems, copy, channel }: ResolveUpdateCopyInput): UpdateCopyResult {
   const title = target === 'backend' ? copy.availableTitleBackend : copy.availableTitle
+
+  if (channel === 'chrome' && target === 'client') {
+    return { title, body: copy.availableBodyChrome }
+  }
 
   if (channel === 'installer' && target === 'client') {
     return { title, body: copy.availableBodyInstaller }

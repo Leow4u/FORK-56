@@ -3299,6 +3299,8 @@ export const en: Translations = {
     availableBodyNoChangelog: 'A newer version is ready. Release notes aren’t available for this install type.',
     availableBodyInstaller:
       'A new Work4You installer is ready. It replaces the app in about a minute — no long rebuild from source.',
+    availableBodyChrome:
+      'A new Work4You app update is ready. It replaces the desktop shell only — your existing runtime stays in place.',
     updateNow: 'Update now',
     maybeLater: 'Maybe later',
     moreChanges: count => `+ ${count} more change${count === 1 ? '' : 's'} included.`,
@@ -3316,6 +3318,8 @@ export const en: Translations = {
       'The Work4You updater takes over in its own window and reopens Work4You automatically when it’s done. Please don’t reopen Work4You yourself while it’s updating.',
     applyingBodyInstaller:
       'Downloading the signed installer. Work4You will close so the installer can replace the app. Don’t reopen it yourself until setup finishes.',
+    applyingBodyChrome:
+      'Downloading the desktop app update. Work4You will close so the new shell can replace the old one. Don’t reopen it yourself — it comes back when the update finishes.',
     applyingBodyBackend:
       'The remote backend is applying the update and will restart. Work4You reconnects automatically when it’s back.',
     applyingClose: 'This window will close while the update runs, then Work4You reopens on its own.',

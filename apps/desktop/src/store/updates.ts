@@ -212,7 +212,7 @@ export function maybeNotifyUpdateAvailable(status: DesktopUpdateStatus | null) {
   // Git checks need a target SHA to know what "latest" is. The installer
   // channel can still toast from updateAvailable when GitHub Latest is known
   // but the tag's commit could not be resolved.
-  if (!status.targetSha && status.channel !== 'installer') {
+  if (!status.targetSha && status.channel !== 'installer' && status.channel !== 'chrome') {
     return
   }
 

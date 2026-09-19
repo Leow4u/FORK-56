@@ -26,7 +26,9 @@ from work4you_cli.desktop_runtime import (
     write_bootstrap_marker,
 )
 from work4you_cli.runtime_fingerprint import (
+    FINGERPRINT_FILENAME,
     installed_runtime_is_current,
+    parse_runtime_fingerprint,
     runtime_payload_fingerprint,
 )
 from work4you_cli.runtime_payload import read_runtime_ref
@@ -234,6 +236,14 @@ def test_apply_posix_bundle_writes_install_bin_launcher(tmp_path):
     assert "/builder/" not in cfg
 
 
+def test_parse_runtime_fingerprint_accepts_64_hex_only():
+    assert parse_runtime_fingerprint("A" * 64) == "a" * 64
+    assert parse_runtime_fingerprint("  " + "b" * 64 + "\n") == "b" * 64
+    assert parse_runtime_fingerprint(None) is None
+    assert parse_runtime_fingerprint("not-a-fingerprint") is None
+    assert parse_runtime_fingerprint("c" * 63) is None
+
+
 def test_runtime_fingerprint_ignores_markers_and_venv(tmp_path):
     bundle = _write_bundle(tmp_path / "bundle")
     home = tmp_path / "home"
@@ -242,7 +252,11 @@ def test_runtime_fingerprint_ignores_markers_and_venv(tmp_path):
     right = runtime_payload_fingerprint(home / "work4you", home / "python", home / "node")
     assert left == right
     assert installed_runtime_is_current(bundle, home) is True
+    marker = home / "work4you" / FINGERPRINT_FILENAME
+    assert marker.is_file()
+    assert parse_runtime_fingerprint(marker.read_text(encoding="utf-8")) == left
     (home / "work4you" / ".runtime-ref").write_text("changed\n", encoding="utf-8")
+    (home / "work4you" / FINGERPRINT_FILENAME).write_text("changed\n", encoding="utf-8")
     (home / "work4you" / "venv" / "junk.bin").write_bytes(b"venv-only")
     assert installed_runtime_is_current(bundle, home) is True
 
@@ -255,6 +269,9 @@ def test_apply_prebuilt_skips_copy_when_payload_matches(tmp_path):
     apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="c" * 40)
     assert (home / "python" / "CANARY.txt").read_text(encoding="utf-8") == "keep\n"
     assert read_runtime_ref(home / "work4you")["commit"] == "c" * 40
+    assert parse_runtime_fingerprint(
+        (home / "work4you" / FINGERPRINT_FILENAME).read_text(encoding="utf-8")
+    )
 
 
 def test_apply_prebuilt_copies_when_source_changes(tmp_path):

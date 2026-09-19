@@ -152,6 +152,7 @@ Path("'"$INSTALL_DIR"'/.work4you-bootstrap-complete").write_text(json.dumps(payl
 ' 2>/dev/null || printf '{\n  "schemaVersion": 1,\n  "pinnedCommit": "%s",\n  "pinnedBranch": "%s"\n}\n' \
       "$PINNED_COMMIT" "$PINNED_BRANCH" > "$INSTALL_DIR/.work4you-bootstrap-complete"
   fi
+  write_runtime_fingerprint
   echo "[work4you] prebuilt runtime ready at $INSTALL_DIR"
   exit 0
 }
@@ -177,6 +178,21 @@ copy_replace_dir() {
     rm -rf "$dest/$name"
     cp -a "$src/$name" "$dest/$name"
   done
+}
+
+write_runtime_fingerprint() {
+  python3 -c '
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from work4you_cli.runtime_fingerprint import (
+    runtime_payload_fingerprint,
+    write_runtime_fingerprint_file,
+)
+home = Path(sys.argv[2])
+fp = runtime_payload_fingerprint(home / "work4you", home / "python", home / "node")
+write_runtime_fingerprint_file(home / "work4you", fp)
+' "$INSTALL_DIR" "$WORK4YOU_HOME" 2>/dev/null || true
 }
 
 rewrite_pyvenv_cfg() {
@@ -364,5 +380,6 @@ Path("'"$INSTALL_DIR"'/.work4you-bootstrap-complete").write_text(json.dumps(payl
     "$PINNED_COMMIT" "$PINNED_BRANCH" > "$INSTALL_DIR/.work4you-bootstrap-complete"
 fi
 
+write_runtime_fingerprint
 echo "[work4you] prebuilt runtime ready at $INSTALL_DIR"
 exit 0

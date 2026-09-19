@@ -51,6 +51,7 @@ $script:SkipSourceFiles = @{
     '.runtime-payload'               = $true
     '.work4you-bootstrap-complete'   = $true
     '.install_method'                = $true
+    '.runtime-fingerprint'           = $true
 }
 
 function Get-FileSha256Hex {
@@ -124,6 +125,13 @@ function Get-PayloadFingerprint {
     } finally {
         $sha.Dispose()
     }
+}
+
+function Write-RuntimeFingerprint {
+    param([string]$InstallDir, [string]$HomeDir)
+    $fp = Get-PayloadFingerprint $InstallDir (Join-Path $HomeDir "python") (Join-Path $HomeDir "node")
+    if (-not $fp) { return }
+    Write-Utf8NoBom -Path (Join-Path $InstallDir ".runtime-fingerprint") -Text "$fp`n"
 }
 
 function Test-InstalledRuntimeCurrent {
@@ -298,6 +306,7 @@ if ($skipCopy) {
         }
         Write-Utf8NoBom -Path (Join-Path $installDir ".work4you-bootstrap-complete") -Text (($marker | ConvertTo-Json -Compress:$false) + "`n")
     }
+    Write-RuntimeFingerprint -InstallDir $installDir -HomeDir $Work4YouHome
     Write-Host "[work4you] prebuilt runtime ready at $installDir"
     exit 0
 }
@@ -394,5 +403,6 @@ if ($PinnedCommit -and $PinnedCommit.Length -ge 7) {
     Write-Utf8NoBom -Path (Join-Path $installDir ".work4you-bootstrap-complete") -Text (($marker | ConvertTo-Json -Compress:$false) + "`n")
 }
 
+Write-RuntimeFingerprint -InstallDir $installDir -HomeDir $Work4YouHome
 Write-Host "[work4you] prebuilt runtime ready at $installDir"
 exit 0
