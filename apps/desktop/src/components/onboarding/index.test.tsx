@@ -239,7 +239,7 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
     render(<DesktopOnboardingOverlay enabled={false} profile="default" requestGateway={requestGateway} />)
 
     expect(screen.getByText("Let's get you setup with Work4You")).toBeTruthy()
-    expect(screen.getByText(/300\+ frontier models/)).toBeTruthy()
+    expect(screen.queryByText(/300\+ frontier models/)).toBeNull()
     expect(screen.queryByText('Sign in to continue')).toBeNull()
   })
 
