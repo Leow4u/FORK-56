@@ -1276,19 +1276,11 @@ export function McpTab({
                     </Button>
                   }
                   description={
-                    query.trim()
-                      ? t.skills.noSkillsDesc
-                      : directoryFilter === 'discover'
-                        ? m.catalogEmpty
-                        : m.emptyDesc
+                    query.trim() ? t.skills.noSkillsDesc : directoryFilter === 'discover' ? m.catalogEmpty : m.emptyDesc
                   }
                   icon="plug"
                   title={
-                    query.trim()
-                      ? t.skills.noSkillsTitle
-                      : directoryFilter === 'discover'
-                        ? m.tabCatalog
-                        : m.emptyTitle
+                    query.trim() ? t.skills.noSkillsTitle : directoryFilter === 'discover' ? m.tabCatalog : m.emptyTitle
                   }
                 />
               ) : (

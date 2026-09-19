@@ -524,6 +524,7 @@ describe('OAuth onboarding', () => {
     installApiMock(async ({ path }: { path: string }) => {
       if (path === '/api/providers/oauth/work4you/start') {
         startCalls.push(path)
+
         return {
           expires_in: 600,
           flow: 'device_code',
@@ -549,6 +550,7 @@ describe('OAuth onboarding', () => {
     })
 
     const provider = { ...makeOAuthProvider('work4you', 'Work4You Portal'), flow: 'device_code' as const }
+
     const ctx = onboardingContext(async () => {
       throw new Error('unexpected gateway method')
     })
@@ -564,15 +566,18 @@ describe('OAuth onboarding', () => {
 
   it('does not mint a second device code while the first start is still resolving', async () => {
     let releaseStart: ((value: unknown) => void) | undefined
+
     const started = new Promise(resolve => {
       releaseStart = resolve
     })
+
     const startCalls: string[] = []
 
     installApiMock(async ({ path }: { path: string }) => {
       if (path === '/api/providers/oauth/work4you/start') {
         startCalls.push(path)
         await started
+
         return {
           expires_in: 600,
           flow: 'device_code',
@@ -598,6 +603,7 @@ describe('OAuth onboarding', () => {
     })
 
     const provider = { ...makeOAuthProvider('work4you', 'Work4You Portal'), flow: 'device_code' as const }
+
     const ctx = onboardingContext(async () => {
       throw new Error('unexpected gateway method')
     })

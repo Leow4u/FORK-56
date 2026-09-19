@@ -283,9 +283,11 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
 
   it('does not mint a second device code when Get started is clicked twice', async () => {
     let releaseStart: ((value: unknown) => void) | undefined
+
     const started = new Promise(resolve => {
       releaseStart = resolve
     })
+
     const startCalls: string[] = []
 
     Object.defineProperty(window, 'work4youDesktop', {
@@ -295,6 +297,7 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
           if (path === '/api/providers/oauth/work4you/start') {
             startCalls.push(path)
             await started
+
             return {
               expires_in: 600,
               flow: 'device_code',

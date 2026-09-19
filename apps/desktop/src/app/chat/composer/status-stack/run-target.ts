@@ -1,4 +1,9 @@
-import type { DesktopConnectionConfig, DesktopConnectionConfigInput, DesktopRegistryConnection, Work4YouConnection } from '@/global'
+import type {
+  DesktopConnectionConfig,
+  DesktopConnectionConfigInput,
+  DesktopRegistryConnection,
+  Work4YouConnection
+} from '@/global'
 
 export type ComposerRunTarget = 'cloud' | 'local'
 
@@ -8,9 +13,7 @@ export type ComposerCloudApplySource = {
 }
 
 export type ComposerRunTargetIntent =
-  | { payload: DesktopConnectionConfigInput; type: 'apply' }
-  | { type: 'noop' }
-  | { type: 'settings' }
+  { payload: DesktopConnectionConfigInput; type: 'apply' } | { type: 'noop' } | { type: 'settings' }
 
 type RegistryRow = Pick<DesktopRegistryConnection, 'id' | 'kind'>
 

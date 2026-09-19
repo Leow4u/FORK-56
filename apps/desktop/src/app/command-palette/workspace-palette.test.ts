@@ -37,10 +37,7 @@ describe('buildWorkspacePaletteGroups', () => {
 
     expect(groups).toHaveLength(1)
     expect(groups[0]?.heading).toBeUndefined()
-    expect(groups[0]?.items.map(item => item.id)).toEqual([
-      WORKSPACE_OPEN_FOLDER_ID,
-      WORKSPACE_NEW_PROJECT_ID
-    ])
+    expect(groups[0]?.items.map(item => item.id)).toEqual([WORKSPACE_OPEN_FOLDER_ID, WORKSPACE_NEW_PROJECT_ID])
     expect(groups[0]?.items.map(item => item.kind)).toEqual(['open-folder', 'new-project'])
     expect(groups[0]?.items.some(item => item.id === 'project-remote')).toBe(false)
   })
