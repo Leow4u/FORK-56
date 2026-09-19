@@ -142,13 +142,11 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item $bundle.FullName dist/Work4You-Setup.exe
 
-      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0e869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.11"
-
       # Slim Electron overlay for in-app Update when the runtime fingerprint
       # matches. Fail this job if pack fails — do not silently ship Latest
       # without the chrome zip. Site / first install still use Setup.exe.
+      # Use the runner Python: a second setup-python pin here only has to
+      # resolve at job start, and a typo'd SHA aborts Windows before checkout.
       - name: Pack Windows chrome zip
         shell: pwsh
         run: |
