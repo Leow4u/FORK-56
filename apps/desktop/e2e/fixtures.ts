@@ -592,20 +592,12 @@ export async function setupPackagedApp(): Promise<PackagedAppFixture> {
 /**
  * Wait for the desktop app to finish booting and show the main chat UI.
  *
- * The boot overlay disappears when `completeDesktopBoot()` fires in the
- * renderer — at that point the gateway is open, config is loaded, and
- * sessions are loaded. We detect this by waiting for the boot/connecting
- * overlay to become invisible and the main app shell to be present.
- *
- * Two things must both be true before we return:
- *  1. The composer (chat input) is visible — it's disabled until the
- *     gateway is open.
- *  2. No full-screen overlay (onboarding Preparing, connecting overlay,
- *     boot-failure) covers the viewport center. The composer can be
- *     "visible" in Playwright's eyes (non-zero bounding box, not
- *     display:none) even when a z-1300+ overlay is painted on top of it,
- *     so checking the composer alone catches the app mid-boot at ~92%
- *     with the loading bar still showing.
+ * `completeDesktopBoot()` fires when the gateway is open, config is loaded,
+ * and sessions are loaded. Cold boot no longer covers the shell with a
+ * connecting overlay, so "composer attached" is not enough — the input stays
+ * `aria-disabled` until the gateway opens. We wait for that, and for no
+ * full-screen overlay (onboarding Preparing, boot-failure) on the viewport
+ * center.
  */
 export async function waitForAppReady(fixture: MockBackendFixture | NoProviderFixture | DeadBackendFixture, timeoutMs = 60_000): Promise<void> {
   const { page, app } = fixture
@@ -616,12 +608,18 @@ export async function waitForAppReady(fixture: MockBackendFixture | NoProviderFi
     timeout: timeoutMs,
   })
 
-  // Now poll until no full-screen overlay covers the viewport center.
-  // elementFromPoint returns the topmost element at a point — if it's part
-  // of a fixed inset-0 overlay (onboarding/connecting/boot-failure), the
-  // app isn't ready yet.
+  // Poll until the composer is enabled (gateway open) and no full-screen
+  // overlay covers the viewport center. elementFromPoint returns the topmost
+  // element at a point — if it's part of a fixed inset-0 overlay
+  // (onboarding/boot-failure), the app isn't ready yet.
   await page.waitForFunction(
     () => {
+      const input = document.querySelector('[contenteditable="true"], textarea')
+
+      if (!input || input.getAttribute('aria-disabled') === 'true') {
+        return false
+      }
+
       const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2)
 
       if (!el) {

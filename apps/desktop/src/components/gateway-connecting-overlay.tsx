@@ -7,7 +7,6 @@ import { prefersReducedMotion } from '@/hooks/use-media-query'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { $desktopBoot } from '@/store/boot'
-import { $gatewaySwitching } from '@/store/gateway-switch'
 import { $gatewayState } from '@/store/session'
 
 // Exit choreography (ms): mark fades down + out, hold, then the overlay fades.
@@ -31,7 +30,6 @@ export function GatewayConnectingOverlay() {
   const { t } = useI18n()
   const gatewayState = useStore($gatewayState)
   const boot = useStore($desktopBoot)
-  const gatewaySwitching = useStore($gatewaySwitching)
   const [previewing] = useState(connectingPreviewMode)
   const [dots, setDots] = useState(1)
   const reduce = prefersReducedMotion()
@@ -40,23 +38,12 @@ export function GatewayConnectingOverlay() {
   // the instant the gateway opens. E2E screenshots rely on this to avoid
   // catching the overlay mid-fade.
   const [phase, setPhase] = useState<Phase>('live')
-  // Once cold boot has completed once, never resurrect the fullscreen overlay
-  // — soft gateway switches keep the shell and reskeleton the sidebar instead.
-  const coldBootDoneRef = useRef(false)
 
-  if (!boot.running && boot.progress >= 100 && !boot.error) {
-    coldBootDoneRef.current = true
-  }
-
-  // The full-screen connecting overlay is for initial boot only. After a
-  // healthy boot, flaky networks / sleep-wake can drop the socket and flip the
-  // gateway state back to closed/error while the app reconnects. Do not cover
-  // the chat then — users should still be able to type drafts, open settings,
-  // and recover instead of staring at a modal connecting screen.
-  const initialBootActive = boot.visible || boot.running || boot.progress < 100
-
-  const connecting =
-    !coldBootDoneRef.current && !gatewaySwitching && gatewayState !== 'open' && !boot.error && initialBootActive
+  // Production cold boot paints the existing shell (intro, last chat, composer
+  // "Starting Work4You…") while serve comes up — same idea as the post-boot
+  // reconnect path. The fullscreen BrandMark is DEV preview only (`?connecting=1`).
+  // Hard failure stays on BootFailureOverlay; first-run stays on onboarding.
+  const connecting = previewing
 
   // Latches once we've actually shown the overlay, so the brief frame where
   // gatewayState flips to "open" (connecting -> false) before the exit phase
