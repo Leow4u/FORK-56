@@ -144,6 +144,8 @@ jobs:
           cp cloud/nas-sync/src/lib/inference-catalog.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/model-access.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/account-delete.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/account-profile.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/account-profile-parse.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/tiers.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/org-billing.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/billing-client.ts nas/src/lib/
@@ -162,8 +164,17 @@ jobs:
           cp cloud/nas-sync/src/app/api/account/route.ts nas/src/app/api/account/
           cp cloud/nas-sync/src/app/layout.tsx nas/src/app/
           cp cloud/nas-sync/src/app/favicon.ico nas/src/app/
-          mkdir -p nas/src/portal/pages nas/src/portal/lib
+          mkdir -p nas/src/portal/pages nas/src/portal/lib nas/src/portal/components
           cp cloud/nas-sync/src/portal/lib/device-approve.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/auth-display.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/profile-name.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/pending-profile.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/account-profile.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/last-used-provider.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/sync-profile.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/components/AuthProviderIcons.tsx nas/src/portal/components/
+          cp cloud/nas-sync/src/portal/pages/LoginPage.tsx nas/src/portal/pages/
+          cp cloud/nas-sync/src/portal/pages/LoginPage.module.css nas/src/portal/pages/
           cp cloud/nas-sync/src/portal/pages/DeviceApprovePage.tsx nas/src/portal/pages/
           cp cloud/nas-sync/src/portal/pages/DeviceApprovePage.module.css nas/src/portal/pages/
           cp cloud/nas-sync/src/portal/pages/org/CloudPage.tsx nas/src/portal/pages/org/
@@ -202,6 +213,8 @@ jobs:
             src/lib/inference-catalog.ts \
             src/lib/model-access.ts \
             src/lib/account-delete.ts \
+            src/lib/account-profile.ts \
+            src/lib/account-profile-parse.ts \
             src/lib/tiers.ts \
             src/lib/org-billing.ts \
             src/lib/billing-client.ts \
@@ -217,6 +230,15 @@ jobs:
             src/app/layout.tsx \
             src/app/favicon.ico \
             src/portal/lib/device-approve.ts \
+            src/portal/lib/auth-display.ts \
+            src/portal/lib/profile-name.ts \
+            src/portal/lib/pending-profile.ts \
+            src/portal/lib/account-profile.ts \
+            src/portal/lib/last-used-provider.ts \
+            src/portal/lib/sync-profile.ts \
+            src/portal/components/AuthProviderIcons.tsx \
+            src/portal/pages/LoginPage.tsx \
+            src/portal/pages/LoginPage.module.css \
             src/portal/pages/DeviceApprovePage.tsx \
             src/portal/pages/DeviceApprovePage.module.css \
             src/portal/pages/org/CloudPage.tsx \

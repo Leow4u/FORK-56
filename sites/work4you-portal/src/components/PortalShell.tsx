@@ -1,13 +1,19 @@
 import { usePrivy } from '@privy-io/react-auth'
+import { useEffect } from 'react'
 import { NavLink, Outlet, useParams } from 'react-router-dom'
 import { displayName } from '../lib/auth-display'
 import { PORTAL_NAV, navPath } from '../lib/portal-nav'
+import { syncProfileAfterAuth } from '../lib/sync-profile'
 import styles from './PortalShell.module.css'
 
 export function PortalShell() {
   const { orgId = '' } = useParams()
-  const { user, logout } = usePrivy()
+  const { user, logout, getAccessToken } = usePrivy()
   const name = user ? displayName(user) : 'Conta'
+
+  useEffect(() => {
+    void syncProfileAfterAuth(user, getAccessToken)
+  }, [user, getAccessToken])
 
   return (
     <div className={styles.shell}>
