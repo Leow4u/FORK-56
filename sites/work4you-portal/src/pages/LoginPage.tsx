@@ -364,7 +364,7 @@ export function LoginPage({ initialMode = 'login' }: LoginPageProps) {
                 className={styles.input}
                 type="email"
                 autoComplete="email"
-                placeholder="voce@empresa.com"
+                placeholder="Seu endereço de e-mail"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={busy}
