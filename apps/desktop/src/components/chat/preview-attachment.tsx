@@ -127,7 +127,7 @@ export function PreviewAttachment({ source = 'manual', target }: { source?: Prev
   const previewLabel = opening ? t.preview.opening : isActive ? t.preview.hide : t.preview.openPreview
 
   return (
-    <div className="group/preview relative min-w-0 max-w-72">
+    <span className="group/preview relative block min-w-0 max-w-72">
       <button
         aria-label={previewLabel}
         className={cn(
@@ -159,6 +159,6 @@ export function PreviewAttachment({ source = 'manual', target }: { source?: Prev
       >
         <Download className="size-3" />
       </button>
-    </div>
+    </span>
   )
 }
