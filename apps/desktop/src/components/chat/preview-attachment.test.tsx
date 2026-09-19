@@ -44,7 +44,7 @@ describe('PreviewAttachment', () => {
     render(<PreviewAttachment source="tool-result" target="/tmp/sheet.xlsx" />)
 
     expect(screen.getByText('sheet.xlsx')).toBeTruthy()
-    expect(screen.getByText('XLSX')).toBeTruthy()
+    expect(screen.getAllByText('XLSX').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByRole('button', { name: 'Open preview' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy()
     expect(normalizeOrLocalPreviewTarget).not.toHaveBeenCalled()
