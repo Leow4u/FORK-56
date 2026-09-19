@@ -30,8 +30,15 @@ const MEDIA_BY_EXT: Record<string, MediaInfo> = {
   webp: { kind: 'image', mime: 'image/webp' }
 }
 
+export function pathExtension(path: string): string {
+  const base = (path.split(/[?#]/, 1)[0] || path).split(/[\\/]/).filter(Boolean).pop() || ''
+  const idx = base.lastIndexOf('.')
+
+  return idx > 0 ? base.slice(idx + 1).toLowerCase() : ''
+}
+
 function mediaInfo(path: string): MediaInfo | undefined {
-  const ext = path.split(/[?#]/, 1)[0]?.split('.').pop()?.toLowerCase()
+  const ext = pathExtension(path)
 
   return ext ? MEDIA_BY_EXT[ext] : undefined
 }
@@ -45,10 +52,51 @@ export function mediaKind(path: string): MediaKind {
 // MEDIA delivery path routes these to a preview instead of a download link.
 const MARKDOWN_EXTENSIONS = new Set(['md', 'markdown', 'mdown', 'mkd'])
 
+// Delivered documents that already have a rail path: markdown + PDF iframe,
+// or the existing binary empty-state (Office / zip). Same PreviewAttachment
+// card — no new previewKind and no new viewer.
+const DELIVERED_DOCUMENT_EXTENSIONS = new Set([
+  ...MARKDOWN_EXTENSIONS,
+  'docx',
+  'pdf',
+  'pptx',
+  'xlsx',
+  'zip'
+])
+
 export function isMarkdownDocumentPath(path: string): boolean {
-  const ext = path.split(/[?#]/, 1)[0]?.split('.').pop()?.toLowerCase()
+  const ext = pathExtension(path)
 
   return ext ? MARKDOWN_EXTENSIONS.has(ext) : false
+}
+
+export function isDeliveredDocumentPath(path: string): boolean {
+  const ext = pathExtension(path)
+
+  return ext ? DELIVERED_DOCUMENT_EXTENSIONS.has(ext) : false
+}
+
+export function documentExtensionLabel(path: string): string {
+  const ext = pathExtension(path)
+
+  if (ext === 'markdown' || ext === 'mdown' || ext === 'mkd') {
+    return 'MD'
+  }
+
+  return ext.toUpperCase()
+}
+
+export function formatByteSize(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB']
+  let value = bytes
+  let unit = 0
+
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+
+  return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`
 }
 
 export function mediaMime(path: string): string {
@@ -212,6 +260,40 @@ export async function downloadGatewayMediaFile(
     profile: conn?.profile,
     suggestedName: mediaName(file)
   })
+}
+
+// Card download: use the existing gateway save dialog when the desktop
+// bridge is present; otherwise open the authenticated download URL or a
+// browser <a download> fallback. No new IPC.
+export async function downloadDeliveredFile(
+  path: string
+): Promise<{ canceled?: boolean; path?: string; saved: boolean }> {
+  if (typeof window !== 'undefined' && window.work4youDesktop?.saveGatewayFile) {
+    return downloadGatewayMediaFile(path)
+  }
+
+  const url = mediaExternalUrl(path)
+
+  if (typeof window !== 'undefined' && window.work4youDesktop?.openExternal) {
+    await window.work4youDesktop.openExternal(url)
+
+    return { saved: true }
+  }
+
+  if (typeof document === 'undefined') {
+    throw new Error('File download is unavailable')
+  }
+
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = mediaName(path)
+  link.rel = 'noopener noreferrer'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+
+  return { saved: true }
 }
 
 export function mediaDisplayLabel(path: string): string {
