@@ -1125,6 +1125,7 @@ export function ChatBar({
             'z-30 flex flex-col',
             poppedOut ? 'fixed max-w-[calc(100vw-1.5rem)]' : 'absolute bottom-0 left-1/2 max-w-full -translate-x-1/2'
           )}
+          data-empty={messagesEmpty ? '' : undefined}
           data-popped-out={poppedOut ? '' : undefined}
           data-slot="composer-dock"
           data-thread-scrolled-up={scrolledUp ? '' : undefined}
@@ -1324,7 +1325,7 @@ export function ChatBar({
                     className={cn(
                       'grid w-full',
                       actionStacked
-                        ? 'grid-cols-[auto_1fr] gap-(--composer-row-gap) [grid-template-areas:"input_input"_"menu_controls"]'
+                        ? 'min-h-full flex-1 grid-cols-[auto_1fr] grid-rows-[1fr_auto] gap-(--composer-row-gap) [grid-template-areas:"input_input"_"menu_controls"]'
                         : 'grid-cols-[auto_1fr_auto] items-center gap-(--composer-control-gap) [grid-template-areas:"menu_input_controls"]'
                     )}
                   >
@@ -1371,7 +1372,7 @@ export function ChatBarFallback() {
   return (
     <div
       className={cn(
-        'group/composer absolute bottom-0 left-1/2 z-30 w-[min(var(--composer-width),calc(100%-2rem))] max-w-full -translate-x-1/2 rounded-3xl pt-2 pb-[var(--composer-shell-pad-block-end)]',
+        'group/composer absolute bottom-0 left-1/2 z-30 w-[min(var(--composer-dock-width),calc(100%-2rem))] max-w-full -translate-x-1/2 rounded-3xl pt-2 pb-[var(--composer-shell-pad-block-end)]',
         'bg-linear-to-b from-transparent to-background/55'
       )}
       data-slot="composer-root"

@@ -170,9 +170,12 @@ Notes:
   `px-6`/`px-8` on pages. Settings bodies also cap at `PAGE_SETTINGS_MAX_W`
   so the column stays centered, with 247px of stage free on each side
   when the pane is wide enough — not a full-stage fill. Chat
-  transcript and composer use `--composer-width` (48rem; narrow panes still
-  `min(..., 100% - 2rem)`). Empty intro docks the composer at the
-  pane midline; a live thread docks it at the bottom. HUD keeps `--composer-width: 100%`.
+  transcript and occupied composer use `--composer-width` (48rem; narrow
+  panes still `min(..., 100% - 2rem)`). Empty new-chat uses
+  `--composer-empty-width` (40rem) and `--composer-empty-min-height` (100px)
+  on the prompt card only — the thread column stays 48rem. Empty intro docks
+  the composer at the pane midline; a live thread docks it at the bottom.
+  HUD keeps `--composer-width` / `--composer-dock-width: 100%`.
 - **Master/detail overlays:** `OverlaySplitLayout` + `OverlaySidebar` /
   `OverlayMain`. Cron, profiles, etc. ride this — don't rebuild a titlebar
   shell. Settings passes `header` (search pill) and `itemTone="quiet"` into
