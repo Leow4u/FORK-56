@@ -7,7 +7,8 @@ import {
   isDeliveredDocumentPath,
   isMarkdownDocumentPath,
   isRelativeDeliveredDocumentHref,
-  pathExtension
+  pathExtension,
+  resolveDeliveredDocumentHref
 } from './media'
 
 describe('pathExtension', () => {
@@ -36,6 +37,10 @@ describe('delivered document classification', () => {
     expect(isDeliveredDocumentPath('/tmp/report.md')).toBe(true)
     expect(isDeliveredDocumentPath('/tmp/brief.pdf')).toBe(true)
     expect(isDeliveredDocumentPath('/tmp/sheet.xlsx')).toBe(true)
+    expect(isDeliveredDocumentPath('/tmp/legacy.xls')).toBe(true)
+    expect(isDeliveredDocumentPath('/tmp/macro.xlsm')).toBe(true)
+    expect(isDeliveredDocumentPath('/tmp/rows.csv')).toBe(true)
+    expect(isDeliveredDocumentPath('/tmp/calc.ods')).toBe(true)
     expect(isDeliveredDocumentPath('/tmp/letter.docx')).toBe(true)
     expect(isDeliveredDocumentPath('/tmp/deck.pptx')).toBe(true)
     expect(isDeliveredDocumentPath('/tmp/archive.zip')).toBe(true)
@@ -57,6 +62,8 @@ describe('delivered document classification', () => {
 
   it('names the delivered-document kind for the card subtitle', () => {
     expect(documentKindLabel('nomes_rg_cpf.xlsx')).toBe('Spreadsheet')
+    expect(documentKindLabel('nomes.xls')).toBe('Spreadsheet')
+    expect(documentKindLabel('nomes.csv')).toBe('Spreadsheet')
     expect(documentKindLabel('/tmp/brief.pdf')).toBe('PDF')
     expect(documentKindLabel('letter.docx')).toBe('Document')
     expect(documentKindLabel('deck.pptx')).toBe('Presentation')
@@ -67,6 +74,8 @@ describe('delivered document classification', () => {
 describe('relative delivered-document hrefs', () => {
   it('accepts relative office/pdf/zip names the model actually emits', () => {
     expect(isRelativeDeliveredDocumentHref('nomes_rg_cpf.xlsx')).toBe(true)
+    expect(isRelativeDeliveredDocumentHref('nomes.xls')).toBe(true)
+    expect(isRelativeDeliveredDocumentHref('nomes.csv')).toBe(true)
     expect(isRelativeDeliveredDocumentHref('./brief.pdf')).toBe(true)
     expect(isRelativeDeliveredDocumentHref('out/letter.docx')).toBe(true)
     expect(isRelativeDeliveredDocumentHref('deck.pptx')).toBe(true)
@@ -79,6 +88,22 @@ describe('relative delivered-document hrefs', () => {
     expect(isRelativeDeliveredDocumentHref('#preview/nomes.xlsx')).toBe(false)
     expect(isRelativeDeliveredDocumentHref('/tmp/sheet.xlsx')).toBe(false)
     expect(isRelativeDeliveredDocumentHref('C:\\Users\\a\\sheet.xlsx')).toBe(false)
+    expect(isRelativeDeliveredDocumentHref('download')).toBe(false)
+  })
+})
+
+describe('resolveDeliveredDocumentHref', () => {
+  it('unwraps titled-link leftovers, sandbox wrappers, and angle brackets', () => {
+    expect(resolveDeliveredDocumentHref('nomes.xlsx')).toBe('nomes.xlsx')
+    expect(resolveDeliveredDocumentHref('<nome rg cpf.xlsx>')).toBe('nome rg cpf.xlsx')
+    expect(resolveDeliveredDocumentHref('sandbox:/tmp/nomes.xlsx')).toBe('/tmp/nomes.xlsx')
+    expect(resolveDeliveredDocumentHref('sandbox:nomes.xls')).toBe('nomes.xls')
+  })
+
+  it('leaves extensionless download hrefs and http alone so harden can keep blocking them', () => {
+    expect(resolveDeliveredDocumentHref('download')).toBeNull()
+    expect(resolveDeliveredDocumentHref('https://example.com/a.xlsx')).toBeNull()
+    expect(resolveDeliveredDocumentHref('docs/guide.md')).toBeNull()
   })
 })
 

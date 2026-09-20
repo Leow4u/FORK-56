@@ -57,9 +57,13 @@ const MARKDOWN_EXTENSIONS = new Set(['md', 'markdown', 'mdown', 'mkd'])
 // card — no new previewKind and no new viewer.
 const DELIVERED_DOCUMENT_EXTENSIONS = new Set([
   ...MARKDOWN_EXTENSIONS,
+  'csv',
   'docx',
+  'ods',
   'pdf',
   'pptx',
+  'xls',
+  'xlsm',
   'xlsx',
   'zip'
 ])
@@ -86,16 +90,30 @@ export function documentExtensionLabel(path: string): string {
   return ext.toUpperCase()
 }
 
-const BINARY_DELIVERED_DOCUMENT_EXTENSIONS = new Set(['docx', 'pdf', 'pptx', 'xlsx', 'zip'])
+const BINARY_DELIVERED_DOCUMENT_EXTENSIONS = new Set([
+  'csv',
+  'docx',
+  'ods',
+  'pdf',
+  'pptx',
+  'xls',
+  'xlsm',
+  'xlsx',
+  'zip'
+])
 
 const DOCUMENT_KIND_LABELS: Record<string, string> = {
+  csv: 'Spreadsheet',
   docx: 'Document',
   markdown: 'Markdown',
   md: 'Markdown',
   mdown: 'Markdown',
   mkd: 'Markdown',
+  ods: 'Spreadsheet',
   pdf: 'PDF',
   pptx: 'Presentation',
+  xls: 'Spreadsheet',
+  xlsm: 'Spreadsheet',
   xlsx: 'Spreadsheet',
   zip: 'Archive'
 }
@@ -106,23 +124,43 @@ export function documentKindLabel(path: string): string {
   return (ext && DOCUMENT_KIND_LABELS[ext]) || 'File'
 }
 
-// Relative Office/PDF/zip hrefs (`[Baixar](nomes.xlsx)`) are not
-// `isFileMediaPath` — rehype-harden appends " [blocked]" unless we rewrite
-// them to `#preview/…` first. Leave relative `.md` alone (`docs/guide.md`).
-export function isRelativeDeliveredDocumentHref(href: string): boolean {
-  const path = href.replace(/^<|>$/g, '').trim()
+const WRAPPED_DELIVERY_PROTOCOL_RE = /^(?:sandbox):/i
+
+export function unwrapDeliveredDocumentHref(href: string): string {
+  return href.replace(/^<|>$/g, '').trim().replace(WRAPPED_DELIVERY_PROTOCOL_RE, '')
+}
+
+// Filesystem and relative Office/PDF/zip hrefs are not safe `<a>` targets —
+// rehype-harden appends " [blocked]". Resolve the real path so preprocess can
+// rewrite to `#preview/…`. Leave relative `.md` and http alone.
+export function resolveDeliveredDocumentHref(href: string): string | null {
+  const path = unwrapDeliveredDocumentHref(href)
 
   if (!path || path.startsWith('#') || path.startsWith('?')) {
-    return false
+    return null
   }
 
-  if (/^[a-z][a-z0-9+.-]*:/i.test(path) || isFileMediaPath(path)) {
-    return false
+  if (/^https?:/i.test(path) || /^mailto:/i.test(path)) {
+    return null
+  }
+
+  if (isFileMediaPath(path)) {
+    return path
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path)) {
+    return null
   }
 
   const ext = pathExtension(path)
 
-  return ext ? BINARY_DELIVERED_DOCUMENT_EXTENSIONS.has(ext) : false
+  return ext && BINARY_DELIVERED_DOCUMENT_EXTENSIONS.has(ext) ? path : null
+}
+
+export function isRelativeDeliveredDocumentHref(href: string): boolean {
+  const resolved = resolveDeliveredDocumentHref(href)
+
+  return Boolean(resolved && !isFileMediaPath(resolved))
 }
 
 export function formatByteSize(bytes: number): string {
