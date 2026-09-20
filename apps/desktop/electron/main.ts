@@ -67,6 +67,7 @@ import {
   parseBundledRuntimeManifest,
   shouldDeployBundledRuntime
 } from './bundled-runtime'
+import { assertExtractedWindowsChrome, extractChromeZip, WINDOWS_CHROME_EXE } from './chrome-zip-extract'
 import { bindComposioLogoNetFetch, COMPOSIO_LOGO_PROTOCOL, handleComposioLogoProtocol } from './composio-logo'
 import { applyConnectionChange } from './connection-apply'
 import {
@@ -212,7 +213,6 @@ import {
 import { runNativeLogin } from './native-oauth-login'
 import { loadNativeTokenSet, type NativeTokenStoreIo, persistNativeTokenSet } from './native-token-store'
 import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
-import { assertExtractedWindowsChrome, extractChromeZip, WINDOWS_CHROME_EXE } from './chrome-zip-extract'
 import {
   checkPackagedInstallerUpdate,
   createGithubFetchJson,

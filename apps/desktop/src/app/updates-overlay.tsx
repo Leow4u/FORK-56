@@ -247,6 +247,7 @@ function IdleView({
     prefetchPercent: status.prefetchPercent,
     prefetchReady: status.prefetchReady
   })
+
   const rawPrefetchPercent = status.prefetchPercent
   const preparing =
     typeof rawPrefetchPercent === 'number' && !status.prefetchReady && !status.prefetchError
