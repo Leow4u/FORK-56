@@ -46,7 +46,7 @@ describe('documents delivered via MEDIA', () => {
     expect(screen.getByText('report.md')).toBeTruthy()
   })
 
-  it.each(['brief.pdf', 'sheet.xlsx', 'letter.docx', 'deck.pptx', 'archive.zip'])(
+  it.each(['brief.pdf', 'sheet.xlsx', 'legacy.xls', 'rows.csv', 'letter.docx', 'deck.pptx', 'archive.zip'])(
     'renders a MEDIA %s as a preview attachment, not a download link',
     async name => {
       const href = mediaMarkdownHref(`/home/user/out/${name}`)

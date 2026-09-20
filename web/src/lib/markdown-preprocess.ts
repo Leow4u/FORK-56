@@ -3,7 +3,7 @@ import { normalizeMathDelimiters } from '@assistant-ui/react-streamdown'
 
 import { isLikelyProseFence, sanitizeLanguageTag } from '@/lib/markdown-code'
 import { clampHtmlNestingDepth } from '@/lib/markdown-html-depth'
-import { isFileMediaPath, isRelativeDeliveredDocumentHref, mediaKind, mediaMarkdownHref } from '@/lib/media'
+import { mediaKind, mediaMarkdownHref, resolveDeliveredDocumentHref } from '@/lib/media'
 import { previewMarkdownHref } from '@/lib/preview-targets'
 import { stripPreviewTargets } from '@/lib/preview-targets'
 import { linkifySessionRefs } from '@/lib/session-refs'
@@ -54,7 +54,9 @@ const CITATION_MARKER_RE = /(?<=[\p{L}\p{N})\].,!?:;"'”’])\[(?:\d+(?:\s*,\s*
 // (`[Baixar a planilha](nomes.xlsx)`) are rewritten below; https, fragments,
 // and relative `.md` (`docs/guide.md`) stay on Streamdown's existing path.
 // Negative lookbehind keeps image syntax (`![alt](path)`) on its pipeline.
-const MARKDOWN_HREF_LINK_RE = /(?<!!)\[(?<label>[^\]\n]+)\]\((?<target><?[^)\s]+>?)\)/gi
+const MARKDOWN_HREF_LINK_RE =
+  /(?<!!)\[(?<label>[^\]\n]+)\]\((?<target><[^>\n]+>|[^)\s]+)(?:\s+(?:"[^"]*"|'[^']*'))?\)/gi
+const HTML_DOC_LINK_RE = /<a\s+[^>]*\bhref\s*=\s*["'](?<target>[^"']+)["'][^>]*>(?<label>[\s\S]*?)<\/a>/gi
 
 /**
  * Returns true when `body` contains a line that's exactly `marker` (modulo
@@ -182,18 +184,30 @@ function autoLinkRawUrls(text: string): string {
 // which resolve the path at VIEW time against the session's backend — local
 // reads the file directly, remote fetches it over the authenticated /api/fs
 // bridge — so the same transcript works from every machine that opens it.
+function rewriteDeliveredHref(label: string, rawTarget: string): string | null {
+  const target = resolveDeliveredDocumentHref(rawTarget)
+
+  if (!target) {
+    return null
+  }
+
+  const href = mediaKind(target) === 'file' ? previewMarkdownHref(target) : mediaMarkdownHref(target)
+
+  return `[${label}](${href})`
+}
+
 function routeFileLinksToPreview(text: string): string {
-  return text.replace(MARKDOWN_HREF_LINK_RE, (match: string, ...args: unknown[]) => {
+  const fromMarkdown = text.replace(MARKDOWN_HREF_LINK_RE, (match: string, ...args: unknown[]) => {
     const groups = args.at(-1) as { label: string; target: string }
-    const target = groups.target.replace(/^<|>$/g, '')
 
-    if (!isFileMediaPath(target) && !isRelativeDeliveredDocumentHref(target)) {
-      return match
-    }
+    return rewriteDeliveredHref(groups.label, groups.target) ?? match
+  })
 
-    const href = mediaKind(target) === 'file' ? previewMarkdownHref(target) : mediaMarkdownHref(target)
+  return fromMarkdown.replace(HTML_DOC_LINK_RE, (match: string, ...args: unknown[]) => {
+    const groups = args.at(-1) as { label: string; target: string }
+    const label = groups.label.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() || groups.label
 
-    return `[${groups.label}](${href})`
+    return rewriteDeliveredHref(label, groups.target) ?? match
   })
 }
 

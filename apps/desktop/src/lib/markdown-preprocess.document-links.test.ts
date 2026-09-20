@@ -25,4 +25,32 @@ describe('preprocessMarkdown document links', () => {
     expect(out).toContain('(https://example.com/a.xlsx)')
     expect(out).not.toContain('#preview/')
   })
+
+  it('rewrites the titled Excel download the live app still blocks', () => {
+    const out = preprocessMarkdown('[Baixar o arquivo Excel](nomes.xlsx "planilha")')
+
+    expect(out).toContain(previewMarkdownHref('nomes.xlsx'))
+    expect(out).not.toContain('(nomes.xlsx "planilha")')
+  })
+
+  it('rewrites .xls, .csv, HTML <a>, sandbox, and angle-bracket names', () => {
+    expect(preprocessMarkdown('[Baixar o arquivo Excel](nomes.xls)')).toContain(previewMarkdownHref('nomes.xls'))
+    expect(preprocessMarkdown('[Baixar o arquivo Excel](nomes.csv)')).toContain(previewMarkdownHref('nomes.csv'))
+    expect(preprocessMarkdown('<a href="nomes.xlsx">Baixar o arquivo Excel</a>')).toContain(
+      previewMarkdownHref('nomes.xlsx')
+    )
+    expect(preprocessMarkdown('[Baixar o arquivo Excel](sandbox:/tmp/nomes.xlsx)')).toContain(
+      previewMarkdownHref('/tmp/nomes.xlsx')
+    )
+    expect(preprocessMarkdown('[Baixar o arquivo Excel](<nome rg cpf.xlsx>)')).toContain(
+      previewMarkdownHref('nome rg cpf.xlsx')
+    )
+  })
+
+  it('does not invent a card for an extensionless download href', () => {
+    const out = preprocessMarkdown('[Baixar o arquivo Excel](download)')
+
+    expect(out).toContain('(download)')
+    expect(out).not.toContain('#preview/')
+  })
 })

@@ -70,4 +70,28 @@ describe('MarkdownLink filesystem hrefs', () => {
     expect(screen.queryByText(/blocked/i)).toBeNull()
     expect(document.querySelector('a[href="nomes_rg_cpf.xlsx"]')).toBeNull()
   })
+
+  it.each([
+    '[Baixar o arquivo Excel](nomes.xlsx "planilha")',
+    '[Baixar o arquivo Excel](nomes.xls)',
+    '[Baixar o arquivo Excel](nomes.csv)',
+    '<a href="nomes.xlsx">Baixar o arquivo Excel</a>',
+    '[Baixar o arquivo Excel](sandbox:/tmp/nomes.xlsx)',
+    '[Baixar o arquivo Excel](<nome rg cpf.xlsx>)'
+  ])('turns the live Excel download markdown into a card instead of [blocked]: %s', async text => {
+    render(<MarkdownTextContent isRunning={false} text={text} />)
+
+    expect(await screen.findByRole('button', { name: 'Open preview' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy()
+    expect(screen.getByText(/Spreadsheet · /)).toBeTruthy()
+    expect(screen.queryByText(/blocked/i)).toBeNull()
+    expect(document.body.textContent).not.toContain('Baixar o arquivo Excel [blocked]')
+  })
+
+  it('does not mint a document card for an extensionless download href', () => {
+    render(<MarkdownTextContent isRunning={false} text="[Baixar o arquivo Excel](download)" />)
+
+    expect(screen.queryByRole('button', { name: 'Open preview' })).toBeNull()
+    expect(screen.queryByText('Spreadsheet · XLSX')).toBeNull()
+  })
 })
