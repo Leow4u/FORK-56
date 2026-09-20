@@ -11,7 +11,7 @@ const copy = {
   availableBodyInstaller:
     'A new Work4You installer is ready. It replaces the app in about a minute — no long rebuild from source.',
   availableBodyChrome:
-    'A new Work4You app update is ready. It replaces the desktop shell only — your existing runtime stays in place.'
+    'A new Work4You app update is ready. It unpacks in this window, then restarts briefly — your existing runtime stays in place.'
 }
 
 describe('resolveUpdateCopy', () => {

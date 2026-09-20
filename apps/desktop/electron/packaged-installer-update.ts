@@ -343,20 +343,28 @@ export function packagedWindowsHandoffExtraArgs(opts: {
 
 export function packagedWindowsChromeHandoffExtraArgs(opts: {
   desktopPid: number
-  chromeZipPath: string
   installDir: string
   relaunchExe: string
+  /** Already-unpacked chrome tree. Preferred — unpack happens in-app. */
+  extractedDir?: string
+  /** Fallback zip if extract-before-quit did not run. */
+  chromeZipPath?: string
 }): string[] {
-  return [
+  const args = [
     '-DesktopPid',
     String(opts.desktopPid),
-    '-ChromeZipPath',
-    opts.chromeZipPath,
     '-InstallDir',
     opts.installDir,
     '-RelaunchExe',
     opts.relaunchExe
   ]
+  if (opts.extractedDir) {
+    args.push('-ExtractedDir', opts.extractedDir)
+  }
+  if (opts.chromeZipPath) {
+    args.push('-ChromeZipPath', opts.chromeZipPath)
+  }
+  return args
 }
 
 /**
@@ -467,16 +475,18 @@ export function writePackagedWindowsHandoffScript(
 
 /**
  * Detached Windows orchestrator for the slim Electron zip: wait for the
- * desktop PID, overlay the unpacked chrome onto the install dir, then
- * relaunch. Does not run NSIS or deploy-desktop-runtime.ps1. Does not wipe
- * leftover ``resources/runtime``.
+ * desktop PID, overlay an already-unpacked chrome tree onto the install
+ * dir, then relaunch. Unpack happens in-app (zlib) so this script does not
+ * run Expand-Archive. Does not run NSIS or deploy-desktop-runtime.ps1.
+ * Does not wipe leftover ``resources/runtime`` (robocopy /E, not /MIR).
  */
 export const PACKAGED_WINDOWS_CHROME_HANDOFF_PS1 = [
   'param(',
   '  [Parameter(Mandatory = $true)][int]$DesktopPid,',
-  '  [Parameter(Mandatory = $true)][string]$ChromeZipPath,',
   '  [Parameter(Mandatory = $true)][string]$InstallDir,',
-  '  [Parameter(Mandatory = $true)][string]$RelaunchExe',
+  '  [Parameter(Mandatory = $true)][string]$RelaunchExe,',
+  "  [string]$ExtractedDir = '',",
+  "  [string]$ChromeZipPath = ''",
   ')',
   "$ErrorActionPreference = 'Stop'",
   'function Hide-HandoffConsole {',
@@ -522,29 +532,43 @@ export const PACKAGED_WINDOWS_CHROME_HANDOFF_PS1 = [
   '  }',
   '}',
   'function Copy-ChromeOverlay([string]$Src, [string]$Dest) {',
+  '  $robocopy = Join-Path $env:SystemRoot "System32\\robocopy.exe"',
+  '  if (Test-Path -LiteralPath $robocopy) {',
+  '    & $robocopy $Src $Dest /E /IS /IT /R:2 /W:1 /NFL /NDL /NJH /NJS /NC /NS /NP | Out-Null',
+  '    if ($LASTEXITCODE -ge 8) { throw "robocopy overlay failed: $LASTEXITCODE" }',
+  '    return',
+  '  }',
   '  New-Item -ItemType Directory -Force -Path $Dest | Out-Null',
   '  Get-ChildItem -LiteralPath $Src -Force | ForEach-Object {',
   '    $target = Join-Path $Dest $_.Name',
-  '    if ($_.PSIsContainer) {',
-  '      Copy-ChromeOverlay $_.FullName $target',
-  '    } else {',
-  '      Copy-Item -LiteralPath $_.FullName -Destination $target -Force',
-  '    }',
+    '    if ($_.PSIsContainer) { Copy-ChromeOverlay $_.FullName $target }',
+  '    else { Copy-Item -LiteralPath $_.FullName -Destination $target -Force }',
   '  }',
+  '}',
+  'function Expand-ChromeZipFast([string]$Zip, [string]$Dest) {',
+  '  Add-Type -AssemblyName System.IO.Compression.FileSystem',
+  '  New-Item -ItemType Directory -Force -Path $Dest | Out-Null',
+  '  [System.IO.Compression.ZipFile]::ExtractToDirectory($Zip, $Dest)',
   '}',
   'if ($DesktopPid -gt 0) {',
   '  try { Wait-Process -Id $DesktopPid -Timeout 120 -ErrorAction SilentlyContinue } catch {}',
   '}',
-  'Start-Sleep -Seconds 2',
-  'if (-not (Test-Path -LiteralPath $ChromeZipPath)) { throw "chrome zip missing: $ChromeZipPath" }',
+  'Start-Sleep -Seconds 1',
   'if (-not $InstallDir -or -not (Test-Path -LiteralPath $InstallDir)) { throw "install dir missing: $InstallDir" }',
-  '$extract = Join-Path $env:TEMP ("work4you-chrome-" + [guid]::NewGuid().ToString("n"))',
-  'New-Item -ItemType Directory -Force -Path $extract | Out-Null',
+  '$source = $ExtractedDir',
+  '$scratch = $null',
+  'if (-not $source -or -not (Test-Path -LiteralPath $source)) {',
+  '  if (-not $ChromeZipPath -or -not (Test-Path -LiteralPath $ChromeZipPath)) {',
+  '    throw "chrome extract missing: need -ExtractedDir or -ChromeZipPath"',
+  '  }',
+  '  $scratch = Join-Path $env:TEMP ("work4you-chrome-" + [guid]::NewGuid().ToString("n"))',
+  '  Expand-ChromeZipFast $ChromeZipPath $scratch',
+  '  $source = $scratch',
+  '}',
   'try {',
-  '  Expand-Archive -LiteralPath $ChromeZipPath -DestinationPath $extract -Force',
-  '  Copy-ChromeOverlay $extract $InstallDir',
+  '  Copy-ChromeOverlay $source $InstallDir',
   '} finally {',
-  '  Remove-Item -LiteralPath $extract -Recurse -Force -ErrorAction SilentlyContinue',
+  '  if ($scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue }',
   '}',
   '$exeDeadline = (Get-Date).AddSeconds(90)',
   'while (-not (Test-Path -LiteralPath $RelaunchExe)) {',
@@ -1112,12 +1136,15 @@ export function packagedInstallerApplySpawn(opts: {
   relaunchExe: string
   handoffScriptPath: string
   kind?: PackagedApplyKind
+  /** Unpacked chrome tree (Windows chrome path). Handoff overlays this. */
+  extractedDir?: string | null
 }): { args: string[]; command: string } {
   if (opts.platform === 'win32') {
     const extra =
       opts.kind === 'chrome'
         ? packagedWindowsChromeHandoffExtraArgs({
             desktopPid: opts.desktopPid,
+            extractedDir: opts.extractedDir || undefined,
             chromeZipPath: opts.installerPath,
             installDir: typeof opts.installDir === 'string' ? opts.installDir : '',
             relaunchExe: opts.relaunchExe

@@ -3443,7 +3443,7 @@ export const zh: Translations = {
     availableBodyBackend: '已连接的 Work4You 后端有新版本可安装。',
     availableBodyNoChangelog: '已有新版本可用。此安装方式无法显示更新日志。',
     availableBodyInstaller: '新的 Work4You 安装包已就绪。大约一分钟即可替换应用，无需从源码长时间重新构建。',
-    availableBodyChrome: '新的 Work4You 应用更新已就绪。只会替换桌面外壳，现有运行时保持不变。',
+    availableBodyChrome: '新的 Work4You 应用更新已就绪。会先在此窗口解包，然后短暂重启——现有运行时保持不变。',
     updateNow: '立即更新',
     maybeLater: '稍后再说',
     moreChanges: count => `另有 ${count} 项更改。`,
@@ -3459,7 +3459,7 @@ export const zh: Translations = {
     applyingBody:
       'Work4You 更新器会在自己的窗口中接管，并在完成后自动重新打开 Work4You。更新期间请不要自行重新打开 Work4You。',
     applyingBodyInstaller: '正在下载已签名的安装包。Work4You 将关闭以便安装包替换应用。安装完成前请不要自行重新打开。',
-    applyingBodyChrome: '正在下载桌面应用更新。Work4You 将关闭以便新外壳替换旧外壳。请不要自行重新打开——更新完成后会自动回来。',
+    applyingBodyChrome: '正在解包桌面外壳。此窗口会保持打开直到完成，然后 Work4You 会短暂重启。请不要自行重新打开。',
     applyingBodyBackend: '远程后端正在应用更新并将重启。恢复后 Work4You 会自动重新连接。',
     applyingClose: '此窗口会在更新期间关闭，随后 Work4You 会自动重新打开。',
     errorTitle: '更新未完成',

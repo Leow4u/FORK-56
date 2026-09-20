@@ -399,7 +399,9 @@ function ApplyingView({ apply }: { apply: UpdateApplyState }) {
       <div className="flex flex-col items-center gap-4 text-center">
         <BrandMark className="size-12" />
         <DialogTitle className="text-center text-lg font-medium tracking-tight">{label}</DialogTitle>
-        <DialogDescription className="sr-only">{label}</DialogDescription>
+        <DialogDescription className="max-w-prose text-center text-sm leading-5 text-muted-foreground">
+          {apply.message || label}
+        </DialogDescription>
       </div>
 
       <Progress

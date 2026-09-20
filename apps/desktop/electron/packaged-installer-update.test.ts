@@ -566,6 +566,7 @@ test('checkPackagedInstallerUpdate reports chrome channel when the zip applies',
 test('packagedInstallerApplySpawn uses chrome handoff args when kind is chrome', () => {
   const scriptPath = 'C:\\Temp\\work4you-packaged-chrome-handoff.ps1'
   const zipPath = 'C:\\Temp\\Work4You-win-x64.zip'
+  const extractedDir = 'C:\\Temp\\chrome-extracted'
   const installDir = 'C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You'
   const relaunchExe = 'C:\\Users\\Ada\\AppData\\Local\\Programs\\Work4You\\Work4You.exe'
 
@@ -576,21 +577,35 @@ test('packagedInstallerApplySpawn uses chrome handoff args when kind is chrome',
     desktopPid: 4242,
     relaunchExe,
     handoffScriptPath: scriptPath,
-    kind: 'chrome'
+    kind: 'chrome',
+    extractedDir
   })
 
   assert.equal(spawned.command, 'cmd.exe')
   assert.deepEqual(
-    spawned.args.slice(-8),
+    spawned.args.slice(-10),
     packagedWindowsChromeHandoffExtraArgs({
       desktopPid: 4242,
+      extractedDir,
       chromeZipPath: zipPath,
       installDir,
       relaunchExe
     })
   )
+  assert.ok(spawned.args.includes('-ExtractedDir'))
   assert.ok(!spawned.args.some(arg => arg.startsWith('/D=')))
   assert.ok(!spawned.args.includes('-InstallerPath'))
+})
+
+test('chrome handoff extra args omit ExtractedDir when the tree was not unpacked', () => {
+  const args = packagedWindowsChromeHandoffExtraArgs({
+    desktopPid: 7,
+    chromeZipPath: 'C:\\Temp\\Work4You-win-x64.zip',
+    installDir: 'C:\\Prog\\Work4You',
+    relaunchExe: 'C:\\Prog\\Work4You\\Work4You.exe'
+  })
+  assert.ok(!args.includes('-ExtractedDir'))
+  assert.ok(args.includes('-ChromeZipPath'))
 })
 
 test('writePackagedWindowsChromeHandoffScript writes the overlay orchestrator', () => {
@@ -605,12 +620,15 @@ test('writePackagedWindowsChromeHandoffScript writes the overlay orchestrator', 
   }
 })
 
-test('Windows chrome handoff overlays the zip and does not run NSIS or wipe runtime', () => {
-  assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /Expand-Archive/)
+test('Windows chrome handoff overlays an extracted tree and does not run NSIS or wipe runtime', () => {
   assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /Copy-ChromeOverlay/)
+  assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /robocopy/)
+  assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /ZipFile/)
   assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /Wait-Process/)
   assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /Start-DesktopDetached/)
   assert.match(PACKAGED_WINDOWS_CHROME_HANDOFF_PS1, /Hide-HandoffConsole/)
+  assert.ok(!PACKAGED_WINDOWS_CHROME_HANDOFF_PS1.includes('Expand-Archive'))
+  assert.ok(!PACKAGED_WINDOWS_CHROME_HANDOFF_PS1.includes('/MIR'))
   assert.ok(!PACKAGED_WINDOWS_CHROME_HANDOFF_PS1.includes('/S'))
   assert.ok(!PACKAGED_WINDOWS_CHROME_HANDOFF_PS1.includes('--force-run'))
   assert.ok(!PACKAGED_WINDOWS_CHROME_HANDOFF_PS1.includes('deploy-desktop-runtime'))

@@ -212,6 +212,7 @@ import {
 import { runNativeLogin } from './native-oauth-login'
 import { loadNativeTokenSet, type NativeTokenStoreIo, persistNativeTokenSet } from './native-token-store'
 import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
+import { assertExtractedWindowsChrome, extractChromeZip } from './chrome-zip-extract'
 import {
   checkPackagedInstallerUpdate,
   createGithubFetchJson,
@@ -3551,11 +3552,45 @@ async function applyPackagedInstallerUpdates() {
     return { ok: false, error: 'download-failed', message }
   }
 
+  let extractedDir: string | null = null
+
+  if (plan.kind === 'chrome' && IS_WINDOWS) {
+    extractedDir = path.join(destDir, 'chrome-extracted')
+    emitUpdateProgress({
+      stage: 'update',
+      message: 'Unpacking the desktop shell…',
+      percent: 0
+    })
+
+    try {
+      await extractChromeZip(dest, extractedDir, {
+        onProgress: ({ done, total }) => {
+          emitUpdateProgress({
+            stage: 'update',
+            message: 'Unpacking the desktop shell…',
+            percent: total > 0 ? Math.round((done / total) * 100) : null
+          })
+        }
+      })
+      assertExtractedWindowsChrome(extractedDir)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      rememberLog(`[updates] chrome unpack failed: ${message}`)
+      emitUpdateProgress({
+        stage: 'error',
+        message: `Could not unpack the app update: ${message}`,
+        percent: null
+      })
+
+      return { ok: false, error: 'unpack-failed', message }
+    }
+  }
+
   emitUpdateProgress({
     stage: 'restart',
     message: IS_WINDOWS
       ? plan.kind === 'chrome'
-        ? 'Work4You will close so the new desktop shell can replace the old one. Don’t reopen it yourself — it comes back when the update finishes.'
+        ? 'Restarting Work4You to swap the desktop shell. Don’t reopen it yourself — it comes back in a few seconds.'
         : 'The installer will replace Work4You. This window will close; don’t reopen it yourself — it comes back when setup finishes.'
       : 'Opening the disk image. Drag Work4You to Applications, then reopen the app.',
     percent: 100
@@ -3570,6 +3605,7 @@ async function applyPackagedInstallerUpdates() {
     desktopPid: process.pid,
     relaunchExe: process.execPath,
     kind: plan.kind,
+    extractedDir,
     handoffScriptPath: IS_WINDOWS
       ? plan.kind === 'chrome'
         ? writePackagedWindowsChromeHandoffScript(destDir)
