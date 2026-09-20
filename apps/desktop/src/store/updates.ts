@@ -264,11 +264,67 @@ export function openUpdatesWindow(): void {
  * Used by the "Update now" affordance on the About panel, which would otherwise
  * only be able to open the changelog overlay.
  */
+export function isPackagedUpdateChannel(channel?: DesktopUpdateStatus['channel']): boolean {
+  return channel === 'chrome' || channel === 'installer'
+}
+
+/** Stage B only. Packaged Stage A (download ± unpack) must not quit or run NSIS. */
+export function shouldApplyOnActiveUpdate(status: DesktopUpdateStatus | null): boolean {
+  if (!status) {
+    return false
+  }
+
+  const available = (status.behind ?? 0) > 0 || Boolean(status.updateAvailable)
+
+  if (!available) {
+    return false
+  }
+
+  if (!isPackagedUpdateChannel(status.channel)) {
+    return true
+  }
+
+  return Boolean(status.prefetchReady || status.prefetchError)
+}
+
+export function mergeClientUpdateStatus(
+  previous: DesktopUpdateStatus | null,
+  next: DesktopUpdateStatus
+): DesktopUpdateStatus {
+  if (!previous) {
+    return next
+  }
+
+  const sameRelease =
+    (!next.releaseTag || !previous.releaseTag || next.releaseTag === previous.releaseTag) &&
+    (!next.channel || !previous.channel || next.channel === previous.channel)
+
+  if (!sameRelease) {
+    return next
+  }
+
+  return {
+    ...next,
+    prefetchPercent: next.prefetchPercent ?? previous.prefetchPercent,
+    prefetchReady: next.prefetchReady ?? previous.prefetchReady,
+    prefetchError: next.prefetchReady ? (next.prefetchError ?? null) : (next.prefetchError ?? previous.prefetchError)
+  }
+}
+
 export function startActiveUpdate(): void {
   const target: UpdateTarget = isRemoteMode() ? 'backend' : 'client'
   $updateOverlayTarget.set(target)
   $updateOverlayOpen.set(true)
-  void (target === 'backend' ? applyBackendUpdate() : applyUpdates())
+
+  if (target === 'backend') {
+    void applyBackendUpdate()
+
+    return
+  }
+
+  if (shouldApplyOnActiveUpdate($updateStatus.get())) {
+    void applyUpdates()
+  }
 }
 
 /**
@@ -376,7 +432,7 @@ export async function checkUpdates(): Promise<DesktopUpdateStatus | null> {
   $updateChecking.set(true)
 
   try {
-    const status = await bridge.check()
+    const status = mergeClientUpdateStatus($updateStatus.get(), await bridge.check())
     $updateStatus.set(status)
     maybeNotifyUpdateAvailable(status)
     void refreshDesktopVersion()
@@ -709,6 +765,23 @@ export function applyBackendUpdate(): Promise<DesktopUpdateApplyResult> {
 }
 
 function ingestProgress(payload: DesktopUpdateProgress): void {
+  if (payload.stage === 'prefetch') {
+    const current = $updateStatus.get()
+    $updateStatus.set({
+      supported: current?.supported ?? true,
+      updateAvailable: current?.updateAvailable ?? true,
+      fetchedAt: current?.fetchedAt ?? payload.at,
+      ...current,
+      channel: payload.channel ?? current?.channel,
+      releaseTag: payload.releaseTag ?? current?.releaseTag,
+      prefetchPercent: payload.percent,
+      prefetchReady: Boolean(payload.prefetchReady),
+      prefetchError: payload.error
+    })
+
+    return
+  }
+
   const current = $updateApply.get()
   const log = [...current.log, { stage: payload.stage, message: payload.message, at: payload.at }].slice(-50)
 

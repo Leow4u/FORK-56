@@ -556,6 +556,11 @@ export interface DesktopUpdateStatus {
   targetSha?: string
   /** Packaged installer channel: GitHub `desktop-v*` tag being offered. */
   releaseTag?: string
+  /** Stage A: download (and chrome unpack) percent. Does not quit the app. */
+  prefetchPercent?: number | null
+  /** Stage A finished. Chrome click restarts; installer click still runs Setup. */
+  prefetchReady?: boolean
+  prefetchError?: string | null
   commits?: DesktopUpdateCommit[]
   dirty?: boolean
   fetchedAt?: number
@@ -617,6 +622,7 @@ export interface DesktopUpdateApplyResult {
 export type DesktopUpdateStage =
   | 'idle'
   | 'prepare'
+  | 'prefetch'
   | 'fetch'
   | 'pull'
   | 'pydeps'
@@ -637,6 +643,10 @@ export interface DesktopUpdateProgress {
   percent: number | null
   error: string | null
   at: number
+  /** Prefetch-only: Stage A finished. Apply progress must not set this. */
+  prefetchReady?: boolean
+  channel?: 'git' | 'installer' | 'chrome'
+  releaseTag?: string
 }
 
 export interface DesktopPluginProfileRoute {

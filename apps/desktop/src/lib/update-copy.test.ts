@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveUpdateCopy } from './update-copy'
+import { resolveUpdateCopy, resolveUpdateFinalizeAction } from './update-copy'
 
 const copy = {
   availableTitle: 'New update available',
@@ -9,9 +9,9 @@ const copy = {
   availableBodyBackend: 'A newer version of the connected Work4You backend is ready to install.',
   availableBodyNoChangelog: 'A newer version is ready. Release notes aren’t available for this install type.',
   availableBodyInstaller:
-    'A new Work4You installer is ready. It replaces the app in about a minute — no long rebuild from source.',
+    'A new Work4You installer is ready. It downloads in the background — click Update now when you are ready. Setup still needs that click; it replaces the app in about a minute.',
   availableBodyChrome:
-    'A new Work4You app update is ready. It unpacks in this window, then restarts briefly — your existing runtime stays in place.'
+    'A new Work4You app update is ready. It downloads and unpacks in the background — click Restart to finish when the chip is ready. Your existing runtime stays in place.'
 }
 
 describe('resolveUpdateCopy', () => {
@@ -53,5 +53,44 @@ describe('resolveUpdateCopy', () => {
     expect(r.body).toBe(copy.availableBodyChrome)
     expect(r.body).not.toContain('installer')
     expect(r.body).not.toContain('minute')
+  })
+})
+
+describe('resolveUpdateFinalizeAction', () => {
+  const copy = { restartToFinish: 'Restart to finish', updateNow: 'Update now' }
+
+  it('keeps git Update now enabled', () => {
+    expect(resolveUpdateFinalizeAction({ copy })).toEqual({ disabled: false, label: 'Update now' })
+  })
+
+  it('disables the packaged button and shows percent until Stage A is ready', () => {
+    expect(
+      resolveUpdateFinalizeAction({
+        channel: 'chrome',
+        copy,
+        prefetchPercent: 42,
+        prefetchReady: false
+      })
+    ).toEqual({ disabled: true, label: '42%' })
+  })
+
+  it('chrome ready becomes Restart to finish; installer stays Update now', () => {
+    expect(
+      resolveUpdateFinalizeAction({ channel: 'chrome', copy, prefetchPercent: 100, prefetchReady: true })
+    ).toEqual({ disabled: false, label: 'Restart to finish' })
+    expect(
+      resolveUpdateFinalizeAction({ channel: 'installer', copy, prefetchPercent: 100, prefetchReady: true })
+    ).toEqual({ disabled: false, label: 'Update now' })
+  })
+
+  it('re-enables Update now after a prefetch error so apply can retry', () => {
+    expect(
+      resolveUpdateFinalizeAction({
+        channel: 'chrome',
+        copy,
+        prefetchError: 'download-failed',
+        prefetchReady: false
+      })
+    ).toEqual({ disabled: false, label: 'Update now' })
   })
 })

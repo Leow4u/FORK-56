@@ -2941,6 +2941,7 @@ export const ja = defineLocale({
     stages: {
       idle: '準備中…',
       prepare: '準備中…',
+      prefetch: '更新を準備しています…',
       fetch: 'ダウンロード中…',
       pull: 'もうすぐ完了…',
       pydeps: '仕上げ中…',
@@ -2968,10 +2969,11 @@ export const ja = defineLocale({
     availableBodyNoChangelog:
       '新しいバージョンを利用できます。このインストール形式ではリリースノートは表示できません。',
     availableBodyInstaller:
-      '新しい Work4You インストーラーの準備ができました。ソースからの長い再ビルドなしで、約1分でアプリを置き換えます。',
+      '新しい Work4You インストーラーの準備ができました。バックグラウンドでダウンロードします。準備ができたら「今すぐ更新」をクリックしてください。セットアップにはそのクリックが必要で、約1分でアプリを置き換えます。',
     availableBodyChrome:
-      '新しい Work4You アプリ更新の準備ができました。このウィンドウで展開し、短く再起動します。既存のランタイムはそのままです。',
+      '新しい Work4You アプリ更新の準備ができました。バックグラウンドでダウンロードして展開します。チップの準備ができたら「再起動して完了」をクリックしてください。既存のランタイムはそのままです。',
     updateNow: '今すぐ更新',
+    restartToFinish: '再起動して完了',
     maybeLater: '後で',
     moreChanges: count => `さらに ${count} 件の変更が含まれています。`,
     manualTitle: 'ターミナルから更新',
@@ -3265,6 +3267,7 @@ export const ja = defineLocale({
     statusbar: {
       unknown: '不明',
       restart: '再起動',
+      restartToFinish: '再起動して完了',
       update: '更新',
       updateInProgress: '更新中',
       commitsBehind: (count, branch) => `${branch} より ${count} コミット遅れています`,

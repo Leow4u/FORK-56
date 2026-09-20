@@ -612,7 +612,10 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     return resolveVersionStatus({
       applying: apply.applying || apply.stage === 'restart',
       behind: status?.behind ?? 0,
+      channel: status?.channel,
       copy: t.shell.statusbar,
+      prefetchPercent: status?.prefetchPercent,
+      prefetchReady: status?.prefetchReady,
       remote: backend,
       restarting: apply.stage === 'restart',
       sha: status?.currentSha?.slice(0, 7) ?? null,

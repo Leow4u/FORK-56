@@ -52,8 +52,11 @@ const {
   $updateApply,
   $updateOverlayOpen,
   $updateOverlayTarget,
+  mergeClientUpdateStatus,
   requestActiveUpdate,
   resetUpdateApplyState,
+  shouldApplyOnActiveUpdate,
+  startActiveUpdate,
   startUpdatePoller,
   stopUpdatePoller,
   $updateStatus
@@ -284,6 +287,37 @@ describe('checkBackendUpdates', () => {
   })
 })
 
+describe('mergeClientUpdateStatus', () => {
+  it('keeps in-flight prefetch percent across a later check of the same release', () => {
+    const merged = mergeClientUpdateStatus(
+      status({ channel: 'chrome', prefetchPercent: 42, releaseTag: 'desktop-v0.0.98', updateAvailable: true }),
+      status({ channel: 'chrome', releaseTag: 'desktop-v0.0.98', updateAvailable: true })
+    )
+
+    expect(merged.prefetchPercent).toBe(42)
+  })
+
+  it('clears a previous prefetch error once the same release is ready', () => {
+    const merged = mergeClientUpdateStatus(
+      status({
+        channel: 'chrome',
+        prefetchError: 'download-failed',
+        releaseTag: 'desktop-v0.0.98',
+        updateAvailable: true
+      }),
+      status({
+        channel: 'chrome',
+        prefetchReady: true,
+        releaseTag: 'desktop-v0.0.98',
+        updateAvailable: true
+      })
+    )
+
+    expect(merged.prefetchReady).toBe(true)
+    expect(merged.prefetchError).toBeNull()
+  })
+})
+
 // The ⌘K "Update Work4You" row. It used to call applyBackendUpdate() flat, which
 // in local mode aimed at the backend checkout instead of the client and, with
 // no overlay open, showed nothing at all.
@@ -375,6 +409,42 @@ describe('requestActiveUpdate', () => {
 
     requestActiveUpdate()
     await vi.waitFor(() => expect(updateWork4YouSpy).toHaveBeenCalled())
+  })
+
+  it('opens the overlay without applying while a packaged prefetch is still Stage A', () => {
+    setRemote(false)
+    $updateStatus.set(
+      status({
+        behind: 0,
+        channel: 'chrome',
+        prefetchPercent: 42,
+        prefetchReady: false,
+        updateAvailable: true
+      })
+    )
+
+    expect(shouldApplyOnActiveUpdate($updateStatus.get())).toBe(false)
+    startActiveUpdate()
+
+    expect($updateOverlayOpen.get()).toBe(true)
+    expect(applyClientMock).not.toHaveBeenCalled()
+  })
+
+  it('applies a packaged chrome update only after prefetch is ready', async () => {
+    setRemote(false)
+    $updateStatus.set(
+      status({
+        behind: 0,
+        channel: 'chrome',
+        prefetchPercent: 100,
+        prefetchReady: true,
+        updateAvailable: true
+      })
+    )
+
+    expect(shouldApplyOnActiveUpdate($updateStatus.get())).toBe(true)
+    startActiveUpdate()
+    await vi.waitFor(() => expect(applyClientMock).toHaveBeenCalled())
   })
 })
 
@@ -975,5 +1045,54 @@ describe('startUpdatePoller', () => {
     await vi.advanceTimersByTimeAsync(0)
 
     expect(checkMock).toHaveBeenCalled()
+  })
+
+  it('keeps prefetch progress off the apply spinner so Stage A never looks like quit', async () => {
+    let onProgress: ((payload: {
+      at: number
+      channel?: string
+      error: string | null
+      message: string
+      percent: number | null
+      prefetchReady?: boolean
+      stage: string
+    }) => void) | null = null
+    onProgressMock.mockImplementation(cb => {
+      onProgress = cb
+    })
+    checkMock.mockResolvedValue({
+      supported: true,
+      behind: 0,
+      channel: 'chrome',
+      updateAvailable: true,
+      fetchedAt: 0
+    })
+    $updateApply.set({
+      applying: false,
+      stage: 'idle',
+      message: '',
+      percent: null,
+      error: null,
+      command: null,
+      log: []
+    })
+
+    startUpdatePoller()
+    await vi.advanceTimersByTimeAsync(0)
+
+    onProgress?.({
+      at: Date.now(),
+      channel: 'chrome',
+      error: null,
+      message: 'Downloading the Work4You app update…',
+      percent: 42,
+      prefetchReady: false,
+      stage: 'prefetch'
+    })
+
+    expect($updateApply.get().applying).toBe(false)
+    expect($updateApply.get().stage).toBe('idle')
+    expect($updateStatus.get()?.prefetchPercent).toBe(42)
+    expect($updateStatus.get()?.prefetchReady).toBe(false)
   })
 })

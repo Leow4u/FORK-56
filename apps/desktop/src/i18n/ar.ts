@@ -2699,6 +2699,7 @@ export const ar = defineLocale({
     stages: {
       idle: 'جار التحضير...',
       prepare: 'جار التحضير...',
+      prefetch: 'جارٍ تجهيز التحديث...',
       fetch: 'جار التنزيل...',
       pull: 'أوشكنا على الانتهاء...',
       pydeps: 'جار الإنهاء...',
@@ -2724,9 +2725,10 @@ export const ar = defineLocale({
     availableTitleBackend: 'يتوفر تحديث للواجهة الخلفية',
     availableBodyBackend: 'إصدار أحدث من واجهة Work4You الخلفية المتصلة جاهز للتثبيت.',
     availableBodyNoChangelog: 'إصدار أحدث جاهز. ملاحظات الإصدار غير متاحة لنوع التثبيت هذا.',
-    availableBodyInstaller: 'مثبّت Work4You جديد جاهز. يستبدل التطبيق في نحو دقيقة — دون إعادة بناء طويلة من المصدر.',
-    availableBodyChrome: 'تحديث تطبيق Work4You جاهز. يُفك هنا ثم يعيد التشغيل لثوانٍ — وتبقى بيئة التشغيل الحالية كما هي.',
+    availableBodyInstaller: 'مثبّت Work4You جديد جاهز. يُنزَّل في الخلفية — انقر «التحديث الآن» عندما تكون جاهزا. ما زال المثبّت يحتاج إلى هذه النقرة؛ ويستبدل التطبيق في نحو دقيقة.',
+    availableBodyChrome: 'تحديث تطبيق Work4You جاهز. يُنزَّل ويُفك في الخلفية — انقر «أعد التشغيل للإنهاء» عندما يصبح الشريط جاهزا. تبقى بيئة التشغيل الحالية كما هي.',
     updateNow: 'التحديث الآن',
+    restartToFinish: 'أعد التشغيل للإنهاء',
     maybeLater: 'ربما لاحقا',
     moreChanges: count => `+ ${count} تغيير${count === 1 ? '' : 'ات'} إضافي مُضمَّن.`,
     manualTitle: 'التحديث من الطرفية',
@@ -2967,6 +2969,7 @@ export const ar = defineLocale({
     statusbar: {
       unknown: 'غير معروف',
       restart: 'إعادة تشغيل',
+      restartToFinish: 'أعد التشغيل للإنهاء',
       update: 'تحديث',
       updateInProgress: 'التحديث جار',
       commitsBehind: (count, branch) => `${count} commits خلف ${branch}`,

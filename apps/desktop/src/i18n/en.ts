@@ -3272,6 +3272,7 @@ export const en: Translations = {
     stages: {
       idle: 'Getting ready…',
       prepare: 'Getting ready…',
+      prefetch: 'Preparing the update…',
       fetch: 'Downloading…',
       pull: 'Almost there…',
       pydeps: 'Finishing up…',
@@ -3298,10 +3299,11 @@ export const en: Translations = {
     availableBodyBackend: 'A newer version of the connected Work4You backend is ready to install.',
     availableBodyNoChangelog: 'A newer version is ready. Release notes aren’t available for this install type.',
     availableBodyInstaller:
-      'A new Work4You installer is ready. It replaces the app in about a minute — no long rebuild from source.',
+      'A new Work4You installer is ready. It downloads in the background — click Update now when you are ready. Setup still needs that click; it replaces the app in about a minute.',
     availableBodyChrome:
-      'A new Work4You app update is ready. It unpacks in this window, then restarts briefly — your existing runtime stays in place.',
+      'A new Work4You app update is ready. It downloads and unpacks in the background — click Restart to finish when the chip is ready. Your existing runtime stays in place.',
     updateNow: 'Update now',
+    restartToFinish: 'Restart to finish',
     maybeLater: 'Maybe later',
     moreChanges: count => `+ ${count} more change${count === 1 ? '' : 's'} included.`,
     manualTitle: 'Update from your terminal',
@@ -3591,6 +3593,7 @@ export const en: Translations = {
     statusbar: {
       unknown: 'unknown',
       restart: 'restart',
+      restartToFinish: 'Restart to finish',
       update: 'update',
       updateInProgress: 'Update in progress',
       commitsBehind: (count, branch) => `${count} commit${count === 1 ? '' : 's'} behind ${branch}`,

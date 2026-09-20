@@ -18,7 +18,7 @@ import type { DesktopUpdateBlocker, DesktopUpdateCommit, DesktopUpdateStage, Des
 import { useI18n } from '@/i18n'
 import { buildCommitChangelog, type CommitGroup } from '@/lib/commit-changelog'
 import { AlertCircle, Check, Copy, Terminal } from '@/lib/icons'
-import { resolveUpdateCopy, type UpdateTarget } from '@/lib/update-copy'
+import { resolveUpdateCopy, resolveUpdateFinalizeAction, type UpdateTarget } from '@/lib/update-copy'
 import { cn } from '@/lib/utils'
 import {
   $backendUpdateApply,
@@ -240,6 +240,19 @@ function IdleView({
   // show (e.g. pip/non-git backend), degrade to honest "no release notes" copy
   // instead of generic filler.
   const { title, body } = resolveUpdateCopy({ target, shownItems, copy: u, channel: status.channel })
+  const finalize = resolveUpdateFinalizeAction({
+    channel: status.channel,
+    copy: { restartToFinish: u.restartToFinish, updateNow: u.updateNow },
+    prefetchError: status.prefetchError,
+    prefetchPercent: status.prefetchPercent,
+    prefetchReady: status.prefetchReady
+  })
+  const preparing =
+    typeof status.prefetchPercent === 'number' && !status.prefetchReady && !status.prefetchError
+  const prefetchPercent =
+    preparing && Number.isFinite(status.prefetchPercent)
+      ? Math.max(2, Math.min(100, Math.round(status.prefetchPercent)))
+      : null
 
   return (
     <div className="grid gap-5 px-6 pb-6 pt-7 pr-8">
@@ -249,6 +262,16 @@ function IdleView({
         <DialogTitle className="text-center text-xl">{title}</DialogTitle>
         <DialogDescription className="text-center text-sm">{body}</DialogDescription>
       </div>
+
+      {prefetchPercent !== null ? (
+        <Progress
+          animated={false}
+          aria-label={u.stages.prefetch ?? u.checking}
+          fillClassName="bg-midground"
+          size="default"
+          value={prefetchPercent / 100}
+        />
+      ) : null}
 
       <div className="grid gap-3">
         {groups.map(group => (
@@ -267,8 +290,8 @@ function IdleView({
       </div>
 
       <div className="grid gap-2">
-        <Button className="font-semibold" onClick={onInstall} size="lg">
-          {u.updateNow}
+        <Button className="font-semibold" disabled={finalize.disabled} onClick={onInstall} size="lg">
+          {finalize.label}
         </Button>
         <Button className="font-medium" onClick={onLater} type="button" variant="text">
           {u.maybeLater}

@@ -15,7 +15,7 @@ import { useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
 import { triggerHaptic } from '@/lib/haptics'
 import { cn } from '@/lib/utils'
-import { resolveVersionStatus } from '@/lib/version-status'
+import { resolveUpdateChipLabel, resolveVersionStatus } from '@/lib/version-status'
 import { notify, notifyError } from '@/store/notifications'
 import { $connection } from '@/store/session'
 import { $desktopVersion, $updateApply, $updateStatus, startActiveUpdate } from '@/store/updates'
@@ -54,14 +54,29 @@ export function AccountFooter() {
   const menu = t.accountMenu
   const signedIn = Boolean(email)
   const triggerLabel = email ?? menu.account
-  const updateLabel = t.common.update
+  const applying = updateApply.applying || updateApply.stage === 'restart'
+  const updateLabel = resolveUpdateChipLabel({
+    applying,
+    channel: updateStatus?.channel,
+    copy: {
+      restart: t.shell.statusbar.restart,
+      restartToFinish: t.updates.restartToFinish,
+      update: t.common.update
+    },
+    prefetchPercent: updateStatus?.prefetchPercent,
+    prefetchReady: updateStatus?.prefetchReady,
+    restarting: updateApply.stage === 'restart'
+  })
 
   const clientUpdate = resolveVersionStatus({
-    applying: updateApply.applying || updateApply.stage === 'restart',
+    applying,
     applyMessage: updateApply.message,
     behind: updateStatus?.behind ?? 0,
     branch: updateStatus?.branch,
+    channel: updateStatus?.channel,
     copy: t.shell.statusbar,
+    prefetchPercent: updateStatus?.prefetchPercent,
+    prefetchReady: updateStatus?.prefetchReady,
     remote: connection?.mode === 'remote',
     restarting: updateApply.stage === 'restart',
     sha: updateStatus?.currentSha?.slice(0, 7) ?? null,
