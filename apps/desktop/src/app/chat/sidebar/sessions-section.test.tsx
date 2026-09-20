@@ -1,9 +1,10 @@
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import type * as React from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { SessionInfo } from '@/work4you'
 
+import type { SidebarProjectTree } from './projects'
 import { SidebarSessionsSection, VIRTUALIZE_THRESHOLD } from './sessions-section'
 import type { VirtualSessionListProps } from './virtual-session-list'
 
@@ -39,6 +40,15 @@ vi.mock('./virtual-session-list', () => ({
 vi.mock('./session-row', () => ({
   SidebarSessionRow: ({ session }: { session: SessionInfo }) => (
     <div data-testid={`session-row-${session.id}`}>{session.id}</div>
+  )
+}))
+
+vi.mock('./projects/overview-row', () => ({
+  ProjectOverviewRow: ({ project }: { project: SidebarProjectTree }) => (
+    <div data-testid={`overview-row-${project.id}`}>{project.label}</div>
+  ),
+  SortableProjectOverviewRow: ({ project }: { project: SidebarProjectTree }) => (
+    <div data-testid={`overview-row-${project.id}`}>{project.label}</div>
   )
 }))
 
@@ -180,5 +190,47 @@ describe('SidebarSessionsSection memoization & virtualizer stability', () => {
 
     const thirdRowsRef = mockVirtualListPropsHistory[2].rows
     expect(thirdRowsRef).not.toBe(secondRowsRef)
+  })
+})
+
+describe('SidebarSessionsSection project overview order', () => {
+  const overviewSectionProps = {
+    activeSessionId: null,
+    emptyState: <div>Empty</div>,
+    label: 'Projects',
+    onArchiveSession: noop,
+    onDeleteSession: noop,
+    onResumeSession: noop,
+    onToggle: noop,
+    onTogglePin: noop,
+    onToggleUnread: noop,
+    open: true,
+    pinned: false,
+    sessions: [] as SessionInfo[]
+  }
+
+  const home: SidebarProjectTree = {
+    id: '__no_project__',
+    isNoProject: true,
+    label: 'Home',
+    path: null,
+    repos: [],
+    sessionCount: 2
+  }
+
+  const demo: SidebarProjectTree = {
+    id: 'p_demo',
+    label: 'Demo',
+    path: '/repos/demo',
+    repos: [],
+    sessionCount: 1
+  }
+
+  it('renders folders above Home even when Home arrives first', () => {
+    render(<SidebarSessionsSection {...overviewSectionProps} projectOverview={[home, demo]} />)
+
+    const rows = screen.getAllByTestId(/^overview-row-/)
+
+    expect(rows.map(row => row.textContent)).toEqual(['Demo', 'Home'])
   })
 })
