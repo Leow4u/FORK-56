@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import {
   documentExtensionLabel,
+  documentKindLabel,
   formatByteSize,
   isDeliveredDocumentPath,
   isMarkdownDocumentPath,
+  isRelativeDeliveredDocumentHref,
   pathExtension
 } from './media'
 
@@ -51,6 +53,32 @@ describe('delivered document classification', () => {
     expect(documentExtensionLabel('/tmp/notes.markdown')).toBe('MD')
     expect(documentExtensionLabel('/tmp/sheet.xlsx')).toBe('XLSX')
     expect(documentExtensionLabel('/tmp/brief.pdf')).toBe('PDF')
+  })
+
+  it('names the delivered-document kind for the card subtitle', () => {
+    expect(documentKindLabel('nomes_rg_cpf.xlsx')).toBe('Spreadsheet')
+    expect(documentKindLabel('/tmp/brief.pdf')).toBe('PDF')
+    expect(documentKindLabel('letter.docx')).toBe('Document')
+    expect(documentKindLabel('deck.pptx')).toBe('Presentation')
+    expect(documentKindLabel('archive.zip')).toBe('Archive')
+  })
+})
+
+describe('relative delivered-document hrefs', () => {
+  it('accepts relative office/pdf/zip names the model actually emits', () => {
+    expect(isRelativeDeliveredDocumentHref('nomes_rg_cpf.xlsx')).toBe(true)
+    expect(isRelativeDeliveredDocumentHref('./brief.pdf')).toBe(true)
+    expect(isRelativeDeliveredDocumentHref('out/letter.docx')).toBe(true)
+    expect(isRelativeDeliveredDocumentHref('deck.pptx')).toBe(true)
+    expect(isRelativeDeliveredDocumentHref('archive.zip')).toBe(true)
+  })
+
+  it('leaves markdown, http, fragments, and absolute paths to their own routers', () => {
+    expect(isRelativeDeliveredDocumentHref('docs/guide.md')).toBe(false)
+    expect(isRelativeDeliveredDocumentHref('https://example.com/sheet.xlsx')).toBe(false)
+    expect(isRelativeDeliveredDocumentHref('#preview/nomes.xlsx')).toBe(false)
+    expect(isRelativeDeliveredDocumentHref('/tmp/sheet.xlsx')).toBe(false)
+    expect(isRelativeDeliveredDocumentHref('C:\\Users\\a\\sheet.xlsx')).toBe(false)
   })
 })
 

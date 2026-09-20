@@ -42,7 +42,7 @@ describe('MarkdownLink filesystem hrefs', () => {
     expect(container.querySelector('a[href="/tmp/demo.mp4"]')).toBeNull()
   })
 
-  it('leaves anchors and relative links out of the preview pipeline', () => {
+  it('leaves anchors, relative markdown, and http links out of the preview pipeline', () => {
     render(
       <MarkdownTextContent
         isRunning={false}
@@ -50,10 +50,24 @@ describe('MarkdownLink filesystem hrefs', () => {
       />
     )
 
-    // Fragment anchors survive untouched; relative links are NOT rewritten
-    // (they keep Streamdown's pre-existing handling) — neither gains a
-    // preview affordance.
+    // Fragment anchors survive untouched; relative `.md` and http stay on
+    // Streamdown's existing path — they do not become document cards.
     expect(screen.queryByRole('button', { name: 'Open preview' })).toBeNull()
     expect(document.querySelector('a[href="#section-2"]')).not.toBeNull()
+  })
+
+  it('routes a relative office/pdf/zip link to a document card instead of [blocked]', async () => {
+    render(
+      <MarkdownTextContent
+        isRunning={false}
+        text={'Baixar a planilha [nomes_rg_cpf.xlsx](nomes_rg_cpf.xlsx)'}
+      />
+    )
+
+    expect(await screen.findByText('nomes_rg_cpf.xlsx')).toBeTruthy()
+    expect(screen.getByText('Spreadsheet · XLSX')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Open preview' })).toBeTruthy()
+    expect(screen.queryByText(/blocked/i)).toBeNull()
+    expect(document.querySelector('a[href="nomes_rg_cpf.xlsx"]')).toBeNull()
   })
 })

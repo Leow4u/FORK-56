@@ -25,6 +25,7 @@ import {
   isDeliveredDocumentPath,
   isFileMediaPath,
   isInlineMediaSrc,
+  isRelativeDeliveredDocumentHref,
   isRemoteGateway,
   mediaExternalUrl,
   mediaKind,
@@ -292,7 +293,8 @@ function MarkdownLink({ children, className, href, ...props }: ComponentProps<'a
     // remote fetches it over the authenticated /api/fs bridge), so the same
     // transcript works from every machine that opens it. Media extensions
     // keep their richer inline player.
-    const fileHref = href && !href.startsWith('#') && isFileMediaPath(href) ? href : null
+    const fileHref =
+      href && !href.startsWith('#') && (isFileMediaPath(href) || isRelativeDeliveredDocumentHref(href)) ? href : null
 
     if (fileHref) {
       return mediaKind(fileHref) === 'file' ? (

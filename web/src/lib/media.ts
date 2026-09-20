@@ -87,6 +87,45 @@ export function documentExtensionLabel(path: string): string {
   return ext.toUpperCase()
 }
 
+const BINARY_DELIVERED_DOCUMENT_EXTENSIONS = new Set(['docx', 'pdf', 'pptx', 'xlsx', 'zip'])
+
+const DOCUMENT_KIND_LABELS: Record<string, string> = {
+  docx: 'Document',
+  markdown: 'Markdown',
+  md: 'Markdown',
+  mdown: 'Markdown',
+  mkd: 'Markdown',
+  pdf: 'PDF',
+  pptx: 'Presentation',
+  xlsx: 'Spreadsheet',
+  zip: 'Archive'
+}
+
+export function documentKindLabel(path: string): string {
+  const ext = pathExtension(path)
+
+  return (ext && DOCUMENT_KIND_LABELS[ext]) || 'File'
+}
+
+// Relative Office/PDF/zip hrefs (`[Baixar](nomes.xlsx)`) are not
+// `isFileMediaPath` — rehype-harden appends " [blocked]" unless we rewrite
+// them to `#preview/…` first. Leave relative `.md` alone (`docs/guide.md`).
+export function isRelativeDeliveredDocumentHref(href: string): boolean {
+  const path = href.replace(/^<|>$/g, '').trim()
+
+  if (!path || path.startsWith('#') || path.startsWith('?')) {
+    return false
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path) || isFileMediaPath(path)) {
+    return false
+  }
+
+  const ext = pathExtension(path)
+
+  return ext ? BINARY_DELIVERED_DOCUMENT_EXTENSIONS.has(ext) : false
+}
+
 export function formatByteSize(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB']
   let value = bytes
