@@ -8,7 +8,7 @@
  * into describing the same install differently.
  */
 
-import type { UpdateTarget } from '@/lib/update-copy'
+import type { UpdateChannel, UpdateTarget } from '@/lib/update-copy'
 
 export interface VersionStatusCopy {
   backendLabel: (version: string) => string
@@ -19,6 +19,7 @@ export interface VersionStatusCopy {
   commitsBehind: (count: number, branch: string) => string
   desktopVersion: (version: string) => string
   restart: string
+  restartToFinish: string
   unknown: string
   update: string
   updateInProgress: string
@@ -42,6 +43,9 @@ export interface VersionStatusInput {
   /** An update the commit count can't express (shallow clones, pip installs). */
   updateAvailable?: boolean
   version?: null | string
+  channel?: UpdateChannel
+  prefetchPercent?: number | null
+  prefetchReady?: boolean
 }
 
 export interface VersionStatusResult {
@@ -55,12 +59,55 @@ export interface VersionStatusResult {
   unknown: boolean
 }
 
+export function formatPrefetchPercent(percent: number | null | undefined): string | null {
+  if (typeof percent !== 'number' || !Number.isFinite(percent)) {
+    return null
+  }
+
+  return `${Math.max(0, Math.min(100, Math.round(percent)))}%`
+}
+
+/** Short pill on the account chip: percent while Stage A runs, then the finalize verb. */
+export function resolveUpdateChipLabel(opts: {
+  applying: boolean
+  restarting: boolean
+  channel?: UpdateChannel
+  prefetchPercent?: number | null
+  prefetchReady?: boolean
+  copy: { restart: string; restartToFinish: string; update: string }
+}): string {
+  if (opts.restarting) {
+    return opts.copy.restart
+  }
+
+  if (opts.applying) {
+    return opts.copy.update
+  }
+
+  if (opts.prefetchReady && opts.channel === 'chrome') {
+    return opts.copy.restartToFinish
+  }
+
+  if (!opts.prefetchReady) {
+    const percent = formatPrefetchPercent(opts.prefetchPercent)
+
+    if (percent) {
+      return percent
+    }
+  }
+
+  return opts.copy.update
+}
+
 export function resolveVersionStatus({
   applyMessage,
   applying,
   behind = 0,
   branch,
+  channel,
   copy,
+  prefetchPercent,
+  prefetchReady,
   remote,
   restarting,
   sha = null,
@@ -76,6 +123,9 @@ export function resolveVersionStatus({
   // targets — the client statusbar item is how a shallow desktop install
   // learns it's stale at all.
   const available = behind > 0 || !!updateAvailable
+  const packaged = channel === 'chrome' || channel === 'installer'
+  const prefetching = available && !busy && packaged && !prefetchReady
+  const percentLabel = formatPrefetchPercent(prefetchPercent)
 
   // A client with no version still identifies itself by sha; a backend can't.
   const named = version ?? (client ? sha : null) ?? copy.unknown
@@ -88,7 +138,18 @@ export function resolveVersionStatus({
 
   // Commits behind is the precise diff; `(update)` is the fallback for a
   // backend that knows it's stale but can't count (pip, non-git checkout).
-  const hint = busy ? '' : behind > 0 ? ` (+${behind})` : available ? ` (${copy.update})` : ''
+  // Packaged Stage A shows the download/unpack percent on the same chip.
+  const hint = busy
+    ? ''
+    : prefetching && percentLabel
+      ? ` · ${percentLabel}`
+      : available && prefetchReady && channel === 'chrome'
+        ? ` · ${copy.restartToFinish}`
+        : behind > 0
+          ? ` (+${behind})`
+          : available
+            ? ` (${copy.update})`
+            : ''
 
   const tooltip = [
     busy && (applyMessage || copy.updateInProgress),

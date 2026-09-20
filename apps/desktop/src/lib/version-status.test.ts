@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { en } from '@/i18n/en'
 
-import { resolveVersionStatus } from './version-status'
+import { resolveUpdateChipLabel, resolveVersionStatus } from './version-status'
 
 const copy = en.shell.statusbar
 
@@ -93,5 +93,71 @@ describe('resolveVersionStatus', () => {
 
   it('hides a backend row that has no version at all', () => {
     expect(backend().unknown).toBe(true)
+  })
+
+  it('shows packaged prefetch percent without treating Stage A as an apply', () => {
+    const status = client({
+      channel: 'chrome',
+      prefetchPercent: 42,
+      prefetchReady: false,
+      updateAvailable: true,
+      version: '0.0.97'
+    })
+
+    expect(status.label).toBe('v0.0.97 · 42%')
+    expect(status.hasUpdate).toBe(true)
+  })
+
+  it('names Restart to finish once a chrome prefetch is ready', () => {
+    const status = client({
+      channel: 'chrome',
+      prefetchPercent: 100,
+      prefetchReady: true,
+      updateAvailable: true,
+      version: '0.0.97'
+    })
+
+    expect(status.label).toBe(`v0.0.97 · ${copy.restartToFinish}`)
+    expect(status.hasUpdate).toBe(true)
+  })
+})
+
+describe('resolveUpdateChipLabel', () => {
+  const chipCopy = { restart: 'restart', restartToFinish: 'Restart to finish', update: 'Update' }
+
+  it('shows percent while Stage A is still downloading or unpacking', () => {
+    expect(
+      resolveUpdateChipLabel({
+        applying: false,
+        channel: 'chrome',
+        copy: chipCopy,
+        prefetchPercent: 42,
+        prefetchReady: false,
+        restarting: false
+      })
+    ).toBe('42%')
+  })
+
+  it('shows Restart to finish only for a ready chrome prefetch', () => {
+    expect(
+      resolveUpdateChipLabel({
+        applying: false,
+        channel: 'chrome',
+        copy: chipCopy,
+        prefetchPercent: 100,
+        prefetchReady: true,
+        restarting: false
+      })
+    ).toBe('Restart to finish')
+    expect(
+      resolveUpdateChipLabel({
+        applying: false,
+        channel: 'installer',
+        copy: chipCopy,
+        prefetchPercent: 100,
+        prefetchReady: true,
+        restarting: false
+      })
+    ).toBe('Update')
   })
 })

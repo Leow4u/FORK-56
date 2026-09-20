@@ -263,6 +263,61 @@ describe('AccountFooter', () => {
     expect($updateApply.get().applying).toBe(true)
   })
 
+  it('shows prefetch percent on the Account chip and does not apply until Stage A is ready', async () => {
+    installCloud({ signedIn: false, email: null })
+    const apply = vi.fn(async () => ({ handedOff: true, ok: true }))
+    desktopWindow.work4youDesktop = {
+      ...(desktopWindow.work4youDesktop as object),
+      updates: { apply, check: vi.fn() }
+    }
+    $updateStatus.set({
+      behind: 0,
+      channel: 'chrome',
+      fetchedAt: 0,
+      prefetchPercent: 42,
+      prefetchReady: false,
+      supported: true,
+      updateAvailable: true
+    })
+
+    renderFooter()
+
+    const chip = await screen.findByRole('button', { name: '42%' })
+    expect(chip.textContent).toBe('42%')
+
+    fireEvent.click(chip)
+
+    expect($updateOverlayOpen.get()).toBe(true)
+    expect(apply).not.toHaveBeenCalled()
+    expect($updateApply.get().applying).toBe(false)
+  })
+
+  it('finalizes a ready chrome prefetch from the Account chip', async () => {
+    installCloud({ signedIn: false, email: null })
+    const apply = vi.fn(async () => ({ handedOff: true, ok: true }))
+    desktopWindow.work4youDesktop = {
+      ...(desktopWindow.work4youDesktop as object),
+      updates: { apply, check: vi.fn() }
+    }
+    $updateStatus.set({
+      behind: 0,
+      channel: 'chrome',
+      fetchedAt: 0,
+      prefetchPercent: 100,
+      prefetchReady: true,
+      supported: true,
+      updateAvailable: true
+    })
+
+    renderFooter()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Restart to finish' }))
+
+    await vi.waitFor(() => {
+      expect(apply).toHaveBeenCalled()
+    })
+  })
+
   it('picks the email up when the window regains focus after a portal sign-in', async () => {
     const { statusFn } = installCloud({ signedIn: false, email: null })
 

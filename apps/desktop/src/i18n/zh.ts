@@ -3417,6 +3417,7 @@ export const zh: Translations = {
     stages: {
       idle: '准备中…',
       prepare: '准备中…',
+      prefetch: '正在准备更新…',
       fetch: '下载中…',
       pull: '马上完成…',
       pydeps: '收尾中…',
@@ -3442,9 +3443,10 @@ export const zh: Translations = {
     availableTitleBackend: '后端有可用更新',
     availableBodyBackend: '已连接的 Work4You 后端有新版本可安装。',
     availableBodyNoChangelog: '已有新版本可用。此安装方式无法显示更新日志。',
-    availableBodyInstaller: '新的 Work4You 安装包已就绪。大约一分钟即可替换应用，无需从源码长时间重新构建。',
-    availableBodyChrome: '新的 Work4You 应用更新已就绪。只会替换桌面外壳，现有运行时保持不变。',
+    availableBodyInstaller: '新的 Work4You 安装包已就绪。会在后台下载——准备好后再点立即更新。安装程序仍需这次点击；大约一分钟即可替换应用。',
+    availableBodyChrome: '新的 Work4You 应用更新已就绪。会在后台下载并解包——芯片就绪后点“重启以完成”。现有运行时保持不变。',
     updateNow: '立即更新',
+    restartToFinish: '重启以完成',
     maybeLater: '稍后再说',
     moreChanges: count => `另有 ${count} 项更改。`,
     manualTitle: '从终端更新',
@@ -3459,7 +3461,7 @@ export const zh: Translations = {
     applyingBody:
       'Work4You 更新器会在自己的窗口中接管，并在完成后自动重新打开 Work4You。更新期间请不要自行重新打开 Work4You。',
     applyingBodyInstaller: '正在下载已签名的安装包。Work4You 将关闭以便安装包替换应用。安装完成前请不要自行重新打开。',
-    applyingBodyChrome: '正在下载桌面应用更新。Work4You 将关闭以便新外壳替换旧外壳。请不要自行重新打开——更新完成后会自动回来。',
+    applyingBodyChrome: '正在解包桌面外壳。此窗口会保持打开直到完成，然后 Work4You 会短暂重启。请不要自行重新打开。',
     applyingBodyBackend: '远程后端正在应用更新并将重启。恢复后 Work4You 会自动重新连接。',
     applyingClose: '此窗口会在更新期间关闭，随后 Work4You 会自动重新打开。',
     errorTitle: '更新未完成',
@@ -3715,6 +3717,7 @@ export const zh: Translations = {
     statusbar: {
       unknown: '未知',
       restart: '重启',
+      restartToFinish: '重启以完成',
       update: '更新',
       updateInProgress: '正在更新',
       commitsBehind: (count, branch) => `落后 ${branch} ${count} 个提交`,

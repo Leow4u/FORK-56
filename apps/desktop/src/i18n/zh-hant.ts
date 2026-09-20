@@ -2825,6 +2825,7 @@ export const zhHant = defineLocale({
     stages: {
       idle: '準備中…',
       prepare: '準備中…',
+      prefetch: '正在準備更新…',
       fetch: '下載中…',
       pull: '快完成了…',
       pydeps: '收尾中…',
@@ -2850,9 +2851,10 @@ export const zhHant = defineLocale({
     availableTitleBackend: '後端有可用更新',
     availableBodyBackend: '已連接的 Work4You 後端有新版本可安裝。',
     availableBodyNoChangelog: '已有新版本可用。此安裝方式無法顯示更新日誌。',
-    availableBodyInstaller: '新的 Work4You 安裝程式已就緒。大約一分鐘即可取代應用程式，無需從原始碼長時間重新建置。',
-    availableBodyChrome: '新的 Work4You 應用更新已就緒。只會取代桌面外殼，既有執行階段保持不變。',
+    availableBodyInstaller: '新的 Work4You 安裝程式已就緒。會在背景下載——準備好後再點立即更新。安裝程式仍需這次點擊；大約一分鐘即可取代應用程式。',
+    availableBodyChrome: '新的 Work4You 應用更新已就緒。會在背景下載並解包——芯片就緒後點「重新啟動以完成」。既有執行階段保持不變。',
     updateNow: '立即更新',
+    restartToFinish: '重新啟動以完成',
     maybeLater: '稍後再說',
     moreChanges: count => `另有 ${count} 項變更。`,
     manualTitle: '從終端機更新',
@@ -2869,7 +2871,7 @@ export const zhHant = defineLocale({
     applyingBodyInstaller:
       '正在下載已簽署的安裝程式。Work4You 將關閉以便安裝程式取代應用程式。安裝完成前請勿自行重新開啟。',
     applyingBodyChrome:
-      '正在下載桌面應用更新。Work4You 將關閉以便新外殼取代舊外殼。請勿自行重新開啟——更新完成後會自動回來。',
+      '正在解包桌面外殼。此視窗會保持開啟直到完成，然後 Work4You 會短暫重新啟動。請勿自行重新開啟。',
     applyingBodyBackend: '遠端後端正在套用更新並將重新啟動。恢復後 Work4You 會自動重新連線。',
     applyingClose: '此視窗會在更新期間關閉，隨後 Work4You 會自動重新開啟。',
     errorTitle: '更新未完成',
@@ -3125,6 +3127,7 @@ export const zhHant = defineLocale({
     statusbar: {
       unknown: '未知',
       restart: '重新啟動',
+      restartToFinish: '重新啟動以完成',
       update: '更新',
       updateInProgress: '更新中',
       commitsBehind: (count, branch) => `落後 ${branch} ${count} 個提交`,

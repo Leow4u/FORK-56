@@ -21,6 +21,24 @@ export interface UpdateCopyStrings {
   availableBodyChrome: string
 }
 
+export interface UpdateFinalizeCopy {
+  restartToFinish: string
+  updateNow: string
+}
+
+export interface ResolveUpdateFinalizeInput {
+  channel?: UpdateChannel
+  prefetchReady?: boolean
+  prefetchError?: string | null
+  prefetchPercent?: number | null
+  copy: UpdateFinalizeCopy
+}
+
+export interface UpdateFinalizeAction {
+  disabled: boolean
+  label: string
+}
+
 export interface ResolveUpdateCopyInput {
   target: UpdateTarget
   /** Number of commit rows actually shown in the changelog. 0 → no notes. */
@@ -53,4 +71,35 @@ export function resolveUpdateCopy({ target, shownItems, copy, channel }: Resolve
         : copy.availableBody
 
   return { title, body }
+}
+
+export function resolveUpdateFinalizeAction({
+  channel,
+  copy,
+  prefetchError,
+  prefetchPercent,
+  prefetchReady
+}: ResolveUpdateFinalizeInput): UpdateFinalizeAction {
+  const packaged = channel === 'chrome' || channel === 'installer'
+
+  if (!packaged) {
+    return { disabled: false, label: copy.updateNow }
+  }
+
+  if (prefetchReady) {
+    return {
+      disabled: false,
+      label: channel === 'chrome' ? copy.restartToFinish : copy.updateNow
+    }
+  }
+
+  if (prefetchError) {
+    return { disabled: false, label: copy.updateNow }
+  }
+
+  if (typeof prefetchPercent === 'number' && Number.isFinite(prefetchPercent)) {
+    return { disabled: true, label: `${Math.max(0, Math.min(100, Math.round(prefetchPercent)))}%` }
+  }
+
+  return { disabled: true, label: copy.updateNow }
 }

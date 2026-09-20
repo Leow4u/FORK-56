@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { type Translations, useI18n } from '@/i18n'
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, RefreshCw } from '@/lib/icons'
+import { resolveUpdateFinalizeAction } from '@/lib/update-copy'
 import { cn } from '@/lib/utils'
 import {
   $desktopVersion,
@@ -69,6 +70,13 @@ export function AboutSettings() {
   const updateAvailable = behind > 0 || Boolean(status?.updateAvailable)
   const supported = status?.supported !== false
   const applying = apply.applying || apply.stage === 'restart'
+  const finalize = resolveUpdateFinalizeAction({
+    channel: status?.channel,
+    copy: { restartToFinish: t.updates.restartToFinish, updateNow: a.updateNow },
+    prefetchError: status?.prefetchError,
+    prefetchPercent: status?.prefetchPercent,
+    prefetchReady: status?.prefetchReady
+  })
 
   const handleCheck = async () => {
     setJustChecked(false)
@@ -171,8 +179,8 @@ export function AboutSettings() {
 
             {updateAvailable && supported && !applying && (
               <>
-                <Button onClick={() => startActiveUpdate()} size="sm">
-                  {a.updateNow}
+                <Button disabled={finalize.disabled} onClick={() => startActiveUpdate()} size="sm">
+                  {finalize.label}
                 </Button>
                 <Button onClick={() => openUpdatesWindow()} size="sm" variant="textStrong">
                   {a.seeWhatsNew}

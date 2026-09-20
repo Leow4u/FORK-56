@@ -2576,6 +2576,7 @@ export interface Translations {
     availableBodyInstaller: string
     availableBodyChrome: string
     updateNow: string
+    restartToFinish: string
     maybeLater: string
     moreChanges: (count: number) => string
     manualTitle: string
@@ -2823,6 +2824,7 @@ export interface Translations {
     statusbar: {
       unknown: string
       restart: string
+      restartToFinish: string
       update: string
       updateInProgress: string
       commitsBehind: (count: number, branch: string) => string
