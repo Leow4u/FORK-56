@@ -3,7 +3,7 @@ import { normalizeMathDelimiters } from '@assistant-ui/react-streamdown'
 
 import { isLikelyProseFence, sanitizeLanguageTag } from '@/lib/markdown-code'
 import { clampHtmlNestingDepth } from '@/lib/markdown-html-depth'
-import { mediaKind, mediaMarkdownHref } from '@/lib/media'
+import { isFileMediaPath, isRelativeDeliveredDocumentHref, mediaKind, mediaMarkdownHref } from '@/lib/media'
 import { previewMarkdownHref } from '@/lib/preview-targets'
 import { stripPreviewTargets } from '@/lib/preview-targets'
 import { linkifySessionRefs } from '@/lib/session-refs'
@@ -50,12 +50,11 @@ const LOCAL_PREVIEW_URL_RE = /(^|\s)https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0
 const LOCAL_PREVIEW_ONLY_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?\/?$/i
 const URL_ONLY_LINE_RE = /^\s*https?:\/\/\S+\s*$/i
 const CITATION_MARKER_RE = /(?<=[\p{L}\p{N})\].,!?:;"'”’])\[(?:\d+(?:\s*,\s*\d+)*)\](?!\()/gu
-// Markdown links whose target is a filesystem path on the agent's machine:
-// `[report](/home/user/report.md)`, `[notes](file:///srv/notes.txt)`,
-// `[todo](~/todo.md)`, `[log](C:\logs\run.txt)`. Negative lookbehind keeps
-// image syntax (`![alt](path)`) on its existing inline pipeline. The target
-// char class excludes `)`/whitespace, matching how LLMs actually emit these.
-const FILE_LINK_RE = /(?<!!)\[(?<label>[^\]\n]+)\]\((?<target><?(?:file:\/\/|\/|~\/|[a-z]:[\\/])[^)\s]*>?)\)/gi
+// Markdown links. Absolute/file/tilde/Windows paths plus relative Office/PDF/zip
+// (`[Baixar a planilha](nomes.xlsx)`) are rewritten below; https, fragments,
+// and relative `.md` (`docs/guide.md`) stay on Streamdown's existing path.
+// Negative lookbehind keeps image syntax (`![alt](path)`) on its pipeline.
+const MARKDOWN_HREF_LINK_RE = /(?<!!)\[(?<label>[^\]\n]+)\]\((?<target><?[^)\s]+>?)\)/gi
 
 /**
  * Returns true when `body` contains a line that's exactly `marker` (modulo
@@ -184,9 +183,13 @@ function autoLinkRawUrls(text: string): string {
 // reads the file directly, remote fetches it over the authenticated /api/fs
 // bridge — so the same transcript works from every machine that opens it.
 function routeFileLinksToPreview(text: string): string {
-  return text.replace(FILE_LINK_RE, (match: string, ...args: unknown[]) => {
+  return text.replace(MARKDOWN_HREF_LINK_RE, (match: string, ...args: unknown[]) => {
     const groups = args.at(-1) as { label: string; target: string }
     const target = groups.target.replace(/^<|>$/g, '')
+
+    if (!isFileMediaPath(target) && !isRelativeDeliveredDocumentHref(target)) {
+      return match
+    }
 
     const href = mediaKind(target) === 'file' ? previewMarkdownHref(target) : mediaMarkdownHref(target)
 
