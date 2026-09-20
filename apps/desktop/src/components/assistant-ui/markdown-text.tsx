@@ -24,12 +24,12 @@ import {
   downloadGatewayMediaFile,
   isDeliveredDocumentPath,
   isInlineMediaSrc,
-  resolveDeliveredDocumentHref,
   isRemoteGateway,
   mediaExternalUrl,
   mediaKind,
   mediaName,
   mediaPathFromMarkdownHref,
+  resolveDeliveredDocumentHref,
   resolveMediaDisplaySrc,
   resolveMediaPlaybackSrc
 } from '@/lib/media'
