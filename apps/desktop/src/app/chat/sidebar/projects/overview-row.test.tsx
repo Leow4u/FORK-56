@@ -33,12 +33,6 @@ vi.mock('./model', () => ({
   useWorkspaceNodeOpen: () => [nodeOpen.current, vi.fn()]
 }))
 
-vi.mock('./entered-content', () => ({
-  EnteredProjectContent: ({ project }: { project: SidebarProjectTree }) => (
-    <div data-testid="overview-lanes">{project.repos.map(repo => repo.label).join(',')}</div>
-  )
-}))
-
 // ProjectMenu (the kebab) has its own dedicated test file — stub it here so
 // this file only exercises overview-row's own Tip usage (the disclosure
 // toggle) plus the WorkspaceAddButton wiring. ProjectContextMenu (the row's
@@ -111,18 +105,18 @@ describe('ProjectOverviewRow', () => {
     expect(container.querySelector('[data-sessions-project="p1"]')).toBeTruthy()
   })
 
-  it('offers a disclosure when the project has repos even without session previews', () => {
+  it('does not offer a disclosure when the project has repos but no session previews', () => {
     render(<ProjectOverviewRow project={repoProject} />)
 
-    expect(screen.getByRole('button', { name: 'Show Website sessions' })).toBeTruthy()
-    expect(screen.queryByTestId('overview-lanes')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Show Website sessions' })).toBeNull()
   })
 
-  it('paints repo lanes on the overview without entering the project', () => {
+  it('does not paint repo lanes on the overview', () => {
     nodeOpen.current = true
     render(<ProjectOverviewRow project={repoProject} />)
 
-    expect(screen.getByTestId('overview-lanes').textContent).toBe('website')
+    expect(screen.queryByTestId('overview-lanes')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Hide Website sessions' })).toBeNull()
   })
 
   it('does not paint repo lanes under Home', () => {

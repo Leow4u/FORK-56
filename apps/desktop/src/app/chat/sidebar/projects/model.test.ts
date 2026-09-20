@@ -61,19 +61,19 @@ describe('orderProjectsByIds', () => {
     expect(ids(orderProjectsByIds(projects, ['gone', 'a']))).toEqual(['a'])
   })
 
-  it('keeps Home on top of a hand-picked order', () => {
+  it('keeps Home below a hand-picked folder order', () => {
     const projects = [makeProject('a', 1), home(), makeProject('b', 1)]
 
-    expect(ids(orderProjectsByIds(projects, ['b', 'a']))).toEqual([NO_PROJECT_ID, 'b', 'a'])
+    expect(ids(orderProjectsByIds(projects, ['b', 'a']))).toEqual(['b', 'a', NO_PROJECT_ID])
   })
 })
 
 describe('sortProjectsForOverview', () => {
-  it('puts Home above the active project', () => {
+  it('puts Home below the active project', () => {
     const active = { ...makeProject('active', 5), isAuto: false }
     const projects = [makeProject('scanned', 0), active, home()]
 
-    expect(ids(sortProjectsForOverview(projects, 'active'))).toEqual([NO_PROJECT_ID, 'active', 'scanned'])
+    expect(ids(sortProjectsForOverview(projects, 'active'))).toEqual(['active', 'scanned', NO_PROJECT_ID])
   })
 })
 
