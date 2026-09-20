@@ -81,6 +81,19 @@ vi.mock('@/lib/project-idea-templates', () => ({
 const tipTrigger = (el: HTMLElement) => el.closest('[data-slot="tooltip-trigger"]')
 
 describe('ProjectDialog', () => {
+  it('keeps the create fields and empty-folder copy', () => {
+    render(<ProjectDialog />)
+
+    expect(screen.getByPlaceholderText('Project name')).toBeTruthy()
+    expect(screen.getByText('Folders')).toBeTruthy()
+    expect(screen.getByText('No folders yet')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add folder' })).toBeTruthy()
+    expect(screen.getByText('Idea')).toBeTruthy()
+    expect(screen.getByPlaceholderText('What are you building?')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Create' })).toBeTruthy()
+  })
+
   it('wraps the "shuffle idea" button in a Tip', () => {
     render(<ProjectDialog />)
 
