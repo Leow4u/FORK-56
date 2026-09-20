@@ -861,6 +861,101 @@ export function installerDownloadDest(tmpDir: string, assetName: string): string
   return path.join(tmpDir, assetName)
 }
 
+export function packagedDownloadPartPath(destPath: string): string {
+  return `${destPath}.part`
+}
+
+export interface ReplaceDownloadedFileDeps {
+  exists?: (file: string) => boolean
+  unlink?: (file: string) => void
+  rename?: (from: string, to: string) => void
+  copy?: (from: string, to: string) => void
+  retries?: number
+  delayMs?: number
+  sleep?: (ms: number) => void
+}
+
+function defaultReplaceSleep(ms: number): void {
+  const buf = new Int32Array(new SharedArrayBuffer(4))
+  Atomics.wait(buf, 0, 0, ms)
+}
+
+/**
+ * Move a completed `.part` download onto dest.
+ *
+ * Windows `rename` cannot replace an existing file (EPERM / EEXIST). A leftover
+ * Setup.exe from an interrupted hop is the normal dest here — unlink it first,
+ * then rename. If rename still fails (cross-device), copy then drop the part.
+ * Never delete a completed `.part` on failure: apply can retry replace without
+ * downloading 200MB again.
+ */
+export function replaceDownloadedFile(
+  tmpPath: string,
+  destPath: string,
+  deps: ReplaceDownloadedFileDeps = {}
+): void {
+  const exists = deps.exists ?? (file => fs.existsSync(file))
+  const unlink = deps.unlink ?? (file => fs.unlinkSync(file))
+  const rename = deps.rename ?? ((from, to) => fs.renameSync(from, to))
+  const copy = deps.copy ?? ((from, to) => fs.copyFileSync(from, to))
+  const retries = Math.max(1, deps.retries ?? 8)
+  const delayMs = Math.max(0, deps.delayMs ?? 100)
+  const sleep = deps.sleep ?? defaultReplaceSleep
+
+  if (tmpPath === destPath) {
+    return
+  }
+
+  if (!exists(tmpPath)) {
+    throw new Error(`Download part is missing: ${tmpPath}`)
+  }
+
+  let unlinkError: unknown
+
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    if (!exists(destPath)) {
+      unlinkError = null
+      break
+    }
+
+    try {
+      unlink(destPath)
+      unlinkError = null
+      break
+    } catch (error) {
+      unlinkError = error
+
+      if (attempt < retries - 1 && delayMs > 0) {
+        sleep(delayMs)
+      }
+    }
+  }
+
+  if (unlinkError) {
+    const message = unlinkError instanceof Error ? unlinkError.message : String(unlinkError)
+
+    throw new Error(
+      `Could not replace ${path.basename(destPath)} (file in use from a previous update). Close other Work4You windows and try again. ${message}`
+    )
+  }
+
+  try {
+    rename(tmpPath, destPath)
+
+    return
+  } catch {
+    // rename can still fail across devices; dest is gone, so copy is safe.
+  }
+
+  copy(tmpPath, destPath)
+
+  try {
+    unlink(tmpPath)
+  } catch {
+    // dest is in place; leftover part is harmless
+  }
+}
+
 export function downloadProgressPercent(received: number, total: number | null): number | null {
   if (typeof total !== 'number' || !Number.isFinite(total) || total <= 0) {
     return null
@@ -1005,7 +1100,7 @@ export function downloadHttpsToFile(
 
   return new Promise((resolve, reject) => {
     fs.mkdirSync(path.dirname(destPath), { recursive: true })
-    const tmpPath = `${destPath}.part`
+    const tmpPath = packagedDownloadPartPath(destPath)
     let settled = false
 
     const finish = (error?: Error) => {
@@ -1091,10 +1186,12 @@ export function downloadHttpsToFile(
       res.on('end', () => {
         out.end(() => {
           try {
-            fs.renameSync(tmpPath, destPath)
+            replaceDownloadedFile(tmpPath, destPath)
             finish()
           } catch (error) {
-            fail(error instanceof Error ? error : new Error(String(error)))
+            // Keep the completed .part so the next click can replace dest
+            // without downloading again. fail() would unlink it.
+            finish(error instanceof Error ? error : new Error(String(error)))
           }
         })
       })

@@ -9,12 +9,14 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { PassThrough } from 'node:stream'
 
 import { test } from 'vitest'
 
 import {
   checkPackagedInstallerUpdate,
   compareStampToRelease,
+  downloadHttpsToFile,
   downloadProgressPercent,
   githubCommitApiUrl,
   githubLatestReleaseApiUrl,
@@ -25,6 +27,7 @@ import {
   nsisSilentCommandLine,
   PACKAGED_WINDOWS_CHROME_HANDOFF_PS1,
   PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1,
+  packagedDownloadPartPath,
   packagedInstallerApplySpawn,
   packagedInstallerAssetName,
   packagedInstallerSpawn,
@@ -34,6 +37,7 @@ import {
   parseGithubRelease,
   parseRuntimeFingerprint,
   readInstalledRuntimeFingerprint,
+  replaceDownloadedFile,
   resolveInstallerDownloadUrl,
   resolvePackagedInstallerApplyPlan,
   sameGitCommit,
@@ -639,4 +643,115 @@ test('isGitSha rejects empty and branch names', () => {
   assert.equal(isGitSha(''), false)
   assert.equal(isGitSha('main'), false)
   assert.equal(isGitSha(LATEST_SHA), true)
+})
+
+test('replaceDownloadedFile overwrites a leftover dest instead of failing rename', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'w4y-replace-'))
+
+  try {
+    const dest = path.join(dir, WINDOWS_SETUP_ASSET)
+    const part = packagedDownloadPartPath(dest)
+    fs.writeFileSync(dest, 'old leftover installer')
+    fs.writeFileSync(part, 'new signed installer')
+    replaceDownloadedFile(part, dest, { delayMs: 0 })
+    assert.equal(fs.readFileSync(dest, 'utf8'), 'new signed installer')
+    assert.equal(fs.existsSync(part), false)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('replaceDownloadedFile retries a locked dest then keeps the part on failure', () => {
+  const dest = `C:\\Temp\\${WINDOWS_SETUP_ASSET}`
+  const part = packagedDownloadPartPath(dest)
+  let unlinks = 0
+  const existing = new Set([dest, part])
+
+  assert.throws(
+    () =>
+      replaceDownloadedFile(part, dest, {
+        delayMs: 0,
+        retries: 3,
+        exists: file => existing.has(file),
+        unlink: file => {
+          if (file === dest) {
+            unlinks += 1
+            throw Object.assign(new Error('EPERM: operation not permitted, unlink'), { code: 'EPERM' })
+          }
+
+          existing.delete(file)
+        },
+        rename: () => {
+          throw new Error('rename must not run while dest is locked')
+        }
+      }),
+    /file in use from a previous update/
+  )
+  assert.equal(unlinks, 3)
+  assert.ok(existing.has(part))
+})
+
+test('replaceDownloadedFile copies when rename fails after dest is gone', () => {
+  const dest = '/tmp/Work4You-Setup.exe'
+  const part = packagedDownloadPartPath(dest)
+  const existing = new Set([dest, part])
+  const copied: string[] = []
+
+  replaceDownloadedFile(part, dest, {
+    delayMs: 0,
+    exists: file => existing.has(file),
+    unlink: file => {
+      existing.delete(file)
+    },
+    rename: () => {
+      throw new Error('EXDEV')
+    },
+    copy: (from, to) => {
+      copied.push(`${from}->${to}`)
+      existing.add(to)
+    }
+  })
+
+  assert.deepEqual(copied, [`${part}->${dest}`])
+  assert.equal(existing.has(part), false)
+  assert.equal(existing.has(dest), true)
+})
+
+test('downloadHttpsToFile replaces an existing dest instead of EPERM rename', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'w4y-dl-'))
+  const dest = path.join(dir, WINDOWS_SETUP_ASSET)
+  const body = Buffer.from('new signed installer')
+  fs.writeFileSync(dest, 'old leftover installer')
+
+  const get = ((_url: string, options: unknown, cb?: (res: NodeJS.ReadableStream) => void) => {
+    const callback = typeof options === 'function' ? options : cb
+    const req = {
+      on() {
+        return req
+      },
+      destroy() {
+        return undefined
+      }
+    }
+    const res = new PassThrough() as InstanceType<typeof PassThrough> & {
+      statusCode: number
+      headers: Record<string, string>
+    }
+    res.statusCode = 200
+    res.headers = { 'content-length': String(body.length) }
+    queueMicrotask(() => {
+      callback?.(res)
+      res.end(body)
+    })
+
+    return req
+  }) as unknown as typeof import('node:https').get
+
+  try {
+    await downloadHttpsToFile('https://example.test/Work4You-Setup.exe', dest, { get })
+    assert.equal(fs.readFileSync(dest, 'utf8'), 'new signed installer')
+    assert.equal(fs.existsSync(packagedDownloadPartPath(dest)), false)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 })

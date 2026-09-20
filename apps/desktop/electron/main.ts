@@ -221,8 +221,10 @@ import {
   downloadProgressPercent,
   installerDownloadDest,
   type PackagedInstallerApplyPlan,
+  packagedDownloadPartPath,
   packagedInstallerApplySpawn,
   readInstalledRuntimeFingerprint,
+  replaceDownloadedFile,
   resolvePackagedInstallerApplyPlan,
   shouldUsePackagedInstallerUpdate,
   writePackagedWindowsChromeHandoffScript,
@@ -2886,19 +2888,29 @@ async function ensurePackagedUpdateAssets(
       size: packagedAssetSize(dest),
       expectedSize: plan.size
     })
+    const partPath = packagedDownloadPartPath(dest)
+    const partReusable = isPrefetchAssetReusable({
+      exists: fs.existsSync(partPath),
+      size: packagedAssetSize(partPath),
+      expectedSize: plan.size
+    })
 
     if (!assetReusable) {
-      emitProgress('download', 0)
-      await downloadHttpsToFile(plan.downloadUrl, dest, {
-        onProgress: (received, total) => {
-          emitProgress(
-            'download',
-            mode === 'prefetch'
-              ? packagedPrefetchPercent({ kind: plan.kind, phase: 'download', received, total })
-              : downloadProgressPercent(received, total)
-          )
-        }
-      })
+      if (partReusable) {
+        replaceDownloadedFile(partPath, dest)
+      } else {
+        emitProgress('download', 0)
+        await downloadHttpsToFile(plan.downloadUrl, dest, {
+          onProgress: (received, total) => {
+            emitProgress(
+              'download',
+              mode === 'prefetch'
+                ? packagedPrefetchPercent({ kind: plan.kind, phase: 'download', received, total })
+                : downloadProgressPercent(received, total)
+            )
+          }
+        })
+      }
     }
 
     if (plan.kind === 'chrome' && extractedDir) {
