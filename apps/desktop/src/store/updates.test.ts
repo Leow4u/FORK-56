@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { DesktopUpdateStatus } from '@/global'
+import type { DesktopUpdateProgress, DesktopUpdateStatus } from '@/global'
 
 const storage = new Map<string, string>()
 
@@ -1048,16 +1048,8 @@ describe('startUpdatePoller', () => {
   })
 
   it('keeps prefetch progress off the apply spinner so Stage A never looks like quit', async () => {
-    let onProgress: ((payload: {
-      at: number
-      channel?: string
-      error: string | null
-      message: string
-      percent: number | null
-      prefetchReady?: boolean
-      stage: string
-    }) => void) | null = null
-    onProgressMock.mockImplementation(cb => {
+    let onProgress: ((payload: DesktopUpdateProgress) => void) | undefined
+    onProgressMock.mockImplementation((cb: (payload: DesktopUpdateProgress) => void) => {
       onProgress = cb
     })
     checkMock.mockResolvedValue({

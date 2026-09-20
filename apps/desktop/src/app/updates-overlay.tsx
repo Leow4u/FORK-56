@@ -247,12 +247,10 @@ function IdleView({
     prefetchPercent: status.prefetchPercent,
     prefetchReady: status.prefetchReady
   })
+  const rawPrefetchPercent = status.prefetchPercent
   const preparing =
-    typeof status.prefetchPercent === 'number' && !status.prefetchReady && !status.prefetchError
-  const prefetchPercent =
-    preparing && Number.isFinite(status.prefetchPercent)
-      ? Math.max(2, Math.min(100, Math.round(status.prefetchPercent)))
-      : null
+    typeof rawPrefetchPercent === 'number' && !status.prefetchReady && !status.prefetchError
+  const prefetchPercent = preparing ? Math.max(2, Math.min(100, Math.round(rawPrefetchPercent))) : null
 
   return (
     <div className="grid gap-5 px-6 pb-6 pt-7 pr-8">
