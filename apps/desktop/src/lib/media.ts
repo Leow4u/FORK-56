@@ -55,14 +55,7 @@ const MARKDOWN_EXTENSIONS = new Set(['md', 'markdown', 'mdown', 'mkd'])
 // Delivered documents that already have a rail path: markdown + PDF iframe,
 // or the existing binary empty-state (Office / zip). Same PreviewAttachment
 // card — no new previewKind and no new viewer.
-const DELIVERED_DOCUMENT_EXTENSIONS = new Set([
-  ...MARKDOWN_EXTENSIONS,
-  'docx',
-  'pdf',
-  'pptx',
-  'xlsx',
-  'zip'
-])
+const DELIVERED_DOCUMENT_EXTENSIONS = new Set([...MARKDOWN_EXTENSIONS, 'docx', 'pdf', 'pptx', 'xlsx', 'zip'])
 
 export function isMarkdownDocumentPath(path: string): boolean {
   const ext = pathExtension(path)

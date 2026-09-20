@@ -70,6 +70,7 @@ export function AboutSettings() {
   const updateAvailable = behind > 0 || Boolean(status?.updateAvailable)
   const supported = status?.supported !== false
   const applying = apply.applying || apply.stage === 'restart'
+
   const finalize = resolveUpdateFinalizeAction({
     channel: status?.channel,
     copy: { restartToFinish: t.updates.restartToFinish, updateNow: a.updateNow },

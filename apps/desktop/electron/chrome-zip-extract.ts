@@ -38,24 +38,30 @@ function readU32(buf: Buffer, offset: number): number {
 
 function findEocd(buf: Buffer): number {
   const min = Math.max(0, buf.length - 22 - 0xffff)
+
   for (let i = buf.length - 22; i >= min; i--) {
     if (readU32(buf, i) === EOCD_SIG) {
       return i
     }
   }
+
   throw new Error('chrome zip is missing the end-of-central-directory record')
 }
 
 export function resolveZipEntryPath(destDir: string, rawName: string): string {
   const rel = rawName.replace(/\\/g, '/').replace(/^\/+/, '')
+
   if (!rel || rel.split('/').includes('..') || /^[A-Za-z]:/.test(rel) || rel.startsWith('//')) {
     throw new Error(`refusing zip path: ${rawName}`)
   }
+
   const root = path.resolve(destDir)
   const dest = path.resolve(root, rel)
+
   if (dest !== root && !dest.startsWith(root + path.sep)) {
     throw new Error(`refusing zip path: ${rawName}`)
   }
+
   return dest
 }
 
@@ -63,14 +69,17 @@ function inflateEntry(method: number, compressed: Buffer, name: string): Buffer 
   if (method === 0) {
     return compressed
   }
+
   if (method === 8) {
     return zlib.inflateRawSync(compressed)
   }
+
   throw new Error(`unsupported zip method ${method} for ${name}`)
 }
 
 export function assertExtractedWindowsChrome(dir: string): void {
   const exe = path.join(dir, WINDOWS_CHROME_EXE)
+
   if (!fs.existsSync(exe) || !fs.statSync(exe).isFile()) {
     throw new Error(`unpacked chrome is missing ${WINDOWS_CHROME_EXE}`)
   }
@@ -85,6 +94,7 @@ export async function extractChromeZip(
   const eocd = findEocd(zip)
   const cdOff = readU32(zip, eocd + 16)
   const entryCount = readU16(zip, eocd + 10)
+
   if (cdOff === ZIP64_U32 || entryCount === 0xffff) {
     throw new Error('chrome zip uses zip64; refusing to unpack')
   }
@@ -99,10 +109,12 @@ export async function extractChromeZip(
   }
   const files: Pending[] = []
   let cursor = cdOff
+
   for (let i = 0; i < entryCount; i++) {
     if (readU32(zip, cursor) !== CD_SIG) {
       throw new Error('chrome zip central directory is corrupt')
     }
+
     const method = readU16(zip, cursor + 10)
     const flags = readU16(zip, cursor + 8)
     const compSize = readU32(zip, cursor + 20)
@@ -112,19 +124,24 @@ export async function extractChromeZip(
     const localOff = readU32(zip, cursor + 42)
     const name = zip.subarray(cursor + 46, cursor + 46 + nameLen).toString('utf8')
     cursor += 46 + nameLen + extraLen + commentLen
+
     if (!name || name.endsWith('/')) {
       continue
     }
+
     if (flags & 0x1) {
       throw new Error(`encrypted zip entry: ${name}`)
     }
+
     if (compSize === ZIP64_U32 || localOff === ZIP64_U32) {
       throw new Error(`zip64 entry: ${name}`)
     }
+
     files.push({ name, method, compSize, localOff })
   }
 
   const yieldEvery = opts.yieldEvery ?? 16
+
   for (let i = 0; i < files.length; i++) {
     const entry = files[i]
     const dest = resolveZipEntryPath(destDir, entry.name)
@@ -136,6 +153,7 @@ export async function extractChromeZip(
     await fs.promises.mkdir(path.dirname(dest), { recursive: true })
     await fs.promises.writeFile(dest, data)
     opts.onProgress?.({ done: i + 1, total: files.length })
+
     if ((i + 1) % yieldEvery === 0) {
       await new Promise<void>(resolve => setImmediate(resolve))
     }

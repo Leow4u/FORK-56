@@ -75,9 +75,9 @@ describe('resolveUpdateFinalizeAction', () => {
   })
 
   it('chrome ready becomes Restart to finish; installer stays Update now', () => {
-    expect(
-      resolveUpdateFinalizeAction({ channel: 'chrome', copy, prefetchPercent: 100, prefetchReady: true })
-    ).toEqual({ disabled: false, label: 'Restart to finish' })
+    expect(resolveUpdateFinalizeAction({ channel: 'chrome', copy, prefetchPercent: 100, prefetchReady: true })).toEqual(
+      { disabled: false, label: 'Restart to finish' }
+    )
     expect(
       resolveUpdateFinalizeAction({ channel: 'installer', copy, prefetchPercent: 100, prefetchReady: true })
     ).toEqual({ disabled: false, label: 'Update now' })

@@ -3443,8 +3443,10 @@ export const zh: Translations = {
     availableTitleBackend: '后端有可用更新',
     availableBodyBackend: '已连接的 Work4You 后端有新版本可安装。',
     availableBodyNoChangelog: '已有新版本可用。此安装方式无法显示更新日志。',
-    availableBodyInstaller: '新的 Work4You 安装包已就绪。会在后台下载——准备好后再点立即更新。安装程序仍需这次点击；大约一分钟即可替换应用。',
-    availableBodyChrome: '新的 Work4You 应用更新已就绪。会在后台下载并解包——芯片就绪后点“重启以完成”。现有运行时保持不变。',
+    availableBodyInstaller:
+      '新的 Work4You 安装包已就绪。会在后台下载——准备好后再点立即更新。安装程序仍需这次点击；大约一分钟即可替换应用。',
+    availableBodyChrome:
+      '新的 Work4You 应用更新已就绪。会在后台下载并解包——芯片就绪后点“重启以完成”。现有运行时保持不变。',
     updateNow: '立即更新',
     restartToFinish: '重启以完成',
     maybeLater: '稍后再说',
@@ -3622,8 +3624,7 @@ export const zh: Translations = {
     waitingAuthorize: '等待你授权...',
     externalPending: provider => `${provider} 通过自己的 CLI 登录。请在终端运行此命令，然后回来选择“我已登录”：`,
     signedIn: '我已登录',
-    deviceCodeOpened: provider =>
-      `已在浏览器中打开 ${provider}。请先在该页面登录，登录后再确认此设备代码：`,
+    deviceCodeOpened: provider => `已在浏览器中打开 ${provider}。请先在该页面登录，登录后再确认此设备代码：`,
     reopenVerification: '重新打开验证页面',
     copy: '复制',
     defaultModel: '默认模型',

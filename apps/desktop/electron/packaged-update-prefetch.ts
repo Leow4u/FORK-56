@@ -47,9 +47,9 @@ export function shouldStartPackagedPrefetch(status: {
 }): boolean {
   return Boolean(
     status.supported !== false &&
-      status.updateAvailable &&
-      !status.error &&
-      (status.channel === 'chrome' || status.channel === 'installer')
+    status.updateAvailable &&
+    !status.error &&
+    (status.channel === 'chrome' || status.channel === 'installer')
   )
 }
 

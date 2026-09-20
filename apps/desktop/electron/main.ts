@@ -2855,8 +2855,10 @@ async function ensurePackagedUpdateAssets(
   const scratchDir = packagedUpdateScratchDir(os.tmpdir())
   const dest = installerDownloadDest(scratchDir, plan.assetName)
   const extractedDir = plan.kind === 'chrome' && IS_WINDOWS ? packagedChromeExtractedDir(scratchDir) : null
+
   const downloadingMessage =
     plan.kind === 'chrome' ? 'Downloading the Work4You app update…' : 'Downloading the signed Work4You installer…'
+
   const unpackingMessage = 'Unpacking the desktop shell…'
 
   const promise = (async () => {
@@ -3765,9 +3767,7 @@ async function applyPackagedInstallerUpdates() {
     emitUpdateProgress({
       stage: 'fetch',
       message:
-        plan.kind === 'chrome'
-          ? 'Downloading the Work4You app update…'
-          : 'Downloading the signed Work4You installer…',
+        plan.kind === 'chrome' ? 'Downloading the Work4You app update…' : 'Downloading the signed Work4You installer…',
       percent: 0
     })
   }
@@ -4623,6 +4623,7 @@ function tryDeployBundledRuntime() {
       'v1.0',
       'powershell.exe'
     )
+
     result = spawnSync(
       powershell,
       bundledDeployArgs({
