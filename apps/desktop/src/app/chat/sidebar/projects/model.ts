@@ -66,12 +66,12 @@ const projectActivityTime = (project: SidebarProjectTree): number =>
 export const latestProjectSessions = (project: SidebarProjectTree, limit: number): SessionInfo[] =>
   [...projectSessions(project)].sort((a, b) => sessionRecency(b) - sessionRecency(a)).slice(0, limit)
 
-// Home is a fixture, not a project: it always leads the overview, above the
-// active project and outside any hand-picked order.
-const homeFirst = (projects: SidebarProjectTree[]): SidebarProjectTree[] =>
-  projects[0]?.isNoProject || !projects.some(project => project.isNoProject)
+// Home is a fixture, not a project: it always trails the overview (no-folder
+// recents), below the folders and outside any hand-picked order.
+const homeLast = (projects: SidebarProjectTree[]): SidebarProjectTree[] =>
+  projects.at(-1)?.isNoProject || !projects.some(project => project.isNoProject)
     ? projects
-    : [...projects.filter(project => project.isNoProject), ...projects.filter(project => !project.isNoProject)]
+    : [...projects.filter(project => !project.isNoProject), ...projects.filter(project => project.isNoProject)]
 
 export function sortProjectsForOverview(
   projects: SidebarProjectTree[],
@@ -102,7 +102,7 @@ export function sortProjectsForOverview(
     )
   })
 
-  return homeFirst(sorted)
+  return homeLast(sorted)
 }
 
 // Layer the user's manual drag-order over the deterministic sort.
@@ -128,10 +128,10 @@ export function orderProjectsByIds(projects: SidebarProjectTree[], orderIds: str
   const fresh = projects.filter(project => !seen.has(project.id))
 
   if (!fresh.length) {
-    return homeFirst(ordered)
+    return homeLast(ordered)
   }
 
-  return homeFirst([
+  return homeLast([
     ...fresh.filter(project => project.sessionCount > 0),
     ...ordered,
     ...fresh.filter(project => project.sessionCount <= 0)

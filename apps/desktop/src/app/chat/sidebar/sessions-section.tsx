@@ -404,12 +404,11 @@ export function SidebarSessionsSection({
   } else if (showEmptyState) {
     inner = emptyState
   } else if (projectOverview?.length) {
-    // The model is already ordered (Home leads; then the default sort groups
-    // explicit-before-auto, with a manual drag-order winning when present).
-    // Render in that order and make rows drag-to-reorder when a handler is
-    // wired — Home stays outside the sortable list, it's a fixture.
-    const home = projectOverview[0]?.isNoProject ? projectOverview[0] : undefined
-    const sortableProjects = home ? projectOverview.slice(1) : projectOverview
+    // The model is already ordered (folders first; Home trails as no-folder
+    // recents). Render in that order and make rows drag-to-reorder when a
+    // handler is wired — Home stays outside the sortable list, it's a fixture.
+    const home = projectOverview.find(project => project.isNoProject)
+    const sortableProjects = home ? projectOverview.filter(project => !project.isNoProject) : projectOverview
     const projectsDraggable = sortableProjects.length > 1 && !!onReorderProjects
     const Row = projectsDraggable ? SortableProjectOverviewRow : ProjectOverviewRow
 
@@ -430,7 +429,6 @@ export function SidebarSessionsSection({
 
     inner = (
       <>
-        {home && projectRow(home, ProjectOverviewRow)}
         {projectsDraggable && onReorderProjects ? (
           <ReorderableList
             ids={sortableProjects.map(project => project.id)}
@@ -442,6 +440,7 @@ export function SidebarSessionsSection({
         ) : (
           rows
         )}
+        {home && projectRow(home, ProjectOverviewRow)}
       </>
     )
   } else if (groups?.length) {

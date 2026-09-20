@@ -143,6 +143,10 @@ describe('ChatSidebar Project grouping keeps messaging and cron', () => {
     expect(screen.getByRole('button', { name: 'New project' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Home' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Demo' })).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Demo' }).compareDocumentPosition(screen.getByRole('button', { name: 'Home' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
   })
 
   it('shows Pinned only after a conversation is pinned', () => {
