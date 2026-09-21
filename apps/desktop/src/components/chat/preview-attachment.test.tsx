@@ -52,6 +52,8 @@ describe('PreviewAttachment', () => {
     expect(screen.getByRole('button', { name: 'Open' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Open preview' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Open' }).getAttribute('data-variant')).toBe('chip')
+    expect(screen.getByRole('button', { name: 'Download' }).getAttribute('data-variant')).toBe('chip')
     expect(card?.getAttribute('data-document-kind')).toBe('spreadsheet')
     expect(card?.getAttribute('data-document-tone')).toBe('green')
     expect(card?.className).toContain('border')

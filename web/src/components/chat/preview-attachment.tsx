@@ -193,19 +193,22 @@ export function PreviewAttachment({ source = 'manual', target }: { source?: Prev
           </span>
         </span>
       </button>
-      <Button disabled={opening} onClick={() => void togglePreview()} size="inline" type="button" variant="text">
-        {previewLabel}
-      </Button>
-      <Button
-        aria-label={t.fileMenu.download}
-        disabled={downloading}
-        onClick={() => void downloadFile()}
-        size="icon-sm"
-        type="button"
-        variant="ghost"
-      >
-        <Download />
-      </Button>
+      <span className="flex shrink-0 items-center gap-1.5">
+        <Button disabled={opening} onClick={() => void togglePreview()} size="sm" type="button" variant="chip">
+          {previewLabel}
+        </Button>
+        <Button
+          aria-label={t.fileMenu.download}
+          disabled={downloading}
+          onClick={() => void downloadFile()}
+          size="sm"
+          type="button"
+          variant="chip"
+        >
+          <Download />
+          {t.fileMenu.download}
+        </Button>
+      </span>
     </span>
   )
 }
