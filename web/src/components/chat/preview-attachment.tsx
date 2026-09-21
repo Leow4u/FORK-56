@@ -13,18 +13,18 @@ import {
   FileTypeDocx,
   FileTypePdf,
   FileZip,
+  type IconComponent,
   iconSize,
   Markdown,
-  Presentation,
-  type IconComponent
+  Presentation
 } from '@/lib/icons'
 import { normalizeOrLocalPreviewTarget } from '@/lib/local-preview'
 import {
   documentCardMeta,
-  documentKindLine,
-  downloadDeliveredFile,
   type DocumentIconName,
-  type DocumentTone
+  documentKindLine,
+  type DocumentTone,
+  downloadDeliveredFile
 } from '@/lib/media'
 import { previewName } from '@/lib/preview-targets'
 import { cn } from '@/lib/utils'
