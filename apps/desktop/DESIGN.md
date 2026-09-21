@@ -221,6 +221,11 @@ Notes:
   (`src/components/chat/widget-shell.ts`): shared radius, the
   `--ui-widget-surface-background` fill, no border. Its actions sit *outside*
   the panel, below it. Don't give one widget its own radius or fill.
+- **Attachment rows** — a delivered file in the transcript wears
+  `ATTACHMENT_SHELL_CLASS` (same file): the same radius and padding, the
+  `--ui-stroke-tertiary` hairline reserved for attachments, and a 5%
+  `--ui-text-primary` mix on the chat field so the row still reads when
+  widget fill equals the thread. Open + Download sit on the row.
 - **Thread right-edge chrome** — the transcript scrollbar (`[data-slot='aui_thread-viewport']`)
   is the one grabable bar on a long chat: `--thread-scrollbar-size` (10px), a
   faint track, and a stronger thumb than the app-wide 4px gutters. The

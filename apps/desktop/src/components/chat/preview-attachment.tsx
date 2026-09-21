@@ -2,7 +2,7 @@ import { useStore } from '@nanostores/react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useSessionView } from '@/app/chat/session-view'
-import { WIDGET_SHELL_CLASS } from '@/components/chat/widget-shell'
+import { ATTACHMENT_SHELL_CLASS } from '@/components/chat/widget-shell'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
 import {
@@ -41,11 +41,11 @@ const DOCUMENT_ICON: Record<DocumentIconName, IconComponent> = {
 }
 
 const DOCUMENT_TONE_CLASS: Record<DocumentTone, { icon: string; tile: string }> = {
-  blue: { icon: 'text-(--ui-blue)', tile: 'bg-(--ui-blue)/12' },
-  green: { icon: 'text-(--ui-green)', tile: 'bg-(--ui-green)/12' },
+  blue: { icon: 'text-(--ui-blue)', tile: 'bg-(--ui-blue)/15' },
+  green: { icon: 'text-(--ui-green)', tile: 'bg-(--ui-green)/15' },
   muted: { icon: 'text-muted-foreground', tile: 'bg-muted/55' },
-  orange: { icon: 'text-(--ui-orange)', tile: 'bg-(--ui-orange)/12' },
-  red: { icon: 'text-(--ui-red)', tile: 'bg-(--ui-red)/12' }
+  orange: { icon: 'text-(--ui-orange)', tile: 'bg-(--ui-orange)/15' },
+  red: { icon: 'text-(--ui-red)', tile: 'bg-(--ui-red)/15' }
 }
 
 export function PreviewAttachment({ source = 'manual', target }: { source?: PreviewRecordSource; target: string }) {
@@ -170,7 +170,7 @@ export function PreviewAttachment({ source = 'manual', target }: { source?: Prev
 
   return (
     <span
-      className={cn(WIDGET_SHELL_CLASS, 'my-1.5 inline-flex w-full min-w-0 items-center gap-3 align-middle')}
+      className={cn(ATTACHMENT_SHELL_CLASS, 'my-1.5 inline-flex w-full min-w-0 items-center gap-3 align-middle')}
       data-document-kind={card.kindKey}
       data-document-tone={card.tone}
       data-slot="aui_document-card"
@@ -182,8 +182,8 @@ export function PreviewAttachment({ source = 'manual', target }: { source?: Prev
         onClick={() => void togglePreview()}
         type="button"
       >
-        <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', tone.tile, tone.icon)}>
-          <Icon className={iconSize.lg} />
+        <span className={cn('grid size-10 shrink-0 place-items-center rounded-xl', tone.tile, tone.icon)}>
+          <Icon className={iconSize.xl} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[length:var(--conversation-text-font-size)] font-semibold text-foreground">

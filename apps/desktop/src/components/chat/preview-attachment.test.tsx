@@ -54,6 +54,7 @@ describe('PreviewAttachment', () => {
     expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy()
     expect(card?.getAttribute('data-document-kind')).toBe('spreadsheet')
     expect(card?.getAttribute('data-document-tone')).toBe('green')
+    expect(card?.className).toContain('border')
     expect(normalizeOrLocalPreviewTarget).not.toHaveBeenCalled()
     expect(openPreview).not.toHaveBeenCalled()
   })
