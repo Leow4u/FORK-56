@@ -7,14 +7,18 @@
 
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import https from 'node:https'
 import os from 'node:os'
 import path from 'node:path'
+import { PassThrough } from 'node:stream'
 
 import { test } from 'vitest'
 
 import {
   checkPackagedInstallerUpdate,
+  CHROME_ZIP_PENDING_REASON,
   compareStampToRelease,
+  downloadHttpsToFile,
   downloadProgressPercent,
   githubCommitApiUrl,
   githubLatestReleaseApiUrl,
@@ -25,6 +29,7 @@ import {
   nsisSilentCommandLine,
   PACKAGED_WINDOWS_CHROME_HANDOFF_PS1,
   PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1,
+  packagedDownloadPartPath,
   packagedInstallerApplySpawn,
   packagedInstallerAssetName,
   packagedInstallerSpawn,
@@ -34,8 +39,10 @@ import {
   parseGithubRelease,
   parseRuntimeFingerprint,
   readInstalledRuntimeFingerprint,
+  replaceDownloadedFile,
   resolveInstallerDownloadUrl,
   resolvePackagedInstallerApplyPlan,
+  resolveWindowsPackagedApplyKind,
   sameGitCommit,
   selectReleaseAsset,
   shouldApplyWindowsChromeZip,
@@ -52,6 +59,16 @@ const STAMP_SHA = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 const MATCHING_FINGERPRINT = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 const OTHER_FINGERPRINT = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 
+function fingerprintAsset() {
+  return {
+    name: 'runtime-win-x64.fingerprint',
+    browser_download_url:
+      'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/runtime-win-x64.fingerprint',
+    size: 65,
+    state: 'uploaded'
+  }
+}
+
 function chromeAssets() {
   return [
     {
@@ -61,13 +78,7 @@ function chromeAssets() {
       size: 70_000_000,
       state: 'uploaded'
     },
-    {
-      name: 'runtime-win-x64.fingerprint',
-      browser_download_url:
-        'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/runtime-win-x64.fingerprint',
-      size: 65,
-      state: 'uploaded'
-    }
+    fingerprintAsset()
   ]
 }
 
@@ -316,7 +327,7 @@ test('resolveInstallerDownloadUrl prefers the GitHub asset, then work4you.ai', (
   )
 })
 
-test('checkPackagedInstallerUpdate offers an update when the stamp is behind Latest', async () => {
+test('checkPackagedInstallerUpdate offers a chrome hop when the stamp is behind Latest', async () => {
   const result = await checkPackagedInstallerUpdate({
     stampCommit: STAMP_SHA,
     platform: 'win32',
@@ -324,8 +335,12 @@ test('checkPackagedInstallerUpdate offers an update when the stamp is behind Lat
     fetchJson: async url => {
       assert.equal(url, githubLatestReleaseApiUrl())
 
-      return releasePayload()
+      return releasePayload({
+        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+      })
     },
+    fetchText: async () => MATCHING_FINGERPRINT,
+    localFingerprint: MATCHING_FINGERPRINT,
     compareBehind: async (current, target) => {
       assert.equal(current, STAMP_SHA)
       assert.equal(target, LATEST_SHA)
@@ -335,13 +350,80 @@ test('checkPackagedInstallerUpdate offers an update when the stamp is behind Lat
   })
 
   assert.equal(result.supported, true)
-  assert.equal(result.channel, 'installer')
+  assert.equal(result.channel, 'chrome')
   assert.equal(result.updateAvailable, true)
   assert.equal(result.behind, 4)
   assert.equal(result.currentSha, STAMP_SHA)
   assert.equal(result.targetSha, LATEST_SHA)
   assert.equal(result.releaseTag, 'desktop-v0.0.27')
   assert.deepEqual(result.commits, [])
+})
+
+test('checkPackagedInstallerUpdate waits instead of offering Setup when chrome zip is missing', async () => {
+  const result = await checkPackagedInstallerUpdate({
+    stampCommit: STAMP_SHA,
+    platform: 'win32',
+    localFingerprint: MATCHING_FINGERPRINT,
+    fetchJson: async () =>
+      releasePayload({
+        assets: [...(releasePayload().assets as object[]), fingerprintAsset()]
+      }),
+    fetchText: async () => MATCHING_FINGERPRINT,
+    compareBehind: async () => 4
+  })
+
+  assert.equal(result.supported, true)
+  assert.equal(result.updateAvailable, false)
+  assert.equal(result.reason, CHROME_ZIP_PENDING_REASON)
+  assert.equal(result.channel, 'installer')
+  assert.match(result.message || '', /still publishing the slim Electron update/)
+})
+
+test('checkPackagedInstallerUpdate waits on mid-publish Latest with no fingerprints', async () => {
+  const result = await checkPackagedInstallerUpdate({
+    stampCommit: STAMP_SHA,
+    platform: 'win32',
+    fetchJson: async () => releasePayload(),
+    compareBehind: async () => 4
+  })
+
+  assert.equal(result.updateAvailable, false)
+  assert.equal(result.reason, CHROME_ZIP_PENDING_REASON)
+})
+
+test('checkPackagedInstallerUpdate offers Setup when runtime changed even without chrome zip', async () => {
+  const result = await checkPackagedInstallerUpdate({
+    stampCommit: STAMP_SHA,
+    platform: 'win32',
+    localFingerprint: OTHER_FINGERPRINT,
+    fetchJson: async () =>
+      releasePayload({
+        assets: [...(releasePayload().assets as object[]), fingerprintAsset()]
+      }),
+    fetchText: async () => MATCHING_FINGERPRINT,
+    compareBehind: async () => 1
+  })
+
+  assert.equal(result.channel, 'installer')
+  assert.equal(result.updateAvailable, true)
+  assert.equal(result.reason, undefined)
+})
+
+test('checkPackagedInstallerUpdate offers Setup only when the runtime fingerprint changed', async () => {
+  const result = await checkPackagedInstallerUpdate({
+    stampCommit: STAMP_SHA,
+    platform: 'win32',
+    localFingerprint: OTHER_FINGERPRINT,
+    fetchJson: async () =>
+      releasePayload({
+        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+      }),
+    fetchText: async () => MATCHING_FINGERPRINT,
+    compareBehind: async () => 1
+  })
+
+  assert.equal(result.channel, 'installer')
+  assert.equal(result.updateAvailable, true)
 })
 
 test('checkPackagedInstallerUpdate is up to date when stamp matches Latest', async () => {
@@ -406,16 +488,63 @@ test('checkPackagedInstallerUpdate is unsupported on Linux even if packaged', as
   assert.equal(result.reason, 'no-installer-channel')
 })
 
-test('resolvePackagedInstallerApplyPlan returns the Setup.exe URL', async () => {
+test('resolvePackagedInstallerApplyPlan returns Setup.exe only when the runtime changed', async () => {
   const plan = await resolvePackagedInstallerApplyPlan({
     platform: 'win32',
-    fetchJson: async () => releasePayload()
+    localFingerprint: OTHER_FINGERPRINT,
+    fetchJson: async () =>
+      releasePayload({
+        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+      }),
+    fetchText: async () => MATCHING_FINGERPRINT
   })
 
   assert.equal(plan.kind, 'installer')
   assert.equal(plan.assetName, WINDOWS_SETUP_ASSET)
   assert.match(plan.downloadUrl, /Work4You-Setup\.exe$/)
   assert.equal(plan.releaseTag, 'desktop-v0.0.27')
+})
+
+test('resolvePackagedInstallerApplyPlan returns Setup when runtime changed even without chrome zip', async () => {
+  const plan = await resolvePackagedInstallerApplyPlan({
+    platform: 'win32',
+    localFingerprint: OTHER_FINGERPRINT,
+    fetchJson: async () =>
+      releasePayload({
+        assets: [...(releasePayload().assets as object[]), fingerprintAsset()]
+      }),
+    fetchText: async () => MATCHING_FINGERPRINT
+  })
+
+  assert.equal(plan.kind, 'installer')
+  assert.match(plan.downloadUrl, /Work4You-Setup\.exe$/)
+})
+
+test('resolvePackagedInstallerApplyPlan refuses Setup when chrome zip is missing and runtime did not change', async () => {
+  await assert.rejects(
+    () =>
+      resolvePackagedInstallerApplyPlan({
+        platform: 'win32',
+        localFingerprint: MATCHING_FINGERPRINT,
+        fetchJson: async () =>
+          releasePayload({
+            assets: [...(releasePayload().assets as object[]), fingerprintAsset()]
+          }),
+        fetchText: async () => MATCHING_FINGERPRINT
+      }),
+    /still publishing the slim Electron update/
+  )
+})
+
+test('resolvePackagedInstallerApplyPlan refuses Setup on a mid-publish Latest with no fingerprints', async () => {
+  await assert.rejects(
+    () =>
+      resolvePackagedInstallerApplyPlan({
+        platform: 'win32',
+        fetchJson: async () => releasePayload()
+      }),
+    /still publishing the slim Electron update/
+  )
 })
 
 test('parseRuntimeFingerprint accepts 64 hex and rejects junk', () => {
@@ -439,39 +568,57 @@ test('readInstalledRuntimeFingerprint reads HOME/work4you/.runtime-fingerprint',
   }
 })
 
-test('shouldApplyWindowsChromeZip is fail-open unless both fingerprints differ', () => {
+test('resolveWindowsPackagedApplyKind never falls back to Setup for a shell hop', () => {
   const chrome = {
     name: WINDOWS_CHROME_ZIP_ASSET,
     browserDownloadUrl: 'https://example.test/Work4You-win-x64.zip',
     size: 1
   }
 
-  assert.equal(shouldApplyWindowsChromeZip({ chromeAsset: null }), false)
-  assert.equal(shouldApplyWindowsChromeZip({ chromeAsset: chrome }), true)
+  assert.equal(resolveWindowsPackagedApplyKind({ chromeAsset: null }), 'wait')
+  assert.equal(resolveWindowsPackagedApplyKind({ chromeAsset: chrome }), 'chrome')
   assert.equal(
-    shouldApplyWindowsChromeZip({
+    resolveWindowsPackagedApplyKind({
       chromeAsset: chrome,
       remoteFingerprint: MATCHING_FINGERPRINT,
       localFingerprint: MATCHING_FINGERPRINT
     }),
-    true
+    'chrome'
   )
   assert.equal(
-    shouldApplyWindowsChromeZip({
+    resolveWindowsPackagedApplyKind({
       chromeAsset: chrome,
       remoteFingerprint: MATCHING_FINGERPRINT,
       localFingerprint: OTHER_FINGERPRINT
     }),
-    false
+    'installer'
   )
   assert.equal(
-    shouldApplyWindowsChromeZip({
+    resolveWindowsPackagedApplyKind({
+      chromeAsset: null,
+      remoteFingerprint: MATCHING_FINGERPRINT,
+      localFingerprint: OTHER_FINGERPRINT
+    }),
+    'installer'
+  )
+  assert.equal(
+    resolveWindowsPackagedApplyKind({
+      chromeAsset: null,
+      remoteFingerprint: MATCHING_FINGERPRINT,
+      localFingerprint: MATCHING_FINGERPRINT
+    }),
+    'wait'
+  )
+  assert.equal(
+    resolveWindowsPackagedApplyKind({
       chromeAsset: chrome,
       remoteFingerprint: MATCHING_FINGERPRINT,
       localFingerprint: null
     }),
-    true
+    'chrome'
   )
+  assert.equal(shouldApplyWindowsChromeZip({ chromeAsset: chrome }), true)
+  assert.equal(shouldApplyWindowsChromeZip({ chromeAsset: null }), false)
 })
 
 test('resolvePackagedInstallerApplyPlan prefers chrome zip when fingerprints match', async () => {
@@ -639,4 +786,115 @@ test('isGitSha rejects empty and branch names', () => {
   assert.equal(isGitSha(''), false)
   assert.equal(isGitSha('main'), false)
   assert.equal(isGitSha(LATEST_SHA), true)
+})
+
+test('replaceDownloadedFile overwrites a leftover dest instead of failing rename', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'w4y-replace-'))
+
+  try {
+    const dest = path.join(dir, WINDOWS_SETUP_ASSET)
+    const part = packagedDownloadPartPath(dest)
+    fs.writeFileSync(dest, 'old leftover installer')
+    fs.writeFileSync(part, 'new signed installer')
+    replaceDownloadedFile(part, dest, { delayMs: 0 })
+    assert.equal(fs.readFileSync(dest, 'utf8'), 'new signed installer')
+    assert.equal(fs.existsSync(part), false)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('replaceDownloadedFile retries a locked dest then keeps the part on failure', () => {
+  const dest = `C:\\Temp\\${WINDOWS_SETUP_ASSET}`
+  const part = packagedDownloadPartPath(dest)
+  let unlinks = 0
+  const existing = new Set([dest, part])
+
+  assert.throws(
+    () =>
+      replaceDownloadedFile(part, dest, {
+        delayMs: 0,
+        retries: 3,
+        exists: file => existing.has(file),
+        unlink: file => {
+          if (file === dest) {
+            unlinks += 1
+            throw Object.assign(new Error('EPERM: operation not permitted, unlink'), { code: 'EPERM' })
+          }
+
+          existing.delete(file)
+        },
+        rename: () => {
+          throw new Error('rename must not run while dest is locked')
+        }
+      }),
+    /file in use from a previous update/
+  )
+  assert.equal(unlinks, 3)
+  assert.ok(existing.has(part))
+})
+
+test('replaceDownloadedFile copies when rename fails after dest is gone', () => {
+  const dest = '/tmp/Work4You-Setup.exe'
+  const part = packagedDownloadPartPath(dest)
+  const existing = new Set([dest, part])
+  const copied: string[] = []
+
+  replaceDownloadedFile(part, dest, {
+    delayMs: 0,
+    exists: file => existing.has(file),
+    unlink: file => {
+      existing.delete(file)
+    },
+    rename: () => {
+      throw new Error('EXDEV')
+    },
+    copy: (from, to) => {
+      copied.push(`${from}->${to}`)
+      existing.add(to)
+    }
+  })
+
+  assert.deepEqual(copied, [`${part}->${dest}`])
+  assert.equal(existing.has(part), false)
+  assert.equal(existing.has(dest), true)
+})
+
+test('downloadHttpsToFile replaces an existing dest instead of EPERM rename', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'w4y-dl-'))
+  const dest = path.join(dir, WINDOWS_SETUP_ASSET)
+  const body = Buffer.from('new signed installer')
+  fs.writeFileSync(dest, 'old leftover installer')
+
+  const get = ((_url: string, options: unknown, cb?: (res: NodeJS.ReadableStream) => void) => {
+    const callback = typeof options === 'function' ? options : cb
+    const req = {
+      on() {
+        return req
+      },
+      destroy() {
+        return undefined
+      }
+    }
+    const res = new PassThrough() as InstanceType<typeof PassThrough> & {
+      statusCode: number
+      headers: Record<string, string>
+    }
+    res.statusCode = 200
+    res.headers = { 'content-length': String(body.length) }
+    queueMicrotask(() => {
+      callback?.(res)
+      res.end(body)
+    })
+
+    return req
+  }) as unknown as typeof https.get
+
+  try {
+    await downloadHttpsToFile('https://example.test/Work4You-Setup.exe', dest, { get })
+    assert.equal(fs.readFileSync(dest, 'utf8'), 'new signed installer')
+    assert.equal(fs.existsSync(packagedDownloadPartPath(dest)), false)
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 })

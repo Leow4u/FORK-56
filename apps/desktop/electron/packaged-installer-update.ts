@@ -10,6 +10,10 @@ import { wrapHandoffForDetachedConsole } from './updater-process'
  * (or the slim Windows Electron zip when the runtime fingerprint matches)
  * instead of running `work4you update` (git pull + uv + electron-builder).
  *
+ * Site Setup.exe is first-install / Repair / a real runtime change. A Windows
+ * in-app hop with matching or unknown runtime never downloads that fat file.
+ * If Latest is still missing the chrome zip, wait — do not fall back to Setup.
+ *
  * .exe/.dmg users already get a complete desktop app from GitHub Latest
  * (`Work4You-Setup.exe` / `Work4You.dmg`). Electron-only releases also publish
  * `Work4You-win-x64.zip` (win-unpacked minus `resources/runtime`). Rebuilding
@@ -38,6 +42,7 @@ export const MACOS_DMG_ASSET = 'Work4You.dmg'
 export const WINDOWS_CHROME_ZIP_ASSET = 'Work4You-win-x64.zip'
 export const WINDOWS_RUNTIME_FINGERPRINT_ASSET = 'runtime-win-x64.fingerprint'
 export const RUNTIME_FINGERPRINT_FILENAME = '.runtime-fingerprint'
+export const CHROME_ZIP_PENDING_REASON = 'chrome-zip-pending'
 
 /** Public CDN/site URLs that redirect to GitHub Latest (fallback if the API omits assets). */
 export const PUBLIC_INSTALLER_DOWNLOAD: Readonly<Record<'darwin' | 'win32', string>> = {
@@ -230,30 +235,44 @@ export function readInstalledRuntimeFingerprint(
   }
 }
 
+export type WindowsPackagedApplyKind = 'chrome' | 'installer' | 'wait'
+
 /**
- * Prefer the slim Electron zip when Latest published one, unless both
- * fingerprints exist and disagree (runtime payload changed → fat Setup.exe).
- * Missing either fingerprint is fail-open to chrome: Electron-only releases
- * keep the payload id stable, and the first hop onto this client still uses
- * Setup.exe because older asars do not know the chrome asset.
+ * Site Setup.exe is first-install / Repair / a real runtime change.
+ * In-app Update is the 0.0.88 contract: replace Programs\Work4You only.
+ *
+ * - Both fingerprints present and different → fat Setup.exe (runtime changed).
+ * - Chrome zip on Latest and runtime did not change → chrome zip.
+ * - Chrome zip missing and runtime did not change → wait. Never fall back
+ *   to the site installer for a shell-only hop (mid-publish Latest used to).
  */
+export function resolveWindowsPackagedApplyKind(opts: {
+  chromeAsset: GithubReleaseAsset | null
+  remoteFingerprint?: string | null
+  localFingerprint?: string | null
+}): WindowsPackagedApplyKind {
+  const remote = parseRuntimeFingerprint(opts.remoteFingerprint)
+  const local = parseRuntimeFingerprint(opts.localFingerprint)
+  const runtimeChanged = Boolean(remote && local && remote !== local)
+
+  if (runtimeChanged) {
+    return 'installer'
+  }
+
+  if (opts.chromeAsset) {
+    return 'chrome'
+  }
+
+  return 'wait'
+}
+
+/** True only when the chrome zip is the apply artifact. False is not "use Setup". */
 export function shouldApplyWindowsChromeZip(opts: {
   chromeAsset: GithubReleaseAsset | null
   remoteFingerprint?: string | null
   localFingerprint?: string | null
 }): boolean {
-  if (!opts.chromeAsset) {
-    return false
-  }
-
-  const remote = parseRuntimeFingerprint(opts.remoteFingerprint)
-  const local = parseRuntimeFingerprint(opts.localFingerprint)
-
-  if (remote && local && remote !== local) {
-    return false
-  }
-
-  return true
+  return resolveWindowsPackagedApplyKind(opts) === 'chrome'
 }
 
 async function resolveRemoteRuntimeFingerprint(
@@ -756,17 +775,35 @@ export async function checkPackagedInstallerUpdate(
   })
 
   let channel: PackagedApplyKind = 'installer'
+  let chromeZipPending = false
 
   if (deps.platform === 'win32') {
-    const remoteFingerprint = await resolveRemoteRuntimeFingerprint(release, deps.fetchText)
-    if (
-      shouldApplyWindowsChromeZip({
-        chromeAsset: selectReleaseAsset(release, WINDOWS_CHROME_ZIP_ASSET),
-        remoteFingerprint,
-        localFingerprint: deps.localFingerprint ?? null
-      })
-    ) {
+    const applyKind = resolveWindowsPackagedApplyKind({
+      chromeAsset: selectReleaseAsset(release, WINDOWS_CHROME_ZIP_ASSET),
+      remoteFingerprint: await resolveRemoteRuntimeFingerprint(release, deps.fetchText),
+      localFingerprint: deps.localFingerprint ?? null
+    })
+
+    if (applyKind === 'chrome') {
       channel = 'chrome'
+    } else if (applyKind === 'wait') {
+      chromeZipPending = true
+    }
+  }
+
+  if (chromeZipPending && updateAvailable) {
+    return {
+      supported: true,
+      channel: 'installer',
+      updateAvailable: false,
+      reason: CHROME_ZIP_PENDING_REASON,
+      message: `Latest desktop release ${release.tag} is still publishing the slim Electron update.`,
+      behind,
+      currentSha: stampCommit ?? undefined,
+      targetSha: releaseSha ?? undefined,
+      releaseTag: release.tag,
+      commits: [],
+      fetchedAt
     }
   }
 
@@ -820,15 +857,17 @@ export async function resolvePackagedInstallerApplyPlan(
   if (deps.platform === 'win32') {
     const chromeAsset = selectReleaseAsset(release, WINDOWS_CHROME_ZIP_ASSET)
     const remoteFingerprint = await resolveRemoteRuntimeFingerprint(release, deps.fetchText)
+    const applyKind = resolveWindowsPackagedApplyKind({
+      chromeAsset,
+      remoteFingerprint,
+      localFingerprint: deps.localFingerprint ?? null
+    })
 
-    if (
-      shouldApplyWindowsChromeZip({
-        chromeAsset,
-        remoteFingerprint,
-        localFingerprint: deps.localFingerprint ?? null
-      }) &&
-      chromeAsset?.browserDownloadUrl
-    ) {
+    if (applyKind === 'wait') {
+      throw new Error(`Latest desktop release ${release.tag} is still publishing the slim Electron update.`)
+    }
+
+    if (applyKind === 'chrome' && chromeAsset?.browserDownloadUrl) {
       return {
         kind: 'chrome',
         assetName: WINDOWS_CHROME_ZIP_ASSET,
@@ -859,6 +898,101 @@ export async function resolvePackagedInstallerApplyPlan(
 
 export function installerDownloadDest(tmpDir: string, assetName: string): string {
   return path.join(tmpDir, assetName)
+}
+
+export function packagedDownloadPartPath(destPath: string): string {
+  return `${destPath}.part`
+}
+
+export interface ReplaceDownloadedFileDeps {
+  exists?: (file: string) => boolean
+  unlink?: (file: string) => void
+  rename?: (from: string, to: string) => void
+  copy?: (from: string, to: string) => void
+  retries?: number
+  delayMs?: number
+  sleep?: (ms: number) => void
+}
+
+function defaultReplaceSleep(ms: number): void {
+  const buf = new Int32Array(new SharedArrayBuffer(4))
+  Atomics.wait(buf, 0, 0, ms)
+}
+
+/**
+ * Move a completed `.part` download onto dest.
+ *
+ * Windows `rename` cannot replace an existing file (EPERM / EEXIST). A leftover
+ * Setup.exe from an interrupted hop is the normal dest here — unlink it first,
+ * then rename. If rename still fails (cross-device), copy then drop the part.
+ * Never delete a completed `.part` on failure: apply can retry replace without
+ * downloading 200MB again.
+ */
+export function replaceDownloadedFile(
+  tmpPath: string,
+  destPath: string,
+  deps: ReplaceDownloadedFileDeps = {}
+): void {
+  const exists = deps.exists ?? (file => fs.existsSync(file))
+  const unlink = deps.unlink ?? (file => fs.unlinkSync(file))
+  const rename = deps.rename ?? ((from, to) => fs.renameSync(from, to))
+  const copy = deps.copy ?? ((from, to) => fs.copyFileSync(from, to))
+  const retries = Math.max(1, deps.retries ?? 8)
+  const delayMs = Math.max(0, deps.delayMs ?? 100)
+  const sleep = deps.sleep ?? defaultReplaceSleep
+
+  if (tmpPath === destPath) {
+    return
+  }
+
+  if (!exists(tmpPath)) {
+    throw new Error(`Download part is missing: ${tmpPath}`)
+  }
+
+  let unlinkError: unknown
+
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    if (!exists(destPath)) {
+      unlinkError = null
+      break
+    }
+
+    try {
+      unlink(destPath)
+      unlinkError = null
+      break
+    } catch (error) {
+      unlinkError = error
+
+      if (attempt < retries - 1 && delayMs > 0) {
+        sleep(delayMs)
+      }
+    }
+  }
+
+  if (unlinkError) {
+    const message = unlinkError instanceof Error ? unlinkError.message : String(unlinkError)
+
+    throw new Error(
+      `Could not replace ${path.basename(destPath)} (file in use from a previous update). Close other Work4You windows and try again. ${message}`
+    )
+  }
+
+  try {
+    rename(tmpPath, destPath)
+
+    return
+  } catch {
+    // rename can still fail across devices; dest is gone, so copy is safe.
+  }
+
+  copy(tmpPath, destPath)
+
+  try {
+    unlink(tmpPath)
+  } catch {
+    // dest is in place; leftover part is harmless
+  }
 }
 
 export function downloadProgressPercent(received: number, total: number | null): number | null {
@@ -1005,7 +1139,7 @@ export function downloadHttpsToFile(
 
   return new Promise((resolve, reject) => {
     fs.mkdirSync(path.dirname(destPath), { recursive: true })
-    const tmpPath = `${destPath}.part`
+    const tmpPath = packagedDownloadPartPath(destPath)
     let settled = false
 
     const finish = (error?: Error) => {
@@ -1091,10 +1225,12 @@ export function downloadHttpsToFile(
       res.on('end', () => {
         out.end(() => {
           try {
-            fs.renameSync(tmpPath, destPath)
+            replaceDownloadedFile(tmpPath, destPath)
             finish()
           } catch (error) {
-            fail(error instanceof Error ? error : new Error(String(error)))
+            // Keep the completed .part so the next click can replace dest
+            // without downloading again. fail() would unlink it.
+            finish(error instanceof Error ? error : new Error(String(error)))
           }
         })
       })
