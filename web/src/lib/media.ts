@@ -91,6 +91,17 @@ export function documentExtensionLabel(path: string): string {
   return ext.toUpperCase()
 }
 
+export type DocumentKindKey = 'archive' | 'document' | 'file' | 'markdown' | 'presentation' | 'spreadsheet'
+export type DocumentIconName = DocumentKindKey | 'pdf'
+export type DocumentTone = 'blue' | 'green' | 'muted' | 'orange' | 'red'
+
+export interface DocumentCardMeta {
+  extLabel: string
+  icon: DocumentIconName
+  kindKey: DocumentKindKey
+  tone: DocumentTone
+}
+
 const BINARY_DELIVERED_DOCUMENT_EXTENSIONS = new Set([
   'csv',
   'docx',
@@ -103,26 +114,73 @@ const BINARY_DELIVERED_DOCUMENT_EXTENSIONS = new Set([
   'zip'
 ])
 
-const DOCUMENT_KIND_LABELS: Record<string, string> = {
-  csv: 'Spreadsheet',
-  docx: 'Document',
+const DOCUMENT_KIND_BY_EXT: Record<string, DocumentKindKey> = {
+  csv: 'spreadsheet',
+  docx: 'document',
+  markdown: 'markdown',
+  md: 'markdown',
+  mdown: 'markdown',
+  mkd: 'markdown',
+  ods: 'spreadsheet',
+  pdf: 'document',
+  pptx: 'presentation',
+  xls: 'spreadsheet',
+  xlsm: 'spreadsheet',
+  xlsx: 'spreadsheet',
+  zip: 'archive'
+}
+
+const DOCUMENT_TONE_BY_EXT: Record<string, DocumentTone> = {
+  csv: 'green',
+  docx: 'blue',
+  ods: 'green',
+  pdf: 'red',
+  pptx: 'orange',
+  xls: 'green',
+  xlsm: 'green',
+  xlsx: 'green'
+}
+
+const DOCUMENT_KIND_EN: Record<DocumentKindKey, string> = {
+  archive: 'Archive',
+  document: 'Document',
+  file: 'File',
   markdown: 'Markdown',
-  md: 'Markdown',
-  mdown: 'Markdown',
-  mkd: 'Markdown',
-  ods: 'Spreadsheet',
-  pdf: 'PDF',
-  pptx: 'Presentation',
-  xls: 'Spreadsheet',
-  xlsm: 'Spreadsheet',
-  xlsx: 'Spreadsheet',
-  zip: 'Archive'
+  presentation: 'Presentation',
+  spreadsheet: 'Spreadsheet'
+}
+
+export function documentCardMeta(path: string): DocumentCardMeta {
+  const ext = pathExtension(path)
+  const kindKey = (ext && DOCUMENT_KIND_BY_EXT[ext]) || 'file'
+
+  return {
+    extLabel: documentExtensionLabel(path),
+    icon: ext === 'pdf' ? 'pdf' : kindKey,
+    kindKey,
+    tone: (ext && DOCUMENT_TONE_BY_EXT[ext]) || 'muted'
+  }
 }
 
 export function documentKindLabel(path: string): string {
-  const ext = pathExtension(path)
+  return DOCUMENT_KIND_EN[documentCardMeta(path).kindKey]
+}
 
-  return (ext && DOCUMENT_KIND_LABELS[ext]) || 'File'
+// "PDF · PDF" is noise. Repeat the extension only when the kind name is
+// actually a different word ("Document · PDF", "Spreadsheet · XLSX").
+export function documentKindLine(kindLabel: string, extLabel: string): string {
+  const kind = kindLabel.trim()
+  const ext = extLabel.trim()
+
+  if (!ext) {
+    return kind
+  }
+
+  if (!kind || kind.toLocaleUpperCase() === ext.toLocaleUpperCase()) {
+    return ext
+  }
+
+  return `${kind} · ${ext}`
 }
 
 const WRAPPED_DELIVERY_PROTOCOL_RE = /^(?:sandbox):/i

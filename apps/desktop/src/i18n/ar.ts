@@ -3052,7 +3052,16 @@ export const ar = defineLocale({
     unavailable: 'المعاينة غير متاحة',
     opening: 'جار الفتح...',
     hide: 'إخفاء',
+    open: 'فتح',
     openPreview: 'فتح المعاينة',
+    documentKind: {
+      archive: 'أرشيف',
+      document: 'مستند',
+      file: 'ملف',
+      markdown: 'Markdown',
+      presentation: 'عرض تقديمي',
+      spreadsheet: 'جدول بيانات'
+    },
     openInBrowser: 'فتح في المتصفح',
     linkHint: '⌘/Ctrl-نقر لجزء المعاينة',
     sourceLineTitle: 'انقر للتحديد · shift-نقر للتوسيع · اسحب إلى المُنشئ',

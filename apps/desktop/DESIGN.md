@@ -111,7 +111,8 @@ do **not** pass `h-*`, `px-*`, `py-*`, or icon-size overrides.
 the default non-primary look), `outline` (transparent + 1px inset ring, no
 fill/shadow), `ghost`, `link`, `text` (boxless quiet inline — "Cancel",
 "Clear"), `textStrong` (bold underlined inline affordance — "Change",
-"Open logs").
+"Open logs"), `chip` (pill bubble — `--ui-chat-bubble-background` fill +
+`--ui-stroke-tertiary` hairline; labeled actions and circular icon chips).
 
 **Sizes:** `default`, `xs`, `sm`, `lg`, `inline` (flush, zero box — for buttons
 that sit inside a heading/sentence; replaces `h-auto px-0 py-0`), `micro`
@@ -147,7 +148,8 @@ context-dependent (e.g. "Show" / "Hide"). Never hardcode combos; always use
 
 Notes:
 - Text buttons are square (no radius) and sized by padding + line-height (no
-  fixed heights). Only icon buttons carry the shared 4px radius.
+  fixed heights). Icon buttons carry the shared 4px radius. `chip` is the
+  exception: it is always a pill (`rounded-full`), including `icon-*` sizes.
 - SVGs inherit `size-3.5` (`size-3` at `xs`). Don't re-set icon size.
 - Polymorph with `asChild` when the button must render as a link/Slot.
 
@@ -221,6 +223,11 @@ Notes:
   (`src/components/chat/widget-shell.ts`): shared radius, the
   `--ui-widget-surface-background` fill, no border. Its actions sit *outside*
   the panel, below it. Don't give one widget its own radius or fill.
+- **Attachment rows** — a delivered file in the transcript wears
+  `ATTACHMENT_SHELL_CLASS` (same file): the same radius and padding, the
+  `--ui-stroke-tertiary` hairline reserved for attachments, and a 5%
+  `--ui-text-primary` mix on the chat field so the row still reads when
+  widget fill equals the thread. Open + Download sit on the row.
 - **Thread right-edge chrome** — the transcript scrollbar (`[data-slot='aui_thread-viewport']`)
   is the one grabable bar on a long chat: `--thread-scrollbar-size` (10px), a
   faint track, and a stronger thumb than the app-wide 4px gutters. The

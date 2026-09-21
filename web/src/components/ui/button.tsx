@@ -31,7 +31,10 @@ const buttonVariants = cva(
         text: `text-muted-foreground underline-offset-4 hover:text-foreground hover:underline ${TEXT_ACTION_ICON}`,
         // Emphasized inline-text action: bold + always-underlined link. Use for
         // the actionable affordance in a row ("Change", "Set", "Open logs", …).
-        textStrong: `font-semibold text-muted-foreground underline underline-offset-4 hover:text-foreground ${TEXT_ACTION_ICON}`
+        textStrong: `font-semibold text-muted-foreground underline underline-offset-4 hover:text-foreground ${TEXT_ACTION_ICON}`,
+        // Pill bubble — chat-bubble fill + tertiary hairline. For compact
+        // labeled actions that should read as a chip, not a box or a ghost.
+        chip: 'rounded-full bg-(--ui-chat-bubble-background) text-(--ui-text-secondary) shadow-[inset_0_0_0_1px_var(--ui-stroke-tertiary)] hover:bg-(--chrome-action-hover) hover:text-(--ui-text-primary)'
       },
       size: {
         default: 'px-3 py-1.5 has-[>svg]:px-2.5',
@@ -59,6 +62,11 @@ const buttonVariants = cva(
       {
         variant: 'textStrong',
         class: 'px-0 has-[>svg]:px-0'
+      },
+      // Icon sizes pin rounded-[4px]; the chip must stay a pill / circle.
+      {
+        variant: 'chip',
+        class: 'rounded-full'
       }
     ],
     defaultVariants: {

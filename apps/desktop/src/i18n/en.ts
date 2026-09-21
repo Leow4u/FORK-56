@@ -3721,7 +3721,16 @@ export const en: Translations = {
     unavailable: 'Preview unavailable',
     opening: 'Opening...',
     hide: 'Hide',
+    open: 'Open',
     openPreview: 'Open preview',
+    documentKind: {
+      archive: 'Archive',
+      document: 'Document',
+      file: 'File',
+      markdown: 'Markdown',
+      presentation: 'Presentation',
+      spreadsheet: 'Spreadsheet'
+    },
     openInBrowser: 'Open in browser',
     linkHint: '⌘/Ctrl-click for preview pane',
     sourceLineTitle: 'Click to select · shift-click to extend · drag to composer',

@@ -45,12 +45,33 @@ describe('PreviewAttachment', () => {
   it('paints a document card without opening the rail', () => {
     render(<PreviewAttachment source="tool-result" target="/tmp/sheet.xlsx" />)
 
+    const card = document.querySelector('[data-slot="aui_document-card"]')
+
     expect(screen.getByText('sheet.xlsx')).toBeTruthy()
     expect(screen.getByText('Spreadsheet · XLSX')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Open' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Open preview' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Open' }).getAttribute('data-variant')).toBe('chip')
+    expect(screen.getByRole('button', { name: 'Download' }).getAttribute('data-variant')).toBe('chip')
+    expect(card?.getAttribute('data-document-kind')).toBe('spreadsheet')
+    expect(card?.getAttribute('data-document-tone')).toBe('green')
+    expect(card?.className).toContain('border')
     expect(normalizeOrLocalPreviewTarget).not.toHaveBeenCalled()
     expect(openPreview).not.toHaveBeenCalled()
+  })
+
+  it('labels a PDF as Document · PDF with Open visible', () => {
+    render(<PreviewAttachment source="tool-result" target="/tmp/brief.pdf" />)
+
+    const card = document.querySelector('[data-slot="aui_document-card"]')
+
+    expect(screen.getByText('brief.pdf')).toBeTruthy()
+    expect(screen.getByText('Document · PDF')).toBeTruthy()
+    expect(screen.queryByText('PDF · PDF')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Open' })).toBeTruthy()
+    expect(card?.getAttribute('data-document-kind')).toBe('document')
+    expect(card?.getAttribute('data-document-tone')).toBe('red')
   })
 
   it('opens the existing preview rail when the card body is clicked', async () => {

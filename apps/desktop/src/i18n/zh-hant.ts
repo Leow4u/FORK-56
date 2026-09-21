@@ -3241,7 +3241,16 @@ export const zhHant = defineLocale({
     unavailable: '預覽不可用',
     opening: '開啟中...',
     hide: '隱藏',
+    open: '開啟',
     openPreview: '開啟預覽',
+    documentKind: {
+      archive: '壓縮檔',
+      document: '文件',
+      file: '檔案',
+      markdown: 'Markdown',
+      presentation: '簡報',
+      spreadsheet: '試算表'
+    },
     openInBrowser: '在瀏覽器中開啟',
     linkHint: '⌘/Ctrl+點擊在預覽窗格開啟',
     sourceLineTitle: '點擊選取 · shift 點擊擴展 · 拖曳至輸入框',
