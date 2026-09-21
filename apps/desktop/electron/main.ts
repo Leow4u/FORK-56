@@ -2851,6 +2851,7 @@ async function ensurePackagedInstallerDownload(
   const scratchDir = packagedUpdateScratchDir(os.tmpdir())
   const dest = installerDownloadDest(scratchDir, plan.assetName)
   const downloadingMessage = 'Downloading the signed Work4You installer…'
+
   const job: PackagedPrefetchJob = {
     key,
     plan,
