@@ -80,9 +80,9 @@ export function resolveUpdateFinalizeAction({
   prefetchPercent,
   prefetchReady
 }: ResolveUpdateFinalizeInput): UpdateFinalizeAction {
-  const packaged = channel === 'chrome' || channel === 'installer'
-
-  if (!packaged) {
+  // Installer clicks download then quit. Only the dormant chrome channel
+  // waits on a background prefetch.
+  if (channel !== 'chrome') {
     return { disabled: false, label: copy.updateNow }
   }
 

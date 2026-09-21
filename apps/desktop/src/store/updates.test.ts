@@ -430,6 +430,21 @@ describe('requestActiveUpdate', () => {
     expect(applyClientMock).not.toHaveBeenCalled()
   })
 
+  it('applies a packaged installer update without waiting for prefetch', async () => {
+    setRemote(false)
+    $updateStatus.set(
+      status({
+        behind: 2,
+        channel: 'installer',
+        updateAvailable: true
+      })
+    )
+
+    expect(shouldApplyOnActiveUpdate($updateStatus.get())).toBe(true)
+    startActiveUpdate()
+    await vi.waitFor(() => expect(applyClientMock).toHaveBeenCalled())
+  })
+
   it('applies a packaged chrome update only after prefetch is ready', async () => {
     setRemote(false)
     $updateStatus.set(

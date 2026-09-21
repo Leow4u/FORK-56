@@ -63,6 +63,13 @@ describe('resolveUpdateFinalizeAction', () => {
     expect(resolveUpdateFinalizeAction({ copy })).toEqual({ disabled: false, label: 'Update now' })
   })
 
+  it('enables Update now for an installer that has not prefetched', () => {
+    expect(resolveUpdateFinalizeAction({ channel: 'installer', copy })).toEqual({
+      disabled: false,
+      label: 'Update now'
+    })
+  })
+
   it('disables the packaged button and shows percent until Stage A is ready', () => {
     expect(
       resolveUpdateFinalizeAction({
