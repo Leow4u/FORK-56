@@ -5,9 +5,9 @@ import type { PackagedApplyKind } from './packaged-installer-update'
 /**
  * Background Stage A for packaged updates.
  *
- * Check finds an update → download (and chrome unpack) while the app stays
- * usable. Stage B is the user's click: chrome restarts to overlay files;
- * installer still launches Setup.exe. Never quit or spawn NSIS from here.
+ * Check finds an update → download while the app stays usable. Stage B is
+ * the user's click, which quits and runs the file already on disk. Never
+ * quit or spawn NSIS from here.
  */
 
 export const PACKAGED_UPDATE_SCRATCH_NAME = 'work4you-desktop-update'

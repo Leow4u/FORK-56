@@ -2851,7 +2851,8 @@ export const zhHant = defineLocale({
     availableTitleBackend: '後端有可用更新',
     availableBodyBackend: '已連接的 Work4You 後端有新版本可安裝。',
     availableBodyNoChangelog: '已有新版本可用。此安裝方式無法顯示更新日誌。',
-    availableBodyInstaller: '新的 Work4You 安裝程式已就緒。會在背景下載——準備好後再點立即更新。安裝程式仍需這次點擊；大約一分鐘即可取代應用程式。',
+    availableBodyInstaller:
+      'Work4You 會在你繼續使用時於背景下載此更新。出現「重新啟動以完成」後再點擊。應用程式會短暫關閉，然後以新版本重新開啟。',
     availableBodyChrome: '新的 Work4You 應用更新已就緒。會在背景下載並解包——芯片就緒後點「重新啟動以完成」。既有執行階段保持不變。',
     updateNow: '立即更新',
     restartToFinish: '重新啟動以完成',

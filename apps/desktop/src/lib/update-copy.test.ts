@@ -9,7 +9,7 @@ const copy = {
   availableBodyBackend: 'A newer version of the connected Work4You backend is ready to install.',
   availableBodyNoChangelog: 'A newer version is ready. Release notes aren’t available for this install type.',
   availableBodyInstaller:
-    'A new Work4You installer is ready. It downloads in the background — click Update now when you are ready. Setup still needs that click; it replaces the app in about a minute.',
+    'Work4You downloads this update in the background while you keep working. Click Restart to finish when it appears. The app closes briefly and reopens updated.',
   availableBodyChrome:
     'A new Work4You app update is ready. It downloads and unpacks in the background — click Restart to finish when the chip is ready. Your existing runtime stays in place.'
 }
@@ -40,11 +40,12 @@ describe('resolveUpdateCopy', () => {
     expect(r.body).toBe(copy.availableBodyNoChangelog)
   })
 
-  it('packaged installer channel: names the fast installer path, even with no changelog', () => {
+  it('packaged installer channel: names the background download, even with no changelog', () => {
     const r = resolveUpdateCopy({ target: 'client', shownItems: 0, copy, channel: 'installer' })
     expect(r.title).toBe('New update available')
     expect(r.body).toBe(copy.availableBodyInstaller)
-    expect(r.body).toContain('installer')
+    expect(r.body).toContain('background')
+    expect(r.body).toContain('Restart to finish')
   })
 
   it('packaged chrome channel: names the slim shell path, not the installer minute', () => {
@@ -63,9 +64,9 @@ describe('resolveUpdateFinalizeAction', () => {
     expect(resolveUpdateFinalizeAction({ copy })).toEqual({ disabled: false, label: 'Update now' })
   })
 
-  it('enables Update now for an installer that has not prefetched', () => {
+  it('keeps the installer button off until the background download reports progress', () => {
     expect(resolveUpdateFinalizeAction({ channel: 'installer', copy })).toEqual({
-      disabled: false,
+      disabled: true,
       label: 'Update now'
     })
   })
@@ -81,13 +82,24 @@ describe('resolveUpdateFinalizeAction', () => {
     ).toEqual({ disabled: true, label: '42%' })
   })
 
-  it('chrome ready becomes Restart to finish; installer stays Update now', () => {
+  it('a ready packaged download becomes Restart to finish', () => {
     expect(
       resolveUpdateFinalizeAction({ channel: 'chrome', copy, prefetchPercent: 100, prefetchReady: true })
     ).toEqual({ disabled: false, label: 'Restart to finish' })
     expect(
       resolveUpdateFinalizeAction({ channel: 'installer', copy, prefetchPercent: 100, prefetchReady: true })
-    ).toEqual({ disabled: false, label: 'Update now' })
+    ).toEqual({ disabled: false, label: 'Restart to finish' })
+  })
+
+  it('shows the installer download percent and does not enable the swap yet', () => {
+    expect(
+      resolveUpdateFinalizeAction({
+        channel: 'installer',
+        copy,
+        prefetchPercent: 42,
+        prefetchReady: false
+      })
+    ).toEqual({ disabled: true, label: '42%' })
   })
 
   it('re-enables Update now after a prefetch error so apply can retry', () => {

@@ -120,6 +120,19 @@ describe('resolveVersionStatus', () => {
     expect(status.label).toBe(`v0.0.97 · ${copy.restartToFinish}`)
     expect(status.hasUpdate).toBe(true)
   })
+
+  it('names Restart to finish once an installer prefetch is ready', () => {
+    const status = client({
+      channel: 'installer',
+      prefetchPercent: 100,
+      prefetchReady: true,
+      updateAvailable: true,
+      version: '0.0.103'
+    })
+
+    expect(status.label).toBe(`v0.0.103 · ${copy.restartToFinish}`)
+    expect(status.hasUpdate).toBe(true)
+  })
 })
 
 describe('resolveUpdateChipLabel', () => {
@@ -138,7 +151,7 @@ describe('resolveUpdateChipLabel', () => {
     ).toBe('42%')
   })
 
-  it('shows Restart to finish only for a ready chrome prefetch', () => {
+  it('shows Restart to finish once a packaged prefetch is ready', () => {
     expect(
       resolveUpdateChipLabel({
         applying: false,
@@ -158,6 +171,28 @@ describe('resolveUpdateChipLabel', () => {
         prefetchReady: true,
         restarting: false
       })
-    ).toBe('Update')
+    ).toBe('Restart to finish')
+  })
+
+  it('shows the installer download percent on the chip', () => {
+    const status = client({
+      channel: 'installer',
+      prefetchPercent: 42,
+      prefetchReady: false,
+      updateAvailable: true,
+      version: '0.0.103'
+    })
+
+    expect(status.label).toBe('v0.0.103 · 42%')
+    expect(
+      resolveUpdateChipLabel({
+        applying: false,
+        channel: 'installer',
+        copy: chipCopy,
+        prefetchPercent: 42,
+        prefetchReady: false,
+        restarting: false
+      })
+    ).toBe('42%')
   })
 })
