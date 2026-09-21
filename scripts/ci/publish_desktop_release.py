@@ -229,6 +229,7 @@ def publish_desktop_release(
     notes: str,
     runner: Runner = default_run,
     runtime_zip: Path | str | Sequence[Path | str] | None = None,
+    update_exe: Path | str | Sequence[Path | str] | None = None,
     chrome_zip: Path | str | Sequence[Path | str] | None = None,
     runtime_fingerprint: Path | str | Sequence[Path | str] | None = None,
 ) -> None:
@@ -244,6 +245,8 @@ def publish_desktop_release(
     )
     upload_asset(runner, tag=tag, repo=repo, path=exe)
     upload_asset(runner, tag=tag, repo=repo, path=dmg)
+    for update_path in normalize_optional_paths(update_exe):
+        upload_asset(runner, tag=tag, repo=repo, path=update_path)
     for zip_path in normalize_optional_paths(runtime_zip):
         upload_asset(runner, tag=tag, repo=repo, path=zip_path)
     for zip_path in normalize_optional_paths(chrome_zip):
@@ -275,6 +278,16 @@ def main(argv: list[str] | None = None) -> int:
         help=(
             "Optional prebuilt runtime zip (repeatable: runtime-win-x64.zip, "
             "runtime-darwin-arm64.zip). Missing from Latest is not fatal."
+        ),
+    )
+    parser.add_argument(
+        "--update-exe",
+        type=Path,
+        action="append",
+        default=None,
+        help=(
+            "Windows in-app NSIS (Work4You-Update.exe). Electron shell only. "
+            "Site downloads stay on Work4You-Setup.exe."
         ),
     )
     parser.add_argument(
@@ -320,6 +333,7 @@ def main(argv: list[str] | None = None) -> int:
             dmg=args.dmg,
             notes=args.notes,
             runtime_zip=args.runtime_zip,
+            update_exe=args.update_exe,
             chrome_zip=args.chrome_zip,
             runtime_fingerprint=args.runtime_fingerprint,
         )

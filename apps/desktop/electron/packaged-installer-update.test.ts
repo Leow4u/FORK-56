@@ -1,6 +1,7 @@
 /**
  * Tests for electron/packaged-installer-update.ts — packaged Windows/macOS
- * installs download the published Setup.exe / DMG instead of `work4you update`.
+ * installs download Work4You-Update.exe (Windows) or the DMG (macOS)
+ * instead of `work4you update`. Site Setup.exe is not an in-app hop.
  *
  * Run with: npx vitest run --project electron electron/packaged-installer-update.test.ts
  */
@@ -16,7 +17,6 @@ import { test } from 'vitest'
 
 import {
   checkPackagedInstallerUpdate,
-  CHROME_ZIP_PENDING_REASON,
   compareStampToRelease,
   downloadHttpsToFile,
   downloadProgressPercent,
@@ -42,13 +42,13 @@ import {
   replaceDownloadedFile,
   resolveInstallerDownloadUrl,
   resolvePackagedInstallerApplyPlan,
-  resolveWindowsPackagedApplyKind,
   sameGitCommit,
   selectReleaseAsset,
-  shouldApplyWindowsChromeZip,
   shouldUsePackagedInstallerUpdate,
+  UPDATE_INSTALLER_MISSING_REASON,
   WINDOWS_CHROME_ZIP_ASSET,
   WINDOWS_SETUP_ASSET,
+  WINDOWS_UPDATE_ASSET,
   writePackagedWindowsChromeHandoffScript,
   writePackagedWindowsHandoffScript
 } from './packaged-installer-update'
@@ -65,6 +65,16 @@ function fingerprintAsset() {
     browser_download_url:
       'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/runtime-win-x64.fingerprint',
     size: 65,
+    state: 'uploaded'
+  }
+}
+
+function updateAsset() {
+  return {
+    name: WINDOWS_UPDATE_ASSET,
+    browser_download_url:
+      'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-Update.exe',
+    size: 110_000_000,
     state: 'uploaded'
   }
 }
@@ -327,7 +337,7 @@ test('resolveInstallerDownloadUrl prefers the GitHub asset, then work4you.ai', (
   )
 })
 
-test('checkPackagedInstallerUpdate offers a chrome hop when the stamp is behind Latest', async () => {
+test('checkPackagedInstallerUpdate offers the thin NSIS when the stamp is behind Latest', async () => {
   const result = await checkPackagedInstallerUpdate({
     stampCommit: STAMP_SHA,
     platform: 'win32',
@@ -336,11 +346,9 @@ test('checkPackagedInstallerUpdate offers a chrome hop when the stamp is behind 
       assert.equal(url, githubLatestReleaseApiUrl())
 
       return releasePayload({
-        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+        assets: [...(releasePayload().assets as object[]), updateAsset(), ...chromeAssets()]
       })
     },
-    fetchText: async () => MATCHING_FINGERPRINT,
-    localFingerprint: MATCHING_FINGERPRINT,
     compareBehind: async (current, target) => {
       assert.equal(current, STAMP_SHA)
       assert.equal(target, LATEST_SHA)
@@ -350,7 +358,7 @@ test('checkPackagedInstallerUpdate offers a chrome hop when the stamp is behind 
   })
 
   assert.equal(result.supported, true)
-  assert.equal(result.channel, 'chrome')
+  assert.equal(result.channel, 'installer')
   assert.equal(result.updateAvailable, true)
   assert.equal(result.behind, 4)
   assert.equal(result.currentSha, STAMP_SHA)
@@ -359,27 +367,25 @@ test('checkPackagedInstallerUpdate offers a chrome hop when the stamp is behind 
   assert.deepEqual(result.commits, [])
 })
 
-test('checkPackagedInstallerUpdate waits instead of offering Setup when chrome zip is missing', async () => {
+test('checkPackagedInstallerUpdate does not offer Setup.exe when the thin NSIS is missing', async () => {
   const result = await checkPackagedInstallerUpdate({
     stampCommit: STAMP_SHA,
     platform: 'win32',
-    localFingerprint: MATCHING_FINGERPRINT,
     fetchJson: async () =>
       releasePayload({
-        assets: [...(releasePayload().assets as object[]), fingerprintAsset()]
+        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
       }),
-    fetchText: async () => MATCHING_FINGERPRINT,
     compareBehind: async () => 4
   })
 
   assert.equal(result.supported, true)
   assert.equal(result.updateAvailable, false)
-  assert.equal(result.reason, CHROME_ZIP_PENDING_REASON)
+  assert.equal(result.reason, UPDATE_INSTALLER_MISSING_REASON)
   assert.equal(result.channel, 'installer')
-  assert.match(result.message || '', /still publishing the slim Electron update/)
+  assert.match(result.message || '', /Work4You-Update\.exe/)
 })
 
-test('checkPackagedInstallerUpdate waits on mid-publish Latest with no fingerprints', async () => {
+test('checkPackagedInstallerUpdate stays quiet on a site-only Latest', async () => {
   const result = await checkPackagedInstallerUpdate({
     stampCommit: STAMP_SHA,
     platform: 'win32',
@@ -388,17 +394,17 @@ test('checkPackagedInstallerUpdate waits on mid-publish Latest with no fingerpri
   })
 
   assert.equal(result.updateAvailable, false)
-  assert.equal(result.reason, CHROME_ZIP_PENDING_REASON)
+  assert.equal(result.reason, UPDATE_INSTALLER_MISSING_REASON)
 })
 
-test('checkPackagedInstallerUpdate offers Setup when runtime changed even without chrome zip', async () => {
+test('checkPackagedInstallerUpdate ignores a runtime fingerprint change when Update.exe exists', async () => {
   const result = await checkPackagedInstallerUpdate({
     stampCommit: STAMP_SHA,
     platform: 'win32',
     localFingerprint: OTHER_FINGERPRINT,
     fetchJson: async () =>
       releasePayload({
-        assets: [...(releasePayload().assets as object[]), fingerprintAsset()]
+        assets: [...(releasePayload().assets as object[]), updateAsset(), fingerprintAsset()]
       }),
     fetchText: async () => MATCHING_FINGERPRINT,
     compareBehind: async () => 1
@@ -409,21 +415,21 @@ test('checkPackagedInstallerUpdate offers Setup when runtime changed even withou
   assert.equal(result.reason, undefined)
 })
 
-test('checkPackagedInstallerUpdate offers Setup only when the runtime fingerprint changed', async () => {
+test('checkPackagedInstallerUpdate does not switch to Setup.exe when fingerprints differ and Update.exe is absent', async () => {
   const result = await checkPackagedInstallerUpdate({
     stampCommit: STAMP_SHA,
     platform: 'win32',
     localFingerprint: OTHER_FINGERPRINT,
     fetchJson: async () =>
       releasePayload({
-        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+        assets: [...(releasePayload().assets as object[]), fingerprintAsset()]
       }),
     fetchText: async () => MATCHING_FINGERPRINT,
     compareBehind: async () => 1
   })
 
-  assert.equal(result.channel, 'installer')
-  assert.equal(result.updateAvailable, true)
+  assert.equal(result.updateAvailable, false)
+  assert.equal(result.reason, UPDATE_INSTALLER_MISSING_REASON)
 })
 
 test('checkPackagedInstallerUpdate is up to date when stamp matches Latest', async () => {
@@ -488,62 +494,49 @@ test('checkPackagedInstallerUpdate is unsupported on Linux even if packaged', as
   assert.equal(result.reason, 'no-installer-channel')
 })
 
-test('resolvePackagedInstallerApplyPlan returns Setup.exe only when the runtime changed', async () => {
+test('resolvePackagedInstallerApplyPlan returns only Work4You-Update.exe on Windows', async () => {
   const plan = await resolvePackagedInstallerApplyPlan({
     platform: 'win32',
     localFingerprint: OTHER_FINGERPRINT,
     fetchJson: async () =>
       releasePayload({
-        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+        assets: [...(releasePayload().assets as object[]), updateAsset(), ...chromeAssets()]
       }),
     fetchText: async () => MATCHING_FINGERPRINT
   })
 
   assert.equal(plan.kind, 'installer')
-  assert.equal(plan.assetName, WINDOWS_SETUP_ASSET)
-  assert.match(plan.downloadUrl, /Work4You-Setup\.exe$/)
+  assert.equal(plan.assetName, WINDOWS_UPDATE_ASSET)
+  assert.match(plan.downloadUrl, /Work4You-Update\.exe$/)
+  assert.doesNotMatch(plan.downloadUrl, /Work4You-Setup\.exe/)
+  assert.doesNotMatch(plan.downloadUrl, /work4you\.ai/)
   assert.equal(plan.releaseTag, 'desktop-v0.0.27')
 })
 
-test('resolvePackagedInstallerApplyPlan returns Setup when runtime changed even without chrome zip', async () => {
-  const plan = await resolvePackagedInstallerApplyPlan({
-    platform: 'win32',
-    localFingerprint: OTHER_FINGERPRINT,
-    fetchJson: async () =>
-      releasePayload({
-        assets: [...(releasePayload().assets as object[]), fingerprintAsset()]
-      }),
-    fetchText: async () => MATCHING_FINGERPRINT
-  })
-
-  assert.equal(plan.kind, 'installer')
-  assert.match(plan.downloadUrl, /Work4You-Setup\.exe$/)
-})
-
-test('resolvePackagedInstallerApplyPlan refuses Setup when chrome zip is missing and runtime did not change', async () => {
+test('resolvePackagedInstallerApplyPlan refuses Setup.exe when the thin NSIS is missing', async () => {
   await assert.rejects(
     () =>
       resolvePackagedInstallerApplyPlan({
         platform: 'win32',
-        localFingerprint: MATCHING_FINGERPRINT,
+        localFingerprint: OTHER_FINGERPRINT,
         fetchJson: async () =>
           releasePayload({
-            assets: [...(releasePayload().assets as object[]), fingerprintAsset()]
+            assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
           }),
         fetchText: async () => MATCHING_FINGERPRINT
       }),
-    /still publishing the slim Electron update/
+    /Work4You-Update\.exe/
   )
 })
 
-test('resolvePackagedInstallerApplyPlan refuses Setup on a mid-publish Latest with no fingerprints', async () => {
+test('resolvePackagedInstallerApplyPlan refuses the public site Setup URL', async () => {
   await assert.rejects(
     () =>
       resolvePackagedInstallerApplyPlan({
         platform: 'win32',
         fetchJson: async () => releasePayload()
       }),
-    /still publishing the slim Electron update/
+    /Work4You-Update\.exe/
   )
 })
 
@@ -568,123 +561,13 @@ test('readInstalledRuntimeFingerprint reads HOME/work4you/.runtime-fingerprint',
   }
 })
 
-test('resolveWindowsPackagedApplyKind never falls back to Setup for a shell hop', () => {
-  const chrome = {
-    name: WINDOWS_CHROME_ZIP_ASSET,
-    browserDownloadUrl: 'https://example.test/Work4You-win-x64.zip',
-    size: 1
-  }
-
-  assert.equal(resolveWindowsPackagedApplyKind({ chromeAsset: null }), 'wait')
-  assert.equal(resolveWindowsPackagedApplyKind({ chromeAsset: chrome }), 'chrome')
-  assert.equal(
-    resolveWindowsPackagedApplyKind({
-      chromeAsset: chrome,
-      remoteFingerprint: MATCHING_FINGERPRINT,
-      localFingerprint: MATCHING_FINGERPRINT
-    }),
-    'chrome'
-  )
-  assert.equal(
-    resolveWindowsPackagedApplyKind({
-      chromeAsset: chrome,
-      remoteFingerprint: MATCHING_FINGERPRINT,
-      localFingerprint: OTHER_FINGERPRINT
-    }),
-    'installer'
-  )
-  assert.equal(
-    resolveWindowsPackagedApplyKind({
-      chromeAsset: null,
-      remoteFingerprint: MATCHING_FINGERPRINT,
-      localFingerprint: OTHER_FINGERPRINT
-    }),
-    'installer'
-  )
-  assert.equal(
-    resolveWindowsPackagedApplyKind({
-      chromeAsset: null,
-      remoteFingerprint: MATCHING_FINGERPRINT,
-      localFingerprint: MATCHING_FINGERPRINT
-    }),
-    'wait'
-  )
-  assert.equal(
-    resolveWindowsPackagedApplyKind({
-      chromeAsset: chrome,
-      remoteFingerprint: MATCHING_FINGERPRINT,
-      localFingerprint: null
-    }),
-    'chrome'
-  )
-  assert.equal(shouldApplyWindowsChromeZip({ chromeAsset: chrome }), true)
-  assert.equal(shouldApplyWindowsChromeZip({ chromeAsset: null }), false)
-})
-
-test('resolvePackagedInstallerApplyPlan prefers chrome zip when fingerprints match', async () => {
-  const plan = await resolvePackagedInstallerApplyPlan({
-    platform: 'win32',
-    localFingerprint: MATCHING_FINGERPRINT,
-    fetchJson: async () =>
-      releasePayload({
-        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
-      }),
-    fetchText: async url => {
-      assert.match(url, /runtime-win-x64\.fingerprint$/)
-
-      return MATCHING_FINGERPRINT
-    }
-  })
-
-  assert.equal(plan.kind, 'chrome')
-  assert.equal(plan.assetName, WINDOWS_CHROME_ZIP_ASSET)
-  assert.match(plan.downloadUrl, /Work4You-win-x64\.zip$/)
-})
-
-test('resolvePackagedInstallerApplyPlan keeps Setup.exe when fingerprints differ', async () => {
-  const plan = await resolvePackagedInstallerApplyPlan({
-    platform: 'win32',
-    localFingerprint: OTHER_FINGERPRINT,
-    fetchJson: async () =>
-      releasePayload({
-        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
-      }),
-    fetchText: async () => MATCHING_FINGERPRINT
-  })
-
-  assert.equal(plan.kind, 'installer')
-  assert.equal(plan.assetName, WINDOWS_SETUP_ASSET)
-})
-
-test('resolvePackagedInstallerApplyPlan prefers chrome when Latest has the zip and no fingerprints', async () => {
-  const plan = await resolvePackagedInstallerApplyPlan({
-    platform: 'win32',
-    fetchJson: async () =>
-      releasePayload({
-        assets: [
-          ...(releasePayload().assets as object[]),
-          {
-            name: WINDOWS_CHROME_ZIP_ASSET,
-            browser_download_url:
-              'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-win-x64.zip',
-            size: 70_000_000,
-            state: 'uploaded'
-          }
-        ]
-      })
-  })
-
-  assert.equal(plan.kind, 'chrome')
-  assert.equal(plan.assetName, WINDOWS_CHROME_ZIP_ASSET)
-})
-
-test('resolvePackagedInstallerApplyPlan stays on the DMG on macOS even if chrome zip exists', async () => {
+test('resolvePackagedInstallerApplyPlan stays on the DMG on macOS even if Update.exe exists', async () => {
   const plan = await resolvePackagedInstallerApplyPlan({
     platform: 'darwin',
     localFingerprint: MATCHING_FINGERPRINT,
     fetchJson: async () =>
       releasePayload({
-        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+        assets: [...(releasePayload().assets as object[]), updateAsset(), ...chromeAssets()]
       }),
     fetchText: async () => MATCHING_FINGERPRINT
   })
@@ -693,20 +576,18 @@ test('resolvePackagedInstallerApplyPlan stays on the DMG on macOS even if chrome
   assert.match(plan.downloadUrl, /Work4You\.dmg$/)
 })
 
-test('checkPackagedInstallerUpdate reports chrome channel when the zip applies', async () => {
+test('checkPackagedInstallerUpdate stays on the installer channel when Update.exe is published', async () => {
   const result = await checkPackagedInstallerUpdate({
     stampCommit: STAMP_SHA,
     platform: 'win32',
-    localFingerprint: MATCHING_FINGERPRINT,
     fetchJson: async () =>
       releasePayload({
-        assets: [...(releasePayload().assets as object[]), ...chromeAssets()]
+        assets: [...(releasePayload().assets as object[]), updateAsset()]
       }),
-    fetchText: async () => MATCHING_FINGERPRINT,
     compareBehind: async () => 2
   })
 
-  assert.equal(result.channel, 'chrome')
+  assert.equal(result.channel, 'installer')
   assert.equal(result.updateAvailable, true)
 })
 

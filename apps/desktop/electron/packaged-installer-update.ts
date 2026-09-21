@@ -6,22 +6,17 @@ import path from 'node:path'
 import { wrapHandoffForDetachedConsole } from './updater-process'
 
 /**
- * Packaged-app update channel: download the published NSIS/DMG installer
- * (or the slim Windows Electron zip when the runtime fingerprint matches)
- * instead of running `work4you update` (git pull + uv + electron-builder).
+ * Packaged-app update channel: download the published installer instead of
+ * running `work4you update` (git pull + uv + electron-builder).
  *
- * Site Setup.exe is first-install / Repair / a real runtime change. A Windows
- * in-app hop with matching or unknown runtime never downloads that fat file.
- * If Latest is still missing the chrome zip, wait — do not fall back to Setup.
+ * Windows in-app Update downloads only `Work4You-Update.exe` — the same NSIS
+ * (`/S --updated --force-run`) with the Electron shell and a present:false
+ * runtime stub. Site / first install / Repair stay on fat `Work4You-Setup.exe`.
+ * A runtime change does not ride this hop. If Latest has no Update.exe, wait;
+ * never fall back to Setup.exe or the public site URL.
  *
- * .exe/.dmg users already get a complete desktop app from GitHub Latest
- * (`Work4You-Setup.exe` / `Work4You.dmg`). Electron-only releases also publish
- * `Work4You-win-x64.zip` (win-unpacked minus `resources/runtime`). Rebuilding
- * from the cloned runtime takes 10–15 minutes on Windows and still leaves the
- * compiled UI stale until that pack finishes — the published installer / chrome
- * zip is the fast path.
- *
- * Source / CLI installs (`app.isPackaged === false`) keep the git hand-off.
+ * macOS stays on `Work4You.dmg`. Source / CLI installs
+ * (`app.isPackaged === false`) keep the git hand-off.
  *
  * Pure helpers live here so check/apply policy is unit-testable without
  * booting Electron. Network + spawn stay with the caller (main.ts).
@@ -37,12 +32,14 @@ export const GITHUB_API_HEADERS: Readonly<Record<string, string>> = {
 }
 
 export const WINDOWS_SETUP_ASSET = 'Work4You-Setup.exe'
+/** Thin NSIS for in-app Update. Not the site download. */
+export const WINDOWS_UPDATE_ASSET = 'Work4You-Update.exe'
 export const MACOS_DMG_ASSET = 'Work4You.dmg'
 /** Slim Electron overlay. Optional Latest asset — site downloads stay on Setup.exe. */
 export const WINDOWS_CHROME_ZIP_ASSET = 'Work4You-win-x64.zip'
-export const WINDOWS_RUNTIME_FINGERPRINT_ASSET = 'runtime-win-x64.fingerprint'
 export const RUNTIME_FINGERPRINT_FILENAME = '.runtime-fingerprint'
-export const CHROME_ZIP_PENDING_REASON = 'chrome-zip-pending'
+/** Latest is behind and the thin NSIS was not published. Do not offer Setup.exe. */
+export const UPDATE_INSTALLER_MISSING_REASON = 'update-installer-missing'
 
 /** Public CDN/site URLs that redirect to GitHub Latest (fallback if the API omits assets). */
 export const PUBLIC_INSTALLER_DOWNLOAD: Readonly<Record<'darwin' | 'win32', string>> = {
@@ -230,63 +227,6 @@ export function readInstalledRuntimeFingerprint(
 
   try {
     return parseRuntimeFingerprint(readFile(dest, 'utf8'))
-  } catch {
-    return null
-  }
-}
-
-export type WindowsPackagedApplyKind = 'chrome' | 'installer' | 'wait'
-
-/**
- * Site Setup.exe is first-install / Repair / a real runtime change.
- * In-app Update is the 0.0.88 contract: replace Programs\Work4You only.
- *
- * - Both fingerprints present and different → fat Setup.exe (runtime changed).
- * - Chrome zip on Latest and runtime did not change → chrome zip.
- * - Chrome zip missing and runtime did not change → wait. Never fall back
- *   to the site installer for a shell-only hop (mid-publish Latest used to).
- */
-export function resolveWindowsPackagedApplyKind(opts: {
-  chromeAsset: GithubReleaseAsset | null
-  remoteFingerprint?: string | null
-  localFingerprint?: string | null
-}): WindowsPackagedApplyKind {
-  const remote = parseRuntimeFingerprint(opts.remoteFingerprint)
-  const local = parseRuntimeFingerprint(opts.localFingerprint)
-  const runtimeChanged = Boolean(remote && local && remote !== local)
-
-  if (runtimeChanged) {
-    return 'installer'
-  }
-
-  if (opts.chromeAsset) {
-    return 'chrome'
-  }
-
-  return 'wait'
-}
-
-/** True only when the chrome zip is the apply artifact. False is not "use Setup". */
-export function shouldApplyWindowsChromeZip(opts: {
-  chromeAsset: GithubReleaseAsset | null
-  remoteFingerprint?: string | null
-  localFingerprint?: string | null
-}): boolean {
-  return resolveWindowsPackagedApplyKind(opts) === 'chrome'
-}
-
-async function resolveRemoteRuntimeFingerprint(
-  release: ParsedDesktopRelease,
-  fetchText?: (url: string) => Promise<string>
-): Promise<string | null> {
-  const asset = selectReleaseAsset(release, WINDOWS_RUNTIME_FINGERPRINT_ASSET)
-
-  if (!asset?.browserDownloadUrl || !fetchText) {
-    return null
-  }
-
-  try {
-    return parseRuntimeFingerprint(await fetchText(asset.browserDownloadUrl))
   } catch {
     return null
   }
@@ -653,6 +593,12 @@ export function compareStampToRelease(opts: {
   return { updateAvailable: true, behind: null }
 }
 
+/**
+ * GitHub asset URL, else the public site redirect.
+ *
+ * Windows in-app apply must not call this. The site URL is fat Setup.exe.
+ * `resolvePackagedInstallerApplyPlan` returns `Work4You-Update.exe` or throws.
+ */
 export function resolveInstallerDownloadUrl(opts: {
   platform: string
   asset: GithubReleaseAsset | null
@@ -677,7 +623,9 @@ export interface CheckPackagedInstallerUpdateDeps {
   stampCommit?: string | null
   platform: string
   fetchJson: (url: string) => Promise<unknown>
+  /** Accepted and ignored. In-app Update does not read a runtime fingerprint. */
   fetchText?: (url: string) => Promise<string>
+  /** Accepted and ignored. In-app Update does not read a runtime fingerprint. */
   localFingerprint?: string | null
   compareBehind?: (currentSha: string, targetSha: string) => Promise<number | null>
   now?: () => number
@@ -774,30 +722,13 @@ export async function checkPackagedInstallerUpdate(
     compareBehind
   })
 
-  let channel: PackagedApplyKind = 'installer'
-  let chromeZipPending = false
-
-  if (deps.platform === 'win32') {
-    const applyKind = resolveWindowsPackagedApplyKind({
-      chromeAsset: selectReleaseAsset(release, WINDOWS_CHROME_ZIP_ASSET),
-      remoteFingerprint: await resolveRemoteRuntimeFingerprint(release, deps.fetchText),
-      localFingerprint: deps.localFingerprint ?? null
-    })
-
-    if (applyKind === 'chrome') {
-      channel = 'chrome'
-    } else if (applyKind === 'wait') {
-      chromeZipPending = true
-    }
-  }
-
-  if (chromeZipPending && updateAvailable) {
+  if (deps.platform === 'win32' && updateAvailable && !selectReleaseAsset(release, WINDOWS_UPDATE_ASSET)) {
     return {
       supported: true,
       channel: 'installer',
       updateAvailable: false,
-      reason: CHROME_ZIP_PENDING_REASON,
-      message: `Latest desktop release ${release.tag} is still publishing the slim Electron update.`,
+      reason: UPDATE_INSTALLER_MISSING_REASON,
+      message: `Latest desktop release ${release.tag} has no ${WINDOWS_UPDATE_ASSET}.`,
       behind,
       currentSha: stampCommit ?? undefined,
       targetSha: releaseSha ?? undefined,
@@ -809,7 +740,7 @@ export async function checkPackagedInstallerUpdate(
 
   return {
     supported: true,
-    channel,
+    channel: 'installer',
     updateAvailable,
     behind,
     currentSha: stampCommit ?? undefined,
@@ -855,27 +786,19 @@ export async function resolvePackagedInstallerApplyPlan(
   }
 
   if (deps.platform === 'win32') {
-    const chromeAsset = selectReleaseAsset(release, WINDOWS_CHROME_ZIP_ASSET)
-    const remoteFingerprint = await resolveRemoteRuntimeFingerprint(release, deps.fetchText)
-    const applyKind = resolveWindowsPackagedApplyKind({
-      chromeAsset,
-      remoteFingerprint,
-      localFingerprint: deps.localFingerprint ?? null
-    })
+    const updateAsset = selectReleaseAsset(release, WINDOWS_UPDATE_ASSET)
 
-    if (applyKind === 'wait') {
-      throw new Error(`Latest desktop release ${release.tag} is still publishing the slim Electron update.`)
+    if (!updateAsset?.browserDownloadUrl) {
+      throw new Error(`Latest desktop release ${release.tag} has no ${WINDOWS_UPDATE_ASSET}.`)
     }
 
-    if (applyKind === 'chrome' && chromeAsset?.browserDownloadUrl) {
-      return {
-        kind: 'chrome',
-        assetName: WINDOWS_CHROME_ZIP_ASSET,
-        downloadUrl: chromeAsset.browserDownloadUrl,
-        releaseTag: release.tag,
-        releaseSha: resolveReleaseCommitSha(release),
-        size: chromeAsset.size ?? null
-      }
+    return {
+      kind: 'installer',
+      assetName: WINDOWS_UPDATE_ASSET,
+      downloadUrl: updateAsset.browserDownloadUrl,
+      releaseTag: release.tag,
+      releaseSha: resolveReleaseCommitSha(release),
+      size: updateAsset.size ?? null
     }
   }
 

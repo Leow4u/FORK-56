@@ -238,6 +238,52 @@ def test_multiple_runtime_zips_are_uploaded_when_present(tmp_path):
     ]
 
 
+def test_update_exe_uploads_without_replacing_site_setup(tmp_path):
+    exe = tmp_path / "Work4You-Setup.exe"
+    dmg = tmp_path / "Work4You.dmg"
+    update = tmp_path / "Work4You-Update.exe"
+    exe.write_bytes(b"fat-setup")
+    dmg.write_bytes(b"dmg")
+    update.write_bytes(b"thin-nsis")
+    uploaded: list[str] = []
+
+    def runner(args):
+        if args[1:3] == ["release", "view"] and "--json" not in args:
+            return 1, "", "release not found"
+        if args[1:3] == ["release", "create"]:
+            return 0, "", ""
+        if args[1:3] == ["release", "upload"]:
+            uploaded.append(Path(args[-2]).name)
+            return 0, "", ""
+        if args[1:3] == ["release", "view"] and "--json" in args:
+            return (
+                0,
+                '{"assets":[{"name":"Work4You-Setup.exe"},{"name":"Work4You.dmg"},'
+                '{"name":"Work4You-Update.exe"}]}',
+                "",
+            )
+        if args[1:3] == ["release", "edit"]:
+            return 0, "", ""
+        raise AssertionError(args)
+
+    mod.publish_desktop_release(
+        tag="desktop-v0.0.71",
+        repo="Leow4u/FORK-56",
+        target="278e47ef",
+        exe=exe,
+        dmg=dmg,
+        notes="notes",
+        runner=runner,
+        update_exe=update,
+    )
+    assert uploaded == [
+        "Work4You-Setup.exe",
+        "Work4You.dmg",
+        "Work4You-Update.exe",
+    ]
+    assert uploaded[0] == exe.name
+
+
 def test_optional_chrome_zip_and_fingerprint_are_uploaded_when_present(tmp_path):
     exe = tmp_path / "Work4You-Setup.exe"
     dmg = tmp_path / "Work4You.dmg"

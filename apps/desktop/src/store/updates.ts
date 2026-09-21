@@ -268,7 +268,7 @@ export function isPackagedUpdateChannel(channel?: DesktopUpdateStatus['channel']
   return channel === 'chrome' || channel === 'installer'
 }
 
-/** Stage B only. Packaged Stage A (download ± unpack) must not quit or run NSIS. */
+/** Installer applies on click. Chrome still waits until its prefetch is ready. */
 export function shouldApplyOnActiveUpdate(status: DesktopUpdateStatus | null): boolean {
   if (!status) {
     return false
@@ -278,6 +278,10 @@ export function shouldApplyOnActiveUpdate(status: DesktopUpdateStatus | null): b
 
   if (!available) {
     return false
+  }
+
+  if (status.channel === 'installer') {
+    return true
   }
 
   if (!isPackagedUpdateChannel(status.channel)) {

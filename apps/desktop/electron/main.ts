@@ -67,7 +67,6 @@ import {
   parseBundledRuntimeManifest,
   shouldDeployBundledRuntime
 } from './bundled-runtime'
-import { assertExtractedWindowsChrome, extractChromeZip, WINDOWS_CHROME_EXE } from './chrome-zip-extract'
 import { bindComposioLogoNetFetch, COMPOSIO_LOGO_PROTOCOL, handleComposioLogoProtocol } from './composio-logo'
 import { applyConnectionChange } from './connection-apply'
 import {
@@ -216,30 +215,18 @@ import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
 import {
   checkPackagedInstallerUpdate,
   createGithubFetchJson,
-  createGithubFetchText,
   downloadHttpsToFile,
   downloadProgressPercent,
   installerDownloadDest,
   packagedDownloadPartPath,
   type PackagedInstallerApplyPlan,
   packagedInstallerApplySpawn,
-  readInstalledRuntimeFingerprint,
   replaceDownloadedFile,
   resolvePackagedInstallerApplyPlan,
   shouldUsePackagedInstallerUpdate,
-  writePackagedWindowsChromeHandoffScript,
   writePackagedWindowsHandoffScript
 } from './packaged-installer-update'
-import {
-  attachPrefetchFields,
-  isChromeExtractReusable,
-  isPrefetchAssetReusable,
-  packagedChromeExtractedDir,
-  packagedPrefetchJobKey,
-  packagedPrefetchPercent,
-  packagedUpdateScratchDir,
-  shouldStartPackagedPrefetch
-} from './packaged-update-prefetch'
+import { isPrefetchAssetReusable, packagedUpdateScratchDir } from './packaged-update-prefetch'
 import {
   createParentStartMarkerResolver,
   electronProcessStartMarker,
@@ -2772,54 +2759,6 @@ async function resolveHealedBranch(updateRoot, branch) {
   return 'main'
 }
 
-type PackagedPrefetchJob = {
-  key: string
-  plan: PackagedInstallerApplyPlan
-  dest: string
-  extractedDir: string | null
-  ready: boolean
-  error: string | null
-  percent: number | null
-  promise: Promise<{ dest: string; extractedDir: string | null }>
-}
-
-let packagedPrefetchJob: PackagedPrefetchJob | null = null
-
-function packagedPrefetchSnapshot(): {
-  releaseTag: string
-  kind: string
-  percent: number | null
-  ready: boolean
-  error: string | null
-} | null {
-  if (!packagedPrefetchJob) {
-    return null
-  }
-
-  return {
-    releaseTag: packagedPrefetchJob.plan.releaseTag,
-    kind: packagedPrefetchJob.plan.kind,
-    percent: packagedPrefetchJob.percent,
-    ready: packagedPrefetchJob.ready,
-    error: packagedPrefetchJob.error
-  }
-}
-
-function emitPackagedPrefetchProgress(
-  plan: PackagedInstallerApplyPlan,
-  payload: { message: string; percent: number | null; ready?: boolean; error?: string | null }
-) {
-  emitUpdateProgress({
-    stage: 'prefetch',
-    message: payload.message,
-    percent: payload.percent,
-    error: payload.error ?? null,
-    prefetchReady: payload.ready ?? false,
-    channel: plan.kind,
-    releaseTag: plan.releaseTag
-  })
-}
-
 function packagedAssetSize(file: string): number | null {
   try {
     const st = fs.statSync(file)
@@ -2833,194 +2772,47 @@ function packagedAssetSize(file: string): number | null {
 function resolvePackagedApplyPlan() {
   return resolvePackagedInstallerApplyPlan({
     platform: process.platform,
-    fetchJson: createGithubFetchJson(),
-    fetchText: createGithubFetchText(),
-    localFingerprint: readInstalledRuntimeFingerprint(WORK4YOU_HOME)
+    fetchJson: createGithubFetchJson()
   })
 }
 
-async function ensurePackagedUpdateAssets(
-  plan: PackagedInstallerApplyPlan,
-  mode: 'prefetch' | 'apply'
-): Promise<{ dest: string; extractedDir: string | null }> {
-  const key = packagedPrefetchJobKey(plan)
-  const existing = packagedPrefetchJob
-
-  if (existing && existing.key === key && !existing.error) {
-    if (existing.ready) {
-      return { dest: existing.dest, extractedDir: existing.extractedDir }
-    }
-
-    return existing.promise
-  }
-
+async function downloadPackagedInstaller(plan: PackagedInstallerApplyPlan): Promise<string> {
   const scratchDir = packagedUpdateScratchDir(os.tmpdir())
   const dest = installerDownloadDest(scratchDir, plan.assetName)
-  const extractedDir = plan.kind === 'chrome' && IS_WINDOWS ? packagedChromeExtractedDir(scratchDir) : null
-  const downloadingMessage =
-    plan.kind === 'chrome' ? 'Downloading the Work4You app update…' : 'Downloading the signed Work4You installer…'
-  const unpackingMessage = 'Unpacking the desktop shell…'
 
-  const promise = (async () => {
-    const emitProgress = (phase: 'download' | 'unpack', percent: number | null) => {
-      if (packagedPrefetchJob && packagedPrefetchJob.key === key) {
-        packagedPrefetchJob.percent = percent
-      }
-
-      if (mode === 'prefetch') {
-        emitPackagedPrefetchProgress(plan, {
-          message: phase === 'unpack' ? unpackingMessage : downloadingMessage,
-          percent
-        })
-
-        return
-      }
-
-      emitUpdateProgress({
-        stage: phase === 'unpack' ? 'update' : 'fetch',
-        message: phase === 'unpack' ? unpackingMessage : downloadingMessage,
-        percent
-      })
-    }
-
-    const assetReusable = isPrefetchAssetReusable({
-      exists: fs.existsSync(dest),
-      size: packagedAssetSize(dest),
-      expectedSize: plan.size
-    })
-    const partPath = packagedDownloadPartPath(dest)
-    const partReusable = isPrefetchAssetReusable({
-      exists: fs.existsSync(partPath),
-      size: packagedAssetSize(partPath),
-      expectedSize: plan.size
-    })
-
-    if (!assetReusable) {
-      if (partReusable) {
-        replaceDownloadedFile(partPath, dest)
-      } else {
-        emitProgress('download', 0)
-        await downloadHttpsToFile(plan.downloadUrl, dest, {
-          onProgress: (received, total) => {
-            emitProgress(
-              'download',
-              mode === 'prefetch'
-                ? packagedPrefetchPercent({ kind: plan.kind, phase: 'download', received, total })
-                : downloadProgressPercent(received, total)
-            )
-          }
-        })
-      }
-    }
-
-    if (plan.kind === 'chrome' && extractedDir) {
-      const exeExists = fs.existsSync(path.join(extractedDir, WINDOWS_CHROME_EXE))
-
-      if (!isChromeExtractReusable({ exeExists })) {
-        emitProgress(
-          'unpack',
-          mode === 'prefetch'
-            ? packagedPrefetchPercent({ kind: 'chrome', phase: 'unpack', unpackDone: 0, unpackTotal: 1 })
-            : 0
-        )
-        await extractChromeZip(dest, extractedDir, {
-          onProgress: ({ done, total }) => {
-            emitProgress(
-              'unpack',
-              mode === 'prefetch'
-                ? packagedPrefetchPercent({
-                    kind: 'chrome',
-                    phase: 'unpack',
-                    unpackDone: done,
-                    unpackTotal: total
-                  })
-                : total > 0
-                  ? Math.round((done / total) * 100)
-                  : null
-            )
-          }
-        })
-        assertExtractedWindowsChrome(extractedDir)
-      }
-    }
-
-    if (packagedPrefetchJob && packagedPrefetchJob.key === key) {
-      packagedPrefetchJob.ready = true
-      packagedPrefetchJob.percent = 100
-      packagedPrefetchJob.error = null
-    }
-
-    if (mode === 'prefetch') {
-      emitPackagedPrefetchProgress(plan, {
-        message:
-          plan.kind === 'chrome'
-            ? 'App update is ready. Restart to finish.'
-            : 'Installer is ready. Update when you want.',
-        percent: 100,
-        ready: true
-      })
-    }
-
-    return { dest, extractedDir }
-  })()
-
-  const tracked = promise.catch(error => {
-    const message = error instanceof Error ? error.message : String(error)
-
-    if (packagedPrefetchJob && packagedPrefetchJob.key === key) {
-      packagedPrefetchJob.error = message
-      packagedPrefetchJob.ready = false
-    }
-
-    throw error
+  const downloadingMessage = 'Downloading the signed Work4You installer…'
+  const assetReusable = isPrefetchAssetReusable({
+    exists: fs.existsSync(dest),
+    size: packagedAssetSize(dest),
+    expectedSize: plan.size
   })
 
-  packagedPrefetchJob = {
-    key,
-    plan,
-    dest,
-    extractedDir,
-    ready: false,
-    error: null,
-    percent: 0,
-    promise: tracked
-  }
+  const partPath = packagedDownloadPartPath(dest)
 
-  return tracked
-}
+  const partReusable = isPrefetchAssetReusable({
+    exists: fs.existsSync(partPath),
+    size: packagedAssetSize(partPath),
+    expectedSize: plan.size
+  })
 
-function kickPackagedPrefetch(): void {
-  if (updateInFlight) {
-    return
-  }
-
-  void resolvePackagedApplyPlan()
-    .then(plan => ensurePackagedUpdateAssets(plan, 'prefetch'))
-    .catch(error => {
-      const message = error instanceof Error ? error.message : String(error)
-      rememberLog(`[updates] packaged prefetch failed: ${message}`)
-
-      if (packagedPrefetchJob) {
-        emitPackagedPrefetchProgress(packagedPrefetchJob.plan, {
-          message:
-            packagedPrefetchJob.plan.kind === 'chrome'
-              ? `Could not prepare the app update: ${message}`
-              : `Could not prepare the installer: ${message}`,
-          percent: null,
-          error: message
-        })
-
-        return
-      }
-
-      emitUpdateProgress({
-        stage: 'prefetch',
-        message: `Could not prepare the update: ${message}`,
-        percent: null,
-        error: message,
-        prefetchReady: false
+  if (!assetReusable) {
+    if (partReusable) {
+      replaceDownloadedFile(partPath, dest)
+    } else {
+      emitUpdateProgress({ stage: 'fetch', message: downloadingMessage, percent: 0 })
+      await downloadHttpsToFile(plan.downloadUrl, dest, {
+        onProgress: (received, total) => {
+          emitUpdateProgress({
+            stage: 'fetch',
+            message: downloadingMessage,
+            percent: downloadProgressPercent(received, total)
+          })
+        }
       })
-    })
+    }
+  }
+
+  return dest
 }
 
 async function checkUpdates() {
@@ -3028,21 +2820,13 @@ async function checkUpdates() {
   // compiled desktop app. Checking git-behind on the cloned runtime would offer
   // a 10–15 minute `work4you update` rebuild that still leaves this binary stale.
   if (shouldUsePackagedInstallerUpdate({ isPackaged: IS_PACKAGED, platform: process.platform })) {
-    const result = await checkPackagedInstallerUpdate({
+    return checkPackagedInstallerUpdate({
       stampCommit: INSTALL_STAMP?.commit ?? null,
       platform: process.platform,
       fetchJson: createGithubFetchJson(),
-      fetchText: createGithubFetchText(),
-      localFingerprint: readInstalledRuntimeFingerprint(WORK4YOU_HOME),
       compareBehind: (currentSha, targetSha) =>
         fetchCompareBehindCount({ currentSha, originUrl: OFFICIAL_REPO_HTTPS_URL, targetSha })
     })
-
-    if (shouldStartPackagedPrefetch(result)) {
-      kickPackagedPrefetch()
-    }
-
-    return attachPrefetchFields(result, packagedPrefetchSnapshot())
   }
 
   const updateRoot = resolveUpdateRoot()
@@ -3746,9 +3530,9 @@ async function releaseBackendLock(updateRoot, tag) {
   return { unlocked: false }
 }
 
-// Packaged Windows/macOS: Stage B only. Stage A (download ± chrome unpack)
-// already ran in the background. Clicking here quits so files unlock, then
-// chrome overlays or NSIS runs. Never auto-called from check/prefetch.
+// Packaged Windows/macOS: download on click, then quit so NSIS or the DMG
+// can replace the app. Windows downloads Work4You-Update.exe only.
+// Never auto-called from check.
 async function applyPackagedInstallerUpdates() {
   const handoffConflict = updateHandoffConflict(WORK4YOU_HOME)
 
@@ -3770,48 +3554,26 @@ async function applyPackagedInstallerUpdates() {
     return { ok: false, error: 'fetch-failed', message }
   }
 
-  const alreadyReady =
-    packagedPrefetchJob?.key === packagedPrefetchJobKey(plan) && packagedPrefetchJob.ready && !packagedPrefetchJob.error
-
-  if (!alreadyReady) {
-    emitUpdateProgress({
-      stage: 'fetch',
-      message:
-        plan.kind === 'chrome'
-          ? 'Downloading the Work4You app update…'
-          : 'Downloading the signed Work4You installer…',
-      percent: 0
-    })
-  }
-
   let dest: string
-  let extractedDir: string | null = null
 
   try {
-    const prepared = await ensurePackagedUpdateAssets(plan, alreadyReady ? 'prefetch' : 'apply')
-    dest = prepared.dest
-    extractedDir = prepared.extractedDir
+    dest = await downloadPackagedInstaller(plan)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    rememberLog(`[updates] ${plan.kind} prepare failed: ${message}`)
+    rememberLog(`[updates] installer download failed: ${message}`)
     emitUpdateProgress({
       stage: 'error',
-      message:
-        plan.kind === 'chrome'
-          ? `Could not prepare the app update: ${message}`
-          : `Could not prepare the installer: ${message}`,
+      message: `Could not download the installer: ${message}`,
       percent: null
     })
 
-    return { ok: false, error: alreadyReady ? 'unpack-failed' : 'download-failed', message }
+    return { ok: false, error: 'download-failed', message }
   }
 
   emitUpdateProgress({
     stage: 'restart',
     message: IS_WINDOWS
-      ? plan.kind === 'chrome'
-        ? 'Restarting Work4You to swap the desktop shell. Don’t reopen it yourself — it comes back in a few seconds.'
-        : 'The installer will replace Work4You. This window will close; don’t reopen it yourself — it comes back when setup finishes.'
+      ? 'The installer will replace Work4You. This window will close; don’t reopen it yourself — it comes back when setup finishes.'
       : 'Opening the disk image. Drag Work4You to Applications, then reopen the app.',
     percent: 100
   })
@@ -3825,13 +3587,8 @@ async function applyPackagedInstallerUpdates() {
     installDir,
     desktopPid: process.pid,
     relaunchExe: process.execPath,
-    kind: plan.kind,
-    extractedDir,
-    handoffScriptPath: IS_WINDOWS
-      ? plan.kind === 'chrome'
-        ? writePackagedWindowsChromeHandoffScript(destDir)
-        : writePackagedWindowsHandoffScript(destDir)
-      : dest
+    kind: 'installer',
+    handoffScriptPath: IS_WINDOWS ? writePackagedWindowsHandoffScript(destDir) : dest
   })
 
   const child = spawnUpdaterProcess(spawned.command, spawned.args, {
@@ -3841,17 +3598,16 @@ async function applyPackagedInstallerUpdates() {
   })
 
   rememberLog(
-    `[updates] launched packaged ${plan.kind}: ${spawned.command} ${spawned.args.join(' ')} (${plan.releaseTag})`
+    `[updates] launched packaged installer: ${spawned.command} ${spawned.args.join(' ')} (${plan.releaseTag})`
   )
 
   const dwellStartedAt = Date.now()
   const handoffOutcome = await observeUpdaterHandoff(child, UPDATE_HANDOFF_DWELL_MS)
 
   if (!handoffOutcome.ok) {
-    const message =
-      plan.kind === 'chrome'
-        ? `App update failed to start: ${handoffOutcome.message}. Work4You will keep running — try again.`
-        : `Installer failed to start: ${handoffOutcome.message}. Work4You will keep running — try again, or download ${plan.assetName} from work4you.ai/downloads.`
+    const message = IS_WINDOWS
+      ? `Installer failed to start: ${handoffOutcome.message}. Work4You will keep running — try again.`
+      : `Installer failed to start: ${handoffOutcome.message}. Work4You will keep running — try again, or download ${plan.assetName} from work4you.ai/downloads.`
 
     rememberLog(`[updates] packaged installer spawn not viable: ${handoffOutcome.message}`)
     emitUpdateProgress({ stage: 'error', message, percent: null })
