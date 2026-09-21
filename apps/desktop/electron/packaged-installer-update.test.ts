@@ -7,6 +7,7 @@
 
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import https from 'node:https'
 import os from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -887,7 +888,7 @@ test('downloadHttpsToFile replaces an existing dest instead of EPERM rename', as
     })
 
     return req
-  }) as unknown as typeof import('node:https').get
+  }) as unknown as typeof https.get
 
   try {
     await downloadHttpsToFile('https://example.test/Work4You-Setup.exe', dest, { get })
