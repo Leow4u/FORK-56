@@ -5,15 +5,49 @@ import { useEffect, useRef, useState } from 'react'
 import { useSessionView } from '@/app/chat/session-view'
 import { WIDGET_SHELL_CLASS } from '@/components/chat/widget-shell'
 import { Button } from '@/components/ui/button'
-import { ToolIcon } from '@/components/ui/tool-icon'
 import { useI18n } from '@/i18n'
-import { Download } from '@/lib/icons'
+import {
+  Download,
+  FileSpreadsheet,
+  FileText,
+  FileTypeDocx,
+  FileTypePdf,
+  FileZip,
+  iconSize,
+  Markdown,
+  Presentation,
+  type IconComponent
+} from '@/lib/icons'
 import { normalizeOrLocalPreviewTarget } from '@/lib/local-preview'
-import { documentExtensionLabel, documentKindLabel, downloadDeliveredFile } from '@/lib/media'
+import {
+  documentCardMeta,
+  documentKindLine,
+  downloadDeliveredFile,
+  type DocumentIconName,
+  type DocumentTone
+} from '@/lib/media'
 import { previewName } from '@/lib/preview-targets'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 import { $previewTabSources, closePreviewForSource, openPreview, type PreviewRecordSource } from '@/store/preview'
+
+const DOCUMENT_ICON: Record<DocumentIconName, IconComponent> = {
+  archive: FileZip,
+  document: FileTypeDocx,
+  file: FileText,
+  markdown: Markdown,
+  pdf: FileTypePdf,
+  presentation: Presentation,
+  spreadsheet: FileSpreadsheet
+}
+
+const DOCUMENT_TONE_CLASS: Record<DocumentTone, { icon: string; tile: string }> = {
+  blue: { icon: 'text-(--ui-blue)', tile: 'bg-(--ui-blue)/12' },
+  green: { icon: 'text-(--ui-green)', tile: 'bg-(--ui-green)/12' },
+  muted: { icon: 'text-muted-foreground', tile: 'bg-muted/55' },
+  orange: { icon: 'text-(--ui-orange)', tile: 'bg-(--ui-orange)/12' },
+  red: { icon: 'text-(--ui-red)', tile: 'bg-(--ui-red)/12' }
+}
 
 export function PreviewAttachment({ source = 'manual', target }: { source?: PreviewRecordSource; target: string }) {
   const { t } = useI18n()
@@ -28,8 +62,11 @@ export function PreviewAttachment({ source = 'manual', target }: { source?: Prev
   const requestTokenRef = useRef(0)
   const targetRef = useRef(target)
   const name = previewName(target)
-  const extLabel = documentExtensionLabel(target)
-  const kindLabel = documentKindLabel(target)
+  const card = documentCardMeta(target)
+  const kindLabel = t.preview.documentKind[card.kindKey]
+  const kindLine = documentKindLine(kindLabel, card.extLabel)
+  const Icon = DOCUMENT_ICON[card.icon]
+  const tone = DOCUMENT_TONE_CLASS[card.tone]
   const isActive = openSources.includes(target)
 
   cwdRef.current = cwd
@@ -127,43 +164,38 @@ export function PreviewAttachment({ source = 'manual', target }: { source?: Prev
     }
   }
 
-  const previewLabel = opening ? t.preview.opening : isActive ? t.preview.hide : t.preview.openPreview
-  const kindLine = extLabel ? `${kindLabel} · ${extLabel}` : kindLabel
+  const previewLabel = opening ? t.preview.opening : isActive ? t.preview.hide : t.preview.open
+  const previewAria = opening ? t.preview.opening : isActive ? t.preview.hide : t.preview.openPreview
 
   return (
     <span
-      className={cn(
-        WIDGET_SHELL_CLASS,
-        'group/preview my-1.5 inline-flex w-full max-w-md min-w-0 items-center gap-2.5 align-middle'
-      )}
+      className={cn(WIDGET_SHELL_CLASS, 'my-1.5 inline-flex w-full min-w-0 items-center gap-3 align-middle')}
+      data-document-kind={card.kindKey}
+      data-document-tone={card.tone}
+      data-slot="aui_document-card"
     >
       <button
-        aria-label={previewLabel}
-        className="flex min-w-0 flex-1 items-center gap-2.5 text-left disabled:cursor-default disabled:opacity-50"
+        aria-label={previewAria}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left disabled:cursor-default disabled:opacity-50"
         disabled={opening}
         onClick={() => void togglePreview()}
         type="button"
       >
-        <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted/55 text-muted-foreground">
-          <ToolIcon name="file" size="1rem" />
+        <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg', tone.tile, tone.icon)}>
+          <Icon className={iconSize.lg} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
+          <span className="block truncate text-[length:var(--conversation-text-font-size)] font-semibold text-foreground">
             {name}
           </span>
           <span className="block truncate text-[length:var(--conversation-tool-font-size)] text-muted-foreground">
             {kindLine}
           </span>
         </span>
-        <span
-          className={cn(
-            'shrink-0 text-[length:var(--conversation-tool-font-size)] font-medium text-muted-foreground transition-opacity',
-            opening || isActive ? 'opacity-100' : 'opacity-0 group-hover/preview:opacity-100'
-          )}
-        >
-          {previewLabel}
-        </span>
       </button>
+      <Button disabled={opening} onClick={() => void togglePreview()} size="inline" type="button" variant="text">
+        {previewLabel}
+      </Button>
       <Button
         aria-label={t.fileMenu.download}
         disabled={downloading}

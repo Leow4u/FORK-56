@@ -3845,7 +3845,16 @@ export const zh: Translations = {
     unavailable: '预览不可用',
     opening: '正在打开...',
     hide: '隐藏',
+    open: '打开',
     openPreview: '打开预览',
+    documentKind: {
+      archive: '压缩文件',
+      document: '文档',
+      file: '文件',
+      markdown: 'Markdown',
+      presentation: '演示文稿',
+      spreadsheet: '电子表格'
+    },
     openInBrowser: '在浏览器中打开',
     linkHint: '⌘/Ctrl+点击在预览面板打开',
     sourceLineTitle: '点击选择 · shift 点击扩展 · 拖到输入框',

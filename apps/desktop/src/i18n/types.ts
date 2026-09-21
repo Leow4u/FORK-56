@@ -2952,7 +2952,16 @@ export interface Translations {
     unavailable: string
     opening: string
     hide: string
+    open: string
     openPreview: string
+    documentKind: {
+      archive: string
+      document: string
+      file: string
+      markdown: string
+      presentation: string
+      spreadsheet: string
+    }
     openInBrowser: string
     linkHint: string
     sourceLineTitle: string

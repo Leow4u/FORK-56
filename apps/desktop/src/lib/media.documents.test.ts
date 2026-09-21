@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  documentCardMeta,
   documentExtensionLabel,
   documentKindLabel,
+  documentKindLine,
   formatByteSize,
   isDeliveredDocumentPath,
   isMarkdownDocumentPath,
@@ -64,10 +66,48 @@ describe('delivered document classification', () => {
     expect(documentKindLabel('nomes_rg_cpf.xlsx')).toBe('Spreadsheet')
     expect(documentKindLabel('nomes.xls')).toBe('Spreadsheet')
     expect(documentKindLabel('nomes.csv')).toBe('Spreadsheet')
-    expect(documentKindLabel('/tmp/brief.pdf')).toBe('PDF')
+    expect(documentKindLabel('/tmp/brief.pdf')).toBe('Document')
     expect(documentKindLabel('letter.docx')).toBe('Document')
     expect(documentKindLabel('deck.pptx')).toBe('Presentation')
     expect(documentKindLabel('archive.zip')).toBe('Archive')
+  })
+
+  it('drops a repeated kind/extension pair so PDF is not PDF · PDF', () => {
+    expect(documentKindLine('Document', 'PDF')).toBe('Document · PDF')
+    expect(documentKindLine('Spreadsheet', 'XLSX')).toBe('Spreadsheet · XLSX')
+    expect(documentKindLine('PDF', 'PDF')).toBe('PDF')
+    expect(documentKindLine('pdf', 'PDF')).toBe('PDF')
+    expect(documentKindLine('Markdown', 'MD')).toBe('Markdown · MD')
+    expect(documentKindLine('File', '')).toBe('File')
+  })
+
+  it('picks a type icon and token tone for the attachment row', () => {
+    expect(documentCardMeta('/tmp/sheet.xlsx')).toMatchObject({
+      extLabel: 'XLSX',
+      icon: 'spreadsheet',
+      kindKey: 'spreadsheet',
+      tone: 'green'
+    })
+    expect(documentCardMeta('/tmp/brief.pdf')).toMatchObject({
+      extLabel: 'PDF',
+      icon: 'pdf',
+      kindKey: 'document',
+      tone: 'red'
+    })
+    expect(documentCardMeta('letter.docx')).toMatchObject({
+      icon: 'document',
+      kindKey: 'document',
+      tone: 'blue'
+    })
+    expect(documentCardMeta('deck.pptx')).toMatchObject({
+      icon: 'presentation',
+      tone: 'orange'
+    })
+    expect(documentCardMeta('archive.zip')).toMatchObject({
+      icon: 'archive',
+      kindKey: 'archive',
+      tone: 'muted'
+    })
   })
 })
 

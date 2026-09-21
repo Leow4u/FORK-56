@@ -3381,7 +3381,16 @@ export const ja = defineLocale({
     unavailable: 'プレビューは利用できません',
     opening: '開いています...',
     hide: '非表示',
+    open: '開く',
     openPreview: 'プレビューを開く',
+    documentKind: {
+      archive: 'アーカイブ',
+      document: 'ドキュメント',
+      file: 'ファイル',
+      markdown: 'Markdown',
+      presentation: 'プレゼンテーション',
+      spreadsheet: 'スプレッドシート'
+    },
     openInBrowser: 'ブラウザで開く',
     linkHint: '⌘/Ctrl+クリックでプレビューペイン',
     sourceLineTitle: 'クリックして選択 · Shift クリックで拡張 · コンポーザーにドラッグ',
