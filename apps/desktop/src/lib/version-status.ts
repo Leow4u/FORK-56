@@ -84,7 +84,7 @@ export function resolveUpdateChipLabel(opts: {
     return opts.copy.update
   }
 
-  if (opts.prefetchReady && opts.channel === 'chrome') {
+  if (opts.prefetchReady && (opts.channel === 'chrome' || opts.channel === 'installer')) {
     return opts.copy.restartToFinish
   }
 
@@ -143,7 +143,7 @@ export function resolveVersionStatus({
     ? ''
     : prefetching && percentLabel
       ? ` · ${percentLabel}`
-      : available && prefetchReady && channel === 'chrome'
+      : available && prefetchReady && packaged
         ? ` · ${copy.restartToFinish}`
         : behind > 0
           ? ` (+${behind})`

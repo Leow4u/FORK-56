@@ -3443,7 +3443,8 @@ export const zh: Translations = {
     availableTitleBackend: '后端有可用更新',
     availableBodyBackend: '已连接的 Work4You 后端有新版本可安装。',
     availableBodyNoChangelog: '已有新版本可用。此安装方式无法显示更新日志。',
-    availableBodyInstaller: '新的 Work4You 安装包已就绪。会在后台下载——准备好后再点立即更新。安装程序仍需这次点击；大约一分钟即可替换应用。',
+    availableBodyInstaller:
+      'Work4You 会在你继续使用时于后台下载此更新。出现「重启以完成」后再点击。应用会短暂关闭，然后以新版本重新打开。',
     availableBodyChrome: '新的 Work4You 应用更新已就绪。会在后台下载并解包——芯片就绪后点“重启以完成”。现有运行时保持不变。',
     updateNow: '立即更新',
     restartToFinish: '重启以完成',

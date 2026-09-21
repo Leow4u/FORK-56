@@ -226,7 +226,14 @@ import {
   shouldUsePackagedInstallerUpdate,
   writePackagedWindowsHandoffScript
 } from './packaged-installer-update'
-import { isPrefetchAssetReusable, packagedUpdateScratchDir } from './packaged-update-prefetch'
+import {
+  attachPrefetchFields,
+  isPrefetchAssetReusable,
+  packagedPrefetchJobKey,
+  packagedPrefetchPercent,
+  packagedUpdateScratchDir,
+  shouldStartPackagedPrefetch
+} from './packaged-update-prefetch'
 import {
   createParentStartMarkerResolver,
   electronProcessStartMarker,
@@ -2776,43 +2783,202 @@ function resolvePackagedApplyPlan() {
   })
 }
 
-async function downloadPackagedInstaller(plan: PackagedInstallerApplyPlan): Promise<string> {
-  const scratchDir = packagedUpdateScratchDir(os.tmpdir())
-  const dest = installerDownloadDest(scratchDir, plan.assetName)
+type PackagedPrefetchJob = {
+  key: string
+  plan: PackagedInstallerApplyPlan
+  dest: string
+  ready: boolean
+  error: string | null
+  percent: number | null
+  promise: Promise<string>
+}
 
-  const downloadingMessage = 'Downloading the signed Work4You installer…'
-  const assetReusable = isPrefetchAssetReusable({
-    exists: fs.existsSync(dest),
-    size: packagedAssetSize(dest),
-    expectedSize: plan.size
-  })
+let packagedPrefetchJob: PackagedPrefetchJob | null = null
 
-  const partPath = packagedDownloadPartPath(dest)
-
-  const partReusable = isPrefetchAssetReusable({
-    exists: fs.existsSync(partPath),
-    size: packagedAssetSize(partPath),
-    expectedSize: plan.size
-  })
-
-  if (!assetReusable) {
-    if (partReusable) {
-      replaceDownloadedFile(partPath, dest)
-    } else {
-      emitUpdateProgress({ stage: 'fetch', message: downloadingMessage, percent: 0 })
-      await downloadHttpsToFile(plan.downloadUrl, dest, {
-        onProgress: (received, total) => {
-          emitUpdateProgress({
-            stage: 'fetch',
-            message: downloadingMessage,
-            percent: downloadProgressPercent(received, total)
-          })
-        }
-      })
-    }
+function packagedPrefetchSnapshot(): {
+  releaseTag: string
+  kind: string
+  percent: number | null
+  ready: boolean
+  error: string | null
+} | null {
+  if (!packagedPrefetchJob) {
+    return null
   }
 
-  return dest
+  return {
+    releaseTag: packagedPrefetchJob.plan.releaseTag,
+    kind: packagedPrefetchJob.plan.kind,
+    percent: packagedPrefetchJob.percent,
+    ready: packagedPrefetchJob.ready,
+    error: packagedPrefetchJob.error
+  }
+}
+
+function emitPackagedPrefetchProgress(
+  plan: PackagedInstallerApplyPlan,
+  payload: { message: string; percent: number | null; ready?: boolean; error?: string | null }
+) {
+  emitUpdateProgress({
+    stage: 'prefetch',
+    message: payload.message,
+    percent: payload.percent,
+    error: payload.error ?? null,
+    prefetchReady: payload.ready ?? false,
+    channel: plan.kind,
+    releaseTag: plan.releaseTag
+  })
+}
+
+// Stage A downloads Work4You-Update.exe (or the macOS DMG) while the app stays
+// open. Stage B is the click: quit and run the file already on disk. Never
+// spawn NSIS from here.
+async function ensurePackagedInstallerDownload(
+  plan: PackagedInstallerApplyPlan,
+  mode: 'prefetch' | 'apply'
+): Promise<string> {
+  const key = packagedPrefetchJobKey(plan)
+  const existing = packagedPrefetchJob
+
+  if (existing && existing.key === key && !existing.error) {
+    if (existing.ready) {
+      return existing.dest
+    }
+
+    return existing.promise
+  }
+
+  const scratchDir = packagedUpdateScratchDir(os.tmpdir())
+  const dest = installerDownloadDest(scratchDir, plan.assetName)
+  const downloadingMessage = 'Downloading the signed Work4You installer…'
+
+  const job: PackagedPrefetchJob = {
+    key,
+    plan,
+    dest,
+    ready: false,
+    error: null,
+    percent: 0,
+    promise: Promise.resolve(dest)
+  }
+
+  packagedPrefetchJob = job
+
+  const promise = (async () => {
+    const emitProgress = (percent: number | null) => {
+      if (packagedPrefetchJob && packagedPrefetchJob.key === key) {
+        packagedPrefetchJob.percent = percent
+      }
+
+      if (mode === 'prefetch') {
+        emitPackagedPrefetchProgress(plan, {
+          message: downloadingMessage,
+          percent
+        })
+
+        return
+      }
+
+      emitUpdateProgress({
+        stage: 'fetch',
+        message: downloadingMessage,
+        percent
+      })
+    }
+
+    const assetReusable = isPrefetchAssetReusable({
+      exists: fs.existsSync(dest),
+      size: packagedAssetSize(dest),
+      expectedSize: plan.size
+    })
+
+    const partPath = packagedDownloadPartPath(dest)
+
+    const partReusable = isPrefetchAssetReusable({
+      exists: fs.existsSync(partPath),
+      size: packagedAssetSize(partPath),
+      expectedSize: plan.size
+    })
+
+    if (!assetReusable) {
+      if (partReusable) {
+        replaceDownloadedFile(partPath, dest)
+      } else {
+        emitProgress(0)
+        await downloadHttpsToFile(plan.downloadUrl, dest, {
+          onProgress: (received, total) => {
+            emitProgress(
+              mode === 'prefetch'
+                ? packagedPrefetchPercent({ kind: plan.kind, phase: 'download', received, total })
+                : downloadProgressPercent(received, total)
+            )
+          }
+        })
+      }
+    }
+
+    if (packagedPrefetchJob && packagedPrefetchJob.key === key) {
+      packagedPrefetchJob.ready = true
+      packagedPrefetchJob.percent = 100
+      packagedPrefetchJob.error = null
+    }
+
+    if (mode === 'prefetch') {
+      emitPackagedPrefetchProgress(plan, {
+        message: 'Update is ready. Restart to finish.',
+        percent: 100,
+        ready: true
+      })
+    }
+
+    return dest
+  })()
+
+  const tracked = promise.catch(error => {
+    const message = error instanceof Error ? error.message : String(error)
+
+    if (packagedPrefetchJob && packagedPrefetchJob.key === key) {
+      packagedPrefetchJob.error = message
+      packagedPrefetchJob.ready = false
+    }
+
+    throw error
+  })
+
+  job.promise = tracked
+
+  return tracked
+}
+
+function kickPackagedPrefetch(): void {
+  if (updateInFlight) {
+    return
+  }
+
+  void resolvePackagedApplyPlan()
+    .then(plan => ensurePackagedInstallerDownload(plan, 'prefetch'))
+    .catch(error => {
+      const message = error instanceof Error ? error.message : String(error)
+      rememberLog(`[updates] packaged prefetch failed: ${message}`)
+
+      if (packagedPrefetchJob) {
+        emitPackagedPrefetchProgress(packagedPrefetchJob.plan, {
+          message: `Could not prepare the update: ${message}`,
+          percent: null,
+          error: message
+        })
+
+        return
+      }
+
+      emitUpdateProgress({
+        stage: 'prefetch',
+        message: `Could not prepare the update: ${message}`,
+        percent: null,
+        error: message,
+        prefetchReady: false
+      })
+    })
 }
 
 async function checkUpdates() {
@@ -2820,13 +2986,19 @@ async function checkUpdates() {
   // compiled desktop app. Checking git-behind on the cloned runtime would offer
   // a 10–15 minute `work4you update` rebuild that still leaves this binary stale.
   if (shouldUsePackagedInstallerUpdate({ isPackaged: IS_PACKAGED, platform: process.platform })) {
-    return checkPackagedInstallerUpdate({
+    const result = await checkPackagedInstallerUpdate({
       stampCommit: INSTALL_STAMP?.commit ?? null,
       platform: process.platform,
       fetchJson: createGithubFetchJson(),
       compareBehind: (currentSha, targetSha) =>
         fetchCompareBehindCount({ currentSha, originUrl: OFFICIAL_REPO_HTTPS_URL, targetSha })
     })
+
+    if (shouldStartPackagedPrefetch(result)) {
+      kickPackagedPrefetch()
+    }
+
+    return attachPrefetchFields(result, packagedPrefetchSnapshot())
   }
 
   const updateRoot = resolveUpdateRoot()
@@ -3530,8 +3702,8 @@ async function releaseBackendLock(updateRoot, tag) {
   return { unlocked: false }
 }
 
-// Packaged Windows/macOS: download on click, then quit so NSIS or the DMG
-// can replace the app. Windows downloads Work4You-Update.exe only.
+// Packaged Windows/macOS: Stage B. The check already downloaded
+// Work4You-Update.exe (or the DMG). This quits and runs that file.
 // Never auto-called from check.
 async function applyPackagedInstallerUpdates() {
   const handoffConflict = updateHandoffConflict(WORK4YOU_HOME)
@@ -3557,7 +3729,7 @@ async function applyPackagedInstallerUpdates() {
   let dest: string
 
   try {
-    dest = await downloadPackagedInstaller(plan)
+    dest = await ensurePackagedInstallerDownload(plan, 'apply')
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     rememberLog(`[updates] installer download failed: ${message}`)
@@ -3573,7 +3745,7 @@ async function applyPackagedInstallerUpdates() {
   emitUpdateProgress({
     stage: 'restart',
     message: IS_WINDOWS
-      ? 'The installer will replace Work4You. This window will close; don’t reopen it yourself — it comes back when setup finishes.'
+      ? 'Restarting Work4You to swap the desktop shell. This window closes briefly and comes back on its own.'
       : 'Opening the disk image. Drag Work4You to Applications, then reopen the app.',
     percent: 100
   })

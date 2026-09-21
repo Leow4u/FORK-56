@@ -558,7 +558,7 @@ export interface DesktopUpdateStatus {
   releaseTag?: string
   /** Stage A: download (and chrome unpack) percent. Does not quit the app. */
   prefetchPercent?: number | null
-  /** Stage A finished. Chrome click restarts; installer click still runs Setup. */
+  /** Stage A finished. The click quits and runs the file already on disk. */
   prefetchReady?: boolean
   prefetchError?: string | null
   commits?: DesktopUpdateCommit[]

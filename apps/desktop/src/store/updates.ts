@@ -268,7 +268,7 @@ export function isPackagedUpdateChannel(channel?: DesktopUpdateStatus['channel']
   return channel === 'chrome' || channel === 'installer'
 }
 
-/** Installer applies on click. Chrome still waits until its prefetch is ready. */
+/** Packaged channels apply only after the background download is on disk. */
 export function shouldApplyOnActiveUpdate(status: DesktopUpdateStatus | null): boolean {
   if (!status) {
     return false
@@ -278,10 +278,6 @@ export function shouldApplyOnActiveUpdate(status: DesktopUpdateStatus | null): b
 
   if (!available) {
     return false
-  }
-
-  if (status.channel === 'installer') {
-    return true
   }
 
   if (!isPackagedUpdateChannel(status.channel)) {

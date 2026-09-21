@@ -80,17 +80,14 @@ export function resolveUpdateFinalizeAction({
   prefetchPercent,
   prefetchReady
 }: ResolveUpdateFinalizeInput): UpdateFinalizeAction {
-  // Installer clicks download then quit. Only the dormant chrome channel
-  // waits on a background prefetch.
-  if (channel !== 'chrome') {
+  // Git updates still install on click. Packaged channels download in the
+  // background and only enable the button once that file is on disk.
+  if (channel !== 'chrome' && channel !== 'installer') {
     return { disabled: false, label: copy.updateNow }
   }
 
   if (prefetchReady) {
-    return {
-      disabled: false,
-      label: channel === 'chrome' ? copy.restartToFinish : copy.updateNow
-    }
+    return { disabled: false, label: copy.restartToFinish }
   }
 
   if (prefetchError) {

@@ -430,12 +430,50 @@ describe('requestActiveUpdate', () => {
     expect(applyClientMock).not.toHaveBeenCalled()
   })
 
-  it('applies a packaged installer update without waiting for prefetch', async () => {
+  it('opens the overlay without applying while the installer is still downloading', () => {
     setRemote(false)
     $updateStatus.set(
       status({
         behind: 2,
         channel: 'installer',
+        prefetchPercent: 42,
+        prefetchReady: false,
+        updateAvailable: true
+      })
+    )
+
+    expect(shouldApplyOnActiveUpdate($updateStatus.get())).toBe(false)
+    startActiveUpdate()
+
+    expect($updateOverlayOpen.get()).toBe(true)
+    expect(applyClientMock).not.toHaveBeenCalled()
+  })
+
+  it('applies a packaged installer update once the file is ready', async () => {
+    setRemote(false)
+    $updateStatus.set(
+      status({
+        behind: 2,
+        channel: 'installer',
+        prefetchPercent: 100,
+        prefetchReady: true,
+        updateAvailable: true
+      })
+    )
+
+    expect(shouldApplyOnActiveUpdate($updateStatus.get())).toBe(true)
+    startActiveUpdate()
+    await vi.waitFor(() => expect(applyClientMock).toHaveBeenCalled())
+  })
+
+  it('retries an installer update after the background download fails', async () => {
+    setRemote(false)
+    $updateStatus.set(
+      status({
+        behind: 2,
+        channel: 'installer',
+        prefetchError: 'download-failed',
+        prefetchReady: false,
         updateAvailable: true
       })
     )
