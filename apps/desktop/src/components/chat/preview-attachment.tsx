@@ -2,8 +2,11 @@ import { useStore } from '@nanostores/react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useSessionView } from '@/app/chat/session-view'
+import { WIDGET_SHELL_CLASS } from '@/components/chat/widget-shell'
+import { Button } from '@/components/ui/button'
+import { ToolIcon } from '@/components/ui/tool-icon'
 import { useI18n } from '@/i18n'
-import { Download, FileText } from '@/lib/icons'
+import { Download } from '@/lib/icons'
 import { normalizeOrLocalPreviewTarget } from '@/lib/local-preview'
 import { documentExtensionLabel, documentKindLabel, downloadDeliveredFile } from '@/lib/media'
 import { previewName } from '@/lib/preview-targets'
@@ -129,37 +132,49 @@ export function PreviewAttachment({ source = 'manual', target }: { source?: Prev
   const kindLine = extLabel ? `${kindLabel} · ${extLabel}` : kindLabel
 
   return (
-    <span className="inline-flex max-w-md min-w-0 items-center gap-1 rounded-2xl border border-border bg-background py-1.5 pl-2 pr-1.5 align-middle">
+    <span
+      className={cn(
+        WIDGET_SHELL_CLASS,
+        'group/preview my-1.5 inline-flex w-full max-w-md min-w-0 items-center gap-2.5 align-middle'
+      )}
+    >
       <button
         aria-label={previewLabel}
-        className={cn(
-          'flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-0.5 text-left transition-colors',
-          'hover:bg-accent/45 disabled:cursor-default disabled:opacity-50'
-        )}
+        className="flex min-w-0 flex-1 items-center gap-2.5 text-left disabled:cursor-default disabled:opacity-50"
         disabled={opening}
         onClick={() => void togglePreview()}
         type="button"
       >
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground">
-          <FileText className="size-4" />
+        <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted/55 text-muted-foreground">
+          <ToolIcon name="file" size="1rem" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium leading-5 text-foreground" title={target}>
+          <span className="block truncate text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
             {name}
           </span>
-          <span className="block truncate text-xs leading-4 text-muted-foreground">{kindLine}</span>
+          <span className="block truncate text-[length:var(--conversation-tool-font-size)] text-muted-foreground">
+            {kindLine}
+          </span>
         </span>
-        <span className="shrink-0 text-xs font-medium text-muted-foreground">{previewLabel}</span>
+        <span
+          className={cn(
+            'shrink-0 text-[length:var(--conversation-tool-font-size)] font-medium text-muted-foreground transition-opacity',
+            opening || isActive ? 'opacity-100' : 'opacity-0 group-hover/preview:opacity-100'
+          )}
+        >
+          {previewLabel}
+        </span>
       </button>
-      <button
+      <Button
         aria-label={t.fileMenu.download}
-        className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-50"
         disabled={downloading}
         onClick={() => void downloadFile()}
+        size="icon-sm"
         type="button"
+        variant="ghost"
       >
-        <Download className="size-3.5" />
-      </button>
+        <Download />
+      </Button>
     </span>
   )
 }
