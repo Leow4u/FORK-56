@@ -166,7 +166,9 @@ jobs:
           Copy-Item -LiteralPath (Join-Path $repoScripts 'deploy-desktop-runtime.sh') -Destination (Join-Path $runtime 'deploy-desktop-runtime.sh')
           $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
           if ($manifest.present -eq $true) { throw 'thin runtime stub must be present:false' }
-          npm run builder -- --prepackaged release/win-unpacked --win nsis --publish never -c.directories.output=release-update
+          # PowerShell splits an unquoted -c.directories.output=... into "-c" and
+          # ".directories.output=...", and electron-builder then opens that as a file.
+          npm run builder -- --prepackaged release/win-unpacked --win nsis --publish never '--config.directories.output=release-update'
           if ($LASTEXITCODE -ne 0) { throw "thin NSIS pack failed: $LASTEXITCODE" }
           $bundle = Get-ChildItem -Path 'release-update' -File -ErrorAction SilentlyContinue |
             Where-Object { $_.Extension -ieq '.exe' -and $_.Name -match 'win' } |
