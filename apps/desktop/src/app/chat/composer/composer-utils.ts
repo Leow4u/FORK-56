@@ -32,17 +32,6 @@ export function composerActionStacked(stacked: boolean, messagesEmpty: boolean):
   return stacked || messagesEmpty
 }
 
-/** Session YOLO sits beside add-context on a new session, and with the model
- *  control once the chat has messages. A voice conversation replaces that
- *  control row, so the toggle stays off. */
-export function sessionYoloAnchor(messagesEmpty: boolean, voiceActive: boolean): 'context' | 'controls' | null {
-  if (voiceActive) {
-    return null
-  }
-
-  return messagesEmpty ? 'context' : 'controls'
-}
-
 export const COMPOSER_FADE_BACKGROUND =
   'linear-gradient(to bottom, transparent, color-mix(in srgb, var(--dt-background) 10%, transparent))'
 
