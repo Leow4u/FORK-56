@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { $hudMode, closeHud } from '@/store/hud'
 import { $wakeWord, toggleWakeWord } from '@/store/wake-word'
 
+import { ApprovalModePill } from './approval-mode-pill'
 import { ACTIVE_ICON_BTN, GHOST_ICON_BTN, PRIMARY_ICON_BTN } from './control-classes'
 import type { ConversationStatus } from './hooks/use-voice-conversation'
 import { ModelPill } from './model-pill'
@@ -76,6 +77,7 @@ export function ComposerControls({
 
   return (
     <div className="ml-auto flex shrink-0 items-center gap-(--composer-control-gap)">
+      <ApprovalModePill compact={compactModelPill} disabled={disabled} />
       <ModelPill compact={compactModelPill} disabled={disabled} model={state.model} />
       {/* The HUD is a Spotlight bar a few hundred pixels wide, so the four
           separate voice toggles fold into one menu there and leave the row to

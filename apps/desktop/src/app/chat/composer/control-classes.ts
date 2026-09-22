@@ -6,6 +6,11 @@ import { cn } from '@/lib/utils'
 
 export const ICON_BTN = 'size-(--composer-control-size) shrink-0 rounded-md'
 
+export const COMPOSER_PILL = cn(
+  'h-(--composer-control-size) max-w-40 shrink-0 gap-1 rounded-md px-2 text-xs font-normal',
+  'text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground'
+)
+
 export const GHOST_ICON_BTN = cn(
   ICON_BTN,
   'text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground'

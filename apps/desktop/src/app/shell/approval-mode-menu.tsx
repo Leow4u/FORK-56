@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useEffect, useMemo } from 'react'
+import { type ReactNode, useEffect, useMemo } from 'react'
 
 import type { StatusbarItem } from '@/app/shell/statusbar-controls'
 import {
@@ -18,11 +18,27 @@ import {
   syncApprovalModeForProfile
 } from '@/store/approval-mode'
 
-export function useApprovalModeStatusbarItem(profile: string, requestGateway: ApprovalModeRequester): StatusbarItem {
+const APPROVAL_MODE_ORDER = ['manual', 'smart', 'off'] as const
+
+export interface ApprovalModeControl {
+  descriptions: Record<ApprovalMode, string>
+  icon: ReactNode
+  isOff: boolean
+  labels: Record<ApprovalMode, string>
+  mode: ApprovalMode
+  setMode: (mode: ApprovalMode) => void
+  title: string
+}
+
+export function useApprovalModeControl(
+  profile: string,
+  requestGateway: ApprovalModeRequester
+): ApprovalModeControl {
   const { t } = useI18n()
   const copy = t.shell.approvalMode
   const modes = useStore($approvalModes)
   const mode = modes[profile.trim() || 'default'] ?? 'smart'
+  const isOff = mode === 'off'
 
   const labels = useMemo<Record<ApprovalMode, string>>(
     () => ({ manual: copy.manual, smart: copy.smart, off: copy.off }),
@@ -43,34 +59,66 @@ export function useApprovalModeStatusbarItem(profile: string, requestGateway: Ap
   }, [profile, requestGateway])
 
   return {
-    className: mode === 'off' ? 'bg-(--chrome-action-hover) text-foreground' : undefined,
-    icon: mode === 'off' ? <ZapFilled className="size-3.5" /> : <Zap className="size-3.5 opacity-70" />,
+    descriptions,
+    icon: isOff ? <ZapFilled className="size-3.5" /> : <Zap className="size-3.5 opacity-70" />,
+    isOff,
+    labels,
+    mode,
+    setMode: next => {
+      void setApprovalModeForProfile(requestGateway, profile, next).catch(() => undefined)
+    },
+    title: copy.ariaLabel(labels[mode])
+  }
+}
+
+export function ApprovalModeMenu({
+  descriptions,
+  labels,
+  mode,
+  setMode,
+  title
+}: Pick<ApprovalModeControl, 'descriptions' | 'labels' | 'mode' | 'setMode'> & { title: string }) {
+  const { t } = useI18n()
+
+  return (
+    <>
+      <DropdownMenuLabel>{title || t.shell.approvalMode.title}</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuRadioGroup onValueChange={value => setMode(value as ApprovalMode)} value={mode}>
+        {APPROVAL_MODE_ORDER.map(value => (
+          <DropdownMenuRadioItem className="items-start gap-2" key={value} value={value}>
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-xs text-foreground">{labels[value]}</span>
+              <span className="text-[0.6875rem] leading-snug text-(--ui-text-tertiary)">{descriptions[value]}</span>
+            </span>
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    </>
+  )
+}
+
+export function useApprovalModeStatusbarItem(profile: string, requestGateway: ApprovalModeRequester): StatusbarItem {
+  const { t } = useI18n()
+  const control = useApprovalModeControl(profile, requestGateway)
+
+  return {
+    className: control.isOff ? 'bg-(--chrome-action-hover) text-foreground' : undefined,
+    icon: control.icon,
     id: 'approval-mode',
-    label: labels[mode],
+    label: control.labels[control.mode],
     menuAlign: 'end',
     menuClassName: 'w-72 p-1',
     menuContent: (
-      <>
-        <DropdownMenuLabel>{copy.title}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup
-          onValueChange={value => {
-            void setApprovalModeForProfile(requestGateway, profile, value as ApprovalMode).catch(() => undefined)
-          }}
-          value={mode}
-        >
-          {(['manual', 'smart', 'off'] as const).map(value => (
-            <DropdownMenuRadioItem className="items-start gap-2" key={value} value={value}>
-              <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="text-xs text-foreground">{labels[value]}</span>
-                <span className="text-[0.6875rem] leading-snug text-(--ui-text-tertiary)">{descriptions[value]}</span>
-              </span>
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </>
+      <ApprovalModeMenu
+        descriptions={control.descriptions}
+        labels={control.labels}
+        mode={control.mode}
+        setMode={control.setMode}
+        title={t.shell.approvalMode.title}
+      />
     ),
-    title: copy.ariaLabel(labels[mode]),
+    title: control.title,
     variant: 'menu'
   }
 }
