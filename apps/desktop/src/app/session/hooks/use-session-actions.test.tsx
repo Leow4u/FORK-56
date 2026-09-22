@@ -1105,6 +1105,7 @@ describe('resumeSession failure recovery', () => {
         [
           'runtime-stale',
           {
+            approvalMode: null,
             awaitingResponse: false,
             branch: '',
             busy: false,
