@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ChatBarState } from '@/app/chat/composer/types'
 import { I18nProvider } from '@/i18n'
+import { $approvalModes } from '@/store/approval-mode'
 import { $hudMode } from '@/store/hud'
+import { $activeGatewayProfile } from '@/store/profile'
 import { applyWakeStartResult, applyWakeStatus, resetWakeWordState } from '@/store/wake-word'
 
 import { ComposerControls } from './controls'
@@ -58,6 +60,8 @@ async function expectShortcutTooltip(label: string, shortcut: string) {
 
 afterEach(() => {
   cleanup()
+  $approvalModes.set({})
+  $activeGatewayProfile.set('default')
   $hudMode.set(false)
 })
 
@@ -66,6 +70,31 @@ describe('composer control row', () => {
     renderControls()
 
     expect(screen.queryByLabelText('Context usage')).toBeNull()
+  })
+
+  it('keeps the approval-mode pill beside the model control', () => {
+    renderControls()
+
+    const trigger = screen.getByRole('button', { name: /approval mode: smart/i })
+
+    expect(trigger.getAttribute('data-slot')).toBe('composer-approval-mode')
+  })
+
+  it('hides the approval-mode pill during a voice conversation', () => {
+    renderControls({
+      conversation: {
+        active: true,
+        level: 0,
+        muted: false,
+        onEnd: vi.fn(),
+        onStart: vi.fn(),
+        onStopTurn: vi.fn(),
+        onToggleMute: vi.fn(),
+        status: 'listening'
+      }
+    })
+
+    expect(screen.queryByRole('button', { name: /approval mode/i })).toBeNull()
   })
 })
 
