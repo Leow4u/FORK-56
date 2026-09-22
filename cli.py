@@ -12498,6 +12498,12 @@ class Work4YouCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
             _persist = getattr(self, "_persist_session_yolo", None)
             if _persist:
                 _persist(new_session_id, True)
+        try:
+            from tools.approval import transfer_session_approval_mode
+
+            transfer_session_approval_mode(old_session_id, new_session_id)
+        except Exception:
+            pass
 
     def _is_session_yolo_active(self) -> bool:
         """Whether YOLO bypass is currently enabled for this CLI session.

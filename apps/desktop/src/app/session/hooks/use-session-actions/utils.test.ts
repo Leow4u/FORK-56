@@ -68,6 +68,17 @@ describe('applyRuntimeInfo approval mode', () => {
     expect(approvalModeForProfile('work')).toBe('smart')
     expect(approvalModeForProfile('default')).toBe('smart')
   })
+
+  it('keeps a conversation pin off the profile cache', () => {
+    const patch = applyRuntimeInfo({
+      approval_mode: 'smart',
+      desktop_contract: 3,
+      session_approval_mode: 'off'
+    })
+
+    expect(approvalModeForProfile('work')).toBe('smart')
+    expect(patch?.approvalMode).toBe('off')
+  })
 })
 
 const initialOnboardingState = $desktopOnboarding.get()

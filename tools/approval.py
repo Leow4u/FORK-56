@@ -2349,6 +2349,13 @@ _lock = threading.Lock()
 _pending: dict[str, dict] = {}
 _session_approved: dict[str, set] = {}
 _session_yolo: set[str] = set()
+# Explicit per-session approval mode (manual | smart | off). Absent means
+# the chat follows the profile ``approvals.mode``. The loaded set records
+# keys whose session row was already consulted, so a miss does not reopen
+# the database on every command check. Profile mode itself is never cached
+# here — a Settings change still applies to chats that have not pinned one.
+_session_approval_mode: dict[str, str] = {}
+_session_approval_mode_loaded: set[str] = set()
 _permanent_approved: set = set()
 
 
@@ -2762,12 +2769,18 @@ def disable_session_yolo(session_key: str) -> None:
 
 
 def clear_session(session_key: str) -> None:
-    """Remove all approval and yolo state for a given session."""
+    """Remove in-memory approval and yolo state for a given session.
+
+    The persisted per-session approval mode stays on the session row. The
+    next check reloads it. Ending a runtime must not forget a chat's Off.
+    """
     if not session_key:
         return
     with _lock:
         _session_approved.pop(session_key, None)
         _session_yolo.discard(session_key)
+        _session_approval_mode.pop(session_key, None)
+        _session_approval_mode_loaded.discard(session_key)
         _pending.pop(session_key, None)
         entries = _gateway_queues.pop(session_key, [])
     for entry in entries:
@@ -3185,9 +3198,137 @@ def _get_approval_config() -> dict:
 
 
 def _get_approval_mode() -> str:
-    """Read the approval mode from config. Returns 'manual', 'smart', or 'off'."""
+    """Read the profile approval mode from config.
+
+    Returns ``'manual'``, ``'smart'``, or ``'off'``. This is the profile
+    default (Settings, ``/approvals``, CLI). A conversation's own choice is
+    ``resolve_approval_mode``.
+    """
     mode = _get_approval_config().get("mode", "manual")
     return _normalize_approval_mode(mode)
+
+
+def _read_persisted_session_approval_mode(session_id: str) -> tuple[str | None, bool]:
+    """Return ``(mode, ok)`` from the session row.
+
+    ``mode`` is None when the row has no pin. ``ok`` is False when the read
+    failed; callers must not cache that miss. Unknown stored values are
+    ignored rather than coerced into ``manual``.
+    """
+    try:
+        from work4you_state import SessionDB
+
+        db = SessionDB()
+        try:
+            raw = db.get_session_model_config_value(session_id, "approval_mode", None)
+        finally:
+            db.close()
+    except Exception:
+        logger.debug("Could not read session approval mode for %s", session_id, exc_info=True)
+        return None, False
+    if isinstance(raw, str):
+        normalized = raw.strip().lower()
+        if normalized in ("manual", "smart", "off"):
+            return normalized, True
+    return None, True
+
+
+def _persist_session_approval_mode(session_id: str, mode: str) -> None:
+    """Merge the pin into model_config. Does not touch the system prompt."""
+    try:
+        from work4you_state import SessionDB
+
+        db = SessionDB()
+        try:
+            db.set_session_approval_mode(session_id, mode)
+        finally:
+            db.close()
+    except Exception:
+        logger.debug("Could not persist session approval mode for %s", session_id, exc_info=True)
+
+
+def peek_session_approval_override(session_key: str) -> str | None:
+    """Return an in-memory pin, without reading the session row."""
+    if not session_key:
+        return None
+    with _lock:
+        return _session_approval_mode.get(session_key)
+
+
+def resolve_approval_mode(session_key: str | None = None) -> str:
+    """Effective mode for one conversation: its pin, else the profile default.
+
+    Passing None uses the active approval context, with an empty fallback so
+    a missing context does not look up a session named ``default``. An empty
+    key is the profile mode. The pin is read from memory, then once from the
+    session row, and kept for the life of this process (``clear_session``
+    drops the cache so the next check reloads).
+    """
+    if session_key is None:
+        session_key = get_current_session_key(default="")
+    key = str(session_key or "")
+    if not key:
+        return _get_approval_mode()
+    with _lock:
+        pinned = _session_approval_mode.get(key)
+        if pinned:
+            return pinned
+        loaded = key in _session_approval_mode_loaded
+    if not loaded:
+        persisted, ok = _read_persisted_session_approval_mode(key)
+        if not ok:
+            return _get_approval_mode()
+        with _lock:
+            _session_approval_mode_loaded.add(key)
+            pinned = _session_approval_mode.get(key)
+            if pinned:
+                return pinned
+            if persisted:
+                _session_approval_mode[key] = persisted
+                return persisted
+    return _get_approval_mode()
+
+
+def set_session_approval_mode(session_key: str, mode: str) -> str:
+    """Pin one conversation's approval mode. The profile config is not written.
+
+    The choice wins over a later Settings change for this session, including
+    after a process restart, because it is stored on the session row. A
+    missing row is remembered in memory; session creation copies that pin
+    into the new row.
+    """
+    normalized = _normalize_approval_mode(mode)
+    if not session_key:
+        return normalized
+    with _lock:
+        _session_approval_mode[session_key] = normalized
+        _session_approval_mode_loaded.add(session_key)
+    _persist_session_approval_mode(session_key, normalized)
+    return normalized
+
+
+def transfer_session_approval_mode(old_key: str, new_key: str) -> None:
+    """Move a conversation's pin onto a continuation session id.
+
+    Compression and branch rotate the session id. The child row is not a
+    copy of the parent's model_config, so the pin is written onto the new
+    row. The old key's memory cache is dropped; its row keeps the historical
+    value.
+    """
+    if not old_key or not new_key or old_key == new_key:
+        return
+    with _lock:
+        mode = _session_approval_mode.get(old_key)
+        loaded = old_key in _session_approval_mode_loaded
+    if mode is None and not loaded:
+        mode, ok = _read_persisted_session_approval_mode(old_key)
+        if not ok:
+            mode = None
+    if mode:
+        set_session_approval_mode(new_key, mode)
+    with _lock:
+        _session_approval_mode.pop(old_key, None)
+        _session_approval_mode_loaded.discard(old_key)
 
 
 def is_approval_bypass_active_for_session(session_key: str) -> bool:
@@ -3199,7 +3340,8 @@ def is_approval_bypass_active_for_session(session_key: str) -> bool:
         so a mid-process skill can't flip it — a prompt-injection escalation
         path; see ``_YOLO_MODE_FROZEN`` above),
       - the session-scoped gateway ``/yolo`` toggle,
-      - ``approvals.mode: off`` in config.
+      - that session's effective approval mode ``off`` (its own pin, else the
+        profile ``approvals.mode``).
 
     This is the pure-bypass sub-expression only. Callers that also honor a
     hardline blocklist / permanent allowlist must check those separately.
@@ -3207,7 +3349,7 @@ def is_approval_bypass_active_for_session(session_key: str) -> bool:
     return (
         _YOLO_MODE_FROZEN
         or is_session_yolo_enabled(session_key)
-        or _get_approval_mode() == "off"
+        or resolve_approval_mode(session_key) == "off"
     )
 
 
@@ -3468,8 +3610,13 @@ def _run_approval_gate(
     """
     # --yolo bypasses all approval prompts (session- or process-scoped).
     # Hardline blocks are handled by the caller BEFORE this gate, so yolo
-    # here only skips the recoverable approval layer.
-    if _YOLO_MODE_FROZEN or is_current_session_yolo_enabled():
+    # here only skips the recoverable approval layer. A session pin of
+    # ``off`` (else the profile mode) is the same bypass, per conversation.
+    if (
+        _YOLO_MODE_FROZEN
+        or is_current_session_yolo_enabled()
+        or resolve_approval_mode() == "off"
+    ):
         return {"approved": True, "message": None}
 
     session_key = get_current_session_key()
@@ -3756,7 +3903,12 @@ def check_dangerous_command(command: str, env_type: str,
 
     # --yolo: bypass all approval prompts. Gateway /yolo is session-scoped;
     # CLI --yolo remains process-scoped via the env var for local use.
-    if _YOLO_MODE_FROZEN or is_current_session_yolo_enabled():
+    # Effective approval mode off is the same per-conversation bypass.
+    if (
+        _YOLO_MODE_FROZEN
+        or is_current_session_yolo_enabled()
+        or resolve_approval_mode() == "off"
+    ):
         return {"approved": True, "message": None}
 
     if _command_matches_permanent_allowlist(command):
@@ -4387,9 +4539,10 @@ def check_all_command_guards(command: str, env_type: str,
                        deny_pattern, command[:200])
         return _user_deny_block_result(deny_pattern)
 
-    # --yolo or approvals.mode=off: bypass all approval prompts.
+    # --yolo or effective approvals mode off: bypass all approval prompts.
     # Gateway /yolo is session-scoped; CLI --yolo remains process-scoped.
-    approval_mode = _get_approval_mode()
+    # The mode is this conversation's pin, else the profile default.
+    approval_mode = resolve_approval_mode()
     if _YOLO_MODE_FROZEN or is_current_session_yolo_enabled() or approval_mode == "off":
         return {"approved": True, "message": None}
 
@@ -5018,8 +5171,8 @@ def check_execute_code_guard(code: str, env_type: str,
     if _should_skip_container_guards(env_type, has_host_access=has_host_access):
         return {"approved": True, "message": None}
 
-    # --yolo or approvals.mode=off: bypass (session- or process-scoped).
-    approval_mode = _get_approval_mode()
+    # --yolo or effective approvals mode off: bypass (session- or process-scoped).
+    approval_mode = resolve_approval_mode()
     if _YOLO_MODE_FROZEN or is_current_session_yolo_enabled() or approval_mode == "off":
         return {"approved": True, "message": None}
 

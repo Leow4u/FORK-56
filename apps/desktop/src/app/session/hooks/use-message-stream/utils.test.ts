@@ -38,6 +38,12 @@ describe('sessionInfoStatePatch / hasSessionInfoStatePatch', () => {
     expect(hasSessionInfoStatePatch(patch)).toBe(true)
     expect(hasSessionInfoStatePatch(sessionInfoStatePatch(payload({})))).toBe(false)
   })
+
+  it('copies the conversation approval mode onto the session slice', () => {
+    const patch = sessionInfoStatePatch(payload({ approval_mode: 'smart', session_approval_mode: 'off' }))
+
+    expect(patch.approvalMode).toBe('off')
+  })
 })
 
 describe('delegateTaskPayloads', () => {

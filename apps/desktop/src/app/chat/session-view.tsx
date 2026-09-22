@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react'
 
 import type { ClientSessionState } from '@/app/types'
 import type { ChatMessage } from '@/lib/chat-messages'
+import { $draftSessionApprovalMode } from '@/store/approval-mode'
 import {
   $activeSessionId,
   $awaitingResponse,
@@ -59,6 +60,8 @@ export interface SessionView {
   $provider: ReadableAtom<string>
   $fast: ReadableAtom<boolean>
   $reasoningEffort: ReadableAtom<string>
+  /** This chat's approval mode. Null follows the profile. A draft reads `$draftSessionApprovalMode`. */
+  $approvalMode: ReadableAtom<'manual' | 'off' | 'smart' | null>
   /** This surface's approval bypass. Drafts read `$yoloActive`. A live session reads its own slice. */
   $yolo: ReadableAtom<boolean>
 }
@@ -97,6 +100,7 @@ const $primaryBusy = computed([$primaryState, $busy, $selectedStoredSessionId], 
 
 export const PRIMARY_SESSION_VIEW: SessionView = {
   kind: 'primary',
+  $approvalMode: primaryField(state => state.approvalMode, $draftSessionApprovalMode),
   $awaitingResponse: primaryField<boolean>(state => state.awaitingResponse, $awaitingResponse),
   $busy: $primaryBusy,
   $cwd: primaryField<string>(state => state.cwd, $currentCwd),

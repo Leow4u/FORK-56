@@ -779,6 +779,8 @@ export interface SessionResumeResponse {
 
 export interface SessionRuntimeInfo {
   approval_mode?: 'manual' | 'off' | 'smart'
+  /** Effective mode for this conversation: its pin, or the profile default. */
+  session_approval_mode?: 'manual' | 'off' | 'smart'
   branch?: string
   config_warning?: string
   credential_warning?: string

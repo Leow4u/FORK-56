@@ -32,7 +32,7 @@ import {
   COMPOSER_FADE_BACKGROUND,
   composerActionStacked,
   type QueueEditState,
-  sessionYoloAnchor,
+  sessionApprovalAnchor,
   slashArgStage
 } from './composer-utils'
 import { ContextMenu } from './context-menu'
@@ -74,7 +74,7 @@ import {
   RICH_INPUT_SLOT
 } from './rich-editor'
 import { useComposerScope } from './scope'
-import { SessionYoloPill } from './session-yolo-pill'
+import { SessionApprovalPill } from './session-approval-pill'
 import { ComposerStatusStack } from './status-stack'
 import { CodingStatusRow } from './status-stack/coding-row'
 import { WorkspaceChipRow } from './status-stack/workspace-chip'
@@ -962,7 +962,7 @@ export function ChatBar({
   // dispatchSubmitRef — no effect needed for a plain mirror.
   voiceStopRef.current = { active: voiceConversationActive, end: endConversation }
 
-  const yoloAnchor = sessionYoloAnchor(messagesEmpty, voiceConversationActive)
+  const approvalAnchor = sessionApprovalAnchor(messagesEmpty, voiceConversationActive)
 
   const contextMenu = (
     <ContextMenu
@@ -998,7 +998,7 @@ export function ChatBar({
       onDictate={dictate}
       onQueue={queueDraft}
       onToggleAutoSpeak={handleToggleAutoSpeak}
-      showSessionYolo={yoloAnchor === 'controls'}
+      showSessionApproval={approvalAnchor === 'controls'}
       state={state}
       voiceStatus={voiceStatus}
     />
@@ -1335,8 +1335,8 @@ export function ChatBar({
                   >
                     <div className="flex translate-y-[3px] items-center gap-(--composer-control-gap) self-start [grid-area:menu]">
                       {contextMenu}
-                      {yoloAnchor === 'context' && (
-                        <SessionYoloPill compact={poppedOut || compactPill} disabled={disabled} />
+                      {approvalAnchor === 'context' && (
+                        <SessionApprovalPill compact={poppedOut || compactPill} disabled={disabled} />
                       )}
                       <ContribSlot area={COMPOSER_AREAS.leading} />
                     </div>

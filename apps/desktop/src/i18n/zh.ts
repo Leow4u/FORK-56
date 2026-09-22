@@ -3713,7 +3713,8 @@ export const zh: Translations = {
       smart: '智能',
       smartDescription: '自动评估操作，并在需要时询问',
       off: '关闭',
-      offDescription: '不显示审批提示，直接运行'
+      offDescription: '不显示审批提示，直接运行',
+      saveFailed: '无法更改审批模式'
     },
     statusbar: {
       unknown: '未知',

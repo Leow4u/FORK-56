@@ -112,10 +112,11 @@ def evaluate_command(command: str, env_type: str = "local") -> dict:
                    "config.yaml (blocked even under --yolo / mode=off)",
         )
 
-    # 5. Yolo / approvals.mode=off bypass.
+    # 5. Yolo / effective approval-mode off bypass. A conversation pin wins
+    # over the profile default, matching check_all_command_guards.
     if (approval._YOLO_MODE_FROZEN
             or approval.is_current_session_yolo_enabled()
-            or approval._get_approval_mode() == "off"):
+            or approval.resolve_approval_mode() == "off"):
         return result(
             "allow",
             detail="approval bypass active (--yolo or approvals.mode: off); "

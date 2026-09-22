@@ -653,10 +653,17 @@ class AIAgent:
             # this is the only chance to record a pre-first-turn toggle.
             _init_model_config = self._session_init_model_config
             try:
-                from tools.approval import is_session_yolo_enabled
+                from tools.approval import (
+                    is_session_yolo_enabled,
+                    peek_session_approval_override,
+                )
                 if is_session_yolo_enabled(self.session_id):
                     _init_model_config = dict(_init_model_config or {})
                     _init_model_config["yolo_mode"] = True
+                _approval_pin = peek_session_approval_override(self.session_id)
+                if _approval_pin:
+                    _init_model_config = dict(_init_model_config or {})
+                    _init_model_config["approval_mode"] = _approval_pin
             except Exception:
                 pass
             self._session_db.create_session(

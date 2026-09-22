@@ -181,6 +181,8 @@ export interface ClientSessionState {
   reasoningEffort: string
   serviceTier: string
   fast: boolean
+  /** This chat's pinned approval mode. Null until the session reports one or the user picks. */
+  approvalMode: 'manual' | 'off' | 'smart' | null
   yolo: boolean
   personality: string
   busy: boolean

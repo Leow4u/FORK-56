@@ -2820,6 +2820,7 @@ export interface Translations {
       smartDescription: string
       off: string
       offDescription: string
+      saveFailed: string
     }
     statusbar: {
       unknown: string
