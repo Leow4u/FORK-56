@@ -68,33 +68,8 @@ describe('composer control row', () => {
     expect(screen.queryByLabelText('Context usage')).toBeNull()
   })
 
-  it('keeps the session YOLO toggle beside the model control once a chat has messages', () => {
+  it('does not put a YOLO toggle in the composer', () => {
     renderControls()
-
-    const trigger = screen.getByRole('button', { name: /yolo off/i })
-
-    expect(trigger.getAttribute('data-slot')).toBe('composer-session-yolo')
-  })
-
-  it('leaves the session YOLO toggle out of the model cluster on a new session', () => {
-    renderControls({ showSessionYolo: false })
-
-    expect(screen.queryByRole('button', { name: /yolo/i })).toBeNull()
-  })
-
-  it('hides the session YOLO toggle during a voice conversation', () => {
-    renderControls({
-      conversation: {
-        active: true,
-        level: 0,
-        muted: false,
-        onEnd: vi.fn(),
-        onStart: vi.fn(),
-        onStopTurn: vi.fn(),
-        onToggleMute: vi.fn(),
-        status: 'listening'
-      }
-    })
 
     expect(screen.queryByRole('button', { name: /yolo/i })).toBeNull()
   })

@@ -7,7 +7,6 @@ import {
   isPendingDraftPersistCurrent,
   type PendingDraftPersist,
   pickPlaceholder,
-  sessionYoloAnchor,
   slashArgStage,
   slashChipKindForItem,
   slashCommandToken,
@@ -94,21 +93,6 @@ describe('pickPlaceholder', () => {
   it('returns a member of the pool', () => {
     const pool = ['a', 'b', 'c'] as const
     expect(pool).toContain(pickPlaceholder(pool))
-  })
-})
-
-describe('sessionYoloAnchor', () => {
-  it('sits beside add context on a new session', () => {
-    expect(sessionYoloAnchor(true, false)).toBe('context')
-  })
-
-  it('stays with the model control once the chat has messages', () => {
-    expect(sessionYoloAnchor(false, false)).toBe('controls')
-  })
-
-  it('stays hidden while a voice conversation owns the row', () => {
-    expect(sessionYoloAnchor(true, true)).toBeNull()
-    expect(sessionYoloAnchor(false, true)).toBeNull()
   })
 })
 
