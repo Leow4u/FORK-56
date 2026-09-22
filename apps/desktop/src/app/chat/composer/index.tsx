@@ -26,14 +26,13 @@ import { $threadScrolledUp } from '@/store/thread-scroll'
 import { $autoSpeakReplies } from '@/store/voice-prefs'
 import { useTheme } from '@/themes'
 
-import { ApprovalModePill } from './approval-mode-pill'
 import { AttachmentList } from './attachments'
 import {
   acceptsTriggerCompletion,
-  approvalModeAnchor,
   COMPOSER_FADE_BACKGROUND,
   composerActionStacked,
   type QueueEditState,
+  sessionYoloAnchor,
   slashArgStage
 } from './composer-utils'
 import { ContextMenu } from './context-menu'
@@ -75,6 +74,7 @@ import {
   RICH_INPUT_SLOT
 } from './rich-editor'
 import { useComposerScope } from './scope'
+import { SessionYoloPill } from './session-yolo-pill'
 import { ComposerStatusStack } from './status-stack'
 import { CodingStatusRow } from './status-stack/coding-row'
 import { WorkspaceChipRow } from './status-stack/workspace-chip'
@@ -962,7 +962,7 @@ export function ChatBar({
   // dispatchSubmitRef — no effect needed for a plain mirror.
   voiceStopRef.current = { active: voiceConversationActive, end: endConversation }
 
-  const approvalAnchor = approvalModeAnchor(messagesEmpty, voiceConversationActive)
+  const yoloAnchor = sessionYoloAnchor(messagesEmpty, voiceConversationActive)
 
   const contextMenu = (
     <ContextMenu
@@ -998,7 +998,7 @@ export function ChatBar({
       onDictate={dictate}
       onQueue={queueDraft}
       onToggleAutoSpeak={handleToggleAutoSpeak}
-      showApprovalMode={approvalAnchor === 'controls'}
+      showSessionYolo={yoloAnchor === 'controls'}
       state={state}
       voiceStatus={voiceStatus}
     />
@@ -1335,8 +1335,8 @@ export function ChatBar({
                   >
                     <div className="flex translate-y-[3px] items-center gap-(--composer-control-gap) self-start [grid-area:menu]">
                       {contextMenu}
-                      {approvalAnchor === 'context' && (
-                        <ApprovalModePill align="start" compact={poppedOut || compactPill} disabled={disabled} />
+                      {yoloAnchor === 'context' && (
+                        <SessionYoloPill compact={poppedOut || compactPill} disabled={disabled} />
                       )}
                       <ContribSlot area={COMPOSER_AREAS.leading} />
                     </div>

@@ -14,7 +14,8 @@ import {
   $currentReasoningEffort,
   $messages,
   $selectedStoredSessionId,
-  $turnStartedAt
+  $turnStartedAt,
+  $yoloActive
 } from '@/store/session'
 import { $sessionStates } from '@/store/session-states'
 
@@ -58,6 +59,8 @@ export interface SessionView {
   $provider: ReadableAtom<string>
   $fast: ReadableAtom<boolean>
   $reasoningEffort: ReadableAtom<string>
+  /** This surface's approval bypass. Drafts read `$yoloActive`. A live session reads its own slice. */
+  $yolo: ReadableAtom<boolean>
 }
 
 /** The active session's own slice, or `undefined` while it's a draft. */
@@ -106,7 +109,8 @@ export const PRIMARY_SESSION_VIEW: SessionView = {
   $reasoningEffort: primaryField<string>(state => state.reasoningEffort, $currentReasoningEffort),
   $runtimeId: $activeSessionId,
   $storedId: $selectedStoredSessionId,
-  $turnStartedAt: primaryField<number | null>(state => state.turnStartedAt, $turnStartedAt)
+  $turnStartedAt: primaryField<number | null>(state => state.turnStartedAt, $turnStartedAt),
+  $yolo: primaryField<boolean>(state => state.yolo, $yoloActive)
 }
 
 const SessionViewContext = createContext<SessionView>(PRIMARY_SESSION_VIEW)

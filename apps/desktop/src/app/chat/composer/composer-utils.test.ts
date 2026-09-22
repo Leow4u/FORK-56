@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest'
 
 import {
   acceptsTriggerCompletion,
-  approvalModeAnchor,
   composerActionStacked,
   isPendingDraftPersistCurrent,
   type PendingDraftPersist,
   pickPlaceholder,
+  sessionYoloAnchor,
   slashArgStage,
   slashChipKindForItem,
   slashCommandToken,
@@ -97,18 +97,18 @@ describe('pickPlaceholder', () => {
   })
 })
 
-describe('approvalModeAnchor', () => {
+describe('sessionYoloAnchor', () => {
   it('sits beside add context on a new session', () => {
-    expect(approvalModeAnchor(true, false)).toBe('context')
+    expect(sessionYoloAnchor(true, false)).toBe('context')
   })
 
   it('stays with the model control once the chat has messages', () => {
-    expect(approvalModeAnchor(false, false)).toBe('controls')
+    expect(sessionYoloAnchor(false, false)).toBe('controls')
   })
 
   it('stays hidden while a voice conversation owns the row', () => {
-    expect(approvalModeAnchor(true, true)).toBeNull()
-    expect(approvalModeAnchor(false, true)).toBeNull()
+    expect(sessionYoloAnchor(true, true)).toBeNull()
+    expect(sessionYoloAnchor(false, true)).toBeNull()
   })
 })
 

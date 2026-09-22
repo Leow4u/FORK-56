@@ -3,9 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ChatBarState } from '@/app/chat/composer/types'
 import { I18nProvider } from '@/i18n'
-import { $approvalModes } from '@/store/approval-mode'
 import { $hudMode } from '@/store/hud'
-import { $activeGatewayProfile } from '@/store/profile'
 import { applyWakeStartResult, applyWakeStatus, resetWakeWordState } from '@/store/wake-word'
 
 import { ComposerControls } from './controls'
@@ -60,8 +58,6 @@ async function expectShortcutTooltip(label: string, shortcut: string) {
 
 afterEach(() => {
   cleanup()
-  $approvalModes.set({})
-  $activeGatewayProfile.set('default')
   $hudMode.set(false)
 })
 
@@ -72,21 +68,21 @@ describe('composer control row', () => {
     expect(screen.queryByLabelText('Context usage')).toBeNull()
   })
 
-  it('keeps the approval-mode pill beside the model control once a chat has messages', () => {
+  it('keeps the session YOLO toggle beside the model control once a chat has messages', () => {
     renderControls()
 
-    const trigger = screen.getByRole('button', { name: /approval mode: smart/i })
+    const trigger = screen.getByRole('button', { name: /yolo off/i })
 
-    expect(trigger.getAttribute('data-slot')).toBe('composer-approval-mode')
+    expect(trigger.getAttribute('data-slot')).toBe('composer-session-yolo')
   })
 
-  it('leaves the approval-mode pill out of the model cluster on a new session', () => {
-    renderControls({ showApprovalMode: false })
+  it('leaves the session YOLO toggle out of the model cluster on a new session', () => {
+    renderControls({ showSessionYolo: false })
 
-    expect(screen.queryByRole('button', { name: /approval mode/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /yolo/i })).toBeNull()
   })
 
-  it('hides the approval-mode pill during a voice conversation', () => {
+  it('hides the session YOLO toggle during a voice conversation', () => {
     renderControls({
       conversation: {
         active: true,
@@ -100,7 +96,7 @@ describe('composer control row', () => {
       }
     })
 
-    expect(screen.queryByRole('button', { name: /approval mode/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /yolo/i })).toBeNull()
   })
 })
 

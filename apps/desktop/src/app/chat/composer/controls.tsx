@@ -10,10 +10,10 @@ import { cn } from '@/lib/utils'
 import { $hudMode, closeHud } from '@/store/hud'
 import { $wakeWord, toggleWakeWord } from '@/store/wake-word'
 
-import { ApprovalModePill } from './approval-mode-pill'
 import { ACTIVE_ICON_BTN, GHOST_ICON_BTN, PRIMARY_ICON_BTN } from './control-classes'
 import type { ConversationStatus } from './hooks/use-voice-conversation'
 import { ModelPill } from './model-pill'
+import { SessionYoloPill } from './session-yolo-pill'
 import type { ChatBarState, VoiceStatus } from './types'
 import { VoiceMenu } from './voice-menu'
 
@@ -40,7 +40,7 @@ export function ComposerControls({
   compactModelPill = false,
   conversation,
   disabled,
-  showApprovalMode = true,
+  showSessionYolo = true,
   hasComposerPayload,
   state,
   voiceStatus,
@@ -55,8 +55,8 @@ export function ComposerControls({
   compactModelPill?: boolean
   conversation: ConversationProps
   disabled: boolean
-  /** False when a new session renders the pill beside add-context instead. */
-  showApprovalMode?: boolean
+  /** False when a new session renders the toggle beside add-context instead. */
+  showSessionYolo?: boolean
   hasComposerPayload: boolean
   state: ChatBarState
   voiceStatus: VoiceStatus
@@ -80,7 +80,7 @@ export function ComposerControls({
 
   return (
     <div className="ml-auto flex shrink-0 items-center gap-(--composer-control-gap)">
-      {showApprovalMode ? <ApprovalModePill compact={compactModelPill} disabled={disabled} /> : null}
+      {showSessionYolo ? <SessionYoloPill compact={compactModelPill} disabled={disabled} /> : null}
       <ModelPill compact={compactModelPill} disabled={disabled} model={state.model} />
       {/* The HUD is a Spotlight bar a few hundred pixels wide, so the four
           separate voice toggles fold into one menu there and leave the row to
