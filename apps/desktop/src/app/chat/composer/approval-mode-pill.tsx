@@ -19,7 +19,16 @@ import { COMPOSER_PILL } from './control-classes'
  * Same `approvals.mode` values (manual / smart / off), same gateway write,
  * same menu. Settings → Safety remains the other door onto this key.
  */
-export function ApprovalModePill({ compact = false, disabled }: { compact?: boolean; disabled: boolean }) {
+export function ApprovalModePill({
+  align = 'end',
+  compact = false,
+  disabled
+}: {
+  /** Menu edge. `start` when the pill sits on the left, beside add-context. */
+  align?: 'start' | 'end'
+  compact?: boolean
+  disabled: boolean
+}) {
   const { t } = useI18n()
   const profile = useStore($activeGatewayProfile)
   const { requestGateway } = useGatewayRequest()
@@ -68,7 +77,7 @@ export function ApprovalModePill({ compact = false, disabled }: { compact?: bool
           </Button>
         </DropdownMenuTrigger>
       </Tip>
-      <DropdownMenuContent align="end" className="w-72 p-1" side="top" sideOffset={8}>
+      <DropdownMenuContent align={align} className="w-72 p-1" side="top" sideOffset={8}>
         <ApprovalModeMenu
           descriptions={control.descriptions}
           labels={control.labels}
