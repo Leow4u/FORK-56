@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { atom } from 'nanostores'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -77,6 +77,42 @@ describe('ModelPill pinned-override badge', () => {
     )
     expect(screen.getByTestId('model-pinned-dot')).toBeTruthy()
     expect($currentModel.get()).toBe('deepseek/deepseek-v4-flash')
+  })
+})
+
+function expectNoHoverTip(button: HTMLElement) {
+  expect(button.closest('[data-slot="tooltip-trigger"]')).toBeNull()
+  fireEvent.pointerMove(button, { pointerType: 'mouse' })
+  expect(screen.queryByRole('tooltip')).toBeNull()
+}
+
+describe('ModelPill hover', () => {
+  it('shows nothing when the pointer rests on the fallback picker', () => {
+    render(<ModelPill disabled={false} model={modelState({ provider: 'work4you' })} />)
+
+    expectNoHoverTip(screen.getByRole('button', { name: 'Open model picker' }))
+    expect(screen.queryByText(/pinned by you/i)).toBeNull()
+  })
+
+  it('shows nothing when the pointer rests on the live menu, pin included', () => {
+    setCurrentModel('deepseek/deepseek-v4-flash')
+    setCurrentModelSource('manual')
+    $activeSessionId.set(null)
+
+    render(
+      <ModelPill
+        disabled={false}
+        model={modelState({
+          model: 'deepseek/deepseek-v4-flash',
+          modelMenuContent: <div>menu</div>,
+          provider: 'work4you'
+        })}
+      />
+    )
+
+    expectNoHoverTip(screen.getByRole('button'))
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    expect(screen.getByTestId('model-pinned-dot')).toBeTruthy()
   })
 })
 
