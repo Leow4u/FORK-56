@@ -72,12 +72,18 @@ describe('composer control row', () => {
     expect(screen.queryByLabelText('Context usage')).toBeNull()
   })
 
-  it('keeps the approval-mode pill beside the model control', () => {
+  it('keeps the approval-mode pill beside the model control once a chat has messages', () => {
     renderControls()
 
     const trigger = screen.getByRole('button', { name: /approval mode: smart/i })
 
     expect(trigger.getAttribute('data-slot')).toBe('composer-approval-mode')
+  })
+
+  it('leaves the approval-mode pill out of the model cluster on a new session', () => {
+    renderControls({ showApprovalMode: false })
+
+    expect(screen.queryByRole('button', { name: /approval mode/i })).toBeNull()
   })
 
   it('hides the approval-mode pill during a voice conversation', () => {

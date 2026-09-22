@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   acceptsTriggerCompletion,
+  approvalModeAnchor,
   composerActionStacked,
   isPendingDraftPersistCurrent,
   type PendingDraftPersist,
@@ -93,6 +94,21 @@ describe('pickPlaceholder', () => {
   it('returns a member of the pool', () => {
     const pool = ['a', 'b', 'c'] as const
     expect(pool).toContain(pickPlaceholder(pool))
+  })
+})
+
+describe('approvalModeAnchor', () => {
+  it('sits beside add context on a new session', () => {
+    expect(approvalModeAnchor(true, false)).toBe('context')
+  })
+
+  it('stays with the model control once the chat has messages', () => {
+    expect(approvalModeAnchor(false, false)).toBe('controls')
+  })
+
+  it('stays hidden while a voice conversation owns the row', () => {
+    expect(approvalModeAnchor(true, true)).toBeNull()
+    expect(approvalModeAnchor(false, true)).toBeNull()
   })
 })
 

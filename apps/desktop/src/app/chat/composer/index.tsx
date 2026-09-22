@@ -26,9 +26,11 @@ import { $threadScrolledUp } from '@/store/thread-scroll'
 import { $autoSpeakReplies } from '@/store/voice-prefs'
 import { useTheme } from '@/themes'
 
+import { ApprovalModePill } from './approval-mode-pill'
 import { AttachmentList } from './attachments'
 import {
   acceptsTriggerCompletion,
+  approvalModeAnchor,
   COMPOSER_FADE_BACKGROUND,
   composerActionStacked,
   type QueueEditState,
@@ -960,6 +962,8 @@ export function ChatBar({
   // dispatchSubmitRef — no effect needed for a plain mirror.
   voiceStopRef.current = { active: voiceConversationActive, end: endConversation }
 
+  const approvalAnchor = approvalModeAnchor(messagesEmpty, voiceConversationActive)
+
   const contextMenu = (
     <ContextMenu
       onInsertText={insertText}
@@ -994,6 +998,7 @@ export function ChatBar({
       onDictate={dictate}
       onQueue={queueDraft}
       onToggleAutoSpeak={handleToggleAutoSpeak}
+      showApprovalMode={approvalAnchor === 'controls'}
       state={state}
       voiceStatus={voiceStatus}
     />
@@ -1328,8 +1333,11 @@ export function ChatBar({
                         : 'grid-cols-[auto_1fr_auto] items-center gap-(--composer-control-gap) [grid-template-areas:"menu_input_controls"]'
                     )}
                   >
-                    <div className="flex translate-y-[3px] items-start gap-(--composer-control-gap) self-start [grid-area:menu]">
+                    <div className="flex translate-y-[3px] items-center gap-(--composer-control-gap) self-start [grid-area:menu]">
                       {contextMenu}
+                      {approvalAnchor === 'context' && (
+                        <ApprovalModePill align="start" compact={poppedOut || compactPill} disabled={disabled} />
+                      )}
                       <ContribSlot area={COMPOSER_AREAS.leading} />
                     </div>
                     <div className="min-w-0 [grid-area:input]">{input}</div>

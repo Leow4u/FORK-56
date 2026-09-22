@@ -40,6 +40,7 @@ export function ComposerControls({
   compactModelPill = false,
   conversation,
   disabled,
+  showApprovalMode = true,
   hasComposerPayload,
   state,
   voiceStatus,
@@ -54,6 +55,8 @@ export function ComposerControls({
   compactModelPill?: boolean
   conversation: ConversationProps
   disabled: boolean
+  /** False when a new session renders the pill beside add-context instead. */
+  showApprovalMode?: boolean
   hasComposerPayload: boolean
   state: ChatBarState
   voiceStatus: VoiceStatus
@@ -77,7 +80,7 @@ export function ComposerControls({
 
   return (
     <div className="ml-auto flex shrink-0 items-center gap-(--composer-control-gap)">
-      <ApprovalModePill compact={compactModelPill} disabled={disabled} />
+      {showApprovalMode ? <ApprovalModePill compact={compactModelPill} disabled={disabled} /> : null}
       <ModelPill compact={compactModelPill} disabled={disabled} model={state.model} />
       {/* The HUD is a Spotlight bar a few hundred pixels wide, so the four
           separate voice toggles fold into one menu there and leave the row to
