@@ -32,10 +32,10 @@ export function composerActionStacked(stacked: boolean, messagesEmpty: boolean):
   return stacked || messagesEmpty
 }
 
-/** Approvals sits beside add-context on a new session, and with the model
+/** Session YOLO sits beside add-context on a new session, and with the model
  *  control once the chat has messages. A voice conversation replaces that
- *  control row, so the pill stays off. */
-export function approvalModeAnchor(messagesEmpty: boolean, voiceActive: boolean): 'context' | 'controls' | null {
+ *  control row, so the toggle stays off. */
+export function sessionYoloAnchor(messagesEmpty: boolean, voiceActive: boolean): 'context' | 'controls' | null {
   if (voiceActive) {
     return null
   }
