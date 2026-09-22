@@ -68,6 +68,7 @@ export type GatewayEventPayload = {
   service_tier?: string
   fast?: boolean
   approval_mode?: string
+  session_approval_mode?: string
   yolo?: boolean
   running?: boolean
   turn_started_at?: number | null

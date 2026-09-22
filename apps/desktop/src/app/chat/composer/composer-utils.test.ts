@@ -7,7 +7,7 @@ import {
   isPendingDraftPersistCurrent,
   type PendingDraftPersist,
   pickPlaceholder,
-  sessionYoloAnchor,
+  sessionApprovalAnchor,
   slashArgStage,
   slashChipKindForItem,
   slashCommandToken,
@@ -97,18 +97,18 @@ describe('pickPlaceholder', () => {
   })
 })
 
-describe('sessionYoloAnchor', () => {
+describe('sessionApprovalAnchor', () => {
   it('sits beside add context on a new session', () => {
-    expect(sessionYoloAnchor(true, false)).toBe('context')
+    expect(sessionApprovalAnchor(true, false)).toBe('context')
   })
 
   it('stays with the model control once the chat has messages', () => {
-    expect(sessionYoloAnchor(false, false)).toBe('controls')
+    expect(sessionApprovalAnchor(false, false)).toBe('controls')
   })
 
   it('stays hidden while a voice conversation owns the row', () => {
-    expect(sessionYoloAnchor(true, true)).toBeNull()
-    expect(sessionYoloAnchor(false, true)).toBeNull()
+    expect(sessionApprovalAnchor(true, true)).toBeNull()
+    expect(sessionApprovalAnchor(false, true)).toBeNull()
   })
 })
 

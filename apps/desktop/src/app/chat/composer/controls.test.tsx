@@ -68,21 +68,21 @@ describe('composer control row', () => {
     expect(screen.queryByLabelText('Context usage')).toBeNull()
   })
 
-  it('keeps the session YOLO toggle beside the model control once a chat has messages', () => {
+  it('keeps the session approval menu beside the model control once a chat has messages', () => {
     renderControls()
 
-    const trigger = screen.getByRole('button', { name: /yolo off/i })
+    const trigger = screen.getByRole('button', { name: /approval mode: smart/i })
 
-    expect(trigger.getAttribute('data-slot')).toBe('composer-session-yolo')
+    expect(trigger.getAttribute('data-slot')).toBe('composer-approval-mode')
   })
 
-  it('leaves the session YOLO toggle out of the model cluster on a new session', () => {
-    renderControls({ showSessionYolo: false })
+  it('leaves the session approval menu out of the model cluster on a new session', () => {
+    renderControls({ showSessionApproval: false })
 
-    expect(screen.queryByRole('button', { name: /yolo/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /approval mode/i })).toBeNull()
   })
 
-  it('hides the session YOLO toggle during a voice conversation', () => {
+  it('hides the session approval menu during a voice conversation', () => {
     renderControls({
       conversation: {
         active: true,
@@ -96,7 +96,7 @@ describe('composer control row', () => {
       }
     })
 
-    expect(screen.queryByRole('button', { name: /yolo/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /approval mode/i })).toBeNull()
   })
 })
 

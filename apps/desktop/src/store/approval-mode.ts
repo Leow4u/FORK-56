@@ -9,6 +9,13 @@ const confirmedModes = new Map<string, ApprovalMode>()
 
 export const $approvalModes = atom<Record<string, ApprovalMode>>({})
 
+/** Explicit pick on a new chat, before a runtime exists. Null follows the profile. */
+export const $draftSessionApprovalMode = atom<ApprovalMode | null>(null)
+
+export function setDraftSessionApprovalMode(mode: ApprovalMode | null): void {
+  $draftSessionApprovalMode.set(mode)
+}
+
 function profileKey(profile: string): string {
   return profile.trim() || 'default'
 }
@@ -21,11 +28,16 @@ function nextRevision(profile: string): number {
 }
 
 function normalizeApprovalMode(value: unknown): ApprovalMode {
+  return parseApprovalMode(value) ?? 'manual'
+}
+
+/** A real manual/smart/off value, or null when the string is not one of those. */
+export function parseApprovalMode(value: unknown): ApprovalMode | null {
   const normalized = String(value ?? '')
     .trim()
     .toLowerCase() as ApprovalMode
 
-  return APPROVAL_MODES.has(normalized) ? normalized : 'manual'
+  return APPROVAL_MODES.has(normalized) ? normalized : null
 }
 
 export function approvalModeForProfile(profile: string): ApprovalMode {

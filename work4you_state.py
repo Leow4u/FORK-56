@@ -6939,8 +6939,9 @@ class SessionDB(SessionSearchMixin, SessionSchemaMixin, SessionPortabilityMixin)
         """SELECT + tolerant-parse + merge ``patch`` into a session's model_config.
 
         Shared by every model_config writer (``update_session_runtime_lock``,
-        ``set_session_yolo``, ``archive_and_compact``,
-        ``patch_session_model_config``) so the merge discipline that keeps
+        ``set_session_yolo``, ``set_session_approval_mode``,
+        ``archive_and_compact``, ``patch_session_model_config``) so the merge
+        discipline that keeps
         lineage markers like ``_branched_from`` / ``_delegate_from`` alive
         lives in exactly one place. A ``None`` patch value deletes that key.
         Must run inside an open write transaction (callers own the UPDATE).
@@ -7088,6 +7089,54 @@ class SessionDB(SessionSearchMixin, SessionSchemaMixin, SessionPortabilityMixin)
                 (merged, session_id),
             )
         self._execute_write(_do)
+
+    def set_session_approval_mode(self, session_id: str, mode: str) -> None:
+        """Pin ``approval_mode`` on a session row without touching the prompt.
+
+        Merges into ``model_config`` so lineage markers survive, and leaves
+        ``system_prompt`` alone — a mode change must not rebuild the cached
+        prompt. No-op when the row does not exist yet or ``mode`` is not one
+        of manual, smart, off. The in-memory pin is what session creation
+        copies in that window.
+        """
+        normalized = str(mode or "").strip().lower()
+        if not session_id or normalized not in ("manual", "smart", "off"):
+            return
+
+        def _do(conn):
+            merged = self._merge_model_config_json(
+                conn, session_id, {"approval_mode": normalized}
+            )
+            if merged is _MODEL_CONFIG_ROW_MISSING:
+                return
+            conn.execute(
+                "UPDATE sessions SET model_config = ? WHERE id = ?",
+                (merged, session_id),
+            )
+
+        self._execute_write(_do)
+
+    @staticmethod
+    def session_approval_mode(session_meta: Optional[Dict[str, Any]]) -> Optional[str]:
+        """Read a pinned approval mode off a session row, or None when unset.
+
+        Unknown or unreadable values return None so a resume follows the
+        profile default instead of inventing a pin.
+        """
+        raw = (session_meta or {}).get("model_config")
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except Exception:
+                return None
+        if not isinstance(raw, dict):
+            return None
+        value = raw.get("approval_mode")
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in ("manual", "smart", "off"):
+                return normalized
+        return None
 
     @staticmethod
     def session_yolo_enabled(session_meta: Optional[Dict[str, Any]]) -> bool:

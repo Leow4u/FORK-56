@@ -123,6 +123,7 @@ describe('ModelPill per-surface model label', () => {
 
     const tileView: SessionView = {
       kind: 'tile',
+      $approvalMode: atom(null),
       $awaitingResponse: atom(false),
       $busy: atom(false),
       $cwd: atom(''),

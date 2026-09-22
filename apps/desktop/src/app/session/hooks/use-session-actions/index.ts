@@ -8,7 +8,9 @@ import { useI18n } from '@/i18n'
 import { type ChatMessage, preserveLocalAssistantErrors, toChatMessages } from '@/lib/chat-messages'
 import { isMissingRpcMethod } from '@/lib/gateway-rpc'
 import { recoverInFlightTurnJournal } from '@/lib/inflight-turn-journal'
+import { setSessionApprovalMode } from '@/lib/session-approval'
 import { setSessionYolo } from '@/lib/yolo-session'
+import { $draftSessionApprovalMode, setDraftSessionApprovalMode } from '@/store/approval-mode'
 import { normalizeChoices, setClarifyRequest } from '@/store/clarify'
 import { migrateSessionDraft } from '@/store/composer'
 import { clearQueuedPrompts, migrateQueuedPrompts } from '@/store/composer-queue'
@@ -414,6 +416,7 @@ export function useSessionActions({
       // is cleared.
       setCurrentServiceTier('')
       setYoloActive(false)
+      setDraftSessionApprovalMode(null)
       setNewChatWorkspaceTarget(hasWorkspaceTarget ? workspaceTarget : undefined)
 
       if (!hasWorkspaceTarget) {
@@ -511,6 +514,7 @@ export function useSessionActions({
         setSelectedStoredSessionId(stored)
         setSessionStartedAt(Date.now())
         const yoloArmed = $yoloActive.get()
+        const draftApprovalMode = $draftSessionApprovalMode.get()
         const runtimeInfo = applyRuntimeInfo(created.info)
 
         if (runtimeInfo) {
@@ -521,6 +525,20 @@ export function useSessionActions({
         // session existed — apply it to the freshly created session.
         if (yoloArmed) {
           await setSessionYolo(requestGateway, created.session_id, true).catch(() => undefined)
+        }
+
+        // A pick on the empty composer is this conversation's pin. Leave it
+        // unset when they never chose, so the chat keeps following the profile.
+        if (draftApprovalMode) {
+          const applied = await setSessionApprovalMode(requestGateway, created.session_id, draftApprovalMode).catch(
+            () => null
+          )
+
+          setDraftSessionApprovalMode(null)
+
+          if (applied) {
+            updateSessionState(created.session_id, state => ({ ...state, approvalMode: applied }), stored)
+          }
         }
 
         return created.session_id

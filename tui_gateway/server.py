@@ -5467,6 +5467,12 @@ def _sync_session_key_after_compress(
             except Exception:
                 pass
         try:
+            from tools.approval import transfer_session_approval_mode
+
+            transfer_session_approval_mode(old_key, new_session_id)
+        except Exception:
+            pass
+        try:
             register_gateway_notify(
                 new_session_id,
                 lambda data: _emit_approval_request(sid, data),
@@ -5697,21 +5703,34 @@ def _session_info(agent, session: dict | None = None) -> dict:
             reasoning_effort = str(reasoning_config.get("effort", "") or "")
     service_tier = getattr(agent, "service_tier", None) or mirror.get("service_tier") or ""
     # Effective approval-bypass state — the same three sources that
-    # check_all_command_guards() ORs together: persistent config
-    # (approvals.mode=off), the process-scoped --yolo env, and the
-    # per-session flag. Reporting only the per-session flag here would lie to
-    # the desktop status bar (it would show YOLO "off" while approvals.mode=off
-    # silently auto-approves every dangerous command).
+    # check_all_command_guards() ORs together: this conversation's effective
+    # mode (its pin, else approvals.mode=off), the process-scoped --yolo env,
+    # and the per-session YOLO flag. Reporting only the per-session flag here
+    # would lie to the desktop (it would show YOLO "off" while this chat's
+    # mode is off and every dangerous command auto-approves).
+    # ``approval_mode`` stays the profile default so Settings and the status
+    # bar do not follow one chat. ``session_approval_mode`` is the mode this
+    # conversation actually uses.
     yolo = False
     approval_mode = "manual"
+    session_approval_mode = "manual"
     try:
-        from tools.approval import _YOLO_MODE_FROZEN, is_session_yolo_enabled
+        from tools.approval import (
+            _YOLO_MODE_FROZEN,
+            is_session_yolo_enabled,
+            resolve_approval_mode,
+        )
 
         session_yolo = (
             bool(is_session_yolo_enabled(session_key)) if session_key else False
         )
         approval_mode = _load_approval_mode()
-        yolo = bool(_YOLO_MODE_FROZEN) or session_yolo or approval_mode == "off"
+        session_approval_mode = (
+            resolve_approval_mode(session_key) if session_key else approval_mode
+        )
+        if session_approval_mode not in _APPROVAL_MODES:
+            session_approval_mode = "manual"
+        yolo = bool(_YOLO_MODE_FROZEN) or session_yolo or session_approval_mode == "off"
     except Exception:
         yolo = False
     # A model switch queued mid-turn (pending_model_switch) applies at the next
@@ -5741,6 +5760,7 @@ def _session_info(agent, session: dict | None = None) -> dict:
         "fast": service_tier == "priority",
         "yolo": yolo,
         "approval_mode": approval_mode,
+        "session_approval_mode": session_approval_mode,
         "tools": dict(mirror.get("tools") or {}) if isinstance(mirror.get("tools"), dict) else {},
         "skills": dict(mirror.get("skills") or {}) if isinstance(mirror.get("skills"), dict) else {},
         "cwd": cwd,
@@ -12203,6 +12223,26 @@ def _(rid, params: dict) -> dict:
                 rid,
                 4002,
                 f"unknown approval mode: {value}; pick one of manual|smart|off",
+            )
+
+        # A session_id pins the mode on that conversation only. Settings and
+        # the status bar omit it and keep writing the profile default, which
+        # new chats inherit until they pick their own.
+        session_id = str(params.get("session_id") or "").strip()
+        if session_id:
+            if not session:
+                return _err(rid, 4004, f"unknown session: {session_id}")
+            from tools.approval import set_session_approval_mode
+
+            pinned = set_session_approval_mode(
+                str(session.get("session_key") or session_id), raw
+            )
+            agent = session.get("agent")
+            if agent is not None:
+                _emit("session.info", session_id, _session_info(agent, session))
+            return _ok(
+                rid,
+                {"key": "approvals.mode", "value": pinned, "scope": "session"},
             )
 
         _write_config_key("approvals.mode", raw)

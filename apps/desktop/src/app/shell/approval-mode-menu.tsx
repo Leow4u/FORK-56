@@ -30,10 +30,7 @@ export interface ApprovalModeControl {
   title: string
 }
 
-export function useApprovalModeControl(
-  profile: string,
-  requestGateway: ApprovalModeRequester
-): ApprovalModeControl {
+export function useApprovalModeControl(profile: string, requestGateway: ApprovalModeRequester): ApprovalModeControl {
   const { t } = useI18n()
   const copy = t.shell.approvalMode
   const modes = useStore($approvalModes)
@@ -86,7 +83,12 @@ export function ApprovalModeMenu({
       <DropdownMenuSeparator />
       <DropdownMenuRadioGroup onValueChange={value => setMode(value as ApprovalMode)} value={mode}>
         {APPROVAL_MODE_ORDER.map(value => (
-          <DropdownMenuRadioItem className="items-start gap-2" key={value} value={value}>
+          <DropdownMenuRadioItem
+            className="items-start gap-2"
+            key={value}
+            onSelect={() => setMode(value)}
+            value={value}
+          >
             <span className="flex min-w-0 flex-col gap-0.5">
               <span className="text-xs text-foreground">{labels[value]}</span>
               <span className="text-[0.6875rem] leading-snug text-(--ui-text-tertiary)">{descriptions[value]}</span>

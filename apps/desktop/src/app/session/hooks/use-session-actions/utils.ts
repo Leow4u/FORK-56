@@ -2,7 +2,7 @@ import { textWithoutReferenceLines } from '@/components/assistant-ui/reference-k
 import { assistantTextPart, type ChatMessage, chatMessageText, textPart } from '@/lib/chat-messages'
 import { normalizePersonalityValue } from '@/lib/chat-runtime'
 import { embeddedImageUrls, textWithoutEmbeddedImages } from '@/lib/embedded-images'
-import { reconcileApprovalModeForProfile } from '@/store/approval-mode'
+import { parseApprovalMode, reconcileApprovalModeForProfile } from '@/store/approval-mode'
 import { requestDesktopOnboardingForCredentialWarning } from '@/store/onboarding'
 import { $activeGatewayProfile, $profiles, normalizeProfileKey } from '@/store/profile'
 import {
@@ -1383,7 +1383,16 @@ export async function resolveSessionProfile(storedSessionId: null | string): Pro
 type SessionRuntimeStatePatch = Partial<
   Pick<
     ClientSessionState,
-    'branch' | 'cwd' | 'fast' | 'model' | 'personality' | 'provider' | 'reasoningEffort' | 'serviceTier' | 'yolo'
+    | 'approvalMode'
+    | 'branch'
+    | 'cwd'
+    | 'fast'
+    | 'model'
+    | 'personality'
+    | 'provider'
+    | 'reasoningEffort'
+    | 'serviceTier'
+    | 'yolo'
   >
 >
 
@@ -1513,6 +1522,12 @@ export function applyRuntimeInfo(
 
   if (typeof info.yolo === 'boolean') {
     sessionState.yolo = info.yolo
+  }
+
+  const sessionApprovalMode = parseApprovalMode(info.session_approval_mode)
+
+  if (sessionApprovalMode) {
+    sessionState.approvalMode = sessionApprovalMode
   }
 
   if (foreground) {
