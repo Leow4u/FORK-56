@@ -30,8 +30,8 @@ import { ApprovalModePill } from './approval-mode-pill'
 import { AttachmentList } from './attachments'
 import {
   acceptsTriggerCompletion,
-  COMPOSER_FADE_BACKGROUND,
   approvalModeAnchor,
+  COMPOSER_FADE_BACKGROUND,
   composerActionStacked,
   type QueueEditState,
   slashArgStage
@@ -983,7 +983,6 @@ export function ChatBar({
       busyAction={busyAction}
       canSubmit={canSubmit}
       compactModelPill={poppedOut || compactPill}
-      showApprovalMode={approvalAnchor === 'controls'}
       conversation={{
         active: voiceConversationActive,
         level: conversation.level,
@@ -999,6 +998,7 @@ export function ChatBar({
       onDictate={dictate}
       onQueue={queueDraft}
       onToggleAutoSpeak={handleToggleAutoSpeak}
+      showApprovalMode={approvalAnchor === 'controls'}
       state={state}
       voiceStatus={voiceStatus}
     />
