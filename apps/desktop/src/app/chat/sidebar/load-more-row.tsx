@@ -9,9 +9,9 @@ interface SidebarLoadMoreRowProps {
   loading?: boolean
 }
 
-// Compact "load more" affordance shared by recents, messaging, and cron. Kept
-// intentionally identical to workspace "show more" controls (ellipsis button)
-// so pagination reads as one interaction everywhere.
+// Compact "load more" affordance shared by recents, messaging, and cron.
+// Workspace history uses a visible "Show more" row instead; this one pages
+// data that is not loaded yet.
 export function SidebarLoadMoreRow({ step, onClick, loading = false }: SidebarLoadMoreRowProps) {
   const { t } = useI18n()
   const label = loading ? t.sidebar.loading : step > 0 ? t.sidebar.loadCount(step) : t.sidebar.loadMore

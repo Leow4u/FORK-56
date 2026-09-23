@@ -2488,6 +2488,7 @@ export const ar = defineLocale({
     },
     newSessionIn: label => `جلسة جديدة في ${label}`,
     showMoreIn: (count, label) => `إظهار ${count} أخرى في ${label}`,
+    showMore: 'عرض المزيد',
     loading: 'جار التحميل...',
     loadMore: 'تحميل المزيد',
     loadCount: step => `تحميل ${step} أخرى`,

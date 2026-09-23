@@ -2314,6 +2314,7 @@ export interface Translations {
     }
     newSessionIn: (label: string) => string
     showMoreIn: (count: number, label: string) => string
+    showMore: string
     loading: string
     loadMore: string
     loadCount: (step: number) => string

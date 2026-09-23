@@ -2574,6 +2574,7 @@ export const zhHant = defineLocale({
     },
     newSessionIn: label => `在 ${label} 中新建工作階段`,
     showMoreIn: (count, label) => `在 ${label} 中再顯示 ${count} 個`,
+    showMore: '顯示更多',
     loading: '載入中…',
     loadMore: '載入更多',
     loadCount: step => `再載入 ${step} 個`,

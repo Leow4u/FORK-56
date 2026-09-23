@@ -24,6 +24,7 @@ vi.mock('@/i18n', () => ({
           reveal: 'Reveal in file manager',
           startWork: 'New worktree'
         },
+        showMore: 'Show more',
         showMoreIn: (n: number, label: string) => `Show ${n} more in ${label}`
       }
     }
@@ -62,10 +63,11 @@ describe('WorkspaceAddButton', () => {
 })
 
 describe('WorkspaceShowMoreButton', () => {
-  it('wraps the ellipsis button in a Tip with the composed label', () => {
+  it('shows a visible Show more row and keeps the count in the tip label', () => {
     render(<WorkspaceShowMoreButton count={5} label="Test D" onClick={vi.fn()} />)
 
     const button = screen.getByRole('button', { name: 'Show 5 more in Test D' })
+    expect(button.textContent).toBe('Show more')
     expect(tipTrigger(button)).toBeTruthy()
   })
 })

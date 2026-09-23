@@ -2688,6 +2688,7 @@ export const ja = defineLocale({
     },
     newSessionIn: label => `${label} で新しいセッション`,
     showMoreIn: (count, label) => `${label} でさらに ${count} 件を表示`,
+    showMore: 'もっと見る',
     loading: '読み込み中…',
     loadMore: 'さらに読み込む',
     loadCount: step => `さらに ${step} 件を読み込む`,
