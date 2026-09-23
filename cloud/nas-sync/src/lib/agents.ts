@@ -11,8 +11,10 @@ import {
 import {
   assertFlyApiToken,
   ensureOrgCloudInstanceWith,
+  planFlyBirth,
   type CloudEnsureResult,
   type CloudInstanceRef,
+  type FlyBirthObservation,
 } from './cloud-entitlement'
 import { drainGatewayBeforeLifecycle } from './agent-gateway-drain'
 import {
@@ -28,12 +30,14 @@ import {
   createFlyApp,
   createMachine,
   createVolume,
+  flyAlreadyExists,
   deleteFlyApp,
   destroyMachine,
   getMachine,
   imageFromMachine,
   imagesMatch,
   listMachines,
+  listVolumes,
   rollMachineImage,
   startMachine,
   stopMachine,
@@ -210,10 +214,274 @@ export async function getAgent(
   return prisma.agentInstance.findFirst({ where: { id, orgId } })
 }
 
+function flyHttpStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const status = (error as { status?: number }).status
+  return typeof status === 'number' ? status : undefined
+}
+
+async function observeFlyBirth(appName: string): Promise<FlyBirthObservation> {
+  try {
+    const machines = await listMachines(appName)
+    let volumeIds: string[] = []
+    try {
+      const volumes = await listVolumes(appName)
+      volumeIds = volumes.map((volume) => volume.id).filter((id) => id.trim())
+    } catch (error) {
+      if (flyHttpStatus(error) !== 404) throw error
+    }
+    return {
+      appMissing: false,
+      machineIds: machines.map((machine) => machine.id).filter((id) => id.trim()),
+      volumeIds,
+    }
+  } catch (error) {
+    if (flyHttpStatus(error) === 404) {
+      return { appMissing: true, machineIds: [], volumeIds: [] }
+    }
+    throw error
+  }
+}
+
+async function ensureDataVolume(args: {
+  appName: string
+  name: string
+  region: string
+  sizeGb: number
+  volumeId: string | null
+}): Promise<string> {
+  if (args.volumeId) return args.volumeId
+  try {
+    const created = await createVolume({
+      appName: args.appName,
+      name: args.name,
+      region: args.region,
+      sizeGb: args.sizeGb,
+    })
+    return created.id
+  } catch (error) {
+    if (!flyAlreadyExists(error)) throw error
+    const volumes = await listVolumes(args.appName)
+    const found =
+      volumes.find((volume) => volume.name === args.name) ?? volumes[0]
+    if (!found?.id) throw error
+    return found.id
+  }
+}
+
+async function markMachineOnline(
+  id: string,
+  flyAppName: string,
+  machineId: string,
+): Promise<AgentDto> {
+  await prisma.agentInstance.update({
+    where: { id },
+    data: {
+      flyAppName,
+      flyMachineId: machineId,
+      status: 'starting',
+      dashboardGatewayState: 'unknown',
+    },
+  })
+
+  try {
+    const machine = await getMachine(flyAppName, machineId)
+    const state = (machine.state ?? '').toLowerCase()
+    if (state === 'stopped' || state === 'suspended' || state === 'created') {
+      await startMachine(flyAppName, machineId)
+    }
+    await waitMachine(flyAppName, machineId, 'started', 60)
+    const updated = await prisma.agentInstance.update({
+      where: { id },
+      data: {
+        status: 'online',
+        dashboardGatewayState: 'active',
+        startedAt: new Date(),
+        errorMessage: null,
+      },
+    })
+    return toAgentDto(updated)
+  } catch (waitErr) {
+    if (flyHttpStatus(waitErr) === 404) {
+      await prisma.agentInstance.update({
+        where: { id },
+        data: { flyMachineId: null },
+      })
+      throw waitErr
+    }
+    // Machine exists but is not healthy yet — leave it for the UI poll.
+    const updated = await prisma.agentInstance.update({
+      where: { id },
+      data: {
+        status: 'starting',
+        dashboardGatewayState: 'unknown',
+        errorMessage:
+          waitErr instanceof Error
+            ? waitErr.message.slice(0, 400)
+            : 'Aguardando máquina',
+      },
+    })
+    return toAgentDto(updated)
+  }
+}
+
 /**
- * Create DB row + provision Fly app/machine. Returns immediately with
- * status=provisioning|starting; Fly work continues (awaited in-request for
- * serverless — Vercel maxDuration should be raised for this route).
+ * Finish the Fly app/machine for a row that already occupies the org slot.
+ * Adopts an existing machine or volume. Does not insert another row.
+ */
+async function provisionClaimedInstance(
+  row: AgentInstance,
+  org: Org,
+  user: Pick<User, 'id' | 'privyDid'>,
+): Promise<AgentDto> {
+  const size = parseCloudSize(row.size)
+  const spec = CLOUD_SIZES[size]
+  const flyAppName = row.flyAppName || flyAppNameForSlug(row.slug)
+  const region = row.flyRegion || process.env.FLY_REGION || 'gru'
+  const port = agentDashboardPort()
+  const portalUrl =
+    process.env.PORTAL_PUBLIC_URL ||
+    process.env.OAUTH_ISSUER ||
+    'https://portal.work4you.ai'
+  const dashboardUrl = row.dashboardUrl || `https://${flyAppName}.fly.dev`
+
+  const plan = planFlyBirth(await observeFlyBirth(flyAppName), row.flyVolumeId)
+  if (plan.action === 'adopt') {
+    if (!row.dashboardUrl) {
+      await prisma.agentInstance.update({
+        where: { id: row.id },
+        data: { dashboardUrl, flyAppName },
+      })
+    }
+    return markMachineOnline(row.id, flyAppName, plan.machineId)
+  }
+
+  if (plan.createApp) {
+    try {
+      await createFlyApp(flyAppName)
+    } catch (error) {
+      if (!flyAlreadyExists(error)) throw error
+    }
+  }
+  await allocateSharedIpv4(flyAppName)
+
+  const volumeId = await ensureDataVolume({
+    appName: flyAppName,
+    name: `data_${row.slug.replace(/-/g, '_')}`.slice(0, 30),
+    region,
+    sizeGb: spec.diskGb,
+    volumeId: plan.volumeId,
+  })
+
+  const drainSecret = randomBytes(24).toString('base64url')
+  const oauthClientId = `agent:${row.id}`
+  const bootstrap = await mintAgentBootstrapSession({
+    org,
+    user,
+    agent: row,
+  })
+  const model = row.model?.trim() || ''
+  const env: Record<string, string> = {
+    WORK4YOU_HOME: '/opt/data',
+    PORT: String(port),
+    WORK4YOU_DASHBOARD_HOST: '0.0.0.0',
+    WORK4YOU_DASHBOARD_PORT: String(port),
+    WORK4YOU_DASHBOARD_PUBLIC_URL: dashboardUrl,
+    WORK4YOU_DASHBOARD_PORTAL_URL: portalUrl,
+    WORK4YOU_DASHBOARD_OAUTH_CLIENT_ID: oauthClientId,
+    WORK4YOU_DASHBOARD_DRAIN_SECRET: drainSecret,
+    WORK4YOU_AUTH_JSON_BOOTSTRAP: JSON.stringify(bootstrap.authJson),
+    WORK4YOU_GATEWAY_BOOTSTRAP_STATE: 'running',
+    WORK4YOU_CLOUD_INSTANCE_ID: row.id,
+    WORK4YOU_CLOUD_ORG_ID: org.id,
+    WORK4YOU_PORTAL_BASE_URL: portalUrl,
+    PORTAL_URL: portalUrl,
+  }
+  if (model) env.WORK4YOU_DEFAULT_MODEL = model
+
+  await prisma.agentInstance.update({
+    where: { id: row.id },
+    data: {
+      status: 'starting',
+      flyAppName,
+      flyVolumeId: volumeId,
+      dashboardUrl,
+      bootstrapSessionId: bootstrap.sessionId,
+      dashboardDrainSecret: drainSecret,
+    },
+  })
+
+  const machine = await createMachine({
+    appName: flyAppName,
+    region,
+    image: agentImage(),
+    name: `agent-${row.slug}`.slice(0, 30),
+    guest: flyGuestForSize(size),
+    env,
+    volumeId,
+    internalPort: port,
+  })
+  return markMachineOnline(row.id, flyAppName, machine.id)
+}
+
+async function markProvisionError(id: string, error: unknown): Promise<AgentDto> {
+  const msg = error instanceof Error ? error.message.slice(0, 500) : 'provision failed'
+  const updated = await prisma.agentInstance.update({
+    where: { id },
+    data: {
+      status: 'error',
+      dashboardGatewayState: 'down',
+      errorMessage: msg,
+    },
+  })
+  return toAgentDto(updated)
+}
+
+/**
+ * Claim the unfinished row, then create or adopt its Fly machine.
+ * A lost claim returns the row as it is now — another request owns it.
+ * First create does not use this claim; it already owns the row it inserted.
+ */
+export async function finishUnbornCloudInstance(
+  row: AgentInstance,
+  org: Org,
+  user: Pick<User, 'id' | 'privyDid'>,
+): Promise<AgentDto> {
+  assertFlyApiToken(process.env.FLY_API_TOKEN)
+
+  const claimed = await prisma.agentInstance.updateMany({
+    where: {
+      id: row.id,
+      orgId: row.orgId,
+      flyMachineId: null,
+      updatedAt: row.updatedAt,
+      status: { in: ['provisioning', 'error', 'starting'] },
+    },
+    data: {
+      status: 'provisioning',
+      errorMessage: null,
+      updatedAt: new Date(),
+    },
+  })
+  if (claimed.count !== 1) {
+    const current = await getAgent(row.orgId, row.id)
+    if (!current) throw new Error('cloud_instance_missing')
+    return toAgentDto(current)
+  }
+
+  const claimedRow = await getAgent(row.orgId, row.id)
+  if (!claimedRow) throw new Error('cloud_instance_missing')
+
+  try {
+    return await provisionClaimedInstance(claimedRow, org, user)
+  } catch (error) {
+    return markProvisionError(row.id, error)
+  }
+}
+
+/**
+ * Create DB row + provision Fly app/machine. Returns with
+ * status=provisioning|starting|online|error. Fly work is awaited in-request.
  */
 export async function createAndProvisionAgent(args: {
   org: Org
@@ -228,11 +496,6 @@ export async function createAndProvisionAgent(args: {
   const slug = slugify(name)
   const flyAppName = flyAppNameForSlug(slug)
   const region = process.env.FLY_REGION || 'gru'
-  const port = agentDashboardPort()
-  const portalUrl =
-    process.env.PORTAL_PUBLIC_URL ||
-    process.env.OAUTH_ISSUER ||
-    'https://portal.work4you.ai'
 
   const row = await prisma.agentInstance.create({
     data: {
@@ -255,111 +518,9 @@ export async function createAndProvisionAgent(args: {
   })
 
   try {
-    await createFlyApp(flyAppName)
-    await allocateSharedIpv4(flyAppName)
-
-    const volume = await createVolume({
-      appName: flyAppName,
-      name: `data_${slug.replace(/-/g, '_')}`.slice(0, 30),
-      region,
-      sizeGb: spec.diskGb,
-    })
-
-    const dashboardUrl = `https://${flyAppName}.fly.dev`
-    const drainSecret = randomBytes(24).toString('base64url')
-    const oauthClientId = `agent:${row.id}`
-
-    const bootstrap = await mintAgentBootstrapSession({
-      org: args.org,
-      user: args.user,
-      agent: row,
-    })
-
-    const env: Record<string, string> = {
-      WORK4YOU_HOME: '/opt/data',
-      PORT: String(port),
-      WORK4YOU_DASHBOARD_HOST: '0.0.0.0',
-      WORK4YOU_DASHBOARD_PORT: String(port),
-      WORK4YOU_DASHBOARD_PUBLIC_URL: dashboardUrl,
-      WORK4YOU_DASHBOARD_PORTAL_URL: portalUrl,
-      WORK4YOU_DASHBOARD_OAUTH_CLIENT_ID: oauthClientId,
-      WORK4YOU_DASHBOARD_DRAIN_SECRET: drainSecret,
-      WORK4YOU_AUTH_JSON_BOOTSTRAP: JSON.stringify(bootstrap.authJson),
-      WORK4YOU_GATEWAY_BOOTSTRAP_STATE: 'running',
-      WORK4YOU_CLOUD_INSTANCE_ID: row.id,
-      WORK4YOU_CLOUD_ORG_ID: args.org.id,
-      WORK4YOU_PORTAL_BASE_URL: portalUrl,
-      PORTAL_URL: portalUrl,
-    }
-    if (args.model?.trim()) {
-      env.WORK4YOU_DEFAULT_MODEL = args.model.trim()
-    }
-
-    await prisma.agentInstance.update({
-      where: { id: row.id },
-      data: {
-        status: 'starting',
-        flyVolumeId: volume.id,
-        dashboardUrl,
-        bootstrapSessionId: bootstrap.sessionId,
-        dashboardDrainSecret: drainSecret,
-      },
-    })
-
-    const machine = await createMachine({
-      appName: flyAppName,
-      region,
-      image: agentImage(),
-      name: `agent-${slug}`.slice(0, 30),
-      guest: flyGuestForSize(size),
-      env,
-      volumeId: volume.id,
-      internalPort: port,
-    })
-
-    await prisma.agentInstance.update({
-      where: { id: row.id },
-      data: { flyMachineId: machine.id },
-    })
-
-    try {
-      await waitMachine(flyAppName, machine.id, 'started', 60)
-      const updated = await prisma.agentInstance.update({
-        where: { id: row.id },
-        data: {
-          status: 'online',
-          dashboardGatewayState: 'active',
-          startedAt: new Date(),
-          errorMessage: null,
-        },
-      })
-      return toAgentDto(updated)
-    } catch (waitErr) {
-      // Machine created but not yet healthy — leave as starting for UI poll.
-      const updated = await prisma.agentInstance.update({
-        where: { id: row.id },
-        data: {
-          status: 'starting',
-          dashboardGatewayState: 'unknown',
-          errorMessage:
-            waitErr instanceof Error
-              ? waitErr.message.slice(0, 400)
-              : 'Aguardando máquina',
-        },
-      })
-      return toAgentDto(updated)
-    }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message.slice(0, 500) : 'provision failed'
-    const updated = await prisma.agentInstance.update({
-      where: { id: row.id },
-      data: {
-        status: 'error',
-        dashboardGatewayState: 'down',
-        errorMessage: msg,
-      },
-    })
-    return toAgentDto(updated)
+    return await provisionClaimedInstance(row, args.org, args.user)
+  } catch (error) {
+    return markProvisionError(row.id, error)
   }
 }
 
@@ -367,7 +528,13 @@ async function listOrgCloudRefs(orgId: string): Promise<CloudInstanceRef[]> {
   return prisma.agentInstance.findMany({
     where: { orgId },
     orderBy: { createdAt: 'asc' },
-    select: { id: true, createdAt: true, status: true },
+    select: {
+      id: true,
+      createdAt: true,
+      status: true,
+      flyMachineId: true,
+      updatedAt: true,
+    },
   })
 }
 
@@ -388,9 +555,9 @@ async function resolveEnsuredModel(args: {
 }
 
 /**
- * Create the org's single Cloud VM, or return the one that already exists.
- * Free with no VM refuses. Size comes from the plan. POST /api/agents must
- * not call this — POST /api/cloud/ensure does, after the plan is paid.
+ * Create the org's single Cloud VM, resume one whose Fly machine never
+ * landed, or return the one that already exists. Free with no VM refuses.
+ * Size comes from the plan. POST /api/agents must not call this.
  */
 export async function ensureOrgCloudInstance(args: {
   org: Org
@@ -402,6 +569,7 @@ export async function ensureOrgCloudInstance(args: {
   | { ok: true; created: boolean; agent: AgentDto }
 > {
   let createdAgent: AgentDto | null = null
+  let resumedAgent: AgentDto | null = null
   const result: CloudEnsureResult<CloudInstanceRef> = await ensureOrgCloudInstanceWith({
     tierId: args.org.subscriptionTierId,
     name: args.name,
@@ -424,9 +592,26 @@ export async function ensureOrgCloudInstance(args: {
         status: agent.status,
       }
     },
+    resume: async (instance) => {
+      const row = await getAgent(args.org.id, instance.id)
+      if (!row) throw new Error('cloud_instance_missing')
+      const agent = await finishUnbornCloudInstance(row, args.org, args.user)
+      resumedAgent = agent
+      return {
+        id: agent.id,
+        createdAt: row.createdAt,
+        status: agent.status,
+        flyMachineId: row.flyMachineId,
+        updatedAt: row.updatedAt,
+      }
+    },
   })
 
   if (!result.ok) return result
+
+  if (resumedAgent) {
+    return { ok: true, created: false, agent: resumedAgent }
+  }
 
   if (result.created) {
     const agent = createdAgent
