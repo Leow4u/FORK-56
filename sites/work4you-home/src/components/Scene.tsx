@@ -3,7 +3,7 @@ import styles from './Scene.module.css'
 
 interface SceneProps {
   src: string
-  children: ReactNode
+  children?: ReactNode
   tall?: boolean
   wide?: boolean
   bleed?: boolean
@@ -39,7 +39,7 @@ export function Scene({
         style={{ objectPosition: position }}
         aria-hidden="true"
       />
-      <div className={styles.stage}>{children}</div>
+      {children ? <div className={styles.stage}>{children}</div> : null}
     </div>
   )
 }

@@ -8,7 +8,6 @@ interface FeatureBandProps {
   children: ReactNode
   scene: ReactNode
   flip?: boolean
-  wideVisual?: boolean
 }
 
 export function FeatureBand({
@@ -18,13 +17,10 @@ export function FeatureBand({
   children,
   scene,
   flip = false,
-  wideVisual = false,
 }: FeatureBandProps) {
   return (
     <section className={styles.section} id={id}>
-      <div
-        className={`shell ${styles.split} ${flip ? styles.flip : ''} ${wideVisual ? styles.wideVisual : ''}`}
-      >
+      <div className={`shell ${styles.split} ${flip ? styles.flip : ''}`}>
         <div className={styles.copy}>
           {eyebrow ? <p className="mono-label">{eyebrow}</p> : null}
           <h2 className={styles.title}>{title}</h2>

@@ -17,10 +17,6 @@
   order: 2;
 }
 
-.wideVisual {
-  grid-template-columns: minmax(16rem, 0.7fr) minmax(0, 1.55fr);
-}
-
 .copy {
   min-width: 0;
 }
@@ -62,8 +58,7 @@
 
 @media (max-width: 900px) {
   .split,
-  .flip,
-  .wideVisual {
+  .flip {
     grid-template-columns: 1fr;
   }
 
