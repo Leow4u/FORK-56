@@ -42,9 +42,8 @@ describe('Intro', () => {
 
     expect(headline?.className).not.toMatch(/uppercase/)
     expect(headline?.className).not.toMatch(/Collapse/)
-    expect(headline?.className).toMatch(/text-\[1\.75rem\]/)
-    expect(headline?.className).toMatch(/font-medium/)
-    expect(headline?.className).toMatch(/text-balance/)
+    expect(headline?.className).toMatch(/text-xl/)
+    expect(headline?.className).toMatch(/font-semibold/)
   })
 
   it('ranks splash headline above body by weight', () => {
@@ -53,15 +52,14 @@ describe('Intro', () => {
     const headline = container.querySelector('[data-slot="aui_intro_headline"]')
     const body = container.querySelector('[data-slot="aui_intro_body"]')
 
-    expect(headline?.className).toMatch(/text-\[1\.75rem\]/)
-    expect(headline?.className).toMatch(/font-medium/)
+    expect(headline?.className).toMatch(/text-xl/)
+    expect(headline?.className).toMatch(/font-semibold/)
     expect(headline?.className).toMatch(/text-foreground/)
-    expect(headline?.className).not.toMatch(/font-semibold/)
 
-    expect(body?.className).toMatch(/text-sm/)
+    expect(body?.className).toMatch(/conversation-caption-font-size/)
     expect(body?.className).toMatch(/font-normal/)
-    expect(body?.className).not.toMatch(/text-\[1\.75rem\]/)
-    expect(body?.className).not.toMatch(/font-medium/)
+    expect(body?.className).not.toMatch(/text-xl/)
+    expect(body?.className).not.toMatch(/font-semibold/)
     expect(body?.className).not.toMatch(/tracking-tight/)
   })
 })

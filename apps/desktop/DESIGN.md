@@ -182,8 +182,8 @@ Notes:
   `OverlayNav`; other overlays keep the default boxed active item.
 - **Rows:** `ListRow` (settings `primitives.tsx`) for label/description/action
   rows. Flat, flush-left; no per-row indentation that fights flush headers.
-  Wide controls still stack under the label on a narrow pane. A switch
-  (`ToggleRow`, `actionAlign="end"`) stays on the title line at every width.
+  The control stays on the title line at every width. `wide` rows are the
+  exception: the action sits under the label so a full-width field can wrap.
 - **Settings groups:** OverlayMain uses the same stage token as chat
   (`--ui-chat-surface-background`). `SettingsGroup` is spacing + an optional
   label on that stage, not a contrasting well. Don't invent a fill well.

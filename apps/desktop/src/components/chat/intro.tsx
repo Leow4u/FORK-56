@@ -160,19 +160,19 @@ export function Intro({ personality, seed }: IntroProps) {
 
   return (
     <div
-      className="pointer-events-none flex w-full min-w-0 flex-col items-center justify-center px-0.5 py-6 text-center text-muted-foreground sm:px-6 lg:px-8"
+      className="pointer-events-none flex w-full min-w-0 flex-col items-center justify-center px-4 py-6 text-center sm:px-6"
       data-slot="aui_intro"
     >
-      <div className="mx-auto w-full min-w-0 max-w-md">
+      <div className="mx-auto w-full min-w-0">
         <p
-          className="mb-2 text-[1.75rem] font-medium leading-[1.2] tracking-tight text-balance text-foreground sm:text-[2rem]"
+          className="mb-2 text-xl font-semibold leading-tight tracking-tight text-foreground"
           data-slot="aui_intro_headline"
         >
           {copy.headline}
         </p>
 
         <p
-          className="m-0 text-center text-sm font-normal leading-normal text-(--ui-text-secondary)"
+          className="m-0 text-center text-[length:var(--conversation-caption-font-size)] font-normal leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)"
           data-slot="aui_intro_body"
         >
           {copy.body}
