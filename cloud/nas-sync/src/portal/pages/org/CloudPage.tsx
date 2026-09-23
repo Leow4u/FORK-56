@@ -2,22 +2,10 @@
 
 import { usePrivy } from '@privy-io/react-auth'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { OrgPage } from '../../components/OrgPage'
 import { requestSubscriptionCloud } from '../../lib/ensure-subscription-cloud'
 import styles from './CloudPage.module.css'
-
-type CloudSize = {
-  id: 'small' | 'medium' | 'large'
-  label: string
-  maxSessions: number
-  memoryMb: number
-  cpus: number
-  diskGb: number
-  priceRunningUsd: string
-  priceStoppedUsd: string
-  blurb: string
-}
 
 type AgentRow = {
   id: string
@@ -40,58 +28,6 @@ type AgentRow = {
   runningImage?: string | null
   updateAvailable?: boolean
 }
-
-const FALLBACK_SIZES: CloudSize[] = [
-  {
-    id: 'small',
-    label: 'Pequeno',
-    maxSessions: 5,
-    memoryMb: 1024,
-    cpus: 2,
-    diskGb: 10,
-    priceRunningUsd: '1.20',
-    priceStoppedUsd: '0.15',
-    blurb: '5 sessões · 1 GB RAM · 2 vCPUs · 10 GB disco',
-  },
-  {
-    id: 'medium',
-    label: 'Médio',
-    maxSessions: 10,
-    memoryMb: 2048,
-    cpus: 4,
-    diskGb: 20,
-    priceRunningUsd: '2.40',
-    priceStoppedUsd: '0.30',
-    blurb: '10 sessões · 2 GB RAM · 4 vCPUs · 20 GB disco',
-  },
-  {
-    id: 'large',
-    label: 'Grande',
-    maxSessions: 20,
-    memoryMb: 4096,
-    cpus: 8,
-    diskGb: 40,
-    priceRunningUsd: '4.80',
-    priceStoppedUsd: '0.60',
-    blurb: '20 sessões · 4 GB RAM · 8 vCPUs · 40 GB disco',
-  },
-]
-
-type AnnotatedModelOption = {
-  id: string
-  name: string
-  free: boolean
-  locked: boolean
-}
-
-const FALLBACK_MODELS: AnnotatedModelOption[] = [
-  {
-    id: 'openai/gpt-5.6-luna',
-    name: 'Operis 4.0',
-    free: false,
-    locked: false,
-  },
-]
 
 const SIZE_LABELS: Record<string, string> = {
   small: 'Pequeno',
@@ -156,15 +92,10 @@ function statusTone(status: string): string {
   return styles.toneMuted
 }
 
-function actionErrorLabel(
-  action: 'start' | 'stop' | 'update' | 'delete',
-): string {
+function actionErrorLabel(action: 'start' | 'stop' | 'update'): string {
   if (action === 'start') return 'Não foi possível iniciar a instância.'
   if (action === 'stop') return 'Não foi possível parar a instância.'
-  if (action === 'update') {
-    return 'Não foi possível atualizar a instância (histórico preservado).'
-  }
-  return 'Não foi possível apagar a instância.'
+  return 'Não foi possível atualizar a instância (histórico preservado).'
 }
 
 const TRANSIENT_STATUSES = [
@@ -178,20 +109,12 @@ export function CloudPage() {
   const { orgId } = useParams()
   const { getAccessToken, authenticated, ready } = usePrivy()
   const [agents, setAgents] = useState<AgentRow[]>([])
-  const [sizes, setSizes] = useState<CloudSize[]>(FALLBACK_SIZES)
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  const [createOpen, setCreateOpen] = useState(false)
-  const [createName, setCreateName] = useState('O meu agent')
-  const [createSize, setCreateSize] = useState<CloudSize['id']>('small')
-  const [createModel, setCreateModel] = useState(FALLBACK_MODELS[0]!.id)
-  const [createModels, setCreateModels] = useState<AnnotatedModelOption[]>(FALLBACK_MODELS)
-  const [createModelsLoading, setCreateModelsLoading] = useState(false)
-  const [paidPlan, setPaidPlan] = useState<boolean | null>(null)
-  const [creating, setCreating] = useState(false)
   const [canUseCloud, setCanUseCloud] = useState(false)
+  const [preparing, setPreparing] = useState(false)
+  const [ensureSettled, setEnsureSettled] = useState(false)
   const cloudEnsureOrg = useRef<string | null>(null)
 
   const [renameId, setRenameId] = useState<string | null>(null)
@@ -234,14 +157,10 @@ export function CloudPage() {
       }
       const data = (await res.json()) as {
         agents?: AgentRow[]
-        sizes?: CloudSize[]
         entitlement?: { canUseCloud?: boolean }
       }
       setAgents(Array.isArray(data.agents) ? data.agents : [])
       setCanUseCloud(data.entitlement?.canUseCloud === true)
-      if (Array.isArray(data.sizes) && data.sizes.length) {
-        setSizes(data.sizes)
-      }
     } catch {
       if (!opts?.silent) {
         setError('Não foi possível contactar o Portal.')
@@ -267,13 +186,28 @@ export function CloudPage() {
     cloudEnsureOrg.current = slot
     void (async () => {
       const headers = await authHeaders()
-      if (!headers) return
-      await requestSubscriptionCloud({
-        headers,
-        org: orgId,
-        checkoutReturn: false,
-      })
-      await load({ silent: true })
+      if (!headers) {
+        setEnsureSettled(true)
+        return
+      }
+      setPreparing(true)
+      setError(null)
+      try {
+        const result = await requestSubscriptionCloud({
+          headers,
+          org: orgId,
+          checkoutReturn: false,
+        })
+        await load({ silent: true })
+        if (!result.ensured) {
+          setError(
+            'A instância do plano ainda não ficou pronta. Atualize a página dentro de momentos.',
+          )
+        }
+      } finally {
+        setPreparing(false)
+        setEnsureSettled(true)
+      }
     })()
   }, [
     ready,
@@ -287,13 +221,16 @@ export function CloudPage() {
   ])
 
   useEffect(() => {
-    const pending = agents.some((a) =>
-      (TRANSIENT_STATUSES as readonly string[]).includes(a.status),
-    )
+    const pending =
+      preparing ||
+      (canUseCloud && agents.length === 0 && !ensureSettled) ||
+      agents.some((a) =>
+        (TRANSIENT_STATUSES as readonly string[]).includes(a.status),
+      )
     if (!pending) return
     const t = setInterval(() => void load({ silent: true }), 4000)
     return () => clearInterval(t)
-  }, [agents, load])
+  }, [agents, preparing, canUseCloud, ensureSettled, load])
 
   // Online instances do not hit the 4s pending poll. Without a refresh, a tab
   // left open while the Portal pin moves never shows Atualizar.
@@ -315,128 +252,37 @@ export function CloudPage() {
     }
   }, [authenticated, ready, load])
 
-  useEffect(() => {
-    if (!createOpen || !authenticated) return
-    let cancelled = false
-    void (async () => {
-      setCreateModelsLoading(true)
-      try {
-        const headers = await authHeaders()
-        if (!headers || cancelled) return
-        const res = await fetch(`/api/keys/models${orgQuery}`, { headers })
-        if (!res.ok || cancelled) return
-        const data = (await res.json()) as {
-          defaultModel?: string
-          paidPlan?: boolean
-          models?: AnnotatedModelOption[]
-        }
-        const models = Array.isArray(data.models) ? data.models : FALLBACK_MODELS
-        if (cancelled) return
-        setCreateModels(models)
-        setPaidPlan(typeof data.paidPlan === 'boolean' ? data.paidPlan : null)
-        const defaultId =
-          typeof data.defaultModel === 'string' && data.defaultModel
-            ? data.defaultModel
-            : models.find((m) => !m.locked)?.id || FALLBACK_MODELS[0]!.id
-        setCreateModel(defaultId)
-      } catch {
-        if (!cancelled) {
-          setCreateModels(FALLBACK_MODELS)
-          setCreateModel(FALLBACK_MODELS[0]!.id)
-        }
-      } finally {
-        if (!cancelled) setCreateModelsLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [createOpen, authenticated, authHeaders, orgQuery])
-
-  const createAgent = async () => {
-    setCreating(true)
-    setError(null)
-    try {
-      const headers = await authHeaders()
-      if (!headers) return
-      const res = await fetch('/api/agents', {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: createName,
-          size: createSize,
-          model: createModel,
-          org: orgId,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setError(
-          data?.message ||
-            (data?.error === 'fly_not_configured'
-              ? 'Configuração Fly em falta no Portal.'
-              : 'Não foi possível criar a instância.'),
-        )
-        return
-      }
-      setCreateOpen(false)
-      await load()
-    } catch {
-      setError('Não foi possível criar a instância — rede.')
-    } finally {
-      setCreating(false)
-    }
-  }
-
   const runAction = async (
     id: string,
-    action: 'start' | 'stop' | 'update' | 'delete',
+    action: 'start' | 'stop' | 'update',
   ) => {
     setBusyId(id)
     setError(null)
     try {
       const headers = await authHeaders()
       if (!headers) return
-      if (action === 'delete') {
+      if (action === 'update') {
         if (
           !confirm(
-            'Apagar esta instância destrói a VM e o disco (/opt/data). Sessões, memória e skills desta instância serão perdidos. Para atualizar o runtime sem perder histórico, use Atualizar.',
+            'Atualizar o runtime desta instância? O histórico (sessões, memória, skills) no disco é preservado.',
           )
         ) {
           return
         }
-        const res = await fetch(`/api/agents/${id}${orgQuery}`, {
-          method: 'DELETE',
-          headers,
-        })
-        if (!res.ok) {
-          setError(actionErrorLabel(action))
-          return
-        }
-      } else {
-        if (action === 'update') {
-          if (
-            !confirm(
-              'Atualizar o runtime desta instância? O histórico (sessões, memória, skills) no disco é preservado.',
-            )
-          ) {
-            return
-          }
-        }
-        const res = await fetch(`/api/agents/${id}/${action}`, {
-          method: 'POST',
-          headers: { ...headers, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ org: orgId }),
-        })
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          setError(
-            typeof body?.message === 'string'
-              ? body.message
-              : actionErrorLabel(action),
-          )
-          return
-        }
+      }
+      const res = await fetch(`/api/agents/${id}/${action}`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ org: orgId }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(
+          typeof body?.message === 'string'
+            ? body.message
+            : actionErrorLabel(action),
+        )
+        return
       }
       await load()
     } catch {
@@ -471,37 +317,56 @@ export function CloudPage() {
 
   const instanceCountLabel = loading
     ? 'A carregar…'
-    : agents.length === 0
-      ? 'Nenhuma instância nesta organização.'
-      : `${agents.length} instância${agents.length === 1 ? '' : 's'}`
+    : agents.length === 1
+      ? 'A sua instância'
+      : `${agents.length} instâncias`
+
+  const billingPath = orgId ? `/orgs/${orgId}/billing` : '/billing'
 
   return (
     <OrgPage
       eyebrow="Work4You Cloud"
       title="Instâncias"
-      lead="Agent hospedado pela Work4You. Crie uma VM, acompanhe o estado e abra o dashboard. Atualizações de runtime aplicam a image nova sem apagar o disco — o histórico permanece."
+      lead="A instância Cloud desta organização. Acompanhe o estado e abra o dashboard. Atualizações de runtime aplicam a image nova sem apagar o disco — o histórico permanece."
     >
-      <section className={styles.toolbar}>
-        <p className={styles.sectionLead}>{instanceCountLabel}</p>
-        <button
-          type="button"
-          className={styles.primary}
-          onClick={() => setCreateOpen(true)}
-          disabled={!authenticated || loading}
-        >
-          Criar instância
-        </button>
-      </section>
+      {loading || agents.length > 0 ? (
+        <section className={styles.toolbar}>
+          <p className={styles.sectionLead}>{instanceCountLabel}</p>
+        </section>
+      ) : null}
 
       {error ? <p className={styles.errorBanner}>{error}</p> : null}
 
-      {!loading && agents.length === 0 ? (
+      {!loading && agents.length === 0 && (canUseCloud || !error) ? (
         <section className={styles.empty}>
-          <p className={styles.emptyTitle}>Ainda sem instâncias</p>
-          <p className={styles.emptyText}>
-            Crie a primeira VM Cloud. O Desktop descobre automaticamente via
-            Work4You Cloud depois de criada.
-          </p>
+          {canUseCloud ? (
+            <>
+              <p className={styles.emptyTitle}>
+                {preparing || !ensureSettled
+                  ? 'A criar a sua instância'
+                  : 'A instância ainda não está pronta'}
+              </p>
+              <p className={styles.emptyText}>
+                {preparing || !ensureSettled
+                  ? 'A máquina do plano está a nascer. Esta página atualiza sozinha até ela aparecer.'
+                  : 'Quando a máquina do plano ficar disponível, aparece aqui.'}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className={styles.emptyTitle}>A Cloud vem com o plano</p>
+              <p className={styles.emptyText}>
+                Plus, Super e Ultra incluem uma instância. No plano Free ainda
+                não há máquina.
+              </p>
+              <Link
+                className={`${styles.primary} ${styles.emptyAction}`}
+                to={billingPath}
+              >
+                Ver planos
+              </Link>
+            </>
+          )}
         </section>
       ) : null}
 
@@ -555,10 +420,7 @@ export function CloudPage() {
                 {agent.cpus} vCPU · {agent.diskGb} GB disco
               </p>
               {agent.model ? (
-                <p className={styles.cardModel}>
-                  {createModels.find((m) => m.id === agent.model)?.name ||
-                    agent.model}
-                </p>
+                <p className={styles.cardModel}>{agent.model}</p>
               ) : null}
               {agent.updateAvailable ? (
                 <p className={styles.cardWarn}>
@@ -629,116 +491,11 @@ export function CloudPage() {
                     Atualizar
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  className={styles.danger}
-                  disabled={busyId === agent.id}
-                  onClick={() => void runAction(agent.id, 'delete')}
-                >
-                  Apagar
-                </button>
               </div>
             </article>
           )
         })}
       </div>
-
-      {createOpen ? (
-        <div
-          className={styles.modalBackdrop}
-          role="presentation"
-          onClick={() => !creating && setCreateOpen(false)}
-        >
-          <div
-            className={styles.modal}
-            role="dialog"
-            aria-labelledby="cloud-create-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="cloud-create-title" className={styles.modalTitle}>
-              Criar instância
-            </h3>
-            <p className={styles.modalLead}>
-              Escolha o nome, o modelo e o tamanho da VM.
-            </p>
-
-            <label className={styles.field}>
-              <span>Nome</span>
-              <input
-                className={styles.input}
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                maxLength={64}
-              />
-            </label>
-
-            <label className={styles.field}>
-              <span>Modelo</span>
-              {paidPlan === false ? (
-                <p className={styles.modalLead}>
-                  Plano Free — modelos pagos aparecem bloqueados.
-                </p>
-              ) : null}
-              <select
-                className={styles.input}
-                value={createModel}
-                disabled={createModelsLoading}
-                onChange={(e) => setCreateModel(e.target.value)}
-              >
-                {createModels.map((m) => (
-                  <option key={m.id} value={m.id} disabled={m.locked}>
-                    {m.name}
-                    {m.locked ? ' (plano pago)' : m.free ? ' (free)' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <fieldset className={styles.sizeFieldset}>
-              <legend className={styles.sizeLegend}>Tamanho</legend>
-              <div className={styles.sizeGrid}>
-                {sizes.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    className={`${styles.sizeCard} ${
-                      createSize === s.id ? styles.sizeCardActive : ''
-                    }`}
-                    onClick={() => setCreateSize(s.id)}
-                    aria-pressed={createSize === s.id}
-                  >
-                    <strong>{s.label}</strong>
-                    <span>{s.blurb}</span>
-                    <span className={styles.priceLine}>
-                      A correr ${s.priceRunningUsd}/dia · Parado $
-                      {s.priceStoppedUsd}/dia
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.ghost}
-                disabled={creating}
-                onClick={() => setCreateOpen(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className={styles.primary}
-                disabled={creating || !createName.trim()}
-                onClick={() => void createAgent()}
-              >
-                {creating ? 'A criar…' : 'Criar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </OrgPage>
   )
 }
