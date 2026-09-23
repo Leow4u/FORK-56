@@ -16,7 +16,10 @@ import {
   cloudEntitlement,
   cloudInstanceName,
   cloudInstanceNeedsResume,
+  cloudInstanceResizeTarget,
   cloudSizeForTier,
+  planDiskGb,
+  volumeExtendGb,
   DEFAULT_CLOUD_INSTANCE_NAME,
   ensureOrgCloudInstanceWith,
   FlyNotConfiguredError,
@@ -26,7 +29,7 @@ import {
   retrySubscriptionCloudEnsure,
   type CloudInstanceRef,
 } from '../cloud-entitlement.ts'
-import { flyAlreadyExists } from '../fly-machines.ts'
+import { flyAlreadyExists, guestNeedsResize } from '../fly-machines.ts'
 import { isPaidTierId, TIER_CATALOG } from '../tiers.ts'
 
 const row = (
@@ -187,19 +190,121 @@ describe('ensureOrgCloudInstanceWith', () => {
     assert.deepEqual(sizes, ['medium', 'large'])
   })
 
-  it('does not resize an existing VM when the plan size differs', async () => {
-    let created = 0
-    const existing = row('kept', '2022-01-01T00:00:00.000Z', 'stopped')
-    const result = await ensureOrgCloudInstanceWith({
-      tierId: 'ultra',
-      list: async () => [existing],
-      create: async () => {
-        created += 1
-        return row('resized', '2026-01-01T00:00:00.000Z')
+  it('resizes the same VM when the paid plan size differs', async () => {
+    const cases = [
+      { tierId: 'ultra', from: 'small', to: 'large' },
+      { tierId: 'plus', from: 'large', to: 'small' },
+      { tierId: 'super', from: 'small', to: 'medium' },
+    ]
+    for (const entry of cases) {
+      let created = 0
+      let resumed = 0
+      const seen: string[] = []
+      const existing = {
+        ...row('kept', '2022-01-01T00:00:00.000Z', 'online'),
+        size: entry.from,
+        flyMachineId: 'mach',
+      }
+      const result = await ensureOrgCloudInstanceWith({
+        tierId: entry.tierId,
+        list: async () => [existing],
+        create: async () => {
+          created += 1
+          return row('new', '2026-01-01T00:00:00.000Z')
+        },
+        resume: async () => {
+          resumed += 1
+          return existing
+        },
+        resize: async (instance, size) => {
+          seen.push(`${instance.id}:${size}`)
+          return { ...instance, size }
+        },
+      })
+      assert.equal(created, 0, entry.tierId)
+      assert.equal(resumed, 0, entry.tierId)
+      assert.deepEqual(seen, [`kept:${entry.to}`])
+      assert.equal(result.ok && result.created, false)
+      assert.equal(result.ok && result.instance.id, 'kept')
+    }
+  })
+
+  it('does not resize a matching size, a free VM, or a row with no recorded size', async () => {
+    const cases: Array<{ tierId: string; instance: CloudInstanceRef }> = [
+      {
+        tierId: 'plus',
+        instance: {
+          ...row('match', '2022-01-01T00:00:00.000Z', 'online'),
+          size: 'small',
+          flyMachineId: 'mach',
+        },
       },
-    })
-    assert.equal(created, 0)
-    assert.equal(result.ok && result.instance.id, 'kept')
+      {
+        tierId: 'free',
+        instance: {
+          ...row('legacy', '2020-01-01T00:00:00.000Z', 'online'),
+          size: 'large',
+          flyMachineId: 'mach',
+        },
+      },
+      {
+        tierId: 'ultra',
+        instance: {
+          ...row('unknown', '2022-01-01T00:00:00.000Z', 'stopped'),
+          flyMachineId: 'mach',
+        },
+      },
+      {
+        tierId: 'ultra',
+        instance: {
+          ...row('unborn-stopped', '2022-01-01T00:00:00.000Z', 'stopped'),
+          size: 'small',
+        },
+      },
+    ]
+    for (const entry of cases) {
+      let resized = 0
+      let created = 0
+      const result = await ensureOrgCloudInstanceWith({
+        tierId: entry.tierId,
+        list: async () => [entry.instance],
+        create: async () => {
+          created += 1
+          return row('new', '2026-01-01T00:00:00.000Z')
+        },
+        resize: async (instance) => {
+          resized += 1
+          return instance
+        },
+      })
+      assert.equal(created, 0, entry.instance.id)
+      assert.equal(resized, 0, entry.instance.id)
+      assert.equal(result.ok && result.instance.id, entry.instance.id)
+      assert.equal(cloudInstanceResizeTarget(entry.instance, entry.tierId), null)
+    }
+  })
+
+  it('grows the disk to the plan and never shrinks it', () => {
+    assert.equal(planDiskGb(10, 40), 40)
+    assert.equal(planDiskGb(40, 10), 40)
+    assert.equal(planDiskGb(10, 10), 10)
+    assert.equal(volumeExtendGb(10, 40), 40)
+    assert.equal(volumeExtendGb(40, 10), null)
+    assert.equal(volumeExtendGb(10, 10), null)
+    assert.equal(
+      guestNeedsResize(
+        { cpu_kind: 'shared', cpus: 2, memory_mb: 1024 },
+        { cpu_kind: 'shared', cpus: 2, memory_mb: 2048 },
+      ),
+      true,
+    )
+    assert.equal(
+      guestNeedsResize(
+        { cpu_kind: 'shared', cpus: 2, memory_mb: 1024 },
+        { cpu_kind: 'shared', cpus: 2, memory_mb: 1024 },
+      ),
+      false,
+    )
   })
 
   it('treats a self-hosted registration as an empty cloud slot', async () => {
@@ -232,10 +337,11 @@ describe('ensureOrgCloudInstanceWith', () => {
     for (const stuck of cases) {
       let created = 0
       let resumed = 0
+      let resized = 0
       const result = await ensureOrgCloudInstanceWith({
-        tierId: 'plus',
+        tierId: 'ultra',
         now,
-        list: async () => [stuck],
+        list: async () => [{ ...stuck, size: 'small' }],
         create: async () => {
           created += 1
           return row('new', '2026-06-01T00:00:00.000Z')
@@ -244,8 +350,13 @@ describe('ensureOrgCloudInstanceWith', () => {
           resumed += 1
           return instance
         },
+        resize: async (instance) => {
+          resized += 1
+          return instance
+        },
       })
       assert.equal(created, 0)
+      assert.equal(resized, 0)
       assert.equal(resumed, 1)
       assert.equal(result.ok && result.created, false)
       assert.equal(result.ok && result.instance.id, stuck.id)
