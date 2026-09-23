@@ -245,6 +245,40 @@ export function cloudInstanceNeedsWake(
   return true
 }
 
+/**
+ * Fly `suspended` is idle sleep on a paid plan. It stays addressable, so a
+ * list refresh must not record it as a user stop or a Free park.
+ * Fly `stopped` is a real stop. A Free park stays parked.
+ * Unknown Fly states return null and the row status is left alone.
+ */
+export function cloudStatusForFlyState(
+  rowStatus: string | null | undefined,
+  flyState: string | null | undefined,
+): { status: string; gateway: 'active' | 'down' | 'unknown' } | null {
+  const fly = (flyState ?? '').trim().toLowerCase()
+  const row = (rowStatus ?? '').trim().toLowerCase()
+  if (fly === 'started') return { status: 'online', gateway: 'active' }
+  if (fly === 'suspended') {
+    if (row === CLOUD_PARKED_STATUS) return { status: 'parked', gateway: 'down' }
+    if (row === 'stopped') return { status: 'stopped', gateway: 'down' }
+    return { status: 'online', gateway: 'active' }
+  }
+  if (fly === 'stopped') {
+    if (row === CLOUD_PARKED_STATUS) return { status: 'parked', gateway: 'down' }
+    return { status: 'stopped', gateway: 'down' }
+  }
+  if (fly === 'created' || fly === 'starting') {
+    return { status: 'starting', gateway: 'unknown' }
+  }
+  if (fly === 'replacing' || fly === 'destroying') {
+    return {
+      status: row === 'updating' ? 'updating' : 'starting',
+      gateway: 'unknown',
+    }
+  }
+  return null
+}
+
 /** Resize starts a running, online, or parked machine. A user stop stays stopped. */
 export function cloudResizeShouldStart(args: {
   flyRunning: boolean

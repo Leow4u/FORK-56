@@ -23,6 +23,7 @@ import {
   cloudLifecycleActionAllowed,
   cloudResizeShouldStart,
   cloudSizeForTier,
+  cloudStatusForFlyState,
   planDiskGb,
   volumeExtendGb,
   DEFAULT_CLOUD_INSTANCE_NAME,
@@ -34,7 +35,11 @@ import {
   retrySubscriptionCloudEnsure,
   type CloudInstanceRef,
 } from '../cloud-entitlement.ts'
-import { flyAlreadyExists, guestNeedsResize } from '../fly-machines.ts'
+import {
+  flyAlreadyExists,
+  guestNeedsResize,
+  withCloudScaleToZero,
+} from '../fly-machines.ts'
 import { isPaidTierId, TIER_CATALOG } from '../tiers.ts'
 
 const row = (
@@ -814,5 +819,90 @@ describe('checkout ensure retry', () => {
     assert.equal(sleeps.length, calls - 1)
     assert.equal(body.ensured, false)
     assert.equal(body.reason, 'paid_plan_required')
+  })
+})
+
+describe('paid idle sleep', () => {
+  it('stamps scale-to-zero and the dashboard wake address onto the machine', () => {
+    const result = withCloudScaleToZero({
+      env: {
+        PORT: '8080',
+        WORK4YOU_DASHBOARD_PUBLIC_URL: 'https://dash.example/',
+      },
+      services: [{ protocol: 'tcp', autostop: 'suspend' }],
+    })
+    assert.equal(result.changed, true)
+    assert.equal(result.config.env?.WORK4YOU_SCALE_TO_ZERO, '1')
+    assert.equal(result.config.env?.GATEWAY_RELAY_WAKE_URL, 'https://dash.example')
+    assert.equal(result.config.env?.PORT, '8080')
+    assert.equal(result.config.env?.WORK4YOU_DASHBOARD_PUBLIC_URL, 'https://dash.example/')
+    const service = result.config.services?.[0] as {
+      protocol?: string
+      autostop?: string
+      autostart?: boolean
+    }
+    assert.equal(service.protocol, 'tcp')
+    assert.equal(service.autostop, 'off')
+    assert.equal(service.autostart, true)
+  })
+
+  it('leaves an already stamped machine unchanged', () => {
+    const first = withCloudScaleToZero({
+      env: { WORK4YOU_DASHBOARD_PUBLIC_URL: 'https://dash.example' },
+      services: [{ autostop: 'off', autostart: true }],
+    })
+    const second = withCloudScaleToZero(first.config)
+    assert.equal(second.changed, false)
+    assert.equal(second.config, first.config)
+  })
+
+  it('does not arm a machine that has no wake address', () => {
+    const config = {
+      env: { PORT: '8080', WORK4YOU_DASHBOARD_PUBLIC_URL: '   ' },
+      services: [{ autostop: 'suspend', autostart: false }],
+    }
+    const result = withCloudScaleToZero(config)
+    assert.equal(result.changed, false)
+    assert.equal(result.config, config)
+  })
+
+  it('keeps an existing relay wake address', () => {
+    const result = withCloudScaleToZero({
+      env: {
+        PORT: '8080',
+        WORK4YOU_DASHBOARD_PUBLIC_URL: 'https://dash.example/',
+        GATEWAY_RELAY_WAKE_URL: 'https://relay.example/wake',
+      },
+      services: [{ protocol: 'tcp' }],
+    })
+    assert.equal(result.changed, true)
+    assert.equal(result.config.env?.GATEWAY_RELAY_WAKE_URL, 'https://relay.example/wake')
+    assert.equal(result.config.env?.WORK4YOU_SCALE_TO_ZERO, '1')
+    assert.equal(result.config.env?.WORK4YOU_DASHBOARD_PUBLIC_URL, 'https://dash.example/')
+    assert.equal(result.config.env?.PORT, '8080')
+  })
+
+  it('keeps idle sleep addressable and a real stop stopped', () => {
+    assert.deepEqual(cloudStatusForFlyState('online', 'suspended'), {
+      status: 'online',
+      gateway: 'active',
+    })
+    assert.deepEqual(cloudStatusForFlyState('parked', 'suspended'), {
+      status: 'parked',
+      gateway: 'down',
+    })
+    assert.deepEqual(cloudStatusForFlyState('stopped', 'suspended'), {
+      status: 'stopped',
+      gateway: 'down',
+    })
+    assert.deepEqual(cloudStatusForFlyState('online', 'stopped'), {
+      status: 'stopped',
+      gateway: 'down',
+    })
+    assert.deepEqual(cloudStatusForFlyState('parked', 'stopped'), {
+      status: 'parked',
+      gateway: 'down',
+    })
+    assert.equal(cloudStatusForFlyState('online', 'mystery'), null)
   })
 })

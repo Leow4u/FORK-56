@@ -246,6 +246,95 @@ export async function createVolume(args: {
   )
 }
 
+const SCALE_TO_ZERO_ENV = 'WORK4YOU_SCALE_TO_ZERO'
+const WAKE_URL_ENV = 'GATEWAY_RELAY_WAKE_URL'
+const DASHBOARD_URL_ENV = 'WORK4YOU_DASHBOARD_PUBLIC_URL'
+
+type ScaleToZeroService = {
+  autostop?: string
+  autostart?: boolean
+  [key: string]: unknown
+}
+
+/**
+ * Paid Cloud idle sleep. The gateway inside the machine decides when to
+ * suspend (it can see a live turn). Fly proxy autostop stays off. Autostart
+ * wakes the machine on the next request to the dashboard.
+ * A config with no dashboard address is left alone — there is no wake target.
+ */
+export function withCloudScaleToZero(config: FlyMachineConfig): {
+  config: FlyMachineConfig
+  changed: boolean
+} {
+  const env = { ...(config.env ?? {}) }
+  const wake = (env[WAKE_URL_ENV] || env[DASHBOARD_URL_ENV] || '')
+    .trim()
+    .replace(/\/$/, '')
+  if (!wake) return { config, changed: false }
+
+  const nextEnv = {
+    ...env,
+    [SCALE_TO_ZERO_ENV]: '1',
+    [WAKE_URL_ENV]: wake,
+  }
+  const services = Array.isArray(config.services) ? config.services : null
+  const nextServices = services
+    ? services.map((service) => {
+        if (!service || typeof service !== 'object') return service
+        return { ...(service as ScaleToZeroService), autostop: 'off', autostart: true }
+      })
+    : null
+
+  const envChanged =
+    env[SCALE_TO_ZERO_ENV] !== '1' ||
+    (env[WAKE_URL_ENV] || '').trim().replace(/\/$/, '') !== wake
+  const servicesChanged = Boolean(
+    services &&
+      nextServices &&
+      services.some((service, index) => {
+        const next = nextServices[index]
+        if (!service || typeof service !== 'object' || !next || typeof next !== 'object') {
+          return false
+        }
+        const current = service as ScaleToZeroService
+        const patched = next as ScaleToZeroService
+        return current.autostop !== patched.autostop || current.autostart !== true
+      }),
+  )
+  if (!envChanged && !servicesChanged) return { config, changed: false }
+  return {
+    config: {
+      ...config,
+      env: nextEnv,
+      ...(nextServices ? { services: nextServices } : {}),
+    },
+    changed: true,
+  }
+}
+
+/**
+ * Write the idle-sleep stamp onto a machine that is not running.
+ * A started machine is left alone so a billing visit does not restart it.
+ */
+export async function syncMachineScaleToZero(args: {
+  appName: string
+  machineId: string
+}): Promise<{ changed: boolean }> {
+  const current = await getMachine(args.appName, args.machineId)
+  const state = (current.state ?? '').toLowerCase()
+  if (state === 'started' || state === 'starting') return { changed: false }
+  if (!current.config) return { changed: false }
+  const patched = withCloudScaleToZero(current.config)
+  if (!patched.changed) return { changed: false }
+  await updateMachine({
+    appName: args.appName,
+    machineId: args.machineId,
+    config: patched.config,
+    skip_launch: true,
+  })
+  return { changed: true }
+}
+
 export async function createMachine(args: {
   appName: string
   region: string
@@ -256,6 +345,45 @@ export async function createMachine(args: {
   volumeId: string
   internalPort: number
 }): Promise<FlyMachine> {
+  const stamped = withCloudScaleToZero({
+    image: args.image,
+    env: args.env,
+    guest: args.guest,
+    // Golden image ENTRYPOINT is entrypoint-dispatch.sh with empty CMD.
+    // Fly Machines are not PID 1, so we must pass the dashboard subcommand
+    // explicitly (same as fly.cloud-runtime.toml [processes] app=).
+    init: {
+      cmd: [
+        'dashboard',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        String(args.internalPort),
+        '--no-open',
+      ],
+    },
+    services: [
+      {
+        protocol: 'tcp',
+        internal_port: args.internalPort,
+        ports: [
+          { port: 443, handlers: ['tls', 'http'] },
+          { port: 80, handlers: ['http'] },
+        ],
+        force_https: true,
+        autostop: 'off',
+        autostart: true,
+      },
+    ],
+    mounts: [
+      {
+        volume: args.volumeId,
+        path: '/opt/data',
+      },
+    ],
+    auto_destroy: false,
+    restart: { policy: 'on-failure', max_retries: 10 },
+  })
   return flyFetch<FlyMachine>(
     `/apps/${encodeURIComponent(args.appName)}/machines`,
     {
@@ -263,43 +391,7 @@ export async function createMachine(args: {
       body: JSON.stringify({
         name: args.name,
         region: args.region,
-        config: {
-          image: args.image,
-          env: args.env,
-          guest: args.guest,
-          // Golden image ENTRYPOINT is entrypoint-dispatch.sh with empty CMD.
-          // Fly Machines are not PID 1, so we must pass the dashboard subcommand
-          // explicitly (same as fly.cloud-runtime.toml [processes] app=).
-          init: {
-            cmd: [
-              'dashboard',
-              '--host',
-              '0.0.0.0',
-              '--port',
-              String(args.internalPort),
-              '--no-open',
-            ],
-          },
-          services: [
-            {
-              protocol: 'tcp',
-              internal_port: args.internalPort,
-              ports: [
-                { port: 443, handlers: ['tls', 'http'] },
-                { port: 80, handlers: ['http'] },
-              ],
-              force_https: true,
-            },
-          ],
-          mounts: [
-            {
-              volume: args.volumeId,
-              path: '/opt/data',
-            },
-          ],
-          auto_destroy: false,
-          restart: { policy: 'on-failure', max_retries: 10 },
-        },
+        config: stamped.config,
       }),
     },
   )
@@ -438,10 +530,10 @@ export async function rollMachineImage(args: {
       machine: current,
     }
   }
-  const nextConfig: FlyMachineConfig = {
+  const nextConfig = withCloudScaleToZero({
     ...config,
     image: args.targetImage,
-  }
+  }).config
   const machine = await updateMachine({
     appName: args.appName,
     machineId: args.machineId,
@@ -489,7 +581,7 @@ export async function resizeMachineGuest(args: {
   const machine = await updateMachine({
     appName: args.appName,
     machineId: args.machineId,
-    config: { ...config, guest: args.guest },
+    config: withCloudScaleToZero({ ...config, guest: args.guest }).config,
     skip_launch: args.skip_launch,
   })
   return { changed: true, machine }

@@ -173,6 +173,27 @@ def test_no_arm_when_a_direct_platform_is_actually_enabled(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_watcher_suspends_without_relay_when_idle(monkeypatch):
+    """A paid Cloud VM with no messaging relay still sleeps when idle.
+
+    There is no relay socket to flip. The next dashboard request is the wake.
+    """
+    r, adapter = _runner_with(monkeypatch, idle=True, armed_adapter=False)
+    assert adapter is None
+    calls = []
+
+    async def fake_suspend():
+        calls.append("suspend")
+        r._running = False
+
+    monkeypatch.setattr(r, "_scale_to_zero_self_suspend", fake_suspend, raising=False)
+    task = asyncio.create_task(r._scale_to_zero_watcher(interval=0.01))
+    await asyncio.wait_for(task, timeout=2)
+    assert calls == ["suspend"]
+    assert r._scale_to_zero_cooldown_until > time.time()
+
+
+@pytest.mark.asyncio
 async def test_watcher_self_suspends_after_dormant(monkeypatch):
     r, adapter = _runner_with(monkeypatch, idle=True)
     calls = []
