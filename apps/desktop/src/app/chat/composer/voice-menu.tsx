@@ -20,10 +20,9 @@ import { AudioLines, Ear, EarOff, iconSize, Loader2, Square, Volume2, VolumeX } 
 import { cn } from '@/lib/utils'
 import { $wakeWord, toggleWakeWord } from '@/store/wake-word'
 
-import { useComposerMenuSide } from './use-composer-menu-side'
-
 import { ACTIVE_ICON_BTN, GHOST_ICON_BTN } from './control-classes'
 import type { ChatBarState, VoiceStatus } from './types'
+import { useComposerMenuSide } from './use-composer-menu-side'
 
 export interface VoiceMenuProps {
   autoSpeak: boolean

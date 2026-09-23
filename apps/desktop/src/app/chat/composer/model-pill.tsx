@@ -16,8 +16,8 @@ import { $currentModelSource, $defaultReasoningEffort, setModelPickerOpen } from
 
 import { onComposerModelMenuRequest } from './focus'
 import { useComposerScope } from './scope'
-import { useComposerMenuSide } from './use-composer-menu-side'
 import type { ChatBarState } from './types'
+import { useComposerMenuSide } from './use-composer-menu-side'
 
 const PILL = cn(
   'h-(--composer-control-size) max-w-40 shrink-0 gap-1 rounded-md px-2 text-xs font-normal',

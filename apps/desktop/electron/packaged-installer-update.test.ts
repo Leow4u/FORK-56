@@ -72,8 +72,7 @@ function fingerprintAsset() {
 function updateAsset() {
   return {
     name: WINDOWS_UPDATE_ASSET,
-    browser_download_url:
-      'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-Update.exe',
+    browser_download_url: 'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-Update.exe',
     size: 110_000_000,
     state: 'uploaded'
   }
@@ -83,8 +82,7 @@ function chromeAssets() {
   return [
     {
       name: WINDOWS_CHROME_ZIP_ASSET,
-      browser_download_url:
-        'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-win-x64.zip',
+      browser_download_url: 'https://github.com/Leow4u/FORK-56/releases/download/desktop-v0.0.27/Work4You-win-x64.zip',
       size: 70_000_000,
       state: 'uploaded'
     },
@@ -632,6 +630,7 @@ test('chrome handoff extra args omit ExtractedDir when the tree was not unpacked
     installDir: 'C:\\Prog\\Work4You',
     relaunchExe: 'C:\\Prog\\Work4You\\Work4You.exe'
   })
+
   assert.ok(!args.includes('-ExtractedDir'))
   assert.ok(args.includes('-ChromeZipPath'))
 })
@@ -749,6 +748,7 @@ test('downloadHttpsToFile replaces an existing dest instead of EPERM rename', as
 
   const get = ((_url: string, options: unknown, cb?: (res: NodeJS.ReadableStream) => void) => {
     const callback = typeof options === 'function' ? options : cb
+
     const req = {
       on() {
         return req
@@ -757,10 +757,12 @@ test('downloadHttpsToFile replaces an existing dest instead of EPERM rename', as
         return undefined
       }
     }
+
     const res = new PassThrough() as InstanceType<typeof PassThrough> & {
       statusCode: number
       headers: Record<string, string>
     }
+
     res.statusCode = 200
     res.headers = { 'content-length': String(body.length) }
     queueMicrotask(() => {

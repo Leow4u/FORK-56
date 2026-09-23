@@ -2,9 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import type * as Nanostores from 'nanostores'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { closeProjectDialog, createProject, goToProject, pickProjectFolder } from '@/store/projects'
-
 import { en } from '@/i18n/en'
+import { closeProjectDialog, createProject, goToProject, pickProjectFolder } from '@/store/projects'
 
 import { ProjectDialog, splitFolderPath } from './project-dialog'
 

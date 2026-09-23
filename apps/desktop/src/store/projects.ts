@@ -1052,10 +1052,12 @@ export async function deleteProject(id: string): Promise<void> {
   const targetBefore = $newChatWorkspaceTarget.get()
   const scopeWasProject = scopeBefore === id
   const draftCwd = foregroundIsFreshDraft() ? (cwdBefore || '').trim() : ''
+
   const paths = [
     node?.path,
     ...(node?.repos ?? []).flatMap(repo => [repo.path, ...repo.groups.map(group => group.path)])
   ]
+
   const draftWasHere = Boolean(draftCwd && paths.some(path => path && isUnderPath(path, draftCwd)))
 
   $projects.set(snap.projects.filter(project => project.id !== id))

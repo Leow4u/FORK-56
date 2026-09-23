@@ -127,8 +127,7 @@ describe('ApplyingView', () => {
     $updateApply.set({
       applying: true,
       stage: 'restart',
-      message:
-        'Restarting Work4You to swap the desktop shell. This window closes briefly and comes back on its own.',
+      message: 'Restarting Work4You to swap the desktop shell. This window closes briefly and comes back on its own.',
       percent: 100,
       error: null,
       command: null,

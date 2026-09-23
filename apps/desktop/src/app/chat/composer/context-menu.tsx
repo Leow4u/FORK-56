@@ -20,8 +20,8 @@ import { cn } from '@/lib/utils'
 
 import { useComposerAttachmentProviders } from './contrib'
 import { GHOST_ICON_BTN } from './controls'
-import { useComposerMenuSide } from './use-composer-menu-side'
 import type { ChatBarState } from './types'
+import { useComposerMenuSide } from './use-composer-menu-side'
 
 const SNIPPET_KEYS = ['codeReview', 'implementationPlan', 'explainThis']
 

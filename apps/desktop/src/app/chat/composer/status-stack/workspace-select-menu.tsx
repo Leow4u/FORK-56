@@ -7,8 +7,8 @@ import {
   type WorkspacePaletteItem,
   type WorkspacePickerSource
 } from '@/app/command-palette/workspace-palette'
-import { Codicon } from '@/components/ui/codicon'
 import { composerPanelCard } from '@/components/chat/composer-dock'
+import { Codicon } from '@/components/ui/codicon'
 import {
   DropdownMenu,
   DropdownMenuContent,
