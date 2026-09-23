@@ -3454,8 +3454,8 @@ export const zh: Translations = {
     availableBodyBackend: '已连接的 Work4You 后端有新版本可安装。',
     availableBodyNoChangelog: '已有新版本可用。此安装方式无法显示更新日志。',
     availableBodyInstaller:
-      'Work4You 会在你继续使用时于后台下载此更新。出现「重启以完成」后再点击。应用会短暂关闭，然后以新版本重新打开。',
-    availableBodyChrome: '新的 Work4You 应用更新已就绪。会在后台下载并解包——芯片就绪后点“重启以完成”。现有运行时保持不变。',
+      'Work4You 会在你继续使用时于后台下载此更新。出现「更新」后再点击。应用会短暂关闭，然后以新版本重新打开。',
+    availableBodyChrome: '新的 Work4You 应用更新已就绪。会在后台下载并解包——芯片就绪后点“更新”。现有运行时保持不变。',
     updateNow: '立即更新',
     restartToFinish: '重启以完成',
     maybeLater: '稍后再说',

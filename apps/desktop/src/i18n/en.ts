@@ -3309,9 +3309,9 @@ export const en: Translations = {
     availableBodyBackend: 'A newer version of the connected Work4You backend is ready to install.',
     availableBodyNoChangelog: 'A newer version is ready. Release notes aren’t available for this install type.',
     availableBodyInstaller:
-      'Work4You downloads this update in the background while you keep working. Click Restart to finish when it appears. The app closes briefly and reopens updated.',
+      'Work4You downloads this update in the background while you keep working. Click Update when it appears. The app closes briefly and reopens updated.',
     availableBodyChrome:
-      'A new Work4You app update is ready. It downloads and unpacks in the background — click Restart to finish when the chip is ready. Your existing runtime stays in place.',
+      'A new Work4You app update is ready. It downloads and unpacks in the background — click Update when the chip is ready. Your existing runtime stays in place.',
     updateNow: 'Update now',
     restartToFinish: 'Restart to finish',
     maybeLater: 'Maybe later',

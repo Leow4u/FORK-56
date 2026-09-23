@@ -67,14 +67,13 @@ export function formatPrefetchPercent(percent: number | null | undefined): strin
   return `${Math.max(0, Math.min(100, Math.round(percent)))}%`
 }
 
-/** Short pill on the account chip: percent while Stage A runs, then the finalize verb. */
+/** Short pill on the account chip: percent while Stage A runs, otherwise Update. */
 export function resolveUpdateChipLabel(opts: {
   applying: boolean
   restarting: boolean
-  channel?: UpdateChannel
   prefetchPercent?: number | null
   prefetchReady?: boolean
-  copy: { restart: string; restartToFinish: string; update: string }
+  copy: { restart: string; update: string }
 }): string {
   if (opts.restarting) {
     return opts.copy.restart
@@ -82,10 +81,6 @@ export function resolveUpdateChipLabel(opts: {
 
   if (opts.applying) {
     return opts.copy.update
-  }
-
-  if (opts.prefetchReady && (opts.channel === 'chrome' || opts.channel === 'installer')) {
-    return opts.copy.restartToFinish
   }
 
   if (!opts.prefetchReady) {
