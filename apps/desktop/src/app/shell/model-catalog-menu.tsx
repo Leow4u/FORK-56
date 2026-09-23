@@ -396,7 +396,7 @@ export function ModelCatalogMenu({
             {currentName ? <span className="truncate text-(--ui-text-tertiary)">{currentName}</span> : null}
           </span>
         </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent className="w-64 p-0" sideOffset={4}>
+        <DropdownMenuSubContent className="w-64" data-composer-menu="" sideOffset={8}>
           <DropdownMenuSearch
             aria-label={copy.search}
             onKeyDown={event => {

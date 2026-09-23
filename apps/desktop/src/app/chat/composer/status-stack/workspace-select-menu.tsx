@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useRef, useState } from 'react'
 
 import {
   buildWorkspaceActionItems,
@@ -6,6 +6,7 @@ import {
   type WorkspacePaletteItem
 } from '@/app/command-palette/workspace-palette'
 import { Codicon } from '@/components/ui/codicon'
+import { composerPanelCard } from '@/components/chat/composer-dock'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +19,8 @@ import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 
+import { useComposerMenuSide } from '../use-composer-menu-side'
+
 function workspaceItemGlyph(kind: WorkspacePaletteItem['kind']) {
   switch (kind) {
     case 'open-folder':
@@ -28,16 +31,10 @@ function workspaceItemGlyph(kind: WorkspacePaletteItem['kind']) {
   }
 }
 
-export function WorkspaceSelectMenu({
-  children,
-  side = 'bottom',
-  tooltip
-}: {
-  children: ReactNode
-  side?: 'bottom' | 'top'
-  tooltip: string
-}) {
+export function WorkspaceSelectMenu({ children, tooltip }: { children: ReactNode; tooltip: string }) {
   const { t } = useI18n()
+  const hostRef = useRef<HTMLDivElement>(null)
+  const menuSide = useComposerMenuSide(hostRef)
   const [open, setOpen] = useState(false)
 
   const handlers = useMemo(() => createWorkspacePaletteHandlers(), [])
@@ -64,15 +61,18 @@ export function WorkspaceSelectMenu({
 
   return (
     <DropdownMenu onOpenChange={setMenuOpen} open={open}>
-      <Tip label={tooltip} side="top">
-        <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      </Tip>
+      <div className="contents" ref={hostRef}>
+        <Tip label={tooltip} side={menuSide === 'bottom' ? 'top' : 'bottom'}>
+          <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+        </Tip>
+      </div>
       <DropdownMenuContent
         align="start"
-        className="min-w-52 p-1"
+        className={cn('min-w-52', composerPanelCard)}
+        data-composer-menu=""
         data-slot="workspace-select-menu"
-        side={side}
-        sideOffset={4}
+        side={menuSide}
+        sideOffset={8}
       >
         {items.map(item => (
           <DropdownMenuItem className={cn(dropdownMenuRow, 'rounded-md')} key={item.id} onSelect={() => item.run?.()}>

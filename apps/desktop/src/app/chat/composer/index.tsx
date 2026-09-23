@@ -43,6 +43,7 @@ import { ComposerDirectiveActions } from './directive-actions'
 import { COMPOSER_DROP_ACTIVE_CLASS, COMPOSER_DROP_FADE_CLASS } from './drop-affordance'
 import { markActiveComposer, onComposerAttachImagesRequest } from './focus'
 import { HelpHint } from './help-hint'
+import { useComposerMenuSide } from './use-composer-menu-side'
 import { useAtCompletions } from './hooks/use-at-completions'
 import { useComposerBranch } from './hooks/use-composer-branch'
 import { useComposerDraft } from './hooks/use-composer-draft'
@@ -184,6 +185,7 @@ export function ChatBar({
   useComposerMicroActions(statusSessionId, busy)
 
   const composerRef = useRef<HTMLFormElement | null>(null)
+  const menuSide = useComposerMenuSide(composerRef)
   // The dock wraps the strips + status stack + composer; the thread's bottom
   // clearance measures this, while the pop-out drag still tracks the composer.
   const composerDockRef = useRef<HTMLDivElement | null>(null)
@@ -1219,7 +1221,7 @@ export function ChatBar({
             }}
             ref={composerRef}
           >
-            {isHelpHint && <HelpHint />}
+            {isHelpHint && <HelpHint placement={menuSide} />}
             {trigger && !argStageEmpty && (
               <ComposerTriggerPopover
                 activeIndex={triggerActive}
@@ -1228,6 +1230,7 @@ export function ChatBar({
                 loading={triggerLoading}
                 onHover={setTriggerActive}
                 onPick={replaceTriggerWithChip}
+                placement={menuSide}
                 scope={trigger.scope}
               />
             )}

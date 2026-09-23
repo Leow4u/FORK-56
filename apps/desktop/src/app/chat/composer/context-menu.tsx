@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
-import { composerPanelCard } from '@/components/chat/composer-dock'
+import { composerMenuDetail, composerMenuLabel, composerPanelCard } from '@/components/chat/composer-dock'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 
 import { useComposerAttachmentProviders } from './contrib'
 import { GHOST_ICON_BTN } from './controls'
+import { useComposerMenuSide } from './use-composer-menu-side'
 import type { ChatBarState } from './types'
 
 const SNIPPET_KEYS = ['codeReview', 'implementationPlan', 'explainThis']
@@ -35,6 +36,8 @@ export function ContextMenu({
 }: ContextMenuProps) {
   const { t } = useI18n()
   const c = t.composer
+  const hostRef = useRef<HTMLDivElement>(null)
+  const menuSide = useComposerMenuSide(hostRef)
   // Prompt snippets used to be a Radix submenu. That submenu didn't open
   // reliably when the parent menu was positioned at the bottom of the
   // window (composer "+" anchor), so we promoted it to a real Dialog —
@@ -47,27 +50,33 @@ export function ContextMenu({
   return (
     <>
       <DropdownMenu>
-        <Tip label={state.tools.label} side="top">
-          <DropdownMenuTrigger asChild>
-            <Button
-              aria-label={state.tools.label}
-              className={cn(
-                GHOST_ICON_BTN,
-                'data-[state=open]:bg-(--chrome-action-hover) data-[state=open]:text-foreground'
-              )}
-              disabled={!state.tools.enabled}
-              size="icon"
-              type="button"
-              variant="ghost"
-            >
-              <Codicon name="add" size="0.875rem" />
-            </Button>
-          </DropdownMenuTrigger>
-        </Tip>
-        <DropdownMenuContent align="start" className={cn('w-60', composerPanelCard)} side="top" sideOffset={6}>
-          <DropdownMenuLabel className="px-2 pb-0.5 pt-0.5 text-[0.625rem] font-semibold uppercase tracking-wider text-(--ui-text-tertiary)">
-            {c.attachLabel}
-          </DropdownMenuLabel>
+        <div className="contents" ref={hostRef}>
+          <Tip label={state.tools.label} side={menuSide === 'bottom' ? 'top' : 'bottom'}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                aria-label={state.tools.label}
+                className={cn(
+                  GHOST_ICON_BTN,
+                  'data-[state=open]:bg-(--chrome-action-hover) data-[state=open]:text-foreground'
+                )}
+                disabled={!state.tools.enabled}
+                size="icon"
+                type="button"
+                variant="ghost"
+              >
+                <Codicon name="add" size="0.875rem" />
+              </Button>
+            </DropdownMenuTrigger>
+          </Tip>
+        </div>
+        <DropdownMenuContent
+          align="start"
+          className={cn('w-60', composerPanelCard)}
+          data-composer-menu=""
+          side={menuSide}
+          sideOffset={8}
+        >
+          <DropdownMenuLabel className={composerMenuLabel}>{c.attachLabel}</DropdownMenuLabel>
           <ContextMenuItem disabled={!onPickFiles} icon={FileText} onSelect={onPickFiles}>
             {c.files}
           </ContextMenuItem>
@@ -97,7 +106,7 @@ export function ContextMenu({
           {attachmentProviders.length > 0 && <DropdownMenuSeparator />}
           {attachmentProviders.map(provider => (
             <DropdownMenuItem
-              className="text-[length:var(--conversation-tool-font-size)] focus:bg-(--ui-bg-tertiary)"
+              className="focus:bg-(--ui-bg-tertiary)"
               key={provider.key}
               onSelect={() => void provider.run({ insertText: onInsertText })}
             >
@@ -108,7 +117,7 @@ export function ContextMenu({
 
           <DropdownMenuSeparator />
 
-          <div className="px-2 py-1 text-[0.7rem] text-muted-foreground/80">
+          <div className={cn('px-2 py-1', composerMenuDetail)}>
             {c.tipPre}
             <Kbd size="sm">@</Kbd>
             {c.tipPost}
@@ -166,11 +175,7 @@ function PromptSnippetsDialog({ onInsertText, onOpenChange, open }: PromptSnippe
 export function ContextMenuItem({ children, disabled, icon: Icon, onSelect }: ContextMenuItemProps) {
   return (
     // Override font size + highlight to match the / · @ completion rows exactly.
-    <DropdownMenuItem
-      className="text-[length:var(--conversation-tool-font-size)] focus:bg-(--ui-bg-tertiary)"
-      disabled={disabled}
-      onSelect={onSelect}
-    >
+    <DropdownMenuItem className="focus:bg-(--ui-bg-tertiary)" disabled={disabled} onSelect={onSelect}>
       <Icon />
       <span>{children}</span>
     </DropdownMenuItem>

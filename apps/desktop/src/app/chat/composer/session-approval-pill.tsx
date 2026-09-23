@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { useSessionView } from '@/app/chat/session-view'
 import { useGatewayRequest } from '@/app/gateway/hooks/use-gateway-request'
 import { ApprovalModeMenu } from '@/app/shell/approval-mode-menu'
+import { composerPanelCard } from '@/components/chat/composer-dock'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useI18n } from '@/i18n'
@@ -22,6 +23,7 @@ import { $activeGatewayProfile } from '@/store/profile'
 import { sessionTileDelegate } from '@/store/session-states'
 
 import { ACTIVE_ICON_BTN, COMPOSER_PILL, GHOST_ICON_BTN } from './control-classes'
+import { useComposerMenuSide } from './use-composer-menu-side'
 
 function patchSessionApprovalMode(runtimeId: string, mode: ApprovalMode | null) {
   sessionTileDelegate()?.updateSession(runtimeId, state =>
@@ -42,6 +44,8 @@ export function SessionApprovalPill({ compact = false, disabled }: { compact?: b
   const profile = useStore($activeGatewayProfile)
   useStore($approvalModes)
   const { requestGateway } = useGatewayRequest()
+  const hostRef = useRef<HTMLDivElement>(null)
+  const menuSide = useComposerMenuSide(hostRef)
   const pending = useRef(false)
   const copy = t.shell.approvalMode
   const mode = stored ?? approvalModeForProfile(profile)
@@ -99,26 +103,34 @@ export function SessionApprovalPill({ compact = false, disabled }: { compact?: b
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          aria-label={title}
-          className={pillClass}
-          data-slot="composer-approval-mode"
-          disabled={disabled || awaitingRuntime}
-          type="button"
-          variant="ghost"
-        >
-          {compact ? (
-            icon
-          ) : (
-            <>
-              {icon}
-              <span className="truncate">{labels[mode]}</span>
-            </>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-72 p-1" side="top" sideOffset={8}>
+      <div className="contents" ref={hostRef}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            aria-label={title}
+            className={pillClass}
+            data-slot="composer-approval-mode"
+            disabled={disabled || awaitingRuntime}
+            type="button"
+            variant="ghost"
+          >
+            {compact ? (
+              icon
+            ) : (
+              <>
+                {icon}
+                <span className="truncate">{labels[mode]}</span>
+              </>
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+      </div>
+      <DropdownMenuContent
+        align="start"
+        className={cn('w-72', composerPanelCard)}
+        data-composer-menu=""
+        side={menuSide}
+        sideOffset={8}
+      >
         <ApprovalModeMenu
           descriptions={descriptions}
           labels={labels}

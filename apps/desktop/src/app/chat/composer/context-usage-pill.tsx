@@ -1,8 +1,9 @@
 import { useStore } from '@nanostores/react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import { ContextUsagePanel } from '@/app/shell/context-usage-panel'
 import { useContextBreakdown } from '@/app/shell/hooks/use-context-breakdown'
+import { composerPanelCard } from '@/components/chat/composer-dock'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { releaseTypingFocus } from '@/components/ui/keyboard-first'
@@ -17,6 +18,7 @@ import type { UsageStats } from '@/types/work4you'
 
 import { contextUsageOccupancyTip, contextUsagePercent, mergeContextGaugeUsage } from './context-usage-label'
 import { useComposerScope } from './scope'
+import { useComposerMenuSide } from './use-composer-menu-side'
 
 const EMPTY_USAGE: UsageStats = { calls: 0, input: 0, output: 0, total: 0 }
 
@@ -103,6 +105,8 @@ export function ContextUsagePill({ busy, sessionId }: { busy: boolean; sessionId
 
   const gaugeUsage = useMemo(() => mergeContextGaugeUsage(usage, breakdown), [breakdown, usage])
   const [open, setOpen] = useState(false)
+  const hostRef = useRef<HTMLDivElement>(null)
+  const menuSide = useComposerMenuSide(hostRef)
   const percent = contextUsagePercent(gaugeUsage)
   const occupancy = contextUsageOccupancyTip(gaugeUsage, copy.contextUsagePanel.tokenSummary)
 
@@ -116,20 +120,28 @@ export function ContextUsagePill({ busy, sessionId }: { busy: boolean; sessionId
 
   return (
     <DropdownMenu onOpenChange={setMenuOpen} open={open}>
-      <Tip label={occupancy} side="top">
-        <DropdownMenuTrigger asChild>
-          <Button
-            aria-label={copy.contextUsage}
-            className={CHIP}
-            data-slot="context-usage-pill"
-            type="button"
-            variant="ghost"
-          >
-            <ContextUsageRing percent={percent} />
-          </Button>
-        </DropdownMenuTrigger>
-      </Tip>
-      <DropdownMenuContent align="end" className="w-auto border-(--ui-stroke-secondary) p-0" side="top" sideOffset={8}>
+      <div className="contents" ref={hostRef}>
+        <Tip label={occupancy} side={menuSide === 'bottom' ? 'top' : 'bottom'}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label={copy.contextUsage}
+              className={CHIP}
+              data-slot="context-usage-pill"
+              type="button"
+              variant="ghost"
+            >
+              <ContextUsageRing percent={percent} />
+            </Button>
+          </DropdownMenuTrigger>
+        </Tip>
+      </div>
+      <DropdownMenuContent
+        align="end"
+        className={cn('w-auto p-0', composerPanelCard)}
+        data-composer-menu=""
+        side={menuSide}
+        sideOffset={8}
+      >
         <ContextUsagePanel breakdown={breakdown} loading={loading} usage={gaugeUsage} />
       </DropdownMenuContent>
     </DropdownMenu>

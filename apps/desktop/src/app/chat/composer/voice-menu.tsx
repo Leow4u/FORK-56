@@ -1,5 +1,7 @@
 import { useStore } from '@nanostores/react'
+import { useRef } from 'react'
 
+import { composerPanelCard } from '@/components/chat/composer-dock'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import {
@@ -17,6 +19,8 @@ import { triggerHaptic } from '@/lib/haptics'
 import { AudioLines, Ear, EarOff, iconSize, Loader2, Square, Volume2, VolumeX } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { $wakeWord, toggleWakeWord } from '@/store/wake-word'
+
+import { useComposerMenuSide } from './use-composer-menu-side'
 
 import { ACTIVE_ICON_BTN, GHOST_ICON_BTN } from './control-classes'
 import type { ChatBarState, VoiceStatus } from './types'
@@ -58,6 +62,8 @@ export function VoiceMenu({
   const { t } = useI18n()
   const c = t.composer
   const wake = useStore($wakeWord)
+  const hostRef = useRef<HTMLDivElement>(null)
+  const menuSide = useComposerMenuSide(hostRef)
 
   const phrase = wake.phrase || 'hey work4you'
   const dictating = state.voice.active || voiceStatus !== 'idle'
@@ -78,29 +84,40 @@ export function VoiceMenu({
 
   return (
     <DropdownMenu>
-      <Tip label={wake.notice && !dictating ? `${triggerLabel} — ${wake.notice}` : triggerLabel}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            aria-label={triggerLabel}
-            className={cn(GHOST_ICON_BTN, 'p-0', active && ACTIVE_ICON_BTN)}
-            disabled={disabled}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            {voiceStatus === 'recording' ? (
-              <Square className={cn('fill-current', iconSize.xs)} />
-            ) : voiceStatus === 'transcribing' ? (
-              <Loader2 className={cn('animate-spin', iconSize.sm)} />
-            ) : wakeListening ? (
-              <Ear className={iconSize.sm} />
-            ) : (
-              <Codicon name="mic" size="0.875rem" />
-            )}
-          </Button>
-        </DropdownMenuTrigger>
-      </Tip>
-      <DropdownMenuContent align="end" className="min-w-52">
+      <div className="contents" ref={hostRef}>
+        <Tip
+          label={wake.notice && !dictating ? `${triggerLabel} — ${wake.notice}` : triggerLabel}
+          side={menuSide === 'bottom' ? 'top' : 'bottom'}
+        >
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label={triggerLabel}
+              className={cn(GHOST_ICON_BTN, 'p-0', active && ACTIVE_ICON_BTN)}
+              disabled={disabled}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              {voiceStatus === 'recording' ? (
+                <Square className={cn('fill-current', iconSize.xs)} />
+              ) : voiceStatus === 'transcribing' ? (
+                <Loader2 className={cn('animate-spin', iconSize.sm)} />
+              ) : wakeListening ? (
+                <Ear className={iconSize.sm} />
+              ) : (
+                <Codicon name="mic" size="0.875rem" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+        </Tip>
+      </div>
+      <DropdownMenuContent
+        align="end"
+        className={cn('min-w-52', composerPanelCard)}
+        data-composer-menu=""
+        side={menuSide}
+        sideOffset={8}
+      >
         <DropdownMenuItem
           className={dropdownMenuRow}
           disabled={disabled}

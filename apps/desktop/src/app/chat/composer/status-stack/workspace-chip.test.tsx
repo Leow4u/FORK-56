@@ -49,6 +49,30 @@ async function openSelectWorkspace() {
 }
 
 describe('WorkspaceChipRow', () => {
+  it('opens downward under a centered composer and upward when the composer is docked', async () => {
+    const { unmount } = render(
+      <MemoryRouter>
+        <div data-composer-anchor="midline">
+          <WorkspaceChipRow messagesEmpty />
+        </div>
+      </MemoryRouter>
+    )
+
+    expect((await openSelectWorkspace()).getAttribute('data-side')).toBe('bottom')
+    unmount()
+
+    render(
+      <MemoryRouter>
+        <div data-composer-anchor="bottom">
+          <WorkspaceChipRow messagesEmpty />
+        </div>
+      </MemoryRouter>
+    )
+
+    expect((await openSelectWorkspace()).getAttribute('data-side')).toBe('top')
+    expect(screen.getByRole('menu').getAttribute('data-composer-menu')).toBe('')
+  })
+
   it('paints Select workspace on an empty chat and opens a menu on the chip', async () => {
     const { container } = renderChip(<WorkspaceChipRow messagesEmpty />)
 

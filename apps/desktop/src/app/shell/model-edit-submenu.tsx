@@ -141,7 +141,7 @@ export function ActiveModelOptions({
               </span>
             </span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-52 p-0" sideOffset={4}>
+          <DropdownMenuSubContent className="w-52" data-composer-menu="" sideOffset={8}>
             <DropdownMenuRadioGroup onValueChange={value => onSetOptions({ effort: value })} value={effortValue}>
               {REASONING_EFFORTS.map(value => (
                 <DropdownMenuRadioItem
