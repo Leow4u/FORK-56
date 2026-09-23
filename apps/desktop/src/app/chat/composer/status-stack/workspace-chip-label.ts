@@ -12,8 +12,18 @@ export function workspaceChipLabel(cwd: string | null | undefined, homeLabel: st
   return projectNameForCwd(path) || pathLeaf(path) || homeLabel
 }
 
-/** Empty-chat Select workspace chip: named project, else the CTA. Never a cwd leaf. */
-export function emptyWorkspaceChipLabel(cwd: string | null | undefined, selectLabel: string): string {
+/** Empty-chat Select workspace chip: the entered project, else a named project, else the CTA. Never a cwd leaf. */
+export function emptyWorkspaceChipLabel(
+  cwd: string | null | undefined,
+  selectLabel: string,
+  scopedLabel?: null | string
+): string {
+  const scoped = scopedLabel?.trim()
+
+  if (scoped) {
+    return scoped
+  }
+
   const path = (cwd ?? '').trim()
 
   if (!path) {

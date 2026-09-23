@@ -1219,6 +1219,9 @@ export interface Translations {
     newSessionInProject: (project: string) => string
     selectWorkspace: string
     selectWorkspacePlaceholder: string
+    searchProjects: string
+    clearActiveWorkspace: string
+    workspaceSearchEmpty: string
     commands: string
     startInBranch: (branch: string) => string
     commandCenter: string
