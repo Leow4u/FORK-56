@@ -246,9 +246,7 @@ export function composerCloudPortalFromDiscover(view: ComposerCloudDiscoverView)
 }
 
 export type PaidCloudLoginConnection =
-  | { source: ComposerCloudApplySource; type: 'apply' }
-  | { type: 'choose-org' }
-  | { type: 'stay' }
+  { source: ComposerCloudApplySource; type: 'apply' } | { type: 'choose-org' } | { type: 'stay' }
 
 /**
  * Account login connects Cloud only for a paid plan that already has one
