@@ -2337,6 +2337,11 @@ export const ja = defineLocale({
     skillsLabel: 'スキル',
     notSet: '未設定',
     soulDesc: 'このプロファイルに組み込まれたシステムプロンプトとペルソナの指示。',
+    personaTitle: 'ペルソナ',
+    personaFile: 'SOUL.md',
+    inUse: '使用中',
+    useProfile: 'このプロファイルを使う',
+    personaPlaceholder: 'このエージェントの振る舞いを書いてください。',
     soulOptional: '省略可能',
     soulPlaceholder: mode =>
       `このプロファイルのシステムプロンプト / ペルソナ。\n空欄のままにすると ${mode} のデフォルトを使用します。`,

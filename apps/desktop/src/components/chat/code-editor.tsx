@@ -2,7 +2,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { bracketMatching, indentOnInput, LanguageDescription } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { Compartment, EditorState } from '@codemirror/state'
-import { Decoration, drawSelection, EditorView, keymap, lineNumbers } from '@codemirror/view'
+import { Decoration, drawSelection, EditorView, keymap, lineNumbers, placeholder as placeholderExt } from '@codemirror/view'
 import { type RefObject, useEffect, useRef } from 'react'
 
 import { tryFormatJson } from '@/lib/json-format'
@@ -49,6 +49,12 @@ interface CodeEditorProps {
    * inside is identical to pane previews (no extra inset). Off by default.
    */
   framed?: boolean
+  /**
+   * Persona writing surface: wrapped prose, sans type, no gutter and no frame.
+   * Remount to change `placeholder` — it is read once, like `initialValue`.
+   */
+  prose?: boolean
+  placeholder?: string
   filePath: string
   /** Character range to wash with a subtle background (the "you are here" block). */
   highlight?: null | { from: number; to: number }
@@ -170,6 +176,29 @@ const FRAMED_THEME = EditorView.theme({
   '.cm-line': { padding: '0' }
 })
 
+// Prose reads as body text on the page, not a code file. Height follows the
+// document so a short persona doesn't sit in a fixed well.
+const PROSE_THEME = EditorView.theme({
+  '&': {
+    height: 'auto',
+    backgroundColor: 'transparent'
+  },
+  '.cm-scroller': {
+    overflow: 'visible'
+  },
+  '.cm-content': {
+    fontFamily: 'var(--font-sans)',
+    fontSize: '0.9375rem',
+    lineHeight: '1.65',
+    minHeight: '12rem',
+    padding: '0'
+  },
+  '.cm-placeholder': {
+    color: 'color-mix(in oklab, var(--muted-foreground) 65%, transparent)',
+    fontFamily: 'var(--font-sans)'
+  }
+})
+
 // A deliberately small CodeMirror 6 surface for *spot edits* — not an IDE: line
 // numbers, history, selection, bracket matching, syntax highlighting. No fold
 // gutter, autocomplete, or active-line chrome, so it reads like the preview it
@@ -182,6 +211,8 @@ export function CodeEditor({
   disabled = false,
   formatJson = false,
   framed = false,
+  prose = false,
+  placeholder,
   filePath,
   highlight,
   initialValue,
@@ -241,8 +272,9 @@ export function CodeEditor({
     const state = EditorState.create({
       doc: initialValue,
       extensions: [
-        // Gutter only outside framed mode — framed prose reads better flush.
-        ...(framed ? [] : [lineNumbers()]),
+        // Gutter only in code mode — framed and prose surfaces read flush.
+        ...(framed || prose ? [] : [lineNumbers()]),
+        ...(prose && placeholder ? [placeholderExt(placeholder)] : []),
         history(),
         drawSelection(),
         indentOnInput(),
@@ -284,7 +316,8 @@ export function CodeEditor({
         // Standalone edits (SOUL.md, skills, memories) are prose, not code —
         // wrap long lines instead of scrolling horizontally, and drop the gutter
         // inset. Pane previews stay flush/scrolling to mirror their SourceView.
-        ...(framed ? [EditorView.lineWrapping, FRAMED_THEME] : [])
+        ...(framed || prose ? [EditorView.lineWrapping, FRAMED_THEME] : []),
+        ...(prose ? [PROSE_THEME] : [])
       ]
     })
 
@@ -374,6 +407,14 @@ export function CodeEditor({
   useEffect(() => {
     viewRef.current?.dispatch({ effects: editableConf.current.reconfigure(EditorState.readOnly.of(disabled)) })
   }, [disabled])
+
+  if (prose) {
+    return (
+      <div className={cn('min-h-48', className)}>
+        <div ref={hostRef} />
+      </div>
+    )
+  }
 
   if (!framed) {
     return <div className={cn('h-full min-h-0 overflow-hidden', className)} ref={hostRef} />

@@ -2006,6 +2006,11 @@ export interface Translations {
     skillsLabel: string
     notSet: string
     soulDesc: string
+    personaTitle: string
+    personaFile: string
+    inUse: string
+    useProfile: string
+    personaPlaceholder: string
     soulOptional: string
     soulPlaceholder: (mode: string) => string
     soulPlaceholderCloned: string

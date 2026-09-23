@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { retireLocalProfileGateways } from '@/store/gateway'
 import { refreshProfiles, selectProfile, setActiveProfile } from '@/store/profile'
 import type { ProfileInfo } from '@/types/work4you'
-import { deleteProfile } from '@/work4you'
+import { deleteProfile, getProfileSoul } from '@/work4you'
 
 import { ProfilesView } from './index'
 
@@ -16,7 +16,10 @@ import { ProfilesView } from './index'
 // stranding it on a dead backend. The drift that motivated the fix got in
 // precisely because nothing rendered this view.
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.mocked(getProfileSoul).mockResolvedValue({ content: '', exists: true })
+})
 
 // Real i18n (useI18n falls back to English with no provider), so labels are the
 // actual strings — no brittle key snapshot to maintain here.
@@ -167,5 +170,52 @@ describe('ProfilesView', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull())
     expect(selectProfile).not.toHaveBeenCalled()
     expect(setActiveProfile).not.toHaveBeenCalled()
+  })
+
+  it('shows the friendly model and the persona, and hides path, skills, and credentials', async () => {
+    vi.mocked(refreshProfiles).mockResolvedValue([
+      {
+        ...makeProfile('default', true),
+        has_env: true,
+        model: 'openai/gpt-5.6-luna',
+        path: '/AppData/Local/work4you',
+        provider: 'work4you',
+        skill_count: 78
+      }
+    ])
+    vi.mocked(getProfileSoul).mockResolvedValue({
+      content: 'You are Work4You. You help with tasks.',
+      exists: true
+    })
+    activeGateway.set('default')
+
+    await renderProfilesView()
+
+    expect(await screen.findByText('Operis 4.0')).toBeTruthy()
+    expect(screen.getAllByText('You are Work4You.').length).toBeGreaterThan(0)
+    expect(screen.getByText('In use')).toBeTruthy()
+    expect(screen.getByText('Persona')).toBeTruthy()
+    expect(screen.queryByText('/AppData/Local/work4you')).toBeNull()
+    expect(screen.queryByText('78')).toBeNull()
+    expect(screen.queryByText('.env')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Use this profile' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: 'Search profiles...' })).toBeNull()
+  })
+
+  it('offers to use a profile that is not the current one', async () => {
+    vi.mocked(selectProfile).mockClear()
+    vi.mocked(refreshProfiles).mockResolvedValue([makeProfile('default', true), makeProfile(NAMED_PROFILE)])
+    activeGateway.set('default')
+
+    await renderProfilesView()
+
+    const openWork = screen.getAllByRole('button', { name: NAMED_PROFILE }).find(button => !button.hasAttribute('aria-expanded'))
+
+    expect(openWork).toBeTruthy()
+    fireEvent.click(openWork!)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Use this profile' }))
+    expect(selectProfile).toHaveBeenCalledWith(NAMED_PROFILE)
   })
 })

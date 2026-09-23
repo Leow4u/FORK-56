@@ -160,6 +160,8 @@ interface PanelListRowProps {
   meta?: ReactNode
   onSelect: () => void
   rowKey?: string
+  /** Second line under the title. The row grows; omit it and the row stays one line. */
+  detail?: ReactNode
   title: ReactNode
 }
 
@@ -177,13 +179,15 @@ export function PanelListRow({
   menuLabel,
   meta,
   onSelect,
+  detail,
   rowKey,
   title
 }: PanelListRowProps) {
   const row = (
     <div
       className={cn(
-        'group/row row-hover relative flex h-7 w-full items-center rounded-md text-[0.78rem] hover:text-foreground',
+        'group/row row-hover relative flex w-full items-center rounded-md text-[0.78rem] hover:text-foreground',
+        detail ? 'min-h-7 py-1' : 'h-7',
         active ? 'bg-(--ui-row-active-background) text-foreground' : 'text-(--ui-text-secondary)'
       )}
       data-panel-row={rowKey}
@@ -198,7 +202,14 @@ export function PanelListRow({
           ) : icon ? (
             <Codicon className="shrink-0 text-muted-foreground/55" name={icon} size="0.85rem" />
           ) : null)}
-        <span className="min-w-0 flex-1 truncate font-medium text-foreground/85">{title}</span>
+        {detail ? (
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate font-medium text-foreground/85">{title}</span>
+            <span className="truncate text-[0.68rem] font-normal text-muted-foreground/70">{detail}</span>
+          </span>
+        ) : (
+          <span className="min-w-0 flex-1 truncate font-medium text-foreground/85">{title}</span>
+        )}
       </RowButton>
       {meta ? <span className="shrink-0 pr-2 text-[0.62rem] tabular-nums text-muted-foreground/45">{meta}</span> : null}
       {menuItems ? (
