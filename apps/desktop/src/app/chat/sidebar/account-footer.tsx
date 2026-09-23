@@ -38,10 +38,34 @@ export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 // BrowserWindow, so focus returning to the main window is the natural
 // "state may have changed" signal — no polling, no new IPC surface.
 const rowClass = cn(
-  'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs',
+  'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 text-left text-[length:var(--conversation-text-font-size)]',
+  'max-md:h-auto max-md:min-h-11 max-md:py-1.5',
   'text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag]',
   'hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none'
 )
+
+/** Initials painted on the existing account trigger. Signed out: one letter.
+ *  Signed in: email local-part, first letter of the first two segments, or
+ *  the first two letters when there is only one segment. */
+function accountMark(label: string, signedIn: boolean): string {
+  if (!signedIn) {
+    return (label.match(/[a-z0-9]/i)?.[0] ?? '?').toUpperCase()
+  }
+
+  const source = label.includes('@') ? (label.split('@')[0] ?? label) : label
+  const parts = source.split(/[\s._-]+/).filter(part => /[a-z0-9]/i.test(part))
+
+  if (parts.length >= 2) {
+    const first = parts[0]?.match(/[a-z0-9]/i)?.[0] ?? ''
+    const second = parts[1]?.match(/[a-z0-9]/i)?.[0] ?? ''
+
+    return `${first}${second}`.toUpperCase()
+  }
+
+  const letters = source.match(/[a-z0-9]/gi) ?? []
+
+  return `${letters[0] ?? '?'}${letters[1] ?? ''}`.toUpperCase()
+}
 
 export function AccountFooter() {
   const { t } = useI18n()
@@ -164,7 +188,14 @@ export function AccountFooter() {
       <div className="flex min-w-0 items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className={rowClass} title={triggerLabel} type="button">
+            <button aria-label={triggerLabel} className={rowClass} data-slot="account-footer-trigger" type="button">
+              <span
+                aria-hidden
+                className="grid size-5 shrink-0 place-items-center rounded-full bg-(--ui-accent) text-[0.625rem] font-medium uppercase leading-none text-(--dt-primary-foreground) max-md:size-8 max-md:text-xs"
+                data-slot="account-footer-mark"
+              >
+                {accountMark(triggerLabel, signedIn)}
+              </span>
               <span className="truncate">{triggerLabel}</span>
             </button>
           </DropdownMenuTrigger>

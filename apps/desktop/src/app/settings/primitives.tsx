@@ -71,7 +71,7 @@ export function SectionHeading({
   if (variant === 'group') {
     return (
       <div className="mb-2 flex items-center gap-2">
-        <h2 className="min-w-0 text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-tertiary)">
+        <h2 className="min-w-0 text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-secondary)">
           {title}
         </h2>
         {meta && <Pill>{meta}</Pill>}
@@ -191,25 +191,46 @@ export function ListRow({
   wide?: boolean
   className?: string
 }) {
+  const detail = description || hint || below
+
   return (
-    // Container-queried, not viewport-queried: the label/control split keys on
-    // the row's own pane width, so a narrow detail column (messaging, split
-    // views) stacks instead of squishing the label against minmax(15rem,…).
+    // The control stays on the title line at every width. A narrow pane used
+    // to drop it under the copy. `wide` is the exception: the action needs the
+    // full row (theme grid, webhook copy) and sits under the label.
     <div className={cn('@container', className)} data-tour={dataTour} id={id}>
       <div
-        className={cn('grid gap-3 py-3', !wide && '@xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center')}
+        className={cn(
+          'grid gap-x-3 gap-y-1 py-3 max-md:gap-x-4 max-md:py-4',
+          wide
+            ? 'grid-cols-1'
+            : 'grid-cols-[minmax(0,1fr)_auto] items-center @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)]'
+        )}
       >
-        <div className="min-w-0">
+        <div className={cn('min-w-0', !wide && 'col-start-1 row-start-1 self-center')}>
           <div className="text-[length:var(--conversation-text-font-size)] font-medium text-foreground">{title}</div>
-          {description && (
-            <div className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-              {description}
-            </div>
-          )}
-          {hint && <div className="mt-1 block font-mono text-[0.68rem] text-muted-foreground/45">{hint}</div>}
-          {below}
         </div>
-        {action && <div className={cn('min-w-0', !wide && '@xl:justify-self-end')}>{action}</div>}
+        {action && (
+          <div
+            className={cn(
+              wide
+                ? 'min-w-0'
+                : 'col-start-2 row-start-1 shrink-0 justify-self-end self-center max-md:flex max-md:min-h-11 max-md:items-center @xl:row-span-2'
+            )}
+          >
+            {action}
+          </div>
+        )}
+        {detail && (
+          <div className={cn(!wide && 'col-span-2 col-start-1 row-start-2 @xl:col-span-1')}>
+            {description && (
+              <div className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+                {description}
+              </div>
+            )}
+            {hint && <div className="mt-1 block font-mono text-[0.68rem] text-muted-foreground/45">{hint}</div>}
+            {below}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -272,13 +293,16 @@ export function ListRowSkeleton({ wide = false }: { wide?: boolean }) {
   return (
     <div className="@container">
       <div
-        className={cn('grid gap-3 py-3', !wide && '@xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center')}
+        className={cn(
+          'grid gap-x-3 gap-y-1 py-3',
+          wide
+            ? 'grid-cols-1'
+            : 'grid-cols-[minmax(0,1fr)_auto] items-center @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)]'
+        )}
       >
-        <div className="min-w-0 space-y-1.5">
-          <Skeleton className="h-3.5 w-40 max-w-full" />
-          <Skeleton className="h-3 w-64 max-w-full" />
-        </div>
-        {!wide && <Skeleton className="h-8 w-full @xl:w-72 @xl:justify-self-end" />}
+        <Skeleton className={cn('h-3.5 w-40 max-w-full', !wide && 'col-start-1 row-start-1')} />
+        {!wide && <Skeleton className="col-start-2 row-start-1 h-8 w-24 justify-self-end @xl:row-span-2 @xl:w-72" />}
+        <Skeleton className={cn('h-3 w-64 max-w-full', !wide && 'col-span-2 col-start-1 row-start-2 @xl:col-span-1')} />
       </div>
     </div>
   )

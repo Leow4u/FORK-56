@@ -173,14 +173,17 @@ Notes:
   so the column stays centered, with 247px of stage free on each side
   when the pane is wide enough — not a full-stage fill. Chat
   transcript and composer use `--composer-width` (48rem; narrow panes still
-  `min(..., 100% - 2rem)`). Empty intro docks the composer at the
-  pane midline; a live thread docks it at the bottom. HUD keeps `--composer-width: 100%`.
+  `min(..., 100% - 2rem)`). Empty intro centers the prompt card on the
+  pane midline and rests the headline just above it; a live thread docks
+  the composer at the bottom. HUD keeps `--composer-width: 100%`.
 - **Master/detail overlays:** `OverlaySplitLayout` + `OverlaySidebar` /
   `OverlayMain`. Cron, profiles, etc. ride this — don't rebuild a titlebar
   shell. Settings passes `header` (search pill) and `itemTone="quiet"` into
   `OverlayNav`; other overlays keep the default boxed active item.
 - **Rows:** `ListRow` (settings `primitives.tsx`) for label/description/action
   rows. Flat, flush-left; no per-row indentation that fights flush headers.
+  The control stays on the title line at every width. `wide` rows are the
+  exception: the action sits under the label so a full-width field can wrap.
 - **Settings groups:** OverlayMain uses the same stage token as chat
   (`--ui-chat-surface-background`). `SettingsGroup` is spacing + an optional
   label on that stage, not a contrasting well. Don't invent a fill well.
@@ -214,7 +217,7 @@ Notes:
 - **Composer context bar** — empty-chat workspace picker. A second capsule
   (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
   card as a sibling vessel, not a well inside it: same width, same
-  `rounded-3xl`, the surface hairline, a complete rounded top of its own.
+  `--composer-radius`, the surface hairline, a complete rounded top of its own.
   The prompt card sits slightly on the tray (`shadow-work4you`); occupied
   git chats keep the coding-status strip. Without git, occupied composer
   is the prompt card only.

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { PAGE_SETTINGS_MAX_W } from '../layout-constants'
 
-import { ListRow, SectionHeading, SettingsContent, SettingsGroup } from './primitives'
+import { ListRow, SectionHeading, SettingsContent, SettingsGroup, ToggleRow } from './primitives'
 
 afterEach(() => {
   cleanup()
@@ -38,6 +38,39 @@ describe('SettingsContent', () => {
     expect(column?.className).toContain(PAGE_SETTINGS_MAX_W)
     expect(column?.className).not.toContain('max-w-none')
     expect(column?.className).not.toContain('max-w-full')
+  })
+})
+
+describe('ListRow', () => {
+  it('keeps the control on the title line, with the description underneath', () => {
+    const { container } = render(
+      <ListRow action={<button type="button">Change</button>} description="Shown in menus" title="Language" />
+    )
+
+    const grid = container.querySelector('.grid')
+
+    expect(grid?.className).toContain('grid-cols-[minmax(0,1fr)_auto]')
+    expect(grid?.className).not.toContain('grid-cols-1')
+    expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy()
+    expect(screen.getByText('Shown in menus')).toBeTruthy()
+  })
+
+  it('stacks a wide action under the label', () => {
+    const { container } = render(<ListRow action={<button type="button">Pick</button>} title="Theme" wide />)
+
+    expect(container.querySelector('.grid')?.className).toContain('grid-cols-1')
+  })
+})
+
+describe('ToggleRow', () => {
+  it('keeps the switch on the title line at every width', () => {
+    const { container } = render(
+      <ToggleRow checked={false} description="Play a sound" label="Sounds" onChange={() => undefined} />
+    )
+
+    expect(container.querySelector('.grid')?.className).toContain('grid-cols-[minmax(0,1fr)_auto]')
+    expect(screen.getByRole('switch', { name: 'Sounds' })).toBeTruthy()
+    expect(screen.getByText('Play a sound')).toBeTruthy()
   })
 })
 

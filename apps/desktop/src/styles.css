@@ -138,10 +138,10 @@
      — the shadow pools below the panel instead of bleeding out every side.
      Layered (contact → ambient) for a smooth, natural falloff. */
   --shadow-work4you:
-    0 0.125rem 0.25rem -0.125rem color-mix(in srgb, #000 7%, transparent),
-    0 0.5rem 0.75rem -0.375rem color-mix(in srgb, #000 6%, transparent),
-    0 1.25rem 1.75rem -0.875rem color-mix(in srgb, #000 6%, transparent),
-    0 2.25rem 3rem -1.75rem color-mix(in srgb, #000 0%, transparent);
+    0 0.0625rem 0.125rem -0.0625rem color-mix(in srgb, #000 5%, transparent),
+    0 0.375rem 0.75rem -0.25rem color-mix(in srgb, #000 5%, transparent),
+    0 1rem 2rem -0.75rem color-mix(in srgb, #000 6%, transparent),
+    0 2rem 3.5rem -1.5rem color-mix(in srgb, #000 4%, transparent);
   /* Hairline border paired with --shadow-work4you on borderless overlays.
      currentColor resolves per-element, so it adapts to text color/theme. */
   --stroke-work4you: color-mix(in srgb, currentColor 3%, transparent);
@@ -473,6 +473,10 @@
     /* Reading column for transcript + composer. The dock already does
        min(this, 100% - 2rem) so narrow panes still fill. */
     --composer-width: 48rem;
+    /* Prompt card only. Chrome stays on --radius-scalar so sidebars and
+       controls keep their tight corners; the composer matches the floating
+       field used by the chat benchmarks. */
+    --composer-radius: 1.125rem;
     --composer-control-size: 1.5rem;
     --composer-control-primary-size: 1.625rem;
     --composer-control-gap: 0.25rem;
@@ -1612,15 +1616,15 @@ body.guest-pointer-lock :is(webview, iframe) {
 }
 
 [data-slot='aui_intro'] > div {
-  max-width: var(--composer-width);
+  max-width: min(36rem, 100%);
 }
 
 [data-slot='aui_intro'] p:last-child {
-  max-width: 34rem;
+  max-width: 28rem;
   margin-inline: auto;
   color: var(--ui-text-tertiary);
-  font-size: 0.875rem;
-  line-height: 1.45;
+  font-size: var(--conversation-caption-font-size);
+  line-height: var(--conversation-caption-line-height);
 }
 
 .fit-text {
@@ -1677,23 +1681,56 @@ body.guest-pointer-lock :is(webview, iframe) {
   padding-bottom: var(--composer-shell-pad-block-end);
 }
 
-/* Empty intro: composer starts at the pane midline so the headline sits
-   directly above it as one centered block. A live thread keeps bottom: 0.
-   HUD / popped-out docks keep their own anchors. */
+/* Empty intro: the prompt card is centered on the pane (its middle sits on
+   the midline) and the headline rests just above it. A live thread keeps
+   bottom: 0. HUD / popped-out docks keep their own anchors. */
 [data-chat-surface][data-composer-anchor='midline'] {
   --thread-viewport-height: 100%;
 }
 
 [data-chat-surface][data-composer-anchor='midline'] [data-slot='composer-dock']:not([data-popped-out]) {
-  top: 50%;
+  top: calc(50% - var(--composer-measured-height) / 2);
   bottom: auto;
 }
 
 [data-chat-surface][data-composer-anchor='midline'] [data-slot='aui_intro'] {
   position: absolute;
   inset-inline: 0;
-  bottom: 50%;
+  bottom: calc(50% + var(--composer-measured-height) / 2);
   padding-bottom: 1.25rem;
+}
+
+[data-slot='aui_intro_headline'] {
+  text-wrap: balance;
+}
+
+/* The prompt card and its workspace tray share one radius, independent of
+   the tight chrome scale. */
+[data-slot='composer-root'],
+[data-slot='composer-surface'],
+[data-slot='composer-context-bar'],
+.composer-fallback-surface {
+  border-radius: var(--composer-radius);
+}
+
+/* Phone-width window: the same controls, with a thumb-sized hit target.
+   Desktop density is unchanged. */
+@media (max-width: 768px) {
+  :root {
+    --composer-control-size: 2.75rem;
+    --composer-control-primary-size: 2.75rem;
+    --composer-control-gap: 0.5rem;
+    --composer-row-gap: 0.5rem;
+    --composer-surface-pad-x: 1rem;
+    --composer-surface-pad-y: 0.75rem;
+  }
+
+  [data-sidebar='menu-button'],
+  [data-slot='account-footer-trigger'],
+  [data-tour^='nav-'] {
+    min-height: 2.75rem;
+    height: auto;
+  }
 }
 
 [data-slot='composer-root'] {
@@ -1728,8 +1765,7 @@ body.guest-pointer-lock :is(webview, iframe) {
    the transparent grab margin on hover (and stays while dragging) to signal the
    composer is draggable. Inherits the root radius so it clips to the corners. */
 [data-slot='composer-drag-region'] {
-  /* Hatch frame radius (tuned by hand). */
-  border-radius: 0.4rem;
+  border-radius: var(--composer-radius);
   opacity: 0;
   transition: opacity 150ms ease;
   background-image: repeating-linear-gradient(

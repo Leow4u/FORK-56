@@ -56,7 +56,7 @@ describe('Intro', () => {
     expect(headline?.className).toMatch(/font-semibold/)
     expect(headline?.className).toMatch(/text-foreground/)
 
-    expect(body?.className).toMatch(/text-sm/)
+    expect(body?.className).toMatch(/conversation-caption-font-size/)
     expect(body?.className).toMatch(/font-normal/)
     expect(body?.className).not.toMatch(/text-xl/)
     expect(body?.className).not.toMatch(/font-semibold/)
