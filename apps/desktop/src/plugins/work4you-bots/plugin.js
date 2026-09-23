@@ -2246,7 +2246,7 @@ function AvatarPicker({ shape, color, image, onShape, onColor, onImage, generate
   }
 
   return jsxs('div', {
-    className: 'grid w-full min-w-0 justify-items-center gap-4',
+    className: 'grid w-full min-w-0 justify-items-center gap-3',
     children: [
       jsx(SegmentedControl, {
         value: tab,
@@ -6088,7 +6088,7 @@ function EditProfileDialog({ bot, open, onClose }) {
     children: jsxs(DialogContent, {
       'data-panel-card': '',
       className: cn('min-w-0', advanced ? 'max-w-3xl' : 'max-w-sm'),
-      bodyClassName: 'min-w-0 gap-5 overflow-x-hidden',
+      bodyClassName: 'min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden',
       children: [
         jsxs(DialogHeader, {
           children: [
@@ -6097,7 +6097,7 @@ function EditProfileDialog({ bot, open, onClose }) {
           ]
         }),
         jsxs('div', {
-          className: 'grid min-w-0 gap-5',
+          className: 'grid min-h-0 min-w-0 gap-4 overflow-y-auto overflow-x-hidden',
           children: [
             jsx('div', {
               className: 'flex justify-center py-1',
@@ -6598,7 +6598,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
       // classes lose to the generic dialog skin.
       'data-panel-card': '',
       className: cn('min-w-0', advanced ? 'max-w-3xl' : 'max-w-md'),
-      bodyClassName: 'min-w-0 gap-5 overflow-x-hidden',
+      bodyClassName: 'min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden',
       children: [
         jsxs(DialogHeader, {
           children: [
@@ -6609,7 +6609,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
           ]
         }),
         jsxs('div', {
-          className: 'grid min-w-0 gap-5',
+          className: 'grid min-h-0 min-w-0 gap-4 overflow-y-auto overflow-x-hidden',
           children: [
             jsx('div', {
               className: 'flex justify-center py-1',
@@ -6769,7 +6769,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
                     }),
                     advTab === 'general'
                       ? jsxs('div', {
-                          className: 'grid min-w-0 gap-5',
+                          className: 'grid min-w-0 gap-4',
                           children: [
                             labeled(
                               remoteTarget ? `Clone from profile (on ${targetLabel})` : 'Clone from profile',
