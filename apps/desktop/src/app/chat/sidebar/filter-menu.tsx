@@ -56,7 +56,6 @@ import {
   requestProfileCreate,
   toggleShowAllProfiles
 } from '@/store/profile'
-import { runImportProfileFlow } from '@/store/profile-share'
 import { $projectTree } from '@/store/projects'
 import type { PullRequestBucket } from '@/store/pull-requests'
 import { $unreadFinishedSessionIds, markAllSessionsRead } from '@/store/session'
@@ -339,9 +338,6 @@ export function SidebarFilterMenu({ className }: { className?: string }) {
                 </>
               )}
               <DropdownMenuItem onSelect={requestProfileCreate}>{t.profiles.newProfile}</DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void runImportProfileFlow()}>
-                {t.profiles.importProfile}
-              </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 

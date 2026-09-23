@@ -4,11 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ProfileRail } from './profile-switcher'
 
-// The rail's discoverability pills are navigation, not identity — assert the
-// multi-gateway entry point deep-links to Settings → Connections instead of
-// relying on someone finding the pane three levels into Settings (the exact
-// gap reported against the multi-connection registry launch).
-
 const navigate = vi.fn()
 
 vi.mock('react-router', () => ({
@@ -57,8 +52,6 @@ vi.mock('@/store/profile', () => ({
   sortByProfileOrder: (profiles: unknown[]) => profiles
 }))
 
-vi.mock('@/store/connections', () => ({ $hasMultipleConnections: atom(false) }))
-
 vi.mock('@/store/profile-share', () => ({
   runExportProfileFlow: vi.fn(),
   runImportProfileFlow: vi.fn()
@@ -78,42 +71,30 @@ vi.mock('../../profiles/create-profile-dialog', () => ({ CreateProfileDialog: ()
 vi.mock('../../profiles/delete-profile-dialog', () => ({ DeleteProfileDialog: () => null }))
 vi.mock('../../profiles/rename-profile-dialog', () => ({ RenameProfileDialog: () => null }))
 
-const { $hasMultipleConnections } = await import('@/store/connections')
-const hasMultipleConnections = $hasMultipleConnections as ReturnType<typeof atom<boolean>>
 const { $profiles } = await import('@/store/profile')
 const profiles = $profiles as ReturnType<typeof atom<Array<{ is_default: boolean; name: string }>>>
 
 afterEach(() => {
   cleanup()
-  hasMultipleConnections.set(false)
+  navigate.mockClear()
   profiles.set([{ is_default: true, name: 'default' }])
 })
 
-describe('ProfileRail multi-gateway entry point', () => {
-  it('deep-links to the unified Settings → Gateways page from the rail', () => {
+describe('ProfileRail footer', () => {
+  it('opens profile management and hides the gateway shortcut', () => {
     render(<ProfileRail />)
 
-    const pill = screen.getByRole('button', { name: 'Manage gateways…' })
-    fireEvent.click(pill)
+    fireEvent.click(screen.getByRole('button', { name: 'Manage profiles…' }))
 
-    expect(navigate).toHaveBeenCalledWith('/settings?tab=gateway')
+    expect(navigate).toHaveBeenCalledWith('/profiles')
+    expect(screen.queryByRole('button', { name: 'Manage gateways…' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Import profile…' })).toBeNull()
   })
 
-  it('keeps the entry point visible for single-profile users', () => {
-    render(<ProfileRail />)
-
-    // The whole point is first-run discoverability: the pill must not be
-    // gated behind multiProfile the way the default↔all toggle is.
-    expect(screen.getByRole('button', { name: 'Manage gateways…' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Manage profiles…' })).toBeTruthy()
-  })
-
-  it('keeps the active profile explicit when gateway identity moves to the statusbar', () => {
-    hasMultipleConnections.set(true)
+  it('keeps the active profile explicit beside profile management', () => {
     render(<ProfileRail />)
 
     expect(screen.getByRole('button', { name: 'default' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Manage gateways…' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Manage profiles…' })).toBeTruthy()
   })
 
@@ -137,8 +118,7 @@ describe('ProfileRail multi-gateway entry point', () => {
     expect(screen.getByRole('button', { name: 'Profiles' })).toBeTruthy()
   })
 
-  it('stays shrinkable with many profiles and multiple gateways', () => {
-    hasMultipleConnections.set(true)
+  it('stays shrinkable with many profiles', () => {
     profiles.set([
       { is_default: true, name: 'default' },
       ...Array.from({ length: 13 }, (_, index) => ({ is_default: false, name: `Profile ${index + 1}` }))

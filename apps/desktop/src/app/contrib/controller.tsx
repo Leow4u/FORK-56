@@ -42,7 +42,7 @@ import { registry } from '@/contrib/registry'
 import { discoverRuntimePlugins } from '@/contrib/runtime-loader'
 import { translateNow } from '@/i18n'
 import { NEW_SESSION_TITLE, sessionTitle as storedSessionTitle } from '@/lib/chat-runtime'
-import { Download, FileText, LayoutDashboard, PanelBottom, Terminal, Upload, Zap } from '@/lib/icons'
+import { FileText, LayoutDashboard, PanelBottom, Terminal, Upload, Zap } from '@/lib/icons'
 import { type KeybindContribution, KEYBINDS_AREA } from '@/lib/keybinds/actions'
 import { TRANSCRIPT_DIRECTIVE_AREA, type TranscriptDirectiveContribution } from '@/lib/transcript-directives'
 import { setYoloEnabled } from '@/lib/yolo-session'
@@ -59,7 +59,7 @@ import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH
 } from '@/store/layout'
-import { runExportProfileFlow, runImportProfileFlow } from '@/store/profile-share'
+import { runExportProfileFlow } from '@/store/profile-share'
 import {
   $reviewOpen,
   $reviewScopeCwd,
@@ -336,9 +336,8 @@ registry.registerMany([
       run: () => window.dispatchEvent(new CustomEvent('work4you:open-keybinds'))
     } satisfies PaletteContribution
   },
-  // Profile sharing: bundle the active profile (config, skills, theme, layout)
-  // into a portable archive, or adopt someone else's. Both open native dialogs,
-  // so the palette closing on select is correct.
+  // Profile export stays in the palette. Import stays implemented
+  // (`runImportProfileFlow`) but is not offered in the UI yet.
   {
     id: 'profile.export',
     area: PALETTE_AREA,
@@ -348,17 +347,6 @@ registry.registerMany([
       icon: Upload,
       keywords: ['profile', 'export', 'share', 'bundle', 'theme', 'settings', 'backup'],
       run: () => void runExportProfileFlow()
-    } satisfies PaletteContribution
-  },
-  {
-    id: 'profile.import',
-    area: PALETTE_AREA,
-    data: {
-      id: 'profile.import',
-      label: 'Import profile…',
-      icon: Download,
-      keywords: ['profile', 'import', 'share', 'bundle', 'archive', 'restore'],
-      run: () => void runImportProfileFlow()
     } satisfies PaletteContribution
   }
 ])
