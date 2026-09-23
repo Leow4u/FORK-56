@@ -1044,11 +1044,14 @@ export { queryClient } from '@/lib/query-client'
 /** Work4You' reasoning levels + their compact labels, so a plugin surfacing a
  *  thinking depth uses the same scale and spelling as the rest of the app. */
 export {
+  claudeReasoningModel,
   DEFAULT_REASONING_EFFORT,
+  menuReasoningEffort,
   REASONING_EFFORT_VALUES,
   REASONING_EFFORTS,
   type ReasoningEffort,
-  reasoningEffortLabel
+  reasoningEffortLabel,
+  visibleReasoningEfforts
 } from '@/lib/reasoning-effort'
 /** The app's own gateway-readiness evaluation (setup.status +
  *  setup.runtime_check, reconciled) — pass `host.request`. Don't hand-roll

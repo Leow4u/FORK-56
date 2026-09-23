@@ -25,7 +25,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
 import {
-  EFFORT_OPTIONS,
+  effortMenuOptions,
+  menuReasoningEffort,
   normalizeEffort,
   VALID_EFFORTS,
 } from "@/lib/reasoning-effort";
@@ -112,9 +113,9 @@ export function ReasoningPicker({
         className="ml-auto min-w-0"
         disabled={!loaded || saving}
         onValueChange={onSelect}
-        value={effort}
+        value={menuReasoningEffort(effort, currentModel)}
       >
-        {EFFORT_OPTIONS.map((opt) => (
+        {effortMenuOptions(currentModel).map((opt) => (
           <SelectOption key={opt.value} value={opt.value}>
             {opt.label}
           </SelectOption>

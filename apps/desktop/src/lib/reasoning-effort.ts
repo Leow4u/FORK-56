@@ -52,3 +52,48 @@ export function resolveReasoningEffort(effort: string, fallback: string = DEFAUL
 
   return isReasoningEffort(value) ? value : DEFAULT_REASONING_EFFORT
 }
+
+/** The four-step dial. Minimal and Ultra stay valid stored values — they alias
+ *  Low and the model's ceiling — but they are not separate menu choices. */
+export const MENU_REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const
+
+export type MenuReasoningEffort = (typeof MENU_REASONING_EFFORTS)[number] | 'max'
+
+/** Claude's Messages API has a real `max` above Extra High. Other models do not
+ *  get that fifth choice; Max and Ultra already clamp to their ceiling. */
+export function claudeReasoningModel(model: string): boolean {
+  return normalize(model).includes('claude')
+}
+
+export function visibleReasoningEfforts(model: string): readonly MenuReasoningEffort[] {
+  return claudeReasoningModel(model) ? [...MENU_REASONING_EFFORTS, 'max'] : [...MENU_REASONING_EFFORTS]
+}
+
+/** Map a stored level onto a choice the menu lists. `none` stays off. Minimal
+ *  reads as Low. On Claude, Max and Ultra read as Max. Elsewhere they read as
+ *  Extra High. The stored value is left alone until the user picks a level. */
+export function menuReasoningEffort(
+  effort: string,
+  model: string,
+  fallback: string = DEFAULT_REASONING_EFFORT
+): ReasoningEffort | 'none' {
+  const value = normalize(effort || fallback)
+
+  if (value === 'none' || value === 'false' || value === 'disabled') {
+    return 'none'
+  }
+
+  if (value === 'minimal') {
+    return 'low'
+  }
+
+  if (value === 'max' || value === 'ultra') {
+    return claudeReasoningModel(model) ? 'max' : 'xhigh'
+  }
+
+  if (value === 'low' || value === 'medium' || value === 'high' || value === 'xhigh') {
+    return value
+  }
+
+  return DEFAULT_REASONING_EFFORT
+}

@@ -50,6 +50,10 @@ describe('override label', () => {
     expect(overrideLabel({ effort: 'medium', model: 'openai/gpt-5.6-luna', provider: 'work4you' }, 'x')).toBe(
       'Operis 4.0 · Med'
     )
+    expect(overrideLabel({ effort: 'ultra', model: 'anthropic/claude-sonnet-5', provider: 'work4you' }, 'x')).toBe(
+      'Claude Sonnet 5 · Max'
+    )
+    expect(overrideLabel({ effort: 'max', model: 'x-ai/grok-4.7', provider: 'xai' }, 'x')).toBe('Grok 4.7 · XHigh')
   })
 
   it('a depth-only pin is still an override', () => {

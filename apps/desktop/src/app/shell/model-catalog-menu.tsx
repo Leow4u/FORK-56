@@ -22,7 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useI18n } from '@/i18n'
 import { modelOptionsQueryKey, requestModelOptions } from '@/lib/model-options'
 import { displayModelName, modelDisplayParts } from '@/lib/model-status-label'
-import { DEFAULT_REASONING_EFFORT, reasoningEffortLabel } from '@/lib/reasoning-effort'
+import { DEFAULT_REASONING_EFFORT, menuReasoningEffort, reasoningEffortLabel } from '@/lib/reasoning-effort'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import {
@@ -374,6 +374,7 @@ export function ModelCatalogMenu({
           defaultEffort={defaultEffort}
           effort={current.effort}
           fastControl={active.fastControl}
+          model={current.model}
           onSelectModel={nextModel => controller.select(nextModel, current.provider)}
           onSetOptions={patch =>
             controller.setOptions(patch, {
@@ -505,7 +506,9 @@ export function ModelCatalogMenu({
 
                         const meta = [
                           fastControl.kind !== 'none' && fastControl.on ? copy.fast : null,
-                          (caps?.reasoning ?? true) ? reasoningEffortLabel(effEffort || defaultEffort) : null
+                          (caps?.reasoning ?? true)
+                            ? reasoningEffortLabel(menuReasoningEffort(effEffort || defaultEffort, family.id))
+                            : null
                         ]
                           .filter(Boolean)
                           .join(' ')

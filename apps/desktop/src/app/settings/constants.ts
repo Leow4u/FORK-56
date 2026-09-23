@@ -12,7 +12,6 @@ import {
   Sun,
   Wrench
 } from '@/lib/icons'
-import { REASONING_EFFORTS } from '@/lib/reasoning-effort'
 import type { ThemeMode } from '@/themes/context'
 
 // Single source of truth for built-in personality names lives in
@@ -235,8 +234,10 @@ export const ENUM_OPTIONS: Record<string, string[]> = {
   'approvals.mode': ['manual', 'smart', 'off'],
   'code_execution.mode': ['project', 'strict'],
   'context.engine': ['compressor', 'default', 'custom'],
-  // '' = inherit the agent's own effort; the rest is the shared scale.
-  'delegation.reasoning_effort': ['', ...REASONING_EFFORTS],
+  // '' = inherit the agent's own effort. minimal/ultra are aliases, so this
+  // advanced field offers the four-step dial plus max (Claude's real ceiling).
+  // A saved alias is still listed by enumOptionsFor.
+  'delegation.reasoning_effort': ['', 'low', 'medium', 'high', 'xhigh', 'max'],
   // NOTE: memory.provider is intentionally NOT listed here. Its options are
   // discovery-driven and served by the backend config schema (merged
   // per-request in web_server._schema_with_dynamic_provider_options), so

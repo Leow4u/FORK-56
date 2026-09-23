@@ -21,6 +21,7 @@ function renderOptions(opts: {
   defaultEffort?: string
   effort?: string
   fastControl: FastControl
+  model?: string
   onSelectModel?: (model: string) => void
   onSetOptions: (patch: { effort?: string; fast?: boolean }) => void
   reasoning: boolean
@@ -32,6 +33,7 @@ function renderOptions(opts: {
           defaultEffort={opts.defaultEffort ?? 'medium'}
           effort={opts.effort ?? 'medium'}
           fastControl={opts.fastControl}
+          model={opts.model}
           onSelectModel={opts.onSelectModel ?? vi.fn()}
           onSetOptions={opts.onSetOptions}
           reasoning={opts.reasoning}
@@ -76,6 +78,34 @@ describe('ActiveModelOptions reports edits without performing them', () => {
     fireEvent.click(screen.getByRole('switch'))
 
     expect(onSetOptions).toHaveBeenCalledWith({ effort: 'high' })
+  })
+
+  it('shows Extra High as the ceiling, and Max only for Claude', () => {
+    const { unmount } = renderOptions({
+      effort: 'ultra',
+      fastControl: { kind: 'none' },
+      model: 'x-ai/grok-4.7',
+      onSetOptions: vi.fn(),
+      reasoning: true
+    })
+
+    expect(screen.getByText('Extra High')).toBeTruthy()
+    expect(screen.queryByText('Minimal')).toBeNull()
+    expect(screen.queryByText('Ultra')).toBeNull()
+    expect(screen.queryByText('Max')).toBeNull()
+    unmount()
+
+    renderOptions({
+      effort: 'ultra',
+      fastControl: { kind: 'none' },
+      model: 'anthropic/claude-sonnet-5',
+      onSetOptions: vi.fn(),
+      reasoning: true
+    })
+
+    expect(screen.getAllByText('Max').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Ultra')).toBeNull()
+    expect(screen.queryByText('Minimal')).toBeNull()
   })
 
   it('hides Effort while thinking is off', () => {

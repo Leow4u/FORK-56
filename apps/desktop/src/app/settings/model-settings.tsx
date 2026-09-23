@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { useI18n } from '@/i18n'
 import { AlertTriangle, Loader2 } from '@/lib/icons'
 import { displayModelName } from '@/lib/model-status-label'
-import { DEFAULT_REASONING_EFFORT, REASONING_EFFORT_VALUES } from '@/lib/reasoning-effort'
+import { DEFAULT_REASONING_EFFORT, menuReasoningEffort, visibleReasoningEfforts } from '@/lib/reasoning-effort'
 import { cn } from '@/lib/utils'
 import { setMainModelAssignment } from '@/store/cron-model-impact'
 import { notifyError } from '@/store/notifications'
@@ -894,13 +894,13 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
             action={
               <Select
                 onValueChange={value => void writeAgentDefault('agent.reasoning_effort', value)}
-                value={effortValue}
+                value={menuReasoningEffort(effortValue, mainModel.model)}
               >
                 <SelectTrigger className={cn('min-w-28', CONTROL_TEXT)}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {REASONING_EFFORT_VALUES.map(value => (
+                  {(['none', ...visibleReasoningEfforts(mainModel.model)] as const).map(value => (
                     <SelectItem key={value} value={value}>
                       {value === 'none' ? m.reasoningOff : t.shell.modelOptions[value]}
                     </SelectItem>

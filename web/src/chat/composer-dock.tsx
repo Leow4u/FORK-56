@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ModelPickerDialog } from "@/components/ModelPickerDialog";
 import type { ConnectionState } from "@/lib/gatewayClient";
 import { formatModelStatusLabel } from "@/lib/model-status-label";
-import { EFFORT_OPTIONS } from "@/lib/reasoning-effort";
+import { effortMenuOptions, menuReasoningEffort } from "@/lib/reasoning-effort";
 import { cn } from "@/lib/utils";
 
 import type { ThinChatActivity } from "./chat-activity-strip";
@@ -84,20 +84,19 @@ export function ComposerDock({
     sessionId,
   });
 
+  const effortModel = sessionInfo.model || "";
+  const effort = menuReasoningEffort(sessionInfo.reasoningEffort || "medium", effortModel);
   const modelName =
     sessionInfo.model && sessionInfo.provider
       ? `${sessionInfo.provider}/${sessionInfo.model}`
       : sessionInfo.model || sessionInfo.provider || "";
   const modelLabel = formatModelStatusLabel(modelName || "Auto", {
-    reasoningEffort: sessionInfo.reasoningEffort,
+    reasoningEffort: effort,
     fastMode: sessionInfo.fast,
   });
-  const modelTitle = modelName
-    ? `${modelName} · effort ${sessionInfo.reasoningEffort || "medium"}`
-    : "Switch model";
+  const modelTitle = modelName ? `${modelName} · effort ${effort}` : "Switch model";
 
   const canPickModel = Boolean(gateway && sessionId);
-  const effort = sessionInfo.reasoningEffort || "medium";
 
   const dockPlaceholder = useMemo(
     () =>
@@ -126,7 +125,7 @@ export function ComposerDock({
         className="h-7 min-w-[4.5rem] max-w-[5.5rem] text-[0.7rem]"
         aria-label="Reasoning effort"
       >
-        {EFFORT_OPTIONS.map((opt) => (
+        {effortMenuOptions(effortModel).map((opt) => (
           <SelectOption key={opt.value} value={opt.value}>
             {opt.label}
           </SelectOption>
