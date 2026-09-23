@@ -319,7 +319,7 @@ describe('AccountFooter', () => {
 
     renderFooter()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Restart to finish' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Update' }))
 
     await vi.waitFor(() => {
       expect(apply).toHaveBeenCalled()

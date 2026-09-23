@@ -114,6 +114,34 @@ describe('ApplyingView', () => {
     expect(screen.queryByText(/this window will close/i)).toBeNull()
     expect(screen.queryByText(/don't reopen/i)).toBeNull()
   })
+
+  it('keeps the restart sheet to the title and hides the handoff caption', async () => {
+    $updateOverlayOpen.set(true)
+    $updateStatus.set({
+      supported: true,
+      updateAvailable: true,
+      behind: 0,
+      channel: 'chrome',
+      commits: []
+    } as DesktopUpdateStatus)
+    $updateApply.set({
+      applying: true,
+      stage: 'restart',
+      message:
+        'Restarting Work4You to swap the desktop shell. This window closes briefly and comes back on its own.',
+      percent: 100,
+      error: null,
+      command: null,
+      log: []
+    })
+
+    await renderUpdatesOverlay()
+
+    expect(screen.getByRole('heading', { name: 'Restarting Work4You…' })).toBeTruthy()
+    expect(screen.queryByText(/swap the desktop shell/i)).toBeNull()
+    expect(screen.queryByText(/comes back on its own/i)).toBeNull()
+    expect(screen.getByRole('progressbar', { name: 'Restarting Work4You…' })).toBeTruthy()
+  })
 })
 
 describe('BlockerView', () => {

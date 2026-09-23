@@ -106,6 +106,7 @@ export function UpdatesOverlay() {
       {/* This dialog has no inputs, so Radix's default autofocus would land on
           the close button and trigger its tooltip immediately on open. */}
       <DialogContent
+        {...(phase === 'applying' ? { 'aria-describedby': undefined } : {})}
         bodyClassName="overflow-hidden p-0 gap-0"
         className="max-w-sm"
         onOpenAutoFocus={preventCloseButtonAutoFocus}
@@ -416,14 +417,13 @@ function ApplyingView({ apply }: { apply: UpdateApplyState }) {
       ? Math.max(2, Math.min(100, Math.round(apply.percent)))
       : null
 
+  // The stage title is the whole sheet. Apply messages stay on the progress
+  // stream for logs and tooltips; they are not a second caption under the title.
   return (
     <div className="grid gap-6 px-8 pb-8 pt-10">
       <div className="flex flex-col items-center gap-4 text-center">
         <BrandMark className="size-12" />
         <DialogTitle className="text-center text-lg font-medium tracking-tight">{label}</DialogTitle>
-        <DialogDescription className="max-w-prose text-center text-sm leading-5 text-muted-foreground">
-          {apply.message || label}
-        </DialogDescription>
       </div>
 
       <Progress

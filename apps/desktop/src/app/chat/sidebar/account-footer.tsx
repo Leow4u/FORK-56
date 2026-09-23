@@ -82,10 +82,8 @@ export function AccountFooter() {
   const applying = updateApply.applying || updateApply.stage === 'restart'
   const updateLabel = resolveUpdateChipLabel({
     applying,
-    channel: updateStatus?.channel,
     copy: {
       restart: t.shell.statusbar.restart,
-      restartToFinish: t.updates.restartToFinish,
       update: t.common.update
     },
     prefetchPercent: updateStatus?.prefetchPercent,

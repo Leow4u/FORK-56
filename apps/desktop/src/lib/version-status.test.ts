@@ -136,13 +136,12 @@ describe('resolveVersionStatus', () => {
 })
 
 describe('resolveUpdateChipLabel', () => {
-  const chipCopy = { restart: 'restart', restartToFinish: 'Restart to finish', update: 'Update' }
+  const chipCopy = { restart: 'restart', update: 'Update' }
 
   it('shows percent while Stage A is still downloading or unpacking', () => {
     expect(
       resolveUpdateChipLabel({
         applying: false,
-        channel: 'chrome',
         copy: chipCopy,
         prefetchPercent: 42,
         prefetchReady: false,
@@ -151,27 +150,25 @@ describe('resolveUpdateChipLabel', () => {
     ).toBe('42%')
   })
 
-  it('shows Restart to finish once a packaged prefetch is ready', () => {
+  it('shows Update once a packaged prefetch is ready', () => {
     expect(
       resolveUpdateChipLabel({
         applying: false,
-        channel: 'chrome',
         copy: chipCopy,
         prefetchPercent: 100,
         prefetchReady: true,
         restarting: false
       })
-    ).toBe('Restart to finish')
+    ).toBe('Update')
     expect(
       resolveUpdateChipLabel({
         applying: false,
-        channel: 'installer',
         copy: chipCopy,
         prefetchPercent: 100,
         prefetchReady: true,
         restarting: false
       })
-    ).toBe('Restart to finish')
+    ).toBe('Update')
   })
 
   it('shows the installer download percent on the chip', () => {
@@ -187,7 +184,6 @@ describe('resolveUpdateChipLabel', () => {
     expect(
       resolveUpdateChipLabel({
         applying: false,
-        channel: 'installer',
         copy: chipCopy,
         prefetchPercent: 42,
         prefetchReady: false,
