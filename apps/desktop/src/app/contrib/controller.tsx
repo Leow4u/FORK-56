@@ -9,7 +9,6 @@ import { WINDOW_TITLEBAR_RAIL_CLASS } from '@/app/shell/stage-chrome'
 import { type StatusbarItem } from '@/app/shell/statusbar-controls'
 import { InlinePreviewDirective } from '@/components/assistant-ui/inline-preview-directive'
 import { IdleMount } from '@/components/idle-mount'
-import { $layoutEditMode, toggleLayoutEditMode } from '@/components/pane-shell/edit-mode'
 import { allPaneIds, group, groupLeafIds, split } from '@/components/pane-shell/tree/model'
 import { LayoutTreeRoot } from '@/components/pane-shell/tree/renderer'
 import type { DoubleTapContext } from '@/components/pane-shell/tree/renderer/drag-session'
@@ -43,7 +42,6 @@ import { discoverRuntimePlugins } from '@/contrib/runtime-loader'
 import { translateNow } from '@/i18n'
 import { NEW_SESSION_TITLE, sessionTitle as storedSessionTitle } from '@/lib/chat-runtime'
 import { FileText, LayoutDashboard, PanelBottom, Terminal, Upload, Zap } from '@/lib/icons'
-import { type KeybindContribution, KEYBINDS_AREA } from '@/lib/keybinds/actions'
 import { TRANSCRIPT_DIRECTIVE_AREA, type TranscriptDirectiveContribution } from '@/lib/transcript-directives'
 import { setYoloEnabled } from '@/lib/yolo-session'
 import { pruneComposerPopoutZones } from '@/store/composer-popout'
@@ -256,28 +254,6 @@ registry.registerMany([
   // Titlebar center stays empty on purpose: session title lives in tabs +
   // sidebar; place/cwd lives in the sidebar project tree. Center is drag
   // chrome (plugins can still contribute to titleBar.center if needed).
-  // Layout edit mode registers through the SAME declarative surfaces plugins
-  // use: a rebindable keybind (collision-checked in the panel) + a ⌘K row
-  // whose hotkey hint tracks the live binding.
-  {
-    id: 'layout.editMode',
-    area: KEYBINDS_AREA,
-    data: {
-      id: 'layout.editMode',
-      label: 'Toggle layout edit mode',
-      defaults: ['mod+shift+\\'],
-      run: toggleLayoutEditMode
-    } satisfies KeybindContribution
-  },
-  paletteToggle({
-    id: 'layout.editMode',
-    label: 'Toggle layout edit mode',
-    action: 'layout.editMode',
-    icon: LayoutDashboard,
-    keywords: ['layout', 'zones', 'panes', 'edit', 'rearrange'],
-    get: () => $layoutEditMode.get(),
-    set: enabled => $layoutEditMode.set(enabled)
-  }),
   // The agent's write -> see loop: rescan <work4you home>/desktop-plugins
   // without relaunching (same-id reloads dispose the previous incarnation).
   {
@@ -857,10 +833,10 @@ export function ContribController() {
               className="pointer-events-auto absolute z-10 flex w-max items-center gap-2 [-webkit-app-region:no-drag]"
               style={{
                 right:
-                  // Five static cluster buttons: four systemTools plus the
-                  // always-present right-sidebar toggle (titlebar-controls.tsx).
-                  // Keep in sync with wiring.tsx's SYSTEM_TOOL_COUNT.
-                  'max(calc(var(--workspace-right, 0px) + 0.5rem), calc(var(--titlebar-tools-right, 0.75rem) + 5 * var(--titlebar-control-size, 24px) + 0.5rem))'
+                  // HUD, haptics, and the right-sidebar toggle
+                  // (titlebar-controls.tsx). Keep in sync with wiring.tsx's
+                  // SYSTEM_TOOL_COUNT.
+                  'max(calc(var(--workspace-right, 0px) + 0.5rem), calc(var(--titlebar-tools-right, 0.75rem) + 3 * var(--titlebar-control-size, 24px) + 0.5rem))'
               }}
             />
           </div>

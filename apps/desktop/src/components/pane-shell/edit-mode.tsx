@@ -1,9 +1,9 @@
 /**
  * Layout edit mode — the shared toggle for the tree renderer's FancyZones-style
- * rearrangement (see tree/renderer.tsx). The toggle hotkey is a `keybinds`
- * contribution (`layout.editMode`, default ⌘⇧\ — the sibling of ⌘\ = flip
- * panes), so it's rebindable and collision-checked like every other action.
- * This hook only owns Escape-to-exit.
+ * rearrangement (see tree/renderer.tsx). The titlebar button and the
+ * `layout.editMode` keybind are not registered: the product ships the Default
+ * layout only. This hook still owns Escape-to-exit if something turns the
+ * mode on.
  */
 
 import { atom } from 'nanostores'
