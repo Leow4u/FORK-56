@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 127.0.0.1 --port 5173"
+    "preview": "vite preview --host 127.0.0.1 --port 5173",
+    "test": "node --experimental-strip-types --test src/lib/download-ctas.test.ts"
   },
   "dependencies": {
     "react": "^19.1.0",

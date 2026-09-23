@@ -5,6 +5,10 @@
   gap: 0.5rem;
 }
 
+.center {
+  justify-content: center;
+}
+
 .primary,
 .ghost {
   display: inline-flex;
