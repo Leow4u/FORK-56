@@ -50,7 +50,6 @@ import {
   reorderStepHaptic
 } from '@/lib/reorder'
 import { cn } from '@/lib/utils'
-import { $hasMultipleConnections } from '@/store/connections'
 import { notify, notifyError } from '@/store/notifications'
 import {
   $activeGatewayProfile,
@@ -69,14 +68,14 @@ import {
   setShowAllProfiles,
   sortByProfileOrder
 } from '@/store/profile'
-import { runExportProfileFlow, runImportProfileFlow } from '@/store/profile-share'
+import { runExportProfileFlow } from '@/store/profile-share'
 import type { ProfileInfo } from '@/types/work4you'
 import { getProfileSoul, updateProfileSoul } from '@/work4you'
 
 import { CreateProfileDialog } from '../../profiles/create-profile-dialog'
 import { DeleteProfileDialog } from '../../profiles/delete-profile-dialog'
 import { RenameProfileDialog } from '../../profiles/rename-profile-dialog'
-import { PROFILES_ROUTE, SETTINGS_ROUTE } from '../../routes'
+import { PROFILES_ROUTE } from '../../routes'
 
 import { useProfilePrewarm } from './use-profile-prewarm'
 import { useProfileRailRefreshOnActive } from './use-profile-rail-refresh-on-active'
@@ -124,7 +123,6 @@ export function ProfileRail() {
   const gatewayProfile = useStore($activeGatewayProfile)
   const order = useStore($profileOrder)
   const colors = useStore($profileColors)
-  const multipleConnections = useStore($hasMultipleConnections)
   const navigate = useNavigate()
 
   const [createOpen, setCreateOpen] = useState(false)
@@ -276,7 +274,6 @@ export function ProfileRail() {
             activeKey={isAll ? null : activeKey}
             colors={colors}
             onCreate={() => setCreateOpen(true)}
-            onImport={() => void runImportProfileFlow()}
             onSelect={selectProfile}
             profiles={named}
           />
@@ -318,7 +315,6 @@ export function ProfileRail() {
           )}
 
           <AddProfileButton label={p.newProfile} onClick={() => setCreateOpen(true)} />
-          <ImportProfileButton label={p.importProfile} />
         </div>
       )}
 
@@ -327,18 +323,6 @@ export function ProfileRail() {
           single-profile user must be able to edit the default's persona
           without first creating a throwaway second profile. */}
       <ProfilePill active={false} glyph="ellipsis" label={p.manageProfiles} onSelect={() => navigate(PROFILES_ROUTE)} />
-
-      {/* Multi-gateway discoverability: before a second source exists, a plug
-          pinned beside Manage deep-links to the unified Gateways page. Once
-          there are several sources, the same action lives in their selector. */}
-      {!multipleConnections && (
-        <ProfilePill
-          active={false}
-          glyph="plug"
-          label={p.connectGateway}
-          onSelect={() => navigate(`${SETTINGS_ROUTE}?tab=gateway`)}
-        />
-      )}
 
       {/* Land in the new profile on a fresh chat (selectProfile triggers the
           new-session reset), not stuck on the session you were just in. */}
@@ -465,24 +449,6 @@ function AddProfileButton({ label, onClick }: { label: string; onClick: () => vo
   )
 }
 
-// Import-archive door beside the "+": adopt a shared profile bundle (theme,
-// skills, layout) as a new profile. Same chrome as AddProfileButton; the whole
-// flow (picker → import → apply overlay → switch) lives in the store.
-function ImportProfileButton({ label }: { label: string }) {
-  return (
-    <Tip label={label}>
-      <button
-        aria-label={label}
-        className="grid size-5 shrink-0 place-items-center rounded-[3px] text-(--ui-text-tertiary) opacity-55 transition hover:bg-(--ui-control-hover-background) hover:text-foreground hover:opacity-100"
-        onClick={() => void runImportProfileFlow()}
-        type="button"
-      >
-        <Codicon name="cloud-download" size="0.75rem" />
-      </button>
-    </Tip>
-  )
-}
-
 // The condensed rail: every named profile in one compact menu. The trigger
 // shows the active profile (tinted initial + name); on default/all scope it
 // falls back to the placeholder since the left toggle pill carries that state.
@@ -490,14 +456,12 @@ function ProfileDropdown({
   activeKey,
   colors,
   onCreate,
-  onImport,
   onSelect,
   profiles
 }: {
   activeKey: null | string
   colors: Record<string, string>
   onCreate: () => void
-  onImport: () => void
   onSelect: (name: string) => void
   profiles: ProfileInfo[]
 }) {
@@ -540,10 +504,6 @@ function ProfileDropdown({
         <DropdownMenuItem onSelect={onCreate}>
           <Codicon aria-hidden="true" name="add" size="0.875rem" />
           <span className="truncate">{p.newProfile}</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={onImport}>
-          <Codicon aria-hidden="true" name="cloud-download" size="0.875rem" />
-          <span className="truncate">{p.importProfile}</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup onValueChange={name => name && onSelect(name)} value={value}>

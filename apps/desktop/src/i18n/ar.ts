@@ -2168,6 +2168,11 @@ export const ar = defineLocale({
     skillsLabel: 'المهارات',
     notSet: 'غير مضبوط',
     soulDesc: 'الموجّه (prompt) النظامي وتعليمات الشخصية المضمّنة في هذا الملف الشخصي.',
+    personaTitle: 'الشخصية',
+    personaFile: 'SOUL.md',
+    inUse: 'قيد الاستخدام',
+    useProfile: 'استخدم هذا الملف الشخصي',
+    personaPlaceholder: 'صف كيف يجب أن يتصرف هذا الوكيل.',
     soulOptional: 'اختياري',
     soulPlaceholder: mode =>
       `الموجّه (prompt) النظامي / الشخصية لهذا الملف الشخصي.\nاتركه فارغا للإبقاء على افتراضي ${mode}.`,
