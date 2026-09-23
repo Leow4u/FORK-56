@@ -6635,7 +6635,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
               'Name',
               jsx(Input, {
                 autoFocus: true,
-                placeholder: 'inbox-triage',
+                placeholder: 'research-assistant',
                 value: name,
                 onChange: event => setName(event.target.value)
               })
@@ -6699,7 +6699,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
             labeled(
               'Title',
               jsx(Input, {
-                placeholder: 'Inbox Triage',
+                placeholder: 'Research assistant',
                 value: title,
                 onChange: event => setTitle(event.target.value)
               })
