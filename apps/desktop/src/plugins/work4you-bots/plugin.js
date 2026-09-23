@@ -51,6 +51,7 @@ import {
   relativeTime,
   ScrollArea,
   SearchField,
+  SegmentedControl,
   Select,
   SelectContent,
   SelectItem,
@@ -2244,30 +2245,18 @@ function AvatarPicker({ shape, color, image, onShape, onColor, onImage, generate
     }
   }
 
-  const tabButton = (id, label) =>
-    jsx(
-      'button',
-      {
-        type: 'button',
-        className: cn(
-          'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-          tab === id
-            ? 'bg-(--chrome-action-hover) text-foreground'
-            : 'text-(--ui-text-tertiary) hover:text-(--ui-text-secondary)'
-        ),
-        onClick: () => goTab(id),
-        children: label
-      },
-      id
-    )
-
   return jsxs('div', {
-    className: 'grid justify-items-center gap-3',
+    className: 'grid w-full min-w-0 justify-items-center gap-4',
     children: [
-      // Tab pills: Bot | Generate | Upload | Pet
-      jsxs('div', {
-        className: 'flex items-center gap-1',
-        children: [tabButton('bot', 'Bot'), tabButton('generate', 'Generate'), tabButton('upload', 'Upload'), tabButton('pet', 'Pet')]
+      jsx(SegmentedControl, {
+        value: tab,
+        onChange: goTab,
+        options: [
+          { id: 'bot', label: 'Bot' },
+          { id: 'generate', label: 'Generate' },
+          { id: 'upload', label: 'Upload' },
+          { id: 'pet', label: 'Pet' }
+        ]
       }),
 
       image && tab !== 'generate'
@@ -2348,7 +2337,8 @@ function AvatarPicker({ shape, color, image, onShape, onColor, onImage, generate
                     ]
                   }),
                   jsx('div', {
-                    className: 'text-center text-[0.65rem] text-(--ui-text-quaternary)',
+                    className:
+                      'text-center text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
                     children: locked ? 'Face locked — renaming won\u2019t change it.' : 'Face follows the name.'
                   }),
                   jsx(Button, {
@@ -2447,7 +2437,8 @@ function AvatarPicker({ shape, color, image, onShape, onColor, onImage, generate
                 describe.trim()
                   ? null
                   : jsx('div', {
-                      className: 'text-center text-[0.65rem] text-(--ui-text-quaternary)',
+                      className:
+                        'text-center text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
                       children: 'Leave blank to generate from the agent\u2019s name and description.'
                     })
               ]
@@ -5286,7 +5277,7 @@ function ModelPicker({ value, onChange, placeholderModel = 'gateway default' }) 
             }
           },
           children: [
-            jsx(SelectTrigger, { className: 'h-8 rounded-md', children: jsx(SelectValue, {}) }),
+            jsx(SelectTrigger, { children: jsx(SelectValue, {}) }),
             jsxs(SelectContent, {
               children: [
                 jsx(SelectItem, { value: NONE, children: 'Inherit (launch profile)' }),
@@ -5310,7 +5301,7 @@ function ModelPicker({ value, onChange, placeholderModel = 'gateway default' }) 
               value: value.model || (models[0] ?? ''),
               onValueChange: v => onChange({ model: v }),
               children: [
-                jsx(SelectTrigger, { className: 'h-8 rounded-md', children: jsx(SelectValue, {}) }),
+                jsx(SelectTrigger, { children: jsx(SelectValue, {}) }),
                 jsx(SelectContent, {
                   children: models.map(m => jsx(SelectItem, { value: m, children: displayModelName(m) }, m))
                 })
@@ -5467,7 +5458,7 @@ function AdvancedProfileConfig({ bot, state, setState }) {
         labeled(
           'Capabilities (applies immediately — skills, tools, MCP)',
           jsx('div', {
-            className: 'overflow-hidden rounded-md border border-(--ui-stroke-secondary)',
+            className: 'min-w-0 overflow-hidden rounded-(--ui-stage-radius) border border-(--ui-stroke-tertiary)',
             style: { height: 460, minHeight: 300, resize: 'vertical', overflow: 'auto' },
             children: jsx(SkillsView, { embedded: true, fixedProfile: bot })
           })
@@ -5984,10 +5975,11 @@ async function applyAdvancedConfig(bot, state) {
 
 function labeled(label, control) {
   return jsxs('div', {
-    className: 'grid gap-1.5',
+    className: 'flex w-full min-w-0 flex-col gap-2',
     children: [
       jsx('label', {
-        className: 'text-xs font-medium text-(--ui-text-secondary)',
+        className:
+          'text-[length:var(--conversation-caption-font-size)] font-medium leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
         children: label
       }),
       control
@@ -6094,11 +6086,9 @@ function EditProfileDialog({ bot, open, onClose }) {
     open,
     onOpenChange: value => !value && !busy && onClose(),
     children: jsxs(DialogContent, {
-      className: advanced ? 'max-w-3xl' : 'max-w-sm',
-      // Same resizable-window treatment as the create dialog.
-      style: advanced
-        ? { resize: 'both', overflow: 'auto', minWidth: 420, minHeight: 360, maxWidth: '95vw', maxHeight: '90vh' }
-        : undefined,
+      'data-panel-card': '',
+      className: cn('min-w-0', advanced ? 'max-w-3xl' : 'max-w-sm'),
+      bodyClassName: 'min-w-0 gap-5 overflow-x-hidden',
       children: [
         jsxs(DialogHeader, {
           children: [
@@ -6107,7 +6097,7 @@ function EditProfileDialog({ bot, open, onClose }) {
           ]
         }),
         jsxs('div', {
-          className: 'grid gap-4',
+          className: 'grid min-w-0 gap-5',
           children: [
             jsx('div', {
               className: 'flex justify-center py-1',
@@ -6139,25 +6129,27 @@ function EditProfileDialog({ bot, open, onClose }) {
                 onChange: event => setDescription(event.target.value)
               })
             ),
-            jsxs('button', {
+            jsxs(Button, {
               type: 'button',
-              className:
-                'flex items-center gap-1 text-xs font-medium text-(--ui-text-tertiary) hover:text-(--ui-text-secondary)',
+              variant: 'ghost',
+              size: 'sm',
+              className: 'w-fit text-(--ui-text-tertiary)',
               onClick: () => setAdvanced(v => !v),
               children: [
-                jsx(Codicon, { name: advanced ? 'chevron-down' : 'chevron-right', className: 'text-[0.8rem]' }),
+                jsx(Codicon, { name: advanced ? 'chevron-down' : 'chevron-right' }),
                 'Advanced — model, skills, toolsets, SOUL.md'
               ]
             }),
             advanced
               ? jsx('div', {
-                  className: 'rounded-md border border-(--ui-stroke-secondary) p-3',
+                  className: 'grid min-w-0 gap-4 border-t border-(--ui-stroke-tertiary) pt-4',
                   children: jsx(AdvancedProfileConfig, { bot: bot.name, state: adv, setState: setAdv })
                 })
               : null
           ]
         }),
         jsxs(DialogFooter, {
+          className: 'min-w-0 border-t border-(--ui-stroke-tertiary) pt-3',
           children: [
             jsx(Button, { variant: 'ghost', disabled: busy, onClick: onClose, children: 'Cancel' }),
             jsx(Button, { disabled: busy, onClick: submit, children: busy ? 'Saving…' : 'Save' })
@@ -6601,13 +6593,12 @@ function CreateAgentDialog({ open, onClose, roster }) {
       }
     },
     children: jsxs(DialogContent, {
-      className: advanced ? 'max-w-3xl' : 'max-w-md',
-      // Native resize handle (bottom-right corner): the dialog becomes a
-      // window the user can grow/shrink. overflow:auto is required for CSS
-      // resize to engage; caps keep it on screen.
-      style: advanced
-        ? { resize: 'both', overflow: 'auto', minWidth: 420, minHeight: 360, maxWidth: '95vw', maxHeight: '90vh' }
-        : undefined,
+      // Same card as the composer menus: stage radius, elevated fill, floating
+      // shadow. The attribute is what the unlayered rule keys on — utility
+      // classes lose to the generic dialog skin.
+      'data-panel-card': '',
+      className: cn('min-w-0', advanced ? 'max-w-3xl' : 'max-w-md'),
+      bodyClassName: 'min-w-0 gap-5 overflow-x-hidden',
       children: [
         jsxs(DialogHeader, {
           children: [
@@ -6618,7 +6609,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
           ]
         }),
         jsxs('div', {
-          className: 'grid gap-3.5',
+          className: 'grid min-w-0 gap-5',
           children: [
             jsx('div', {
               className: 'flex justify-center py-1',
@@ -6644,7 +6635,8 @@ function CreateAgentDialog({ open, onClose, roster }) {
             ),
             taken
               ? jsx('div', {
-                  className: 'text-xs text-(--ui-accent)',
+                  className:
+                    'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-accent)',
                   children: remoteTarget
                     ? `An agent named "${slug}" already exists on ${targetLabel}.`
                     : `An agent named "${slug}" already exists.`
@@ -6670,7 +6662,6 @@ function CreateAgentDialog({ open, onClose, roster }) {
                     },
                     children: [
                       jsx(SelectTrigger, {
-                        className: 'h-8 rounded-md',
                         children: jsx(SelectValue, {})
                       }),
                       jsx(SelectContent, {
@@ -6694,7 +6685,8 @@ function CreateAgentDialog({ open, onClose, roster }) {
               : null,
             remoteTarget
               ? jsx('div', {
-                  className: 'text-[0.7rem] leading-5 text-(--ui-text-tertiary)',
+                  className:
+                    'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
                   children: `The agent is created on ${targetLabel} and appears in the roster as a Connections bot. Chat routes to that machine.`
                 })
               : null,
@@ -6715,10 +6707,11 @@ function CreateAgentDialog({ open, onClose, roster }) {
                 onChange: event => setDescription(event.target.value)
               })
             ),
-            jsxs('button', {
+            jsxs(Button, {
               type: 'button',
-              className:
-                'flex items-center gap-1 text-xs font-medium text-(--ui-text-tertiary) hover:text-(--ui-text-secondary)',
+              variant: 'ghost',
+              size: 'sm',
+              className: 'w-fit text-(--ui-text-tertiary)',
               onClick: () => {
                 setAdvanced(v => {
                   if (!v) {
@@ -6728,16 +6721,15 @@ function CreateAgentDialog({ open, onClose, roster }) {
                 })
               },
               children: [
-                jsx(Codicon, { name: advanced ? 'chevron-down' : 'chevron-right', className: 'text-[0.8rem]' }),
+                jsx(Codicon, { name: advanced ? 'chevron-down' : 'chevron-right' }),
                 'Advanced'
               ]
             }),
             advanced
               ? jsxs('div', {
-                  className: 'grid gap-3 rounded-md border border-(--ui-stroke-secondary) p-3',
+                  className: 'grid min-w-0 gap-4 border-t border-(--ui-stroke-tertiary) pt-4',
                   children: [
-                    jsx('div', {
-                      className: 'flex gap-1',
+                    jsx(SegmentedControl, {
                       // Newer desktops export the whole Capabilities surface —
                       // one live tab replaces the three staged checklists.
                       // The live Capabilities surface (SkillsView) binds to
@@ -6747,7 +6739,8 @@ function CreateAgentDialog({ open, onClose, roster }) {
                       // ITS machine. Builds without that routing keep the
                       // staged checklists for remote targets (their catalog
                       // reads already route to the target).
-                      children: (SkillsView && (!remoteTarget || skillsViewRoutesConnections)
+                      value: advTab,
+                      options: (SkillsView && (!remoteTarget || skillsViewRoutesConnections)
                         ? [
                             ['general', 'General'],
                             ['capabilities', 'Capabilities']
@@ -6758,40 +6751,25 @@ function CreateAgentDialog({ open, onClose, roster }) {
                             ['toolsets', 'Tools'],
                             ['mcp', 'MCP']
                           ]
-                      ).map(([id, label]) =>
-                        jsx(
-                          'button',
-                          {
-                            type: 'button',
-                            className: cn(
-                              'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                              advTab === id
-                                ? 'bg-(--chrome-action-hover) text-(--ui-text-primary)'
-                                : 'text-(--ui-text-tertiary) hover:text-(--ui-text-secondary)'
-                            ),
-                            onClick: () => {
-                              setAdvTab(id)
-                              setCapFilter('')
-                              if (id === 'capabilities') {
-                                // The live surface needs a real profile —
-                                // materialize it now (same lazy-create door
-                                // the MCP setup buttons use).
-                                void ensureAgentCreated()
-                                  .then(created => created && setCreatedForCaps(created))
-                                  .catch(err => host.notifyError(err, 'Could not create the profile yet'))
-                              } else if (id !== 'general') {
-                                ensureCaps()
-                              }
-                            },
-                            children: label
-                          },
-                          id
-                        )
-                      )
+                      ).map(([id, label]) => ({ id, label })),
+                      onChange: id => {
+                        setAdvTab(id)
+                        setCapFilter('')
+                        if (id === 'capabilities') {
+                          // The live surface needs a real profile —
+                          // materialize it now (same lazy-create door
+                          // the MCP setup buttons use).
+                          void ensureAgentCreated()
+                            .then(created => created && setCreatedForCaps(created))
+                            .catch(err => host.notifyError(err, 'Could not create the profile yet'))
+                        } else if (id !== 'general') {
+                          ensureCaps()
+                        }
+                      }
                     }),
                     advTab === 'general'
                       ? jsxs('div', {
-                          className: 'grid gap-3.5',
+                          className: 'grid min-w-0 gap-5',
                           children: [
                             labeled(
                               remoteTarget ? `Clone from profile (on ${targetLabel})` : 'Clone from profile',
@@ -6804,7 +6782,6 @@ function CreateAgentDialog({ open, onClose, roster }) {
                                 },
                                 children: [
                                   jsx(SelectTrigger, {
-                                    className: 'h-8 rounded-md',
                                     children: jsx(SelectValue, {})
                                   }),
                                   jsxs(SelectContent, {
@@ -6844,7 +6821,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
                               })
                             ),
                             jsxs('label', {
-                              className: 'flex items-center gap-2 text-xs text-(--ui-text-secondary)',
+                              className: 'flex items-center gap-2 text-[length:var(--conversation-text-font-size)] text-foreground',
                               children: [
                                 jsx(Checkbox, {
                                   checked: shareAuth,
@@ -6854,12 +6831,13 @@ function CreateAgentDialog({ open, onClose, roster }) {
                               ]
                             }),
                             jsx('div', {
-                              className: 'pl-6 pt-0.5 text-[0.7rem] leading-5 text-(--ui-text-tertiary)',
+                              className:
+                                'pl-6 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
                               children:
                                 'OAuth logins stay shared (not copied), so token refreshes never invalidate each other. Uncheck for an isolated auth snapshot. Fresh does not copy .env or WhatsApp from the main profile — pick Clone to copy those.'
                             }),
                             jsxs('label', {
-                              className: 'flex items-center gap-2 text-xs text-(--ui-text-secondary)',
+                              className: 'flex items-center gap-2 text-[length:var(--conversation-text-font-size)] text-foreground',
                               children: [
                                 jsx(Checkbox, {
                                   checked: noSkills,
@@ -6887,7 +6865,8 @@ function CreateAgentDialog({ open, onClose, roster }) {
                                 })
                               })
                             : jsx('div', {
-                                className: 'overflow-hidden rounded-md border border-(--ui-stroke-secondary)',
+                                className:
+                                  'min-w-0 overflow-hidden rounded-(--ui-stage-radius) border border-(--ui-stroke-tertiary)',
                                 style: { height: 440, minHeight: 280, resize: 'vertical', overflow: 'auto' },
                                 // The REAL core Capabilities surface (skills +
                                 // one-click hub installs + tools + MCP), pinned
@@ -7074,13 +7053,15 @@ function CreateAgentDialog({ open, onClose, roster }) {
               : null,
             error
               ? jsx('div', {
-                  className: 'rounded-md border border-(--ui-stroke-secondary) px-3 py-2 text-xs text-(--ui-accent)',
+                  className:
+                    'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-accent)',
                   children: error
                 })
               : null
           ]
         }),
         jsxs(DialogFooter, {
+          className: 'min-w-0 border-t border-(--ui-stroke-tertiary) pt-3',
           children: [
             jsx(Button, {
               variant: 'ghost',

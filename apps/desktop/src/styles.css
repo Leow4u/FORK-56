@@ -1737,6 +1737,20 @@ body.guest-pointer-lock :is(webview, iframe) {
   color: var(--ui-text-tertiary);
 }
 
+/* Agent dialogs wear the composer menu card. The generic dialog rule above
+   paints a tight radius (the chrome scale) and the menu shadow; this wins
+   so New Agent / Edit Profile match the floating composer panels. */
+[data-slot='dialog-content'][data-panel-card] {
+  border-radius: var(--ui-stage-radius);
+  border-color: var(--ui-stroke-secondary);
+  background: var(--ui-bg-elevated);
+  box-shadow: var(--shadow-work4you);
+  font-size: var(--conversation-text-font-size);
+  letter-spacing: normal;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 /* The prompt card and its workspace tray share one radius, independent of
    the tight chrome scale. */
 [data-slot='composer-root'],
