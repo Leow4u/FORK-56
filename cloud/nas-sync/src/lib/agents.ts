@@ -10,6 +10,7 @@ import {
 } from './cloud-sizes'
 import {
   assertFlyApiToken,
+  cloudResizeShouldStart,
   cloudSizeForTier,
   ensureOrgCloudInstanceWith,
   planDiskGb,
@@ -538,7 +539,10 @@ export async function resizeOrgCloudInstance(
     const state = (machine.state ?? '').toLowerCase()
     const flyRunning = state === 'started' || state === 'starting'
     if (flyRunning) await drainAgentGateway(working)
-    const bringBack = flyRunning || row.status === 'online'
+    const bringBack = cloudResizeShouldStart({
+      flyRunning,
+      status: row.status,
+    })
     await resizeMachineGuest({
       appName,
       machineId,
@@ -700,11 +704,120 @@ async function resolveEnsuredModel(args: {
   return explicit || HOUSE_MODEL_ID
 }
 
+function flyErrorStatus(error: unknown): number | undefined {
+  if (typeof error === 'object' && error && 'status' in error) {
+    const status = (error as { status?: unknown }).status
+    return typeof status === 'number' ? status : undefined
+  }
+  return undefined
+}
+
+async function flyMachineState(
+  appName: string,
+  machineId: string,
+): Promise<string | 'missing'> {
+  try {
+    const machine = await getMachine(appName, machineId)
+    return (machine.state ?? '').toLowerCase()
+  } catch (error) {
+    if (flyErrorStatus(error) === 404) return 'missing'
+    throw error
+  }
+}
+
+/**
+ * Stop the Fly machine and keep the row, app, and volume.
+ * A missing machine still parks the row. A hard failure leaves status
+ * `error` with the machine id so the next Free ensure tries again.
+ */
+export async function parkOrgCloudInstance(row: AgentInstance): Promise<AgentDto> {
+  assertFlyApiToken(process.env.FLY_API_TOKEN)
+  if ((row.status ?? '').toLowerCase() === 'parked') return toAgentDto(row)
+  if (!row.flyAppName || !row.flyMachineId) {
+    return markProvisionError(row.id, new Error('Instância sem máquina Fly'))
+  }
+  const appName = row.flyAppName
+  const machineId = row.flyMachineId
+  try {
+    const state = await flyMachineState(appName, machineId)
+    const running = state === 'started' || state === 'starting'
+    if (running) await drainAgentGateway(row)
+    if (state !== 'missing' && state !== 'stopped') {
+      await stopMachine(appName, machineId)
+    }
+    const updated = await prisma.agentInstance.update({
+      where: { id: row.id },
+      data: {
+        status: 'parked',
+        stoppedAt: new Date(),
+        dashboardGatewayState: 'down',
+        errorMessage: null,
+      },
+    })
+    return toAgentDto(updated)
+  } catch (error) {
+    return markProvisionError(row.id, error)
+  }
+}
+
+async function restoreParked(
+  row: AgentInstance,
+  errorMessage: string,
+): Promise<AgentDto> {
+  const updated = await prisma.agentInstance.update({
+    where: { id: row.id },
+    data: {
+      status: 'parked',
+      stoppedAt: new Date(),
+      dashboardGatewayState: 'down',
+      errorMessage: errorMessage.slice(0, 500),
+    },
+  })
+  return toAgentDto(updated)
+}
+
+/**
+ * Start a machine parked on Free. A failed wake stays `parked` so the
+ * next paid ensure retries. A user stop is not this path.
+ */
+export async function wakeParkedCloudInstance(
+  row: AgentInstance,
+): Promise<AgentDto> {
+  if ((row.status ?? '').toLowerCase() !== 'parked') return toAgentDto(row)
+  if (!row.flyAppName || !row.flyMachineId) {
+    return markProvisionError(row.id, new Error('Instância sem máquina Fly'))
+  }
+  const appName = row.flyAppName
+  const machineId = row.flyMachineId
+  try {
+    const started = await startAgent(row)
+    if (started.status === 'online') return started
+    const state = await flyMachineState(appName, machineId)
+    if (state === 'started' || state === 'starting') return started
+    return restoreParked(
+      row,
+      started.errorMessage || 'A instância ainda não ficou online.',
+    )
+  } catch (error) {
+    try {
+      const state = await flyMachineState(appName, machineId)
+      if (state === 'started' || state === 'starting') {
+        const current = await getAgent(row.orgId, row.id)
+        return toAgentDto(current ?? row)
+      }
+    } catch {
+      // Keep the parked row so the next paid ensure can retry.
+    }
+    const msg = error instanceof Error ? error.message : 'wake failed'
+    return restoreParked(row, msg)
+  }
+}
+
 /**
  * Create the org's single Cloud VM, resume one whose Fly machine never
- * landed, resize one whose size no longer matches the paid plan, or return
- * the one that already matches. Free with no VM refuses. POST /api/agents
- * must not call this.
+ * landed, resize one whose size no longer matches the paid plan, park one
+ * when the org returns to Free, or wake a parked machine on the next paid
+ * plan. Free with no VM refuses. POST /api/agents must not call this.
  */
 export async function ensureOrgCloudInstance(args: {
   org: Org
@@ -718,6 +831,8 @@ export async function ensureOrgCloudInstance(args: {
   let createdAgent: AgentDto | null = null
   let resumedAgent: AgentDto | null = null
   let resizedAgent: AgentDto | null = null
+  let parkedAgent: AgentDto | null = null
+  let wokenAgent: AgentDto | null = null
   const result: CloudEnsureResult<CloudInstanceRef> = await ensureOrgCloudInstanceWith({
     tierId: args.org.subscriptionTierId,
     name: args.name,
@@ -773,6 +888,34 @@ export async function ensureOrgCloudInstance(args: {
         size,
       }
     },
+    park: async (instance) => {
+      const row = await getAgent(args.org.id, instance.id)
+      if (!row) throw new Error('cloud_instance_missing')
+      const agent = await parkOrgCloudInstance(row)
+      parkedAgent = agent
+      return {
+        id: agent.id,
+        createdAt: row.createdAt,
+        status: agent.status,
+        flyMachineId: row.flyMachineId,
+        updatedAt: row.updatedAt,
+        size: row.size,
+      }
+    },
+    wake: async (instance) => {
+      const row = await getAgent(args.org.id, instance.id)
+      if (!row) throw new Error('cloud_instance_missing')
+      const agent = await wakeParkedCloudInstance(row)
+      wokenAgent = agent
+      return {
+        id: agent.id,
+        createdAt: row.createdAt,
+        status: agent.status,
+        flyMachineId: row.flyMachineId,
+        updatedAt: row.updatedAt,
+        size: row.size,
+      }
+    },
   })
 
   if (!result.ok) return result
@@ -783,6 +926,14 @@ export async function ensureOrgCloudInstance(args: {
 
   if (resumedAgent) {
     return { ok: true, created: false, agent: resumedAgent }
+  }
+
+  if (parkedAgent) {
+    return { ok: true, created: false, agent: parkedAgent }
+  }
+
+  if (wokenAgent) {
+    return { ok: true, created: false, agent: wokenAgent }
   }
 
   if (result.created) {
@@ -993,8 +1144,14 @@ export async function refreshAgentStatus(
       status = 'online'
       gateway = 'active'
     } else if (state === 'stopped' || state === 'suspended') {
-      status = 'stopped'
-      gateway = 'down'
+      // A list refresh must not turn a Free park into a user stop.
+      if ((row.status || '').toLowerCase() === 'parked') {
+        status = 'parked'
+        gateway = 'down'
+      } else {
+        status = 'stopped'
+        gateway = 'down'
+      }
     } else if (state === 'created' || state === 'starting') {
       status = 'starting'
       gateway = 'unknown'

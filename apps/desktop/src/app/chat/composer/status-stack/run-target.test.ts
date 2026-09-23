@@ -221,6 +221,46 @@ describe('composerCloudPortalFromDiscover', () => {
     })
   })
 
+  it('does not connect a machine parked on Free', () => {
+    expect(
+      composerCloudPortalFromDiscover({
+        agents: [
+          {
+            createdAt: '2026-01-01T00:00:00.000Z',
+            dashboardUrl: 'https://parked.example',
+            id: 'parked',
+            status: 'parked'
+          }
+        ],
+        entitlement: { canUseCloud: false },
+        org: { id: 'org_1', slug: 'acme' }
+      })
+    ).toEqual({ status: 'upgrade' })
+    expect(
+      composerCloudPortalFromDiscover({
+        agents: [
+          {
+            createdAt: '2026-02-01T00:00:00.000Z',
+            dashboardUrl: 'https://parked.example',
+            id: 'parked',
+            status: 'parked'
+          },
+          {
+            createdAt: '2026-01-01T00:00:00.000Z',
+            dashboardUrl: 'https://old.example',
+            id: 'old',
+            status: 'stopped'
+          }
+        ],
+        entitlement: { canUseCloud: false },
+        org: { slug: 'acme' }
+      })
+    ).toEqual({
+      source: { cloudOrg: 'acme', remoteUrl: 'https://old.example' },
+      status: 'ready'
+    })
+  })
+
   it('ignores self-hosted rows and refuses Free when nothing is addressable', () => {
     expect(
       composerCloudPortalFromDiscover({

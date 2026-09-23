@@ -5,6 +5,7 @@ import {
   stopAgent,
   updateAgentImage,
 } from '@/lib/agents'
+import { cloudLifecycleActionAllowed } from '@/lib/cloud-entitlement'
 import { resolvePortalOrg } from '@/lib/request-auth'
 
 export const runtime = 'nodejs'
@@ -33,6 +34,19 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const row = await getAgent(resolved.org.id, id)
   if (!row) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 })
+  }
+
+  if (
+    (action === 'start' || action === 'update') &&
+    !cloudLifecycleActionAllowed(resolved.org.subscriptionTierId, action)
+  ) {
+    return NextResponse.json(
+      {
+        error: 'paid_plan_required',
+        message: 'A Cloud volta com um plano Plus, Super ou Ultra.',
+      },
+      { status: 403 },
+    )
   }
 
   if (action === 'stop') {
