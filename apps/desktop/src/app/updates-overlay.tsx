@@ -241,6 +241,7 @@ function IdleView({
   // show (e.g. pip/non-git backend), degrade to honest "no release notes" copy
   // instead of generic filler.
   const { title, body } = resolveUpdateCopy({ target, shownItems, copy: u, channel: status.channel })
+
   const finalize = resolveUpdateFinalizeAction({
     channel: status.channel,
     copy: { restartToFinish: u.restartToFinish, updateNow: u.updateNow },
@@ -250,8 +251,9 @@ function IdleView({
   })
 
   const rawPrefetchPercent = status.prefetchPercent
-  const preparing =
-    typeof rawPrefetchPercent === 'number' && !status.prefetchReady && !status.prefetchError
+
+  const preparing = typeof rawPrefetchPercent === 'number' && !status.prefetchReady && !status.prefetchError
+
   const prefetchPercent = preparing ? Math.max(2, Math.min(100, Math.round(rawPrefetchPercent))) : null
 
   return (

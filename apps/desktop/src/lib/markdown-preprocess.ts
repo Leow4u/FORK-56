@@ -49,12 +49,14 @@ const LOCAL_PREVIEW_URL_RE = /(^|\s)https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0
 const LOCAL_PREVIEW_ONLY_RE = /^https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?\/?$/i
 const URL_ONLY_LINE_RE = /^\s*https?:\/\/\S+\s*$/i
 const CITATION_MARKER_RE = /(?<=[\p{L}\p{N})\].,!?:;"'”’])\[(?:\d+(?:\s*,\s*\d+)*)\](?!\()/gu
+
 // Markdown links. Absolute/file/tilde/Windows paths plus relative Office/PDF/zip
 // (`[Baixar a planilha](nomes.xlsx)`) are rewritten below; https, fragments,
 // and relative `.md` (`docs/guide.md`) stay on Streamdown's existing path.
 // Negative lookbehind keeps image syntax (`![alt](path)`) on its pipeline.
 const MARKDOWN_HREF_LINK_RE =
   /(?<!!)\[(?<label>[^\]\n]+)\]\((?<target><[^>\n]+>|[^)\s]+)(?:\s+(?:"[^"]*"|'[^']*'))?\)/gi
+
 const HTML_DOC_LINK_RE = /<a\s+[^>]*\bhref\s*=\s*["'](?<target>[^"']+)["'][^>]*>(?<label>[\s\S]*?)<\/a>/gi
 
 /**
@@ -204,7 +206,11 @@ function routeFileLinksToPreview(text: string): string {
 
   return fromMarkdown.replace(HTML_DOC_LINK_RE, (match: string, ...args: unknown[]) => {
     const groups = args.at(-1) as { label: string; target: string }
-    const label = groups.label.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() || groups.label
+    const label =
+      groups.label
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim() || groups.label
 
     return rewriteDeliveredHref(label, groups.target) ?? match
   })

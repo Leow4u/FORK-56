@@ -83,9 +83,9 @@ describe('resolveUpdateFinalizeAction', () => {
   })
 
   it('a ready packaged download becomes Restart to finish', () => {
-    expect(
-      resolveUpdateFinalizeAction({ channel: 'chrome', copy, prefetchPercent: 100, prefetchReady: true })
-    ).toEqual({ disabled: false, label: 'Restart to finish' })
+    expect(resolveUpdateFinalizeAction({ channel: 'chrome', copy, prefetchPercent: 100, prefetchReady: true })).toEqual(
+      { disabled: false, label: 'Restart to finish' }
+    )
     expect(
       resolveUpdateFinalizeAction({ channel: 'installer', copy, prefetchPercent: 100, prefetchReady: true })
     ).toEqual({ disabled: false, label: 'Restart to finish' })

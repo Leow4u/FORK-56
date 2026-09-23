@@ -23,6 +23,7 @@ import { notify, notifyError } from '@/store/notifications'
 import { $connection } from '@/store/session'
 
 import { useComposerMenuSide } from '../use-composer-menu-side'
+
 import {
   type ComposerRunTarget,
   composerRunTargetIntent,

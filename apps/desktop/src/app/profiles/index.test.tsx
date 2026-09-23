@@ -210,7 +210,9 @@ describe('ProfilesView', () => {
 
     await renderProfilesView()
 
-    const openWork = screen.getAllByRole('button', { name: NAMED_PROFILE }).find(button => !button.hasAttribute('aria-expanded'))
+    const openWork = screen
+      .getAllByRole('button', { name: NAMED_PROFILE })
+      .find(button => !button.hasAttribute('aria-expanded'))
 
     expect(openWork).toBeTruthy()
     fireEvent.click(openWork!)

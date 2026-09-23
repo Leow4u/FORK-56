@@ -317,12 +317,15 @@ export function packagedWindowsChromeHandoffExtraArgs(opts: {
     '-RelaunchExe',
     opts.relaunchExe
   ]
+
   if (opts.extractedDir) {
     args.push('-ExtractedDir', opts.extractedDir)
   }
+
   if (opts.chromeZipPath) {
     args.push('-ChromeZipPath', opts.chromeZipPath)
   }
+
   return args
 }
 
@@ -349,7 +352,7 @@ export const PACKAGED_WINDOWS_INSTALLER_HANDOFF_PS1 = [
   'function Hide-HandoffConsole {',
   '  try {',
   "    if (-not ('HandoffNative' -as [type])) {",
-  '      Add-Type -Namespace Handoff -Name Native -MemberDefinition @\'',
+  "      Add-Type -Namespace Handoff -Name Native -MemberDefinition @'",
   '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();',
   '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);',
   "'@",
@@ -451,7 +454,7 @@ export const PACKAGED_WINDOWS_CHROME_HANDOFF_PS1 = [
   'function Hide-HandoffConsole {',
   '  try {',
   "    if (-not ('HandoffNative' -as [type])) {",
-  '      Add-Type -Namespace Handoff -Name Native -MemberDefinition @\'',
+  "      Add-Type -Namespace Handoff -Name Native -MemberDefinition @'",
   '[DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();',
   '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);',
   "'@",
@@ -500,7 +503,7 @@ export const PACKAGED_WINDOWS_CHROME_HANDOFF_PS1 = [
   '  New-Item -ItemType Directory -Force -Path $Dest | Out-Null',
   '  Get-ChildItem -LiteralPath $Src -Force | ForEach-Object {',
   '    $target = Join-Path $Dest $_.Name',
-    '    if ($_.PSIsContainer) { Copy-ChromeOverlay $_.FullName $target }',
+  '    if ($_.PSIsContainer) { Copy-ChromeOverlay $_.FullName $target }',
   '    else { Copy-Item -LiteralPath $_.FullName -Destination $target -Force }',
   '  }',
   '}',
@@ -851,11 +854,7 @@ function defaultReplaceSleep(ms: number): void {
  * Never delete a completed `.part` on failure: apply can retry replace without
  * downloading 200MB again.
  */
-export function replaceDownloadedFile(
-  tmpPath: string,
-  destPath: string,
-  deps: ReplaceDownloadedFileDeps = {}
-): void {
+export function replaceDownloadedFile(tmpPath: string, destPath: string, deps: ReplaceDownloadedFileDeps = {}): void {
   const exists = deps.exists ?? (file => fs.existsSync(file))
   const unlink = deps.unlink ?? (file => fs.unlinkSync(file))
   const rename = deps.rename ?? ((from, to) => fs.renameSync(from, to))
@@ -877,12 +876,14 @@ export function replaceDownloadedFile(
   for (let attempt = 0; attempt < retries; attempt += 1) {
     if (!exists(destPath)) {
       unlinkError = null
+
       break
     }
 
     try {
       unlink(destPath)
       unlinkError = null
+
       break
     } catch (error) {
       unlinkError = error
@@ -984,11 +985,7 @@ export function createGithubFetchText(
   return url => fetchHttpsText(url, { get, timeoutMs })
 }
 
-function fetchHttpsText(
-  url: string,
-  deps: { get: typeof https.get; timeoutMs: number },
-  hop = 0
-): Promise<string> {
+function fetchHttpsText(url: string, deps: { get: typeof https.get; timeoutMs: number }, hop = 0): Promise<string> {
   if (hop > MAX_REDIRECTS) {
     return Promise.reject(new Error('Too many redirects while fetching fingerprint'))
   }

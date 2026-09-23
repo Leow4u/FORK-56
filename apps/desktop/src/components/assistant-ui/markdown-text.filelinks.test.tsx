@@ -57,12 +57,7 @@ describe('MarkdownLink filesystem hrefs', () => {
   })
 
   it('routes a relative office/pdf/zip link to a document card instead of [blocked]', async () => {
-    render(
-      <MarkdownTextContent
-        isRunning={false}
-        text={'Baixar a planilha [nomes_rg_cpf.xlsx](nomes_rg_cpf.xlsx)'}
-      />
-    )
+    render(<MarkdownTextContent isRunning={false} text={'Baixar a planilha [nomes_rg_cpf.xlsx](nomes_rg_cpf.xlsx)'} />)
 
     expect(await screen.findByText('nomes_rg_cpf.xlsx')).toBeTruthy()
     expect(screen.getByText('Spreadsheet · XLSX')).toBeTruthy()

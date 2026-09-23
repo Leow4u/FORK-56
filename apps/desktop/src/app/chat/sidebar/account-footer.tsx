@@ -80,6 +80,7 @@ export function AccountFooter() {
   const signedIn = Boolean(email)
   const triggerLabel = email ?? menu.account
   const applying = updateApply.applying || updateApply.stage === 'restart'
+
   const updateLabel = resolveUpdateChipLabel({
     applying,
     copy: {

@@ -2,7 +2,14 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { bracketMatching, indentOnInput, LanguageDescription } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { Compartment, EditorState } from '@codemirror/state'
-import { Decoration, drawSelection, EditorView, keymap, lineNumbers, placeholder as placeholderExt } from '@codemirror/view'
+import {
+  Decoration,
+  drawSelection,
+  EditorView,
+  keymap,
+  lineNumbers,
+  placeholder as placeholderExt
+} from '@codemirror/view'
 import { type RefObject, useEffect, useRef } from 'react'
 
 import { tryFormatJson } from '@/lib/json-format'

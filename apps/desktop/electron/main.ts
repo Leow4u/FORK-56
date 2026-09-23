@@ -4563,6 +4563,7 @@ function tryDeployBundledRuntime() {
       'v1.0',
       'powershell.exe'
     )
+
     result = spawnSync(
       powershell,
       bundledDeployArgs({
