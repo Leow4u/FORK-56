@@ -19,10 +19,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
+  menuReasoningEffort,
   ModelCatalogMenu,
   ModelMenuCloseContext,
   type ModelMenuController,
-  menuReasoningEffort,
   reasoningEffortLabel
 } from '@work4you/plugin-sdk'
 import { useState } from 'react'
