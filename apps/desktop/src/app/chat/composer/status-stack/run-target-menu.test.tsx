@@ -340,7 +340,9 @@ describe('ComposerRunTargetMenu', () => {
     await openMenu()
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
 
-    await waitFor(() => expect(notifyError).toHaveBeenCalledWith(expect.any(Error), 'Could not load your Work4You Cloud agents'))
+    await waitFor(() =>
+      expect(notifyError).toHaveBeenCalledWith(expect.any(Error), 'Could not load your Work4You Cloud agents')
+    )
     expect(navigate).not.toHaveBeenCalled()
     expect(applyConnectionConfig).not.toHaveBeenCalled()
   })

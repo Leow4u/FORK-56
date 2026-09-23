@@ -154,9 +154,9 @@ describe('composerRunTargetIntent', () => {
 
   it('keeps the Settings sign-in door when discovery has not answered', () => {
     expect(composerRunTargetIntent('cloud', { active: 'local', cloud: null })).toEqual({ type: 'settings' })
-    expect(
-      composerRunTargetIntent('cloud', { active: 'local', cloud: null, portal: { status: 'signin' } })
-    ).toEqual({ type: 'settings' })
+    expect(composerRunTargetIntent('cloud', { active: 'local', cloud: null, portal: { status: 'signin' } })).toEqual({
+      type: 'settings'
+    })
     expect(
       composerRunTargetIntent('cloud', { active: 'local', cloud: null, portal: { status: 'choose-org' } })
     ).toEqual({ type: 'settings' })
@@ -169,9 +169,9 @@ describe('composerRunTargetIntent', () => {
   })
 
   it('does not connect while a paid instance has no address yet', () => {
-    expect(
-      composerRunTargetIntent('cloud', { active: 'local', cloud: null, portal: { status: 'preparing' } })
-    ).toEqual({ type: 'preparing' })
+    expect(composerRunTargetIntent('cloud', { active: 'local', cloud: null, portal: { status: 'preparing' } })).toEqual(
+      { type: 'preparing' }
+    )
   })
 
   it('applies a discovered dashboard and prefers a known URL over Free', () => {
