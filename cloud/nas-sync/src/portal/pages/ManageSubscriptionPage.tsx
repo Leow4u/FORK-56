@@ -25,7 +25,7 @@ export function ManageSubscriptionPage() {
   const orgIdParam = searchParams.get('org_id')
   const planParam = searchParams.get('plan')
   const autoStarted = useRef(false)
-  const cloudEnsureOnce = useRef(false)
+  const cloudEnsureSlot = useRef<string | null>(null)
 
   const [billing, setBilling] = useState<BillingStatePayload | null>(null)
   const [subscription, setSubscription] =
@@ -154,7 +154,7 @@ export function ManageSubscriptionPage() {
               ? `Já estás no ${data.targetTierName || 'plano'}`
               : `Upgrade para ${data.targetTierName} concluído`,
           )
-          cloudEnsureOnce.current = true
+          cloudEnsureSlot.current = 'paid'
           void requestSubscriptionCloud({
             headers,
             org: billing?.org.slug,
@@ -181,9 +181,10 @@ export function ManageSubscriptionPage() {
 
   useEffect(() => {
     if (!ready || loading || !authenticated || !billing || !subscription) return
-    if (isFreePlanPayload(billing, subscription)) return
-    if (cloudEnsureOnce.current) return
-    cloudEnsureOnce.current = true
+    const free = isFreePlanPayload(billing, subscription)
+    const slot = free ? 'free' : 'paid'
+    if (cloudEnsureSlot.current === slot) return
+    cloudEnsureSlot.current = slot
     const org = billing.org.slug
     void (async () => {
       const headers = await authHeaders()

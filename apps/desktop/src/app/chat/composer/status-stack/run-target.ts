@@ -177,7 +177,8 @@ function createdAtRank(createdAt: string | null | undefined): number {
 
 /**
  * Oldest subscription instance that already has a dashboard address.
- * Self-hosted rows are not the plan VM. A known URL wins over Free.
+ * Self-hosted rows are not the plan VM. A machine parked after a return
+ * to Free is not a connect target. A stopped or online URL still applies.
  */
 export function composerCloudSourceFromDiscover(view: ComposerCloudDiscoverView): ComposerCloudApplySource | null {
   if (view.needsOrgSelection) {
@@ -186,8 +187,9 @@ export function composerCloudSourceFromDiscover(view: ComposerCloudDiscoverView)
 
   const usable = (view.agents ?? []).filter(agent => {
     const url = agent.dashboardUrl?.trim() ?? ''
+    const status = (agent.status ?? '').toLowerCase()
 
-    return url.length > 0 && (agent.status ?? '').toLowerCase() !== 'self_hosted'
+    return url.length > 0 && status !== 'self_hosted' && status !== 'parked'
   })
 
   if (usable.length === 0) {

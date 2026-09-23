@@ -12,11 +12,16 @@ import {
   CLOUD_ENSURE_PAID_LAG_DELAY_MS,
   CLOUD_PROVISION_ERROR_RETRY_MS,
   CLOUD_PROVISION_STALE_MS,
+  CLOUD_PARKED_STATUS,
   cloudEnsureBody,
   cloudEntitlement,
   cloudInstanceName,
+  cloudInstanceNeedsPark,
   cloudInstanceNeedsResume,
+  cloudInstanceNeedsWake,
   cloudInstanceResizeTarget,
+  cloudLifecycleActionAllowed,
+  cloudResizeShouldStart,
   cloudSizeForTier,
   planDiskGb,
   volumeExtendGb,
@@ -129,6 +134,7 @@ describe('ensureOrgCloudInstanceWith', () => {
 
   it('reuses a legacy free VM instead of creating another', async () => {
     let created = 0
+    let parked = 0
     const legacy = row('legacy', '2020-05-01T00:00:00.000Z', 'online')
     const result = await ensureOrgCloudInstanceWith({
       tierId: 'free',
@@ -137,8 +143,13 @@ describe('ensureOrgCloudInstanceWith', () => {
         created += 1
         return row('new', '2026-01-01T00:00:00.000Z')
       },
+      park: async (instance) => {
+        parked += 1
+        return instance
+      },
     })
     assert.equal(created, 0)
+    assert.equal(parked, 0)
     assert.deepEqual(result, { ok: true, created: false, instance: legacy })
   })
 
@@ -199,6 +210,8 @@ describe('ensureOrgCloudInstanceWith', () => {
     for (const entry of cases) {
       let created = 0
       let resumed = 0
+      let parked = 0
+      let woken = 0
       const seen: string[] = []
       const existing = {
         ...row('kept', '2022-01-01T00:00:00.000Z', 'online'),
@@ -220,30 +233,32 @@ describe('ensureOrgCloudInstanceWith', () => {
           seen.push(`${instance.id}:${size}`)
           return { ...instance, size }
         },
+        park: async (instance) => {
+          parked += 1
+          return instance
+        },
+        wake: async (instance) => {
+          woken += 1
+          return instance
+        },
       })
       assert.equal(created, 0, entry.tierId)
       assert.equal(resumed, 0, entry.tierId)
+      assert.equal(parked, 0, entry.tierId)
+      assert.equal(woken, 0, entry.tierId)
       assert.deepEqual(seen, [`kept:${entry.to}`])
       assert.equal(result.ok && result.created, false)
       assert.equal(result.ok && result.instance.id, 'kept')
     }
   })
 
-  it('does not resize a matching size, a free VM, or a row with no recorded size', async () => {
+  it('does not resize a matching size or a row with no recorded size', async () => {
     const cases: Array<{ tierId: string; instance: CloudInstanceRef }> = [
       {
         tierId: 'plus',
         instance: {
           ...row('match', '2022-01-01T00:00:00.000Z', 'online'),
           size: 'small',
-          flyMachineId: 'mach',
-        },
-      },
-      {
-        tierId: 'free',
-        instance: {
-          ...row('legacy', '2020-01-01T00:00:00.000Z', 'online'),
-          size: 'large',
           flyMachineId: 'mach',
         },
       },
@@ -265,6 +280,8 @@ describe('ensureOrgCloudInstanceWith', () => {
     for (const entry of cases) {
       let resized = 0
       let created = 0
+      let parked = 0
+      let woken = 0
       const result = await ensureOrgCloudInstanceWith({
         tierId: entry.tierId,
         list: async () => [entry.instance],
@@ -276,12 +293,217 @@ describe('ensureOrgCloudInstanceWith', () => {
           resized += 1
           return instance
         },
+        park: async (instance) => {
+          parked += 1
+          return instance
+        },
+        wake: async (instance) => {
+          woken += 1
+          return instance
+        },
       })
       assert.equal(created, 0, entry.instance.id)
       assert.equal(resized, 0, entry.instance.id)
+      assert.equal(parked, 0, entry.instance.id)
+      assert.equal(woken, 0, entry.instance.id)
       assert.equal(result.ok && result.instance.id, entry.instance.id)
       assert.equal(cloudInstanceResizeTarget(entry.instance, entry.tierId), null)
     }
+  })
+
+  it('parks a free machine and keeps the same row', async () => {
+    const running = {
+      ...row('legacy', '2020-01-01T00:00:00.000Z', 'online'),
+      size: 'large',
+      flyMachineId: 'mach',
+    }
+    let created = 0
+    let resized = 0
+    let resumed = 0
+    let woken = 0
+    let parked = 0
+    const result = await ensureOrgCloudInstanceWith({
+      tierId: 'free',
+      list: async () => [running],
+      create: async () => {
+        created += 1
+        return row('new', '2026-01-01T00:00:00.000Z')
+      },
+      resume: async (instance) => {
+        resumed += 1
+        return instance
+      },
+      resize: async (instance) => {
+        resized += 1
+        return instance
+      },
+      wake: async (instance) => {
+        woken += 1
+        return instance
+      },
+      park: async (instance) => {
+        parked += 1
+        return { ...instance, status: CLOUD_PARKED_STATUS }
+      },
+    })
+    assert.equal(created, 0)
+    assert.equal(resized, 0)
+    assert.equal(resumed, 0)
+    assert.equal(woken, 0)
+    assert.equal(parked, 1)
+    assert.equal(result.ok && result.created, false)
+    assert.equal(result.ok && result.instance.id, 'legacy')
+    assert.equal(result.ok && result.instance.status, CLOUD_PARKED_STATUS)
+    assert.equal(cloudInstanceResizeTarget(running, 'free'), null)
+    assert.equal(cloudInstanceNeedsPark(running, 'free'), true)
+    assert.equal(
+      cloudInstanceNeedsPark(
+        { ...row('failed', '2020-06-01T00:00:00.000Z', 'error'), flyMachineId: 'mach' },
+        'free',
+      ),
+      true,
+    )
+  })
+
+  it('does not park a user stop, an already parked row, or an unborn free row', async () => {
+    const cases: CloudInstanceRef[] = [
+      {
+        ...row('user-stop', '2020-01-01T00:00:00.000Z', 'stopped'),
+        flyMachineId: 'mach',
+        size: 'large',
+      },
+      {
+        ...row('already', '2020-02-01T00:00:00.000Z', 'parked'),
+        flyMachineId: 'mach',
+        size: 'medium',
+      },
+      row('unborn', '2020-03-01T00:00:00.000Z', 'provisioning'),
+      row('legacy-online', '2020-04-01T00:00:00.000Z', 'online'),
+      {
+        ...row('going', '2020-05-01T00:00:00.000Z', 'deleting'),
+        flyMachineId: 'mach',
+      },
+    ]
+    for (const instance of cases) {
+      let parked = 0
+      let created = 0
+      const result = await ensureOrgCloudInstanceWith({
+        tierId: 'free',
+        list: async () => [instance],
+        create: async () => {
+          created += 1
+          return row('new', '2026-01-01T00:00:00.000Z')
+        },
+        park: async (row) => {
+          parked += 1
+          return row
+        },
+      })
+      assert.equal(created, 0, instance.id)
+      assert.equal(parked, 0, instance.id)
+      assert.equal(result.ok && result.instance.id, instance.id)
+      assert.equal(cloudInstanceNeedsPark(instance, 'free'), false)
+    }
+  })
+
+  it('wakes a parked machine on the same paid size and does not wake a user stop', async () => {
+    const parked = {
+      ...row('kept', '2022-01-01T00:00:00.000Z', 'parked'),
+      size: 'small',
+      flyMachineId: 'mach',
+    }
+    let woken = 0
+    let resized = 0
+    let created = 0
+    const woke = await ensureOrgCloudInstanceWith({
+      tierId: 'plus',
+      list: async () => [parked],
+      create: async () => {
+        created += 1
+        return row('new', '2026-01-01T00:00:00.000Z')
+      },
+      resize: async (instance) => {
+        resized += 1
+        return instance
+      },
+      wake: async (instance) => {
+        woken += 1
+        return { ...instance, status: 'online' }
+      },
+    })
+    assert.equal(created, 0)
+    assert.equal(resized, 0)
+    assert.equal(woken, 1)
+    assert.equal(woke.ok && woke.instance.status, 'online')
+    assert.equal(cloudInstanceNeedsWake(parked, 'plus'), true)
+
+    const userStop = {
+      ...row('halted', '2022-01-01T00:00:00.000Z', 'stopped'),
+      size: 'small',
+      flyMachineId: 'mach',
+    }
+    let wakeStop = 0
+    const stayed = await ensureOrgCloudInstanceWith({
+      tierId: 'plus',
+      list: async () => [userStop],
+      create: async () => row('new', '2026-01-01T00:00:00.000Z'),
+      wake: async (instance) => {
+        wakeStop += 1
+        return instance
+      },
+    })
+    assert.equal(wakeStop, 0)
+    assert.equal(stayed.ok && stayed.instance.status, 'stopped')
+    assert.equal(cloudInstanceNeedsWake(userStop, 'plus'), false)
+  })
+
+  it('resizes a parked machine onto a new plan size instead of only waking it', async () => {
+    const parked = {
+      ...row('kept', '2022-01-01T00:00:00.000Z', 'parked'),
+      size: 'small',
+      flyMachineId: 'mach',
+    }
+    let woken = 0
+    const seen: string[] = []
+    const result = await ensureOrgCloudInstanceWith({
+      tierId: 'ultra',
+      list: async () => [parked],
+      create: async () => row('new', '2026-01-01T00:00:00.000Z'),
+      wake: async (instance) => {
+        woken += 1
+        return instance
+      },
+      resize: async (instance, size) => {
+        seen.push(`${instance.id}:${size}`)
+        return { ...instance, size, status: 'online' }
+      },
+    })
+    assert.equal(woken, 0)
+    assert.deepEqual(seen, ['kept:large'])
+    assert.equal(result.ok && result.instance.status, 'online')
+    assert.equal(cloudInstanceNeedsWake(parked, 'ultra'), false)
+    assert.equal(
+      cloudResizeShouldStart({ flyRunning: false, status: 'parked' }),
+      true,
+    )
+    assert.equal(
+      cloudResizeShouldStart({ flyRunning: false, status: 'stopped' }),
+      false,
+    )
+    assert.equal(
+      cloudResizeShouldStart({ flyRunning: true, status: 'stopped' }),
+      true,
+    )
+  })
+
+  it('lets Free stop a machine and refuses start or update', () => {
+    assert.equal(cloudLifecycleActionAllowed('free', 'stop'), true)
+    assert.equal(cloudLifecycleActionAllowed('free', 'start'), false)
+    assert.equal(cloudLifecycleActionAllowed('free', 'update'), false)
+    assert.equal(cloudLifecycleActionAllowed('plus', 'start'), true)
+    assert.equal(cloudLifecycleActionAllowed('ultra', 'update'), true)
+    assert.equal(cloudLifecycleActionAllowed('plus', 'stop'), true)
+    assert.equal(cloudLifecycleActionAllowed('super', 'delete'), false)
   })
 
   it('grows the disk to the plan and never shrinks it', () => {
@@ -412,6 +634,8 @@ describe('ensureOrgCloudInstanceWith', () => {
     for (const entry of cases) {
       let resumed = 0
       let created = 0
+      let parked = 0
+      let woken = 0
       const result = await ensureOrgCloudInstanceWith({
         tierId: entry.tierId,
         now,
@@ -424,9 +648,19 @@ describe('ensureOrgCloudInstanceWith', () => {
           resumed += 1
           return instance
         },
+        park: async (instance) => {
+          parked += 1
+          return instance
+        },
+        wake: async (instance) => {
+          woken += 1
+          return instance
+        },
       })
       assert.equal(created, 0, entry.instance.id)
       assert.equal(resumed, 0, entry.instance.id)
+      assert.equal(parked, 0, entry.instance.id)
+      assert.equal(woken, 0, entry.instance.id)
       assert.equal(result.ok && result.instance.id, entry.instance.id)
     }
     assert.equal(

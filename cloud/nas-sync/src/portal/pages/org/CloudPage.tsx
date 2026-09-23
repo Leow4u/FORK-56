@@ -56,6 +56,8 @@ function statusLabel(status: string): string {
       return 'Online'
     case 'stopped':
       return 'Parado'
+    case 'parked':
+      return 'Em pausa'
     case 'error':
       return 'Erro'
     case 'deleting':
@@ -247,12 +249,35 @@ export function CloudPage() {
           .map((agent) => `${agent.id}:${agent.size}:${allowedSize}`)
           .join(',')
 
-  const ensureKey = unbornKey || resizeKey
+  const parkKey = canUseCloud
+    ? ''
+    : agents
+        .filter((agent) => {
+          const status = agent.status.toLowerCase()
+          return (
+            status === 'online' ||
+            status === 'starting' ||
+            status === 'updating' ||
+            status === 'error' ||
+            status === 'provisioning'
+          )
+        })
+        .map((agent) => `${agent.id}:${agent.status}`)
+        .join(',')
 
-  // GET does not finish a half-created machine or apply a new plan size.
-  // Ensure resumes an unborn row, or resizes the one machine to the plan.
+  const wakeKey = canUseCloud
+    ? agents
+        .filter((agent) => agent.status === 'parked')
+        .map((agent) => agent.id)
+        .join(',')
+    : ''
+
+  const ensureKey = canUseCloud ? unbornKey || resizeKey || wakeKey : parkKey
+
+  // GET does not finish a half-created machine, apply a new plan size,
+  // park a machine after the plan returns to Free, or wake a parked one.
   useEffect(() => {
-    if (!ready || !authenticated || !canUseCloud || !ensureKey) return
+    if (!ready || !authenticated || !ensureKey) return
     let cancelled = false
     const attempt = () => {
       if (cancelled) return
@@ -275,7 +300,7 @@ export function CloudPage() {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [ready, authenticated, canUseCloud, ensureKey, orgId, authHeaders, load])
+  }, [ready, authenticated, ensureKey, orgId, authHeaders, load])
 
   useEffect(() => {
     const pending =
@@ -491,9 +516,21 @@ export function CloudPage() {
               {agent.errorMessage ? (
                 <p className={styles.cardError}>{agent.errorMessage}</p>
               ) : null}
+              {agent.status === 'parked' ? (
+                <p className={styles.cardMeta}>
+                  {canUseCloud
+                    ? 'A instância está a voltar com o plano.'
+                    : 'No plano Free a instância fica em pausa. O disco é guardado.'}
+                </p>
+              ) : null}
+              {!canUseCloud && agent.status === 'stopped' ? (
+                <p className={styles.cardMeta}>
+                  No plano Free a instância fica parada. O disco é guardado.
+                </p>
+              ) : null}
 
               <div className={styles.cardActions}>
-                {agent.dashboardUrl ? (
+                {canUseCloud && agent.status !== 'parked' && agent.dashboardUrl ? (
                   <a
                     className={styles.primary}
                     href={
@@ -509,7 +546,12 @@ export function CloudPage() {
                     Abrir dashboard
                   </button>
                 )}
-                {agent.status === 'stopped' ? (
+                {!canUseCloud ? (
+                  <Link className={styles.ghost} to={billingPath}>
+                    Ver planos
+                  </Link>
+                ) : null}
+                {canUseCloud && agent.status === 'stopped' ? (
                   <button
                     type="button"
                     className={styles.ghost}
@@ -518,7 +560,10 @@ export function CloudPage() {
                   >
                     Iniciar
                   </button>
-                ) : (
+                ) : null}
+                {agent.status !== 'stopped' &&
+                agent.status !== 'parked' &&
+                (canUseCloud || agent.status === 'online') ? (
                   <button
                     type="button"
                     className={styles.ghost}
@@ -532,8 +577,8 @@ export function CloudPage() {
                   >
                     Parar
                   </button>
-                )}
-                {agent.updateAvailable ? (
+                ) : null}
+                {canUseCloud && agent.updateAvailable ? (
                   <button
                     type="button"
                     className={styles.ghost}

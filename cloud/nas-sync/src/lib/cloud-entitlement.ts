@@ -4,7 +4,8 @@
  * Free has no VM. Plus/Super/Ultra map to one machine size. Callers never
  * pick the size. ensureOrgCloudInstanceWith is the only create path; POST
  * /api/agents stays closed. POST /api/cloud/ensure runs after the plan is
- * paid — not when Checkout opens.
+ * paid — not when Checkout opens. Returning to Free parks that machine:
+ * the row and disk stay, and the next paid ensure wakes the same instance.
  */
 import { getTier, isPaidTierId, type TierId } from './tiers'
 
@@ -18,6 +19,12 @@ export const TIER_CLOUD_SIZE: Record<Exclude<TierId, 'free'>, CloudSizeId> = {
 
 /** Portal-registered local dashboards are not the subscription VM. */
 export const NON_CLOUD_INSTANCE_STATUS = 'self_hosted'
+
+/**
+ * Free stopped the machine and kept the row. Distinct from a user stop
+ * (`stopped`), which must stay stopped after the org subscribes again.
+ */
+export const CLOUD_PARKED_STATUS = 'parked'
 
 export const DEFAULT_CLOUD_INSTANCE_NAME = 'Work4You Cloud'
 
@@ -62,8 +69,25 @@ type EnsureDecision<T extends CloudInstanceRef> =
   | { action: 'reuse'; instance: T }
   | { action: 'resume'; instance: T }
   | { action: 'resize'; instance: T; size: CloudSizeId }
+  | { action: 'park'; instance: T }
+  | { action: 'wake'; instance: T }
   | { action: 'create'; size: CloudSizeId; name: string }
   | { action: 'refuse'; error: 'paid_plan_required' }
+
+const PARK_EXEMPT_STATUSES = new Set([
+  CLOUD_PARKED_STATUS,
+  'stopped',
+  'deleting',
+  NON_CLOUD_INSTANCE_STATUS,
+])
+
+function cloudStatus(status: string | null | undefined): string {
+  return (status ?? '').trim().toLowerCase()
+}
+
+function hasFlyMachine(row: { flyMachineId?: string | null }): boolean {
+  return Boolean((row.flyMachineId ?? '').trim())
+}
 
 /**
  * Past the ensure route's 300s maxDuration, so a live provision is not
@@ -190,6 +214,62 @@ export function cloudInstanceResizeTarget(
   return target
 }
 
+/**
+ * Free, with a Fly machine that is not already stopped or parked.
+ * An unborn row has no machine id and stays unborn so a later paid
+ * ensure can still resume it. A user stop stays `stopped`.
+ */
+export function cloudInstanceNeedsPark(
+  row: Pick<CloudInstanceRef, 'flyMachineId' | 'status'>,
+  tierId: string | null | undefined,
+): boolean {
+  if (cloudSizeForTier(tierId)) return false
+  if (!hasFlyMachine(row)) return false
+  return !PARK_EXEMPT_STATUSES.has(cloudStatus(row.status))
+}
+
+/**
+ * Paid plan should start the machine Free parked.
+ * A different plan size is a resize, which starts a parked machine.
+ * Status `stopped` is a user stop and is not woken.
+ */
+export function cloudInstanceNeedsWake(
+  row: Pick<CloudInstanceRef, 'flyMachineId' | 'size' | 'status' | 'updatedAt'>,
+  tierId: string | null | undefined,
+  now = Date.now(),
+): boolean {
+  if (!cloudSizeForTier(tierId)) return false
+  if (cloudStatus(row.status) !== CLOUD_PARKED_STATUS) return false
+  if (!hasFlyMachine(row)) return false
+  if (cloudInstanceResizeTarget(row, tierId, now)) return false
+  return true
+}
+
+/** Resize starts a running, online, or parked machine. A user stop stays stopped. */
+export function cloudResizeShouldStart(args: {
+  flyRunning: boolean
+  status?: string | null
+}): boolean {
+  if (args.flyRunning) return true
+  const status = cloudStatus(args.status)
+  return status === 'online' || status === CLOUD_PARKED_STATUS
+}
+
+/**
+ * Start and image update need a paid plan. Stop stays available so a
+ * Free org can still halt a machine the park path has not reached.
+ */
+export function cloudLifecycleActionAllowed(
+  tierId: string | null | undefined,
+  action: string,
+): boolean {
+  if (action === 'stop') return true
+  if (action === 'start' || action === 'update') {
+    return cloudEntitlement(tierId).canUseCloud
+  }
+  return false
+}
+
 export function cloudInstanceName(name?: string | null): string {
   const trimmed = (name ?? '').trim().slice(0, 64)
   return trimmed || DEFAULT_CLOUD_INSTANCE_NAME
@@ -258,8 +338,9 @@ export function manualCloudCreateRefusal(): {
 /**
  * Size is not an input. A live Cloud row stays the org's only VM.
  * A paid row whose Fly machine never got an id is resumed. A paid row whose
- * recorded size differs from the plan is resized in place. Free does not
- * resize or create.
+ * recorded size differs from the plan is resized in place. Free parks a
+ * born machine and does not create. A parked machine wakes on the next
+ * paid plan; a user stop stays stopped.
  */
 export function decideOrgCloudInstance<T extends CloudInstanceRef>(args: {
   tierId: string | null | undefined
@@ -277,6 +358,12 @@ export function decideOrgCloudInstance<T extends CloudInstanceRef>(args: {
     }
     const resizeTo = cloudInstanceResizeTarget(canonical, args.tierId, args.now)
     if (resizeTo) return { action: 'resize', instance: canonical, size: resizeTo }
+    if (cloudInstanceNeedsWake(canonical, args.tierId, args.now)) {
+      return { action: 'wake', instance: canonical }
+    }
+    if (cloudInstanceNeedsPark(canonical, args.tierId)) {
+      return { action: 'park', instance: canonical }
+    }
     return { action: 'reuse', instance: canonical }
   }
   const size = cloudSizeForTier(args.tierId)
@@ -294,6 +381,8 @@ async function settleExistingInstance<T extends CloudInstanceRef>(
   handlers: {
     resume?: (instance: T) => Promise<T>
     resize?: (instance: T, size: CloudSizeId) => Promise<T>
+    park?: (instance: T) => Promise<T>
+    wake?: (instance: T) => Promise<T>
   },
 ): Promise<CloudEnsureResult<T> | null> {
   if (decision.action === 'refuse') return { ok: false, error: decision.error }
@@ -312,6 +401,18 @@ async function settleExistingInstance<T extends CloudInstanceRef>(
       : decision.instance
     return { ok: true, created: false, instance }
   }
+  if (decision.action === 'park') {
+    const instance = handlers.park
+      ? await handlers.park(decision.instance)
+      : decision.instance
+    return { ok: true, created: false, instance }
+  }
+  if (decision.action === 'wake') {
+    const instance = handlers.wake
+      ? await handlers.wake(decision.instance)
+      : decision.instance
+    return { ok: true, created: false, instance }
+  }
   return null
 }
 
@@ -325,8 +426,17 @@ export async function ensureOrgCloudInstanceWith<T extends CloudInstanceRef>(arg
   resume?: (instance: T) => Promise<T>
   /** Change the canonical machine to the plan size. Does not insert a row. */
   resize?: (instance: T, size: CloudSizeId) => Promise<T>
+  /** Stop the canonical machine and keep the row. Does not delete the disk. */
+  park?: (instance: T) => Promise<T>
+  /** Start a machine that was parked on Free. Does not insert a row. */
+  wake?: (instance: T) => Promise<T>
 }): Promise<CloudEnsureResult<T>> {
-  const handlers = { resume: args.resume, resize: args.resize }
+  const handlers = {
+    resume: args.resume,
+    resize: args.resize,
+    park: args.park,
+    wake: args.wake,
+  }
   const listed = await args.list()
   const first = await settleExistingInstance(
     decideOrgCloudInstance({

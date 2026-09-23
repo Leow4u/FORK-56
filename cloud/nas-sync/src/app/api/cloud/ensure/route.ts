@@ -13,8 +13,9 @@ export const maxDuration = 300
 /**
  * POST /api/cloud/ensure — create the org's single Cloud VM once the plan
  * is paid, finish one whose Fly machine never landed, resize one whose
- * size no longer matches that plan, or return the one that already matches.
- * Free: 200 { ensured: false, reason: 'paid_plan_required' }.
+ * size no longer matches that plan, park one when the org returns to Free,
+ * or wake a parked machine on the next paid plan.
+ * Free with no VM: 200 { ensured: false, reason: 'paid_plan_required' }.
  * Missing FLY_API_TOKEN: 503 before any DB insert.
  */
 export async function POST(req: NextRequest) {
