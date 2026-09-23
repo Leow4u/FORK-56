@@ -14,7 +14,7 @@ import {
 import { GenerateButton } from '@/components/ui/generate-button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { OverflowTip, Tip } from '@/components/ui/tooltip'
+import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { type ProjectIdeaTemplate, randomIdeaTemplates } from '@/lib/project-idea-templates'
 import { notifyError } from '@/store/notifications'
@@ -32,9 +32,25 @@ import {
 const fieldLabelClass =
   'text-[length:var(--conversation-caption-font-size)] font-medium leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)'
 
+// Last segment stays readable; the parent path is the part that ellipsizes.
+// A raw path is one unbreakable string, so the row's min-content width would
+// open a horizontal scrollbar inside the dialog.
+export function splitFolderPath(folder: string): { name: string; parent: string } {
+  const trimmed = folder.replace(/[\\/]+$/, '')
+  const slash = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'))
+
+  if (slash < 0) {
+    return { name: trimmed, parent: '' }
+  }
+
+  const name = trimmed.slice(slash + 1)
+
+  return { name: name || trimmed, parent: trimmed.slice(0, slash) }
+}
+
 function ProjectField({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex w-full min-w-0 flex-col gap-2">
       <span className={fieldLabelClass}>{label}</span>
       {children}
     </div>
@@ -175,7 +191,11 @@ export function ProjectDialog() {
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent bodyClassName="gap-5" onInteractOutside={event => event.preventDefault()}>
+      <DialogContent
+        bodyClassName="min-w-0 gap-5 overflow-x-hidden"
+        className="min-w-0 overflow-x-hidden"
+        onInteractOutside={event => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {mode === 'create' && <DialogDescription>{p.createDesc}</DialogDescription>}
@@ -221,37 +241,48 @@ export function ProjectDialog() {
               </Button>
             ) : (
               <>
-                <ul className="flex flex-col gap-1.5">
-                  {folders.map((folder, index) => (
-                    <li
-                      className="flex items-center gap-2 rounded-(--ui-stage-radius) bg-(--ui-control-hover-background) px-2.5 py-1.5"
-                      key={folder}
-                    >
-                      <Codicon className="shrink-0 text-(--ui-text-tertiary)" name="folder" size="0.875rem" />
-                      <OverflowTip label={folder}>
-                        <span className="min-w-0 flex-1 truncate text-[length:var(--conversation-text-font-size)]">
-                          {folder}
-                        </span>
-                      </OverflowTip>
-                      {index === 0 && (
-                        <span className="shrink-0 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-                          {p.primaryBadge}
-                        </span>
-                      )}
-                      <Tip label={p.removeFolder}>
-                        <Button
-                          aria-label={p.removeFolder}
-                          className="shrink-0 text-(--ui-text-quaternary) hover:text-foreground"
-                          onClick={() => setFolders(prev => prev.filter(f => f !== folder))}
-                          size="icon-xs"
-                          type="button"
-                          variant="ghost"
-                        >
-                          <Codicon name="close" size="0.75rem" />
-                        </Button>
-                      </Tip>
-                    </li>
-                  ))}
+                <ul className="flex w-full min-w-0 flex-col gap-1.5">
+                  {folders.map((folder, index) => {
+                    const path = splitFolderPath(folder)
+
+                    return (
+                      <li
+                        className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-(--ui-stage-radius) bg-(--ui-control-hover-background) px-2.5 py-1.5"
+                        key={folder}
+                      >
+                        <Codicon className="shrink-0 text-(--ui-text-tertiary)" name="folder" size="0.875rem" />
+                        <Tip label={folder}>
+                          <span className="flex min-w-0 flex-1 flex-col text-left">
+                            <span className="truncate text-[length:var(--conversation-text-font-size)]">
+                              {path.name}
+                            </span>
+                            {path.parent ? (
+                              <span className="truncate text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+                                {path.parent}
+                              </span>
+                            ) : null}
+                          </span>
+                        </Tip>
+                        {index === 0 && (
+                          <span className="shrink-0 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+                            {p.primaryBadge}
+                          </span>
+                        )}
+                        <Tip label={p.removeFolder}>
+                          <Button
+                            aria-label={p.removeFolder}
+                            className="shrink-0 text-(--ui-text-quaternary) hover:text-foreground"
+                            onClick={() => setFolders(prev => prev.filter(f => f !== folder))}
+                            size="icon-xs"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Codicon name="close" size="0.75rem" />
+                          </Button>
+                        </Tip>
+                      </li>
+                    )
+                  })}
                 </ul>
                 <Button
                   className="self-start"
@@ -271,7 +302,7 @@ export function ProjectDialog() {
 
         {mode === 'create' && (
           <ProjectField label={p.ideaLabel}>
-            <div className="relative">
+            <div className="relative min-w-0">
               <Textarea
                 className="min-h-24 pr-8"
                 disabled={submitting}
@@ -288,7 +319,7 @@ export function ProjectDialog() {
                 onGenerate={() => void generateIdea()}
               />
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5">
               {templates.map(template => (
                 <Button
                   disabled={submitting}
@@ -327,7 +358,7 @@ export function ProjectDialog() {
         )}
 
         {mode !== 'add-folder' && (
-          <DialogFooter className="border-t border-(--ui-stroke-tertiary) pt-3">
+          <DialogFooter className="min-w-0 border-t border-(--ui-stroke-tertiary) pt-3">
             <Button disabled={submitting} onClick={() => onOpenChange(false)} type="button" variant="ghost">
               {t.common.cancel}
             </Button>

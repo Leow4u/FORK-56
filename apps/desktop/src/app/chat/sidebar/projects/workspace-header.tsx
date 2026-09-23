@@ -64,11 +64,11 @@ export function WorkspaceShowMoreButton({
     <Tip label={text}>
       <button
         aria-label={text}
-        className="ml-auto grid size-5 place-items-center rounded-sm bg-transparent text-(--ui-text-tertiary) transition-colors hover:bg-(--ui-control-hover-background) hover:text-foreground"
+        className="flex min-h-[1.625rem] w-full items-center rounded-md bg-transparent pl-7 pr-2 text-left text-[0.8125rem] text-(--ui-text-secondary) transition-colors hover:bg-(--ui-control-hover-background) hover:text-foreground"
         onClick={onClick}
         type="button"
       >
-        <Codicon name="ellipsis" size="0.75rem" />
+        {t.sidebar.showMore}
       </button>
     </Tip>
   )

@@ -21,6 +21,7 @@ vi.mock('@/i18n', () => ({
           reorder: (label: string) => `Reorder ${label}`,
           toggle: (label: string, open: boolean) => `${open ? 'Show' : 'Hide'} ${label} sessions`
         },
+        showMore: 'Show more',
         showMoreIn: (count: number, label: string) => `Show ${count} more in ${label}`
       }
     }
