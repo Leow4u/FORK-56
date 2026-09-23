@@ -6,6 +6,7 @@ import { clearActiveWorkspace, openFolderAsProject, openProjectCreate, selectWor
 
 import {
   activeWorkspaceProjectId,
+  buildWorkspaceActionItems,
   buildWorkspacePaletteGroups,
   createWorkspacePaletteHandlers,
   WORKSPACE_CLEAR_ACTIVE_ID,
@@ -67,35 +68,44 @@ const home = project({
   sessionCount: 3
 })
 
-describe('buildWorkspacePaletteGroups', () => {
-  it('pins Open folder and New project without a Remote row when nothing is selected', () => {
-    const groups = buildWorkspacePaletteGroups(copy, handlers())
-
-    expect(groups).toHaveLength(1)
-    expect(groups[0]?.heading).toBeUndefined()
-    expect(groups[0]?.items.map(item => item.id)).toEqual([WORKSPACE_OPEN_FOLDER_ID, WORKSPACE_NEW_PROJECT_ID])
-    expect(groups[0]?.items.map(item => item.kind)).toEqual(['open-folder', 'new-project'])
-    expect(groups[0]?.items.some(item => item.id === 'project-remote')).toBe(false)
-    expect(groups[0]?.items.some(item => item.kind === 'clear-active')).toBe(false)
-  })
-
-  it('wires existing store actions', () => {
+describe('buildWorkspaceActionItems', () => {
+  it('keeps Open folder on the root palette keybind', () => {
     const wired = handlers()
-    const groups = buildWorkspacePaletteGroups(copy, wired)
+    const items = buildWorkspaceActionItems(copy, wired, { includeOpenFolder: true })
 
-    groups[0]?.items[0]?.run?.()
-    groups[0]?.items[1]?.run?.()
-
-    expect(wired.openFolder).toHaveBeenCalledOnce()
-    expect(wired.newProject).toHaveBeenCalledOnce()
-  })
-
-  it('keeps Open folder on the existing keybind', () => {
-    expect(buildWorkspacePaletteGroups(copy, handlers())[0]?.items[0]).toMatchObject({
+    expect(items.map(item => item.id)).toEqual([WORKSPACE_OPEN_FOLDER_ID, WORKSPACE_NEW_PROJECT_ID])
+    expect(items[0]).toMatchObject({
       action: 'workspace.openFolder',
       kind: 'open-folder',
       label: copy.openFolder
     })
+
+    items[0]?.run?.()
+    expect(wired.openFolder).toHaveBeenCalledOnce()
+  })
+})
+
+describe('buildWorkspacePaletteGroups', () => {
+  it('pins New project without Open folder or a Remote row when nothing is selected', () => {
+    const groups = buildWorkspacePaletteGroups(copy, handlers())
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.heading).toBeUndefined()
+    expect(groups[0]?.items.map(item => item.id)).toEqual([WORKSPACE_NEW_PROJECT_ID])
+    expect(groups[0]?.items.map(item => item.kind)).toEqual(['new-project'])
+    expect(groups[0]?.items.some(item => item.kind === 'open-folder')).toBe(false)
+    expect(groups[0]?.items.some(item => item.id === 'project-remote')).toBe(false)
+    expect(groups[0]?.items.some(item => item.kind === 'clear-active')).toBe(false)
+  })
+
+  it('wires New project to the existing store action', () => {
+    const wired = handlers()
+    const groups = buildWorkspacePaletteGroups(copy, wired)
+
+    groups[0]?.items[0]?.run?.()
+
+    expect(wired.newProject).toHaveBeenCalledOnce()
+    expect(wired.openFolder).not.toHaveBeenCalled()
   })
 
   it('lists used projects ahead of the actions and offers clear when one is active', () => {
@@ -116,13 +126,7 @@ describe('buildWorkspacePaletteGroups', () => {
     const groups = buildWorkspacePaletteGroups(copy, wired, source)
     const ids = groups.flatMap(group => group.items.map(item => item.id))
 
-    expect(ids).toEqual([
-      'project:p_tax',
-      'project:p_arm',
-      WORKSPACE_OPEN_FOLDER_ID,
-      WORKSPACE_NEW_PROJECT_ID,
-      WORKSPACE_CLEAR_ACTIVE_ID
-    ])
+    expect(ids).toEqual(['project:p_tax', 'project:p_arm', WORKSPACE_NEW_PROJECT_ID, WORKSPACE_CLEAR_ACTIVE_ID])
     expect(groups[0]?.items[0]).toMatchObject({ active: true, kind: 'project', label: 'TAXCO' })
     expect(groups.flatMap(group => group.items).some(item => item.label === 'Home' || item.label === 'scan')).toBe(
       false
@@ -137,7 +141,7 @@ describe('buildWorkspacePaletteGroups', () => {
 })
 
 describe('workspacePickerProjects', () => {
-  it('hides home, archived rows, and unused auto repos', () => {
+  it('hides home, archived rows, and auto repos even when they have sessions', () => {
     const projects = workspacePickerProjects({
       projects: [
         project({ id: 'p_named', label: 'Named', sessionCount: 0 }),
@@ -148,7 +152,7 @@ describe('workspacePickerProjects', () => {
       ]
     })
 
-    expect(projects.map(row => row.id)).toEqual(['p_named', '/used'])
+    expect(projects.map(row => row.id)).toEqual(['p_named'])
   })
 
   it('keeps a dismissed auto project out', () => {

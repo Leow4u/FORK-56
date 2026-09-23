@@ -1,11 +1,13 @@
 /**
  * Select-workspace actions and the recent-project list.
  *
- * The project rows are the sidebar's `$projectTree` (same sort, same
- * dismissals) — not a second catalog. Home and archived rows stay out, and
- * auto-discovered repos with no sessions stay out so the menu is not a disk
- * scan. Open folder and New project reuse the existing store actions.
- * Gateway / Cloud / SSH connections stay in Settings → Gateways.
+ * The project rows are saved projects from the sidebar's `$projectTree`
+ * (same sort, same dismissals) — not a second catalog of folders. Home,
+ * archived rows, and auto-discovered repos stay out: a folder a chat happened
+ * to use is not a project the user created, and it must not linger in this
+ * menu after that project is deleted. New project is the only create action
+ * here (a named project, then a linked folder). Open folder stays on ⌘K and
+ * ⌘O. Gateway / Cloud / SSH connections stay in Settings → Gateways.
  * The composer chip menu and the ⌘K nested page both render these rows.
  */
 
@@ -70,7 +72,7 @@ export interface WorkspacePickerSource {
   scope?: string
 }
 
-/** Same Open folder / New project / recent-project wiring both surfaces share. */
+/** Open folder (⌘K) / New project / recent-project wiring both surfaces share. */
 export function createWorkspacePaletteHandlers(): WorkspacePaletteHandlers {
   return {
     clearActive: clearActiveWorkspace,
@@ -83,12 +85,10 @@ export function createWorkspacePaletteHandlers(): WorkspacePaletteHandlers {
 }
 
 function isPickerProject(project: SidebarProjectTree): boolean {
-  if (project.isNoProject || project.archived) {
-    return false
-  }
-
-  // A git checkout the scan found, and nobody has worked in, is not a recent.
-  if (project.isAuto && project.sessionCount <= 0) {
+  // Auto repos are sidebar grouping for chats, not saved projects. Listing
+  // them here is how a deleted project comes back: the named row is gone, and
+  // the folder is promoted again because a session still points at it.
+  if (project.isNoProject || project.archived || project.isAuto) {
     return false
   }
 
@@ -163,25 +163,34 @@ export function workspacePickerProjects(source: WorkspacePickerSource): SidebarP
 
 export function buildWorkspaceActionItems(
   copy: WorkspacePaletteCopy,
-  handlers: WorkspacePaletteHandlers
+  handlers: WorkspacePaletteHandlers,
+  options?: { includeOpenFolder?: boolean }
 ): WorkspacePaletteItem[] {
-  return [
-    {
+  const items: WorkspacePaletteItem[] = []
+
+  // Select workspace (chip + nested ⌘K page) is "pick or create a project".
+  // Open folder is a separate power action on the root palette and ⌘O — next
+  // to New project it reads as a second way to make the same row.
+  if (options?.includeOpenFolder) {
+    items.push({
       action: 'workspace.openFolder',
       id: WORKSPACE_OPEN_FOLDER_ID,
       kind: 'open-folder',
       keywords: ['open', 'folder', 'directory', 'project', 'add', 'import', 'workspace'],
       label: copy.openFolder,
       run: handlers.openFolder
-    },
-    {
-      id: WORKSPACE_NEW_PROJECT_ID,
-      kind: 'new-project',
-      keywords: ['new', 'project', 'create', 'workspace', 'folder'],
-      label: copy.newProject,
-      run: handlers.newProject
-    }
-  ]
+    })
+  }
+
+  items.push({
+    id: WORKSPACE_NEW_PROJECT_ID,
+    kind: 'new-project',
+    keywords: ['new', 'project', 'create', 'workspace', 'folder'],
+    label: copy.newProject,
+    run: handlers.newProject
+  })
+
+  return items
 }
 
 function buildProjectItems(source: WorkspacePickerSource, handlers: WorkspacePaletteHandlers): WorkspacePaletteItem[] {

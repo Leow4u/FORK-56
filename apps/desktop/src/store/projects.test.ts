@@ -29,6 +29,7 @@ import {
   beginSessionMutation,
   clearActiveWorkspace,
   createProject,
+  deleteProject,
   endSessionMutation,
   enterProject,
   exitProjectScope,
@@ -177,6 +178,63 @@ describe('select workspace project', () => {
 
     clearActiveWorkspace()
 
+    expect($projectScope.get()).toBe(ALL_PROJECTS)
+    expect($currentCwd.get()).toBe('')
+    expect($newChatWorkspaceTarget.get()).toBeNull()
+  })
+})
+
+describe('deleteProject', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    $projectScope.set(ALL_PROJECTS)
+    $projectTree.set([])
+    $projects.set([])
+    $activeProjectId.set(null)
+    $selectedStoredSessionId.set(null)
+    $activeSessionId.set(null)
+    setCurrentCwd('')
+    setNewChatWorkspaceTarget(undefined)
+    $projectsRpcAvailable.set(true)
+  })
+
+  it('drops the saved project and detaches the empty chat that was using it', async () => {
+    const request = vi.fn(async (method: string) => {
+      if (method === 'projects.delete') {
+        return { active_id: null, projects: [] }
+      }
+
+      return {
+        active_id: null,
+        projects: [
+          {
+            id: '/repos/dute',
+            isAuto: true,
+            label: 'dute',
+            path: '/repos/dute',
+            repos: [],
+            sessionCount: 2
+          }
+        ],
+        scoped_session_ids: []
+      }
+    })
+
+    activeGateway.mockReturnValue({ connectionState: 'open', request } as never)
+    $projectTree.set([
+      {
+        id: 'p_dute',
+        label: 'DuteLog',
+        path: '/repos/dute',
+        repos: [],
+        sessionCount: 2
+      }
+    ])
+    selectWorkspaceProject('p_dute')
+
+    await deleteProject('p_dute')
+
+    expect($projectTree.get().some(project => project.id === 'p_dute')).toBe(false)
     expect($projectScope.get()).toBe(ALL_PROJECTS)
     expect($currentCwd.get()).toBe('')
     expect($newChatWorkspaceTarget.get()).toBeNull()

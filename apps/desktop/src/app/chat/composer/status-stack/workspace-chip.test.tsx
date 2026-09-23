@@ -11,8 +11,7 @@ import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
 import { WorkspaceChipRow } from './workspace-chip'
 
-const { openFolderAsProject, openProjectCreate } = vi.hoisted(() => ({
-  openFolderAsProject: vi.fn(async () => undefined),
+const { openProjectCreate } = vi.hoisted(() => ({
   openProjectCreate: vi.fn()
 }))
 
@@ -21,7 +20,6 @@ vi.mock('@/store/projects', async importOriginal => {
 
   return {
     ...actual,
-    openFolderAsProject,
     openProjectCreate
   }
 })
@@ -34,7 +32,6 @@ beforeAll(() => {
 afterEach(() => {
   cleanup()
   closeCommandPalette()
-  openFolderAsProject.mockClear()
   openProjectCreate.mockClear()
   $projectTree.set([])
   $projectScope.set(ALL_PROJECTS)
@@ -92,9 +89,10 @@ describe('WorkspaceChipRow', () => {
 
     expect($commandPaletteOpen.get()).toBe(false)
     expect($commandPalettePage.get()).toBeNull()
-    expect(screen.getByRole('menuitem', { name: /Open folder as project/ })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: /Open folder as project/ })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: /Remote/ })).toBeNull()
     expect(screen.getByRole('menuitem', { name: /New project/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Clear active' })).toBeNull()
   })
 
   it('lists used projects and hides home and unused scans', async () => {
@@ -136,7 +134,7 @@ describe('WorkspaceChipRow', () => {
     await openSelectWorkspace()
 
     expect(screen.getByRole('menuitem', { name: 'DuteLog' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Used repo' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Used repo' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'Home' })).toBeNull()
     expect(screen.queryByRole('menuitem', { name: 'scan' })).toBeNull()
     expect(screen.getByRole('textbox', { name: 'Search projects' })).toBeTruthy()
@@ -235,18 +233,46 @@ describe('WorkspaceChipRow', () => {
     expect(chip.textContent).not.toContain('Select workspace')
   })
 
-  it('runs Open folder and New project from the attached menu', async () => {
+  it('runs New project from the attached menu', async () => {
     renderChip(<WorkspaceChipRow messagesEmpty />)
-
-    await openSelectWorkspace()
-    fireEvent.click(screen.getByRole('menuitem', { name: /Open folder as project/ }))
-
-    expect(openFolderAsProject).toHaveBeenCalledOnce()
 
     await openSelectWorkspace()
     fireEvent.click(screen.getByRole('menuitem', { name: /New project/ }))
 
     expect(openProjectCreate).toHaveBeenCalledOnce()
+  })
+
+  it('clears the selected project from the chip itself', () => {
+    $projectTree.set([
+      {
+        id: 'p_dute',
+        label: 'DuteLog',
+        path: '/repos/dute',
+        repos: [],
+        sessionCount: 2
+      } satisfies SidebarProjectTree
+    ])
+    $projectScope.set('p_dute')
+    setCurrentCwd('/repos/dute')
+    const view = renderChip(<WorkspaceChipRow cwd="/repos/dute" messagesEmpty />)
+
+    const clear = screen.getByRole('button', { name: 'Clear active' })
+
+    expect(clear.getAttribute('data-slot')).toBe('workspace-chip-clear')
+    fireEvent.click(clear)
+
+    expect($projectScope.get()).toBe(ALL_PROJECTS)
+    expect($currentCwd.get()).toBe('')
+    expect($newChatWorkspaceTarget.get()).toBeNull()
+
+    view.rerender(
+      <MemoryRouter>
+        <WorkspaceChipRow messagesEmpty />
+      </MemoryRouter>
+    )
+
+    expect(screen.queryByRole('button', { name: 'Clear active' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('Select workspace')
   })
 
   it('keeps the visible label Select workspace when a cwd is not a named project', () => {
