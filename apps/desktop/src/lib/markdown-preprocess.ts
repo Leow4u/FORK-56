@@ -206,6 +206,7 @@ function routeFileLinksToPreview(text: string): string {
 
   return fromMarkdown.replace(HTML_DOC_LINK_RE, (match: string, ...args: unknown[]) => {
     const groups = args.at(-1) as { label: string; target: string }
+
     const label =
       groups.label
         .replace(/<[^>]+>/g, '')
