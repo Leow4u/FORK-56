@@ -2,6 +2,7 @@ import { useStore } from '@nanostores/react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 
+import { composerPanelCard } from '@/components/chat/composer-dock'
 import { Codicon } from '@/components/ui/codicon'
 import {
   DropdownMenu,
@@ -199,7 +200,13 @@ export function AccountFooter() {
               <span className="truncate">{triggerLabel}</span>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top">
+          <DropdownMenuContent
+            align="start"
+            className={cn('min-w-52', composerPanelCard)}
+            data-composer-menu=""
+            side="top"
+            sideOffset={8}
+          >
             <DropdownMenuItem onSelect={openSettings}>
               <Codicon aria-hidden="true" name="settings-gear" size="0.8rem" />
               {menu.settings}
