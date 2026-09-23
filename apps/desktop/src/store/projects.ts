@@ -17,10 +17,14 @@ import { setSidebarAgentsGrouped } from '@/store/layout'
 import { notify } from '@/store/notifications'
 import { $activeGatewayProfile, $profileScope, ALL_PROFILES, requestFreshSession } from '@/store/profile'
 import {
+  $activeSessionId,
   $selectedStoredSessionId,
   $sessions,
   sessionMatchesStoredId,
+  setCurrentCwd,
+  setNewChatWorkspaceTarget,
   setSessions,
+  setWorkspaceCwdOwner,
   workspaceCwdForNewSession
 } from '@/store/session'
 import type { ProjectInfo, ProjectsPayload } from '@/types/work4you'
@@ -166,6 +170,50 @@ export function enterProject(id: string): void {
 
 export function exitProjectScope(): void {
   $projectScope.set(ALL_PROJECTS)
+}
+
+// The intro draft has no stored row and no runtime yet, so its workspace is the
+// global cwd. A live conversation owns its own cwd — picking or clearing a
+// workspace must not retarget that transcript.
+function foregroundIsFreshDraft(): boolean {
+  return !$selectedStoredSessionId.get() && !$activeSessionId.get()
+}
+
+// Empty-chat Select workspace: enter a project the user already has and point
+// the draft at its folder. Does not open a session — `openFolderAsProject`
+// does that. The durable active pointer stays best-effort, same as enterProject.
+export function selectWorkspaceProject(id: string): void {
+  const project = $projectTree.get().find(node => node.id === id)
+  const cwd = projectRootCwd(project)
+
+  if (!project || project.isNoProject || project.archived || !cwd) {
+    return
+  }
+
+  enterProject(id)
+  setNewChatWorkspaceTarget(cwd)
+
+  if (foregroundIsFreshDraft()) {
+    setCurrentCwd(cwd)
+    setWorkspaceCwdOwner(null)
+  }
+}
+
+// Undo a workspace pick: overview scope, and a fresh draft back to the CTA.
+export function clearActiveWorkspace(): void {
+  const hadDurable = Boolean($activeProjectId.get())
+
+  exitProjectScope()
+  setNewChatWorkspaceTarget(null)
+
+  if (foregroundIsFreshDraft()) {
+    setCurrentCwd('')
+    setWorkspaceCwdOwner(null)
+  }
+
+  if (hadDurable) {
+    void setActiveProject(null).catch(() => undefined)
+  }
 }
 
 // A project's working root: its primary folder, else the first repo that has

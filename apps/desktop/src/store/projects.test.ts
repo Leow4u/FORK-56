@@ -4,7 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_PROJECT_ID, type SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
 import { $sidebarAgentsGrouped, setSidebarAgentsGrouped } from '@/store/layout'
 import { $activeGatewayProfile } from '@/store/profile'
-import { $currentCwd, $selectedStoredSessionId, $sessions, applyConfiguredDefaultProjectDir } from '@/store/session'
+import {
+  $activeSessionId,
+  $currentCwd,
+  $newChatWorkspaceTarget,
+  $selectedStoredSessionId,
+  $sessions,
+  applyConfiguredDefaultProjectDir,
+  setCurrentCwd,
+  setNewChatWorkspaceTarget
+} from '@/store/session'
 
 import {
   $activeProjectId,
@@ -18,6 +27,7 @@ import {
   $worktreeRefreshToken,
   ALL_PROJECTS,
   beginSessionMutation,
+  clearActiveWorkspace,
   createProject,
   endSessionMutation,
   enterProject,
@@ -32,6 +42,7 @@ import {
   refreshWorktrees,
   resolveNewSessionCwd,
   scanAndRecordRepos,
+  selectWorkspaceProject,
   startWorkInRepo,
   tombstoneSessions
 } from './projects'
@@ -85,6 +96,92 @@ const work4you = await import('@/work4you')
 const getWork4YouConfig = vi.mocked(work4you.getWork4YouConfig)
 const notifications = await import('@/store/notifications')
 const notify = vi.mocked(notifications.notify)
+
+describe('select workspace project', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    $projectScope.set(ALL_PROJECTS)
+    $projectTree.set([])
+    $selectedStoredSessionId.set(null)
+    $activeSessionId.set(null)
+    setCurrentCwd('')
+    setNewChatWorkspaceTarget(undefined)
+  })
+
+  it('enters the project and anchors the empty chat at its folder', () => {
+    $projectTree.set([
+      {
+        id: 'p_dute',
+        label: 'DuteLog',
+        path: '/repos/dute',
+        repos: [],
+        sessionCount: 2
+      }
+    ])
+
+    selectWorkspaceProject('p_dute')
+
+    expect($projectScope.get()).toBe('p_dute')
+    expect($currentCwd.get()).toBe('/repos/dute')
+    expect($newChatWorkspaceTarget.get()).toBe('/repos/dute')
+  })
+
+  it('does not retarget the cwd of an open conversation', () => {
+    $projectTree.set([
+      {
+        id: 'p_dute',
+        label: 'DuteLog',
+        path: '/repos/dute',
+        repos: [],
+        sessionCount: 2
+      }
+    ])
+    $selectedStoredSessionId.set('sess-1')
+    setCurrentCwd('/repos/current')
+
+    selectWorkspaceProject('p_dute')
+
+    expect($projectScope.get()).toBe('p_dute')
+    expect($currentCwd.get()).toBe('/repos/current')
+    expect($newChatWorkspaceTarget.get()).toBe('/repos/dute')
+  })
+
+  it('ignores a project that has no folder', () => {
+    $projectTree.set([
+      {
+        id: 'p_empty',
+        label: 'Empty',
+        path: null,
+        repos: [],
+        sessionCount: 0
+      }
+    ])
+
+    selectWorkspaceProject('p_empty')
+
+    expect($projectScope.get()).toBe(ALL_PROJECTS)
+    expect($currentCwd.get()).toBe('')
+  })
+
+  it('clears the scope and detaches the draft', () => {
+    $projectTree.set([
+      {
+        id: 'p_dute',
+        label: 'DuteLog',
+        path: '/repos/dute',
+        repos: [],
+        sessionCount: 2
+      }
+    ])
+    selectWorkspaceProject('p_dute')
+
+    clearActiveWorkspace()
+
+    expect($projectScope.get()).toBe(ALL_PROJECTS)
+    expect($currentCwd.get()).toBe('')
+    expect($newChatWorkspaceTarget.get()).toBeNull()
+  })
+})
 
 describe('project scope', () => {
   beforeEach(() => {

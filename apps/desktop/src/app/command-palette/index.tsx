@@ -54,6 +54,7 @@ import {
   Sun,
   Users,
   Wrench,
+  X,
   Zap
 } from '@/lib/icons'
 import { normalize } from '@/lib/text'
@@ -68,10 +69,17 @@ import {
   setCommandPaletteOpen
 } from '@/store/command-palette'
 import { $bindings, bindingsFor } from '@/store/keybinds'
+import { $dismissedAutoProjectIds, $sidebarProjectOrderIds } from '@/store/layout'
 import { openPetGenerate } from '@/store/pet-generate'
 import { openBrowserTab } from '@/store/preview'
-import { openFolderAsProject, requestStartWorkSession } from '@/store/projects'
-import { $connection } from '@/store/session'
+import {
+  $activeProjectId,
+  $projectScope,
+  $projectTree,
+  openFolderAsProject,
+  requestStartWorkSession
+} from '@/store/projects'
+import { $connection, $currentCwd } from '@/store/session'
 import { runGatewayRestart } from '@/store/system-actions'
 import {
   $backendUpdateApply,
@@ -110,11 +118,13 @@ import { HighlightWatcher } from './highlight-watcher'
 import { MarketplaceThemePage } from './marketplace-theme-page'
 import { PetInlineToggle, PetPalettePage } from './pet-palette-page'
 import {
+  buildWorkspaceActionItems,
   buildWorkspacePaletteGroups,
   createWorkspacePaletteHandlers,
   SELECT_WORKSPACE_PAGE,
   type WorkspacePaletteGroup,
-  type WorkspacePaletteItem
+  type WorkspacePaletteItem,
+  type WorkspacePickerSource
 } from './workspace-palette'
 
 interface PaletteItem {
@@ -162,11 +172,17 @@ interface PaletteGroup {
 
 function workspaceItemIcon(item: WorkspacePaletteItem): IconComponent {
   switch (item.kind) {
+    case 'clear-active':
+      return X
+
     case 'open-folder':
       return codiconIcon('folder-opened')
 
     case 'new-project':
       return Plus
+
+    case 'project':
+      return FolderOpen
   }
 }
 
@@ -175,6 +191,7 @@ function workspaceGroupsToPalette(groups: WorkspacePaletteGroup[]): PaletteGroup
     heading: group.heading,
     items: group.items.map(item => ({
       action: item.action,
+      active: item.active,
       icon: workspaceItemIcon(item),
       id: item.id,
       keywords: item.keywords,
@@ -780,31 +797,60 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     [t, worktrees]
   )
 
-  const workspacePaletteGroups = useMemo<PaletteGroup[]>(() => {
-    const cc = t.commandCenter
+  const projectTree = useStore($projectTree)
+  const projectOrderIds = useStore($sidebarProjectOrderIds)
+  const dismissedAutoProjectIds = useStore($dismissedAutoProjectIds)
+  const projectScope = useStore($projectScope)
+  const paletteCwd = useStore($currentCwd)
+  const activeProjectId = useStore($activeProjectId)
+  const workspaceHandlers = useMemo(() => createWorkspacePaletteHandlers(), [])
 
-    return workspaceGroupsToPalette(
-      buildWorkspacePaletteGroups(
-        {
-          newProject: t.sidebar.projects.newButton,
-          openFolder: cc.openFolder
-        },
-        createWorkspacePaletteHandlers()
-      )
-    )
-  }, [t])
+  const workspaceCopy = useMemo(
+    () => ({
+      clearActive: t.commandCenter.clearActiveWorkspace,
+      newProject: t.sidebar.projects.newButton,
+      openFolder: t.commandCenter.openFolder
+    }),
+    [t]
+  )
+
+  const workspaceSource = useMemo<WorkspacePickerSource>(
+    () => ({
+      activeProjectId,
+      cwd: paletteCwd,
+      dismissedIds: dismissedAutoProjectIds,
+      orderIds: projectOrderIds,
+      projects: projectTree,
+      scope: projectScope
+    }),
+    [activeProjectId, dismissedAutoProjectIds, paletteCwd, projectOrderIds, projectScope, projectTree]
+  )
+
+  const workspacePaletteGroups = useMemo<PaletteGroup[]>(
+    () => workspaceGroupsToPalette(buildWorkspacePaletteGroups(workspaceCopy, workspaceHandlers, workspaceSource)),
+    [workspaceCopy, workspaceHandlers, workspaceSource]
+  )
+
+  // Root ⌘K stays the two actions. The recent list lives on the nested
+  // Select workspace page, same rows as the composer chip.
+  const workspaceActionItems = useMemo(
+    () =>
+      workspaceGroupsToPalette([{ items: buildWorkspaceActionItems(workspaceCopy, workspaceHandlers) }]).flatMap(
+        group => group.items
+      ),
+    [workspaceCopy, workspaceHandlers]
+  )
 
   const baseGroups = useMemo<PaletteGroup[]>(() => {
     const settingsTab = (tab: string) => `${SETTINGS_ROUTE}?tab=${tab}`
     const cc = t.commandCenter
 
-    // Sidebar → Projects is the unique workspace tree. This palette group is
-    // Open folder / New project only — the same rows as Select workspace, not
-    // a second `$projectTree`. Open folder is the ⌘O upsert; New project opens
-    // the existing create dialog. Gateway / Cloud / SSH stay in Settings.
+    // Root palette: Open folder / New project only. Recents are on the nested
+    // Select workspace page (and the composer chip), from the same tree.
+    // Gateway / Cloud / SSH stay in Settings.
     const projectGroup: PaletteGroup = {
       heading: cc.projects,
-      items: workspacePaletteGroups.flatMap(group => group.items)
+      items: workspaceActionItems
     }
 
     // Group order is the tiebreaker rankGroups falls back on (stable sort), and
@@ -1029,7 +1075,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     // live state through `detail()`, so the groups must rebuild after a select
     // that kept the palette open — eslint only sees an unused dep.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contributedItems, go, selectTick, settingsSectionLabel, t, updateVersionLabel, workspacePaletteGroups])
+  }, [contributedItems, go, selectTick, settingsSectionLabel, t, updateVersionLabel, workspaceActionItems])
 
   // The long, granular lists (settings fields, API keys, MCP servers, archived
   // chats) only surface once the user types — otherwise they'd bury the

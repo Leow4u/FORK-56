@@ -59,4 +59,10 @@ describe('emptyWorkspaceChipLabel', () => {
 
     expect(emptyWorkspaceChipLabel('/Users/leona/Aplicativos', 'Select workspace')).toBe('Carros Eduardo')
   })
+
+  it('prefers the entered project label over the cwd name', () => {
+    $projectTree.set([treeNode({ id: 'p_cars', label: 'Carros Eduardo', path: '/Users/leona/Aplicativos' })])
+
+    expect(emptyWorkspaceChipLabel('/Users/leona/Aplicativos', 'Select workspace', 'Used repo')).toBe('Used repo')
+  })
 })
