@@ -2,9 +2,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import type * as Nanostores from 'nanostores'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { closeProjectDialog, createProject, goToProject } from '@/store/projects'
+import { closeProjectDialog, createProject, goToProject, pickProjectFolder } from '@/store/projects'
 
-import { ProjectDialog } from './project-dialog'
+import { en } from '@/i18n/en'
+
+import { ProjectDialog, splitFolderPath } from './project-dialog'
 
 afterEach(() => {
   cleanup()
@@ -94,6 +96,30 @@ describe('ProjectDialog', () => {
 
     const button = screen.getByRole('button', { name: 'Shuffle ideas' })
     expect(tipTrigger(button)).toBeTruthy()
+  })
+
+  it('drops the sample name and the IDEA.md note from the create copy', () => {
+    expect(en.sidebar.projects.namePlaceholder.toLowerCase()).not.toContain('skunkworks')
+    expect(en.sidebar.projects.namePlaceholder.trim().length).toBeGreaterThan(0)
+    expect(en.sidebar.projects.ideaPlaceholder).not.toContain('IDEA.md')
+  })
+
+  it('shows the folder name and keeps a long path from widening the dialog', async () => {
+    const folder = 'C:\\Users\\leona\\OneDrive - Dutel\\Pasta Profissional\\Empresas\\DUTELOG\\Recursos Humanos'
+    expect(splitFolderPath(folder)).toEqual({
+      name: 'Recursos Humanos',
+      parent: 'C:\\Users\\leona\\OneDrive - Dutel\\Pasta Profissional\\Empresas\\DUTELOG'
+    })
+
+    vi.mocked(pickProjectFolder).mockResolvedValueOnce(folder)
+    render(<ProjectDialog />)
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+
+    expect(await screen.findByText('Recursos Humanos')).toBeTruthy()
+    const dialog = document.querySelector('[data-slot="dialog-content"]')
+    expect(dialog?.className).toContain('overflow-x-hidden')
+    expect(dialog?.className).toContain('min-w-0')
+    expect(screen.getByText('Recursos Humanos').closest('li')?.className).toContain('overflow-hidden')
   })
 
   it('wraps the "remove folder" button in a Tip once a folder is added', async () => {
