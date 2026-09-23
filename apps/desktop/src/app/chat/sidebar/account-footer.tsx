@@ -25,6 +25,8 @@ import { $desktopVersion, $updateApply, $updateStatus, startActiveUpdate } from 
 
 import { SETTINGS_ROUTE } from '../../routes'
 
+import { accountMenuLabel } from './account-label'
+
 export const ACCOUNT_DOCS_URL = 'https://work4you.ai/docs/'
 export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 
@@ -32,10 +34,10 @@ export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 // profile. The Profile Rail above this footer is a different identity (which
 // agent is active). This row is who is signed in.
 //
-// The trigger shows the Portal email when we have one, or a generic Account
-// label when we do not. Clicking always opens the same menu (Settings, HUD
-// mode, Docs, Shortcuts, Contact Us). Log Out is only present when an email
-// is showing —
+// The trigger shows the cadastro name when the portal saved one, otherwise
+// the Portal email, otherwise a generic Account label. Clicking always opens
+// the same menu (Settings, HUD mode, Docs, Shortcuts, Contact Us). Log Out is
+// only present when that identity is showing —
 // there is no Portal session to clear otherwise.
 //
 // Email re-checks on window focus: portal sign-in/out happens in a separate
@@ -74,14 +76,14 @@ function accountMark(label: string, signedIn: boolean): string {
 export function AccountFooter() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const [email, setEmail] = useState<null | string>(null)
+  const [identity, setIdentity] = useState<null | string>(null)
   const connection = useStore($connection)
   const desktopVersion = useStore($desktopVersion)
   const updateApply = useStore($updateApply)
   const updateStatus = useStore($updateStatus)
   const menu = t.accountMenu
-  const signedIn = Boolean(email)
-  const triggerLabel = email ?? menu.account
+  const signedIn = Boolean(identity)
+  const triggerLabel = identity ?? menu.account
   const applying = updateApply.applying || updateApply.stage === 'restart'
 
   const updateLabel = resolveUpdateChipLabel({
@@ -126,7 +128,7 @@ export function AccountFooter() {
         .status()
         .then(status => {
           if (!cancelled) {
-            setEmail(status.signedIn && status.email ? status.email : null)
+            setIdentity(status.signedIn ? accountMenuLabel(status) : null)
           }
         })
         .catch(() => undefined)
@@ -178,7 +180,7 @@ export function AccountFooter() {
       .logout()
       .then(result => {
         if (!result.signedIn) {
-          setEmail(null)
+          setIdentity(null)
           notify({
             kind: 'success',
             message: t.settings.gateway.cloudSignedOutMessage,

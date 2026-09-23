@@ -20,6 +20,7 @@ import {
   authModeFromStatus,
   buildGatewayWsUrl,
   buildGatewayWsUrlWithTicket,
+  cadastroDisplayName,
   connectionScopeKey,
   cookiesHaveLiveSession,
   cookiesHavePrivyAccessToken,
@@ -1105,6 +1106,15 @@ test('emailFromPrivyCookies never uses the ACCESS token — only the identity to
   const accessToken = fakeIdToken({ sub: 'did:privy:abc' })
 
   assert.equal(emailFromPrivyCookies([{ name: 'privy-token', value: accessToken }]), null)
+})
+
+test('cadastroDisplayName requires both first and last name', () => {
+  assert.equal(cadastroDisplayName('Ada', 'Lovelace'), 'Ada Lovelace')
+  assert.equal(cadastroDisplayName('  Ada  ', '  Lovelace  '), 'Ada Lovelace')
+  assert.equal(cadastroDisplayName('Ada', ''), null)
+  assert.equal(cadastroDisplayName('', 'Lovelace'), null)
+  assert.equal(cadastroDisplayName(null, 'Lovelace'), null)
+  assert.equal(cadastroDisplayName('Ada', null), null)
 })
 
 test('emailFromPrivyCookies returns null for malformed tokens, empty jars, and non-arrays', () => {
