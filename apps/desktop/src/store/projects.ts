@@ -18,6 +18,8 @@ import { notify } from '@/store/notifications'
 import { $activeGatewayProfile, $profileScope, ALL_PROFILES, requestFreshSession } from '@/store/profile'
 import {
   $activeSessionId,
+  $currentCwd,
+  $newChatWorkspaceTarget,
   $selectedStoredSessionId,
   $sessions,
   sessionMatchesStoredId,
@@ -1044,9 +1046,32 @@ export async function deleteProject(id: string): Promise<void> {
   // Capture membership BEFORE removal — the project's folders (which determine
   // ownership) are gone once it's dropped from the cache.
   const kickToIntro = openSessionBelongsToProject(id, snap.projects)
+  const node = snap.tree.find(project => project.id === id)
+  const scopeBefore = $projectScope.get()
+  const cwdBefore = $currentCwd.get()
+  const targetBefore = $newChatWorkspaceTarget.get()
+  const scopeWasProject = scopeBefore === id
+  const draftCwd = foregroundIsFreshDraft() ? (cwdBefore || '').trim() : ''
+  const paths = [
+    node?.path,
+    ...(node?.repos ?? []).flatMap(repo => [repo.path, ...repo.groups.map(group => group.path)])
+  ]
+  const draftWasHere = Boolean(draftCwd && paths.some(path => path && isUnderPath(path, draftCwd)))
 
   $projects.set(snap.projects.filter(project => project.id !== id))
-  $projectTree.set(snap.tree.filter(node => node.id !== id))
+  $projectTree.set(snap.tree.filter(project => project.id !== id))
+
+  // The chip reads scope + cwd, not the tree row. Dropping the row alone leaves
+  // Select workspace showing the deleted name until the next manual clear.
+  if (scopeWasProject) {
+    exitProjectScope()
+  }
+
+  if (draftWasHere || (scopeWasProject && foregroundIsFreshDraft())) {
+    setNewChatWorkspaceTarget(null)
+    setCurrentCwd('')
+    setWorkspaceCwdOwner(null)
+  }
 
   if (snap.active === id) {
     $activeProjectId.set(null)
@@ -1058,9 +1083,17 @@ export async function deleteProject(id: string): Promise<void> {
     requestFreshSession()
   }
 
-  await persistOrRollback(snap, async () => {
-    applyPayload(await gatewayRequest<ProjectsPayload>('projects.delete', { id }))
-  })
+  try {
+    await persistOrRollback(snap, async () => {
+      applyPayload(await gatewayRequest<ProjectsPayload>('projects.delete', { id }))
+    })
+  } catch (err) {
+    $projectScope.set(scopeBefore)
+    setCurrentCwd(cwdBefore || '')
+    setNewChatWorkspaceTarget(targetBefore)
+    throw err
+  }
+
   void refreshProjectTree()
 }
 

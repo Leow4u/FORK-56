@@ -835,9 +835,9 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
   // Select workspace page, same rows as the composer chip.
   const workspaceActionItems = useMemo(
     () =>
-      workspaceGroupsToPalette([{ items: buildWorkspaceActionItems(workspaceCopy, workspaceHandlers) }]).flatMap(
-        group => group.items
-      ),
+      workspaceGroupsToPalette([
+        { items: buildWorkspaceActionItems(workspaceCopy, workspaceHandlers, { includeOpenFolder: true }) }
+      ]).flatMap(group => group.items),
     [workspaceCopy, workspaceHandlers]
   )
 

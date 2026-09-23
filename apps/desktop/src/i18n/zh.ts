@@ -1570,7 +1570,7 @@ export const zh: Translations = {
     openFolderAt: path => `打开文件夹为项目 — ${path}`,
     newSessionInProject: project => `在 ${project} 中新建会话`,
     selectWorkspace: '选择工作区',
-    selectWorkspacePlaceholder: '搜索项目或打开文件夹',
+    selectWorkspacePlaceholder: '搜索项目',
     searchProjects: '搜索项目',
     clearActiveWorkspace: '清除当前',
     workspaceSearchEmpty: '没有匹配的项目',

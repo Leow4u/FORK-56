@@ -1025,7 +1025,7 @@ export const ar = defineLocale({
     goTo: 'انتقال إلى',
     goToSession: 'الانتقال إلى الجلسة',
     selectWorkspace: 'اختيار مساحة العمل',
-    selectWorkspacePlaceholder: 'ابحث عن مشروع أو افتح مجلدًا',
+    selectWorkspacePlaceholder: 'ابحث عن مشروع',
     searchProjects: 'البحث في المشاريع',
     clearActiveWorkspace: 'مسح النشط',
     workspaceSearchEmpty: 'لا توجد مشاريع مطابقة',

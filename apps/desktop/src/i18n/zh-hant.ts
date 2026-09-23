@@ -1182,7 +1182,7 @@ export const zhHant = defineLocale({
     goTo: '前往',
     goToSession: '前往工作階段',
     selectWorkspace: '選擇工作區',
-    selectWorkspacePlaceholder: '搜尋專案或開啟資料夾',
+    selectWorkspacePlaceholder: '搜尋專案',
     searchProjects: '搜尋專案',
     clearActiveWorkspace: '清除目前',
     workspaceSearchEmpty: '沒有相符的專案',

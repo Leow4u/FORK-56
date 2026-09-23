@@ -1220,7 +1220,7 @@ export const ja = defineLocale({
     goTo: '移動',
     goToSession: 'セッションへ移動',
     selectWorkspace: 'ワークスペースを選択',
-    selectWorkspacePlaceholder: 'プロジェクトを検索、またはフォルダーを開く',
+    selectWorkspacePlaceholder: 'プロジェクトを検索',
     searchProjects: 'プロジェクトを検索',
     clearActiveWorkspace: '選択を解除',
     workspaceSearchEmpty: '一致するプロジェクトがありません',

@@ -1379,7 +1379,7 @@ export const en: Translations = {
     openFolderAt: path => `Open folder as project — ${path}`,
     newSessionInProject: project => `New session in ${project}`,
     selectWorkspace: 'Select workspace',
-    selectWorkspacePlaceholder: 'Search projects or open a folder',
+    selectWorkspacePlaceholder: 'Search projects',
     searchProjects: 'Search projects',
     clearActiveWorkspace: 'Clear active',
     workspaceSearchEmpty: 'No matching projects',
