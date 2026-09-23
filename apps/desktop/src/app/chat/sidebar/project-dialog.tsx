@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
@@ -14,10 +14,9 @@ import {
 import { GenerateButton } from '@/components/ui/generate-button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Tip } from '@/components/ui/tooltip'
+import { OverflowTip, Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { type ProjectIdeaTemplate, randomIdeaTemplates } from '@/lib/project-idea-templates'
-import { cn } from '@/lib/utils'
 import { notifyError } from '@/store/notifications'
 import {
   $projectDialog,
@@ -29,6 +28,18 @@ import {
   pickProjectFolder,
   renameProject
 } from '@/store/projects'
+
+const fieldLabelClass =
+  'text-[length:var(--conversation-caption-font-size)] font-medium leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)'
+
+function ProjectField({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className={fieldLabelClass}>{label}</span>
+      {children}
+    </div>
+  )
+}
 
 // Single dialog mounted once in the sidebar; it renders create / rename /
 // add-folder flows driven by the $projectDialog atom. Folders are chosen via
@@ -164,90 +175,105 @@ export function ProjectDialog() {
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-md" onInteractOutside={event => event.preventDefault()}>
+      <DialogContent bodyClassName="gap-5" onInteractOutside={event => event.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {mode === 'create' && <DialogDescription>{p.createDesc}</DialogDescription>}
         </DialogHeader>
 
         {mode !== 'add-folder' && (
-          <Input
-            autoFocus
-            disabled={submitting}
-            onChange={event => setName(event.target.value)}
-            onKeyDown={event => {
-              if (event.key === 'Enter') {
-                event.preventDefault()
-                void submit()
-              } else if (event.key === 'Escape') {
-                onOpenChange(false)
-              }
-            }}
-            placeholder={p.namePlaceholder}
-            ref={nameRef}
-            value={name}
-          />
-        )}
-
-        {mode === 'create' && (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[0.6875rem] font-medium text-(--ui-text-tertiary)">{p.foldersLabel}</span>
-            {folders.length === 0 ? (
-              <span className="text-[0.75rem] text-(--ui-text-quaternary)">{p.noFolders}</span>
-            ) : (
-              <ul className="flex flex-col gap-1">
-                {folders.map((folder, index) => (
-                  <li
-                    className={cn(
-                      'flex items-center gap-2 rounded-md bg-(--ui-control-hover-background) px-2 py-1 text-[0.75rem]'
-                    )}
-                    key={folder}
-                  >
-                    <Codicon className="shrink-0 text-(--ui-text-tertiary)" name="folder" size="0.75rem" />
-                    <span className="min-w-0 flex-1 truncate" title={folder}>
-                      {folder}
-                    </span>
-                    {index === 0 && (
-                      <span className="shrink-0 text-[0.625rem] uppercase text-(--ui-text-quaternary)">
-                        {p.primaryBadge}
-                      </span>
-                    )}
-                    <Tip label={p.removeFolder}>
-                      <Button
-                        aria-label={p.removeFolder}
-                        className="size-5 shrink-0 text-(--ui-text-quaternary) hover:text-foreground"
-                        onClick={() => setFolders(prev => prev.filter(f => f !== folder))}
-                        size="icon-xs"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <Codicon name="close" size="0.75rem" />
-                      </Button>
-                    </Tip>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Button
-              className="self-start"
+          <ProjectField label={p.nameLabel}>
+            <Input
+              autoFocus
               disabled={submitting}
-              onClick={() => void pickFolder()}
-              size="sm"
-              type="button"
-              variant="ghost"
-            >
-              <Codicon name="add" size="0.75rem" />
-              {p.addFolder}
-            </Button>
-          </div>
+              onChange={event => setName(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  void submit()
+                } else if (event.key === 'Escape') {
+                  onOpenChange(false)
+                }
+              }}
+              placeholder={p.namePlaceholder}
+              ref={nameRef}
+              value={name}
+            />
+          </ProjectField>
         )}
 
         {mode === 'create' && (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[0.6875rem] font-medium text-(--ui-text-tertiary)">{p.ideaLabel}</span>
+          <ProjectField label={p.foldersLabel}>
+            {folders.length === 0 ? (
+              <Button
+                aria-label={p.addFolder}
+                className="w-full justify-start whitespace-normal"
+                disabled={submitting}
+                onClick={() => void pickFolder()}
+                type="button"
+                variant="outline"
+              >
+                <Codicon name="folder-opened" size="0.875rem" />
+                <span className="flex min-w-0 flex-col items-start text-left">
+                  <span>{p.addFolder}</span>
+                  <span className="font-normal text-(--ui-text-tertiary)">{p.noFolders}</span>
+                </span>
+              </Button>
+            ) : (
+              <>
+                <ul className="flex flex-col gap-1.5">
+                  {folders.map((folder, index) => (
+                    <li
+                      className="flex items-center gap-2 rounded-(--ui-stage-radius) bg-(--ui-control-hover-background) px-2.5 py-1.5"
+                      key={folder}
+                    >
+                      <Codicon className="shrink-0 text-(--ui-text-tertiary)" name="folder" size="0.875rem" />
+                      <OverflowTip label={folder}>
+                        <span className="min-w-0 flex-1 truncate text-[length:var(--conversation-text-font-size)]">
+                          {folder}
+                        </span>
+                      </OverflowTip>
+                      {index === 0 && (
+                        <span className="shrink-0 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+                          {p.primaryBadge}
+                        </span>
+                      )}
+                      <Tip label={p.removeFolder}>
+                        <Button
+                          aria-label={p.removeFolder}
+                          className="shrink-0 text-(--ui-text-quaternary) hover:text-foreground"
+                          onClick={() => setFolders(prev => prev.filter(f => f !== folder))}
+                          size="icon-xs"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <Codicon name="close" size="0.75rem" />
+                        </Button>
+                      </Tip>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  className="self-start"
+                  disabled={submitting}
+                  onClick={() => void pickFolder()}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <Codicon name="add" size="0.75rem" />
+                  {p.addFolder}
+                </Button>
+              </>
+            )}
+          </ProjectField>
+        )}
+
+        {mode === 'create' && (
+          <ProjectField label={p.ideaLabel}>
             <div className="relative">
               <Textarea
-                className="min-h-20 pr-8 text-[0.8125rem]"
+                className="min-h-24 pr-8"
                 disabled={submitting}
                 onChange={event => setIdea(event.target.value)}
                 placeholder={p.ideaPlaceholder}
@@ -262,23 +288,24 @@ export function ProjectDialog() {
                 onGenerate={() => void generateIdea()}
               />
             </div>
-            <div className="flex flex-wrap items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1.5">
               {templates.map(template => (
-                <button
-                  className="flex items-center gap-1 rounded-full border border-(--ui-stroke-tertiary) px-2 py-0.5 text-[0.6875rem] text-(--ui-text-secondary) transition-colors hover:border-(--ui-stroke-secondary) hover:bg-(--ui-control-hover-background) hover:text-foreground disabled:opacity-50"
+                <Button
                   disabled={submitting}
                   key={template.label}
                   onClick={() => setIdea(template.idea)}
+                  size="sm"
                   type="button"
+                  variant="chip"
                 >
                   <span aria-hidden>{template.emoji}</span>
                   {template.label}
-                </button>
+                </Button>
               ))}
               <Tip label={p.ideaShuffle}>
                 <Button
                   aria-label={p.ideaShuffle}
-                  className="size-5 text-(--ui-text-quaternary) hover:text-foreground"
+                  className="text-(--ui-text-quaternary) hover:text-foreground"
                   disabled={submitting}
                   onClick={() => setTemplates(randomIdeaTemplates())}
                   size="icon-xs"
@@ -289,7 +316,7 @@ export function ProjectDialog() {
                 </Button>
               </Tip>
             </div>
-          </div>
+          </ProjectField>
         )}
 
         {mode === 'add-folder' && (
@@ -300,7 +327,7 @@ export function ProjectDialog() {
         )}
 
         {mode !== 'add-folder' && (
-          <DialogFooter>
+          <DialogFooter className="border-t border-(--ui-stroke-tertiary) pt-3">
             <Button disabled={submitting} onClick={() => onOpenChange(false)} type="button" variant="ghost">
               {t.common.cancel}
             </Button>

@@ -2249,6 +2249,7 @@ export interface Translations {
       renameTitle: string
       addFolderTitle: string
       namePlaceholder: string
+      nameLabel: string
       foldersLabel: string
       ideaLabel: string
       ideaPlaceholder: string
