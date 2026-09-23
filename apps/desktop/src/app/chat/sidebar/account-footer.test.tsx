@@ -131,6 +131,20 @@ describe('AccountFooter', () => {
     expect(screen.getByTestId('location').textContent).toBe('/settings')
   })
 
+  it('opens HUD mode from the account menu', async () => {
+    const open = vi.fn(async () => undefined)
+
+    installCloud({ signedIn: false, email: null })
+    ;(desktopWindow.work4youDesktop as { hud: { open: typeof open } }).hud = { open }
+
+    renderFooter()
+    await openMenu('Account')
+
+    fireEvent.click(await screen.findByRole('menuitem', { name: /^hud mode$/i }))
+
+    expect(open).toHaveBeenCalledWith(expect.objectContaining({ sessionId: null }))
+  })
+
   it('navigates to Keyboard shortcuts from the account menu', async () => {
     installCloud({ signedIn: true, email: 'user@example.com' })
 

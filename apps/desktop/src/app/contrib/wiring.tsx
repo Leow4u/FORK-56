@@ -1013,8 +1013,8 @@ export function ContribWiring({ children }: { children: ReactNode }) {
     [chatRoutesNode, sidebarNode, statusbarNode, terminalNode]
   )
 
-  // The REAL titlebar tool clusters (sidebar/flip toggles, haptics, keybinds,
-  // settings gear) — fixed chrome positioned via the same CSS vars AppShell
+  // The REAL titlebar tool clusters (sidebar/flip toggles, right sidebar)
+  // — fixed chrome positioned via the same CSS vars AppShell
   // sets, computed here from the live connection. Page-registered tools
   // (preview's monitor/devtools cluster, …) arrive as registry contributions.
   const leftTitlebarTools = useTitlebarToolContributions('left')
@@ -1036,12 +1036,12 @@ export function ContribWiring({ children }: { children: ReactNode }) {
   // Pane-registered tools (preview's monitor/devtools cluster) anchor flush
   // against the static system cluster — in the tree layout the titlebar band
   // sits ABOVE the grid, so AppShell's pane-width anchoring doesn't apply.
-  // Count every button the static cluster actually renders: four systemTools
-  // (layout, haptics, keybinds, settings) PLUS the always-present
-  // right-sidebar toggle (see titlebar-controls.tsx). A shared width that
-  // under-counts leaves the find bar, the titlebar header padding, and the
-  // pane-cluster anchor overlapping the fifth button.
-  const SYSTEM_TOOL_COUNT = 5
+  // Count every button the static cluster actually renders: the
+  // right-sidebar toggle (see titlebar-controls.tsx). HUD mode is in the
+  // account menu. A shared width that under-counts leaves the find bar,
+  // the titlebar header padding, and the pane-cluster anchor overlapping
+  // that button.
+  const SYSTEM_TOOL_COUNT = 1
   const paneToolCount = rightTitlebarTools.filter(tool => !tool.hidden).length
   const systemToolsWidth = titlebarToolsWidthCss(SYSTEM_TOOL_COUNT)
 

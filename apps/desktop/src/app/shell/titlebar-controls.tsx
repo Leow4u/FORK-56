@@ -1,18 +1,12 @@
 import { useStore } from '@nanostores/react'
-import { type ComponentProps, type MouseEvent, type ReactNode, useEffect, useState } from 'react'
+import { type ComponentProps, type MouseEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
-import { hudTargetSessionId } from '@/app/hud/handoff'
-import { toggleLayoutEditMode } from '@/components/pane-shell/edit-mode'
-import { resetLayoutTree } from '@/components/pane-shell/tree/store'
 import { Button } from '@/components/ui/button'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { formatModifierToken } from '@/lib/keybinds/combo'
 import { cn } from '@/lib/utils'
-import { $hapticsMuted, toggleHapticsMuted } from '@/store/haptics'
-import { toggleHud } from '@/store/hud'
 import {
   $fileBrowserOpen,
   $sidebarOpen,
@@ -23,12 +17,7 @@ import {
 
 import { appViewForPath, isOverlayView } from '../routes'
 
-import {
-  TITLEBAR_ICON_BADGE_SCALE,
-  titlebarButtonClass,
-  titlebarIconSizeCss,
-  titlebarToolClusterClass
-} from './titlebar'
+import { titlebarButtonClass, titlebarToolClusterClass } from './titlebar'
 import { TitlebarIcon } from './titlebar-icon'
 
 export interface TitlebarTool {
@@ -55,72 +44,12 @@ interface TitlebarControlsProps extends ComponentProps<'div'> {
   tools?: readonly TitlebarTool[]
 }
 
-/**
- * The layout button's glyph. Morphs into its composite reset form — the
- * layout icon wearing a small counter-clockwise arrow badge ("layout, back
- * to how it was") — ONLY while the pointer is on the button AND ⌘/Ctrl is
- * held: hover gates via CSS (`group/tool` on the button), the modifier via
- * the window listener. Pressing the modifier elsewhere changes nothing.
- */
-function LayoutGlyph({ modHeld }: { modHeld: boolean }) {
-  return (
-    <>
-      <span className={cn('inline-flex', modHeld && 'group-hover/tool:hidden')}>
-        <TitlebarIcon name="layout" />
-      </span>
-      <span className={cn('relative hidden', modHeld && 'group-hover/tool:inline-flex')}>
-        <TitlebarIcon name="layout" />
-        <span className="absolute -bottom-1 -right-1.5 grid place-items-center rounded-full bg-(--ui-bg-chrome) p-px">
-          <TitlebarIcon className="-scale-x-100" name="refresh" size={titlebarIconSizeCss(TITLEBAR_ICON_BADGE_SCALE)} />
-        </span>
-      </span>
-    </>
-  )
-}
-
-/** Live ⌘/Ctrl tracking — mod-click affordances telegraph themselves (the
- *  layout button morphs into its reset form while the modifier is down). */
-function useModifierHeld(): boolean {
-  const [held, setHeld] = useState(false)
-
-  useEffect(() => {
-    const sync = (event: KeyboardEvent) => setHeld(event.metaKey || event.ctrlKey)
-    const clear = () => setHeld(false)
-
-    window.addEventListener('keydown', sync)
-    window.addEventListener('keyup', sync)
-    window.addEventListener('blur', clear)
-
-    return () => {
-      window.removeEventListener('keydown', sync)
-      window.removeEventListener('keyup', sync)
-      window.removeEventListener('blur', clear)
-    }
-  }, [])
-
-  return held
-}
-
 export function TitlebarControls({ leftTools = [], tools = [] }: TitlebarControlsProps) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
-  const modHeld = useModifierHeld()
-  const hapticsMuted = useStore($hapticsMuted)
   const fileBrowserOpen = useStore($fileBrowserOpen)
   const sidebarOpen = useStore($sidebarOpen)
-
-  const toggleHaptics = () => {
-    if (!hapticsMuted) {
-      triggerHaptic('tap')
-    }
-
-    toggleHapticsMuted()
-
-    if (hapticsMuted) {
-      window.requestAnimationFrame(() => triggerHaptic('success'))
-    }
-  }
 
   // POSITIONAL toggles: each button shows/hides everything on its physical
   // side of the main zone (the layout tree collapses the whole side), so they
@@ -165,49 +94,10 @@ export function TitlebarControls({ leftTools = [], tools = [] }: TitlebarControl
     }
   }
 
-  // Static system tools — always pinned to the screen's right edge.
+  // HUD mode lives in the account menu. The layout editor and the haptics
+  // mute stay off this cluster. The right-sidebar toggle is rendered beside
+  // whatever is listed here.
   const systemTools: TitlebarTool[] = [
-    {
-      className: 'group/tool',
-      // Hover + held ⌘/Ctrl morphs the glyph into its reset form (see
-      // LayoutGlyph) — the mod-click telegraphs itself before it happens.
-      icon: <LayoutGlyph modHeld={modHeld} />,
-      id: 'layout',
-      label: t.titlebar.layoutEditor,
-      onSelect: event => {
-        if (event?.metaKey || event?.ctrlKey) {
-          triggerHaptic('warning')
-          resetLayoutTree()
-
-          return
-        }
-
-        triggerHaptic('open')
-        toggleLayoutEditMode()
-      },
-      title: t.titlebar.layoutEditorTitle(formatModifierToken('mod'))
-    },
-    {
-      // No `title`: TitlebarToolButton passes `title` to TipKeybindLabel as a
-      // text OVERRIDE, so a long sentence there replaces the short label and
-      // crowds the ⌘⇧H hint off the tooltip. Label only — the hint is appended
-      // from the action registry, same as every other tool here.
-      actionId: 'view.toggleHud',
-      icon: <TitlebarIcon name="comment-discussion" />,
-      id: 'hud',
-      label: t.titlebar.enterHud,
-      onSelect: () => {
-        triggerHaptic('open')
-        toggleHud(hudTargetSessionId())
-      }
-    },
-    {
-      active: hapticsMuted,
-      icon: <TitlebarIcon name={hapticsMuted ? 'mute' : 'unmute'} />,
-      id: 'haptics',
-      label: hapticsMuted ? t.titlebar.unmuteHaptics : t.titlebar.muteHaptics,
-      onSelect: toggleHaptics
-    }
     // Settings moved to the sidebar footer user menu (AccountFooter) — same
     // navigate(SETTINGS_ROUTE) action; the `mod+,` keybind and the
     // command-palette entry are unchanged.
@@ -277,8 +167,7 @@ export function TitlebarControls({ leftTools = [], tools = [] }: TitlebarControl
 
 function TitlebarToolButton({ navigate, tool }: { navigate: ReturnType<typeof useNavigate>; tool: TitlebarTool }) {
   // Titlebar actions never show an active background — state reads from the
-  // icon itself (e.g. the mute/unmute glyph). aria-pressed still carries it
-  // for a11y.
+  // icon itself. aria-pressed still carries it for a11y.
   const className = cn(titlebarButtonClass, 'bg-transparent select-none', tool.className)
 
   const tooltipLabel = tool.actionId ? (

@@ -267,6 +267,7 @@ export interface Translations {
   accountMenu: {
     account: string
     settings: string
+    hud: string
     docs: string
     shortcuts: string
     contactUs: string

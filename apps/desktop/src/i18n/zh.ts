@@ -220,6 +220,7 @@ export const zh: Translations = {
   accountMenu: {
     account: '账户',
     settings: '设置',
+    hud: 'HUD 模式',
     docs: '文档',
     shortcuts: '快捷键',
     contactUs: '联系我们',
