@@ -1,9 +1,10 @@
 'use client'
 
 import { usePrivy } from '@privy-io/react-auth'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { OrgPage } from '../../components/OrgPage'
+import { requestSubscriptionCloud } from '../../lib/ensure-subscription-cloud'
 import {
   catalogTierCopy,
   formatCycleDate,
@@ -24,6 +25,8 @@ export function BillingPage() {
   const cardSaved = searchParams.get('card') === 'saved'
   const planUpgraded = searchParams.get('plan') === 'upgraded'
   const preselectPlan = searchParams.get('plan')
+  const checkoutReturn = useRef(planUpgraded)
+  const cloudEnsureOnce = useRef(false)
 
   const [billing, setBilling] = useState<BillingStatePayload | null>(null)
   const [subscription, setSubscription] =
@@ -94,6 +97,24 @@ export function BillingPage() {
       void load()
     }
   }, [planUpgraded, load, searchParams, setSearchParams])
+
+  useEffect(() => {
+    if (!ready || loading || !authenticated || !billing || !subscription) return
+    if (isFreePlanPayload(billing, subscription)) return
+    if (cloudEnsureOnce.current) return
+    cloudEnsureOnce.current = true
+    const org = billing.org.slug
+    const fromCheckout = checkoutReturn.current
+    void (async () => {
+      const headers = await authHeaders()
+      if (!headers) return
+      await requestSubscriptionCloud({
+        headers,
+        org,
+        checkoutReturn: fromCheckout,
+      })
+    })()
+  }, [ready, loading, authenticated, billing, subscription, authHeaders])
 
   function setQuery(key: string, value: string | null) {
     const next = new URLSearchParams(searchParams)

@@ -8,7 +8,18 @@ import {
   parseCloudSize,
   type CloudSizeId,
 } from './cloud-sizes'
+import {
+  assertFlyApiToken,
+  ensureOrgCloudInstanceWith,
+  type CloudEnsureResult,
+  type CloudInstanceRef,
+} from './cloud-entitlement'
 import { drainGatewayBeforeLifecycle } from './agent-gateway-drain'
+import {
+  fetchAnnotatedModelsForOrg,
+  resolveProvisionModel,
+} from './inference-catalog'
+import { HOUSE_MODEL_ID } from './model-access'
 import { SELF_HOSTED_STATUS } from './self-hosted-dashboard'
 import {
   agentDashboardPort,
@@ -350,6 +361,84 @@ export async function createAndProvisionAgent(args: {
     })
     return toAgentDto(updated)
   }
+}
+
+async function listOrgCloudRefs(orgId: string): Promise<CloudInstanceRef[]> {
+  return prisma.agentInstance.findMany({
+    where: { orgId },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, createdAt: true, status: true },
+  })
+}
+
+async function resolveEnsuredModel(args: {
+  org: Org
+  user: Pick<User, 'id' | 'privyDid'>
+  model?: string | null
+}): Promise<string> {
+  const catalog = await fetchAnnotatedModelsForOrg({
+    org: args.org,
+    user: args.user,
+  })
+  if (!('error' in catalog)) {
+    return resolveProvisionModel(catalog, args.model)
+  }
+  const explicit = args.model?.trim()
+  return explicit || HOUSE_MODEL_ID
+}
+
+/**
+ * Create the org's single Cloud VM, or return the one that already exists.
+ * Free with no VM refuses. Size comes from the plan. POST /api/agents must
+ * not call this — POST /api/cloud/ensure does, after the plan is paid.
+ */
+export async function ensureOrgCloudInstance(args: {
+  org: Org
+  user: Pick<User, 'id' | 'privyDid'>
+  name?: string | null
+  model?: string | null
+}): Promise<
+  | { ok: false; error: 'paid_plan_required' }
+  | { ok: true; created: boolean; agent: AgentDto }
+> {
+  let createdAgent: AgentDto | null = null
+  const result: CloudEnsureResult<CloudInstanceRef> = await ensureOrgCloudInstanceWith({
+    tierId: args.org.subscriptionTierId,
+    name: args.name,
+    list: () => listOrgCloudRefs(args.org.id),
+    create: async ({ size, name }) => {
+      // Missing token must not insert an error row that occupies the slot.
+      assertFlyApiToken(process.env.FLY_API_TOKEN)
+      const model = await resolveEnsuredModel(args)
+      const agent = await createAndProvisionAgent({
+        org: args.org,
+        user: args.user,
+        name,
+        size,
+        model,
+      })
+      createdAgent = agent
+      return {
+        id: agent.id,
+        createdAt: agent.createdAt,
+        status: agent.status,
+      }
+    },
+  })
+
+  if (!result.ok) return result
+
+  if (result.created) {
+    const agent = createdAgent
+    if (!agent || agent.id !== result.instance.id) {
+      throw new Error('cloud_instance_missing')
+    }
+    return { ok: true, created: true, agent }
+  }
+
+  const row = await getAgent(args.org.id, result.instance.id)
+  if (!row) throw new Error('cloud_instance_missing')
+  return { ok: true, created: false, agent: toAgentDto(row) }
 }
 
 export async function stopAgent(row: AgentInstance): Promise<AgentDto> {

@@ -1,26 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import {
-  cloudSizeCatalog,
-  createAndProvisionAgent,
-  listAgents,
-} from '@/lib/agents'
-import {
-  fetchAnnotatedModelsForOrg,
-  resolveProvisionModel,
-} from '@/lib/inference-catalog'
-import { HOUSE_MODEL_ID } from '@/lib/model-access'
+import { cloudSizeCatalog, listAgents } from '@/lib/agents'
+import { cloudEntitlement, manualCloudCreateRefusal } from '@/lib/cloud-entitlement'
 import { resolvePortalOrg } from '@/lib/request-auth'
 
 export const runtime = 'nodejs'
-/** Provisioning talks to Fly Machines — allow a long serverless window. */
+/** GET may reconcile Fly state for pending rows. */
 export const maxDuration = 300
 
 /**
- * GET /api/agents?org= — list Cloud instances; reconciles Fly state for pending rows.
+ * GET /api/agents?org= — list Cloud instances and the plan entitlement.
  * Auth: Bearer or privy-token cookie.
  * Multi-org without ?org= → 409 org_selection_required.
  *
- * POST /api/agents — create + provision { name, size?, model?, org? }
+ * POST /api/agents — closed. Name, size, and model are ignored.
+ * 403 manual_create_disabled. The only creator is POST /api/cloud/ensure.
  */
 export async function GET(req: NextRequest) {
   const orgParam = req.nextUrl.searchParams.get('org')
@@ -40,52 +33,18 @@ export async function GET(req: NextRequest) {
       role: resolved.role,
     },
     sizes: cloudSizeCatalog(),
+    entitlement: cloudEntitlement(resolved.org.subscriptionTierId),
   })
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json().catch(() => ({}))) as {
-    name?: string
-    size?: string
-    model?: string
-    org?: string
-  }
-  const orgParam =
-    body.org || req.nextUrl.searchParams.get('org') || null
+  const body = (await req.json().catch(() => ({}))) as { org?: string }
+  const orgParam = body.org || req.nextUrl.searchParams.get('org') || null
   const resolved = await resolvePortalOrg(req, orgParam)
   if (!resolved.ok) {
     return NextResponse.json(resolved.body, { status: resolved.status })
   }
 
-  const name = (body.name || '').trim()
-  if (!name) {
-    return NextResponse.json({ error: 'name_required' }, { status: 400 })
-  }
-
-  if (!process.env.FLY_API_TOKEN) {
-    return NextResponse.json(
-      { error: 'fly_not_configured', message: 'FLY_API_TOKEN em falta no Portal.' },
-      { status: 503 },
-    )
-  }
-
-  let model = body.model?.trim() || null
-  const catalog = await fetchAnnotatedModelsForOrg({
-    org: resolved.org,
-    user: resolved.user,
-  })
-  if (!('error' in catalog)) {
-    model = resolveProvisionModel(catalog, model)
-  } else if (!model) {
-    model = HOUSE_MODEL_ID
-  }
-
-  const agent = await createAndProvisionAgent({
-    org: resolved.org,
-    user: resolved.user,
-    name,
-    size: body.size,
-    model,
-  })
-  return NextResponse.json({ agent }, { status: 201 })
+  const refusal = manualCloudCreateRefusal()
+  return NextResponse.json(refusal.body, { status: refusal.status })
 }

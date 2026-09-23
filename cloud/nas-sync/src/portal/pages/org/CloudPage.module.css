@@ -34,6 +34,11 @@
   color: var(--grafite);
 }
 
+.emptyAction {
+  margin-top: 0.85rem;
+  text-decoration: none;
+}
+
 .primary,
 .ghost,
 .danger {

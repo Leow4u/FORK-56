@@ -3,9 +3,11 @@
 import { usePrivy } from '@privy-io/react-auth'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { requestSubscriptionCloud } from '../lib/ensure-subscription-cloud'
 import {
   catalogTierCopy,
   isCurrentCatalogTier,
+  isFreePlanPayload,
   type BillingStatePayload,
   type SubscriptionStatePayload,
 } from '@/lib/billing-client'
@@ -23,6 +25,7 @@ export function ManageSubscriptionPage() {
   const orgIdParam = searchParams.get('org_id')
   const planParam = searchParams.get('plan')
   const autoStarted = useRef(false)
+  const cloudEnsureOnce = useRef(false)
 
   const [billing, setBilling] = useState<BillingStatePayload | null>(null)
   const [subscription, setSubscription] =
@@ -151,6 +154,12 @@ export function ManageSubscriptionPage() {
               ? `Já estás no ${data.targetTierName || 'plano'}`
               : `Upgrade para ${data.targetTierName} concluído`,
           )
+          cloudEnsureOnce.current = true
+          void requestSubscriptionCloud({
+            headers,
+            org: billing?.org.slug,
+            checkoutReturn: false,
+          })
           await load()
           return
         }
@@ -167,8 +176,25 @@ export function ManageSubscriptionPage() {
         setBusy(null)
       }
     },
-    [authHeaders, load, startCheckout, subscription?.current],
+    [authHeaders, billing?.org.slug, load, startCheckout, subscription?.current],
   )
+
+  useEffect(() => {
+    if (!ready || loading || !authenticated || !billing || !subscription) return
+    if (isFreePlanPayload(billing, subscription)) return
+    if (cloudEnsureOnce.current) return
+    cloudEnsureOnce.current = true
+    const org = billing.org.slug
+    void (async () => {
+      const headers = await authHeaders()
+      if (!headers) return
+      await requestSubscriptionCloud({
+        headers,
+        org,
+        checkoutReturn: false,
+      })
+    })()
+  }, [ready, loading, authenticated, billing, subscription, authHeaders])
 
   useEffect(() => {
     if (!planParam || loading || !subscription || autoStarted.current) return
