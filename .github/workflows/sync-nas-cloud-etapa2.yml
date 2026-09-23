@@ -120,6 +120,7 @@ jobs:
           fi
 
           cp cloud/nas-sync/src/lib/agents.ts nas/src/lib/
+          cp cloud/nas-sync/src/lib/cloud-entitlement.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/agent-bootstrap.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/agent-gateway-drain.ts nas/src/lib/
           cp cloud/nas-sync/src/lib/agent-redirect-uri.ts nas/src/lib/
@@ -212,6 +213,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
             src/lib/agents.ts \
+            src/lib/cloud-entitlement.ts \
             src/lib/agent-bootstrap.ts \
             src/lib/agent-gateway-drain.ts \
             src/lib/agent-redirect-uri.ts \
@@ -291,6 +293,6 @@ jobs:
               echo ""
               echo "Vercel redeploys portal.work4you.ai automatically."
               echo ""
-              echo "Next: Portal → Cloud → **Atualizar** on an existing agent (preserves /opt/data history), or create a new one."
+              echo "Next: Portal → Cloud → **Atualizar** on an existing agent (preserves /opt/data history). Manual create is closed."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
