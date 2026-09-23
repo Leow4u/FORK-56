@@ -30,6 +30,8 @@ export type CloudInstanceRef = {
   /** Absent or blank means Fly never recorded a machine on this row. */
   flyMachineId?: string | null
   updatedAt?: string | Date | null
+  /** Recorded machine size. Blank means the row cannot be resized safely. */
+  size?: string | null
 }
 
 export type CloudEntitlement = {
@@ -59,6 +61,7 @@ export type CloudEnsureResult<T extends CloudInstanceRef = CloudInstanceRef> =
 type EnsureDecision<T extends CloudInstanceRef> =
   | { action: 'reuse'; instance: T }
   | { action: 'resume'; instance: T }
+  | { action: 'resize'; instance: T; size: CloudSizeId }
   | { action: 'create'; size: CloudSizeId; name: string }
   | { action: 'refuse'; error: 'paid_plan_required' }
 
@@ -147,6 +150,46 @@ export function cloudSizeForTier(tierId: string | null | undefined): CloudSizeId
   return TIER_CLOUD_SIZE[id]
 }
 
+export function recordedCloudSize(size: string | null | undefined): CloudSizeId | null {
+  const id = (size ?? '').trim().toLowerCase()
+  if (id === 'small' || id === 'medium' || id === 'large') return id
+  return null
+}
+
+/** Disk only grows. A smaller plan keeps the volume that is already there. */
+export function planDiskGb(currentGb: number, targetGb: number): number {
+  const current = Number.isFinite(currentGb) && currentGb > 0 ? currentGb : 0
+  const target = Number.isFinite(targetGb) && targetGb > 0 ? targetGb : 0
+  return Math.max(current, target)
+}
+
+/** GB to send to Fly extend, or null when the volume must stay as it is. */
+export function volumeExtendGb(currentGb: number, targetGb: number): number | null {
+  if (!Number.isFinite(targetGb) || targetGb <= 0) return null
+  if (!Number.isFinite(currentGb) || currentGb <= 0) return targetGb
+  if (targetGb > currentGb) return targetGb
+  return null
+}
+
+/**
+ * Paid plan size when the existing machine should change.
+ * An unborn row is resumed first. Free never resizes. A blank size is left
+ * alone so we do not guess the machine's current shape.
+ */
+export function cloudInstanceResizeTarget(
+  row: Pick<CloudInstanceRef, 'flyMachineId' | 'size' | 'status' | 'updatedAt'>,
+  tierId: string | null | undefined,
+  now = Date.now(),
+): CloudSizeId | null {
+  const target = cloudSizeForTier(tierId)
+  if (!target) return null
+  if (!(row.flyMachineId ?? '').trim()) return null
+  if (cloudInstanceNeedsResume(row, now)) return null
+  const current = recordedCloudSize(row.size)
+  if (!current || current === target) return null
+  return target
+}
+
 export function cloudInstanceName(name?: string | null): string {
   const trimmed = (name ?? '').trim().slice(0, 64)
   return trimmed || DEFAULT_CLOUD_INSTANCE_NAME
@@ -213,9 +256,10 @@ export function manualCloudCreateRefusal(): {
 }
 
 /**
- * Size is not an input. A live Cloud row is reused, including a legacy Free
- * VM and a size that no longer matches the plan (resize is a later step).
- * A paid row whose Fly machine never got an id is resumed, not replaced.
+ * Size is not an input. A live Cloud row stays the org's only VM.
+ * A paid row whose Fly machine never got an id is resumed. A paid row whose
+ * recorded size differs from the plan is resized in place. Free does not
+ * resize or create.
  */
 export function decideOrgCloudInstance<T extends CloudInstanceRef>(args: {
   tierId: string | null | undefined
@@ -231,6 +275,8 @@ export function decideOrgCloudInstance<T extends CloudInstanceRef>(args: {
     ) {
       return { action: 'resume', instance: canonical }
     }
+    const resizeTo = cloudInstanceResizeTarget(canonical, args.tierId, args.now)
+    if (resizeTo) return { action: 'resize', instance: canonical, size: resizeTo }
     return { action: 'reuse', instance: canonical }
   }
   const size = cloudSizeForTier(args.tierId)
@@ -245,14 +291,25 @@ export function decideOrgCloudInstance<T extends CloudInstanceRef>(args: {
  */
 async function settleExistingInstance<T extends CloudInstanceRef>(
   decision: EnsureDecision<T>,
-  resume?: (instance: T) => Promise<T>,
+  handlers: {
+    resume?: (instance: T) => Promise<T>
+    resize?: (instance: T, size: CloudSizeId) => Promise<T>
+  },
 ): Promise<CloudEnsureResult<T> | null> {
   if (decision.action === 'refuse') return { ok: false, error: decision.error }
   if (decision.action === 'reuse') {
     return { ok: true, created: false, instance: decision.instance }
   }
   if (decision.action === 'resume') {
-    const instance = resume ? await resume(decision.instance) : decision.instance
+    const instance = handlers.resume
+      ? await handlers.resume(decision.instance)
+      : decision.instance
+    return { ok: true, created: false, instance }
+  }
+  if (decision.action === 'resize') {
+    const instance = handlers.resize
+      ? await handlers.resize(decision.instance, decision.size)
+      : decision.instance
     return { ok: true, created: false, instance }
   }
   return null
@@ -266,7 +323,10 @@ export async function ensureOrgCloudInstanceWith<T extends CloudInstanceRef>(arg
   create: (input: { size: CloudSizeId; name: string }) => Promise<T>
   /** Finish the canonical row when its Fly machine was never recorded. */
   resume?: (instance: T) => Promise<T>
+  /** Change the canonical machine to the plan size. Does not insert a row. */
+  resize?: (instance: T, size: CloudSizeId) => Promise<T>
 }): Promise<CloudEnsureResult<T>> {
+  const handlers = { resume: args.resume, resize: args.resize }
   const listed = await args.list()
   const first = await settleExistingInstance(
     decideOrgCloudInstance({
@@ -275,7 +335,7 @@ export async function ensureOrgCloudInstanceWith<T extends CloudInstanceRef>(arg
       name: args.name,
       now: args.now,
     }),
-    args.resume,
+    handlers,
   )
   if (first) return first
 
@@ -285,7 +345,7 @@ export async function ensureOrgCloudInstanceWith<T extends CloudInstanceRef>(arg
     name: args.name,
     now: args.now,
   })
-  const settled = await settleExistingInstance(again, args.resume)
+  const settled = await settleExistingInstance(again, handlers)
   if (settled) return settled
   if (again.action !== 'create') {
     return { ok: false, error: 'paid_plan_required' }

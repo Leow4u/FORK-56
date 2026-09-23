@@ -113,6 +113,7 @@ export function CloudPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [canUseCloud, setCanUseCloud] = useState(false)
+  const [allowedSize, setAllowedSize] = useState<string | null>(null)
   const [preparing, setPreparing] = useState(false)
   const [ensureSettled, setEnsureSettled] = useState(false)
   const cloudEnsureOrg = useRef<string | null>(null)
@@ -153,20 +154,27 @@ export function CloudPage() {
           )
           setAgents([])
           setCanUseCloud(false)
+          setAllowedSize(null)
         }
         return
       }
       const data = (await res.json()) as {
         agents?: AgentRow[]
-        entitlement?: { canUseCloud?: boolean }
+        entitlement?: { allowedSize?: string | null; canUseCloud?: boolean }
       }
       setAgents(Array.isArray(data.agents) ? data.agents : [])
       setCanUseCloud(data.entitlement?.canUseCloud === true)
+      setAllowedSize(
+        typeof data.entitlement?.allowedSize === 'string' && data.entitlement.allowedSize
+          ? data.entitlement.allowedSize
+          : null,
+      )
     } catch {
       if (!opts?.silent) {
         setError('Não foi possível contactar o Portal.')
         setAgents([])
         setCanUseCloud(false)
+        setAllowedSize(null)
       }
     } finally {
       if (!opts?.silent) setLoading(false)
@@ -231,11 +239,20 @@ export function CloudPage() {
     .map((agent) => `${agent.id}:${agent.status}`)
     .join(',')
 
-  // A row can exist before Fly finishes. Polling GET does not resume it.
-  // POST /api/cloud/ensure is cheap while the row is still in-flight, and
-  // finishes the same row once that request is stale or has recorded an error.
+  const resizeKey =
+    allowedSize == null
+      ? ''
+      : agents
+          .filter((agent) => agent.size !== allowedSize)
+          .map((agent) => `${agent.id}:${agent.size}:${allowedSize}`)
+          .join(',')
+
+  const ensureKey = unbornKey || resizeKey
+
+  // GET does not finish a half-created machine or apply a new plan size.
+  // Ensure resumes an unborn row, or resizes the one machine to the plan.
   useEffect(() => {
-    if (!ready || !authenticated || !canUseCloud || !unbornKey) return
+    if (!ready || !authenticated || !canUseCloud || !ensureKey) return
     let cancelled = false
     const attempt = () => {
       if (cancelled) return
@@ -258,7 +275,7 @@ export function CloudPage() {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [ready, authenticated, canUseCloud, unbornKey, orgId, authHeaders, load])
+  }, [ready, authenticated, canUseCloud, ensureKey, orgId, authHeaders, load])
 
   useEffect(() => {
     const pending =

@@ -190,6 +190,42 @@ export async function listVolumes(appName: string): Promise<FlyVolume[]> {
   return []
 }
 
+/** True when the running guest is not the plan's CPU and memory. */
+export function guestNeedsResize(
+  current: { cpu_kind?: string; cpus?: number; memory_mb?: number } | undefined,
+  target: { cpu_kind: string; cpus: number; memory_mb: number },
+): boolean {
+  if (!current) return true
+  return (
+    current.cpu_kind !== target.cpu_kind ||
+    current.cpus !== target.cpus ||
+    current.memory_mb !== target.memory_mb
+  )
+}
+
+export async function extendVolume(args: {
+  appName: string
+  volumeId: string
+  sizeGb: number
+}): Promise<void> {
+  try {
+    await flyFetch(
+      `/apps/${encodeURIComponent(args.appName)}/volumes/${encodeURIComponent(args.volumeId)}/extend`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ size_gb: args.sizeGb }),
+      },
+    )
+  } catch (error) {
+    if (flyAlreadyExists(error)) return
+    const message = error instanceof Error ? error.message : ''
+    if (/greater than or equal|already at|not larger|cannot be smaller|same size/i.test(message)) {
+      return
+    }
+    throw error
+  }
+}
+
 export async function createVolume(args: {
   appName: string
   name: string
@@ -418,6 +454,45 @@ export async function rollMachineImage(args: {
     changed: true,
     machine,
   }
+}
+
+/**
+ * Change CPU and memory in place. Keeps the image, env, and /opt/data mount.
+ * Aborts when that mount is missing or the volume id does not match.
+ * A stopped machine stays stopped when skip_launch is set.
+ */
+export async function resizeMachineGuest(args: {
+  appName: string
+  machineId: string
+  expectedVolumeId: string
+  guest: { cpu_kind: string; cpus: number; memory_mb: number }
+  skip_launch?: boolean
+}): Promise<{ changed: boolean; machine: FlyMachine }> {
+  const current = await getMachine(args.appName, args.machineId)
+  const config = current.config
+  if (!config || typeof config !== 'object') {
+    throw new Error('Máquina Fly sem config — não é seguro redimensionar')
+  }
+  const mounts = Array.isArray(config.mounts) ? config.mounts : []
+  const dataMount = mounts.find((mount) => mount.path === '/opt/data')
+  if (!dataMount?.volume) {
+    throw new Error('Mount /opt/data em falta — abortar resize para não perder dados')
+  }
+  if (dataMount.volume !== args.expectedVolumeId) {
+    throw new Error(
+      `Volume id diverge (machine=${dataMount.volume}, db=${args.expectedVolumeId}) — abortar`,
+    )
+  }
+  if (!guestNeedsResize(config.guest, args.guest)) {
+    return { changed: false, machine: current }
+  }
+  const machine = await updateMachine({
+    appName: args.appName,
+    machineId: args.machineId,
+    config: { ...config, guest: args.guest },
+    skip_launch: args.skip_launch,
+  })
+  return { changed: true, machine }
 }
 
 /** Golden image for new agent VMs (deployed to work4you-cloud-runtime). */

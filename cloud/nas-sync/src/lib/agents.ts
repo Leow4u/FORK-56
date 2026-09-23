@@ -10,8 +10,12 @@ import {
 } from './cloud-sizes'
 import {
   assertFlyApiToken,
+  cloudSizeForTier,
   ensureOrgCloudInstanceWith,
+  planDiskGb,
   planFlyBirth,
+  recordedCloudSize,
+  volumeExtendGb,
   type CloudEnsureResult,
   type CloudInstanceRef,
   type FlyBirthObservation,
@@ -30,6 +34,7 @@ import {
   createFlyApp,
   createMachine,
   createVolume,
+  extendVolume,
   flyAlreadyExists,
   deleteFlyApp,
   destroyMachine,
@@ -38,6 +43,7 @@ import {
   imagesMatch,
   listMachines,
   listVolumes,
+  resizeMachineGuest,
   rollMachineImage,
   startMachine,
   stopMachine,
@@ -329,12 +335,47 @@ async function markMachineOnline(
  * Finish the Fly app/machine for a row that already occupies the org slot.
  * Adopts an existing machine or volume. Does not insert another row.
  */
+function sizeRecord(size: CloudSizeId, diskGb: number) {
+  const spec = CLOUD_SIZES[size]
+  return {
+    size,
+    cpus: spec.cpus,
+    memoryMb: spec.memoryMb,
+    diskGb,
+    maxSessions: spec.maxSessions,
+    priceRunningUsd: spec.priceRunningUsd,
+    priceStoppedUsd: spec.priceStoppedUsd,
+  }
+}
+
+async function growVolumeIfNeeded(
+  appName: string,
+  volumeId: string,
+  targetGb: number,
+): Promise<number> {
+  let current = 0
+  try {
+    const volumes = await listVolumes(appName)
+    const found = volumes.find((volume) => volume.id === volumeId)
+    if (found && Number.isFinite(found.size_gb)) current = found.size_gb
+  } catch (error) {
+    if (flyHttpStatus(error) !== 404) throw error
+  }
+  const next = volumeExtendGb(current, targetGb)
+  if (next != null) {
+    await extendVolume({ appName, volumeId, sizeGb: next })
+    return next
+  }
+  return planDiskGb(current, targetGb)
+}
+
 async function provisionClaimedInstance(
   row: AgentInstance,
   org: Org,
   user: Pick<User, 'id' | 'privyDid'>,
+  planSize?: CloudSizeId | null,
 ): Promise<AgentDto> {
-  const size = parseCloudSize(row.size)
+  const size = planSize ?? parseCloudSize(row.size)
   const spec = CLOUD_SIZES[size]
   const flyAppName = row.flyAppName || flyAppNameForSlug(row.slug)
   const region = row.flyRegion || process.env.FLY_REGION || 'gru'
@@ -353,7 +394,12 @@ async function provisionClaimedInstance(
         data: { dashboardUrl, flyAppName },
       })
     }
-    return markMachineOnline(row.id, flyAppName, plan.machineId)
+    const adopted = await markMachineOnline(row.id, flyAppName, plan.machineId)
+    if (planSize && recordedCloudSize(row.size) !== planSize) {
+      const fresh = await getAgent(row.orgId, row.id)
+      if (fresh?.flyMachineId) return resizeOrgCloudInstance(fresh, planSize)
+    }
+    return adopted
   }
 
   if (plan.createApp) {
@@ -372,6 +418,7 @@ async function provisionClaimedInstance(
     sizeGb: spec.diskGb,
     volumeId: plan.volumeId,
   })
+  const diskGb = await growVolumeIfNeeded(flyAppName, volumeId, spec.diskGb)
 
   const drainSecret = randomBytes(24).toString('base64url')
   const oauthClientId = `agent:${row.id}`
@@ -421,7 +468,104 @@ async function provisionClaimedInstance(
     volumeId,
     internalPort: port,
   })
-  return markMachineOnline(row.id, flyAppName, machine.id)
+  const started = await markMachineOnline(row.id, flyAppName, machine.id)
+  if (!planSize || recordedCloudSize(row.size) === planSize) return started
+  const updated = await prisma.agentInstance.update({
+    where: { id: row.id },
+    data: sizeRecord(planSize, diskGb || planDiskGb(row.diskGb, spec.diskGb)),
+  })
+  return toAgentDto(updated)
+}
+
+/**
+ * Move the existing Fly machine to the plan size. Same app, same volume.
+ * Disk grows when the plan is larger and stays when the plan is smaller.
+ * A stopped machine stays stopped.
+ */
+export async function resizeOrgCloudInstance(
+  row: AgentInstance,
+  target: CloudSizeId,
+): Promise<AgentDto> {
+  assertFlyApiToken(process.env.FLY_API_TOKEN)
+  if (!row.flyAppName || !row.flyMachineId) {
+    return markProvisionError(row.id, new Error('Instância sem máquina Fly'))
+  }
+  const appName = row.flyAppName
+  const machineId = row.flyMachineId
+
+  let working = row
+  if (!working.flyVolumeId) {
+    const mounted = await getMachine(appName, machineId)
+    const mount = mounted.config?.mounts?.find((item) => item.path === '/opt/data')
+    if (mount?.volume) {
+      working = await prisma.agentInstance.update({
+        where: { id: row.id },
+        data: { flyVolumeId: mount.volume },
+      })
+    }
+  }
+  const volumeId = working.flyVolumeId
+  if (!volumeId) {
+    return markProvisionError(
+      row.id,
+      new Error('Volume em falta — não é seguro redimensionar sem /opt/data'),
+    )
+  }
+
+  const claimed = await prisma.agentInstance.updateMany({
+    where: {
+      id: row.id,
+      orgId: row.orgId,
+      size: row.size,
+      status: row.status,
+    },
+    data: {
+      status: 'updating',
+      errorMessage: null,
+      updatedAt: new Date(),
+    },
+  })
+  if (claimed.count !== 1) {
+    const current = await getAgent(row.orgId, row.id)
+    if (!current) throw new Error('cloud_instance_missing')
+    return toAgentDto(current)
+  }
+
+  const spec = CLOUD_SIZES[target]
+  try {
+    const diskGb = await growVolumeIfNeeded(appName, volumeId, spec.diskGb)
+    const machine = await getMachine(appName, machineId)
+    const state = (machine.state ?? '').toLowerCase()
+    const flyRunning = state === 'started' || state === 'starting'
+    if (flyRunning) await drainAgentGateway(working)
+    const bringBack = flyRunning || row.status === 'online'
+    await resizeMachineGuest({
+      appName,
+      machineId,
+      expectedVolumeId: volumeId,
+      guest: flyGuestForSize(target),
+      skip_launch: !bringBack,
+    })
+    if (bringBack) {
+      try {
+        await waitMachine(appName, machineId, 'started', 60)
+      } catch {
+        // The next list refresh reconciles Fly if the wait times out.
+      }
+    }
+    const updated = await prisma.agentInstance.update({
+      where: { id: row.id },
+      data: {
+        ...sizeRecord(target, diskGb || planDiskGb(row.diskGb, spec.diskGb)),
+        status: bringBack ? 'online' : 'stopped',
+        dashboardGatewayState: bringBack ? 'active' : 'down',
+        errorMessage: null,
+      },
+    })
+    return toAgentDto(updated)
+  } catch (error) {
+    return markProvisionError(row.id, error)
+  }
 }
 
 async function markProvisionError(id: string, error: unknown): Promise<AgentDto> {
@@ -446,6 +590,7 @@ export async function finishUnbornCloudInstance(
   row: AgentInstance,
   org: Org,
   user: Pick<User, 'id' | 'privyDid'>,
+  planSize?: CloudSizeId | null,
 ): Promise<AgentDto> {
   assertFlyApiToken(process.env.FLY_API_TOKEN)
 
@@ -473,7 +618,7 @@ export async function finishUnbornCloudInstance(
   if (!claimedRow) throw new Error('cloud_instance_missing')
 
   try {
-    return await provisionClaimedInstance(claimedRow, org, user)
+    return await provisionClaimedInstance(claimedRow, org, user, planSize)
   } catch (error) {
     return markProvisionError(row.id, error)
   }
@@ -534,6 +679,7 @@ async function listOrgCloudRefs(orgId: string): Promise<CloudInstanceRef[]> {
       status: true,
       flyMachineId: true,
       updatedAt: true,
+      size: true,
     },
   })
 }
@@ -556,8 +702,9 @@ async function resolveEnsuredModel(args: {
 
 /**
  * Create the org's single Cloud VM, resume one whose Fly machine never
- * landed, or return the one that already exists. Free with no VM refuses.
- * Size comes from the plan. POST /api/agents must not call this.
+ * landed, resize one whose size no longer matches the paid plan, or return
+ * the one that already matches. Free with no VM refuses. POST /api/agents
+ * must not call this.
  */
 export async function ensureOrgCloudInstance(args: {
   org: Org
@@ -570,6 +717,7 @@ export async function ensureOrgCloudInstance(args: {
 > {
   let createdAgent: AgentDto | null = null
   let resumedAgent: AgentDto | null = null
+  let resizedAgent: AgentDto | null = null
   const result: CloudEnsureResult<CloudInstanceRef> = await ensureOrgCloudInstanceWith({
     tierId: args.org.subscriptionTierId,
     name: args.name,
@@ -595,7 +743,12 @@ export async function ensureOrgCloudInstance(args: {
     resume: async (instance) => {
       const row = await getAgent(args.org.id, instance.id)
       if (!row) throw new Error('cloud_instance_missing')
-      const agent = await finishUnbornCloudInstance(row, args.org, args.user)
+      const agent = await finishUnbornCloudInstance(
+        row,
+        args.org,
+        args.user,
+        cloudSizeForTier(args.org.subscriptionTierId),
+      )
       resumedAgent = agent
       return {
         id: agent.id,
@@ -603,11 +756,30 @@ export async function ensureOrgCloudInstance(args: {
         status: agent.status,
         flyMachineId: row.flyMachineId,
         updatedAt: row.updatedAt,
+        size: row.size,
+      }
+    },
+    resize: async (instance, size) => {
+      const row = await getAgent(args.org.id, instance.id)
+      if (!row) throw new Error('cloud_instance_missing')
+      const agent = await resizeOrgCloudInstance(row, size)
+      resizedAgent = agent
+      return {
+        id: agent.id,
+        createdAt: row.createdAt,
+        status: agent.status,
+        flyMachineId: row.flyMachineId,
+        updatedAt: row.updatedAt,
+        size,
       }
     },
   })
 
   if (!result.ok) return result
+
+  if (resizedAgent) {
+    return { ok: true, created: false, agent: resizedAgent }
+  }
 
   if (resumedAgent) {
     return { ok: true, created: false, agent: resumedAgent }
