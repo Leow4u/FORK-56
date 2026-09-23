@@ -1747,8 +1747,28 @@ body.guest-pointer-lock :is(webview, iframe) {
   box-shadow: var(--shadow-work4you);
   font-size: var(--conversation-text-font-size);
   letter-spacing: normal;
+  color: var(--ui-text-primary);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+/* Type ladder inside the agent card. Labels stay caption-sized in the markup;
+   values step up to text-sm and full primary so a filled field is not the
+   same gray as its label or its placeholder. */
+[data-slot='dialog-content'][data-panel-card] [data-slot='dialog-description'] {
+  font-size: var(--conversation-text-font-size);
+  line-height: var(--conversation-line-height);
+  color: var(--ui-text-secondary);
+}
+
+[data-slot='dialog-content'][data-panel-card] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger'], [data-slot='select-item']) {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--ui-text-primary);
+}
+
+[data-slot='dialog-content'][data-panel-card] :is([data-slot='input'], [data-slot='textarea'])::placeholder {
+  color: var(--ui-text-tertiary);
 }
 
 /* The prompt card and its workspace tray share one radius, independent of

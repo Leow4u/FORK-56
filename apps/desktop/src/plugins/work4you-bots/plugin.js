@@ -2249,6 +2249,7 @@ function AvatarPicker({ shape, color, image, onShape, onColor, onImage, generate
     className: 'grid w-full min-w-0 justify-items-center gap-3',
     children: [
       jsx(SegmentedControl, {
+        className: choiceClass,
         value: tab,
         onChange: goTab,
         options: [
@@ -2302,7 +2303,7 @@ function AvatarPicker({ shape, color, image, onShape, onColor, onImage, generate
                           },
                           children: k
                             ? jsx(BotFace, { shape: blobShapeString(seedPart, k), color, size: 32, name: pickerName })
-                            : jsx('span', { className: 'text-[0.6rem] text-(--ui-text-tertiary)', children: 'Auto' })
+                            : jsx('span', { className: hintClass, children: 'Auto' })
                         },
                         k || 'auto'
                       )
@@ -2337,15 +2338,14 @@ function AvatarPicker({ shape, color, image, onShape, onColor, onImage, generate
                     ]
                   }),
                   jsx('div', {
-                    className:
-                      'text-center text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
+                    className: cn('text-center', hintClass),
                     children: locked ? 'Face locked — renaming won\u2019t change it.' : 'Face follows the name.'
                   }),
                   jsx(Button, {
                     type: 'button',
                     variant: 'ghost',
                     size: 'sm',
-                    className: 'text-(--ui-text-tertiary)',
+                    className: 'text-[length:var(--conversation-text-font-size)] text-(--ui-text-secondary)',
                     onClick: () => onShape(defaultShapeFor(pickerName)),
                     children: 'Classic shapes'
                   })
@@ -2437,8 +2437,7 @@ function AvatarPicker({ shape, color, image, onShape, onColor, onImage, generate
                 describe.trim()
                   ? null
                   : jsx('div', {
-                      className:
-                        'text-center text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
+                      className: cn('text-center', hintClass),
                       children: 'Leave blank to generate from the agent\u2019s name and description.'
                     })
               ]
@@ -5239,7 +5238,7 @@ function ModelPicker({ value, onChange, placeholderModel = 'gateway default' }) 
         jsx(Button, {
           variant: 'ghost',
           size: 'sm',
-          className: 'h-6 self-start text-xs text-(--ui-text-tertiary)',
+          className: 'w-fit self-start text-[length:var(--conversation-text-font-size)] text-(--ui-text-secondary)',
           onClick: () => setUseFreeText(false),
           children: '← Back to dropdowns'
         })
@@ -5973,13 +5972,21 @@ async function applyAdvancedConfig(bot, state) {
 
 // ── edit profile dialog ──────────────────────────────────────────────────────
 
+const fieldLabelClass =
+  'text-[length:var(--conversation-caption-font-size)] font-semibold leading-(--conversation-caption-line-height) text-(--ui-text-primary)'
+
+const hintClass =
+  'text-[length:var(--conversation-caption-font-size)] font-normal leading-(--conversation-caption-line-height) text-(--ui-text-secondary)'
+
+const choiceClass =
+  '[&_button]:text-[length:var(--conversation-text-font-size)] [&_button]:text-(--ui-text-secondary) [&_button[aria-pressed=true]]:font-semibold [&_button[aria-pressed=true]]:text-(--ui-text-primary)'
+
 function labeled(label, control) {
   return jsxs('div', {
-    className: 'flex w-full min-w-0 flex-col gap-2',
+    className: 'flex w-full min-w-0 flex-col gap-1.5',
     children: [
       jsx('label', {
-        className:
-          'text-[length:var(--conversation-caption-font-size)] font-medium leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
+        className: fieldLabelClass,
         children: label
       }),
       control
@@ -6133,7 +6140,7 @@ function EditProfileDialog({ bot, open, onClose }) {
               type: 'button',
               variant: 'ghost',
               size: 'sm',
-              className: 'w-fit text-(--ui-text-tertiary)',
+              className: 'w-fit text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-primary)',
               onClick: () => setAdvanced(v => !v),
               children: [
                 jsx(Codicon, { name: advanced ? 'chevron-down' : 'chevron-right' }),
@@ -6685,8 +6692,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
               : null,
             remoteTarget
               ? jsx('div', {
-                  className:
-                    'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
+                  className: hintClass,
                   children: `The agent is created on ${targetLabel} and appears in the roster as a Connections bot. Chat routes to that machine.`
                 })
               : null,
@@ -6711,7 +6717,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
               type: 'button',
               variant: 'ghost',
               size: 'sm',
-              className: 'w-fit text-(--ui-text-tertiary)',
+              className: 'w-fit text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-primary)',
               onClick: () => {
                 setAdvanced(v => {
                   if (!v) {
@@ -6730,6 +6736,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
                   className: 'grid min-w-0 gap-4 border-t border-(--ui-stroke-tertiary) pt-4',
                   children: [
                     jsx(SegmentedControl, {
+                      className: choiceClass,
                       // Newer desktops export the whole Capabilities surface —
                       // one live tab replaces the three staged checklists.
                       // The live Capabilities surface (SkillsView) binds to
@@ -6821,7 +6828,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
                               })
                             ),
                             jsxs('label', {
-                              className: 'flex items-center gap-2 text-[length:var(--conversation-text-font-size)] text-foreground',
+                              className: 'flex items-center gap-2 text-sm leading-5 text-(--ui-text-primary)',
                               children: [
                                 jsx(Checkbox, {
                                   checked: shareAuth,
@@ -6831,13 +6838,12 @@ function CreateAgentDialog({ open, onClose, roster }) {
                               ]
                             }),
                             jsx('div', {
-                              className:
-                                'pl-6 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)',
+                              className: cn('pl-6', hintClass),
                               children:
                                 'OAuth logins stay shared (not copied), so token refreshes never invalidate each other. Uncheck for an isolated auth snapshot. Fresh does not copy .env or WhatsApp from the main profile — pick Clone to copy those.'
                             }),
                             jsxs('label', {
-                              className: 'flex items-center gap-2 text-[length:var(--conversation-text-font-size)] text-foreground',
+                              className: 'flex items-center gap-2 text-sm leading-5 text-(--ui-text-primary)',
                               children: [
                                 jsx(Checkbox, {
                                   checked: noSkills,
@@ -6851,7 +6857,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
                       : advTab === 'capabilities'
                         ? !valid || taken
                           ? jsx('div', {
-                              className: 'px-2 py-3 text-center text-xs text-(--ui-text-tertiary)',
+                              className: cn('px-2 py-3 text-center', hintClass),
                               children: taken
                                 ? 'That name is taken — pick another before configuring capabilities.'
                                 : 'Name the agent first — a draft profile is created when you open this tab (discarded if you cancel).'
