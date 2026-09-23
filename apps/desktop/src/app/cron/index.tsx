@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createCronTriggerController, type CronTriggerController } from '@work4you/shared'
 import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 
 import { PageLoader } from '@/components/page-loader'
 import { Button } from '@/components/ui/button'
@@ -33,6 +34,7 @@ import { AlertTriangle } from '@/lib/icons'
 import { requestModelOptions } from '@/lib/model-options'
 import { displayModelName } from '@/lib/model-status-label'
 import { asText } from '@/lib/text'
+import { cn } from '@/lib/utils'
 import { $cronFocusJobId, $cronJobs, invalidateCronJobsRequests, setCronFocusJobId } from '@/store/cron'
 import { $changeEventsAvailable, $cronChangeTick } from '@/store/live-sync'
 import { notify, notifyError } from '@/store/notifications'
@@ -54,8 +56,8 @@ import {
 } from '@/work4you'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
+import { openSession } from '../open-session'
 import {
-  Panel,
   PanelAction,
   PanelAddButton,
   PanelBlock,
@@ -292,16 +294,16 @@ function matchesQuery(job: CronJob, q: string): boolean {
 }
 
 interface CronViewProps extends React.ComponentProps<'section'> {
-  onClose: () => void
-  onOpenSession?: (sessionId: string) => void
   setStatusbarItemGroup?: SetStatusbarItemGroup
 }
 
-export function CronView({ onClose, onOpenSession, setStatusbarItemGroup: _setStatusbarItemGroup }: CronViewProps) {
+export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, className, ...props }: CronViewProps) {
   const { t } = useI18n()
+  const navigate = useNavigate()
+  const openRun = useCallback((sessionId: string) => openSession(sessionId, navigate), [navigate])
   const c = t.cron
   // Source of truth is the shared atom (also fed by the controller poll), so the
-  // sidebar and this overlay never drift — a delete here clears the sidebar row
+  // sidebar and this page never drift — a delete here clears the sidebar row
   // immediately. `loading` only gates the first paint before the atom is filled.
   const jobs = useStore($cronJobs)
   const [loading, setLoading] = useState(jobs.length === 0)
@@ -349,7 +351,7 @@ export function CronView({ onClose, onOpenSession, setStatusbarItemGroup: _setSt
   const [deleting, setDeleting] = useState(false)
 
   // Jobs live per-profile on disk and the list endpoint aggregates 'all' by
-  // default — scope the fetch to the sidebar's profile scope so this overlay
+  // default — scope the fetch to the sidebar's profile scope so this page
   // and the sidebar (which share the $cronJobs atom) agree on what's shown.
   const profileScope = useStore($profileScope)
   const profile = cronProfileForScope(profileScope)
@@ -373,7 +375,7 @@ export function CronView({ onClose, onOpenSession, setStatusbarItemGroup: _setSt
   useEffect(() => {
     void refresh()
     // Fence the previous profile's request before the next profile effect, and
-    // fence every pending completion when the overlay unmounts.
+    // fence every pending completion when the page unmounts.
 
     return () => invalidateCronJobsRequests()
   }, [refresh])
@@ -642,7 +644,13 @@ export function CronView({ onClose, onOpenSession, setStatusbarItemGroup: _setSt
   }
 
   return (
-    <Panel closeLabel={c.close} onClose={onClose}>
+    <section
+      {...props}
+      className={cn(
+        'flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background) px-4 pb-4 pt-2 sm:px-5',
+        className
+      )}
+    >
       <PanelHeader subtitle={c.count(totalCount)} title={c.title} />
 
       {loading && jobs.length === 0 ? (
@@ -710,7 +718,7 @@ export function CronView({ onClose, onOpenSession, setStatusbarItemGroup: _setSt
               busy={busyJobTokens.has(selectedJob.id) || triggeringJobKeys.has(`${profile}:${selectedJob.id}`)}
               c={c}
               job={selectedJob}
-              onOpenSession={onOpenSession}
+              onOpenSession={openRun}
               onPauseResume={() => void handlePauseResume(selectedJob)}
               onTrigger={() => void handleTrigger(selectedJob)}
             />
@@ -751,7 +759,7 @@ export function CronView({ onClose, onOpenSession, setStatusbarItemGroup: _setSt
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Panel>
+    </section>
   )
 }
 
