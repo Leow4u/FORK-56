@@ -4,7 +4,12 @@ import { MemoryRouter } from 'react-router'
 import type * as ReactRouterDom from 'react-router'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { DesktopConnectionConfig, DesktopConnectionsRegistry, Work4YouConnection } from '@/global'
+import type {
+  DesktopCloudDiscoverResult,
+  DesktopConnectionConfig,
+  DesktopConnectionsRegistry,
+  Work4YouConnection
+} from '@/global'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
 import { _resetComposerRunTargetForTests } from './run-target'
@@ -42,6 +47,12 @@ const $connectionsRegistry = connectionStore.$connectionsRegistry
 const $pendingConnectionId = connectionStore.$pendingConnectionId
 const $connection = sessionStore.$connection
 const notify = vi.mocked(notifications.notify)
+const notifyError = vi.mocked(notifications.notifyError)
+
+const discover = vi.fn(async (): Promise<DesktopCloudDiscoverResult> => ({
+  agents: [],
+  entitlement: { canUseCloud: false }
+}))
 
 const connection = (id: string, kind: 'cloud' | 'local' | 'remote', label = id) => ({
   id,
@@ -93,6 +104,8 @@ beforeAll(() => {
 })
 
 beforeEach(() => {
+  discover.mockReset()
+  discover.mockResolvedValue({ agents: [], entitlement: { canUseCloud: false } })
   getConnectionConfig.mockResolvedValue(localConfig)
   Object.defineProperty(window, 'work4youDesktop', {
     configurable: true,
@@ -165,7 +178,7 @@ describe('ComposerRunTargetMenu', () => {
     expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: 'Gateway connection restarting' }))
   })
 
-  it('opens Settings → Gateways when Cloud has never been connected', async () => {
+  it('opens Settings → Gateways when Cloud sign-in is not available', async () => {
     $connectionsRegistry.set(registry([connection('local', 'local')]))
     render(
       <MemoryRouter>
@@ -177,6 +190,158 @@ describe('ComposerRunTargetMenu', () => {
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=gateway'))
+    expect(applyConnectionConfig).not.toHaveBeenCalled()
+  })
+
+  function withDiscover() {
+    Object.defineProperty(window, 'work4youDesktop', {
+      configurable: true,
+      value: { applyConnectionConfig, cloud: { discover }, getConnectionConfig }
+    })
+  }
+
+  it('sends Free with no instance to plans and keeps the Cloud row', async () => {
+    discover.mockResolvedValue({ agents: [], entitlement: { canUseCloud: false } })
+    withDiscover()
+    $connectionsRegistry.set(registry([connection('local', 'local')]))
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    await openMenu()
+    expect(await screen.findByText('Cloud comes with Plus, Super, or Ultra.')).toBeTruthy()
+    expect(screen.getAllByRole('menuitemradio')).toHaveLength(2)
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=billing&bview=plans'))
+    expect(applyConnectionConfig).not.toHaveBeenCalled()
+  })
+
+  it('says the instance is being prepared when the paid plan has no address yet', async () => {
+    discover.mockResolvedValue({
+      agents: [
+        {
+          dashboardGatewayState: 'unknown',
+          dashboardUrl: null,
+          id: 'born',
+          name: 'Work4You Cloud',
+          status: 'provisioning'
+        }
+      ],
+      entitlement: { canUseCloud: true }
+    })
+    withDiscover()
+    $connectionsRegistry.set(registry([connection('local', 'local')]))
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    await openMenu()
+    expect(await screen.findByText('Your instance is being prepared.')).toBeTruthy()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+
+    await waitFor(() =>
+      expect(notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Your instance is being prepared.',
+          title: 'Work4You Cloud'
+        })
+      )
+    )
+    expect(navigate).not.toHaveBeenCalled()
+    expect(applyConnectionConfig).not.toHaveBeenCalled()
+  })
+
+  it('applies a discovered dashboard, including a legacy Free machine', async () => {
+    discover.mockResolvedValue({
+      agents: [
+        {
+          createdAt: '2026-01-01T00:00:00.000Z',
+          dashboardGatewayState: 'active',
+          dashboardUrl: 'https://legacy.example',
+          id: 'legacy',
+          name: 'Legacy',
+          status: 'running'
+        }
+      ],
+      entitlement: { canUseCloud: false },
+      org: { id: 'org_1', slug: 'acme', name: 'Acme', isPersonal: true, role: 'OWNER' }
+    })
+    withDiscover()
+    $connectionsRegistry.set(registry([connection('local', 'local')]))
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    await openMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+
+    await waitFor(() =>
+      expect(applyConnectionConfig).toHaveBeenCalledWith({
+        cloudOrg: 'acme',
+        mode: 'cloud',
+        remoteAuthMode: 'oauth',
+        remoteUrl: 'https://legacy.example'
+      })
+    )
+    expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('opens Settings → Gateways when the portal session needs sign-in', async () => {
+    discover.mockRejectedValue(Object.assign(new Error('sign in'), { needsCloudLogin: true }))
+    withDiscover()
+    $connectionsRegistry.set(registry([connection('local', 'local')]))
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    await openMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=gateway'))
+    expect(applyConnectionConfig).not.toHaveBeenCalled()
+  })
+
+  it('opens Settings → Gateways when several organizations need a choice', async () => {
+    discover.mockResolvedValue({ needsOrgSelection: true, orgs: [] })
+    withDiscover()
+    $connectionsRegistry.set(registry([connection('local', 'local')]))
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    await openMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=gateway'))
+    expect(applyConnectionConfig).not.toHaveBeenCalled()
+  })
+
+  it('reports a discovery failure without opening Settings or connecting', async () => {
+    discover.mockRejectedValue(new Error('portal offline'))
+    withDiscover()
+    $connectionsRegistry.set(registry([connection('local', 'local')]))
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    await openMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+
+    await waitFor(() => expect(notifyError).toHaveBeenCalledWith(expect.any(Error), 'Could not load your Work4You Cloud agents'))
+    expect(navigate).not.toHaveBeenCalled()
     expect(applyConnectionConfig).not.toHaveBeenCalled()
   })
 

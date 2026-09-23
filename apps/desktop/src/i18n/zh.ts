@@ -957,6 +957,8 @@ export const zh: Translations = {
       kindLocalDesc: '由本应用管理的 Work4You 运行时。',
       kindRemoteDesc: '可通过 HTTP(S) 访问的 Work4You 网关——局域网、Tailscale 或互联网。',
       kindCloudDesc: '通过你的 Work4You Cloud 账户发现的托管实例。',
+      kindCloudPlan: 'Cloud 随 Plus、Super 或 Ultra 提供。',
+      kindCloudPreparing: '正在准备你的实例。',
       kindSshDesc: '通过 SSH 访问的 Work4You 安装。',
       labelTitle: '名称',
       labelDesc: '必填。此实例出现的所有位置都会显示该名称；必须唯一（例如“家庭服务器”、“工作笔记本”）。',

@@ -13,7 +13,36 @@ export type ComposerCloudApplySource = {
 }
 
 export type ComposerRunTargetIntent =
-  { payload: DesktopConnectionConfigInput; type: 'apply' } | { type: 'noop' } | { type: 'settings' }
+  | { payload: DesktopConnectionConfigInput; type: 'apply' }
+  | { type: 'noop' }
+  | { type: 'preparing' }
+  | { type: 'settings' }
+  | { type: 'upgrade' }
+
+/** Portal snapshot for a Cloud click that does not already have a dashboard URL. */
+export type ComposerCloudPortal =
+  | { source: ComposerCloudApplySource; status: 'ready' }
+  | { status: 'choose-org' }
+  | { status: 'preparing' }
+  | { status: 'signin' }
+  | { status: 'upgrade' }
+
+type ComposerCloudDiscoverAgent = {
+  createdAt?: string | null
+  dashboardUrl?: string | null
+  id?: string
+  status?: string | null
+}
+
+/** Subset of `desktop.cloud.discover` the composer needs. GET only — never creates. */
+export type ComposerCloudDiscoverView =
+  | {
+      agents?: readonly ComposerCloudDiscoverAgent[]
+      entitlement?: { canUseCloud?: boolean } | null
+      needsOrgSelection?: false
+      org?: { id?: string | null; slug?: string | null } | null
+    }
+  | { needsOrgSelection: true }
 
 type RegistryRow = Pick<DesktopRegistryConnection, 'id' | 'kind'>
 
@@ -124,16 +153,108 @@ export function composerCloudApplyPayload(source: ComposerCloudApplySource): Des
   }
 }
 
+export function isCloudLoginError(error: unknown): boolean {
+  return Boolean(error && typeof error === 'object' && 'needsCloudLogin' in error)
+}
+
+function cloudOrgRef(org: { id?: string | null; slug?: string | null } | null | undefined): string | undefined {
+  const slug = org?.slug?.trim() ?? ''
+
+  if (slug) {
+    return slug
+  }
+
+  const id = org?.id?.trim() ?? ''
+
+  return id || undefined
+}
+
+function createdAtRank(createdAt: string | null | undefined): number {
+  const parsed = Date.parse(createdAt ?? '')
+
+  return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY
+}
+
 /**
- * Composer Local / Cloud click. Local and a previously connected Cloud reuse
- * Settings' `applyConnectionConfig` door. Cloud with no dashboard URL opens
- * Settings → Gateways — first-time connect still lives there.
+ * Oldest subscription instance that already has a dashboard address.
+ * Self-hosted rows are not the plan VM. A known URL wins over Free.
+ */
+export function composerCloudSourceFromDiscover(view: ComposerCloudDiscoverView): ComposerCloudApplySource | null {
+  if (view.needsOrgSelection) {
+    return null
+  }
+
+  const usable = (view.agents ?? []).filter(agent => {
+    const url = agent.dashboardUrl?.trim() ?? ''
+
+    return url.length > 0 && (agent.status ?? '').toLowerCase() !== 'self_hosted'
+  })
+
+  if (usable.length === 0) {
+    return null
+  }
+
+  const oldest = [...usable].sort((a, b) => {
+    const byTime = createdAtRank(a.createdAt) - createdAtRank(b.createdAt)
+
+    if (byTime !== 0) {
+      return byTime
+    }
+
+    return (a.id ?? '').localeCompare(b.id ?? '')
+  })[0]
+
+  const remoteUrl = oldest?.dashboardUrl?.trim() ?? ''
+
+  if (!remoteUrl) {
+    return null
+  }
+
+  const cloudOrg = cloudOrgRef(view.org)
+
+  return cloudOrg ? { cloudOrg, remoteUrl } : { remoteUrl }
+}
+
+/**
+ * What a Cloud click should do once discovery has answered.
+ * A dashboard URL applies. Free with no machine upgrades. Paid with no
+ * address yet is still being prepared. Missing entitlement does not invent
+ * a plan — sign-in stays on the existing gateway door.
+ */
+export function composerCloudPortalFromDiscover(view: ComposerCloudDiscoverView): ComposerCloudPortal {
+  if (view.needsOrgSelection) {
+    return { status: 'choose-org' }
+  }
+
+  const source = composerCloudSourceFromDiscover(view)
+
+  if (source) {
+    return { source, status: 'ready' }
+  }
+
+  if (view.entitlement?.canUseCloud === false) {
+    return { status: 'upgrade' }
+  }
+
+  if (view.entitlement?.canUseCloud === true) {
+    return { status: 'preparing' }
+  }
+
+  return { status: 'signin' }
+}
+
+/**
+ * Composer Local / Cloud click. Local and a Cloud dashboard that already
+ * has an address reuse Settings' `applyConnectionConfig` door. Free with
+ * no machine upgrades. A paid machine that is not addressable yet does not
+ * navigate. Sign-in and multi-org stay on Settings → Gateways.
  */
 export function composerRunTargetIntent(
   target: ComposerRunTarget,
   args: {
     active: ComposerRunTarget | null
     cloud: ComposerCloudApplySource | null
+    portal?: ComposerCloudPortal | null
   }
 ): ComposerRunTargetIntent {
   if (args.active === target) {
@@ -144,9 +265,20 @@ export function composerRunTargetIntent(
     return { payload: { mode: 'local' }, type: 'apply' }
   }
 
-  if (!args.cloud?.remoteUrl.trim()) {
-    return { type: 'settings' }
+  const discovered = args.portal?.status === 'ready' && args.portal.source.remoteUrl.trim() ? args.portal.source : null
+  const known = args.cloud?.remoteUrl.trim() ? args.cloud : discovered
+
+  if (known) {
+    return { payload: composerCloudApplyPayload(known), type: 'apply' }
   }
 
-  return { payload: composerCloudApplyPayload(args.cloud), type: 'apply' }
+  if (args.portal?.status === 'upgrade') {
+    return { type: 'upgrade' }
+  }
+
+  if (args.portal?.status === 'preparing') {
+    return { type: 'preparing' }
+  }
+
+  return { type: 'settings' }
 }
