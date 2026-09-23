@@ -164,7 +164,11 @@ export function ProjectDialog() {
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-md" onInteractOutside={event => event.preventDefault()}>
+      <DialogContent
+        bodyClassName="gap-5 p-5"
+        className="max-w-md"
+        onInteractOutside={event => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {mode === 'create' && <DialogDescription>{p.createDesc}</DialogDescription>}
@@ -185,21 +189,26 @@ export function ProjectDialog() {
             }}
             placeholder={p.namePlaceholder}
             ref={nameRef}
+            size="lg"
             value={name}
           />
         )}
 
         {mode === 'create' && (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[0.6875rem] font-medium text-(--ui-text-tertiary)">{p.foldersLabel}</span>
+          <div className="flex flex-col gap-2">
+            <span className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-medium text-(--ui-text-tertiary)">
+              {p.foldersLabel}
+            </span>
             {folders.length === 0 ? (
-              <span className="text-[0.75rem] text-(--ui-text-quaternary)">{p.noFolders}</span>
+              <span className="rounded-md bg-(--ui-control-hover-background) px-2.5 py-2.5 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-quaternary)">
+                {p.noFolders}
+              </span>
             ) : (
-              <ul className="flex flex-col gap-1">
+              <ul className="flex flex-col gap-1.5">
                 {folders.map((folder, index) => (
                   <li
                     className={cn(
-                      'flex items-center gap-2 rounded-md bg-(--ui-control-hover-background) px-2 py-1 text-[0.75rem]'
+                      'flex items-center gap-2 rounded-md bg-(--ui-control-hover-background) px-2.5 py-1.5 text-[length:var(--conversation-caption-font-size)]'
                     )}
                     key={folder}
                   >
@@ -243,18 +252,21 @@ export function ProjectDialog() {
         )}
 
         {mode === 'create' && (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[0.6875rem] font-medium text-(--ui-text-tertiary)">{p.ideaLabel}</span>
+          <div className="flex flex-col gap-2">
+            <span className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-medium text-(--ui-text-tertiary)">
+              {p.ideaLabel}
+            </span>
             <div className="relative">
               <Textarea
-                className="min-h-20 pr-8 text-[0.8125rem]"
+                className="min-h-20 pr-8"
                 disabled={submitting}
                 onChange={event => setIdea(event.target.value)}
                 placeholder={p.ideaPlaceholder}
+                size="lg"
                 value={idea}
               />
               <GenerateButton
-                className="absolute top-1 right-1"
+                className="absolute top-1.5 right-1.5"
                 disabled={submitting}
                 generating={generatingIdea}
                 generatingLabel={p.ideaGenerating}
@@ -262,10 +274,10 @@ export function ProjectDialog() {
                 onGenerate={() => void generateIdea()}
               />
             </div>
-            <div className="flex flex-wrap items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1.5">
               {templates.map(template => (
                 <button
-                  className="flex items-center gap-1 rounded-full border border-(--ui-stroke-tertiary) px-2 py-0.5 text-[0.6875rem] text-(--ui-text-secondary) transition-colors hover:border-(--ui-stroke-secondary) hover:bg-(--ui-control-hover-background) hover:text-foreground disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-full border border-transparent bg-(--ui-control-hover-background) px-2.5 py-1 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-secondary) transition-colors hover:bg-(--ui-control-active-background) hover:text-foreground disabled:opacity-50"
                   disabled={submitting}
                   key={template.label}
                   onClick={() => setIdea(template.idea)}
@@ -300,13 +312,14 @@ export function ProjectDialog() {
         )}
 
         {mode !== 'add-folder' && (
-          <DialogFooter>
+          <DialogFooter className="pt-1">
             <Button disabled={submitting} onClick={() => onOpenChange(false)} type="button" variant="ghost">
               {t.common.cancel}
             </Button>
             <Button
               disabled={submitting || !name.trim() || (mode === 'create' && folders.length === 0)}
               onClick={() => void submit()}
+              size="lg"
               type="button"
             >
               {mode === 'rename' ? t.common.save : p.create}
