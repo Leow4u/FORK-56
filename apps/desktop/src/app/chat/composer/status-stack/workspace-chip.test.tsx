@@ -5,7 +5,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
 import { $commandPaletteOpen, $commandPalettePage, closeCommandPalette } from '@/store/command-palette'
-import { $projectTree } from '@/store/projects'
+import { $projectScope, $projectTree, ALL_PROJECTS } from '@/store/projects'
+import { $currentCwd, $newChatWorkspaceTarget, setCurrentCwd, setNewChatWorkspaceTarget } from '@/store/session'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
 import { WorkspaceChipRow } from './workspace-chip'
@@ -36,6 +37,9 @@ afterEach(() => {
   openFolderAsProject.mockClear()
   openProjectCreate.mockClear()
   $projectTree.set([])
+  $projectScope.set(ALL_PROJECTS)
+  setCurrentCwd('')
+  setNewChatWorkspaceTarget(undefined)
 })
 
 function renderChip(ui: ReactElement) {
@@ -93,22 +97,142 @@ describe('WorkspaceChipRow', () => {
     expect(screen.getByRole('menuitem', { name: /New project/ })).toBeTruthy()
   })
 
-  it('keeps the project tree out of the chip menu', async () => {
+  it('lists used projects and hides home and unused scans', async () => {
     $projectTree.set([
       {
         id: 'p_dute',
         label: 'DuteLog',
         path: '/repos/dute',
         repos: [],
+        sessionCount: 2
+      } satisfies SidebarProjectTree,
+      {
+        id: '__no_project__',
+        isNoProject: true,
+        label: 'Home',
+        path: null,
+        repos: [],
+        sessionCount: 4
+      } satisfies SidebarProjectTree,
+      {
+        id: '/scan',
+        isAuto: true,
+        label: 'scan',
+        path: '/scan',
+        repos: [],
         sessionCount: 0
+      } satisfies SidebarProjectTree,
+      {
+        id: '/used',
+        isAuto: true,
+        label: 'Used repo',
+        path: '/used',
+        repos: [],
+        sessionCount: 1
       } satisfies SidebarProjectTree
     ])
     renderChip(<WorkspaceChipRow messagesEmpty />)
 
     await openSelectWorkspace()
 
-    expect(screen.queryByRole('menuitem', { name: 'DuteLog' })).toBeNull()
-    expect(screen.getAllByRole('menuitem')).toHaveLength(2)
+    expect(screen.getByRole('menuitem', { name: 'DuteLog' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Used repo' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Home' })).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'scan' })).toBeNull()
+    expect(screen.getByRole('textbox', { name: 'Search projects' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Clear active' })).toBeNull()
+  })
+
+  it('selects a recent project into the empty chat and can clear it', async () => {
+    $projectTree.set([
+      {
+        id: 'p_dute',
+        label: 'DuteLog',
+        path: '/repos/dute',
+        repos: [],
+        sessionCount: 2
+      } satisfies SidebarProjectTree
+    ])
+    renderChip(<WorkspaceChipRow messagesEmpty />)
+
+    await openSelectWorkspace()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'DuteLog' }))
+
+    expect($projectScope.get()).toBe('p_dute')
+    expect($currentCwd.get()).toBe('/repos/dute')
+    expect($newChatWorkspaceTarget.get()).toBe('/repos/dute')
+
+    await openSelectWorkspace()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clear active' }))
+
+    expect($projectScope.get()).toBe(ALL_PROJECTS)
+    expect($currentCwd.get()).toBe('')
+    expect($newChatWorkspaceTarget.get()).toBeNull()
+  })
+
+  it('filters the recent list from the menu search', async () => {
+    $projectTree.set([
+      {
+        id: 'p_tax',
+        label: 'TAXCO',
+        path: '/work/taxco',
+        repos: [],
+        sessionCount: 1
+      } satisfies SidebarProjectTree,
+      {
+        id: 'p_w4y',
+        label: 'work4you',
+        path: '/work/work4you',
+        repos: [],
+        sessionCount: 1
+      } satisfies SidebarProjectTree
+    ])
+    renderChip(<WorkspaceChipRow messagesEmpty />)
+
+    await openSelectWorkspace()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search projects' }), { target: { value: 'tax' } })
+
+    expect(screen.getByRole('menuitem', { name: 'TAXCO' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'work4you' })).toBeNull()
+  })
+
+  it('does not rename the chip for a cwd outside the entered project', () => {
+    $projectScope.set('p_dute')
+    $projectTree.set([
+      {
+        id: 'p_dute',
+        label: 'DuteLog',
+        path: '/repos/dute',
+        repos: [],
+        sessionCount: 1
+      } satisfies SidebarProjectTree
+    ])
+    renderChip(<WorkspaceChipRow cwd="/other" messagesEmpty />)
+
+    const chip = screen.getByRole('button', { name: 'Select workspace' })
+
+    expect(chip.textContent).toContain('Select workspace')
+    expect(chip.textContent).not.toContain('DuteLog')
+  })
+
+  it('names a scoped auto project on the empty-chat chip', () => {
+    $projectScope.set('/used')
+    $projectTree.set([
+      {
+        id: '/used',
+        isAuto: true,
+        label: 'Used repo',
+        path: '/used',
+        repos: [],
+        sessionCount: 2
+      } satisfies SidebarProjectTree
+    ])
+    renderChip(<WorkspaceChipRow cwd="/used" messagesEmpty />)
+
+    const chip = screen.getByRole('button', { name: 'Select workspace' })
+
+    expect(chip.textContent).toContain('Used repo')
+    expect(chip.textContent).not.toContain('Select workspace')
   })
 
   it('runs Open folder and New project from the attached menu', async () => {
