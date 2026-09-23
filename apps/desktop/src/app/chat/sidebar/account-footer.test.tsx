@@ -109,6 +109,11 @@ describe('AccountFooter', () => {
 
     fireEvent.pointerDown(trigger, { button: 0 })
 
+    const menu = await screen.findByRole('menu')
+
+    expect(menu.getAttribute('data-composer-menu')).toBe('')
+    expect(menu.getAttribute('data-side')).toBe('top')
+    expect(menu.className).toContain('shadow-work4you')
     expect(await screen.findByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: /^docs$/i })).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: /^shortcuts$/i })).toBeTruthy()
