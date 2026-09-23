@@ -2,6 +2,7 @@ import { useStore } from '@nanostores/react'
 import { type ReactNode, useEffect, useMemo } from 'react'
 
 import type { StatusbarItem } from '@/app/shell/statusbar-controls'
+import { composerMenuDetail, composerMenuLabel } from '@/components/chat/composer-dock'
 import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -79,7 +80,7 @@ export function ApprovalModeMenu({
 
   return (
     <>
-      <DropdownMenuLabel>{title || t.shell.approvalMode.title}</DropdownMenuLabel>
+      <DropdownMenuLabel className={composerMenuLabel}>{title || t.shell.approvalMode.title}</DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuRadioGroup onValueChange={value => setMode(value as ApprovalMode)} value={mode}>
         {APPROVAL_MODE_ORDER.map(value => (
@@ -90,8 +91,8 @@ export function ApprovalModeMenu({
             value={value}
           >
             <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-xs text-foreground">{labels[value]}</span>
-              <span className="text-[0.6875rem] leading-snug text-(--ui-text-tertiary)">{descriptions[value]}</span>
+              <span className="text-foreground">{labels[value]}</span>
+              <span className={composerMenuDetail}>{descriptions[value]}</span>
             </span>
           </DropdownMenuRadioItem>
         ))}

@@ -1704,6 +1704,39 @@ body.guest-pointer-lock :is(webview, iframe) {
   text-wrap: balance;
 }
 
+/* Composer menus share one card: stage radius, elevated fill, the floating
+   shadow. Unlayered so it wins over the generic dropdown utilities (those
+   live in Tailwind's layer and were painting a different radius, fill, and
+   shadow on each menu). */
+[data-composer-menu] {
+  border-radius: var(--ui-stage-radius);
+  border-color: var(--ui-stroke-secondary);
+  background: var(--ui-bg-elevated);
+  box-shadow: var(--shadow-work4you);
+  font-size: var(--conversation-text-font-size);
+  letter-spacing: normal;
+}
+
+[data-composer-menu]
+  :is(
+    [data-slot='dropdown-menu-item'],
+    [data-slot='dropdown-menu-sub-trigger'],
+    [data-slot='dropdown-menu-radio-item'],
+    [data-slot='dropdown-menu-checkbox-item']
+  ) {
+  font-size: var(--conversation-text-font-size);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+[data-composer-menu] [data-slot='dropdown-menu-label'] {
+  font-size: var(--conversation-caption-font-size);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ui-text-tertiary);
+}
+
 /* The prompt card and its workspace tray share one radius, independent of
    the tight chrome scale. */
 [data-slot='composer-root'],

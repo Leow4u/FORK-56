@@ -23,16 +23,22 @@ const composerDockEdge = (edge: 'bottom' | 'top') =>
 export const composerDockCard = (edge: 'bottom' | 'top' = 'top') =>
   cn(composerDockEdge(edge), composerFill, composerSurfaceGlass)
 
-/** Floating composer panel skin — the `/`·`@`·`?` completion drawer and the
- *  attach (`+`) menu. Glassy translucent card, hairline border, full radius,
- *  smallest type, soft work4you shadow. Uses an explicit fill (not `--composer-fill`)
- *  so it renders identically whether mounted inside the composer or portaled out
- *  of it. Visual skin only — consumers add their own size/position/padding. */
+/** Floating composer panel skin — completion drawer and every composer menu.
+ *  One radius, one elevated fill, one shadow. Portaled menus repeat this with
+ *  `data-composer-menu` so the rule wins over the generic dropdown utilities.
+ *  Visual skin only — consumers add their own size and position. */
 export const composerPanelCard = cn(
-  'rounded-2xl border border-border/65 shadow-work4you text-[length:var(--conversation-tool-font-size)]',
-  'bg-[color-mix(in_srgb,var(--dt-card)_72%,transparent)]',
-  composerSurfaceGlass
+  'rounded-(--ui-stage-radius) border border-(--ui-stroke-secondary) bg-(--ui-bg-elevated) shadow-work4you',
+  'text-[length:var(--conversation-text-font-size)] text-popover-foreground'
 )
+
+/** Section title inside a composer menu. Sentence case, caption size. */
+export const composerMenuLabel =
+  'px-2 pb-0.5 pt-1 text-[length:var(--conversation-caption-font-size)] font-medium normal-case tracking-normal text-(--ui-text-tertiary)'
+
+/** Supporting line under a menu title. Same caption token everywhere. */
+export const composerMenuDetail =
+  'text-[length:var(--conversation-caption-font-size)] font-normal leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)'
 
 /**
  * A quiet control floating over composer content — the micro-action pills above

@@ -1,8 +1,9 @@
 import { useStore } from '@nanostores/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useSessionView } from '@/app/chat/session-view'
 import { ModelMenuCloseContext } from '@/app/shell/model-menu-panel'
+import { composerPanelCard } from '@/components/chat/composer-dock'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { GlyphSpinner } from '@/components/ui/glyph-spinner'
@@ -15,6 +16,7 @@ import { $currentModelSource, $defaultReasoningEffort, setModelPickerOpen } from
 
 import { onComposerModelMenuRequest } from './focus'
 import { useComposerScope } from './scope'
+import { useComposerMenuSide } from './use-composer-menu-side'
 import type { ChatBarState } from './types'
 
 const PILL = cn(
@@ -53,6 +55,8 @@ export function ModelPill({
   const defaultEffort = useStore($defaultReasoningEffort)
   const runtimeId = useStore(view.$runtimeId)
   const [open, setOpen] = useState(false)
+  const hostRef = useRef<HTMLDivElement>(null)
+  const menuSide = useComposerMenuSide(hostRef)
   const scope = useComposerScope()
   const hasLiveMenu = Boolean(model.modelMenuContent)
 
@@ -154,12 +158,20 @@ export function ModelPill({
 
   return (
     <DropdownMenu onOpenChange={setMenuOpen} open={open}>
-      <DropdownMenuTrigger asChild>
-        <Button aria-label={title} className={pillClass} disabled={disabled} type="button" variant="ghost">
-          {label}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64 p-0" side="top" sideOffset={8}>
+      <div className="contents" ref={hostRef}>
+        <DropdownMenuTrigger asChild>
+          <Button aria-label={title} className={pillClass} disabled={disabled} type="button" variant="ghost">
+            {label}
+          </Button>
+        </DropdownMenuTrigger>
+      </div>
+      <DropdownMenuContent
+        align="end"
+        className={cn('w-64', composerPanelCard)}
+        data-composer-menu=""
+        side={menuSide}
+        sideOffset={8}
+      >
         <ModelMenuCloseContext.Provider value={() => setMenuOpen(false)}>
           {model.modelMenuContent}
         </ModelMenuCloseContext.Provider>

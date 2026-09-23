@@ -11,3 +11,10 @@ export type DockedComposerAnchor = 'bottom' | 'midline'
 export function dockedComposerAnchor(intro: boolean): DockedComposerAnchor {
   return intro ? 'midline' : 'bottom'
 }
+
+/** Preferred menu side for a docked composer. A centered empty intro has the
+ *  headline above the card, so menus open into the space below it. A live
+ *  thread sits on the bottom edge, so menus open upward. */
+export function composerMenuSide(anchor: DockedComposerAnchor): 'bottom' | 'top' {
+  return anchor === 'midline' ? 'bottom' : 'top'
+}

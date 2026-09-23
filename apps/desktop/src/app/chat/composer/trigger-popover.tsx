@@ -2,6 +2,7 @@ import type { Unstable_TriggerItem } from '@assistant-ui/core'
 import { Fragment, useEffect, useRef } from 'react'
 
 import { referenceKind, referenceStyle } from '@/components/assistant-ui/reference-kinds'
+import { composerMenuLabel } from '@/components/chat/composer-dock'
 import { Codicon } from '@/components/ui/codicon'
 import { GlyphSpinner } from '@/components/ui/glyph-spinner'
 import { useI18n } from '@/i18n'
@@ -48,8 +49,7 @@ const ROW_CLASS = [
   'data-[highlighted]:bg-(--ui-bg-tertiary) data-[highlighted]:text-foreground'
 ].join(' ')
 
-const GROUP_HEADER_CLASS =
-  'select-none px-2 pb-0.5 text-[0.625rem] font-semibold uppercase tracking-wider text-(--ui-text-tertiary)'
+const GROUP_HEADER_CLASS = cn('select-none', composerMenuLabel)
 
 interface ComposerTriggerPopoverProps {
   activeIndex: number
@@ -153,6 +153,7 @@ export function ComposerTriggerPopover({
   return (
     <div
       className={placement === 'bottom' ? COMPLETION_DRAWER_BELOW_CLASS : COMPLETION_DRAWER_CLASS}
+      data-composer-menu=""
       data-slot="composer-completion-drawer"
       data-state="open"
       onMouseDown={event => event.preventDefault()}

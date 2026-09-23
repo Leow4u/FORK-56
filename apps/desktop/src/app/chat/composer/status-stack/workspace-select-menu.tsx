@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useRef, useState } from 'react'
 
 import {
   buildWorkspacePaletteGroups,
@@ -8,6 +8,7 @@ import {
   type WorkspacePickerSource
 } from '@/app/command-palette/workspace-palette'
 import { Codicon } from '@/components/ui/codicon'
+import { composerPanelCard } from '@/components/chat/composer-dock'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +24,8 @@ import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { $dismissedAutoProjectIds, $sidebarProjectOrderIds } from '@/store/layout'
 import { $activeProjectId, $projectScope, $projectTree } from '@/store/projects'
+
+import { useComposerMenuSide } from '../use-composer-menu-side'
 
 function workspaceItemGlyph(kind: WorkspacePaletteItem['kind']) {
   switch (kind) {
@@ -43,15 +46,15 @@ function workspaceItemGlyph(kind: WorkspacePaletteItem['kind']) {
 export function WorkspaceSelectMenu({
   children,
   cwd = '',
-  side = 'bottom',
   tooltip
 }: {
   children: ReactNode
   cwd?: string
-  side?: 'bottom' | 'top'
   tooltip: string
 }) {
   const { t } = useI18n()
+  const hostRef = useRef<HTMLDivElement>(null)
+  const menuSide = useComposerMenuSide(hostRef)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const projects = useStore($projectTree)
@@ -114,15 +117,18 @@ export function WorkspaceSelectMenu({
 
   return (
     <DropdownMenu onOpenChange={setMenuOpen} open={open}>
-      <Tip label={tooltip} side="top">
-        <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      </Tip>
+      <div className="contents" ref={hostRef}>
+        <Tip label={tooltip} side={menuSide === 'bottom' ? 'top' : 'bottom'}>
+          <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
+        </Tip>
+      </div>
       <DropdownMenuContent
         align="start"
-        className="w-72 p-1"
+        className={cn('w-72', composerPanelCard)}
+        data-composer-menu=""
         data-slot="workspace-select-menu"
-        side={side}
-        sideOffset={4}
+        side={menuSide}
+        sideOffset={8}
       >
         <DropdownMenuSearch
           aria-label={t.commandCenter.searchProjects}

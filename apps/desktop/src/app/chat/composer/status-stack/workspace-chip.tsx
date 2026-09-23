@@ -32,7 +32,7 @@ export function WorkspaceChipRow({ cwd, messagesEmpty }: { cwd?: null | string; 
   return (
     <div className={cn(composerContextShell, 'gap-1')} data-slot="composer-context-bar">
       <div className="min-w-0 flex-1">
-        <WorkspaceSelectMenu cwd={path} side="top" tooltip={tip}>
+        <WorkspaceSelectMenu cwd={path} tooltip={tip}>
           <button aria-label={selectLabel} className={composerContextBar} data-slot="workspace-chip" type="button">
             <FolderOpen aria-hidden className="size-3.5 shrink-0" />
             <span className="truncate">{label}</span>
