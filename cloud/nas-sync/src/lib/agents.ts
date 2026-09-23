@@ -12,6 +12,7 @@ import {
   assertFlyApiToken,
   cloudResizeShouldStart,
   cloudSizeForTier,
+  cloudStatusForFlyState,
   ensureOrgCloudInstanceWith,
   planDiskGb,
   planFlyBirth,
@@ -48,6 +49,7 @@ import {
   rollMachineImage,
   startMachine,
   stopMachine,
+  syncMachineScaleToZero,
   waitMachine,
 } from './fly-machines'
 
@@ -920,20 +922,26 @@ export async function ensureOrgCloudInstance(args: {
 
   if (!result.ok) return result
 
+  const stamp = async (agent: AgentDto): Promise<AgentDto> => {
+    const row = await getAgent(args.org.id, agent.id)
+    if (row) await syncCloudScaleToZero(row)
+    return agent
+  }
+
   if (resizedAgent) {
-    return { ok: true, created: false, agent: resizedAgent }
+    return { ok: true, created: false, agent: await stamp(resizedAgent) }
   }
 
   if (resumedAgent) {
-    return { ok: true, created: false, agent: resumedAgent }
+    return { ok: true, created: false, agent: await stamp(resumedAgent) }
   }
 
   if (parkedAgent) {
-    return { ok: true, created: false, agent: parkedAgent }
+    return { ok: true, created: false, agent: await stamp(parkedAgent) }
   }
 
   if (wokenAgent) {
-    return { ok: true, created: false, agent: wokenAgent }
+    return { ok: true, created: false, agent: await stamp(wokenAgent) }
   }
 
   if (result.created) {
@@ -941,11 +949,12 @@ export async function ensureOrgCloudInstance(args: {
     if (!agent || agent.id !== result.instance.id) {
       throw new Error('cloud_instance_missing')
     }
-    return { ok: true, created: true, agent }
+    return { ok: true, created: true, agent: await stamp(agent) }
   }
 
   const row = await getAgent(args.org.id, result.instance.id)
   if (!row) throw new Error('cloud_instance_missing')
+  await syncCloudScaleToZero(row)
   return { ok: true, created: false, agent: toAgentDto(row) }
 }
 
@@ -970,6 +979,21 @@ export async function stopAgent(row: AgentInstance): Promise<AgentDto> {
   return toAgentDtoLive(updated)
 }
 
+async function syncCloudScaleToZero(row: AgentInstance): Promise<void> {
+  if (!row.flyAppName || !row.flyMachineId || !row.dashboardUrl) return
+  try {
+    await syncMachineScaleToZero({
+      appName: row.flyAppName,
+      machineId: row.flyMachineId,
+    })
+  } catch (error) {
+    console.warn(
+      `scale-to-zero sync failed app=${row.flyAppName} machine=${row.flyMachineId}`,
+      error,
+    )
+  }
+}
+
 /**
  * Start the Fly machine. If the machine still runs an older golden image,
  * roll the image in-place first (same volume / history) — Cursor/Claude-style
@@ -983,6 +1007,7 @@ export async function startAgent(row: AgentInstance): Promise<AgentDto> {
     where: { id: row.id },
     data: { status: 'starting', dashboardGatewayState: 'unknown' },
   })
+  await syncCloudScaleToZero(row)
 
   const target = agentImage()
   const machine = await getMachine(row.flyAppName, row.flyMachineId)
@@ -1140,25 +1165,10 @@ export async function refreshAgentStatus(
     const runningImage = imageFromMachine(m)
     let status = row.status
     let gateway = row.dashboardGatewayState
-    if (state === 'started') {
-      status = 'online'
-      gateway = 'active'
-    } else if (state === 'stopped' || state === 'suspended') {
-      // A list refresh must not turn a Free park into a user stop.
-      if ((row.status || '').toLowerCase() === 'parked') {
-        status = 'parked'
-        gateway = 'down'
-      } else {
-        status = 'stopped'
-        gateway = 'down'
-      }
-    } else if (state === 'created' || state === 'starting') {
-      status = 'starting'
-      gateway = 'unknown'
-    } else if (state === 'replacing' || state === 'destroying') {
-      // Mid-roll: keep updating so the Portal keeps polling.
-      status = row.status === 'updating' ? 'updating' : 'starting'
-      gateway = 'unknown'
+    const mapped = cloudStatusForFlyState(row.status, state)
+    if (mapped) {
+      status = mapped.status
+      gateway = mapped.gateway
     }
     const patch: {
       status: string

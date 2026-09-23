@@ -516,6 +516,11 @@ export function CloudPage() {
               {agent.errorMessage ? (
                 <p className={styles.cardError}>{agent.errorMessage}</p>
               ) : null}
+              {canUseCloud && agent.status === 'online' ? (
+                <p className={styles.cardMeta}>
+                  Adormece sem sessões e acorda quando alguém volta.
+                </p>
+              ) : null}
               {agent.status === 'parked' ? (
                 <p className={styles.cardMeta}>
                   {canUseCloud

@@ -8658,7 +8658,9 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
             the idle predicate held and the dormant quiesce completed.
         Autostart stays platform-side: the connector's wakeUrl poke (Fly-proxied)
         wakes the machine, the preserved reconnect supervisor re-dials, and the
-        connector drains the buffered backlog. After driving dormant we set a
+        connector drains the buffered backlog. A paid Cloud VM with no messaging
+        relay has nothing to flip: the same idle window self-suspends, and the
+        next dashboard request is the wake. After driving dormant we set a
         re-arm cooldown so a wake's drained backlog isn't immediately re-quiesced.
         Off-Fly (no flaps socket / machine identity) the suspend step is skipped:
         dormancy still happens, the process just stays running — fail-awake.
@@ -8675,6 +8677,15 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
                     continue
                 adapter = self._relay_adapter_for_dormancy()
                 if adapter is None:
+                    # Paid Cloud with no messaging relay still sleeps when no
+                    # session is in flight. There is no relay flip to lose.
+                    # The next request to the dashboard / wake URL resumes it.
+                    logger.info(
+                        "scale-to-zero: idle with no messaging relay — "
+                        "self-suspending; the next dashboard request wakes it"
+                    )
+                    self._scale_to_zero_cooldown_until = time.time() + max(interval, 60.0)
+                    await self._scale_to_zero_self_suspend()
                     continue
                 go_dormant = getattr(adapter, "go_dormant", None)
                 if not callable(go_dormant):
