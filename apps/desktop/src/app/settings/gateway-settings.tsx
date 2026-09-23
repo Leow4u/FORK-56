@@ -206,9 +206,11 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
   // Set only by a fresh portal login. Discovery from opening the panel must
   // not steal a Local or SSH session the user already chose.
   const paidConnectPending = useRef(false)
+
   const finishPaidCloudLoginRef = useRef<(result: DesktopCloudDiscoverResult | null) => Promise<void>>(
     async () => undefined
   )
+
   const gatewayStateRef = useRef(state)
 
   gatewayStateRef.current = state
@@ -942,6 +944,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
     }
 
     const want = decision.source.remoteUrl.trim().replace(/\/+$/, '').toLowerCase()
+
     const agent = result.agents.find(
       row => (row.dashboardUrl ?? '').trim().replace(/\/+$/, '').toLowerCase() === want
     )
