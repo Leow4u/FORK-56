@@ -103,6 +103,9 @@ describe('AccountFooter', () => {
 
     const trigger = await screen.findByRole('button', { name: 'user@example.com' })
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+    expect(trigger.getAttribute('title')).toBeNull()
+    expect(trigger.querySelector('[data-slot="account-footer-mark"]')?.getAttribute('aria-hidden')).toBe('true')
+    expect(trigger.querySelector('[data-slot="account-footer-mark"]')?.textContent).toBe('U')
 
     fireEvent.pointerDown(trigger, { button: 0 })
 

@@ -63,7 +63,7 @@ function ThemePreview({ name, mode }: { name: string; mode: 'light' | 'dark' }) 
 
   return (
     <div
-      className="h-20 overflow-hidden rounded-xl border shadow-xs"
+      className="h-24 overflow-hidden rounded-xl border shadow-xs"
       style={{ backgroundColor: c.background, borderColor: c.border }}
     >
       <div className="flex h-full">
@@ -452,7 +452,7 @@ export function AppearanceSettings() {
                     and live-searches the VS Code Marketplace below. */}
               <div className="mt-3">
                 <input
-                  className="w-full rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-1.5 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
+                  className="w-full rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-2 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
                   onChange={event => setQuery(event.target.value)}
                   placeholder="Search your themes or the VS Code Marketplace…"
                   spellCheck={false}
@@ -470,7 +470,7 @@ export function AppearanceSettings() {
                     </p>
                   ) : null
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     {filteredThemes.map(theme => {
                       const active = themeName === theme.name
                       const removable = isUserTheme(theme.name)

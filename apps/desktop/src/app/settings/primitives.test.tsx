@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { PAGE_SETTINGS_MAX_W } from '../layout-constants'
 
-import { ListRow, SectionHeading, SettingsContent, SettingsGroup } from './primitives'
+import { ListRow, SectionHeading, SettingsContent, SettingsGroup, ToggleRow } from './primitives'
 
 afterEach(() => {
   cleanup()
@@ -38,6 +38,18 @@ describe('SettingsContent', () => {
     expect(column?.className).toContain(PAGE_SETTINGS_MAX_W)
     expect(column?.className).not.toContain('max-w-none')
     expect(column?.className).not.toContain('max-w-full')
+  })
+})
+
+describe('ToggleRow', () => {
+  it('keeps the switch on the title line at every width', () => {
+    render(<ToggleRow checked={false} description="Play a sound" label="Sounds" onChange={() => undefined} />)
+
+    const row = screen.getByRole('switch', { name: 'Sounds' }).closest('[data-action-align]')
+
+    expect(row?.getAttribute('data-action-align')).toBe('end')
+    expect(row?.querySelector('.grid')?.className).toContain('grid-cols-[minmax(0,1fr)_auto]')
+    expect(screen.getByText('Play a sound')).toBeTruthy()
   })
 })
 

@@ -1493,8 +1493,10 @@ export function ChatSidebar({
                       // resolved region has been observed to swallow clicks on the
                       // top rows. Same carve-out as USER_BUBBLE_BASE_CLASS in
                       // thread.tsx.
-                      'flex h-7 w-full justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[0.8125rem] font-medium text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none',
+                      'flex w-full justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none',
+                      isNewSession ? 'h-8 bg-(--ui-bg-quaternary) text-foreground' : 'h-7',
                       active &&
+                        !isNewSession &&
                         'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-foreground shadow-none hover:border-(--ui-stroke-tertiary)!',
                       !isInteractive &&
                         'cursor-default hover:border-transparent hover:bg-transparent hover:text-inherit'
@@ -1536,7 +1538,7 @@ export function ChatSidebar({
                 // New session + route-backed pages can open in a split —
                 // right-click for the directional "Open in split" submenu.
                 return (
-                  <SidebarMenuItem key={item.id}>
+                  <SidebarMenuItem className={isNewSession ? 'mb-1' : undefined} key={item.id}>
                     {isNewSession || item.route ? (
                       <ContextMenu>
                         <ContextMenuTrigger asChild>{button}</ContextMenuTrigger>

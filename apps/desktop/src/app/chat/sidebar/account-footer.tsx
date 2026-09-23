@@ -38,10 +38,25 @@ export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 // BrowserWindow, so focus returning to the main window is the natural
 // "state may have changed" signal — no polling, no new IPC surface.
 const rowClass = cn(
-  'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs',
+  'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 text-left text-[length:var(--conversation-text-font-size)]',
   'text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag]',
   'hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none'
 )
+
+/** Initials for the existing account trigger. Email local-part, otherwise the label. */
+function accountMark(label: string): string {
+  const source = label.includes('@') ? (label.split('@')[0] ?? label) : label
+  const letters = source
+    .split(/[\s._-]+/)
+    .map(part => part.match(/[a-z0-9]/i)?.[0] ?? '')
+    .filter(Boolean)
+
+  if (letters.length >= 2) {
+    return `${letters[0]}${letters[1]}`.toUpperCase()
+  }
+
+  return (letters[0] ?? label.match(/[a-z0-9]/i)?.[0] ?? '?').toUpperCase()
+}
 
 export function AccountFooter() {
   const { t } = useI18n()
@@ -164,7 +179,14 @@ export function AccountFooter() {
       <div className="flex min-w-0 items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className={rowClass} title={triggerLabel} type="button">
+            <button aria-label={triggerLabel} className={rowClass} data-slot="account-footer-trigger" type="button">
+              <span
+                aria-hidden
+                className="grid size-5 shrink-0 place-items-center rounded-full bg-(--ui-bg-quaternary) text-[0.625rem] font-medium uppercase leading-none text-foreground"
+                data-slot="account-footer-mark"
+              >
+                {accountMark(triggerLabel)}
+              </span>
               <span className="truncate">{triggerLabel}</span>
             </button>
           </DropdownMenuTrigger>
