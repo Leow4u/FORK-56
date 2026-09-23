@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { paidCloudLoginConnection, paidCloudLoginShouldApply } from '@/app/chat/composer/status-stack/run-target'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tip } from '@/components/ui/tooltip'
-import type { DesktopAuthProvider, DesktopCloudAgent, DesktopCloudOrg, DesktopConnectionProbeResult } from '@/global'
+import type {
+  DesktopAuthProvider,
+  DesktopCloudAgent,
+  DesktopCloudDiscoverResult,
+  DesktopCloudOrg,
+  DesktopConnectionProbeResult
+} from '@/global'
 import { useI18n } from '@/i18n'
 import { ExternalLink } from '@/lib/external-link'
 import {
@@ -196,6 +203,15 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
   // same render tick; without the ref, connectCloudAgent could persist a null
   // org even though discovery just resolved one. Always set both together.
   const cloudOrgRef = useRef<null | string>(null)
+  // Set only by a fresh portal login. Discovery from opening the panel must
+  // not steal a Local or SSH session the user already chose.
+  const paidConnectPending = useRef(false)
+  const finishPaidCloudLoginRef = useRef<(result: DesktopCloudDiscoverResult | null) => Promise<void>>(
+    async () => undefined
+  )
+  const gatewayStateRef = useRef(state)
+
+  gatewayStateRef.current = state
 
   const setCloudOrg = (value: null | string) => {
     cloudOrgRef.current = value
@@ -620,12 +636,12 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
   // a lapsed session: a needsCloudLogin error flips us back to signed-out.
   // `org` scopes discovery for multi-org users; when discovery comes back with
   // needsOrgSelection we surface the org list and show a picker instead.
-  const discoverCloud = async (org?: string) => {
+  const discoverCloud = async (org?: string): Promise<DesktopCloudDiscoverResult | null> => {
     const desktop = window.work4youDesktop
     const seq = contextSeq.current
 
     if (!desktop?.cloud) {
-      return
+      return null
     }
 
     setCloudDiscover('loading')
@@ -634,7 +650,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       const result = await desktop.cloud.discover(org)
 
       if (seq !== contextSeq.current) {
-        return
+        return null
       }
 
       if ('needsOrgSelection' in result && result.needsOrgSelection) {
@@ -644,7 +660,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
         setCloudAgents([])
         setCloudDiscover('done')
 
-        return
+        return result
       }
 
       // Single org (or org now chosen): we have agents.
@@ -663,9 +679,11 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       }
 
       setCloudDiscover('done')
+
+      return result
     } catch (err) {
       if (seq !== contextSeq.current) {
-        return
+        return null
       }
 
       setCloudAgents([])
@@ -677,6 +695,8 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       }
 
       notifyError(err, g.cloudDiscoverFailed)
+
+      return null
     }
   }
 
@@ -685,7 +705,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
   const selectCloudOrg = (org: DesktopCloudOrg) => {
     const ref = org.slug ?? org.id
     setCloudOrg(ref)
-    void discoverCloud(ref)
+    void discoverCloud(ref).then(discovered => finishPaidCloudLoginRef.current(discovered))
   }
 
   // "Change org": clear the selected org and re-discover with no org arg. A
@@ -695,7 +715,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
   const changeCloudOrg = () => {
     setCloudOrg(null)
     setCloudAgents([])
-    void discoverCloud()
+    void discoverCloud().then(discovered => finishPaidCloudLoginRef.current(discovered))
   }
 
   // On entering cloud mode, read the portal session status and
@@ -770,7 +790,14 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       setCloudSignedIn(result.signedIn)
 
       if (result.signedIn) {
-        await discoverCloud()
+        paidConnectPending.current = true
+        const discovered = await discoverCloud()
+
+        if (seq !== signingSeq.current) {
+          return
+        }
+
+        await finishPaidCloudLoginRef.current(discovered)
       }
     } catch (err) {
       if (seq === signingSeq.current) {
@@ -792,6 +819,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
     }
 
     setCloudSigningIn(true)
+    paidConnectPending.current = false
 
     try {
       await desktop.cloud.logout()
@@ -883,6 +911,43 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       if (seq === contextSeq.current) {
         setCloudConnectingId(null)
       }
+    }
+  }
+
+  finishPaidCloudLoginRef.current = async result => {
+    if (!paidConnectPending.current) {
+      return
+    }
+
+    if (!result) {
+      paidConnectPending.current = false
+
+      return
+    }
+
+    const decision = paidCloudLoginConnection(result)
+
+    if (decision.type === 'choose-org') {
+      return
+    }
+
+    paidConnectPending.current = false
+
+    if (decision.type !== 'apply' || !('agents' in result)) {
+      return
+    }
+
+    if (!paidCloudLoginShouldApply(savedCloudConnectionUrl(gatewayStateRef.current), decision.source)) {
+      return
+    }
+
+    const want = decision.source.remoteUrl.trim().replace(/\/+$/, '').toLowerCase()
+    const agent = result.agents.find(
+      row => (row.dashboardUrl ?? '').trim().replace(/\/+$/, '').toLowerCase() === want
+    )
+
+    if (agent) {
+      await connectCloudAgent(agent)
     }
   }
 
