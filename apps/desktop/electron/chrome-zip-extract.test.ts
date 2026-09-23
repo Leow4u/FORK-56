@@ -21,21 +21,22 @@ import {
 
 function crc32(buf: Buffer): number {
   let crc = ~0
+
   for (const byte of buf) {
     crc ^= byte
+
     for (let i = 0; i < 8; i++) {
       crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0)
     }
   }
-  return (~crc) >>> 0
+
+  return ~crc >>> 0
 }
 
-function writeLocalAndCd(opts: {
-  name: string
-  data: Buffer
-  method: 0 | 8
-  compressed: Buffer
-}): { local: Buffer; cd: Buffer } {
+function writeLocalAndCd(opts: { name: string; data: Buffer; method: 0 | 8; compressed: Buffer }): {
+  local: Buffer
+  cd: Buffer
+} {
   const name = Buffer.from(opts.name, 'utf8')
   const crc = crc32(opts.data)
   const local = Buffer.alloc(30 + name.length + opts.compressed.length)
@@ -59,6 +60,7 @@ function writeLocalAndCd(opts: {
   cd.writeUInt32LE(opts.data.length, 24)
   cd.writeUInt16LE(name.length, 28)
   name.copy(cd, 46)
+
   return { local, cd }
 }
 
@@ -66,6 +68,7 @@ function writeZip(entries: { name: string; data: Buffer; method?: 0 | 8 }[]): Bu
   const locals: Buffer[] = []
   const cds: Buffer[] = []
   let offset = 0
+
   for (const entry of entries) {
     const method = entry.method ?? 8
     const compressed = method === 0 ? entry.data : zlib.deflateRawSync(entry.data)
@@ -75,6 +78,7 @@ function writeZip(entries: { name: string; data: Buffer; method?: 0 | 8 }[]): Bu
     cds.push(built.cd)
     offset += built.local.length
   }
+
   const cd = Buffer.concat(cds)
   const eocd = Buffer.alloc(22)
   eocd.writeUInt32LE(0x06054b50, 0)
@@ -82,6 +86,7 @@ function writeZip(entries: { name: string; data: Buffer; method?: 0 | 8 }[]): Bu
   eocd.writeUInt16LE(entries.length, 10)
   eocd.writeUInt32LE(cd.length, 12)
   eocd.writeUInt32LE(offset, 16)
+
   return Buffer.concat([...locals, cd, eocd])
 }
 
@@ -100,6 +105,7 @@ test('resolveZipEntryPath rejects zip-slip and absolute names', () => {
 
 test('extractChromeZip inflates stored and deflated files and reports progress', async () => {
   const dir = tmpDir()
+
   try {
     const zipPath = path.join(dir, 'chrome.zip')
     const out = path.join(dir, 'out')
@@ -129,6 +135,7 @@ test('extractChromeZip inflates stored and deflated files and reports progress',
 
 test('assertExtractedWindowsChrome fails when the exe is missing', () => {
   const dir = tmpDir()
+
   try {
     fs.writeFileSync(path.join(dir, 'readme.txt'), 'nope')
     assert.throws(() => assertExtractedWindowsChrome(dir), /Work4You\.exe/)
@@ -139,6 +146,7 @@ test('assertExtractedWindowsChrome fails when the exe is missing', () => {
 
 test('extractChromeZip refuses a zip-slip entry', async () => {
   const dir = tmpDir()
+
   try {
     const zipPath = path.join(dir, 'slip.zip')
     fs.writeFileSync(zipPath, writeZip([{ name: '../escape.exe', data: Buffer.from('x'), method: 0 }]))

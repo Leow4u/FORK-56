@@ -2858,7 +2858,8 @@ export const zhHant = defineLocale({
     availableBodyNoChangelog: '已有新版本可用。此安裝方式無法顯示更新日誌。',
     availableBodyInstaller:
       'Work4You 會在你繼續使用時於背景下載此更新。出現「重新啟動以完成」後再點擊。應用程式會短暫關閉，然後以新版本重新開啟。',
-    availableBodyChrome: '新的 Work4You 應用更新已就緒。會在背景下載並解包——芯片就緒後點「重新啟動以完成」。既有執行階段保持不變。',
+    availableBodyChrome:
+      '新的 Work4You 應用更新已就緒。會在背景下載並解包——芯片就緒後點「重新啟動以完成」。既有執行階段保持不變。',
     updateNow: '立即更新',
     restartToFinish: '重新啟動以完成',
     maybeLater: '稍後再說',
@@ -2876,8 +2877,7 @@ export const zhHant = defineLocale({
       'Work4You 更新程式會在自己的視窗中接管，並在完成後自動重新開啟 Work4You。更新期間請勿自行重新開啟 Work4You。',
     applyingBodyInstaller:
       '正在下載已簽署的安裝程式。Work4You 將關閉以便安裝程式取代應用程式。安裝完成前請勿自行重新開啟。',
-    applyingBodyChrome:
-      '正在解包桌面外殼。此視窗會保持開啟直到完成，然後 Work4You 會短暫重新啟動。請勿自行重新開啟。',
+    applyingBodyChrome: '正在解包桌面外殼。此視窗會保持開啟直到完成，然後 Work4You 會短暫重新啟動。請勿自行重新開啟。',
     applyingBodyBackend: '遠端後端正在套用更新並將重新啟動。恢復後 Work4You 會自動重新連線。',
     applyingClose: '此視窗會在更新期間關閉，隨後 Work4You 會自動重新開啟。',
     errorTitle: '更新未完成',
@@ -3038,8 +3038,7 @@ export const zhHant = defineLocale({
     waitingAuthorize: '等待您授權...',
     externalPending: provider => `${provider} 透過自己的 CLI 登入。請在終端機執行此指令，然後回來選擇「我已登入」：`,
     signedIn: '我已登入',
-    deviceCodeOpened: provider =>
-      `已在瀏覽器中開啟 ${provider}。請先在該頁面登入，登入後再確認此裝置代碼：`,
+    deviceCodeOpened: provider => `已在瀏覽器中開啟 ${provider}。請先在該頁面登入，登入後再確認此裝置代碼：`,
     reopenVerification: '重新開啟驗證頁面',
     copy: '複製',
     defaultModel: '預設模型',
