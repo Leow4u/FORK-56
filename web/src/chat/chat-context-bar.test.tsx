@@ -82,6 +82,30 @@ describe("ChatContextBar", () => {
     expect(container.textContent).toContain("Live");
     expect(container.textContent).toContain("gpt-4");
     expect(container.textContent).toContain("— tok");
+    const labels = [...container.querySelectorAll("option")].map((node) => node.textContent);
+    expect(labels).toEqual(["Off (no thinking)", "Low", "Medium", "High", "Extra High"]);
+  });
+
+  it("keeps Max on Claude and hides the alias levels", () => {
+    act(() => {
+      root.render(
+        <ChatContextBar
+          connectionState="open"
+          info={{
+            model: "anthropic/claude-sonnet-5",
+            provider: "work4you",
+            reasoningEffort: "ultra",
+          }}
+          usage={null}
+          modelLabel="Claude Sonnet 5"
+          onReasoningChange={() => undefined}
+        />,
+      );
+    });
+    const labels = [...container.querySelectorAll("option")].map((node) => node.textContent);
+    expect(labels).toEqual(["Off (no thinking)", "Low", "Medium", "High", "Extra High", "Max"]);
+    const select = container.querySelector("select");
+    expect(select?.value).toBe("max");
   });
 
   it("formats token usage when present", () => {

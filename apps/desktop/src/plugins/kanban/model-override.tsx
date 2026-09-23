@@ -22,6 +22,7 @@ import {
   ModelCatalogMenu,
   ModelMenuCloseContext,
   type ModelMenuController,
+  menuReasoningEffort,
   reasoningEffortLabel
 } from '@work4you/plugin-sdk'
 import { useState } from 'react'
@@ -50,7 +51,9 @@ export function overrideLabel(value: TaskModelOverride, inheritCopy: string): st
 
   const model = value.model.trim()
   const base = model ? displayModelName(model) : inheritCopy
-  const effort = value.effort.trim() ? reasoningEffortLabel(value.effort) : ''
+  const rawEffort = value.effort.trim()
+  const shownEffort = rawEffort && value.model.trim() ? menuReasoningEffort(rawEffort, value.model) : rawEffort
+  const effort = shownEffort ? reasoningEffortLabel(shownEffort) : ''
 
   return effort ? `${base} · ${effort}` : base
 }

@@ -57,6 +57,77 @@ export function reasoningEffortLabel(effort: string): string {
   return key ? (SHORT_LABELS[key] ?? effort) : "";
 }
 
+/** The four-step dial. Minimal and Ultra stay valid stored values — they alias
+ *  Low and the model's ceiling — but they are not separate menu choices.
+ *  Keep this in step with apps/desktop/src/lib/reasoning-effort.ts. */
+export const MENU_REASONING_EFFORTS = ["low", "medium", "high", "xhigh"] as const;
+
+export type MenuReasoningEffort = (typeof MENU_REASONING_EFFORTS)[number] | "max";
+
+function effortKey(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+/** Claude's Messages API has a real `max` above Extra High. */
+export function claudeReasoningModel(model: string): boolean {
+  return effortKey(model).includes("claude");
+}
+
+export function visibleReasoningEfforts(
+  model: string,
+): readonly MenuReasoningEffort[] {
+  return claudeReasoningModel(model)
+    ? [...MENU_REASONING_EFFORTS, "max"]
+    : [...MENU_REASONING_EFFORTS];
+}
+
+/** Map a stored level onto a choice the menu lists. See the desktop twin. */
+export function menuReasoningEffort(
+  effort: string,
+  model: string,
+  fallback: string = DEFAULT_REASONING_EFFORT,
+): string {
+  const value = effortKey(effort || fallback);
+
+  if (value === "none" || value === "false" || value === "disabled") {
+    return "none";
+  }
+  if (value === "minimal") return "low";
+  if (value === "max" || value === "ultra") {
+    return claudeReasoningModel(model) ? "max" : "xhigh";
+  }
+  if (
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "xhigh"
+  ) {
+    return value;
+  }
+  return DEFAULT_REASONING_EFFORT;
+}
+
+const MENU_LABELS: Record<string, string> = {
+  none: "Off (no thinking)",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  xhigh: "Extra High",
+  max: "Max",
+};
+
+/** Effort choices for a model. Off stays in the same control on the web,
+ *  which has no separate Thinking switch. */
+export function effortMenuOptions(model: string): ReadonlyArray<EffortOption> {
+  return [
+    { value: "none", label: MENU_LABELS.none },
+    ...visibleReasoningEfforts(model).map((value) => ({
+      value,
+      label: MENU_LABELS[value],
+    })),
+  ];
+}
+
 /** Model pill label — name · [Fast] Med (desktop formatModelStatusLabel). */
 export function formatModelStatusLabel(
   model: string,
@@ -76,7 +147,9 @@ export function formatModelStatusLabel(
     parts.push("Fast");
   }
   parts.push(
-    reasoningEffortLabel(options?.reasoningEffort || "medium") || "Med",
+    reasoningEffortLabel(
+      menuReasoningEffort(options?.reasoningEffort || "medium", trimmed),
+    ) || "Med",
   );
   return `${name} · ${parts.join(" ")}`;
 }

@@ -1,7 +1,7 @@
 import { Button } from "@work4you/ui/ui/components/button";
 import { Select, SelectOption } from "@work4you/ui/ui/components/select";
 import type { ConnectionState } from "@/lib/gatewayClient";
-import { EFFORT_OPTIONS } from "@/lib/reasoning-effort";
+import { effortMenuOptions, menuReasoningEffort } from "@/lib/reasoning-effort";
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -70,7 +70,8 @@ export function ChatContextBar({
   reasoningDisabled = false,
   className,
 }: ChatContextBarProps) {
-  const effort = info.reasoningEffort || "medium";
+  const effortModel = info.model || "";
+  const effort = menuReasoningEffort(info.reasoningEffort || "medium", effortModel);
   const hasUsage =
     usage &&
     (usage.total != null || usage.input != null || usage.output != null);
@@ -118,7 +119,7 @@ export function ChatContextBar({
         className="h-6 min-w-[5.5rem] max-w-[7rem] text-[0.6875rem]"
         aria-label="Reasoning effort"
       >
-        {EFFORT_OPTIONS.map((opt) => (
+        {effortMenuOptions(effortModel).map((opt) => (
           <SelectOption key={opt.value} value={opt.value}>
             {opt.label}
           </SelectOption>

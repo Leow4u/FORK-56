@@ -53,6 +53,14 @@ describe('model-status-label', () => {
     )
   })
 
+  it('shows Claude Max and folds other ceilings into Extra High', () => {
+    expect(formatModelStatusLabel('anthropic/claude-sonnet-5', { reasoningEffort: 'max' })).toBe('Claude Sonnet 5 · Max')
+    expect(formatModelStatusLabel('anthropic/claude-sonnet-5', { reasoningEffort: 'ultra' })).toBe(
+      'Claude Sonnet 5 · Max'
+    )
+    expect(formatModelStatusLabel('x-ai/grok-4.7', { reasoningEffort: 'max' })).toBe('Grok 4.7 · XHigh')
+  })
+
   it('returns just the placeholder name when there is no model', () => {
     expect(formatModelStatusLabel('')).toBe('No model')
   })

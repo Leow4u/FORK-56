@@ -9,7 +9,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Switch } from '@/components/ui/switch'
 import { useI18n } from '@/i18n'
-import { isReasoningEffort, isThinkingEnabled, REASONING_EFFORTS, resolveReasoningEffort } from '@/lib/reasoning-effort'
+import {
+  isReasoningEffort,
+  isThinkingEnabled,
+  menuReasoningEffort,
+  resolveReasoningEffort,
+  visibleReasoningEfforts
+} from '@/lib/reasoning-effort'
 
 // Work4You' real reasoning levels live in lib/reasoning-effort; `none` is owned
 // by the Thinking toggle, not the radio.
@@ -63,6 +69,8 @@ interface ActiveModelOptionsProps {
   defaultEffort: string
   /** The active model's effective reasoning effort. */
   effort: string
+  /** Catalog model id. Claude keeps Max; every other model stops at Extra High. */
+  model?: string
   /** How fast mode is offered for this model (param toggle vs. variant swap). */
   fastControl: FastControl
   /** Switch to a specific model id (used to swap base ⇄ -fast variant). */
@@ -82,6 +90,7 @@ export function ActiveModelOptions({
   defaultEffort,
   effort,
   fastControl,
+  model = '',
   onSelectModel,
   onSetOptions,
   reasoning
@@ -90,7 +99,9 @@ export function ActiveModelOptions({
   const copy = t.shell.modelOptions
 
   const effortValue = resolveReasoningEffort(effort, defaultEffort)
+  const shownEffort = menuReasoningEffort(effortValue || defaultEffort, model)
   const thinkingOn = isThinkingEnabled(effort, defaultEffort)
+  const effortChoices = visibleReasoningEfforts(model)
 
   const setFast = (enabled: boolean) => {
     if (fastControl.kind === 'variant') {
@@ -120,7 +131,9 @@ export function ActiveModelOptions({
           <Switch
             checked={thinkingOn}
             className="ml-auto"
-            onCheckedChange={checked => onSetOptions({ effort: checked ? effortValue || defaultEffort : 'none' })}
+            onCheckedChange={checked =>
+              onSetOptions({ effort: checked ? menuReasoningEffort(effortValue || defaultEffort, model) : 'none' })
+            }
             size="xs"
           />
         </DropdownMenuItem>
@@ -137,13 +150,13 @@ export function ActiveModelOptions({
             <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
               <span>{copy.effort}</span>
               <span className="truncate text-(--ui-text-tertiary)">
-                {isReasoningEffort(effortValue) ? copy[effortValue] : null}
+                {isReasoningEffort(shownEffort) ? copy[shownEffort] : null}
               </span>
             </span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-52" data-composer-menu="" sideOffset={8}>
-            <DropdownMenuRadioGroup onValueChange={value => onSetOptions({ effort: value })} value={effortValue}>
-              {REASONING_EFFORTS.map(value => (
+            <DropdownMenuRadioGroup onValueChange={value => onSetOptions({ effort: value })} value={shownEffort}>
+              {effortChoices.map(value => (
                 <DropdownMenuRadioItem
                   className={dropdownMenuRow}
                   key={value}

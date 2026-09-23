@@ -4,10 +4,12 @@ import {
   DEFAULT_REASONING_EFFORT,
   isReasoningEffort,
   isThinkingEnabled,
+  menuReasoningEffort,
   REASONING_EFFORT_VALUES,
   REASONING_EFFORTS,
   reasoningEffortLabel,
-  resolveReasoningEffort
+  resolveReasoningEffort,
+  visibleReasoningEfforts
 } from './reasoning-effort'
 
 describe('reasoning-effort', () => {
@@ -49,5 +51,24 @@ describe('reasoning-effort', () => {
     // Off selects nothing on the scale.
     expect(resolveReasoningEffort('none')).toBe('')
     expect(resolveReasoningEffort('bogus')).toBe(DEFAULT_REASONING_EFFORT)
+  })
+
+  it('offers four levels, and Max only on Claude', () => {
+    expect(visibleReasoningEfforts('x-ai/grok-4.7')).toEqual(['low', 'medium', 'high', 'xhigh'])
+    expect(visibleReasoningEfforts('anthropic/claude-sonnet-5')).toEqual(['low', 'medium', 'high', 'xhigh', 'max'])
+    expect(visibleReasoningEfforts('claude-opus-5')).toContain('max')
+    expect(visibleReasoningEfforts('openai/gpt-5.5')).not.toContain('max')
+    expect(visibleReasoningEfforts('anthropic/claude-sonnet-5')).not.toContain('minimal')
+    expect(visibleReasoningEfforts('anthropic/claude-sonnet-5')).not.toContain('ultra')
+  })
+
+  it('maps stored aliases onto the visible choice without dropping Claude Max', () => {
+    expect(menuReasoningEffort('minimal', 'x-ai/grok-4.7')).toBe('low')
+    expect(menuReasoningEffort('ultra', 'x-ai/grok-4.7')).toBe('xhigh')
+    expect(menuReasoningEffort('max', 'x-ai/grok-4.7')).toBe('xhigh')
+    expect(menuReasoningEffort('ultra', 'anthropic/claude-sonnet-5')).toBe('max')
+    expect(menuReasoningEffort('max', 'anthropic/claude-opus-5')).toBe('max')
+    expect(menuReasoningEffort('xhigh', 'anthropic/claude-fable-5')).toBe('xhigh')
+    expect(menuReasoningEffort('none', 'anthropic/claude-sonnet-5')).toBe('none')
   })
 })

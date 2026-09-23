@@ -1,4 +1,4 @@
-import { DEFAULT_REASONING_EFFORT, reasoningEffortLabel } from '@/lib/reasoning-effort'
+import { DEFAULT_REASONING_EFFORT, menuReasoningEffort, reasoningEffortLabel } from '@/lib/reasoning-effort'
 
 /** Which model/provider pair a picker should mark "current". SessionView state
  *  also drives the composer label, so a complete pair there wins over an older
@@ -190,7 +190,11 @@ export function formatModelStatusLabel(
 
   // Always surface the effort so the current reasoning level is visible at a
   // glance, not just when non-default.
-  parts.push(reasoningEffortLabel(options?.reasoningEffort || options?.defaultEffort || DEFAULT_REASONING_EFFORT))
+  parts.push(
+    reasoningEffortLabel(
+      menuReasoningEffort(options?.reasoningEffort || options?.defaultEffort || DEFAULT_REASONING_EFFORT, model)
+    )
+  )
 
   return `${name} · ${parts.join(' ')}`
 }
