@@ -3,7 +3,8 @@
  *
  * Free has no VM. Plus/Super/Ultra map to one machine size. Callers never
  * pick the size. ensureOrgCloudInstanceWith is the only create path; POST
- * /api/agents stays closed.
+ * /api/agents stays closed. POST /api/cloud/ensure runs after the plan is
+ * paid — not when Checkout opens.
  */
 import { getTier, isPaidTierId, type TierId } from './tiers'
 
@@ -182,4 +183,89 @@ export async function ensureOrgCloudInstanceWith<T extends CloudInstanceRef>(arg
 
   const instance = await args.create({ size: second.size, name: second.name })
   return { ok: true, created: true, instance }
+}
+
+export type CloudEnsureHttpBody =
+  | { ensured: false; reason: 'paid_plan_required' }
+  | { ensured: true; created: boolean; instanceId: string }
+
+/** Free stays 200 so the client can retry only that reason after Checkout. */
+export function cloudEnsureBody(
+  result:
+    | { ok: false; error: 'paid_plan_required' }
+    | { ok: true; created: boolean; instanceId: string },
+): CloudEnsureHttpBody {
+  if (!result.ok) return { ensured: false, reason: 'paid_plan_required' }
+  return {
+    ensured: true,
+    created: result.created,
+    instanceId: result.instanceId,
+  }
+}
+
+/** Thrown before any DB insert when the Portal cannot talk to Fly. */
+export class FlyNotConfiguredError extends Error {
+  readonly code = 'fly_not_configured' as const
+
+  constructor() {
+    super('FLY_API_TOKEN em falta no Portal.')
+    this.name = 'FlyNotConfiguredError'
+  }
+}
+
+export function assertFlyApiToken(token: string | null | undefined): void {
+  if (!(token ?? '').trim()) throw new FlyNotConfiguredError()
+}
+
+export type SubscriptionCloudEnsureBody = {
+  ensured: boolean
+  reason?: string
+}
+
+/** Webhook can lag the Checkout redirect. Five tries, two seconds apart. */
+export const CLOUD_ENSURE_PAID_LAG_DELAY_MS = 2000
+export const CLOUD_ENSURE_MAX_ATTEMPTS = 5
+
+/**
+ * Delay before another ensure, or null to stop.
+ * Retry only on checkout return while the server still says the plan is free.
+ */
+export function nextCloudEnsureDelayMs(args: {
+  checkoutReturn: boolean
+  attempt: number
+  body: SubscriptionCloudEnsureBody
+}): number | null {
+  if (args.body.ensured) return null
+  if (
+    args.checkoutReturn &&
+    args.body.reason === 'paid_plan_required' &&
+    args.attempt < CLOUD_ENSURE_MAX_ATTEMPTS - 1
+  ) {
+    return CLOUD_ENSURE_PAID_LAG_DELAY_MS
+  }
+  return null
+}
+
+export async function retrySubscriptionCloudEnsure<
+  T extends SubscriptionCloudEnsureBody,
+>(args: {
+  checkoutReturn: boolean
+  request: () => Promise<T>
+  sleep?: (ms: number) => Promise<void>
+}): Promise<T> {
+  const sleep =
+    args.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+  let attempt = 0
+  let body = await args.request()
+  for (;;) {
+    const delay = nextCloudEnsureDelayMs({
+      checkoutReturn: args.checkoutReturn,
+      attempt,
+      body,
+    })
+    if (delay == null) return body
+    await sleep(delay)
+    attempt += 1
+    body = await args.request()
+  }
 }

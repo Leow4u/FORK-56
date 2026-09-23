@@ -13,7 +13,7 @@ export const maxDuration = 300
  * Multi-org without ?org= → 409 org_selection_required.
  *
  * POST /api/agents — closed. Name, size, and model are ignored.
- * 403 manual_create_disabled. The only creator is ensureOrgCloudInstance().
+ * 403 manual_create_disabled. The only creator is POST /api/cloud/ensure.
  */
 export async function GET(req: NextRequest) {
   const orgParam = req.nextUrl.searchParams.get('org')

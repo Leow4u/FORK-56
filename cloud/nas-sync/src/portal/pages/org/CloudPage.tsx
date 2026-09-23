@@ -1,9 +1,10 @@
 'use client'
 
 import { usePrivy } from '@privy-io/react-auth'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { OrgPage } from '../../components/OrgPage'
+import { requestSubscriptionCloud } from '../../lib/ensure-subscription-cloud'
 import styles from './CloudPage.module.css'
 
 type CloudSize = {
@@ -190,6 +191,8 @@ export function CloudPage() {
   const [createModelsLoading, setCreateModelsLoading] = useState(false)
   const [paidPlan, setPaidPlan] = useState<boolean | null>(null)
   const [creating, setCreating] = useState(false)
+  const [canUseCloud, setCanUseCloud] = useState(false)
+  const cloudEnsureOrg = useRef<string | null>(null)
 
   const [renameId, setRenameId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -225,14 +228,17 @@ export function CloudPage() {
               : 'Não foi possível carregar as instâncias.',
           )
           setAgents([])
+          setCanUseCloud(false)
         }
         return
       }
       const data = (await res.json()) as {
         agents?: AgentRow[]
         sizes?: CloudSize[]
+        entitlement?: { canUseCloud?: boolean }
       }
       setAgents(Array.isArray(data.agents) ? data.agents : [])
+      setCanUseCloud(data.entitlement?.canUseCloud === true)
       if (Array.isArray(data.sizes) && data.sizes.length) {
         setSizes(data.sizes)
       }
@@ -240,6 +246,7 @@ export function CloudPage() {
       if (!opts?.silent) {
         setError('Não foi possível contactar o Portal.')
         setAgents([])
+        setCanUseCloud(false)
       }
     } finally {
       if (!opts?.silent) setLoading(false)
@@ -250,6 +257,34 @@ export function CloudPage() {
     if (!ready) return
     void load()
   }, [ready, load])
+
+  useEffect(() => {
+    if (!ready || loading || !authenticated || !canUseCloud || agents.length > 0) {
+      return
+    }
+    const slot = orgId ?? ''
+    if (cloudEnsureOrg.current === slot) return
+    cloudEnsureOrg.current = slot
+    void (async () => {
+      const headers = await authHeaders()
+      if (!headers) return
+      await requestSubscriptionCloud({
+        headers,
+        org: orgId,
+        checkoutReturn: false,
+      })
+      await load({ silent: true })
+    })()
+  }, [
+    ready,
+    loading,
+    authenticated,
+    canUseCloud,
+    agents.length,
+    orgId,
+    authHeaders,
+    load,
+  ])
 
   useEffect(() => {
     const pending = agents.some((a) =>

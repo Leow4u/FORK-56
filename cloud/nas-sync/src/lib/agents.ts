@@ -9,6 +9,7 @@ import {
   type CloudSizeId,
 } from './cloud-sizes'
 import {
+  assertFlyApiToken,
   ensureOrgCloudInstanceWith,
   type CloudEnsureResult,
   type CloudInstanceRef,
@@ -389,7 +390,7 @@ async function resolveEnsuredModel(args: {
 /**
  * Create the org's single Cloud VM, or return the one that already exists.
  * Free with no VM refuses. Size comes from the plan. POST /api/agents must
- * not call this — subscription activation does.
+ * not call this — POST /api/cloud/ensure does, after the plan is paid.
  */
 export async function ensureOrgCloudInstance(args: {
   org: Org
@@ -406,6 +407,8 @@ export async function ensureOrgCloudInstance(args: {
     name: args.name,
     list: () => listOrgCloudRefs(args.org.id),
     create: async ({ size, name }) => {
+      // Missing token must not insert an error row that occupies the slot.
+      assertFlyApiToken(process.env.FLY_API_TOKEN)
       const model = await resolveEnsuredModel(args)
       const agent = await createAndProvisionAgent({
         org: args.org,

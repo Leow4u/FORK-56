@@ -6,14 +6,20 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import {
+  assertFlyApiToken,
   canonicalCloudInstance,
+  CLOUD_ENSURE_MAX_ATTEMPTS,
+  CLOUD_ENSURE_PAID_LAG_DELAY_MS,
+  cloudEnsureBody,
   cloudEntitlement,
   cloudInstanceName,
   cloudSizeForTier,
   DEFAULT_CLOUD_INSTANCE_NAME,
   ensureOrgCloudInstanceWith,
+  FlyNotConfiguredError,
   MANUAL_CLOUD_CREATE_ERROR,
   manualCloudCreateRefusal,
+  retrySubscriptionCloudEnsure,
   type CloudInstanceRef,
 } from '../cloud-entitlement.ts'
 import { isPaidTierId, TIER_CATALOG } from '../tiers.ts'
@@ -229,5 +235,85 @@ describe('ensureOrgCloudInstanceWith', () => {
     assert.equal(cloudInstanceName('  Mesa  '), 'Mesa')
     assert.equal(cloudInstanceName('   '), DEFAULT_CLOUD_INSTANCE_NAME)
     assert.equal(cloudInstanceName(null), DEFAULT_CLOUD_INSTANCE_NAME)
+  })
+})
+
+describe('subscription ensure response', () => {
+  it('keeps a free refusal retryable and returns the created id', () => {
+    assert.deepEqual(cloudEnsureBody({ ok: false, error: 'paid_plan_required' }), {
+      ensured: false,
+      reason: 'paid_plan_required',
+    })
+    assert.deepEqual(
+      cloudEnsureBody({ ok: true, created: false, instanceId: 'vm-1' }),
+      { ensured: true, created: false, instanceId: 'vm-1' },
+    )
+  })
+
+  it('refuses to provision when the Fly token is blank', () => {
+    assert.throws(() => assertFlyApiToken(undefined), FlyNotConfiguredError)
+    assert.throws(() => assertFlyApiToken('   '), FlyNotConfiguredError)
+    assert.doesNotThrow(() => assertFlyApiToken('fly-token'))
+  })
+})
+
+describe('checkout ensure retry', () => {
+  it('retries only while checkout return still sees a free plan', async () => {
+    const sleeps: number[] = []
+    let calls = 0
+    const body = await retrySubscriptionCloudEnsure({
+      checkoutReturn: true,
+      sleep: async (ms) => {
+        sleeps.push(ms)
+      },
+      request: async () => {
+        calls += 1
+        if (calls < 3) return { ensured: false, reason: 'paid_plan_required' }
+        return { ensured: true, created: true, instanceId: 'vm' }
+      },
+    })
+    assert.equal(calls, 3)
+    assert.equal(body.ensured, true)
+    assert.ok(sleeps.length >= 1)
+    for (const ms of sleeps) assert.equal(ms, CLOUD_ENSURE_PAID_LAG_DELAY_MS)
+  })
+
+  it('does not retry a paid visit or a non-free failure', async () => {
+    for (const checkoutReturn of [false, true]) {
+      let calls = 0
+      const reason = checkoutReturn ? 'request_failed' : 'paid_plan_required'
+      const body = await retrySubscriptionCloudEnsure({
+        checkoutReturn,
+        sleep: async () => {
+          throw new Error('should not sleep')
+        },
+        request: async () => {
+          calls += 1
+          return { ensured: false, reason }
+        },
+      })
+      assert.equal(calls, 1)
+      assert.equal(body.reason, reason)
+    }
+  })
+
+  it('stops after the checkout lag window while the plan stays free', async () => {
+    let calls = 0
+    const sleeps: number[] = []
+    const body = await retrySubscriptionCloudEnsure({
+      checkoutReturn: true,
+      sleep: async (ms) => {
+        sleeps.push(ms)
+      },
+      request: async () => {
+        calls += 1
+        return { ensured: false, reason: 'paid_plan_required' }
+      },
+    })
+    assert.ok(CLOUD_ENSURE_MAX_ATTEMPTS >= 2)
+    assert.equal(calls, CLOUD_ENSURE_MAX_ATTEMPTS)
+    assert.equal(sleeps.length, calls - 1)
+    assert.equal(body.ensured, false)
+    assert.equal(body.reason, 'paid_plan_required')
   })
 })

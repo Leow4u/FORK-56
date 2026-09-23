@@ -153,6 +153,8 @@ jobs:
           mkdir -p nas/src/app/api/internal/billing/authorize
           cp cloud/nas-sync/src/app/api/internal/billing/authorize/route.ts nas/src/app/api/internal/billing/authorize/
           cp cloud/nas-sync/src/app/api/agents/route.ts nas/src/app/api/agents/
+          mkdir -p nas/src/app/api/cloud/ensure
+          cp cloud/nas-sync/src/app/api/cloud/ensure/route.ts nas/src/app/api/cloud/ensure/
           mkdir -p nas/src/app/api/agents/\[id\]/\[action\]
           cp cloud/nas-sync/src/app/api/agents/\[id\]/route.ts nas/src/app/api/agents/\[id\]/
           cp cloud/nas-sync/src/app/api/agents/\[id\]/\[action\]/route.ts nas/src/app/api/agents/\[id\]/\[action\]/
@@ -166,6 +168,7 @@ jobs:
           cp cloud/nas-sync/src/app/layout.tsx nas/src/app/
           cp cloud/nas-sync/src/app/favicon.ico nas/src/app/
           mkdir -p nas/src/portal/pages nas/src/portal/lib nas/src/portal/components
+          cp cloud/nas-sync/src/portal/lib/ensure-subscription-cloud.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/device-approve.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/auth-display.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/profile-name.ts nas/src/portal/lib/
@@ -228,6 +231,7 @@ jobs:
             src/lib/billing-client.ts \
             src/app/api/internal/billing/authorize/route.ts \
             src/app/api/agents/route.ts \
+            src/app/api/cloud/ensure/route.ts \
             src/app/api/agents/\[id\]/route.ts \
             src/app/api/agents/\[id\]/\[action\]/route.ts \
             src/app/api/keys/models/route.ts \
@@ -237,6 +241,7 @@ jobs:
             src/app/api/account/route.ts \
             src/app/layout.tsx \
             src/app/favicon.ico \
+            src/portal/lib/ensure-subscription-cloud.ts \
             src/portal/lib/device-approve.ts \
             src/portal/lib/auth-display.ts \
             src/portal/lib/profile-name.ts \
@@ -293,6 +298,6 @@ jobs:
               echo ""
               echo "Vercel redeploys portal.work4you.ai automatically."
               echo ""
-              echo "Next: Portal → Cloud → **Atualizar** on an existing agent (preserves /opt/data history). Manual create is closed."
+              echo "Next: a paid plan calls POST /api/cloud/ensure (Checkout return retries while the webhook still says Free). Manual create stays closed."
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
