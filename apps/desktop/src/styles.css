@@ -1752,9 +1752,9 @@ body.guest-pointer-lock :is(webview, iframe) {
   -webkit-backdrop-filter: none;
 }
 
-/* Type ladder inside the agent card. Labels stay caption-sized in the markup;
-   values step up to text-sm and full primary so a filled field is not the
-   same gray as its label or its placeholder. */
+/* Type ladder inside the agent card. Values are primary at text-sm. Labels
+   stay smaller and secondary so they are not the same ink as what you type.
+   Placeholders stay tertiary. */
 [data-slot='dialog-content'][data-panel-card] [data-slot='dialog-description'] {
   font-size: var(--conversation-text-font-size);
   line-height: var(--conversation-line-height);

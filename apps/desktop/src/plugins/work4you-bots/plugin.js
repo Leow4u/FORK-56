@@ -5973,7 +5973,7 @@ async function applyAdvancedConfig(bot, state) {
 // ── edit profile dialog ──────────────────────────────────────────────────────
 
 const fieldLabelClass =
-  'text-[length:var(--conversation-caption-font-size)] font-semibold leading-(--conversation-caption-line-height) text-(--ui-text-primary)'
+  'text-[length:var(--conversation-caption-font-size)] font-semibold leading-(--conversation-caption-line-height) text-(--ui-text-secondary)'
 
 const hintClass =
   'text-[length:var(--conversation-caption-font-size)] font-normal leading-(--conversation-caption-line-height) text-(--ui-text-secondary)'
