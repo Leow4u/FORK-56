@@ -2,13 +2,11 @@ import { useStore } from '@nanostores/react'
 import { type ComponentProps, type MouseEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
-import { hudTargetSessionId } from '@/app/hud/handoff'
 import { Button } from '@/components/ui/button'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { cn } from '@/lib/utils'
-import { toggleHud } from '@/store/hud'
 import {
   $fileBrowserOpen,
   $sidebarOpen,
@@ -96,25 +94,10 @@ export function TitlebarControls({ leftTools = [], tools = [] }: TitlebarControl
     }
   }
 
-  // Static system tools — always pinned to the screen's right edge.
-  // The layout editor stays off the titlebar. Everyone uses the Default
-  // arrangement; Focus / Terminal deck / Quad and custom grids are not a
-  // user-facing choice.
+  // HUD mode lives in the account menu. The layout editor and the haptics
+  // mute stay off this cluster. The right-sidebar toggle is rendered beside
+  // whatever is listed here.
   const systemTools: TitlebarTool[] = [
-    {
-      // No `title`: TitlebarToolButton passes `title` to TipKeybindLabel as a
-      // text OVERRIDE, so a long sentence there replaces the short label and
-      // crowds the ⌘⇧H hint off the tooltip. Label only — the hint is appended
-      // from the action registry, same as every other tool here.
-      actionId: 'view.toggleHud',
-      icon: <TitlebarIcon name="comment-discussion" />,
-      id: 'hud',
-      label: t.titlebar.enterHud,
-      onSelect: () => {
-        triggerHaptic('open')
-        toggleHud(hudTargetSessionId())
-      }
-    }
     // Settings moved to the sidebar footer user menu (AccountFooter) — same
     // navigate(SETTINGS_ROUTE) action; the `mod+,` keybind and the
     // command-palette entry are unchanged.

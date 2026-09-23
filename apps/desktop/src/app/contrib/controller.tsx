@@ -833,9 +833,10 @@ export function ContribController() {
               className="pointer-events-auto absolute z-10 flex w-max items-center gap-2 [-webkit-app-region:no-drag]"
               style={{
                 right:
-                  // HUD and the right-sidebar toggle (titlebar-controls.tsx).
-                  // Keep in sync with wiring.tsx's SYSTEM_TOOL_COUNT.
-                  'max(calc(var(--workspace-right, 0px) + 0.5rem), calc(var(--titlebar-tools-right, 0.75rem) + 2 * var(--titlebar-control-size, 24px) + 0.5rem))'
+                  // The right-sidebar toggle (titlebar-controls.tsx). HUD mode
+                  // is in the account menu. Keep in sync with wiring.tsx's
+                  // SYSTEM_TOOL_COUNT.
+                  'max(calc(var(--workspace-right, 0px) + 0.5rem), calc(var(--titlebar-tools-right, 0.75rem) + 1 * var(--titlebar-control-size, 24px) + 0.5rem))'
               }}
             />
           </div>

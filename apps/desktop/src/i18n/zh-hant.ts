@@ -216,6 +216,7 @@ export const zhHant = defineLocale({
   accountMenu: {
     account: '帳戶',
     settings: '設定',
+    hud: 'HUD 模式',
     docs: '文件',
     shortcuts: '快捷鍵',
     contactUs: '聯絡我們',

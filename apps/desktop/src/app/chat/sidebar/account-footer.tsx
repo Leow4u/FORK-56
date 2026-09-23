@@ -2,6 +2,7 @@ import { useStore } from '@nanostores/react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 
+import { hudTargetSessionId } from '@/app/hud/handoff'
 import { composerPanelCard } from '@/components/chat/composer-dock'
 import { Codicon } from '@/components/ui/codicon'
 import {
@@ -17,6 +18,7 @@ import { openExternalLink } from '@/lib/external-link'
 import { triggerHaptic } from '@/lib/haptics'
 import { cn } from '@/lib/utils'
 import { resolveUpdateChipLabel, resolveVersionStatus } from '@/lib/version-status'
+import { toggleHud } from '@/store/hud'
 import { notify, notifyError } from '@/store/notifications'
 import { $connection } from '@/store/session'
 import { $desktopVersion, $updateApply, $updateStatus, startActiveUpdate } from '@/store/updates'
@@ -31,8 +33,9 @@ export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 // agent is active). This row is who is signed in.
 //
 // The trigger shows the Portal email when we have one, or a generic Account
-// label when we do not. Clicking always opens the same menu (Settings, Docs,
-// Shortcuts, Contact Us). Log Out is only present when an email is showing —
+// label when we do not. Clicking always opens the same menu (Settings, HUD
+// mode, Docs, Shortcuts, Contact Us). Log Out is only present when an email
+// is showing —
 // there is no Portal session to clear otherwise.
 //
 // Email re-checks on window focus: portal sign-in/out happens in a separate
@@ -143,6 +146,11 @@ export function AccountFooter() {
     navigate(SETTINGS_ROUTE)
   }
 
+  const openHudMode = () => {
+    triggerHaptic('open')
+    toggleHud(hudTargetSessionId())
+  }
+
   const openShortcuts = () => {
     triggerHaptic('open')
     navigate(`${SETTINGS_ROUTE}?tab=keybinds`)
@@ -209,6 +217,10 @@ export function AccountFooter() {
             <DropdownMenuItem onSelect={openSettings}>
               <Codicon aria-hidden="true" name="settings-gear" size="0.8rem" />
               {menu.settings}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={openHudMode}>
+              <Codicon aria-hidden="true" name="comment-discussion" size="0.8rem" />
+              {menu.hud}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={openDocs}>
