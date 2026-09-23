@@ -7,6 +7,8 @@ import {
   composerRunTargetIntent,
   isCloudLoginError,
   lastCloudApplySource,
+  paidCloudLoginConnection,
+  paidCloudLoginShouldApply,
   pickConnectionByKind,
   readRememberedComposerCloudApply,
   rememberComposerCloudApply,
@@ -282,6 +284,63 @@ describe('composerCloudPortalFromDiscover', () => {
   it('does not invent a plan when entitlement is missing', () => {
     expect(composerCloudPortalFromDiscover({ agents: [] })).toEqual({ status: 'signin' })
     expect(composerCloudPortalFromDiscover({ needsOrgSelection: true })).toEqual({ status: 'choose-org' })
+  })
+
+  it('connects a paid account login to the addressable machine', () => {
+    expect(
+      paidCloudLoginConnection({
+        agents: [
+          {
+            createdAt: '2026-06-01T00:00:00.000Z',
+            dashboardUrl: 'https://new.example/',
+            id: 'new',
+            status: 'online'
+          },
+          {
+            createdAt: '2026-01-01T00:00:00.000Z',
+            dashboardUrl: 'https://old.example',
+            id: 'old',
+            status: 'stopped'
+          }
+        ],
+        entitlement: { canUseCloud: true },
+        org: { slug: 'acme' }
+      })
+    ).toEqual({ source: { cloudOrg: 'acme', remoteUrl: 'https://old.example' }, type: 'apply' })
+  })
+
+  it('leaves Free, a parked machine, and an unborn paid machine unconnected', () => {
+    const parked = {
+      agents: [{ dashboardUrl: 'https://parked.example', id: 'parked', status: 'parked' }],
+      entitlement: { canUseCloud: false },
+      org: { slug: 'acme' }
+    }
+
+    expect(paidCloudLoginConnection(parked)).toEqual({ type: 'stay' })
+    expect(
+      paidCloudLoginConnection({
+        agents: [{ dashboardUrl: 'https://legacy.example', id: 'legacy', status: 'online' }],
+        entitlement: { canUseCloud: false }
+      })
+    ).toEqual({ type: 'stay' })
+    expect(
+      paidCloudLoginConnection({
+        agents: [{ dashboardUrl: null, id: 'born', status: 'provisioning' }],
+        entitlement: { canUseCloud: true }
+      })
+    ).toEqual({ type: 'stay' })
+    expect(paidCloudLoginConnection({ agents: [{ dashboardUrl: 'https://vm.example', id: 'vm' }] })).toEqual({
+      type: 'stay'
+    })
+  })
+
+  it('waits for an org choice and skips a dashboard that is already connected', () => {
+    expect(paidCloudLoginConnection({ needsOrgSelection: true })).toEqual({ type: 'choose-org' })
+    const source = { cloudOrg: 'acme', remoteUrl: 'https://old.example/' }
+
+    expect(paidCloudLoginShouldApply('https://old.example', source)).toBe(false)
+    expect(paidCloudLoginShouldApply('', source)).toBe(true)
+    expect(paidCloudLoginShouldApply('https://other.example', source)).toBe(true)
   })
 
   it('recognizes the portal sign-in error', () => {

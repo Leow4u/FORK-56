@@ -245,6 +245,42 @@ export function composerCloudPortalFromDiscover(view: ComposerCloudDiscoverView)
   return { status: 'signin' }
 }
 
+export type PaidCloudLoginConnection =
+  | { source: ComposerCloudApplySource; type: 'apply' }
+  | { type: 'choose-org' }
+  | { type: 'stay' }
+
+/**
+ * Account login connects Cloud only for a paid plan that already has one
+ * addressable machine. Free stays where it is. Several orgs wait for a
+ * choice. A paid machine with no address yet is still being prepared.
+ */
+export function paidCloudLoginConnection(view: ComposerCloudDiscoverView): PaidCloudLoginConnection {
+  if (view.needsOrgSelection) {
+    return { type: 'choose-org' }
+  }
+
+  if (view.entitlement?.canUseCloud !== true) {
+    return { type: 'stay' }
+  }
+
+  const source = composerCloudSourceFromDiscover(view)
+
+  if (!source) {
+    return { type: 'stay' }
+  }
+
+  return { source, type: 'apply' }
+}
+
+/** Skip a second apply when this dashboard is already the saved Cloud connection. */
+export function paidCloudLoginShouldApply(currentCloudUrl: string, source: ComposerCloudApplySource): boolean {
+  const current = currentCloudUrl.trim().replace(/\/+$/, '').toLowerCase()
+  const next = source.remoteUrl.trim().replace(/\/+$/, '').toLowerCase()
+
+  return next.length > 0 && current !== next
+}
+
 /**
  * Composer Local / Cloud click. Local and a Cloud dashboard that already
  * has an address reuse Settings' `applyConnectionConfig` door. Free with
