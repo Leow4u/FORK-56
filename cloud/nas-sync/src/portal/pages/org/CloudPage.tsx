@@ -116,6 +116,7 @@ export function CloudPage() {
   const [preparing, setPreparing] = useState(false)
   const [ensureSettled, setEnsureSettled] = useState(false)
   const cloudEnsureOrg = useRef<string | null>(null)
+  const ensureAttemptAt = useRef(0)
 
   const [renameId, setRenameId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -219,6 +220,45 @@ export function CloudPage() {
     authHeaders,
     load,
   ])
+
+  const unbornKey = agents
+    .filter(
+      (agent) =>
+        agent.status === 'provisioning' ||
+        agent.status === 'error' ||
+        agent.status === 'starting',
+    )
+    .map((agent) => `${agent.id}:${agent.status}`)
+    .join(',')
+
+  // A row can exist before Fly finishes. Polling GET does not resume it.
+  // POST /api/cloud/ensure is cheap while the row is still in-flight, and
+  // finishes the same row once that request is stale or has recorded an error.
+  useEffect(() => {
+    if (!ready || !authenticated || !canUseCloud || !unbornKey) return
+    let cancelled = false
+    const attempt = () => {
+      if (cancelled) return
+      if (Date.now() - ensureAttemptAt.current < 65_000) return
+      ensureAttemptAt.current = Date.now()
+      void (async () => {
+        const headers = await authHeaders()
+        if (!headers || cancelled) return
+        await requestSubscriptionCloud({
+          headers,
+          org: orgId,
+          checkoutReturn: false,
+        })
+        if (!cancelled) await load({ silent: true })
+      })()
+    }
+    attempt()
+    const timer = window.setInterval(attempt, 65_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [ready, authenticated, canUseCloud, unbornKey, orgId, authHeaders, load])
 
   useEffect(() => {
     const pending =

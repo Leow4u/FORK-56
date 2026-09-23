@@ -10,18 +10,23 @@ import {
   canonicalCloudInstance,
   CLOUD_ENSURE_MAX_ATTEMPTS,
   CLOUD_ENSURE_PAID_LAG_DELAY_MS,
+  CLOUD_PROVISION_ERROR_RETRY_MS,
+  CLOUD_PROVISION_STALE_MS,
   cloudEnsureBody,
   cloudEntitlement,
   cloudInstanceName,
+  cloudInstanceNeedsResume,
   cloudSizeForTier,
   DEFAULT_CLOUD_INSTANCE_NAME,
   ensureOrgCloudInstanceWith,
   FlyNotConfiguredError,
   MANUAL_CLOUD_CREATE_ERROR,
   manualCloudCreateRefusal,
+  planFlyBirth,
   retrySubscriptionCloudEnsure,
   type CloudInstanceRef,
 } from '../cloud-entitlement.ts'
+import { flyAlreadyExists } from '../fly-machines.ts'
 import { isPaidTierId, TIER_CATALOG } from '../tiers.ts'
 
 const row = (
@@ -209,6 +214,155 @@ describe('ensureOrgCloudInstanceWith', () => {
     })
     assert.deepEqual(seen, ['small'])
     assert.equal(result.ok && result.created, true)
+  })
+
+  it('resumes a paid row whose machine never landed', async () => {
+    const now = Date.parse('2026-06-01T12:00:00.000Z')
+    const cases = [
+      row('failed', '2026-01-01T00:00:00.000Z', 'error'),
+      {
+        ...row('stale', '2026-02-01T00:00:00.000Z', 'provisioning'),
+        updatedAt: new Date(now - CLOUD_PROVISION_STALE_MS).toISOString(),
+      },
+      {
+        ...row('stale-start', '2026-03-01T00:00:00.000Z', 'starting'),
+        updatedAt: new Date(now - CLOUD_PROVISION_STALE_MS - 1).toISOString(),
+      },
+    ]
+    for (const stuck of cases) {
+      let created = 0
+      let resumed = 0
+      const result = await ensureOrgCloudInstanceWith({
+        tierId: 'plus',
+        now,
+        list: async () => [stuck],
+        create: async () => {
+          created += 1
+          return row('new', '2026-06-01T00:00:00.000Z')
+        },
+        resume: async (instance) => {
+          resumed += 1
+          return instance
+        },
+      })
+      assert.equal(created, 0)
+      assert.equal(resumed, 1)
+      assert.equal(result.ok && result.created, false)
+      assert.equal(result.ok && result.instance.id, stuck.id)
+    }
+  })
+
+  it('does not resume a live row, a fresh provision, or a free failure', async () => {
+    const now = Date.parse('2026-06-01T12:00:00.000Z')
+    const fresh = new Date(now - CLOUD_PROVISION_ERROR_RETRY_MS + 1000).toISOString()
+    const cases: Array<{ tierId: string; instance: CloudInstanceRef }> = [
+      {
+        tierId: 'plus',
+        instance: {
+          ...row('running', '2026-01-01T00:00:00.000Z', 'online'),
+          flyMachineId: 'm1',
+        },
+      },
+      {
+        tierId: 'plus',
+        instance: {
+          ...row('stopped', '2022-01-01T00:00:00.000Z', 'stopped'),
+          flyMachineId: 'm2',
+          updatedAt: '2020-01-01T00:00:00.000Z',
+        },
+      },
+      {
+        tierId: 'ultra',
+        instance: {
+          ...row('born-error', '2026-01-01T00:00:00.000Z', 'error'),
+          flyMachineId: 'm3',
+          updatedAt: '2020-01-01T00:00:00.000Z',
+        },
+      },
+      {
+        tierId: 'plus',
+        instance: {
+          ...row('in-flight', '2026-06-01T00:00:00.000Z', 'provisioning'),
+          updatedAt: fresh,
+        },
+      },
+      {
+        tierId: 'plus',
+        instance: {
+          ...row('recent-error', '2026-06-01T00:00:00.000Z', 'error'),
+          updatedAt: fresh,
+        },
+      },
+      {
+        tierId: 'free',
+        instance: row('legacy-error', '2020-01-01T00:00:00.000Z', 'error'),
+      },
+    ]
+    for (const entry of cases) {
+      let resumed = 0
+      let created = 0
+      const result = await ensureOrgCloudInstanceWith({
+        tierId: entry.tierId,
+        now,
+        list: async () => [entry.instance],
+        create: async () => {
+          created += 1
+          return row('new', '2026-06-02T00:00:00.000Z')
+        },
+        resume: async (instance) => {
+          resumed += 1
+          return instance
+        },
+      })
+      assert.equal(created, 0, entry.instance.id)
+      assert.equal(resumed, 0, entry.instance.id)
+      assert.equal(result.ok && result.instance.id, entry.instance.id)
+    }
+    assert.equal(
+      cloudInstanceNeedsResume({
+        status: 'provisioning',
+        updatedAt: new Date(now - CLOUD_PROVISION_STALE_MS + 1000).toISOString(),
+      }, now),
+      false,
+    )
+  })
+
+  it('adopts an existing Fly machine and does not plan a second app', () => {
+    assert.deepEqual(
+      planFlyBirth(
+        { appMissing: false, machineIds: ['  ', 'mach-1'], volumeIds: ['vol'] },
+        'saved-vol',
+      ),
+      { action: 'adopt', machineId: 'mach-1' },
+    )
+    assert.deepEqual(
+      planFlyBirth(
+        { appMissing: true, machineIds: [], volumeIds: ['vol'] },
+        'saved-vol',
+      ),
+      { action: 'create_machine', createApp: true, volumeId: null },
+    )
+    assert.deepEqual(
+      planFlyBirth(
+        { appMissing: false, machineIds: [], volumeIds: ['listed'] },
+        'saved-vol',
+      ),
+      { action: 'create_machine', createApp: false, volumeId: 'saved-vol' },
+    )
+    assert.deepEqual(
+      planFlyBirth({ appMissing: false, machineIds: [], volumeIds: ['listed'] }, ''),
+      { action: 'create_machine', createApp: false, volumeId: 'listed' },
+    )
+    assert.deepEqual(
+      planFlyBirth({ appMissing: false, machineIds: [], volumeIds: [] }, null),
+      { action: 'create_machine', createApp: false, volumeId: null },
+    )
+    const taken = new Error('fly POST /apps → 422: name has already been taken')
+    ;(taken as Error & { status: number }).status = 422
+    assert.equal(flyAlreadyExists(taken), true)
+    const other = new Error('fly POST /apps → 500: unavailable')
+    ;(other as Error & { status: number }).status = 500
+    assert.equal(flyAlreadyExists(other), false)
   })
 
   it('reuses a row that appears before the second list', async () => {

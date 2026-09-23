@@ -12,7 +12,8 @@ export const maxDuration = 300
 
 /**
  * POST /api/cloud/ensure — create the org's single Cloud VM once the plan
- * is paid, or return the one that already exists.
+ * is paid, finish one whose Fly machine never landed, or return the one
+ * that already exists.
  * Free: 200 { ensured: false, reason: 'paid_plan_required' }.
  * Missing FLY_API_TOKEN: 503 before any DB insert.
  */

@@ -128,6 +128,15 @@ export async function createFlyApp(name: string): Promise<FlyApp> {
   })
 }
 
+/** True when Fly rejected a create because the app, volume, or IP already exists. */
+export function flyAlreadyExists(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const status = (error as { status?: number }).status
+  if (status !== 409 && status !== 422) return false
+  const message = error instanceof Error ? error.message : ''
+  return /already|exists|taken|duplicate/i.test(message)
+}
+
 export async function deleteFlyApp(appName: string): Promise<void> {
   try {
     await flyFetch(`/apps/${encodeURIComponent(appName)}`, { method: 'DELETE' })
@@ -170,6 +179,15 @@ export async function allocateSharedIpv4(appName: string): Promise<void> {
     // Non-fatal — service-defined shared IPv4 may still work.
     console.warn(`fly allocateIp (non-fatal): ${msg}`)
   }
+}
+
+export async function listVolumes(appName: string): Promise<FlyVolume[]> {
+  const body = await flyFetch<FlyVolume[] | { volumes?: FlyVolume[] }>(
+    `/apps/${encodeURIComponent(appName)}/volumes`,
+  )
+  if (Array.isArray(body)) return body
+  if (body && Array.isArray(body.volumes)) return body.volumes
+  return []
 }
 
 export async function createVolume(args: {

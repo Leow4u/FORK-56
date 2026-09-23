@@ -27,6 +27,9 @@ export type CloudInstanceRef = {
   id: string
   createdAt: string | Date
   status?: string | null
+  /** Absent or blank means Fly never recorded a machine on this row. */
+  flyMachineId?: string | null
+  updatedAt?: string | Date | null
 }
 
 export type CloudEntitlement = {
@@ -55,8 +58,83 @@ export type CloudEnsureResult<T extends CloudInstanceRef = CloudInstanceRef> =
 
 type EnsureDecision<T extends CloudInstanceRef> =
   | { action: 'reuse'; instance: T }
+  | { action: 'resume'; instance: T }
   | { action: 'create'; size: CloudSizeId; name: string }
   | { action: 'refuse'; error: 'paid_plan_required' }
+
+/**
+ * Past the ensure route's 300s maxDuration, so a live provision is not
+ * still inside the request that created the row.
+ */
+export const CLOUD_PROVISION_STALE_MS = 360_000
+
+/** Error without a machine can be retried, but not on every poll. */
+export const CLOUD_PROVISION_ERROR_RETRY_MS = 60_000
+
+const UNBORN_PROVISION_STATUSES = new Set(['provisioning', 'starting'])
+
+function timestampAgeMs(
+  value: string | Date | null | undefined,
+  now: number,
+): number | null {
+  if (value == null || value === '') return null
+  const ms = value instanceof Date ? value.getTime() : Date.parse(value)
+  return Number.isFinite(ms) ? now - ms : null
+}
+
+/**
+ * Paid ensure should finish this row instead of treating it as done.
+ * A machine id means Fly already created it. Fresh provisioning/starting
+ * is an in-flight request. Error with no machine is a finished failure.
+ * Missing updatedAt on provisioning is treated as in-flight.
+ */
+export function cloudInstanceNeedsResume(
+  row: Pick<CloudInstanceRef, 'flyMachineId' | 'status' | 'updatedAt'>,
+  now = Date.now(),
+): boolean {
+  if ((row.flyMachineId ?? '').trim()) return false
+  const status = (row.status ?? '').trim().toLowerCase()
+  if (status === 'error') {
+    const age = timestampAgeMs(row.updatedAt, now)
+    return age == null || age >= CLOUD_PROVISION_ERROR_RETRY_MS
+  }
+  if (!UNBORN_PROVISION_STATUSES.has(status)) return false
+  const age = timestampAgeMs(row.updatedAt, now)
+  return age != null && age >= CLOUD_PROVISION_STALE_MS
+}
+
+export type FlyBirthObservation = {
+  appMissing: boolean
+  machineIds: readonly string[]
+  volumeIds: readonly string[]
+}
+
+export type FlyBirthPlan =
+  | { action: 'adopt'; machineId: string }
+  | { action: 'create_machine'; createApp: boolean; volumeId: string | null }
+
+/**
+ * How to finish a row whose machine id was never saved.
+ * An existing Fly machine is adopted. A missing app is created once.
+ * A saved or listed volume is reused so resume does not add a second disk.
+ */
+export function planFlyBirth(
+  observation: FlyBirthObservation,
+  savedVolumeId?: string | null,
+): FlyBirthPlan {
+  const machineId = observation.machineIds.map((id) => id.trim()).find(Boolean)
+  if (machineId) return { action: 'adopt', machineId }
+  if (observation.appMissing) {
+    return { action: 'create_machine', createApp: true, volumeId: null }
+  }
+  const saved = (savedVolumeId ?? '').trim()
+  const listed = observation.volumeIds.map((id) => id.trim()).find(Boolean)
+  return {
+    action: 'create_machine',
+    createApp: false,
+    volumeId: saved || listed || null,
+  }
+}
 
 export function normalizeCloudTierId(tierId: string | null | undefined): TierId {
   const raw = (tierId ?? '').trim().toLowerCase()
@@ -135,16 +213,26 @@ export function manualCloudCreateRefusal(): {
 }
 
 /**
- * Size is not an input. An existing Cloud row is reused, including a legacy
- * Free VM and a size that no longer matches the plan (resize is a later step).
+ * Size is not an input. A live Cloud row is reused, including a legacy Free
+ * VM and a size that no longer matches the plan (resize is a later step).
+ * A paid row whose Fly machine never got an id is resumed, not replaced.
  */
 export function decideOrgCloudInstance<T extends CloudInstanceRef>(args: {
   tierId: string | null | undefined
   existing: readonly T[]
   name?: string | null
+  now?: number
 }): EnsureDecision<T> {
   const canonical = canonicalCloudInstance(args.existing)
-  if (canonical) return { action: 'reuse', instance: canonical }
+  if (canonical) {
+    if (
+      isPaidTierId(normalizeCloudTierId(args.tierId)) &&
+      cloudInstanceNeedsResume(canonical, args.now)
+    ) {
+      return { action: 'resume', instance: canonical }
+    }
+    return { action: 'reuse', instance: canonical }
+  }
   const size = cloudSizeForTier(args.tierId)
   if (!size) return { action: 'refuse', error: 'paid_plan_required' }
   return { action: 'create', size, name: cloudInstanceName(args.name) }
@@ -155,33 +243,54 @@ export function decideOrgCloudInstance<T extends CloudInstanceRef>(args: {
  * is reused. Two callers that both still see an empty list can both provision;
  * closing that race needs a single-slot constraint on the NAS schema.
  */
+async function settleExistingInstance<T extends CloudInstanceRef>(
+  decision: EnsureDecision<T>,
+  resume?: (instance: T) => Promise<T>,
+): Promise<CloudEnsureResult<T> | null> {
+  if (decision.action === 'refuse') return { ok: false, error: decision.error }
+  if (decision.action === 'reuse') {
+    return { ok: true, created: false, instance: decision.instance }
+  }
+  if (decision.action === 'resume') {
+    const instance = resume ? await resume(decision.instance) : decision.instance
+    return { ok: true, created: false, instance }
+  }
+  return null
+}
+
 export async function ensureOrgCloudInstanceWith<T extends CloudInstanceRef>(args: {
   tierId: string | null | undefined
   name?: string | null
+  now?: number
   list: () => Promise<readonly T[]>
   create: (input: { size: CloudSizeId; name: string }) => Promise<T>
+  /** Finish the canonical row when its Fly machine was never recorded. */
+  resume?: (instance: T) => Promise<T>
 }): Promise<CloudEnsureResult<T>> {
-  const first = decideOrgCloudInstance({
+  const listed = await args.list()
+  const first = await settleExistingInstance(
+    decideOrgCloudInstance({
+      tierId: args.tierId,
+      existing: listed,
+      name: args.name,
+      now: args.now,
+    }),
+    args.resume,
+  )
+  if (first) return first
+
+  const again = decideOrgCloudInstance({
     tierId: args.tierId,
     existing: await args.list(),
     name: args.name,
+    now: args.now,
   })
-  if (first.action === 'refuse') return { ok: false, error: first.error }
-  if (first.action === 'reuse') {
-    return { ok: true, created: false, instance: first.instance }
+  const settled = await settleExistingInstance(again, args.resume)
+  if (settled) return settled
+  if (again.action !== 'create') {
+    return { ok: false, error: 'paid_plan_required' }
   }
-
-  const second = decideOrgCloudInstance({
-    tierId: args.tierId,
-    existing: await args.list(),
-    name: args.name,
-  })
-  if (second.action === 'refuse') return { ok: false, error: second.error }
-  if (second.action === 'reuse') {
-    return { ok: true, created: false, instance: second.instance }
-  }
-
-  const instance = await args.create({ size: second.size, name: second.name })
+  const instance = await args.create({ size: again.size, name: again.name })
   return { ok: true, created: true, instance }
 }
 
