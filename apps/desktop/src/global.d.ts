@@ -977,6 +977,13 @@ export interface DesktopCloudAgent {
   dashboardUrl: string | null
   // "active" | "degraded" | "down" | "unknown".
   dashboardGatewayState: string
+  // ISO timestamp from GET /api/agents. Oldest non-self-hosted row is canonical.
+  createdAt?: string | null
+}
+
+// Plan gate from GET /api/agents. Absent on portals that predate the field.
+export interface DesktopCloudEntitlement {
+  canUseCloud: boolean
 }
 
 // An org the signed-in user belongs to — for the org picker shown when a
@@ -996,7 +1003,12 @@ export interface DesktopCloudOrg {
 // authoritatively-resolved org the list was scoped to (from NAS), so the
 // desktop persists it without relying on transient picker state.
 export type DesktopCloudDiscoverResult =
-  | { agents: DesktopCloudAgent[]; org?: DesktopCloudOrg | null; needsOrgSelection?: false }
+  | {
+      agents: DesktopCloudAgent[]
+      entitlement?: DesktopCloudEntitlement | null
+      org?: DesktopCloudOrg | null
+      needsOrgSelection?: false
+    }
   | { needsOrgSelection: true; orgs: DesktopCloudOrg[] }
 
 export interface DesktopCloudAgentSignInResult {

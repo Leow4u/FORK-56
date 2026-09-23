@@ -8278,11 +8278,12 @@ function openPortalLoginWindow() {
 // Discover the hosted (Work4You Cloud) agents the signed-in user can see. Calls
 // the NAS trimmed-summary endpoint over the partition-bound net, so the portal
 // session cookie is attached automatically (no bearer needed — NAS accepts the
-// cookie). Returns { agents } on success, or { needsOrgSelection: true, orgs }
-// when the user belongs to multiple orgs and hasn't picked one yet (NAS 409
-// org_selection_required). Pass `org` (a slug/id from a prior org list) to
-// scope discovery to that org. Throws a needsCloudLogin-tagged error when no
-// portal session is present.
+// cookie). Returns { agents, entitlement } on success, or
+// { needsOrgSelection: true, orgs } when the user belongs to multiple orgs and
+// hasn't picked one yet (NAS 409 org_selection_required). Pass `org` (a slug/id
+// from a prior org list) to scope discovery to that org. Throws a
+// needsCloudLogin-tagged error when no portal session is present. Does not
+// create an instance.
 async function discoverCloudAgents(org?: string) {
   const portalBaseUrl = resolvePortalBaseUrl()
 
@@ -8359,7 +8360,11 @@ async function discoverCloudAgents(org?: string) {
     }
   }
 
-  return { agents: trimCloudAgents(body), org: trimCloudOrg(body?.org) }
+  return {
+    agents: trimCloudAgents(body),
+    org: trimCloudOrg(body?.org),
+    entitlement: trimCloudEntitlement(body)
+  }
 }
 
 // Project a NAS response org ({ id, slug, name, isPersonal }) to the trimmed
@@ -8423,8 +8428,21 @@ function trimCloudAgents(body) {
       name: typeof a.name === 'string' ? a.name : a.id,
       status: typeof a.status === 'string' ? a.status : 'unknown',
       dashboardUrl: typeof a.dashboardUrl === 'string' ? a.dashboardUrl : null,
-      dashboardGatewayState: typeof a.dashboardGatewayState === 'string' ? a.dashboardGatewayState : 'unknown'
+      dashboardGatewayState: typeof a.dashboardGatewayState === 'string' ? a.dashboardGatewayState : 'unknown',
+      createdAt: typeof a.createdAt === 'string' ? a.createdAt : null
     }))
+}
+
+// Plan gate from GET /api/agents. Null when the portal predates entitlement,
+// so the renderer does not invent Free vs paid.
+function trimCloudEntitlement(body) {
+  const entitlement = body?.entitlement
+
+  if (!entitlement || typeof entitlement !== 'object' || typeof entitlement.canUseCloud !== 'boolean') {
+    return null
+  }
+
+  return { canUseCloud: entitlement.canUseCloud }
 }
 
 // Silent per-agent sign-in: open the selected agent dashboard's /login in the
@@ -13435,8 +13453,8 @@ ipcMain.handle('work4you:cloud:logout', async () => {
   return { ok: true, signedIn: await hasLivePortalSession() }
 })
 ipcMain.handle('work4you:cloud:discover', async (_event, org) => {
-  // Returns { agents } or { needsOrgSelection: true, orgs }. `org` (optional)
-  // scopes discovery to a chosen org for multi-org users.
+  // Returns { agents, entitlement } or { needsOrgSelection: true, orgs }.
+  // `org` (optional) scopes discovery to a chosen org for multi-org users.
   return discoverCloudAgents(typeof org === 'string' && org ? org : undefined)
 })
 ipcMain.handle('work4you:cloud:agent-sign-in', async (_event, dashboardUrl) => {

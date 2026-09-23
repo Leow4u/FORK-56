@@ -753,6 +753,8 @@ export const en: Translations = {
       kindLocalDesc: 'The Work4You runtime managed by this app.',
       kindRemoteDesc: 'A Work4You gateway reachable over HTTP(S) — LAN, Tailscale, or the internet.',
       kindCloudDesc: 'A hosted instance discovered through your Work4You Cloud account.',
+      kindCloudPlan: 'Cloud comes with Plus, Super, or Ultra.',
+      kindCloudPreparing: 'Your instance is being prepared.',
       kindSshDesc: 'A Work4You install reached over SSH.',
       labelTitle: 'Name',
       labelDesc: 'Required. Shown everywhere this instance appears; must be unique (e.g. “Homelab”, “Work laptop”).',

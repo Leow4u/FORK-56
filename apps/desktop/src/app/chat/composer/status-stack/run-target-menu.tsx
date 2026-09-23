@@ -25,13 +25,49 @@ import { $connection } from '@/store/session'
 import { useComposerMenuSide } from '../use-composer-menu-side'
 
 import {
+  type ComposerCloudPortal,
+  composerCloudPortalFromDiscover,
   type ComposerRunTarget,
   composerRunTargetIntent,
+  isCloudLoginError,
   lastCloudApplySource,
   readRememberedComposerCloudApply,
   rememberComposerCloudApply,
   resolveComposerRunTarget
 } from './run-target'
+
+function loadComposerCloudPortal(requestRef: {
+  current: Promise<ComposerCloudPortal> | null
+}): Promise<ComposerCloudPortal> {
+  const discover = window.work4youDesktop?.cloud?.discover
+
+  if (!discover) {
+    return Promise.resolve({ status: 'signin' })
+  }
+
+  if (requestRef.current) {
+    return requestRef.current
+  }
+
+  const request = discover()
+    .then(result => composerCloudPortalFromDiscover(result))
+    .catch((error: unknown) => {
+      if (isCloudLoginError(error)) {
+        return { status: 'signin' } as const
+      }
+
+      throw error
+    })
+    .finally(() => {
+      if (requestRef.current === request) {
+        requestRef.current = null
+      }
+    })
+
+  requestRef.current = request
+
+  return request
+}
 
 export function ComposerRunTargetMenu() {
   const { t } = useI18n()
@@ -40,6 +76,8 @@ export function ComposerRunTargetMenu() {
   const hostRef = useRef<HTMLDivElement>(null)
   const menuSide = useComposerMenuSide(hostRef)
   const applyingRef = useRef(false)
+  const portalRequestRef = useRef<Promise<ComposerCloudPortal> | null>(null)
+  const [portal, setPortal] = useState<ComposerCloudPortal | null>(null)
   const registry = useStore($connectionsRegistry)
   const activeConnectionId = useStore($activeConnectionId)
   const connection = useStore($connection)
@@ -59,6 +97,51 @@ export function ComposerRunTargetMenu() {
       })
     )
   }, [connection])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      const desktop = window.work4youDesktop
+      const saved = (await desktop?.getConnectionConfig?.(null).catch(() => null)) ?? null
+
+      if (cancelled) {
+        return
+      }
+
+      const known = lastCloudApplySource({
+        connection: $connection.get(),
+        remembered: readRememberedComposerCloudApply(),
+        saved
+      })
+
+      if (known?.remoteUrl.trim()) {
+        setPortal({ source: known, status: 'ready' })
+
+        return
+      }
+
+      try {
+        const next = await loadComposerCloudPortal(portalRequestRef)
+
+        if (!cancelled) {
+          setPortal(next)
+        }
+      } catch {
+        if (!cancelled) {
+          setPortal(null)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [open])
 
   const choose = (target: string) => {
     if (target !== 'cloud' && target !== 'local') {
@@ -85,14 +168,42 @@ export function ComposerRunTargetMenu() {
 
     rememberComposerCloudApply(cloud)
 
+    let portalSnapshot: ComposerCloudPortal | null = null
+
+    if (target === 'cloud' && !cloud?.remoteUrl.trim()) {
+      try {
+        portalSnapshot = await loadComposerCloudPortal(portalRequestRef)
+        setPortal(portalSnapshot)
+      } catch (error) {
+        notifyError(error, gateway.cloudDiscoverFailed)
+
+        return
+      }
+    }
+
     const intent = composerRunTargetIntent(target, {
       active: resolveComposerRunTarget({
         activeConnectionId: $activeConnectionId.get(),
         connection: live,
         connections: $connectionsRegistry.get()?.connections ?? []
       }),
-      cloud
+      cloud,
+      portal: portalSnapshot
     })
+
+    if (intent.type === 'upgrade') {
+      triggerHaptic('selection')
+      navigate(`${SETTINGS_ROUTE}?tab=billing&bview=plans`)
+
+      return
+    }
+
+    if (intent.type === 'preparing') {
+      triggerHaptic('selection')
+      notify({ kind: 'info', message: copy.kindCloudPreparing, title: copy.kindCloud })
+
+      return
+    }
 
     if (intent.type === 'settings') {
       triggerHaptic('selection')
@@ -128,6 +239,13 @@ export function ComposerRunTargetMenu() {
       $pendingConnectionId.set(null)
     }
   }
+
+  const cloudDetail =
+    portal?.status === 'upgrade'
+      ? copy.kindCloudPlan
+      : portal?.status === 'preparing'
+        ? copy.kindCloudPreparing
+        : copy.kindCloudDesc
 
   const setMenuOpen = (next: boolean) => {
     setOpen(next)
@@ -177,7 +295,7 @@ export function ComposerRunTargetMenu() {
             <Cloud aria-hidden className="mt-0.5 size-3.5 shrink-0" />
             <span className="min-w-0 flex-1">
               <span className="block truncate">{copy.kindCloud}</span>
-              <span className={cn('mt-0.5 block', composerMenuDetail)}>{copy.kindCloudDesc}</span>
+              <span className={cn('mt-0.5 block', composerMenuDetail)}>{cloudDetail}</span>
             </span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

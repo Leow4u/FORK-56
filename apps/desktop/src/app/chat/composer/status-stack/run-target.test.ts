@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   _resetComposerRunTargetForTests,
   composerCloudApplyPayload,
+  composerCloudPortalFromDiscover,
   composerRunTargetIntent,
+  isCloudLoginError,
   lastCloudApplySource,
   pickConnectionByKind,
   readRememberedComposerCloudApply,
@@ -150,7 +152,100 @@ describe('composerRunTargetIntent', () => {
     expect(composerRunTargetIntent('cloud', { active: 'cloud', cloud: savedCloud })).toEqual({ type: 'noop' })
   })
 
-  it('opens Settings when Cloud has never been connected', () => {
+  it('keeps the Settings sign-in door when discovery has not answered', () => {
     expect(composerRunTargetIntent('cloud', { active: 'local', cloud: null })).toEqual({ type: 'settings' })
+    expect(
+      composerRunTargetIntent('cloud', { active: 'local', cloud: null, portal: { status: 'signin' } })
+    ).toEqual({ type: 'settings' })
+    expect(
+      composerRunTargetIntent('cloud', { active: 'local', cloud: null, portal: { status: 'choose-org' } })
+    ).toEqual({ type: 'settings' })
+  })
+
+  it('sends Free with no instance to the upgrade path', () => {
+    expect(composerRunTargetIntent('cloud', { active: 'local', cloud: null, portal: { status: 'upgrade' } })).toEqual({
+      type: 'upgrade'
+    })
+  })
+
+  it('does not connect while a paid instance has no address yet', () => {
+    expect(
+      composerRunTargetIntent('cloud', { active: 'local', cloud: null, portal: { status: 'preparing' } })
+    ).toEqual({ type: 'preparing' })
+  })
+
+  it('applies a discovered dashboard and prefers a known URL over Free', () => {
+    const discovered = { cloudOrg: 'acme', remoteUrl: 'https://legacy.example' }
+
+    expect(
+      composerRunTargetIntent('cloud', {
+        active: 'local',
+        cloud: null,
+        portal: { source: discovered, status: 'ready' }
+      })
+    ).toEqual({ payload: composerCloudApplyPayload(discovered), type: 'apply' })
+    expect(
+      composerRunTargetIntent('cloud', {
+        active: 'local',
+        cloud: savedCloud,
+        portal: { status: 'upgrade' }
+      })
+    ).toEqual({ payload: composerCloudApplyPayload(savedCloud), type: 'apply' })
+  })
+})
+
+describe('composerCloudPortalFromDiscover', () => {
+  it('applies the oldest subscription dashboard, including a legacy Free machine', () => {
+    expect(
+      composerCloudPortalFromDiscover({
+        agents: [
+          {
+            createdAt: '2026-06-01T00:00:00.000Z',
+            dashboardUrl: 'https://new.example',
+            id: 'new',
+            status: 'running'
+          },
+          {
+            createdAt: '2026-01-01T00:00:00.000Z',
+            dashboardUrl: 'https://old.example',
+            id: 'old',
+            status: 'stopped'
+          }
+        ],
+        entitlement: { canUseCloud: false },
+        org: { id: 'org_1', slug: 'acme' }
+      })
+    ).toEqual({
+      source: { cloudOrg: 'acme', remoteUrl: 'https://old.example' },
+      status: 'ready'
+    })
+  })
+
+  it('ignores self-hosted rows and refuses Free when nothing is addressable', () => {
+    expect(
+      composerCloudPortalFromDiscover({
+        agents: [{ dashboardUrl: 'https://self.example', id: 'self', status: 'self_hosted' }],
+        entitlement: { canUseCloud: false }
+      })
+    ).toEqual({ status: 'upgrade' })
+  })
+
+  it('waits when the paid plan has no dashboard address yet', () => {
+    expect(
+      composerCloudPortalFromDiscover({
+        agents: [{ dashboardUrl: null, id: 'born', status: 'provisioning' }],
+        entitlement: { canUseCloud: true }
+      })
+    ).toEqual({ status: 'preparing' })
+  })
+
+  it('does not invent a plan when entitlement is missing', () => {
+    expect(composerCloudPortalFromDiscover({ agents: [] })).toEqual({ status: 'signin' })
+    expect(composerCloudPortalFromDiscover({ needsOrgSelection: true })).toEqual({ status: 'choose-org' })
+  })
+
+  it('recognizes the portal sign-in error', () => {
+    expect(isCloudLoginError(Object.assign(new Error('sign in'), { needsCloudLogin: true }))).toBe(true)
+    expect(isCloudLoginError(new Error('offline'))).toBe(false)
   })
 })

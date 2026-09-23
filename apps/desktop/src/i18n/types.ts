@@ -638,6 +638,8 @@ export interface Translations {
       kindLocalDesc: string
       kindRemoteDesc: string
       kindCloudDesc: string
+      kindCloudPlan: string
+      kindCloudPreparing: string
       kindSshDesc: string
       labelTitle: string
       labelDesc: string
