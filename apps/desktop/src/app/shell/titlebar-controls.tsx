@@ -8,7 +8,6 @@ import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { cn } from '@/lib/utils'
-import { $hapticsMuted, toggleHapticsMuted } from '@/store/haptics'
 import { toggleHud } from '@/store/hud'
 import {
   $fileBrowserOpen,
@@ -51,21 +50,8 @@ export function TitlebarControls({ leftTools = [], tools = [] }: TitlebarControl
   const { t } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
-  const hapticsMuted = useStore($hapticsMuted)
   const fileBrowserOpen = useStore($fileBrowserOpen)
   const sidebarOpen = useStore($sidebarOpen)
-
-  const toggleHaptics = () => {
-    if (!hapticsMuted) {
-      triggerHaptic('tap')
-    }
-
-    toggleHapticsMuted()
-
-    if (hapticsMuted) {
-      window.requestAnimationFrame(() => triggerHaptic('success'))
-    }
-  }
 
   // POSITIONAL toggles: each button shows/hides everything on its physical
   // side of the main zone (the layout tree collapses the whole side), so they
@@ -128,13 +114,6 @@ export function TitlebarControls({ leftTools = [], tools = [] }: TitlebarControl
         triggerHaptic('open')
         toggleHud(hudTargetSessionId())
       }
-    },
-    {
-      active: hapticsMuted,
-      icon: <TitlebarIcon name={hapticsMuted ? 'mute' : 'unmute'} />,
-      id: 'haptics',
-      label: hapticsMuted ? t.titlebar.unmuteHaptics : t.titlebar.muteHaptics,
-      onSelect: toggleHaptics
     }
     // Settings moved to the sidebar footer user menu (AccountFooter) — same
     // navigate(SETTINGS_ROUTE) action; the `mod+,` keybind and the
@@ -205,8 +184,7 @@ export function TitlebarControls({ leftTools = [], tools = [] }: TitlebarControl
 
 function TitlebarToolButton({ navigate, tool }: { navigate: ReturnType<typeof useNavigate>; tool: TitlebarTool }) {
   // Titlebar actions never show an active background — state reads from the
-  // icon itself (e.g. the mute/unmute glyph). aria-pressed still carries it
-  // for a11y.
+  // icon itself. aria-pressed still carries it for a11y.
   const className = cn(titlebarButtonClass, 'bg-transparent select-none', tool.className)
 
   const tooltipLabel = tool.actionId ? (
