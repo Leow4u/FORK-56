@@ -2907,6 +2907,7 @@ export const en: Translations = {
       renameTitle: 'Rename project',
       addFolderTitle: 'Add folder',
       namePlaceholder: 'e.g. Skunkworks',
+      nameLabel: 'Name',
       foldersLabel: 'Folders',
       ideaLabel: 'Idea',
       ideaPlaceholder: "What's this project about? (saved to IDEA.md)",

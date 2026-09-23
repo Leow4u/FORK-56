@@ -30,6 +30,7 @@ vi.mock('@/i18n', () => ({
           ideaLabel: 'Idea',
           ideaPlaceholder: 'What are you building?',
           ideaShuffle: 'Shuffle ideas',
+          nameLabel: 'Name',
           namePlaceholder: 'Project name',
           noFolders: 'No folders yet',
           primaryBadge: 'Primary',
@@ -81,6 +82,13 @@ vi.mock('@/lib/project-idea-templates', () => ({
 const tipTrigger = (el: HTMLElement) => el.closest('[data-slot="tooltip-trigger"]')
 
 describe('ProjectDialog', () => {
+  it('labels the name field the same way as the other sections', () => {
+    render(<ProjectDialog />)
+
+    expect(screen.getByText('Name')).toBeTruthy()
+    expect(screen.getByText('No folders yet')).toBeTruthy()
+  })
+
   it('wraps the "shuffle idea" button in a Tip', () => {
     render(<ProjectDialog />)
 
