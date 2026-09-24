@@ -804,6 +804,7 @@ export interface Translations {
     }
     mcp: {
       loading: string
+      deviceHome: string
       failedLoad: string
       nameRequiredTitle: string
       nameRequiredMessage: string
