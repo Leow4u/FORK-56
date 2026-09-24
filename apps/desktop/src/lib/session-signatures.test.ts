@@ -46,6 +46,12 @@ describe('sameCronSignature', () => {
     expect(sameCronSignature(a, b)).toBe(false)
   })
 
+  it('is false when only the connection home changed', () => {
+    const a = [session('a', 't', { connection_id: 'local' })]
+    const b = [session('a', 't', { connection_id: 'cloud' })]
+    expect(sameCronSignature(a, b)).toBe(false)
+  })
+
   it('is true when both flags match', () => {
     const a = [session('a', 't', { archived: false, pinned: true })]
     const b = [session('a', 't', { archived: false, pinned: true })]

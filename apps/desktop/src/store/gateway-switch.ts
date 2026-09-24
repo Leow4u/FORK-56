@@ -19,7 +19,6 @@ import {
   setSelectedStoredSessionId,
   setSessionProfilesTruncated,
   setSessionProfilesUsage,
-  setSessions,
   setSessionsLoading
 } from '@/store/session'
 import { resetSessionPinMirror } from '@/store/session-pin-sync'
@@ -58,7 +57,9 @@ export function wipeSessionListsForGatewaySwitch(): void {
   // has never seen them, so drop the "already pushed" bookkeeping and let the
   // next reconcile re-assert the whole set against the new backend.
   resetSessionPinMirror()
-  setSessions([])
+  // Chat rows stay. Local and Cloud are one list; the refresh keeps each
+  // row on the connection that owns it. Cron and messaging still belong to
+  // the connection that is current, so those lists reset with the switch.
   setSessionProfilesTruncated({})
   setSessionProfilesUsage({})
   setCronSessions([])

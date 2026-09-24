@@ -1,4 +1,5 @@
 import { useStore } from '@nanostores/react'
+import { Cloud } from 'lucide-react'
 import { memo } from 'react'
 import type * as React from 'react'
 
@@ -23,6 +24,7 @@ import { handoffOriginSource, sessionSourceLabel } from '@/lib/session-source'
 import { coarseElapsed } from '@/lib/time'
 import { useStoreSelector } from '@/lib/use-session-slice'
 import { cn } from '@/lib/utils'
+import { $connectionsRegistry } from '@/store/connections'
 import { $sidebarRowMeta } from '@/store/layout'
 import { normalizeProfileKey } from '@/store/profile'
 import { $projects } from '@/store/projects'
@@ -144,6 +146,12 @@ function SidebarSessionRowImpl({
   const r = t.sidebar.row
   const { cancelPrewarm, startPrewarm } = useProfilePrewarm(session.profile)
   const title = sessionTitle(session)
+  const registry = useStore($connectionsRegistry)
+
+  const cloudHome = Boolean(
+    session.connection_id && registry?.connections.some(row => row.id === session.connection_id && row.kind === 'cloud')
+  )
+
   const density = useStore($sessionListDensity)
   const fmt = t.sidebar
 
@@ -478,6 +486,9 @@ function SidebarSessionRowImpl({
                 <>
                   {leadNode}
                   {handoffBadge}
+                  {cloudHome ? (
+                    <Cloud aria-label={t.settings.connections.kindCloudChip} className="size-3 shrink-0 text-(--ui-text-tertiary)" />
+                  ) : null}
                   <span className="min-w-0 flex-1 self-center">
                     <OverflowTip label={title}>
                       <SidebarRowLabel
@@ -524,6 +535,10 @@ function SidebarSessionRowImpl({
                 {/* Title + preview: ONE grouped cell with its own tight
                     internal gap — it does not inherit the card's rhythm. */}
                 <div className="-mt-[0.2em] flex min-w-0 flex-col gap-[0.3rem]">
+                  <div className="flex min-w-0 items-center gap-1">
+                  {cloudHome ? (
+                    <Cloud aria-label={t.settings.connections.kindCloudChip} className="size-3 shrink-0 text-(--ui-text-tertiary)" />
+                  ) : null}
                   <OverflowTip label={title}>
                     <SidebarRowLabel
                       className="hover-marquee text-[0.8125rem] leading-none font-medium text-(--ui-text-primary) group-data-[working=true]:text-foreground"
@@ -533,6 +548,7 @@ function SidebarSessionRowImpl({
                       <span className="hover-marquee-inner">{title}</span>
                     </SidebarRowLabel>
                   </OverflowTip>
+                  </div>
                   {session.preview && rowMeta.includes('preview') ? (
                     <span className="min-w-0 truncate text-[0.625rem] leading-none text-(--ui-text-quaternary)">
                       {session.preview}
