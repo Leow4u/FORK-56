@@ -945,9 +945,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
 
     const want = decision.source.remoteUrl.trim().replace(/\/+$/, '').toLowerCase()
 
-    const agent = result.agents.find(
-      row => (row.dashboardUrl ?? '').trim().replace(/\/+$/, '').toLowerCase() === want
-    )
+    const agent = result.agents.find(row => (row.dashboardUrl ?? '').trim().replace(/\/+$/, '').toLowerCase() === want)
 
     if (agent) {
       await connectCloudAgent(agent)
