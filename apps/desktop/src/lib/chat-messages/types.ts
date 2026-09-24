@@ -94,6 +94,9 @@ export type GatewayEventPayload = {
   // mcp.setup.request (setup_mcp tool — inline MCP consent card)
   server?: string
   action?: string
+  direction?: string
+  key?: string
+  ref?: string
   reason?: string
   // approval.request (dangerous command / execute_code) — session-keyed
   command?: string

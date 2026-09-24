@@ -126,11 +126,20 @@ function slug(label: string): string {
   return cleaned || 'item'
 }
 
+function asRawElement(item: unknown): RawElement {
+  if (!item || typeof item !== 'object') {
+    return {}
+  }
+
+  return item as RawElement
+}
+
 /** Stable refs from DOM order. The same role and label keep the same ref until the page changes order. */
-export function assignPreviewRefs(raw: RawElement[]): PreviewElement[] {
+export function assignPreviewRefs(raw: readonly unknown[]): PreviewElement[] {
   const seen = new Map<string, number>()
 
-  return raw.map(item => {
+  return raw.map(entry => {
+    const item = asRawElement(entry)
     const role = String(item.role || 'el')
     const label = String(item.label || '')
     const base = `${ROLE_PREFIX[role] || 'el'}-${slug(label)}`

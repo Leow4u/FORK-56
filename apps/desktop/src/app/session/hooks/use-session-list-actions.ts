@@ -368,8 +368,6 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
         // Messaging sections: drop any non-messaging source the broad exclude
         // didn't catch (custom sources stay in local recents), then split per
         // platform in the UI.
-        const homeId = $activeConnectionId.get()
-
         const messagingRows = tagMessagingHomes(
           dropTombstoned(result.messaging.sessions.filter(s => isMessagingSource(s.source))),
           homeId
