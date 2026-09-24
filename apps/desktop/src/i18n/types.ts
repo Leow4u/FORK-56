@@ -635,6 +635,7 @@ export interface Translations {
       kindLocal: string
       kindRemote: string
       kindCloud: string
+      kindCloudChip: string
       kindSsh: string
       kindLocalDesc: string
       kindRemoteDesc: string

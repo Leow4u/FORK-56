@@ -954,6 +954,7 @@ export const zh: Translations = {
       kindLocal: '本地',
       kindRemote: '远程网关',
       kindCloud: 'Work4You Cloud',
+      kindCloudChip: '云端',
       kindSsh: 'SSH',
       kindLocalDesc: '由本应用管理的 Work4You 运行时。',
       kindRemoteDesc: '可通过 HTTP(S) 访问的 Work4You 网关——局域网、Tailscale 或互联网。',

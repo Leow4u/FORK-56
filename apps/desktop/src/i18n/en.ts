@@ -750,6 +750,7 @@ export const en: Translations = {
       kindLocal: 'Local',
       kindRemote: 'Remote gateway',
       kindCloud: 'Work4You Cloud',
+      kindCloudChip: 'Cloud',
       kindSsh: 'SSH',
       kindLocalDesc: 'The Work4You runtime managed by this app.',
       kindRemoteDesc: 'A Work4You gateway reachable over HTTP(S) — LAN, Tailscale, or the internet.',

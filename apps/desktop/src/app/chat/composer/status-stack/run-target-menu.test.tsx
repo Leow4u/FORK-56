@@ -130,6 +130,40 @@ async function openMenu() {
 }
 
 describe('ComposerRunTargetMenu', () => {
+  it('shows Local with the computer icon on the connection button', () => {
+    $connection.set({ mode: 'local' } as Work4YouConnection)
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    const button = screen.getByRole('button', { name: 'Connection mode' })
+
+    expect(button.textContent).toContain('Local')
+    expect(button.querySelector('.tabler-icon-device-desktop')).toBeTruthy()
+    expect(button.querySelector('.tabler-icon-cloud')).toBeNull()
+  })
+
+  it('shows Cloud with the cloud icon when that connection is live', () => {
+    $connection.set({
+      baseUrl: 'https://agent.example',
+      mode: 'remote',
+      remoteKind: 'cloud'
+    } as Work4YouConnection)
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    const button = screen.getByRole('button', { name: 'Connection mode' })
+
+    expect(button.textContent).toContain('Cloud')
+    expect(button.querySelector('.tabler-icon-cloud')).toBeTruthy()
+    expect(button.querySelector('.tabler-icon-device-desktop')).toBeNull()
+  })
+
   it('lists only Local and Work4You Cloud', async () => {
     $connectionsRegistry.set(
       registry([

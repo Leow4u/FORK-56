@@ -87,6 +87,10 @@ export function ComposerRunTargetMenu() {
   const copy = t.settings.connections
   const gateway = t.settings.gateway
   const tooltip = gateway.modeTitle
+  const shownTarget = pendingConnectionId === 'cloud' || pendingConnectionId === 'local' ? pendingConnectionId : active
+  const cloudSelected = shownTarget === 'cloud'
+  const targetLabel = cloudSelected ? copy.kindCloudChip : copy.kindLocal
+  const TargetIcon = cloudSelected ? Cloud : Monitor
 
   useEffect(() => {
     rememberComposerCloudApply(
@@ -269,8 +273,9 @@ export function ComposerRunTargetMenu() {
               {pendingConnectionId ? (
                 <Loader2 aria-hidden className="size-3.5 shrink-0 animate-spin" />
               ) : (
-                <Monitor aria-hidden className="size-3.5 shrink-0" />
+                <TargetIcon aria-hidden className="size-3.5 shrink-0" />
               )}
+              <span className="truncate">{targetLabel}</span>
             </button>
           </DropdownMenuTrigger>
         </Tip>
