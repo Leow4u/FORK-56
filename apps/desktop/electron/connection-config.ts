@@ -1007,7 +1007,22 @@ function cadastroDisplayName(firstName, lastName) {
   return `${first} ${last}`
 }
 
+/** Privy identity from GET /api/account. Name needs both cadastro parts. */
+function accountIdentityFromBody(body) {
+  if (!body || typeof body !== 'object') {
+    return { email: null, name: null }
+  }
+
+  const email = typeof body.email === 'string' ? body.email.trim() : ''
+
+  return {
+    email: email || null,
+    name: cadastroDisplayName(body.firstName, body.lastName)
+  }
+}
+
 export {
+  accountIdentityFromBody,
   apiRequestRegistryConnectionId,
   AT_COOKIE_VARIANTS,
   authModeFromStatus,

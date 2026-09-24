@@ -1,11 +1,13 @@
 import { PrivyClient } from '@privy-io/server-auth'
 import {
+  type AccountIdentity,
   type AccountProfileName,
+  accountIdentityFromPrivyUser,
   parseAccountProfileBody,
 } from './account-profile-parse'
 
-export type { AccountProfileName }
-export { parseAccountProfileBody }
+export type { AccountIdentity, AccountProfileName }
+export { accountIdentityFromPrivyUser, parseAccountProfileBody }
 
 function privyClient() {
   const appId = process.env.PRIVY_APP_ID
@@ -27,10 +29,10 @@ function asMetadataRecord(value: unknown): Record<string, string | number | bool
   return next
 }
 
-export async function readPrivyAccountProfile(privyDid: string): Promise<AccountProfileName | null> {
+export async function readPrivyAccountIdentity(privyDid: string): Promise<AccountIdentity> {
   const client = privyClient()
   const existing = await client.getUser(privyDid)
-  return parseAccountProfileBody(existing.customMetadata)
+  return accountIdentityFromPrivyUser(existing)
 }
 
 export async function savePrivyAccountProfile(
