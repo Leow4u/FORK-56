@@ -19,7 +19,13 @@ const applied = {
   remoteTokenPreview: null,
   remoteTokenSet: false,
   remoteUrl: 'https://vm.example',
-  secureTokenStorage: true
+  secureTokenStorage: true,
+  sshHost: '',
+  sshUser: '',
+  sshPort: null,
+  sshKeyPath: '',
+  sshRemoteWork4YouPath: '',
+  sshRemoteProfile: ''
 }
 
 function desktop(overrides: Partial<PaidCloudEntryDesktop['cloud']> = {}): PaidCloudEntryDesktop {
