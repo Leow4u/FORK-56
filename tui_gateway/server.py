@@ -3549,6 +3549,7 @@ def _block(
         "clarify.request",
         "terminal.read.request",
         "preview.read.request",
+        "preview.drive.request",
         "window.read.request",
         "mcp.setup.request",
         "tour.request",
@@ -6391,6 +6392,20 @@ def _agent_cbs(sid: str) -> dict:
             "preview.read.request",
             sid,
             {k: v for k, v in (("start", start), ("count", count)) if v is not None},
+            timeout=45,
+        ),
+        # drive_preview tool: the renderer acts on the in-app page with real
+        # pointer and keyboard input, then answers preview.drive.respond.
+        "drive_preview_callback": lambda action="", ref="", text="", key="", direction="": _block(
+            "preview.drive.request",
+            sid,
+            {
+                "action": action,
+                "ref": ref,
+                "text": text,
+                "key": key,
+                "direction": direction,
+            },
             timeout=45,
         ),
         # read_window_below tool (desktop GUI): the renderer asks its main

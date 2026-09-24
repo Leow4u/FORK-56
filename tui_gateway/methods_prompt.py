@@ -1415,6 +1415,13 @@ def _(rid, params: dict) -> dict:
     return _respond(rid, params, "text", allow_expired=True)
 
 
+@method("preview.drive.respond")
+def _(rid, params: dict) -> dict:
+    # `text` is a JSON string of the drive_preview outcome (inventory or delta).
+    # allow_expired=True: a slow page can outlive the tool's bounded wait.
+    return _respond(rid, params, "text", allow_expired=True)
+
+
 @method("preview.read.respond")
 def _(rid, params: dict) -> dict:
     # `text` is a JSON string of the active preview tab's serialized contents.

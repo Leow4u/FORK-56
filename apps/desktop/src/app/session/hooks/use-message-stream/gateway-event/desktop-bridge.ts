@@ -1,3 +1,4 @@
+import { driveActivePreview } from '@/app/chat/right-rail/preview-driver'
 import { readActivePreview } from '@/app/chat/right-rail/preview-reader'
 import { writeAgentTerminalChunk } from '@/app/right-sidebar/terminal/agent-terminal-stream'
 import { readActiveTerminal } from '@/app/right-sidebar/terminal/buffer'
@@ -50,6 +51,37 @@ export function handleDesktopBridgeEvent(ctx: GatewayEventContext): boolean {
           text: result ? JSON.stringify(result) : ''
         })
       })
+    }
+
+    return true
+  }
+
+  if (event.type === 'preview.drive.request') {
+    // drive_preview: inventory or act on the in-app page. Active session
+    // only — a background turn must not click the page on screen.
+    const requestId = typeof payload?.request_id === 'string' ? payload.request_id : ''
+
+    if (requestId) {
+      const answer = (result: unknown) =>
+        $gateway.get()?.request('preview.drive.respond', {
+          request_id: requestId,
+          text: result ? JSON.stringify(result) : ''
+        })
+
+      if (isActiveEvent) {
+        void driveActivePreview({
+          action: typeof payload?.action === 'string' ? payload.action : '',
+          direction: typeof payload?.direction === 'string' ? payload.direction : '',
+          key: typeof payload?.key === 'string' ? payload.key : '',
+          ref: typeof payload?.ref === 'string' ? payload.ref : '',
+          text: typeof payload?.text === 'string' ? payload.text : ''
+        }).then(answer, error => answer({ error: error instanceof Error ? error.message : String(error), success: false }))
+      } else {
+        void answer({
+          error: 'The preview pane only moves in the session the user is looking at.',
+          success: false
+        })
+      }
     }
 
     return true
