@@ -352,6 +352,21 @@ describe('MessagingView pairing', () => {
     )
   })
 
+  it('keeps the enable switch and test with the setup form', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ configured: true, enabled: true, id: 'whatsapp', name: 'WhatsApp', state: 'ready' })]
+    })
+
+    await renderMessaging()
+    await openChannel('WhatsApp')
+
+    const toggle = await screen.findByRole('switch', { name: /WhatsApp/ })
+    const test = screen.getByRole('button', { name: 'Test' })
+    expect(toggle.closest('footer')).toBeNull()
+    expect(test.closest('footer')).toBeNull()
+    expect(toggle.closest('main')).toBe(test.closest('main'))
+  })
+
   it('hides the connection test until the channel has credentials to probe', async () => {
     getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ configured: false })] })
 
