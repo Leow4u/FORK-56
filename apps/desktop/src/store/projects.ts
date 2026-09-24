@@ -12,6 +12,7 @@ import { desktopGit } from '@/lib/desktop-git'
 import { isMissingRestEndpoint, isMissingRpcMethod } from '@/lib/gateway-rpc'
 import { isUnderPath } from '@/lib/path-compare'
 import { persistentAtom } from '@/lib/persisted'
+import { forgetDesktopProject, mergeWithDesktopCatalog, readDesktopProjectCatalog, rememberDesktopProjects } from '@/store/desktop-project-catalog'
 import { $gateway, activeGateway, ensureActiveGatewayOpen } from '@/store/gateway'
 import { setSidebarAgentsGrouped } from '@/store/layout'
 import { notify } from '@/store/notifications'
@@ -420,7 +421,10 @@ async function activeProjectsContext(): Promise<ActiveProjectsContext> {
 }
 
 function applyPayload(payload: ProjectsPayload): void {
-  $projects.set(payload.projects ?? [])
+  const projects = mergeWithDesktopCatalog(payload.projects ?? [])
+
+  rememberDesktopProjects(projects)
+  $projects.set(projects)
   $activeProjectId.set(payload.active_id ?? null)
 }
 
@@ -464,9 +468,19 @@ const PROJECT_TREE_REQUEST_TIMEOUT_MS = 60_000
 
 let projectTreeRefreshGeneration = 0
 
+function withDesktopProjectTree(nodes: SidebarProjectTree[]): SidebarProjectTree[] {
+  const seen = new Set(nodes.map(node => node.id))
+
+  const extra = readDesktopProjectCatalog()
+    .filter(project => project.id && !project.archived && !seen.has(project.id))
+    .map(projectInfoToTreeNode)
+
+  return extra.length ? [...extra, ...nodes] : nodes
+}
+
 function applyProjectTreePayload(res: ProjectTreePayload): void {
   const scoped = new Set(res.scoped_session_ids ?? [])
-  $projectTree.set(res.projects ?? [])
+  $projectTree.set(withDesktopProjectTree(res.projects ?? []))
   $activeProjectId.set(res.active_id ?? null)
   const tombstones = $removedSessionIds.get()
 
@@ -895,6 +909,8 @@ export async function createProject(input: CreateProjectInput): Promise<ProjectI
       $projects.set([...$projects.get(), created])
     }
 
+    rememberDesktopProjects([created])
+
     if (!$projectTree.get().some(node => node.id === created.id)) {
       $projectTree.set([projectInfoToTreeNode(created), ...$projectTree.get()])
     }
@@ -1062,6 +1078,7 @@ export async function deleteProject(id: string): Promise<void> {
 
   $projects.set(snap.projects.filter(project => project.id !== id))
   $projectTree.set(snap.tree.filter(project => project.id !== id))
+  forgetDesktopProject(id)
 
   // The chip reads scope + cwd, not the tree row. Dropping the row alone leaves
   // Select workspace showing the deleted name until the next manual clear.

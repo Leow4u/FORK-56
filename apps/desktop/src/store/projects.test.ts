@@ -566,6 +566,7 @@ describe('createProject', () => {
 describe('projects RPC capability', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     $projectsRpcAvailable.set(null)
   })
 
@@ -709,6 +710,10 @@ describe('repository discovery policy', () => {
 })
 
 describe('project tree profile isolation', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   it('does not publish a late response from the previous profile', async () => {
     let resolveA: ((value: unknown) => void) | undefined
 
