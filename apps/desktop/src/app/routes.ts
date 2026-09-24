@@ -12,6 +12,23 @@ export const SETTINGS_ROUTE = '/settings'
 export const COMMAND_CENTER_ROUTE = '/command-center'
 export const SKILLS_ROUTE = '/skills'
 export const MESSAGING_ROUTE = '/messaging'
+
+/** Configuration for one channel, opened from the Messaging card grid. */
+export function messagingPlatformPath(platformId: string): string {
+  return `${MESSAGING_ROUTE}/${encodeURIComponent(platformId)}`
+}
+
+export function messagingPlatformId(pathname: string): string | null {
+  const path = routePathname(pathname)
+
+  if (!path.startsWith(`${MESSAGING_ROUTE}/`)) {
+    return null
+  }
+
+  const id = path.slice(MESSAGING_ROUTE.length + 1)
+
+  return id && !id.includes('/') ? decodeURIComponent(id) : null
+}
 export const WEBHOOKS_ROUTE = '/webhooks'
 export const ARTIFACTS_ROUTE = '/artifacts'
 export const CRON_ROUTE = '/cron'
@@ -198,6 +215,10 @@ export function appViewForPath(pathname: string): AppView {
 
   if (path === CRON_NEW_ROUTE) {
     return 'cron'
+  }
+
+  if (messagingPlatformId(path)) {
+    return 'messaging'
   }
 
   return APP_VIEW_BY_PATH.get(path) ?? 'chat'

@@ -1403,6 +1403,8 @@ export interface Translations {
     credentialsSet: string
     needsSetup: string
     gatewayStopped: string
+    title: string
+    manualSetup: string
     getCredentials: string
     openSetupGuide: string
     required: string
