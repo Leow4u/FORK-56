@@ -41,6 +41,7 @@ afterEach(() => {
 function installCloud(status: {
   email?: null | string
   logout?: ReturnType<typeof vi.fn>
+  name?: null | string
   openExternal?: ReturnType<typeof vi.fn>
   signedIn: boolean
 }) {
@@ -96,6 +97,16 @@ function renderFooter() {
 }
 
 describe('AccountFooter', () => {
+  it('shows the cadastro name instead of the email when both were saved', async () => {
+    installCloud({ signedIn: true, email: 'ada@example.com', name: 'Ada Lovelace' })
+
+    renderFooter()
+
+    const trigger = await screen.findByRole('button', { name: 'Ada Lovelace' })
+    expect(trigger.querySelector('[data-slot="account-footer-mark"]')?.textContent).toBe('AL')
+    expect(screen.queryByRole('button', { name: 'ada@example.com' })).toBeNull()
+  })
+
   it('shows the Portal email and a full account menu including Log Out', async () => {
     installCloud({ signedIn: true, email: 'user@example.com' })
 

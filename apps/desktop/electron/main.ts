@@ -74,6 +74,7 @@ import {
   authModeFromStatus,
   buildGatewayWsUrl,
   buildGatewayWsUrlWithTicket,
+  cadastroDisplayName,
   connectionScopeKey,
   cookiesHaveLiveSession,
   cookiesHavePrivyAccessToken,
@@ -8013,6 +8014,52 @@ async function hasPortalAccessToken() {
   }
 }
 
+function nameFromAccountBody(body) {
+  if (!body || typeof body !== 'object') {
+    return null
+  }
+
+  return cadastroDisplayName(body.firstName, body.lastName)
+}
+
+// Cadastro name from GET /api/account, using the same portal session as
+// discovery. A failed or unauthorized read leaves the menu on the email.
+async function portalAccountName() {
+  if (!(await hasLivePortalSession())) {
+    return null
+  }
+
+  if (!(await hasPortalAccessToken())) {
+    const renewed = await renewPortalAccessSilently()
+
+    if (!renewed) {
+      return null
+    }
+  }
+
+  const portalBaseUrl = resolvePortalBaseUrl()
+
+  const readProfile = () =>
+    fetchJsonViaOauthSession(`${portalBaseUrl}/api/account`, {
+      method: 'GET',
+      timeoutMs: 8_000
+    })
+
+  try {
+    return nameFromAccountBody(await readProfile())
+  } catch (error: any) {
+    if (error?.statusCode === 401 && (await renewPortalAccessSilently())) {
+      try {
+        return nameFromAccountBody(await readProfile())
+      } catch {
+        return null
+      }
+    }
+
+    return null
+  }
+}
+
 // The signed-in Portal account's email, decoded locally from the Privy
 // IDENTITY token cookie that lands alongside the access token at login
 // (see emailFromPrivyCookies). Display-only — no network call, no
@@ -13437,11 +13484,16 @@ ipcMain.handle('work4you:connection-config:oauth-logout', async (_event, rawUrl)
 // --- Work4You Cloud (cloud-auto-discovery Phase 3) ---
 // One portal login in the OAuth partition powers both discovery and the silent
 // per-agent cascade. See the discovery/cascade helpers above.
-ipcMain.handle('work4you:cloud:status', async () => ({
-  portalBaseUrl: resolvePortalBaseUrl(),
-  signedIn: await hasLivePortalSession(),
-  email: await portalAccountEmail()
-}))
+ipcMain.handle('work4you:cloud:status', async () => {
+  const signedIn = await hasLivePortalSession()
+
+  return {
+    portalBaseUrl: resolvePortalBaseUrl(),
+    signedIn,
+    email: signedIn ? await portalAccountEmail() : null,
+    name: signedIn ? await portalAccountName() : null
+  }
+})
 ipcMain.handle('work4you:cloud:login', async () => {
   await openPortalLoginWindow()
 

@@ -966,6 +966,10 @@ export interface DesktopCloudStatus {
   // token cookie (`privy-id-token`). Null when signed out or when the jar has
   // no identity token; absent on shells that predate the field.
   email?: null | string
+  // Cadastro name (first + last) from GET /api/account. Null when the
+  // signup name was not saved or the profile read failed; the menu then
+  // shows `email`.
+  name?: null | string
 }
 
 // A discovered Work4You Cloud agent — the trimmed DTO from NAS GET /api/agents.

@@ -992,12 +992,28 @@ function emailFromPrivyCookies(cookies) {
   return social ? social.email.trim() : null
 }
 
+/**
+ * Cadastro name for the account menu: both first and last name, as saved on
+ * the portal profile. A single part is not a completed signup name.
+ */
+function cadastroDisplayName(firstName, lastName) {
+  const first = typeof firstName === 'string' ? firstName.trim().replace(/\s+/g, ' ') : ''
+  const last = typeof lastName === 'string' ? lastName.trim().replace(/\s+/g, ' ') : ''
+
+  if (!first || !last) {
+    return null
+  }
+
+  return `${first} ${last}`
+}
+
 export {
   apiRequestRegistryConnectionId,
   AT_COOKIE_VARIANTS,
   authModeFromStatus,
   buildGatewayWsUrl,
   buildGatewayWsUrlWithTicket,
+  cadastroDisplayName,
   connectionScopeKey,
   cookiesHaveLiveSession,
   cookiesHavePrivyAccessToken,

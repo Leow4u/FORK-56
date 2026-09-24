@@ -27,6 +27,12 @@ function asMetadataRecord(value: unknown): Record<string, string | number | bool
   return next
 }
 
+export async function readPrivyAccountProfile(privyDid: string): Promise<AccountProfileName | null> {
+  const client = privyClient()
+  const existing = await client.getUser(privyDid)
+  return parseAccountProfileBody(existing.customMetadata)
+}
+
 export async function savePrivyAccountProfile(
   privyDid: string,
   profile: AccountProfileName,

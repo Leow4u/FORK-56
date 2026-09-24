@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { deletePortalAccount } from '@/lib/account-delete'
 import {
   parseAccountProfileBody,
+  readPrivyAccountProfile,
   savePrivyAccountProfile,
 } from '@/lib/account-profile'
 import { prisma } from '@/lib/db'
@@ -16,6 +17,32 @@ async function callerFromRequest(req: NextRequest) {
   const claims = await verifyPrivyBearer(authHeader)
   if (!claims?.userId) return null
   return claims
+}
+
+/**
+ * GET /api/account — the caller's cadastro name (Privy customMetadata).
+ * Auth: Privy bearer or privy-token cookie only (not OAuth access tokens).
+ * Missing name is `{ firstName: null, lastName: null }`, not an error.
+ */
+export async function GET(req: NextRequest) {
+  const claims = await callerFromRequest(req)
+  if (!claims?.userId) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const profile = await readPrivyAccountProfile(claims.userId)
+    return NextResponse.json({
+      firstName: profile?.firstName ?? null,
+      lastName: profile?.lastName ?? null,
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'read_failed'
+    return NextResponse.json(
+      { error: 'server_error', error_description: msg },
+      { status: 500 },
+    )
+  }
 }
 
 /**
