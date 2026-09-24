@@ -15,6 +15,7 @@ export const MESSAGING_ROUTE = '/messaging'
 export const WEBHOOKS_ROUTE = '/webhooks'
 export const ARTIFACTS_ROUTE = '/artifacts'
 export const CRON_ROUTE = '/cron'
+export const CRON_NEW_ROUTE = '/cron/new'
 export const PROFILES_ROUTE = '/profiles'
 export const AGENTS_ROUTE = '/agents'
 export const STARMAP_ROUTE = '/starmap'
@@ -71,7 +72,7 @@ export const APP_ROUTES = [
 ] as const satisfies readonly AppRoute[]
 
 const APP_VIEW_BY_PATH = new Map<string, AppView>(APP_ROUTES.map(route => [route.path, route.view]))
-const RESERVED_PATHS: ReadonlySet<string> = new Set(APP_ROUTES.map(route => route.path))
+const RESERVED_PATHS: ReadonlySet<string> = new Set([...APP_ROUTES.map(route => route.path), CRON_NEW_ROUTE])
 
 // ── Contributed routes — the `routes` registry area ─────────────────────────
 // A contribution mounts a FULL PAGE in the workspace pane at `data.path`
@@ -193,6 +194,10 @@ export function appViewForPath(pathname: string): AppView {
 
   if (isContributedPath(path)) {
     return 'extension'
+  }
+
+  if (path === CRON_NEW_ROUTE) {
+    return 'cron'
   }
 
   return APP_VIEW_BY_PATH.get(path) ?? 'chat'

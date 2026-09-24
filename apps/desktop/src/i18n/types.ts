@@ -2090,6 +2090,7 @@ export interface Translations {
     topOfHour: string
     everyHourAt: (minute: string) => string
     newCron: string
+    untitled: string
     emptyDescNew: string
     emptyDescSearch: string
     emptyTitleNew: string
