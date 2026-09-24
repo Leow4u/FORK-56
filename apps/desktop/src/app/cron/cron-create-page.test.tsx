@@ -7,11 +7,12 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { I18nProvider } from '@/i18n/context'
 import { en } from '@/i18n/en'
 import { stubResizeObserver } from '@/test/jsdom'
+import type * as Work4YouModule from '@/work4you'
 
 import { CronCreatePage } from './index'
 
 vi.mock('@/work4you', async () => {
-  const actual = await vi.importActual<typeof import('@/work4you')>('@/work4you')
+  const actual = await vi.importActual<typeof Work4YouModule>('@/work4you')
 
   return {
     ...actual,
