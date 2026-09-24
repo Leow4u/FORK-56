@@ -1,11 +1,13 @@
 import { useStore } from '@nanostores/react'
+import { useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { AudioLines, Ear, EarOff, iconSize, Layers3, Loader2, Square, Volume2, VolumeX } from '@/lib/icons'
+import { AudioLines, ChevronDown, Ear, EarOff, iconSize, Layers3, Loader2, Square, Volume2, VolumeX } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { $hudMode, closeHud } from '@/store/hud'
 import { $wakeWord, toggleWakeWord } from '@/store/wake-word'
@@ -15,6 +17,7 @@ import type { ConversationStatus } from './hooks/use-voice-conversation'
 import { ModelPill } from './model-pill'
 import { SessionApprovalPill } from './session-approval-pill'
 import type { ChatBarState, VoiceStatus } from './types'
+import { useComposerMenuSide } from './use-composer-menu-side'
 import { VoiceMenu } from './voice-menu'
 
 // Re-exported: `context-menu.tsx` and other row neighbours have always reached
@@ -82,10 +85,10 @@ export function ComposerControls({
     <div className="ml-auto flex shrink-0 items-center gap-(--composer-control-gap)">
       {showSessionApproval ? <SessionApprovalPill compact={compactModelPill} disabled={disabled} /> : null}
       <ModelPill compact={compactModelPill} disabled={disabled} model={state.model} />
-      {/* The HUD is a Spotlight bar a few hundred pixels wide, so the four
-          separate voice toggles fold into one menu there and leave the row to
-          the input. The docked composer has the width and keeps them inline —
-          same controls, same state, different budget. */}
+      {/* The HUD folds every voice control into one menu. The docked row keeps
+          dictation one click away and tucks read-replies and the wake word
+          into the chevron beside the voice button, the same cluster Hermes
+          uses. */}
       {hudMode ? (
         <VoiceMenu
           autoSpeak={autoSpeak}
@@ -97,11 +100,7 @@ export function ComposerControls({
           voiceStatus={voiceStatus}
         />
       ) : (
-        <>
-          <DictationButton disabled={disabled} onToggle={onDictate} state={state.voice} status={voiceStatus} />
-          <AutoSpeakButton active={autoSpeak} disabled={disabled} onToggle={onToggleAutoSpeak} />
-          <WakeWordButton disabled={disabled} />
-        </>
+        <DictationButton disabled={disabled} onToggle={onDictate} state={state.voice} status={voiceStatus} />
       )}
       {showQueueButton ? (
         <Tip label={<TipKeybindLabel actionId="composer.queue" text={c.queueMessage} />}>
@@ -157,6 +156,9 @@ export function ComposerControls({
             )}
           </Button>
         </Tip>
+      )}
+      {hudMode ? null : (
+        <VoiceOptionsMenu autoSpeak={autoSpeak} disabled={disabled} onToggleAutoSpeak={onToggleAutoSpeak} />
       )}
       {/* The way out of HUD mode, riding the controls row rather than floating
           above the bar. The old chip lived in a 26px transparent strip reserved
@@ -302,7 +304,66 @@ function ConversationIndicator({
 // Pure-TTS toggle: type normally, but have every assistant reply read aloud —
 // no dictation, no full conversation loop. Filled/accent when on, mirroring the
 // muted-mic pressed state above. Driven by (and persisted to) `voice.auto_tts`.
-function AutoSpeakButton({ active, disabled, onToggle }: { active: boolean; disabled: boolean; onToggle: () => void }) {
+function VoiceOptionsMenu({
+  autoSpeak,
+  disabled,
+  onToggleAutoSpeak
+}: {
+  autoSpeak: boolean
+  disabled: boolean
+  onToggleAutoSpeak: () => void
+}) {
+  const { t } = useI18n()
+  const hostRef = useRef<HTMLDivElement>(null)
+  const menuSide = useComposerMenuSide(hostRef)
+
+  return (
+    <DropdownMenu>
+      <div className="contents" ref={hostRef}>
+        <Tip label={t.composer.voiceControls} side={menuSide === 'bottom' ? 'top' : 'bottom'}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label={t.composer.voiceControls}
+              className={cn(GHOST_ICON_BTN, 'w-4 p-0')}
+              disabled={disabled}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <ChevronDown className={iconSize.xs} />
+            </Button>
+          </DropdownMenuTrigger>
+        </Tip>
+      </div>
+      <DropdownMenuContent
+        align="end"
+        className="flex w-auto min-w-0 flex-col items-center gap-1.5 border-0 bg-transparent p-0 shadow-none backdrop-blur-none"
+        data-composer-menu=""
+        side={menuSide}
+        sideOffset={8}
+      >
+        <AutoSpeakButton active={autoSpeak} disabled={disabled} onToggle={onToggleAutoSpeak} stacked />
+        <WakeWordButton disabled={disabled} stacked />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+const STACKED_VOICE_BTN = 'size-8 rounded-full p-0 shadow-sm'
+const STACKED_VOICE_ON = 'bg-primary text-primary-foreground hover:bg-primary/90'
+const STACKED_VOICE_OFF = 'bg-background text-muted-foreground ring-1 ring-border hover:text-foreground'
+
+function AutoSpeakButton({
+  active,
+  disabled,
+  onToggle,
+  stacked = false
+}: {
+  active: boolean
+  disabled: boolean
+  onToggle: () => void
+  stacked?: boolean
+}) {
   const { t } = useI18n()
   const c = t.composer
   const label = active ? c.stopSpeakingReplies : c.speakReplies
@@ -312,7 +373,10 @@ function AutoSpeakButton({ active, disabled, onToggle }: { active: boolean; disa
       <Button
         aria-label={label}
         aria-pressed={active}
-        className={cn(GHOST_ICON_BTN, 'p-0', active && ACTIVE_ICON_BTN)}
+        className={cn(
+          stacked ? STACKED_VOICE_BTN : cn(GHOST_ICON_BTN, 'p-0'),
+          stacked ? (active ? STACKED_VOICE_ON : STACKED_VOICE_OFF) : active && ACTIVE_ICON_BTN
+        )}
         disabled={disabled}
         onClick={() => {
           triggerHaptic(active ? 'close' : 'open')
@@ -328,8 +392,9 @@ function AutoSpeakButton({ active, disabled, onToggle }: { active: boolean; disa
   )
 }
 
-// "Hey Work4You" wake-word toggle. ALWAYS rendered — the ear never hides. A
-// user must always be able to click it to turn passive listening on; if the
+// "Hey Work4You" wake-word toggle. Always available from the voice chevron
+// (and inline while a voice conversation holds the mic). A user must always
+// be able to click it to turn passive listening on; if the
 // backend can't start (missing STT/TTS, deps still installing, no mic
 // permission, etc.) the click surfaces the reason in the tooltip and the
 // toggle stays off. States: listening (accent-highlighted), off (muted
@@ -337,7 +402,15 @@ function AutoSpeakButton({ active, disabled, onToggle }: { active: boolean; disa
 // the mic — the one time wake genuinely must not listen). Backend refusals
 // ({started:false, reason}) keep the toggle off and put the reason/hint in
 // the tooltip.
-function WakeWordButton({ disabled, pausedForVoice = false }: { disabled: boolean; pausedForVoice?: boolean }) {
+function WakeWordButton({
+  disabled,
+  pausedForVoice = false,
+  stacked = false
+}: {
+  disabled: boolean
+  pausedForVoice?: boolean
+  stacked?: boolean
+}) {
   const { t } = useI18n()
   const c = t.composer
   const wake = useStore($wakeWord)
@@ -357,7 +430,14 @@ function WakeWordButton({ disabled, pausedForVoice = false }: { disabled: boolea
       <Button
         aria-label={label}
         aria-pressed={wake.listening && !pausedForVoice}
-        className={cn(GHOST_ICON_BTN, 'p-0', wake.listening && !pausedForVoice && ACTIVE_ICON_BTN)}
+        className={cn(
+          stacked ? STACKED_VOICE_BTN : cn(GHOST_ICON_BTN, 'p-0'),
+          stacked
+            ? wake.listening && !pausedForVoice
+              ? STACKED_VOICE_ON
+              : STACKED_VOICE_OFF
+            : wake.listening && !pausedForVoice && ACTIVE_ICON_BTN
+        )}
         disabled={disabled || pausedForVoice || wake.pending}
         onClick={() => {
           triggerHaptic(wake.listening ? 'close' : 'open')

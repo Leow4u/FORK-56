@@ -100,19 +100,30 @@ describe('composer control row', () => {
   })
 })
 
-// The HUD is a Spotlight bar a few hundred pixels wide: the four voice
-// controls fold into one menu there, and the way out of HUD mode joins the
-// row instead of floating above the bar in a reserved strip. The docked
-// composer keeps every control inline and shows no exit.
+function openVoiceOptions() {
+  const trigger = screen.getByLabelText('Voice')
+
+  fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' })
+  fireEvent.pointerUp(trigger, { button: 0, pointerType: 'mouse' })
+  fireEvent.click(trigger)
+}
+
+// The HUD folds every voice control into one menu. The docked row keeps
+// dictation one click away and tucks read-replies plus the wake word behind
+// the chevron beside the primary button.
 describe('HUD mode', () => {
-  it('keeps the voice controls inline and offers no exit in the docked composer', () => {
+  it('keeps dictation on the row and tucks the other voice toggles behind the chevron', () => {
     renderControls()
 
     expect(screen.queryByLabelText('Context usage')).toBeNull()
     expect(screen.getByLabelText('Voice dictation')).toBeTruthy()
-    expect(screen.getByLabelText('Read replies aloud')).toBeTruthy()
+    expect(screen.getByLabelText('Voice')).toBeTruthy()
+    expect(screen.queryByLabelText('Read replies aloud')).toBeNull()
     expect(screen.queryByLabelText('Exit HUD mode')).toBeNull()
-    expect(screen.queryByLabelText('Voice')).toBeNull()
+
+    openVoiceOptions()
+
+    expect(screen.getByLabelText('Read replies aloud')).toBeTruthy()
   })
 
   it('folds them into one menu and offers the way out in the HUD', () => {
@@ -172,6 +183,7 @@ describe('wake-word ear visibility', () => {
   it('stays mounted during a busy agent turn', () => {
     applyWakeStatus({ available: true, enabled: true, listening: true, phrase: 'hey work4you' })
     renderControls({ busy: true, busyAction: 'stop' })
+    openVoiceOptions()
 
     expect(screen.getByLabelText('Wake word: "hey work4you" — listening')).toBeTruthy()
   })
@@ -181,6 +193,7 @@ describe('wake-word ear visibility', () => {
     // Transient refusal marks available false but enabled keeps it mounted.
     applyWakeStartResult({ hint: 'mic busy', reason: 'unavailable', started: false })
     renderControls()
+    openVoiceOptions()
 
     expect(screen.getByLabelText('Wake word: "hey work4you" — off')).toBeTruthy()
   })
@@ -188,9 +201,10 @@ describe('wake-word ear visibility', () => {
   it('stays visible (never hides) even when unavailable and not enabled', () => {
     applyWakeStatus({ available: false, enabled: false, listening: false, phrase: 'hey work4you' })
     renderControls()
+    openVoiceOptions()
 
-    // The ear ALWAYS shows so the user can click to enable; a failed start
-    // surfaces its reason in the tooltip rather than hiding the control.
+    // The ear always stays in the voice menu so the user can click to enable;
+    // a failed start surfaces its reason in the tooltip.
     expect(screen.getByLabelText('Wake word: "hey work4you" — off')).toBeTruthy()
   })
 
@@ -198,6 +212,7 @@ describe('wake-word ear visibility', () => {
     applyWakeStatus({ available: false, enabled: false, listening: false, phrase: 'hey work4you' })
     applyWakeStartResult({ hint: 'run `work4you tools` (Voice section)', reason: 'unavailable', started: false })
     renderControls()
+    openVoiceOptions()
 
     const ear = screen.getByLabelText('Wake word: "hey work4you" — off')
     expect(ear).toBeTruthy()
