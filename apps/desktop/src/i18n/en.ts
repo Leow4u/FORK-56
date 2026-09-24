@@ -935,6 +935,7 @@ export const en: Translations = {
     },
     mcp: {
       loading: 'Loading MCP servers...',
+      deviceHome: 'This device',
       failedLoad: 'MCP config failed to load',
       nameRequiredTitle: 'Name required',
       nameRequiredMessage: 'Give this MCP server a config key.',

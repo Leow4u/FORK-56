@@ -12,6 +12,7 @@ import {
 } from '@work4you/shared'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
+import { addMcpServer } from '@/api/mcp'
 import { type CodeEditorApi } from '@/components/chat/code-editor'
 import { JsonDocumentEditor } from '@/components/chat/json-document-editor'
 import { LogTail } from '@/components/chat/log-tail'
@@ -38,6 +39,7 @@ import { NEEDS_AUTH_RE, PROBE_TTL_MS, probeCache, probeKey, serverFingerprint } 
 import { getServers, isServerShape, type McpServers, normalizeEntry } from '@/lib/mcp-servers'
 import { countEnabledTools, isToolEnabled, toggleToolInServer } from '@/lib/mcp-tool-filter'
 import { cn } from '@/lib/utils'
+import { $connectionsRegistry } from '@/store/connections'
 import { notify, notifyError } from '@/store/notifications'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { $activeSessionId } from '@/store/session'
@@ -74,6 +76,14 @@ import {
   MCP_DIRECTORY_VIEW_IDS,
   type McpDirectoryViewId
 } from './mcp-catalog-chrome'
+import {
+  accountMcpEntries,
+  accountMcpToInstall,
+  accountMcpTokenEnv,
+  mcpIsDeviceServer,
+  readAccountMcp,
+  rememberAccountMcp
+} from './mcp-home'
 
 // The editor always speaks the ecosystem's mcp.json document format — names
 // are the JSON keys, transport is inferred from `command` vs `url` — so any
@@ -494,6 +504,83 @@ export function McpTab({
   }
 
   const servers = useMemo(() => getServers(config ?? null), [config])
+
+  useEffect(() => {
+    const found = accountMcpEntries(servers)
+
+    if (found.length) {
+      rememberAccountMcp(found)
+    }
+
+    const pending = accountMcpToInstall(servers, readAccountMcp())
+    const connections = $connectionsRegistry.get()?.connections ?? []
+
+    if (!pending.length || !connections.length) {
+      return
+    }
+
+    let active = true
+
+    void (async () => {
+      for (const connection of connections) {
+        if (!active || (connection.kind !== 'local' && connection.kind !== 'cloud')) {
+          continue
+        }
+
+        for (const entry of pending) {
+          try {
+            await addMcpServer(
+              {
+                auth: entry.auth,
+                command: entry.command,
+                name: entry.name,
+                url: entry.url
+              },
+              connection.id
+            )
+          } catch {
+            // That connection already has this server.
+          }
+        }
+
+        if (!pending.some(entry => entry.name === 'work4you_apps')) {
+          continue
+        }
+
+        const flag = `work4you.apps-token:${connection.id}`
+
+        if (sessionStorage.getItem(flag)) {
+          continue
+        }
+
+        try {
+          const revealed = await window.work4youDesktop.api<{ value?: string }>({
+            body: { key: accountMcpTokenEnv },
+            method: 'POST',
+            path: '/api/env/reveal'
+          })
+
+          if (!revealed.value) {
+            continue
+          }
+
+          await window.work4youDesktop.api({
+            body: { key: accountMcpTokenEnv, value: revealed.value },
+            connectionId: connection.id,
+            method: 'PUT',
+            path: '/api/env'
+          })
+          sessionStorage.setItem(flag, '1')
+        } catch {
+          // The other runtime keeps its own env until the token can be read.
+        }
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [servers])
 
   // Config/document order, not alphabetical — the list mirrors mcp.json.
   const names = useMemo(() => Object.keys(servers), [servers])
@@ -1300,6 +1387,7 @@ export function McpTab({
                             return (
                               <ConnectorCard
                                 description={app.description || catalogDescription(catalog, app.id, server)}
+                                device={mcpIsDeviceServer(app.id, server)}
                                 displayName={app.name}
                                 key={`${group.id}-${app.id}`}
                                 logo={directoryAppLogoUrl(app)}
@@ -2063,6 +2151,7 @@ function ConnectorCard({
   displayName,
   logo,
   name,
+  device = false,
   onSelect,
   status,
   trailing,
@@ -2073,6 +2162,7 @@ function ConnectorCard({
   displayName?: string
   logo?: string | null
   name: string
+  device?: boolean
   onSelect?: () => void
   status: ServerStatus
   trailing?: ReactNode
@@ -2086,6 +2176,14 @@ function ConnectorCard({
       <span className="min-w-0 truncate text-[0.82rem] font-medium text-foreground/85">
         {displayName ?? prettyName(name)}
       </span>
+      {device ? (
+        <Codicon
+          aria-hidden={false}
+          aria-label={m.deviceHome}
+          className="size-3 shrink-0 text-(--ui-text-tertiary)"
+          name="device-desktop"
+        />
+      ) : null}
       {unused && (
         <span className="shrink-0 rounded bg-(--ui-bg-tertiary) px-1 py-px text-[0.58rem] font-normal text-muted-foreground/60">
           {m.unusedPill}
