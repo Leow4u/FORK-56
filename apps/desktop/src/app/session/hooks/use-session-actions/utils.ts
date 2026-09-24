@@ -6,6 +6,7 @@ import { parseApprovalMode, reconcileApprovalModeForProfile } from '@/store/appr
 import { requestDesktopOnboardingForCredentialWarning } from '@/store/onboarding'
 import { $activeGatewayProfile, $profiles, normalizeProfileKey } from '@/store/profile'
 import {
+  $connection,
   $cronSessions,
   $currentCwd,
   $messagingSessions,
@@ -26,6 +27,7 @@ import {
   setWorkspaceCwdOwner,
   setYoloActive
 } from '@/store/session'
+import { sessionListHomeId } from '@/store/session-homes'
 import { getSession } from '@/work4you'
 
 // Re-exported for the many session-actions/tile call sites that already import
@@ -1240,6 +1242,7 @@ export function upsertOptimisticSession(
   const profileKey = normalizeProfileKey($activeGatewayProfile.get())
 
   const session: SessionInfo = {
+    connection_id: sessionListHomeId($connection.get()),
     // Seed cwd so the grouped sidebar can place the new row in its repo/worktree
     // lane immediately (the overlay groups by path); fall back to the workspace
     // the session was just started in when the create response omits it.
