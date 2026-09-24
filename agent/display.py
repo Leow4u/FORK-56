@@ -641,6 +641,7 @@ _TOOL_VERBS: dict[str, str] = {
     "web_extract": "Reading",
     "browser_navigate": "Browsing",
     "browser_click": "Clicking",
+    "drive_preview": "Using the preview",
     "browser_type": "Typing",
     "read_file": "Reading",
     "write_file": "Writing",

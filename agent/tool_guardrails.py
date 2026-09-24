@@ -48,6 +48,7 @@ MUTATING_TOOL_NAMES = frozenset(
         "memory",
         "skill_manage",
         "browser_click",
+        "drive_preview",
         "browser_type",
         "browser_press",
         "browser_scroll",

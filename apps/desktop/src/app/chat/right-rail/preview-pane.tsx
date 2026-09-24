@@ -27,6 +27,7 @@ import {
 } from './preview-console'
 import { type ConsoleEntry } from './preview-console-state'
 import { previewConsoleState } from './preview-console-store'
+import { $previewDriveMark, previewDriverScript, registerPreviewDriver } from './preview-driver'
 import { LocalFilePreview, PreviewEmptyState } from './preview-file'
 import { PREVIEW_BROWSER_ATTR, registerPreviewNav } from './preview-nav'
 import { registerPreviewPageReader } from './preview-reader'
@@ -39,6 +40,16 @@ type PreviewWebview = HTMLElement & {
   copy?: () => void
   cut?: () => void
   executeJavaScript?: (code: string) => Promise<unknown>
+  sendInputEvent?: (event: {
+    button?: string
+    clickCount?: number
+    deltaX?: number
+    deltaY?: number
+    keyCode?: string
+    type: string
+    x?: number
+    y?: number
+  }) => void
   getTitle?: () => string
   getURL?: () => string
   getWebContentsId?: () => number
@@ -204,6 +215,7 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
   const previewContentRef = useRef<HTMLDivElement | null>(null)
   const webviewRef = useRef<PreviewWebview | null>(null)
   const previewServerRestart = useStore($previewServerRestart)
+  const driveMark = useStore($previewDriveMark)
   const consoleHeight = useStore(consoleState.$height)
   const consoleOpen = useStore(consoleState.$open)
   const [currentUrl, setCurrentUrl] = useState(target.url)
@@ -452,6 +464,62 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
         title: webview.getTitle?.() ?? '',
         url: webview.getURL?.() ?? ''
       }
+    })
+  }, [isWebPreview, tabId])
+
+  // Publish the drive_preview host for this tab: inventory the guest page and
+  // send real pointer and keyboard input into the webview.
+  useEffect(() => {
+    if (!isWebPreview || !tabId) {
+      return
+    }
+
+    return registerPreviewDriver(tabId, {
+      center: () => {
+        const rect = webviewRef.current?.getBoundingClientRect()
+
+        return { x: Math.round((rect?.width || 0) / 2), y: Math.round((rect?.height || 0) / 2) }
+      },
+      history: async action => {
+        const webview = webviewRef.current
+
+        if (action === 'back') {
+          webview?.goBack?.()
+        } else if (action === 'forward') {
+          webview?.goForward?.()
+        } else {
+          webview?.reload?.()
+        }
+      },
+      input: async events => {
+        const webview = webviewRef.current
+
+        for (const event of events) {
+          webview?.sendInputEvent?.(event)
+        }
+      },
+      inventory: async () => {
+        const webview = webviewRef.current
+
+        if (!webview?.executeJavaScript) {
+          throw new Error('preview webview is not ready')
+        }
+
+        const page = await webview.executeJavaScript(previewDriverScript())
+
+        if (!page || typeof page !== 'object') {
+          return { elements: [], title: webview.getTitle?.() ?? '', url: webview.getURL?.() ?? '' }
+        }
+
+        const record = page as { elements?: unknown[]; title?: string; url?: string }
+
+        return {
+          elements: Array.isArray(record.elements) ? record.elements : [],
+          title: record.title || webview.getTitle?.() || '',
+          url: record.url || webview.getURL?.() || ''
+        }
+      },
+      settle: () => new Promise(resolve => window.setTimeout(resolve, 120))
     })
   }, [isWebPreview, tabId])
 
@@ -945,6 +1013,17 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
             )}
             ref={hostRef}
           />
+          {driveMark && driveMark.tabId === tabId && (
+            <div
+              className="pointer-events-none absolute border-2 border-primary"
+              style={{
+                height: driveMark.h,
+                left: driveMark.x,
+                top: driveMark.y,
+                width: driveMark.w
+              }}
+            />
+          )}
           {isRemoteHtml && (
             <iframe
               className="absolute inset-0 size-full border-0 bg-white"

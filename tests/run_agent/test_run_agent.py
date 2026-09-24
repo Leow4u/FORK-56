@@ -2385,6 +2385,7 @@ class TestAgentRuntimePostHookOwnershipSync:
         ("clarify", {"question": "Continue?"}),
         ("read_terminal", {}),
         ("read_preview", {}),
+        ("drive_preview", {"action": "elements"}),
         ("read_window_below", {}),
         ("setup_mcp", {"server": "linear", "action": "install"}),
         ("tour", {"action": "stop"}),
@@ -2429,6 +2430,10 @@ class TestAgentRuntimePostHookOwnershipSync:
         )
         monkeypatch.setattr(
             "tools.read_preview_tool.read_preview_tool",
+            lambda **kwargs: '{"ok":true}',
+        )
+        monkeypatch.setattr(
+            "tools.drive_preview_tool.drive_preview_tool",
             lambda **kwargs: '{"ok":true}',
         )
         monkeypatch.setattr(
