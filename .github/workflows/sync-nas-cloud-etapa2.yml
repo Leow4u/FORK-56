@@ -177,6 +177,8 @@ jobs:
           cp cloud/nas-sync/src/portal/lib/last-used-provider.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/sync-profile.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/login-email-code.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/oauth-authorize.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/privy-public-app-id.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/components/AuthProviderIcons.tsx nas/src/portal/components/
           cp cloud/nas-sync/src/portal/components/EmailCodeBoxes.tsx nas/src/portal/components/
           mkdir -p nas/public/brand
@@ -187,6 +189,10 @@ jobs:
           cp cloud/nas-sync/src/portal/pages/LoginPage.module.css nas/src/portal/pages/
           cp cloud/nas-sync/src/portal/pages/DeviceApprovePage.tsx nas/src/portal/pages/
           cp cloud/nas-sync/src/portal/pages/DeviceApprovePage.module.css nas/src/portal/pages/
+          cp cloud/nas-sync/src/portal/pages/OAuthAuthorizePage.tsx nas/src/portal/pages/
+          cp cloud/nas-sync/src/portal/pages/OAuthAuthorizePage.module.css nas/src/portal/pages/
+          mkdir -p nas/src/app/oauth/authorize
+          cp cloud/nas-sync/src/app/oauth/authorize/page.tsx nas/src/app/oauth/authorize/
           cp cloud/nas-sync/src/portal/pages/org/CloudPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.module.css nas/src/portal/pages/org/
@@ -250,6 +256,8 @@ jobs:
             src/portal/lib/last-used-provider.ts \
             src/portal/lib/sync-profile.ts \
             src/portal/lib/login-email-code.ts \
+            src/portal/lib/oauth-authorize.ts \
+            src/portal/lib/privy-public-app-id.ts \
             src/portal/components/AuthProviderIcons.tsx \
             src/portal/components/EmailCodeBoxes.tsx \
             public/brand/work4you-favicon-transparent-1024.png \
@@ -259,6 +267,9 @@ jobs:
             src/portal/pages/LoginPage.module.css \
             src/portal/pages/DeviceApprovePage.tsx \
             src/portal/pages/DeviceApprovePage.module.css \
+            src/portal/pages/OAuthAuthorizePage.tsx \
+            src/portal/pages/OAuthAuthorizePage.module.css \
+            src/app/oauth/authorize/page.tsx \
             src/portal/pages/org/CloudPage.tsx \
             src/portal/pages/org/LocalDashboardsPage.tsx \
             src/portal/pages/org/LocalDashboardsPage.module.css \
