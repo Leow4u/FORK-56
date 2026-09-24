@@ -830,7 +830,6 @@ export async function ensureOrgCloudInstance(args: {
   | { ok: false; error: 'paid_plan_required' }
   | { ok: true; created: boolean; agent: AgentDto }
 > {
-  let createdAgent: AgentDto | null = null
   let resumedAgent: AgentDto | null = null
   let resizedAgent: AgentDto | null = null
   let parkedAgent: AgentDto | null = null
@@ -850,7 +849,6 @@ export async function ensureOrgCloudInstance(args: {
         size,
         model,
       })
-      createdAgent = agent
       return {
         id: agent.id,
         createdAt: agent.createdAt,
@@ -945,11 +943,9 @@ export async function ensureOrgCloudInstance(args: {
   }
 
   if (result.created) {
-    const agent = createdAgent
-    if (!agent || agent.id !== result.instance.id) {
-      throw new Error('cloud_instance_missing')
-    }
-    return { ok: true, created: true, agent: await stamp(agent) }
+    const row = await getAgent(args.org.id, result.instance.id)
+    if (!row) throw new Error('cloud_instance_missing')
+    return { ok: true, created: true, agent: await stamp(toAgentDto(row)) }
   }
 
   const row = await getAgent(args.org.id, result.instance.id)
