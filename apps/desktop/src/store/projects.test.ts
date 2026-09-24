@@ -59,7 +59,7 @@ vi.mock('@/store/notifications', () => ({
 vi.mock('@/lib/desktop-fs', () => ({
   desktopDefaultCwd: vi.fn(),
   isDesktopFsRemoteMode: vi.fn(),
-  selectDesktopPaths: vi.fn(),
+  selectLocalDesktopPaths: vi.fn(),
   writeDesktopFileText: vi.fn()
 }))
 
@@ -82,9 +82,8 @@ vi.mock('@/work4you', () => ({
 }))
 
 const fs = await import('@/lib/desktop-fs')
-const desktopDefaultCwd = vi.mocked(fs.desktopDefaultCwd)
 const isDesktopFsRemoteMode = vi.mocked(fs.isDesktopFsRemoteMode)
-const selectDesktopPaths = vi.mocked(fs.selectDesktopPaths)
+const selectLocalDesktopPaths = vi.mocked(fs.selectLocalDesktopPaths)
 
 const gw = await import('@/store/gateway')
 const activeGateway = vi.mocked(gw.activeGateway)
@@ -494,30 +493,25 @@ describe('pickProjectFolder', () => {
     vi.clearAllMocks()
   })
 
-  it('uses the remote-aware directory picker locally', async () => {
+  it('uses the computer directory picker locally', async () => {
     isDesktopFsRemoteMode.mockReturnValue(false)
-    selectDesktopPaths.mockResolvedValue(['/local/repo'])
+    selectLocalDesktopPaths.mockResolvedValue(['/local/repo'])
 
     await expect(pickProjectFolder()).resolves.toBe('/local/repo')
-    expect(selectDesktopPaths).toHaveBeenCalledWith({ defaultPath: undefined, directories: true, multiple: false })
+    expect(selectLocalDesktopPaths).toHaveBeenCalledWith({ directories: true, multiple: false })
   })
 
-  it('seeds the picker with the backend cwd on a remote gateway', async () => {
+  it('keeps the computer directory picker when the agent is in the cloud', async () => {
     isDesktopFsRemoteMode.mockReturnValue(true)
-    desktopDefaultCwd.mockResolvedValue({ branch: 'main', cwd: '/backend/work' })
-    selectDesktopPaths.mockResolvedValue(['/backend/work/repo'])
+    selectLocalDesktopPaths.mockResolvedValue(['C:\\Empresas\\DUTELOG'])
 
-    await expect(pickProjectFolder()).resolves.toBe('/backend/work/repo')
-    expect(selectDesktopPaths).toHaveBeenCalledWith({
-      defaultPath: '/backend/work',
-      directories: true,
-      multiple: false
-    })
+    await expect(pickProjectFolder()).resolves.toBe('C:\\Empresas\\DUTELOG')
+    expect(selectLocalDesktopPaths).toHaveBeenCalledWith({ directories: true, multiple: false })
   })
 
   it('returns null when the picker is cancelled (empty selection)', async () => {
     isDesktopFsRemoteMode.mockReturnValue(false)
-    selectDesktopPaths.mockResolvedValue([])
+    selectLocalDesktopPaths.mockResolvedValue([])
 
     await expect(pickProjectFolder()).resolves.toBeNull()
   })
@@ -572,6 +566,7 @@ describe('createProject', () => {
 describe('projects RPC capability', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
     $projectsRpcAvailable.set(null)
   })
 
@@ -715,6 +710,10 @@ describe('repository discovery policy', () => {
 })
 
 describe('project tree profile isolation', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
   it('does not publish a late response from the previous profile', async () => {
     let resolveA: ((value: unknown) => void) | undefined
 

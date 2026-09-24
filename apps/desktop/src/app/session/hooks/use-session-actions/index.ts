@@ -5,7 +5,9 @@ import type { NavigateFunction } from 'react-router'
 import { graftRefreshedTailOntoBackfill } from '@/app/chat/transcript-backfill'
 import { revealTreePane } from '@/components/pane-shell/tree/store'
 import { useI18n } from '@/i18n'
+import { isComputerProjectPath } from '@/lib/attached-folder'
 import { type ChatMessage, preserveLocalAssistantErrors, toChatMessages } from '@/lib/chat-messages'
+import { deliverLocalFolder } from '@/lib/desktop-fs'
 import { isMissingRpcMethod } from '@/lib/gateway-rpc'
 import { recoverInFlightTurnJournal } from '@/lib/inflight-turn-journal'
 import { setSessionApprovalMode } from '@/lib/session-approval'
@@ -37,6 +39,7 @@ import {
 import { setApprovalRequest } from '@/store/prompts'
 import {
   $activeSessionStoredIdRotation,
+  $connection,
   $currentCwd,
   $currentFastMode,
   $currentModel,
@@ -207,10 +210,22 @@ async function desktopSessionCreateParams(cwd: string): Promise<Record<string, u
   const profile = $newChatProfile.get() ?? normalizeProfileKey($activeGatewayProfile.get())
   await ensureGatewayProfile(profile)
 
+  const connection = $connection.get()
+  let sessionCwd = cwd
+
+  if (
+    sessionCwd &&
+    connection?.mode === 'remote' &&
+    connection.remoteKind === 'cloud' &&
+    isComputerProjectPath(sessionCwd)
+  ) {
+    sessionCwd = (await deliverLocalFolder(sessionCwd)) || ''
+  }
+
   return {
     cols: 96,
     source: 'desktop',
-    ...(cwd && { cwd }),
+    ...(sessionCwd && { cwd: sessionCwd }),
     ...(profile ? { profile } : {}),
     ...(selection.model
       ? { model: selection.model, ...(selection.provider ? { provider: selection.provider } : {}) }

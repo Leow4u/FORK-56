@@ -1576,6 +1576,7 @@ from work4you_cli.web_models import (  # noqa: F401
     _MoaReferenceControls,
     MoaPresetPayload,
     MoaConfigPayload,
+    FsAttachFolder,
     FsWriteText,
     GitPathBody,
     GitFileBody,
@@ -2979,6 +2980,24 @@ async def fs_read_text(path: str):
         "text": data.decode("utf-8", errors="replace"),
         "truncated": st.st_size > _FS_TEXT_PREVIEW_MAX_BYTES,
     }
+
+
+@app.post("/api/fs/attach-folder")
+async def fs_attach_folder(payload: FsAttachFolder):
+    """Write one attached computer folder under the profile home.
+
+    The desktop already filtered the tree to that folder. This endpoint only
+    creates files inside ``$WORK4YOU_HOME/attached/<folder_key>``.
+    """
+    from work4you_cli.attached_folder import write_attachment
+    from work4you_constants import get_work4you_home
+
+    dest = write_attachment(
+        get_work4you_home(),
+        payload.folder_key,
+        [(item.path, item.content or "") for item in payload.files],
+    )
+    return {"ok": True, "path": str(dest)}
 
 
 @app.post("/api/fs/write-text")

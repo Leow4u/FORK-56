@@ -4,6 +4,7 @@ import type {
   Work4YouReadFileTextResult,
   Work4YouSelectPathsOptions
 } from '@/global'
+import { attachmentFolderKey, safeAttachRelative } from '@/lib/attached-folder'
 import { $connection } from '@/store/session'
 
 export interface DesktopFsRemotePicker {
@@ -197,6 +198,75 @@ export async function desktopFileDiff(repoRoot: string, filePath: string): Promi
   const git = bridge().git
 
   return git?.fileDiff ? git.fileDiff(repoRoot, filePath) : ''
+}
+
+/** Directory picker for this computer. Project folders never browse the hosted machine. */
+export async function selectLocalDesktopPaths(options?: Work4YouSelectPathsOptions): Promise<string[]> {
+  return bridge().selectPaths(options)
+}
+
+const ATTACH_MAX_FILES = 200
+const ATTACH_MAX_DEPTH = 6
+
+async function collectLocalFiles(
+  root: string,
+  dir: string,
+  depth: number,
+  files: Array<{ content: string; path: string }>
+): Promise<void> {
+  if (depth > ATTACH_MAX_DEPTH || files.length >= ATTACH_MAX_FILES) {
+    return
+  }
+
+  const listed = await bridge().readDir(dir)
+
+  for (const entry of listed.entries ?? []) {
+    if (files.length >= ATTACH_MAX_FILES) {
+      return
+    }
+
+    if (entry.isDirectory) {
+      await collectLocalFiles(root, entry.path, depth + 1, files)
+
+      continue
+    }
+
+    const rel = safeAttachRelative(root, entry.path)
+
+    if (!rel) {
+      continue
+    }
+
+    try {
+      const text = await bridge().readFileText(entry.path)
+
+      if (!text.binary && typeof text.text === 'string') {
+        files.push({ content: text.text, path: rel })
+      }
+    } catch {
+      // Skip files this computer cannot read as text.
+    }
+  }
+}
+
+/** Copy one computer folder to the cloud machine and return the remote path. */
+export async function deliverLocalFolder(localPath: string): Promise<string | null> {
+  const root = localPath.trim()
+
+  if (!root || !isDesktopFsRemoteMode()) {
+    return null
+  }
+
+  const files: Array<{ content: string; path: string }> = []
+
+  await collectLocalFiles(root, root, 0, files)
+
+  const result = await remoteFsApi<{ path?: string }>('/api/fs/attach-folder', {
+    files,
+    folder_key: attachmentFolderKey(root)
+  })
+
+  return result.path || null
 }
 
 export async function selectDesktopPaths(options?: Work4YouSelectPathsOptions): Promise<string[]> {

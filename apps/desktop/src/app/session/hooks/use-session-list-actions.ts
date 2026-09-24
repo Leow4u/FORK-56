@@ -37,6 +37,11 @@ import {
   setSessions,
   setSessionsLoading
 } from '@/store/session'
+import {
+  $sessionListHomeId,
+  retainForeignSessionHomes,
+  tagSessionHomes
+} from '@/store/session-homes'
 import { $workingSessionIds, getRecentlySettledSessionIds } from '@/store/session-states'
 import { listAllProfileSessions, listSidebarSessions, type SessionInfo } from '@/work4you'
 
@@ -310,17 +315,25 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
         // in-flight mutation and the backend page still carries the doomed row.
         // Honoring the optimistic tombstone keeps the removal from flashing back
         // (the tombstone self-clears once projects.tree confirms the delete).
-        const incoming = dropTombstoned(recents.sessions)
+        const homeId = $activeConnectionId.get()
+        const incoming = tagSessionHomes(dropTombstoned(recents.sessions), homeId)
+        const previousHome = $sessionListHomeId.get()
 
         // Signature-gate the swap (same pattern as cron/messaging): a refresh
         // that returns content-identical rows must keep the previous array
         // identity, or every sidebar memo keyed on $sessions recomputes and the
         // whole list re-renders once per turn/broadcast for nothing.
         setSessions(prev => {
-          const next = mergeSessionPage(prev, incoming, sessionsToKeep())
+          const taggedPrev = tagSessionHomes(prev, previousHome)
+          const next = retainForeignSessionHomes(taggedPrev, mergeSessionPage(taggedPrev, incoming, sessionsToKeep()))
 
           return sameCronSignature(prev, next) ? prev : next
         })
+
+        if (homeId) {
+          $sessionListHomeId.set(homeId)
+        }
+
         // "Is there another page?" instead of an exact total: the backend
         // reports which profiles filled their window, which costs nothing on
         // top of the rows it already read (the old exact totals ran a COUNT(*)

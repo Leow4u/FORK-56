@@ -57,10 +57,10 @@ describe('wipeSessionListsForGatewaySwitch', () => {
     $gatewaySwitching.set(false)
   })
 
-  it('clears lists and arms loading so sidebar skeletons retrigger', () => {
+  it('clears cron and keeps chat and messaging rows across a connection switch', () => {
     wipeSessionListsForGatewaySwitch()
 
-    expect($sessions.get()).toEqual([])
+    expect($sessions.get()).toEqual([{ id: 's1', title: 'old', profile: 'default' }])
     expect($sessionProfilesTruncated.get()).toEqual({})
     expect($cronSessions.get()).toEqual([])
     expect($messagingSessions.get()).toEqual([{ id: 'm1', title: 'tg', profile: 'default' }])

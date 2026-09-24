@@ -12,6 +12,7 @@ import {
   readDesktopFileDataUrlLocalFirst,
   readDesktopFileText,
   selectDesktopPaths,
+  selectLocalDesktopPaths,
   setDesktopFsRemotePicker
 } from './desktop-fs'
 
@@ -234,5 +235,16 @@ describe('desktop filesystem facade', () => {
 
     expect(remoteSelect).toHaveBeenCalledWith({ directories: true, multiple: false })
     expect(selectPaths).not.toHaveBeenCalled()
+  })
+
+  it('keeps project folder selection on this computer while the agent is remote', async () => {
+    const remoteSelect = vi.fn(async () => ['/opt/work4you'])
+    $connection.set({ mode: 'remote', remoteKind: 'cloud' } as never)
+    setDesktopFsRemotePicker({ selectPaths: remoteSelect })
+
+    await expect(selectLocalDesktopPaths({ directories: true, multiple: false })).resolves.toEqual(['/local'])
+
+    expect(selectPaths).toHaveBeenCalledWith({ directories: true, multiple: false })
+    expect(remoteSelect).not.toHaveBeenCalled()
   })
 })
