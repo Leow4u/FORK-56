@@ -2890,6 +2890,7 @@ export const zh: Translations = {
     topOfHour: '每个整点',
     everyHourAt: minute => `每小时的 :${minute}`,
     newCron: '新建定时任务',
+    untitled: '无标题',
     emptyDescNew: '按 cron 表达式排程一个提示词。Work4You 会运行它，并把结果发送到你选择的目的地。',
     emptyDescSearch: '尝试更宽泛的搜索词。',
     emptyTitleNew: '暂无排程任务',

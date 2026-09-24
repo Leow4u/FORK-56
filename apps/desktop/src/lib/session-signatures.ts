@@ -30,7 +30,10 @@ export function sameCronSignature(a: SessionInfo[], b: SessionInfo[]): boolean {
       // frozen copy forever. An idle conversation never moves any of the
       // fields above again, which is exactly when a pin gets toggled (#76919).
       session.pinned === other.pinned &&
-      session.archived === other.archived
+      session.archived === other.archived &&
+      // Home is row state: the sidebar mark and which runtime opens the chat
+      // both read connection_id. A stamp-only refresh has to land in the atom.
+      session.connection_id === other.connection_id
     )
   })
 }

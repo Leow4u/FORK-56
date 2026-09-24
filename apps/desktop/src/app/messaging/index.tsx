@@ -656,19 +656,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
             <span className="truncate font-medium text-foreground">{selected.name}</span>
           </div>
           <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
-            <DetailColumn
-              actionBar={
-                <PlatformActionBar
-                  hasEdits={Object.keys(trimEdits(edits[selected.id] || {})).length > 0}
-                  onSave={() => void handleSave(selected)}
-                  onTest={() => void handleTest(selected)}
-                  onToggle={enabled => void handleToggle(selected, enabled)}
-                  platform={selected}
-                  saving={saving}
-                  showSave={!QUICK_SETUP_PLATFORMS.has(selected.id) || Object.keys(trimEdits(edits[selected.id] || {})).length > 0}
-                />
-              }
-            >
+            <DetailColumn>
               <PlatformDetail
                 approved={approvedByPlatform[selected.id] ?? []}
                 approving={approving}
@@ -701,6 +689,19 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                 saving={saving}
                 scopeProfile={scopeProfile}
               />
+              <div className="flex flex-wrap items-center gap-2">
+                <PlatformActionBar
+                  hasEdits={Object.keys(trimEdits(edits[selected.id] || {})).length > 0}
+                  onSave={() => void handleSave(selected)}
+                  onTest={() => void handleTest(selected)}
+                  onToggle={enabled => void handleToggle(selected, enabled)}
+                  platform={selected}
+                  saving={saving}
+                  showSave={
+                    !QUICK_SETUP_PLATFORMS.has(selected.id) || Object.keys(trimEdits(edits[selected.id] || {})).length > 0
+                  }
+                />
+              </div>
             </DetailColumn>
           </div>
         </div>

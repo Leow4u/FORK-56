@@ -57,7 +57,6 @@ import {
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { openSession } from '../open-session'
-import { CRON_NEW_ROUTE, CRON_ROUTE } from '../routes'
 import {
   PanelAction,
   PanelAddButton,
@@ -74,6 +73,7 @@ import {
   type PanelPillTone,
   PanelSectionLabel
 } from '../overlays/panel'
+import { CRON_NEW_ROUTE, CRON_ROUTE } from '../routes'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
 import { BlueprintSlotControl, blueprintSlotHelp, cleanBlueprintFieldError, initialBlueprintValues } from './blueprints'
