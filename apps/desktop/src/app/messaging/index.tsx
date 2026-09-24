@@ -3,12 +3,12 @@ import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
+import { composerPanelCard } from '@/components/chat/composer-dock'
 import { PageLoader } from '@/components/page-loader'
 import { StatusDot, type StatusTone } from '@/components/status-dot'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DisclosureCaret } from '@/components/ui/disclosure-caret'
-import { composerPanelCard } from '@/components/chat/composer-dock'
 import { ErrorBanner } from '@/components/ui/error-state'
 import { Field, FieldHint } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -698,7 +698,8 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                   platform={selected}
                   saving={saving}
                   showSave={
-                    !QUICK_SETUP_PLATFORMS.has(selected.id) || Object.keys(trimEdits(edits[selected.id] || {})).length > 0
+                    !QUICK_SETUP_PLATFORMS.has(selected.id) ||
+                    Object.keys(trimEdits(edits[selected.id] || {})).length > 0
                   }
                 />
               </div>
@@ -752,7 +753,11 @@ function PlatformCard({
   const m = t.messaging
 
   return (
-    <button className={cn(composerPanelCard, 'flex w-full items-start gap-3 p-3 text-left')} onClick={onSelect} type="button">
+    <button
+      className={cn(composerPanelCard, 'flex w-full items-start gap-3 p-3 text-left')}
+      onClick={onSelect}
+      type="button"
+    >
       <PlatformAvatar platformId={platform.id} platformName={platform.name} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
@@ -1016,112 +1021,112 @@ function PlatformDetail({
       )}
 
       {(!quickSetup || showManual) && (
-      <>
-      <section>
-        <SectionTitle>{m.getCredentials}</SectionTitle>
-        <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-          {introCopy(platform, m)}
-        </p>
-        {platform.docs_url && (
-          <div className="mt-3">
-            <Button asChild size="sm" variant="textStrong">
-              <a
-                href={platform.docs_url}
-                onClick={event => {
-                  // Route through the validated external opener instead of
-                  // letting Electron resolve the anchor. A packaged build's
-                  // empty/relative href resolves to the app's own
-                  // index.html file path, which shell.openPath then fails to
-                  // open ("file not found"). Plugin platforms (Teams, etc.)
-                  // ship no docs_url, so this guard + handler keeps the
-                  // button from ever pointing at a local bundle path.
-                  event.preventDefault()
-                  openExternalLink(platform.docs_url)
-                }}
-                rel="noreferrer"
-                target="_blank"
-              >
-                {m.openSetupGuide}
-                <ExternalLink className="size-3.5" />
-              </a>
-            </Button>
-          </div>
-        )}
-      </section>
-
-      <section>
-        <SectionTitle>{m.required}</SectionTitle>
-        <div className="mt-3 grid gap-1">
-          {requiredFields.length > 0 ? (
-            requiredFields.map(field => (
-              <MessagingField
-                current={currentFieldValue(field)}
-                edits={edits}
-                error={fieldErrors[field.key]}
-                field={field}
-                key={field.key}
-                onClear={onClear}
-                onEdit={onEdit}
-                saving={saving}
-              />
-            ))
-          ) : (
-            <p className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-              {m.noTokenNeeded}
+        <>
+          <section>
+            <SectionTitle>{m.getCredentials}</SectionTitle>
+            <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+              {introCopy(platform, m)}
             </p>
-          )}
-        </div>
-      </section>
+            {platform.docs_url && (
+              <div className="mt-3">
+                <Button asChild size="sm" variant="textStrong">
+                  <a
+                    href={platform.docs_url}
+                    onClick={event => {
+                      // Route through the validated external opener instead of
+                      // letting Electron resolve the anchor. A packaged build's
+                      // empty/relative href resolves to the app's own
+                      // index.html file path, which shell.openPath then fails to
+                      // open ("file not found"). Plugin platforms (Teams, etc.)
+                      // ship no docs_url, so this guard + handler keeps the
+                      // button from ever pointing at a local bundle path.
+                      event.preventDefault()
+                      openExternalLink(platform.docs_url)
+                    }}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {m.openSetupGuide}
+                    <ExternalLink className="size-3.5" />
+                  </a>
+                </Button>
+              </div>
+            )}
+          </section>
 
-      {optionalFields.length > 0 && (
-        <section>
-          <SectionTitle>{m.recommended}</SectionTitle>
-          <div className="mt-3 grid gap-1">
-            {optionalFields.map(field => (
-              <MessagingField
-                current={currentFieldValue(field)}
-                edits={edits}
-                error={fieldErrors[field.key]}
-                field={field}
-                key={field.key}
-                onClear={onClear}
-                onEdit={onEdit}
-                saving={saving}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {hiddenCount > 0 && (
-        <section>
-          <button
-            className={cn('flex w-full items-center justify-between gap-2 py-0.5 text-left', CHANNEL_LABEL)}
-            onClick={() => setShowAdvanced(value => !value)}
-            type="button"
-          >
-            <span>{m.advanced(hiddenCount)}</span>
-            <DisclosureCaret open={showAdvanced} size="0.875rem" />
-          </button>
-          {showAdvanced && (
+          <section>
+            <SectionTitle>{m.required}</SectionTitle>
             <div className="mt-3 grid gap-1">
-              {advancedFields.map(field => (
-                <MessagingField
-                  current={currentFieldValue(field)}
-                  edits={edits}
-                  error={fieldErrors[field.key]}
-                  field={field}
-                  key={field.key}
-                  onClear={onClear}
-                  onEdit={onEdit}
-                  saving={saving}
-                />
-              ))}
+              {requiredFields.length > 0 ? (
+                requiredFields.map(field => (
+                  <MessagingField
+                    current={currentFieldValue(field)}
+                    edits={edits}
+                    error={fieldErrors[field.key]}
+                    field={field}
+                    key={field.key}
+                    onClear={onClear}
+                    onEdit={onEdit}
+                    saving={saving}
+                  />
+                ))
+              ) : (
+                <p className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+                  {m.noTokenNeeded}
+                </p>
+              )}
             </div>
+          </section>
+
+          {optionalFields.length > 0 && (
+            <section>
+              <SectionTitle>{m.recommended}</SectionTitle>
+              <div className="mt-3 grid gap-1">
+                {optionalFields.map(field => (
+                  <MessagingField
+                    current={currentFieldValue(field)}
+                    edits={edits}
+                    error={fieldErrors[field.key]}
+                    field={field}
+                    key={field.key}
+                    onClear={onClear}
+                    onEdit={onEdit}
+                    saving={saving}
+                  />
+                ))}
+              </div>
+            </section>
           )}
-        </section>
-      )}
-      </>
+
+          {hiddenCount > 0 && (
+            <section>
+              <button
+                className={cn('flex w-full items-center justify-between gap-2 py-0.5 text-left', CHANNEL_LABEL)}
+                onClick={() => setShowAdvanced(value => !value)}
+                type="button"
+              >
+                <span>{m.advanced(hiddenCount)}</span>
+                <DisclosureCaret open={showAdvanced} size="0.875rem" />
+              </button>
+              {showAdvanced && (
+                <div className="mt-3 grid gap-1">
+                  {advancedFields.map(field => (
+                    <MessagingField
+                      current={currentFieldValue(field)}
+                      edits={edits}
+                      error={fieldErrors[field.key]}
+                      field={field}
+                      key={field.key}
+                      onClear={onClear}
+                      onEdit={onEdit}
+                      saving={saving}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+        </>
       )}
     </>
   )
@@ -1310,11 +1315,7 @@ function MessagingField({
           </Tip>
         )}
       </div>
-      {(copy.help || error) && (
-        <FieldHint error={Boolean(error)}>
-          {error || copy.help}
-        </FieldHint>
-      )}
+      {(copy.help || error) && <FieldHint error={Boolean(error)}>{error || copy.help}</FieldHint>}
     </Field>
   )
 }

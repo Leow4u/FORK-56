@@ -36,10 +36,7 @@ function agentLabel(result: DesktopCloudDiscoverResult, remoteUrl: string): stri
   return agent?.name.trim() || remoteUrl
 }
 
-async function connectPaidCloud(
-  desktop: PaidCloudEntryDesktop,
-  org?: string
-): Promise<DesktopConnectionConfig | null> {
+async function connectPaidCloud(desktop: PaidCloudEntryDesktop, org?: string): Promise<DesktopConnectionConfig | null> {
   const status = await desktop.cloud.status()
 
   if (!status.signedIn) {

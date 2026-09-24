@@ -362,9 +362,7 @@ export function WhatsAppQuickSetup({
 
       <div className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-3">
         <div>
-          <span className="text-xs font-medium normal-case tracking-normal text-foreground">
-            {q.modeLabel}
-          </span>
+          <span className="text-xs font-medium normal-case tracking-normal text-foreground">{q.modeLabel}</span>
           <div className="mt-1.5 flex items-center gap-1.5">
             <Button
               disabled={phase !== 'idle' && phase !== 'connected'}

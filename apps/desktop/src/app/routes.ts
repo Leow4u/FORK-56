@@ -29,6 +29,7 @@ export function messagingPlatformId(pathname: string): string | null {
 
   return id && !id.includes('/') ? decodeURIComponent(id) : null
 }
+
 export const WEBHOOKS_ROUTE = '/webhooks'
 export const ARTIFACTS_ROUTE = '/artifacts'
 export const CRON_ROUTE = '/cron'

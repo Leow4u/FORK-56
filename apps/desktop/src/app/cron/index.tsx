@@ -658,7 +658,7 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
         <PageLoader label={c.loading} />
       ) : totalCount === 0 && visibleBlueprints.length === 0 ? (
         <PanelEmpty
-            action={
+          action={
             <Button onClick={() => navigate(CRON_NEW_ROUTE)} size="sm">
               {c.newCron}
             </Button>
@@ -1246,193 +1246,193 @@ function CronEditorDialog({
     <>
       {header}
 
-        {!isEdit && blueprintList.length > 0 && (
-          <Field htmlFor="cron-template" label={c.blueprints.startFrom}>
-            <Select onValueChange={setTemplateChoice} value={templateChoice}>
-              <SelectTrigger className="h-9 rounded-md" id="cron-template">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={CUSTOM_TEMPLATE}>{c.blueprints.custom}</SelectItem>
-                {blueprintList.map(item => (
-                  <SelectItem key={item.key} value={item.key}>
-                    {item.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {blueprint?.description && <FieldHint>{blueprint.description}</FieldHint>}
-          </Field>
-        )}
+      {!isEdit && blueprintList.length > 0 && (
+        <Field htmlFor="cron-template" label={c.blueprints.startFrom}>
+          <Select onValueChange={setTemplateChoice} value={templateChoice}>
+            <SelectTrigger className="h-9 rounded-md" id="cron-template">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={CUSTOM_TEMPLATE}>{c.blueprints.custom}</SelectItem>
+              {blueprintList.map(item => (
+                <SelectItem key={item.key} value={item.key}>
+                  {item.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {blueprint?.description && <FieldHint>{blueprint.description}</FieldHint>}
+        </Field>
+      )}
 
-        {isBlueprint && blueprint ? (
-          <form className="grid gap-4" onSubmit={handleBlueprintSubmit}>
-            {blueprint.fields.map(field => {
-              const fieldId = `blueprint-${blueprint.key}-${field.name}`
-              const help = blueprintSlotHelp(field)
+      {isBlueprint && blueprint ? (
+        <form className="grid gap-4" onSubmit={handleBlueprintSubmit}>
+          {blueprint.fields.map(field => {
+            const fieldId = `blueprint-${blueprint.key}-${field.name}`
+            const help = blueprintSlotHelp(field)
 
-              return (
-                <Field htmlFor={fieldId} key={field.name} label={field.label}>
-                  {field.name === 'deliver' ? (
-                    // Use the shared, backend-sourced delivery targets (same as the
-                    // manual editor) rather than the blueprint's static field.options,
-                    // so both dialogs offer exactly the connected platforms.
-                    <DeliverCheckboxes
-                      c={c}
-                      id={fieldId}
-                      onChange={next => setSlotValues(prev => ({ ...prev, [field.name]: next }))}
-                      targets={deliveryTargets.data ?? []}
-                      value={slotValues[field.name] ?? DEFAULT_DELIVER}
-                    />
-                  ) : (
-                    <BlueprintSlotControl
-                      field={field}
-                      id={fieldId}
-                      onChange={next => setSlotValues(prev => ({ ...prev, [field.name]: next }))}
-                      value={slotValues[field.name] ?? ''}
-                    />
-                  )}
-                  {help && <FieldHint>{help}</FieldHint>}
-                </Field>
-              )
-            })}
-
-            {error && (
-              <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <DialogFooter>
-              <Button disabled={saving} onClick={onClose} type="button" variant="outline">
-                {t.common.cancel}
-              </Button>
-              <Button disabled={saving} type="submit">
-                {saving ? c.blueprints.scheduling : c.blueprints.scheduleIt}
-              </Button>
-            </DialogFooter>
-          </form>
-        ) : (
-          <form className="grid gap-4" onSubmit={handleSubmit}>
-            {scriptOnlyJob && initial && (
-              <FieldHint>
-                {c.scriptOnlyEditHint} <span className="font-mono">{initial.id}</span>
-              </FieldHint>
-            )}
-
-            <Field htmlFor="cron-name" label={c.nameLabel} optional optionalLabel={c.optional}>
-              <Input
-                autoFocus
-                id="cron-name"
-                onChange={event => setName(event.target.value)}
-                placeholder={c.namePlaceholder}
-                value={name}
-              />
-            </Field>
-
-            <Field htmlFor="cron-prompt" label={c.promptLabel} optional={scriptOnlyJob} optionalLabel={c.optional}>
-              <Textarea
-                className="min-h-24 font-mono"
-                id="cron-prompt"
-                onChange={event => setPrompt(event.target.value)}
-                placeholder={c.promptPlaceholder}
-                value={prompt}
-              />
-            </Field>
-
-            <div className="grid items-start gap-4 sm:grid-cols-2">
-              <Field htmlFor="cron-frequency" label={c.frequencyLabel}>
-                <Select onValueChange={handleSchedulePresetChange} value={schedulePreset}>
-                  <SelectTrigger className="h-9 rounded-md" id="cron-frequency">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SCHEDULE_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {c.scheduleLabels[option.value]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            return (
+              <Field htmlFor={fieldId} key={field.name} label={field.label}>
+                {field.name === 'deliver' ? (
+                  // Use the shared, backend-sourced delivery targets (same as the
+                  // manual editor) rather than the blueprint's static field.options,
+                  // so both dialogs offer exactly the connected platforms.
+                  <DeliverCheckboxes
+                    c={c}
+                    id={fieldId}
+                    onChange={next => setSlotValues(prev => ({ ...prev, [field.name]: next }))}
+                    targets={deliveryTargets.data ?? []}
+                    value={slotValues[field.name] ?? DEFAULT_DELIVER}
+                  />
+                ) : (
+                  <BlueprintSlotControl
+                    field={field}
+                    id={fieldId}
+                    onChange={next => setSlotValues(prev => ({ ...prev, [field.name]: next }))}
+                    value={slotValues[field.name] ?? ''}
+                  />
+                )}
+                {help && <FieldHint>{help}</FieldHint>}
               </Field>
+            )
+          })}
 
-              <Field htmlFor="cron-deliver" label={c.deliverLabel}>
-                <DeliverCheckboxes
-                  c={c}
-                  id="cron-deliver"
-                  onChange={setDeliver}
-                  targets={deliveryTargets.data ?? []}
-                  value={deliver}
-                />
-              </Field>
+          {error && (
+            <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+              <span>{error}</span>
             </div>
+          )}
 
-            {!scriptOnlyJob && (
-              <Field htmlFor="cron-model" label={c.modelLabel} optional optionalLabel={c.optional}>
-                <Select onValueChange={setModelChoice} value={modelChoice}>
-                  <SelectTrigger className="h-9 rounded-md" id="cron-model">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={MODEL_DEFAULT_VALUE}>{c.modelDefault}</SelectItem>
-                    {!modelChoiceKnown && (
-                      <SelectItem value={modelChoice}>
-                        {displayModelName(modelChoice.slice(modelChoice.indexOf(':') + 1))}
-                      </SelectItem>
-                    )}
-                    {modelProviders.map(provider => (
-                      <SelectGroup key={provider.slug}>
-                        <SelectLabel>{provider.name}</SelectLabel>
-                        {(provider.models ?? []).map(model => (
-                          <SelectItem key={`${provider.slug}:${model}`} value={`${provider.slug}:${model}`}>
-                            {displayModelName(model)}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            )}
+          <DialogFooter>
+            <Button disabled={saving} onClick={onClose} type="button" variant="outline">
+              {t.common.cancel}
+            </Button>
+            <Button disabled={saving} type="submit">
+              {saving ? c.blueprints.scheduling : c.blueprints.scheduleIt}
+            </Button>
+          </DialogFooter>
+        </form>
+      ) : (
+        <form className="grid gap-4" onSubmit={handleSubmit}>
+          {scriptOnlyJob && initial && (
+            <FieldHint>
+              {c.scriptOnlyEditHint} <span className="font-mono">{initial.id}</span>
+            </FieldHint>
+          )}
 
-            {schedulePreset === 'custom' ? (
-              <Field htmlFor="cron-schedule" label={c.customScheduleLabel}>
-                <Input
-                  className="font-mono"
-                  id="cron-schedule"
-                  onChange={event => setSchedule(event.target.value)}
-                  placeholder={c.customPlaceholder}
-                  value={schedule}
-                />
-                <FieldHint>{c.customHint}</FieldHint>
-              </Field>
-            ) : (
-              <div className="rounded-md bg-(--ui-bg-quinary) px-3 py-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span className="font-medium text-foreground">{scheduleHint}</span>
-                  <span className="font-mono text-muted-foreground">{schedule}</span>
-                </div>
+          <Field htmlFor="cron-name" label={c.nameLabel} optional optionalLabel={c.optional}>
+            <Input
+              autoFocus
+              id="cron-name"
+              onChange={event => setName(event.target.value)}
+              placeholder={c.namePlaceholder}
+              value={name}
+            />
+          </Field>
+
+          <Field htmlFor="cron-prompt" label={c.promptLabel} optional={scriptOnlyJob} optionalLabel={c.optional}>
+            <Textarea
+              className="min-h-24 font-mono"
+              id="cron-prompt"
+              onChange={event => setPrompt(event.target.value)}
+              placeholder={c.promptPlaceholder}
+              value={prompt}
+            />
+          </Field>
+
+          <div className="grid items-start gap-4 sm:grid-cols-2">
+            <Field htmlFor="cron-frequency" label={c.frequencyLabel}>
+              <Select onValueChange={handleSchedulePresetChange} value={schedulePreset}>
+                <SelectTrigger className="h-9 rounded-md" id="cron-frequency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SCHEDULE_OPTIONS.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {c.scheduleLabels[option.value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+
+            <Field htmlFor="cron-deliver" label={c.deliverLabel}>
+              <DeliverCheckboxes
+                c={c}
+                id="cron-deliver"
+                onChange={setDeliver}
+                targets={deliveryTargets.data ?? []}
+                value={deliver}
+              />
+            </Field>
+          </div>
+
+          {!scriptOnlyJob && (
+            <Field htmlFor="cron-model" label={c.modelLabel} optional optionalLabel={c.optional}>
+              <Select onValueChange={setModelChoice} value={modelChoice}>
+                <SelectTrigger className="h-9 rounded-md" id="cron-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={MODEL_DEFAULT_VALUE}>{c.modelDefault}</SelectItem>
+                  {!modelChoiceKnown && (
+                    <SelectItem value={modelChoice}>
+                      {displayModelName(modelChoice.slice(modelChoice.indexOf(':') + 1))}
+                    </SelectItem>
+                  )}
+                  {modelProviders.map(provider => (
+                    <SelectGroup key={provider.slug}>
+                      <SelectLabel>{provider.name}</SelectLabel>
+                      {(provider.models ?? []).map(model => (
+                        <SelectItem key={`${provider.slug}:${model}`} value={`${provider.slug}:${model}`}>
+                          {displayModelName(model)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
+
+          {schedulePreset === 'custom' ? (
+            <Field htmlFor="cron-schedule" label={c.customScheduleLabel}>
+              <Input
+                className="font-mono"
+                id="cron-schedule"
+                onChange={event => setSchedule(event.target.value)}
+                placeholder={c.customPlaceholder}
+                value={schedule}
+              />
+              <FieldHint>{c.customHint}</FieldHint>
+            </Field>
+          ) : (
+            <div className="rounded-md bg-(--ui-bg-quinary) px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-medium text-foreground">{scheduleHint}</span>
+                <span className="font-mono text-muted-foreground">{schedule}</span>
               </div>
-            )}
+            </div>
+          )}
 
-            {error && (
-              <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+          {error && (
+            <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
-            <DialogFooter>
-              <Button disabled={saving} onClick={onClose} type="button" variant="outline">
-                {t.common.cancel}
-              </Button>
-              <Button disabled={saving} type="submit">
-                {saving ? t.common.saving : isEdit ? c.saveChanges : c.createAction}
-              </Button>
-            </DialogFooter>
-          </form>
-        )}
+          <DialogFooter>
+            <Button disabled={saving} onClick={onClose} type="button" variant="outline">
+              {t.common.cancel}
+            </Button>
+            <Button disabled={saving} type="submit">
+              {saving ? t.common.saving : isEdit ? c.saveChanges : c.createAction}
+            </Button>
+          </DialogFooter>
+        </form>
+      )}
     </>
   )
 

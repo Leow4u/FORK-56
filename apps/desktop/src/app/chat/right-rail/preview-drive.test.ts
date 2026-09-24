@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { closeRightRail, openPreview } from '@/store/preview'
 
 import { assignPreviewRefs, diffPreviewInventory, previewInputPlan } from './preview-drive'
-import { driveActivePreview, type PreviewDriverHost, registerPreviewDriver, resetPreviewDriveBaseline } from './preview-driver'
+import {
+  driveActivePreview,
+  type PreviewDriverHost,
+  registerPreviewDriver,
+  resetPreviewDriveBaseline
+} from './preview-driver'
 
 const page = [
   { checked: null, h: 20, label: 'Sign in', role: 'button', value: '', w: 80, x: 40, y: 10 },

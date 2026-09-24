@@ -36,7 +36,8 @@ export interface PreviewDelta {
   removed: string[]
 }
 
-export type PreviewDriveAction = 'back' | 'click' | 'elements' | 'forward' | 'hover' | 'press' | 'reload' | 'scroll' | 'type'
+export type PreviewDriveAction =
+  'back' | 'click' | 'elements' | 'forward' | 'hover' | 'press' | 'reload' | 'scroll' | 'type'
 
 export interface PreviewDriveRequest {
   action: string
@@ -186,7 +187,12 @@ export function diffPreviewInventory(before: PreviewElement[], after: PreviewEle
       continue
     }
 
-    if (old.label !== element.label || old.value !== element.value || old.role !== element.role || old.checked !== element.checked) {
+    if (
+      old.label !== element.label ||
+      old.value !== element.value ||
+      old.role !== element.role ||
+      old.checked !== element.checked
+    ) {
       changed.push(viewElement(element))
     }
   }
