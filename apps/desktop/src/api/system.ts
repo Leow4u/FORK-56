@@ -134,10 +134,29 @@ export function runCurator(): Promise<ActionResponse> {
   })
 }
 
-export function restartGateway(): Promise<ActionResponse> {
+export function restartGateway(connectionId?: string | null): Promise<ActionResponse> {
   return work4youApi<ActionResponse>({
     ...profileScoped(),
+    ...(connectionId ? { connectionId } : {}),
     path: '/api/gateway/restart',
+    method: 'POST'
+  })
+}
+
+export function startGateway(connectionId?: string | null): Promise<ActionResponse> {
+  return work4youApi<ActionResponse>({
+    ...profileScoped(),
+    ...(connectionId ? { connectionId } : {}),
+    path: '/api/gateway/start',
+    method: 'POST'
+  })
+}
+
+export function stopGateway(connectionId?: string | null): Promise<ActionResponse> {
+  return work4youApi<ActionResponse>({
+    ...profileScoped(),
+    ...(connectionId ? { connectionId } : {}),
+    path: '/api/gateway/stop',
     method: 'POST'
   })
 }

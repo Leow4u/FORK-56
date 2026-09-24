@@ -5,6 +5,7 @@ import type * as React from 'react'
 import { PrTag } from '@/app/chat/pr-tag'
 import { ProfileTag } from '@/app/chat/profile-tag'
 import { startSessionDrag } from '@/app/chat/session-drag'
+import { sessionOnCloud } from '@/app/messaging/listener-home'
 import { PlatformAvatar } from '@/app/messaging/platform-icon'
 import { openSession } from '@/app/open-session'
 import { formatMessageTimestamp } from '@/components/assistant-ui/thread/timestamp'
@@ -16,6 +17,7 @@ import { sessionTitle } from '@/lib/chat-runtime'
 import { pathLeaf } from '@/lib/display-path'
 import { compactNumber } from '@/lib/format'
 import { triggerHaptic } from '@/lib/haptics'
+import { Cloud } from '@/lib/icons'
 import { middleClickHandlers } from '@/lib/middle-click'
 import { displayModelName } from '@/lib/model-status-label'
 import { sessionProjectLabel } from '@/lib/session-project-label'
@@ -23,6 +25,7 @@ import { handoffOriginSource, sessionSourceLabel } from '@/lib/session-source'
 import { coarseElapsed } from '@/lib/time'
 import { useStoreSelector } from '@/lib/use-session-slice'
 import { cn } from '@/lib/utils'
+import { $connectionsRegistry } from '@/store/connections'
 import { $sidebarRowMeta } from '@/store/layout'
 import { normalizeProfileKey } from '@/store/profile'
 import { $projects } from '@/store/projects'
@@ -244,6 +247,13 @@ function SidebarSessionRowImpl({
   // A handed-off session's live source is local, but it originated on a
   // messaging platform — surface that origin as a small badge so e.g. a
   // Telegram thread continued here still reads as Telegram.
+  const connections = useStore($connectionsRegistry)
+  const cloudHome = sessionOnCloud(session.connection_id, connections?.connections ?? [])
+
+  const cloudMark = cloudHome ? (
+    <Cloud aria-label={t.settings.connections.kindCloudChip} className="size-3.5 shrink-0 text-(--ui-text-tertiary)" />
+  ) : null
+
   const handoffSource = handoffOriginSource(session.handoff_state, session.handoff_platform)
   const handoffLabel = handoffSource ? (sessionSourceLabel(handoffSource) ?? handoffSource) : null
   // The same resolved state the row's dot paints, so the arc and the dot cannot
@@ -478,6 +488,7 @@ function SidebarSessionRowImpl({
                 <>
                   {leadNode}
                   {handoffBadge}
+                  {cloudMark}
                   <span className="min-w-0 flex-1 self-center">
                     <OverflowTip label={title}>
                       <SidebarRowLabel
@@ -524,6 +535,8 @@ function SidebarSessionRowImpl({
                 {/* Title + preview: ONE grouped cell with its own tight
                     internal gap — it does not inherit the card's rhythm. */}
                 <div className="-mt-[0.2em] flex min-w-0 flex-col gap-[0.3rem]">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                  {cloudMark}
                   <OverflowTip label={title}>
                     <SidebarRowLabel
                       className="hover-marquee text-[0.8125rem] leading-none font-medium text-(--ui-text-primary) group-data-[working=true]:text-foreground"
@@ -533,6 +546,7 @@ function SidebarSessionRowImpl({
                       <span className="hover-marquee-inner">{title}</span>
                     </SidebarRowLabel>
                   </OverflowTip>
+                  </span>
                   {session.preview && rowMeta.includes('preview') ? (
                     <span className="min-w-0 truncate text-[0.625rem] leading-none text-(--ui-text-quaternary)">
                       {session.preview}

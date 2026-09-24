@@ -63,7 +63,7 @@ describe('wipeSessionListsForGatewaySwitch', () => {
     expect($sessions.get()).toEqual([])
     expect($sessionProfilesTruncated.get()).toEqual({})
     expect($cronSessions.get()).toEqual([])
-    expect($messagingSessions.get()).toEqual([])
+    expect($messagingSessions.get()).toEqual([{ id: 'm1', title: 'tg', profile: 'default' }])
     expect($stalledSessionIds.get()).toEqual([])
     expect($sessionsLoading.get()).toBe(true)
     expect($sessionsLimit.get()).toBe(SIDEBAR_SESSIONS_PAGE_SIZE)

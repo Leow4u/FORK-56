@@ -13,9 +13,6 @@ import {
   setCronSessions,
   setFreshDraftReady,
   setMessages,
-  setMessagingPlatformTotals,
-  setMessagingSessions,
-  setMessagingTruncated,
   setSelectedStoredSessionId,
   setSessionProfilesTruncated,
   setSessionProfilesUsage,
@@ -64,9 +61,8 @@ export function wipeSessionListsForGatewaySwitch(): void {
   setCronSessions([])
   invalidateCronJobsRequests()
   setCronJobs([])
-  setMessagingSessions([])
-  setMessagingPlatformTotals({})
-  setMessagingTruncated(false)
+  // Messaging threads stay. Each row keeps the home that received it, and a
+  // later refresh only replaces that home's page.
   // Clearing $sessionStates automatically clears $workingSessionIds and
   // $attentionSessionIds (computed) and $stalledSessionIds (owned beside it).
   // $unreadFinishedSessionIds is separate, so wipe it explicitly. Only the
