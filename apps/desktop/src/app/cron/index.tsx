@@ -57,6 +57,7 @@ import {
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { openSession } from '../open-session'
+import { CRON_NEW_ROUTE, CRON_ROUTE } from '../routes'
 import {
   PanelAction,
   PanelAddButton,
@@ -657,8 +658,8 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
         <PageLoader label={c.loading} />
       ) : totalCount === 0 && visibleBlueprints.length === 0 ? (
         <PanelEmpty
-          action={
-            <Button onClick={() => setEditor({ mode: 'create' })} size="sm">
+            action={
+            <Button onClick={() => navigate(CRON_NEW_ROUTE)} size="sm">
               {c.newCron}
             </Button>
           }
@@ -695,7 +696,7 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
             {visibleJobs.length === 0 && (
               <p className="px-2 py-4 text-center text-xs text-muted-foreground">{c.emptyTitleSearch}</p>
             )}
-            <PanelAddButton label={c.newCron} onClick={() => setEditor({ mode: 'create' })} />
+            <PanelAddButton label={c.newCron} onClick={() => navigate(CRON_NEW_ROUTE)} />
             {visibleBlueprints.length > 0 && (
               <>
                 <PanelSectionLabel className="mt-3 px-2">{c.blueprints.tab}</PanelSectionLabel>
@@ -1032,12 +1033,14 @@ function CronEditorDialog({
   editor,
   onBlueprintCreate,
   onClose,
-  onSave
+  onSave,
+  surface = 'dialog'
 }: {
   editor: EditorState
   onBlueprintCreate: (blueprint: AutomationBlueprint, values: Record<string, string>) => Promise<void>
   onClose: () => void
   onSave: (values: EditorValues) => Promise<void>
+  surface?: 'dialog' | 'page'
 }) {
   const { t } = useI18n()
   const c = t.cron
@@ -1218,13 +1221,30 @@ function CronEditorDialog({
     }
   }
 
-  return (
-    <Dialog onOpenChange={value => !value && !saving && onClose()} open={open}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? c.editTitle : c.createTitle}</DialogTitle>
-          <DialogDescription>{isEdit ? c.editDesc : c.createDesc}</DialogDescription>
-        </DialogHeader>
+  const header =
+    surface === 'page' ? (
+      <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 items-center gap-1.5 text-sm">
+          <button className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onClose} type="button">
+            {c.title}
+          </button>
+          <span aria-hidden className="text-muted-foreground">
+            {'>'}
+          </span>
+          <span className="truncate font-medium text-foreground">{name.trim() || c.untitled}</span>
+        </div>
+        <p className="text-sm text-muted-foreground">{c.createDesc}</p>
+      </div>
+    ) : (
+      <DialogHeader>
+        <DialogTitle>{isEdit ? c.editTitle : c.createTitle}</DialogTitle>
+        <DialogDescription>{isEdit ? c.editDesc : c.createDesc}</DialogDescription>
+      </DialogHeader>
+    )
+
+  const fields = (
+    <>
+      {header}
 
         {!isEdit && blueprintList.length > 0 && (
           <Field htmlFor="cron-template" label={c.blueprints.startFrom}>
@@ -1413,7 +1433,16 @@ function CronEditorDialog({
             </DialogFooter>
           </form>
         )}
-      </DialogContent>
+    </>
+  )
+
+  if (surface === 'page') {
+    return <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-col gap-4 overflow-y-auto">{fields}</div>
+  }
+
+  return (
+    <Dialog onOpenChange={value => !value && !saving && onClose()} open={open}>
+      <DialogContent className="max-w-lg">{fields}</DialogContent>
     </Dialog>
   )
 }
@@ -1439,4 +1468,82 @@ interface EditorValues {
 interface ScheduleOption {
   expr?: string
   value: string
+}
+
+const BLANK_CREATE_EDITOR: EditorState = { mode: 'create' }
+
+export function CronCreatePage({ className, ...props }: React.ComponentProps<'section'>) {
+  const { t } = useI18n()
+  const navigate = useNavigate()
+  const c = t.cron
+  const profileScope = useStore($profileScope)
+  const profile = cronProfileForScope(profileScope)
+
+  async function handleSave(values: EditorValues) {
+    const {
+      value: created,
+      refreshError,
+      stale
+    } = await mutateAndRefreshCronJobs(profile, () =>
+      createCronJob({
+        prompt: values.prompt,
+        schedule: values.schedule,
+        name: values.name || undefined,
+        deliver: values.deliver || DEFAULT_DELIVER,
+        ...(values.model.trim() ? { model: values.model.trim(), provider: values.provider.trim() || undefined } : {})
+      })
+    )
+
+    if (stale || !created) {
+      return
+    }
+
+    if (refreshError) {
+      notifyError(refreshError, c.failedLoad)
+    }
+
+    notify({ kind: 'success', title: c.created, message: truncate(jobTitle(created), 60) })
+    navigate(CRON_ROUTE)
+  }
+
+  async function handleBlueprintCreate(blueprint: AutomationBlueprint, values: Record<string, string>) {
+    const writableProfile = profileScope === ALL_PROFILES ? 'default' : profileScope
+
+    const {
+      value: job,
+      refreshError,
+      stale
+    } = await mutateAndRefreshCronJobs(profile, () =>
+      instantiateAutomationBlueprint({ blueprint: blueprint.key, values }, writableProfile)
+    )
+
+    if (stale || !job) {
+      return
+    }
+
+    if (refreshError) {
+      notifyError(refreshError, c.failedLoad)
+    }
+
+    notify({ kind: 'success', title: c.blueprints.scheduled, message: asText(job.schedule_display) || blueprint.title })
+    navigate(CRON_ROUTE)
+  }
+
+  return (
+    <section
+      {...props}
+      className={cn(
+        'flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background) px-4 pb-4 pt-3 sm:px-5',
+        className
+      )}
+    >
+      <CronEditorDialog
+        editor={BLANK_CREATE_EDITOR}
+        onBlueprintCreate={handleBlueprintCreate}
+        onClose={() => navigate(CRON_ROUTE)}
+        onSave={handleSave}
+        surface="page"
+      />
+    </section>
+  )
 }

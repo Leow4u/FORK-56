@@ -18,6 +18,7 @@ import {
   AGENTS_ROUTE,
   appViewForPath,
   ARTIFACTS_ROUTE,
+  CRON_NEW_ROUTE,
   CRON_ROUTE,
   MESSAGING_ROUTE,
   navigateToWorkspacePage,
@@ -124,6 +125,13 @@ describe('syncWorkspaceRoute', () => {
 
   it('fronts the scheduled jobs page in the workspace pane', () => {
     syncWorkspaceRoute(CRON_ROUTE)
+
+    expect($workspaceIsPage.get()).toBe(true)
+    expect(fronted()).toBe(true)
+  })
+
+  it('fronts a new scheduled job in the workspace pane', () => {
+    syncWorkspaceRoute(CRON_NEW_ROUTE)
 
     expect($workspaceIsPage.get()).toBe(true)
     expect(fronted()).toBe(true)

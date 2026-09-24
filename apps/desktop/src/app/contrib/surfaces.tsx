@@ -36,6 +36,7 @@ import type { SidebarActions, WiringActions } from './types'
 // (agents/settings/…) are the controller's and stay in wiring.tsx.
 const ArtifactsView = lazy(async () => ({ default: (await import('../artifacts')).ArtifactsView }))
 const CronView = lazy(async () => ({ default: (await import('../cron')).CronView }))
+const CronCreatePage = lazy(async () => ({ default: (await import('../cron')).CronCreatePage }))
 const MessagingView = lazy(async () => ({ default: (await import('../messaging')).MessagingView }))
 const SkillsView = lazy(async () => ({ default: (await import('../skills')).SkillsView }))
 
@@ -164,6 +165,7 @@ export const ChatRoutesSurface = memo(function ChatRoutesSurface({
       <Route element={page(<SkillsView setStatusbarItemGroup={setStatusbarItemGroup} />)} path="skills" />
       <Route element={page(<MessagingView setStatusbarItemGroup={setStatusbarItemGroup} />)} path="messaging" />
       <Route element={page(<ArtifactsView setStatusbarItemGroup={setStatusbarItemGroup} />)} path="artifacts" />
+      <Route element={page(<CronCreatePage />)} path="cron/new" />
       <Route element={page(<CronView setStatusbarItemGroup={setStatusbarItemGroup} />)} path="cron" />
       <Route element={null} path="agents" />
       <Route element={null} path="command-center" />

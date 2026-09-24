@@ -2741,6 +2741,7 @@ export const en: Translations = {
     topOfHour: 'At the top of every hour',
     everyHourAt: minute => `Every hour at :${minute}`,
     newCron: 'New cron',
+    untitled: 'Untitled',
     emptyDescNew:
       'Schedule a prompt to run on a cron expression. Work4You will run it and deliver results to the destination you pick.',
     emptyDescSearch: 'Try a broader search query.',
