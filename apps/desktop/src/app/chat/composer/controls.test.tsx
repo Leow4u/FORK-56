@@ -121,7 +121,9 @@ describe('HUD mode', () => {
     expect(screen.queryByLabelText('Read replies aloud')).toBeNull()
     expect(screen.queryByLabelText('Exit HUD mode')).toBeNull()
 
-    const anchor = screen.getByLabelText('Voice dictation').closest('[data-slot="voice-dictation-anchor"]') as HTMLElement
+    const anchor = screen
+      .getByLabelText('Voice dictation')
+      .closest('[data-slot="voice-dictation-anchor"]') as HTMLElement
 
     anchor.getBoundingClientRect = () =>
       ({

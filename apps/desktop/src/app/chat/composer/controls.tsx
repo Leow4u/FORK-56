@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { Button } from '@/components/ui/button'

@@ -104,6 +104,7 @@ export async function deliverCronFolder(localPath: string, connectionId: string 
 
   try {
     await collectFolderFiles(desktop, root, root, 0, files)
+
     const key =
       root
         .replace(/[/\\]+$/, '')
