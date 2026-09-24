@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { Codicon } from '@/components/ui/codicon'
 import type { Work4YouGitWorktree } from '@/global'
 import { useI18n } from '@/i18n'
+import { isComputerProjectPath } from '@/lib/attached-folder'
 import { cn } from '@/lib/utils'
 import type { SessionInfo } from '@/work4you'
 
@@ -27,7 +28,7 @@ import { WorkspaceAddButton, WorkspaceShowMoreButton } from './workspace-header'
 
 // A bare color dot (no icon) or an icon glyph — tinted by `color` when set, else
 // the lead's default tertiary. The glyph wrapper centers + caps size either way.
-export function projectIcon({ color, icon, isNoProject }: SidebarProjectTree) {
+export function projectIcon({ color, icon, isNoProject, path }: SidebarProjectTree) {
   if (color && !icon) {
     return (
       <SidebarRowLeadGlyph>
@@ -36,9 +37,11 @@ export function projectIcon({ color, icon, isNoProject }: SidebarProjectTree) {
     )
   }
 
+  const glyph = icon || (isNoProject ? 'home' : isComputerProjectPath(path) ? 'device-desktop' : 'folder-library')
+
   return (
     <SidebarRowLeadGlyph style={color ? { color } : undefined}>
-      <Codicon name={icon || (isNoProject ? 'home' : 'folder-library')} size={SIDEBAR_LEAD_ICON_SIZE} />
+      <Codicon name={glyph} size={SIDEBAR_LEAD_ICON_SIZE} />
     </SidebarRowLeadGlyph>
   )
 }

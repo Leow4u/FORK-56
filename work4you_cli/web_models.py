@@ -222,6 +222,16 @@ class FsWriteText(BaseModel):
     content: str
 
 
+class FsAttachFile(BaseModel):
+    path: str
+    content: str = ""
+
+
+class FsAttachFolder(BaseModel):
+    folder_key: str
+    files: list[FsAttachFile] = []
+
+
 # --- from web_server.py (originally lines 2826-2856) ---
 
 class GitPathBody(BaseModel):
