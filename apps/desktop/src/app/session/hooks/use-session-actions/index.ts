@@ -3,6 +3,7 @@ import { type MutableRefObject, useCallback, useEffect, useRef } from 'react'
 import type { NavigateFunction } from 'react-router'
 
 import { graftRefreshedTailOntoBackfill } from '@/app/chat/transcript-backfill'
+import { activateSessionListHome } from '@/app/session/session-home-switch'
 import { revealTreePane } from '@/components/pane-shell/tree/store'
 import { useI18n } from '@/i18n'
 import { isComputerProjectPath } from '@/lib/attached-folder'
@@ -74,6 +75,7 @@ import {
   setWorkspaceCwdOwner,
   setYoloActive
 } from '@/store/session'
+import { CLOUD_LIST_HOME, sessionListHomeId } from '@/store/session-homes'
 import { requestForSessionProfile } from '@/store/session-request-router'
 import {
   $sessionTiles,
@@ -777,14 +779,18 @@ export function useSessionActions({
       // profile. Rows without the tag keep the legacy profile path.
       // All-profiles / plugin navigation must not steal chrome API-home:
       // dial the owning backend without moving $activeGatewayProfile.
-      if ($showAllProfiles.get()) {
-        if (storedForProfile?.connection_id) {
-          await openGatewayForAgent(storedForProfile.connection_id, sessionProfile || 'default')
+      const listHome = storedForProfile?.connection_id
+
+      if (listHome === CLOUD_LIST_HOME || (listHome && sessionListHomeId($connection.get()) === CLOUD_LIST_HOME)) {
+        await activateSessionListHome(listHome)
+      } else if ($showAllProfiles.get()) {
+        if (listHome) {
+          await openGatewayForAgent(listHome, sessionProfile || 'default')
         } else if (sessionProfile) {
           await openGatewayForProfile(normalizeProfileKey(sessionProfile))
         }
-      } else if (storedForProfile?.connection_id) {
-        await ensureGatewayAgent(storedForProfile.connection_id, sessionProfile || 'default')
+      } else if (listHome) {
+        await ensureGatewayAgent(listHome, sessionProfile || 'default')
       } else {
         await ensureGatewayProfile(sessionProfile)
       }
