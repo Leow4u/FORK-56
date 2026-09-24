@@ -26,7 +26,9 @@ export function accountMcpEntries(
   servers: Record<string, { auth?: unknown; command?: unknown; url?: unknown }>
 ): AccountMcpEntry[] {
   return Object.entries(servers)
-    .filter(([name, entry]) => !mcpIsDeviceServer(name, entry) && (ACCOUNT_NAMES.has(name.toLowerCase()) || text(entry.url)))
+    .filter(
+      ([name, entry]) => !mcpIsDeviceServer(name, entry) && (ACCOUNT_NAMES.has(name.toLowerCase()) || text(entry.url))
+    )
     .map(([name, entry]) => ({
       auth: text(entry.auth) || undefined,
       command: text(entry.command) || undefined,
@@ -70,10 +72,7 @@ export function rememberAccountMcp(entries: AccountMcpEntry[]): void {
 }
 
 /** Account servers this connection does not have yet. */
-export function accountMcpToInstall(
-  present: Record<string, unknown>,
-  catalog: AccountMcpEntry[]
-): AccountMcpEntry[] {
+export function accountMcpToInstall(present: Record<string, unknown>, catalog: AccountMcpEntry[]): AccountMcpEntry[] {
   return catalog.filter(entry => !(entry.name in present))
 }
 

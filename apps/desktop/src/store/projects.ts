@@ -12,7 +12,12 @@ import { desktopGit } from '@/lib/desktop-git'
 import { isMissingRestEndpoint, isMissingRpcMethod } from '@/lib/gateway-rpc'
 import { isUnderPath } from '@/lib/path-compare'
 import { persistentAtom } from '@/lib/persisted'
-import { forgetDesktopProject, mergeWithDesktopCatalog, readDesktopProjectCatalog, rememberDesktopProjects } from '@/store/desktop-project-catalog'
+import {
+  forgetDesktopProject,
+  mergeWithDesktopCatalog,
+  readDesktopProjectCatalog,
+  rememberDesktopProjects
+} from '@/store/desktop-project-catalog'
 import { $gateway, activeGateway, ensureActiveGatewayOpen } from '@/store/gateway'
 import { setSidebarAgentsGrouped } from '@/store/layout'
 import { notify } from '@/store/notifications'

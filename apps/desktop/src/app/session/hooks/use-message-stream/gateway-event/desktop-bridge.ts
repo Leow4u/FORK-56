@@ -75,7 +75,9 @@ export function handleDesktopBridgeEvent(ctx: GatewayEventContext): boolean {
           key: typeof payload?.key === 'string' ? payload.key : '',
           ref: typeof payload?.ref === 'string' ? payload.ref : '',
           text: typeof payload?.text === 'string' ? payload.text : ''
-        }).then(answer, error => answer({ error: error instanceof Error ? error.message : String(error), success: false }))
+        }).then(answer, error =>
+          answer({ error: error instanceof Error ? error.message : String(error), success: false })
+        )
       } else {
         void answer({
           error: 'The preview pane only moves in the session the user is looking at.',

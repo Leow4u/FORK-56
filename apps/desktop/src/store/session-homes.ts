@@ -55,9 +55,7 @@ export function retainForeignSessionHomes(previous: SessionInfo[], merged: Sessi
   return [...foreign, ...merged].sort((a, b) => recency(b) - recency(a))
 }
 
-export function cloudConnectionIds(
-  connections: Array<{ id: string; kind?: string }> | undefined
-): Set<string> {
+export function cloudConnectionIds(connections: Array<{ id: string; kind?: string }> | undefined): Set<string> {
   return new Set((connections ?? []).filter(connection => connection.kind === 'cloud').map(connection => connection.id))
 }
 

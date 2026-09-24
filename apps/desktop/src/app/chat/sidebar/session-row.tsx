@@ -487,7 +487,10 @@ function SidebarSessionRowImpl({
                   {leadNode}
                   {handoffBadge}
                   {cloudHome ? (
-                    <Cloud aria-label={t.settings.connections.kindCloudChip} className="size-3 shrink-0 text-(--ui-text-tertiary)" />
+                    <Cloud
+                      aria-label={t.settings.connections.kindCloudChip}
+                      className="size-3 shrink-0 text-(--ui-text-tertiary)"
+                    />
                   ) : null}
                   <span className="min-w-0 flex-1 self-center">
                     <OverflowTip label={title}>
@@ -536,18 +539,21 @@ function SidebarSessionRowImpl({
                     internal gap — it does not inherit the card's rhythm. */}
                 <div className="-mt-[0.2em] flex min-w-0 flex-col gap-[0.3rem]">
                   <div className="flex min-w-0 items-center gap-1">
-                  {cloudHome ? (
-                    <Cloud aria-label={t.settings.connections.kindCloudChip} className="size-3 shrink-0 text-(--ui-text-tertiary)" />
-                  ) : null}
-                  <OverflowTip label={title}>
-                    <SidebarRowLabel
-                      className="hover-marquee text-[0.8125rem] leading-none font-medium text-(--ui-text-primary) group-data-[working=true]:text-foreground"
-                      onPointerEnter={armMarquee}
-                      onPointerLeave={disarmMarquee}
-                    >
-                      <span className="hover-marquee-inner">{title}</span>
-                    </SidebarRowLabel>
-                  </OverflowTip>
+                    {cloudHome ? (
+                      <Cloud
+                        aria-label={t.settings.connections.kindCloudChip}
+                        className="size-3 shrink-0 text-(--ui-text-tertiary)"
+                      />
+                    ) : null}
+                    <OverflowTip label={title}>
+                      <SidebarRowLabel
+                        className="hover-marquee text-[0.8125rem] leading-none font-medium text-(--ui-text-primary) group-data-[working=true]:text-foreground"
+                        onPointerEnter={armMarquee}
+                        onPointerLeave={disarmMarquee}
+                      >
+                        <span className="hover-marquee-inner">{title}</span>
+                      </SidebarRowLabel>
+                    </OverflowTip>
                   </div>
                   {session.preview && rowMeta.includes('preview') ? (
                     <span className="min-w-0 truncate text-[0.625rem] leading-none text-(--ui-text-quaternary)">

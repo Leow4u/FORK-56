@@ -37,11 +37,7 @@ import {
   setSessions,
   setSessionsLoading
 } from '@/store/session'
-import {
-  $sessionListHomeId,
-  retainForeignSessionHomes,
-  tagSessionHomes
-} from '@/store/session-homes'
+import { $sessionListHomeId, retainForeignSessionHomes, tagSessionHomes } from '@/store/session-homes'
 import { $workingSessionIds, getRecentlySettledSessionIds } from '@/store/session-states'
 import { listAllProfileSessions, listSidebarSessions, type SessionInfo } from '@/work4you'
 
@@ -148,10 +144,7 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
       // sources) — those stay in local recents, not a platform section.
       const homeId = $activeConnectionId.get()
 
-      const rows = tagMessagingHomes(
-        dropTombstoned(result.sessions.filter(s => isMessagingSource(s.source))),
-        homeId
-      )
+      const rows = tagMessagingHomes(dropTombstoned(result.sessions.filter(s => isMessagingSource(s.source))), homeId)
 
       setMessagingSessions(prev => {
         const next = retainForeignMessaging(tagMessagingHomes(prev, $messagingListHomeId.get()), rows)

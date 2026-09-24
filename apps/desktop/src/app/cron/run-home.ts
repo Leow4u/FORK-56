@@ -104,7 +104,11 @@ export async function deliverCronFolder(localPath: string, connectionId: string 
 
   try {
     await collectFolderFiles(desktop, root, root, 0, files)
-    const key = root.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || 'folder'
+    const key =
+      root
+        .replace(/[/\\]+$/, '')
+        .split(/[/\\]/)
+        .pop() || 'folder'
 
     const result = await desktop.api<{ path?: string }>({
       body: { files, folder_key: key },

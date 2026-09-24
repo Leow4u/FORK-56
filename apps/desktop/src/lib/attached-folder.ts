@@ -10,7 +10,11 @@ export function isComputerProjectPath(path: string | null | undefined): boolean 
 }
 
 export function attachmentFolderKey(path: string): string {
-  const base = path.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || 'folder'
+  const base =
+    path
+      .replace(/[/\\]+$/, '')
+      .split(/[/\\]/)
+      .pop() || 'folder'
 
   return base.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[-.]+|[-.]+$/g, '') || 'folder'
 }

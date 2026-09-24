@@ -166,12 +166,7 @@ export async function driveActivePreview(request: PreviewDriveRequest): Promise<
     showMark(tabId, element)
   }
 
-  const events = previewInputPlan(
-    action as 'click',
-    element,
-    request,
-    host.center()
-  )
+  const events = previewInputPlan(action as 'click', element, request, host.center())
 
   if (events.length) {
     await host.input(events)
