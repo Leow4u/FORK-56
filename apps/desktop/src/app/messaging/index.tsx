@@ -3,12 +3,13 @@ import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
+import { $messagingListenerOnDevice } from '@/app/messaging/listener-home'
+import { composerPanelCard } from '@/components/chat/composer-dock'
 import { PageLoader } from '@/components/page-loader'
 import { StatusDot, type StatusTone } from '@/components/status-dot'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DisclosureCaret } from '@/components/ui/disclosure-caret'
-import { composerPanelCard } from '@/components/chat/composer-dock'
 import { ErrorBanner } from '@/components/ui/error-state'
 import { Field, FieldHint } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -16,7 +17,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
-import { ExternalLink, RefreshCw, Save, Trash2 } from '@/lib/icons'
+import { ExternalLink, Monitor, RefreshCw, Save, Trash2 } from '@/lib/icons'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import { $changeEventsAvailable, $pairingChangeTick, $platformsChangeTick } from '@/store/live-sync'
@@ -288,6 +289,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   const { t } = useI18n()
   const navigate = useNavigate()
   const m = t.messaging
+  const listenerOnDevice = useStore($messagingListenerOnDevice)
   // Shared settings "Applies to" scope: configure another profile's gateway
   // platforms/pairing without switching the whole app (null → active profile).
   const scopeProfile = useStore($settingsScopeOverride)
@@ -650,6 +652,12 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
             >
               {m.title}
             </button>
+            {listenerOnDevice ? (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Monitor aria-hidden className="size-3.5" />
+                {m.listenerDevice}
+              </span>
+            ) : null}
             <span aria-hidden className="text-muted-foreground">
               {'>'}
             </span>
@@ -708,6 +716,12 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
       ) : (
         <div className="flex h-full min-h-0 flex-col">
           <SettingsProfileScope className="border-b border-(--ui-stroke-secondary) px-3 py-2" />
+          {listenerOnDevice ? (
+            <p className="mx-auto flex w-full max-w-4xl items-center gap-1.5 px-4 pb-1 pt-3 text-xs text-muted-foreground">
+              <Monitor aria-hidden className="size-3.5" />
+              {m.listenerDevice}
+            </p>
+          ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
             <ul className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-2">
               {visiblePlatforms.map(platform => (

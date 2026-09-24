@@ -13,9 +13,6 @@ import {
   setCronSessions,
   setFreshDraftReady,
   setMessages,
-  setMessagingPlatformTotals,
-  setMessagingSessions,
-  setMessagingTruncated,
   setSelectedStoredSessionId,
   setSessionProfilesTruncated,
   setSessionProfilesUsage,
@@ -58,16 +55,14 @@ export function wipeSessionListsForGatewaySwitch(): void {
   // next reconcile re-assert the whole set against the new backend.
   resetSessionPinMirror()
   // Chat rows stay. Local and Cloud are one list; the refresh keeps each
-  // row on the connection that owns it. Cron and messaging still belong to
-  // the connection that is current, so those lists reset with the switch.
+  // row on the connection that owns it. Cron still resets with the switch.
   setSessionProfilesTruncated({})
   setSessionProfilesUsage({})
   setCronSessions([])
   invalidateCronJobsRequests()
   setCronJobs([])
-  setMessagingSessions([])
-  setMessagingPlatformTotals({})
-  setMessagingTruncated(false)
+  // Messaging threads stay. Each row keeps the home that received it, and a
+  // later refresh only replaces that home's page.
   // Clearing $sessionStates automatically clears $workingSessionIds and
   // $attentionSessionIds (computed) and $stalledSessionIds (owned beside it).
   // $unreadFinishedSessionIds is separate, so wipe it explicitly. Only the

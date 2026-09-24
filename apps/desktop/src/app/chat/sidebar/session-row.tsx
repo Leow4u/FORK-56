@@ -1,5 +1,4 @@
 import { useStore } from '@nanostores/react'
-import { Cloud } from 'lucide-react'
 import { memo } from 'react'
 import type * as React from 'react'
 
@@ -17,6 +16,7 @@ import { sessionTitle } from '@/lib/chat-runtime'
 import { pathLeaf } from '@/lib/display-path'
 import { compactNumber } from '@/lib/format'
 import { triggerHaptic } from '@/lib/haptics'
+import { Cloud } from '@/lib/icons'
 import { middleClickHandlers } from '@/lib/middle-click'
 import { displayModelName } from '@/lib/model-status-label'
 import { sessionProjectLabel } from '@/lib/session-project-label'

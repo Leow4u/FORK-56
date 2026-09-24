@@ -1,5 +1,6 @@
 import { atom } from 'nanostores'
 
+import { $messagingListenConnectionId } from '@/app/messaging/listener-home'
 import { translateNow } from '@/i18n'
 import { notifyError } from '@/store/notifications'
 import type { ActionResponse } from '@/types/work4you'
@@ -19,7 +20,13 @@ export const $gatewayRestarting = atom(false)
 async function awaitAction(started: ActionResponse): Promise<void> {
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     await new Promise(resolve => window.setTimeout(resolve, POLL_INTERVAL_MS))
-    const status = await getActionStatus(started.name, POLL_TIMEOUT_S)
+    const connectionId = $messagingListenConnectionId.get()
+
+    const status = await getActionStatus(
+      started.name,
+      POLL_TIMEOUT_S,
+      connectionId ? { connectionId } : undefined
+    )
 
     if (!status.running) {
       if (status.exit_code != null && status.exit_code !== 0) {
@@ -39,7 +46,7 @@ export async function runGatewayRestart(): Promise<void> {
   $gatewayRestarting.set(true)
 
   try {
-    await awaitAction(await restartGateway())
+    await awaitAction(await restartGateway($messagingListenConnectionId.get()))
   } catch (err) {
     notifyError(err, translateNow('commandCenter.gatewayRestartFailed'))
   } finally {

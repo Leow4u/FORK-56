@@ -1568,6 +1568,7 @@ export const en: Translations = {
 
   messaging: {
     title: 'Messaging',
+    listenerDevice: 'This device',
     manualSetup: 'Manual setup',
     search: 'Search messaging...',
     loading: 'Loading messaging platforms...',
