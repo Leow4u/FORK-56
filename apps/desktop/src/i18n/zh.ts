@@ -1135,6 +1135,7 @@ export const zh: Translations = {
     },
     mcp: {
       loading: '正在加载 MCP 服务器...',
+      deviceHome: '此设备',
       failedLoad: 'MCP 配置加载失败',
       nameRequiredTitle: '需要名称',
       nameRequiredMessage: '请为此 MCP 服务器提供配置键。',
@@ -1756,6 +1757,9 @@ export const zh: Translations = {
   },
 
   messaging: {
+    title: '消息',
+    listenerDevice: '此设备',
+    manualSetup: '手动设置',
     search: '搜索消息平台…',
     loading: '正在加载消息平台…',
     loadFailed: '消息平台加载失败',
@@ -2827,6 +2831,9 @@ export const zh: Translations = {
 
   cron: {
     close: '关闭定时任务',
+    runsOnLabel: '运行于',
+    runsOnDevice: '此设备',
+    runsOnCloud: '云端',
     title: '定时任务',
     count: count => `${count} 个任务`,
     modelImpact: {

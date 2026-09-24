@@ -172,7 +172,7 @@ export function ContribWiring({ children }: { children: ReactNode }) {
 
     void ensurePaidCloudConnection(desktop)
 
-    if (desktop.connections?.list) {
+    if (desktop.connections) {
       void ensureMessagingListener(desktop)
     }
   }, [])

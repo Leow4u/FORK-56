@@ -1,6 +1,6 @@
 import type { McpCatalogResponse, McpServerSummary } from '@/types/work4you'
 
-import { capabilityScoped, type ProfileScope, profileScoped, work4youApi } from './client'
+import { capabilityScoped, connectionScoped, type ProfileScope, profileScoped, work4youApi } from './client'
 
 export interface McpTestResult {
   ok: boolean
