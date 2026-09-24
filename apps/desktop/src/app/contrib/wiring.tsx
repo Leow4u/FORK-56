@@ -14,6 +14,7 @@ import { type CSSProperties, lazy, type ReactNode, Suspense, useCallback, useEff
 import { useLocation, useNavigate } from 'react-router'
 
 import { graftRefreshedTailOntoBackfill } from '@/app/chat/transcript-backfill'
+import { ensurePaidCloudConnection } from '@/app/settings/paid-cloud-entry'
 import { formatRefValue } from '@/components/assistant-ui/directive-text'
 import { BootFailureOverlay } from '@/components/boot-failure-overlay'
 import { DesktopInstallOverlay } from '@/components/desktop-install-overlay'
@@ -160,6 +161,16 @@ export { WiredPane } from './context'
 
 export function ContribWiring({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
+
+  useEffect(() => {
+    const desktop = window.work4youDesktop
+
+    if (!desktop?.cloud || !desktop.applyConnectionConfig || !desktop.getConnectionConfig) {
+      return
+    }
+
+    void ensurePaidCloudConnection(desktop)
+  }, [])
   const location = useLocation()
   const navigate = useNavigate()
 

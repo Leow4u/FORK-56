@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { paidCloudLoginConnection, paidCloudLoginShouldApply } from '@/app/chat/composer/status-stack/run-target'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
@@ -35,6 +34,7 @@ import { notify, notifyError, readableError } from '@/store/notifications'
 
 import { ConnectionsRegistrySection } from './connections-registry'
 import { CONTROL_TEXT } from './constants'
+import { ensurePaidCloudConnection } from './paid-cloud-entry'
 import {
   EmptyState,
   ListRow,
@@ -203,17 +203,6 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
   // same render tick; without the ref, connectCloudAgent could persist a null
   // org even though discovery just resolved one. Always set both together.
   const cloudOrgRef = useRef<null | string>(null)
-  // Set only by a fresh portal login. Discovery from opening the panel must
-  // not steal a Local or SSH session the user already chose.
-  const paidConnectPending = useRef(false)
-
-  const finishPaidCloudLoginRef = useRef<(result: DesktopCloudDiscoverResult | null) => Promise<void>>(
-    async () => undefined
-  )
-
-  const gatewayStateRef = useRef(state)
-
-  gatewayStateRef.current = state
 
   const setCloudOrg = (value: null | string) => {
     cloudOrgRef.current = value
@@ -704,10 +693,24 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
 
   // User picked an org from the multi-org picker: remember it and re-run
   // discovery scoped to it.
+  const applyPaidCloudEntry = async (org?: string) => {
+    const desktop = window.work4youDesktop
+
+    if (!desktop?.cloud || !desktop.applyConnectionConfig || !desktop.getConnectionConfig) {
+      return
+    }
+
+    const next = await ensurePaidCloudConnection(desktop, org)
+
+    if (next) {
+      acceptSavedConfig(next)
+    }
+  }
+
   const selectCloudOrg = (org: DesktopCloudOrg) => {
     const ref = org.slug ?? org.id
     setCloudOrg(ref)
-    void discoverCloud(ref).then(discovered => finishPaidCloudLoginRef.current(discovered))
+    void discoverCloud(ref).then(() => applyPaidCloudEntry(ref))
   }
 
   // "Change org": clear the selected org and re-discover with no org arg. A
@@ -717,7 +720,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
   const changeCloudOrg = () => {
     setCloudOrg(null)
     setCloudAgents([])
-    void discoverCloud().then(discovered => finishPaidCloudLoginRef.current(discovered))
+    void discoverCloud()
   }
 
   // On entering cloud mode, read the portal session status and
@@ -754,7 +757,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
             setCloudOrg(savedOrg)
           }
 
-          void discoverCloud(savedOrg || undefined)
+          void discoverCloud(savedOrg || undefined).then(() => applyPaidCloudEntry(savedOrg || undefined))
         } else {
           setCloudAgents([])
           setCloudOrgs([])
@@ -792,53 +795,17 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       setCloudSignedIn(result.signedIn)
 
       if (result.signedIn) {
-        paidConnectPending.current = true
-        const discovered = await discoverCloud()
+        await discoverCloud()
 
         if (seq !== signingSeq.current) {
           return
         }
 
-        await finishPaidCloudLoginRef.current(discovered)
+        await applyPaidCloudEntry()
       }
     } catch (err) {
       if (seq === signingSeq.current) {
         notifyError(err, g.cloudSignInFailed)
-      }
-    } finally {
-      if (seq === signingSeq.current) {
-        setCloudSigningIn(false)
-      }
-    }
-  }
-
-  const cloudSignOut = async () => {
-    const desktop = window.work4youDesktop
-    const seq = ++signingSeq.current
-
-    if (!desktop?.cloud) {
-      return
-    }
-
-    setCloudSigningIn(true)
-    paidConnectPending.current = false
-
-    try {
-      await desktop.cloud.logout()
-
-      if (seq !== signingSeq.current) {
-        return
-      }
-
-      setCloudSignedIn(false)
-      setCloudAgents([])
-      setCloudOrgs([])
-      setCloudOrg(null)
-      setCloudDiscover('idle')
-      notify({ kind: 'success', title: g.cloudSignedOutTitle, message: g.cloudSignedOutMessage })
-    } catch (err) {
-      if (seq === signingSeq.current) {
-        notifyError(err, g.signOutFailed)
       }
     } finally {
       if (seq === signingSeq.current) {
@@ -913,44 +880,6 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       if (seq === contextSeq.current) {
         setCloudConnectingId(null)
       }
-    }
-  }
-
-  finishPaidCloudLoginRef.current = async result => {
-    if (!paidConnectPending.current) {
-      return
-    }
-
-    if (!result) {
-      paidConnectPending.current = false
-
-      return
-    }
-
-    const decision = paidCloudLoginConnection(result)
-
-    if (decision.type === 'choose-org') {
-      return
-    }
-
-    paidConnectPending.current = false
-
-    if (decision.type !== 'apply' || !('agents' in result)) {
-      return
-    }
-
-    if (!paidCloudLoginShouldApply(savedCloudConnectionUrl(gatewayStateRef.current), decision.source)) {
-      return
-    }
-
-    const want = decision.source.remoteUrl.trim().replace(/\/+$/, '').toLowerCase()
-
-    const agent = result.agents.find(
-      row => (row.dashboardUrl ?? '').trim().replace(/\/+$/, '').toLowerCase() === want
-    )
-
-    if (agent) {
-      await connectCloudAgent(agent)
     }
   }
 
@@ -1163,15 +1092,9 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
           <ListRow
             action={
               cloudSignedIn ? (
-                <div className="flex items-center gap-2">
-                  <Pill tone="primary">
-                    <Check className="size-3" /> {g.cloudSignedIn}
-                  </Pill>
-                  <Button disabled={cloudSigningIn} onClick={() => void cloudSignOut()} variant="outline">
-                    {cloudSigningIn ? <Loader2 className="animate-spin" /> : null}
-                    {g.signOut}
-                  </Button>
-                </div>
+                <Pill tone="primary">
+                  <Check className="size-3" /> {g.cloudSignedIn}
+                </Pill>
               ) : (
                 <Button disabled={cloudSigningIn} onClick={() => void cloudSignIn()}>
                   {cloudSigningIn ? <Loader2 className="animate-spin" /> : <LogIn />}
