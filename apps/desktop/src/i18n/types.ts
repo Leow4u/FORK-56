@@ -2137,6 +2137,9 @@ export interface Translations {
     promptPlaceholder: string
     frequencyLabel: string
     deliverLabel: string
+    runsOnLabel: string
+    runsOnDevice: string
+    runsOnCloud: string
     deliverNeedsHomeChannel: string
     modelLabel: string
     modelDefault: string
