@@ -72,7 +72,9 @@ describe('ensurePaidCloudConnection', () => {
       remoteAuthMode: 'oauth',
       remoteUrl: 'https://vm.example'
     })
-    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success', message: 'Connected to O meu agent.' }))
+    expect(notify).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'success', message: 'Connected to O meu agent.' })
+    )
   })
 
   it('leaves a free account on its current connection', async () => {

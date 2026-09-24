@@ -22,11 +22,7 @@ async function awaitAction(started: ActionResponse): Promise<void> {
     await new Promise(resolve => window.setTimeout(resolve, POLL_INTERVAL_MS))
     const connectionId = $messagingListenConnectionId.get()
 
-    const status = await getActionStatus(
-      started.name,
-      POLL_TIMEOUT_S,
-      connectionId ? { connectionId } : undefined
-    )
+    const status = await getActionStatus(started.name, POLL_TIMEOUT_S, connectionId ? { connectionId } : undefined)
 
     if (!status.running) {
       if (status.exit_code != null && status.exit_code !== 0) {

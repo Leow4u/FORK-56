@@ -163,7 +163,10 @@ export const ChatRoutesSurface = memo(function ChatRoutesSurface({
       <Route element={chatView} index />
       <Route element={chatView} path=":sessionId" />
       <Route element={page(<SkillsView setStatusbarItemGroup={setStatusbarItemGroup} />)} path="skills" />
-      <Route element={page(<MessagingView setStatusbarItemGroup={setStatusbarItemGroup} />)} path="messaging/:platformId" />
+      <Route
+        element={page(<MessagingView setStatusbarItemGroup={setStatusbarItemGroup} />)}
+        path="messaging/:platformId"
+      />
       <Route element={page(<MessagingView setStatusbarItemGroup={setStatusbarItemGroup} />)} path="messaging" />
       <Route element={page(<ArtifactsView setStatusbarItemGroup={setStatusbarItemGroup} />)} path="artifacts" />
       <Route element={page(<CronCreatePage />)} path="cron/new" />
