@@ -121,14 +121,30 @@ describe('HUD mode', () => {
     expect(screen.queryByLabelText('Read replies aloud')).toBeNull()
     expect(screen.queryByLabelText('Exit HUD mode')).toBeNull()
 
+    const anchor = screen.getByLabelText('Voice dictation').closest('[data-slot="voice-dictation-anchor"]') as HTMLElement
+
+    anchor.getBoundingClientRect = () =>
+      ({
+        bottom: 424,
+        height: 24,
+        left: 80,
+        right: 104,
+        top: 400,
+        width: 24,
+        x: 80,
+        y: 400,
+        toJSON() {
+          return {}
+        }
+      }) as DOMRect
+
     openVoiceOptions()
 
-    const replies = screen.getByLabelText('Read replies aloud')
-    const anchor = screen.getByLabelText('Voice dictation').closest('[data-slot="voice-dictation-anchor"]')
-    const popover = replies.closest('[data-slot="popover-content"]')
+    const stack = document.querySelector('[data-slot="voice-options-stack"]') as HTMLElement
 
-    expect(anchor).toBeTruthy()
-    expect(popover?.getAttribute('data-side')).toBe('top')
+    expect(screen.getByLabelText('Read replies aloud')).toBeTruthy()
+    expect(stack.style.left).toBe('92px')
+    expect(stack.style.top).toBe('400px')
   })
 
   it('folds them into one menu and offers the way out in the HUD', () => {

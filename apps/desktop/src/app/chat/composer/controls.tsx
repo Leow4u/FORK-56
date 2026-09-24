@@ -1,8 +1,9 @@
 import { useStore } from '@nanostores/react'
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
@@ -68,6 +69,7 @@ export function ComposerControls({
   const { t } = useI18n()
   const c = t.composer
   const hudMode = useStore($hudMode)
+  const dictationAnchorRef = useRef<HTMLSpanElement>(null)
 
   if (conversation.active) {
     return <ConversationPill {...conversation} disabled={disabled} />
@@ -80,7 +82,6 @@ export function ComposerControls({
   const showQueueButton = busyAction !== 'stop' && hasComposerPayload
 
   return (
-    <Popover>
     <div className="ml-auto flex shrink-0 items-center gap-(--composer-control-gap)">
       {showSessionApproval ? <SessionApprovalPill compact={compactModelPill} disabled={disabled} /> : null}
       <ModelPill compact={compactModelPill} disabled={disabled} model={state.model} />
@@ -98,11 +99,9 @@ export function ComposerControls({
           voiceStatus={voiceStatus}
         />
       ) : (
-        <PopoverAnchor asChild>
-          <span className="inline-flex" data-slot="voice-dictation-anchor">
-            <DictationButton disabled={disabled} onToggle={onDictate} state={state.voice} status={voiceStatus} />
-          </span>
-        </PopoverAnchor>
+        <span className="inline-flex" data-slot="voice-dictation-anchor" ref={dictationAnchorRef}>
+          <DictationButton disabled={disabled} onToggle={onDictate} state={state.voice} status={voiceStatus} />
+        </span>
       )}
       {showQueueButton ? (
         <Tip label={<TipKeybindLabel actionId="composer.queue" text={c.queueMessage} />}>
@@ -160,7 +159,12 @@ export function ComposerControls({
         </Tip>
       )}
       {hudMode ? null : (
-        <VoiceOptionsMenu autoSpeak={autoSpeak} disabled={disabled} onToggleAutoSpeak={onToggleAutoSpeak} />
+        <VoiceOptionsMenu
+          anchorRef={dictationAnchorRef}
+          autoSpeak={autoSpeak}
+          disabled={disabled}
+          onToggleAutoSpeak={onToggleAutoSpeak}
+        />
       )}
       {/* The way out of HUD mode, riding the controls row rather than floating
           above the bar. The old chip lived in a 26px transparent strip reserved
@@ -171,7 +175,6 @@ export function ComposerControls({
           things you can press. */}
       {hudMode ? <ExitHudButton /> : null}
     </div>
-    </Popover>
   )
 }
 
@@ -308,44 +311,105 @@ function ConversationIndicator({
 // no dictation, no full conversation loop. Filled/accent when on, mirroring the
 // muted-mic pressed state above. Driven by (and persisted to) `voice.auto_tts`.
 function VoiceOptionsMenu({
+  anchorRef,
   autoSpeak,
   disabled,
   onToggleAutoSpeak
 }: {
+  anchorRef: RefObject<HTMLElement | null>
   autoSpeak: boolean
   disabled: boolean
   onToggleAutoSpeak: () => void
 }) {
   const { t } = useI18n()
+  const [open, setOpen] = useState(false)
+  const [point, setPoint] = useState<{ left: number; top: number } | null>(null)
+  const stackRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  useLayoutEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const place = () => {
+      const node = anchorRef.current
+
+      if (!node) {
+        return
+      }
+
+      const rect = node.getBoundingClientRect()
+
+      // Bottom-center of the stack meets the top-center of the mic.
+      setPoint({ left: rect.left + rect.width / 2, top: rect.top })
+    }
+
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [anchorRef, open])
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target
+
+      if (!(target instanceof Node)) {
+        return
+      }
+
+      if (stackRef.current?.contains(target) || triggerRef.current?.contains(target)) {
+        return
+      }
+
+      setOpen(false)
+    }
+
+    document.addEventListener('pointerdown', onPointerDown)
+
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [open])
 
   return (
     <>
       <Tip label={t.composer.voiceControls}>
-        <PopoverTrigger asChild>
-          <Button
-            aria-label={t.composer.voiceControls}
-            className={cn(GHOST_ICON_BTN, 'w-4 p-0')}
-            disabled={disabled}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            <ChevronDown className={iconSize.xs} />
-          </Button>
-        </PopoverTrigger>
+        <Button
+          aria-expanded={open}
+          aria-label={t.composer.voiceControls}
+          className={cn(GHOST_ICON_BTN, 'w-4 p-0')}
+          disabled={disabled}
+          onClick={() => setOpen(value => !value)}
+          ref={triggerRef}
+          size="icon"
+          type="button"
+          variant="ghost"
+        >
+          <ChevronDown className={iconSize.xs} />
+        </Button>
       </Tip>
-      {/* Anchored on the mic, not the chevron: the stack sits directly above
-          voice dictation, matching the Hermes cluster. */}
-      <PopoverContent
-        align="center"
-        arrow={false}
-        className="flex w-auto min-w-0 flex-col items-center gap-1.5 border-0 bg-transparent p-0 shadow-none backdrop-blur-none"
-        side="top"
-        sideOffset={8}
-      >
-        <WakeWordButton disabled={disabled} stacked />
-        <AutoSpeakButton active={autoSpeak} disabled={disabled} onToggle={onToggleAutoSpeak} stacked />
-      </PopoverContent>
+      {open && point
+        ? createPortal(
+            <div
+              className="fixed z-50 flex -translate-x-1/2 -translate-y-full flex-col items-center gap-1.5 pb-1.5"
+              data-slot="voice-options-stack"
+              ref={stackRef}
+              style={{ left: point.left, top: point.top }}
+            >
+              <WakeWordButton disabled={disabled} stacked />
+              <AutoSpeakButton active={autoSpeak} disabled={disabled} onToggle={onToggleAutoSpeak} stacked />
+            </div>,
+            document.body
+          )
+        : null}
     </>
   )
 }
