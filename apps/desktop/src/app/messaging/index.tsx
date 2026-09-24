@@ -640,7 +640,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
       {!platforms ? (
         <PageLoader label={m.loading} />
       ) : selected ? (
-        <div className="flex h-full min-h-0 flex-col">
+        <div className="flex h-full min-h-0 flex-col pt-[calc(var(--titlebar-height)+0.5rem)]">
           <SettingsProfileScope className="border-b border-(--ui-stroke-secondary) px-3 py-2" />
           <div className="flex min-w-0 items-center gap-1.5 px-5 pb-1 pt-3 text-sm">
             <button
@@ -655,7 +655,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
             </span>
             <span className="truncate font-medium text-foreground">{selected.name}</span>
           </div>
-          <div className="min-h-0 flex-1">
+          <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
             <DetailColumn
               actionBar={
                 <PlatformActionBar
@@ -707,8 +707,8 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
       ) : (
         <div className="flex h-full min-h-0 flex-col">
           <SettingsProfileScope className="border-b border-(--ui-stroke-secondary) px-3 py-2" />
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+            <ul className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-2">
               {visiblePlatforms.map(platform => (
                 <li key={platform.id}>
                   <PlatformCard
