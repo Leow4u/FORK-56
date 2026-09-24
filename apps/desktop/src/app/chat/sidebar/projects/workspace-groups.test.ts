@@ -1018,6 +1018,22 @@ describe('overlayLivePreviews', () => {
     expect(previews['/www/app'].map(s => s.id)).toEqual(['priciest', 'newest'])
   })
 
+  it('files a cloud copy under the computer project and keeps it out of Home', () => {
+    const project = projectNode({ id: 'p_dute', label: 'Dute-app', path: 'C:\\Work\\Dute-app' })
+
+    const home = {
+      ...homeNode([]),
+      previewSessions: [makeCwdSession('/opt/work4you/.work4you/attached/Dute-app', { id: 'cloud-new' })]
+    }
+
+    const live = [makeCwdSession('/opt/work4you/.work4you/attached/Dute-app', { id: 'cloud-new', last_active: 50 })]
+
+    const previews = overlayLivePreviews([project, home], live, [makeProject('p_dute', ['C:\\Work\\Dute-app'])], 5)
+
+    expect(previews.p_dute.map(session => session.id)).toEqual(['cloud-new'])
+    expect(previews[NO_PROJECT_ID]).toBeUndefined()
+  })
+
   it('previews a detached session under Home, which no cwd could place', () => {
     const previews = overlayLivePreviews([homeNode([])], [makeCwdSession(null, { id: 'fresh' })], [], 3)
 
