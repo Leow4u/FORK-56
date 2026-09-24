@@ -123,7 +123,12 @@ describe('HUD mode', () => {
 
     openVoiceOptions()
 
-    expect(screen.getByLabelText('Read replies aloud')).toBeTruthy()
+    const replies = screen.getByLabelText('Read replies aloud')
+    const anchor = screen.getByLabelText('Voice dictation').closest('[data-slot="voice-dictation-anchor"]')
+    const popover = replies.closest('[data-slot="popover-content"]')
+
+    expect(anchor).toBeTruthy()
+    expect(popover?.getAttribute('data-side')).toBe('top')
   })
 
   it('folds them into one menu and offers the way out in the HUD', () => {

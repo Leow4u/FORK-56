@@ -21,13 +21,14 @@ function PopoverContent({
   // Keeps the arrow clear of the rounded corners (rounded-lg = 8px): Radix
   // clamps the arrow this far from each edge and shifts the popover to
   // compensate, so the arrow never jams into a corner on start/end alignment.
+  arrow = true,
   arrowPadding = 12,
   children,
   className,
   collisionPadding = 8,
   sideOffset = 6,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & { arrow?: boolean }) {
   // Portal into the enclosing dialog when nested in one (keeps focus inside so
   // the dialog doesn't close on dismiss); document.body otherwise.
   const container = usePopoverPortalContainer()
@@ -54,11 +55,13 @@ function PopoverContent({
             the border on its two outer edges only. Radix authors the child pointing
             "down" and rotates the wrapper per side, so the V always faces outward.
             The square's inner half tucks under the body, opening the border seam. */}
-        <PopoverPrimitive.Arrow asChild height={7} width={16}>
-          <span className="relative block h-[7px] w-4 overflow-visible">
-            <span className="absolute top-0 left-1/2 size-[11px] -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b border-(--ui-stroke-secondary) bg-[var(--popover-surface)] backdrop-blur-md" />
-          </span>
-        </PopoverPrimitive.Arrow>
+        {arrow ? (
+          <PopoverPrimitive.Arrow asChild height={7} width={16}>
+            <span className="relative block h-[7px] w-4 overflow-visible">
+              <span className="absolute top-0 left-1/2 size-[11px] -translate-x-1/2 -translate-y-1/2 rotate-45 border-r border-b border-(--ui-stroke-secondary) bg-[var(--popover-surface)] backdrop-blur-md" />
+            </span>
+          </PopoverPrimitive.Arrow>
+        ) : null}
       </PopoverPrimitive.Content>
     </PopoverPrimitive.Portal>
   )
