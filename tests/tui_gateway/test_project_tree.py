@@ -459,6 +459,16 @@ def test_nested_project_folders_pick_the_deepest_match():
     assert by_id["p_outer"]["sessionCount"] == 1  # /work/other → only the outer project
 
 
+def test_cloud_runtime_root_stays_in_home():
+    session = _session("/opt/work4you", branch="main", repo_root="/opt/work4you")
+    resolve = _resolver({"/opt/work4you": ("/opt/work4you", "/opt/work4you")})
+
+    tree = pt.build_tree([], [session], [], resolve, hydrate=True)
+
+    assert _real_project_ids(tree) == []
+    assert _home_session_ids(tree) == [session["id"]]
+
+
 def test_junk_root_never_becomes_an_auto_project():
     # A session whose git root is WORK4YOU_HOME (config/state) must not spawn a
     # phantom project; it lands in the Home bucket. A real repo alongside it

@@ -8,7 +8,6 @@ import {
   MESSAGING_SESSION_SOURCE_IDS,
   normalizeSessionSource
 } from '@/lib/session-source'
-import { $activeConnectionId } from '@/store/connections'
 import { gatewayActivationEpoch } from '@/store/gateway'
 import {
   $pinnedSessionIds,
@@ -22,6 +21,7 @@ import {
 import { messagingTotalsKey, normalizeProfileKey, sidebarProfileForScope } from '@/store/profile'
 import { $removedSessionIds } from '@/store/projects'
 import {
+  $connection,
   $messagingSessions,
   $selectedStoredSessionId,
   $sessions,
@@ -37,7 +37,12 @@ import {
   setSessions,
   setSessionsLoading
 } from '@/store/session'
-import { $sessionListHomeId, retainForeignSessionHomes, tagSessionHomes } from '@/store/session-homes'
+import {
+  $sessionListHomeId,
+  retainForeignSessionHomes,
+  sessionListHomeId,
+  tagSessionHomes
+} from '@/store/session-homes'
 import { $workingSessionIds, getRecentlySettledSessionIds } from '@/store/session-states'
 import { listAllProfileSessions, listSidebarSessions, type SessionInfo } from '@/work4you'
 
@@ -142,7 +147,7 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
 
       // Drop any non-messaging source the broad exclude didn't catch (custom
       // sources) — those stay in local recents, not a platform section.
-      const homeId = $activeConnectionId.get()
+      const homeId = sessionListHomeId($connection.get())
 
       const rows = tagMessagingHomes(dropTombstoned(result.sessions.filter(s => isMessagingSource(s.source))), homeId)
 
@@ -181,7 +186,7 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
       const inProfile = (s: SessionInfo) =>
         sessionProfile === 'all' || normalizeProfileKey(s.profile) === sessionProfile
 
-      const homeId = $activeConnectionId.get()
+      const homeId = sessionListHomeId($connection.get())
 
       const inPlatform = (s: SessionInfo) =>
         normalizeSessionSource(s.source) === platform &&
@@ -308,7 +313,7 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
         // in-flight mutation and the backend page still carries the doomed row.
         // Honoring the optimistic tombstone keeps the removal from flashing back
         // (the tombstone self-clears once projects.tree confirms the delete).
-        const homeId = $activeConnectionId.get()
+        const homeId = sessionListHomeId($connection.get())
         const incoming = tagSessionHomes(dropTombstoned(recents.sessions), homeId)
         const previousHome = $sessionListHomeId.get()
 

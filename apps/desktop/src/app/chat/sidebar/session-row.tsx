@@ -30,6 +30,7 @@ import { normalizeProfileKey } from '@/store/profile'
 import { $projects } from '@/store/projects'
 import { $pullRequestsByBranch, sessionPrKey } from '@/store/pull-requests'
 import { $sessionDotStateById, hasLiveTurn, showsRunningArc } from '@/store/session-dot-state'
+import { sessionOnCloudHome } from '@/store/session-homes'
 import { $sessionListDensity } from '@/store/session-list-density'
 import { sessionCostUsd } from '@/store/sidebar-archive'
 import { $todoProgressBySession } from '@/store/todos'
@@ -148,9 +149,7 @@ function SidebarSessionRowImpl({
   const title = sessionTitle(session)
   const registry = useStore($connectionsRegistry)
 
-  const cloudHome = Boolean(
-    session.connection_id && registry?.connections.some(row => row.id === session.connection_id && row.kind === 'cloud')
-  )
+  const cloudHome = sessionOnCloudHome(session.connection_id, registry?.connections)
 
   const density = useStore($sessionListDensity)
   const fmt = t.sidebar

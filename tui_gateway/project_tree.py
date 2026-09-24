@@ -56,6 +56,13 @@ DEFAULT_BRANCH_LABEL = "main"
 # named for what the bucket MEANS, since that's what membership keys off.
 NO_PROJECT_ID = "__no_project__"
 NO_PROJECT_LABEL = "Home"
+# The cloud VM's install directory. A new chat with no project inherits it as
+# cwd; it is the machine, not a user project, so those rows stay in Home.
+CLOUD_RUNTIME_ROOT = "/opt/work4you"
+
+
+def is_cloud_runtime_root(path: str) -> bool:
+    return (path or "").replace("\\", "/").rstrip("/") == CLOUD_RUNTIME_ROOT
 
 # How many sibling candidates to try when recovering a deleted worktree's parent
 # repo (see ``_probe_sibling_worktree``). Each miss costs a git probe, so keep it
@@ -660,15 +667,16 @@ def build_tree(
             # A real git root uses the stricter repo policy. Do not reinterpret a
             # filtered internal repo as a cwd-only project. A root that no longer
             # exists is a stale persisted value (the repo was deleted after the
-            # session ran) and must not resurrect as a project.
-            if not _junk(root) and _exists(root):
+            # session ran) and must not resurrect as a project. The cloud
+            # install root is the VM, not a workspace.
+            if not _junk(root) and not is_cloud_runtime_root(root) and _exists(root):
                 _add_auto(root, session)
             else:
                 homeless.append(session)
             continue
 
         cwd = (session.get("cwd") or "").strip()
-        if not cwd or _junk_cwd(cwd):
+        if not cwd or _junk_cwd(cwd) or is_cloud_runtime_root(cwd):
             homeless.append(session)
             continue
         placement = _place(
@@ -683,7 +691,7 @@ def build_tree(
         # with its parent, a removed /tmp scratch dir), promoting it mints a
         # phantom project that can never be opened and can only be dismissed by
         # hand. The session goes to Home instead.
-        if placement and _exists(placement["repo_key"]):
+        if placement and _exists(placement["repo_key"]) and not is_cloud_runtime_root(placement["repo_key"]):
             _add_auto(placement["repo_key"], session)
         else:
             homeless.append(session)

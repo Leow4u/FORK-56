@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import type { SessionInfo } from '@/work4you'
 
-import { retainForeignSessionHomes, sidebarShowsSession, tagSessionHome } from './session-homes'
+import {
+  CLOUD_LIST_HOME,
+  retainForeignSessionHomes,
+  sessionListHomeId,
+  sessionOnCloudHome,
+  sidebarShowsSession,
+  tagSessionHome
+} from './session-homes'
 
 function row(id: string, connectionId?: string, lastActive = 1): SessionInfo {
   return { connection_id: connectionId, id, last_active: lastActive, profile: 'default', title: id } as SessionInfo
@@ -21,6 +28,13 @@ describe('session homes', () => {
     )
 
     expect(kept.map(session => session.id)).toEqual(['new-cloud', 'local-chat'])
+  })
+
+  it('stamps Cloud separately from the device gateway', () => {
+    expect(sessionListHomeId({ connectionId: 'app', mode: 'local' })).toBe('app')
+    expect(sessionListHomeId({ connectionId: 'app', mode: 'remote', remoteKind: 'cloud' })).toBe(CLOUD_LIST_HOME)
+    expect(sessionOnCloudHome(CLOUD_LIST_HOME, [])).toBe(true)
+    expect(sessionOnCloudHome('app', [])).toBe(false)
   })
 
   it('hides cloud rows when the plan cannot use cloud', () => {
