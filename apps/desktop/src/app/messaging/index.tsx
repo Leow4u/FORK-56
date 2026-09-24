@@ -1,14 +1,16 @@
 import { useStore } from '@nanostores/react'
 import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 
 import { PageLoader } from '@/components/page-loader'
 import { StatusDot, type StatusTone } from '@/components/status-dot'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DisclosureCaret } from '@/components/ui/disclosure-caret'
+import { composerPanelCard } from '@/components/chat/composer-dock'
 import { ErrorBanner } from '@/components/ui/error-state'
+import { Field, FieldHint } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Tip } from '@/components/ui/tooltip'
@@ -34,10 +36,9 @@ import {
 } from '@/work4you'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
-import { useRouteEnumParam } from '../hooks/use-route-enum-param'
-import { DetailColumn, ListColumn, MasterDetail } from '../master-detail'
+import { DetailColumn } from '../master-detail'
 import { PageSearchShell } from '../page-search-shell'
-import { WEBHOOKS_ROUTE } from '../routes'
+import { MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
 import { CREDENTIAL_CONTROL_CLASS } from '../settings/credential-key-ui'
 import { ListRow } from '../settings/primitives'
 import { SettingsProfileScope } from '../settings/profile-scope'
@@ -64,6 +65,26 @@ interface MessagingViewProps extends React.ComponentProps<'section'> {
 }
 
 type EditMap = Record<string, Record<string, string>>
+
+const CHANNEL_LABEL = 'text-xs font-medium normal-case tracking-normal text-foreground'
+
+// Channels whose first screen is a quick setup. The generic credential form
+// stays one step behind that, so the same token is not painted twice.
+const QUICK_SETUP_PLATFORMS = new Set([
+  'a2a',
+  'api_server',
+  'discord',
+  'email',
+  'google_chat',
+  'msgraph_webhook',
+  'slack',
+  'sms',
+  'teams',
+  'telegram',
+  'webhook',
+  'whatsapp',
+  'whatsapp_cloud'
+])
 
 const PILL_TONE: Record<StatusTone, string> = {
   good: 'bg-primary/10 text-primary',
@@ -265,6 +286,7 @@ function fieldCopy(field: MessagingEnvVarInfo, m: Translations['messaging']) {
 
 export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, ...props }: MessagingViewProps) {
   const { t } = useI18n()
+  const navigate = useNavigate()
   const m = t.messaging
   // Shared settings "Applies to" scope: configure another profile's gateway
   // platforms/pairing without switching the whole app (null → active profile).
@@ -287,8 +309,8 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   const [query, setQuery] = useState('')
   const [refreshing, setRefreshing] = useState(false)
   const [saving, setSaving] = useState<string | null>(null)
-  const platformIds = useMemo(() => platforms?.map(p => p.id) ?? [], [platforms])
-  const [selectedId, setSelectedId] = useRouteEnumParam('platform', platformIds, platformIds[0] ?? '')
+  const { platformId: routePlatformId } = useParams()
+  const selectedId = routePlatformId ? decodeURIComponent(routePlatformId) : ''
 
   const refreshPlatforms = useCallback(
     async (silent = false) => {
@@ -411,7 +433,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
       return null
     }
 
-    return platforms.find(platform => platform.id === selectedId) || platforms[0] || null
+    return platforms.find(platform => platform.id === selectedId) ?? null
   }, [platforms, selectedId])
 
   const pendingByPlatform = useMemo(() => byPlatform(pairing.pending), [pairing.pending])
@@ -610,87 +632,93 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
     <PageSearchShell
       {...props}
       onSearchChange={setQuery}
-      searchHidden={(platforms?.length ?? 0) === 0}
+      searchHidden={(platforms?.length ?? 0) === 0 || Boolean(selected)}
       searchHints={platforms?.slice(0, 5).map(platform => t.common.tryHint(platform.name.toLowerCase()))}
       searchPlaceholder={m.search}
       searchValue={query}
     >
       {!platforms ? (
         <PageLoader label={m.loading} />
+      ) : selected ? (
+        <div className="flex h-full min-h-0 flex-col">
+          <SettingsProfileScope className="border-b border-(--ui-stroke-secondary) px-3 py-2" />
+          <div className="flex min-w-0 items-center gap-1.5 px-5 pb-1 pt-3 text-sm">
+            <button
+              className="shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={() => navigate(MESSAGING_ROUTE)}
+              type="button"
+            >
+              {m.title}
+            </button>
+            <span aria-hidden className="text-muted-foreground">
+              {'>'}
+            </span>
+            <span className="truncate font-medium text-foreground">{selected.name}</span>
+          </div>
+          <div className="min-h-0 flex-1">
+            <DetailColumn
+              actionBar={
+                <PlatformActionBar
+                  hasEdits={Object.keys(trimEdits(edits[selected.id] || {})).length > 0}
+                  onSave={() => void handleSave(selected)}
+                  onTest={() => void handleTest(selected)}
+                  onToggle={enabled => void handleToggle(selected, enabled)}
+                  platform={selected}
+                  saving={saving}
+                  showSave={!QUICK_SETUP_PLATFORMS.has(selected.id) || Object.keys(trimEdits(edits[selected.id] || {})).length > 0}
+                />
+              }
+            >
+              <PlatformDetail
+                approved={approvedByPlatform[selected.id] ?? []}
+                approving={approving}
+                edits={edits[selected.id] || {}}
+                fieldErrors={fieldErrors[selected.id] || {}}
+                onApprove={user => void handleApprove(user)}
+                onClear={key => void handleClear(selected, key)}
+                onEdit={(key, value) => {
+                  setEdits(current => ({
+                    ...current,
+                    [selected.id]: {
+                      ...(current[selected.id] || {}),
+                      [key]: value
+                    }
+                  }))
+                  setFieldErrors(current => {
+                    if (!current[selected.id]?.[key]) {
+                      return current
+                    }
+
+                    const { [key]: _cleared, ...rest } = current[selected.id]
+
+                    return { ...current, [selected.id]: rest }
+                  })
+                }}
+                onQuickSetupApplied={() => void refreshAll()}
+                onRevoke={setPendingRevoke}
+                pending={pendingByPlatform[selected.id] ?? []}
+                platform={selected}
+                saving={saving}
+                scopeProfile={scopeProfile}
+              />
+            </DetailColumn>
+          </div>
+        </div>
       ) : (
         <div className="flex h-full min-h-0 flex-col">
-          {/* Which profile's gateway this page configures (hidden for
-              single-profile users). */}
           <SettingsProfileScope className="border-b border-(--ui-stroke-secondary) px-3 py-2" />
-          <div className="min-h-0 flex-1">
-            <MasterDetail>
-              <ListColumn>
-                <ul className="space-y-1">
-                  {visiblePlatforms.map(platform => (
-                    <li key={platform.id}>
-                      <PlatformRow
-                        active={selected?.id === platform.id}
-                        onSelect={() => setSelectedId(platform.id)}
-                        pendingCount={pendingByPlatform[platform.id]?.length ?? 0}
-                        platform={platform}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </ListColumn>
-
-              <DetailColumn
-                actionBar={
-                  selected && (
-                    <PlatformActionBar
-                      hasEdits={Object.keys(trimEdits(edits[selected.id] || {})).length > 0}
-                      onSave={() => void handleSave(selected)}
-                      onTest={() => void handleTest(selected)}
-                      onToggle={enabled => void handleToggle(selected, enabled)}
-                      platform={selected}
-                      saving={saving}
-                    />
-                  )
-                }
-              >
-                {selected && (
-                  <PlatformDetail
-                    approved={approvedByPlatform[selected.id] ?? []}
-                    approving={approving}
-                    edits={edits[selected.id] || {}}
-                    fieldErrors={fieldErrors[selected.id] || {}}
-                    onApprove={user => void handleApprove(user)}
-                    onClear={key => void handleClear(selected, key)}
-                    onEdit={(key, value) => {
-                      setEdits(current => ({
-                        ...current,
-                        [selected.id]: {
-                          ...(current[selected.id] || {}),
-                          [key]: value
-                        }
-                      }))
-                      // A rejected value being retyped shouldn't keep its stale
-                      // error under the field.
-                      setFieldErrors(current => {
-                        if (!current[selected.id]?.[key]) {
-                          return current
-                        }
-
-                        const { [key]: _cleared, ...rest } = current[selected.id]
-
-                        return { ...current, [selected.id]: rest }
-                      })
-                    }}
-                    onQuickSetupApplied={() => void refreshAll()}
-                    onRevoke={setPendingRevoke}
-                    pending={pendingByPlatform[selected.id] ?? []}
-                    platform={selected}
-                    saving={saving}
-                    scopeProfile={scopeProfile}
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {visiblePlatforms.map(platform => (
+                <li key={platform.id}>
+                  <PlatformCard
+                    onSelect={() => navigate(messagingPlatformPath(platform.id))}
+                    pendingCount={pendingByPlatform[platform.id]?.length ?? 0}
+                    platform={platform}
                   />
-                )}
-              </DetailColumn>
-            </MasterDetail>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
@@ -710,37 +738,27 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   )
 }
 
-function PlatformRow({
-  active,
+function PlatformCard({
   onSelect,
   pendingCount,
   platform
 }: {
-  active: boolean
   onSelect: () => void
   pendingCount: number
   platform: MessagingPlatformInfo
 }) {
   const { t } = useI18n()
+  const m = t.messaging
 
   return (
-    <button
-      className={cn(
-        'row-hover flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:text-foreground',
-        active ? 'bg-(--ui-row-active-background) text-foreground' : 'text-(--ui-text-secondary)'
-      )}
-      onClick={onSelect}
-      type="button"
-    >
+    <button className={cn(composerPanelCard, 'flex w-full items-start gap-3 p-3 text-left')} onClick={onSelect} type="button">
       <PlatformAvatar platformId={platform.id} platformName={platform.name} />
-      <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-        <span className="truncate text-[length:var(--conversation-text-font-size)] font-normal">{platform.name}</span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          {/* Someone is waiting to be let in — the only way this page tells
-              you so before you open the platform. */}
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="truncate font-medium text-foreground">{platform.name}</span>
           {pendingCount > 0 && (
             <span
-              aria-label={t.messaging.pendingAria(pendingCount)}
+              aria-label={m.pendingAria(pendingCount)}
               className={cn(
                 'inline-flex min-w-4 items-center justify-center rounded-full px-1 text-[0.66rem] font-medium tabular-nums',
                 PILL_TONE.warn
@@ -749,8 +767,12 @@ function PlatformRow({
               {pendingCount}
             </span>
           )}
-          <StatusDot tone={stateTone(platform)} />
         </span>
+        <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <StatusDot tone={stateTone(platform)} />
+          {stateLabel(platform.state, m)}
+        </span>
+        <span className="mt-1 block truncate text-xs text-muted-foreground">{platform.description}</span>
       </span>
     </button>
   )
@@ -789,6 +811,8 @@ function PlatformDetail({
   const m = t.messaging
   const navigate = useNavigate()
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [showManual, setShowManual] = useState(false)
+  const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
   const optionalFields = platform.env_vars.filter(field => !field.required && !fieldCopy(field, m).advanced)
@@ -979,6 +1003,19 @@ function PlatformDetail({
         />
       )}
 
+      {quickSetup && (
+        <button
+          className={cn('flex w-full items-center justify-between gap-2 py-0.5 text-left', CHANNEL_LABEL)}
+          onClick={() => setShowManual(value => !value)}
+          type="button"
+        >
+          <span>{m.manualSetup}</span>
+          <DisclosureCaret open={showManual} size="0.875rem" />
+        </button>
+      )}
+
+      {(!quickSetup || showManual) && (
+      <>
       <section>
         <SectionTitle>{m.getCredentials}</SectionTitle>
         <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
@@ -1058,7 +1095,7 @@ function PlatformDetail({
       {hiddenCount > 0 && (
         <section>
           <button
-            className="flex w-full items-center justify-between gap-2 py-0.5 text-left text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+            className={cn('flex w-full items-center justify-between gap-2 py-0.5 text-left', CHANNEL_LABEL)}
             onClick={() => setShowAdvanced(value => !value)}
             type="button"
           >
@@ -1083,6 +1120,8 @@ function PlatformDetail({
           )}
         </section>
       )}
+      </>
+      )}
     </>
   )
 }
@@ -1093,7 +1132,8 @@ function PlatformActionBar({
   onTest,
   onToggle,
   platform,
-  saving
+  saving,
+  showSave
 }: {
   hasEdits: boolean
   onSave: () => void
@@ -1101,6 +1141,7 @@ function PlatformActionBar({
   onToggle: (enabled: boolean) => void
   platform: MessagingPlatformInfo
   saving: string | null
+  showSave: boolean
 }) {
   const { t } = useI18n()
   const m = t.messaging
@@ -1126,10 +1167,12 @@ function PlatformActionBar({
             {isTesting ? m.testing : m.test}
           </Button>
         )}
-        <Button disabled={!hasEdits || isSavingEnv} onClick={onSave} size="sm">
-          <Save />
-          {isSavingEnv ? m.saving : platform.enabled ? m.saveChanges : m.saveAndEnable}
-        </Button>
+        {showSave && (
+          <Button disabled={!hasEdits || isSavingEnv} onClick={onSave} size="sm">
+            <Save />
+            {isSavingEnv ? m.saving : platform.enabled ? m.saveChanges : m.saveAndEnable}
+          </Button>
+        )}
       </div>
     </>
   )
@@ -1211,77 +1254,72 @@ function MessagingField({
   const selected = edits[field.key] || current || ''
 
   return (
-    <ListRow
-      action={
-        <div className="flex items-center gap-2">
-          {options ? (
-            <div aria-label={copy.label} className="flex flex-wrap items-center gap-1.5" role="group">
-              {options.map(option => (
-                <Button
-                  key={option}
-                  onClick={() => onEdit(field.key, option)}
-                  size="sm"
-                  variant={selected === option ? 'secondary' : 'ghost'}
-                >
-                  {m.envOptions[field.key]?.[option] || option}
-                </Button>
-              ))}
-            </div>
-          ) : (
-            <Input
-              className={CREDENTIAL_CONTROL_CLASS}
-              id={fieldId}
-              onChange={event => onEdit(field.key, event.target.value)}
-              placeholder={field.is_set ? field.redacted_value || m.replaceValue : copy.placeholder}
-              type={field.is_password ? 'password' : 'text'}
-              value={edits[field.key] || ''}
-            />
-          )}
-          {field.url && (
-            <Tip label={m.openDocs}>
-              <Button asChild className="size-8 shrink-0" variant="ghost">
-                <a href={field.url} rel="noreferrer" target="_blank">
-                  <ExternalLink className="size-3.5" />
-                </a>
-              </Button>
-            </Tip>
-          )}
-          {field.is_set && (
-            <Tip label={m.clearField(field.key)}>
-              <Button
-                className="size-8 shrink-0"
-                disabled={saving === `clear:${field.key}`}
-                onClick={() => onClear(field.key)}
-                variant="ghost"
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </Tip>
-          )}
-        </div>
-      }
-      description={
-        error ? (
-          <>
-            {copy.help && <span className="block">{copy.help}</span>}
-            <span className="block text-destructive">{error}</span>
-          </>
-        ) : (
-          copy.help
-        )
-      }
-      title={
+    <Field
+      htmlFor={options ? undefined : fieldId}
+      label={
         <span className="flex flex-wrap items-center gap-2">
-          {options ? <span>{copy.label}</span> : <label htmlFor={fieldId}>{copy.label}</label>}
-          {field.is_set && <span className="text-[0.66rem] font-medium text-primary">{m.saved}</span>}
+          {copy.label}
+          {field.is_set && <span className="text-[0.66rem] font-normal text-primary">{m.saved}</span>}
         </span>
       }
-    />
+    >
+      <div className="flex items-center gap-2">
+        {options ? (
+          <div aria-label={copy.label} className="flex flex-wrap items-center gap-1.5" role="group">
+            {options.map(option => (
+              <Button
+                key={option}
+                onClick={() => onEdit(field.key, option)}
+                size="sm"
+                variant={selected === option ? 'secondary' : 'ghost'}
+              >
+                {m.envOptions[field.key]?.[option] || option}
+              </Button>
+            ))}
+          </div>
+        ) : (
+          <Input
+            className={CREDENTIAL_CONTROL_CLASS}
+            id={fieldId}
+            onChange={event => onEdit(field.key, event.target.value)}
+            placeholder={field.is_set ? field.redacted_value || m.replaceValue : copy.placeholder}
+            type={field.is_password ? 'password' : 'text'}
+            value={edits[field.key] || ''}
+          />
+        )}
+        {field.url && (
+          <Tip label={m.openDocs}>
+            <Button asChild className="size-8 shrink-0" variant="ghost">
+              <a href={field.url} rel="noreferrer" target="_blank">
+                <ExternalLink className="size-3.5" />
+              </a>
+            </Button>
+          </Tip>
+        )}
+        {field.is_set && (
+          <Tip label={m.clearField(field.key)}>
+            <Button
+              className="size-8 shrink-0"
+              disabled={saving === `clear:${field.key}`}
+              onClick={() => onClear(field.key)}
+              variant="ghost"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </Tip>
+        )}
+      </div>
+      {(copy.help || error) && (
+        <FieldHint error={Boolean(error)}>
+          {error || copy.help}
+        </FieldHint>
+      )}
+    </Field>
   )
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h4 className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{children}</h4>
+  return <h4 className={CHANNEL_LABEL}>{children}</h4>
 }
 
 function PlatformHint({ platform }: { platform: MessagingPlatformInfo }) {

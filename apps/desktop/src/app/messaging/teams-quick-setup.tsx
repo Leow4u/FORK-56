@@ -214,7 +214,7 @@ export function TeamsQuickSetup({
 
   return (
     <section>
-      <h4 className="flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      <h4 className="flex items-center gap-2 text-xs font-medium normal-case tracking-normal text-foreground">
         {q.title}
         <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[0.66rem] font-medium normal-case tracking-normal text-primary">
           {q.recommended}

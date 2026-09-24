@@ -1566,6 +1566,8 @@ export const en: Translations = {
   },
 
   messaging: {
+    title: 'Messaging',
+    manualSetup: 'Manual setup',
     search: 'Search messaging...',
     loading: 'Loading messaging platforms...',
     loadFailed: 'Messaging platforms failed to load',

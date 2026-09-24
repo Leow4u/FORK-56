@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type * as NanostoresModule from 'nanostores'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { MessagingPlatformInfo } from '@/types/work4you'
@@ -90,13 +90,22 @@ async function renderMessaging() {
   let result: ReturnType<typeof render>
   await act(async () => {
     result = render(
-      <MemoryRouter>
-        <MessagingView />
+      <MemoryRouter initialEntries={['/messaging']}>
+        <Routes>
+          <Route element={<MessagingView />} path="/messaging/:platformId?" />
+        </Routes>
       </MemoryRouter>
     )
   })
 
   return result!
+}
+
+async function openChannel(name: string) {
+  const card = await screen.findByRole('button', { name: new RegExp(name) })
+  await act(async () => {
+    fireEvent.click(card)
+  })
 }
 
 describe('MessagingView setup-guide link', () => {
@@ -108,6 +117,7 @@ describe('MessagingView setup-guide link', () => {
     getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ docs_url: '' })] })
 
     await renderMessaging()
+    await openChannel('Mattermost')
 
     expect((await screen.findAllByText('Mattermost')).length).toBeGreaterThan(0)
     expect(screen.queryByText('Open setup guide')).toBeNull()
@@ -118,6 +128,7 @@ describe('MessagingView setup-guide link', () => {
     getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ docs_url: docsUrl })] })
 
     await renderMessaging()
+    await openChannel('Mattermost')
 
     const link = await screen.findByText('Open setup guide')
     await act(async () => {
@@ -146,6 +157,7 @@ describe('MessagingView pairing', () => {
     approvePairing.mockResolvedValue({ ok: true, user: { user_id: '7712345', user_name: 'Bee' } })
 
     await renderMessaging()
+    await openChannel('Mattermost')
 
     const approve = await screen.findByRole('button', { name: 'Approve' })
     await act(async () => {
@@ -163,6 +175,7 @@ describe('MessagingView pairing', () => {
     approvePairing.mockRejectedValue(new Error('500 boom'))
 
     await renderMessaging()
+    await openChannel('Mattermost')
 
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
@@ -222,6 +235,7 @@ describe('MessagingView pairing', () => {
     })
 
     await renderMessaging()
+    await openChannel('Mattermost')
 
     const input = await screen.findByLabelText('Bot token')
     fireEvent.change(input, { target: { value: 'abc-123' } })
@@ -262,8 +276,9 @@ describe('MessagingView pairing', () => {
     })
 
     await renderMessaging()
+    await openChannel('Mattermost')
 
-    fireEvent.change(await screen.findByLabelText('Bot token'), { target: { value: 'new-token' } })
+    fireEvent.change(await screen.findByLabelText(/Bot token/), { target: { value: 'new-token' } })
 
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: /Save changes/ }))
@@ -298,6 +313,10 @@ describe('MessagingView pairing', () => {
     })
 
     await renderMessaging()
+    await openChannel('Telegram')
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Manual setup' }))
+    })
 
     // Only the numeric bot-id half of the token — the classic paste mistake.
     fireEvent.change(await screen.findByLabelText('Bot token'), { target: { value: '123456789' } })
@@ -321,6 +340,7 @@ describe('MessagingView pairing', () => {
     testMessagingPlatform.mockResolvedValue({ message: 'Connected as @bot', ok: true })
 
     await renderMessaging()
+    await openChannel('Mattermost')
 
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Test' }))
@@ -368,6 +388,10 @@ describe('MessagingView pairing', () => {
     })
 
     await renderMessaging()
+    await openChannel('WhatsApp')
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Manual setup' }))
+    })
 
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Allowlist' }))
@@ -393,6 +417,7 @@ describe('MessagingView pairing', () => {
     getPairing.mockResolvedValue({ approved: [], pending: [] })
 
     await renderMessaging()
+    await openChannel('Mattermost')
     await act(async () => {
       $changeEventsAvailable.set(true)
     })

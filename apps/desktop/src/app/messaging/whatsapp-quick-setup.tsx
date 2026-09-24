@@ -347,7 +347,7 @@ export function WhatsAppQuickSetup({
 
   return (
     <section>
-      <h4 className="flex items-center gap-2 text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      <h4 className="flex items-center gap-2 text-xs font-medium normal-case tracking-normal text-foreground">
         {q.title}
         <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[0.66rem] font-medium normal-case tracking-normal text-primary">
           {q.recommended}
@@ -362,7 +362,7 @@ export function WhatsAppQuickSetup({
 
       <div className="mt-3 flex flex-wrap items-start gap-x-6 gap-y-3">
         <div>
-          <span className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="text-xs font-medium normal-case tracking-normal text-foreground">
             {q.modeLabel}
           </span>
           <div className="mt-1.5 flex items-center gap-1.5">
@@ -390,7 +390,7 @@ export function WhatsAppQuickSetup({
 
         <div className="min-w-0 flex-1 basis-64">
           <label
-            className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+            className="text-xs font-medium normal-case tracking-normal text-foreground"
             htmlFor="whatsapp-quick-allowed-users"
           >
             {q.allowedUsersLabel}
