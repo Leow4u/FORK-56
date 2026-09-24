@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 import { $activeConnectionId, $connectionsRegistry, $pendingConnectionId } from '@/store/connections'
 import { notify, notifyError } from '@/store/notifications'
 import { $connection } from '@/store/session'
+import { noteSidebarCloudEntitlement } from '@/store/session-homes'
 
 import { useComposerMenuSide } from '../use-composer-menu-side'
 
@@ -50,7 +51,11 @@ function loadComposerCloudPortal(requestRef: {
   }
 
   const request = discover()
-    .then(result => composerCloudPortalFromDiscover(result))
+    .then(result => {
+      noteSidebarCloudEntitlement('entitlement' in result ? result.entitlement?.canUseCloud : undefined)
+
+      return composerCloudPortalFromDiscover(result)
+    })
     .catch((error: unknown) => {
       if (isCloudLoginError(error)) {
         return { status: 'signin' } as const

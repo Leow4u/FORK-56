@@ -29,7 +29,7 @@ import { resolveProfileColor } from '@/lib/profile-color'
 import { sessionMatchesSearch } from '@/lib/session-search'
 import { normalizeSessionSource, sessionSourceLabel } from '@/lib/session-source'
 import { cn } from '@/lib/utils'
-import { $activeConnectionId } from '@/store/connections'
+import { $activeConnectionId, $connectionsRegistry } from '@/store/connections'
 import { $cronJobs } from '@/store/cron'
 import { $bindings } from '@/store/keybinds'
 import {
@@ -125,6 +125,7 @@ import {
   setCurrentCwd
 } from '@/store/session'
 import { $sessionDotStateById, sessionStatusBucket } from '@/store/session-dot-state'
+import { $sidebarCanUseCloud, cloudConnectionIds, sidebarShowsSession } from '@/store/session-homes'
 import { $focusedStoredSessionId, $workingSessionIds, type SplitDir } from '@/store/session-states'
 import { ackAllSessionsRead } from '@/store/session-unread'
 import { markSessionUnread } from '@/store/session-unread-remote'
@@ -475,11 +476,17 @@ export function ChatSidebar({
   // Archived rows are excluded from the sessions query, so Archived is a view of
   // its own set rather than a filter over this one — a flat list of archived
   // rows, no project tree, no date or status dividers.
+  const registry = useStore($connectionsRegistry)
+  const canUseCloud = useStore($sidebarCanUseCloud)
+
   const scopedSessions = useMemo(() => {
     const pool = showArchived ? archivedSessions : sessions
+    const cloudIds = cloudConnectionIds(registry?.connections)
 
-    return filterSessionsByProfileScope(pool, profileScope)
-  }, [sessions, archivedSessions, showArchived, profileScope])
+    return filterSessionsByProfileScope(pool, profileScope).filter(session =>
+      sidebarShowsSession(session, cloudIds, canUseCloud)
+    )
+  }, [sessions, archivedSessions, showArchived, profileScope, registry, canUseCloud])
 
   // One predicate for the status/project filters, so the flat list and the
   // project lanes narrow by the same rule. A project lane holds rows the loaded

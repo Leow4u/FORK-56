@@ -1,6 +1,7 @@
 import type { DesktopCloudDiscoverResult, DesktopConnectionConfig, DesktopConnectionConfigInput } from '@/global'
 import { translateNow } from '@/i18n/runtime'
 import { notify } from '@/store/notifications'
+import { noteSidebarCloudEntitlement } from '@/store/session-homes'
 
 import { paidCloudLoginConnection, paidCloudLoginShouldApply } from '../chat/composer/status-stack/run-target'
 
@@ -47,6 +48,9 @@ async function connectPaidCloud(
   }
 
   const discovered = await desktop.cloud.discover(org)
+
+  noteSidebarCloudEntitlement('entitlement' in discovered ? discovered.entitlement?.canUseCloud : undefined)
+
   const decision = paidCloudLoginConnection(discovered)
 
   if (decision.type !== 'apply') {
