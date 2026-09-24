@@ -15,6 +15,7 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 
 import {
+  accountIdentityFromBody,
   apiRequestRegistryConnectionId,
   AT_COOKIE_VARIANTS,
   authModeFromStatus,
@@ -1106,6 +1107,18 @@ test('emailFromPrivyCookies never uses the ACCESS token — only the identity to
   const accessToken = fakeIdToken({ sub: 'did:privy:abc' })
 
   assert.equal(emailFromPrivyCookies([{ name: 'privy-token', value: accessToken }]), null)
+})
+
+test('accountIdentityFromBody reads the Privy email when the cadastro name is incomplete', () => {
+  assert.deepEqual(accountIdentityFromBody({ firstName: 'Leo', lastName: 'Silva', email: 'leo@example.com' }), {
+    email: 'leo@example.com',
+    name: 'Leo Silva'
+  })
+  assert.deepEqual(accountIdentityFromBody({ firstName: 'Leo', email: 'leo@example.com' }), {
+    email: 'leo@example.com',
+    name: null
+  })
+  assert.deepEqual(accountIdentityFromBody(null), { email: null, name: null })
 })
 
 test('cadastroDisplayName requires both first and last name', () => {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { deletePortalAccount } from '@/lib/account-delete'
 import {
   parseAccountProfileBody,
-  readPrivyAccountProfile,
+  readPrivyAccountIdentity,
   savePrivyAccountProfile,
 } from '@/lib/account-profile'
 import { prisma } from '@/lib/db'
@@ -20,9 +20,10 @@ async function callerFromRequest(req: NextRequest) {
 }
 
 /**
- * GET /api/account — the caller's cadastro name (Privy customMetadata).
+ * GET /api/account — the Privy person behind this session.
  * Auth: Privy bearer or privy-token cookie only (not OAuth access tokens).
- * Missing name is `{ firstName: null, lastName: null }`, not an error.
+ * Name is set only when the cadastro saved both parts. Email comes from the
+ * Privy user (native, Google, or GitHub address). Either field may be null.
  */
 export async function GET(req: NextRequest) {
   const claims = await callerFromRequest(req)
@@ -31,11 +32,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const profile = await readPrivyAccountProfile(claims.userId)
-    return NextResponse.json({
-      firstName: profile?.firstName ?? null,
-      lastName: profile?.lastName ?? null,
-    })
+    const identity = await readPrivyAccountIdentity(claims.userId)
+    return NextResponse.json(identity)
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'read_failed'
     return NextResponse.json(

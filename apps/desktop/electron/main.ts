@@ -70,11 +70,11 @@ import {
 import { bindComposioLogoNetFetch, COMPOSIO_LOGO_PROTOCOL, handleComposioLogoProtocol } from './composio-logo'
 import { applyConnectionChange } from './connection-apply'
 import {
+  accountIdentityFromBody,
   apiRequestRegistryConnectionId,
   authModeFromStatus,
   buildGatewayWsUrl,
   buildGatewayWsUrlWithTicket,
-  cadastroDisplayName,
   connectionScopeKey,
   cookiesHaveLiveSession,
   cookiesHavePrivyAccessToken,
@@ -8014,26 +8014,18 @@ async function hasPortalAccessToken() {
   }
 }
 
-function nameFromAccountBody(body) {
-  if (!body || typeof body !== 'object') {
-    return null
-  }
-
-  return cadastroDisplayName(body.firstName, body.lastName)
-}
-
-// Cadastro name from GET /api/account, using the same portal session as
-// discovery. A failed or unauthorized read leaves the menu on the email.
-async function portalAccountName() {
+// Privy person from GET /api/account, using the same portal session as
+// discovery. A failed read leaves the menu on the identity-cookie email.
+async function portalAccountIdentity() {
   if (!(await hasLivePortalSession())) {
-    return null
+    return { email: null, name: null }
   }
 
   if (!(await hasPortalAccessToken())) {
     const renewed = await renewPortalAccessSilently()
 
     if (!renewed) {
-      return null
+      return { email: null, name: null }
     }
   }
 
@@ -8046,17 +8038,17 @@ async function portalAccountName() {
     })
 
   try {
-    return nameFromAccountBody(await readProfile())
+    return accountIdentityFromBody(await readProfile())
   } catch (error: any) {
     if (error?.statusCode === 401 && (await renewPortalAccessSilently())) {
       try {
-        return nameFromAccountBody(await readProfile())
+        return accountIdentityFromBody(await readProfile())
       } catch {
-        return null
+        return { email: null, name: null }
       }
     }
 
-    return null
+    return { email: null, name: null }
   }
 }
 
@@ -13486,12 +13478,14 @@ ipcMain.handle('work4you:connection-config:oauth-logout', async (_event, rawUrl)
 // per-agent cascade. See the discovery/cascade helpers above.
 ipcMain.handle('work4you:cloud:status', async () => {
   const signedIn = await hasLivePortalSession()
+  const cookieEmail = signedIn ? await portalAccountEmail() : null
+  const identity = signedIn ? await portalAccountIdentity() : { email: null, name: null }
 
   return {
     portalBaseUrl: resolvePortalBaseUrl(),
     signedIn,
-    email: signedIn ? await portalAccountEmail() : null,
-    name: signedIn ? await portalAccountName() : null
+    email: identity.email || cookieEmail,
+    name: identity.name
   }
 })
 ipcMain.handle('work4you:cloud:login', async () => {
