@@ -1,9 +1,8 @@
 import { useStore } from '@nanostores/react'
-import { useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
@@ -17,7 +16,6 @@ import type { ConversationStatus } from './hooks/use-voice-conversation'
 import { ModelPill } from './model-pill'
 import { SessionApprovalPill } from './session-approval-pill'
 import type { ChatBarState, VoiceStatus } from './types'
-import { useComposerMenuSide } from './use-composer-menu-side'
 import { VoiceMenu } from './voice-menu'
 
 // Re-exported: `context-menu.tsx` and other row neighbours have always reached
@@ -82,13 +80,13 @@ export function ComposerControls({
   const showQueueButton = busyAction !== 'stop' && hasComposerPayload
 
   return (
+    <Popover>
     <div className="ml-auto flex shrink-0 items-center gap-(--composer-control-gap)">
       {showSessionApproval ? <SessionApprovalPill compact={compactModelPill} disabled={disabled} /> : null}
       <ModelPill compact={compactModelPill} disabled={disabled} model={state.model} />
-      {/* The HUD folds every voice control into one menu. The docked row keeps
-          dictation one click away and tucks read-replies and the wake word
-          into the chevron beside the voice button, the same cluster Hermes
-          uses. */}
+      {/* The HUD folds every voice control into one menu. On the docked row,
+          dictation stays one click, and read-replies plus the wake word stack
+          directly above that mic — the Hermes cluster. */}
       {hudMode ? (
         <VoiceMenu
           autoSpeak={autoSpeak}
@@ -100,7 +98,11 @@ export function ComposerControls({
           voiceStatus={voiceStatus}
         />
       ) : (
-        <DictationButton disabled={disabled} onToggle={onDictate} state={state.voice} status={voiceStatus} />
+        <PopoverAnchor asChild>
+          <span className="inline-flex" data-slot="voice-dictation-anchor">
+            <DictationButton disabled={disabled} onToggle={onDictate} state={state.voice} status={voiceStatus} />
+          </span>
+        </PopoverAnchor>
       )}
       {showQueueButton ? (
         <Tip label={<TipKeybindLabel actionId="composer.queue" text={c.queueMessage} />}>
@@ -169,6 +171,7 @@ export function ComposerControls({
           things you can press. */}
       {hudMode ? <ExitHudButton /> : null}
     </div>
+    </Popover>
   )
 }
 
@@ -314,38 +317,36 @@ function VoiceOptionsMenu({
   onToggleAutoSpeak: () => void
 }) {
   const { t } = useI18n()
-  const hostRef = useRef<HTMLDivElement>(null)
-  const menuSide = useComposerMenuSide(hostRef)
 
   return (
-    <DropdownMenu>
-      <div className="contents" ref={hostRef}>
-        <Tip label={t.composer.voiceControls} side={menuSide === 'bottom' ? 'top' : 'bottom'}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              aria-label={t.composer.voiceControls}
-              className={cn(GHOST_ICON_BTN, 'w-4 p-0')}
-              disabled={disabled}
-              size="icon"
-              type="button"
-              variant="ghost"
-            >
-              <ChevronDown className={iconSize.xs} />
-            </Button>
-          </DropdownMenuTrigger>
-        </Tip>
-      </div>
-      <DropdownMenuContent
-        align="end"
+    <>
+      <Tip label={t.composer.voiceControls}>
+        <PopoverTrigger asChild>
+          <Button
+            aria-label={t.composer.voiceControls}
+            className={cn(GHOST_ICON_BTN, 'w-4 p-0')}
+            disabled={disabled}
+            size="icon"
+            type="button"
+            variant="ghost"
+          >
+            <ChevronDown className={iconSize.xs} />
+          </Button>
+        </PopoverTrigger>
+      </Tip>
+      {/* Anchored on the mic, not the chevron: the stack sits directly above
+          voice dictation, matching the Hermes cluster. */}
+      <PopoverContent
+        align="center"
+        arrow={false}
         className="flex w-auto min-w-0 flex-col items-center gap-1.5 border-0 bg-transparent p-0 shadow-none backdrop-blur-none"
-        data-composer-menu=""
-        side={menuSide}
+        side="top"
         sideOffset={8}
       >
-        <AutoSpeakButton active={autoSpeak} disabled={disabled} onToggle={onToggleAutoSpeak} stacked />
         <WakeWordButton disabled={disabled} stacked />
-      </DropdownMenuContent>
-    </DropdownMenu>
+        <AutoSpeakButton active={autoSpeak} disabled={disabled} onToggle={onToggleAutoSpeak} stacked />
+      </PopoverContent>
+    </>
   )
 }
 
