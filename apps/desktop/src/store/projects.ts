@@ -7,7 +7,7 @@ import {
 } from '@/app/chat/sidebar/projects/workspace-groups'
 import type { Work4YouGitBaseBranch, Work4YouGitBranch } from '@/global'
 import { translateNow } from '@/i18n'
-import { desktopDefaultCwd, isDesktopFsRemoteMode, selectDesktopPaths, writeDesktopFileText } from '@/lib/desktop-fs'
+import { isDesktopFsRemoteMode, selectLocalDesktopPaths, writeDesktopFileText } from '@/lib/desktop-fs'
 import { desktopGit } from '@/lib/desktop-git'
 import { isMissingRestEndpoint, isMissingRpcMethod } from '@/lib/gateway-rpc'
 import { isUnderPath } from '@/lib/path-compare'
@@ -1319,12 +1319,9 @@ export async function copyPath(path: null | string): Promise<void> {
   }
 }
 
-// Pick a project folder via the remote-aware picker: a remote gateway browses
-// the backend filesystem (seeded at its default cwd) where sessions run; local
-// mode opens the native dialog. Returns the absolute path, or null if cancelled.
+// Project folders are on this computer. Returns the absolute path, or null if cancelled.
 export async function pickProjectFolder(): Promise<null | string> {
-  const [dir] = await selectDesktopPaths({
-    defaultPath: (await desktopDefaultCwd())?.cwd,
+  const [dir] = await selectLocalDesktopPaths({
     directories: true,
     multiple: false
   })
