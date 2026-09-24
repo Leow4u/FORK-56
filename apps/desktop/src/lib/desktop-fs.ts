@@ -199,6 +199,11 @@ export async function desktopFileDiff(repoRoot: string, filePath: string): Promi
   return git?.fileDiff ? git.fileDiff(repoRoot, filePath) : ''
 }
 
+/** Directory picker for this computer. Project folders never browse the hosted machine. */
+export async function selectLocalDesktopPaths(options?: Work4YouSelectPathsOptions): Promise<string[]> {
+  return bridge().selectPaths(options)
+}
+
 export async function selectDesktopPaths(options?: Work4YouSelectPathsOptions): Promise<string[]> {
   const desktop = bridge()
 
