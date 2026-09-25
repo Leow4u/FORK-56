@@ -31,6 +31,27 @@ describe('settings helpers', () => {
     expect(fieldCopyForSchemaKey(FIELD_DESCRIPTIONS, 'desktop.repo_scan_exclude_paths')).toBeTruthy()
   })
 
+  it('keeps Chat to personality and reasoning visibility', () => {
+    const schema = {
+      'display.personality': { type: 'select', options: ['default'] },
+      'display.show_reasoning': { type: 'boolean' },
+      timezone: { type: 'string', searchable: true },
+      'agent.image_input_mode': { type: 'select', options: ['auto', 'native', 'text'] }
+    }
+
+    const config = {
+      display: { personality: 'default', show_reasoning: true },
+      timezone: 'UTC',
+      agent: { image_input_mode: 'text' }
+    } as unknown as Work4YouConfigRecord
+
+    const chat = sectionFieldEntries(schema, config)
+      .get('chat')
+      ?.map(([key]) => key)
+
+    expect(chat).toEqual(['display.personality', 'display.show_reasoning'])
+  })
+
   it('does not shadow the backend schema options for memory.provider', () => {
     // memory.provider options are discovery-driven and served by the backend
     // config schema (merged per-request); enumOptionsFor must return undefined

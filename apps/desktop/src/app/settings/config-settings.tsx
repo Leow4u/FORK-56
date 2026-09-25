@@ -5,23 +5,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useI18n } from '@/i18n'
-import { triggerHaptic } from '@/lib/haptics'
-import {
-  $dataUrlReadMaxMb,
-  clampDataUrlReadMaxMb,
-  DATA_URL_READ_DEFAULT_MAX_MB,
-  DATA_URL_READ_MAX_MAX_MB,
-  DATA_URL_READ_MIN_MAX_MB,
-  refreshDataUrlReadMaxMb,
-  setDataUrlReadMaxMb
-} from '@/store/data-url-read-max'
 import { $disableF12, setDisableF12 } from '@/store/disable-f12'
 import { $keepAwake, setKeepAwake } from '@/store/keep-awake'
 import { notify, notifyError } from '@/store/notifications'
 import { normalizeProfileKey } from '@/store/profile'
 import { repoDiscoveryPolicyFromConfig, repoDiscoveryPolicySignature, scanAndRecordRepos } from '@/store/projects'
+import { $reasoningCollapsedByDefault, setReasoningCollapsedByDefault } from '@/store/reasoning-disclosure'
 import { $settingsScopeOverride } from '@/store/settings-scope'
 import type { ConfigFieldSchema, Work4YouConfigRecord } from '@/types/work4you'
 import { getElevenLabsVoices, getWork4YouConfigSchema, saveWork4YouConfig } from '@/work4you'
@@ -43,15 +33,7 @@ import {
 import { MemoryConnect } from './memory/connect'
 import { ProviderConfigPanel } from './memory/provider-config-panel'
 import { ModelSettings, ModelSettingsSkeleton } from './model-settings'
-import {
-  EmptyState,
-  ListRow,
-  SectionHeading,
-  SettingsContent,
-  SettingsGroup,
-  SettingsSkeleton,
-  ToggleRow
-} from './primitives'
+import { EmptyState, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton, ToggleRow } from './primitives'
 import { SettingsProfileScope } from './profile-scope'
 import { QuickEntrySettings } from './quick-entry-settings'
 
@@ -388,12 +370,8 @@ function ConfigSettingsInner({
           <QuickEntrySettings />
         </SettingsGroup>
       )}
-      {/* Device-local attach/preview byte cap (main-process IPC guard). Chat is
-          where image-attachment behavior already lives, so this sits above the
-          schema fields for that section. */}
       {activeSectionId === 'chat' || visibleFields.length > 0 ? (
         <SettingsGroup>
-          {activeSectionId === 'chat' ? <AttachmentSizeSetting /> : null}
           {visibleFields.map(([key, field]) => (
             <div className="scroll-mt-6 rounded-lg" id={`setting-field-${key}`} key={key}>
               <ConfigField
@@ -422,6 +400,7 @@ function ConfigSettingsInner({
               ) : null}
             </div>
           ))}
+          {activeSectionId === 'chat' ? <CollapseThinkingSetting /> : null}
         </SettingsGroup>
       ) : visibleFields.length === 0 &&
         activeSectionId !== 'chat' &&
@@ -440,72 +419,19 @@ function ConfigSettingsInner({
   )
 }
 
-/** Free-form MB cap for Desktop's data-URL attach/preview path (main-process). */
-function AttachmentSizeSetting() {
+/** One home for thinking-block visibility: show/hide is the schema toggle
+ *  above this; collapse is the device preference that used to sit in Appearance. */
+function CollapseThinkingSetting() {
   const { t } = useI18n()
-  const c = t.settings.config
-  const stored = useStore($dataUrlReadMaxMb)
-  const [draft, setDraft] = useState(String(stored))
-
-  useEffect(() => {
-    void refreshDataUrlReadMaxMb()
-  }, [])
-
-  useEffect(() => {
-    setDraft(String(stored))
-  }, [stored])
-
-  const commit = () => {
-    // An empty draft means "reset to the default", not the 1 MB floor
-    // (Number('') === 0 would otherwise clamp down to the floor).
-    const applied = draft.trim() === '' ? DATA_URL_READ_DEFAULT_MAX_MB : clampDataUrlReadMaxMb(draft)
-
-    // Unchanged: snap the draft back to the stored value and skip the
-    // pointless IPC write + haptic.
-    if (applied === stored) {
-      setDraft(String(stored))
-
-      return
-    }
-
-    void setDataUrlReadMaxMb(applied).then(next => {
-      setDraft(String(next))
-
-      // On a bridge write failure the store keeps the old value; only
-      // celebrate when the new cap actually landed.
-      if (next === applied) {
-        triggerHaptic('selection')
-      }
-    })
-  }
+  const a = t.settings.appearance
+  const collapsed = useStore($reasoningCollapsedByDefault)
 
   return (
-    <ListRow
-      action={
-        <div className="flex items-center gap-2">
-          <Input
-            aria-label={c.attachmentSizeLabel}
-            className="w-20"
-            inputMode="numeric"
-            max={DATA_URL_READ_MAX_MAX_MB}
-            min={DATA_URL_READ_MIN_MAX_MB}
-            onBlur={commit}
-            onChange={event => setDraft(event.target.value)}
-            onKeyDown={event => {
-              if (event.key === 'Enter') {
-                event.currentTarget.blur()
-              }
-            }}
-            type="number"
-            value={draft}
-          />
-          <span className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-            {c.attachmentSizeUnit}
-          </span>
-        </div>
-      }
-      description={c.attachmentSizeDesc}
-      title={c.attachmentSizeTitle}
+    <ToggleRow
+      checked={collapsed}
+      description={a.reasoningCollapsedDesc}
+      label={a.reasoningCollapsedTitle}
+      onChange={setReasoningCollapsedByDefault}
     />
   )
 }

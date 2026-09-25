@@ -637,7 +637,9 @@ export const SECTIONS: DesktopConfigSection[] = [
     id: 'chat',
     label: 'Chat',
     icon: MessageCircle,
-    keys: ['display.personality', 'timezone', 'display.show_reasoning', 'agent.image_input_mode']
+    // Timezone follows the system. Image attachments stay on Auto.
+    // Preview size stays at the 16 MB factory cap.
+    keys: ['display.personality', 'display.show_reasoning']
   },
   {
     id: 'appearance',
