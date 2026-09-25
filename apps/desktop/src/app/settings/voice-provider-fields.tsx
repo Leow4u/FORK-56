@@ -9,13 +9,12 @@ import { getElevenLabsVoices, getWork4YouConfigSchema, saveWork4YouConfig } from
 import { setWork4YouConfigCache, useWork4YouConfigRecord } from '../hooks/use-config-record'
 
 import { ConfigField } from './config-field'
-import { SECTIONS } from './constants'
+import { VOICE_PROVIDER_FIELD_KEYS } from './constants'
 import { enumOptionsFor, getNested, inferFieldSchema, setNested } from './helpers'
 
-// The curated voice keys (Settings → Voice) are the single source of which
-// per-provider fields exist; both the Voice settings page and the
-// Capabilities TTS panel derive from it so the two surfaces never drift.
-const VOICE_KEYS = SECTIONS.find(s => s.id === 'voice')?.keys ?? []
+// Capabilities still edits each backend. Settings → Voice is a shorter page
+// and does not own this catalog.
+const VOICE_KEYS: readonly string[] = VOICE_PROVIDER_FIELD_KEYS
 
 export function voiceProviderKeys(section: 'tts' | 'stt', providerKey: string): string[] {
   const prefix = `${section}.${providerKey}.`

@@ -357,6 +357,40 @@ describe('settings helpers', () => {
   })
 
   describe('sectionFieldEntries', () => {
+    it('keeps Voice to dictation, echo, read aloud, the subscription voice, and the shortcut', () => {
+      const schema = {
+        'stt.enabled': { type: 'boolean' as const },
+        'stt.echo_transcripts': { type: 'boolean' as const },
+        'stt.provider': { type: 'select' as const, options: ['local'] },
+        'tts.provider': { type: 'select' as const, options: ['edge'] },
+        'tts.openai.model': { type: 'string' as const },
+        'tts.openai.voice': { type: 'string' as const },
+        'tts.edge.voice': { type: 'string' as const },
+        'voice.auto_tts': { type: 'boolean' as const },
+        'voice.record_key': { type: 'string' as const },
+        'voice.max_recording_seconds': { type: 'number' as const }
+      }
+      const config: Work4YouConfigRecord = {
+        stt: { enabled: true, echo_transcripts: true, provider: 'local' },
+        tts: {
+          provider: 'edge',
+          openai: { model: 'gpt-4o-mini-tts', voice: 'alloy' },
+          edge: { voice: 'en-US-AriaNeural' }
+        },
+        voice: { auto_tts: false, record_key: 'ctrl+b', max_recording_seconds: 120 }
+      }
+
+      const voiceKeys = (sectionFieldEntries(schema, config).get('voice') ?? []).map(([key]) => key)
+
+      expect(voiceKeys).toEqual([
+        'stt.enabled',
+        'stt.echo_transcripts',
+        'voice.auto_tts',
+        'tts.openai.voice',
+        'voice.record_key'
+      ])
+    })
+
     it('keeps Memory to the two toggles', () => {
       const schema = {
         'memory.memory_enabled': { type: 'boolean' as const },

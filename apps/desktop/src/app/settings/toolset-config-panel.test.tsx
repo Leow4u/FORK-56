@@ -162,7 +162,7 @@ describe('ToolsetConfigPanel', () => {
     // The Capabilities gap: provider rows only showed API keys — voice/model
     // settings lived exclusively in Settings → Voice. Rows now carry the
     // backend's tts_provider key and the panel renders the same config
-    // fields inline (here: OpenAI TTS Model + OpenAI Voice).
+    // fields inline (here: OpenAI TTS Model + Voice).
     getToolsetConfig.mockResolvedValue(
       config({
         active_provider: 'OpenAI TTS',
@@ -187,7 +187,7 @@ describe('ToolsetConfigPanel', () => {
     render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} toolset="tts" />)
 
     expect(await screen.findByText('OpenAI TTS Model')).toBeTruthy()
-    expect(screen.getByText('OpenAI Voice')).toBeTruthy()
+    expect(screen.getByText('Voice')).toBeTruthy()
     // Voice/model names are free-input comboboxes seeded with the current
     // config value — a custom voice ID must be typeable, not gated by a
     // closed Select.
@@ -204,7 +204,7 @@ describe('ToolsetConfigPanel', () => {
 
     await screen.findByText('Microsoft Edge TTS')
     expect(screen.queryByText('Edge Voice')).toBeNull()
-    expect(screen.queryByText('OpenAI Voice')).toBeNull()
+    expect(screen.queryByText('Voice')).toBeNull()
   })
 
   it('lists providers from the config endpoint', async () => {

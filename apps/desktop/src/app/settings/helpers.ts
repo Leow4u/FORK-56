@@ -132,6 +132,12 @@ function voiceNestedBackend(stored: string): string {
 // Voice renders only fields for the selected TTS/STT provider. Search and the
 // page share this rule so every indexed field can actually mount when opened.
 export function voiceFieldVisible(key: string, config: Work4YouConfigRecord): boolean {
+  // The settings page offers one voice: the subscription voice. It stays
+  // visible even when a stored provider is something else.
+  if (key === 'tts.openai.voice') {
+    return true
+  }
+
   const match = /^(tts|stt)\.([^.]+)\./.exec(key)
 
   if (!match) {

@@ -20,10 +20,10 @@ describe('voiceFieldVisible', () => {
     }
   })
 
-  it('shows only the selected TTS provider sub-fields', () => {
+  it('shows only the selected TTS provider sub-fields, plus the subscription voice', () => {
     const config = cfg()
     expect(voiceFieldVisible('tts.edge.voice', config)).toBe(true)
-    expect(voiceFieldVisible('tts.openai.voice', config)).toBe(false)
+    expect(voiceFieldVisible('tts.openai.voice', config)).toBe(true)
     expect(voiceFieldVisible('tts.elevenlabs.voice_id', config)).toBe(false)
   })
 

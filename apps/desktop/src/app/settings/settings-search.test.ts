@@ -45,8 +45,7 @@ describe('settings search index', () => {
 
     expect(entries.map(entry => entry.id)).toEqual([
       'config-field:display.personality',
-      'config-field:tts.provider',
-      'config-field:tts.edge.voice'
+      'config-field:tts.openai.voice'
     ])
     expect(entries[0]).toMatchObject({
       context: 'Chat',
@@ -54,7 +53,8 @@ describe('settings search index', () => {
       label: 'Personality',
       target: { field: 'display.personality', view: 'config:chat' }
     })
-    expect(entries.some(entry => entry.id === 'config-field:tts.openai.voice')).toBe(false)
+    expect(entries.some(entry => entry.id === 'config-field:tts.edge.voice')).toBe(false)
+    expect(entries.some(entry => entry.id === 'config-field:tts.provider')).toBe(false)
   })
 
   it('indexes OpenAI voice when TTS is Work4You Subscription', () => {
@@ -71,7 +71,7 @@ describe('settings search index', () => {
     const entries = buildConfigSearchEntries(schema, config, searchCopy)
 
     expect(entries.some(entry => entry.id === 'config-field:tts.openai.voice')).toBe(true)
-    expect(entries.some(entry => entry.id === 'config-field:tts.openai.model')).toBe(true)
+    expect(entries.some(entry => entry.id === 'config-field:tts.openai.model')).toBe(false)
     expect(entries.some(entry => entry.id === 'config-field:tts.edge.voice')).toBe(false)
   })
 

@@ -446,7 +446,7 @@ export const FIELD_LABELS: Record<string, string> = defineFieldCopy({
     autoTts: 'Read Responses Aloud'
   },
   stt: {
-    enabled: 'Speech To Text',
+    enabled: 'Dictation',
     echoTranscripts: 'Echo Transcripts',
     provider: 'Speech-To-Text Provider',
     local: {
@@ -476,7 +476,7 @@ export const FIELD_LABELS: Record<string, string> = defineFieldCopy({
     },
     openai: {
       model: 'OpenAI TTS Model',
-      voice: 'OpenAI Voice'
+      voice: 'Voice'
     },
     elevenlabs: {
       voiceId: 'ElevenLabs Voice',
@@ -604,6 +604,9 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = defineFieldCopy({
     autoTts: 'Automatically speak assistant responses.'
   },
   tts: {
+    openai: {
+      voice: 'The voice Work4You uses when it speaks.'
+    },
     xai: {
       voiceId: 'xAI voice ID (e.g. eve) or a custom voice ID.',
       language: 'Spoken language code (e.g. en, pt-BR) or "auto" for auto-detection.',
@@ -618,7 +621,7 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = defineFieldCopy({
     }
   },
   stt: {
-    enabled: 'Enable local or provider-backed speech transcription.',
+    enabled: 'Turn the microphone into text.',
     echoTranscripts: 'Post the raw 🎙️ transcript of voice messages back to the chat.',
     elevenlabs: {
       languageCode: 'Optional ISO-639-3 language code. Blank lets ElevenLabs auto-detect.'
@@ -629,6 +632,49 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = defineFieldCopy({
       'When Work4You updates itself from the app (no terminal prompt), keep local source edits (stash) or throw them away (discard). Terminal updates always ask.'
   }
 })
+
+// Per-backend voice and model fields. Capabilities reads this catalog.
+// Settings → Voice does not: that page is dictation, echo, read aloud,
+// the subscription voice, and the shortcut.
+export const VOICE_PROVIDER_FIELD_KEYS = [
+  'tts.provider',
+  'stt.provider',
+  'tts.edge.voice',
+  'tts.openai.model',
+  'tts.openai.voice',
+  'tts.elevenlabs.voice_id',
+  'tts.elevenlabs.model_id',
+  'tts.xai.voice_id',
+  'tts.xai.language',
+  'tts.xai.speed',
+  'tts.xai.auto_speech_tags',
+  'tts.xai.optimize_streaming_latency',
+  'tts.xai.sample_rate',
+  'tts.xai.bit_rate',
+  'tts.minimax.model',
+  'tts.minimax.voice_id',
+  'tts.mistral.model',
+  'tts.mistral.voice_id',
+  'tts.gemini.model',
+  'tts.gemini.voice',
+  'tts.neutts.model',
+  'tts.neutts.device',
+  'tts.kittentts.model',
+  'tts.kittentts.voice',
+  'tts.piper.voice',
+  'tts.deepinfra.model',
+  'tts.deepinfra.voice',
+  'stt.local.model',
+  'stt.local.language',
+  'stt.openai.model',
+  'stt.groq.model',
+  'stt.mistral.model',
+  'stt.elevenlabs.model_id',
+  'stt.elevenlabs.language_code',
+  'stt.elevenlabs.tag_audio_events',
+  'stt.elevenlabs.diarize',
+  'voice.max_recording_seconds'
+] as const
 
 // Curated desktop config surface: only fields a user might tune from the app.
 export const SECTIONS: DesktopConfigSection[] = [
@@ -673,49 +719,10 @@ export const SECTIONS: DesktopConfigSection[] = [
     id: 'voice',
     label: 'Voice',
     icon: Mic,
-    keys: [
-      'tts.provider',
-      'stt.enabled',
-      'stt.echo_transcripts',
-      'stt.provider',
-      'voice.auto_tts',
-      'tts.edge.voice',
-      'tts.openai.model',
-      'tts.openai.voice',
-      'tts.elevenlabs.voice_id',
-      'tts.elevenlabs.model_id',
-      'tts.xai.voice_id',
-      'tts.xai.language',
-      'tts.xai.speed',
-      'tts.xai.auto_speech_tags',
-      'tts.xai.optimize_streaming_latency',
-      'tts.xai.sample_rate',
-      'tts.xai.bit_rate',
-      'tts.minimax.model',
-      'tts.minimax.voice_id',
-      'tts.mistral.model',
-      'tts.mistral.voice_id',
-      'tts.gemini.model',
-      'tts.gemini.voice',
-      'tts.neutts.model',
-      'tts.neutts.device',
-      'tts.kittentts.model',
-      'tts.kittentts.voice',
-      'tts.piper.voice',
-      'tts.deepinfra.model',
-      'tts.deepinfra.voice',
-      'stt.local.model',
-      'stt.local.language',
-      'stt.openai.model',
-      'stt.groq.model',
-      'stt.mistral.model',
-      'stt.elevenlabs.model_id',
-      'stt.elevenlabs.language_code',
-      'stt.elevenlabs.tag_audio_events',
-      'stt.elevenlabs.diarize',
-      'voice.record_key',
-      'voice.max_recording_seconds'
-    ]
+    // Providers, model ids, recording length, and the other catalogs stay
+    // off this page. The voice row is the subscription voice. Capabilities
+    // still edits each backend through VOICE_PROVIDER_FIELD_KEYS.
+    keys: ['stt.enabled', 'stt.echo_transcripts', 'voice.auto_tts', 'tts.openai.voice', 'voice.record_key']
   },
   {
     id: 'image_video',

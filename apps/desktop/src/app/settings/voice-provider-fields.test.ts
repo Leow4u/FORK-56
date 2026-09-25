@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { ENUM_OPTIONS, FREE_INPUT_KEYS, SECTIONS } from './constants'
+import { ENUM_OPTIONS, FREE_INPUT_KEYS, VOICE_PROVIDER_FIELD_KEYS } from './constants'
 import { voiceProviderKeys } from './voice-provider-fields'
 
-const voiceKeys = SECTIONS.find(s => s.id === 'voice')?.keys ?? []
+const voiceKeys: readonly string[] = VOICE_PROVIDER_FIELD_KEYS
 
 describe('voiceProviderKeys', () => {
   it('derives per-provider field keys from the curated Voice section', () => {
@@ -66,10 +66,10 @@ describe('voice field option coverage', () => {
     expect(FREE_INPUT_KEYS.has('stt.provider')).toBe(false)
   })
 
-  it('every free-input voice key that lives in the Voice section has suggestions or is intentionally bare', () => {
+  it('every free-input voice key in the provider catalog has suggestions or is intentionally bare', () => {
     // Free-input keys don't *require* ENUM_OPTIONS (an empty datalist is
-    // fine), but any that do declare options must be actual Voice-section
-    // fields — a typo'd key here would silently do nothing.
+    // fine), but any that do declare options must be catalog fields — a
+    // typo'd key here would silently do nothing.
     for (const key of FREE_INPUT_KEYS) {
       expect(voiceKeys, key).toContain(key)
     }
