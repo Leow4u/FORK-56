@@ -25,6 +25,8 @@ import { SidebarRowStack } from '../chrome'
 import { useWorkspaceNodeOpen } from './model'
 import { SidebarWorkspaceGroup } from './workspace-group'
 import {
+  folderForNewLaneSession,
+  folderForNewRepoSession,
   mergeRepoWorktreeGroups,
   overlayRepoLanes,
   type SidebarProjectTree,
@@ -77,6 +79,7 @@ export function EnteredProjectContent({
           lanesOnly={lanesOnly}
           liveSessions={liveSessions}
           onNewSession={onNewSession}
+          projectPath={project.path}
           removedSessionIds={removedSessionIds}
           renderRows={renderRows}
           repo={repo}
@@ -92,6 +95,7 @@ function RepoFlatSection({
   showHeader,
   renderRows,
   onNewSession,
+  projectPath,
   discoveredWorktrees,
   liveSessions,
   removedSessionIds,
@@ -101,6 +105,7 @@ function RepoFlatSection({
   showHeader: boolean
   renderRows: (sessions: SessionInfo[]) => React.ReactNode
   onNewSession?: (path: null | string) => void
+  projectPath?: null | string
   discoveredWorktrees?: Work4YouGitWorktree[]
   liveSessions?: SessionInfo[]
   removedSessionIds?: ReadonlySet<string>
@@ -182,6 +187,7 @@ function RepoFlatSection({
           // The kanban bucket is read-only: it aggregates many task worktrees, so
           // "new session here" and "remove worktree" have no single target.
           onNewSession={group.isKanban ? undefined : onNewSession}
+          sessionPath={group.isKanban ? undefined : folderForNewLaneSession(projectPath, group)}
           onRemove={group.isMain || group.isKanban ? undefined : () => setRemoveTarget(group)}
           renderRows={renderRows}
         />
@@ -276,7 +282,7 @@ function RepoFlatSection({
                 // Reveal the repo the new session targets if the user had it
                 // collapsed — the session lands in one of its lanes.
                 setWorkspaceNodeOpen(repo.id, true)
-                onNewSession(repo.path)
+                onNewSession(folderForNewRepoSession(projectPath, repo.path))
               }}
             />
           )

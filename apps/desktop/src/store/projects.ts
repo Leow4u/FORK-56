@@ -286,6 +286,40 @@ export function resolveNewSessionCwd(): string {
   return workspaceCwdForNewSession()
 }
 
+// The folder `session.create` should open.
+//
+// A Select-workspace pick and the project the sidebar is inside both beat the
+// folder of the conversation that happens to be on screen. That leftover cwd
+// is how a new chat in Dute-app was born inside Dutelog. Home (an explicit
+// null pick, or the Home scope) stays folder-less. With no project selected,
+// the live cwd is still the draft the user is looking at.
+export function resolveCreateSessionCwd(): string {
+  const workspaceTarget = $newChatWorkspaceTarget.get()
+
+  if (workspaceTarget === null) {
+    return ''
+  }
+
+  if (typeof workspaceTarget === 'string') {
+    return workspaceTarget.trim()
+  }
+
+  const scoped = resolveNewSessionCwd()
+  const live = $currentCwd.get().trim()
+
+  if ($projectScope.get() !== ALL_PROJECTS) {
+    // A conversation already inside this project keeps its folder (a subfolder
+    // the user was in). A conversation sitting in a different checkout does not.
+    if (live && scoped && isUnderPath(scoped, live)) {
+      return live
+    }
+
+    return scoped
+  }
+
+  return live || scoped
+}
+
 // The project (explicit or auto) that owns `cwd`, by longest path match across
 // the live tree. Null when no project covers it (it'll surface as a fresh
 // auto-project on the next tree refresh).

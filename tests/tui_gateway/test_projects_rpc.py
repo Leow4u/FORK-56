@@ -349,6 +349,22 @@ def test_terminal_session_persists_its_launch_cwd():
         ) == "/somewhere/a-repo"
 
 
+def test_desktop_launch_cwd_is_not_reported_as_a_workspace(tmp_path):
+    assert server._display_session_cwd(
+        {"source": "desktop", "cwd": "/opt/whatever", "explicit_cwd": False}
+    ) == ""
+    picked = tmp_path / "repo"
+    picked.mkdir()
+    assert server._display_session_cwd(
+        {"source": "desktop", "cwd": str(picked), "explicit_cwd": True}
+    ) == str(picked)
+    # A terminal session's own directory stays visible. Only an unpicked
+    # desktop chat hides the launch directory.
+    assert server._display_session_cwd(
+        {"source": "tui", "cwd": str(picked), "explicit_cwd": False}
+    ) == str(picked)
+
+
 def test_desktop_launch_cwd_is_not_persisted_as_a_workspace():
     # The desktop launches from wherever the bundle was opened, so an unpicked
     # cwd is an artifact — those chats belong under "No workspace".

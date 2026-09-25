@@ -6,6 +6,7 @@ import { Codicon } from '@/components/ui/codicon'
 import { ProfileGlyph } from '@/components/ui/profile-glyph'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
+import { isUnderPath } from '@/lib/path-compare'
 import { useStoreSelector } from '@/lib/use-session-slice'
 import { setWorkspaceNodeOpen } from '@/store/layout'
 import { notifyError } from '@/store/notifications'
@@ -32,6 +33,9 @@ interface SidebarWorkspaceGroupProps {
   group: SidebarSessionGroup
   renderRows: (sessions: SessionInfo[]) => React.ReactNode
   onNewSession?: (path: null | string) => void
+  // Folder this lane's "+" opens. The main lane of a project whose checkout
+  // was folded to another git root passes the project's own folder.
+  sessionPath?: null | string
   // When set (linked worktree rows), shows a remove affordance that runs a real
   // `git worktree remove`.
   onRemove?: () => void
@@ -44,6 +48,7 @@ export function SidebarWorkspaceGroup({
   group,
   renderRows,
   onNewSession,
+  sessionPath,
   onRemove,
   lanesOnly = false
 }: SidebarWorkspaceGroupProps) {
@@ -96,10 +101,17 @@ export function SidebarWorkspaceGroup({
       return
     }
 
+    const target = sessionPath !== undefined ? sessionPath : group.path
+    const opensOnLane = Boolean(
+      group.path && target && isUnderPath(group.path, target) && isUnderPath(target, group.path)
+    )
+
     // Main-checkout lanes are branch-labeled views over the same repo root path.
     // Clicking "+" on `main` should open on `main`, not whatever branch the root
-    // currently sits on (`test0`, etc.), so explicitly switch first.
-    if (group.isMain && group.path && group.label) {
+    // currently sits on (`test0`, etc.), so explicitly switch first. A session
+    // that opens in the project's own folder (a different checkout) leaves this
+    // lane's branch alone.
+    if (group.isMain && opensOnLane && group.path && group.label) {
       try {
         await switchBranchInRepo(group.path, group.label)
       } catch (err) {
@@ -109,7 +121,7 @@ export function SidebarWorkspaceGroup({
       }
     }
 
-    onNewSession(group.path)
+    onNewSession(target)
   }
 
   // Profile groups start a fresh session in that profile but keep the
