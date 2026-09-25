@@ -6,19 +6,7 @@ import { KbdCombo } from '@/components/ui/kbd'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import {
-  Archive,
-  BarChart3,
-  Bell,
-  Download,
-  Info,
-  Keyboard,
-  Monitor,
-  Package,
-  RefreshCw,
-  Search,
-  Upload
-} from '@/lib/icons'
+import { Archive, BarChart3, Bell, Download, Info, Keyboard, Monitor, RefreshCw, Search, Upload } from '@/lib/icons'
 import { isEditableTarget } from '@/lib/keybinds/combo'
 import { typeToFocusChar } from '@/lib/keybinds/composer-focus-keys'
 import { cn } from '@/lib/utils'
@@ -43,7 +31,6 @@ import { SECTIONS } from './constants'
 import { ImageVideoSettings } from './image-video-settings'
 import { KeybindSettings } from './keybind-settings'
 import { NotificationsSettings } from './notifications-settings'
-import { PluginsSettings } from './plugins-settings'
 import { capabilitiesSettingsRedirect, settingsTabReplacement } from './retired-settings-tabs'
 import { SessionsSettings } from './sessions-settings'
 import type { SettingsPageProps, SettingsView as SettingsViewId } from './types'
@@ -59,7 +46,6 @@ const SETTINGS_VIEWS: readonly SettingsViewId[] = [
   'app',
   'notifications',
   'billing',
-  'plugins',
   'sessions',
   'about'
 ]
@@ -69,7 +55,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
   const navigate = useNavigate()
   const { hash, pathname, search } = useLocation()
 
-  // MCP and Tools & keys left Settings for Capabilities. Keep old deep links
+  // MCP, Tools & keys, and Plugins left Settings for Capabilities. Keep old deep links
   // working — `useRouteEnumParam` would silently coerce an unknown tab to the
   // default view otherwise. Preserve `server=` so an MCP bookmark still lands
   // on (and highlights) the selected server.
@@ -86,7 +72,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       return
     }
 
-    const capabilities = capabilitiesSettingsRedirect(tab)
+    const capabilities = capabilitiesSettingsRedirect(tab, search)
 
     if (capabilities) {
       navigate(capabilities, { replace: true })
@@ -200,13 +186,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
         id: 'keybinds',
         label: t.settings.nav.keybinds,
         onSelect: () => setActiveView('keybinds')
-      },
-      {
-        active: activeView === 'plugins',
-        icon: Package,
-        id: 'plugins',
-        label: t.settings.nav.plugins,
-        onSelect: () => setActiveView('plugins')
       },
       {
         active: activeView === 'sessions',
@@ -336,8 +315,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       <AppSettings />
     ) : activeView === 'notifications' ? (
       <NotificationsSettings />
-    ) : activeView === 'plugins' ? (
-      <PluginsSettings />
     ) : (
       <SessionsSettings />
     )

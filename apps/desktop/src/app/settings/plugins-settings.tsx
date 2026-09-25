@@ -9,10 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Tip } from '@/components/ui/tooltip'
 import { $pluginRecords, type PluginRecord, setPluginEnabled } from '@/contrib/plugins-store'
-import { discoverRuntimePlugins } from '@/contrib/runtime-loader'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { FolderOpen, Monitor, Package, RefreshCw } from '@/lib/icons'
+import { Monitor, Package } from '@/lib/icons'
 import { normalize } from '@/lib/text'
 import {
   $agentPluginBusy,
@@ -20,15 +19,13 @@ import {
   $agentPluginsError,
   $agentPluginsStatus,
   type AgentPluginRow,
-  type GatewayRequest,
   isDesktopRelevantPlugin,
   loadAgentPlugins,
   toggleAgentPlugin
 } from '@/store/agent-plugins'
-import { notifyError } from '@/store/notifications'
 import { $activeGatewayProfile } from '@/store/profile'
-import { $connection, $gatewayState } from '@/store/session'
-import { getProfiles } from '@/work4you'
+import { $gatewayState } from '@/store/session'
+import { type ProfileScope, getProfiles } from '@/work4you'
 
 import { EmptyState, ListRowSkeleton, Pill, SectionHeading, SettingsContent, SettingsSection } from './primitives'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
@@ -48,53 +45,16 @@ function reveal(file: string) {
   void window.work4youDesktop?.revealPath?.(file)?.catch(() => undefined)
 }
 
-async function revealPluginsDir() {
-  try {
-    // Electron owns the local plugin root — deriving it from the backend's
-    // work4you_home breaks against a remote backend (#66899).
-    const dir = await window.work4youDesktop?.desktopPluginsRoot?.()
-
-    if (!dir) {
-      notifyError('Desktop plugins are unavailable', 'Could not resolve the plugins folder')
-
-      return
-    }
-
-    // openDir (not reveal): the door often doesn't exist on first use, and
-    // showItemInFolder on a missing path silently no-ops (esp. Windows).
-    const result = await window.work4youDesktop?.openDir?.(dir)
-
-    if (result && !result.ok) {
-      notifyError(result.error ?? 'unknown error', 'Could not open the plugins folder')
-    }
-  } catch (err) {
-    notifyError(err, 'Could not resolve the plugins folder')
+function scopeProfileName(scope: ProfileScope | undefined): string | null {
+  if (!scope) {
+    return null
   }
-}
 
-// Agent plugins live under the BACKEND's work4you home (profile-aware), so the
-// path comes from the gateway — not from the renderer's local WORK4YOU_HOME.
-// Callers gate on a local connection: openDir mkdir-creates the path, which
-// must never happen for a directory that belongs to a remote box.
-async function revealAgentPluginsDir(request: GatewayRequest) {
-  try {
-    const result = await request<{ home?: string }>('config.get', { key: 'profile' })
-    const home = (result?.home ?? '').trim()
-
-    if (!home) {
-      notifyError('The backend did not report its home directory', 'Could not open the plugins folder')
-
-      return
-    }
-
-    const opened = await window.work4youDesktop?.openDir?.(`${home}/plugins`)
-
-    if (opened && !opened.ok) {
-      notifyError(opened.error ?? 'unknown error', 'Could not open the plugins folder')
-    }
-  } catch (err) {
-    notifyError(err, 'Could not open the plugins folder')
+  if (typeof scope === 'string') {
+    return scope.trim() || null
   }
+
+  return (scope.profile ?? '').trim() || null
 }
 
 // Compact row: name + pills and a wrapping description on the left, controls
@@ -170,30 +130,45 @@ function AgentPluginRowView({ row, profile }: { row: AgentPluginRow; profile: st
   )
 }
 
-function AgentPluginsSection() {
+function AgentPluginsSection({
+  embedded = false,
+  profile,
+  query: externalQuery
+}: {
+  embedded?: boolean
+  profile?: ProfileScope
+  query?: string
+}) {
   const { t } = useI18n()
   const p = t.settings.plugins
   const { requestGateway } = useGatewayRequest()
   const gatewayState = useStore($gatewayState)
-  const connection = useStore($connection)
   const rows = useStore($agentPlugins)
   const status = useStore($agentPluginsStatus)
   const error = useStore($agentPluginsError)
-  const [query, setQuery] = useState('')
+  const [localQuery, setLocalQuery] = useState('')
+  const query = externalQuery ?? localQuery
 
   // Which profile's plugins we list/toggle (not a multi-profile bind).
   // Defaults to the app-wide active profile; overriding it here lets the user
-  // manage ANY profile's plugins without switching the whole app (same
-  // pattern as the Capabilities scope selector in app/skills). null = the
-  // active profile — the RPC is sent without a profile param so older
-  // backends keep working unchanged.
+  // manage ANY profile's plugins without switching the whole app. On
+  // Capabilities the page selector owns that choice, so this one stays hidden.
+  // null = the active profile — the RPC is sent without a profile param so
+  // older backends keep working unchanged.
   const activeProfile = useStore($activeGatewayProfile)
   const [scopeOverride, setScopeOverride] = useState<null | string>(null)
-  const scopeProfile = scopeOverride ?? activeProfile ?? null
-  // The param we actually send: omit it for the active profile.
-  const requestProfile = scopeOverride && scopeOverride !== activeProfile ? scopeOverride : null
+  const embeddedName = embedded ? scopeProfileName(profile) : null
+  const scopeProfile = embedded ? (embeddedName ?? activeProfile ?? null) : (scopeOverride ?? activeProfile ?? null)
+  const requestProfile = embedded
+    ? embeddedName && embeddedName !== activeProfile
+      ? embeddedName
+      : null
+    : scopeOverride && scopeOverride !== activeProfile
+      ? scopeOverride
+      : null
 
   const { data: profilesData } = useQuery({
+    enabled: !embedded,
     queryKey: ['agent-plugins-profiles'],
     queryFn: getProfiles,
     staleTime: 60_000
@@ -238,7 +213,7 @@ function AgentPluginsSection() {
         {p.agent.blurb}
       </p>
 
-      {profiles.length > 1 && (
+      {!embedded && profiles.length > 1 && (
         <div className="mb-2 flex items-center gap-2">
           <span className="text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-tertiary)">
             {p.agent.appliesTo}
@@ -261,27 +236,15 @@ function AgentPluginsSection() {
         </div>
       )}
 
-      {connection?.mode !== 'remote' && !requestProfile && (
-        <div className="mb-2 flex items-center gap-3">
-          <Button
-            onClick={() => void revealAgentPluginsDir(requestGateway)}
-            size="sm"
-            type="button"
-            variant="textStrong"
-          >
-            <FolderOpen className="size-3.5" />
-            <span>{p.openFolder}</span>
-          </Button>
-        </div>
+      {externalQuery === undefined && (
+        <input
+          className="mb-2 w-full rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-1.5 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
+          onChange={event => setLocalQuery(event.target.value)}
+          placeholder={p.agent.search}
+          spellCheck={false}
+          value={localQuery}
+        />
       )}
-
-      <input
-        className="mb-2 w-full rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-1.5 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
-        onChange={event => setQuery(event.target.value)}
-        placeholder={p.agent.search}
-        spellCheck={false}
-        value={query}
-      />
 
       {status === 'loading' || status === 'idle' ? (
         <div>
@@ -354,10 +317,19 @@ function PluginRow({ record }: { record: PluginRecord }) {
   )
 }
 
-export function PluginsSettings() {
+export function PluginsSettings({
+  embedded = false,
+  profile,
+  query
+}: {
+  embedded?: boolean
+  profile?: ProfileScope
+  query?: string
+} = {}) {
   const { t } = useI18n()
   const p = t.settings.plugins
   const records = useStore($pluginRecords)
+  const needle = normalize(query ?? '')
 
   // Deep-link from settings search (?plugin=<id or key>): rows render as soon
   // as their store hydrates, so "ready" is simply target-present; the polling
@@ -368,9 +340,15 @@ export function PluginsSettings() {
     elementId: pluginElementId
   })
 
-  const rows = Object.values(records).sort(
-    (a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.name.localeCompare(b.name)
-  )
+  const rows = Object.values(records)
+    .filter(
+      record =>
+        !needle ||
+        record.name.toLowerCase().includes(needle) ||
+        record.id.toLowerCase().includes(needle) ||
+        (record.description ?? '').toLowerCase().includes(needle)
+    )
+    .sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.name.localeCompare(b.name))
 
   return (
     <SettingsContent>
@@ -378,25 +356,6 @@ export function PluginsSettings() {
 
       <SettingsSection icon={Monitor} meta={p.count(rows.length)} title={p.title}>
         <p className="mb-2 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">{p.blurb}</p>
-
-        <div className="mb-2 flex items-center gap-3">
-          <Button onClick={() => void revealPluginsDir()} size="sm" type="button" variant="textStrong">
-            <FolderOpen className="size-3.5" />
-            <span>{p.openFolder}</span>
-          </Button>
-          <Button
-            onClick={() => {
-              triggerHaptic('selection')
-              void discoverRuntimePlugins()
-            }}
-            size="sm"
-            type="button"
-            variant="textStrong"
-          >
-            <RefreshCw className="size-3.5" />
-            <span>{p.rescan}</span>
-          </Button>
-        </div>
 
         {rows.length === 0 ? (
           <EmptyState title={p.empty} />
@@ -409,7 +368,7 @@ export function PluginsSettings() {
         )}
       </SettingsSection>
 
-      <AgentPluginsSection />
+      <AgentPluginsSection embedded={embedded} profile={profile} query={query} />
     </SettingsContent>
   )
 }

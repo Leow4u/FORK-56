@@ -437,7 +437,7 @@ const toSessionEntry = (session: SessionRow): SessionEntry => ({
 })
 
 type NonConfigSettingsLabel =
-  'about' | 'app' | 'archivedChats' | 'billing' | 'mcp' | 'plugins' | 'providerAccounts' | 'providerApiKeys'
+  'about' | 'app' | 'archivedChats' | 'billing' | 'mcp' | 'providerAccounts' | 'providerApiKeys'
 
 const NON_CONFIG_SETTINGS: ReadonlyArray<{
   icon: IconComponent
@@ -450,12 +450,6 @@ const NON_CONFIG_SETTINGS: ReadonlyArray<{
     keywords: ['account', 'portal', 'sign in', 'subscription', 'plan', 'work4you', 'gateway', 'connection'],
     labelKey: 'billing',
     tab: 'billing'
-  },
-  {
-    icon: Package,
-    keywords: ['plugins', 'extensions', 'desktop plugins', 'addon', 'add-on'],
-    labelKey: 'plugins',
-    tab: 'plugins'
   },
   {
     icon: Monitor,
@@ -858,7 +852,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
             action: 'nav.skills',
             icon: Wrench,
             id: 'nav-skills',
-            keywords: ['skills', 'tools', 'toolsets', 'mcp', 'capabilities'],
+            keywords: ['skills', 'tools', 'toolsets', 'mcp', 'plugins', 'capabilities'],
             label: cc.nav.skills.title,
             run: go(SKILLS_ROUTE)
           },
@@ -1129,6 +1123,13 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
           keywords: ['mcp', 'servers', 'tools', 'capabilities', 'model context protocol'],
           label: `${capLabel}: ${t.skills.tabMcp}`,
           run: go(`${SKILLS_ROUTE}?tab=mcp`)
+        },
+        {
+          icon: Package,
+          id: 'cap-plugins',
+          keywords: ['plugins', 'extensions', 'addon', 'add-on', 'capabilities'],
+          label: `${capLabel}: ${t.skills.tabPlugins}`,
+          run: go(`${SKILLS_ROUTE}?tab=plugins`)
         }
       ]
     })

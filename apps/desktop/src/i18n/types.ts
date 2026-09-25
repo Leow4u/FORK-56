@@ -1051,9 +1051,11 @@ export interface Translations {
     tabToolsets: string
     configuringProfile: string
     tabMcp: string
+    tabPlugins: string
     all: string
     searchSkills: string
     searchToolsets: string
+    searchPlugins: string
     refresh: string
     refreshing: string
     loading: string

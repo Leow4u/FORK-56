@@ -22,6 +22,13 @@ describe('capabilitiesSettingsRedirect', () => {
     expect(capabilitiesSettingsRedirect('keys')).toBe('/skills')
   })
 
+  it('sends Plugins to the Capabilities plugins tab and keeps the row highlight', () => {
+    expect(capabilitiesSettingsRedirect('plugins')).toBe('/skills?tab=plugins')
+    expect(capabilitiesSettingsRedirect('plugins', '?tab=plugins&plugin=image_gen/fal')).toBe(
+      '/skills?tab=plugins&plugin=image_gen%2Ffal'
+    )
+  })
+
   it('leaves other tabs on Settings', () => {
     expect(capabilitiesSettingsRedirect('gateway')).toBeNull()
     expect(capabilitiesSettingsRedirect('billing')).toBeNull()

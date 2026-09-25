@@ -11,10 +11,16 @@ export function settingsTabReplacement(tab: string | null): 'billing' | null {
   return null
 }
 
-/** Tools & keys left Settings. Bookmarks open Capabilities, where integrations live. */
-export function capabilitiesSettingsRedirect(tab: string | null): string | null {
+/** Tools, keys, and plugins left Settings. Bookmarks open Capabilities. */
+export function capabilitiesSettingsRedirect(tab: string | null, search = ''): string | null {
   if (tab === 'keys') {
     return SKILLS_ROUTE
+  }
+
+  if (tab === 'plugins') {
+    const plugin = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('plugin')
+
+    return plugin ? `${SKILLS_ROUTE}?tab=plugins&plugin=${encodeURIComponent(plugin)}` : `${SKILLS_ROUTE}?tab=plugins`
   }
 
   return null

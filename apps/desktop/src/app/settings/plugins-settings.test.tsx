@@ -68,6 +68,31 @@ afterEach(() => {
 })
 
 describe('PluginsSettings', () => {
+  it('does not offer the plugins folder or a rescan', () => {
+    renderSettings()
+
+    expect(screen.queryByRole('button', { name: 'Open plugins folder' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Rescan' })).toBeNull()
+  })
+
+  it('hides its profile selector when Capabilities owns the scope', () => {
+    getProfiles.mockResolvedValue({
+      profiles: [
+        { name: 'default', is_default: true },
+        { name: 'work', is_default: false }
+      ]
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PluginsSettings embedded profile="work" />
+      </QueryClientProvider>
+    )
+
+    expect(screen.queryByText('Editing profile:')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Open plugins folder' })).toBeNull()
+  })
+
   it('renders and searches plugin rows returned without a canonical key', () => {
     renderSettings()
 

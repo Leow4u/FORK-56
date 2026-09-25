@@ -60,6 +60,7 @@ import { SETTINGS_ROUTE } from '../routes'
 import { ComputerUsePanel } from '../settings/computer-use-panel'
 import { asText, includesQuery, prettyName, toolNames, toolsetDisplayLabel } from '../settings/helpers'
 import { TerminalBackendPanel } from '../settings/terminal-backend-panel'
+import { PluginsSettings } from '../settings/plugins-settings'
 import { ToolsetConfigPanel } from '../settings/toolset-config-panel'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
@@ -70,7 +71,7 @@ import { $skillsSortDesc, $toolsetsSortDesc } from './store'
 // 'hub' is gone as a top-level tab — the Skills Hub browser lives inside the
 // Skills tab now (EmbeddedHubPicker below the installed list). Legacy
 // `?tab=hub` links fall back to 'skills' via useRouteEnumParam.
-const SKILLS_MODES = ['skills', 'toolsets', 'mcp'] as const
+const SKILLS_MODES = ['skills', 'toolsets', 'mcp', 'plugins'] as const
 
 // Same stub the web New-skill dialog seeds — YAML name/description + a body.
 const CREATE_SKILL_TEMPLATE = `---
@@ -894,7 +895,7 @@ export function SkillsView({
   }, [multiConnection, rosterData, scopeProfile])
 
   // Scope selector, shown above EVERY Capabilities tab (Skills, Tools, MCP,
-  // Browse Hub). Lets the user configure ANY profile's capabilities — on any
+  // Plugins). Lets the user configure ANY profile's capabilities — on any
   // registered gateway — without switching the whole app. Only meaningful
   // with >1 option; hidden otherwise to avoid clutter.
   const profileScopeSelector =
@@ -928,7 +929,9 @@ export function SkillsView({
           ? t.skills.searchSkills
           : displayMode === 'mcp'
             ? t.settings.searchPlaceholder.mcp
-            : t.skills.searchToolsets
+            : displayMode === 'plugins'
+              ? t.skills.searchPlugins
+              : t.skills.searchToolsets
       }
       searchValue={query}
       tabs={[
@@ -936,17 +939,20 @@ export function SkillsView({
         ...(showToolsTab
           ? [{ id: 'toolsets', label: t.skills.tabToolsets, meta: visibleToolsetCount(toolsets ?? []) }]
           : []),
-        { id: 'mcp', label: t.skills.tabMcp }
+        { id: 'mcp', label: t.skills.tabMcp },
+        { id: 'plugins', label: t.skills.tabPlugins }
       ]}
     >
       {/* One shared column: the scope selector sits above whichever tab is
-          active, so Skills / Tools / MCP all read and write the SAME selected
-          profile. */}
+          active, so Skills / Tools / MCP / Plugins all read and write the SAME
+          selected profile. */}
       <div className="flex h-full flex-col">
         {profileScopeSelector}
         <div className="flex min-h-0 flex-1 flex-col">
           <div className={displayMode === 'skills' ? 'min-h-40 flex-1 overflow-hidden' : 'min-h-0 flex-1'}>
-            {displayMode === 'mcp' ? (
+            {displayMode === 'plugins' ? (
+              <PluginsSettings embedded key={`plugins-${scopeKey}`} profile={scopeProfile} query={query} />
+            ) : displayMode === 'mcp' ? (
               // The gateway instance backs ONLY the live `reload.mcp` RPC, and
               // it is the ACTIVE gateway's socket — for a scope pinned to a
               // different backend that RPC would hot-reload the wrong
