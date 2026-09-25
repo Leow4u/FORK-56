@@ -86,8 +86,9 @@ describe('Memory settings', () => {
   it('saves a user profile toggle without rewriting the hidden knobs', async () => {
     await renderMemory()
 
-    const toggle = await screen.findByRole('switch', { name: 'User Profile' })
-    fireEvent.click(toggle)
+    const toggles = await screen.findAllByRole('switch')
+    expect(toggles).toHaveLength(2)
+    fireEvent.click(toggles[1])
 
     await waitFor(() =>
       expect(saveWork4YouConfig).toHaveBeenCalledWith(
