@@ -1247,7 +1247,7 @@ export function optimisticSessionCwd(
     return (reported ?? '').trim() || (liveCwd ?? '').trim() || null
   }
 
-  const asked = requested.trim()
+  const asked = (requested ?? '').trim()
 
   if (!asked) {
     return null
