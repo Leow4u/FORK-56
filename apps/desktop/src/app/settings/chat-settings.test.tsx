@@ -24,7 +24,7 @@ vi.mock('@/work4you', () => ({
 afterEach(() => {
   cleanup()
   $reasoningCollapsedByDefault.set(false)
-  delete window.work4youDesktop
+  Reflect.deleteProperty(window, 'work4youDesktop')
 })
 
 async function renderChat() {

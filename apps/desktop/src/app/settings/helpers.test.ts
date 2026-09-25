@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { Work4YouConfigRecord } from '@/types/work4you'
+import type { ConfigFieldSchema, Work4YouConfigRecord } from '@/types/work4you'
 
 import { SECTIONS } from './constants'
 import { defineFieldCopy, fieldCopyForSchemaKey, schemaKeyToFieldCopyKey } from './field-copy'
@@ -70,7 +70,7 @@ describe('settings helpers', () => {
   })
 
   it('keeps Chat to personality and reasoning visibility', () => {
-    const schema = {
+    const schema: Record<string, ConfigFieldSchema> = {
       'display.personality': { type: 'select', options: ['default'] },
       'display.show_reasoning': { type: 'boolean' },
       timezone: { type: 'string', searchable: true },

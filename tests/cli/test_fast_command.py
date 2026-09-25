@@ -333,4 +333,6 @@ class TestConfigDefault(unittest.TestCase):
 
         agent = DEFAULT_CONFIG.get("agent", {})
         self.assertIn("service_tier", agent)
-        self.assertEqual(agent["service_tier"], "")
+        # Factory birth is Fast. Blank values are filled at load; an explicit
+        # choice such as "normal" is left alone.
+        self.assertEqual(agent["service_tier"], "fast")

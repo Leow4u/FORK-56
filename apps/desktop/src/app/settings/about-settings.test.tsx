@@ -44,7 +44,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  delete window.work4youDesktop
+  Reflect.deleteProperty(window, 'work4youDesktop')
   $desktopVersion.set(null)
   $updateStatus.set(null)
 })
@@ -81,7 +81,7 @@ describe('About settings', () => {
   })
 
   it('hides uninstall when the desktop bridge is absent', () => {
-    delete window.work4youDesktop
+    Reflect.deleteProperty(window, 'work4youDesktop')
     render(<AboutSettings />)
 
     expect(screen.queryByRole('button', { name: 'Remove the app' })).toBeNull()
