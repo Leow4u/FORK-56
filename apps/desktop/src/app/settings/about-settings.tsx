@@ -206,11 +206,7 @@ export function AboutSettings() {
           </div>
         </div>
 
-        <ListRow
-          description={a.automaticUpdatesDesc}
-          hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}
-          title={a.automaticUpdates}
-        />
+        <ListRow description={a.automaticUpdatesDesc} title={a.automaticUpdates} />
       </SettingsGroup>
 
       <UninstallSection />

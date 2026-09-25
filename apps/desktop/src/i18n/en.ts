@@ -653,6 +653,13 @@ export const en: Translations = {
       automaticUpdatesDesc:
         'Work4You checks for updates automatically in the background and lets you know when one is ready.',
       branchCommit: (branch, commit) => `Branch ${branch} · Commit ${commit}`,
+      removeApp: 'Remove the app',
+      removeAppDesc: 'Uninstall the desktop app from this computer. Your agent, chats, and settings stay.',
+      removeAppConfirmTitle: 'Remove the app?',
+      removeAppConfirm: 'This removes the desktop app and closes it to finish. Your agent, chats, and settings stay.',
+      removeAppWorking: 'Removing…',
+      removeAppCancel: 'Cancel',
+      removeAppFailed: 'Could not remove the app.',
       never: 'never',
       justNow: 'just now',
       minAgo: count => `${count} min ago`,

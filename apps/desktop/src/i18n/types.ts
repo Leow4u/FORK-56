@@ -543,6 +543,13 @@ export interface Translations {
       automaticUpdates: string
       automaticUpdatesDesc: string
       branchCommit: (branch: string, commit: string) => string
+      removeApp: string
+      removeAppDesc: string
+      removeAppConfirmTitle: string
+      removeAppConfirm: string
+      removeAppWorking: string
+      removeAppCancel: string
+      removeAppFailed: string
       never: string
       justNow: string
       minAgo: (count: number) => string
