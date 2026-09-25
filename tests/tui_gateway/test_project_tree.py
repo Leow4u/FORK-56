@@ -356,6 +356,56 @@ def test_posix_path_identity_remains_case_sensitive():
     ]
 
 
+def test_session_cwd_beats_a_longer_git_root_owned_by_another_project():
+    # Dute-app is a worktree of Dutelog. The git root is a longer path and
+    # belongs to the other project. The session still opened in Dute-app.
+    app = _project("p_app", "Dute-app", ["/work/Dute-app"])
+    log = _project("p_log", "Dutelog", ["/Users/leo/Documents/GitHub/Dutelog"])
+    resolve = _resolver(
+        {
+            "/work/Dute-app": (
+                "/Users/leo/Documents/GitHub/Dutelog",
+                "/work/Dute-app",
+            ),
+        }
+    )
+    session = _session(
+        "/work/Dute-app",
+        branch="main",
+        repo_root="/Users/leo/Documents/GitHub/Dutelog",
+    )
+
+    tree = pt.build_tree([app, log], [session], [], resolve, hydrate=True)
+
+    app_node = next(p for p in tree["projects"] if p["id"] == "p_app")
+    log_node = next(p for p in tree["projects"] if p["id"] == "p_log")
+    assert app_node["sessionCount"] == 1
+    assert log_node["sessionCount"] == 0
+    assert _home(tree) is None
+
+
+def test_git_root_still_claims_a_session_whose_cwd_matches_no_project():
+    log = _project("p_log", "Dutelog", ["/Users/leo/Documents/GitHub/Dutelog"])
+    resolve = _resolver(
+        {
+            "/work/elsewhere": (
+                "/Users/leo/Documents/GitHub/Dutelog",
+                "/work/elsewhere",
+            ),
+        }
+    )
+    session = _session(
+        "/work/elsewhere",
+        branch="main",
+        repo_root="/Users/leo/Documents/GitHub/Dutelog",
+    )
+
+    tree = pt.build_tree([log], [session], [], resolve, hydrate=True)
+
+    log_node = next(p for p in tree["projects"] if p["id"] == "p_log")
+    assert log_node["sessionCount"] == 1
+
+
 def test_explicit_project_claims_sessions_and_beats_auto():
     project = _project("p_app", "App", ["/www/app"])
     resolve = _resolver(

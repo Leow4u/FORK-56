@@ -25,6 +25,7 @@ import {
   dedupeInflightUserAgainstTranscript,
   goneSessionVerdict,
   isSessionGoneError,
+  optimisticSessionCwd,
   overlayConcurrentMessageChanges,
   preserveLocalPendingTurnMessages,
   reconcileResumeMessages,
@@ -1726,5 +1727,27 @@ describe('overlayConcurrentMessageChanges', () => {
       { type: 'text', text: 'partial A' },
       { type: 'text', text: ' + delta B' }
     ])
+  })
+})
+
+describe('optimisticSessionCwd', () => {
+  it('keeps the folder that was asked for when the gateway reports its launch directory', () => {
+    expect(optimisticSessionCwd('/work/Dutelog', '/work/Dutelog', '/work/Dute-app')).toBe('/work/Dute-app')
+  })
+
+  it('accepts the backend spelling of the same folder', () => {
+    expect(optimisticSessionCwd('/work/Dute-app/', '/work/other', '/work/Dute-app')).toBe('/work/Dute-app/')
+  })
+
+  it('keeps the asked subfolder when the gateway reports only its parent', () => {
+    expect(optimisticSessionCwd('/work/Dute-app', '/work/other', '/work/Dute-app/src')).toBe('/work/Dute-app/src')
+  })
+
+  it('stays in Home when no folder was requested', () => {
+    expect(optimisticSessionCwd('/work/Dutelog', '/work/Dutelog', '')).toBeNull()
+  })
+
+  it('keeps a reported cwd when the caller did not name a request', () => {
+    expect(optimisticSessionCwd('/work/Dute-app', '/work/other')).toBe('/work/Dute-app')
   })
 })

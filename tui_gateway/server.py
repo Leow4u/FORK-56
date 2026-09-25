@@ -2768,13 +2768,50 @@ def _effective_terminal_backend() -> str:
     return backend or "local"
 
 
+def _create_workspace_info(session: dict) -> dict:
+    """cwd/branch/project for a just-created session.
+
+    An unpicked desktop chat reports no workspace. Branch and project follow
+    that same folder so the launch directory cannot name another project.
+    """
+    cwd = _display_session_cwd(session)
+    return {
+        "cwd": cwd,
+        "branch": _git_branch_for_cwd(cwd) if cwd else "",
+        "project": _project_info_for_cwd(cwd),
+    }
+
+
+def _unpicked_launch_workspace(session: dict | None) -> bool:
+    """True when this desktop session never chose a folder.
+
+    The in-memory cwd is then the gateway launch directory so the agent can
+    run. That directory is not a workspace: reporting it filed the chat under
+    whichever project the app happened to start in. A resumed session whose
+    row already has a folder is marked ``explicit_cwd`` and stays visible.
+    """
+    return bool(
+        session is not None
+        and not session.get("explicit_cwd")
+        and _session_source(session) in _LAUNCH_CWD_NOT_A_WORKSPACE
+    )
+
+
 def _display_session_cwd(session: dict | None) -> str:
     """Session cwd for display/probe surfaces, healed past deleted worktrees.
 
     Persists the healed value back to the session row (best-effort, local only)
     so the next load is already coherent and the sidebar lane stops showing a
     session pinned to a vanished path.
+
+    A desktop session that never picked a folder keeps an in-memory launch
+    directory so the agent can run, but that directory is not a workspace.
+    Reporting it made the sidebar file the chat under whichever project the
+    app happened to start in, then the persisted row (cwd null) moved it to
+    Home on the next refresh.
     """
+    if _unpicked_launch_workspace(session):
+        return ""
     cwd = _session_cwd(session)
     if not _is_local_terminal_backend():
         return cwd
@@ -7290,6 +7327,10 @@ def _init_session(
                 with _sessions_lock:
                     if sid in _sessions:
                         _sessions[sid]["cwd"] = row["cwd"]
+                        # The row's folder was chosen earlier. Without this the
+                        # display path treats every desktop resume as an unpicked
+                        # launch directory and clears the workspace.
+                        _sessions[sid]["explicit_cwd"] = True
             else:
                 try:
                     _cwd = _sessions[sid]["cwd"]
@@ -8596,6 +8637,7 @@ def _deferred_session_record(
     lazy: bool = False,
     model_override=None,
     resume_runtime_overrides: dict | None = None,
+    explicit_cwd: bool = False,
 ) -> dict:
     """A live-session record whose AIAgent is built later (lazy watch / cold
     resume) — _init_session's shape minus the agent."""
@@ -8612,7 +8654,7 @@ def _deferred_session_record(
         "cwd": cwd,
         "display_history_prefix": display_history_prefix or [],
         "edit_snapshots": {},
-        "explicit_cwd": False,
+        "explicit_cwd": explicit_cwd,
         "history": history,
         "history_lock": threading.Lock(),
         "history_version": 0,
@@ -8837,10 +8879,10 @@ def _fallback_session_info(session: dict) -> dict:
     # rebound correctly (#71254). `branch` is always emitted ("" outside a git
     # repo) so a client can clear a stale label instead of retaining it — the
     # same contract `_lazy_session_info` above already follows.
-    cwd = _session_cwd(session)
+    cwd = "" if _unpicked_launch_workspace(session) else _session_cwd(session)
     return {
         "cwd": cwd,
-        "branch": _git_branch_for_cwd(cwd),
+        "branch": _git_branch_for_cwd(cwd) if cwd else "",
         "project": _project_info_for_cwd(cwd),
         "lazy": True,
         "model": _resolve_model(),

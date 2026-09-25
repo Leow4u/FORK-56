@@ -33,7 +33,7 @@ import {
 import {
   beginSessionMutation,
   endSessionMutation,
-  resolveNewSessionCwd,
+  resolveCreateSessionCwd,
   tombstoneSessions,
   untombstoneSessions
 } from '@/store/projects'
@@ -434,18 +434,31 @@ export function useSessionActions({
       setCurrentServiceTier('')
       setYoloActive(false)
       setDraftSessionApprovalMode(null)
-      setNewChatWorkspaceTarget(hasWorkspaceTarget ? workspaceTarget : undefined)
 
-      if (!hasWorkspaceTarget) {
-        // In a project → the repo's default-branch checkout; not in a project →
-        // detached. So cmd-n does not inherit an unrelated linked worktree.
+      // A bare new session keeps the folder Select workspace already chose.
+      // Wiping that pick is how the next chat fell back to the conversation
+      // that was open. An explicit argument still replaces it, including null
+      // (Home).
+      const draftTarget = hasWorkspaceTarget ? workspaceTarget : $newChatWorkspaceTarget.get()
+
+      if (hasWorkspaceTarget) {
+        setNewChatWorkspaceTarget(workspaceTarget)
+      }
+
+      if (draftTarget === null) {
+        setCurrentCwdTransient('')
+      } else if (typeof draftTarget === 'string' && draftTarget.trim()) {
+        if (hasWorkspaceTarget) {
+          setCurrentCwd(draftTarget)
+        } else {
+          setCurrentCwdTransient(draftTarget.trim())
+        }
+      } else {
+        // In a project → that project's folder (or the open folder when it
+        // already sits inside the project); not in a project → the live draft.
         // Transient: a resolved default is not the user naming a workspace, and
         // remembering it here would make the NEXT new chat inherit it.
-        setCurrentCwdTransient(resolveNewSessionCwd())
-      } else if (workspaceTarget === null) {
-        setCurrentCwdTransient('')
-      } else if (typeof workspaceTarget === 'string') {
-        setCurrentCwd(workspaceTarget)
+        setCurrentCwdTransient(resolveCreateSessionCwd())
       }
 
       // A fresh draft resolves its own workspace right here, so it owns it. The
@@ -468,18 +481,9 @@ export function useSessionActions({
       creatingSessionRef.current = true
 
       try {
-        // An explicit one-shot workspace target (null → detached, string → that
-        // folder) wins; otherwise the live cwd, then the project-aware default
-        // (resolveNewSessionCwd — a project's new session keeps its repo cwd).
-        const workspaceTarget = $newChatWorkspaceTarget.get()
-
-        const cwd =
-          workspaceTarget === null
-            ? ''
-            : typeof workspaceTarget === 'string'
-              ? workspaceTarget.trim()
-              : $currentCwd.get().trim() || resolveNewSessionCwd()
-
+        // Select workspace and the entered project beat the conversation that
+        // was on screen. See resolveCreateSessionCwd.
+        const cwd = resolveCreateSessionCwd()
         const params = await desktopSessionCreateParams(cwd)
         const created = await requestGateway<SessionCreateResponse>('session.create', params)
         const stored = created.stored_session_id ?? null
@@ -518,7 +522,7 @@ export function useSessionActions({
           // reads meaningfully while the turn is in flight, instead of flashing
           // "Untitled session" until the turn persists and auto-title runs. The
           // server later returns its own preview/title and supersedes this.
-          upsertOptimisticSession(created, stored, null, preview?.trim() || null)
+          upsertOptimisticSession(created, stored, null, preview?.trim() || null, null, undefined, cwd)
           navigate(sessionRoute(stored), { replace: true })
           // Other windows (e.g. the main window when this is the pop-out) can't
           // see this session until they re-pull the shared list.
@@ -609,9 +613,12 @@ export function useSessionActions({
 
       try {
         // Fresh tile → the caller's workspace when one was named (the sidebar
-        // "+" on a project/worktree lane), else the resolved new-session cwd
-        // (project scope → configured default).
-        const params = await desktopSessionCreateParams((options?.cwd || resolveNewSessionCwd()).trim())
+        // "+" on a project/worktree lane). `cwd: null` is Home. Omitted cwd
+        // follows the same rule as a primary send (selected project beats the
+        // conversation that was on screen).
+        const tileCwd =
+          options && Object.hasOwn(options, 'cwd') ? (options.cwd || '').trim() : resolveCreateSessionCwd()
+        const params = await desktopSessionCreateParams(tileCwd)
         const created = await requestGateway<SessionCreateResponse>('session.create', params)
         const stored = created.stored_session_id
 
@@ -629,7 +636,7 @@ export function useSessionActions({
         // unlisted (draft) tab stays out of the session list until its first
         // turn persists and a refresh surfaces it.
         if (listed) {
-          upsertOptimisticSession(created, stored, null, null)
+          upsertOptimisticSession(created, stored, null, null, null, undefined, tileCwd)
         }
 
         // A tile lives in its OWN worktree, so it must not run the full

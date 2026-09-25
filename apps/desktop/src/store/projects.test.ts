@@ -41,6 +41,7 @@ import {
   refreshProjects,
   refreshProjectTree,
   refreshWorktrees,
+  resolveCreateSessionCwd,
   resolveNewSessionCwd,
   scanAndRecordRepos,
   selectWorkspaceProject,
@@ -97,6 +98,69 @@ const getWork4YouConfig = vi.mocked(work4you.getWork4YouConfig)
 const notifications = await import('@/store/notifications')
 const notify = vi.mocked(notifications.notify)
 
+describe('resolveCreateSessionCwd', () => {
+  beforeEach(() => {
+    $projectScope.set(ALL_PROJECTS)
+    $projectTree.set([])
+    setCurrentCwd('')
+    setNewChatWorkspaceTarget(undefined)
+  })
+
+  it('uses the entered project folder when the open conversation sits somewhere else', () => {
+    $projectTree.set([
+      {
+        id: 'p_app',
+        label: 'Dute-app',
+        path: '/work/Dute-app',
+        repos: [
+          {
+            groups: [],
+            id: '/work/Dutelog',
+            label: 'Dutelog',
+            path: '/work/Dutelog',
+            sessionCount: 0
+          }
+        ],
+        sessionCount: 0
+      }
+    ])
+    $projectScope.set('p_app')
+    setCurrentCwd('/work/Dutelog')
+
+    expect(resolveCreateSessionCwd()).toBe('/work/Dute-app')
+  })
+
+  it('keeps a folder that already sits inside the entered project', () => {
+    $projectTree.set([
+      {
+        id: 'p_app',
+        label: 'Dute-app',
+        path: '/work/Dute-app',
+        repos: [],
+        sessionCount: 0
+      }
+    ])
+    $projectScope.set('p_app')
+    setCurrentCwd('/work/Dute-app/src')
+
+    expect(resolveCreateSessionCwd()).toBe('/work/Dute-app/src')
+  })
+
+  it('keeps the live cwd when no project is selected', () => {
+    setCurrentCwd('/remote/worktree')
+
+    expect(resolveCreateSessionCwd()).toBe('/remote/worktree')
+  })
+
+  it('stays detached when the workspace was cleared', () => {
+    $projectScope.set('p_app')
+    setCurrentCwd('/work/Dutelog')
+    setNewChatWorkspaceTarget(null)
+
+    expect(resolveCreateSessionCwd()).toBe('')
+  })
+})
+
 describe('select workspace project', () => {
   beforeEach(() => {
     window.localStorage.clear()
@@ -144,6 +208,7 @@ describe('select workspace project', () => {
     expect($projectScope.get()).toBe('p_dute')
     expect($currentCwd.get()).toBe('/repos/current')
     expect($newChatWorkspaceTarget.get()).toBe('/repos/dute')
+    expect(resolveCreateSessionCwd()).toBe('/repos/dute')
   })
 
   it('ignores a project that has no folder', () => {

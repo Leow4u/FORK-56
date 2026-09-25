@@ -2,6 +2,7 @@ import { textWithoutReferenceLines } from '@/components/assistant-ui/reference-k
 import { assistantTextPart, type ChatMessage, chatMessageText, textPart } from '@/lib/chat-messages'
 import { normalizePersonalityValue } from '@/lib/chat-runtime'
 import { embeddedImageUrls, textWithoutEmbeddedImages } from '@/lib/embedded-images'
+import { isUnderPath } from '@/lib/path-compare'
 import { parseApprovalMode, reconcileApprovalModeForProfile } from '@/store/approval-mode'
 import { requestDesktopOnboardingForCredentialWarning } from '@/store/onboarding'
 import { $activeGatewayProfile, $profiles, normalizeProfileKey } from '@/store/profile'
@@ -1227,13 +1228,50 @@ export function selectBranchMessages(
   return toBranchMessages(authoritativeMessages.slice(0, authoritativeIndex + 1))
 }
 
+/**
+ * Sidebar cwd for a session that was just created.
+ *
+ * Callers that name the folder they asked for (`requested`) keep that folder
+ * when the gateway answers with its launch directory. A reported path is kept
+ * only when it is the same folder (the backend's absolute spelling). An empty
+ * request is Home: the launch directory must not file the row under another
+ * project. Callers that omit `requested` keep the previous reported-or-live
+ * rule (branches and tiles that already carry the real cwd on `info`).
+ */
+export function optimisticSessionCwd(
+  reported: string | null | undefined,
+  liveCwd: string | null | undefined,
+  requested?: string | null
+): string | null {
+  if (requested === undefined) {
+    return (reported ?? '').trim() || (liveCwd ?? '').trim() || null
+  }
+
+  const asked = (requested ?? '').trim()
+
+  if (!asked) {
+    return null
+  }
+
+  const got = (reported ?? '').trim()
+
+  // Same folder, including a trailing-slash or separator spelling from the
+  // backend. A parent or a different checkout is a different folder.
+  if (got && isUnderPath(asked, got) && isUnderPath(got, asked)) {
+    return got
+  }
+
+  return asked
+}
+
 export function upsertOptimisticSession(
   created: SessionCreateResponse,
   id: string,
   title: string | null = null,
   preview: string | null = null,
   parentSessionId: string | null = null,
-  lastActive?: number
+  lastActive?: number,
+  requestedCwd?: string | null
 ) {
   const now = lastActive ?? Date.now() / 1000
   // Stamp the profile the session was just created on (= the live gateway's
@@ -1246,7 +1284,7 @@ export function upsertOptimisticSession(
     // Seed cwd so the grouped sidebar can place the new row in its repo/worktree
     // lane immediately (the overlay groups by path); fall back to the workspace
     // the session was just started in when the create response omits it.
-    cwd: created.info?.cwd ?? ($currentCwd.get().trim() || null),
+    cwd: optimisticSessionCwd(created.info?.cwd, $currentCwd.get(), requestedCwd),
     ended_at: null,
     id,
     input_tokens: 0,
