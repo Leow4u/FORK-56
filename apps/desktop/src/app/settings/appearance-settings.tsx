@@ -19,7 +19,6 @@ import { $introSplash, setIntroSplash } from '@/store/intro-splash'
 import { $activeGatewayProfile, $profiles, normalizeProfileKey } from '@/store/profile'
 import { $reactionsEnabled, setReactionsEnabled } from '@/store/reactions-enabled'
 import { $sessionListDensity, type SessionListDensity, setSessionListDensity } from '@/store/session-list-density'
-import { $toolViewMode, setToolViewMode } from '@/store/tool-view'
 import {
   $translucency,
   beginTranslucencyPeek,
@@ -48,7 +47,6 @@ import type { DesktopTheme } from '@/themes/types'
 import { $marketplaceInstalls, isUserTheme, removeUserTheme } from '@/themes/user-themes'
 
 import { MODE_OPTIONS } from './constants'
-import { PetSettings } from './pet-settings'
 import { ListRow, SectionHeading, SettingsContent, SettingsGroup, ToggleRow } from './primitives'
 import { APPEARANCE_SETTING_IDS } from './settings-search'
 import { TerminalFontSetting } from './terminal-font-setting'
@@ -340,7 +338,6 @@ function GlassRow({ children, label }: GlassRowProps) {
 export function AppearanceSettings() {
   const { t, isSavingLocale } = useI18n()
   const { themeName, mode, resolvedMode, availableThemes, setTheme, setMode } = useTheme()
-  const toolViewMode = useStore($toolViewMode)
   const sessionListDensity = useStore($sessionListDensity)
   const zoomPercent = useStore($zoomPercent)
   const embedMode = useStore($embedMode)
@@ -407,11 +404,6 @@ export function AppearanceSettings() {
     profiles.find(profile => normalizeProfileKey(profile.name) === activeProfileKey)?.name ?? activeProfileKey
 
   const modeOptions = MODE_OPTIONS.map(({ id, icon }) => ({ icon, id, label: t.settings.modeOptions[id].label }))
-
-  const toolOptions = [
-    { id: 'product', label: a.product },
-    { id: 'technical', label: a.technical }
-  ] as const
 
   const sessionDensityOptions = [
     { id: 'compact', label: a.sessionDensityCompact },
@@ -709,22 +701,6 @@ export function AppearanceSettings() {
 
         <ListRow
           action={
-            <SegmentedControl
-              onChange={id => {
-                triggerHaptic('selection')
-                setToolViewMode(id)
-              }}
-              options={toolOptions}
-              value={toolViewMode}
-            />
-          }
-          description={a.toolViewDesc}
-          id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.toolView)}
-          title={a.toolViewTitle}
-        />
-
-        <ListRow
-          action={
             <div className="flex flex-col items-end gap-1.5">
               <SegmentedControl
                 onChange={id => {
@@ -753,8 +729,6 @@ export function AppearanceSettings() {
           title={a.embedsTitle}
         />
       </SettingsGroup>
-
-      <PetSettings />
     </SettingsContent>
   )
 }

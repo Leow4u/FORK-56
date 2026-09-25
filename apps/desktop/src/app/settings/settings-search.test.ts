@@ -153,4 +153,9 @@ describe('settings search index', () => {
     expect('backdrop' in APPEARANCE_SETTING_IDS).toBe(false)
     expect(Object.values(APPEARANCE_SETTING_IDS)).not.toContain('appearance.backdrop')
   })
+
+  it('does not expose tool call display as an appearance setting', () => {
+    expect('toolView' in APPEARANCE_SETTING_IDS).toBe(false)
+    expect(Object.values(APPEARANCE_SETTING_IDS)).not.toContain('appearance.tool-view')
+  })
 })

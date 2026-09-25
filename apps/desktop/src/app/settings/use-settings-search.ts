@@ -162,15 +162,6 @@ export function useSettingsSearchCatalog(enabled: boolean) {
     },
     {
       context: appearanceContext,
-      description: appearance.toolViewDesc,
-      icon: Palette,
-      id: `setting:${APPEARANCE_SETTING_IDS.toolView}`,
-      keywords: ['tool display', 'technical'],
-      label: appearance.toolViewTitle,
-      target: { setting: APPEARANCE_SETTING_IDS.toolView, view: 'config:appearance' }
-    },
-    {
-      context: appearanceContext,
       description: appearance.embedsDesc,
       icon: Palette,
       id: `setting:${APPEARANCE_SETTING_IDS.embeds}`,

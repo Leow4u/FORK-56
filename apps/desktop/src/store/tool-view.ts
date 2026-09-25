@@ -1,6 +1,6 @@
 import { atom, computed, type ReadableAtom } from 'nanostores'
 
-import { persistBoolean, storedBoolean } from '@/lib/storage'
+import { persistBoolean } from '@/lib/storage'
 
 export type ToolViewMode = 'product' | 'technical'
 
@@ -10,9 +10,9 @@ const TOOL_VIEW_TECHNICAL_STORAGE_KEY = 'work4you.desktop.toolView.technical'
 const TOOL_DISCLOSURE_STORAGE_KEY = 'work4you.desktop.toolDisclosure.v1'
 const MAX_DISCLOSURE_STATES = 240
 
-export const $toolViewMode = atom<ToolViewMode>(
-  storedBoolean(TOOL_VIEW_TECHNICAL_STORAGE_KEY, false) ? 'technical' : 'product'
-)
+// Product is the only view Settings offers. A stored technical choice is not
+// restored; the next write clears it.
+export const $toolViewMode = atom<ToolViewMode>('product')
 export const $toolDisclosureStates = atom<ToolDisclosureStates>(loadToolDisclosureStates())
 const disclosureOpenCache = new Map<string, ReadableAtom<boolean | undefined>>()
 const anyDisclosureOpenCache = new Map<string, ReadableAtom<boolean>>()
