@@ -20,6 +20,7 @@ import {
   SettingsSection
 } from '../primitives'
 
+import { PortalAccount } from '../portal-account'
 import { RowValue } from './account-row-value'
 import { BillingApiProvider } from './api'
 import { AutoReloadRow } from './auto-reload-row'
@@ -468,6 +469,7 @@ function BillingSettingsContent({
     return (
       <SettingsContent>
         <BillingHeader fixtureName={fixtureName} onFixtureChange={onFixtureChange} />
+        <PortalAccount />
         <BillingSkeleton />
       </SettingsContent>
     )
@@ -494,6 +496,7 @@ function BillingSettingsContent({
     return (
       <SettingsContent>
         <BillingHeader fixtureName={fixtureName} onFixtureChange={onFixtureChange} />
+        <PortalAccount />
         <BillingPlansView onBack={() => setSubView('overview')} tiers={view.tiers} />
       </SettingsContent>
     )
@@ -502,6 +505,7 @@ function BillingSettingsContent({
   return (
     <SettingsContent>
       <BillingHeader fixtureName={fixtureName} onFixtureChange={onFixtureChange} />
+      <PortalAccount />
 
       {view.notice && <NoticeCard notice={view.notice} />}
 

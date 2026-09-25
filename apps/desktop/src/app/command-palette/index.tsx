@@ -443,6 +443,7 @@ type NonConfigSettingsLabel =
   | 'about'
   | 'app'
   | 'archivedChats'
+  | 'billing'
   | 'gateway'
   | 'keysSettings'
   | 'keysTools'
@@ -458,16 +459,10 @@ const NON_CONFIG_SETTINGS: ReadonlyArray<{
   tab: string
 }> = [
   {
-    icon: Zap,
-    keywords: ['accounts', 'sign in', 'oauth', 'login', 'subscription', 'models', 'anthropic', 'openai'],
-    labelKey: 'providerAccounts',
-    tab: 'providers&pview=accounts'
-  },
-  {
-    icon: KeyRound,
-    keywords: ['providers', 'api key', 'keys', 'secrets', 'tokens', 'egress', 'iron proxy', 'sandbox proxy'],
-    labelKey: 'providerApiKeys',
-    tab: 'providers&pview=keys'
+    icon: BarChart3,
+    keywords: ['account', 'portal', 'sign in', 'subscription', 'plan', 'work4you'],
+    labelKey: 'billing',
+    tab: 'billing'
   },
   {
     icon: Globe,

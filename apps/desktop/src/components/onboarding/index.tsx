@@ -495,9 +495,8 @@ function FirstRunWelcome({ ctx }: { ctx: OnboardingContext }) {
     return <Status>{t.onboarding.lookingUpProviders}</Status>
   }
 
-  // First-run is one Portal door. Labs, API keys, and skip stay on
-  // Settings → Providers (manual mode). If the catalog omitted Portal, still
-  // offer only that account — never fall through to other labs or a key form.
+  // First-run is one Portal door. Settings keeps that same account on
+  // Billing. If the catalog omitted Portal, still offer only that account.
   const portal = portalFromCatalog(providers)
 
   return (
