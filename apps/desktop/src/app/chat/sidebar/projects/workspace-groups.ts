@@ -69,6 +69,33 @@ export interface SidebarProjectTree {
   previewSessions?: SessionInfo[]
 }
 
+/** Folder a repo header "+" should open: the project's own folder, else the repo path. */
+export function folderForNewRepoSession(
+  projectPath: null | string | undefined,
+  repoPath: null | string | undefined
+): null | string {
+  return (projectPath || '').trim() || (repoPath || '').trim() || null
+}
+
+/**
+ * Folder a lane "+" should open. The main checkout follows the project folder
+ * (a git root folded in from another checkout must not steal it). A worktree
+ * lane opens that checkout.
+ */
+export function folderForNewLaneSession(
+  projectPath: null | string | undefined,
+  lane: { isMain?: boolean; path?: null | string }
+): null | string {
+  const project = (projectPath || '').trim()
+  const lanePath = (lane.path || '').trim()
+
+  if (lane.isMain) {
+    return project || lanePath || null
+  }
+
+  return lanePath || project || null
+}
+
 /** Path split into segments, ignoring trailing slashes and mixed separators. */
 const segments = (path: string): string[] =>
   path
@@ -380,7 +407,38 @@ function isPathUnder(folder: string, target: string): boolean {
  * the row's cwd sits outside its recorded repo root (a mid-session relocation,
  * or a sibling worktree of a project repo), the folder match is authoritative;
  * only the repo-root AUTO-project fallback needs cwd-under-root confidence.
+ *
+ * The session's own folder decides when it matches a project. A longer git
+ * root that belongs to a different project must not steal the row — that is
+ * how a chat opened in one worktree landed under the main checkout's project.
+ * The git root is consulted only when the cwd itself matches no project.
  */
+function explicitProjectForPath(target: string, explicitProjects: ProjectInfo[]): string {
+  let projectId = ''
+  let bestLen = -1
+
+  for (const project of explicitProjects) {
+    if (project.archived) {
+      continue
+    }
+
+    for (const folder of project.folders) {
+      if (!isPathUnder(folder.path, target)) {
+        continue
+      }
+
+      const len = segments(folder.path).length
+
+      if (len > bestLen) {
+        bestLen = len
+        projectId = project.id
+      }
+    }
+  }
+
+  return projectId
+}
+
 export function liveSessionProjectId(session: SessionInfo, explicitProjects: ProjectInfo[]): null | string {
   const cwd = (session.cwd || '').trim()
   // A session may carry only a git_repo_root and no cwd — older/imported rows,
@@ -394,28 +452,16 @@ export function liveSessionProjectId(session: SessionInfo, explicitProjects: Pro
     return null
   }
 
-  let projectId = ''
-  let bestLen = -1
+  const byCwd = cwd ? explicitProjectForPath(cwd, explicitProjects) : ''
 
-  for (const project of explicitProjects) {
-    if (project.archived) {
-      continue
-    }
-
-    for (const folder of project.folders) {
-      if (isPathUnder(folder.path, cwd) || isPathUnder(folder.path, repoRoot)) {
-        const len = segments(folder.path).length
-
-        if (len > bestLen) {
-          bestLen = len
-          projectId = project.id
-        }
-      }
-    }
+  if (byCwd) {
+    return byCwd
   }
 
-  if (projectId) {
-    return projectId
+  const byRoot = repoRoot && repoRoot !== cwd ? explicitProjectForPath(repoRoot, explicitProjects) : ''
+
+  if (byRoot) {
+    return byRoot
   }
 
   // AUTO-project fallback (the repo root itself): with a cwd present it must

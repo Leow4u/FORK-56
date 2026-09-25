@@ -8,6 +8,8 @@ import {
   baseName,
   excludeProjectSessions,
   kanbanWorktreeDir,
+  folderForNewLaneSession,
+  folderForNewRepoSession,
   liveSessionProjectId,
   mergeRepoWorktreeGroups,
   NO_PROJECT_ID,
@@ -555,6 +557,26 @@ describe('liveSessionProjectId', () => {
     expect(liveSessionProjectId(makeCwdSession('/work/notes'), [makeProject('p_notes', ['/Work/Notes'])])).toBe(
       '/work/notes'
     )
+  })
+
+  it('keeps a worktree session in its own project when the git root belongs to a longer path', () => {
+    const id = liveSessionProjectId(
+      makeCwdSession('/work/Dute-app', { git_repo_root: '/Users/leo/Documents/GitHub/Dutelog' }),
+      [makeProject('p_app', ['/work/Dute-app']), makeProject('p_log', ['/Users/leo/Documents/GitHub/Dutelog'])]
+    )
+
+    expect(id).toBe('p_app')
+  })
+})
+
+describe('new session folder', () => {
+  it('opens the project folder from a repo header whose path is another checkout', () => {
+    expect(folderForNewRepoSession('/work/Dute-app', '/work/Dutelog')).toBe('/work/Dute-app')
+  })
+
+  it('opens the project folder from the main lane and the worktree path from a worktree lane', () => {
+    expect(folderForNewLaneSession('/work/Dute-app', { isMain: true, path: '/work/Dutelog' })).toBe('/work/Dute-app')
+    expect(folderForNewLaneSession('/work/Dutelog', { isMain: false, path: '/work/Dute-app' })).toBe('/work/Dute-app')
   })
 })
 

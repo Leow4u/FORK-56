@@ -149,9 +149,7 @@ def _(rid, params: dict) -> dict:
                 ),
                 "tools": {},
                 "skills": {},
-                "cwd": _sessions[sid]["cwd"],
-                "branch": _git_branch_for_cwd(_sessions[sid]["cwd"]),
-                "project": _project_info_for_cwd(_sessions[sid]["cwd"]),
+                **_create_workspace_info(_sessions[sid]),
                 "lazy": True,
                 "desktop_contract": DESKTOP_BACKEND_CONTRACT,
                 "profile_name": _response_profile_name(profile),
@@ -417,7 +415,8 @@ def _(rid, params: dict) -> dict:
                 target, exc,
             )
 
-        profile_resume_cwd = str(found.get("cwd") or "").strip() or _profile_configured_cwd(
+        stored_resume_cwd = str(found.get("cwd") or "").strip()
+        profile_resume_cwd = stored_resume_cwd or _profile_configured_cwd(
             profile_home
         )
 
@@ -488,6 +487,7 @@ def _(rid, params: dict) -> dict:
                 close_on_disconnect=is_truthy_value(params.get("close_on_disconnect", False)),
                 profile_home=profile_home,
                 lazy=True,
+                explicit_cwd=bool(stored_resume_cwd),
             )
             if (live := _claim_or_reuse_live(sid, target, record, lease)) is not None:
                 return _ok(rid, _reuse_live_payload(*live))
@@ -516,7 +516,10 @@ def _(rid, params: dict) -> dict:
                     "message_count": len(display_history) if omit_messages else len(messages),
                     "messages": messages,
                     "messages_omitted": omit_messages,
-                    "info": _lazy_resume_info(cwd, profile=profile),
+                    "info": _lazy_resume_info(
+                        "" if _unpicked_launch_workspace(record) else cwd,
+                        profile=profile,
+                    ),
                     "inflight": None,
                     "running": child_running,
                     "session_key": target,
@@ -556,6 +559,7 @@ def _(rid, params: dict) -> dict:
                 profile_home=profile_home,
                 model_override=overrides.get("model_override"),
                 resume_runtime_overrides=overrides or None,
+                explicit_cwd=bool(stored_resume_cwd),
             )
             record["resume_history_ready"] = threading.Event()
             record["resume_hydrating"] = True
@@ -578,7 +582,7 @@ def _(rid, params: dict) -> dict:
                     "messages": [],
                     "hydrating": True,
                     "info": _lazy_resume_info(
-                        cwd,
+                        "" if _unpicked_launch_workspace(record) else cwd,
                         model=model_override.get("model") or "",
                         provider=overrides.get("provider_override") or "",
                         profile=profile,
@@ -652,6 +656,7 @@ def _(rid, params: dict) -> dict:
                 profile_home=profile_home,
                 model_override=overrides.get("model_override"),
                 resume_runtime_overrides=overrides or None,
+                explicit_cwd=bool(stored_resume_cwd),
             )
             if (live := _claim_or_reuse_live(sid, target, record, lease)) is not None:
                 return _ok(rid, _reuse_live_payload(*live))
@@ -668,7 +673,7 @@ def _(rid, params: dict) -> dict:
                 "messages": messages,
                 "messages_omitted": omit_messages,
                 "info": _lazy_resume_info(
-                    cwd,
+                    "" if _unpicked_launch_workspace(record) else cwd,
                     model=model_override.get("model") or "",
                     provider=overrides.get("provider_override") or "",
                     profile=profile,

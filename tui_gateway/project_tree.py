@@ -498,20 +498,25 @@ def _project_for_path(index: _FolderIndex, target: str) -> Optional[dict]:
 
 
 def _project_for_session(session: dict, index: _FolderIndex, resolve: Optional[Resolve]) -> Optional[dict]:
+    """The project that owns this session.
+
+    The session's own folder wins when it sits in a project. A longer git root
+    that belongs to a different project must not steal the row — a worktree
+    checked out beside the main repo would otherwise file under whichever
+    project owns that main checkout. The git root is used only when the cwd
+    itself matches no project (a relocated row, or a worktree that was never
+    registered as its own folder).
+    """
     cwd = (session.get("cwd") or "").strip()
     if not cwd:
         return None
+    match = _project_for_path(index, cwd)
+    if match:
+        return match
     repo_root = _session_repo_root(session, resolve)
-    candidates = [cwd, repo_root] if repo_root and repo_root != cwd else [cwd]
-
-    best: Optional[dict] = None
-    best_len = -1
-    for target in candidates:
-        match, length = index.match(target)
-        if match and length > best_len:
-            best_len = length
-            best = match
-    return best
+    if repo_root and repo_root != cwd:
+        return _project_for_path(index, repo_root)
+    return None
 
 
 # ---------------------------------------------------------------------------
