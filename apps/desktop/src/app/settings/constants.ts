@@ -648,21 +648,6 @@ export const SECTIONS: DesktopConfigSection[] = [
     keys: []
   },
   {
-    id: 'workspace',
-    label: 'Workspace',
-    icon: Monitor,
-    keys: [
-      'terminal.cwd',
-      'desktop.repo_scan_enabled',
-      'desktop.repo_scan_roots',
-      'desktop.repo_scan_exclude_paths',
-      'code_execution.mode',
-      'terminal.persistent_shell',
-      'terminal.env_passthrough',
-      'file_read_max_chars'
-    ]
-  },
-  {
     id: 'safety',
     label: 'Safety',
     icon: Lock,

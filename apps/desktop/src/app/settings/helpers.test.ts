@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Work4YouConfigRecord } from '@/types/work4you'
 
-import { FIELD_DESCRIPTIONS, FIELD_LABELS, SECTIONS } from './constants'
+import { SECTIONS } from './constants'
 import { defineFieldCopy, fieldCopyForSchemaKey, schemaKeyToFieldCopyKey } from './field-copy'
 import {
   clearsEnabledToolsets,
@@ -17,18 +17,23 @@ import {
 } from './helpers'
 
 describe('settings helpers', () => {
-  it('surfaces repository discovery config in Workspace with user-facing copy', () => {
-    const workspace = SECTIONS.find(section => section.id === 'workspace')
+  it('does not offer the workspace engine page', () => {
+    expect(SECTIONS.some(section => section.id === 'workspace')).toBe(false)
 
-    expect(workspace?.keys).toEqual(
-      expect.arrayContaining([
-        'desktop.repo_scan_enabled',
-        'desktop.repo_scan_roots',
-        'desktop.repo_scan_exclude_paths'
-      ])
-    )
-    expect(fieldCopyForSchemaKey(FIELD_LABELS, 'desktop.repo_scan_enabled')).toBeTruthy()
-    expect(fieldCopyForSchemaKey(FIELD_DESCRIPTIONS, 'desktop.repo_scan_exclude_paths')).toBeTruthy()
+    const exposed = SECTIONS.flatMap(section => section.keys)
+
+    for (const key of [
+      'terminal.cwd',
+      'desktop.repo_scan_enabled',
+      'desktop.repo_scan_roots',
+      'desktop.repo_scan_exclude_paths',
+      'code_execution.mode',
+      'terminal.persistent_shell',
+      'terminal.env_passthrough',
+      'file_read_max_chars'
+    ]) {
+      expect(exposed).not.toContain(key)
+    }
   })
 
   it('keeps Chat to personality and reasoning visibility', () => {
