@@ -16,6 +16,7 @@ import {
   Info,
   Keyboard,
   KeyRound,
+  Monitor,
   Package,
   RefreshCw,
   Search,
@@ -40,6 +41,7 @@ import { SKILLS_ROUTE } from '../routes'
 import { MAIN_STAGE_SURFACE_CLASS } from '../shell/stage-chrome'
 
 import { AboutSettings } from './about-settings'
+import { AppSettings } from './app-settings'
 import { AppearanceSettings } from './appearance-settings'
 import { BillingSettings } from './billing'
 import { ConfigSettings } from './config-settings'
@@ -63,6 +65,7 @@ const SETTINGS_VIEWS: readonly SettingsViewId[] = [
   'connections',
   'keybinds',
   'keys',
+  'app',
   'notifications',
   'billing',
   'plugins',
@@ -98,6 +101,21 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       setActiveView('gateway')
     }
   }, [activeView, setActiveView])
+
+  // The engine drawer left Settings. Old bookmarks land on the short App page
+  // (keep awake and Quick Entry). The original tab is not in SETTINGS_VIEWS, so
+  // read the query string before the enum param coerces it away.
+  useEffect(() => {
+    const params = new URLSearchParams(search)
+
+    if (params.get('tab') !== 'config:advanced') {
+      return
+    }
+
+    params.set('tab', 'app')
+    const qs = params.toString()
+    navigate({ hash, pathname, search: qs ? `?${qs}` : '' }, { replace: true })
+  }, [hash, navigate, pathname, search])
   // Providers subnav (Accounts vs API keys) lives in its own param so each
   // sub-view is deep-linkable and survives a refresh.
   const [providerView, setProviderView] = useRouteEnumParam<ProviderView>('pview', PROVIDER_VIEWS, 'accounts')
@@ -175,6 +193,13 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
           onSelect: () => setActiveView(view)
         }
       }),
+      {
+        active: activeView === 'app',
+        icon: Monitor,
+        id: 'app',
+        label: t.settings.nav.app,
+        onSelect: () => setActiveView('app')
+      },
       {
         active: activeView === 'notifications',
         icon: Bell,
@@ -398,6 +423,8 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       />
     ) : activeView === 'keys' ? (
       <KeysSettings view={keysView} />
+    ) : activeView === 'app' ? (
+      <AppSettings />
     ) : activeView === 'notifications' ? (
       <NotificationsSettings />
     ) : activeView === 'billing' ? (

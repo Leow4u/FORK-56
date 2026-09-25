@@ -6,6 +6,7 @@ import type { Work4YouGateway } from '@/work4you'
 
 export type SettingsView =
   | 'about'
+  | 'app'
   | 'billing'
   | 'connections'
   | 'gateway'

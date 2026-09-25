@@ -9,8 +9,7 @@ import {
   Monitor,
   Moon,
   Palette,
-  Sun,
-  Wrench
+  Sun
 } from '@/lib/icons'
 import type { ThemeMode } from '@/themes/context'
 
@@ -729,35 +728,6 @@ export const SECTIONS: DesktopConfigSection[] = [
     label: 'Image & Video',
     icon: ImageIcon,
     keys: []
-  },
-  {
-    id: 'advanced',
-    label: 'Advanced',
-    icon: Wrench,
-    keys: [
-      'toolsets',
-      'terminal.backend',
-      'terminal.timeout',
-      'terminal.docker_image',
-      'terminal.singularity_image',
-      'terminal.modal_image',
-      'terminal.daytona_image',
-      'tool_output.max_bytes',
-      'tool_output.max_lines',
-      'tool_output.max_line_length',
-      'checkpoints.max_snapshots',
-      'agent.max_turns',
-      'agent.api_max_retries',
-      'agent.service_tier',
-      'agent.tool_use_enforcement',
-      'delegation.model',
-      'delegation.provider',
-      'delegation.max_iterations',
-      'delegation.max_concurrent_children',
-      'delegation.child_timeout_seconds',
-      'delegation.reasoning_effort',
-      'updates.non_interactive_local_changes'
-    ]
   }
 ]
 

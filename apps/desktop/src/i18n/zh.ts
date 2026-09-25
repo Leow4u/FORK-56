@@ -366,6 +366,7 @@ export const zh: Translations = {
       mcp: 'MCP',
       archivedChats: '已归档对话',
       about: '关于',
+      app: '应用',
       billing: '账单',
       notifications: '通知',
       plugins: '插件'

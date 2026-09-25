@@ -441,6 +441,7 @@ const toSessionEntry = (session: SessionRow): SessionEntry => ({
 
 type NonConfigSettingsLabel =
   | 'about'
+  | 'app'
   | 'archivedChats'
   | 'gateway'
   | 'keysSettings'
@@ -503,6 +504,12 @@ const NON_CONFIG_SETTINGS: ReadonlyArray<{
     keywords: ['plugins', 'extensions', 'desktop plugins', 'addon', 'add-on'],
     labelKey: 'plugins',
     tab: 'plugins'
+  },
+  {
+    icon: Monitor,
+    keywords: ['advanced', 'awake', 'keep awake', 'sleep', 'quick entry', 'shortcut', 'this computer'],
+    labelKey: 'app',
+    tab: 'app'
   },
   { icon: Archive, keywords: ['history', 'archived'], labelKey: 'archivedChats', tab: 'sessions' },
   { icon: Info, keywords: ['version', 'about'], labelKey: 'about', tab: 'about' }

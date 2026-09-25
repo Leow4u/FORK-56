@@ -325,6 +325,7 @@ export interface Translations {
       mcp: string
       archivedChats: string
       about: string
+      app: string
       billing: string
       notifications: string
       plugins: string

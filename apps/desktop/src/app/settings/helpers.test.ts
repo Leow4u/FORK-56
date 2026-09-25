@@ -17,6 +17,39 @@ import {
 } from './helpers'
 
 describe('settings helpers', () => {
+  it('does not offer the advanced engine page', () => {
+    expect(SECTIONS.some(section => section.id === 'advanced')).toBe(false)
+
+    const exposed = SECTIONS.flatMap(section => section.keys)
+
+    for (const key of [
+      'toolsets',
+      'terminal.backend',
+      'terminal.timeout',
+      'terminal.docker_image',
+      'terminal.singularity_image',
+      'terminal.modal_image',
+      'terminal.daytona_image',
+      'tool_output.max_bytes',
+      'tool_output.max_lines',
+      'tool_output.max_line_length',
+      'checkpoints.max_snapshots',
+      'agent.max_turns',
+      'agent.api_max_retries',
+      'agent.service_tier',
+      'agent.tool_use_enforcement',
+      'delegation.model',
+      'delegation.provider',
+      'delegation.max_iterations',
+      'delegation.max_concurrent_children',
+      'delegation.child_timeout_seconds',
+      'delegation.reasoning_effort',
+      'updates.non_interactive_local_changes'
+    ]) {
+      expect(exposed).not.toContain(key)
+    }
+  })
+
   it('does not offer the workspace engine page', () => {
     expect(SECTIONS.some(section => section.id === 'workspace')).toBe(false)
 

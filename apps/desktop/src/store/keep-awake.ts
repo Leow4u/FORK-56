@@ -2,7 +2,7 @@
  * Keep-awake — stop the machine sleeping during long, unattended runs.
  *
  * A device-local preference (each computer keeps its own), off by default. This
- * atom backs the Settings → Advanced toggle and mirrors changes to the main
+ * atom backs the Settings → App toggle and mirrors changes to the main
  * process, which owns the real power-save blocker AND its own persisted copy —
  * so a cold launch restores the blocker without the renderer visiting Settings
  * (see electron/main.ts + electron/power-save.ts). Linux/web without the bridge

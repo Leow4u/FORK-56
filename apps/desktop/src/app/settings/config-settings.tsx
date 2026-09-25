@@ -6,8 +6,6 @@ import { useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
-import { $disableF12, setDisableF12 } from '@/store/disable-f12'
-import { $keepAwake, setKeepAwake } from '@/store/keep-awake'
 import { notify, notifyError } from '@/store/notifications'
 import { normalizeProfileKey } from '@/store/profile'
 import { repoDiscoveryPolicyFromConfig, repoDiscoveryPolicySignature, scanAndRecordRepos } from '@/store/projects'
@@ -35,7 +33,6 @@ import { ProviderConfigPanel } from './memory/provider-config-panel'
 import { ModelSettings, ModelSettingsSkeleton } from './model-settings'
 import { EmptyState, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton, ToggleRow } from './primitives'
 import { SettingsProfileScope } from './profile-scope'
-import { QuickEntrySettings } from './quick-entry-settings'
 
 export function ConfigSettings({
   activeSectionId,
@@ -77,8 +74,6 @@ function ConfigSettingsInner({
 }: ConfigSettingsProps & { scopeProfile: null | string }) {
   const { t } = useI18n()
   const c = t.settings.config
-  const keepAwake = useStore($keepAwake)
-  const disableF12 = useStore($disableF12)
   // The editable draft is local (debounced autosave watches it), but it's seeded
   // from — and saved back through — the shared config cache, so edits are visible
   // in the MCP/model surfaces and reopening the page doesn't reload-flash.
@@ -361,26 +356,6 @@ function ConfigSettingsInner({
           <ModelSettings onMainModelChanged={onMainModelChanged} scopeProfile={scopeProfile} />
         </div>
       )}
-      {/* Device-local desktop prefs (not config.yaml) — they live here since
-          keeping the machine awake and the global Quick Entry chord are both
-          power-user, this-computer-only knobs. */}
-      {activeSectionId === 'advanced' && (
-        <SettingsGroup>
-          <ToggleRow
-            checked={keepAwake}
-            description={c.keepAwakeDesc}
-            label={c.keepAwakeTitle}
-            onChange={setKeepAwake}
-          />
-          <ToggleRow
-            checked={disableF12}
-            description={c.disableF12Desc}
-            label={c.disableF12Title}
-            onChange={setDisableF12}
-          />
-          <QuickEntrySettings />
-        </SettingsGroup>
-      )}
       {activeSectionId === 'chat' || visibleFields.length > 0 ? (
         <SettingsGroup>
           {visibleFields.map(([key, field]) => (
@@ -413,10 +388,7 @@ function ConfigSettingsInner({
           ))}
           {activeSectionId === 'chat' ? <CollapseThinkingSetting /> : null}
         </SettingsGroup>
-      ) : visibleFields.length === 0 &&
-        activeSectionId !== 'chat' &&
-        activeSectionId !== 'model' &&
-        activeSectionId !== 'advanced' ? (
+      ) : visibleFields.length === 0 && activeSectionId !== 'chat' && activeSectionId !== 'model' ? (
         <EmptyState description={c.emptyDesc} title={c.emptyTitle} />
       ) : null}
       <input
