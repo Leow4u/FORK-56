@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
@@ -10,7 +11,14 @@ import { cn } from '@/lib/utils'
 import type { ConfigFieldSchema } from '@/types/work4you'
 
 import { ComboboxInput } from './combobox-input'
-import { CONTROL_TEXT, EMPTY_SELECT_VALUE, FIELD_DESCRIPTIONS, FIELD_LABELS, FREE_INPUT_KEYS } from './constants'
+import {
+  APPROVAL_MODE_LABELS,
+  CONTROL_TEXT,
+  EMPTY_SELECT_VALUE,
+  FIELD_DESCRIPTIONS,
+  FIELD_LABELS,
+  FREE_INPUT_KEYS
+} from './constants'
 import { FallbackModelsField } from './fallback-models-field'
 import { fieldCopyForSchemaKey } from './field-copy'
 import { ListRow } from './primitives'
@@ -146,7 +154,9 @@ export function ConfigField({
           {selectOptions.map(option => (
             <SelectItem key={option || EMPTY_SELECT_VALUE} value={option || EMPTY_SELECT_VALUE}>
               {option
-                ? (optionLabels?.[option] ?? prettyName(option))
+                ? schemaKey === 'approvals.mode'
+                  ? (APPROVAL_MODE_LABELS[option] ?? prettyName(option))
+                  : (optionLabels?.[option] ?? prettyName(option))
                 : schemaKey === 'display.personality'
                   ? c.none
                   : schemaKey === 'memory.provider'
@@ -176,6 +186,10 @@ export function ConfigField({
         value={value === undefined || value === null ? '' : String(value)}
       />
     )
+  }
+
+  if (schemaKey === 'command_allowlist') {
+    return row(<CommandAllowlistField onChange={onChange} value={value} />, true)
   }
 
   if (schema.type === 'list') {
@@ -234,5 +248,63 @@ export function ConfigField({
       />
     ),
     isLong
+  )
+}
+
+function commandList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.map(item => String(item)).filter(item => item.trim().length > 0)
+}
+
+function CommandAllowlistField({ onChange, value }: { onChange: (value: unknown) => void; value: unknown }) {
+  const { t } = useI18n()
+  const items = commandList(value)
+  const [draft, setDraft] = useState('')
+
+  const add = () => {
+    const next = draft.trim()
+
+    if (!next || items.includes(next)) {
+      setDraft('')
+
+      return
+    }
+
+    onChange([...items, next])
+    setDraft('')
+  }
+
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-2">
+      {items.map(item => (
+        <div className="flex items-center justify-between gap-2" key={item}>
+          <span className="truncate font-mono text-xs">{item}</span>
+          <Button onClick={() => onChange(items.filter(entry => entry !== item))} size="sm" variant="ghost">
+            {t.common.remove}
+          </Button>
+        </div>
+      ))}
+      <div className="flex items-center gap-2">
+        <Input
+          aria-label="Command"
+          className={CONTROL_TEXT}
+          onChange={event => setDraft(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              add()
+            }
+          }}
+          placeholder="git status"
+          value={draft}
+        />
+        <Button onClick={add} size="sm" variant="secondary">
+          {t.common.set}
+        </Button>
+      </div>
+    </div>
   )
 }

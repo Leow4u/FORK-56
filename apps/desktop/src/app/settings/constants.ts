@@ -374,6 +374,12 @@ export const FREE_INPUT_KEYS = new Set([
   'tts.deepinfra.voice'
 ])
 
+export const APPROVAL_MODE_LABELS: Record<string, string> = {
+  manual: 'Ask',
+  smart: 'Decide for me',
+  off: 'Run without asking'
+}
+
 export const FIELD_LABELS: Record<string, string> = defineFieldCopy({
   model: 'Default Model',
   modelContextLength: 'Context Window',
@@ -417,11 +423,11 @@ export const FIELD_LABELS: Record<string, string> = defineFieldCopy({
     mode: 'Code Execution Mode'
   },
   approvals: {
-    mode: 'Approval Mode',
+    mode: 'When a command needs approval',
     timeout: 'Approval Timeout',
     mcpReloadConfirm: 'Confirm MCP Reloads'
   },
-  commandAllowlist: 'Command Allowlist',
+  commandAllowlist: 'Commands that can run',
   security: {
     redactSecrets: 'Redact Secrets',
     allowPrivateUrls: 'Allow Private URLs'
@@ -574,9 +580,10 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = defineFieldCopy({
   },
   fileReadMaxChars: 'Maximum characters Work4You can read from one file request.',
   approvals: {
-    mode: 'How Work4You handles commands that need explicit approval.',
+    mode: 'Ask every time, let Work4You decide, or run without asking.',
     timeout: 'How long approval prompts wait before timing out.'
   },
+  commandAllowlist: 'These commands are allowed without another prompt.',
   security: {
     redactSecrets: 'Hide detected secrets from model-visible content when possible.'
   },
@@ -651,17 +658,7 @@ export const SECTIONS: DesktopConfigSection[] = [
     id: 'safety',
     label: 'Safety',
     icon: Lock,
-    keys: [
-      'approvals.mode',
-      'approvals.timeout',
-      'approvals.mcp_reload_confirm',
-      'command_allowlist',
-      'security.redact_secrets',
-      'security.allow_private_urls',
-      'browser.allow_private_urls',
-      'browser.auto_local_for_private_urls',
-      'checkpoints.enabled'
-    ]
+    keys: ['approvals.mode', 'command_allowlist']
   },
   {
     id: 'memory',

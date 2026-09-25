@@ -337,7 +337,18 @@ function ConfigSettingsInner({
     return <SettingsSkeleton sections={[{ rows: 6 }]} />
   }
 
-  const visibleFields = activeSectionId === 'voice' ? fields.filter(([key]) => voiceFieldVisible(key, config)) : fields
+  const visibleFields = fields.filter(([key]) => {
+    if (activeSectionId === 'voice' && !voiceFieldVisible(key, config)) {
+      return false
+    }
+
+    // Run without asking does not consult the command list.
+    if (key === 'command_allowlist' && String(getNested(config, 'approvals.mode') ?? '') === 'off') {
+      return false
+    }
+
+    return true
+  })
 
   return (
     <SettingsContent>
