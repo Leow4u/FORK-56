@@ -291,7 +291,8 @@ FAL_FAMILIES: Dict[str, Dict[str, Any]] = {
     },
 }
 
-DEFAULT_MODEL = "pixverse-v6"  # cheap, both modalities, sane defaults
+# Factory family for a new install. An explicit video_gen.model still wins.
+DEFAULT_MODEL = "veo3.1"
 
 
 def _is_duration_range(durations: Any) -> bool:

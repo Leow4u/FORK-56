@@ -182,7 +182,7 @@ For each prompt file:
 3. Download the returned URL to `{output-dir}/NN-{type}-{slug}.png` via `terminal` (e.g. `curl -sSL -o "{output-dir}/NN-{type}-{slug}.png" "{url}"`).
 4. On generation failure, auto-retry once.
 
-Note: the underlying image-generation backend is user-configured (default: FAL FLUX 2 Klein 9B) and is NOT agent-selectable via `image_generate`. Do not write model names into prompts expecting them to route.
+Note: the underlying image-generation backend is user-configured (default: Nano Banana 2) and is NOT agent-selectable via `image_generate`. Do not write model names into prompts expecting them to route.
 
 ### Step 7: Finalize
 
@@ -222,4 +222,4 @@ Images: X/N generated
 4. **Prompt files are mandatory** — no image generation without a saved prompt file. The file is what lets you regenerate or switch backends later.
 5. **`image_generate` aspect ratios** — the tool supports `landscape`, `portrait`, and `square`. Custom ratios map to the nearest option.
 6. **`image_generate` returns a URL, not a local file** — always download via `terminal` (`curl`) before inserting local image paths into the article.
-7. **No backend selection from the agent** — `image_generate` uses whatever model the user configured (default: FAL FLUX 2 Klein 9B). Don't write `"use <model> to generate this"` into prompts expecting it to route.
+7. **No backend selection from the agent** — `image_generate` uses whatever model the user configured (default: Nano Banana 2). Don't write `"use <model> to generate this"` into prompts expecting it to route.

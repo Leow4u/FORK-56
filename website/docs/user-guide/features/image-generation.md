@@ -13,7 +13,8 @@ Work4You generates images from text prompts via FAL.ai. Eleven models are suppor
 
 | Model | Speed | Strengths | Price |
 |---|---|---|---|
-| `fal-ai/flux-2/klein/9b` *(default)* | `<1s` | Fast, crisp text | $0.006/MP |
+| `fal-ai/nano-banana-2` *(default)* | ~3s | Fast reasoning, multilingual text, infographics | Lower-cost Flash tier |
+| `fal-ai/flux-2/klein/9b` | `<1s` | Fast, crisp text | $0.006/MP |
 | `fal-ai/flux-2-pro` | ~6s | Studio photorealism | $0.03/MP |
 | `fal-ai/z-image/turbo` | ~2s | Bilingual EN/CN, 6B params | $0.005/MP |
 | `fal-ai/nano-banana-pro` | ~8s | Gemini 3 Pro, reasoning depth, text rendering | $0.15/image (1K) |
@@ -52,7 +53,7 @@ Navigate to **🎨 Image Generation**, pick your backend (Work4You Subscription 
 
 ```
   Model                          Speed    Strengths                    Price
-  fal-ai/flux-2/klein/9b         <1s      Fast, crisp text             $0.006/MP   ← currently in use
+  fal-ai/nano-banana-2           ~3s      Fast reasoning, text         Flash tier  ← currently in use
   fal-ai/flux-2-pro              ~6s      Studio photorealism          $0.03/MP
   fal-ai/z-image/turbo           ~2s      Bilingual EN/CN, 6B          $0.005/MP
   ...
@@ -62,7 +63,7 @@ Your selection is saved to `config.yaml`:
 
 ```yaml
 image_gen:
-  model: fal-ai/flux-2/klein/9b
+  model: fal-ai/nano-banana-2
   use_gateway: false            # true if using Work4You Subscription
   max_parallel_requests: 4      # concurrent images in one tool-call batch
 ```
@@ -225,7 +226,7 @@ If upscaling fails (network issue, rate limit), the original image is returned a
 
 ## How It Works Internally
 
-1. **Model resolution** — `_resolve_fal_model()` reads `image_gen.model` from `config.yaml`, falls back to the `FAL_IMAGE_MODEL` env var, then to `fal-ai/flux-2/klein/9b`.
+1. **Model resolution** — `_resolve_fal_model()` reads `image_gen.model` from `config.yaml`, falls back to the `FAL_IMAGE_MODEL` env var, then to `fal-ai/nano-banana-2`.
 2. **Payload building** — `_build_fal_payload()` translates your `aspect_ratio` into the model's native format (preset enum, aspect-ratio enum, or GPT literal), merges the model's default params, applies any caller overrides, then filters to the model's `supports` whitelist so unsupported keys are never sent.
 3. **Submission** — `_submit_fal_request()` routes via direct FAL credentials or the managed Work4You gateway.
 4. **Upscaling** — runs only when the agent passed `upscale: true`; every model's catalog default is off.

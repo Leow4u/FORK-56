@@ -164,9 +164,9 @@ beforeEach(() => {
         has_models: true,
         provider: 'Work4You Subscription',
         plugin: 'fal',
-        models: [{ id: 'pixverse-v6', display: 'Pixverse v6', speed: 'fast', strengths: '', price: '' }],
-        current: 'pixverse-v6',
-        default: 'pixverse-v6'
+        models: [{ id: 'veo3.1', display: 'Veo 3.1', speed: 'fast', strengths: '', price: '' }],
+        current: 'veo3.1',
+        default: 'veo3.1'
       }
     }
 
@@ -175,9 +175,17 @@ beforeEach(() => {
       has_models: true,
       provider: 'Work4You Subscription',
       plugin: 'fal',
-      models: [{ id: 'z-image-turbo', display: 'Z-Image Turbo', speed: 'fast', strengths: '', price: '' }],
-      current: 'z-image-turbo',
-      default: 'z-image-turbo'
+      models: [
+        {
+          id: 'fal-ai/nano-banana-2',
+          display: 'Nano Banana 2 (Gemini 3.1 Flash Image)',
+          speed: 'fast',
+          strengths: '',
+          price: ''
+        }
+      ],
+      current: 'fal-ai/nano-banana-2',
+      default: 'fal-ai/nano-banana-2'
     }
   })
   getWork4YouConfigRecord.mockResolvedValue({})
@@ -201,14 +209,25 @@ describe('ImageVideoSettings', () => {
     expect(screen.queryByText('Web Search')).toBeNull()
 
     expect((await screen.findAllByRole('button', { name: /Work4You Subscription/ })).length).toBeGreaterThanOrEqual(2)
-    expect(await screen.findByText('Z-Image Turbo')).toBeTruthy()
-    expect(await screen.findByText('Pixverse v6')).toBeTruthy()
+    expect(await screen.findByText('Nano Banana 2 (Gemini 3.1 Flash Image)')).toBeTruthy()
+    expect(await screen.findByText('Veo 3.1')).toBeTruthy()
+    expect(screen.queryByText('Loading configuration')).toBeNull()
     expect(screen.queryByText('FAL.ai')).toBeNull()
     expect(screen.queryByText('DeepInfra')).toBeNull()
     expect(screen.queryByText('FAL')).toBeNull()
     expect(screen.queryByText('xAI Grok Imagine')).toBeNull()
     expect(screen.queryByText('Work4You Portal (image)')).toBeNull()
     expect(screen.queryByText('OpenAI')).toBeNull()
+  })
+
+  it('does not show a configuration setup state while the subscription row loads', async () => {
+    getToolsetConfig.mockImplementation(() => new Promise(() => {}))
+
+    const { ImageVideoSettings } = await import('./image-video-settings')
+    render(<ImageVideoSettings />)
+
+    expect(await screen.findByRole('switch', { name: 'Image Generation' })).toBeTruthy()
+    expect(screen.queryByText('Loading configuration')).toBeNull()
   })
 
   it('toggles Image Generation through setToolsetEnabled', async () => {

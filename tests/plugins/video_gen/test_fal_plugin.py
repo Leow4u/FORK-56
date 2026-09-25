@@ -24,9 +24,8 @@ def test_fal_provider_registers():
 
     assert video_gen_registry.get_provider("fal") is provider
     assert provider.display_name == "FAL"
-    # DEFAULT_MODEL is the cheap-tier default
     assert provider.default_model() == DEFAULT_MODEL
-    assert DEFAULT_MODEL in {"pixverse-v6", "ltx-2.3"}
+    assert DEFAULT_MODEL == "veo3.1"
 
 
 def test_kling_4k_uses_start_image_url():

@@ -703,8 +703,8 @@ FAL_MODELS: Dict[str, Dict[str, Any]] = {
     },
 }
 
-# Default model is the fastest reasonable option. Kept cheap and sub-1s.
-DEFAULT_MODEL = "fal-ai/flux-2/klein/9b"
+# Factory model for a new install. An explicit image_gen.model still wins.
+DEFAULT_MODEL = "fal-ai/nano-banana-2"
 
 DEFAULT_ASPECT_RATIO = "landscape"
 VALID_ASPECT_RATIOS = ("landscape", "square", "portrait")

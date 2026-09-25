@@ -33,8 +33,9 @@ def image_tool():
 class TestFalCatalog:
     """Every FAL_MODELS entry must have a consistent shape."""
 
-    def test_default_model_is_klein(self, image_tool):
-        assert image_tool.DEFAULT_MODEL == "fal-ai/flux-2/klein/9b"
+    def test_default_model_is_nano_banana_2(self, image_tool):
+        assert image_tool.DEFAULT_MODEL == "fal-ai/nano-banana-2"
+        assert image_tool.DEFAULT_MODEL in image_tool.FAL_MODELS
 
 
     def test_nano_banana_2_in_catalog(self, image_tool):
@@ -313,7 +314,8 @@ class TestModelResolution:
     def test_no_config_falls_back_to_default(self, image_tool):
         with patch("work4you_cli.config.load_config", return_value={}):
             mid, meta = image_tool._resolve_fal_model()
-        assert mid == "fal-ai/flux-2/klein/9b"
+        assert mid == image_tool.DEFAULT_MODEL
+        assert meta["display"].startswith("Nano Banana 2")
 
 
     def test_config_wins_over_env_var(self, image_tool, monkeypatch):

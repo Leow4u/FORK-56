@@ -733,6 +733,12 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange, profile }: Too
   }
 
   if (loading) {
+    // Image & Video opens on the subscription and the factory model. A
+    // "Loading configuration" line reads as a setup step that is not there.
+    if (MODEL_CATALOG_TOOLSETS.has(toolset)) {
+      return null
+    }
+
     // Inline row, not a full block loader — a big centered spinner is what
     // caused the Skills/Tools tab-switch layout jump; this reads as "more
     // config incoming" without reserving a tall empty area.

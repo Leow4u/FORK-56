@@ -102,11 +102,12 @@ Selecione a ferramenta, escolha **Work4You Subscription** como provedor (ou qual
 
 ## Usando modelos de imagem individuais
 
-A geração de imagem usa o FLUX 2 Klein 9B por padrão, por velocidade. Sobrescreva por chamada passando o ID do modelo para a tool `image_generate`:
+A geração de imagem usa o Nano Banana 2 por padrão. Sobrescreva por chamada passando o ID do modelo para a tool `image_generate`:
 
 | Modelo | ID | Melhor para |
 |---|---|---|
-| FLUX 2 Klein 9B | `fal-ai/flux-2/klein/9b` | Rápido, bom padrão |
+| Nano Banana 2 | `fal-ai/nano-banana-2` | Padrão de fábrica |
+| FLUX 2 Klein 9B | `fal-ai/flux-2/klein/9b` | Rápido, texto nítido |
 | FLUX 2 Pro | `fal-ai/flux-2-pro` | FLUX de maior fidelidade |
 | Z-Image Turbo | `fal-ai/z-image/turbo` | Estilizado, rápido |
 | Nano Banana Pro | `fal-ai/nano-banana-pro` | Google Gemini 3 Pro Image |

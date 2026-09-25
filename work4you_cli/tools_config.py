@@ -143,9 +143,8 @@ def gui_toolset_label(label: str) -> str:
 # They're still in _WORK4YOU_CORE_TOOLS (available at runtime if enabled),
 # but the setup checklist won't pre-select them for first-time users.
 #
-# Video gen is off by default — it's a niche, paid, slow feature. Users
-# who want it opt in via `work4you tools` → Video Generation, which walks
-# them through provider + model selection.
+# Video generation is on for a new install. The model starts at Veo 3.1
+# and the user can pick another later. BFL FLUX 3 native tools stay off.
 #
 # BFL FLUX 3 native tools (keyframes / continuation) stay in the tree and in
 # core tools so an explicit `platform_toolsets` entry or
@@ -157,7 +156,7 @@ def gui_toolset_label(label: str) -> str:
 # Explicit `platform_toolsets` / `work4you tools enable x_search` still turns
 # it on. The tool's check_fn still gates the schema if credentials later
 # go missing.
-_DEFAULT_OFF_TOOLSETS = {"homeassistant", "spotify", "discord", "discord_admin", "video", "video_gen", "x_search", "a2a", "bfl"}
+_DEFAULT_OFF_TOOLSETS = {"homeassistant", "spotify", "discord", "discord_admin", "video", "x_search", "a2a", "bfl"}
 
 
 # Config-only capabilities: they appear in `work4you tools` for provider/API-key
@@ -2320,6 +2319,21 @@ def enabled_mcp_server_names(config: dict) -> Set[str]:
     return names
 
 
+def _birth_video_gen_with_images(inferred: Set[str]) -> None:
+    """Turn video generation on wherever image generation came from the composite.
+
+    ``video_gen`` lists xAI edit/extend tools that are not in the core
+    composite, so subset inference never selects it. A new install still
+    starts with video generation on, same as image generation. Call this
+    only on the inferred set (tools implied by a composite), before
+    ``_DEFAULT_OFF_TOOLSETS`` is subtracted. An explicit checklist that
+    names ``image_gen`` and omits ``video_gen`` does not pass through here,
+    and ``agent.disabled_toolsets`` still wins afterwards.
+    """
+    if "image_gen" in inferred:
+        inferred.add("video_gen")
+
+
 def _exempt_explicit_platform_native(
     default_off: Set[str], platform: str, *, explicitly_configured: bool
 ) -> None:
@@ -2478,6 +2492,7 @@ def _get_platform_tools(
                 if ts_tools and ts_tools.issubset(composite_tools):
                     expanded.add(ts_key)
 
+            _birth_video_gen_with_images(expanded)
             default_off = set(_DEFAULT_OFF_TOOLSETS)
             if platform in default_off and platform not in _TOOLSET_PLATFORM_RESTRICTIONS:
                 default_off.remove(platform)
@@ -2511,6 +2526,7 @@ def _get_platform_tools(
             if ts_tools and ts_tools.issubset(all_tool_names):
                 enabled_toolsets.add(ts_key)
 
+        _birth_video_gen_with_images(enabled_toolsets)
         default_off = set(_DEFAULT_OFF_TOOLSETS)
         # Legacy safety: if the platform's own name matches a default-off
         # toolset (e.g. `homeassistant` platform + `homeassistant` toolset),

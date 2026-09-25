@@ -717,7 +717,8 @@ class TestImagegenBackendRegistry:
         """catalog_fn should defer import to avoid import cycles."""
         from work4you_cli.tools_config import IMAGEGEN_BACKENDS
         catalog, default = IMAGEGEN_BACKENDS["fal"]["catalog_fn"]()
-        assert default == "fal-ai/flux-2/klein/9b"
+        assert default == "fal-ai/nano-banana-2"
+        assert "fal-ai/nano-banana-2" in catalog
         assert "fal-ai/flux-2/klein/9b" in catalog
         assert "fal-ai/flux-2-pro" in catalog
 
@@ -742,8 +743,8 @@ class TestImagegenModelPicker:
         # Force _prompt_choice to pick index 1 (second-in-ordered-list).
         with patch("work4you_cli.tools_config._prompt_choice", return_value=1):
             _configure_imagegen_model("fal", config)
-        # ordered[0] == current (default klein), ordered[1] == first non-default
-        assert config["image_gen"]["model"] != "fal-ai/flux-2/klein/9b"
+        # ordered[0] is the factory model, ordered[1] is the next catalog row
+        assert config["image_gen"]["model"] != "fal-ai/nano-banana-2"
         assert config["image_gen"]["model"].startswith("fal-ai/")
 
     def test_picker_with_gpt_image_does_not_prompt_quality(self):
@@ -783,7 +784,7 @@ class TestImagegenModelPicker:
         with patch("work4you_cli.tools_config._prompt_choice", return_value=0):
             _configure_imagegen_model("fal", config)
         assert isinstance(config["image_gen"], dict)
-        assert config["image_gen"]["model"] == "fal-ai/flux-2/klein/9b"
+        assert config["image_gen"]["model"] == "fal-ai/nano-banana-2"
 
     def test_plugin_picker_falls_back_when_default_is_missing_from_catalog(self):
         """A stale cross-provider model must not become an unindexable row."""
@@ -1157,9 +1158,9 @@ def test_platforms_whose_composite_excludes_it_are_left_narrow():
 
 def test_composite_does_not_enable_bfl_unless_explicitly_listed():
     """BFL FLUX 3 tools live in core, so a composite *could* turn them on.
-    They are default-off: ``video_generate`` is the user-facing video
-    surface. An explicit ``bfl`` entry still enables them so later
-    reactivation via ``work4you tools enable bfl`` keeps working.
+    BFL stays default-off. ``video_gen`` is on for a new install; Veo 3.1
+    is the factory model and the user can change it later. An explicit
+    ``bfl`` entry still enables those tools.
     """
     on_composite = _get_platform_tools(
         {"platform_toolsets": {"cli": ["work4you-cli"]}},
@@ -1167,7 +1168,8 @@ def test_composite_does_not_enable_bfl_unless_explicitly_listed():
         include_default_mcp_servers=False,
     )
     assert "bfl" not in on_composite
-    assert "video_gen" not in on_composite
+    assert "image_gen" in on_composite
+    assert "video_gen" in on_composite
 
     on_explicit = _get_platform_tools(
         {"platform_toolsets": {"cli": ["work4you-cli", "bfl"]}},
@@ -1175,6 +1177,25 @@ def test_composite_does_not_enable_bfl_unless_explicitly_listed():
         include_default_mcp_servers=False,
     )
     assert "bfl" in on_explicit
+
+    # A saved checklist that kept images and left video off stays that way.
+    saved = _get_platform_tools(
+        {"platform_toolsets": {"cli": ["image_gen"]}},
+        "cli",
+        include_default_mcp_servers=False,
+    )
+    assert "image_gen" in saved
+    assert "video_gen" not in saved
+
+    suppressed = _get_platform_tools(
+        {
+            "platform_toolsets": {"cli": ["work4you-cli"]},
+            "agent": {"disabled_toolsets": ["video_gen"]},
+        },
+        "cli",
+        include_default_mcp_servers=False,
+    )
+    assert "video_gen" not in suppressed
 
 
 # Regression for issue #81163 (Layer 2): an explicitly-listed plugin toolset

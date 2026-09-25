@@ -20,7 +20,7 @@ The Tool Gateway is included with every paid [Work4You Portal](https://portal.wo
 | | Tool | What you get |
 |---|---|---|
 | 🔍 | **Web search & extract** | Agent-grade web search and full-page extraction via Firecrawl. No rate limits to worry about — the gateway handles scaling. |
-| 🎨 | **Image generation** | Nine models under one endpoint: **FLUX 2 Klein 9B**, **FLUX 2 Pro**, **Z-Image Turbo**, **Nano Banana Pro** (Gemini 3 Pro Image), **GPT Image 1.5**, **GPT Image 2**, **Ideogram V3**, **Recraft V4 Pro**, **Qwen Image**. Pick per-generation with a flag, or let Work4You default to FLUX 2 Klein. |
+| 🎨 | **Image generation** | Models under one endpoint, including **Nano Banana 2** (Gemini 3.1 Flash Image), **FLUX 2 Klein 9B**, **FLUX 2 Pro**, **Z-Image Turbo**, **Nano Banana Pro**, **GPT Image 1.5**, **GPT Image 2**, **Ideogram V3**, **Recraft V4 Pro**, and **Qwen Image**. Pick per-generation with a flag, or let Work4You default to Nano Banana 2. |
 | 🔊 | **Text-to-speech** | OpenAI TTS voices wired into the `text_to_speech` tool. Drop voice notes into Telegram, generate audio for pipelines, narrate anything. |
 | 🌐 | **Cloud browser automation** | Headless Chromium sessions via Browser Use. `browser_navigate`, `browser_click`, `browser_type`, `browser_vision` — all the agent-driving primitives, no Browserbase account required. |
 
@@ -102,11 +102,12 @@ Select the tool, pick **Work4You Subscription** as the provider (or any direct p
 
 ## Using individual image models
 
-Image generation defaults to FLUX 2 Klein 9B for speed. Override per-call by passing the model ID to the `image_generate` tool:
+Image generation defaults to Nano Banana 2. Override per-call by passing the model ID to the `image_generate` tool:
 
 | Model | ID | Best for |
 |---|---|---|
-| FLUX 2 Klein 9B | `fal-ai/flux-2/klein/9b` | Fast, good default |
+| Nano Banana 2 | `fal-ai/nano-banana-2` | Factory default |
+| FLUX 2 Klein 9B | `fal-ai/flux-2/klein/9b` | Fast, crisp text |
 | FLUX 2 Pro | `fal-ai/flux-2-pro` | Higher fidelity FLUX |
 | Z-Image Turbo | `fal-ai/z-image/turbo` | Stylized, fast |
 | Nano Banana Pro | `fal-ai/nano-banana-pro` | Google Gemini 3 Pro Image |
