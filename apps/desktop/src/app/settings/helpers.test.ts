@@ -357,33 +357,49 @@ describe('settings helpers', () => {
   })
 
   describe('sectionFieldEntries', () => {
-    it('renders memory.provider from config even when the backend schema omits it', () => {
-      const schema = { 'memory.memory_enabled': { type: 'boolean' as const } }
-      const config: Work4YouConfigRecord = { memory: { memory_enabled: true, provider: '' } }
+    it('keeps Memory to the two toggles', () => {
+      const schema = {
+        'memory.memory_enabled': { type: 'boolean' as const },
+        'memory.user_profile_enabled': { type: 'boolean' as const },
+        'memory.provider': { type: 'select' as const, options: ['honcho'] },
+        'memory.memory_char_limit': { type: 'number' as const },
+        'context.engine': { type: 'select' as const, options: ['compressor'] },
+        'compression.enabled': { type: 'boolean' as const }
+      }
+      const config: Work4YouConfigRecord = {
+        memory: { memory_enabled: true, user_profile_enabled: false, provider: 'honcho', memory_char_limit: 2200 },
+        context: { engine: 'compressor' },
+        compression: { enabled: true }
+      }
 
       const memoryKeys = (sectionFieldEntries(schema, config).get('memory') ?? []).map(([key]) => key)
 
-      expect(memoryKeys).toContain('memory.provider')
+      expect(memoryKeys).toEqual(['memory.memory_enabled', 'memory.user_profile_enabled'])
     })
 
     it('infers the field type from the config value when the schema omits the key', () => {
-      const config: Work4YouConfigRecord = { memory: { provider: '', memory_enabled: true, memory_char_limit: 2200 } }
+      const config: Work4YouConfigRecord = {
+        memory: { memory_enabled: true },
+        approvals: { mode: 'smart' },
+        command_allowlist: ['git status']
+      }
 
-      const fields = new Map(sectionFieldEntries({}, config).get('memory') ?? [])
+      const memory = new Map(sectionFieldEntries({}, config).get('memory') ?? [])
+      const safety = new Map(sectionFieldEntries({}, config).get('safety') ?? [])
 
-      expect(fields.get('memory.provider')?.type).toBe('string')
-      expect(fields.get('memory.memory_enabled')?.type).toBe('boolean')
-      expect(fields.get('memory.memory_char_limit')?.type).toBe('number')
+      expect(memory.get('memory.memory_enabled')?.type).toBe('boolean')
+      expect(safety.get('approvals.mode')?.type).toBe('string')
+      expect(safety.get('command_allowlist')?.type).toBe('list')
     })
 
     it('prefers the backend schema entry over inference when both exist', () => {
-      const schema = { 'memory.provider': { type: 'select' as const, options: ['honcho'] } }
-      const config: Work4YouConfigRecord = { memory: { provider: 'honcho' } }
+      const schema = { 'approvals.mode': { type: 'select' as const, options: ['manual', 'smart', 'off'] } }
+      const config: Work4YouConfigRecord = { approvals: { mode: 'smart' } }
 
-      const field = new Map(sectionFieldEntries(schema, config).get('memory') ?? []).get('memory.provider')
+      const field = new Map(sectionFieldEntries(schema, config).get('safety') ?? []).get('approvals.mode')
 
       expect(field?.type).toBe('select')
-      expect(field?.options).toEqual(['honcho'])
+      expect(field?.options).toEqual(['manual', 'smart', 'off'])
     })
 
     it('hides declared keys absent from both schema and config', () => {

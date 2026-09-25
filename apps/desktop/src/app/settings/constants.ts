@@ -664,18 +664,10 @@ export const SECTIONS: DesktopConfigSection[] = [
     id: 'memory',
     label: 'Memory & Context',
     icon: Brain,
-    keys: [
-      'memory.memory_enabled',
-      'memory.user_profile_enabled',
-      'memory.memory_char_limit',
-      'memory.user_char_limit',
-      'memory.provider',
-      'context.engine',
-      'compression.enabled',
-      'compression.threshold',
-      'compression.target_ratio',
-      'compression.protect_last_n'
-    ]
+    // Character budgets, the memory provider, the context engine, and
+    // compression stay factory defaults. External providers live with
+    // Capabilities, not on this page.
+    keys: ['memory.memory_enabled', 'memory.user_profile_enabled']
   },
   {
     id: 'voice',
