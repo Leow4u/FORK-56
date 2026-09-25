@@ -1,31 +1,26 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useEffect } from 'react'
+import { useEffect } from 'react'
 
 import { useGatewayRequest } from '@/app/gateway/hooks/use-gateway-request'
 import { $pluginRecords } from '@/contrib/plugins-store'
 import { useI18n } from '@/i18n'
-import { Package, Palette, Settings2, Wrench } from '@/lib/icons'
+import { Package, Palette } from '@/lib/icons'
 import { $agentPlugins, isDesktopRelevantPlugin, loadAgentPlugins } from '@/store/agent-plugins'
 import { $gatewayState } from '@/store/session'
 import { TRANSLUCENCY_SUPPORTED } from '@/store/translucency'
-import { getEnvVars, getWork4YouConfigSchema } from '@/work4you'
+import { getWork4YouConfigSchema } from '@/work4you'
 
 import { useWork4YouConfigRecord } from '../hooks/use-config-record'
-import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 
-import {
-  APPEARANCE_SETTING_IDS,
-  buildConfigSearchEntries,
-  buildCredentialSearchEntries,
-  type SettingsSearchEntry
-} from './settings-search'
+import { APPEARANCE_SETTING_IDS, buildConfigSearchEntries, type SettingsSearchEntry } from './settings-search'
 
 /**
- * The granular settings-search catalog (appearance controls, config fields,
- * credentials) for the command palette's Settings page. Page destinations stay
- * on the palette side — it already owns section/page rows — this hook only
- * contributes the deep, schema-driven targets.
+ * The granular settings-search catalog (appearance controls, config fields)
+ * for the command palette's Settings page. Page destinations stay on the
+ * palette side — it already owns section/page rows — this hook only
+ * contributes the deep, schema-driven targets. Raw env-var cards left
+ * Settings; integrations are edited on Capabilities.
  */
 export function useSettingsSearchCatalog(enabled: boolean) {
   const { t } = useI18n()
@@ -37,24 +32,6 @@ export function useSettingsSearchCatalog(enabled: boolean) {
     enabled,
     staleTime: 5 * 60 * 1000
   })
-
-  const {
-    data: envVars,
-    isError: envVarsError,
-    isFetching: envVarsFetching,
-    refetch: refetchEnvVars
-  } = useQuery({
-    queryKey: ['desktop-settings-search-env-vars'],
-    queryFn: () => getEnvVars(),
-    enabled,
-    staleTime: 5 * 60 * 1000
-  })
-
-  const refreshCatalog = useCallback(() => {
-    void refetchEnvVars()
-  }, [refetchEnvVars])
-
-  useOnProfileSwitch(refreshCatalog)
 
   // Plugin rows: desktop plugins are already in their store (discovered at
   // boot); agent plugins ride the gateway, so load them the first time the
@@ -171,14 +148,7 @@ export function useSettingsSearchCatalog(enabled: boolean) {
     }
   ]
 
-  const credentialEntries = buildCredentialSearchEntries(
-    envVarsFetching || envVarsError ? null : envVars,
-    {
-      settings: t.settings.nav.keysSettings,
-      tools: t.settings.nav.keysTools
-    },
-    { settings: Settings2, tools: Wrench }
-  )
+  const credentialEntries: SettingsSearchEntry[] = []
 
   return {
     appearanceEntries,

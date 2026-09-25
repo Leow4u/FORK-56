@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ToolsetConfig } from '@/types/work4you'
 
-// EnvVarField navigates to Settings → Keys via useNavigate, so every render
-// needs a router context. The navigate spy asserts the deep-link target.
+// The panel used to deep-link set keys into Settings. It now edits them in
+// place, and the spy asserts that path is not taken.
 const navigateSpy = vi.fn()
 
 vi.mock('react-router', async importOriginal => ({
@@ -1157,7 +1157,7 @@ describe('ToolsetConfigPanel', () => {
   })
 
   describe('API key deep link', () => {
-    it('offers "Manage in API Keys" on a set key and navigates to Settings → Keys', async () => {
+    it('edits a set key on this panel instead of opening Settings', async () => {
       getToolsetConfig.mockResolvedValue(
         config({
           active_provider: 'ElevenLabs',
@@ -1189,9 +1189,10 @@ describe('ToolsetConfigPanel', () => {
 
       const trigger = await screen.findByRole('button', { name: /^Actions$/ })
       fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' })
-      fireEvent.click(await screen.findByRole('menuitem', { name: 'Manage in API Keys' }))
 
-      await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/settings?tab=keys&key=ELEVENLABS_API_KEY'))
+      await screen.findByRole('menuitem', { name: 'Replace' })
+      expect(screen.queryByRole('menuitem', { name: 'Manage in API Keys' })).toBeNull()
+      expect(navigateSpy).not.toHaveBeenCalled()
     })
 
     it('hides "Manage in API Keys" while the key is unset', async () => {

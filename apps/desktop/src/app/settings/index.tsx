@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
 import { KbdCombo } from '@/components/ui/kbd'
@@ -13,14 +13,11 @@ import {
   Download,
   Info,
   Keyboard,
-  KeyRound,
   Monitor,
   Package,
   RefreshCw,
   Search,
-  Settings2,
-  Upload,
-  Wrench
+  Upload
 } from '@/lib/icons'
 import { isEditableTarget } from '@/lib/keybinds/combo'
 import { typeToFocusChar } from '@/lib/keybinds/composer-focus-keys'
@@ -45,10 +42,9 @@ import { ConfigSettings } from './config-settings'
 import { SECTIONS } from './constants'
 import { ImageVideoSettings } from './image-video-settings'
 import { KeybindSettings } from './keybind-settings'
-import { KEYS_VIEWS, KeysSettings, type KeysView } from './keys-settings'
 import { NotificationsSettings } from './notifications-settings'
 import { PluginsSettings } from './plugins-settings'
-import { settingsTabReplacement } from './retired-settings-tabs'
+import { capabilitiesSettingsRedirect, settingsTabReplacement } from './retired-settings-tabs'
 import { SessionsSettings } from './sessions-settings'
 import type { SettingsPageProps, SettingsView as SettingsViewId } from './types'
 
@@ -60,7 +56,6 @@ const SETTINGS_VIEWS: readonly SettingsViewId[] = [
   'gateway',
   'connections',
   'keybinds',
-  'keys',
   'app',
   'notifications',
   'billing',
@@ -74,17 +69,27 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
   const navigate = useNavigate()
   const { hash, pathname, search } = useLocation()
 
-  // MCP moved out of Settings into Capabilities (/skills?tab=mcp). Keep old
-  // `/settings?tab=mcp` deep links working — `useRouteEnumParam` would silently
-  // coerce the unknown tab to the default view otherwise. Preserve `server=` so
-  // an old bookmark still lands on (and highlights) the selected server.
+  // MCP and Tools & keys left Settings for Capabilities. Keep old deep links
+  // working — `useRouteEnumParam` would silently coerce an unknown tab to the
+  // default view otherwise. Preserve `server=` so an MCP bookmark still lands
+  // on (and highlights) the selected server.
   useEffect(() => {
     const params = new URLSearchParams(search)
 
-    if (params.get('tab') === 'mcp') {
+    const tab = params.get('tab')
+
+    if (tab === 'mcp') {
       const server = params.get('server')
       const suffix = server ? `&server=${encodeURIComponent(server)}` : ''
       navigate(`${SKILLS_ROUTE}?tab=mcp${suffix}`, { replace: true })
+
+      return
+    }
+
+    const capabilities = capabilitiesSettingsRedirect(tab)
+
+    if (capabilities) {
+      navigate(capabilities, { replace: true })
     }
   }, [navigate, search])
 
@@ -120,29 +125,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     const qs = params.toString()
     navigate({ hash, pathname, search: qs ? `?${qs}` : '' }, { replace: true })
   }, [hash, navigate, pathname, search])
-  const [keysView] = useRouteEnumParam<KeysView>('kview', KEYS_VIEWS, 'tools')
-
-  // Jump to a section + its sub-view in one navigate. Two sequential setters
-  // would each read the same stale `search` and the second would clobber the
-  // first's `tab` — so the sub-view never opened on narrow screens.
-  const openSubView = useCallback(
-    (tab: SettingsViewId, param: string, value: string, fallback: string) => {
-      const params = new URLSearchParams(search)
-      params.set('tab', tab)
-
-      if (value === fallback) {
-        params.delete(param)
-      } else {
-        params.set(param, value)
-      }
-
-      const qs = params.toString()
-      navigate({ hash, pathname, search: qs ? `?${qs}` : '' }, { replace: true })
-    },
-    [hash, navigate, pathname, search]
-  )
-
-  const openKeysView = useCallback((view: KeysView) => openSubView('keys', 'kview', view, 'tools'), [openSubView])
 
   const importInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -220,29 +202,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
         onSelect: () => setActiveView('keybinds')
       },
       {
-        active: activeView === 'keys',
-        children: [
-          {
-            active: activeView === 'keys' && keysView === 'tools',
-            icon: Wrench,
-            id: 'kview:tools',
-            label: t.settings.nav.keysTools,
-            onSelect: () => openKeysView('tools')
-          },
-          {
-            active: activeView === 'keys' && keysView === 'settings',
-            icon: Settings2,
-            id: 'kview:settings',
-            label: t.settings.nav.keysSettings,
-            onSelect: () => openKeysView('settings')
-          }
-        ],
-        icon: KeyRound,
-        id: 'keys',
-        label: t.settings.nav.apiKeys,
-        onSelect: () => setActiveView('keys')
-      },
-      {
         active: activeView === 'plugins',
         icon: Package,
         id: 'plugins',
@@ -265,7 +224,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
         onSelect: () => setActiveView('about')
       }
     ],
-    [activeView, keysView, t, setActiveView, openKeysView]
+    [activeView, t, setActiveView]
   )
 
   // Type-to-search: printable keystrokes on the Settings surface (outside any
@@ -373,8 +332,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       // Retired gateway bookmarks render Billing immediately so the four-mode
       // page does not flash before the alias redirect.
       <BillingSettings />
-    ) : activeView === 'keys' ? (
-      <KeysSettings view={keysView} />
     ) : activeView === 'app' ? (
       <AppSettings />
     ) : activeView === 'notifications' ? (

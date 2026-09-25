@@ -36,7 +36,6 @@ import {
   GitBranch,
   type IconComponent,
   Info,
-  KeyRound,
   Layers3,
   MessageCircle,
   Monitor,
@@ -47,7 +46,6 @@ import {
   Plus,
   RefreshCw,
   Settings,
-  Settings2,
   SlidersHorizontal,
   Starmap,
   Sun,
@@ -439,16 +437,7 @@ const toSessionEntry = (session: SessionRow): SessionEntry => ({
 })
 
 type NonConfigSettingsLabel =
-  | 'about'
-  | 'app'
-  | 'archivedChats'
-  | 'billing'
-  | 'keysSettings'
-  | 'keysTools'
-  | 'mcp'
-  | 'plugins'
-  | 'providerAccounts'
-  | 'providerApiKeys'
+  'about' | 'app' | 'archivedChats' | 'billing' | 'mcp' | 'plugins' | 'providerAccounts' | 'providerApiKeys'
 
 const NON_CONFIG_SETTINGS: ReadonlyArray<{
   icon: IconComponent
@@ -461,18 +450,6 @@ const NON_CONFIG_SETTINGS: ReadonlyArray<{
     keywords: ['account', 'portal', 'sign in', 'subscription', 'plan', 'work4you', 'gateway', 'connection'],
     labelKey: 'billing',
     tab: 'billing'
-  },
-  {
-    icon: KeyRound,
-    keywords: ['api', 'secrets', 'tokens', 'credentials', 'browser', 'search'],
-    labelKey: 'keysTools',
-    tab: 'keys&kview=tools'
-  },
-  {
-    icon: Settings2,
-    keywords: ['gateway', 'proxy', 'server', 'webhook', 'env', 'egress proxy', 'iron proxy'],
-    labelKey: 'keysSettings',
-    tab: 'keys&kview=settings'
   },
   {
     icon: Package,
@@ -1142,7 +1119,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
         {
           icon: SlidersHorizontal,
           id: 'cap-toolsets',
-          keywords: ['tools', 'toolsets', 'capabilities'],
+          keywords: ['tools', 'toolsets', 'capabilities', 'api', 'keys', 'secrets', 'credentials'],
           label: `${capLabel}: ${t.skills.tabToolsets}`,
           run: go(`${SKILLS_ROUTE}?tab=toolsets`)
         },
