@@ -6,7 +6,7 @@ import { KbdCombo } from '@/components/ui/kbd'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { Archive, BarChart3, Bell, Download, Info, Keyboard, Monitor, RefreshCw, Search, Upload } from '@/lib/icons'
+import { BarChart3, Bell, Download, Info, Keyboard, Monitor, RefreshCw, Search, Upload } from '@/lib/icons'
 import { isEditableTarget } from '@/lib/keybinds/combo'
 import { typeToFocusChar } from '@/lib/keybinds/composer-focus-keys'
 import { cn } from '@/lib/utils'
@@ -32,7 +32,6 @@ import { ImageVideoSettings } from './image-video-settings'
 import { KeybindSettings } from './keybind-settings'
 import { NotificationsSettings } from './notifications-settings'
 import { capabilitiesSettingsRedirect, settingsTabReplacement } from './retired-settings-tabs'
-import { SessionsSettings } from './sessions-settings'
 import type { SettingsPageProps, SettingsView as SettingsViewId } from './types'
 
 const SETTINGS_VIEWS: readonly SettingsViewId[] = [
@@ -150,7 +149,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
         const view = `config:${s.id}` as SettingsViewId
 
         return {
-          active: activeView === view,
+          active: activeView === view || (s.id === 'chat' && activeView === 'sessions'),
           icon: s.icon,
           id: view,
           label: t.settings.sections[s.id] ?? s.label,
@@ -186,13 +185,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
         id: 'keybinds',
         label: t.settings.nav.keybinds,
         onSelect: () => setActiveView('keybinds')
-      },
-      {
-        active: activeView === 'sessions',
-        icon: Archive,
-        id: 'sessions',
-        label: t.settings.nav.archivedChats,
-        onSelect: () => setActiveView('sessions')
       },
       {
         active: activeView === 'about',
@@ -300,9 +292,9 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       <AboutSettings />
     ) : activeView === 'keybinds' ? (
       <KeybindSettings />
-    ) : activeView.startsWith('config:') ? (
+    ) : activeView.startsWith('config:') || activeView === 'sessions' ? (
       <ConfigSettings
-        activeSectionId={activeView.slice('config:'.length)}
+        activeSectionId={activeView === 'sessions' ? 'chat' : activeView.slice('config:'.length)}
         importInputRef={importInputRef}
         onConfigSaved={onConfigSaved}
         onMainModelChanged={onMainModelChanged}
@@ -313,10 +305,8 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       <BillingSettings />
     ) : activeView === 'app' ? (
       <AppSettings />
-    ) : activeView === 'notifications' ? (
-      <NotificationsSettings />
     ) : (
-      <SessionsSettings />
+      <NotificationsSettings />
     )
 
   return (

@@ -436,8 +436,7 @@ const toSessionEntry = (session: SessionRow): SessionEntry => ({
   title: sessionTitle(session)
 })
 
-type NonConfigSettingsLabel =
-  'about' | 'app' | 'archivedChats' | 'billing' | 'mcp' | 'providerAccounts' | 'providerApiKeys'
+type NonConfigSettingsLabel = 'about' | 'app' | 'billing' | 'mcp' | 'providerAccounts' | 'providerApiKeys'
 
 const NON_CONFIG_SETTINGS: ReadonlyArray<{
   icon: IconComponent
@@ -457,7 +456,6 @@ const NON_CONFIG_SETTINGS: ReadonlyArray<{
     labelKey: 'app',
     tab: 'app'
   },
-  { icon: Archive, keywords: ['history', 'archived'], labelKey: 'archivedChats', tab: 'sessions' },
   { icon: Info, keywords: ['version', 'about'], labelKey: 'about', tab: 'about' }
 ]
 
@@ -1247,7 +1245,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
             ...(session.git_branch ? [session.git_branch] : [])
           ],
           label: session.title,
-          run: go(`${SETTINGS_ROUTE}?tab=sessions&session=${encodeURIComponent(session.id)}`)
+          runWithEvent: goSession(session.id)
         }))
       })
     }

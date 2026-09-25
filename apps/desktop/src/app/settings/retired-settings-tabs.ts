@@ -1,11 +1,20 @@
 import { SKILLS_ROUTE } from '../routes'
 
-/** Tabs whose pages left the Settings menu. Bookmarks land on Billing. */
-const RETIRED_TO_BILLING = new Set(['connections', 'gateway'])
+/** Tabs whose pages left the Settings menu. */
+const BILLING_TABS = new Set<string>(['connections', 'gateway'])
+const CHAT_TABS = new Set<string>(['sessions'])
 
-export function settingsTabReplacement(tab: string | null): 'billing' | null {
-  if (tab && RETIRED_TO_BILLING.has(tab)) {
+export function settingsTabReplacement(tab: string | null): 'billing' | 'config:chat' | null {
+  if (!tab) {
+    return null
+  }
+
+  if (BILLING_TABS.has(tab)) {
     return 'billing'
+  }
+
+  if (CHAT_TABS.has(tab)) {
+    return 'config:chat'
   }
 
   return null

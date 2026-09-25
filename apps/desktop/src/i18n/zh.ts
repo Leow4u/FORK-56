@@ -1292,8 +1292,7 @@ export const zh: Translations = {
       restored: '已恢复',
       deleteConfirm: title => `永久删除“${title}”？此操作无法撤销。`,
       autoArchiveTitle: '自动归档闲置会话',
-      autoArchiveDesc:
-        '自动归档你一段时间未使用的会话。已置顶的会话永远不会被归档，也不会删除任何内容——归档的会话会移动到这里。',
+      autoArchiveDesc: '自动归档你一段时间未使用的会话。已置顶的会话永远不会被归档，也不会删除任何内容。',
       autoArchiveDaysLabel: '归档前',
       autoArchiveDaysUnit: '天无活动',
       autoArchiveFailed: '无法更新自动归档设置',

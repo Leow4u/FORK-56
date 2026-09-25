@@ -1011,7 +1011,7 @@ export const ja = defineLocale({
       deleteConfirm: title => `"${title}" を完全に削除しますか？この操作は元に戻せません。`,
       autoArchiveTitle: '古いチャットを自動アーカイブ',
       autoArchiveDesc:
-        'しばらく操作していないチャットを自動的にアーカイブします。ピン留めしたチャットはアーカイブされず、削除もされません。アーカイブされたチャットはここに移動します。',
+        'しばらく操作していないチャットを自動的にアーカイブします。ピン留めしたチャットはアーカイブされず、削除もされません。',
       autoArchiveDaysLabel: 'アーカイブまでの日数',
       autoArchiveDaysUnit: '日間操作なし',
       autoArchiveFailed: '自動アーカイブを更新できませんでした',

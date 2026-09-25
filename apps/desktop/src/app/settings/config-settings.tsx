@@ -33,6 +33,7 @@ import { ProviderConfigPanel } from './memory/provider-config-panel'
 import { ModelSettings, ModelSettingsSkeleton } from './model-settings'
 import { EmptyState, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton, ToggleRow } from './primitives'
 import { SettingsProfileScope } from './profile-scope'
+import { AutoArchiveSetting } from './sessions-settings'
 
 export function ConfigSettings({
   activeSectionId,
@@ -386,7 +387,12 @@ function ConfigSettingsInner({
               ) : null}
             </div>
           ))}
-          {activeSectionId === 'chat' ? <CollapseThinkingSetting /> : null}
+          {activeSectionId === 'chat' ? (
+            <>
+              <CollapseThinkingSetting />
+              <AutoArchiveSetting />
+            </>
+          ) : null}
         </SettingsGroup>
       ) : visibleFields.length === 0 && activeSectionId !== 'chat' && activeSectionId !== 'model' ? (
         <EmptyState description={c.emptyDesc} title={c.emptyTitle} />

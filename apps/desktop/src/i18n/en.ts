@@ -1097,7 +1097,7 @@ export const en: Translations = {
       deleteConfirm: title => `Permanently delete "${title}"? This cannot be undone.`,
       autoArchiveTitle: 'Auto-archive stale chats',
       autoArchiveDesc:
-        "Automatically archive chats you haven't touched in a while. Pinned chats are never archived, and nothing is deleted — archived chats just move here.",
+        "Automatically archive chats you haven't touched in a while. Pinned chats are never archived, and nothing is deleted.",
       autoArchiveDaysLabel: 'Archive after',
       autoArchiveDaysUnit: 'days of inactivity',
       autoArchiveFailed: 'Could not update auto-archive',

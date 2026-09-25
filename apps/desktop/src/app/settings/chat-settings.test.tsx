@@ -22,6 +22,7 @@ vi.mock('@/work4you', () => ({
 afterEach(() => {
   cleanup()
   $reasoningCollapsedByDefault.set(false)
+  delete window.work4youDesktop
 })
 
 async function renderChat() {
@@ -53,15 +54,19 @@ async function renderChat() {
 }
 
 describe('Chat settings', () => {
-  it('shows personality, reasoning blocks, and collapse thinking only', async () => {
+  it('shows personality, reasoning blocks, collapse thinking, and auto-archive', async () => {
+    window.work4youDesktop = {} as Window['work4youDesktop']
     await renderChat()
 
     expect(await screen.findByText('Personality')).toBeTruthy()
     expect(screen.getByText('Reasoning Blocks')).toBeTruthy()
     expect(screen.getByText('Collapse thinking by default')).toBeTruthy()
+    expect(screen.getByText('Auto-archive stale chats')).toBeTruthy()
     expect(screen.queryByText('Timezone')).toBeNull()
     expect(screen.queryByText('Image Attachments')).toBeNull()
     expect(screen.queryByText('Max preview / image load size')).toBeNull()
+    expect(screen.queryByText('Default project directory')).toBeNull()
+    expect(screen.queryByText('Nothing archived')).toBeNull()
   })
 
   it('persists collapse thinking from the chat page', async () => {

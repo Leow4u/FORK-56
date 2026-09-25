@@ -8,6 +8,10 @@ describe('settingsTabReplacement', () => {
     expect(settingsTabReplacement('connections')).toBe('billing')
   })
 
+  it('sends archived-chat bookmarks to Chat', () => {
+    expect(settingsTabReplacement('sessions')).toBe('config:chat')
+  })
+
   it('leaves living settings tabs alone', () => {
     expect(settingsTabReplacement('billing')).toBeNull()
     expect(settingsTabReplacement('config:model')).toBeNull()

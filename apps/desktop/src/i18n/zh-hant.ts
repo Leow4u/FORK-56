@@ -978,8 +978,7 @@ export const zhHant = defineLocale({
       restored: '已還原',
       deleteConfirm: title => `永久刪除「${title}」？此操作無法復原。`,
       autoArchiveTitle: '自動封存閒置對話',
-      autoArchiveDesc:
-        '自動封存你一段時間未使用的對話。已釘選的對話永遠不會被封存，也不會刪除任何內容——封存的對話會移到這裡。',
+      autoArchiveDesc: '自動封存你一段時間未使用的對話。已釘選的對話永遠不會被封存，也不會刪除任何內容。',
       autoArchiveDaysLabel: '封存前',
       autoArchiveDaysUnit: '天無活動',
       autoArchiveFailed: '無法更新自動封存設定',
