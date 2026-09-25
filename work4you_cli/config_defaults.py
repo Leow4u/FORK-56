@@ -145,7 +145,11 @@ DEFAULT_CONFIG = {
             # leaves the budget untouched.
             "cost_threshold_usd": 0.25,
         },
-        "service_tier": "",
+        # Platform birth for the house model (Operis): Fast on, reasoning High.
+        # Blank values are filled again at load time. An explicit choice
+        # ("normal", "medium", "none", …) is left alone.
+        "service_tier": "fast",
+        "reasoning_effort": "high",
         # Tool-use enforcement: injects system prompt guidance that tells the
         # model to actually call tools instead of describing intended actions.
         # Values: "auto" (default — applies to gpt/codex models), true/false

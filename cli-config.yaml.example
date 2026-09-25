@@ -1056,7 +1056,9 @@ agent:
   # Reasoning effort level (OpenRouter and Work4You Portal)
   # Controls how much "thinking" the model does before responding.
   # Options: "xhigh" (max), "high", "medium", "low", "minimal", "none" (disable)
-  reasoning_effort: "medium"
+  # New installs start at high. A blank value is filled to high on load;
+  # an explicit choice (including "medium" or "none") is left alone.
+  reasoning_effort: "high"
   
   # Per-model reasoning effort overrides (optional dict)
   # Key: any sensible model spelling works (exact, dots↔dashes interchangeable,

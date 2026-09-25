@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { displayModelName } from '@/lib/model-status-label'
@@ -16,38 +15,19 @@ beforeAll(() => {
 
 const getGlobalModelInfo = vi.fn()
 const getGlobalModelOptions = vi.fn()
-const getAuxiliaryModels = vi.fn()
-const getMoaModels = vi.fn()
 const setModelAssignment = vi.fn()
-const getRecommendedDefaultModel = vi.fn()
-const saveMoaModels = vi.fn()
-const setEnvVar = vi.fn()
 const getWork4YouConfigRecord = vi.fn()
 const saveWork4YouConfig = vi.fn()
-const startManualLocalEndpoint = vi.fn()
-const startManualOnboarding = vi.fn()
-const startManualProviderOAuth = vi.fn()
 let profileSwitchHandler: (() => void) | null = null
 
 vi.mock('@/work4you', () => ({
   getGlobalModelInfo: () => getGlobalModelInfo(),
   getGlobalModelOptions: () => getGlobalModelOptions(),
-  getAuxiliaryModels: () => getAuxiliaryModels(),
   getApiRequestProfile: () => 'default',
-  getMoaModels: () => getMoaModels(),
   setModelAssignment: (body: unknown) => setModelAssignment(body),
-  getRecommendedDefaultModel: (slug: string) => getRecommendedDefaultModel(slug),
-  saveMoaModels: (body: unknown) => saveMoaModels(body),
-  setEnvVar: (key: string, value: string) => setEnvVar(key, value),
   getWork4YouConfigRecord: () => getWork4YouConfigRecord(),
   saveWork4YouConfig: (config: unknown) => saveWork4YouConfig(config),
   setApiRequestProfile: () => {}
-}))
-
-vi.mock('@/store/onboarding', () => ({
-  startManualLocalEndpoint: () => startManualLocalEndpoint(),
-  startManualOnboarding: () => startManualOnboarding(),
-  startManualProviderOAuth: (slug: string) => startManualProviderOAuth(slug)
 }))
 
 vi.mock('../hooks/use-on-profile-switch', () => ({
@@ -69,14 +49,7 @@ beforeEach(() => {
       }
     ]
   })
-  getAuxiliaryModels.mockResolvedValue({
-    main: { provider: 'work4you', model: 'work4you-4' },
-    tasks: [{ task: 'vision', provider: 'auto', model: '', base_url: '' }]
-  })
-  getMoaModels.mockResolvedValue(null)
   setModelAssignment.mockResolvedValue({ ok: true, provider: 'work4you', model: 'work4you-4', gateway_tools: [] })
-  getRecommendedDefaultModel.mockResolvedValue({ provider: 'work4you', model: 'work4you-4', free_tier: null })
-  setEnvVar.mockResolvedValue({ ok: true })
   getWork4YouConfigRecord.mockResolvedValue({ agent: { reasoning_effort: 'medium', service_tier: 'normal' } })
   saveWork4YouConfig.mockResolvedValue({ ok: true })
 })
@@ -92,91 +65,48 @@ async function renderModelSettings() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
   return render(
-    // The aux-task deep-link highlight reads useSearchParams, so the page
-    // needs a router context in tests (the app provides HashRouter at root).
-    <MemoryRouter>
-      <QueryClientProvider client={client}>
-        <ModelSettings />
-      </QueryClientProvider>
-    </MemoryRouter>
+    <QueryClientProvider client={client}>
+      <ModelSettings />
+    </QueryClientProvider>
   )
 }
 
 describe('ModelSettings', () => {
-  it('loads the current main model and lists configured providers only', async () => {
+  it('lists the current provider models and hides provider, auxiliary, and mixture of agents', async () => {
     await renderModelSettings()
 
     await waitFor(() => expect(getGlobalModelInfo).toHaveBeenCalled())
     await waitFor(() => expect(getGlobalModelOptions).toHaveBeenCalled())
 
-    // Open the provider Select — only configured providers should be listed.
-    const triggers = await screen.findAllByRole('combobox')
-    fireEvent.click(triggers[0])
+    const modelSelect = (await screen.findAllByRole('combobox'))[0]
+    fireEvent.click(modelSelect)
 
-    // "Work4You" shows in both the trigger and the open list.
-    expect((await screen.findAllByText('Work4You')).length).toBeGreaterThan(0)
-    expect(screen.queryByText(/DeepSeek/)).toBeNull()
+    expect(await screen.findByRole('option', { name: displayModelName('work4you-4') })).toBeTruthy()
+    expect(screen.getByRole('option', { name: displayModelName('work4you-4-mini') })).toBeTruthy()
+    expect(screen.queryByText('Provider')).toBeNull()
+    expect(screen.queryByText('Auxiliary models')).toBeNull()
+    expect(screen.queryByText('Mixture of Agents')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Set up/ })).toBeNull()
+    expect(screen.getByText(/Applies to new sessions/)).toBeTruthy()
   })
 
-  it.each(['custom', 'local', 'custom:lab'])(
-    'opens local endpoint setup when %s has no inventory row',
-    async provider => {
-      getGlobalModelInfo.mockResolvedValueOnce({ provider, model: '' })
-      getGlobalModelOptions.mockResolvedValueOnce({ providers: [] })
-
-      await renderModelSettings()
-
-      const providerSelect = (await screen.findAllByRole('combobox'))[0]
-
-      expect(providerSelect.textContent).toContain(provider)
-      expect(screen.queryByText(/undefined/)).toBeNull()
-      expect(screen.queryByText(/signs in through your browser/)).toBeNull()
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Set up provider' }))
-
-      expect(startManualLocalEndpoint).toHaveBeenCalledOnce()
-      expect(startManualOnboarding).not.toHaveBeenCalled()
-      expect(startManualProviderOAuth).not.toHaveBeenCalled()
-    }
-  )
-
-  it('opens the generic provider picker for an unknown provider with no inventory row', async () => {
-    getGlobalModelInfo.mockResolvedValueOnce({ provider: 'retired-provider', model: '' })
-    getGlobalModelOptions.mockResolvedValueOnce({ providers: [] })
-
+  it('applies a model from the current provider', async () => {
     await renderModelSettings()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Set up provider' }))
+    fireEvent.click((await screen.findAllByRole('combobox'))[0])
+    fireEvent.click(await screen.findByRole('option', { name: displayModelName('work4you-4-mini') }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
 
-    expect(startManualOnboarding).toHaveBeenCalledOnce()
-    expect(startManualLocalEndpoint).not.toHaveBeenCalled()
-    expect(startManualProviderOAuth).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(setModelAssignment).toHaveBeenCalledWith({
+        model: 'work4you-4-mini',
+        provider: 'work4you',
+        scope: 'main'
+      })
+    )
   })
 
-  it('deep-links a known OAuth provider row into its setup flow', async () => {
-    getGlobalModelInfo.mockResolvedValueOnce({ provider: 'anthropic', model: '' })
-    getGlobalModelOptions.mockResolvedValueOnce({
-      providers: [
-        {
-          name: 'Anthropic',
-          slug: 'anthropic',
-          models: [],
-          authenticated: false,
-          auth_type: 'oauth'
-        }
-      ]
-    })
-
-    await renderModelSettings()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Set up Anthropic' }))
-
-    expect(startManualProviderOAuth).toHaveBeenCalledWith('anthropic')
-    expect(startManualLocalEndpoint).not.toHaveBeenCalled()
-    expect(startManualOnboarding).not.toHaveBeenCalled()
-  })
-
-  it('replaces the selected provider and model when the active profile changes', async () => {
+  it('replaces the selected model when the active profile changes', async () => {
     getGlobalModelInfo
       .mockResolvedValueOnce({ provider: 'custom', model: 'local-a' })
       .mockResolvedValueOnce({ provider: 'work4you', model: 'work4you-4' })
@@ -187,7 +117,8 @@ describe('ModelSettings', () => {
             name: 'Custom A',
             slug: 'custom',
             models: ['local-a'],
-            authenticated: true
+            authenticated: true,
+            capabilities: { 'local-a': { reasoning: true, fast: false } }
           }
         ]
       })
@@ -204,58 +135,53 @@ describe('ModelSettings', () => {
       })
 
     await renderModelSettings()
-    expect((await screen.findAllByRole('combobox'))[0].textContent).toContain('Custom A')
+    expect((await screen.findAllByRole('combobox'))[0].textContent).toContain(displayModelName('local-a'))
 
     await act(async () => {
       profileSwitchHandler?.()
     })
 
     await waitFor(() => expect(getGlobalModelInfo).toHaveBeenCalledTimes(2))
-    await waitFor(() => expect(screen.getAllByRole('combobox')[0].textContent).toContain('Work4You'))
-    expect(screen.queryByRole('button', { name: 'Set up provider' })).toBeNull()
+    await waitFor(() =>
+      expect(screen.getAllByRole('combobox')[0].textContent).toContain(displayModelName('work4you-4'))
+    )
+    expect(screen.queryByRole('button', { name: /Set up/ })).toBeNull()
   })
 
   it('preserves a user-defined provider endpoint when applying the main model', async () => {
+    getGlobalModelInfo.mockResolvedValueOnce({ provider: 'local-ollama', model: 'qwen3:latest' })
     getGlobalModelOptions.mockResolvedValueOnce({
       providers: [
         {
-          name: 'Work4You',
-          slug: 'work4you',
-          models: ['work4you-4'],
-          authenticated: true
-        },
-        {
           name: 'Ollama',
           slug: 'local-ollama',
-          models: ['qwen3:latest'],
+          models: ['qwen3:latest', 'qwen3:other'],
           authenticated: true,
           is_user_defined: true,
-          api_url: 'http://localhost:11434/v1'
+          api_url: 'http://localhost:11434/v1',
+          capabilities: {
+            'qwen3:latest': { reasoning: true, fast: false },
+            'qwen3:other': { reasoning: true, fast: false }
+          }
         }
       ]
     })
     setModelAssignment.mockResolvedValueOnce({
       ok: true,
       provider: 'local-ollama',
-      model: 'qwen3:latest',
+      model: 'qwen3:other',
       gateway_tools: []
     })
 
     await renderModelSettings()
 
-    const providerSelect = (await screen.findAllByRole('combobox'))[0]
-    fireEvent.click(providerSelect)
-    fireEvent.click(await screen.findByRole('option', { name: 'Ollama' }))
-
-    const modelSelect = (await screen.findAllByRole('combobox'))[1]
-    fireEvent.click(modelSelect)
-    fireEvent.click(await screen.findByRole('option', { name: displayModelName('qwen3:latest') }))
-
+    fireEvent.click((await screen.findAllByRole('combobox'))[0])
+    fireEvent.click(await screen.findByRole('option', { name: displayModelName('qwen3:other') }))
     fireEvent.click(await screen.findByRole('button', { name: 'Apply' }))
 
     await waitFor(() =>
       expect(setModelAssignment).toHaveBeenCalledWith({
-        model: 'qwen3:latest',
+        model: 'qwen3:other',
         provider: 'local-ollama',
         scope: 'main',
         base_url: 'http://localhost:11434/v1'
@@ -267,17 +193,62 @@ describe('ModelSettings', () => {
     await renderModelSettings()
     await waitFor(() => expect(getWork4YouConfigRecord).toHaveBeenCalled())
 
-    const fastSwitch = await screen.findByRole('switch')
+    const fastSwitch = await screen.findByRole('switch', { name: 'Fast' })
+    expect(fastSwitch.getAttribute('aria-checked')).toBe('false')
     fireEvent.click(fastSwitch)
 
     await waitFor(() =>
       expect(saveWork4YouConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ agent: expect.objectContaining({ service_tier: 'fast' }) })
+        expect.objectContaining({
+          agent: expect.objectContaining({ service_tier: 'fast', reasoning_effort: 'medium' })
+        })
       )
     )
   })
 
-  it('hides the reasoning/speed defaults when the main model reports no capabilities', async () => {
+  it('leaves an explicit medium effort and normal tier unchanged', async () => {
+    await renderModelSettings()
+
+    const reasoning = (await screen.findAllByRole('combobox')).find(node => node.textContent?.includes('Medium'))
+    expect(reasoning).toBeTruthy()
+    const fastSwitch = await screen.findByRole('switch', { name: 'Fast' })
+    expect(fastSwitch.getAttribute('aria-checked')).toBe('false')
+
+    await waitFor(() => expect(getWork4YouConfigRecord).toHaveBeenCalled())
+    expect(saveWork4YouConfig).not.toHaveBeenCalled()
+  })
+
+  it('shows High and persists it when reasoning was never chosen', async () => {
+    getWork4YouConfigRecord.mockResolvedValue({ agent: { reasoning_effort: '', service_tier: 'normal' } })
+
+    await renderModelSettings()
+
+    await waitFor(() =>
+      expect(saveWork4YouConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agent: expect.objectContaining({ reasoning_effort: 'high', service_tier: 'normal' })
+        })
+      )
+    )
+    expect((await screen.findAllByRole('combobox')).some(node => node.textContent?.includes('High'))).toBe(true)
+  })
+
+  it('shows Fast on and persists it when the tier was never chosen', async () => {
+    getWork4YouConfigRecord.mockResolvedValue({ agent: { reasoning_effort: 'medium', service_tier: '' } })
+
+    await renderModelSettings()
+
+    await waitFor(() =>
+      expect(saveWork4YouConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agent: expect.objectContaining({ reasoning_effort: 'medium', service_tier: 'fast' })
+        })
+      )
+    )
+    expect((await screen.findByRole('switch', { name: 'Fast' })).getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('hides the reasoning and speed defaults when the main model reports no capabilities', async () => {
     getGlobalModelOptions.mockResolvedValueOnce({
       providers: [
         {
@@ -293,280 +264,7 @@ describe('ModelSettings', () => {
     await renderModelSettings()
     await waitFor(() => expect(getWork4YouConfigRecord).toHaveBeenCalled())
 
-    expect(screen.queryByRole('switch')).toBeNull()
-  })
-
-  it('renders the auxiliary task rows', async () => {
-    await renderModelSettings()
-
-    expect(await screen.findByText('Vision')).toBeTruthy()
-    expect(screen.getAllByText('auto · use main model').length).toBeGreaterThan(0)
-  })
-
-  it('assigns an auxiliary task to the main model via setModelAssignment', async () => {
-    await renderModelSettings()
-
-    // One "Set to main" button per task slot; the first is Vision.
-    const setToMainButtons = await screen.findAllByRole('button', { name: 'Set to main' })
-    fireEvent.click(setToMainButtons[0])
-
-    await waitFor(() =>
-      expect(setModelAssignment).toHaveBeenCalledWith({
-        model: 'work4you-4',
-        provider: 'work4you',
-        scope: 'auxiliary',
-        task: 'vision'
-      })
-    )
-  })
-
-  it('carries the user-defined endpoint when an aux slot is set to a local main model', async () => {
-    getGlobalModelOptions.mockResolvedValueOnce({
-      providers: [
-        {
-          name: 'Ollama',
-          slug: 'local-ollama',
-          models: ['qwen3:latest'],
-          authenticated: true,
-          is_user_defined: true,
-          api_url: 'http://localhost:11434/v1'
-        }
-      ]
-    })
-    getGlobalModelInfo.mockResolvedValueOnce({ provider: 'local-ollama', model: 'qwen3:latest' })
-    getAuxiliaryModels.mockResolvedValueOnce({
-      main: { provider: 'local-ollama', model: 'qwen3:latest' },
-      tasks: [{ task: 'vision', provider: 'auto', model: '', base_url: '' }]
-    })
-
-    await renderModelSettings()
-
-    const setToMainButtons = await screen.findAllByRole('button', { name: 'Set to main' })
-    fireEvent.click(setToMainButtons[0])
-
-    await waitFor(() =>
-      expect(setModelAssignment).toHaveBeenCalledWith({
-        model: 'qwen3:latest',
-        provider: 'local-ollama',
-        scope: 'auxiliary',
-        task: 'vision',
-        base_url: 'http://localhost:11434/v1'
-      })
-    )
-  })
-
-  it('warns when a main switch leaves auxiliary tasks pinned to another provider', async () => {
-    setModelAssignment.mockResolvedValueOnce({
-      ok: true,
-      provider: 'openrouter',
-      model: 'anthropic/claude-opus-4.7',
-      gateway_tools: [],
-      stale_aux: [{ task: 'compression', provider: 'work4you', model: 'work4you-4' }]
-    })
-
-    await renderModelSettings()
-    await waitFor(() => expect(getGlobalModelInfo).toHaveBeenCalled())
-
-    const applyButton = await screen.findByRole('button', { name: 'Apply' })
-    fireEvent.click(applyButton)
-
-    // The switch-time notice names the pinned provider and offers a reset.
-    expect(await screen.findByText(/still run on/)).toBeTruthy()
-    expect(screen.getByText('work4you')).toBeTruthy()
-  })
-
-  it('shows a persistent banner when a loaded aux slot mismatches the main provider', async () => {
-    getAuxiliaryModels.mockResolvedValueOnce({
-      main: { provider: 'work4you', model: 'work4you-4' },
-      tasks: [{ task: 'curator', provider: 'openrouter', model: 'anthropic/claude-opus-4.7', base_url: '' }]
-    })
-
-    await renderModelSettings()
-
-    // Banner present on load, no switch required.
-    expect(await screen.findByText(/still run on/)).toBeTruthy()
-  })
-})
-
-describe('ModelSettings MoA preset editor', () => {
-  const moaConfig = () => ({
-    default_preset: 'default',
-    active_preset: '',
-    presets: {
-      default: {
-        reference_models: [
-          { provider: 'work4you', model: 'work4you-4' },
-          { provider: 'openrouter', model: 'deepseek/deepseek-v4-pro' }
-        ],
-        aggregator: { provider: 'openrouter', model: 'anthropic/claude-opus-4.8' },
-        reference_temperature: 0,
-        aggregator_temperature: 0,
-        max_tokens: 4096,
-        enabled: true
-      }
-    },
-    reference_models: [
-      { provider: 'work4you', model: 'work4you-4' },
-      { provider: 'openrouter', model: 'deepseek/deepseek-v4-pro' }
-    ],
-    aggregator: { provider: 'openrouter', model: 'anthropic/claude-opus-4.8' },
-    reference_temperature: 0,
-    aggregator_temperature: 0,
-    max_tokens: 4096,
-    enabled: true
-  })
-
-  beforeEach(() => {
-    getGlobalModelOptions.mockResolvedValue({
-      providers: [
-        {
-          name: 'Work4You',
-          slug: 'work4you',
-          models: ['work4you-4', 'work4you-4-mini'],
-          authenticated: true,
-          capabilities: { 'work4you-4': { reasoning: true, fast: true } }
-        },
-        {
-          name: 'OpenRouter',
-          slug: 'openrouter',
-          models: ['deepseek/deepseek-v4-pro', 'anthropic/claude-opus-4.8'],
-          authenticated: true
-        }
-      ]
-    })
-    getMoaModels.mockResolvedValue(moaConfig())
-    saveMoaModels.mockImplementation((body: unknown) => Promise.resolve(body))
-  })
-
-  async function openReferenceEditor() {
-    await renderModelSettings()
-    expect(await screen.findByText('Reference 1')).toBeTruthy()
-  }
-
-  function slotSelects() {
-    // Combobox order in the MoA section (last 7 on the page): preset select,
-    // then provider+model per reference (2 refs), then aggregator
-    // provider+model. Reference 1's pair is therefore at -6 / -5.
-    const all = screen.getAllByRole('combobox')
-
-    return { ref1Provider: all.at(-6)!, ref1Model: all.at(-5)! }
-  }
-
-  it('holds the autosave while a slot is half-filled (provider changed, model pending)', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-
-    try {
-      await openReferenceEditor()
-
-      fireEvent.click(slotSelects().ref1Provider)
-      fireEvent.click(await screen.findByRole('option', { name: 'OpenRouter' }))
-
-      // Model was cleared by the provider change → config incomplete → the
-      // debounced autosave must NOT fire, even well past the 600ms window.
-      await vi.advanceTimersByTimeAsync(2000)
-      expect(saveMoaModels).not.toHaveBeenCalled()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('saves once the model pick completes the slot', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-
-    try {
-      await openReferenceEditor()
-
-      fireEvent.click(slotSelects().ref1Provider)
-      fireEvent.click(await screen.findByRole('option', { name: 'OpenRouter' }))
-      await vi.advanceTimersByTimeAsync(700)
-
-      fireEvent.click(slotSelects().ref1Model)
-      fireEvent.click(await screen.findByRole('option', { name: displayModelName('anthropic/claude-opus-4.8') }))
-      await vi.advanceTimersByTimeAsync(700)
-
-      expect(saveMoaModels).toHaveBeenCalledTimes(1)
-      const sent = saveMoaModels.mock.calls[0][0] as ReturnType<typeof moaConfig>
-      expect(sent.presets.default.reference_models[0]).toEqual({
-        provider: 'openrouter',
-        model: 'anthropic/claude-opus-4.8'
-      })
-      // The untouched slots ride along unchanged — nothing reverts to defaults.
-      expect(sent.presets.default.reference_models[1]).toEqual({
-        provider: 'openrouter',
-        model: 'deepseek/deepseek-v4-pro'
-      })
-      expect(sent.presets.default.aggregator).toEqual({
-        provider: 'openrouter',
-        model: 'anthropic/claude-opus-4.8'
-      })
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('does not clear the model or save when the same provider is re-selected', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-
-    try {
-      await openReferenceEditor()
-
-      fireEvent.click(slotSelects().ref1Provider)
-      fireEvent.click(await screen.findByRole('option', { name: 'Work4You' }))
-      await vi.advanceTimersByTimeAsync(700)
-
-      // Radix treats re-picking the current value as a no-op (no
-      // onValueChange), so nothing changes: no save, model still shown.
-      expect(saveMoaModels).not.toHaveBeenCalled()
-      expect(screen.getByText('work4you · work4you-4')).toBeTruthy()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('autosaves the selected preset when its enabled switch is toggled', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-
-    try {
-      await openReferenceEditor()
-
-      fireEvent.click(screen.getByRole('switch', { name: 'Enabled' }))
-      await vi.advanceTimersByTimeAsync(700)
-
-      expect(saveMoaModels).toHaveBeenCalledWith(
-        expect.objectContaining({
-          presets: expect.objectContaining({
-            default: expect.objectContaining({ enabled: false })
-          })
-        })
-      )
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('saves a disabled reference model without removing it (per-slot enabled toggle)', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-
-    try {
-      await openReferenceEditor()
-
-      fireEvent.click(screen.getByRole('switch', { name: 'Disable reference 1' }))
-      await vi.advanceTimersByTimeAsync(700)
-
-      expect(saveMoaModels).toHaveBeenCalledWith(
-        expect.objectContaining({
-          presets: expect.objectContaining({
-            default: expect.objectContaining({
-              reference_models: [
-                expect.objectContaining({ provider: 'work4you', model: 'work4you-4', enabled: false }),
-                expect.objectContaining({ provider: 'openrouter', model: 'deepseek/deepseek-v4-pro' })
-              ]
-            })
-          })
-        })
-      )
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(screen.queryByRole('switch', { name: 'Fast' })).toBeNull()
+    expect(screen.queryByText('Reasoning')).toBeNull()
   })
 })

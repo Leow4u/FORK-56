@@ -629,7 +629,9 @@ export const SECTIONS: DesktopConfigSection[] = [
     id: 'model',
     label: 'Model',
     icon: Box,
-    keys: ['model_context_length', 'fallback_providers']
+    // Provider, context window, fallbacks, and auxiliary models are platform
+    // defaults. The page exposes the plan model, Fast, and reasoning.
+    keys: []
   },
   {
     id: 'chat',

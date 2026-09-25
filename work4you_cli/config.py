@@ -3035,6 +3035,30 @@ def _normalize_root_model_keys(config: Dict[str, Any]) -> Dict[str, Any]:
     return config
 
 
+def _apply_platform_birth_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Fill blank house-model defaults without clobbering an explicit choice.
+
+    Operis is born with reasoning High and Fast on. A missing or blank
+    ``agent.reasoning_effort`` / ``agent.service_tier`` means the person never
+    picked one. Stored values — including ``medium``, ``normal``, and YAML
+    ``false`` (thinking off) — stay as written.
+    """
+    agent = config.get("agent")
+    if not isinstance(agent, dict):
+        agent = {}
+        config["agent"] = agent
+
+    effort = agent.get("reasoning_effort", None)
+    if effort is None or (isinstance(effort, str) and not effort.strip()):
+        agent["reasoning_effort"] = "high"
+
+    tier = agent.get("service_tier", None)
+    if tier is None or (isinstance(tier, str) and not tier.strip()):
+        agent["service_tier"] = "fast"
+
+    return config
+
+
 def _normalize_max_turns_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize legacy root-level max_turns into agent.max_turns.
 
@@ -3653,7 +3677,9 @@ def _load_config_impl(*, want_deepcopy: bool) -> Dict[str, Any]:
                         )
                     return copy.deepcopy(lkg_copy) if want_deepcopy else lkg_copy
 
-        normalized = _normalize_root_model_keys(_normalize_max_turns_config(config))
+        normalized = _normalize_root_model_keys(
+            _normalize_max_turns_config(_apply_platform_birth_defaults(config))
+        )
         expanded = _expand_env_vars(normalized)
         # Managed scope wins at the leaf. Applied AFTER user expansion so a user
         # ${VAR} cannot shadow a managed literal: managed values are expanded only

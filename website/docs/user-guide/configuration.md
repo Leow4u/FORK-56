@@ -1564,10 +1564,10 @@ Control how much "thinking" the model does before responding:
 
 ```yaml
 agent:
-  reasoning_effort: ""   # empty = medium. Options: none, minimal, low, medium, high, xhigh, max, ultra
+  reasoning_effort: "high"   # Options: none, minimal, low, medium, high, xhigh, max, ultra
 ```
 
-When unset (default), reasoning effort defaults to "medium" — a balanced level that works well for most tasks. Setting a value overrides it — higher reasoning effort gives better results on complex tasks at the cost of more tokens and latency.
+When unset, reasoning effort is filled to "high". An explicit choice — including "medium" or "none" — stays as written. Higher reasoning effort gives better results on complex tasks at the cost of more tokens and latency.
 
 :::note Adaptive-thinking models (Claude 4.6+, Fable/Mythos-class) over OpenRouter
 These models use *adaptive* thinking and don't accept the usual `reasoning.effort`
@@ -1611,7 +1611,7 @@ You can set different reasoning effort levels for different models. This is usef
 
 ```yaml
 agent:
-  reasoning_effort: "medium"       # global default
+  reasoning_effort: "high"         # global default
   reasoning_overrides:
     "openrouter/anthropic/claude-opus-4.5": "xhigh"
     "openai/gpt-5": "low"

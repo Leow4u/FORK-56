@@ -478,8 +478,8 @@ def load_cli_config() -> Dict[str, Any]:
             "verbose": False,
             "system_prompt": "",
             "prefill_messages_file": "",
-            "reasoning_effort": "",
-            "service_tier": "",
+            "reasoning_effort": "high",
+            "service_tier": "fast",
             # Built-in personalities live in work4you_cli.personality
             # (BUILTIN_PERSONALITIES) — the single owner. Entries here are
             # user-defined additions/overrides merged on top by name.
