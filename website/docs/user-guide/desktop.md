@@ -288,9 +288,9 @@ The packaged app ships the Electron shell and a native React chat surface. On fi
 
 By default the app starts and manages its own **local** backend. You can instead point it at a Work4You backend running on another machine — a VPS, a home server, or a Mini behind Tailscale.
 
-Everything connection-related lives on one settings page: **Settings → Gateways**. (Older builds split this across separate **Gateway** and **Connections** pages — those are now unified, and old `?tab=connections` deep links redirect to the unified page.)
+The four-mode Gateways page left the Settings menu. Account sign-in lives on **Settings → Billing**. Saved `?tab=gateway` and `?tab=connections` links open Billing, and the command palette no longer has a Gateways entry. The connection panel is still embedded on the boot recovery screen when the desktop cannot reach its backend.
 
-**Settings → Gateways → Connection mode** offers the alternatives to the local gateway:
+The connection panel, still available from boot recovery, offers the alternatives to the local gateway:
 
 - **Remote gateway** — enter the URL of a `work4you serve` backend you run yourself and sign in. This is the mode the rest of this section walks through.
 - **Work4You Cloud** — sign in once to Work4You Cloud and pick from the agents on your account; no URL to paste. The app discovers your agents (with an organization picker if your account spans several orgs), and connecting to one switches the session over automatically. The status bar shows the cloud connection while it's active.
@@ -299,7 +299,7 @@ Gateway connections are **machine-level**: the Gateways page manages which gatew
 
 ### The multi-connection registry
 
-Further down the same **Settings → Gateways** page, **Registered gateways** manages a named list of every Work4You gateway the app knows about — the local runtime, any number of remote gateways (LAN, Tailscale, internet), Work4You Cloud instances, and SSH hosts — all persisted together in one place. You can jump there from the plug button at the right end of the sidebar profile rail (**Connect another Work4You gateway…**) or via **⌘K → Gateways**. The full guide, including the union agent roster, `@name-device` handles, fleet-wide updates, and the plugin SDK surface, is at [Connecting Desktop to Many Work4You Instances](./multi-connection-desktop.md).
+Registered gateways still switch from the Sessions sidebar. **Manage gateways…** opens **Settings → Billing**. The full guide, including the union agent roster, `@name-device` handles, fleet-wide updates, and the plugin SDK surface, is at [Connecting Desktop to Many Work4You Instances](./multi-connection-desktop.md).
 
 - **Every connection needs a unique name** (a device name such as "Homelab" or "Work laptop"). When the same profile name exists on several registered gateways, surfaces disambiguate it as `@profile-device` (e.g. `@research-homelab`).
 - **Switch gateways from the Sessions sidebar.** A named gateway selector appears when more than one gateway is registered and handles any registry size without making gateways look like profiles. The adjacent profile rail then shows only that gateway's agents and remembers the last profile used there; large profile sets condense independently.
@@ -310,7 +310,7 @@ Further down the same **Settings → Gateways** page, **Registered gateways** ma
 - Cloud entries come from the Work4You Cloud sign-in/discovery flow above, not from a hand-typed URL.
 - Tokens are stored encrypted with the OS keyring (with an explicit plain-text opt-in on keyring-less Linux).
 
-Side-by-side routing is live: each registered gateway dials its own backends and sockets on demand (keyed per connection + profile), the plugin SDK exposes the union agent roster (`host.agents()` / `host.ensureAgent()`), and **Update all instances** on the Gateways page dispatches `work4you update` to every eligible gateway at once — Work4You Cloud entries are skipped (the platform updates them), and each instance reports its own result.
+Side-by-side routing is live: each registered gateway dials its own backends and sockets on demand (keyed per connection + profile), and the plugin SDK exposes the union agent roster (`host.agents()` / `host.ensureAgent()`). **Update all instances** left with the Gateways settings page.
 
 
 :::info The remote backend is a running `work4you serve` process
@@ -361,13 +361,13 @@ The backend reads and writes your `.env` (API keys, secrets) and can run agent c
 
 ### In the app
 
-**Settings → Gateways → Remote gateway:**
+**On the connection panel (boot recovery):**
 
 1. **Remote URL** — `http://<backend-host>:9119` (path prefixes like `/work4you` work if you front it with a reverse proxy)
 2. **Sign in** — the app detects which provider the backend advertises and adapts the button. For a username/password backend it shows a **Sign in** button that opens a credential form (enter the credentials from step 1). For an OAuth backend it shows **Sign in with `<provider>`** (e.g. *Sign in with Work4You*), which runs the provider's browser sign-in. Either way the app ends up with an authenticated session against the backend.
 3. **Save and reconnect** — switches the desktop shell onto the remote backend. The session refreshes automatically; you stay signed in across restarts when `WORK4YOU_DASHBOARD_BASIC_AUTH_SECRET` is set.
 
-You can also set the backend URL without the UI via the `WORK4YOU_DESKTOP_REMOTE_URL` environment variable before launching the app (it overrides the in-app setting); you still sign in from the Gateways settings panel.
+You can also set the backend URL without the UI via the `WORK4YOU_DESKTOP_REMOTE_URL` environment variable before launching the app (it overrides the in-app setting). Account sign-in is on **Settings → Billing**.
 
 :::note Per-profile remote hosts
 The remote gateway host is configured per [profile](./profiles.md), so each profile can point at its own remote backend (or stay on its local one). Switching profiles switches which remote host the app connects to.

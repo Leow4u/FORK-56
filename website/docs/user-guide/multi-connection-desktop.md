@@ -17,19 +17,14 @@ app talking to several machines.
 
 ## Where to find it
 
-Everything lives on the unified **Settings → Gateways** page (older builds had
-separate **Gateway** and **Connections** pages; legacy Connections deep links
-redirect there). Three doors lead to it:
+The Gateways page left the Settings menu. Account sign-in is **Settings →
+Billing**. Old `?tab=gateway` and `?tab=connections` links open Billing, and
+**Cmd/Ctrl+K** no longer lists a Gateways command (searching *gateway* or
+*connection* opens Billing).
 
-- **Settings → Gateways** — the page itself (**Cmd/Ctrl+,**, then
-  **Gateways** in the settings nav). The connections registry is a section
-  of that page, below the machine-level connection-mode controls.
-- **The sidebar profile rail** — the plug button at the right end of the rail
-  (tooltip: **"Connect another Work4You gateway…"**) deep-links straight to
-  the Gateways page. It is always visible, even before you have created
-  a second profile or a second connection.
-- **The command palette** — **Cmd/Ctrl+K**, then type *Gateways* (also
-  matches *connections*, *add gateway*, *remote*, *ssh*, *instances*).
+The Sessions sidebar still switches among registered gateways. **Manage
+gateways…** opens Billing. The boot recovery screen still embeds the
+connection panel when the desktop cannot reach its backend.
 
 ## The gateway registry
 

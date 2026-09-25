@@ -8328,7 +8328,7 @@ async function discoverCloudAgents(org?: string) {
 
   if (!(await hasLivePortalSession())) {
     const err = new Error(
-      'You are not signed in to Work4You Cloud. Open Settings → Gateway, choose Work4You Cloud, and sign in.'
+      'You are not signed in to Work4You Cloud. Open Settings → Billing and sign in.'
     ) as any
 
     err.needsCloudLogin = true
@@ -8375,7 +8375,7 @@ async function discoverCloudAgents(org?: string) {
       // recover it) — surface it as a re-login, not a generic failure.
       if (error && error.statusCode === 401) {
         const err = new Error(
-          'Your Work4You Cloud session has expired. Open Settings → Gateway and sign in again.'
+          'Your Work4You Cloud session has expired. Open Settings → Billing and sign in again.'
         ) as any
 
         err.needsCloudLogin = true

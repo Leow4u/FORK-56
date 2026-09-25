@@ -212,7 +212,7 @@ describe('ComposerRunTargetMenu', () => {
     expect(notify).toHaveBeenCalledWith(expect.objectContaining({ title: 'Gateway connection restarting' }))
   })
 
-  it('opens Settings → Gateways when Cloud sign-in is not available', async () => {
+  it('opens Settings → Billing when Cloud sign-in is not available', async () => {
     $connectionsRegistry.set(registry([connection('local', 'local')]))
     render(
       <MemoryRouter>
@@ -223,7 +223,7 @@ describe('ComposerRunTargetMenu', () => {
     await openMenu()
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
 
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=gateway'))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=billing'))
     expect(applyConnectionConfig).not.toHaveBeenCalled()
   })
 
@@ -327,7 +327,7 @@ describe('ComposerRunTargetMenu', () => {
     expect(navigate).not.toHaveBeenCalled()
   })
 
-  it('opens Settings → Gateways when the portal session needs sign-in', async () => {
+  it('opens Settings → Billing when the portal session needs sign-in', async () => {
     discover.mockRejectedValue(Object.assign(new Error('sign in'), { needsCloudLogin: true }))
     withDiscover()
     $connectionsRegistry.set(registry([connection('local', 'local')]))
@@ -340,11 +340,11 @@ describe('ComposerRunTargetMenu', () => {
     await openMenu()
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
 
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=gateway'))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=billing'))
     expect(applyConnectionConfig).not.toHaveBeenCalled()
   })
 
-  it('opens Settings → Gateways when several organizations need a choice', async () => {
+  it('opens Settings → Billing when several organizations need a choice', async () => {
     discover.mockResolvedValue({ needsOrgSelection: true, orgs: [] })
     withDiscover()
     $connectionsRegistry.set(registry([connection('local', 'local')]))
@@ -357,7 +357,7 @@ describe('ComposerRunTargetMenu', () => {
     await openMenu()
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
 
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=gateway'))
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=billing'))
     expect(applyConnectionConfig).not.toHaveBeenCalled()
   })
 

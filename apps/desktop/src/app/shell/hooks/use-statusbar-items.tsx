@@ -560,5 +560,5 @@ export function useStatusbarItems({
 function StatusbarGatewaySwitcher() {
   const navigate = useNavigate()
 
-  return <ConnectionSwitcher compact onConnect={() => navigate(`${SETTINGS_ROUTE}?tab=connections`)} />
+  return <ConnectionSwitcher compact onConnect={() => navigate(`${SETTINGS_ROUTE}?tab=billing`)} />
 }

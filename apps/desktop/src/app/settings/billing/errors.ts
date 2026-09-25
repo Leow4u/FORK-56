@@ -43,7 +43,7 @@ export const resolveRefusal = (refusal: BillingRefusal): BillingRefusalPresentat
 
       return {
         action: portalAction(refusal.portalUrl),
-        message: `${who} Reconnect from Settings → Gateway to re-authorize this device.`,
+        message: `${who} Reconnect from Settings → Billing to re-authorize this device.`,
         title: 'Remote spending was stopped'
       }
     }
@@ -51,7 +51,7 @@ export const resolveRefusal = (refusal: BillingRefusal): BillingRefusalPresentat
     case 'session_revoked':
       return {
         action: portalAction(refusal.portalUrl),
-        message: 'Your session was logged out. Sign in again from Settings → Gateway.',
+        message: 'Your session was logged out. Sign in again from Settings → Billing.',
         title: 'Session logged out'
       }
 

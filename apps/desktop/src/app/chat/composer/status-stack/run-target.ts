@@ -283,7 +283,7 @@ export function paidCloudLoginShouldApply(currentCloudUrl: string, source: Compo
  * Composer Local / Cloud click. Local and a Cloud dashboard that already
  * has an address reuse Settings' `applyConnectionConfig` door. Free with
  * no machine upgrades. A paid machine that is not addressable yet does not
- * navigate. Sign-in and multi-org stay on Settings → Gateways.
+ * navigate. Sign-in and multi-org open Settings → Billing, where the account lives.
  */
 export function composerRunTargetIntent(
   target: ComposerRunTarget,

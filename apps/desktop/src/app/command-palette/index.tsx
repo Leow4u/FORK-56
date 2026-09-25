@@ -34,7 +34,6 @@ import {
   Egg,
   FolderOpen,
   GitBranch,
-  Globe,
   type IconComponent,
   Info,
   KeyRound,
@@ -444,7 +443,6 @@ type NonConfigSettingsLabel =
   | 'app'
   | 'archivedChats'
   | 'billing'
-  | 'gateway'
   | 'keysSettings'
   | 'keysTools'
   | 'mcp'
@@ -460,27 +458,9 @@ const NON_CONFIG_SETTINGS: ReadonlyArray<{
 }> = [
   {
     icon: BarChart3,
-    keywords: ['account', 'portal', 'sign in', 'subscription', 'plan', 'work4you'],
+    keywords: ['account', 'portal', 'sign in', 'subscription', 'plan', 'work4you', 'gateway', 'connection'],
     labelKey: 'billing',
     tab: 'billing'
-  },
-  {
-    icon: Globe,
-    // The Connections registry merged into the unified Gateways page.
-    keywords: [
-      'connection',
-      'connections',
-      'messaging',
-      'remote',
-      'multi',
-      'instances',
-      'ssh',
-      'cloud',
-      'add gateway',
-      'registry'
-    ],
-    labelKey: 'gateway',
-    tab: 'gateway'
   },
   {
     icon: KeyRound,

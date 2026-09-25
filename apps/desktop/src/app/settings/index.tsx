@@ -11,7 +11,6 @@ import {
   BarChart3,
   Bell,
   Download,
-  Globe,
   Info,
   Keyboard,
   KeyRound,
@@ -44,21 +43,21 @@ import { AppearanceSettings } from './appearance-settings'
 import { BillingSettings } from './billing'
 import { ConfigSettings } from './config-settings'
 import { SECTIONS } from './constants'
-import { GatewaySettings } from './gateway-settings'
 import { ImageVideoSettings } from './image-video-settings'
 import { KeybindSettings } from './keybind-settings'
 import { KEYS_VIEWS, KeysSettings, type KeysView } from './keys-settings'
 import { NotificationsSettings } from './notifications-settings'
 import { PluginsSettings } from './plugins-settings'
+import { settingsTabReplacement } from './retired-settings-tabs'
 import { SessionsSettings } from './sessions-settings'
 import type { SettingsPageProps, SettingsView as SettingsViewId } from './types'
 
 const SETTINGS_VIEWS: readonly SettingsViewId[] = [
   ...SECTIONS.map(s => `config:${s.id}` as SettingsViewId),
   'providers',
+  // The four-mode gateway page left the menu. Kept in the enum so saved
+  // `?tab=gateway` and `?tab=connections` bookmarks still resolve (Billing).
   'gateway',
-  // Legacy alias: the Connections page merged into Gateways. Kept in the enum
-  // so saved `?tab=connections` deep links still resolve (redirected below).
   'connections',
   'keybinds',
   'keys',
@@ -91,11 +90,15 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
 
   const [activeView, setActiveView] = useRouteEnumParam('tab', SETTINGS_VIEWS, 'config:model' as SettingsViewId)
 
-  // Connections merged into the unified Gateways page: land old
-  // `?tab=connections` routes/bookmarks there instead of a dead entry.
+  // Gateway topology left Settings. Old bookmarks, including the connections
+  // alias, land on Billing next to the Portal account.
   useEffect(() => {
-    if (activeView === 'connections') {
-      setActiveView('gateway')
+    const replacement = settingsTabReplacement(activeView)
+
+    if (replacement) {
+      setActiveView(replacement)
+
+      return
     }
 
     if (activeView === 'providers') {
@@ -201,22 +204,16 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
         onSelect: () => setActiveView('notifications')
       },
       {
-        active: activeView === 'billing' || activeView === 'providers',
+        active:
+          activeView === 'billing' || activeView === 'providers' || settingsTabReplacement(activeView) === 'billing',
         icon: BarChart3,
         id: 'billing',
         label: t.settings.nav.billing,
         onSelect: () => setActiveView('billing')
       },
       {
-        active: activeView === 'gateway',
-        gapBefore: true,
-        icon: Globe,
-        id: 'gateway',
-        label: t.settings.nav.gateway,
-        onSelect: () => setActiveView('gateway')
-      },
-      {
         active: activeView === 'keybinds',
+        gapBefore: true,
         icon: Keyboard,
         id: 'keybinds',
         label: t.settings.nav.keybinds,
@@ -363,10 +360,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       <ImageVideoSettings />
     ) : activeView === 'about' ? (
       <AboutSettings />
-    ) : activeView === 'gateway' || activeView === 'connections' ? (
-      // 'connections' renders the unified page too so the frame before
-      // the alias redirect lands doesn't flash the fallback view.
-      <GatewaySettings />
     ) : activeView === 'keybinds' ? (
       <KeybindSettings />
     ) : activeView.startsWith('config:') ? (
@@ -376,7 +369,9 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
         onConfigSaved={onConfigSaved}
         onMainModelChanged={onMainModelChanged}
       />
-    ) : activeView === 'providers' || activeView === 'billing' ? (
+    ) : activeView === 'providers' || activeView === 'billing' || settingsTabReplacement(activeView) === 'billing' ? (
+      // Retired gateway bookmarks render Billing immediately so the four-mode
+      // page does not flash before the alias redirect.
       <BillingSettings />
     ) : activeView === 'keys' ? (
       <KeysSettings view={keysView} />

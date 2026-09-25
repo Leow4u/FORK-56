@@ -216,7 +216,7 @@ export function ComposerRunTargetMenu() {
 
     if (intent.type === 'settings') {
       triggerHaptic('selection')
-      navigate(`${SETTINGS_ROUTE}?tab=gateway`)
+      navigate(`${SETTINGS_ROUTE}?tab=billing`)
 
       return
     }
