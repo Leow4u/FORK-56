@@ -1,22 +1,18 @@
 import { useStore } from '@nanostores/react'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
 import { KbdCombo } from '@/components/ui/kbd'
-import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { BarChart3, Bell, Download, Info, Keyboard, Monitor, RefreshCw, Search, Upload } from '@/lib/icons'
+import { BarChart3, Bell, Info, Keyboard, Monitor, Search } from '@/lib/icons'
 import { isEditableTarget } from '@/lib/keybinds/combo'
 import { typeToFocusChar } from '@/lib/keybinds/composer-focus-keys'
 import { cn } from '@/lib/utils'
 import { $commandPaletteOpen, openCommandPalettePage } from '@/store/command-palette'
 import { bindingsFor } from '@/store/keybinds'
-import { notifyError } from '@/store/notifications'
-import { getWork4YouConfigDefaults, getWork4YouConfigRecord, saveWork4YouConfig } from '@/work4you'
 
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
-import { OverlayIconButton } from '../overlays/overlay-chrome'
 import { OverlayMain, OverlayNav, type OverlayNavGroup, OverlaySplitLayout } from '../overlays/overlay-split-layout'
 import { OverlayView } from '../overlays/overlay-view'
 import { SKILLS_ROUTE } from '../routes'
@@ -110,38 +106,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     const qs = params.toString()
     navigate({ hash, pathname, search: qs ? `?${qs}` : '' }, { replace: true })
   }, [hash, navigate, pathname, search])
-
-  const importInputRef = useRef<HTMLInputElement | null>(null)
-
-  const exportConfig = async () => {
-    try {
-      const cfg = await getWork4YouConfigRecord()
-      const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'work4you-config.json'
-      a.click()
-      URL.revokeObjectURL(url)
-      triggerHaptic('success')
-    } catch (err) {
-      notifyError(err, t.settings.exportFailed)
-    }
-  }
-
-  const resetConfig = async () => {
-    if (!window.confirm(t.settings.resetConfirm)) {
-      return
-    }
-
-    try {
-      await saveWork4YouConfig(await getWork4YouConfigDefaults())
-      triggerHaptic('success')
-      onConfigSaved?.()
-    } catch (err) {
-      notifyError(err, t.settings.resetFailed)
-    }
-  }
 
   const navGroups: OverlayNavGroup[] = useMemo(
     () => [
@@ -250,37 +214,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     </button>
   )
 
-  const navFooter = (
-    <>
-      <Tip label={t.settings.exportConfig}>
-        <OverlayIconButton onClick={() => void exportConfig()}>
-          <Download />
-        </OverlayIconButton>
-      </Tip>
-      <Tip label={t.settings.importConfig}>
-        <OverlayIconButton
-          onClick={() => {
-            triggerHaptic('open')
-            importInputRef.current?.click()
-          }}
-        >
-          <Upload />
-        </OverlayIconButton>
-      </Tip>
-      <Tip label={t.settings.resetToDefaults}>
-        <OverlayIconButton
-          className="hover:text-destructive"
-          onClick={() => {
-            triggerHaptic('warning')
-            void resetConfig()
-          }}
-        >
-          <RefreshCw />
-        </OverlayIconButton>
-      </Tip>
-    </>
-  )
-
   const activeSettingsContent =
     activeView === 'config:appearance' ? (
       <AppearanceSettings />
@@ -295,7 +228,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     ) : activeView.startsWith('config:') || activeView === 'sessions' ? (
       <ConfigSettings
         activeSectionId={activeView === 'sessions' ? 'chat' : activeView.slice('config:'.length)}
-        importInputRef={importInputRef}
         onConfigSaved={onConfigSaved}
         onMainModelChanged={onMainModelChanged}
       />
@@ -312,7 +244,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
   return (
     <OverlayView closeLabel={t.settings.closeSettings} onClose={onClose}>
       <OverlaySplitLayout>
-        <OverlayNav footer={navFooter} groups={navGroups} header={searchPill} itemTone="quiet" />
+        <OverlayNav groups={navGroups} header={searchPill} itemTone="quiet" />
 
         <OverlayMain className={cn('max-w-none px-0 pb-0', MAIN_STAGE_SURFACE_CLASS)}>
           {activeSettingsContent}

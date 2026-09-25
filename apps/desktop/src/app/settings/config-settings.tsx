@@ -1,16 +1,14 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
-import type { ChangeEvent } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
-import { notify, notifyError } from '@/store/notifications'
+import { notifyError } from '@/store/notifications'
 import { normalizeProfileKey } from '@/store/profile'
 import { repoDiscoveryPolicyFromConfig, repoDiscoveryPolicySignature, scanAndRecordRepos } from '@/store/projects'
 import { $reasoningCollapsedByDefault, setReasoningCollapsedByDefault } from '@/store/reasoning-disclosure'
-import { $settingsScopeOverride } from '@/store/settings-scope'
 import type { ConfigFieldSchema, Work4YouConfigRecord } from '@/types/work4you'
 import { getElevenLabsVoices, getWork4YouConfigSchema, saveWork4YouConfig } from '@/work4you'
 
@@ -32,29 +30,19 @@ import { MemoryConnect } from './memory/connect'
 import { ProviderConfigPanel } from './memory/provider-config-panel'
 import { ModelSettings, ModelSettingsSkeleton } from './model-settings'
 import { EmptyState, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton, ToggleRow } from './primitives'
-import { SettingsProfileScope } from './profile-scope'
 import { AutoArchiveSetting } from './sessions-settings'
 
-export function ConfigSettings({
-  activeSectionId,
-  onConfigSaved,
-  onMainModelChanged,
-  importInputRef
-}: ConfigSettingsProps) {
-  // Shared "Applies to" scope (null → the app's active profile). Remount the
-  // inner page per scope so every draft/seed/autosave ref resets wholesale
-  // when the target profile changes — the same guarantee useOnProfileSwitch
-  // provides for app-wide switches, without hand-clearing each piece.
-  const scopeProfile = useStore($settingsScopeOverride)
-
+export function ConfigSettings({ activeSectionId, onConfigSaved, onMainModelChanged }: ConfigSettingsProps) {
+  // These pages edit the active profile. The profile chip lives on
+  // Capabilities (and Messaging), where choosing a profile changes what the
+  // agent can do. useOnProfileSwitch drops drafts when the active profile
+  // itself changes.
   return (
     <ConfigSettingsInner
       activeSectionId={activeSectionId}
-      importInputRef={importInputRef}
-      key={scopeProfile ?? '__active__'}
       onConfigSaved={onConfigSaved}
       onMainModelChanged={onMainModelChanged}
-      scopeProfile={scopeProfile}
+      scopeProfile={null}
     />
   )
 }
@@ -63,14 +51,12 @@ interface ConfigSettingsProps {
   activeSectionId: string
   onConfigSaved?: () => void
   onMainModelChanged?: (provider: string, model: string) => void
-  importInputRef: React.RefObject<HTMLInputElement | null>
 }
 
 function ConfigSettingsInner({
   activeSectionId,
   onConfigSaved,
   onMainModelChanged,
-  importInputRef,
   scopeProfile
 }: ConfigSettingsProps & { scopeProfile: null | string }) {
   const { t } = useI18n()
@@ -270,28 +256,6 @@ function ConfigSettingsInner({
     return () => window.clearTimeout(timeout)
   }, [config, schema, setSearchParams, targetField])
 
-  function handleImport(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-
-    if (!file) {
-      return
-    }
-
-    const reader = new FileReader()
-
-    reader.onload = () => {
-      try {
-        updateConfig(JSON.parse(String(reader.result)))
-        notify({ kind: 'success', title: c.imported, message: t.common.saving })
-      } catch (err) {
-        notifyError(err, c.invalidJson)
-      }
-    }
-
-    reader.readAsText(file)
-    e.target.value = ''
-  }
-
   if (!config || !schema) {
     // A failed config/schema fetch must surface a retry, not spin forever.
     if ((configLoadFailed && !config) || (schemaFailed && !schema)) {
@@ -322,7 +286,6 @@ function ConfigSettingsInner({
       return (
         <SettingsContent>
           <SectionHeading title={t.settings.sections.model} variant="page" />
-          <SettingsProfileScope className="mb-5" />
           <div className="mb-6">
             <ModelSettingsSkeleton />
           </div>
@@ -349,9 +312,6 @@ function ConfigSettingsInner({
   return (
     <SettingsContent>
       <SectionHeading title={t.settings.sections[activeSectionId] ?? activeSectionId} variant="page" />
-      {/* Which profile's config.yaml this page edits — shared across every
-          config-backed settings page (and hidden for single-profile users). */}
-      <SettingsProfileScope className="mb-5" />
       {activeSectionId === 'model' && (
         <div className="mb-6">
           <ModelSettings onMainModelChanged={onMainModelChanged} scopeProfile={scopeProfile} />
@@ -397,13 +357,6 @@ function ConfigSettingsInner({
       ) : visibleFields.length === 0 && activeSectionId !== 'chat' && activeSectionId !== 'model' ? (
         <EmptyState description={c.emptyDesc} title={c.emptyTitle} />
       ) : null}
-      <input
-        accept=".json,application/json"
-        className="hidden"
-        onChange={handleImport}
-        ref={importInputRef}
-        type="file"
-      />
     </SettingsContent>
   )
 }

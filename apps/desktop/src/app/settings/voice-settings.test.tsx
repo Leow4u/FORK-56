@@ -58,7 +58,7 @@ async function renderVoice() {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <ConfigSettings activeSectionId="voice" importInputRef={{ current: null }} />
+        <ConfigSettings activeSectionId="voice" />
       </QueryClientProvider>
     </MemoryRouter>
   )

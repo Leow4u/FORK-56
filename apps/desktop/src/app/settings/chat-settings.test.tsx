@@ -3,7 +3,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { $profiles } from '@/store/profile'
 import { $reasoningCollapsedByDefault } from '@/store/reasoning-disclosure'
+import type { ProfileInfo } from '@/types/work4you'
 
 const getWork4YouConfigRecord = vi.fn()
 const getWork4YouConfigSchema = vi.fn()
@@ -47,7 +49,7 @@ async function renderChat() {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <ConfigSettings activeSectionId="chat" importInputRef={{ current: null }} />
+        <ConfigSettings activeSectionId="chat" />
       </QueryClientProvider>
     </MemoryRouter>
   )
@@ -56,6 +58,10 @@ async function renderChat() {
 describe('Chat settings', () => {
   it('shows personality, reasoning blocks, collapse thinking, and auto-archive', async () => {
     window.work4youDesktop = {} as Window['work4youDesktop']
+    $profiles.set([
+      { has_env: false, is_default: true, model: null, name: 'default' } as unknown as ProfileInfo,
+      { has_env: false, is_default: false, model: null, name: 'coder' } as unknown as ProfileInfo
+    ])
     await renderChat()
 
     expect(await screen.findByText('Personality')).toBeTruthy()
@@ -67,6 +73,7 @@ describe('Chat settings', () => {
     expect(screen.queryByText('Max preview / image load size')).toBeNull()
     expect(screen.queryByText('Default project directory')).toBeNull()
     expect(screen.queryByText('Nothing archived')).toBeNull()
+    expect(screen.queryByText('Editing profile')).toBeNull()
   })
 
   it('persists collapse thinking from the chat page', async () => {

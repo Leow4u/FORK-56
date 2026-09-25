@@ -1,15 +1,12 @@
-import { useStore } from '@nanostores/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useI18n } from '@/i18n'
 import { isCapabilitiesVendorCredentialHidden } from '@/lib/desktop-toolsets'
-import { $settingsScopeOverride } from '@/store/settings-scope'
 
 import { CredentialKeyCard, credentialPlaceholder, credentialRowLabel } from './credential-key-ui'
 import { useEnvCredentials } from './env-credentials'
 import { asText } from './helpers'
 import { EmptyState, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton } from './primitives'
-import { SettingsProfileScope } from './profile-scope'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
 
 // Sub-views surfaced as sidebar subnav under Tools & Keys (see settings/index.tsx).
@@ -35,9 +32,9 @@ const credentialElementId = (key: string) => `credential-key-${key}`
 
 export function KeysSettings({ view }: KeysSettingsProps) {
   const { t } = useI18n()
-  // Shared settings "Applies to" scope: fetch + edit the selected profile's
-  // env store instead of the active one (null → active, the default path).
-  const scopeProfile = useStore($settingsScopeOverride)
+  // The page left the Settings menu. If it is mounted, it edits the active
+  // profile. Capabilities is where a profile choice changes what the agent can do.
+  const scopeProfile = null
   const { rowProps, vars } = useEnvCredentials(scopeProfile)
   const [openKey, setOpenKey] = useState<null | string>(null)
 
@@ -89,7 +86,6 @@ export function KeysSettings({ view }: KeysSettingsProps) {
         title={view === 'tools' ? t.settings.nav.keysTools : t.settings.nav.keysSettings}
         variant="page"
       />
-      <SettingsProfileScope className="mb-5" />
       {entries.length > 0 ? (
         <SettingsGroup>
           {entries.map(([key, info]) => {

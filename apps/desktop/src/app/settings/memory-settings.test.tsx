@@ -61,7 +61,7 @@ async function renderMemory() {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <ConfigSettings activeSectionId="memory" importInputRef={{ current: null }} />
+        <ConfigSettings activeSectionId="memory" />
       </QueryClientProvider>
     </MemoryRouter>
   )

@@ -29,12 +29,10 @@ export function ScopeChip({ active, label, onSelect }: { active: boolean; label:
   )
 }
 
-/** Shared "which profile am I editing" selector for the config-backed settings
- *  pages (Model, Workspace, Safety, Memory & Context, Voice, Tools & Keys)
- *  and the Messaging overlay. Backed by one nanostore ($settingsScopeOverride)
- *  so the selection persists across pages. Hidden with fewer than two
- *  profiles, so single-profile users never see it and every request keeps its
- *  unscoped default shape. */
+/** Which profile a surface is editing. Settings config pages edit the active
+ *  profile and do not show this chip. Messaging still uses it, because the
+ *  choice changes which profile's platforms the agent serves. Capabilities
+ *  has its own selector. Hidden with fewer than two profiles. */
 export function SettingsProfileScope({ className }: { className?: string }) {
   const { t } = useI18n()
   const scope = t.settings.profileScope

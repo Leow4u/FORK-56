@@ -54,7 +54,7 @@ async function renderSafety(config: Record<string, unknown>) {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <ConfigSettings activeSectionId="safety" importInputRef={{ current: null }} />
+        <ConfigSettings activeSectionId="safety" />
       </QueryClientProvider>
     </MemoryRouter>
   )
