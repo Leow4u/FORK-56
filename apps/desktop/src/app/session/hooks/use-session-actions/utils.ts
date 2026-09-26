@@ -29,6 +29,7 @@ import {
   setYoloActive
 } from '@/store/session'
 import { sessionListHomeId } from '@/store/session-homes'
+import { rememberSessionProject, selectedProjectIdForNewChat } from '@/store/session-projects'
 import { getSession } from '@/work4you'
 
 // Re-exported for the many session-actions/tile call sites that already import
@@ -1278,13 +1279,20 @@ export function upsertOptimisticSession(
   // profile) so the scoped sidebar shows the new row immediately instead of
   // filtering it out as "default" until the aggregator re-fetches.
   const profileKey = normalizeProfileKey($activeGatewayProfile.get())
+  const projectId = selectedProjectIdForNewChat()
+  const connection_id = sessionListHomeId($connection.get())
+
+  if (projectId) {
+    rememberSessionProject({ connection_id, id }, projectId)
+  }
 
   const session: SessionInfo = {
-    connection_id: sessionListHomeId($connection.get()),
+    connection_id,
     // Seed cwd so the grouped sidebar can place the new row in its repo/worktree
     // lane immediately (the overlay groups by path); fall back to the workspace
     // the session was just started in when the create response omits it.
     cwd: optimisticSessionCwd(created.info?.cwd, $currentCwd.get(), requestedCwd),
+    desktop_project_id: projectId,
     ended_at: null,
     id,
     input_tokens: 0,

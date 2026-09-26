@@ -422,8 +422,16 @@ export function mergeSessionPage(
     // (last_active = MAX(messages.timestamp)). Keep the fresher of the two.
     const last_active = Math.max(prev?.last_active ?? 0, session.last_active ?? 0)
     const title = session.title?.trim() ? session.title : prev?.title?.trim() ? prev.title : session.title
+    const desktop_project_id = session.desktop_project_id?.trim()
+      ? session.desktop_project_id
+      : prev?.desktop_project_id?.trim()
+        ? prev.desktop_project_id
+        : undefined
+    const projectChanged = desktop_project_id !== session.desktop_project_id && Boolean(desktop_project_id)
 
-    return last_active === session.last_active && title === session.title ? session : { ...session, last_active, title }
+    return last_active === session.last_active && title === session.title && !projectChanged
+      ? session
+      : { ...session, desktop_project_id, last_active, title }
   })
 
   if (keep.size === 0) {

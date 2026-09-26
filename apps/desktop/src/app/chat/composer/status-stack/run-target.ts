@@ -1,3 +1,5 @@
+import { atom } from 'nanostores'
+
 import type {
   DesktopConnectionConfig,
   DesktopConnectionConfigInput,
@@ -48,6 +50,9 @@ type RegistryRow = Pick<DesktopRegistryConnection, 'id' | 'kind'>
 
 type SavedGateway = Pick<DesktopConnectionConfig, 'cloudOrg' | 'mode' | 'remoteUrl'>
 
+/** Destination kept on the composer while the gateway reconnects. */
+export const $heldRunTarget = atom<ComposerRunTarget | null>(null)
+
 /** Last Cloud dashboard the composer (or Settings) already applied this session. */
 let rememberedCloud: ComposerCloudApplySource | null = null
 
@@ -72,6 +77,7 @@ export function readRememberedComposerCloudApply(): ComposerCloudApplySource | n
 /** @internal */
 export function _resetComposerRunTargetForTests(): void {
   rememberedCloud = null
+  $heldRunTarget.set(null)
 }
 
 /** First Local or Cloud row in the existing registry. Remote / SSH are ignored. */

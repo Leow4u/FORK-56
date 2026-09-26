@@ -4,7 +4,8 @@ import type {
   Work4YouReadFileTextResult,
   Work4YouSelectPathsOptions
 } from '@/global'
-import { attachmentFolderKey, safeAttachRelative } from '@/lib/attached-folder'
+import { attachmentFolderKey, isComputerProjectPath, safeAttachRelative } from '@/lib/attached-folder'
+import { $connectionsRegistry } from '@/store/connections'
 import { $connection } from '@/store/session'
 
 export interface DesktopFsRemotePicker {
@@ -58,10 +59,55 @@ function bridge() {
   return desktop
 }
 
+function remoteConnectionId(): string | undefined {
+  const live = $connection.get()
+  const direct = live?.connectionId?.trim()
+
+  if (direct) {
+    return direct
+  }
+
+  if (live?.remoteKind !== 'cloud') {
+    return undefined
+  }
+
+  return $connectionsRegistry.get()?.connections.find(connection => connection.kind === 'cloud')?.id
+}
+
 function remoteFsApi<T>(path: string, body?: Record<string, unknown>): Promise<T> {
-  return bridge().api<T>(
-    body ? { body, method: 'POST', path, profile: desktopFsProfile() } : { path, profile: desktopFsProfile() }
-  )
+  const connectionId = remoteConnectionId()
+
+  return bridge().api<T>({
+    path,
+    profile: desktopFsProfile(),
+    ...(connectionId ? { connectionId } : {}),
+    ...(body ? { body, method: 'POST' } : {})
+  })
+}
+
+export class CloudFolderCopyError extends Error {
+  constructor() {
+    super('The project folder could not be copied to Cloud')
+    this.name = 'CloudFolderCopyError'
+  }
+}
+
+/** Folder the new session should open. Cloud copies a computer folder onto that same host first. */
+export async function resolveSessionCreateCwd(cwd: string): Promise<string> {
+  const connection = $connection.get()
+  const folder = cwd.trim()
+
+  if (!(connection?.mode === 'remote' && connection.remoteKind === 'cloud' && folder && isComputerProjectPath(folder))) {
+    return folder
+  }
+
+  const remote = await deliverLocalFolder(folder)
+
+  if (!remote) {
+    throw new CloudFolderCopyError()
+  }
+
+  return remote
 }
 
 export async function readDesktopDir(path: string): Promise<Work4YouReadDirResult> {
@@ -253,7 +299,7 @@ async function collectLocalFiles(
 export async function deliverLocalFolder(localPath: string): Promise<string | null> {
   const root = localPath.trim()
 
-  if (!root || !isDesktopFsRemoteMode()) {
+  if (!root || !isDesktopFsRemoteMode() || !remoteConnectionId()) {
     return null
   }
 

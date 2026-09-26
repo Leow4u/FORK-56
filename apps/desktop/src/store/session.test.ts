@@ -152,6 +152,13 @@ describe('mergeSessionPage', () => {
     expect(mergeSessionPage(previous, incoming, [])).toEqual(incoming)
   })
 
+  it('keeps the desktop project when the refreshed row omits it', () => {
+    const previous = [session({ id: 'a', desktop_project_id: 'p_dute' })]
+    const incoming = [session({ id: 'a', cwd: '/opt/work4you' })]
+
+    expect(mergeSessionPage(previous, incoming, [])[0]?.desktop_project_id).toBe('p_dute')
+  })
+
   it('keeps a still-working session the server omitted', () => {
     // Repro of the disappearing-sessions bug: A finished and is returned by the
     // server, but B and C are mid-first-response (message_count 0 in the DB) so

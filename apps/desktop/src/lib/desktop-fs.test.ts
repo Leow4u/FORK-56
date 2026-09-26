@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { $connection } from '@/store/session'
 
 import {
+  CloudFolderCopyError,
+  deliverLocalFolder,
   desktopDefaultCwd,
   desktopFileDiff,
   desktopFsCacheKey,
@@ -11,6 +13,7 @@ import {
   readDesktopFileDataUrl,
   readDesktopFileDataUrlLocalFirst,
   readDesktopFileText,
+  resolveSessionCreateCwd,
   selectDesktopPaths,
   selectLocalDesktopPaths,
   setDesktopFsRemotePicker
@@ -246,5 +249,33 @@ describe('desktop filesystem facade', () => {
 
     expect(selectPaths).toHaveBeenCalledWith({ directories: true, multiple: false })
     expect(remoteSelect).not.toHaveBeenCalled()
+  })
+
+  it('copies a project folder to the cloud connection', async () => {
+    $connection.set({ connectionId: 'cloud-1', mode: 'remote', remoteKind: 'cloud' } as never)
+    readDir.mockResolvedValueOnce({
+      entries: [{ isDirectory: false, name: 'a.txt', path: 'C:/work/Dute-app/a.txt' }]
+    })
+    readFileText.mockResolvedValueOnce({ binary: false, byteSize: 2, path: 'C:/work/Dute-app/a.txt', text: 'hi' })
+    api.mockResolvedValueOnce({ path: '/opt/work4you/attached/Dute-app' })
+
+    await expect(deliverLocalFolder('C:/work/Dute-app')).resolves.toBe('/opt/work4you/attached/Dute-app')
+
+    expect(api).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: 'cloud-1', method: 'POST', path: '/api/fs/attach-folder' })
+    )
+  })
+
+  it('stops the cloud send when the folder cannot be copied to that host', async () => {
+    $connection.set({ mode: 'remote', remoteKind: 'cloud' } as never)
+
+    await expect(resolveSessionCreateCwd('C:/work/Dute-app')).rejects.toBeInstanceOf(CloudFolderCopyError)
+    expect(api).not.toHaveBeenCalled()
+  })
+
+  it('keeps a local session on the computer folder', async () => {
+    $connection.set({ mode: 'local' } as never)
+
+    await expect(resolveSessionCreateCwd('C:/work/Dute-app')).resolves.toBe('C:/work/Dute-app')
   })
 })

@@ -1,5 +1,5 @@
 import type { Work4YouGitWorktree } from '@/global'
-import { computerFolderForSessionCwd } from '@/lib/attached-folder'
+import { membershipProjectId } from '@/lib/session-project'
 import { normalize } from '@/lib/text'
 import type { ProjectInfo, SessionInfo } from '@/work4you'
 
@@ -440,6 +440,12 @@ function explicitProjectForPath(target: string, explicitProjects: ProjectInfo[])
 }
 
 export function liveSessionProjectId(session: SessionInfo, explicitProjects: ProjectInfo[]): null | string {
+  const claimed = session.desktop_project_id?.trim()
+
+  if (claimed) {
+    return membershipProjectId(session, explicitProjects)
+  }
+
   const cwd = (session.cwd || '').trim()
   // A session may carry only a git_repo_root and no cwd — older/imported rows,
   // or ones captured before cwd tracking. The backend still groups those by repo
@@ -748,29 +754,71 @@ export function excludeProjectSessions(
   }
 }
 
-/** Project-level overlay: {@link overlayRepoLanes} across every repo subtree. */
-function sessionAtComputerFolder(session: SessionInfo, projects: ProjectInfo[]): SessionInfo {
-  const folder = computerFolderForSessionCwd(session.cwd || session.git_repo_root, projects)
-
-  if (!folder) {
-    return session
-  }
-
-  return { ...session, cwd: folder, git_repo_root: folder }
+function sessionBelongsToCatalogProject(session: SessionInfo, projects: ProjectInfo[]): boolean {
+  return membershipProjectId(session, projects) != null
 }
 
+function projectAlreadyShows(project: SidebarProjectTree, sessionId: string): boolean {
+  return project.repos.some(repo => repo.groups.some(group => group.sessions.some(row => row.id === sessionId)))
+}
+
+/** A chat born in this project stays in it even when its cwd is a cloud copy. */
+function withClaimedSessions(
+  project: SidebarProjectTree,
+  live: SessionInfo[],
+  removed: ReadonlySet<string>,
+  projects: ProjectInfo[]
+): SidebarProjectTree {
+  let next = project
+
+  for (const session of live) {
+    if (removed.has(session.id) || membershipProjectId(session, projects) !== project.id) {
+      continue
+    }
+
+    if (projectAlreadyShows(next, session.id) || !next.repos.length) {
+      continue
+    }
+
+    const repos = next.repos.map((repo, index) => {
+      if (index !== 0) {
+        return repo
+      }
+
+      const groups = repo.groups.length
+        ? repo.groups.map((group, groupIndex) =>
+            groupIndex === 0 ? { ...group, sessions: [session, ...group.sessions.filter(row => row.id !== session.id)] } : group
+          )
+        : [{ id: `${repo.id}::branch::main`, isMain: true, label: 'main', path: repo.path, sessions: [session] }]
+
+      return {
+        ...repo,
+        groups,
+        sessionCount: groups.reduce((count, group) => count + group.sessions.length, 0)
+      }
+    })
+
+    next = {
+      ...next,
+      repos,
+      sessionCount: repos.reduce((count, repo) => count + repo.sessionCount, 0)
+    }
+  }
+
+  return next
+}
+
+/** Project-level overlay: {@link overlayRepoLanes} across every repo subtree. */
 export function overlayLiveLanes(
   project: SidebarProjectTree,
   live: SessionInfo[],
   removed: ReadonlySet<string> = NO_REMOVED,
   projects: ProjectInfo[] = []
 ): SidebarProjectTree {
-  const placed = projects.length ? live.map(session => sessionAtComputerFolder(session, projects)) : live
-
   if (project.isNoProject) {
     const claimed = new Set(
       [...live, ...(project.repos[0]?.groups[0]?.sessions ?? [])]
-        .filter(session => computerFolderForSessionCwd(session.cwd || session.git_repo_root, projects))
+        .filter(session => sessionBelongsToCatalogProject(session, projects))
         .map(session => session.id)
     )
 
@@ -790,7 +838,7 @@ export function overlayLiveLanes(
 
     return overlayHomeLane(
       home,
-      placed.filter(session => !claimed.has(session.id)),
+      live.filter(session => !claimed.has(session.id)),
       removed
     )
   }
@@ -798,18 +846,16 @@ export function overlayLiveLanes(
   let changed = false
 
   const repos = project.repos.map(repo => {
-    const next = overlayRepoLanes(repo, placed, removed)
+    const next = overlayRepoLanes(repo, live, removed)
 
     changed ||= next !== repo
 
     return next
   })
 
-  if (!changed) {
-    return project
-  }
+  const overlaid = changed ? { ...project, repos, sessionCount: repos.reduce((n, repo) => n + repo.sessionCount, 0) } : project
 
-  return { ...project, repos, sessionCount: repos.reduce((n, repo) => n + repo.sessionCount, 0) }
+  return projects.length ? withClaimedSessions(overlaid, live, removed, projects) : overlaid
 }
 
 interface PreviewOverlayOptions {
@@ -833,10 +879,8 @@ export function overlayLivePreviews(
       continue
     }
 
-    const placed = sessionAtComputerFolder(session, explicitProjects)
-
     const projectId =
-      liveSessionProjectId(placed, explicitProjects) ?? (isDetachedSession(placed) ? NO_PROJECT_ID : null)
+      liveSessionProjectId(session, explicitProjects) ?? (isDetachedSession(session) ? NO_PROJECT_ID : null)
 
     if (!projectId) {
       continue
