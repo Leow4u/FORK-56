@@ -12,6 +12,8 @@ import type {
 } from '@/global'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
+import { $sidebarCanUseCloud } from '@/store/session-homes'
+
 import { _resetComposerRunTargetForTests } from './run-target'
 import { ComposerRunTargetMenu } from './run-target-menu'
 
@@ -121,6 +123,7 @@ afterEach(() => {
   $activeConnectionId.set('local')
   $pendingConnectionId.set(null)
   $connection.set(null)
+  $sidebarCanUseCloud.set(null)
 })
 
 async function openMenu() {
@@ -240,7 +243,7 @@ describe('ComposerRunTargetMenu', () => {
     })
   }
 
-  it('sends Free with no instance to plans and keeps the Cloud row', async () => {
+  it('locks Cloud on the Free plan so the row cannot be chosen', async () => {
     discover.mockResolvedValue({ agents: [], entitlement: { canUseCloud: false } })
     withDiscover()
     $connectionsRegistry.set(registry([connection('local', 'local')]))
@@ -251,11 +254,15 @@ describe('ComposerRunTargetMenu', () => {
     )
 
     await openMenu()
-    expect(await screen.findByText('Cloud comes with Plus, Super, or Ultra.')).toBeTruthy()
-    expect(screen.getAllByRole('menuitemradio')).toHaveLength(2)
-    fireEvent.click(cloudMenuItem())
+    const cloud = await screen.findByRole('menuitemradio', { name: 'Cloud' })
 
-    await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=billing&bview=plans'))
+    expect(cloud.getAttribute('aria-disabled')).toBe('true')
+    expect(cloud.querySelector('[data-slot="composer-cloud-lock"]')).toBeTruthy()
+    expect(screen.queryByText('Cloud comes with Plus, Super, or Ultra.')).toBeNull()
+    expect(screen.getByRole('menuitemradio', { name: 'Local' }).hasAttribute('data-disabled')).toBe(false)
+    fireEvent.click(cloud)
+
+    expect(navigate).not.toHaveBeenCalled()
     expect(applyConnectionConfig).not.toHaveBeenCalled()
   })
 
@@ -296,7 +303,7 @@ describe('ComposerRunTargetMenu', () => {
     expect(applyConnectionConfig).not.toHaveBeenCalled()
   })
 
-  it('applies a discovered dashboard, including a legacy Free machine', async () => {
+  it('keeps a legacy Free machine locked in the composer', async () => {
     discover.mockResolvedValue({
       agents: [
         {
@@ -320,16 +327,12 @@ describe('ComposerRunTargetMenu', () => {
     )
 
     await openMenu()
-    fireEvent.click(cloudMenuItem())
+    const cloud = await screen.findByRole('menuitemradio', { name: 'Cloud' })
 
-    await waitFor(() =>
-      expect(applyConnectionConfig).toHaveBeenCalledWith({
-        cloudOrg: 'acme',
-        mode: 'cloud',
-        remoteAuthMode: 'oauth',
-        remoteUrl: 'https://legacy.example'
-      })
-    )
+    expect(cloud.querySelector('[data-slot="composer-cloud-lock"]')).toBeTruthy()
+    fireEvent.click(cloud)
+
+    expect(applyConnectionConfig).not.toHaveBeenCalled()
     expect(navigate).not.toHaveBeenCalled()
   })
 

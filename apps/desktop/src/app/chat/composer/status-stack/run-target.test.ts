@@ -176,7 +176,7 @@ describe('composerRunTargetIntent', () => {
     )
   })
 
-  it('applies a discovered dashboard and prefers a known URL over Free', () => {
+  it('applies a discovered dashboard and keeps Free locked even with a saved URL', () => {
     const discovered = { cloudOrg: 'acme', remoteUrl: 'https://legacy.example' }
 
     expect(
@@ -192,12 +192,12 @@ describe('composerRunTargetIntent', () => {
         cloud: savedCloud,
         portal: { status: 'upgrade' }
       })
-    ).toEqual({ payload: composerCloudApplyPayload(savedCloud), type: 'apply' })
+    ).toEqual({ type: 'upgrade' })
   })
 })
 
 describe('composerCloudPortalFromDiscover', () => {
-  it('applies the oldest subscription dashboard, including a legacy Free machine', () => {
+  it('locks Free even when an older machine still has an address', () => {
     expect(
       composerCloudPortalFromDiscover({
         agents: [
@@ -217,10 +217,7 @@ describe('composerCloudPortalFromDiscover', () => {
         entitlement: { canUseCloud: false },
         org: { id: 'org_1', slug: 'acme' }
       })
-    ).toEqual({
-      source: { cloudOrg: 'acme', remoteUrl: 'https://old.example' },
-      status: 'ready'
-    })
+    ).toEqual({ status: 'upgrade' })
   })
 
   it('does not connect a machine parked on Free', () => {
@@ -257,10 +254,7 @@ describe('composerCloudPortalFromDiscover', () => {
         entitlement: { canUseCloud: false },
         org: { slug: 'acme' }
       })
-    ).toEqual({
-      source: { cloudOrg: 'acme', remoteUrl: 'https://old.example' },
-      status: 'ready'
-    })
+    ).toEqual({ status: 'upgrade' })
   })
 
   it('ignores self-hosted rows and refuses Free when nothing is addressable', () => {
