@@ -129,6 +129,10 @@ async function openMenu() {
   return waitFor(() => screen.getByRole('menu'))
 }
 
+function cloudMenuItem() {
+  return screen.getByRole('menuitemradio', { name: /^Cloud/ })
+}
+
 describe('ComposerRunTargetMenu', () => {
   it('shows Local with the computer icon on the connection button', () => {
     $connection.set({ mode: 'local' } as Work4YouConnection)
@@ -164,7 +168,7 @@ describe('ComposerRunTargetMenu', () => {
     expect(button.querySelector('.tabler-icon-device-desktop')).toBeNull()
   })
 
-  it('lists only Local and Work4You Cloud', async () => {
+  it('lists only Local and Cloud', async () => {
     $connectionsRegistry.set(
       registry([
         connection('local', 'local', 'This device'),
@@ -180,8 +184,10 @@ describe('ComposerRunTargetMenu', () => {
 
     await openMenu()
 
-    expect(screen.getByRole('menuitemradio', { name: /Local/ })).toBeTruthy()
-    expect(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ })).toBeTruthy()
+    expect(screen.getByRole('menuitemradio', { name: 'Local' })).toBeTruthy()
+    expect(screen.getByRole('menuitemradio', { name: 'Cloud' })).toBeTruthy()
+    expect(screen.queryByText('The Work4You runtime managed by this app.')).toBeNull()
+    expect(screen.queryByText(/A hosted instance discovered/)).toBeNull()
     expect(screen.queryByRole('menuitemradio', { name: /Homelab/ })).toBeNull()
     expect(screen.queryByRole('menuitemradio', { name: /Remote/ })).toBeNull()
     expect(screen.getAllByRole('menuitemradio')).toHaveLength(2)
@@ -198,7 +204,7 @@ describe('ComposerRunTargetMenu', () => {
     )
 
     await openMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+    fireEvent.click(cloudMenuItem())
 
     await waitFor(() =>
       expect(applyConnectionConfig).toHaveBeenCalledWith({
@@ -221,7 +227,7 @@ describe('ComposerRunTargetMenu', () => {
     )
 
     await openMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+    fireEvent.click(cloudMenuItem())
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=billing'))
     expect(applyConnectionConfig).not.toHaveBeenCalled()
@@ -247,7 +253,7 @@ describe('ComposerRunTargetMenu', () => {
     await openMenu()
     expect(await screen.findByText('Cloud comes with Plus, Super, or Ultra.')).toBeTruthy()
     expect(screen.getAllByRole('menuitemradio')).toHaveLength(2)
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+    fireEvent.click(cloudMenuItem())
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=billing&bview=plans'))
     expect(applyConnectionConfig).not.toHaveBeenCalled()
@@ -276,7 +282,7 @@ describe('ComposerRunTargetMenu', () => {
 
     await openMenu()
     expect(await screen.findByText('Your instance is being prepared.')).toBeTruthy()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+    fireEvent.click(cloudMenuItem())
 
     await waitFor(() =>
       expect(notify).toHaveBeenCalledWith(
@@ -314,7 +320,7 @@ describe('ComposerRunTargetMenu', () => {
     )
 
     await openMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+    fireEvent.click(cloudMenuItem())
 
     await waitFor(() =>
       expect(applyConnectionConfig).toHaveBeenCalledWith({
@@ -338,7 +344,7 @@ describe('ComposerRunTargetMenu', () => {
     )
 
     await openMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+    fireEvent.click(cloudMenuItem())
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=billing'))
     expect(applyConnectionConfig).not.toHaveBeenCalled()
@@ -355,7 +361,7 @@ describe('ComposerRunTargetMenu', () => {
     )
 
     await openMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+    fireEvent.click(cloudMenuItem())
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/settings?tab=billing'))
     expect(applyConnectionConfig).not.toHaveBeenCalled()
@@ -372,7 +378,7 @@ describe('ComposerRunTargetMenu', () => {
     )
 
     await openMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+    fireEvent.click(cloudMenuItem())
 
     await waitFor(() =>
       expect(notifyError).toHaveBeenCalledWith(expect.any(Error), 'Could not load your Work4You Cloud agents')
@@ -431,7 +437,7 @@ describe('ComposerRunTargetMenu', () => {
     $activeConnectionId.set('local')
 
     await openMenu()
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+    fireEvent.click(cloudMenuItem())
 
     await waitFor(() =>
       expect(applyConnectionConfig).toHaveBeenCalledWith({
@@ -464,7 +470,7 @@ describe('ComposerRunTargetMenu', () => {
 
     fireEvent.pointerDown(screen.getByRole('button', { name: 'Connection mode' }), { button: 0 })
     await waitFor(() => screen.getByRole('menu'))
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Work4You Cloud/ }))
+    fireEvent.click(cloudMenuItem())
 
     await waitFor(() =>
       expect(applyConnectionConfig).toHaveBeenCalledWith({

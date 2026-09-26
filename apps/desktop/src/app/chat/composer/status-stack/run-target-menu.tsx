@@ -249,12 +249,12 @@ export function ComposerRunTargetMenu() {
     }
   }
 
-  const cloudDetail =
+  const cloudNote =
     portal?.status === 'upgrade'
       ? copy.kindCloudPlan
       : portal?.status === 'preparing'
         ? copy.kindCloudPreparing
-        : copy.kindCloudDesc
+        : null
 
   const setMenuOpen = (next: boolean) => {
     setOpen(next)
@@ -287,25 +287,25 @@ export function ComposerRunTargetMenu() {
       </div>
       <DropdownMenuContent
         align="end"
-        className={cn('min-w-64', composerPanelCard)}
+        className={cn(cloudNote ? 'min-w-64' : 'min-w-36', composerPanelCard)}
         data-composer-menu=""
         data-slot="composer-run-target-menu"
         side={menuSide}
         sideOffset={8}
       >
         <DropdownMenuRadioGroup onValueChange={choose} value={active ?? ''}>
-          <DropdownMenuRadioItem className={cn(dropdownMenuRow, 'items-start rounded-md py-1.5')} value="local">
-            <Monitor aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate">{copy.kindLocal}</span>
-              <span className={cn('mt-0.5 block', composerMenuDetail)}>{copy.kindLocalDesc}</span>
-            </span>
+          <DropdownMenuRadioItem className={cn(dropdownMenuRow, 'rounded-md py-1.5')} value="local">
+            <Monitor aria-hidden className="size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">{copy.kindLocal}</span>
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem className={cn(dropdownMenuRow, 'items-start rounded-md py-1.5')} value="cloud">
-            <Cloud aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+          <DropdownMenuRadioItem
+            className={cn(dropdownMenuRow, cloudNote && 'items-start', 'rounded-md py-1.5')}
+            value="cloud"
+          >
+            <Cloud aria-hidden className={cn('size-3.5 shrink-0', cloudNote && 'mt-0.5')} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate">{copy.kindCloud}</span>
-              <span className={cn('mt-0.5 block', composerMenuDetail)}>{cloudDetail}</span>
+              <span className="block truncate">{copy.kindCloudChip}</span>
+              {cloudNote ? <span className={cn('mt-0.5 block', composerMenuDetail)}>{cloudNote}</span> : null}
             </span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
