@@ -225,23 +225,24 @@ export function composerCloudSourceFromDiscover(view: ComposerCloudDiscoverView)
 
 /**
  * What a Cloud click should do once discovery has answered.
- * A dashboard URL applies. Free with no machine upgrades. Paid with no
- * address yet is still being prepared. Missing entitlement does not invent
- * a plan — sign-in stays on the existing gateway door.
+ * Free stays locked even when an older machine still has an address.
+ * Paid with no address yet is still being prepared. A dashboard URL on a
+ * paid plan applies. Missing entitlement does not invent a plan — sign-in
+ * stays on the existing gateway door.
  */
 export function composerCloudPortalFromDiscover(view: ComposerCloudDiscoverView): ComposerCloudPortal {
   if (view.needsOrgSelection) {
     return { status: 'choose-org' }
   }
 
+  if (view.entitlement?.canUseCloud === false) {
+    return { status: 'upgrade' }
+  }
+
   const source = composerCloudSourceFromDiscover(view)
 
   if (source) {
     return { source, status: 'ready' }
-  }
-
-  if (view.entitlement?.canUseCloud === false) {
-    return { status: 'upgrade' }
   }
 
   if (view.entitlement?.canUseCloud === true) {
@@ -286,9 +287,9 @@ export function paidCloudLoginShouldApply(currentCloudUrl: string, source: Compo
 }
 
 /**
- * Composer Local / Cloud click. Local and a Cloud dashboard that already
- * has an address reuse Settings' `applyConnectionConfig` door. Free with
- * no machine upgrades. A paid machine that is not addressable yet does not
+ * Composer Local / Cloud click. Local and a paid Cloud dashboard that already
+ * has an address reuse Settings' `applyConnectionConfig` door. Free is locked
+ * and does not navigate. A paid machine that is not addressable yet does not
  * navigate. Sign-in and multi-org open Settings → Billing, where the account lives.
  */
 export function composerRunTargetIntent(
@@ -307,15 +308,15 @@ export function composerRunTargetIntent(
     return { payload: { mode: 'local' }, type: 'apply' }
   }
 
+  if (args.portal?.status === 'upgrade') {
+    return { type: 'upgrade' }
+  }
+
   const discovered = args.portal?.status === 'ready' && args.portal.source.remoteUrl.trim() ? args.portal.source : null
   const known = args.cloud?.remoteUrl.trim() ? args.cloud : discovered
 
   if (known) {
     return { payload: composerCloudApplyPayload(known), type: 'apply' }
-  }
-
-  if (args.portal?.status === 'upgrade') {
-    return { type: 'upgrade' }
   }
 
   if (args.portal?.status === 'preparing') {

@@ -16,16 +16,17 @@ import { releaseTypingFocus } from '@/components/ui/keyboard-first'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { Cloud, Loader2, Monitor } from '@/lib/icons'
+import { Cloud, Loader2, Lock, Monitor } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { $activeConnectionId, $connectionsRegistry, $pendingConnectionId } from '@/store/connections'
 import { notify, notifyError } from '@/store/notifications'
 import { $connection } from '@/store/session'
-import { noteSidebarCloudEntitlement } from '@/store/session-homes'
+import { $sidebarCanUseCloud, noteSidebarCloudEntitlement } from '@/store/session-homes'
 
 import { useComposerMenuSide } from '../use-composer-menu-side'
 
 import {
+  $heldRunTarget,
   type ComposerCloudPortal,
   composerCloudPortalFromDiscover,
   type ComposerRunTarget,
@@ -34,8 +35,7 @@ import {
   lastCloudApplySource,
   readRememberedComposerCloudApply,
   rememberComposerCloudApply,
-  resolveComposerRunTarget,
-  $heldRunTarget
+  resolveComposerRunTarget
 } from './run-target'
 
 function loadComposerCloudPortal(requestRef: {
@@ -88,6 +88,7 @@ export function ComposerRunTargetMenu() {
   const activeConnectionId = useStore($activeConnectionId)
   const connection = useStore($connection)
   const pendingConnectionId = useStore($pendingConnectionId)
+  const canUseCloud = useStore($sidebarCanUseCloud)
   const heldTarget = useStore($heldRunTarget)
   const connections = registry?.connections ?? []
   const active = resolveComposerRunTarget({ activeConnectionId, connection, connections })
@@ -131,13 +132,19 @@ export function ComposerRunTargetMenu() {
         return
       }
 
+      if ($sidebarCanUseCloud.get() === false) {
+        setPortal({ status: 'upgrade' })
+
+        return
+      }
+
       const known = lastCloudApplySource({
         connection: $connection.get(),
         remembered: readRememberedComposerCloudApply(),
         saved
       })
 
-      if (known?.remoteUrl.trim()) {
+      if ($sidebarCanUseCloud.get() === true && known?.remoteUrl.trim()) {
         setPortal({ source: known, status: 'ready' })
 
         return
@@ -159,7 +166,7 @@ export function ComposerRunTargetMenu() {
     return () => {
       cancelled = true
     }
-  }, [open])
+  }, [open, canUseCloud])
 
   const choose = (target: string) => {
     if (target !== 'cloud' && target !== 'local') {
@@ -188,14 +195,30 @@ export function ComposerRunTargetMenu() {
 
     let portalSnapshot: ComposerCloudPortal | null = null
 
-    if (target === 'cloud' && !cloud?.remoteUrl.trim()) {
-      try {
-        portalSnapshot = await loadComposerCloudPortal(portalRequestRef)
-        setPortal(portalSnapshot)
-      } catch (error) {
-        notifyError(error, gateway.cloudDiscoverFailed)
+    if (target === 'cloud') {
+      if ($sidebarCanUseCloud.get() === false) {
+        setPortal({ status: 'upgrade' })
 
         return
+      }
+
+      const mustDiscover = $sidebarCanUseCloud.get() !== true || !cloud?.remoteUrl.trim()
+
+      if (mustDiscover) {
+        try {
+          portalSnapshot = await loadComposerCloudPortal(portalRequestRef)
+          setPortal(portalSnapshot)
+        } catch (error) {
+          if (!cloud?.remoteUrl.trim()) {
+            notifyError(error, gateway.cloudDiscoverFailed)
+
+            return
+          }
+        }
+
+        if ($sidebarCanUseCloud.get() === false || portalSnapshot?.status === 'upgrade') {
+          return
+        }
       }
     }
 
@@ -210,9 +233,6 @@ export function ComposerRunTargetMenu() {
     })
 
     if (intent.type === 'upgrade') {
-      triggerHaptic('selection')
-      navigate(`${SETTINGS_ROUTE}?tab=billing&bview=plans`)
-
       return
     }
 
@@ -260,12 +280,8 @@ export function ComposerRunTargetMenu() {
     }
   }
 
-  const cloudDetail =
-    portal?.status === 'upgrade'
-      ? copy.kindCloudPlan
-      : portal?.status === 'preparing'
-        ? copy.kindCloudPreparing
-        : copy.kindCloudDesc
+  const cloudLocked = canUseCloud === false || portal?.status === 'upgrade'
+  const cloudNote = !cloudLocked && portal?.status === 'preparing' ? copy.kindCloudPreparing : null
 
   const setMenuOpen = (next: boolean) => {
     setOpen(next)
@@ -298,25 +314,31 @@ export function ComposerRunTargetMenu() {
       </div>
       <DropdownMenuContent
         align="end"
-        className={cn('min-w-64', composerPanelCard)}
+        className={cn(cloudNote ? 'min-w-64' : 'min-w-36', composerPanelCard)}
         data-composer-menu=""
         data-slot="composer-run-target-menu"
         side={menuSide}
         sideOffset={8}
       >
         <DropdownMenuRadioGroup onValueChange={choose} value={active ?? ''}>
-          <DropdownMenuRadioItem className={cn(dropdownMenuRow, 'items-start rounded-md py-1.5')} value="local">
-            <Monitor aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate">{copy.kindLocal}</span>
-              <span className={cn('mt-0.5 block', composerMenuDetail)}>{copy.kindLocalDesc}</span>
-            </span>
+          <DropdownMenuRadioItem className={cn(dropdownMenuRow, 'rounded-md py-1.5')} value="local">
+            <Monitor aria-hidden className="size-3.5 shrink-0" />
+            <span className="min-w-0 flex-1 truncate">{copy.kindLocal}</span>
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem className={cn(dropdownMenuRow, 'items-start rounded-md py-1.5')} value="cloud">
-            <Cloud aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate">{copy.kindCloud}</span>
-              <span className={cn('mt-0.5 block', composerMenuDetail)}>{cloudDetail}</span>
+          <DropdownMenuRadioItem
+            className={cn(dropdownMenuRow, cloudNote && 'items-start', 'rounded-md py-1.5')}
+            disabled={cloudLocked}
+            value="cloud"
+          >
+            <Cloud aria-hidden className={cn('size-3.5 shrink-0', cloudNote && 'mt-0.5')} />
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="min-w-0">
+                <span className="block truncate">{copy.kindCloudChip}</span>
+                {cloudNote ? <span className={cn('mt-0.5 block', composerMenuDetail)}>{cloudNote}</span> : null}
+              </span>
+              {cloudLocked ? (
+                <Lock aria-hidden className="ml-auto size-3.5 shrink-0" data-slot="composer-cloud-lock" />
+              ) : null}
             </span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
