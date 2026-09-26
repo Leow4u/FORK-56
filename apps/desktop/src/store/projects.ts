@@ -514,6 +514,7 @@ export function assembleDesktopProjectTree(
   const home = nodes.find(node => node.isNoProject)
   const computer = catalog.filter(isComputerCatalogProject)
   const catalogIds = new Set(computer.map(project => project.id))
+
   const body = cloud
     ? computer.map(projectInfoToTreeNode)
     : (() => {
@@ -526,6 +527,7 @@ export function assembleDesktopProjectTree(
           // are still this computer's list.
           return !catalogIds.size || catalogIds.has(node.id)
         })
+
         const seen = new Set(kept.map(node => node.id))
         const extra = computer.filter(project => !seen.has(project.id)).map(projectInfoToTreeNode)
 
@@ -953,6 +955,7 @@ const reconcileProjects = (): void => {
 // the next tree refresh fills in repos/counts; this is just the optimistic stub.
 function projectInfoToTreeNode(project: ProjectInfo): SidebarProjectTree {
   const path = project.primary_path ?? project.folders?.[0]?.path ?? null
+
   const repos = path
     ? [
         {

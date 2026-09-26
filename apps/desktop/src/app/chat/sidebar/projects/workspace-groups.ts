@@ -787,7 +787,9 @@ function withClaimedSessions(
 
       const groups = repo.groups.length
         ? repo.groups.map((group, groupIndex) =>
-            groupIndex === 0 ? { ...group, sessions: [session, ...group.sessions.filter(row => row.id !== session.id)] } : group
+            groupIndex === 0
+              ? { ...group, sessions: [session, ...group.sessions.filter(row => row.id !== session.id)] }
+              : group
           )
         : [{ id: `${repo.id}::branch::main`, isMain: true, label: 'main', path: repo.path, sessions: [session] }]
 
@@ -853,7 +855,9 @@ export function overlayLiveLanes(
     return next
   })
 
-  const overlaid = changed ? { ...project, repos, sessionCount: repos.reduce((n, repo) => n + repo.sessionCount, 0) } : project
+  const overlaid = changed
+    ? { ...project, repos, sessionCount: repos.reduce((n, repo) => n + repo.sessionCount, 0) }
+    : project
 
   return projects.length ? withClaimedSessions(overlaid, live, removed, projects) : overlaid
 }

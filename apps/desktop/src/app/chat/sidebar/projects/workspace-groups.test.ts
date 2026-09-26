@@ -7,9 +7,9 @@ import type { ProjectInfo, SessionInfo } from '@/types/work4you'
 import {
   baseName,
   excludeProjectSessions,
-  kanbanWorktreeDir,
   folderForNewLaneSession,
   folderForNewRepoSession,
+  kanbanWorktreeDir,
   liveSessionProjectId,
   mergeRepoWorktreeGroups,
   NO_PROJECT_ID,
@@ -480,9 +480,11 @@ describe('liveSessionProjectId', () => {
     const session = makeCwdSession('/opt/work4you/attached/Dute-app', { desktop_project_id: 'p_dute' })
 
     expect(liveSessionProjectId(session, [makeProject('p_dute', ['C:/work/Dute-app'])])).toBe('p_dute')
-    expect(liveSessionProjectId(makeCwdSession(null, { desktop_project_id: 'p_dute' }), [makeProject('p_dute', ['C:/work/Dute-app'])])).toBe(
-      'p_dute'
-    )
+    expect(
+      liveSessionProjectId(makeCwdSession(null, { desktop_project_id: 'p_dute' }), [
+        makeProject('p_dute', ['C:/work/Dute-app'])
+      ])
+    ).toBe('p_dute')
   })
 
   it('does not let a recorded project id fall through to another folder', () => {

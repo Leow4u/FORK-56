@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { NO_PROJECT_ID, liveSessionProjectId } from '@/app/chat/sidebar/projects/workspace-groups'
+import { liveSessionProjectId, NO_PROJECT_ID } from '@/app/chat/sidebar/projects/workspace-groups'
 import { CloudFolderCopyError, resolveSessionCreateCwd } from '@/lib/desktop-fs'
-import { makeSessionInfo } from '@/test/session-info'
 import { $connection, setNewChatWorkspaceTarget } from '@/store/session'
+import { makeSessionInfo } from '@/test/session-info'
 import type { ProjectInfo } from '@/types/work4you'
 
 import { $projectScope, $projectTree, assembleDesktopProjectTree, resolveCreateSessionCwd } from './projects'
@@ -49,6 +49,7 @@ describe('local and cloud share one project', () => {
       repos: [],
       sessionCount: 0
     }
+
     const tree = assembleDesktopProjectTree(
       [
         { id: 'vm-dute', label: 'Dute-app', path: '/opt/work4you/attached/Dute-app', repos: [], sessionCount: 1 },
@@ -66,9 +67,7 @@ describe('local and cloud share one project', () => {
 
     rememberSessionProject(born, 'p_dute')
 
-    const afterRefresh = withStoredProjectId(
-      makeSessionInfo({ connection_id: 'local', cwd: '', id: 'greet-1' })
-    )
+    const afterRefresh = withStoredProjectId(makeSessionInfo({ connection_id: 'local', cwd: '', id: 'greet-1' }))
 
     expect(liveSessionProjectId(afterRefresh, [dute])).toBe('p_dute')
     expect(resolveCreateSessionCwd()).toBe('C:/work/Dute-app')

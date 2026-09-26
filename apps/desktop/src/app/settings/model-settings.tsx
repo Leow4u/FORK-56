@@ -176,9 +176,11 @@ export function ModelSettings({ onMainModelChanged, scopeProfile = null }: Model
 
   // Blank means the platform birth (High / Fast), not the old medium/off fallback.
   const effortValue = rawEffort === 'false' || rawEffort === 'disabled' ? 'none' : rawEffort || 'high'
+
   const tierRaw = String(getNested(config ?? {}, 'agent.service_tier') ?? '')
     .trim()
     .toLowerCase()
+
   const fastOn = tierRaw === '' || isFastTier(tierRaw)
 
   // Persist a single agent.* default by round-tripping the whole config record

@@ -102,6 +102,7 @@ export function SidebarWorkspaceGroup({
     }
 
     const target = sessionPath !== undefined ? sessionPath : group.path
+
     const opensOnLane = Boolean(
       group.path && target && isUnderPath(group.path, target) && isUnderPath(target, group.path)
     )

@@ -97,7 +97,12 @@ export async function resolveSessionCreateCwd(cwd: string): Promise<string> {
   const connection = $connection.get()
   const folder = cwd.trim()
 
-  if (!(connection?.mode === 'remote' && connection.remoteKind === 'cloud' && folder && isComputerProjectPath(folder))) {
+  if (!(
+    connection?.mode === 'remote' &&
+    connection.remoteKind === 'cloud' &&
+    folder &&
+    isComputerProjectPath(folder)
+  )) {
     return folder
   }
 

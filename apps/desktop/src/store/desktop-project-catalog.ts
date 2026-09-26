@@ -73,6 +73,7 @@ export function rememberDesktopProjects(projects: ProjectInfo[]): void {
 export function mergeWithDesktopCatalog(incoming: ProjectInfo[]): ProjectInfo[] {
   const computerIncoming = incoming.filter(isComputerCatalogProject)
   const seen = new Set(computerIncoming.map(project => project.id))
+
   const extra = readDesktopProjectCatalog().filter(
     project => project.id && isComputerCatalogProject(project) && !seen.has(project.id)
   )

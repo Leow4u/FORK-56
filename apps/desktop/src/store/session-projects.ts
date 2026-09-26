@@ -98,9 +98,7 @@ export function rememberAttachedSessionProjects(sessions: SessionInfo[], project
     }
 
     const project = projects.find(
-      item =>
-        !item.archived &&
-        (item.primary_path === folder || item.folders.some(entry => entry.path === folder))
+      item => !item.archived && (item.primary_path === folder || item.folders.some(entry => entry.path === folder))
     )
 
     if (project) {

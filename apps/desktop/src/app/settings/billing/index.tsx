@@ -11,6 +11,7 @@ import { BarChart3, CreditCard, ExternalLink, Package, Wrench } from '@/lib/icon
 import { cn } from '@/lib/utils'
 
 import { useRouteEnumParam } from '../../hooks/use-route-enum-param'
+import { PortalAccount } from '../portal-account'
 import {
   ListRow,
   ListRowSkeleton,
@@ -20,7 +21,6 @@ import {
   SettingsSection
 } from '../primitives'
 
-import { PortalAccount } from '../portal-account'
 import { RowValue } from './account-row-value'
 import { BillingApiProvider } from './api'
 import { AutoReloadRow } from './auto-reload-row'
