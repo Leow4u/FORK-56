@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 
-import { composerPanelCard } from '@/components/chat/composer-dock'
+import { composerCardTitle, composerPanelCard } from '@/components/chat/composer-dock'
 import { ActionStatus } from '@/components/ui/action-status'
 import { Button } from '@/components/ui/button'
 import {
@@ -114,7 +114,7 @@ export function ConfirmDialog({
         onOpenAutoFocus={onOpenAutoFocus}
       >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className={composerCardTitle}>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
 

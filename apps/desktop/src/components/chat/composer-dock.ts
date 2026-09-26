@@ -32,6 +32,11 @@ export const composerPanelCard = cn(
   'text-[length:var(--conversation-text-font-size)] text-popover-foreground'
 )
 
+/** Title on a composer-skinned confirmation card. Body size, medium weight,
+ *  normal tracking — the generic dialog title is larger and semibold. */
+export const composerCardTitle =
+  'text-[length:var(--conversation-text-font-size)] font-medium tracking-normal text-foreground'
+
 /** Section title inside a composer menu. Sentence case, caption size. */
 export const composerMenuLabel =
   'px-2 pb-0.5 pt-1 text-[length:var(--conversation-caption-font-size)] font-medium normal-case tracking-normal text-(--ui-text-tertiary)'
