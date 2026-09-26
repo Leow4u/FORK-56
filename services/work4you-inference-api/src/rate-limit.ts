@@ -95,6 +95,8 @@ export function estimateRequestTokens(body: unknown): number {
 
   let promptChars = 0
   if (typeof b.prompt === 'string') promptChars += b.prompt.length
+  if (typeof b.system === 'string') promptChars += b.system.length
+  else if (Array.isArray(b.system)) promptChars += JSON.stringify(b.system).length
   if (Array.isArray(b.messages)) {
     for (const m of b.messages as Array<Record<string, unknown>>) {
       const c = m.content

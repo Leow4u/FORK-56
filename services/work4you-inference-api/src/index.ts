@@ -24,6 +24,12 @@ import {
   estimateRequestTokens,
   reconcileRateLimitTokens,
 } from './rate-limit.js'
+import {
+  billedTokenCount,
+  consumeSseDataLines,
+  normalizeUsageForBilling,
+  prepareMessagesUpstreamBody,
+} from './messages-wire.js'
 import { metersFromOpenRouterUsage } from './usage-meters.js'
 
 type Variables = {
@@ -171,9 +177,10 @@ async function settleDebit(params: {
   apiKeyId?: string | null
 }) {
   try {
+    const usage = normalizeUsageForBilling(params.usage)
     const pricing = await getModelPricing(params.model)
-    const amountUsd = costUsdFromUsage(params.usage, pricing)
-    const meters = metersFromOpenRouterUsage(params.usage)
+    const amountUsd = costUsdFromUsage(usage, pricing)
+    const meters = metersFromOpenRouterUsage(usage)
     if (!(amountUsd > 0) && !(meters.inputTokens > 0 || meters.outputTokens > 0 || meters.cacheReadTokens > 0 || meters.cacheWriteTokens > 0)) {
       return
     }
@@ -225,17 +232,14 @@ async function proxyJson(c: Context<AppEnv>, orPath: string, body: unknown) {
   }
 
   if (upstream.ok && json) {
-    const usage = extractUsage(json)
-    if (usage) {
-      const actual =
-        Number(usage.prompt_tokens || 0) + Number(usage.completion_tokens || 0)
-      if (actual > 0) {
-        reconcileRateLimitTokens({
-          orgId: claims.orgId,
-          estimatedTokens,
-          actualTokens: actual,
-        })
-      }
+    const usage = normalizeUsageForBilling(extractUsage(json))
+    const actual = billedTokenCount(usage)
+    if (actual > 0) {
+      reconcileRateLimitTokens({
+        orgId: claims.orgId,
+        estimatedTokens,
+        actualTokens: actual,
+      })
     }
     void settleDebit({
       orgId: claims.orgId,
@@ -279,6 +283,7 @@ async function proxyStream(c: Context<AppEnv>, orPath: string, body: unknown) {
 
   const reader = upstream.body.getReader()
   const decoder = new TextDecoder()
+  const estimatedTokens = c.get('estimatedTokens') || estimateRequestTokens(body)
   let buffer = ''
   let lastUsage: Record<string, unknown> | null = null
 
@@ -286,6 +291,18 @@ async function proxyStream(c: Context<AppEnv>, orPath: string, body: unknown) {
     async pull(controller) {
       const { done, value } = await reader.read()
       if (done) {
+        buffer += decoder.decode()
+        const flushed = consumeSseDataLines(buffer, lastUsage, true)
+        buffer = flushed.buffer
+        lastUsage = flushed.usage
+        const actual = billedTokenCount(lastUsage)
+        if (actual > 0) {
+          reconcileRateLimitTokens({
+            orgId: claims.orgId,
+            estimatedTokens,
+            actualTokens: actual,
+          })
+        }
         void settleDebit({
           orgId: claims.orgId,
           requestId,
@@ -297,21 +314,9 @@ async function proxyStream(c: Context<AppEnv>, orPath: string, body: unknown) {
         return
       }
       buffer += decoder.decode(value, { stream: true })
-      // Parse complete SSE data lines for usage
-      const parts = buffer.split('\n')
-      buffer = parts.pop() || ''
-      for (const line of parts) {
-        const trimmed = line.trim()
-        if (!trimmed.startsWith('data:')) continue
-        const payload = trimmed.slice(5).trim()
-        if (!payload || payload === '[DONE]') continue
-        try {
-          const obj = JSON.parse(payload) as { usage?: Record<string, unknown> }
-          if (obj.usage) lastUsage = obj.usage
-        } catch {
-          /* ignore partial */
-        }
-      }
+      const parsed = consumeSseDataLines(buffer, lastUsage, false)
+      buffer = parsed.buffer
+      lastUsage = parsed.usage
       controller.enqueue(value)
     },
     cancel() {
@@ -392,41 +397,20 @@ app.post('/v1/embeddings', requireBillingGates, async (c) => {
   return proxyJson(c, '/embeddings', body)
 })
 
-/** Anthropic Messages dual-wire (agent path for anthropic/*). */
+/**
+ * Claude dual-wire. The agent posts native Anthropic Messages here.
+ * Forward that body to OpenRouter `/messages` and return its SSE unchanged
+ * (`message_start` / `content_block_delta` / `message_delta`). Translating
+ * to Chat Completions yields an empty stream the Anthropic SDK cannot read.
+ */
 app.post('/v1/messages', requireBillingGates, async (c) => {
-  const body = c.get('body')
-  const mapped = mapAnthropicToChat(body)
-  const stream = Boolean((mapped as { stream?: boolean }).stream)
-  if (stream) return proxyStream(c, '/chat/completions', mapped)
-  return proxyJson(c, '/chat/completions', mapped)
+  const body = prepareMessagesUpstreamBody(c.get('body'))
+  const stream = Boolean(
+    body && typeof body === 'object' && (body as { stream?: boolean }).stream,
+  )
+  if (stream) return proxyStream(c, '/messages', body)
+  return proxyJson(c, '/messages', body)
 })
-
-function mapAnthropicToChat(body: unknown): Record<string, unknown> {
-  if (!body || typeof body !== 'object') return {}
-  const b = body as Record<string, unknown>
-  if (Array.isArray(b.messages) && b.model) {
-    // Already chat-like or Anthropic messages — pass model + messages through
-    // OpenRouter accepts OpenAI format; convert Anthropic system/messages if needed.
-    const messages: Array<{ role: string; content: unknown }> = []
-    if (typeof b.system === 'string' && b.system) {
-      messages.push({ role: 'system', content: b.system })
-    }
-    if (Array.isArray(b.messages)) {
-      for (const m of b.messages as Array<Record<string, unknown>>) {
-        const role = String(m.role || 'user')
-        messages.push({ role: role === 'assistant' ? 'assistant' : role, content: m.content })
-      }
-    }
-    return {
-      model: b.model,
-      messages: messages.length ? messages : b.messages,
-      max_tokens: b.max_tokens,
-      stream: b.stream,
-      temperature: b.temperature,
-    }
-  }
-  return b
-}
 
 app.notFound((c) =>
   c.json(
