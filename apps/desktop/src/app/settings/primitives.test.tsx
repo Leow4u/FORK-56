@@ -85,8 +85,9 @@ describe('SettingsGroup', () => {
     const well = document.querySelector('[data-slot="settings-group"]')
 
     expect(well).toBeTruthy()
-    expect(well?.className).not.toContain('chat-surface-background')
-    expect(well?.className).not.toContain('rounded-xl')
+    expect(well?.className).toContain('rounded-xl')
+    expect(well?.className).toContain('bg-(--ui-bg-editor)')
+    expect(well?.className).toContain('divide-y')
     expect(screen.getByRole('heading', { level: 2, name: 'Language' })).toBeTruthy()
     expect(screen.getByText('Display language')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Change' })).toBeTruthy()
