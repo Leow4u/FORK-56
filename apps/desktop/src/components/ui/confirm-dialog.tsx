@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 
+import { composerCardTitle, composerPanelCard } from '@/components/chat/composer-dock'
 import { ActionStatus } from '@/components/ui/action-status'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { useI18n } from '@/i18n'
 import { AlertTriangle } from '@/lib/icons'
+import { cn } from '@/lib/utils'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -100,7 +102,7 @@ export function ConfirmDialog({
   return (
     <Dialog onOpenChange={value => !value && !busy && onClose()} open={open}>
       <DialogContent
-        className="max-w-md"
+        className={cn('max-w-md', composerPanelCard)}
         onKeyDown={event => {
           // Enter/Space confirm regardless of which button holds focus
           // (preventDefault stops a focused Cancel from swallowing it).
@@ -112,7 +114,7 @@ export function ConfirmDialog({
         onOpenAutoFocus={onOpenAutoFocus}
       >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className={composerCardTitle}>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
 
@@ -124,10 +126,10 @@ export function ConfirmDialog({
         )}
 
         <DialogFooter>
-          <Button disabled={busy} onClick={onClose} type="button" variant="ghost">
+          <Button disabled={busy} onClick={onClose} size="sm" type="button" variant="ghost">
             {resolvedCancelLabel}
           </Button>
-          <Button disabled={busy} onClick={() => void run()} variant={destructive ? 'destructive' : 'default'}>
+          <Button disabled={busy} onClick={() => void run()} size="sm" variant={destructive ? 'destructive' : 'default'}>
             <ActionStatus
               busy={resolvedBusyLabel}
               done={resolvedDoneLabel}
