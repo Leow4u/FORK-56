@@ -16,7 +16,6 @@ import { useRouteEnumParam } from '../hooks/use-route-enum-param'
 import { OverlayMain, OverlayNav, type OverlayNavGroup, OverlaySplitLayout } from '../overlays/overlay-split-layout'
 import { OverlayView } from '../overlays/overlay-view'
 import { SKILLS_ROUTE } from '../routes'
-import { MAIN_STAGE_SURFACE_CLASS } from '../shell/stage-chrome'
 
 import { AboutSettings } from './about-settings'
 import { AppSettings } from './app-settings'
@@ -246,7 +245,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       <OverlaySplitLayout>
         <OverlayNav groups={navGroups} header={searchPill} itemTone="quiet" />
 
-        <OverlayMain className={cn('max-w-none px-0 pb-0', MAIN_STAGE_SURFACE_CLASS)}>
+        <OverlayMain className="max-w-none bg-(--ui-bg-sidebar) px-0 pb-0">
           {activeSettingsContent}
         </OverlayMain>
       </OverlaySplitLayout>
