@@ -6,9 +6,8 @@ import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
 import { FolderOpen } from '@/lib/icons'
-import { isUnderPath } from '@/lib/path-compare'
 import { cn } from '@/lib/utils'
-import { $projectScope, $projectTree, ALL_PROJECTS, clearActiveWorkspace, projectRootCwd } from '@/store/projects'
+import { $projectScope, $projectTree, ALL_PROJECTS, clearActiveWorkspace } from '@/store/projects'
 
 import { ComposerRunTargetMenu } from './run-target-menu'
 import { emptyWorkspaceChipLabel } from './workspace-chip-label'
@@ -21,9 +20,7 @@ export function WorkspaceChipRow({ cwd, messagesEmpty }: { cwd?: null | string; 
   const scope = useStore($projectScope)
   const path = (cwd ?? '').trim()
   const scopedProject = scope === ALL_PROJECTS ? undefined : tree.find(project => project.id === scope)
-  const scopedRoot = projectRootCwd(scopedProject)
-  const scopedHere = !path || Boolean(scopedRoot && isUnderPath(scopedRoot, path))
-  const scopedLabel = scopedProject && !scopedProject.isNoProject && scopedHere ? scopedProject.label : null
+  const scopedLabel = scopedProject && !scopedProject.isNoProject ? scopedProject.label : null
   const label = emptyWorkspaceChipLabel(path, selectLabel, scopedLabel)
   const selected = label !== selectLabel
   const tip = path ? `${label} — ${displayPath(path)}` : selectLabel

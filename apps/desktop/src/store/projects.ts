@@ -14,6 +14,8 @@ import { isUnderPath } from '@/lib/path-compare'
 import { persistentAtom } from '@/lib/persisted'
 import {
   forgetDesktopProject,
+  isComputerCatalogProject,
+  isHostedProjectPath,
   mergeWithDesktopCatalog,
   readDesktopProjectCatalog,
   rememberDesktopProjects
@@ -24,6 +26,7 @@ import { notify } from '@/store/notifications'
 import { $activeGatewayProfile, $profileScope, ALL_PROFILES, requestFreshSession } from '@/store/profile'
 import {
   $activeSessionId,
+  $connection,
   $currentCwd,
   $newChatWorkspaceTarget,
   $selectedStoredSessionId,
@@ -293,31 +296,51 @@ export function resolveNewSessionCwd(): string {
 // is how a new chat in Dute-app was born inside Dutelog. Home (an explicit
 // null pick, or the Home scope) stays folder-less. With no project selected,
 // the live cwd is still the draft the user is looking at.
+function folderForEnteredProject(): string {
+  const scope = $projectScope.get()
+
+  if (!scope || scope === ALL_PROJECTS || scope === NO_PROJECT_ID) {
+    return ''
+  }
+
+  return projectRootCwd($projectTree.get().find(node => node.id === scope))
+}
+
 export function resolveCreateSessionCwd(): string {
+  const scope = $projectScope.get()
+
+  if (scope === NO_PROJECT_ID) {
+    return ''
+  }
+
   const workspaceTarget = $newChatWorkspaceTarget.get()
+  const entered = folderForEnteredProject()
+
+  if (typeof workspaceTarget === 'string' && workspaceTarget.trim()) {
+    const picked = workspaceTarget.trim()
+
+    if (!entered || isUnderPath(entered, picked)) {
+      return picked
+    }
+  }
+
+  // The entered project is the folder, including after a runtime switch cleared
+  // the one-shot target. A leftover cwd from another checkout does not win.
+  if (entered) {
+    const live = $currentCwd.get().trim()
+
+    if (live && isUnderPath(entered, live)) {
+      return live
+    }
+
+    return entered
+  }
 
   if (workspaceTarget === null) {
     return ''
   }
 
-  if (typeof workspaceTarget === 'string') {
-    return workspaceTarget.trim()
-  }
-
-  const scoped = resolveNewSessionCwd()
-  const live = $currentCwd.get().trim()
-
-  if ($projectScope.get() !== ALL_PROJECTS) {
-    // A conversation already inside this project keeps its folder (a subfolder
-    // the user was in). A conversation sitting in a different checkout does not.
-    if (live && scoped && isUnderPath(scoped, live)) {
-      return live
-    }
-
-    return scoped
-  }
-
-  return live || scoped
+  return $currentCwd.get().trim() || resolveNewSessionCwd()
 }
 
 // The project (explicit or auto) that owns `cwd`, by longest path match across
@@ -459,12 +482,57 @@ async function activeProjectsContext(): Promise<ActiveProjectsContext> {
   return { gateway, profile }
 }
 
+function computerCatalog(): ProjectInfo[] {
+  return readDesktopProjectCatalog().filter(isComputerCatalogProject)
+}
+
 function applyPayload(payload: ProjectsPayload): void {
+  const onCloud = $connection.get()?.remoteKind === 'cloud'
+
+  if (onCloud) {
+    const catalog = computerCatalog()
+
+    rememberDesktopProjects(catalog)
+    $projects.set(catalog)
+
+    return
+  }
+
   const projects = mergeWithDesktopCatalog(payload.projects ?? [])
 
   rememberDesktopProjects(projects)
   $projects.set(projects)
   $activeProjectId.set(payload.active_id ?? null)
+}
+
+/** Sidebar projects: the computer catalog, enriched by the local tree. The VM's own projects stay off the list. */
+export function assembleDesktopProjectTree(
+  nodes: SidebarProjectTree[],
+  catalog: ProjectInfo[],
+  cloud: boolean
+): SidebarProjectTree[] {
+  const home = nodes.find(node => node.isNoProject)
+  const computer = catalog.filter(isComputerCatalogProject)
+  const catalogIds = new Set(computer.map(project => project.id))
+  const body = cloud
+    ? computer.map(projectInfoToTreeNode)
+    : (() => {
+        const kept = nodes.filter(node => {
+          if (node.isNoProject || isHostedProjectPath(node.path)) {
+            return false
+          }
+
+          // Before the catalog has been saved, the local gateway's own projects
+          // are still this computer's list.
+          return !catalogIds.size || catalogIds.has(node.id)
+        })
+        const seen = new Set(kept.map(node => node.id))
+        const extra = computer.filter(project => !seen.has(project.id)).map(projectInfoToTreeNode)
+
+        return extra.length ? [...extra, ...kept] : kept
+      })()
+
+  return home ? [...body, home] : body
 }
 
 let projectsRefreshGeneration = 0
@@ -508,13 +576,7 @@ const PROJECT_TREE_REQUEST_TIMEOUT_MS = 60_000
 let projectTreeRefreshGeneration = 0
 
 function withDesktopProjectTree(nodes: SidebarProjectTree[]): SidebarProjectTree[] {
-  const seen = new Set(nodes.map(node => node.id))
-
-  const extra = readDesktopProjectCatalog()
-    .filter(project => project.id && !project.archived && !seen.has(project.id))
-    .map(projectInfoToTreeNode)
-
-  return extra.length ? [...extra, ...nodes] : nodes
+  return assembleDesktopProjectTree(nodes, computerCatalog(), $connection.get()?.remoteKind === 'cloud')
 }
 
 function applyProjectTreePayload(res: ProjectTreePayload): void {
@@ -890,14 +952,27 @@ const reconcileProjects = (): void => {
 // project paints instantly. The backend seeds each folder as an (empty) repo, so
 // the next tree refresh fills in repos/counts; this is just the optimistic stub.
 function projectInfoToTreeNode(project: ProjectInfo): SidebarProjectTree {
+  const path = project.primary_path ?? project.folders?.[0]?.path ?? null
+  const repos = path
+    ? [
+        {
+          groups: [{ id: `${path}::branch::main`, isMain: true, label: 'main', path, sessions: [] }],
+          id: path,
+          label: project.name || path,
+          path,
+          sessionCount: 0
+        }
+      ]
+    : []
+
   return {
     id: project.id,
     label: project.name || project.id,
-    path: project.primary_path ?? project.folders?.[0]?.path ?? null,
+    path,
     color: project.color ?? null,
     icon: project.icon ?? null,
     isAuto: false,
-    repos: [],
+    repos,
     sessionCount: 0,
     previewSessions: []
   }

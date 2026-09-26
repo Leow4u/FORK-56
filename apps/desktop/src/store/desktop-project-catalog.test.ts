@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { ProjectInfo } from '@/types/work4you'
 
-import { forgetDesktopProject, mergeWithDesktopCatalog, rememberDesktopProjects } from './desktop-project-catalog'
+import {
+  forgetDesktopProject,
+  isComputerCatalogProject,
+  mergeWithDesktopCatalog,
+  rememberDesktopProjects
+} from './desktop-project-catalog'
 
 function project(id: string, name = id): ProjectInfo {
   return {
@@ -31,6 +36,16 @@ describe('desktop project catalog', () => {
     const merged = mergeWithDesktopCatalog([project('cloud', 'Cloud')])
 
     expect(merged.map(row => row.id)).toEqual(['cloud', 'local'])
+  })
+
+  it('does not keep a hosted copy of a folder', () => {
+    const hosted = project('vm-dute', 'Dute-app')
+
+    hosted.primary_path = '/opt/work4you/attached/Dute-app'
+    rememberDesktopProjects([project('p_dute', 'Dute-app'), hosted])
+
+    expect(mergeWithDesktopCatalog([]).map(row => row.id)).toEqual(['p_dute'])
+    expect(isComputerCatalogProject(hosted)).toBe(false)
   })
 
   it('drops a project after it is deleted', () => {

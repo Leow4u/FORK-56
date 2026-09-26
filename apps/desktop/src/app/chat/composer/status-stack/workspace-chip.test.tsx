@@ -194,7 +194,7 @@ describe('WorkspaceChipRow', () => {
     expect(screen.queryByRole('menuitem', { name: 'work4you' })).toBeNull()
   })
 
-  it('does not rename the chip for a cwd outside the entered project', () => {
+  it('keeps the entered project on the chip when the cwd is somewhere else', () => {
     $projectScope.set('p_dute')
     $projectTree.set([
       {
@@ -209,8 +209,7 @@ describe('WorkspaceChipRow', () => {
 
     const chip = screen.getByRole('button', { name: 'Select workspace' })
 
-    expect(chip.textContent).toContain('Select workspace')
-    expect(chip.textContent).not.toContain('DuteLog')
+    expect(chip.textContent).toContain('DuteLog')
   })
 
   it('names a scoped auto project on the empty-chat chip', () => {

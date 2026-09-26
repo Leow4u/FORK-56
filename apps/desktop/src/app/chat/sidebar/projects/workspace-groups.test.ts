@@ -476,6 +476,23 @@ describe('liveSessionProjectId', () => {
     expect(liveSessionProjectId(makeCwdSession('/www/app'), [])).toBe('/www/app')
   })
 
+  it('keeps a chat in the project it was born in when the cwd is a cloud path', () => {
+    const session = makeCwdSession('/opt/work4you/attached/Dute-app', { desktop_project_id: 'p_dute' })
+
+    expect(liveSessionProjectId(session, [makeProject('p_dute', ['C:/work/Dute-app'])])).toBe('p_dute')
+    expect(liveSessionProjectId(makeCwdSession(null, { desktop_project_id: 'p_dute' }), [makeProject('p_dute', ['C:/work/Dute-app'])])).toBe(
+      'p_dute'
+    )
+  })
+
+  it('does not let a recorded project id fall through to another folder', () => {
+    expect(
+      liveSessionProjectId(makeCwdSession('/www/other', { desktop_project_id: 'p_missing' }), [
+        makeProject('p_other', ['/www/other'])
+      ])
+    ).toBeNull()
+  })
+
   it('routes a session under an explicit project folder to that project', () => {
     const id = liveSessionProjectId(makeCwdSession('/www/app/src', { git_repo_root: '/www/app', git_branch: 'feat' }), [
       makeProject('p_app', ['/www/app'])
@@ -1048,7 +1065,13 @@ describe('overlayLivePreviews', () => {
       previewSessions: [makeCwdSession('/opt/work4you/.work4you/attached/Dute-app', { id: 'cloud-new' })]
     }
 
-    const live = [makeCwdSession('/opt/work4you/.work4you/attached/Dute-app', { id: 'cloud-new', last_active: 50 })]
+    const live = [
+      makeCwdSession('/opt/work4you/.work4you/attached/Dute-app', {
+        desktop_project_id: 'p_dute',
+        id: 'cloud-new',
+        last_active: 50
+      })
+    ]
 
     const previews = overlayLivePreviews([project, home], live, [makeProject('p_dute', ['C:\\Work\\Dute-app'])], 5)
 

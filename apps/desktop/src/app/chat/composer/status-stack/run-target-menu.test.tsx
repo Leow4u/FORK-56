@@ -12,7 +12,7 @@ import type {
 } from '@/global'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
-import { _resetComposerRunTargetForTests } from './run-target'
+import { $heldRunTarget, _resetComposerRunTargetForTests } from './run-target'
 import { ComposerRunTargetMenu } from './run-target-menu'
 
 const navigate = vi.fn()
@@ -162,6 +162,22 @@ describe('ComposerRunTargetMenu', () => {
     expect(button.textContent).toContain('Cloud')
     expect(button.querySelector('.tabler-icon-cloud')).toBeTruthy()
     expect(button.querySelector('.tabler-icon-device-desktop')).toBeNull()
+  })
+
+  it('shows the destination while the gateway is still the previous runtime', () => {
+    $connection.set({
+      baseUrl: 'https://agent.example',
+      mode: 'remote',
+      remoteKind: 'cloud'
+    } as Work4YouConnection)
+    $heldRunTarget.set('local')
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByRole('button', { name: 'Connection mode' }).textContent).toContain('Local')
   })
 
   it('lists only Local and Work4You Cloud', async () => {

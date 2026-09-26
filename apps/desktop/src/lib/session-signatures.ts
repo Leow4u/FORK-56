@@ -33,7 +33,10 @@ export function sameCronSignature(a: SessionInfo[], b: SessionInfo[]): boolean {
       session.archived === other.archived &&
       // Home is row state: the sidebar mark and which runtime opens the chat
       // both read connection_id. A stamp-only refresh has to land in the atom.
-      session.connection_id === other.connection_id
+      session.connection_id === other.connection_id &&
+      // The project a chat was born in. A refresh that only restores this id
+      // still has to land, or the row stays filed by its cloud path.
+      session.desktop_project_id === other.desktop_project_id
     )
   })
 }

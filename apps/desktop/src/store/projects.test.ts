@@ -2,6 +2,7 @@ import { atom } from 'nanostores'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { NO_PROJECT_ID, type SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
+import type { ProjectInfo } from '@/types/work4you'
 import { $sidebarAgentsGrouped, setSidebarAgentsGrouped } from '@/store/layout'
 import { $activeGatewayProfile } from '@/store/profile'
 import {
@@ -26,6 +27,7 @@ import {
   $startWorkSessionRequest,
   $worktreeRefreshToken,
   ALL_PROJECTS,
+  assembleDesktopProjectTree,
   beginSessionMutation,
   clearActiveWorkspace,
   createProject,
@@ -152,8 +154,25 @@ describe('resolveCreateSessionCwd', () => {
     expect(resolveCreateSessionCwd()).toBe('/remote/worktree')
   })
 
-  it('stays detached when the workspace was cleared', () => {
+  it('uses the entered project folder when the one-shot target was cleared', () => {
+    $projectTree.set([
+      {
+        id: 'p_app',
+        label: 'Dute-app',
+        path: '/work/Dute-app',
+        repos: [],
+        sessionCount: 0
+      }
+    ])
     $projectScope.set('p_app')
+    setCurrentCwd('/opt/work4you')
+    setNewChatWorkspaceTarget(null)
+
+    expect(resolveCreateSessionCwd()).toBe('/work/Dute-app')
+  })
+
+  it('stays detached when Home is selected', () => {
+    $projectScope.set(NO_PROJECT_ID)
     setCurrentCwd('/work/Dutelog')
     setNewChatWorkspaceTarget(null)
 
@@ -860,5 +879,52 @@ describe('tombstone pruning', () => {
     await refreshProjectTree()
 
     expect($removedSessionIds.get().has('sess-1')).toBe(false)
+  })
+})
+
+describe('assembleDesktopProjectTree', () => {
+  const catalogProject = (id: string, path: string): ProjectInfo => ({
+    archived: false,
+    board_slug: null,
+    color: null,
+    created_at: 0,
+    description: null,
+    folders: [{ added_at: 0, is_primary: true, label: null, path }],
+    icon: null,
+    id,
+    name: id,
+    primary_path: path,
+    slug: id
+  })
+
+  const node = (id: string, path: string | null, extra: Partial<SidebarProjectTree> = {}): SidebarProjectTree => ({
+    id,
+    label: id,
+    path,
+    repos: [],
+    sessionCount: 0,
+    ...extra
+  })
+
+  const home = node(NO_PROJECT_ID, null, { isNoProject: true, label: 'Home' })
+
+  it('shows one computer project on Cloud and drops the VM copy', () => {
+    const tree = assembleDesktopProjectTree(
+      [node('vm-dute', '/opt/work4you/attached/Dute-app'), home],
+      [catalogProject('p_dute', 'C:/work/Dute-app')],
+      true
+    )
+
+    expect(tree.map(row => row.id)).toEqual(['p_dute', NO_PROJECT_ID])
+  })
+
+  it('keeps the local project row and its Home bucket', () => {
+    const tree = assembleDesktopProjectTree(
+      [node('p_dute', 'C:/work/Dute-app'), node('vm-log', '/opt/work4you/attached/Dutelogs'), home],
+      [catalogProject('p_dute', 'C:/work/Dute-app')],
+      false
+    )
+
+    expect(tree.map(row => row.id)).toEqual(['p_dute', NO_PROJECT_ID])
   })
 })

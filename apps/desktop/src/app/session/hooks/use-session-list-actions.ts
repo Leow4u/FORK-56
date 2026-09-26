@@ -43,6 +43,8 @@ import {
   sessionListHomeId,
   tagSessionHomes
 } from '@/store/session-homes'
+import { $projects } from '@/store/projects'
+import { rememberAttachedSessionProjects, withStoredProjectId } from '@/store/session-projects'
 import { $workingSessionIds, getRecentlySettledSessionIds } from '@/store/session-states'
 import { listAllProfileSessions, listSidebarSessions, type SessionInfo } from '@/work4you'
 
@@ -314,7 +316,11 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
         // Honoring the optimistic tombstone keeps the removal from flashing back
         // (the tombstone self-clears once projects.tree confirms the delete).
         const homeId = sessionListHomeId($connection.get())
-        const incoming = tagSessionHomes(dropTombstoned(recents.sessions), homeId)
+        const tagged = tagSessionHomes(dropTombstoned(recents.sessions), homeId)
+
+        rememberAttachedSessionProjects(tagged, $projects.get())
+
+        const incoming = tagged.map(withStoredProjectId)
         const previousHome = $sessionListHomeId.get()
 
         // Signature-gate the swap (same pattern as cron/messaging): a refresh

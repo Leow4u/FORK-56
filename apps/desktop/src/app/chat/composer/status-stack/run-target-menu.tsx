@@ -34,7 +34,8 @@ import {
   lastCloudApplySource,
   readRememberedComposerCloudApply,
   rememberComposerCloudApply,
-  resolveComposerRunTarget
+  resolveComposerRunTarget,
+  $heldRunTarget
 } from './run-target'
 
 function loadComposerCloudPortal(requestRef: {
@@ -87,15 +88,23 @@ export function ComposerRunTargetMenu() {
   const activeConnectionId = useStore($activeConnectionId)
   const connection = useStore($connection)
   const pendingConnectionId = useStore($pendingConnectionId)
+  const heldTarget = useStore($heldRunTarget)
   const connections = registry?.connections ?? []
   const active = resolveComposerRunTarget({ activeConnectionId, connection, connections })
   const copy = t.settings.connections
   const gateway = t.settings.gateway
   const tooltip = gateway.modeTitle
-  const shownTarget = pendingConnectionId === 'cloud' || pendingConnectionId === 'local' ? pendingConnectionId : active
+  const pendingTarget = pendingConnectionId === 'cloud' || pendingConnectionId === 'local' ? pendingConnectionId : null
+  const shownTarget = pendingTarget ?? heldTarget ?? active
   const cloudSelected = shownTarget === 'cloud'
   const targetLabel = cloudSelected ? copy.kindCloudChip : copy.kindLocal
   const TargetIcon = cloudSelected ? Cloud : Monitor
+
+  useEffect(() => {
+    if (heldTarget && active === heldTarget) {
+      $heldRunTarget.set(null)
+    }
+  }, [active, heldTarget])
 
   useEffect(() => {
     rememberComposerCloudApply(
@@ -231,6 +240,7 @@ export function ComposerRunTargetMenu() {
 
     triggerHaptic('selection')
     applyingRef.current = true
+    $heldRunTarget.set(target)
     $pendingConnectionId.set(target)
 
     try {
@@ -242,6 +252,7 @@ export function ComposerRunTargetMenu() {
       )
       notify({ kind: 'success', message: gateway.restartingMessage, title: gateway.restartingTitle })
     } catch (error) {
+      $heldRunTarget.set(null)
       notifyError(error, gateway.applyFailed)
     } finally {
       applyingRef.current = false
