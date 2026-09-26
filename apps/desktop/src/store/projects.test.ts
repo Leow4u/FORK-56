@@ -2,7 +2,6 @@ import { atom } from 'nanostores'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { NO_PROJECT_ID, type SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
-import type { ProjectInfo } from '@/types/work4you'
 import { $sidebarAgentsGrouped, setSidebarAgentsGrouped } from '@/store/layout'
 import { $activeGatewayProfile } from '@/store/profile'
 import {
@@ -15,6 +14,7 @@ import {
   setCurrentCwd,
   setNewChatWorkspaceTarget
 } from '@/store/session'
+import type { ProjectInfo } from '@/types/work4you'
 
 import {
   $activeProjectId,

@@ -20,6 +20,7 @@ import {
 } from '@/store/layout'
 import { messagingTotalsKey, normalizeProfileKey, sidebarProfileForScope } from '@/store/profile'
 import { $removedSessionIds } from '@/store/projects'
+import { $projects } from '@/store/projects'
 import {
   $connection,
   $messagingSessions,
@@ -43,7 +44,6 @@ import {
   sessionListHomeId,
   tagSessionHomes
 } from '@/store/session-homes'
-import { $projects } from '@/store/projects'
 import { rememberAttachedSessionProjects, withStoredProjectId } from '@/store/session-projects'
 import { $workingSessionIds, getRecentlySettledSessionIds } from '@/store/session-states'
 import { listAllProfileSessions, listSidebarSessions, type SessionInfo } from '@/work4you'

@@ -31,7 +31,9 @@ describe('session project memory', () => {
 
     rememberSessionProject(born, 'p_dute')
 
-    const refreshed = withStoredProjectId(makeSessionInfo({ connection_id: 'cloud', cwd: '/opt/work4you', id: 'chat-1' }))
+    const refreshed = withStoredProjectId(
+      makeSessionInfo({ connection_id: 'cloud', cwd: '/opt/work4you', id: 'chat-1' })
+    )
 
     expect(refreshed.desktop_project_id).toBe('p_dute')
     expect(storedSessionProjectId(makeSessionInfo({ connection_id: 'local', id: 'chat-1' }))).toBeNull()
@@ -71,6 +73,7 @@ describe('session project memory', () => {
       primary_path: 'C:/work/Dute-app',
       slug: 'dute-app'
     } satisfies ProjectInfo
+
     const session = makeSessionInfo({
       connection_id: 'cloud',
       cwd: '/opt/work4you/.work4you/attached/Dute-app',
