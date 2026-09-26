@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { KbdCombo } from '@/components/ui/kbd'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { BarChart3, Bell, Info, Keyboard, Monitor, Search } from '@/lib/icons'
+import { BarChart3, Bell, Monitor, Search } from '@/lib/icons'
 import { isEditableTarget } from '@/lib/keybinds/combo'
 import { typeToFocusChar } from '@/lib/keybinds/composer-focus-keys'
 import { cn } from '@/lib/utils'
@@ -17,7 +17,6 @@ import { OverlayMain, OverlayNav, type OverlayNavGroup, OverlaySplitLayout } fro
 import { OverlayView } from '../overlays/overlay-view'
 import { SKILLS_ROUTE } from '../routes'
 
-import { AboutSettings } from './about-settings'
 import { AppSettings } from './app-settings'
 import { AppearanceSettings } from './appearance-settings'
 import { BillingSettings } from './billing'
@@ -36,12 +35,13 @@ const SETTINGS_VIEWS: readonly SettingsViewId[] = [
   // `?tab=gateway` and `?tab=connections` bookmarks still resolve (Billing).
   'gateway',
   'connections',
+  // Shortcuts stay reachable from the account menu, the command palette, and
+  // the open-panel shortcut. They are not a Settings nav row.
   'keybinds',
   'app',
   'notifications',
   'billing',
-  'sessions',
-  'about'
+  'sessions'
 ]
 
 export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: SettingsPageProps) {
@@ -140,22 +140,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
         id: 'billing',
         label: t.settings.nav.billing,
         onSelect: () => setActiveView('billing')
-      },
-      {
-        active: activeView === 'keybinds',
-        gapBefore: true,
-        icon: Keyboard,
-        id: 'keybinds',
-        label: t.settings.nav.keybinds,
-        onSelect: () => setActiveView('keybinds')
-      },
-      {
-        active: activeView === 'about',
-        gapBefore: true,
-        icon: Info,
-        id: 'about',
-        label: t.settings.nav.about,
-        onSelect: () => setActiveView('about')
       }
     ],
     [activeView, t, setActiveView]
@@ -220,8 +204,6 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       // Empty `keys: []` like Appearance — intercept before the generic
       // config: branch or ConfigSettings would render EmptyState.
       <ImageVideoSettings />
-    ) : activeView === 'about' ? (
-      <AboutSettings />
     ) : activeView === 'keybinds' ? (
       <KeybindSettings />
     ) : activeView.startsWith('config:') || activeView === 'sessions' ? (
@@ -245,9 +227,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       <OverlaySplitLayout>
         <OverlayNav groups={navGroups} header={searchPill} itemTone="quiet" />
 
-        <OverlayMain className="max-w-none bg-(--ui-bg-sidebar) px-0 pb-0">
-          {activeSettingsContent}
-        </OverlayMain>
+        <OverlayMain className="max-w-none bg-(--ui-bg-sidebar) px-0 pb-0">{activeSettingsContent}</OverlayMain>
       </OverlaySplitLayout>
     </OverlayView>
   )

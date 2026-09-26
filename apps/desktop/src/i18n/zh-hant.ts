@@ -220,7 +220,8 @@ export const zhHant = defineLocale({
     docs: '文件',
     shortcuts: '快捷鍵',
     contactUs: '聯絡我們',
-    logOut: '登出'
+    logOut: '登出',
+    version: version => `Work4You ${version}`
   },
 
   language: {

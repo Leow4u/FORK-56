@@ -229,7 +229,8 @@ export const en: Translations = {
     docs: 'Docs',
     shortcuts: 'Shortcuts',
     contactUs: 'Contact Us',
-    logOut: 'Log Out'
+    logOut: 'Log Out',
+    version: version => `Work4You ${version}`
   },
 
   keybinds: {

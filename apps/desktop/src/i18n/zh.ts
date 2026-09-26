@@ -224,7 +224,8 @@ export const zh: Translations = {
     docs: '文档',
     shortcuts: '快捷键',
     contactUs: '联系我们',
-    logOut: '退出登录'
+    logOut: '退出登录',
+    version: version => `Work4You ${version}`
   },
 
   keybinds: {

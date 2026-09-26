@@ -35,7 +35,6 @@ import {
   FolderOpen,
   GitBranch,
   type IconComponent,
-  Info,
   Layers3,
   MessageCircle,
   Monitor,
@@ -436,7 +435,7 @@ const toSessionEntry = (session: SessionRow): SessionEntry => ({
   title: sessionTitle(session)
 })
 
-type NonConfigSettingsLabel = 'about' | 'app' | 'billing' | 'mcp' | 'providerAccounts' | 'providerApiKeys'
+type NonConfigSettingsLabel = 'app' | 'billing' | 'mcp' | 'providerAccounts' | 'providerApiKeys'
 
 const NON_CONFIG_SETTINGS: ReadonlyArray<{
   icon: IconComponent
@@ -455,8 +454,7 @@ const NON_CONFIG_SETTINGS: ReadonlyArray<{
     keywords: ['advanced', 'awake', 'keep awake', 'sleep', 'quick entry', 'shortcut', 'this computer'],
     labelKey: 'app',
     tab: 'app'
-  },
-  { icon: Info, keywords: ['version', 'about'], labelKey: 'about', tab: 'about' }
+  }
 ]
 
 const THEME_MODES: ReadonlyArray<{ icon: IconComponent; mode: ThemeMode }> = [

@@ -199,7 +199,8 @@ export const ar = defineLocale({
     docs: 'الوثائق',
     shortcuts: 'الاختصارات',
     contactUs: 'تواصل معنا',
-    logOut: 'تسجيل الخروج'
+    logOut: 'تسجيل الخروج',
+    version: version => `Work4You ${version}`
   },
 
   keybinds: {

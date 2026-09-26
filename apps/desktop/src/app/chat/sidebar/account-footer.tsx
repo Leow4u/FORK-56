@@ -36,8 +36,9 @@ export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 //
 // The trigger shows the cadastro name when the portal saved one, otherwise
 // the Portal email, otherwise a generic Account label. Clicking always opens
-// the same menu (Settings, HUD mode, Docs, Shortcuts, Contact Us). Log Out is
-// only present when that identity is showing —
+// the same menu (Settings, HUD mode, Docs, Shortcuts, Contact Us). The running
+// app version sits at the bottom of that menu, the way Cursor shows it — not
+// on a Settings page. Log Out is only present when that identity is showing —
 // there is no Portal session to clear otherwise.
 //
 // Email re-checks on window focus: portal sign-in/out happens in a separate
@@ -244,6 +245,14 @@ export function AccountFooter() {
                   <Codicon aria-hidden="true" name="sign-out" size="0.8rem" />
                   {menu.logOut}
                 </DropdownMenuItem>
+              </>
+            ) : null}
+            {desktopVersion?.appVersion ? (
+              <>
+                <DropdownMenuSeparator />
+                <p className="px-2 pt-0.5 pb-1 text-xs text-(--ui-text-tertiary)" data-slot="account-menu-version">
+                  {menu.version(desktopVersion.appVersion)}
+                </p>
               </>
             ) : null}
           </DropdownMenuContent>

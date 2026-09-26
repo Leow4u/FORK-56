@@ -37,6 +37,9 @@ describe('Settings chrome', () => {
     )
 
     expect(await screen.findByRole('button', { name: 'Reset all' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Keyboard shortcuts' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'About' })).toBeNull()
     expect(screen.getAllByRole('button', { name: /Search/ }).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Export config' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Import config' })).toBeNull()
@@ -44,5 +47,23 @@ describe('Settings chrome', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Chat' })[0])
     expect(screen.queryByText('Editing profile')).toBeNull()
+  })
+
+  it('sends an old About bookmark to the default settings view', async () => {
+    $profiles.set([profile('default', true)])
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    render(
+      <MemoryRouter initialEntries={['/settings?tab=about']}>
+        <QueryClientProvider client={client}>
+          <SettingsView onClose={() => undefined} />
+        </QueryClientProvider>
+      </MemoryRouter>
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Model' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'About' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Check now' })).toBeNull()
+    expect(screen.queryByText('Remove the app')).toBeNull()
   })
 })

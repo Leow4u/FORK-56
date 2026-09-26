@@ -226,7 +226,8 @@ export const ja = defineLocale({
     docs: 'ドキュメント',
     shortcuts: 'ショートカット',
     contactUs: 'お問い合わせ',
-    logOut: 'ログアウト'
+    logOut: 'ログアウト',
+    version: version => `Work4You ${version}`
   },
 
   language: {

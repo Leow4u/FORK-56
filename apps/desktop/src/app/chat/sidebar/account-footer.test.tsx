@@ -260,6 +260,11 @@ describe('AccountFooter', () => {
 
     expect(await screen.findByRole('button', { name: 'Account' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Update' })).toBeNull()
+
+    await openMenu('Account')
+    const version = await screen.findByText('Work4You 0.20.4')
+    expect(version.getAttribute('data-slot')).toBe('account-menu-version')
+    expect(screen.queryByRole('menuitem', { name: /Work4You 0\.20\.4/ })).toBeNull()
   })
 
   it('starts the existing apply from the Account chip, same as Update now', async () => {
