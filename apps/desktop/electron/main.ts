@@ -8473,7 +8473,9 @@ function trimCloudAgents(body) {
 }
 
 // Plan gate from GET /api/agents. Null when the portal predates entitlement,
-// so the renderer does not invent Free vs paid.
+// so the renderer does not invent Free vs paid. Cloud is coming soon: every
+// account takes the no-Cloud path (composer lock, messaging and cron on this
+// computer, no Cloud connect on launch) until Cloud ships again.
 function trimCloudEntitlement(body) {
   const entitlement = body?.entitlement
 
@@ -8481,7 +8483,7 @@ function trimCloudEntitlement(body) {
     return null
   }
 
-  return { canUseCloud: entitlement.canUseCloud }
+  return { canUseCloud: false }
 }
 
 // Silent per-agent sign-in: open the selected agent dashboard's /login in the
