@@ -1417,7 +1417,6 @@ export interface Translations {
     needsSetup: string
     gatewayStopped: string
     title: string
-    listenerDevice: string
     manualSetup: string
     getCredentials: string
     openSetupGuide: string

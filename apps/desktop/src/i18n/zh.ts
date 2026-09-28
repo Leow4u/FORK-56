@@ -1769,7 +1769,6 @@ export const zh: Translations = {
 
   messaging: {
     title: '消息',
-    listenerDevice: '此设备',
     manualSetup: '手动设置',
     search: '搜索消息平台…',
     loading: '正在加载消息平台…',
