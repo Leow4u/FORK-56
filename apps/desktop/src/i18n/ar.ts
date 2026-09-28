@@ -200,6 +200,7 @@ export const ar = defineLocale({
     shortcuts: 'الاختصارات',
     contactUs: 'تواصل معنا',
     logOut: 'تسجيل الخروج',
+    signIn: 'تسجيل الدخول',
     version: version => `Work4You ${version}`
   },
 

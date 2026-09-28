@@ -230,6 +230,7 @@ export const en: Translations = {
     shortcuts: 'Shortcuts',
     contactUs: 'Contact Us',
     logOut: 'Log Out',
+    signIn: 'Sign in',
     version: version => `Work4You ${version}`
   },
 
