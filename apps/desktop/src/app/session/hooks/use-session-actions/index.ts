@@ -6,8 +6,9 @@ import { graftRefreshedTailOntoBackfill } from '@/app/chat/transcript-backfill'
 import { activateSessionListHome } from '@/app/session/session-home-switch'
 import { revealTreePane } from '@/components/pane-shell/tree/store'
 import { useI18n } from '@/i18n'
+import { isComputerProjectPath } from '@/lib/attached-folder'
 import { type ChatMessage, preserveLocalAssistantErrors, toChatMessages } from '@/lib/chat-messages'
-import { resolveSessionCreateCwd } from '@/lib/desktop-fs'
+import { deliverLocalFolder } from '@/lib/desktop-fs'
 import { isMissingRpcMethod } from '@/lib/gateway-rpc'
 import { recoverInFlightTurnJournal } from '@/lib/inflight-turn-journal'
 import { setSessionApprovalMode } from '@/lib/session-approval'
@@ -211,7 +212,17 @@ async function desktopSessionCreateParams(cwd: string): Promise<Record<string, u
   const profile = $newChatProfile.get() ?? normalizeProfileKey($activeGatewayProfile.get())
   await ensureGatewayProfile(profile)
 
-  const sessionCwd = await resolveSessionCreateCwd(cwd)
+  const connection = $connection.get()
+  let sessionCwd = cwd
+
+  if (
+    sessionCwd &&
+    connection?.mode === 'remote' &&
+    connection.remoteKind === 'cloud' &&
+    isComputerProjectPath(sessionCwd)
+  ) {
+    sessionCwd = (await deliverLocalFolder(sessionCwd)) || ''
+  }
 
   return {
     cols: 96,
@@ -435,8 +446,7 @@ export function useSessionActions({
       }
 
       if (draftTarget === null) {
-        // Null drops a one-shot override. An entered project still owns the folder.
-        setCurrentCwdTransient(resolveCreateSessionCwd())
+        setCurrentCwdTransient('')
       } else if (typeof draftTarget === 'string' && draftTarget.trim()) {
         if (hasWorkspaceTarget) {
           setCurrentCwd(draftTarget)
