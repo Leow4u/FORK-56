@@ -1,6 +1,6 @@
 import type { McpCatalogResponse, McpServerSummary } from '@/types/work4you'
 
-import { capabilityScoped, connectionScoped, type ProfileScope, profileScoped, work4youApi } from './client'
+import { capabilityScoped, type ProfileScope, profileScoped, work4youApi } from './client'
 
 export interface McpTestResult {
   ok: boolean
@@ -90,21 +90,16 @@ export function listMcpServers(): Promise<{ servers: McpServerSummary[] }> {
 
 /** Add one server to `mcp_servers` (validated + name-collision-checked
  *  server-side — the same endpoint the dashboard's add form uses). */
-export function addMcpServer(
-  body: {
-    name: string
-    url?: string
-    command?: string
-    args?: string[]
-    env?: Record<string, string>
-    auth?: string
-  },
-  connectionId?: string
-): Promise<McpServerSummary> {
+export function addMcpServer(body: {
+  name: string
+  url?: string
+  command?: string
+  args?: string[]
+  env?: Record<string, string>
+  auth?: string
+}): Promise<McpServerSummary> {
   return work4youApi<McpServerSummary>({
     ...profileScoped(),
-    ...connectionScoped(),
-    ...(connectionId ? { connectionId } : {}),
     path: '/api/mcp/servers',
     method: 'POST',
     body

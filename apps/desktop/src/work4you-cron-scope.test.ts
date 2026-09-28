@@ -64,6 +64,15 @@ describe('cron helpers are profile-scoped', () => {
     expect(api.mock.calls.at(-1)?.[0]).not.toHaveProperty('connectionId')
   })
 
+  it('creates a job with its project folder on the active backend', () => {
+    void createCronJob({ name: 'nightly', prompt: 'run', schedule: '0 3 * * *', workdir: '/Users/ada/Demo' })
+
+    const request = api.mock.calls.at(-1)?.[0] as { body?: { workdir?: string } }
+
+    expect(request.body?.workdir).toBe('/Users/ada/Demo')
+    expect(request).not.toHaveProperty('connectionId')
+  })
+
   // Contract: with a registered gateway connection active, cron run sessions
   // live in THAT gateway's state.db — not in any local profile's. Every cron
   // helper must tag the owning connection so the main process routes the REST

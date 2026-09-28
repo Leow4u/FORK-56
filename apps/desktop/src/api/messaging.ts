@@ -1,4 +1,3 @@
-import { $messagingListenConnectionId } from '@/app/messaging/listener-home'
 import type {
   A2AAgentCreatePayload,
   A2AAgentInfo,
@@ -23,14 +22,8 @@ import type {
 
 import { profileScoped, work4youApi } from './client'
 
-function messagingApi<T>(request: Parameters<typeof work4youApi>[0]): Promise<T> {
-  const id = $messagingListenConnectionId.get()
-
-  return work4youApi<T>(id ? { ...request, connectionId: id } : request)
-}
-
 export function getMessagingPlatforms(profile?: null | string): Promise<MessagingPlatformsResponse> {
-  return messagingApi<MessagingPlatformsResponse>({
+  return work4youApi<MessagingPlatformsResponse>({
     ...profileScoped(profile),
     path: '/api/messaging/platforms'
   })
@@ -41,7 +34,7 @@ export function updateMessagingPlatform(
   body: MessagingPlatformUpdate,
   profile?: null | string
 ): Promise<{ ok: boolean; platform: string }> {
-  return messagingApi<{ ok: boolean; platform: string }>({
+  return work4youApi<{ ok: boolean; platform: string }>({
     ...profileScoped(profile),
     path: `/api/messaging/platforms/${encodeURIComponent(platformId)}`,
     method: 'PUT',
@@ -53,7 +46,7 @@ export function testMessagingPlatform(
   platformId: string,
   profile?: null | string
 ): Promise<MessagingPlatformTestResponse> {
-  return messagingApi<MessagingPlatformTestResponse>({
+  return work4youApi<MessagingPlatformTestResponse>({
     ...profileScoped(profile),
     path: `/api/messaging/platforms/${encodeURIComponent(platformId)}/test`,
     method: 'POST'
@@ -66,7 +59,7 @@ export function testMessagingPlatform(
 // profile-scoped: the manifest describes the app, not any profile's state.
 
 export function getSlackManifest(): Promise<SlackManifestResponse> {
-  return messagingApi<SlackManifestResponse>({
+  return work4youApi<SlackManifestResponse>({
     path: '/api/messaging/slack/manifest'
   })
 }
@@ -77,7 +70,7 @@ export function getSlackManifest(): Promise<SlackManifestResponse> {
 // endpoint reads the profile off the body first, then the query string.
 
 export function startTelegramOnboarding(botName?: string): Promise<TelegramOnboardingStartResponse> {
-  return messagingApi<TelegramOnboardingStartResponse>({
+  return work4youApi<TelegramOnboardingStartResponse>({
     path: '/api/messaging/telegram/onboarding/start',
     method: 'POST',
     body: botName ? { bot_name: botName } : {}
@@ -85,7 +78,7 @@ export function startTelegramOnboarding(botName?: string): Promise<TelegramOnboa
 }
 
 export function getTelegramOnboardingStatus(pairingId: string): Promise<TelegramOnboardingStatusResponse> {
-  return messagingApi<TelegramOnboardingStatusResponse>({
+  return work4youApi<TelegramOnboardingStatusResponse>({
     path: `/api/messaging/telegram/onboarding/${encodeURIComponent(pairingId)}`
   })
 }
@@ -95,7 +88,7 @@ export function applyTelegramOnboarding(
   allowedUserIds: string[],
   profile?: null | string
 ): Promise<TelegramOnboardingApplyResponse> {
-  return messagingApi<TelegramOnboardingApplyResponse>({
+  return work4youApi<TelegramOnboardingApplyResponse>({
     ...profileScoped(profile),
     path: `/api/messaging/telegram/onboarding/${encodeURIComponent(pairingId)}/apply`,
     method: 'POST',
@@ -104,7 +97,7 @@ export function applyTelegramOnboarding(
 }
 
 export function cancelTelegramOnboarding(pairingId: string): Promise<{ ok: boolean }> {
-  return messagingApi<{ ok: boolean }>({
+  return work4youApi<{ ok: boolean }>({
     path: `/api/messaging/telegram/onboarding/${encodeURIComponent(pairingId)}`,
     method: 'DELETE'
   })
@@ -120,7 +113,7 @@ export function startWhatsAppOnboarding(
   allowedUsers: string,
   profile?: null | string
 ): Promise<WhatsAppOnboardingStatusResponse> {
-  return messagingApi<WhatsAppOnboardingStatusResponse>({
+  return work4youApi<WhatsAppOnboardingStatusResponse>({
     ...profileScoped(profile),
     path: '/api/messaging/whatsapp/onboarding/start',
     method: 'POST',
@@ -130,7 +123,7 @@ export function startWhatsAppOnboarding(
 }
 
 export function getWhatsAppOnboardingStatus(pairingId: string): Promise<WhatsAppOnboardingStatusResponse> {
-  return messagingApi<WhatsAppOnboardingStatusResponse>({
+  return work4youApi<WhatsAppOnboardingStatusResponse>({
     path: `/api/messaging/whatsapp/onboarding/${encodeURIComponent(pairingId)}`
   })
 }
@@ -140,7 +133,7 @@ export function applyWhatsAppOnboarding(
   body: { allowed_users?: string; mode?: WhatsAppOnboardingMode },
   profile?: null | string
 ): Promise<WhatsAppOnboardingApplyResponse> {
-  return messagingApi<WhatsAppOnboardingApplyResponse>({
+  return work4youApi<WhatsAppOnboardingApplyResponse>({
     ...profileScoped(profile),
     path: `/api/messaging/whatsapp/onboarding/${encodeURIComponent(pairingId)}/apply`,
     method: 'POST',
@@ -149,7 +142,7 @@ export function applyWhatsAppOnboarding(
 }
 
 export function cancelWhatsAppOnboarding(pairingId: string): Promise<{ ok: boolean }> {
-  return messagingApi<{ ok: boolean }>({
+  return work4youApi<{ ok: boolean }>({
     path: `/api/messaging/whatsapp/onboarding/${encodeURIComponent(pairingId)}`,
     method: 'DELETE'
   })
@@ -163,7 +156,7 @@ export function cancelWhatsAppOnboarding(pairingId: string): Promise<{ ok: boole
 // a row they can already see.
 
 export function getPairing(profile?: null | string): Promise<PairingResponse> {
-  return messagingApi<PairingResponse>({
+  return work4youApi<PairingResponse>({
     ...profileScoped(profile),
     path: '/api/pairing'
   })
@@ -174,7 +167,7 @@ export function approvePairing(
   requestId: string,
   profile?: null | string
 ): Promise<{ ok: boolean; user: PairingUser }> {
-  return messagingApi<{ ok: boolean; user: PairingUser }>({
+  return work4youApi<{ ok: boolean; user: PairingUser }>({
     ...profileScoped(profile),
     path: '/api/pairing/approve',
     method: 'POST',
@@ -185,7 +178,7 @@ export function approvePairing(
 }
 
 export function revokePairing(platform: string, userId: string, profile?: null | string): Promise<{ ok: boolean }> {
-  return messagingApi<{ ok: boolean }>({
+  return work4youApi<{ ok: boolean }>({
     ...profileScoped(profile),
     path: '/api/pairing/revoke',
     method: 'POST',
@@ -199,14 +192,14 @@ export function revokePairing(platform: string, userId: string, profile?: null |
 // best-effort restarts the gateway; subscription changes hot-reload.
 
 export function getWebhooks(): Promise<WebhooksResponse> {
-  return messagingApi<WebhooksResponse>({
+  return work4youApi<WebhooksResponse>({
     ...profileScoped(),
     path: '/api/webhooks'
   })
 }
 
 export function enableWebhooks(): Promise<WebhookEnableResponse> {
-  return messagingApi<WebhookEnableResponse>({
+  return work4youApi<WebhookEnableResponse>({
     ...profileScoped(),
     path: '/api/webhooks/enable',
     method: 'POST'
@@ -214,7 +207,7 @@ export function enableWebhooks(): Promise<WebhookEnableResponse> {
 }
 
 export function createWebhook(body: WebhookCreatePayload): Promise<WebhookCreateResponse> {
-  return messagingApi<WebhookCreateResponse>({
+  return work4youApi<WebhookCreateResponse>({
     ...profileScoped(),
     path: '/api/webhooks',
     method: 'POST',
@@ -223,7 +216,7 @@ export function createWebhook(body: WebhookCreatePayload): Promise<WebhookCreate
 }
 
 export function deleteWebhook(name: string): Promise<{ ok: boolean }> {
-  return messagingApi<{ ok: boolean }>({
+  return work4youApi<{ ok: boolean }>({
     ...profileScoped(),
     path: `/api/webhooks/${encodeURIComponent(name)}`,
     method: 'DELETE'
@@ -234,7 +227,7 @@ export function setWebhookEnabled(
   name: string,
   enabled: boolean
 ): Promise<{ enabled: boolean; name: string; ok: boolean }> {
-  return messagingApi<{ enabled: boolean; name: string; ok: boolean }>({
+  return work4youApi<{ enabled: boolean; name: string; ok: boolean }>({
     ...profileScoped(),
     path: `/api/webhooks/${encodeURIComponent(name)}/enabled`,
     method: 'PUT',
@@ -247,14 +240,14 @@ export function setWebhookEnabled(
 // write-only: list/create responses expose has_auth only.
 
 export function getA2AAgents(profile?: null | string): Promise<A2AAgentsResponse> {
-  return messagingApi<A2AAgentsResponse>({
+  return work4youApi<A2AAgentsResponse>({
     ...profileScoped(profile),
     path: '/api/a2a/agents'
   })
 }
 
 export function createA2AAgent(body: A2AAgentCreatePayload, profile?: null | string): Promise<A2AAgentInfo> {
-  return messagingApi<A2AAgentInfo>({
+  return work4youApi<A2AAgentInfo>({
     ...profileScoped(profile),
     path: '/api/a2a/agents',
     method: 'POST',
@@ -263,7 +256,7 @@ export function createA2AAgent(body: A2AAgentCreatePayload, profile?: null | str
 }
 
 export function deleteA2AAgent(name: string, profile?: null | string): Promise<{ name: string; ok: boolean }> {
-  return messagingApi<{ name: string; ok: boolean }>({
+  return work4youApi<{ name: string; ok: boolean }>({
     ...profileScoped(profile),
     path: `/api/a2a/agents/${encodeURIComponent(name)}`,
     method: 'DELETE'

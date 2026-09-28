@@ -63,15 +63,12 @@ export async function getCronDeliveryTargets(): Promise<CronDeliveryTarget[]> {
 }
 
 export function createCronJob(body: CronJobCreatePayload): Promise<CronJob> {
-  const { connectionId, ...payload } = body
-
   return work4youApi<CronJob>({
     ...profileScoped(),
     ...connectionScoped(),
-    ...(connectionId ? { connectionId } : {}),
     path: '/api/cron/jobs',
     method: 'POST',
-    body: payload
+    body
   })
 }
 

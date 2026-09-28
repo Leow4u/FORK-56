@@ -14,7 +14,6 @@ import { type CSSProperties, lazy, type ReactNode, Suspense, useCallback, useEff
 import { useLocation, useNavigate } from 'react-router'
 
 import { graftRefreshedTailOntoBackfill } from '@/app/chat/transcript-backfill'
-import { ensureMessagingListener } from '@/app/messaging/listener-ensure'
 import { ensurePaidCloudConnection } from '@/app/settings/paid-cloud-entry'
 import { formatRefValue } from '@/components/assistant-ui/directive-text'
 import { BootFailureOverlay } from '@/components/boot-failure-overlay'
@@ -171,10 +170,6 @@ export function ContribWiring({ children }: { children: ReactNode }) {
     }
 
     void ensurePaidCloudConnection(desktop)
-
-    if (desktop.connections) {
-      void ensureMessagingListener(desktop)
-    }
   }, [])
   const location = useLocation()
   const navigate = useNavigate()

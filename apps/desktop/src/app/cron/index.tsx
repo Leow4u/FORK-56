@@ -30,18 +30,17 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { type Translations, useI18n } from '@/i18n'
+import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
 import { AlertTriangle } from '@/lib/icons'
 import { requestModelOptions } from '@/lib/model-options'
 import { displayModelName } from '@/lib/model-status-label'
 import { asText } from '@/lib/text'
 import { cn } from '@/lib/utils'
-import { $connectionsRegistry } from '@/store/connections'
 import { $cronFocusJobId, $cronJobs, invalidateCronJobsRequests, setCronFocusJobId } from '@/store/cron'
 import { $changeEventsAvailable, $cronChangeTick } from '@/store/live-sync'
 import { notify, notifyError } from '@/store/notifications'
 import { $profileScope, ALL_PROFILES } from '@/store/profile'
 import { $projectScope, $projectTree } from '@/store/projects'
-import { $connection } from '@/store/session'
 import {
   type AutomationBlueprint,
   createCronJob,
@@ -89,17 +88,16 @@ import {
   validateCronEditor
 } from './cron-job-model'
 import { jobState, jobTitle, STATE_DOT } from './job-state'
-import {
-  cronCreateConnectionId,
-  type CronRunHome,
-  cronRunHomeOptions,
-  cronWorkdir,
-  deliverCronFolder,
-  lockedCronRunHome,
-  projectFolderForScope
-} from './run-home'
+import { cronProjectFolder } from './project-folder'
 
 const DEFAULT_DELIVER = 'local'
+
+/** A new local job runs in the sidebar's scoped project folder, when there is one. */
+function scopedProjectWorkdir(): { workdir?: string } {
+  const workdir = cronProjectFolder($projectScope.get(), $projectTree.get(), isDesktopFsRemoteMode())
+
+  return workdir ? { workdir } : {}
+}
 
 // Radix <SelectItem> rejects empty-string values, so the "no override" row in
 // the model picker carries this sentinel and is mapped back to '' on save.
@@ -584,11 +582,15 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
         value: created,
         refreshError,
         stale
-      } = await createScheduledJob(
-        profile,
-        values,
-        projectFolderForScope($projectScope.get(), $projectTree.get()),
-        $connectionsRegistry.get()?.connections
+      } = await mutateAndRefreshCronJobs(profile, () =>
+        createCronJob({
+          prompt: values.prompt,
+          schedule: values.schedule,
+          name: values.name || undefined,
+          deliver: values.deliver || DEFAULT_DELIVER,
+          ...scopedProjectWorkdir(),
+          ...(values.model.trim() ? { model: values.model.trim(), provider: values.provider.trim() || undefined } : {})
+        })
       )
 
       if (stale || !created) {
@@ -1073,56 +1075,8 @@ function CronEditorDialog({
   // CUSTOM_TEMPLATE (default) = the manual editor; any other value is a
   // blueprint key that swaps the form for that blueprint's typed slots.
   const [templateChoice, setTemplateChoice] = useState(CUSTOM_TEMPLATE)
-  const [runHome, setRunHome] = useState<CronRunHome>('device')
-  const [canUseCloud, setCanUseCloud] = useState<boolean | null>(null)
-  const connection = useStore($connection)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<null | string>(null)
-  const homes = cronRunHomeOptions(canUseCloud)
-
-  useEffect(() => {
-    if (isEdit) {
-      setRunHome(lockedCronRunHome(connection?.mode, connection?.remoteKind))
-
-      return
-    }
-
-    const discover = window.work4youDesktop?.cloud?.discover
-
-    if (!discover) {
-      setCanUseCloud(false)
-
-      return
-    }
-
-    let active = true
-
-    void discover()
-      .then(result => {
-        if (!active) {
-          return
-        }
-
-        const allowed = 'entitlement' in result && result.entitlement?.canUseCloud === true
-
-        setCanUseCloud(allowed)
-
-        if (!allowed) {
-          setRunHome('device')
-        } else if (lockedCronRunHome(connection?.mode, connection?.remoteKind) === 'cloud') {
-          setRunHome('cloud')
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setCanUseCloud(false)
-        }
-      })
-
-    return () => {
-      active = false
-    }
-  }, [connection?.mode, connection?.remoteKind, isEdit])
 
   // The blueprint catalog powers the create dialog's "Start from" dropdown; it's
   // meaningless when editing an existing job, so skip the fetch there.
@@ -1249,8 +1203,7 @@ function CronEditorDialog({
         name: name.trim(),
         prompt: prompt.trim(),
         provider: overrideProvider,
-        schedule: schedule.trim(),
-        runHome
+        schedule: schedule.trim()
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : c.failedSave)
@@ -1389,25 +1342,6 @@ function CronEditorDialog({
             />
           </Field>
 
-          <Field htmlFor="cron-runs-on" label={c.runsOnLabel}>
-            <Select
-              disabled={isEdit || homes.length < 2}
-              onValueChange={value => setRunHome(value as CronRunHome)}
-              value={runHome}
-            >
-              <SelectTrigger className="h-9 rounded-md" id="cron-runs-on">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {homes.map(home => (
-                  <SelectItem key={home} value={home}>
-                    {home === 'cloud' ? c.runsOnCloud : c.runsOnDevice}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
           <Field htmlFor="cron-prompt" label={c.promptLabel} optional={scriptOnlyJob} optionalLabel={c.optional}>
             <Textarea
               className="min-h-24 font-mono"
@@ -1539,7 +1473,6 @@ interface EditorValues {
   prompt: string
   /** Provider slug for the model override ('' = none). */
   provider: string
-  runHome: CronRunHome
   schedule: string
 }
 
@@ -1549,31 +1482,6 @@ interface ScheduleOption {
 }
 
 const BLANK_CREATE_EDITOR: EditorState = { mode: 'create' }
-
-async function createScheduledJob(
-  profile: string,
-  values: EditorValues,
-  folder: string | null,
-  connections: Array<{ id: string; kind?: string }> | undefined
-) {
-  const connectionId = cronCreateConnectionId(values.runHome, connections)
-
-  const delivered = values.runHome === 'cloud' && folder ? await deliverCronFolder(folder, connectionId) : null
-
-  const workdir = cronWorkdir(values.runHome, folder, delivered)
-
-  return mutateAndRefreshCronJobs(profile, () =>
-    createCronJob({
-      prompt: values.prompt,
-      schedule: values.schedule,
-      name: values.name || undefined,
-      deliver: values.deliver || DEFAULT_DELIVER,
-      ...(connectionId ? { connectionId } : {}),
-      ...(workdir ? { workdir } : {}),
-      ...(values.model.trim() ? { model: values.model.trim(), provider: values.provider.trim() || undefined } : {})
-    })
-  )
-}
 
 export function CronCreatePage({ className, ...props }: React.ComponentProps<'section'>) {
   const { t } = useI18n()
@@ -1587,11 +1495,15 @@ export function CronCreatePage({ className, ...props }: React.ComponentProps<'se
       value: created,
       refreshError,
       stale
-    } = await createScheduledJob(
-      profile,
-      values,
-      projectFolderForScope($projectScope.get(), $projectTree.get()),
-      $connectionsRegistry.get()?.connections
+    } = await mutateAndRefreshCronJobs(profile, () =>
+      createCronJob({
+        prompt: values.prompt,
+        schedule: values.schedule,
+        name: values.name || undefined,
+        deliver: values.deliver || DEFAULT_DELIVER,
+        ...scopedProjectWorkdir(),
+        ...(values.model.trim() ? { model: values.model.trim(), provider: values.provider.trim() || undefined } : {})
+      })
     )
 
     if (stale || !created) {

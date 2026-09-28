@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 
-import { $messagingListHomeId, retainForeignMessaging, tagMessagingHomes } from '@/app/messaging/listener-home'
 import { sameCronSignature } from '@/lib/session-signatures'
 import {
   isMessagingSource,
@@ -147,20 +146,9 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
 
       // Drop any non-messaging source the broad exclude didn't catch (custom
       // sources) — those stay in local recents, not a platform section.
-      const homeId = sessionListHomeId($connection.get())
+      const rows = dropTombstoned(result.sessions.filter(s => isMessagingSource(s.source)))
 
-      const rows = tagMessagingHomes(dropTombstoned(result.sessions.filter(s => isMessagingSource(s.source))), homeId)
-
-      setMessagingSessions(prev => {
-        const next = retainForeignMessaging(tagMessagingHomes(prev, $messagingListHomeId.get()), rows)
-
-        return sameCronSignature(prev, next) ? prev : next
-      })
-
-      if (homeId) {
-        $messagingListHomeId.set(homeId)
-      }
-
+      setMessagingSessions(prev => (sameCronSignature(prev, rows) ? prev : rows))
       // Hit the cap → at least one platform may have more on disk than loaded,
       // so platform sections offer their own per-platform "load more".
       setMessagingTruncated(result.sessions.length >= MESSAGING_SECTION_LIMIT)
@@ -186,13 +174,7 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
       const inProfile = (s: SessionInfo) =>
         sessionProfile === 'all' || normalizeProfileKey(s.profile) === sessionProfile
 
-      const homeId = sessionListHomeId($connection.get())
-
-      const inPlatform = (s: SessionInfo) =>
-        normalizeSessionSource(s.source) === platform &&
-        inProfile(s) &&
-        (!s.connection_id || s.connection_id === homeId)
-
+      const inPlatform = (s: SessionInfo) => normalizeSessionSource(s.source) === platform && inProfile(s)
       const loaded = $messagingSessions.get().filter(inPlatform).length
 
       let result
@@ -219,20 +201,12 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
         return
       }
 
-      const incoming = tagMessagingHomes(dropTombstoned(result.sessions.filter(inPlatform)), homeId)
+      const incoming = dropTombstoned(result.sessions.filter(inPlatform))
 
-      setMessagingSessions(prev => {
-        const next = retainForeignMessaging(tagMessagingHomes(prev, $messagingListHomeId.get()), [
-          ...prev.filter(s => !inPlatform(s) && (!s.connection_id || s.connection_id === homeId)),
-          ...mergeSessionPage(prev.filter(inPlatform), incoming, sessionsToKeep())
-        ])
-
-        return sameCronSignature(prev, next) ? prev : next
-      })
-
-      if (homeId) {
-        $messagingListHomeId.set(homeId)
-      }
+      setMessagingSessions(prev => [
+        ...prev.filter(s => !inPlatform(s)),
+        ...mergeSessionPage(prev.filter(inPlatform), incoming, sessionsToKeep())
+      ])
 
       const total = result.total ?? incoming.length
 
@@ -366,21 +340,9 @@ export function useSessionListActions({ profileScope }: UseSessionListActionsArg
         // Messaging sections: drop any non-messaging source the broad exclude
         // didn't catch (custom sources stay in local recents), then split per
         // platform in the UI.
-        const messagingRows = tagMessagingHomes(
-          dropTombstoned(result.messaging.sessions.filter(s => isMessagingSource(s.source))),
-          homeId
-        )
+        const messagingRows = dropTombstoned(result.messaging.sessions.filter(s => isMessagingSource(s.source)))
 
-        setMessagingSessions(prev => {
-          const next = retainForeignMessaging(tagMessagingHomes(prev, $messagingListHomeId.get()), messagingRows)
-
-          return sameCronSignature(prev, next) ? prev : next
-        })
-
-        if (homeId) {
-          $messagingListHomeId.set(homeId)
-        }
-
+        setMessagingSessions(prev => (sameCronSignature(prev, messagingRows) ? prev : messagingRows))
         // Hit the cap → at least one platform may have more on disk than loaded.
         setMessagingTruncated(result.messaging.sessions.length >= MESSAGING_SECTION_LIMIT)
       }

@@ -946,7 +946,6 @@ export const en: Translations = {
     },
     mcp: {
       loading: 'Loading MCP servers...',
-      deviceHome: 'This device',
       failedLoad: 'MCP config failed to load',
       nameRequiredTitle: 'Name required',
       nameRequiredMessage: 'Give this MCP server a config key.',
@@ -1581,7 +1580,6 @@ export const en: Translations = {
 
   messaging: {
     title: 'Messaging',
-    listenerDevice: 'This device',
     manualSetup: 'Manual setup',
     search: 'Search messaging...',
     loading: 'Loading messaging platforms...',
@@ -2804,9 +2802,6 @@ export const en: Translations = {
     promptPlaceholder: 'Summarize my unread Slack threads and email me the top 5...',
     frequencyLabel: 'Frequency',
     deliverLabel: 'Deliver to',
-    runsOnLabel: 'Runs on',
-    runsOnDevice: 'This device',
-    runsOnCloud: 'Cloud',
     deliverNeedsHomeChannel: 'set a home channel first',
     modelLabel: 'Model',
     modelDefault: 'Default (global model)',

@@ -815,7 +815,6 @@ export interface Translations {
     }
     mcp: {
       loading: string
-      deviceHome: string
       failedLoad: string
       nameRequiredTitle: string
       nameRequiredMessage: string
@@ -1418,7 +1417,6 @@ export interface Translations {
     needsSetup: string
     gatewayStopped: string
     title: string
-    listenerDevice: string
     manualSetup: string
     getCredentials: string
     openSetupGuide: string
@@ -2152,9 +2150,6 @@ export interface Translations {
     promptPlaceholder: string
     frequencyLabel: string
     deliverLabel: string
-    runsOnLabel: string
-    runsOnDevice: string
-    runsOnCloud: string
     deliverNeedsHomeChannel: string
     modelLabel: string
     modelDefault: string

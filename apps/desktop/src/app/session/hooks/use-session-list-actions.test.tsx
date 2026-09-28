@@ -235,6 +235,31 @@ describe('refreshSessions identity + loading hygiene', () => {
     expect($messagingSessions.get().map(s => s.id)).toEqual(['tg-1', 'tg-3'])
   })
 
+  it('shows only the messaging threads the active backend returns', async () => {
+    // The messaging list mirrors the backend the app is on. Once the threads
+    // are gone there, an empty page must empty the list; keeping earlier rows
+    // as if they belonged to another backend left deleted threads on screen.
+    listSidebarSessions.mockResolvedValue(
+      sidebar({ sessions: [] }, [], [row('tg-1', { source: 'telegram' }), row('tg-2', { source: 'telegram' })])
+    )
+
+    const { result } = renderHook(() => useSessionListActions({ profileScope: 'default' }))
+
+    await act(async () => {
+      await result.current.refreshSessions()
+    })
+
+    expect($messagingSessions.get().map(s => s.id)).toEqual(['tg-1', 'tg-2'])
+
+    listSidebarSessions.mockResolvedValue(sidebar({ sessions: [] }))
+
+    await act(async () => {
+      await result.current.refreshSessions()
+    })
+
+    expect($messagingSessions.get()).toEqual([])
+  })
+
   it('still shows loading for the initial (empty-list) fetch', async () => {
     listSidebarSessions.mockResolvedValue(sidebar({ sessions: [row('a')] }))
     const { result } = renderHook(() => useSessionListActions({ profileScope: 'default' }))
