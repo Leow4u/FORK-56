@@ -5,6 +5,7 @@ import {
   readPrivyAccountIdentity,
   savePrivyAccountProfile,
 } from '@/lib/account-profile'
+import { resolveActor } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { authorizationFromRequest } from '@/lib/request-auth'
 import { ensureUserAndOrg, verifyPrivyBearer } from '@/lib/privy'
@@ -20,19 +21,31 @@ async function callerFromRequest(req: NextRequest) {
 }
 
 /**
+ * The Privy person a read may answer for: a Portal session, or the Work4You
+ * login the Desktop agent runs on (OAuth access token). The Desktop account
+ * menu reads through that login, so signing in once covers it.
+ */
+async function readerPrivyDid(req: NextRequest): Promise<string | null> {
+  const claims = await callerFromRequest(req)
+  if (claims?.userId) return claims.userId
+  const actor = await resolveActor(authorizationFromRequest(req))
+  return actor?.via === 'oauth' ? actor.user.privyDid : null
+}
+
+/**
  * GET /api/account — the Privy person behind this session.
- * Auth: Privy bearer or privy-token cookie only (not OAuth access tokens).
+ * Auth: Privy bearer, privy-token cookie, or a Work4You OAuth access token.
  * Name is set only when the cadastro saved both parts. Email comes from the
  * Privy user (native, Google, or GitHub address). Either field may be null.
  */
 export async function GET(req: NextRequest) {
-  const claims = await callerFromRequest(req)
-  if (!claims?.userId) {
+  const privyDid = await readerPrivyDid(req)
+  if (!privyDid) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
   try {
-    const identity = await readPrivyAccountIdentity(claims.userId)
+    const identity = await readPrivyAccountIdentity(privyDid)
     return NextResponse.json(identity)
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'read_failed'
