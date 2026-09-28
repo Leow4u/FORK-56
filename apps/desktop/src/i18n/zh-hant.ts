@@ -741,6 +741,9 @@ export const zhHant = defineLocale({
       set: '設定',
       clear: '清除'
     },
+    connections: {
+      kindCloudSoon: '即將推出'
+    },
     gateway: {
       loading: '正在載入閘道設定...',
       unavailableTitle: '閘道設定不可用',

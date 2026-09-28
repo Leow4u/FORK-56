@@ -711,6 +711,9 @@ export const ar = defineLocale({
       set: 'ضبط',
       clear: 'مسح'
     },
+    connections: {
+      kindCloudSoon: 'قريبًا'
+    },
     gateway: {
       loading: 'جار تحميل إعدادات البوابة...',
       unavailableTitle: 'إعدادات البوابة غير متاحة',

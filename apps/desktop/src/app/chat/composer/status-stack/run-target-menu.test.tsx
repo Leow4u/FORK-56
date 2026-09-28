@@ -269,7 +269,7 @@ describe('ComposerRunTargetMenu', () => {
     )
 
     await openMenu()
-    const cloud = await screen.findByRole('menuitemradio', { name: 'Cloud' })
+    const cloud = await screen.findByRole('menuitemradio', { name: /^Cloud/ })
 
     expect(cloud.getAttribute('aria-disabled')).toBe('true')
     expect(cloud.querySelector('[data-slot="composer-cloud-lock"]')).toBeTruthy()
@@ -279,6 +279,23 @@ describe('ComposerRunTargetMenu', () => {
 
     expect(navigate).not.toHaveBeenCalled()
     expect(applyConnectionConfig).not.toHaveBeenCalled()
+  })
+
+  it('labels the locked Cloud row Coming soon while Cloud is coming soon', async () => {
+    discover.mockResolvedValue({ agents: [], entitlement: { canUseCloud: false } })
+    withDiscover()
+    $connectionsRegistry.set(registry([connection('local', 'local')]))
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    await openMenu()
+    const cloud = await screen.findByRole('menuitemradio', { name: /^Cloud/ })
+
+    expect(cloud.getAttribute('aria-disabled')).toBe('true')
+    expect(cloud.querySelector('[data-slot="composer-cloud-soon"]')?.textContent).toBe('Coming soon')
   })
 
   it('says the instance is being prepared when the paid plan has no address yet', async () => {
@@ -342,7 +359,7 @@ describe('ComposerRunTargetMenu', () => {
     )
 
     await openMenu()
-    const cloud = await screen.findByRole('menuitemradio', { name: 'Cloud' })
+    const cloud = await screen.findByRole('menuitemradio', { name: /^Cloud/ })
 
     expect(cloud.querySelector('[data-slot="composer-cloud-lock"]')).toBeTruthy()
     fireEvent.click(cloud)

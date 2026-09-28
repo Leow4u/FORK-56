@@ -9,6 +9,13 @@ import type {
 
 export type ComposerRunTarget = 'cloud' | 'local'
 
+/**
+ * Cloud is coming soon: the composer labels its locked Cloud row. Pairs with
+ * trimCloudEntitlement in electron/main.ts, which keeps every account on the
+ * no-Cloud path until Cloud ships. Turn both off together.
+ */
+export const CLOUD_COMING_SOON = true
+
 export type ComposerCloudApplySource = {
   cloudOrg?: string
   remoteUrl: string

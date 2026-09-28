@@ -766,6 +766,7 @@ export const en: Translations = {
       kindCloudDesc: 'A hosted instance discovered through your Work4You Cloud account.',
       kindCloudPlan: 'Cloud comes with Plus, Super, or Ultra.',
       kindCloudPreparing: 'Your instance is being prepared.',
+      kindCloudSoon: 'Coming soon',
       kindSshDesc: 'A Work4You install reached over SSH.',
       labelTitle: 'Name',
       labelDesc: 'Required. Shown everywhere this instance appears; must be unique (e.g. “Homelab”, “Work laptop”).',

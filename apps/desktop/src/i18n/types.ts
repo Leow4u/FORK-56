@@ -651,6 +651,7 @@ export interface Translations {
       kindCloudDesc: string
       kindCloudPlan: string
       kindCloudPreparing: string
+      kindCloudSoon: string
       kindSshDesc: string
       labelTitle: string
       labelDesc: string
