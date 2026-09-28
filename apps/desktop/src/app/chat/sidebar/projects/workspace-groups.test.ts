@@ -1046,6 +1046,15 @@ describe('overlayLivePreviews', () => {
     expect(previews[NO_PROJECT_ID].map(s => s.id)).toEqual(['fresh'])
   })
 
+  it('keeps a chat the backend filed under Home, even when its cwd names a folder', () => {
+    const chat = makeCwdSession('/home/me', { id: 'home-folder' })
+    const home = { ...homeNode([chat]), previewSessions: [chat] }
+
+    const previews = overlayLivePreviews([home], [chat], [], 3)
+
+    expect((previews[NO_PROJECT_ID] ?? []).map(s => s.id)).toEqual(['home-folder'])
+  })
+
   it('keeps the full project history when the overlay limit is unbounded', () => {
     const project = projectNode({
       id: '/www/app',

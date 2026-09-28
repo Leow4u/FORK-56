@@ -2,6 +2,7 @@ import { atom } from 'nanostores'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { NO_PROJECT_ID, type SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
+import { rememberDesktopProjects } from '@/store/desktop-project-catalog'
 import { $sidebarAgentsGrouped, setSidebarAgentsGrouped } from '@/store/layout'
 import { $activeGatewayProfile } from '@/store/profile'
 import {
@@ -814,6 +815,54 @@ describe('project tree profile isolation', () => {
     await pendingA
 
     expect($projectTree.get().map(project => project.id)).toEqual(['profile-b'])
+  })
+})
+
+describe('project tree on Local', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    $activeGatewayProfile.set('default')
+  })
+
+  it('keeps the backend repo and folder groups after a project is saved', async () => {
+    rememberDesktopProjects([
+      {
+        archived: false,
+        board_slug: null,
+        color: null,
+        created_at: 0,
+        description: null,
+        folders: [{ added_at: 0, is_primary: true, label: null, path: '/work/app' }],
+        icon: null,
+        id: 'p_app',
+        name: 'app',
+        primary_path: '/work/app',
+        slug: 'app'
+      }
+    ])
+
+    const gateway = {
+      connectionState: 'open',
+      request: vi.fn().mockResolvedValue({
+        active_id: null,
+        projects: [
+          { id: 'p_app', label: 'app', path: '/work/app', repos: [], sessionCount: 2 },
+          { id: '/work/other', isAuto: true, label: 'other', path: '/work/other', repos: [], sessionCount: 7 },
+          { id: NO_PROJECT_ID, isNoProject: true, label: 'Home', path: null, repos: [], sessionCount: 3 }
+        ],
+        scoped_session_ids: []
+      })
+    }
+
+    activeGateway.mockImplementation(() => gateway as never)
+    gatewayAtom.set(gateway as never)
+
+    await refreshProjectTree()
+
+    expect($projectTree.get().map(project => project.id)).toEqual(
+      expect.arrayContaining(['p_app', '/work/other', NO_PROJECT_ID])
+    )
   })
 })
 
