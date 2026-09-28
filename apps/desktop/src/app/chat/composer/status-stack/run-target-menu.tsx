@@ -27,6 +27,7 @@ import { useComposerMenuSide } from '../use-composer-menu-side'
 
 import {
   $heldRunTarget,
+  CLOUD_COMING_SOON,
   type ComposerCloudPortal,
   composerCloudPortalFromDiscover,
   type ComposerRunTarget,
@@ -337,7 +338,14 @@ export function ComposerRunTargetMenu() {
                 {cloudNote ? <span className={cn('mt-0.5 block', composerMenuDetail)}>{cloudNote}</span> : null}
               </span>
               {cloudLocked ? (
-                <Lock aria-hidden className="ml-auto size-3.5 shrink-0" data-slot="composer-cloud-lock" />
+                <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                  {CLOUD_COMING_SOON ? (
+                    <span className={composerMenuDetail} data-slot="composer-cloud-soon">
+                      {copy.kindCloudSoon}
+                    </span>
+                  ) : null}
+                  <Lock aria-hidden className="size-3.5 shrink-0" data-slot="composer-cloud-lock" />
+                </span>
               ) : null}
             </span>
           </DropdownMenuRadioItem>

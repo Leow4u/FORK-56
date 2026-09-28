@@ -25,7 +25,7 @@ import {
 } from '@/store/agent-plugins'
 import { $activeGatewayProfile } from '@/store/profile'
 import { $gatewayState } from '@/store/session'
-import { type ProfileScope, getProfiles } from '@/work4you'
+import { getProfiles, type ProfileScope } from '@/work4you'
 
 import { EmptyState, ListRowSkeleton, Pill, SectionHeading, SettingsContent, SettingsSection } from './primitives'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
@@ -159,6 +159,7 @@ function AgentPluginsSection({
   const [scopeOverride, setScopeOverride] = useState<null | string>(null)
   const embeddedName = embedded ? scopeProfileName(profile) : null
   const scopeProfile = embedded ? (embeddedName ?? activeProfile ?? null) : (scopeOverride ?? activeProfile ?? null)
+
   const requestProfile = embedded
     ? embeddedName && embeddedName !== activeProfile
       ? embeddedName

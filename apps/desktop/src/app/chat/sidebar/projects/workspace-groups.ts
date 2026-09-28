@@ -1,5 +1,4 @@
 import type { Work4YouGitWorktree } from '@/global'
-import { membershipProjectId } from '@/lib/session-project'
 import { normalize } from '@/lib/text'
 import type { ProjectInfo, SessionInfo } from '@/work4you'
 
@@ -440,12 +439,6 @@ function explicitProjectForPath(target: string, explicitProjects: ProjectInfo[])
 }
 
 export function liveSessionProjectId(session: SessionInfo, explicitProjects: ProjectInfo[]): null | string {
-  const claimed = session.desktop_project_id?.trim()
-
-  if (claimed) {
-    return membershipProjectId(session, explicitProjects)
-  }
-
   const cwd = (session.cwd || '').trim()
   // A session may carry only a git_repo_root and no cwd — older/imported rows,
   // or ones captured before cwd tracking. The backend still groups those by repo
@@ -754,93 +747,14 @@ export function excludeProjectSessions(
   }
 }
 
-function sessionBelongsToCatalogProject(session: SessionInfo, projects: ProjectInfo[]): boolean {
-  return membershipProjectId(session, projects) != null
-}
-
-function projectAlreadyShows(project: SidebarProjectTree, sessionId: string): boolean {
-  return project.repos.some(repo => repo.groups.some(group => group.sessions.some(row => row.id === sessionId)))
-}
-
-/** A chat born in this project stays in it even when its cwd is a cloud copy. */
-function withClaimedSessions(
-  project: SidebarProjectTree,
-  live: SessionInfo[],
-  removed: ReadonlySet<string>,
-  projects: ProjectInfo[]
-): SidebarProjectTree {
-  let next = project
-
-  for (const session of live) {
-    if (removed.has(session.id) || membershipProjectId(session, projects) !== project.id) {
-      continue
-    }
-
-    if (projectAlreadyShows(next, session.id) || !next.repos.length) {
-      continue
-    }
-
-    const repos = next.repos.map((repo, index) => {
-      if (index !== 0) {
-        return repo
-      }
-
-      const groups = repo.groups.length
-        ? repo.groups.map((group, groupIndex) =>
-            groupIndex === 0 ? { ...group, sessions: [session, ...group.sessions.filter(row => row.id !== session.id)] } : group
-          )
-        : [{ id: `${repo.id}::branch::main`, isMain: true, label: 'main', path: repo.path, sessions: [session] }]
-
-      return {
-        ...repo,
-        groups,
-        sessionCount: groups.reduce((count, group) => count + group.sessions.length, 0)
-      }
-    })
-
-    next = {
-      ...next,
-      repos,
-      sessionCount: repos.reduce((count, repo) => count + repo.sessionCount, 0)
-    }
-  }
-
-  return next
-}
-
 /** Project-level overlay: {@link overlayRepoLanes} across every repo subtree. */
 export function overlayLiveLanes(
   project: SidebarProjectTree,
   live: SessionInfo[],
-  removed: ReadonlySet<string> = NO_REMOVED,
-  projects: ProjectInfo[] = []
+  removed: ReadonlySet<string> = NO_REMOVED
 ): SidebarProjectTree {
   if (project.isNoProject) {
-    const claimed = new Set(
-      [...live, ...(project.repos[0]?.groups[0]?.sessions ?? [])]
-        .filter(session => sessionBelongsToCatalogProject(session, projects))
-        .map(session => session.id)
-    )
-
-    const home =
-      claimed.size === 0
-        ? project
-        : {
-            ...project,
-            repos: project.repos.map(repo => ({
-              ...repo,
-              groups: repo.groups.map(group => ({
-                ...group,
-                sessions: group.sessions.filter(session => !claimed.has(session.id))
-              }))
-            }))
-          }
-
-    return overlayHomeLane(
-      home,
-      live.filter(session => !claimed.has(session.id)),
-      removed
-    )
+    return overlayHomeLane(project, live, removed)
   }
 
   let changed = false
@@ -853,9 +767,11 @@ export function overlayLiveLanes(
     return next
   })
 
-  const overlaid = changed ? { ...project, repos, sessionCount: repos.reduce((n, repo) => n + repo.sessionCount, 0) } : project
+  if (!changed) {
+    return project
+  }
 
-  return projects.length ? withClaimedSessions(overlaid, live, removed, projects) : overlaid
+  return { ...project, repos, sessionCount: repos.reduce((n, repo) => n + repo.sessionCount, 0) }
 }
 
 interface PreviewOverlayOptions {
@@ -893,24 +809,9 @@ export function overlayLivePreviews(
 
   const out: Record<string, SessionInfo[]> = {}
 
-  const claimedByProject = new Set<string>()
-
-  for (const [projectId, rows] of byProject) {
-    if (projectId === NO_PROJECT_ID) {
-      continue
-    }
-
-    for (const session of rows) {
-      claimedByProject.add(session.id)
-    }
-  }
-
   for (const node of projects) {
     const liveRows = byProject.get(node.id) ?? []
-
-    const base = (node.previewSessions ?? []).filter(
-      session => !removed.has(session.id) && !(node.isNoProject && claimedByProject.has(session.id))
-    )
+    const base = (node.previewSessions ?? []).filter(session => !removed.has(session.id))
 
     if (!liveRows.length && !base.length) {
       continue

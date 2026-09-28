@@ -7,9 +7,9 @@ import type { ProjectInfo, SessionInfo } from '@/types/work4you'
 import {
   baseName,
   excludeProjectSessions,
-  kanbanWorktreeDir,
   folderForNewLaneSession,
   folderForNewRepoSession,
+  kanbanWorktreeDir,
   liveSessionProjectId,
   mergeRepoWorktreeGroups,
   NO_PROJECT_ID,
@@ -474,23 +474,6 @@ const homeNode = (sessions: SessionInfo[]): SidebarProjectTree =>
 describe('liveSessionProjectId', () => {
   it('maps a brand-new (unpersisted) session to its auto project (the repo root)', () => {
     expect(liveSessionProjectId(makeCwdSession('/www/app'), [])).toBe('/www/app')
-  })
-
-  it('keeps a chat in the project it was born in when the cwd is a cloud path', () => {
-    const session = makeCwdSession('/opt/work4you/attached/Dute-app', { desktop_project_id: 'p_dute' })
-
-    expect(liveSessionProjectId(session, [makeProject('p_dute', ['C:/work/Dute-app'])])).toBe('p_dute')
-    expect(liveSessionProjectId(makeCwdSession(null, { desktop_project_id: 'p_dute' }), [makeProject('p_dute', ['C:/work/Dute-app'])])).toBe(
-      'p_dute'
-    )
-  })
-
-  it('does not let a recorded project id fall through to another folder', () => {
-    expect(
-      liveSessionProjectId(makeCwdSession('/www/other', { desktop_project_id: 'p_missing' }), [
-        makeProject('p_other', ['/www/other'])
-      ])
-    ).toBeNull()
   })
 
   it('routes a session under an explicit project folder to that project', () => {
@@ -1057,32 +1040,19 @@ describe('overlayLivePreviews', () => {
     expect(previews['/www/app'].map(s => s.id)).toEqual(['priciest', 'newest'])
   })
 
-  it('files a cloud copy under the computer project and keeps it out of Home', () => {
-    const project = projectNode({ id: 'p_dute', label: 'Dute-app', path: 'C:\\Work\\Dute-app' })
-
-    const home = {
-      ...homeNode([]),
-      previewSessions: [makeCwdSession('/opt/work4you/.work4you/attached/Dute-app', { id: 'cloud-new' })]
-    }
-
-    const live = [
-      makeCwdSession('/opt/work4you/.work4you/attached/Dute-app', {
-        desktop_project_id: 'p_dute',
-        id: 'cloud-new',
-        last_active: 50
-      })
-    ]
-
-    const previews = overlayLivePreviews([project, home], live, [makeProject('p_dute', ['C:\\Work\\Dute-app'])], 5)
-
-    expect(previews.p_dute.map(session => session.id)).toEqual(['cloud-new'])
-    expect(previews[NO_PROJECT_ID]).toBeUndefined()
-  })
-
   it('previews a detached session under Home, which no cwd could place', () => {
     const previews = overlayLivePreviews([homeNode([])], [makeCwdSession(null, { id: 'fresh' })], [], 3)
 
     expect(previews[NO_PROJECT_ID].map(s => s.id)).toEqual(['fresh'])
+  })
+
+  it('keeps a chat the backend filed under Home, even when its cwd names a folder', () => {
+    const chat = makeCwdSession('/home/me', { id: 'home-folder' })
+    const home = { ...homeNode([chat]), previewSessions: [chat] }
+
+    const previews = overlayLivePreviews([home], [chat], [], 3)
+
+    expect((previews[NO_PROJECT_ID] ?? []).map(s => s.id)).toEqual(['home-folder'])
   })
 
   it('keeps the full project history when the overlay limit is unbounded', () => {

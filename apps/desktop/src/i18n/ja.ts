@@ -756,6 +756,9 @@ export const ja = defineLocale({
       set: '設定',
       clear: 'クリア'
     },
+    connections: {
+      kindCloudSoon: '近日公開'
+    },
     gateway: {
       loading: 'ゲートウェイ設定を読み込み中...',
       unavailableTitle: 'ゲートウェイ設定は利用できません',
