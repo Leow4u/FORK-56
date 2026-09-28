@@ -281,7 +281,8 @@ export function ComposerRunTargetMenu() {
     }
   }
 
-  const cloudLocked = canUseCloud === false || portal?.status === 'upgrade'
+  // Coming soon locks Cloud even when the portal cannot answer (no portal session).
+  const cloudLocked = CLOUD_COMING_SOON || canUseCloud === false || portal?.status === 'upgrade'
   const cloudNote = !cloudLocked && portal?.status === 'preparing' ? copy.kindCloudPreparing : null
 
   const setMenuOpen = (next: boolean) => {

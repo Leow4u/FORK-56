@@ -14,6 +14,7 @@ import { $sidebarCanUseCloud } from '@/store/session-homes'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
 import { $heldRunTarget, _resetComposerRunTargetForTests } from './run-target'
+import type * as RunTarget from './run-target'
 import { ComposerRunTargetMenu } from './run-target-menu'
 
 const navigate = vi.fn()
@@ -38,6 +39,16 @@ vi.mock('@/store/session', () => ({
 vi.mock('@/store/notifications', () => ({
   notify: vi.fn(),
   notifyError: vi.fn()
+}))
+
+// Most tests cover the Cloud flows Cloud ships with; the coming-soon tests turn the lock on.
+const comingSoon = vi.hoisted(() => ({ on: false }))
+
+vi.mock('./run-target', async importOriginal => ({
+  ...(await importOriginal<typeof RunTarget>()),
+  get CLOUD_COMING_SOON() {
+    return comingSoon.on
+  }
 }))
 
 const connectionStore = await import('@/store/connections')
@@ -123,6 +134,7 @@ afterEach(() => {
   $pendingConnectionId.set(null)
   $connection.set(null)
   $sidebarCanUseCloud.set(null)
+  comingSoon.on = false
 })
 
 async function openMenu() {
@@ -282,6 +294,7 @@ describe('ComposerRunTargetMenu', () => {
   })
 
   it('labels the locked Cloud row Coming soon while Cloud is coming soon', async () => {
+    comingSoon.on = true
     discover.mockResolvedValue({ agents: [], entitlement: { canUseCloud: false } })
     withDiscover()
     $connectionsRegistry.set(registry([connection('local', 'local')]))
@@ -296,6 +309,31 @@ describe('ComposerRunTargetMenu', () => {
 
     expect(cloud.getAttribute('aria-disabled')).toBe('true')
     expect(cloud.querySelector('[data-slot="composer-cloud-soon"]')?.textContent).toBe('Coming soon')
+  })
+
+  it('keeps Cloud locked and Coming soon when the portal session is missing', async () => {
+    comingSoon.on = true
+    discover.mockRejectedValue(
+      new Error('You are not signed in to Work4You Cloud. Open Settings → Billing and sign in.')
+    )
+    withDiscover()
+    $connectionsRegistry.set(registry([connection('local', 'local')]))
+    render(
+      <MemoryRouter>
+        <ComposerRunTargetMenu />
+      </MemoryRouter>
+    )
+
+    await openMenu()
+    const cloud = await screen.findByRole('menuitemradio', { name: /^Cloud/ })
+
+    expect(cloud.getAttribute('aria-disabled')).toBe('true')
+    expect(cloud.querySelector('[data-slot="composer-cloud-soon"]')?.textContent).toBe('Coming soon')
+    fireEvent.click(cloud)
+
+    expect(notifyError).not.toHaveBeenCalled()
+    expect(navigate).not.toHaveBeenCalled()
+    expect(applyConnectionConfig).not.toHaveBeenCalled()
   })
 
   it('says the instance is being prepared when the paid plan has no address yet', async () => {
