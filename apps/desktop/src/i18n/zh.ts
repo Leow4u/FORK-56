@@ -2842,9 +2842,6 @@ export const zh: Translations = {
 
   cron: {
     close: '关闭定时任务',
-    runsOnLabel: '运行于',
-    runsOnDevice: '此设备',
-    runsOnCloud: '云端',
     title: '定时任务',
     count: count => `${count} 个任务`,
     modelImpact: {

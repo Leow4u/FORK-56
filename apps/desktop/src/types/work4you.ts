@@ -963,14 +963,12 @@ export interface CronJob {
 }
 
 export interface CronJobCreatePayload {
-  connectionId?: string
   deliver?: string
   model?: string
   name?: string
   prompt: string
   provider?: string
   schedule: string
-  workdir?: string
 }
 
 export interface CronJobSchedule {
