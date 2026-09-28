@@ -1146,7 +1146,6 @@ export const zh: Translations = {
     },
     mcp: {
       loading: '正在加载 MCP 服务器...',
-      deviceHome: '此设备',
       failedLoad: 'MCP 配置加载失败',
       nameRequiredTitle: '需要名称',
       nameRequiredMessage: '请为此 MCP 服务器提供配置键。',
