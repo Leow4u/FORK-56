@@ -1,5 +1,4 @@
 import type { Work4YouGitWorktree } from '@/global'
-import { computerFolderForSessionCwd } from '@/lib/attached-folder'
 import { normalize } from '@/lib/text'
 import type { ProjectInfo, SessionInfo } from '@/work4you'
 
@@ -749,56 +748,19 @@ export function excludeProjectSessions(
 }
 
 /** Project-level overlay: {@link overlayRepoLanes} across every repo subtree. */
-function sessionAtComputerFolder(session: SessionInfo, projects: ProjectInfo[]): SessionInfo {
-  const folder = computerFolderForSessionCwd(session.cwd || session.git_repo_root, projects)
-
-  if (!folder) {
-    return session
-  }
-
-  return { ...session, cwd: folder, git_repo_root: folder }
-}
-
 export function overlayLiveLanes(
   project: SidebarProjectTree,
   live: SessionInfo[],
-  removed: ReadonlySet<string> = NO_REMOVED,
-  projects: ProjectInfo[] = []
+  removed: ReadonlySet<string> = NO_REMOVED
 ): SidebarProjectTree {
-  const placed = projects.length ? live.map(session => sessionAtComputerFolder(session, projects)) : live
-
   if (project.isNoProject) {
-    const claimed = new Set(
-      [...live, ...(project.repos[0]?.groups[0]?.sessions ?? [])]
-        .filter(session => computerFolderForSessionCwd(session.cwd || session.git_repo_root, projects))
-        .map(session => session.id)
-    )
-
-    const home =
-      claimed.size === 0
-        ? project
-        : {
-            ...project,
-            repos: project.repos.map(repo => ({
-              ...repo,
-              groups: repo.groups.map(group => ({
-                ...group,
-                sessions: group.sessions.filter(session => !claimed.has(session.id))
-              }))
-            }))
-          }
-
-    return overlayHomeLane(
-      home,
-      placed.filter(session => !claimed.has(session.id)),
-      removed
-    )
+    return overlayHomeLane(project, live, removed)
   }
 
   let changed = false
 
   const repos = project.repos.map(repo => {
-    const next = overlayRepoLanes(repo, placed, removed)
+    const next = overlayRepoLanes(repo, live, removed)
 
     changed ||= next !== repo
 
@@ -833,10 +795,8 @@ export function overlayLivePreviews(
       continue
     }
 
-    const placed = sessionAtComputerFolder(session, explicitProjects)
-
     const projectId =
-      liveSessionProjectId(placed, explicitProjects) ?? (isDetachedSession(placed) ? NO_PROJECT_ID : null)
+      liveSessionProjectId(session, explicitProjects) ?? (isDetachedSession(session) ? NO_PROJECT_ID : null)
 
     if (!projectId) {
       continue
@@ -849,24 +809,9 @@ export function overlayLivePreviews(
 
   const out: Record<string, SessionInfo[]> = {}
 
-  const claimedByProject = new Set<string>()
-
-  for (const [projectId, rows] of byProject) {
-    if (projectId === NO_PROJECT_ID) {
-      continue
-    }
-
-    for (const session of rows) {
-      claimedByProject.add(session.id)
-    }
-  }
-
   for (const node of projects) {
     const liveRows = byProject.get(node.id) ?? []
-
-    const base = (node.previewSessions ?? []).filter(
-      session => !removed.has(session.id) && !(node.isNoProject && claimedByProject.has(session.id))
-    )
+    const base = (node.previewSessions ?? []).filter(session => !removed.has(session.id))
 
     if (!liveRows.length && !base.length) {
       continue
