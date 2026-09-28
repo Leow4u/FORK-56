@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { type Translations, useI18n } from '@/i18n'
+import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
 import { AlertTriangle } from '@/lib/icons'
 import { requestModelOptions } from '@/lib/model-options'
 import { displayModelName } from '@/lib/model-status-label'
@@ -39,6 +40,7 @@ import { $cronFocusJobId, $cronJobs, invalidateCronJobsRequests, setCronFocusJob
 import { $changeEventsAvailable, $cronChangeTick } from '@/store/live-sync'
 import { notify, notifyError } from '@/store/notifications'
 import { $profileScope, ALL_PROFILES } from '@/store/profile'
+import { $projectScope, $projectTree } from '@/store/projects'
 import {
   type AutomationBlueprint,
   createCronJob,
@@ -86,8 +88,16 @@ import {
   validateCronEditor
 } from './cron-job-model'
 import { jobState, jobTitle, STATE_DOT } from './job-state'
+import { cronProjectFolder } from './project-folder'
 
 const DEFAULT_DELIVER = 'local'
+
+/** A new local job runs in the sidebar's scoped project folder, when there is one. */
+function scopedProjectWorkdir(): { workdir?: string } {
+  const workdir = cronProjectFolder($projectScope.get(), $projectTree.get(), isDesktopFsRemoteMode())
+
+  return workdir ? { workdir } : {}
+}
 
 // Radix <SelectItem> rejects empty-string values, so the "no override" row in
 // the model picker carries this sentinel and is mapped back to '' on save.
@@ -578,6 +588,7 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
           schedule: values.schedule,
           name: values.name || undefined,
           deliver: values.deliver || DEFAULT_DELIVER,
+          ...scopedProjectWorkdir(),
           ...(values.model.trim() ? { model: values.model.trim(), provider: values.provider.trim() || undefined } : {})
         })
       )
@@ -1490,6 +1501,7 @@ export function CronCreatePage({ className, ...props }: React.ComponentProps<'se
         schedule: values.schedule,
         name: values.name || undefined,
         deliver: values.deliver || DEFAULT_DELIVER,
+        ...scopedProjectWorkdir(),
         ...(values.model.trim() ? { model: values.model.trim(), provider: values.provider.trim() || undefined } : {})
       })
     )

@@ -969,6 +969,7 @@ export interface CronJobCreatePayload {
   prompt: string
   provider?: string
   schedule: string
+  workdir?: string
 }
 
 export interface CronJobSchedule {
