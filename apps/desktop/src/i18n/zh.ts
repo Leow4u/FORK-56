@@ -225,6 +225,7 @@ export const zh: Translations = {
     shortcuts: '快捷键',
     contactUs: '联系我们',
     logOut: '退出登录',
+    signIn: '登录',
     version: version => `Work4You ${version}`
   },
 

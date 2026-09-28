@@ -4376,6 +4376,22 @@ def _get_portal_status_sync():
     }
 
 
+@app.get("/api/portal/account")
+async def get_portal_account(profile: Optional[str] = None):
+    """Who is signed in to this profile's Portal login, for the account menu.
+
+    Same login the agent runs on, so the desktop never asks for a second
+    sign-in. Cached per person: polling it never refreshes a token.
+    """
+    def _run():
+        from work4you_cli.work4you_account import get_work4you_portal_identity
+
+        with _profile_scope(profile):
+            return get_work4you_portal_identity()
+
+    return await asyncio.to_thread(_run)
+
+
 # ---------------------------------------------------------------------------
 # Diagnostics: prompt-size, support dump, debug upload, config migrate.
 # All produce text output, so they spawn background actions tailed via
@@ -12867,7 +12883,10 @@ async def disconnect_oauth_provider(
                 from work4you_cli.auth import clear_provider_auth, invalidate_work4you_auth_status_cache
                 cleared = clear_provider_auth(provider_id)
                 if provider_id == "work4you":
+                    from work4you_cli.work4you_account import reset_work4you_portal_identity_cache
+
                     invalidate_work4you_auth_status_cache()
+                    reset_work4you_portal_identity_cache()
                 _log.info("oauth/disconnect: %s (cleared=%s)", provider_id, cleared)
                 return {"ok": bool(cleared), "provider": provider_id}
             except Exception as e:

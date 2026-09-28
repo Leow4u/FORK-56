@@ -272,6 +272,7 @@ export interface Translations {
     shortcuts: string
     contactUs: string
     logOut: string
+    signIn: string
     version: (version: string) => string
   }
 

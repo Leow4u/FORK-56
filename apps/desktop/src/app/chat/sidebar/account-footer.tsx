@@ -1,9 +1,10 @@
 import { useStore } from '@nanostores/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { hudTargetSessionId } from '@/app/hud/handoff'
 import { composerPanelCard } from '@/components/chat/composer-dock'
+import { FEATURED_ID } from '@/components/onboarding'
 import { Codicon } from '@/components/ui/codicon'
 import {
   DropdownMenu,
@@ -19,9 +20,12 @@ import { triggerHaptic } from '@/lib/haptics'
 import { cn } from '@/lib/utils'
 import { resolveUpdateChipLabel, resolveVersionStatus } from '@/lib/version-status'
 import { toggleHud } from '@/store/hud'
-import { notify, notifyError } from '@/store/notifications'
-import { $connection } from '@/store/session'
+import { notifyError } from '@/store/notifications'
+import { $desktopOnboarding, requestDesktopOnboarding, startManualProviderOAuth } from '@/store/onboarding'
+import { $activeProfile } from '@/store/profile'
+import { $connection, $gatewayState } from '@/store/session'
 import { $desktopVersion, $updateApply, $updateStatus, startActiveUpdate } from '@/store/updates'
+import { disconnectOAuthProvider, getPortalAccount } from '@/work4you'
 
 import { SETTINGS_ROUTE } from '../../routes'
 
@@ -34,16 +38,27 @@ export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 // profile. The Profile Rail above this footer is a different identity (which
 // agent is active). This row is who is signed in.
 //
-// The trigger shows the cadastro name when the portal saved one, otherwise
-// the Portal email, otherwise a generic Account label. Clicking always opens
-// the same menu (Settings, HUD mode, Docs, Shortcuts, Contact Us). The running
-// app version sits at the bottom of that menu, the way Cursor shows it — not
-// on a Settings page. Log Out is only present when that identity is showing —
-// there is no Portal session to clear otherwise.
+// One login: the menu reads the same Portal login the agent runs on (the
+// first-run "Work4You Portal" sign-in, done in the browser), so there is never
+// a second sign-in. The trigger shows the cadastro name when the Portal saved
+// one, otherwise the Portal email, otherwise a generic Account label. Clicking
+// always opens the same menu (Settings, HUD mode, Docs, Shortcuts, Contact Us).
+// The running app version sits at the bottom of that menu, the way Cursor
+// shows it — not on a Settings page. Signed in adds Log Out, which removes that
+// login and shows the sign-in screen; signed out adds Sign in, which starts it.
 //
-// Email re-checks on window focus: portal sign-in/out happens in a separate
-// BrowserWindow, so focus returning to the main window is the natural
-// "state may have changed" signal — no polling, no new IPC surface.
+// The identity re-reads when sign-in/out finishes in the onboarding overlay,
+// on a profile switch, when the backend comes up, and on window focus (the
+// browser sign-in hands focus back) — no polling.
+interface AccountState {
+  label: null | string
+  /** Null until the first read answers: neither Sign in nor Log Out yet. */
+  loggedIn: boolean | null
+}
+
+const ACCOUNT_UNKNOWN: AccountState = { label: null, loggedIn: null }
+const SIGNED_OUT: AccountState = { label: null, loggedIn: false }
+
 const rowClass = cn(
   'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 text-left text-[length:var(--conversation-text-font-size)]',
   'max-md:h-auto max-md:min-h-11 max-md:py-1.5',
@@ -77,14 +92,20 @@ function accountMark(label: string, signedIn: boolean): string {
 export function AccountFooter() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const [identity, setIdentity] = useState<null | string>(null)
+  const [account, setAccount] = useState<AccountState>(ACCOUNT_UNKNOWN)
+  // Bumped by every read and by sign-out, so a slower earlier answer never
+  // repaints an identity the user just replaced or left.
+  const readSeq = useRef(0)
   const connection = useStore($connection)
+  const gatewayState = useStore($gatewayState)
+  const activeProfile = useStore($activeProfile)
+  const onboarding = useStore($desktopOnboarding)
   const desktopVersion = useStore($desktopVersion)
   const updateApply = useStore($updateApply)
   const updateStatus = useStore($updateStatus)
   const menu = t.accountMenu
-  const signedIn = Boolean(identity)
-  const triggerLabel = identity ?? menu.account
+  const triggerLabel = account.label ?? menu.account
+  const onboardingKey = `${onboarding.configured}:${onboarding.manual}:${onboarding.requested}`
   const applying = updateApply.applying || updateApply.stage === 'restart'
 
   const updateLabel = resolveUpdateChipLabel({
@@ -118,31 +139,31 @@ export function AccountFooter() {
   useEffect(() => {
     let cancelled = false
 
-    const check = () => {
-      const cloud = window.work4youDesktop?.cloud
+    const check = async () => {
+      const seq = ++readSeq.current
 
-      if (!cloud) {
-        return
+      try {
+        const status = await getPortalAccount()
+
+        if (!cancelled && seq === readSeq.current) {
+          setAccount(status.logged_in ? { label: accountMenuLabel(status), loggedIn: true } : SIGNED_OUT)
+        }
+      } catch {
+        // Backend not up yet (or no desktop bridge): keep the last answer;
+        // the next focus or gateway change reads again.
       }
-
-      void cloud
-        .status()
-        .then(status => {
-          if (!cancelled) {
-            setIdentity(status.signedIn ? accountMenuLabel(status) : null)
-          }
-        })
-        .catch(() => undefined)
     }
 
-    check()
-    window.addEventListener('focus', check)
+    const onFocus = () => void check()
+
+    void check()
+    window.addEventListener('focus', onFocus)
 
     return () => {
       cancelled = true
-      window.removeEventListener('focus', check)
+      window.removeEventListener('focus', onFocus)
     }
-  }, [])
+  }, [activeProfile, gatewayState, onboardingKey])
 
   const openSettings = () => {
     triggerHaptic('open')
@@ -169,29 +190,28 @@ export function AccountFooter() {
     openExternalLink(ACCOUNT_CONTACT_URL)
   }
 
-  const signOut = () => {
-    const cloud = window.work4youDesktop?.cloud
+  // Same door as the first-run screen and Billing's Portal row.
+  const signIn = () => {
+    triggerHaptic('open')
+    startManualProviderOAuth(FEATURED_ID)
+  }
 
-    if (!cloud?.logout) {
+  const signOut = async () => {
+    triggerHaptic('open')
+
+    try {
+      await disconnectOAuthProvider(FEATURED_ID)
+    } catch (err) {
+      notifyError(err, t.settings.gateway.signOutFailed)
+
       return
     }
 
-    triggerHaptic('open')
-    void cloud
-      .logout()
-      .then(result => {
-        if (!result.signedIn) {
-          setIdentity(null)
-          notify({
-            kind: 'success',
-            message: t.settings.gateway.cloudSignedOutMessage,
-            title: t.settings.gateway.cloudSignedOutTitle
-          })
-        }
-      })
-      .catch(err => {
-        notifyError(err, t.settings.gateway.signOutFailed)
-      })
+    readSeq.current += 1
+    setAccount(SIGNED_OUT)
+    // A Portal session left in the old app-window sign-in goes too.
+    void window.work4youDesktop?.cloud?.logout?.().catch(() => undefined)
+    requestDesktopOnboarding()
   }
 
   return (
@@ -205,7 +225,7 @@ export function AccountFooter() {
                 className="grid size-5 shrink-0 place-items-center rounded-full bg-(--ui-accent) text-[0.625rem] font-medium uppercase leading-none text-(--dt-primary-foreground) max-md:size-8 max-md:text-xs"
                 data-slot="account-footer-mark"
               >
-                {accountMark(triggerLabel, signedIn)}
+                {accountMark(triggerLabel, Boolean(account.label))}
               </span>
               <span className="truncate">{triggerLabel}</span>
             </button>
@@ -238,12 +258,21 @@ export function AccountFooter() {
               <Codicon aria-hidden="true" name="mail" size="0.8rem" />
               {menu.contactUs}
             </DropdownMenuItem>
-            {signedIn ? (
+            {account.loggedIn === true ? (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={signOut}>
+                <DropdownMenuItem onSelect={() => void signOut()}>
                   <Codicon aria-hidden="true" name="sign-out" size="0.8rem" />
                   {menu.logOut}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {account.loggedIn === false ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={signIn}>
+                  <Codicon aria-hidden="true" name="sign-in" size="0.8rem" />
+                  {menu.signIn}
                 </DropdownMenuItem>
               </>
             ) : null}

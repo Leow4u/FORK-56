@@ -9,6 +9,7 @@ import type {
   OAuthProvidersResponse,
   OAuthStartResponse,
   OAuthSubmitResponse,
+  PortalAccountIdentity,
   StatusResponse,
   Work4YouConfig,
   Work4YouConfigRecord
@@ -190,6 +191,14 @@ export function listOAuthProviders(): Promise<OAuthProvidersResponse> {
   return work4youApi<OAuthProvidersResponse>({
     ...profileScoped(),
     path: '/api/providers/oauth'
+  })
+}
+
+/** Who is signed in to the Portal login the agent runs on — the account menu's identity. */
+export function getPortalAccount(): Promise<PortalAccountIdentity> {
+  return work4youApi<PortalAccountIdentity>({
+    ...profileScoped(),
+    path: '/api/portal/account'
   })
 }
 

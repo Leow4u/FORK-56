@@ -3909,6 +3909,26 @@ class TestNewEndpoints:
         self.client = TestClient(app)
         self.client.headers[_SESSION_HEADER_NAME] = _SESSION_TOKEN
 
+    # --- Portal account (desktop account menu) ---
+
+    def test_portal_account_serves_the_agent_login_identity(self, monkeypatch):
+        monkeypatch.setattr(
+            "work4you_cli.work4you_account.get_work4you_portal_identity",
+            lambda: {"logged_in": True, "email": "ada@example.test", "name": "Ada Lovelace"},
+        )
+
+        resp = self.client.get("/api/portal/account")
+
+        assert resp.status_code == 200
+        assert resp.json() == {"logged_in": True, "email": "ada@example.test", "name": "Ada Lovelace"}
+
+    def test_portal_account_requires_the_session_token(self):
+        from work4you_cli.web_server import _SESSION_HEADER_NAME
+
+        resp = self.client.get("/api/portal/account", headers={_SESSION_HEADER_NAME: "wrong-token"})
+
+        assert resp.status_code == 401
+
 
     # --- Automation Blueprints ---
 

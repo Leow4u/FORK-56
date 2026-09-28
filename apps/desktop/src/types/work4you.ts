@@ -69,6 +69,14 @@ export interface OAuthProvidersResponse {
   providers: OAuthProvider[]
 }
 
+/** GET /api/portal/account: the person behind the Portal login the agent runs on. */
+export interface PortalAccountIdentity {
+  email: null | string
+  logged_in: boolean
+  /** Cadastro name, only when both parts were saved. */
+  name: null | string
+}
+
 export type OAuthStartResponse =
   | {
       auth_url: string
