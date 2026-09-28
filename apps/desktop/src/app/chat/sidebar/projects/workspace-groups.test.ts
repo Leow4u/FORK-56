@@ -7,9 +7,9 @@ import type { ProjectInfo, SessionInfo } from '@/types/work4you'
 import {
   baseName,
   excludeProjectSessions,
-  kanbanWorktreeDir,
   folderForNewLaneSession,
   folderForNewRepoSession,
+  kanbanWorktreeDir,
   liveSessionProjectId,
   mergeRepoWorktreeGroups,
   NO_PROJECT_ID,

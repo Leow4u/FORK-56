@@ -10,9 +10,8 @@ import type {
   DesktopConnectionsRegistry,
   Work4YouConnection
 } from '@/global'
-import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
-
 import { $sidebarCanUseCloud } from '@/store/session-homes'
+import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 
 import { $heldRunTarget, _resetComposerRunTargetForTests } from './run-target'
 import { ComposerRunTargetMenu } from './run-target-menu'
