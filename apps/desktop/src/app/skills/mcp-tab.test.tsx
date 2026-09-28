@@ -4,7 +4,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { I18nProvider } from '@/i18n'
+import { probeCache } from '@/lib/mcp-probe-cache'
 import { queryClient } from '@/lib/query-client'
+import { $connectionsRegistry, setConnectionsRegistry } from '@/store/connections'
 import type * as Work4YouApi from '@/work4you'
 
 const getWork4YouConfigRecord = vi.fn()
@@ -136,5 +138,65 @@ describe('McpTab directory chrome', () => {
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Popular' })).toBeNull())
     expect(screen.getByText('Gmail')).toBeTruthy()
     expect(screen.queryByText('Instagram')).toBeNull()
+  })
+})
+
+describe('McpTab stays on the active backend', () => {
+  // The tab reads the MCP log and probes each enabled server when it opens.
+  const api = vi.fn(async (req: { connectionId?: string; method?: string; path: string }) =>
+    req.path.startsWith('/api/logs') ? { lines: [] } : { ok: true, tools: [] }
+  )
+
+  const requests = () => api.mock.calls.map(([req]) => req)
+  const probes = (server: string) => requests().filter(req => req.path === `/api/mcp/servers/${server}/test`).length
+
+  beforeEach(() => {
+    ;(window as { work4youDesktop?: unknown }).work4youDesktop = { api }
+    setConnectionsRegistry({
+      version: 2,
+      primary: 'local',
+      secureTokenStorage: true,
+      connections: [
+        { id: 'local', kind: 'local', label: 'This computer', tokenSet: false, tokenPreview: null },
+        { id: 'cloud-org', kind: 'cloud', label: 'Cloud', tokenSet: true, tokenPreview: null }
+      ]
+    })
+  })
+
+  afterEach(() => {
+    $connectionsRegistry.set(null)
+    delete (window as { work4youDesktop?: unknown }).work4youDesktop
+  })
+
+  it('does not add a removed server back, here or on another connection, when the tab opens again', async () => {
+    getWork4YouConfigRecord.mockResolvedValue({
+      mcp_servers: {
+        gmail: { command: 'npx', args: ['-y', 'gmail-mcp'] },
+        notion: { url: 'https://mcp.notion.com/mcp' }
+      }
+    })
+
+    await renderMcpTab()
+    await waitFor(() => expect(probes('notion')).toBe(1))
+    const gmailProbes = probes('gmail')
+
+    cleanup()
+    queryClient.clear()
+    probeCache.clear()
+
+    // The user removed Notion from this backend's mcp.json, then came back.
+    getWork4YouConfigRecord.mockResolvedValue({
+      mcp_servers: { gmail: { command: 'npx', args: ['-y', 'gmail-mcp'] } }
+    })
+
+    await renderMcpTab()
+    // The new server list has loaded once Gmail is probed again.
+    await waitFor(() => expect(probes('gmail')).toBeGreaterThan(gmailProbes))
+    await act(async () => {
+      await new Promise(resolve => window.setTimeout(resolve, 0))
+    })
+
+    expect(requests().filter(req => req.method === 'POST' && req.path === '/api/mcp/servers')).toEqual([])
+    expect(requests().filter(req => 'connectionId' in req)).toEqual([])
   })
 })
