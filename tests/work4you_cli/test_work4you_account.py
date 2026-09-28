@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import time
+import urllib.error
 from typing import Any
 
 import pytest
@@ -15,9 +16,11 @@ from work4you_cli.work4you_account import (
     Work4YouPortalSubscriptionInfo,
     format_work4you_portal_entitlement_message,
     get_work4you_portal_account_info,
+    get_work4you_portal_identity,
     is_work4you_free_plan,
     work4you_portal_topup_url,
     reset_work4you_portal_account_info_cache,
+    reset_work4you_portal_identity_cache,
 )
 
 
@@ -395,7 +398,114 @@ def test_member_spend_cap_exceeded_without_amounts(monkeypatch):
 # ── org slug/name parsing + top-up URL builder ──────────────────────────────
 
 
+# ── account menu identity (one login for agent and menu) ────────────────────
 
 
+@pytest.fixture
+def identity_cache():
+    reset_work4you_portal_identity_cache()
+    yield
+    reset_work4you_portal_identity_cache()
 
 
+def _local_login(token: str) -> dict[str, Any]:
+    return {
+        "logged_in": True,
+        "access_token": token,
+        "portal_base_url": "https://portal.example.test",
+    }
+
+
+def test_identity_reads_name_and_email_with_the_agent_login(monkeypatch, identity_cache):
+    token = _jwt({"sub": "did:privy:ada", "exp": int(time.time()) + 900})
+    calls: list[tuple[str, Any]] = []
+
+    def profile(access_token, portal_base_url=None):
+        calls.append((access_token, portal_base_url))
+        return {"firstName": " Ada ", "lastName": "Lovelace", "email": "ada@example.test"}
+
+    monkeypatch.setattr("work4you_cli.auth.get_work4you_auth_status_local", lambda: _local_login(token))
+    monkeypatch.setattr("work4you_cli.auth.resolve_work4you_access_token", lambda: "agent-token")
+    monkeypatch.setattr("work4you_cli.work4you_account._fetch_work4you_account_profile", profile)
+
+    assert get_work4you_portal_identity() == {
+        "logged_in": True,
+        "email": "ada@example.test",
+        "name": "Ada Lovelace",
+    }
+    assert calls == [("agent-token", "https://portal.example.test")]
+
+
+def test_identity_name_needs_both_cadastro_parts(monkeypatch, identity_cache):
+    token = _jwt({"sub": "did:privy:ada"})
+    monkeypatch.setattr("work4you_cli.auth.get_work4you_auth_status_local", lambda: _local_login(token))
+    monkeypatch.setattr("work4you_cli.auth.resolve_work4you_access_token", lambda: "agent-token")
+    monkeypatch.setattr(
+        "work4you_cli.work4you_account._fetch_work4you_account_profile",
+        lambda *a, **kw: {"firstName": "Ada", "lastName": " ", "email": "ada@example.test"},
+    )
+
+    assert get_work4you_portal_identity()["name"] is None
+
+
+def test_identity_cache_hit_never_resolves_a_token(monkeypatch, identity_cache):
+    """Polling the menu must not refresh: a refreshed token for the same
+    person still hits the cache, even when the stored token has expired."""
+    stored = iter(
+        [
+            _jwt({"sub": "did:privy:ada", "jti": "first", "exp": int(time.time()) + 900}),
+            _jwt({"sub": "did:privy:ada", "jti": "refreshed", "exp": int(time.time()) - 60}),
+        ]
+    )
+    resolves: list[int] = []
+
+    def resolve():
+        resolves.append(1)
+        return "agent-token"
+
+    monkeypatch.setattr("work4you_cli.auth.get_work4you_auth_status_local", lambda: _local_login(next(stored)))
+    monkeypatch.setattr("work4you_cli.auth.resolve_work4you_access_token", resolve)
+    monkeypatch.setattr(
+        "work4you_cli.work4you_account._fetch_work4you_account_profile",
+        lambda *a, **kw: {"email": "ada@example.test"},
+    )
+
+    first = get_work4you_portal_identity()
+    second = get_work4you_portal_identity()
+
+    assert first == second == {"logged_in": True, "email": "ada@example.test", "name": None}
+    assert len(resolves) == 1
+
+
+def test_identity_falls_back_to_the_login_email(monkeypatch, identity_cache):
+    """A Portal that refuses the agent login on /api/account still maps the
+    same login to its email on /api/oauth/account."""
+    token = _jwt({"sub": "did:privy:ada"})
+
+    def refuse(*a, **kw):
+        raise urllib.error.HTTPError("https://portal.example.test/api/account", 401, "unauthorized", None, None)
+
+    monkeypatch.setattr("work4you_cli.auth.get_work4you_auth_status_local", lambda: _local_login(token))
+    monkeypatch.setattr("work4you_cli.auth.resolve_work4you_access_token", lambda: "agent-token")
+    monkeypatch.setattr("work4you_cli.work4you_account._fetch_work4you_account_profile", refuse)
+    monkeypatch.setattr(
+        "work4you_cli.work4you_account._fetch_work4you_account_info",
+        lambda *a, **kw: {"user": {"email": "ada@example.test", "privy_did": "did:privy:ada"}},
+    )
+
+    assert get_work4you_portal_identity() == {
+        "logged_in": True,
+        "email": "ada@example.test",
+        "name": None,
+    }
+
+
+def test_identity_without_a_login_makes_no_portal_call(monkeypatch, identity_cache):
+    def no_call(*a, **kw):
+        raise AssertionError("no Portal call without a login")
+
+    monkeypatch.setattr("work4you_cli.auth.get_work4you_auth_status_local", lambda: {"logged_in": False})
+    monkeypatch.setattr("work4you_cli.auth.resolve_work4you_access_token", no_call)
+    monkeypatch.setattr("work4you_cli.work4you_account._fetch_work4you_account_profile", no_call)
+
+    assert get_work4you_portal_identity() == {"logged_in": False, "email": None, "name": None}

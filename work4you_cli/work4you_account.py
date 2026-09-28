@@ -32,6 +32,14 @@ _ACCOUNT_INFO_CACHE_TTL = 60
 _account_info_cache: tuple[str, float, "Work4YouPortalAccountInfo"] | None = None
 _ACCOUNT_INFO_CACHE_LOCK = threading.Lock()
 
+# Desktop account menu identity, keyed by Portal + token subject (not the
+# 15-minute access token) so a token refresh does not refetch. Misses retry
+# after a minute; a stored name/email stays for an hour.
+_IDENTITY_CACHE_TTL = 60 * 60
+_IDENTITY_RETRY_TTL = 60
+_identity_cache: dict[str, tuple[float, float, dict[str, Optional[str]]]] = {}
+_IDENTITY_CACHE_LOCK = threading.Lock()
+
 
 @dataclass(frozen=True)
 class Work4YouPortalSubscriptionInfo:
@@ -386,6 +394,57 @@ def reset_work4you_portal_account_info_cache() -> None:
     _account_info_cache = None
 
 
+def reset_work4you_portal_identity_cache() -> None:
+    """Forget cached account-menu identities (logout, tests)."""
+    with _IDENTITY_CACHE_LOCK:
+        _identity_cache.clear()
+
+
+def get_work4you_portal_identity() -> dict[str, Any]:
+    """Who is signed in to this profile's Portal login, for the account menu.
+
+    The desktop reads the same OAuth login the agent runs on, so the menu never
+    asks for a second sign-in. Returns ``logged_in`` plus the cadastro ``name``
+    (only when both parts were saved) and ``email``; either may be None.
+
+    A cache hit reads only the stored token's subject, so a polled caller never
+    refreshes a token. A miss resolves a refresh-aware token once, then reads
+    ``GET /api/account`` and falls back to the email on ``/api/oauth/account``.
+    """
+    try:
+        from work4you_cli.auth import _decode_jwt_claims, get_work4you_auth_status_local
+
+        local = get_work4you_auth_status_local() or {}
+    except Exception:
+        return {"logged_in": False, "email": None, "name": None}
+
+    if not local.get("logged_in"):
+        return {"logged_in": False, "email": None, "name": None}
+
+    portal_base_url = _portal_base_url(local)
+    stored = local.get("access_token")
+    stored = stored if isinstance(stored, str) else ""
+    subject = _coerce_str(_decode_jwt_claims(stored).get("sub"))
+    key = f"{portal_base_url or ''}|{subject}" if subject else _cache_key(stored, portal_base_url)
+
+    with _IDENTITY_CACHE_LOCK:
+        hit = _identity_cache.get(key)
+        if hit is not None and (time.monotonic() - hit[0]) < hit[1]:
+            return {"logged_in": True, **hit[2]}
+
+    try:
+        from work4you_cli.auth import resolve_work4you_access_token
+
+        identity = _fetch_portal_identity(resolve_work4you_access_token(), portal_base_url)
+    except Exception:
+        identity = {"email": None, "name": None}
+
+    ttl = _IDENTITY_CACHE_TTL if (identity["email"] or identity["name"]) else _IDENTITY_RETRY_TTL
+    with _IDENTITY_CACHE_LOCK:
+        _identity_cache[key] = (time.monotonic(), ttl, identity)
+    return {"logged_in": True, **identity}
+
+
 def get_work4you_portal_account_info(
     *,
     force_fresh: bool = False,
@@ -641,6 +700,62 @@ def _fetch_work4you_account_info(
     with urllib.request.urlopen(req, timeout=8) as resp:
         payload = json.loads(resp.read().decode())
     return payload if isinstance(payload, dict) else {}
+
+
+def _fetch_work4you_account_profile(
+    access_token: str,
+    portal_base_url: Optional[str] = None,
+) -> dict[str, Any]:
+    """GET /api/account: the Privy person's email and cadastro name parts."""
+    base = (portal_base_url or "https://portal.work4you.ai").rstrip("/")
+    req = urllib.request.Request(
+        f"{base}/api/account",
+        headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        payload = json.loads(resp.read().decode())
+    return payload if isinstance(payload, dict) else {}
+
+
+def _fetch_portal_identity(
+    access_token: str,
+    portal_base_url: Optional[str],
+) -> dict[str, Optional[str]]:
+    """Name and email for the account menu; email only when the name read fails.
+
+    ``/api/account`` answers from Privy, so a Privy outage (or a Portal that
+    still takes only a browser session there) falls back to the email the
+    Portal keeps for this login on ``/api/oauth/account``.
+    """
+    try:
+        profile = _fetch_work4you_account_profile(access_token, portal_base_url)
+    except Exception:
+        profile = {}
+    email = _clean_text(profile.get("email"))
+    name = _cadastro_name(profile.get("firstName"), profile.get("lastName"))
+    if email or name:
+        return {"email": email, "name": name}
+
+    try:
+        account = _fetch_work4you_account_info(access_token, portal_base_url)
+    except Exception:
+        account = {}
+    user = account.get("user") if isinstance(account.get("user"), dict) else {}
+    return {"email": _clean_text(user.get("email")), "name": None}
+
+
+def _clean_text(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    text = " ".join(value.split())
+    return text or None
+
+
+def _cadastro_name(first: Any, last: Any) -> Optional[str]:
+    """The Portal's display rule: a name only when both parts were saved."""
+    first_name = _clean_text(first)
+    last_name = _clean_text(last)
+    return f"{first_name} {last_name}" if first_name and last_name else None
 
 
 def _info_from_valid_jwt(
