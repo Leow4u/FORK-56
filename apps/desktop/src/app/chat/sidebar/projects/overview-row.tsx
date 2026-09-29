@@ -2,7 +2,6 @@ import type * as React from 'react'
 import { useRef, useState } from 'react'
 
 import { Codicon } from '@/components/ui/codicon'
-import type { Work4YouGitWorktree } from '@/global'
 import { useI18n } from '@/i18n'
 import { isComputerProjectPath } from '@/lib/attached-folder'
 import { cn } from '@/lib/utils'
@@ -11,14 +10,11 @@ import type { SessionInfo } from '@/work4you'
 import {
   SIDEBAR_LEAD_ICON_SIZE,
   SidebarGroupRow,
-  SidebarRowBody,
   SidebarRowGrab,
-  SidebarRowLabel,
   SidebarRowLead,
   SidebarRowLeadGlyph,
   SidebarRowLink,
-  SidebarRowNest,
-  SidebarRowShell
+  SidebarRowNest
 } from '../chrome'
 
 import { latestProjectSessions, SIDEBAR_GROUP_PAGE, useWorkspaceNodeOpen } from './model'
@@ -46,32 +42,12 @@ export function projectIcon({ color, icon, isNoProject, path }: SidebarProjectTr
   )
 }
 
-export function ProjectBackRow({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <SidebarRowShell>
-      <SidebarRowBody
-        className="group/back w-full text-(--ui-text-tertiary) opacity-40 hover:text-foreground"
-        onClick={onClick}
-      >
-        <SidebarRowLead>
-          <SidebarRowLeadGlyph>
-            <Codicon name="arrow-left" size={SIDEBAR_LEAD_ICON_SIZE} />
-          </SidebarRowLeadGlyph>
-        </SidebarRowLead>
-        <SidebarRowLabel className="text-xs underline-offset-4 group-hover/back:underline">{label}</SidebarRowLabel>
-      </SidebarRowBody>
-    </SidebarRowShell>
-  )
-}
-
 interface ProjectOverviewRowProps {
   project: SidebarProjectTree
-  onEnter?: (id: string) => void
   onNewSession?: (path: null | string) => void
   renderRows?: (sessions: SessionInfo[]) => React.ReactNode
   activeProjectId?: null | string
   previewSessions?: SessionInfo[]
-  repoWorktrees?: Record<string, Work4YouGitWorktree[]>
   reorderable?: boolean
   dragging?: boolean
   dragHandleProps?: React.HTMLAttributes<HTMLElement>
@@ -81,7 +57,6 @@ interface ProjectOverviewRowProps {
 
 export function ProjectOverviewRow({
   project,
-  onEnter,
   onNewSession,
   renderRows,
   activeProjectId,
@@ -111,8 +86,8 @@ export function ProjectOverviewRow({
   const visiblePreview = preview.slice(0, visibleCount)
   const hiddenCount = preview.length - visiblePreview.length
   const nextCount = Math.min(SIDEBAR_GROUP_PAGE, hiddenCount)
-  // Overview folders disclose history only. Git lanes stay on drill-in; the
-  // live branch already sits on the composer.
+  // Folders disclose history only. The live branch already sits on the
+  // composer, and worktrees open from there.
   const canExpand = preview.length > 0
 
   const lead = reorderable ? (
@@ -144,11 +119,13 @@ export function ProjectOverviewRow({
       }
       className={cn(dragging && 'cursor-grabbing bg-(--ui-sidebar-surface-background)')}
       data-glass-opaque={dragging ? '' : undefined}
+      // The name is the disclosure, same as the caret beside it: the sidebar
+      // lists every project's history in place, so there is nothing to enter.
       label={
         <SidebarRowLink
-          aria-label={s.projects.enter(project.label)}
-          labelClassName={cn('hover:text-foreground hover:underline', isActive && 'text-foreground')}
-          onClick={() => onEnter?.(project.id)}
+          aria-expanded={canExpand ? open : undefined}
+          labelClassName={cn(canExpand && 'hover:text-foreground', isActive && 'text-foreground')}
+          onClick={canExpand ? toggleOpen : undefined}
         >
           {project.label}
         </SidebarRowLink>
@@ -156,7 +133,7 @@ export function ProjectOverviewRow({
       lead={lead}
       // The label is grab surface too, not just the lead's grabber — same
       // listeners, minus the controls that keep their own gestures. A project
-      // row has no rival drag (its title navigates on CLICK), so the sortable
+      // row has no rival drag (its title toggles on CLICK), so the sortable
       // owns the press outright.
       {...dragHandleProps}
       onPointerDown={event => {
@@ -175,10 +152,8 @@ export function ProjectOverviewRow({
   )
 
   return (
-    // Tag each project sibling with its id so a custom skin can target one
-    // project in the overview — the parallel to the entered-project wrapper's
-    // `data-sessions-project` (index.tsx), which only fires once you've drilled
-    // in. Here it's present on every row of the list.
+    // Tag each project row with its id so a custom skin can target one
+    // project in the list.
     <div className={cn(dragging && 'relative z-10')} data-sessions-project={project.id} ref={ref} style={style}>
       {/* Home has no per-project actions, so it gets no right-click menu. */}
       {project.isNoProject ? (

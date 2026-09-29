@@ -11,7 +11,6 @@ import {
 interface WorkspaceSessionOptions {
   activeSessionIdRef: MutableRefObject<string | null>
   followActiveSessionCwd?: (cwd: string) => void | Promise<void>
-  onExplicitWorkspace?: (cwd: string) => void
   path: null | string
   requestGateway: <T>(method: string, params?: Record<string, unknown>) => Promise<T>
   startFreshSessionDraft: (options?: { workspaceTarget: string }) => void
@@ -20,7 +19,6 @@ interface WorkspaceSessionOptions {
 export function startWorkspaceSession({
   activeSessionIdRef,
   followActiveSessionCwd: followCwd = followActiveSessionCwd,
-  onExplicitWorkspace,
   path,
   requestGateway,
   startFreshSessionDraft
@@ -52,7 +50,6 @@ export function startWorkspaceSession({
       setCurrentBranch(info.branch || '')
 
       if (explicitTarget) {
-        onExplicitWorkspace?.(resolved)
         void followCwd(resolved)
       }
     })

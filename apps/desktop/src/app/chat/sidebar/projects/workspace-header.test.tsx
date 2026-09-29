@@ -1,15 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { Codicon } from '@/components/ui/codicon'
-
-import {
-  StartWorkButton,
-  WorkspaceAddButton,
-  WorkspaceHeader,
-  WorkspaceMenu,
-  WorkspaceShowMoreButton
-} from './workspace-header'
+import { WorkspaceAddButton, WorkspaceShowMoreButton } from './workspace-header'
 
 afterEach(cleanup)
 
@@ -69,32 +61,5 @@ describe('WorkspaceShowMoreButton', () => {
     const button = screen.getByRole('button', { name: 'Show 5 more in Test D' })
     expect(button.textContent).toBe('Show more')
     expect(tipTrigger(button)).toBeTruthy()
-  })
-})
-
-describe('WorkspaceMenu', () => {
-  it('does not wrap the kebab trigger in a Tip', () => {
-    render(<WorkspaceMenu onRemove={vi.fn()} path="/repo/lane" />)
-
-    const button = screen.getByRole('button', { name: 'Actions' })
-    expect(tipTrigger(button)).toBeNull()
-  })
-})
-
-describe('StartWorkButton', () => {
-  it('wraps the git-branch trigger in a Tip', () => {
-    render(<StartWorkButton repoPath="/repo" />)
-
-    const button = screen.getByRole('button', { name: 'New worktree' })
-    expect(tipTrigger(button)).toBeTruthy()
-  })
-})
-
-describe('WorkspaceHeader', () => {
-  it('renders a static label without a toggle when onToggle is omitted', () => {
-    render(<WorkspaceHeader icon={<Codicon name="git-branch" size="0.75rem" />} label="main" />)
-
-    expect(screen.getByTitle('main')).toBeTruthy()
-    expect(screen.queryByRole('button')).toBeNull()
   })
 })

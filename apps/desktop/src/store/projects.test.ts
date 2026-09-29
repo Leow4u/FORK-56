@@ -25,7 +25,6 @@ import {
   $removedSessionIds,
   $sessionMutationsInFlight,
   $startWorkSessionRequest,
-  $worktreeRefreshToken,
   ALL_PROJECTS,
   beginSessionMutation,
   clearActiveWorkspace,
@@ -41,7 +40,6 @@ import {
   projectNameForCwd,
   refreshProjects,
   refreshProjectTree,
-  refreshWorktrees,
   resolveCreateSessionCwd,
   resolveNewSessionCwd,
   scanAndRecordRepos,
@@ -519,14 +517,6 @@ describe('projectNameForCwd', () => {
   })
 })
 
-describe('worktree refresh', () => {
-  it('refreshWorktrees bumps the probe token so useRepoWorktreeMap refetches', () => {
-    const before = $worktreeRefreshToken.get()
-    refreshWorktrees()
-    expect($worktreeRefreshToken.get()).toBe(before + 1)
-  })
-})
-
 describe('startWorkInRepo remote capability gate (#81724)', () => {
   it('names the stale-backend remedy when a remote gateway lacks the worktree route', async () => {
     isDesktopFsRemoteMode.mockReturnValue(true)
@@ -863,6 +853,27 @@ describe('project tree on Local', () => {
     expect($projectTree.get().map(project => project.id)).toEqual(
       expect.arrayContaining(['p_app', '/work/other', NO_PROJECT_ID])
     )
+  })
+})
+
+describe('project tree history', () => {
+  it('asks for every loaded session per project, not a short preview', async () => {
+    const gateway = {
+      connectionState: 'open',
+      request: vi.fn().mockResolvedValue({ active_id: null, projects: [], scoped_session_ids: [] })
+    }
+
+    activeGateway.mockImplementation(() => gateway as never)
+    gatewayAtom.set(gateway as never)
+
+    await refreshProjectTree()
+
+    const [, params] = gateway.request.mock.calls.find(([method]) => method === 'projects.tree') ?? []
+
+    // The sidebar lists a project's whole history in place (there is no
+    // drill-in to fetch the rest), so the preview must cover the full load.
+    expect(params.preview_limit).toBe(params.session_limit)
+    expect(params.session_limit).toBeGreaterThan(0)
   })
 })
 

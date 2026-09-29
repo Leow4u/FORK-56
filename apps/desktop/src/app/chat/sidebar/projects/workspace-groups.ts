@@ -1,15 +1,11 @@
-import type { Work4YouGitWorktree } from '@/global'
-import { normalize } from '@/lib/text'
 import type { ProjectInfo, SessionInfo } from '@/work4you'
 
 import { rankSessions } from '../order'
 
-// Session grouping is now computed authoritatively on the backend
-// (`tui_gateway/project_tree.py`, exposed via `projects.tree` /
-// `projects.project_sessions`). The desktop is a thin renderer: this module
-// only holds the render contract (the three tree interfaces) plus a couple of
-// pure helpers and the VISUAL-ONLY worktree enhancer that injects empty lanes
-// from `git worktree list`. It never decides session membership.
+// Session grouping is computed authoritatively on the backend
+// (`tui_gateway/project_tree.py`, exposed via `projects.tree`). The desktop is
+// a thin renderer: this module only holds the render contract (the three tree
+// interfaces) plus a few pure helpers. It never decides session membership.
 
 export interface SidebarSessionGroup {
   id: string
@@ -64,35 +60,8 @@ export interface SidebarProjectTree {
   totalCostUsd?: number
   // Max activity timestamp across the project's sessions (overview sort key).
   lastActive?: number
-  // Up to N most-recent sessions for the overview preview (set by `projects.tree`).
+  // The project's sessions, newest first, up to what `projects.tree` loaded.
   previewSessions?: SessionInfo[]
-}
-
-/** Folder a repo header "+" should open: the project's own folder, else the repo path. */
-export function folderForNewRepoSession(
-  projectPath: null | string | undefined,
-  repoPath: null | string | undefined
-): null | string {
-  return (projectPath || '').trim() || (repoPath || '').trim() || null
-}
-
-/**
- * Folder a lane "+" should open. The main checkout follows the project folder
- * (a git root folded in from another checkout must not steal it). A worktree
- * lane opens that checkout.
- */
-export function folderForNewLaneSession(
-  projectPath: null | string | undefined,
-  lane: { isMain?: boolean; path?: null | string }
-): null | string {
-  const project = (projectPath || '').trim()
-  const lanePath = (lane.path || '').trim()
-
-  if (lane.isMain) {
-    return project || lanePath || null
-  }
-
-  return lanePath || project || null
 }
 
 /** Path split into segments, ignoring trailing slashes and mixed separators. */
@@ -101,9 +70,6 @@ const segments = (path: string): string[] =>
     .replace(/[/\\]+$/, '')
     .split(/[/\\]/)
     .filter(Boolean)
-
-/** A path with trailing separators stripped, for stable equality checks. */
-const normalizePath = (path: null | string | undefined): string => (path ?? '').replace(/[/\\]+$/, '')
 
 // Windows spellings: drive-letter (`C:\…`), UNC (`\\srv`, `//srv`), or any
 // backslash-rooted path (`\wsl.localhost\…`). A single leading `/` stays POSIX.
@@ -123,9 +89,6 @@ const comparisonSegments = (path: string): string[] => {
   return isWindowsPath(path) ? segs.map(seg => seg.toLowerCase()) : segs
 }
 
-/** Canonical per-host comparison key (separator/case/trailing-slash agnostic). */
-const pathKey = (path: null | string | undefined): string => comparisonSegments(path ?? '').join('/')
-
 /** Last path segment. */
 export const baseName = (path: string): string | undefined => segments(path).pop()
 
@@ -139,9 +102,6 @@ export function kanbanWorktreeDir(path: string): null | string {
   return path.match(KANBAN_DIR_RE)?.[1] ?? null
 }
 
-/** Label for a main-checkout lane whose session recorded no branch. */
-export const DEFAULT_BRANCH_LABEL = 'main'
-
 /** Id of the Home bucket (must match the backend tree's `NO_PROJECT_ID`). */
 export const NO_PROJECT_ID = '__no_project__'
 
@@ -154,220 +114,8 @@ export const NO_PROJECT_ID = '__no_project__'
 export const isDetachedSession = (session: SessionInfo): boolean =>
   !(session.cwd || '').trim() && !(session.git_repo_root || '').trim()
 
-/** The one definition of a main-checkout lane id (must match the backend tree). */
-export const branchLaneId = (repoRoot: string, branch?: string): string =>
-  `${repoRoot}::branch::${(branch ?? '').trim()}`
-
 /** A session's recency stamp (last activity, falling back to creation). */
 export const sessionRecency = (session: SessionInfo): number => session.last_active || session.started_at || 0
-
-/** Default-branch names that pin to the top and read as the repo's trunk. */
-const TRUNK_BRANCHES = new Set(['main', 'master', 'trunk', 'develop'])
-
-const isTrunkLane = (group: SidebarSessionGroup): boolean =>
-  Boolean(group.isMain) && TRUNK_BRANCHES.has(group.label.toLowerCase())
-
-/** A lane's recency = its most-recently-active session (empty lanes sink). */
-const laneActivity = (group: SidebarSessionGroup): number =>
-  group.sessions.reduce((max, session) => Math.max(max, sessionRecency(session)), 0)
-
-// Lane tiers (low sorts first): the repo's primary ("home") checkout pins above
-// everything (it's "where you are", labeled by its live branch), then trunk,
-// then ordinary branches/worktrees, then the kanban aggregate.
-const laneRank = (group: SidebarSessionGroup): number =>
-  group.isHome ? 0 : isTrunkLane(group) ? 1 : group.isKanban ? 3 : 2
-
-/**
- * Sort by tier (home → trunk → branches/worktrees → kanban); within a tier, by
- * most-recent activity (empty lanes fall last), label as the tiebreak.
- */
-function compareWorktreeGroups(a: SidebarSessionGroup, b: SidebarSessionGroup): number {
-  const byRank = laneRank(a) - laneRank(b)
-
-  if (byRank !== 0) {
-    return byRank
-  }
-
-  const byActivity = laneActivity(b) - laneActivity(a)
-
-  return byActivity || a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
-}
-
-export function sortWorktreeGroups(groups: SidebarSessionGroup[]): SidebarSessionGroup[] {
-  return [...groups].sort(compareWorktreeGroups)
-}
-
-/**
- * VISUAL enhancer only: inject empty lanes from a live `git worktree list` so a
- * repo shows its branches/worktrees even when they have no Work4You sessions yet.
- * The repo's real session lanes already come fully built from the backend
- * (`projects.project_sessions`); this never adds or moves session rows, and it
- * degrades to a no-op on remote backends (where the Electron probe returns
- * nothing). Lanes already present (by id/path) are left untouched.
- */
-export function mergeRepoWorktreeGroups(
-  repo: Pick<SidebarWorkspaceTree, 'groups' | 'id' | 'path'>,
-  discoveredWorktrees?: Work4YouGitWorktree[]
-): SidebarSessionGroup[] {
-  // Branch-primary labels: a linked worktree's identity in every git UI (VS
-  // Code, JetBrains, lazygit, …) is its CHECKED-OUT BRANCH, not the directory it
-  // happens to live in. The backend labels these lanes by dir/slug; relabel them
-  // to the live branch from `git worktree list` so the sidebar matches the
-  // composer's branch strip. Detached worktrees (no branch) keep their dir label.
-  const liveBranchByPath = new Map<string, string>()
-  // Inverse: branch → its ONE live worktree path. git guarantees a branch is
-  // checked out in at most one worktree, so this mapping is a function and can
-  // re-anchor a lane whose stored path has drifted from git truth.
-  const livePathByBranch = new Map<string, string>()
-
-  for (const worktree of discoveredWorktrees ?? []) {
-    const wtPath = normalizePath(worktree.path)
-    const branch = worktree.branch?.trim()
-
-    if (wtPath && branch && !worktree.detached) {
-      liveBranchByPath.set(wtPath, branch)
-      livePathByBranch.set(branch.toLowerCase(), worktree.path.trim())
-    }
-  }
-
-  // The primary ("home") checkout's LIVE branch. A repo dir is only ever on ONE
-  // branch, so every main-checkout session lane (historical branches over the
-  // same root path) collapses into a single home lane labeled by this live
-  // branch, defaulting to `main`. Known only when the local git probe ran;
-  // remote backends keep the backend's recorded-branch main lane untouched.
-  const mainWorktree = (discoveredWorktrees ?? []).find(w => w.isMain)
-  const homeBranch = mainWorktree && !mainWorktree.detached ? mainWorktree.branch?.trim() || DEFAULT_BRANCH_LABEL : ''
-
-  // Reconcile a LINKED worktree lane against git truth so its label AND path
-  // describe the SAME worktree. Two repair directions:
-  //  1. Path git knows → relabel to that path's live branch (git UIs identify a
-  //     worktree by its checked-out branch, not the dir it lives in).
-  //  2. Path git DOESN'T know but the label IS a live branch → the lane's path
-  //     has gone stale; re-anchor it to that branch's real path, else "reveal"
-  //     opens a different, stale checkout. The home checkout is folded
-  //     separately (below), never here.
-  const reconcile = (group: SidebarSessionGroup): SidebarSessionGroup => {
-    if (group.isMain || group.isKanban) {
-      return group
-    }
-
-    const branchForPath = liveBranchByPath.get(normalizePath(group.path))
-
-    if (branchForPath) {
-      return branchForPath !== group.label ? { ...group, label: branchForPath } : group
-    }
-
-    const livePath = livePathByBranch.get(normalize(group.label))
-
-    if (livePath && normalizePath(livePath) !== normalizePath(group.path)) {
-      return { ...group, id: livePath, path: livePath }
-    }
-
-    return group
-  }
-
-  const dedupeById = (sessions: SessionInfo[]): SessionInfo[] => {
-    const byId = new Map<string, SessionInfo>()
-
-    for (const session of sessions) {
-      byId.set(session.id, byId.get(session.id) ?? session)
-    }
-
-    return [...byId.values()]
-  }
-
-  // Fold every main-checkout lane into one home lane labeled by the live branch
-  // (the root dir is only ever on one branch); reconcile the linked worktrees.
-  // Always shown, even with no sessions on the current branch yet. Remote
-  // backends (no probe → no homeBranch) keep their main lanes untouched.
-  const mainGroups = repo.groups.filter(group => group.isMain)
-  const reconciled = repo.groups.filter(group => !group.isMain).map(reconcile)
-
-  if (homeBranch) {
-    reconciled.push({
-      id: branchLaneId(repo.id, homeBranch),
-      label: homeBranch,
-      path: repo.path,
-      isMain: true,
-      isHome: true,
-      sessions: dedupeById(mainGroups.flatMap(group => group.sessions))
-    })
-  } else {
-    reconciled.push(...mainGroups)
-  }
-
-  // Collapse any duplicate a re-anchor produced (a stale lane re-pointed onto a
-  // path a real lane already holds) — keep the richer (more sessions) lane.
-  const byPath = new Map<string, SidebarSessionGroup>()
-  const merged: SidebarSessionGroup[] = []
-
-  for (const group of reconciled) {
-    const key = !group.isMain && group.path ? normalizePath(group.path) : ''
-    const existing = key ? byPath.get(key) : undefined
-
-    if (existing) {
-      if (group.sessions.length > existing.sessions.length) {
-        merged[merged.indexOf(existing)] = group
-        byPath.set(key, group)
-      }
-
-      continue
-    }
-
-    if (key) {
-      byPath.set(key, group)
-    }
-
-    merged.push(group)
-  }
-
-  const seenIds = new Set(merged.map(group => group.id))
-  const seenPaths = new Set(merged.map(group => group.path).filter((path): path is string => Boolean(path)))
-  // Dedupe by branch label too: a branch shows once even if it's checked out in
-  // a linked worktree AND already has a session lane.
-  const seenLabels = new Set(merged.map(group => group.label.toLowerCase()))
-
-  for (const worktree of discoveredWorktrees ?? []) {
-    const wtPath = worktree.path?.trim()
-
-    if (!wtPath) {
-      continue
-    }
-
-    // The home checkout is already the collapsed home lane (above).
-    if (worktree.isMain && homeBranch) {
-      continue
-    }
-
-    // Kanban task worktrees never get their own lane — they fold into the
-    // session-derived `::kanban` bucket. Listing every `git worktree list` entry
-    // here is exactly what blew the sidebar up to hundreds of empty rows.
-    if (!worktree.isMain && kanbanWorktreeDir(wtPath)) {
-      continue
-    }
-
-    const label =
-      (worktree.isMain ? worktree.branch?.trim() || DEFAULT_BRANCH_LABEL : worktree.branch?.trim()) ||
-      baseName(wtPath) ||
-      wtPath
-
-    const id = worktree.isMain ? branchLaneId(repo.id, label) : wtPath
-
-    const alreadySeen =
-      seenIds.has(id) || seenLabels.has(label.toLowerCase()) || (!worktree.isMain && seenPaths.has(wtPath))
-
-    if (alreadySeen) {
-      continue
-    }
-
-    merged.push({ id, isMain: worktree.isMain, label, path: wtPath, sessions: [] })
-    seenIds.add(id)
-    seenPaths.add(wtPath)
-    seenLabels.add(label.toLowerCase())
-  }
-
-  return sortWorktreeGroups(merged)
-}
 
 // ── Live session overlay ─────────────────────────────────────────────────────
 // The backend tree is a snapshot (sessions with >=1 message, refreshed on a
@@ -494,199 +242,7 @@ export function sessionProjectColor(session: SessionInfo, projects: ProjectInfo[
   return projects.find(project => project.id === projectId)?.color ?? null
 }
 
-const upsertSession = (rows: SessionInfo[], session: SessionInfo): SessionInfo[] =>
-  [session, ...rows.filter(row => row.id !== session.id)].sort((a, b) => sessionRecency(b) - sessionRecency(a))
-
-/**
- * The lane a live session belongs to WITHIN a known repo root, by path — the
- * entered project already knows its repo roots, so we don't need the session's
- * (often-unset, on a fresh row) git_repo_root. Mirrors the backend's lane ids:
- * main checkout -> branch lane, `.worktrees/t_<hex>` -> kanban, any other
- * `.worktrees/<slug>` -> that worktree's own lane.
- */
-function liveLaneForRepo(repoRoot: string, session: SessionInfo): null | SidebarSessionGroup {
-  const cwd = (session.cwd || '').trim()
-
-  if (!cwd || !isPathUnder(repoRoot, cwd)) {
-    return null
-  }
-
-  const wt = cwd.match(/^(.*[/\\]\.worktrees)[/\\]([^/\\]+)/)
-
-  if (wt) {
-    const [worktreeRoot, worktreesDir, slug] = [wt[0], wt[1], wt[2]]
-
-    return /^t_[0-9a-f]+$/.test(slug)
-      ? { id: `${repoRoot}::kanban`, isKanban: true, isMain: false, label: 'kanban', path: worktreesDir, sessions: [] }
-      : { id: worktreeRoot, isMain: false, label: slug, path: worktreeRoot, sessions: [] }
-  }
-
-  const branch = (session.git_branch || '').trim() || DEFAULT_BRANCH_LABEL
-
-  return { id: branchLaneId(repoRoot, branch), isMain: true, label: branch, path: repoRoot, sessions: [] }
-}
-
 const NO_REMOVED: ReadonlySet<string> = new Set()
-
-/**
- * Reconcile ONE repo's lanes against the live `$sessions` cache: evict
- * deleted/archived rows (`removed`) and inject freshly-created ones, so a lane
- * mutates exactly like the flat Recents list. The backend snapshot stays the
- * datasource for structure and off-page history; this is the optimistic layer
- * on top (Apollo-style), reconciled away on the next snapshot refresh. Returns
- * the same repo ref when nothing changes (memo-stable).
- */
-export function overlayRepoLanes(
-  repo: SidebarWorkspaceTree,
-  live: SessionInfo[],
-  removed: ReadonlySet<string> = NO_REMOVED
-): SidebarWorkspaceTree {
-  const repoRootKey = pathKey(repo.path)
-  let changed = false
-  // Lanes that arrived with no rows are not eviction casualties — they're real
-  // structure (a `git worktree list` lane, or one whose sessions are pinned
-  // away). The prune below is only allowed to drop lanes IT emptied.
-  const emptyOnInput = new Set(repo.groups.filter(g => !g.sessions.length).map(g => g.id))
-
-  // Snapshot lanes minus anything the user just deleted/archived.
-  const lanes = repo.groups.map(g => {
-    if (!removed.size) {
-      return { ...g, sessions: [...g.sessions] }
-    }
-
-    const kept = g.sessions.filter(s => !removed.has(s.id))
-
-    changed ||= kept.length !== g.sessions.length
-
-    return { ...g, sessions: kept }
-  })
-
-  for (const session of live) {
-    const cwd = (session.cwd || '').trim()
-
-    if (removed.has(session.id) || !cwd) {
-      continue
-    }
-
-    // (1) Join an EXISTING worktree lane by its own path. A linked worktree can
-    // live anywhere on disk (often a repo sibling, e.g. `repo-ci`), so nesting
-    // under the repo root isn't reliable — but the lane carries its real dir.
-    // Longest match wins; skip the root lane so an in-tree `.worktrees/<slug>`
-    // session isn't swallowed by main.
-    let lane: SidebarSessionGroup | undefined
-    let bestLen = -1
-
-    for (const g of lanes) {
-      const lanePath = normalizePath(g.path)
-
-      if (!lanePath || pathKey(lanePath) === repoRootKey || !isPathUnder(lanePath, cwd)) {
-        continue
-      }
-
-      const len = segments(lanePath).length
-
-      if (len > bestLen) {
-        bestLen = len
-        lane = g
-      }
-    }
-
-    // (2) Else place under the repo root via a computed lane (main / branch /
-    // in-tree `.worktrees` / kanban). Match by id, then path (the backend may
-    // key a worktree lane off the git-probed root OR a branch-style id), then
-    // the main-lane label; create it when the snapshot lacked it.
-    if (!lane) {
-      const placed = repo.path ? liveLaneForRepo(repo.path, session) : null
-
-      if (!placed) {
-        continue
-      }
-
-      const placedKey = pathKey(placed.path)
-
-      lane =
-        lanes.find(g => g.id === placed.id) ??
-        (placed.isMain
-          ? lanes.find(g => g.isMain && g.label.toLowerCase() === placed.label.toLowerCase())
-          : undefined) ??
-        // Non-git backend heuristic (`project_tree._place_by_heuristic`): one
-        // isMain lane keyed by the folder path itself (id === path, label =
-        // basename) — not `::branch::<name>`. Live placement always emits
-        // `::branch::main` / label "main", so id+label miss and used to FORK a
-        // phantom second main lane with the same sessions. Prefer the existing
-        // path-keyed main lane when present.
-        (placed.isMain && placedKey
-          ? lanes.find(
-              g =>
-                g.isMain && pathKey(g.path) === placedKey && !g.id.includes('::branch::') && !g.id.includes('::kanban')
-            )
-          : undefined) ??
-        (!placed.isMain && placedKey ? lanes.find(g => pathKey(g.path) === placedKey) : undefined)
-
-      if (!lane) {
-        lane = { ...placed, sessions: [] }
-        lanes.push(lane)
-      }
-    }
-
-    // Evict the session from any OTHER lane the backend snapshot may have
-    // placed it in (e.g. a turn that moved the session's cwd from main to a
-    // new worktree — the overlay places it into the worktree lane, but without
-    // this eviction the stale main-lane entry persists and the session appears
-    // under both groups until the next backend tree refresh).
-    for (const g of lanes) {
-      if (g !== lane) {
-        const idx = g.sessions.findIndex(s => s.id === session.id)
-
-        if (idx >= 0) {
-          g.sessions = [...g.sessions.slice(0, idx), ...g.sessions.slice(idx + 1)]
-          changed = true
-        }
-      }
-    }
-
-    lane.sessions = upsertSession(lane.sessions, session)
-    changed = true
-  }
-
-  if (!changed) {
-    return repo
-  }
-
-  // Drop lanes emptied by eviction (the server only emits non-empty lanes; the
-  // git-worktree enhancer re-adds any still-real worktree as an empty lane).
-  const groups = sortWorktreeGroups(lanes.filter(g => g.sessions.length > 0 || emptyOnInput.has(g.id)))
-
-  return { ...repo, groups, sessionCount: groups.reduce((n, g) => n + g.sessions.length, 0) }
-}
-
-/**
- * Home's overlay: its rows have no cwd to place, so this is a plain upsert of
- * detached live sessions into its single lane — a brand-new project-less chat
- * shows the instant it's created, matching the flat Recents list.
- */
-function overlayHomeLane(
-  project: SidebarProjectTree,
-  live: SessionInfo[],
-  removed: ReadonlySet<string>
-): SidebarProjectTree {
-  const lane = project.repos[0]?.groups[0]
-  const detached = live.filter(session => isDetachedSession(session) && !removed.has(session.id))
-  const kept = (lane?.sessions ?? []).filter(session => !removed.has(session.id))
-
-  if (!detached.length && kept.length === (lane?.sessions.length ?? 0)) {
-    return project
-  }
-
-  const sessions = detached.reduce(upsertSession, kept)
-  const nextLane = { id: NO_PROJECT_ID, label: project.label, path: null, sessions }
-
-  return {
-    ...project,
-    repos: [{ id: NO_PROJECT_ID, label: project.label, path: null, groups: [nextLane], sessionCount: sessions.length }],
-    sessionCount: sessions.length
-  }
-}
 
 /**
  * Drop matching sessions from every lane (and the overview preview) of a
@@ -745,33 +301,6 @@ export function excludeProjectSessions(
     repos,
     sessionCount: repos.reduce((n, repo) => n + repo.sessionCount, 0)
   }
-}
-
-/** Project-level overlay: {@link overlayRepoLanes} across every repo subtree. */
-export function overlayLiveLanes(
-  project: SidebarProjectTree,
-  live: SessionInfo[],
-  removed: ReadonlySet<string> = NO_REMOVED
-): SidebarProjectTree {
-  if (project.isNoProject) {
-    return overlayHomeLane(project, live, removed)
-  }
-
-  let changed = false
-
-  const repos = project.repos.map(repo => {
-    const next = overlayRepoLanes(repo, live, removed)
-
-    changed ||= next !== repo
-
-    return next
-  })
-
-  if (!changed) {
-    return project
-  }
-
-  return { ...project, repos, sessionCount: repos.reduce((n, repo) => n + repo.sessionCount, 0) }
 }
 
 interface PreviewOverlayOptions {

@@ -1,11 +1,6 @@
 import { useStore } from '@nanostores/react'
-import { useEffect, useMemo, useState } from 'react'
 
-import type { Work4YouGitWorktree } from '@/global'
-import { desktopGit } from '@/lib/desktop-git'
-import { mapPool } from '@/lib/pool'
 import { $sidebarWorkspaceNodeOpen, toggleWorkspaceNodeCollapsed } from '@/store/layout'
-import { $worktreeRefreshToken } from '@/store/projects'
 import type { SessionInfo } from '@/work4you'
 
 import { sessionRecency, type SidebarProjectTree } from './workspace-groups'
@@ -16,43 +11,12 @@ export const SIDEBAR_GROUP_PAGE = 5
 // Recent sessions previewed under a profile group (click the label for the rest).
 export const PROJECT_PREVIEW_COUNT = 3
 
-// Max concurrent `git worktree list` probes when a project spans many repos.
-const WORKTREE_PROBE_CONCURRENCY = 4
-
-const pathListKey = (paths: string[]): string =>
-  paths
-    .map(path => path.trim())
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b))
-    .join('\n')
-
 // Every session in a project, across its repos/worktrees (order-agnostic).
 const projectSessions = (project: SidebarProjectTree): SessionInfo[] =>
   project.repos.flatMap(repo => repo.groups.flatMap(group => group.sessions))
 
 export const projectTreeCwd = (project: SidebarProjectTree): null | string =>
   project.path || project.repos.find(repo => repo.path)?.path || null
-
-/** Unique git roots from the overview tree — Home has none. */
-export function overviewRepoPaths(projects: readonly SidebarProjectTree[]): string[] {
-  const paths = new Set<string>()
-
-  for (const project of projects) {
-    if (project.isNoProject) {
-      continue
-    }
-
-    for (const repo of project.repos) {
-      const path = repo.path?.trim()
-
-      if (path) {
-        paths.add(path)
-      }
-    }
-  }
-
-  return [...paths]
-}
 
 // Overview rows carry their activity stamp from the backend (lanes are empty in
 // overview mode), falling back to loaded session times when present.
@@ -138,53 +102,7 @@ export function orderProjectsByIds(projects: SidebarProjectTree[], orderIds: str
   ])
 }
 
-// Project drill-in lanes are git-driven: source them from `git worktree list` so
-// linked worktrees still appear even when their sessions aren't in the recents
-// payload currently loaded in memory.
-export function useRepoWorktreeMap(
-  repoPaths: string[],
-  enabled: boolean
-): [Record<string, Work4YouGitWorktree[]>, boolean] {
-  const [map, setMap] = useState<Record<string, Work4YouGitWorktree[]>>({})
-  const [loading, setLoading] = useState(false)
-  const key = useMemo(() => pathListKey(repoPaths), [repoPaths])
-  // Refetch when a worktree is added/removed so a new lane shows immediately.
-  const refreshToken = useStore($worktreeRefreshToken)
-
-  useEffect(() => {
-    const git = desktopGit()
-
-    if (!enabled || !repoPaths.length || !git?.worktreeList) {
-      setMap({})
-      setLoading(false)
-
-      return
-    }
-
-    let cancelled = false
-
-    setLoading(true)
-    // Bounded so a many-repo project doesn't spawn a `git` process per repo at once.
-    void mapPool(repoPaths, WORKTREE_PROBE_CONCURRENCY, async repoPath => {
-      try {
-        return [repoPath, await git.worktreeList(repoPath)] as const
-      } catch {
-        return [repoPath, []] as const
-      }
-    })
-      .then(entries => void (cancelled || setMap(Object.fromEntries(entries))))
-      .finally(() => void (cancelled || setLoading(false)))
-
-    return () => {
-      cancelled = true
-    }
-  }, [enabled, key, repoPaths, refreshToken])
-
-  return [map, loading]
-}
-
-// Persisted open/collapse for a repo/worktree node. Lets a project's folder
-// layout auto-restore when you enter it, and survive reloads.
+// Persisted open/collapse for a project/profile row, surviving reloads.
 //
 // State is stored as the RESOLVED boolean per node (see `$sidebarWorkspaceNodeOpen`),
 // so a node whose `defaultOpen` flips — an empty worktree/branch lane defaults

@@ -9,7 +9,7 @@ import type { SidebarProjectTree } from './workspace-groups'
 
 afterEach(cleanup)
 
-const { nodeOpen } = vi.hoisted(() => ({ nodeOpen: { current: false } }))
+const { nodeOpen, toggleNode } = vi.hoisted(() => ({ nodeOpen: { current: false }, toggleNode: vi.fn() }))
 
 vi.mock('@/i18n', () => ({
   useI18n: () => ({
@@ -17,7 +17,6 @@ vi.mock('@/i18n', () => ({
       sidebar: {
         newSessionIn: (label: string) => `New session in ${label}`,
         projects: {
-          enter: (label: string) => `Enter ${label}`,
           reorder: (label: string) => `Reorder ${label}`,
           toggle: (label: string, open: boolean) => `${open ? 'Show' : 'Hide'} ${label} sessions`
         },
@@ -31,7 +30,7 @@ vi.mock('@/i18n', () => ({
 vi.mock('./model', () => ({
   SIDEBAR_GROUP_PAGE: 5,
   latestProjectSessions: () => [],
-  useWorkspaceNodeOpen: () => [nodeOpen.current, vi.fn()]
+  useWorkspaceNodeOpen: () => [nodeOpen.current, toggleNode]
 }))
 
 // ProjectMenu (the kebab) has its own dedicated test file — stub it here so
@@ -56,6 +55,7 @@ const tipTrigger = (el: HTMLElement) => el.closest('[data-slot="tooltip-trigger"
 describe('ProjectOverviewRow', () => {
   beforeEach(() => {
     nodeOpen.current = false
+    toggleNode.mockClear()
   })
   it('wraps the "new session" add button in a Tip with the project-scoped label', () => {
     render(<ProjectOverviewRow onNewSession={vi.fn()} project={project} />)
@@ -167,5 +167,31 @@ describe('ProjectOverviewRow', () => {
 
     expect(screen.getByTestId('preview-ids').textContent).toBe('s1,s2')
     expect(screen.queryByRole('button', { name: /Show .* more in Test D/ })).toBeNull()
+  })
+
+  it('collapses and expands in place when the project name is clicked', () => {
+    nodeOpen.current = true
+
+    render(
+      <ProjectOverviewRow
+        previewSessions={[{ id: 's1' } as unknown as SessionInfo]}
+        project={project}
+        renderRows={rows => <div data-testid="preview-ids">{rows.map(session => session.id).join(',')}</div>}
+      />
+    )
+
+    const name = screen.getByRole('button', { name: 'Test D' })
+
+    expect(name.getAttribute('aria-expanded')).toBe('true')
+    fireEvent.click(name)
+    expect(toggleNode).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves an empty project name inert — there is nothing to reveal', () => {
+    render(<ProjectOverviewRow previewSessions={[]} project={project} renderRows={() => null} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Test D' }))
+
+    expect(toggleNode).not.toHaveBeenCalled()
   })
 })

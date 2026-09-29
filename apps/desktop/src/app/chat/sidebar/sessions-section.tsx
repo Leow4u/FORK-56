@@ -6,7 +6,6 @@ import { useCallback, useMemo } from 'react'
 import { SidebarPanelLabel } from '@/app/shell/sidebar-label'
 import { DisclosureCaret } from '@/components/ui/disclosure-caret'
 import { SidebarGroup, SidebarGroupContent } from '@/components/ui/sidebar'
-import type { Work4YouGitWorktree } from '@/global'
 import { useI18n } from '@/i18n'
 import { flattenSessionsWithBranches } from '@/lib/session-branch-tree'
 import {
@@ -24,7 +23,6 @@ import type { SessionInfo } from '@/work4you'
 import { SidebarDateDivider, SidebarSectionMeta } from './chrome'
 import { orderRowsWithinGroups, reorderableRowIds } from './order'
 import {
-  EnteredProjectContent,
   ProjectOverviewRow,
   type SidebarProjectTree,
   type SidebarSessionGroup,
@@ -47,8 +45,7 @@ interface SidebarSectionHeaderProps {
   meta?: React.ReactNode
   icon?: React.ReactNode
   // When false the section can't be collapsed: the label renders static (no
-  // toggle, no caret) and the section is always open. Used for the single-
-  // project view, where collapsing one project makes no sense.
+  // toggle, no caret) and the section is always open.
   collapsible?: boolean
 }
 
@@ -115,26 +112,14 @@ interface SidebarSessionsSectionProps {
   footer?: React.ReactNode
   groups?: SidebarSessionGroup[]
   tree?: SidebarWorkspaceTree[]
-  // Project overview: when present, render a drill-in list of project rows
-  // instead of sessions. Clicking a row enters that project (onEnterProject),
-  // which then passes `projectContent` on the next render. Takes precedence
-  // over `tree` / `groups`.
+  // Project overview: when present, render one collapsible row per project,
+  // each disclosing its own history, instead of the flat list. Takes
+  // precedence over `tree` / `groups`.
   projectOverview?: SidebarProjectTree[]
   // Per-project preview rows (from the backend tree), keyed by project id.
   projectOverviewPreviews?: Record<string, SessionInfo[]>
   // True while the backend project tree is loading (overview skeleton).
   projectsLoading?: boolean
-  onEnterProject?: (id: string) => void
-  // The entered project's flattened content: main-checkout sessions render
-  // directly (no redundant repo/branch header); only linked worktrees nest.
-  projectContent?: SidebarProjectTree
-  // Live git lanes (`git worktree list`) for repos in the entered project —
-  // a VISUAL enhancer only (empty lanes), never session membership.
-  projectRepoWorktrees?: Record<string, Work4YouGitWorktree[]>
-  // Live session cache used for optimistic placement inside entered-project lanes.
-  liveSessions?: SessionInfo[]
-  // Client-side optimistic eviction layer (deleted/archived ids).
-  removedSessionIds?: ReadonlySet<string>
   activeProjectId?: null | string
   labelMeta?: React.ReactNode
   labelIcon?: React.ReactNode
@@ -151,15 +136,13 @@ interface SidebarSessionsSectionProps {
   onReorderSessions?: (ids: string[]) => void
   // Drag-to-reorder for the project overview list (top-level projects).
   onReorderProjects?: (ids: string[]) => void
-  // Rendered atop the entered-project body (a "back to overview" row).
-  projectBackRow?: React.ReactNode
   dndSensors?: ReturnType<typeof useSensors>
   // Tag every row with its owning profile. Set on the flat cross-profile
   // lists (Pinned / search results) in the All-profiles view, where no group
   // header communicates ownership (#66003).
   showProfileTags?: boolean
   // Which dividers to fold into the flat list: `date` gives the chronological
-  // "Yesterday" / "Last week" separators (flat recents + entered-project lanes),
+  // "Yesterday" / "Last week" separators (flat recents),
   // `status` splits into WORKING / DONE under the same separators. `none` for
   // pinned, messaging groups, and the project overview, where the order isn't
   // strictly by recency so a bucket would be misleading.
@@ -195,11 +178,6 @@ export function SidebarSessionsSection({
   projectOverview,
   projectOverviewPreviews,
   projectsLoading = false,
-  onEnterProject,
-  projectContent,
-  projectRepoWorktrees,
-  liveSessions,
-  removedSessionIds,
   activeProjectId,
   labelMeta,
   labelIcon,
@@ -208,7 +186,6 @@ export function SidebarSessionsSection({
   manualOrderIds,
   onReorderSessions,
   onReorderProjects,
-  projectBackRow,
   dndSensors,
   showProfileTags = false,
   grouping = 'none',
@@ -221,19 +198,10 @@ export function SidebarSessionsSection({
   const sectionOpen = collapsible ? open : true
   const hasGroupedSessions = Boolean(groups?.some(group => group.sessions.length > 0))
   // A defined project list is itself content (even an empty project should
-  // render as a drill-in row so the user can see it exists).
+  // render as a row so the user can see it exists).
   const hasProjectOverview = Boolean(projectOverview?.length)
 
-  // Lanes count as content even with no rows left in them: the backend only
-  // emits a lane that has sessions, so a lane surviving with zero rows means
-  // they were filtered out (pinned) — the branch is real and must still render.
-  // A genuinely empty project has no lanes at all and keeps its empty state.
-  const hasProjectContent = Boolean(
-    projectContent && (projectContent.sessionCount > 0 || projectContent.repos.some(repo => repo.groups.length > 0))
-  )
-
-  const showEmptyState =
-    forceEmptyState || (!hasGroupedSessions && !hasProjectOverview && !hasProjectContent && sessions.length === 0)
+  const showEmptyState = forceEmptyState || (!hasGroupedSessions && !hasProjectOverview && sessions.length === 0)
 
   // The flat recents/pinned list is the only place sessions reorder by hand;
   // grouped/tree views always sort by creation date and never drag.
@@ -319,20 +287,6 @@ export function SidebarSessionsSection({
     [renderRow]
   )
 
-  // Same as `renderRows`, but with date dividers folded in — used for
-  // entered-project lanes so a lane spanning multiple days reads
-  // chronologically, matching the flat recents list.
-  const renderRowsDated = useCallback(
-    (items: SessionInfo[]) => {
-      const entries = flattenSessionsWithBranches(items)
-
-      return (grouping === 'date' ? groupEntriesByRecency(entries) : toSessionRows(entries)).map(row =>
-        renderListRow(row, false)
-      )
-    },
-    [grouping, renderListRow]
-  )
-
   // Flat recents as list rows: grouped by recency when enabled, plain otherwise.
   // The hand-picked order is then applied INSIDE each date group, so dragging a
   // row ranks it among its own day's chats instead of freezing the whole list
@@ -362,45 +316,18 @@ export function SidebarSessionsSection({
   // measure against, and Pinned deliberately has none — however many chats you
   // pin, all of them render and the sidebar's own scroll carries the length.
   const flatVirtualized =
-    !pinned &&
-    !showEmptyState &&
-    !groups?.length &&
-    !projectOverview?.length &&
-    !projectContent &&
-    sessions.length >= VIRTUALIZE_THRESHOLD
+    !pinned && !showEmptyState && !groups?.length && !projectOverview?.length && sessions.length >= VIRTUALIZE_THRESHOLD
 
   // First paint into the grouped view (e.g. the app restoring the Projects tab)
   // has flat recents in `sessions` but no tree yet. Show skeletons rather than
-  // flashing the flat session list until the overview/content/groups resolve. A
+  // flashing the flat session list until the overview/groups resolve. A
   // background refresh keeps the prior tree, so this only fires when empty.
-  const showProjectsSkeleton =
-    projectsLoading && !hasProjectOverview && !hasProjectContent && !projectContent && !groups?.length
+  const showProjectsSkeleton = projectsLoading && !hasProjectOverview && !groups?.length
 
   let inner: React.ReactNode
 
   if (showProjectsSkeleton) {
     inner = <SidebarSessionSkeletons />
-  } else if (projectContent) {
-    // Entered a project: the back row is always present, then either the
-    // (overlay-aware) content or a clean empty state — never a bare spinner or a
-    // blank pane while lanes hydrate.
-    inner = (
-      <>
-        {projectBackRow}
-        {hasProjectContent ? (
-          <EnteredProjectContent
-            liveSessions={liveSessions}
-            onNewSession={onNewSessionInWorkspace}
-            project={projectContent}
-            removedSessionIds={removedSessionIds}
-            renderRows={renderRowsDated}
-            repoWorktrees={projectRepoWorktrees}
-          />
-        ) : (
-          emptyState
-        )}
-      </>
-    )
   } else if (showEmptyState) {
     inner = emptyState
   } else if (projectOverview?.length) {
@@ -416,12 +343,10 @@ export function SidebarSessionsSection({
       <Component
         activeProjectId={activeProjectId}
         key={project.id}
-        onEnter={onEnterProject}
         onNewSession={onNewSessionInWorkspace}
         previewSessions={projectOverviewPreviews?.[project.id]}
         project={project}
         renderRows={renderRows}
-        repoWorktrees={projectRepoWorktrees}
       />
     )
 
@@ -444,15 +369,8 @@ export function SidebarSessionsSection({
       </>
     )
   } else if (groups?.length) {
-    // Profile/source groups never reorder; render them flat with static rows.
-    inner = groups.map(group => (
-      <SidebarWorkspaceGroup
-        group={group}
-        key={group.id}
-        onNewSession={onNewSessionInWorkspace}
-        renderRows={renderRows}
-      />
-    ))
+    // Profile groups never reorder; render them flat with static rows.
+    inner = groups.map(group => <SidebarWorkspaceGroup group={group} key={group.id} renderRows={renderRows} />)
   } else if (flatVirtualized) {
     const virtual = (
       <VirtualSessionList

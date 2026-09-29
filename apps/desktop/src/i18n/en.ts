@@ -2908,14 +2908,12 @@ export const en: Translations = {
     cronJobs: 'Cron jobs',
     groupAriaGrouped: 'Show sessions as a single list',
     groupAriaUngrouped: 'Group sessions by workspace',
-    showProjects: 'Show projects',
     showSessions: 'Show sessions',
     groupTitleGrouped: 'Ungroup sessions',
     groupTitleUngrouped: 'Group by workspace',
     allPinned: 'Everything here is pinned. Unpin a chat to show it in recents.',
     shiftClickHint: 'Shift-click a chat to pin',
     noWorkspace: 'No workspace',
-    projectEmpty: 'No sessions yet',
     noSessions: 'No sessions yet',
     noFilterMatches: 'No sessions match these filters',
     projects: {
@@ -2982,17 +2980,8 @@ export const en: Translations = {
       branchTrackRemote: 'track remote',
       branchesLoading: 'Loading branches…',
       noBranches: 'No branches found',
-      removeWorktree: 'Remove worktree',
-      removeWorktreeFailed: 'Could not remove worktree (uncommitted changes?)',
-      removeWorktreeConfirm:
-        'Remove it from git (deletes the worktree directory; the branch stays), or just hide the lane from the sidebar and leave the worktree on disk.',
-      removeWorktreeDirty:
-        'This worktree has uncommitted changes. Force-remove it (discards those changes), or just hide the lane and keep it on disk.',
-      forceRemove: 'Force remove',
-      enter: label => `Open ${label}`,
       reorder: label => `Reorder ${label}`,
-      toggle: (label, open) => `${open ? 'Show' : 'Hide'} ${label} sessions`,
-      back: 'All projects'
+      toggle: (label, open) => `${open ? 'Show' : 'Hide'} ${label} sessions`
     },
     newSessionIn: label => `New session in ${label}`,
     showMoreIn: (count, label) => `Show ${count} more in ${label}`,
