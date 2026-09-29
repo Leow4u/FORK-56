@@ -87,16 +87,10 @@ describe('TUI splash SessionPanel', () => {
   })
 
   it('shows Operis 4.0 instead of the house-model wire id', async () => {
-    for (const model of ['openai/gpt-5.6-luna', 'google/gemini-3.8-flash', 'deepseek/deepseek-v4-flash-0731']) {
-      const frame = await renderSplash(baseInfo({ model }))
+    const frame = await renderSplash(baseInfo({ model: 'openai/gpt-5.6-luna' }))
 
-      expect(frame).toContain('Operis 4.0')
-      expect(frame).not.toContain('Operis 4.0 Flash')
-      expect(frame).not.toContain('gpt-5.6-luna')
-      expect(frame).not.toContain('gemini-3.8-flash')
-      expect(frame).not.toContain('deepseek-v4-flash-0731')
-      expect(frame).not.toContain('deepseek-v4-flash')
-    }
+    expect(frame).toContain('Operis 4.0')
+    expect(frame).not.toContain('gpt-5.6-luna')
   })
 
   it('does not dump skill names from session info', async () => {

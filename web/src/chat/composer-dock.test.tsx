@@ -96,31 +96,5 @@ describe("ComposerDock geometry", () => {
 
     expect(container.textContent).toContain("Operis 4.0");
     expect(container.textContent).not.toContain("gpt-5.6-luna");
-    expect(container.textContent).not.toContain("gemini-3.8-flash");
-  });
-
-  it("shows Operis 4.0 for the legacy house model id", () => {
-    act(() => {
-      root.render(
-        <ComposerDock
-          value=""
-          onChange={() => undefined}
-          onSubmit={() => undefined}
-          gateway={null}
-          sessionId="sess-1"
-          connectionState="open"
-          sessionInfo={{
-            model: "deepseek/deepseek-v4-flash-0731",
-            provider: "work4you",
-            branch: "main",
-          }}
-          sessionUsage={{ total: 500 }}
-          activity={{ toolLine: null, backgroundLine: null, queueCount: 0 }}
-        />,
-      );
-    });
-
-    expect(container.textContent).toContain("Operis 4.0");
-    expect(container.textContent).not.toContain("deepseek-v4-fla");
   });
 });

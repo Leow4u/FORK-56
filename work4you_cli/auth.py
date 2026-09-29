@@ -7681,7 +7681,7 @@ def _prompt_model_selection(
         return canonical_work4you_house_model_id(mid)
 
     # Reorder: current model first, then the rest (deduplicated). House
-    # ids (canonical + legacy) collapse to the current wire id.
+    # ids collapse to the current wire id.
     ordered = []
     if current_model:
         current_wire = canonical_work4you_house_model_id(current_model)

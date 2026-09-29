@@ -6,11 +6,7 @@ export type ModelPricing = { prompt?: string; completion?: string }
 export const HOUSE_MODEL_ID = 'openai/gpt-5.6-luna'
 export const HOUSE_MODEL_DISPLAY = 'Operis 4.0'
 
-const HOUSE_MODEL_SLUGS = new Set([
-  'gpt-5.6-luna',
-  'gemini-3.8-flash',
-  'deepseek-v4-flash-0731',
-])
+const HOUSE_MODEL_SLUGS = new Set(['gpt-5.6-luna'])
 
 export function isHouseModel(modelId: string): boolean {
   const slug = modelId.trim().toLowerCase().split('/').pop() || ''

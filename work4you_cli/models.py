@@ -672,8 +672,6 @@ WORK4YOU_HOUSE_MODEL_ID = "openai/gpt-5.6-luna"
 WORK4YOU_HOUSE_MODEL_DISPLAY = "Operis 4.0"
 _WORK4YOU_HOUSE_MODEL_SLUGS = frozenset({
     "gpt-5.6-luna",
-    "gemini-3.8-flash",
-    "deepseek-v4-flash-0731",
 })
 
 # Default-on composer / Edit Models shortlist for the Portal picker.
@@ -698,11 +696,10 @@ WORK4YOU_FEATURED_MODEL_IDS: tuple[str, ...] = (
 def is_work4you_house_model(model_id: str) -> bool:
     """Return True if *model_id* is the Free-plan house model (Operis).
 
-    Matches the canonical GPT-5.6 Luna id, leftover Gemini 3.8 Flash and
-    DeepSeek Flash dated-snapshot sessions, any vendor prefix, and the bare
+    Matches the GPT-5.6 Luna id with any vendor prefix, and the bare
     trailing slug splash and status chrome use after stripping the vendor.
-    Sibling ids (``gpt-5.6-luna-pro``, ``gemini-3.7-flash``,
-    ``deepseek-v4-flash``) stay out — those are paid catalog models, not Operis.
+    The sibling ``gpt-5.6-luna-pro`` stays out — it is a paid catalog model,
+    not Operis.
     """
     mid = (model_id or "").strip().lower()
     if not mid:
@@ -711,7 +708,7 @@ def is_work4you_house_model(model_id: str) -> bool:
 
 
 def canonical_work4you_house_model_id(model_id: str) -> str:
-    """Rewrite a house-model id (canonical or legacy) to the current wire id."""
+    """Rewrite a house-model id to the current wire id."""
     if is_work4you_house_model(model_id):
         return WORK4YOU_HOUSE_MODEL_ID
     return model_id or ""
