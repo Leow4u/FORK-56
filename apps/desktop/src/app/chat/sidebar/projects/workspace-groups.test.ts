@@ -10,6 +10,8 @@ import {
   liveSessionProjectId,
   NO_PROJECT_ID,
   overlayLivePreviews,
+  projectOwnerBySessionId,
+  sessionMatchesProjectFilter,
   sessionProjectColor,
   type SidebarProjectTree,
   type SidebarSessionGroup
@@ -88,6 +90,35 @@ const homeNode = (sessions: SessionInfo[]): SidebarProjectTree =>
     ],
     sessionCount: sessions.length
   })
+
+describe('sessionMatchesProjectFilter', () => {
+  it('keeps a Home row with a cwd when filtering to Home, as the backend filed it', () => {
+    // The backend files a chat in the bare home dir under Home; the cwd walk
+    // alone would call it a `/home/me` project and hide it from Home's filter.
+    const chat = makeCwdSession('/home/me', { id: 'home-folder' })
+    const owners = projectOwnerBySessionId([{ ...homeNode([]), previewSessions: [chat] }])
+
+    expect(sessionMatchesProjectFilter(chat, [NO_PROJECT_ID], [], owners)).toBe(true)
+    expect(sessionMatchesProjectFilter(chat, ['/home/me'], [], owners)).toBe(false)
+  })
+
+  it('files a row the tree has not listed yet by its live cwd, and a detached one under Home', () => {
+    const app = makeProject('p_app', ['/www/app'])
+    const fresh = makeCwdSession('/www/app/src', { id: 'fresh' })
+    const detached = makeCwdSession(null, { id: 'detached' })
+    const owners = projectOwnerBySessionId([])
+
+    expect(sessionMatchesProjectFilter(fresh, ['p_app'], [app], owners)).toBe(true)
+    expect(sessionMatchesProjectFilter(detached, [NO_PROJECT_ID], [app], owners)).toBe(true)
+    expect(sessionMatchesProjectFilter(detached, ['p_app'], [app], owners)).toBe(false)
+  })
+
+  it('lets every row through when no project is picked', () => {
+    const chat = makeCwdSession('/anywhere', { id: 'any' })
+
+    expect(sessionMatchesProjectFilter(chat, [], [], projectOwnerBySessionId([]))).toBe(true)
+  })
+})
 
 describe('liveSessionProjectId', () => {
   it('maps a brand-new (unpersisted) session to its auto project (the repo root)', () => {
