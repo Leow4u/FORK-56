@@ -1,8 +1,10 @@
 /**
  * Packaged Windows Setup and macOS DMG can ship a CI-built Python runtime in
- * extraResources (`resources/runtime`). First launch must use that tree —
- * not install.ps1 / install.sh's GitHub + uv bootstrap — when the manifest
- * says the payload is present.
+ * extraResources (`resources/runtime`). That snapshot is the repo Python at
+ * installer-build time, so agent and tool fixes reach installed apps only
+ * when this installer is rebuilt. First launch must use that tree — not
+ * install.ps1 / install.sh's GitHub + uv bootstrap — when the manifest says
+ * the payload is present.
  *
  * Pure helpers (no Electron imports) so node:test can cover the gate without
  * booting the app.
