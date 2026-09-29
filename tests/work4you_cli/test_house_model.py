@@ -4,7 +4,6 @@ from work4you_cli.models import (
     PREFERRED_SILENT_DEFAULT_MODEL,
     WORK4YOU_HOUSE_MODEL_DISPLAY,
     WORK4YOU_HOUSE_MODEL_ID,
-    canonical_work4you_house_model_id,
     is_work4you_house_model,
     pick_silent_default_model,
 )
@@ -33,30 +32,9 @@ def test_house_model_id_is_gpt56_luna():
     assert is_work4you_house_model("gpt-5.6-luna")
     assert is_work4you_house_model("openrouter/gpt-5.6-luna")
     assert is_work4you_house_model("work4you/openai/gpt-5.6-luna")
-    assert is_work4you_house_model("gemini-3.8-flash")
-    assert is_work4you_house_model("openrouter/gemini-3.8-flash")
-    assert is_work4you_house_model("work4you/google/gemini-3.8-flash")
-    assert is_work4you_house_model("deepseek/deepseek-v4-flash-0731")
-    assert is_work4you_house_model("openrouter/deepseek-v4-flash-0731")
-    assert is_work4you_house_model("deepseek-v4-flash-0731")
-    assert is_work4you_house_model("work4you/deepseek/deepseek-v4-flash-0731")
     assert not is_work4you_house_model("openai/gpt-5.6-luna-pro")
     assert not is_work4you_house_model("gpt-5.6-luna-pro")
-    assert not is_work4you_house_model("deepseek/deepseek-v4-flash")
-    assert not is_work4you_house_model("google/gemini-3.7-flash")
-    assert not is_work4you_house_model("gemini-3.7-flash")
     assert not is_work4you_house_model("openrouter/free")
-
-
-def test_legacy_house_id_canonicalizes_to_luna():
-    assert canonical_work4you_house_model_id("deepseek/deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_ID
-    assert canonical_work4you_house_model_id("deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_ID
-    assert canonical_work4you_house_model_id("google/gemini-3.8-flash") == WORK4YOU_HOUSE_MODEL_ID
-    assert canonical_work4you_house_model_id("gemini-3.8-flash") == WORK4YOU_HOUSE_MODEL_ID
-    assert canonical_work4you_house_model_id(WORK4YOU_HOUSE_MODEL_ID) == WORK4YOU_HOUSE_MODEL_ID
-    assert canonical_work4you_house_model_id("google/gemini-3.7-flash") == "google/gemini-3.7-flash"
-    assert canonical_work4you_house_model_id("deepseek/deepseek-v4-flash") == "deepseek/deepseek-v4-flash"
-    assert canonical_work4you_house_model_id("openai/gpt-5.6-luna-pro") == "openai/gpt-5.6-luna-pro"
 
 
 def test_house_model_display_hides_upstream_wire_id():
@@ -65,16 +43,9 @@ def test_house_model_display_hides_upstream_wire_id():
 
     assert format_model_for_display(WORK4YOU_HOUSE_MODEL_ID) == WORK4YOU_HOUSE_MODEL_DISPLAY
     assert format_model_for_display("gpt-5.6-luna") == WORK4YOU_HOUSE_MODEL_DISPLAY
-    assert format_model_for_display("gemini-3.8-flash") == WORK4YOU_HOUSE_MODEL_DISPLAY
-    assert format_model_for_display("deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_DISPLAY
-    assert format_model_for_display("openrouter/deepseek-v4-flash-0731") == WORK4YOU_HOUSE_MODEL_DISPLAY
     shown = format_model_for_display(WORK4YOU_HOUSE_MODEL_ID).lower()
-    assert "gemini" not in shown
-    assert "deepseek" not in shown
     assert "luna" not in shown
     assert "gpt" not in shown
-    assert "flash" not in shown
-    assert format_model_for_display("deepseek/deepseek-v4-flash") == "deepseek/deepseek-v4-flash"
     assert format_model_for_display("google/gemini-3.7-flash") == "Gemini 3.7 Flash"
     assert format_model_for_display("anthropic/claude-opus-4.8") == "Claude Opus 4.8"
 
@@ -102,10 +73,6 @@ def test_silent_default_is_house_model():
     ]
     assert pick_silent_default_model(ids, provider="work4you") == WORK4YOU_HOUSE_MODEL_ID
     assert pick_silent_default_model(ids, provider="openrouter") == WORK4YOU_HOUSE_MODEL_ID
-    assert pick_silent_default_model(
-        ["anthropic/claude-fable-5", "deepseek/deepseek-v4-flash-0731"],
-        provider="work4you",
-    ) == WORK4YOU_HOUSE_MODEL_ID
 
 
 def test_house_model_is_not_zero_price_free():
@@ -142,20 +109,6 @@ def test_free_tier_recommended_default_prefers_house():
     assert "openrouter/free" in unavailable
     assert "google/gemini-3.7-flash" in unavailable
     assert pick_silent_default_model(selectable, provider="work4you") == WORK4YOU_HOUSE_MODEL_ID
-
-
-def test_free_tier_collapses_legacy_and_canonical_house_ids():
-    from work4you_cli.models import partition_work4you_models_by_tier
-
-    models = [
-        "deepseek/deepseek-v4-flash-0731",
-        WORK4YOU_HOUSE_MODEL_ID,
-        "google/gemini-3.7-flash",
-    ]
-    selectable, unavailable = partition_work4you_models_by_tier(models, {}, free_tier=True)
-    assert selectable == [WORK4YOU_HOUSE_MODEL_ID]
-    assert "google/gemini-3.7-flash" in unavailable
-    assert "deepseek/deepseek-v4-flash-0731" not in selectable
 
 
 def test_featured_shortlist_is_official_and_includes_house():

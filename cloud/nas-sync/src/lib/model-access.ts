@@ -53,11 +53,7 @@ export const OFFICIAL_WORK4YOU_MODEL_IDS: readonly string[] = [
 export const OFFICIAL_PAID_VISION_MODEL = 'google/gemini-3.7-flash'
 export const OFFICIAL_PAID_COMPACTION_MODEL = 'openai/gpt-5.4-mini'
 
-const HOUSE_MODEL_SLUGS = new Set([
-  'gpt-5.6-luna',
-  'gemini-3.8-flash',
-  'deepseek-v4-flash-0731',
-])
+const HOUSE_MODEL_SLUGS = new Set(['gpt-5.6-luna'])
 
 const CURATED_MODEL_DISPLAY: Record<string, string> = {
   'claude-fable-5': 'Claude Fable 5',

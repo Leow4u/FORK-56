@@ -30,10 +30,6 @@ from gateway.runtime_footer import (
         (None, ""),
         ("openai/gpt-5.6-luna", "Operis 4.0"),
         ("gpt-5.6-luna", "Operis 4.0"),
-        ("deepseek/deepseek-v4-flash-0731", "Operis 4.0"),
-        ("deepseek-v4-flash-0731", "Operis 4.0"),
-        ("google/gemini-3.8-flash", "Operis 4.0"),
-        ("gemini-3.8-flash", "Operis 4.0"),
     ],
 )
 def test_model_short_drops_vendor_prefix(model, expected):
