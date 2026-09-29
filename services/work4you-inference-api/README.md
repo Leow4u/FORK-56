@@ -10,7 +10,7 @@ OpenAI-compatible gateway at **`https://inference-api.work4you.ai`** (Fly app
 3. Forwards to **OpenRouter** with the **platform** `OPENROUTER_API_KEY` (never shown to users).
 4. Debits NAS `POST /api/internal/billing/debit` from usage/cost.
 
-Surfaces: `/v1/models`, `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, `/v1/messages` (Anthropic-shaped → chat).
+Surfaces: `/v1/models`, `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, `/v1/messages` (Anthropic Messages, forwarded to OpenRouter `/messages`).
 
 Static Portal `sk-work4you-…` keys are resolved via NAS
 `/api/internal/api-keys/resolve` (same billing secret). Agent/Desktop keep using
