@@ -26,7 +26,9 @@ def test_object_without_properties_gets_empty_properties():
     assert out[0]["function"]["parameters"] == {"type": "object", "properties": {}}
 
 
-def test_nested_object_without_properties_gets_empty_properties():
+def test_nested_open_object_becomes_json_string():
+    """Every model can only emit declared keys. An open arguments bag must
+    be a JSON string or the call leaves as {}."""
     tools = [_tool("t", {
         "type": "object",
         "properties": {
@@ -37,9 +39,10 @@ def test_nested_object_without_properties_gets_empty_properties():
     })]
     out = sanitize_tool_schemas(tools)
     args = out[0]["function"]["parameters"]["properties"]["arguments"]
-    assert args["type"] == "object"
-    assert args["properties"] == {}
-    assert args["description"] == "free-form"
+    assert args["type"] == "string"
+    assert "free-form" in args["description"]
+    assert "JSON object encoded as a string" in args["description"]
+    assert out[0]["function"]["parameters"]["type"] == "object"
 
 
 def test_bare_string_object_value_replaced_with_schema_dict():
@@ -54,8 +57,8 @@ def test_bare_string_object_value_replaced_with_schema_dict():
     out = sanitize_tool_schemas(tools)
     payload = out[0]["function"]["parameters"]["properties"]["payload"]
     assert isinstance(payload, dict)
-    assert payload["type"] == "object"
-    assert payload["properties"] == {}
+    assert payload["type"] == "string"
+    assert "JSON object encoded as a string" in payload["description"]
 
 
 def test_nullable_type_array_collapsed_to_single_string():
@@ -130,7 +133,8 @@ def test_anyof_nested_objects_sanitized():
     })]
     out = sanitize_tool_schemas(tools)
     variants = out[0]["function"]["parameters"]["properties"]["opt"]["anyOf"]
-    assert variants[0] == {"type": "object", "properties": {}}
+    assert variants[0]["type"] == "string"
+    assert "JSON object encoded as a string" in variants[0]["description"]
     assert variants[1] == {"type": "string"}
 
 
@@ -182,7 +186,78 @@ def test_additional_properties_schema_sanitized():
     })]
     out = sanitize_tool_schemas(tools)
     field = out[0]["function"]["parameters"]["properties"]["dict_field"]
-    assert field["additionalProperties"] == {"type": "object", "properties": {}}
+    assert field["type"] == "string"
+    assert "JSON object encoded as a string" in field["description"]
+
+
+def test_closed_empty_object_stays_an_object():
+    tools = [_tool("t", {
+        "type": "object",
+        "properties": {
+            "payload": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+                "description": "Nothing is allowed here.",
+            },
+        },
+    })]
+    out = sanitize_tool_schemas(tools)
+    payload = out[0]["function"]["parameters"]["properties"]["payload"]
+    assert payload["type"] == "object"
+    assert payload["properties"] == {}
+    assert payload["additionalProperties"] is False
+    assert payload["description"] == "Nothing is allowed here."
+
+
+def test_object_with_declared_properties_stays_an_object():
+    tools = [_tool("t", {
+        "type": "object",
+        "properties": {
+            "filter": {
+                "type": "object",
+                "additionalProperties": True,
+                "properties": {"query": {"type": "string"}},
+            },
+        },
+    })]
+    out = sanitize_tool_schemas(tools)
+    filt = out[0]["function"]["parameters"]["properties"]["filter"]
+    assert filt["type"] == "object"
+    assert filt["properties"]["query"]["type"] == "string"
+    assert filt["additionalProperties"] is True
+
+
+def test_composio_execute_arguments_become_json_string():
+    """Every Work4You App action goes through this shared arguments bag."""
+    tools = [_tool("COMPOSIO_MULTI_EXECUTE_TOOL", {
+        "type": "object",
+        "required": ["tools"],
+        "properties": {
+            "tools": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["tool_slug", "arguments"],
+                    "properties": {
+                        "tool_slug": {"type": "string"},
+                        "arguments": {
+                            "type": "object",
+                            "additionalProperties": True,
+                            "description": "The arguments to pass to the tool.",
+                        },
+                    },
+                },
+            },
+        },
+    })]
+    out = sanitize_tool_schemas(tools)
+    item = out[0]["function"]["parameters"]["properties"]["tools"]["items"]
+    assert item["properties"]["tool_slug"]["type"] == "string"
+    args = item["properties"]["arguments"]
+    assert args["type"] == "string"
+    assert "JSON object encoded as a string" in args["description"]
+    assert item["required"] == ["tool_slug", "arguments"]
 
 
 def test_items_sanitized_in_array_schema():
@@ -197,7 +272,8 @@ def test_items_sanitized_in_array_schema():
     })]
     out = sanitize_tool_schemas(tools)
     items = out[0]["function"]["parameters"]["properties"]["bag"]["items"]
-    assert items == {"type": "object", "properties": {}}
+    assert items["type"] == "string"
+    assert "JSON object encoded as a string" in items["description"]
 
 
 # ─────────────────────────────────────────────────────────────────────────

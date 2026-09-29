@@ -635,8 +635,10 @@ def _compute_tool_definitions(
 
     # Sanitize the tools that actually go on the wire. Must run AFTER
     # assemble_tool_defs: the tool_call bridge is born with
-    # ``arguments: {type: object}`` and no ``properties``, which Gemini and
-    # llama.cpp 400. sanitize_tool_schemas already repairs that shape.
+    # ``arguments: {type: object}`` and no ``properties``. Every model's
+    # decoder can only emit declared keys, so that bag would leave as ``{}``
+    # and every deferred MCP call would run empty. sanitize_tool_schemas
+    # rewrites nested open objects to a JSON string.
     try:
         from tools.schema_sanitizer import sanitize_tool_schemas
         filtered_tools = sanitize_tool_schemas(filtered_tools)

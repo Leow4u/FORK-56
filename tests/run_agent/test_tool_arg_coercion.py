@@ -240,6 +240,72 @@ class TestCoerceToolArgsNested:
 
 
 
+    def test_freeform_object_json_string_is_parsed(self):
+        """Models emit an open arguments bag as a JSON string.
+
+        The registry schema stays ``type: object``. Dispatch parses the
+        string back into a dict before the tool runs, including when the
+        bag is nested inside an array item.
+        """
+        schema = {
+            "name": "mcp__work4you_apps__COMPOSIO_MULTI_EXECUTE_TOOL",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tools": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "tool_slug": {"type": "string"},
+                                "arguments": {
+                                    "type": "object",
+                                    "additionalProperties": True,
+                                },
+                            },
+                        },
+                    }
+                },
+            },
+        }
+        with patch("model_tools.registry.get_schema", return_value=schema):
+            result = coerce_tool_args(
+                schema["name"],
+                {
+                    "tools": [
+                        {
+                            "tool_slug": "GMAIL_FETCH_EMAILS",
+                            "arguments": '{"query": "in:inbox", "max_results": 1}',
+                        }
+                    ]
+                },
+            )
+        assert result["tools"][0]["arguments"] == {
+            "query": "in:inbox",
+            "max_results": 1,
+        }
+
+    def test_tool_call_arguments_json_string_is_parsed(self):
+        schema = {
+            "name": "tool_call",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "arguments": {"type": "object"},
+                },
+            },
+        }
+        with patch("model_tools.registry.get_schema", return_value=schema):
+            result = coerce_tool_args(
+                "tool_call",
+                {
+                    "name": "mcp__work4you_apps__GMAIL_FETCH_EMAILS",
+                    "arguments": '{"query": "in:inbox", "max_results": 1}',
+                },
+            )
+        assert result["arguments"] == {"query": "in:inbox", "max_results": 1}
+
     def test_real_todo_schema_element_strings(self):
         """Against the real todo schema from the registry."""
         import json as _json

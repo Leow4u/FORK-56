@@ -280,11 +280,12 @@ class TestAssembly:
         # activation happened; here it didn't).
         assert "tool_search" not in names
 
-    def test_sanitize_after_assemble_fills_tool_call_arguments_properties(self):
+    def test_sanitize_after_assemble_rewrites_tool_call_arguments(self):
         """tool_call.arguments is born as {type: object} with no properties.
 
-        Gemini and llama.cpp 400 on that shape. sanitize_tool_schemas already
-        injects properties: {} — but only if it runs AFTER assemble_tool_defs.
+        Every model's decoder emits only declared keys, so that bag would
+        leave as {}. sanitize_tool_schemas rewrites it to a JSON string —
+        but only if it runs AFTER assemble_tool_defs.
         """
         from tools.schema_sanitizer import sanitize_tool_schemas
         from tools.tool_search import assemble_tool_defs, ToolSearchConfig
@@ -308,7 +309,8 @@ class TestAssembly:
             t for t in sanitized if t["function"]["name"] == "tool_call"
         )
         args_schema = tool_call["function"]["parameters"]["properties"]["arguments"]
-        assert args_schema.get("properties") == {}
+        assert args_schema["type"] == "string"
+        assert "JSON object encoded as a string" in args_schema["description"]
 
 
 # ---------------------------------------------------------------------------
