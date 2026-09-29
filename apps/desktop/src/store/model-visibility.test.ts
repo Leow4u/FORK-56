@@ -252,7 +252,7 @@ describe('featured defaults', () => {
 
   it('starts Portal Edit Models toggles from the official featured shortlist', () => {
     const catalog = [
-      'openai/gpt-5.6-luna',
+      'openai/gpt-6-luna',
       'anthropic/claude-fable-5',
       'anthropic/claude-opus-5',
       'anthropic/claude-opus-4.8',
@@ -270,7 +270,7 @@ describe('featured defaults', () => {
     ]
 
     const featured = [
-      'openai/gpt-5.6-luna',
+      'openai/gpt-6-luna',
       'anthropic/claude-fable-5',
       'anthropic/claude-opus-5',
       'anthropic/claude-sonnet-5',
@@ -285,7 +285,7 @@ describe('featured defaults', () => {
 
     const visible = defaultVisibleKeys([featuredProvider('work4you', catalog, featured)])
 
-    expect(visible.has(modelVisibilityKey('work4you', 'openai/gpt-5.6-luna'))).toBe(true)
+    expect(visible.has(modelVisibilityKey('work4you', 'openai/gpt-6-luna'))).toBe(true)
     expect(visible.has(modelVisibilityKey('work4you', 'anthropic/claude-fable-5'))).toBe(true)
     expect(visible.has(modelVisibilityKey('work4you', 'openai/gpt-5.6-luna-pro'))).toBe(true)
     expect(visible.has(modelVisibilityKey('work4you', 'anthropic/claude-opus-4.8'))).toBe(false)

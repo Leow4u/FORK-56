@@ -16,12 +16,12 @@ export type AnnotatedModel = {
 }
 
 /** Billed house model on Free. Ceiling is existing NAS authorize/debit. */
-export const HOUSE_MODEL_ID = 'openai/gpt-5.6-luna'
-export const HOUSE_MODEL_DISPLAY = 'Operis 4.0'
+export const HOUSE_MODEL_ID = 'openai/gpt-6-luna'
+export const HOUSE_MODEL_DISPLAY = 'Operis 5.0'
 
 /** Official Work4You catalog — same as `_PROVIDER_MODELS["work4you"]`. */
 export const OFFICIAL_WORK4YOU_MODEL_IDS: readonly string[] = [
-  'openai/gpt-5.6-luna',
+  'openai/gpt-6-luna',
   'anthropic/claude-fable-5',
   'anthropic/claude-opus-5',
   'anthropic/claude-opus-4.8',
@@ -53,7 +53,7 @@ export const OFFICIAL_WORK4YOU_MODEL_IDS: readonly string[] = [
 export const OFFICIAL_PAID_VISION_MODEL = 'google/gemini-3.7-flash'
 export const OFFICIAL_PAID_COMPACTION_MODEL = 'openai/gpt-5.4-mini'
 
-const HOUSE_MODEL_SLUGS = new Set(['gpt-5.6-luna'])
+const HOUSE_MODEL_SLUGS = new Set(['gpt-6-luna'])
 
 const CURATED_MODEL_DISPLAY: Record<string, string> = {
   'claude-fable-5': 'Claude Fable 5',

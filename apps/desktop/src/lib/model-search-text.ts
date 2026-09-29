@@ -10,7 +10,7 @@
  */
 const MODEL_SEARCH_ALIASES: Record<string, readonly string[]> = {
   k3: ['kimi-k3', 'kimi'],
-  'openai/gpt-5.6-luna': ['operis', 'operis 4.0'],
+  'openai/gpt-6-luna': ['operis', 'operis 5.0'],
   'tencent/hy3': ['hunyuan', 'hunyuan 3']
 }
 

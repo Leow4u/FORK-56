@@ -112,7 +112,7 @@ describe('the catalog owns model curation', () => {
     getGlobalModelOptions.mockResolvedValue({
       providers: [
         {
-          models: ['openai/gpt-5.6-luna', 'z-ai/glm-5.2'],
+          models: ['openai/gpt-6-luna', 'z-ai/glm-5.2'],
           name: 'Work4You Portal',
           slug: 'work4you',
           unavailable_models: ['z-ai/glm-5.2']
@@ -123,15 +123,15 @@ describe('the catalog owns model curation', () => {
     const { select } = renderMenu()
     await openModelsCatalog()
 
-    await screen.findByText('Operis 4.0')
+    await screen.findByText('Operis 5.0')
     expect(document.querySelector('.codicon-lock')).not.toBeNull()
     expect(screen.queryByText('Pro')).toBeNull()
     fireEvent.click(screen.getByText(/Glm 5\.2/i))
     expect(select).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByText('Operis 4.0'))
+    fireEvent.click(screen.getByText('Operis 5.0'))
     await vi.waitFor(() => {
-      expect(select).toHaveBeenCalledWith('openai/gpt-5.6-luna', 'work4you')
+      expect(select).toHaveBeenCalledWith('openai/gpt-6-luna', 'work4you')
     })
   })
 
@@ -151,7 +151,7 @@ describe('the catalog menu layout', () => {
     getGlobalModelOptions.mockResolvedValue({
       providers: [
         {
-          models: ['openai/gpt-5.6-luna'],
+          models: ['openai/gpt-6-luna'],
           name: 'Work4You Portal',
           slug: 'work4you'
         }
@@ -160,7 +160,7 @@ describe('the catalog menu layout', () => {
 
     renderMenu()
     await openModelsCatalog()
-    await screen.findByText('Operis 4.0')
+    await screen.findByText('Operis 5.0')
 
     expect(screen.queryByText('Work4You Portal')).toBeNull()
   })

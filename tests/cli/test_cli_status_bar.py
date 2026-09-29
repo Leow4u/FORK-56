@@ -81,7 +81,7 @@ class TestCLIStatusBar:
         cli_obj = _make_cli(WORK4YOU_HOUSE_MODEL_ID)
         snapshot = cli_obj._get_status_bar_snapshot()
 
-        assert snapshot["model_short"] == "Operis 4.0"
+        assert snapshot["model_short"] == "Operis 5.0"
         assert "luna" not in snapshot["model_short"].lower()
         # Wire id stays on the snapshot for fallback/debug; chrome uses model_short.
         assert snapshot["model_name"] == WORK4YOU_HOUSE_MODEL_ID

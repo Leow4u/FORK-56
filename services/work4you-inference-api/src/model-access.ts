@@ -3,10 +3,10 @@
 export type ModelPricing = { prompt?: string; completion?: string }
 
 /** Billed house model on Free. Ceiling is existing NAS authorize/debit. */
-export const HOUSE_MODEL_ID = 'openai/gpt-5.6-luna'
-export const HOUSE_MODEL_DISPLAY = 'Operis 4.0'
+export const HOUSE_MODEL_ID = 'openai/gpt-6-luna'
+export const HOUSE_MODEL_DISPLAY = 'Operis 5.0'
 
-const HOUSE_MODEL_SLUGS = new Set(['gpt-5.6-luna'])
+const HOUSE_MODEL_SLUGS = new Set(['gpt-6-luna'])
 
 export function isHouseModel(modelId: string): boolean {
   const slug = modelId.trim().toLowerCase().split('/').pop() || ''

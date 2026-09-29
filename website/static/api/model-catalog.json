@@ -57,8 +57,8 @@
           "description": ""
         },
         {
-          "id": "openai/gpt-5.6-luna",
-          "description": "Operis 4.0",
+          "id": "openai/gpt-6-luna",
+          "description": "Operis 5.0",
           "default": true
         },
         {
@@ -190,7 +190,7 @@
       },
       "models": [
         {
-          "id": "openai/gpt-5.6-luna",
+          "id": "openai/gpt-6-luna",
           "default": true
         },
         {

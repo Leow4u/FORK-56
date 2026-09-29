@@ -568,10 +568,10 @@ def test_apply_featured_work4you_drops_missing_shortlist_ids():
 
     row = {
         "slug": "work4you",
-        "models": ["anthropic/claude-fable-5", "openai/gpt-5.6-luna"],
+        "models": ["anthropic/claude-fable-5", "openai/gpt-6-luna"],
     }
     _apply_featured([row])
-    assert row["featured_models"] == ["anthropic/claude-fable-5", "openai/gpt-5.6-luna"]
+    assert row["featured_models"] == ["anthropic/claude-fable-5", "openai/gpt-6-luna"]
 
 
 def test_apply_featured_openrouter_still_keeps_newest_per_lab():
