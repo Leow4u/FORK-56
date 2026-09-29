@@ -7,6 +7,8 @@ export {
   excludeProjectSessions,
   liveSessionProjectId,
   overlayLivePreviews,
+  projectOwnerBySessionId,
+  sessionMatchesProjectFilter,
   sessionRecency,
   type SidebarProjectTree,
   type SidebarSessionGroup,

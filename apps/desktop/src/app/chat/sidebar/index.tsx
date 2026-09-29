@@ -149,9 +149,10 @@ import { ProfileRail } from './profile-switcher'
 import { ProjectDialog } from './project-dialog'
 import {
   excludeProjectSessions,
-  liveSessionProjectId,
   orderProjectsByIds,
   overlayLivePreviews,
+  projectOwnerBySessionId,
+  sessionMatchesProjectFilter,
   sessionRecency as sessionTime,
   type SidebarProjectTree,
   type SidebarSessionGroup,
@@ -397,6 +398,7 @@ export function ChatSidebar({
   const projectOrderIds = useStore($sidebarProjectOrderIds)
   const projects = useStore($projects)
   const projectTree = useStore($projectTree)
+  const projectOwners = useMemo(() => projectOwnerBySessionId(projectTree), [projectTree])
   const projectTreeLoading = useStore($projectTreeLoading)
   const removedSessionIds = useStore($removedSessionIds)
   const reposScanning = useStore($reposScanning)
@@ -499,11 +501,21 @@ export function ChatSidebar({
         }
       }
 
-      // Same membership the sidebar groups and colors by, so a filtered row
-      // lands in the lane the user picked it from.
-      return !projectFilter.length || projectFilter.includes(liveSessionProjectId(session, projects) ?? '')
+      // The backend tree's membership, so a filtered row lands in the lane the
+      // user picked it from — Home included.
+      return sessionMatchesProjectFilter(session, projectFilter, projects, projectOwners)
     },
-    [statusFilter, projectFilter, profileFilter, showAllProfiles, prFilter, pullRequests, projects, dotStates]
+    [
+      statusFilter,
+      projectFilter,
+      profileFilter,
+      showAllProfiles,
+      prFilter,
+      pullRequests,
+      projects,
+      projectOwners,
+      dotStates
+    ]
   )
 
   const filtersNarrow =

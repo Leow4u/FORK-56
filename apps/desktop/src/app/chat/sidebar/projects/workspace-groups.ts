@@ -242,6 +242,53 @@ export function sessionProjectColor(session: SessionInfo, projects: ProjectInfo[
   return projects.find(project => project.id === projectId)?.color ?? null
 }
 
+/**
+ * Session id -> owning project id, as the backend tree filed it. The tree
+ * carries each project's rows in `previewSessions` (and lanes, when hydrated),
+ * so this is the backend's membership answer for every loaded row.
+ */
+export function projectOwnerBySessionId(projects: SidebarProjectTree[]): ReadonlyMap<string, string> {
+  const owners = new Map<string, string>()
+
+  for (const project of projects) {
+    const ids = [
+      ...(project.previewSessions ?? []).map(session => session.id),
+      ...project.repos.flatMap(repo => repo.groups.flatMap(group => group.sessions.map(session => session.id)))
+    ]
+
+    for (const id of ids) {
+      owners.set(id, project.id)
+    }
+  }
+
+  return owners
+}
+
+/**
+ * The row-level project-filter rule. The backend's owner wins — including
+ * Home, which also holds rows WITH a cwd the backend would not promote (the
+ * bare home dir, a deleted workspace), so filtering to Home keeps Home's own
+ * rows. Rows the tree has not filed yet fall back to the live cwd walk, and a
+ * detached (cwd-less) row files under Home, as in the preview overlay.
+ */
+export function sessionMatchesProjectFilter(
+  session: SessionInfo,
+  filter: readonly string[],
+  explicitProjects: ProjectInfo[],
+  owners: ReadonlyMap<string, string>
+): boolean {
+  if (!filter.length) {
+    return true
+  }
+
+  const id =
+    owners.get(session.id) ??
+    liveSessionProjectId(session, explicitProjects) ??
+    (isDetachedSession(session) ? NO_PROJECT_ID : null)
+
+  return id !== null && filter.includes(id)
+}
+
 const NO_REMOVED: ReadonlySet<string> = new Set()
 
 /**
