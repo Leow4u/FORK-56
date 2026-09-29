@@ -34,10 +34,10 @@ export function currentPickerSelection(
   }
 }
 
-export const WORK4YOU_HOUSE_MODEL_ID = 'openai/gpt-5.6-luna'
-export const WORK4YOU_HOUSE_MODEL_DISPLAY = 'Operis 4.0'
+export const WORK4YOU_HOUSE_MODEL_ID = 'openai/gpt-6-luna'
+export const WORK4YOU_HOUSE_MODEL_DISPLAY = 'Operis 5.0'
 
-const HOUSE_MODEL_SLUGS = new Set(['gpt-5.6-luna'])
+const HOUSE_MODEL_SLUGS = new Set(['gpt-6-luna'])
 
 const CURATED_MODEL_DISPLAY: Record<string, string> = {
   'claude-fable-5': 'Claude Fable 5',

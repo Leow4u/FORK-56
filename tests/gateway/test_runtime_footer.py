@@ -28,8 +28,8 @@ from gateway.runtime_footer import (
         ("gpt-5.4", "gpt-5.4"),
         ("", ""),
         (None, ""),
-        ("openai/gpt-5.6-luna", "Operis 4.0"),
-        ("gpt-5.6-luna", "Operis 4.0"),
+        ("openai/gpt-6-luna", "Operis 5.0"),
+        ("gpt-6-luna", "Operis 5.0"),
     ],
 )
 def test_model_short_drops_vendor_prefix(model, expected):

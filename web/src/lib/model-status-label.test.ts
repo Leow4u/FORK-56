@@ -3,14 +3,15 @@ import { describe, expect, it } from "vitest";
 import { displayModelName, formatModelStatusLabel } from "./model-status-label";
 
 describe("model-status-label", () => {
-  it("maps the house model id to Operis 4.0", () => {
-    expect(displayModelName("openai/gpt-5.6-luna")).toBe("Operis 4.0");
-    expect(displayModelName("gpt-5.6-luna")).toBe("Operis 4.0");
+  it("maps the house model id to Operis 5.0", () => {
+    expect(displayModelName("openai/gpt-6-luna")).toBe("Operis 5.0");
+    expect(displayModelName("gpt-6-luna")).toBe("Operis 5.0");
+    expect(displayModelName("openai/gpt-5.6-luna")).not.toBe("Operis 5.0");
     expect(
-      formatModelStatusLabel("openai/gpt-5.6-luna", {
+      formatModelStatusLabel("openai/gpt-6-luna", {
         reasoningEffort: "medium",
       }),
-    ).toBe("Operis 4.0 · Med");
+    ).toBe("Operis 5.0 · Med");
   });
 
   it("does not treat the paid Luna sibling as Operis", () => {

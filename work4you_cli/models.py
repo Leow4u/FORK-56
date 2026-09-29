@@ -94,7 +94,7 @@ OPENROUTER_MODELS: list[tuple[str, str]] = [
     ("openai/gpt-5.6-sol-pro",                 ""),
     ("openai/gpt-5.6-terra",                   ""),
     ("openai/gpt-5.6-terra-pro",               ""),
-    ("openai/gpt-5.6-luna",                    "Operis 4.0"),
+    ("openai/gpt-6-luna",                      "Operis 5.0"),
     ("openai/gpt-5.6-luna-pro",                ""),
     ("openai/gpt-5.5",                         ""),
     ("openai/gpt-5.5-pro",                     ""),
@@ -262,7 +262,7 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
     "work4you": [
         # House model (Operis) first so leftover Settings picks land here.
         # Paid DeepSeek / Gemini Flash siblings stay on the OpenRouter snapshot.
-        "openai/gpt-5.6-luna",
+        "openai/gpt-6-luna",
         # Anthropic
         "anthropic/claude-fable-5",
         "anthropic/claude-opus-5",
@@ -668,10 +668,10 @@ _PROVIDER_MODELS["ai-gateway"] = [mid for mid, _ in VERCEL_AI_GATEWAY_MODELS]
 # surface it to users as-is — no local allowlist filtering.
 
 # Billed house model on Free (Operis). Not $0 — NAS authorize/debit is the ceiling.
-WORK4YOU_HOUSE_MODEL_ID = "openai/gpt-5.6-luna"
-WORK4YOU_HOUSE_MODEL_DISPLAY = "Operis 4.0"
+WORK4YOU_HOUSE_MODEL_ID = "openai/gpt-6-luna"
+WORK4YOU_HOUSE_MODEL_DISPLAY = "Operis 5.0"
 _WORK4YOU_HOUSE_MODEL_SLUGS = frozenset({
-    "gpt-5.6-luna",
+    "gpt-6-luna",
 })
 
 # Default-on composer / Edit Models shortlist for the Portal picker.
@@ -696,7 +696,7 @@ WORK4YOU_FEATURED_MODEL_IDS: tuple[str, ...] = (
 def is_work4you_house_model(model_id: str) -> bool:
     """Return True if *model_id* is the Free-plan house model (Operis).
 
-    Matches the GPT-5.6 Luna id with any vendor prefix, and the bare
+    Matches the GPT-6 Luna id with any vendor prefix, and the bare
     trailing slug splash and status chrome use after stripping the vendor.
     The sibling ``gpt-5.6-luna-pro`` stays out — it is a paid catalog model,
     not Operis.

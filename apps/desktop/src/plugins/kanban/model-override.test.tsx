@@ -47,8 +47,8 @@ describe('override label', () => {
     expect(overrideLabel({ effort: 'high', model: 'google/gemini-3.1-pro-preview', provider: 'google' }, 'x')).toBe(
       'Gemini 3.1 Pro · High'
     )
-    expect(overrideLabel({ effort: 'medium', model: 'openai/gpt-5.6-luna', provider: 'work4you' }, 'x')).toBe(
-      'Operis 4.0 · Med'
+    expect(overrideLabel({ effort: 'medium', model: 'openai/gpt-6-luna', provider: 'work4you' }, 'x')).toBe(
+      'Operis 5.0 · Med'
     )
     expect(overrideLabel({ effort: 'ultra', model: 'anthropic/claude-sonnet-5', provider: 'work4you' }, 'x')).toBe(
       'Claude Sonnet 5 · Max'

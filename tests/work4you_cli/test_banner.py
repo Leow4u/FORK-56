@@ -95,8 +95,8 @@ def test_splash_shows_operis_not_house_wire_id():
     from work4you_cli.models import WORK4YOU_HOUSE_MODEL_ID
 
     out = _render_splash(model=WORK4YOU_HOUSE_MODEL_ID, provider="work4you")
-    assert "Operis 4.0" in out
-    assert "gpt-5.6-luna" not in out
+    assert "Operis 5.0" in out
+    assert "gpt-6-luna" not in out
 
 
 def test_splash_does_not_print_default_wordmark():

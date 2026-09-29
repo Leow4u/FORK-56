@@ -20,7 +20,7 @@ beforeEach(() => {
     providers: [
       { name: 'GitHub Copilot', slug: 'copilot', models: ['gpt-5-mini', 'gpt-5.4-mini'] },
       { name: 'OpenAI Codex', slug: 'openai-codex', models: ['gpt-5.4-mini'] },
-      { name: 'Work4You', slug: 'work4you', models: ['work4you-4', 'openai/gpt-5.6-luna'] }
+      { name: 'Work4You', slug: 'work4you', models: ['work4you-4', 'openai/gpt-6-luna'] }
     ]
   })
 })
@@ -104,10 +104,10 @@ describe('FallbackModelsField', () => {
   })
 
   it('labels catalog rows with the commercial name, not the wire id', async () => {
-    await renderField([{ provider: 'work4you', model: 'openai/gpt-5.6-luna' }])
+    await renderField([{ provider: 'work4you', model: 'openai/gpt-6-luna' }])
 
-    expect(await screen.findByText('Operis 4.0')).toBeTruthy()
-    expect(screen.queryByText('openai/gpt-5.6-luna')).toBeNull()
+    expect(await screen.findByText('Operis 5.0')).toBeTruthy()
+    expect(screen.queryByText('openai/gpt-6-luna')).toBeNull()
   })
 
   it('resyncs rows when persisted config changes', async () => {

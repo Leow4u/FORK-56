@@ -177,7 +177,7 @@ describe('ProfilesView', () => {
       {
         ...makeProfile('default', true),
         has_env: true,
-        model: 'openai/gpt-5.6-luna',
+        model: 'openai/gpt-6-luna',
         path: '/AppData/Local/work4you',
         provider: 'work4you',
         skill_count: 78
@@ -191,7 +191,7 @@ describe('ProfilesView', () => {
 
     await renderProfilesView()
 
-    expect(await screen.findByText('Operis 4.0')).toBeTruthy()
+    expect(await screen.findByText('Operis 5.0')).toBeTruthy()
     expect(screen.getAllByText('You are Work4You.').length).toBeGreaterThan(0)
     expect(screen.getByText('In use')).toBeTruthy()
     expect(screen.getByText('Persona')).toBeTruthy()

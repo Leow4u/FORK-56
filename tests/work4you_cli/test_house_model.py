@@ -21,17 +21,20 @@ def test_official_catalog_is_curated_without_openrouter_free():
     assert "deepseek/deepseek-v4-flash-0731" not in ids
     assert "google/gemini-3.7-flash" in ids
     assert "google/gemini-3.8-flash" not in ids
-    assert ids.count("openai/gpt-5.6-luna") == 1
+    assert ids.count("openai/gpt-6-luna") == 1
+    assert "openai/gpt-5.6-luna" not in ids
     assert "openai/gpt-5.6-luna-pro" in ids
 
 
-def test_house_model_id_is_gpt56_luna():
-    assert WORK4YOU_HOUSE_MODEL_ID == "openai/gpt-5.6-luna"
-    assert WORK4YOU_HOUSE_MODEL_DISPLAY == "Operis 4.0"
+def test_house_model_id_is_gpt6_luna():
+    assert WORK4YOU_HOUSE_MODEL_ID == "openai/gpt-6-luna"
+    assert WORK4YOU_HOUSE_MODEL_DISPLAY == "Operis 5.0"
     assert is_work4you_house_model(WORK4YOU_HOUSE_MODEL_ID)
-    assert is_work4you_house_model("gpt-5.6-luna")
-    assert is_work4you_house_model("openrouter/gpt-5.6-luna")
-    assert is_work4you_house_model("work4you/openai/gpt-5.6-luna")
+    assert is_work4you_house_model("gpt-6-luna")
+    assert is_work4you_house_model("openrouter/gpt-6-luna")
+    assert is_work4you_house_model("work4you/openai/gpt-6-luna")
+    assert not is_work4you_house_model("gpt-5.6-luna")
+    assert not is_work4you_house_model("openai/gpt-5.6-luna")
     assert not is_work4you_house_model("openai/gpt-5.6-luna-pro")
     assert not is_work4you_house_model("gpt-5.6-luna-pro")
     assert not is_work4you_house_model("openrouter/free")
@@ -42,7 +45,8 @@ def test_house_model_display_hides_upstream_wire_id():
     from work4you_cli.model_switch import format_model_for_display
 
     assert format_model_for_display(WORK4YOU_HOUSE_MODEL_ID) == WORK4YOU_HOUSE_MODEL_DISPLAY
-    assert format_model_for_display("gpt-5.6-luna") == WORK4YOU_HOUSE_MODEL_DISPLAY
+    assert format_model_for_display("gpt-6-luna") == WORK4YOU_HOUSE_MODEL_DISPLAY
+    assert format_model_for_display("gpt-5.6-luna") == "gpt-5.6-luna"
     shown = format_model_for_display(WORK4YOU_HOUSE_MODEL_ID).lower()
     assert "luna" not in shown
     assert "gpt" not in shown

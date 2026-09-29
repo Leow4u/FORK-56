@@ -86,11 +86,11 @@ describe('TUI splash SessionPanel', () => {
     expect(frame).not.toContain('HERMES')
   })
 
-  it('shows Operis 4.0 instead of the house-model wire id', async () => {
-    const frame = await renderSplash(baseInfo({ model: 'openai/gpt-5.6-luna' }))
+  it('shows Operis 5.0 instead of the house-model wire id', async () => {
+    const frame = await renderSplash(baseInfo({ model: 'openai/gpt-6-luna' }))
 
-    expect(frame).toContain('Operis 4.0')
-    expect(frame).not.toContain('gpt-5.6-luna')
+    expect(frame).toContain('Operis 5.0')
+    expect(frame).not.toContain('gpt-6-luna')
   })
 
   it('does not dump skill names from session info', async () => {
