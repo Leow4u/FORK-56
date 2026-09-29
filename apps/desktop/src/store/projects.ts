@@ -46,10 +46,10 @@ import { getWork4YouConfig, work4youApi, type Work4YouGateway } from '@/work4you
 export const $projects = atom<ProjectInfo[]>([])
 export const $activeProjectId = atom<null | string>(null)
 
-// The authoritative project -> repo -> lane tree (overview), served by
-// `projects.tree`. Lanes carry counts + structure; per-project session rows are
-// fetched lazily on drill-in via `fetchProjectSessions`. This is the single
-// source of project membership — the desktop no longer derives it.
+// The authoritative project -> repo -> lane tree, served by `projects.tree`.
+// Lanes carry counts + structure; each project's session rows ride in its
+// `previewSessions`. This is the single source of project membership — the
+// desktop no longer derives it.
 export const $projectTree = atom<SidebarProjectTree[]>([])
 export const $projectTreeLoading = atom(false)
 
@@ -147,12 +147,11 @@ export const endSessionMutation = (ids: Array<null | string | undefined>): void 
 export const $reposScanning = atom(false)
 
 // ── Project scope (the "you're inside a project" view, mirroring profile scope)─
-// The sidebar's grouped view is a project switcher: ALL_PROJECTS shows the
-// project overview (a list you drill into), and a concrete id means you've
-// "entered" that project so only its worktrees/branches/sessions show. This is
-// pure view state (localStorage), distinct from the durable active-project
-// pointer in projects.db — though entering a project also makes it active so new
-// chats land there, exactly as selecting a profile does.
+// The active workspace: ALL_PROJECTS means none, a concrete id means new chats
+// land in that project (or stay folder-less for Home). The sidebar lists every
+// project regardless — this never narrows it. Local state (localStorage),
+// distinct from the durable active-project pointer in projects.db — though
+// selecting a project also makes it active, exactly as selecting a profile does.
 export const ALL_PROJECTS = '__all_projects__'
 
 const PROJECT_SCOPE_KEY = 'work4you.desktop.projectScope'
@@ -162,9 +161,9 @@ export const $projectScope = persistentAtom<string>(PROJECT_SCOPE_KEY, ALL_PROJE
   encode: value => value || ALL_PROJECTS
 })
 
-// Enter a project: scope the sidebar to it and make it the active project
-// (best-effort — the durable pointer is nice-to-have, the view scope is the
-// point). Never opens a session.
+// Select a project as the workspace and make it the active project
+// (best-effort — the durable pointer is nice-to-have, the scope is the point).
+// Never opens a session.
 export function enterProject(id: string): void {
   $projectScope.set(id)
 
@@ -231,8 +230,8 @@ export function clearActiveWorkspace(): void {
 export const projectRootCwd = (project: SidebarProjectTree | undefined): string =>
   (project?.path || project?.repos.find(repo => repo.path)?.path || '').trim()
 
-// ⌘K "go to project": flip the sidebar into grouped mode and enter the project
-// — a pure scope switch, same as clicking the overview row (never spends main).
+// ⌘K "go to project": flip the sidebar into grouped mode and select the
+// project as the workspace — a pure scope switch (never spends main).
 // With `newSession` (⌘-select / ⌘-Enter) it also lands on a fresh session draft
 // anchored at the project root — stacked as a tab when main already holds a
 // chat (palette opens are opens-from-nowhere). A path-less project (the Home
@@ -257,10 +256,10 @@ export function goToProject(id: string, options?: { newSession?: boolean }): voi
 // The cwd a NEW chat should start in.
 //
 // Priority (first hit wins):
-//   1. Explicit sidebar project scope (drilled into a project / Home bucket)
+//   1. Selected project scope (a project / the Home bucket)
 //   2. Configured default project dir / remote remembered cwd (detached otherwise)
 //
-// The "active project" is just an atom ($projectScope) — so inside a project a
+// The "active project" is just an atom ($projectScope) — so with a project selected a
 // new session (cmd-n, the trunk "+") starts at that project's root (its primary
 // repo = the default-branch checkout). Outside one it does NOT inherit the chat
 // you were looking at: after a restart that's the just-resumed session, whose
@@ -387,8 +386,7 @@ export function projectNameForCwd(cwd: string): null | string {
 // The active session's agent relocated itself (created/entered another repo or
 // worktree via the terminal — backend re-anchors its cwd and emits session.info).
 // Re-pull projects + tree so a freshly created/auto project and the relocated
-// session row show live, then follow the view into the session's new project
-// (from the overview or a now-stale project alike). Caller gates this on a real
+// session row show live, then make the session's new project the workspace. Caller gates this on a real
 // same-session cwd move, so a plain session switch never reaches here.
 export async function followActiveSessionCwd(cwd: string): Promise<void> {
   const target = cwd.trim()
@@ -405,7 +403,7 @@ export async function followActiveSessionCwd(cwd: string): Promise<void> {
   if (projectId) {
     // The Projects tree only renders in grouped mode, so flip the sidebar into
     // it — otherwise following from the flat Sessions list would change scope
-    // invisibly. Then drill into the thread's project.
+    // invisibly. Then select the thread's project.
     setSidebarAgentsGrouped(true)
 
     if (projectId !== $projectScope.get()) {
@@ -499,7 +497,11 @@ interface ProjectTreePayload {
   scoped_session_ids: string[]
 }
 
-const PROJECT_TREE_PREVIEW_LIMIT = 3
+// The sidebar lists each project's whole history in place (paged by Show
+// more), so a project's preview is every session the tree loaded, not a
+// handful. One number bounds both, which is also the backend's own default
+// load.
+const PROJECT_TREE_SESSION_LIMIT = 2000
 // The all-profiles fan-out reads one database per profile, so it is allowed the
 // same headroom as the cross-profile session list rather than the interactive
 // default.
@@ -545,7 +547,8 @@ async function refreshProjectTreeOn(gateway: Work4YouGateway): Promise<void> {
 
   try {
     const res = await gatewayRequestOn<ProjectTreePayload>(gateway, 'projects.tree', {
-      preview_limit: PROJECT_TREE_PREVIEW_LIMIT
+      preview_limit: PROJECT_TREE_SESSION_LIMIT,
+      session_limit: PROJECT_TREE_SESSION_LIMIT
     })
 
     if (generation !== projectTreeRefreshGeneration || activeGateway() !== gateway) {
@@ -593,7 +596,7 @@ async function refreshProjectTreeAcrossProfiles(): Promise<void> {
 
   try {
     const res = await work4youApi<ProjectTreePayload>({
-      path: `/api/profiles/projects/tree?preview_limit=${PROJECT_TREE_PREVIEW_LIMIT}`,
+      path: `/api/profiles/projects/tree?preview_limit=${PROJECT_TREE_SESSION_LIMIT}&session_limit=${PROJECT_TREE_SESSION_LIMIT}`,
       timeoutMs: PROJECT_TREE_REQUEST_TIMEOUT_MS
     })
 
@@ -611,21 +614,6 @@ async function refreshProjectTreeAcrossProfiles(): Promise<void> {
     if (generation === projectTreeRefreshGeneration) {
       $projectTreeLoading.set(false)
     }
-  }
-}
-
-// Fully hydrated lanes (repo -> lane -> session rows) for one project, fetched
-// when the user enters it. Same backend grouping as `projects.tree`, so ids and
-// membership match exactly.
-export async function fetchProjectSessions(projectId: string): Promise<SidebarProjectTree | null> {
-  try {
-    const res = await gatewayRequest<{ project: SidebarProjectTree | null }>('projects.project_sessions', {
-      project_id: projectId
-    })
-
-    return res.project ?? null
-  } catch {
-    return null
   }
 }
 
@@ -1094,8 +1082,8 @@ function openSessionBelongsToProject(projectId: string, projects: ProjectInfo[])
 }
 
 // Optimistic: drop the project from the cached tree + list the instant it's
-// clicked (the entered-scope effect exits if you deleted the project you were
-// inside), reconciling from the server payload. A failed delete restores both.
+// clicked (the sidebar's stale-scope effect clears it if you deleted the
+// selected project), reconciling from the server payload. A failed delete restores both.
 export async function deleteProject(id: string): Promise<void> {
   const snap = snapshotProjects()
   // Capture membership BEFORE removal — the project's folders (which determine
@@ -1198,22 +1186,10 @@ export function closeProjectDialog(): void {
 }
 
 // ── Git-driven worktrees ("Start work") ─────────────────────────────────────
-// Bumped after a `git worktree add`/`remove` so the sidebar's worktree-list
-// probe (useRepoWorktreeMap) refetches and the new/removed lane shows at once,
-// instead of waiting for the next scope change.
+// Bumped after a `git worktree add`/`remove` so the composer's repo status
+// refetches and the new/removed worktree shows at once.
 export const $worktreeRefreshToken = atom(0)
 const bumpWorktrees = () => $worktreeRefreshToken.set($worktreeRefreshToken.get() + 1)
-
-// Re-run the visual `git worktree list` probe without the heavy projects.tree
-// scan. Desktop-initiated add/remove already bumps the token inline; this is for
-// OUT-OF-BAND changes the renderer can't see: the agent runs `git worktree
-// add/remove` in the terminal during a turn, or an external terminal mutates the
-// repo while the window was away. The probe is per-repo and bounded, so the
-// caller (a settled turn / window refocus) can re-sync the worktree lanes
-// cheaply, the same way a git GUI refreshes its tree on focus.
-export function refreshWorktrees(): void {
-  bumpWorktrees()
-}
 
 // Spin up a fresh worktree the lightest way (`git worktree add -b`) under the
 // repo, returning where Work4You should start working. Git is the source of
@@ -1344,21 +1320,6 @@ export function requestStartWorkSession(path: string, draft?: string, options?: 
     path: target,
     token: startWorkToken
   })
-}
-
-export async function removeWorktreePath(
-  repoPath: string,
-  worktreePath: string,
-  options?: { force?: boolean }
-): Promise<void> {
-  const git = desktopGit()
-
-  if (!git) {
-    return
-  }
-
-  await git.worktreeRemove(repoPath, worktreePath, options)
-  bumpWorktrees()
 }
 
 // Reveal a project/worktree path in the OS file manager (git-GUI standard).

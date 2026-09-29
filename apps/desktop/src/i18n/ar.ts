@@ -2416,14 +2416,12 @@ export const ar = defineLocale({
     cronJobs: 'المهام المجدولة',
     groupAriaGrouped: 'الجلسات مجمعة حسب مساحة العمل',
     groupAriaUngrouped: 'الجلسات غير مجمعة',
-    showProjects: 'عرض المشاريع',
     showSessions: 'عرض الجلسات',
     groupTitleGrouped: 'مجمعة حسب مساحة العمل',
     groupTitleUngrouped: 'كل الجلسات',
     allPinned: 'كل الجلسات مثبتة',
     shiftClickHint: 'استخدم Shift للتحديد المتعدد',
     noWorkspace: 'بدون مساحة عمل',
-    projectEmpty: 'لا توجد جلسات بعد',
     noSessions: 'لا توجد جلسات بعد',
     noFilterMatches: 'لا توجد جلسات تطابق عوامل التصفية هذه',
     projects: {
@@ -2480,17 +2478,8 @@ export const ar = defineLocale({
       branchTrackRemote: 'تتبع البعيد',
       branchesLoading: 'جار تحميل الفروع...',
       noBranches: 'لم يتم العثور على فروع',
-      removeWorktree: 'إزالة شجرة العمل',
-      removeWorktreeFailed: 'تعذّر إزالة شجرة العمل (تغييرات غير مُودعة؟)',
-      removeWorktreeConfirm:
-        'أزِلها من git (يحذف مجلد شجرة العمل؛ يبقى الفرع)، أو فقط أخفِ المسار من الشريط الجانبي واترك شجرة العمل على القرص.',
-      removeWorktreeDirty:
-        'تحتوي شجرة العمل هذه على تغييرات غير مُودعة. أزِلها بالقوة (يتجاهل تلك التغييرات)، أو فقط أخفِ المسار واحتفظ بها على القرص.',
-      forceRemove: 'إزالة بالقوة',
-      enter: label => `فتح ${label}`,
       reorder: label => `إعادة ترتيب ${label}`,
-      toggle: (label, open) => `${open ? 'إظهار' : 'إخفاء'} جلسات ${label}`,
-      back: 'كل المشاريع'
+      toggle: (label, open) => `${open ? 'إظهار' : 'إخفاء'} جلسات ${label}`
     },
     newSessionIn: label => `جلسة جديدة في ${label}`,
     showMoreIn: (count, label) => `إظهار ${count} أخرى في ${label}`,

@@ -13,7 +13,7 @@ import {
   setSidebarGrouping,
   setSidebarShowArchived
 } from '@/store/layout'
-import { $projectDialog, $projectScope, $projectTree, ALL_PROJECTS } from '@/store/projects'
+import { $projectDialog, $projectScope, $projectTree, ALL_PROJECTS, goToProject } from '@/store/projects'
 import { $messagingSessions, $sessions, $sessionsLoading } from '@/store/session'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 import { makeSessionInfo } from '@/test/session-info'
@@ -47,18 +47,16 @@ vi.mock('./sessions-section', () => ({
   SidebarSessionsSection: (props: {
     headerAction?: ReactNode
     label: string
-    onEnterProject?: (id: string) => void
-    projectContent?: { id: string } | null
     projectOverview?: Array<{ id: string; label: string }>
   }) => (
     <section
-      data-content={props.projectContent ? 'entered' : props.projectOverview?.length ? 'overview' : 'sessions'}
+      data-content={props.projectOverview?.length ? 'overview' : 'sessions'}
       data-testid={`section-${props.label}`}
     >
       <h2>{props.label}</h2>
       {props.label === 'Projects' ? props.headerAction : null}
       {props.projectOverview?.map(project => (
-        <button key={project.id} onClick={() => props.onEnterProject?.(project.id)} type="button">
+        <button key={project.id} type="button">
           {project.label}
         </button>
       ))}
@@ -163,16 +161,18 @@ describe('ChatSidebar Project grouping keeps messaging and cron', () => {
     expect($projectDialog.get()).toEqual({ mode: 'create' })
   })
 
-  it('enters a project through goToProject and keeps WhatsApp and Cron', () => {
+  it('keeps every project listed while one is the selected workspace', () => {
+    goToProject('p_demo')
     renderSidebar()
-    fireEvent.click(screen.getByRole('button', { name: 'Demo' }))
 
     expect($sidebarAgentsGrouped.get()).toBe(true)
     expect($projectScope.get()).toBe('p_demo')
-    expect(screen.queryByTestId('section-Projects')).toBeNull()
+    expect(screen.getByTestId('section-Projects').getAttribute('data-content')).toBe('overview')
+    expect(screen.getByRole('button', { name: 'Home' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Demo' })).toBeTruthy()
+    expect(screen.queryByTestId('section-Demo')).toBeNull()
     expect(screen.getByTestId('section-WhatsApp')).toBeTruthy()
     expect(screen.getByTestId('section-Cron jobs')).toBeTruthy()
-    expect(screen.getByTestId('section-Demo').getAttribute('data-content')).toBe('entered')
   })
 
   it('hides the Projects overview while Archived is on', () => {

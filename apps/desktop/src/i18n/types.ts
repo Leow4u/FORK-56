@@ -2250,14 +2250,12 @@ export interface Translations {
     cronJobs: string
     groupAriaGrouped: string
     groupAriaUngrouped: string
-    showProjects: string
     showSessions: string
     groupTitleGrouped: string
     groupTitleUngrouped: string
     allPinned: string
     shiftClickHint: string
     noWorkspace: string
-    projectEmpty: string
     noSessions: string
     noFilterMatches: string
     projects: {
@@ -2322,15 +2320,8 @@ export interface Translations {
       branchTrackRemote: string
       branchesLoading: string
       noBranches: string
-      removeWorktree: string
-      removeWorktreeFailed: string
-      removeWorktreeConfirm: string
-      removeWorktreeDirty: string
-      forceRemove: string
-      enter: (label: string) => string
       reorder: (label: string) => string
       toggle: (label: string, open: boolean) => string
-      back: string
     }
     newSessionIn: (label: string) => string
     showMoreIn: (count: number, label: string) => string

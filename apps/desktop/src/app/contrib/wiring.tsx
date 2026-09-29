@@ -36,7 +36,7 @@ import { $desktopBoot } from '@/store/boot'
 import { requestVoiceConversationStart } from '@/store/composer'
 import { $activeConnectionId } from '@/store/connections'
 import { $cronReviewRequest, setCronFocusJobId } from '@/store/cron'
-import { $pinnedSessionIds, pinSession, restoreWorktree, unpinSession } from '@/store/layout'
+import { $pinnedSessionIds, pinSession, unpinSession } from '@/store/layout'
 import { $previewTarget } from '@/store/preview'
 import {
   $activeGatewayProfile,
@@ -561,7 +561,6 @@ export function ContribWiring({ children }: { children: ReactNode }) {
       startWorkspaceSession({
         activeSessionIdRef,
         followActiveSessionCwd,
-        onExplicitWorkspace: restoreWorktree,
         path,
         requestGateway,
         startFreshSessionDraft

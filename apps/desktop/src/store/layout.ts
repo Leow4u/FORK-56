@@ -51,7 +51,6 @@ const SIDEBAR_PROJECT_ORDER_STORAGE_KEY = 'work4you.desktop.projectOrder'
 const SIDEBAR_WORKSPACE_COLLAPSED_STORAGE_KEY = 'work4you.desktop.workspaceCollapsed'
 const SIDEBAR_WORKSPACE_NODE_OPEN_STORAGE_KEY = 'work4you.desktop.workspaceNodeOpen'
 const SIDEBAR_DISMISSED_AUTO_PROJECTS_STORAGE_KEY = 'work4you.desktop.dismissedAutoProjects'
-const SIDEBAR_DISMISSED_WORKTREES_STORAGE_KEY = 'work4you.desktop.dismissedWorktrees'
 const PANES_FLIPPED_STORAGE_KEY = 'work4you.desktop.panesFlipped'
 const RIGHT_RAIL_ACTIVE_TAB_STORAGE_KEY = 'work4you.desktop.rightRailActiveTab'
 
@@ -189,14 +188,6 @@ function migrateWorkspaceCollapsedIds(): Record<string, boolean> {
 // projects are deleted for real instead — this only declutters the auto tier.
 export const $dismissedAutoProjectIds = persistentAtom(
   SIDEBAR_DISMISSED_AUTO_PROJECTS_STORAGE_KEY,
-  [] as string[],
-  Codecs.stringArray
-)
-// Worktree rows removed from the UI after a `git worktree remove`. The on-disk
-// dir is gone but historical sessions still reference its path, so we hide the
-// row by id (worktree path) to keep "remove" feeling real.
-export const $dismissedWorktreeIds = persistentAtom(
-  SIDEBAR_DISMISSED_WORKTREES_STORAGE_KEY,
   [] as string[],
   Codecs.stringArray
 )
@@ -450,25 +441,6 @@ export function filterVisibleProjects<T extends { id: string; isAuto?: boolean }
   const dismissed = new Set(dismissedIds)
 
   return projects.filter(project => !(project.isAuto && dismissed.has(project.id)))
-}
-
-// Hide a worktree row after it's been removed via git.
-export function dismissWorktree(id: string): void {
-  const current = $dismissedWorktreeIds.get()
-
-  if (!current.includes(id)) {
-    $dismissedWorktreeIds.set([...current, id])
-  }
-}
-
-// A hidden worktree becomes visible again as soon as the user explicitly starts
-// or opens work there (for example, selecting an already-checked-out branch).
-export function restoreWorktree(id: string): void {
-  const current = $dismissedWorktreeIds.get()
-
-  if (current.includes(id)) {
-    $dismissedWorktreeIds.set(current.filter(worktreeId => worktreeId !== id))
-  }
 }
 
 export function setSidebarWidth(width: number) {
