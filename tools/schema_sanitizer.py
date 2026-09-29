@@ -21,6 +21,12 @@ The failure modes we've seen in the wild:
   optional fields (common Pydantic/MCP shape). Anthropic rejects these at
   the top of ``input_schema``; collapse them to the non-null branch.
 * Unconstrained ``additionalProperties`` on objects with empty properties.
+* Nested objects that name no properties. Every model's tool-call decoder
+  only emits keys listed in ``properties``, so those objects leave as ``{}``
+  and every MCP call through ``tool_call`` or a Composio ``arguments`` bag
+  runs empty. Nested open objects are rewritten to a JSON string. Dispatch
+  parses that string back into an object against the registry schema. The
+  root parameters object stays an object.
 * ``default`` (and other annotation keywords) alongside ``$ref`` — strict
   backends (Fireworks-hosted Kimi, JSON Schema draft-07 validators) reject
   sibling keywords at the same level as ``$ref``.  Common MCP/Pydantic shape
@@ -42,6 +48,10 @@ import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Nested free-form objects have no keys a tool-call decoder may emit, so the
+# call leaves with ``{}`` on every model. Ask for a JSON string instead.
+_JSON_OBJECT_STRING_HINT = "Pass a JSON object encoded as a string."
 
 
 # Anthropic (and Bedrock/Vertex/Azure fronting it) reject tool input schemas
@@ -398,7 +408,47 @@ def collapse_const_unions(schema: Any) -> Any:
     return out
 
 
-def _sanitize_node(node: Any, path: str) -> Any:
+def _open_object_schema(node: dict) -> bool:
+    """True when this object declares no keys a model is allowed to send.
+
+    ``additionalProperties: false`` is closed on purpose — ``{}`` is the only
+    legal value. An object with real ``properties`` keeps those keys.
+    ``{type: object}``, ``properties: {}``, and ``additionalProperties: true``
+    are open bags. ``tool_call.arguments`` and Composio's per-action
+    ``arguments`` field are this shape, so every MCP tool hits it.
+    """
+    declared = node.get("type")
+    if declared not in (None, "object"):
+        return False
+    if node.get("additionalProperties") is False:
+        return False
+    props = node.get("properties")
+    if isinstance(props, dict) and len(props) > 0:
+        return False
+    return (
+        declared == "object"
+        or "properties" in node
+        or "additionalProperties" in node
+        or "required" in node
+    )
+
+
+def _json_object_string_schema(node: dict) -> dict:
+    """Rewrite an open object so any model can emit its keys as JSON text."""
+    desc = node.get("description") if isinstance(node.get("description"), str) else ""
+    desc = desc.strip()
+    if _JSON_OBJECT_STRING_HINT not in desc:
+        desc = f"{desc} {_JSON_OBJECT_STRING_HINT}".strip()
+    out: dict = {"type": "string", "description": desc}
+    title = node.get("title")
+    if isinstance(title, str) and title.strip():
+        out["title"] = title.strip()
+    if node.get("nullable") is True:
+        out["nullable"] = True
+    return out
+
+
+def _sanitize_node(node: Any, path: str, *, nested: bool = False) -> Any:
     """Recursively sanitize a JSON-Schema fragment.
 
     - Replaces bare-string schema values ("object", "string", ...) with
@@ -419,6 +469,8 @@ def _sanitize_node(node: Any, path: str) -> Any:
                 "with {'type': %r}",
                 path, node, node,
             )
+            if node == "object" and nested:
+                return _json_object_string_schema({})
             return {"type": node} if node != "object" else {
                 "type": "object",
                 "properties": {},
@@ -433,10 +485,19 @@ def _sanitize_node(node: Any, path: str) -> Any:
         return {"type": "object", "properties": {}}
 
     if isinstance(node, list):
-        return [_sanitize_node(item, f"{path}[{i}]") for i, item in enumerate(node)]
+        return [
+            _sanitize_node(item, f"{path}[{i}]", nested=nested)
+            for i, item in enumerate(node)
+        ]
 
     if not isinstance(node, dict):
         return node
+
+    # Root parameters must stay an object. Nested open bags must not: an
+    # empty ``properties`` map is the only shape every decoder can fill, so
+    # the call goes out as ``{}``.
+    if nested and _open_object_schema(node):
+        return _json_object_string_schema(node)
 
     # Compute property-key renames up front so the ``required`` branch below
     # can remap regardless of dict iteration order (``required`` may precede
@@ -484,10 +545,15 @@ def _sanitize_node(node: Any, path: str) -> Any:
 
         if key in {"properties", "$defs", "definitions"} and isinstance(value, dict):
             renames = prop_renames if key == "properties" else {}
+            # Property schemas are model-facing. $defs stay structural so a
+            # referenced object is not rewritten out from under a $ref.
+            child_nested = key == "properties"
             new_props = {}
             for sub_k, sub_v in value.items():
                 out_k = renames.get(sub_k, sub_k)
-                new_props[out_k] = _sanitize_node(sub_v, f"{path}.{key}.{out_k}")
+                new_props[out_k] = _sanitize_node(
+                    sub_v, f"{path}.{key}.{out_k}", nested=child_nested,
+                )
             out[key] = new_props
         elif key in {"items", "additionalProperties"}:
             if isinstance(value, bool):
@@ -496,10 +562,14 @@ def _sanitize_node(node: Any, path: str) -> Any:
                 # but we preserve rather than drop.
                 out[key] = value
             else:
-                out[key] = _sanitize_node(value, f"{path}.{key}")
+                # ``items`` is a model-facing schema. ``additionalProperties``
+                # is a map-value schema and must stay an object schema.
+                out[key] = _sanitize_node(
+                    value, f"{path}.{key}", nested=(key == "items"),
+                )
         elif key in {"anyOf", "oneOf", "allOf"} and isinstance(value, list):
             out[key] = [
-                _sanitize_node(item, f"{path}.{key}[{i}]")
+                _sanitize_node(item, f"{path}.{key}[{i}]", nested=True)
                 for i, item in enumerate(value)
             ]
         elif key in {"required", "enum", "examples", "dependentRequired"}:
