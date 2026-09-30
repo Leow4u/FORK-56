@@ -11,6 +11,8 @@ import { buildRaceScenarios } from '../sites/work4you-home/src/lib/race-scripts'
 import { buildWorkTimeline, formatDuration, planRace, raceFrame } from '../sites/work4you-home/src/lib/race-timeline'
 import { compileTask } from '../sites/work4you-home/src/lib/task-compiler'
 import { splitPunct } from '../sites/work4you-home/src/lib/typography'
+import { facePose, nextShape, projectFacePoint, sampleFaceRing, WORKBOT_SHAPES, type WorkbotShape } from '../sites/work4you-home/src/lib/workbot'
+import { gazeToward } from '../sites/work4you-home/src/lib/workbot-clock'
 
 // qua, 30/09/2026 16:20 no fuso local de quem roda o teste
 const NOW = new Date(2026, 8, 30, 16, 20)
@@ -201,5 +203,49 @@ describe('splitPunct (títulos)', () => {
 
     expect(parts.map((part) => part.text).join('')).toBe(text)
     expect(parts.filter((part) => part.punct).map((part) => part.text)).toEqual([',', '.'])
+  })
+})
+
+describe('Workbots', () => {
+  it('clicking through shapes visits every shape once before repeating', () => {
+    const seen = new Set<string>()
+    let shape: WorkbotShape = WORKBOT_SHAPES[0]
+
+    for (let i = 0; i < WORKBOT_SHAPES.length; i++) {
+      seen.add(shape)
+      shape = nextShape(shape)
+    }
+
+    expect(seen.size).toBe(WORKBOT_SHAPES.length)
+    expect(shape).toBe(WORKBOT_SHAPES[0])
+  })
+
+  // As pontas do triângulo passam um pouco da caixa 40×40, como no app (o SVG usa overflow visível).
+  it('draws every shape around the face box center, at rest and mid-work', () => {
+    for (const shape of WORKBOT_SHAPES) {
+      for (const pose of [facePose('idle', 0), facePose('work', 2.3)]) {
+        const ring = sampleFaceRing(shape).map((point) => projectFacePoint(point, pose))
+
+        expect(ring.length).toBeGreaterThan(8)
+
+        for (const [x, y] of ring) {
+          expect(x).toBeGreaterThanOrEqual(-4)
+          expect(x).toBeLessThanOrEqual(44)
+          expect(y).toBeGreaterThanOrEqual(-4)
+          expect(y).toBeLessThanOrEqual(44)
+        }
+      }
+    }
+  })
+
+  it('looks toward the pointer and never further than full reach', () => {
+    const face = { left: 100, top: 100, width: 40, height: 40 }
+    const right = gazeToward(face, { x: 900, y: 120 })
+    const near = gazeToward(face, { x: 140, y: 120 })
+
+    expect(right.x).toBeGreaterThan(0.99)
+    expect(Math.abs(right.y)).toBeLessThan(0.01)
+    expect(Math.hypot(near.x, near.y)).toBeLessThan(Math.hypot(right.x, right.y))
+    expect(gazeToward(face, { x: 120, y: 120 })).toEqual({ x: 0, y: 0 })
   })
 })

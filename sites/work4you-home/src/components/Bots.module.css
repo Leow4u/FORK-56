@@ -8,47 +8,59 @@
 
 .message {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: 34px minmax(0, 1fr);
   align-items: start;
   gap: 0.7rem;
   animation: rowIn 0.4s ease both;
 }
 
-.avatar {
+.bot,
+.you {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
+  width: 34px;
+  height: 34px;
+}
+
+.bot {
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.bot:hover {
+  transform: translateY(-2px);
+}
+
+.bot:focus-visible {
+  outline: 2px solid var(--salvia);
+  outline-offset: 2px;
+}
+
+/* Cada clique alterna o atributo, e a troca reinicia o pulinho. */
+.bot[data-hop='0'] > svg {
+  animation: hopA 0.36s ease;
+}
+
+.bot[data-hop='1'] > svg {
+  animation: hopB 0.36s ease;
+}
+
+.you {
+  border: 1px solid var(--tinta-fio);
+  border-radius: 50%;
+  color: var(--papel);
+}
+
+.working {
+  color: var(--salvia);
   font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-.person {
-  background: var(--papel);
-  color: var(--tinta);
-}
-
-.a {
-  background: var(--salvia);
-  color: var(--oliva-esc);
-}
-
-.b {
-  background: #d8cbb0;
-  color: #4a3d22;
-}
-
-.c {
-  background: #b9cbc8;
-  color: #23403c;
-}
-
-.d {
-  background: #cdc3d6;
-  color: #3b2f48;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
 }
 
 .who {
@@ -95,5 +107,25 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes hopA {
+  40% {
+    translate: 0 -5px;
+    scale: 1.08;
+  }
+}
+
+@keyframes hopB {
+  40% {
+    translate: 0 -5px;
+    scale: 1.08;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bot[data-hop] > svg {
+    animation: none;
   }
 }
