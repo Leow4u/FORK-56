@@ -15,7 +15,7 @@ export function Footer() {
           <a href="https://portal.work4you.ai/login">Fazer login</a>
           <a href="https://github.com/Leow4u/FORK-56">GitHub</a>
         </nav>
-        <p className={styles.copy}>© {new Date().getFullYear()} Work4You · MIT</p>
+        <p className={styles.copy}>© {new Date().getFullYear()} Work4You</p>
       </div>
     </footer>
   )
