@@ -1,36 +1,31 @@
 import type { ReactNode } from 'react'
+import { Fig } from './Fig'
 import styles from './FeatureBand.module.css'
 
 interface FeatureBandProps {
-  id: string
-  eyebrow?: string
-  title: string
   children: ReactNode
-  scene: ReactNode
+  fig: { label: string; number: string; tag?: string }
   flip?: boolean
-  wideVisual?: boolean
+  id: string
+  title: string
+  /** O painel em HTML que mostra a funcionalidade trabalhando. */
+  visual: ReactNode
 }
 
-export function FeatureBand({
-  id,
-  eyebrow,
-  title,
-  children,
-  scene,
-  flip = false,
-  wideVisual = false,
-}: FeatureBandProps) {
+export function FeatureBand({ children, fig, flip = false, id, title, visual }: FeatureBandProps) {
   return (
-    <section className={styles.section} id={id}>
-      <div
-        className={`shell ${styles.split} ${flip ? styles.flip : ''} ${wideVisual ? styles.wideVisual : ''}`}
-      >
-        <div className={styles.copy}>
-          {eyebrow ? <p className="mono-label">{eyebrow}</p> : null}
-          <h2 className={styles.title}>{title}</h2>
-          <div className={styles.body}>{children}</div>
+    <section aria-labelledby={`${id}-title`} className={styles.section} id={id}>
+      <div className="shell">
+        <Fig label={fig.label} number={fig.number} tag={fig.tag} />
+        <div className={flip ? `${styles.split} ${styles.flip}` : styles.split}>
+          <div className={styles.copy}>
+            <h2 className={styles.title} id={`${id}-title`}>
+              {title}
+            </h2>
+            <div className={styles.body}>{children}</div>
+          </div>
+          <div className={styles.visual}>{visual}</div>
         </div>
-        <div className={styles.visual}>{scene}</div>
       </div>
     </section>
   )

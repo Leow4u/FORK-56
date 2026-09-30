@@ -1,0 +1,58 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th {
+  padding: 0 0.5rem 0.6rem;
+  color: var(--grafite);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.table td {
+  padding: 0.65rem 0.5rem;
+  border-top: 1px solid var(--linha);
+  vertical-align: middle;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.action {
+  color: var(--grafite-2);
+  line-height: 1.4;
+}
+
+.state {
+  text-align: right;
+}
+
+.pill {
+  display: inline-flex;
+  padding: 0.3rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: var(--salvia);
+  color: var(--oliva-esc);
+  font-size: 0.62rem;
+}
+
+@media (max-width: 520px) {
+  .state {
+    display: none;
+  }
+
+  .table th:last-child {
+    display: none;
+  }
+}

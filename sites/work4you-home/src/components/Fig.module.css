@@ -1,0 +1,52 @@
+.fig {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--tinta);
+  border-bottom: 1px solid var(--linha);
+  color: var(--grafite);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--oliva);
+}
+
+.live {
+  animation: pulse 1.8s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(77, 89, 67, 0.45);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(77, 89, 67, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(77, 89, 67, 0);
+  }
+}
+
+.ink {
+  border-top-color: var(--papel);
+  border-bottom-color: var(--tinta-fio);
+  color: var(--tinta-texto);
+}
+
+.ink .dot {
+  background: var(--salvia);
+}
