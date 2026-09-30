@@ -2893,7 +2893,7 @@ export const en: Translations = {
   sidebar: {
     nav: {
       'new-session': 'New session',
-      skills: 'Capabilities',
+      skills: 'Customize',
       messaging: 'Channels',
       artifacts: 'Artifacts',
       cron: 'Routines'
