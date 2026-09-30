@@ -25,7 +25,7 @@ const CronView = lazy(async () => ({ default: (await import('../cron')).CronView
 // Built-in page views + their pane titles, keyed by route.
 const BUILTIN_PAGES: Record<string, { render: () => ReactNode; title: string }> = {
   [ARTIFACTS_ROUTE]: { render: () => <ArtifactsView />, title: 'Artifacts' },
-  [CRON_ROUTE]: { render: () => <CronView />, title: 'Scheduled jobs' },
+  [CRON_ROUTE]: { render: () => <CronView />, title: 'Routines' },
   [MESSAGING_ROUTE]: { render: () => <MessagingView />, title: 'Messaging' },
   [SKILLS_ROUTE]: { render: () => <SkillsView />, title: 'Capabilities' }
 }

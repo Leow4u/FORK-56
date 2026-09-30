@@ -2398,7 +2398,7 @@ export const ja = defineLocale({
 
   cron: {
     close: 'Cron を閉じる',
-    title: 'スケジュール済みジョブ',
+    title: 'ルーティン',
     count: count => `${count} 件のジョブ`,
     modelImpact: {
       title: 'スケジュール済みジョブの確認が必要です',
@@ -2460,11 +2460,11 @@ export const ja = defineLocale({
     monthlyOnDayAt: (dayOfMonth, time) => `毎月 ${dayOfMonth} 日 ${time} に`,
     topOfHour: '毎時 0 分',
     everyHourAt: minute => `毎時 :${minute} に`,
-    newCron: '新しい Cron',
+    newCron: '新しいルーティン',
     emptyDescNew:
       'Cron 式でプロンプトを実行するスケジュールを設定します。Work4You が実行して、選択した宛先に結果を送信します。',
     emptyDescSearch: '検索キーワードを広げてください。',
-    emptyTitleNew: 'スケジュールされたジョブがまだありません',
+    emptyTitleNew: 'ルーティンはまだありません',
     emptyTitleSearch: '一致なし',
     last: '前回',
     next: '次回',
@@ -2521,8 +2521,8 @@ export const ja = defineLocale({
     saveChanges: '変更を保存',
     createAction: 'Cron を作成',
     tabs: {
-      jobs: 'ジョブ',
-      blueprints: 'ブレーンプリント'
+      jobs: '自分の',
+      blueprints: 'テンプレート'
     },
     blueprints: {
       tab: 'ブレーンプリント',
@@ -2601,7 +2601,7 @@ export const ja = defineLocale({
       skills: 'スキルとツール',
       messaging: 'メッセージング',
       artifacts: 'アーティファクト',
-      cron: 'スケジュール済みジョブ'
+      cron: 'ルーティン'
     },
     searchAria: 'セッションを検索',
     searchPlaceholder: 'セッションを検索…',

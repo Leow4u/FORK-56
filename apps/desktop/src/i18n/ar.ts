@@ -2288,10 +2288,11 @@ export const ar = defineLocale({
     monthlyOnDayAt: (dayOfMonth, time) => `شهريا في اليوم ${dayOfMonth} في ${time}`,
     topOfHour: 'في بداية كل ساعة',
     everyHourAt: minute => `كل ساعة عند :${minute}`,
-    newCron: 'مهمة مجدولة جديدة',
+    title: 'الروتينات',
+    newCron: 'روتين جديد',
     emptyDescNew: 'أنشئ مهمة مجدولة لتشغيل Work4You تلقائيا.',
     emptyDescSearch: 'لا توجد مهام تطابق البحث.',
-    emptyTitleNew: 'لا توجد مهام مجدولة',
+    emptyTitleNew: 'لا توجد روتينات بعد',
     emptyTitleSearch: 'لا توجد نتائج',
     last: 'آخر تشغيل',
     next: 'التالي',
@@ -2339,7 +2340,11 @@ export const ar = defineLocale({
     optional: 'اختياري',
     promptScheduleRequired: 'الرسالة والجدول مطلوبان',
     saveChanges: 'حفظ التغييرات',
-    createAction: 'إنشاء'
+    createAction: 'إنشاء',
+    tabs: {
+      jobs: 'خاصتي',
+      blueprints: 'القوالب'
+    }
   },
   artifacts: {
     search: 'بحث',
@@ -2403,7 +2408,7 @@ export const ar = defineLocale({
       artifacts: 'العناصر',
       chat: 'المحادثة',
       settings: 'الإعدادات',
-      cron: 'المهام المجدولة',
+      cron: 'الروتينات',
       agents: 'الوكلاء'
     },
     searchAria: 'البحث في الجلسات',
