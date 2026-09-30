@@ -6,6 +6,7 @@ import type { TaskOrder as Order, TaskStatus, TaskTag } from '../lib/task-compil
 import { HeroCtas } from './Ctas'
 import { Glyph } from './Glyph'
 import styles from './TaskOrder.module.css'
+import { Tight } from './Tight'
 
 const DEFAULT_REQUEST = 'Toda sexta às 17h, manda no Slack quem não bateu a meta da semana.'
 
@@ -64,7 +65,10 @@ export function TaskOrder() {
         <div className={styles.grid}>
           <div>
             <h2 className={styles.title} id="ordem-title">
-              Você pede em português. <span>Ele transforma em trabalho.</span>
+              <Tight text="Você pede em português." />{' '}
+              <span>
+                <Tight text="Ele transforma em trabalho." />
+              </span>
             </h2>
             <p className={styles.lede}>
               Escreva uma tarefa do seu dia. O Work4You entende quando fazer, onde buscar e o que entregar, e guarda o

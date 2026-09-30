@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { buildRaceScenarios } from '../sites/work4you-home/src/lib/race-scripts'
 import { buildWorkTimeline, formatDuration, planRace, raceFrame } from '../sites/work4you-home/src/lib/race-timeline'
 import { compileTask } from '../sites/work4you-home/src/lib/task-compiler'
+import { splitPunct } from '../sites/work4you-home/src/lib/typography'
 
 // qua, 30/09/2026 16:20 no fuso local de quem roda o teste
 const NOW = new Date(2026, 8, 30, 16, 20)
@@ -190,5 +191,15 @@ describe('hero race (Conversa × Trabalho)', () => {
     expect(formatDuration(0.4)).toBe('0,4 s')
     expect(formatDuration(13.2)).toBe('13,2 s')
     expect(formatDuration(132.6)).toBe('2 min 12 s')
+  })
+})
+
+describe('splitPunct (títulos)', () => {
+  it('isolates only the commas and periods glued to a word, keeping the text intact', () => {
+    const text = 'O mesmo agente, em todo lugar. Custa R$ 1.000,50 e 3.5.'
+    const parts = splitPunct(text)
+
+    expect(parts.map((part) => part.text).join('')).toBe(text)
+    expect(parts.filter((part) => part.punct).map((part) => part.text)).toEqual([',', '.'])
   })
 })

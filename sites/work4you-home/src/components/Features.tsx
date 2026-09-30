@@ -1,5 +1,6 @@
 import { Fig } from './Fig'
 import styles from './Features.module.css'
+import { Tight } from './Tight'
 
 /** Ficha técnica: cada linha é uma capacidade e a especificação que a sustenta. */
 const SPECS = [
@@ -47,7 +48,7 @@ export function Features() {
       <div className="shell">
         <Fig label="Ficha técnica" number="07" tag={`${SPECS.length} capacidades`} />
         <h2 className={styles.title} id="features-title">
-          O mesmo agente, em todo lugar.
+          <Tight text="O mesmo agente, em todo lugar." />
         </h2>
         <dl className={styles.sheet}>
           {SPECS.map((item) => (

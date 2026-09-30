@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { HeroCtas } from './Ctas'
 import { HeroRace } from './HeroRace'
 import styles from './Hero.module.css'
+import { Tight } from './Tight'
 
 const SPEC = [
   { label: 'Canais', value: '20+ integrações' },
@@ -28,12 +29,12 @@ export function Hero() {
           <span className={styles.talk}>
             Chatbots{' '}
             <br />
-            conversam.
+            <Tight text="conversam." />
           </span>{' '}
           <span className={styles.work}>
             O Work4You{' '}
             <br />
-            <span className={workDone ? `${styles.underline} ${styles.drawn}` : styles.underline}>trabalha.</span>
+            <span className={workDone ? `${styles.underline} ${styles.drawn}` : styles.underline}><Tight text="trabalha." /></span>
           </span>
         </h1>
 

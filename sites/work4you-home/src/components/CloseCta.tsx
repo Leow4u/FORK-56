@@ -2,6 +2,7 @@ import { CloseDownload } from './Ctas'
 import { Fig } from './Fig'
 import { InstallPanel } from './InstallPanel'
 import styles from './CloseCta.module.css'
+import { Tight } from './Tight'
 
 const STEPS = ['Baixe o app', 'Conecte seus canais', 'Mande a primeira tarefa'] as const
 
@@ -13,7 +14,7 @@ export function CloseCta() {
         <div className={styles.split}>
           <div>
             <h2 className={styles.title} id="download-title">
-              Coloque o Work4You para trabalhar.
+              <Tight text="Coloque o Work4You para trabalhar." />
             </h2>
             <ol className={styles.steps}>
               {STEPS.map((step, index) => (

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Fig } from './Fig'
 import styles from './FeatureBand.module.css'
+import { Tight } from './Tight'
 
 interface FeatureBandProps {
   children: ReactNode
@@ -20,7 +21,7 @@ export function FeatureBand({ children, fig, flip = false, id, title, visual }: 
         <div className={flip ? `${styles.split} ${styles.flip}` : styles.split}>
           <div className={styles.copy}>
             <h2 className={styles.title} id={`${id}-title`}>
-              {title}
+              <Tight text={title} />
             </h2>
             <div className={styles.body}>{children}</div>
           </div>

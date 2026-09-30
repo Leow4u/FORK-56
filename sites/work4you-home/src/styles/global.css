@@ -124,3 +124,8 @@ img {
     transition: none !important;
   }
 }
+
+/* Pontuação de títulos grandes: ver Tight.tsx. */
+.punct {
+  margin-left: -0.1em;
+}
