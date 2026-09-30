@@ -175,10 +175,10 @@ export function useSlashCompletions(options: {
             }
           }
 
-          // Browsing, not searching: rank the skills the user actually reaches
-          // for to the top and drop never-used built-ins entirely. Typing a
-          // query takes the other branch, where nothing is hidden.
-          items.push(...rankSkillCommands(skillRows, catalog.skills, { pruneUnusedBuiltins: true }))
+          // Browsing: rank the skills the profile actually uses and leave
+          // shipped skills out of the menu. A typed query does the same
+          // hide, then keeps learned, created, and hub matches.
+          items.push(...rankSkillCommands(skillRows, catalog.skills, { hideBundled: true }))
 
           return { items, query }
         }
@@ -226,19 +226,22 @@ export function useSlashCompletions(options: {
           return { items: decorated, query }
         }
 
-        // Rank the matched skills by use — `/re` should lead with the /research
-        // the user lives in, not the /research-paper-writing they've never
-        // opened. Nothing is pruned here: a typed query is a search, and a
-        // search that hides a match is broken. Usage rides along on the catalog
-        // response, which the popover has already fetched by the time anyone
-        // types; if it somehow hasn't, order falls back to the backend's.
-        const catalogSkills = peekCachedSlashCompletion<CommandsCatalogLike>('catalog')?.skills
+        // Rank the matched skills by use. Shipped skills stay out of the
+        // suggestions even when the query matches their name; typing the
+        // full command still runs them. Learned, created, and hub skills
+        // stay. Usage rides on the catalog response.
+        const catalogSkills =
+          peekCachedSlashCompletion<CommandsCatalogLike>('catalog')?.skills ??
+          (
+            await cachedSlashCompletion('catalog', () => gateway.request<CommandsCatalogLike>('commands.catalog'))
+          ).skills
 
         const ranked = [
           ...decorated.filter(item => item.group !== 'Skills'),
           ...rankSkillCommands(
             decorated.filter(item => item.group === 'Skills'),
-            catalogSkills
+            catalogSkills,
+            { hideBundled: true }
           )
         ]
 

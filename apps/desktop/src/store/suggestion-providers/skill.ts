@@ -82,7 +82,7 @@ async function loadIndex(): Promise<SkillIndexEntry[]> {
   const skills = await getSkills()
 
   index = skills
-    .filter(skill => skill.enabled && skill.name.length >= MIN_NAME_LENGTH)
+    .filter(skill => skill.enabled && skill.provenance !== 'bundled' && skill.name.length >= MIN_NAME_LENGTH)
     .map(skill => ({
       name: skill.name,
       pattern: skillPattern(skill.name)

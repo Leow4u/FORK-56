@@ -13430,9 +13430,10 @@ def _rank_slash_completions(
     ``/pretext`` (2).
 
     ``browsing`` separates the two things a slash means. A bare ``/`` is
-    BROWSING, so bundled skills with no recorded activity are dropped as
-    noise. A typed query is SEARCHING, and a search that hides a match is
-    broken — there nothing is pruned, the ranking only reorders.
+    BROWSING. A typed query is SEARCHING and still offers learned, created,
+    and hub skills. Shipped bundled skills are never suggested on either
+    path — they stay callable when the command is typed in full, and the
+    agent still loads the ones that are enabled.
     """
 
     def name_of(item: dict) -> str:
@@ -13441,12 +13442,15 @@ def _rank_slash_completions(
     commands = [item for item in items if item.get("kind") != "skill"]
     skills = [item for item in items if item.get("kind") == "skill"]
 
-    if browsing:
-        skills = [
-            item
-            for item in skills
-            if origin_of(name_of(item)) != "bundled" or usage(name_of(item)) > 0
-        ]
+    # Bundled skills are omitted from suggestions whether this is a bare
+    # menu (`browsing`) or a typed query. Learned, created, and hub skills
+    # stay on both paths. Typing the full command still runs the skill.
+    _ = browsing
+    skills = [
+        item
+        for item in skills
+        if origin_of(name_of(item)) != "bundled"
+    ]
 
     if score_of is not None:
         skills.sort(

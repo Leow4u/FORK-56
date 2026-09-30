@@ -309,35 +309,41 @@ export default function SkillsPage() {
   );
 
   /* ---- Derived data ---- */
+  // Shipped skills stay available to the agent. This page lists what the
+  // person created, what the agent learned, and hub installs.
+  const listedSkills = useMemo(
+    () => skills.filter((s) => s.provenance !== "bundled"),
+    [skills],
+  );
   const lowerSearch = search.toLowerCase();
   const isSearching = search.trim().length > 0;
 
   const searchMatchedSkills = useMemo(() => {
     if (!isSearching) return [];
-    return skills.filter(
+    return listedSkills.filter(
       (s) =>
         s.name.toLowerCase().includes(lowerSearch) ||
         s.description.toLowerCase().includes(lowerSearch) ||
         (s.category ?? "").toLowerCase().includes(lowerSearch),
     );
-  }, [skills, isSearching, lowerSearch]);
+  }, [listedSkills, isSearching, lowerSearch]);
 
   const activeSkills = useMemo(() => {
     if (isSearching) return [];
     if (!activeCategory)
-      return [...skills].sort((a, b) => a.name.localeCompare(b.name));
-    return skills
+      return [...listedSkills].sort((a, b) => a.name.localeCompare(b.name));
+    return listedSkills
       .filter((s) =>
         activeCategory === "__none__"
           ? !s.category
           : s.category === activeCategory,
       )
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [skills, activeCategory, isSearching]);
+  }, [listedSkills, activeCategory, isSearching]);
 
   const allCategories = useMemo(() => {
     const cats = new Map<string, number>();
-    for (const s of skills) {
+    for (const s of listedSkills) {
       const key = s.category || "__none__";
       cats.set(key, (cats.get(key) || 0) + 1);
     }
@@ -352,9 +358,9 @@ export default function SkillsPage() {
         name: prettyCategory(key === "__none__" ? null : key, t.common.general),
         count,
       }));
-  }, [skills, t]);
+  }, [listedSkills, t]);
 
-  const enabledCount = skills.filter((s) => s.enabled).length;
+  const enabledCount = listedSkills.filter((s) => s.enabled).length;
 
   useLayoutEffect(() => {
     if (loading) {
@@ -366,7 +372,7 @@ export default function SkillsPage() {
       <span className="flex items-center gap-2 whitespace-nowrap text-xs text-muted-foreground">
         {t.skills.enabledOf
           .replace("{enabled}", String(enabledCount))
-          .replace("{total}", String(skills.length))}
+          .replace("{total}", String(listedSkills.length))}
       </span>,
     );
     setEnd(
@@ -401,7 +407,7 @@ export default function SkillsPage() {
     search,
     setAfterTitle,
     setEnd,
-    skills.length,
+    listedSkills.length,
     t,
   ]);
 
@@ -481,7 +487,7 @@ export default function SkillsPage() {
               <div className="flex sm:flex-col gap-1 overflow-x-auto sm:overflow-x-visible scrollbar-none p-2">
                 <PanelItem
                   icon={Package}
-                  label={`${t.skills.all} (${skills.length})`}
+                  label={`${t.skills.all} (${listedSkills.length})`}
                   active={view === "skills" && !isSearching}
                   onClick={() => {
                     setView("skills");
@@ -626,7 +632,7 @@ export default function SkillsPage() {
               <CardContent className="px-4 pb-4">
                 {activeSkills.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
-                    {skills.length === 0
+                    {listedSkills.length === 0
                       ? t.skills.noSkills
                       : t.skills.noSkillsMatch}
                   </p>

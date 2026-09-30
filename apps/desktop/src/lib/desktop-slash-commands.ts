@@ -552,17 +552,21 @@ export function desktopSkinSlashCompletions(
  * A–Z within a tie. A `/` menu sorted alphabetically buries the handful of
  * skills someone reaches for daily under a hundred they have never opened.
  *
- * `pruneUnusedBuiltins` additionally drops bundled skills with no recorded
- * activity — the ones that ship with Work4You and were never asked for. It is
- * for BROWSING (a bare `/`) only: typing a query is a search, and a search
- * must never hide a match.
+ * `hideBundled` drops every shipped skill, used or not. The menu stops
+ * suggesting natives; typing the command still runs it, and the agent still
+ * loads the ones that are enabled. `pruneUnusedBuiltins` is the narrower
+ * browse-only cut (never-used shipped skills) kept for callers that have
+ * not opted into hiding the whole native set.
  *
  * Older backends send no `skills` map; then nothing is reordered or dropped.
  */
 export function rankSkillCommands<T extends { text: string }>(
   rows: readonly T[],
   skills: SkillCatalogMap | undefined,
-  { pruneUnusedBuiltins = false }: { pruneUnusedBuiltins?: boolean } = {}
+  {
+    hideBundled = false,
+    pruneUnusedBuiltins = false
+  }: { hideBundled?: boolean; pruneUnusedBuiltins?: boolean } = {}
 ): T[] {
   if (!skills) {
     return [...rows]
@@ -571,31 +575,44 @@ export function rankSkillCommands<T extends { text: string }>(
   const entryOf = (row: T): SkillCatalogEntry | undefined => skills[canonicalDesktopSlashCommand(row.text)]
   const usageOf = (row: T): number => entryOf(row)?.usage ?? 0
 
-  const kept = pruneUnusedBuiltins
-    ? rows.filter(row => {
-        const entry = entryOf(row)
+  const kept = rows.filter(row => {
+    const entry = entryOf(row)
 
-        // Unknown to the map (a quick command, a newer skill the catalog
-        // hasn't classified) stays — only a confirmed never-used built-in goes.
-        return !entry || entry.origin !== 'bundled' || (entry.usage ?? 0) > 0
-      })
-    : [...rows]
+    // Unknown to the map (a quick command, a newer skill the catalog
+    // hasn't classified) stays — only a confirmed bundled skill is hidden.
+    if (!entry || entry.origin !== 'bundled') {
+      return true
+    }
+
+    if (hideBundled) {
+      return false
+    }
+
+    return !pruneUnusedBuiltins || (entry.usage ?? 0) > 0
+  })
 
   return kept.sort((a, b) => usageOf(b) - usageOf(a) || a.text.localeCompare(b.text))
 }
 
+function isBundledSkillCommand(command: string, skills: SkillCatalogMap | undefined): boolean {
+  return skills?.[canonicalDesktopSlashCommand(command)]?.origin === 'bundled'
+}
+
 export function filterDesktopCommandsCatalog(catalog: CommandsCatalogLike): CommandsCatalogLike {
+  const listed = (command: string) =>
+    isDesktopSlashSuggestion(command) && !isBundledSkillCommand(command, catalog.skills)
+
   const categories = catalog.categories
     ?.map(section => ({
       ...section,
       pairs: section.pairs
-        .filter(([command]) => isDesktopSlashSuggestion(command))
+        .filter(([command]) => listed(command))
         .map(([command, description]) => [command, desktopSlashDescription(command, description)] as [string, string])
     }))
     .filter(section => section.pairs.length > 0)
 
   const pairs = catalog.pairs
-    ?.filter(([command]) => isDesktopSlashSuggestion(command))
+    ?.filter(([command]) => listed(command))
     .map(([command, description]) => [command, desktopSlashDescription(command, description)] as [string, string])
 
   // Recount skill commands from the filtered output so /help's footer reflects

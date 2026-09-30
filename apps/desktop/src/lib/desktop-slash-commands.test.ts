@@ -232,6 +232,26 @@ describe('desktop slash command curation', () => {
     expect(filtered.skill_count).toBe(2)
   })
 
+  it('drops bundled skills from the catalog while still allowing the command to run', () => {
+    const filtered = filterDesktopCommandsCatalog({
+      pairs: [
+        ['/pdf', 'Create a PDF'],
+        ['/learned-one', 'A skill this profile learned'],
+        ['/hub-one', 'Installed from the hub']
+      ],
+      skills: {
+        '/pdf': { usage: 10, origin: 'bundled' },
+        '/learned-one': { usage: 2, origin: 'local' },
+        '/hub-one': { usage: 0, origin: 'hub' }
+      },
+      skill_count: 3
+    })
+
+    expect(filtered.pairs?.map(([cmd]) => cmd)).toEqual(['/learned-one', '/hub-one'])
+    expect(filtered.skill_count).toBe(2)
+    expect(isDesktopSlashCommand('/pdf')).toBe(true)
+  })
+
   it('uses desktop-specific labels for commands with different UI behavior', () => {
     expect(desktopSlashDescription('/branch', 'Branch the current session')).toBe(
       'Branch the latest message into a new chat'
@@ -339,6 +359,20 @@ describe('rankSkillCommands', () => {
     expect(browsing).toContain('/docx')
     // Unclassified rows (quick commands, skills newer than the map) survive too.
     expect(browsing).toContain('/ship-it')
+  })
+
+  it('hides every bundled skill from suggestions, including ones with use', () => {
+    const withUse = {
+      ...skills,
+      '/pdf': { usage: 14, origin: 'bundled' as const }
+    }
+    const ranked = rankSkillCommands([...rows, { text: '/pdf' }], withUse, { hideBundled: true }).map(
+      row => row.text
+    )
+
+    expect(ranked).toEqual(['/work', '/research', '/docx', '/ship-it'])
+    expect(ranked).not.toContain('/pdf')
+    expect(ranked).not.toContain('/manim-video')
   })
 
   it('leaves the backend order untouched when the catalog carries no usage', () => {

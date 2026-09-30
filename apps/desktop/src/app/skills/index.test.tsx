@@ -324,7 +324,7 @@ describe('SkillsView toolset management', () => {
         category: 'research',
         enabled: true,
         usage: 3,
-        provenance: 'bundled'
+        provenance: 'agent'
       }
     ])
 
@@ -368,7 +368,7 @@ describe('SkillsView toolset management', () => {
         category: 'research',
         enabled: true,
         usage: 3,
-        provenance: 'bundled'
+        provenance: 'agent'
       }
     ])
 
@@ -390,6 +390,42 @@ describe('SkillsView toolset management', () => {
     expect(await screen.findByText('version')).toBeTruthy()
     expect(await screen.findByText('1.2.0')).toBeTruthy()
     expect(await screen.findByText(/Deep research steps/)).toBeTruthy()
+  })
+
+  it('hides bundled skills and lists learned and hub skills', async () => {
+    getSkills.mockResolvedValue([
+      {
+        name: 'himalaya',
+        description: 'CLI mail',
+        category: 'email',
+        enabled: true,
+        usage: 2,
+        provenance: 'bundled'
+      },
+      {
+        name: 'learned-one',
+        description: 'Learned from use',
+        category: 'productivity',
+        enabled: true,
+        usage: 1,
+        provenance: 'agent'
+      },
+      {
+        name: 'hub-one',
+        description: 'Installed from the hub',
+        category: 'productivity',
+        enabled: true,
+        usage: 0,
+        provenance: 'hub'
+      }
+    ])
+
+    await renderSkillsTab()
+
+    expect((await screen.findAllByText('learned-one')).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('hub-one').length).toBeGreaterThan(0)
+    expect(screen.queryByText('himalaya')).toBeNull()
+    expect(document.querySelector('[data-tour="tab-skills"]')?.textContent).toContain('2')
   })
 
   it('hub picker stays collapsed until Browse, then refuses to reinstall an already-installed skill', async () => {
