@@ -2289,7 +2289,7 @@ export const zhHant = defineLocale({
 
   cron: {
     close: '關閉排程',
-    title: '排程工作',
+    title: '例行工作',
     count: count => `${count} 個工作`,
     modelImpact: {
       title: '排程工作需要檢查',
@@ -2351,10 +2351,10 @@ export const zhHant = defineLocale({
     monthlyOnDayAt: (dayOfMonth, time) => `每月 ${dayOfMonth} 日 ${time}`,
     topOfHour: '每個整點',
     everyHourAt: minute => `每小時的 :${minute}`,
-    newCron: '新排程工作',
+    newCron: '新增例行工作',
     emptyDescNew: '按 cron 表達式排程一個提示詞。Work4You 會執行它，並將結果傳送至您選擇的目的地。',
     emptyDescSearch: '請嘗試更廣泛的搜尋詞。',
-    emptyTitleNew: '暫無排程工作',
+    emptyTitleNew: '還沒有例行工作',
     emptyTitleSearch: '無相符項目',
     last: '上次：',
     next: '下次：',
@@ -2410,8 +2410,8 @@ export const zhHant = defineLocale({
     saveChanges: '儲存變更',
     createAction: '建立排程工作',
     tabs: {
-      jobs: '工作',
-      blueprints: '藍圖'
+      jobs: '我的',
+      blueprints: '範本'
     },
     blueprints: {
       tab: '藍圖',
@@ -2490,7 +2490,7 @@ export const zhHant = defineLocale({
       skills: '技能與工具',
       messaging: '訊息平台',
       artifacts: '成品',
-      cron: '排程工作'
+      cron: '例行工作'
     },
     searchAria: '搜尋工作階段',
     searchPlaceholder: '搜尋工作階段…',

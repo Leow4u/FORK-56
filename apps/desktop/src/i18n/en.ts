@@ -2693,7 +2693,7 @@ export const en: Translations = {
 
   cron: {
     close: 'Close cron',
-    title: 'Scheduled jobs',
+    title: 'Routines',
     count: count => `${count} ${count === 1 ? 'job' : 'jobs'}`,
     modelImpact: {
       title: 'Scheduled jobs need review',
@@ -2756,12 +2756,12 @@ export const en: Translations = {
     monthlyOnDayAt: (dayOfMonth, time) => `Monthly on day ${dayOfMonth} at ${time}`,
     topOfHour: 'At the top of every hour',
     everyHourAt: minute => `Every hour at :${minute}`,
-    newCron: 'New cron',
+    newCron: 'New routine',
     untitled: 'Untitled',
     emptyDescNew:
       'Schedule a prompt to run on a cron expression. Work4You will run it and deliver results to the destination you pick.',
     emptyDescSearch: 'Try a broader search query.',
-    emptyTitleNew: 'No scheduled jobs yet',
+    emptyTitleNew: 'No routines yet',
     emptyTitleSearch: 'No matches',
     last: 'Last:',
     next: 'Next:',
@@ -2816,8 +2816,8 @@ export const en: Translations = {
     saveChanges: 'Save changes',
     createAction: 'Create cron',
     tabs: {
-      jobs: 'Jobs',
-      blueprints: 'Blueprints'
+      jobs: 'Mine',
+      blueprints: 'Templates'
     },
     blueprints: {
       tab: 'Blueprints',

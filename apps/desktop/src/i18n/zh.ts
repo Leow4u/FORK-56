@@ -2841,7 +2841,7 @@ export const zh: Translations = {
 
   cron: {
     close: '关闭定时任务',
-    title: '定时任务',
+    title: '例行任务',
     count: count => `${count} 个任务`,
     modelImpact: {
       title: '定时任务需要检查',
@@ -2903,11 +2903,11 @@ export const zh: Translations = {
     monthlyOnDayAt: (dayOfMonth, time) => `每月 ${dayOfMonth} 日 ${time}`,
     topOfHour: '每个整点',
     everyHourAt: minute => `每小时的 :${minute}`,
-    newCron: '新建定时任务',
+    newCron: '新建例行任务',
     untitled: '无标题',
     emptyDescNew: '按 cron 表达式排程一个提示词。Work4You 会运行它，并把结果发送到你选择的目的地。',
     emptyDescSearch: '尝试更宽泛的搜索词。',
-    emptyTitleNew: '暂无排程任务',
+    emptyTitleNew: '还没有例行任务',
     emptyTitleSearch: '无匹配项',
     last: '上次：',
     next: '下次：',
@@ -2963,8 +2963,8 @@ export const zh: Translations = {
     saveChanges: '保存更改',
     createAction: '创建定时任务',
     tabs: {
-      jobs: '任务',
-      blueprints: '蓝图'
+      jobs: '我的',
+      blueprints: '模板'
     },
     blueprints: {
       tab: '蓝图',
@@ -3043,7 +3043,7 @@ export const zh: Translations = {
       skills: '技能与工具',
       messaging: '消息平台',
       artifacts: '产物',
-      cron: '定时任务'
+      cron: '例行任务'
     },
     searchAria: '搜索会话',
     searchPlaceholder: '搜索会话…',

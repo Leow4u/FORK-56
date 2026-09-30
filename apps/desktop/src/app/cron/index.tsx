@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { createCronTriggerController, type CronTriggerController } from '@work4you/shared'
 import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 
+import { PAGE_INSET_X } from '@/app/layout-constants'
 import { PageLoader } from '@/components/page-loader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -17,8 +18,10 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Field, FieldHint } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { SearchField } from '@/components/ui/search-field'
 import {
   Select,
   SelectContent,
@@ -28,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { ResponsiveTabs } from '@/components/ui/tab-dropdown'
 import { Textarea } from '@/components/ui/textarea'
 import { type Translations, useI18n } from '@/i18n'
 import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
@@ -61,15 +65,8 @@ import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { openSession } from '../open-session'
 import {
   PanelAction,
-  PanelAddButton,
   PanelBlock,
-  PanelBody,
   PanelDetail,
-  PanelEmpty,
-  PanelHeader,
-  PanelList,
-  PanelListRow,
-  type PanelMenuItem,
   PanelMeta,
   PanelPill,
   type PanelPillTone,
@@ -87,8 +84,16 @@ import {
   toggleCronDeliveryTarget,
   validateCronEditor
 } from './cron-job-model'
-import { jobState, jobTitle, STATE_DOT } from './job-state'
+import { jobState, jobTitle } from './job-state'
 import { cronProjectFolder } from './project-folder'
+import {
+  MineEmpty,
+  RoutineCardGrid,
+  type RoutineCardModel,
+  routineDotClass,
+  TemplateBrowser,
+  type TemplateCardModel
+} from './routine-board'
 
 const DEFAULT_DELIVER = 'local'
 
@@ -319,6 +324,7 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
   const jobs = useStore($cronJobs)
   const [loading, setLoading] = useState(jobs.length === 0)
   const [query, setQuery] = useState('')
+  const [tab, setTab] = useState<'jobs' | 'templates'>('jobs')
   const [busyJobTokens, setBusyJobTokens] = useState<ReadonlyMap<string, symbol>>(() => new Map())
   const [triggeringJobKeys, setTriggeringJobKeys] = useState<ReadonlySet<string>>(() => new Set())
   const triggerControllerRef = useRef<CronTriggerController | null>(null)
@@ -350,11 +356,8 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
     }
   }, [])
 
-  // Master/detail: the job whose schedule + run history fill the right pane.
+  // Drill-in: a selected job replaces the gallery. Null keeps the card grid.
   const [selectedJobId, setSelectedJobId] = useState<null | string>(null)
-  // Set when a job is opened from the sidebar so we scroll it into view once the
-  // row exists. Cleared after the scroll fires.
-  const pendingScrollRef = useRef<null | string>(null)
   const focusJobId = useStore($cronFocusJobId)
 
   const [editor, setEditor] = useState<EditorState>({ mode: 'closed' })
@@ -392,9 +395,8 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
   }, [refresh])
 
   // Sidebar → "open this job": resolve the focus id (or name) to a job, select
-  // it, queue a scroll, then clear the one-shot focus so re-opening cron
-  // normally doesn't re-trigger it.
-  // eslint-disable-next-line no-restricted-syntax -- legitimate non-atom ref write (see eslint rule comment)
+  // it, then clear the one-shot focus so re-opening cron normally doesn't
+  // re-trigger it.
   useEffect(() => {
     if (!focusJobId) {
       return
@@ -404,7 +406,6 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
 
     if (match) {
       setSelectedJobId(match.id)
-      pendingScrollRef.current = match.id
     }
 
     setCronFocusJobId(null)
@@ -430,29 +431,73 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
     return needle ? list.filter(item => `${item.title} ${item.description}`.toLowerCase().includes(needle)) : list
   }, [blueprintsQuery.data, query])
 
-  // Detail always reflects a concrete job: the explicitly selected one, else the
-  // first visible row, so the right pane is never empty while jobs exist.
+  // Detail is an explicit open. Search filtering must not dismiss it, so the
+  // lookup is the full job list rather than the visible gallery.
   const selectedJob = useMemo(
-    () => visibleJobs.find(job => job.id === selectedJobId) ?? visibleJobs[0] ?? null,
-    [visibleJobs, selectedJobId]
+    () => (selectedJobId ? (jobs.find(job => job.id === selectedJobId) ?? null) : null),
+    [jobs, selectedJobId]
   )
 
-  // Scroll a sidebar-opened job into view once its list row is mounted.
-  // eslint-disable-next-line no-restricted-syntax -- legitimate non-atom ref write (see eslint rule comment)
   useEffect(() => {
-    const target = pendingScrollRef.current
-
-    if (!target || selectedJob?.id !== target) {
-      return
+    if (selectedJobId && !jobs.some(job => job.id === selectedJobId)) {
+      setSelectedJobId(null)
     }
+  }, [jobs, selectedJobId])
 
-    pendingScrollRef.current = null
-    requestAnimationFrame(() => {
-      document.querySelector(`[data-panel-row="${CSS.escape(target)}"]`)?.scrollIntoView({ block: 'nearest' })
-    })
-  }, [selectedJob])
+  const routineCards = useMemo<RoutineCardModel[]>(
+    () =>
+      visibleJobs.map(job => {
+        const state = jobState(job)
+        const deliver = jobDeliver(job)
 
-  const totalCount = jobs.length
+        return {
+          deliver: c.deliveryLabels[deliver] ?? deliver,
+          dotClassName: routineDotClass(state),
+          id: job.id,
+          prompt: jobPrompt(job),
+          schedule: jobScheduleDisplay(job),
+          stateLabel: c.states[state] ?? state,
+          title: jobTitle(job),
+          tone: STATE_TONE[state] ?? 'muted'
+        }
+      }),
+    [c, visibleJobs]
+  )
+
+  const templateCards = useMemo<TemplateCardModel[]>(
+    () =>
+      visibleBlueprints.map(item => ({
+        category: item.category,
+        description: item.description,
+        key: item.key,
+        title: item.title
+      })),
+    [visibleBlueprints]
+  )
+
+  const openCreate = useCallback(
+    (blueprintKey?: string) => {
+      navigate(blueprintKey ? `${CRON_NEW_ROUTE}?blueprint=${encodeURIComponent(blueprintKey)}` : CRON_NEW_ROUTE)
+    },
+    [navigate]
+  )
+
+  const templateStatus = blueprintsQuery.isLoading
+    ? 'loading'
+    : blueprintsQuery.isError
+      ? 'error'
+      : (blueprintsQuery.data?.length ?? 0) === 0
+        ? 'empty'
+        : 'ready'
+
+  const searchHints = useMemo(() => {
+    const source = tab === 'jobs' ? jobs.map(jobTitle) : (blueprintsQuery.data ?? []).map(item => item.title)
+
+    return source
+      .filter(Boolean)
+      .slice(0, 5)
+      .map(title => t.common.tryHint(title))
+  }, [blueprintsQuery.data, jobs, t, tab])
 
   function beginJobBusy(jobId: string): symbol {
     const token = Symbol(jobId)
@@ -568,6 +613,7 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
       }
 
       notify({ kind: 'success', title: c.deleted, message: truncate(jobTitle(pendingDelete), 60) })
+      setSelectedJobId(current => (current === pendingDelete.id ? null : current))
       setPendingDelete(null)
     } catch (err) {
       notifyError(err, c.failedDelete)
@@ -659,85 +705,88 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
     <section
       {...props}
       className={cn(
-        'flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background) px-4 pb-4 pt-2 sm:px-5',
+        'flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)',
+        PAGE_INSET_X,
+        'pb-4 pt-[calc(var(--titlebar-height)+0.75rem)]',
         className
       )}
     >
-      <PanelHeader subtitle={c.count(totalCount)} title={c.title} />
-
-      {loading && jobs.length === 0 ? (
-        <PageLoader label={c.loading} />
-      ) : totalCount === 0 && visibleBlueprints.length === 0 ? (
-        <PanelEmpty
-          action={
-            <Button onClick={() => navigate(CRON_NEW_ROUTE)} size="sm">
-              {c.newCron}
-            </Button>
-          }
-          description={c.emptyDescNew}
-          icon="watch"
-          title={c.emptyTitleNew}
+      {selectedJob ? (
+        <CronJobDetail
+          busy={busyJobTokens.has(selectedJob.id) || triggeringJobKeys.has(`${profile}:${selectedJob.id}`)}
+          c={c}
+          deleteLabel={t.common.delete}
+          job={selectedJob}
+          onBack={() => setSelectedJobId(null)}
+          onDelete={() => setPendingDelete(selectedJob)}
+          onEdit={() => setEditor({ mode: 'edit', job: selectedJob })}
+          onOpenSession={openRun}
+          onPauseResume={() => void handlePauseResume(selectedJob)}
+          onTrigger={() => void handleTrigger(selectedJob)}
         />
       ) : (
-        <PanelBody>
-          <PanelList
-            onSearchChange={setQuery}
-            searchHints={jobs
-              .map(jobTitle)
-              .filter(Boolean)
-              .slice(0, 5)
-              .map(title => t.common.tryHint(title))}
-            searchLabel={c.search}
-            searchPlaceholder={c.search}
-            searchValue={query}
-          >
-            {visibleJobs.map(job => (
-              <CronJobListRow
-                active={selectedJob?.id === job.id}
-                job={job}
-                key={job.id}
-                menuItems={[
-                  { icon: 'edit', label: c.edit, onSelect: () => setEditor({ mode: 'edit', job }) },
-                  { icon: 'trash', label: t.common.delete, onSelect: () => setPendingDelete(job), tone: 'danger' }
+        <>
+          <header className="mb-4 flex shrink-0 flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">{c.title}</h1>
+              <ResponsiveTabs
+                align="start"
+                onChange={id => setTab(id === 'templates' ? 'templates' : 'jobs')}
+                tabs={[
+                  { id: 'jobs', label: c.tabs.jobs },
+                  { id: 'templates', label: c.tabs.blueprints }
                 ]}
-                menuLabel={c.manage}
-                onSelect={() => setSelectedJobId(job.id)}
+                value={tab}
+                wideClassName="mt-3 justify-start"
               />
-            ))}
-            {visibleJobs.length === 0 && (
-              <p className="px-2 py-4 text-center text-xs text-muted-foreground">{c.emptyTitleSearch}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <SearchField
+                aria-label={c.search}
+                hints={searchHints}
+                onChange={setQuery}
+                placeholder={c.search}
+                recede={false}
+                value={query}
+              />
+              <Button onClick={() => openCreate()} size="sm">
+                {c.newCron}
+              </Button>
+            </div>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto pb-6">
+            {tab === 'jobs' ? (
+              loading && jobs.length === 0 ? (
+                <PageLoader label={c.loading} />
+              ) : jobs.length === 0 && !query.trim() ? (
+                <MineEmpty
+                  description={c.emptyDescNew}
+                  failedLabel={c.blueprints.failedLoad}
+                  onOpenTemplate={openCreate}
+                  status={templateStatus === 'empty' ? 'ready' : templateStatus}
+                  templates={templateCards}
+                  title={c.emptyTitleNew}
+                />
+              ) : routineCards.length === 0 ? (
+                <EmptyState description={c.emptyDescSearch} title={c.emptyTitleSearch} />
+              ) : (
+                <RoutineCardGrid jobs={routineCards} onOpen={setSelectedJobId} />
+              )
+            ) : (
+              <TemplateBrowser
+                emptyDescription={c.blueprints.emptyDesc}
+                emptyTitle={c.blueprints.emptyTitle}
+                failedLabel={c.blueprints.failedLoad}
+                loadingLabel={c.blueprints.loading}
+                onOpen={openCreate}
+                searchDescription={c.emptyDescSearch}
+                searchTitle={c.emptyTitleSearch}
+                status={templateStatus}
+                templates={templateCards}
+              />
             )}
-            <PanelAddButton label={c.newCron} onClick={() => navigate(CRON_NEW_ROUTE)} />
-            {visibleBlueprints.length > 0 && (
-              <>
-                <PanelSectionLabel className="mt-3 px-2">{c.blueprints.tab}</PanelSectionLabel>
-                {visibleBlueprints.map(item => (
-                  <PanelListRow
-                    active={false}
-                    icon="rocket"
-                    key={item.key}
-                    onSelect={() => setEditor({ blueprintKey: item.key, mode: 'create' })}
-                    rowKey={`blueprint-${item.key}`}
-                    title={item.title}
-                  />
-                ))}
-              </>
-            )}
-          </PanelList>
-
-          {selectedJob ? (
-            <CronJobDetail
-              busy={busyJobTokens.has(selectedJob.id) || triggeringJobKeys.has(`${profile}:${selectedJob.id}`)}
-              c={c}
-              job={selectedJob}
-              onOpenSession={openRun}
-              onPauseResume={() => void handlePauseResume(selectedJob)}
-              onTrigger={() => void handleTrigger(selectedJob)}
-            />
-          ) : (
-            <PanelEmpty description={c.emptyDescSearch} icon="search" />
-          )}
-        </PanelBody>
+          </div>
+        </>
       )}
 
       <CronEditorDialog
@@ -775,45 +824,25 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
   )
 }
 
-function CronJobListRow({
-  active,
-  job,
-  menuItems,
-  menuLabel,
-  onSelect
-}: {
-  active: boolean
-  job: CronJob
-  menuItems?: PanelMenuItem[]
-  menuLabel?: string
-  onSelect: () => void
-}) {
-  const state = jobState(job)
-
-  return (
-    <PanelListRow
-      active={active}
-      dotClassName={STATE_DOT[state] ?? 'bg-muted-foreground'}
-      menuItems={menuItems}
-      menuLabel={menuLabel}
-      onSelect={onSelect}
-      rowKey={job.id}
-      title={jobTitle(job)}
-    />
-  )
-}
-
 function CronJobDetail({
   busy,
   c,
+  deleteLabel,
   job,
+  onBack,
+  onDelete,
+  onEdit,
   onOpenSession,
   onPauseResume,
   onTrigger
 }: {
   busy: boolean
   c: Translations['cron']
+  deleteLabel: string
   job: CronJob
+  onBack: () => void
+  onDelete: () => void
+  onEdit: () => void
   onOpenSession?: (sessionId: string) => void
   onPauseResume: () => void
   onTrigger: () => void
@@ -823,23 +852,39 @@ function CronJobDetail({
   const deliver = jobDeliver(job)
   const prompt = jobPrompt(job)
   const modelOverride = jobModel(job)
+  const title = jobTitle(job)
 
   return (
     <PanelDetail>
-      <header className="space-y-3">
+      <header className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h3 className="text-[0.95rem] font-semibold tracking-tight text-foreground">{jobTitle(job)}</h3>
-            <PanelPill tone={STATE_TONE[state] ?? 'muted'}>{c.states[state] ?? state}</PanelPill>
+          <div className="flex min-w-0 items-center gap-1.5 text-sm">
+            <Button className="shrink-0" onClick={onBack} size="inline" type="button" variant="text">
+              {c.title}
+            </Button>
+            <span aria-hidden className="text-muted-foreground">
+              /
+            </span>
+            <span className="truncate font-medium text-foreground">{title}</span>
           </div>
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-0.5">
             <PanelAction disabled={busy} icon={isPaused ? 'play' : 'debug-pause'} onClick={onPauseResume}>
               {isPaused ? c.resumeTitle : c.pauseTitle}
+            </PanelAction>
+            <PanelAction disabled={busy} icon="edit" onClick={onEdit}>
+              {c.edit}
+            </PanelAction>
+            <PanelAction disabled={busy} icon="trash" onClick={onDelete}>
+              {deleteLabel}
             </PanelAction>
             <PanelAction disabled={busy} icon="zap" onClick={onTrigger} primary>
               {c.triggerNow}
             </PanelAction>
           </div>
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h2 className="text-[0.95rem] font-semibold tracking-tight text-foreground">{title}</h2>
+          <PanelPill tone={STATE_TONE[state] ?? 'muted'}>{c.states[state] ?? state}</PanelPill>
         </div>
 
         <PanelMeta
@@ -1486,9 +1531,16 @@ const BLANK_CREATE_EDITOR: EditorState = { mode: 'create' }
 export function CronCreatePage({ className, ...props }: React.ComponentProps<'section'>) {
   const { t } = useI18n()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const c = t.cron
   const profileScope = useStore($profileScope)
   const profile = cronProfileForScope(profileScope)
+  const blueprintKey = params.get('blueprint')?.trim() || undefined
+
+  const editor = useMemo<EditorState>(
+    () => (blueprintKey ? { blueprintKey, mode: 'create' } : BLANK_CREATE_EDITOR),
+    [blueprintKey]
+  )
 
   async function handleSave(values: EditorValues) {
     const {
@@ -1550,7 +1602,7 @@ export function CronCreatePage({ className, ...props }: React.ComponentProps<'se
       )}
     >
       <CronEditorDialog
-        editor={BLANK_CREATE_EDITOR}
+        editor={editor}
         onBlueprintCreate={handleBlueprintCreate}
         onClose={() => navigate(CRON_ROUTE)}
         onSave={handleSave}
