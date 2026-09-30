@@ -1,26 +1,38 @@
 import { CloseDownload } from './Ctas'
+import { Fig } from './Fig'
 import { InstallPanel } from './InstallPanel'
-import { Scene } from './Scene'
 import styles from './CloseCta.module.css'
+import { Tight } from './Tight'
+
+const STEPS = ['Baixe o app', 'Conecte seus canais', 'Mande a primeira tarefa'] as const
 
 export function CloseCta() {
   return (
-    <section className={styles.section} id="download">
-      <Scene
-        src="/media/studio-mist.jpg"
-        tall
-        bleed
-        position="center 32%"
-        className={styles.scene}
-      >
-        <div className={styles.card}>
-          <h2 className={styles.title}>Experimente o Work4You agora.</h2>
-          <div className={styles.download}>
-            <CloseDownload />
+    <section aria-labelledby="download-title" className={styles.section} id="download">
+      <div className="shell">
+        <Fig label="Instalação" number="08" tag="Pronto em minutos" tone="ink" />
+        <div className={styles.split}>
+          <div>
+            <h2 className={styles.title} id="download-title">
+              <Tight text="Coloque o Work4You para trabalhar." />
+            </h2>
+            <ol className={styles.steps}>
+              {STEPS.map((step, index) => (
+                <li key={step}>
+                  <span className="mono-label">{String(index + 1).padStart(2, '0')}</span>
+                  {step}
+                </li>
+              ))}
+            </ol>
           </div>
-          <InstallPanel />
+          <div className={styles.card}>
+            <div className={styles.download}>
+              <CloseDownload />
+            </div>
+            <InstallPanel />
+          </div>
         </div>
-      </Scene>
+      </div>
     </section>
   )
 }

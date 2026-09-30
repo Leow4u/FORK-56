@@ -1,0 +1,13 @@
+.app,
+.icon {
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+}
+
+/* Logos monocromáticos (Notion) seguem o fundo: quem estiver no escuro define o filtro. */
+.mono {
+  filter: var(--glyph-mono-filter, none);
+}

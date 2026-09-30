@@ -1,0 +1,131 @@
+.thread {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.message {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: start;
+  gap: 0.7rem;
+  animation: rowIn 0.4s ease both;
+}
+
+.bot,
+.you {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+}
+
+.bot {
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.bot:hover {
+  transform: translateY(-2px);
+}
+
+.bot:focus-visible {
+  outline: 2px solid var(--salvia);
+  outline-offset: 2px;
+}
+
+/* Cada clique alterna o atributo, e a troca reinicia o pulinho. */
+.bot[data-hop='0'] > svg {
+  animation: hopA 0.36s ease;
+}
+
+.bot[data-hop='1'] > svg {
+  animation: hopB 0.36s ease;
+}
+
+.you {
+  border: 1px solid var(--tinta-fio);
+  border-radius: 50%;
+  color: var(--papel);
+}
+
+.working {
+  color: var(--salvia);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--papel);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.badge {
+  padding: 2px 5px;
+  border: 1px solid var(--tinta-fio);
+  border-radius: 4px;
+  color: var(--tinta-texto);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.text {
+  margin: 0.2rem 0 0;
+  color: var(--tinta-texto);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.typing {
+  color: var(--salvia);
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hopA {
+  40% {
+    translate: 0 -5px;
+    scale: 1.08;
+  }
+}
+
+@keyframes hopB {
+  40% {
+    translate: 0 -5px;
+    scale: 1.08;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bot[data-hop] > svg {
+    animation: none;
+  }
+}

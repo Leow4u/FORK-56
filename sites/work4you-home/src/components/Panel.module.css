@@ -1,0 +1,55 @@
+.panel {
+  overflow: hidden;
+  border: 1px solid var(--tinta);
+  border-radius: 14px;
+  background: var(--branco);
+  color: var(--tinta);
+}
+
+.ink {
+  --glyph-mono-filter: invert(1) brightness(0.85);
+
+  background: var(--tinta);
+  color: var(--papel);
+}
+
+.head,
+.foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.62rem 1rem;
+  color: var(--grafite-2);
+}
+
+.head {
+  border-bottom: 1px solid var(--linha);
+  background: var(--papel-2);
+}
+
+.foot {
+  border-top: 1px solid var(--linha);
+}
+
+.ink .head,
+.ink .foot {
+  border-color: var(--tinta-fio);
+  background: transparent;
+  color: var(--tinta-texto);
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--tinta);
+}
+
+.ink .title {
+  color: var(--papel);
+}
+
+.body {
+  padding: 1rem;
+}

@@ -1,43 +1,69 @@
 .section {
-  scroll-margin-top: 5.5rem;
+  padding: clamp(1rem, 2.2vw, 1.6rem) 0 clamp(3.5rem, 8vw, 6rem);
+  background: var(--tinta);
+  color: var(--papel);
+  scroll-margin-top: 5rem;
 }
 
-.scene {
-  min-height: 42rem;
-  padding-top: clamp(3.6rem, 8vw, 6.2rem);
-  padding-bottom: clamp(4.8rem, 10vw, 7.8rem);
-}
-
-.card {
-  width: min(100%, 38rem);
-  padding: clamp(1.5rem, 3vw, 2.1rem) clamp(1.2rem, 3vw, 1.9rem)
-    clamp(1.4rem, 3vw, 1.85rem);
-  border-radius: 22px;
-  background: color-mix(in srgb, var(--papel) 93%, transparent);
-  border: 1px solid rgba(250, 249, 245, 0.55);
-  box-shadow: 0 22px 56px rgba(26, 25, 21, 0.2);
-  backdrop-filter: blur(12px);
-  text-align: center;
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 4.5rem);
+  margin-top: clamp(1.75rem, 4vw, 3rem);
 }
 
 .title {
-  margin: 0 auto 1.1rem;
-  max-width: 16ch;
-  font-size: clamp(1.85rem, 3.6vw, 2.45rem);
+  max-width: 12ch;
+  margin: 0;
+  font-size: clamp(2.4rem, 1.2rem + 3.6vw, 4.6rem);
   font-weight: 800;
-  letter-spacing: -0.015em;
-  word-spacing: 0.06em;
-  line-height: 1.18;
+  line-height: 0.95;
+  letter-spacing: -0.045em;
   text-wrap: balance;
 }
 
-.download {
+.steps {
+  display: grid;
+  margin: clamp(1.5rem, 3vw, 2.25rem) 0 0;
+  padding: 0;
+  border-top: 1px solid var(--tinta-fio);
+  list-style: none;
+}
+
+.steps li {
   display: flex;
-  justify-content: center;
-  margin-bottom: 1.35rem;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--tinta-fio);
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.steps :global(.mono-label) {
+  color: var(--salvia);
+}
+
+.card {
+  padding: clamp(1.4rem, 3vw, 2rem);
+  border: 1.5px solid var(--papel);
+  border-radius: 18px;
+  background: var(--papel);
+  color: var(--tinta);
+}
+
+.download {
+  margin-bottom: 1.5rem;
 }
 
 .download:empty {
   display: none;
   margin: 0;
+}
+
+@media (max-width: 900px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

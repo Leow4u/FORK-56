@@ -19,6 +19,17 @@
   --mata-deep: var(--oliva-esc);
   --salvia-soft: color-mix(in srgb, var(--salvia) 42%, var(--papel));
 
+  /* Hero e ordem de serviço: superfícies e textos derivados da paleta */
+  --branco: #ffffff;
+  --papel-2: #f1f0e9;
+  --grafite-2: #5b5b55;
+  --cinza-tese: #8a8a82;
+  --tinta-2: #27261f;
+  --tinta-fio: #3b3a33;
+  --tinta-texto: #b7b6ac;
+  --salvia-2: #bcc8ad;
+  --zap: #d9fdd3;
+
   --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --max: 1240px;
@@ -79,6 +90,18 @@ img {
   margin-inline: auto;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .mono-label {
   margin: 0;
   font-family: var(--font-mono);
@@ -100,4 +123,9 @@ img {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Pontuação de títulos grandes: ver Tight.tsx. */
+.punct {
+  margin-left: -0.1em;
 }
