@@ -403,6 +403,7 @@ describe('settings helpers', () => {
         'voice.record_key': { type: 'string' as const },
         'voice.max_recording_seconds': { type: 'number' as const }
       }
+
       const config: Work4YouConfigRecord = {
         stt: { enabled: true, echo_transcripts: true, provider: 'local' },
         tts: {
@@ -433,6 +434,7 @@ describe('settings helpers', () => {
         'context.engine': { type: 'select' as const, options: ['compressor'] },
         'compression.enabled': { type: 'boolean' as const }
       }
+
       const config: Work4YouConfigRecord = {
         memory: { memory_enabled: true, user_profile_enabled: false, provider: 'honcho', memory_char_limit: 2200 },
         context: { engine: 'compressor' },

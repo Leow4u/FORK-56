@@ -8327,9 +8327,7 @@ async function discoverCloudAgents(org?: string) {
   const portalBaseUrl = resolvePortalBaseUrl()
 
   if (!(await hasLivePortalSession())) {
-    const err = new Error(
-      'You are not signed in to Work4You Cloud. Open Settings → Billing and sign in.'
-    ) as any
+    const err = new Error('You are not signed in to Work4You Cloud. Open Settings → Billing and sign in.') as any
 
     err.needsCloudLogin = true
     throw err

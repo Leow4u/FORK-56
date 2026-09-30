@@ -129,7 +129,12 @@ export function ConfirmDialog({
           <Button disabled={busy} onClick={onClose} size="sm" type="button" variant="ghost">
             {resolvedCancelLabel}
           </Button>
-          <Button disabled={busy} onClick={() => void run()} size="sm" variant={destructive ? 'destructive' : 'default'}>
+          <Button
+            disabled={busy}
+            onClick={() => void run()}
+            size="sm"
+            variant={destructive ? 'destructive' : 'default'}
+          >
             <ActionStatus
               busy={resolvedBusyLabel}
               done={resolvedDoneLabel}

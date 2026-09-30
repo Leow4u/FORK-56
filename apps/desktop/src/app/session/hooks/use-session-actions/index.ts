@@ -618,6 +618,7 @@ export function useSessionActions({
         // conversation that was on screen).
         const tileCwd =
           options && Object.hasOwn(options, 'cwd') ? (options.cwd || '').trim() : resolveCreateSessionCwd()
+
         const params = await desktopSessionCreateParams(tileCwd)
         const created = await requestGateway<SessionCreateResponse>('session.create', params)
         const stored = created.stored_session_id
