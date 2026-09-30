@@ -2896,7 +2896,7 @@ export const en: Translations = {
       skills: 'Capabilities',
       messaging: 'Channels',
       artifacts: 'Artifacts',
-      cron: 'Scheduled jobs'
+      cron: 'Routines'
     },
     searchAria: 'Search sessions',
     searchPlaceholder: 'Search sessions…',
