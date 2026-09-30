@@ -148,11 +148,16 @@ function skillSubtitle(skill: SkillInfo): React.ReactNode {
   )
 }
 
+// Shipped skills stay on disk and in the agent index. The list the person
+// manages shows what they created, what the agent learned, and hub installs.
+const isListedSkill = (skill: SkillInfo): boolean => skill.provenance !== 'bundled'
+
 function filteredSkills(skills: SkillInfo[], query: string, desc: boolean): SkillInfo[] {
   const q = normalize(query)
   const sign = desc ? 1 : -1
 
   return skills
+    .filter(isListedSkill)
     .filter(
       skill =>
         !q || includesQuery(skill.name, q) || includesQuery(skill.description, q) || includesQuery(skill.category, q)
@@ -431,9 +436,10 @@ export function SkillsView({
   )
 
   // Bulk actions ("All" master switch, "Disable unused") and the master-switch
-  // state target the WHOLE tab, never the search-filtered view — a tab-wide
-  // control that silently scoped to the current query would be a lie.
-  const bulkSkills = skills ?? []
+  // state target the WHOLE visible tab, never the search-filtered view — a
+  // tab-wide control that silently scoped to the current query would be a
+  // lie. Shipped skills are not in that tab, so the switch cannot turn them off.
+  const bulkSkills = useMemo(() => (skills ?? []).filter(isListedSkill), [skills])
   const bulkToolsets = useMemo(() => (toolsets ?? []).filter(ts => isDesktopToolsetVisible(ts.name)), [toolsets])
 
   // Installed-name set for the hub picker's already-installed guard — the
@@ -446,7 +452,7 @@ export function SkillsView({
     if (displayMode === 'skills' && skills?.length) {
       const counts = new Map<string, number>()
 
-      for (const skill of skills) {
+      for (const skill of skills.filter(isListedSkill)) {
         const key = categoryFor(skill)
         counts.set(key, (counts.get(key) || 0) + 1)
       }
@@ -935,7 +941,7 @@ export function SkillsView({
       }
       searchValue={query}
       tabs={[
-        { id: 'skills', label: t.skills.tabSkills, meta: skills?.length ?? null },
+        { id: 'skills', label: t.skills.tabSkills, meta: skills ? bulkSkills.length : null },
         ...(showToolsTab
           ? [{ id: 'toolsets', label: t.skills.tabToolsets, meta: visibleToolsetCount(toolsets ?? []) }]
           : []),

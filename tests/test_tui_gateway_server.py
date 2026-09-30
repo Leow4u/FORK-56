@@ -8000,11 +8000,11 @@ def test_complete_slash_ranks_skills_by_recorded_usage(monkeypatch):
     assert skills[:3] == ["work", "research", "clean"]
 
 
-def test_complete_slash_prunes_unused_builtins_only_while_browsing(monkeypatch):
-    """A bare `/` is browsing and may prune; a typed query is a search.
+def test_complete_slash_hides_bundled_skills_from_suggestions(monkeypatch):
+    """Shipped skills are not offered in the menu or in a typed query.
 
-    A search that hides a match is broken, so the never-opened bundled skill
-    disappears from `/` and comes straight back the moment it is typed for.
+    Learned and hub skills still match a query. Typing the full command is a
+    different path and still runs the skill.
     """
     _slash_skill_fixtures(monkeypatch)
 
@@ -8012,7 +8012,8 @@ def test_complete_slash_prunes_unused_builtins_only_while_browsing(monkeypatch):
     searching = {item["text"].strip() for item in _slash_completions("/unused")}
 
     assert "unused-bundled" not in browsing
-    assert "unused-bundled" in searching
+    assert "unused-bundled" not in searching
+    assert "research" in {item["text"].strip() for item in _slash_completions("/res")}
 
 
 def test_complete_slash_leaves_argument_stages_alone(monkeypatch):

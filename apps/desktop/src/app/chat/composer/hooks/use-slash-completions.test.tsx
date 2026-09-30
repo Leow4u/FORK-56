@@ -130,16 +130,23 @@ describe('useSlashCompletions', () => {
     expect(skills).toEqual(['/work', '/research', '/docx'])
   })
 
-  // Typing is a search, and a search that hides a match is broken — the
-  // never-used built-in still shows, just below the one she actually uses.
-  it('ranks a typed query by use without hiding anything', async () => {
+  // A typed query still finds learned and hub skills. Shipped skills stay
+  // out of the suggestions even when the letters match.
+  it('hides bundled skills from a typed query and keeps the ones the profile owns', async () => {
     const request = vi.fn().mockImplementation((method: string) =>
       Promise.resolve(
         method === 'commands.catalog'
-          ? RANKED_CATALOG
+          ? {
+              ...RANKED_CATALOG,
+              skills: {
+                ...RANKED_CATALOG.skills,
+                '/pdf': { usage: 14, origin: 'bundled' }
+              }
+            }
           : {
               items: [
                 { text: '/research-paper-writing', display: '/research-paper-writing', meta: 'Write a paper' },
+                { text: '/pdf', display: '/pdf', meta: 'Create a PDF' },
                 { text: '/research', display: '/research', meta: 'Look it up' }
               ]
             }
@@ -152,6 +159,6 @@ describe('useSlashCompletions', () => {
     // query is typed, which is where the usage map comes from.
     await completions(api, '')
 
-    expect(commandsOf(await completions(api, 'research'))).toEqual(['/research', '/research-paper-writing'])
+    expect(commandsOf(await completions(api, 'research'))).toEqual(['/research'])
   })
 })

@@ -25,6 +25,14 @@ const apiMocks = vi.hoisted(() => ({
       usage: 0,
       provenance: "hub",
     },
+    {
+      name: "himalaya",
+      description: "Himalaya CLI email",
+      category: "email",
+      enabled: true,
+      usage: 2,
+      provenance: "bundled",
+    },
   ]),
   getToolsets: vi.fn(async () => [
     {
@@ -334,6 +342,7 @@ describe("SkillsPage (Capabilities)", () => {
     expect(text).toContain("learned-skill");
     expect(text).toContain("Learned");
     expect(text).toContain("Hub");
+    expect(text).not.toContain("himalaya");
     expect(text).toContain("×4");
     // Cache-awareness note (desktop parity).
     expect(text).toContain("Changes apply to new sessions.");
