@@ -1,24 +1,63 @@
-import { DesktopShot } from './DesktopShot'
+import { useState } from 'react'
 import { HeroCtas } from './Ctas'
-import { Scene } from './Scene'
+import { HeroRace } from './HeroRace'
 import styles from './Hero.module.css'
 
-export function Hero() {
-  return (
-    <section className={styles.hero} id="top">
-      <div className={`shell ${styles.intro}`}>
-        <h1 className={styles.title}>Agente de IA que cresce com você.</h1>
-        <HeroCtas />
-      </div>
+const SPEC = [
+  { label: 'Canais', value: '20+ integrações' },
+  { label: 'Superfícies', value: 'Desktop, terminal e chat' },
+  { label: 'Memória', value: 'Aprende e cria skills' },
+  { label: 'Rotinas', value: 'Agenda em linguagem natural' },
+] as const
 
-      <div className={`shell ${styles.visual}`}>
-        <Scene src="/media/hero-hills.jpg" tall wide position="center 42%">
-          <DesktopShot
-            src="/media/product/hero-loop.jpg"
-            video="/media/product/hero-loop.mp4"
-            alt="Work4You no desktop: conversa à esquerda e a landing no browser em localhost."
-          />
-        </Scene>
+export function Hero() {
+  const [workDone, setWorkDone] = useState(false)
+
+  return (
+    <section aria-labelledby="hero-title" className={styles.hero} id="top">
+      <div className="shell">
+        <div className={`mono-label ${styles.fig}`}>
+          <span>Fig. 01 — Conversa × Trabalho</span>
+          <span className={styles.live}>
+            <i aria-hidden="true" className={styles.dot} />
+            Demonstração ao vivo
+          </span>
+        </div>
+
+        <h1 className={styles.thesis} id="hero-title">
+          <span className={styles.talk}>
+            Chatbots{' '}
+            <br />
+            conversam.
+          </span>{' '}
+          <span className={styles.work}>
+            O Work4You{' '}
+            <br />
+            <span className={workDone ? `${styles.underline} ${styles.drawn}` : styles.underline}>trabalha.</span>
+          </span>
+        </h1>
+
+        <div className={styles.subs}>
+          <p className={styles.subTalk}>Respondem com um texto bem escrito. O trabalho continua com você.</p>
+          <div className={styles.subWork}>
+            <p>
+              Atende clientes no WhatsApp, fecha planilhas, cobra, agenda e aprende o seu jeito de trabalhar. No
+              desktop, no terminal e nos seus canais.
+            </p>
+            <HeroCtas />
+          </div>
+        </div>
+
+        <HeroRace onWorkDone={setWorkDone} />
+
+        <dl className={styles.spec}>
+          {SPEC.map((item) => (
+            <div key={item.label}>
+              <dt className="mono-label">{item.label}</dt>
+              <dd>{item.value}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </section>
   )
