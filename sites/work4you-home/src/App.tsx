@@ -6,6 +6,7 @@ import { Footer } from './components/Footer'
 import { Hero } from './components/Hero'
 import { Nav } from './components/Nav'
 import { Schedule } from './components/Schedule'
+import { TaskOrder } from './components/TaskOrder'
 import { Tools } from './components/Tools'
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
       <Nav />
       <main>
         <Hero />
+        <TaskOrder />
         <Bots />
         <Channels />
         <Tools />
