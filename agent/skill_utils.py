@@ -390,6 +390,13 @@ def skill_matches_environment(frontmatter: Dict[str, Any]) -> bool:
 
 # ── Disabled skills ───────────────────────────────────────────────────────
 
+# Shipped skills that start disabled on a profile which has never written
+# config.yaml. An existing config file is left untouched, even when it has
+# no ``skills.disabled`` key — those profiles keep the switch they already
+# have. Himalaya is the one: mailbox access goes through the connected-app
+# MCP, and this manual otherwise sends the agent down an external CLI.
+BIRTH_DISABLED_SKILLS = ("himalaya",)
+
 
 _RAW_CONFIG_CACHE: Dict[Tuple[str, int, int], Dict[str, Any]] = {}
 
@@ -434,6 +441,30 @@ def _load_raw_config() -> Dict[str, Any]:
     return parsed
 
 
+def apply_birth_disabled_skills(config: Dict[str, Any]) -> None:
+    """Add :data:`BIRTH_DISABLED_SKILLS` to ``config['skills']['disabled']``.
+
+    Mutates *config*. Names already present are left in place. Used when a
+    profile has no config file yet, and when that file is first written, so
+    the birth state survives the first save.
+    """
+    skills = config.get("skills")
+    if not isinstance(skills, dict):
+        skills = {}
+        config["skills"] = skills
+    current = skills.get("disabled")
+    if isinstance(current, str):
+        names = [current] if current.strip() else []
+    elif isinstance(current, (list, tuple, set)):
+        names = [str(name) for name in current if str(name).strip()]
+    else:
+        names = []
+    for name in BIRTH_DISABLED_SKILLS:
+        if name not in names:
+            names.append(name)
+    skills["disabled"] = names
+
+
 def get_disabled_skill_names(platform: str | None = None) -> Set[str]:
     """Read disabled skill names from config.yaml.
 
@@ -447,7 +478,15 @@ def get_disabled_skill_names(platform: str | None = None) -> Set[str]:
 
     Reads the config file directly (no CLI config imports) to stay
     lightweight.
+
+    A missing config file is a profile that has not been configured yet, so
+    the birth-disabled skills apply. A file that exists and simply omits
+    ``skills.disabled`` is an existing profile — those stay enabled.
     """
+    config_path = get_config_path()
+    if not config_path.exists():
+        return set(BIRTH_DISABLED_SKILLS)
+
     parsed = _load_raw_config()
     if not parsed:
         return set()

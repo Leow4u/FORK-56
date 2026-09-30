@@ -172,3 +172,50 @@ class TestGetCategories:
         from work4you_cli.skills_config import _get_categories
         skills = [{"name": "a", "category": None, "description": ""}]
         assert "uncategorized" in _get_categories(skills)
+
+
+class TestHimalayaBirthDisabled:
+    """himalaya starts off only for a profile that has never written config."""
+
+    def test_missing_config_disables_himalaya(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("WORK4YOU_HOME", str(tmp_path))
+        from agent import skill_utils
+
+        skill_utils._raw_config_cache_clear()
+        assert "himalaya" in skill_utils.get_disabled_skill_names()
+
+    def test_existing_config_without_the_key_leaves_himalaya_enabled(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("WORK4YOU_HOME", str(tmp_path))
+        (tmp_path / "config.yaml").write_text("display:\n  compact: true\n", encoding="utf-8")
+        from agent import skill_utils
+
+        skill_utils._raw_config_cache_clear()
+        assert "himalaya" not in skill_utils.get_disabled_skill_names()
+
+    def test_first_save_records_himalaya_and_a_later_profile_file_does_not_gain_it(
+        self, tmp_path, monkeypatch
+    ):
+        fresh = tmp_path / "fresh"
+        fresh.mkdir()
+        monkeypatch.setenv("WORK4YOU_HOME", str(fresh))
+        from work4you_cli import config as cfg
+
+        cfg._LOAD_CONFIG_CACHE.clear()
+        loaded = cfg.load_config()
+        assert "himalaya" in (loaded.get("skills") or {}).get("disabled", [])
+        cfg.save_config(loaded)
+        assert "himalaya" in (fresh / "config.yaml").read_text(encoding="utf-8")
+
+        existing = tmp_path / "existing"
+        existing.mkdir()
+        (existing / "config.yaml").write_text("display:\n  compact: true\n", encoding="utf-8")
+        monkeypatch.setenv("WORK4YOU_HOME", str(existing))
+        cfg._LOAD_CONFIG_CACHE.clear()
+        from agent import skill_utils
+
+        skill_utils._raw_config_cache_clear()
+        kept = cfg.load_config()
+        assert "himalaya" not in ((kept.get("skills") or {}).get("disabled") or [])
+        cfg.save_config(kept)
+        skill_utils._raw_config_cache_clear()
+        assert "himalaya" not in skill_utils.get_disabled_skill_names()

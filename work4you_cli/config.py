@@ -3623,6 +3623,14 @@ def _load_config_impl(*, want_deepcopy: bool) -> Dict[str, Any]:
 
         config = copy.deepcopy(DEFAULT_CONFIG)
 
+        # A profile with no config file yet is being born. Seed skills that
+        # must start disabled (himalaya) without touching profiles that
+        # already have a config.yaml — those keep whatever switch they saved.
+        if user_sig is None:
+            from agent.skill_utils import apply_birth_disabled_skills
+
+            apply_birth_disabled_skills(config)
+
         if user_sig is not None:
             try:
                 with open(config_path, encoding="utf-8") as f:
@@ -3852,6 +3860,14 @@ def save_config(
         ensure_work4you_home()
         config_path = get_config_path()
         require_readable_config_before_write(config_path)
+        # First write of a profile's config records birth-disabled skills.
+        # Later saves of an existing file do not add them back. Copy first so
+        # a caller that hands in DEFAULT_CONFIG is not mutated in place.
+        if not config_path.exists():
+            from agent.skill_utils import apply_birth_disabled_skills
+
+            config = copy.deepcopy(config)
+            apply_birth_disabled_skills(config)
         # Compute explicit user paths BEFORE any normalisation --------
         # _normalize_max_turns_config may inject agent.max_turns from
         # DEFAULT_CONFIG; using the raw dict preserves which paths the
