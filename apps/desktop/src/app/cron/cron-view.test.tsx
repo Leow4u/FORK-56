@@ -167,4 +167,40 @@ describe('CronView', () => {
     expect(screen.getByRole('button', { name: en.cron.resumeTitle })).toBeTruthy()
     expect(await screen.findByText(en.cron.noRuns)).toBeTruthy()
   })
+
+  it('offers the detail actions from the card menu', async () => {
+    setCronJobs([job()])
+    render(wrap(<CronView />))
+
+    await screen.findByRole('button', { name: /Limpeza do Gmail/ })
+    openCardMenu()
+
+    expect(await screen.findByRole('menuitem', { name: en.cron.triggerNow })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: en.cron.pauseTitle })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: en.cron.edit })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: en.common.delete })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: en.cron.pauseTitle })).toBeNull()
+
+    fireEvent.click(screen.getByRole('menuitem', { name: en.cron.edit }))
+    expect(await screen.findByRole('heading', { name: en.cron.editTitle })).toBeTruthy()
+  })
+
+  it('uses Resume in the card menu when the routine is paused', async () => {
+    setCronJobs([job({ state: 'paused' })])
+    render(wrap(<CronView />))
+
+    await screen.findByRole('button', { name: /Limpeza do Gmail/ })
+    openCardMenu()
+
+    expect(await screen.findByRole('menuitem', { name: en.cron.resumeTitle })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: en.cron.pauseTitle })).toBeNull()
+  })
 })
+
+function openCardMenu() {
+  const trigger = screen.getByRole('button', { name: en.cron.actionsTitle })
+
+  fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' })
+  fireEvent.pointerUp(trigger, { button: 0, pointerType: 'mouse' })
+  fireEvent.click(trigger)
+}

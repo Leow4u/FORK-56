@@ -450,10 +450,15 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
         const state = jobState(job)
         const deliver = jobDeliver(job)
 
+        const paused = state === 'paused'
+
         return {
+          busy: busyJobTokens.has(job.id) || triggeringJobKeys.has(`${profile}:${job.id}`),
           deliver: c.deliveryLabels[deliver] ?? deliver,
           dotClassName: routineDotClass(state),
           id: job.id,
+          pauseIcon: paused ? 'play' : 'debug-pause',
+          pauseLabel: paused ? c.resumeTitle : c.pauseTitle,
           prompt: jobPrompt(job),
           schedule: jobScheduleDisplay(job),
           stateLabel: c.states[state] ?? state,
@@ -461,7 +466,7 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
           tone: STATE_TONE[state] ?? 'muted'
         }
       }),
-    [c, visibleJobs]
+    [busyJobTokens, c, profile, triggeringJobKeys, visibleJobs]
   )
 
   const templateCards = useMemo<TemplateCardModel[]>(
@@ -770,7 +775,42 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
               ) : routineCards.length === 0 ? (
                 <EmptyState description={c.emptyDescSearch} title={c.emptyTitleSearch} />
               ) : (
-                <RoutineCardGrid jobs={routineCards} onOpen={setSelectedJobId} />
+                <RoutineCardGrid
+                  deleteLabel={t.common.delete}
+                  editLabel={c.edit}
+                  jobs={routineCards}
+                  menuLabel={c.actionsTitle}
+                  onDelete={id => {
+                    const target = jobs.find(item => item.id === id)
+
+                    if (target) {
+                      setPendingDelete(target)
+                    }
+                  }}
+                  onEdit={id => {
+                    const target = jobs.find(item => item.id === id)
+
+                    if (target) {
+                      setEditor({ mode: 'edit', job: target })
+                    }
+                  }}
+                  onOpen={setSelectedJobId}
+                  onPause={id => {
+                    const target = jobs.find(item => item.id === id)
+
+                    if (target) {
+                      void handlePauseResume(target)
+                    }
+                  }}
+                  onTrigger={id => {
+                    const target = jobs.find(item => item.id === id)
+
+                    if (target) {
+                      void handleTrigger(target)
+                    }
+                  }}
+                  triggerLabel={c.triggerNow}
+                />
               )
             ) : (
               <TemplateBrowser

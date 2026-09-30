@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
 
 import type { PanelPillTone } from '@/app/overlays/panel'
+import { ActionsMenu, renderActionItem } from '@/components/ui/actions-menu'
+import { Button } from '@/components/ui/button'
+import { Codicon } from '@/components/ui/codicon'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Loader } from '@/components/ui/loader'
 import { RowButton } from '@/components/ui/row-button'
@@ -24,9 +27,12 @@ const STATE_TEXT: Record<PanelPillTone, string> = {
 }
 
 export interface RoutineCardModel {
+  busy: boolean
   deliver: string
   dotClassName: string
   id: string
+  pauseIcon: 'debug-pause' | 'play'
+  pauseLabel: string
   prompt: string
   schedule: string
   stateLabel: string
@@ -91,24 +97,98 @@ function CardGrid({ children }: { children: ReactNode }) {
   return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{children}</div>
 }
 
-const cardClass =
+const templateCardClass =
   'flex h-full w-full flex-col items-start gap-1.5 rounded-xl border border-(--ui-stroke-tertiary) bg-(--ui-bg-editor) px-4 py-3.5 text-left transition-colors hover:bg-(--ui-row-hover-background) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40'
 
-export function RoutineCardGrid({ jobs, onOpen }: { jobs: RoutineCardModel[]; onOpen: (id: string) => void }) {
+const cardShellClass =
+  'group relative rounded-xl border border-(--ui-stroke-tertiary) bg-(--ui-bg-editor) transition-colors hover:bg-(--ui-row-hover-background)'
+
+const cardOpenClass =
+  'flex h-full w-full flex-col items-start gap-1.5 px-4 py-3.5 pr-10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40'
+
+export function RoutineCardGrid({
+  deleteLabel,
+  editLabel,
+  jobs,
+  menuLabel,
+  onDelete,
+  onEdit,
+  onOpen,
+  onPause,
+  onTrigger,
+  triggerLabel
+}: {
+  deleteLabel: string
+  editLabel: string
+  jobs: RoutineCardModel[]
+  menuLabel: string
+  onDelete: (id: string) => void
+  onEdit: (id: string) => void
+  onOpen: (id: string) => void
+  onPause: (id: string) => void
+  onTrigger: (id: string) => void
+  triggerLabel: string
+}) {
   return (
     <CardGrid>
       {jobs.map(job => (
-        <RowButton className={cardClass} data-panel-row={job.id} key={job.id} onClick={() => onOpen(job.id)}>
-          <span className="flex items-center gap-2">
-            <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', job.dotClassName)} />
-            <span className={cn('text-[0.7rem] font-medium', STATE_TEXT[job.tone])}>{job.stateLabel}</span>
-          </span>
-          <span className="text-sm font-semibold tracking-tight text-foreground">{job.title}</span>
-          <span className="text-xs text-muted-foreground">
-            {job.schedule} · {job.deliver}
-          </span>
-          {job.prompt ? <span className="line-clamp-2 text-xs text-muted-foreground">{job.prompt}</span> : null}
-        </RowButton>
+        <div className={cardShellClass} key={job.id}>
+          <RowButton className={cardOpenClass} data-panel-row={job.id} onClick={() => onOpen(job.id)}>
+            <span className="flex items-center gap-2">
+              <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', job.dotClassName)} />
+              <span className={cn('text-[0.7rem] font-medium', STATE_TEXT[job.tone])}>{job.stateLabel}</span>
+            </span>
+            <span className="text-sm font-semibold tracking-tight text-foreground">{job.title}</span>
+            <span className="text-xs text-muted-foreground">
+              {job.schedule} · {job.deliver}
+            </span>
+            {job.prompt ? <span className="line-clamp-2 text-xs text-muted-foreground">{job.prompt}</span> : null}
+          </RowButton>
+          <div className="absolute right-1.5 top-1.5">
+            <ActionsMenu
+              ariaLabel={menuLabel}
+              contentClassName="w-44"
+              items={kit => (
+                <>
+                  {renderActionItem(kit, {
+                    disabled: job.busy,
+                    icon: 'zap',
+                    key: 'trigger',
+                    label: triggerLabel,
+                    onSelect: () => onTrigger(job.id)
+                  })}
+                  {renderActionItem(kit, {
+                    disabled: job.busy,
+                    icon: job.pauseIcon,
+                    key: 'pause',
+                    label: job.pauseLabel,
+                    onSelect: () => onPause(job.id)
+                  })}
+                  {renderActionItem(kit, {
+                    disabled: job.busy,
+                    icon: 'edit',
+                    key: 'edit',
+                    label: editLabel,
+                    onSelect: () => onEdit(job.id)
+                  })}
+                  <kit.Separator />
+                  {renderActionItem(kit, {
+                    disabled: job.busy,
+                    icon: 'trash',
+                    key: 'delete',
+                    label: deleteLabel,
+                    onSelect: () => onDelete(job.id),
+                    variant: 'destructive'
+                  })}
+                </>
+              )}
+            >
+              <Button aria-label={menuLabel} size="icon-xs" type="button" variant="ghost">
+                <Codicon name="kebab-vertical" />
+              </Button>
+            </ActionsMenu>
+          </div>
+        </div>
       ))}
     </CardGrid>
   )
@@ -127,7 +207,7 @@ export function TemplateCardGrid({
         const Icon = CATEGORY_ICON[template.category] ?? Bell
 
         return (
-          <RowButton className={cardClass} key={template.key} onClick={() => onOpen(template.key)}>
+          <RowButton className={templateCardClass} key={template.key} onClick={() => onOpen(template.key)}>
             <Icon className="size-4 text-muted-foreground" />
             <span className="text-sm font-semibold tracking-tight text-foreground">{template.title}</span>
             {template.description ? (
