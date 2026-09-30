@@ -362,6 +362,8 @@ function describeTrigger(freq: Frequency, time: [number, number] | null, t: stri
   }
 }
 
+const STORES: ReadonlySet<GlyphName> = new Set(['gdrive', 'notion', 'sheets'])
+
 function pickDelivery(t: string, action: string, eventGlyph: GlyphName | null): TaskTag {
   // Canais na ordem em que aparecem; a entrega é o último que não seja a origem do evento.
   const mentioned = CHANNELS.map(([pattern, label, glyph]) => {
@@ -382,10 +384,12 @@ function pickDelivery(t: string, action: string, eventGlyph: GlyphName | null): 
     return { glyph: 'whatsapp', label: 'WhatsApp, na própria conversa' }
   }
 
+  // Um lançamento é entregue onde os registros vivem: o arquivo citado no pedido.
+  const store = SOURCES.find(([pattern, , glyph]) => STORES.has(glyph) && pattern.test(t))
   const fallback: Record<string, TaskTag> = {
     campanha: { glyph: 'notion', label: 'Notion, plano para sua aprovação' },
     cobranca: { glyph: 'whatsapp', label: 'WhatsApp, lembrete com 2ª via' },
-    lancamento: { glyph: 'sheets', label: 'Registros atualizados + aviso no app' },
+    lancamento: { glyph: store?.[2] ?? 'sheets', label: 'Registros atualizados + aviso no app' },
   }
 
   return fallback[action] ?? { glyph: 'chat', label: 'Chat do Work4You (desktop e celular)' }

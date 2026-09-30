@@ -45,6 +45,14 @@ describe('compileTask (ordem de serviço)', () => {
     }
   })
 
+  it('delivers a record update to the file the request names', () => {
+    const drive = compileTask('Todo dia às 2h, atualiza o backup da pasta de contratos no Drive.', NOW)
+    const sheet = compileTask('Quando chegar nota fiscal no e-mail, lança na planilha do financeiro', NOW)
+
+    expect(drive.delivery.glyph).toBe('gdrive')
+    expect(sheet.delivery.glyph).toBe('sheets')
+  })
+
   it('only lists future runs, in chronological order', () => {
     for (const request of REQUESTS) {
       const runs = compileTask(request, NOW).nextRuns
