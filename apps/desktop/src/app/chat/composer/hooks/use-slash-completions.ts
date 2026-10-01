@@ -232,9 +232,8 @@ export function useSlashCompletions(options: {
         // stay. Usage rides on the catalog response.
         const catalogSkills =
           peekCachedSlashCompletion<CommandsCatalogLike>('catalog')?.skills ??
-          (
-            await cachedSlashCompletion('catalog', () => gateway.request<CommandsCatalogLike>('commands.catalog'))
-          ).skills
+          (await cachedSlashCompletion('catalog', () => gateway.request<CommandsCatalogLike>('commands.catalog')))
+            .skills
 
         const ranked = [
           ...decorated.filter(item => item.group !== 'Skills'),

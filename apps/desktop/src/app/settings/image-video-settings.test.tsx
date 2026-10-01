@@ -258,12 +258,7 @@ describe('ImageVideoSettings', () => {
     fireEvent.click(await screen.findByRole('radio', { name: /FLUX 2 Pro/ }))
 
     await waitFor(() =>
-      expect(selectToolsetModel).toHaveBeenCalledWith(
-        'image_gen',
-        'fal-ai/flux-2-pro',
-        'Work4You Subscription',
-        null
-      )
+      expect(selectToolsetModel).toHaveBeenCalledWith('image_gen', 'fal-ai/flux-2-pro', 'Work4You Subscription', null)
     )
   })
 

@@ -366,9 +366,8 @@ describe('rankSkillCommands', () => {
       ...skills,
       '/pdf': { usage: 14, origin: 'bundled' as const }
     }
-    const ranked = rankSkillCommands([...rows, { text: '/pdf' }], withUse, { hideBundled: true }).map(
-      row => row.text
-    )
+
+    const ranked = rankSkillCommands([...rows, { text: '/pdf' }], withUse, { hideBundled: true }).map(row => row.text)
 
     expect(ranked).toEqual(['/work', '/research', '/docx', '/ship-it'])
     expect(ranked).not.toContain('/pdf')

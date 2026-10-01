@@ -1245,18 +1245,10 @@ function SkillCard({
               {t.skills.provenance.hub}
             </Badge>
           )}
-          {usage > 0 && (
-            <span className="text-xs tabular-nums text-(--ui-text-tertiary)">×{compactNumber(usage)}</span>
-          )}
+          {usage > 0 && <span className="text-xs tabular-nums text-(--ui-text-tertiary)">×{compactNumber(usage)}</span>}
         </span>
       </button>
-      <Switch
-        aria-label={skill.name}
-        checked={skill.enabled}
-        disabled={busy}
-        onCheckedChange={onToggle}
-        size="xs"
-      />
+      <Switch aria-label={skill.name} checked={skill.enabled} disabled={busy} onCheckedChange={onToggle} size="xs" />
     </div>
   )
 }
@@ -1317,9 +1309,7 @@ function SkillDetail({
           />
         </div>
         <div className="flex shrink-0 items-center gap-2 pt-0.5">
-          {usage > 0 && (
-            <span className="text-xs tabular-nums text-(--ui-text-tertiary)">×{compactNumber(usage)}</span>
-          )}
+          {usage > 0 && <span className="text-xs tabular-nums text-(--ui-text-tertiary)">×{compactNumber(usage)}</span>}
           <Switch
             aria-label={skill.name}
             checked={skill.enabled}
