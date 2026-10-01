@@ -6,19 +6,16 @@ import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
-import { BarChart3, CreditCard, ExternalLink, Package, Wrench } from '@/lib/icons'
+import { ExternalLink, Wrench } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
 import { useRouteEnumParam } from '../../hooks/use-route-enum-param'
-import { PortalAccount } from '../portal-account'
 import {
   ListRow,
   ListRowSkeleton,
   SectionHeading,
   SettingsContent,
-  SettingsGroup,
-  SettingsSection
+  SettingsGroup
 } from '../primitives'
 
 import { RowValue } from './account-row-value'
@@ -35,6 +32,7 @@ import type { BillingStateResponse } from './types'
 import {
   type BillingAccountRowView,
   type BillingNoticeView,
+  type BillingPlanCardView,
   type BillingUsageRowView,
   deriveBillingView,
   useBillingState,
@@ -55,22 +53,6 @@ const BILLING_DEV_FIXTURE_NAMES = import.meta.env.DEV
   : []
 
 type BillingFixtureSelection = 'live' | BillingDevFixtureName
-
-function SummaryCard({ label, value, tone }: { label: string; tone?: 'muted' | 'primary'; value: string }) {
-  return (
-    <div className="min-w-0">
-      <div className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">{label}</div>
-      <div
-        className={cn(
-          'mt-1 min-w-0 truncate text-lg font-semibold tabular-nums',
-          tone === 'primary' ? 'text-(--ui-green)' : tone === 'muted' ? 'text-(--ui-text-tertiary)' : 'text-foreground'
-        )}
-      >
-        {value}
-      </div>
-    </div>
-  )
-}
 
 function NoticeCard({ notice }: { notice: BillingNoticeView }) {
   const warn = notice.tone === 'warn'
@@ -428,22 +410,73 @@ function BillingHeader({
 function BillingSkeleton() {
   return (
     <>
-      <div className="@container mb-6">
-        <div className="grid gap-3 @2xl:grid-cols-3">
-          {[0, 1, 2].map(i => (
-            <div className="min-w-0 space-y-2" key={i}>
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-6 w-20" />
-            </div>
-          ))}
-        </div>
-      </div>
-      {[0, 1, 2].map(section => (
+      {[0, 1].map(section => (
         <SettingsGroup key={section}>
           <ListRowSkeleton />
           <ListRowSkeleton />
         </SettingsGroup>
       ))}
+    </>
+  )
+}
+
+function BillingOverview({
+  accountRows,
+  billing,
+  onViewPlans,
+  paymentRow,
+  plan,
+  usageRows
+}: {
+  accountRows: BillingAccountRowView[]
+  billing?: BillingStateResponse
+  onViewPlans: () => void
+  paymentRow?: BillingAccountRowView
+  plan?: BillingPlanCardView
+  usageRows: BillingUsageRowView[]
+}) {
+  const included = usageRows.filter(row => row.id !== 'monthly_cap')
+  const cap = usageRows.find(row => row.id === 'monthly_cap')
+  const showPayment = Boolean(paymentRow || accountRows.length > 0 || cap)
+  const card = 'mb-6 rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) px-4 pb-1'
+
+  return (
+    <>
+      {plan && (
+        <section className={card}>
+          <div className="pt-4 text-[0.6875rem] font-medium tracking-wide text-(--ui-text-tertiary)">CURRENT PLAN</div>
+          <CurrentPlanCard onViewPlans={onViewPlans} plan={plan} />
+          {included.length > 0 && (
+            <>
+              <div className="pt-1 text-[length:var(--conversation-text-font-size)] font-medium">
+                Included in {plan.tierName}
+              </div>
+              {included.map(row => (
+                <UsageRow key={row.id} row={row} />
+              ))}
+            </>
+          )}
+        </section>
+      )}
+      {!plan && included.length > 0 && (
+        <section className={card}>
+          {included.map(row => (
+            <UsageRow key={row.id} row={row} />
+          ))}
+        </section>
+      )}
+      {showPayment && (
+        <section className={card}>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 pt-4">
+            <h2 className="text-[length:var(--conversation-text-font-size)] font-medium">Payment & credits</h2>
+            {paymentRow && <PaymentMethodAside row={paymentRow} />}
+          </div>
+          {accountRows.map(row => (
+            <AccountRow billing={billing} key={row.id} row={row} />
+          ))}
+          {cap && <UsageRow row={cap} />}
+        </section>
+      )}
     </>
   )
 }
@@ -469,7 +502,6 @@ function BillingSettingsContent({
     return (
       <SettingsContent>
         <BillingHeader fixtureName={fixtureName} onFixtureChange={onFixtureChange} />
-        <PortalAccount />
         <BillingSkeleton />
       </SettingsContent>
     )
@@ -496,7 +528,6 @@ function BillingSettingsContent({
     return (
       <SettingsContent>
         <BillingHeader fixtureName={fixtureName} onFixtureChange={onFixtureChange} />
-        <PortalAccount />
         <BillingPlansView onBack={() => setSubView('overview')} tiers={view.tiers} />
       </SettingsContent>
     )
@@ -505,45 +536,17 @@ function BillingSettingsContent({
   return (
     <SettingsContent>
       <BillingHeader fixtureName={fixtureName} onFixtureChange={onFixtureChange} />
-      <PortalAccount />
 
       {view.notice && <NoticeCard notice={view.notice} />}
 
-      <div className="@container mb-6">
-        <div className="grid gap-3 @2xl:grid-cols-3">
-          {view.summary.map(item => (
-            <SummaryCard key={item.label} label={item.label} tone={item.tone} value={item.value} />
-          ))}
-        </div>
-      </div>
-
-      {view.plan && (
-        <SettingsSection icon={Package} title="Plan">
-          <CurrentPlanCard onViewPlans={() => setSubView('plans')} plan={view.plan} />
-        </SettingsSection>
-      )}
-
-      {(paymentRow || accountRows.length > 0) && (
-        <SettingsSection
-          aside={paymentRow ? <PaymentMethodAside row={paymentRow} /> : undefined}
-          icon={CreditCard}
-          title="Payment & credits"
-        >
-          {accountRows.map(row => (
-            <AccountRow billing={billing} key={row.id} row={row} />
-          ))}
-        </SettingsSection>
-      )}
-
-      {view.usageRows.length > 0 && (
-        <SettingsSection icon={BarChart3} title="Usage">
-          <div className="@container">
-            {view.usageRows.map(row => (
-              <UsageRow key={row.id} row={row} />
-            ))}
-          </div>
-        </SettingsSection>
-      )}
+      <BillingOverview
+        accountRows={accountRows}
+        billing={billing}
+        onViewPlans={() => setSubView('plans')}
+        paymentRow={paymentRow}
+        plan={view.plan}
+        usageRows={view.usageRows}
+      />
 
       {
         // no endpoint yet — NAS capability-board gap

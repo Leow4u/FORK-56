@@ -82,8 +82,9 @@ describe('BillingSettings', () => {
   it('renders the deployed-today payload with buy controls hidden and usage rows visible', async () => {
     renderBilling()
 
-    expect(await screen.findByText('$996.47')).toBeTruthy()
-    expect(screen.getByText('Ultra · $200/mo')).toBeTruthy()
+    expect(await screen.findByText('Ultra')).toBeTruthy()
+    expect(screen.getByText('$200/mo')).toBeTruthy()
+    expect(screen.getByText('Included in Ultra')).toBeTruthy()
     expect(screen.getByText('Visa •••• 3206')).toBeTruthy()
     expect(
       screen.getByText(
@@ -104,8 +105,7 @@ describe('BillingSettings', () => {
 
     renderBilling()
 
-    expect(await screen.findByText('$142.50')).toBeTruthy()
-    expect(screen.getByText('Visa •••• 4242 - subscription card')).toBeTruthy()
+    expect(await screen.findByText('Visa •••• 4242 - subscription card')).toBeTruthy()
     expect(screen.getByRole('button', { name: '$25' }).hasAttribute('disabled')).toBe(false)
     expect(screen.getByRole('button', { name: '$50' }).hasAttribute('disabled')).toBe(false)
     expect(screen.getByRole('button', { name: '$100' }).hasAttribute('disabled')).toBe(false)
@@ -713,7 +713,7 @@ describe('BillingSettings', () => {
   it('does not show the no-card notice when a card is on file', async () => {
     renderBilling()
 
-    await screen.findByText('$996.47')
+    await screen.findByText('Visa •••• 3206')
     expect(screen.queryByText('No payment method on file')).toBeNull()
   })
 

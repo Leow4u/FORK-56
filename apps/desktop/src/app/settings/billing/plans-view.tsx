@@ -129,8 +129,8 @@ function PlanCard({ flow, tier }: { flow: DowngradeFlow; tier: BillingPlanTierVi
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-col gap-3 rounded-lg p-4 outline-none',
-        isCurrent ? 'bg-(--ui-green)/10' : 'bg-(--ui-bg-quaternary)'
+        'flex min-w-0 flex-col gap-3 rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) p-4 outline-none',
+        isCurrent && 'bg-(--ui-green)/8 ring-1 ring-inset ring-(--ui-green)/35'
       )}
       ref={cardRef}
       tabIndex={-1}
