@@ -28,7 +28,7 @@ import {
   urlSlugTitleLabel,
   useLinkTitle
 } from '@/lib/external-link'
-import { FileImage, FileText, FolderOpen, Link2 } from '@/lib/icons'
+import { FileText, FolderOpen, Link2 } from '@/lib/icons'
 import { downloadGatewayMediaFile, isRemoteGateway } from '@/lib/media'
 import { normalize } from '@/lib/text'
 import { fmtDayTime } from '@/lib/time'
@@ -94,14 +94,6 @@ function paginationItems(page: number, pageCount: number): Array<number | 'ellip
 type CellCtx = {
   onOpen: (href: string) => void | Promise<void>
   onOpenChat: (sessionId: string) => void
-}
-
-interface ArtifactColumn {
-  Cell: React.ComponentType<{ artifact: ArtifactRecord; ctx: CellCtx }>
-  bodyClassName: string
-  header: (filter: ArtifactFilter, a: Translations['artifacts']) => string
-  id: 'location' | 'primary' | 'session'
-  width: (filter: ArtifactFilter) => string
 }
 
 const itemsLabel = (f: ArtifactFilter, a: Translations['artifacts']) =>
@@ -353,20 +345,25 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
         </div>
       ) : (
         <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-          <div className="flex flex-col gap-3 px-3 pb-2">
+          <div className="flex flex-col gap-8 px-3 pt-2 pb-6">
             {visibleImageArtifacts.length > 0 && (
               <section className="flex flex-col">
-                <div className="sticky top-0 z-10 -mx-3 flex h-7 items-center gap-3 overflow-x-auto bg-background px-3">
-                  <ArtifactsPagination
-                    className="ml-auto justify-end px-0"
-                    itemLabel={a.itemsImage}
-                    onPageChange={setImagePage}
-                    page={currentImagePage}
-                    pageSize={24}
-                    total={visibleImageArtifacts.length}
-                  />
-                </div>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-start gap-2 pt-1.5">
+                <ArtifactSectionHeader
+                  pagination={
+                    imagePageCount > 1 ? (
+                      <ArtifactsPagination
+                        className="ml-auto justify-end px-0"
+                        itemLabel={a.itemsImage}
+                        onPageChange={setImagePage}
+                        page={currentImagePage}
+                        pageSize={24}
+                        total={visibleImageArtifacts.length}
+                      />
+                    ) : null
+                  }
+                  title={kindFilter === 'all' ? a.tabImages : null}
+                />
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-start gap-x-6 gap-y-5">
                   {pagedImageArtifacts.map(artifact => (
                     <ArtifactImageCard
                       artifact={artifact}
@@ -382,18 +379,25 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
 
             {visibleFileArtifacts.length > 0 && (
               <section className="flex flex-col">
-                <div className="sticky top-0 z-10 -mx-3 flex h-7 items-center gap-3 overflow-x-auto bg-background px-3">
-                  <ArtifactsPagination
-                    className="ml-auto justify-end px-0"
-                    itemLabel={itemsLabel(kindFilter, a)}
-                    onPageChange={setFilePage}
-                    page={currentFilePage}
-                    pageSize={100}
-                    total={visibleFileArtifacts.length}
-                  />
-                </div>
-                <div className="overflow-x-auto rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-chat-bubble-background)">
-                  <ArtifactTable artifacts={pagedFileArtifacts} ctx={cellCtx} filter={kindFilter} />
+                <ArtifactSectionHeader
+                  pagination={
+                    filePageCount > 1 ? (
+                      <ArtifactsPagination
+                        className="ml-auto justify-end px-0"
+                        itemLabel={itemsLabel(kindFilter, a)}
+                        onPageChange={setFilePage}
+                        page={currentFilePage}
+                        pageSize={100}
+                        total={visibleFileArtifacts.length}
+                      />
+                    ) : null
+                  }
+                  title={restSectionTitle(kindFilter, visibleFileArtifacts, a)}
+                />
+                <div>
+                  {pagedFileArtifacts.map(artifact => (
+                    <ArtifactFlatRow artifact={artifact} ctx={cellCtx} key={artifact.id} />
+                  ))}
                 </div>
               </section>
             )}
@@ -413,10 +417,49 @@ interface ArtifactsPaginationProps {
   total: number
 }
 
+function restSectionTitle(
+  filter: ArtifactFilter,
+  items: readonly ArtifactRecord[],
+  a: Translations['artifacts']
+): string | null {
+  if (filter !== 'all' || items.length === 0) {
+    return null
+  }
+
+  const kind = items[0]?.kind
+
+  if (!kind || items.some(item => item.kind !== kind)) {
+    return null
+  }
+
+  return kind === 'link' ? a.tabLinks : a.tabFiles
+}
+
+function ArtifactSectionHeader({ pagination, title }: { pagination?: React.ReactNode; title: string | null }) {
+  if (!title && !pagination) {
+    return null
+  }
+
+  return (
+    <div className="mb-2 flex min-h-6 items-center gap-3">
+      {title ? (
+        <h2 className="min-w-0 text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-secondary)">
+          {title}
+        </h2>
+      ) : null}
+      {pagination}
+    </div>
+  )
+}
+
 function ArtifactsPagination({ className, itemLabel, onPageChange, page, pageSize, total }: ArtifactsPaginationProps) {
   const { t } = useI18n()
   const a = t.artifacts
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
+
+  if (pageCount <= 1) {
+    return null
+  }
 
   return (
     <div className={cn('flex h-6 items-center justify-between gap-2 px-1', className)}>
@@ -467,7 +510,6 @@ interface ArtifactImageCardProps {
 function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat }: ArtifactImageCardProps) {
   const { t } = useI18n()
   const a = t.artifacts
-  const kindLabel = artifact.kind === 'image' ? a.kindImage : artifact.kind === 'file' ? a.kindFile : a.kindLink
   const [src, setSrc] = useState('')
 
   useEffect(() => {
@@ -492,47 +534,34 @@ function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat }: 
   }, [artifact.href, artifact.id, artifact.value, onImageError])
 
   return (
-    <article
-      className="group/artifact overflow-hidden rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-chat-bubble-background)"
-      data-tour="artifact-card"
-    >
-      <div
-        className={cn(
-          'relative flex h-40 w-full items-center justify-center overflow-hidden border-b border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) p-1.5',
-          failedImage && 'cursor-default'
-        )}
-      >
-        {!failedImage && src && (
+    <article className="min-w-0" data-tour="artifact-card">
+      <div className="overflow-hidden rounded-lg">
+        {!failedImage && src ? (
           <ZoomableImage
-            alt={artifact.label}
-            className="max-h-40 max-w-full cursor-zoom-in rounded-md object-contain"
-            containerClassName="max-h-full"
+            alt={artifact.sessionTitle}
+            className="h-48 w-full cursor-zoom-in object-cover"
+            containerClassName="block w-full"
             decoding="async"
             loading="lazy"
             onError={() => onImageError(artifact.id)}
             slot="artifact-media"
             src={src}
           />
+        ) : (
+          <div className={cn('h-48 bg-(--ui-bg-quinary)', failedImage && 'cursor-default')} />
         )}
       </div>
 
-      <div className="space-y-1.5 p-2">
-        <div className="min-w-0">
-          <div className="mb-0.5 flex items-center gap-1 text-[0.625rem] uppercase tracking-[0.08em] text-(--ui-text-tertiary)">
-            <FileImage className="size-3" />
-            {kindLabel}
-          </div>
+      <div className="mt-2 min-w-0">
+        <RowButton className="block w-full min-w-0 text-left" onClick={() => onOpenChat(artifact.sessionId)}>
           <div className="truncate text-[length:var(--conversation-caption-font-size)] font-medium">
-            {artifact.label}
+            {artifact.sessionTitle}
           </div>
-          <div className="mt-0.5 truncate text-[0.625rem] text-(--ui-text-tertiary)">{artifact.value}</div>
-        </div>
-
-        <div className="truncate text-[0.625rem] text-(--ui-text-tertiary)">
-          {artifact.sessionTitle} · {formatArtifactTime(artifact.timestamp)}
-        </div>
-
-        <div className="flex flex-wrap gap-1.5">
+          <div className="mt-0.5 text-[0.6875rem] text-(--ui-text-tertiary)">
+            {formatArtifactTime(artifact.timestamp)}
+          </div>
+        </RowButton>
+        <div className="mt-1">
           <Button onClick={() => onOpenChat(artifact.sessionId)} size="xs" type="button" variant="textStrong">
             <FolderOpen className="size-3" />
             {a.chat}
@@ -543,174 +572,95 @@ function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat }: 
   )
 }
 
-// Single click target for any row cell. External URLs render as <ExternalLink>;
-// local actions render as <button>. Padding lives here, NOT on the <td>, so
-// the entire cell area is hoverable and clickable in both branches.
+const artifactActionClass =
+  'flex min-w-0 items-center text-left text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-normal text-foreground no-underline underline-offset-4 decoration-current/20 transition-colors hover:underline'
+
 function ArtifactCellAction({
   children,
+  className,
   href,
   onClick,
   title
 }: {
   children: React.ReactNode
+  className?: string
   href?: string
   onClick?: () => void
   title?: string
 }) {
   if (href) {
     return (
-      <ExternalLink
-        className="flex h-full w-full min-w-0 items-center gap-2 px-2.5 py-1.5 text-left text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-normal text-(--ui-text-secondary) no-underline underline-offset-4 decoration-current/20 transition-colors hover:text-foreground hover:underline"
-        href={href}
-        showExternalIcon={false}
-        title={title}
-      >
+      <ExternalLink className={cn(artifactActionClass, className)} href={href} showExternalIcon={false} title={title}>
         {children}
       </ExternalLink>
     )
   }
 
   return (
-    <RowButton
-      className="flex h-full w-full min-w-0 items-center gap-2 px-2.5 py-1.5 text-left text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-normal text-(--ui-text-secondary) no-underline underline-offset-4 decoration-current/20 transition-colors hover:text-foreground hover:underline"
-      onClick={onClick}
-    >
+    <RowButton className={cn(artifactActionClass, className)} onClick={onClick}>
       {children}
     </RowButton>
   )
 }
 
-const PrimaryCell = memo(function PrimaryCell({ artifact, ctx }: { artifact: ArtifactRecord; ctx: CellCtx }) {
+const ArtifactFlatRow = memo(function ArtifactFlatRow({ artifact, ctx }: { artifact: ArtifactRecord; ctx: CellCtx }) {
+  const { t } = useI18n()
   const isLink = artifact.kind === 'link'
   const brand = isLink ? resolveBrandIcon(shortHostLabel(artifact.href)) : null
   const Icon = brand ?? (isLink ? Link2 : FileText)
   const fetchedTitle = useLinkTitle(isLink ? artifact.href : null)
   const label = isLink ? fetchedTitle || urlSlugTitleLabel(artifact.href) : artifact.label
-
-  return (
-    <ArtifactCellAction
-      href={isLink ? artifact.href : undefined}
-      onClick={isLink ? undefined : () => void ctx.onOpen(artifact.href)}
-      title={label}
-    >
-      <span className="mt-0.5 grid size-6 shrink-0 place-items-center self-start rounded-md bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)">
-        <Icon className="size-3.5" />
-      </span>
-      <span className={cn('min-w-0 flex-1', isLink ? 'wrap-anywhere' : 'truncate')}>
-        {label}
-        {isLink && <ExternalLinkIcon />}
-      </span>
-    </ArtifactCellAction>
-  )
-})
-
-const LocationCell = memo(function LocationCell({ artifact }: { artifact: ArtifactRecord; ctx: CellCtx }) {
-  const { t } = useI18n()
-  const isLink = artifact.kind === 'link'
-  const value = isLink ? hostPathLabel(artifact.value) : artifact.value
+  const secondary = isLink ? hostPathLabel(artifact.value) : artifact.value
   const copyLabel = isLink ? t.artifacts.copyUrl : t.artifacts.copyPath
 
   return (
-    <div className="group/location flex min-w-0 items-center gap-1.5">
-      <Tip label={artifact.value}>
-        <div
-          className={cn(
-            'min-w-0 flex-1 truncate text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)',
-            isLink ? 'font-normal' : 'font-mono'
-          )}
+    <div className="flex min-w-0 items-start gap-3 border-b border-(--ui-stroke-tertiary) py-2.5 last:border-b-0">
+      <span className="mt-0.5 shrink-0 text-(--ui-text-tertiary)">
+        <Icon aria-hidden className="size-3.5" title="" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <ArtifactCellAction
+          href={isLink ? artifact.href : undefined}
+          onClick={isLink ? undefined : () => void ctx.onOpen(artifact.href)}
+          title={label}
         >
-          {value}
+          <span className={cn('min-w-0', isLink ? 'wrap-anywhere' : 'truncate')}>
+            {label}
+            {isLink && <ExternalLinkIcon />}
+          </span>
+        </ArtifactCellAction>
+        <div className="group/location mt-0.5 flex min-w-0 items-center gap-1.5">
+          <Tip label={artifact.value}>
+            <div
+              className={cn(
+                'min-w-0 flex-1 truncate text-[0.6875rem] text-(--ui-text-tertiary)',
+                isLink ? 'font-normal' : 'font-mono'
+              )}
+            >
+              {secondary}
+            </div>
+          </Tip>
+          <CopyButton
+            appearance="icon"
+            buttonSize="icon-xs"
+            className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/location:opacity-100"
+            iconClassName="size-3.5"
+            label={copyLabel}
+            text={artifact.value}
+            title={copyLabel}
+          />
         </div>
-      </Tip>
-      <CopyButton
-        appearance="icon"
-        buttonSize="icon-xs"
-        className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/location:opacity-100"
-        iconClassName="size-3.5"
-        label={copyLabel}
-        text={artifact.value}
-        title={copyLabel}
-      />
+      </div>
+      <ArtifactCellAction
+        className="ml-auto w-[min(16rem,40%)] shrink-0 flex-col items-end text-right"
+        onClick={() => ctx.onOpenChat(artifact.sessionId)}
+        title={artifact.sessionTitle}
+      >
+        <span className="w-full truncate">{artifact.sessionTitle}</span>
+        <span className="w-full truncate text-[0.6875rem] font-normal text-(--ui-text-tertiary)">
+          {formatArtifactTime(artifact.timestamp)}
+        </span>
+      </ArtifactCellAction>
     </div>
   )
 })
-
-const SessionCell = memo(function SessionCell({ artifact, ctx }: { artifact: ArtifactRecord; ctx: CellCtx }) {
-  return (
-    <ArtifactCellAction onClick={() => ctx.onOpenChat(artifact.sessionId)} title={artifact.sessionTitle}>
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate">{artifact.sessionTitle}</span>
-        <span className="truncate text-[0.6875rem] font-normal text-(--ui-text-tertiary)">
-          {formatArtifactTime(artifact.timestamp)}
-        </span>
-      </span>
-    </ArtifactCellAction>
-  )
-})
-
-const ARTIFACT_COLUMNS: readonly ArtifactColumn[] = [
-  {
-    Cell: PrimaryCell,
-    bodyClassName: 'p-0',
-    header: (filter, a) =>
-      filter === 'link' ? a.colTitleLink : filter === 'file' ? a.colTitleFile : a.colTitleDefault,
-    id: 'primary',
-    width: filter => (filter === 'link' ? 'w-[50%]' : 'w-[35%]')
-  },
-  {
-    Cell: LocationCell,
-    bodyClassName: 'px-2.5 py-1.5',
-    header: (filter, a) =>
-      filter === 'link' ? a.colLocationLink : filter === 'file' ? a.colLocationFile : a.colLocationDefault,
-    id: 'location',
-    width: filter => (filter === 'link' ? 'w-[30%]' : 'w-[41%]')
-  },
-  {
-    Cell: SessionCell,
-    bodyClassName: 'p-0',
-    header: (_filter, a) => a.colSession,
-    id: 'session',
-    width: filter => (filter === 'link' ? 'w-[20%]' : 'w-[24%]')
-  }
-]
-
-function ArtifactTable({
-  artifacts,
-  ctx,
-  filter
-}: {
-  artifacts: readonly ArtifactRecord[]
-  ctx: CellCtx
-  filter: ArtifactFilter
-}) {
-  const { t } = useI18n()
-
-  return (
-    <table className="w-full min-w-176 table-fixed text-left text-[length:var(--conversation-caption-font-size)]">
-      <thead className="border-b border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) text-[0.625rem] uppercase tracking-[0.08em] text-(--ui-text-tertiary)">
-        <tr>
-          {ARTIFACT_COLUMNS.map(col => (
-            <th className={cn(col.width(filter), 'px-2.5 py-1.5 font-medium')} key={col.id}>
-              {col.header(filter, t.artifacts)}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {artifacts.map(artifact => (
-          <tr className="group/artifact" key={artifact.id}>
-            {ARTIFACT_COLUMNS.map(col => {
-              const Cell = col.Cell
-
-              return (
-                <td className={cn('align-middle', col.bodyClassName)} key={col.id}>
-                  <Cell artifact={artifact} ctx={ctx} />
-                </td>
-              )
-            })}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  )
-}
