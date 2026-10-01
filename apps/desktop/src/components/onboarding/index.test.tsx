@@ -85,14 +85,17 @@ describe('onboarding Picker', () => {
     expect(screen.queryByRole('button', { name: "I'll choose a provider later" })).toBeNull()
   })
 
-  it('Portal reauth offers continue, not Recommended or a BrandMark in the control', () => {
+  it('Portal reauth uses the same Get started door as first run', () => {
     setProviders([makeOAuthProvider('work4you', 'Work4You Portal')], { reauth: true })
     render(<Picker ctx={ctx} />)
 
-    const continueRow = screen.getByRole('button', { name: /Continue with Work4You Portal/ })
-    expect(continueRow).toBeTruthy()
-    expect(continueRow.querySelector('img')).toBeNull()
-    expect(screen.getByText('Opens your browser')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Work4You Desktop' })).toBeTruthy()
+    expect(screen.getByText('The fastest way to start chatting.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeTruthy()
+    expect(screen.queryByText('Sign in to continue')).toBeNull()
+    expect(screen.queryByText(/session expired/i)).toBeNull()
+    expect(screen.queryByText('Continue with Work4You Portal')).toBeNull()
+    expect(screen.queryByText('Opens your browser')).toBeNull()
     expect(screen.queryByText('Recommended')).toBeNull()
     expect(screen.queryByText(/300\+ frontier models/)).toBeNull()
     expect(screen.queryByText('Fireworks AI')).toBeNull()
@@ -205,17 +208,21 @@ describe('onboarding Picker', () => {
 describe('DesktopOnboardingOverlay reauth chrome', () => {
   const requestGateway: OnboardingContext['requestGateway'] = async () => undefined as never
 
-  it('shows Sign in to continue and hides the technical banner', () => {
+  it('uses the first-run welcome after Portal sign-out and hides the technical banner', () => {
     setProviders([makeOAuthProvider('work4you', 'Work4You Portal')], {
       configured: false,
       reauth: true,
       reason:
         'No access token found for Work4You Portal login. setup.status reports configured credentials, but runtime resolution still failed.'
     })
-    render(<DesktopOnboardingOverlay enabled={false} profile="default" requestGateway={requestGateway} />)
+    render(<DesktopOnboardingOverlay enabled profile="default" requestGateway={requestGateway} />)
 
-    expect(screen.getByText('Sign in to continue')).toBeTruthy()
-    expect(screen.getByText('Your Work4You Portal session expired. Sign in again to keep chatting.')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Work4You Desktop' })).toBeTruthy()
+    expect(screen.getByText('The fastest way to start chatting.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Get started' })).toBeTruthy()
+    expect(screen.queryByText('Sign in to continue')).toBeNull()
+    expect(screen.queryByText(/session expired/i)).toBeNull()
+    expect(screen.queryByText('Continue with Work4You Portal')).toBeNull()
     expect(screen.queryByText(/setup.status/)).toBeNull()
     expect(screen.queryByText(/No access token found/)).toBeNull()
     expect(screen.queryByText("Let's get you setup with Work4You")).toBeNull()

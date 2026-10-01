@@ -2982,10 +2982,6 @@ export const zhHant = defineLocale({
   onboarding: {
     headerTitle: '開始設定 Work4You',
     headerDesc: '連線模型提供方即可開始聊天。大多數選項只需一次點擊。',
-    signInToContinue: '登入以繼續',
-    sessionExpired: '你的 Work4You Portal 工作階段已過期。請重新登入以繼續聊天。',
-    continueWithPortal: '使用 Work4You Portal 繼續',
-    opensBrowser: '將開啟瀏覽器',
     welcomeTitle: 'Work4You Desktop',
     welcomeSubtitle: '開始聊天的最快方式。',
     getStarted: '開始',

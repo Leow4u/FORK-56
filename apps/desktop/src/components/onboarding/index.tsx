@@ -32,7 +32,6 @@ import { getGlobalModelOptions } from '@/work4you'
 import { DocsLink, FlowPanel, Status } from './flow'
 import { connectingPreviewMode, onboardingPreviewMode, type OnboardingPreviewMode } from './preview'
 import {
-  ContinuePortalRow,
   FeaturedProviderRow,
   FireworksProviderRow,
   OpenRouterProviderRow,
@@ -41,7 +40,6 @@ import {
 } from './providers'
 
 export {
-  ContinuePortalRow,
   FeaturedProviderRow,
   FireworksProviderRow,
   KeyProviderRow,
@@ -308,14 +306,13 @@ export function DesktopOnboardingOverlay({
   // check (configured === false) before showing the picker.
   const ready = Boolean(preview) || manual || (enabled && onboarding.configured === false)
   const showPicker = flow.status === 'idle'
-  // First-run welcome and the final "you're in" screen drop the card chrome
-  // and float on the chat surface — same bare treatment as the connecting overlay.
-  const firstRunWelcome = ready && showPicker && !manual && !reauth
+  // The Portal door — first launch and a signed-out return — uses the same
+  // bare welcome. Logout must not grow a "session expired" card on top of it.
+  const firstRunWelcome = ready && showPicker && !manual
 
   const firstRunConnecting =
     ready &&
     !manual &&
-    !reauth &&
     (flow.status === 'starting' ||
       flow.status === 'polling' ||
       flow.status === 'submitting' ||
@@ -415,18 +412,14 @@ function Preparing({ boot }: { boot: DesktopBootState }) {
 
 function Header() {
   const { t } = useI18n()
-  const { manual, reauth } = useStore($desktopOnboarding)
-  const portalReauth = reauth && !manual
-
-  const subtitle = portalReauth ? t.onboarding.sessionExpired : manual ? t.onboarding.headerDesc : null
+  const { manual } = useStore($desktopOnboarding)
+  const subtitle = manual ? t.onboarding.headerDesc : null
 
   return (
     <div className="flex items-start gap-4 bg-(--ui-chat-bubble-background) px-5 pt-5 pb-1">
       <BrandMark className="size-11 shrink-0" />
       <div className="min-w-0">
-        <h2 className="text-xl font-semibold tracking-tight">
-          {portalReauth ? t.onboarding.signInToContinue : t.onboarding.headerTitle}
-        </h2>
+        <h2 className="text-xl font-semibold tracking-tight">{t.onboarding.headerTitle}</h2>
         {subtitle ? <p className="mt-1.5 text-sm leading-5 text-muted-foreground">{subtitle}</p> : null}
       </div>
     </div>
@@ -511,30 +504,9 @@ function FirstRunWelcome({ ctx }: { ctx: OnboardingContext }) {
   )
 }
 
-function FirstRunAccountPicker({ ctx }: { ctx: OnboardingContext }) {
-  const { t } = useI18n()
-  const { providers } = useStore($desktopOnboarding)
-
-  if (providers === null) {
-    return <Status>{t.onboarding.lookingUpProviders}</Status>
-  }
-
-  // Portal reauth keeps the card door, with continue chrome instead of the
-  // first-run welcome.
-  const portal = portalFromCatalog(providers)
-
-  return (
-    <div className="grid gap-2">
-      <div className="grid max-h-[60dvh] gap-2 overflow-y-auto p-1">
-        <ContinuePortalRow onSelect={p => startPickerOAuth(p, ctx)} provider={portal} />
-      </div>
-    </div>
-  )
-}
-
 export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const { t } = useI18n()
-  const { localEndpoint, manual, mode, providers, reauth } = useStore($desktopOnboarding)
+  const { localEndpoint, manual, mode, providers } = useStore($desktopOnboarding)
   const [showAll, setShowAll] = useState(readShowAll)
   // Which key-form option to preselect when we flip to 'apikey' mode. The
   // OpenRouter row selects its key; the generic link lands on the first option.
@@ -550,7 +522,7 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const apiKeyOptions = useApiKeyCatalog()
 
   if (!manual) {
-    return reauth ? <FirstRunAccountPicker ctx={ctx} /> : <FirstRunWelcome ctx={ctx} />
+    return <FirstRunWelcome ctx={ctx} />
   }
 
   // localEndpoint forces the key form regardless of `mode` (which a manual

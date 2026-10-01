@@ -60,31 +60,6 @@ export function FeaturedProviderRow({
   )
 }
 
-/** Returning-user Portal door: same tint as the featured row, no BrandMark,
- *  Recommended chip, or first-run pitch. Header already owns the mark. */
-export function ContinuePortalRow({
-  onSelect,
-  provider
-}: {
-  onSelect: (provider: OAuthProvider) => void
-  provider: OAuthProvider
-}) {
-  const { t } = useI18n()
-
-  return (
-    <button className={FEATURED_ROW_CLASS} onClick={() => onSelect(provider)} type="button">
-      <span aria-hidden className="arc-border arc-reverse arc-work4you" />
-      <div className="min-w-0">
-        <span className="text-[length:var(--conversation-text-font-size)] font-semibold">
-          {t.onboarding.continueWithPortal}
-        </span>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">{t.onboarding.opensBrowser}</p>
-      </div>
-      <ChevronRight className="size-4 shrink-0 text-primary transition group-hover:translate-x-0.5" />
-    </button>
-  )
-}
-
 function ConnectedTag() {
   const { t } = useI18n()
 

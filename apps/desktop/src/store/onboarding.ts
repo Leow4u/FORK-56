@@ -89,9 +89,9 @@ export interface DesktopOnboardingState {
   localEndpoint: boolean
   /** True when runtime failed because the Work4You Portal session is gone
    *  (no access token / not logged in / unusable JWT), not because no provider
-   *  is configured. The overlay keeps the same Portal-only door but swaps
-   *  first-run chrome for a continue-to-sign-in variant. False for every
-   *  other not-ready reason (empty OpenRouter key, first-run, timeouts). */
+   *  is configured. The overlay still uses the first-run welcome; this only
+   *  keeps the technical token error off the screen. False for every other
+   *  not-ready reason (empty OpenRouter key, first-run, timeouts). */
   reauth: boolean
 }
 

@@ -2829,10 +2829,6 @@ export const ar = defineLocale({
   onboarding: {
     headerTitle: 'لنُعِدّ لك Work4You',
     headerDesc: 'اربط مزوّد نماذج لبدء المحادثة. معظم الخيارات تتطلب نقرة واحدة.',
-    signInToContinue: 'سجّل الدخول للمتابعة',
-    sessionExpired: 'انتهت جلسة Work4You Portal. سجّل الدخول مرة أخرى لمواصلة المحادثة.',
-    continueWithPortal: 'المتابعة عبر Work4You Portal',
-    opensBrowser: 'يفتح المتصفح',
     welcomeTitle: 'Work4You Desktop',
     welcomeSubtitle: 'أسرع طريقة لبدء المحادثة.',
     getStarted: 'ابدأ',
