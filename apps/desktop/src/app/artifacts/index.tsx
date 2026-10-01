@@ -7,6 +7,8 @@ import { ZoomableImage } from '@/components/chat/zoomable-image'
 import { PageLoader } from '@/components/page-loader'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
+import { SearchField } from '@/components/ui/search-field'
+import { CountSkeleton } from '@/components/ui/skeleton'
 import {
   Pagination,
   PaginationButton,
@@ -40,7 +42,6 @@ import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
 import { PAGE_INSET_X } from '../layout-constants'
 import { openSession } from '../open-session'
-import { PageSearchShell } from '../page-search-shell'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
 import {
@@ -104,7 +105,11 @@ interface ArtifactsViewProps extends React.ComponentProps<'section'> {
   setStatusbarItemGroup?: SetStatusbarItemGroup
 }
 
-export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, ...props }: ArtifactsViewProps) {
+export function ArtifactsView({
+  className,
+  setStatusbarItemGroup: _setStatusbarItemGroup,
+  ...props
+}: ArtifactsViewProps) {
   const { t } = useI18n()
   const a = t.artifacts
   const navigate = useNavigate()
@@ -304,106 +309,144 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   const openChat = useCallback((sessionId: string) => openSession(sessionId, navigate), [navigate])
   const cellCtx: CellCtx = useMemo(() => ({ onOpen: openArtifact, onOpenChat: openChat }), [openArtifact, openChat])
 
-  return (
-    <PageSearchShell
-      {...props}
-      activeTab={kindFilter}
-      onSearchChange={setQuery}
-      onTabChange={id => setKindFilter(id as typeof kindFilter)}
-      searchHidden={counts.all === 0}
-      searchHints={searchHints}
-      searchPlaceholder={a.search}
-      searchTrailingAction={
-        <Tip label={refreshing ? a.refreshing : a.refresh}>
-          <Button
-            aria-label={refreshing ? a.refreshing : a.refresh}
-            className="text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
-            disabled={refreshing}
-            onClick={() => void refreshArtifacts()}
-            size="icon-titlebar"
-            variant="ghost"
-          >
-            {refreshing ? <TitlebarIcon name="loading" spinning /> : <TitlebarIcon name="refresh" />}
-          </Button>
-        </Tip>
-      }
-      searchValue={query}
-      tabs={[
-        { id: 'all', label: a.tabAll, meta: artifacts ? counts.all : null },
-        { id: 'image', label: a.tabImages, meta: artifacts ? counts.image : null },
-        { id: 'file', label: a.tabFiles, meta: artifacts ? counts.file : null },
-        { id: 'link', label: a.tabLinks, meta: artifacts ? counts.link : null }
-      ]}
-    >
-      {!artifacts ? (
-        <PageLoader label={a.indexing} />
-      ) : visibleArtifacts.length === 0 ? (
-        <div className="grid h-full place-items-center px-6 text-center">
-          <div>
-            <div className="text-sm font-medium">{a.noArtifactsTitle}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{a.noArtifactsDesc}</div>
-          </div>
-        </div>
-      ) : (
-        <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-          <div className={cn('mx-auto flex w-full max-w-5xl flex-col gap-8 py-4', PAGE_INSET_X)}>
-            {visibleImageArtifacts.length > 0 && (
-              <section className="flex flex-col">
-                <ArtifactSectionHeader
-                  pagination={
-                    imagePageCount > 1 ? (
-                      <ArtifactsPagination
-                        className="ml-auto justify-end px-0"
-                        itemLabel={a.itemsImage}
-                        onPageChange={setImagePage}
-                        page={currentImagePage}
-                        pageSize={24}
-                        total={visibleImageArtifacts.length}
-                      />
-                    ) : null
-                  }
-                  title={kindFilter === 'all' ? a.tabImages : null}
-                />
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-start gap-x-6 gap-y-5">
-                  {pagedImageArtifacts.map(artifact => (
-                    <ArtifactImageCard
-                      artifact={artifact}
-                      failedImage={failedImageIds.has(artifact.id)}
-                      key={artifact.id}
-                      onImageError={markImageFailed}
-                      onOpenChat={sessionId => openSession(sessionId, navigate)}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
+  const filterTabs = [
+    { id: 'all' as const, label: a.tabAll, count: counts.all },
+    { id: 'image' as const, label: a.tabImages, count: counts.image },
+    { id: 'file' as const, label: a.tabFiles, count: counts.file },
+    { id: 'link' as const, label: a.tabLinks, count: counts.link }
+  ]
 
-            {visibleFileArtifacts.length > 0 && (
-              <section className="flex flex-col">
-                <ArtifactSectionHeader
-                  pagination={
-                    filePageCount > 1 ? (
-                      <ArtifactsPagination
-                        className="ml-auto justify-end px-0"
-                        itemLabel={itemsLabel(kindFilter, a)}
-                        onPageChange={setFilePage}
-                        page={currentFilePage}
-                        pageSize={100}
-                        total={visibleFileArtifacts.length}
-                      />
-                    ) : null
-                  }
-                  title={restSectionTitle(kindFilter, visibleFileArtifacts, a)}
-                />
-                <div className="overflow-x-auto rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-chat-bubble-background)">
-                  <ArtifactTable artifacts={pagedFileArtifacts} ctx={cellCtx} filter={kindFilter} />
-                </div>
-              </section>
+  return (
+    <section
+      {...props}
+      className={cn('flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)', className)}
+    >
+      <div className={cn('shrink-0 pt-[calc(var(--titlebar-height)+0.75rem)] pb-3', PAGE_INSET_X)}>
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="min-w-0 text-2xl font-semibold tracking-tight text-foreground">{t.sidebar.nav.artifacts}</h1>
+            <Tip label={refreshing ? a.refreshing : a.refresh}>
+              <Button
+                aria-label={refreshing ? a.refreshing : a.refresh}
+                className="text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
+                disabled={refreshing}
+                onClick={() => void refreshArtifacts()}
+                size="icon-titlebar"
+                variant="ghost"
+              >
+                {refreshing ? <TitlebarIcon name="loading" spinning /> : <TitlebarIcon name="refresh" />}
+              </Button>
+            </Tip>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-1" data-tour="page-tabs">
+              {filterTabs.map(tab => {
+                const active = kindFilter === tab.id
+
+                return (
+                  <Button
+                    aria-pressed={active}
+                    key={tab.id}
+                    onClick={() => setKindFilter(tab.id)}
+                    size="sm"
+                    type="button"
+                    variant={active ? 'chip' : 'text'}
+                  >
+                    {tab.label}
+                    {artifacts ? (
+                      <span className="text-[0.72em] font-normal text-(--ui-text-tertiary)">{tab.count}</span>
+                    ) : (
+                      <CountSkeleton />
+                    )}
+                  </Button>
+                )
+              })}
+            </div>
+            {counts.all > 0 && (
+              <SearchField
+                containerClassName="w-full max-w-xs"
+                hints={searchHints}
+                onChange={setQuery}
+                placeholder={a.search}
+                recede={false}
+                shape="pill"
+                value={query}
+              />
             )}
           </div>
         </div>
-      )}
-    </PageSearchShell>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {!artifacts ? (
+          <PageLoader label={a.indexing} />
+        ) : visibleArtifacts.length === 0 ? (
+          <div className="grid h-full place-items-center px-6 text-center">
+            <div>
+              <div className="text-sm font-medium">{a.noArtifactsTitle}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{a.noArtifactsDesc}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
+            <div className={cn('mx-auto flex w-full max-w-5xl flex-col gap-8 py-4', PAGE_INSET_X)}>
+              {visibleImageArtifacts.length > 0 && (
+                <section className="flex flex-col">
+                  <ArtifactSectionHeader
+                    pagination={
+                      imagePageCount > 1 ? (
+                        <ArtifactsPagination
+                          className="ml-auto justify-end px-0"
+                          itemLabel={a.itemsImage}
+                          onPageChange={setImagePage}
+                          page={currentImagePage}
+                          pageSize={24}
+                          total={visibleImageArtifacts.length}
+                        />
+                      ) : null
+                    }
+                    title={kindFilter === 'all' ? a.tabImages : null}
+                  />
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-start gap-x-6 gap-y-5">
+                    {pagedImageArtifacts.map(artifact => (
+                      <ArtifactImageCard
+                        artifact={artifact}
+                        failedImage={failedImageIds.has(artifact.id)}
+                        key={artifact.id}
+                        onImageError={markImageFailed}
+                        onOpenChat={sessionId => openSession(sessionId, navigate)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {visibleFileArtifacts.length > 0 && (
+                <section className="flex flex-col">
+                  <ArtifactSectionHeader
+                    pagination={
+                      filePageCount > 1 ? (
+                        <ArtifactsPagination
+                          className="ml-auto justify-end px-0"
+                          itemLabel={itemsLabel(kindFilter, a)}
+                          onPageChange={setFilePage}
+                          page={currentFilePage}
+                          pageSize={100}
+                          total={visibleFileArtifacts.length}
+                        />
+                      ) : null
+                    }
+                    title={restSectionTitle(kindFilter, visibleFileArtifacts, a)}
+                  />
+                  <div className="overflow-x-auto rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-chat-bubble-background)">
+                    <ArtifactTable artifacts={pagedFileArtifacts} ctx={cellCtx} filter={kindFilter} />
+                  </div>
+                </section>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   )
 }
 

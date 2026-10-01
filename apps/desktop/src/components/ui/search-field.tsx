@@ -28,12 +28,18 @@ interface SearchFieldProps {
    * Default stays the quiet sidebar treatment.
    */
   recede?: boolean
+  /**
+   * `line` is the borderless underline field. `pill` is the same field in the
+   * rounded hairline used by the artifacts library header.
+   */
+  shape?: 'line' | 'pill'
   'aria-label'?: string
 }
 
 /**
  * Shared search field used everywhere (sessions sidebar, pages, overlays,
- * command center, cron). No box — borderless until focus, then an underline.
+ * command center, cron). The default has no box — borderless until focus,
+ * then an underline. `shape="pill"` draws the rounded hairline instead.
  * Sidebars recede until focus; page shells stay readable. Width/placement
  * come from `containerClassName`.
  */
@@ -49,6 +55,7 @@ export function SearchField({
   inputRef,
   trailingAction,
   recede = true,
+  shape = 'line',
   'aria-label': ariaLabel
 }: SearchFieldProps) {
   const { t } = useI18n()
@@ -66,7 +73,10 @@ export function SearchField({
         // min-w-0 is load-bearing: without it the content-sized input sets the
         // container's flex min-width and the field bulldozes its siblings
         // instead of shrinking to fit its context.
-        'inline-flex min-w-0 max-w-full items-center gap-1.5 border-b border-transparent px-0.5 transition-[color,border-color,opacity]',
+        'inline-flex min-w-0 max-w-full items-center gap-1.5 transition-[color,border-color,opacity]',
+        shape === 'pill'
+          ? 'h-8 rounded-full border border-(--ui-stroke-tertiary) bg-background px-3'
+          : 'border-b border-transparent px-0.5',
         // Recede until the user reaches for it. Page shells pass recede={false}.
         recede && !value && 'opacity-30 focus-within:opacity-100',
         containerClassName
@@ -80,7 +90,8 @@ export function SearchField({
           // text; min-w-0 lets it shrink back below content size when the
           // context is narrower — long queries scroll inside the field.
           // text-xs matches the form controls (Input/Select via controlVariants).
-          'h-7 min-w-0 max-w-full bg-transparent text-xs text-foreground [field-sizing:content] placeholder:text-muted-foreground focus:outline-none',
+          'h-7 min-w-0 max-w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground focus:outline-none',
+          shape === 'pill' ? 'w-full' : '[field-sizing:content]',
           inputClassName
         )}
         onChange={event => onChange(event.target.value)}

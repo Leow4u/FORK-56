@@ -71,7 +71,10 @@ describe('ArtifactsView', () => {
 
     renderArtifacts()
 
-    expect(await screen.findByRole('heading', { name: en.artifacts.tabImages })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: en.sidebar.nav.artifacts })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: en.artifacts.tabImages })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /All/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('textbox')).toBeTruthy()
     expect(screen.getByRole('heading', { name: en.artifacts.tabLinks })).toBeTruthy()
     expect(screen.getByRole('button', { name: en.artifacts.chat })).toBeTruthy()
     expect(screen.getAllByText('Remover barba da foto').length).toBeGreaterThan(0)
