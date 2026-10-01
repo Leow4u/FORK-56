@@ -633,11 +633,15 @@ function onboardingBrowserUrl(flow: OnboardingFlow): null | string {
     return flow.start.verification_url
   }
 
-  if (flow.status === 'awaiting_user' || flow.status === 'submitting') {
+  if (flow.status === 'awaiting_user') {
     return flow.start.auth_url
   }
 
-  return null
+  if (flow.status !== 'submitting') {
+    return null
+  }
+
+  return flow.start.flow === 'device_code' ? flow.start.verification_url : flow.start.auth_url
 }
 
 /** Re-open the browser page for the sign-in already in flight. */
