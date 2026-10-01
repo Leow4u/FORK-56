@@ -2738,10 +2738,6 @@ export interface Translations {
   onboarding: {
     headerTitle: string
     headerDesc: string
-    signInToContinue: string
-    sessionExpired: string
-    continueWithPortal: string
-    opensBrowser: string
     welcomeTitle: string
     welcomeSubtitle: string
     getStarted: string

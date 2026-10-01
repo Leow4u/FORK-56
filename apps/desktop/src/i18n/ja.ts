@@ -3111,11 +3111,6 @@ export const ja = defineLocale({
   onboarding: {
     headerTitle: 'Work4You のセットアップをしましょう',
     headerDesc: 'チャットを始めるにはモデルプロバイダーを接続してください。ほとんどのオプションはワンクリックです。',
-    signInToContinue: '続行するにはサインインしてください',
-    sessionExpired:
-      'Work4You Portal のセッションの期限が切れました。チャットを続けるには、もう一度サインインしてください。',
-    continueWithPortal: 'Work4You Portal で続ける',
-    opensBrowser: 'ブラウザーが開きます',
     welcomeTitle: 'Work4You Desktop',
     welcomeSubtitle: 'チャットを始める一番速い方法。',
     getStarted: '始める',
