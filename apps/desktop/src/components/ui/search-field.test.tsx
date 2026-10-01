@@ -24,4 +24,14 @@ describe('SearchField recede', () => {
     const page = renderField(false)
     expect(page.getByRole('textbox').parentElement?.className).not.toContain('opacity-30')
   })
+
+  it('draws the pill shape as a rounded hairline', () => {
+    const view = render(
+      <I18nProvider configClient={null} initialLocale="en">
+        <SearchField onChange={() => undefined} placeholder="Search artifacts..." shape="pill" value="" />
+      </I18nProvider>
+    )
+
+    expect(view.getByRole('textbox').parentElement?.className).toContain('rounded-full')
+  })
 })

@@ -157,9 +157,10 @@ Notes:
 
 - **`controlVariants`** (`src/components/ui/control.ts`) is the shared shape for
   `Input` / `Textarea` / `SelectTrigger`. New text-entry controls compose it.
-- **`SearchField`** — borderless, underline-on-focus, auto-width. The only
-  search input. Don't build boxed search bars; don't wrap it in a bordered tile.
-  Empty lists hide their search field.
+- **`SearchField`** — the only search input. Default is borderless,
+  underline-on-focus, auto-width. `shape="pill"` is that same field with the
+  rounded hairline (artifacts library header). Don't wrap it in another
+  bordered tile. Empty lists hide their search field.
 - **`SegmentedControl`** — the choice control for small mutually-exclusive sets
   (color mode, tool-call display, usage period). Replaces radio piles and
   pill rows.
