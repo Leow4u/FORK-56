@@ -222,7 +222,7 @@ export const ja = defineLocale({
   accountMenu: {
     account: 'アカウント',
     settings: '設定',
-    hud: 'HUDモード',
+    hud: 'Floating Chat',
     docs: 'ドキュメント',
     shortcuts: 'ショートカット',
     contactUs: 'お問い合わせ',
