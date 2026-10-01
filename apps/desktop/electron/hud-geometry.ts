@@ -17,10 +17,19 @@ export const HUD_BOTTOM_MARGIN = 72
 
 /** Spawn size before the bar was tightened. Geometry tracking persists it on
  *  open, so most hud-state.json files still say 620×320 even when nobody
- *  resized. */
+ *  resized. Windows DPI scaling and OS rounding often drift a few px off the
+ *  exact pair, so matching is a band, not equality. */
 const LEGACY_DEFAULT_WIDTH = 620
 const LEGACY_DEFAULT_HEIGHT = 320
-const LEGACY_ORIGIN_SLOP = 8
+const LEGACY_SIZE_SLOP = 48
+const LEGACY_ORIGIN_SLOP = 24
+
+function isLegacyDefaultSize(saved: HudBounds): boolean {
+  return (
+    Math.abs(saved.width - LEGACY_DEFAULT_WIDTH) <= LEGACY_SIZE_SLOP &&
+    Math.abs(saved.height - LEGACY_DEFAULT_HEIGHT) <= LEGACY_SIZE_SLOP
+  )
+}
 
 export interface HudBounds {
   x: number
@@ -73,7 +82,7 @@ export function resolveHudBounds(saved: HudBounds | null, area: WorkArea | null)
     return defaultHudBounds(area)
   }
 
-  if (!area || saved.width !== LEGACY_DEFAULT_WIDTH || saved.height !== LEGACY_DEFAULT_HEIGHT) {
+  if (!area || !isLegacyDefaultSize(saved)) {
     return saved
   }
 

@@ -72,10 +72,14 @@ export function hudTranscriptHeight({ barHeight, contentHeight, viewportHeight }
  * Empty, the window is the composer: a tall frame with a rolled-up band is
  * just empty chrome (and, when the page background wins, a white slab). With
  * a transcript, the window grows by the rows — capped — so the smoked sheet
- * under the bar has room. A corner resize opts out; a drag keeps the bar
- * where the user put it and still lets the height follow the transcript.
- * A saved window already taller than the resting bar is left alone until the
- * transcript needs more room than it has.
+ * under the bar has room. A corner resize opts out for the rest of this open.
+ * A drag keeps the bar where the user put it and still lets the height follow
+ * the transcript.
+ *
+ * A tall `hud-state.json` left over from the old 620×320 spawn (or a
+ * DPI-scaled cousin that is not byte-exact) must still collapse when there is
+ * nothing to show — otherwise Floating Chat keeps opening as a white slab
+ * forever, which is exactly the fork mismatch.
  */
 export function hudWindowFrame(input: HudWindowFrameInput): HudWindowFrame {
   const restingHeight = input.restingHeight ?? HUD_RESTING_HEIGHT
@@ -85,16 +89,18 @@ export function hudWindowFrame(input: HudWindowFrameInput): HudWindowFrame {
   }
 
   const bar = Math.round(input.barHeight)
-  const fromRest = input.owned || input.height <= restingHeight + HUD_REST_SLACK
+  const chrome = Math.max(0, Math.round(input.chromeHeight ?? 0))
+  const empty = input.contentHeight < 1 && chrome === 0
+  // Own the height when: we already fitted this open, the window is still the
+  // resting bar, OR the transcript is empty (stale tall saves must shrink).
+  const fromRest = input.owned || input.height <= restingHeight + HUD_REST_SLACK || empty
   const room = Math.max(bar, input.bottomLimit - input.topLimit)
   const cap = Math.min(room, bar + HUD_BAND_CAP)
   const band = input.contentHeight < 1 ? 0 : Math.min(Math.round(input.contentHeight), Math.max(0, cap - bar))
-  const chrome = Math.max(0, Math.round(input.chromeHeight ?? 0))
   let height = Math.min(cap, bar + Math.max(band, chrome))
   // A resting bar stays glued to the bottom edge of the spawn slot, so opening
-  // a transcript lifts the bar and the sheet hangs below it. A drag, or a
-  // window the user already sized, keeps the bar's top where it is and grows
-  // downward.
+  // a transcript lifts the bar and the sheet hangs below it. A drag keeps the
+  // bar's top where it is and grows (or shrinks) downward.
   const pinBottom = fromRest && input.placement === 'free'
   let y = input.y
 
