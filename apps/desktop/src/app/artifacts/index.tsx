@@ -38,6 +38,7 @@ import { getAllSessionMessages, listAllProfileSessions } from '@/work4you'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
+import { PAGE_INSET_X } from '../layout-constants'
 import { openSession } from '../open-session'
 import { PageSearchShell } from '../page-search-shell'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
@@ -345,7 +346,7 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
         </div>
       ) : (
         <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-          <div className="flex flex-col gap-8 px-3 pt-2 pb-6">
+          <div className={cn('mx-auto flex w-full max-w-5xl flex-col gap-8 py-4', PAGE_INSET_X)}>
             {visibleImageArtifacts.length > 0 && (
               <section className="flex flex-col">
                 <ArtifactSectionHeader
@@ -394,10 +395,8 @@ export function ArtifactsView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                   }
                   title={restSectionTitle(kindFilter, visibleFileArtifacts, a)}
                 />
-                <div>
-                  {pagedFileArtifacts.map(artifact => (
-                    <ArtifactFlatRow artifact={artifact} ctx={cellCtx} key={artifact.id} />
-                  ))}
+                <div className="overflow-x-auto rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-chat-bubble-background)">
+                  <ArtifactTable artifacts={pagedFileArtifacts} ctx={cellCtx} filter={kindFilter} />
                 </div>
               </section>
             )}
@@ -573,94 +572,173 @@ function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat }: 
 }
 
 const artifactActionClass =
-  'flex min-w-0 items-center text-left text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-normal text-foreground no-underline underline-offset-4 decoration-current/20 transition-colors hover:underline'
+  'flex h-full w-full min-w-0 items-center gap-2 px-2.5 py-1.5 text-left text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-normal text-(--ui-text-secondary) no-underline underline-offset-4 decoration-current/20 transition-colors hover:text-foreground hover:underline'
 
 function ArtifactCellAction({
   children,
-  className,
   href,
   onClick,
   title
 }: {
   children: React.ReactNode
-  className?: string
   href?: string
   onClick?: () => void
   title?: string
 }) {
   if (href) {
     return (
-      <ExternalLink className={cn(artifactActionClass, className)} href={href} showExternalIcon={false} title={title}>
+      <ExternalLink className={artifactActionClass} href={href} showExternalIcon={false} title={title}>
         {children}
       </ExternalLink>
     )
   }
 
   return (
-    <RowButton className={cn(artifactActionClass, className)} onClick={onClick}>
+    <RowButton className={artifactActionClass} onClick={onClick}>
       {children}
     </RowButton>
   )
 }
 
-const ArtifactFlatRow = memo(function ArtifactFlatRow({ artifact, ctx }: { artifact: ArtifactRecord; ctx: CellCtx }) {
-  const { t } = useI18n()
+const PrimaryCell = memo(function PrimaryCell({ artifact, ctx }: { artifact: ArtifactRecord; ctx: CellCtx }) {
   const isLink = artifact.kind === 'link'
   const brand = isLink ? resolveBrandIcon(shortHostLabel(artifact.href)) : null
   const Icon = brand ?? (isLink ? Link2 : FileText)
   const fetchedTitle = useLinkTitle(isLink ? artifact.href : null)
   const label = isLink ? fetchedTitle || urlSlugTitleLabel(artifact.href) : artifact.label
-  const secondary = isLink ? hostPathLabel(artifact.value) : artifact.value
+
+  return (
+    <ArtifactCellAction
+      href={isLink ? artifact.href : undefined}
+      onClick={isLink ? undefined : () => void ctx.onOpen(artifact.href)}
+      title={label}
+    >
+      <span className="mt-0.5 grid size-6 shrink-0 place-items-center self-start rounded-md bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)">
+        <Icon className="size-3.5" />
+      </span>
+      <span className={cn('min-w-0 flex-1', isLink ? 'wrap-anywhere' : 'truncate')}>
+        {label}
+        {isLink && <ExternalLinkIcon />}
+      </span>
+    </ArtifactCellAction>
+  )
+})
+
+const LocationCell = memo(function LocationCell({ artifact }: { artifact: ArtifactRecord; ctx: CellCtx }) {
+  const { t } = useI18n()
+  const isLink = artifact.kind === 'link'
+  const value = isLink ? hostPathLabel(artifact.value) : artifact.value
   const copyLabel = isLink ? t.artifacts.copyUrl : t.artifacts.copyPath
 
   return (
-    <div className="flex min-w-0 items-start gap-3 border-b border-(--ui-stroke-tertiary) py-2.5 last:border-b-0">
-      <span className="mt-0.5 shrink-0 text-(--ui-text-tertiary)">
-        <Icon aria-hidden className="size-3.5" title="" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <ArtifactCellAction
-          href={isLink ? artifact.href : undefined}
-          onClick={isLink ? undefined : () => void ctx.onOpen(artifact.href)}
-          title={label}
+    <div className="group/location flex min-w-0 items-center gap-1.5">
+      <Tip label={artifact.value}>
+        <div
+          className={cn(
+            'min-w-0 flex-1 truncate text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)',
+            isLink ? 'font-normal' : 'font-mono'
+          )}
         >
-          <span className={cn('min-w-0', isLink ? 'wrap-anywhere' : 'truncate')}>
-            {label}
-            {isLink && <ExternalLinkIcon />}
-          </span>
-        </ArtifactCellAction>
-        <div className="group/location mt-0.5 flex min-w-0 items-center gap-1.5">
-          <Tip label={artifact.value}>
-            <div
-              className={cn(
-                'min-w-0 flex-1 truncate text-[0.6875rem] text-(--ui-text-tertiary)',
-                isLink ? 'font-normal' : 'font-mono'
-              )}
-            >
-              {secondary}
-            </div>
-          </Tip>
-          <CopyButton
-            appearance="icon"
-            buttonSize="icon-xs"
-            className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/location:opacity-100"
-            iconClassName="size-3.5"
-            label={copyLabel}
-            text={artifact.value}
-            title={copyLabel}
-          />
+          {value}
         </div>
-      </div>
-      <ArtifactCellAction
-        className="ml-auto w-[min(16rem,40%)] shrink-0 flex-col items-end text-right"
-        onClick={() => ctx.onOpenChat(artifact.sessionId)}
-        title={artifact.sessionTitle}
-      >
-        <span className="w-full truncate">{artifact.sessionTitle}</span>
-        <span className="w-full truncate text-[0.6875rem] font-normal text-(--ui-text-tertiary)">
-          {formatArtifactTime(artifact.timestamp)}
-        </span>
-      </ArtifactCellAction>
+      </Tip>
+      <CopyButton
+        appearance="icon"
+        buttonSize="icon-xs"
+        className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/location:opacity-100"
+        iconClassName="size-3.5"
+        label={copyLabel}
+        text={artifact.value}
+        title={copyLabel}
+      />
     </div>
   )
 })
+
+const SessionCell = memo(function SessionCell({ artifact, ctx }: { artifact: ArtifactRecord; ctx: CellCtx }) {
+  return (
+    <ArtifactCellAction onClick={() => ctx.onOpenChat(artifact.sessionId)} title={artifact.sessionTitle}>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate">{artifact.sessionTitle}</span>
+        <span className="truncate text-[0.6875rem] font-normal text-(--ui-text-tertiary)">
+          {formatArtifactTime(artifact.timestamp)}
+        </span>
+      </span>
+    </ArtifactCellAction>
+  )
+})
+
+interface ArtifactColumn {
+  Cell: React.ComponentType<{ artifact: ArtifactRecord; ctx: CellCtx }>
+  bodyClassName: string
+  header: (filter: ArtifactFilter, a: Translations['artifacts']) => string
+  id: 'location' | 'primary' | 'session'
+  width: (filter: ArtifactFilter) => string
+}
+
+const ARTIFACT_COLUMNS: readonly ArtifactColumn[] = [
+  {
+    Cell: PrimaryCell,
+    bodyClassName: 'p-0',
+    header: (filter, a) =>
+      filter === 'link' ? a.colTitleLink : filter === 'file' ? a.colTitleFile : a.colTitleDefault,
+    id: 'primary',
+    width: filter => (filter === 'link' ? 'w-[50%]' : 'w-[35%]')
+  },
+  {
+    Cell: LocationCell,
+    bodyClassName: 'px-2.5 py-1.5',
+    header: (filter, a) =>
+      filter === 'link' ? a.colLocationLink : filter === 'file' ? a.colLocationFile : a.colLocationDefault,
+    id: 'location',
+    width: filter => (filter === 'link' ? 'w-[30%]' : 'w-[41%]')
+  },
+  {
+    Cell: SessionCell,
+    bodyClassName: 'p-0',
+    header: (_filter, a) => a.colSession,
+    id: 'session',
+    width: filter => (filter === 'link' ? 'w-[20%]' : 'w-[24%]')
+  }
+]
+
+function ArtifactTable({
+  artifacts,
+  ctx,
+  filter
+}: {
+  artifacts: readonly ArtifactRecord[]
+  ctx: CellCtx
+  filter: ArtifactFilter
+}) {
+  const { t } = useI18n()
+
+  return (
+    <table className="w-full min-w-176 table-fixed text-left text-[length:var(--conversation-caption-font-size)]">
+      <thead className="border-b border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) text-[0.625rem] uppercase tracking-[0.08em] text-(--ui-text-tertiary)">
+        <tr>
+          {ARTIFACT_COLUMNS.map(col => (
+            <th className={cn(col.width(filter), 'px-2.5 py-1.5 font-medium')} key={col.id}>
+              {col.header(filter, t.artifacts)}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {artifacts.map(artifact => (
+          <tr className="group/artifact" key={artifact.id}>
+            {ARTIFACT_COLUMNS.map(col => {
+              const Cell = col.Cell
+
+              return (
+                <td className={cn('align-middle', col.bodyClassName)} key={col.id}>
+                  <Cell artifact={artifact} ctx={ctx} />
+                </td>
+              )
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}

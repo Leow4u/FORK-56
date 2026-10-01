@@ -54,7 +54,7 @@ function renderArtifacts(children: ReactNode = <ArtifactsView />) {
 }
 
 describe('ArtifactsView', () => {
-  it('shows photos with the session caption and Chat, and links as flat rows', async () => {
+  it('shows photos with the session caption and Chat, and links in a titled table', async () => {
     vi.mocked(listAllProfileSessions).mockResolvedValue({
       sessions: [session()],
       total: 1
@@ -77,7 +77,9 @@ describe('ArtifactsView', () => {
     expect(screen.getAllByText('Remover barba da foto').length).toBeGreaterThan(0)
     expect(screen.getByText('Getting Started')).toBeTruthy()
     expect(screen.queryByText('beard.png')).toBeNull()
-    expect(screen.queryByText(en.artifacts.colTitleDefault)).toBeNull()
+    expect(screen.getByRole('columnheader', { name: en.artifacts.colTitleDefault })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: en.artifacts.colLocationDefault })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: en.artifacts.colSession })).toBeTruthy()
     expect(screen.queryByText(en.artifacts.kindImage)).toBeNull()
   })
 })
