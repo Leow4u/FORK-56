@@ -87,14 +87,26 @@ const sidebarProps = {
   onTriggerCronJob: async () => undefined
 }
 
-function renderSidebar() {
+function renderSidebar(currentView: 'artifacts' | 'chat' | 'cron' | 'messaging' | 'skills' = 'chat') {
   return render(
     <MemoryRouter>
       <SidebarProvider>
-        <ChatSidebar {...sidebarProps} />
+        <ChatSidebar {...sidebarProps} currentView={currentView} />
       </SidebarProvider>
     </MemoryRouter>
   )
+}
+
+function navButton(label: string): HTMLElement {
+  const match = screen.getAllByRole('button').find(button => {
+    return button.getAttribute('data-sidebar') === 'menu-button' && button.textContent?.includes(label)
+  })
+
+  if (!match) {
+    throw new Error(`missing nav button ${label}`)
+  }
+
+  return match
 }
 
 function seedHomeSidebar() {
@@ -201,5 +213,34 @@ describe('ChatSidebar date grouping is recents-only', () => {
     expect(screen.getByTestId('section-Sessions').getAttribute('data-content')).toBe('sessions')
     expect(screen.getByTestId('section-WhatsApp').getAttribute('data-content')).toBe('sessions')
     expect(screen.getByTestId('section-Cron jobs')).toBeTruthy()
+  })
+})
+
+describe('ChatSidebar nav paint follows the current view', () => {
+  beforeEach(seedHomeSidebar)
+  afterEach(resetSidebarStores)
+
+  it('leaves New session unpainted while Customize is the current view', () => {
+    renderSidebar('skills')
+
+    const painted = screen.getAllByRole('button').filter(button => {
+      return (
+        button.getAttribute('data-sidebar') === 'menu-button' &&
+        button.className.includes('bg-(--ui-control-active-background)')
+      )
+    })
+
+    expect(painted.map(button => button.textContent)).toEqual([expect.stringContaining('Customize')])
+    expect(navButton('New session').className).not.toContain('bg-(--ui-bg-quaternary)')
+    expect(navButton('New session').className).not.toContain('bg-(--ui-control-active-background)')
+    expect(navButton('Channels').className).not.toContain('bg-(--ui-control-active-background)')
+  })
+
+  it('paints no destination row while the current view is chat', () => {
+    renderSidebar('chat')
+
+    expect(navButton('New session').className).not.toContain('bg-(--ui-bg-quaternary)')
+    expect(navButton('New session').className).not.toContain('bg-(--ui-control-active-background)')
+    expect(navButton('Customize').className).not.toContain('bg-(--ui-control-active-background)')
   })
 })

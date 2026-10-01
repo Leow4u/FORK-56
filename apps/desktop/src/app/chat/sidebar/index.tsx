@@ -1304,7 +1304,7 @@ export function ChatSidebar({
                       // top rows. Same carve-out as USER_BUBBLE_BASE_CLASS in
                       // thread.tsx.
                       'flex w-full justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none',
-                      isNewSession ? 'h-8 bg-(--ui-bg-quaternary) text-foreground' : 'h-7',
+                      isNewSession ? 'h-8' : 'h-7',
                       active &&
                         !isNewSession &&
                         'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-foreground shadow-none hover:border-(--ui-stroke-tertiary)!',
