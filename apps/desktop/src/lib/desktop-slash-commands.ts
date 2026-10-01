@@ -563,10 +563,7 @@ export function desktopSkinSlashCompletions(
 export function rankSkillCommands<T extends { text: string }>(
   rows: readonly T[],
   skills: SkillCatalogMap | undefined,
-  {
-    hideBundled = false,
-    pruneUnusedBuiltins = false
-  }: { hideBundled?: boolean; pruneUnusedBuiltins?: boolean } = {}
+  { hideBundled = false, pruneUnusedBuiltins = false }: { hideBundled?: boolean; pruneUnusedBuiltins?: boolean } = {}
 ): T[] {
   if (!skills) {
     return [...rows]
