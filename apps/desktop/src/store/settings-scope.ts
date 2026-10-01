@@ -1,6 +1,6 @@
 import { atom, computed } from 'nanostores'
 
-import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
+import { $activeGatewayProfile, $profiles, normalizeProfileKey } from '@/store/profile'
 
 // ── Shared settings "editing profile" scope ─────────────────────────────────
 // One selection shared by every config-backed settings page (Model, Workspace,
@@ -14,6 +14,38 @@ export const $settingsScopeOverride = atom<null | string>(null)
 // The profile the settings pages are currently editing (a concrete key).
 export const $settingsScopeProfile = computed([$settingsScopeOverride, $activeGatewayProfile], (override, active) =>
   normalizeProfileKey(override ?? active)
+)
+
+// Whether the settings pages are editing a profile OTHER than the default
+// one. The scope follows the app's active profile when no override is set —
+// which, after opening a WorkBot chat, is the BOT's profile — so an edit can
+// land in profiles/<bot>/config.yaml while the user believes they are editing
+// their main config. Surfaces render this loudly. Until the roster has loaded
+// (no is_default entry yet) the root profile's canonical key is assumed, so an
+// unknown default fails loud, not quiet.
+export const $settingsScopeEditsNonDefault = computed([$settingsScopeProfile, $profiles], (selected, profiles) => {
+  const defaultProfile = profiles.find(profile => profile.is_default)
+
+  return selected !== normalizeProfileKey(defaultProfile?.name)
+})
+
+// ── Request-scope form (THE value to hand to API helpers) ──────────────────
+// The store contract and the API contract disagree about `null`:
+//   - here, `null` means "follow the app's active profile" (no override);
+//   - in api/client.ts `profileScoped()`/`capabilityScoped()`, `null` means
+//     "omit `?profile=` entirely" — only `undefined` falls back to the active
+//     profile, and an omitted profile routes to the PRIMARY backend's launch
+//     home (electron/connection-config.ts resolveProfileBackendRoute), not to
+//     the profile the sidebar rail selected.
+// Passing the raw override into an API helper therefore silently retargets
+// every read/write to the primary profile whenever no override is set — the
+// "Model page shows the active profile's config.yaml next to the primary
+// profile's API keys" class of bug. Send the concrete key the pages render.
+// Only a name with no profile directory behind it (`custom`, a WORK4YOU_HOME
+// outside profiles/) stays `undefined`, where the ambient path is the only
+// correct answer.
+export const $settingsRequestProfile = computed($settingsScopeProfile, (selected): string | undefined =>
+  selected === 'custom' ? undefined : selected
 )
 
 // Select the profile the settings pages should edit. Picking the app's active

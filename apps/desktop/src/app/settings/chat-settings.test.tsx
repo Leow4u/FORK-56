@@ -18,7 +18,17 @@ vi.mock('@/work4you', () => ({
   getElevenLabsVoices: () => getElevenLabsVoices(),
   saveWork4YouConfig: (config: unknown) => saveWork4YouConfig(config),
   getApiRequestProfile: () => 'default',
-  setApiRequestProfile: () => {}
+  setApiRequestProfile: () => {},
+  // The profile chip refreshes the roster on mount; answer with the two
+  // profiles the first test renders so the refresh cannot empty it.
+  getProfiles: vi.fn(async () => ({
+    profiles: [
+      { has_env: false, is_default: true, model: null, name: 'default' },
+      { has_env: false, is_default: false, model: null, name: 'coder' }
+    ]
+  })),
+  // The config cache key folds the concrete settings scope in (use-config-record.ts).
+  profileScopeKey: (scope?: null | string) => scope ?? 'default'
 }))
 
 afterEach(() => {
@@ -73,7 +83,9 @@ describe('Chat settings', () => {
     expect(screen.queryByText('Max preview / image load size')).toBeNull()
     expect(screen.queryByText('Default project directory')).toBeNull()
     expect(screen.queryByText('Nothing archived')).toBeNull()
-    expect(screen.queryByText('Editing profile')).toBeNull()
+    // Two profiles in the roster → the shared profile chip is back on the page.
+    expect(screen.getByText('Editing profile')).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'coder' })).toBeTruthy()
   })
 
   it('persists collapse thinking from the chat page', async () => {

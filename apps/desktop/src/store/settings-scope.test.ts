@@ -17,7 +17,9 @@ vi.mock('@/lib/query-client', () => ({ invalidateProfileScopedQueries: vi.fn() }
 vi.mock('@/store/starmap', () => ({ resetStarmapGraph: vi.fn() }))
 
 const { $activeGatewayProfile } = await import('./profile')
-const { $settingsScopeOverride, $settingsScopeProfile, setSettingsScope } = await import('./settings-scope')
+
+const { $settingsRequestProfile, $settingsScopeOverride, $settingsScopeProfile, setSettingsScope } =
+  await import('./settings-scope')
 
 beforeEach(() => {
   $activeGatewayProfile.set('default')
@@ -68,5 +70,37 @@ describe('settings scope store', () => {
 
     expect($settingsScopeOverride.get()).toBeNull()
     expect($settingsScopeProfile.get()).toBe('coder')
+  })
+
+  describe('request-scope form', () => {
+    it('hands API helpers the concrete active profile when no override is set', () => {
+      // The raw override is `null` here; forwarding it would omit `?profile=`
+      // and route the request to the primary backend's launch home instead of
+      // the profile the rail selected.
+      $activeGatewayProfile.set('coder')
+
+      expect($settingsScopeOverride.get()).toBeNull()
+      expect($settingsRequestProfile.get()).toBe('coder')
+    })
+
+    it('hands API helpers the override when one is set', () => {
+      setSettingsScope('research')
+
+      expect($settingsRequestProfile.get()).toBe('research')
+    })
+
+    it('never yields null for a real profile', () => {
+      for (const name of ['default', 'coder', 'research']) {
+        $activeGatewayProfile.set(name)
+        expect($settingsRequestProfile.get()).toBe(name)
+      }
+    })
+
+    it('leaves a home outside the profiles tree on the ambient path', () => {
+      $activeGatewayProfile.set('custom')
+
+      expect($settingsScopeProfile.get()).toBe('custom')
+      expect($settingsRequestProfile.get()).toBeUndefined()
+    })
   })
 })

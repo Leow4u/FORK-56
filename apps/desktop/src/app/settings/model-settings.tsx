@@ -52,10 +52,12 @@ interface ModelSettingsProps {
   /** The composer still owns the live chat. This page no longer writes the
    *  profile model, so the callback stays on the shared settings props. */
   onMainModelChanged?: (provider: string, model: string) => void
-  scopeProfile?: null | string
+  /** Concrete profile whose catalog and API keys this page reads and writes
+   *  (the shared settings scope). Omitted → the app-wide active profile. */
+  scopeProfile?: string
 }
 
-export function ModelSettings({ scopeProfile = null }: ModelSettingsProps) {
+export function ModelSettings({ scopeProfile }: ModelSettingsProps) {
   const { t } = useI18n()
   const copy = t.settings.model
   const stored = useStore($visibleModels)

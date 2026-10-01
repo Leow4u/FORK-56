@@ -6,6 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { MessagingPlatformInfo } from '@/types/work4you'
 
+const { $activeGatewayProfile } = await import('@/store/profile')
+const { $settingsScopeOverride, setSettingsScope } = await import('@/store/settings-scope')
+
 const getMessagingPlatforms = vi.fn()
 const updateMessagingPlatform = vi.fn()
 const testMessagingPlatform = vi.fn()
@@ -21,8 +24,8 @@ vi.mock('@/work4you', () => ({
   cancelTelegramOnboarding: vi.fn(),
   cancelWhatsAppOnboarding: vi.fn(),
   getActionStatus: vi.fn(),
-  getMessagingPlatforms: () => getMessagingPlatforms(),
-  getPairing: () => getPairing(),
+  getMessagingPlatforms: (profile?: null | string) => getMessagingPlatforms(profile),
+  getPairing: (profile?: null | string) => getPairing(profile),
   getProfiles: vi.fn(async () => ({ profiles: [] })),
   getTelegramOnboardingStatus: vi.fn(),
   getWhatsAppOnboardingStatus: vi.fn(),
@@ -83,6 +86,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  $settingsScopeOverride.set(null)
+  $activeGatewayProfile.set('default')
 })
 
 async function renderMessaging() {
@@ -486,5 +491,33 @@ describe('MessagingView pairing', () => {
       $platformsChangeTick.set($platformsChangeTick.get() + 1)
     })
     expect(getPairing).not.toHaveBeenCalled()
+  })
+})
+
+describe('MessagingView profile scope', () => {
+  it('lists platforms and pairing for the active profile, never the primary one', async () => {
+    // The chip stores no override while it follows the app's active profile.
+    // Forwarding that raw `null` would omit `?profile=` and list the primary
+    // backend's platforms under a chip that names the active profile.
+    $activeGatewayProfile.set('coder')
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform()] })
+
+    await renderMessaging()
+
+    expect((await screen.findAllByText('Mattermost')).length).toBeGreaterThan(0)
+    expect(getMessagingPlatforms).toHaveBeenCalledWith('coder')
+    expect(getPairing).toHaveBeenCalledWith('coder')
+    expect(getMessagingPlatforms).not.toHaveBeenCalledWith(null)
+  })
+
+  it('follows an explicit chip pick onto another profile', async () => {
+    setSettingsScope('research')
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform()] })
+
+    await renderMessaging()
+
+    expect((await screen.findAllByText('Mattermost')).length).toBeGreaterThan(0)
+    expect(getMessagingPlatforms).toHaveBeenCalledWith('research')
+    expect(getPairing).toHaveBeenCalledWith('research')
   })
 })

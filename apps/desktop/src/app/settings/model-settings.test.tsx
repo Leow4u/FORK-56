@@ -11,7 +11,7 @@ const setEnvVar = vi.fn()
 
 vi.mock('@/work4you', () => ({
   getGlobalModelOptions: (...args: unknown[]) => getGlobalModelOptions(...args),
-  getEnvVars: () => getEnvVars(),
+  getEnvVars: (...args: unknown[]) => getEnvVars(...args),
   setEnvVar: (...args: unknown[]) => setEnvVar(...args),
   deleteEnvVar: vi.fn(),
   revealEnvVar: vi.fn(),
@@ -59,13 +59,13 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-async function renderModelSettings() {
+async function renderModelSettings(scopeProfile?: string) {
   const { ModelSettings } = await import('./model-settings')
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
   return render(
     <QueryClientProvider client={client}>
-      <ModelSettings />
+      <ModelSettings scopeProfile={scopeProfile} />
     </QueryClientProvider>
   )
 }
@@ -104,6 +104,21 @@ describe('ModelSettings', () => {
       const keys = $visibleModels.get()
       expect(keys?.has(modelVisibilityKey('work4you', 'operis-5'))).toBe(false)
     })
+  })
+
+  it('reads the catalog and the API keys of the scoped profile', async () => {
+    // The page receives the concrete settings scope. Both the model catalog
+    // and the credential store must be asked for THAT profile — a raw `null`
+    // would omit `?profile=` and read the primary backend's keys instead.
+    await renderModelSettings('coder')
+
+    expect(await screen.findByRole('switch', { name: 'Operis 5' })).toBeTruthy()
+    expect(getGlobalModelOptions).toHaveBeenCalledWith(undefined, 'coder')
+    expect(getEnvVars).toHaveBeenCalledWith('coder')
+    expect(getEnvVars).not.toHaveBeenCalledWith(null)
+
+    fireEvent.click(screen.getByRole('button', { name: 'API keys' }))
+    expect(await screen.findByText('OpenAI')).toBeTruthy()
   })
 
   it('searches models that are outside the featured shortlist', async () => {
