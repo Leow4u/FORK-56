@@ -72,7 +72,7 @@ async function renderModelSettings() {
 
 describe('ModelSettings', () => {
   it('lists the featured catalog and hides the profile model controls', async () => {
-    await renderModelSettings()
+    const view = await renderModelSettings()
 
     expect(await screen.findByRole('switch', { name: 'Operis 5' })).toBeTruthy()
     expect(screen.queryByRole('switch', { name: 'Claude Opus 4.8' })).toBeNull()
@@ -82,7 +82,13 @@ describe('ModelSettings', () => {
     expect(screen.queryByRole('switch', { name: 'Fast' })).toBeNull()
     expect(screen.queryByText('Auxiliary models')).toBeNull()
     expect(screen.getByRole('button', { name: 'View all models' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'API keys' }).getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByText('OpenAI')).toBeNull()
+    expect(view.container.querySelector('[data-mark="work4you"]')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'API keys' }))
     expect(await screen.findByText('OpenAI')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'API keys' }).getAttribute('aria-expanded')).toBe('true')
   })
 
   it('reveals the rest of the catalog and toggles what the picker shows', async () => {

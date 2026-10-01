@@ -140,7 +140,7 @@ export function KeyField({
   )
 }
 
-function CredentialDocsLink({ href }: { href: string }) {
+export function CredentialDocsLink({ href }: { href: string }) {
   const { t } = useI18n()
 
   return (
