@@ -416,9 +416,11 @@ export function CodeEditor({
   }, [disabled])
 
   if (prose) {
+    // Soft well (same wash as PanelBlock) so a short persona still fills a
+    // flex parent; the host scrolls when the document outgrows the well.
     return (
-      <div className={cn('min-h-48', className)}>
-        <div ref={hostRef} />
+      <div className={cn('min-h-48 overflow-auto rounded-md bg-foreground/5 p-3', className)}>
+        <div className="min-h-[12rem]" ref={hostRef} />
       </div>
     )
   }

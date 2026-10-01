@@ -2349,7 +2349,9 @@ export const ja = defineLocale({
     personaTitle: 'ペルソナ',
     personaFile: 'SOUL.md',
     inUse: '使用中',
+    currentlyInUse: '現在使用中',
     useProfile: 'このプロファイルを使う',
+    fileLabel: 'ファイル',
     personaPlaceholder: 'このエージェントの振る舞いを書いてください。',
     soulOptional: '省略可能',
     soulPlaceholder: mode =>

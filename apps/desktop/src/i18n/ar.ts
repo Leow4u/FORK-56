@@ -2180,7 +2180,9 @@ export const ar = defineLocale({
     personaTitle: 'الشخصية',
     personaFile: 'SOUL.md',
     inUse: 'قيد الاستخدام',
+    currentlyInUse: 'قيد الاستخدام حاليا',
     useProfile: 'استخدم هذا الملف الشخصي',
+    fileLabel: 'ملف',
     personaPlaceholder: 'صف كيف يجب أن يتصرف هذا الوكيل.',
     soulOptional: 'اختياري',
     soulPlaceholder: mode =>

@@ -173,7 +173,7 @@ export function ProfilesView({ onClose }: ProfilesViewProps) {
         <>
           <PanelHeader
             actions={
-              <Button onClick={() => setCreateOpen(true)} size="sm" type="button" variant="ghost">
+              <Button onClick={() => setCreateOpen(true)} size="sm" type="button">
                 {p.newProfile}
               </Button>
             }
@@ -321,12 +321,14 @@ function ProfileDetail({
   const { t } = useI18n()
   const p = t.profiles
   const colors = useStore($profileColors)
-  const lead = personaLead(persona)
   const modelName = profile.model ? displayModelName(profile.model) : ''
 
   return (
-    <PanelDetail>
-      <header className="flex items-start gap-3">
+    <PanelDetail
+      className="flex flex-col overflow-hidden"
+      contentClassName="flex min-h-0 flex-1 flex-col gap-4 space-y-0 overflow-hidden pb-4"
+    >
+      <header className="flex shrink-0 items-start gap-3">
         <ProfileGlyph
           aria-hidden="true"
           className="mt-0.5"
@@ -339,31 +341,48 @@ function ProfileDetail({
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-lg font-semibold tracking-tight text-foreground">{profileLabel(profile)}</h3>
             {profile.is_default && <PanelPill tone="good">{p.defaultBadge}</PanelPill>}
-            {!inUse && (
-              <Button onClick={() => selectProfile(profile.name)} size="sm" type="button" variant="secondary">
-                {p.useProfile}
-              </Button>
-            )}
+            <div className="ms-auto flex shrink-0 items-center">
+              {inUse ? (
+                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{p.currentlyInUse}</span>
+              ) : (
+                <Button onClick={() => selectProfile(profile.name)} size="sm" type="button" variant="secondary">
+                  {p.useProfile}
+                </Button>
+              )}
+            </div>
           </div>
-          {lead ? <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{lead}</p> : null}
-          {modelName ? <p className="mt-2 text-xs text-muted-foreground/80">{modelName}</p> : null}
+          <p className="mt-1.5 text-xs text-muted-foreground/75">
+            {modelName ? (
+              <>
+                <span>
+                  {p.modelLabel}: {modelName}
+                </span>
+                <span aria-hidden="true" className="mx-1.5 text-muted-foreground/40">
+                  ·
+                </span>
+              </>
+            ) : null}
+            <span>
+              {p.fileLabel}: {p.personaFile}
+            </span>
+          </p>
         </div>
       </header>
 
       {personaError ? (
-        <div className="flex items-start gap-2 rounded bg-destructive/10 px-3 py-2 text-xs text-destructive">
+        <div className="flex shrink-0 items-start gap-2 rounded bg-destructive/10 px-3 py-2 text-xs text-destructive">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
           <span>{personaError}</span>
         </div>
       ) : personaReady ? (
         <SoulEditor initial={persona} onPersona={onPersona} profileName={profile.name} />
       ) : (
-        <section className="space-y-3">
-          <div className="flex items-baseline gap-2">
+        <section className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex shrink-0 items-baseline gap-2">
             <h4 className="text-sm font-medium text-foreground">{p.personaTitle}</h4>
             <span className="text-[0.65rem] text-muted-foreground/70">{p.personaFile}</span>
           </div>
-          <PageLoader className="min-h-44" label={p.loadingSoul} />
+          <PageLoader className="min-h-44 flex-1" label={p.loadingSoul} />
         </section>
       )}
     </PanelDetail>
@@ -403,13 +422,23 @@ function SoulEditor({
   }
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-baseline gap-2">
-        <h4 className="text-sm font-medium text-foreground">{p.personaTitle}</h4>
-        <span className="text-[0.65rem] text-muted-foreground/70">{p.personaFile}</span>
+    <section className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-baseline gap-2">
+          <h4 className="text-sm font-medium text-foreground">{p.personaTitle}</h4>
+          <span className="text-[0.65rem] text-muted-foreground/70">{p.personaFile}</span>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {dirty ? <span className="text-xs text-muted-foreground">{p.unsavedChanges}</span> : null}
+          <Button disabled={!dirty || saving} onClick={() => void handleSave()} size="sm" type="button">
+            <Save />
+            {saving ? p.saving : t.common.save}
+          </Button>
+        </div>
       </div>
 
       <CodeEditor
+        className="min-h-0 flex-1"
         filePath="SOUL.md"
         focusOnMount={false}
         initialValue={content}
@@ -424,19 +453,9 @@ function SoulEditor({
       />
 
       {error && (
-        <div className="flex items-start gap-2 rounded bg-destructive/10 px-3 py-2 text-xs text-destructive">
+        <div className="flex shrink-0 items-start gap-2 rounded bg-destructive/10 px-3 py-2 text-xs text-destructive">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
           <span>{error}</span>
-        </div>
-      )}
-
-      {dirty && (
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs text-muted-foreground">{p.unsavedChanges}</span>
-          <Button disabled={saving} onClick={() => void handleSave()} size="sm" type="button">
-            <Save />
-            {saving ? p.saving : t.common.save}
-          </Button>
         </div>
       )}
     </section>

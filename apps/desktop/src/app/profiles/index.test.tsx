@@ -191,15 +191,19 @@ describe('ProfilesView', () => {
 
     await renderProfilesView()
 
-    expect(await screen.findByText('Operis 5.0')).toBeTruthy()
+    expect(await screen.findByText(/Operis 5\.0/)).toBeTruthy()
+    expect(screen.getByText(/File:\s*SOUL\.md/)).toBeTruthy()
     expect(screen.getAllByText('You are Work4You.').length).toBeGreaterThan(0)
     expect(screen.getByText('In use')).toBeTruthy()
+    expect(screen.getByText('Currently in use')).toBeTruthy()
     expect(screen.getByText('Persona')).toBeTruthy()
     expect(screen.queryByText('/AppData/Local/work4you')).toBeNull()
     expect(screen.queryByText('78')).toBeNull()
     expect(screen.queryByText('.env')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Use this profile' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
+    const save = screen.getByRole('button', { name: 'Save' })
+    expect(save).toBeTruthy()
+    expect((save as HTMLButtonElement).disabled).toBe(true)
     expect(screen.queryByRole('textbox', { name: 'Search profiles...' })).toBeNull()
   })
 
