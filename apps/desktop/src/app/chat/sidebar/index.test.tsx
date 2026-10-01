@@ -14,7 +14,7 @@ import {
   setSidebarShowArchived
 } from '@/store/layout'
 import { $projectDialog, $projectScope, $projectTree, ALL_PROJECTS, goToProject } from '@/store/projects'
-import { $messagingSessions, $sessions, $sessionsLoading } from '@/store/session'
+import { $messagingSessions, $selectedStoredSessionId, $sessions, $sessionsLoading } from '@/store/session'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 import { makeSessionInfo } from '@/test/session-info'
 import type { CronJob } from '@/types/work4you'
@@ -111,6 +111,7 @@ function navButton(label: string): HTMLElement {
 
 function seedHomeSidebar() {
   window.localStorage.clear()
+  $selectedStoredSessionId.set(null)
   resetSidebarView()
   $projectScope.set(ALL_PROJECTS)
   $projectDialog.set(null)
@@ -127,6 +128,7 @@ function seedHomeSidebar() {
 }
 
 function resetSidebarStores() {
+  $selectedStoredSessionId.set(null)
   $projectTree.set([])
   $sessions.set([])
   $messagingSessions.set([])
@@ -236,10 +238,26 @@ describe('ChatSidebar nav paint follows the current view', () => {
     expect(navButton('Channels').className).not.toContain('bg-(--ui-control-active-background)')
   })
 
-  it('paints no destination row while the current view is chat', () => {
+  it('paints New session while the chat is a fresh draft', () => {
+    $selectedStoredSessionId.set(null)
     renderSidebar('chat')
 
+    const painted = screen.getAllByRole('button').filter(button => {
+      return (
+        button.getAttribute('data-sidebar') === 'menu-button' &&
+        button.className.includes('bg-(--ui-control-active-background)')
+      )
+    })
+
+    expect(painted.map(button => button.textContent)).toEqual([expect.stringContaining('New session')])
     expect(navButton('New session').className).not.toContain('bg-(--ui-bg-quaternary)')
+    expect(navButton('Customize').className).not.toContain('bg-(--ui-control-active-background)')
+  })
+
+  it('leaves New session unpainted while a conversation is open', () => {
+    $selectedStoredSessionId.set('cli-1')
+    renderSidebar('chat')
+
     expect(navButton('New session').className).not.toContain('bg-(--ui-control-active-background)')
     expect(navButton('Customize').className).not.toContain('bg-(--ui-control-active-background)')
   })

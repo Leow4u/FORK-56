@@ -1282,15 +1282,20 @@ export function ChatSidebar({
               {[...SIDEBAR_NAV, ...contributedNav].map(item => {
                 const isInteractive = Boolean(item.action) || Boolean(item.route)
 
+                const isNewSession = item.id === 'new-session'
+                // A fresh draft has no stored session, so the highlight lives
+                // on this row. An open conversation keeps it on the session
+                // row instead — New session is not a second selection.
+                const newSessionSelected = isNewSession && currentView === 'chat' && !selectedSessionId
+
                 const active =
+                  newSessionSelected ||
                   (item.id === 'skills' && currentView === 'skills') ||
                   (item.id === 'messaging' && currentView === 'messaging') ||
                   (item.id === 'artifacts' && currentView === 'artifacts') ||
                   (item.id === 'cron' && currentView === 'cron') ||
                   // Contributed rows light up at their own route.
                   (Boolean(item.route) && pathname === item.route)
-
-                const isNewSession = item.id === 'new-session'
 
                 const button = (
                   <SidebarMenuButton
@@ -1306,7 +1311,6 @@ export function ChatSidebar({
                       'flex w-full justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none',
                       isNewSession ? 'h-8' : 'h-7',
                       active &&
-                        !isNewSession &&
                         'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-foreground shadow-none hover:border-(--ui-stroke-tertiary)!',
                       !isInteractive &&
                         'cursor-default hover:border-transparent hover:bg-transparent hover:text-inherit'
