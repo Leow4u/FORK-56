@@ -285,7 +285,7 @@ function ConfigSettingsInner({
     if (activeSectionId === 'model') {
       return (
         <SettingsContent>
-          <SectionHeading title={t.settings.sections.model} variant="page" />
+          <SectionHeading description={t.settings.model.pickerIntro} title={t.settings.sections.model} variant="page" />
           <div className="mb-6">
             <ModelSettingsSkeleton />
           </div>
@@ -311,7 +311,11 @@ function ConfigSettingsInner({
 
   return (
     <SettingsContent>
-      <SectionHeading title={t.settings.sections[activeSectionId] ?? activeSectionId} variant="page" />
+      <SectionHeading
+        description={activeSectionId === 'model' ? t.settings.model.pickerIntro : undefined}
+        title={t.settings.sections[activeSectionId] ?? activeSectionId}
+        variant="page"
+      />
       {activeSectionId === 'model' && (
         <div className="mb-6">
           <ModelSettings onMainModelChanged={onMainModelChanged} scopeProfile={scopeProfile} />

@@ -1,47 +1,45 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useStore } from '@nanostores/react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Codicon } from '@/components/ui/codicon'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
+import { SearchField } from '@/components/ui/search-field'
+import { Switch } from '@/components/ui/switch'
 import { useI18n } from '@/i18n'
-import { Loader2 } from '@/lib/icons'
+import { RefreshCw } from '@/lib/icons'
 import { displayModelName } from '@/lib/model-status-label'
-import { menuReasoningEffort, visibleReasoningEfforts } from '@/lib/reasoning-effort'
 import { cn } from '@/lib/utils'
-import { setMainModelAssignment } from '@/store/cron-model-impact'
-import { notifyError } from '@/store/notifications'
-import { getGlobalModelInfo, getGlobalModelOptions, saveWork4YouConfig } from '@/work4you'
+import {
+  $visibleModels,
+  effectiveVisibleKeys,
+  modelVisibilityKey,
+  setVisibleModels,
+  toggleModelVisibility
+} from '@/store/model-visibility'
+import { getGlobalModelOptions } from '@/work4you'
 import type { ModelOptionProvider } from '@/work4you'
 
-import { useWork4YouConfigRecord, work4youConfigCacheWriter } from '../hooks/use-config-record'
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 
-import { CONTROL_TEXT } from './constants'
-import { getNested, setNested } from './helpers'
-import { ListRow, SettingsGroup, ToggleRow } from './primitives'
+import { ProviderKeyRows } from './credential-key-ui'
+import { useEnvCredentials } from './env-credentials'
+import { settingsCatalogRows } from './model-catalog-rows'
+import { SectionHeading, SettingsGroup } from './primitives'
+import { buildProviderKeyGroups } from './providers-settings'
 
-function unavailableModelsFor(providers: ModelOptionProvider[], slug: string): Set<string> {
-  return new Set(providers.find(provider => provider.slug === slug)?.unavailable_models ?? [])
-}
+// Radix <Select> renders a blank trigger when `value` matches no <SelectItem>.
+// Kept for callers that still surface a custom model outside the curated list.
+export const withActive = (models: readonly string[], active: string): readonly string[] =>
+  active && !models.includes(active) ? [active, ...models] : models
 
-function settingsModelLabel(model: string): string {
-  return displayModelName(model)
-}
-
-// Skeleton mirror of the Model settings DOM so the page keeps its shape while
-// the catalog loads. Same containers/rhythm as the real render below.
 export function ModelSettingsSkeleton() {
   return (
     <SettingsGroup>
-      <div className="grid gap-1" data-slot="model-settings-skeleton">
-        {[0, 1, 2].map(row => (
-          <div className="grid gap-3 py-3 @xl:grid-cols-[minmax(0,1fr)_minmax(15rem,22rem)] @xl:items-center" key={row}>
-            <div className="min-w-0 space-y-1.5">
-              <Skeleton className="h-3.5 w-32" />
-              <Skeleton className="h-3 w-52 max-w-full" />
-            </div>
-            <Skeleton className="h-8 w-full @xl:w-56 @xl:justify-self-end" />
+      <div className="grid gap-3 py-3" data-slot="model-settings-skeleton">
+        <div className="h-7 w-full rounded bg-(--ui-bg-quaternary)" />
+        {[0, 1, 2, 3].map(row => (
+          <div className="flex items-center justify-between" key={row}>
+            <div className="h-3.5 w-40 rounded bg-(--ui-bg-quaternary)" />
+            <div className="h-5 w-8 rounded-full bg-(--ui-bg-quaternary)" />
           </div>
         ))}
       </div>
@@ -49,310 +47,169 @@ export function ModelSettingsSkeleton() {
   )
 }
 
-// agent.service_tier stores "fast"/"priority"/"on" for fast; anything else is
-// normal (mirrors tui_gateway _load_service_tier).
-const isFastTier = (tier: unknown): boolean =>
-  ['fast', 'priority', 'on'].includes(
-    String(tier ?? '')
-      .trim()
-      .toLowerCase()
-  )
-
-// Radix <Select> renders a blank trigger when `value` matches no <SelectItem>.
-// A custom model (e.g. one added via config that isn't in the provider's
-// curated list) would vanish — surface the active value so it stays selectable.
-export const withActive = (models: readonly string[], active: string): readonly string[] =>
-  active && !models.includes(active) ? [active, ...models] : models
-
-const isBlank = (value: unknown): boolean => value == null || (typeof value === 'string' && !value.trim())
-
 interface ModelSettingsProps {
-  /** Notified after the main model is applied, so live UI stores can sync. */
+  /** The composer still owns the live chat. This page no longer writes the
+   *  profile model, so the callback stays on the shared settings props. */
   onMainModelChanged?: (provider: string, model: string) => void
-  /** Shared settings "Applies to" scope: a concrete profile to edit instead of
-   *  the app's active one, or null to follow the active profile (default). */
   scopeProfile?: null | string
 }
 
-export function ModelSettings({ onMainModelChanged, scopeProfile = null }: ModelSettingsProps) {
+export function ModelSettings({ scopeProfile = null }: ModelSettingsProps) {
   const { t } = useI18n()
-  const m = t.settings.model
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [mainModel, setMainModel] = useState<{ model: string; provider: string } | null>(null)
-  const [providers, setProviders] = useState<ModelOptionProvider[]>([])
-  const [selectedProvider, setSelectedProvider] = useState('')
-  const [selectedModel, setSelectedModel] = useState('')
-  // agent.* defaults round-trip through the shared config cache (read → write
-  // back the whole record), so a save here shows in the MCP/model surfaces.
-  const { data: config } = useWork4YouConfigRecord(scopeProfile)
-  const setConfig = useMemo(() => work4youConfigCacheWriter(scopeProfile), [scopeProfile])
-  const [applying, setApplying] = useState(false)
+  const copy = t.settings.model
+  const stored = useStore($visibleModels)
+  const { rowProps, vars } = useEnvCredentials(scopeProfile)
+  const [providers, setProviders] = useState<ModelOptionProvider[] | null>(null)
+  const [query, setQuery] = useState('')
+  const [showAll, setShowAll] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [openKey, setOpenKey] = useState<null | string>(null)
 
-  // Every profile-scoped async here captures this and bails before writing back,
-  // so a request in flight when the user switches profiles can't paint profile
-  // A's models into profile B (or fire onMainModelChanged for A).
-  const profileEpoch = useRef(0)
-
-  const refresh = useCallback(
-    async ({ replaceSelection = false }: { replaceSelection?: boolean } = {}) => {
-      const epoch = profileEpoch.current
-      setLoading(true)
-      setError('')
-
-      try {
-        const [modelInfo, modelOptions] = await Promise.all([
-          getGlobalModelInfo(scopeProfile),
-          getGlobalModelOptions(undefined, scopeProfile)
-        ])
-
-        if (profileEpoch.current !== epoch) {
-          return
-        }
-
-        setMainModel({ model: modelInfo.model, provider: modelInfo.provider })
-        setProviders(modelOptions.providers || [])
-
-        if (replaceSelection) {
-          setSelectedProvider(modelInfo.provider)
-          setSelectedModel(modelInfo.model)
-        } else {
-          setSelectedProvider(prev => prev || modelInfo.provider)
-          setSelectedModel(prev => prev || modelInfo.model)
-        }
-      } catch (err) {
-        if (profileEpoch.current === epoch) {
-          setError(err instanceof Error ? err.message : String(err))
-        }
-      } finally {
-        if (profileEpoch.current === epoch) {
-          setLoading(false)
-        }
-      }
+  const load = useCallback(
+    async (refresh = false) => {
+      const options = await getGlobalModelOptions(refresh ? { refresh: true } : undefined, scopeProfile)
+      setProviders(options.providers ?? [])
     },
     [scopeProfile]
   )
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    let cancelled = false
 
-  // A profile switch swaps the backend under the mounted panel — reload for the
-  // new profile (bumping the epoch first so any in-flight A request is discarded).
+    void load().catch(() => {
+      if (!cancelled) {
+        setProviders([])
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [load])
+
   useOnProfileSwitch(() => {
-    profileEpoch.current += 1
-    // The panel stays mounted across profile switches, so clear the previous
-    // profile's draft selection before loading the new profile's source of
-    // truth. Ordinary same-profile refreshes still preserve in-progress edits.
-    setSelectedProvider('')
-    setSelectedModel('')
-    void refresh({ replaceSelection: true })
+    setProviders(null)
+    setQuery('')
+    setShowAll(false)
+    void load().catch(() => setProviders([]))
   })
 
-  const selectedProviderRow = useMemo(
-    () => providers.find(provider => provider.slug === selectedProvider),
-    [providers, selectedProvider]
+  const visible = useMemo(() => effectiveVisibleKeys(stored, providers ?? []), [providers, stored])
+
+  const catalog = useMemo(
+    () => settingsCatalogRows(providers ?? [], visible, { query, showAll }),
+    [providers, query, showAll, visible]
   )
 
-  const modelChoices = withActive(selectedProviderRow?.models ?? [], selectedModel)
+  const keyGroups = useMemo(() => (vars ? buildProviderKeyGroups(vars) : []), [vars])
 
-  // Capabilities of the APPLIED main model — gates the profile-default
-  // reasoning/speed controls the same way the composer picker gates per-model
-  // edits (reasoning defaults on, fast defaults off when unreported).
-  const mainCaps = useMemo(() => {
-    const row = providers.find(provider => provider.slug === mainModel?.provider)
+  const toggle = (provider: ModelOptionProvider, model: string) => {
+    setVisibleModels(toggleModelVisibility($visibleModels.get(), providers ?? [], provider.slug, model))
+  }
 
-    return mainModel ? row?.capabilities?.[mainModel.model] : undefined
-  }, [providers, mainModel])
-
-  const reasoningSupported = mainCaps?.reasoning ?? true
-  const fastSupported = mainCaps?.fast ?? false
-
-  // Hand-written `reasoning_effort: false`/`off` reaches us as boolean false
-  // ("false" once stringified) — show it as Off, not an empty select.
-  const rawEffort = String(getNested(config ?? {}, 'agent.reasoning_effort') ?? '')
-    .trim()
-    .toLowerCase()
-
-  // Blank means the platform birth (High / Fast), not the old medium/off fallback.
-  const effortValue = rawEffort === 'false' || rawEffort === 'disabled' ? 'none' : rawEffort || 'high'
-
-  const tierRaw = String(getNested(config ?? {}, 'agent.service_tier') ?? '')
-    .trim()
-    .toLowerCase()
-
-  const fastOn = tierRaw === '' || isFastTier(tierRaw)
-
-  // Persist a single agent.* default by round-tripping the whole config record
-  // (PUT /api/config replaces it) — optimistic, with rollback on failure.
-  const writeAgentDefault = useCallback(
-    async (key: string, value: string) => {
-      if (!config) {
-        return
-      }
-
-      const prev = config
-      const next = setNested(config, key, value)
-      setConfig(next)
-
-      try {
-        await saveWork4YouConfig(next, scopeProfile ?? undefined)
-      } catch (err) {
-        setConfig(prev)
-        notifyError(err, m.defaultsFailed)
-      }
-    },
-    [config, m.defaultsFailed, scopeProfile, setConfig]
-  )
-
-  // Persist the birth once when the saved profile never chose. Explicit
-  // medium/normal values are non-blank and are not rewritten.
-  useEffect(() => {
-    if (!config) {
+  const refresh = async () => {
+    if (refreshing) {
       return
     }
 
-    const effort = getNested(config, 'agent.reasoning_effort')
-    const tier = getNested(config, 'agent.service_tier')
-
-    if (isBlank(effort)) {
-      void writeAgentDefault('agent.reasoning_effort', 'high')
-    } else if (isBlank(tier)) {
-      void writeAgentDefault('agent.service_tier', 'fast')
-    }
-  }, [config, writeAgentDefault])
-
-  const applyMainModel = useCallback(async () => {
-    if (!selectedProvider || !selectedModel) {
-      return
-    }
-
-    if (unavailableModelsFor(providers, selectedProvider).has(selectedModel)) {
-      return
-    }
-
-    const epoch = profileEpoch.current
-    setApplying(true)
-    setError('')
+    setRefreshing(true)
 
     try {
-      const result = await setMainModelAssignment(
-        {
-          model: selectedModel,
-          provider: selectedProvider,
-          ...(selectedProviderRow?.api_url ? { base_url: selectedProviderRow.api_url } : {})
-        },
-        scopeProfile
-      )
-
-      if (profileEpoch.current !== epoch) {
-        return
-      }
-
-      const provider = result.provider || selectedProvider
-      const model = result.model || selectedModel
-      setMainModel({ provider, model })
-
-      // Live UI stores mirror the ACTIVE profile's model; a scoped apply
-      // changed a different profile and must not repaint them.
-      if (scopeProfile == null) {
-        onMainModelChanged?.(provider, model)
-      }
-
-      await refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      await load(true)
     } finally {
-      setApplying(false)
+      setRefreshing(false)
     }
-  }, [onMainModelChanged, providers, refresh, scopeProfile, selectedModel, selectedProvider, selectedProviderRow])
+  }
 
-  if (loading && !mainModel) {
+  if (!providers) {
     return <ModelSettingsSkeleton />
   }
 
   return (
     <div className="grid gap-6">
-      <SettingsGroup>
-        <ListRow
-          action={
-            modelChoices.length > 0 ? (
-              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-                <Select onValueChange={setSelectedModel} value={selectedModel}>
-                  <SelectTrigger className={cn('min-w-44', CONTROL_TEXT)}>
-                    <SelectValue placeholder={m.model} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {modelChoices.map(model => {
-                      const locked = unavailableModelsFor(providers, selectedProvider).has(model)
-
-                      return (
-                        <SelectItem disabled={locked} key={model} value={model}>
-                          {settingsModelLabel(model)}
-                          {locked ? (
-                            <Codicon
-                              className="ml-1 opacity-80"
-                              name="lock"
-                              size="0.75rem"
-                              title={t.modelPicker.proNeedsSubscription}
-                            />
-                          ) : null}
-                        </SelectItem>
-                      )
-                    })}
-                  </SelectContent>
-                </Select>
-                <Button
-                  disabled={
-                    !selectedProvider ||
-                    !selectedModel ||
-                    applying ||
-                    unavailableModelsFor(providers, selectedProvider).has(selectedModel)
-                  }
-                  onClick={() => void applyMainModel()}
-                  size="sm"
-                  variant="secondary"
-                >
-                  {applying && <Loader2 className="size-3.5 animate-spin" />}
-                  {applying ? m.applying : t.common.apply}
-                </Button>
-              </div>
-            ) : null
+      <div className="grid gap-3">
+        <SearchField
+          aria-label={copy.searchModels}
+          containerClassName="w-full"
+          inputClassName="min-w-0 flex-1 [field-sizing:fixed]"
+          onChange={setQuery}
+          placeholder={copy.searchModels}
+          recede={false}
+          trailingAction={
+            <Button
+              aria-label={t.shell.modelMenu.refreshModels}
+              disabled={refreshing}
+              onClick={() => void refresh()}
+              size="icon-xs"
+              type="button"
+              variant="ghost"
+            >
+              <RefreshCw className={cn('size-3.5', refreshing && 'animate-spin')} />
+            </Button>
           }
-          description={m.appliesDesc}
-          title={m.model}
+          value={query}
         />
-        {config && mainModel && reasoningSupported && (
-          <ListRow
-            action={
-              <Select
-                onValueChange={value => void writeAgentDefault('agent.reasoning_effort', value)}
-                value={menuReasoningEffort(effortValue, mainModel.model)}
-              >
-                <SelectTrigger className={cn('min-w-28', CONTROL_TEXT)}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(['none', ...visibleReasoningEfforts(mainModel.model)] as const).map(value => (
-                    <SelectItem key={value} value={value}>
-                      {value === 'none' ? m.reasoningOff : t.shell.modelOptions[value]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            }
-            title={m.reasoning}
-          />
+        <div className="divide-y divide-(--ui-stroke-secondary) overflow-hidden rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-editor)">
+          {catalog.rows.length === 0 ? (
+            <p className="px-4 py-6 text-center text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+              {t.shell.modelMenu.noModels}
+            </p>
+          ) : (
+            catalog.rows.map(({ family, provider }) => {
+              const label = displayModelName(family.id)
+              const checked = visible.has(modelVisibilityKey(provider.slug, family.id))
+
+              return (
+                <label
+                  className="flex cursor-pointer items-center gap-3 px-4 py-2.5 text-[length:var(--conversation-text-font-size)] hover:bg-(--ui-control-hover-background)"
+                  key={modelVisibilityKey(provider.slug, family.id)}
+                >
+                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                  <Switch
+                    aria-label={label}
+                    checked={checked}
+                    onCheckedChange={() => toggle(provider, family.id)}
+                    size="xs"
+                  />
+                </label>
+              )
+            })
+          )}
+        </div>
+        {catalog.hasMore && !query ? (
+          <Button
+            className="justify-start px-1"
+            onClick={() => setShowAll(true)}
+            size="inline"
+            type="button"
+            variant="text"
+          >
+            {copy.viewAll}
+          </Button>
+        ) : null}
+      </div>
+
+      <div>
+        <SectionHeading title={t.settings.nav.providerApiKeys} variant="group" />
+        {vars && keyGroups.length === 0 ? (
+          <p className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+            {t.settings.providers.noProviderKeys}
+          </p>
+        ) : (
+          <div className="grid gap-2">
+            {keyGroups.map(group => (
+              <ProviderKeyRows
+                expanded={openKey === group.name}
+                group={group}
+                key={group.name}
+                onExpand={() => setOpenKey(group.name)}
+                onToggle={() => setOpenKey(current => (current === group.name ? null : group.name))}
+                rowProps={rowProps}
+              />
+            ))}
+          </div>
         )}
-        {config && mainModel && fastSupported && (
-          <ToggleRow
-            checked={fastOn}
-            label={t.shell.modelOptions.fast}
-            onChange={checked => void writeAgentDefault('agent.service_tier', checked ? 'fast' : 'normal')}
-          />
-        )}
-        {error && <div className="py-2 text-xs text-destructive">{error}</div>}
-      </SettingsGroup>
+      </div>
     </div>
   )
 }

@@ -1057,6 +1057,9 @@ export const en: Translations = {
     },
     model: {
       loading: 'Loading model configuration...',
+      pickerIntro: 'Choose which models appear in the model picker.',
+      searchModels: 'Add or search model',
+      viewAll: 'View all models',
       appliesDesc: 'Applies to new sessions. Use the model picker in the composer to hot-swap the active chat.',
       provider: 'Provider',
       model: 'Model',
