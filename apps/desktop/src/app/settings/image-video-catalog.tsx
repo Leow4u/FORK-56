@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
 import { IMAGE_GEN_SUBSCRIPTION_PROVIDER } from '@/lib/desktop-toolsets'
-import { Check, Loader2 } from '@/lib/icons'
+import { Check, ChevronDown, Loader2 } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 import type { ToolsetModel, ToolsetModelsResponse } from '@/types/work4you'
@@ -33,6 +34,7 @@ export function ImageVideoCatalog({
   const { t } = useI18n()
   const copy = t.settings.toolsets
   const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState<string | null>(null)
   const queryKey = ['settings-image-video-models', toolset, profile] as const
 
@@ -45,6 +47,10 @@ export function ImageVideoCatalog({
   const models = catalog?.has_models ? catalog.models : []
   const selected = catalog?.current ?? catalog?.default ?? null
   const marks = modelMarks(models.map(model => model.display || model.id))
+  const pinned = models.filter(model => model.id === selected)
+  const collapsedRows = pinned.length > 0 ? pinned : models.slice(0, 1)
+  const visible = open ? models : collapsedRows
+  const moreCount = models.length - collapsedRows.length
 
   const pick = async (modelId: string) => {
     if (saving !== null || selected === modelId) {
@@ -97,11 +103,12 @@ export function ImageVideoCatalog({
         className="overflow-hidden rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-editor)"
         role="radiogroup"
       >
-        {models.map((model, index) => {
+        {visible.map(model => {
           const name = model.display || model.id
           const isSelected = selected === model.id
           const meta = modelMeta(model)
           const brand = resolveModelBrand(model.id, name)
+          const mark = marks[models.indexOf(model)] ?? ''
 
           return (
             <button
@@ -121,7 +128,7 @@ export function ImageVideoCatalog({
                 className="grid size-8 place-items-center rounded-full border border-(--ui-stroke-secondary) bg-(--ui-bg-primary) text-foreground"
                 data-brand={brand ?? undefined}
               >
-                {brand ? <ModelBrandLogo brand={brand} /> : marks[index]}
+                {brand ? <ModelBrandLogo brand={brand} /> : mark}
               </span>
               <span className="min-w-0">
                 <span className="flex min-w-0 flex-wrap items-center gap-2 text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
@@ -153,6 +160,19 @@ export function ImageVideoCatalog({
           )
         })}
       </div>
+      {moreCount > 0 && (
+        <Button
+          aria-expanded={open}
+          className="mt-2 px-1"
+          onClick={() => setOpen(current => !current)}
+          size="inline"
+          type="button"
+          variant="text"
+        >
+          {open ? t.settings.imageVideo.hideModels : t.settings.imageVideo.showModels(moreCount)}
+          <ChevronDown className={cn('size-3.5 transition', open && 'rotate-180')} />
+        </Button>
+      )}
     </section>
   )
 }

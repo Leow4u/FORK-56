@@ -408,7 +408,9 @@ export const en: Translations = {
       logOutFailed: 'Sign-out failed'
     },
     imageVideo: {
-      intro: 'Choose the image model and the video model.'
+      intro: 'Choose the image model and the video model.',
+      showModels: count => `Show ${count} more ${count === 1 ? 'model' : 'models'}`,
+      hideModels: 'Show less'
     },
     plugins: {
       title: 'Desktop plugins',

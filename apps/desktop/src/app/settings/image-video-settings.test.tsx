@@ -221,8 +221,8 @@ describe('ImageVideoSettings', () => {
 
     expect(await screen.findByRole('radio', { name: /Nano Banana 2/ })).toBeTruthy()
     expect(screen.getByRole('radio', { name: /Veo 3.1/ })).toBeTruthy()
-    expect(screen.getByRole('radio', { name: /FLUX 2 Pro/ })).toBeTruthy()
-    expect(view.container.querySelector('[data-brand="flux"]')).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: /FLUX 2 Pro/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Show 1 more model/ })).toBeTruthy()
     expect(view.container.querySelector('[data-brand="gemini"]')).toBeTruthy()
     expect(view.container.querySelector('[data-brand="deepmind"]')).toBeTruthy()
     expect(screen.queryByText('N2')).toBeNull()
@@ -238,10 +238,23 @@ describe('ImageVideoSettings', () => {
     expect(screen.queryByText('OpenAI')).toBeNull()
   })
 
+  it('expands and collapses the other models', async () => {
+    const { ImageVideoSettings } = await import('./image-video-settings')
+    render(<ImageVideoSettings />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Show 1 more model/ }))
+    expect(await screen.findByRole('radio', { name: /FLUX 2 Pro/ })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show less' }))
+    expect(screen.queryByRole('radio', { name: /FLUX 2 Pro/ })).toBeNull()
+    expect(screen.getByRole('radio', { name: /Nano Banana 2/ })).toBeTruthy()
+  })
+
   it('selects a model through the existing toolset model API', async () => {
     const { ImageVideoSettings } = await import('./image-video-settings')
     render(<ImageVideoSettings />)
 
+    fireEvent.click(await screen.findByRole('button', { name: /Show 1 more model/ }))
     fireEvent.click(await screen.findByRole('radio', { name: /FLUX 2 Pro/ }))
 
     await waitFor(() =>

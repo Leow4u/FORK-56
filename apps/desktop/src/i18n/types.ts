@@ -357,6 +357,8 @@ export interface Translations {
     }
     imageVideo: {
       intro: string
+      showModels: (count: number) => string
+      hideModels: string
     }
     plugins: {
       title: string
