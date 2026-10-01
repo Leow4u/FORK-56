@@ -65,6 +65,7 @@ test('a size the user actually chose is left alone', () => {
 test('a DPI-rounded cousin of the old 620×320 spawn still becomes the bar', () => {
   const legacyWidth = 640
   const legacyHeight = 340
+
   const saved = {
     width: legacyWidth,
     height: legacyHeight,
