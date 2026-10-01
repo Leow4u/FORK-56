@@ -396,6 +396,9 @@ export const zh: Translations = {
       logOutDesc: '结束此应用上的 Portal 会话。',
       logOutFailed: '退出登录失败'
     },
+    imageVideo: {
+      intro: '选择图像模型和视频模型。'
+    },
     plugins: {
       title: '桌面插件',
       blurb:

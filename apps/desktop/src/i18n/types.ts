@@ -355,6 +355,9 @@ export interface Translations {
       logOutDesc: string
       logOutFailed: string
     }
+    imageVideo: {
+      intro: string
+    }
     plugins: {
       title: string
       blurb: string

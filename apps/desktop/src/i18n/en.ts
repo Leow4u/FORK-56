@@ -407,6 +407,9 @@ export const en: Translations = {
       logOutDesc: 'Ends the Portal session on this app.',
       logOutFailed: 'Sign-out failed'
     },
+    imageVideo: {
+      intro: 'Choose the image model and the video model.'
+    },
     plugins: {
       title: 'Desktop plugins',
       blurb: 'Bundled or dropped into the desktop-plugins folder. Disable to unload live.',
