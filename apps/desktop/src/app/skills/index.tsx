@@ -10,7 +10,7 @@ import { PageLoader } from '@/components/page-loader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { CountSkeleton } from '@/components/ui/skeleton'
 import type { DesktopRosterAgent } from '@/global'
 import { useI18n } from '@/i18n'
@@ -40,6 +40,7 @@ import {
 } from '@/work4you'
 
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
+import { ScopeChip } from '../settings/profile-scope'
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
 import {
@@ -125,28 +126,6 @@ async function loadToolCalls(
 const usageOf = (skill: SkillInfo): number => (typeof skill.usage === 'number' ? skill.usage : 0)
 
 const categoryFor = (skill: SkillInfo): string => asText(skill.category) || 'general'
-
-// Row subtitle: category, with non-default origins badged.
-function skillSubtitle(skill: SkillInfo): React.ReactNode {
-  const category = prettyName(categoryFor(skill))
-  const provenance = skill.provenance
-
-  return (
-    <>
-      <span className="truncate">{category}</span>
-      {provenance === 'agent' && (
-        <Badge className="shrink-0 normal-case" variant="default">
-          learned
-        </Badge>
-      )}
-      {provenance === 'hub' && (
-        <Badge className="shrink-0 normal-case" variant="muted">
-          hub
-        </Badge>
-      )}
-    </>
-  )
-}
 
 // Shipped skills stay on disk and in the agent index. The list the person
 // manages shows what they created, what the agent learned, and hub installs.
@@ -475,9 +454,14 @@ export function SkillsView({
 
   // Keep a valid selection: fall back to the first visible row when the
   // current selection is filtered out (or nothing is selected yet).
-  const activeSkill = useMemo(
-    () => visibleSkills.find(s => s.name === selectedSkill) ?? visibleSkills[0] ?? null,
-    [selectedSkill, visibleSkills]
+  // A click opens the skill on its own screen. The list stays up until then —
+  // there is no auto-selected first row.
+  const openSkill = useMemo(
+    () =>
+      selectedSkill
+        ? ((skills ?? []).find(skill => skill.name === selectedSkill && isListedSkill(skill)) ?? null)
+        : null,
+    [selectedSkill, skills]
   )
 
   const activeToolset = useMemo(
@@ -642,6 +626,7 @@ export function SkillsView({
     setSkillDraft('')
     setSkillCategory('')
     setArchiveTarget(null)
+    setSelectedSkill(null)
   })
 
   const openSkillCreate = () => {
@@ -859,6 +844,7 @@ export function SkillsView({
     setSkillDraft('')
     setSkillCategory('')
     setArchiveTarget(null)
+    setSelectedSkill(null)
   }
 
   // Scope-selector rows. Multi-connection desktops list every reachable
@@ -904,22 +890,30 @@ export function SkillsView({
   // Plugins). Lets the user configure ANY profile's capabilities — on any
   // registered gateway — without switching the whole app. Only meaningful
   // with >1 option; hidden otherwise to avoid clutter.
+  const scopeLabel = scopeOptions.find(option => option.value === scopeSelectValue)?.label ?? ''
+  // Same chip row Channels uses. The options stay the capabilities roster,
+  // including a profile that lives on another gateway.
   const profileScopeSelector =
     scopeOptions.length > 1 ? (
-      <div className="flex items-center gap-2 border-b border-(--ui-stroke-secondary) px-3 py-2">
-        <span className="text-[0.7rem] font-medium text-(--ui-text-tertiary)">{t.skills.configuringProfile}</span>
-        <Select onValueChange={changeScope} value={scopeSelectValue}>
-          <SelectTrigger className="h-7 w-56 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {scopeOptions.map(option => (
-              <SelectItem key={option.key} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="grid gap-2 border-b border-(--ui-stroke-secondary) px-4 py-3">
+        <div className="text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-secondary)">
+          {t.settings.profileScope.appliesTo}
+        </div>
+        <div aria-label={t.settings.profileScope.appliesTo} className="flex flex-wrap gap-1.5" role="radiogroup">
+          {scopeOptions.map(option => (
+            <ScopeChip
+              active={option.value === scopeSelectValue}
+              key={option.key}
+              label={option.label}
+              onSelect={() => changeScope(option.value)}
+            />
+          ))}
+        </div>
+        {scopeLabel ? (
+          <p className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+            {t.settings.profileScope.editsProfile(scopeLabel)}
+          </p>
+        ) : null}
       </div>
     ) : null
 
@@ -990,42 +984,68 @@ export function SkillsView({
               // short window shrinks the HUB, never the list: the sort strip
               // and "changes apply" footer can no longer be starved to 0px
               // and painted over by the hub header.
-              <MasterDetail pane={skillEditorPane} resizeId="capabilities-split" split="wide">
-                <ListColumn header={skillsListStrip}>
-                  {visibleSkills.length === 0 ? (
-                    <p className="px-2 py-4 text-[0.68rem] leading-relaxed text-muted-foreground/70">
-                      {query.trim()
-                        ? t.skills.emptyNothingMatches(query.trim())
-                        : t.skills.emptyNoneAvailable('skills')}
-                    </p>
-                  ) : (
-                    visibleSkills.map(skill => (
-                      <CapRow
-                        active={activeSkill?.name === skill.name}
-                        busy={bulkBusy}
-                        enabled={skill.enabled}
-                        key={skill.name}
-                        meta={usageOf(skill) > 0 ? `×${compactNumber(usageOf(skill))}` : undefined}
-                        onSelect={() => setSelectedSkill(skill.name)}
-                        onToggle={enabled => void handleToggleSkill(skill, enabled)}
-                        subtitle={skillSubtitle(skill)}
-                        title={skill.name}
-                        toggleLabel={skill.name}
-                      />
-                    ))
-                  )}
-                </ListColumn>
-                <DetailColumn footer={t.skills.changesApplyNewSessions}>
-                  {activeSkill && (
+              <div className="h-full overflow-y-auto px-4 pb-4">
+                {skillEditor ? (
+                  <div className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col gap-3 py-4">
+                    <button
+                      className="w-fit text-sm text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        setSkillEditor(null)
+                        setSkillCategory('')
+                      }}
+                      type="button"
+                    >
+                      ← {t.skills.tabSkills}
+                    </button>
+                    <div className="min-h-0 flex-1">{skillEditorPane}</div>
+                  </div>
+                ) : openSkill ? (
+                  <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-1 py-4">
+                    <button
+                      className="w-fit text-sm text-muted-foreground hover:text-foreground"
+                      onClick={() => setSelectedSkill(null)}
+                      type="button"
+                    >
+                      ← {t.skills.tabSkills}
+                    </button>
                     <SkillDetail
-                      onArchive={() => setArchiveTarget(activeSkill.name)}
-                      onEdit={() => void openSkillEditor(activeSkill.name)}
+                      busy={bulkBusy}
+                      onArchive={() => setArchiveTarget(openSkill.name)}
+                      onEdit={() => void openSkillEditor(openSkill.name)}
+                      onToggle={enabled => void handleToggleSkill(openSkill, enabled)}
                       profile={scopeProfile}
-                      skill={activeSkill}
+                      skill={openSkill}
                     />
-                  )}
-                </DetailColumn>
-              </MasterDetail>
+                    <p className="text-right text-[0.65rem] text-muted-foreground/50">
+                      {t.skills.changesApplyNewSessions}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 py-2">
+                    {skillsListStrip}
+                    {visibleSkills.length === 0 ? (
+                      <p className="px-2 py-4 text-[0.68rem] leading-relaxed text-muted-foreground/70">
+                        {query.trim()
+                          ? t.skills.emptyNothingMatches(query.trim())
+                          : t.skills.emptyNoneAvailable('skills')}
+                      </p>
+                    ) : (
+                      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {visibleSkills.map(skill => (
+                          <li key={skill.name}>
+                            <SkillCard
+                              busy={bulkBusy}
+                              onOpen={() => setSelectedSkill(skill.name)}
+                              onToggle={enabled => void handleToggleSkill(skill, enabled)}
+                              skill={skill}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
             ) : visibleToolsets.length === 0 ? (
               capabilityEmpty('tools')
             ) : (
@@ -1088,7 +1108,7 @@ export function SkillsView({
               site for no data benefit. */}
           {hubMounted && (
             <EmbeddedHubPicker
-              hidden={displayMode !== 'skills'}
+              hidden={displayMode !== 'skills' || Boolean(skillEditor) || Boolean(openSkill)}
               installedNames={installedSkillNames}
               profile={scopeProfile}
             />
@@ -1194,14 +1214,64 @@ function parseFrontmatter(content: string): { body: string; meta: [string, strin
   return { body: content.slice(match[0].length), meta }
 }
 
+function SkillCard({
+  busy,
+  onOpen,
+  onToggle,
+  skill
+}: {
+  busy: boolean
+  onOpen: () => void
+  onToggle: (enabled: boolean) => void
+  skill: SkillInfo
+}) {
+  const { t } = useI18n()
+  const usage = usageOf(skill)
+
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-(--ui-stroke-tertiary) bg-(--ui-bg-primary) p-3">
+      <button className="min-w-0 flex-1 text-left" onClick={onOpen} type="button">
+        <span className="block truncate text-sm font-medium text-foreground">{skill.name}</span>
+        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{prettyName(categoryFor(skill))}</span>
+        <span className="mt-2 flex flex-wrap items-center gap-2">
+          {skill.provenance === 'agent' && (
+            <Badge className="normal-case" variant="default">
+              {t.skills.provenance.agent}
+            </Badge>
+          )}
+          {skill.provenance === 'hub' && (
+            <Badge className="normal-case" variant="muted">
+              {t.skills.provenance.hub}
+            </Badge>
+          )}
+          {usage > 0 && (
+            <span className="text-xs tabular-nums text-(--ui-text-tertiary)">×{compactNumber(usage)}</span>
+          )}
+        </span>
+      </button>
+      <Switch
+        aria-label={skill.name}
+        checked={skill.enabled}
+        disabled={busy}
+        onCheckedChange={onToggle}
+        size="xs"
+      />
+    </div>
+  )
+}
+
 function SkillDetail({
+  busy,
   onArchive,
   onEdit,
+  onToggle,
   profile,
   skill
 }: {
+  busy: boolean
   onArchive: () => void
   onEdit: () => void
+  onToggle: (enabled: boolean) => void
   profile?: ProfileScope
   skill: SkillInfo
 }) {
@@ -1224,22 +1294,40 @@ function SkillDetail({
     [contentQuery.data]
   )
 
+  const usage = usageOf(skill)
+
   return (
     <>
-      <DetailHeader
-        description={asText(skill.description) || t.skills.noDescription}
-        pills={
-          <>
-            <PanelPill>{prettyName(categoryFor(skill))}</PanelPill>
-            {skill.provenance && skill.provenance !== 'bundled' && (
-              <PanelPill tone={skill.provenance === 'agent' ? 'good' : 'muted'}>
-                {t.skills.provenance[skill.provenance]}
-              </PanelPill>
-            )}
-          </>
-        }
-        title={skill.name}
-      />
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <DetailHeader
+            description={asText(skill.description) || t.skills.noDescription}
+            pills={
+              <>
+                <PanelPill>{prettyName(categoryFor(skill))}</PanelPill>
+                {skill.provenance && skill.provenance !== 'bundled' && (
+                  <PanelPill tone={skill.provenance === 'agent' ? 'good' : 'muted'}>
+                    {t.skills.provenance[skill.provenance]}
+                  </PanelPill>
+                )}
+              </>
+            }
+            title={skill.name}
+          />
+        </div>
+        <div className="flex shrink-0 items-center gap-2 pt-0.5">
+          {usage > 0 && (
+            <span className="text-xs tabular-nums text-(--ui-text-tertiary)">×{compactNumber(usage)}</span>
+          )}
+          <Switch
+            aria-label={skill.name}
+            checked={skill.enabled}
+            disabled={busy}
+            onCheckedChange={onToggle}
+            size="xs"
+          />
+        </div>
+      </div>
       {editable && (
         <div className="flex items-center gap-2">
           <Button onClick={onEdit} size="xs" variant="text">

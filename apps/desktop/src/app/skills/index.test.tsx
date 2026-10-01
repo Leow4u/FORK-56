@@ -293,14 +293,9 @@ describe('SkillsView toolset management', () => {
       )
     })
 
-    // The selector appears with >1 profile.
-    const trigger = await screen.findByRole('combobox')
+    // The selector appears with >1 profile, as the same chips Channels uses.
     await act(async () => {
-      fireEvent.click(trigger)
-    })
-    const option = await screen.findByRole('option', { name: 'researcher' })
-    await act(async () => {
-      fireEvent.click(option)
+      fireEvent.click(await screen.findByRole('radio', { name: 'researcher' }))
     })
 
     // Toolsets refetch scoped to the picked profile.
@@ -340,13 +335,8 @@ describe('SkillsView toolset management', () => {
     })
 
     // The selector renders on the Skills tab too (Capabilities-wide).
-    const trigger = await screen.findByRole('combobox')
     await act(async () => {
-      fireEvent.click(trigger)
-    })
-    const option = await screen.findByRole('option', { name: 'researcher' })
-    await act(async () => {
-      fireEvent.click(option)
+      fireEvent.click(await screen.findByRole('radio', { name: 'researcher' }))
     })
 
     // Skills refetch scoped to the picked profile...
@@ -381,6 +371,11 @@ describe('SkillsView toolset management', () => {
           </MemoryRouter>
         </QueryClientProvider>
       )
+    })
+
+    // The list is cards. The SKILL.md screen opens on click.
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /web-research/ }))
     })
 
     // Frontmatter renders as metadata rows, the body as full text — not just
@@ -649,13 +644,8 @@ describe('SkillsView new skill', () => {
 
     await renderSkillsTab()
 
-    const trigger = await screen.findByRole('combobox')
     await act(async () => {
-      fireEvent.click(trigger)
-    })
-    const option = await screen.findByRole('option', { name: 'researcher' })
-    await act(async () => {
-      fireEvent.click(option)
+      fireEvent.click(await screen.findByRole('radio', { name: 'researcher' }))
     })
 
     await waitFor(() => expect(getSkills).toHaveBeenCalledWith('researcher'))
@@ -690,12 +680,8 @@ describe('SkillsView new skill', () => {
     })
     expect(await screen.findByPlaceholderText('my-skill')).toBeTruthy()
 
-    const trigger = screen.getByRole('combobox')
     await act(async () => {
-      fireEvent.click(trigger)
-    })
-    await act(async () => {
-      fireEvent.click(await screen.findByRole('option', { name: 'researcher' }))
+      fireEvent.click(screen.getByRole('radio', { name: 'researcher' }))
     })
 
     await waitFor(() => expect(screen.queryByPlaceholderText('my-skill')).toBeNull())
