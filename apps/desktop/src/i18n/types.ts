@@ -923,6 +923,9 @@ export interface Translations {
     }
     model: {
       loading: string
+      pickerIntro: string
+      searchModels: string
+      viewAll: string
       appliesDesc: string
       provider: string
       model: string
