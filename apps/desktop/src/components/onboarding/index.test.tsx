@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   $desktopOnboarding,
@@ -250,7 +250,7 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
     expect(screen.queryByText('Sign in to continue')).toBeNull()
   })
 
-  it('keeps a waiting panel after authorize instead of Get started', () => {
+  it('drops the gate after authorize instead of a model-picking screen', () => {
     const portal = makeOAuthProvider('work4you', 'Work4You Portal')
     setProviders([portal], {
       configured: false,
@@ -259,11 +259,17 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
     render(<DesktopOnboardingOverlay enabled profile="default" requestGateway={requestGateway} />)
 
     expect(screen.queryByRole('button', { name: 'Get started' })).toBeNull()
-    expect(screen.getByText('Work4You Portal connected. Picking a default model...')).toBeTruthy()
+    expect(screen.queryByText('Work4You Portal connected. Picking a default model...')).toBeNull()
+    expect(screen.queryByText('Finish in your browser.')).toBeNull()
   })
 
-  it('keeps the device-code waiting panel while Portal poll is in flight', () => {
+  it('keeps one browser wait while Portal poll is in flight', () => {
     const portal = makeOAuthProvider('work4you', 'Work4You Portal')
+    const openExternal = vi.fn(async () => undefined)
+    Object.defineProperty(window, 'work4youDesktop', {
+      configurable: true,
+      value: { openExternal }
+    })
     setProviders([portal], {
       configured: false,
       flow: {
@@ -283,9 +289,17 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
     render(<DesktopOnboardingOverlay enabled profile="default" requestGateway={requestGateway} />)
 
     expect(screen.queryByRole('button', { name: 'Get started' })).toBeNull()
-    expect(screen.getByText('Waiting for you to authorize...')).toBeTruthy()
-    expect(screen.getByText('5')).toBeTruthy()
-    expect(screen.getByText('X')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Work4You Desktop' })).toBeTruthy()
+    expect(screen.getByText('Finish in your browser.')).toBeTruthy()
+    expect(screen.queryByText('Waiting for you to authorize...')).toBeNull()
+    expect(screen.queryByText('5')).toBeNull()
+    expect(screen.queryByText('X')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen' }))
+    expect(openExternal).toHaveBeenCalledWith('https://portal.work4you.ai/device?user_code=5X63-ZPDL')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect($desktopOnboarding.get().flow.status).toBe('idle')
   })
 
   it('does not mint a second device code when Get started is clicked twice', async () => {
@@ -350,15 +364,18 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
 
     expect(startCalls).toHaveLength(1)
     expect($desktopOnboarding.get().flow.status).toBe('starting')
+    expect(screen.getByText('Finish in your browser.')).toBeTruthy()
+    expect(screen.queryByText(/Starting sign-in/)).toBeNull()
 
     releaseStart?.(undefined)
 
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Get started' })).toBeNull())
     expect($desktopOnboarding.get().flow.status).toBe('polling')
     expect(startCalls).toHaveLength(1)
-    expect(screen.getByText('Waiting for you to authorize...')).toBeTruthy()
-    expect(screen.getByText('5')).toBeTruthy()
-    expect(screen.getByText('X')).toBeTruthy()
+    expect(screen.getByText('Finish in your browser.')).toBeTruthy()
+    expect(screen.queryByText('Waiting for you to authorize...')).toBeNull()
+    expect(screen.queryByText('5')).toBeNull()
+    expect(screen.queryByText('X')).toBeNull()
   })
 
   it('first-run overlay is a full-bleed Get started door', async () => {

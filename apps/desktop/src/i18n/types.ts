@@ -2740,6 +2740,8 @@ export interface Translations {
     headerDesc: string
     welcomeTitle: string
     welcomeSubtitle: string
+    finishInBrowser: string
+    reopen: string
     getStarted: string
     preparingInstall: string
     starting: string

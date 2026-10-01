@@ -18,10 +18,12 @@ import {
   confirmOnboardingModel,
   DEFAULT_MANUAL_ONBOARDING_REASON,
   DEFAULT_ONBOARDING_REASON,
+  cancelOnboardingFlow,
   isOnboardingFlowInFlight,
   type OnboardingContext,
   peekPendingProviderOAuth,
   refreshOnboarding,
+  reopenOnboardingBrowser,
   saveOnboardingApiKey,
   setOnboardingMode,
   startProviderOAuth
@@ -285,6 +287,12 @@ export function DesktopOnboardingOverlay({
     return null
   }
 
+  // Authorized: the browser already finished the form. Drop the gate and
+  // land in chat. Model selection keeps running behind that.
+  if (!preview && !onboarding.manual && onboarding.flow.status === 'success') {
+    return null
+  }
+
   const { flow, manual, reauth } = onboarding
   // Show the launch reason only when it's a meaningful, caller-supplied prompt —
   // suppress the generic defaults (useless noise) and provider-setup errors
@@ -310,13 +318,11 @@ export function DesktopOnboardingOverlay({
   // bare welcome. Logout must not grow a "session expired" card on top of it.
   const firstRunWelcome = ready && showPicker && !manual
 
-  const firstRunConnecting =
-    ready &&
-    !manual &&
-    (flow.status === 'starting' ||
-      flow.status === 'polling' ||
-      flow.status === 'submitting' ||
-      flow.status === 'success')
+  // Starting and polling share one quiet wait. The Portal page owns the code.
+  const portalBrowserWait =
+    ready && !manual && (flow.status === 'starting' || flow.status === 'polling' || flow.status === 'submitting')
+
+  const firstRunConnecting = portalBrowserWait
 
   const bare = firstRunWelcome || firstRunConnecting || (ready && !showPicker && flow.status === 'confirming_model')
 
@@ -361,6 +367,8 @@ export function DesktopOnboardingOverlay({
           {ready ? (
             showPicker ? (
               <Picker ctx={ctx} />
+            ) : portalBrowserWait ? (
+              <PortalBrowserWait />
             ) : (
               <FlowPanel ctx={ctx} flow={flow} leaving={leaving} onBegin={finalizeOnboarding} />
             )
@@ -478,6 +486,27 @@ function startPickerOAuth(provider: OAuthProvider, ctx: OnboardingContext) {
 
 function portalFromCatalog(providers: OAuthProvider[] | null) {
   return providers?.find(p => p.id === FEATURED_ID) ?? fallbackPortalProvider()
+}
+
+function PortalBrowserWait() {
+  const { t } = useI18n()
+
+  return (
+    <div className="grid justify-items-center text-center">
+      <BrandMark className="size-16" />
+      <h1 className="mt-7 text-3xl font-semibold tracking-tight">{t.onboarding.welcomeTitle}</h1>
+      <p className="mt-3 text-sm leading-5 text-muted-foreground">{t.onboarding.finishInBrowser}</p>
+      <div className="mt-8 flex items-center gap-3 text-sm text-muted-foreground">
+        <Button onClick={() => reopenOnboardingBrowser()} size="xs" type="button" variant="text">
+          {t.onboarding.reopen}
+        </Button>
+        <span aria-hidden="true">·</span>
+        <Button onClick={() => cancelOnboardingFlow()} size="xs" type="button" variant="text">
+          {t.common.cancel}
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 function FirstRunWelcome({ ctx }: { ctx: OnboardingContext }) {
