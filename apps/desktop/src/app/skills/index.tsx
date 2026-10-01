@@ -10,8 +10,8 @@ import { PageLoader } from '@/components/page-loader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { CountSkeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import type { DesktopRosterAgent } from '@/global'
 import { useI18n } from '@/i18n'
 import { isDesktopToolsetVisible } from '@/lib/desktop-toolsets'
@@ -40,7 +40,6 @@ import {
 } from '@/work4you'
 
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
-import { ScopeChip } from '../settings/profile-scope'
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
 import {
@@ -61,6 +60,7 @@ import { SETTINGS_ROUTE } from '../routes'
 import { ComputerUsePanel } from '../settings/computer-use-panel'
 import { asText, includesQuery, prettyName, toolNames, toolsetDisplayLabel } from '../settings/helpers'
 import { PluginsSettings } from '../settings/plugins-settings'
+import { ScopeChip } from '../settings/profile-scope'
 import { TerminalBackendPanel } from '../settings/terminal-backend-panel'
 import { ToolsetConfigPanel } from '../settings/toolset-config-panel'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
@@ -891,6 +891,7 @@ export function SkillsView({
   // registered gateway — without switching the whole app. Only meaningful
   // with >1 option; hidden otherwise to avoid clutter.
   const scopeLabel = scopeOptions.find(option => option.value === scopeSelectValue)?.label ?? ''
+
   // Same chip row Channels uses. The options stay the capabilities roster,
   // including a profile that lives on another gateway.
   const profileScopeSelector =
