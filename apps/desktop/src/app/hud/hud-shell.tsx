@@ -12,13 +12,7 @@ import { WiredPane } from '../contrib/wiring'
 import { useHudClickThrough } from './click-through'
 import { useHudGlass } from './glass'
 import { useHudGoto, useReportHudSession } from './handoff'
-import {
-  HUD_MENU_ROOM,
-  HUD_RESTING_HEIGHT,
-  type HudPlacement,
-  hudTranscriptHeight,
-  hudWindowFrame
-} from './layout'
+import { HUD_MENU_ROOM, HUD_RESTING_HEIGHT, type HudPlacement, hudTranscriptHeight, hudWindowFrame } from './layout'
 import { useHudResizeHandle } from './resize-handle'
 import { useHudThreadFocus } from './thread-focus'
 
