@@ -355,6 +355,11 @@ export interface Translations {
       logOutDesc: string
       logOutFailed: string
     }
+    imageVideo: {
+      intro: string
+      showModels: (count: number) => string
+      hideModels: string
+    }
     plugins: {
       title: string
       blurb: string

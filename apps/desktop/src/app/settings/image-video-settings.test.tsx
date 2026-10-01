@@ -46,8 +46,10 @@ vi.mock('@/work4you', () => ({
   setToolsetEnabled: (name: string, enabled: boolean, profile?: null | string) =>
     setToolsetEnabled(name, enabled, profile),
   getToolsetConfig: (name: string) => getToolsetConfig(name),
-  getToolsetModels: (name: string, provider?: string) => getToolsetModels(name, provider),
-  selectToolsetModel: (name: string, model: string, provider?: string) => selectToolsetModel(name, model, provider),
+  getToolsetModels: (name: string, provider?: string, profile?: null | string) =>
+    getToolsetModels(name, provider, profile),
+  selectToolsetModel: (name: string, model: string, provider?: string, profile?: null | string) =>
+    selectToolsetModel(name, model, provider, profile),
   selectToolsetProvider: (name: string, provider: string) => selectToolsetProvider(name, provider),
   setEnvVar: (key: string, value: string) => setEnvVar(key, value),
   deleteEnvVar: (key: string) => deleteEnvVar(key),
@@ -177,10 +179,17 @@ beforeEach(() => {
       plugin: 'fal',
       models: [
         {
+          id: 'fal-ai/flux-2-pro',
+          display: 'FLUX 2 Pro',
+          speed: '~6s',
+          strengths: 'Studio photorealism',
+          price: '$0.03/MP'
+        },
+        {
           id: 'fal-ai/nano-banana-2',
           display: 'Nano Banana 2 (Gemini 3.1 Flash Image)',
-          speed: 'fast',
-          strengths: '',
+          speed: '~3s',
+          strengths: 'Fast reasoning',
           price: ''
         }
       ],
@@ -199,47 +208,94 @@ afterEach(() => {
 })
 
 describe('ImageVideoSettings', () => {
-  it('hosts Image and Video Generation with Subscription plus models, not BYOK', async () => {
+  it('lists image and video models without a power switch or subscription chrome', async () => {
     const { ImageVideoSettings } = await import('./image-video-settings')
-    render(<ImageVideoSettings />)
+    const view = render(<ImageVideoSettings />)
 
     expect(await screen.findByRole('heading', { name: 'Image & Video' })).toBeTruthy()
-    expect(await screen.findByRole('switch', { name: 'Image Generation' })).toBeTruthy()
-    expect(screen.getByRole('switch', { name: 'Video Generation' })).toBeTruthy()
+    expect(screen.getByText('Choose the image model and the video model.')).toBeTruthy()
+    expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.queryByText('Web Search')).toBeNull()
+    expect(getToolsetConfig).not.toHaveBeenCalled()
+    expect(setToolsetEnabled).not.toHaveBeenCalled()
 
-    expect((await screen.findAllByRole('button', { name: /Work4You Subscription/ })).length).toBeGreaterThanOrEqual(2)
-    expect(await screen.findByText('Nano Banana 2 (Gemini 3.1 Flash Image)')).toBeTruthy()
-    expect(await screen.findByText('Veo 3.1')).toBeTruthy()
-    expect(screen.queryByText('Loading configuration')).toBeNull()
+    expect(await screen.findByRole('radio', { name: /Nano Banana 2/ })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: /Veo 3.1/ })).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: /FLUX 2 Pro/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Show 1 more model/ })).toBeTruthy()
+    expect(view.container.querySelector('[data-brand="gemini"]')).toBeTruthy()
+    expect(view.container.querySelector('[data-brand="deepmind"]')).toBeTruthy()
+    expect(screen.queryByText('N2')).toBeNull()
+    expect(screen.queryByText('F2')).toBeNull()
+    expect(screen.queryByText('V3')).toBeNull()
+    expect(screen.getAllByText('In use').length).toBeGreaterThanOrEqual(2)
+    expect(screen.queryByText('Work4You Subscription')).toBeNull()
+    expect(screen.queryByText('No API key required.')).toBeNull()
+    expect(screen.queryByText('This is your active backend')).toBeNull()
+    expect(screen.queryByText('Managed FAL image generation billed to your subscription')).toBeNull()
     expect(screen.queryByText('FAL.ai')).toBeNull()
     expect(screen.queryByText('DeepInfra')).toBeNull()
-    expect(screen.queryByText('FAL')).toBeNull()
-    expect(screen.queryByText('xAI Grok Imagine')).toBeNull()
-    expect(screen.queryByText('Work4You Portal (image)')).toBeNull()
     expect(screen.queryByText('OpenAI')).toBeNull()
   })
 
-  it('does not show a configuration setup state while the subscription row loads', async () => {
-    getToolsetConfig.mockImplementation(() => new Promise(() => {}))
-
+  it('expands and collapses the other models', async () => {
     const { ImageVideoSettings } = await import('./image-video-settings')
     render(<ImageVideoSettings />)
 
-    expect(await screen.findByRole('switch', { name: 'Image Generation' })).toBeTruthy()
-    expect(screen.queryByText('Loading configuration')).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: /Show 1 more model/ }))
+    expect(await screen.findByRole('radio', { name: /FLUX 2 Pro/ })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show less' }))
+    expect(screen.queryByRole('radio', { name: /FLUX 2 Pro/ })).toBeNull()
+    expect(screen.getByRole('radio', { name: /Nano Banana 2/ })).toBeTruthy()
   })
 
-  it('toggles Image Generation through setToolsetEnabled', async () => {
+  it('selects a model through the existing toolset model API', async () => {
     const { ImageVideoSettings } = await import('./image-video-settings')
     render(<ImageVideoSettings />)
 
-    const sw = await screen.findByRole('switch', { name: 'Image Generation' })
-    expect(sw.getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(await screen.findByRole('button', { name: /Show 1 more model/ }))
+    fireEvent.click(await screen.findByRole('radio', { name: /FLUX 2 Pro/ }))
 
-    fireEvent.click(sw)
+    await waitFor(() =>
+      expect(selectToolsetModel).toHaveBeenCalledWith(
+        'image_gen',
+        'fal-ai/flux-2-pro',
+        'Work4You Subscription',
+        null
+      )
+    )
+  })
 
-    await waitFor(() => expect(setToolsetEnabled).toHaveBeenCalled())
-    expect(setToolsetEnabled.mock.calls[0].slice(0, 2)).toEqual(['image_gen', false])
+  it('turns a disabled image or video toolset back on', async () => {
+    getToolsets.mockResolvedValueOnce([
+      toolset({ enabled: false }),
+      toolset({
+        name: 'video_gen',
+        label: 'Video Generation',
+        description: 'video_generate',
+        tools: ['video_generate']
+      })
+    ])
+
+    const { ImageVideoSettings } = await import('./image-video-settings')
+    render(<ImageVideoSettings />)
+
+    await waitFor(() => expect(setToolsetEnabled).toHaveBeenCalledWith('image_gen', true, null))
+    expect(screen.queryByRole('switch')).toBeNull()
+    expect(await screen.findByRole('radio', { name: /Nano Banana 2/ })).toBeTruthy()
+  })
+
+  it('shows the model list loading line instead of provider setup', async () => {
+    getToolsetModels.mockImplementation(() => new Promise(() => {}))
+
+    const { ImageVideoSettings } = await import('./image-video-settings')
+    render(<ImageVideoSettings />)
+
+    expect(await screen.findByText('Image Generation')).toBeTruthy()
+    expect(screen.getAllByText('Loading model catalog...').length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByRole('switch')).toBeNull()
+    expect(screen.queryByText('Loading configuration')).toBeNull()
+    expect(screen.queryByText('Work4You Subscription')).toBeNull()
   })
 })
