@@ -1,8 +1,10 @@
 import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from 'react'
 
-/** Clamp to the same mins the window was created with (spawnHudWindow). */
+/** Clamp to the same mins the window was created with (spawnHudWindow /
+ *  electron/hud-geometry.ts). The height floor is the composer, not a slab
+ *  under it — a taller floor is what kept an empty HUD from being the bar. */
 const HUD_MIN_WIDTH = 380
-const HUD_MIN_HEIGHT = 160
+const HUD_MIN_HEIGHT = 48
 
 interface ResizeState {
   startX: number

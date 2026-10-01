@@ -4,6 +4,7 @@
 // latch when handing the session back to the app window.
 import { type BrowserWindow, ipcMain } from 'electron'
 
+import { HUD_MIN_HEIGHT, HUD_MIN_WIDTH } from './hud-geometry'
 import { hudFrostFor, type TranslucencyState } from './translucency'
 
 export interface HudIpcDeps {
@@ -154,8 +155,8 @@ export function registerHudIpc({
     }
 
     const win = hudWindow
-    const width = Math.max(380, Math.round(Number(bounds.width)))
-    const height = Math.max(160, Math.round(Number(bounds.height)))
+    const width = Math.max(HUD_MIN_WIDTH, Math.round(Number(bounds.width)))
+    const height = Math.max(HUD_MIN_HEIGHT, Math.round(Number(bounds.height)))
     const [curW, curH] = win.getSize()
     const resizing = width !== curW || height !== curH
 

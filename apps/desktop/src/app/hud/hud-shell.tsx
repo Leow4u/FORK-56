@@ -12,7 +12,13 @@ import { WiredPane } from '../contrib/wiring'
 import { useHudClickThrough } from './click-through'
 import { useHudGlass } from './glass'
 import { useHudGoto, useReportHudSession } from './handoff'
-import { hudTranscriptHeight } from './layout'
+import {
+  HUD_MENU_ROOM,
+  HUD_RESTING_HEIGHT,
+  type HudPlacement,
+  hudTranscriptHeight,
+  hudWindowFrame
+} from './layout'
 import { useHudResizeHandle } from './resize-handle'
 import { useHudThreadFocus } from './thread-focus'
 
@@ -245,7 +251,14 @@ export function HudShell() {
   // which is correct, and asking anything looser paints the slab back.
   const [filled, setFilled] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  // Corner resize opts out of fitting for the rest of this open. A drag keeps
+  // the bar where it was put; until either happens the window is still the
+  // spawn slot and its height follows the composer and the transcript.
+  const placementRef = useRef<HudPlacement>('free')
+  const ownedFrameRef = useRef(false)
 
+  // Gesture latches written from the measure callback, not atom mirrors.
+  // eslint-disable-next-line no-restricted-syntax -- placement/owned track drag and corner-resize, not store state
   useEffect(() => {
     const root = rootRef.current
 
@@ -312,6 +325,49 @@ export function HudShell() {
       }
 
       setFilled(barHeight + visible >= window.innerHeight - 1)
+
+      if (root.querySelector('[data-hud-resize][data-hud-grabbing]')) {
+        placementRef.current = 'resized'
+      } else if (
+        placementRef.current !== 'resized' &&
+        root.querySelector('[data-slot="composer-root"][data-hud-grabbing]')
+      ) {
+        placementRef.current = 'moved'
+      }
+
+      // Mid-gesture the pointer owns the window. Fitting here fights the drag
+      // and the corner resize.
+      if (root.querySelector('[data-hud-grabbing]')) {
+        return
+      }
+
+      const screenTop = (window.screen as { availTop?: number }).availTop ?? 0
+      const scale = window.innerHeight > 0 ? window.outerHeight / window.innerHeight : 1
+
+      const menuOpen = document.querySelector(
+        '[data-slot="composer-completion-drawer"], [data-slot="dropdown-menu-content"], [data-slot="popover-content"]'
+      )
+
+      const decision = hudWindowFrame({
+        barHeight: barHeight * scale,
+        chromeHeight: menuOpen ? HUD_MENU_ROOM * scale : 0,
+        contentHeight: contentSpan * scale,
+        x: window.screenX,
+        y: window.screenY,
+        width: window.outerWidth,
+        height: window.outerHeight,
+        topLimit: screenTop,
+        bottomLimit: screenTop + window.screen.availHeight,
+        placement: placementRef.current,
+        owned: ownedFrameRef.current,
+        restingHeight: HUD_RESTING_HEIGHT
+      })
+
+      ownedFrameRef.current = decision.owned
+
+      if (decision.bounds) {
+        window.work4youDesktop?.hud?.setBounds?.(decision.bounds)
+      }
     }
 
     // The viewport mounts async (lazy chat surface); poll briefly until it
@@ -322,9 +378,25 @@ export function HudShell() {
     const probe = setInterval(measure, 500)
     window.addEventListener('resize', measure)
 
+    // Menus portal out of the band and don't resize the composer. A click or
+    // a slash is what opens them; the next frame is when the portal exists.
+    const poke = () => {
+      requestAnimationFrame(measure)
+      window.setTimeout(measure, 50)
+    }
+
+    root.addEventListener('pointerdown', poke)
+    root.addEventListener('pointerup', poke)
+    root.addEventListener('input', poke)
+    root.addEventListener('keyup', poke)
+
     return () => {
       clearInterval(probe)
       window.removeEventListener('resize', measure)
+      root.removeEventListener('pointerdown', poke)
+      root.removeEventListener('pointerup', poke)
+      root.removeEventListener('input', poke)
+      root.removeEventListener('keyup', poke)
       ro.disconnect()
     }
   }, [])

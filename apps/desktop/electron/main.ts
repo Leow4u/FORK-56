@@ -191,6 +191,7 @@ import {
   writeSecretFileAtomic
 } from './hardening'
 import { cursorPointInWindow } from './hud-cursor'
+import { HUD_MIN_HEIGHT, HUD_MIN_WIDTH, resolveHudBounds } from './hud-geometry'
 import { registerHudIpc } from './hud-ipc'
 import { snapHudBounds } from './hud-snap'
 import { createHudSnapShortcut } from './hud-snap-shortcut'
@@ -11715,13 +11716,13 @@ let hudSessionId = null
 // must be respawned against the new profile's backend (see openHudWindow).
 let hudProfile = null
 
-// A wide, short bar parked near the bottom of the active display — the shape
-// of a game chat frame, and where one belongs. Defaults only: once the user
-// moves or resizes the HUD, hud-state.json wins (same pattern as the main
-// window's window-state.json).
-const HUD_WIDTH = 620
-const HUD_HEIGHT = 320
-const HUD_BOTTOM_MARGIN = 72
+// A short bar parked near the bottom of the active display — Spotlight's
+// shape. The resting window is only tall enough for the composer; the
+// renderer lengthens it when a transcript hangs underneath (see
+// hudWindowFrame). Defaults only: once the user moves or resizes the HUD,
+// hud-state.json wins (same pattern as the main window's window-state.json),
+// except a persisted copy of the old 620×320 spawn, which resolveHudBounds
+// treats as "never sized".
 const HUD_STATE_PATH = path.join(app.getPath('userData'), 'hud-state.json')
 
 function readHudState() {
@@ -11730,8 +11731,8 @@ function readHudState() {
 
     if (
       [raw?.x, raw?.y, raw?.width, raw?.height].every(v => Number.isFinite(v)) &&
-      raw.width >= 380 &&
-      raw.height >= 160
+      raw.width >= HUD_MIN_WIDTH &&
+      raw.height >= HUD_MIN_HEIGHT
     ) {
       return raw
     }
@@ -11849,44 +11850,41 @@ function startHudCursorFeed(win: BrowserWindow) {
   win.on('closed', () => clearInterval(timer))
 }
 
+function hudOnScreen(
+  saved: { x: number; y: number; width: number; height: number },
+  area: { x: number; y: number; width: number; height: number }
+) {
+  return (
+    saved.x < area.x + area.width - 40 &&
+    saved.x + saved.width > area.x + 40 &&
+    saved.y < area.y + area.height - 40 &&
+    saved.y + saved.height > area.y + 40
+  )
+}
+
 function hudBounds() {
   // Remembered spot first — validated against the LIVE displays so a HUD
   // parked on an unplugged monitor comes back on-screen instead of lost.
   const saved = readHudState()
 
   if (saved) {
-    const onScreen = screen.getAllDisplays().some(d => {
-      const a = d.workArea
+    const home = screen.getAllDisplays().find(d => hudOnScreen(saved, d.workArea))
 
-      return (
-        saved.x < a.x + a.width - 40 &&
-        saved.x + saved.width > a.x + 40 &&
-        saved.y < a.y + a.height - 40 &&
-        saved.y + saved.height > a.y + 40
-      )
-    })
-
-    if (onScreen) {
-      return saved
+    if (home) {
+      return resolveHudBounds(saved, home.workArea)
     }
   }
 
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
-  const area = display?.workArea
+  const fresh = resolveHudBounds(null, display?.workArea ?? null)
 
-  if (!area) {
-    return { width: HUD_WIDTH, height: HUD_HEIGHT, x: undefined, y: undefined }
+  // No work area: let Electron place the window. An explicit 0,0 parks it in
+  // the corner.
+  if (!display?.workArea) {
+    return { width: fresh.width, height: fresh.height }
   }
 
-  const width = Math.min(HUD_WIDTH, area.width)
-  const height = Math.min(HUD_HEIGHT, area.height)
-
-  return {
-    width,
-    height,
-    x: Math.round(area.x + (area.width - width) / 2),
-    y: Math.round(Math.max(area.y, area.y + area.height - height - HUD_BOTTOM_MARGIN))
-  }
+  return fresh
 }
 
 function hudUrl(sessionId, profile) {
@@ -11919,8 +11917,8 @@ function broadcastHudState(open) {
 function spawnHudWindow(sessionId, profile) {
   const win = new BrowserWindow({
     ...hudBounds(),
-    minWidth: 380,
-    minHeight: 160,
+    minWidth: HUD_MIN_WIDTH,
+    minHeight: HUD_MIN_HEIGHT,
     title: HUD_WINDOW_TITLE,
     frame: false,
     transparent: true,
