@@ -2667,16 +2667,19 @@ button[data-slot='aui_msg-reactions'] svg {
    render: the transcript is the app's transcript, and a HUD that reinvents
    bubbles is a second design to keep in sync. Layout and surface only. */
 
-/* The HOST LAYERS are made transparent at mount, not here: index.html's
-   pre-paint script sets an opaque themed background on <html> as an INLINE
-   style (the anti-white-flash trick), and an inline style beats a stylesheet
-   rule. Against that opaque wall every translucent panel below is just glass
-   over white — which is exactly how this shipped: a plain opaque slab. The
-   pet overlay and quick entry inject a style tag at mount for the same
-   reason; HudShell does it too. See `hud-shell.tsx`. */
-
+/* index.html's pre-paint script sets an opaque themed background on <html> as
+   an INLINE style, and <body> paints the chat field. Without `!important`
+   that inline color wins and every translucent panel below is glass over a
+   white wall — the slab this shipped as. `!important` beats a non-important
+   inline color as soon as the shell is in the tree. HudShell also injects a
+   style tag at mount (same as the pet overlay and quick entry) in case a
+   later script rewrites the inline color. */
+html:has([data-hud-shell]),
+html:has([data-hud-shell]) body,
+html:has([data-hud-shell]) #root,
 [data-hud-shell] {
-  background: transparent;
+  background: transparent !important;
+  background-color: transparent !important;
   /* Arrive decisively and settle; leave gently and get out of the way. Linear
      both directions is what made this feel mechanical. */
   --hud-ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
@@ -3167,6 +3170,7 @@ button[data-slot='aui_msg-reactions'] svg {
   top: auto !important;
   width: 100% !important;
   max-width: none !important;
+  height: auto !important;
   transform: none !important;
   /* Keep this value indirect. Lightning CSS folds literal identity values into
      `transform: translate(0)`, which does not override Tailwind's standalone
@@ -3267,8 +3271,8 @@ button[data-slot='aui_msg-reactions'] svg {
    other apps would be a stray UI fragment. It opts in to pointer events the
    same way every other HUD control does (the shell defaults to none). */
 [data-hud-shell] [data-hud-resize] {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 2rem;
+  height: 2rem;
   cursor: nwse-resize;
   pointer-events: auto;
   touch-action: none;
