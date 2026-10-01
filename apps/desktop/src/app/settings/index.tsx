@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { KbdCombo } from '@/components/ui/kbd'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { BarChart3, Bell, Monitor, Search } from '@/lib/icons'
+import { BarChart3, Bell, Monitor, Search, User } from '@/lib/icons'
 import { isEditableTarget } from '@/lib/keybinds/combo'
 import { typeToFocusChar } from '@/lib/keybinds/composer-focus-keys'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,7 @@ import { OverlayMain, OverlayNav, type OverlayNavGroup, OverlaySplitLayout } fro
 import { OverlayView } from '../overlays/overlay-view'
 import { SKILLS_ROUTE } from '../routes'
 
+import { AccountSettings } from './account-settings'
 import { AppSettings } from './app-settings'
 import { AppearanceSettings } from './appearance-settings'
 import { BillingSettings } from './billing'
@@ -29,6 +30,7 @@ import { capabilitiesSettingsRedirect, settingsTabReplacement } from './retired-
 import type { SettingsPageProps, SettingsView as SettingsViewId } from './types'
 
 const SETTINGS_VIEWS: readonly SettingsViewId[] = [
+  'account',
   ...SECTIONS.map(s => `config:${s.id}` as SettingsViewId),
   'providers',
   // The four-mode gateway page left the menu. Kept in the enum so saved
@@ -73,7 +75,7 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     }
   }, [navigate, search])
 
-  const [activeView, setActiveView] = useRouteEnumParam('tab', SETTINGS_VIEWS, 'config:model' as SettingsViewId)
+  const [activeView, setActiveView] = useRouteEnumParam('tab', SETTINGS_VIEWS, 'account')
 
   // Gateway topology left Settings. Old bookmarks, including the connections
   // alias, land on Billing next to the Portal account.
@@ -108,6 +110,13 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
 
   const navGroups: OverlayNavGroup[] = useMemo(
     () => [
+      {
+        active: activeView === 'account',
+        icon: User,
+        id: 'account',
+        label: t.settings.nav.account,
+        onSelect: () => setActiveView('account')
+      },
       ...SECTIONS.map(s => {
         const view = `config:${s.id}` as SettingsViewId
 
@@ -198,7 +207,9 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
   )
 
   const activeSettingsContent =
-    activeView === 'config:appearance' ? (
+    activeView === 'account' ? (
+      <AccountSettings />
+    ) : activeView === 'config:appearance' ? (
       <AppearanceSettings />
     ) : activeView === 'config:image_video' ? (
       // Empty `keys: []` like Appearance — intercept before the generic

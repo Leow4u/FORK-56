@@ -3929,8 +3929,38 @@ class TestNewEndpoints:
 
         assert resp.status_code == 401
 
+    def test_portal_account_refresh_rereads_after_the_name_is_saved(self, monkeypatch):
+        calls = []
 
-    # --- Automation Blueprints ---
+        def reset():
+            calls.append("reset")
+
+        def read():
+            calls.append("read")
+            return {
+                "logged_in": True,
+                "email": "ada@example.test",
+                "name": "Ada Lovelace",
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "portal_url": "https://portal.example.test",
+            }
+
+        monkeypatch.setattr(
+            "work4you_cli.work4you_account.reset_work4you_portal_identity_cache",
+            reset,
+        )
+        monkeypatch.setattr(
+            "work4you_cli.work4you_account.get_work4you_portal_identity",
+            read,
+        )
+
+        resp = self.client.post("/api/portal/account/refresh")
+
+        assert resp.status_code == 200
+        assert calls == ["reset", "read"]
+        assert resp.json()["first_name"] == "Ada"
+        assert resp.json()["last_name"] == "Lovelace"
 
 
 

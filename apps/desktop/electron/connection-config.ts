@@ -1007,6 +1007,47 @@ function cadastroDisplayName(firstName, lastName) {
   return `${first} ${last}`
 }
 
+const ACCOUNT_NAME_MAX = 80
+
+/** One cadastro part, matching the Portal: trim, collapse spaces, cap at 80. */
+function normalizeAccountNamePart(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  return value.trim().replace(/\s+/g, ' ').slice(0, ACCOUNT_NAME_MAX)
+}
+
+/**
+ * Body for PATCH /api/account. Both parts are required. A single part is not
+ * a completed signup name, same rule as cadastroDisplayName.
+ */
+function accountProfilePatchBody(firstName, lastName) {
+  const first = normalizeAccountNamePart(firstName)
+  const last = normalizeAccountNamePart(lastName)
+
+  if (!first || !last) {
+    return null
+  }
+
+  return { firstName: first, lastName: last }
+}
+
+/** Map a failed PATCH /api/account onto a stable code the settings page can show. */
+function accountProfileSaveError(error) {
+  const status = error && typeof error.statusCode === 'number' ? error.statusCode : 0
+
+  if (status === 401 || status === 403) {
+    return 'unauthorized'
+  }
+
+  if (status === 400) {
+    return 'invalid_profile'
+  }
+
+  return 'unavailable'
+}
+
 /** Privy identity from GET /api/account. Name needs both cadastro parts. */
 function accountIdentityFromBody(body) {
   if (!body || typeof body !== 'object') {
@@ -1023,6 +1064,8 @@ function accountIdentityFromBody(body) {
 
 export {
   accountIdentityFromBody,
+  accountProfilePatchBody,
+  accountProfileSaveError,
   apiRequestRegistryConnectionId,
   AT_COOKIE_VARIANTS,
   authModeFromStatus,

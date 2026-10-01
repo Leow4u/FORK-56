@@ -5,6 +5,7 @@ import type { EnvVarInfo } from '@/types/work4you'
 import type { Work4YouGateway } from '@/work4you'
 
 export type SettingsView =
+  | 'account'
   | 'app'
   | 'billing'
   | 'connections'

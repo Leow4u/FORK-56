@@ -178,7 +178,8 @@ contextBridge.exposeInMainWorld('work4youDesktop', {
     login: () => ipcRenderer.invoke('work4you:cloud:login'),
     logout: () => ipcRenderer.invoke('work4you:cloud:logout'),
     discover: org => ipcRenderer.invoke('work4you:cloud:discover', org),
-    agentSignIn: dashboardUrl => ipcRenderer.invoke('work4you:cloud:agent-sign-in', dashboardUrl)
+    agentSignIn: dashboardUrl => ipcRenderer.invoke('work4you:cloud:agent-sign-in', dashboardUrl),
+    saveAccountProfile: profile => ipcRenderer.invoke('work4you:cloud:save-account-profile', profile)
   },
   profile: {
     get: () => ipcRenderer.invoke('work4you:profile:get'),

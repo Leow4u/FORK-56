@@ -71,6 +71,8 @@ import { bindComposioLogoNetFetch, COMPOSIO_LOGO_PROTOCOL, handleComposioLogoPro
 import { applyConnectionChange } from './connection-apply'
 import {
   accountIdentityFromBody,
+  accountProfilePatchBody,
+  accountProfileSaveError,
   apiRequestRegistryConnectionId,
   authModeFromStatus,
   buildGatewayWsUrl,
@@ -13487,6 +13489,53 @@ ipcMain.handle('work4you:cloud:status', async () => {
     signedIn,
     email: identity.email || cookieEmail,
     name: identity.name
+  }
+})
+
+// PATCH /api/account accepts the Privy cookie in this partition, not the
+// agent OAuth token. Renew the short-lived access cookie once on 401.
+ipcMain.handle('work4you:cloud:save-account-profile', async (_event, payload) => {
+  const body = accountProfilePatchBody(payload?.firstName, payload?.lastName)
+
+  if (!body) {
+    return { ok: false, error: 'invalid_profile' }
+  }
+
+  const portalBaseUrl = resolvePortalBaseUrl()
+
+  const patch = () =>
+    fetchJsonViaOauthSession(`${portalBaseUrl}/api/account`, {
+      method: 'PATCH',
+      body,
+      timeoutMs: 8_000
+    })
+
+  const saved = result => ({
+    ok: true,
+    firstName: typeof result?.firstName === 'string' ? result.firstName : body.firstName,
+    lastName: typeof result?.lastName === 'string' ? result.lastName : body.lastName
+  })
+
+  if (!(await hasPortalAccessToken())) {
+    const renewed = await renewPortalAccessSilently()
+
+    if (!renewed) {
+      return { ok: false, error: 'unauthorized' }
+    }
+  }
+
+  try {
+    return saved(await patch())
+  } catch (error) {
+    if (accountProfileSaveError(error) === 'unauthorized' && (await renewPortalAccessSilently())) {
+      try {
+        return saved(await patch())
+      } catch (retryError) {
+        return { ok: false, error: accountProfileSaveError(retryError) }
+      }
+    }
+
+    return { ok: false, error: accountProfileSaveError(error) }
   }
 })
 ipcMain.handle('work4you:cloud:login', async () => {

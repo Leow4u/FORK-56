@@ -4392,6 +4392,28 @@ async def get_portal_account(profile: Optional[str] = None):
     return await asyncio.to_thread(_run)
 
 
+@app.post("/api/portal/account/refresh")
+async def refresh_portal_account(profile: Optional[str] = None):
+    """Re-read the Portal person after the desktop saved the cadastro name.
+
+    The menu caches that identity for an hour and must not refresh on a poll.
+    A save lands through the desktop's Privy cookie, then this drops the cache
+    and reads ``GET /api/account`` once so the menu shows the name just saved.
+    """
+
+    def _run():
+        from work4you_cli.work4you_account import (
+            get_work4you_portal_identity,
+            reset_work4you_portal_identity_cache,
+        )
+
+        reset_work4you_portal_identity_cache()
+        with _profile_scope(profile):
+            return get_work4you_portal_identity()
+
+    return await asyncio.to_thread(_run)
+
+
 # ---------------------------------------------------------------------------
 # Diagnostics: prompt-size, support dump, debug upload, config migrate.
 # All produce text output, so they spawn background actions tailed via
