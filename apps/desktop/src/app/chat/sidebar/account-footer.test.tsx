@@ -185,7 +185,7 @@ describe('AccountFooter', () => {
     renderFooter()
     await openMenu('Account')
 
-    fireEvent.click(await screen.findByRole('menuitem', { name: /^hud mode$/i }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /^floating chat$/i }))
 
     expect(open).toHaveBeenCalledWith(expect.objectContaining({ sessionId: null }))
   })

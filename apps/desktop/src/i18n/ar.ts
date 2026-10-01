@@ -195,7 +195,7 @@ export const ar = defineLocale({
   accountMenu: {
     account: 'الحساب',
     settings: 'الإعدادات',
-    hud: 'وضع HUD',
+    hud: 'Floating Chat',
     docs: 'الوثائق',
     shortcuts: 'الاختصارات',
     contactUs: 'تواصل معنا',

@@ -225,7 +225,7 @@ export const en: Translations = {
   accountMenu: {
     account: 'Account',
     settings: 'Settings',
-    hud: 'HUD mode',
+    hud: 'Floating Chat',
     docs: 'Docs',
     shortcuts: 'Shortcuts',
     contactUs: 'Contact Us',
