@@ -210,7 +210,7 @@ afterEach(() => {
 describe('ImageVideoSettings', () => {
   it('lists image and video models without a power switch or subscription chrome', async () => {
     const { ImageVideoSettings } = await import('./image-video-settings')
-    render(<ImageVideoSettings />)
+    const view = render(<ImageVideoSettings />)
 
     expect(await screen.findByRole('heading', { name: 'Image & Video' })).toBeTruthy()
     expect(screen.getByText('Choose the image model and the video model.')).toBeTruthy()
@@ -222,9 +222,12 @@ describe('ImageVideoSettings', () => {
     expect(await screen.findByRole('radio', { name: /Nano Banana 2/ })).toBeTruthy()
     expect(screen.getByRole('radio', { name: /Veo 3.1/ })).toBeTruthy()
     expect(screen.getByRole('radio', { name: /FLUX 2 Pro/ })).toBeTruthy()
-    expect(screen.getByText('N2')).toBeTruthy()
-    expect(screen.getByText('F2')).toBeTruthy()
-    expect(screen.getByText('V3')).toBeTruthy()
+    expect(view.container.querySelector('[data-brand="flux"]')).toBeTruthy()
+    expect(view.container.querySelector('[data-brand="gemini"]')).toBeTruthy()
+    expect(view.container.querySelector('[data-brand="deepmind"]')).toBeTruthy()
+    expect(screen.queryByText('N2')).toBeNull()
+    expect(screen.queryByText('F2')).toBeNull()
+    expect(screen.queryByText('V3')).toBeNull()
     expect(screen.getAllByText('In use').length).toBeGreaterThanOrEqual(2)
     expect(screen.queryByText('Work4You Subscription')).toBeNull()
     expect(screen.queryByText('No API key required.')).toBeNull()

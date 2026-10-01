@@ -9,6 +9,8 @@ import { notify, notifyError } from '@/store/notifications'
 import type { ToolsetModel, ToolsetModelsResponse } from '@/types/work4you'
 import { getToolsetModels, type ProfileScope, selectToolsetModel } from '@/work4you'
 
+import { resolveModelBrand } from './model-brand'
+import { ModelBrandLogo } from './model-brand-logo'
 import { modelMarks } from './model-mark'
 import { Pill, SectionHeading } from './primitives'
 
@@ -99,6 +101,7 @@ export function ImageVideoCatalog({
           const name = model.display || model.id
           const isSelected = selected === model.id
           const meta = modelMeta(model)
+          const brand = resolveModelBrand(model.id, name)
 
           return (
             <button
@@ -115,9 +118,10 @@ export function ImageVideoCatalog({
             >
               <span
                 aria-hidden
-                className="grid size-8 place-items-center rounded-full bg-(--ui-accent) text-[0.6875rem] font-medium text-(--dt-primary-foreground)"
+                className="grid size-8 place-items-center rounded-full border border-(--ui-stroke-secondary) bg-(--ui-bg-primary) text-foreground"
+                data-brand={brand ?? undefined}
               >
-                {marks[index]}
+                {brand ? <ModelBrandLogo brand={brand} /> : marks[index]}
               </span>
               <span className="min-w-0">
                 <span className="flex min-w-0 flex-wrap items-center gap-2 text-[length:var(--conversation-text-font-size)] font-medium text-foreground">
