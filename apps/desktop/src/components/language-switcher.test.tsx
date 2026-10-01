@@ -1,21 +1,18 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type I18nConfigClient, I18nProvider } from '@/i18n'
-import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 import type { Work4YouConfigRecord } from '@/work4you'
 
 import { LanguageSwitcher } from './language-switcher'
 
-stubResizeObserver()
-stubMenuDomApis()
 describe('LanguageSwitcher', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
   })
 
-  it('persists language changes through display.language config', async () => {
+  it('shows English and does not offer other languages', () => {
     const saveConfig = vi.fn().mockResolvedValue({ ok: true })
     const latestConfig: Work4YouConfigRecord = { display: { language: 'en', skin: 'slate' } }
 
@@ -30,14 +27,12 @@ describe('LanguageSwitcher', () => {
       </I18nProvider>
     )
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Switch language' }).hasAttribute('disabled')).toBe(false)
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Switch language' }))
-    fireEvent.click(screen.getByRole('option', { name: /日本語/i }))
-
-    await waitFor(() => expect(saveConfig).toHaveBeenCalledTimes(1))
-    expect(saveConfig).toHaveBeenCalledWith({ display: { language: 'ja', skin: 'slate' } })
+    expect(screen.getByText('English')).toBeTruthy()
+    expect(screen.queryByText('日本語')).toBeNull()
+    expect(screen.queryByText('简体中文')).toBeNull()
+    expect(screen.queryByText('繁體中文')).toBeNull()
+    expect(screen.queryByText('العربية')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Switch language' })).toBeNull()
+    expect(saveConfig).not.toHaveBeenCalled()
   })
 })
