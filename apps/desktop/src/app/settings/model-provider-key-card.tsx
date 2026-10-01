@@ -1,4 +1,12 @@
-import { SiAnthropic, SiHuggingface, SiMinimax, SiNvidia, SiOllama, SiOpenrouter, SiX } from '@icons-pack/react-simple-icons'
+import {
+  SiAnthropic,
+  SiHuggingface,
+  SiMinimax,
+  SiNvidia,
+  SiOllama,
+  SiOpenrouter,
+  SiX
+} from '@icons-pack/react-simple-icons'
 import type { ComponentType, SVGProps } from 'react'
 
 import { useI18n } from '@/i18n'
