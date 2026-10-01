@@ -3113,6 +3113,8 @@ export const ja = defineLocale({
     headerDesc: 'チャットを始めるにはモデルプロバイダーを接続してください。ほとんどのオプションはワンクリックです。',
     welcomeTitle: 'Work4You Desktop',
     welcomeSubtitle: 'チャットを始める一番速い方法。',
+    finishInBrowser: 'ブラウザで完了してください。',
+    reopen: '再度開く',
     getStarted: '始める',
     preparingInstall: 'Work4You はインストールを完了中です。初回実行では通常 1 分以内に完了します。',
     starting: 'Work4You を起動中…',

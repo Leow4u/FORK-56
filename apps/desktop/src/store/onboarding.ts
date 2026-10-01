@@ -628,6 +628,29 @@ async function openSignInUrl(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
+function onboardingBrowserUrl(flow: OnboardingFlow): null | string {
+  if (flow.status === 'polling') {
+    return flow.start.verification_url
+  }
+
+  if (flow.status === 'awaiting_user' || flow.status === 'submitting') {
+    return flow.start.auth_url
+  }
+
+  return null
+}
+
+/** Re-open the browser page for the sign-in already in flight. */
+export function reopenOnboardingBrowser() {
+  const url = onboardingBrowserUrl($desktopOnboarding.get().flow)
+
+  if (!url) {
+    return
+  }
+
+  void openSignInUrl(url)
+}
+
 export async function startProviderOAuth(provider: OAuthProvider, ctx: OnboardingContext) {
   if (startProviderOAuthLock || isOnboardingFlowInFlight($desktopOnboarding.get().flow)) {
     return

@@ -3617,6 +3617,8 @@ export const zh: Translations = {
     headerDesc: '连接模型提供方即可开始对话。大多数选项只需一次点击。',
     welcomeTitle: 'Work4You Desktop',
     welcomeSubtitle: '开始对话的最快方式。',
+    finishInBrowser: '请在浏览器中完成。',
+    reopen: '重新打开',
     getStarted: '开始',
     preparingInstall: 'Work4You 正在完成安装。首次运行通常不到一分钟。',
     starting: '正在启动 Work4You…',

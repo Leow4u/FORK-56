@@ -3483,6 +3483,8 @@ export const en: Translations = {
     headerDesc: 'Connect a model provider to start chatting. Most options take one click.',
     welcomeTitle: 'Work4You Desktop',
     welcomeSubtitle: 'The fastest way to start chatting.',
+    finishInBrowser: 'Finish in your browser.',
+    reopen: 'Reopen',
     getStarted: 'Get started',
     preparingInstall: 'Work4You is finishing install. This usually takes under a minute on first run.',
     starting: 'Starting Work4You…',

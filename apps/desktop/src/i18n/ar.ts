@@ -2831,6 +2831,8 @@ export const ar = defineLocale({
     headerDesc: 'اربط مزوّد نماذج لبدء المحادثة. معظم الخيارات تتطلب نقرة واحدة.',
     welcomeTitle: 'Work4You Desktop',
     welcomeSubtitle: 'أسرع طريقة لبدء المحادثة.',
+    finishInBrowser: 'أكمل في المتصفح.',
+    reopen: 'إعادة الفتح',
     getStarted: 'ابدأ',
     preparingInstall: 'يُكمل Work4You التثبيت. عادة ما يستغرق ذلك أقل من دقيقة في أول تشغيل.',
     starting: 'جار بدء Work4You...',

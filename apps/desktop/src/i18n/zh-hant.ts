@@ -2984,6 +2984,8 @@ export const zhHant = defineLocale({
     headerDesc: '連線模型提供方即可開始聊天。大多數選項只需一次點擊。',
     welcomeTitle: 'Work4You Desktop',
     welcomeSubtitle: '開始聊天的最快方式。',
+    finishInBrowser: '請在瀏覽器中完成。',
+    reopen: '重新開啟',
     getStarted: '開始',
     preparingInstall: 'Work4You 正在完成安裝。首次執行通常不到一分鐘。',
     starting: '正在啟動 Work4You…',
