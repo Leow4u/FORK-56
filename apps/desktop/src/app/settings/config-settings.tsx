@@ -6,9 +6,10 @@ import { useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
 import { notifyError } from '@/store/notifications'
-import { normalizeProfileKey } from '@/store/profile'
+import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { repoDiscoveryPolicyFromConfig, repoDiscoveryPolicySignature, scanAndRecordRepos } from '@/store/projects'
 import { $reasoningCollapsedByDefault, setReasoningCollapsedByDefault } from '@/store/reasoning-disclosure'
+import { $settingsRequestProfile } from '@/store/settings-scope'
 import type { ConfigFieldSchema, Work4YouConfigRecord } from '@/types/work4you'
 import { getElevenLabsVoices, getWork4YouConfigSchema, saveWork4YouConfig } from '@/work4you'
 
@@ -33,16 +34,22 @@ import { EmptyState, SectionHeading, SettingsContent, SettingsGroup, SettingsSke
 import { AutoArchiveSetting } from './sessions-settings'
 
 export function ConfigSettings({ activeSectionId, onConfigSaved, onMainModelChanged }: ConfigSettingsProps) {
-  // These pages edit the active profile. The profile chip lives on
-  // Capabilities (and Messaging), where choosing a profile changes what the
-  // agent can do. useOnProfileSwitch drops drafts when the active profile
-  // itself changes.
+  // Shared settings scope as the CONCRETE profile key every request carries
+  // (the app's active profile unless an override is set). Never the raw
+  // override: `null` would omit `?profile=` and land on the primary backend's
+  // launch home instead of the profile the sidebar rail selected. Remount the
+  // inner page per scope so every draft/seed/autosave ref resets wholesale
+  // when the target profile changes — the same guarantee useOnProfileSwitch
+  // provides for app-wide switches, without hand-clearing each piece.
+  const scopeProfile = useStore($settingsRequestProfile)
+
   return (
     <ConfigSettingsInner
       activeSectionId={activeSectionId}
+      key={scopeProfile ?? '__active__'}
       onConfigSaved={onConfigSaved}
       onMainModelChanged={onMainModelChanged}
-      scopeProfile={null}
+      scopeProfile={scopeProfile}
     />
   )
 }
@@ -58,7 +65,7 @@ function ConfigSettingsInner({
   onConfigSaved,
   onMainModelChanged,
   scopeProfile
-}: ConfigSettingsProps & { scopeProfile: null | string }) {
+}: ConfigSettingsProps & { scopeProfile: string | undefined }) {
   const { t } = useI18n()
   const c = t.settings.config
   // The editable draft is local (debounced autosave watches it), but it's seeded
@@ -85,7 +92,7 @@ function ConfigSettingsInner({
     // consumer); suffixed only for an explicit scope override.
     queryKey:
       scopeProfile == null ? ['work4you-config-schema'] : ['work4you-config-schema', normalizeProfileKey(scopeProfile)],
-    queryFn: () => getWork4YouConfigSchema(scopeProfile ?? undefined),
+    queryFn: () => getWork4YouConfigSchema(scopeProfile),
     staleTime: 5 * 60 * 1000
   })
 
@@ -124,7 +131,7 @@ function ConfigSettingsInner({
   useEffect(() => {
     let cancelled = false
 
-    getElevenLabsVoices(scopeProfile ?? undefined)
+    getElevenLabsVoices(scopeProfile)
       .then(result => {
         if (cancelled || !result.available) {
           return
@@ -155,7 +162,7 @@ function ConfigSettingsInner({
     const t = window.setTimeout(() => {
       void (async () => {
         try {
-          const result = await saveWork4YouConfig(config, scopeProfile ?? undefined)
+          const result = await saveWork4YouConfig(config, scopeProfile)
 
           if (!result.ok) {
             throw new Error(c.autosaveFailed)
@@ -168,7 +175,7 @@ function ConfigSettingsInner({
           if (saveVersionRef.current === v) {
             // The repo-discovery scan reads the ACTIVE profile's workspace
             // policy; skip it when this page is editing another profile.
-            if (scopeProfile == null) {
+            if (normalizeProfileKey(scopeProfile) === normalizeProfileKey($activeGatewayProfile.get())) {
               const discoverySignature = repoDiscoveryPolicySignature(repoDiscoveryPolicyFromConfig(config))
 
               if (savedDiscoverySignatureRef.current !== discoverySignature) {

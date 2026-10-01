@@ -1,7 +1,9 @@
+import { useStore } from '@nanostores/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useI18n } from '@/i18n'
 import { isCapabilitiesVendorCredentialHidden } from '@/lib/desktop-toolsets'
+import { $settingsRequestProfile } from '@/store/settings-scope'
 
 import { CredentialKeyCard, credentialPlaceholder, credentialRowLabel } from './credential-key-ui'
 import { useEnvCredentials } from './env-credentials'
@@ -32,9 +34,11 @@ const credentialElementId = (key: string) => `credential-key-${key}`
 
 export function KeysSettings({ view }: KeysSettingsProps) {
   const { t } = useI18n()
-  // The page left the Settings menu. If it is mounted, it edits the active
-  // profile. Capabilities is where a profile choice changes what the agent can do.
-  const scopeProfile = null
+  // The page left the Settings menu. If it is mounted, it edits the shared
+  // settings scope as a CONCRETE profile key (the active profile unless an
+  // override is set), so its env reads and writes never fall through to the
+  // primary backend the way a raw `null` would.
+  const scopeProfile = useStore($settingsRequestProfile)
   const { rowProps, vars } = useEnvCredentials(scopeProfile)
   const [openKey, setOpenKey] = useState<null | string>(null)
 

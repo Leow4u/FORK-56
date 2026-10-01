@@ -10,6 +10,8 @@ vi.mock('@/work4you', () => ({
   saveWork4YouConfig: vi.fn(async () => ({ ok: true })),
   getApiRequestProfile: () => null,
   setApiRequestProfile: () => undefined,
+  // The config cache key folds the concrete settings scope in (use-config-record.ts).
+  profileScopeKey: (scope?: null | string) => scope ?? 'default',
   getToolsets: vi.fn(async () => []),
   getPortalAccount: vi.fn(async () => ({ email: null, logged_in: false, name: null })),
   refreshPortalAccount: vi.fn(async () => ({ email: null, logged_in: false, name: null })),

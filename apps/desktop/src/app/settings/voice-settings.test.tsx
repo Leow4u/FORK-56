@@ -14,7 +14,9 @@ vi.mock('@/work4you', () => ({
   getElevenLabsVoices: () => getElevenLabsVoices(),
   saveWork4YouConfig: (config: unknown) => saveWork4YouConfig(config),
   getApiRequestProfile: () => 'default',
-  setApiRequestProfile: () => {}
+  setApiRequestProfile: () => {},
+  // The config cache key folds the concrete settings scope in (use-config-record.ts).
+  profileScopeKey: (scope?: null | string) => scope ?? 'default'
 }))
 
 const schema = {

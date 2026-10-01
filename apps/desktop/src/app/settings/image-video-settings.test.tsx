@@ -5,6 +5,8 @@ import { MemoryRouter } from 'react-router'
 import type * as ReactRouterDom from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { $activeGatewayProfile } from '@/store/profile'
+import { $settingsScopeOverride, setSettingsScope } from '@/store/settings-scope'
 import type { ToolProvider, ToolsetConfig, ToolsetInfo } from '@/types/work4you'
 
 const navigateSpy = vi.fn()
@@ -205,6 +207,8 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
   vi.unstubAllGlobals()
+  $settingsScopeOverride.set(null)
+  $activeGatewayProfile.set('default')
 })
 
 describe('ImageVideoSettings', () => {
@@ -258,7 +262,12 @@ describe('ImageVideoSettings', () => {
     fireEvent.click(await screen.findByRole('radio', { name: /FLUX 2 Pro/ }))
 
     await waitFor(() =>
-      expect(selectToolsetModel).toHaveBeenCalledWith('image_gen', 'fal-ai/flux-2-pro', 'Work4You Subscription', null)
+      expect(selectToolsetModel).toHaveBeenCalledWith(
+        'image_gen',
+        'fal-ai/flux-2-pro',
+        'Work4You Subscription',
+        'default'
+      )
     )
   })
 
@@ -276,9 +285,35 @@ describe('ImageVideoSettings', () => {
     const { ImageVideoSettings } = await import('./image-video-settings')
     render(<ImageVideoSettings />)
 
-    await waitFor(() => expect(setToolsetEnabled).toHaveBeenCalledWith('image_gen', true, null))
+    await waitFor(() => expect(setToolsetEnabled).toHaveBeenCalledWith('image_gen', true, 'default'))
     expect(screen.queryByRole('switch')).toBeNull()
     expect(await screen.findByRole('radio', { name: /Nano Banana 2/ })).toBeTruthy()
+  })
+
+  it('reads and re-enables toolsets on the active profile, never the primary one', async () => {
+    // A raw `null` scope omits `?profile=` and lands on the primary backend's
+    // launch home. With the rail on another profile the page must name that
+    // profile explicitly on every read and write.
+    $activeGatewayProfile.set('coder')
+    getToolsets.mockResolvedValueOnce([toolset({ enabled: false })])
+
+    const { ImageVideoSettings } = await import('./image-video-settings')
+    render(<ImageVideoSettings />)
+
+    await waitFor(() => expect(setToolsetEnabled).toHaveBeenCalledWith('image_gen', true, 'coder'))
+    expect(getToolsets).toHaveBeenCalledWith('coder')
+    expect(getToolsets).not.toHaveBeenCalledWith(null)
+    expect(getToolsets).not.toHaveBeenCalledWith(undefined)
+  })
+
+  it('follows an explicit scope override onto another profile', async () => {
+    setSettingsScope('research')
+
+    const { ImageVideoSettings } = await import('./image-video-settings')
+    render(<ImageVideoSettings />)
+
+    await waitFor(() => expect(getToolsets).toHaveBeenCalledWith('research'))
+    expect(getToolsets).not.toHaveBeenCalledWith('default')
   })
 
   it('shows the model list loading line instead of provider setup', async () => {

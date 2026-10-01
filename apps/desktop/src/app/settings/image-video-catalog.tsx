@@ -28,7 +28,7 @@ export function ImageVideoCatalog({
   toolset
 }: {
   label: string
-  profile: ProfileScope
+  profile?: ProfileScope
   toolset: string
 }) {
   const { t } = useI18n()

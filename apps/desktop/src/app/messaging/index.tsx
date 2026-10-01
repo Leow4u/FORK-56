@@ -22,7 +22,7 @@ import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import { $changeEventsAvailable, $pairingChangeTick, $platformsChangeTick } from '@/store/live-sync'
 import { notify, notifyError } from '@/store/notifications'
-import { $settingsScopeOverride } from '@/store/settings-scope'
+import { $settingsRequestProfile } from '@/store/settings-scope'
 import { $gatewayRestarting, runGatewayRestart } from '@/store/system-actions'
 import {
   approvePairing,
@@ -289,9 +289,14 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   const { t } = useI18n()
   const navigate = useNavigate()
   const m = t.messaging
-  // Shared settings "Applies to" scope: configure another profile's gateway
-  // platforms/pairing without switching the whole app (null → active profile).
-  const scopeProfile = useStore($settingsScopeOverride)
+  // Shared settings scope as the CONCRETE profile key: the app's active
+  // profile unless a chip picked another one. Never the raw override — its
+  // `null` omits `?profile=` and the request lands on the primary backend's
+  // launch home, so a non-primary active profile would list (and toggle) the
+  // primary's platforms while the chip names the active one. `undefined` only
+  // stands for a home outside the profiles tree, where omitting the profile
+  // (the `null` wire shape the platform calls accept) is the right route.
+  const scopeProfile = useStore($settingsRequestProfile) ?? null
   // Both save/toggle toasts offer the same one-click restart.
   const restartGatewayAction = { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart() }
   const [platforms, setPlatforms] = useState<MessagingPlatformInfo[] | null>(null)

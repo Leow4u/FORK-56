@@ -1,20 +1,28 @@
+import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
 
 import { useI18n } from '@/i18n'
 import { SETTINGS_IMAGE_VIDEO_TOOLSETS } from '@/lib/desktop-toolsets'
+import { $settingsRequestProfile } from '@/store/settings-scope'
 import type { ToolsetInfo } from '@/types/work4you'
-import { getToolsets, type ProfileScope, setToolsetEnabled } from '@/work4you'
+import { getToolsets, setToolsetEnabled } from '@/work4you'
 
 import { toolsetDisplayLabel } from './helpers'
 import { ImageVideoCatalog } from './image-video-catalog'
 import { EmptyState, SectionHeading, SettingsContent, SettingsSkeleton } from './primitives'
 
 export function ImageVideoSettings() {
-  // Edits the active profile. The profile chip lives on Capabilities.
-  return <ImageVideoSettingsInner scopeProfile={null} />
+  // Shared settings scope as the CONCRETE profile key (the app's active
+  // profile unless an override is set) — never the raw override, whose `null`
+  // would omit `?profile=` and toggle the primary backend's toolsets instead
+  // of the selected profile's. Remount per scope so the toolset query and
+  // pending toggle reset when the target profile changes.
+  const scopeProfile = useStore($settingsRequestProfile)
+
+  return <ImageVideoSettingsInner key={scopeProfile ?? '__active__'} scopeProfile={scopeProfile} />
 }
 
-function ImageVideoSettingsInner({ scopeProfile }: { scopeProfile: ProfileScope }) {
+function ImageVideoSettingsInner({ scopeProfile }: { scopeProfile: string | undefined }) {
   const { t } = useI18n()
 
   const toolsetsQuery = useQuery({

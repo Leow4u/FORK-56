@@ -16,6 +16,25 @@ export const $settingsScopeProfile = computed([$settingsScopeOverride, $activeGa
   normalizeProfileKey(override ?? active)
 )
 
+// ── Request-scope form (THE value to hand to API helpers) ──────────────────
+// The store contract and the API contract disagree about `null`:
+//   - here, `null` means "follow the app's active profile" (no override);
+//   - in api/client.ts `profileScoped()`/`capabilityScoped()`, `null` means
+//     "omit `?profile=` entirely" — only `undefined` falls back to the active
+//     profile, and an omitted profile routes to the PRIMARY backend's launch
+//     home (electron/connection-config.ts resolveProfileBackendRoute), not to
+//     the profile the sidebar rail selected.
+// Passing the raw override into an API helper therefore silently retargets
+// every read/write to the primary profile whenever no override is set — the
+// "Model page shows the active profile's config.yaml next to the primary
+// profile's API keys" class of bug. Send the concrete key the pages render.
+// Only a name with no profile directory behind it (`custom`, a WORK4YOU_HOME
+// outside profiles/) stays `undefined`, where the ambient path is the only
+// correct answer.
+export const $settingsRequestProfile = computed($settingsScopeProfile, (selected): string | undefined =>
+  selected === 'custom' ? undefined : selected
+)
+
 // Select the profile the settings pages should edit. Picking the app's active
 // profile stores `null` (no override) so the scope keeps following the app on
 // profile switches — and requests keep their unscoped default shape.
