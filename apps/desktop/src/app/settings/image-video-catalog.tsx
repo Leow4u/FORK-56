@@ -114,8 +114,9 @@ export function ImageVideoCatalog({
             <button
               aria-checked={isSelected}
               className={cn(
-                'grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-(--ui-stroke-secondary) px-4 py-2.5 text-left first:border-t-0',
-                isSelected ? 'bg-(--ui-bg-tertiary)' : 'hover:bg-(--ui-control-hover-background)'
+                'grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-(--ui-stroke-secondary) bg-transparent px-4 py-2.5 text-left first:border-t-0',
+                isSelected && visible.length > 1 && 'ring-1 ring-inset ring-(--ui-stroke-secondary)',
+                !isSelected && 'hover:bg-(--ui-control-hover-background)'
               )}
               disabled={saving !== null}
               key={model.id}
