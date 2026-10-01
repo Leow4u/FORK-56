@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { SearchField } from '@/components/ui/search-field'
 import { Switch } from '@/components/ui/switch'
 import { useI18n } from '@/i18n'
-import { RefreshCw } from '@/lib/icons'
+import { ChevronRight, RefreshCw } from '@/lib/icons'
 import { displayModelName } from '@/lib/model-status-label'
 import { cn } from '@/lib/utils'
 import {
@@ -20,10 +20,11 @@ import type { ModelOptionProvider } from '@/work4you'
 
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 
-import { ProviderKeyRows } from './credential-key-ui'
+import { ChatModelMarkIcon } from './chat-model-mark-icon'
 import { useEnvCredentials } from './env-credentials'
 import { settingsCatalogRows } from './model-catalog-rows'
-import { SectionHeading, SettingsGroup } from './primitives'
+import { ModelProviderKeyCard } from './model-provider-key-card'
+import { SettingsGroup } from './primitives'
 import { buildProviderKeyGroups } from './providers-settings'
 
 // Radix <Select> renders a blank trigger when `value` matches no <SelectItem>.
@@ -63,6 +64,7 @@ export function ModelSettings({ scopeProfile = null }: ModelSettingsProps) {
   const [query, setQuery] = useState('')
   const [showAll, setShowAll] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [keysOpen, setKeysOpen] = useState(false)
   const [openKey, setOpenKey] = useState<null | string>(null)
 
   const load = useCallback(
@@ -164,6 +166,7 @@ export function ModelSettings({ scopeProfile = null }: ModelSettingsProps) {
                   className="flex cursor-pointer items-center gap-3 px-4 py-2.5 text-[length:var(--conversation-text-font-size)] hover:bg-(--ui-control-hover-background)"
                   key={modelVisibilityKey(provider.slug, family.id)}
                 >
+                  <ChatModelMarkIcon id={family.id} label={label} />
                   <span className="min-w-0 flex-1 truncate">{label}</span>
                   <Switch
                     aria-label={label}
@@ -190,25 +193,37 @@ export function ModelSettings({ scopeProfile = null }: ModelSettingsProps) {
       </div>
 
       <div>
-        <SectionHeading title={t.settings.nav.providerApiKeys} variant="group" />
-        {vars && keyGroups.length === 0 ? (
-          <p className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-            {t.settings.providers.noProviderKeys}
-          </p>
-        ) : (
-          <div className="grid gap-2">
-            {keyGroups.map(group => (
-              <ProviderKeyRows
-                expanded={openKey === group.name}
-                group={group}
-                key={group.name}
-                onExpand={() => setOpenKey(group.name)}
-                onToggle={() => setOpenKey(current => (current === group.name ? null : group.name))}
-                rowProps={rowProps}
-              />
-            ))}
-          </div>
-        )}
+        <button
+          aria-expanded={keysOpen}
+          className="inline-flex items-center gap-2 text-left text-[length:var(--conversation-text-font-size)] font-medium"
+          onClick={() => setKeysOpen(open => !open)}
+          type="button"
+        >
+          <ChevronRight
+            aria-hidden
+            className={cn('size-3.5 text-(--ui-text-tertiary) transition-transform', keysOpen && 'rotate-90')}
+          />
+          {t.settings.nav.providerApiKeys}
+        </button>
+        {keysOpen &&
+          (vars && keyGroups.length === 0 ? (
+            <p className="mt-2 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+              {t.settings.providers.noProviderKeys}
+            </p>
+          ) : (
+            <div className="mt-2 grid gap-2">
+              {keyGroups.map(group => (
+                <ModelProviderKeyCard
+                  expanded={openKey === group.name}
+                  group={group}
+                  key={group.name}
+                  onExpand={() => setOpenKey(group.name)}
+                  onToggle={() => setOpenKey(current => (current === group.name ? null : group.name))}
+                  rowProps={rowProps}
+                />
+              ))}
+            </div>
+          ))}
       </div>
     </div>
   )
