@@ -76,4 +76,15 @@ describe('SettingsProfileScope', () => {
       screen.getByText('These settings only change the “default” profile. Other profiles stay independent.')
     ).toBeTruthy()
   })
+
+  it('centers the label, chips, and helper when align is center', () => {
+    $profiles.set([profile('default', true), profile('coder')])
+
+    const { container } = render(<SettingsProfileScope align="center" />)
+    const root = container.firstElementChild
+
+    expect(root?.className).toContain('items-center')
+    expect(root?.className).toContain('text-center')
+    expect(screen.getByRole('radiogroup').className).toContain('justify-center')
+  })
 })
