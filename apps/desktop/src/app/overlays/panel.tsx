@@ -287,10 +287,20 @@ export function PanelRowMenu({ items, label = 'Actions' }: { items: PanelMenuIte
 
 // Scrolling detail region. Fills the column (no right rail here, unlike the
 // trace inspector), so the content stretches the full available width.
-export function PanelDetail({ children, className }: { children: ReactNode; className?: string }) {
+// `contentClassName` lets a consumer swap the inner stack (e.g. flex fill-height
+// editor panes) without forking the outer chrome.
+export function PanelDetail({
+  children,
+  className,
+  contentClassName
+}: {
+  children: ReactNode
+  className?: string
+  contentClassName?: string
+}) {
   return (
     <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', className)}>
-      <div className="space-y-4 pb-6 pl-1 pr-2">{children}</div>
+      <div className={cn('space-y-4 pb-6 pl-1 pr-2', contentClassName)}>{children}</div>
     </div>
   )
 }

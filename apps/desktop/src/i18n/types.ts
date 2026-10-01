@@ -2062,7 +2062,9 @@ export interface Translations {
     personaTitle: string
     personaFile: string
     inUse: string
+    currentlyInUse: string
     useProfile: string
+    fileLabel: string
     personaPlaceholder: string
     soulOptional: string
     soulPlaceholder: (mode: string) => string
