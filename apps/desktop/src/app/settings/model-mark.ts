@@ -14,18 +14,23 @@ function charAt(token: string, index: number): string {
 
 function baseMark(label: string): string {
   const parts = tokensOf(label)
+  const head = charAt(parts[0] ?? '', 0)
+
+  if (!head) {
+    return '?'
+  }
+
+  const digit = label.replace(/\s*\(.*$/, '').match(/\d/)?.[0]
+
+  if (digit) {
+    return `${head}${digit}`
+  }
 
   if (parts.length >= 2) {
-    return `${charAt(parts[0] ?? '', 0)}${charAt(parts[1] ?? '', 0)}`
+    return `${head}${charAt(parts[1] ?? '', 0)}`
   }
 
-  if (parts.length === 1) {
-    const token = parts[0] ?? ''
-
-    return `${charAt(token, 0)}${charAt(token, 1)}`
-  }
-
-  return '?'
+  return `${head}${charAt(parts[0] ?? '', 1) || head}`
 }
 
 function alternateMark(label: string): string {

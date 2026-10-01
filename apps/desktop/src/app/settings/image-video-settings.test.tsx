@@ -222,7 +222,7 @@ describe('ImageVideoSettings', () => {
     expect(await screen.findByRole('radio', { name: /Nano Banana 2/ })).toBeTruthy()
     expect(screen.getByRole('radio', { name: /Veo 3.1/ })).toBeTruthy()
     expect(screen.getByRole('radio', { name: /FLUX 2 Pro/ })).toBeTruthy()
-    expect(screen.getByText('NB')).toBeTruthy()
+    expect(screen.getByText('N2')).toBeTruthy()
     expect(screen.getByText('F2')).toBeTruthy()
     expect(screen.getByText('V3')).toBeTruthy()
     expect(screen.getAllByText('In use').length).toBeGreaterThanOrEqual(2)
