@@ -10,12 +10,14 @@ import { PageLoader } from '@/components/page-loader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SearchField } from '@/components/ui/search-field'
 import { CountSkeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import type { DesktopRosterAgent } from '@/global'
 import { useI18n } from '@/i18n'
 import { isDesktopToolsetVisible } from '@/lib/desktop-toolsets'
 import { compactNumber } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { queryClient } from '@/lib/query-client'
 import { invalidateSlashCompletions } from '@/lib/slash-completion-cache'
 import { normalize } from '@/lib/text'
@@ -54,8 +56,8 @@ import {
   MasterDetail,
   ToolChip
 } from '../master-detail'
+import { PAGE_INSET_X } from '../layout-constants'
 import { PanelEmpty, PanelPill } from '../overlays/panel'
-import { PageSearchShell } from '../page-search-shell'
 import { SETTINGS_ROUTE } from '../routes'
 import { ComputerUsePanel } from '../settings/computer-use-panel'
 import { asText, includesQuery, prettyName, toolNames, toolsetDisplayLabel } from '../settings/helpers'
@@ -201,6 +203,7 @@ interface SkillsViewProps extends React.ComponentProps<'section'> {
 }
 
 export function SkillsView({
+  className,
   embedded = false,
   fixedConnection,
   fixedProfile,
@@ -896,11 +899,15 @@ export function SkillsView({
   // including a profile that lives on another gateway.
   const profileScopeSelector =
     scopeOptions.length > 1 ? (
-      <div className="grid gap-2 border-b border-(--ui-stroke-secondary) px-4 py-3">
+      <div className="flex w-full flex-col items-center gap-2 text-center">
         <div className="text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-secondary)">
           {t.settings.profileScope.appliesTo}
         </div>
-        <div aria-label={t.settings.profileScope.appliesTo} className="flex flex-wrap gap-1.5" role="radiogroup">
+        <div
+          aria-label={t.settings.profileScope.appliesTo}
+          className="flex flex-wrap justify-center gap-1.5"
+          role="radiogroup"
+        >
           {scopeOptions.map(option => (
             <ScopeChip
               active={option.value === scopeSelectValue}
@@ -911,44 +918,81 @@ export function SkillsView({
           ))}
         </div>
         {scopeLabel ? (
-          <p className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+          <p className="max-w-xl text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
             {t.settings.profileScope.editsProfile(scopeLabel)}
           </p>
         ) : null}
       </div>
     ) : null
 
+  const capabilityTabs: { id: (typeof SKILLS_MODES)[number]; label: string; meta?: null | number }[] = [
+    { id: 'skills', label: t.skills.tabSkills, meta: skills ? bulkSkills.length : null },
+    ...(showToolsTab
+      ? [
+          {
+            id: 'toolsets' as const,
+            label: t.skills.tabToolsets,
+            meta: toolsets ? visibleToolsetCount(toolsets) : null
+          }
+        ]
+      : []),
+    { id: 'mcp', label: t.skills.tabMcp },
+    { id: 'plugins', label: t.skills.tabPlugins }
+  ]
+
   return (
-    <PageSearchShell
+    <section
       {...props}
-      activeTab={displayMode}
-      onSearchChange={setQuery}
-      onTabChange={id => setMode(id as (typeof SKILLS_MODES)[number])}
-      searchHints={searchHints}
-      searchPlaceholder={
-        displayMode === 'skills'
-          ? t.skills.searchSkills
-          : displayMode === 'mcp'
-            ? t.settings.searchPlaceholder.mcp
-            : displayMode === 'plugins'
-              ? t.skills.searchPlugins
-              : t.skills.searchToolsets
-      }
-      searchValue={query}
-      tabs={[
-        { id: 'skills', label: t.skills.tabSkills, meta: skills ? bulkSkills.length : null },
-        ...(showToolsTab
-          ? [{ id: 'toolsets', label: t.skills.tabToolsets, meta: visibleToolsetCount(toolsets ?? []) }]
-          : []),
-        { id: 'mcp', label: t.skills.tabMcp },
-        { id: 'plugins', label: t.skills.tabPlugins }
-      ]}
+      className={cn('flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)', className)}
     >
-      {/* One shared column: the scope selector sits above whichever tab is
-          active, so Skills / Tools / MCP / Plugins all read and write the SAME
-          selected profile. */}
-      <div className="flex h-full flex-col">
-        {profileScopeSelector}
+      <div className={cn('shrink-0 pt-[calc(var(--titlebar-height)+0.75rem)] pb-4', PAGE_INSET_X)}>
+        <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4">
+          {profileScopeSelector}
+          <SearchField
+            containerClassName="w-full max-w-md"
+            hints={searchHints}
+            onChange={setQuery}
+            placeholder={
+              displayMode === 'skills'
+                ? t.skills.searchSkills
+                : displayMode === 'mcp'
+                  ? t.settings.searchPlaceholder.mcp
+                  : displayMode === 'plugins'
+                    ? t.skills.searchPlugins
+                    : t.skills.searchToolsets
+            }
+            recede={false}
+            shape="pill"
+            value={query}
+          />
+          <div className="flex flex-wrap items-center justify-center gap-1" data-tour="page-tabs">
+            {capabilityTabs.map(tab => {
+              const active = displayMode === tab.id
+
+              return (
+                <Button
+                  aria-pressed={active}
+                  data-tour={`tab-${tab.id}`}
+                  key={tab.id}
+                  onClick={() => setMode(tab.id)}
+                  size="sm"
+                  type="button"
+                  variant={active ? 'chip' : 'text'}
+                >
+                  {tab.label}
+                  {tab.meta === null ? (
+                    <CountSkeleton />
+                  ) : tab.meta !== undefined ? (
+                    <span className="text-[0.72em] font-normal text-(--ui-text-tertiary)">{tab.meta}</span>
+                  ) : null}
+                </Button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+      {/* Skills, Tools, MCP, and Plugins read and write the same selected profile. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col">
           <div className={displayMode === 'skills' ? 'min-h-40 flex-1 overflow-hidden' : 'min-h-0 flex-1'}>
             {displayMode === 'plugins' ? (
@@ -1139,7 +1183,7 @@ export function SkillsView({
           skillName={archiveTarget}
         />
       )}
-    </PageSearchShell>
+    </section>
   )
 }
 
