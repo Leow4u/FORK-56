@@ -1229,7 +1229,7 @@ function SkillCard({
   const usage = usageOf(skill)
 
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-(--ui-stroke-tertiary) bg-(--ui-bg-primary) p-3">
+    <div className="flex items-start gap-3 rounded-xl border border-(--ui-stroke-tertiary) bg-(--ui-bg-editor) p-3 transition-colors hover:bg-(--ui-row-hover-background)">
       <button className="min-w-0 flex-1 text-left" onClick={onOpen} type="button">
         <span className="block truncate text-sm font-medium text-foreground">{skill.name}</span>
         <span className="mt-0.5 block truncate text-xs text-muted-foreground">{prettyName(categoryFor(skill))}</span>
