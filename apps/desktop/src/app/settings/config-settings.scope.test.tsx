@@ -3,8 +3,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { $activeGatewayProfile } from '@/store/profile'
+import { $activeGatewayProfile, $profiles } from '@/store/profile'
 import { $settingsScopeOverride, setSettingsScope } from '@/store/settings-scope'
+import type { ProfileInfo } from '@/types/work4you'
 
 const getWork4YouConfigRecord = vi.fn()
 const getWork4YouConfigSchema = vi.fn()
@@ -12,6 +13,7 @@ const getElevenLabsVoices = vi.fn()
 const saveWork4YouConfig = vi.fn()
 const getGlobalModelOptions = vi.fn()
 const getEnvVars = vi.fn()
+const getProfiles = vi.fn()
 
 vi.mock('@/work4you', () => ({
   getWork4YouConfigRecord: (...args: unknown[]) => getWork4YouConfigRecord(...args),
@@ -23,7 +25,9 @@ vi.mock('@/work4you', () => ({
   setEnvVar: vi.fn(),
   deleteEnvVar: vi.fn(),
   revealEnvVar: vi.fn(),
-  getProfiles: vi.fn(async () => ({ profiles: [] })),
+  // The profile chip refreshes the roster on mount, so this answer is the
+  // roster each test ends up rendering.
+  getProfiles: (...args: unknown[]) => getProfiles(...args),
   getApiRequestProfile: () => 'default',
   setApiRequestProfile: () => undefined,
   // The config cache key folds the concrete scope in (use-config-record.ts).
@@ -56,6 +60,7 @@ beforeEach(() => {
   saveWork4YouConfig.mockResolvedValue({ ok: true })
   getGlobalModelOptions.mockResolvedValue({ providers: [] })
   getEnvVars.mockResolvedValue({})
+  getProfiles.mockResolvedValue({ profiles: [] })
 })
 
 afterEach(() => {
@@ -63,7 +68,11 @@ afterEach(() => {
   vi.clearAllMocks()
   $settingsScopeOverride.set(null)
   $activeGatewayProfile.set('default')
+  $profiles.set([])
 })
+
+const roster = (...names: string[]) =>
+  names.map((name, index) => ({ has_env: false, is_default: index === 0, model: null, name }) as unknown as ProfileInfo)
 
 async function renderSection(activeSectionId: string) {
   const { ConfigSettings } = await import('./config-settings')
@@ -123,6 +132,36 @@ describe('ConfigSettings profile scope', () => {
     expect(getWork4YouConfigRecord).toHaveBeenCalledWith('research')
     expect(getEnvVars).toHaveBeenCalledWith('research')
     expect(getWork4YouConfigRecord).not.toHaveBeenCalledWith('default')
+  })
+
+  it('shows the chip with two profiles and a chip pick retargets the page', async () => {
+    $profiles.set(roster('default', 'research'))
+    getProfiles.mockResolvedValue({ profiles: roster('default', 'research') })
+
+    await renderSection('chat')
+
+    expect(await screen.findByText('Editing profile')).toBeTruthy()
+    expect(getWork4YouConfigRecord).toHaveBeenCalledWith('default')
+
+    fireEvent.click(screen.getByRole('radio', { name: 'research' }))
+
+    await waitFor(() => expect(getWork4YouConfigRecord).toHaveBeenCalledWith('research'))
+    expect($settingsScopeOverride.get()).toBe('research')
+    // The page remounts for the new scope (skeleton first); once its config
+    // lands the chip is back, naming the non-default target loudly.
+    const note = await screen.findByRole('status')
+    expect(note.getAttribute('data-scope-loud')).toBe('true')
+    expect(note.textContent).toContain('research')
+  })
+
+  it('hides the chip for single-profile users', async () => {
+    $profiles.set(roster('default'))
+    getProfiles.mockResolvedValue({ profiles: roster('default') })
+
+    await renderSection('chat')
+
+    expect(await screen.findByText('Reasoning Blocks')).toBeTruthy()
+    expect(screen.queryByText('Editing profile')).toBeNull()
   })
 
   it('remounts the page when the scope changes so no draft crosses profiles', async () => {

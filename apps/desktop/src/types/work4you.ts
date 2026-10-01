@@ -1044,6 +1044,9 @@ export interface ProfileCreatePayload {
 export interface ProfileInfo {
   /** Presentation-only label override (profile.yaml display_name). */
   display_name?: string
+  /** WorkBots title (profile.yaml ui_meta title) — the name the bots roster
+   *  shows for this profile. Presentation-only; older backends omit it. */
+  bot_title?: string
   has_env: boolean
   is_default: boolean
   model: null | string

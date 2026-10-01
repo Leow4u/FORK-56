@@ -31,6 +31,7 @@ import { MemoryConnect } from './memory/connect'
 import { ProviderConfigPanel } from './memory/provider-config-panel'
 import { ModelSettings, ModelSettingsSkeleton } from './model-settings'
 import { EmptyState, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton, ToggleRow } from './primitives'
+import { SettingsProfileScope } from './profile-scope'
 import { AutoArchiveSetting } from './sessions-settings'
 
 export function ConfigSettings({ activeSectionId, onConfigSaved, onMainModelChanged }: ConfigSettingsProps) {
@@ -293,6 +294,7 @@ function ConfigSettingsInner({
       return (
         <SettingsContent>
           <SectionHeading description={t.settings.model.pickerIntro} title={t.settings.sections.model} variant="page" />
+          <SettingsProfileScope className="mb-5" />
           <div className="mb-6">
             <ModelSettingsSkeleton />
           </div>
@@ -323,6 +325,9 @@ function ConfigSettingsInner({
         title={t.settings.sections[activeSectionId] ?? activeSectionId}
         variant="page"
       />
+      {/* Which profile's config.yaml this page edits — shared across every
+          config-backed settings page (and hidden for single-profile users). */}
+      <SettingsProfileScope className="mb-5" />
       {activeSectionId === 'model' && (
         <div className="mb-6">
           <ModelSettings onMainModelChanged={onMainModelChanged} scopeProfile={scopeProfile} />

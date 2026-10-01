@@ -1,6 +1,6 @@
 import { atom, computed } from 'nanostores'
 
-import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
+import { $activeGatewayProfile, $profiles, normalizeProfileKey } from '@/store/profile'
 
 // ── Shared settings "editing profile" scope ─────────────────────────────────
 // One selection shared by every config-backed settings page (Model, Workspace,
@@ -15,6 +15,19 @@ export const $settingsScopeOverride = atom<null | string>(null)
 export const $settingsScopeProfile = computed([$settingsScopeOverride, $activeGatewayProfile], (override, active) =>
   normalizeProfileKey(override ?? active)
 )
+
+// Whether the settings pages are editing a profile OTHER than the default
+// one. The scope follows the app's active profile when no override is set —
+// which, after opening a WorkBot chat, is the BOT's profile — so an edit can
+// land in profiles/<bot>/config.yaml while the user believes they are editing
+// their main config. Surfaces render this loudly. Until the roster has loaded
+// (no is_default entry yet) the root profile's canonical key is assumed, so an
+// unknown default fails loud, not quiet.
+export const $settingsScopeEditsNonDefault = computed([$settingsScopeProfile, $profiles], (selected, profiles) => {
+  const defaultProfile = profiles.find(profile => profile.is_default)
+
+  return selected !== normalizeProfileKey(defaultProfile?.name)
+})
 
 // ── Request-scope form (THE value to hand to API helpers) ──────────────────
 // The store contract and the API contract disagree about `null`:

@@ -65,7 +65,9 @@ vi.mock('@/work4you', () => ({
   saveWork4YouConfig: (config: unknown) => saveWork4YouConfig(config),
   getElevenLabsVoices: () => getElevenLabsVoices(),
   setApiRequestProfile: () => undefined,
-  getApiRequestProfile: () => null
+  getApiRequestProfile: () => null,
+  // The profile chip refreshes the roster on mount.
+  getProfiles: vi.fn(async () => ({ profiles: [] }))
 }))
 
 vi.mock('@/store/notifications', () => ({

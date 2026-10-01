@@ -24,8 +24,8 @@ const { $activeGatewayProfile, $profiles } = await import('@/store/profile')
 const { $settingsScopeOverride } = await import('@/store/settings-scope')
 const { SettingsProfileScope } = await import('./profile-scope')
 
-const profile = (name: string, isDefault = false): ProfileInfo =>
-  ({ has_env: false, is_default: isDefault, model: null, name }) as unknown as ProfileInfo
+const profile = (name: string, isDefault = false, extra: Partial<ProfileInfo> = {}): ProfileInfo =>
+  ({ has_env: false, is_default: isDefault, model: null, name, ...extra }) as unknown as ProfileInfo
 
 beforeEach(() => {
   $activeGatewayProfile.set('default')
@@ -75,6 +75,74 @@ describe('SettingsProfileScope', () => {
     expect(
       screen.getByText('These settings only change the “default” profile. Other profiles stay independent.')
     ).toBeTruthy()
+  })
+
+  it('keeps the note quiet while following the active DEFAULT profile', () => {
+    $profiles.set([profile('default', true), profile('coder')])
+
+    render(<SettingsProfileScope />)
+
+    const note = screen.getByRole('status')
+    expect(note.textContent).toContain('default')
+    expect(note.hasAttribute('data-scope-loud')).toBe(false)
+    expect(note.hasAttribute('data-scope-override')).toBe(false)
+  })
+
+  it('states the edit target loudly when the active profile is a non-default bot (no override)', () => {
+    // Opening a WorkBot chat makes its profile the active one; a Settings edit
+    // then lands in profiles/<bot>/config.yaml while the user believes they
+    // are editing their main config. The note must stand out.
+    $activeGatewayProfile.set('scout')
+    $profiles.set([profile('default', true), profile('scout')])
+
+    render(<SettingsProfileScope />)
+
+    expect($settingsScopeOverride.get()).toBeNull()
+    const note = screen.getByRole('status')
+    expect(note.textContent).toContain('scout')
+    expect(note.getAttribute('data-scope-loud')).toBe('true')
+  })
+
+  it('turns the note loud on an explicit pick of a non-default profile and quiet back on the default', () => {
+    $profiles.set([profile('default', true), profile('coder')])
+
+    render(<SettingsProfileScope />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'coder' }))
+    expect(screen.getByRole('status').getAttribute('data-scope-loud')).toBe('true')
+    expect(screen.getByRole('status').getAttribute('data-scope-override')).toBe('true')
+
+    fireEvent.click(screen.getByRole('radio', { name: 'default' }))
+    expect(screen.getByRole('status').hasAttribute('data-scope-loud')).toBe(false)
+  })
+
+  it('labels chips with the bot title, else the display name, else the slug', () => {
+    $profiles.set([
+      profile('default', true, { display_name: 'Work4You (default)' }),
+      profile('coder', false, { bot_title: 'JordyV', display_name: 'Copy' }),
+      profile('research', false, { display_name: 'Pesquisa' }),
+      profile('weather-man')
+    ])
+
+    render(<SettingsProfileScope />)
+
+    expect(screen.getByRole('radio', { name: 'Work4You (default)' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'JordyV' })).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: 'Copy' })).toBeNull()
+    expect(screen.getByRole('radio', { name: 'Pesquisa' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'weather-man' })).toBeTruthy()
+  })
+
+  it('keeps selection keyed on the canonical name while showing the presentation label', () => {
+    $profiles.set([profile('default', true), profile('coder', false, { bot_title: 'JordyV' })])
+
+    render(<SettingsProfileScope />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'JordyV' }))
+
+    expect($settingsScopeOverride.get()).toBe('coder')
+    expect(screen.getByRole('status').textContent).toContain('JordyV')
+    expect(screen.getByRole('status').textContent).not.toContain('coder')
   })
 
   it('centers the label, chips, and helper when align is center', () => {

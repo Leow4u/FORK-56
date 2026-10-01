@@ -16,7 +16,9 @@ vi.mock('@/work4you', () => ({
   getApiRequestProfile: () => 'default',
   setApiRequestProfile: () => {},
   // The config cache key folds the concrete settings scope in (use-config-record.ts).
-  profileScopeKey: (scope?: null | string) => scope ?? 'default'
+  profileScopeKey: (scope?: null | string) => scope ?? 'default',
+  // The profile chip refreshes the roster on mount.
+  getProfiles: vi.fn(async () => ({ profiles: [] }))
 }))
 
 const schema = {

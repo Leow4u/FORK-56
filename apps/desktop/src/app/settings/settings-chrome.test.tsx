@@ -13,6 +13,14 @@ vi.mock('@/work4you', () => ({
   // The config cache key folds the concrete settings scope in (use-config-record.ts).
   profileScopeKey: (scope?: null | string) => scope ?? 'default',
   getToolsets: vi.fn(async () => []),
+  // The profile chip refreshes the roster on mount; answer with the same two
+  // profiles the first test sets so the refresh cannot empty it.
+  getProfiles: vi.fn(async () => ({
+    profiles: [
+      { has_env: false, is_default: true, model: null, name: 'default' },
+      { has_env: false, is_default: false, model: null, name: 'coder' }
+    ]
+  })),
   getPortalAccount: vi.fn(async () => ({ email: null, logged_in: false, name: null })),
   refreshPortalAccount: vi.fn(async () => ({ email: null, logged_in: false, name: null })),
   listOAuthProviders: vi.fn(async () => ({ providers: [] })),
@@ -54,8 +62,10 @@ describe('Settings chrome', () => {
     expect(screen.queryByRole('button', { name: 'Import config' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Reset to defaults' })).toBeNull()
 
+    // Config pages show the shared profile chip again (two profiles above).
     fireEvent.click(screen.getAllByRole('button', { name: 'Chat' })[0])
-    expect(screen.queryByText('Editing profile')).toBeNull()
+    expect(await screen.findByText('Editing profile')).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'coder' })).toBeTruthy()
   })
 
   it('sends an old About bookmark to the default settings view', async () => {

@@ -10,6 +10,7 @@ import { getToolsets, setToolsetEnabled } from '@/work4you'
 import { toolsetDisplayLabel } from './helpers'
 import { ImageVideoCatalog } from './image-video-catalog'
 import { EmptyState, SectionHeading, SettingsContent, SettingsSkeleton } from './primitives'
+import { SettingsProfileScope } from './profile-scope'
 
 export function ImageVideoSettings() {
   // Shared settings scope as the CONCRETE profile key (the app's active
@@ -74,6 +75,7 @@ function ImageVideoSettingsInner({ scopeProfile }: { scopeProfile: string | unde
         title={t.settings.sections.image_video ?? 'Image & Video'}
         variant="page"
       />
+      <SettingsProfileScope className="mb-5" />
       {rows.length === 0 ? (
         <EmptyState description={t.settings.config.emptyDesc} title={t.settings.config.emptyTitle} />
       ) : (
