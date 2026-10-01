@@ -17,11 +17,11 @@ import type { DesktopRosterAgent } from '@/global'
 import { useI18n } from '@/i18n'
 import { isDesktopToolsetVisible } from '@/lib/desktop-toolsets'
 import { compactNumber } from '@/lib/format'
-import { cn } from '@/lib/utils'
 import { queryClient } from '@/lib/query-client'
 import { invalidateSlashCompletions } from '@/lib/slash-completion-cache'
 import { normalize } from '@/lib/text'
 import { useStoreSelector } from '@/lib/use-session-slice'
+import { cn } from '@/lib/utils'
 import { $gateway, activeGatewayConnectionId } from '@/store/gateway'
 import { notify, notifyError } from '@/store/notifications'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
@@ -44,6 +44,7 @@ import {
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
+import { PAGE_INSET_X } from '../layout-constants'
 import {
   CapRow,
   DetailColumn,
@@ -56,7 +57,6 @@ import {
   MasterDetail,
   ToolChip
 } from '../master-detail'
-import { PAGE_INSET_X } from '../layout-constants'
 import { PanelEmpty, PanelPill } from '../overlays/panel'
 import { SETTINGS_ROUTE } from '../routes'
 import { ComputerUsePanel } from '../settings/computer-use-panel'
