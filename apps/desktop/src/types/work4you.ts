@@ -75,6 +75,11 @@ export interface PortalAccountIdentity {
   logged_in: boolean
   /** Cadastro name, only when both parts were saved. */
   name: null | string
+  /** Present together with last_name when the cadastro saved both parts. */
+  first_name?: null | string
+  last_name?: null | string
+  /** Portal this login belongs to. Absent on backends that predate the field. */
+  portal_url?: null | string
 }
 
 export type OAuthStartResponse =

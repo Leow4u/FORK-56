@@ -16,6 +16,8 @@ import { test } from 'vitest'
 
 import {
   accountIdentityFromBody,
+  accountProfilePatchBody,
+  accountProfileSaveError,
   apiRequestRegistryConnectionId,
   AT_COOKIE_VARIANTS,
   authModeFromStatus,
@@ -1119,6 +1121,23 @@ test('accountIdentityFromBody reads the Privy email when the cadastro name is in
     name: null
   })
   assert.deepEqual(accountIdentityFromBody(null), { email: null, name: null })
+})
+
+test('accountProfilePatchBody keeps both cadastro parts and drops a single part', () => {
+  assert.deepEqual(accountProfilePatchBody('  Ada  ', 'Lovelace'), { firstName: 'Ada', lastName: 'Lovelace' })
+  assert.equal(accountProfilePatchBody('Ada', '   '), null)
+  assert.equal(accountProfilePatchBody('', 'Lovelace'), null)
+  assert.equal(accountProfilePatchBody(null, 'Lovelace'), null)
+  assert.equal(accountProfilePatchBody('Ada', 'Lovelace').firstName.length <= 80, true)
+  assert.equal(accountProfilePatchBody('A'.repeat(90), 'Lovelace').firstName, 'A'.repeat(80))
+})
+
+test('accountProfileSaveError maps portal status codes', () => {
+  assert.equal(accountProfileSaveError({ statusCode: 401 }), 'unauthorized')
+  assert.equal(accountProfileSaveError({ statusCode: 403 }), 'unauthorized')
+  assert.equal(accountProfileSaveError({ statusCode: 400 }), 'invalid_profile')
+  assert.equal(accountProfileSaveError({ statusCode: 500 }), 'unavailable')
+  assert.equal(accountProfileSaveError(new Error('offline')), 'unavailable')
 })
 
 test('cadastroDisplayName requires both first and last name', () => {

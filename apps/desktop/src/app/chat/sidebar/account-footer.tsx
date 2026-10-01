@@ -21,15 +21,16 @@ import { cn } from '@/lib/utils'
 import { resolveUpdateChipLabel, resolveVersionStatus } from '@/lib/version-status'
 import { toggleHud } from '@/store/hud'
 import { notifyError } from '@/store/notifications'
-import { $desktopOnboarding, requestDesktopOnboarding, startManualProviderOAuth } from '@/store/onboarding'
+import { $desktopOnboarding, startManualProviderOAuth } from '@/store/onboarding'
 import { $activeProfile } from '@/store/profile'
 import { $connection, $gatewayState } from '@/store/session'
 import { $desktopVersion, $updateApply, $updateStatus, startActiveUpdate } from '@/store/updates'
-import { disconnectOAuthProvider, getPortalAccount } from '@/work4you'
+import { getPortalAccount } from '@/work4you'
 
 import { SETTINGS_ROUTE } from '../../routes'
 
-import { accountMenuLabel } from './account-label'
+import { accountMark, accountMenuLabel } from './account-label'
+import { PORTAL_ACCOUNT_CHANGED, signOutOfPortal } from './portal-session'
 
 export const ACCOUNT_DOCS_URL = 'https://work4you.ai/docs/'
 export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
@@ -65,29 +66,6 @@ const rowClass = cn(
   'text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag]',
   'hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none'
 )
-
-/** Initials painted on the existing account trigger. Signed out: one letter.
- *  Signed in: email local-part, first letter of the first two segments, or
- *  the first two letters when there is only one segment. */
-function accountMark(label: string, signedIn: boolean): string {
-  if (!signedIn) {
-    return (label.match(/[a-z0-9]/i)?.[0] ?? '?').toUpperCase()
-  }
-
-  const source = label.includes('@') ? (label.split('@')[0] ?? label) : label
-  const parts = source.split(/[\s._-]+/).filter(part => /[a-z0-9]/i.test(part))
-
-  if (parts.length >= 2) {
-    const first = parts[0]?.match(/[a-z0-9]/i)?.[0] ?? ''
-    const second = parts[1]?.match(/[a-z0-9]/i)?.[0] ?? ''
-
-    return `${first}${second}`.toUpperCase()
-  }
-
-  const letters = source.match(/[a-z0-9]/gi) ?? []
-
-  return `${letters[0] ?? '?'}${letters[1] ?? ''}`.toUpperCase()
-}
 
 export function AccountFooter() {
   const { t } = useI18n()
@@ -158,10 +136,12 @@ export function AccountFooter() {
 
     void check()
     window.addEventListener('focus', onFocus)
+    window.addEventListener(PORTAL_ACCOUNT_CHANGED, onFocus)
 
     return () => {
       cancelled = true
       window.removeEventListener('focus', onFocus)
+      window.removeEventListener(PORTAL_ACCOUNT_CHANGED, onFocus)
     }
   }, [activeProfile, gatewayState, onboardingKey])
 
@@ -200,7 +180,7 @@ export function AccountFooter() {
     triggerHaptic('open')
 
     try {
-      await disconnectOAuthProvider(FEATURED_ID)
+      await signOutOfPortal()
     } catch (err) {
       notifyError(err, t.settings.gateway.signOutFailed)
 
@@ -209,9 +189,6 @@ export function AccountFooter() {
 
     readSeq.current += 1
     setAccount(SIGNED_OUT)
-    // A Portal session left in the old app-window sign-in goes too.
-    void window.work4youDesktop?.cloud?.logout?.().catch(() => undefined)
-    requestDesktopOnboarding()
   }
 
   return (

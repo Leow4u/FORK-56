@@ -327,10 +327,33 @@ export interface Translations {
       mcp: string
       archivedChats: string
       about: string
+      account: string
       app: string
       billing: string
       notifications: string
       plugins: string
+    }
+    account: {
+      title: string
+      intro: string
+      identity: string
+      email: string
+      firstName: string
+      lastName: string
+      saveName: string
+      saving: string
+      saved: string
+      saveFailed: string
+      nameRequired: string
+      signInAgain: string
+      signIn: string
+      linkedAccounts: string
+      linkedAccountsDesc: string
+      manage: string
+      session: string
+      logOut: string
+      logOutDesc: string
+      logOutFailed: string
     }
     plugins: {
       title: string

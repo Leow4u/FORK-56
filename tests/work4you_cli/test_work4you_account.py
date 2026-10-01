@@ -432,6 +432,9 @@ def test_identity_reads_name_and_email_with_the_agent_login(monkeypatch, identit
         "logged_in": True,
         "email": "ada@example.test",
         "name": "Ada Lovelace",
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "portal_url": "https://portal.example.test",
     }
     assert calls == [("agent-token", "https://portal.example.test")]
 
@@ -445,7 +448,10 @@ def test_identity_name_needs_both_cadastro_parts(monkeypatch, identity_cache):
         lambda *a, **kw: {"firstName": "Ada", "lastName": " ", "email": "ada@example.test"},
     )
 
-    assert get_work4you_portal_identity()["name"] is None
+    identity = get_work4you_portal_identity()
+    assert identity["name"] is None
+    assert identity["first_name"] is None
+    assert identity["last_name"] is None
 
 
 def test_identity_cache_hit_never_resolves_a_token(monkeypatch, identity_cache):
@@ -473,7 +479,14 @@ def test_identity_cache_hit_never_resolves_a_token(monkeypatch, identity_cache):
     first = get_work4you_portal_identity()
     second = get_work4you_portal_identity()
 
-    assert first == second == {"logged_in": True, "email": "ada@example.test", "name": None}
+    assert first == second == {
+        "logged_in": True,
+        "email": "ada@example.test",
+        "name": None,
+        "first_name": None,
+        "last_name": None,
+        "portal_url": "https://portal.example.test",
+    }
     assert len(resolves) == 1
 
 
@@ -497,6 +510,9 @@ def test_identity_falls_back_to_the_login_email(monkeypatch, identity_cache):
         "logged_in": True,
         "email": "ada@example.test",
         "name": None,
+        "first_name": None,
+        "last_name": None,
+        "portal_url": "https://portal.example.test",
     }
 
 

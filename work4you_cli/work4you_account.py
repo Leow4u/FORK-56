@@ -410,6 +410,10 @@ def get_work4you_portal_identity() -> dict[str, Any]:
     A cache hit reads only the stored token's subject, so a polled caller never
     refreshes a token. A miss resolves a refresh-aware token once, then reads
     ``GET /api/account`` and falls back to the email on ``/api/oauth/account``.
+
+    ``first_name`` and ``last_name`` are set together, and only when both
+    cadastro parts were saved. ``portal_url`` is the Portal that login belongs
+    to, so the desktop can open that account page.
     """
     try:
         from work4you_cli.auth import _decode_jwt_claims, get_work4you_auth_status_local
@@ -437,8 +441,9 @@ def get_work4you_portal_identity() -> dict[str, Any]:
 
         identity = _fetch_portal_identity(resolve_work4you_access_token(), portal_base_url)
     except Exception:
-        identity = {"email": None, "name": None}
+        identity = {"email": None, "name": None, "first_name": None, "last_name": None}
 
+    identity["portal_url"] = portal_base_url
     ttl = _IDENTITY_CACHE_TTL if (identity["email"] or identity["name"]) else _IDENTITY_RETRY_TTL
     with _IDENTITY_CACHE_LOCK:
         _identity_cache[key] = (time.monotonic(), ttl, identity)
@@ -732,16 +737,27 @@ def _fetch_portal_identity(
     except Exception:
         profile = {}
     email = _clean_text(profile.get("email"))
-    name = _cadastro_name(profile.get("firstName"), profile.get("lastName"))
+    first_name, last_name = _cadastro_parts(profile.get("firstName"), profile.get("lastName"))
+    name = f"{first_name} {last_name}" if first_name and last_name else None
     if email or name:
-        return {"email": email, "name": name}
+        return {
+            "email": email,
+            "name": name,
+            "first_name": first_name,
+            "last_name": last_name,
+        }
 
     try:
         account = _fetch_work4you_account_info(access_token, portal_base_url)
     except Exception:
         account = {}
     user = account.get("user") if isinstance(account.get("user"), dict) else {}
-    return {"email": _clean_text(user.get("email")), "name": None}
+    return {
+        "email": _clean_text(user.get("email")),
+        "name": None,
+        "first_name": None,
+        "last_name": None,
+    }
 
 
 def _clean_text(value: Any) -> Optional[str]:
@@ -751,10 +767,18 @@ def _clean_text(value: Any) -> Optional[str]:
     return text or None
 
 
-def _cadastro_name(first: Any, last: Any) -> Optional[str]:
-    """The Portal's display rule: a name only when both parts were saved."""
+def _cadastro_parts(first: Any, last: Any) -> tuple[Optional[str], Optional[str]]:
+    """Both cadastro parts, or neither. One saved part is not a display name."""
     first_name = _clean_text(first)
     last_name = _clean_text(last)
+    if first_name and last_name:
+        return first_name, last_name
+    return None, None
+
+
+def _cadastro_name(first: Any, last: Any) -> Optional[str]:
+    """The Portal's display rule: a name only when both parts were saved."""
+    first_name, last_name = _cadastro_parts(first, last)
     return f"{first_name} {last_name}" if first_name and last_name else None
 
 

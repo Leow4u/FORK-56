@@ -202,6 +202,15 @@ export function getPortalAccount(): Promise<PortalAccountIdentity> {
   })
 }
 
+/** Drop the hour-long identity cache and re-read after the cadastro name is saved. */
+export function refreshPortalAccount(): Promise<PortalAccountIdentity> {
+  return work4youApi<PortalAccountIdentity>({
+    ...profileScoped(),
+    path: '/api/portal/account/refresh',
+    method: 'POST'
+  })
+}
+
 export function disconnectOAuthProvider(providerId: string): Promise<{ ok: boolean; provider: string }> {
   return work4youApi<{ ok: boolean; provider: string }>({
     ...profileScoped(),

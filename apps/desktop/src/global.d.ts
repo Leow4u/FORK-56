@@ -171,6 +171,8 @@ declare global {
         logout: () => Promise<DesktopCloudStatus & { ok: boolean }>
         discover: (org?: string) => Promise<DesktopCloudDiscoverResult>
         agentSignIn: (dashboardUrl: string) => Promise<DesktopCloudAgentSignInResult>
+        // PATCH /api/account through the Privy cookie. Absent on older shells.
+        saveAccountProfile?: (profile: { firstName: string; lastName: string }) => Promise<DesktopAccountProfileSave>
       }
       profile: {
         get: () => Promise<DesktopActiveProfile>
@@ -954,6 +956,10 @@ export interface DesktopOauthLogoutResult {
 }
 
 // --- Work4You Cloud (cloud-auto-discovery Phase 3) ---
+
+export type DesktopAccountProfileSave =
+  | { ok: true; firstName: string; lastName: string }
+  | { ok: false; error: 'invalid_profile' | 'unauthorized' | 'unavailable' }
 
 export interface DesktopCloudStatus {
   // The portal base URL the desktop talks to (default or env-overridden).

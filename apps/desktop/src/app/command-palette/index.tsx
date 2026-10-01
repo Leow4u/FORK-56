@@ -48,6 +48,7 @@ import {
   SlidersHorizontal,
   Starmap,
   Sun,
+  User,
   Users,
   Wrench,
   X,
@@ -456,6 +457,16 @@ const NON_CONFIG_SETTINGS: ReadonlyArray<{
     tab: 'app'
   }
 ]
+
+function accountSettingsItem(id: string, label: string, run: () => void) {
+  return {
+    icon: User,
+    id,
+    keywords: ['account', 'email', 'name', 'portal', 'sign-in', 'log out', 'profile'],
+    label,
+    run
+  }
+}
 
 const THEME_MODES: ReadonlyArray<{ icon: IconComponent; mode: ThemeMode }> = [
   { icon: Sun, mode: 'light' },
@@ -1003,6 +1014,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
       {
         heading: cc.settings,
         items: [
+          accountSettingsItem('set-account', t.settings.nav.account, go(settingsTab('account'))),
           ...SECTIONS.map(section => ({
             icon: section.icon,
             id: `set-config-${section.id}`,
@@ -1289,6 +1301,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
       {
         heading: cc.settings,
         items: [
+          accountSettingsItem('sp-account', t.settings.nav.account, go(settingsTab('account'))),
           ...SECTIONS.map(section => ({
             icon: section.icon,
             id: `sp-config-${section.id}`,

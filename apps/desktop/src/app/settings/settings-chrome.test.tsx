@@ -10,7 +10,11 @@ vi.mock('@/work4you', () => ({
   saveWork4YouConfig: vi.fn(async () => ({ ok: true })),
   getApiRequestProfile: () => null,
   setApiRequestProfile: () => undefined,
-  getToolsets: vi.fn(async () => [])
+  getToolsets: vi.fn(async () => []),
+  getPortalAccount: vi.fn(async () => ({ email: null, logged_in: false, name: null })),
+  refreshPortalAccount: vi.fn(async () => ({ email: null, logged_in: false, name: null })),
+  listOAuthProviders: vi.fn(async () => ({ providers: [] })),
+  disconnectOAuthProvider: vi.fn(async (providerId: string) => ({ ok: true, provider: providerId }))
 }))
 
 import { $profiles } from '@/store/profile'
@@ -40,6 +44,9 @@ describe('Settings chrome', () => {
     expect(screen.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Keyboard shortcuts' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'About' })).toBeNull()
+    const navLabels = screen.getAllByRole('button').map(button => button.textContent ?? '')
+    expect(navLabels.indexOf('Account')).toBeGreaterThanOrEqual(0)
+    expect(navLabels.indexOf('Account')).toBeLessThan(navLabels.indexOf('Model'))
     expect(screen.getAllByRole('button', { name: /Search/ }).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Export config' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Import config' })).toBeNull()
@@ -61,7 +68,7 @@ describe('Settings chrome', () => {
       </MemoryRouter>
     )
 
-    expect(await screen.findByRole('heading', { name: 'Model' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Account' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'About' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Check now' })).toBeNull()
     expect(screen.queryByText('Remove the app')).toBeNull()

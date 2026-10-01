@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { accountMenuLabel } from './account-label'
+import { accountMark, accountMenuLabel } from './account-label'
 
 describe('accountMenuLabel', () => {
   it('prefers the cadastro name over the email', () => {
@@ -11,6 +11,12 @@ describe('accountMenuLabel', () => {
     expect(accountMenuLabel({ email: 'ada@example.com', name: null })).toBe('ada@example.com')
     expect(accountMenuLabel({ email: 'ada@example.com', name: '   ' })).toBe('ada@example.com')
     expect(accountMenuLabel({ email: 'ada@example.com' })).toBe('ada@example.com')
+  })
+
+  it('paints two initials from a cadastro name', () => {
+    expect(accountMark('Leonardo Duarte', true)).toBe('LD')
+    expect(accountMark('ada@example.com', true)).toBe('AD')
+    expect(accountMark('Account', false)).toBe('A')
   })
 
   it('returns null when neither identity is present', () => {
