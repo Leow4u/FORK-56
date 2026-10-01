@@ -90,9 +90,31 @@ describe('hudWindowFrame', () => {
     expect(frame.bounds).toMatchObject({ x: 40, y: 80, height: 164 })
   })
 
-  it('does not shrink a saved window that is already taller than the resting bar', () => {
+  it('collapses a tall empty save down to the composer bar', () => {
+    // Pre-fix hud-state.json (and DPI-rounded cousins of 620×320) left the
+    // window tall. Empty Floating Chat must still become the Spotlight bar —
+    // otherwise the white slab sticks forever.
     const frame = hudWindowFrame({ ...resting, height: 360, y: 400 })
 
+    expect(frame.owned).toBe(true)
+    expect(frame.bounds).toEqual({
+      x: 200,
+      y: 400 + 360 - 64,
+      width: 480,
+      height: 64
+    })
+  })
+
+  it('does not shrink a tall save that still has a transcript', () => {
+    const frame = hudWindowFrame({
+      ...resting,
+      height: 200,
+      y: 400,
+      contentHeight: 80,
+      owned: false
+    })
+
+    // Already taller than bar+rows and not owned: leave the user's height.
     expect(frame).toEqual({ bounds: null, owned: false })
   })
 
