@@ -108,6 +108,39 @@ async function openChannel(name: string) {
   })
 }
 
+describe('MessagingView list header', () => {
+  it('centers the list header with a readable pill search field', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform(), platform({ id: 'discord', name: 'Discord' })]
+    })
+
+    const { container } = await renderMessaging()
+
+    expect(await screen.findByRole('button', { name: /Mattermost/ })).toBeTruthy()
+    expect(container.querySelector('.items-center.gap-4')).toBeTruthy()
+    const search = screen.getByRole('textbox', { name: /Search messaging/i })
+    expect(search.parentElement?.className).toContain('rounded-full')
+    expect(search.parentElement?.className).not.toContain('opacity-30')
+  })
+
+  it('filters the channel list from the pill search field', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform(), platform({ id: 'discord', name: 'Discord' })]
+    })
+
+    await renderMessaging()
+    expect(await screen.findByRole('button', { name: /Mattermost/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Discord/ })).toBeTruthy()
+
+    fireEvent.change(screen.getByRole('textbox', { name: /Search messaging/i }), {
+      target: { value: 'disc' }
+    })
+
+    expect(screen.getByRole('button', { name: /Discord/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Mattermost/ })).toBeNull()
+  })
+})
+
 describe('MessagingView setup-guide link', () => {
   it('hides the setup-guide button for a plugin platform with no docs URL', async () => {
     // Some plugin platforms ship an empty docs_url. Rendering an

@@ -12,6 +12,7 @@ import { DisclosureCaret } from '@/components/ui/disclosure-caret'
 import { ErrorBanner } from '@/components/ui/error-state'
 import { Field, FieldHint } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { SearchField } from '@/components/ui/search-field'
 import { Switch } from '@/components/ui/switch'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
@@ -36,8 +37,8 @@ import {
 } from '@/work4you'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
+import { PAGE_INSET_X } from '../layout-constants'
 import { DetailColumn } from '../master-detail'
-import { PageSearchShell } from '../page-search-shell'
 import { MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
 import { CREDENTIAL_CONTROL_CLASS } from '../settings/credential-key-ui'
 import { ListRow } from '../settings/primitives'
@@ -628,14 +629,13 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
     }
   }
 
+  const searchHints = platforms?.slice(0, 5).map(platform => t.common.tryHint(platform.name.toLowerCase()))
+  const showListSearch = (platforms?.length ?? 0) > 0 && !selected
+
   return (
-    <PageSearchShell
+    <section
       {...props}
-      onSearchChange={setQuery}
-      searchHidden={(platforms?.length ?? 0) === 0 || Boolean(selected)}
-      searchHints={platforms?.slice(0, 5).map(platform => t.common.tryHint(platform.name.toLowerCase()))}
-      searchPlaceholder={m.search}
-      searchValue={query}
+      className={cn('flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)', props.className)}
     >
       {!platforms ? (
         <PageLoader label={m.loading} />
@@ -707,8 +707,23 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
           </div>
         </div>
       ) : (
-        <div className="flex h-full min-h-0 flex-col">
-          <SettingsProfileScope className="border-b border-(--ui-stroke-secondary) px-3 py-2" />
+        <>
+          <div className={cn('shrink-0 pt-[calc(var(--titlebar-height)+0.75rem)] pb-4', PAGE_INSET_X)}>
+            <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4">
+              <SettingsProfileScope align="center" />
+              {showListSearch ? (
+                <SearchField
+                  containerClassName="w-full max-w-md"
+                  hints={searchHints}
+                  onChange={setQuery}
+                  placeholder={m.search}
+                  recede={false}
+                  shape="pill"
+                  value={query}
+                />
+              ) : null}
+            </div>
+          </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
             <ul className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-2">
               {visiblePlatforms.map(platform => (
@@ -722,7 +737,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
               ))}
             </ul>
           </div>
-        </div>
+        </>
       )}
 
       <ConfirmDialog
@@ -736,7 +751,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
         open={Boolean(pendingRevoke)}
         title={m.revokeTitle}
       />
-    </PageSearchShell>
+    </section>
   )
 }
 
