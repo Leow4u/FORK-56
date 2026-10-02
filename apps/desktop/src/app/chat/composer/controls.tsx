@@ -7,7 +7,7 @@ import { Codicon } from '@/components/ui/codicon'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { AudioLines, ChevronDown, Ear, EarOff, iconSize, Layers3, Loader2, Square, Volume2, VolumeX } from '@/lib/icons'
+import { AudioLines, Ear, EarOff, iconSize, Layers3, Loader2, Square, Volume2, VolumeX } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { $hudMode, closeHud } from '@/store/hud'
 import { $wakeWord, toggleWakeWord } from '@/store/wake-word'
@@ -70,6 +70,7 @@ export function ComposerControls({
   const c = t.composer
   const hudMode = useStore($hudMode)
   const dictationAnchorRef = useRef<HTMLSpanElement>(null)
+  const voiceStack = useVoiceStackReveal()
 
   if (conversation.active) {
     return <ConversationPill {...conversation} disabled={disabled} />
@@ -87,7 +88,8 @@ export function ComposerControls({
       <ModelPill compact={compactModelPill} disabled={disabled} model={state.model} />
       {/* The HUD folds every voice control into one menu. On the docked row,
           dictation stays one click, and read-replies plus the wake word stack
-          directly above that mic — the Hermes cluster. */}
+          directly above that mic — the Hermes cluster. The mic is the handle:
+          hover or focus it and the stack appears; there is no chevron. */}
       {hudMode ? (
         <VoiceMenu
           autoSpeak={autoSpeak}
@@ -99,7 +101,28 @@ export function ComposerControls({
           voiceStatus={voiceStatus}
         />
       ) : (
-        <span className="inline-flex" data-slot="voice-dictation-anchor" ref={dictationAnchorRef}>
+        <span
+          className="inline-flex"
+          data-slot="voice-dictation-anchor"
+          onBlur={voiceStack.leave}
+          onFocus={voiceStack.reveal}
+          onKeyDown={event => {
+            if (!voiceStack.open) {
+              return
+            }
+
+            if (event.key === 'Escape') {
+              event.stopPropagation()
+              voiceStack.close()
+            } else if (event.key === 'ArrowUp') {
+              event.preventDefault()
+              voiceStack.stackRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+            }
+          }}
+          onPointerEnter={voiceStack.reveal}
+          onPointerLeave={voiceStack.leave}
+          ref={dictationAnchorRef}
+        >
           <DictationButton disabled={disabled} onToggle={onDictate} state={state.voice} status={voiceStatus} />
         </span>
       )}
@@ -158,12 +181,13 @@ export function ComposerControls({
           </Button>
         </Tip>
       )}
-      {hudMode ? null : (
-        <VoiceOptionsMenu
+      {hudMode || !voiceStack.open ? null : (
+        <VoiceOptionsStack
           anchorRef={dictationAnchorRef}
           autoSpeak={autoSpeak}
           disabled={disabled}
           onToggleAutoSpeak={onToggleAutoSpeak}
+          reveal={voiceStack}
         />
       )}
       {/* The way out of HUD mode, riding the controls row rather than floating
@@ -307,31 +331,72 @@ function ConversationIndicator({
   )
 }
 
-// Pure-TTS toggle: type normally, but have every assistant reply read aloud —
-// no dictation, no full conversation loop. Filled/accent when on, mirroring the
-// muted-mic pressed state above. Driven by (and persisted to) `voice.auto_tts`.
-function VoiceOptionsMenu({
+// Read-replies + wake word, stacked above the dictation mic. No chevron: the
+// mic is the handle. Hovering or focusing it reveals the stack, resting the
+// pointer (or focus) on the stack keeps it, and leaving both lets it go after
+// a short grace so the pointer can cross from the mic up into the stack
+// without the stack vanishing underneath it.
+const VOICE_STACK_LEAVE_MS = 120
+
+interface VoiceStackReveal {
+  open: boolean
+  stackRef: RefObject<HTMLDivElement | null>
+  reveal: () => void
+  leave: () => void
+  close: () => void
+}
+
+function useVoiceStackReveal(): VoiceStackReveal {
+  const [open, setOpen] = useState(false)
+  const stackRef = useRef<HTMLDivElement>(null)
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const cancelLeave = () => {
+    if (leaveTimer.current) {
+      clearTimeout(leaveTimer.current)
+      leaveTimer.current = null
+    }
+  }
+
+  useEffect(() => cancelLeave, [])
+
+  return {
+    open,
+    stackRef,
+    reveal: () => {
+      cancelLeave()
+      setOpen(true)
+    },
+    leave: () => {
+      cancelLeave()
+      leaveTimer.current = setTimeout(() => {
+        leaveTimer.current = null
+        setOpen(false)
+      }, VOICE_STACK_LEAVE_MS)
+    },
+    close: () => {
+      cancelLeave()
+      setOpen(false)
+    }
+  }
+}
+
+function VoiceOptionsStack({
   anchorRef,
   autoSpeak,
   disabled,
-  onToggleAutoSpeak
+  onToggleAutoSpeak,
+  reveal
 }: {
   anchorRef: RefObject<HTMLElement | null>
   autoSpeak: boolean
   disabled: boolean
   onToggleAutoSpeak: () => void
+  reveal: VoiceStackReveal
 }) {
-  const { t } = useI18n()
-  const [open, setOpen] = useState(false)
   const [point, setPoint] = useState<{ left: number; top: number } | null>(null)
-  const stackRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
 
   useLayoutEffect(() => {
-    if (!open) {
-      return
-    }
-
     const place = () => {
       const node = anchorRef.current
 
@@ -353,64 +418,38 @@ function VoiceOptionsMenu({
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
-  }, [anchorRef, open])
+  }, [anchorRef])
 
-  useEffect(() => {
-    if (!open) {
-      return
-    }
+  if (!point) {
+    return null
+  }
 
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target
+  return createPortal(
+    <div
+      className="fixed z-50 flex -translate-x-1/2 -translate-y-full flex-col items-center gap-1.5 pb-1.5"
+      data-slot="voice-options-stack"
+      onBlur={reveal.leave}
+      onFocus={reveal.reveal}
+      onKeyDown={event => {
+        if (event.key !== 'Escape') {
+          return
+        }
 
-      if (!(target instanceof Node)) {
-        return
-      }
-
-      if (stackRef.current?.contains(target) || triggerRef.current?.contains(target)) {
-        return
-      }
-
-      setOpen(false)
-    }
-
-    document.addEventListener('pointerdown', onPointerDown)
-
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [open])
-
-  return (
-    <>
-      <Tip label={t.composer.voiceControls}>
-        <Button
-          aria-expanded={open}
-          aria-label={t.composer.voiceControls}
-          className={cn(GHOST_ICON_BTN, 'w-4 p-0')}
-          disabled={disabled}
-          onClick={() => setOpen(value => !value)}
-          ref={triggerRef}
-          size="icon"
-          type="button"
-          variant="ghost"
-        >
-          <ChevronDown className={iconSize.xs} />
-        </Button>
-      </Tip>
-      {open && point
-        ? createPortal(
-            <div
-              className="fixed z-50 flex -translate-x-1/2 -translate-y-full flex-col items-center gap-1.5 pb-1.5"
-              data-slot="voice-options-stack"
-              ref={stackRef}
-              style={{ left: point.left, top: point.top }}
-            >
-              <WakeWordButton disabled={disabled} stacked />
-              <AutoSpeakButton active={autoSpeak} disabled={disabled} onToggle={onToggleAutoSpeak} stacked />
-            </div>,
-            document.body
-          )
-        : null}
-    </>
+        event.stopPropagation()
+        // Hand focus back to the mic BEFORE closing: its focus handler would
+        // otherwise re-reveal the stack we are dismissing.
+        anchorRef.current?.querySelector<HTMLButtonElement>('button')?.focus()
+        reveal.close()
+      }}
+      onPointerEnter={reveal.reveal}
+      onPointerLeave={reveal.leave}
+      ref={reveal.stackRef}
+      style={{ left: point.left, top: point.top }}
+    >
+      <WakeWordButton disabled={disabled} stacked />
+      <AutoSpeakButton active={autoSpeak} disabled={disabled} onToggle={onToggleAutoSpeak} stacked />
+    </div>,
+    document.body
   )
 }
 
@@ -418,6 +457,9 @@ const STACKED_VOICE_BTN = 'size-8 rounded-full p-0 shadow-sm'
 const STACKED_VOICE_ON = 'bg-primary text-primary-foreground hover:bg-primary/90'
 const STACKED_VOICE_OFF = 'bg-background text-muted-foreground ring-1 ring-border hover:text-foreground'
 
+// Pure-TTS toggle: type normally, but have every assistant reply read aloud —
+// no dictation, no full conversation loop. Filled/accent when on, mirroring the
+// muted-mic pressed state above. Driven by (and persisted to) `voice.auto_tts`.
 function AutoSpeakButton({
   active,
   disabled,

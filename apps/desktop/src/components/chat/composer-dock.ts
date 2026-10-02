@@ -71,10 +71,13 @@ export const composerFloatingPill = cn(
  * the radius) lets the prompt card sit on the tray without covering it.
  */
 export const composerContextShell = cn(
-  'relative z-0 mx-[5px] -mt-1.5 flex items-center rounded-3xl px-3 py-1.5',
+  'relative z-0 mx-[5px] -mt-1.5 flex items-center rounded-(--composer-radius) px-3 py-1.5',
   'border border-(--ui-stroke-secondary)',
-  'bg-[color-mix(in_srgb,var(--dt-card)_72%,transparent)]',
-  composerSurfaceGlass
+  // Opaque, page-coloured, no glass: the tray is the page with an edge, one
+  // level below the card. The card's shadow lands ON it (the card paints
+  // above), so the tray must not also blur or tint what is behind — that
+  // turned the shadow into a gradient smear down the tray's body.
+  'bg-(--dt-background)'
 )
 
 /** Quiet control inside the context capsule. The shell is the container;
