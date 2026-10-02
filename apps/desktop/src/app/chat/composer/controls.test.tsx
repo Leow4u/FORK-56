@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ChatBarState } from '@/app/chat/composer/types'
@@ -100,53 +100,88 @@ describe('composer control row', () => {
   })
 })
 
-function openVoiceOptions() {
-  const trigger = screen.getByLabelText('Voice')
+function dictationAnchor(): HTMLElement {
+  return screen.getByLabelText('Voice dictation').closest('[data-slot="voice-dictation-anchor"]') as HTMLElement
+}
 
-  fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' })
-  fireEvent.pointerUp(trigger, { button: 0, pointerType: 'mouse' })
-  fireEvent.click(trigger)
+// Hover the mic: the read-replies + wake-word stack appears above it.
+function revealVoiceOptions() {
+  fireEvent.pointerEnter(dictationAnchor())
+}
+
+function placeAnchor(anchor: HTMLElement) {
+  anchor.getBoundingClientRect = () =>
+    ({
+      bottom: 424,
+      height: 24,
+      left: 80,
+      right: 104,
+      top: 400,
+      width: 24,
+      x: 80,
+      y: 400,
+      toJSON() {
+        return {}
+      }
+    }) as DOMRect
 }
 
 // The HUD folds every voice control into one menu. The docked row keeps
-// dictation one click away and tucks read-replies plus the wake word behind
-// the chevron beside the primary button.
+// dictation one click away and reveals read-replies plus the wake word
+// stacked above the mic on hover or focus — no chevron beside the primary.
 describe('HUD mode', () => {
-  it('keeps dictation on the row and tucks the other voice toggles behind the chevron', () => {
+  it('keeps dictation on the row and reveals the other voice toggles above the mic on hover', () => {
     renderControls()
 
     expect(screen.queryByLabelText('Context usage')).toBeNull()
     expect(screen.getByLabelText('Voice dictation')).toBeTruthy()
-    expect(screen.getByLabelText('Voice')).toBeTruthy()
+    expect(screen.queryByLabelText('Voice')).toBeNull()
     expect(screen.queryByLabelText('Read replies aloud')).toBeNull()
     expect(screen.queryByLabelText('Exit HUD mode')).toBeNull()
 
-    const anchor = screen
-      .getByLabelText('Voice dictation')
-      .closest('[data-slot="voice-dictation-anchor"]') as HTMLElement
+    const anchor = dictationAnchor()
 
-    anchor.getBoundingClientRect = () =>
-      ({
-        bottom: 424,
-        height: 24,
-        left: 80,
-        right: 104,
-        top: 400,
-        width: 24,
-        x: 80,
-        y: 400,
-        toJSON() {
-          return {}
-        }
-      }) as DOMRect
-
-    openVoiceOptions()
+    placeAnchor(anchor)
+    fireEvent.pointerEnter(anchor)
 
     const stack = document.querySelector('[data-slot="voice-options-stack"]') as HTMLElement
 
     expect(screen.getByLabelText('Read replies aloud')).toBeTruthy()
     expect(stack.style.left).toBe('92px')
     expect(stack.style.top).toBe('400px')
+  })
+
+  it('keeps the stack while the pointer rests on it and lets it go once both are left', async () => {
+    renderControls()
+
+    const anchor = dictationAnchor()
+
+    placeAnchor(anchor)
+    fireEvent.pointerEnter(anchor)
+
+    const stack = document.querySelector('[data-slot="voice-options-stack"]') as HTMLElement
+
+    // Crossing the gap from the mic into the stack must not drop it.
+    fireEvent.pointerLeave(anchor)
+    fireEvent.pointerEnter(stack)
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect(screen.getByLabelText('Read replies aloud')).toBeTruthy()
+
+    fireEvent.pointerLeave(stack)
+    await waitFor(() => expect(screen.queryByLabelText('Read replies aloud')).toBeNull())
+  })
+
+  it('reveals the stack on keyboard focus and dismisses it with Escape', async () => {
+    renderControls()
+
+    const mic = screen.getByLabelText('Voice dictation')
+
+    placeAnchor(dictationAnchor())
+    fireEvent.focus(mic)
+    expect(screen.getByLabelText('Read replies aloud')).toBeTruthy()
+
+    fireEvent.keyDown(mic, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByLabelText('Read replies aloud')).toBeNull())
   })
 
   it('folds them into one menu and offers the way out in the HUD', () => {
@@ -206,7 +241,7 @@ describe('wake-word ear visibility', () => {
   it('stays mounted during a busy agent turn', () => {
     applyWakeStatus({ available: true, enabled: true, listening: true, phrase: 'hey work4you' })
     renderControls({ busy: true, busyAction: 'stop' })
-    openVoiceOptions()
+    revealVoiceOptions()
 
     expect(screen.getByLabelText('Wake word: "hey work4you" — listening')).toBeTruthy()
   })
@@ -216,7 +251,7 @@ describe('wake-word ear visibility', () => {
     // Transient refusal marks available false but enabled keeps it mounted.
     applyWakeStartResult({ hint: 'mic busy', reason: 'unavailable', started: false })
     renderControls()
-    openVoiceOptions()
+    revealVoiceOptions()
 
     expect(screen.getByLabelText('Wake word: "hey work4you" — off')).toBeTruthy()
   })
@@ -224,7 +259,7 @@ describe('wake-word ear visibility', () => {
   it('stays visible (never hides) even when unavailable and not enabled', () => {
     applyWakeStatus({ available: false, enabled: false, listening: false, phrase: 'hey work4you' })
     renderControls()
-    openVoiceOptions()
+    revealVoiceOptions()
 
     // The ear always stays in the voice menu so the user can click to enable;
     // a failed start surfaces its reason in the tooltip.
@@ -235,7 +270,7 @@ describe('wake-word ear visibility', () => {
     applyWakeStatus({ available: false, enabled: false, listening: false, phrase: 'hey work4you' })
     applyWakeStartResult({ hint: 'run `work4you tools` (Voice section)', reason: 'unavailable', started: false })
     renderControls()
-    openVoiceOptions()
+    revealVoiceOptions()
 
     const ear = screen.getByLabelText('Wake word: "hey work4you" — off')
     expect(ear).toBeTruthy()

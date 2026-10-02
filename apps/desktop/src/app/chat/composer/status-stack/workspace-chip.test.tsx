@@ -308,7 +308,9 @@ describe('WorkspaceChipRow', () => {
     const icon = chip.querySelector('svg')
 
     expect(shell).not.toBeNull()
-    expect(shell?.className).toContain('rounded-3xl')
+    expect(shell?.className).toContain('rounded-(--composer-radius)')
+    expect(shell?.className).toContain('bg-(--dt-background)')
+    expect(shell?.className).not.toContain('backdrop-blur')
     expect(shell?.className).toContain('border-(--ui-stroke-secondary)')
     expect(shell?.className).toContain('-mt-1.5')
     expect(shell?.className).toContain('py-1.5')
