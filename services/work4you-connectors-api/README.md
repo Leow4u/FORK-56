@@ -21,12 +21,19 @@ people in Composio. Missing / `default` `sub` is also rejected.
 |-------|---------|
 | `GET /healthz` | Liveness |
 | `POST /v1/bootstrap` | Get-or-create Composio session; return MCP URL + opaque token |
-| `GET /v1/apps` | Allowlisted apps + connection status for this `sub` |
+| `GET /v1/apps` | Allowlisted apps + connection status for this identity |
 | `POST /v1/apps/:slug/authorize` | Composio Connect Link for that toolkit |
 | `GET /v1/apps/:slug/wait` | Poll until `ACTIVE` (cap 25s) |
 | `POST /v1/apps/:slug/disconnect` | Disable the connected account |
 | `GET /connected` | OAuth callback landing page ("you can close this window") |
 | `ALL /mcp` | Reverse-proxy to the caller's Composio MCP URL |
+
+Every `/v1/*` route takes an optional `profile` (query string, or the JSON
+body on POST). The Composio identity is `sub` for the default profile (no
+`profile`, or `default`) — the identity every existing connection lives under
+— and `<sub>::<profile>` for any other Work4You profile, so each profile
+connects its own accounts, gets its own Composio session and its own MCP
+token. A malformed profile name is a `400 invalid_profile`.
 
 The allowlist lives in `src/allowlist.ts`. Native MCP catalog entries
 (`optional-mcps/`) are merged by the local dashboard, not here. Blocked slugs

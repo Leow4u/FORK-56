@@ -42,6 +42,7 @@ const pollOAuthSession = vi.fn()
 const getWork4YouConfigRecord = vi.fn()
 const getWork4YouConfigSchema = vi.fn()
 const saveWork4YouConfig = vi.fn()
+const saveWork4YouConfigRecord = vi.fn()
 const getElevenLabsVoices = vi.fn()
 
 vi.mock('@/work4you', () => ({
@@ -59,10 +60,13 @@ vi.mock('@/work4you', () => ({
   getActionStatus: (name: string, lines?: number) => getActionStatus(name, lines),
   startOAuthLogin: (providerId: string) => startOAuthLogin(providerId),
   pollOAuthSession: (providerId: string, sessionId: string) => pollOAuthSession(providerId, sessionId),
-  getWork4YouConfigRecord: () => getWork4YouConfigRecord(),
+  getWork4YouConfigRecord: (...args: unknown[]) => getWork4YouConfigRecord(...args),
   getWork4YouConfigSchema: () => getWork4YouConfigSchema(),
-  saveWork4YouConfig: (config: unknown) => saveWork4YouConfig(config),
-  getElevenLabsVoices: () => getElevenLabsVoices(),
+  saveWork4YouConfig: (...args: unknown[]) => saveWork4YouConfig(...args),
+  saveWork4YouConfigRecord: (...args: unknown[]) => saveWork4YouConfigRecord(...args),
+  getElevenLabsVoices: (...args: unknown[]) => getElevenLabsVoices(...args),
+  // The scoped config cache key folds the profile in (use-config-record.ts).
+  profileScopeKey: (scope?: unknown) => (typeof scope === 'string' ? scope : 'default'),
   // @/store/profile (pulled in transitively via use-config-record's
   // normalizeProfileKey import) calls this at module-init; the full-replacement
   // mock must provide it or the module graph throws on load.
@@ -149,6 +153,7 @@ beforeEach(() => {
   })
   getWork4YouConfigSchema.mockResolvedValue({ fields: {}, category_order: [] })
   saveWork4YouConfig.mockResolvedValue({ ok: true })
+  saveWork4YouConfigRecord.mockResolvedValue({ ok: true })
   getElevenLabsVoices.mockResolvedValue({ available: false, voices: [] })
 })
 
@@ -193,9 +198,61 @@ describe('ToolsetConfigPanel', () => {
     // closed Select.
     const voiceInput = screen.getByDisplayValue('alloy')
     fireEvent.change(voiceInput, { target: { value: 'marin' } })
-    await waitFor(() => expect(saveWork4YouConfig).toHaveBeenCalled(), { timeout: 3000 })
-    const saved = saveWork4YouConfig.mock.calls.at(-1)?.[0] as Record<string, Record<string, Record<string, string>>>
+    await waitFor(() => expect(saveWork4YouConfigRecord).toHaveBeenCalled(), { timeout: 3000 })
+
+    const [saved, scope] = saveWork4YouConfigRecord.mock.calls.at(-1) as [
+      Record<string, Record<string, Record<string, string>>>,
+      unknown
+    ]
+
     expect(saved.tts.openai.voice).toBe('marin')
+    // No panel scope → the active profile, exactly as before the fields became
+    // scope-aware (an explicit null would mean the primary backend).
+    expect(scope).toBeUndefined()
+  })
+
+  it('scopes the inline voice fields to the profile the panel configures', async () => {
+    // The Capabilities scope selector can point the panel at another profile.
+    // The voice fields must read and autosave THAT profile's config — an
+    // unscoped read and save edited the active profile while the UI claimed
+    // to configure profile B.
+    getToolsetConfig.mockResolvedValue(
+      config({
+        active_provider: 'OpenAI TTS',
+        providers: [
+          {
+            name: 'OpenAI TTS',
+            badge: 'paid',
+            tag: 'High quality voices',
+            env_vars: [],
+            post_setup: null,
+            requires_work4you_auth: false,
+            is_active: true,
+            tts_provider: 'openai'
+          }
+        ]
+      })
+    )
+
+    const { ToolsetConfigPanel } = await import('./toolset-config-panel')
+    render(<ToolsetConfigPanel onConfiguredChange={vi.fn()} profile="coder" toolset="tts" />)
+
+    const voiceInput = await screen.findByDisplayValue('alloy')
+    expect(getWork4YouConfigRecord).toHaveBeenCalledWith('coder')
+    expect(getWork4YouConfigRecord).not.toHaveBeenCalledWith(undefined)
+    expect(getWork4YouConfigRecord).not.toHaveBeenCalledWith(null)
+
+    fireEvent.change(voiceInput, { target: { value: 'marin' } })
+    await waitFor(
+      () =>
+        expect(saveWork4YouConfigRecord).toHaveBeenCalledWith(
+          expect.objectContaining({
+            tts: expect.objectContaining({ openai: expect.objectContaining({ voice: 'marin' }) })
+          }),
+          'coder'
+        ),
+      { timeout: 3000 }
+    )
   })
 
   it('renders no inline voice fields for rows without tts_provider (older backend)', async () => {
