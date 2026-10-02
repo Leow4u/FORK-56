@@ -21,15 +21,42 @@ vi.stubGlobal(
   }
 )
 
-const { setProfileColor } = vi.hoisted(() => ({ setProfileColor: vi.fn() }))
+const { saveProfileLook } = vi.hoisted(() => ({ saveProfileLook: vi.fn(async () => undefined) }))
 
-vi.mock('@/store/profile', () => ({ setProfileColor }))
+vi.mock('@/store/profile', () => ({ saveProfileLook }))
+vi.mock('@/lib/bot-face-clock', () => ({ startFaceClock: vi.fn() }))
+
+// The picker has its own test; here it is three buttons that hand a pick to
+// the dialog, so the test reads what the dialog saves.
+vi.mock('./avatar-picker', () => ({
+  AvatarPicker: ({
+    onColor,
+    onImage,
+    onShape
+  }: {
+    onColor: (color: null | string) => void
+    onImage: (image: null | string) => void
+    onShape: (shape: string) => void
+  }) => (
+    <div data-slot="avatar-picker">
+      <button onClick={() => onShape('cloud')} type="button">
+        pick shape
+      </button>
+      <button onClick={() => onColor('#ef4444')} type="button">
+        pick color
+      </button>
+      <button onClick={() => onImage('data:image/png;base64,me')} type="button">
+        pick image
+      </button>
+    </div>
+  )
+}))
 
 afterEach(() => {
   cleanup()
   vi.mocked(createProfile).mockClear()
   vi.mocked(updateProfileSoul).mockClear()
-  setProfileColor.mockClear()
+  saveProfileLook.mockClear()
 })
 
 const defaultProfile = {
@@ -120,7 +147,7 @@ describe('CreateProfileDialog', () => {
     })
   })
 
-  it('keeps the chosen color locally and honours the switch-after-create choice', async () => {
+  it('saves the picked look on the new profile and honours the switch-after-create choice', async () => {
     const onCreated = vi.fn()
     render(
       <CreateProfileDialog
@@ -133,14 +160,61 @@ describe('CreateProfileDialog', () => {
     )
 
     typeName('cores')
-    const swatch = screen.getAllByRole('button', { name: /^Set color/ })[0]
-    fireEvent.click(swatch)
+    fireEvent.click(screen.getByRole('button', { name: 'pick shape' }))
+    fireEvent.click(screen.getByRole('button', { name: 'pick color' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Switch to it after creating' }))
 
     await submit()
 
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith('cores', { switchTo: false }))
-    expect(setProfileColor).toHaveBeenCalledWith('cores', expect.any(String))
+    expect(saveProfileLook).toHaveBeenCalledWith('cores', { color: '#ef4444', image: null, shape: 'cloud' })
+    // The look lands after the profile exists, before the caller is told.
+    expect(vi.mocked(createProfile).mock.invocationCallOrder[0]).toBeLessThan(
+      saveProfileLook.mock.invocationCallOrder[0]
+    )
+    expect(saveProfileLook.mock.invocationCallOrder[0]).toBeLessThan(onCreated.mock.invocationCallOrder[0])
+  })
+
+  it('leaves the look to the name when nothing was picked, and saves a picked picture', async () => {
+    render(<CreateProfileDialog onClose={() => undefined} open profiles={[defaultProfile]} />)
+
+    typeName('semcor')
+    await submit()
+    await waitFor(() => expect(createProfile).toHaveBeenCalledTimes(1))
+    expect(saveProfileLook).not.toHaveBeenCalled()
+
+    cleanup()
+    render(<CreateProfileDialog onClose={() => undefined} open profiles={[defaultProfile]} />)
+    typeName('foto')
+    fireEvent.click(screen.getByRole('button', { name: 'pick image' }))
+    await submit()
+
+    await waitFor(() =>
+      expect(saveProfileLook).toHaveBeenCalledWith('foto', {
+        color: null,
+        image: 'data:image/png;base64,me',
+        shape: null
+      })
+    )
+  })
+
+  it('previews the bot the profile will be, following the typed name', () => {
+    render(<CreateProfileDialog onClose={() => undefined} open profiles={[defaultProfile]} />)
+
+    const preview = () => document.querySelector('[data-slot="profile-preview"] svg')
+
+    expect(preview()?.getAttribute('data-bot-face')).toBe('agent')
+
+    typeName('pesquisa')
+    expect(preview()?.getAttribute('data-bot-face')).toBe('pesquisa')
+
+    fireEvent.click(screen.getByRole('button', { name: 'pick shape' }))
+    expect(preview()?.getAttribute('data-hb-shape')).toBe('cloud')
+
+    fireEvent.click(screen.getByRole('button', { name: 'pick image' }))
+    expect(document.querySelector('[data-slot="profile-preview"] img')?.getAttribute('src')).toBe(
+      'data:image/png;base64,me'
+    )
   })
 
   it('turns bundled skills off for a blank profile when asked', async () => {

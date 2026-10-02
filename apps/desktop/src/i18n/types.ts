@@ -2132,8 +2132,38 @@ export interface Translations {
     personaLabel: string
     personaTemplates: { blank: string; research: string; writer: string; developer: string; support: string }
     personaTemplateHint: string
-    colorLabel: string
-    colorHint: string
+    avatar: {
+      label: string
+      hint: string
+      tabs: { bot: string; generate: string; upload: string; pet: string }
+      shape: (shape: string) => string
+      blobFace: string
+      blobAuto: string
+      blobAutoHint: string
+      randomize: string
+      lockFace: string
+      unlockFace: string
+      lockHint: string
+      unlockHint: string
+      faceLocked: string
+      faceFollowsName: string
+      classicShapes: string
+      removeImage: string
+      chooseImage: string
+      imageTooLarge: string
+      describe: string
+      generate: string
+      generating: string
+      generateHint: string
+      generateFailed: string
+      noImageModel: string
+      checkingImageModel: string
+      petPick: string
+      petSearch: (count: number) => string
+      noPets: string
+      noPetsMatch: string
+      petFailed: string
+    }
     startFrom: string
     startBlank: string
     startCopy: string
