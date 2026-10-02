@@ -13,5 +13,7 @@ export function notifyPortalAccountChanged(): void {
 export async function signOutOfPortal(): Promise<void> {
   await disconnectOAuthProvider(FEATURED_ID)
   void window.work4youDesktop?.cloud?.logout?.().catch(() => undefined)
-  requestDesktopOnboarding()
+  // App-wide by definition, whatever profile is live: the first-run door, not
+  // the profile-scoped panel.
+  requestDesktopOnboarding(undefined, { scope: 'app' })
 }

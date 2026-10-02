@@ -48,6 +48,12 @@ resolves. Only the pin travels, and only for OAuth / Portal / SDK providers —
 API keys in the root `.env` are never copied, so a root on OpenRouter still needs
 `mybot setup` (or a key) inside the new profile.
 
+In the desktop app, a profile that still has no usable provider says so without
+getting in the way: a row above the composer offers to reuse the Work4You login
+you are already signed in with, or to pick another provider for that profile
+only. Sending a message before that opens the same choice as a dialog scoped to
+the profile. Nothing it writes touches any other profile.
+
 If you plan to use this profile as a kanban worker (or want the kanban orchestrator to route work to it), pass `--description "<role>"` at create time so the orchestrator knows what it's good at:
 
 ```bash

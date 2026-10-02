@@ -2913,7 +2913,31 @@ export const ar = defineLocale({
     price: (input, output) => `${input} إدخال / ${output} إخراج لكل مليون رمز`,
     change: 'تغيير',
     startChatting: 'ابدأ',
-    docs: provider => `وثائق ${provider}`
+    docs: provider => `وثائق ${provider}`,
+    profileSetup: {
+      title: profile => `إعداد ${profile}`,
+      subtitle: 'اربط مزوّد نماذج لهذا الملف الشخصي. تبقى الملفات الشخصية الأخرى كما هي تمامًا.',
+      pendingPrompt: 'رسالتك ما زالت في حقل الكتابة. أرسلها مرة أخرى بعد ربط مزوّد.',
+      portalSignedIn: 'مسجّل الدخول على هذا الجهاز',
+      portalPitch: 'أعد استخدام حساب Work4You الذي سجّلت الدخول به بالفعل. لا شيء جديد لربطه.',
+      useForProfile: 'استخدامه لهذا الملف الشخصي',
+      settingUp: 'جارٍ الإعداد…',
+      savedToProfile: 'يُحفظ في هذا الملف الشخصي فقط.',
+      readyTitle: profile => `${profile} جاهز`,
+      readyMessage: model => `${model} عبر حساب Work4You الخاص بك.`,
+      adoptFailed: 'تعذّر إعداد هذا الملف الشخصي بحساب Work4You الخاص بك.',
+      noModel: 'تعذّر على Work4You اختيار نموذج لحسابك. اختر مزوّدًا بدلًا من ذلك.',
+      reauthTitle: 'سجّل الدخول إلى Work4You مجددًا',
+      reauthBody: profile =>
+        `انتهت صلاحية تسجيل الدخول إلى Work4You الذي يعتمد عليه ${profile}. سجّل الدخول مجددًا لمتابعة المحادثة هنا.`,
+      signInAgain: 'تسجيل الدخول مجددًا',
+      useApiKeyInstead: 'استخدام مفتاح API بدلًا من ذلك',
+      reauthFootnote: 'يفتح المتصفح لتسجيل الدخول ثم يتابع هنا. تبقى التفاصيل التقنية في سجل سطح المكتب.',
+      bannerMessage: 'لا يوجد مزوّد نماذج لهذا الملف الشخصي بعد.',
+      bannerUsePortal: 'استخدام حساب Work4You الخاص بي',
+      bannerChoose: 'اختيار مزوّد',
+      bannerDismiss: 'تجاهل'
+    }
   },
   modelPicker: {
     title: 'اختيار النموذج',

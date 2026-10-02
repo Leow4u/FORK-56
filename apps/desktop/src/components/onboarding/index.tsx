@@ -4,38 +4,47 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrandMark } from '@/components/brand-mark'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
+import { ErrorIcon } from '@/components/ui/error-state'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/i18n'
-import { Check, ChevronDown, ChevronLeft, KeyRound, Loader2 } from '@/lib/icons'
+import { Check, ChevronDown, ChevronLeft, KeyRound, Loader2, Lock } from '@/lib/icons'
 import { isPortalSessionReauthReason, isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
 import { cn } from '@/lib/utils'
 import {
   $desktopOnboarding,
+  adoptPortalLoginForProfile,
   cancelOnboardingFlow,
+  clearPendingProfileAdopt,
   clearPendingProviderOAuth,
   closeManualOnboarding,
   confirmOnboardingModel,
   DEFAULT_MANUAL_ONBOARDING_REASON,
   DEFAULT_ONBOARDING_REASON,
+  dismissProfileSetup,
   isOnboardingFlowInFlight,
   type OnboardingContext,
+  peekPendingProfileAdopt,
   peekPendingProviderOAuth,
+  type ProfileSetupState,
   refreshOnboarding,
   reopenOnboardingBrowser,
   saveOnboardingApiKey,
   setOnboardingMode,
   startProviderOAuth
 } from '@/store/onboarding'
+import { $profiles, normalizeProfileKey, profileLabel } from '@/store/profile-identity'
 import type { ModelOptionProvider, OAuthProvider } from '@/types/work4you'
 import { getGlobalModelOptions } from '@/work4you'
 
 import { DocsLink, FlowPanel, Status } from './flow'
 import { connectingPreviewMode, onboardingPreviewMode, type OnboardingPreviewMode } from './preview'
 import {
+  assetPath,
   FeaturedProviderRow,
   FireworksProviderRow,
   OpenRouterProviderRow,
   ProviderRow,
+  providerTitle,
   sortProviders
 } from './providers'
 
@@ -269,28 +278,46 @@ export function DesktopOnboardingOverlay({
     }
   }, [ctx, onboarding.flow.status, onboarding.manual, onboarding.providers, preview])
 
+  // Banner one-click hand-off: the composer asked to adopt the root's Portal
+  // login for the live profile. Start it once the panel is up and idle — the
+  // overlay is where a gateway context (reload.env, runtime check) exists.
+  useEffect(() => {
+    if (preview || !onboarding.profileSetup || onboarding.flow.status !== 'idle' || !peekPendingProfileAdopt()) {
+      return
+    }
+
+    clearPendingProfileAdopt()
+    void adoptPortalLoginForProfile(ctx)
+  }, [ctx, onboarding.flow.status, onboarding.profileSetup, preview])
+
   // `?connecting=1` owns the screen — don't cover BrandMark + Connecting
   // Work4You with the Preparing card while the browser has no IPC bridge.
   if (connectingPreviewMode()) {
     return null
   }
 
+  const { flow, manual, profileSetup, reauth } = onboarding
+  // Manual mode and a profile-scoped setup both run on an already-configured
+  // app: carded chrome, a close affordance, the full picker.
+  const scoped = manual || profileSetup !== null
+
   // Mount from frame 1 so we replace the boot overlay seamlessly. The
   // configured field stays null until the runtime check resolves; only then
   // do we know whether to dismiss (true) or surface the picker (false).
-  // EXCEPTION: manual mode (user opened the selector from a working app to
-  // add/switch a provider) shows the overlay regardless of configured state.
-  if (!preview && onboarding.configured === true && !onboarding.manual) {
+  // EXCEPTIONS: manual mode (user opened the selector from a working app to
+  // add/switch a provider) and a profile-scoped setup (the live gateway
+  // profile has no provider; `configured` describes the window's primary and
+  // says nothing about it) show the overlay regardless of configured state.
+  if (!preview && onboarding.configured === true && !scoped) {
     return null
   }
 
   // Authorized: the browser already finished the form. Drop the gate and
   // land in chat. Model selection keeps running behind that.
-  if (!preview && !onboarding.manual && onboarding.flow.status === 'success') {
+  if (!preview && !scoped && onboarding.flow.status === 'success') {
     return null
   }
 
-  const { flow, manual, reauth } = onboarding
   // Show the launch reason only when it's a meaningful, caller-supplied prompt —
   // suppress the generic defaults (useless noise) and provider-setup errors
   // (those are surfaced by FlowPanel, not as a banner).
@@ -309,21 +336,25 @@ export function DesktopOnboardingOverlay({
   // In manual mode the app is already configured, so the flow is "ready"
   // immediately — no runtime gate needed. Otherwise wait for the readiness
   // check (configured === false) before showing the picker.
-  const ready = Boolean(preview) || manual || (enabled && onboarding.configured === false)
+  const ready = Boolean(preview) || scoped || (enabled && onboarding.configured === false)
   const showPicker = flow.status === 'idle'
   // The Portal door — first launch and a signed-out return — uses the same
   // bare welcome. Logout must not grow a "session expired" card on top of it.
-  const firstRunWelcome = ready && showPicker && !manual
+  const firstRunWelcome = ready && showPicker && !scoped
 
   // Starting and polling share one quiet wait. The Portal page owns the code.
   const portalBrowserWait =
-    ready && !manual && (flow.status === 'starting' || flow.status === 'polling' || flow.status === 'submitting')
+    ready && !scoped && (flow.status === 'starting' || flow.status === 'polling' || flow.status === 'submitting')
 
   const firstRunConnecting = portalBrowserWait
 
   // Cold start, before the gateway can say whether anyone is signed in.
   // A mark on the theme surface — light or dark — with no progress card.
-  const bootSplash = !ready && !manual
+  const bootSplash = !ready && !scoped
+
+  // The profile reauth card owns its own heading; the shared header would
+  // just repeat "set up <profile>" above "sign in again".
+  const profileReauthCard = showPicker && Boolean(profileSetup?.reauth) && onboarding.mode !== 'apikey'
 
   const bare =
     firstRunWelcome || firstRunConnecting || bootSplash || (ready && !showPicker && flow.status === 'confirming_model')
@@ -352,12 +383,14 @@ export function DesktopOnboardingOverlay({
             : 'translate-y-0 scale-100 opacity-100 blur-0'
         )}
       >
-        {!firstRunWelcome && !firstRunConnecting && !bootSplash && (showPicker || !ready) ? <Header /> : null}
-        {manual ? (
+        {!firstRunWelcome && !firstRunConnecting && !bootSplash && !profileReauthCard && (showPicker || !ready) ? (
+          <Header />
+        ) : null}
+        {scoped ? (
           <Button
             aria-label={t.common.close}
             className="absolute right-3 top-3 z-10 text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
-            onClick={() => closeManualOnboarding()}
+            onClick={() => (manual ? closeManualOnboarding() : dismissProfileSetup())}
             size="icon-sm"
             variant="ghost"
           >
@@ -404,22 +437,41 @@ function BootSplash() {
   )
 }
 
+// Display label for a profile key: the rail's display_name when known, else
+// the canonical name. Subscribes to $profiles so a late list load re-renders.
+function useProfileDisplayLabel(profile: null | string | undefined): string {
+  const profiles = useStore($profiles)
+
+  if (!profile) {
+    return ''
+  }
+
+  const key = normalizeProfileKey(profile)
+  const info = profiles.find(p => normalizeProfileKey(p.name) === key)
+
+  return info ? profileLabel(info) : key
+}
+
 function Header() {
   const { t } = useI18n()
-  const { manual } = useStore($desktopOnboarding)
-  const subtitle = manual ? t.onboarding.headerDesc : null
+  const { manual, profileSetup } = useStore($desktopOnboarding)
+  const profileName = useProfileDisplayLabel(profileSetup?.profile)
+  const title = profileSetup ? t.onboarding.profileSetup.title(profileName) : t.onboarding.headerTitle
+  const subtitle = profileSetup ? t.onboarding.profileSetup.subtitle : manual ? t.onboarding.headerDesc : null
 
   return (
     <div className="flex items-start gap-4 bg-(--ui-chat-bubble-background) px-5 pt-5 pb-1">
       <BrandMark className="size-11 shrink-0" />
       <div className="min-w-0">
-        <h2 className="text-xl font-semibold tracking-tight">{t.onboarding.headerTitle}</h2>
+        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
         {subtitle ? <p className="mt-1.5 text-sm leading-5 text-muted-foreground">{subtitle}</p> : null}
       </div>
     </div>
   )
 }
 
+// Same id the store pins through PORTAL_PROVIDER_ID; kept literal because it is
+// read at module load, where a test's partial store stub has nothing to offer.
 export const FEATURED_ID = 'work4you'
 const SHOW_ALL_KEY = 'work4you-onboarding-show-all-v1'
 
@@ -521,7 +573,7 @@ function FirstRunWelcome({ ctx }: { ctx: OnboardingContext }) {
 
 export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const { t } = useI18n()
-  const { localEndpoint, manual, mode, providers } = useStore($desktopOnboarding)
+  const { localEndpoint, manual, mode, profileSetup, providers } = useStore($desktopOnboarding)
   const [showAll, setShowAll] = useState(readShowAll)
   // Which key-form option to preselect when we flip to 'apikey' mode. The
   // OpenRouter row selects its key; the generic link lands on the first option.
@@ -536,8 +588,30 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const hasOauth = ordered.length > 0
   const apiKeyOptions = useApiKeyCatalog()
 
-  if (!manual) {
+  if (!manual && !profileSetup) {
     return <FirstRunWelcome ctx={ctx} />
+  }
+
+  const pendingNotice = profileSetup?.pendingPrompt ? (
+    <ReasonNotice reason={t.onboarding.profileSetup.pendingPrompt} />
+  ) : null
+
+  // A named profile whose Portal session is gone: one card — sign in again (on
+  // this profile's backend) or switch to a key. The key form stays reachable
+  // through `mode`, and its back link returns here.
+  if (profileSetup?.reauth && !localEndpoint && mode !== 'apikey') {
+    return (
+      <div className="grid gap-3">
+        {pendingNotice}
+        <ProfileReauthCard ctx={ctx} onUseApiKey={() => openKeyForm()} setup={profileSetup} />
+      </div>
+    )
+  }
+
+  // The profile panel waits for the catalog instead of flashing the key form
+  // while the list is still loading (manual mode keeps its historical shape).
+  if (profileSetup && providers === null && !localEndpoint && mode !== 'apikey') {
+    return <Status>{t.onboarding.lookingUpProviders}</Status>
   }
 
   // localEndpoint forces the key form regardless of `mode` (which a manual
@@ -547,8 +621,9 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   if (localEndpoint || mode === 'apikey' || !hasOauth) {
     return (
       <div className="grid gap-3">
+        {pendingNotice}
         <ApiKeyForm
-          canGoBack={hasOauth && !localEndpoint}
+          canGoBack={(hasOauth || Boolean(profileSetup?.reauth)) && !localEndpoint}
           initialEnvKey={localEndpoint ? 'OPENAI_BASE_URL' : apiKeyInitialEnv}
           onBack={() => setOnboardingMode('oauth')}
           onSave={(envKey, value, name, apiKey) => saveOnboardingApiKey(envKey, value, name, ctx, apiKey)}
@@ -571,10 +646,21 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   const collapsible = Boolean(featured)
   const showRest = !collapsible || showAll
 
+  // On a named profile whose root is already signed in to the Portal, the
+  // featured row adopts that login instead of starting a second sign-in.
+  const featuredRow = featured ? (
+    profileSetup && featured.status?.logged_in ? (
+      <AdoptPortalRow ctx={ctx} provider={featured} setup={profileSetup} />
+    ) : (
+      <FeaturedProviderRow onSelect={p => startPickerOAuth(p, ctx)} provider={featured} />
+    )
+  ) : null
+
   return (
     <div className="grid gap-2">
+      {pendingNotice}
       <div className="grid max-h-[60dvh] gap-2 overflow-y-auto p-1">
-        {featured ? <FeaturedProviderRow onSelect={p => startPickerOAuth(p, ctx)} provider={featured} /> : null}
+        {featuredRow}
         {showRest ? (
           <>
             {/* Fireworks leads the expanded list, matching CANONICAL_PROVIDERS
@@ -599,11 +685,127 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
           <ChevronDown className={cn('size-3.5 transition', showAll && 'rotate-180')} />
         </Button>
       ) : null}
-      <div className="flex items-center justify-end gap-3 pt-1">
-        <Button className="-mr-2 font-medium" onClick={() => openKeyForm()} size="xs" type="button" variant="text">
-          {t.onboarding.haveApiKey}
+      <div className="flex items-center justify-between gap-3 pt-1">
+        {profileSetup ? (
+          <span className="text-xs text-muted-foreground">{t.onboarding.profileSetup.savedToProfile}</span>
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center gap-3">
+          {profileSetup ? (
+            <Button
+              className="font-medium"
+              onClick={() => dismissProfileSetup()}
+              size="xs"
+              type="button"
+              variant="text"
+            >
+              {t.onboarding.chooseLater}
+            </Button>
+          ) : null}
+          <Button className="-mr-2 font-medium" onClick={() => openKeyForm()} size="xs" type="button" variant="text">
+            {t.onboarding.haveApiKey}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Featured row for a named profile whose root already holds a Portal login:
+// one click pins provider=work4you + the recommended model on THIS profile.
+// Nothing new is connected and no other profile changes.
+function AdoptPortalRow({
+  ctx,
+  provider,
+  setup
+}: {
+  ctx: OnboardingContext
+  provider: OAuthProvider
+  setup: ProfileSetupState
+}) {
+  const { t } = useI18n()
+  const copy = t.onboarding.profileSetup
+
+  return (
+    <div className="grid gap-2">
+      <div className="relative flex w-full items-center justify-between gap-4 rounded-[8px] bg-primary/[0.06] px-3 py-2.5 text-left">
+        <span aria-hidden className="arc-border arc-reverse arc-work4you" />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <img alt="" className="size-5 shrink-0 rounded" src={assetPath('apple-touch-icon.png')} />
+            <span className="text-[length:var(--conversation-text-font-size)] font-semibold">
+              {providerTitle(provider)}
+            </span>
+            <span className="inline-flex items-center gap-1 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              <Check className="size-3" />
+              {copy.portalSignedIn}
+            </span>
+          </div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{copy.portalPitch}</p>
+        </div>
+        <Button
+          className="shrink-0"
+          disabled={setup.adopting}
+          onClick={() => void adoptPortalLoginForProfile(ctx)}
+          size="sm"
+          type="button"
+        >
+          {setup.adopting ? <Loader2 className="animate-spin" /> : null}
+          {setup.adopting ? copy.settingUp : copy.useForProfile}
         </Button>
       </div>
+      {setup.error ? (
+        <div className="flex items-center gap-1.5 px-1 text-sm text-destructive">
+          <ErrorIcon className="shrink-0" size="0.875rem" />
+          <span>{setup.error}</span>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+// Portal session gone on a named profile. Signing in again runs on this
+// profile's backend, so its own auth store gets the fresh login; the API-key
+// alternative lands in the same profile-scoped key form.
+function ProfileReauthCard({
+  ctx,
+  onUseApiKey,
+  setup
+}: {
+  ctx: OnboardingContext
+  onUseApiKey: () => void
+  setup: ProfileSetupState
+}) {
+  const { t } = useI18n()
+  const copy = t.onboarding.profileSetup
+  const { flow, providers } = useStore($desktopOnboarding)
+  const profileName = useProfileDisplayLabel(setup.profile)
+  const busy = isOnboardingFlowInFlight(flow)
+
+  return (
+    <div className="grid justify-items-center gap-5 px-2 py-4 text-center">
+      <span className="flex size-12 items-center justify-center rounded-2xl bg-(--ui-bg-tertiary)/60 text-foreground">
+        <Lock className="size-5" />
+      </span>
+      <div className="grid gap-2">
+        <h2 className="text-xl font-semibold tracking-tight">{copy.reauthTitle}</h2>
+        <p className="max-w-sm text-sm leading-5 text-muted-foreground">{copy.reauthBody(profileName)}</p>
+      </div>
+      <div className="grid w-full max-w-xs gap-2">
+        <Button
+          disabled={busy}
+          onClick={() => startPickerOAuth(portalFromCatalog(providers), ctx)}
+          size="lg"
+          type="button"
+        >
+          {copy.signInAgain}
+        </Button>
+        <Button disabled={busy} onClick={onUseApiKey} type="button" variant="outline">
+          {copy.useApiKeyInstead}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">{copy.reauthFootnote}</p>
     </div>
   )
 }
@@ -782,7 +984,8 @@ export function ApiKeyForm({
 }
 
 function seedOnboardingPreview(mode: OnboardingPreviewMode) {
-  const portal = fallbackPortalProvider()
+  const portal: OAuthProvider =
+    mode === 'profile' ? { ...fallbackPortalProvider(), status: { logged_in: true } } : fallbackPortalProvider()
 
   const rest: OAuthProvider[] = [
     portal,
@@ -820,7 +1023,7 @@ function seedOnboardingPreview(mode: OnboardingPreviewMode) {
         : { status: 'idle' as const }
 
   $desktopOnboarding.set({
-    configured: false,
+    configured: mode === 'profile',
     flow,
     mode: 'oauth',
     providers: rest,
@@ -829,6 +1032,17 @@ function seedOnboardingPreview(mode: OnboardingPreviewMode) {
     firstRunSkipped: false,
     manual: false,
     localEndpoint: false,
-    reauth: mode === 'reauth'
+    reauth: mode === 'reauth',
+    profileSetup:
+      mode === 'profile'
+        ? {
+            profile: 'research',
+            reason: DEFAULT_ONBOARDING_REASON,
+            reauth: false,
+            pendingPrompt: true,
+            adopting: false,
+            error: null
+          }
+        : null
   })
 }

@@ -3188,7 +3188,31 @@ export const ja = defineLocale({
     price: (input, output) => `${input} 入力 / ${output} 出力 per Mtok`,
     change: '変更',
     startChatting: '始める',
-    docs: provider => `${provider} ドキュメント`
+    docs: provider => `${provider} ドキュメント`,
+    profileSetup: {
+      title: profile => `${profile} をセットアップ`,
+      subtitle: 'このプロファイル用のモデルプロバイダーを接続します。他のプロファイルはそのままです。',
+      pendingPrompt: 'メッセージは入力欄に残っています。プロバイダーを接続したら、もう一度送信してください。',
+      portalSignedIn: 'このコンピューターでサインイン済み',
+      portalPitch: 'すでにサインインしている Work4You アカウントをそのまま使います。新しく接続するものはありません。',
+      useForProfile: 'このプロファイルで使う',
+      settingUp: 'セットアップ中…',
+      savedToProfile: 'このプロファイルにのみ保存されます。',
+      readyTitle: profile => `${profile} の準備ができました`,
+      readyMessage: model => `${model}（Work4You アカウント経由）。`,
+      adoptFailed: 'Work4You アカウントでこのプロファイルをセットアップできませんでした。',
+      noModel: 'Work4You はアカウント用のモデルを選べませんでした。代わりにプロバイダーを選んでください。',
+      reauthTitle: 'Work4You にもう一度サインイン',
+      reauthBody: profile =>
+        `${profile} が利用している Work4You のサインインが期限切れです。ここでチャットを続けるには、もう一度サインインしてください。`,
+      signInAgain: 'もう一度サインイン',
+      useApiKeyInstead: '代わりに API キーを使う',
+      reauthFootnote: 'ブラウザでサインインすると、ここで続行します。技術的な詳細はデスクトップのログに残ります。',
+      bannerMessage: 'このプロファイルにはまだモデルプロバイダーがありません。',
+      bannerUsePortal: '自分の Work4You アカウントを使う',
+      bannerChoose: 'プロバイダーを選ぶ',
+      bannerDismiss: '閉じる'
+    }
   },
 
   modelPicker: {

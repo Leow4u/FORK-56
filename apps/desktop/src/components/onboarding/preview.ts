@@ -1,7 +1,7 @@
-export type OnboardingPreviewMode = 'confirm' | 'login' | 'picker' | 'reauth'
+export type OnboardingPreviewMode = 'confirm' | 'login' | 'picker' | 'profile' | 'reauth'
 
 // Dev affordance, sibling of `?connecting=1`: force the onboarding overlay so
-// the welcome / picker / sign-in / confirm / Portal-reauth screens can be
+// the welcome / picker / sign-in / confirm / Portal-reauth / profile screens can be
 // reviewed without an empty WORK4YOU_HOME. Stripped from the production bundle.
 export function onboardingPreviewMode(): OnboardingPreviewMode | null {
   if (!import.meta.env.DEV || typeof window === 'undefined') {
@@ -15,7 +15,7 @@ export function onboardingPreviewMode(): OnboardingPreviewMode | null {
       return 'picker'
     }
 
-    if (value === 'login' || value === 'confirm' || value === 'reauth') {
+    if (value === 'login' || value === 'confirm' || value === 'reauth' || value === 'profile') {
       return value
     }
   } catch {

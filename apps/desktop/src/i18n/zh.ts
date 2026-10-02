@@ -3738,7 +3738,30 @@ export const zh: Translations = {
     price: (input, output) => `${input} 输入 / ${output} 输出每 Mtok`,
     change: '更改',
     startChatting: '开始',
-    docs: provider => `${provider} 文档`
+    docs: provider => `${provider} 文档`,
+    profileSetup: {
+      title: profile => `设置 ${profile}`,
+      subtitle: '为此配置档案连接一个模型提供方。其他配置档案保持原样。',
+      pendingPrompt: '你的消息仍在输入框中。连接提供方后请再次发送。',
+      portalSignedIn: '已在此电脑登录',
+      portalPitch: '沿用你已登录的 Work4You 账户，无需连接任何新内容。',
+      useForProfile: '用于此配置档案',
+      settingUp: '正在设置…',
+      savedToProfile: '仅保存到此配置档案。',
+      readyTitle: profile => `${profile} 已就绪`,
+      readyMessage: model => `${model}，通过你的 Work4You 账户。`,
+      adoptFailed: '无法用你的 Work4You 账户设置此配置档案。',
+      noModel: 'Work4You 无法为你的账户选择模型。请改为选择一个提供方。',
+      reauthTitle: '请重新登录 Work4You',
+      reauthBody: profile => `${profile} 所依赖的 Work4You 登录已过期。重新登录即可继续在此对话。`,
+      signInAgain: '重新登录',
+      useApiKeyInstead: '改用 API 密钥',
+      reauthFootnote: '将打开浏览器登录，随后在此继续。技术细节保留在桌面日志中。',
+      bannerMessage: '此配置档案尚未设置模型提供方。',
+      bannerUsePortal: '使用我的 Work4You 账户',
+      bannerChoose: '选择提供方',
+      bannerDismiss: '关闭'
+    }
   },
 
   modelPicker: {
