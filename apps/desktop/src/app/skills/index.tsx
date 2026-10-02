@@ -853,7 +853,7 @@ export function SkillsView({
   // Scope-selector rows. Multi-connection desktops list every reachable
   // (connection, profile) agent from the union roster — the selected profile
   // is configured ON ITS OWN GATEWAY. Otherwise the legacy per-profile list.
-  const scopeOptions: { key: string; label: string; value: string }[] = useMemo(() => {
+  const scopeOptions: { key: string; label: string; profile: string; value: string }[] = useMemo(() => {
     if (multiConnection && rosterData?.agents?.length) {
       const activeId = activeGatewayConnectionId() ?? 'local'
 
@@ -863,6 +863,7 @@ export function SkillsView({
           agent.connectionId === activeId
             ? `${agent.profile} — ${agent.connectionLabel} (current)`
             : `${agent.profile} — ${agent.connectionLabel}`,
+        profile: agent.profile,
         value: `${agent.connectionId}::${agent.profile}`
       }))
     }
@@ -870,6 +871,7 @@ export function SkillsView({
     return (profilesData?.profiles ?? []).map(p => ({
       key: p.name,
       label: p.is_default ? 'Work4You (default)' : p.name,
+      profile: p.name,
       value: p.name
     }))
   }, [multiConnection, profilesData, rosterData])
@@ -913,6 +915,7 @@ export function SkillsView({
               active={option.value === scopeSelectValue}
               key={option.key}
               label={option.label}
+              name={option.profile}
               onSelect={() => changeScope(option.value)}
             />
           ))}

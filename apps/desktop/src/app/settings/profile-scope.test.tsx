@@ -19,10 +19,11 @@ vi.mock('@/work4you', () => ({
 }))
 vi.mock('@/lib/query-client', () => ({ invalidateProfileScopedQueries: vi.fn() }))
 vi.mock('@/store/starmap', () => ({ resetStarmapGraph: vi.fn() }))
+vi.mock('@/lib/bot-face-clock', () => ({ startFaceClock: vi.fn() }))
 
 const { $activeGatewayProfile, $profiles } = await import('@/store/profile')
 const { $settingsScopeOverride } = await import('@/store/settings-scope')
-const { SettingsProfileScope } = await import('./profile-scope')
+const { ScopeChip, SettingsProfileScope } = await import('./profile-scope')
 
 const profile = (name: string, isDefault = false, extra: Partial<ProfileInfo> = {}): ProfileInfo =>
   ({ has_env: false, is_default: isDefault, model: null, name, ...extra }) as unknown as ProfileInfo
@@ -154,5 +155,41 @@ describe('SettingsProfileScope', () => {
     expect(root?.className).toContain('items-center')
     expect(root?.className).toContain('text-center')
     expect(screen.getByRole('radiogroup').className).toContain('justify-center')
+  })
+
+  it("draws each chip as the profile's bot face, with the selected name open and the others folded", () => {
+    $profiles.set([
+      profile('default', true, { ui_meta: { 'work4you-bots': { color: '#ef4444', custom: true, shape: 'cloud' } } }),
+      profile('coder', false, { bot_title: 'JordyV' })
+    ])
+
+    render(<SettingsProfileScope />)
+
+    const selected = screen.getByRole('radio', { name: 'default' })
+    const other = screen.getByRole('radio', { name: 'JordyV' })
+
+    // The face is the same drawing the rail and the roster make from the
+    // stored look; the label stays the accessible name whether open or folded.
+    expect(selected.querySelector('svg')?.getAttribute('data-bot-face')).toBe('default')
+    expect(selected.querySelector('svg')?.getAttribute('data-hb-shape')).toBe('cloud')
+    expect(other.querySelector('svg')?.getAttribute('data-bot-face')).toBe('coder')
+    expect(selected.getAttribute('data-expanded')).toBe('true')
+    expect(other.hasAttribute('data-expanded')).toBe(false)
+
+    fireEvent.click(other)
+
+    expect(other.getAttribute('data-expanded')).toBe('true')
+    expect(selected.hasAttribute('data-expanded')).toBe(false)
+  })
+})
+
+describe('ScopeChip', () => {
+  it('stays a plain text chip without a profile name', () => {
+    render(<ScopeChip active={false} label="All" onSelect={() => undefined} />)
+
+    const chip = screen.getByRole('radio', { name: 'All' })
+
+    expect(chip.querySelector('svg')).toBeNull()
+    expect(chip.textContent).toBe('All')
   })
 })

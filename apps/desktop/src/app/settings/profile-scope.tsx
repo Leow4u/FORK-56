@@ -1,6 +1,7 @@
 import { useStore } from '@nanostores/react'
 import { useEffect } from 'react'
 
+import { ProfileFace } from '@/components/ui/profile-face'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { $profiles, normalizeProfileKey, profileLabel, refreshProfiles } from '@/store/profile'
@@ -24,21 +25,73 @@ export function settingsScopeLabel(profile: Pick<ProfileInfo, 'bot_title' | 'dis
 // overrides. That one stayed local to gateway-settings (and its `null` chip
 // meant "all profiles"). Here every chip is a concrete profile whose config
 // this page is *editing* — not a multi-bind of channels onto several homes.
-export function ScopeChip({ active, label, onSelect }: { active: boolean; label: string; onSelect: () => void }) {
+//
+// A chip is the profile's bot face (the same drawing as the rail and the
+// WorkBots roster) with the name folded away: the selected chip stays open so
+// the edit target always reads at a glance, the others open on hover or
+// keyboard focus. The accessible name is always the label, open or folded.
+export function ScopeChip({
+  active,
+  label,
+  name,
+  onSelect
+}: {
+  active: boolean
+  label: string
+  /** Profile name the face is drawn from; omitted → a plain text chip. */
+  name?: null | string
+  onSelect: () => void
+}) {
+  if (name == null) {
+    return (
+      <button
+        aria-checked={active}
+        className={cn(
+          'rounded-full border px-3 py-1 text-[length:var(--conversation-caption-font-size)] transition',
+          active
+            ? 'border-(--ui-stroke-secondary) bg-(--ui-bg-tertiary) text-(--ui-text-primary)'
+            : 'border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover)'
+        )}
+        onClick={onSelect}
+        role="radio"
+        type="button"
+      >
+        {label}
+      </button>
+    )
+  }
+
   return (
     <button
       aria-checked={active}
+      aria-label={label}
       className={cn(
-        'rounded-full border px-3 py-1 text-[length:var(--conversation-caption-font-size)] transition',
+        'group/chip inline-flex h-7 max-w-full items-center rounded-full border p-[3px] text-[length:var(--conversation-caption-font-size)] transition-colors',
         active
           ? 'border-(--ui-stroke-secondary) bg-(--ui-bg-tertiary) text-(--ui-text-primary)'
-          : 'border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover)'
+          : 'border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-(--ui-text-primary)'
       )}
+      data-expanded={active ? 'true' : undefined}
+      data-slot="profile-scope-chip"
       onClick={onSelect}
       role="radio"
       type="button"
     >
-      {label}
+      <ProfileFace name={name} size={20} />
+      {/* The name folds on the grid-column track (0fr → 1fr) so a chip never
+          reflows its neighbours by more than its own width while opening. */}
+      <span
+        className={cn(
+          'grid min-w-0 transition-[grid-template-columns,opacity,padding] duration-200 ease-out',
+          active
+            ? 'grid-cols-[1fr] pr-2 pl-1.5 opacity-100'
+            : 'grid-cols-[0fr] opacity-0 group-hover/chip:grid-cols-[1fr] group-hover/chip:pr-2 group-hover/chip:pl-1.5 group-hover/chip:opacity-100 group-focus-visible/chip:grid-cols-[1fr] group-focus-visible/chip:pr-2 group-focus-visible/chip:pl-1.5 group-focus-visible/chip:opacity-100'
+        )}
+      >
+        <span aria-hidden className="min-w-0 truncate leading-none whitespace-nowrap">
+          {label}
+        </span>
+      </span>
     </button>
   )
 }
@@ -99,6 +152,7 @@ export function SettingsProfileScope({
             active={normalizeProfileKey(profile.name) === selected}
             key={profile.name}
             label={settingsScopeLabel(profile)}
+            name={profile.name}
             onSelect={() => setSettingsScope(profile.name)}
           />
         ))}
