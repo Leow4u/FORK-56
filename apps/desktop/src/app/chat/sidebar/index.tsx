@@ -1656,7 +1656,12 @@ export function ChatSidebar({
 
         {!showSessionSections && <SidebarBlankState onNewProject={openProjectCreate} />}
 
-        <div className="shrink-0 px-0.5 pb-1 pt-0.5">
+        {/* The rail opens the footer: a hairline on top (same stroke as the
+            account row below) so the list visibly ends above it instead of
+            trailing off into blank space. Bleed through SidebarContent's
+            horizontal padding so the line spans the sidebar like the
+            account row's does. */}
+        <div className="-mx-2.5 mt-1 shrink-0 border-t border-(--ui-stroke-tertiary) px-3 pb-1 pt-1.5">
           <ProfileRail />
         </div>
       </SidebarContent>
