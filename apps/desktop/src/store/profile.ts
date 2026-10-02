@@ -1,6 +1,7 @@
 import { atom, batch, computed } from 'nanostores'
 
 import type { Work4YouConnection } from '@/global'
+import { BOT_UI_META_KEY } from '@/lib/bot-avatar'
 import { invalidateProfileScopedQueries } from '@/lib/query-client'
 import {
   arraysEqual,
@@ -16,6 +17,7 @@ import {
 import { invalidateCronModelImpactScopeState } from '@/store/cron-model-impact-scope'
 import { $gateway, ensureGatewayForAgent, ensureGatewayForProfile, openGatewayForProfile } from '@/store/gateway'
 import { $liveGatewayProfiles } from '@/store/gateway-liveness'
+import { reconcileProfileAvatars } from '@/store/profile-avatars'
 import { setConnection } from '@/store/session'
 import { resetStarmapGraph } from '@/store/starmap'
 import type { ProfileInfo } from '@/types/work4you'
@@ -72,6 +74,7 @@ export async function refreshProfiles(): Promise<ProfileInfo[]> {
 
   if (epoch === profileListEpoch) {
     $profiles.set(profiles)
+    reconcileProfileAvatars(profiles)
   }
 
   return profiles
@@ -111,8 +114,11 @@ export function sortByProfileOrder<T extends { name: string }>(items: T[], order
 
 // ── Rail colors ────────────────────────────────────────────────────────────
 // Optional per-profile color override (long-press a rail square to pick). Absent
-// names fall back to the deterministic hue from profileColor(); a local-only
-// cosmetic preference, so single-profile users never touch it.
+// names fall back to the deterministic hue from profileColor(). The pick is
+// the bot's color: it is written to the profile's `ui_meta['work4you-bots']`
+// on the gateway — the same field the WorkBots editor saves — so the rail and
+// the roster never disagree, and every machine on this gateway sees it. The
+// local copy is the instant paint and the fallback for an older gateway.
 const PROFILE_COLORS_STORAGE_KEY = 'work4you.desktop.profileColors'
 
 export const $profileColors = atom<Record<string, string>>(storedStringRecord(PROFILE_COLORS_STORAGE_KEY))
@@ -131,6 +137,30 @@ export function setProfileColor(name: string, color: null | string): void {
   }
 
   $profileColors.set(next)
+  void saveProfileBotColor(key, color)
+}
+
+// Server side of a color pick: the stored look's `color` (and `custom`, so
+// the primary profile keeps a chosen color instead of its generic look).
+// Clearing sends null, which deletes the key on the gateway. Best-effort: an
+// older gateway without profiles.configure keeps the local copy only.
+async function saveProfileBotColor(key: string, color: null | string): Promise<void> {
+  try {
+    const { $gateway } = await import('@/store/gateway')
+    const gateway = $gateway.get()
+
+    if (!gateway) {
+      return
+    }
+
+    await gateway.request('profiles.configure', {
+      name: key,
+      ui_meta: { [BOT_UI_META_KEY]: color ? { color, custom: true } : { color: null } }
+    })
+    await refreshProfiles()
+  } catch {
+    // Local pick stands; the next profile list refresh reconciles.
+  }
 }
 
 interface ActiveProfileResponse {

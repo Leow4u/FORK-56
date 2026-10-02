@@ -2,7 +2,7 @@ import { useStore } from '@nanostores/react'
 import type * as React from 'react'
 
 import { Codicon } from '@/components/ui/codicon'
-import { ProfileGlyph } from '@/components/ui/profile-glyph'
+import { moodForBackendState, ProfileFace } from '@/components/ui/profile-face'
 import { ProfileStateDot } from '@/components/ui/profile-state-dot'
 import { useI18n } from '@/i18n'
 import { useStoreSelector } from '@/lib/use-session-slice'
@@ -79,14 +79,8 @@ export function SidebarWorkspaceGroup({ group, renderRows }: SidebarWorkspaceGro
         }
         lead={
           <SidebarRowLead className="relative overflow-visible">
-            {/* Fills the lead cell like a project's icon does: the glyph's own
-                16px would sit 2px proud of the 14px column. */}
-            <ProfileGlyph
-              className="size-full"
-              color={group.color ?? null}
-              isDefault={group.id === 'default'}
-              name={group.label}
-            />
+            {/* The bot's face, sized to the lead cell like a project's icon. */}
+            <ProfileFace mood={moodForBackendState(backendState)} name={group.id} size={16} />
             <ProfileStateDot
               className="-bottom-1 -right-1 size-1.5 ring-1"
               label={p.state[backendState]}

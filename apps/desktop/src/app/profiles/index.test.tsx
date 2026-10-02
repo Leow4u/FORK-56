@@ -73,14 +73,18 @@ vi.mock('@/store/gateway', () => ({
 const {
   $activeGatewayProfile: activeGateway,
   $profileBackendStates,
-  $profileColors
+  $profileColors,
+  $profiles
 } = vi.hoisted(() => {
   const { atom } = require('nanostores') as typeof Nanostores
 
   return {
     $activeGatewayProfile: atom<string>('default'),
     $profileBackendStates: atom<Record<string, 'asleep' | 'running' | 'waking'>>({}),
-    $profileColors: atom<Record<string, string>>({})
+    $profileColors: atom<Record<string, string>>({}),
+    // The profile faces resolve their look from the list; these tests feed
+    // the view through refreshProfiles, so the store itself can stay empty.
+    $profiles: atom<ProfileInfo[]>([])
   }
 })
 
@@ -88,6 +92,7 @@ vi.mock('@/store/profile', () => ({
   $activeGatewayProfile: activeGateway,
   $profileBackendStates,
   $profileColors,
+  $profiles,
   normalizeProfileKey: (name: null | string | undefined) => (name ?? '').trim() || 'default',
   profileLabel: (profile: { display_name?: string; name: string }) =>
     (profile.display_name ?? '').trim() || profile.name,

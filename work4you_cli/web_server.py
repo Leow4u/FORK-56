@@ -16709,8 +16709,47 @@ def _profile_attr(info, name: str, default: Any = None) -> Any:
         return default
 
 
+def _profile_ui_meta(path) -> Dict[str, Any]:
+    """Client-agnostic UI metadata from ``<profile>/profile.yaml`` (the bot's
+    avatar shape/color, accent, pinned order, …) — the same ``ui_meta`` block
+    the gateway's ``profiles.list`` RPC returns, so the desktop's REST profile
+    list carries the bot's look too and the sidebar draws the same bot as the
+    WorkBots roster. Empty when absent or unreadable; never raises."""
+    try:
+        import yaml
+
+        meta_path = Path(str(path)) / "profile.yaml"
+        if not meta_path.is_file():
+            return {}
+        with open(meta_path, "r", encoding="utf-8") as f:
+            raw = yaml.safe_load(f) or {}
+        ui_meta = raw.get("ui_meta") if isinstance(raw, dict) else None
+        return ui_meta if isinstance(ui_meta, dict) else {}
+    except Exception:
+        return {}
+
+
+def _profile_has_avatar(path) -> bool:
+    """True when the profile has an avatar image in its asset store
+    (``<profile>/assets/avatar.{png,jpg,webp}``) — a cheap existence flag so
+    the desktop knows to fetch it via ``profiles.get_asset`` without probing."""
+    try:
+        assets = Path(str(path)) / "assets"
+        return any((assets / f"avatar.{ext}").is_file() for ext in ("png", "jpg", "webp"))
+    except Exception:
+        return False
+
+
+def _with_profile_look(row: Dict[str, Any], path) -> Dict[str, Any]:
+    row["has_avatar"] = _profile_has_avatar(path)
+    ui_meta = _profile_ui_meta(path)
+    if ui_meta:
+        row["ui_meta"] = ui_meta
+    return row
+
+
 def _profile_to_dict(info) -> Dict[str, Any]:
-    return {
+    return _with_profile_look({
         "name": _profile_attr(info, "name", ""),
         "path": str(_profile_attr(info, "path", "")),
         "is_default": bool(_profile_attr(info, "is_default", False)),
@@ -16726,7 +16765,7 @@ def _profile_to_dict(info) -> Dict[str, Any]:
         "distribution_version": _profile_attr(info, "distribution_version"),
         "distribution_source": _profile_attr(info, "distribution_source"),
         "has_alias": _profile_attr(info, "alias_path") is not None,
-    }
+    }, _profile_attr(info, "path", ""))
 
 
 def _fallback_profile_dicts(profiles_mod) -> List[Dict[str, Any]]:
@@ -16740,7 +16779,7 @@ def _fallback_profile_dicts(profiles_mod) -> List[Dict[str, Any]]:
     default_home = profiles_mod._get_default_work4you_home()
     if default_home.is_dir():
         model, provider = _safe(lambda: profiles_mod._read_config_model(default_home), (None, None))
-        profiles.append({
+        profiles.append(_with_profile_look({
             "name": "default",
             "path": str(default_home),
             "is_default": True,
@@ -16755,7 +16794,7 @@ def _fallback_profile_dicts(profiles_mod) -> List[Dict[str, Any]]:
             "distribution_version": None,
             "distribution_source": None,
             "has_alias": False,
-        })
+        }, default_home))
 
     profiles_root = profiles_mod._get_profiles_root()
     if profiles_root.is_dir():
@@ -16770,7 +16809,7 @@ def _fallback_profile_dicts(profiles_mod) -> List[Dict[str, Any]]:
             if not entry.is_dir() or not profiles_mod._PROFILE_ID_RE.match(entry.name):
                 continue
             model, provider = _safe(lambda entry=entry_path: profiles_mod._read_config_model(entry), (None, None))
-            profiles.append({
+            profiles.append(_with_profile_look({
                 "name": entry.name,
                 "path": str(entry_path),
                 "is_default": False,
@@ -16785,7 +16824,7 @@ def _fallback_profile_dicts(profiles_mod) -> List[Dict[str, Any]]:
                 "distribution_version": None,
                 "distribution_source": None,
                 "has_alias": False,
-            })
+            }, entry_path))
 
     return profiles
 

@@ -692,3 +692,39 @@ class TestProfileScopedAudio:
         assert resp.status_code == 404
         resp = client.post("/api/audio/speak?profile=ghost", json={"text": "x"})
         assert resp.status_code == 404
+
+
+# ── bot look on the REST profile list ─────────────────────────────────────
+# The desktop draws every profile as its WorkBots character (sidebar rail,
+# cards, Manage). The look lives in profile.yaml `ui_meta` and the avatar
+# image in the profile's asset store — both already served by the gateway's
+# profiles.list RPC; the REST list the sidebar loads must carry them too.
+
+
+def test_profile_list_carries_bot_look_and_avatar_flag(client, isolated_profiles):
+    worker = isolated_profiles["worker_beta"]
+    (worker / "profile.yaml").write_text(
+        yaml.safe_dump({"ui_meta": {"work4you-bots": {"shape": "cloud", "color": "#ef4444", "custom": True}}}),
+        encoding="utf-8",
+    )
+    (worker / "assets").mkdir()
+    (worker / "assets" / "avatar.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+
+    rows = {p["name"]: p for p in client.get("/api/profiles").json()["profiles"]}
+
+    assert rows["worker_beta"]["has_avatar"] is True
+    assert rows["worker_beta"]["ui_meta"]["work4you-bots"] == {"shape": "cloud", "color": "#ef4444", "custom": True}
+    # No look stored and no image: the flag is still answered, the block is absent.
+    assert rows["default"]["has_avatar"] is False
+    assert "ui_meta" not in rows["default"]
+
+
+def test_profile_list_survives_a_broken_profile_yaml(client, isolated_profiles):
+    worker = isolated_profiles["worker_beta"]
+    (worker / "profile.yaml").write_text("ui_meta: [not: a: mapping\n", encoding="utf-8")
+
+    rows = {p["name"]: p for p in client.get("/api/profiles").json()["profiles"]}
+
+    assert rows["worker_beta"]["has_avatar"] is False
+    assert "ui_meta" not in rows["worker_beta"]
+

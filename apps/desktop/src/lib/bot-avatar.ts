@@ -241,6 +241,54 @@ export interface BotAppearance {
   shape: string
 }
 
+/** The namespace WorkBots stores a bot's look under in the profile's
+ *  `ui_meta` (profile.yaml), shared by every client of the gateway. */
+export const BOT_UI_META_KEY = 'work4you-bots'
+
+/** The stored look out of a profile's `ui_meta`, or null when none. Only the
+ *  compact fields the server carries: the image never rides `ui_meta` (it is
+ *  a profile asset), so `image` is left for the caller to fill. */
+export function botMetaOf(uiMeta: null | Record<string, unknown> | undefined): BotAppearanceMeta | null {
+  const raw = uiMeta?.[BOT_UI_META_KEY]
+
+  if (!raw || typeof raw !== 'object') {
+    return null
+  }
+
+  const stored = raw as Record<string, unknown>
+
+  return {
+    color: typeof stored.color === 'string' && stored.color ? stored.color : null,
+    custom: stored.custom === true,
+    shape: typeof stored.shape === 'string' && stored.shape ? stored.shape : null
+  }
+}
+
+/** The roster backfill rasterizes the live vector face at 160×160 and stores
+ *  it as the profile's avatar so inter-agent notices have a picture. Pets are
+ *  96×104 and uploads 256, so a 160px PNG is that snapshot, not a photo — and
+ *  a snapshot must never replace the live face that is drawn from the look. */
+export function isBackfilledFacePng(dataUrl: null | string | undefined): boolean {
+  if (!dataUrl || !dataUrl.startsWith('data:image/png;base64,')) {
+    return false
+  }
+
+  try {
+    const bin = atob(dataUrl.slice('data:image/png;base64,'.length).slice(0, 48))
+
+    if (bin.length < 24) {
+      return false
+    }
+
+    const w = (bin.charCodeAt(16) << 24) | (bin.charCodeAt(17) << 16) | (bin.charCodeAt(18) << 8) | bin.charCodeAt(19)
+    const h = (bin.charCodeAt(20) << 24) | (bin.charCodeAt(21) << 16) | (bin.charCodeAt(22) << 8) | bin.charCodeAt(23)
+
+    return w === 160 && h === 160
+  } catch {
+    return false
+  }
+}
+
 /** What to draw for `name`: a stored pick wins, else the name rolls a shape
  *  and a hue. The primary profile gets its fixed friendly look unless the
  *  person customized it (an image, or a shape/color saved in the editor). */

@@ -6,20 +6,18 @@ import { ModelPickerDialog } from '@/components/model-picker'
 import { PageLoader } from '@/components/page-loader'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
-import { ProfileGlyph } from '@/components/ui/profile-glyph'
+import { moodForBackendState, ProfileFace } from '@/components/ui/profile-face'
 import { ProfileStateDot } from '@/components/ui/profile-state-dot'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { useI18n } from '@/i18n'
 import { AlertTriangle, Save } from '@/lib/icons'
 import { displayModelName } from '@/lib/model-status-label'
-import { resolveProfileColor } from '@/lib/profile-color'
 import { normalize } from '@/lib/text'
 import { notify, notifyError } from '@/store/notifications'
 import {
   $activeGatewayProfile,
   $profileBackendStates,
-  $profileColors,
   normalizeProfileKey,
   type ProfileBackendState,
   profileLabel,
@@ -330,7 +328,6 @@ function ProfileRow({
   state: ProfileBackendState
 }) {
   const { t } = useI18n()
-  const colors = useStore($profileColors)
 
   return (
     <PanelListRow
@@ -338,13 +335,7 @@ function ProfileRow({
       detail={detail || undefined}
       lead={
         <span className="relative inline-flex">
-          <ProfileGlyph
-            aria-hidden="true"
-            color={resolveProfileColor(profile.name, colors)}
-            isDefault={profile.is_default}
-            name={profile.name}
-            size="md"
-          />
+          <ProfileFace mood={moodForBackendState(state)} name={profile.name} size={20} />
           <ProfileStateDot className="ring-1" state={state} />
         </span>
       }
@@ -388,7 +379,6 @@ function ProfileDetail({
 }) {
   const { t } = useI18n()
   const p = t.profiles
-  const colors = useStore($profileColors)
   const modelName = profile.model ? displayModelName(profile.model) : ''
   const [tab, setTab] = useState<DetailTab>('persona')
   const label = profileLabel(profile)
@@ -400,13 +390,7 @@ function ProfileDetail({
     >
       <header className="flex shrink-0 items-start gap-3">
         <span className="relative mt-0.5 inline-flex">
-          <ProfileGlyph
-            aria-hidden="true"
-            color={resolveProfileColor(profile.name, colors)}
-            isDefault={profile.is_default}
-            name={profile.name}
-            size="lg"
-          />
+          <ProfileFace mood={moodForBackendState(state)} name={profile.name} size={36} />
           <ProfileStateDot className="size-2.5" label={p.state[state]} state={state} />
         </span>
         <div className="min-w-0 flex-1">
