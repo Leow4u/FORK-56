@@ -133,6 +133,7 @@ export function CreateProfileDialog({
   // The avatar preview follows the typed name: the picked color, else the
   // deterministic hue the rail would assign, else neutral while the name is empty.
   const previewHue = color ?? (trimmed ? profileColor(trimmed) : null) ?? 'var(--ui-text-quaternary)'
+
   const previewInitial =
     trimmed
       .replace(/[^a-z0-9]/gi, '')
