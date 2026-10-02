@@ -1793,9 +1793,14 @@ body.guest-pointer-lock :is(webview, iframe) {
    the tight chrome scale. */
 [data-slot='composer-root'],
 [data-slot='composer-surface'],
-[data-slot='composer-context-bar'],
 .composer-fallback-surface {
   border-radius: var(--composer-radius);
+}
+
+/* The workspace tray's top is square and tucked under the card (its sides
+   continue the card's in a straight line); only its bottom corners curve. */
+[data-slot='composer-context-bar'] {
+  border-radius: 0 0 var(--composer-radius) var(--composer-radius);
 }
 
 /* Phone-width window: the same controls, with a thumb-sized hit target.
