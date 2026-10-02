@@ -138,3 +138,58 @@ def test_featured_shortlist_is_official_and_includes_house():
     assert "anthropic/claude-opus-4.8" not in featured
     assert "anthropic/claude-haiku-4.5" not in featured
     assert "google/gemini-3.1-pro-preview" not in featured
+
+
+def test_retired_house_id_canonicalizes_to_current_wire_id():
+    """Operis 4.0's wire id must land on Operis 5.0, never go out verbatim.
+
+    The Portal only unlocks the current house id on Free; a persisted
+    ``openai/gpt-5.6-luna`` sent as-is is a ``paid_plan_required`` 403.
+    """
+    from work4you_cli.models import (
+        canonical_work4you_house_model_id,
+        is_legacy_work4you_house_model,
+    )
+
+    assert is_legacy_work4you_house_model("openai/gpt-5.6-luna")
+    assert is_legacy_work4you_house_model("gpt-5.6-luna")
+    assert is_legacy_work4you_house_model("openrouter/GPT-5.6-Luna")
+    assert not is_legacy_work4you_house_model(WORK4YOU_HOUSE_MODEL_ID)
+    assert not is_legacy_work4you_house_model("openai/gpt-5.6-luna-pro")
+    assert not is_legacy_work4you_house_model("")
+
+    assert canonical_work4you_house_model_id("openai/gpt-5.6-luna") == WORK4YOU_HOUSE_MODEL_ID
+    assert canonical_work4you_house_model_id("gpt-5.6-luna") == WORK4YOU_HOUSE_MODEL_ID
+    assert canonical_work4you_house_model_id(WORK4YOU_HOUSE_MODEL_ID) == WORK4YOU_HOUSE_MODEL_ID
+    # Paid siblings and unrelated ids pass through untouched.
+    assert canonical_work4you_house_model_id("openai/gpt-5.6-luna-pro") == "openai/gpt-5.6-luna-pro"
+    assert canonical_work4you_house_model_id("anthropic/claude-opus-5") == "anthropic/claude-opus-5"
+    # Display stays strict: a raw retired id is not relabeled Operis.
+    assert not is_work4you_house_model("openai/gpt-5.6-luna")
+
+
+def test_persisted_retired_house_id_resolves_to_current_wire_id(tmp_path, monkeypatch):
+    """E2E: a config.yaml written before the Operis move resolves to Operis 5.0.
+
+    Real loader, real file, temp ``WORK4YOU_HOME`` — this is the path the
+    desktop's ``work4you serve`` backend and the CLI take at startup.
+    """
+    from work4you_cli import runtime_provider as rp
+    from work4you_cli.config import get_config_path
+
+    home = tmp_path / ".work4you"
+    home.mkdir()
+    monkeypatch.setenv("WORK4YOU_HOME", str(home))
+    config_path = get_config_path()
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        "model:\n"
+        "  default: openai/gpt-5.6-luna\n"
+        "  provider: work4you\n",
+        encoding="utf-8",
+    )
+
+    cfg = rp._get_model_config()
+
+    assert cfg["default"] == WORK4YOU_HOUSE_MODEL_ID
+    assert cfg["provider"] == "work4you"

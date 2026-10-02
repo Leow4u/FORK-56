@@ -673,6 +673,16 @@ WORK4YOU_HOUSE_MODEL_DISPLAY = "Operis 5.0"
 _WORK4YOU_HOUSE_MODEL_SLUGS = frozenset({
     "gpt-6-luna",
 })
+# Retired house wire ids (Operis 4.0 ran on GPT-5.6 Luna). A config.yaml or
+# session persisted before the move still carries one of these; the Portal
+# only unlocks the *current* house id on Free, so sending the old id verbatim
+# gets a ``paid_plan_required`` 403 on a plan that is entitled to Operis.
+# ``canonical_work4you_house_model_id`` rewrites them to the current wire id.
+# Display helpers deliberately do NOT treat these as Operis — a raw legacy id
+# that somehow reaches chrome should stay visibly what it is.
+_WORK4YOU_LEGACY_HOUSE_MODEL_SLUGS = frozenset({
+    "gpt-5.6-luna",
+})
 
 # Default-on composer / Edit Models shortlist for the Portal picker.
 # Inventory attaches these as ``featured_models``; every other official
@@ -707,9 +717,24 @@ def is_work4you_house_model(model_id: str) -> bool:
     return mid.rsplit("/", 1)[-1] in _WORK4YOU_HOUSE_MODEL_SLUGS
 
 
+def is_legacy_work4you_house_model(model_id: str) -> bool:
+    """Return True if *model_id* is a retired Operis wire id (any vendor prefix)."""
+    mid = (model_id or "").strip().lower()
+    if not mid:
+        return False
+    return mid.rsplit("/", 1)[-1] in _WORK4YOU_LEGACY_HOUSE_MODEL_SLUGS
+
+
 def canonical_work4you_house_model_id(model_id: str) -> str:
-    """Rewrite a house-model id to the current wire id."""
-    if is_work4you_house_model(model_id):
+    """Rewrite a house-model id (current or retired) to the current wire id.
+
+    Everything that resolves a persisted model for the wire goes through
+    here (``runtime_provider._get_model_config``, ``/model`` switching, the
+    gateway's session restore), so an install that stored Operis 4.0's id
+    keeps landing on Operis after the house model moves, instead of
+    tripping the Portal's Free-plan gate with a retired id.
+    """
+    if is_work4you_house_model(model_id) or is_legacy_work4you_house_model(model_id):
         return WORK4YOU_HOUSE_MODEL_ID
     return model_id or ""
 
