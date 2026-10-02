@@ -60,6 +60,7 @@ import {
   $profileColors,
   $profileCreateRequest,
   $profileOrder,
+  $profileRailCollapsed,
   $profiles,
   $profileScope,
   ALL_PROFILES,
@@ -70,6 +71,7 @@ import {
   selectProfile,
   setProfileColor,
   setProfileOrder,
+  setProfileRailCollapsed,
   setShowAllProfiles,
   sortByProfileOrder
 } from '@/store/profile'
@@ -176,6 +178,7 @@ export function ProfileRail() {
   const order = useStore($profileOrder)
   const colors = useStore($profileColors)
   const states = useStore($profileBackendStates)
+  const collapsed = useStore($profileRailCollapsed)
   const navigate = useNavigate()
 
   const [createOpen, setCreateOpen] = useState(false)
@@ -211,8 +214,9 @@ export function ProfileRail() {
     el.addEventListener('wheel', onWheel, { passive: false })
 
     return () => el.removeEventListener('wheel', onWheel)
-    // `condensed` swaps the strip out for the dropdown (ref goes null/back).
-  }, [condensed])
+    // `condensed` swaps the strip out for the dropdown, `collapsed` for the
+    // one-line fold (ref goes null/back either way).
+  }, [collapsed, condensed])
 
   const isAll = scope === ALL_PROFILES
   const activeKey = normalizeProfileKey(gatewayProfile)
@@ -337,6 +341,13 @@ export function ProfileRail() {
     navigate(PROFILES_ROUTE)
   }
 
+  // Fold / unfold. Both drop the panel: the anchor is about to change shape
+  // under it, and the strip re-arms the panel on the next hover anyway.
+  const foldRail = (fold: boolean) => {
+    closePanel()
+    setProfileRailCollapsed(fold)
+  }
+
   // distance constraint: a small drag reorders, a tap still selects the profile.
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -423,108 +434,131 @@ export function ProfileRail() {
           onPointerLeave={leaveTowards}
           role="group"
         >
-          {/* Default pinned left as its own tile: always "go home", never a
-              disguised All toggle (that is the layers button on the right). */}
-          {defaultProfile && (
-            <ProfileTileButton
-              active={!isAll && activeKey === 'default'}
-              hue={null}
-              label={profileLabel(defaultProfile)}
-              onSelect={() => pick(defaultProfile.name)}
-              state={stateOf(defaultProfile)}
-              stateLabel={p.state[stateOf(defaultProfile)]}
-              tip={
-                !isAll && activeKey === 'default'
-                  ? profileLabel(defaultProfile)
-                  : p.switchToProfile(profileLabel(defaultProfile))
-              }
-              tipsEnabled={!panelOpen}
-            >
-              <Codicon name="home" size="0.8rem" />
-            </ProfileTileButton>
-          )}
-
-          {condensed ? (
-            // Condensed path: one compact dropdown instead of N tiles. No drag
-            // reorder, no long-press recolor, no per-tile context menu — Manage
-            // covers rename/delete at this scale.
-            <div className="flex min-w-0 flex-1 items-center gap-1">
-              <ProfileDropdown
-                activeKey={isAll ? null : activeKey}
-                colors={colors}
-                onCreate={openCreate}
-                onSelect={selectProfile}
-                profiles={named}
+          {collapsed ? (
+            // Folded: one line, the active profile and a way back. Hovering
+            // still raises the panel (multi-profile only, as everywhere), so
+            // nothing the rail can do is lost — only the tile strip is.
+            activeProfile && (
+              <CollapsedRail
+                hue={activeProfile.is_default ? null : resolveProfileColor(activeProfile.name, colors)}
+                label={isAll ? p.allProfiles : profileLabel(activeProfile)}
+                onExpand={() => foldRail(false)}
+                profile={activeProfile}
+                state={stateOf(activeProfile)}
+                tipsEnabled={!panelOpen}
               />
-            </div>
+            )
           ) : (
-            <div
-              className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              ref={scrollRef}
-            >
-              {multiProfile && (
-                <DndContext
-                  collisionDetection={closestCenter}
-                  modifiers={[stepThroughCells]}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={handleDragOver}
-                  onDragStart={handleDragStart}
-                  sensors={sensors}
+            <>
+              {/* Default pinned left as its own tile: always "go home", never a
+              disguised All toggle (that is the layers button on the right). */}
+              {defaultProfile && (
+                <ProfileTileButton
+                  active={!isAll && activeKey === 'default'}
+                  hue={null}
+                  label={profileLabel(defaultProfile)}
+                  onSelect={() => pick(defaultProfile.name)}
+                  state={stateOf(defaultProfile)}
+                  stateLabel={p.state[stateOf(defaultProfile)]}
+                  tip={
+                    !isAll && activeKey === 'default'
+                      ? profileLabel(defaultProfile)
+                      : p.switchToProfile(profileLabel(defaultProfile))
+                  }
+                  tipsEnabled={!panelOpen}
                 >
-                  <SortableContext items={named.map(profile => profile.name)} strategy={horizontalListSortingStrategy}>
-                    {/* relative → the strip is the dragged tile's offsetParent, so the
-                        clamp modifier bounds drags to the occupied cells (not the +). */}
-                    <div className="relative flex items-center gap-1.5">
-                      {named.map(profile => (
-                        <ProfileSquare
-                          active={!isAll && normalizeProfileKey(profile.name) === activeKey}
-                          color={resolveProfileColor(profile.name, colors)}
-                          key={profile.name}
-                          label={profileLabel(profile)}
-                          onDelete={() => openDelete(profile)}
-                          onEditSoul={() => openSoul(profile.name)}
-                          onRecolor={color => setProfileColor(profile.name, color)}
-                          onRename={() => openRename(profile)}
-                          onSelect={() => pick(profile.name)}
-                          state={stateOf(profile)}
-                          stateLabel={p.state[stateOf(profile)]}
-                          tip={
-                            !isAll && normalizeProfileKey(profile.name) === activeKey
-                              ? profileLabel(profile)
-                              : p.switchToProfile(profileLabel(profile))
-                          }
-                          tipsEnabled={!panelOpen}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                  <Codicon name="home" size="0.8rem" />
+                </ProfileTileButton>
               )}
 
-              <AddProfileButton label={p.newProfile} onClick={openCreate} />
-            </div>
-          )}
+              {condensed ? (
+                // Condensed path: one compact dropdown instead of N tiles. No drag
+                // reorder, no long-press recolor, no per-tile context menu — Manage
+                // covers rename/delete at this scale.
+                <div className="flex min-w-0 flex-1 items-center gap-1">
+                  <ProfileDropdown
+                    activeKey={isAll ? null : activeKey}
+                    colors={colors}
+                    onCreate={openCreate}
+                    onSelect={selectProfile}
+                    profiles={named}
+                  />
+                </div>
+              ) : (
+                <div
+                  className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  ref={scrollRef}
+                >
+                  {multiProfile && (
+                    <DndContext
+                      collisionDetection={closestCenter}
+                      modifiers={[stepThroughCells]}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={handleDragOver}
+                      onDragStart={handleDragStart}
+                      sensors={sensors}
+                    >
+                      <SortableContext
+                        items={named.map(profile => profile.name)}
+                        strategy={horizontalListSortingStrategy}
+                      >
+                        {/* relative → the strip is the dragged tile's offsetParent, so the
+                        clamp modifier bounds drags to the occupied cells (not the +). */}
+                        <div className="relative flex items-center gap-1.5">
+                          {named.map(profile => (
+                            <ProfileSquare
+                              active={!isAll && normalizeProfileKey(profile.name) === activeKey}
+                              color={resolveProfileColor(profile.name, colors)}
+                              key={profile.name}
+                              label={profileLabel(profile)}
+                              onDelete={() => openDelete(profile)}
+                              onEditSoul={() => openSoul(profile.name)}
+                              onRecolor={color => setProfileColor(profile.name, color)}
+                              onRename={() => openRename(profile)}
+                              onSelect={() => pick(profile.name)}
+                              state={stateOf(profile)}
+                              stateLabel={p.state[stateOf(profile)]}
+                              tip={
+                                !isAll && normalizeProfileKey(profile.name) === activeKey
+                                  ? profileLabel(profile)
+                                  : p.switchToProfile(profileLabel(profile))
+                              }
+                              tipsEnabled={!panelOpen}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  )}
 
-          {/* All-profiles toggle, its own button so "show everything" and
+                  <AddProfileButton label={p.newProfile} onClick={openCreate} />
+                </div>
+              )}
+
+              {/* All-profiles toggle, its own button so "show everything" and
               "go to default" are never the same control. Hidden until a second
               profile exists — one profile has nothing to fan out. */}
-          {multiProfile && (
-            <ProfilePill
-              active={isAll}
-              glyph="layers"
-              label={isAll ? p.showingAllProfiles : p.showAllProfiles}
-              onSelect={() => {
-                closePanel()
-                setShowAllProfiles(!isAll)
-              }}
-            />
-          )}
+              {multiProfile && (
+                <ProfilePill
+                  active={isAll}
+                  glyph="layers"
+                  label={isAll ? p.showingAllProfiles : p.showAllProfiles}
+                  onSelect={() => {
+                    closePanel()
+                    setShowAllProfiles(!isAll)
+                  }}
+                />
+              )}
 
-          {/* Always reachable, even with only the default profile: the manage
+              {/* Always reachable, even with only the default profile: the manage
               overlay is the only place to edit a profile's SOUL.md, and a
               single-profile user must be able to edit the default's persona
               without first creating a throwaway second profile. */}
-          <ProfilePill active={false} glyph="ellipsis" label={p.manageProfiles} onSelect={openManage} />
+              <ProfilePill active={false} glyph="ellipsis" label={p.manageProfiles} onSelect={openManage} />
+
+              <RailFoldButton label={p.collapseRail} onSelect={() => foldRail(true)} />
+            </>
+          )}
         </div>
       </PopoverAnchor>
 
@@ -1113,6 +1147,71 @@ function ProfilePill({ active, glyph, label, onSelect }: ProfilePillProps) {
       >
         <Codicon name={glyph} size="0.875rem" />
       </Button>
+    </Tip>
+  )
+}
+
+// The ▾ at the rail's right end. Not a ProfilePill: it is never "pressed",
+// it changes what the rail IS, so it carries aria-expanded instead.
+function RailFoldButton({ label, onSelect }: { label: string; onSelect: () => void }) {
+  return (
+    <Tip label={label}>
+      <Button
+        aria-expanded
+        aria-label={label}
+        className="bg-transparent text-(--ui-text-tertiary) hover:bg-(--ui-control-hover-background) hover:text-foreground"
+        data-slot="profile-rail-fold"
+        onClick={onSelect}
+        size="icon-xs"
+        type="button"
+        variant="ghost"
+      >
+        <Codicon name="chevron-down" size="0.875rem" />
+      </Button>
+    </Tip>
+  )
+}
+
+// The folded rail: one 24px line that is a single button. Click unfolds; the
+// pointer resting on it raises the hover panel through the shared anchor, so
+// switching, All, New and Manage are still one gesture away while folded.
+function CollapsedRail({
+  hue,
+  label,
+  onExpand,
+  profile,
+  state,
+  tipsEnabled
+}: {
+  hue: null | string
+  label: string
+  onExpand: () => void
+  profile: ProfileInfo
+  state: ProfileBackendState
+  /** False while the hover panel is up: it already says all the tooltip would. */
+  tipsEnabled: boolean
+}) {
+  const { t } = useI18n()
+  const p = t.profiles
+
+  return (
+    <Tip label={tipsEnabled ? p.expandRail : ''}>
+      <button
+        aria-expanded={false}
+        aria-label={p.collapsedRail(label)}
+        className={cn(
+          'flex h-6 min-w-0 flex-1 items-center gap-2 rounded-md px-1 text-left text-[0.6875rem]',
+          'text-(--ui-text-tertiary) transition-colors duration-100 ease-out',
+          'hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none'
+        )}
+        data-slot="profile-rail-collapsed"
+        onClick={onExpand}
+        type="button"
+      >
+        <ProfileAvatar hue={hue} isDefault={profile.is_default} name={profile.name} size={18} state={state} />
+        <span className="truncate">{label}</span>
+        <Codicon className="ml-auto shrink-0" name="chevron-up" size="0.8rem" />
+      </button>
     </Tip>
   )
 }
