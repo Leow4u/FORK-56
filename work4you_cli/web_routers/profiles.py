@@ -785,6 +785,58 @@ async def list_profiles_endpoint():
         return {"profiles": _fallback_profile_dicts(profiles_mod)}
 
 
+def _launch_model_pin_is_portable(provider: str) -> bool:
+    """True when a Fresh profile can use ``provider`` without the launch .env.
+
+    OAuth / device-code / Portal logins fall back to the global-root
+    ``auth.json`` (``work4you_cli.auth._load_provider_state``), and the SDK
+    and external-process providers read machine-level credentials, so a
+    pin on them works in a profile that copied nothing. API-key providers
+    are excluded on purpose: the key lives in the launch profile's ``.env``,
+    which Fresh creates never inherit, so pinning them would only move the
+    first-message failure from "no provider" to "no API key".
+    """
+    try:
+        from work4you_cli.auth import PROVIDER_REGISTRY
+    except Exception:
+        return False
+    pconfig = PROVIDER_REGISTRY.get((provider or "").strip().lower())
+    if pconfig is None:
+        return False
+    return getattr(pconfig, "auth_type", "api_key") != "api_key"
+
+
+def _inherit_launch_model_pin(profile_dir: Path, name: str) -> bool:
+    """Seed a Fresh profile's ``model.provider`` / ``model.default`` from the launch profile.
+
+    ``create_profile()`` deliberately gives a Fresh (non-clone) profile a
+    comment-only ``.env`` and no ``model`` section, so a profile created from
+    the desktop dialog was born with NO inference provider: its first message
+    failed with "No inference provider configured" although the launch
+    profile was signed in to the Work4You Portal. That login is already
+    reachable from the new profile (auth-store reads fall back to the global
+    root); the missing piece was the pin. Copy only the pin — never ``.env``
+    or ``auth.json`` — and only for providers the new profile can actually
+    reach (``_launch_model_pin_is_portable``). Clones are untouched: they
+    bring the source's model section. Best-effort; True when written.
+    """
+    try:
+        from work4you_cli.config import load_config_readonly
+
+        launch_model = (load_config_readonly() or {}).get("model") or {}
+        if not isinstance(launch_model, dict):
+            return False
+        provider = str(launch_model.get("provider") or "").strip().lower()
+        model = str(launch_model.get("default") or "").strip()
+        if not provider or not model or not _launch_model_pin_is_portable(provider):
+            return False
+        _write_profile_model(profile_dir, provider, model)
+        return True
+    except Exception:
+        _log.exception("Inheriting the launch profile's model for new profile %s failed", name)
+        return False
+
+
 @router.post("/api/profiles")
 async def create_profile_endpoint(body: ProfileCreate):
     from work4you_cli import profiles as profiles_mod
@@ -840,12 +892,17 @@ async def create_profile_endpoint(body: ProfileCreate):
     provider = (body.provider or "").strip()
     model = (body.model or "").strip()
     model_set = False
+    model_inherited = False
     if provider and model:
         try:
             _write_profile_model(path, provider, model)
             model_set = True
         except Exception:
             _log.exception("Setting model for new profile %s failed", body.name)
+    elif not clone:
+        # Fresh profile with no explicit pin: inherit the launch profile's
+        # provider/model so the first message resolves (see helper).
+        model_inherited = _inherit_launch_model_pin(path, body.name)
 
     # Optional MCP servers. Best-effort, same rationale as model assignment.
     mcp_written = 0
@@ -892,6 +949,7 @@ async def create_profile_endpoint(body: ProfileCreate):
         "name": body.name,
         "path": str(path),
         "model_set": model_set,
+        "model_inherited": model_inherited,
         "mcp_written": mcp_written,
         "skills_disabled": skills_disabled,
         "hub_installs": hub_installs,

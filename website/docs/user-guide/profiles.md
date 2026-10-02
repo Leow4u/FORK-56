@@ -40,6 +40,14 @@ work4you profile create mybot
 
 Creates a fresh profile with bundled skills seeded. Run `mybot setup` to configure API keys, model, and gateway tokens.
 
+A blank profile is not stranded when the root profile is already signed in: provider
+resolution falls back to the root's logged-in provider (`active_provider` in the
+root `auth.json`), and a profile created from the desktop app also receives the
+launch profile's `model.provider` / `model.default` pin so its first message
+resolves. Only the pin travels, and only for OAuth / Portal / SDK providers —
+API keys in the root `.env` are never copied, so a root on OpenRouter still needs
+`mybot setup` (or a key) inside the new profile.
+
 If you plan to use this profile as a kanban worker (or want the kanban orchestrator to route work to it), pass `--description "<role>"` at create time so the orchestrator knows what it's good at:
 
 ```bash

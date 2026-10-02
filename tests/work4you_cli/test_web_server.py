@@ -6502,3 +6502,97 @@ class TestSessionPatchUnread:
         # a string outside the accepted set to prove validation rejects it.
         resp = self.auth_client.patch("/api/sessions/s1", json={"unread": "maybe"})
         assert resp.status_code == 422  # pydantic validation
+
+
+class TestProfileCreateInheritsLaunchModel:
+    """Fresh profiles created over REST inherit the launch profile's portable model pin.
+
+    A Fresh (non-clone) profile gets a comment-only ``.env`` and no ``model``
+    section, so one created from the desktop dialog used to fail its first
+    message with "No inference provider configured" even though the launch
+    profile was signed in to the Work4You Portal. Only the pin may travel:
+    credentials never do, and API-key providers are skipped because their key
+    lives in the launch ``.env`` the new island does not inherit.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, monkeypatch, _isolate_work4you_home):
+        try:
+            from starlette.testclient import TestClient
+        except ImportError:
+            pytest.skip("fastapi/starlette not installed")
+
+        import work4you_state
+        import work4you_cli.profiles as profiles_mod
+        from work4you_constants import get_work4you_home
+        from work4you_cli.web_server import app, _SESSION_HEADER_NAME, _SESSION_TOKEN
+
+        monkeypatch.setattr(work4you_state, "DEFAULT_DB_PATH", get_work4you_home() / "state.db")
+        monkeypatch.setattr(profiles_mod, "create_wrapper_script", lambda name: None)
+        self.root = get_work4you_home()
+        self.client = TestClient(app)
+        self.client.headers[_SESSION_HEADER_NAME] = _SESSION_TOKEN
+
+    def _pin_launch(self, provider: str, model: str) -> None:
+        (self.root / "config.yaml").write_text(
+            yaml.safe_dump({"model": {"provider": provider, "default": model}}),
+            encoding="utf-8",
+        )
+
+    def _profile_config(self, name: str) -> dict:
+        path = self.root / "profiles" / name / "config.yaml"
+        if not path.exists():
+            return {}
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+    def test_fresh_profile_inherits_a_portal_model_pin(self):
+        self._pin_launch("work4you", "operis-5.0")
+
+        resp = self.client.post("/api/profiles", json={"name": "fresh-pin"})
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["model_inherited"] is True
+        assert body["model_set"] is False
+        model = self._profile_config("fresh-pin")["model"]
+        assert model["provider"] == "work4you"
+        assert model["default"] == "operis-5.0"
+        # Only the pin travels into the island: no credentials are copied.
+        profile_dir = self.root / "profiles" / "fresh-pin"
+        assert not (profile_dir / "auth.json").exists()
+        env_path = profile_dir / ".env"
+        if env_path.exists():
+            lines = [line.strip() for line in env_path.read_text(encoding="utf-8").splitlines()]
+            assert all(not line or line.startswith("#") for line in lines)
+
+    def test_fresh_profile_does_not_inherit_an_api_key_provider_pin(self):
+        self._pin_launch("openrouter", "anthropic/claude-sonnet-4.5")
+
+        resp = self.client.post("/api/profiles", json={"name": "fresh-key"})
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["model_inherited"] is False
+        assert not (self._profile_config("fresh-key").get("model") or {}).get("provider")
+
+    def test_explicit_pin_wins_over_inheritance(self):
+        self._pin_launch("work4you", "operis-5.0")
+
+        resp = self.client.post(
+            "/api/profiles",
+            json={"name": "fresh-explicit", "provider": "xai-oauth", "model": "grok-4"},
+        )
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["model_set"] is True
+        assert body["model_inherited"] is False
+        assert self._profile_config("fresh-explicit")["model"]["provider"] == "xai-oauth"
+
+    def test_clone_brings_the_source_model_without_the_inheritance_pass(self):
+        self._pin_launch("work4you", "operis-5.0")
+
+        resp = self.client.post("/api/profiles", json={"name": "cloned", "clone_from": "default"})
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["model_inherited"] is False
+        assert self._profile_config("cloned")["model"]["provider"] == "work4you"

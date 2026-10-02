@@ -2083,7 +2083,11 @@ def resolve_provider(
     3. OPENAI_API_KEY / OPENROUTER_API_KEY env vars -> "openrouter"
     4. OpenRouter credential pool
     5. Provider-specific API keys (GLM, Kimi, MiniMax, ...) -> that provider
-    6. auth.json `active_provider` (logged-in OAuth) — last-resort fallback
+    6. auth.json `active_provider` (logged-in OAuth) — last-resort fallback.
+       In profile mode a profile without its own `active_provider` reads the
+       global-root store's, read-only, matching the per-provider state
+       fallback in _load_provider_state (a fresh profile under a signed-in
+       root otherwise died with "No inference provider configured").
     7. AWS Bedrock credential chain
     8. Error (no provider configured)
     """
@@ -2227,8 +2231,28 @@ def resolve_provider(
     try:
         _store = _load_auth_store()
         _maybe = _store.get("active_provider")
+        _from_global_root = False
+        if not _maybe:
+            # Profile-mode fallback (#18594 follow-up). A profile that never
+            # signed in on its own has no `active_provider`, yet its provider
+            # STATE already falls back to the global-root auth.json
+            # (_load_provider_state), so get_auth_status(<root provider>)
+            # reports logged_in. Without the same fallback for the selection
+            # key, a fresh profile under a signed-in root failed its first
+            # message with "No inference provider configured". Read-only:
+            # _load_global_auth_store() is {} outside profile mode, and writes
+            # keep targeting the profile store.
+            _global_store = _load_global_auth_store()
+            _maybe = _global_store.get("active_provider") if _global_store else None
+            _from_global_root = bool(_maybe)
         if _maybe and _maybe in PROVIDER_REGISTRY and get_auth_status(_maybe).get("logged_in"):
             _oauth_active = _maybe
+            if _from_global_root:
+                logger.debug(
+                    "Provider auto-resolution: profile has no active_provider; "
+                    "using the global-root login %r",
+                    _maybe,
+                )
     except Exception as e:
         logger.debug("Could not pre-read active auth provider: %s", e)
 
