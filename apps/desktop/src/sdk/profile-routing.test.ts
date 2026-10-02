@@ -63,6 +63,8 @@ vi.mock('@/store/profile', async () => {
   return {
     $activeGatewayProfile: atom('remote-worker'),
     $gatewaySwapTarget: atom(null),
+    // The SDK's ProfileFace resolves looks from the color picks too.
+    $profileColors: atom({}),
     $profiles: profiles,
     $showAllProfiles: atom(false),
     ensureGatewayAgent: vi.fn(),

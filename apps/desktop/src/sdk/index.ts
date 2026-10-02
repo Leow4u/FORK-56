@@ -975,6 +975,10 @@ export { Kbd, KbdGroup } from '@/components/ui/kbd'
 export { Loader, type LoaderType } from '@/components/ui/loader'
 export { LogView } from '@/components/ui/log-view'
 export { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+/** A profile drawn as its bot by NAME: resolves the stored look and the
+ *  avatar picture from the app's profile stores, then draws through
+ *  `BotFace`. The sidebar rail, cards and Manage use this one. */
+export { moodForBackendState, ProfileFace, type ProfileFaceProps } from '@/components/ui/profile-face'
 export { ScrollArea } from '@/components/ui/scroll-area'
 export { SearchField } from '@/components/ui/search-field'
 export { SegmentedControl } from '@/components/ui/segmented-control'
@@ -1040,11 +1044,14 @@ export {
   type BlobKind,
   blobMarkup,
   blobShapeString,
+  BOT_UI_META_KEY,
   type BotAppearance,
   botAppearance,
   type BotAppearanceMeta,
+  botMetaOf,
   type BotMood,
   defaultShapeFor,
+  isBackfilledFacePng,
   isBlobShape,
   isDarkColor,
   parseBlobShape,

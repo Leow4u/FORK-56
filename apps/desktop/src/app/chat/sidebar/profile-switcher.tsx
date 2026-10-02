@@ -38,7 +38,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
-import { ProfileGlyph } from '@/components/ui/profile-glyph'
+import { moodForBackendState, ProfileFace } from '@/components/ui/profile-face'
 import { ProfileStateDot } from '@/components/ui/profile-state-dot'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Tip, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -52,6 +52,7 @@ import {
   reorderCommitHaptic,
   reorderStepHaptic
 } from '@/lib/reorder'
+import { useStoreSelector } from '@/lib/use-session-slice'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 import {
@@ -75,6 +76,7 @@ import {
   setShowAllProfiles,
   sortByProfileOrder
 } from '@/store/profile'
+import { $profileLooks } from '@/store/profile-appearance'
 import { runExportProfileFlow } from '@/store/profile-share'
 import type { ProfileInfo } from '@/types/work4you'
 import { getProfileSoul, updateProfileSoul } from '@/work4you'
@@ -440,7 +442,6 @@ export function ProfileRail() {
             // nothing the rail can do is lost — only the tile strip is.
             activeProfile && (
               <CollapsedRail
-                hue={activeProfile.is_default ? null : resolveProfileColor(activeProfile.name, colors)}
                 label={isAll ? p.allProfiles : profileLabel(activeProfile)}
                 onExpand={() => foldRail(false)}
                 profile={activeProfile}
@@ -455,8 +456,8 @@ export function ProfileRail() {
               {defaultProfile && (
                 <ProfileTileButton
                   active={!isAll && activeKey === 'default'}
-                  hue={null}
                   label={profileLabel(defaultProfile)}
+                  name={defaultProfile.name}
                   onSelect={() => pick(defaultProfile.name)}
                   state={stateOf(defaultProfile)}
                   stateLabel={p.state[stateOf(defaultProfile)]}
@@ -466,9 +467,7 @@ export function ProfileRail() {
                       : p.switchToProfile(profileLabel(defaultProfile))
                   }
                   tipsEnabled={!panelOpen}
-                >
-                  <Codicon name="home" size="0.8rem" />
-                </ProfileTileButton>
+                />
               )}
 
               {condensed ? (
@@ -511,6 +510,7 @@ export function ProfileRail() {
                               color={resolveProfileColor(profile.name, colors)}
                               key={profile.name}
                               label={profileLabel(profile)}
+                              name={profile.name}
                               onDelete={() => openDelete(profile)}
                               onEditSoul={() => openSoul(profile.name)}
                               onRecolor={color => setProfileColor(profile.name, color)}
@@ -680,7 +680,9 @@ function RailPanel({
 }: RailPanelProps) {
   const { t } = useI18n()
   const p = t.profiles
-  const activeHue = activeProfile.is_default ? null : resolveProfileColor(activeProfile.name, colors)
+  const activeKey = normalizeProfileKey(activeProfile.name)
+  // The band and the face agree: both come from the bot's resolved look.
+  const activeHue = useStoreSelector($profileLooks, looks => looks[activeKey]?.appearance.color) ?? null
   const activeState = stateOf(activeProfile)
 
   return (
@@ -689,13 +691,7 @@ function RailPanel({
         className="flex items-center gap-2.5 px-2.5 py-2"
         style={{ boxShadow: `inset 3px 0 0 ${activeHue ?? NEUTRAL_HUE}` }}
       >
-        <ProfileAvatar
-          hue={activeHue}
-          isDefault={activeProfile.is_default}
-          name={profileLabel(activeProfile)}
-          size={32}
-          state={activeState}
-        />
+        <ProfileAvatar name={activeProfile.name} size={32} state={activeState} />
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[0.8125rem] font-semibold text-foreground">{profileLabel(activeProfile)}</span>
           <span className="truncate text-[0.6875rem] text-(--ui-text-tertiary)">
@@ -801,7 +797,7 @@ function RailPanelRow({
         onPointerLeave={cancelPrewarm}
         type="button"
       >
-        <ProfileAvatar hue={hue} isDefault={profile.is_default} name={label} size={24} state={state} />
+        <ProfileAvatar name={profile.name} size={24} state={state} />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-xs font-semibold text-foreground">{label}</span>
           <span className="truncate text-[0.625rem] text-(--ui-text-tertiary)">
@@ -851,48 +847,35 @@ function RailPanelRow({
 
 // ── Avatar ─────────────────────────────────────────────────────────────────
 
-// Solid-color mark used by the panel: full hue with a white initial (the home
-// icon for default), the backend state dot in the corner. Bigger and bolder
-// than ProfileGlyph on purpose — this is the identity card, not a list lead.
-function ProfileAvatar({
-  hue,
-  isDefault,
-  name,
-  size,
-  state
-}: {
-  hue: null | string
-  isDefault: boolean
-  name: string
-  size: number
-  state: ProfileBackendState
-}) {
-  const initial = name.replace(/[^a-z0-9]/gi, '').charAt(0) || '?'
-
+// The bot's face used by the panel, the backend state dot in the corner.
+// Bigger than the rail tiles on purpose — this is the identity card, not a
+// list lead. An asleep bot is dimmed the way its tile is.
+function ProfileAvatar({ name, size, state }: { name: string; size: number; state: ProfileBackendState }) {
   return (
     <span
-      className="relative grid shrink-0 place-items-center rounded-md font-bold uppercase leading-none text-white"
-      style={{
-        backgroundColor: hue ?? NEUTRAL_HUE,
-        fontSize: size * 0.45,
-        height: size,
-        opacity: state === 'asleep' ? 0.6 : 1,
-        width: size
-      }}
+      className="relative inline-grid shrink-0 place-items-center"
+      style={{ height: size, opacity: state === 'asleep' ? 0.6 : 1, width: size }}
     >
-      {isDefault ? <Codicon name="home" size={`${size * 0.5}px`} /> : initial}
+      <ProfileFace mood={moodForBackendState(state)} name={name} size={size} />
       <ProfileStateDot state={state} />
     </span>
   )
 }
 
+/** The ring a tile wears while active: the bot's own color, so the ring and
+ *  the face belong together. */
+function useTileRingColor(name: string): string {
+  const key = normalizeProfileKey(name)
+
+  return useStoreSelector($profileLooks, looks => looks[key]?.appearance.color) ?? NEUTRAL_HUE
+}
+
 // The default tile and (via ProfileSquare) the named tiles share this look:
-// 26px, solid hue, white mark, state dot, active ring in the tile's own color.
+// 26px cell, the bot's face, state dot, active ring in the bot's own color.
 function ProfileTileButton({
   active,
-  children,
-  hue,
   label,
+  name,
   onSelect,
   state,
   stateLabel,
@@ -900,9 +883,8 @@ function ProfileTileButton({
   tipsEnabled = true
 }: {
   active: boolean
-  children: React.ReactNode
-  hue: null | string
   label: string
+  name: string
   onSelect: () => void
   state: ProfileBackendState
   stateLabel: string
@@ -910,7 +892,7 @@ function ProfileTileButton({
   /** False while the hover panel is up: it already says all the tooltip would. */
   tipsEnabled?: boolean
 }) {
-  const color = hue ?? NEUTRAL_HUE
+  const ringColor = useTileRingColor(name)
 
   return (
     <Tip label={tipsEnabled ? `${tip} · ${stateLabel}` : ''}>
@@ -918,17 +900,16 @@ function ProfileTileButton({
         aria-label={label}
         aria-pressed={active}
         className={cn(
-          'relative grid size-[26px] shrink-0 place-items-center rounded-md text-white transition-opacity hover:opacity-100',
+          'relative grid size-[26px] shrink-0 place-items-center rounded-md transition-opacity hover:opacity-100',
           active ? 'opacity-100' : state === 'asleep' ? 'opacity-55' : 'opacity-80'
         )}
         onClick={onSelect}
         style={{
-          backgroundColor: color,
-          boxShadow: active ? `0 0 0 1.5px var(--background), 0 0 0 3px ${color}` : undefined
+          boxShadow: active ? `0 0 0 1.5px var(--background), 0 0 0 3px ${ringColor}` : undefined
         }}
         type="button"
       >
-        {children}
+        <ProfileFace mood={moodForBackendState(state)} name={name} size={24} />
         <ProfileStateDot state={state} />
       </button>
     </Tip>
@@ -1066,12 +1047,7 @@ function ProfileDropdown({
           <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
             {activeProfile ? (
               <>
-                <ProfileGlyph
-                  aria-hidden="true"
-                  color={resolveProfileColor(activeProfile.name, colors)}
-                  isDefault={false}
-                  name={activeProfile.name}
-                />
+                <ProfileFace name={activeProfile.name} size={16} />
                 <span className="truncate">{profileLabel(activeProfile)}</span>
               </>
             ) : (
@@ -1115,7 +1091,7 @@ function ProfileDropdownItem({ color, label, name }: { color: null | string; lab
       value={name}
     >
       <span className="flex min-w-0 items-center gap-1.5">
-        <ProfileGlyph aria-hidden="true" color={color} isDefault={false} name={name} />
+        <ProfileFace name={name} size={16} />
         <span className="truncate">{label}</span>
       </span>
     </DropdownMenuRadioItem>
@@ -1176,14 +1152,12 @@ function RailFoldButton({ label, onSelect }: { label: string; onSelect: () => vo
 // pointer resting on it raises the hover panel through the shared anchor, so
 // switching, All, New and Manage are still one gesture away while folded.
 function CollapsedRail({
-  hue,
   label,
   onExpand,
   profile,
   state,
   tipsEnabled
 }: {
-  hue: null | string
   label: string
   onExpand: () => void
   profile: ProfileInfo
@@ -1208,7 +1182,7 @@ function CollapsedRail({
         onClick={onExpand}
         type="button"
       >
-        <ProfileAvatar hue={hue} isDefault={profile.is_default} name={profile.name} size={18} state={state} />
+        <ProfileAvatar name={profile.name} size={18} state={state} />
         <span className="truncate">{label}</span>
         <Codicon className="ml-auto shrink-0" name="chevron-up" size="0.8rem" />
       </button>
@@ -1220,6 +1194,7 @@ interface ProfileSquareProps {
   active: boolean
   color: null | string
   label: string
+  name: string
   onSelect: () => void
   onRecolor: (color: null | string) => void
   onRename: () => void
@@ -1247,6 +1222,7 @@ function ProfileSquare({
   active,
   color,
   label,
+  name,
   onDelete,
   onEditSoul,
   onRecolor,
@@ -1259,7 +1235,7 @@ function ProfileSquare({
 }: ProfileSquareProps) {
   const { t } = useI18n()
   const p = t.profiles
-  const hue = color ?? NEUTRAL_HUE
+  const hue = useTileRingColor(name)
   const [pickerOpen, setPickerOpen] = useState(false)
   const pressTimer = useRef<null | number>(null)
   const suppressClick = useRef(false)
@@ -1309,13 +1285,12 @@ function ProfileSquare({
                 <TooltipTrigger asChild>
                   <button
                     className={cn(
-                      'relative grid size-[26px] shrink-0 cursor-grab touch-none select-none place-items-center rounded-md text-[0.6875rem] font-bold uppercase leading-none text-white transition-opacity hover:opacity-100',
+                      'relative grid size-[26px] shrink-0 cursor-grab touch-none select-none place-items-center rounded-md transition-opacity hover:opacity-100',
                       active ? 'opacity-100' : state === 'asleep' ? 'opacity-55' : 'opacity-80',
                       isDragging && 'z-10 cursor-grabbing opacity-100'
                     )}
                     ref={setNodeRef}
                     style={{
-                      backgroundColor: hue,
                       boxShadow: [ring, lift].filter(Boolean).join(', ') || undefined,
                       // Glide the dragged tile between snapped cells with a little
                       // overshoot (no scale — the overflow-x strip would clip it).
@@ -1362,7 +1337,7 @@ function ProfileSquare({
                     }}
                     onPointerUp={clearPress}
                   >
-                    {label.replace(/[^a-z0-9]/gi, '').charAt(0) || '?'}
+                    <ProfileFace mood={moodForBackendState(state)} name={name} size={24} />
                     <ProfileStateDot state={state} />
                   </button>
                 </TooltipTrigger>
