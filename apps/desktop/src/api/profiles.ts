@@ -52,6 +52,46 @@ export function updateProfileSoul(name: string, content: string): Promise<{ ok: 
   })
 }
 
+/** Set a profile's main model (`model.default` + `model.provider` in ITS
+ *  config.yaml) without touching the active profile. */
+export function updateProfileModel(
+  name: string,
+  selection: { model: string; provider: string }
+): Promise<{ model: string; ok: boolean; provider: string }> {
+  return work4youApi<{ model: string; ok: boolean; provider: string }>({
+    path: `/api/profiles/${encodeURIComponent(name)}/model`,
+    method: 'PUT',
+    body: selection
+  })
+}
+
+/** Set (or, with an empty string, clear) a profile's role description. A
+ *  non-empty value is stored as user-authored, so the auto-describer leaves it. */
+export function updateProfileDescription(
+  name: string,
+  description: string
+): Promise<{ description: string; description_auto: boolean; ok: boolean }> {
+  return work4youApi<{ description: string; description_auto: boolean; ok: boolean }>({
+    path: `/api/profiles/${encodeURIComponent(name)}/description`,
+    method: 'PUT',
+    body: { description }
+  })
+}
+
+/** Ask the auxiliary LLM to describe a profile from its persona/skills. A
+ *  failed generation comes back as `ok: false` with a reason, not an error. */
+export function describeProfileAuto(
+  name: string,
+  opts: { overwrite?: boolean } = {}
+): Promise<{ description: null | string; description_auto: boolean; ok: boolean; reason: null | string }> {
+  return work4youApi<{ description: null | string; description_auto: boolean; ok: boolean; reason: null | string }>({
+    path: `/api/profiles/${encodeURIComponent(name)}/describe-auto`,
+    method: 'POST',
+    body: { overwrite: opts.overwrite ?? false },
+    timeoutMs: STARTUP_REQUEST_TIMEOUT_MS
+  })
+}
+
 export function getProfileSetupCommand(name: string): Promise<ProfileSetupCommand> {
   return work4youApi<ProfileSetupCommand>({
     path: `/api/profiles/${encodeURIComponent(name)}/setup-command`

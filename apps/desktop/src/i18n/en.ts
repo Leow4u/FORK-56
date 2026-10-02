@@ -2721,7 +2721,74 @@ export const en: Translations = {
     failedLoadSoul: 'Failed to load SOUL.md',
     failedSaveSoul: 'Failed to save SOUL.md',
     failedCreate: 'Failed to create profile',
-    failedRename: 'Failed to rename profile'
+    failedRename: 'Failed to rename profile',
+
+    // ── Rail: backend state + hover panel ──
+    state: { running: 'Running', waking: 'Waking up…', asleep: 'Asleep' },
+    stateHint: {
+      running: 'Backend is warm — switching is instant.',
+      waking: 'Starting this profile’s backend…',
+      asleep: 'Backend is off — opening it takes a few seconds.'
+    },
+    thisProfile: 'This profile',
+    showingAllProfiles: 'Showing all profiles',
+    switcher: 'Profile switcher',
+    switchTo: 'Switch to',
+    current: 'Current',
+    manageShort: 'Manage…',
+    sessionCount: count => `${count} ${count === 1 ? 'session' : 'sessions'}`,
+    runningSummary: (running, total) => `${running} of ${total} running`,
+    newSessionHere: 'New session here',
+
+    // ── Guided create ──
+    personaLabel: 'Persona',
+    personaTemplates: {
+      blank: 'Blank',
+      research: 'Research',
+      writer: 'Writer',
+      developer: 'Developer',
+      support: 'Support'
+    },
+    personaTemplateHint: 'Pick a starting point, then edit the text. Saved as SOUL.md.',
+    colorLabel: 'Color',
+    colorHint: 'Shown in the rail and the session list. Stored on this computer only.',
+    startFrom: 'Start from',
+    startBlank: 'Fresh',
+    startCopy: 'Copy from',
+    copyScope: { config: 'Config, skills, persona & memory', all: 'Everything (full copy)' },
+    copyHint: 'Sessions and history are never copied. Credentials (.env) travel with the config.',
+    bundledSkills: 'Install bundled skills',
+    bundledSkillsHint: 'Off leaves the skills folder empty; you can install skills later.',
+    switchAfterCreate: 'Switch to it after creating',
+
+    // ── Manage overlay ──
+    legend: 'Legend',
+    tabs: { persona: 'Persona', model: 'Model', description: 'Description', export: 'Export' },
+    cards: {
+      model: 'Model',
+      skills: 'Skills',
+      credentials: 'Credentials',
+      envSet: '.env · configured',
+      envMissing: '.env · empty'
+    },
+    skillsInstalled: count => `${count} installed`,
+    changeModel: 'Change model…',
+    modelSaved: 'Model updated',
+    failedSaveModel: 'Failed to update model',
+    modelHint: 'Written to this profile’s config.yaml. New sessions use it; open sessions keep theirs.',
+    descriptionHint:
+      'One or two sentences on what this profile is for. Shown in the switcher and used to route kanban work.',
+    descriptionAuto: 'Auto-generated — edit it to make it yours.',
+    generateDescription: 'Generate with AI',
+    generating: 'Generating…',
+    descriptionSaved: 'Description saved',
+    failedSaveDescription: 'Failed to save description',
+    failedGenerate: 'Could not generate a description',
+    exportTitle: 'Export this profile',
+    exportHint:
+      'Creates a .tar.gz with config, skills, persona and memory. Credentials are included — share with care.',
+    personaAppliesNote:
+      'Applies to new sessions. Open sessions keep the persona they started with, so the prompt cache stays intact.'
   },
 
   cron: {

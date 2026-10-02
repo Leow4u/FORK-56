@@ -3,6 +3,7 @@ import { atom } from 'nanostores'
 
 import type { Work4YouConnection } from '@/global'
 import { reconnectBackoffDelayMs } from '@/lib/reconnect-backoff'
+import { $liveGatewayProfiles } from '@/store/gateway-liveness'
 import { markNativeNotifyBaseline } from '@/store/notify-baseline'
 import { setConnection, setGatewayState } from '@/store/session'
 import { setApiRequestConnection, Work4YouGateway } from '@/work4you'
@@ -147,6 +148,42 @@ const g = gatewayState()
 // to. (A fresh `atom()` per reload would orphan existing subscriptions.)
 export const $gateway = g.$gateway
 
+// Publish the live LOCAL profile roster (store/gateway-liveness): the primary
+// backend's profile plus every pooled secondary on the local path (legacy bare
+// scope or the explicit `local` registry scope). Remote/cloud agents are left
+// out — a socket to another machine says nothing about a backend the rail could
+// wake. Deferred one microtask so callers that dispose-then-delete publish the
+// post-delete roster, not the midpoint.
+let livePublishQueued = false
+
+function scheduleLivePublish(): void {
+  if (livePublishQueued) {
+    return
+  }
+
+  livePublishQueued = true
+  queueMicrotask(() => {
+    livePublishQueued = false
+    const next = new Set<string>()
+
+    if (g.primaryGateway) {
+      next.add(g.primaryProfile)
+    }
+
+    for (const entry of g.secondaries.values()) {
+      if (!entry.connectionId || entry.connectionId === 'local') {
+        next.add(normKey(entry.profile))
+      }
+    }
+
+    const prev = $liveGatewayProfiles.get()
+
+    if (prev.size !== next.size || [...next].some(key => !prev.has(key))) {
+      $liveGatewayProfiles.set(next)
+    }
+  })
+}
+
 // The profile the ACTIVE gateway is actually routed to. Registry-owned: the
 // only writer is applyActive(), which sets it in the same synchronous step
 // that selects the socket — so a consumer that reads this and then calls
@@ -178,6 +215,7 @@ export function emitLocalGatewayEvent(event: GatewayEvent): void {
 export function setPrimaryGateway(gateway: Work4YouGateway | null, profile = 'default'): void {
   g.primaryGateway = gateway
   g.primaryProfile = normKey(profile)
+  scheduleLivePublish()
 }
 
 export function isActivePrimary(): boolean {
@@ -468,6 +506,7 @@ function createSecondary(profile: string, connectionId: null | string = null): S
   })
 
   g.secondaries.set(scope, entry)
+  scheduleLivePublish()
 
   return entry
 }
@@ -876,6 +915,9 @@ function disposeSecondary(entry: Secondary): void {
   entry.offEvent()
   entry.offState()
   entry.gateway.close()
+  // Every eviction path deletes the map entry right after this call, so the
+  // deferred publish reads the roster without it.
+  scheduleLivePublish()
 }
 
 // Invariant restore for every eviction path: if the active key names a

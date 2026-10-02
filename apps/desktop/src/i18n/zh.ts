@@ -2869,7 +2869,59 @@ export const zh: Translations = {
     failedLoadSoul: '加载 SOUL.md 失败',
     failedSaveSoul: '保存 SOUL.md 失败',
     failedCreate: '创建配置档案失败',
-    failedRename: '重命名配置档案失败'
+    failedRename: '重命名配置档案失败',
+
+    // ── 侧栏配置档案条：后端状态 + 悬停面板 ──
+    state: { running: '运行中', waking: '正在唤醒…', asleep: '休眠' },
+    stateHint: {
+      running: '后端已就绪——切换即时完成。',
+      waking: '正在启动此配置档案的后端…',
+      asleep: '后端未运行——打开需要几秒钟。'
+    },
+    thisProfile: '当前配置档案',
+    showingAllProfiles: '正在显示全部配置档案',
+    switcher: '配置档案切换器',
+    switchTo: '切换到',
+    current: '当前',
+    manageShort: '管理…',
+    sessionCount: count => `${count} 个会话`,
+    runningSummary: (running, total) => `${total} 个中有 ${running} 个运行中`,
+    newSessionHere: '在此新建会话',
+
+    // ── 引导式创建 ──
+    personaLabel: '人设',
+    personaTemplates: { blank: '空白', research: '研究', writer: '写作', developer: '开发', support: '客服' },
+    personaTemplateHint: '选择一个起点，然后编辑文本。保存为 SOUL.md。',
+    colorLabel: '颜色',
+    colorHint: '显示在配置档案条和会话列表中。仅保存在本机。',
+    startFrom: '起点',
+    startBlank: '全新',
+    startCopy: '复制自',
+    copyScope: { config: '配置、技能、人设与记忆', all: '全部（完整复制）' },
+    copyHint: '会话与历史记录不会被复制。凭据（.env）随配置一起复制。',
+    bundledSkills: '安装内置技能',
+    bundledSkillsHint: '关闭则技能目录为空；之后仍可安装技能。',
+    switchAfterCreate: '创建后切换到它',
+
+    // ── 管理面板 ──
+    legend: '图例',
+    tabs: { persona: '人设', model: '模型', description: '描述', export: '导出' },
+    cards: { model: '模型', skills: '技能', credentials: '凭据', envSet: '.env · 已配置', envMissing: '.env · 为空' },
+    skillsInstalled: count => `已安装 ${count} 个`,
+    changeModel: '更改模型…',
+    modelSaved: '模型已更新',
+    failedSaveModel: '更新模型失败',
+    modelHint: '写入此配置档案的 config.yaml。新会话使用它；已打开的会话保持原模型。',
+    descriptionHint: '用一两句话说明此配置档案的用途。显示在切换器中，并用于分配看板任务。',
+    descriptionAuto: '自动生成——编辑后即为你的版本。',
+    generateDescription: '用 AI 生成',
+    generating: '生成中…',
+    descriptionSaved: '描述已保存',
+    failedSaveDescription: '保存描述失败',
+    failedGenerate: '无法生成描述',
+    exportTitle: '导出此配置档案',
+    exportHint: '生成包含配置、技能、人设与记忆的 .tar.gz。其中包含凭据——请谨慎分享。',
+    personaAppliesNote: '对新会话生效。已打开的会话保留其初始人设，以保持提示缓存不变。'
   },
 
   cron: {

@@ -2111,6 +2111,54 @@ export interface Translations {
     failedSaveSoul: string
     failedCreate: string
     failedRename: string
+
+    // Rail: backend state + hover panel
+    state: { running: string; waking: string; asleep: string }
+    stateHint: { running: string; waking: string; asleep: string }
+    thisProfile: string
+    showingAllProfiles: string
+    switcher: string
+    switchTo: string
+    current: string
+    manageShort: string
+    sessionCount: (count: number) => string
+    runningSummary: (running: number, total: number) => string
+    newSessionHere: string
+
+    // Guided create
+    personaLabel: string
+    personaTemplates: { blank: string; research: string; writer: string; developer: string; support: string }
+    personaTemplateHint: string
+    colorLabel: string
+    colorHint: string
+    startFrom: string
+    startBlank: string
+    startCopy: string
+    copyScope: { config: string; all: string }
+    copyHint: string
+    bundledSkills: string
+    bundledSkillsHint: string
+    switchAfterCreate: string
+
+    // Manage overlay
+    legend: string
+    tabs: { persona: string; model: string; description: string; export: string }
+    cards: { model: string; skills: string; credentials: string; envSet: string; envMissing: string }
+    skillsInstalled: (count: number) => string
+    changeModel: string
+    modelSaved: string
+    failedSaveModel: string
+    modelHint: string
+    descriptionHint: string
+    descriptionAuto: string
+    generateDescription: string
+    generating: string
+    descriptionSaved: string
+    failedSaveDescription: string
+    failedGenerate: string
+    exportTitle: string
+    exportHint: string
+    personaAppliesNote: string
   }
 
   cron: {

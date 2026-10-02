@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { retireLocalProfileGateways } from '@/store/gateway'
 import { refreshProfiles, selectProfile, setActiveProfile } from '@/store/profile'
 import type { ProfileInfo } from '@/types/work4you'
-import { deleteProfile, getProfileSoul } from '@/work4you'
+import { deleteProfile, getProfileSoul, updateProfileDescription } from '@/work4you'
 
 import { ProfilesView } from './index'
 
@@ -33,10 +33,33 @@ vi.mock('@/components/chat/code-editor', () => ({
 vi.mock('@/work4you', () => ({
   createProfile: vi.fn(async () => ({ name: 'x', ok: true, path: '/x' })),
   deleteProfile: vi.fn(async () => ({ ok: true, path: '/x' })),
+  describeProfileAuto: vi.fn(async () => ({ description: 'Auto', description_auto: true, ok: true, reason: null })),
   getProfileSoul: vi.fn(async () => ({ content: '', exists: true })),
   renameProfile: vi.fn(async () => ({ name: 'x', ok: true, path: '/x' })),
+  updateProfileDescription: vi.fn(async () => ({ description: 'Routes', description_auto: false, ok: true })),
+  updateProfileModel: vi.fn(async () => ({ model: 'm', ok: true, provider: 'p' })),
   updateProfileSoul: vi.fn(async () => ({ ok: true }))
 }))
+
+vi.mock('@/store/profile-share', () => ({
+  runExportProfileFlow: vi.fn()
+}))
+
+// The model tab mounts the composer's picker dialog, which needs a query
+// client and a gateway; these tests only check that the tab offers it.
+vi.mock('@/components/model-picker', () => ({
+  ModelPickerDialog: () => null
+}))
+
+// Radix Tabs measures its list with a ResizeObserver jsdom doesn't ship.
+vi.stubGlobal(
+  'ResizeObserver',
+  class {
+    disconnect() {}
+    observe() {}
+    unobserve() {}
+  }
+)
 
 vi.mock('@/store/notifications', () => ({
   notify: vi.fn(),
@@ -47,17 +70,23 @@ vi.mock('@/store/gateway', () => ({
   retireLocalProfileGateways: vi.fn()
 }))
 
-const { $activeGatewayProfile: activeGateway, $profileColors } = vi.hoisted(() => {
+const {
+  $activeGatewayProfile: activeGateway,
+  $profileBackendStates,
+  $profileColors
+} = vi.hoisted(() => {
   const { atom } = require('nanostores') as typeof Nanostores
 
   return {
     $activeGatewayProfile: atom<string>('default'),
+    $profileBackendStates: atom<Record<string, 'asleep' | 'running' | 'waking'>>({}),
     $profileColors: atom<Record<string, string>>({})
   }
 })
 
 vi.mock('@/store/profile', () => ({
   $activeGatewayProfile: activeGateway,
+  $profileBackendStates,
   $profileColors,
   normalizeProfileKey: (name: null | string | undefined) => (name ?? '').trim() || 'default',
   profileLabel: (profile: { display_name?: string; name: string }) =>
@@ -129,7 +158,7 @@ describe('ProfilesView', () => {
 
     realClick(await screen.findByRole('button', { name: 'New profile' }))
 
-    const soul = await screen.findByLabelText(/SOUL\.md/i)
+    const soul = await screen.findByRole('textbox', { name: /Persona/ })
 
     expect(soul.tagName).toBe('TEXTAREA')
     expect(soul.getAttribute('id')).toBe('new-profile-soul')
@@ -172,7 +201,7 @@ describe('ProfilesView', () => {
     expect(setActiveProfile).not.toHaveBeenCalled()
   })
 
-  it('shows the friendly model and the persona, and hides path, skills, and credentials', async () => {
+  it('shows model, persona, skills and credentials, and hides the path', async () => {
     vi.mocked(refreshProfiles).mockResolvedValue([
       {
         ...makeProfile('default', true),
@@ -188,23 +217,49 @@ describe('ProfilesView', () => {
       exists: true
     })
     activeGateway.set('default')
+    $profileBackendStates.set({ default: 'running' })
 
     await renderProfilesView()
 
-    expect(await screen.findByText(/Operis 5\.0/)).toBeTruthy()
+    expect((await screen.findAllByText(/Operis 5\.0/)).length).toBeGreaterThan(0)
     expect(screen.getByText(/File:\s*SOUL\.md/)).toBeTruthy()
     expect(screen.getAllByText('You are Work4You.').length).toBeGreaterThan(0)
     expect(screen.getByText('In use')).toBeTruthy()
     expect(screen.getByText('Currently in use')).toBeTruthy()
-    expect(screen.getByText('Persona')).toBeTruthy()
+    expect(screen.getAllByText('Persona').length).toBeGreaterThan(0)
+    // Info cards: the counts the old layout hid are now first-class.
+    expect(screen.getByText('78 installed')).toBeTruthy()
+    expect(screen.getByText('.env · configured')).toBeTruthy()
+    // Backend state reaches the header and the roster legend.
+    expect(screen.getAllByText('Running').length).toBeGreaterThan(0)
     expect(screen.queryByText('/AppData/Local/work4you')).toBeNull()
-    expect(screen.queryByText('78')).toBeNull()
-    expect(screen.queryByText('.env')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Use this profile' })).toBeNull()
     const save = screen.getByRole('button', { name: 'Save' })
     expect(save).toBeTruthy()
     expect((save as HTMLButtonElement).disabled).toBe(true)
     expect(screen.queryByRole('textbox', { name: 'Search profiles...' })).toBeNull()
+  })
+
+  it('offers model, description and export tabs beside the persona', async () => {
+    vi.mocked(refreshProfiles).mockResolvedValue([{ ...makeProfile('default', true), model: 'openai/gpt-6-luna' }])
+    activeGateway.set('default')
+
+    await renderProfilesView()
+
+    // Radix tabs activate on mousedown (then focus), not on a synthetic click.
+    fireEvent.mouseDown(await screen.findByRole('tab', { name: 'Model' }), { button: 0 })
+    expect(screen.getByRole('button', { name: 'Change model…' })).toBeTruthy()
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Description' }), { button: 0 })
+    const field = screen.getByRole('textbox', { name: 'Description' })
+    fireEvent.change(field, { target: { value: 'Routes support tickets.' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    })
+    expect(updateProfileDescription).toHaveBeenCalledWith('default', 'Routes support tickets.')
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Export' }), { button: 0 })
+    expect(screen.getByRole('button', { name: 'Export profile…' })).toBeTruthy()
   })
 
   it('offers to use a profile that is not the current one', async () => {
