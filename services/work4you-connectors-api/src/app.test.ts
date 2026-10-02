@@ -11,7 +11,7 @@ import {
   sessionToolkitSlugs,
   toolkitLogoUrl,
 } from './allowlist.js'
-import { createApp, type AppConfig, type AppDeps } from './app.js'
+import { createApp, identityKey, type AppConfig, type AppDeps } from './app.js'
 import { AuthError, type ConnectorClaims } from './auth.js'
 import type { ComposioPort, ComposioSession, ConnectedAccount } from './composio.js'
 import { TokenStore } from './tokens.js'
@@ -357,6 +357,127 @@ test('MCP proxy rejects unknown tokens and isolates users', async () => {
   assert.equal(hits[0].url, 'https://mcp.composio.dev/user-a')
   assert.equal(hits[0].apiKey, 'ak_test')
   assert.equal(hits[0].authorization, null)
+})
+
+test('identityKey keeps the bare sub for the default profile and namespaces the rest', () => {
+  assert.equal(identityKey('user-a', undefined), 'user-a')
+  assert.equal(identityKey('user-a', ''), 'user-a')
+  assert.equal(identityKey('user-a', '  default '), 'user-a')
+  assert.equal(identityKey('user-a', 'Default'), 'user-a')
+  assert.equal(identityKey('user-a', 'coder'), 'user-a::coder')
+  assert.equal(identityKey('user-a', ' linkedin-post '), 'user-a::linkedin-post')
+  assert.equal(identityKey('user-a', '../etc'), null)
+  assert.equal(identityKey('user-a', 'a::b'), null)
+  assert.equal(identityKey('user-a', 'x'.repeat(65)), null)
+})
+
+test('bootstrap scopes the Composio identity to the requested profile', async () => {
+  const { app, composio, tokens } = harness()
+  const coder = await app.request('/v1/bootstrap?profile=coder', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  assert.equal(coder.status, 200)
+  const coderBody = await coder.json()
+  assert.equal(coderBody.user_id, 'user-a::coder')
+  assert.equal(coderBody.profile, 'coder')
+  assert.deepEqual(composio.createdFor, ['user-a::coder'])
+  assert.equal(tokens.get(coderBody.mcp.token)?.sub, 'user-a::coder')
+
+  // No profile and `default` (any casing, via the body too) are the same
+  // identity: the bare sub every pre-existing connection already lives under.
+  const plain = await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  const dflt = await app.request('/v1/bootstrap', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a', 'content-type': 'application/json' },
+    body: JSON.stringify({ profile: 'Default' }),
+  })
+  const plainBody = await plain.json()
+  const dfltBody = await dflt.json()
+  assert.equal(plainBody.user_id, 'user-a')
+  assert.equal(plainBody.profile, null)
+  assert.equal(dfltBody.user_id, 'user-a')
+  assert.equal(plainBody.mcp.token, dfltBody.mcp.token)
+  assert.notEqual(plainBody.mcp.token, coderBody.mcp.token)
+  assert.equal(composio.createCalls, 2)
+  assert.deepEqual(composio.createdFor, ['user-a::coder', 'user-a'])
+})
+
+test('a malformed profile is rejected before anything reaches Composio', async () => {
+  const { app, composio } = harness()
+  const res = await app.request('/v1/bootstrap?profile=..%2Fetc', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  assert.equal(res.status, 400)
+  assert.equal((await res.json()).error, 'invalid_profile')
+  assert.equal(composio.createCalls, 0)
+  const apps = await app.request('/v1/apps?profile=a::b', { headers: { authorization: 'Bearer jwt_a' } })
+  assert.equal(apps.status, 400)
+})
+
+test('apps catalog, connect links and disconnects are per profile', async () => {
+  const composio = new FakeComposio()
+  composio.accounts.set('user-a::coder', [{ id: 'ca-coder-gmail', toolkit: 'gmail', status: 'ACTIVE' }])
+  composio.accounts.set('user-a', [{ id: 'ca-default-gmail', toolkit: 'gmail', status: 'ACTIVE' }])
+  const { app } = harness({ composio })
+  const gmail = (body: { apps: Array<{ slug: string; connected: boolean }> }) =>
+    body.apps.find((a) => a.slug === 'gmail')
+
+  const scoped = await (
+    await app.request('/v1/apps?profile=coder', { headers: { authorization: 'Bearer jwt_a' } })
+  ).json()
+  assert.equal(scoped.profile, 'coder')
+  assert.equal(gmail(scoped)?.connected, true)
+
+  const other = await (
+    await app.request('/v1/apps?profile=research', { headers: { authorization: 'Bearer jwt_a' } })
+  ).json()
+  assert.equal(other.profile, 'research')
+  assert.equal(gmail(other)?.connected, false)
+
+  const link = await app.request('/v1/apps/gmail/authorize', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a', 'content-type': 'application/json' },
+    body: JSON.stringify({ profile: 'research' }),
+  })
+  assert.equal(link.status, 200)
+  assert.equal(composio.authorized.at(-1)?.sessionId, 'sess-user-a::research')
+
+  // Disconnecting Gmail in `coder` leaves the default profile's Gmail alone.
+  const gone = await app.request('/v1/apps/gmail/disconnect', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a', 'content-type': 'application/json' },
+    body: JSON.stringify({ profile: 'coder' }),
+  })
+  assert.equal(gone.status, 200)
+  assert.deepEqual(composio.disabled, ['ca-coder-gmail'])
+  const dflt = await (await app.request('/v1/apps', { headers: { authorization: 'Bearer jwt_a' } })).json()
+  assert.equal(gmail(dflt)?.connected, true)
+})
+
+test('MCP proxy routes a profile token to that profile\'s Composio session', async () => {
+  const hits: string[] = []
+  const fetchImpl: typeof fetch = async (input) => {
+    hits.push(String(input))
+    return new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } })
+  }
+  const { app } = harness({ fetchImpl })
+  const boot = await app.request('/v1/bootstrap?profile=coder', {
+    method: 'POST',
+    headers: { authorization: 'Bearer jwt_a' },
+  })
+  const token = (await boot.json()).mcp.token as string
+  const proxied = await app.request('/mcp', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: '{"jsonrpc":"2.0"}',
+  })
+  assert.equal(proxied.status, 200)
+  assert.deepEqual(hits, ['https://mcp.composio.dev/user-a::coder'])
 })
 
 test('connected page is a close-this-window landing', async () => {
