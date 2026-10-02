@@ -4,9 +4,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useI18n } from '@/i18n'
 import { notifyError } from '@/store/notifications'
 import type { Work4YouConfigRecord } from '@/types/work4you'
-import { getElevenLabsVoices, getWork4YouConfigSchema, saveWork4YouConfig } from '@/work4you'
+import {
+  getElevenLabsVoices,
+  getWork4YouConfigSchema,
+  type ProfileScope,
+  profileScopeKey,
+  saveWork4YouConfigRecord
+} from '@/work4you'
 
-import { setWork4YouConfigCache, useWork4YouConfigRecord } from '../hooks/use-config-record'
+import { useWork4YouConfigRecord, work4youConfigCacheWriter } from '../hooks/use-config-record'
 
 import { ConfigField } from './config-field'
 import { VOICE_PROVIDER_FIELD_KEYS } from './constants'
@@ -29,10 +35,33 @@ export function voiceProviderKeys(section: 'tts' | 'stt', providerKey: string): 
  * Settings → Voice (shared ConfigField renderer + enum/free-input rules), with
  * the same debounced autosave through the shared config cache.
  */
-export function VoiceProviderFields({ section, providerKey }: { section: 'tts' | 'stt'; providerKey: string }) {
+export function VoiceProviderFields({
+  section,
+  providerKey,
+  profile
+}: {
+  section: 'tts' | 'stt'
+  providerKey: string
+  /** Profile whose config these fields read AND write. The Capabilities panel
+   *  is profile-scoped (its scope selector can target another profile);
+   *  rendering these fields unscoped read and autosaved the ACTIVE profile's
+   *  config record while the UI claimed to configure profile B — a silent
+   *  cross-profile clobber. Omitted = the active profile. */
+  profile?: ProfileScope
+}) {
   const { t } = useI18n()
   const keys = useMemo(() => voiceProviderKeys(section, providerKey), [section, providerKey])
-  const { data: loadedConfig } = useWork4YouConfigRecord()
+  // Parents pass `profile` as a fresh object literal each render; keying the
+  // writer and the autosave effect on its identity would re-arm the 550ms
+  // timer on every unrelated re-render. Memoize one scope value on the scope
+  // STRING instead (null when unscoped). `null` collapses to undefined so the
+  // read, the save and the voice list all target the active profile — never
+  // the primary backend, which is what a bare null would mean to the API.
+  const scopeKey = profile == null ? null : profileScopeKey(profile)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- scopeKey is the identity of `profile`
+  const scope = useMemo(() => profile ?? undefined, [scopeKey])
+  const { data: loadedConfig } = useWork4YouConfigRecord(scope)
+  const writeConfigCache = useMemo(() => work4youConfigCacheWriter(scope), [scope])
 
   const { data: schemaResponse } = useQuery({
     queryKey: ['work4you-config-schema'],
@@ -63,14 +92,14 @@ export function VoiceProviderFields({ section, providerKey }: { section: 'tts' |
     }
 
     const timeout = window.setTimeout(() => {
-      void saveWork4YouConfig(config)
-        .then(() => setWork4YouConfigCache(config))
+      void saveWork4YouConfigRecord(config, scope)
+        .then(() => writeConfigCache(config))
         .catch(err => notifyError(err, t.settings.config.autosaveFailed))
     }, 550)
 
     return () => window.clearTimeout(timeout)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- copy is stable; avoid re-scheduling autosave on locale change
-  }, [config, saveVersion])
+  }, [config, saveVersion, scope, writeConfigCache])
 
   // ElevenLabs cloned/library voices from the live account, when available —
   // mirrors the Settings → Voice dynamic voice list.
@@ -85,7 +114,7 @@ export function VoiceProviderFields({ section, providerKey }: { section: 'tts' |
 
     let cancelled = false
 
-    getElevenLabsVoices()
+    getElevenLabsVoices(scope)
       .then(result => {
         if (cancelled || !result.available) {
           return
@@ -102,7 +131,7 @@ export function VoiceProviderFields({ section, providerKey }: { section: 'tts' |
       })
 
     return () => void (cancelled = true)
-  }, [wantsElevenLabs])
+  }, [scope, wantsElevenLabs])
 
   if (keys.length === 0 || !config) {
     return null

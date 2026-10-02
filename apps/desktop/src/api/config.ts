@@ -100,6 +100,19 @@ export function saveWork4YouConfig(config: Work4YouConfigRecord, profile?: null 
   })
 }
 
+/** Capability-scoped twin of saveWork4YouConfig: writes the record to the same
+ *  (connection, profile) that getWork4YouConfigRecord(scope) read it from, so
+ *  an explicit remote pin saves on THAT gateway rather than the ambient one.
+ *  String/undefined scopes keep the legacy profile path + active connection tag. */
+export function saveWork4YouConfigRecord(config: Work4YouConfigRecord, scope?: ProfileScope): Promise<{ ok: boolean }> {
+  return window.work4youDesktop.api<{ ok: boolean }>({
+    ...capabilityScoped(scope),
+    path: '/api/config',
+    method: 'PUT',
+    body: { config }
+  })
+}
+
 export function getEnvVars(profile?: null | string): Promise<Record<string, EnvVarInfo>> {
   return work4youApi<Record<string, EnvVarInfo>>({
     ...profileScoped(profile),

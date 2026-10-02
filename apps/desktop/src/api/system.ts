@@ -196,10 +196,12 @@ export function speakText(text: string): Promise<AudioSpeakResponse> {
   })
 }
 
-export function getElevenLabsVoices(profile?: null | string): Promise<ElevenLabsVoicesResponse> {
-  return work4youApi<ElevenLabsVoicesResponse>({
-    path: '/api/audio/elevenlabs/voices',
-    ...profileScoped(profile)
+export function getElevenLabsVoices(profile?: ProfileScope): Promise<ElevenLabsVoicesResponse> {
+  // capabilityScoped so a Capabilities remote pin lists THAT gateway's voices;
+  // the string/undefined path is byte-identical to the former profileScoped call.
+  return window.work4youDesktop.api<ElevenLabsVoicesResponse>({
+    ...capabilityScoped(profile),
+    path: '/api/audio/elevenlabs/voices'
   })
 }
 
