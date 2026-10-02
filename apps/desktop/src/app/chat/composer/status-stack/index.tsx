@@ -30,6 +30,7 @@ import { $threadScrolledUp } from '@/store/thread-scroll'
 import { openSessionInNewWindow } from '@/store/windows'
 
 import { PreviewStatusRow } from './preview-row'
+import { ProfileSetupBanner, useProfileSetupWarning } from './profile-setup-banner'
 import { StatusItemRow } from './status-row'
 
 // Slow safety-net poll for silent exits (processes without notify_on_complete
@@ -98,6 +99,7 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
   const previews = useSessionSlice($previewStatusBySession, sessionId)
   const scrolledUp = useStore($threadScrolledUp)
   const billing = useStore($billingBlock)
+  const profileWarning = useProfileSetupWarning()
 
   const groups = useMemo(() => groupStatusItems(items), [items])
 
@@ -146,6 +148,13 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
   const previewBlock = <div className="px-1 py-0.5">{previewRows}</div>
 
   const sections: { key: string; node: ReactNode }[] = []
+
+  // A profile with no provider yet: the deferred credential warning, offered
+  // calmly instead of as a blocking overlay. Above everything else — nothing
+  // below it can be acted on until this profile can run a turn.
+  if (profileWarning) {
+    sections.push({ key: 'profile-setup', node: <ProfileSetupBanner warning={profileWarning} /> })
+  }
 
   // Billing wall sits at the very top of the stack — it's the most important
   // thing above the composer when the account is out of credits. Rendered here

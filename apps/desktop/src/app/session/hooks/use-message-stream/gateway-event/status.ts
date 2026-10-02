@@ -145,7 +145,13 @@ export function handleStatusEvent(ctx: GatewayEventContext): boolean {
     })
 
     if (looksLikeProviderSetup) {
-      requestDesktopOnboarding(errorMessage)
+      // Only the live (connection, profile) source may open onboarding: a
+      // background profile's provider gap is that profile's banner to show
+      // when the user goes there, not a reason to cover the one on screen.
+      // The inline failure below still lands in that session's transcript.
+      if (ctx.fromActiveSource()) {
+        requestDesktopOnboarding(errorMessage)
+      }
     } else if (isDiskFullErrorMessage(errorMessage)) {
       notifyError(new Error(errorMessage), translateNow('notifications.errors.diskFull'))
     } else {

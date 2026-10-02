@@ -191,7 +191,7 @@ export function useSubmitPrompt(deps: SubmitPromptDeps) {
         const deferredCredentialWarning = consumePendingCredentialWarning()
 
         if (deferredCredentialWarning) {
-          requestDesktopOnboarding(deferredCredentialWarning)
+          requestDesktopOnboarding(deferredCredentialWarning, { pendingPrompt: true })
 
           return false
         }
@@ -809,7 +809,8 @@ export function useSubmitPrompt(deps: SubmitPromptDeps) {
         )
 
         if (targetIsCurrentView() && isProviderSetupError(err)) {
-          requestDesktopOnboarding(copy.providerCredentialRequired)
+          // The rejected draft is restored into the composer (accepted === false).
+          requestDesktopOnboarding(copy.providerCredentialRequired, { pendingPrompt: true })
 
           return false
         }

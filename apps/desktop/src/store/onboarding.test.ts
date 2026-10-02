@@ -29,6 +29,7 @@ function baseState(overrides: Partial<DesktopOnboardingState> = {}): DesktopOnbo
     manual: false,
     localEndpoint: false,
     reauth: false,
+    profileSetup: null,
     ...overrides
   }
 }

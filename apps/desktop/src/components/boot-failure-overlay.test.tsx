@@ -58,7 +58,8 @@ beforeEach(() => {
     firstRunSkipped: false,
     manual: false,
     localEndpoint: false,
-    reauth: false
+    reauth: false,
+    profileSetup: null
   })
   failBoot()
 })

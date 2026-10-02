@@ -3629,7 +3629,31 @@ export const en: Translations = {
     price: (input, output) => `${input} in / ${output} out per Mtok`,
     change: 'Change',
     startChatting: 'Begin',
-    docs: provider => `${provider} docs`
+    docs: provider => `${provider} docs`,
+    profileSetup: {
+      title: profile => `Set up ${profile}`,
+      subtitle: 'Connect a model provider for this profile. Other profiles stay exactly as they are.',
+      pendingPrompt: 'Your message is waiting in the composer. Send it again once a provider is connected.',
+      portalSignedIn: 'Signed in on this computer',
+      portalPitch: 'Reuse the Work4You account you are already signed in with. Nothing new to connect.',
+      useForProfile: 'Use for this profile',
+      settingUp: 'Setting up…',
+      savedToProfile: 'Saved to this profile only.',
+      readyTitle: profile => `${profile} is ready`,
+      readyMessage: model => `${model} via your Work4You account.`,
+      adoptFailed: 'Could not set up this profile with your Work4You account.',
+      noModel: 'Work4You could not pick a model for your account. Choose a provider instead.',
+      reauthTitle: 'Sign in to Work4You again',
+      reauthBody: profile =>
+        `The Work4You sign-in ${profile} relies on has expired. Sign in again to keep chatting here.`,
+      signInAgain: 'Sign in again',
+      useApiKeyInstead: 'Use an API key instead',
+      reauthFootnote: 'Opens your browser to sign in, then continues here. Technical details stay in the desktop log.',
+      bannerMessage: 'This profile has no model provider yet.',
+      bannerUsePortal: 'Use my Work4You account',
+      bannerChoose: 'Choose a provider',
+      bannerDismiss: 'Dismiss'
+    }
   },
 
   modelPicker: {

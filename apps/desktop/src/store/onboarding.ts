@@ -1,9 +1,23 @@
 import { atom } from 'nanostores'
 
+import { translateNow } from '@/i18n'
 import { isPortalSessionReauthReason, isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
-import { evaluateRuntimeReadiness, type RuntimeReadinessResult } from '@/lib/runtime-readiness'
+import {
+  evaluateRuntimeReadiness,
+  fetchRuntimeReadinessSignals,
+  interpretRuntimeReadiness,
+  type RuntimeReadinessResult
+} from '@/lib/runtime-readiness'
 import { setMainModelAssignment } from '@/store/cron-model-impact'
 import { notify, notifyError } from '@/store/notifications'
+import {
+  $activeGatewayProfile,
+  $activeProfile,
+  $profiles,
+  normalizeProfileKey,
+  profileLabel
+} from '@/store/profile-identity'
+import { setModelPickerOpen } from '@/store/session'
 import type { ModelOptionProvider, OAuthProvider, OAuthStartResponse } from '@/types/work4you'
 import {
   cancelOAuthSession,
@@ -93,6 +107,36 @@ export interface DesktopOnboardingState {
    *  keeps the technical token error off the screen. False for every other
    *  not-ready reason (empty OpenRouter key, first-run, timeouts). */
   reauth: boolean
+  /** Set while the overlay is configuring a profile other than the window's
+   *  primary (a rail switch to a profile with no provider). Scoped to that
+   *  profile: it never touches `configured`, which describes the primary. */
+  profileSetup: null | ProfileSetupState
+}
+
+/** Provider setup for one named profile, driven from the live gateway profile.
+ *  REST and RPC already route to that profile's backend, so the flow reuses the
+ *  manual picker verbatim — this state only carries what the profile panel adds. */
+export interface ProfileSetupState {
+  /** Canonical profile key (normalizeProfileKey) the panel is configuring. */
+  profile: string
+  /** The backend's reason (diagnostic; the panel shows its own copy). */
+  reason: string
+  /** The reason was a Portal-session failure — show the sign-in-again variant. */
+  reauth: boolean
+  /** A send was stopped at the submit gate: the draft is waiting in the composer. */
+  pendingPrompt: boolean
+  /** The one-click "use my Work4You account" path is in flight. */
+  adopting: boolean
+  error: null | string
+}
+
+/** Deferred credential warning for the live gateway profile — what the composer
+ *  banner renders. See requestDesktopOnboardingForCredentialWarning. */
+export interface ProfileCredentialWarning {
+  profile: string
+  warning: string
+  /** Waved away from the banner for now; the submit gate is unaffected. */
+  dismissed: boolean
 }
 
 export interface OnboardingContext {
@@ -174,7 +218,8 @@ const INITIAL: DesktopOnboardingState = {
   firstRunSkipped: readCachedSkipped(),
   manual: false,
   localEndpoint: false,
-  reauth: false
+  reauth: false,
+  profileSetup: null
 }
 
 export const $desktopOnboarding = atom<DesktopOnboardingState>(INITIAL)
@@ -214,7 +259,15 @@ function shouldPreserveConfiguredOnFallback(runtime: RuntimeReadinessResult, sta
 }
 
 function notifyReady(provider: string) {
-  notify({ kind: 'success', title: 'Work4You is ready', message: `${provider} connected.` })
+  const setup = $desktopOnboarding.get().profileSetup
+
+  notify({
+    kind: 'success',
+    title: setup
+      ? translateNow('onboarding.profileSetup.readyTitle', profileDisplayLabel(setup.profile))
+      : 'Work4You is ready',
+    message: `${provider} connected.`
+  })
 }
 
 // Human-friendly labels for tools auto-routed through the Work4You Tool Gateway,
@@ -400,44 +453,310 @@ async function refreshProviders() {
   await providersRefreshPromise
 }
 
-export function requestDesktopOnboarding(reason = DEFAULT_ONBOARDING_REASON) {
+export interface RequestDesktopOnboardingOptions {
+  /** `auto` (default) opens the profile-scoped panel when the live gateway
+   *  profile is not the window's primary; `app` always uses the first-run /
+   *  reauth door, whatever profile is live (Portal sign-out from Settings). */
+  scope?: 'app' | 'auto'
+  /** The caller stopped a send: the draft is waiting in the composer. */
+  pendingPrompt?: boolean
+}
+
+const activeGatewayProfileKey = () => normalizeProfileKey($activeGatewayProfile.get())
+
+/** True when the live gateway serves a profile other than the one this window
+ *  booted on. `configured` (and the first-run door) describe the primary; a
+ *  provider gap on any other profile is that profile's to fix, so it gets the
+ *  profile-scoped panel instead of flipping the app-wide state. */
+export function onboardingTargetsSecondaryProfile(): boolean {
+  return activeGatewayProfileKey() !== normalizeProfileKey($activeProfile.get())
+}
+
+/** Presentation label for a profile key: display_name when the rail knows it,
+ *  else the canonical name. */
+export function profileDisplayLabel(profile: string): string {
+  const key = normalizeProfileKey(profile)
+  const info = $profiles.get().find(p => normalizeProfileKey(p.name) === key)
+
+  return info ? profileLabel(info) : key
+}
+
+export function requestDesktopOnboarding(
+  reason = DEFAULT_ONBOARDING_REASON,
+  options: RequestDesktopOnboardingOptions = {}
+) {
   const next = reason.trim() || DEFAULT_ONBOARDING_REASON
 
+  if ((options.scope ?? 'auto') === 'auto' && onboardingTargetsSecondaryProfile()) {
+    startProfileSetup(next, { pendingPrompt: options.pendingPrompt })
+
+    return
+  }
+
   patch({ reason: next, requested: true, reauth: isPortalSessionReauthReason(next) })
+}
+
+// One-shot hand-off from the composer banner's "Use my Work4You account": open
+// the profile panel AND start the adopt path the moment the overlay has a
+// context, so the banner is a single click. Module-level like
+// pendingProviderOAuthId — consumed by the next overlay render, never persisted.
+let pendingProfileAdopt = false
+
+/** Banner one-click: profile panel + adopt the root's Portal login for the
+ *  live profile. Falls back to the plain request when no secondary profile is
+ *  live (nothing to adopt — the primary IS the login). */
+export function requestDesktopOnboardingWithPortalLogin(reason: string) {
+  if (!onboardingTargetsSecondaryProfile()) {
+    requestDesktopOnboarding(reason)
+
+    return
+  }
+
+  startProfileSetup(reason.trim() || DEFAULT_ONBOARDING_REASON, { autoAdopt: true })
+}
+
+export function peekPendingProfileAdopt(): boolean {
+  return pendingProfileAdopt
+}
+
+export function clearPendingProfileAdopt() {
+  pendingProfileAdopt = false
+}
+
+function startProfileSetup(reason: string, { autoAdopt = false, pendingPrompt = false } = {}) {
+  const state = $desktopOnboarding.get()
+  const profile = activeGatewayProfileKey()
+  const current = state.profileSetup
+
+  // Already configuring this profile with work in flight (adopt call, OAuth
+  // poll): a repeated error event must not reset the panel under it.
+  if (current?.profile === profile && (current.adopting || isOnboardingFlowInFlight(state.flow))) {
+    return
+  }
+
+  pendingProviderOAuthId = null
+  pendingProfileAdopt = autoAdopt
+  patch({
+    requested: true,
+    manual: false,
+    localEndpoint: false,
+    reauth: false,
+    mode: 'oauth',
+    // The panel carries its own copy; the technical reason stays in state.
+    reason: null,
+    flow: { status: 'idle' },
+    profileSetup: {
+      profile,
+      reason,
+      reauth: isPortalSessionReauthReason(reason),
+      pendingPrompt: pendingPrompt || (current?.profile === profile && current.pendingPrompt),
+      adopting: false,
+      error: null
+    }
+  })
+  void refreshProviders()
+}
+
+const patchProfileSetup = (update: Partial<ProfileSetupState>) => {
+  const current = $desktopOnboarding.get().profileSetup
+
+  if (current) {
+    patch({ profileSetup: { ...current, ...update } })
+  }
+}
+
+/** Profile panel done (adopt, OAuth, or API key landed on that profile): drop
+ *  the panel and the banner for it. `configured` is untouched — it describes
+ *  the window's primary profile, which this flow never configured. */
+function completeProfileSetup() {
+  clearPoll()
+  startProviderOAuthLock = false
+  pendingProviderOAuthId = null
+  pendingProfileAdopt = false
+
+  const setup = $desktopOnboarding.get().profileSetup
+  const warning = $profileCredentialWarning.get()
+
+  if (setup && warning && warning.profile === setup.profile) {
+    credentialGateArmed = false
+    $profileCredentialWarning.set(null)
+  }
+
+  patch({
+    requested: false,
+    manual: false,
+    localEndpoint: false,
+    reauth: false,
+    mode: 'oauth',
+    flow: { status: 'idle' },
+    profileSetup: null
+  })
+}
+
+/** "I'll choose a provider later" / close on the profile panel. The banner
+ *  stays (the profile still has no provider); the submit gate was already
+ *  consumed by the send that opened the panel, so the next Enter goes through
+ *  and fails honestly instead of re-opening this. */
+export function dismissProfileSetup() {
+  if (!$desktopOnboarding.get().profileSetup) {
+    return
+  }
+
+  cancelOnboardingFlow()
+  pendingProviderOAuthId = null
+  pendingProfileAdopt = false
+  patch({
+    requested: false,
+    manual: false,
+    localEndpoint: false,
+    reauth: false,
+    mode: 'oauth',
+    flow: { status: 'idle' },
+    profileSetup: null
+  })
+}
+
+export const PORTAL_PROVIDER_ID = 'work4you'
+
+/** One click: point the live profile at the Portal login the root already
+ *  holds. The profile's backend reads that login through the global-root
+ *  auth.json fallback, so all it lacks is a model pin — write provider=work4you
+ *  + the recommended model to the profile's config (REST is routed to the live
+ *  profile), reload its env, and verify the runtime resolves before declaring
+ *  it ready. Nothing is written to any other profile. */
+export async function adoptPortalLoginForProfile(ctx: OnboardingContext) {
+  const setup = $desktopOnboarding.get().profileSetup
+
+  if (!setup || setup.adopting) {
+    return
+  }
+
+  pendingProfileAdopt = false
+  patchProfileSetup({ adopting: true, error: null })
+
+  const stillSame = () => $desktopOnboarding.get().profileSetup?.profile === setup.profile
+
+  const fail = (message: string) => {
+    if (stillSame()) {
+      patchProfileSetup({ adopting: false, error: message })
+    }
+  }
+
+  try {
+    const recommended = await getRecommendedDefaultModel(PORTAL_PROVIDER_ID)
+    const model = (recommended.model ?? '').trim()
+
+    if (!model) {
+      fail(translateNow('onboarding.profileSetup.noModel'))
+
+      return
+    }
+
+    const res = await setMainModelAssignment({ provider: PORTAL_PROVIDER_ID, model })
+    notifyGatewayTools(res.gateway_tools)
+    await ctx.requestGateway('reload.env').catch(() => undefined)
+
+    // Same two probes checkRuntime runs, read separately: the panel shows the
+    // failure inline, so prefer the backend's own sentence over the composed
+    // reason (which appends the setup.status disagreement note for logs).
+    const signals = await fetchRuntimeReadinessSignals(ctx.requestGateway, PORTAL_PROVIDER_ID)
+
+    const runtime = interpretRuntimeReadiness(signals, {
+      defaultReason: DEFAULT_ONBOARDING_REASON,
+      unknownReady: false
+    })
+
+    if (!runtime.ready) {
+      fail(
+        signals.runtime?.error?.trim() || runtime.reason?.trim() || translateNow('onboarding.profileSetup.adoptFailed')
+      )
+
+      return
+    }
+
+    if (!stillSame()) {
+      // Dismissed or switched away mid-flight: the pin is written and valid,
+      // but the panel is gone — nothing to announce.
+      return
+    }
+
+    notify({
+      kind: 'success',
+      title: translateNow('onboarding.profileSetup.readyTitle', profileDisplayLabel(setup.profile)),
+      message: translateNow('onboarding.profileSetup.readyMessage', model),
+      action: { label: translateNow('common.change'), onClick: () => setModelPickerOpen(true) }
+    })
+    completeProfileSetup()
+    ctx.onCompleted?.()
+  } catch (error) {
+    fail(errMessage(error) || translateNow('onboarding.profileSetup.adoptFailed'))
+  }
 }
 
 /** Credential warning delivered passively (session create/activate/resume
  *  runtime info, stream heartbeats) — e.g. right after switching to a
  *  profile that has no provider configured. Popping the blocking onboarding
  *  overlay here punishes merely LOOKING at an unconfigured profile, so the
- *  warning is deferred instead: stashed until the user actually tries to
- *  chat, where the submit path consumes it and opens onboarding before the
- *  doomed send. The latest warning wins; a session event without a warning
- *  clears the stash (the profile became configured, or the user switched
- *  back to a healthy one). */
-let pendingCredentialWarning: null | string = null
+ *  warning is deferred instead: kept for the live gateway profile, where the
+ *  composer banner offers the fix without blocking and the submit path
+ *  consumes it to open onboarding before the doomed send. The latest warning
+ *  wins; a session event without a warning clears it (the profile became
+ *  configured, or the user switched back to a healthy one). */
+export const $profileCredentialWarning = atom<null | ProfileCredentialWarning>(null)
+
+// Armed by every warning, disarmed by one consume: the gate fires once per
+// warning, so a dismissed panel does not re-open on the very next Enter.
+let credentialGateArmed = false
 
 export function requestDesktopOnboardingForCredentialWarning(reason: null | string | undefined) {
   const warning = reason?.trim()
 
   if (!warning || !isProviderSetupErrorMessage(warning)) {
-    pendingCredentialWarning = null
+    credentialGateArmed = false
+
+    if ($profileCredentialWarning.get() !== null) {
+      $profileCredentialWarning.set(null)
+    }
 
     return
   }
 
-  pendingCredentialWarning = warning
+  const profile = activeGatewayProfileKey()
+  const current = $profileCredentialWarning.get()
+  credentialGateArmed = true
+
+  // Heartbeats repeat the same warning every turn — keep the banner's
+  // dismissed state rather than resurrecting it on each tick.
+  if (current && current.profile === profile && current.warning === warning) {
+    return
+  }
+
+  $profileCredentialWarning.set({ profile, warning, dismissed: false })
 }
 
-/** Submit-time gate: returns the deferred credential warning (and clears it)
- *  so the caller can open onboarding instead of sending a prompt that the
- *  gateway already said will fail. Null when the active profile is healthy. */
+/** Submit-time gate: returns the deferred credential warning for the live
+ *  profile (and disarms the gate) so the caller can open onboarding instead of
+ *  sending a prompt that the gateway already said will fail. Null when the
+ *  active profile is healthy or the gate already fired for this warning. */
 export function consumePendingCredentialWarning(): null | string {
-  const warning = pendingCredentialWarning
+  const current = $profileCredentialWarning.get()
 
-  pendingCredentialWarning = null
+  if (!credentialGateArmed || !current || current.profile !== activeGatewayProfileKey()) {
+    return null
+  }
 
-  return warning
+  credentialGateArmed = false
+
+  return current.warning
+}
+
+/** Banner close: hide it until a different warning arrives. */
+export function dismissProfileCredentialWarning() {
+  const current = $profileCredentialWarning.get()
+
+  if (current && !current.dismissed) {
+    $profileCredentialWarning.set({ ...current, dismissed: true })
+  }
 }
 
 // Open the onboarding provider selector on demand from an already-configured
@@ -446,11 +765,13 @@ export function consumePendingCredentialWarning(): null | string {
 // duplicating provider UI. Sets manual=true so the overlay shows the picker
 // even though configured===true, and refreshes the provider list.
 export function startManualOnboarding(reason: null | string = DEFAULT_MANUAL_ONBOARDING_REASON) {
+  pendingProfileAdopt = false
   patch({
     manual: true,
     requested: true,
     localEndpoint: false,
     reauth: false,
+    profileSetup: null,
     // `null` opts out of the prompt banner entirely (e.g. when the user already
     // picked a specific provider and we auto-start its sign-in).
     reason: reason ? reason.trim() || DEFAULT_ONBOARDING_REASON : null,
@@ -467,11 +788,13 @@ export function startManualOnboarding(reason: null | string = DEFAULT_MANUAL_ONB
 // re-show the picker — the original "booted back to the first screen" loop).
 export function startManualLocalEndpoint(reason: null | string = null) {
   pendingProviderOAuthId = null
+  pendingProfileAdopt = false
   patch({
     manual: true,
     requested: true,
     localEndpoint: true,
     reauth: false,
+    profileSetup: null,
     mode: 'apikey',
     reason: reason ? reason.trim() || DEFAULT_ONBOARDING_REASON : null,
     flow: { status: 'idle' }
@@ -513,6 +836,14 @@ export function closeManualOnboarding() {
 }
 
 export function completeDesktopOnboarding() {
+  // Profile-scoped setup finishing through the shared OAuth / API-key paths:
+  // that profile is done; the window's primary (and `configured`) is unchanged.
+  if ($desktopOnboarding.get().profileSetup) {
+    completeProfileSetup()
+
+    return
+  }
+
   clearPoll()
   startProviderOAuthLock = false
   writeCachedConfigured(true)
@@ -529,7 +860,8 @@ export function completeDesktopOnboarding() {
     firstRunSkipped: false,
     manual: false,
     localEndpoint: false,
-    reauth: false
+    reauth: false,
+    profileSetup: null
   })
 }
 
@@ -561,7 +893,9 @@ export async function refreshOnboarding(ctx: OnboardingContext) {
   // auto-dismiss on runtime-ready — the whole point is to let them add /
   // switch a provider while already configured. Just ensure the provider
   // list is loaded and show the picker.
-  if ($desktopOnboarding.get().manual) {
+  const current = $desktopOnboarding.get()
+
+  if (current.manual || current.profileSetup) {
     await refreshProviders()
 
     return false

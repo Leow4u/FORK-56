@@ -2844,6 +2844,29 @@ export interface Translations {
     change: string
     startChatting: string
     docs: (provider: string) => string
+    profileSetup: {
+      title: (profile: string) => string
+      subtitle: string
+      pendingPrompt: string
+      portalSignedIn: string
+      portalPitch: string
+      useForProfile: string
+      settingUp: string
+      savedToProfile: string
+      readyTitle: (profile: string) => string
+      readyMessage: (model: string) => string
+      adoptFailed: string
+      noModel: string
+      reauthTitle: string
+      reauthBody: (profile: string) => string
+      signInAgain: string
+      useApiKeyInstead: string
+      reauthFootnote: string
+      bannerMessage: string
+      bannerUsePortal: string
+      bannerChoose: string
+      bannerDismiss: string
+    }
   }
 
   modelPicker: {

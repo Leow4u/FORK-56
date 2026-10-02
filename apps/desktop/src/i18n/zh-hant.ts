@@ -3049,7 +3049,30 @@ export const zhHant = defineLocale({
     price: (input, output) => `${input} 輸入 / ${output} 輸出 每 Mtok`,
     change: '變更',
     startChatting: '開始',
-    docs: provider => `${provider} 文件`
+    docs: provider => `${provider} 文件`,
+    profileSetup: {
+      title: profile => `設定 ${profile}`,
+      subtitle: '為此設定檔連線一個模型提供方。其他設定檔保持原樣。',
+      pendingPrompt: '你的訊息仍在輸入框中。連線提供方後請再次傳送。',
+      portalSignedIn: '已在此電腦登入',
+      portalPitch: '沿用你已登入的 Work4You 帳戶，無需連線任何新內容。',
+      useForProfile: '用於此設定檔',
+      settingUp: '正在設定…',
+      savedToProfile: '僅儲存到此設定檔。',
+      readyTitle: profile => `${profile} 已就緒`,
+      readyMessage: model => `${model}，透過你的 Work4You 帳戶。`,
+      adoptFailed: '無法用你的 Work4You 帳戶設定此設定檔。',
+      noModel: 'Work4You 無法為你的帳戶選擇模型。請改為選擇一個提供方。',
+      reauthTitle: '請重新登入 Work4You',
+      reauthBody: profile => `${profile} 所依賴的 Work4You 登入已過期。重新登入即可繼續在此聊天。`,
+      signInAgain: '重新登入',
+      useApiKeyInstead: '改用 API 金鑰',
+      reauthFootnote: '將開啟瀏覽器登入，隨後在此繼續。技術細節保留在桌面記錄中。',
+      bannerMessage: '此設定檔尚未設定模型提供方。',
+      bannerUsePortal: '使用我的 Work4You 帳戶',
+      bannerChoose: '選擇提供方',
+      bannerDismiss: '關閉'
+    }
   },
 
   modelPicker: {

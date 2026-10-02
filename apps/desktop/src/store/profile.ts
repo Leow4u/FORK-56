@@ -21,30 +21,12 @@ import { resetStarmapGraph } from '@/store/starmap'
 import type { ProfileInfo } from '@/types/work4you'
 import { getProfiles, setApiRequestProfile, STARTUP_REQUEST_TIMEOUT_MS, work4youApi } from '@/work4you'
 
-// Canonical key for a profile: trimmed, empty → "default". Used everywhere we
-// compare a session's owning profile against the live gateway's profile.
-export function normalizeProfileKey(name: string | null | undefined): string {
-  const value = (name ?? '').trim()
+import { $activeGatewayProfile, $activeProfile, $profiles, normalizeProfileKey } from './profile-identity'
 
-  return value || 'default'
-}
-
-// Presentation-only label: the display_name from profile.yaml when set (e.g. a
-// renamed default profile), else the canonical name. Never used for
-// comparison or routing — canonical `name` remains the identity everywhere.
-export function profileLabel(profile: Pick<ProfileInfo, 'display_name' | 'name'>): string {
-  return (profile.display_name ?? '').trim() || profile.name
-}
-
-// The profile the running local backend is actually scoped to (mirrors
-// /api/profiles/active `current`). "default" is the root ~/.work4you. This is the
-// display source of truth for the statusbar pill; the desktop's *stored*
-// preference (which may be unset) lives in the Electron main process.
-export const $activeProfile = atom<string>('default')
-
-// Cached profile list for the picker. Refreshed lazily; the dropdown also
-// re-fetches on open so a profile created elsewhere shows up.
-export const $profiles = atom<ProfileInfo[]>([])
+// The identity atoms and key helpers live in ./profile-identity — a leaf with
+// no import-time side effects — and are re-exported here so every importer
+// keeps this one address. This module owns the behavior around them.
+export { $activeGatewayProfile, $activeProfile, $profiles, normalizeProfileKey, profileLabel } from './profile-identity'
 
 export function setActiveProfile(name: string): void {
   $activeProfile.set(name || 'default')
@@ -184,13 +166,10 @@ export async function switchProfile(name: string): Promise<void> {
 // gateway to that profile's backend (spawned on demand by the Electron pool).
 // A single-profile user never triggers a swap, so their path is unchanged.
 
-// The profile the live gateway WebSocket is currently connected to. Initialized
-// to the primary (window) backend's profile on boot. The gateway registry
-// mirrors its own route into this atom via the onActiveRouteChanged callback
-// (wired in use-gateway-boot's configureGatewayRegistry), so registry-internal
-// eviction fallbacks (idle reap, connection removal, profile delete) can never
-// leave this naming a profile the active socket no longer serves (#89206).
-export const $activeGatewayProfile = atom<string>('default')
+// $activeGatewayProfile — the profile the live gateway WebSocket is connected
+// to — is defined in ./profile-identity (see there for the registry contract)
+// and re-exported above; the routing subscription below is what makes this
+// module its home.
 
 // Profile for the NEXT new chat (chosen via the new-chat picker). null = primary
 // / default, so single-profile users are unaffected.
