@@ -19,10 +19,13 @@ vi.mock('@/i18n', () => ({
         actions: 'Actions',
         allProfiles: 'All profiles',
         autoColor: 'Auto',
+        collapseRail: 'Collapse profiles',
+        collapsedRail: (name: string) => `Profiles · ${name}`,
         color: 'Color…',
         colorFor: 'Color',
         connectGateway: 'Manage gateways…',
         editSoul: 'Edit SOUL.md…',
+        expandRail: 'Expand profiles',
         exportProfile: 'Export profile…',
         failedLoadSoul: 'Failed to load SOUL.md',
         failedSaveSoul: 'Failed to save SOUL.md',
@@ -48,13 +51,22 @@ vi.mock('@/i18n', () => ({
   })
 }))
 
-const { $profileBackendStates, $profileScope, selectProfile, setShowAllProfiles } = vi.hoisted(() => {
+const {
+  $profileBackendStates,
+  $profileRailCollapsed,
+  $profileScope,
+  selectProfile,
+  setProfileRailCollapsed,
+  setShowAllProfiles
+} = vi.hoisted(() => {
   const { atom: makeAtom } = require('nanostores') as typeof Nanostores
 
   return {
     $profileBackendStates: makeAtom<Record<string, 'asleep' | 'running' | 'waking'>>({}),
+    $profileRailCollapsed: makeAtom<boolean>(false),
     $profileScope: makeAtom<string>('default'),
     selectProfile: vi.fn(),
+    setProfileRailCollapsed: vi.fn(),
     setShowAllProfiles: vi.fn()
   }
 })
@@ -65,6 +77,7 @@ vi.mock('@/store/profile', () => ({
   $profileColors: atom({}),
   $profileCreateRequest: atom(0),
   $profileOrder: atom([]),
+  $profileRailCollapsed,
   $profiles: atom([{ is_default: true, name: 'default' }]),
   $profileScope,
   ALL_PROFILES: '*',
@@ -75,6 +88,7 @@ vi.mock('@/store/profile', () => ({
   selectProfile,
   setProfileColor: vi.fn(),
   setProfileOrder: vi.fn(),
+  setProfileRailCollapsed,
   setShowAllProfiles,
   sortByProfileOrder: (profiles: unknown[]) => profiles
 }))
@@ -130,8 +144,10 @@ afterEach(() => {
   navigate.mockClear()
   selectProfile.mockClear()
   setShowAllProfiles.mockClear()
+  setProfileRailCollapsed.mockClear()
   profiles.set([{ is_default: true, name: 'default' }])
   $profileBackendStates.set({})
+  $profileRailCollapsed.set(false)
   $profileScope.set('default')
 })
 
@@ -336,5 +352,80 @@ describe('ProfileRail hover panel', () => {
     })
 
     expect(screen.queryByRole('dialog', { name: 'Profile switcher' })).toBeNull()
+  })
+})
+
+describe('ProfileRail folded', () => {
+  it('shows one line with the active profile and unfolds on click', () => {
+    $profileRailCollapsed.set(true)
+    $profileBackendStates.set({ default: 'running' })
+    render(<ProfileRail />)
+
+    const strip = screen.getByRole('button', { name: 'Profiles · default' })
+    expect(strip.getAttribute('aria-expanded')).toBe('false')
+    expect(strip.querySelector('[data-slot="profile-state-dot"]')?.getAttribute('data-state')).toBe('running')
+    // The tile strip and its controls are gone, not merely hidden.
+    expect(screen.queryByRole('button', { name: 'Manage profiles…' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'New profile' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Collapse profiles' })).toBeNull()
+
+    fireEvent.click(strip)
+
+    expect(setProfileRailCollapsed).toHaveBeenCalledWith(false)
+    expect(selectProfile).not.toHaveBeenCalled()
+  })
+
+  it('folds from the chevron at the end of the open rail', () => {
+    profiles.set(TWO_PROFILES)
+    render(<ProfileRail />)
+
+    const fold = screen.getByRole('button', { name: 'Collapse profiles' })
+    expect(fold.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Manage profiles…' })).toBeTruthy()
+
+    fireEvent.click(fold)
+
+    expect(setProfileRailCollapsed).toHaveBeenCalledWith(true)
+  })
+
+  it('still raises the hover panel from the folded line, and switches from it', () => {
+    vi.useFakeTimers()
+    $profileRailCollapsed.set(true)
+    profiles.set(TWO_PROFILES)
+    render(<ProfileRail />)
+
+    hoverRail()
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+
+    expect(screen.getByRole('dialog', { name: 'Profile switcher' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch to research' }))
+
+    expect(selectProfile).toHaveBeenCalledWith('research')
+    expect(setProfileRailCollapsed).not.toHaveBeenCalled()
+  })
+
+  it('never raises the panel from the folded line for a single profile', () => {
+    vi.useFakeTimers()
+    $profileRailCollapsed.set(true)
+    render(<ProfileRail />)
+
+    hoverRail()
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+
+    expect(screen.queryByRole('dialog', { name: 'Profile switcher' })).toBeNull()
+  })
+
+  it('labels the folded line All profiles while that mode is on', () => {
+    $profileRailCollapsed.set(true)
+    profiles.set(TWO_PROFILES)
+    $profileScope.set('*')
+    render(<ProfileRail />)
+
+    expect(screen.getByRole('button', { name: 'Profiles · All profiles' })).toBeTruthy()
   })
 })

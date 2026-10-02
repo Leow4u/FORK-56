@@ -2118,6 +2118,9 @@ export interface Translations {
     thisProfile: string
     showingAllProfiles: string
     switcher: string
+    collapseRail: string
+    expandRail: string
+    collapsedRail: (name: string) => string
     switchTo: string
     current: string
     manageShort: string

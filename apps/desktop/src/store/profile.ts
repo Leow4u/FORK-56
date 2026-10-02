@@ -5,9 +5,11 @@ import { invalidateProfileScopedQueries } from '@/lib/query-client'
 import {
   arraysEqual,
   persistBoolean,
+  persistString,
   persistStringArray,
   persistStringRecord,
   storedBoolean,
+  storedString,
   storedStringArray,
   storedStringRecord
 } from '@/lib/storage'
@@ -543,6 +545,43 @@ export function newSessionInProfile(name: string): void {
   $newChatProfile.set(target)
   requestFreshSession()
   void ensureGatewayProfile(target)
+}
+
+// ── Rail collapse ──────────────────────────────────────────────────────────
+// The footer rail is the one sidebar surface whose worth depends entirely on
+// how many profiles a person runs. Someone on the default profile alone gets a
+// row of controls for a feature they are not using yet; someone with five
+// profiles wants every tile in reach. So the rail can fold into a one-line
+// strip (active profile + expand), and the fold is remembered per machine like
+// the "All profiles" mode above.
+//
+// Three states, not two: an untouched preference lets the rail pick a side
+// from the profile count — folded while only the default profile exists,
+// open as soon as a second one appears (so creating the first extra profile
+// unfolds the rail once, exactly when it starts to matter). The first explicit
+// click pins the choice and the count stops mattering.
+
+const PROFILE_RAIL_STORAGE_KEY = 'work4you.desktop.profileRail'
+
+export type ProfileRailPreference = '' | 'collapsed' | 'expanded'
+
+const readRailPreference = (): ProfileRailPreference => {
+  const stored = storedString(PROFILE_RAIL_STORAGE_KEY)
+
+  return stored === 'collapsed' || stored === 'expanded' ? stored : ''
+}
+
+export const $profileRailPreference = atom<ProfileRailPreference>(readRailPreference())
+
+$profileRailPreference.subscribe(value => persistString(PROFILE_RAIL_STORAGE_KEY, value || null))
+
+/** True while the rail shows as the one-line strip. */
+export const $profileRailCollapsed = computed([$profileRailPreference, $profiles], (preference, profiles) =>
+  preference === '' ? profiles.length <= 1 : preference === 'collapsed'
+)
+
+export function setProfileRailCollapsed(collapsed: boolean): void {
+  $profileRailPreference.set(collapsed ? 'collapsed' : 'expanded')
 }
 
 export function setShowAllProfiles(value: boolean): void {
