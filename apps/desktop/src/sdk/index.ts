@@ -930,6 +930,11 @@ export { McpTab } from '@/app/skills/mcp-tab'
 export type { FloatingAnchor } from '@/components/pane-shell/tree/renderer/floating-rect'
 export { StatusDot, type StatusTone } from '@/components/status-dot'
 export { Badge } from '@/components/ui/badge'
+/** THE bot face: a Work4You profile drawn as a character (shape + color +
+ *  eyes, blob face, or an image), animated by the app's shared face clock.
+ *  The WorkBots roster, the sidebar profile rail and the settings scope chips
+ *  all draw through this, so a bot looks the same everywhere. */
+export { BotFace, type BotFaceProps, shapeNode } from '@/components/ui/bot-face'
 export { Button } from '@/components/ui/button'
 export { Checkbox } from '@/components/ui/checkbox'
 export { Codicon } from '@/components/ui/codicon'
@@ -1021,6 +1026,31 @@ export {
  *  fps budget + hidden/minimized/unfocused pause + idle dormancy + teardown.
  *  Plugins must route animation clocks through this instead of raw rAF loops
  *  so a disabled plugin or an empty roster costs zero frames. */
+/** The bot avatar vocabulary behind `BotFace`: the shape/color tables the
+ *  picker offers, the name → look resolver (`botAppearance`), the blobatar
+ *  shape-string helpers, and the face clock (`startFaceClock` is what a
+ *  mounting face calls; `stopFaceClock` is for tests and full teardown —
+ *  the clock is shared app-wide and parks itself when no face is visible). */
+export {
+  AVATAR_COLORS,
+  AVATAR_PICKER_SHAPES,
+  AVATAR_SHAPES,
+  BLOB_KIND_TRAIT,
+  BLOB_KINDS,
+  type BlobKind,
+  blobMarkup,
+  blobShapeString,
+  type BotAppearance,
+  botAppearance,
+  type BotAppearanceMeta,
+  type BotMood,
+  defaultShapeFor,
+  isBlobShape,
+  isDarkColor,
+  parseBlobShape,
+  PRIMARY_BOT_APPEARANCE
+} from '@/lib/bot-avatar'
+export { startFaceClock, stopFaceClock } from '@/lib/bot-face-clock'
 export { type BudgetedLoop, type BudgetedLoopOptions, createBudgetedLoop } from '@/lib/budgeted-loop'
 /** THE compact-number formatter — every user-facing count/token figure goes
  *  through here (1230 → "1.2k", 1_500_000 → "1.5M"). Don't hand-roll `/1000`. */
