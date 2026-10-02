@@ -12,7 +12,7 @@ const source = readFileSync(new URL('../plugin.js', import.meta.url), 'utf8')
 test('McpSetupButton accepts an ensureProfile callback and resolves the profile lazily', () => {
   const fn = source.slice(
     source.indexOf('function McpSetupButton('),
-    source.indexOf('function botAppearance(')
+    source.indexOf('// ── image avatars: upload from device')
   )
   // Signature carries ensureProfile.
   assert.match(fn, /function McpSetupButton\(\{ profile, entry, onDone, ensureProfile \}\)/)
