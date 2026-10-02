@@ -5,20 +5,18 @@ import { BrandMark } from '@/components/brand-mark'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { Input } from '@/components/ui/input'
-import { Progress } from '@/components/ui/progress'
 import { useI18n } from '@/i18n'
 import { Check, ChevronDown, ChevronLeft, KeyRound, Loader2 } from '@/lib/icons'
 import { isPortalSessionReauthReason, isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
 import { cn } from '@/lib/utils'
-import { $desktopBoot, type DesktopBootState } from '@/store/boot'
 import {
   $desktopOnboarding,
+  cancelOnboardingFlow,
   clearPendingProviderOAuth,
   closeManualOnboarding,
   confirmOnboardingModel,
   DEFAULT_MANUAL_ONBOARDING_REASON,
   DEFAULT_ONBOARDING_REASON,
-  cancelOnboardingFlow,
   isOnboardingFlowInFlight,
   type OnboardingContext,
   peekPendingProviderOAuth,
@@ -191,7 +189,6 @@ export function DesktopOnboardingOverlay({
 }: DesktopOnboardingOverlayProps) {
   const { t } = useI18n()
   const onboarding = useStore($desktopOnboarding)
-  const boot = useStore($desktopBoot)
   const ctxRef = useRef<OnboardingContext>({ requestGateway, onCompleted, profile })
   ctxRef.current = { requestGateway, onCompleted, profile }
 
@@ -324,7 +321,15 @@ export function DesktopOnboardingOverlay({
 
   const firstRunConnecting = portalBrowserWait
 
-  const bare = firstRunWelcome || firstRunConnecting || (ready && !showPicker && flow.status === 'confirming_model')
+  // Cold start, before the gateway can say whether anyone is signed in.
+  // A mark on the theme surface — light or dark — with no progress card.
+  const bootSplash = !ready && !manual
+
+  const bare =
+    firstRunWelcome ||
+    firstRunConnecting ||
+    bootSplash ||
+    (ready && !showPicker && flow.status === 'confirming_model')
 
   return (
     <div
@@ -350,7 +355,7 @@ export function DesktopOnboardingOverlay({
             : 'translate-y-0 scale-100 opacity-100 blur-0'
         )}
       >
-        {!firstRunWelcome && !firstRunConnecting && (showPicker || !ready) ? <Header /> : null}
+        {!firstRunWelcome && !firstRunConnecting && !bootSplash && (showPicker || !ready) ? <Header /> : null}
         {manual ? (
           <Button
             aria-label={t.common.close}
@@ -362,9 +367,11 @@ export function DesktopOnboardingOverlay({
             <Codicon name="close" size="1rem" />
           </Button>
         ) : null}
-        <div className={cn(firstRunWelcome || firstRunConnecting ? '' : 'grid gap-3 p-5')}>
-          {reason && !firstRunWelcome ? <ReasonNotice reason={reason} /> : null}
-          {ready ? (
+        <div className={cn(firstRunWelcome || firstRunConnecting || bootSplash ? '' : 'grid gap-3 p-5')}>
+          {reason && !firstRunWelcome && !bootSplash ? <ReasonNotice reason={reason} /> : null}
+          {bootSplash ? (
+            <BootSplash />
+          ) : ready ? (
             showPicker ? (
               <Picker ctx={ctx} />
             ) : portalBrowserWait ? (
@@ -372,9 +379,7 @@ export function DesktopOnboardingOverlay({
             ) : (
               <FlowPanel ctx={ctx} flow={flow} leaving={leaving} onBegin={finalizeOnboarding} />
             )
-          ) : (
-            <Preparing boot={boot} />
-          )}
+          ) : null}
         </div>
       </div>
     </div>
@@ -392,28 +397,12 @@ function ReasonNotice({ reason }: { reason: string }) {
   )
 }
 
-function Preparing({ boot }: { boot: DesktopBootState }) {
+function BootSplash() {
   const { t } = useI18n()
-  const progress = Math.max(2, Math.min(100, Math.round(boot.progress)))
-  const hasError = Boolean(boot.error)
-  const installing = boot.phase.startsWith('runtime.')
 
   return (
-    <div className="grid gap-3" role="status">
-      <p className="text-sm text-muted-foreground">
-        {installing ? t.onboarding.preparingInstall : t.onboarding.starting}
-      </p>
-      <Progress
-        aria-label={installing ? t.onboarding.preparingInstall : t.onboarding.starting}
-        destructive={hasError}
-        size="lg"
-        value={progress / 100}
-      />
-      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-        <span className="truncate">{boot.message}</span>
-        <span>{progress}%</span>
-      </div>
-      {hasError ? <p className="text-xs text-destructive">{boot.error}</p> : null}
+    <div aria-label={t.onboarding.starting} className="grid place-items-center" role="status">
+      <BrandMark className="size-10" />
     </div>
   )
 }
