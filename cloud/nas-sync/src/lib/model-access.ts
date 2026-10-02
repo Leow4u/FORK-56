@@ -84,9 +84,25 @@ const CURATED_MODEL_DISPLAY: Record<string, string> = {
   'fugu-ultra': 'Fugu Ultra',
 }
 
+/**
+ * Retired house wire ids (Operis 4.0 ran on GPT-5.6 Luna). Clients that have
+ * not picked up the move still send these for "Operis"; they collapse to
+ * HOUSE_MODEL_ID in the catalog and stay unlocked on Free.
+ */
+const LEGACY_HOUSE_MODEL_SLUGS = new Set(['gpt-5.6-luna'])
+
+function houseModelSlug(modelId: string): string {
+  return modelId.trim().toLowerCase().split('/').pop() || ''
+}
+
+export function isLegacyHouseModel(modelId: string): boolean {
+  return LEGACY_HOUSE_MODEL_SLUGS.has(houseModelSlug(modelId))
+}
+
+/** Current or retired Operis wire id — both resolve to HOUSE_MODEL_ID. */
 export function isHouseModel(modelId: string): boolean {
-  const slug = modelId.trim().toLowerCase().split('/').pop() || ''
-  return HOUSE_MODEL_SLUGS.has(slug)
+  const slug = houseModelSlug(modelId)
+  return HOUSE_MODEL_SLUGS.has(slug) || LEGACY_HOUSE_MODEL_SLUGS.has(slug)
 }
 
 export function isOfficialWork4YouModel(modelId: string): boolean {
