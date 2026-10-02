@@ -13,6 +13,7 @@ import {
 } from '@/lib/storage'
 import { invalidateCronModelImpactScopeState } from '@/store/cron-model-impact-scope'
 import { $gateway, ensureGatewayForAgent, ensureGatewayForProfile, openGatewayForProfile } from '@/store/gateway'
+import { $liveGatewayProfiles } from '@/store/gateway-liveness'
 import { setConnection } from '@/store/session'
 import { resetStarmapGraph } from '@/store/starmap'
 import type { ProfileInfo } from '@/types/work4you'
@@ -234,6 +235,29 @@ $activeGatewayProfile.subscribe(value => {
 // profile's backend), else null. Drives the chat's "waking up <profile>" loader
 // so a lazy spawn doesn't read as a hang. Single-profile users never swap.
 export const $gatewaySwapTarget = atom<string | null>(null)
+
+// ── Backend liveness per profile (rail state dots) ─────────────────────────
+// "running": the renderer holds a socket to that profile's local backend, so a
+// switch is instant. "waking": a switch to it is mid-flight (spawn + connect).
+// "asleep": no socket — a click pays the cold boot. Purely presentational; it
+// never gates a switch.
+export type ProfileBackendState = 'asleep' | 'running' | 'waking'
+
+export const $profileBackendStates = computed(
+  [$profiles, $liveGatewayProfiles, $gatewaySwapTarget, $activeGatewayProfile],
+  (profiles, live, waking, active): Record<string, ProfileBackendState> => {
+    const states: Record<string, ProfileBackendState> = {}
+    const activeKey = normalizeProfileKey(active)
+    const wakingKey = waking ? normalizeProfileKey(waking) : null
+
+    for (const profile of profiles) {
+      const key = normalizeProfileKey(profile.name)
+      states[key] = key === wakingKey ? 'waking' : key === activeKey || live.has(key) ? 'running' : 'asleep'
+    }
+
+    return states
+  }
+)
 
 // ── Hover-intent backend pre-warm ───────────────────────────────────────────
 // A cold switch to a profile whose pool backend isn't running pays the full

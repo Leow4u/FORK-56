@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useStore } from '@nanostores/react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { CodeEditor } from '@/components/chat/code-editor'
@@ -39,10 +39,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { ProfileGlyph } from '@/components/ui/profile-glyph'
+import { ProfileStateDot } from '@/components/ui/profile-state-dot'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Tip, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { PROFILE_SWATCHES, profileColorSoft, resolveProfileColor } from '@/lib/profile-color'
+import { displayModelName } from '@/lib/model-status-label'
+import { PROFILE_SWATCHES, resolveProfileColor } from '@/lib/profile-color'
 import {
   REORDER_DRAG_TRANSITION_CSS,
   REORDER_RAIL_TRANSITION,
@@ -53,6 +56,7 @@ import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 import {
   $activeGatewayProfile,
+  $profileBackendStates,
   $profileColors,
   $profileCreateRequest,
   $profileOrder,
@@ -60,6 +64,7 @@ import {
   $profileScope,
   ALL_PROFILES,
   normalizeProfileKey,
+  type ProfileBackendState,
   profileLabel,
   refreshActiveProfile,
   selectProfile,
@@ -80,21 +85,28 @@ import { PROFILES_ROUTE } from '../../routes'
 import { useProfilePrewarm } from './use-profile-prewarm'
 import { useProfileRailRefreshOnActive } from './use-profile-rail-refresh-on-active'
 
-const RAIL_GAP = 4 // px — matches gap-1 between squares.
+const RAIL_GAP = 6 // px — matches gap-1.5 between tiles.
 
-// Past this many profiles the strip of colored squares stops scaling (tiny
-// drag targets, endless horizontal scroll), so the rail collapses to a compact
-// menu. Drag-reorder and long-press-recolor live only on the squares path.
+// Past this many profiles the strip of colored tiles stops scaling (tiny drag
+// targets, endless horizontal scroll), so the rail collapses to a compact
+// menu. Drag-reorder, long-press-recolor and the hover panel live only on the
+// tiles path — the dropdown already lists everything by name.
 const PROFILE_DROPDOWN_THRESHOLD = 13
 
-// Neighbors reflow on RAIL_TRANSITION; the dragged square glides between
+// Hover panel timing. The dwell keeps a pointer sweeping down to the account
+// row from popping the panel; the linger lets the pointer cross the gap
+// between the rail and the panel without it snapping shut.
+const PANEL_DWELL_MS = 150
+const PANEL_LINGER_MS = 160
+
+// Neighbors reflow on RAIL_TRANSITION; the dragged tile glides between
 // snapped cells on the snappier DRAG_TRANSITION. Both come from the SHARED
 // reorder primitive (lib/reorder.ts) so every reorder strip feels identical.
 const RAIL_TRANSITION = REORDER_RAIL_TRANSITION
 const DRAG_TRANSITION = REORDER_DRAG_TRANSITION_CSS
 
 // The rail is a single horizontal strip of fixed cells. Pin drags to the x-axis
-// (no cross-axis scrollbar), snap to whole cells so a square steps slot-to-slot
+// (no cross-axis scrollbar), snap to whole cells so a tile steps slot-to-slot
 // instead of gliding, and clamp to the occupied strip so it can't float past the
 // last profile onto the "+".
 const stepThroughCells: Modifier = ({ containerNodeRect, draggingNodeRect, transform }) => {
@@ -110,11 +122,44 @@ const stepThroughCells: Modifier = ({ containerNodeRect, draggingNodeRect, trans
   return { ...transform, x: Math.min(maxX, Math.max(minX, snapped)), y: 0 }
 }
 
-// Arc-Spaces-style profile rail at the sidebar foot: a default↔all toggle pinned
-// left, the colored named profiles scrolling between, and Manage pinned right.
-// The active profile pops in its own color — the "where am I" cue. Gateway
-// identity lives in the statusbar, so this strip remains entirely available to
-// profiles regardless of how many backends are registered.
+const NEUTRAL_HUE = 'var(--ui-text-quaternary)'
+
+function useClearableTimer() {
+  const timer = useRef<null | number>(null)
+
+  const clear = useCallback(() => {
+    if (timer.current != null) {
+      clearTimeout(timer.current)
+      timer.current = null
+    }
+  }, [])
+
+  const arm = useCallback(
+    (fn: () => void, ms: number) => {
+      clear()
+      timer.current = window.setTimeout(() => {
+        timer.current = null
+        fn()
+      }, ms)
+    },
+    [clear]
+  )
+
+  useEffect(() => clear, [clear])
+
+  return { arm, clear }
+}
+
+// Profile rail at the sidebar foot: the default's home tile pinned left, the
+// colored named profiles between (drag to reorder), then "+", and on the right
+// the All-profiles toggle and Manage. Every tile carries its backend state as a
+// dot, and the active one wears a ring in its own color — the "where am I" cue.
+// Resting on the rail for a beat opens a panel above it with the active
+// profile's identity, the sidebar scope switch and the other profiles by name;
+// it leaves with the pointer. A click on a tile always switches immediately —
+// the panel is a convenience layer, never a gate. Gateway identity lives in the
+// statusbar, so this strip remains entirely available to profiles regardless
+// of how many backends are registered.
 export function ProfileRail() {
   const { t } = useI18n()
   const p = t.profiles
@@ -123,6 +168,7 @@ export function ProfileRail() {
   const gatewayProfile = useStore($activeGatewayProfile)
   const order = useStore($profileOrder)
   const colors = useStore($profileColors)
+  const states = useStore($profileBackendStates)
   const navigate = useNavigate()
 
   const [createOpen, setCreateOpen] = useState(false)
@@ -131,7 +177,7 @@ export function ProfileRail() {
   const [pendingSoul, setPendingSoul] = useState<null | string>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Too many profiles for the square strip → collapse to the select. Declared
+  // Too many profiles for the tile strip → collapse to the select. Declared
   // ahead of the wheel effect, which re-binds when the strip mounts/unmounts.
   const condensed = profiles.length > PROFILE_DROPDOWN_THRESHOLD
 
@@ -164,7 +210,7 @@ export function ProfileRail() {
   const isAll = scope === ALL_PROFILES
   const activeKey = normalizeProfileKey(gatewayProfile)
   const defaultProfile = profiles.find(profile => profile.is_default)
-  const onDefault = !isAll && activeKey === 'default'
+  const activeProfile = profiles.find(profile => normalizeProfileKey(profile.name) === activeKey) ?? defaultProfile
 
   const named = sortByProfileOrder(
     profiles.filter(profile => !profile.is_default),
@@ -172,6 +218,70 @@ export function ProfileRail() {
   )
 
   const multiProfile = profiles.length > 1
+
+  const stateOf = (profile: Pick<ProfileInfo, 'name'>): ProfileBackendState =>
+    states[normalizeProfileKey(profile.name)] ?? 'asleep'
+
+  // ── Hover panel ──────────────────────────────────────────────────────────
+  const [panelOpen, setPanelOpen] = useState(false)
+  const openTimer = useClearableTimer()
+  const closeTimer = useClearableTimer()
+  const draggingRef = useRef(false)
+
+  const closePanel = useCallback(() => {
+    openTimer.clear()
+    closeTimer.clear()
+    setPanelOpen(false)
+  }, [closeTimer, openTimer])
+
+  const armOpen = () => {
+    closeTimer.clear()
+
+    if (draggingRef.current || condensed || !multiProfile) {
+      return
+    }
+
+    openTimer.arm(() => setPanelOpen(true), PANEL_DWELL_MS)
+  }
+
+  const armClose = () => {
+    openTimer.clear()
+    closeTimer.arm(() => setPanelOpen(false), PANEL_LINGER_MS)
+  }
+
+  const cancelClose = () => closeTimer.clear()
+
+  // Any dialog the rail opens takes over the pointer; drop the panel first so
+  // it isn't left floating behind the modal.
+  const openCreate = () => {
+    closePanel()
+    setCreateOpen(true)
+  }
+
+  const openRename = (profile: ProfileInfo) => {
+    closePanel()
+    setPendingRename(profile)
+  }
+
+  const openDelete = (profile: ProfileInfo) => {
+    closePanel()
+    setPendingDelete(profile)
+  }
+
+  const openSoul = (name: string) => {
+    closePanel()
+    setPendingSoul(name)
+  }
+
+  const pick = (name: string) => {
+    closePanel()
+    selectProfile(name)
+  }
+
+  const openManage = () => {
+    closePanel()
+    navigate(PROFILES_ROUTE)
+  }
 
   // distance constraint: a small drag reorders, a tap still selects the profile.
   const sensors = useSensors(
@@ -185,6 +295,8 @@ export function ProfileRail() {
 
   const handleDragStart = ({ active }: DragStartEvent) => {
     lastOverRef.current = String(active.id)
+    draggingRef.current = true
+    closePanel()
   }
 
   const handleDragOver = ({ over }: DragOverEvent) => {
@@ -198,6 +310,7 @@ export function ProfileRail() {
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     lastOverRef.current = null
+    draggingRef.current = false
 
     if (!over || active.id === over.id) {
       return
@@ -237,103 +350,167 @@ export function ProfileRail() {
   }, [createRequest])
 
   return (
-    <div aria-label={p.title} className="flex min-w-0 items-center gap-0.5" data-slot="profile-rail" role="group">
-      {/* One button toggles default ↔ all: home face when scoped to a profile,
-          layers face when showing everything. Pinned left like Manage is right.
-          Hidden until a second profile exists. */}
-      {multiProfile &&
-        (defaultProfile ? (
-          // On default → toggle to all. Anywhere else (all view or a named
-          // profile) → return to default. So leaving a profile never lands on all.
-          <ProfilePill
-            active={isAll || onDefault}
-            glyph={isAll ? 'layers' : 'home'}
-            label={onDefault ? p.showAllProfiles : p.switchToProfile(profileLabel(defaultProfile))}
-            onSelect={() => (onDefault ? setShowAllProfiles(true) : selectProfile(defaultProfile.name))}
-          />
-        ) : (
-          <ProfilePill active={isAll} glyph="layers" label={p.allProfiles} onSelect={() => setShowAllProfiles(true)} />
-        ))}
-
-      {/* Single-profile: the active default's home icon next to the create +. */}
-      {!multiProfile && defaultProfile && (
-        <ProfilePill
-          active
-          glyph="home"
-          label={profileLabel(defaultProfile)}
-          onSelect={() => selectProfile(defaultProfile.name)}
-        />
-      )}
-
-      {condensed ? (
-        // Condensed path: one compact dropdown instead of N squares. No drag
-        // reorder, no long-press recolor, no per-square context menu — Manage
-        // covers rename/delete at this scale.
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          <ProfileDropdown
-            activeKey={isAll ? null : activeKey}
-            colors={colors}
-            onCreate={() => setCreateOpen(true)}
-            onSelect={selectProfile}
-            profiles={named}
-          />
-        </div>
-      ) : (
+    <Popover onOpenChange={open => !open && closePanel()} open={panelOpen && !condensed && multiProfile}>
+      <PopoverAnchor asChild>
         <div
-          className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          ref={scrollRef}
+          aria-label={p.title}
+          className="flex min-w-0 items-center gap-1"
+          data-slot="profile-rail"
+          onPointerEnter={armOpen}
+          onPointerLeave={armClose}
+          role="group"
         >
-          {multiProfile && (
-            <DndContext
-              collisionDetection={closestCenter}
-              modifiers={[stepThroughCells]}
-              onDragEnd={handleDragEnd}
-              onDragOver={handleDragOver}
-              onDragStart={handleDragStart}
-              sensors={sensors}
+          {/* Default pinned left as its own tile: always "go home", never a
+              disguised All toggle (that is the layers button on the right). */}
+          {defaultProfile && (
+            <ProfileTileButton
+              active={!isAll && activeKey === 'default'}
+              hue={null}
+              label={profileLabel(defaultProfile)}
+              onSelect={() => pick(defaultProfile.name)}
+              state={stateOf(defaultProfile)}
+              stateLabel={p.state[stateOf(defaultProfile)]}
+              tip={
+                !isAll && activeKey === 'default'
+                  ? profileLabel(defaultProfile)
+                  : p.switchToProfile(profileLabel(defaultProfile))
+              }
             >
-              <SortableContext items={named.map(profile => profile.name)} strategy={horizontalListSortingStrategy}>
-                {/* relative → the strip is the dragged square's offsetParent, so the
-                    clamp modifier bounds drags to the occupied cells (not the +). */}
-                <div className="relative flex items-center gap-1">
-                  {named.map(profile => (
-                    <ProfileSquare
-                      active={!isAll && normalizeProfileKey(profile.name) === activeKey}
-                      color={resolveProfileColor(profile.name, colors)}
-                      key={profile.name}
-                      label={profileLabel(profile)}
-                      onDelete={() => setPendingDelete(profile)}
-                      onEditSoul={() => setPendingSoul(profile.name)}
-                      onRecolor={color => setProfileColor(profile.name, color)}
-                      onRename={() => setPendingRename(profile)}
-                      onSelect={() => selectProfile(profile.name)}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
+              <Codicon name="home" size="0.8rem" />
+            </ProfileTileButton>
           )}
 
-          <AddProfileButton label={p.newProfile} onClick={() => setCreateOpen(true)} />
-        </div>
-      )}
+          {condensed ? (
+            // Condensed path: one compact dropdown instead of N tiles. No drag
+            // reorder, no long-press recolor, no per-tile context menu — Manage
+            // covers rename/delete at this scale.
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              <ProfileDropdown
+                activeKey={isAll ? null : activeKey}
+                colors={colors}
+                onCreate={openCreate}
+                onSelect={selectProfile}
+                profiles={named}
+              />
+            </div>
+          ) : (
+            <div
+              className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              ref={scrollRef}
+            >
+              {multiProfile && (
+                <DndContext
+                  collisionDetection={closestCenter}
+                  modifiers={[stepThroughCells]}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={handleDragOver}
+                  onDragStart={handleDragStart}
+                  sensors={sensors}
+                >
+                  <SortableContext items={named.map(profile => profile.name)} strategy={horizontalListSortingStrategy}>
+                    {/* relative → the strip is the dragged tile's offsetParent, so the
+                        clamp modifier bounds drags to the occupied cells (not the +). */}
+                    <div className="relative flex items-center gap-1.5">
+                      {named.map(profile => (
+                        <ProfileSquare
+                          active={!isAll && normalizeProfileKey(profile.name) === activeKey}
+                          color={resolveProfileColor(profile.name, colors)}
+                          key={profile.name}
+                          label={profileLabel(profile)}
+                          onDelete={() => openDelete(profile)}
+                          onEditSoul={() => openSoul(profile.name)}
+                          onRecolor={color => setProfileColor(profile.name, color)}
+                          onRename={() => openRename(profile)}
+                          onSelect={() => pick(profile.name)}
+                          state={stateOf(profile)}
+                          stateLabel={p.state[stateOf(profile)]}
+                          tip={
+                            !isAll && normalizeProfileKey(profile.name) === activeKey
+                              ? profileLabel(profile)
+                              : p.switchToProfile(profileLabel(profile))
+                          }
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              )}
 
-      {/* Always reachable, even with only the default profile: the manage
-          overlay is the only place to edit a profile's SOUL.md, and a
-          single-profile user must be able to edit the default's persona
-          without first creating a throwaway second profile. */}
-      <ProfilePill active={false} glyph="ellipsis" label={p.manageProfiles} onSelect={() => navigate(PROFILES_ROUTE)} />
+              <AddProfileButton label={p.newProfile} onClick={openCreate} />
+            </div>
+          )}
+
+          {/* All-profiles toggle, its own button so "show everything" and
+              "go to default" are never the same control. Hidden until a second
+              profile exists — one profile has nothing to fan out. */}
+          {multiProfile && (
+            <ProfilePill
+              active={isAll}
+              glyph="layers"
+              label={isAll ? p.showingAllProfiles : p.showAllProfiles}
+              onSelect={() => {
+                closePanel()
+                setShowAllProfiles(!isAll)
+              }}
+            />
+          )}
+
+          {/* Always reachable, even with only the default profile: the manage
+              overlay is the only place to edit a profile's SOUL.md, and a
+              single-profile user must be able to edit the default's persona
+              without first creating a throwaway second profile. */}
+          <ProfilePill active={false} glyph="ellipsis" label={p.manageProfiles} onSelect={openManage} />
+        </div>
+      </PopoverAnchor>
+
+      <PopoverContent
+        align="start"
+        aria-label={p.switcher}
+        className="w-(--radix-popover-trigger-width) min-w-56 max-w-72 p-0"
+        collisionPadding={{ bottom: 44, left: 8, right: 8, top: 8 }}
+        data-slot="profile-rail-panel"
+        onOpenAutoFocus={event => event.preventDefault()}
+        onPointerEnter={cancelClose}
+        onPointerLeave={armClose}
+        side="top"
+        sideOffset={6}
+      >
+        {activeProfile && (
+          <RailPanel
+            activeProfile={activeProfile}
+            colors={colors}
+            isAll={isAll}
+            onCreate={openCreate}
+            onDelete={openDelete}
+            onEditSoul={openSoul}
+            onExport={name => void runExportProfileFlow(name)}
+            onManage={openManage}
+            onRename={openRename}
+            onScope={all => setShowAllProfiles(all)}
+            onSelect={pick}
+            others={[
+              ...(defaultProfile && defaultProfile !== activeProfile ? [defaultProfile] : []),
+              ...named.filter(profile => profile !== activeProfile)
+            ]}
+            stateOf={stateOf}
+          />
+        )}
+      </PopoverContent>
 
       {/* Land in the new profile on a fresh chat (selectProfile triggers the
           new-session reset), not stuck on the session you were just in. */}
       <CreateProfileDialog
         onClose={() => setCreateOpen(false)}
-        onCreated={async name => {
+        onCreated={async (name, { switchTo }) => {
           await refreshActiveProfile()
-          selectProfile(name)
+
+          if (switchTo) {
+            selectProfile(name)
+          }
         }}
         open={createOpen}
         profiles={profiles}
+        showSwitchOption
       />
 
       <RenameProfileDialog
@@ -352,9 +529,298 @@ export function ProfileRail() {
       />
 
       <EditSoulDialog onClose={() => setPendingSoul(null)} profileName={pendingSoul} />
+    </Popover>
+  )
+}
+
+// ── Hover panel ──────────────────────────────────────────────────────────────
+
+interface RailPanelProps {
+  activeProfile: ProfileInfo
+  colors: Record<string, string>
+  isAll: boolean
+  onCreate: () => void
+  onDelete: (profile: ProfileInfo) => void
+  onEditSoul: (name: string) => void
+  onExport: (name: string) => void
+  onManage: () => void
+  onRename: (profile: ProfileInfo) => void
+  onScope: (all: boolean) => void
+  onSelect: (name: string) => void
+  others: ProfileInfo[]
+  stateOf: (profile: Pick<ProfileInfo, 'name'>) => ProfileBackendState
+}
+
+// What the rail says when you rest on it: who you are (name, model, backend
+// state), the sidebar scope, and the other profiles by name with their own
+// state — so a cold switch is a known cost, not a surprise hang.
+function RailPanel({
+  activeProfile,
+  colors,
+  isAll,
+  onCreate,
+  onDelete,
+  onEditSoul,
+  onExport,
+  onManage,
+  onRename,
+  onScope,
+  onSelect,
+  others,
+  stateOf
+}: RailPanelProps) {
+  const { t } = useI18n()
+  const p = t.profiles
+  const activeHue = activeProfile.is_default ? null : resolveProfileColor(activeProfile.name, colors)
+  const activeState = stateOf(activeProfile)
+
+  return (
+    <div className="flex flex-col text-xs">
+      <div
+        className="flex items-center gap-2.5 px-2.5 py-2"
+        style={{ boxShadow: `inset 3px 0 0 ${activeHue ?? NEUTRAL_HUE}` }}
+      >
+        <ProfileAvatar
+          hue={activeHue}
+          isDefault={activeProfile.is_default}
+          name={profileLabel(activeProfile)}
+          size={32}
+          state={activeState}
+        />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-[0.8125rem] font-semibold text-foreground">{profileLabel(activeProfile)}</span>
+          <span className="truncate text-[0.6875rem] text-(--ui-text-tertiary)">
+            {[activeProfile.model ? displayModelName(activeProfile.model) : null, p.state[activeState]]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </div>
+        <Tip label={p.editSoul}>
+          <Button
+            aria-label={p.editSoul}
+            className="text-(--ui-text-tertiary)"
+            onClick={() => onEditSoul(activeProfile.name)}
+            size="icon-xs"
+            type="button"
+            variant="ghost"
+          >
+            <Codicon name="edit" size="0.8rem" />
+          </Button>
+        </Tip>
+      </div>
+
+      <div className="px-2.5 pb-2">
+        <SegmentedControl
+          className="w-full"
+          onChange={id => onScope(id === 'all')}
+          options={[
+            { id: 'this', label: p.thisProfile },
+            { id: 'all', label: p.allProfiles }
+          ]}
+          value={isAll ? 'all' : 'this'}
+        />
+      </div>
+
+      {others.length > 0 && (
+        <div className="flex flex-col gap-px border-t border-(--ui-border) p-1">
+          <span className="px-2 pb-0.5 pt-1 text-[0.625rem] font-semibold uppercase tracking-wider text-(--ui-text-tertiary)">
+            {p.switchTo}
+          </span>
+          {others.map(profile => (
+            <RailPanelRow
+              hue={profile.is_default ? null : resolveProfileColor(profile.name, colors)}
+              key={profile.name}
+              onDelete={profile.is_default ? undefined : () => onDelete(profile)}
+              onEditSoul={() => onEditSoul(profile.name)}
+              onExport={() => onExport(profile.name)}
+              onRename={() => onRename(profile)}
+              onSelect={() => onSelect(profile.name)}
+              profile={profile}
+              state={stateOf(profile)}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between border-t border-(--ui-border) px-1 py-1">
+        <Button className="gap-1.5 text-foreground" onClick={onCreate} size="xs" type="button" variant="ghost">
+          <Codicon name="add" size="0.75rem" />
+          {p.newProfile}
+        </Button>
+        <Button className="text-(--ui-text-tertiary)" onClick={onManage} size="xs" type="button" variant="ghost">
+          {p.manageShort}
+        </Button>
+      </div>
     </div>
   )
 }
+
+function RailPanelRow({
+  hue,
+  onDelete,
+  onEditSoul,
+  onExport,
+  onRename,
+  onSelect,
+  profile,
+  state
+}: {
+  hue: null | string
+  onDelete?: () => void
+  onEditSoul: () => void
+  onExport: () => void
+  onRename: () => void
+  onSelect: () => void
+  profile: ProfileInfo
+  state: ProfileBackendState
+}) {
+  const { t } = useI18n()
+  const p = t.profiles
+  const { cancelPrewarm, startPrewarm } = useProfilePrewarm(profile.name)
+  const label = profileLabel(profile)
+
+  return (
+    <div className="group/row flex items-center gap-1 rounded-md hover:bg-(--ui-control-hover-background)">
+      <button
+        aria-label={p.switchToProfile(label)}
+        className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left"
+        onClick={onSelect}
+        onPointerEnter={startPrewarm}
+        onPointerLeave={cancelPrewarm}
+        type="button"
+      >
+        <ProfileAvatar hue={hue} isDefault={profile.is_default} name={label} size={24} state={state} />
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-xs font-semibold text-foreground">{label}</span>
+          <span className="truncate text-[0.625rem] text-(--ui-text-tertiary)">
+            {[profile.model ? displayModelName(profile.model) : null, p.state[state]].filter(Boolean).join(' · ')}
+          </span>
+        </span>
+      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            aria-label={`${p.actions}: ${label}`}
+            className="mr-0.5 text-(--ui-text-tertiary) opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+            size="icon-xs"
+            type="button"
+            variant="ghost"
+          >
+            <Codicon name="ellipsis" size="0.8rem" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40" side="right">
+          <DropdownMenuItem onSelect={onEditSoul}>
+            <Codicon name="edit" size="0.875rem" />
+            <span>{p.editSoul}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onRename}>
+            <Codicon name="text-size" size="0.875rem" />
+            <span>{p.renameMenu}</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onExport}>
+            <Codicon name="package" size="0.875rem" />
+            <span>{p.exportProfile}</span>
+          </DropdownMenuItem>
+          {onDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={onDelete} variant="destructive">
+                <Codicon name="trash" size="0.875rem" />
+                <span>{t.common.delete}</span>
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
+// ── Avatar ─────────────────────────────────────────────────────────────────
+
+// Solid-color mark used by the panel: full hue with a white initial (the home
+// icon for default), the backend state dot in the corner. Bigger and bolder
+// than ProfileGlyph on purpose — this is the identity card, not a list lead.
+function ProfileAvatar({
+  hue,
+  isDefault,
+  name,
+  size,
+  state
+}: {
+  hue: null | string
+  isDefault: boolean
+  name: string
+  size: number
+  state: ProfileBackendState
+}) {
+  const initial = name.replace(/[^a-z0-9]/gi, '').charAt(0) || '?'
+
+  return (
+    <span
+      className="relative grid shrink-0 place-items-center rounded-md font-bold uppercase leading-none text-white"
+      style={{
+        backgroundColor: hue ?? NEUTRAL_HUE,
+        fontSize: size * 0.45,
+        height: size,
+        opacity: state === 'asleep' ? 0.6 : 1,
+        width: size
+      }}
+    >
+      {isDefault ? <Codicon name="home" size={`${size * 0.5}px`} /> : initial}
+      <ProfileStateDot state={state} />
+    </span>
+  )
+}
+
+// The default tile and (via ProfileSquare) the named tiles share this look:
+// 26px, solid hue, white mark, state dot, active ring in the tile's own color.
+function ProfileTileButton({
+  active,
+  children,
+  hue,
+  label,
+  onSelect,
+  state,
+  stateLabel,
+  tip
+}: {
+  active: boolean
+  children: React.ReactNode
+  hue: null | string
+  label: string
+  onSelect: () => void
+  state: ProfileBackendState
+  stateLabel: string
+  tip: string
+}) {
+  const color = hue ?? NEUTRAL_HUE
+
+  return (
+    <Tip label={`${tip} · ${stateLabel}`}>
+      <button
+        aria-label={label}
+        aria-pressed={active}
+        className={cn(
+          'relative grid size-[26px] shrink-0 place-items-center rounded-md text-white transition-opacity hover:opacity-100',
+          active ? 'opacity-100' : state === 'asleep' ? 'opacity-55' : 'opacity-80'
+        )}
+        onClick={onSelect}
+        style={{
+          backgroundColor: color,
+          boxShadow: active ? `0 0 0 1.5px var(--background), 0 0 0 3px ${color}` : undefined
+        }}
+        type="button"
+      >
+        {children}
+        <ProfileStateDot state={state} />
+      </button>
+    </Tip>
+  )
+}
+
+// ── Dialogs / small parts ──────────────────────────────────────────────────
 
 // Right-click → Edit SOUL.md for a sidebar profile — the same in-app markdown
 // editor as the memory-graph node edit, so a profile's persona is editable
@@ -439,7 +905,7 @@ function AddProfileButton({ label, onClick }: { label: string; onClick: () => vo
     <Tip label={label}>
       <button
         aria-label={label}
-        className="grid size-5 shrink-0 place-items-center rounded-[3px] text-(--ui-text-tertiary) opacity-55 transition hover:bg-(--ui-control-hover-background) hover:text-foreground hover:opacity-100"
+        className="grid size-[22px] shrink-0 place-items-center rounded-[4px] text-(--ui-text-tertiary) opacity-55 transition hover:bg-(--ui-control-hover-background) hover:text-foreground hover:opacity-100"
         onClick={onClick}
         type="button"
       >
@@ -451,7 +917,7 @@ function AddProfileButton({ label, onClick }: { label: string; onClick: () => vo
 
 // The condensed rail: every named profile in one compact menu. The trigger
 // shows the active profile (tinted initial + name); on default/all scope it
-// falls back to the placeholder since the left toggle pill carries that state.
+// falls back to the placeholder since the home tile carries that state.
 function ProfileDropdown({
   activeKey,
   colors,
@@ -543,7 +1009,7 @@ function ProfileDropdownItem({ color, label, name }: { color: null | string; lab
 
 interface ProfilePillProps {
   active: boolean
-  // home / All / Manage are glyph action buttons (navigation, not identity).
+  // All / Manage are glyph action buttons (navigation, not identity).
   glyph: string
   label: string
   onSelect: () => void
@@ -557,7 +1023,7 @@ function ProfilePill({ active, glyph, label, onSelect }: ProfilePillProps) {
         aria-pressed={active}
         className={cn(
           'bg-transparent text-(--ui-text-tertiary) hover:bg-(--ui-control-hover-background) hover:text-foreground',
-          active && 'bg-(--ui-control-active-background) text-foreground'
+          active && 'bg-foreground text-background hover:bg-foreground hover:text-background'
         )}
         onClick={onSelect}
         size="icon-xs"
@@ -579,19 +1045,22 @@ interface ProfileSquareProps {
   onRename: () => void
   onEditSoul: () => void
   onDelete: () => void
+  state: ProfileBackendState
+  stateLabel: string
+  tip: string
 }
 
 // Hold this long without moving (a drag would have started first) to open the
 // color picker — the "hard press" gesture, distinct from tap-to-select.
 const LONG_PRESS_MS = 450
 
-// A profile *is* its colored square — no icon-button chrome. Soft profile-tint
-// fill + the initial in the full color; the active one pops to full opacity with
-// a color ring. These pack tightly so the rail reads as a strip of profiles,
-// drag-sort to reorder (a tap below the drag threshold still selects), and
-// right-click to rename/delete. The button carries both the tooltip and
-// context-menu triggers via nested asChild Slots, so a single element keeps the
-// dnd listeners, hover tip, and right-click menu.
+// A profile *is* its colored tile — no icon-button chrome. Full hue with the
+// white initial, the backend state in the corner; the active one wears a ring
+// in its own color. These pack tightly so the rail reads as a strip of
+// profiles, drag-sort to reorder (a tap below the drag threshold still
+// selects), and right-click to rename/delete. The button carries both the
+// tooltip and context-menu triggers via nested asChild Slots, so a single
+// element keeps the dnd listeners, hover tip, and right-click menu.
 function ProfileSquare({
   active,
   color,
@@ -600,15 +1069,18 @@ function ProfileSquare({
   onEditSoul,
   onRecolor,
   onRename,
-  onSelect
+  onSelect,
+  state,
+  stateLabel,
+  tip
 }: ProfileSquareProps) {
   const { t } = useI18n()
   const p = t.profiles
-  const hue = color ?? 'var(--ui-text-quaternary)'
+  const hue = color ?? NEUTRAL_HUE
   const [pickerOpen, setPickerOpen] = useState(false)
   const pressTimer = useRef<null | number>(null)
   const suppressClick = useRef(false)
-  // Hovering a square telegraphs the switch — start that profile's backend
+  // Hovering a tile telegraphs the switch — start that profile's backend
   // spawn now so a cold click doesn't pay the full boot.
   const { cancelPrewarm, startPrewarm } = useProfilePrewarm(label)
 
@@ -634,7 +1106,7 @@ function ProfileSquare({
   useEffect(() => clearPress, [])
 
   const base = CSS.Transform.toString(transform)
-  const ring = active ? `inset 0 0 0 1.5px ${hue}` : ''
+  const ring = active ? `0 0 0 1.5px var(--background), 0 0 0 3px ${hue}` : ''
   const lift = isDragging ? '0 6px 16px -4px rgb(0 0 0 / 0.4)' : ''
 
   const pickColor = (next: null | string) => {
@@ -653,16 +1125,15 @@ function ProfileSquare({
                 <TooltipTrigger asChild>
                   <button
                     className={cn(
-                      'grid size-5 shrink-0 cursor-grab touch-none select-none place-items-center rounded-[3px] text-[0.5625rem] font-semibold uppercase leading-none transition-opacity hover:opacity-100',
-                      active ? 'opacity-100' : 'opacity-55',
+                      'relative grid size-[26px] shrink-0 cursor-grab touch-none select-none place-items-center rounded-md text-[0.6875rem] font-bold uppercase leading-none text-white transition-opacity hover:opacity-100',
+                      active ? 'opacity-100' : state === 'asleep' ? 'opacity-55' : 'opacity-80',
                       isDragging && 'z-10 cursor-grabbing opacity-100'
                     )}
                     ref={setNodeRef}
                     style={{
-                      backgroundColor: profileColorSoft(hue, active ? 30 : 22),
+                      backgroundColor: hue,
                       boxShadow: [ring, lift].filter(Boolean).join(', ') || undefined,
-                      color: color ?? undefined,
-                      // Glide the dragged square between snapped cells with a little
+                      // Glide the dragged tile between snapped cells with a little
                       // overshoot (no scale — the overflow-x strip would clip it).
                       transform: base,
                       transition: isDragging ? DRAG_TRANSITION : transition
@@ -708,11 +1179,14 @@ function ProfileSquare({
                     onPointerUp={clearPress}
                   >
                     {label.replace(/[^a-z0-9]/gi, '').charAt(0) || '?'}
+                    <ProfileStateDot state={state} />
                   </button>
                 </TooltipTrigger>
               </ContextMenuTrigger>
             </PopoverAnchor>
-            <TooltipContent>{label}</TooltipContent>
+            <TooltipContent>
+              {tip} · {stateLabel}
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
