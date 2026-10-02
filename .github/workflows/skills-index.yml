@@ -20,7 +20,9 @@ jobs:
     # Only run on the upstream repository, not on forks
     if: github.repository == 'Leow4u/FORK-56'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 16 Sep 2026 the crawl took 857s. A 15-minute cap cancels the job
+    # before the artifact uploads. deploy-docs already allows 30.
+    timeout-minutes: 30
     environment: trusted-automation
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
