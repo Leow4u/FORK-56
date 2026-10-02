@@ -326,10 +326,7 @@ export function DesktopOnboardingOverlay({
   const bootSplash = !ready && !manual
 
   const bare =
-    firstRunWelcome ||
-    firstRunConnecting ||
-    bootSplash ||
-    (ready && !showPicker && flow.status === 'confirming_model')
+    firstRunWelcome || firstRunConnecting || bootSplash || (ready && !showPicker && flow.status === 'confirming_model')
 
   return (
     <div
