@@ -238,14 +238,20 @@ describe('DesktopOnboardingOverlay reauth chrome', () => {
     render(<DesktopOnboardingOverlay enabled={false} profile="default" requestGateway={requestGateway} />)
 
     expect(screen.queryByText(/setup.status/)).toBeNull()
-    expect(screen.getByText("Let's get you setup with Work4You")).toBeTruthy()
+    expect(screen.queryByText("Let's get you setup with Work4You")).toBeNull()
+    expect(screen.queryByText('Starting Work4You…')).toBeNull()
+    expect(document.querySelector('img[src*="work4you-icon.png"]')).toBeTruthy()
   })
 
-  it('keeps first-run preparing header when reauth is false and overlay is not ready', () => {
+  it('shows only the mark while the gateway is still starting', () => {
     setProviders([makeOAuthProvider('work4you', 'Work4You Portal')], { configured: false, reauth: false })
     render(<DesktopOnboardingOverlay enabled={false} profile="default" requestGateway={requestGateway} />)
 
-    expect(screen.getByText("Let's get you setup with Work4You")).toBeTruthy()
+    expect(document.querySelector('img[src*="work4you-icon.png"]')).toBeTruthy()
+    expect(screen.queryByText("Let's get you setup with Work4You")).toBeNull()
+    expect(screen.queryByText('Starting Work4You…')).toBeNull()
+    expect(screen.queryByText(/Waiting for Work4You backend/)).toBeNull()
+    expect(screen.queryByRole('progressbar')).toBeNull()
     expect(screen.queryByText(/300\+ frontier models/)).toBeNull()
     expect(screen.queryByText('Sign in to continue')).toBeNull()
   })
