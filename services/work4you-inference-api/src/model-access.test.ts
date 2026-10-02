@@ -4,12 +4,7 @@
  */
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import {
-  HOUSE_MODEL_ID,
-  isAllowedOnFreePlan,
-  isHouseModel,
-  isLegacyHouseModel,
-} from './model-access.js'
+import { HOUSE_MODEL_ID, isAllowedOnFreePlan, isHouseModel } from './model-access.js'
 
 describe('isHouseModel', () => {
   it('accepts the current Operis wire id with any vendor prefix', () => {
@@ -19,14 +14,9 @@ describe('isHouseModel', () => {
     assert.equal(isHouseModel(' OpenAI/GPT-6-Luna '), true)
   })
 
-  it('accepts the retired Operis 4.0 wire id so stale clients keep Operis', () => {
-    assert.equal(isHouseModel('openai/gpt-5.6-luna'), true)
-    assert.equal(isHouseModel('gpt-5.6-luna'), true)
-    assert.equal(isLegacyHouseModel('openai/gpt-5.6-luna'), true)
-    assert.equal(isLegacyHouseModel(HOUSE_MODEL_ID), false)
-  })
-
-  it('keeps paid siblings out of the house identity', () => {
+  it('keeps the retired Operis 4.0 id and paid siblings out of the house identity', () => {
+    assert.equal(isHouseModel('openai/gpt-5.6-luna'), false)
+    assert.equal(isHouseModel('gpt-5.6-luna'), false)
     assert.equal(isHouseModel('openai/gpt-5.6-luna-pro'), false)
     assert.equal(isHouseModel('openai/gpt-5.6-sol'), false)
     assert.equal(isHouseModel('anthropic/claude-opus-5'), false)
@@ -35,10 +25,10 @@ describe('isHouseModel', () => {
 })
 
 describe('isAllowedOnFreePlan', () => {
-  it('unlocks the current and retired Operis ids regardless of pricing', () => {
+  it('unlocks only the current Operis id, regardless of pricing', () => {
     const paid = { prompt: '0.0002', completion: '0.0012' }
     assert.equal(isAllowedOnFreePlan(HOUSE_MODEL_ID, paid), true)
-    assert.equal(isAllowedOnFreePlan('openai/gpt-5.6-luna', paid), true)
+    assert.equal(isAllowedOnFreePlan('openai/gpt-5.6-luna', paid), false)
   })
 
   it('locks everything else on Free, even $0 ids', () => {

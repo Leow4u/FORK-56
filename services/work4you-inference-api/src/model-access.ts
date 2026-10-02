@@ -6,28 +6,17 @@ export type ModelPricing = { prompt?: string; completion?: string }
 export const HOUSE_MODEL_ID = 'openai/gpt-6-luna'
 export const HOUSE_MODEL_DISPLAY = 'Operis 5.0'
 
+/**
+ * Only the current Operis wire id unlocks on Free. Retired house ids
+ * (openai/gpt-5.6-luna, Operis 4.0) are ordinary paid-catalog ids here; the
+ * client canonicalizes a persisted retired id to HOUSE_MODEL_ID before it
+ * reaches the wire (work4you_cli.models.canonical_work4you_house_model_id).
+ */
 const HOUSE_MODEL_SLUGS = new Set(['gpt-6-luna'])
 
-/**
- * Retired house wire ids (Operis 4.0 ran on GPT-5.6 Luna). Clients that have
- * not picked up the move still send these for "Operis"; the billing gate
- * rewrites them to HOUSE_MODEL_ID before forwarding, so a Free org keeps its
- * house model instead of a `paid_plan_required` 403 for a retired id.
- */
-const LEGACY_HOUSE_MODEL_SLUGS = new Set(['gpt-5.6-luna'])
-
-function houseModelSlug(modelId: string): string {
-  return modelId.trim().toLowerCase().split('/').pop() || ''
-}
-
-export function isLegacyHouseModel(modelId: string): boolean {
-  return LEGACY_HOUSE_MODEL_SLUGS.has(houseModelSlug(modelId))
-}
-
-/** Current or retired Operis wire id — both resolve to HOUSE_MODEL_ID. */
 export function isHouseModel(modelId: string): boolean {
-  const slug = houseModelSlug(modelId)
-  return HOUSE_MODEL_SLUGS.has(slug) || LEGACY_HOUSE_MODEL_SLUGS.has(slug)
+  const slug = modelId.trim().toLowerCase().split('/').pop() || ''
+  return HOUSE_MODEL_SLUGS.has(slug)
 }
 
 export function isZeroPrice(pricing: ModelPricing | null | undefined): boolean {
