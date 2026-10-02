@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router'
 import { hudTargetSessionId } from '@/app/hud/handoff'
 import { composerPanelCard } from '@/components/chat/composer-dock'
 import { FEATURED_ID } from '@/components/onboarding'
+import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { SidebarFooter } from '@/components/ui/sidebar'
+import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
 import { triggerHaptic } from '@/lib/haptics'
@@ -47,6 +49,13 @@ export const ACCOUNT_CONTACT_URL = 'https://work4you.ai/contact/'
 // The running app version sits at the bottom of that menu, the way Cursor
 // shows it — not on a Settings page. Signed in adds Log Out, which removes that
 // login and shows the sign-in screen; signed out adds Sign in, which starts it.
+//
+// Right of the trigger, in a fixed order: the Update chip (only while an
+// update exists) and then a gear that opens Settings in one click. The gear is
+// a shortcut to the menu's first item, not a replacement for it — Settings
+// stays in the menu for keyboard and screen-reader users who land on the
+// trigger — and it keeps its place at the far right whether or not the chip is
+// showing, so the one always-visible target never moves.
 //
 // The identity re-reads when sign-in/out finishes in the onboarding overlay,
 // on a profile switch, when the backend comes up, and on window focus (the
@@ -278,6 +287,19 @@ export function AccountFooter() {
             {updateLabel}
           </button>
         ) : null}
+        <Tip label={menu.settings}>
+          <Button
+            aria-label={menu.settings}
+            className="shrink-0 bg-transparent text-(--ui-text-tertiary) hover:bg-(--ui-control-hover-background) hover:text-foreground [-webkit-app-region:no-drag]"
+            data-slot="account-footer-settings"
+            onClick={openSettings}
+            size="icon-xs"
+            type="button"
+            variant="ghost"
+          >
+            <Codicon aria-hidden="true" name="settings-gear" size="0.875rem" />
+          </Button>
+        </Tip>
       </div>
     </SidebarFooter>
   )

@@ -176,6 +176,44 @@ describe('AccountFooter', () => {
     expect(screen.getByTestId('location').textContent).toBe('/settings')
   })
 
+  it('opens Settings in one click from the gear, without the menu, and keeps Settings in the menu', async () => {
+    installAccount(signedIn({ email: 'user@example.com' }))
+
+    renderFooter()
+    await screen.findByRole('button', { name: 'user@example.com' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+
+    expect(screen.getByTestId('location').textContent).toBe('/settings')
+    expect(screen.queryByRole('menu')).toBeNull()
+
+    await openMenu('user@example.com')
+    expect(await screen.findByRole('menuitem', { name: /^settings$/i })).toBeTruthy()
+  })
+
+  it('keeps the gear at the far right and seats the Update chip between it and the account', async () => {
+    installAccount(SIGNED_OUT)
+    $updateStatus.set({ behind: 2, currentSha: '7d2ca4bdeadbeef', fetchedAt: 0, supported: true })
+
+    renderFooter()
+
+    const account = await screen.findByRole('button', { name: 'Account' })
+    const chip = screen.getByRole('button', { name: 'Update' })
+    const gear = screen.getByRole('button', { name: 'Settings' })
+
+    expect(gear.getAttribute('data-slot')).toBe('account-footer-settings')
+    expect(account.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(chip.compareDocumentPosition(gear) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    // The chip leaves; the gear stays the last control in the row.
+    await act(async () => {
+      $updateStatus.set({ behind: 0, fetchedAt: 0, supported: true, updateAvailable: false })
+    })
+
+    expect(screen.queryByRole('button', { name: 'Update' })).toBeNull()
+    expect(account.parentElement?.lastElementChild).toBe(screen.getByRole('button', { name: 'Settings' }))
+  })
+
   it('opens HUD mode from the account menu', async () => {
     const open = vi.fn(async () => undefined)
 

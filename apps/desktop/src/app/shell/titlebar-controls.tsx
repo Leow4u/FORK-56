@@ -98,9 +98,9 @@ export function TitlebarControls({ leftTools = [], tools = [] }: TitlebarControl
   // mute stay off this cluster. The right-sidebar toggle is rendered beside
   // whatever is listed here.
   const systemTools: TitlebarTool[] = [
-    // Settings moved to the sidebar footer user menu (AccountFooter) — same
-    // navigate(SETTINGS_ROUTE) action; the `mod+,` keybind and the
-    // command-palette entry are unchanged.
+    // Settings moved to the sidebar footer (AccountFooter): a gear beside the
+    // account row and the first item of its menu — same navigate(SETTINGS_ROUTE)
+    // action; the `mod+,` keybind and the command-palette entry are unchanged.
   ]
 
   // While a full-screen overlay (settings, command center, …) is open it should
