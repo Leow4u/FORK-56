@@ -66,12 +66,18 @@ vi.mock('@/store/notifications', () => ({
   notifyError: vi.fn()
 }))
 
+// The create dialog's avatar picker reaches the gateway hook, which reads the
+// socket atom and the reconnect helpers; none of them are exercised here.
 vi.mock('@/store/gateway', () => ({
+  $gateway,
+  ensureActiveGatewayOpen: vi.fn(async () => null),
+  isActivePrimary: () => true,
   retireLocalProfileGateways: vi.fn()
 }))
 
 const {
   $activeGatewayProfile: activeGateway,
+  $gateway,
   $profileBackendStates,
   $profileColors,
   $profiles
@@ -80,6 +86,7 @@ const {
 
   return {
     $activeGatewayProfile: atom<string>('default'),
+    $gateway: atom<null>(null),
     $profileBackendStates: atom<Record<string, 'asleep' | 'running' | 'waking'>>({}),
     $profileColors: atom<Record<string, string>>({}),
     // The profile faces resolve their look from the list; these tests feed

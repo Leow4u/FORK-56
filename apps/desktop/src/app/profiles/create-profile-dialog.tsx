@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { ActionStatus } from '@/components/ui/action-status'
+import { BotFace } from '@/components/ui/bot-face'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ColorSwatches } from '@/components/ui/color-swatches'
 import {
   Dialog,
   DialogContent,
@@ -18,14 +18,15 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useI18n } from '@/i18n'
+import { botAppearance } from '@/lib/bot-avatar'
 import { AlertTriangle } from '@/lib/icons'
-import { PROFILE_SWATCHES, profileColor } from '@/lib/profile-color'
 import { slug } from '@/lib/sanitize'
 import { cn } from '@/lib/utils'
-import { setProfileColor } from '@/store/profile'
+import { saveProfileLook } from '@/store/profile'
 import type { ProfileInfo } from '@/types/work4you'
 import { createProfile, updateProfileSoul } from '@/work4you'
 
+import { AvatarPicker } from './avatar-picker'
 import { isValidProfileName } from './profile-name'
 
 /** GUI create is Fresh (blank) unless the user explicitly picks a clone source. */
@@ -75,10 +76,12 @@ export interface ProfileCreatedOptions {
   switchTo: boolean
 }
 
-// Self-contained create flow: name, persona (templates + free text), color, and
-// what to start from. Owns the createProfile/updateProfileSoul calls plus the
-// local color override, so every caller just refreshes/selects via onCreated.
-// SOUL left blank keeps the cloned or seeded persona untouched.
+// Self-contained create flow: name, persona (templates + free text), the bot's
+// look (shape + color, a generated or uploaded picture, or a pet), and what to
+// start from. Owns the createProfile/updateProfileSoul calls plus the look
+// save, so every caller just refreshes/selects via onCreated. SOUL left blank
+// keeps the cloned or seeded persona untouched; a look left untouched keeps
+// the face the name rolls, the same one the rail and the roster draw.
 export function CreateProfileDialog({
   onClose,
   onCreated,
@@ -99,7 +102,9 @@ export function CreateProfileDialog({
   const [name, setName] = useState('')
   const [template, setTemplate] = useState<PersonaTemplateId>('blank')
   const [soul, setSoul] = useState('')
+  const [shape, setShape] = useState<null | string>(null)
   const [color, setColor] = useState<null | string>(null)
+  const [image, setImage] = useState<null | string>(null)
   const [startMode, setStartMode] = useState<StartMode>('blank')
   const [cloneFrom, setCloneFrom] = useState<null | string>(DEFAULT_CREATE_CLONE_FROM)
   const [copyScope, setCopyScope] = useState<CopyScope>('config')
@@ -116,7 +121,9 @@ export function CreateProfileDialog({
     setName('')
     setTemplate('blank')
     setSoul('')
+    setShape(null)
     setColor(null)
+    setImage(null)
     setStartMode('blank')
     setCloneFrom(DEFAULT_CREATE_CLONE_FROM)
     setCopyScope('config')
@@ -130,15 +137,11 @@ export function CreateProfileDialog({
   const invalid = trimmed !== '' && !isValidProfileName(trimmed)
   const busy = status === 'saving' || status === 'done'
   const copying = startMode === 'copy'
-  // The avatar preview follows the typed name: the picked color, else the
-  // deterministic hue the rail would assign, else neutral while the name is empty.
-  const previewHue = color ?? (trimmed ? profileColor(trimmed) : null) ?? 'var(--ui-text-quaternary)'
-
-  const previewInitial =
-    trimmed
-      .replace(/[^a-z0-9]/gi, '')
-      .charAt(0)
-      .toUpperCase() || '?'
+  // The preview is the bot the profile will be, drawn by the same engine as the
+  // rail: a pick wins, else the typed name rolls the shape and the hue.
+  const previewName = trimmed || 'agent'
+  const preview = botAppearance(previewName, { color, custom: true, image, shape })
+  const lookPicked = shape !== null || color !== null || image !== null
 
   const templateOptions = useMemo(
     () =>
@@ -194,8 +197,8 @@ export function CreateProfileDialog({
         await updateProfileSoul(trimmed, soul)
       }
 
-      if (color) {
-        setProfileColor(trimmed, color)
+      if (lookPicked) {
+        await saveProfileLook(trimmed, { color, image, shape })
       }
 
       await onCreated?.(trimmed, { switchTo: showSwitchOption && switchTo })
@@ -212,13 +215,8 @@ export function CreateProfileDialog({
       <DialogContent className="max-w-xl">
         <DialogHeader>
           <div className="flex items-start gap-3">
-            <span
-              aria-hidden="true"
-              className="grid size-11 shrink-0 place-items-center rounded-[10px] text-xl font-bold text-white"
-              data-slot="profile-preview"
-              style={{ backgroundColor: previewHue }}
-            >
-              {previewInitial}
+            <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center" data-slot="profile-preview">
+              <BotFace color={preview.color} image={preview.image} name={previewName} shape={preview.shape} size={44} />
             </span>
             <div className="min-w-0">
               <DialogTitle>{p.newProfile}</DialogTitle>
@@ -270,16 +268,17 @@ export function CreateProfileDialog({
             <FieldHint>{p.personaTemplateHint}</FieldHint>
           </Field>
 
-          <Field label={p.colorLabel}>
-            <ColorSwatches
-              clearIcon="sync"
-              clearLabel={p.autoColor}
-              onChange={setColor}
-              swatches={PROFILE_SWATCHES}
-              swatchLabel={p.setColor}
-              value={color}
+          <Field label={p.avatar.label}>
+            <AvatarPicker
+              color={color}
+              image={image}
+              name={trimmed}
+              onColor={setColor}
+              onImage={setImage}
+              onShape={setShape}
+              shape={shape}
             />
-            <FieldHint>{p.colorHint}</FieldHint>
+            <FieldHint>{p.avatar.hint}</FieldHint>
           </Field>
 
           <div className="grid gap-2.5 rounded-md border border-(--ui-border) bg-(--ui-bg-secondary) p-3">

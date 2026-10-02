@@ -17,7 +17,7 @@ import {
 import { invalidateCronModelImpactScopeState } from '@/store/cron-model-impact-scope'
 import { $gateway, ensureGatewayForAgent, ensureGatewayForProfile, openGatewayForProfile } from '@/store/gateway'
 import { $liveGatewayProfiles } from '@/store/gateway-liveness'
-import { reconcileProfileAvatars } from '@/store/profile-avatars'
+import { invalidateProfileAvatar, reconcileProfileAvatars } from '@/store/profile-avatars'
 import { setConnection } from '@/store/session'
 import { resetStarmapGraph } from '@/store/starmap'
 import type { ProfileInfo } from '@/types/work4you'
@@ -139,6 +139,79 @@ async function saveProfileBotColor(key: string, color: null | string): Promise<v
       name: key,
       ui_meta: { [BOT_UI_META_KEY]: color ? { color, custom: true } : { color: null } }
     })
+    await refreshProfiles()
+  } catch {
+    // Local pick stands; the next profile list refresh reconciles.
+  }
+}
+
+/** A look picked for a profile: the bot's shape and color, and an avatar
+ *  picture (a data URL) when the person chose one. Every field is optional;
+ *  what is left out keeps what the gateway stores. */
+export interface ProfileLookPatch {
+  color?: null | string
+  image?: null | string
+  shape?: null | string
+}
+
+// Save a whole look at once (the New profile dialog's avatar picker): the
+// stored WorkBots look in the profile's ui_meta (shape, color, custom so the
+// primary profile keeps a chosen look, imageKind as the Bots editor writes
+// it) and the picture in the profile's asset store. The local color copy
+// paints the rail at once; the avatar cache forgets the profile so the next
+// face fetches the new picture. Best-effort against an older gateway.
+export async function saveProfileLook(name: string, look: ProfileLookPatch): Promise<void> {
+  const key = normalizeProfileKey(name)
+
+  if (look.color !== undefined) {
+    const next = { ...$profileColors.get() }
+
+    if (look.color) {
+      next[key] = look.color
+    } else {
+      delete next[key]
+    }
+
+    $profileColors.set(next)
+  }
+
+  const meta: Record<string, unknown> = {}
+
+  if (look.shape !== undefined) {
+    meta.shape = look.shape
+  }
+
+  if (look.color !== undefined) {
+    meta.color = look.color
+  }
+
+  if (look.shape || look.color) {
+    meta.custom = true
+  }
+
+  if (look.image !== undefined) {
+    meta.imageKind = look.image ? 'photo' : 'shape'
+  }
+
+  try {
+    const gateway = $gateway.get()
+
+    if (!gateway) {
+      return
+    }
+
+    if (Object.keys(meta).length > 0) {
+      await gateway.request('profiles.configure', { name: key, ui_meta: { [BOT_UI_META_KEY]: meta } })
+    }
+
+    if (look.image !== undefined) {
+      await gateway.request(
+        'profiles.set_asset',
+        look.image ? { asset: 'avatar', data: look.image, name: key } : { asset: 'avatar', clear: true, name: key }
+      )
+      invalidateProfileAvatar(key)
+    }
+
     await refreshProfiles()
   } catch {
     // Local pick stands; the next profile list refresh reconciles.
