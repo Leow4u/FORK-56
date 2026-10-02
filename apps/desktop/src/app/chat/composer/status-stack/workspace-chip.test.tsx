@@ -308,12 +308,15 @@ describe('WorkspaceChipRow', () => {
     const icon = chip.querySelector('svg')
 
     expect(shell).not.toBeNull()
-    expect(shell?.className).toContain('rounded-(--composer-radius)')
+    // Square top tucked under the card by its radius: straight sides, one
+    // set of curves per edge.
+    expect(shell?.className).toContain('rounded-t-none')
+    expect(shell?.className).toContain('rounded-b-(--composer-radius)')
+    expect(shell?.className).toContain('-mt-(--composer-radius)')
+    expect(shell?.className).toContain('pt-[calc(var(--composer-radius)+0.25rem)]')
     expect(shell?.className).toContain('bg-(--dt-background)')
     expect(shell?.className).not.toContain('backdrop-blur')
     expect(shell?.className).toContain('border-(--ui-stroke-secondary)')
-    expect(shell?.className).toContain('-mt-1.5')
-    expect(shell?.className).toContain('py-1.5')
     expect(chip.className).toContain('h-7')
     expect(chip.className).toContain('max-w-full')
     expect(chip.className).not.toContain('rounded-full')

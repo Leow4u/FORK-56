@@ -65,13 +65,17 @@ export const composerFloatingPill = cn(
 /**
  * Second composer capsule — empty-chat workspace settings. A SIBLING of the
  * prompt card, never a well inside it: same width (5px grab-margin inset),
- * same radius, same hairline as the surface. Symmetric padding so the lower
- * card keeps a visible rounded TOP — a deep tuck + extra top pad hides that
- * edge and the pair reads as one nested vessel. Slight overlap (less than
- * the radius) lets the prompt card sit on the tray without covering it.
+ * same hairline as the surface. Its TOP is square and tucked under the card
+ * by the card's full radius, so the tray's sides run straight up into the
+ * card's sides and the only curves on screen are the card's bottom corners
+ * (where the tray's square shoulders show through) and the tray's own
+ * bottom corners. A rounded top with a shallow tuck put a second curve right
+ * under each of the card's — two capsules, not one object. Top padding
+ * compensates for the tuck so the row sits just under the card's edge.
  */
 export const composerContextShell = cn(
-  'relative z-0 mx-[5px] -mt-1.5 flex items-center rounded-(--composer-radius) px-3 py-1.5',
+  'relative z-0 mx-[5px] -mt-(--composer-radius) flex items-center px-3 pb-1.5 pt-[calc(var(--composer-radius)+0.25rem)]',
+  'rounded-t-none rounded-b-(--composer-radius)',
   'border border-(--ui-stroke-secondary)',
   // Opaque, page-coloured, no glass: the tray is the page with an edge, one
   // level below the card. The card's shadow lands ON it (the card paints
