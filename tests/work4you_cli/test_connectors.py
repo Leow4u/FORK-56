@@ -382,6 +382,111 @@ class TestInjectAndBootstrap:
         assert resolve_portal_token() is None
 
 
+class TestBrokerProfileScope:
+    """Each profile acts as its own Composio identity at the broker."""
+
+    def test_default_and_custom_homes_send_no_profile(self, _isolate_work4you_home, monkeypatch):
+        import work4you_cli.connectors as connectors
+        import work4you_cli.profiles as profiles
+
+        monkeypatch.setattr(profiles, "get_active_profile_name", lambda: "default")
+        assert connectors._broker_profile() is None
+        assert connectors._broker_params() is None
+        assert connectors._broker_params({"timeout_ms": 5}) == {"timeout_ms": 5}
+
+        monkeypatch.setattr(profiles, "get_active_profile_name", lambda: "custom")
+        assert connectors._broker_profile() is None
+
+    def test_named_profile_is_forwarded(self, _isolate_work4you_home, monkeypatch):
+        import work4you_cli.connectors as connectors
+        import work4you_cli.profiles as profiles
+
+        monkeypatch.setattr(profiles, "get_active_profile_name", lambda: "coder")
+        assert connectors._broker_profile() == "coder"
+        assert connectors._broker_params() == {"profile": "coder"}
+        assert connectors._broker_params({"timeout_ms": 5}) == {"timeout_ms": 5, "profile": "coder"}
+
+    def test_every_broker_call_carries_the_profile(self, _isolate_work4you_home, monkeypatch):
+        import work4you_cli.connectors as connectors
+        import work4you_cli.profiles as profiles
+
+        monkeypatch.setattr(profiles, "get_active_profile_name", lambda: "coder")
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+        calls = []
+
+        def fake_broker(method, path, **kwargs):
+            calls.append((method, path, kwargs.get("params")))
+            if path == "/v1/bootstrap":
+                return {
+                    "mcp": {"url": "https://connectors-api.work4you.ai/mcp", "token": "w4y-c-coder"},
+                    "user_id": "user-sub-1::coder",
+                    "profile": "coder",
+                }
+            if path.endswith("/wait"):
+                return {"slug": "gmail", "status": "active", "connected": True}
+            if path == "/v1/apps":
+                return {"apps": [{"slug": "gmail", "connected": True, "status": "active"}]}
+            return {"ok": True}
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+
+        result = bootstrap_work4you_apps()
+        assert result["user_id"] == "user-sub-1::coder"
+        connectors.authorize_app("gmail", callback_url="https://x/cb")
+        connectors.wait_app("gmail", timeout_ms=5_000)
+        connectors.disconnect_app("gmail")
+
+        by_path = {(method, path): params for method, path, params in calls}
+        assert by_path[("POST", "/v1/bootstrap")] == {"profile": "coder"}
+        assert by_path[("POST", "/v1/apps/gmail/authorize")] == {"profile": "coder"}
+        assert by_path[("GET", "/v1/apps/gmail/wait")] == {"timeout_ms": 5_000, "profile": "coder"}
+        assert by_path[("POST", "/v1/apps/gmail/disconnect")] == {"profile": "coder"}
+        # The post-disconnect "anything still connected?" probe is scoped too.
+        assert by_path[("GET", "/v1/apps")] == {"profile": "coder"}
+
+    def test_resolves_the_profile_from_the_scoped_home(self, tmp_path, monkeypatch):
+        """Real path, no mocks on the resolver: the dashboard scopes a request
+        with a context-local home override (``_profile_scope``), and the broker
+        profile must follow that override — not the process environment."""
+        from pathlib import Path
+
+        import work4you_cli.connectors as connectors
+        from work4you_constants import reset_work4you_home_override, set_work4you_home_override
+
+        home = tmp_path / ".work4you"
+        (home / "profiles" / "coder").mkdir(parents=True)
+        monkeypatch.setattr(Path, "home", lambda: tmp_path)
+        monkeypatch.setenv("WORK4YOU_HOME", str(home))
+
+        assert connectors._broker_profile() is None
+        token = set_work4you_home_override(home / "profiles" / "coder")
+        try:
+            assert connectors._broker_profile() == "coder"
+            assert connectors._broker_params() == {"profile": "coder"}
+        finally:
+            reset_work4you_home_override(token)
+        assert connectors._broker_profile() is None
+
+    def test_default_profile_calls_are_byte_identical_to_before(self, _isolate_work4you_home, monkeypatch):
+        import work4you_cli.connectors as connectors
+        import work4you_cli.profiles as profiles
+
+        monkeypatch.setattr(profiles, "get_active_profile_name", lambda: "default")
+        monkeypatch.setattr(connectors, "resolve_portal_token", lambda: "portal-jwt")
+        seen = {}
+
+        def fake_broker(method, path, **kwargs):
+            seen[path] = kwargs
+            return {
+                "mcp": {"url": "https://connectors-api.work4you.ai/mcp", "token": "w4y-c-default"},
+                "user_id": "user-sub-1",
+            }
+
+        monkeypatch.setattr(connectors, "broker_request", fake_broker)
+        bootstrap_work4you_apps()
+        assert seen["/v1/bootstrap"].get("params") is None
+
+
 class TestDirectoryApi:
     @pytest.fixture(autouse=True)
     def _setup(self, _isolate_work4you_home, monkeypatch):

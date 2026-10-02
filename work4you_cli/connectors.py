@@ -49,6 +49,37 @@ def connectors_api_base() -> str:
     return DEFAULT_CONNECTORS_API_BASE.rstrip("/")
 
 
+def _broker_profile() -> Optional[str]:
+    """Work4You profile the current request acts as, for the broker.
+
+    The broker keys the Composio identity on ``<portal sub>::<profile>`` so
+    each profile connects its own accounts and gets its own MCP token.
+    ``default`` — and a custom WORK4YOU_HOME outside the profiles tree — map
+    to the bare ``sub``, the identity every existing connection already lives
+    under, so those send nothing. Resolved from the active home, which the
+    dashboard routes scope per request via ``_profile_scope``.
+    """
+    try:
+        from work4you_cli.profiles import get_active_profile_name
+
+        name = (get_active_profile_name() or "").strip()
+    except Exception:
+        _log.debug("could not resolve the active profile for the broker", exc_info=True)
+        return None
+    if not name or name.lower() in ("default", "custom"):
+        return None
+    return name
+
+
+def _broker_params(extra: Optional[Mapping[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """Query params for a broker call: ``extra`` plus the profile, when any."""
+    params: Dict[str, Any] = dict(extra or {})
+    profile = _broker_profile()
+    if profile:
+        params["profile"] = profile
+    return params or None
+
+
 def resolve_portal_token() -> Optional[str]:
     """Return the Portal access token, or None if the user is not logged in."""
     try:
@@ -171,7 +202,7 @@ def _connected_slugs(payload: Any) -> List[str]:
 
 def _composio_has_connected_apps(token: str) -> bool:
     try:
-        payload = broker_request("GET", "/v1/apps", token=token, timeout=8.0)
+        payload = broker_request("GET", "/v1/apps", token=token, timeout=8.0, params=_broker_params())
     except ConnectorError:
         return False
     return bool(_connected_slugs(payload))
@@ -193,7 +224,7 @@ def bootstrap_work4you_apps(*, timeout: float = 30.0) -> Dict[str, Any]:
     token = resolve_portal_token()
     if not token:
         raise ConnectorError("portal_login_required", status=401)
-    payload = broker_request("POST", "/v1/bootstrap", token=token, timeout=timeout)
+    payload = broker_request("POST", "/v1/bootstrap", token=token, timeout=timeout, params=_broker_params())
     mcp = payload.get("mcp") if isinstance(payload, dict) else None
     if not isinstance(mcp, dict):
         raise ConnectorError("bootstrap missing mcp payload", status=502)
@@ -330,7 +361,7 @@ def list_directory() -> Dict[str, Any]:
     composio_apps: Optional[List[Mapping[str, Any]]] = None
     if token:
         try:
-            payload = broker_request("GET", "/v1/apps", token=token)
+            payload = broker_request("GET", "/v1/apps", token=token, params=_broker_params())
             if isinstance(payload, dict) and isinstance(payload.get("apps"), list):
                 composio_apps = payload["apps"]
         except ConnectorError:
@@ -363,6 +394,7 @@ def authorize_app(slug: str, *, callback_url: Optional[str] = None) -> Dict[str,
         f"/v1/apps/{slug}/authorize",
         token=token,
         json=body or {},
+        params=_broker_params(),
     )
 
 
@@ -375,7 +407,7 @@ def wait_app(slug: str, *, timeout_ms: int = 25_000) -> Dict[str, Any]:
         "GET",
         f"/v1/apps/{slug}/wait",
         token=token,
-        params={"timeout_ms": timeout_ms},
+        params=_broker_params({"timeout_ms": timeout_ms}),
         timeout=timeout_s,
     )
     status = str(result.get("status") or "").lower() if isinstance(result, dict) else ""
@@ -390,7 +422,9 @@ def disconnect_app(slug: str) -> Dict[str, Any]:
     token = resolve_portal_token()
     if not token:
         raise ConnectorError("portal_login_required", status=401)
-    result = broker_request("POST", f"/v1/apps/{slug}/disconnect", token=token, json={})
+    result = broker_request(
+        "POST", f"/v1/apps/{slug}/disconnect", token=token, json={}, params=_broker_params()
+    )
     if not _composio_has_connected_apps(token):
         _set_work4you_apps_enabled(False)
     return result
