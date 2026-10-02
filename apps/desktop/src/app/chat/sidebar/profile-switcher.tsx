@@ -124,6 +124,13 @@ const stepThroughCells: Modifier = ({ containerNodeRect, draggingNodeRect, trans
 
 const NEUTRAL_HUE = 'var(--ui-text-quaternary)'
 
+// True when `node` sits inside a Radix menu rendered through a portal (the
+// panel rows' "⋯" menus). Those live outside the panel's DOM while belonging
+// to it from the user's point of view.
+function isInsideFloatingMenu(node: EventTarget | null | undefined): boolean {
+  return node instanceof Element && node.closest('[data-slot="dropdown-menu-content"], [role="menu"]') !== null
+}
+
 function useClearableTimer() {
   const timer = useRef<null | number>(null)
 
@@ -227,6 +234,14 @@ export function ProfileRail() {
   const openTimer = useClearableTimer()
   const closeTimer = useClearableTimer()
   const draggingRef = useRef(false)
+  // Pointer is over the rail or the panel. Kept in a ref: it only decides
+  // whether to arm a close, never paints.
+  const hoveringRef = useRef(false)
+  // A row's "⋯" menu is open. Its content portals OUTSIDE the panel, so the
+  // pointer moving onto it fires the panel's pointerleave and the click lands
+  // as an "outside interaction" — both would shut the panel under the menu.
+  // While a menu is up the panel is pinned; it re-evaluates when the menu goes.
+  const menuOpenRef = useRef(false)
 
   const closePanel = useCallback(() => {
     openTimer.clear()
@@ -235,6 +250,7 @@ export function ProfileRail() {
   }, [closeTimer, openTimer])
 
   const armOpen = () => {
+    hoveringRef.current = true
     closeTimer.clear()
 
     if (draggingRef.current || condensed || !multiProfile) {
@@ -246,10 +262,48 @@ export function ProfileRail() {
 
   const armClose = () => {
     openTimer.clear()
+
+    if (menuOpenRef.current) {
+      return
+    }
+
     closeTimer.arm(() => setPanelOpen(false), PANEL_LINGER_MS)
   }
 
-  const cancelClose = () => closeTimer.clear()
+  // pointerleave from the rail or the panel. Leaving INTO a portaled row menu
+  // is not leaving the panel: the menu is part of it, just not in its DOM.
+  const leaveTowards = (event: React.PointerEvent) => {
+    hoveringRef.current = false
+
+    if (isInsideFloatingMenu(event.relatedTarget)) {
+      return
+    }
+
+    armClose()
+  }
+
+  const enterPanel = () => {
+    hoveringRef.current = true
+    closeTimer.clear()
+  }
+
+  const handleRowMenuOpenChange = (open: boolean) => {
+    menuOpenRef.current = open
+
+    if (open) {
+      openTimer.clear()
+      closeTimer.clear()
+
+      return
+    }
+
+    // Menu gone (item picked, Escape, click elsewhere). Whoever handled the
+    // item may already have closed the panel; otherwise close it unless the
+    // pointer has come back onto the rail/panel in the meantime.
+    if (!hoveringRef.current) {
+      armClose()
+    }
+  }
 
   // Any dialog the rail opens takes over the pointer; drop the panel first so
   // it isn't left floating behind the modal.
@@ -350,14 +404,23 @@ export function ProfileRail() {
   }, [createRequest])
 
   return (
-    <Popover onOpenChange={open => !open && closePanel()} open={panelOpen && !condensed && multiProfile}>
+    <Popover
+      onOpenChange={open => {
+        // Radix asks to close on Escape / outside interaction. A click inside a
+        // row's portaled menu is such an "outside" — keep the panel for it.
+        if (!open && !menuOpenRef.current) {
+          closePanel()
+        }
+      }}
+      open={panelOpen && !condensed && multiProfile}
+    >
       <PopoverAnchor asChild>
         <div
           aria-label={p.title}
           className="flex min-w-0 items-center gap-1"
           data-slot="profile-rail"
           onPointerEnter={armOpen}
-          onPointerLeave={armClose}
+          onPointerLeave={leaveTowards}
           role="group"
         >
           {/* Default pinned left as its own tile: always "go home", never a
@@ -375,6 +438,7 @@ export function ProfileRail() {
                   ? profileLabel(defaultProfile)
                   : p.switchToProfile(profileLabel(defaultProfile))
               }
+              tipsEnabled={!panelOpen}
             >
               <Codicon name="home" size="0.8rem" />
             </ProfileTileButton>
@@ -429,6 +493,7 @@ export function ProfileRail() {
                               ? profileLabel(profile)
                               : p.switchToProfile(profileLabel(profile))
                           }
+                          tipsEnabled={!panelOpen}
                         />
                       ))}
                     </div>
@@ -469,9 +534,15 @@ export function ProfileRail() {
         className="w-(--radix-popover-trigger-width) min-w-56 max-w-72 p-0"
         collisionPadding={{ bottom: 44, left: 8, right: 8, top: 8 }}
         data-slot="profile-rail-panel"
+        onInteractOutside={event => {
+          // Pointer-down / focus inside a row's portaled menu is not "outside".
+          if (menuOpenRef.current || isInsideFloatingMenu(event.detail.originalEvent.target)) {
+            event.preventDefault()
+          }
+        }}
         onOpenAutoFocus={event => event.preventDefault()}
-        onPointerEnter={cancelClose}
-        onPointerLeave={armClose}
+        onPointerEnter={enterPanel}
+        onPointerLeave={leaveTowards}
         side="top"
         sideOffset={6}
       >
@@ -485,6 +556,7 @@ export function ProfileRail() {
             onEditSoul={openSoul}
             onExport={name => void runExportProfileFlow(name)}
             onManage={openManage}
+            onMenuOpenChange={handleRowMenuOpenChange}
             onRename={openRename}
             onScope={all => setShowAllProfiles(all)}
             onSelect={pick}
@@ -544,6 +616,8 @@ interface RailPanelProps {
   onEditSoul: (name: string) => void
   onExport: (name: string) => void
   onManage: () => void
+  /** A row's "⋯" menu opened or closed — the rail pins the panel meanwhile. */
+  onMenuOpenChange: (open: boolean) => void
   onRename: (profile: ProfileInfo) => void
   onScope: (all: boolean) => void
   onSelect: (name: string) => void
@@ -563,6 +637,7 @@ function RailPanel({
   onEditSoul,
   onExport,
   onManage,
+  onMenuOpenChange,
   onRename,
   onScope,
   onSelect,
@@ -633,6 +708,7 @@ function RailPanel({
               onDelete={profile.is_default ? undefined : () => onDelete(profile)}
               onEditSoul={() => onEditSoul(profile.name)}
               onExport={() => onExport(profile.name)}
+              onMenuOpenChange={onMenuOpenChange}
               onRename={() => onRename(profile)}
               onSelect={() => onSelect(profile.name)}
               profile={profile}
@@ -660,6 +736,7 @@ function RailPanelRow({
   onDelete,
   onEditSoul,
   onExport,
+  onMenuOpenChange,
   onRename,
   onSelect,
   profile,
@@ -669,6 +746,7 @@ function RailPanelRow({
   onDelete?: () => void
   onEditSoul: () => void
   onExport: () => void
+  onMenuOpenChange: (open: boolean) => void
   onRename: () => void
   onSelect: () => void
   profile: ProfileInfo
@@ -697,7 +775,7 @@ function RailPanelRow({
           </span>
         </span>
       </button>
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={onMenuOpenChange}>
         <DropdownMenuTrigger asChild>
           <Button
             aria-label={`${p.actions}: ${label}`}
@@ -784,7 +862,8 @@ function ProfileTileButton({
   onSelect,
   state,
   stateLabel,
-  tip
+  tip,
+  tipsEnabled = true
 }: {
   active: boolean
   children: React.ReactNode
@@ -794,11 +873,13 @@ function ProfileTileButton({
   state: ProfileBackendState
   stateLabel: string
   tip: string
+  /** False while the hover panel is up: it already says all the tooltip would. */
+  tipsEnabled?: boolean
 }) {
   const color = hue ?? NEUTRAL_HUE
 
   return (
-    <Tip label={`${tip} · ${stateLabel}`}>
+    <Tip label={tipsEnabled ? `${tip} · ${stateLabel}` : ''}>
       <button
         aria-label={label}
         aria-pressed={active}
@@ -1048,6 +1129,8 @@ interface ProfileSquareProps {
   state: ProfileBackendState
   stateLabel: string
   tip: string
+  /** False while the hover panel is up: it already says all the tooltip would. */
+  tipsEnabled?: boolean
 }
 
 // Hold this long without moving (a drag would have started first) to open the
@@ -1072,7 +1155,8 @@ function ProfileSquare({
   onSelect,
   state,
   stateLabel,
-  tip
+  tip,
+  tipsEnabled = true
 }: ProfileSquareProps) {
   const { t } = useI18n()
   const p = t.profiles
@@ -1119,7 +1203,8 @@ function ProfileSquare({
     <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
       <ContextMenu>
         <TooltipProvider delayDuration={0}>
-          <Tooltip>
+          {/* Controlled shut while the panel is open; uncontrolled otherwise. */}
+          <Tooltip open={tipsEnabled ? undefined : false}>
             <PopoverAnchor asChild>
               <ContextMenuTrigger asChild>
                 <TooltipTrigger asChild>

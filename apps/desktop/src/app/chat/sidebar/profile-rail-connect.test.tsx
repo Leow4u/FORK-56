@@ -286,6 +286,46 @@ describe('ProfileRail hover panel', () => {
     expect(screen.queryByRole('dialog', { name: 'Profile switcher' })).toBeNull()
   })
 
+  it('stays open while a row menu is up, even though the menu portals outside the panel', () => {
+    vi.useFakeTimers()
+    profiles.set(TWO_PROFILES)
+    render(<ProfileRail />)
+
+    hoverRail()
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+
+    const kebab = screen.getByRole('button', { name: 'Actions: research' })
+    // Radix opens the menu on the pointerdown/up pair, not the synthetic click.
+    // (No findBy here: waitFor polls with real timers, which fake timers stall.)
+    act(() => {
+      fireEvent.pointerDown(kebab, { button: 0, pointerType: 'mouse' })
+      fireEvent.pointerUp(kebab, { button: 0, pointerType: 'mouse' })
+      fireEvent.click(kebab)
+      vi.advanceTimersByTime(50)
+    })
+
+    const menu = screen.getByRole('menu')
+    expect(menu.textContent).toContain('Edit SOUL.md…')
+
+    // The modal menu aria-hides everything else (the panel included) while it
+    // is up, so look the panel up with `hidden` — it must still be mounted.
+    const panel = () => screen.queryByRole('dialog', { hidden: true, name: 'Profile switcher' })
+    expect(panel()).toBeTruthy()
+
+    // Moving onto the (portaled) menu fires pointerleave on the panel; a click
+    // in it is an "outside" interaction for the popover. Neither may close it.
+    fireEvent.pointerLeave(panel()!, { relatedTarget: menu })
+    fireEvent.pointerDown(menu, { button: 0, pointerType: 'mouse' })
+    act(() => {
+      vi.advanceTimersByTime(500)
+    })
+
+    expect(panel()).toBeTruthy()
+    expect(screen.getByRole('menu')).toBeTruthy()
+  })
+
   it('never opens for a single profile', () => {
     vi.useFakeTimers()
     render(<ProfileRail />)
