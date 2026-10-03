@@ -360,6 +360,79 @@ def seed_home_templates(work4you_home: Path, install_dir: Path) -> None:
         soul_path.write_text(DEFAULT_SOUL_MD + "\n", encoding="utf-8")
 
 
+def _path_is_within(path: Path | str, root: Path | str) -> bool:
+    """True when *path* is *root* or sits below it (case-folded, links resolved)."""
+    try:
+        resolved = Path(os.path.normcase(os.path.realpath(str(path))))
+        root_resolved = Path(os.path.normcase(os.path.realpath(str(root))))
+    except (OSError, ValueError):
+        return False
+    return resolved == root_resolved or root_resolved in resolved.parents
+
+
+def runtime_hosts_interpreter(
+    work4you_home: Path | str,
+    *,
+    executable: str | None = None,
+    base_prefix: str | None = None,
+) -> bool:
+    """True when the running Python is part of the managed runtime under *work4you_home*.
+
+    The desktop payload's CPython lives at ``<home>/python`` and the project
+    venv at ``<home>/work4you/venv``. ``work4you update`` launched from either
+    runs ON the files a runtime replacement would delete: Windows keeps loaded
+    executables and extension modules undeletable, so an in-place swap strips
+    ``Lib/`` around them and leaves an interpreter that cannot start
+    (``No module named 'encodings'``). Callers use this to skip the bundle
+    path and let the source-ZIP update refresh the payload instead.
+    """
+    home = Path(work4you_home)
+    roots = (home / "python", home / "work4you" / "venv")
+    candidates = (
+        executable if executable is not None else sys.executable,
+        base_prefix if base_prefix is not None else sys.base_prefix,
+    )
+    return any(
+        candidate and _path_is_within(candidate, root) for candidate in candidates for root in roots
+    )
+
+
+def _replace_dir(src: Path, dest: Path) -> None:
+    """Replace *dest* with a copy of *src* without a half-deleted window.
+
+    Copy next to the target first, swap by rename, then drop the old tree. A
+    failure at any step either never moved the previous tree or puts it back,
+    and removes the staging copy, so a caller that falls back to another
+    update path still has a working directory. The previous
+    ``rmtree(dest); copytree(src, dest)`` left ``dest`` gutted whenever one
+    file inside could not be removed.
+    """
+    staging = dest.with_name(dest.name + ".new")
+    backup = dest.with_name(dest.name + ".old")
+    for leftover in (staging, backup):
+        if leftover.exists():
+            shutil.rmtree(leftover, ignore_errors=True)
+    # A stale backup that refused to go away must not block the swap.
+    suffix = 0
+    while backup.exists():
+        suffix += 1
+        backup = dest.with_name(f"{dest.name}.old{suffix}")
+
+    shutil.copytree(src, staging)
+    moved = False
+    try:
+        if dest.exists():
+            os.rename(dest, backup)
+            moved = True
+        os.rename(staging, dest)
+    except OSError:
+        if moved and not dest.exists():
+            os.rename(backup, dest)
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+    shutil.rmtree(backup, ignore_errors=True)
+
+
 def _copy_replace_tree(src: Path, dest: Path, *, preserve: frozenset[str]) -> None:
     src = Path(src)
     dest = Path(dest)
@@ -464,14 +537,20 @@ def apply_prebuilt_runtime_bundle(
             pinned_branch=pinned_branch,
         )
 
+    if runtime_hosts_interpreter(home):
+        raise RuntimeError(
+            f"the running Python lives inside the managed runtime at {home} "
+            "(python/ or work4you/venv); a runtime bundle cannot replace the "
+            "interpreter it is running on. Run the update from another "
+            "interpreter, or let the source-ZIP update refresh the payload."
+        )
+
     for name in ("python", "node", "bin"):
         src = bundle / name
         dest = home / name
         if not src.is_dir():
             continue
-        if dest.exists():
-            shutil.rmtree(dest, ignore_errors=True)
-        shutil.copytree(src, dest)
+        _replace_dir(src, dest)
 
     _copy_replace_tree(bundle / "work4you", install_dir, preserve=INSTALL_PRESERVE)
     rewrite_runtime_symlinks(home)
