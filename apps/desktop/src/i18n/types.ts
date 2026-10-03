@@ -900,6 +900,16 @@ export interface Translations {
       statusNeedsAuth: string
       statusError: string
       statusOff: string
+      statusConnected: string
+      columnServer: string
+      columnType: string
+      columnStatus: string
+      columnActions: string
+      transportHttp: string
+      transportStdio: string
+      typeHostedApp: string
+      authOauth: string
+      disconnect: string
       allServers: string
       authenticatedTitle: string
       authenticatedMessage: (server: string, count: number) => string

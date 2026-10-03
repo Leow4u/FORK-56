@@ -27,15 +27,20 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { connectWork4YouApp } from '@/lib/composio-connect'
-import { resolveComposioLogoSrc } from '@/lib/composio-logo'
 import { compactNumber } from '@/lib/format'
-import { brandFor, brandGlyphStyle } from '@/lib/mcp-brands'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
 import { completeMcpDesktopOAuth } from '@/lib/mcp-dashboard-oauth'
 import { mcpCatalogPrimaryAction, mcpDirectoryShowsPopular } from '@/lib/mcp-directory-filter'
 import { type McpImportEntry, parseMcpImport } from '@/lib/mcp-import'
 import { NEEDS_AUTH_RE, PROBE_TTL_MS, probeCache, probeKey, serverFingerprint } from '@/lib/mcp-probe-cache'
-import { getServers, isServerShape, type McpServers, normalizeEntry } from '@/lib/mcp-servers'
+import {
+  getServers,
+  isServerShape,
+  type McpServers,
+  normalizeEntry,
+  serverTransport,
+  serverUsesOAuth
+} from '@/lib/mcp-servers'
 import { countEnabledTools, isToolEnabled, toggleToolInServer } from '@/lib/mcp-tool-filter'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
@@ -68,12 +73,14 @@ import { prettyName } from '../settings/helpers'
 import { useDeepLinkHighlight } from '../settings/use-deep-link-highlight'
 
 import { CapabilitiesToolbar } from './capabilities-toolbar'
+import { McpAvatar, type ServerStatus } from './mcp-avatar'
 import {
   MCP_CATALOG_COLUMN_CLASS,
   MCP_CATALOG_GRID_CLASS,
   MCP_CONNECTOR_CARD_CLASS,
   type McpDirectoryViewId
 } from './mcp-catalog-chrome'
+import { type McpConnectedRow, McpConnectedTable } from './mcp-connected-table'
 import { $mcpCategory, $mcpView } from './store'
 
 // The editor always speaks the ecosystem's mcp.json document format — names
@@ -169,8 +176,6 @@ async function loadMcpUsage(scopeKey: string, scopeProfile: ProfileScope): Promi
   }
 }
 
-type ServerStatus = 'off' | 'probing' | 'ok' | 'needs-auth' | 'error' | 'unknown'
-
 function statusOf(server: Record<string, unknown>, probe: Probe | undefined): ServerStatus {
   if (!serverEnabled(server)) {
     return 'off'
@@ -189,15 +194,6 @@ function statusOf(server: Record<string, unknown>, probe: Probe | undefined): Se
   }
 
   return NEEDS_AUTH_RE.test(probe.error ?? '') ? 'needs-auth' : 'error'
-}
-
-const STATUS_DOT: Record<ServerStatus, string> = {
-  ok: 'bg-emerald-500',
-  error: 'bg-red-500',
-  'needs-auth': 'bg-amber-500',
-  probing: 'animate-pulse bg-foreground/40',
-  off: 'bg-foreground/20',
-  unknown: 'bg-foreground/20'
 }
 
 // "12 tools enabled" / "25 tools, 1 prompts, 103 resources enabled" — only
@@ -563,8 +559,14 @@ export function McpTab({
     })
   }, [catalog, directoryFilter, directoryQuery.data, names, query, sectionFilter, servers])
 
+  // Discover only (Connected is a flat table). Popular is pinned first and
+  // owns its apps — nothing is listed twice.
   const directoryGroups = useMemo(
-    () => groupDirectorySections(directoryApps, { pinPopular: mcpDirectoryShowsPopular(directoryFilter) }),
+    () =>
+      groupDirectorySections(directoryApps, {
+        pinPopular: mcpDirectoryShowsPopular(directoryFilter),
+        repeatPopular: false
+      }),
     [directoryApps, directoryFilter]
   )
 
@@ -1206,6 +1208,72 @@ export function McpTab({
     }
   }
 
+  // Connected view rows. mcp.json servers (native + custom) open their config
+  // pane and keep the switch + icon actions; a hosted Work4You App only
+  // disconnects. Type is read the way the loader reads it: url → HTTP,
+  // command → stdio.
+  const connectedRow = (app: DirectoryApp): McpConnectedRow => {
+    const server = servers[app.id]
+
+    if (app.source === 'composio') {
+      const busy = connectingSlug === app.id
+
+      return {
+        id: app.id,
+        logo: directoryAppLogoUrl(app),
+        name: app.name,
+        oauth: app.auth_type === 'oauth',
+        status: app.connected ? 'ok' : 'unknown',
+        trailing: (
+          <Button disabled={busy} onClick={() => void disconnectComposioApp(app)} size="xs" variant="text">
+            {busy ? m.catalogInstalling : m.disconnect}
+          </Button>
+        ),
+        type: 'hosted'
+      }
+    }
+
+    if (!server) {
+      return {
+        id: app.id,
+        logo: directoryAppLogoUrl(app),
+        name: app.name,
+        oauth: app.auth_type === 'oauth',
+        status: 'unknown',
+        type: null
+      }
+    }
+
+    const status = statusOf(server, probes[app.id])
+
+    return {
+      id: app.id,
+      logo: directoryAppLogoUrl(app),
+      name: app.name,
+      oauth: serverUsesOAuth(server),
+      onOpen: () => focusServer(app.id),
+      status,
+      trailing: (
+        <>
+          <ServerIconActions
+            className="opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100"
+            onProbe={() => void runProbe(app.id)}
+            onRemove={() => void removeServer(app.id)}
+            probing={status === 'probing'}
+            saving={saving}
+          />
+          <ServerSwitch
+            disabled={saving}
+            enabled={serverEnabled(server)}
+            name={app.id}
+            onToggle={checked => void setServerEnabled(app.id, checked)}
+          />
+        </>
+      ),
+      type: serverTransport(server)
+    }
+  }
+
   const directoryEmpty = !selected && directoryApps.length === 0 && !directoryQuery.isLoading && !catalogQuery.isLoading
 
   return (
@@ -1232,7 +1300,12 @@ export function McpTab({
             viewsHidden={Boolean(selected)}
           />
         </div>
-        <McpImportDialog disabled={profilePending} onImport={importServers} onOpenChange={setImportOpen} open={importOpen} />
+        <McpImportDialog
+          disabled={profilePending}
+          onImport={importServers}
+          onOpenChange={setImportOpen}
+          open={importOpen}
+        />
 
         <div className="min-h-0 flex-1 overflow-hidden">
           {selected && activeEntry && !isHiddenMcpRuntimeServer(selected) ? (
@@ -1269,6 +1342,8 @@ export function McpTab({
                     query.trim() ? t.skills.noSkillsTitle : directoryFilter === 'discover' ? m.tabCatalog : m.emptyTitle
                   }
                 />
+              ) : view === 'mine' ? (
+                <McpConnectedTable rows={directoryApps.map(connectedRow)} />
               ) : (
                 <div className="flex flex-col gap-4">
                   {directoryQuery.isLoading ? <PageLoader className="min-h-24" label={m.catalogLoading} /> : null}
@@ -1333,14 +1408,9 @@ export function McpTab({
                                 status={app.connected ? 'ok' : 'unknown'}
                                 trailing={
                                   app.connected ? (
-                                    <Button
-                                      disabled={busy}
-                                      onClick={() => void disconnectComposioApp(app)}
-                                      size="xs"
-                                      variant="text"
-                                    >
-                                      {busy ? m.catalogInstalling : 'Disconnect'}
-                                    </Button>
+                                    <span className="px-1.5 text-xs text-(--ui-text-tertiary)">
+                                      {m.statusConnected}
+                                    </span>
                                   ) : (
                                     <Button
                                       disabled={busy}
@@ -1985,61 +2055,6 @@ function McpLogs({
 // Avatars + list rows
 // ---------------------------------------------------------------------------
 
-// Catalog avatars (native MCP + Work4You Apps) use the official Composio CDN
-// mark. Packaged Electron paints it through the privileged work4you-logo
-// scheme because a file:// renderer cannot load logos.composio.dev as <img>.
-// Custom MCP URLs still never hit a favicon service — a private host must not
-// leak off-box.
-function McpAvatar({
-  className,
-  logo,
-  name,
-  status
-}: {
-  className?: string
-  logo?: string | null
-  name: string
-  status: ServerStatus
-}) {
-  const [failedLogo, setFailedLogo] = useState<string | null>(null)
-  const src = failedLogo === logo ? null : resolveComposioLogoSrc(logo)
-  const brand = src ? null : brandFor(name)
-
-  return (
-    <span
-      className={cn(
-        'relative inline-grid size-8 shrink-0 place-items-center rounded-md text-[length:var(--conversation-caption-font-size)] font-medium',
-        src && 'bg-white',
-        !src && !brand && 'bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)',
-        className
-      )}
-      style={!src && brand ? { backgroundColor: `color-mix(in srgb, ${brand.color} 16%, transparent)` } : undefined}
-    >
-      {src ? (
-        <img
-          alt=""
-          className="size-5 object-contain"
-          decoding="async"
-          onError={() => setFailedLogo(typeof logo === 'string' ? logo : src)}
-          referrerPolicy="no-referrer"
-          src={src}
-        />
-      ) : brand ? (
-        <brand.Icon aria-hidden className="size-4" style={brandGlyphStyle(brand)} />
-      ) : (
-        name.charAt(0).toUpperCase()
-      )}
-      <span
-        aria-hidden
-        className={cn(
-          'absolute -bottom-0.5 -right-0.5 size-2 rounded-full ring-2 ring-(--ui-chat-surface-background)',
-          STATUS_DOT[status]
-        )}
-      />
-    </span>
-  )
-}
-
 function ConnectorCard({
   children,
   description,
@@ -2079,14 +2094,14 @@ function ConnectorCard({
 
   return (
     <div className={MCP_CONNECTOR_CARD_CLASS} id={`mcp-server-${name}`}>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-start gap-2.5">
         {onSelect ? (
           <button className="flex min-w-0 flex-1 items-center gap-2.5 text-left" onClick={onSelect} type="button">
             <McpAvatar logo={logo} name={name} status={status} />
             <span className="min-w-0 flex-1">
               {title}
               {description ? (
-                <span className="mt-0.5 line-clamp-1 text-[0.68rem] text-muted-foreground/70">{description}</span>
+                <span className="mt-0.5 line-clamp-2 text-[0.68rem] text-muted-foreground/70">{description}</span>
               ) : null}
             </span>
           </button>
@@ -2096,7 +2111,7 @@ function ConnectorCard({
             <div className="min-w-0 flex-1">
               {title}
               {description ? (
-                <p className="mt-0.5 line-clamp-1 text-[0.68rem] text-muted-foreground/70">{description}</p>
+                <p className="mt-0.5 line-clamp-2 text-[0.68rem] text-muted-foreground/70">{description}</p>
               ) : null}
               {children}
             </div>

@@ -141,6 +141,33 @@ describe('groupDirectorySections', () => {
     expect(groups.some(group => group.id === 'popular')).toBe(false)
     expect(mcpDirectoryShowsPopular('connected')).toBe(false)
   })
+
+  it('can keep a pinned app out of its type section so Discover lists it once', () => {
+    const groups = groupDirectorySections(
+      [
+        app({ id: 'gmail', name: 'Gmail', source: 'composio', popular: true, section: 'email' }),
+        app({ id: 'outlook', name: 'Outlook', source: 'composio', section: 'email' }),
+        app({ id: 'instagram', name: 'Instagram', source: 'composio', popular: true, section: 'social' })
+      ],
+      { repeatPopular: false }
+    )
+
+    expect(groups.map(group => group.id)).toEqual(['popular', 'email'])
+    expect(groups[0]?.apps.map(row => row.id)).toEqual(['gmail', 'instagram'])
+    expect(groups[1]?.apps.map(row => row.id)).toEqual(['outlook'])
+    // Every app is still listed exactly once.
+    expect(groups.flatMap(group => group.apps.map(row => row.id)).sort()).toEqual(['gmail', 'instagram', 'outlook'])
+  })
+
+  it('never drops a popular app when the pin is off, whatever repeatPopular says', () => {
+    const groups = groupDirectorySections(
+      [app({ id: 'gmail', name: 'Gmail', source: 'composio', popular: true, section: 'email', connected: true })],
+      { pinPopular: false, repeatPopular: false }
+    )
+
+    expect(groups.map(group => group.id)).toEqual(['email'])
+    expect(groups[0]?.apps.map(row => row.id)).toEqual(['gmail'])
+  })
 })
 
 describe('completeComposioConnect', () => {

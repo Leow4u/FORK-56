@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { QueryClientProvider } from '@tanstack/react-query'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { I18nProvider } from '@/i18n'
@@ -130,6 +130,38 @@ describe('McpTab directory chrome', () => {
     expect(screen.getByText('Add a stdio or HTTP server to expose MCP tools.')).toBeTruthy()
   })
 
+  it('lists a popular app once on Discover and shows a connected hosted app as Connected', async () => {
+    getConnectorsDirectory.mockResolvedValue({
+      apps: [
+        app({ id: 'gmail', name: 'Gmail', section: 'email', popular: true, connected: true }),
+        app({ id: 'outlook', name: 'Outlook', section: 'email', connected: false }),
+        app({ id: 'instagram', name: 'Instagram', section: 'social', popular: true, connected: false })
+      ],
+      sections: ['email', 'social'],
+      portal: true
+    })
+
+    await renderMcpTab()
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Popular' })).toBeTruthy())
+
+    // Popular owns Gmail and Instagram; Email keeps only Outlook, Social is gone.
+    expect(screen.getAllByText('Gmail')).toHaveLength(1)
+    expect(screen.getAllByText('Instagram')).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'Email' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Social' })).toBeNull()
+    expect(screen.getAllByText('Outlook')).toHaveLength(1)
+
+    // A connected hosted app says so on its card; Disconnect lives in the Connected table.
+    const gmailCard = screen.getByText('Gmail').closest<HTMLElement>('#mcp-server-gmail')
+    expect(gmailCard).toBeTruthy()
+    expect(within(gmailCard!).getByText('Connected')).toBeTruthy()
+    expect(within(gmailCard!).queryByRole('button', { name: 'Disconnect' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Disconnect' })).toBeNull()
+    const outlookCard = screen.getByText('Outlook').closest<HTMLElement>('#mcp-server-outlook')
+    expect(within(outlookCard!).getByRole('button', { name: 'Connect' })).toBeTruthy()
+  })
+
   it('does not repeat Popular on Connected', async () => {
     await renderMcpTab()
 
@@ -142,6 +174,89 @@ describe('McpTab directory chrome', () => {
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'Popular' })).toBeNull())
     expect(screen.getByText('Gmail')).toBeTruthy()
     expect(screen.queryByText('Instagram')).toBeNull()
+  })
+})
+
+describe('McpTab Connected table', () => {
+  // Probes answer healthy so the Status column settles on "Connected".
+  const api = vi.fn(async (req: { path: string }) =>
+    req.path.startsWith('/api/logs') ? { lines: [] } : { ok: true, tools: [] }
+  )
+
+  beforeEach(() => {
+    ;(window as { work4youDesktop?: unknown }).work4youDesktop = { api }
+    setConnectionsRegistry({
+      version: 2,
+      primary: 'local',
+      secureTokenStorage: true,
+      connections: [{ id: 'local', kind: 'local', label: 'This computer', tokenSet: false, tokenPreview: null }]
+    })
+    getWork4YouConfigRecord.mockResolvedValue({
+      mcp_servers: {
+        'local-files': { command: 'npx', args: ['-y', 'files-mcp'] },
+        notion: { url: 'https://mcp.notion.com/mcp', auth: 'oauth' }
+      }
+    })
+  })
+
+  afterEach(() => {
+    $connectionsRegistry.set(null)
+    delete (window as { work4youDesktop?: unknown }).work4youDesktop
+    probeCache.clear()
+  })
+
+  it('lists every connected server once as a Server / Type / Status row', async () => {
+    await renderMcpTab()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Connected' }))
+    })
+
+    const table = await screen.findByRole('table')
+    expect(within(table).getByRole('columnheader', { name: 'Server' })).toBeTruthy()
+    expect(within(table).getByRole('columnheader', { name: 'Type' })).toBeTruthy()
+    expect(within(table).getByRole('columnheader', { name: 'Status' })).toBeTruthy()
+
+    // Type is read the way the loader reads it: command → stdio, url → HTTP (+ OAuth).
+    const files = within(table).getByRole('row', { name: /local-files/ })
+    expect(within(files).getByText('stdio')).toBeTruthy()
+    expect(within(files).queryByText('OAuth')).toBeNull()
+    const notion = within(table).getByRole('row', { name: /notion/ })
+    expect(within(notion).getByText('HTTP')).toBeTruthy()
+    expect(within(notion).getByText('OAuth')).toBeTruthy()
+
+    // A hosted Work4You App is its own type and disconnects from here.
+    const gmail = within(table).getByRole('row', { name: /Gmail/ })
+    expect(within(gmail).getByText('Hosted app')).toBeTruthy()
+    expect(within(gmail).getByRole('button', { name: 'Disconnect' })).toBeTruthy()
+
+    // Not connected → not listed; no Popular pin, no section headings, each server once.
+    expect(within(table).queryByRole('row', { name: /Instagram/ })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Popular' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Email' })).toBeNull()
+    expect(within(table).getAllByRole('row', { name: /Gmail/ })).toHaveLength(1)
+
+    // mcp.json servers keep their switch; the probe result lands in Status.
+    expect(within(notion).getByRole('switch', { name: 'notion' })).toBeTruthy()
+    await waitFor(() => expect(within(notion).getByText('Connected')).toBeTruthy())
+  })
+
+  it('opens a server from its row and keeps the toolbar views hidden while configuring', async () => {
+    await renderMcpTab()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Connected' }))
+    })
+
+    const table = await screen.findByRole('table')
+
+    await act(async () => {
+      fireEvent.click(within(table).getByRole('button', { name: /notion/ }))
+    })
+
+    expect(screen.getByRole('heading', { name: 'Notion' })).toBeTruthy()
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Connected' })).toBeNull()
   })
 })
 
