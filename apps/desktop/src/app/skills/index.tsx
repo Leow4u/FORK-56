@@ -62,7 +62,8 @@ import { SETTINGS_ROUTE } from '../routes'
 import { ComputerUsePanel } from '../settings/computer-use-panel'
 import { asText, includesQuery, prettyName, toolNames, toolsetDisplayLabel } from '../settings/helpers'
 import { PluginsSettings } from '../settings/plugins-settings'
-import { ScopeChip } from '../settings/profile-scope'
+import { settingsScopeLabel } from '../settings/profile-scope'
+import { ProfileScopeSelect } from '../settings/profile-scope-select'
 import { TerminalBackendPanel } from '../settings/terminal-backend-panel'
 import { ToolsetConfigPanel } from '../settings/toolset-config-panel'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
@@ -870,7 +871,7 @@ export function SkillsView({
 
     return (profilesData?.profiles ?? []).map(p => ({
       key: p.name,
-      label: p.is_default ? 'Work4You (default)' : p.name,
+      label: settingsScopeLabel(p),
       profile: p.name,
       value: p.name
     }))
@@ -897,35 +898,34 @@ export function SkillsView({
   // with >1 option; hidden otherwise to avoid clutter.
   const scopeLabel = scopeOptions.find(option => option.value === scopeSelectValue)?.label ?? ''
 
-  // Same chip row Channels uses. The options stay the capabilities roster,
-  // including a profile that lives on another gateway.
+  // The dropdown Channels and the Settings pages converge on: "Configuring:"
+  // plus the profile's face and resolved name. The options stay the
+  // capabilities roster, including a profile that lives on another gateway.
   const profileScopeSelector =
     scopeOptions.length > 1 ? (
-      <div className="flex w-full flex-col items-center gap-2 text-center">
-        <div className="text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-secondary)">
-          {t.settings.profileScope.appliesTo}
-        </div>
-        <div
-          aria-label={t.settings.profileScope.appliesTo}
-          className="flex flex-wrap justify-center gap-1.5"
-          role="radiogroup"
-        >
-          {scopeOptions.map(option => (
-            <ScopeChip
-              active={option.value === scopeSelectValue}
-              key={option.key}
-              label={option.label}
-              name={option.profile}
-              onSelect={() => changeScope(option.value)}
-            />
-          ))}
-        </div>
-        {scopeLabel ? (
-          <p className="max-w-xl text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-            {t.settings.profileScope.editsProfile(scopeLabel)}
-          </p>
-        ) : null}
-      </div>
+      <ProfileScopeSelect
+        label={t.skills.configuringProfile}
+        onChange={changeScope}
+        options={scopeOptions}
+        value={scopeSelectValue}
+      />
+    ) : null
+
+  // Name the edit target only when it is NOT the default profile — the
+  // "edited the bot's config thinking it was mine" misdirect. Editing the
+  // default profile needs no note.
+  const scopeProfileName = scopeProfile && typeof scopeProfile === 'object' ? scopeProfile.profile : scopeProfile
+  const editingNonDefault = scopeOptions.length > 1 && normalizeProfileKey(scopeProfileName) !== 'default'
+
+  const scopeNote =
+    editingNonDefault && scopeLabel ? (
+      <p
+        className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-medium text-(--ui-accent)"
+        data-scope-loud="true"
+        role="status"
+      >
+        {t.settings.profileScope.editsProfile(scopeLabel)}
+      </p>
     ) : null
 
   const capabilityTabs: { id: (typeof SKILLS_MODES)[number]; label: string; meta?: null | number }[] = [
@@ -949,49 +949,52 @@ export function SkillsView({
       className={cn('flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)', className)}
     >
       <div className={cn('shrink-0 pt-[calc(var(--titlebar-height)+0.75rem)] pb-4', PAGE_INSET_X)}>
-        <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4">
-          {profileScopeSelector}
-          <SearchField
-            containerClassName="w-full max-w-md"
-            hints={searchHints}
-            onChange={setQuery}
-            placeholder={
-              displayMode === 'skills'
-                ? t.skills.searchSkills
-                : displayMode === 'mcp'
-                  ? t.settings.searchPlaceholder.mcp
-                  : displayMode === 'plugins'
-                    ? t.skills.searchPlugins
-                    : t.skills.searchToolsets
-            }
-            recede={false}
-            shape="pill"
-            value={query}
-          />
-          <div className="flex flex-wrap items-center justify-center gap-1" data-tour="page-tabs">
-            {capabilityTabs.map(tab => {
-              const active = displayMode === tab.id
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            {profileScopeSelector}
+            <div className="flex flex-wrap items-center gap-1" data-tour="page-tabs">
+              {capabilityTabs.map(tab => {
+                const active = displayMode === tab.id
 
-              return (
-                <Button
-                  aria-pressed={active}
-                  data-tour={`tab-${tab.id}`}
-                  key={tab.id}
-                  onClick={() => setMode(tab.id)}
-                  size="sm"
-                  type="button"
-                  variant={active ? 'chip' : 'text'}
-                >
-                  {tab.label}
-                  {tab.meta === null ? (
-                    <CountSkeleton />
-                  ) : tab.meta !== undefined ? (
-                    <span className="text-[0.72em] font-normal text-(--ui-text-tertiary)">{tab.meta}</span>
-                  ) : null}
-                </Button>
-              )
-            })}
+                return (
+                  <Button
+                    aria-pressed={active}
+                    data-tour={`tab-${tab.id}`}
+                    key={tab.id}
+                    onClick={() => setMode(tab.id)}
+                    size="sm"
+                    type="button"
+                    variant={active ? 'chip' : 'text'}
+                  >
+                    {tab.label}
+                    {tab.meta === null ? (
+                      <CountSkeleton />
+                    ) : tab.meta !== undefined ? (
+                      <span className="text-[0.72em] font-normal text-(--ui-text-tertiary)">{tab.meta}</span>
+                    ) : null}
+                  </Button>
+                )
+              })}
+            </div>
+            <SearchField
+              containerClassName="ml-auto min-w-56 flex-1 basis-56 max-w-md"
+              hints={searchHints}
+              onChange={setQuery}
+              placeholder={
+                displayMode === 'skills'
+                  ? t.skills.searchSkills
+                  : displayMode === 'mcp'
+                    ? t.settings.searchPlaceholder.mcp
+                    : displayMode === 'plugins'
+                      ? t.skills.searchPlugins
+                      : t.skills.searchToolsets
+              }
+              recede={false}
+              shape="pill"
+              value={query}
+            />
           </div>
+          {scopeNote}
         </div>
       </div>
       {/* Skills, Tools, MCP, and Plugins read and write the same selected profile. */}

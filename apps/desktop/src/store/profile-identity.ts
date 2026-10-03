@@ -28,6 +28,11 @@ export function profileLabel(profile: Pick<ProfileInfo, 'display_name' | 'name'>
   return (profile.display_name ?? '').trim() || profile.name
 }
 
+// Presentation name for the default profile when it carries no display name
+// of its own: the product name, never the canonical id ("default") and never
+// a "(default)" suffix. The id stays "default" for routing and comparison.
+export const DEFAULT_PROFILE_LABEL = 'Work4You'
+
 // The profile the running local backend is actually scoped to (mirrors
 // /api/profiles/active `current`). "default" is the root ~/.work4you. This is the
 // display source of truth for the statusbar pill; the desktop's *stored*

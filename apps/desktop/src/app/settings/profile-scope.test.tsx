@@ -23,7 +23,7 @@ vi.mock('@/lib/bot-face-clock', () => ({ startFaceClock: vi.fn() }))
 
 const { $activeGatewayProfile, $profiles } = await import('@/store/profile')
 const { $settingsScopeOverride } = await import('@/store/settings-scope')
-const { ScopeChip, SettingsProfileScope } = await import('./profile-scope')
+const { ScopeChip, SettingsProfileScope, settingsScopeLabel } = await import('./profile-scope')
 
 const profile = (name: string, isDefault = false, extra: Partial<ProfileInfo> = {}): ProfileInfo =>
   ({ has_env: false, is_default: isDefault, model: null, name, ...extra }) as unknown as ProfileInfo
@@ -49,13 +49,13 @@ describe('SettingsProfileScope', () => {
 
     render(<SettingsProfileScope />)
 
-    expect(screen.getByRole('radio', { name: 'default' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: 'Work4You' })).toBeTruthy()
     expect(screen.getByRole('radio', { name: 'coder' })).toBeTruthy()
     expect(screen.getByText('Editing profile')).toBeTruthy()
     // Following the active profile still names the home being edited so the
     // chips cannot be read as a multi-profile bind.
     expect(
-      screen.getByText('These settings only change the “default” profile. Other profiles stay independent.')
+      screen.getByText('These settings only change the “Work4You” profile. Other profiles stay independent.')
     ).toBeTruthy()
     expect($settingsScopeOverride.get()).toBeNull()
   })
@@ -71,10 +71,10 @@ describe('SettingsProfileScope', () => {
       screen.getByText('These settings only change the “coder” profile. Other profiles stay independent.')
     ).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('radio', { name: 'default' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Work4You' }))
     expect($settingsScopeOverride.get()).toBeNull()
     expect(
-      screen.getByText('These settings only change the “default” profile. Other profiles stay independent.')
+      screen.getByText('These settings only change the “Work4You” profile. Other profiles stay independent.')
     ).toBeTruthy()
   })
 
@@ -84,7 +84,8 @@ describe('SettingsProfileScope', () => {
     render(<SettingsProfileScope />)
 
     const note = screen.getByRole('status')
-    expect(note.textContent).toContain('default')
+    // The default profile is named by the product name, never its slug.
+    expect(note.textContent).toContain('Work4You')
     expect(note.hasAttribute('data-scope-loud')).toBe(false)
     expect(note.hasAttribute('data-scope-override')).toBe(false)
   })
@@ -113,7 +114,7 @@ describe('SettingsProfileScope', () => {
     expect(screen.getByRole('status').getAttribute('data-scope-loud')).toBe('true')
     expect(screen.getByRole('status').getAttribute('data-scope-override')).toBe('true')
 
-    fireEvent.click(screen.getByRole('radio', { name: 'default' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Work4You' }))
     expect(screen.getByRole('status').hasAttribute('data-scope-loud')).toBe(false)
   })
 
@@ -165,7 +166,7 @@ describe('SettingsProfileScope', () => {
 
     render(<SettingsProfileScope />)
 
-    const selected = screen.getByRole('radio', { name: 'default' })
+    const selected = screen.getByRole('radio', { name: 'Work4You' })
     const other = screen.getByRole('radio', { name: 'JordyV' })
 
     // The face is the same drawing the rail and the roster make from the
@@ -191,5 +192,20 @@ describe('ScopeChip', () => {
 
     expect(chip.querySelector('svg')).toBeNull()
     expect(chip.textContent).toBe('All')
+  })
+})
+
+describe('settingsScopeLabel', () => {
+  it('falls back to the product name for the default profile, never the slug or a "(default)" suffix', () => {
+    const label = settingsScopeLabel(profile('default', true))
+
+    expect(label).toBe('Work4You')
+    expect(label).not.toContain('(default)')
+  })
+
+  it('prefers the bot title, then the display name, and keeps the slug for other profiles', () => {
+    expect(settingsScopeLabel(profile('default', true, { display_name: 'Leo bot' }))).toBe('Leo bot')
+    expect(settingsScopeLabel(profile('default', true, { bot_title: 'Jarvis', display_name: 'Leo bot' }))).toBe('Jarvis')
+    expect(settingsScopeLabel(profile('weather-man'))).toBe('weather-man')
   })
 })

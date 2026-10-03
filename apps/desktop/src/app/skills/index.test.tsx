@@ -131,6 +131,12 @@ afterEach(() => {
   clearPaneHeightOverride('capabilities-hub')
 })
 
+// The "Configuring:" selector is a Select — open it, then pick the option.
+async function pickScope(name: string) {
+  fireEvent.click(await screen.findByRole('combobox'))
+  fireEvent.click(await screen.findByRole('option', { name }))
+}
+
 describe('SkillsView toolset management', () => {
   it('renders a switch for each toolset and toggles it off', async () => {
     await renderSkills()
@@ -293,9 +299,9 @@ describe('SkillsView toolset management', () => {
       )
     })
 
-    // The selector appears with >1 profile, as the same chips Channels uses.
+    // The selector appears with >1 profile, as the "Configuring:" dropdown.
     await act(async () => {
-      fireEvent.click(await screen.findByRole('radio', { name: 'researcher' }))
+      await pickScope('researcher')
     })
 
     // Toolsets refetch scoped to the picked profile.
@@ -336,7 +342,7 @@ describe('SkillsView toolset management', () => {
 
     // The selector renders on the Skills tab too (Capabilities-wide).
     await act(async () => {
-      fireEvent.click(await screen.findByRole('radio', { name: 'researcher' }))
+      await pickScope('researcher')
     })
 
     // Skills refetch scoped to the picked profile...
@@ -645,7 +651,7 @@ describe('SkillsView new skill', () => {
     await renderSkillsTab()
 
     await act(async () => {
-      fireEvent.click(await screen.findByRole('radio', { name: 'researcher' }))
+      await pickScope('researcher')
     })
 
     await waitFor(() => expect(getSkills).toHaveBeenCalledWith('researcher'))
@@ -681,10 +687,52 @@ describe('SkillsView new skill', () => {
     expect(await screen.findByPlaceholderText('my-skill')).toBeTruthy()
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('radio', { name: 'researcher' }))
+      await pickScope('researcher')
     })
 
     await waitFor(() => expect(screen.queryByPlaceholderText('my-skill')).toBeNull())
     expect(createSkill).not.toHaveBeenCalled()
+  })
+})
+
+describe('SkillsView profile selector', () => {
+  it('names the default profile by the product name, never "(default)", and notes only a non-default target', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    getProfiles.mockResolvedValue({
+      profiles: [
+        { name: 'default', is_default: true },
+        { name: 'researcher', is_default: false }
+      ]
+    })
+
+    await renderSkillsTab()
+
+    const trigger = await screen.findByRole('combobox')
+    expect(trigger.textContent).toContain('Work4You')
+    expect(screen.queryByText(/\(default\)/)).toBeNull()
+    // Editing the default profile needs no note.
+    expect(document.querySelector('[data-scope-loud="true"]')).toBeNull()
+
+    await act(async () => {
+      await pickScope('researcher')
+    })
+
+    await waitFor(() => expect(document.querySelector('[data-scope-loud="true"]')).toBeTruthy())
+    expect(document.querySelector('[data-scope-loud="true"]')?.textContent).toContain('researcher')
+  })
+
+  it('shows a display name set for the default profile', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    getProfiles.mockResolvedValue({
+      profiles: [
+        { name: 'default', is_default: true, display_name: 'Leo bot' },
+        { name: 'researcher', is_default: false }
+      ]
+    })
+
+    await renderSkillsTab()
+
+    expect((await screen.findByRole('combobox')).textContent).toContain('Leo bot')
+    expect(screen.queryByText(/\(default\)/)).toBeNull()
   })
 })

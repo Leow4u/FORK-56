@@ -5,7 +5,6 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { useGatewayRequest } from '@/app/gateway/hooks/use-gateway-request'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Tip } from '@/components/ui/tooltip'
 import { $pluginRecords, type PluginRecord, setPluginEnabled } from '@/contrib/plugins-store'
@@ -28,6 +27,8 @@ import { $gatewayState } from '@/store/session'
 import { getProfiles, type ProfileScope } from '@/work4you'
 
 import { EmptyState, ListRowSkeleton, Pill, SectionHeading, SettingsContent, SettingsSection } from './primitives'
+import { settingsScopeLabel } from './profile-scope'
+import { ProfileScopeSelect } from './profile-scope-select'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
 
 const KIND_ORDER: Record<PluginRecord['kind'], number> = { disk: 0, runtime: 1, bundled: 2 }
@@ -215,26 +216,18 @@ function AgentPluginsSection({
       </p>
 
       {!embedded && profiles.length > 1 && (
-        <div className="mb-2 flex items-center gap-2">
-          <span className="text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-tertiary)">
-            {p.agent.appliesTo}
-          </span>
-          <Select
-            onValueChange={name => setScopeOverride(name === activeProfile ? null : name)}
-            value={scopeProfile ?? ''}
-          >
-            <SelectTrigger className="h-7 w-56 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {profiles.map(profile => (
-                <SelectItem key={profile.name} value={profile.name}>
-                  {profile.is_default ? 'Work4You (default)' : profile.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <ProfileScopeSelect
+          className="mb-2"
+          label={t.skills.configuringProfile}
+          onChange={name => setScopeOverride(name === activeProfile ? null : name)}
+          options={profiles.map(profile => ({
+            key: profile.name,
+            label: settingsScopeLabel(profile),
+            profile: profile.name,
+            value: profile.name
+          }))}
+          value={scopeProfile ?? ''}
+        />
       )}
 
       {externalQuery === undefined && (

@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { ProfileFace } from '@/components/ui/profile-face'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
-import { $profiles, normalizeProfileKey, profileLabel, refreshProfiles } from '@/store/profile'
+import { $profiles, DEFAULT_PROFILE_LABEL, normalizeProfileKey, profileLabel, refreshProfiles } from '@/store/profile'
 import {
   $settingsScopeEditsNonDefault,
   $settingsScopeOverride,
@@ -13,12 +13,24 @@ import {
 } from '@/store/settings-scope'
 import type { ProfileInfo } from '@/types/work4you'
 
-// Settings-chip label: the WorkBots title when the backend reports one, else
-// the app-wide profileLabel (display_name → slug). Scoped to this selector on
-// purpose — the profile rail and Profiles page keep naming profiles by
-// display_name.
-export function settingsScopeLabel(profile: Pick<ProfileInfo, 'bot_title' | 'display_name' | 'name'>): string {
-  return (profile.bot_title ?? '').trim() || profileLabel(profile)
+// Settings-selector label: the WorkBots title when the backend reports one,
+// else the app-wide profileLabel (display_name → slug), except that the
+// DEFAULT profile without a display name reads as the product name — a user
+// never sees "default" or a "(default)" suffix as the thing they are editing.
+// Scoped to the settings selectors on purpose — the profile rail and Profiles
+// page keep naming profiles by display_name.
+export function settingsScopeLabel(
+  profile: Pick<ProfileInfo, 'bot_title' | 'display_name' | 'name'> & Partial<Pick<ProfileInfo, 'is_default'>>
+): string {
+  const title = (profile.bot_title ?? '').trim()
+
+  if (title) {
+    return title
+  }
+
+  const label = profileLabel(profile)
+
+  return profile.is_default && label === profile.name ? DEFAULT_PROFILE_LABEL : label
 }
 
 // The same chip affordance the Gateway page used for per-profile connection
