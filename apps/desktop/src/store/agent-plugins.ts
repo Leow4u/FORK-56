@@ -44,15 +44,15 @@ export const $agentPluginBusy = atom<string | null>(null)
 
 // Rows the Plugins page lists (and search surfaces). Three categories other
 // surfaces own are never listed, whatever their source — same curation stance
-// as desktop-slash-commands.ts. Bundled kinds that are active without an
-// explicit enable (browser/image/web backends, chat platforms, model
-// providers; the backend's _BUNDLED_DEFAULT_ON_KINDS) are configured from
-// their own surfaces too; backends that predate the `kind` field fall back to
-// the category dirs those kinds live in. A plugin the USER installed is always
-// theirs to toggle, whatever kind it declares.
+// as desktop-slash-commands.ts. Among bundled plugins, chat platforms and
+// model providers (by manifest kind) and the provider backends under the
+// browser / image / video / web category dirs are configured from their own
+// surfaces too, so they stay off the list. A top-level backend plugin such as
+// spotify is a capability the user turns on and off here, kind or no kind. A
+// plugin the USER installed is always theirs to toggle, whatever it declares.
 const OTHER_SURFACE_KEY_PREFIXES = ['dashboard_auth/', 'model-providers/', 'platforms/']
 
-const SURFACE_OWNED_KINDS = new Set(['backend', 'platform', 'model-provider'])
+const SURFACE_OWNED_KINDS = new Set(['platform', 'model-provider'])
 
 const SURFACE_OWNED_KEY_PREFIXES = ['browser/', 'image_gen/', 'video_gen/', 'web/']
 
@@ -67,8 +67,8 @@ export const isDesktopRelevantPlugin = (row: AgentPluginRow): boolean => {
     return true
   }
 
-  if (typeof row.kind === 'string') {
-    return !SURFACE_OWNED_KINDS.has(row.kind)
+  if (typeof row.kind === 'string' && SURFACE_OWNED_KINDS.has(row.kind)) {
+    return false
   }
 
   return !SURFACE_OWNED_KEY_PREFIXES.some(prefix => key.startsWith(prefix))

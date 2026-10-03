@@ -17,12 +17,15 @@ const row = (partial: Partial<AgentPluginRow>): AgentPluginRow => ({
 })
 
 describe('isDesktopRelevantPlugin', () => {
-  it('trusts the manifest kind the backend reports for bundled plugins', () => {
+  it('hides the bundled kinds and category dirs other surfaces own, and keeps the rest', () => {
     expect(isDesktopRelevantPlugin(row({ key: 'browser/browserbase', kind: 'backend' }))).toBe(false)
     expect(isDesktopRelevantPlugin(row({ key: 'platforms/telegram', kind: 'platform' }))).toBe(false)
-    expect(isDesktopRelevantPlugin(row({ key: 'spotify', kind: 'backend' }))).toBe(false)
     expect(isDesktopRelevantPlugin(row({ key: 'observability/langfuse', kind: 'standalone' }))).toBe(true)
     expect(isDesktopRelevantPlugin(row({ key: 'cron_providers/chronos', kind: 'standalone' }))).toBe(true)
+    // A top-level backend plugin is a capability the user toggles on this
+    // page — it must not vanish once the backend starts reporting its kind.
+    expect(isDesktopRelevantPlugin(row({ key: 'spotify', kind: 'backend' }))).toBe(true)
+    expect(isDesktopRelevantPlugin(row({ key: 'spotify' }))).toBe(true)
   })
 
   it('falls back to the surface-owned category dirs when the backend omits the kind', () => {

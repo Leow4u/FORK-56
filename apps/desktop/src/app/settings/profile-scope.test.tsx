@@ -142,18 +142,6 @@ describe('SettingsProfileScope', () => {
     expect(screen.getByRole('status').textContent).toContain('JordyV')
     expect(screen.getByRole('status').textContent).not.toContain('coder')
   })
-
-  it('centers the selector and the note when align is center', () => {
-    $activeGatewayProfile.set('coder')
-    setProfiles([profile('default', true), profile('coder')])
-
-    const { container } = render(<SettingsProfileScope align="center" />)
-    const root = container.firstElementChild
-
-    expect(root?.className).toContain('items-center')
-    expect(root?.className).toContain('text-center')
-    expect(screen.getByRole('status').className).toContain('max-w-xl')
-  })
 })
 
 describe('settingsScopeLabel', () => {
@@ -166,7 +154,16 @@ describe('settingsScopeLabel', () => {
 
   it('prefers the bot title, then the display name, and keeps the slug for other profiles', () => {
     expect(settingsScopeLabel(profile('default', true, { display_name: 'Leo bot' }))).toBe('Leo bot')
-    expect(settingsScopeLabel(profile('default', true, { bot_title: 'Jarvis', display_name: 'Leo bot' }))).toBe('Jarvis')
+    expect(settingsScopeLabel(profile('default', true, { bot_title: 'Jarvis', display_name: 'Leo bot' }))).toBe(
+      'Jarvis'
+    )
     expect(settingsScopeLabel(profile('weather-man'))).toBe('weather-man')
+  })
+
+  it('reads a display name that merely spells the slug as no name of its own', () => {
+    expect(settingsScopeLabel(profile('default', true, { display_name: 'Default' }))).toBe('Work4You')
+    // Other profiles keep whatever they are called — only the default profile
+    // has a product name to fall back on.
+    expect(settingsScopeLabel(profile('coder', false, { display_name: 'Coder' }))).toBe('Coder')
   })
 })

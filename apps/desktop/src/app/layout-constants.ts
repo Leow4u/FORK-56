@@ -23,6 +23,12 @@ export const PAGE_MAX_W = 'max-w-[75rem]'
 // line up under the tabs whatever the window width. Literal for Tailwind.
 export const CAPABILITIES_MAX_W = 'max-w-4xl'
 
+// Library pages (Customize, Channels, Artifacts, Routines) open the same way:
+// 3rem (48px) of air between the title bar and the page title, then the
+// page's own rows under it — the title row itself is app/page-title.tsx.
+// Literal for Tailwind — do not interpolate.
+export const PAGE_HEADER_TOP = 'pt-[calc(var(--titlebar-height)+3rem)]'
+
 // Settings right-pane column: centered on the stage, with 247px free on each
 // side (494px total). Floor at 36rem so a narrow overlay does not collapse.
 // Literal for Tailwind — do not interpolate.

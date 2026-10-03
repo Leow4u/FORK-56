@@ -1174,7 +1174,6 @@ export interface Translations {
       connectingHubs: string
       connectedHubs: string
       featured: string
-      landingHint: string
       noResults: string
       resultCount: (count: number, ms: number | null) => string
       timedOut: (sources: string) => string

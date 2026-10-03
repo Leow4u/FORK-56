@@ -16,8 +16,9 @@ import { ProfileScopeSelect } from './profile-scope-select'
 
 // Settings-selector label: the WorkBots title when the backend reports one,
 // else the app-wide profileLabel (display_name → slug), except that the
-// DEFAULT profile without a display name reads as the product name — a user
-// never sees "default" or a "(default)" suffix as the thing they are editing.
+// DEFAULT profile without a display name of its own reads as the product name
+// — a user never sees "default", a "Default" that merely spells the slug, or a
+// "(default)" suffix as the thing they are editing.
 // Scoped to the settings selectors on purpose — the profile rail and Profiles
 // page keep naming profiles by display_name.
 export function settingsScopeLabel(
@@ -30,8 +31,9 @@ export function settingsScopeLabel(
   }
 
   const label = profileLabel(profile)
+  const spellsSlug = label.toLowerCase() === profile.name.trim().toLowerCase()
 
-  return profile.is_default && label === profile.name ? DEFAULT_PROFILE_LABEL : label
+  return profile.is_default && spellsSlug ? DEFAULT_PROFILE_LABEL : label
 }
 
 /** Shared "Configuring:" selector for the config-backed Settings pages
@@ -44,24 +46,14 @@ export function settingsScopeLabel(
  *
  *  The note names the edit target only when it is NOT the default profile —
  *  the "edited the bot's config thinking it was mine" misdirect — whether it
- *  got there by an explicit pick or by following the active profile.
- *
- *  `align="center"` matches the Channels library header — selector and note
- *  sit in a centered column. Detail panes keep the default start alignment. */
-export function SettingsProfileScope({
-  align = 'start',
-  className
-}: {
-  align?: 'center' | 'start'
-  className?: string
-}) {
+ *  got there by an explicit pick or by following the active profile. */
+export function SettingsProfileScope({ className }: { className?: string }) {
   const { t } = useI18n()
   const scope = t.settings.profileScope
   const override = useStore($settingsScopeOverride)
   const selected = useStore($settingsScopeProfile)
   const editingNonDefault = useStore($settingsScopeEditsNonDefault)
   const profiles = useStore($profiles)
-  const centered = align === 'center'
   // The note names the edit target with the same presentation label as its
   // option (bot title → display_name → product name → slug); the slug alone
   // can name a bot the user has never seen called that.
@@ -86,24 +78,18 @@ export function SettingsProfileScope({
   }))
 
   return (
-    <div
-      className={cn(
-        centered ? 'flex w-full flex-col items-center gap-2 text-center' : 'flex flex-col items-start gap-2',
-        className
-      )}
-    >
+    <div className={cn('flex flex-col items-start gap-2', className)}>
       <ProfileScopeSelect
         label={t.skills.configuringProfile}
-        onChange={value => setSettingsScope(profiles.find(profile => normalizeProfileKey(profile.name) === value)?.name ?? value)}
+        onChange={value =>
+          setSettingsScope(profiles.find(profile => normalizeProfileKey(profile.name) === value)?.name ?? value)
+        }
         options={options}
         value={selected}
       />
       {editingNonDefault ? (
         <p
-          className={cn(
-            'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-medium text-(--ui-accent)',
-            centered && 'max-w-xl'
-          )}
+          className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-medium text-(--ui-accent)"
           data-scope-loud="true"
           data-scope-override={override !== null ? 'true' : undefined}
           role="status"

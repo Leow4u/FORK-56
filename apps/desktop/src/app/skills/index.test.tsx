@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router'
 import type * as ReactRouterDom from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { en } from '@/i18n/en'
 import { queryClient } from '@/lib/query-client'
 import type * as Work4YouApi from '@/work4you'
 
@@ -776,5 +777,13 @@ describe('SkillsView profile selector', () => {
 
     expect((await screen.findByRole('combobox', { name: 'Configuring:' })).textContent).toContain('Leo bot')
     expect(screen.queryByText(/\(default\)/)).toBeNull()
+  })
+})
+
+describe('SkillsView page header', () => {
+  it('opens under the page title the sidebar entry spells', async () => {
+    await renderSkillsTab()
+
+    expect(screen.getByRole('heading', { level: 1, name: en.sidebar.nav.skills })).toBeTruthy()
   })
 })

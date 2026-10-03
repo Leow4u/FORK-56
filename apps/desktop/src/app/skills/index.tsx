@@ -44,7 +44,7 @@ import {
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
-import { CAPABILITIES_MAX_W, PAGE_INSET_X } from '../layout-constants'
+import { CAPABILITIES_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
 import {
   CapRow,
   DetailColumn,
@@ -58,6 +58,7 @@ import {
   ToolChip
 } from '../master-detail'
 import { PanelEmpty, PanelPill } from '../overlays/panel'
+import { PageTitle } from '../page-title'
 import { SETTINGS_ROUTE } from '../routes'
 import { ComputerUsePanel } from '../settings/computer-use-panel'
 import { asText, includesQuery, prettyName, toolNames, toolsetDisplayLabel } from '../settings/helpers'
@@ -974,50 +975,53 @@ export function SkillsView({
       {...props}
       className={cn('flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)', className)}
     >
-      <div className={cn('shrink-0 pt-[calc(var(--titlebar-height)+0.75rem)] pb-4', PAGE_INSET_X)}>
-        <div className={cn('mx-auto flex w-full flex-col gap-2', CAPABILITIES_MAX_W)}>
-          <div className="flex flex-wrap items-center gap-3">
-            {profileScopeSelector}
-            <div className="flex flex-wrap items-center gap-1" data-tour="page-tabs">
-              {capabilityTabs.map(tab => {
-                const active = displayMode === tab.id
+      <div className={cn('shrink-0 pb-4', PAGE_HEADER_TOP, PAGE_INSET_X)}>
+        <div className={cn('mx-auto w-full', CAPABILITIES_MAX_W)}>
+          <PageTitle>{t.sidebar.nav.skills}</PageTitle>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              {profileScopeSelector}
+              <div className="flex flex-wrap items-center gap-1" data-tour="page-tabs">
+                {capabilityTabs.map(tab => {
+                  const active = displayMode === tab.id
 
-                return (
-                  <Button
-                    aria-pressed={active}
-                    data-tour={`tab-${tab.id}`}
-                    key={tab.id}
-                    onClick={() => setMode(tab.id)}
-                    size="sm"
-                    type="button"
-                    variant={active ? 'chip' : 'text'}
-                  >
-                    {tab.label}
-                  </Button>
-                )
-              })}
+                  return (
+                    <Button
+                      aria-pressed={active}
+                      data-tour={`tab-${tab.id}`}
+                      key={tab.id}
+                      onClick={() => setMode(tab.id)}
+                      size="sm"
+                      type="button"
+                      variant={active ? 'chip' : 'text'}
+                    >
+                      {tab.label}
+                    </Button>
+                  )
+                })}
+              </div>
+              <SearchField
+                containerClassName="ml-auto min-w-56 flex-1 basis-56 max-w-md"
+                hints={displayMode === 'skills' && skillsView === 'mine' ? searchHints : undefined}
+                onChange={setQuery}
+                placeholder={
+                  displayMode === 'skills'
+                    ? skillsView === 'discover'
+                      ? t.skills.hub.searchPlaceholder
+                      : t.skills.searchSkills
+                    : displayMode === 'mcp'
+                      ? t.settings.searchPlaceholder.mcp
+                      : displayMode === 'plugins'
+                        ? t.skills.searchPlugins
+                        : t.skills.searchToolsets
+                }
+                recede={false}
+                shape="pill"
+                value={query}
+              />
             </div>
-            <SearchField
-              containerClassName="ml-auto min-w-56 flex-1 basis-56 max-w-md"
-              hints={displayMode === 'skills' && skillsView === 'mine' ? searchHints : undefined}
-              onChange={setQuery}
-              placeholder={
-                displayMode === 'skills'
-                  ? skillsView === 'discover'
-                    ? t.skills.hub.searchPlaceholder
-                    : t.skills.searchSkills
-                  : displayMode === 'mcp'
-                    ? t.settings.searchPlaceholder.mcp
-                    : displayMode === 'plugins'
-                      ? t.skills.searchPlugins
-                      : t.skills.searchToolsets
-              }
-              recede={false}
-              shape="pill"
-              value={query}
-            />
+            {scopeNote}
           </div>
-          {scopeNote}
         </div>
       </div>
       {/* Skills, Tools, MCP, and Plugins read and write the same selected profile. */}
