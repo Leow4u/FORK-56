@@ -16,7 +16,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
-import { type ProjectIdeaTemplate, randomIdeaTemplates } from '@/lib/project-idea-templates'
 import { notifyError } from '@/store/notifications'
 import {
   $projectDialog,
@@ -69,8 +68,10 @@ export function ProjectDialog() {
 
   const [name, setName] = useState('')
   const [folders, setFolders] = useState<string[]>([])
+  // The folder new chats start in. Empty (or a removed folder) falls back to
+  // the first in the list, so the default stays "first added is primary".
+  const [primaryPath, setPrimaryPath] = useState('')
   const [idea, setIdea] = useState('')
-  const [templates, setTemplates] = useState<ProjectIdeaTemplate[]>([])
   const [generatingIdea, setGeneratingIdea] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const nameRef = useRef<HTMLInputElement>(null)
@@ -79,8 +80,8 @@ export function ProjectDialog() {
     if (open) {
       setName(state?.name ?? '')
       setFolders([])
+      setPrimaryPath('')
       setIdea('')
-      setTemplates(randomIdeaTemplates())
       setGeneratingIdea(false)
       setSubmitting(false)
 
@@ -159,6 +160,7 @@ export function ProjectDialog() {
           folders,
           idea: idea.trim() || undefined,
           name: trimmed,
+          primaryPath: primary,
           use: true
         })
 
@@ -188,6 +190,15 @@ export function ProjectDialog() {
   }
 
   const title = mode === 'rename' ? p.renameTitle : mode === 'add-folder' ? p.addFolderTitle : p.createTitle
+  const primary = folders.includes(primaryPath) ? primaryPath : (folders[0] ?? '')
+  // Paths stay out of the row; the full path lives in the tooltip. The parent
+  // only shows when two folders share a leaf name and need telling apart.
+  const leafCounts = new Map<string, number>()
+
+  for (const folder of folders) {
+    const leaf = splitFolderPath(folder).name
+    leafCounts.set(leaf, (leafCounts.get(leaf) ?? 0) + 1)
+  }
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -242,12 +253,14 @@ export function ProjectDialog() {
             ) : (
               <>
                 <ul className="flex w-full min-w-0 flex-col gap-1.5">
-                  {folders.map((folder, index) => {
+                  {folders.map(folder => {
                     const path = splitFolderPath(folder)
+                    const isPrimary = folder === primary
+                    const showParent = Boolean(path.parent) && (leafCounts.get(path.name) ?? 0) > 1
 
                     return (
                       <li
-                        className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-(--ui-stage-radius) bg-(--ui-control-hover-background) px-2.5 py-1.5"
+                        className="group/folder flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-(--ui-stage-radius) bg-(--ui-control-hover-background) px-2.5 py-1.5"
                         key={folder}
                       >
                         <Codicon className="shrink-0 text-(--ui-text-tertiary)" name="folder" size="0.875rem" />
@@ -256,17 +269,28 @@ export function ProjectDialog() {
                             <span className="truncate text-[length:var(--conversation-text-font-size)]">
                               {path.name}
                             </span>
-                            {path.parent ? (
+                            {showParent ? (
                               <span className="truncate text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
                                 {path.parent}
                               </span>
                             ) : null}
                           </span>
                         </Tip>
-                        {index === 0 && (
+                        {isPrimary ? (
                           <span className="shrink-0 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
                             {p.primaryBadge}
                           </span>
+                        ) : (
+                          <Button
+                            className="shrink-0 opacity-0 transition-opacity group-hover/folder:opacity-100 focus-visible:opacity-100"
+                            disabled={submitting}
+                            onClick={() => setPrimaryPath(folder)}
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            {p.makePrimary}
+                          </Button>
                         )}
                         <Tip label={p.removeFolder}>
                           <Button
@@ -318,34 +342,6 @@ export function ProjectDialog() {
                 label={p.ideaGenerate}
                 onGenerate={() => void generateIdea()}
               />
-            </div>
-            <div className="flex w-full min-w-0 flex-wrap items-center gap-1.5">
-              {templates.map(template => (
-                <Button
-                  disabled={submitting}
-                  key={template.label}
-                  onClick={() => setIdea(template.idea)}
-                  size="sm"
-                  type="button"
-                  variant="chip"
-                >
-                  <span aria-hidden>{template.emoji}</span>
-                  {template.label}
-                </Button>
-              ))}
-              <Tip label={p.ideaShuffle}>
-                <Button
-                  aria-label={p.ideaShuffle}
-                  className="text-(--ui-text-quaternary) hover:text-foreground"
-                  disabled={submitting}
-                  onClick={() => setTemplates(randomIdeaTemplates())}
-                  size="icon-xs"
-                  type="button"
-                  variant="ghost"
-                >
-                  <Codicon name="refresh" size="0.75rem" />
-                </Button>
-              </Tip>
             </div>
           </ProjectField>
         )}

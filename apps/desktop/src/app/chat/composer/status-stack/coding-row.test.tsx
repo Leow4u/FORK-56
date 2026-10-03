@@ -125,7 +125,7 @@ describe('CodingStatusRow', () => {
   it('keeps name off the empty-chat coding row', () => {
     renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/repos/website" />)
 
-    expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Select project' })).toBeNull()
     expect(screen.getByText('bb/hitbox')).toBeTruthy()
   })
 
@@ -182,13 +182,13 @@ describe('CodingStatusRow', () => {
     expect(screen.queryByText('Work4You Cloud')).toBeNull()
   })
 
-  it('keeps Select workspace off the occupied name', () => {
+  it('keeps Select project off the occupied name', () => {
     const { container } = renderRow(<CodingStatusRow onOpen={() => undefined} repoPath="/repo" showWorkspaceName />)
 
     fireEvent.pointerDown(screen.getByText('repo'), { button: 0 })
 
     expect(container.querySelector('[data-slot="workspace-name"]')?.tagName).toBe('SPAN')
-    expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Select project' })).toBeNull()
     expect(screen.queryByRole('menu')).toBeNull()
     expect(screen.queryByRole('menuitem', { name: /Open folder as project/ })).toBeNull()
   })

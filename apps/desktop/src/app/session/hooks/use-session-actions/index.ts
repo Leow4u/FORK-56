@@ -435,7 +435,7 @@ export function useSessionActions({
       setYoloActive(false)
       setDraftSessionApprovalMode(null)
 
-      // A bare new session keeps the folder Select workspace already chose.
+      // A bare new session keeps the folder Select project already chose.
       // Wiping that pick is how the next chat fell back to the conversation
       // that was open. An explicit argument still replaces it, including null
       // (Home).
@@ -481,7 +481,7 @@ export function useSessionActions({
       creatingSessionRef.current = true
 
       try {
-        // Select workspace and the entered project beat the conversation that
+        // Select project and the entered project beat the conversation that
         // was on screen. See resolveCreateSessionCwd.
         const cwd = resolveCreateSessionCwd()
         const params = await desktopSessionCreateParams(cwd)

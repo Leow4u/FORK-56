@@ -43,26 +43,26 @@ describe('emptyWorkspaceChipLabel', () => {
     $projectTree.set([])
   })
 
-  it('keeps the Select workspace CTA when there is no cwd', () => {
-    expect(emptyWorkspaceChipLabel('', 'Select workspace')).toBe('Select workspace')
-    expect(emptyWorkspaceChipLabel(null, 'Select workspace')).toBe('Select workspace')
+  it('keeps the Select project CTA when there is no cwd', () => {
+    expect(emptyWorkspaceChipLabel('', 'Select project')).toBe('Select project')
+    expect(emptyWorkspaceChipLabel(null, 'Select project')).toBe('Select project')
   })
 
   it('keeps the CTA for a cwd that is not a named project', () => {
     $projectTree.set([])
 
-    expect(emptyWorkspaceChipLabel('/Users/leona', 'Select workspace')).toBe('Select workspace')
+    expect(emptyWorkspaceChipLabel('/Users/leona', 'Select project')).toBe('Select project')
   })
 
   it('names the explicit project that owns the cwd', () => {
     $projectTree.set([treeNode({ id: 'p_cars', label: 'Carros Eduardo', path: '/Users/leona/Aplicativos' })])
 
-    expect(emptyWorkspaceChipLabel('/Users/leona/Aplicativos', 'Select workspace')).toBe('Carros Eduardo')
+    expect(emptyWorkspaceChipLabel('/Users/leona/Aplicativos', 'Select project')).toBe('Carros Eduardo')
   })
 
   it('prefers the entered project label over the cwd name', () => {
     $projectTree.set([treeNode({ id: 'p_cars', label: 'Carros Eduardo', path: '/Users/leona/Aplicativos' })])
 
-    expect(emptyWorkspaceChipLabel('/Users/leona/Aplicativos', 'Select workspace', 'Used repo')).toBe('Used repo')
+    expect(emptyWorkspaceChipLabel('/Users/leona/Aplicativos', 'Select project', 'Used repo')).toBe('Used repo')
   })
 })

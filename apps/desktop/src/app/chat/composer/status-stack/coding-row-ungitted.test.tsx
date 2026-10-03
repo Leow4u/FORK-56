@@ -39,6 +39,6 @@ describe('CodingStatusRow without git', () => {
 
     expect(container.querySelector('.coding-status-bar')).toBeNull()
     expect(screen.queryByText('notes')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Select project' })).toBeNull()
   })
 })

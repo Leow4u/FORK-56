@@ -45,7 +45,7 @@ function renderChip(ui: ReactElement) {
 }
 
 async function openSelectWorkspace() {
-  fireEvent.pointerDown(screen.getByRole('button', { name: 'Select workspace' }), { button: 0 })
+  fireEvent.pointerDown(screen.getByRole('button', { name: 'Select project' }), { button: 0 })
 
   return waitFor(() => screen.getByRole('menu'))
 }
@@ -75,12 +75,12 @@ describe('WorkspaceChipRow', () => {
     expect(screen.getByRole('menu').getAttribute('data-composer-menu')).toBe('')
   })
 
-  it('paints Select workspace on an empty chat and opens a menu on the chip', async () => {
+  it('paints Select project on an empty chat and opens a menu on the chip', async () => {
     const { container } = renderChip(<WorkspaceChipRow messagesEmpty />)
 
-    const chip = screen.getByRole('button', { name: 'Select workspace' })
+    const chip = screen.getByRole('button', { name: 'Select project' })
 
-    expect(chip.textContent).toContain('Select workspace')
+    expect(chip.textContent).toContain('Select project')
     expect(chip.textContent).not.toContain('Home')
     expect(chip.getAttribute('data-slot')).toBe('workspace-chip')
     expect(screen.getByRole('button', { name: 'Connection mode' })).toBeTruthy()
@@ -208,7 +208,7 @@ describe('WorkspaceChipRow', () => {
     ])
     renderChip(<WorkspaceChipRow cwd="/other" messagesEmpty />)
 
-    const chip = screen.getByRole('button', { name: 'Select workspace' })
+    const chip = screen.getByRole('button', { name: 'Select project' })
 
     expect(chip.textContent).toContain('DuteLog')
   })
@@ -227,10 +227,10 @@ describe('WorkspaceChipRow', () => {
     ])
     renderChip(<WorkspaceChipRow cwd="/used" messagesEmpty />)
 
-    const chip = screen.getByRole('button', { name: 'Select workspace' })
+    const chip = screen.getByRole('button', { name: 'Select project' })
 
     expect(chip.textContent).toContain('Used repo')
-    expect(chip.textContent).not.toContain('Select workspace')
+    expect(chip.textContent).not.toContain('Select project')
   })
 
   it('runs New project from the attached menu', async () => {
@@ -272,14 +272,14 @@ describe('WorkspaceChipRow', () => {
     )
 
     expect(screen.queryByRole('button', { name: 'Clear active' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('Select workspace')
+    expect(screen.getByRole('button', { name: 'Select project' }).textContent).toContain('Select project')
   })
 
-  it('keeps the visible label Select workspace when a cwd is not a named project', () => {
+  it('keeps the visible label Select project when a cwd is not a named project', () => {
     renderChip(<WorkspaceChipRow cwd="/repos/website/src" messagesEmpty />)
 
-    expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).toContain('Select workspace')
-    expect(screen.getByRole('button', { name: 'Select workspace' }).textContent).not.toContain('website')
+    expect(screen.getByRole('button', { name: 'Select project' }).textContent).toContain('Select project')
+    expect(screen.getByRole('button', { name: 'Select project' }).textContent).not.toContain('website')
   })
 
   it('paints the named project on the empty-chat chip', () => {
@@ -294,17 +294,17 @@ describe('WorkspaceChipRow', () => {
     ])
     renderChip(<WorkspaceChipRow cwd="/Users/leona/Aplicativos" messagesEmpty />)
 
-    const chip = screen.getByRole('button', { name: 'Select workspace' })
+    const chip = screen.getByRole('button', { name: 'Select project' })
 
     expect(chip.textContent).toContain('Carros Eduardo')
-    expect(chip.textContent).not.toContain('Select workspace')
+    expect(chip.textContent).not.toContain('Select project')
     expect(chip.textContent).not.toContain('Aplicativos')
   })
 
-  it('paints Select workspace as a second capsule stacked under the prompt card', () => {
+  it('paints Select project as a second capsule stacked under the prompt card', () => {
     const { container } = renderChip(<WorkspaceChipRow messagesEmpty />)
 
-    const chip = screen.getByRole('button', { name: 'Select workspace' })
+    const chip = screen.getByRole('button', { name: 'Select project' })
     const shell = container.querySelector('[data-slot="composer-context-bar"]')
     const icon = chip.querySelector('svg')
 
@@ -329,7 +329,7 @@ describe('WorkspaceChipRow', () => {
   it('stays off the composer once the transcript has messages', () => {
     const { container } = renderChip(<WorkspaceChipRow cwd="/repos/website" messagesEmpty={false} />)
 
-    expect(screen.queryByRole('button', { name: 'Select workspace' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Select project' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Connection mode' })).toBeNull()
     expect(container.querySelector('[data-slot="workspace-chip"]')).toBeNull()
     expect(container.querySelector('[data-slot="composer-run-target"]')).toBeNull()

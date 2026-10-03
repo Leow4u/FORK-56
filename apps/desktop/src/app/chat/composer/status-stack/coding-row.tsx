@@ -46,7 +46,7 @@ interface CodingStatusRowProps {
   /** Repo root path for the worktree dialog. */
   repoPath?: null | string
   /** Occupied git chat: paint workspace name as quiet identity on the branch strip.
-   *  Empty chat uses Select workspace. Ungitted occupied composer has no folder bar. */
+   *  Empty chat uses Select project. Ungitted occupied composer has no folder bar. */
   showWorkspaceName?: boolean
 }
 
