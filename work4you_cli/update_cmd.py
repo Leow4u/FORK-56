@@ -1086,11 +1086,24 @@ def _try_apply_prebuilt_runtime_update(tmp_dir: str) -> bool:
         extract_prebuilt_runtime_zip,
         github_prebuilt_runtime_zip_url,
         is_prebuilt_runtime_zip,
+        runtime_hosts_interpreter,
         runtime_zip_name,
     )
 
     target = detect_prebuilt_runtime_target()
     if target is None:
+        return False
+    home = _m().PROJECT_ROOT.parent
+    # The bundle replaces <home>/python and the venv wholesale. Launched from
+    # that very interpreter (the normal case: `work4you update` out of the
+    # managed install), the swap would strip the stdlib around the files the
+    # process keeps locked and leave a Python that cannot start. The source
+    # ZIP path refreshes the payload without touching the interpreter.
+    if runtime_hosts_interpreter(home):
+        print(
+            "  skipping prebuilt desktop runtime: this update is running from the "
+            "managed Python it would replace; using the source ZIP instead"
+        )
         return False
     platform, arch = target
     url = github_prebuilt_runtime_zip_url(arch=arch, platform=platform)
@@ -1102,7 +1115,6 @@ def _try_apply_prebuilt_runtime_update(tmp_dir: str) -> bool:
             print("  prebuilt asset was not a runtime bundle; falling back to source ZIP")
             return False
         extracted = extract_prebuilt_runtime_zip(zip_path, os.path.join(tmp_dir, "prebuilt"))
-        home = _m().PROJECT_ROOT.parent
         apply_prebuilt_runtime_bundle(extracted, home)
         return True
     except Exception as exc:

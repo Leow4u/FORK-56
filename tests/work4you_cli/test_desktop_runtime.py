@@ -380,3 +380,103 @@ def test_is_prebuilt_runtime_root_requires_python_and_work4you(tmp_path):
     )
     (root / "work4you").mkdir()
     assert is_prebuilt_runtime_root(root) is False
+
+
+# ---------------------------------------------------------------------------
+# A runtime bundle must never replace the interpreter it is running on. The
+# desktop payload's CPython sits at <home>/python and the venv at
+# <home>/work4you/venv; `work4you update` launched from either used to rmtree
+# that very directory, keep only the files Windows had locked, and leave a
+# Python without a stdlib.
+
+
+def test_runtime_hosts_interpreter_detects_managed_python_and_venv(tmp_path):
+    from work4you_cli import desktop_runtime as dr
+
+    home = tmp_path / "home"
+    venv_python = home / "work4you" / "venv" / "Scripts" / "python.exe"
+    base_python = home / "python" / "python.exe"
+
+    assert dr.runtime_hosts_interpreter(home, executable=str(venv_python), base_prefix=str(home / "python"))
+    assert dr.runtime_hosts_interpreter(home, executable=str(base_python), base_prefix=str(home / "python"))
+    # Only the base prefix points inside (a venv created elsewhere from the
+    # managed CPython): still the managed runtime.
+    assert dr.runtime_hosts_interpreter(
+        home, executable=str(tmp_path / "elsewhere" / "python.exe"), base_prefix=str(home / "python")
+    )
+
+
+def test_runtime_hosts_interpreter_false_outside_home(tmp_path):
+    from work4you_cli import desktop_runtime as dr
+
+    home = tmp_path / "home"
+    other = tmp_path / "other-python"
+
+    assert not dr.runtime_hosts_interpreter(home, executable=str(other / "python.exe"), base_prefix=str(other))
+    # A sibling whose name merely starts with "home" is not inside it.
+    sibling = tmp_path / "home2" / "python"
+    assert not dr.runtime_hosts_interpreter(home, executable=str(sibling / "python.exe"), base_prefix=str(sibling))
+
+
+def test_apply_prebuilt_refuses_to_replace_the_running_interpreter(tmp_path, monkeypatch):
+    from work4you_cli import desktop_runtime as dr
+
+    bundle = _write_bundle(tmp_path / "bundle")
+    home = tmp_path / "home"
+    (home / "python" / "Lib").mkdir(parents=True)
+    sentinel = home / "python" / "Lib" / "os.py"
+    sentinel.write_text("# stdlib\n", encoding="utf-8")
+    monkeypatch.setattr(dr, "runtime_hosts_interpreter", lambda _home: True)
+
+    with pytest.raises(RuntimeError, match="running on"):
+        dr.apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="b" * 40)
+
+    assert sentinel.read_text(encoding="utf-8") == "# stdlib\n"
+    assert not (home / "python.new").exists()
+    assert not (home / "python.old").exists()
+    assert not (home / "work4you").exists()
+
+
+def test_apply_prebuilt_keeps_the_old_runtime_when_the_swap_fails(tmp_path, monkeypatch):
+    from work4you_cli import desktop_runtime as dr
+
+    bundle = _write_bundle(tmp_path / "bundle")
+    home = tmp_path / "home"
+    (home / "python").mkdir(parents=True)
+    sentinel = home / "python" / "python311.dll"
+    sentinel.write_bytes(b"old")
+    real_rename = os.rename
+
+    def failing_rename(src, dst):
+        # Let the old tree move aside, then fail putting the new one in place —
+        # the shape of a directory Windows refuses to touch.
+        if str(src).endswith("python.new"):
+            raise OSError("simulated: directory in use")
+        return real_rename(src, dst)
+
+    monkeypatch.setattr(dr.os, "rename", failing_rename)
+
+    with pytest.raises(OSError, match="simulated"):
+        dr.apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="b" * 40)
+
+    assert sentinel.read_bytes() == b"old"
+    assert not (home / "python" / "python.exe").exists()
+    assert not (home / "python.new").exists()
+    assert not (home / "python.old").exists()
+
+
+def test_apply_prebuilt_swaps_runtime_dirs_without_leftovers(tmp_path):
+    from work4you_cli import desktop_runtime as dr
+
+    bundle = _write_bundle(tmp_path / "bundle")
+    home = tmp_path / "home"
+    (home / "python").mkdir(parents=True)
+    (home / "python" / "stale.pyd").write_bytes(b"stale")
+
+    dr.apply_prebuilt_runtime_bundle(bundle, home, pinned_commit="b" * 40)
+
+    assert (home / "python" / "python.exe").read_bytes() == b"py"
+    assert not (home / "python" / "stale.pyd").exists()
+    for name in ("python", "node", "bin"):
+        assert not (home / f"{name}.new").exists()
+        assert not (home / f"{name}.old").exists()

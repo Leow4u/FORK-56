@@ -270,3 +270,28 @@ def test_update_via_zip_skips_source_zip_when_prebuilt_applies(monkeypatch, tmp_
 
     assert update_cmd._update_via_zip(SimpleNamespace(branch="main"), runtime_payload=True) is True
     assert captured == []
+
+
+def test_try_apply_prebuilt_runtime_update_skips_when_running_from_managed_runtime(
+    monkeypatch, tmp_path, capsys
+):
+    def never_download(_url, _dest):
+        raise AssertionError("the bundle must not be downloaded when it cannot be applied")
+
+    monkeypatch.setattr("urllib.request.urlretrieve", never_download)
+    monkeypatch.setattr(update_cmd, "_m", lambda: SimpleNamespace(PROJECT_ROOT=tmp_path / "work4you"))
+    monkeypatch.setattr(
+        "work4you_cli.desktop_runtime.detect_prebuilt_runtime_target",
+        lambda: ("win32", "x64"),
+    )
+    seen = {}
+
+    def hosts(home):
+        seen["home"] = Path(home)
+        return True
+
+    monkeypatch.setattr("work4you_cli.desktop_runtime.runtime_hosts_interpreter", hosts)
+
+    assert update_cmd._try_apply_prebuilt_runtime_update(str(tmp_path)) is False
+    assert seen["home"] == tmp_path
+    assert "skipping prebuilt desktop runtime" in capsys.readouterr().out
