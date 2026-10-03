@@ -41,7 +41,8 @@ const {
 
 const { $projectScope, ALL_PROJECTS } = await import('./project-scope')
 const { $projectTree, resolveNewSessionCwd } = await import('./projects')
-const { $connection } = await import('./session')
+const { $connection, $currentCwd, $newChatWorkspaceTarget, setCurrentCwdTransient, setNewChatWorkspaceTarget } =
+  await import('./session')
 const { invalidateProfileScopedQueries } = await import('@/lib/query-client')
 const { getProfiles } = await import('@/work4you')
 
@@ -289,5 +290,37 @@ describe("profile switch leaves the previous profile's project", () => {
     newSessionInProfile('default')
 
     expect(resolveNewSessionCwd()).toBe('/work/app1')
+  })
+})
+
+describe("profile switch drops the composer's folder pick", () => {
+  afterEach(() => {
+    setNewChatWorkspaceTarget(undefined)
+    setCurrentCwdTransient('')
+  })
+
+  it.each([
+    ['selectProfile', selectProfile],
+    ['newSessionInProfile', newSessionInProfile]
+  ])('%s to another profile forgets the Select project pick and the draft folder', (_name, open) => {
+    // A fresh draft reuses the pick first and the folder on screen next; both
+    // came from the profile being left.
+    setNewChatWorkspaceTarget('/work/app1')
+    setCurrentCwdTransient('/work/app1')
+
+    open('coder')
+
+    expect($newChatWorkspaceTarget.get()).toBeUndefined()
+    expect($currentCwd.get()).toBe('')
+  })
+
+  it('keeps the pick when the draft stays on the active profile', () => {
+    setNewChatWorkspaceTarget('/work/app1')
+    setCurrentCwdTransient('/work/app1')
+
+    newSessionInProfile('default')
+
+    expect($newChatWorkspaceTarget.get()).toBe('/work/app1')
+    expect($currentCwd.get()).toBe('/work/app1')
   })
 })
