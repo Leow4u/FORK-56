@@ -16,8 +16,8 @@ import { NO_PROJECT_ID, type SidebarProjectTree } from '@/app/chat/sidebar/proje
 import { isUnderPath } from '@/lib/path-compare'
 import { normalize } from '@/lib/text'
 import { filterVisibleProjects } from '@/store/layout'
+import { ALL_PROJECTS } from '@/store/project-scope'
 import {
-  ALL_PROJECTS,
   clearActiveWorkspace,
   openFolderAsProject,
   openProjectCreate,

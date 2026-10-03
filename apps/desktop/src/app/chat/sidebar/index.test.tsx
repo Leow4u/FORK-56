@@ -13,7 +13,8 @@ import {
   setSidebarGrouping,
   setSidebarShowArchived
 } from '@/store/layout'
-import { $projectDialog, $projectScope, $projectTree, ALL_PROJECTS, goToProject } from '@/store/projects'
+import { $projectScope, ALL_PROJECTS } from '@/store/project-scope'
+import { $projectDialog, $projectTree, goToProject } from '@/store/projects'
 import { $messagingSessions, $selectedStoredSessionId, $sessions, $sessionsLoading } from '@/store/session'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 import { makeSessionInfo } from '@/test/session-info'

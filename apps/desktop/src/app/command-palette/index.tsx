@@ -69,13 +69,8 @@ import { $bindings, bindingsFor } from '@/store/keybinds'
 import { $dismissedAutoProjectIds, $sidebarProjectOrderIds } from '@/store/layout'
 import { openPetGenerate } from '@/store/pet-generate'
 import { openBrowserTab } from '@/store/preview'
-import {
-  $activeProjectId,
-  $projectScope,
-  $projectTree,
-  openFolderAsProject,
-  requestStartWorkSession
-} from '@/store/projects'
+import { $projectScope } from '@/store/project-scope'
+import { $activeProjectId, $projectTree, openFolderAsProject, requestStartWorkSession } from '@/store/projects'
 import { $connection, $currentCwd } from '@/store/session'
 import { runGatewayRestart } from '@/store/system-actions'
 import {

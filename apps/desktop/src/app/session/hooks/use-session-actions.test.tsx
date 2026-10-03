@@ -9,7 +9,8 @@ import { noteActiveTreeGroup, revealTreePane } from '@/components/pane-shell/tre
 import { createClientSessionState } from '@/lib/chat-runtime'
 import { clearSessionDraft, stashSessionDraft, takeSessionDraft } from '@/store/composer'
 import { $activeGatewayProfile, $newChatProfile, ensureGatewayProfile } from '@/store/profile'
-import { $projectScope, $projectTree, ALL_PROJECTS } from '@/store/projects'
+import { $projectScope, ALL_PROJECTS } from '@/store/project-scope'
+import { $projectTree } from '@/store/projects'
 import {
   $activeSessionId,
   $activeSessionStoredIdRotation,

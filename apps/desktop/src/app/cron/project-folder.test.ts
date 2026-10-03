@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { NO_PROJECT_ID } from '@/app/chat/sidebar/projects/workspace-groups'
-import { ALL_PROJECTS } from '@/store/projects'
+import { ALL_PROJECTS } from '@/store/project-scope'
 
 import { cronProjectFolder } from './project-folder'
 

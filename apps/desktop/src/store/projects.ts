@@ -11,7 +11,6 @@ import { isDesktopFsRemoteMode, selectLocalDesktopPaths, writeDesktopFileText } 
 import { desktopGit } from '@/lib/desktop-git'
 import { isMissingRestEndpoint, isMissingRpcMethod } from '@/lib/gateway-rpc'
 import { isUnderPath } from '@/lib/path-compare'
-import { persistentAtom } from '@/lib/persisted'
 import {
   forgetDesktopProject,
   mergeWithDesktopCatalog,
@@ -22,6 +21,7 @@ import { $gateway, activeGateway, ensureActiveGatewayOpen } from '@/store/gatewa
 import { setSidebarAgentsGrouped } from '@/store/layout'
 import { notify } from '@/store/notifications'
 import { $activeGatewayProfile, $profileScope, ALL_PROFILES, requestFreshSession } from '@/store/profile'
+import { $projectScope, ALL_PROJECTS, exitProjectScope } from '@/store/project-scope'
 import {
   $activeSessionId,
   $currentCwd,
@@ -147,19 +147,8 @@ export const endSessionMutation = (ids: Array<null | string | undefined>): void 
 export const $reposScanning = atom(false)
 
 // ── Project scope (the "you're inside a project" view, mirroring profile scope)─
-// The active workspace: ALL_PROJECTS means none, a concrete id means new chats
-// land in that project (or stay folder-less for Home). The sidebar lists every
-// project regardless — this never narrows it. Local state (localStorage),
-// distinct from the durable active-project pointer in projects.db — though
-// selecting a project also makes it active, exactly as selecting a profile does.
-export const ALL_PROJECTS = '__all_projects__'
-
-const PROJECT_SCOPE_KEY = 'work4you.desktop.projectScope'
-
-export const $projectScope = persistentAtom<string>(PROJECT_SCOPE_KEY, ALL_PROJECTS, {
-  decode: raw => raw || ALL_PROJECTS,
-  encode: value => value || ALL_PROJECTS
-})
+// The active workspace lives in store/project-scope ($projectScope,
+// ALL_PROJECTS, exitProjectScope); it is imported here, never redefined.
 
 // Select a project as the workspace and make it the active project
 // (best-effort — the durable pointer is nice-to-have, the scope is the point).
@@ -173,10 +162,6 @@ export function enterProject(id: string): void {
   if (id.startsWith('p_')) {
     void setActiveProject(id).catch(() => undefined)
   }
-}
-
-export function exitProjectScope(): void {
-  $projectScope.set(ALL_PROJECTS)
 }
 
 // The intro draft has no stored row and no runtime yet, so its workspace is the

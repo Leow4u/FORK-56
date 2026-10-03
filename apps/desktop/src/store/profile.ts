@@ -15,9 +15,16 @@ import {
   storedStringRecord
 } from '@/lib/storage'
 import { invalidateCronModelImpactScopeState } from '@/store/cron-model-impact-scope'
-import { $gateway, ensureGatewayForAgent, ensureGatewayForProfile, openGatewayForProfile } from '@/store/gateway'
+import {
+  $gateway,
+  activeGatewayConnectionId,
+  ensureGatewayForAgent,
+  ensureGatewayForProfile,
+  openGatewayForProfile
+} from '@/store/gateway'
 import { $liveGatewayProfiles } from '@/store/gateway-liveness'
 import { invalidateProfileAvatar, reconcileProfileAvatars } from '@/store/profile-avatars'
+import { exitProjectScope } from '@/store/project-scope'
 import { setConnection } from '@/store/session'
 import { resetStarmapGraph } from '@/store/starmap'
 import type { ProfileInfo } from '@/types/work4you'
@@ -598,6 +605,17 @@ export const $profileScope = computed([$showAllProfiles, $activeGatewayProfile],
   showAll ? ALL_PROFILES : normalizeProfileKey(gateway)
 )
 
+// A project id names a row in ONE backend's projects.db. A draft headed for
+// another profile (or source) must not resolve its cwd from the scope entered on
+// the current one: the fresh draft runs before the gateway swap refreshes the
+// project tree, so it would start in the previous profile's project
+// (upstream #54990).
+function leaveForeignProjectScope(profile: string, connectionId: null | string = activeGatewayConnectionId()): void {
+  if (profile !== normalizeProfileKey($activeGatewayProfile.get()) || connectionId !== activeGatewayConnectionId()) {
+    exitProjectScope()
+  }
+}
+
 // Switch the active context to `name`: leave "All profiles" mode, point new
 // chats at it, and swap the single live gateway onto its backend (which moves
 // $activeGatewayProfile → name, so $profileScope follows).
@@ -610,6 +628,7 @@ export function selectProfile(name: string): void {
   $newChatProfile.set(target)
 
   if (switching) {
+    leaveForeignProjectScope(target)
     requestFreshSession()
   }
 
@@ -625,6 +644,7 @@ export function selectProfile(name: string): void {
 export function newSessionInProfile(name: string): void {
   const target = normalizeProfileKey(name)
   $newChatProfile.set(target)
+  leaveForeignProjectScope(target)
   requestFreshSession()
   void ensureGatewayProfile(target)
 }

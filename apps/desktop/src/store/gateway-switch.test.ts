@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { $sessionsLimit, resetSessionsLimit, SIDEBAR_SESSIONS_PAGE_SIZE } from '@/store/layout'
+import { $projectScope, ALL_PROJECTS } from '@/store/project-scope'
 import {
   $cronSessions,
   $freshDraftReady,
@@ -68,6 +69,14 @@ describe('wipeSessionListsForGatewaySwitch', () => {
     expect($sessionsLoading.get()).toBe(true)
     expect($sessionsLimit.get()).toBe(SIDEBAR_SESSIONS_PAGE_SIZE)
     expect($freshDraftReady.get()).toBe(true)
+  })
+
+  it("leaves the outgoing backend's project scope so the next draft cannot start in it", () => {
+    $projectScope.set('p_old_backend')
+
+    wipeSessionListsForGatewaySwitch()
+
+    expect($projectScope.get()).toBe(ALL_PROJECTS)
   })
 
   it('strands in-flight profile-list fetches so the old backend cannot repaint the rail (#85731)', () => {
