@@ -4,6 +4,7 @@ import type * as NanostoresModule from 'nanostores'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { en } from '@/i18n/en'
 import type { MessagingPlatformInfo } from '@/types/work4you'
 
 const { $activeGatewayProfile } = await import('@/store/profile')
@@ -114,15 +115,15 @@ async function openChannel(name: string) {
 }
 
 describe('MessagingView list header', () => {
-  it('centers the list header with a readable pill search field', async () => {
+  it('opens under the page title with a readable pill search field', async () => {
     getMessagingPlatforms.mockResolvedValue({
       platforms: [platform(), platform({ id: 'discord', name: 'Discord' })]
     })
 
-    const { container } = await renderMessaging()
+    await renderMessaging()
 
     expect(await screen.findByRole('button', { name: /Mattermost/ })).toBeTruthy()
-    expect(container.querySelector('.items-center.gap-4')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 1, name: en.sidebar.nav.messaging })).toBeTruthy()
     const search = screen.getByRole('textbox', { name: /Search messaging/i })
     expect(search.parentElement?.className).toContain('rounded-full')
     expect(search.parentElement?.className).not.toContain('opacity-30')

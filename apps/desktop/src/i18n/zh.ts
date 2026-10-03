@@ -1521,7 +1521,6 @@ export const zh: Translations = {
       connectingHubs: '正在连接技能中心…',
       connectedHubs: '已连接的来源：',
       featured: '精选技能',
-      landingHint: '搜索技能中心，浏览来自官方索引、GitHub 和社区来源的可安装技能。',
       noResults: '技能中心没有匹配的技能。',
       resultCount: (count, ms) => `${count} 个结果${ms !== null ? `（${ms}ms）` : ''}`,
       timedOut: sources => `超时：${sources}`,

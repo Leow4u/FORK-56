@@ -37,8 +37,9 @@ import {
 } from '@/work4you'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
-import { PAGE_INSET_X } from '../layout-constants'
+import { PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
 import { DetailColumn } from '../master-detail'
+import { PageTitle } from '../page-title'
 import { MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
 import { CREDENTIAL_CONTROL_CLASS } from '../settings/credential-key-ui'
 import { ListRow } from '../settings/primitives'
@@ -713,20 +714,25 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
         </div>
       ) : (
         <>
-          <div className={cn('shrink-0 pt-[calc(var(--titlebar-height)+0.75rem)] pb-4', PAGE_INSET_X)}>
-            <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4">
-              <SettingsProfileScope align="center" />
-              {showListSearch ? (
-                <SearchField
-                  containerClassName="w-full max-w-md"
-                  hints={searchHints}
-                  onChange={setQuery}
-                  placeholder={m.search}
-                  recede={false}
-                  shape="pill"
-                  value={query}
-                />
-              ) : null}
+          <div className={cn('shrink-0 pb-4', PAGE_HEADER_TOP, PAGE_INSET_X)}>
+            <div className="mx-auto w-full max-w-4xl">
+              <PageTitle>{t.sidebar.nav.messaging}</PageTitle>
+              {/* The row Customize opens with: the "Configuring:" selector (its
+                  note underneath it) and the search at the right. */}
+              <div className="flex flex-wrap items-start gap-3">
+                <SettingsProfileScope className="min-h-8 justify-center" />
+                {showListSearch ? (
+                  <SearchField
+                    containerClassName="ml-auto min-w-56 flex-1 basis-56 max-w-md"
+                    hints={searchHints}
+                    onChange={setQuery}
+                    placeholder={m.search}
+                    recede={false}
+                    shape="pill"
+                    value={query}
+                  />
+                ) : null}
+              </div>
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">

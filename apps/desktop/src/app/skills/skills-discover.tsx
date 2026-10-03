@@ -88,9 +88,6 @@ export function SkillsDiscover({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="px-1 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
-        {h.landingHint}
-      </p>
       {loading ? (
         <PageLoader className="min-h-24" label={searching ? h.searching : h.connectingHubs} />
       ) : error ? (

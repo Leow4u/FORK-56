@@ -5,7 +5,8 @@ import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
-import { PAGE_INSET_X } from '@/app/layout-constants'
+import { PAGE_HEADER_TOP, PAGE_INSET_X } from '@/app/layout-constants'
+import { PageTitle } from '@/app/page-title'
 import { PageLoader } from '@/components/page-loader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -711,30 +712,33 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
     <section
       {...props}
       className={cn(
-        'flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)',
+        'flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background) pb-4',
         PAGE_INSET_X,
-        'pb-4 pt-[calc(var(--titlebar-height)+0.75rem)]',
         className
       )}
     >
       {selectedJob ? (
-        <CronJobDetail
-          busy={busyJobTokens.has(selectedJob.id) || triggeringJobKeys.has(`${profile}:${selectedJob.id}`)}
-          c={c}
-          deleteLabel={t.common.delete}
-          job={selectedJob}
-          onBack={() => setSelectedJobId(null)}
-          onDelete={() => setPendingDelete(selectedJob)}
-          onEdit={() => setEditor({ mode: 'edit', job: selectedJob })}
-          onOpenSession={openRun}
-          onPauseResume={() => void handlePauseResume(selectedJob)}
-          onTrigger={() => void handleTrigger(selectedJob)}
-        />
+        // The detail keeps the tighter offset under the title bar: its own
+        // header is the "Routines ›" breadcrumb, not the page title.
+        <div className="flex min-h-0 flex-1 flex-col pt-[calc(var(--titlebar-height)+0.75rem)]">
+          <CronJobDetail
+            busy={busyJobTokens.has(selectedJob.id) || triggeringJobKeys.has(`${profile}:${selectedJob.id}`)}
+            c={c}
+            deleteLabel={t.common.delete}
+            job={selectedJob}
+            onBack={() => setSelectedJobId(null)}
+            onDelete={() => setPendingDelete(selectedJob)}
+            onEdit={() => setEditor({ mode: 'edit', job: selectedJob })}
+            onOpenSession={openRun}
+            onPauseResume={() => void handlePauseResume(selectedJob)}
+            onTrigger={() => void handleTrigger(selectedJob)}
+          />
+        </div>
       ) : (
         <>
-          <header className="mb-4 flex shrink-0 flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">{c.title}</h1>
+          <header className={cn('mb-4 shrink-0', PAGE_HEADER_TOP)}>
+            <PageTitle>{c.title}</PageTitle>
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <ResponsiveTabs
                 align="start"
                 onChange={id => setTab(id === 'templates' ? 'templates' : 'jobs')}
@@ -743,21 +747,21 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
                   { id: 'templates', label: c.tabs.blueprints }
                 ]}
                 value={tab}
-                wideClassName="mt-3 justify-start"
+                wideClassName="justify-start"
               />
-            </div>
-            <div className="flex items-center gap-3">
-              <SearchField
-                aria-label={c.search}
-                hints={searchHints}
-                onChange={setQuery}
-                placeholder={c.search}
-                recede={false}
-                value={query}
-              />
-              <Button onClick={() => openCreate()} size="sm">
-                {c.newCron}
-              </Button>
+              <div className="flex items-center gap-3">
+                <SearchField
+                  aria-label={c.search}
+                  hints={searchHints}
+                  onChange={setQuery}
+                  placeholder={c.search}
+                  recede={false}
+                  value={query}
+                />
+                <Button onClick={() => openCreate()} size="sm">
+                  {c.newCron}
+                </Button>
+              </div>
             </div>
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto pb-6">

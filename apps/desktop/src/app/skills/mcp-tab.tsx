@@ -1278,8 +1278,10 @@ export function McpTab({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className={cn('flex h-full min-h-0 w-full flex-col', MCP_CATALOG_COLUMN_CLASS)}>
-        <div className="shrink-0 px-4 pt-2 pb-1">
+      {/* The gutter sits outside the column, as on Skills and Plugins, so the
+          three tabs' lists share one left edge under the page header. */}
+      <div className="shrink-0 px-4 pt-2 pb-1">
+        <div className={MCP_CATALOG_COLUMN_CLASS}>
           <CapabilitiesToolbar
             addItems={[
               { disabled: profilePending, label: m.newServer, onSelect: addServer },
@@ -1300,15 +1302,17 @@ export function McpTab({
             viewsHidden={Boolean(selected)}
           />
         </div>
-        <McpImportDialog
-          disabled={profilePending}
-          onImport={importServers}
-          onOpenChange={setImportOpen}
-          open={importOpen}
-        />
+      </div>
+      <McpImportDialog
+        disabled={profilePending}
+        onImport={importServers}
+        onOpenChange={setImportOpen}
+        open={importOpen}
+      />
 
-        <div className="min-h-0 flex-1 overflow-hidden">
-          {selected && activeEntry && !isHiddenMcpRuntimeServer(selected) ? (
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {selected && activeEntry && !isHiddenMcpRuntimeServer(selected) ? (
+          <div className={cn('flex h-full min-h-0 flex-col', MCP_CATALOG_COLUMN_CLASS)}>
             <ServerConfig
               authing={authing === selected}
               cost={costFor(selected, activeEntry)}
@@ -1325,8 +1329,10 @@ export function McpTab({
               saved={savedEntry !== undefined}
               saving={saving}
             />
-          ) : (
-            <div className="h-full overflow-y-auto overscroll-contain px-4 pt-1 pb-4 [scrollbar-gutter:stable]">
+          </div>
+        ) : (
+          <div className="h-full overflow-y-auto overscroll-contain px-4 pt-1 pb-4 [scrollbar-gutter:stable]">
+            <div className={MCP_CATALOG_COLUMN_CLASS}>
               {directoryEmpty ? (
                 <PanelEmpty
                   action={
@@ -1456,81 +1462,82 @@ export function McpTab({
                 </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
 
-        <div
-          className={cn(
-            'flex min-h-0 flex-col overflow-hidden border-t border-(--ui-stroke-quaternary)',
-            adminOpen ? 'h-[min(42vh,22rem)] shrink-0' : 'hidden'
-          )}
+      <div
+        className={cn(
+          'flex min-h-0 flex-col overflow-hidden border-t border-(--ui-stroke-quaternary)',
+          MCP_CATALOG_COLUMN_CLASS,
+          adminOpen ? 'h-[min(42vh,22rem)] shrink-0' : 'hidden'
+        )}
+      >
+        <JsonDocumentEditor
+          apiRef={editorApi}
+          disabled={saving}
+          filePath="mcp.json"
+          header={
+            <>
+              mcp.json
+              {dirty && <span aria-hidden className="size-1.5 rounded-full bg-current/60" />}
+            </>
+          }
+          highlight={activeBlock ? { from: activeBlock.from, to: activeBlock.to } : null}
+          initialValue={draft}
+          onChange={next => {
+            setDraft(next)
+            setDirty(true)
+          }}
+          onCursorChange={next => {
+            setCursor(next)
+
+            // Directory selection is explicit. Only the open Advanced editor
+            // may retarget it — a hidden remount must not bounce the catalog.
+            if (!adminOpen) {
+              return
+            }
+
+            const block = blocks.find(b => next >= b.from && next <= b.to)
+
+            if (block && !isHiddenMcpRuntimeServer(block.name)) {
+              setSelectedName(block.name)
+            }
+          }}
+          onFormatJsonError={error => notifyError(new Error(error), m.invalidJson)}
+          onSave={() => void saveDoc()}
+          remountKey={`${docVersion}-${adminOpen ? 'open' : 'shut'}`}
+          trailing={
+            <Button disabled={saving || !dirty} onClick={() => void saveDoc()} size="xs">
+              {saving ? t.common.saving : t.common.save}
+            </Button>
+          }
+        />
+        <DetailPane
+          actions={
+            <span className="flex items-center gap-1.5">
+              {(['stdio', 'agent'] as const).map(kind => (
+                <TextTab
+                  active={logSource === kind}
+                  className="h-5 px-0.5 text-[0.65rem]"
+                  key={kind}
+                  onClick={() => setLogSource(kind)}
+                >
+                  {kind}
+                </TextTab>
+              ))}
+            </span>
+          }
+          defaultHeight={120}
+          id="mcp-logs"
+          title={
+            <span className="text-[0.68rem] font-normal text-muted-foreground/60">
+              {selected && savedEntry ? selected : m.allServers}
+            </span>
+          }
         >
-          <JsonDocumentEditor
-            apiRef={editorApi}
-            disabled={saving}
-            filePath="mcp.json"
-            header={
-              <>
-                mcp.json
-                {dirty && <span aria-hidden className="size-1.5 rounded-full bg-current/60" />}
-              </>
-            }
-            highlight={activeBlock ? { from: activeBlock.from, to: activeBlock.to } : null}
-            initialValue={draft}
-            onChange={next => {
-              setDraft(next)
-              setDirty(true)
-            }}
-            onCursorChange={next => {
-              setCursor(next)
-
-              // Directory selection is explicit. Only the open Advanced editor
-              // may retarget it — a hidden remount must not bounce the catalog.
-              if (!adminOpen) {
-                return
-              }
-
-              const block = blocks.find(b => next >= b.from && next <= b.to)
-
-              if (block && !isHiddenMcpRuntimeServer(block.name)) {
-                setSelectedName(block.name)
-              }
-            }}
-            onFormatJsonError={error => notifyError(new Error(error), m.invalidJson)}
-            onSave={() => void saveDoc()}
-            remountKey={`${docVersion}-${adminOpen ? 'open' : 'shut'}`}
-            trailing={
-              <Button disabled={saving || !dirty} onClick={() => void saveDoc()} size="xs">
-                {saving ? t.common.saving : t.common.save}
-              </Button>
-            }
-          />
-          <DetailPane
-            actions={
-              <span className="flex items-center gap-1.5">
-                {(['stdio', 'agent'] as const).map(kind => (
-                  <TextTab
-                    active={logSource === kind}
-                    className="h-5 px-0.5 text-[0.65rem]"
-                    key={kind}
-                    onClick={() => setLogSource(kind)}
-                  >
-                    {kind}
-                  </TextTab>
-                ))}
-              </span>
-            }
-            defaultHeight={120}
-            id="mcp-logs"
-            title={
-              <span className="text-[0.68rem] font-normal text-muted-foreground/60">
-                {selected && savedEntry ? selected : m.allServers}
-              </span>
-            }
-          >
-            <McpLogs emptyLabel={m.noOutput} server={selected && savedEntry ? selected : null} source={logSource} />
-          </DetailPane>
-        </div>
+          <McpLogs emptyLabel={m.noOutput} server={selected && savedEntry ? selected : null} source={logSource} />
+        </DetailPane>
       </div>
     </div>
   )

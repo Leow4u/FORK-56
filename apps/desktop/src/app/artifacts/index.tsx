@@ -40,8 +40,9 @@ import { getAllSessionMessages, listAllProfileSessions } from '@/work4you'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
-import { PAGE_INSET_X } from '../layout-constants'
+import { PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
 import { openSession } from '../open-session'
+import { PageTitle } from '../page-title'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
 import {
@@ -321,23 +322,26 @@ export function ArtifactsView({
       {...props}
       className={cn('flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)', className)}
     >
-      <div className={cn('shrink-0 pt-[calc(var(--titlebar-height)+0.75rem)] pb-3', PAGE_INSET_X)}>
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="min-w-0 text-2xl font-semibold tracking-tight text-foreground">{t.sidebar.nav.artifacts}</h1>
-            <Tip label={refreshing ? a.refreshing : a.refresh}>
-              <Button
-                aria-label={refreshing ? a.refreshing : a.refresh}
-                className="text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
-                disabled={refreshing}
-                onClick={() => void refreshArtifacts()}
-                size="icon-titlebar"
-                variant="ghost"
-              >
-                {refreshing ? <TitlebarIcon name="loading" spinning /> : <TitlebarIcon name="refresh" />}
-              </Button>
-            </Tip>
-          </div>
+      <div className={cn('shrink-0 pb-3', PAGE_HEADER_TOP, PAGE_INSET_X)}>
+        <div className="mx-auto w-full max-w-5xl">
+          <PageTitle
+            aside={
+              <Tip label={refreshing ? a.refreshing : a.refresh}>
+                <Button
+                  aria-label={refreshing ? a.refreshing : a.refresh}
+                  className="text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
+                  disabled={refreshing}
+                  onClick={() => void refreshArtifacts()}
+                  size="icon-titlebar"
+                  variant="ghost"
+                >
+                  {refreshing ? <TitlebarIcon name="loading" spinning /> : <TitlebarIcon name="refresh" />}
+                </Button>
+              </Tip>
+            }
+          >
+            {t.sidebar.nav.artifacts}
+          </PageTitle>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-1" data-tour="page-tabs">
               {filterTabs.map(tab => {
