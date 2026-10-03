@@ -13201,8 +13201,10 @@ def _build_project_tree(
     from tui_gateway import project_tree
 
     _DIR_EXISTS_CACHE.clear()
+    # Discovered repos only ever feed the AUTO tier; with auto projects off the
+    # distinct-cwd scan and its git probes would be paid for nothing.
     sessions, projects, discovered, active_id = _project_tree_inputs(
-        db, session_limit, include_discovered=include_discovered
+        db, session_limit, include_discovered=include_discovered and project_tree.AUTO_PROJECTS
     )
     # build_tree resolves every declared project folder and every discovered
     # repo root too, and those paths are not session cwds — without this they

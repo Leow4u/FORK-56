@@ -56,6 +56,13 @@ DEFAULT_BRANCH_LABEL = "main"
 # named for what the bucket MEANS, since that's what membership keys off.
 NO_PROJECT_ID = "__no_project__"
 NO_PROJECT_LABEL = "Home"
+
+# Whether leftover sessions and disk-scanned repos are promoted to AUTO projects
+# (tiers 2 and 3 below). Off: the Projects list holds only what the user created,
+# and every session outside one lands in Home — the Codex shape. The upstream
+# grouping stays reachable through ``build_tree(auto_projects=True)`` so the
+# code path keeps its tests and a future sync has nothing to re-derive.
+AUTO_PROJECTS = False
 # The cloud VM's install directory. A new chat with no project inherits it as
 # cwd; it is the machine, not a user project, so those rows stay in Home.
 CLOUD_RUNTIME_ROOT = "/opt/work4you"
@@ -579,8 +586,13 @@ def build_tree(
     is_junk_root: Optional[Callable[[str], bool]] = None,
     is_junk_cwd: Optional[Callable[[str], bool]] = None,
     exists: Optional[Exists] = None,
+    auto_projects: bool = AUTO_PROJECTS,
 ) -> dict:
     """Build the authoritative project tree.
+
+    ``auto_projects`` gates tiers 2 and 3: with it off (the default), sessions
+    that no user-created project claims go straight to the Home bucket and
+    ``discovered_repos`` are ignored, so the tree lists only explicit projects.
 
     ``projects`` are ``projects_db.Project.to_dict()`` shapes (non-archived).
     ``sessions`` are projected session-row dicts (must carry ``id``, ``cwd``,
@@ -666,7 +678,10 @@ def build_tree(
         bucket = by_auto_root.setdefault(key, {"root": root, "sessions": []})
         bucket["sessions"].append(session)
 
-    for session in unowned:
+    if not auto_projects:
+        homeless.extend(unowned)
+
+    for session in unowned if auto_projects else []:
         root = _session_repo_root(session, resolve)
         if root:
             # A real git root uses the stricter repo policy. Do not reinterpret a
@@ -736,7 +751,7 @@ def build_tree(
 
     # Tier 3: repos discovered from full history / disk scan with no loaded
     # sessions, folded to their common root and not owned by an explicit project.
-    for repo in discovered_repos or []:
+    for repo in (discovered_repos or []) if auto_projects else []:
         raw_root = (repo.get("root") or "").strip()
         if not raw_root:
             continue

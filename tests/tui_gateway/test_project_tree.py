@@ -72,6 +72,12 @@ def _sessions_of(project):
     return [s for repo in project["repos"] for g in repo["groups"] for s in g["sessions"]]
 
 
+def _auto_tree(*args, **kwargs):
+    """The upstream grouping (auto projects ON). These tests pin that code path;
+    the default-off contract is pinned at the bottom of the file."""
+    return pt.build_tree(*args, auto_projects=True, **kwargs)
+
+
 def _real_project_ids(tree):
     """Project ids excluding the Home bucket (which is always present when any
     session went unplaced, so asserting on it in every test would be noise)."""
@@ -88,7 +94,7 @@ def test_main_checkout_groups_by_recorded_branch_with_stable_lane_ids():
         _session("/repo", branch="feature"),
     ]
 
-    tree = pt.build_tree([], sessions, [], resolve, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve, hydrate=True)
     project = next(p for p in tree["projects"] if p["id"] == "/repo")
 
     assert project["isAuto"] is True
@@ -112,7 +118,7 @@ def test_linked_worktrees_fold_under_their_common_repo_root():
         _session("/elsewhere/wt", branch="feature"),
     ]
 
-    tree = pt.build_tree([], sessions, [], resolve, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve, hydrate=True)
 
     assert [p["id"] for p in tree["projects"]] == ["/repo"]
     project = tree["projects"][0]
@@ -146,7 +152,7 @@ def test_overview_orders_lanes_by_recency_not_alphabetically():
     ]
 
     def _non_trunk_labels(hydrate):
-        tree = pt.build_tree([], sessions, [], resolve, hydrate=hydrate)
+        tree = _auto_tree([], sessions, [], resolve, hydrate=hydrate)
         project = tree["projects"][0]
         return [
             g["label"]
@@ -175,7 +181,7 @@ def test_kanban_task_worktrees_collapse_into_one_bucket():
         _session("/repo/.worktrees/t_bbbbbbbb"),
     ]
 
-    tree = pt.build_tree([], sessions, [], resolve, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve, hydrate=True)
     project = tree["projects"][0]
     kanban = [g for repo in project["repos"] for g in repo["groups"] if g.get("isKanban")]
 
@@ -201,7 +207,7 @@ def test_user_worktree_under_dotworktrees_is_its_own_lane_not_kanban():
         _session("/repo/.worktrees/test-gui-stuff", branch="work4you/test-gui-stuff"),
     ]
 
-    tree = pt.build_tree([], sessions, [], resolve, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve, hydrate=True)
     project = tree["projects"][0]
     lanes = {g["id"]: g for repo in project["repos"] for g in repo["groups"]}
 
@@ -216,7 +222,7 @@ def test_unrecorded_and_recorded_main_share_one_lane():
     resolve = _resolver({"/repo": ("/repo", "/repo")})
     sessions = [_session("/repo", branch=""), _session("/repo", branch="main")]
 
-    tree = pt.build_tree([], sessions, [], resolve, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve, hydrate=True)
     project = tree["projects"][0]
     main_lanes = [g for repo in project["repos"] for g in repo["groups"] if g["label"] == "main"]
 
@@ -239,7 +245,7 @@ def test_main_checkout_detected_when_roots_differ_only_in_path_spelling():
     )
     sessions = [_session("C:/repo", branch="main")]
 
-    tree = pt.build_tree([], sessions, [], resolve, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve, hydrate=True)
     project = next(p for p in tree["projects"] if pt._path_key(p["id"]) == pt._path_key("C:/repo"))
     lanes = [g for repo in project["repos"] for g in repo["groups"]]
 
@@ -262,7 +268,7 @@ def test_main_and_linked_worktree_do_not_duplicate_one_checkout():
     )
     sessions = [_session("C:/repo", branch="main"), _session("C:/repo-wt", branch="feature")]
 
-    tree = pt.build_tree([], sessions, [], resolve, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve, hydrate=True)
     project = next(p for p in tree["projects"] if pt._path_key(p["id"]) == pt._path_key("C:/repo"))
     lanes = [g for repo in project["repos"] for g in repo["groups"]]
 
@@ -276,7 +282,7 @@ def test_persisted_repo_root_used_when_no_live_probe():
     # split the main checkout by the session's recorded branch.
     sessions = [_session("/repo/src", branch="main", repo_root="/repo")]
 
-    tree = pt.build_tree([], sessions, [], resolve=None, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve=None, hydrate=True)
     project = next(p for p in tree["projects"] if p["id"] == "/repo")
 
     assert _lane_ids(project) == ["/repo::branch::main"]
@@ -288,7 +294,7 @@ def test_non_git_cwd_preserves_legacy_workspace_grouping():
     # that grouping instead of falling through to the flat Sessions list.
     legacy = _session("/work/notes", title="Research notes")
 
-    tree = pt.build_tree([], [legacy], [], resolve=lambda _cwd: None, hydrate=True)
+    tree = _auto_tree([], [legacy], [], resolve=lambda _cwd: None, hydrate=True)
 
     assert [p["id"] for p in tree["projects"]] == ["/work/notes"]
     project = tree["projects"][0]
@@ -308,7 +314,7 @@ def test_equivalent_windows_cwds_collapse_into_one_auto_project():
         _session("C:/work/notes/"),
     ]
 
-    tree = pt.build_tree([], sessions, [], resolve=lambda _cwd: None, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve=lambda _cwd: None, hydrate=True)
 
     assert len(tree["projects"]) == 1
     project = tree["projects"][0]
@@ -348,7 +354,7 @@ def test_posix_path_identity_remains_case_sensitive():
     explicit = _project("p_notes", "Notes", ["/Work/Notes"])
     session = _session("/work/notes")
 
-    tree = pt.build_tree([explicit], [session], [], resolve=lambda _cwd: None, hydrate=True)
+    tree = _auto_tree([explicit], [session], [], resolve=lambda _cwd: None, hydrate=True)
 
     assert [(p["id"], p["sessionCount"]) for p in tree["projects"]] == [
         ("p_notes", 0),
@@ -419,7 +425,7 @@ def test_explicit_project_claims_sessions_and_beats_auto():
         _session("/www/other", branch="main"),
     ]
 
-    tree = pt.build_tree([project], sessions, [], resolve, hydrate=True)
+    tree = _auto_tree([project], sessions, [], resolve, hydrate=True)
 
     explicit = next(p for p in tree["projects"] if p["id"] == "p_app")
     assert explicit["isAuto"] is False
@@ -440,7 +446,7 @@ def test_scoped_session_ids_is_union_of_placed_sessions():
     auto = _session("/www/repo", branch="main")
     homeless = _session(None)  # no cwd -> the Home bucket
 
-    tree = pt.build_tree([project], [owned, auto, homeless], [], resolve, hydrate=True)
+    tree = _auto_tree([project], [owned, auto, homeless], [], resolve, hydrate=True)
 
     assert set(tree["scoped_session_ids"]) == {owned["id"], auto["id"], homeless["id"]}
     assert _home_session_ids(tree) == [homeless["id"]]
@@ -463,7 +469,7 @@ def test_overview_drops_session_rows_but_keeps_counts_and_previews():
 def test_discovered_repo_with_no_sessions_becomes_zero_session_project():
     discovered = [{"root": "/www/fresh", "label": "fresh", "sessions": 0, "last_active": 5}]
 
-    tree = pt.build_tree([], [], discovered, resolve=None, hydrate=False)
+    tree = _auto_tree([], [], discovered, resolve=None, hydrate=False)
 
     fresh = next(p for p in tree["projects"] if p["id"] == "/www/fresh")
     assert fresh["isAuto"] is True
@@ -533,7 +539,7 @@ def test_junk_root_never_becomes_an_auto_project():
     real = _session("/www/app", branch="main")
     is_junk = lambda root: root == "/home/me/.work4you"
 
-    tree = pt.build_tree([], [junk, real], [], resolve, hydrate=True, is_junk_root=is_junk)
+    tree = _auto_tree([], [junk, real], [], resolve, hydrate=True, is_junk_root=is_junk)
 
     assert _real_project_ids(tree) == ["/www/app"]
     assert _home_session_ids(tree) == [junk["id"]]
@@ -566,7 +572,7 @@ def test_deleted_sibling_worktree_folds_into_parent_home_checkout():
         _session("/www/work4you-session-links"),
     ]
 
-    tree = pt.build_tree([], sessions, [], resolve, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve, hydrate=True)
     project = tree["projects"][0]
 
     assert [p["id"] for p in tree["projects"]] == ["/www/work4you"]
@@ -581,7 +587,7 @@ def test_existing_non_git_workspace_still_becomes_a_project():
     # that's still on disk is a legitimate workspace and must keep its project.
     sessions = [_session("/www/notes")]
 
-    tree = pt.build_tree([], sessions, [], lambda _cwd: None, hydrate=True, exists=lambda _p: True)
+    tree = _auto_tree([], sessions, [], lambda _cwd: None, hydrate=True, exists=lambda _p: True)
 
     assert [p["id"] for p in tree["projects"]] == ["/www/notes"]
 
@@ -602,7 +608,7 @@ def test_exists_defaults_to_keeping_everything():
     # behavior: guessing "gone" would wrongly hide a project on the other host.
     sessions = [_session("/remote/workspace")]
 
-    tree = pt.build_tree([], sessions, [], lambda _cwd: None, hydrate=True)
+    tree = _auto_tree([], sessions, [], lambda _cwd: None, hydrate=True)
 
     assert [p["id"] for p in tree["projects"]] == ["/remote/workspace"]
 
@@ -628,7 +634,7 @@ def test_home_bucket_leads_the_tree_and_is_lossless():
     cwdless = _session(None)
     junked = _session("/home/me", branch="main")
 
-    tree = pt.build_tree(
+    tree = _auto_tree(
         [],
         [owned, cwdless, junked],
         [],
@@ -655,7 +661,7 @@ def test_colliding_repo_basenames_disambiguate_labels():
     )
     sessions = [_session("/x/proj", branch="main"), _session("/y/proj", branch="main")]
 
-    tree = pt.build_tree([], sessions, [], resolve, hydrate=True)
+    tree = _auto_tree([], sessions, [], resolve, hydrate=True)
     labels = sorted(p["label"] for p in tree["projects"])
 
     assert labels == ["x/proj", "y/proj"]
@@ -717,3 +723,50 @@ def test_equivalent_windows_spellings_derive_one_lane_key():
     b = pt._place_by_heuristic("C:\\work\\notes\\")
     assert a is not None and b is not None
     assert pt._lane_key(a["lane_key"]) == pt._lane_key(b["lane_key"])
+
+
+# ---------------------------------------------------------------------------
+# Auto projects are off by default: the Projects list holds only what the user
+# created, and every other session lands in Home (the Codex shape). The upstream
+# grouping stays reachable by opting in, so both contracts are pinned here.
+
+
+def test_unowned_sessions_land_in_home_when_auto_projects_are_off():
+    project = _project("p_app", "App", ["/www/app"])
+    resolve = _resolver(
+        {
+            "/www/app": ("/www/app", "/www/app"),
+            "/www/other": ("/www/other", "/www/other"),
+        }
+    )
+    owned = _session("/www/app", branch="main")
+    stray = _session("/www/other", branch="main")
+    plain = _session("/www/notes")
+
+    tree = pt.build_tree([project], [owned, stray, plain], [], resolve, hydrate=True)
+
+    assert _real_project_ids(tree) == ["p_app"]
+    assert not any(p.get("isAuto") for p in tree["projects"])
+    assert set(_home_session_ids(tree)) == {stray["id"], plain["id"]}
+    # Nothing is lost: every session is either in its project or in Home.
+    assert set(tree["scoped_session_ids"]) == {owned["id"], stray["id"], plain["id"]}
+
+
+def test_discovered_repos_are_ignored_when_auto_projects_are_off():
+    discovered = [{"root": "/www/fresh", "label": "fresh", "sessions": 0, "last_active": 5}]
+
+    tree = pt.build_tree([], [], discovered, resolve=None, hydrate=False)
+
+    assert tree["projects"] == []
+
+
+def test_auto_projects_opt_in_restores_the_grouping():
+    resolve = _resolver({"/www/other": ("/www/other", "/www/other")})
+    stray = _session("/www/other", branch="main")
+    discovered = [{"root": "/www/fresh", "label": "fresh", "sessions": 0, "last_active": 5}]
+
+    tree = pt.build_tree([], [stray], discovered, resolve, hydrate=True, auto_projects=True)
+
+    assert sorted(_real_project_ids(tree)) == ["/www/fresh", "/www/other"]
+    assert all(p["isAuto"] for p in tree["projects"])
+    assert _home_session_ids(tree) == []
