@@ -50,6 +50,7 @@ interface AuxTaskCopy {
 
 export interface Translations {
   common: {
+    add: string
     apply: string
     back: string
     save: string
@@ -372,6 +373,11 @@ export interface Translations {
       failed: string
       empty: string
       kinds: { bundled: string; disk: string; runtime: string }
+      discoverEmpty: string
+      enabling: string
+      categoryDesktop: string
+      categoryGeneral: string
+      reloadDesktop: string
       agent: {
         title: string
         blurb: string
@@ -389,6 +395,7 @@ export interface Translations {
         title: string
         description: string
         repoLabel: string
+        repoPlaceholder: string
         includesHeading: string
         agentLabel: string
         desktopLabel: string
@@ -899,6 +906,16 @@ export interface Translations {
       statusNeedsAuth: string
       statusError: string
       statusOff: string
+      statusConnected: string
+      columnServer: string
+      columnType: string
+      columnStatus: string
+      columnActions: string
+      transportHttp: string
+      transportStdio: string
+      typeHostedApp: string
+      authOauth: string
+      disconnect: string
       allServers: string
       authenticatedTitle: string
       authenticatedMessage: (server: string, count: number) => string
@@ -1090,6 +1107,11 @@ export interface Translations {
     tabSkills: string
     tabToolsets: string
     configuringProfile: string
+    viewInstalled: string
+    viewConnected: string
+    viewDiscover: string
+    categoryFilter: string
+    allCategories: string
     tabMcp: string
     tabPlugins: string
     all: string

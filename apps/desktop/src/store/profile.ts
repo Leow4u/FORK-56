@@ -35,7 +35,14 @@ import { $activeGatewayProfile, $activeProfile, $profiles, normalizeProfileKey }
 // The identity atoms and key helpers live in ./profile-identity — a leaf with
 // no import-time side effects — and are re-exported here so every importer
 // keeps this one address. This module owns the behavior around them.
-export { $activeGatewayProfile, $activeProfile, $profiles, normalizeProfileKey, profileLabel } from './profile-identity'
+export {
+  $activeGatewayProfile,
+  $activeProfile,
+  $profiles,
+  DEFAULT_PROFILE_LABEL,
+  normalizeProfileKey,
+  profileLabel
+} from './profile-identity'
 
 export function setActiveProfile(name: string): void {
   $activeProfile.set(name || 'default')

@@ -84,8 +84,8 @@ describe('Chat settings', () => {
     expect(screen.queryByText('Default project directory')).toBeNull()
     expect(screen.queryByText('Nothing archived')).toBeNull()
     // Two profiles in the roster → the shared profile chip is back on the page.
-    expect(screen.getByText('Editing profile')).toBeTruthy()
-    expect(screen.getByRole('radio', { name: 'coder' })).toBeTruthy()
+    expect(screen.getByText('Configuring:')).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Configuring:' })).toBeTruthy()
   })
 
   it('persists collapse thinking from the chat page', async () => {

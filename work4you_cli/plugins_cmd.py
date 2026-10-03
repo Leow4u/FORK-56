@@ -1792,24 +1792,31 @@ def _is_portable_plugin_dir(dir_path) -> bool:
 _BUNDLED_DEFAULT_ON_KINDS = frozenset({"backend", "platform", "model-provider"})
 
 
-def _bundled_default_on(dir_path) -> bool:
-    """True when a bundled plugin at *dir_path* is active without an explicit
-    ``plugins.enabled`` entry. Standalone/exclusive kinds stay opt-in, and
-    portable packages (``plugin.json``) have no kind at all."""
+def _plugin_manifest_kind(dir_path) -> Optional[str]:
+    """``kind`` declared by the native manifest at *dir_path*, lower-cased
+    (``standalone`` when the field is absent). ``None`` when there is no
+    readable native manifest — portable packages (``plugin.json``) and
+    entry-point plugins have no kind at all."""
     manifest_file = Path(dir_path) / "plugin.yaml"
     if not manifest_file.exists():
         manifest_file = Path(dir_path) / "plugin.yml"
     if not manifest_file.exists():
-        return False
+        return None
     try:
         import yaml
 
         with open(manifest_file, encoding="utf-8") as f:
             manifest = yaml.safe_load(f) or {}
-        kind = str(manifest.get("kind", "standalone")).strip().lower()
-        return kind in _BUNDLED_DEFAULT_ON_KINDS
+        return str(manifest.get("kind", "standalone")).strip().lower() or "standalone"
     except Exception:
-        return False
+        return None
+
+
+def _bundled_default_on(dir_path) -> bool:
+    """True when a bundled plugin at *dir_path* is active without an explicit
+    ``plugins.enabled`` entry. Standalone/exclusive kinds stay opt-in, and
+    portable packages (``plugin.json``) have no kind at all."""
+    return _plugin_manifest_kind(dir_path) in _BUNDLED_DEFAULT_ON_KINDS
 
 
 def _scan_level(

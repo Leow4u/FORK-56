@@ -226,15 +226,16 @@ export interface DirectorySectionGroup {
 }
 
 /**
- * Perplexity-style groups. Popular apps also appear in their type section.
- * `discover` and `all` both section; connected/available stay sectioned too
- * so the store never splits into a native-vs-Composio taxonomy.
- * Pass `pinPopular: false` for Connected — the same apps already sit in
- * their type section.
+ * Perplexity-style groups. Popular apps are pinned first and, by default,
+ * also appear in their type section; pass `repeatPopular: false` to list
+ * each app once (the pin then owns it). `discover` and `all` both section;
+ * connected/available stay sectioned too so the store never splits into a
+ * native-vs-Composio taxonomy. Pass `pinPopular: false` for Connected — the
+ * same apps already sit in their type section.
  */
 export function groupDirectorySections(
   apps: readonly DirectoryApp[],
-  opts?: { pinPopular?: boolean }
+  opts?: { pinPopular?: boolean; repeatPopular?: boolean }
 ): DirectorySectionGroup[] {
   const groups: DirectorySectionGroup[] = []
   const pinPopular = opts?.pinPopular !== false
@@ -244,10 +245,15 @@ export function groupDirectorySections(
     groups.push({ id: 'popular', label: DIRECTORY_SECTION_LABELS.popular, apps: popular })
   }
 
+  // Only an app the pin already lists may leave its section — without the
+  // pin, dropping it there would make it vanish from the directory.
+  const pinned = new Set(opts?.repeatPopular === false ? popular.map(app => app.id) : [])
   const custom = apps.filter(app => app.source === 'custom')
 
   for (const id of DIRECTORY_SECTION_IDS) {
-    const rows = apps.filter(app => app.section === id && app.source !== 'custom')
+    const rows = apps.filter(
+      app => app.section === id && app.source !== 'custom' && !pinned.has(app.id)
+    )
 
     if (!rows.length) {
       continue

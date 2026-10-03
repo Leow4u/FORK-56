@@ -6,8 +6,9 @@ import type * as ReactRouterDom from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { queryClient } from '@/lib/query-client'
-import { clearPaneHeightOverride } from '@/store/panes'
 import type * as Work4YouApi from '@/work4you'
+
+import { $skillsCategory, $skillsView } from './store'
 
 const getSkills = vi.fn()
 const getToolsets = vi.fn()
@@ -19,6 +20,10 @@ const getUsageAnalytics = vi.fn()
 const getProfiles = vi.fn()
 const getSkillContent = vi.fn()
 const createSkill = vi.fn()
+const getSkillHubSources = vi.fn()
+const searchSkillsHub = vi.fn()
+const installSkillFromHub = vi.fn()
+const getActionStatus = vi.fn()
 
 // Partial mock: keep the real module (SkillsView pulls in @/store/profile,
 // whose import-time subscription calls setApiRequestProfile) and stub only the
@@ -37,7 +42,12 @@ vi.mock('@/work4you', async importOriginal => ({
   getProfiles: () => getProfiles(),
   getSkillContent: (name: string, profile?: null | string) => getSkillContent(name, profile),
   createSkill: (skill: { category?: string; content: string; name: string }, profile?: null | string) =>
-    createSkill(skill, profile)
+    createSkill(skill, profile),
+  getSkillHubSources: (profile?: null | string) => getSkillHubSources(profile),
+  searchSkillsHub: (query: string, source?: string, limit?: number, profile?: null | string) =>
+    searchSkillsHub(query, source, limit, profile),
+  installSkillFromHub: (identifier: string, profile?: null | string) => installSkillFromHub(identifier, profile),
+  getActionStatus: (name: string, tail?: number, profile?: null | string) => getActionStatus(name, tail, profile)
 }))
 
 // CodeEditor is CodeMirror; create/edit only needs the form chrome around it.
@@ -118,6 +128,10 @@ beforeEach(() => {
     content: '---\nname: web-research\nversion: 1.2.0\nauthor: Work4You\n---\n\n# Web Research\n\nDeep research steps.'
   })
   createSkill.mockResolvedValue({ success: true, message: "Skill 'expense-report' created." })
+  getSkillHubSources.mockResolvedValue({ sources: [], index_available: true, featured: [], installed: {} })
+  searchSkillsHub.mockResolvedValue({ results: [], source_counts: {}, timed_out: [], installed: {} })
+  installSkillFromHub.mockResolvedValue({ name: 'hub-install-1' })
+  getActionStatus.mockResolvedValue({ name: 'hub-install-1', running: false, exit_code: 0, lines: [] })
   // Single profile by default → the scope selector stays hidden (>1 gate),
   // so existing tests see unchanged single-profile behavior.
   getProfiles.mockResolvedValue({ profiles: [{ name: 'default', is_default: true }] })
@@ -128,8 +142,25 @@ afterEach(() => {
   vi.clearAllMocks()
   // Shared singleton client — drop cached skills/toolsets so each test refetches.
   queryClient.clear()
-  clearPaneHeightOverride('capabilities-hub')
+  $skillsView.set('mine')
+  $skillsCategory.set('all')
 })
+
+// Creation entries live behind the toolbar's Add menu.
+async function openAddMenu() {
+  fireEvent.keyDown(await screen.findByRole('button', { name: /Add/ }), { key: 'Enter' })
+}
+
+async function openNewSkill() {
+  await openAddMenu()
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'New skill' }))
+}
+
+// The "Configuring:" selector is a Select — open it, then pick the option.
+async function pickScope(name: string) {
+  fireEvent.click(await screen.findByRole('combobox', { name: 'Configuring:' }))
+  fireEvent.click(await screen.findByRole('option', { name }))
+}
 
 describe('SkillsView toolset management', () => {
   it('renders a switch for each toolset and toggles it off', async () => {
@@ -255,7 +286,8 @@ describe('SkillsView toolset management', () => {
 
     await renderSkills()
 
-    expect(await screen.findByRole('button', { name: 'New skill' })).toBeTruthy()
+    await openAddMenu()
+    expect(await screen.findByRole('menuitem', { name: 'New skill' })).toBeTruthy()
     expect(document.querySelector('[data-tour="tab-toolsets"]')).toBeNull()
     expect(screen.queryByRole('switch', { name: /toolset/ })).toBeNull()
     expect(screen.queryByText('Image Generation')).toBeNull()
@@ -293,9 +325,9 @@ describe('SkillsView toolset management', () => {
       )
     })
 
-    // The selector appears with >1 profile, as the same chips Channels uses.
+    // The selector appears with >1 profile, as the "Configuring:" dropdown.
     await act(async () => {
-      fireEvent.click(await screen.findByRole('radio', { name: 'researcher' }))
+      await pickScope('researcher')
     })
 
     // Toolsets refetch scoped to the picked profile.
@@ -336,7 +368,7 @@ describe('SkillsView toolset management', () => {
 
     // The selector renders on the Skills tab too (Capabilities-wide).
     await act(async () => {
-      fireEvent.click(await screen.findByRole('radio', { name: 'researcher' }))
+      await pickScope('researcher')
     })
 
     // Skills refetch scoped to the picked profile...
@@ -420,79 +452,94 @@ describe('SkillsView toolset management', () => {
     expect((await screen.findAllByText('learned-one')).length).toBeGreaterThan(0)
     expect(screen.getAllByText('hub-one').length).toBeGreaterThan(0)
     expect(screen.queryByText('himalaya')).toBeNull()
-    expect(document.querySelector('[data-tour="tab-skills"]')?.textContent).toContain('2')
+    // Counts sit on the section headers, grouped by provenance.
+    expect(screen.getByRole('heading', { name: /Learned/ }).textContent).toContain('1')
+    expect(screen.getByRole('heading', { name: /Hub/ }).textContent).toContain('1')
   })
 
-  it('hub picker stays collapsed until Browse, then refuses to reinstall an already-installed skill', async () => {
-    const { notify } = await import('@/store/notifications')
-    const { EmbeddedHubPicker } = await import('./embedded-hub-picker')
+  it('Discover lists the hub’s featured skills, installs one, and marks the already-installed one', async () => {
+    getSkills.mockResolvedValue([
+      {
+        name: 'web-research',
+        description: 'Research the web',
+        category: 'research',
+        enabled: true,
+        usage: 1,
+        provenance: 'hub'
+      }
+    ])
+    getSkillHubSources.mockResolvedValue({
+      sources: [],
+      index_available: true,
+      installed: {},
+      featured: [
+        {
+          name: 'web-research',
+          description: 'Already here',
+          source: 'official',
+          identifier: 'official/research/web-research',
+          trust_level: 'builtin',
+          repo: null,
+          tags: []
+        },
+        {
+          name: 'meme-generation',
+          description: 'Create meme PNGs',
+          source: 'official',
+          identifier: 'official/creative/meme-generation',
+          trust_level: 'builtin',
+          repo: null,
+          tags: []
+        }
+      ]
+    })
 
-    render(<EmbeddedHubPicker installedNames={new Set(['web-research'])} profile={null} />)
-
-    expect(document.querySelector('iframe')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Browse the full hub' })).toBeTruthy()
+    await renderSkillsTab()
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Browse the full hub' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Discover' }))
     })
-    expect(document.querySelector('iframe')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Hide the hub browser' })).toBeTruthy()
+
+    expect(await screen.findByText('meme-generation')).toBeTruthy()
+    // The already-installed skill offers no Install; the other one does.
+    expect(screen.getAllByRole('button', { name: 'Install' }).length).toBe(1)
 
     await act(async () => {
-      window.dispatchEvent(
-        new MessageEvent('message', {
-          data: { type: 'work4you-skill-pick', name: 'web-research', identifier: 'web-research' },
-          origin: 'https://work4you.ai'
-        })
-      )
+      fireEvent.click(screen.getByRole('button', { name: 'Install' }))
     })
 
-    // Refused with an informational toast, no install action spawned.
-    await waitFor(() =>
-      expect(vi.mocked(notify)).toHaveBeenCalledWith(
-        expect.objectContaining({ title: '"web-research" is already installed' })
-      )
-    )
+    await waitFor(() => expect(installSkillFromHub).toHaveBeenCalled())
+    expect(installSkillFromHub.mock.calls[0][0]).toBe('official/creative/meme-generation')
   })
 
-  it('mounts the hub iframe on Browse and keeps it (hidden) across tab switches', async () => {
-    // On a non-Skills tab the docs-site iframe must not exist at all — an
-    // eagerly mounted hub is exactly the Capabilities lag bug.
-    await renderSkills() // ?tab=toolsets
-    await screen.findByRole('switch', { name: 'Turn Google Meet toolset off' })
-    expect(document.querySelector('iframe')).toBeNull()
-    cleanup()
-
-    // Embedded mode drives tabs through local state (the route hooks are
-    // mocked here), starting on Skills: hub chrome mounts collapsed.
-    const { SkillsView } = await import('./index')
-    await act(async () => {
-      render(
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={['/skills']}>
-            <SkillsView embedded />
-          </MemoryRouter>
-        </QueryClientProvider>
-      )
+  it('Discover searches the hub from the page search field', async () => {
+    searchSkillsHub.mockResolvedValue({
+      results: [
+        {
+          name: 'stocks',
+          description: 'Quotes',
+          source: 'official',
+          identifier: 'official/finance/stocks',
+          trust_level: 'builtin',
+          repo: null,
+          tags: []
+        }
+      ],
+      source_counts: {},
+      timed_out: [],
+      installed: {}
     })
 
-    expect(document.querySelector('iframe')).toBeNull()
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Browse the full hub' }))
-    })
-    const iframe = document.querySelector('iframe')
-    expect(iframe).toBeTruthy()
-    expect(iframe!.closest('section')!.classList.contains('hidden')).toBe(false)
+    await renderSkillsTab()
 
-    // Switch to Tools → the iframe STAYS mounted (no docs-site reload on the
-    // next visit) but its section is fully hidden, so nothing from the hub
-    // can paint over the toolsets UI.
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Tools/ }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Discover' }))
     })
-    const kept = document.querySelector('iframe')
-    expect(kept).toBeTruthy()
-    expect(kept!.closest('section')!.classList.contains('hidden')).toBe(true)
+
+    fireEvent.change(await screen.findByPlaceholderText('Search the skill hub'), { target: { value: 'stocks' } })
+
+    await waitFor(() => expect(searchSkillsHub).toHaveBeenCalledWith('stocks', 'all', 50, 'default'))
+    expect(await screen.findByText('stocks')).toBeTruthy()
   })
 
   it('hides Vision from Capabilities Tools including the Settings deep-link', async () => {
@@ -600,14 +647,15 @@ describe('SkillsView new skill', () => {
   it('shows New skill on an empty Skills list', async () => {
     await renderSkillsTab()
 
-    expect(await screen.findByRole('button', { name: 'New skill' })).toBeTruthy()
+    await openAddMenu()
+    expect(await screen.findByRole('menuitem', { name: 'New skill' })).toBeTruthy()
   })
 
   it('creates a skill through POST /api/skills with the template body', async () => {
     await renderSkillsTab()
 
     await act(async () => {
-      fireEvent.click(await screen.findByRole('button', { name: 'New skill' }))
+      await openNewSkill()
     })
 
     const name = await screen.findByPlaceholderText('my-skill')
@@ -645,13 +693,13 @@ describe('SkillsView new skill', () => {
     await renderSkillsTab()
 
     await act(async () => {
-      fireEvent.click(await screen.findByRole('radio', { name: 'researcher' }))
+      await pickScope('researcher')
     })
 
     await waitFor(() => expect(getSkills).toHaveBeenCalledWith('researcher'))
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'New skill' }))
+      await openNewSkill()
     })
     await act(async () => {
       fireEvent.change(await screen.findByPlaceholderText('my-skill'), { target: { value: 'notes' } })
@@ -676,15 +724,57 @@ describe('SkillsView new skill', () => {
     await renderSkillsTab()
 
     await act(async () => {
-      fireEvent.click(await screen.findByRole('button', { name: 'New skill' }))
+      await openNewSkill()
     })
     expect(await screen.findByPlaceholderText('my-skill')).toBeTruthy()
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('radio', { name: 'researcher' }))
+      await pickScope('researcher')
     })
 
     await waitFor(() => expect(screen.queryByPlaceholderText('my-skill')).toBeNull())
     expect(createSkill).not.toHaveBeenCalled()
+  })
+})
+
+describe('SkillsView profile selector', () => {
+  it('names the default profile by the product name, never "(default)", and notes only a non-default target', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    getProfiles.mockResolvedValue({
+      profiles: [
+        { name: 'default', is_default: true },
+        { name: 'researcher', is_default: false }
+      ]
+    })
+
+    await renderSkillsTab()
+
+    const trigger = await screen.findByRole('combobox', { name: 'Configuring:' })
+    expect(trigger.textContent).toContain('Work4You')
+    expect(screen.queryByText(/\(default\)/)).toBeNull()
+    // Editing the default profile needs no note.
+    expect(document.querySelector('[data-scope-loud="true"]')).toBeNull()
+
+    await act(async () => {
+      await pickScope('researcher')
+    })
+
+    await waitFor(() => expect(document.querySelector('[data-scope-loud="true"]')).toBeTruthy())
+    expect(document.querySelector('[data-scope-loud="true"]')?.textContent).toContain('researcher')
+  })
+
+  it('shows a display name set for the default profile', async () => {
+    Element.prototype.scrollIntoView = vi.fn()
+    getProfiles.mockResolvedValue({
+      profiles: [
+        { name: 'default', is_default: true, display_name: 'Leo bot' },
+        { name: 'researcher', is_default: false }
+      ]
+    })
+
+    await renderSkillsTab()
+
+    expect((await screen.findByRole('combobox', { name: 'Configuring:' })).textContent).toContain('Leo bot')
+    expect(screen.queryByText(/\(default\)/)).toBeNull()
   })
 })

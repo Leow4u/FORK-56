@@ -27,3 +27,26 @@ export function getServers(config: { mcp_servers?: unknown } | null): McpServers
 
   return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as McpServers) : {}
 }
+
+/** How the agent reaches a server, read the way the loader reads it: a `url`
+ *  is HTTP (streamable HTTP / SSE), a `command` is a local stdio process. */
+export type McpServerTransport = 'http' | 'stdio'
+
+export function serverTransport(entry: Record<string, unknown>): McpServerTransport | null {
+  if (typeof entry.url === 'string') {
+    return 'http'
+  }
+
+  if (typeof entry.command === 'string') {
+    return 'stdio'
+  }
+
+  return null
+}
+
+/** Only `auth: oauth` is called out in the Connected table. Header / API-key
+ *  auth stays private there: the table must not advertise which servers
+ *  carry a secret. */
+export function serverUsesOAuth(entry: Record<string, unknown>): boolean {
+  return entry.auth === 'oauth'
+}

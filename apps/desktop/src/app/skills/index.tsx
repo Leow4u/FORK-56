@@ -7,7 +7,6 @@ import { useNavigate } from 'react-router'
 import { ArchiveSkillConfirmDialog } from '@/app/learning/archive-skill-confirm-dialog'
 import { CodeEditor } from '@/components/chat/code-editor'
 import { PageLoader } from '@/components/page-loader'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SearchField } from '@/components/ui/search-field'
@@ -23,6 +22,7 @@ import { normalize } from '@/lib/text'
 import { useStoreSelector } from '@/lib/use-session-slice'
 import { cn } from '@/lib/utils'
 import { $gateway, activeGatewayConnectionId } from '@/store/gateway'
+import { updateHubSkills } from '@/store/hub-actions'
 import { notify, notifyError } from '@/store/notifications'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import type { SkillInfo, ToolsetInfo } from '@/types/work4you'
@@ -44,7 +44,7 @@ import {
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
-import { PAGE_INSET_X } from '../layout-constants'
+import { CAPABILITIES_MAX_W, PAGE_INSET_X } from '../layout-constants'
 import {
   CapRow,
   DetailColumn,
@@ -62,17 +62,21 @@ import { SETTINGS_ROUTE } from '../routes'
 import { ComputerUsePanel } from '../settings/computer-use-panel'
 import { asText, includesQuery, prettyName, toolNames, toolsetDisplayLabel } from '../settings/helpers'
 import { PluginsSettings } from '../settings/plugins-settings'
-import { ScopeChip } from '../settings/profile-scope'
+import { settingsScopeLabel } from '../settings/profile-scope'
+import { ProfileScopeSelect } from '../settings/profile-scope-select'
 import { TerminalBackendPanel } from '../settings/terminal-backend-panel'
 import { ToolsetConfigPanel } from '../settings/toolset-config-panel'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
-import { EmbeddedHubPicker } from './embedded-hub-picker'
+import { CapabilitiesSection } from './capabilities-section'
+import { CapabilitiesToolbar } from './capabilities-toolbar'
 import { McpTab } from './mcp-tab'
-import { $skillsSortDesc, $toolsetsSortDesc } from './store'
+import { SkillRow } from './skill-row'
+import { SkillsDiscover } from './skills-discover'
+import { $skillsCategory, $skillsSortDesc, $skillsView, $toolsetsSortDesc } from './store'
 
-// 'hub' is gone as a top-level tab — the Skills Hub browser lives inside the
-// Skills tab now (EmbeddedHubPicker below the installed list). Legacy
+// 'hub' is gone as a top-level tab — the hub is the Skills tab's Discover
+// view (SkillsDiscover). Legacy
 // `?tab=hub` links fall back to 'skills' via useRouteEnumParam.
 const SKILLS_MODES = ['skills', 'toolsets', 'mcp', 'plugins'] as const
 
@@ -133,12 +137,13 @@ const categoryFor = (skill: SkillInfo): string => asText(skill.category) || 'gen
 // manages shows what they created, what the agent learned, and hub installs.
 const isListedSkill = (skill: SkillInfo): boolean => skill.provenance !== 'bundled'
 
-function filteredSkills(skills: SkillInfo[], query: string, desc: boolean): SkillInfo[] {
+function filteredSkills(skills: SkillInfo[], query: string, category: string, desc: boolean): SkillInfo[] {
   const q = normalize(query)
   const sign = desc ? 1 : -1
 
   return skills
     .filter(isListedSkill)
+    .filter(skill => category === 'all' || categoryFor(skill) === category)
     .filter(
       skill =>
         !q || includesQuery(skill.name, q) || includesQuery(skill.description, q) || includesQuery(skill.category, q)
@@ -221,17 +226,6 @@ export function SkillsView({
   const gateway = useStoreSelector($gateway, g => (mode === 'mcp' ? g : null))
 
   const [query, setQuery] = useState('')
-
-  // The hub picker chrome mounts lazily (first time the Skills tab is shown)
-  // and then STAYS mounted but hidden across tab switches. The docs iframe
-  // itself stays collapsed until Browse — opening it then keeps the frame
-  // across Tools/MCP so bouncing back never reloads the site. Derived-state
-  // pattern: flips once, during render, never back.
-  const [hubMounted, setHubMounted] = useState(mode === 'skills')
-
-  if (mode === 'skills' && !hubMounted) {
-    setHubMounted(true)
-  }
 
   // Capabilities scope selector: which profile's Skills/Tools/MCP config we're
   // editing — and on WHICH gateway. A profile belongs to one gateway, so on a
@@ -320,10 +314,6 @@ export function SkillsView({
   const showToolsTab = Boolean(toolsets && visibleToolsetCount(toolsets) > 0)
   const displayMode: (typeof SKILLS_MODES)[number] = mode === 'toolsets' && !showToolsTab ? 'skills' : mode
 
-  if (displayMode === 'skills' && !hubMounted) {
-    setHubMounted(true)
-  }
-
   // Optimistic write-through against the scoped Skills key: toggles/bulk/
   // archive repaint instantly; the next background refetch reconciles.
   const setSkills = useCallback(
@@ -339,6 +329,8 @@ export function SkillsView({
   // toolCalls after the user moved to B.
   const toolCallsEpoch = useRef(0)
   const skillsSortDesc = useStore($skillsSortDesc)
+  const skillsView = useStore($skillsView)
+  const skillsCategory = useStore($skillsCategory)
   const toolsetsSortDesc = useStore($toolsetsSortDesc)
   const [bulkBusy, setBulkBusy] = useState(false)
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null)
@@ -408,8 +400,8 @@ export function SkillsView({
   })
 
   const visibleSkills = useMemo(
-    () => (skills ? filteredSkills(skills, query, skillsSortDesc) : []),
-    [query, skills, skillsSortDesc]
+    () => (skills ? filteredSkills(skills, query, skillsCategory, skillsSortDesc) : []),
+    [query, skills, skillsCategory, skillsSortDesc]
   )
 
   const visibleToolsets = useMemo(
@@ -427,6 +419,33 @@ export function SkillsView({
   // Installed-name set for the hub picker's already-installed guard — the
   // UNFILTERED list on purpose (search must not make a skill look absent).
   const installedSkillNames = useMemo(() => new Set((skills ?? []).map(s => s.name)), [skills])
+
+  // Category filter options for the toolbar: every category among the listed
+  // skills with its count, most populous first.
+  const skillCategories = useMemo(() => {
+    const counts = new Map<string, number>()
+
+    for (const skill of bulkSkills) {
+      const key = categoryFor(skill)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+
+    return [...counts.entries()]
+      .sort(([a, countA], [b, countB]) => countB - countA || a.localeCompare(b))
+      .map(([id, count]) => ({ count, id, label: prettyName(id) }))
+  }, [bulkSkills])
+
+  // Installed skills grouped by where they came from — learned here, from the
+  // hub — each group headed by its count (nothing on the tab pill).
+  const skillGroups = useMemo(
+    () =>
+      [
+        { id: 'agent', label: t.skills.provenance.agent, skills: visibleSkills.filter(s => s.provenance === 'agent') },
+        { id: 'hub', label: t.skills.provenance.hub, skills: visibleSkills.filter(s => s.provenance === 'hub') },
+        { id: 'other', label: t.skills.tabSkills, skills: visibleSkills.filter(s => !s.provenance) }
+      ].filter(group => group.skills.length > 0),
+    [t, visibleSkills]
+  )
 
   // Rotating placeholder nudges from the user's own data — teach that search
   // understands categories and tool names, not just titles.
@@ -793,27 +812,42 @@ export function SkillsView({
     </DetailPane>
   )
 
-  const skillsListStrip = (
-    <ListStrip
-      left={sortButton(skillsSortDesc, () => $skillsSortDesc.set(!$skillsSortDesc.get()))}
-      right={
-        <>
-          <Button onClick={openSkillCreate} size="xs" variant="ghost">
-            {t.skills.newSkill}
-          </Button>
-          <ListStripMenu
-            items={[
-              {
-                disabled: bulkBusy,
-                label: t.skills.disableUnused,
-                onSelect: () => void disableUnused()
-              }
-            ]}
-            label={t.skills.tabSkills}
-            toggle={bulkSwitch(allSkillsEnabled)}
-          />
-        </>
+  const updateInstalledSkills = () => {
+    notify({ kind: 'success', title: t.skills.hub.updateStarted, message: t.skills.hub.actionLog })
+    void updateHubSkills(scopeProfile).catch(err => notifyError(err, t.skills.hub.actionFailed))
+  }
+
+  // The one Capabilities toolbar: Installed | Discover, the category filter,
+  // the sort, then New skill / Update installed behind Add and the bulk
+  // switch + Disable unused behind the overflow menu.
+  const skillsToolbar = (
+    <CapabilitiesToolbar
+      addItems={[
+        { label: t.skills.newSkill, onSelect: openSkillCreate },
+        { label: t.skills.hub.updateAll, onSelect: updateInstalledSkills }
+      ]}
+      categories={skillsView === 'mine' ? skillCategories : undefined}
+      category={skillsCategory}
+      filters={
+        skillsView === 'mine' ? sortButton(skillsSortDesc, () => $skillsSortDesc.set(!$skillsSortDesc.get())) : null
       }
+      menu={
+        <ListStripMenu
+          items={[
+            {
+              disabled: bulkBusy,
+              label: t.skills.disableUnused,
+              onSelect: () => void disableUnused()
+            }
+          ]}
+          label={t.skills.tabSkills}
+          toggle={bulkSwitch(allSkillsEnabled)}
+        />
+      }
+      mineLabel={t.skills.viewInstalled}
+      onCategoryChange={value => $skillsCategory.set(value)}
+      onViewChange={next => $skillsView.set(next)}
+      view={skillsView}
     />
   )
 
@@ -870,7 +904,7 @@ export function SkillsView({
 
     return (profilesData?.profiles ?? []).map(p => ({
       key: p.name,
-      label: p.is_default ? 'Work4You (default)' : p.name,
+      label: settingsScopeLabel(p),
       profile: p.name,
       value: p.name
     }))
@@ -897,48 +931,40 @@ export function SkillsView({
   // with >1 option; hidden otherwise to avoid clutter.
   const scopeLabel = scopeOptions.find(option => option.value === scopeSelectValue)?.label ?? ''
 
-  // Same chip row Channels uses. The options stay the capabilities roster,
-  // including a profile that lives on another gateway.
+  // The dropdown Channels and the Settings pages converge on: "Configuring:"
+  // plus the profile's face and resolved name. The options stay the
+  // capabilities roster, including a profile that lives on another gateway.
   const profileScopeSelector =
     scopeOptions.length > 1 ? (
-      <div className="flex w-full flex-col items-center gap-2 text-center">
-        <div className="text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-secondary)">
-          {t.settings.profileScope.appliesTo}
-        </div>
-        <div
-          aria-label={t.settings.profileScope.appliesTo}
-          className="flex flex-wrap justify-center gap-1.5"
-          role="radiogroup"
-        >
-          {scopeOptions.map(option => (
-            <ScopeChip
-              active={option.value === scopeSelectValue}
-              key={option.key}
-              label={option.label}
-              name={option.profile}
-              onSelect={() => changeScope(option.value)}
-            />
-          ))}
-        </div>
-        {scopeLabel ? (
-          <p className="max-w-xl text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-            {t.settings.profileScope.editsProfile(scopeLabel)}
-          </p>
-        ) : null}
-      </div>
+      <ProfileScopeSelect
+        label={t.skills.configuringProfile}
+        onChange={changeScope}
+        options={scopeOptions}
+        value={scopeSelectValue}
+      />
     ) : null
 
-  const capabilityTabs: { id: (typeof SKILLS_MODES)[number]; label: string; meta?: null | number }[] = [
-    { id: 'skills', label: t.skills.tabSkills, meta: skills ? bulkSkills.length : null },
-    ...(showToolsTab
-      ? [
-          {
-            id: 'toolsets' as const,
-            label: t.skills.tabToolsets,
-            meta: toolsets ? visibleToolsetCount(toolsets) : null
-          }
-        ]
-      : []),
+  // Name the edit target only when it is NOT the default profile — the
+  // "edited the bot's config thinking it was mine" misdirect. Editing the
+  // default profile needs no note.
+  const scopeProfileName = scopeProfile && typeof scopeProfile === 'object' ? scopeProfile.profile : scopeProfile
+  const editingNonDefault = scopeOptions.length > 1 && normalizeProfileKey(scopeProfileName) !== 'default'
+
+  const scopeNote =
+    editingNonDefault && scopeLabel ? (
+      <p
+        className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-medium text-(--ui-accent)"
+        data-scope-loud="true"
+        role="status"
+      >
+        {t.settings.profileScope.editsProfile(scopeLabel)}
+      </p>
+    ) : null
+
+  // Counts live on the section headers inside each tab, not on the pills.
+  const capabilityTabs: { id: (typeof SKILLS_MODES)[number]; label: string }[] = [
+    { id: 'skills', label: t.skills.tabSkills },
+    ...(showToolsTab ? [{ id: 'toolsets' as const, label: t.skills.tabToolsets }] : []),
     { id: 'mcp', label: t.skills.tabMcp },
     { id: 'plugins', label: t.skills.tabPlugins }
   ]
@@ -949,49 +975,49 @@ export function SkillsView({
       className={cn('flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)', className)}
     >
       <div className={cn('shrink-0 pt-[calc(var(--titlebar-height)+0.75rem)] pb-4', PAGE_INSET_X)}>
-        <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4">
-          {profileScopeSelector}
-          <SearchField
-            containerClassName="w-full max-w-md"
-            hints={searchHints}
-            onChange={setQuery}
-            placeholder={
-              displayMode === 'skills'
-                ? t.skills.searchSkills
-                : displayMode === 'mcp'
-                  ? t.settings.searchPlaceholder.mcp
-                  : displayMode === 'plugins'
-                    ? t.skills.searchPlugins
-                    : t.skills.searchToolsets
-            }
-            recede={false}
-            shape="pill"
-            value={query}
-          />
-          <div className="flex flex-wrap items-center justify-center gap-1" data-tour="page-tabs">
-            {capabilityTabs.map(tab => {
-              const active = displayMode === tab.id
+        <div className={cn('mx-auto flex w-full flex-col gap-2', CAPABILITIES_MAX_W)}>
+          <div className="flex flex-wrap items-center gap-3">
+            {profileScopeSelector}
+            <div className="flex flex-wrap items-center gap-1" data-tour="page-tabs">
+              {capabilityTabs.map(tab => {
+                const active = displayMode === tab.id
 
-              return (
-                <Button
-                  aria-pressed={active}
-                  data-tour={`tab-${tab.id}`}
-                  key={tab.id}
-                  onClick={() => setMode(tab.id)}
-                  size="sm"
-                  type="button"
-                  variant={active ? 'chip' : 'text'}
-                >
-                  {tab.label}
-                  {tab.meta === null ? (
-                    <CountSkeleton />
-                  ) : tab.meta !== undefined ? (
-                    <span className="text-[0.72em] font-normal text-(--ui-text-tertiary)">{tab.meta}</span>
-                  ) : null}
-                </Button>
-              )
-            })}
+                return (
+                  <Button
+                    aria-pressed={active}
+                    data-tour={`tab-${tab.id}`}
+                    key={tab.id}
+                    onClick={() => setMode(tab.id)}
+                    size="sm"
+                    type="button"
+                    variant={active ? 'chip' : 'text'}
+                  >
+                    {tab.label}
+                  </Button>
+                )
+              })}
+            </div>
+            <SearchField
+              containerClassName="ml-auto min-w-56 flex-1 basis-56 max-w-md"
+              hints={displayMode === 'skills' && skillsView === 'mine' ? searchHints : undefined}
+              onChange={setQuery}
+              placeholder={
+                displayMode === 'skills'
+                  ? skillsView === 'discover'
+                    ? t.skills.hub.searchPlaceholder
+                    : t.skills.searchSkills
+                  : displayMode === 'mcp'
+                    ? t.settings.searchPlaceholder.mcp
+                    : displayMode === 'plugins'
+                      ? t.skills.searchPlugins
+                      : t.skills.searchToolsets
+              }
+              recede={false}
+              shape="pill"
+              value={query}
+            />
           </div>
+          {scopeNote}
         </div>
       </div>
       {/* Skills, Tools, MCP, and Plugins read and write the same selected profile. */}
@@ -1026,12 +1052,8 @@ export function SkillsView({
             ) : !skills || !toolsets ? (
               <PageLoader label={t.skills.loading} />
             ) : displayMode === 'skills' ? (
-              // Installed skills on top, the Skills Hub browser underneath —
-              // discovery sits with management. The list region keeps a floor
-              // (min-h-40, on the wrapper above) so a tall hub viewport or a
-              // short window shrinks the HUB, never the list: the sort strip
-              // and "changes apply" footer can no longer be starved to 0px
-              // and painted over by the hub header.
+              // Installed skills (grouped by provenance) or the in-app hub,
+              // chosen by the toolbar's Installed | Discover switch.
               <div className="h-full overflow-y-auto px-4 pb-4">
                 {skillEditor ? (
                   <div className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col gap-3 py-4">
@@ -1069,27 +1091,39 @@ export function SkillsView({
                     </p>
                   </div>
                 ) : (
-                  <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 py-2">
-                    {skillsListStrip}
-                    {visibleSkills.length === 0 ? (
+                  <div className={cn('mx-auto flex w-full flex-col gap-3 py-2', CAPABILITIES_MAX_W)}>
+                    {skillsToolbar}
+                    {skillsView === 'discover' ? (
+                      <SkillsDiscover installedNames={installedSkillNames} profile={scopeProfile} query={query} />
+                    ) : visibleSkills.length === 0 ? (
                       <p className="px-2 py-4 text-[0.68rem] leading-relaxed text-muted-foreground/70">
                         {query.trim()
                           ? t.skills.emptyNothingMatches(query.trim())
                           : t.skills.emptyNoneAvailable('skills')}
                       </p>
                     ) : (
-                      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {visibleSkills.map(skill => (
-                          <li key={skill.name}>
-                            <SkillCard
-                              busy={bulkBusy}
-                              onOpen={() => setSelectedSkill(skill.name)}
-                              onToggle={enabled => void handleToggleSkill(skill, enabled)}
-                              skill={skill}
-                            />
-                          </li>
+                      <div className="flex flex-col gap-4">
+                        {skillGroups.map(group => (
+                          <CapabilitiesSection count={group.skills.length} key={group.id} label={group.label}>
+                            <div>
+                              {group.skills.map(skill => (
+                                <SkillRow
+                                  busy={bulkBusy}
+                                  category={prettyName(categoryFor(skill))}
+                                  key={skill.name}
+                                  onOpen={() => setSelectedSkill(skill.name)}
+                                  onToggle={enabled => void handleToggleSkill(skill, enabled)}
+                                  skill={skill}
+                                  usage={usageOf(skill)}
+                                />
+                              ))}
+                            </div>
+                          </CapabilitiesSection>
                         ))}
-                      </ul>
+                        <p className="text-right text-[0.65rem] text-muted-foreground/50">
+                          {t.skills.changesApplyNewSessions}
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}
@@ -1147,20 +1181,6 @@ export function SkillsView({
               </MasterDetail>
             )}
           </div>
-          {/* Hub picker OUTSIDE the tab ternary: chrome lazy-mounts the first
-              time Skills is shown, then stays mounted (hidden) across
-              Tools/MCP. The iframe only loads after Browse; once open it
-              survives tab bounces. No scope key on purpose — the picker
-              fetches nothing; scope rides the `profile` prop into each
-              install call, and remounting on scope change would reload the
-              site for no data benefit. */}
-          {hubMounted && (
-            <EmbeddedHubPicker
-              hidden={displayMode !== 'skills' || Boolean(skillEditor) || Boolean(openSkill)}
-              installedNames={installedSkillNames}
-              profile={scopeProfile}
-            />
-          )}
         </div>
       </div>
       {archiveTarget && (
@@ -1260,44 +1280,6 @@ function parseFrontmatter(content: string): { body: string; meta: [string, strin
   flush()
 
   return { body: content.slice(match[0].length), meta }
-}
-
-function SkillCard({
-  busy,
-  onOpen,
-  onToggle,
-  skill
-}: {
-  busy: boolean
-  onOpen: () => void
-  onToggle: (enabled: boolean) => void
-  skill: SkillInfo
-}) {
-  const { t } = useI18n()
-  const usage = usageOf(skill)
-
-  return (
-    <div className="flex items-start gap-3 rounded-xl border border-(--ui-stroke-tertiary) bg-(--ui-bg-editor) p-3 transition-colors hover:bg-(--ui-row-hover-background)">
-      <button className="min-w-0 flex-1 text-left" onClick={onOpen} type="button">
-        <span className="block truncate text-sm font-medium text-foreground">{skill.name}</span>
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{prettyName(categoryFor(skill))}</span>
-        <span className="mt-2 flex flex-wrap items-center gap-2">
-          {skill.provenance === 'agent' && (
-            <Badge className="normal-case" variant="default">
-              {t.skills.provenance.agent}
-            </Badge>
-          )}
-          {skill.provenance === 'hub' && (
-            <Badge className="normal-case" variant="muted">
-              {t.skills.provenance.hub}
-            </Badge>
-          )}
-          {usage > 0 && <span className="text-xs tabular-nums text-(--ui-text-tertiary)">×{compactNumber(usage)}</span>}
-        </span>
-      </button>
-      <Switch aria-label={skill.name} checked={skill.enabled} disabled={busy} onCheckedChange={onToggle} size="xs" />
-    </div>
-  )
 }
 
 function SkillDetail({
