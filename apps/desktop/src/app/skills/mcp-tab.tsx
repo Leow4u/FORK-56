@@ -1279,7 +1279,7 @@ export function McpTab({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className={cn('flex h-full min-h-0 w-full flex-col', MCP_CATALOG_COLUMN_CLASS)}>
-        <div className="shrink-0 border-b border-(--ui-stroke-quaternary) px-3 py-1.5">
+        <div className="shrink-0 px-4 pt-2 pb-1">
           <CapabilitiesToolbar
             addItems={[
               { disabled: profilePending, label: m.newServer, onSelect: addServer },
@@ -1326,7 +1326,7 @@ export function McpTab({
               saving={saving}
             />
           ) : (
-            <div className="h-full overflow-y-auto overscroll-contain p-3 [scrollbar-gutter:stable]">
+            <div className="h-full overflow-y-auto overscroll-contain px-4 pt-1 pb-4 [scrollbar-gutter:stable]">
               {directoryEmpty ? (
                 <PanelEmpty
                   action={

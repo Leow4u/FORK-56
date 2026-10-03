@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { PAGE_MAX_W } from '../layout-constants'
+import { CAPABILITIES_MAX_W } from '../layout-constants'
 import { RAIL_ZONE_SURFACE_CLASS } from '../shell/stage-chrome'
 
 import {
@@ -19,8 +19,8 @@ describe('MCP directory views', () => {
 })
 
 describe('MCP catalog column', () => {
-  it('reuses the existing overlay page cap', () => {
-    expect(MCP_CATALOG_COLUMN_CLASS).toContain(PAGE_MAX_W)
+  it('shares the Capabilities column with the page header and the other tabs', () => {
+    expect(MCP_CATALOG_COLUMN_CLASS).toContain(CAPABILITIES_MAX_W)
     expect(MCP_CATALOG_COLUMN_CLASS).toContain('mx-auto')
   })
 })

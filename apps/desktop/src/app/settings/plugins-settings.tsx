@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { type ReactNode, useEffect, useState } from 'react'
 
 import { useGatewayRequest } from '@/app/gateway/hooks/use-gateway-request'
+import { CAPABILITIES_MAX_W } from '@/app/layout-constants'
 import { CapabilitiesSection } from '@/app/skills/capabilities-section'
 import { type CapabilitiesCategory, CapabilitiesToolbar } from '@/app/skills/capabilities-toolbar'
 import { $pluginsCategory, $pluginsView } from '@/app/skills/store'
@@ -24,6 +25,7 @@ import { discoverRuntimePlugins } from '@/contrib/runtime-loader'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { normalize } from '@/lib/text'
+import { cn } from '@/lib/utils'
 import {
   $agentPluginBusy,
   $agentPlugins,
@@ -192,7 +194,7 @@ function DesktopPluginRow({ record }: { record: PluginRecord }) {
         <>
           {record.file && (
             <Tip label={p.reveal}>
-              <Button onClick={() => reveal(record.file!)} size="icon" variant="ghost">
+              <Button aria-label={p.reveal} onClick={() => reveal(record.file!)} size="icon" variant="ghost">
                 <Codicon name="folder-opened" size="0.85rem" />
               </Button>
             </Tip>
@@ -510,11 +512,27 @@ export function PluginsSettings({
       </>
     )
 
+  // Agent plugin toggles land in new sessions; desktop plugins unload live.
+  const note = <p className="text-right text-[0.65rem] text-muted-foreground/50">{t.skills.changesApplyNewSessions}</p>
+
+  if (embedded) {
+    return (
+      <div className="h-full overflow-y-auto px-4 pb-4">
+        <div className={cn('mx-auto flex w-full flex-col gap-4 py-2', CAPABILITIES_MAX_W)}>
+          {toolbar}
+          {body}
+          {note}
+        </div>
+        <PluginInstallPrompt onOpenChange={setInstallOpen} open={installOpen} />
+      </div>
+    )
+  }
+
   return (
     <SettingsContent>
-      {!embedded && <SectionHeading title={t.settings.nav.plugins} variant="page" />}
+      <SectionHeading title={t.settings.nav.plugins} variant="page" />
 
-      {!embedded && profiles.length > 1 && (
+      {profiles.length > 1 && (
         <ProfileScopeSelect
           className="mb-2"
           label={t.skills.configuringProfile}
@@ -542,6 +560,7 @@ export function PluginsSettings({
       <div className="flex flex-col gap-4">
         {toolbar}
         {body}
+        {note}
       </div>
 
       <PluginInstallPrompt onOpenChange={setInstallOpen} open={installOpen} />
