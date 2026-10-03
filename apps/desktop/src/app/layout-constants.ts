@@ -18,10 +18,12 @@ export const PAGE_INSET_NEG_X = '-mx-[clamp(1.25rem,4vw,4rem)]'
 // for Tailwind's scanner (see PAGE_INSET_X note).
 export const PAGE_MAX_W = 'max-w-[75rem]'
 
-// Capabilities (Customize) column: the page header (Configuring / tabs /
-// search) and every tab body — Skills, MCP, Plugins — share it, so the lists
-// line up under the tabs whatever the window width. Literal for Tailwind.
-export const CAPABILITIES_MAX_W = 'max-w-4xl'
+// Library pages (Customize, Channels, Artifacts, Routines) lay their header
+// and their body in this one 56rem column centered on the stage, so the page
+// title and the content under it sit at the same x from page to page — and
+// so do the Capabilities tab bodies (Skills, MCP, Plugins) under their tabs.
+// Literal for Tailwind — do not interpolate.
+export const LIBRARY_PAGE_MAX_W = 'max-w-4xl'
 
 // Library pages (Customize, Channels, Artifacts, Routines) open the same way:
 // 3rem (48px) of air between the title bar and the page title, then the

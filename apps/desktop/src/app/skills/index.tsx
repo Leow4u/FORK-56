@@ -44,7 +44,7 @@ import {
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
-import { CAPABILITIES_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
+import { LIBRARY_PAGE_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
 import {
   CapRow,
   DetailColumn,
@@ -976,7 +976,7 @@ export function SkillsView({
       className={cn('flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)', className)}
     >
       <div className={cn('shrink-0 pb-4', PAGE_HEADER_TOP, PAGE_INSET_X)}>
-        <div className={cn('mx-auto w-full', CAPABILITIES_MAX_W)}>
+        <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
           <PageTitle>{t.sidebar.nav.skills}</PageTitle>
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-3">
@@ -1095,7 +1095,7 @@ export function SkillsView({
                     </p>
                   </div>
                 ) : (
-                  <div className={cn('mx-auto flex w-full flex-col gap-3 py-2', CAPABILITIES_MAX_W)}>
+                  <div className={cn('mx-auto flex w-full flex-col gap-3 py-2', LIBRARY_PAGE_MAX_W)}>
                     {skillsToolbar}
                     {skillsView === 'discover' ? (
                       <SkillsDiscover installedNames={installedSkillNames} profile={scopeProfile} query={query} />

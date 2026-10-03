@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CAPABILITIES_MAX_W } from '../layout-constants'
+import { LIBRARY_PAGE_MAX_W } from '../layout-constants'
 import { RAIL_ZONE_SURFACE_CLASS } from '../shell/stage-chrome'
 
 import {
@@ -20,7 +20,7 @@ describe('MCP directory views', () => {
 
 describe('MCP catalog column', () => {
   it('shares the Capabilities column with the page header and the other tabs', () => {
-    expect(MCP_CATALOG_COLUMN_CLASS).toContain(CAPABILITIES_MAX_W)
+    expect(MCP_CATALOG_COLUMN_CLASS).toContain(LIBRARY_PAGE_MAX_W)
     expect(MCP_CATALOG_COLUMN_CLASS).toContain('mx-auto')
   })
 })

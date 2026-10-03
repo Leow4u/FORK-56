@@ -40,7 +40,7 @@ import { getAllSessionMessages, listAllProfileSessions } from '@/work4you'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
-import { PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
+import { LIBRARY_PAGE_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
 import { openSession } from '../open-session'
 import { PageTitle } from '../page-title'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
@@ -323,7 +323,7 @@ export function ArtifactsView({
       className={cn('flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)', className)}
     >
       <div className={cn('shrink-0 pb-3', PAGE_HEADER_TOP, PAGE_INSET_X)}>
-        <div className="mx-auto w-full max-w-5xl">
+        <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
           <PageTitle
             aside={
               <Tip label={refreshing ? a.refreshing : a.refresh}>
@@ -391,8 +391,8 @@ export function ArtifactsView({
             </div>
           </div>
         ) : (
-          <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-            <div className={cn('mx-auto flex w-full max-w-5xl flex-col gap-8 py-4', PAGE_INSET_X)}>
+          <div className={cn('h-full overflow-y-auto [scrollbar-gutter:stable]', PAGE_INSET_X)}>
+            <div className={cn('mx-auto flex w-full flex-col gap-8 py-4', LIBRARY_PAGE_MAX_W)}>
               {visibleImageArtifacts.length > 0 && (
                 <section className="flex flex-col">
                   <ArtifactSectionHeader
