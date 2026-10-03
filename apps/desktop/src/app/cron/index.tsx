@@ -5,7 +5,7 @@ import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 
-import { PAGE_HEADER_TOP, PAGE_INSET_X } from '@/app/layout-constants'
+import { LIBRARY_PAGE_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '@/app/layout-constants'
 import { PageTitle } from '@/app/page-title'
 import { PageLoader } from '@/components/page-loader'
 import { Button } from '@/components/ui/button'
@@ -736,7 +736,7 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
         </div>
       ) : (
         <>
-          <header className={cn('mb-4 shrink-0', PAGE_HEADER_TOP)}>
+          <header className={cn('mx-auto mb-4 w-full shrink-0', LIBRARY_PAGE_MAX_W, PAGE_HEADER_TOP)}>
             <PageTitle>{c.title}</PageTitle>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <ResponsiveTabs
@@ -765,71 +765,73 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
             </div>
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto pb-6">
-            {tab === 'jobs' ? (
-              loading && jobs.length === 0 ? (
-                <PageLoader label={c.loading} />
-              ) : jobs.length === 0 && !query.trim() ? (
-                <MineEmpty
-                  description={c.emptyDescNew}
-                  failedLabel={c.blueprints.failedLoad}
-                  onOpenTemplate={openCreate}
-                  status={templateStatus === 'empty' ? 'ready' : templateStatus}
-                  templates={templateCards}
-                  title={c.emptyTitleNew}
-                />
-              ) : routineCards.length === 0 ? (
-                <EmptyState description={c.emptyDescSearch} title={c.emptyTitleSearch} />
+            <div className={cn('mx-auto flex min-h-full w-full flex-col', LIBRARY_PAGE_MAX_W)}>
+              {tab === 'jobs' ? (
+                loading && jobs.length === 0 ? (
+                  <PageLoader className="flex-1" label={c.loading} />
+                ) : jobs.length === 0 && !query.trim() ? (
+                  <MineEmpty
+                    description={c.emptyDescNew}
+                    failedLabel={c.blueprints.failedLoad}
+                    onOpenTemplate={openCreate}
+                    status={templateStatus === 'empty' ? 'ready' : templateStatus}
+                    templates={templateCards}
+                    title={c.emptyTitleNew}
+                  />
+                ) : routineCards.length === 0 ? (
+                  <EmptyState description={c.emptyDescSearch} title={c.emptyTitleSearch} />
+                ) : (
+                  <RoutineCardGrid
+                    deleteLabel={t.common.delete}
+                    editLabel={c.edit}
+                    jobs={routineCards}
+                    menuLabel={c.actionsTitle}
+                    onDelete={id => {
+                      const target = jobs.find(item => item.id === id)
+
+                      if (target) {
+                        setPendingDelete(target)
+                      }
+                    }}
+                    onEdit={id => {
+                      const target = jobs.find(item => item.id === id)
+
+                      if (target) {
+                        setEditor({ mode: 'edit', job: target })
+                      }
+                    }}
+                    onOpen={setSelectedJobId}
+                    onPause={id => {
+                      const target = jobs.find(item => item.id === id)
+
+                      if (target) {
+                        void handlePauseResume(target)
+                      }
+                    }}
+                    onTrigger={id => {
+                      const target = jobs.find(item => item.id === id)
+
+                      if (target) {
+                        void handleTrigger(target)
+                      }
+                    }}
+                    triggerLabel={c.triggerNow}
+                  />
+                )
               ) : (
-                <RoutineCardGrid
-                  deleteLabel={t.common.delete}
-                  editLabel={c.edit}
-                  jobs={routineCards}
-                  menuLabel={c.actionsTitle}
-                  onDelete={id => {
-                    const target = jobs.find(item => item.id === id)
-
-                    if (target) {
-                      setPendingDelete(target)
-                    }
-                  }}
-                  onEdit={id => {
-                    const target = jobs.find(item => item.id === id)
-
-                    if (target) {
-                      setEditor({ mode: 'edit', job: target })
-                    }
-                  }}
-                  onOpen={setSelectedJobId}
-                  onPause={id => {
-                    const target = jobs.find(item => item.id === id)
-
-                    if (target) {
-                      void handlePauseResume(target)
-                    }
-                  }}
-                  onTrigger={id => {
-                    const target = jobs.find(item => item.id === id)
-
-                    if (target) {
-                      void handleTrigger(target)
-                    }
-                  }}
-                  triggerLabel={c.triggerNow}
+                <TemplateBrowser
+                  emptyDescription={c.blueprints.emptyDesc}
+                  emptyTitle={c.blueprints.emptyTitle}
+                  failedLabel={c.blueprints.failedLoad}
+                  loadingLabel={c.blueprints.loading}
+                  onOpen={openCreate}
+                  searchDescription={c.emptyDescSearch}
+                  searchTitle={c.emptyTitleSearch}
+                  status={templateStatus}
+                  templates={templateCards}
                 />
-              )
-            ) : (
-              <TemplateBrowser
-                emptyDescription={c.blueprints.emptyDesc}
-                emptyTitle={c.blueprints.emptyTitle}
-                failedLabel={c.blueprints.failedLoad}
-                loadingLabel={c.blueprints.loading}
-                onOpen={openCreate}
-                searchDescription={c.emptyDescSearch}
-                searchTitle={c.emptyTitleSearch}
-                status={templateStatus}
-                templates={templateCards}
-              />
-            )}
+              )}
+            </div>
           </div>
         </>
       )}

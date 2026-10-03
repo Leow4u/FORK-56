@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { type ReactNode, useEffect, useState } from 'react'
 
 import { useGatewayRequest } from '@/app/gateway/hooks/use-gateway-request'
-import { CAPABILITIES_MAX_W } from '@/app/layout-constants'
+import { LIBRARY_PAGE_MAX_W } from '@/app/layout-constants'
 import { CapabilitiesSection } from '@/app/skills/capabilities-section'
 import { type CapabilitiesCategory, CapabilitiesToolbar } from '@/app/skills/capabilities-toolbar'
 import { $pluginsCategory, $pluginsView } from '@/app/skills/store'
@@ -518,7 +518,7 @@ export function PluginsSettings({
   if (embedded) {
     return (
       <div className="h-full overflow-y-auto px-4 pb-4">
-        <div className={cn('mx-auto flex w-full flex-col gap-4 py-2', CAPABILITIES_MAX_W)}>
+        <div className={cn('mx-auto flex w-full flex-col gap-4 py-2', LIBRARY_PAGE_MAX_W)}>
           {toolbar}
           {body}
           {note}

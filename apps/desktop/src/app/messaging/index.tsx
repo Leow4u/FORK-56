@@ -37,7 +37,7 @@ import {
 } from '@/work4you'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
-import { PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
+import { LIBRARY_PAGE_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
 import { DetailColumn } from '../master-detail'
 import { PageTitle } from '../page-title'
 import { MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
@@ -715,7 +715,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
       ) : (
         <>
           <div className={cn('shrink-0 pb-4', PAGE_HEADER_TOP, PAGE_INSET_X)}>
-            <div className="mx-auto w-full max-w-4xl">
+            <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
               <PageTitle>{t.sidebar.nav.messaging}</PageTitle>
               {/* The row Customize opens with: the "Configuring:" selector (its
                   note underneath it) and the search at the right. */}
@@ -736,7 +736,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-            <ul className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-3 sm:grid-cols-2">
+            <ul className={cn('mx-auto grid w-full grid-cols-1 gap-3 sm:grid-cols-2', LIBRARY_PAGE_MAX_W)}>
               {visiblePlatforms.map(platform => (
                 <li key={platform.id}>
                   <PlatformCard
