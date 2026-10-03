@@ -13,6 +13,7 @@ import threading
 import time
 from pathlib import Path
 from urllib.parse import urlparse
+from work4you_cli.runtime_payload import DEFAULT_GITHUB_REPO
 from work4you_constants import get_work4you_home
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
@@ -129,8 +130,13 @@ _UPDATE_CHECK_CACHE_SECONDS = 6 * 3600
 # (e.g. nix-built work4you — no local git history to count against).
 UPDATE_AVAILABLE_NO_COUNT = -1
 
-_UPSTREAM_REPO_URL = "https://github.com/Leow4u/FORK-56.git"
-_OFFICIAL_REPO_CANONICAL = "github.com/work4you/work4you"
+# One repository for every update probe. ls-remote, the GitHub compare API and
+# the "official remote" check must all agree, or a git install can never count
+# how far behind it is: the compare call 404s and the check degrades to the
+# honest no-count sentinel forever. The desktop payload path installs from the
+# same constant, so the two update paths cannot drift apart again.
+_UPSTREAM_REPO_URL = f"https://github.com/{DEFAULT_GITHUB_REPO}.git"
+_OFFICIAL_REPO_CANONICAL = f"github.com/{DEFAULT_GITHUB_REPO}".lower()
 
 
 def _canonical_github_remote(url: str | None) -> str:
@@ -198,7 +204,7 @@ def _github_compare_behind(current_rev: str, target_rev: str) -> Optional[int]:
     if not (_is_full_sha(current_rev) and _is_full_sha(target_rev)):
         return None
     url = (
-        "https://api.github.com/repos/work4you/work4you/"
+        f"https://api.github.com/repos/{DEFAULT_GITHUB_REPO}/"
         f"compare/{current_rev}...{target_rev}"
     )
     try:
@@ -562,7 +568,7 @@ def _compute_git_banner_state(repo_dir: Optional[Path] = None) -> Optional[dict]
     return {"upstream": upstream, "local": local, "ahead": max(ahead, 0)}
 
 
-_RELEASE_URL_BASE = "https://github.com/Leow4u/FORK-56/releases/tag"
+_RELEASE_URL_BASE = f"https://github.com/{DEFAULT_GITHUB_REPO}/releases/tag"
 _latest_release_cache: Optional[tuple] = None  # (tag, url) once resolved
 
 
