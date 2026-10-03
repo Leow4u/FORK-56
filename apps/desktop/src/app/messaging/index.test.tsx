@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type * as NanostoresModule from 'nanostores'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -243,6 +243,62 @@ describe('MessagingView Connected | Discover', () => {
     expect(screen.queryByRole('table')).toBeNull()
     expect(screen.getByRole('button', { name: /Discord/ })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Mattermost/ })).toBeNull()
+  })
+
+  it('groups Discover by what is on the other end: people, then systems', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        platform(),
+        platform({ id: 'webhook', name: 'Webhooks' }),
+        platform({ id: 'discord', name: 'Discord' })
+      ]
+    })
+
+    await renderMessaging()
+
+    const conversation = await screen.findByRole('heading', { level: 2, name: /Conversation/ })
+    const integrations = screen.getByRole('heading', { level: 2, name: /Integrations/ })
+    expect(conversation.textContent).toContain(en.messaging.discoverConversationHint)
+    expect(integrations.textContent).toContain(en.messaging.discoverIntegrationsHint)
+
+    const conversationSection = conversation.closest('section')!
+    const integrationsSection = integrations.closest('section')!
+    expect(within(conversationSection).getByRole('button', { name: /Mattermost/ })).toBeTruthy()
+    expect(within(conversationSection).getByRole('button', { name: /Discord/ })).toBeTruthy()
+    expect(within(conversationSection).queryByRole('button', { name: /Webhooks/ })).toBeNull()
+    expect(within(integrationsSection).getByRole('button', { name: /Webhooks/ })).toBeTruthy()
+    // The card says what the channel is for, not how it is wired.
+    expect(within(integrationsSection).getByText(/Let GitHub, GitLab and other services trigger the bot/)).toBeTruthy()
+  })
+
+  it('shows only the group that still has something to connect', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ id: 'webhook', name: 'Webhooks' })]
+    })
+
+    await renderMessaging()
+
+    expect(await screen.findByRole('heading', { level: 2, name: /Integrations/ })).toBeTruthy()
+    expect(screen.queryByRole('heading', { level: 2, name: /Conversation/ })).toBeNull()
+  })
+
+  it('names the type of each connected channel in the table', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        platform({ configured: true, enabled: true, state: 'connected' }),
+        platform({ configured: true, enabled: true, id: 'api_server', name: 'API server', state: 'connected' })
+      ]
+    })
+
+    await renderMessaging()
+
+    await screen.findByRole('table')
+    expect(screen.getByRole('columnheader', { name: en.messaging.columnType })).toBeTruthy()
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(rows.map(row => row.textContent)).toEqual([
+      expect.stringContaining(en.messaging.kindConversation),
+      expect.stringContaining(en.messaging.kindIntegration)
+    ])
   })
 
   it('turns a channel off from its row in the Connected table', async () => {
@@ -560,10 +616,10 @@ describe('MessagingView pairing', () => {
 
     await renderMessaging()
     await openChannel('WhatsApp')
-    await act(async () => {
-      fireEvent.click(await screen.findByRole('button', { name: 'Manual setup' }))
-    })
 
+    // Set up already (on): the page is the channel's settings, and the DM
+    // policy sits in "Who can talk" — no Manual setup toggle to find first.
+    expect(await screen.findByText(en.messaging.whoCanTalkTitle)).toBeTruthy()
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Allowlist' }))
     })
@@ -609,6 +665,117 @@ describe('MessagingView pairing', () => {
       $platformsChangeTick.set($platformsChangeTick.get() + 1)
     })
     expect(getPairing).not.toHaveBeenCalled()
+  })
+})
+
+describe('MessagingView channel page', () => {
+  it('opens under the Channels crumb with the name as the title and one status', async () => {
+    // Off, with a stale "connected" left in the runtime state: the one pill
+    // says the channel is not connected, never two that contradict.
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ configured: true, enabled: false, gateway_running: false, state: 'connected' })]
+    })
+
+    await renderMessaging()
+    await openChannel('Mattermost')
+
+    expect(await screen.findByRole('heading', { level: 1, name: /Mattermost/ })).toBeTruthy()
+    expect(screen.getByText(en.messaging.notConnected)).toBeTruthy()
+    expect(screen.queryByText(en.messaging.states.connected)).toBeNull()
+    expect(screen.queryByText(en.messaging.gatewayStopped)).toBeNull()
+    // The switch says what it is.
+    expect(screen.getByText(en.messaging.channelActive)).toBeTruthy()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(en.sidebar.nav.messaging) }))
+    })
+
+    expect(screen.getByRole('heading', { level: 1, name: en.sidebar.nav.messaging })).toBeTruthy()
+  })
+
+  it('shows the gateway stop over a stale connected state while the channel is on', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ configured: true, enabled: true, gateway_running: false, state: 'connected' })]
+    })
+
+    await renderMessaging()
+    await openChannel('Mattermost')
+
+    await screen.findByRole('heading', { level: 1, name: /Mattermost/ })
+    expect(screen.getByText(en.messaging.gatewayStopped)).toBeTruthy()
+    expect(screen.queryByText(en.messaging.states.connected)).toBeNull()
+  })
+
+  it('walks WhatsApp through its first connection step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ enabled: false, id: 'whatsapp', name: 'WhatsApp', whatsapp_setup: { mode: '' } })]
+    })
+
+    await renderMessaging()
+    await openChannel('WhatsApp')
+
+    expect(await screen.findByText(en.messaging.whatsappSteps.whoTitle)).toBeTruthy()
+    expect(screen.queryByText(en.messaging.whoCanTalkTitle)).toBeNull()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows WhatsApp as settings once it is set up, with the steps a click away', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        platform({
+          configured: true,
+          enabled: true,
+          env_vars: [
+            {
+              advanced: true,
+              description: 'Mode.',
+              is_password: false,
+              is_set: true,
+              key: 'WHATSAPP_MODE',
+              prompt: 'WhatsApp mode',
+              redacted_value: 'bot',
+              required: false,
+              url: null
+            },
+            {
+              advanced: false,
+              description: 'Cloud API token.',
+              is_password: true,
+              is_set: false,
+              key: 'WHATSAPP_CLOUD_ACCESS_TOKEN',
+              prompt: 'Access token',
+              redacted_value: null,
+              required: false,
+              url: null
+            }
+          ],
+          id: 'whatsapp',
+          name: 'WhatsApp',
+          state: 'connected',
+          whatsapp_setup: { allowed_users_set: true, mode: 'bot' }
+        })
+      ]
+    })
+
+    await renderMessaging()
+    await openChannel('WhatsApp')
+
+    expect(await screen.findByText(en.messaging.connectedListening)).toBeTruthy()
+    expect(screen.getByText(en.messaging.whoCanTalkList)).toBeTruthy()
+    expect(screen.queryByText(en.messaging.whatsappSteps.whoTitle)).toBeNull()
+
+    // The bridge mode is advanced; the Cloud API's own fields are not this
+    // channel's and stay off its page.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.messaging.advanced(1) }))
+    })
+    expect(screen.getByText('Bot')).toBeTruthy()
+    expect(screen.queryByText('Access token')).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.messaging.setUpAgain }))
+    })
+    expect(screen.getByText(en.messaging.whatsappSteps.whoTitle)).toBeTruthy()
   })
 })
 

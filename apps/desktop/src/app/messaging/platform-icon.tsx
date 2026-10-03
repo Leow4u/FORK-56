@@ -103,6 +103,8 @@ const PLATFORM_ICONS: Record<string, PlatformIconSpec> = {
 }
 
 interface PlatformAvatarProps extends Omit<ComponentPropsWithoutRef<'span'>, 'children'> {
+  /** Size of the brand glyph; the default suits the 24px row avatar. */
+  glyphClassName?: string
   platformId: string
   platformName: string
 }
@@ -114,7 +116,7 @@ interface PlatformAvatarProps extends Omit<ComponentPropsWithoutRef<'span'>, 'ch
 // silently — the tooltip renders but never opens (#67500).
 export const PlatformAvatar = memo(
   forwardRef<HTMLSpanElement, PlatformAvatarProps>(function PlatformAvatar(
-    { className, platformId, platformName, style, ...rest },
+    { className, glyphClassName = 'size-3.5', platformId, platformName, style, ...rest },
     ref
   ) {
     const spec = PLATFORM_ICONS[platformId]
@@ -154,7 +156,7 @@ export const PlatformAvatar = memo(
         }}
         {...rest}
       >
-        {Icon ? <Icon className="size-3.5" /> : spec.monogram || platformName.charAt(0).toUpperCase()}
+        {Icon ? <Icon className={glyphClassName} /> : spec.monogram || platformName.charAt(0).toUpperCase()}
       </span>
     )
   })

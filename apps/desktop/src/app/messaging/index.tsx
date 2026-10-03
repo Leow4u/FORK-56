@@ -16,7 +16,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
-import { ExternalLink, RefreshCw, Save, Trash2 } from '@/lib/icons'
+import { ChevronLeft, ExternalLink, RefreshCw, Save, Trash2 } from '@/lib/icons'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import { $changeEventsAvailable, $pairingChangeTick, $platformsChangeTick } from '@/store/live-sync'
@@ -37,7 +37,6 @@ import {
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { LIBRARY_PAGE_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
-import { DetailColumn } from '../master-detail'
 import { PanelEmpty } from '../overlays/panel'
 import { PageTitle } from '../page-title'
 import { MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
@@ -52,6 +51,7 @@ import type { CapabilitiesView } from '../skills/store'
 import { A2AQuickSetup } from './a2a-quick-setup'
 import { ApiServerQuickSetup } from './api-server-quick-setup'
 import { ChannelCard } from './channel-card'
+import { channelKind, channelKindLabel } from './channel-kinds'
 import { type ChannelsConnectedRow, ChannelsConnectedTable } from './channels-connected-table'
 import { DiscordQuickSetup } from './discord-quick-setup'
 import { EmailQuickSetup } from './email-quick-setup'
@@ -66,7 +66,7 @@ import { TelegramQuickSetup } from './telegram-quick-setup'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
 import { WebhookRoutesPanel } from './webhook-routes-panel'
 import { WhatsAppCloudQuickSetup } from './whatsapp-cloud-quick-setup'
-import { WhatsAppQuickSetup } from './whatsapp-quick-setup'
+import { WhatsAppConnectSteps } from './whatsapp-connect-steps'
 
 interface MessagingViewProps extends React.ComponentProps<'section'> {
   setStatusbarItemGroup?: SetStatusbarItemGroup
@@ -118,6 +118,28 @@ function stateTone({ enabled, state }: MessagingPlatformInfo): StatusTone {
   }
 
   return 'warn'
+}
+
+/** The one status the channel's page shows. Off wins over everything (a
+ *  stale "connected" from the last run must not outrank it), then what keeps
+ *  the channel from connecting, then the runtime's own state. */
+function detailStatus(
+  platform: MessagingPlatformInfo,
+  m: Translations['messaging']
+): { label: string; tone: StatusTone } {
+  if (!platform.enabled) {
+    return { label: m.notConnected, tone: 'muted' }
+  }
+
+  if (!platform.configured) {
+    return { label: m.needsSetup, tone: 'warn' }
+  }
+
+  if (!platform.gateway_running && platform.state !== 'startup_failed') {
+    return { label: m.gatewayStopped, tone: 'warn' }
+  }
+
+  return { label: stateLabel(platform.state, m), tone: stateTone(platform) }
 }
 
 const trimEdits = (edits: Record<string, string>): Record<string, string> =>
@@ -498,6 +520,23 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   // connect. Until the user picks, open on Connected when any channel is on.
   const connectedPlatforms = useMemo(() => visiblePlatforms.filter(platform => platform.enabled), [visiblePlatforms])
   const discoverPlatforms = useMemo(() => visiblePlatforms.filter(platform => !platform.enabled), [visiblePlatforms])
+
+  // Discover in two groups by what is on the other end: people (Conversation)
+  // or systems (Integrations). A group with nothing left to connect is not shown.
+  const discoverGroups = useMemo(() => {
+    const conversation: MessagingPlatformInfo[] = []
+    const integration: MessagingPlatformInfo[] = []
+
+    for (const platform of discoverPlatforms) {
+      ;(channelKind(platform.id) === 'integration' ? integration : conversation).push(platform)
+    }
+
+    return [
+      { hint: m.discoverConversationHint, id: 'conversation', label: m.discoverConversation, platforms: conversation },
+      { hint: m.discoverIntegrationsHint, id: 'integration', label: m.discoverIntegrations, platforms: integration }
+    ].filter(group => group.platforms.length > 0)
+  }, [discoverPlatforms, m])
+
   const view: CapabilitiesView = pickedView ?? (platforms?.some(platform => platform.enabled) ? 'mine' : 'discover')
 
   async function handleToggle(platform: MessagingPlatformInfo, enabled: boolean) {
@@ -671,6 +710,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
     }
   }
 
+  const selectedStatus = selected ? detailStatus(selected, m) : null
   const searchHints = platforms?.slice(0, 5).map(platform => t.common.tryHint(platform.name.toLowerCase()))
   const showListSearch = (platforms?.length ?? 0) > 0 && !selected
   const searching = query.trim().length > 0
@@ -679,6 +719,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   // after which it is a Discover card again, as the switch promised.
   const connectedRow = (platform: MessagingPlatformInfo): ChannelsConnectedRow => ({
     id: platform.id,
+    kind: channelKindLabel(channelKind(platform.id), m),
     name: platform.name,
     onOpen: () => navigate(messagingPlatformPath(platform.id)),
     pending: pendingByPlatform[platform.id]?.length ?? 0,
@@ -708,28 +749,45 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
       {!platforms ? (
         <PageLoader label={m.loading} />
       ) : selected ? (
-        <div className="flex h-full min-h-0 flex-col pt-[calc(var(--titlebar-height)+0.5rem)]">
-          <SettingsProfileScope className="border-b border-(--ui-stroke-secondary) px-3 py-2" />
-          <div className="flex min-w-0 items-center gap-1.5 px-5 pb-1 pt-3 text-sm">
-            <button
-              className="shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={() => navigate(MESSAGING_ROUTE)}
-              type="button"
-            >
-              {m.title}
-            </button>
-            <span aria-hidden className="text-muted-foreground">
-              {'>'}
-            </span>
-            <span className="truncate font-medium text-foreground">{selected.name}</span>
+        <>
+          {/* The library pages' header, for one channel: the way back, the
+              channel's name with its one status, then the Configuring row. */}
+          <div className={cn('shrink-0 pb-4', PAGE_HEADER_TOP, PAGE_INSET_X)}>
+            <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
+              <button
+                className="mb-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => navigate(MESSAGING_ROUTE)}
+                type="button"
+              >
+                <ChevronLeft className="size-3.5" />
+                {t.sidebar.nav.messaging}
+              </button>
+              <PageTitle
+                aside={selectedStatus && <StatePill tone={selectedStatus.tone}>{selectedStatus.label}</StatePill>}
+              >
+                <span className="flex items-center gap-3">
+                  <PlatformAvatar
+                    className="size-9 rounded-lg"
+                    glyphClassName="size-5"
+                    platformId={selected.id}
+                    platformName={selected.name}
+                  />
+                  <span className="truncate">{selected.name}</span>
+                </span>
+              </PageTitle>
+              <div className="flex flex-wrap items-start gap-3">
+                <SettingsProfileScope className="min-h-8 justify-center" />
+              </div>
+            </div>
           </div>
-          <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
-            <DetailColumn>
+          <main className="min-h-0 flex-1 overflow-y-auto px-4 pt-1 pb-4 [scrollbar-gutter:stable]">
+            <div className={cn('mx-auto w-full space-y-5', LIBRARY_PAGE_MAX_W)}>
               <PlatformDetail
                 approved={approvedByPlatform[selected.id] ?? []}
                 approving={approving}
                 edits={edits[selected.id] || {}}
                 fieldErrors={fieldErrors[selected.id] || {}}
+                key={selected.id}
                 onApprove={user => void handleApprove(user)}
                 onClear={key => void handleClear(selected, key)}
                 onEdit={(key, value) => {
@@ -771,9 +829,9 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                   }
                 />
               </div>
-            </DetailColumn>
-          </div>
-        </div>
+            </div>
+          </main>
+        </>
       ) : (
         <>
           <div className={cn('shrink-0 pb-4', PAGE_HEADER_TOP, PAGE_INSET_X)}>
@@ -834,13 +892,23 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                   title={searching ? m.noMatchesTitle : m.emptyDiscoverTitle}
                 />
               ) : (
-                <div className={MCP_CATALOG_GRID_CLASS}>
-                  {discoverPlatforms.map(platform => (
-                    <ChannelCard
-                      key={platform.id}
-                      onConnect={() => navigate(messagingPlatformPath(platform.id))}
-                      platform={platform}
-                    />
+                <div className="flex flex-col gap-5">
+                  {discoverGroups.map(group => (
+                    <section className="flex flex-col gap-2" key={group.id}>
+                      <h2 className="px-0.5 text-[0.72rem] font-medium text-(--ui-text-tertiary)">
+                        {group.label}
+                        <span className="font-normal"> · {group.hint}</span>
+                      </h2>
+                      <div className={MCP_CATALOG_GRID_CLASS}>
+                        {group.platforms.map(platform => (
+                          <ChannelCard
+                            key={platform.id}
+                            onConnect={() => navigate(messagingPlatformPath(platform.id))}
+                            platform={platform}
+                          />
+                        ))}
+                      </div>
+                    </section>
                   ))}
                 </div>
               )}
@@ -864,21 +932,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   )
 }
 
-function PlatformDetail({
-  approved,
-  approving,
-  edits,
-  fieldErrors,
-  onApprove,
-  onClear,
-  onEdit,
-  onQuickSetupApplied,
-  onRevoke,
-  pending,
-  platform,
-  saving,
-  scopeProfile
-}: {
+interface PlatformDetailProps {
   approved: PairingUser[]
   approving: null | string
   edits: Record<string, string>
@@ -892,104 +946,56 @@ function PlatformDetail({
   platform: MessagingPlatformInfo
   saving: string | null
   scopeProfile: null | string
-}) {
+}
+
+function PlatformDetail(props: PlatformDetailProps) {
+  const {
+    approved,
+    approving,
+    edits,
+    fieldErrors,
+    onApprove,
+    onClear,
+    onEdit,
+    onQuickSetupApplied,
+    onRevoke,
+    pending,
+    platform,
+    saving,
+    scopeProfile
+  } = props
+
   const { t } = useI18n()
   const m = t.messaging
   const navigate = useNavigate()
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showManual, setShowManual] = useState(false)
+
+  if (platform.id === 'whatsapp') {
+    return <WhatsAppDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
   const optionalFields = platform.env_vars.filter(field => !field.required && !fieldCopy(field, m).advanced)
   const advancedFields = platform.env_vars.filter(field => !field.required && fieldCopy(field, m).advanced)
   const hiddenCount = advancedFields.length
-
-  // Saved env values come back redacted; the WhatsApp payload mirrors the
-  // saved bridge mode so its picker can highlight the active choice.
-  const currentFieldValue = (field: MessagingEnvVarInfo) =>
-    field.key === 'WHATSAPP_MODE' ? platform.whatsapp_setup?.mode : undefined
+  const fieldProps = { edits, fieldErrors, onClear, onEdit, saving }
 
   return (
     <>
-      <header className="flex items-start gap-3">
-        <PlatformAvatar platformId={platform.id} platformName={platform.name} />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="min-w-0 truncate text-[0.9375rem] font-semibold tracking-tight">{platform.name}</h3>
-            <StatePill tone={stateTone(platform)}>{stateLabel(platform.state, m)}</StatePill>
-            {/* Resting states earn no pill — only actionable ones. */}
-            {!platform.configured && <SetupPill active={false}>{m.needsSetup}</SetupPill>}
-            {!platform.gateway_running && <SetupPill active={false}>{m.gatewayStopped}</SetupPill>}
-          </div>
-          <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-            {platform.description}
-          </p>
-          <PlatformHint platform={platform} />
-        </div>
-      </header>
+      <PlatformHint platform={platform} />
 
       {platform.error_message && <ErrorBanner>{platform.error_message}</ErrorBanner>}
 
-      {/* Pending pairing requests. Rendered only when someone is actually
-          waiting — an empty-state card here would be permanent chrome on a
-          page that is usually about credentials, not approvals. */}
-      {pending.length > 0 && (
-        <section>
-          <SectionTitle>{m.pendingRequests(pending.length)}</SectionTitle>
-          <div className="mt-1 grid gap-1">
-            {pending.map(user => {
-              const busy = approving === pairingKey(user)
-              const waited = typeof user.age_minutes === 'number' ? m.waitingSince(user.age_minutes) : null
-
-              return (
-                <ListRow
-                  action={
-                    <Button
-                      disabled={busy || !user.request_id}
-                      onClick={() => onApprove(user)}
-                      size="sm"
-                      variant="secondary"
-                    >
-                      {busy ? m.approving : m.approve}
-                    </Button>
-                  }
-                  // An unnamed requester is only a user id — showing it as
-                  // both title and description just repeats itself.
-                  description={[user.user_name ? user.user_id : null, waited].filter(Boolean).join(' · ')}
-                  key={pairingKey(user)}
-                  title={pairingLabel(user)}
-                />
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      {approved.length > 0 && (
-        <section>
-          <SectionTitle>{m.approvedUsers(approved.length)}</SectionTitle>
-          <div className="mt-1 grid gap-1">
-            {approved.map(user => (
-              <ListRow
-                action={
-                  <Button
-                    aria-label={m.revokeAria(pairingLabel(user))}
-                    onClick={() => onRevoke(user)}
-                    size="sm"
-                    variant="ghost"
-                  >
-                    {m.revoke}
-                  </Button>
-                }
-                description={user.user_name ? user.user_id : undefined}
-                key={pairingKey(user)}
-                title={pairingLabel(user)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      <PairingSections
+        approved={approved}
+        approving={approving}
+        onApprove={onApprove}
+        onRevoke={onRevoke}
+        pending={pending}
+      />
 
       {/* QR-first onboarding drives the same backend pairing flow as the web
           dashboard; the credential fields below stay as the manual path. */}
@@ -1011,16 +1017,6 @@ function PlatformDetail({
 
       {platform.id === 'slack' && (
         <SlackQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
-      )}
-
-      {platform.id === 'whatsapp' && (
-        <WhatsAppQuickSetup
-          allowedUsersSet={Boolean(platform.whatsapp_setup?.allowed_users_set)}
-          configured={platform.configured}
-          onApplied={onQuickSetupApplied}
-          savedMode={platform.whatsapp_setup?.mode}
-          scopeProfile={scopeProfile}
-        />
       )}
 
       {platform.id === 'email' && (
@@ -1102,79 +1098,23 @@ function PlatformDetail({
 
       {(!quickSetup || showManual) && (
         <>
-          <section>
-            <SectionTitle>{m.getCredentials}</SectionTitle>
-            <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-              {introCopy(platform, m)}
-            </p>
-            {platform.docs_url && (
-              <div className="mt-3">
-                <Button asChild size="sm" variant="textStrong">
-                  <a
-                    href={platform.docs_url}
-                    onClick={event => {
-                      // Route through the validated external opener instead of
-                      // letting Electron resolve the anchor. A packaged build's
-                      // empty/relative href resolves to the app's own
-                      // index.html file path, which shell.openPath then fails to
-                      // open ("file not found"). Plugin platforms (Teams, etc.)
-                      // ship no docs_url, so this guard + handler keeps the
-                      // button from ever pointing at a local bundle path.
-                      event.preventDefault()
-                      openExternalLink(platform.docs_url)
-                    }}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    {m.openSetupGuide}
-                    <ExternalLink className="size-3.5" />
-                  </a>
-                </Button>
-              </div>
-            )}
-          </section>
+          <PlatformGuide platform={platform} />
 
           <section>
             <SectionTitle>{m.required}</SectionTitle>
-            <div className="mt-3 grid gap-1">
-              {requiredFields.length > 0 ? (
-                requiredFields.map(field => (
-                  <MessagingField
-                    current={currentFieldValue(field)}
-                    edits={edits}
-                    error={fieldErrors[field.key]}
-                    field={field}
-                    key={field.key}
-                    onClear={onClear}
-                    onEdit={onEdit}
-                    saving={saving}
-                  />
-                ))
-              ) : (
-                <p className="text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-                  {m.noTokenNeeded}
-                </p>
-              )}
-            </div>
+            {requiredFields.length > 0 ? (
+              <MessagingFields fields={requiredFields} {...fieldProps} />
+            ) : (
+              <p className="mt-3 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+                {m.noTokenNeeded}
+              </p>
+            )}
           </section>
 
           {optionalFields.length > 0 && (
             <section>
               <SectionTitle>{m.recommended}</SectionTitle>
-              <div className="mt-3 grid gap-1">
-                {optionalFields.map(field => (
-                  <MessagingField
-                    current={currentFieldValue(field)}
-                    edits={edits}
-                    error={fieldErrors[field.key]}
-                    field={field}
-                    key={field.key}
-                    onClear={onClear}
-                    onEdit={onEdit}
-                    saving={saving}
-                  />
-                ))}
-              </div>
+              <MessagingFields fields={optionalFields} {...fieldProps} />
             </section>
           )}
 
@@ -1188,27 +1128,295 @@ function PlatformDetail({
                 <span>{m.advanced(hiddenCount)}</span>
                 <DisclosureCaret open={showAdvanced} size="0.875rem" />
               </button>
-              {showAdvanced && (
-                <div className="mt-3 grid gap-1">
-                  {advancedFields.map(field => (
-                    <MessagingField
-                      current={currentFieldValue(field)}
-                      edits={edits}
-                      error={fieldErrors[field.key]}
-                      field={field}
-                      key={field.key}
-                      onClear={onClear}
-                      onEdit={onEdit}
-                      saving={saving}
-                    />
-                  ))}
-                </div>
-              )}
+              {showAdvanced && <MessagingFields fields={advancedFields} {...fieldProps} />}
             </section>
           )}
         </>
       )}
     </>
+  )
+}
+
+// The env keys the "Who can talk" block edits; everything else WhatsApp has
+// is advanced. WHATSAPP_CLOUD_* keys belong to the Cloud API channel and only
+// reach this card because the catalog matches env vars on the WHATSAPP_
+// prefix — they are not shown here.
+const WHATSAPP_WHO_CAN_TALK_KEYS = new Set(['WHATSAPP_ALLOWED_USERS', 'WHATSAPP_DM_POLICY'])
+
+/** WhatsApp's page: the step-by-step first connection until the channel is
+ *  set up, then its settings — connection, who can talk, advanced. */
+function WhatsAppDetail({
+  approved,
+  approving,
+  edits,
+  fieldErrors,
+  onApprove,
+  onClear,
+  onEdit,
+  onQuickSetupApplied,
+  onRevoke,
+  pending,
+  platform,
+  saving,
+  scopeProfile
+}: PlatformDetailProps) {
+  const { t } = useI18n()
+  const m = t.messaging
+  const setup = platform.whatsapp_setup
+  // First connection: nothing saved yet and the channel off. Once set up the
+  // page is the channel's settings, and "Set up again" brings the steps back.
+  // Local state, so a list refresh behind the steps never dismisses them.
+  const [steps, setSteps] = useState(!platform.enabled && !setup?.mode)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const fields = platform.env_vars.filter(field => !field.key.startsWith('WHATSAPP_CLOUD_'))
+  const whoFields = fields.filter(field => WHATSAPP_WHO_CAN_TALK_KEYS.has(field.key))
+  const advancedFields = fields.filter(field => !WHATSAPP_WHO_CAN_TALK_KEYS.has(field.key))
+
+  // Saved env values come back redacted; the payload mirrors the saved
+  // bridge mode so its picker can highlight the active choice.
+  const fieldProps = {
+    current: (field: MessagingEnvVarInfo) => (field.key === 'WHATSAPP_MODE' ? setup?.mode : undefined),
+    edits,
+    fieldErrors,
+    onClear,
+    onEdit,
+    saving
+  }
+
+  const status = detailStatus(platform, m)
+
+  if (steps) {
+    return (
+      <WhatsAppConnectSteps
+        onAdvanced={() => {
+          setSteps(false)
+          setShowAdvanced(true)
+        }}
+        onApplied={onQuickSetupApplied}
+        onDone={() => {
+          setSteps(false)
+          onQuickSetupApplied()
+        }}
+        savedMode={setup?.mode}
+        scopeProfile={scopeProfile}
+      />
+    )
+  }
+
+  const whoSummary =
+    setup?.mode === 'self-chat' ? m.whoCanTalkSelf : setup?.allowed_users_set ? m.whoCanTalkList : m.whoCanTalkApprove
+
+  return (
+    <>
+      {platform.error_message && <ErrorBanner>{platform.error_message}</ErrorBanner>}
+
+      <section>
+        <SectionTitle>{m.connectionTitle}</SectionTitle>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground">
+          <span className="flex items-center gap-2">
+            <StatusDot tone={status.tone} />
+            {platform.enabled && platform.state === 'connected' ? m.connectedListening : status.label}
+          </span>
+          <Button onClick={() => setSteps(true)} size="inline" variant="link">
+            {m.setUpAgain}
+          </Button>
+        </div>
+        <PlatformHint platform={platform} />
+      </section>
+
+      <section>
+        <SectionTitle>{m.whoCanTalkTitle}</SectionTitle>
+        <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+          {whoSummary}
+        </p>
+        <div className="mt-3 space-y-5">
+          <PairingSections
+            approved={approved}
+            approving={approving}
+            onApprove={onApprove}
+            onRevoke={onRevoke}
+            pending={pending}
+          />
+        </div>
+        {whoFields.length > 0 && <MessagingFields fields={whoFields} {...fieldProps} />}
+      </section>
+
+      {(advancedFields.length > 0 || platform.docs_url) && (
+        <section>
+          <button
+            className={cn('flex w-full items-center justify-between gap-2 py-0.5 text-left', CHANNEL_LABEL)}
+            onClick={() => setShowAdvanced(value => !value)}
+            type="button"
+          >
+            <span>{m.advanced(advancedFields.length)}</span>
+            <DisclosureCaret open={showAdvanced} size="0.875rem" />
+          </button>
+          {showAdvanced && (
+            <div className="mt-3 space-y-5">
+              <PlatformGuide platform={platform} />
+              {advancedFields.length > 0 && <MessagingFields fields={advancedFields} {...fieldProps} />}
+            </div>
+          )}
+        </section>
+      )}
+    </>
+  )
+}
+
+/** Pending pairing requests and approved users. Rendered only when someone
+ *  is actually waiting or already in — an empty-state card here would be
+ *  permanent chrome on a page that is usually about credentials. */
+function PairingSections({
+  approved,
+  approving,
+  onApprove,
+  onRevoke,
+  pending
+}: {
+  approved: PairingUser[]
+  approving: null | string
+  onApprove: (user: PairingUser) => void
+  onRevoke: (user: PairingUser) => void
+  pending: PairingUser[]
+}) {
+  const { t } = useI18n()
+  const m = t.messaging
+
+  return (
+    <>
+      {pending.length > 0 && (
+        <section>
+          <SectionTitle>{m.pendingRequests(pending.length)}</SectionTitle>
+          <div className="mt-1 grid gap-1">
+            {pending.map(user => {
+              const busy = approving === pairingKey(user)
+              const waited = typeof user.age_minutes === 'number' ? m.waitingSince(user.age_minutes) : null
+
+              return (
+                <ListRow
+                  action={
+                    <Button
+                      disabled={busy || !user.request_id}
+                      onClick={() => onApprove(user)}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      {busy ? m.approving : m.approve}
+                    </Button>
+                  }
+                  // An unnamed requester is only a user id — showing it as
+                  // both title and description just repeats itself.
+                  description={[user.user_name ? user.user_id : null, waited].filter(Boolean).join(' · ')}
+                  key={pairingKey(user)}
+                  title={pairingLabel(user)}
+                />
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {approved.length > 0 && (
+        <section>
+          <SectionTitle>{m.approvedUsers(approved.length)}</SectionTitle>
+          <div className="mt-1 grid gap-1">
+            {approved.map(user => (
+              <ListRow
+                action={
+                  <Button
+                    aria-label={m.revokeAria(pairingLabel(user))}
+                    onClick={() => onRevoke(user)}
+                    size="sm"
+                    variant="ghost"
+                  >
+                    {m.revoke}
+                  </Button>
+                }
+                description={user.user_name ? user.user_id : undefined}
+                key={pairingKey(user)}
+                title={pairingLabel(user)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  )
+}
+
+/** "Get your credentials": the channel's intro and its setup guide. */
+function PlatformGuide({ platform }: { platform: MessagingPlatformInfo }) {
+  const { t } = useI18n()
+  const m = t.messaging
+
+  return (
+    <section>
+      <SectionTitle>{m.getCredentials}</SectionTitle>
+      <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+        {introCopy(platform, m)}
+      </p>
+      {platform.docs_url && (
+        <div className="mt-3">
+          <Button asChild size="sm" variant="textStrong">
+            <a
+              href={platform.docs_url}
+              onClick={event => {
+                // Route through the validated external opener instead of
+                // letting Electron resolve the anchor. A packaged build's
+                // empty/relative href resolves to the app's own
+                // index.html file path, which shell.openPath then fails to
+                // open ("file not found"). Plugin platforms (Teams, etc.)
+                // ship no docs_url, so this guard + handler keeps the
+                // button from ever pointing at a local bundle path.
+                event.preventDefault()
+                openExternalLink(platform.docs_url)
+              }}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {m.openSetupGuide}
+              <ExternalLink className="size-3.5" />
+            </a>
+          </Button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function MessagingFields({
+  current,
+  edits,
+  fieldErrors,
+  fields,
+  onClear,
+  onEdit,
+  saving
+}: {
+  current?: (field: MessagingEnvVarInfo) => null | string | undefined
+  edits: Record<string, string>
+  fieldErrors: Record<string, string>
+  fields: MessagingEnvVarInfo[]
+  onClear: (key: string) => void
+  onEdit: (key: string, value: string) => void
+  saving: string | null
+}) {
+  return (
+    <div className="mt-3 grid gap-1">
+      {fields.map(field => (
+        <MessagingField
+          current={current?.(field)}
+          edits={edits}
+          error={fieldErrors[field.key]}
+          field={field}
+          key={field.key}
+          onClear={onClear}
+          onEdit={onEdit}
+          saving={saving}
+        />
+      ))}
+    </div>
   )
 }
 
@@ -1236,13 +1444,19 @@ function PlatformActionBar({
 
   return (
     <>
-      <Switch
-        aria-label={platform.enabled ? m.disableAria(platform.name) : m.enableAria(platform.name)}
-        checked={platform.enabled}
-        disabled={saving === `enabled:${platform.id}`}
-        onCheckedChange={onToggle}
-        size="xs"
-      />
+      {/* The switch says what it does: "Channel active", and what turning it
+          off keeps. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Switch
+          aria-label={platform.enabled ? m.disableAria(platform.name) : m.enableAria(platform.name)}
+          checked={platform.enabled}
+          disabled={saving === `enabled:${platform.id}`}
+          onCheckedChange={onToggle}
+          size="xs"
+        />
+        <span className="text-xs font-medium text-foreground">{m.channelActive}</span>
+        <span className="text-xs text-muted-foreground">{m.channelActiveHint}</span>
+      </div>
 
       <div className="ml-auto flex items-center gap-2">
         {hasEdits && <span className="text-xs text-muted-foreground">{m.unsavedChanges}</span>}
@@ -1453,19 +1667,6 @@ function StatePill({ children, tone }: { children: string; tone: StatusTone }) {
       )}
     >
       <StatusDot tone={tone} />
-      {children}
-    </span>
-  )
-}
-
-function SetupPill({ active, children }: { active: boolean; children: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-[0.66rem] font-medium',
-        PILL_TONE[active ? 'good' : 'muted']
-      )}
-    >
       {children}
     </span>
   )

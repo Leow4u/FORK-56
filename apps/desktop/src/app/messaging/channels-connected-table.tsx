@@ -16,6 +16,8 @@ export interface ChannelsConnectedStatus {
 
 export interface ChannelsConnectedRow {
   id: string
+  /** Conversation or Integration — what is on the other end of the channel. */
+  kind: string
   name: string
   /** Opens the channel's setup pane. */
   onOpen: () => void
@@ -28,8 +30,9 @@ export interface ChannelsConnectedRow {
   users: number
 }
 
-/** The Connected view: one flat Channel / Users / Status table — the MCP tab's
- *  Connected table, with pairing counts where that one shows the transport. */
+/** The Connected view: one flat Channel / Type / Users / Status table — the
+ *  MCP tab's Connected table, with the channel's kind and its pairing counts
+ *  where that one shows the transport. */
 export function ChannelsConnectedTable({ rows }: { rows: ChannelsConnectedRow[] }) {
   const { t } = useI18n()
   const m = t.messaging
@@ -41,7 +44,10 @@ export function ChannelsConnectedTable({ rows }: { rows: ChannelsConnectedRow[] 
           <th className="h-9 px-2.5 font-normal" scope="col">
             {m.columnChannel}
           </th>
-          <th className="h-9 w-40 px-2.5 font-normal" scope="col">
+          <th className="h-9 w-32 px-2.5 font-normal" scope="col">
+            {m.columnType}
+          </th>
+          <th className="h-9 w-32 px-2.5 font-normal" scope="col">
             {m.columnUsers}
           </th>
           <th className="h-9 w-32 px-2.5 font-normal" scope="col">
@@ -73,6 +79,7 @@ function ChannelsConnectedTableRow({ row }: { row: ChannelsConnectedRow }) {
           <span className="truncate font-semibold text-foreground">{row.name}</span>
         </button>
       </td>
+      <td className="px-2.5 text-[0.8125rem] text-(--ui-text-secondary)">{row.kind}</td>
       <td className="px-2.5 text-[0.8125rem] text-(--ui-text-secondary)">
         <span className="flex items-center gap-2 tabular-nums">
           {row.users > 0 ? row.users : '—'}
