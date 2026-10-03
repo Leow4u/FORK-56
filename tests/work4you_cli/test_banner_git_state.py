@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+from work4you_cli.runtime_payload import DEFAULT_GITHUB_REPO
+
 
 
 
@@ -57,7 +59,7 @@ def test_check_via_local_git_ssh_fastpath_ahead_not_behind(tmp_path):
 
     def fake_git_stdout(args, *, cwd, timeout=5):
         if args == ["remote", "get-url", "origin"]:
-            return "git@github.com:work4you/work4you.git"
+            return f"git@github.com:{DEFAULT_GITHUB_REPO}.git"
         if args == ["rev-parse", "HEAD"]:
             return "b" * 40  # carried commit, differs from upstream tip
         raise AssertionError(f"unexpected git call: {args}")
@@ -84,7 +86,7 @@ def test_check_via_local_git_ssh_fastpath_genuinely_behind(tmp_path):
 
     def fake_git_stdout(args, *, cwd, timeout=5):
         if args == ["remote", "get-url", "origin"]:
-            return "git@github.com:work4you/work4you.git"
+            return f"git@github.com:{DEFAULT_GITHUB_REPO}.git"
         if args == ["rev-parse", "HEAD"]:
             return "b" * 40
         raise AssertionError(f"unexpected git call: {args}")
@@ -112,7 +114,7 @@ def test_check_via_local_git_ssh_fastpath_offline_keeps_sentinel(tmp_path):
 
     def fake_git_stdout(args, *, cwd, timeout=5):
         if args == ["remote", "get-url", "origin"]:
-            return "git@github.com:work4you/work4you.git"
+            return f"git@github.com:{DEFAULT_GITHUB_REPO}.git"
         if args == ["rev-parse", "HEAD"]:
             return "b" * 40
         raise AssertionError(f"unexpected git call: {args}")
