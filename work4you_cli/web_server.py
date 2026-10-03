@@ -9624,13 +9624,49 @@ def _messaging_env_info(key: str) -> dict[str, Any]:
     }
 
 
-def _gateway_platform_config(platform_id: str):
+def _gateway_platform_config(platform_id: str, config=None):
+    """``(gateway_config, Platform, platform_config)`` for ``platform_id``.
+
+    Pass ``config`` when the caller already parsed the gateway config —
+    the Channels list does it once for the whole catalog instead of once per
+    platform row.
+    """
     from gateway.config import Platform, load_gateway_config
 
-    config = load_gateway_config()
+    if config is None:
+        config = load_gateway_config()
     platform = Platform(platform_id)
     platform_config = config.platforms.get(platform)
     return config, platform, platform_config
+
+
+def _messaging_gateway_liveness(runtime: dict | None, profile_home: Optional[Path]):
+    """The gateway liveness every Channels row reports.
+
+    Same shared ladder /api/status uses. Before this was unified, the two
+    endpoints disagreed on the same page load — the sidebar strip read
+    "running" (it probed GATEWAY_HEALTH_URL and scoped to the requested
+    profile) while the Channels page rendered "The gateway is not running"
+    (it did neither). Cross-container, profile-scoped, and
+    launch-service-managed deployments each hit that split.
+
+    ``profile_home`` is passed when the request was scoped to a named profile:
+    gateway/status readers resolve process-level paths and do NOT follow the
+    WORK4YOU_HOME contextvar override (#56986 / #69143), so the profile's
+    directory has to be handed over explicitly or messaging silently reports
+    another profile's gateway (#71211).
+
+    The module-level probe references are handed over so the long-standing
+    monkeypatch seams keep working.
+    """
+    return resolve_gateway_liveness(
+        profile_dir=profile_home,
+        runtime=runtime,
+        health_probe=(_probe_gateway_health if _GATEWAY_HEALTH_URL else None),
+        pid_probe=get_running_pid_cached,
+        runtime_reader=read_runtime_status,
+        runtime_pid_probe=get_runtime_status_running_pid,
+    )
 
 
 def _messaging_platform_payload(
@@ -9639,7 +9675,20 @@ def _messaging_platform_payload(
     runtime: dict | None,
     scoped: bool = False,
     profile_home: Optional[Path] = None,
+    *,
+    liveness=None,
+    gateway_config=None,
+    scoped_config: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
+    """One Channels row.
+
+    The gateway liveness and the parsed config are the same for every row of
+    a request, so the list endpoint resolves them once and passes them in
+    (``liveness``, and ``gateway_config`` or ``scoped_config`` for the
+    profile-scoped read). Left ``None``, each is resolved here — the
+    single-row callers (the connection test) and a parse failure upstream
+    then degrade per row exactly as before.
+    """
     platform_id = entry["id"]
     runtime_platforms = runtime.get("platforms") if runtime else {}
     runtime_platform = (
@@ -9647,28 +9696,8 @@ def _messaging_platform_payload(
         if isinstance(runtime_platforms, dict)
         else {}
     )
-    # Same shared ladder /api/status uses. Before this was unified, the two
-    # endpoints disagreed on the same page load — the sidebar strip read
-    # "running" (it probed GATEWAY_HEALTH_URL and scoped to the requested
-    # profile) while the Channels page rendered "The gateway is not running"
-    # (it did neither). Cross-container, profile-scoped, and
-    # launch-service-managed deployments each hit that split.
-    #
-    # profile_home is passed when the request was scoped to a named profile:
-    # gateway/status readers resolve process-level paths and do NOT follow the
-    # WORK4YOU_HOME contextvar override (#56986 / #69143), so the profile's
-    # directory has to be handed over explicitly or messaging silently reports
-    # another profile's gateway (#71211).
-    liveness = resolve_gateway_liveness(
-        profile_dir=profile_home,
-        runtime=runtime,
-        health_probe=(
-            _probe_gateway_health if _GATEWAY_HEALTH_URL else None
-        ),
-        pid_probe=get_running_pid_cached,
-        runtime_reader=read_runtime_status,
-        runtime_pid_probe=get_runtime_status_running_pid,
-    )
+    if liveness is None:
+        liveness = _messaging_gateway_liveness(runtime, profile_home)
     gateway_running = liveness.running
     env_vars = []
 
@@ -9700,7 +9729,7 @@ def _messaging_platform_payload(
         # env-override layer reads os.environ and would leak the root
         # install's tokens into the profile's reported state.
         try:
-            cfg = load_config()
+            cfg = scoped_config if scoped_config is not None else load_config()
             platforms_cfg = cfg.get("platforms") or {}
             plat_cfg = platforms_cfg.get(platform_id)
             if not isinstance(plat_cfg, dict):
@@ -9720,7 +9749,7 @@ def _messaging_platform_payload(
     else:
         try:
             gateway_config, platform, platform_config = _gateway_platform_config(
-                platform_id
+                platform_id, gateway_config
             )
             enabled = bool(platform_config and platform_config.enabled)
             configured = bool(
@@ -10716,19 +10745,44 @@ async def get_messaging_platforms(profile: Optional[str] = None):
     # profile directory is passed explicitly for those (#71211).
     def _run():
         with _profile_scope(profile) as scoped_dir:
+            scoped = scoped_dir is not None
             env_on_disk = load_env()
             runtime = (
                 read_runtime_status(path=scoped_dir / "gateway_state.json")
-                if scoped_dir is not None
+                if scoped
                 else read_runtime_status()
             )
+            # One liveness ladder and one config parse for the whole
+            # catalog. Resolved per row, a Channels page open re-read and
+            # re-parsed config.yaml and re-ran the PID / lock / health
+            # probes once per platform — a dozen-plus times, serially, in
+            # this one thread — which on a slow disk or a busy backend
+            # outlived the desktop's request timeout and surfaced as a
+            # false "failed to load" over a healthy gateway.
+            liveness = _messaging_gateway_liveness(runtime, scoped_dir)
+            gateway_config = None
+            scoped_config = None
+            try:
+                if scoped:
+                    scoped_config = load_config()
+                else:
+                    from gateway.config import load_gateway_config
+
+                    gateway_config = load_gateway_config()
+            except Exception:
+                # Left None, every row falls back to its own load — and to
+                # the same env-only derivation it always had on a failure.
+                _log.debug("messaging config load failed", exc_info=True)
             payloads = [
                 _messaging_platform_payload(
                     entry,
                     env_on_disk,
                     runtime,
-                    scoped=scoped_dir is not None,
+                    scoped=scoped,
                     profile_home=scoped_dir,
+                    liveness=liveness,
+                    gateway_config=gateway_config,
+                    scoped_config=scoped_config,
                 )
                 for entry in _messaging_platform_catalog()
             ]

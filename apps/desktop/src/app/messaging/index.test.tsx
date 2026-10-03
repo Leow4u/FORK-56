@@ -9,7 +9,7 @@ import type { MessagingPlatformInfo } from '@/types/work4you'
 
 const { $activeGatewayProfile } = await import('@/store/profile')
 const { $settingsScopeOverride, setSettingsScope } = await import('@/store/settings-scope')
-const { $channelsView } = await import('./store')
+const { $channelsSnapshots, $channelsView } = await import('./store')
 
 const getMessagingPlatforms = vi.fn()
 const updateMessagingPlatform = vi.fn()
@@ -91,6 +91,7 @@ afterEach(() => {
   $settingsScopeOverride.set(null)
   $activeGatewayProfile.set('default')
   $channelsView.set(null)
+  $channelsSnapshots.set({})
 })
 
 async function renderMessaging() {
@@ -146,6 +147,57 @@ describe('MessagingView list header', () => {
 
     expect(screen.getByRole('button', { name: /Discord/ })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Mattermost/ })).toBeNull()
+  })
+})
+
+describe('MessagingView revisit', () => {
+  it('paints the last channel list at once on a revisit and refreshes it behind', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ configured: true, enabled: true, state: 'connected' })]
+    })
+
+    const first = await renderMessaging()
+    expect(await screen.findByRole('button', { name: /Mattermost/ })).toBeTruthy()
+    first.unmount()
+
+    // The next load is slow: the rows must come from the last visit, not from it.
+    let release: (value: { platforms: MessagingPlatformInfo[] }) => void = () => undefined
+    getMessagingPlatforms.mockReset()
+    getMessagingPlatforms.mockReturnValue(new Promise(resolve => (release = resolve)))
+
+    await renderMessaging()
+
+    expect(screen.getByRole('button', { name: /Mattermost/ })).toBeTruthy()
+    expect(screen.queryByText(en.messaging.loading)).toBeNull()
+    expect(getMessagingPlatforms).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      release({ platforms: [platform({ configured: true, enabled: true, state: 'connected' })] })
+    })
+  })
+
+  it("never files one scope's rows under another scope on a profile switch", async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ configured: true, enabled: true, state: 'connected' })]
+    })
+
+    await renderMessaging()
+    expect(await screen.findByRole('button', { name: /Mattermost/ })).toBeTruthy()
+
+    // The other profile's list never answers: its page must open blank, not
+    // on the primary's rows, and must not remember them as its own either.
+    getMessagingPlatforms.mockReset()
+    getMessagingPlatforms.mockReturnValue(new Promise(() => undefined))
+
+    await act(async () => {
+      setSettingsScope('research')
+    })
+
+    expect(screen.queryByRole('button', { name: /Mattermost/ })).toBeNull()
+    const snapshots = $channelsSnapshots.get()
+    expect(snapshots.research).toBeUndefined()
+    // Only the scope the rows were fetched for remembers them.
+    expect(Object.values(snapshots).map(snapshot => snapshot.platforms.map(row => row.id))).toEqual([['mattermost']])
   })
 })
 

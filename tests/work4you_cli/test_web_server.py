@@ -679,6 +679,46 @@ class TestWebServerEndpoints:
         assert seen["status_path"] == worker_home / "gateway_state.json"
         assert seen["expected_home"] == worker_home
 
+    def test_messaging_platforms_resolve_liveness_and_config_once_per_request(
+        self, monkeypatch
+    ):
+        """The channel list probes the gateway and parses the config ONCE.
+
+        Both are request-wide facts, but they used to be resolved inside the
+        per-platform payload builder — a dozen-plus PID / lock probes and
+        config.yaml parses per page open, serially, which on a slow disk or a
+        busy backend outlived the desktop's request timeout and showed a
+        healthy gateway as "failed to load".
+        """
+        import gateway.config as gateway_config_mod
+        import work4you_cli.web_server as web_server
+        from gateway.status import GatewayLiveness
+
+        calls = {"liveness": 0, "config": 0}
+        real_load = gateway_config_mod.load_gateway_config
+
+        def _liveness(**kwargs):
+            calls["liveness"] += 1
+            return GatewayLiveness(running=False, pid=None, source="pid")
+
+        def _load_gateway_config():
+            calls["config"] += 1
+            return real_load()
+
+        monkeypatch.setattr(web_server, "resolve_gateway_liveness", _liveness)
+        monkeypatch.setattr(
+            gateway_config_mod, "load_gateway_config", _load_gateway_config
+        )
+
+        resp = self.client.get("/api/messaging/platforms")
+
+        assert resp.status_code == 200
+        platforms = resp.json()["platforms"]
+        assert len(platforms) > 1
+        assert calls == {"liveness": 1, "config": 1}
+        # The rows still carry the request-wide answer.
+        assert all(row["gateway_running"] is False for row in platforms)
+
 
 
 

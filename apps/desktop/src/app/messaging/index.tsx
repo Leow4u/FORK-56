@@ -60,7 +60,7 @@ import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackQuickSetup } from './slack-quick-setup'
 import { SmsQuickSetup } from './sms-quick-setup'
-import { $channelsView } from './store'
+import { $channelsView, readChannelsSnapshot, writeChannelsSnapshot } from './store'
 import { TeamsQuickSetup } from './teams-quick-setup'
 import { TelegramQuickSetup } from './telegram-quick-setup'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
@@ -304,15 +304,25 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   // stands for a home outside the profiles tree, where omitting the profile
   // (the `null` wire shape the platform calls accept) is the right route.
   const scopeProfile = useStore($settingsRequestProfile) ?? null
+  const scopeKey = scopeProfile ?? ''
   const pickedView = useStore($channelsView)
   // Both save/toggle toasts offer the same one-click restart.
   const restartGatewayAction = { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart() }
-  const [platforms, setPlatforms] = useState<MessagingPlatformInfo[] | null>(null)
 
-  const [pairing, setPairing] = useState<{ approved: PairingUser[]; pending: PairingUser[] }>({
-    approved: [],
-    pending: []
-  })
+  // Open on the rows this scope showed last time (if any) and refresh them
+  // behind; a blank loader only on the first visit of the app session.
+  const [platforms, setPlatforms] = useState<MessagingPlatformInfo[] | null>(
+    () => readChannelsSnapshot(scopeKey)?.platforms ?? null
+  )
+
+  const [pairing, setPairing] = useState<{ approved: PairingUser[]; pending: PairingUser[] }>(
+    () => readChannelsSnapshot(scopeKey)?.pairing ?? { approved: [], pending: [] }
+  )
+
+  // The scope the rows in `platforms` answer for: a fetch answers for the
+  // scope it was sent under, and the snapshot must never file one scope's
+  // rows under another's key — the scope-switch guard below reads it back.
+  const [rowsScope, setRowsScope] = useState(scopeKey)
 
   const [approving, setApproving] = useState<null | string>(null)
   const [pendingRevoke, setPendingRevoke] = useState<null | PairingUser>(null)
@@ -334,6 +344,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
 
       try {
         const result = await getMessagingPlatforms(scopeProfile)
+        setRowsScope(scopeProfile ?? '')
         setPlatforms(result.platforms)
       } catch (err) {
         if (!silent) {
@@ -375,9 +386,18 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
     void refreshAll()
   }, [refreshAll])
 
+  // Every list this page shows (fetched, toggled, saved) is the one a
+  // revisit opens on.
+  useEffect(() => {
+    if (platforms && rowsScope === scopeKey) {
+      writeChannelsSnapshot(scopeKey, { pairing, platforms })
+    }
+  }, [pairing, platforms, rowsScope, scopeKey])
+
   // Scope switch: the mounted list still shows the PREVIOUS profile's
-  // platforms/pairing while the new fetch is in flight — blank it so stale
-  // rows can't be toggled against the wrong backend.
+  // platforms/pairing while the new fetch is in flight — swap in the new
+  // scope's own last rows (or blank) so stale rows can't be toggled against
+  // the wrong backend.
   const scopeSeenRef = useRef(scopeProfile)
 
   // eslint-disable-next-line no-restricted-syntax -- legitimate non-atom ref write (scope-change guard)
@@ -387,8 +407,10 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
     }
 
     scopeSeenRef.current = scopeProfile
-    setPlatforms(null)
-    setPairing({ approved: [], pending: [] })
+    const snapshot = readChannelsSnapshot(scopeProfile ?? '')
+    setRowsScope(scopeProfile ?? '')
+    setPlatforms(snapshot?.platforms ?? null)
+    setPairing(snapshot?.pairing ?? { approved: [], pending: [] })
     setEdits({})
     setFieldErrors({})
   }, [scopeProfile])
