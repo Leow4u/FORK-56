@@ -25,7 +25,7 @@ import {
 import { $liveGatewayProfiles } from '@/store/gateway-liveness'
 import { invalidateProfileAvatar, reconcileProfileAvatars } from '@/store/profile-avatars'
 import { exitProjectScope } from '@/store/project-scope'
-import { setConnection } from '@/store/session'
+import { setConnection, setCurrentCwdTransient, setNewChatWorkspaceTarget } from '@/store/session'
 import { resetStarmapGraph } from '@/store/starmap'
 import type { ProfileInfo } from '@/types/work4you'
 import { getProfiles, setApiRequestProfile, STARTUP_REQUEST_TIMEOUT_MS, work4youApi } from '@/work4you'
@@ -618,8 +618,19 @@ export const $profileScope = computed([$showAllProfiles, $activeGatewayProfile],
 // project tree, so it would start in the previous profile's project
 // (upstream #54990).
 function leaveForeignProjectScope(profile: string, connectionId: null | string = activeGatewayConnectionId()): void {
-  if (profile !== normalizeProfileKey($activeGatewayProfile.get()) || connectionId !== activeGatewayConnectionId()) {
+  const foreignProfile = profile !== normalizeProfileKey($activeGatewayProfile.get())
+
+  if (foreignProfile || connectionId !== activeGatewayConnectionId()) {
     exitProjectScope()
+  }
+
+  // The empty-chat Select project pick and the folder on screen belong to this
+  // profile too. A fresh draft reuses the pick first and the live folder next,
+  // so either would root the other profile's first chat in a project of this
+  // one. Transient on purpose: nothing is remembered for the profile being left.
+  if (foreignProfile) {
+    setNewChatWorkspaceTarget(undefined)
+    setCurrentCwdTransient('')
   }
 }
 
