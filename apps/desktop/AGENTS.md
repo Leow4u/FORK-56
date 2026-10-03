@@ -45,6 +45,20 @@ Persisted state must declare its scope in its own key: is this global, or does i
 belong to a connection, a profile, a stored session, a project, or a window?
 Getting the scope wrong is how one profile's setting bleeds into another.
 
+Projects are the worked example. A **project** is a row in one backend's
+`projects.db`: a name, one or more folders, and a primary folder that is where a
+new chat in it starts (and where `AGENTS.md` is read). The backend owns that
+row. The renderer owns only the *entered* project, `$projectScope` in
+`store/project-scope.ts` — a project id in localStorage that the sidebar, the
+empty-chat Select project chip and the ⌘K page all read as one state. Because
+a project id is only meaningful against the backend that minted it, every
+profile or connection switch must leave the scope synchronously, before the
+fresh draft resolves its cwd from it; the module is dependency-light precisely
+so `store/profile` and `store/gateway-switch` can do that without an import
+cycle. The composer chip selects a project, never a bare folder — opening a
+folder (⌘O, the ⌘K root) promotes it to a project first — and the chip is named
+accordingly.
+
 ## Identity is not incidental
 
 Sessions have more than one identity, and conflating them is a recurring source
@@ -99,6 +113,17 @@ Treating a soft switch as hard flickers the app; treating a hard one as soft
 strands stale rows. After any swap, the active socket, active profile, and
 connection atoms must agree, or REST and filesystem calls route to the wrong
 backend.
+
+The composer follows the same rule at the draft level. An **empty chat** is
+where a folder is chosen: Select project, and beside it a branch chip whenever
+that folder is a git repo (branch, worktrees, the same menu the coding strip's
+kebab builds — one builder in `status-stack/branch-menu-items.tsx`, three
+surfaces). Picking a worktree re-targets the draft (`retargetDraftWorkspace`),
+never a live conversation. An **occupied chat** owns its cwd and shows it as
+quiet identity on the coding strip; nothing there re-points the transcript.
+Folder paths never render inline on either — tooltip or hover only. The one
+place a parent path may appear is the project dialog, and only to tell two
+same-named folders apart.
 
 ## Cross everything as an observable ladder
 
