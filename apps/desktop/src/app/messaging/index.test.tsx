@@ -9,6 +9,7 @@ import type { MessagingPlatformInfo } from '@/types/work4you'
 
 const { $activeGatewayProfile } = await import('@/store/profile')
 const { $settingsScopeOverride, setSettingsScope } = await import('@/store/settings-scope')
+const { $channelsView } = await import('./store')
 
 const getMessagingPlatforms = vi.fn()
 const updateMessagingPlatform = vi.fn()
@@ -89,6 +90,7 @@ afterEach(() => {
   vi.clearAllMocks()
   $settingsScopeOverride.set(null)
   $activeGatewayProfile.set('default')
+  $channelsView.set(null)
 })
 
 async function renderMessaging() {
@@ -144,6 +146,69 @@ describe('MessagingView list header', () => {
 
     expect(screen.getByRole('button', { name: /Discord/ })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Mattermost/ })).toBeNull()
+  })
+})
+
+describe('MessagingView Connected | Discover', () => {
+  it('opens on Discover, as cards with a Connect button, while no channel is on', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform(), platform({ id: 'discord', name: 'Discord' })]
+    })
+
+    await renderMessaging()
+
+    expect(await screen.findByRole('button', { name: /Mattermost/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Discover' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getAllByRole('button', { name: en.common.connect })).toHaveLength(2)
+    expect(screen.queryByRole('table')).toBeNull()
+  })
+
+  it('opens on Connected, as a table of the channels that are on, and keeps the rest under Discover', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        platform({ configured: true, enabled: true, state: 'connected' }),
+        platform({ id: 'discord', name: 'Discord' })
+      ]
+    })
+    getPairing.mockResolvedValue({
+      approved: [{ platform: 'mattermost', request_id: 'a1', user_id: 'u1' }],
+      pending: [{ platform: 'mattermost', request_id: 'p1', user_id: 'u2' }]
+    })
+
+    await renderMessaging()
+
+    const table = await screen.findByRole('table')
+    expect(screen.getByRole('button', { name: en.skills.viewConnected }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('columnheader', { name: en.messaging.columnChannel })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Mattermost/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Discord/ })).toBeNull()
+    // Paired users and the pairing requests still waiting, from the pairing feed.
+    expect(table.textContent).toContain(en.messaging.pendingBadge(1))
+    expect(screen.getByRole('switch', { name: en.messaging.disableAria('Mattermost') })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.getByRole('button', { name: /Discord/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Mattermost/ })).toBeNull()
+  })
+
+  it('turns a channel off from its row in the Connected table', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ configured: true, enabled: true, state: 'connected' })]
+    })
+
+    await renderMessaging()
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('switch', { name: en.messaging.disableAria('Mattermost') }))
+    })
+
+    await waitFor(() => expect(updateMessagingPlatform).toHaveBeenCalledWith('mattermost', { enabled: false }))
+    // Off now, it is a Discover card again — and with nothing left on, the
+    // unpicked view follows it there.
+    expect(await screen.findByRole('button', { name: en.common.connect })).toBeTruthy()
+    expect(screen.queryByRole('table')).toBeNull()
   })
 })
 

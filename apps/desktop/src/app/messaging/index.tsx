@@ -3,7 +3,6 @@ import type * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
-import { composerPanelCard } from '@/components/chat/composer-dock'
 import { PageLoader } from '@/components/page-loader'
 import { StatusDot, type StatusTone } from '@/components/status-dot'
 import { Button } from '@/components/ui/button'
@@ -39,15 +38,21 @@ import {
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { LIBRARY_PAGE_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
 import { DetailColumn } from '../master-detail'
+import { PanelEmpty } from '../overlays/panel'
 import { PageTitle } from '../page-title'
 import { MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
 import { CREDENTIAL_CONTROL_CLASS } from '../settings/credential-key-ui'
 import { ListRow } from '../settings/primitives'
 import { SettingsProfileScope } from '../settings/profile-scope'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
+import { CapabilitiesToolbar } from '../skills/capabilities-toolbar'
+import { MCP_CATALOG_GRID_CLASS } from '../skills/mcp-catalog-chrome'
+import type { CapabilitiesView } from '../skills/store'
 
 import { A2AQuickSetup } from './a2a-quick-setup'
 import { ApiServerQuickSetup } from './api-server-quick-setup'
+import { ChannelCard } from './channel-card'
+import { type ChannelsConnectedRow, ChannelsConnectedTable } from './channels-connected-table'
 import { DiscordQuickSetup } from './discord-quick-setup'
 import { EmailQuickSetup } from './email-quick-setup'
 import { GoogleChatQuickSetup } from './google-chat-quick-setup'
@@ -55,6 +60,7 @@ import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackQuickSetup } from './slack-quick-setup'
 import { SmsQuickSetup } from './sms-quick-setup'
+import { $channelsView } from './store'
 import { TeamsQuickSetup } from './teams-quick-setup'
 import { TelegramQuickSetup } from './telegram-quick-setup'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
@@ -298,6 +304,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   // stands for a home outside the profiles tree, where omitting the profile
   // (the `null` wire shape the platform calls accept) is the right route.
   const scopeProfile = useStore($settingsRequestProfile) ?? null
+  const pickedView = useStore($channelsView)
   // Both save/toggle toasts offer the same one-click restart.
   const restartGatewayAction = { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart() }
   const [platforms, setPlatforms] = useState<MessagingPlatformInfo[] | null>(null)
@@ -463,6 +470,13 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
         .some(value => String(value).toLowerCase().includes(q))
     )
   }, [platforms, query])
+
+  // Connected = the channels that are turned on, whatever their health, so a
+  // failing one is still found where it was set up; the rest are there to
+  // connect. Until the user picks, open on Connected when any channel is on.
+  const connectedPlatforms = useMemo(() => visiblePlatforms.filter(platform => platform.enabled), [visiblePlatforms])
+  const discoverPlatforms = useMemo(() => visiblePlatforms.filter(platform => !platform.enabled), [visiblePlatforms])
+  const view: CapabilitiesView = pickedView ?? (platforms?.some(platform => platform.enabled) ? 'mine' : 'discover')
 
   async function handleToggle(platform: MessagingPlatformInfo, enabled: boolean) {
     setSaving(`enabled:${platform.id}`)
@@ -637,6 +651,32 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
 
   const searchHints = platforms?.slice(0, 5).map(platform => t.common.tryHint(platform.name.toLowerCase()))
   const showListSearch = (platforms?.length ?? 0) > 0 && !selected
+  const searching = query.trim().length > 0
+
+  // Every row here is on, so its switch only ever turns the channel off —
+  // after which it is a Discover card again, as the switch promised.
+  const connectedRow = (platform: MessagingPlatformInfo): ChannelsConnectedRow => ({
+    id: platform.id,
+    name: platform.name,
+    onOpen: () => navigate(messagingPlatformPath(platform.id)),
+    pending: pendingByPlatform[platform.id]?.length ?? 0,
+    status: {
+      connected: platform.state === 'connected',
+      label: stateLabel(platform.state, m),
+      tone: stateTone(platform)
+    },
+    trailing: (
+      <Switch
+        aria-label={m.disableAria(platform.name)}
+        checked
+        className="shrink-0 cursor-pointer"
+        disabled={saving === `enabled:${platform.id}`}
+        onCheckedChange={checked => void handleToggle(platform, checked)}
+        size="xs"
+      />
+    ),
+    users: approvedByPlatform[platform.id]?.length ?? 0
+  })
 
   return (
     <section
@@ -735,18 +775,54 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
               </div>
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-            <ul className={cn('mx-auto grid w-full grid-cols-1 gap-3 sm:grid-cols-2', LIBRARY_PAGE_MAX_W)}>
-              {visiblePlatforms.map(platform => (
-                <li key={platform.id}>
-                  <PlatformCard
-                    onSelect={() => navigate(messagingPlatformPath(platform.id))}
-                    pendingCount={pendingByPlatform[platform.id]?.length ?? 0}
-                    platform={platform}
+          {/* The MCP tab's shape under the header: its Connected | Discover
+              switch, then a table of what is on or cards for what is not. */}
+          <div className="shrink-0 px-4 pt-2 pb-1">
+            <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
+              <CapabilitiesToolbar
+                mineLabel={t.skills.viewConnected}
+                onViewChange={next => $channelsView.set(next)}
+                view={view}
+              />
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-1 pb-4 [scrollbar-gutter:stable]">
+            <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
+              {view === 'mine' ? (
+                connectedPlatforms.length === 0 ? (
+                  <PanelEmpty
+                    action={
+                      searching ? undefined : (
+                        <Button onClick={() => $channelsView.set('discover')} size="sm">
+                          {t.skills.viewDiscover}
+                        </Button>
+                      )
+                    }
+                    description={searching ? m.noMatchesDesc : m.emptyConnectedDesc}
+                    icon="comment-discussion"
+                    title={searching ? m.noMatchesTitle : m.emptyConnectedTitle}
                   />
-                </li>
-              ))}
-            </ul>
+                ) : (
+                  <ChannelsConnectedTable rows={connectedPlatforms.map(connectedRow)} />
+                )
+              ) : discoverPlatforms.length === 0 ? (
+                <PanelEmpty
+                  description={searching ? m.noMatchesDesc : m.emptyDiscoverDesc}
+                  icon="comment-discussion"
+                  title={searching ? m.noMatchesTitle : m.emptyDiscoverTitle}
+                />
+              ) : (
+                <div className={MCP_CATALOG_GRID_CLASS}>
+                  {discoverPlatforms.map(platform => (
+                    <ChannelCard
+                      key={platform.id}
+                      onConnect={() => navigate(messagingPlatformPath(platform.id))}
+                      platform={platform}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </>
       )}
@@ -763,50 +839,6 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
         title={m.revokeTitle}
       />
     </section>
-  )
-}
-
-function PlatformCard({
-  onSelect,
-  pendingCount,
-  platform
-}: {
-  onSelect: () => void
-  pendingCount: number
-  platform: MessagingPlatformInfo
-}) {
-  const { t } = useI18n()
-  const m = t.messaging
-
-  return (
-    <button
-      className={cn(composerPanelCard, 'flex w-full items-start gap-3 p-3 text-left')}
-      onClick={onSelect}
-      type="button"
-    >
-      <PlatformAvatar platformId={platform.id} platformName={platform.name} />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="truncate font-medium text-foreground">{platform.name}</span>
-          {pendingCount > 0 && (
-            <span
-              aria-label={m.pendingAria(pendingCount)}
-              className={cn(
-                'inline-flex min-w-4 items-center justify-center rounded-full px-1 text-[0.66rem] font-medium tabular-nums',
-                PILL_TONE.warn
-              )}
-            >
-              {pendingCount}
-            </span>
-          )}
-        </span>
-        <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <StatusDot tone={stateTone(platform)} />
-          {stateLabel(platform.state, m)}
-        </span>
-        <span className="mt-1 block truncate text-xs text-muted-foreground">{platform.description}</span>
-      </span>
-    </button>
   )
 }
 

@@ -1457,6 +1457,17 @@ export interface Translations {
     search: string
     loading: string
     loadFailed: string
+    columnChannel: string
+    columnUsers: string
+    columnStatus: string
+    columnActions: string
+    pendingBadge: (count: number) => string
+    emptyConnectedTitle: string
+    emptyConnectedDesc: string
+    emptyDiscoverTitle: string
+    emptyDiscoverDesc: string
+    noMatchesTitle: string
+    noMatchesDesc: string
     states: Record<string, string>
     unknown: string
     hintPendingRestart: string
