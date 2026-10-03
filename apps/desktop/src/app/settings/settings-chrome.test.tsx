@@ -64,8 +64,8 @@ describe('Settings chrome', () => {
 
     // Config pages show the shared profile chip again (two profiles above).
     fireEvent.click(screen.getAllByRole('button', { name: 'Chat' })[0])
-    expect(await screen.findByText('Editing profile')).toBeTruthy()
-    expect(screen.getByRole('radio', { name: 'coder' })).toBeTruthy()
+    expect(await screen.findByText('Configuring:')).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Configuring:' })).toBeTruthy()
   })
 
   it('sends an old About bookmark to the default settings view', async () => {

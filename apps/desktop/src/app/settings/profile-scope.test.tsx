@@ -13,8 +13,11 @@ vi.mock('@/store/gateway', () => ({
   ensureGatewayForProfile: vi.fn(async () => undefined),
   openGatewayForProfile: vi.fn(async () => undefined)
 }))
+// The selector refreshes the roster on mount; answer with the roster the test
+// set so an awaited query never sees the list wiped to [] mid-test.
+const roster = vi.hoisted(() => ({ profiles: [] as unknown[] }))
 vi.mock('@/work4you', () => ({
-  getProfiles: vi.fn(async () => ({ profiles: [] })),
+  getProfiles: vi.fn(async () => ({ profiles: roster.profiles })),
   setApiRequestProfile: vi.fn()
 }))
 vi.mock('@/lib/query-client', () => ({ invalidateProfileScopedQueries: vi.fn() }))
@@ -23,71 +26,73 @@ vi.mock('@/lib/bot-face-clock', () => ({ startFaceClock: vi.fn() }))
 
 const { $activeGatewayProfile, $profiles } = await import('@/store/profile')
 const { $settingsScopeOverride } = await import('@/store/settings-scope')
-const { ScopeChip, SettingsProfileScope, settingsScopeLabel } = await import('./profile-scope')
+const { SettingsProfileScope, settingsScopeLabel } = await import('./profile-scope')
 
 const profile = (name: string, isDefault = false, extra: Partial<ProfileInfo> = {}): ProfileInfo =>
   ({ has_env: false, is_default: isDefault, model: null, name, ...extra }) as unknown as ProfileInfo
 
+function setProfiles(list: ProfileInfo[]) {
+  roster.profiles = list
+  $profiles.set(list)
+}
+
+// The selector is a Select — open it, then pick the option by its label.
+async function pick(name: string) {
+  fireEvent.click(screen.getByRole('combobox', { name: 'Configuring:' }))
+  fireEvent.click(await screen.findByRole('option', { name }))
+}
+
 beforeEach(() => {
+  // jsdom's scrollIntoView is missing; Radix Select calls it on open.
+  Element.prototype.scrollIntoView = vi.fn()
   $activeGatewayProfile.set('default')
   $settingsScopeOverride.set(null)
-  $profiles.set([])
+  setProfiles([])
 })
 
 afterEach(cleanup)
 
 describe('SettingsProfileScope', () => {
   it('renders nothing with fewer than two profiles', () => {
-    $profiles.set([profile('default', true)])
+    setProfiles([profile('default', true)])
 
     const { container } = render(<SettingsProfileScope />)
+
     expect(container.textContent).toBe('')
   })
 
-  it('shows one chip per profile with the active profile selected by default', () => {
-    $profiles.set([profile('default', true), profile('coder')])
+  it('shows the dropdown with the active profile selected and no note while editing the default profile', async () => {
+    setProfiles([profile('default', true), profile('coder')])
 
     render(<SettingsProfileScope />)
 
-    expect(screen.getByRole('radio', { name: 'Work4You' })).toBeTruthy()
-    expect(screen.getByRole('radio', { name: 'coder' })).toBeTruthy()
-    expect(screen.getByText('Editing profile')).toBeTruthy()
-    // Following the active profile still names the home being edited so the
-    // chips cannot be read as a multi-profile bind.
-    expect(
-      screen.getByText('These settings only change the “Work4You” profile. Other profiles stay independent.')
-    ).toBeTruthy()
+    expect(screen.getByText('Configuring:')).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Configuring:' }).textContent).toContain('Work4You')
+    // Editing the default profile needs no note.
+    expect(screen.queryByRole('status')).toBeNull()
     expect($settingsScopeOverride.get()).toBeNull()
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Configuring:' }))
+    expect(await screen.findByRole('option', { name: 'Work4You' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'coder' })).toBeTruthy()
   })
 
-  it('selecting another profile sets the shared override; re-selecting the active clears it', () => {
-    $profiles.set([profile('default', true), profile('coder')])
+  it('selecting another profile sets the shared override and names it loudly; re-selecting the active clears both', async () => {
+    setProfiles([profile('default', true), profile('coder')])
 
     render(<SettingsProfileScope />)
 
-    fireEvent.click(screen.getByRole('radio', { name: 'coder' }))
+    await pick('coder')
     expect($settingsScopeOverride.get()).toBe('coder')
     expect(
       screen.getByText('These settings only change the “coder” profile. Other profiles stay independent.')
     ).toBeTruthy()
+    expect(screen.getByRole('status').getAttribute('data-scope-loud')).toBe('true')
+    expect(screen.getByRole('status').getAttribute('data-scope-override')).toBe('true')
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Work4You' }))
+    await pick('Work4You')
     expect($settingsScopeOverride.get()).toBeNull()
-    expect(
-      screen.getByText('These settings only change the “Work4You” profile. Other profiles stay independent.')
-    ).toBeTruthy()
-  })
-
-  it('keeps the note quiet while following the active DEFAULT profile', () => {
-    $profiles.set([profile('default', true), profile('coder')])
-
-    render(<SettingsProfileScope />)
-
-    const note = screen.getByRole('status')
-    // The default profile is named by the product name, never its slug.
-    expect(note.textContent).toContain('Work4You')
-    expect(note.hasAttribute('data-scope-loud')).toBe(false)
-    expect(note.hasAttribute('data-scope-override')).toBe(false)
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('states the edit target loudly when the active profile is a non-default bot (no override)', () => {
@@ -95,7 +100,7 @@ describe('SettingsProfileScope', () => {
     // then lands in profiles/<bot>/config.yaml while the user believes they
     // are editing their main config. The note must stand out.
     $activeGatewayProfile.set('scout')
-    $profiles.set([profile('default', true), profile('scout')])
+    setProfiles([profile('default', true), profile('scout')])
 
     render(<SettingsProfileScope />)
 
@@ -103,24 +108,12 @@ describe('SettingsProfileScope', () => {
     const note = screen.getByRole('status')
     expect(note.textContent).toContain('scout')
     expect(note.getAttribute('data-scope-loud')).toBe('true')
+    expect(note.hasAttribute('data-scope-override')).toBe(false)
   })
 
-  it('turns the note loud on an explicit pick of a non-default profile and quiet back on the default', () => {
-    $profiles.set([profile('default', true), profile('coder')])
-
-    render(<SettingsProfileScope />)
-
-    fireEvent.click(screen.getByRole('radio', { name: 'coder' }))
-    expect(screen.getByRole('status').getAttribute('data-scope-loud')).toBe('true')
-    expect(screen.getByRole('status').getAttribute('data-scope-override')).toBe('true')
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Work4You' }))
-    expect(screen.getByRole('status').hasAttribute('data-scope-loud')).toBe(false)
-  })
-
-  it('labels chips with the bot title, else the display name, else the slug', () => {
-    $profiles.set([
-      profile('default', true, { display_name: 'Work4You (default)' }),
+  it('labels options with the bot title, else the display name, else the product name for the default, else the slug', async () => {
+    setProfiles([
+      profile('default', true),
       profile('coder', false, { bot_title: 'JordyV', display_name: 'Copy' }),
       profile('research', false, { display_name: 'Pesquisa' }),
       profile('weather-man')
@@ -128,70 +121,38 @@ describe('SettingsProfileScope', () => {
 
     render(<SettingsProfileScope />)
 
-    expect(screen.getByRole('radio', { name: 'Work4You (default)' })).toBeTruthy()
-    expect(screen.getByRole('radio', { name: 'JordyV' })).toBeTruthy()
-    expect(screen.queryByRole('radio', { name: 'Copy' })).toBeNull()
-    expect(screen.getByRole('radio', { name: 'Pesquisa' })).toBeTruthy()
-    expect(screen.getByRole('radio', { name: 'weather-man' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('combobox', { name: 'Configuring:' }))
+
+    expect(await screen.findByRole('option', { name: 'Work4You' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'JordyV' })).toBeTruthy()
+    expect(screen.queryByRole('option', { name: 'Copy' })).toBeNull()
+    expect(screen.getByRole('option', { name: 'Pesquisa' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'weather-man' })).toBeTruthy()
+    expect(screen.queryByRole('option', { name: /\(default\)/ })).toBeNull()
   })
 
-  it('keeps selection keyed on the canonical name while showing the presentation label', () => {
-    $profiles.set([profile('default', true), profile('coder', false, { bot_title: 'JordyV' })])
+  it('keeps selection keyed on the canonical name while showing the presentation label', async () => {
+    setProfiles([profile('default', true), profile('coder', false, { bot_title: 'JordyV' })])
 
     render(<SettingsProfileScope />)
 
-    fireEvent.click(screen.getByRole('radio', { name: 'JordyV' }))
+    await pick('JordyV')
 
     expect($settingsScopeOverride.get()).toBe('coder')
     expect(screen.getByRole('status').textContent).toContain('JordyV')
     expect(screen.getByRole('status').textContent).not.toContain('coder')
   })
 
-  it('centers the label, chips, and helper when align is center', () => {
-    $profiles.set([profile('default', true), profile('coder')])
+  it('centers the selector and the note when align is center', () => {
+    $activeGatewayProfile.set('coder')
+    setProfiles([profile('default', true), profile('coder')])
 
     const { container } = render(<SettingsProfileScope align="center" />)
     const root = container.firstElementChild
 
     expect(root?.className).toContain('items-center')
     expect(root?.className).toContain('text-center')
-    expect(screen.getByRole('radiogroup').className).toContain('justify-center')
-  })
-
-  it("draws each chip as the profile's bot face, with the selected name open and the others folded", () => {
-    $profiles.set([
-      profile('default', true, { ui_meta: { 'work4you-bots': { color: '#ef4444', custom: true, shape: 'cloud' } } }),
-      profile('coder', false, { bot_title: 'JordyV' })
-    ])
-
-    render(<SettingsProfileScope />)
-
-    const selected = screen.getByRole('radio', { name: 'Work4You' })
-    const other = screen.getByRole('radio', { name: 'JordyV' })
-
-    // The face is the same drawing the rail and the roster make from the
-    // stored look; the label stays the accessible name whether open or folded.
-    expect(selected.querySelector('svg')?.getAttribute('data-bot-face')).toBe('default')
-    expect(selected.querySelector('svg')?.getAttribute('data-hb-shape')).toBe('cloud')
-    expect(other.querySelector('svg')?.getAttribute('data-bot-face')).toBe('coder')
-    expect(selected.getAttribute('data-expanded')).toBe('true')
-    expect(other.hasAttribute('data-expanded')).toBe(false)
-
-    fireEvent.click(other)
-
-    expect(other.getAttribute('data-expanded')).toBe('true')
-    expect(selected.hasAttribute('data-expanded')).toBe(false)
-  })
-})
-
-describe('ScopeChip', () => {
-  it('stays a plain text chip without a profile name', () => {
-    render(<ScopeChip active={false} label="All" onSelect={() => undefined} />)
-
-    const chip = screen.getByRole('radio', { name: 'All' })
-
-    expect(chip.querySelector('svg')).toBeNull()
-    expect(chip.textContent).toBe('All')
+    expect(screen.getByRole('status').className).toContain('max-w-xl')
   })
 })
 

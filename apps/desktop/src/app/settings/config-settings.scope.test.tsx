@@ -140,10 +140,12 @@ describe('ConfigSettings profile scope', () => {
 
     await renderSection('chat')
 
-    expect(await screen.findByText('Editing profile')).toBeTruthy()
+    expect(await screen.findByText('Configuring:')).toBeTruthy()
     expect(getWork4YouConfigRecord).toHaveBeenCalledWith('default')
 
-    fireEvent.click(screen.getByRole('radio', { name: 'research' }))
+    Element.prototype.scrollIntoView = vi.fn()
+    fireEvent.click(screen.getByRole('combobox', { name: 'Configuring:' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'research' }))
 
     await waitFor(() => expect(getWork4YouConfigRecord).toHaveBeenCalledWith('research'))
     expect($settingsScopeOverride.get()).toBe('research')
@@ -161,7 +163,7 @@ describe('ConfigSettings profile scope', () => {
     await renderSection('chat')
 
     expect(await screen.findByText('Reasoning Blocks')).toBeTruthy()
-    expect(screen.queryByText('Editing profile')).toBeNull()
+    expect(screen.queryByText('Configuring:')).toBeNull()
   })
 
   it('remounts the page when the scope changes so no draft crosses profiles', async () => {
