@@ -171,7 +171,7 @@ function foregroundIsFreshDraft(): boolean {
   return !$selectedStoredSessionId.get() && !$activeSessionId.get()
 }
 
-// Empty-chat Select workspace: enter a project the user already has and point
+// Empty-chat Select project: enter a project the user already has and point
 // the draft at its folder. Does not open a session — `openFolderAsProject`
 // does that. The durable active pointer stays best-effort, same as enterProject.
 export function selectWorkspaceProject(id: string): void {
@@ -1093,7 +1093,7 @@ export async function deleteProject(id: string): Promise<void> {
   forgetDesktopProject(id)
 
   // The chip reads scope + cwd, not the tree row. Dropping the row alone leaves
-  // Select workspace showing the deleted name until the next manual clear.
+  // Select project showing the deleted name until the next manual clear.
   if (scopeWasProject) {
     exitProjectScope()
   }

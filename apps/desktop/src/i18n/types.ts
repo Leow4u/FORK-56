@@ -2387,7 +2387,7 @@ export interface Translations {
       ideaPlaceholder: string
       ideaGenerate: string
       ideaGenerating: string
-      ideaShuffle: string
+      makePrimary: string
       noFolders: string
       addFolder: string
       primaryBadge: string

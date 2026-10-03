@@ -168,7 +168,7 @@ export function buildWorkspaceActionItems(
 ): WorkspacePaletteItem[] {
   const items: WorkspacePaletteItem[] = []
 
-  // Select workspace (chip + nested ⌘K page) is "pick or create a project".
+  // Select project (chip + nested ⌘K page) is "pick or create a project".
   // Open folder is a separate power action on the root palette and ⌘O — next
   // to New project it reads as a second way to make the same row.
   if (options?.includeOpenFolder) {

@@ -787,7 +787,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
   )
 
   // Root ⌘K stays the two actions. The recent list lives on the nested
-  // Select workspace page, same rows as the composer chip.
+  // Select project page, same rows as the composer chip.
   const workspaceActionItems = useMemo(
     () =>
       workspaceGroupsToPalette([
@@ -801,7 +801,7 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     const cc = t.commandCenter
 
     // Root palette: Open folder / New project only. Recents are on the nested
-    // Select workspace page (and the composer chip), from the same tree.
+    // Select project page (and the composer chip), from the same tree.
     // Gateway / Cloud / SSH stay in Settings.
     const projectGroup: PaletteGroup = {
       heading: cc.projects,

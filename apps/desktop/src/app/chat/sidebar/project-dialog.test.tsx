@@ -30,7 +30,7 @@ vi.mock('@/i18n', () => ({
           ideaGenerating: 'Generating…',
           ideaLabel: 'Idea',
           ideaPlaceholder: 'What are you building?',
-          ideaShuffle: 'Shuffle ideas',
+          makePrimary: 'Make primary',
           nameLabel: 'Name',
           namePlaceholder: 'Project name',
           noFolders: 'No folders yet',
@@ -76,10 +76,6 @@ vi.mock('@/store/notifications', () => ({
   notifyError: vi.fn()
 }))
 
-vi.mock('@/lib/project-idea-templates', () => ({
-  randomIdeaTemplates: () => [{ emoji: '🚀', idea: 'A rocket tracker', label: 'Rocket tracker' }]
-}))
-
 const tipTrigger = (el: HTMLElement) => el.closest('[data-slot="tooltip-trigger"]')
 
 describe('ProjectDialog', () => {
@@ -90,11 +86,12 @@ describe('ProjectDialog', () => {
     expect(screen.getByText('No folders yet')).toBeTruthy()
   })
 
-  it('wraps the "shuffle idea" button in a Tip', () => {
+  it('offers no ready-made idea templates', () => {
     render(<ProjectDialog />)
 
-    const button = screen.getByRole('button', { name: 'Shuffle ideas' })
-    expect(tipTrigger(button)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /shuffle/i })).toBeNull()
+    expect(screen.getByPlaceholderText('What are you building?')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Generate' })).toBeTruthy()
   })
 
   it('drops the sample name and the IDEA.md note from the create copy', () => {
@@ -119,6 +116,57 @@ describe('ProjectDialog', () => {
     expect(dialog?.className).toContain('overflow-x-hidden')
     expect(dialog?.className).toContain('min-w-0')
     expect(screen.getByText('Recursos Humanos').closest('li')?.className).toContain('overflow-hidden')
+    // The path stays in the tooltip; the row shows the folder name alone.
+    expect(screen.queryByText(/OneDrive - Dutel/)).toBeNull()
+  })
+
+  it('shows the parent folder only when two folders share a name', async () => {
+    vi.mocked(pickProjectFolder)
+      .mockResolvedValueOnce('/Users/test/clients/acme/web')
+      .mockResolvedValueOnce('/Users/test/clients/globex/web')
+    render(<ProjectDialog />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    await screen.findByText('web')
+    expect(screen.queryByText('/Users/test/clients/acme')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    await screen.findByText('/Users/test/clients/globex')
+    expect(screen.getByText('/Users/test/clients/acme')).toBeTruthy()
+    expect(screen.getAllByText('web')).toHaveLength(2)
+  })
+
+  it('lets a later folder become the primary and sends it on create', async () => {
+    vi.mocked(pickProjectFolder)
+      .mockResolvedValueOnce('/Users/test/dute-app')
+      .mockResolvedValueOnce('/Users/test/dute-api')
+    render(<ProjectDialog />)
+
+    fireEvent.change(screen.getByPlaceholderText('Project name'), { target: { value: 'Dute' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    await screen.findByText('dute-app')
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    await screen.findByText('dute-api')
+
+    // First folder is primary by default: it carries the badge, the other
+    // offers the switch.
+    expect(screen.getAllByText('Primary')).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Make primary' })).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Make primary' }))
+    expect(screen.getByText('dute-api').closest('li')?.textContent).toContain('Primary')
+    expect(screen.getByText('dute-app').closest('li')?.textContent).toContain('Make primary')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+
+    await waitFor(() => {
+      expect(createProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          folders: ['/Users/test/dute-app', '/Users/test/dute-api'],
+          primaryPath: '/Users/test/dute-api'
+        })
+      )
+    })
   })
 
   it('wraps the "remove folder" button in a Tip once a folder is added', async () => {
