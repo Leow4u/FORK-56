@@ -23,7 +23,8 @@ import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { $dismissedAutoProjectIds, $sidebarProjectOrderIds } from '@/store/layout'
-import { $activeProjectId, $projectScope, $projectTree } from '@/store/projects'
+import { $projectScope } from '@/store/project-scope'
+import { $activeProjectId, $projectTree } from '@/store/projects'
 
 import { useComposerMenuSide } from '../use-composer-menu-side'
 

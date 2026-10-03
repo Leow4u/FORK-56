@@ -82,16 +82,14 @@ import {
   normalizeProfileKey,
   sidebarProfileForScope
 } from '@/store/profile'
+import { $projectScope, ALL_PROJECTS, exitProjectScope } from '@/store/project-scope'
 import {
   $activeProjectId,
   $projects,
-  $projectScope,
   $projectTree,
   $projectTreeLoading,
   $removedSessionIds,
   $reposScanning,
-  ALL_PROJECTS,
-  exitProjectScope,
   openProjectCreate,
   refreshProjects,
   refreshProjectTree,

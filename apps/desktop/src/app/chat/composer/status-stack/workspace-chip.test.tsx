@@ -5,7 +5,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import type { SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
 import { $commandPaletteOpen, $commandPalettePage, closeCommandPalette } from '@/store/command-palette'
-import { $projectScope, $projectTree, ALL_PROJECTS } from '@/store/projects'
+import { $projectScope, ALL_PROJECTS } from '@/store/project-scope'
+import { $projectTree } from '@/store/projects'
 import { $currentCwd, $newChatWorkspaceTarget, setCurrentCwd, setNewChatWorkspaceTarget } from '@/store/session'
 import { stubMenuDomApis, stubResizeObserver } from '@/test/jsdom'
 

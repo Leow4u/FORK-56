@@ -1,4 +1,4 @@
-import { ALL_PROJECTS } from '@/store/projects'
+import { ALL_PROJECTS } from '@/store/project-scope'
 
 /**
  * Folder a new scheduled job runs in: the project the sidebar is scoped to, so

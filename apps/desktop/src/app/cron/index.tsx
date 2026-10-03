@@ -44,7 +44,8 @@ import { $cronFocusJobId, $cronJobs, invalidateCronJobsRequests, setCronFocusJob
 import { $changeEventsAvailable, $cronChangeTick } from '@/store/live-sync'
 import { notify, notifyError } from '@/store/notifications'
 import { $profileScope, ALL_PROFILES } from '@/store/profile'
-import { $projectScope, $projectTree } from '@/store/projects'
+import { $projectScope } from '@/store/project-scope'
+import { $projectTree } from '@/store/projects'
 import {
   type AutomationBlueprint,
   createCronJob,

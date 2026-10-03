@@ -16,23 +16,21 @@ import {
   setNewChatWorkspaceTarget
 } from '@/store/session'
 
+import { $projectScope, ALL_PROJECTS, exitProjectScope } from './project-scope'
 import {
   $activeProjectId,
   $projects,
-  $projectScope,
   $projectsRpcAvailable,
   $projectTree,
   $removedSessionIds,
   $sessionMutationsInFlight,
   $startWorkSessionRequest,
-  ALL_PROJECTS,
   beginSessionMutation,
   clearActiveWorkspace,
   createProject,
   deleteProject,
   endSessionMutation,
   enterProject,
-  exitProjectScope,
   goToProject,
   openProjectCreate,
   pickProjectFolder,
