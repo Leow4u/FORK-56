@@ -373,6 +373,11 @@ export interface Translations {
       failed: string
       empty: string
       kinds: { bundled: string; disk: string; runtime: string }
+      discoverEmpty: string
+      enabling: string
+      categoryDesktop: string
+      categoryGeneral: string
+      reloadDesktop: string
       agent: {
         title: string
         blurb: string
@@ -390,6 +395,7 @@ export interface Translations {
         title: string
         description: string
         repoLabel: string
+        repoPlaceholder: string
         includesHeading: string
         agentLabel: string
         desktopLabel: string

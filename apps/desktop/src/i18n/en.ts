@@ -425,6 +425,11 @@ export const en: Translations = {
       failed: 'failed',
       empty: 'No desktop plugins installed yet.',
       kinds: { bundled: 'bundled', disk: 'on disk', runtime: 'runtime' },
+      discoverEmpty: 'Every bundled plugin is already in use.',
+      enabling: 'Enabling…',
+      categoryDesktop: 'Desktop',
+      categoryGeneral: 'General',
+      reloadDesktop: 'Reload desktop plugins',
       agent: {
         title: 'Agent plugins',
         blurb:
@@ -443,6 +448,7 @@ export const en: Translations = {
         title: 'Install plugin',
         description: 'Review what this repository contains before installing anything.',
         repoLabel: 'Repository',
+        repoPlaceholder: 'owner/repo or a git URL',
         includesHeading: 'This package includes',
         agentLabel: 'Agent plugin',
         desktopLabel: 'Desktop UI',

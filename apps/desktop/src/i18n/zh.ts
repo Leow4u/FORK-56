@@ -415,6 +415,11 @@ export const zh: Translations = {
       failed: '失败',
       empty: '尚未安装桌面插件。',
       kinds: { bundled: '内置', disk: '磁盘', runtime: '运行时' },
+      discoverEmpty: '所有内置插件都已在使用中。',
+      enabling: '启用中…',
+      categoryDesktop: '桌面',
+      categoryGeneral: '通用',
+      reloadDesktop: '重新加载桌面插件',
       agent: {
         title: '智能体插件',
         blurb:
@@ -433,6 +438,7 @@ export const zh: Translations = {
         title: '安装插件',
         description: '在安装前查看此仓库包含哪些组件。',
         repoLabel: '仓库',
+        repoPlaceholder: 'owner/repo 或 git URL',
         includesHeading: '此包包含',
         agentLabel: '智能体插件',
         desktopLabel: '桌面 UI',

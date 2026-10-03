@@ -2395,7 +2395,8 @@ def _(rid, params: dict) -> dict:
 
     Actions:
       - ``list``   → {"plugins": [{name, key, version, description, source,
-                       status, portable}], "user_count": N, "bundled_count": M}
+                       status, portable, kind}], "user_count": N,
+                       "bundled_count": M}
       - ``toggle`` → flip ``key`` (or ``name``) based on ``enable`` (bool).
                        Returns the refreshed row plus {"ok", "unchanged"}.
       - ``install`` → git-clone into ``~/.work4you/plugins/`` (non-interactive).
@@ -2417,6 +2418,7 @@ def _(rid, params: dict) -> dict:
             _get_disabled_set,
             _get_enabled_set,
             _is_portable_plugin_dir,
+            _plugin_manifest_kind,
             _plugin_status,
         )
 
@@ -2452,6 +2454,13 @@ def _(rid, params: dict) -> dict:
                         # Agent Plugins v1 package (plugin.json — the portable
                         # skills/MCP format) vs a native Work4You plugin.
                         "portable": _is_portable_plugin_dir(_dir),
+                        # Manifest ``kind`` (standalone, backend, platform,
+                        # model-provider); None for portable packages and
+                        # entry points. Backend/platform/provider kinds are
+                        # configured from their own surfaces, so clients can
+                        # keep them out of a plugins list without guessing
+                        # from the key prefix.
+                        "kind": _plugin_manifest_kind(_dir),
                     }
                 )
             return out

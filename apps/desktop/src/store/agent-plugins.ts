@@ -26,6 +26,9 @@ export interface AgentPluginRow {
   status: 'enabled' | 'disabled' | 'not enabled'
   /** Agent Plugins v1 package (portable skills/MCP format) vs native Work4You. */
   portable?: boolean
+  /** Manifest `kind` — standalone, backend, platform, model-provider. Absent on
+   *  older backends; null for portable packages and entry points. */
+  kind?: null | string
 }
 
 export type AgentPluginsStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -39,21 +42,51 @@ export const $agentPluginsError = atom<string | null>(null)
 /** Best available address of the row whose toggle RPC is in flight. */
 export const $agentPluginBusy = atom<string | null>(null)
 
-// Rows the Plugins page actually lists (and search should surface): plugins
-// the USER installed. Repo-bundled built-ins ship enabled-by-default and are
-// configured from their own surfaces, so they're pure noise here. The prefix
-// list is the fallback for older backends whose rows predate a reliable
-// `source` field — same curation stance as desktop-slash-commands.ts.
-const HIDDEN_KEY_PREFIXES = ['dashboard_auth/', 'model-providers/', 'platforms/']
+// Rows the Plugins page lists (and search surfaces). Three categories other
+// surfaces own are never listed, whatever their source — same curation stance
+// as desktop-slash-commands.ts. Bundled kinds that are active without an
+// explicit enable (browser/image/web backends, chat platforms, model
+// providers; the backend's _BUNDLED_DEFAULT_ON_KINDS) are configured from
+// their own surfaces too; backends that predate the `kind` field fall back to
+// the category dirs those kinds live in. A plugin the USER installed is always
+// theirs to toggle, whatever kind it declares.
+const OTHER_SURFACE_KEY_PREFIXES = ['dashboard_auth/', 'model-providers/', 'platforms/']
+
+const SURFACE_OWNED_KINDS = new Set(['backend', 'platform', 'model-provider'])
+
+const SURFACE_OWNED_KEY_PREFIXES = ['browser/', 'image_gen/', 'video_gen/', 'web/']
 
 export const isDesktopRelevantPlugin = (row: AgentPluginRow): boolean => {
-  if (row.source === 'bundled') {
+  const key = row.key ?? ''
+
+  if (OTHER_SURFACE_KEY_PREFIXES.some(prefix => key.startsWith(prefix))) {
     return false
   }
 
-  const key = row.key
+  if (row.source !== 'bundled') {
+    return true
+  }
 
-  return !key || !HIDDEN_KEY_PREFIXES.some(prefix => key.startsWith(prefix))
+  if (typeof row.kind === 'string') {
+    return !SURFACE_OWNED_KINDS.has(row.kind)
+  }
+
+  return !SURFACE_OWNED_KEY_PREFIXES.some(prefix => key.startsWith(prefix))
+}
+
+/** Installed = the user's own plugins (whatever their state) plus bundled ones
+ *  the user turned on or off explicitly. A bundled plugin nobody touched yet
+ *  is a Discover entry, not an installed one. */
+export const isAgentPluginInstalled = (row: AgentPluginRow): boolean =>
+  row.source !== 'bundled' || row.status !== 'not enabled'
+
+/** Category = the registry dir the key lives in (`observability/langfuse` →
+ *  `observability`); top-level plugins are `general`. */
+export const agentPluginCategory = (row: AgentPluginRow): string => {
+  const key = row.key ?? ''
+  const slash = key.indexOf('/')
+
+  return slash > 0 ? key.slice(0, slash) : 'general'
 }
 
 let inflight: Promise<void> | null = null

@@ -1,13 +1,16 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { requestGateway, getProfiles } = vi.hoisted(() => ({
+const { requestGateway, getProfiles, discoverRuntimePlugins } = vi.hoisted(() => ({
   requestGateway: vi.fn(),
   getProfiles: vi.fn<() => Promise<{ profiles: { name: string; is_default: boolean }[] }>>(async () => ({
     profiles: []
-  }))
+  })),
+  discoverRuntimePlugins: vi.fn(async () => undefined)
 }))
+
+vi.mock('@/contrib/runtime-loader', () => ({ discoverRuntimePlugins }))
 
 vi.mock('@/app/gateway/hooks/use-gateway-request', () => ({
   useGatewayRequest: () => ({ requestGateway })
@@ -18,6 +21,7 @@ vi.mock('@/work4you', async importOriginal => ({
   getProfiles
 }))
 
+import { $pluginsCategory, $pluginsView } from '@/app/skills/store'
 import { $pluginRecords } from '@/contrib/plugins-store'
 import { queryClient } from '@/lib/query-client'
 import {
@@ -27,6 +31,7 @@ import {
   $agentPluginsStatus,
   type AgentPluginRow
 } from '@/store/agent-plugins'
+import { $pluginInstallRequest } from '@/store/plugin-install-request'
 import { $activeGatewayProfile } from '@/store/profile'
 import { $connection, $gatewayState } from '@/store/session'
 
@@ -47,7 +52,18 @@ const renderSettings = () =>
     </QueryClientProvider>
   )
 
+// A category "chip" on a bundled row never enabled: the Discover inventory.
+const bundledRow = (name: string, key: string, status: AgentPluginRow['status'] = 'not enabled') =>
+  ({ ...legacyRow, name, key, source: 'bundled', status, kind: 'standalone' }) satisfies AgentPluginRow
+
+const cardOf = (name: string) => screen.getByText(name).closest<HTMLElement>('[id^="plugin-"]')!
+
 beforeEach(() => {
+  // jsdom's scrollIntoView is missing; Radix Select calls it on open.
+  Element.prototype.scrollIntoView = vi.fn()
+  $pluginsView.set('mine')
+  $pluginsCategory.set('all')
+  $pluginInstallRequest.set(null)
   requestGateway.mockReset()
   getProfiles.mockReset()
   getProfiles.mockResolvedValue({ profiles: [] })
@@ -153,25 +169,131 @@ describe('PluginsSettings', () => {
     )
   })
 
-  it('hides repo-bundled built-ins and keeps the count pill in sync', () => {
-    // The Agent plugins section is the control panel for plugins the USER
-    // installed — built-ins (browser backends, cron providers, model
-    // providers…) ship enabled-by-default and are configured elsewhere.
+  it('keeps surface-owned kinds out and lists bundled plugins the user decided on under Agent plugins', () => {
+    // Browser/image/web backends, chat platforms and model providers are
+    // active without an enable and configured from their own surfaces. A
+    // bundled plugin the user turned on (or off) is installed; one nobody
+    // touched is a Discover entry.
     $agentPlugins.set([
       legacyRow,
-      { ...legacyRow, name: 'browserbase', key: 'browser/browserbase', source: 'bundled' },
-      { ...legacyRow, name: 'chronos', key: 'cron_providers/chronos', source: 'bundled' },
-      { ...legacyRow, name: 'deepinfra', key: 'model-providers/deepinfra', source: 'bundled' }
+      {
+        ...legacyRow,
+        name: 'browserbase',
+        key: 'browser/browserbase',
+        source: 'bundled',
+        status: 'enabled',
+        kind: 'backend'
+      },
+      { ...legacyRow, name: 'telegram', key: 'platforms/telegram', source: 'bundled', status: 'enabled' },
+      { ...legacyRow, name: 'deepinfra', key: 'model-providers/deepinfra', source: 'bundled', kind: 'model-provider' },
+      bundledRow('langfuse', 'observability/langfuse', 'enabled'),
+      bundledRow('nemo_relay', 'observability/nemo_relay', 'disabled'),
+      bundledRow('disk-cleanup', 'disk-cleanup')
     ])
 
     renderSettings()
 
     expect(screen.getByText('Legacy plugin')).toBeTruthy()
+    expect(screen.getByText('langfuse')).toBeTruthy()
+    expect(screen.getByRole('switch', { name: 'Disable langfuse' })).toBeTruthy()
+    expect(screen.getByRole('switch', { name: 'Enable nemo_relay' })).toBeTruthy()
     expect(screen.queryByText('browserbase')).toBeNull()
-    expect(screen.queryByText('chronos')).toBeNull()
+    expect(screen.queryByText('telegram')).toBeNull()
     expect(screen.queryByText('deepinfra')).toBeNull()
-    // Count pill reflects the filtered list, not the raw RPC row count.
-    expect(screen.getByText('1 installed', { exact: false })).toBeTruthy()
+    expect(screen.queryByText('disk-cleanup')).toBeNull()
+    // The section count reflects the listed rows, not the raw RPC row count.
+    expect(within(screen.getByRole('heading', { name: /Agent plugins/ })).getByText('3')).toBeTruthy()
+  })
+
+  it('Discover lists the bundled plugins nobody enabled, by category, and Enable turns one on', async () => {
+    const langfuse = bundledRow('langfuse', 'observability/langfuse')
+
+    $agentPlugins.set([
+      legacyRow,
+      bundledRow('disk-cleanup', 'disk-cleanup'),
+      langfuse,
+      { ...legacyRow, name: 'firecrawl', key: 'web/firecrawl', source: 'bundled', status: 'enabled', kind: 'backend' }
+    ])
+    requestGateway.mockResolvedValue({ ok: true, plugin: { ...langfuse, status: 'enabled' } })
+
+    renderSettings()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discover' }))
+
+    expect(screen.getByRole('heading', { name: 'General' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Observability' })).toBeTruthy()
+    expect(screen.getByText('disk-cleanup')).toBeTruthy()
+    // Installed rows and surface-owned backends stay out of Discover.
+    expect(screen.queryByText('Legacy plugin')).toBeNull()
+    expect(screen.queryByText('firecrawl')).toBeNull()
+    expect(screen.queryByRole('switch')).toBeNull()
+
+    fireEvent.click(within(cardOf('langfuse')).getByRole('button', { name: 'Enable' }))
+
+    await waitFor(() =>
+      expect(requestGateway).toHaveBeenCalledWith('plugins.manage', {
+        action: 'toggle',
+        key: 'observability/langfuse',
+        enable: true
+      })
+    )
+
+    // Enabled → installed: it leaves Discover and shows up under Installed with its switch on.
+    await waitFor(() => expect(screen.queryByText('langfuse')).toBeNull())
+    expect(screen.queryByRole('heading', { name: 'Observability' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Installed' }))
+
+    expect(screen.getByRole('switch', { name: 'Disable langfuse' })).toBeTruthy()
+  })
+
+  it('filters the current view by category', async () => {
+    $agentPlugins.set([legacyRow, bundledRow('langfuse', 'observability/langfuse', 'enabled')])
+    $pluginRecords.set({
+      kanban: { id: 'kanban', name: 'Kanban', kind: 'bundled', status: 'loaded', description: 'Task board' }
+    })
+
+    renderSettings()
+
+    expect(screen.getByText('Kanban')).toBeTruthy()
+    expect(screen.getByText('Legacy plugin')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Category' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Observability/ }))
+
+    expect(screen.getByText('langfuse')).toBeTruthy()
+    expect(screen.queryByText('Legacy plugin')).toBeNull()
+    expect(screen.queryByText('Kanban')).toBeNull()
+    expect(screen.queryByRole('heading', { name: /Desktop plugins/ })).toBeNull()
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Category' }))
+    fireEvent.click(await screen.findByRole('option', { name: /Desktop/ }))
+
+    expect(screen.getByText('Kanban')).toBeTruthy()
+    expect(screen.queryByText('langfuse')).toBeNull()
+    expect(screen.queryByRole('heading', { name: /Agent plugins/ })).toBeNull()
+  })
+
+  it('Add → Install plugin asks for the repository and hands it to the install flow', async () => {
+    renderSettings()
+
+    fireEvent.keyDown(screen.getByRole('button', { name: /Add/ }), { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Install plugin' }))
+
+    const input = await screen.findByLabelText('Repository')
+    fireEvent.change(input, { target: { value: '  owner/hello-plugin ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Install' }))
+
+    expect($pluginInstallRequest.get()).toEqual({ repo: 'owner/hello-plugin' })
+  })
+
+  it('reloads desktop plugins from the overflow menu', async () => {
+    renderSettings()
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Plugins' }), { key: 'Enter' })
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Reload desktop plugins' }))
+
+    expect(discoverRuntimePlugins).toHaveBeenCalled()
   })
 
   it('hides legacy other-surface categories even when the backend omits source', () => {
@@ -237,7 +359,7 @@ describe('PluginsSettings', () => {
     await waitFor(() => expect(screen.getByText('Configuring:')).toBeTruthy())
 
     // Select the non-active profile scope.
-    fireEvent.click(screen.getByRole('combobox'))
+    fireEvent.click(screen.getByRole('combobox', { name: 'Configuring:' }))
     fireEvent.click(await screen.findByText('work'))
 
     await waitFor(() =>
