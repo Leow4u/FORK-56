@@ -3416,7 +3416,8 @@ export const en: Translations = {
       branchOffFrom: base => `New branch from ${base}`,
       switchTo: branch => `Switch to ${branch}`,
       switchFailed: branch => `Could not switch to ${branch}`,
-      worktrees: 'Worktrees'
+      worktrees: 'Worktrees',
+      branchChip: 'Branch and worktree'
     }
   },
 
