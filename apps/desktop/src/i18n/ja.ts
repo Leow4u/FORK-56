@@ -1931,31 +1931,10 @@ export const ja = defineLocale({
         `ゲートウェイの再起動に失敗しました（終了コード ${code}）。手動で再起動してください`
     },
     whatsappQuickSetup: {
-      title: 'クイックセットアップ',
-      recommended: 'おすすめ',
-      intro:
-        'Work4You が同梱の WhatsApp ブリッジを起動して QR コードを表示します。スマートフォンの WhatsApp でスキャンすればアカウントが連携されます。保存するとチャンネルが有効になり、ゲートウェイが自動で再起動されます。',
-      replacesExisting:
-        'WhatsApp セッションは設定済みです。新しい QR ペアリングを保存すると、現在連携中のアカウントが置き換えられます。',
-      modeLabel: 'モード',
-      modeBot: 'ボット',
-      modeSelfChat: 'セルフチャット',
-      modeBotHelp: '専用の WhatsApp アカウントがボットとして動作し、他のユーザーが直接メッセージを送ります。',
-      modeSelfChatHelp:
-        '自分のアカウントが「自分へのメッセージ」で応答します。Work4You は自分宛のチャットに返信します。',
-      allowedUsersLabel: '許可する WhatsApp 番号',
       allowedUsersPlaceholder: '15551234567,15557654321',
-      allowKeepSaved: '空欄のままにすると保存済みの許可リストを維持します。',
-      allowSelfChatAuto: '空欄のままにすると、保存時に連携アカウントが自動的に許可されます。',
-      allowPairingFallback: 'リストにない番号にはペアリングコードが送られ、ここの保留中リクエストから承認できます。',
-      pairWithQr: 'QR でペアリング',
-      starting: '開始しています...',
       preparing: 'WhatsApp ブリッジを準備しています（初回は依存関係のインストールに数分かかることがあります）...',
       startingBridge: 'WhatsApp ペアリングブリッジを起動しています...',
-      waiting:
-        'スマートフォンで WhatsApp → 設定 → リンク済みのデバイス → デバイスをリンク を開き、このコードをスキャンしてください。',
       waitingForQr: 'WhatsApp からの QR コードを待っています...',
-      scanHint: 'カメラアプリではなく、WhatsApp の「リンク済みのデバイス」からスキャンしてください。',
       qrAlt: 'WhatsApp セットアップ QR コード',
       expiresIn: (value: string) => `有効期限: ${value}`,
       expired: '期限切れ',
@@ -1963,16 +1942,7 @@ export const ja = defineLocale({
       startFailed: 'WhatsApp QR セットアップの開始に失敗しました',
       linkedAs: (label: string) => `${label} として連携済み`,
       deviceLinked: 'WhatsApp デバイスが連携されました',
-      openChatLink: 'チャットを開く',
-      stepSaveRestart: '保存する — Work4You が設定を保存し、チャンネルを有効化してゲートウェイを再起動します。',
-      stepMessageBot: '再起動後、別の WhatsApp アカウントから連携アカウントにメッセージを送ってください。',
-      stepMessageSelf:
-        '再起動後、連携アカウントで「自分へのメッセージ」を開き、Work4You にメッセージを送ってください。',
-      saveAndRestart: '保存して再起動',
-      saved: 'WhatsApp を保存しました。ゲートウェイを再起動しています...',
-      savedRestartFailed: (detail: string) => `WhatsApp を保存しましたが、ゲートウェイの再起動に失敗しました${detail}`,
-      restartFailedExit: (code: number) =>
-        `ゲートウェイの再起動に失敗しました（終了コード ${code}）。手動で再起動してください`
+      openChatLink: 'チャットを開く'
     },
     replaceValue: '現在の値を置き換え',
     openDocs: 'ドキュメントを開く',

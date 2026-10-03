@@ -1461,6 +1461,13 @@ export interface Translations {
     columnUsers: string
     columnStatus: string
     columnActions: string
+    columnType: string
+    kindConversation: string
+    kindIntegration: string
+    discoverConversation: string
+    discoverConversationHint: string
+    discoverIntegrations: string
+    discoverIntegrationsHint: string
     pendingBadge: (count: number) => string
     emptyConnectedTitle: string
     emptyConnectedDesc: string
@@ -1479,6 +1486,16 @@ export interface Translations {
     credentialsSet: string
     needsSetup: string
     gatewayStopped: string
+    notConnected: string
+    channelActive: string
+    channelActiveHint: string
+    connectionTitle: string
+    connectedListening: string
+    setUpAgain: string
+    whoCanTalkTitle: string
+    whoCanTalkSelf: string
+    whoCanTalkList: string
+    whoCanTalkApprove: string
     title: string
     manualSetup: string
     getCredentials: string
@@ -1914,27 +1931,10 @@ export interface Translations {
       restartFailedExit: (code: number) => string
     }
     whatsappQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      modeLabel: string
-      modeBot: string
-      modeSelfChat: string
-      modeBotHelp: string
-      modeSelfChatHelp: string
-      allowedUsersLabel: string
       allowedUsersPlaceholder: string
-      allowKeepSaved: string
-      allowSelfChatAuto: string
-      allowPairingFallback: string
-      pairWithQr: string
-      starting: string
       preparing: string
       startingBridge: string
-      waiting: string
       waitingForQr: string
-      scanHint: string
       qrAlt: string
       expiresIn: (value: string) => string
       expired: string
@@ -1943,13 +1943,53 @@ export interface Translations {
       linkedAs: (label: string) => string
       deviceLinked: string
       openChatLink: string
-      stepSaveRestart: string
-      stepMessageBot: string
-      stepMessageSelf: string
-      saveAndRestart: string
-      saved: string
-      savedRestartFailed: (detail: string) => string
-      restartFailedExit: (code: number) => string
+    }
+    whatsappSteps: {
+      stepWho: string
+      stepConnect: string
+      stepTalk: string
+      stepReady: string
+      next: string
+      whoTitle: string
+      whoNote: string
+      selfTitle: string
+      selfDesc: string
+      soloTitle: string
+      soloDesc: string
+      teamTitle: string
+      teamDesc: string
+      connectTitle: string
+      connectNote: string
+      connectStep1: string
+      connectStep2: string
+      waitingScan: string
+      alreadyLinked: string
+      advancedSetup: string
+      tryAgain: string
+      talkTitle: string
+      talkNote: string
+      listTitle: string
+      listDesc: string
+      listHint: string
+      approveTitle: string
+      approveDesc: string
+      numbersRequired: string
+      readySaving: string
+      readyTitle: string
+      checkLinked: string
+      checkLinkedAs: (phone: string) => string
+      checkSaved: string
+      checkRestarting: string
+      checkRestarted: string
+      checkRestartFailed: (code: number) => string
+      checkRestartNotStarted: (detail: string) => string
+      whoSelf: string
+      whoSolo: string
+      whoList: (count: number) => string
+      whoApprove: string
+      tryItSelf: string
+      tryItBot: (phone: string) => string
+      tryItBotUnknown: string
     }
     replaceValue: string
     openDocs: string
@@ -1985,6 +2025,7 @@ export interface Translations {
     waitingSince: (minutes: number) => string
     fieldCopy: Record<string, { label?: string; help?: string; placeholder?: string }>
     platformIntro: Record<string, string>
+    channelDescriptions: Record<string, string>
   }
 
   webhooks: {
