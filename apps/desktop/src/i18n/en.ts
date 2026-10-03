@@ -4,6 +4,7 @@ import type { Translations } from './types'
 
 export const en: Translations = {
   common: {
+    add: 'Add',
     apply: 'Apply',
     back: 'Back',
     save: 'Save',
@@ -1240,6 +1241,11 @@ export const en: Translations = {
     tabSkills: 'Skills',
     tabToolsets: 'Tools',
     configuringProfile: 'Configuring:',
+    viewInstalled: 'Installed',
+    viewConnected: 'Connected',
+    viewDiscover: 'Discover',
+    categoryFilter: 'Category',
+    allCategories: 'All categories',
     tabMcp: 'MCP',
     tabPlugins: 'Plugins',
     all: 'All',

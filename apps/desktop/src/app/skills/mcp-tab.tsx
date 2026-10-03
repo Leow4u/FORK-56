@@ -18,9 +18,9 @@ import { LogTail } from '@/components/chat/log-tail'
 import { PageLoader } from '@/components/page-loader'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ErrorBanner } from '@/components/ui/error-state'
 import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
 import { TextTab } from '@/components/ui/text-tab'
 import { Textarea } from '@/components/ui/textarea'
@@ -62,18 +62,19 @@ import {
 
 import { useWork4YouConfigRecord, work4youConfigCacheWriter } from '../hooks/use-config-record'
 import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
-import { DetailPane, ICON_BUTTON } from '../master-detail'
+import { DetailPane, ICON_BUTTON, ListStripMenu } from '../master-detail'
 import { PanelEmpty } from '../overlays/panel'
 import { prettyName } from '../settings/helpers'
 import { useDeepLinkHighlight } from '../settings/use-deep-link-highlight'
 
+import { CapabilitiesToolbar } from './capabilities-toolbar'
 import {
   MCP_CATALOG_COLUMN_CLASS,
   MCP_CATALOG_GRID_CLASS,
   MCP_CONNECTOR_CARD_CLASS,
-  MCP_DIRECTORY_VIEW_IDS,
   type McpDirectoryViewId
 } from './mcp-catalog-chrome'
+import { $mcpCategory, $mcpView } from './store'
 
 // The editor always speaks the ecosystem's mcp.json document format — names
 // are the JSON keys, transport is inferred from `command` vs `url` — so any
@@ -450,8 +451,12 @@ export function McpTab({
   const [dirty, setDirty] = useState(false)
   const [docVersion, setDocVersion] = useState(0)
   const [logSource, setLogSource] = useState<'stdio' | 'agent'>('stdio')
-  const [directoryFilter, setDirectoryFilter] = useState<McpDirectoryViewId>('discover')
-  const [sectionFilter, setSectionFilter] = useState<string>('all')
+  // The Capabilities toolbar owns the view and the category (app/skills/store.ts):
+  // "mine" is the Connected list, "discover" the directory.
+  const view = useStore($mcpView)
+  const directoryFilter: McpDirectoryViewId = view === 'mine' ? 'connected' : 'discover'
+  const sectionFilter = useStore($mcpCategory)
+  const [importOpen, setImportOpen] = useState(false)
   const [connectingSlug, setConnectingSlug] = useState<null | string>(null)
   const [adminOpen, setAdminOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<null | string>(null)
@@ -635,8 +640,8 @@ export function McpTab({
     setToolCalls30d(null)
     setCursor(0)
     setSelectedName(null)
-    setDirectoryFilter('discover')
-    setSectionFilter('all')
+    $mcpView.set('discover')
+    $mcpCategory.set('all')
     setAdminOpen(false)
     setAuthing(null)
     setDirty(false)
@@ -1203,50 +1208,31 @@ export function McpTab({
 
   const directoryEmpty = !selected && directoryApps.length === 0 && !directoryQuery.isLoading && !catalogQuery.isLoading
 
-  const directoryViewLabel = (id: McpDirectoryViewId) =>
-    id === 'connected' ? t.settings.providers.connected : 'Discover'
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className={cn('flex h-full min-h-0 w-full flex-col', MCP_CATALOG_COLUMN_CLASS)}>
-        <div className="flex h-8 shrink-0 items-center gap-2 border-b border-(--ui-stroke-quaternary) px-3">
-          {!selected ? (
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              {MCP_DIRECTORY_VIEW_IDS.map(id => (
-                <TextTab
-                  active={directoryFilter === id}
-                  className="h-5 px-0.5 text-[0.65rem]"
-                  key={id}
-                  onClick={() => setDirectoryFilter(id)}
-                >
-                  {directoryViewLabel(id)}
-                </TextTab>
-              ))}
-              <select
-                aria-label="Category"
-                className="h-5 max-w-[9rem] truncate bg-transparent text-[0.65rem] text-(--ui-text-secondary)"
-                onChange={event => setSectionFilter(event.currentTarget.value)}
-                value={sectionFilter}
-              >
-                <option value="all">All categories</option>
-                {DIRECTORY_SECTION_IDS.map(id => (
-                  <option key={id} value={id}>
-                    {DIRECTORY_SECTION_LABELS[id]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <span className="min-w-0 flex-1" />
-          )}
-          <McpImportButton disabled={profilePending} onImport={importServers} />
-          <Button disabled={profilePending} onClick={addServer} size="xs" variant="text">
-            {m.newServer}
-          </Button>
-          <TextTab active={adminOpen} className="h-5 px-0.5 text-[0.65rem]" onClick={() => setAdminOpen(open => !open)}>
-            {t.settings.sections.advanced}
-          </TextTab>
+        <div className="shrink-0 border-b border-(--ui-stroke-quaternary) px-3 py-1.5">
+          <CapabilitiesToolbar
+            addItems={[
+              { disabled: profilePending, label: m.newServer, onSelect: addServer },
+              { disabled: profilePending, label: m.importButton, onSelect: () => setImportOpen(true) }
+            ]}
+            categories={DIRECTORY_SECTION_IDS.map(id => ({ id, label: DIRECTORY_SECTION_LABELS[id] }))}
+            category={sectionFilter}
+            menu={
+              <ListStripMenu
+                items={[{ label: t.settings.sections.advanced, onSelect: () => setAdminOpen(open => !open) }]}
+                label={t.skills.tabMcp}
+              />
+            }
+            mineLabel={t.skills.viewConnected}
+            onCategoryChange={value => $mcpCategory.set(value)}
+            onViewChange={next => $mcpView.set(next)}
+            view={view}
+            viewsHidden={Boolean(selected)}
+          />
         </div>
+        <McpImportDialog disabled={profilePending} onImport={importServers} onOpenChange={setImportOpen} open={importOpen} />
 
         <div className="min-h-0 flex-1 overflow-hidden">
           {selected && activeEntry && !isHiddenMcpRuntimeServer(selected) ? (
@@ -1722,15 +1708,25 @@ function ServerIconActions({
 // README shape — mcp.json snippet, npx/docker command line, `claude mcp add`,
 // a bare URL, or a Cursor deeplink — see the inferred name + config, then
 // merge it into the editor draft (unsaved, like the "+" starter entry).
-function McpImportButton({ disabled, onImport }: { disabled: boolean; onImport: (entries: McpImportEntry[]) => void }) {
+function McpImportDialog({
+  disabled,
+  onImport,
+  onOpenChange,
+  open
+}: {
+  disabled: boolean
+  onImport: (entries: McpImportEntry[]) => void
+  onOpenChange: (open: boolean) => void
+  open: boolean
+}) {
   const { t } = useI18n()
   const m = t.settings.mcp
-  const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
 
   const entries = useMemo(() => parseMcpImport(text), [text])
 
-  const reset = () => {
+  const close = () => {
+    onOpenChange(false)
     setText('')
   }
 
@@ -1740,28 +1736,15 @@ function McpImportButton({ disabled, onImport }: { disabled: boolean; onImport: 
     }
 
     onImport(entries)
-    setOpen(false)
-    reset()
+    close()
   }
 
   return (
-    <Popover
-      onOpenChange={next => {
-        setOpen(next)
-
-        if (!next) {
-          reset()
-        }
-      }}
-      open={open}
-    >
-      <PopoverTrigger asChild>
-        <Button className="h-5 px-1 text-[0.68rem]" disabled={disabled} size="xs" variant="text">
-          <Codicon name="clippy" size="0.75rem" />
-          {m.importButton}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-80">
+    <Dialog onOpenChange={next => (next ? onOpenChange(true) : close())} open={open}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{m.importButton}</DialogTitle>
+        </DialogHeader>
         <div className="flex flex-col gap-2">
           <Textarea
             aria-label={m.importButton}
@@ -1787,14 +1770,14 @@ function McpImportButton({ disabled, onImport }: { disabled: boolean; onImport: 
           ) : (
             text.trim() && <p className="px-0.5 text-[0.62rem] text-muted-foreground/60">{m.importNoMatch}</p>
           )}
-          <div className="flex justify-end">
-            <Button disabled={!entries} onClick={confirm} size="xs">
-              {entries && entries.length > 1 ? m.importConfirmMany(entries.length) : m.importConfirm}
-            </Button>
-          </div>
         </div>
-      </PopoverContent>
-    </Popover>
+        <DialogFooter>
+          <Button disabled={!entries || disabled} onClick={confirm} size="xs">
+            {entries && entries.length > 1 ? m.importConfirmMany(entries.length) : m.importConfirm}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

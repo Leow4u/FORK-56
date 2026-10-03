@@ -9,6 +9,8 @@ import { queryClient } from '@/lib/query-client'
 import { $connectionsRegistry, setConnectionsRegistry } from '@/store/connections'
 import type * as Work4YouApi from '@/work4you'
 
+import { $mcpCategory, $mcpView } from './store'
+
 const getWork4YouConfigRecord = vi.fn()
 const getConnectorsDirectory = vi.fn()
 const getMcpCatalog = vi.fn()
@@ -94,6 +96,8 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
   queryClient.clear()
+  $mcpView.set('discover')
+  $mcpCategory.set('all')
 })
 
 describe('McpTab directory chrome', () => {

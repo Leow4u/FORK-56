@@ -50,6 +50,7 @@ interface AuxTaskCopy {
 
 export interface Translations {
   common: {
+    add: string
     apply: string
     back: string
     save: string
@@ -1090,6 +1091,11 @@ export interface Translations {
     tabSkills: string
     tabToolsets: string
     configuringProfile: string
+    viewInstalled: string
+    viewConnected: string
+    viewDiscover: string
+    categoryFilter: string
+    allCategories: string
     tabMcp: string
     tabPlugins: string
     all: string

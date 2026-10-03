@@ -4,6 +4,7 @@ import type { Translations } from './types'
 
 export const zh: Translations = {
   common: {
+    add: '添加',
     apply: '应用',
     back: '返回',
     save: '保存',
@@ -1433,6 +1434,11 @@ export const zh: Translations = {
     tabSkills: '技能',
     tabToolsets: '工具集',
     configuringProfile: '正在配置：',
+    viewInstalled: '已安装',
+    viewConnected: '已连接',
+    viewDiscover: '发现',
+    categoryFilter: '分类',
+    allCategories: '所有分类',
     tabMcp: 'MCP',
     tabPlugins: '插件',
     all: '全部',
