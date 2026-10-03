@@ -171,6 +171,24 @@ function foregroundIsFreshDraft(): boolean {
   return !$selectedStoredSessionId.get() && !$activeSessionId.get()
 }
 
+// Point the next chat at `cwd` without touching project scope: the Select
+// project pick, and the branch chip jumping into a worktree of the same
+// project. A fresh draft follows along; a live conversation keeps its own cwd.
+export function retargetDraftWorkspace(cwd: string): void {
+  const target = cwd.trim()
+
+  if (!target) {
+    return
+  }
+
+  setNewChatWorkspaceTarget(target)
+
+  if (foregroundIsFreshDraft()) {
+    setCurrentCwd(target)
+    setWorkspaceCwdOwner(null)
+  }
+}
+
 // Empty-chat Select project: enter a project the user already has and point
 // the draft at its folder. Does not open a session — `openFolderAsProject`
 // does that. The durable active pointer stays best-effort, same as enterProject.
@@ -183,12 +201,7 @@ export function selectWorkspaceProject(id: string): void {
   }
 
   enterProject(id)
-  setNewChatWorkspaceTarget(cwd)
-
-  if (foregroundIsFreshDraft()) {
-    setCurrentCwd(cwd)
-    setWorkspaceCwdOwner(null)
-  }
+  retargetDraftWorkspace(cwd)
 }
 
 // Undo a workspace pick: overview scope, and a fresh draft back to the CTA.

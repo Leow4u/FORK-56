@@ -3,13 +3,7 @@ import { memo, useEffect } from 'react'
 
 import { PrTag } from '@/app/chat/pr-tag'
 import { StatusRow } from '@/components/chat/status-row'
-import {
-  type ActionItemSpec,
-  ActionsContextMenu,
-  ActionsMenu,
-  type MenuKit,
-  renderActionItem
-} from '@/components/ui/actions-menu'
+import { ActionsContextMenu, ActionsMenu, type MenuKit } from '@/components/ui/actions-menu'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { CopyButton } from '@/components/ui/copy-button'
@@ -21,10 +15,8 @@ import { openWorktreeDialog, registerRepoStatusCwd, repoStatusForCwd, repoWorktr
 import { notifyError } from '@/store/notifications'
 import { $pullRequestsByBranch, branchPrKey, refreshPullRequests } from '@/store/pull-requests'
 
+import { renderBranchMenuItems } from './branch-menu-items'
 import { ContextDot, WorkspaceConnectionSegment, WorkspaceNameButton } from './workspace-context-parts'
-
-// Tiny uppercase section header, matching the composer "+" menu's labels.
-const MENU_SECTION = 'text-[0.625rem] font-semibold uppercase tracking-wider text-(--ui-text-tertiary)'
 
 interface CodingStatusRowProps {
   /** Branch the current draft off into a fresh worktree + session, based on
@@ -125,86 +117,32 @@ export const CodingStatusRow = memo(function CodingStatusRow({
   }
 
   const branchLabel = status.detached ? s.detached : status.branch || s.noBranch
-  // The kebab offers branching off the trunk and/or the current branch. The
-  // worktree-add bases the new branch on `base` (a branch name; undefined =
-  // current HEAD). We dedupe so "on main" shows a single trunk entry, and fall
-  // back to a plain off-HEAD branch when no trunk is detected.
-  const current = status.detached ? null : status.branch
-  const branchTargets: { base: string | undefined; label: string }[] = []
-
-  // Current branch first (the 99% "branch off where I am"), then the trunk just
-  // below it ("New branch from main"), deduped when they're the same.
-  if (current) {
-    branchTargets.push({ base: current, label: s.branchOffFrom(current) })
-  }
-
-  if (status.defaultBranch && status.defaultBranch !== current) {
-    branchTargets.push({ base: status.defaultBranch, label: s.branchOffFrom(status.defaultBranch) })
-  }
-
-  if (branchTargets.length === 0) {
-    branchTargets.push({ base: undefined, label: s.newBranch })
-  }
-
-  const switchTarget =
-    onSwitchBranch && current && status.defaultBranch && status.defaultBranch !== current ? status.defaultBranch : null
-
-  // Other worktrees to jump into — everything except the one we're already in
-  // (matched by its checked-out branch) and the bare/main placeholder entry.
-  const otherWorktrees = onOpenWorktree
-    ? worktrees.filter(w => w.path && !w.detached && w.branch && w.branch !== current)
-    : []
 
   const hasLineDelta = status.added > 0 || status.removed > 0
   // Untracked files carry no line delta vs HEAD, so surface them as a count when
   // they're the only change (otherwise +/- tells the story).
   const untrackedOnly = !hasLineDelta && status.untracked > 0
 
-  // The branch actions, rendered identically by the kebab dropdown and the
-  // row's right-click menu so the two never drift. `onBranchOff` gates the
-  // whole menu (omitted = remote backend), matching the kebab.
-  const renderBranchItems = (kit: MenuKit) => {
-    const branchItems: ActionItemSpec[] = branchTargets.map(target => ({
-      key: target.base ?? '__head__',
-      label: <span className="truncate">{target.label}</span>,
-      onSelect: () => startBranch(target.base)
-    }))
-
-    const worktreeItems: ActionItemSpec[] = otherWorktrees.map(worktree => ({
-      key: worktree.path,
-      label: <span className="truncate">{worktree.branch}</span>,
-      onSelect: () => onOpenWorktree?.(worktree.path)
-    }))
-
-    return (
-      <>
-        <kit.Label className={MENU_SECTION}>{s.newBranch}</kit.Label>
-        {branchItems.map(item => renderActionItem(kit, item))}
-        {switchTarget &&
-          renderActionItem(kit, {
-            key: '__switch__',
-            label: <span className="truncate">{s.switchTo(switchTarget)}</span>,
-            onSelect: () => void switchToBranch(switchTarget)
-          })}
-        <kit.Separator />
-        <kit.Label className={MENU_SECTION}>{s.worktrees}</kit.Label>
-        {worktreeItems.map(item => renderActionItem(kit, item))}
-        {/* Create a fresh worktree off the current HEAD (the generic "spin up a
-            worktree here", mirroring the sidebar's + button). */}
-        {renderActionItem(kit, {
-          key: '__start__',
-          label: <span className="truncate">{p.startWork}</span>,
-          onSelect: () => startBranch(undefined)
-        })}
-        {onConvertBranch &&
-          renderActionItem(kit, {
-            key: '__convert__',
-            label: <span className="truncate">{p.convertBranch}</span>,
-            onSelect: () => startBranch(undefined)
-          })}
-      </>
-    )
-  }
+  // The branch actions, rendered identically by the kebab dropdown, the row's
+  // right-click menu and the empty-chat branch chip (shared builder). `onBranchOff`
+  // gates the whole menu (omitted = remote backend), matching the kebab.
+  const renderBranchItems = (kit: MenuKit) =>
+    renderBranchMenuItems(kit, {
+      labels: {
+        branchOffFrom: s.branchOffFrom,
+        convertBranch: p.convertBranch,
+        newBranch: s.newBranch,
+        startWork: p.startWork,
+        switchTo: s.switchTo,
+        worktrees: s.worktrees
+      },
+      onOpenWorktree,
+      onStartBranch: startBranch,
+      onSwitchBranch: onSwitchBranch ? branch => void switchToBranch(branch) : undefined,
+      showConvertBranch: Boolean(onConvertBranch),
+      status,
+      worktrees
+    })
 
   return (
     <>

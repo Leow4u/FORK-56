@@ -3546,7 +3546,8 @@ export const zh: Translations = {
       branchOffFrom: base => `从 ${base} 新建分支`,
       switchTo: branch => `切换到 ${branch}`,
       switchFailed: branch => `无法切换到 ${branch}`,
-      worktrees: '工作树'
+      worktrees: '工作树',
+      branchChip: '分支与工作树'
     }
   },
 

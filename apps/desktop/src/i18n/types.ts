@@ -2689,6 +2689,7 @@ export interface Translations {
       switchTo: (branch: string) => string
       switchFailed: (branch: string) => string
       worktrees: string
+      branchChip: string
     }
   }
 
