@@ -20,12 +20,17 @@ import type {
   WhatsAppOnboardingStatusResponse
 } from '@/types/work4you'
 
-import { profileScoped, work4youApi } from './client'
+import { profileScoped, STARTUP_REQUEST_TIMEOUT_MS, work4youApi } from './client'
 
+// The backend builds the whole channel catalog for this call (plugin
+// discovery, gateway liveness, config), so on a slow disk or a busy backend
+// it can outlive the 15s default — which surfaced as a false "failed to
+// load" over a healthy gateway. Same budget as the startup burst.
 export function getMessagingPlatforms(profile?: null | string): Promise<MessagingPlatformsResponse> {
   return work4youApi<MessagingPlatformsResponse>({
     ...profileScoped(profile),
-    path: '/api/messaging/platforms'
+    path: '/api/messaging/platforms',
+    timeoutMs: STARTUP_REQUEST_TIMEOUT_MS
   })
 }
 
@@ -158,7 +163,8 @@ export function cancelWhatsAppOnboarding(pairingId: string): Promise<{ ok: boole
 export function getPairing(profile?: null | string): Promise<PairingResponse> {
   return work4youApi<PairingResponse>({
     ...profileScoped(profile),
-    path: '/api/pairing'
+    path: '/api/pairing',
+    timeoutMs: STARTUP_REQUEST_TIMEOUT_MS
   })
 }
 
