@@ -22,6 +22,8 @@ const openExternalLink = vi.fn()
 const getCronJobs = vi.fn()
 const runGatewayRestart = vi.fn()
 const getWebhooks = vi.fn()
+const getA2AAgents = vi.fn()
+const getToolsets = vi.fn()
 const setWebhookEnabled = vi.fn()
 
 vi.mock('@/work4you', () => ({
@@ -30,12 +32,14 @@ vi.mock('@/work4you', () => ({
   applyWhatsAppOnboarding: vi.fn(),
   cancelTelegramOnboarding: vi.fn(),
   cancelWhatsAppOnboarding: vi.fn(),
+  getA2AAgents: (profile?: null | string) => getA2AAgents(profile),
   getActionStatus: vi.fn(),
   getCronJobs: (profile?: string) => getCronJobs(profile),
   getMessagingPlatforms: (profile?: null | string) => getMessagingPlatforms(profile),
   getPairing: (profile?: null | string) => getPairing(profile),
   getProfiles: vi.fn(async () => ({ profiles: [] })),
   getTelegramOnboardingStatus: vi.fn(),
+  getToolsets: (profile?: null | string) => getToolsets(profile),
   getWebhooks: (profile?: null | string) => getWebhooks(profile),
   getWhatsAppOnboardingStatus: vi.fn(),
   revokePairing: (platformId: string, userId: string) => revokePairing(platformId, userId),
@@ -321,6 +325,8 @@ beforeEach(() => {
   getCronJobs.mockResolvedValue([])
   getWebhooks.mockResolvedValue({ base_url: 'http://localhost:8644', enabled: false, subscriptions: [] })
   setWebhookEnabled.mockResolvedValue({ enabled: true, name: 'route', ok: true })
+  getA2AAgents.mockResolvedValue({ agents: [] })
+  getToolsets.mockResolvedValue([{ enabled: false, name: 'a2a' }])
 })
 
 afterEach(() => {
@@ -1621,6 +1627,58 @@ describe('MessagingView channel page', () => {
       )
     ).toBeTruthy()
     expect(screen.queryByText(en.messaging.webhookPage.listenerTitle)).toBeNull()
+  })
+
+  it('walks A2A through its first setup while the listener is off with no peer', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ configured: true, id: 'a2a', name: 'A2A' })] })
+
+    await renderMessaging()
+    await openChannel('A2A')
+
+    expect(await screen.findByText(en.messaging.a2aPage.whatTitle)).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows A2A as settings: who can reach it, its peers, outbound tools and tokens', async () => {
+    const s = en.messaging.a2aPage
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        platform({
+          configured: true,
+          enabled: true,
+          env_vars: [
+            envField('A2A_HOST', '0.0.0.0'),
+            envField('A2A_BEARER_TOKEN', 'secret', { is_password: true, value: null }),
+            envField('A2A_PEER_TOKENS', '', { is_password: true, value: null }),
+            envField('A2A_PUBLIC_URL', 'https://agents.example.com')
+          ],
+          id: 'a2a',
+          name: 'A2A',
+          state: 'connected'
+        })
+      ]
+    })
+    getA2AAgents.mockResolvedValue({
+      agents: [
+        {
+          capabilities: [],
+          has_auth: true,
+          name: 'research-bot',
+          timeout: 120,
+          url: 'https://agents.example.com/research'
+        }
+      ]
+    })
+    getToolsets.mockResolvedValue([{ enabled: true, name: 'a2a' }])
+
+    await renderMessaging()
+    await openChannel('A2A')
+
+    expect(await screen.findByText(`${s.reachNetworkFact} · ${s.tokenRequiredFact}`)).toBeTruthy()
+    expect(screen.getByText(s.peerLine('https://agents.example.com/research', true))).toBeTruthy()
+    expect(await screen.findByText(s.outboundOn)).toBeTruthy()
+    expect(screen.getByText(s.sharedToken).nextSibling?.textContent).toBe(s.tokenSet)
+    expect(screen.getByText(s.peerTokens).nextSibling?.textContent).toBe(s.tokenNone)
   })
 
   it('counts the routines that deliver to WhatsApp', async () => {

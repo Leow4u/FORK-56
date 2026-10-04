@@ -1483,68 +1483,6 @@ export const ja = defineLocale({
         'self-chat': 'セルフチャット'
       }
     },
-    a2aQuickSetup: {
-      title: 'クイックセットアップ',
-      recommended: '推奨',
-      intro:
-        'A2A には独立した 2 方向があります。インバウンドはこの Work4You を他のエージェントから呼び出せるようにします。アウトバウンドは下で追加したピアをエージェントが呼べるようにします。チャンネルを有効にしてもアウトバウンドツールはオンになりません。ここで有効化するまでオフのままです。',
-      replacesExisting: 'A2A インバウンドはすでに設定済みです。ここで保存するとバインドとトークンが更新されます。',
-      inboundTitle: 'インバウンド — 呼び出しを受ける',
-      inboundHelp:
-        'ローカルホストではトークンは不要です。リスナーは 127.0.0.1:9900 にバインドし、他のエージェントが取得できる Agent Card を提供します。',
-      tokenHelp: '任意の共有 Bearer トークン。このリスナーがリモートピアを受け付ける場合にのみ必要です。',
-      tokenLabel: 'Bearer トークン',
-      tokenPlaceholder: '生成をクリック。空欄ならローカルホストのみ',
-      generateToken: 'トークンを生成',
-      tokenWarning:
-        'このトークンを持つ人は誰でもエージェントにタスクを送れます。パスワードと同じように扱ってください。',
-      bindLabel: '誰が到達できるか',
-      bindLocalhost: 'このマシンのみ (127.0.0.1)',
-      bindRemote: 'ネットワーク (0.0.0.0) — トークン必須',
-      remoteNeedsToken: 'リスナーがリモート接続を受け付ける前に Bearer トークンが必要です。',
-      cardTitle: 'Agent Card URL',
-      cardHint:
-        'ピアはこの URL を取得してエージェントを発見します。トンネルやリバースプロキシの背後では、カードが到達可能なアドレスを広告するよう公開 URL を設定してください。',
-      copyCardUrl: 'Agent Card URL をコピー',
-      publicUrlLabel: '公開 URL（任意）',
-      publicUrlPlaceholder: 'https://your-tunnel.example',
-      publicUrlHelp: 'トンネルやリバースプロキシの背後にいるとき、Agent Card に広告されます。',
-      networkExposedWarning:
-        'リモートバインドにはトークンが必要です。トークンが無いとアダプターはローカルホストのままです。先にトークンを生成してください。',
-      saved: 'A2A インバウンドを保存して有効にしました。ゲートウェイを再起動するとリスナーが起動します。',
-      saveFailed: 'A2A インバウンドの設定を保存できませんでした。',
-      outboundTitle: 'アウトバウンド — 他のエージェントを呼ぶ',
-      outboundHelp:
-        '名前付きピアを追加し、a2a ツールセットを有効にするとエージェントがそれらを発見して呼べます。インバウンドとは独立しています。',
-      peerNameLabel: 'ピア名',
-      peerNamePlaceholder: 'researcher',
-      peerUrlLabel: 'ピア URL',
-      peerUrlPlaceholder: 'http://research-box.local:9900',
-      peerTokenLabel: 'ピアトークン（任意）',
-      peerTokenPlaceholder: 'ピアが期待する Bearer トークン',
-      peerCapsLabel: '能力（任意）',
-      peerCapsPlaceholder: 'web_search, research',
-      addPeer: 'ピアを追加',
-      addingPeer: '追加中…',
-      peerAdded: 'ピアを保存しました。',
-      peerAddFailed: 'ピアを追加できませんでした。',
-      peerDeleted: 'ピアを削除しました。',
-      peerDeleteFailed: 'ピアを削除できませんでした。',
-      noPeers: 'アウトバウンドピアはまだありません。追加するまで、このカードは呼び出しを受けるだけです。',
-      peerHasAuth: 'トークンあり',
-      peerNoAuth: 'トークンなし',
-      deletePeer: '削除',
-      enableOutbound: 'アウトバウンドツールを有効化',
-      outboundEnabled: 'アウトバウンドツールを有効にしました。セッションが実行中ならゲートウェイを再起動してください。',
-      outboundEnableFailed: 'a2a ツールセットを有効にできませんでした。',
-      outboundAlreadyOn: 'アウトバウンドツールはオンです。',
-      outboundOffWarning:
-        'インバウンドはオンですが、アウトバウンドツールはオフのままです。有効化するまでエージェントはピアを呼べません。',
-      nameRequired: '先にピア名と URL を入力してください。',
-      copied: 'クリップボードにコピーしました。',
-      copyFailed: 'クリップボードにコピーできませんでした。',
-      openGuide: 'A2A ガイド'
-    },
     msgraphQuickSetup: {
       title: 'クイックセットアップ',
       recommended: '推奨',

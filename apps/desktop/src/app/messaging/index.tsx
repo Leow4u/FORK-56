@@ -42,7 +42,7 @@ import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 import { CapabilitiesToolbar } from '../skills/capabilities-toolbar'
 import type { CapabilitiesView } from '../skills/store'
 
-import { A2AQuickSetup } from './a2a-quick-setup'
+import { A2ADetail } from './a2a-detail'
 import { ApiServerDetail } from './api-server-detail'
 import { ChannelCard } from './channel-card'
 import { fieldCopy, MessagingFields, pairingKey, pairingLabel } from './channel-fields'
@@ -75,7 +75,7 @@ const CHANNEL_LABEL = 'text-xs font-medium normal-case tracking-normal text-fore
 
 // Channels whose first screen is a quick setup. The generic credential form
 // stays one step behind that, so the same token is not painted twice.
-const QUICK_SETUP_PLATFORMS = new Set(['a2a', 'msgraph_webhook', 'whatsapp'])
+const QUICK_SETUP_PLATFORMS = new Set(['msgraph_webhook', 'whatsapp'])
 
 const trimEdits = (edits: Record<string, string>): Record<string, string> =>
   Object.fromEntries(
@@ -895,6 +895,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <WebhookDetail {...props} />
   }
 
+  if (platform.id === 'a2a') {
+    return <A2ADetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -916,16 +920,6 @@ function PlatformDetail(props: PlatformDetailProps) {
         onRevoke={onRevoke}
         pending={pending}
       />
-
-      {platform.id === 'a2a' && (
-        <A2AQuickSetup
-          configured={platform.configured}
-          enabled={platform.enabled}
-          envVars={platform.env_vars}
-          onApplied={onQuickSetupApplied}
-          scopeProfile={scopeProfile}
-        />
-      )}
 
       {platform.id === 'msgraph_webhook' && (
         <MsgraphWebhookQuickSetup
@@ -1201,7 +1195,6 @@ const PLATFORM_INTRO: Record<string, string> = {
   weixin:
     "Run `work4you gateway setup`, select Weixin, then scan and confirm the QR code with a personal WeChat account. Work4You connects through Tencent's iLink Bot API and saves the credentials.",
   qqbot: 'Register an app on the QQ Open Platform (q.qq.com) and copy the App ID and Client Secret.',
-  a2a: 'Two independent directions: inbound exposes Work4You as an A2A agent (Agent Card at /.well-known/agent-card.json; localhost-only until you set a token). Outbound is the a2a toolset plus named peers in Quick setup above — enabling the channel does not turn those tools on. The optional fields below are the bind, tokens, public URL, and advertised name.',
   msgraph_webhook:
     'Inbound listener only — Microsoft Graph POSTs change notifications here (meetings, Outlook, chat). This is not the Teams chat bot. Use Quick setup above to generate the clientState secret, bind localhost behind a tunnel, and copy the notification URL. A network bind needs source CIDRs. Subscriptions are created with `work4you teams-pipeline subscribe`; Azure app credentials stay on the Teams / pipeline cards.'
 }
