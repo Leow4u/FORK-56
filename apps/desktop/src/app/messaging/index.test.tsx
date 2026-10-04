@@ -103,6 +103,28 @@ function whatsappReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPla
   })
 }
 
+/** Telegram on and connected with two allowed user ids. */
+function telegramReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
+  return platform({
+    configured: true,
+    enabled: true,
+    env_vars: [
+      envField('TELEGRAM_BOT_TOKEN', '123456789:secret', {
+        is_password: true,
+        prompt: 'Telegram bot token',
+        required: true,
+        value: null
+      }),
+      envField('TELEGRAM_ALLOWED_USERS', '123456789,987654321'),
+      envField('TELEGRAM_PROXY', '', { advanced: true })
+    ],
+    id: 'telegram',
+    name: 'Telegram',
+    state: 'connected',
+    ...patch
+  })
+}
+
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
     configured: false,
@@ -560,46 +582,26 @@ describe('MessagingView pairing', () => {
   })
 
   it('blocks the save and shows the field error for a malformed Telegram token', async () => {
-    getMessagingPlatforms.mockResolvedValue({
-      platforms: [
-        platform({
-          id: 'telegram',
-          name: 'Telegram',
-          env_vars: [
-            {
-              advanced: false,
-              description: 'Bot token.',
-              is_password: true,
-              is_set: false,
-              key: 'TELEGRAM_BOT_TOKEN',
-              prompt: 'Telegram bot token',
-              redacted_value: null,
-              required: true,
-              url: null
-            }
-          ]
-        })
-      ]
-    })
+    getMessagingPlatforms.mockResolvedValue({ platforms: [telegramReady()] })
 
     await renderMessaging()
     await openChannel('Telegram')
     await act(async () => {
-      fireEvent.click(await screen.findByRole('button', { name: 'Manual setup' }))
+      fireEvent.click(await screen.findByRole('button', { name: new RegExp(en.messaging.advancedTitle) }))
     })
 
     // Only the numeric bot-id half of the token — the classic paste mistake.
-    fireEvent.change(await screen.findByLabelText('Bot token'), { target: { value: '123456789' } })
+    fireEvent.change(await screen.findByLabelText(/^Bot token/), { target: { value: '123456789' } })
 
     await act(async () => {
-      fireEvent.click(await screen.findByRole('button', { name: /Save & enable/ }))
+      fireEvent.click(await screen.findByRole('button', { name: en.messaging.saveChanges }))
     })
 
     expect(updateMessagingPlatform).not.toHaveBeenCalled()
     expect(await screen.findByText(/complete token from @BotFather/)).toBeTruthy()
 
     // Editing the rejected value clears the stale error immediately.
-    fireEvent.change(screen.getByLabelText('Bot token'), { target: { value: '123456789:' } })
+    fireEvent.change(screen.getByLabelText(/^Bot token/), { target: { value: '123456789:' } })
     expect(screen.queryByText(/complete token from @BotFather/)).toBeNull()
   })
 
@@ -870,6 +872,97 @@ describe('MessagingView channel page', () => {
 
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith('whatsapp', { clear_env: ['WHATSAPP_ALLOWED_USERS'] })
+    )
+  })
+
+  it('walks Telegram through its first connection step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ id: 'telegram', name: 'Telegram' })] })
+
+    await renderMessaging()
+    await openChannel('Telegram')
+
+    expect(await screen.findByText(en.messaging.telegramPage.whoTitle)).toBeTruthy()
+    expect(screen.queryByText(en.messaging.whoCanTalkTitle)).toBeNull()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows Telegram as settings once it is set up, with the steps a click away', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [telegramReady()] })
+
+    await renderMessaging()
+    await openChannel('Telegram')
+
+    expect(await screen.findByText(en.messaging.connectedListening)).toBeTruthy()
+    expect(screen.getByText(en.messaging.channelSettings.whoOnlyPeople(2))).toBeTruthy()
+    expect(screen.getByText('123456789, 987654321')).toBeTruthy()
+    expect(screen.getByText(en.messaging.botReplies)).toBeTruthy()
+    expect(screen.getByText(en.messaging.channelActive)).toBeTruthy()
+    expect(screen.queryByText(en.messaging.telegramPage.whoTitle)).toBeNull()
+
+    // The token is advanced; the allowlist lives in Who can talk, not twice.
+    expect(screen.getByText(en.messaging.telegramPage.advancedHint)).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(en.messaging.advancedTitle) }))
+    })
+    expect(screen.getByLabelText(/^Bot token/)).toBeTruthy()
+    expect(screen.queryByLabelText(/Allowed users/i)).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.messaging.runStepsAgain }))
+    })
+    expect(screen.getByText(en.messaging.telegramPage.whoTitle)).toBeTruthy()
+  })
+
+  it('says who gets a code while Telegram has no allowlist', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [telegramReady({ env_vars: [envField('TELEGRAM_ALLOWED_USERS', '')] })]
+    })
+
+    await renderMessaging()
+    await openChannel('Telegram')
+
+    expect(await screen.findByText(en.messaging.channelSettings.whoApprove)).toBeTruthy()
+  })
+
+  it('edits who can talk on Telegram through the channel update', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [telegramReady()] })
+
+    await renderMessaging()
+    await openChannel('Telegram')
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: en.messaging.edit }))
+    })
+    const list = screen.getByLabelText(en.messaging.channelSettings.listTitle)
+
+    // A @username where a numeric id belongs never reaches the backend.
+    fireEvent.change(list, { target: { value: '123456789, @carla' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    expect(screen.getByText(en.messaging.envErrors.telegramUserId('@carla'))).toBeTruthy()
+    expect(updateMessagingPlatform).not.toHaveBeenCalled()
+
+    fireEvent.change(list, { target: { value: '123456789, 555' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('telegram', {
+        env: { TELEGRAM_ALLOWED_USERS: '123456789,555' }
+      })
+    )
+
+    // Approving people as they message clears the list.
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: en.messaging.edit }))
+    })
+    fireEvent.click(screen.getByRole('radio', { name: new RegExp(en.messaging.channelSettings.approveTitle) }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('telegram', { clear_env: ['TELEGRAM_ALLOWED_USERS'] })
     )
   })
 

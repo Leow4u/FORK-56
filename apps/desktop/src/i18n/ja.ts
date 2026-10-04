@@ -1901,34 +1901,13 @@ export const ja = defineLocale({
       saveFailed: 'Slack 設定の保存に失敗しました'
     },
     telegramQuickSetup: {
-      title: 'クイックセットアップ',
-      recommended: 'おすすめ',
-      intro:
-        'QR コードをスキャンして Telegram で確認すると、Work4You がボットを作成し、あなたの Telegram ユーザー ID を自動検出します。自分のボットを使う場合は、下の認証情報フィールドをご利用ください。',
-      createWithQr: 'QR コードで作成',
-      starting: '開始中...',
       waiting: 'Telegram での確認を待っています...',
       qrAlt: 'Telegram セットアップ QR コード',
       openTelegram: 'Telegram を開く',
       expiresIn: (value: string) => `残り ${value} で期限切れ`,
       expired: '期限切れ',
       sessionExpired: 'Telegram のペアリングが期限切れになりました。新しい QR セットアップを開始してください。',
-      startFailed: 'Telegram QR セットアップの開始に失敗しました',
-      ready: '準備完了',
-      allowedUsers: '許可するユーザー',
-      ownerDetected: 'オーナーを検出',
-      addAtLeastOne: 'Telegram ユーザー ID を少なくとも 1 つ追加してください。',
-      userIdPlaceholder: 'Telegram ユーザー ID',
-      userIdMustBeNumeric: '許可する Telegram ユーザー ID は数字である必要があります。',
-      add: '追加',
-      removeUserAria: (id: string) => `${id} を削除`,
-      saveAndRestart: '保存して再起動',
-      replacesExisting:
-        'Telegram の認証情報は設定済みです。新しい QR セットアップを保存すると現在のボットが置き換えられます。',
-      saved: 'Telegram を保存しました。ゲートウェイを再起動しています...',
-      savedRestartFailed: (detail: string) => `Telegram を保存しましたが、ゲートウェイの再起動に失敗しました${detail}`,
-      restartFailedExit: (code: number) =>
-        `ゲートウェイの再起動に失敗しました（終了コード ${code}）。手動で再起動してください`
+      startFailed: 'Telegram QR セットアップの開始に失敗しました'
     },
     whatsappQuickSetup: {
       allowedUsersPlaceholder: '15551234567,15557654321',

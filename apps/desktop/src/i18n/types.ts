@@ -1923,12 +1923,65 @@ export interface Translations {
       saved: string
       saveFailed: string
     }
-    telegramQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      createWithQr: string
+    channelSettings: {
+      whoOnlyPeople: (count: number) => string
+      whoApprove: string
+      whoEveryone: string
+      listTitle: string
+      approveTitle: string
+      approveDesc: string
+      ignoredHint: string
+    }
+    telegramPage: {
+      stepWho: string
+      stepCreate: string
+      stepTalk: string
+      stepReady: string
+      whoTitle: string
+      whoNote: string
+      meTitle: string
+      meDesc: string
+      othersTitle: string
+      othersDesc: string
+      createTitle: string
+      createNote: string
+      createStep1: string
+      createStep1Link: string
+      createStep2: string
+      createStep2Bold: string
       starting: string
+      created: (username: string) => string
+      haveToken: string
+      useToken: string
+      useQr: string
+      tokenTitle: string
+      tokenNote: string
+      tokenLabel: string
+      talkTitle: string
+      talkNote: (choice: string) => string
+      talkNoteList: (choice: string) => string
+      meIdTitle: string
+      meIdNote: string
+      meIdLabel: string
+      idsLabel: string
+      listDesc: string
+      listHint: string
+      listOwnerHint: (id: string) => string
+      idsRequired: string
+      readySaving: string
+      readyTitle: string
+      readySetUp: string
+      checkCreated: (username: string) => string
+      checkTokenSaved: string
+      whoMe: string
+      whoList: (count: number) => string
+      whoApprove: string
+      tryIt: string
+      tryItWord: string
+      openInTelegram: string
+      advancedHint: string
+    }
+    telegramQuickSetup: {
       waiting: string
       qrAlt: string
       openTelegram: string
@@ -1936,19 +1989,6 @@ export interface Translations {
       expired: string
       sessionExpired: string
       startFailed: string
-      ready: string
-      allowedUsers: string
-      ownerDetected: string
-      addAtLeastOne: string
-      userIdPlaceholder: string
-      userIdMustBeNumeric: string
-      add: string
-      removeUserAria: (id: string) => string
-      saveAndRestart: string
-      replacesExisting: string
-      saved: string
-      savedRestartFailed: (detail: string) => string
-      restartFailedExit: (code: number) => string
     }
     whatsappQuickSetup: {
       allowedUsersPlaceholder: string
@@ -1964,12 +2004,19 @@ export interface Translations {
       deviceLinked: string
       openChatLink: string
     }
+    channelSteps: {
+      next: string
+      tryAgain: string
+      checkRestarting: string
+      checkRestarted: string
+      checkRestartFailed: (code: number) => string
+      checkRestartNotStarted: (detail: string) => string
+    }
     whatsappSteps: {
       stepWho: string
       stepConnect: string
       stepTalk: string
       stepReady: string
-      next: string
       whoTitle: string
       whoNote: string
       selfTitle: string
@@ -1986,7 +2033,6 @@ export interface Translations {
       waitingScan: string
       alreadyLinked: string
       advancedSetup: string
-      tryAgain: string
       talkTitle: string
       talkNote: (choice: string) => string
       listTitle: string
@@ -2001,10 +2047,6 @@ export interface Translations {
       sendTest: string
       checkLinked: string
       checkLinkedAs: (phone: string) => string
-      checkRestarting: string
-      checkRestarted: string
-      checkRestartFailed: (code: number) => string
-      checkRestartNotStarted: (detail: string) => string
       whoSelf: string
       whoSolo: string
       whoList: (count: number) => string

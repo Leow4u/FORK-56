@@ -1711,32 +1711,13 @@ export const ar = defineLocale({
       saveFailed: 'فشل حفظ إعداد Slack'
     },
     telegramQuickSetup: {
-      title: 'إعداد سريع',
-      recommended: 'موصى به',
-      intro:
-        'امسح رمز QR وأكد في Telegram — سينشئ Work4You البوت ويكتشف معرف مستخدم Telegram الخاص بك تلقائيًا. تفضل استخدام بوت خاص بك؟ استخدم حقول بيانات الاعتماد أدناه.',
-      createWithQr: 'إنشاء عبر رمز QR',
-      starting: 'جار البدء...',
       waiting: 'في انتظار تأكيدك في Telegram...',
       qrAlt: 'رمز QR لإعداد Telegram',
       openTelegram: 'فتح Telegram',
       expiresIn: (value: string) => `تنتهي الصلاحية خلال ${value}`,
       expired: 'منتهي الصلاحية',
       sessionExpired: 'انتهت صلاحية اقتران Telegram. ابدأ إعداد QR جديدًا للمحاولة مرة أخرى.',
-      startFailed: 'فشل بدء إعداد Telegram عبر رمز QR',
-      ready: 'جاهز',
-      allowedUsers: 'المستخدمون المسموح لهم',
-      ownerDetected: 'تم اكتشاف المالك',
-      addAtLeastOne: 'أضف معرف مستخدم Telegram واحدًا على الأقل.',
-      userIdPlaceholder: 'معرف مستخدم Telegram',
-      userIdMustBeNumeric: 'يجب أن تكون معرفات مستخدمي Telegram المسموح لهم أرقامًا.',
-      add: 'إضافة',
-      removeUserAria: (id: string) => `إزالة ${id}`,
-      saveAndRestart: 'حفظ وإعادة تشغيل',
-      replacesExisting: 'بيانات اعتماد Telegram مهيأة بالفعل — سيحل إعداد QR جديد محل البوت الحالي عند الحفظ.',
-      saved: 'تم حفظ Telegram؛ جار إعادة تشغيل البوابة...',
-      savedRestartFailed: (detail: string) => `تم حفظ Telegram؛ فشلت إعادة تشغيل البوابة${detail}`,
-      restartFailedExit: (code: number) => `فشلت إعادة تشغيل البوابة (رمز الخروج ${code}) — أعد التشغيل يدويًا`
+      startFailed: 'فشل بدء إعداد Telegram عبر رمز QR'
     },
     whatsappQuickSetup: {
       allowedUsersPlaceholder: '15551234567,15557654321',

@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -6,18 +5,28 @@ import { Codicon } from '@/components/ui/codicon'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
-import { Check, RefreshCw } from '@/lib/icons'
+import { Check } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import { runGatewayRestart } from '@/store/system-actions'
 import type { WhatsAppOnboardingMode, WhatsAppOnboardingStatusResponse } from '@/types/work4you'
 import {
   applyWhatsAppOnboarding,
   cancelWhatsAppOnboarding,
-  getActionStatus,
   getWhatsAppOnboardingStatus,
   startWhatsAppOnboarding
 } from '@/work4you'
 
+import {
+  ChoiceList,
+  type ChoiceOption,
+  ReadyLine,
+  RestartLine,
+  type RestartState,
+  STEP_NOTE,
+  StepFooter,
+  StepPanel,
+  StepsFrame,
+  watchRestartOutcome
+} from './channel-steps'
 import { findInvalidWhatsAppUser } from './validate-env'
 
 /** Who the person said will use the channel. `self` and `solo` are both
@@ -38,48 +47,11 @@ type AllowChoice = 'approve' | 'list'
 // session is gone server-side and nothing polls any more.
 type Phase = 'applied' | 'applying' | 'connected' | 'idle' | 'preparing' | 'starting' | 'waiting'
 
-interface RestartState {
-  detail?: string
-  exitCode?: number
-  /** `none`: the save went through but no restart was spawned. */
-  outcome: 'failed' | 'none' | 'ok' | 'pending'
-}
-
-const NOTE = 'text-xs leading-4 text-(--ui-text-tertiary)'
-
 /** 404/410 mean the pairing is gone server-side — restartable, not retryable. */
 function isTerminalOnboardingError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error)
 
   return (/\b410\b/.test(message) && /\b(expired|gone)\b/i.test(message)) || /\b404\b/.test(message)
-}
-
-/** `restart_started` only means the restart child spawned — not that it will
- *  succeed. Watch the action status briefly and surface a non-zero exit; in
- *  no-service installs the child becomes the foreground gateway and never
- *  exits, so "still running when we stop watching" counts as success. */
-async function watchRestartOutcome(scopeProfile: null | string): Promise<RestartState> {
-  for (let i = 0; i < 20; i++) {
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    try {
-      const status = await getActionStatus('gateway-restart', 5, scopeProfile ?? undefined)
-
-      if (status.running) {
-        continue
-      }
-
-      if (status.exit_code !== 0 && status.exit_code !== null) {
-        return { exitCode: status.exit_code, outcome: 'failed' }
-      }
-
-      return { outcome: 'ok' }
-    } catch {
-      // transient fetch error; keep polling
-    }
-  }
-
-  return { outcome: 'ok' }
 }
 
 async function qrDataUrlFor(payload: string): Promise<string> {
@@ -117,6 +89,7 @@ export function WhatsAppConnectSteps({
   const m = t.messaging
   const q = m.whatsappQuickSetup
   const s = m.whatsappSteps
+  const c = m.channelSteps
 
   const [audience, setAudience] = useState<Audience | null>(savedMode === 'self-chat' ? 'self' : null)
   const [step, setStep] = useState<Step>('who')
@@ -375,7 +348,7 @@ export function WhatsAppConnectSteps({
             placeholder="5511999993977, 5511988880000"
             value={allowedUsers}
           />
-          <span className={cn('mt-1.5 block', NOTE)}>{s.listHint}</span>
+          <span className={cn('mt-1.5 block', STEP_NOTE)}>{s.listHint}</span>
         </>
       ),
       id: 'list',
@@ -410,306 +383,139 @@ export function WhatsAppConnectSteps({
   const [teamNoteBefore, teamNoteAfter] = teamNote.split(s.teamTitle)
 
   return (
-    <section className="pt-1.5" data-slot="whatsapp-connect-steps">
-      <ol className="flex gap-1.5">
-        {steps.map((entry, index) => {
-          const state = entry.id === step ? 'active' : index < stepIndex ? 'done' : 'todo'
+    <StepsFrame current={step} slot="whatsapp-connect-steps" steps={steps}>
+      {step === 'who' && (
+        <StepPanel note={s.whoNote} title={s.whoTitle}>
+          <ChoiceList label={s.whoTitle} onChange={setAudience} options={audienceOptions} value={audience} />
+          <StepFooter next={{ disabled: !audience, label: c.next, onClick: goConnect }} />
+        </StepPanel>
+      )}
 
-          return (
-            <li
-              aria-current={state === 'active' ? 'step' : undefined}
-              className={cn(
-                'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg border px-2.5 text-xs',
-                state === 'active'
-                  ? 'border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) text-foreground'
-                  : 'border-transparent',
-                state === 'done' && 'text-(--ui-text-secondary)',
-                state === 'todo' && 'text-(--ui-text-tertiary)'
-              )}
-              key={entry.id}
-            >
-              <span
-                className={cn(
-                  'grid size-[1.125rem] shrink-0 place-items-center rounded-full text-[0.66rem] font-semibold tabular-nums',
-                  state === 'active' && 'bg-primary text-primary-foreground',
-                  state === 'done' && 'bg-emerald-500 text-background',
-                  state === 'todo' && 'bg-(--ui-bg-quaternary) text-(--ui-text-tertiary)'
-                )}
-              >
-                {state === 'done' ? <Check className="size-[0.6875rem]" /> : index + 1}
-              </span>
-              <span className="truncate">{entry.label}</span>
-            </li>
-          )
-        })}
-      </ol>
-
-      <div className="mt-4 rounded-xl border border-(--ui-stroke-quaternary) px-6 py-[1.375rem]">
-        {step === 'who' && (
-          <StepPanel note={s.whoNote} title={s.whoTitle}>
-            <ChoiceList label={s.whoTitle} onChange={setAudience} options={audienceOptions} value={audience} />
-            <StepFooter next={{ disabled: !audience, label: s.next, onClick: goConnect }} />
-          </StepPanel>
-        )}
-
-        {step === 'connect' && (
-          <StepPanel note={s.connectNote} title={s.connectTitle}>
-            <div className="mt-[1.125rem] grid grid-cols-1 items-start gap-7 sm:grid-cols-[12.5rem_minmax(0,1fr)]">
-              {linked ? (
-                <div className="grid size-50 place-items-center rounded-[0.625rem] bg-emerald-500/12 text-emerald-500">
-                  <Check className="size-10" />
-                </div>
-              ) : qrDataUrl ? (
-                <img alt={q.qrAlt} className="size-50 rounded-[0.625rem] bg-white p-3" src={qrDataUrl} />
-              ) : (
-                <div className="flex size-50 items-center justify-center rounded-[0.625rem] border border-(--ui-stroke-quaternary) p-4 text-center text-xs leading-5 text-(--ui-text-tertiary)">
-                  {error ? q.startFailed : q.waitingForQr}
-                </div>
-              )}
-
-              <div className="min-w-0">
-                <ol className="list-decimal space-y-2 pl-[1.125rem] text-[0.8125rem] leading-5 text-(--ui-text-secondary)">
-                  <li>
-                    {s.connectStepLead}
-                    {s.connectStepPath.split(' › ').map(part => (
-                      <span key={part}>
-                        {' › '}
-                        <b className="font-medium text-foreground">{part}</b>
-                      </span>
-                    ))}
-                    .
-                  </li>
-                  <li>{s.connectStep2}</li>
-                </ol>
-
-                {error ? (
-                  <p className="mt-4 flex flex-wrap items-center gap-x-2 text-[0.78rem] leading-5 text-destructive">
-                    {error}
-                    <Button onClick={() => void start()} size="inline" variant="link">
-                      {s.tryAgain}
-                    </Button>
-                  </p>
-                ) : (
-                  <p className="mt-4 flex items-center gap-2 text-[0.78rem] leading-5 text-(--ui-text-secondary)">
-                    {linked ? (
-                      <Check className="size-3.5 text-emerald-500" />
-                    ) : (
-                      <Codicon name="loading" size="0.75rem" spinning />
-                    )}
-                    <span>{connectStatus}</span>
-                  </p>
-                )}
-
-                <p className={cn('mt-3.5', NOTE)}>
-                  {s.alreadyLinked}{' '}
-                  <button
-                    className="text-(--ui-text-secondary) underline underline-offset-[3px] hover:text-foreground"
-                    onClick={onAdvanced}
-                    type="button"
-                  >
-                    {s.advancedSetup}
-                  </button>
-                </p>
+      {step === 'connect' && (
+        <StepPanel note={s.connectNote} title={s.connectTitle}>
+          <div className="mt-[1.125rem] grid grid-cols-1 items-start gap-7 sm:grid-cols-[12.5rem_minmax(0,1fr)]">
+            {linked ? (
+              <div className="grid size-50 place-items-center rounded-[0.625rem] bg-emerald-500/12 text-emerald-500">
+                <Check className="size-10" />
               </div>
-            </div>
-            <StepFooter
-              back={{ label: t.common.back, onClick: goBackToWho }}
-              next={{
-                disabled: phase !== 'connected',
-                label: s.next,
-                onClick: () => (audience === 'team' ? setStep('talk') : void finish())
-              }}
-            />
-          </StepPanel>
-        )}
-
-        {step === 'talk' && (
-          <StepPanel
-            note={
-              <>
-                {teamNoteBefore}
-                <b className="font-medium text-(--ui-text-secondary)">{s.teamTitle}</b>
-                {teamNoteAfter}
-              </>
-            }
-            title={s.talkTitle}
-          >
-            <ChoiceList
-              label={s.talkTitle}
-              onChange={choice => {
-                setAllowChoice(choice)
-                setError('')
-              }}
-              options={allowOptions}
-              value={allowChoice}
-            />
-            {error && <p className="mt-3 text-xs leading-4 text-destructive">{error}</p>}
-            <StepFooter
-              back={{ label: t.common.back, onClick: () => setStep('connect') }}
-              next={{ label: s.next, onClick: () => void finish() }}
-            />
-          </StepPanel>
-        )}
-
-        {step === 'ready' && (
-          <div className="flex flex-col items-start">
-            <span className="mb-3 grid size-10 place-items-center rounded-full bg-emerald-500 text-background">
-              {phase === 'applying' ? <Codicon name="loading" size="1.1rem" spinning /> : <Check className="size-5" />}
-            </span>
-            <h2 className="text-[1.0625rem] font-semibold text-foreground">
-              {phase === 'applying' ? s.readySaving : platformConnected ? s.readyTitle : s.readySetUp}
-            </h2>
-            <ul className="mt-3 grid gap-1.5 text-[0.8125rem] text-(--ui-text-secondary)">
-              <ReadyLine done>{linkedLabel ? s.checkLinkedAs(linkedLabel) : s.checkLinked}</ReadyLine>
-              {phase === 'applied' && (
-                <ReadyLine
-                  done={restart.outcome === 'ok'}
-                  failed={restart.outcome !== 'ok' && restart.outcome !== 'pending'}
-                >
-                  {restart.outcome === 'ok'
-                    ? s.checkRestarted
-                    : restart.outcome === 'pending'
-                      ? s.checkRestarting
-                      : restart.outcome === 'failed'
-                        ? s.checkRestartFailed(restart.exitCode ?? 1)
-                        : s.checkRestartNotStarted(restart.detail ? `: ${restart.detail}` : '')}
-                  {(restart.outcome === 'failed' || restart.outcome === 'none') && (
-                    <Button className="ml-2" onClick={() => void runGatewayRestart()} size="xs" variant="secondary">
-                      <RefreshCw />
-                      {m.restartGateway}
-                    </Button>
-                  )}
-                </ReadyLine>
-              )}
-              <ReadyLine done>{whoLine}</ReadyLine>
-            </ul>
-            {phase === 'applied' && <p className={cn('mt-3.5', NOTE)}>{tryIt}</p>}
-            <div className="mt-5 flex w-full items-center justify-end gap-2">
-              {phase === 'applied' && chatUrl && (
-                <Button onClick={() => openExternalLink(chatUrl)} size="sm" variant="outline">
-                  {s.sendTest}
-                </Button>
-              )}
-              <Button disabled={phase === 'applying'} onClick={onDone} size="sm">
-                {t.common.done}
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
-  )
-}
-
-export interface ChoiceOption<T extends string> {
-  description: string
-  /** Shown inside the option while it is selected (an input, a hint). Kept
-   *  outside the option's button so the control stays its own element. */
-  extra?: ReactNode
-  id: T
-  title: string
-}
-
-/** One question's answers as bordered cards with a radio, like the setup
- *  boards: every option outlined, the chosen one filled. */
-export function ChoiceList<T extends string>({
-  label,
-  onChange,
-  options,
-  value
-}: {
-  label: string
-  onChange: (id: T) => void
-  options: ChoiceOption<T>[]
-  value: null | T
-}) {
-  return (
-    <div aria-label={label} className="mt-4 flex flex-col gap-2" role="radiogroup">
-      {options.map(option => {
-        const selected = option.id === value
-
-        return (
-          <div
-            className={cn(
-              'rounded-[0.625rem] border px-3.5 py-3',
-              selected
-                ? 'border-(--ui-text-tertiary) bg-(--ui-bg-quinary)'
-                : 'border-(--ui-stroke-quaternary) hover:bg-(--ui-sidebar-surface-background)'
+            ) : qrDataUrl ? (
+              <img alt={q.qrAlt} className="size-50 rounded-[0.625rem] bg-white p-3" src={qrDataUrl} />
+            ) : (
+              <div className="flex size-50 items-center justify-center rounded-[0.625rem] border border-(--ui-stroke-quaternary) p-4 text-center text-xs leading-5 text-(--ui-text-tertiary)">
+                {error ? q.startFailed : q.waitingForQr}
+              </div>
             )}
-            key={option.id}
-          >
-            <button
-              aria-checked={selected}
-              className="grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-start gap-3 text-left"
-              onClick={() => onChange(option.id)}
-              role="radio"
-              type="button"
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  'relative mt-px size-4 rounded-full border-[1.5px]',
-                  selected ? 'border-primary' : 'border-(--ui-text-tertiary)'
-                )}
-              >
-                {selected && <span className="absolute inset-[2.5px] rounded-full bg-primary" />}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[0.84375rem] font-medium text-foreground">{option.title}</span>
-                <span className={cn('mt-0.5 block', NOTE)}>{option.description}</span>
-              </span>
-            </button>
-            {selected && option.extra ? <div className="pl-7">{option.extra}</div> : null}
+
+            <div className="min-w-0">
+              <ol className="list-decimal space-y-2 pl-[1.125rem] text-[0.8125rem] leading-5 text-(--ui-text-secondary)">
+                <li>
+                  {s.connectStepLead}
+                  {s.connectStepPath.split(' › ').map(part => (
+                    <span key={part}>
+                      {' › '}
+                      <b className="font-medium text-foreground">{part}</b>
+                    </span>
+                  ))}
+                  .
+                </li>
+                <li>{s.connectStep2}</li>
+              </ol>
+
+              {error ? (
+                <p className="mt-4 flex flex-wrap items-center gap-x-2 text-[0.78rem] leading-5 text-destructive">
+                  {error}
+                  <Button onClick={() => void start()} size="inline" variant="link">
+                    {c.tryAgain}
+                  </Button>
+                </p>
+              ) : (
+                <p className="mt-4 flex items-center gap-2 text-[0.78rem] leading-5 text-(--ui-text-secondary)">
+                  {linked ? (
+                    <Check className="size-3.5 text-emerald-500" />
+                  ) : (
+                    <Codicon name="loading" size="0.75rem" spinning />
+                  )}
+                  <span>{connectStatus}</span>
+                </p>
+              )}
+
+              <p className={cn('mt-3.5', STEP_NOTE)}>
+                {s.alreadyLinked}{' '}
+                <button
+                  className="text-(--ui-text-secondary) underline underline-offset-[3px] hover:text-foreground"
+                  onClick={onAdvanced}
+                  type="button"
+                >
+                  {s.advancedSetup}
+                </button>
+              </p>
+            </div>
           </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function StepPanel({ children, note, title }: { children: ReactNode; note: ReactNode; title: string }) {
-  return (
-    <div>
-      <h2 className="text-[1.0625rem] font-semibold text-foreground">{title}</h2>
-      <p className={cn('mt-1', NOTE)}>{note}</p>
-      {children}
-    </div>
-  )
-}
-
-function StepFooter({
-  back,
-  next
-}: {
-  back?: { label: string; onClick: () => void }
-  next: { disabled?: boolean; label: string; onClick: () => void }
-}) {
-  return (
-    <div className="mt-5 flex items-center gap-2">
-      {back && (
-        <Button onClick={back.onClick} size="sm" variant="outline">
-          {back.label}
-        </Button>
+          <StepFooter
+            back={{ label: t.common.back, onClick: goBackToWho }}
+            next={{
+              disabled: phase !== 'connected',
+              label: c.next,
+              onClick: () => (audience === 'team' ? setStep('talk') : void finish())
+            }}
+          />
+        </StepPanel>
       )}
-      <span className="flex-1" />
-      <Button disabled={next.disabled} onClick={next.onClick} size="sm">
-        {next.label}
-      </Button>
-    </div>
-  )
-}
 
-function ReadyLine({ children, done, failed = false }: { children: ReactNode; done: boolean; failed?: boolean }) {
-  return (
-    <li className="flex items-center gap-2">
-      {failed ? (
-        <span aria-hidden className="inline-block size-2 shrink-0 rounded-full bg-destructive" />
-      ) : done ? (
-        <Check className="size-3.5 shrink-0 text-emerald-500" />
-      ) : (
-        <Codicon name="loading" size="0.8rem" spinning />
+      {step === 'talk' && (
+        <StepPanel
+          note={
+            <>
+              {teamNoteBefore}
+              <b className="font-medium text-(--ui-text-secondary)">{s.teamTitle}</b>
+              {teamNoteAfter}
+            </>
+          }
+          title={s.talkTitle}
+        >
+          <ChoiceList
+            label={s.talkTitle}
+            onChange={choice => {
+              setAllowChoice(choice)
+              setError('')
+            }}
+            options={allowOptions}
+            value={allowChoice}
+          />
+          {error && <p className="mt-3 text-xs leading-4 text-destructive">{error}</p>}
+          <StepFooter
+            back={{ label: t.common.back, onClick: () => setStep('connect') }}
+            next={{ label: c.next, onClick: () => void finish() }}
+          />
+        </StepPanel>
       )}
-      <span className="flex flex-wrap items-center">{children}</span>
-    </li>
+
+      {step === 'ready' && (
+        <div className="flex flex-col items-start">
+          <span className="mb-3 grid size-10 place-items-center rounded-full bg-emerald-500 text-background">
+            {phase === 'applying' ? <Codicon name="loading" size="1.1rem" spinning /> : <Check className="size-5" />}
+          </span>
+          <h2 className="text-[1.0625rem] font-semibold text-foreground">
+            {phase === 'applying' ? s.readySaving : platformConnected ? s.readyTitle : s.readySetUp}
+          </h2>
+          <ul className="mt-3 grid gap-1.5 text-[0.8125rem] text-(--ui-text-secondary)">
+            <ReadyLine done>{linkedLabel ? s.checkLinkedAs(linkedLabel) : s.checkLinked}</ReadyLine>
+            {phase === 'applied' && <RestartLine restart={restart} />}
+            <ReadyLine done>{whoLine}</ReadyLine>
+          </ul>
+          {phase === 'applied' && <p className={cn('mt-3.5', STEP_NOTE)}>{tryIt}</p>}
+          <div className="mt-5 flex w-full items-center justify-end gap-2">
+            {phase === 'applied' && chatUrl && (
+              <Button onClick={() => openExternalLink(chatUrl)} size="sm" variant="outline">
+                {s.sendTest}
+              </Button>
+            )}
+            <Button disabled={phase === 'applying'} onClick={onDone} size="sm">
+              {t.common.done}
+            </Button>
+          </div>
+        </div>
+      )}
+    </StepsFrame>
   )
 }
