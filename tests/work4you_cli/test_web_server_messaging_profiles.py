@@ -287,6 +287,89 @@ class TestProfileScopedWebhooks:
 
 
 
+class TestScopedEnablementFollowsTheGateway:
+    """A channel set up from ``.env`` alone has no ``enabled`` in config.yaml,
+    and the gateway then runs it on its credentials (env-only setups and the
+    plugin registry's ``is_connected`` pass). The scoped view used to read
+    only config.yaml and showed those channels off while they ran."""
+
+    _CHAT_CREDENTIALS = (
+        "SLACK_BOT_TOKEN=test-bot-token\n"
+        "SLACK_APP_TOKEN=test-app-token\n"
+        "TEAMS_CLIENT_ID=test-client-id\n"
+        "TEAMS_CLIENT_SECRET=test-client-secret\n"
+        "TEAMS_TENANT_ID=test-tenant-id\n"
+        "GOOGLE_CHAT_PROJECT_ID=test-project\n"
+        "GOOGLE_CHAT_SUBSCRIPTION_NAME=test-subscription\n"
+    )
+
+    @staticmethod
+    def _rows(client):
+        payload = client.get("/api/messaging/platforms", params={"profile": "worker_alpha"}).json()
+        return {row["id"]: row for row in payload["platforms"]}
+
+    def test_credentials_without_a_switch_read_as_on(self, client, isolated_profiles):
+        (isolated_profiles["worker_alpha"] / ".env").write_text(self._CHAT_CREDENTIALS, encoding="utf-8")
+
+        rows = self._rows(client)
+
+        for platform_id in ("slack", "teams", "google_chat"):
+            assert rows[platform_id]["configured"] is True, platform_id
+            assert rows[platform_id]["enabled"] is True, platform_id
+            assert rows[platform_id]["state"] != "disabled", platform_id
+
+    def test_a_written_switch_still_wins(self, client, isolated_profiles):
+        worker = isolated_profiles["worker_alpha"]
+        (worker / ".env").write_text(self._CHAT_CREDENTIALS, encoding="utf-8")
+        (worker / "config.yaml").write_text(
+            yaml.safe_dump({"platforms": {"slack": {"enabled": False}}}), encoding="utf-8"
+        )
+
+        rows = self._rows(client)
+
+        assert rows["slack"]["enabled"] is False
+        assert rows["slack"]["state"] == "disabled"
+        assert rows["teams"]["enabled"] is True
+
+    def test_missing_credentials_stay_off(self, client, isolated_profiles):
+        (isolated_profiles["worker_alpha"] / ".env").write_text(
+            "SLACK_BOT_TOKEN=test-bot-token\n", encoding="utf-8"
+        )
+
+        rows = self._rows(client)
+
+        assert rows["slack"]["configured"] is False
+        assert rows["slack"]["enabled"] is False
+        assert rows["teams"]["enabled"] is False
+
+    def test_listeners_wait_for_their_own_switch(self, client, isolated_profiles):
+        """The Graph client_state alone does not start its listener, and the
+        webhook listener needs no credential: without the card switch the
+        gateway turns each on only for its enable variable."""
+        worker = isolated_profiles["worker_alpha"]
+        (worker / ".env").write_text(
+            "MSGRAPH_WEBHOOK_CLIENT_STATE=test-client-state\n", encoding="utf-8"
+        )
+
+        rows = self._rows(client)
+
+        assert rows["msgraph_webhook"]["configured"] is True
+        assert rows["msgraph_webhook"]["enabled"] is False
+        assert rows["webhook"]["enabled"] is False
+
+        (worker / ".env").write_text(
+            "MSGRAPH_WEBHOOK_CLIENT_STATE=test-client-state\n"
+            "MSGRAPH_WEBHOOK_ENABLED=true\n"
+            "WEBHOOK_ENABLED=true\n",
+            encoding="utf-8",
+        )
+
+        rows = self._rows(client)
+
+        assert rows["msgraph_webhook"]["enabled"] is True
+        assert rows["webhook"]["enabled"] is True
+
+
 def _enable_multiplex(default_home):
     (default_home / "config.yaml").write_text(
         yaml.safe_dump({"gateway": {"multiplex_profiles": True}}),

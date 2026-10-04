@@ -8882,6 +8882,8 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
             "WHATSAPP_ALLOWED_USERS",
         ),
         "required_env": (),
+        # The bridge has no credential; the gateway starts it on this switch.
+        "enable_env": "WHATSAPP_ENABLED",
     },
     "homeassistant": {
         "name": "Home Assistant",
@@ -9140,6 +9142,9 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
         # page). See setup_hidden_env.py.
         "env_vars": ("WEBHOOK_PORT", "WEBHOOK_SECRET"),
         "required_env": (),
+        # Without the card switch the gateway turns the listener on only for
+        # WEBHOOK_ENABLED (`work4you setup` writes it).
+        "enable_env": "WEBHOOK_ENABLED",
         # No credential is required — routes carry their own HMAC secrets, and
         # they're managed on the Webhooks page, not this card. Without this
         # flag the card showed a "Needs setup" pill (configured=False merely
@@ -9154,6 +9159,9 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
         # MSGRAPH_WEBHOOK_ENABLED is hidden by name (duplicate of the card
         # toggle). ALLOW_ALL / HOME_CHANNEL stay hidden by suffix. This is
         # NOT setup_free: the adapter refuses to start without client_state.
+        # The client_state alone does not turn the listener on — without the
+        # card switch only MSGRAPH_WEBHOOK_ENABLED does.
+        "enable_env": "MSGRAPH_WEBHOOK_ENABLED",
         "env_vars": (
             "MSGRAPH_WEBHOOK_CLIENT_STATE",
             "MSGRAPH_WEBHOOK_HOST",
@@ -9602,7 +9610,33 @@ def _build_catalog_entry(
         # per-route secrets live on the Webhooks page). "configured" is then
         # always True — enablement is the only setup step.
         "setup_free": bool(override.get("setup_free")),
+        # The env switch the gateway reads to turn a listener on when
+        # config.yaml has no ``enabled`` for it (its credentials alone don't).
+        "enable_env": override.get("enable_env"),
     }
+
+
+def _enabled_without_switch(
+    entry: dict[str, Any], env_on_disk: dict[str, str], configured: bool
+) -> bool:
+    """Whether the gateway runs a channel whose config.yaml has no ``enabled``.
+
+    Judged from the profile's own ``.env``, the way ``_apply_env_overrides``
+    and the plugin registry's ``is_connected`` pass decide it: a listener
+    with its own enable switch waits for that switch; any other channel comes
+    on with its credentials (env-only setups — Slack, Teams, Google Chat, …).
+    A channel with no credential to judge by stays off until switched on.
+    """
+    enable_env = entry.get("enable_env")
+    if enable_env:
+        from utils import is_truthy_value
+
+        return is_truthy_value(env_on_disk.get(enable_env, ""))
+    if entry.get("setup_free"):
+        return False
+    if not entry["required_env"] and not entry.get("required_env_any"):
+        return False
+    return configured
 
 
 def _catalog_lookup(platform_id: str) -> dict[str, Any] | None:
@@ -9734,10 +9768,12 @@ def _messaging_platform_payload(
             plat_cfg = platforms_cfg.get(platform_id)
             if not isinstance(plat_cfg, dict):
                 plat_cfg = {}
+            switched = "enabled" in plat_cfg
             enabled = bool(plat_cfg.get("enabled"))
             hc = plat_cfg.get("home_channel")
             home_channel = hc if isinstance(hc, dict) else None
         except Exception:
+            switched = True
             enabled = False
             home_channel = None
         configured = all(env_on_disk.get(key) for key in entry["required_env"])
@@ -9746,6 +9782,11 @@ def _messaging_platform_payload(
                 all(env_on_disk.get(key) for key in group)
                 for group in entry["required_env_any"]
             )
+        # With no switch written, the gateway decides from the profile's
+        # .env — reading only config.yaml showed a channel the gateway runs
+        # on its credentials alone as off.
+        if not switched:
+            enabled = _enabled_without_switch(entry, env_on_disk, configured)
     else:
         try:
             gateway_config, platform, platform_config = _gateway_platform_config(
