@@ -15709,6 +15709,12 @@ async def clear_pending_pairing(profile: Optional[str] = None):
 # Wraps the same JSON store the CLI uses (work4you_cli.webhook); the webhook
 # adapter hot-reloads it without a gateway restart.  Per-route HMAC secrets
 # are redacted on read and surfaced once on create.
+#
+# Every endpoint takes ``profile`` like the other Channels endpoints: the
+# store, the listener switch and the base URL all resolve from
+# ``get_work4you_home()`` at call time, so the config scope reaches them. A
+# shared backend serving several profiles otherwise read and wrote its OWN
+# routes whatever profile the page was configuring.
 # ---------------------------------------------------------------------------
 
 
@@ -15732,13 +15738,15 @@ def _webhook_route_summary(name: str, route: Dict[str, Any], base_url: str) -> D
 
 
 @app.get("/api/webhooks")
-async def list_webhooks():
+async def list_webhooks(profile: Optional[str] = None):
     import work4you_cli.webhook as wh
 
-    base_url = wh._get_webhook_base_url()
-    subs = wh._load_subscriptions()
+    with _config_profile_scope(profile):
+        base_url = wh._get_webhook_base_url()
+        subs = wh._load_subscriptions()
+        enabled = wh._is_webhook_enabled()
     return {
-        "enabled": wh._is_webhook_enabled(),
+        "enabled": enabled,
         "base_url": base_url,
         "subscriptions": [
             _webhook_route_summary(name, route, base_url)
@@ -15748,9 +15756,17 @@ async def list_webhooks():
 
 
 @app.post("/api/webhooks/enable")
-async def enable_webhooks():
+async def enable_webhooks(profile: Optional[str] = None):
+    # The listener binds a port: under a multiplexed gateway only the default
+    # profile may turn it on (same pre-write guard as the channel update).
+    conflict = _multiplex_port_binding_conflict("webhook", profile)
+    if conflict:
+        raise HTTPException(status_code=409, detail=conflict)
     try:
-        _write_platform_enabled("webhook", True)
+        with _config_profile_scope(profile):
+            _write_platform_enabled("webhook", True)
+    except HTTPException:
+        raise
     except Exception as exc:
         _log.exception("Failed to enable webhook platform from dashboard")
         raise HTTPException(
@@ -15758,7 +15774,7 @@ async def enable_webhooks():
             detail="Failed to enable webhook platform.",
         ) from exc
 
-    restart_result = _restart_gateway_after_webhook_enable()
+    restart_result = _restart_gateway_after_webhook_enable(profile)
     return {
         "ok": True,
         "platform": "webhook",
@@ -15769,7 +15785,12 @@ async def enable_webhooks():
 
 
 @app.post("/api/webhooks")
-async def create_webhook(body: WebhookCreate):
+async def create_webhook(body: WebhookCreate, profile: Optional[str] = None):
+    with _config_profile_scope(profile):
+        return _create_webhook_route(body)
+
+
+def _create_webhook_route(body: WebhookCreate) -> Dict[str, Any]:
     import re as _re
     import secrets as _secrets
     import time as _time
@@ -15823,20 +15844,21 @@ async def create_webhook(body: WebhookCreate):
 
 
 @app.delete("/api/webhooks/{name}")
-async def delete_webhook(name: str):
+async def delete_webhook(name: str, profile: Optional[str] = None):
     import work4you_cli.webhook as wh
 
     key = (name or "").strip().lower()
-    subs = wh._load_subscriptions()
-    if key not in subs:
-        raise HTTPException(status_code=404, detail=f"No subscription named '{key}'")
-    del subs[key]
-    wh._save_subscriptions(subs)
+    with _config_profile_scope(profile):
+        subs = wh._load_subscriptions()
+        if key not in subs:
+            raise HTTPException(status_code=404, detail=f"No subscription named '{key}'")
+        del subs[key]
+        wh._save_subscriptions(subs)
     return {"ok": True}
 
 
 @app.put("/api/webhooks/{name}/enabled")
-async def set_webhook_enabled(name: str, body: WebhookEnabledToggle):
+async def set_webhook_enabled(name: str, body: WebhookEnabledToggle, profile: Optional[str] = None):
     """Enable or disable a webhook route.
 
     Disabled routes stay in the subscriptions file (so they can be
@@ -15847,11 +15869,12 @@ async def set_webhook_enabled(name: str, body: WebhookEnabledToggle):
     import work4you_cli.webhook as wh
 
     key = (name or "").strip().lower()
-    subs = wh._load_subscriptions()
-    if key not in subs:
-        raise HTTPException(status_code=404, detail=f"No subscription named '{key}'")
-    subs[key]["enabled"] = bool(body.enabled)
-    wh._save_subscriptions(subs)
+    with _config_profile_scope(profile):
+        subs = wh._load_subscriptions()
+        if key not in subs:
+            raise HTTPException(status_code=404, detail=f"No subscription named '{key}'")
+        subs[key]["enabled"] = bool(body.enabled)
+        wh._save_subscriptions(subs)
     return {"ok": True, "name": key, "enabled": bool(body.enabled)}
 
 
