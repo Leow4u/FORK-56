@@ -1267,3 +1267,76 @@ class TestWhatsAppCloudEnvOverride:
         with patch.dict(os.environ, self._ENV, clear=True):
             _apply_env_overrides(config)
         assert config.platforms[Platform.WHATSAPP_CLOUD].enabled is True
+
+
+class TestCredentialEnvOverridesHonorExplicitDisable:
+    """The dashboard / desktop switch writes ``platforms.<id>.enabled``. With
+    the channel's credentials in ``.env``, _apply_env_overrides() used to force
+    these platforms back on at every load, so switching Email or SMS off in the
+    app changed nothing. An explicit ``enabled: false`` must win; credentials
+    alone still enable a platform the user never switched."""
+
+    _CREDENTIALS = {
+        Platform.EMAIL: {
+            "EMAIL_ADDRESS": "bot@example.com",
+            "EMAIL_PASSWORD": "app-password",
+            "EMAIL_IMAP_HOST": "imap.example.com",
+            "EMAIL_SMTP_HOST": "smtp.example.com",
+        },
+        Platform.SMS: {"TWILIO_ACCOUNT_SID": "test-account-sid", "TWILIO_AUTH_TOKEN": "test-auth-token"},
+        Platform.HOMEASSISTANT: {"HASS_TOKEN": "test-hass-token"},
+        Platform.DINGTALK: {"DINGTALK_CLIENT_ID": "client-id", "DINGTALK_CLIENT_SECRET": "client-secret"},
+        Platform.FEISHU: {"FEISHU_APP_ID": "app-id", "FEISHU_APP_SECRET": "app-secret"},
+        Platform.WECOM: {"WECOM_BOT_ID": "bot-id", "WECOM_SECRET": "secret"},
+        Platform.WECOM_CALLBACK: {"WECOM_CALLBACK_CORP_ID": "corp-id", "WECOM_CALLBACK_CORP_SECRET": "corp-secret"},
+        Platform.WEIXIN: {"WEIXIN_TOKEN": "token", "WEIXIN_ACCOUNT_ID": "account-id"},
+        Platform.BLUEBUBBLES: {"BLUEBUBBLES_SERVER_URL": "http://127.0.0.1:1234", "BLUEBUBBLES_PASSWORD": "password"},
+        Platform.QQBOT: {"QQ_APP_ID": "app-id", "QQ_CLIENT_SECRET": "client-secret"},
+        Platform.YUANBAO: {"YUANBAO_APP_ID": "app-id", "YUANBAO_APP_SECRET": "app-secret"},
+    }
+
+    @pytest.mark.parametrize("platform", list(_CREDENTIALS), ids=lambda platform: platform.value)
+    def test_explicit_disable_survives_credentials(self, platform):
+        config = GatewayConfig(
+            platforms={platform: PlatformConfig(enabled=False, extra={"_enabled_explicit": True})},
+        )
+
+        with patch.dict(os.environ, self._CREDENTIALS[platform], clear=True):
+            _apply_env_overrides(config)
+
+        assert config.platforms[platform].enabled is False
+
+    @pytest.mark.parametrize("platform", list(_CREDENTIALS), ids=lambda platform: platform.value)
+    def test_credentials_enable_a_platform_the_user_never_switched(self, platform):
+        for config in (
+            GatewayConfig(),
+            GatewayConfig(platforms={platform: PlatformConfig(enabled=False)}),
+        ):
+            with patch.dict(os.environ, self._CREDENTIALS[platform], clear=True):
+                _apply_env_overrides(config)
+
+            assert config.platforms[platform].enabled is True
+
+    def test_email_and_sms_switched_off_in_config_yaml_stay_off(self, tmp_path, monkeypatch):
+        work4you_home = tmp_path / ".work4you"
+        work4you_home.mkdir()
+        (work4you_home / "config.yaml").write_text(
+            "platforms:\n"
+            "  email:\n"
+            "    enabled: false\n"
+            "  sms:\n"
+            "    enabled: false\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("WORK4YOU_HOME", str(work4you_home))
+        for key, value in {**self._CREDENTIALS[Platform.EMAIL], **self._CREDENTIALS[Platform.SMS]}.items():
+            monkeypatch.setenv(key, value)
+
+        config = load_gateway_config()
+
+        assert config.platforms[Platform.EMAIL].enabled is False
+        assert config.platforms[Platform.SMS].enabled is False
+        # The credentials still reach the switched-off platform, so it reads
+        # as set up rather than as missing its configuration.
+        assert config.platforms[Platform.EMAIL].extra.get("address") == "bot@example.com"
+
