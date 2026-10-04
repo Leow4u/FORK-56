@@ -2260,6 +2260,12 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
         if Platform.WEBHOOK not in config.platforms:
             config.platforms[Platform.WEBHOOK] = PlatformConfig()
         config.platforms[Platform.WEBHOOK].enabled = True
+    # The port and the global secret apply however the platform was turned on:
+    # WEBHOOK_ENABLED above, or platforms.webhook.enabled in config.yaml (the
+    # dashboard / desktop switch, which never writes WEBHOOK_ENABLED). Before,
+    # they were read only under WEBHOOK_ENABLED, so the values the app saves
+    # were silently ignored.
+    if Platform.WEBHOOK in config.platforms:
         if webhook_port:
             try:
                 config.platforms[Platform.WEBHOOK].extra["port"] = int(webhook_port)

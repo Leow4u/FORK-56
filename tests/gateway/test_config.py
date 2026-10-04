@@ -1340,3 +1340,63 @@ class TestCredentialEnvOverridesHonorExplicitDisable:
         # as set up rather than as missing its configuration.
         assert config.platforms[Platform.EMAIL].extra.get("address") == "bot@example.com"
 
+
+class TestWebhookEnvOverride:
+    """WEBHOOK_PORT / WEBHOOK_SECRET are the listener settings the app saves,
+    and the app turns the listener on with ``platforms.webhook.enabled`` —
+    never WEBHOOK_ENABLED. They must apply however the platform was turned on;
+    before, only WEBHOOK_ENABLED let them through."""
+
+    _ENV = {"WEBHOOK_PORT": "8701", "WEBHOOK_SECRET": "global-hmac-secret"}
+
+    def test_port_and_secret_apply_when_config_turns_the_listener_on(self):
+        config = GatewayConfig(
+            platforms={Platform.WEBHOOK: PlatformConfig(enabled=True, extra={"_enabled_explicit": True})},
+        )
+
+        with patch.dict(os.environ, self._ENV, clear=True):
+            _apply_env_overrides(config)
+
+        webhook = config.platforms[Platform.WEBHOOK]
+        assert webhook.enabled is True
+        assert webhook.extra.get("port") == 8701
+        assert webhook.extra.get("secret") == "global-hmac-secret"
+
+    def test_webhook_enabled_still_turns_the_listener_on(self):
+        config = GatewayConfig()
+
+        with patch.dict(os.environ, {**self._ENV, "WEBHOOK_ENABLED": "true"}, clear=True):
+            _apply_env_overrides(config)
+
+        webhook = config.platforms[Platform.WEBHOOK]
+        assert webhook.enabled is True
+        assert webhook.extra.get("port") == 8701
+        assert webhook.extra.get("secret") == "global-hmac-secret"
+
+    def test_port_and_secret_alone_do_not_turn_the_listener_on(self):
+        config = GatewayConfig()
+
+        with patch.dict(os.environ, self._ENV, clear=True):
+            _apply_env_overrides(config)
+
+        webhook = config.platforms.get(Platform.WEBHOOK)
+        assert webhook is None or webhook.enabled is False
+
+    def test_listener_switched_on_in_config_yaml_uses_the_env_port(self, tmp_path, monkeypatch):
+        work4you_home = tmp_path / ".work4you"
+        work4you_home.mkdir()
+        (work4you_home / "config.yaml").write_text(
+            "platforms:\n  webhook:\n    enabled: true\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("WORK4YOU_HOME", str(work4you_home))
+        monkeypatch.delenv("WEBHOOK_ENABLED", raising=False)
+        for key, value in self._ENV.items():
+            monkeypatch.setenv(key, value)
+
+        config = load_gateway_config()
+
+        webhook = config.platforms[Platform.WEBHOOK]
+        assert webhook.enabled is True
+        assert webhook.extra.get("port") == 8701
+        assert webhook.extra.get("secret") == "global-hmac-secret"

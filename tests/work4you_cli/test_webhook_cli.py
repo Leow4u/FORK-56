@@ -9,6 +9,7 @@ from argparse import Namespace
 from work4you_cli.webhook import (
     webhook_command,
     _get_webhook_base_url,
+    _is_webhook_enabled,
     _load_subscriptions,
     _save_subscriptions,
     _subscriptions_path,
@@ -49,6 +50,43 @@ def test_webhook_base_url_maps_wildcard_hosts_to_localhost(monkeypatch, host):
         lambda: {"extra": {"host": host, "port": 9123}},
     )
     assert _get_webhook_base_url() == "http://localhost:9123"
+
+
+def test_webhook_base_url_uses_the_port_the_listener_binds(monkeypatch, tmp_path):
+    """WEBHOOK_PORT (the port the app saves) wins over config.yaml, as it
+    does in the gateway; the home's .env wins over the process env."""
+    monkeypatch.setattr(
+        "work4you_cli.webhook._get_webhook_config",
+        lambda: {"extra": {"port": 9123}},
+    )
+    monkeypatch.setenv("WEBHOOK_PORT", "8710")
+    assert _get_webhook_base_url() == "http://localhost:8710"
+
+    (tmp_path / ".env").write_text("WEBHOOK_PORT=8701\n", encoding="utf-8")
+    assert _get_webhook_base_url() == "http://localhost:8701"
+
+    (tmp_path / ".env").write_text("WEBHOOK_PORT=not-a-port\n", encoding="utf-8")
+    monkeypatch.delenv("WEBHOOK_PORT")
+    assert _get_webhook_base_url() == "http://localhost:9123"
+
+
+def test_webhook_enabled_follows_config_or_the_setup_switch(monkeypatch, tmp_path):
+    """`work4you setup` turns webhooks on with WEBHOOK_ENABLED in .env and the
+    gateway starts the listener for it; reading only config.yaml refused to
+    add routes. (The autouse fixture patches the module attribute; the name
+    imported above is the real function.)"""
+    monkeypatch.setattr("work4you_cli.webhook._get_webhook_config", lambda: {})
+    monkeypatch.delenv("WEBHOOK_ENABLED", raising=False)
+    assert _is_webhook_enabled() is False
+
+    (tmp_path / ".env").write_text("WEBHOOK_ENABLED=true\n", encoding="utf-8")
+    assert _is_webhook_enabled() is True
+
+    (tmp_path / ".env").write_text("WEBHOOK_ENABLED=false\n", encoding="utf-8")
+    assert _is_webhook_enabled() is False
+
+    monkeypatch.setattr("work4you_cli.webhook._get_webhook_config", lambda: {"enabled": True})
+    assert _is_webhook_enabled() is True
 
 
 class TestSubscribe:
