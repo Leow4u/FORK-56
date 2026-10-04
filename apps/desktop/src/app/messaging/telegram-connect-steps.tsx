@@ -20,7 +20,7 @@ import { splitList } from './channel-settings'
 import {
   ChoiceList,
   type ChoiceOption,
-  Emphasized,
+  Marked,
   ReadyLine,
   ReadyView,
   restartAndWatch,
@@ -454,7 +454,7 @@ export function TelegramConnectSteps({
                   )}
                 </li>
                 <li>
-                  <Emphasized part={s.createStep2Bold} text={s.createStep2} />
+                  <Marked text={s.createStep2} />
                 </li>
               </ol>
 
@@ -566,9 +566,8 @@ export function TelegramConnectSteps({
       {step === 'talk' && othersChosen && (
         <StepPanel
           note={
-            <Emphasized
+            <Marked
               className="text-(--ui-text-secondary)"
-              part={s.othersTitle}
               text={(method === 'qr' ? s.talkNoteList : s.talkNote)(s.othersTitle)}
             />
           }
@@ -577,11 +576,7 @@ export function TelegramConnectSteps({
           {method === 'qr' ? (
             <StepField
               help={
-                ownerId ? (
-                  <Emphasized className="text-(--ui-text-secondary)" part={ownerId} text={s.listOwnerHint(ownerId)} />
-                ) : (
-                  s.listHint
-                )
+                ownerId ? <Marked className="text-(--ui-text-secondary)" text={s.listOwnerHint(ownerId)} /> : s.listHint
               }
               label={s.idsLabel}
               onChange={event => {
@@ -626,19 +621,11 @@ export function TelegramConnectSteps({
               </Button>
             </>
           }
-          note={
-            phase === 'applied' ? (
-              <Emphasized className="text-(--ui-text-secondary)" part={s.tryItWord} text={s.tryIt} />
-            ) : undefined
-          }
+          note={phase === 'applied' ? <Marked className="text-(--ui-text-secondary)" text={s.tryIt} /> : undefined}
           title={phase === 'applying' ? s.readySaving : platformConnected ? s.readyTitle : s.readySetUp}
         >
           <ReadyLine done>
-            {method === 'qr' && botUsername ? (
-              <Emphasized part={`@${botUsername}`} text={s.checkCreated(botUsername)} />
-            ) : (
-              s.checkTokenSaved
-            )}
+            {method === 'qr' && botUsername ? <Marked text={s.checkCreated(botUsername)} /> : s.checkTokenSaved}
           </ReadyLine>
           {phase === 'applied' && <RestartLine restart={restart} />}
           <ReadyLine done>{whoLine}</ReadyLine>

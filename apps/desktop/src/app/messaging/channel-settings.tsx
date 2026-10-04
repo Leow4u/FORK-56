@@ -350,8 +350,15 @@ export function AllowlistEditor({
   const m = t.messaging
   const everyone = allowed.length === 1 && allowed[0] === '*'
 
+  // What is saved now: `*` is everyone; an empty list is approving people
+  // only where that is the channel's answer (elsewhere it lets nobody in, and
+  // the list is what needs filling).
   const [choice, setChoice] = useState<'list' | AllowlistAlternative['id']>(
-    everyone && alternative?.id === 'everyone' ? 'everyone' : allowed.length > 0 ? 'list' : (alternative?.id ?? 'list')
+    everyone && alternative?.id === 'everyone'
+      ? 'everyone'
+      : allowed.length === 0 && alternative?.id === 'approve'
+        ? 'approve'
+        : 'list'
   )
 
   const [entries, setEntries] = useState(everyone ? '' : allowed.join(', '))

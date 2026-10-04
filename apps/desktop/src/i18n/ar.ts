@@ -1310,28 +1310,6 @@ export const ar = defineLocale({
         'self-chat': 'محادثة ذاتية'
       }
     },
-    discordQuickSetup: {
-      title: 'إعداد سريع',
-      recommended: 'موصى به',
-      intro:
-        'الصق رمز البوت وسيقرأ Work4You معرف التطبيق منه — ثم ينشئ رابط دعوة الخادم ويرشدك إلى النيّتين (Intents) اللتين يحتاجهما البوت. الحفظ يفعّل القناة.',
-      replacesExisting: 'Discord مُعدّ بالفعل — الحفظ هنا يستبدل الرمز المخزّن.',
-      tokenLabel: 'رمز البوت',
-      tokenPlaceholder: 'الصق رمز بوت Discord',
-      tokenHelp: 'بوابة مطوري Discord ← تطبيقك ← Bot ← Reset Token.',
-      appDetected: (id: string) => `تم اكتشاف التطبيق — المعرف ${id}`,
-      inviteHelp: 'ادعُ البوت إلى خادمك. الرابط يحدد الأذونات الموصى بها مسبقًا.',
-      inviteButton: 'دعوة البوت إلى خادمك',
-      intentsHelp: 'في صفحة Bot، فعّل Message Content Intent و Server Members Intent ثم احفظ.',
-      intentsWarning: 'البوت الذي يتصل لكنه لا يرد أبدًا يكون في الغالب بسبب إيقاف هاتين النيّتين.',
-      intentsButton: 'فتح إعدادات البوت',
-      allowedUsersLabel: 'معرّفات مستخدمي Discord المسموح بهم',
-      allowedUsersPlaceholder: '123456789012345678, 234567890123456789',
-      allowedUsersHelp:
-        'اختياري. معرّفات رقمية مفصولة بفواصل للمستخدمين المسموح لهم بمراسلة البوت مباشرة. اتركه فارغًا للموافقة على الأشخاص عبر طلبات الاقتران هنا بدلًا من ذلك.',
-      saved: 'تم حفظ Discord وتفعيله. أعد تشغيل البوابة للاتصال.',
-      saveFailed: 'فشل حفظ إعداد Discord'
-    },
     emailQuickSetup: {
       title: 'الإعداد السريع',
       recommended: 'موصى به',
