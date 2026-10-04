@@ -2024,55 +2024,6 @@ export const en: Translations = {
       copyFailed: 'Could not copy to the clipboard.',
       openGuide: 'Graph webhook guide'
     },
-    teamsQuickSetup: {
-      title: 'Quick setup',
-      recommended: 'Recommended',
-      intro:
-        'This is the Teams chat bot — people message it and Work4You answers. Paste the three ids from your Azure bot registration, then copy the messaging endpoint below into Azure. Teams calls your bot from the internet, so a local install needs a tunnel first.',
-      replacesExisting: 'Teams is already configured. Saving here replaces the stored bot credentials and bind.',
-      credentialsHelp:
-        'From the Azure bot registration: Application (client) ID, Directory (tenant) ID, and a client secret. `teams app create` prints all three.',
-      clientIdLabel: 'Application (client) ID',
-      tenantIdLabel: 'Directory (tenant) ID',
-      clientSecretLabel: 'Client secret',
-      guidPlaceholder: '00000000-0000-0000-0000-000000000000',
-      secretPlaceholder: 'Paste the client secret value',
-      secretKeepPlaceholder: 'Saved — leave empty to keep it',
-      secretWarning:
-        'The client secret is shown once in Azure, expires on the schedule you picked, and lets anyone drive your bot. Treat it like a password.',
-      openPortal: 'Azure portal',
-      idsRequired: 'Enter the client ID and tenant ID first — the adapter refuses to start without them.',
-      secretRequired: 'Enter the client secret first — the adapter refuses to start without it.',
-      bindLabel: 'Who can reach the bot listener',
-      bindLocalhost: 'This machine only (127.0.0.1)',
-      bindRemote: 'Network (0.0.0.0)',
-      bindHelp:
-        'Localhost is the right answer behind a tunnel or reverse proxy. Pick network only when Teams traffic arrives straight at this machine.',
-      endpointTitle: 'Bot messaging endpoint',
-      endpointHint:
-        'Register this URL in Azure (Bot settings → Messaging endpoint, or `teams app update --endpoint`). Work4You listens on the /api/messages path.',
-      copyEndpoint: 'Copy endpoint',
-      publicUrlLabel: 'Public HTTPS origin',
-      publicUrlPlaceholder: 'https://your-tunnel.example',
-      publicUrlHelp:
-        'Teams refuses a plain-HTTP endpoint. Terminate TLS at a tunnel or reverse proxy, then paste the https:// origin — the endpoint above updates to match.',
-      tunnelWarning:
-        'Without a public origin the endpoint points at localhost, which Teams cannot reach: the bot installs but never answers. Start a tunnel (cloudflared, ngrok) and paste its https:// origin.',
-      allowedUsersLabel: 'Allowed users',
-      allowedUsersPlaceholder: '00000000-0000-0000-0000-000000000000, …',
-      allowedUsersHelp:
-        'Comma-separated Azure AD object IDs — run `teams status --verbose` to read the id of whoever messaged the bot. Use * to allow everyone in the tenant.',
-      openWarning:
-        'With no allowlist, anyone who can find the bot in your tenant can drive your agent. Add at least your own object ID.',
-      pipelineTitle: 'Meetings and Graph notifications',
-      pipelineHelp:
-        'Meeting transcripts and other Graph change notifications arrive on the separate Graph webhook card and are subscribed with `work4you teams-pipeline subscribe`. This card only carries the chat bot.',
-      saved: 'Teams saved and enabled. Restart the gateway to start the bot listener.',
-      saveFailed: 'Could not save the Teams settings.',
-      copied: 'Copied to the clipboard.',
-      copyFailed: 'Could not copy to the clipboard.',
-      openGuide: 'Teams guide'
-    },
     whatsappCloudQuickSetup: {
       title: 'Quick setup',
       recommended: 'Recommended',
@@ -2319,6 +2270,61 @@ export const en: Translations = {
       tryIt: 'Try it: DM the bot in Slack, or mention it in a channel.',
       whoNone: 'Nobody yet · Slack answers only the people on the list',
       advancedHint: 'bot and app tokens, manifest, raw settings'
+    },
+    teamsPage: {
+      stepWho: 'Who',
+      stepAzure: 'Azure bot',
+      stepEndpoint: 'Endpoint',
+      stepTalk: 'Who can talk',
+      stepReady: 'Ready',
+      whoTitle: 'Who will use Teams with Work4You?',
+      whoNote: 'You can change this later.',
+      meTitle: 'Just me',
+      meDesc: 'Only you chat with the bot. Anyone else who writes to it privately gets a code you can ignore.',
+      othersTitle: 'People in my organization',
+      othersDesc: 'Your team chats with the bot in Teams. You choose who on a later step.',
+      azureTitle: 'Paste the Azure bot registration',
+      azureNote: 'Three values from the Azure bot registration. `teams app create` prints all three.',
+      clientIdLabel: 'Application (client) ID',
+      tenantIdLabel: 'Directory (tenant) ID',
+      secretLabel: 'Client secret',
+      secretHelp: 'Shown once in Azure and it expires on the schedule you picked. Treat it like a password.',
+      secretKept: 'Saved — leave empty to keep it',
+      openPortal: 'Azure portal',
+      endpointTitle: 'Let Teams reach the bot',
+      endpointNote: 'Teams calls the bot from the internet, so a local install needs a tunnel or reverse proxy first.',
+      bindLabel: 'Who can reach the bot listener',
+      bindLocal: 'This machine only (127.0.0.1)',
+      bindNetwork: 'Network (0.0.0.0)',
+      publicUrlLabel: 'Public HTTPS origin',
+      publicUrlHelp: 'The https:// address of your tunnel or proxy. Teams refuses plain HTTP.',
+      tunnelWarning:
+        'The https:// address of your tunnel or proxy. Without it the endpoint points at this machine, which Teams cannot reach.',
+      endpointLabel: 'Bot messaging endpoint',
+      copyEndpoint: 'Copy endpoint',
+      endpointHelp: 'Paste it in Azure: **Bot settings** › **Messaging endpoint**.',
+      talkTitle: 'Who can talk to the bot?',
+      talkNote: (choice: string) => `You chose **${choice}**. Only the people you allow get a reply.`,
+      meIdTitle: 'Your Azure AD object ID',
+      meIdNote: 'Only this ID gets a reply. Anyone else who writes to the bot privately gets a code you can ignore.',
+      meIdLabel: 'Azure AD object ID',
+      meIdHelp:
+        'In the Azure portal: **Users** › your name › **Object ID**. Or leave it empty: your first message gets a code you approve under Pending requests.',
+      listDesc: 'Azure AD object IDs, separated by commas.',
+      listHint:
+        'Run `teams status --verbose` to read the ID of whoever messaged the bot. Anyone else who chats with it privately gets a code you approve under Pending requests.',
+      everyoneTitle: 'Everyone in my organization',
+      everyoneDesc: 'Anyone in your Microsoft 365 tenant who finds the bot can use it.',
+      readySaving: 'Saving and restarting the gateway…',
+      readyTitle: 'Teams is connected and listening.',
+      readySetUp: 'Teams is set up.',
+      checkListener: (port: string) => `Listener is up on port ${port}`,
+      checkListenerPending: 'Checking the listener…',
+      checkEndpoint: (url: string) => `Endpoint **${url}**`,
+      tryIt: 'Try it: open the bot in Teams and send **hi**.',
+      endpointLine: (url: string) => `Endpoint ${url}`,
+      graphNote: 'Meeting transcripts and other Graph notifications arrive on the Microsoft Graph Webhook channel.',
+      advancedHint: 'Azure IDs and secret, host, port, raw settings'
     },
     telegramQuickSetup: {
       waiting: 'Waiting for you to confirm in Telegram…',

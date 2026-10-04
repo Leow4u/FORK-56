@@ -58,7 +58,7 @@ import { PlatformAvatar } from './platform-icon'
 import { SlackDetail } from './slack-detail'
 import { SmsQuickSetup } from './sms-quick-setup'
 import { $channelsCategory, $channelsView, readChannelsSnapshot, writeChannelsSnapshot } from './store'
-import { TeamsQuickSetup } from './teams-quick-setup'
+import { TeamsDetail } from './teams-detail'
 import { TelegramDetail } from './telegram-detail'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
 import { WebhookRoutesPanel } from './webhook-routes-panel'
@@ -82,7 +82,6 @@ const QUICK_SETUP_PLATFORMS = new Set([
   'google_chat',
   'msgraph_webhook',
   'sms',
-  'teams',
   'webhook',
   'whatsapp',
   'whatsapp_cloud'
@@ -879,6 +878,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <SlackDetail {...props} />
   }
 
+  if (platform.id === 'teams') {
+    return <TeamsDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -942,15 +945,6 @@ function PlatformDetail(props: PlatformDetailProps) {
 
       {platform.id === 'msgraph_webhook' && (
         <MsgraphWebhookQuickSetup
-          configured={platform.configured}
-          envVars={platform.env_vars}
-          onApplied={onQuickSetupApplied}
-          scopeProfile={scopeProfile}
-        />
-      )}
-
-      {platform.id === 'teams' && (
-        <TeamsQuickSetup
           configured={platform.configured}
           envVars={platform.env_vars}
           onApplied={onQuickSetupApplied}
@@ -1244,8 +1238,6 @@ const PLATFORM_INTRO: Record<string, string> = {
   a2a: 'Two independent directions: inbound exposes Work4You as an A2A agent (Agent Card at /.well-known/agent-card.json; localhost-only until you set a token). Outbound is the a2a toolset plus named peers in Quick setup above — enabling the channel does not turn those tools on. The optional fields below are the bind, tokens, public URL, and advertised name.',
   msgraph_webhook:
     'Inbound listener only — Microsoft Graph POSTs change notifications here (meetings, Outlook, chat). This is not the Teams chat bot. Use Quick setup above to generate the clientState secret, bind localhost behind a tunnel, and copy the notification URL. A network bind needs source CIDRs. Subscriptions are created with `work4you teams-pipeline subscribe`; Azure app credentials stay on the Teams / pipeline cards.',
-  teams:
-    'The Teams chat bot: people message it in a personal chat, a group chat, or a channel and Work4You answers. Register a bot in Azure, then use Quick setup above to paste the three ids and copy the messaging endpoint Azure needs. Teams reaches your bot over the public internet, so a local install needs a tunnel — a bot that installs but never answers almost always has the endpoint still pointing at localhost.',
   whatsapp_cloud:
     "Meta's official WhatsApp Business API — a business number that people message, with no phone or QR code to keep online (the WhatsApp card above is the personal-number bridge). Use Quick setup above: paste the Phone number ID, a permanent access token, and the app secret from the Meta developer dashboard, then copy the callback URL into Meta's webhook settings. Meta reaches your machine over the public internet, so a local install needs a tunnel, and the API Setup token expires after 24 hours — use a System User token."
 }

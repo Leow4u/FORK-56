@@ -1710,55 +1710,6 @@ export const ja = defineLocale({
       copyFailed: 'クリップボードにコピーできませんでした。',
       openGuide: 'Graph webhook ガイド'
     },
-    teamsQuickSetup: {
-      title: 'クイックセットアップ',
-      recommended: '推奨',
-      intro:
-        'これは Teams のチャットボットです。ユーザーがメッセージを送ると Work4You が応答します。Azure のボット登録から 3 つの ID を貼り付け、下のメッセージングエンドポイントを Azure にコピーしてください。Teams はインターネット経由でボットを呼び出すため、ローカル環境ではまずトンネルが必要です。',
-      replacesExisting: 'Teams は既に設定済みです。ここで保存すると保存済みのボット資格情報とバインドを置き換えます。',
-      credentialsHelp:
-        'Azure のボット登録から: アプリケーション (クライアント) ID、ディレクトリ (テナント) ID、クライアントシークレット。`teams app create` が 3 つすべてを出力します。',
-      clientIdLabel: 'アプリケーション (クライアント) ID',
-      tenantIdLabel: 'ディレクトリ (テナント) ID',
-      clientSecretLabel: 'クライアントシークレット',
-      guidPlaceholder: '00000000-0000-0000-0000-000000000000',
-      secretPlaceholder: 'クライアントシークレットの値を貼り付け',
-      secretKeepPlaceholder: '保存済み — 空のままで維持されます',
-      secretWarning:
-        'クライアントシークレットは Azure で一度しか表示されず、選択した期間で失効します。持っている人は誰でもボットを操作できるため、パスワードと同じ扱いにしてください。',
-      openPortal: 'Azure ポータル',
-      idsRequired: 'まずクライアント ID とテナント ID を入力してください。なければアダプターは起動しません。',
-      secretRequired: 'まずクライアントシークレットを入力してください。なければアダプターは起動しません。',
-      bindLabel: 'ボットリスナーに到達できる範囲',
-      bindLocalhost: 'このマシンのみ (127.0.0.1)',
-      bindRemote: 'ネットワーク (0.0.0.0)',
-      bindHelp:
-        'トンネルやリバースプロキシの背後ではローカルホストが正解です。Teams のトラフィックが直接このマシンに届く場合のみネットワークを選んでください。',
-      endpointTitle: 'ボットのメッセージングエンドポイント',
-      endpointHint:
-        'この URL を Azure に登録します (ボット設定 → メッセージングエンドポイント、または `teams app update --endpoint`)。Work4You は /api/messages パスで待ち受けます。',
-      copyEndpoint: 'エンドポイントをコピー',
-      publicUrlLabel: '公開 HTTPS オリジン',
-      publicUrlPlaceholder: 'https://your-tunnel.example',
-      publicUrlHelp:
-        'Teams は平文 HTTP のエンドポイントを拒否します。トンネルまたはリバースプロキシで TLS を終端し、https:// オリジンを貼り付けてください。上のエンドポイントも合わせて更新されます。',
-      tunnelWarning:
-        '公開オリジンがないとエンドポイントは localhost を指し、Teams からは到達できません。ボットはインストールできても応答しません。トンネル (cloudflared、ngrok) を起動して https:// オリジンを貼り付けてください。',
-      allowedUsersLabel: '許可するユーザー',
-      allowedUsersPlaceholder: '00000000-0000-0000-0000-000000000000, …',
-      allowedUsersHelp:
-        'カンマ区切りの Azure AD オブジェクト ID。`teams status --verbose` でボットにメッセージを送った人の ID を確認できます。* でテナント全員を許可します。',
-      openWarning:
-        '許可リストがないと、テナント内でボットを見つけられる人は誰でもエージェントを操作できます。少なくとも自分のオブジェクト ID を追加してください。',
-      pipelineTitle: '会議と Graph 通知',
-      pipelineHelp:
-        '会議の文字起こしなど Graph の変更通知は別の Graph webhook カードに届き、`work4you teams-pipeline subscribe` で購読します。このカードはチャットボットのみを扱います。',
-      saved: 'Teams を保存して有効にしました。ゲートウェイを再起動するとボットリスナーが起動します。',
-      saveFailed: 'Teams の設定を保存できませんでした。',
-      copied: 'クリップボードにコピーしました。',
-      copyFailed: 'クリップボードにコピーできませんでした。',
-      openGuide: 'Teams ガイド'
-    },
     whatsappCloudQuickSetup: {
       title: 'クイックセットアップ',
       recommended: '推奨',

@@ -317,6 +317,7 @@ export interface AllowlistAlternative {
 /** The Edit of "Who can talk": the list, or the channel's other answer when
  *  it has one. Saves through the same channel update the raw settings use. */
 export function AllowlistEditor({
+  allowEmpty = false,
   allowed,
   alternative,
   envKey,
@@ -331,6 +332,9 @@ export function AllowlistEditor({
   scopeProfile,
   validate
 }: {
+  /** An empty list is an answer of its own here (everyone who writes gets
+   *  a code), so saving it clears the list instead of asking for one. */
+  allowEmpty?: boolean
   allowed: string[]
   alternative?: AllowlistAlternative
   envKey: string
@@ -369,13 +373,13 @@ export function AllowlistEditor({
     const list = splitList(entries).join(',')
 
     if (choice === 'list') {
-      if (!list) {
+      if (!list && !allowEmpty) {
         setError(requiredMessage)
 
         return
       }
 
-      const invalid = validate(list)
+      const invalid = list ? validate(list) : null
 
       if (invalid) {
         setError(invalid)
@@ -387,8 +391,12 @@ export function AllowlistEditor({
     setBusy(true)
 
     try {
-      if (choice === 'list') {
+      if (choice === 'list' && list) {
         await updateMessagingPlatform(platform.id, { env: { [envKey]: list } }, scopeProfile)
+      } else if (choice === 'list') {
+        if (allowed.length > 0) {
+          await updateMessagingPlatform(platform.id, { clear_env: [envKey] }, scopeProfile)
+        }
       } else if (choice === 'everyone') {
         await updateMessagingPlatform(platform.id, { env: { [envKey]: '*' } }, scopeProfile)
       } else if (allowed.length > 0) {

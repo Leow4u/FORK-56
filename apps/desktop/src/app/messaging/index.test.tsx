@@ -158,6 +158,25 @@ function slackReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatfo
   })
 }
 
+/** Microsoft Teams on and connected behind a tunnel, with one allowed id. */
+function teamsReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
+  return platform({
+    configured: true,
+    enabled: true,
+    env_vars: [
+      envField('TEAMS_CLIENT_ID', '1b2c3d4e-0000-4000-8000-00000000abcd', { required: true }),
+      envField('TEAMS_CLIENT_SECRET', 'secret', { is_password: true, required: true, value: null }),
+      envField('TEAMS_TENANT_ID', '9a8b7c6d-0000-4000-8000-00000000dcba', { required: true }),
+      envField('TEAMS_ALLOWED_USERS', '6f1c2a9e-0b7d-4c55-9a51-2f3e4d5c6b7a'),
+      envField('TEAMS_PUBLIC_URL', 'https://bot.example.com')
+    ],
+    id: 'teams',
+    name: 'Microsoft Teams',
+    state: 'connected',
+    ...patch
+  })
+}
+
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
     configured: false,
@@ -1134,6 +1153,48 @@ describe('MessagingView channel page', () => {
     })
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith('slack', { env: { SLACK_ALLOWED_USERS: 'U01ABC2DEF3' } })
+    )
+  })
+
+  it('walks Teams through its first connection step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ id: 'teams', name: 'Microsoft Teams' })] })
+
+    await renderMessaging()
+    await openChannel('Microsoft Teams')
+
+    expect(await screen.findByText(en.messaging.teamsPage.whoTitle)).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows Teams as settings with the endpoint Azure calls', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [teamsReady()] })
+
+    await renderMessaging()
+    await openChannel('Microsoft Teams')
+
+    expect(await screen.findByText(en.messaging.connectedListening)).toBeTruthy()
+    expect(screen.getByText(en.messaging.teamsPage.endpointLine('https://bot.example.com/api/messages'))).toBeTruthy()
+    expect(screen.getByRole('button', { name: en.messaging.teamsPage.copyEndpoint })).toBeTruthy()
+    expect(screen.getByText(en.messaging.channelSettings.whoOnlyPeople(1))).toBeTruthy()
+    expect(screen.getByText(en.messaging.teamsPage.graphNote)).toBeTruthy()
+  })
+
+  it('edits who can talk on Teams, where an empty list approves people by code', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [teamsReady()] })
+
+    await renderMessaging()
+    await openChannel('Microsoft Teams')
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: en.messaging.edit }))
+    })
+    fireEvent.change(screen.getByLabelText(en.messaging.channelSettings.listTitle), { target: { value: '' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('teams', { clear_env: ['TEAMS_ALLOWED_USERS'] })
     )
   })
 

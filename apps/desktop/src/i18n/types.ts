@@ -1769,45 +1769,6 @@ export interface Translations {
       copyFailed: string
       openGuide: string
     }
-    teamsQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      credentialsHelp: string
-      clientIdLabel: string
-      tenantIdLabel: string
-      clientSecretLabel: string
-      guidPlaceholder: string
-      secretPlaceholder: string
-      secretKeepPlaceholder: string
-      secretWarning: string
-      openPortal: string
-      idsRequired: string
-      secretRequired: string
-      bindLabel: string
-      bindLocalhost: string
-      bindRemote: string
-      bindHelp: string
-      endpointTitle: string
-      endpointHint: string
-      copyEndpoint: string
-      publicUrlLabel: string
-      publicUrlPlaceholder: string
-      publicUrlHelp: string
-      tunnelWarning: string
-      allowedUsersLabel: string
-      allowedUsersPlaceholder: string
-      allowedUsersHelp: string
-      openWarning: string
-      pipelineTitle: string
-      pipelineHelp: string
-      saved: string
-      saveFailed: string
-      copied: string
-      copyFailed: string
-      openGuide: string
-    }
     whatsappCloudQuickSetup: {
       title: string
       recommended: string
@@ -2030,6 +1991,58 @@ export interface Translations {
       whoEveryone: string
       tryIt: string
       whoNone: string
+      advancedHint: string
+    }
+    teamsPage: {
+      stepWho: string
+      stepAzure: string
+      stepEndpoint: string
+      stepTalk: string
+      stepReady: string
+      whoTitle: string
+      whoNote: string
+      meTitle: string
+      meDesc: string
+      othersTitle: string
+      othersDesc: string
+      azureTitle: string
+      azureNote: string
+      clientIdLabel: string
+      tenantIdLabel: string
+      secretLabel: string
+      secretHelp: string
+      secretKept: string
+      openPortal: string
+      endpointTitle: string
+      endpointNote: string
+      bindLabel: string
+      bindLocal: string
+      bindNetwork: string
+      publicUrlLabel: string
+      publicUrlHelp: string
+      tunnelWarning: string
+      endpointLabel: string
+      copyEndpoint: string
+      endpointHelp: string
+      talkTitle: string
+      talkNote: (choice: string) => string
+      meIdTitle: string
+      meIdNote: string
+      meIdLabel: string
+      meIdHelp: string
+      listDesc: string
+      listHint: string
+      everyoneTitle: string
+      everyoneDesc: string
+      readySaving: string
+      readyTitle: string
+      readySetUp: string
+      checkListener: (port: string) => string
+      checkListenerPending: string
+      checkEndpoint: (url: string) => string
+      tryIt: string
+      endpointLine: (url: string) => string
+      graphNote: string
       advancedHint: string
     }
     telegramQuickSetup: {
