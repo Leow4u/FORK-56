@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type * as NanostoresModule from 'nanostores'
 import { MemoryRouter, Route, Routes } from 'react-router'
@@ -20,6 +21,8 @@ const revokePairing = vi.fn()
 const openExternalLink = vi.fn()
 const getCronJobs = vi.fn()
 const runGatewayRestart = vi.fn()
+const getWebhooks = vi.fn()
+const setWebhookEnabled = vi.fn()
 
 vi.mock('@/work4you', () => ({
   approvePairing: (platformId: string, requestId: string) => approvePairing(platformId, requestId),
@@ -33,9 +36,12 @@ vi.mock('@/work4you', () => ({
   getPairing: (profile?: null | string) => getPairing(profile),
   getProfiles: vi.fn(async () => ({ profiles: [] })),
   getTelegramOnboardingStatus: vi.fn(),
+  getWebhooks: (profile?: null | string) => getWebhooks(profile),
   getWhatsAppOnboardingStatus: vi.fn(),
   revokePairing: (platformId: string, userId: string) => revokePairing(platformId, userId),
   setApiRequestProfile: vi.fn(),
+  setWebhookEnabled: (name: string, enabled: boolean, profile?: null | string) =>
+    setWebhookEnabled(name, enabled, profile),
   startTelegramOnboarding: vi.fn(),
   startWhatsAppOnboarding: vi.fn(),
   testMessagingPlatform: (id: string) => testMessagingPlatform(id),
@@ -276,6 +282,24 @@ function apiServerReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPl
   })
 }
 
+/** A webhook route as the routes list returns it. */
+function webhookRoute(name: string, events: string[], deliver: string, enabled = true) {
+  return {
+    created_at: null,
+    deliver,
+    deliver_only: false,
+    description: '',
+    enabled,
+    events,
+    name,
+    prompt: '',
+    script: '',
+    secret_set: true,
+    skills: [],
+    url: `http://localhost:8644/webhooks/${name}`
+  }
+}
+
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
     configured: false,
@@ -295,6 +319,8 @@ beforeEach(() => {
   updateMessagingPlatform.mockResolvedValue({ ok: true, platform: 'mattermost' })
   getPairing.mockResolvedValue({ approved: [], pending: [] })
   getCronJobs.mockResolvedValue([])
+  getWebhooks.mockResolvedValue({ base_url: 'http://localhost:8644', enabled: false, subscriptions: [] })
+  setWebhookEnabled.mockResolvedValue({ enabled: true, name: 'route', ok: true })
 })
 
 afterEach(() => {
@@ -312,11 +338,13 @@ async function renderMessaging() {
   let result: ReturnType<typeof render>
   await act(async () => {
     result = render(
-      <MemoryRouter initialEntries={['/messaging']}>
-        <Routes>
-          <Route element={<MessagingView />} path="/messaging/:platformId?" />
-        </Routes>
-      </MemoryRouter>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/messaging']}>
+          <Routes>
+            <Route element={<MessagingView />} path="/messaging/:platformId?" />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
     )
   })
 
@@ -1528,6 +1556,71 @@ describe('MessagingView channel page', () => {
         env: { API_SERVER_KEY: expect.stringMatching(/^[A-Za-z0-9_-]{32}$/) }
       })
     )
+  })
+
+  it('walks Webhooks through its first setup while the listener is off with no route', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ configured: true, id: 'webhook', name: 'Webhooks' })]
+    })
+
+    await renderMessaging()
+    await openChannel('Webhooks')
+
+    expect(await screen.findByText(en.messaging.webhookPage.listenerTitle)).toBeTruthy()
+    expect(screen.getByText('http://localhost:8644/webhooks/<route>')).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows Webhooks as settings: listening, its routes and their switches', async () => {
+    const s = en.messaging.webhookPage
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ configured: true, enabled: true, id: 'webhook', name: 'Webhooks', state: 'connected' })]
+    })
+    getWebhooks.mockResolvedValue({
+      base_url: 'http://localhost:8644',
+      enabled: true,
+      subscriptions: [
+        webhookRoute('github-issues', ['issues', 'issue_comment'], 'telegram'),
+        webhookRoute('gitlab-deploys', ['pipeline'], 'log', false)
+      ]
+    })
+
+    await renderMessaging()
+    await openChannel('Webhooks')
+
+    expect(await screen.findByText(s.listeningRoutes(2))).toBeTruthy()
+    expect(screen.getByText(en.messaging.stateListening)).toBeTruthy()
+    expect(screen.getByText(s.routeLine('issues, issue_comment', 'Telegram'))).toBeTruthy()
+    expect(screen.getByText(s.routeLine('pipeline', s.localLogOnly))).toBeTruthy()
+    // No restart is pending, so the listener line offers none.
+    expect(screen.queryByRole('button', { name: en.messaging.restartGateway })).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('switch', { name: s.toggleRoute('gitlab-deploys') }))
+    })
+    expect(setWebhookEnabled).toHaveBeenCalledWith('gitlab-deploys', true, 'default')
+  })
+
+  it('opens an off listener that has routes on its settings, not the first setup', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ configured: true, id: 'webhook', name: 'Webhooks' })]
+    })
+    getWebhooks.mockResolvedValue({
+      base_url: 'http://localhost:8644',
+      enabled: false,
+      subscriptions: [webhookRoute('github-issues', [], 'log')]
+    })
+
+    await renderMessaging()
+    await openChannel('Webhooks')
+
+    expect(await screen.findByText(en.messaging.webhookPage.routesTitle)).toBeTruthy()
+    expect(
+      screen.getByText(
+        en.messaging.webhookPage.routeLine(en.messaging.webhookPage.everyEvent, en.messaging.webhookPage.localLogOnly)
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText(en.messaging.webhookPage.listenerTitle)).toBeNull()
   })
 
   it('counts the routines that deliver to WhatsApp', async () => {

@@ -1801,24 +1801,6 @@ export const en: Translations = {
         'self-chat': 'Self-chat'
       }
     },
-    webhookRoutesPanel: {
-      title: 'Webhook routes',
-      startHere: 'Start here',
-      intro:
-        'Routes are what this channel receives: each one is its own URL with its own signing secret. Create and manage them on the Webhooks page — enabling the channel without a route leaves a listener that accepts nothing.',
-      baseUrlLabel: 'Endpoint pattern',
-      copyBaseUrl: 'Copy base URL',
-      copied: 'Copied to the clipboard.',
-      copyFailed: 'Could not copy to the clipboard.',
-      routeCount: (active: number, total: number) =>
-        active === total
-          ? `${total} route${total === 1 ? '' : 's'} configured.`
-          : `${active} of ${total} routes active.`,
-      noRoutes: 'No routes yet — the listener accepts nothing until you create one.',
-      tunnelHint:
-        'The sending service must be able to reach this port. If Work4You runs on your local machine, expose it with a tunnel like cloudflared or ngrok.',
-      manageRoutes: 'Manage webhook routes'
-    },
     a2aQuickSetup: {
       title: 'Quick setup',
       recommended: 'Recommended',
@@ -2414,6 +2396,56 @@ export const en: Translations = {
       openAiCompatible: 'OpenAI-compatible',
       advancedHint: 'host, port, model name, CORS origins',
       activeHint: 'Off stops the endpoint after a gateway restart; the key is kept.'
+    },
+    webhookPage: {
+      stepListener: 'Listener',
+      stepRoute: 'First route',
+      stepReady: 'Ready',
+      listenerTitle: 'Turn on the webhook listener',
+      listenerNote:
+        'GitHub, GitLab and other services post events here. Each route gets its own URL and signing secret.',
+      patternLabel: 'Endpoint pattern',
+      copyBaseUrl: 'Copy base URL',
+      reachNote: 'The sending service must reach this port. A local install needs a tunnel like cloudflared or ngrok.',
+      turnOn: 'Turn on and continue',
+      routeTitle: 'Add your first route',
+      routeTitleMore: 'Add a route',
+      routeNote: 'What arrives, what the bot does with it, and where the result goes.',
+      nameLabel: 'Route name',
+      nameHelp: (url: string) => `Becomes the URL: ${url}`,
+      nameRequired: 'Give the route a name.',
+      eventsLabel: 'Events',
+      eventsHelp: 'Leave empty to accept every event.',
+      promptLabel: 'What the bot does',
+      promptPlaceholder: 'Summarize the new issue and suggest labels.',
+      deliverLabel: 'Send the result to',
+      deliverHelp:
+        'Log, Telegram, Discord, Slack, Email or a GitHub comment. With no target, it goes to that channel’s home chat.',
+      createRoute: 'Create route',
+      readyTitle: 'Webhooks are on.',
+      checkRoute: (name: string) => `Route **${name}** created`,
+      checkSecret: 'Signing secret generated',
+      checkDeliver: (target: string) => `Results go to ${target}`,
+      deliverLog: 'the local log',
+      pasteBoth: (hostPort: string) =>
+        `Paste both in GitHub: **Settings** › **Webhooks** › **Add webhook**. Behind a tunnel, swap ${hostPort} for your public address.`,
+      urlLabel: 'Webhook URL',
+      copyUrl: 'Copy URL',
+      secretLabel: 'Secret (shown once)',
+      copySecret: 'Copy secret',
+      manageRoutes: 'Manage routes',
+      listenerBlock: 'Listener',
+      listeningRoutes: (count: number) => `Listening · ${count} ${count === 1 ? 'route' : 'routes'}`,
+      routesTitle: 'Routes',
+      routesNote: 'Each route has its own URL and signing secret.',
+      noRoutes: 'No routes yet — the listener accepts nothing until you add one.',
+      newRoute: 'New route',
+      routeLine: (events: string, target: string) => `${events} → ${target}`,
+      everyEvent: 'every event',
+      localLogOnly: 'local log only',
+      toggleRoute: (name: string) => `Route ${name}`,
+      advancedHint: 'port, raw settings',
+      activeHint: 'Off stops the listener after a gateway restart; routes are kept.'
     },
     telegramQuickSetup: {
       waiting: 'Waiting for you to confirm in Telegram…',

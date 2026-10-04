@@ -1310,22 +1310,6 @@ export const ar = defineLocale({
         'self-chat': 'محادثة ذاتية'
       }
     },
-    webhookRoutesPanel: {
-      title: 'مسارات Webhook',
-      startHere: 'ابدأ من هنا',
-      intro:
-        'المسارات هي ما تستقبله هذه القناة: كل مسار له عنوان URL خاص وسر توقيع خاص. أنشئها وأدرها من صفحة Webhooks — تفعيل القناة بدون مسار يترك مستمعاً لا يقبل أي شيء.',
-      baseUrlLabel: 'نمط نقطة النهاية',
-      copyBaseUrl: 'انسخ عنوان URL الأساسي',
-      copied: 'تم النسخ إلى الحافظة.',
-      copyFailed: 'تعذّر النسخ إلى الحافظة.',
-      routeCount: (active: number, total: number) =>
-        active === total ? `${total} مسار مُعدّ.` : `${active} من ${total} مسارات نشطة.`,
-      noRoutes: 'لا توجد مسارات بعد — لن يقبل المستمع أي شيء حتى تنشئ مساراً.',
-      tunnelHint:
-        'يجب أن تتمكن الخدمة المرسلة من الوصول إلى هذا المنفذ. إذا كان Work4You يعمل على جهازك المحلي، فاكشفه عبر نفق مثل cloudflared أو ngrok.',
-      manageRoutes: 'إدارة مسارات Webhook'
-    },
     a2aQuickSetup: {
       title: 'الإعداد السريع',
       recommended: 'موصى به',

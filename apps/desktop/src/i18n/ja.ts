@@ -1483,22 +1483,6 @@ export const ja = defineLocale({
         'self-chat': 'セルフチャット'
       }
     },
-    webhookRoutesPanel: {
-      title: 'Webhook ルート',
-      startHere: 'ここから開始',
-      intro:
-        'ルートがこのチャンネルの受信内容を決めます。各ルートは固有の URL と署名シークレットを持ちます。ルートは Webhooks ページで作成・管理してください。ルートなしでチャンネルを有効にしても、リスナーは何も受け付けません。',
-      baseUrlLabel: 'エンドポイントの形式',
-      copyBaseUrl: 'ベース URL をコピー',
-      copied: 'クリップボードにコピーしました。',
-      copyFailed: 'クリップボードにコピーできませんでした。',
-      routeCount: (active: number, total: number) =>
-        active === total ? `${total} 件のルートが設定済みです。` : `${total} 件中 ${active} 件のルートが有効です。`,
-      noRoutes: 'ルートがまだありません。最初のルートを作成するまで、リスナーは何も受け付けません。',
-      tunnelHint:
-        '送信側サービスがこのポートに到達できる必要があります。Work4You をローカルで実行している場合は、cloudflared や ngrok などのトンネルで公開してください。',
-      manageRoutes: 'Webhook ルートを管理'
-    },
     a2aQuickSetup: {
       title: 'クイックセットアップ',
       recommended: '推奨',

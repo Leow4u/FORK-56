@@ -1436,22 +1436,6 @@ export const zhHant = defineLocale({
         'self-chat': '自我對話'
       }
     },
-    webhookRoutesPanel: {
-      title: 'Webhook 路由',
-      startHere: '從這裡開始',
-      intro:
-        '路由決定此頻道接收什麼：每條路由都有自己的 URL 和簽名密鑰。請在 Webhooks 頁面建立和管理路由——只啟用頻道而不建路由，監聽器不會接受任何請求。',
-      baseUrlLabel: '端點格式',
-      copyBaseUrl: '複製基礎 URL',
-      copied: '已複製到剪貼簿。',
-      copyFailed: '無法複製到剪貼簿。',
-      routeCount: (active: number, total: number) =>
-        active === total ? `已設定 ${total} 條路由。` : `${total} 條路由中有 ${active} 條處於啟用狀態。`,
-      noRoutes: '還沒有路由——在建立第一條路由之前，監聽器不會接受任何請求。',
-      tunnelHint:
-        '傳送方服務必須能存取該連接埠。如果 Work4You 在本機執行，請用 cloudflared 或 ngrok 之類的通道公開它。',
-      manageRoutes: '管理 Webhook 路由'
-    },
     a2aQuickSetup: {
       title: '快速設定',
       recommended: '建議',
