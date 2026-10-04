@@ -1,0 +1,26 @@
+{
+  "name": "work4you-telegram-setup",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Work4You Telegram setup service — creates a user's bot through Telegram Managed Bots and hands its token to the Work4You app that asked for it, once.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test src/*.test.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.4",
+    "hono": "^4.8.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}
