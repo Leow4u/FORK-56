@@ -62,7 +62,7 @@ import { TeamsDetail } from './teams-detail'
 import { TelegramDetail } from './telegram-detail'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
 import { WebhookRoutesPanel } from './webhook-routes-panel'
-import { WhatsAppCloudQuickSetup } from './whatsapp-cloud-quick-setup'
+import { WhatsAppCloudDetail } from './whatsapp-cloud-detail'
 import { WhatsAppDetail } from './whatsapp-detail'
 
 interface MessagingViewProps extends React.ComponentProps<'section'> {
@@ -83,8 +83,7 @@ const QUICK_SETUP_PLATFORMS = new Set([
   'msgraph_webhook',
   'sms',
   'webhook',
-  'whatsapp',
-  'whatsapp_cloud'
+  'whatsapp'
 ])
 
 const trimEdits = (edits: Record<string, string>): Record<string, string> =>
@@ -882,6 +881,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <TeamsDetail {...props} />
   }
 
+  if (platform.id === 'whatsapp_cloud') {
+    return <WhatsAppCloudDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -945,15 +948,6 @@ function PlatformDetail(props: PlatformDetailProps) {
 
       {platform.id === 'msgraph_webhook' && (
         <MsgraphWebhookQuickSetup
-          configured={platform.configured}
-          envVars={platform.env_vars}
-          onApplied={onQuickSetupApplied}
-          scopeProfile={scopeProfile}
-        />
-      )}
-
-      {platform.id === 'whatsapp_cloud' && (
-        <WhatsAppCloudQuickSetup
           configured={platform.configured}
           envVars={platform.env_vars}
           onApplied={onQuickSetupApplied}
@@ -1237,9 +1231,7 @@ const PLATFORM_INTRO: Record<string, string> = {
     'Turn events from GitHub, GitLab, Stripe, or your own apps into agent runs. Each route is its own URL with its own signing secret — create and manage routes in "Webhook routes" above; nothing is received until at least one route exists. The optional fields below are the listener port and a global fallback secret.',
   a2a: 'Two independent directions: inbound exposes Work4You as an A2A agent (Agent Card at /.well-known/agent-card.json; localhost-only until you set a token). Outbound is the a2a toolset plus named peers in Quick setup above — enabling the channel does not turn those tools on. The optional fields below are the bind, tokens, public URL, and advertised name.',
   msgraph_webhook:
-    'Inbound listener only — Microsoft Graph POSTs change notifications here (meetings, Outlook, chat). This is not the Teams chat bot. Use Quick setup above to generate the clientState secret, bind localhost behind a tunnel, and copy the notification URL. A network bind needs source CIDRs. Subscriptions are created with `work4you teams-pipeline subscribe`; Azure app credentials stay on the Teams / pipeline cards.',
-  whatsapp_cloud:
-    "Meta's official WhatsApp Business API — a business number that people message, with no phone or QR code to keep online (the WhatsApp card above is the personal-number bridge). Use Quick setup above: paste the Phone number ID, a permanent access token, and the app secret from the Meta developer dashboard, then copy the callback URL into Meta's webhook settings. Meta reaches your machine over the public internet, so a local install needs a tunnel, and the API Setup token expires after 24 hours — use a System User token."
+    'Inbound listener only — Microsoft Graph POSTs change notifications here (meetings, Outlook, chat). This is not the Teams chat bot. Use Quick setup above to generate the clientState secret, bind localhost behind a tunnel, and copy the notification URL. A network bind needs source CIDRs. Subscriptions are created with `work4you teams-pipeline subscribe`; Azure app credentials stay on the Teams / pipeline cards.'
 }
 
 const introCopy = (platform: MessagingPlatformInfo, m: Translations['messaging']) =>

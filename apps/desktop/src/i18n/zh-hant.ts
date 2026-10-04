@@ -1641,66 +1641,6 @@ export const zhHant = defineLocale({
       copyFailed: '無法複製到剪貼簿。',
       openGuide: 'Graph webhook 指南'
     },
-    whatsappCloudQuickSetup: {
-      title: '快速設定',
-      recommended: '推薦',
-      intro:
-        'Meta 官方的 WhatsApp Business API——一個供使用者傳訊息的企業號碼，無需讓手機或 QR code 保持上線。從 Meta 開發者面板貼上三個值，產生驗證權杖，然後把下方的回呼 URL 複製到 Meta 的 webhook 設定中。Meta 會從網際網路存取你的機器，因此本機安裝需要先啟動通道。',
-      replacesExisting: 'WhatsApp Cloud API 已設定。在此儲存會取代已儲存的 Meta 憑證與繫結。',
-      credentialsHelp:
-        '來自 Meta 開發者面板（WhatsApp → API 設定，以及應用程式設定 → 基本）。`work4you whatsapp-cloud` 會詢問同樣的三個值。',
-      phoneNumberIdLabel: '電話號碼 ID',
-      phoneNumberIdPlaceholder: '123456789012345',
-      phoneNumberIdHelp:
-        'API 設定頁「寄件者」下拉選單下方的 15-17 位數字 ID——不是電話號碼本身，也不是 WhatsApp 商業帳號 ID。',
-      accessTokenLabel: '存取權杖',
-      accessTokenPlaceholder: 'EAA…',
-      accessTokenHelp:
-        '以 EAA 開頭。API 設定頁中的權杖 24 小時後過期；請建立一個擁有 whatsapp_business_messaging 權限的系統使用者，並產生永久權杖。',
-      appSecretLabel: '應用程式密鑰',
-      appSecretPlaceholder: '32 個十六進位字元',
-      appSecretHelp:
-        '應用程式設定 → 基本 → 應用程式密鑰（點擊「顯示」）。用於簽署 Meta 傳送的每個 webhook——沒有它，傳入訊息會被拒絕。',
-      secretKeepPlaceholder: '已儲存——留空以保留',
-      openMeta: 'Meta 開發者面板',
-      verifyTokenLabel: 'Webhook 驗證權杖',
-      verifyTokenPlaceholder: '任意 16 個字元以上的隨機字串',
-      verifyTokenHelp:
-        '由你自訂的共享密鑰。Meta 會在 webhook 握手時回傳它，因此請把同一個值貼到 Meta 的「驗證權杖」欄位。',
-      verifyTokenSavedHint: '已儲存一個驗證權杖。只有在同時更新 Meta 中的值時才產生新的。',
-      generateVerifyToken: '產生權杖',
-      copyVerifyToken: '複製權杖',
-      phoneNumberIdRequired: '請先輸入電話號碼 ID——沒有它轉接器無法啟動。',
-      accessTokenRequired: '請先輸入存取權杖——沒有它轉接器無法啟動。',
-      appSecretRequired: '請先輸入應用程式密鑰——沒有它所有傳入訊息都會被拒絕。',
-      verifyTokenRequired: '請先產生或輸入驗證權杖——沒有它 Meta 的 webhook 握手會失敗。',
-      bindLabel: '誰可以存取 webhook 監聽器',
-      bindLocalhost: '僅本機 (127.0.0.1)',
-      bindRemote: '網路 (0.0.0.0)',
-      bindHelp: '在通道或反向代理之後，localhost 是正確選擇。只有當 Meta 流量直接到達本機時才選擇網路。',
-      callbackTitle: 'Webhook 回呼 URL',
-      callbackHint:
-        '把它和驗證權杖一起貼到 Meta（WhatsApp → 設定 → Webhook → 編輯），然後訂閱 messages 欄位。Work4You 監聽 /whatsapp/webhook 路徑。',
-      copyCallback: '複製回呼 URL',
-      publicUrlLabel: '公開 HTTPS 來源',
-      publicUrlPlaceholder: 'https://your-tunnel.example',
-      publicUrlHelp:
-        'Meta 拒絕純 HTTP 回呼。在通道或反向代理處終止 TLS，然後貼上 https:// 來源——上方的回呼 URL 會隨之更新。',
-      tunnelWarning:
-        '沒有公開來源時，回呼指向 localhost，Meta 無法存取：webhook 驗證失敗，永遠收不到訊息。請啟動通道（cloudflared、ngrok）並貼上其 https:// 來源。',
-      allowedUsersLabel: '允許的 WhatsApp 號碼',
-      allowedUsersPlaceholder: '15551234567, 447700900123',
-      allowedUsersHelp: '逗號分隔、含國碼、不含 + 的號碼。只有這些寄件者能聯繫到代理；其他人會被忽略。',
-      openWarning: '沒有允許清單時，任何向你的企業號碼傳訊息的人都能操控你的代理。至少加入你自己的號碼。',
-      afterSaveTitle: '儲存之後',
-      afterSaveHelp:
-        '重新啟動閘道，然後在 Meta 的 webhook 對話框中點擊「驗證並儲存」。使用本卡片上的「測試連線」對照 Meta 檢查權杖並確認監聯器已啟動。',
-      saved: 'WhatsApp Cloud API 已儲存並啟用。重新啟動閘道以啟動 webhook 監聽器。',
-      saveFailed: '無法儲存 WhatsApp Cloud API 設定。',
-      copied: '已複製到剪貼簿。',
-      copyFailed: '無法複製到剪貼簿。',
-      openGuide: 'WhatsApp Cloud API 指南'
-    },
     smsQuickSetup: {
       title: '快速設定',
       recommended: '建議',

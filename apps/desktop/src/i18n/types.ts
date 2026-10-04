@@ -1769,56 +1769,6 @@ export interface Translations {
       copyFailed: string
       openGuide: string
     }
-    whatsappCloudQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      credentialsHelp: string
-      phoneNumberIdLabel: string
-      phoneNumberIdPlaceholder: string
-      phoneNumberIdHelp: string
-      accessTokenLabel: string
-      accessTokenPlaceholder: string
-      accessTokenHelp: string
-      appSecretLabel: string
-      appSecretPlaceholder: string
-      appSecretHelp: string
-      secretKeepPlaceholder: string
-      openMeta: string
-      verifyTokenLabel: string
-      verifyTokenPlaceholder: string
-      verifyTokenHelp: string
-      verifyTokenSavedHint: string
-      generateVerifyToken: string
-      copyVerifyToken: string
-      phoneNumberIdRequired: string
-      accessTokenRequired: string
-      appSecretRequired: string
-      verifyTokenRequired: string
-      bindLabel: string
-      bindLocalhost: string
-      bindRemote: string
-      bindHelp: string
-      callbackTitle: string
-      callbackHint: string
-      copyCallback: string
-      publicUrlLabel: string
-      publicUrlPlaceholder: string
-      publicUrlHelp: string
-      tunnelWarning: string
-      allowedUsersLabel: string
-      allowedUsersPlaceholder: string
-      allowedUsersHelp: string
-      openWarning: string
-      afterSaveTitle: string
-      afterSaveHelp: string
-      saved: string
-      saveFailed: string
-      copied: string
-      copyFailed: string
-      openGuide: string
-    }
     smsQuickSetup: {
       title: string
       recommended: string
@@ -2043,6 +1993,64 @@ export interface Translations {
       tryIt: string
       endpointLine: (url: string) => string
       graphNote: string
+      advancedHint: string
+    }
+    whatsappCloudPage: {
+      stepWho: string
+      stepMeta: string
+      stepWebhook: string
+      stepTalk: string
+      stepReady: string
+      whoTitle: string
+      whoNote: string
+      meTitle: string
+      meDesc: string
+      othersTitle: string
+      othersDesc: string
+      metaTitle: string
+      metaNote: string
+      phoneIdLabel: string
+      phoneIdHelp: string
+      tokenLabel: string
+      tokenHelp: string
+      secretLabel: string
+      secretHelp: string
+      savedKeep: string
+      openDashboard: string
+      webhookTitle: string
+      webhookNote: string
+      verifyLabel: string
+      verifyHelp: string
+      generate: string
+      bindLabel: string
+      bindLocal: string
+      bindNetwork: string
+      publicUrlLabel: string
+      publicUrlHelp: string
+      tunnelWarning: string
+      callbackLabel: string
+      copyCallback: string
+      callbackHelp: string
+      talkTitle: string
+      talkNote: (choice: string) => string
+      meNumberTitle: string
+      meNumberNote: string
+      meNumberLabel: string
+      listTitle: string
+      listDesc: string
+      listHint: string
+      numbersRequired: string
+      readySaving: string
+      readySetUp: string
+      checkMeta: (number: string, name: string) => string
+      checkMetaGeneric: string
+      checkMetaPending: string
+      whoMe: string
+      whoList: (count: number) => string
+      tryIt: string
+      whoOnlyNumbers: (count: number) => string
+      whoNone: string
+      callbackLine: (url: string) => string
       advancedHint: string
     }
     telegramQuickSetup: {
