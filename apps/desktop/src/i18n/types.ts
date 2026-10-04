@@ -1577,61 +1577,6 @@ export interface Translations {
     /** Localized labels for env keys rendered as a segmented picker
      *  (FIELD_OPTIONS), keyed by env key then by option value. */
     envOptions: Record<string, Record<string, string>>
-    a2aQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      inboundTitle: string
-      inboundHelp: string
-      tokenHelp: string
-      tokenLabel: string
-      tokenPlaceholder: string
-      generateToken: string
-      tokenWarning: string
-      bindLabel: string
-      bindLocalhost: string
-      bindRemote: string
-      remoteNeedsToken: string
-      cardTitle: string
-      cardHint: string
-      copyCardUrl: string
-      publicUrlLabel: string
-      publicUrlPlaceholder: string
-      publicUrlHelp: string
-      networkExposedWarning: string
-      saved: string
-      saveFailed: string
-      outboundTitle: string
-      outboundHelp: string
-      peerNameLabel: string
-      peerNamePlaceholder: string
-      peerUrlLabel: string
-      peerUrlPlaceholder: string
-      peerTokenLabel: string
-      peerTokenPlaceholder: string
-      peerCapsLabel: string
-      peerCapsPlaceholder: string
-      addPeer: string
-      addingPeer: string
-      peerAdded: string
-      peerAddFailed: string
-      peerDeleted: string
-      peerDeleteFailed: string
-      noPeers: string
-      peerHasAuth: string
-      peerNoAuth: string
-      deletePeer: string
-      enableOutbound: string
-      outboundEnabled: string
-      outboundEnableFailed: string
-      outboundAlreadyOn: string
-      outboundOffWarning: string
-      nameRequired: string
-      copied: string
-      copyFailed: string
-      openGuide: string
-    }
     msgraphQuickSetup: {
       title: string
       recommended: string
@@ -2180,6 +2125,76 @@ export interface Translations {
       everyEvent: string
       localLogOnly: string
       toggleRoute: (name: string) => string
+      advancedHint: string
+      activeHint: string
+    }
+    a2aPage: {
+      stepWhat: string
+      stepCallable: string
+      stepPeers: string
+      stepReady: string
+      whatTitle: string
+      whatNote: string
+      inboundTitle: string
+      inboundDesc: string
+      outboundTitle: string
+      outboundDesc: string
+      bothTitle: string
+      bothDesc: string
+      callableTitle: string
+      callableNote: string
+      reachLabel: string
+      reachLocal: string
+      reachNetwork: string
+      tokenLabel: string
+      tokenPlaceholder: string
+      tokenKept: string
+      generateToken: string
+      tokenHelp: string
+      networkNeedsToken: string
+      publicUrlLabel: string
+      publicUrlHelp: string
+      cardLabel: string
+      copyCardUrl: string
+      cardHelp: string
+      peersTitle: string
+      peersNote: string
+      peerNameLabel: string
+      peerUrlLabel: string
+      peerTokenLabel: string
+      peerTokenPlaceholder: string
+      peerCapsLabel: string
+      addPeer: string
+      peerRequired: string
+      peerAddFailed: string
+      removePeer: string
+      peerRemoveFailed: string
+      peerLine: (url: string, hasToken: boolean) => string
+      outboundToggle: string
+      outboundOn: string
+      outboundOff: string
+      outboundNote: string
+      outboundFailed: string
+      readySaving: string
+      readyTitle: string
+      checkListener: (port: string, remote: boolean) => string
+      checkListenerPending: string
+      checkCard: (url: string) => string
+      checkPeers: (count: number, toolsOn: boolean) => string
+      tryItPeer: (name: string) => string
+      tryItCard: string
+      callableBlock: string
+      reachNetworkFact: string
+      reachLocalFact: string
+      tokenRequiredFact: string
+      peersBlock: string
+      noPeers: string
+      accessTitle: string
+      sharedToken: string
+      peerTokens: string
+      peerTokensHelp: string
+      tokenSet: string
+      tokenNone: string
       advancedHint: string
       activeHint: string
     }
