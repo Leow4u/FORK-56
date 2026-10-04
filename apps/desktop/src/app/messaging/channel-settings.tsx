@@ -130,8 +130,9 @@ export function ConnectionRow({
   platform: MessagingPlatformInfo
   /** `reconnect` reads Reconnect while all is well (a chat channel's
    *  session); `restart` always reads Restart gateway (an endpoint has no
-   *  session to reconnect, only a listener the restart brings back). */
-  restartButton?: 'reconnect' | 'restart'
+   *  session to reconnect, only a listener the restart brings back);
+   *  `needed` shows Restart gateway only when a restart is pending. */
+  restartButton?: 'needed' | 'reconnect' | 'restart'
   testing: boolean
 }) {
   const { locale, t } = useI18n()
@@ -198,7 +199,7 @@ export function ConnectionRow({
             {testing ? m.testing : m.testConnection}
           </Button>
         )}
-        {platform.configured && platform.enabled && (
+        {platform.configured && platform.enabled && (restartButton !== 'needed' || needsRestart || restarting) && (
           <Button disabled={restarting} onClick={() => void runGatewayRestart()} size="xs" variant="text">
             {restarting
               ? m.restartingGateway
@@ -469,6 +470,28 @@ export function AllowlistEditor({
           {busy ? m.saving : t.common.save}
         </Button>
       </div>
+    </div>
+  )
+}
+
+/** One item of a list inside a block (a route, a peer): its name, a line
+ *  about it, and its control, under a hairline. */
+export function BlockListRow({
+  action,
+  description,
+  title
+}: {
+  action?: ReactNode
+  description?: ReactNode
+  title: ReactNode
+}) {
+  return (
+    <div className="flex items-center gap-2.5 border-t border-(--ui-stroke-quaternary) py-2">
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-[0.8125rem] text-foreground">{title}</span>
+        {description ? <span className="truncate text-xs text-(--ui-text-tertiary)">{description}</span> : null}
+      </span>
+      {action}
     </div>
   )
 }

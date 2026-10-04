@@ -157,12 +157,12 @@ export function StepField({ action, className, help, label, ...input }: StepFiel
 
 /** A link or an address to hand to another app: shown whole in a code box
  *  (cut with an ellipsis when long) with a Copy button beside it. */
-export function UrlRow({ copyLabel, url }: { copyLabel?: string; url: string }) {
+export function UrlRow({ copyLabel, copyValue, url }: { copyLabel?: string; copyValue?: string; url: string }) {
   const { t } = useI18n()
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(copyValue ?? url)
       notify({ kind: 'success', message: t.common.copied })
     } catch (copyError) {
       notifyError(copyError, t.common.copyFailed)
@@ -189,11 +189,15 @@ export function UrlRow({ copyLabel, url }: { copyLabel?: string; url: string }) 
  *  label, the code box with Copy, and a help line under it. */
 export function UrlField({
   copyLabel,
+  copyValue,
   help,
   label,
   url
 }: {
   copyLabel?: string
+  /** What Copy puts on the clipboard when it is not the shown text (the base
+   *  URL under a pattern that shows where routes go). */
+  copyValue?: string
   help?: ReactNode
   label: string
   url: string
@@ -201,7 +205,7 @@ export function UrlField({
   return (
     <div className="mt-3.5 flex flex-col gap-1.5">
       <span className="text-[0.78125rem] font-medium text-(--ui-text-secondary)">{label}</span>
-      <UrlRow copyLabel={copyLabel} url={url} />
+      <UrlRow copyLabel={copyLabel} copyValue={copyValue} url={url} />
       {help ? <span className={cn('max-w-[38.75rem]', STEP_NOTE)}>{help}</span> : null}
     </div>
   )
@@ -329,12 +333,15 @@ export function ReadyLine({
 export function ReadyView({
   busy,
   children,
+  extra,
   footer,
   note,
   title
 }: {
   busy: boolean
   children: ReactNode
+  /** What to take away before leaving (a URL and a secret shown once). */
+  extra?: ReactNode
   footer: ReactNode
   note?: ReactNode
   title: string
@@ -347,6 +354,7 @@ export function ReadyView({
       <h2 className="text-[1.0625rem] font-semibold text-foreground">{title}</h2>
       <ul className="mt-3 grid gap-1.5 text-[0.8125rem] text-(--ui-text-secondary)">{children}</ul>
       {note ? <p className={cn('mt-3.5', STEP_NOTE)}>{note}</p> : null}
+      {extra ? <div className="w-full">{extra}</div> : null}
       <div className="mt-5 flex w-full items-center justify-end gap-2">{footer}</div>
     </div>
   )

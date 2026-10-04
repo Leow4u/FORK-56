@@ -1577,19 +1577,6 @@ export interface Translations {
     /** Localized labels for env keys rendered as a segmented picker
      *  (FIELD_OPTIONS), keyed by env key then by option value. */
     envOptions: Record<string, Record<string, string>>
-    webhookRoutesPanel: {
-      title: string
-      startHere: string
-      intro: string
-      baseUrlLabel: string
-      copyBaseUrl: string
-      copied: string
-      copyFailed: string
-      routeCount: (active: number, total: number) => string
-      noRoutes: string
-      tunnelHint: string
-      manageRoutes: string
-    }
     a2aQuickSetup: {
       title: string
       recommended: string
@@ -2146,6 +2133,53 @@ export interface Translations {
       originsLabel: string
       originsHelp: string
       openAiCompatible: string
+      advancedHint: string
+      activeHint: string
+    }
+    webhookPage: {
+      stepListener: string
+      stepRoute: string
+      stepReady: string
+      listenerTitle: string
+      listenerNote: string
+      patternLabel: string
+      copyBaseUrl: string
+      reachNote: string
+      turnOn: string
+      routeTitle: string
+      routeTitleMore: string
+      routeNote: string
+      nameLabel: string
+      nameHelp: (url: string) => string
+      nameRequired: string
+      eventsLabel: string
+      eventsHelp: string
+      promptLabel: string
+      promptPlaceholder: string
+      deliverLabel: string
+      deliverHelp: string
+      createRoute: string
+      readyTitle: string
+      checkRoute: (name: string) => string
+      checkSecret: string
+      checkDeliver: (target: string) => string
+      deliverLog: string
+      pasteBoth: (hostPort: string) => string
+      urlLabel: string
+      copyUrl: string
+      secretLabel: string
+      copySecret: string
+      manageRoutes: string
+      listenerBlock: string
+      listeningRoutes: (count: number) => string
+      routesTitle: string
+      routesNote: string
+      noRoutes: string
+      newRoute: string
+      routeLine: (events: string, target: string) => string
+      everyEvent: string
+      localLogOnly: string
+      toggleRoute: (name: string) => string
       advancedHint: string
       activeHint: string
     }

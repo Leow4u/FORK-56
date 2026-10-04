@@ -195,35 +195,37 @@ export function revokePairing(platform: string, userId: string, profile?: null |
 // -- Webhooks (subscription CRUD) --------------------------------------------
 // The webhook receiver is its own gateway platform; subscriptions live in a
 // shared JSON store the CLI/dashboard also drive. Enable mutates config and
-// best-effort restarts the gateway; subscription changes hot-reload.
+// best-effort restarts the gateway; subscription changes hot-reload. Without
+// a profile the calls follow the app's active profile (the Webhooks page);
+// the channel page passes the profile it is configuring.
 
-export function getWebhooks(): Promise<WebhooksResponse> {
+export function getWebhooks(profile?: null | string): Promise<WebhooksResponse> {
   return work4youApi<WebhooksResponse>({
-    ...profileScoped(),
+    ...profileScoped(profile),
     path: '/api/webhooks'
   })
 }
 
-export function enableWebhooks(): Promise<WebhookEnableResponse> {
+export function enableWebhooks(profile?: null | string): Promise<WebhookEnableResponse> {
   return work4youApi<WebhookEnableResponse>({
-    ...profileScoped(),
+    ...profileScoped(profile),
     path: '/api/webhooks/enable',
     method: 'POST'
   })
 }
 
-export function createWebhook(body: WebhookCreatePayload): Promise<WebhookCreateResponse> {
+export function createWebhook(body: WebhookCreatePayload, profile?: null | string): Promise<WebhookCreateResponse> {
   return work4youApi<WebhookCreateResponse>({
-    ...profileScoped(),
+    ...profileScoped(profile),
     path: '/api/webhooks',
     method: 'POST',
     body
   })
 }
 
-export function deleteWebhook(name: string): Promise<{ ok: boolean }> {
+export function deleteWebhook(name: string, profile?: null | string): Promise<{ ok: boolean }> {
   return work4youApi<{ ok: boolean }>({
-    ...profileScoped(),
+    ...profileScoped(profile),
     path: `/api/webhooks/${encodeURIComponent(name)}`,
     method: 'DELETE'
   })
@@ -231,10 +233,11 @@ export function deleteWebhook(name: string): Promise<{ ok: boolean }> {
 
 export function setWebhookEnabled(
   name: string,
-  enabled: boolean
+  enabled: boolean,
+  profile?: null | string
 ): Promise<{ enabled: boolean; name: string; ok: boolean }> {
   return work4youApi<{ enabled: boolean; name: string; ok: boolean }>({
-    ...profileScoped(),
+    ...profileScoped(profile),
     path: `/api/webhooks/${encodeURIComponent(name)}/enabled`,
     method: 'PUT',
     body: { enabled }

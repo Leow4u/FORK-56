@@ -35,7 +35,7 @@ import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { LIBRARY_PAGE_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
 import { PanelEmpty } from '../overlays/panel'
 import { PageTitle } from '../page-title'
-import { MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
+import { MESSAGING_ROUTE, messagingPlatformPath } from '../routes'
 import { ListRow } from '../settings/primitives'
 import { SettingsProfileScope } from '../settings/profile-scope'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
@@ -61,7 +61,7 @@ import { $channelsCategory, $channelsView, readChannelsSnapshot, writeChannelsSn
 import { TeamsDetail } from './teams-detail'
 import { TelegramDetail } from './telegram-detail'
 import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
-import { WebhookRoutesPanel } from './webhook-routes-panel'
+import { WebhookDetail } from './webhook-detail'
 import { WhatsAppCloudDetail } from './whatsapp-cloud-detail'
 import { WhatsAppDetail } from './whatsapp-detail'
 
@@ -75,7 +75,7 @@ const CHANNEL_LABEL = 'text-xs font-medium normal-case tracking-normal text-fore
 
 // Channels whose first screen is a quick setup. The generic credential form
 // stays one step behind that, so the same token is not painted twice.
-const QUICK_SETUP_PLATFORMS = new Set(['a2a', 'msgraph_webhook', 'webhook', 'whatsapp'])
+const QUICK_SETUP_PLATFORMS = new Set(['a2a', 'msgraph_webhook', 'whatsapp'])
 
 const trimEdits = (edits: Record<string, string>): Record<string, string> =>
   Object.fromEntries(
@@ -848,7 +848,6 @@ function PlatformDetail(props: PlatformDetailProps) {
 
   const { t } = useI18n()
   const m = t.messaging
-  const navigate = useNavigate()
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [showManual, setShowManual] = useState(false)
 
@@ -892,6 +891,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <ApiServerDetail {...props} />
   }
 
+  if (platform.id === 'webhook') {
+    return <WebhookDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -913,10 +916,6 @@ function PlatformDetail(props: PlatformDetailProps) {
         onRevoke={onRevoke}
         pending={pending}
       />
-
-      {/* Webhook setup lives on the dedicated Webhooks page (routes + their
-          secrets), not on this card — bridge straight to it. */}
-      {platform.id === 'webhook' && <WebhookRoutesPanel onManageRoutes={() => void navigate(WEBHOOKS_ROUTE)} />}
 
       {platform.id === 'a2a' && (
         <A2AQuickSetup
@@ -1202,8 +1201,6 @@ const PLATFORM_INTRO: Record<string, string> = {
   weixin:
     "Run `work4you gateway setup`, select Weixin, then scan and confirm the QR code with a personal WeChat account. Work4You connects through Tencent's iLink Bot API and saves the credentials.",
   qqbot: 'Register an app on the QQ Open Platform (q.qq.com) and copy the App ID and Client Secret.',
-  webhook:
-    'Turn events from GitHub, GitLab, Stripe, or your own apps into agent runs. Each route is its own URL with its own signing secret — create and manage routes in "Webhook routes" above; nothing is received until at least one route exists. The optional fields below are the listener port and a global fallback secret.',
   a2a: 'Two independent directions: inbound exposes Work4You as an A2A agent (Agent Card at /.well-known/agent-card.json; localhost-only until you set a token). Outbound is the a2a toolset plus named peers in Quick setup above — enabling the channel does not turn those tools on. The optional fields below are the bind, tokens, public URL, and advertised name.',
   msgraph_webhook:
     'Inbound listener only — Microsoft Graph POSTs change notifications here (meetings, Outlook, chat). This is not the Teams chat bot. Use Quick setup above to generate the clientState secret, bind localhost behind a tunnel, and copy the notification URL. A network bind needs source CIDRs. Subscriptions are created with `work4you teams-pipeline subscribe`; Azure app credentials stay on the Teams / pipeline cards.'
