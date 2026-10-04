@@ -322,8 +322,12 @@
     );
     --ui-text-primary: color-mix(in srgb, var(--ui-base) 94%, transparent);
     --ui-text-secondary: color-mix(in srgb, var(--ui-base) 74%, transparent);
-    --ui-text-tertiary: color-mix(in srgb, var(--ui-base) 54%, transparent);
-    --ui-text-quaternary: color-mix(in srgb, var(--ui-base) 36%, transparent);
+    /* 63% is the readability floor on light surfaces: ≥ 4.5:1 on the card, the
+       rail and the selected sidebar row. Captions, hints and timestamps all
+       read through these two, so quaternary shares the floor in light mode.
+       :root.dark keeps its own steps. */
+    --ui-text-tertiary: color-mix(in srgb, var(--ui-base) 63%, transparent);
+    --ui-text-quaternary: color-mix(in srgb, var(--ui-base) 63%, transparent);
     /* Transcript scaffolding — thinking headers, settled tool runs, the live
        activity ticker. One colour for all of them (see `ScaffoldRow`), pitched
        between the secondary and tertiary greys those lines used to pick
@@ -405,8 +409,10 @@
     --dt-border: var(--ui-stroke-secondary);
     --dt-input: var(--ui-stroke-primary);
     /* THE single knob for input-field borders: the resting alpha (% of the ring
-       color). Hover doubles it; focus/open go full. 0% = invisible at rest. */
-    --dt-input-border: 7%;
+       color). Hover doubles it; focus/open go full. 0% = invisible at rest.
+       30% puts a resting field on par with a card border, so an empty field
+       still reads as a field. */
+    --dt-input-border: 30%;
     /* Knob for input-field background fill: alpha (% of --dt-card) across all
        states. 100% = fully opaque, lower = translucent over the blurred chrome. */
     --dt-input-bg: 0%;
@@ -570,7 +576,10 @@
     --dt-input-inset: inset 0 1px 1px color-mix(in srgb, #000 38%, transparent);
     --ui-tab-hover-darken: 6%;
     /* Dark needs a lighter resting border than light mode. */
-    --dt-input-border: 4%;
+    --dt-input-border: 20%;
+    /* Dark keeps its original grey steps; tertiary already reads at ~5:1. */
+    --ui-text-tertiary: color-mix(in srgb, var(--ui-base) 54%, transparent);
+    --ui-text-quaternary: color-mix(in srgb, var(--ui-base) 36%, transparent);
 
     --ui-inline-code-background: color-mix(in srgb, #ffffff 7%, transparent);
     --ui-inline-code-foreground: color-mix(in srgb, #ffffff 88%, transparent);

@@ -144,21 +144,19 @@ export const StatusItemRow = memo(function StatusItemRow({ item, onDismiss, onOp
             failed
               ? 'text-destructive/90'
               : item.todoStatus && item.todoStatus !== 'in_progress'
-                ? 'text-muted-foreground/75'
+                ? 'text-muted-foreground'
                 : 'text-foreground/92'
           )}
         >
           {item.title}
         </span>
         {item.type === 'subagent' && item.currentTool && (
-          <span className="shrink-0 truncate text-[0.62rem] leading-4 text-muted-foreground/70">
+          <span className="shrink-0 truncate text-[0.62rem] leading-4 text-muted-foreground">
             {toolLabel(item.currentTool)}
           </span>
         )}
         {item.type === 'goal' && item.currentTool && (
-          <span className="shrink-0 truncate text-[0.62rem] leading-4 text-muted-foreground/70">
-            {item.currentTool}
-          </span>
+          <span className="shrink-0 truncate text-[0.62rem] leading-4 text-muted-foreground">{item.currentTool}</span>
         )}
         {failed && typeof item.exitCode === 'number' && item.exitCode !== 0 && (
           <span className="shrink-0 rounded bg-destructive/15 px-1 text-[0.58rem] font-semibold text-destructive tabular-nums">
