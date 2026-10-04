@@ -56,7 +56,7 @@ import { GoogleChatQuickSetup } from './google-chat-quick-setup'
 import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackDetail } from './slack-detail'
-import { SmsQuickSetup } from './sms-quick-setup'
+import { SmsDetail } from './sms-detail'
 import { $channelsCategory, $channelsView, readChannelsSnapshot, writeChannelsSnapshot } from './store'
 import { TeamsDetail } from './teams-detail'
 import { TelegramDetail } from './telegram-detail'
@@ -75,15 +75,7 @@ const CHANNEL_LABEL = 'text-xs font-medium normal-case tracking-normal text-fore
 
 // Channels whose first screen is a quick setup. The generic credential form
 // stays one step behind that, so the same token is not painted twice.
-const QUICK_SETUP_PLATFORMS = new Set([
-  'a2a',
-  'api_server',
-  'google_chat',
-  'msgraph_webhook',
-  'sms',
-  'webhook',
-  'whatsapp'
-])
+const QUICK_SETUP_PLATFORMS = new Set(['a2a', 'api_server', 'google_chat', 'msgraph_webhook', 'webhook', 'whatsapp'])
 
 const trimEdits = (edits: Record<string, string>): Record<string, string> =>
   Object.fromEntries(
@@ -888,6 +880,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <EmailDetail {...props} />
   }
 
+  if (platform.id === 'sms') {
+    return <SmsDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -909,10 +905,6 @@ function PlatformDetail(props: PlatformDetailProps) {
         onRevoke={onRevoke}
         pending={pending}
       />
-
-      {platform.id === 'sms' && (
-        <SmsQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
-      )}
 
       {platform.id === 'google_chat' && (
         <GoogleChatQuickSetup
@@ -1209,7 +1201,6 @@ const PLATFORM_INTRO: Record<string, string> = {
     'Run BlueBubbles Server on a Mac with iMessage, expose its API, then point Work4You at the URL with the server password.',
   homeassistant:
     'In Home Assistant, open your profile and create a long-lived access token. Paste it here along with your HA URL.',
-  sms: 'Use Quick setup above. Besides the Twilio credentials and an SMS-capable phone number, inbound texts need a public webhook URL — Twilio must be able to reach your machine (use a tunnel like cloudflared or ngrok if you run locally), and the same URL goes into the Twilio console.',
   dingtalk: 'Create a DingTalk app in the developer console, then copy the Client ID (App key) and Client Secret here.',
   feishu:
     'Create a Feishu / Lark app, configure the bot capability, and copy the App ID, App secret, and event encryption keys.',

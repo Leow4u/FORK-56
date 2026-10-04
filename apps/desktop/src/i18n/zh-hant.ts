@@ -1615,30 +1615,6 @@ export const zhHant = defineLocale({
       copyFailed: '無法複製到剪貼簿。',
       openGuide: 'Graph webhook 指南'
     },
-    smsQuickSetup: {
-      title: '快速設定',
-      recommended: '建議',
-      intro:
-        '貼上你的 Twilio 憑證，並告訴 Twilio 將收到的簡訊投遞到哪裡。接收簡訊需要一個公開的 webhook URL——如果 Work4You 在本機執行，請先用 cloudflared 或 ngrok 之類的通道公開它。',
-      replacesExisting: '簡訊已設定完成。在此儲存會取代已儲存的 Twilio 設定。',
-      credentialsHelp: 'Account SID 和 Auth Token，來自 Twilio 控制台儀表板。',
-      accountSidLabel: 'Account SID',
-      accountSidPlaceholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-      openConsole: '開啟 Twilio 控制台',
-      authTokenLabel: 'Auth Token',
-      authTokenPlaceholder: 'Twilio Auth Token',
-      phoneHelp: '你的支援簡訊的 Twilio 電話號碼（E.164 格式）。',
-      phoneLabel: 'Twilio 電話號碼',
-      webhookHelp: '公開 webhook URL——Twilio 將收到的簡訊投遞到這裡。路徑為 /webhooks/twilio。',
-      webhookLabel: '公開 webhook URL',
-      webhookHint:
-        '將同一 URL 貼到 Twilio 控制台的 Phone Numbers → Active Numbers → Messaging → "A message comes in"。沒有它閘道會拒絕啟動（用於驗證 Twilio 請求簽章）。',
-      allowedUsersHelp: '建議設定。逗號分隔的允許與代理對話的電話號碼——其他人會被忽略。',
-      allowedUsersLabel: '允許的傳送者',
-      allFieldsRequired: '請先輸入 Account SID、Auth Token、電話號碼和 webhook URL。',
-      saved: '簡訊已儲存並啟用。重新啟動閘道以連線。',
-      saveFailed: '無法儲存簡訊設定。'
-    },
     telegramQuickSetup: {
       waiting: '等待你在 Telegram 中確認…',
       qrAlt: 'Telegram 設定 QR Code',
