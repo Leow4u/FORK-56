@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 
 import { PageLoader } from '@/components/page-loader'
-import { StatusDot, type StatusTone } from '@/components/status-dot'
+import { type StatusTone } from '@/components/status-dot'
 import { Button } from '@/components/ui/button'
+import { Codicon } from '@/components/ui/codicon'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DisclosureCaret } from '@/components/ui/disclosure-caret'
 import { ErrorBanner } from '@/components/ui/error-state'
@@ -25,6 +26,7 @@ import { $settingsRequestProfile } from '@/store/settings-scope'
 import { $gatewayRestarting, runGatewayRestart } from '@/store/system-actions'
 import {
   approvePairing,
+  getCronJobs,
   getMessagingPlatforms,
   getPairing,
   type MessagingEnvVarInfo,
@@ -39,19 +41,18 @@ import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { LIBRARY_PAGE_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
 import { PanelEmpty } from '../overlays/panel'
 import { PageTitle } from '../page-title'
-import { MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
+import { CRON_ROUTE, MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
 import { CREDENTIAL_CONTROL_CLASS } from '../settings/credential-key-ui'
 import { ListRow } from '../settings/primitives'
 import { SettingsProfileScope } from '../settings/profile-scope'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 import { CapabilitiesToolbar } from '../skills/capabilities-toolbar'
-import { MCP_CATALOG_GRID_CLASS } from '../skills/mcp-catalog-chrome'
 import type { CapabilitiesView } from '../skills/store'
 
 import { A2AQuickSetup } from './a2a-quick-setup'
 import { ApiServerQuickSetup } from './api-server-quick-setup'
 import { ChannelCard } from './channel-card'
-import { channelKind, channelKindLabel } from './channel-kinds'
+import { type ChannelKind, channelKind, channelKindLabel, integrationRank } from './channel-kinds'
 import { type ChannelsConnectedRow, ChannelsConnectedTable } from './channels-connected-table'
 import { DiscordQuickSetup } from './discord-quick-setup'
 import { EmailQuickSetup } from './email-quick-setup'
@@ -60,13 +61,13 @@ import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackQuickSetup } from './slack-quick-setup'
 import { SmsQuickSetup } from './sms-quick-setup'
-import { $channelsView, readChannelsSnapshot, writeChannelsSnapshot } from './store'
+import { $channelsCategory, $channelsView, readChannelsSnapshot, writeChannelsSnapshot } from './store'
 import { TeamsQuickSetup } from './teams-quick-setup'
 import { TelegramQuickSetup } from './telegram-quick-setup'
-import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
+import { findInvalidWhatsAppUser, type MessagingEnvError, validateMessagingEnv } from './validate-env'
 import { WebhookRoutesPanel } from './webhook-routes-panel'
 import { WhatsAppCloudQuickSetup } from './whatsapp-cloud-quick-setup'
-import { WhatsAppConnectSteps } from './whatsapp-connect-steps'
+import { ChoiceList, WhatsAppConnectSteps } from './whatsapp-connect-steps'
 
 interface MessagingViewProps extends React.ComponentProps<'section'> {
   setStatusbarItemGroup?: SetStatusbarItemGroup
@@ -94,11 +95,17 @@ const QUICK_SETUP_PLATFORMS = new Set([
   'whatsapp_cloud'
 ])
 
-const PILL_TONE: Record<StatusTone, string> = {
-  good: 'bg-primary/10 text-primary',
-  muted: 'bg-muted text-muted-foreground',
-  warn: 'bg-amber-500/10 text-amber-600 dark:text-amber-300',
-  bad: 'bg-destructive/10 text-destructive'
+// Status color of a dot: the app's success green, amber for "needs a
+// restart / setup", red for failures, quiet gray for off.
+const DOT_TONE: Record<StatusTone, string> = {
+  bad: 'bg-destructive',
+  good: 'bg-emerald-500',
+  muted: 'bg-(--ui-text-quaternary)',
+  warn: 'bg-amber-500'
+}
+
+function ToneDot({ tone }: { tone: StatusTone }) {
+  return <span aria-hidden className={cn('inline-block size-[7px] shrink-0 rounded-full', DOT_TONE[tone])} />
 }
 
 const stateLabel = (state: null | string | undefined, m: Translations['messaging']) =>
@@ -328,6 +335,7 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   const scopeProfile = useStore($settingsRequestProfile) ?? null
   const scopeKey = scopeProfile ?? ''
   const pickedView = useStore($channelsView)
+  const category = useStore($channelsCategory)
   // Both save/toggle toasts offer the same one-click restart.
   const restartGatewayAction = { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart() }
 
@@ -504,16 +512,19 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
 
     const q = normalize(query)
 
+    const inCategory =
+      category === 'all' ? platforms : platforms.filter(platform => channelKind(platform.id) === category)
+
     if (!q) {
-      return platforms
+      return inCategory
     }
 
-    return platforms.filter(platform =>
+    return inCategory.filter(platform =>
       [platform.id, platform.name, platform.description, platform.state]
         .filter(Boolean)
         .some(value => String(value).toLowerCase().includes(q))
     )
-  }, [platforms, query])
+  }, [category, platforms, query])
 
   // Connected = the channels that are turned on, whatever their health, so a
   // failing one is still found where it was set up; the rest are there to
@@ -530,6 +541,8 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
     for (const platform of discoverPlatforms) {
       ;(channelKind(platform.id) === 'integration' ? integration : conversation).push(platform)
     }
+
+    integration.sort((a, b) => integrationRank(a.id) - integrationRank(b.id))
 
     return [
       { hint: m.discoverConversationHint, id: 'conversation', label: m.discoverConversation, platforms: conversation },
@@ -711,9 +724,10 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   }
 
   const selectedStatus = selected ? detailStatus(selected, m) : null
-  const searchHints = platforms?.slice(0, 5).map(platform => t.common.tryHint(platform.name.toLowerCase()))
   const showListSearch = (platforms?.length ?? 0) > 0 && !selected
-  const searching = query.trim().length > 0
+  // A search or a category narrows the list: an empty view then says so
+  // instead of claiming nothing is connected.
+  const searching = query.trim().length > 0 || category !== 'all'
 
   // Every row here is on, so its switch only ever turns the channel off —
   // after which it is a Discover card again, as the switch promised.
@@ -755,11 +769,11 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
           <div className={cn('shrink-0 pb-4', PAGE_HEADER_TOP, PAGE_INSET_X)}>
             <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
               <button
-                className="mb-3 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                className="mb-2.5 inline-flex items-center gap-0.5 text-xs text-(--ui-text-tertiary) hover:text-foreground"
                 onClick={() => navigate(MESSAGING_ROUTE)}
                 type="button"
               >
-                <ChevronLeft className="size-3.5" />
+                <ChevronLeft className="size-3" />
                 {t.sidebar.nav.messaging}
               </button>
               <PageTitle
@@ -767,10 +781,11 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
               >
                 <span className="flex items-center gap-3">
                   <PlatformAvatar
-                    className="size-9 rounded-lg"
+                    className="size-9 rounded-lg text-base"
                     glyphClassName="size-5"
                     platformId={selected.id}
                     platformName={selected.name}
+                    variant="solid"
                   />
                   <span className="truncate">{selected.name}</span>
                 </span>
@@ -780,13 +795,14 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
               </div>
             </div>
           </div>
-          <main className="min-h-0 flex-1 overflow-y-auto px-4 pt-1 pb-4 [scrollbar-gutter:stable]">
+          <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 [scrollbar-gutter:stable_both-edges]">
             <div className={cn('mx-auto w-full space-y-5', LIBRARY_PAGE_MAX_W)}>
               <PlatformDetail
                 approved={approvedByPlatform[selected.id] ?? []}
                 approving={approving}
                 edits={edits[selected.id] || {}}
                 fieldErrors={fieldErrors[selected.id] || {}}
+                hasEdits={Object.keys(trimEdits(edits[selected.id] || {})).length > 0}
                 key={selected.id}
                 onApprove={user => void handleApprove(user)}
                 onClear={key => void handleClear(selected, key)}
@@ -810,25 +826,14 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                 }}
                 onQuickSetupApplied={() => void refreshAll()}
                 onRevoke={setPendingRevoke}
+                onSave={() => void handleSave(selected)}
+                onTest={() => void handleTest(selected)}
+                onToggle={enabled => void handleToggle(selected, enabled)}
                 pending={pendingByPlatform[selected.id] ?? []}
                 platform={selected}
                 saving={saving}
                 scopeProfile={scopeProfile}
               />
-              <div className="flex flex-wrap items-center gap-2">
-                <PlatformActionBar
-                  hasEdits={Object.keys(trimEdits(edits[selected.id] || {})).length > 0}
-                  onSave={() => void handleSave(selected)}
-                  onTest={() => void handleTest(selected)}
-                  onToggle={enabled => void handleToggle(selected, enabled)}
-                  platform={selected}
-                  saving={saving}
-                  showSave={
-                    !QUICK_SETUP_PLATFORMS.has(selected.id) ||
-                    Object.keys(trimEdits(edits[selected.id] || {})).length > 0
-                  }
-                />
-              </div>
             </div>
           </main>
         </>
@@ -844,7 +849,6 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                 {showListSearch ? (
                   <SearchField
                     containerClassName="ml-auto min-w-56 flex-1 basis-56 max-w-md"
-                    hints={searchHints}
                     onChange={setQuery}
                     placeholder={m.search}
                     recede={false}
@@ -860,13 +864,19 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
           <div className="shrink-0 px-4 pt-2 pb-1">
             <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
               <CapabilitiesToolbar
+                categories={[
+                  { id: 'conversation', label: m.discoverConversation },
+                  { id: 'integration', label: m.discoverIntegrations }
+                ]}
+                category={category}
                 mineLabel={t.skills.viewConnected}
+                onCategoryChange={next => $channelsCategory.set(next === 'all' ? 'all' : (next as ChannelKind))}
                 onViewChange={next => $channelsView.set(next)}
                 view={view}
               />
             </div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-1 pb-4 [scrollbar-gutter:stable]">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-1 pb-4 [scrollbar-gutter:stable_both-edges]">
             <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
               {view === 'mine' ? (
                 connectedPlatforms.length === 0 ? (
@@ -892,14 +902,14 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
                   title={searching ? m.noMatchesTitle : m.emptyDiscoverTitle}
                 />
               ) : (
-                <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-[1.125rem] pt-1">
                   {discoverGroups.map(group => (
                     <section className="flex flex-col gap-2" key={group.id}>
-                      <h2 className="px-0.5 text-[0.72rem] font-medium text-(--ui-text-tertiary)">
+                      <h2 className="px-0.5 text-xs font-normal text-(--ui-text-tertiary)">
                         {group.label}
-                        <span className="font-normal"> · {group.hint}</span>
+                        <span className="ml-1.5 text-(--ui-text-quaternary)">{group.hint}</span>
                       </h2>
-                      <div className={MCP_CATALOG_GRID_CLASS}>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {group.platforms.map(platform => (
                           <ChannelCard
                             key={platform.id}
@@ -937,11 +947,15 @@ interface PlatformDetailProps {
   approving: null | string
   edits: Record<string, string>
   fieldErrors: Record<string, string>
+  hasEdits: boolean
   onApprove: (user: PairingUser) => void
   onClear: (key: string) => void
   onEdit: (key: string, value: string) => void
   onQuickSetupApplied: () => void
   onRevoke: (user: PairingUser) => void
+  onSave: () => void
+  onTest: () => void
+  onToggle: (enabled: boolean) => void
   pending: PairingUser[]
   platform: MessagingPlatformInfo
   saving: string | null
@@ -954,11 +968,15 @@ function PlatformDetail(props: PlatformDetailProps) {
     approving,
     edits,
     fieldErrors,
+    hasEdits,
     onApprove,
     onClear,
     onEdit,
     onQuickSetupApplied,
     onRevoke,
+    onSave,
+    onTest,
+    onToggle,
     pending,
     platform,
     saving,
@@ -1133,28 +1151,94 @@ function PlatformDetail(props: PlatformDetailProps) {
           )}
         </>
       )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <PlatformActionBar
+          hasEdits={hasEdits}
+          onSave={onSave}
+          onTest={onTest}
+          onToggle={onToggle}
+          platform={platform}
+          saving={saving}
+          showSave={!quickSetup || hasEdits}
+        />
+      </div>
     </>
   )
 }
 
-// The env keys the "Who can talk" block edits; everything else WhatsApp has
-// is advanced. WHATSAPP_CLOUD_* keys belong to the Cloud API channel and only
-// reach this card because the catalog matches env vars on the WHATSAPP_
-// prefix — they are not shown here.
-const WHATSAPP_WHO_CAN_TALK_KEYS = new Set(['WHATSAPP_ALLOWED_USERS', 'WHATSAPP_DM_POLICY'])
+// WhatsApp's raw settings, in the Advanced block: every field but the
+// allowlist ("Who can talk" edits it), mode and DM policy first. The
+// WHATSAPP_CLOUD_* keys belong to the Cloud API channel and only reach this
+// card through the catalog's WHATSAPP_ prefix match.
+const WHATSAPP_ADVANCED_FIRST = ['WHATSAPP_MODE', 'WHATSAPP_DM_POLICY']
+
+function whatsAppAdvancedFields(fields: MessagingEnvVarInfo[]): MessagingEnvVarInfo[] {
+  const rank = (key: string) => {
+    const index = WHATSAPP_ADVANCED_FIRST.indexOf(key)
+
+    return index === -1 ? WHATSAPP_ADVANCED_FIRST.length : index
+  }
+
+  return fields
+    .filter(field => field.key !== 'WHATSAPP_ALLOWED_USERS' && !field.key.startsWith('WHATSAPP_CLOUD_'))
+    .sort((a, b) => rank(a.key) - rank(b.key))
+}
+
+const splitNumbers = (value: string) =>
+  value
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+
+/** Routines (enabled cron jobs) whose delivery reaches this channel: an
+ *  explicit `whatsapp` / `whatsapp:<chat>` target, or `all` when the channel
+ *  has a home chat. Read-only, from the same list the Routines page shows. */
+function useDeliveringRoutines(platformId: string, homeChannel: boolean, profile: null | string): number {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const delivers = (deliver: null | string | undefined) =>
+      (deliver ?? '')
+        .split(',')
+        .map(part => part.trim().toLowerCase())
+        .some(part => (part === 'all' ? homeChannel : part.split(':', 1)[0] === platformId))
+
+    getCronJobs(profile ?? undefined)
+      .then(jobs => {
+        if (!cancelled) {
+          setCount(jobs.filter(job => job.enabled && delivers(job.deliver)).length)
+        }
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [homeChannel, platformId, profile])
+
+  return count
+}
 
 /** WhatsApp's page: the step-by-step first connection until the channel is
- *  set up, then its settings — connection, who can talk, advanced. */
+ *  set up, then its settings as four blocks — Connection, Who can talk,
+ *  What the bot does here, Advanced — over the "Channel active" switch. */
 function WhatsAppDetail({
   approved,
   approving,
   edits,
   fieldErrors,
+  hasEdits,
   onApprove,
   onClear,
   onEdit,
   onQuickSetupApplied,
   onRevoke,
+  onSave,
+  onTest,
+  onToggle,
   pending,
   platform,
   saving,
@@ -1162,29 +1246,19 @@ function WhatsAppDetail({
 }: PlatformDetailProps) {
   const { t } = useI18n()
   const m = t.messaging
+  const navigate = useNavigate()
   const setup = platform.whatsapp_setup
   // First connection: nothing saved yet and the channel off. Once set up the
-  // page is the channel's settings, and "Set up again" brings the steps back.
+  // page is the channel's settings, and the steps can be run again from it.
   // Local state, so a list refresh behind the steps never dismisses them.
   const [steps, setSteps] = useState(!platform.enabled && !setup?.mode)
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const routines = useDeliveringRoutines(platform.id, Boolean(setup?.home_channel_set), scopeProfile)
 
-  const fields = platform.env_vars.filter(field => !field.key.startsWith('WHATSAPP_CLOUD_'))
-  const whoFields = fields.filter(field => WHATSAPP_WHO_CAN_TALK_KEYS.has(field.key))
-  const advancedFields = fields.filter(field => !WHATSAPP_WHO_CAN_TALK_KEYS.has(field.key))
+  const valueOf = (key: string) => platform.env_vars.find(field => field.key === key)?.value ?? ''
+  const policy = valueOf('WHATSAPP_DM_POLICY') || 'pairing'
 
-  // Saved env values come back redacted; the payload mirrors the saved
-  // bridge mode so its picker can highlight the active choice.
-  const fieldProps = {
-    current: (field: MessagingEnvVarInfo) => (field.key === 'WHATSAPP_MODE' ? setup?.mode : undefined),
-    edits,
-    fieldErrors,
-    onClear,
-    onEdit,
-    saving
-  }
-
-  const status = detailStatus(platform, m)
+  const advancedFields = whatsAppAdvancedFields(platform.env_vars)
 
   if (steps) {
     return (
@@ -1198,69 +1272,485 @@ function WhatsAppDetail({
           setSteps(false)
           onQuickSetupApplied()
         }}
+        platformConnected={platform.enabled && platform.state === 'connected'}
         savedMode={setup?.mode}
         scopeProfile={scopeProfile}
       />
     )
   }
 
-  const whoSummary =
-    setup?.mode === 'self-chat' ? m.whoCanTalkSelf : setup?.allowed_users_set ? m.whoCanTalkList : m.whoCanTalkApprove
+  const doesHere = [
+    policy === 'disabled' ? m.botNoDms : m.botReplies,
+    routines > 0 ? m.botRoutines(routines) : null,
+    setup?.home_channel_set ? m.botAlerts : null
+  ].filter((item): item is string => Boolean(item))
+
+  return (
+    <div className="space-y-4">
+      <SettingsBlock title={m.connectionTitle}>
+        <WhatsAppConnectionRow
+          onRunSteps={() => setSteps(true)}
+          onTest={onTest}
+          platform={platform}
+          testing={saving === `test:${platform.id}`}
+        />
+      </SettingsBlock>
+
+      <SettingsBlock title={m.whoCanTalkTitle}>
+        <WhatsAppWhoCanTalk
+          allowed={splitNumbers(valueOf('WHATSAPP_ALLOWED_USERS'))}
+          approved={approved}
+          approving={approving}
+          mode={setup?.mode || valueOf('WHATSAPP_MODE')}
+          onApprove={onApprove}
+          onRevoke={onRevoke}
+          onRunSteps={() => setSteps(true)}
+          onSaved={onQuickSetupApplied}
+          pending={pending}
+          platform={platform}
+          policy={policy}
+          scopeProfile={scopeProfile}
+        />
+      </SettingsBlock>
+
+      <SettingsBlock title={m.botDoesTitle}>
+        <div className={BLOCK_ROW}>
+          {doesHere.map((item, index) => (
+            <span className="contents" key={item}>
+              {index > 0 && <span className="text-(--ui-text-quaternary)">·</span>}
+              <span>{item}</span>
+            </span>
+          ))}
+          <span className="flex-1" />
+          <Button onClick={() => navigate(CRON_ROUTE)} size="xs" variant="text">
+            {m.manageRoutines}
+          </Button>
+        </div>
+      </SettingsBlock>
+
+      <section className={BLOCK_CLASS}>
+        <button
+          aria-expanded={showAdvanced}
+          className="flex w-full items-center gap-2 text-left"
+          onClick={() => setShowAdvanced(value => !value)}
+          type="button"
+        >
+          <span className={BLOCK_TITLE}>{m.advancedTitle}</span>
+          <span className="text-xs text-(--ui-text-quaternary)">{m.advancedHint}</span>
+          <span className="flex-1" />
+          <Codicon
+            className={cn('text-(--ui-text-tertiary) transition-transform', showAdvanced && 'rotate-180')}
+            name="chevron-down"
+            size="0.875rem"
+          />
+        </button>
+        {showAdvanced && (
+          <div className="mt-3 space-y-3">
+            <MessagingFields
+              current={field => (field.key === 'WHATSAPP_MODE' ? setup?.mode : undefined)}
+              edits={edits}
+              fieldErrors={fieldErrors}
+              fields={advancedFields}
+              onClear={onClear}
+              onEdit={onEdit}
+              plainValues
+              saving={saving}
+            />
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              {platform.docs_url && (
+                <Button asChild size="xs" variant="text">
+                  <a
+                    href={platform.docs_url}
+                    onClick={event => {
+                      event.preventDefault()
+                      openExternalLink(platform.docs_url)
+                    }}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {m.openSetupGuide}
+                    <ExternalLink />
+                  </a>
+                </Button>
+              )}
+              <Button onClick={() => setSteps(true)} size="xs" variant="text">
+                {m.runStepsAgain}
+              </Button>
+              <span className="flex-1" />
+              {hasEdits && (
+                <>
+                  <span className="text-xs text-muted-foreground">{m.unsavedChanges}</span>
+                  <Button disabled={saving === `env:${platform.id}`} onClick={onSave} size="sm">
+                    <Save />
+                    {saving === `env:${platform.id}` ? m.saving : m.saveChanges}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-1.5">
+        <Switch
+          aria-label={platform.enabled ? m.disableAria(platform.name) : m.enableAria(platform.name)}
+          checked={platform.enabled}
+          disabled={saving === `enabled:${platform.id}`}
+          onCheckedChange={onToggle}
+          size="xs"
+        />
+        <span className="text-[0.84375rem] text-foreground">{m.channelActive}</span>
+        <span className="text-xs text-(--ui-text-tertiary)">{m.whatsappActiveHint}</span>
+      </div>
+    </div>
+  )
+}
+
+const BLOCK_CLASS = 'rounded-xl border border-(--ui-stroke-quaternary) px-4 py-3.5'
+const BLOCK_TITLE = 'text-[0.72rem] font-medium text-(--ui-text-tertiary)'
+const BLOCK_ROW = 'flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.84375rem] text-foreground'
+
+function SettingsBlock({ children, title }: { children: React.ReactNode; title: string }) {
+  return (
+    <section className={BLOCK_CLASS}>
+      <h3 className={cn('mb-2.5', BLOCK_TITLE)}>{title}</h3>
+      {children}
+    </section>
+  )
+}
+
+/** The Connection block's one line: the channel's real state, how long it has
+ *  held it when connected, and the actions that state calls for. */
+function WhatsAppConnectionRow({
+  onRunSteps,
+  onTest,
+  platform,
+  testing
+}: {
+  onRunSteps: () => void
+  onTest: () => void
+  platform: MessagingPlatformInfo
+  testing: boolean
+}) {
+  const { locale, t } = useI18n()
+  const m = t.messaging
+  const restarting = useStore($gatewayRestarting)
+  const connected = platform.enabled && platform.state === 'connected' && platform.gateway_running
+  const status = detailStatus(platform, m)
+
+  const needsRestart =
+    platform.enabled &&
+    platform.configured &&
+    (!platform.gateway_running || platform.state === 'pending_restart' || platform.state === 'startup_failed')
+
+  const since = (() => {
+    if (!connected || !platform.updated_at) {
+      return null
+    }
+
+    const at = new Date(platform.updated_at)
+
+    if (Number.isNaN(at.getTime())) {
+      return null
+    }
+
+    return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : locale, {
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      month: 'short'
+    }).format(at)
+  })()
+
+  // What to do next when the channel is not up, as the other channels' hint
+  // says it; the restart it may call for is the button on the row.
+  const hint = !platform.enabled
+    ? platform.configured
+      ? m.hintEnableToConnect
+      : null
+    : platform.state === 'pending_restart'
+      ? m.hintPendingRestart
+      : platform.configured && !platform.gateway_running
+        ? m.hintGatewayStopped
+        : null
+
+  const restart = (
+    <Button disabled={restarting} onClick={() => void runGatewayRestart()} size="xs" variant="text">
+      {restarting ? m.restartingGateway : needsRestart ? m.restartGateway : m.reconnect}
+    </Button>
+  )
 
   return (
     <>
-      {platform.error_message && <ErrorBanner>{platform.error_message}</ErrorBanner>}
+      <div className={BLOCK_ROW}>
+        <ToneDot tone={status.tone} />
+        <span>{connected ? m.connectedListening : platform.enabled ? status.label : m.channelOff}</span>
+        {since && <span className="text-xs text-(--ui-text-tertiary)">{m.connectedSince(since)}</span>}
+        <span className="flex-1" />
+        {platform.enabled && !platform.configured && (
+          <Button onClick={onRunSteps} size="xs" variant="text">
+            {m.runSetupSteps}
+          </Button>
+        )}
+        {platform.configured && platform.enabled && platform.gateway_running && (
+          <Button disabled={testing} onClick={onTest} size="xs" variant="text">
+            {testing ? m.testing : m.testConnection}
+          </Button>
+        )}
+        {platform.configured && platform.enabled && restart}
+      </div>
+      {hint && <p className="mt-2 text-xs leading-4 text-(--ui-text-tertiary)">{hint}</p>}
+      {platform.error_message && <p className="mt-2 text-xs leading-4 text-destructive">{platform.error_message}</p>}
+    </>
+  )
+}
 
-      <section>
-        <SectionTitle>{m.connectionTitle}</SectionTitle>
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground">
-          <span className="flex items-center gap-2">
-            <StatusDot tone={status.tone} />
-            {platform.enabled && platform.state === 'connected' ? m.connectedListening : status.label}
-          </span>
-          <Button onClick={() => setSteps(true)} size="inline" variant="link">
-            {m.setUpAgain}
+/** "Who can talk": one line that says who gets a reply (with the numbers when
+ *  there is a list) and Edit; the people waiting for approval; the people
+ *  already approved behind Show. Editing the list saves through the same
+ *  channel update the raw settings use. */
+function WhatsAppWhoCanTalk({
+  allowed,
+  approved,
+  approving,
+  mode,
+  onApprove,
+  onRevoke,
+  onRunSteps,
+  onSaved,
+  pending,
+  platform,
+  policy,
+  scopeProfile
+}: {
+  allowed: string[]
+  approved: PairingUser[]
+  approving: null | string
+  mode: string
+  onApprove: (user: PairingUser) => void
+  onRevoke: (user: PairingUser) => void
+  onRunSteps: () => void
+  onSaved: () => void
+  pending: PairingUser[]
+  platform: MessagingPlatformInfo
+  policy: string
+  scopeProfile: null | string
+}) {
+  const { t } = useI18n()
+  const m = t.messaging
+  const [editing, setEditing] = useState(false)
+  const [showApproved, setShowApproved] = useState(false)
+  const selfChat = mode === 'self-chat'
+
+  const summary = selfChat
+    ? m.whoSelf
+    : policy === 'disabled'
+      ? m.whoNobody
+      : policy === 'open'
+        ? m.whoAnyone
+        : allowed.length > 0
+          ? m.whoTeam(allowed.length)
+          : m.whoApprove
+
+  return (
+    <>
+      {editing ? (
+        <WhoCanTalkEditor
+          allowed={allowed}
+          onCancel={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false)
+            onSaved()
+          }}
+          platform={platform}
+          scopeProfile={scopeProfile}
+        />
+      ) : (
+        <div className={BLOCK_ROW}>
+          <span>{summary}</span>
+          {!selfChat && allowed.length > 0 && (
+            <span className="min-w-0 text-xs text-(--ui-text-tertiary) [overflow-wrap:anywhere]">
+              {allowed.join(', ')}
+            </span>
+          )}
+          <span className="flex-1" />
+          <Button onClick={() => (selfChat ? onRunSteps() : setEditing(true))} size="xs" variant="text">
+            {m.edit}
           </Button>
         </div>
-        <PlatformHint platform={platform} />
-      </section>
+      )}
 
-      <section>
-        <SectionTitle>{m.whoCanTalkTitle}</SectionTitle>
-        <p className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-          {whoSummary}
-        </p>
-        <div className="mt-3 space-y-5">
-          <PairingSections
-            approved={approved}
-            approving={approving}
-            onApprove={onApprove}
-            onRevoke={onRevoke}
-            pending={pending}
-          />
+      {pending.length > 0 && (
+        <div className="mt-3">
+          <div className="text-xs text-(--ui-text-tertiary)">{m.pendingRequests(pending.length)}</div>
+          <div className="mt-1 grid gap-1">
+            {pending.map(user => {
+              const busy = approving === pairingKey(user)
+              const waited = typeof user.age_minutes === 'number' ? m.waitingSince(user.age_minutes) : null
+
+              return (
+                <ListRow
+                  action={
+                    <Button
+                      disabled={busy || !user.request_id}
+                      onClick={() => onApprove(user)}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      {busy ? m.approving : m.approve}
+                    </Button>
+                  }
+                  description={[user.user_name ? user.user_id : null, waited].filter(Boolean).join(' · ')}
+                  key={pairingKey(user)}
+                  title={pairingLabel(user)}
+                />
+              )
+            })}
+          </div>
         </div>
-        {whoFields.length > 0 && <MessagingFields fields={whoFields} {...fieldProps} />}
-      </section>
+      )}
 
-      {(advancedFields.length > 0 || platform.docs_url) && (
-        <section>
-          <button
-            className={cn('flex w-full items-center justify-between gap-2 py-0.5 text-left', CHANNEL_LABEL)}
-            onClick={() => setShowAdvanced(value => !value)}
-            type="button"
-          >
-            <span>{m.advanced(advancedFields.length)}</span>
-            <DisclosureCaret open={showAdvanced} size="0.875rem" />
-          </button>
-          {showAdvanced && (
-            <div className="mt-3 space-y-5">
-              <PlatformGuide platform={platform} />
-              {advancedFields.length > 0 && <MessagingFields fields={advancedFields} {...fieldProps} />}
+      {approved.length > 0 && (
+        <div className="mt-3">
+          <div className="flex items-center gap-2 text-xs text-(--ui-text-tertiary)">
+            {m.approvedCount(approved.length)}
+            <Button onClick={() => setShowApproved(value => !value)} size="inline" variant="text">
+              {showApproved ? m.hide : m.show}
+            </Button>
+          </div>
+          {showApproved && (
+            <div className="mt-1 grid gap-1">
+              {approved.map(user => (
+                <ListRow
+                  action={
+                    <Button
+                      aria-label={m.revokeAria(pairingLabel(user))}
+                      onClick={() => onRevoke(user)}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      {m.revoke}
+                    </Button>
+                  }
+                  description={user.user_name ? user.user_id : undefined}
+                  key={pairingKey(user)}
+                  title={pairingLabel(user)}
+                />
+              ))}
             </div>
           )}
-        </section>
+        </div>
       )}
     </>
+  )
+}
+
+/** The Edit of "Who can talk": the same two choices as the setup step. The
+ *  list is the channel's allowlist; approving people as they message is the
+ *  allowlist cleared, so everyone gets a pairing code to approve here. */
+function WhoCanTalkEditor({
+  allowed,
+  onCancel,
+  onSaved,
+  platform,
+  scopeProfile
+}: {
+  allowed: string[]
+  onCancel: () => void
+  onSaved: () => void
+  platform: MessagingPlatformInfo
+  scopeProfile: null | string
+}) {
+  const { t } = useI18n()
+  const m = t.messaging
+  const s = m.whatsappSteps
+  const [choice, setChoice] = useState<'approve' | 'list'>(allowed.length > 0 ? 'list' : 'approve')
+  const [numbers, setNumbers] = useState(allowed.join(', '))
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    const list = splitNumbers(numbers).join(',')
+
+    if (choice === 'list') {
+      if (!list) {
+        setError(s.numbersRequired)
+
+        return
+      }
+
+      const invalid = findInvalidWhatsAppUser(list)
+
+      if (invalid) {
+        setError(m.envErrors.whatsappNumber(invalid))
+
+        return
+      }
+    }
+
+    setBusy(true)
+
+    try {
+      if (choice === 'list') {
+        await updateMessagingPlatform(platform.id, { env: { WHATSAPP_ALLOWED_USERS: list } }, scopeProfile)
+      } else if (allowed.length > 0) {
+        await updateMessagingPlatform(platform.id, { clear_env: ['WHATSAPP_ALLOWED_USERS'] }, scopeProfile)
+      }
+
+      notify({
+        kind: 'success',
+        title: m.setupSaved(platform.name),
+        message: m.restartToReconnect,
+        action: { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart() }
+      })
+      onSaved()
+    } catch (err) {
+      notifyError(err, m.failedSave(platform.name))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <ChoiceList
+        label={m.whoCanTalkTitle}
+        onChange={next => {
+          setChoice(next)
+          setError('')
+        }}
+        options={[
+          {
+            description: s.listDesc,
+            extra: (
+              <Input
+                aria-label={s.listTitle}
+                className="mt-2.5 h-8 font-mono text-[0.78rem]"
+                onChange={event => {
+                  setNumbers(event.target.value)
+                  setError('')
+                }}
+                placeholder="5511999993977, 5511988880000"
+                value={numbers}
+              />
+            ),
+            id: 'list',
+            title: s.listTitle
+          },
+          { description: s.approveDesc, id: 'approve', title: s.approveTitle }
+        ]}
+        value={choice}
+      />
+      {error && <p className="text-xs leading-4 text-destructive">{error}</p>}
+      <div className="flex items-center justify-end gap-2">
+        <Button disabled={busy} onClick={onCancel} size="sm" variant="outline">
+          {t.common.cancel}
+        </Button>
+        <Button disabled={busy} onClick={() => void save()} size="sm">
+          {busy ? m.saving : t.common.save}
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -1392,6 +1882,7 @@ function MessagingFields({
   fields,
   onClear,
   onEdit,
+  plainValues = false,
   saving
 }: {
   current?: (field: MessagingEnvVarInfo) => null | string | undefined
@@ -1400,6 +1891,8 @@ function MessagingFields({
   fields: MessagingEnvVarInfo[]
   onClear: (key: string) => void
   onEdit: (key: string, value: string) => void
+  /** Show a saved non-secret value as it is instead of masked. */
+  plainValues?: boolean
   saving: string | null
 }) {
   return (
@@ -1413,6 +1906,7 @@ function MessagingFields({
           key={field.key}
           onClear={onClear}
           onEdit={onEdit}
+          plainValue={plainValues}
           saving={saving}
         />
       ))}
@@ -1534,6 +2028,7 @@ function MessagingField({
   field,
   onClear,
   onEdit,
+  plainValue = false,
   saving
 }: {
   current?: null | string
@@ -1542,6 +2037,7 @@ function MessagingField({
   field: MessagingEnvVarInfo
   onClear: (key: string) => void
   onEdit: (key: string, value: string) => void
+  plainValue?: boolean
   saving: string | null
 }) {
   const { t } = useI18n()
@@ -1582,7 +2078,11 @@ function MessagingField({
             className={CREDENTIAL_CONTROL_CLASS}
             id={fieldId}
             onChange={event => onEdit(field.key, event.target.value)}
-            placeholder={field.is_set ? field.redacted_value || m.replaceValue : copy.placeholder}
+            placeholder={
+              field.is_set
+                ? (plainValue && !field.is_password && field.value) || field.redacted_value || m.replaceValue
+                : copy.placeholder
+            }
             type={field.is_password ? 'password' : 'text'}
             value={edits[field.key] || ''}
           />
@@ -1662,11 +2162,11 @@ function StatePill({ children, tone }: { children: string; tone: StatusTone }) {
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.66rem] font-medium',
-        PILL_TONE[tone]
+        'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-(--ui-stroke-tertiary) px-2.5 text-xs',
+        tone === 'good' ? 'text-foreground' : tone === 'bad' ? 'text-destructive' : 'text-(--ui-text-secondary)'
       )}
     >
-      <StatusDot tone={tone} />
+      <ToneDot tone={tone} />
       {children}
     </span>
   )
