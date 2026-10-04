@@ -215,8 +215,12 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   const scopeKey = scopeProfile ?? ''
   const pickedView = useStore($channelsView)
   const category = useStore($channelsCategory)
+
   // Both save/toggle toasts offer the same one-click restart.
-  const restartGatewayAction = { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart() }
+  const restartGatewayAction = {
+    label: t.commandCenter.restartGateway,
+    onClick: () => void runGatewayRestart(scopeProfile)
+  }
 
   // Open on the rows this scope showed last time (if any) and refresh them
   // behind; a blank loader only on the first visit of the app session.
@@ -837,7 +841,8 @@ function PlatformDetail(props: PlatformDetailProps) {
     onToggle,
     pending,
     platform,
-    saving
+    saving,
+    scopeProfile
   } = props
 
   const { t } = useI18n()
@@ -904,7 +909,7 @@ function PlatformDetail(props: PlatformDetailProps) {
 
   return (
     <>
-      <PlatformHint platform={platform} />
+      <PlatformHint platform={platform} scopeProfile={scopeProfile} />
 
       {platform.error_message && <ErrorBanner>{platform.error_message}</ErrorBanner>}
 
@@ -1170,7 +1175,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h4 className={CHANNEL_LABEL}>{children}</h4>
 }
 
-function PlatformHint({ platform }: { platform: MessagingPlatformInfo }) {
+function PlatformHint({ platform, scopeProfile }: { platform: MessagingPlatformInfo; scopeProfile: null | string }) {
   const { t } = useI18n()
   const m = t.messaging
   const restarting = useStore($gatewayRestarting)
@@ -1202,7 +1207,7 @@ function PlatformHint({ platform }: { platform: MessagingPlatformInfo }) {
       <p className="text-xs leading-5 text-muted-foreground">
         {needsRestart ? m.hintPendingRestart : m.hintGatewayStopped}
       </p>
-      <Button disabled={restarting} onClick={() => void runGatewayRestart()} size="sm" variant="secondary">
+      <Button disabled={restarting} onClick={() => void runGatewayRestart(scopeProfile)} size="sm" variant="secondary">
         <RefreshCw />
         {restarting ? m.restartingGateway : m.restartGateway}
       </Button>

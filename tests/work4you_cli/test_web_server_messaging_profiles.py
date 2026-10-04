@@ -7,6 +7,8 @@ still displayed and persisted the ROOT install's messaging credentials.
 These tests pin the new behavior: reads and writes land in the REQUESTED
 profile's WORK4YOU_HOME, and the dashboard's own profile stays untouched.
 """
+import json
+
 import pytest
 import yaml
 
@@ -193,6 +195,181 @@ class TestProfileScopedMessagingWrites:
 
 
 
+
+class TestProfileScopedWebhooks:
+    """The /api/webhooks endpoints follow ``profile`` like the rest of the
+    Channels page. A shared backend used to read and write its OWN routes,
+    listener switch and base URL whatever profile was being configured."""
+
+    def test_routes_live_in_the_requested_profile(self, client, isolated_profiles):
+        worker = isolated_profiles["worker_alpha"]
+        (worker / "config.yaml").write_text(
+            yaml.safe_dump({"platforms": {"webhook": {"enabled": True}}}),
+            encoding="utf-8",
+        )
+        (worker / ".env").write_text("WEBHOOK_PORT=8701\n", encoding="utf-8")
+        scoped = {"profile": "worker_alpha"}
+
+        created = client.post(
+            "/api/webhooks", params=scoped, json={"name": "github-issues", "deliver": "log"}
+        )
+        assert created.status_code == 200
+        assert created.json()["url"] == "http://localhost:8701/webhooks/github-issues"
+        stored = json.loads((worker / "webhook_subscriptions.json").read_text(encoding="utf-8"))
+        assert "github-issues" in stored
+        assert not (isolated_profiles["default"] / "webhook_subscriptions.json").exists()
+
+        listed = client.get("/api/webhooks", params=scoped).json()
+        assert listed["enabled"] is True
+        assert listed["base_url"] == "http://localhost:8701"
+        assert [route["name"] for route in listed["subscriptions"]] == ["github-issues"]
+        # The dashboard's own profile has neither the listener nor the route.
+        own = client.get("/api/webhooks").json()
+        assert own["enabled"] is False
+        assert own["subscriptions"] == []
+
+        toggled = client.put(
+            "/api/webhooks/github-issues/enabled", params=scoped, json={"enabled": False}
+        )
+        assert toggled.json() == {"ok": True, "name": "github-issues", "enabled": False}
+        assert client.delete("/api/webhooks/github-issues", params=scoped).status_code == 200
+        assert client.get("/api/webhooks", params=scoped).json()["subscriptions"] == []
+
+    def test_scoped_reads_skip_the_dashboard_process_env(
+        self, client, isolated_profiles, monkeypatch
+    ):
+        # The dashboard's own profile turned the listener on and moved it in
+        # the process environment (systemd Environment=, a shell export).
+        # Another profile's page must not inherit either value.
+        monkeypatch.setenv("WEBHOOK_ENABLED", "true")
+        monkeypatch.setenv("WEBHOOK_PORT", "8702")
+
+        scoped = client.get("/api/webhooks", params={"profile": "worker_alpha"}).json()
+        assert scoped["enabled"] is False
+        assert scoped["base_url"] == "http://localhost:8644"
+
+        own = client.get("/api/webhooks").json()
+        assert own["enabled"] is True
+        assert own["base_url"] == "http://localhost:8702"
+
+    def test_enable_turns_on_the_requested_profile_and_restarts_its_gateway(
+        self, client, isolated_profiles, monkeypatch
+    ):
+        import work4you_cli.web_server as web_server
+
+        class FakeRestart:
+            pid = 4242
+
+        restarted = []
+
+        def fake_restart(profile=None):
+            restarted.append(profile)
+            return FakeRestart(), False
+
+        monkeypatch.setattr(web_server, "_spawn_gateway_restart", fake_restart)
+
+        resp = client.post("/api/webhooks/enable", params={"profile": "worker_alpha"})
+
+        assert resp.status_code == 200
+        assert resp.json()["restart_started"] is True
+        assert restarted == ["worker_alpha"]
+        worker_cfg = yaml.safe_load(
+            (isolated_profiles["worker_alpha"] / "config.yaml").read_text(encoding="utf-8")
+        ) or {}
+        assert worker_cfg["platforms"]["webhook"]["enabled"] is True
+        root_cfg = yaml.safe_load(
+            (isolated_profiles["default"] / "config.yaml").read_text(encoding="utf-8")
+        ) or {}
+        assert "webhook" not in (root_cfg.get("platforms") or {})
+
+    def test_unknown_profile_is_refused(self, client, isolated_profiles):
+        assert client.get("/api/webhooks", params={"profile": "no_such_profile"}).status_code == 404
+
+
+
+class TestScopedEnablementFollowsTheGateway:
+    """A channel set up from ``.env`` alone has no ``enabled`` in config.yaml,
+    and the gateway then runs it on its credentials (env-only setups and the
+    plugin registry's ``is_connected`` pass). The scoped view used to read
+    only config.yaml and showed those channels off while they ran."""
+
+    _CHAT_CREDENTIALS = (
+        "SLACK_BOT_TOKEN=test-bot-token\n"
+        "SLACK_APP_TOKEN=test-app-token\n"
+        "TEAMS_CLIENT_ID=test-client-id\n"
+        "TEAMS_CLIENT_SECRET=test-client-secret\n"
+        "TEAMS_TENANT_ID=test-tenant-id\n"
+        "GOOGLE_CHAT_PROJECT_ID=test-project\n"
+        "GOOGLE_CHAT_SUBSCRIPTION_NAME=test-subscription\n"
+    )
+
+    @staticmethod
+    def _rows(client):
+        payload = client.get("/api/messaging/platforms", params={"profile": "worker_alpha"}).json()
+        return {row["id"]: row for row in payload["platforms"]}
+
+    def test_credentials_without_a_switch_read_as_on(self, client, isolated_profiles):
+        (isolated_profiles["worker_alpha"] / ".env").write_text(self._CHAT_CREDENTIALS, encoding="utf-8")
+
+        rows = self._rows(client)
+
+        for platform_id in ("slack", "teams", "google_chat"):
+            assert rows[platform_id]["configured"] is True, platform_id
+            assert rows[platform_id]["enabled"] is True, platform_id
+            assert rows[platform_id]["state"] != "disabled", platform_id
+
+    def test_a_written_switch_still_wins(self, client, isolated_profiles):
+        worker = isolated_profiles["worker_alpha"]
+        (worker / ".env").write_text(self._CHAT_CREDENTIALS, encoding="utf-8")
+        (worker / "config.yaml").write_text(
+            yaml.safe_dump({"platforms": {"slack": {"enabled": False}}}), encoding="utf-8"
+        )
+
+        rows = self._rows(client)
+
+        assert rows["slack"]["enabled"] is False
+        assert rows["slack"]["state"] == "disabled"
+        assert rows["teams"]["enabled"] is True
+
+    def test_missing_credentials_stay_off(self, client, isolated_profiles):
+        (isolated_profiles["worker_alpha"] / ".env").write_text(
+            "SLACK_BOT_TOKEN=test-bot-token\n", encoding="utf-8"
+        )
+
+        rows = self._rows(client)
+
+        assert rows["slack"]["configured"] is False
+        assert rows["slack"]["enabled"] is False
+        assert rows["teams"]["enabled"] is False
+
+    def test_listeners_wait_for_their_own_switch(self, client, isolated_profiles):
+        """The Graph client_state alone does not start its listener, and the
+        webhook listener needs no credential: without the card switch the
+        gateway turns each on only for its enable variable."""
+        worker = isolated_profiles["worker_alpha"]
+        (worker / ".env").write_text(
+            "MSGRAPH_WEBHOOK_CLIENT_STATE=test-client-state\n", encoding="utf-8"
+        )
+
+        rows = self._rows(client)
+
+        assert rows["msgraph_webhook"]["configured"] is True
+        assert rows["msgraph_webhook"]["enabled"] is False
+        assert rows["webhook"]["enabled"] is False
+
+        (worker / ".env").write_text(
+            "MSGRAPH_WEBHOOK_CLIENT_STATE=test-client-state\n"
+            "MSGRAPH_WEBHOOK_ENABLED=true\n"
+            "WEBHOOK_ENABLED=true\n",
+            encoding="utf-8",
+        )
+
+        rows = self._rows(client)
+
+        assert rows["msgraph_webhook"]["enabled"] is True
+        assert rows["webhook"]["enabled"] is True
+
+
 def _enable_multiplex(default_home):
     (default_home / "config.yaml").write_text(
         yaml.safe_dump({"gateway": {"multiplex_profiles": True}}),
@@ -235,6 +412,24 @@ class TestMultiplexPortBindingGuard:
 
 
 
+
+    def test_webhook_enable_rejected_on_secondary(self, client, isolated_profiles, monkeypatch):
+        import work4you_cli.web_server as web_server
+
+        def no_restart(profile=None):
+            raise AssertionError("a rejected enable must not restart anything")
+
+        monkeypatch.setattr(web_server, "_spawn_gateway_restart", no_restart)
+        _enable_multiplex(isolated_profiles["default"])
+
+        resp = client.post("/api/webhooks/enable", params={"profile": "worker_alpha"})
+
+        assert resp.status_code == 409
+        assert "default profile" in resp.json()["detail"]
+        worker_cfg = yaml.safe_load(
+            (isolated_profiles["worker_alpha"] / "config.yaml").read_text(encoding="utf-8")
+        ) or {}
+        assert "webhook" not in (worker_cfg.get("platforms") or {})
 
     def test_secondary_can_disable_and_clear_invalid_config(
         self, client, isolated_profiles

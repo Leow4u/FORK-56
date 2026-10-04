@@ -562,6 +562,13 @@ const LOCAL_PRIMARY_SCOPED_ROUTES = new Set([
   'POST /api/mcp/catalog/install'
 ])
 
+// Gateway lifecycle actions are spawned by routes the profile's OWN backend
+// serves — POST /api/gateway/{restart,start,stop}, the channel onboarding
+// applies and the webhook enable — so their polls must ask that backend too.
+// The primary never ran them: it answered with its own idle restart, so a
+// restart that failed for the profile read as done.
+const PROFILE_BACKEND_ACTIONS = new Set(['gateway-restart', 'gateway-start', 'gateway-stop'])
+
 function localPrimaryRequestScope(opts: ProfileRouteOptions): boolean | null {
   const rawPath = String(opts.requestPath || '')
 
@@ -590,7 +597,9 @@ function localPrimaryRequestScope(opts: ProfileRouteOptions): boolean | null {
   // primary, so the poll family follows — a pooled-backend poll 404s with
   // "Unknown action" even though the install itself succeeded (#89xxx).
   if (pathname.startsWith('/api/actions/')) {
-    return true
+    const action = pathname.slice('/api/actions/'.length).split('/')[0]
+
+    return PROFILE_BACKEND_ACTIONS.has(action) ? null : true
   }
 
   // Every current /api/tools handler accepts `profile`; every /api/profiles

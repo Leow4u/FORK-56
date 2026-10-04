@@ -366,7 +366,7 @@ export function TelegramConnectSteps({
       setPhase('applied')
       onApplied()
       setRestart({ outcome: 'pending' })
-      setRestart(await restartAndWatch())
+      setRestart(await restartAndWatch(scopeProfile))
     } catch (applyError) {
       setPhase(method === 'qr' && setup ? 'created' : 'idle')
       setStep(from)
@@ -627,7 +627,7 @@ export function TelegramConnectSteps({
           <ReadyLine done>
             {method === 'qr' && botUsername ? <Marked text={s.checkCreated(botUsername)} /> : s.checkTokenSaved}
           </ReadyLine>
-          {phase === 'applied' && <RestartLine restart={restart} />}
+          {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
           <ReadyLine done>{whoLine}</ReadyLine>
         </ReadyView>
       )}

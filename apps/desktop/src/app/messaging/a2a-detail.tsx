@@ -116,6 +116,7 @@ export function A2ADetail({
           onTest={onTest}
           platform={platform}
           restartButton="needed"
+          scopeProfile={scopeProfile}
           testing={saving === `test:${platform.id}`}
         />
       </SettingsBlock>

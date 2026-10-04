@@ -16,10 +16,10 @@ export const $gatewayRestarting = atom(false)
 
 // Poll a backend action to completion (or a bounded window), throwing on a
 // non-zero exit so the caller can surface the failure.
-async function awaitAction(started: ActionResponse): Promise<void> {
+async function awaitAction(started: ActionResponse, profile?: string): Promise<void> {
   for (let attempt = 0; attempt < POLL_ATTEMPTS; attempt += 1) {
     await new Promise(resolve => window.setTimeout(resolve, POLL_INTERVAL_MS))
-    const status = await getActionStatus(started.name, POLL_TIMEOUT_S)
+    const status = await getActionStatus(started.name, POLL_TIMEOUT_S, profile)
 
     if (!status.running) {
       if (status.exit_code != null && status.exit_code !== 0) {
@@ -35,11 +35,15 @@ async function awaitAction(started: ActionResponse): Promise<void> {
 // indicator. Self-contained and never rejects, so every trigger — Cmd+K, the
 // messaging save/toggle toasts — gets identical feedback from a plain
 // `void runGatewayRestart()`, and a failure is the only thing that toasts.
-export async function runGatewayRestart(): Promise<void> {
+// `profile` is whose gateway: the Channels pages pass the profile they
+// configure; without one (or with null) it is the app's active profile.
+export async function runGatewayRestart(profile?: null | string): Promise<void> {
+  const scope = profile ?? undefined
+
   $gatewayRestarting.set(true)
 
   try {
-    await awaitAction(await restartGateway())
+    await awaitAction(await restartGateway(scope), scope)
   } catch (err) {
     notifyError(err, translateNow('commandCenter.gatewayRestartFailed'))
   } finally {

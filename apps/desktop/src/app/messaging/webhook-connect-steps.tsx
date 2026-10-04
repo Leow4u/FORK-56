@@ -123,7 +123,7 @@ export function WebhookConnectSteps({
       // Routes are saved while the gateway restarts; the ready screen says
       // so only if the restart went wrong.
       setRestart({ outcome: 'pending' })
-      void restartAndWatch().then(setRestart)
+      void restartAndWatch(scopeProfile).then(setRestart)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : String(saveError))
     } finally {
@@ -265,7 +265,9 @@ export function WebhookConnectSteps({
           </ReadyLine>
           <ReadyLine done>{s.checkSecret}</ReadyLine>
           <ReadyLine done>{s.checkDeliver(target(created.deliver))}</ReadyLine>
-          {restart && (restart.outcome === 'failed' || restart.outcome === 'none') && <RestartLine restart={restart} />}
+          {restart && (restart.outcome === 'failed' || restart.outcome === 'none') && (
+            <RestartLine restart={restart} scopeProfile={scopeProfile} />
+          )}
         </ReadyView>
       )}
     </StepsFrame>

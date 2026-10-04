@@ -108,6 +108,7 @@ export function ApiServerDetail({
           onTest={onTest}
           platform={platform}
           restartButton="restart"
+          scopeProfile={scopeProfile}
           testing={saving === `test:${platform.id}`}
         >
           {apiServerIsNetworkExposed(platform.env_vars) && (

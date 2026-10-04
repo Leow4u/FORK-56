@@ -500,7 +500,7 @@ export function WhatsAppConnectSteps({
           </h2>
           <ul className="mt-3 grid gap-1.5 text-[0.8125rem] text-(--ui-text-secondary)">
             <ReadyLine done>{linkedLabel ? s.checkLinkedAs(linkedLabel) : s.checkLinked}</ReadyLine>
-            {phase === 'applied' && <RestartLine restart={restart} />}
+            {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
             <ReadyLine done>{whoLine}</ReadyLine>
           </ul>
           {phase === 'applied' && <p className={cn('mt-3.5', STEP_NOTE)}>{tryIt}</p>}

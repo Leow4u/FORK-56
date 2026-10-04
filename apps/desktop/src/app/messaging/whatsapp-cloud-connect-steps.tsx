@@ -226,7 +226,7 @@ export function WhatsAppCloudConnectSteps({
       setPhase('applied')
       onApplied()
       setRestart({ outcome: 'pending' })
-      const restarted = await restartAndWatch()
+      const restarted = await restartAndWatch(scopeProfile)
       setRestart(restarted)
       setMeta(await testUntilOk('whatsapp_cloud', scopeProfile))
     } catch (saveError) {
@@ -418,7 +418,7 @@ export function WhatsAppCloudConnectSteps({
               pending={s.checkMetaPending}
             />
           )}
-          {phase === 'applied' && <RestartLine restart={restart} />}
+          {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
           <ReadyLine done>{whoLine}</ReadyLine>
         </ReadyView>
       )}

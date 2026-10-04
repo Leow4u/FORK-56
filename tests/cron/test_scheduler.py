@@ -2192,6 +2192,34 @@ class TestHomeTargetEnvVarRegistry:
     entry means ``work4you cron create --deliver=<platform>`` silently
     fails to route through the platform's home channel."""
 
+    def test_every_platform_with_a_home_channel_is_a_delivery_target(self):
+        """The two built-in tables must agree: cron reads a home channel for
+        a platform precisely so it can deliver there. WhatsApp Cloud had a
+        home-channel variable but no delivery entry, so every routine aimed
+        at it was refused as an unknown target."""
+        from cron.scheduler import _HOME_TARGET_ENV_VARS, _is_known_delivery_platform
+
+        assert _HOME_TARGET_ENV_VARS
+        for platform_name in _HOME_TARGET_ENV_VARS:
+            assert _is_known_delivery_platform(platform_name), platform_name
+
+    def test_whatsapp_cloud_routine_resolves_to_its_home_channel(self, monkeypatch):
+        from cron.scheduler import _preflight_check_delivery, _resolve_delivery_target
+        from gateway.config import Platform
+
+        monkeypatch.setenv("WHATSAPP_CLOUD_HOME_CHANNEL", "15551234567")
+        job = {"id": "brief", "deliver": "whatsapp_cloud"}
+
+        target = _resolve_delivery_target(job)
+
+        assert target == {"platform": "whatsapp_cloud", "chat_id": "15551234567", "thread_id": None}
+        # Preflight no longer refuses it as unknown; with the channel connected
+        # it lets the run through.
+        connected = MagicMock()
+        connected.get_connected_platforms.return_value = [Platform.WHATSAPP_CLOUD]
+        with patch("gateway.config.load_gateway_config", return_value=connected):
+            assert _preflight_check_delivery(job) is None
+
 
 class TestCronDeliveryMirror:
     """cron.mirror_delivery / per-job attach_to_session: opt-in append of a

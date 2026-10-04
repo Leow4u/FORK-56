@@ -88,6 +88,7 @@ export function EmailDetail({
           onRunSteps={() => setSteps(true)}
           onTest={onTest}
           platform={platform}
+          scopeProfile={scopeProfile}
           testing={saving === `test:${platform.id}`}
         />
       </SettingsBlock>

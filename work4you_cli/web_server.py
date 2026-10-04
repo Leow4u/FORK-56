@@ -8882,6 +8882,8 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
             "WHATSAPP_ALLOWED_USERS",
         ),
         "required_env": (),
+        # The bridge has no credential; the gateway starts it on this switch.
+        "enable_env": "WHATSAPP_ENABLED",
     },
     "homeassistant": {
         "name": "Home Assistant",
@@ -9140,6 +9142,9 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
         # page). See setup_hidden_env.py.
         "env_vars": ("WEBHOOK_PORT", "WEBHOOK_SECRET"),
         "required_env": (),
+        # Without the card switch the gateway turns the listener on only for
+        # WEBHOOK_ENABLED (`work4you setup` writes it).
+        "enable_env": "WEBHOOK_ENABLED",
         # No credential is required — routes carry their own HMAC secrets, and
         # they're managed on the Webhooks page, not this card. Without this
         # flag the card showed a "Needs setup" pill (configured=False merely
@@ -9154,6 +9159,9 @@ _PLATFORM_OVERRIDES: dict[str, dict[str, Any]] = {
         # MSGRAPH_WEBHOOK_ENABLED is hidden by name (duplicate of the card
         # toggle). ALLOW_ALL / HOME_CHANNEL stay hidden by suffix. This is
         # NOT setup_free: the adapter refuses to start without client_state.
+        # The client_state alone does not turn the listener on — without the
+        # card switch only MSGRAPH_WEBHOOK_ENABLED does.
+        "enable_env": "MSGRAPH_WEBHOOK_ENABLED",
         "env_vars": (
             "MSGRAPH_WEBHOOK_CLIENT_STATE",
             "MSGRAPH_WEBHOOK_HOST",
@@ -9602,7 +9610,33 @@ def _build_catalog_entry(
         # per-route secrets live on the Webhooks page). "configured" is then
         # always True — enablement is the only setup step.
         "setup_free": bool(override.get("setup_free")),
+        # The env switch the gateway reads to turn a listener on when
+        # config.yaml has no ``enabled`` for it (its credentials alone don't).
+        "enable_env": override.get("enable_env"),
     }
+
+
+def _enabled_without_switch(
+    entry: dict[str, Any], env_on_disk: dict[str, str], configured: bool
+) -> bool:
+    """Whether the gateway runs a channel whose config.yaml has no ``enabled``.
+
+    Judged from the profile's own ``.env``, the way ``_apply_env_overrides``
+    and the plugin registry's ``is_connected`` pass decide it: a listener
+    with its own enable switch waits for that switch; any other channel comes
+    on with its credentials (env-only setups — Slack, Teams, Google Chat, …).
+    A channel with no credential to judge by stays off until switched on.
+    """
+    enable_env = entry.get("enable_env")
+    if enable_env:
+        from utils import is_truthy_value
+
+        return is_truthy_value(env_on_disk.get(enable_env, ""))
+    if entry.get("setup_free"):
+        return False
+    if not entry["required_env"] and not entry.get("required_env_any"):
+        return False
+    return configured
 
 
 def _catalog_lookup(platform_id: str) -> dict[str, Any] | None:
@@ -9734,10 +9768,12 @@ def _messaging_platform_payload(
             plat_cfg = platforms_cfg.get(platform_id)
             if not isinstance(plat_cfg, dict):
                 plat_cfg = {}
+            switched = "enabled" in plat_cfg
             enabled = bool(plat_cfg.get("enabled"))
             hc = plat_cfg.get("home_channel")
             home_channel = hc if isinstance(hc, dict) else None
         except Exception:
+            switched = True
             enabled = False
             home_channel = None
         configured = all(env_on_disk.get(key) for key in entry["required_env"])
@@ -9746,6 +9782,11 @@ def _messaging_platform_payload(
                 all(env_on_disk.get(key) for key in group)
                 for group in entry["required_env_any"]
             )
+        # With no switch written, the gateway decides from the profile's
+        # .env — reading only config.yaml showed a channel the gateway runs
+        # on its credentials alone as off.
+        if not switched:
+            enabled = _enabled_without_switch(entry, env_on_disk, configured)
     else:
         try:
             gateway_config, platform, platform_config = _gateway_platform_config(
@@ -15709,6 +15750,12 @@ async def clear_pending_pairing(profile: Optional[str] = None):
 # Wraps the same JSON store the CLI uses (work4you_cli.webhook); the webhook
 # adapter hot-reloads it without a gateway restart.  Per-route HMAC secrets
 # are redacted on read and surfaced once on create.
+#
+# Every endpoint takes ``profile`` like the other Channels endpoints: the
+# store, the listener switch and the base URL all resolve from
+# ``get_work4you_home()`` at call time, so the config scope reaches them. A
+# shared backend serving several profiles otherwise read and wrote its OWN
+# routes whatever profile the page was configuring.
 # ---------------------------------------------------------------------------
 
 
@@ -15732,13 +15779,15 @@ def _webhook_route_summary(name: str, route: Dict[str, Any], base_url: str) -> D
 
 
 @app.get("/api/webhooks")
-async def list_webhooks():
+async def list_webhooks(profile: Optional[str] = None):
     import work4you_cli.webhook as wh
 
-    base_url = wh._get_webhook_base_url()
-    subs = wh._load_subscriptions()
+    with _config_profile_scope(profile):
+        base_url = wh._get_webhook_base_url()
+        subs = wh._load_subscriptions()
+        enabled = wh._is_webhook_enabled()
     return {
-        "enabled": wh._is_webhook_enabled(),
+        "enabled": enabled,
         "base_url": base_url,
         "subscriptions": [
             _webhook_route_summary(name, route, base_url)
@@ -15748,9 +15797,17 @@ async def list_webhooks():
 
 
 @app.post("/api/webhooks/enable")
-async def enable_webhooks():
+async def enable_webhooks(profile: Optional[str] = None):
+    # The listener binds a port: under a multiplexed gateway only the default
+    # profile may turn it on (same pre-write guard as the channel update).
+    conflict = _multiplex_port_binding_conflict("webhook", profile)
+    if conflict:
+        raise HTTPException(status_code=409, detail=conflict)
     try:
-        _write_platform_enabled("webhook", True)
+        with _config_profile_scope(profile):
+            _write_platform_enabled("webhook", True)
+    except HTTPException:
+        raise
     except Exception as exc:
         _log.exception("Failed to enable webhook platform from dashboard")
         raise HTTPException(
@@ -15758,7 +15815,7 @@ async def enable_webhooks():
             detail="Failed to enable webhook platform.",
         ) from exc
 
-    restart_result = _restart_gateway_after_webhook_enable()
+    restart_result = _restart_gateway_after_webhook_enable(profile)
     return {
         "ok": True,
         "platform": "webhook",
@@ -15769,7 +15826,12 @@ async def enable_webhooks():
 
 
 @app.post("/api/webhooks")
-async def create_webhook(body: WebhookCreate):
+async def create_webhook(body: WebhookCreate, profile: Optional[str] = None):
+    with _config_profile_scope(profile):
+        return _create_webhook_route(body)
+
+
+def _create_webhook_route(body: WebhookCreate) -> Dict[str, Any]:
     import re as _re
     import secrets as _secrets
     import time as _time
@@ -15823,20 +15885,21 @@ async def create_webhook(body: WebhookCreate):
 
 
 @app.delete("/api/webhooks/{name}")
-async def delete_webhook(name: str):
+async def delete_webhook(name: str, profile: Optional[str] = None):
     import work4you_cli.webhook as wh
 
     key = (name or "").strip().lower()
-    subs = wh._load_subscriptions()
-    if key not in subs:
-        raise HTTPException(status_code=404, detail=f"No subscription named '{key}'")
-    del subs[key]
-    wh._save_subscriptions(subs)
+    with _config_profile_scope(profile):
+        subs = wh._load_subscriptions()
+        if key not in subs:
+            raise HTTPException(status_code=404, detail=f"No subscription named '{key}'")
+        del subs[key]
+        wh._save_subscriptions(subs)
     return {"ok": True}
 
 
 @app.put("/api/webhooks/{name}/enabled")
-async def set_webhook_enabled(name: str, body: WebhookEnabledToggle):
+async def set_webhook_enabled(name: str, body: WebhookEnabledToggle, profile: Optional[str] = None):
     """Enable or disable a webhook route.
 
     Disabled routes stay in the subscriptions file (so they can be
@@ -15847,11 +15910,12 @@ async def set_webhook_enabled(name: str, body: WebhookEnabledToggle):
     import work4you_cli.webhook as wh
 
     key = (name or "").strip().lower()
-    subs = wh._load_subscriptions()
-    if key not in subs:
-        raise HTTPException(status_code=404, detail=f"No subscription named '{key}'")
-    subs[key]["enabled"] = bool(body.enabled)
-    wh._save_subscriptions(subs)
+    with _config_profile_scope(profile):
+        subs = wh._load_subscriptions()
+        if key not in subs:
+            raise HTTPException(status_code=404, detail=f"No subscription named '{key}'")
+        subs[key]["enabled"] = bool(body.enabled)
+        wh._save_subscriptions(subs)
     return {"ok": True, "name": key, "enabled": bool(body.enabled)}
 
 

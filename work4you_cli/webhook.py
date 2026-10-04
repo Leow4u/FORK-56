@@ -19,9 +19,9 @@ import time
 from pathlib import Path
 from typing import Dict
 
-from work4you_constants import display_work4you_home
-from utils import atomic_replace
-from work4you_cli.config import cfg_get
+from work4you_constants import display_work4you_home, get_work4you_home_override
+from utils import atomic_replace, is_truthy_value
+from work4you_cli.config import cfg_get, get_env_value_prefer_dotenv, load_env
 
 
 _SUBSCRIPTIONS_FILENAME = "webhook_subscriptions.json"
@@ -90,14 +90,38 @@ def _get_webhook_config() -> dict:
         return {}
 
 
+def _env_setting(key: str) -> str:
+    # The gateway's precedence: the home's .env, then the process environment.
+    # A dashboard request scoped to another profile reads that profile's .env
+    # only, as the Channels endpoints do: this process's environment belongs
+    # to the dashboard's own profile.
+    if get_work4you_home_override():
+        return (load_env().get(key) or "").strip()
+    return (get_env_value_prefer_dotenv(key) or "").strip()
+
+
 def _is_webhook_enabled() -> bool:
-    return bool(_get_webhook_config().get("enabled"))
+    # On in config.yaml (the app's switch) or through WEBHOOK_ENABLED, which
+    # `work4you setup` writes: the gateway starts the listener for either, so
+    # reading only config.yaml refused routes for a listener that was running.
+    if _get_webhook_config().get("enabled"):
+        return True
+    return is_truthy_value(_env_setting("WEBHOOK_ENABLED"))
 
 
 def _get_webhook_base_url() -> str:
     wh = _get_webhook_config().get("extra", {})
     host = wh.get("host")
     port = wh.get("port", 8644)
+    # WEBHOOK_PORT beats config.yaml in the gateway (_apply_env_overrides) and
+    # is the port the app saves, so the URL shown is the one the listener
+    # binds.
+    env_port = _env_setting("WEBHOOK_PORT")
+    if env_port:
+        try:
+            port = int(env_port)
+        except ValueError:
+            pass
     display_host = "localhost" if not host or host in {"0.0.0.0", "::"} else host
     if ":" in display_host and not display_host.startswith("["):
         display_host = f"[{display_host}]"

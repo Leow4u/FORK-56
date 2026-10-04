@@ -214,7 +214,7 @@ export function EmailConnectSteps({
       // The login check talks to the mail servers, not the gateway: it runs
       // beside the restart instead of waiting for it.
       void testUntilOk('email', scopeProfile, 1).then(setLogin)
-      setRestart(await restartAndWatch())
+      setRestart(await restartAndWatch(scopeProfile))
     } catch (saveError) {
       setPhase('idle')
       setStep('write')
@@ -380,7 +380,7 @@ export function EmailConnectSteps({
               pending={s.checkLoginPending}
             />
           )}
-          {phase === 'applied' && <RestartLine restart={restart} />}
+          {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
           <ReadyLine done>{whoLine}</ReadyLine>
         </ReadyView>
       )}

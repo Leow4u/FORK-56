@@ -115,6 +115,7 @@ export function ConnectionRow({
   onTest,
   platform,
   restartButton = 'reconnect',
+  scopeProfile,
   testing
 }: {
   /** Buttons before the test (copy the address other programs call). */
@@ -133,6 +134,8 @@ export function ConnectionRow({
    *  session to reconnect, only a listener the restart brings back);
    *  `needed` shows Restart gateway only when a restart is pending. */
   restartButton?: 'needed' | 'reconnect' | 'restart'
+  /** The profile being configured: its gateway is the one to restart. */
+  scopeProfile: null | string
   testing: boolean
 }) {
   const { locale, t } = useI18n()
@@ -200,7 +203,7 @@ export function ConnectionRow({
           </Button>
         )}
         {platform.configured && platform.enabled && (restartButton !== 'needed' || needsRestart || restarting) && (
-          <Button disabled={restarting} onClick={() => void runGatewayRestart()} size="xs" variant="text">
+          <Button disabled={restarting} onClick={() => void runGatewayRestart(scopeProfile)} size="xs" variant="text">
             {restarting
               ? m.restartingGateway
               : needsRestart || restartButton === 'restart'
@@ -421,7 +424,7 @@ export function AllowlistEditor({
         kind: 'success',
         title: m.setupSaved(platform.name),
         message: m.restartToReconnect,
-        action: { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart() }
+        action: { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart(scopeProfile) }
       })
       onSaved()
     } catch (err) {
@@ -595,7 +598,7 @@ export function EnvValueEditor({
         kind: 'success',
         title: m.setupSaved(platform.name),
         message: m.restartToReconnect,
-        action: { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart() }
+        action: { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart(scopeProfile) }
       })
       onSaved()
     } catch (err) {

@@ -90,6 +90,7 @@ export function GoogleChatDetail({
           onRunSteps={() => setSteps(true)}
           onTest={onTest}
           platform={platform}
+          scopeProfile={scopeProfile}
           testing={saving === `test:${platform.id}`}
         />
       </SettingsBlock>

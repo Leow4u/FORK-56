@@ -396,12 +396,13 @@ export async function watchRestartOutcome(scopeProfile: null | string): Promise<
 }
 
 /** The restart after a save made through the plain channel update (no
- *  onboarding call to spawn it): ask for one and watch it the same way. */
-export async function restartAndWatch(): Promise<RestartState> {
+ *  onboarding call to spawn it): ask for one and watch it the same way —
+ *  both for the profile being configured. */
+export async function restartAndWatch(scopeProfile: null | string): Promise<RestartState> {
   $gatewayRestarting.set(true)
 
   try {
-    await restartGateway()
+    await restartGateway(scopeProfile ?? undefined)
   } catch (error) {
     $gatewayRestarting.set(false)
 
@@ -409,7 +410,7 @@ export async function restartAndWatch(): Promise<RestartState> {
   }
 
   try {
-    return await watchRestartOutcome(null)
+    return await watchRestartOutcome(scopeProfile)
   } finally {
     $gatewayRestarting.set(false)
   }
@@ -467,7 +468,7 @@ export function LiveCheckLine({ check, ok, pending }: { check: LiveCheck; ok: Re
 
 /** The ready screen's restart line, with the manual restart one click away
  *  when the automatic one failed or never started. */
-export function RestartLine({ restart }: { restart: RestartState }) {
+export function RestartLine({ restart, scopeProfile }: { restart: RestartState; scopeProfile: null | string }) {
   const { t } = useI18n()
   const m = t.messaging
   const s = m.channelSteps
@@ -482,7 +483,7 @@ export function RestartLine({ restart }: { restart: RestartState }) {
             ? s.checkRestartFailed(restart.exitCode ?? 1)
             : s.checkRestartNotStarted(restart.detail ? `: ${restart.detail}` : '')}
       {(restart.outcome === 'failed' || restart.outcome === 'none') && (
-        <Button className="ml-2" onClick={() => void runGatewayRestart()} size="xs" variant="secondary">
+        <Button className="ml-2" onClick={() => void runGatewayRestart(scopeProfile)} size="xs" variant="secondary">
           <RefreshCw />
           {m.restartGateway}
         </Button>
