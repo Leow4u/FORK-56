@@ -233,6 +233,25 @@ function smsReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatform
   })
 }
 
+/** Google Chat on and connected through Pub/Sub with two allowed people. */
+function googleChatReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
+  return platform({
+    configured: true,
+    enabled: true,
+    env_vars: [
+      envField('GOOGLE_CHAT_SERVICE_ACCOUNT_JSON', 'key', { is_password: true, value: null }),
+      envField('GOOGLE_CHAT_PROJECT_ID', 'work4you-chat'),
+      envField('GOOGLE_CHAT_SUBSCRIPTION_NAME', 'projects/work4you-chat/subscriptions/chat-events'),
+      envField('GOOGLE_CHAT_HTTP_EVENTS_URL', ''),
+      envField('GOOGLE_CHAT_ALLOWED_USERS', 'ana@acme.com,bruno@acme.com')
+    ],
+    id: 'google_chat',
+    name: 'Google Chat',
+    state: 'connected',
+    ...patch
+  })
+}
+
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
     configured: false,
@@ -1362,6 +1381,56 @@ describe('MessagingView channel page', () => {
     await renderMessaging()
     await openChannel('SMS')
     expect(await screen.findByText(en.messaging.smsPage.approveTitle)).toBeTruthy()
+  })
+
+  it('walks Google Chat through its first connection step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ id: 'google_chat', name: 'Google Chat' })] })
+
+    await renderMessaging()
+    await openChannel('Google Chat')
+
+    expect(await screen.findByText(en.messaging.googleChatPage.whoTitle)).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows Google Chat as settings: how events arrive and who can talk', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [googleChatReady()] })
+
+    const { unmount } = await renderMessaging()
+    await openChannel('Google Chat')
+
+    expect(await screen.findByText(en.messaging.googleChatPage.modePubsub)).toBeTruthy()
+    expect(screen.getByText(en.messaging.channelSettings.whoOnlyPeople(2))).toBeTruthy()
+    expect(screen.getByText('ana@acme.com, bruno@acme.com')).toBeTruthy()
+
+    // Approving people as they message clears the list.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.messaging.edit }))
+    })
+    fireEvent.click(screen.getByRole('radio', { name: new RegExp(en.messaging.channelSettings.approveTitle) }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('google_chat', { clear_env: ['GOOGLE_CHAT_ALLOWED_USERS'] })
+    )
+    unmount()
+
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        googleChatReady({
+          env_vars: [
+            envField('GOOGLE_CHAT_HTTP_EVENTS_URL', 'https://bot.example.com/api/platforms/google_chat/events'),
+            envField('GOOGLE_CHAT_HTTP_EVENTS_SERVICE_ACCOUNT_EMAIL', 'chat@system.gserviceaccount.com'),
+            envField('GOOGLE_CHAT_ALLOWED_USERS', '')
+          ]
+        })
+      ]
+    })
+    await renderMessaging()
+    await openChannel('Google Chat')
+    expect(await screen.findByText(en.messaging.googleChatPage.modeHttp)).toBeTruthy()
+    expect(screen.getByText(en.messaging.channelSettings.whoApprove)).toBeTruthy()
   })
 
   it('counts the routines that deliver to WhatsApp', async () => {

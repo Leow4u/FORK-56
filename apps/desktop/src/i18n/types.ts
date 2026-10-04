@@ -1576,45 +1576,6 @@ export interface Translations {
     /** Localized labels for env keys rendered as a segmented picker
      *  (FIELD_OPTIONS), keyed by env key then by option value. */
     envOptions: Record<string, Record<string, string>>
-    googleChatQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      modePubsub: string
-      modeHttp: string
-      pubsubModeHint: string
-      httpModeHint: string
-      saJsonHelp: string
-      saJsonLabel: string
-      saJsonHint: string
-      openConsole: string
-      projectHelp: string
-      projectLabel: string
-      subscriptionHelp: string
-      subscriptionLabel: string
-      eventsUrlHelp: string
-      eventsUrlLabel: string
-      saEmailHelp: string
-      saEmailLabel: string
-      audienceHelp: string
-      audienceLabel: string
-      allowedUsersHelp: string
-      allowedUsersLabel: string
-      checklistTitle: string
-      pubsubStep1: string
-      pubsubStep2: string
-      pubsubStep3: string
-      pubsubStep4: string
-      httpStep1: string
-      httpStep2: string
-      openChatApi: string
-      projectMismatch: string
-      pubsubFieldsRequired: string
-      httpFieldsRequired: string
-      saved: string
-      saveFailed: string
-    }
     apiServerQuickSetup: {
       title: string
       recommended: string
@@ -2104,6 +2065,70 @@ export interface Translations {
       whoCanTextTitle: string
       whoOnlyNumbers: (count: number) => string
       repliesToTexts: string
+      advancedHint: string
+    }
+    googleChatPage: {
+      stepWho: string
+      stepMode: string
+      stepCloud: string
+      stepTalk: string
+      stepReady: string
+      whoTitle: string
+      whoNote: string
+      meTitle: string
+      meDesc: string
+      othersTitle: string
+      othersDesc: string
+      modeTitle: string
+      modeNote: string
+      pubsubTitle: string
+      pubsubDesc: string
+      httpTitle: string
+      httpDesc: string
+      cloudTitle: string
+      cloudNote: string
+      cloudNoteHttp: string
+      pubsubStep1: string
+      pubsubStep2: string
+      pubsubStep3: string
+      pubsubStep4: string
+      httpStep1: string
+      httpStep2: string
+      openChatApi: string
+      openConsole: string
+      keyLabel: string
+      keyHelp: string
+      keyKept: string
+      projectLabel: string
+      subscriptionLabel: string
+      projectMismatch: string
+      eventsUrlLabel: string
+      eventsUrlHelp: string
+      saEmailLabel: string
+      saEmailHelp: string
+      audienceLabel: string
+      audienceHelp: string
+      talkTitle: string
+      talkNote: (choice: string) => string
+      meEmailTitle: string
+      meEmailNote: string
+      meEmailLabel: string
+      listDesc: string
+      listHint: string
+      approveDesc: string
+      emailsRequired: string
+      readySaving: string
+      readyTitle: string
+      readySetUp: string
+      checkPubsub: string
+      checkHttp: string
+      checkPending: string
+      whoMe: string
+      whoList: (count: number) => string
+      whoApprove: string
+      tryIt: string
+      modePubsub: string
+      modeHttp: string
       advancedHint: string
     }
     telegramQuickSetup: {

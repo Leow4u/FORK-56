@@ -1310,51 +1310,6 @@ export const ar = defineLocale({
         'self-chat': 'محادثة ذاتية'
       }
     },
-    googleChatQuickSetup: {
-      title: 'الإعداد السريع',
-      recommended: 'موصى به',
-      intro:
-        'اختر طريقة وصول أحداث Google Chat إلى Work4You، واملأ حقول ذلك الوضع فقط ثم احفظ. يتطلب حساب Google Workspace وتطبيق Chat مُعدًّا في وحدة تحكم Google Cloud.',
-      replacesExisting: 'Google Chat مُعدّ بالفعل. الحفظ هنا يستبدل الإعدادات المخزنة.',
-      modePubsub: 'Pub/Sub (موصى به)',
-      modeHttp: 'استدعاء HTTP',
-      pubsubModeHint:
-        'يسحب Work4You الأحداث من اشتراك Cloud Pub/Sub — دون حاجة إلى عنوان URL عام. الأنسب للأجهزة خلف NAT أو جدار حماية.',
-      httpModeHint:
-        'يدفع Google الأحداث إلى نقطة نهاية HTTPS عامة على نطاقك. يتطلب عنوانًا يمكن الوصول إليه من الإنترنت.',
-      saJsonHelp: 'مفتاح حساب الخدمة — مسار ملف JSON الذي نزّلته، أو محتوى JSON نفسه.',
-      saJsonLabel: 'JSON حساب الخدمة',
-      saJsonHint:
-        'اختياري إذا كان الجهاز يملك بيانات الاعتماد الافتراضية للتطبيق (gcloud auth application-default login)؛ وإلا فهو مطلوب.',
-      openConsole: 'افتح وحدة تحكم Google Cloud',
-      projectHelp: 'معرّف مشروع Google Cloud الذي يستضيف تطبيق Chat وموضوع Pub/Sub.',
-      projectLabel: 'معرّف المشروع',
-      subscriptionHelp: 'مسار اشتراك Pub/Sub الكامل الذي تسحب البوابة الأحداث منه.',
-      subscriptionLabel: 'مسار الاشتراك',
-      eventsUrlHelp: 'عنوان HTTPS العام الذي يدفع Google Chat الأحداث إليه.',
-      eventsUrlLabel: 'عنوان أحداث HTTP',
-      saEmailHelp:
-        'البريد الإلكتروني لحساب الخدمة الذي يوقّع Google به رموز الأحداث — يُستخدم للتحقق من الطلبات الواردة.',
-      saEmailLabel: 'بريد حساب خدمة التطبيق',
-      audienceHelp: 'اختياري. جمهور الرمز (audience) — يكون افتراضيًا عنوان الأحداث عند تركه فارغًا.',
-      audienceLabel: 'جمهور الرمز',
-      allowedUsersHelp:
-        'موصى به. عناوين بريد حسابات Google المسموح لها بمحادثة الوكيل مفصولة بفواصل — يُتجاهل الجميع عداها.',
-      allowedUsersLabel: 'المستخدمون المسموح لهم',
-      checklistTitle: 'في وحدة تحكم Google Cloud',
-      pubsubStep1: 'فعّل Google Chat API و Pub/Sub API.',
-      pubsubStep2: 'أنشئ موضوعًا وامنح chat-api-push@system.gserviceaccount.com دور Pub/Sub Publisher عليه.',
-      pubsubStep3: 'أنشئ اشتراكًا على الموضوع وامنح حساب الخدمة دوري Pub/Sub Subscriber و Viewer عليه.',
-      pubsubStep4: 'في إعدادات Chat API، وجّه إعدادات الاتصال (Connection settings) إلى ذلك الموضوع.',
-      httpStep1: 'فعّل Google Chat API.',
-      httpStep2: 'في إعدادات Chat API، اضبط إعدادات الاتصال على App URL مع عنوان الأحداث الخاص بك.',
-      openChatApi: 'افتح إعدادات Chat API',
-      projectMismatch: 'معرّف المشروع لا يطابق المشروع داخل مسار الاشتراك.',
-      pubsubFieldsRequired: 'أدخل معرّف المشروع ومسار الاشتراك أولاً.',
-      httpFieldsRequired: 'أدخل عنوان الأحداث وبريد حساب خدمة التطبيق أولاً.',
-      saved: 'تم حفظ Google Chat وتفعيله. أعد تشغيل البوابة للاتصال.',
-      saveFailed: 'تعذّر حفظ إعدادات Google Chat.'
-    },
     apiServerQuickSetup: {
       title: 'الإعداد السريع',
       recommended: 'موصى به',

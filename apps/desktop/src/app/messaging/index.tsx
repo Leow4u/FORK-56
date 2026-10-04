@@ -52,7 +52,7 @@ import { detailStatus, stateLabel, stateTone, ToneDot } from './channel-status'
 import { type ChannelsConnectedRow, ChannelsConnectedTable } from './channels-connected-table'
 import { DiscordDetail } from './discord-detail'
 import { EmailDetail } from './email-detail'
-import { GoogleChatQuickSetup } from './google-chat-quick-setup'
+import { GoogleChatDetail } from './google-chat-detail'
 import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
 import { PlatformAvatar } from './platform-icon'
 import { SlackDetail } from './slack-detail'
@@ -75,7 +75,7 @@ const CHANNEL_LABEL = 'text-xs font-medium normal-case tracking-normal text-fore
 
 // Channels whose first screen is a quick setup. The generic credential form
 // stays one step behind that, so the same token is not painted twice.
-const QUICK_SETUP_PLATFORMS = new Set(['a2a', 'api_server', 'google_chat', 'msgraph_webhook', 'webhook', 'whatsapp'])
+const QUICK_SETUP_PLATFORMS = new Set(['a2a', 'api_server', 'msgraph_webhook', 'webhook', 'whatsapp'])
 
 const trimEdits = (edits: Record<string, string>): Record<string, string> =>
   Object.fromEntries(
@@ -884,6 +884,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <SmsDetail {...props} />
   }
 
+  if (platform.id === 'google_chat') {
+    return <GoogleChatDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -905,14 +909,6 @@ function PlatformDetail(props: PlatformDetailProps) {
         onRevoke={onRevoke}
         pending={pending}
       />
-
-      {platform.id === 'google_chat' && (
-        <GoogleChatQuickSetup
-          configured={platform.configured}
-          onApplied={onQuickSetupApplied}
-          scopeProfile={scopeProfile}
-        />
-      )}
 
       {platform.id === 'api_server' && (
         <ApiServerQuickSetup
@@ -1211,8 +1207,6 @@ const PLATFORM_INTRO: Record<string, string> = {
   weixin:
     "Run `work4you gateway setup`, select Weixin, then scan and confirm the QR code with a personal WeChat account. Work4You connects through Tencent's iLink Bot API and saves the credentials.",
   qqbot: 'Register an app on the QQ Open Platform (q.qq.com) and copy the App ID and Client Secret.',
-  google_chat:
-    'Use Quick setup above — pick how events reach Work4You: Cloud Pub/Sub (recommended, no public URL) or an HTTPS callback endpoint. Needs a Google Workspace account, a Chat app in the Google Cloud console, and a Service Account key (or Application Default Credentials).',
   api_server:
     'Expose Work4You as an OpenAI-compatible API. Generate a strong key in Quick setup above, then point Open WebUI / LobeChat / your own chat frontend at the base URL it shows. The key grants full agent access (terminal included) — treat it like a password.',
   webhook:
