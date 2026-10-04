@@ -1491,11 +1491,31 @@ export interface Translations {
     channelActiveHint: string
     connectionTitle: string
     connectedListening: string
-    setUpAgain: string
     whoCanTalkTitle: string
-    whoCanTalkSelf: string
-    whoCanTalkList: string
-    whoCanTalkApprove: string
+    whatsappActiveHint: string
+    connectedSince: (when: string) => string
+    channelOff: string
+    testConnection: string
+    reconnect: string
+    runSetupSteps: string
+    runStepsAgain: string
+    edit: string
+    show: string
+    hide: string
+    approvedCount: (count: number) => string
+    whoTeam: (count: number) => string
+    whoSelf: string
+    whoApprove: string
+    whoNobody: string
+    whoAnyone: string
+    botDoesTitle: string
+    botReplies: string
+    botNoDms: string
+    botRoutines: (count: number) => string
+    botAlerts: string
+    manageRoutines: string
+    advancedTitle: string
+    advancedHint: string
     title: string
     manualSetup: string
     getCredentials: string
@@ -1960,14 +1980,15 @@ export interface Translations {
       teamDesc: string
       connectTitle: string
       connectNote: string
-      connectStep1: string
+      connectStepLead: string
+      connectStepPath: string
       connectStep2: string
       waitingScan: string
       alreadyLinked: string
       advancedSetup: string
       tryAgain: string
       talkTitle: string
-      talkNote: string
+      talkNote: (choice: string) => string
       listTitle: string
       listDesc: string
       listHint: string
@@ -1976,9 +1997,10 @@ export interface Translations {
       numbersRequired: string
       readySaving: string
       readyTitle: string
+      readySetUp: string
+      sendTest: string
       checkLinked: string
       checkLinkedAs: (phone: string) => string
-      checkSaved: string
       checkRestarting: string
       checkRestarted: string
       checkRestartFailed: (code: number) => string

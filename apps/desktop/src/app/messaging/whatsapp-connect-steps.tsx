@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
-import { StatusDot } from '@/components/status-dot'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
-import { Check, ExternalLink, RefreshCw } from '@/lib/icons'
+import { Check, RefreshCw } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { runGatewayRestart } from '@/store/system-actions'
 import type { WhatsAppOnboardingMode, WhatsAppOnboardingStatusResponse } from '@/types/work4you'
@@ -46,19 +45,7 @@ interface RestartState {
   outcome: 'failed' | 'none' | 'ok' | 'pending'
 }
 
-const CAPTION = 'text-xs leading-5 text-muted-foreground'
-
-function formatExpiry(expiresAt: string): null | string {
-  const ms = Date.parse(expiresAt) - Date.now()
-
-  if (!Number.isFinite(ms) || ms <= 0) {
-    return null
-  }
-
-  const seconds = Math.ceil(ms / 1000)
-
-  return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`
-}
+const NOTE = 'text-xs leading-4 text-(--ui-text-tertiary)'
 
 /** 404/410 mean the pairing is gone server-side — restartable, not retryable. */
 function isTerminalOnboardingError(error: unknown): boolean {
@@ -111,6 +98,7 @@ export function WhatsAppConnectSteps({
   onAdvanced,
   onApplied,
   onDone,
+  platformConnected,
   savedMode,
   scopeProfile
 }: {
@@ -120,6 +108,8 @@ export function WhatsAppConnectSteps({
   onApplied: () => void
   /** Done on the ready screen. */
   onDone: () => void
+  /** The channel list reports WhatsApp on and connected. */
+  platformConnected: boolean
   savedMode?: null | string
   scopeProfile: null | string
 }) {
@@ -136,7 +126,6 @@ export function WhatsAppConnectSteps({
   const [allowChoice, setAllowChoice] = useState<AllowChoice>('list')
   const [allowedUsers, setAllowedUsers] = useState('')
   const [error, setError] = useState('')
-  const [tick, setTick] = useState(0)
   const [restart, setRestart] = useState<RestartState>({ outcome: 'pending' })
 
   const mode: WhatsAppOnboardingMode = audience === 'self' ? 'self-chat' : 'bot'
@@ -238,17 +227,6 @@ export function WhatsAppConnectSteps({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [polling, q.sessionExpired, setup?.pairing_id])
-
-  // Keep the expiry countdown moving while a pairing session is on screen.
-  useEffect(() => {
-    if (!setup || !polling) {
-      return
-    }
-
-    const timer = setInterval(() => setTick(value => value + 1), 1000)
-
-    return () => clearInterval(timer)
-  }, [polling, setup])
 
   const resetSetup = () => {
     setSetup(null)
@@ -371,16 +349,10 @@ export function WhatsAppConnectSteps({
     }
   }
 
-  const expiresIn = useMemo(
-    () => (setup ? formatExpiry(setup.expires_at) : null),
-    // tick keeps the countdown fresh without recalculating on every render branch.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [setup, tick]
-  )
-
   const linkedLabel = setup?.account_phone ? `+${setup.account_phone}` : setup?.account_name || setup?.account_id || ''
   const chatUrl = setup?.account_phone ? `https://wa.me/${setup.account_phone}` : ''
   const stepIndex = steps.findIndex(entry => entry.id === step)
+  const linked = phase === 'connected' || phase === 'applying' || phase === 'applied'
 
   const audienceOptions: ChoiceOption<Audience>[] = [
     { description: s.selfDesc, id: 'self', title: s.selfTitle },
@@ -392,19 +364,19 @@ export function WhatsAppConnectSteps({
     {
       description: s.listDesc,
       extra: (
-        <div className="mt-2 grid gap-1.5">
+        <>
           <Input
             aria-label={s.listTitle}
-            className="h-8 max-w-96 font-mono"
+            className="mt-2.5 h-8 font-mono text-[0.78rem]"
             onChange={event => {
               setAllowedUsers(event.target.value)
               setError('')
             }}
-            placeholder={q.allowedUsersPlaceholder}
+            placeholder="5511999993977, 5511988880000"
             value={allowedUsers}
           />
-          <span className={CAPTION}>{s.listHint}</span>
-        </div>
+          <span className={cn('mt-1.5 block', NOTE)}>{s.listHint}</span>
+        </>
       ),
       id: 'list',
       title: s.listTitle
@@ -412,16 +384,15 @@ export function WhatsAppConnectSteps({
     { description: s.approveDesc, id: 'approve', title: s.approveTitle }
   ]
 
-  const connectStatus =
-    phase === 'connected' || phase === 'applying' || phase === 'applied'
-      ? linkedLabel
-        ? q.linkedAs(linkedLabel)
-        : q.deviceLinked
-      : phase === 'waiting'
-        ? s.waitingScan
-        : setup?.status === 'installing'
-          ? q.preparing
-          : q.startingBridge
+  const connectStatus = linked
+    ? linkedLabel
+      ? q.linkedAs(linkedLabel)
+      : q.deviceLinked
+    : phase === 'waiting'
+      ? s.waitingScan
+      : setup?.status === 'installing'
+        ? q.preparing
+        : q.startingBridge
 
   const whoLine =
     audience === 'self'
@@ -435,9 +406,12 @@ export function WhatsAppConnectSteps({
   const tryIt =
     audience === 'self' ? s.tryItSelf : setup?.account_phone ? s.tryItBot(`+${setup.account_phone}`) : s.tryItBotUnknown
 
+  const teamNote = s.talkNote(s.teamTitle)
+  const [teamNoteBefore, teamNoteAfter] = teamNote.split(s.teamTitle)
+
   return (
-    <section className="space-y-4" data-slot="whatsapp-connect-steps">
-      <ol className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+    <section className="pt-1.5" data-slot="whatsapp-connect-steps">
+      <ol className="flex gap-1.5">
         {steps.map((entry, index) => {
           const state = entry.id === step ? 'active' : index < stepIndex ? 'done' : 'todo'
 
@@ -445,28 +419,32 @@ export function WhatsAppConnectSteps({
             <li
               aria-current={state === 'active' ? 'step' : undefined}
               className={cn(
-                'flex items-center gap-1.5',
-                state === 'active' ? 'font-medium text-foreground' : 'text-muted-foreground'
+                'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg border px-2.5 text-xs',
+                state === 'active'
+                  ? 'border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) text-foreground'
+                  : 'border-transparent',
+                state === 'done' && 'text-(--ui-text-secondary)',
+                state === 'todo' && 'text-(--ui-text-tertiary)'
               )}
               key={entry.id}
             >
               <span
                 className={cn(
-                  'grid size-5 place-items-center rounded-full text-[0.66rem] tabular-nums',
+                  'grid size-[1.125rem] shrink-0 place-items-center rounded-full text-[0.66rem] font-semibold tabular-nums',
                   state === 'active' && 'bg-primary text-primary-foreground',
-                  state === 'done' && 'bg-primary/10 text-primary',
-                  state === 'todo' && 'bg-(--ui-bg-tertiary) text-muted-foreground'
+                  state === 'done' && 'bg-emerald-500 text-background',
+                  state === 'todo' && 'bg-(--ui-bg-quaternary) text-(--ui-text-tertiary)'
                 )}
               >
-                {state === 'done' ? <Check className="size-3" /> : index + 1}
+                {state === 'done' ? <Check className="size-[0.6875rem]" /> : index + 1}
               </span>
-              {entry.label}
+              <span className="truncate">{entry.label}</span>
             </li>
           )
         })}
       </ol>
 
-      <div className="rounded-xl border border-(--ui-stroke-quaternary) p-5">
+      <div className="mt-4 rounded-xl border border-(--ui-stroke-quaternary) px-6 py-[1.375rem]">
         {step === 'who' && (
           <StepPanel note={s.whoNote} title={s.whoTitle}>
             <ChoiceList label={s.whoTitle} onChange={setAudience} options={audienceOptions} value={audience} />
@@ -476,70 +454,61 @@ export function WhatsAppConnectSteps({
 
         {step === 'connect' && (
           <StepPanel note={s.connectNote} title={s.connectTitle}>
-            <div className="flex flex-wrap items-start gap-5">
-              <div className="flex flex-col items-center gap-2">
-                {phase === 'connected' ? (
-                  <div className="grid size-44 place-items-center rounded-sm bg-primary/10 text-primary">
-                    <Check className="size-8" />
-                  </div>
-                ) : qrDataUrl ? (
-                  <img alt={q.qrAlt} className="size-44 rounded-sm bg-white p-1.5" src={qrDataUrl} />
-                ) : (
-                  <div className="flex size-44 items-center justify-center rounded-sm border border-(--ui-stroke-quaternary) bg-muted/40 p-3 text-center text-xs leading-5 text-muted-foreground">
-                    {error ? q.startFailed : q.waitingForQr}
-                  </div>
-                )}
-                {setup && polling && (
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.66rem] font-medium',
-                      expiresIn ? 'bg-muted text-muted-foreground' : 'bg-destructive/10 text-destructive'
-                    )}
-                  >
-                    {expiresIn ? q.expiresIn(expiresIn) : q.expired}
-                  </span>
-                )}
-              </div>
+            <div className="mt-[1.125rem] grid grid-cols-1 items-start gap-7 sm:grid-cols-[12.5rem_minmax(0,1fr)]">
+              {linked ? (
+                <div className="grid size-50 place-items-center rounded-[0.625rem] bg-emerald-500/12 text-emerald-500">
+                  <Check className="size-10" />
+                </div>
+              ) : qrDataUrl ? (
+                <img alt={q.qrAlt} className="size-50 rounded-[0.625rem] bg-white p-3" src={qrDataUrl} />
+              ) : (
+                <div className="flex size-50 items-center justify-center rounded-[0.625rem] border border-(--ui-stroke-quaternary) p-4 text-center text-xs leading-5 text-(--ui-text-tertiary)">
+                  {error ? q.startFailed : q.waitingForQr}
+                </div>
+              )}
 
-              <div className="min-w-0 flex-1 basis-64 space-y-3">
-                <ol className={cn('list-decimal space-y-1 pl-5', CAPTION)}>
-                  <li>{s.connectStep1}</li>
+              <div className="min-w-0">
+                <ol className="list-decimal space-y-2 pl-[1.125rem] text-[0.8125rem] leading-5 text-(--ui-text-secondary)">
+                  <li>
+                    {s.connectStepLead}
+                    {s.connectStepPath.split(' › ').map(part => (
+                      <span key={part}>
+                        {' › '}
+                        <b className="font-medium text-foreground">{part}</b>
+                      </span>
+                    ))}
+                    .
+                  </li>
                   <li>{s.connectStep2}</li>
                 </ol>
+
                 {error ? (
-                  <p className="flex flex-wrap items-center gap-x-2 text-xs leading-5 text-destructive">
+                  <p className="mt-4 flex flex-wrap items-center gap-x-2 text-[0.78rem] leading-5 text-destructive">
                     {error}
                     <Button onClick={() => void start()} size="inline" variant="link">
                       {s.tryAgain}
                     </Button>
                   </p>
                 ) : (
-                  <p className={cn('flex items-center gap-2', CAPTION)}>
-                    {phase === 'connected' ? (
-                      <StatusDot tone="good" />
+                  <p className="mt-4 flex items-center gap-2 text-[0.78rem] leading-5 text-(--ui-text-secondary)">
+                    {linked ? (
+                      <Check className="size-3.5 text-emerald-500" />
                     ) : (
                       <Codicon name="loading" size="0.75rem" spinning />
                     )}
-                    <span>
-                      {connectStatus}
-                      {phase === 'connected' && chatUrl && (
-                        <button
-                          className="ml-2 inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
-                          onClick={() => openExternalLink(chatUrl)}
-                          type="button"
-                        >
-                          {q.openChatLink}
-                          <ExternalLink className="size-3" />
-                        </button>
-                      )}
-                    </span>
+                    <span>{connectStatus}</span>
                   </p>
                 )}
-                <p className={CAPTION}>
+
+                <p className={cn('mt-3.5', NOTE)}>
                   {s.alreadyLinked}{' '}
-                  <Button onClick={onAdvanced} size="inline" variant="link">
+                  <button
+                    className="text-(--ui-text-secondary) underline underline-offset-[3px] hover:text-foreground"
+                    onClick={onAdvanced}
+                    type="button"
+                  >
                     {s.advancedSetup}
-                  </Button>
+                  </button>
                 </p>
               </div>
             </div>
@@ -555,7 +524,16 @@ export function WhatsAppConnectSteps({
         )}
 
         {step === 'talk' && (
-          <StepPanel note={s.talkNote} title={s.talkTitle}>
+          <StepPanel
+            note={
+              <>
+                {teamNoteBefore}
+                <b className="font-medium text-(--ui-text-secondary)">{s.teamTitle}</b>
+                {teamNoteAfter}
+              </>
+            }
+            title={s.talkTitle}
+          >
             <ChoiceList
               label={s.talkTitle}
               onChange={choice => {
@@ -565,7 +543,7 @@ export function WhatsAppConnectSteps({
               options={allowOptions}
               value={allowChoice}
             />
-            {error && <p className="text-xs leading-5 text-destructive">{error}</p>}
+            {error && <p className="mt-3 text-xs leading-4 text-destructive">{error}</p>}
             <StepFooter
               back={{ label: t.common.back, onClick: () => setStep('connect') }}
               next={{ label: s.next, onClick: () => void finish() }}
@@ -574,16 +552,15 @@ export function WhatsAppConnectSteps({
         )}
 
         {step === 'ready' && (
-          <div className="space-y-4">
-            <span className="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
+          <div className="flex flex-col items-start">
+            <span className="mb-3 grid size-10 place-items-center rounded-full bg-emerald-500 text-background">
               {phase === 'applying' ? <Codicon name="loading" size="1.1rem" spinning /> : <Check className="size-5" />}
             </span>
-            <h2 className="text-base font-semibold tracking-tight text-foreground">
-              {phase === 'applying' ? s.readySaving : s.readyTitle}
+            <h2 className="text-[1.0625rem] font-semibold text-foreground">
+              {phase === 'applying' ? s.readySaving : platformConnected ? s.readyTitle : s.readySetUp}
             </h2>
-            <ul className="grid gap-1.5 text-xs leading-5 text-foreground">
+            <ul className="mt-3 grid gap-1.5 text-[0.8125rem] text-(--ui-text-secondary)">
               <ReadyLine done>{linkedLabel ? s.checkLinkedAs(linkedLabel) : s.checkLinked}</ReadyLine>
-              <ReadyLine done={phase === 'applied'}>{s.checkSaved}</ReadyLine>
               {phase === 'applied' && (
                 <ReadyLine
                   done={restart.outcome === 'ok'}
@@ -606,22 +583,17 @@ export function WhatsAppConnectSteps({
               )}
               <ReadyLine done>{whoLine}</ReadyLine>
             </ul>
-            {phase === 'applied' && (
-              <p className={CAPTION}>
-                {tryIt}
-                {audience !== 'self' && chatUrl && (
-                  <button
-                    className="ml-2 inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
-                    onClick={() => openExternalLink(chatUrl)}
-                    type="button"
-                  >
-                    {q.openChatLink}
-                    <ExternalLink className="size-3" />
-                  </button>
-                )}
-              </p>
-            )}
-            <StepFooter next={{ disabled: phase === 'applying', label: t.common.done, onClick: onDone }} />
+            {phase === 'applied' && <p className={cn('mt-3.5', NOTE)}>{tryIt}</p>}
+            <div className="mt-5 flex w-full items-center justify-end gap-2">
+              {phase === 'applied' && chatUrl && (
+                <Button onClick={() => openExternalLink(chatUrl)} size="sm" variant="outline">
+                  {s.sendTest}
+                </Button>
+              )}
+              <Button disabled={phase === 'applying'} onClick={onDone} size="sm">
+                {t.common.done}
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -629,16 +601,18 @@ export function WhatsAppConnectSteps({
   )
 }
 
-interface ChoiceOption<T extends string> {
+export interface ChoiceOption<T extends string> {
   description: string
-  /** Shown under the option while it is selected (an input, a hint). Kept
+  /** Shown inside the option while it is selected (an input, a hint). Kept
    *  outside the option's button so the control stays its own element. */
   extra?: ReactNode
   id: T
   title: string
 }
 
-function ChoiceList<T extends string>({
+/** One question's answers as bordered cards with a radio, like the setup
+ *  boards: every option outlined, the chosen one filled. */
+export function ChoiceList<T extends string>({
   label,
   onChange,
   options,
@@ -650,17 +624,17 @@ function ChoiceList<T extends string>({
   value: null | T
 }) {
   return (
-    <div aria-label={label} className="grid gap-1.5" role="radiogroup">
+    <div aria-label={label} className="mt-4 flex flex-col gap-2" role="radiogroup">
       {options.map(option => {
         const selected = option.id === value
 
         return (
           <div
             className={cn(
-              'rounded-lg px-3 py-2.5',
+              'rounded-[0.625rem] border px-3.5 py-3',
               selected
-                ? 'bg-(--ui-sidebar-surface-background) ring-1 ring-(--ui-stroke-secondary) ring-inset'
-                : 'hover:bg-(--ui-sidebar-surface-background)'
+                ? 'border-(--ui-text-tertiary) bg-(--ui-bg-quinary)'
+                : 'border-(--ui-stroke-quaternary) hover:bg-(--ui-sidebar-surface-background)'
             )}
             key={option.id}
           >
@@ -674,15 +648,15 @@ function ChoiceList<T extends string>({
               <span
                 aria-hidden
                 className={cn(
-                  'mt-0.5 grid size-4 place-items-center rounded-full border',
-                  selected ? 'border-primary' : 'border-(--ui-stroke-secondary)'
+                  'relative mt-px size-4 rounded-full border-[1.5px]',
+                  selected ? 'border-primary' : 'border-(--ui-text-tertiary)'
                 )}
               >
-                {selected && <span className="size-2 rounded-full bg-primary" />}
+                {selected && <span className="absolute inset-[2.5px] rounded-full bg-primary" />}
               </span>
               <span className="min-w-0">
-                <span className="block text-sm font-medium text-foreground">{option.title}</span>
-                <span className={cn('block', CAPTION)}>{option.description}</span>
+                <span className="block text-[0.84375rem] font-medium text-foreground">{option.title}</span>
+                <span className={cn('mt-0.5 block', NOTE)}>{option.description}</span>
               </span>
             </button>
             {selected && option.extra ? <div className="pl-7">{option.extra}</div> : null}
@@ -693,13 +667,11 @@ function ChoiceList<T extends string>({
   )
 }
 
-function StepPanel({ children, note, title }: { children: ReactNode; note: string; title: string }) {
+function StepPanel({ children, note, title }: { children: ReactNode; note: ReactNode; title: string }) {
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
-        <p className={cn('mt-1', CAPTION)}>{note}</p>
-      </div>
+    <div>
+      <h2 className="text-[1.0625rem] font-semibold text-foreground">{title}</h2>
+      <p className={cn('mt-1', NOTE)}>{note}</p>
       {children}
     </div>
   )
@@ -713,9 +685,9 @@ function StepFooter({
   next: { disabled?: boolean; label: string; onClick: () => void }
 }) {
   return (
-    <div className="flex items-center gap-2 pt-1">
+    <div className="mt-5 flex items-center gap-2">
       {back && (
-        <Button onClick={back.onClick} size="sm" variant="ghost">
+        <Button onClick={back.onClick} size="sm" variant="outline">
           {back.label}
         </Button>
       )}
@@ -731,9 +703,9 @@ function ReadyLine({ children, done, failed = false }: { children: ReactNode; do
   return (
     <li className="flex items-center gap-2">
       {failed ? (
-        <StatusDot className="size-2" tone="bad" />
+        <span aria-hidden className="inline-block size-2 shrink-0 rounded-full bg-destructive" />
       ) : done ? (
-        <Check className="size-3.5 text-primary" />
+        <Check className="size-3.5 shrink-0 text-emerald-500" />
       ) : (
         <Codicon name="loading" size="0.8rem" spinning />
       )}

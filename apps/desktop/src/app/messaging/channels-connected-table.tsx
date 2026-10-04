@@ -44,16 +44,16 @@ export function ChannelsConnectedTable({ rows }: { rows: ChannelsConnectedRow[] 
           <th className="h-9 px-2.5 font-normal" scope="col">
             {m.columnChannel}
           </th>
-          <th className="h-9 w-32 px-2.5 font-normal" scope="col">
+          <th className="h-9 w-[8.125rem] px-2.5 font-normal" scope="col">
             {m.columnType}
           </th>
-          <th className="h-9 w-32 px-2.5 font-normal" scope="col">
+          <th className="h-9 w-[7.5rem] px-2.5 font-normal" scope="col">
             {m.columnUsers}
           </th>
-          <th className="h-9 w-32 px-2.5 font-normal" scope="col">
+          <th className="h-9 w-[5.625rem] px-2.5 font-normal" scope="col">
             {m.columnStatus}
           </th>
-          <th className="h-9 w-px px-2.5 font-normal" scope="col">
+          <th className="h-9 w-10 px-2.5 font-normal" scope="col">
             <span className="sr-only">{m.columnActions}</span>
           </th>
         </tr>
@@ -75,8 +75,8 @@ function ChannelsConnectedTableRow({ row }: { row: ChannelsConnectedRow }) {
     <tr className="group/row h-11 border-b border-(--ui-stroke-quaternary) last:border-b-0 hover:bg-(--ui-row-hover-background)">
       <td className="max-w-0 px-2.5">
         <button className="flex w-full min-w-0 items-center gap-2.5 text-left" onClick={row.onOpen} type="button">
-          <PlatformAvatar className="rounded-[5px]" platformId={row.id} platformName={row.name} />
-          <span className="truncate font-semibold text-foreground">{row.name}</span>
+          <PlatformAvatar className="rounded-[5px]" platformId={row.id} platformName={row.name} variant="solid" />
+          <span className="truncate text-[0.84375rem] font-semibold text-foreground">{row.name}</span>
         </button>
       </td>
       <td className="px-2.5 text-[0.8125rem] text-(--ui-text-secondary)">{row.kind}</td>

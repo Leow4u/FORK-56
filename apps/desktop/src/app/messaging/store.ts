@@ -4,6 +4,8 @@ import type { MessagingPlatformInfo, PairingUser } from '@/types/work4you'
 
 import type { CapabilitiesView } from '../skills/store'
 
+import type { ChannelKind } from './channel-kinds'
+
 export interface ChannelsSnapshot {
   pairing: { approved: PairingUser[]; pending: PairingUser[] }
   platforms: MessagingPlatformInfo[]
@@ -31,3 +33,8 @@ export function writeChannelsSnapshot(scopeKey: string, snapshot: ChannelsSnapsh
  *  channel is on, else on Discover, so a fresh profile lands on the cards.
  *  The pick lives for the app session, like the Capabilities views. */
 export const $channelsView = atom<CapabilitiesView | null>(null)
+
+/** The Category filter of Channels: every channel, or only the ones of one
+ *  kind (Conversation / Integrations). Lives for the app session like the
+ *  view, so opening a channel and coming back keeps it. */
+export const $channelsCategory = atom<'all' | ChannelKind>('all')

@@ -6,12 +6,21 @@ import type { MessagingPlatformInfo } from '@/types/work4you'
 export type ChannelKind = 'conversation' | 'integration'
 
 // The channels where no person types a message: they receive events or
-// expose the bot to other programs. Every other channel is a place people
-// talk to the bot, which is also what an unknown plugin channel is taken for.
-const INTEGRATION_CHANNELS = new Set(['a2a', 'api_server', 'msgraph_webhook', 'relay', 'webhook'])
+// expose the bot to other programs — in the order Discover lists them, the
+// common triggers first. Every other channel is a place people talk to the
+// bot, which is also what an unknown plugin channel is taken for.
+const INTEGRATION_CHANNELS = ['webhook', 'api_server', 'a2a', 'msgraph_webhook', 'relay']
 
 export function channelKind(platformId: string): ChannelKind {
-  return INTEGRATION_CHANNELS.has(platformId) ? 'integration' : 'conversation'
+  return INTEGRATION_CHANNELS.includes(platformId) ? 'integration' : 'conversation'
+}
+
+/** Where an integration sits in Discover's Integrations group; unknown ones
+ *  keep their backend order after the listed ones. */
+export function integrationRank(platformId: string): number {
+  const rank = INTEGRATION_CHANNELS.indexOf(platformId)
+
+  return rank === -1 ? INTEGRATION_CHANNELS.length : rank
 }
 
 export function channelKindLabel(kind: ChannelKind, m: Translations['messaging']): string {

@@ -78,24 +78,29 @@ async function renderSteps({
   onAdvanced = vi.fn(),
   onApplied = vi.fn(),
   onDone = vi.fn(),
+  platformConnected = false,
   savedMode = null as null | string,
   scopeProfile = null as null | string
 } = {}) {
   const { WhatsAppConnectSteps } = await import('./whatsapp-connect-steps')
 
+  const element = (connected: boolean) => (
+    <WhatsAppConnectSteps
+      onAdvanced={onAdvanced}
+      onApplied={onApplied}
+      onDone={onDone}
+      platformConnected={connected}
+      savedMode={savedMode}
+      scopeProfile={scopeProfile}
+    />
+  )
+
+  let view: ReturnType<typeof render>
   await act(async () => {
-    render(
-      <WhatsAppConnectSteps
-        onAdvanced={onAdvanced}
-        onApplied={onApplied}
-        onDone={onDone}
-        savedMode={savedMode}
-        scopeProfile={scopeProfile}
-      />
-    )
+    view = render(element(platformConnected))
   })
 
-  return { onAdvanced, onApplied, onDone }
+  return { onAdvanced, onApplied, onDone, rerender: (connected: boolean) => view!.rerender(element(connected)) }
 }
 
 function choose(name: RegExp | string) {
@@ -167,10 +172,6 @@ describe('WhatsAppConnectSteps', () => {
     expect(await screen.findByText('Linked as +15551234567', {}, { timeout: 4000 })).toBeTruthy()
     expect(nextButton().disabled).toBe(false)
 
-    // The wa.me link routes through the validated external opener.
-    fireEvent.click(screen.getByRole('button', { name: /Open chat/ }))
-    expect(openExternalLink).toHaveBeenCalledWith('https://wa.me/15551234567')
-
     await next()
 
     // "Just me" with a dedicated number: bot mode, no allowlist — the first
@@ -186,8 +187,30 @@ describe('WhatsAppConnectSteps', () => {
     expect(await screen.findByText('Messaging gateway restarted', {}, { timeout: 4000 })).toBeTruthy()
     expect(screen.getByText(/send hi to \+15551234567/)).toBeTruthy()
 
+    // The test message is sent from WhatsApp itself, through the validated
+    // external opener.
+    fireEvent.click(screen.getByRole('button', { name: 'Send a test message' }))
+    expect(openExternalLink).toHaveBeenCalledWith('https://wa.me/15551234567')
+
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(onDone).toHaveBeenCalled()
+  })
+
+  it('says WhatsApp is connected and listening once the channel reports it', async () => {
+    startWhatsAppOnboarding.mockResolvedValue(CONNECTED_RESPONSE)
+    const { rerender } = await renderSteps()
+
+    choose(/Just me, from my own number/)
+    await next()
+    await next()
+
+    expect(await screen.findByText('WhatsApp is set up.')).toBeTruthy()
+
+    await act(async () => {
+      rerender(true)
+    })
+
+    expect(screen.getByText('WhatsApp is connected and listening.')).toBeTruthy()
   })
 
   it('collects the allowed numbers for clients and team and sends them with the save', async () => {

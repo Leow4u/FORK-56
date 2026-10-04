@@ -102,12 +102,23 @@ const PLATFORM_ICONS: Record<string, PlatformIconSpec> = {
   yuanbao: { Icon: SiBilibili, color: '#FB7299', kind: 'brand' }
 }
 
+/** How the brand color is used:
+ *  - `tint` — glyph in the brand color on a soft tint of it (the default),
+ *  - `solid` — white glyph on the brand color, like an app icon,
+ *  - `tile` — glyph in the brand color on a white tile. */
+export type PlatformAvatarVariant = 'solid' | 'tile' | 'tint'
+
 interface PlatformAvatarProps extends Omit<ComponentPropsWithoutRef<'span'>, 'children'> {
   /** Size of the brand glyph; the default suits the 24px row avatar. */
   glyphClassName?: string
   platformId: string
   platformName: string
+  variant?: PlatformAvatarVariant
 }
+
+// White tile is literal white in both themes (it is a logo plate, not a
+// surface), so it carries a hairline to stay visible on a light page.
+const TILE_CLASS = 'border border-(--ui-stroke-quaternary) bg-white'
 
 // forwardRef + spreading ...rest is required so a wrapping <Tip> (Radix
 // Tooltip's `asChild`) can actually attach its trigger: asChild clones this
@@ -116,7 +127,7 @@ interface PlatformAvatarProps extends Omit<ComponentPropsWithoutRef<'span'>, 'ch
 // silently — the tooltip renders but never opens (#67500).
 export const PlatformAvatar = memo(
   forwardRef<HTMLSpanElement, PlatformAvatarProps>(function PlatformAvatar(
-    { className, glyphClassName = 'size-3.5', platformId, platformName, style, ...rest },
+    { className, glyphClassName = 'size-3.5', platformId, platformName, style, variant = 'tint', ...rest },
     ref
   ) {
     const spec = PLATFORM_ICONS[platformId]
@@ -130,7 +141,10 @@ export const PlatformAvatar = memo(
       return (
         <span
           aria-hidden="true"
-          className={cn(baseClass, 'bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)')}
+          className={cn(
+            baseClass,
+            variant === 'tile' ? cn(TILE_CLASS, 'text-neutral-800') : 'bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)'
+          )}
           ref={ref}
           style={style}
           {...rest}
@@ -142,18 +156,24 @@ export const PlatformAvatar = memo(
 
     const { Icon, color } = spec
 
+    const variantStyle =
+      variant === 'solid'
+        ? { backgroundColor: color, color: '#fff' }
+        : variant === 'tile'
+          ? { color }
+          : {
+              // 16% tint of the brand color so the glyph reads against any
+              // surface without the avatar dominating the row.
+              backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`,
+              color
+            }
+
     return (
       <span
         aria-hidden="true"
-        className={baseClass}
+        className={cn(baseClass, variant === 'tile' && TILE_CLASS)}
         ref={ref}
-        style={{
-          // 16% tint of the brand color so the glyph reads against any surface
-          // without the avatar dominating the row.
-          backgroundColor: `color-mix(in srgb, ${color} 16%, transparent)`,
-          color,
-          ...style
-        }}
+        style={{ ...variantStyle, ...style }}
         {...rest}
       >
         {Icon ? <Icon className={glyphClassName} /> : spec.monogram || platformName.charAt(0).toUpperCase()}
