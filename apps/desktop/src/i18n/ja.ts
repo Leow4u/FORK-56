@@ -1680,30 +1680,6 @@ export const ja = defineLocale({
       copyFailed: 'クリップボードにコピーできませんでした。',
       openGuide: 'Graph webhook ガイド'
     },
-    smsQuickSetup: {
-      title: 'クイックセットアップ',
-      recommended: '推奨',
-      intro:
-        'Twilio の認証情報を貼り付け、受信 SMS の配信先を Twilio に設定します。受信には公開 webhook URL が必要です。Work4You をローカルで実行している場合は、cloudflared や ngrok などのトンネルで先に公開してください。',
-      replacesExisting: 'SMS はすでに設定済みです。ここで保存すると、保存済みの Twilio 設定が置き換えられます。',
-      credentialsHelp: 'Twilio コンソールのダッシュボードにある Account SID と Auth Token。',
-      accountSidLabel: 'Account SID',
-      accountSidPlaceholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-      openConsole: 'Twilio コンソールを開く',
-      authTokenLabel: 'Auth Token',
-      authTokenPlaceholder: 'Twilio Auth Token',
-      phoneHelp: 'SMS 対応の Twilio 電話番号（E.164 形式）。',
-      phoneLabel: 'Twilio 電話番号',
-      webhookHelp: '公開 webhook URL — Twilio が受信 SMS をここに配信します。パスは /webhooks/twilio です。',
-      webhookLabel: '公開 webhook URL',
-      webhookHint:
-        '同じ URL を Twilio コンソールの Phone Numbers → Active Numbers → Messaging → "A message comes in" に貼り付けてください。これがないとゲートウェイは起動を拒否します（Twilio リクエスト署名の検証に使用）。',
-      allowedUsersHelp: '推奨。エージェントに SMS を送れる電話番号をカンマ区切りで指定します。それ以外は無視されます。',
-      allowedUsersLabel: '許可する送信者',
-      allFieldsRequired: 'まず Account SID、Auth Token、電話番号、webhook URL を入力してください。',
-      saved: 'SMS を保存して有効にしました。接続するにはゲートウェイを再起動してください。',
-      saveFailed: 'SMS 設定を保存できませんでした。'
-    },
     telegramQuickSetup: {
       waiting: 'Telegram での確認を待っています...',
       qrAlt: 'Telegram セットアップ QR コード',

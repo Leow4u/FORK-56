@@ -214,6 +214,25 @@ function emailReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatfo
   })
 }
 
+/** SMS on and connected through Twilio with two allowed numbers. */
+function smsReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
+  return platform({
+    configured: true,
+    enabled: true,
+    env_vars: [
+      envField('TWILIO_ACCOUNT_SID', 'AC' + '0123456789abcdef'.repeat(2), { required: true }),
+      envField('TWILIO_AUTH_TOKEN', 'secret', { is_password: true, required: true, value: null }),
+      envField('TWILIO_PHONE_NUMBER', '+15551234567', { required: true }),
+      envField('SMS_WEBHOOK_URL', 'https://bot.example.com/webhooks/twilio', { required: true }),
+      envField('SMS_ALLOWED_USERS', '+5511999993977,+5511988880000')
+    ],
+    id: 'sms',
+    name: 'SMS (Twilio)',
+    state: 'connected',
+    ...patch
+  })
+}
+
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
     configured: false,
@@ -1302,6 +1321,47 @@ describe('MessagingView channel page', () => {
     })
     expect(screen.getByText(en.messaging.envErrors.emailAddress('*'))).toBeTruthy()
     expect(updateMessagingPlatform).not.toHaveBeenCalled()
+  })
+
+  it('walks SMS through its first connection step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ id: 'sms', name: 'SMS (Twilio)' })] })
+
+    await renderMessaging()
+    await openChannel('SMS')
+
+    expect(await screen.findByText(en.messaging.smsPage.whoTitle)).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows SMS as settings: the number, who can text and approval by code', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [smsReady()] })
+
+    const { unmount } = await renderMessaging()
+    await openChannel('SMS')
+
+    expect(await screen.findByText(/\+15551234567/)).toBeTruthy()
+    expect(screen.getByText(en.messaging.smsPage.whoCanTextTitle)).toBeTruthy()
+    expect(screen.getByText(en.messaging.smsPage.whoOnlyNumbers(2))).toBeTruthy()
+
+    // Approving people as they text clears the list.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.messaging.edit }))
+    })
+    fireEvent.click(screen.getByRole('radio', { name: new RegExp(en.messaging.smsPage.approveTitle) }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('sms', { clear_env: ['SMS_ALLOWED_USERS'] })
+    )
+    unmount()
+
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [smsReady({ env_vars: [envField('SMS_ALLOWED_USERS', '')] })]
+    })
+    await renderMessaging()
+    await openChannel('SMS')
+    expect(await screen.findByText(en.messaging.smsPage.approveTitle)).toBeTruthy()
   })
 
   it('counts the routines that deliver to WhatsApp', async () => {

@@ -1743,28 +1743,6 @@ export interface Translations {
       copyFailed: string
       openGuide: string
     }
-    smsQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      credentialsHelp: string
-      accountSidLabel: string
-      accountSidPlaceholder: string
-      openConsole: string
-      authTokenLabel: string
-      authTokenPlaceholder: string
-      phoneHelp: string
-      phoneLabel: string
-      webhookHelp: string
-      webhookLabel: string
-      webhookHint: string
-      allowedUsersHelp: string
-      allowedUsersLabel: string
-      allFieldsRequired: string
-      saved: string
-      saveFailed: string
-    }
     channelSettings: {
       whoOnlyPeople: (count: number) => string
       whoApprove: string
@@ -2074,6 +2052,58 @@ export interface Translations {
       whoNone: string
       listTitle: string
       repliesToEmail: string
+      advancedHint: string
+    }
+    smsPage: {
+      stepWho: string
+      stepTwilio: string
+      stepWebhook: string
+      stepText: string
+      stepReady: string
+      whoTitle: string
+      whoNote: string
+      meTitle: string
+      meDesc: string
+      othersTitle: string
+      othersDesc: string
+      twilioTitle: string
+      twilioNote: string
+      sidLabel: string
+      openConsole: string
+      tokenLabel: string
+      tokenKept: string
+      numberLabel: string
+      numberHelp: string
+      webhookTitle: string
+      webhookNote: string
+      webhookLabel: string
+      webhookHelp: string
+      webhookStep1: string
+      webhookStep2: string
+      webhookCaution: string
+      textTitle: string
+      textNote: (choice: string) => string
+      meNumberTitle: string
+      meNumberNote: string
+      meNumberLabel: string
+      listTitle: string
+      listDesc: string
+      listHint: string
+      approveTitle: string
+      approveDesc: string
+      numbersRequired: string
+      readySaving: string
+      readyTitle: string
+      readySetUp: string
+      checkTwilio: (number: string) => string
+      checkTwilioPending: string
+      whoMe: string
+      whoList: (count: number) => string
+      whoApprove: string
+      tryIt: (number: string) => string
+      whoCanTextTitle: string
+      whoOnlyNumbers: (count: number) => string
+      repliesToTexts: string
       advancedHint: string
     }
     telegramQuickSetup: {

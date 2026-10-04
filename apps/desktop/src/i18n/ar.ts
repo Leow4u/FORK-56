@@ -1498,30 +1498,6 @@ export const ar = defineLocale({
       copyFailed: 'تعذّر النسخ إلى الحافظة.',
       openGuide: 'دليل Graph webhook'
     },
-    smsQuickSetup: {
-      title: 'الإعداد السريع',
-      recommended: 'موصى به',
-      intro:
-        'الصق بيانات اعتماد Twilio وأخبر Twilio أين يسلّم الرسائل النصية الواردة. تتطلب الرسائل الواردة عنوان webhook عامًا — إذا كان Work4You يعمل على جهازك المحلي، فاكشفه أولًا عبر نفق مثل cloudflared أو ngrok.',
-      replacesExisting: 'الرسائل النصية مهيأة بالفعل. الحفظ هنا يستبدل إعدادات Twilio المخزنة.',
-      credentialsHelp: 'Account SID و Auth Token، من لوحة تحكم Twilio.',
-      accountSidLabel: 'Account SID',
-      accountSidPlaceholder: 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-      openConsole: 'افتح لوحة تحكم Twilio',
-      authTokenLabel: 'Auth Token',
-      authTokenPlaceholder: 'رمز مصادقة Twilio',
-      phoneHelp: 'رقم هاتف Twilio الداعم للرسائل النصية، بتنسيق E.164.',
-      phoneLabel: 'رقم هاتف Twilio',
-      webhookHelp: 'عنوان webhook العام — حيث يسلّم Twilio الرسائل الواردة. المسار هو ‎/webhooks/twilio.',
-      webhookLabel: 'عنوان webhook العام',
-      webhookHint:
-        'الصق نفس العنوان في لوحة تحكم Twilio ضمن Phone Numbers ← Active Numbers ← Messaging ← "A message comes in". البوابة ترفض البدء بدونه (يُستخدم للتحقق من توقيعات طلبات Twilio).',
-      allowedUsersHelp: 'موصى به. أرقام هواتف مفصولة بفواصل يُسمح لها بمراسلة الوكيل — يتم تجاهل الآخرين.',
-      allowedUsersLabel: 'المرسلون المسموح بهم',
-      allFieldsRequired: 'أدخل أولًا Account SID و Auth Token ورقم الهاتف وعنوان webhook.',
-      saved: 'تم حفظ الرسائل النصية وتفعيلها. أعد تشغيل البوابة للاتصال.',
-      saveFailed: 'تعذر حفظ إعدادات الرسائل النصية.'
-    },
     telegramQuickSetup: {
       waiting: 'في انتظار تأكيدك في Telegram...',
       qrAlt: 'رمز QR لإعداد Telegram',
