@@ -53,7 +53,7 @@ import { type ChannelsConnectedRow, ChannelsConnectedTable } from './channels-co
 import { DiscordDetail } from './discord-detail'
 import { EmailDetail } from './email-detail'
 import { GoogleChatDetail } from './google-chat-detail'
-import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
+import { MsgraphDetail } from './msgraph-detail'
 import { PlatformAvatar } from './platform-icon'
 import { SlackDetail } from './slack-detail'
 import { SmsDetail } from './sms-detail'
@@ -72,10 +72,6 @@ interface MessagingViewProps extends React.ComponentProps<'section'> {
 type EditMap = Record<string, Record<string, string>>
 
 const CHANNEL_LABEL = 'text-xs font-medium normal-case tracking-normal text-foreground'
-
-// Channels whose first screen is a quick setup. The generic credential form
-// stays one step behind that, so the same token is not painted twice.
-const QUICK_SETUP_PLATFORMS = new Set(['msgraph_webhook', 'whatsapp'])
 
 const trimEdits = (edits: Record<string, string>): Record<string, string> =>
   Object.fromEntries(
@@ -835,21 +831,18 @@ function PlatformDetail(props: PlatformDetailProps) {
     onApprove,
     onClear,
     onEdit,
-    onQuickSetupApplied,
     onRevoke,
     onSave,
     onTest,
     onToggle,
     pending,
     platform,
-    saving,
-    scopeProfile
+    saving
   } = props
 
   const { t } = useI18n()
   const m = t.messaging
   const [showAdvanced, setShowAdvanced] = useState(false)
-  const [showManual, setShowManual] = useState(false)
 
   if (platform.id === 'whatsapp') {
     return <WhatsAppDetail {...props} />
@@ -899,7 +892,9 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <A2ADetail {...props} />
   }
 
-  const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
+  if (platform.id === 'msgraph_webhook') {
+    return <MsgraphDetail {...props} />
+  }
 
   const requiredFields = platform.env_vars.filter(field => field.required)
   const optionalFields = platform.env_vars.filter(field => !field.required && !fieldCopy(field, m).advanced)
@@ -921,62 +916,38 @@ function PlatformDetail(props: PlatformDetailProps) {
         pending={pending}
       />
 
-      {platform.id === 'msgraph_webhook' && (
-        <MsgraphWebhookQuickSetup
-          configured={platform.configured}
-          envVars={platform.env_vars}
-          onApplied={onQuickSetupApplied}
-          scopeProfile={scopeProfile}
-        />
+      <PlatformGuide platform={platform} />
+
+      <section>
+        <SectionTitle>{m.required}</SectionTitle>
+        {requiredFields.length > 0 ? (
+          <MessagingFields fields={requiredFields} {...fieldProps} />
+        ) : (
+          <p className="mt-3 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+            {m.noTokenNeeded}
+          </p>
+        )}
+      </section>
+
+      {optionalFields.length > 0 && (
+        <section>
+          <SectionTitle>{m.recommended}</SectionTitle>
+          <MessagingFields fields={optionalFields} {...fieldProps} />
+        </section>
       )}
 
-      {quickSetup && (
-        <button
-          className={cn('flex w-full items-center justify-between gap-2 py-0.5 text-left', CHANNEL_LABEL)}
-          onClick={() => setShowManual(value => !value)}
-          type="button"
-        >
-          <span>{m.manualSetup}</span>
-          <DisclosureCaret open={showManual} size="0.875rem" />
-        </button>
-      )}
-
-      {(!quickSetup || showManual) && (
-        <>
-          <PlatformGuide platform={platform} />
-
-          <section>
-            <SectionTitle>{m.required}</SectionTitle>
-            {requiredFields.length > 0 ? (
-              <MessagingFields fields={requiredFields} {...fieldProps} />
-            ) : (
-              <p className="mt-3 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-                {m.noTokenNeeded}
-              </p>
-            )}
-          </section>
-
-          {optionalFields.length > 0 && (
-            <section>
-              <SectionTitle>{m.recommended}</SectionTitle>
-              <MessagingFields fields={optionalFields} {...fieldProps} />
-            </section>
-          )}
-
-          {hiddenCount > 0 && (
-            <section>
-              <button
-                className={cn('flex w-full items-center justify-between gap-2 py-0.5 text-left', CHANNEL_LABEL)}
-                onClick={() => setShowAdvanced(value => !value)}
-                type="button"
-              >
-                <span>{m.advanced(hiddenCount)}</span>
-                <DisclosureCaret open={showAdvanced} size="0.875rem" />
-              </button>
-              {showAdvanced && <MessagingFields fields={advancedFields} {...fieldProps} />}
-            </section>
-          )}
-        </>
+      {hiddenCount > 0 && (
+        <section>
+          <button
+            className={cn('flex w-full items-center justify-between gap-2 py-0.5 text-left', CHANNEL_LABEL)}
+            onClick={() => setShowAdvanced(value => !value)}
+            type="button"
+          >
+            <span>{m.advanced(hiddenCount)}</span>
+            <DisclosureCaret open={showAdvanced} size="0.875rem" />
+          </button>
+          {showAdvanced && <MessagingFields fields={advancedFields} {...fieldProps} />}
+        </section>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
@@ -987,7 +958,6 @@ function PlatformDetail(props: PlatformDetailProps) {
           onToggle={onToggle}
           platform={platform}
           saving={saving}
-          showSave={!quickSetup || hasEdits}
         />
       </div>
     </>
@@ -1121,8 +1091,7 @@ function PlatformActionBar({
   onTest,
   onToggle,
   platform,
-  saving,
-  showSave
+  saving
 }: {
   hasEdits: boolean
   onSave: () => void
@@ -1130,7 +1099,6 @@ function PlatformActionBar({
   onToggle: (enabled: boolean) => void
   platform: MessagingPlatformInfo
   saving: string | null
-  showSave: boolean
 }) {
   const { t } = useI18n()
   const m = t.messaging
@@ -1162,12 +1130,10 @@ function PlatformActionBar({
             {isTesting ? m.testing : m.test}
           </Button>
         )}
-        {showSave && (
-          <Button disabled={!hasEdits || isSavingEnv} onClick={onSave} size="sm">
-            <Save />
-            {isSavingEnv ? m.saving : platform.enabled ? m.saveChanges : m.saveAndEnable}
-          </Button>
-        )}
+        <Button disabled={!hasEdits || isSavingEnv} onClick={onSave} size="sm">
+          <Save />
+          {isSavingEnv ? m.saving : platform.enabled ? m.saveChanges : m.saveAndEnable}
+        </Button>
       </div>
     </>
   )
@@ -1194,9 +1160,7 @@ const PLATFORM_INTRO: Record<string, string> = {
     'Set up a WeCom self-built app, expose its callback URL, and provide the corp ID, secret, agent ID, and AES key.',
   weixin:
     "Run `work4you gateway setup`, select Weixin, then scan and confirm the QR code with a personal WeChat account. Work4You connects through Tencent's iLink Bot API and saves the credentials.",
-  qqbot: 'Register an app on the QQ Open Platform (q.qq.com) and copy the App ID and Client Secret.',
-  msgraph_webhook:
-    'Inbound listener only — Microsoft Graph POSTs change notifications here (meetings, Outlook, chat). This is not the Teams chat bot. Use Quick setup above to generate the clientState secret, bind localhost behind a tunnel, and copy the notification URL. A network bind needs source CIDRs. Subscriptions are created with `work4you teams-pipeline subscribe`; Azure app credentials stay on the Teams / pipeline cards.'
+  qqbot: 'Register an app on the QQ Open Platform (q.qq.com) and copy the App ID and Client Secret.'
 }
 
 const introCopy = (platform: MessagingPlatformInfo, m: Translations['messaging']) =>
