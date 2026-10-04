@@ -1483,36 +1483,6 @@ export const ja = defineLocale({
         'self-chat': 'セルフチャット'
       }
     },
-    emailQuickSetup: {
-      title: 'クイックセットアップ',
-      recommended: '推奨',
-      intro:
-        'プロバイダーを選ぶと Work4You がメールサーバーを自動入力します。専用のメールボックスを使用してください——エージェントはその中のすべてのメールを読み、返信します。',
-      replacesExisting:
-        'メールはすでに設定済みです。ここで保存すると、保存済みのメールボックス設定が置き換えられます。',
-      addressLabel: 'メールアドレス',
-      addressHelp: 'エージェントが送受信に使用するメールボックス。',
-      addressPlaceholder: 'agent@example.com',
-      providerLabel: 'プロバイダー',
-      providerCustom: 'カスタム',
-      imapHostLabel: 'IMAP ホスト',
-      imapPortLabel: 'IMAP ポート',
-      smtpHostLabel: 'SMTP ホスト',
-      smtpPortLabel: 'SMTP ポート',
-      passwordLabel: 'パスワード',
-      passwordHelp:
-        'Gmail、Outlook、Yahoo、iCloud ではアプリパスワードが必要です——通常のアカウントパスワードは IMAP では使えません。',
-      passwordPlaceholder: 'アプリパスワード',
-      createAppPassword: 'アプリパスワードを作成',
-      allowedUsersLabel: '許可する送信者',
-      allowedUsersHelp:
-        '推奨。エージェントと会話できるアドレスをカンマ区切りで指定します——それ以外からのメールは無視されます。',
-      allowedUsersPlaceholder: 'you@example.com, teammate@example.com',
-      addressAndPasswordRequired: 'まずメールアドレスとパスワードを入力してください。',
-      hostsRequired: 'IMAP と SMTP のホストを入力するか、プロバイダーを選択してください。',
-      saved: 'メールを保存して有効にしました。接続するにはゲートウェイを再起動してください。',
-      saveFailed: 'メール設定を保存できませんでした。'
-    },
     googleChatQuickSetup: {
       title: 'クイックセットアップ',
       recommended: '推奨',

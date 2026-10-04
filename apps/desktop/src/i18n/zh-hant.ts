@@ -1436,32 +1436,6 @@ export const zhHant = defineLocale({
         'self-chat': '自我對話'
       }
     },
-    emailQuickSetup: {
-      title: '快速設定',
-      recommended: '建議',
-      intro: '選擇你的郵件供應商，Work4You 會自動填寫郵件伺服器。請使用專用信箱——代理會讀取並回覆其中的所有郵件。',
-      replacesExisting: '電子郵件已設定完成。在此儲存會取代已儲存的信箱設定。',
-      addressLabel: '電子郵件地址',
-      addressHelp: '代理用來收發郵件的信箱。',
-      addressPlaceholder: 'agent@example.com',
-      providerLabel: '供應商',
-      providerCustom: '自訂',
-      imapHostLabel: 'IMAP 主機',
-      imapPortLabel: 'IMAP 連接埠',
-      smtpHostLabel: 'SMTP 主機',
-      smtpPortLabel: 'SMTP 連接埠',
-      passwordLabel: '密碼',
-      passwordHelp: '對於 Gmail、Outlook、Yahoo 和 iCloud，必須使用應用程式專用密碼——一般帳戶密碼無法用於 IMAP。',
-      passwordPlaceholder: '應用程式專用密碼',
-      createAppPassword: '建立應用程式專用密碼',
-      allowedUsersLabel: '允許的寄件者',
-      allowedUsersHelp: '建議設定。逗號分隔的允許與代理對話的地址——其他人的郵件會被忽略。',
-      allowedUsersPlaceholder: 'you@example.com, teammate@example.com',
-      addressAndPasswordRequired: '請先輸入電子郵件地址和密碼。',
-      hostsRequired: '請輸入 IMAP 和 SMTP 主機，或選擇一個供應商。',
-      saved: '電子郵件已儲存並啟用。重新啟動閘道以連線。',
-      saveFailed: '無法儲存電子郵件設定。'
-    },
     googleChatQuickSetup: {
       title: '快速設定',
       recommended: '推薦',
