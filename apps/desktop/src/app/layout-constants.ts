@@ -31,10 +31,10 @@ export const LIBRARY_PAGE_MAX_W = 'max-w-4xl'
 // Literal for Tailwind — do not interpolate.
 export const PAGE_HEADER_TOP = 'pt-[calc(var(--titlebar-height)+3rem)]'
 
-// Settings right-pane column: centered on the stage, with 247px free on each
-// side (494px total). Floor at 36rem so a narrow overlay does not collapse.
+// Settings right-pane column: a 45rem (720px) reading column plus the
+// PAGE_INSET_X gutters, centered on the stage. Shrinks with a narrow pane.
 // Literal for Tailwind — do not interpolate.
-export const PAGE_SETTINGS_MAX_W = 'max-w-[min(100%,max(36rem,calc(100%-494px)))]'
+export const PAGE_SETTINGS_MAX_W = 'max-w-[min(100%,calc(45rem+2*clamp(1.25rem,4vw,4rem)))]'
 
 // Below this viewport width a docked sidebar leaves no room for content, so both
 // rails auto-collapse into the hover-reveal overlay. Single source of truth for

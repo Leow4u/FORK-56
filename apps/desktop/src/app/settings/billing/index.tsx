@@ -52,7 +52,7 @@ function NoticeCard({ notice }: { notice: BillingNoticeView }) {
   const warn = notice.tone === 'warn'
 
   return (
-    <div className={cn('mb-6 rounded-xl p-4', warn ? 'bg-(--ui-yellow)/10' : 'bg-(--ui-bg-quaternary)')}>
+    <div className={cn('mb-6 rounded-(--card-radius) p-4', warn ? 'bg-(--ui-yellow)/10' : 'bg-(--ui-bg-quaternary)')}>
       <div
         className={cn(
           'text-[length:var(--conversation-text-font-size)] font-medium',
@@ -432,7 +432,7 @@ function BillingOverview({
   const included = usageRows.filter(row => row.id !== 'monthly_cap')
   const cap = usageRows.find(row => row.id === 'monthly_cap')
   const showPayment = Boolean(paymentRow || accountRows.length > 0 || cap)
-  const card = 'mb-6 rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) px-4 pb-1'
+  const card = 'mb-10 rounded-(--card-radius) border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) px-4 pb-1'
 
   return (
     <>

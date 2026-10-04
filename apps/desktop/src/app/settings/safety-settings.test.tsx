@@ -75,7 +75,7 @@ describe('Safety settings', () => {
     })
 
     expect(await screen.findByText('Decide for me')).toBeTruthy()
-    expect(screen.getByText('Commands that can run')).toBeTruthy()
+    expect(screen.getByText('Allowed Without Asking')).toBeTruthy()
     expect(screen.getByText('git status')).toBeTruthy()
     expect(screen.queryByText('Approval Timeout')).toBeNull()
     expect(screen.queryByText('Confirm MCP Reloads')).toBeNull()
@@ -98,7 +98,7 @@ describe('Safety settings', () => {
     })
 
     expect(await screen.findByText('Run without asking')).toBeTruthy()
-    expect(screen.queryByText('Commands that can run')).toBeNull()
+    expect(screen.queryByText('Allowed Without Asking')).toBeNull()
     expect(screen.queryByText('rm')).toBeNull()
   })
 

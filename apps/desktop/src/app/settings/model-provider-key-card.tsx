@@ -84,7 +84,7 @@ export function ModelProviderKeyCard({
   return (
     <article
       className={cn(
-        'rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) px-3.5 py-3',
+        'rounded-(--card-radius) border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) px-3.5 py-3',
         expanded && 'bg-(--ui-bg-tertiary)'
       )}
     >

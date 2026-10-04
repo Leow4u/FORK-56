@@ -68,7 +68,7 @@ describe('deriveBillingView', () => {
     expect(view.topupRow?.chips).toBeUndefined()
     expect(view.refillRow).toMatchObject({
       action: { label: 'Manage' },
-      description: 'Charges $10 automatically when your balance falls below $5.',
+      description: 'Adds $10 when your balance falls below $5.',
       manageInApp: true,
       pill: { label: 'Enabled', tone: 'primary' }
     })
@@ -134,7 +134,7 @@ describe('deriveBillingView', () => {
 
     expect(view.refillRow).toMatchObject({
       action: { label: 'Manage' },
-      description: 'Charges $10 automatically when your balance falls below $5.',
+      description: 'Adds $10 when your balance falls below $5.',
       manageInApp: true,
       pill: { label: 'Enabled', tone: 'primary' }
     })
@@ -149,7 +149,7 @@ describe('deriveBillingView', () => {
       action: { disabled: true, label: 'Buy' },
       // The no-card blocker is explained once by the page-level notice, not
       // duplicated (emoji and all) into the row description.
-      description: 'A single charge on your card, added to your balance today.'
+      description: 'One-time charge.'
     })
     expect(buyCredits?.description).not.toContain('💳')
     expect(buyCredits?.chips?.map(chip => chip.disabled)).toEqual([true, true, true])

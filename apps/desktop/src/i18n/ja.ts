@@ -267,38 +267,29 @@ export const ja = defineLocale({
     },
     notifications: {
       title: '通知',
-      intro: 'アプリ内トーストとは別の、ネイティブのデスクトップ通知です。設定は端末ごとに保存されます。',
-      enableAll: '通知を有効にする',
-      enableAllDesc: 'オフで以下の通知をすべて無効にします。',
-      focusedHint: '完了通知は Work4You がバックグラウンドにあるときのみ表示されます。',
+      enableAll: 'デスクトップ通知',
+      enableAllDesc: 'このデバイスのみ。',
       kinds: {
         approval: {
-          label: '承認が必要',
-          description: 'コマンドが承認または拒否を待っています。'
+          label: '承認が必要'
         },
         input: {
-          label: '入力が必要',
-          description: 'Work4You が質問したか、パスワードやシークレットを必要としています。'
+          label: '入力が必要'
         },
         turnDone: {
-          label: '応答完了',
-          description: 'Work4You がバックグラウンドのときにターンが完了しました。'
+          label: '応答完了'
         },
         turnError: {
-          label: 'ターン失敗',
-          description: 'バックグラウンドのターンエラー。'
+          label: 'ターン失敗'
         },
         backgroundDone: {
-          label: 'バックグラウンドタスク完了',
-          description: 'バックグラウンドのターミナルコマンドが完了しました。'
+          label: 'バックグラウンドタスク完了'
         },
         credits: {
-          label: 'クレジット通知',
-          description: 'クレジットの利用が停止または復旧しました。'
+          label: 'クレジット通知'
         },
         plugin: {
-          label: 'プラグイン通知',
-          description: 'Work4You がバックグラウンドの間に、デスクトッププラグインが通知を送信しました。'
+          label: 'プラグイン通知'
         }
       },
       test: 'テスト通知を送信',
@@ -308,7 +299,6 @@ export const ja = defineLocale({
         'テストを送信しました。表示されない場合は、OS の通知許可と集中モード／おやすみモードを確認してください。',
       testUnsupported: 'このシステムはネイティブ通知に対応していません。',
       completionSoundTitle: '完了サウンド',
-      completionSoundDesc: 'エージェントのターン終了時に再生されます。プリセットを選んでここで試聴できます。',
       completionSoundPreview: '試聴'
     },
     sections: {
@@ -337,32 +327,24 @@ export const ja = defineLocale({
     },
     appearance: {
       title: '外観',
-      intro:
-        'デスクトップ専用の表示設定です。モードは明るさ、テーマはアクセントカラーとチャット面のスタイルを制御します。',
       colorMode: 'カラーモード',
       colorModeDesc: '固定モードを選ぶか、Work4You をシステム設定に合わせます。',
       toolViewTitle: 'ツール呼び出しの表示',
       toolViewDesc:
         'プロダクト表示は完了したターンを Worked-for 1 行に畳みます。テクニカル表示はツールログと入出力を残します。',
-      reasoningCollapsedTitle: '思考ブロックをデフォルトで折りたたむ',
-      reasoningCollapsedDesc: 'ストリーミング中の推論を、開くまで折りたたんだまま利用できるようにします。',
+      reasoningCollapsedTitle: '推論をデフォルトで折りたたむ',
       uiScaleTitle: 'UI スケール',
-      uiScaleDesc: (percent: number) =>
-        `アプリ全体の文字と UI を拡大縮小します。Cmd/Ctrl と +、-、0 でも変更できます。現在: ${percent}%`,
-      sessionDensityTitle: 'セッションリストの密度',
-      sessionDensityDesc: 'サイドバーのセッションタイトルの下に表示する情報量を選びます。',
+      sessionDensityTitle: 'サイドバーの密度',
       sessionDensityCompact: 'コンパクト',
       sessionDensityComfortable: '標準',
       sessionDensityDetailed: '詳細',
       terminalFontTitle: 'ターミナルフォント',
-      terminalFontDesc:
-        'Desktop のターミナルで使用するインストール済みフォントを選びます。Nerd Font は Powerlevel10k とシェルアイコンを表示できます。空欄では内蔵の JetBrains Mono を使用します。',
+      terminalFontDesc: '空欄なら JetBrains Mono を使います。',
       terminalFontPlaceholder: 'MesloLGS NF または CSS フォントスタック',
       terminalFontPreview: 'グリフのプレビュー',
       terminalFontReset: '既定値を使用',
-      translucencyTitle: 'ウィンドウの透過',
+      translucencyTitle: '透過',
       translucencyDesc: 'テキストも含めウィンドウ全体を透過させてデスクトップを表示します。',
-      translucencyGlassDesc: 'マットガラス: デスクトップが滑らかなぼかしとして透け、テキストは鮮明なまま。',
       translucencyModeClear: 'クリア',
       translucencyModeGlass: 'ガラス',
       translucencyTintTitle: '色味',
@@ -380,15 +362,13 @@ export const ja = defineLocale({
         sidebar: 'サイドバーのみ'
       },
       introSplashTitle: 'イントロ表示',
-      introSplashDesc: '空のチャットに表示されるワードマークとプロンプト。',
+      introSplashDesc: '空のチャットに表示されます。',
       reactionsTitle: 'メッセージリアクション',
-      reactionsDesc:
-        'iMessage風の絵文字タップバック — メッセージにリアクションでき、Work4Youもあなたのメッセージにリアクションします。',
+      reactionsDesc: 'メッセージへの絵文字リアクション。',
       composerPopoutTitle: 'フローティング入力欄',
-      composerPopoutDesc: '入力欄をドックからドラッグして外せるようにします。オフにすると画面下部に固定されます。',
-      embedsTitle: 'インライン埋め込み',
-      embedsDesc:
-        'リッチプレビューは第三者サイト（YouTube、X など）から読み込まれます。確認は許可するまでプレースホルダーを表示し、常には自動で読み込み、オフはリンクのままにします。',
+      composerPopoutDesc: '入力欄をドックから外してドラッグできます。',
+      embedsTitle: 'リンクプレビュー',
+      embedsDesc: 'YouTube、X などのサイト。',
       embedsAsk: '確認',
       embedsAlways: '常に',
       embedsOff: 'オフ',
@@ -399,8 +379,6 @@ export const ja = defineLocale({
       technicalDesc: '生のツール引数、結果、低レベルの詳細を含めます。',
       themeTitle: 'テーマ',
       themeDesc: 'デスクトップ専用のパレットです。選択したモードの上に適用されます。',
-      themeProfileNote: profile =>
-        `「${profile}」プロファイルに保存されます。プロファイルごとに個別のテーマを保持します。`,
       installTitle: 'VS Code から導入',
       installDesc:
         'Marketplace の拡張機能 ID（例: dracula-theme.theme-dracula）を貼り付けると、その配色テーマをデスクトップ用パレットに変換します。',
@@ -459,7 +437,7 @@ export const ja = defineLocale({
       timezone: 'タイムゾーン',
       display: {
         personality: '人格',
-        showReasoning: '推論ブロック'
+        showReasoning: '推論を表示'
       },
       desktop: {
         repoScanEnabled: 'リポジトリの自動検出',
@@ -498,7 +476,7 @@ export const ja = defineLocale({
         timeout: '承認タイムアウト',
         mcpReloadConfirm: 'MCP 再読み込みの確認'
       },
-      commandAllowlist: 'コマンド許可リスト',
+      commandAllowlist: '確認なしで許可',
       security: {
         redactSecrets: 'シークレットを伏せる',
         allowPrivateUrls: 'プライベート URL を許可'
@@ -618,8 +596,7 @@ export const ja = defineLocale({
       modelContextLength: '0 のままにすると、選択したモデルから検出されたコンテキストウィンドウを使用します。',
       fallbackProviders: 'デフォルトモデルが失敗したときに試す provider:model 形式のバックアップです。',
       display: {
-        personality: '新しいセッションのデフォルトのアシスタントスタイルです。',
-        showReasoning: 'バックエンドが推論内容を提供したときに表示します。'
+        personality: '新しいチャットに適用されます。'
       },
       desktop: {
         repoScanEnabled: 'ローカルフォルダを検索して Git リポジトリをプロジェクトに表示します。',
@@ -642,7 +619,6 @@ export const ja = defineLocale({
       },
       fileReadMaxChars: 'Work4You が 1 回のファイル読み取りで取得できる最大文字数です。',
       approvals: {
-        mode: '明示的な承認が必要なコマンドを Work4You がどう扱うかを設定します。',
         timeout: '承認プロンプトがタイムアウトするまで待つ時間です。'
       },
       security: {
@@ -652,8 +628,8 @@ export const ja = defineLocale({
         enabled: 'ファイル編集前にロールバック用スナップショットを作成します。'
       },
       memory: {
-        memoryEnabled: '将来のセッションに役立つ永続メモリを保存します。',
-        userProfileEnabled: 'ユーザーの好みをまとめた簡潔なプロファイルを維持します。'
+        memoryEnabled: 'チャットをまたいで記憶します。',
+        userProfileEnabled: '好みの短い要約を保持します。'
       },
       context: {
         engine: '長い会話がコンテキスト上限に近づいたときの管理戦略です。'
@@ -661,11 +637,7 @@ export const ja = defineLocale({
       compression: {
         enabled: '会話が大きくなったとき、古いコンテキストを要約します。'
       },
-      voice: {
-        autoTts: 'アシスタントの応答を自動で読み上げます。'
-      },
       stt: {
-        enabled: 'ローカルまたはプロバイダーによる音声文字起こしを有効にします。',
         elevenlabs: {
           languageCode: '任意の ISO-639-3 言語コードです。空欄なら ElevenLabs が自動検出します。'
         }
@@ -724,14 +696,12 @@ export const ja = defineLocale({
       imported: '設定をインポートしました',
       invalidJson: '設定 JSON が無効です',
       keepAwakeTitle: 'コンピューターをスリープさせない',
-      keepAwakeDesc: '本体のスリープを防ぎ、長時間や夜通しの実行を継続します。画面は暗転できます。'
+      keepAwakeDesc: '長時間の実行向け。画面は暗転できます。'
     },
     quickEntry: {
       enabledTitle: 'クイック入力',
-      enabledDesc:
-        'グローバルショートカットで小さな入力欄をどこからでも呼び出し、Work4You を開かずにプロンプトを送信します。',
-      shortcutTitle: 'クイック入力のショートカット',
-      shortcutDesc: '修飾キーが 1 つ以上必要です（例: CommandOrControl+Shift+Space）。',
+      enabledDesc: 'ショートカットでどこからでもプロンプトを送信します。',
+      shortcutTitle: 'ショートカット',
       active: 'ショートカットは有効です。',
       takenBy: 'このショートカットは他のアプリが使用しています。別のものを選んでください。',
       invalidShortcut: '有効なショートカットではありません。修飾キーを 1 つ以上含めてください。'
@@ -1015,8 +985,7 @@ export const ja = defineLocale({
       restored: '復元しました',
       deleteConfirm: title => `"${title}" を完全に削除しますか？この操作は元に戻せません。`,
       autoArchiveTitle: '古いチャットを自動アーカイブ',
-      autoArchiveDesc:
-        'しばらく操作していないチャットを自動的にアーカイブします。ピン留めしたチャットはアーカイブされず、削除もされません。',
+      autoArchiveDesc: 'ピン留めしたチャットは残り、何も削除されません。',
       autoArchiveDaysLabel: 'アーカイブまでの日数',
       autoArchiveDaysUnit: '日間操作なし',
       autoArchiveFailed: '自動アーカイブを更新できませんでした',

@@ -95,7 +95,6 @@ export function QuickEntrySettings() {
             </div>
           )
         }
-        description={q.shortcutDesc}
         title={q.shortcutTitle}
       />
     </>

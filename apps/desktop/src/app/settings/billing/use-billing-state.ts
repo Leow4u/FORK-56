@@ -624,9 +624,9 @@ function buyCreditsRow(billing: BillingStateResponse): BillingAccountRowView {
     return {
       action: { disabled: true, label: 'Buy' },
       chips: billing.charge_presets.map(amount => ({ disabled: true, label: formatMoney(amount) })),
-      description: 'A single charge on your card, added to your balance today.',
+      description: 'One-time charge.',
       id: 'buy_credits',
-      title: 'Buy credits now'
+      title: 'Buy credits'
     }
   }
 
@@ -636,16 +636,16 @@ function buyCreditsRow(billing: BillingStateResponse): BillingAccountRowView {
     return {
       description: disabledReason,
       id: 'buy_credits',
-      title: 'Buy credits now'
+      title: 'Buy credits'
     }
   }
 
   return {
     action: { disabled: true, label: 'Buy' },
     chips: billing.charge_presets.map(amount => ({ disabled: true, label: formatMoney(amount) })),
-    description: 'A single charge on your card, added to your balance today.',
+    description: 'One-time charge.',
     id: 'buy_credits',
-    title: 'Buy credits now'
+    title: 'Buy credits'
   }
 }
 
@@ -702,7 +702,7 @@ function autoReloadRow(billing: BillingStateResponse): BillingAccountRowView {
     action: { label: 'Manage' },
     // Numbers live in the first sentence (spec §8); the swap region below carries
     // the editable fields, so no redundant caption here.
-    description: `Charges ${reloadTo} automatically when your balance falls below ${threshold}.`,
+    description: `Adds ${reloadTo} when your balance falls below ${threshold}.`,
     id: 'auto_reload',
     // The only row that edits in place — AutoReloadRow keys its swap layout off this
     // flag rather than sniffing the action label.

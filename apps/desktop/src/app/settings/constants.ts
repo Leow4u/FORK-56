@@ -387,7 +387,7 @@ export const FIELD_LABELS: Record<string, string> = defineFieldCopy({
   timezone: 'Timezone',
   display: {
     personality: 'Personality',
-    showReasoning: 'Reasoning Blocks'
+    showReasoning: 'Show Reasoning'
   },
   desktop: {
     repoScanEnabled: 'Automatic Repository Discovery',
@@ -426,7 +426,7 @@ export const FIELD_LABELS: Record<string, string> = defineFieldCopy({
     timeout: 'Approval Timeout',
     mcpReloadConfirm: 'Confirm MCP Reloads'
   },
-  commandAllowlist: 'Commands that can run',
+  commandAllowlist: 'Allowed Without Asking',
   security: {
     redactSecrets: 'Redact Secrets',
     allowPrivateUrls: 'Allow Private URLs'
@@ -446,7 +446,7 @@ export const FIELD_LABELS: Record<string, string> = defineFieldCopy({
   },
   stt: {
     enabled: 'Dictation',
-    echoTranscripts: 'Echo Transcripts',
+    echoTranscripts: 'Show Transcripts in Chat',
     provider: 'Speech-To-Text Provider',
     local: {
       model: 'Local Transcription Model',
@@ -552,8 +552,10 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = defineFieldCopy({
   modelContextLength: "Leave at 0 to use the selected model's detected context window.",
   fallbackProviders: 'Backup provider:model entries to try if the default model fails.',
   display: {
-    personality: 'Default assistant style for new sessions.',
-    showReasoning: 'Show reasoning sections when the backend provides them.'
+    personality: 'Applies to new chats.',
+    // Empty on purpose: the label says it all. An empty string (not a missing
+    // key) stops the row from falling back to the backend schema description.
+    showReasoning: ''
   },
   desktop: {
     repoScanEnabled: 'Scan local folders for Git repositories to show in Projects.',
@@ -579,10 +581,10 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = defineFieldCopy({
   },
   fileReadMaxChars: 'Maximum characters Work4You can read from one file request.',
   approvals: {
-    mode: 'Ask every time, let Work4You decide, or run without asking.',
+    mode: '',
     timeout: 'How long approval prompts wait before timing out.'
   },
-  commandAllowlist: 'These commands are allowed without another prompt.',
+  commandAllowlist: '',
   security: {
     redactSecrets: 'Hide detected secrets from model-visible content when possible.'
   },
@@ -590,8 +592,8 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = defineFieldCopy({
     enabled: 'Create rollback snapshots before file edits.'
   },
   memory: {
-    memoryEnabled: 'Save durable memories that can help future sessions.',
-    userProfileEnabled: 'Maintain a compact profile of user preferences.'
+    memoryEnabled: 'Remembers across chats.',
+    userProfileEnabled: 'Keeps a short summary of your preferences.'
   },
   context: {
     engine: 'Strategy for managing long conversations near the context limit.'
@@ -600,11 +602,11 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = defineFieldCopy({
     enabled: 'Summarize older context when conversations get large.'
   },
   voice: {
-    autoTts: 'Automatically speak assistant responses.'
+    autoTts: ''
   },
   tts: {
     openai: {
-      voice: 'The voice Work4You uses when it speaks.'
+      voice: ''
     },
     xai: {
       voiceId: 'xAI voice ID (e.g. eve) or a custom voice ID.',
@@ -620,8 +622,8 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = defineFieldCopy({
     }
   },
   stt: {
-    enabled: 'Turn the microphone into text.',
-    echoTranscripts: 'Post the raw 🎙️ transcript of voice messages back to the chat.',
+    enabled: '',
+    echoTranscripts: '',
     elevenlabs: {
       languageCode: 'Optional ISO-639-3 language code. Blank lets ElevenLabs auto-detect.'
     }

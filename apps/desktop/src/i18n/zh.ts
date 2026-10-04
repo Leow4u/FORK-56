@@ -377,7 +377,6 @@ export const zh: Translations = {
     },
     account: {
       title: '账户',
-      intro: '登录 Work4You 的这个人。',
       identity: '身份',
       email: '邮箱',
       firstName: '名',
@@ -390,15 +389,13 @@ export const zh: Translations = {
       signInAgain: '请重新登录后再保存姓名。',
       signIn: '登录方式',
       linkedAccounts: '已关联账号',
-      linkedAccountsDesc: '邮箱、Google、GitHub、Discord 或通行密钥。',
       manage: '管理',
       session: '会话',
       logOut: '退出登录',
-      logOutDesc: '结束此应用上的 Portal 会话。',
+      logOutTitle: '退出此设备',
       logOutFailed: '退出登录失败'
     },
     imageVideo: {
-      intro: '选择图像模型和视频模型。',
       showModels: count => `再显示 ${count} 个模型`,
       hideModels: '收起'
     },
@@ -470,38 +467,29 @@ export const zh: Translations = {
     },
     notifications: {
       title: '通知',
-      intro: '原生桌面通知，区别于应用内提示。设置按设备保存，每台电脑各自独立。',
-      enableAll: '启用通知',
-      enableAllDesc: '关闭后静音下方所有通知。',
-      focusedHint: '完成提醒仅在 Work4You 处于后台时触发。',
+      enableAll: '桌面通知',
+      enableAllDesc: '仅限此设备。',
       kinds: {
         approval: {
-          label: '需要批准',
-          description: '有命令正在等待你批准或拒绝。'
+          label: '需要批准'
         },
         input: {
-          label: '需要输入',
-          description: 'Work4You 提出了问题，或需要密码或密钥。'
+          label: '需要输入'
         },
         turnDone: {
-          label: '回复就绪',
-          description: 'Work4You 在后台时完成了一轮对话。'
+          label: '回复就绪'
         },
         turnError: {
-          label: '本轮失败',
-          description: '后台回合错误。'
+          label: '本轮失败'
         },
         backgroundDone: {
-          label: '后台任务完成',
-          description: '后台终端命令已完成。'
+          label: '后台任务完成'
         },
         credits: {
-          label: '额度提醒',
-          description: '额度访问被暂停或恢复。'
+          label: '额度提醒'
         },
         plugin: {
-          label: '插件通知',
-          description: 'Work4You 在后台时，桌面插件发送了通知。'
+          label: '插件通知'
         }
       },
       test: '发送测试通知',
@@ -510,7 +498,6 @@ export const zh: Translations = {
       testSent: '测试已发送。如果没有出现，请检查系统通知权限和专注模式／勿扰模式。',
       testUnsupported: '此系统不支持原生通知。',
       completionSoundTitle: '完成提示音',
-      completionSoundDesc: '智能体回合结束时播放。可在此选择预设并预览。',
       completionSoundPreview: '预览'
     },
     sections: {
@@ -539,30 +526,23 @@ export const zh: Translations = {
     },
     appearance: {
       title: '外观',
-      intro: '这些是仅桌面端的显示偏好。模式控制明暗；主题控制强调色与对话界面样式。',
       colorMode: '颜色模式',
       colorModeDesc: '选择固定模式，或让 Work4You 跟随系统设置。',
       toolViewTitle: '工具调用显示',
       toolViewDesc: '产品模式将已完成的一轮收成一条 Worked-for；技术模式保留工具日志和完整载荷。',
       reasoningCollapsedTitle: '默认折叠推理过程',
-      reasoningCollapsedDesc: '保留流式推理内容，但在您打开前保持折叠。',
       uiScaleTitle: '界面缩放',
-      uiScaleDesc: (percent: number) =>
-        `缩放整个应用的文字和界面。也可使用 Cmd/Ctrl 加 +、- 或 0 调整。当前：${percent}%`,
-      sessionDensityTitle: '会话列表密度',
-      sessionDensityDesc: '选择侧边栏会话标题下方显示的信息量。',
+      sessionDensityTitle: '侧边栏密度',
       sessionDensityCompact: '紧凑',
       sessionDensityComfortable: '舒适',
       sessionDensityDetailed: '详细',
       terminalFontTitle: '终端字体',
-      terminalFontDesc:
-        '选择已安装的字体用于桌面端终端。Nerd Font 可正确显示 Powerlevel10k 和 Shell 图标；留空则使用内置的 JetBrains Mono。',
+      terminalFontDesc: '留空则使用 JetBrains Mono。',
       terminalFontPlaceholder: 'MesloLGS NF 或 CSS 字体栈',
       terminalFontPreview: '字形预览',
       terminalFontReset: '使用默认字体',
-      translucencyTitle: '窗口透明',
+      translucencyTitle: '透明度',
       translucencyDesc: '让整个窗口（包括文字）透出桌面。',
-      translucencyGlassDesc: '磨砂玻璃：桌面以柔和模糊透出，文字保持清晰。',
       translucencyModeClear: '透明',
       translucencyModeGlass: '玻璃',
       translucencyTintTitle: '色调',
@@ -580,14 +560,13 @@ export const zh: Translations = {
         sidebar: '仅侧边栏'
       },
       introSplashTitle: '开场标识',
-      introSplashDesc: '空白对话中显示的字标和提示语。',
+      introSplashDesc: '显示在空白对话中。',
       reactionsTitle: '消息回应',
-      reactionsDesc: 'iMessage 风格的表情回应 — 你可以给消息添加回应，Work4You 也能回应你的消息。',
+      reactionsDesc: '为消息添加表情回应。',
       composerPopoutTitle: '悬浮输入框',
-      composerPopoutDesc: '允许将输入框拖出底部停靠区。关闭后，输入框会锁定在底部。',
-      embedsTitle: '内嵌预览',
-      embedsDesc:
-        '富预览会从第三方网站（YouTube、X 等）加载。询问会在你允许前显示占位符；总是会自动加载；关闭则保留纯链接。',
+      composerPopoutDesc: '可将输入框拖出停靠区。',
+      embedsTitle: '链接预览',
+      embedsDesc: 'YouTube、X 等网站。',
       embedsAsk: '询问',
       embedsAlways: '总是',
       embedsOff: '关闭',
@@ -598,7 +577,6 @@ export const zh: Translations = {
       technicalDesc: '包含原始工具参数/结果及底层细节。',
       themeTitle: '主题',
       themeDesc: '仅桌面端调色板。所选模式叠加其上。',
-      themeProfileNote: profile => `已为「${profile}」配置文件保存——每个配置文件保留各自的主题。`,
       installTitle: '从 VS Code 安装',
       installDesc: '粘贴 Marketplace 扩展 ID（例如 dracula-theme.theme-dracula），将其配色主题转换为桌面调色板。',
       installPlaceholder: 'publisher.extension',
@@ -655,7 +633,7 @@ export const zh: Translations = {
       timezone: '时区',
       display: {
         personality: '人格',
-        showReasoning: '推理过程块'
+        showReasoning: '显示推理'
       },
       desktop: {
         repoScanEnabled: '自动发现代码仓库',
@@ -694,7 +672,7 @@ export const zh: Translations = {
         timeout: '审批超时',
         mcpReloadConfirm: '确认 MCP 重载'
       },
-      commandAllowlist: '命令白名单',
+      commandAllowlist: '无需询问即可运行',
       security: {
         redactSecrets: '隐去密钥',
         allowPrivateUrls: '允许私有 URL'
@@ -814,8 +792,7 @@ export const zh: Translations = {
       modelContextLength: '保持为 0 则使用所选模型检测到的上下文窗口。',
       fallbackProviders: '默认模型失败时尝试的备用 provider:model 条目。',
       display: {
-        personality: '新会话的默认助手风格。',
-        showReasoning: '当后端提供推理内容时予以显示。'
+        personality: '应用于新对话。'
       },
       desktop: {
         repoScanEnabled: '扫描本地文件夹，并在“项目”中显示 Git 代码仓库。',
@@ -837,7 +814,6 @@ export const zh: Translations = {
       },
       fileReadMaxChars: 'Work4You 单次文件读取可读取的最大字符数。',
       approvals: {
-        mode: 'Work4You 如何处理需要显式审批的命令。',
         timeout: '审批提示在超时前等待的时长。'
       },
       security: {
@@ -847,8 +823,8 @@ export const zh: Translations = {
         enabled: '在文件编辑前创建可回滚的快照。'
       },
       memory: {
-        memoryEnabled: '保存有助于未来会话的持久记忆。',
-        userProfileEnabled: '维护一份精简的用户偏好画像。'
+        memoryEnabled: '跨对话记住内容。',
+        userProfileEnabled: '保留一份你的偏好简短摘要。'
       },
       context: {
         engine: '在接近上下文上限时管理长对话的策略。'
@@ -856,11 +832,7 @@ export const zh: Translations = {
       compression: {
         enabled: '当对话变大时对较早的上下文进行摘要。'
       },
-      voice: {
-        autoTts: '自动朗读助手回复。'
-      },
       stt: {
-        enabled: '启用本地或提供方支持的语音转写。',
         elevenlabs: {
           languageCode: '可选的 ISO-639-3 语言代码。留空让 ElevenLabs 自动检测。'
         }
@@ -928,7 +900,7 @@ export const zh: Translations = {
       toolsetsWipeConfirm:
         '确定移除所有已启用的工具集吗？这将禁用记忆、终端、网络搜索、委派以及大多数其他工具，直到你重新启用它们。',
       keepAwakeTitle: '保持电脑唤醒',
-      keepAwakeDesc: '阻止本机休眠，让长时间或通宵运行继续进行。屏幕仍可变暗。',
+      keepAwakeDesc: '用于长时间运行。屏幕仍可变暗。',
       disableF12Title: '禁用 F12 开发者工具',
       disableF12Desc: '阻止 F12 打开开发者工具。Ctrl+Shift+I（Mac 上为 Cmd+Opt+I）仍然可用。',
       attachmentSizeTitle: '预览 / 图片加载大小上限',
@@ -939,9 +911,8 @@ export const zh: Translations = {
     },
     quickEntry: {
       enabledTitle: '快速输入',
-      enabledDesc: '用全局快捷键在任何地方唤出一个小输入框，无需打开 Work4You 即可发送提示。',
-      shortcutTitle: '快速输入快捷键',
-      shortcutDesc: '至少需要一个修饰键，例如 CommandOrControl+Shift+Space。',
+      enabledDesc: '用快捷键从任何地方发送提示。',
+      shortcutTitle: '快捷键',
       active: '快捷键已生效。',
       takenBy: '此快捷键已被其他应用占用，请换一个。',
       invalidShortcut: '不是有效的快捷键。请至少包含一个修饰键。'
@@ -1278,7 +1249,6 @@ export const zh: Translations = {
     },
     model: {
       loading: '正在加载模型配置...',
-      pickerIntro: '选择在模型选择器中显示的模型。',
       searchModels: '添加或搜索模型',
       viewAll: '查看全部模型',
       appliesDesc: '应用于新会话。可在输入框的模型选择器中临时切换当前对话。',
@@ -1349,7 +1319,7 @@ export const zh: Translations = {
       restored: '已恢复',
       deleteConfirm: title => `永久删除“${title}”？此操作无法撤销。`,
       autoArchiveTitle: '自动归档闲置会话',
-      autoArchiveDesc: '自动归档你一段时间未使用的会话。已置顶的会话永远不会被归档，也不会删除任何内容。',
+      autoArchiveDesc: '已置顶的会话会保留，不会删除任何内容。',
       autoArchiveDaysLabel: '归档前',
       autoArchiveDaysUnit: '天无活动',
       autoArchiveFailed: '无法更新自动归档设置',

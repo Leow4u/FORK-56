@@ -102,6 +102,19 @@ for call-site shadow or border inventions.
 Never hardcode `border-gray-*`, `bg-white`, `text-black`, etc. `BrandMark` uses
 the PNG's own alpha — do not put a white (or any) tile behind it.
 
+## Radius tokens
+
+Chrome (sidebars, menus, popovers, dialogs) follows `--radius-scalar`, which
+keeps its corners tight: `rounded-md` / `rounded-xl` resolve to 2–3px there.
+Three radii sit outside the scalar on purpose and are used through their token,
+never a Tailwind `rounded-*` step:
+
+| Token | Use |
+| --- | --- |
+| `--control-radius` (6px) | every `Button` size and variant except `chip`, every `controlVariants` control (Input, Textarea, SelectTrigger), the `SegmentedControl` track (its pill is the token minus the 2px track padding) |
+| `--card-radius` (12px) | grouped settings cards (`SettingsGroup`, the model list, billing cards) |
+| `--composer-radius` | the prompt card |
+
 ## Buttons — one component
 
 `src/components/ui/button.tsx` is the single source. Pick a `variant` + `size`;
@@ -147,9 +160,9 @@ context-dependent (e.g. "Show" / "Hide"). Never hardcode combos; always use
 `useKeybindHint` or `TipKeybindLabel`.
 
 Notes:
-- Text buttons are square (no radius) and sized by padding + line-height (no
-  fixed heights). Icon buttons carry the shared 4px radius. `chip` is the
-  exception: it is always a pill (`rounded-full`), including `icon-*` sizes.
+- Buttons are sized by padding + line-height (no fixed heights). Text and icon
+  buttons share `--control-radius`. `chip` is the exception: it is always a
+  pill (`rounded-full`), including `icon-*` sizes.
 - SVGs inherit `size-3.5` (`size-3` at `xs`). Don't re-set icon size.
 - Polymorph with `asChild` when the button must render as a link/Slot.
 

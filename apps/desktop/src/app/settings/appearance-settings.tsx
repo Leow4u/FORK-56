@@ -6,6 +6,7 @@ import { useDebounced } from '@/app/hooks/use-debounced'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Tip } from '@/components/ui/tooltip'
 import type { DesktopMarketplaceSearchItem } from '@/global'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
@@ -16,7 +17,6 @@ import { cn } from '@/lib/utils'
 import { $composerPopoutGesturesEnabled, setComposerPopoutGesturesEnabled } from '@/store/composer-popout'
 import { $embedAllowed, $embedMode, clearEmbedAllowed, type EmbedMode, setEmbedMode } from '@/store/embed-consent'
 import { $introSplash, setIntroSplash } from '@/store/intro-splash'
-import { $activeGatewayProfile, $profiles, normalizeProfileKey } from '@/store/profile'
 import { $reactionsEnabled, setReactionsEnabled } from '@/store/reactions-enabled'
 import { $sessionListDensity, type SessionListDensity, setSessionListDensity } from '@/store/session-list-density'
 import {
@@ -52,7 +52,7 @@ import { APPEARANCE_SETTING_IDS } from './settings-search'
 import { TerminalFontSetting } from './terminal-font-setting'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
 
-function ThemePreview({ name, mode }: { name: string; mode: 'light' | 'dark' }) {
+function ThemePreview({ active, name, mode }: { active: boolean; name: string; mode: 'light' | 'dark' }) {
   // Preview in the *current* mode: the dark palette in Dark, and the light
   // palette in Light — synthesizing one for dark-only themes — so every card
   // tracks the Light/Dark toggle, exactly like the app itself does.
@@ -60,23 +60,26 @@ function ThemePreview({ name, mode }: { name: string; mode: 'light' | 'dark' }) 
 
   return (
     <div
-      className="h-24 overflow-hidden rounded-xl border shadow-xs"
+      className={cn(
+        'h-14 overflow-hidden rounded-(--control-radius) border transition-shadow',
+        active ? 'ring-2 ring-primary ring-offset-2 ring-offset-(--ui-bg-editor)' : 'group-hover:shadow-sm'
+      )}
       style={{ backgroundColor: c.background, borderColor: c.border }}
     >
       <div className="flex h-full">
         <div
-          className="w-12 border-r"
+          className="w-[26%] border-r"
           style={{
             backgroundColor: c.sidebarBackground ?? c.muted,
             borderColor: c.sidebarBorder ?? c.border
           }}
         />
-        <div className="flex flex-1 flex-col gap-2 p-3">
-          <div className="h-2.5 w-16 rounded-full" style={{ backgroundColor: c.foreground }} />
-          <div className="h-2 w-24 rounded-full" style={{ backgroundColor: c.mutedForeground }} />
+        <div className="flex flex-1 flex-col gap-1 p-2">
+          <div className="h-1 w-3/5 rounded-full" style={{ backgroundColor: c.foreground }} />
+          <div className="h-0.5 w-4/5 rounded-full" style={{ backgroundColor: c.mutedForeground }} />
           <div className="mt-auto flex justify-end">
             <div
-              className="h-5 w-16 rounded-full border"
+              className="h-2 w-2/5 rounded-full border"
               style={{
                 backgroundColor: c.userBubble ?? c.muted,
                 borderColor: c.userBubbleBorder ?? c.border
@@ -348,8 +351,6 @@ export function AppearanceSettings() {
   const reactionsEnabled = useStore($reactionsEnabled)
   const introSplash = useStore($introSplash)
   const installs = useStore($marketplaceInstalls)
-  const profiles = useStore($profiles)
-  const activeProfileKey = normalizeProfileKey(useStore($activeGatewayProfile))
   const a = t.settings.appearance
 
   // A pointer held on the intensity slider when this overlay closes (Escape
@@ -396,13 +397,6 @@ export function AppearanceSettings() {
     // Active theme first; stable sort keeps the rest in their original order.
     .sort((a, b) => Number(b.name === themeName) - Number(a.name === themeName))
 
-  // Themes save per profile. Surface that only when the user actually has more
-  // than one profile (single-profile installs never see the distinction).
-  const showProfileNote = profiles.length > 1
-
-  const activeProfileName =
-    profiles.find(profile => normalizeProfileKey(profile.name) === activeProfileKey)?.name ?? activeProfileKey
-
   const modeOptions = MODE_OPTIONS.map(({ id, icon }) => ({ icon, id, label: t.settings.modeOptions[id].label }))
 
   const sessionDensityOptions = [
@@ -423,12 +417,12 @@ export function AppearanceSettings() {
 
   return (
     <SettingsContent>
-      <SectionHeading description={a.intro} title={a.title} variant="page" />
+      <SectionHeading title={a.title} variant="page" />
 
       <SettingsGroup>
         <ListRow
           action={<LanguageSwitcher />}
-          description={isSavingLocale ? t.language.saving : t.language.description}
+          description={isSavingLocale ? t.language.saving : undefined}
           id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.language)}
           title={t.language.label}
         />
@@ -442,7 +436,7 @@ export function AppearanceSettings() {
                     and live-searches the VS Code Marketplace below. */}
               <div className="mt-3">
                 <input
-                  className="w-full rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-2 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
+                  className="w-full rounded-(--control-radius) border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3 py-2 text-[length:var(--conversation-caption-font-size)] outline-none placeholder:text-(--ui-text-tertiary) focus:border-(--ui-stroke-secondary)"
                   onChange={event => setQuery(event.target.value)}
                   placeholder="Search your themes or the VS Code Marketplace…"
                   spellCheck={false}
@@ -450,9 +444,9 @@ export function AppearanceSettings() {
                 />
               </div>
 
-              {/* Fixed-height scroll area so the (growing) theme list never
+              {/* Fixed-height scroll area so a long (imported) theme list never
                     runs the page long; the grid scrolls inside it. */}
-              <div className="mt-3 max-h-96 overflow-y-auto pr-1">
+              <div className="mt-3 max-h-96 overflow-y-auto p-1">
                 {filteredThemes.length === 0 ? (
                   needle ? (
                     <p className="text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
@@ -460,31 +454,37 @@ export function AppearanceSettings() {
                     </p>
                   ) : null
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid grid-cols-3 gap-2.5 @lg:grid-cols-6">
                     {filteredThemes.map(theme => {
                       const active = themeName === theme.name
                       const removable = isUserTheme(theme.name)
 
                       return (
                         <div className="group relative" key={theme.name}>
-                          <button
-                            className={cn('w-full p-2 text-left', selectableCardClass({ active, prominent: true }))}
-                            onClick={() => {
-                              triggerHaptic('crisp')
-                              setTheme(theme.name)
-                            }}
-                            type="button"
-                          >
-                            <ThemePreview mode={resolvedMode} name={theme.name} />
-                            <div className="mt-3 px-1">
-                              <div className="truncate text-[length:var(--conversation-text-font-size)] font-medium">
+                          {/* Compact swatch + name; the description lives in the tooltip
+                              so six themes fit on one row. */}
+                          <Tip label={theme.description}>
+                            <button
+                              aria-description={theme.description}
+                              aria-pressed={active}
+                              className="flex w-full flex-col gap-1.5 rounded-(--control-radius) p-0.5 text-center outline-none focus-visible:ring-2 focus-visible:ring-(--dt-ring)"
+                              onClick={() => {
+                                triggerHaptic('crisp')
+                                setTheme(theme.name)
+                              }}
+                              type="button"
+                            >
+                              <ThemePreview active={active} mode={resolvedMode} name={theme.name} />
+                              <span
+                                className={cn(
+                                  'truncate text-[length:var(--conversation-caption-font-size)]',
+                                  active ? 'font-medium text-foreground' : 'text-(--ui-text-secondary)'
+                                )}
+                              >
                                 {theme.label}
-                              </div>
-                              <div className="mt-0.5 line-clamp-2 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-                                {theme.description}
-                              </div>
-                            </div>
-                          </button>
+                              </span>
+                            </button>
+                          </Tip>
                           {removable && (
                             <button
                               aria-label={a.removeTheme}
@@ -511,14 +511,8 @@ export function AppearanceSettings() {
                 )}
                 <MarketplaceThemeResults installs={installs} onInstalled={name => setTheme(name)} query={query} />
               </div>
-              {showProfileNote && (
-                <p className="mt-3 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
-                  {a.themeProfileNote(activeProfileName)}
-                </p>
-              )}
             </>
           }
-          description={a.themeDesc}
           id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.theme)}
           title={
             <div className="flex items-center justify-between gap-3">
@@ -549,7 +543,6 @@ export function AppearanceSettings() {
               value={matchedScalePreset ?? ('' as UiScalePreset)}
             />
           }
-          description={a.uiScaleDesc(zoomPercent)}
           id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.uiScale)}
           title={a.uiScaleTitle}
         />
@@ -567,7 +560,6 @@ export function AppearanceSettings() {
               value={sessionListDensity}
             />
           }
-          description={a.sessionDensityDesc}
           title={a.sessionDensityTitle}
         />
 
@@ -649,7 +641,6 @@ export function AppearanceSettings() {
                 </div>
               ) : undefined
             }
-            description={glassMode ? a.translucencyGlassDesc : a.translucencyDesc}
             id={appearanceSettingElementId(APPEARANCE_SETTING_IDS.translucency)}
             title={a.translucencyTitle}
           />
