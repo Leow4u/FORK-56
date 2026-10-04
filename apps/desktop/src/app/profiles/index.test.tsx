@@ -162,6 +162,12 @@ async function deleteTheNamedProfile() {
   })
 }
 
+// The confirm dialog closes 600 ms after the delete settles. Wait for that
+// timer inside the test, so it never fires after jsdom is torn down.
+function waitForDialogClosed() {
+  return waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 3000 })
+}
+
 describe('ProfilesView', () => {
   it('opens the shared create dialog with the SOUL.md field (parity with the rail)', async () => {
     vi.mocked(refreshProfiles).mockResolvedValue([])
@@ -195,6 +201,7 @@ describe('ProfilesView', () => {
     )
     await waitFor(() => expect(selectProfile).toHaveBeenCalledWith('default'))
     expect(setActiveProfile).toHaveBeenCalledWith('default')
+    await waitForDialogClosed()
   })
 
   it('leaves the active profile alone when a different profile is deleted', async () => {
@@ -208,7 +215,7 @@ describe('ProfilesView', () => {
 
     await waitFor(() => expect(deleteProfile).toHaveBeenCalledWith(NAMED_PROFILE))
     // The dialog closes once the delete settles; a non-active delete must not re-home.
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull())
+    await waitForDialogClosed()
     expect(selectProfile).not.toHaveBeenCalled()
     expect(setActiveProfile).not.toHaveBeenCalled()
   })
