@@ -1483,53 +1483,6 @@ export const ja = defineLocale({
         'self-chat': 'セルフチャット'
       }
     },
-    googleChatQuickSetup: {
-      title: 'クイックセットアップ',
-      recommended: '推奨',
-      intro:
-        'Google Chat のイベントを Work4You に届ける方式を選び、そのモードの項目だけ入力して保存します。Google Workspace アカウントと、Google Cloud コンソールで設定済みの Chat アプリが必要です。',
-      replacesExisting: 'Google Chat は設定済みです。ここで保存すると既存の設定が置き換えられます。',
-      modePubsub: 'Pub/Sub（推奨）',
-      modeHttp: 'HTTP コールバック',
-      pubsubModeHint:
-        'Work4You が Cloud Pub/Sub サブスクリプションからイベントを取得します。公開 URL は不要で、NAT やファイアウォール内のマシンに最適です。',
-      httpModeHint:
-        'Google があなたのドメイン上の公開 HTTPS エンドポイントにイベントをプッシュします。インターネットから到達可能な URL が必要です。',
-      saJsonHelp: 'サービスアカウントキー——ダウンロードした JSON ファイルのパス、または JSON そのもの。',
-      saJsonLabel: 'サービスアカウント JSON',
-      saJsonHint:
-        'マシンにアプリケーションのデフォルト認証情報（gcloud auth application-default login）があれば省略可能。なければ必須です。',
-      openConsole: 'Google Cloud コンソールを開く',
-      projectHelp: 'Chat アプリと Pub/Sub トピックをホストする Google Cloud プロジェクト ID。',
-      projectLabel: 'プロジェクト ID',
-      subscriptionHelp: 'ゲートウェイがイベントを取得する完全な Pub/Sub サブスクリプションパス。',
-      subscriptionLabel: 'サブスクリプションパス',
-      eventsUrlHelp: 'Google Chat がイベントをプッシュする公開 HTTPS URL。',
-      eventsUrlLabel: 'HTTP イベント URL',
-      saEmailHelp:
-        'Google がイベントトークンの署名に使うサービスアカウントのメール——受信リクエストの検証に使用します。',
-      saEmailLabel: 'アプリのサービスアカウントメール',
-      audienceHelp: '任意。トークンのオーディエンス——空欄の場合はイベント URL が使われます。',
-      audienceLabel: 'トークンオーディエンス',
-      allowedUsersHelp:
-        '推奨。エージェントと会話できる Google アカウントのメールをカンマ区切りで指定——それ以外は無視されます。',
-      allowedUsersLabel: '許可ユーザー',
-      checklistTitle: 'Google Cloud コンソールで',
-      pubsubStep1: 'Google Chat API と Pub/Sub API を有効にします。',
-      pubsubStep2:
-        'トピックを作成し、chat-api-push@system.gserviceaccount.com に Pub/Sub Publisher ロールを付与します。',
-      pubsubStep3:
-        'そのトピックにサブスクリプションを作成し、サービスアカウントに Pub/Sub Subscriber と Viewer を付与します。',
-      pubsubStep4: 'Chat API の設定で、接続設定（Connection settings）をそのトピックに向けます。',
-      httpStep1: 'Google Chat API を有効にします。',
-      httpStep2: 'Chat API の設定で、接続設定を App URL にしてイベント URL を入力します。',
-      openChatApi: 'Chat API の設定を開く',
-      projectMismatch: 'プロジェクト ID がサブスクリプションパス内のプロジェクトと一致しません。',
-      pubsubFieldsRequired: 'まずプロジェクト ID とサブスクリプションパスを入力してください。',
-      httpFieldsRequired: 'まずイベント URL とアプリのサービスアカウントメールを入力してください。',
-      saved: 'Google Chat を保存して有効にしました。ゲートウェイを再起動すると接続します。',
-      saveFailed: 'Google Chat の設定を保存できませんでした。'
-    },
     apiServerQuickSetup: {
       title: 'クイックセットアップ',
       recommended: '推奨',
