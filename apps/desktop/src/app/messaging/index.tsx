@@ -50,7 +50,7 @@ import { type ChannelKind, channelKind, channelKindLabel, integrationRank } from
 import { type PlatformDetailProps } from './channel-settings'
 import { detailStatus, stateLabel, stateTone, ToneDot } from './channel-status'
 import { type ChannelsConnectedRow, ChannelsConnectedTable } from './channels-connected-table'
-import { DiscordQuickSetup } from './discord-quick-setup'
+import { DiscordDetail } from './discord-detail'
 import { EmailQuickSetup } from './email-quick-setup'
 import { GoogleChatQuickSetup } from './google-chat-quick-setup'
 import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
@@ -78,7 +78,6 @@ const CHANNEL_LABEL = 'text-xs font-medium normal-case tracking-normal text-fore
 const QUICK_SETUP_PLATFORMS = new Set([
   'a2a',
   'api_server',
-  'discord',
   'email',
   'google_chat',
   'msgraph_webhook',
@@ -873,6 +872,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <TelegramDetail {...props} />
   }
 
+  if (platform.id === 'discord') {
+    return <DiscordDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -894,14 +897,6 @@ function PlatformDetail(props: PlatformDetailProps) {
         onRevoke={onRevoke}
         pending={pending}
       />
-
-      {platform.id === 'discord' && (
-        <DiscordQuickSetup
-          configured={platform.configured}
-          onApplied={onQuickSetupApplied}
-          scopeProfile={scopeProfile}
-        />
-      )}
 
       {platform.id === 'slack' && (
         <SlackQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
@@ -1217,8 +1212,6 @@ function PlatformActionBar({
 }
 
 const PLATFORM_INTRO: Record<string, string> = {
-  discord:
-    'Create an application with a Bot in the Discord Developer Portal and paste its token into Quick setup above — Work4You builds the invite link and points you at the required intents. A bot that connects but never replies almost always has the Message Content Intent turned off.',
   slack:
     'Use Quick setup above: paste the generated manifest when creating your Slack app and every scope, event subscription, and slash command is configured at once — a missed channels:history scope is why bots answer DMs but stay silent in channels. Then install the app and paste the two tokens.',
   mattermost:

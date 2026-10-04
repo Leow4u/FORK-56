@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { Input } from '@/components/ui/input'
 import { useI18n } from '@/i18n'
-import { Check, RefreshCw } from '@/lib/icons'
+import { Check, Copy, RefreshCw } from '@/lib/icons'
 import { cn } from '@/lib/utils'
+import { notify, notifyError } from '@/store/notifications'
 import { $gatewayRestarting, runGatewayRestart } from '@/store/system-actions'
 import { getActionStatus, restartGateway } from '@/work4you'
 
@@ -101,32 +102,35 @@ export function splitAround(text: string, part: string): [string, string, string
   return at === -1 ? null : [text.slice(0, at), part, text.slice(at + part.length)]
 }
 
-/** A sentence with one of its words in bold, as the boards set button names
- *  and the person's choice. */
-export function Emphasized({ className, part, text }: { className?: string; part: string; text: string }) {
-  const pieces = splitAround(text, part)
-
-  if (!pieces) {
-    return <>{text}</>
-  }
-
+/** A translated sentence with its \`**marked**\` words in bold — button
+ *  names, menu paths, the person's choice — so the words to bold travel with
+ *  the sentence instead of living in keys of their own. */
+export function Marked({ className, text }: { className?: string; text: string }) {
   return (
     <>
-      {pieces[0]}
-      <b className={cn('font-medium', className ?? 'text-foreground')}>{pieces[1]}</b>
-      {pieces[2]}
+      {text.split(/\*\*(.+?)\*\*/g).map((piece, index) =>
+        index % 2 === 1 ? (
+          <b className={cn('font-medium', className ?? 'text-foreground')} key={index}>
+            {piece}
+          </b>
+        ) : (
+          piece
+        )
+      )}
     </>
   )
 }
 
 interface StepFieldProps extends ComponentProps<typeof Input> {
+  /** A button beside the input (open the portal the value comes from). */
+  action?: ReactNode
   help?: ReactNode
   label: string
 }
 
 /** A labeled input of a step, as the boards draw it: the label, the input
  *  (monospace: ids, tokens, numbers) and the help line under it. */
-export function StepField({ className, help, label, ...input }: StepFieldProps) {
+export function StepField({ action, className, help, label, ...input }: StepFieldProps) {
   const id = useId()
 
   return (
@@ -134,8 +138,41 @@ export function StepField({ className, help, label, ...input }: StepFieldProps) 
       <label className="text-[0.78125rem] font-medium text-(--ui-text-secondary)" htmlFor={id}>
         {label}
       </label>
-      <Input className={cn('h-8 max-w-[35rem] font-mono text-[0.78rem]', className)} id={id} {...input} />
+      <div className="flex items-center gap-2">
+        <Input className={cn('h-8 max-w-[35rem] font-mono text-[0.78rem]', className)} id={id} {...input} />
+        {action}
+      </div>
       {help ? <span className={cn('max-w-[38.75rem]', STEP_NOTE)}>{help}</span> : null}
+    </div>
+  )
+}
+
+/** A link or an address to hand to another app: shown whole in a code box
+ *  (cut with an ellipsis when long) with a Copy button beside it. */
+export function UrlRow({ copyLabel, url }: { copyLabel?: string; url: string }) {
+  const { t } = useI18n()
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url)
+      notify({ kind: 'success', message: t.common.copied })
+    } catch (copyError) {
+      notifyError(copyError, t.common.copyFailed)
+    }
+  }
+
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <code
+        className="inline-flex h-[1.875rem] min-w-0 max-w-[35rem] items-center truncate rounded-md bg-(--ui-bg-quaternary) px-2.5 font-mono text-xs text-foreground"
+        title={url}
+      >
+        <span className="truncate">{url}</span>
+      </code>
+      <Button className="shrink-0" onClick={() => void copy()} size="sm" variant="outline">
+        <Copy />
+        {copyLabel ?? t.common.copy}
+      </Button>
     </div>
   )
 }

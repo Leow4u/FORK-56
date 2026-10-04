@@ -125,6 +125,22 @@ function telegramReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPla
   })
 }
 
+/** Discord on and connected with two allowed user ids. */
+function discordReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
+  return platform({
+    configured: true,
+    enabled: true,
+    env_vars: [
+      envField('DISCORD_BOT_TOKEN', 'secret', { is_password: true, required: true, value: null }),
+      envField('DISCORD_ALLOWED_USERS', '284102345678901234,284109876543210987')
+    ],
+    id: 'discord',
+    name: 'Discord',
+    state: 'connected',
+    ...patch
+  })
+}
+
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
     configured: false,
@@ -963,6 +979,85 @@ describe('MessagingView channel page', () => {
     })
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith('telegram', { clear_env: ['TELEGRAM_ALLOWED_USERS'] })
+    )
+  })
+
+  it('walks Discord through its first connection step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ id: 'discord', name: 'Discord' })] })
+
+    await renderMessaging()
+    await openChannel('Discord')
+
+    expect(await screen.findByText(en.messaging.discordPage.whoTitle)).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows Discord as settings once it is set up, with who can talk as Discord means it', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [discordReady()] })
+
+    await renderMessaging()
+    await openChannel('Discord')
+
+    expect(await screen.findByText(en.messaging.connectedListening)).toBeTruthy()
+    expect(screen.getByText(en.messaging.channelSettings.whoOnlyPeople(2))).toBeTruthy()
+    expect(screen.getByText('284102345678901234, 284109876543210987')).toBeTruthy()
+
+    // The saved token comes back redacted: the invite link is built again
+    // only from a token typed into the field.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(en.messaging.advancedTitle) }))
+    })
+    expect(screen.getByText(en.messaging.discordPage.inviteHint)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText(/^Bot token/), {
+      target: { value: `${btoa('1287441000712345678').replace(/=+$/, '')}.GhIjKl.${'a'.repeat(27)}` }
+    })
+    expect(screen.getByText(/client_id=1287441000712345678/)).toBeTruthy()
+  })
+
+  it('says nobody gets a reply while Discord has no list, and everyone with the wildcard', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [discordReady({ env_vars: [envField('DISCORD_ALLOWED_USERS', '')] })]
+    })
+
+    const { unmount } = await renderMessaging()
+    await openChannel('Discord')
+    expect(await screen.findByText(en.messaging.discordPage.whoNone)).toBeTruthy()
+
+    // An empty list lets nobody in, so Edit opens on the list, not on "everyone".
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.messaging.edit }))
+    })
+    expect(
+      (
+        screen.getByRole('radio', { name: new RegExp(en.messaging.channelSettings.listTitle) }) as HTMLElement
+      ).getAttribute('aria-checked')
+    ).toBe('true')
+    unmount()
+
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [discordReady({ env_vars: [envField('DISCORD_ALLOWED_USERS', '*')] })]
+    })
+    await renderMessaging()
+    await openChannel('Discord')
+    expect(await screen.findByText(en.messaging.discordPage.everyoneTitle)).toBeTruthy()
+  })
+
+  it('edits who can talk on Discord, everyone included', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [discordReady()] })
+
+    await renderMessaging()
+    await openChannel('Discord')
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: en.messaging.edit }))
+    })
+    fireEvent.click(screen.getByRole('radio', { name: new RegExp(en.messaging.discordPage.everyoneTitle) }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('discord', { env: { DISCORD_ALLOWED_USERS: '*' } })
     )
   })
 

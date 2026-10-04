@@ -49,6 +49,8 @@ vi.mock('qrcode', () => ({
 }))
 
 const s = en.messaging.telegramPage
+/** A sentence as the screen shows it: its **marked** words lose the marks. */
+const shown = (text: string) => text.replace(/\*\*/g, '')
 const EXPIRES_AT = new Date(Date.now() + 5 * 60_000).toISOString()
 const VALID_TOKEN = `123456789:${'A'.repeat(35)}`
 
@@ -159,7 +161,7 @@ describe('TelegramConnectSteps', () => {
     expect(onApplied).toHaveBeenCalled()
     expect(await screen.findByText(s.readySetUp)).toBeTruthy()
     // The bot's handle is set in bold inside the line.
-    expect(screen.getByText('@work4you_bot').closest('li')?.textContent).toBe(s.checkCreated('work4you_bot'))
+    expect(screen.getByText('@work4you_bot').closest('li')?.textContent).toBe(shown(s.checkCreated('work4you_bot')))
     expect(screen.getByText(s.whoMe)).toBeTruthy()
     expect(await screen.findByText(en.messaging.channelSteps.checkRestarted, {}, { timeout: 4000 })).toBeTruthy()
 

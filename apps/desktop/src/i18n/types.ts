@@ -1576,26 +1576,6 @@ export interface Translations {
     /** Localized labels for env keys rendered as a segmented picker
      *  (FIELD_OPTIONS), keyed by env key then by option value. */
     envOptions: Record<string, Record<string, string>>
-    discordQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      tokenLabel: string
-      tokenPlaceholder: string
-      tokenHelp: string
-      appDetected: (id: string) => string
-      inviteHelp: string
-      inviteButton: string
-      intentsHelp: string
-      intentsWarning: string
-      intentsButton: string
-      allowedUsersLabel: string
-      allowedUsersPlaceholder: string
-      allowedUsersHelp: string
-      saved: string
-      saveFailed: string
-    }
     emailQuickSetup: {
       title: string
       recommended: string
@@ -1948,7 +1928,6 @@ export interface Translations {
       createStep1: string
       createStep1Link: string
       createStep2: string
-      createStep2Bold: string
       starting: string
       created: (username: string) => string
       haveToken: string
@@ -1977,8 +1956,56 @@ export interface Translations {
       whoList: (count: number) => string
       whoApprove: string
       tryIt: string
-      tryItWord: string
       openInTelegram: string
+      advancedHint: string
+    }
+    discordPage: {
+      stepWho: string
+      stepCreate: string
+      stepInvite: string
+      stepTalk: string
+      stepReady: string
+      whoTitle: string
+      whoNote: string
+      meTitle: string
+      meDesc: string
+      othersTitle: string
+      othersDesc: string
+      createTitle: string
+      createNote: string
+      createStep1: string
+      createStep2: string
+      tokenLabel: string
+      tokenHelp: string
+      openPortal: string
+      tokenRead: (id: string) => string
+      inviteTitle: string
+      inviteNote: string
+      inviteStep1: string
+      inviteStep2: string
+      copyLink: string
+      openInvite: string
+      talkTitle: string
+      talkNote: (choice: string) => string
+      meIdTitle: string
+      meIdNote: string
+      meIdLabel: string
+      listDesc: string
+      listHint: string
+      everyoneTitle: string
+      everyoneDesc: string
+      idsRequired: string
+      readySaving: string
+      readyTitle: string
+      readySetUp: string
+      checkTokenSaved: string
+      whoMe: string
+      whoList: (count: number) => string
+      whoEveryone: string
+      tryIt: string
+      whoNone: string
+      inviteLabel: string
+      inviteHint: string
       advancedHint: string
     }
     telegramQuickSetup: {

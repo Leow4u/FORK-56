@@ -1436,27 +1436,6 @@ export const zhHant = defineLocale({
         'self-chat': '自我對話'
       }
     },
-    discordQuickSetup: {
-      title: '快速設定',
-      recommended: '建議',
-      intro:
-        '貼上 bot Token，Work4You 會從中讀取應用程式 ID——接著產生伺服器邀請連結，並指引你開啟機器人所需的兩個 Intents。儲存後即啟用此頻道。',
-      replacesExisting: 'Discord 已設定完成——在此儲存會取代已儲存的 Token。',
-      tokenLabel: 'Bot Token',
-      tokenPlaceholder: '貼上 Discord bot Token',
-      tokenHelp: 'Discord 開發者入口 → 你的應用程式 → Bot → Reset Token。',
-      appDetected: (id: string) => `已偵測到應用程式——ID ${id}`,
-      inviteHelp: '邀請機器人加入你的伺服器。連結已預選建議權限。',
-      inviteButton: '邀請機器人加入伺服器',
-      intentsHelp: '在 Bot 頁面啟用 Message Content Intent 與 Server Members Intent，然後儲存。',
-      intentsWarning: '機器人能連線卻從不回覆，幾乎都是因為這些 Intents 未開啟。',
-      intentsButton: '開啟機器人設定',
-      allowedUsersLabel: '允許的 Discord 使用者 ID',
-      allowedUsersPlaceholder: '123456789012345678, 234567890123456789',
-      allowedUsersHelp: '選填。允許私訊機器人的數字使用者 ID，以逗號分隔。留空則改為在此透過配對請求核准。',
-      saved: 'Discord 已儲存並啟用。請重新啟動閘道以連線。',
-      saveFailed: '儲存 Discord 設定失敗'
-    },
     emailQuickSetup: {
       title: '快速設定',
       recommended: '建議',
