@@ -185,6 +185,28 @@ export function UrlRow({ copyLabel, url }: { copyLabel?: string; url: string }) 
   )
 }
 
+/** A labeled address to hand to another app (a base URL, a model name): the
+ *  label, the code box with Copy, and a help line under it. */
+export function UrlField({
+  copyLabel,
+  help,
+  label,
+  url
+}: {
+  copyLabel?: string
+  help?: ReactNode
+  label: string
+  url: string
+}) {
+  return (
+    <div className="mt-3.5 flex flex-col gap-1.5">
+      <span className="text-[0.78125rem] font-medium text-(--ui-text-secondary)">{label}</span>
+      <UrlRow copyLabel={copyLabel} url={url} />
+      {help ? <span className={cn('max-w-[38.75rem]', STEP_NOTE)}>{help}</span> : null}
+    </div>
+  )
+}
+
 export function StepFooter({
   back,
   middle,
@@ -393,8 +415,15 @@ export interface LiveCheck {
 }
 
 /** The channel's connection test after a save, tried a few times while the
- *  adapter comes up behind the restart. The last answer wins. */
-export async function testUntilOk(platformId: string, scopeProfile: null | string, attempts = 5): Promise<LiveCheck> {
+ *  adapter comes up behind the restart. The last answer wins. `passes` says
+ *  which answer proves the channel up, when a plain `ok` does not (an
+ *  endpoint's test also passes before its listener answers). */
+export async function testUntilOk(
+  platformId: string,
+  scopeProfile: null | string,
+  attempts = 5,
+  passes: (result: { message: string; ok: boolean }) => boolean = result => result.ok
+): Promise<LiveCheck> {
   let message = ''
 
   for (let attempt = 0; attempt < attempts; attempt++) {
@@ -405,7 +434,7 @@ export async function testUntilOk(platformId: string, scopeProfile: null | strin
     try {
       const result = await testMessagingPlatform(platformId, scopeProfile)
 
-      if (result.ok) {
+      if (passes(result)) {
         return { message: result.message, outcome: 'ok' }
       }
 

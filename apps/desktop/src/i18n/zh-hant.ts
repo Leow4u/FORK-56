@@ -1436,31 +1436,6 @@ export const zhHant = defineLocale({
         'self-chat': '自我對話'
       }
     },
-    apiServerQuickSetup: {
-      title: '快速設定',
-      recommended: '建議',
-      intro:
-        '把 Work4You 變成相容 OpenAI 的 API，供 Open WebUI、LobeChat 或你自己的聊天前端使用。產生一組強金鑰，儲存後把下方的連線資訊複製到對應工具中。',
-      replacesExisting: 'API 伺服器已設定。在此儲存會取代已儲存的金鑰。',
-      keyHelp: '外部工具用來驗證的 API 金鑰（16 個字元以上）。',
-      keyLabel: 'API 金鑰',
-      keyPlaceholder: '點選「產生金鑰」，或貼上你自己的',
-      generateKey: '產生金鑰',
-      keyWarning:
-        '持有此金鑰的任何人都能執行你的代理——包括終端機和檔案。請像密碼一樣對待它：只放在伺服器端設定中，絕不要放進公開網頁。',
-      keyRequired: '請先產生或貼上一組 API 金鑰。',
-      connectionTitle: '連接你的工具',
-      connectionHint: '在外部工具中新增一個相容 OpenAI 的提供者，填入此基礎 URL 和你的金鑰。',
-      copyBaseUrl: '複製基礎 URL',
-      copied: '已複製到剪貼簿。',
-      copyFailed: '無法複製到剪貼簿。',
-      modelHint: (model: string) => `在工具中選擇的模型名稱：${model}`,
-      networkExposedWarning:
-        '伺服器繫結在可從網路存取的位址上——網路上持有金鑰的任何人都能在這台機器上執行代理指令。建議使用帶 HTTPS 的反向代理。',
-      openGuide: 'Open WebUI 指南',
-      saved: 'API 伺服器已儲存並啟用。重新啟動閘道即可啟動。',
-      saveFailed: '無法儲存 API 伺服器設定。'
-    },
     webhookRoutesPanel: {
       title: 'Webhook 路由',
       startHere: '從這裡開始',

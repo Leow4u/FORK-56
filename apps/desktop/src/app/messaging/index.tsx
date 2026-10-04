@@ -43,7 +43,7 @@ import { CapabilitiesToolbar } from '../skills/capabilities-toolbar'
 import type { CapabilitiesView } from '../skills/store'
 
 import { A2AQuickSetup } from './a2a-quick-setup'
-import { ApiServerQuickSetup } from './api-server-quick-setup'
+import { ApiServerDetail } from './api-server-detail'
 import { ChannelCard } from './channel-card'
 import { fieldCopy, MessagingFields, pairingKey, pairingLabel } from './channel-fields'
 import { type ChannelKind, channelKind, channelKindLabel, integrationRank } from './channel-kinds'
@@ -75,7 +75,7 @@ const CHANNEL_LABEL = 'text-xs font-medium normal-case tracking-normal text-fore
 
 // Channels whose first screen is a quick setup. The generic credential form
 // stays one step behind that, so the same token is not painted twice.
-const QUICK_SETUP_PLATFORMS = new Set(['a2a', 'api_server', 'msgraph_webhook', 'webhook', 'whatsapp'])
+const QUICK_SETUP_PLATFORMS = new Set(['a2a', 'msgraph_webhook', 'webhook', 'whatsapp'])
 
 const trimEdits = (edits: Record<string, string>): Record<string, string> =>
   Object.fromEntries(
@@ -888,6 +888,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <GoogleChatDetail {...props} />
   }
 
+  if (platform.id === 'api_server') {
+    return <ApiServerDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -909,15 +913,6 @@ function PlatformDetail(props: PlatformDetailProps) {
         onRevoke={onRevoke}
         pending={pending}
       />
-
-      {platform.id === 'api_server' && (
-        <ApiServerQuickSetup
-          configured={platform.configured}
-          envVars={platform.env_vars}
-          onApplied={onQuickSetupApplied}
-          scopeProfile={scopeProfile}
-        />
-      )}
 
       {/* Webhook setup lives on the dedicated Webhooks page (routes + their
           secrets), not on this card — bridge straight to it. */}
@@ -1207,8 +1202,6 @@ const PLATFORM_INTRO: Record<string, string> = {
   weixin:
     "Run `work4you gateway setup`, select Weixin, then scan and confirm the QR code with a personal WeChat account. Work4You connects through Tencent's iLink Bot API and saves the credentials.",
   qqbot: 'Register an app on the QQ Open Platform (q.qq.com) and copy the App ID and Client Secret.',
-  api_server:
-    'Expose Work4You as an OpenAI-compatible API. Generate a strong key in Quick setup above, then point Open WebUI / LobeChat / your own chat frontend at the base URL it shows. The key grants full agent access (terminal included) — treat it like a password.',
   webhook:
     'Turn events from GitHub, GitLab, Stripe, or your own apps into agent runs. Each route is its own URL with its own signing secret — create and manage routes in "Webhook routes" above; nothing is received until at least one route exists. The optional fields below are the listener port and a global fallback secret.',
   a2a: 'Two independent directions: inbound exposes Work4You as an A2A agent (Agent Card at /.well-known/agent-card.json; localhost-only until you set a token). Outbound is the a2a toolset plus named peers in Quick setup above — enabling the channel does not turn those tools on. The optional fields below are the bind, tokens, public URL, and advertised name.',

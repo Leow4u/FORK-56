@@ -252,6 +252,30 @@ function googleChatReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingP
   })
 }
 
+/** The API server on and listening on port 9000 with a saved key. */
+function apiServerReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
+  return platform({
+    configured: true,
+    enabled: true,
+    env_vars: [
+      envField('API_SERVER_KEY', 'secret', {
+        is_password: true,
+        redacted_value: 'AbCd...4f2a',
+        required: true,
+        value: null
+      }),
+      envField('API_SERVER_PORT', '9000'),
+      envField('API_SERVER_HOST', ''),
+      envField('API_SERVER_MODEL_NAME', ''),
+      envField('API_SERVER_CORS_ORIGINS', '')
+    ],
+    id: 'api_server',
+    name: 'API server',
+    state: 'connected',
+    ...patch
+  })
+}
+
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
     configured: false,
@@ -1431,6 +1455,79 @@ describe('MessagingView channel page', () => {
     await openChannel('Google Chat')
     expect(await screen.findByText(en.messaging.googleChatPage.modeHttp)).toBeTruthy()
     expect(screen.getByText(en.messaging.channelSettings.whoApprove)).toBeTruthy()
+  })
+
+  it('walks the API server through its first setup step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ id: 'api_server', name: 'API server' })] })
+
+    await renderMessaging()
+    await openChannel('API server')
+
+    expect(await screen.findByText(en.messaging.apiServerPage.keyTitle)).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows the API server as an endpoint: listening, its key and the browser apps it allows', async () => {
+    const s = en.messaging.apiServerPage
+    getMessagingPlatforms.mockResolvedValue({ platforms: [apiServerReady()] })
+
+    await renderMessaging()
+    await openChannel('API server')
+
+    // Listening, in the header and on the endpoint line, never "Connected".
+    expect((await screen.findAllByText(en.messaging.stateListening)).length).toBe(2)
+    expect(screen.getByText('http://127.0.0.1:9000/v1')).toBeTruthy()
+    expect(screen.getByText('AbCd...4f2a')).toBeTruthy()
+    expect(screen.getByText(s.browserAppsNone)).toBeTruthy()
+    expect(screen.getByText('work4you')).toBeTruthy()
+    expect(screen.queryByText(en.messaging.whoCanTalkTitle)).toBeNull()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.messaging.edit }))
+    })
+    fireEvent.change(screen.getByLabelText(s.originsLabel), { target: { value: 'chat.example.com' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    expect(screen.getByText(en.messaging.envErrors.apiServerCorsOrigin('chat.example.com'))).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText(s.originsLabel), { target: { value: 'https://chat.example.com' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('api_server', {
+        env: { API_SERVER_CORS_ORIGINS: 'https://chat.example.com' }
+      })
+    )
+  })
+
+  it('replaces the API server key with a strong one only', async () => {
+    const s = en.messaging.apiServerPage
+    getMessagingPlatforms.mockResolvedValue({ platforms: [apiServerReady()] })
+
+    await renderMessaging()
+    await openChannel('API server')
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: s.replaceKey }))
+    })
+    fireEvent.change(screen.getByLabelText(s.keyLabel), { target: { value: 'short' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    expect(screen.getByText(en.messaging.envErrors.apiServerKey)).toBeTruthy()
+    expect(updateMessagingPlatform).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: s.generateKey }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('api_server', {
+        env: { API_SERVER_KEY: expect.stringMatching(/^[A-Za-z0-9_-]{32}$/) }
+      })
+    )
   })
 
   it('counts the routines that deliver to WhatsApp', async () => {

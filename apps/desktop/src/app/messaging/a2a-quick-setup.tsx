@@ -20,7 +20,7 @@ import {
   updateMessagingPlatform
 } from '@/work4you'
 
-import { generateApiServerKey } from './api-server-quick-setup'
+import { generateApiServerKey } from './api-server-endpoint'
 import { validateMessagingEnv } from './validate-env'
 
 const A2A_GUIDE_URL = 'https://work4you.ai/docs/user-guide/messaging/a2a'

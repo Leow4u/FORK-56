@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
-import { ExternalLink, Save } from '@/lib/icons'
+import { ExternalLink, RefreshCw, Save } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 import { $gatewayRestarting, runGatewayRestart } from '@/store/system-actions'
@@ -20,7 +20,7 @@ import { ListRow } from '../settings/primitives'
 
 import { pairingKey, pairingLabel } from './channel-fields'
 import { detailStatus, ToneDot } from './channel-status'
-import { ChoiceList } from './channel-steps'
+import { ChoiceList, STEP_NOTE } from './channel-steps'
 
 /** The shared pieces of a channel's settings page — the page a channel shows
  *  once it is set up: Connection, Who can talk, What the bot does here,
@@ -107,14 +107,18 @@ export function useDeliveringRoutines(platformId: string, homeChannel: boolean, 
 /** The Connection block's one line: the channel's real state, how long it has
  *  held it when connected, and the actions that state calls for. */
 export function ConnectionRow({
+  actions,
   children,
   connectedLabel,
   meta,
   onRunSteps,
   onTest,
   platform,
+  restartButton = 'reconnect',
   testing
 }: {
+  /** Buttons before the test (copy the address other programs call). */
+  actions?: ReactNode
   /** Extra lines under the status (an endpoint to copy, a listener URL). */
   children?: ReactNode
   /** What "connected" means for this channel; defaults to receiving messages. */
@@ -124,6 +128,10 @@ export function ConnectionRow({
   onRunSteps: () => void
   onTest: () => void
   platform: MessagingPlatformInfo
+  /** `reconnect` reads Reconnect while all is well (a chat channel's
+   *  session); `restart` always reads Restart gateway (an endpoint has no
+   *  session to reconnect, only a listener the restart brings back). */
+  restartButton?: 'reconnect' | 'restart'
   testing: boolean
 }) {
   const { locale, t } = useI18n()
@@ -179,6 +187,7 @@ export function ConnectionRow({
         </span>
         {facts && <span className="text-xs text-(--ui-text-tertiary)">{facts}</span>}
         <span className="flex-1" />
+        {actions}
         {platform.enabled && !platform.configured && (
           <Button onClick={onRunSteps} size="xs" variant="text">
             {m.runSetupSteps}
@@ -191,7 +200,11 @@ export function ConnectionRow({
         )}
         {platform.configured && platform.enabled && (
           <Button disabled={restarting} onClick={() => void runGatewayRestart()} size="xs" variant="text">
-            {restarting ? m.restartingGateway : needsRestart ? m.restartGateway : m.reconnect}
+            {restarting
+              ? m.restartingGateway
+              : needsRestart || restartButton === 'restart'
+                ? m.restartGateway
+                : m.reconnect}
           </Button>
         )}
       </div>
@@ -447,6 +460,158 @@ export function AllowlistEditor({
         ]}
         value={choice}
       />
+      {error && <p className="text-xs leading-4 text-destructive">{error}</p>}
+      <div className="flex items-center justify-end gap-2">
+        <Button disabled={busy} onClick={onCancel} size="sm" variant="outline">
+          {t.common.cancel}
+        </Button>
+        <Button disabled={busy} onClick={() => void save()} size="sm">
+          {busy ? m.saving : t.common.save}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** A block's line of facts — each a name and, when there is one, what is
+ *  saved — joined by dots, with the one action that changes them. */
+export function FactsRow({ action, facts }: { action?: ReactNode; facts: { label: string; value?: string }[] }) {
+  return (
+    <div className={BLOCK_ROW}>
+      {facts.map((fact, index) => (
+        <span className="contents" key={fact.label}>
+          {index > 0 && <span className="text-(--ui-text-quaternary)">·</span>}
+          <span>{fact.label}</span>
+          {fact.value && (
+            <span className="min-w-0 text-xs text-(--ui-text-tertiary) [overflow-wrap:anywhere]">{fact.value}</span>
+          )}
+        </span>
+      ))}
+      <span className="flex-1" />
+      {action}
+    </div>
+  )
+}
+
+/** The Replace / Edit of one saved value: its input (with Generate when it is
+ *  a secret Work4You can make), the check, Cancel and Save through the same
+ *  channel update the raw settings use. An optional value emptied here is
+ *  cleared. */
+export function EnvValueEditor({
+  envKey,
+  generate,
+  help,
+  isSet,
+  label,
+  onCancel,
+  onSaved,
+  placeholder,
+  platform,
+  requiredMessage,
+  scopeProfile,
+  validate,
+  value: savedValue = ''
+}: {
+  envKey: string
+  /** Makes a strong value (a key, a secret), with its button's label. */
+  generate?: { label: string; make: () => string }
+  help?: ReactNode
+  /** Something is saved now, so an emptied optional value clears it. */
+  isSet: boolean
+  label: string
+  onCancel: () => void
+  onSaved: () => void
+  placeholder?: string
+  platform: MessagingPlatformInfo
+  /** Given when the value cannot be empty: what to enter instead. */
+  requiredMessage?: string
+  scopeProfile: null | string
+  /** The value's problem, or null when it is fine. */
+  validate?: (value: string) => null | string
+  /** What is saved now, when it is not a secret. */
+  value?: string
+}) {
+  const { t } = useI18n()
+  const m = t.messaging
+  const [value, setValue] = useState(savedValue)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    const trimmed = value.trim()
+
+    if (!trimmed && requiredMessage) {
+      setError(requiredMessage)
+
+      return
+    }
+
+    const invalid = trimmed && validate ? validate(trimmed) : null
+
+    if (invalid) {
+      setError(invalid)
+
+      return
+    }
+
+    if (!trimmed && !isSet) {
+      onCancel()
+
+      return
+    }
+
+    setBusy(true)
+
+    try {
+      await updateMessagingPlatform(
+        platform.id,
+        trimmed ? { env: { [envKey]: trimmed } } : { clear_env: [envKey] },
+        scopeProfile
+      )
+      notify({
+        kind: 'success',
+        title: m.setupSaved(platform.name),
+        message: m.restartToReconnect,
+        action: { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart() }
+      })
+      onSaved()
+    } catch (err) {
+      notifyError(err, m.failedSave(platform.name))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="text-[0.78125rem] font-medium text-(--ui-text-secondary)">{label}</div>
+      <div className="flex items-center gap-2">
+        <Input
+          aria-label={label}
+          className="h-8 max-w-[35rem] font-mono text-[0.78rem]"
+          onChange={event => {
+            setValue(event.target.value)
+            setError('')
+          }}
+          placeholder={placeholder}
+          value={value}
+        />
+        {generate && (
+          <Button
+            className="shrink-0"
+            onClick={() => {
+              setValue(generate.make())
+              setError('')
+            }}
+            size="sm"
+            variant="outline"
+          >
+            <RefreshCw />
+            {generate.label}
+          </Button>
+        )}
+      </div>
+      {help ? <p className={cn('max-w-[38.75rem]', STEP_NOTE)}>{help}</p> : null}
       {error && <p className="text-xs leading-4 text-destructive">{error}</p>}
       <div className="flex items-center justify-end gap-2">
         <Button disabled={busy} onClick={onCancel} size="sm" variant="outline">
