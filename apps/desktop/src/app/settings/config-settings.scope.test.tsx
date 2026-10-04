@@ -162,14 +162,14 @@ describe('ConfigSettings profile scope', () => {
 
     await renderSection('chat')
 
-    expect(await screen.findByText('Reasoning Blocks')).toBeTruthy()
+    expect(await screen.findByText('Show Reasoning')).toBeTruthy()
     expect(screen.queryByText('Configuring:')).toBeNull()
   })
 
   it('remounts the page when the scope changes so no draft crosses profiles', async () => {
     await renderSection('chat')
 
-    expect(await screen.findByText('Reasoning Blocks')).toBeTruthy()
+    expect(await screen.findByText('Show Reasoning')).toBeTruthy()
     expect(getWork4YouConfigRecord).toHaveBeenCalledWith('default')
 
     setSettingsScope('research')

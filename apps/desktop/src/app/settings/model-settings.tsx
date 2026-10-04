@@ -153,9 +153,9 @@ export function ModelSettings({ scopeProfile }: ModelSettingsProps) {
           }
           value={query}
         />
-        <div className="divide-y divide-(--ui-stroke-secondary) overflow-hidden rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-editor)">
+        <div className="divide-y divide-(--ui-stroke-secondary) overflow-hidden rounded-(--card-radius) border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) px-4">
           {catalog.rows.length === 0 ? (
-            <p className="px-4 py-6 text-center text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+            <p className="py-6 text-center text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
               {t.shell.modelMenu.noModels}
             </p>
           ) : (
@@ -165,7 +165,7 @@ export function ModelSettings({ scopeProfile }: ModelSettingsProps) {
 
               return (
                 <label
-                  className="flex cursor-pointer items-center gap-3 px-4 py-2.5 text-[length:var(--conversation-text-font-size)] hover:bg-(--ui-control-hover-background)"
+                  className="flex cursor-pointer items-center gap-3 py-2.5 text-sm"
                   key={modelVisibilityKey(provider.slug, family.id)}
                 >
                   <ChatModelMarkIcon id={family.id} label={label} />

@@ -70,11 +70,7 @@ function ImageVideoSettingsInner({ scopeProfile }: { scopeProfile: string | unde
 
   return (
     <SettingsContent>
-      <SectionHeading
-        description={t.settings.imageVideo.intro}
-        title={t.settings.sections.image_video ?? 'Image & Video'}
-        variant="page"
-      />
+      <SectionHeading title={t.settings.sections.image_video ?? 'Image & Video'} variant="page" />
       <SettingsProfileScope className="mb-5" />
       {rows.length === 0 ? (
         <EmptyState description={t.settings.config.emptyDesc} title={t.settings.config.emptyTitle} />

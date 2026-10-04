@@ -7,11 +7,11 @@ import { cn } from '@/lib/utils'
 // Text+icon actions underline the label on hover, not the glyph.
 const TEXT_ACTION_ICON = '[&_.codicon]:no-underline [&_svg]:no-underline'
 
-// Text buttons are square (no radius) and sized by padding + line-height — no
-// fixed heights — so they stay snug and scale with content. Only icon buttons
-// (inherently square) carry the shared 4px radius.
+// Buttons share --control-radius (6px) and are sized by padding +
+// line-height — no fixed heights — so they stay snug and scale with content.
+// Icon buttons use the same radius; `chip` is always a pill.
 const buttonVariants = cva(
-  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-[2.5px] text-xs leading-4 font-medium whitespace-nowrap shadow-none transition-all duration-100 outline-none focus-visible:border-ring focus-visible:ring-[0.1875rem] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
+  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-(--control-radius) text-xs leading-4 font-medium whitespace-nowrap shadow-none transition-all duration-100 outline-none focus-visible:border-ring focus-visible:ring-[0.1875rem] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
   {
     variants: {
       variant: {
@@ -48,12 +48,12 @@ const buttonVariants = cva(
         // Status-stack headers, table footers — 12px text actions beside a label.
         micro:
           "h-auto gap-0.5 px-1 py-0 text-xs leading-4 font-normal has-[>svg]:px-0.5 [&_svg:not([class*='size-'])]:size-3",
-        icon: 'size-9 rounded-[4px]',
-        'icon-xs': "size-6 rounded-[4px] [&_svg:not([class*='size-'])]:size-3",
-        'icon-sm': 'size-8 rounded-[4px]',
-        'icon-lg': 'size-10 rounded-[4px]',
+        icon: 'size-9 rounded-(--control-radius)',
+        'icon-xs': "size-6 rounded-(--control-radius) [&_svg:not([class*='size-'])]:size-3",
+        'icon-sm': 'size-8 rounded-(--control-radius)',
+        'icon-lg': 'size-10 rounded-(--control-radius)',
         'icon-titlebar':
-          'titlebar-icon-button h-(--titlebar-control-height) w-(--titlebar-control-size) rounded-[4px] [&_svg:not([class*="size-"])]:size-(--titlebar-icon-size)'
+          'titlebar-icon-button h-(--titlebar-control-height) w-(--titlebar-control-size) rounded-(--control-radius) [&_svg:not([class*="size-"])]:size-(--titlebar-icon-size)'
       }
     },
     compoundVariants: [
@@ -63,7 +63,7 @@ const buttonVariants = cva(
         variant: 'textStrong',
         class: 'px-0 has-[>svg]:px-0'
       },
-      // Icon sizes pin rounded-[4px]; the chip must stay a pill / circle.
+      // Icon sizes pin --control-radius; the chip must stay a pill / circle.
       {
         variant: 'chip',
         class: 'rounded-full'

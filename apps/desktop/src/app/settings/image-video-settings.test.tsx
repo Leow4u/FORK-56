@@ -219,7 +219,6 @@ describe('ImageVideoSettings', () => {
     const view = render(<ImageVideoSettings />)
 
     expect(await screen.findByRole('heading', { name: 'Image & Video' })).toBeTruthy()
-    expect(screen.getByText('Choose the image model and the video model.')).toBeTruthy()
     expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.queryByText('Web Search')).toBeNull()
     expect(getToolsetConfig).not.toHaveBeenCalled()

@@ -47,16 +47,16 @@ describe('desktop i18n runtime translator', () => {
 
     setRuntimeI18nLocale('ar')
     expect(translateNow('settings.appearance.reasoningCollapsedTitle')).toBe('طي التفكير افتراضيًا')
-    expect(translateNow('settings.appearance.reasoningCollapsedDesc')).toBe(
-      'أبقِ التفكير المتدفق متاحًا دون توسيعه حتى تفتحه.'
+    expect(translateNow('settings.appearance.translucencyDesc')).toBe(
+      'إظهار سطح المكتب من خلال النافذة بالكامل، بما في ذلك النص.'
     )
   })
 
   it('keeps translated settings field copy addressable from schema keys', () => {
-    const field = ['display', 'show_reasoning'].join('.')
+    const field = ['display', 'personality'].join('.')
 
-    expect(fieldCopyForSchemaKey(zh.settings.fieldLabels, field)).toBe('推理过程块')
-    expect(fieldCopyForSchemaKey(zh.settings.fieldDescriptions, field)).toBe('当后端提供推理内容时予以显示。')
+    expect(fieldCopyForSchemaKey(zh.settings.fieldLabels, field)).toBe('人格')
+    expect(fieldCopyForSchemaKey(zh.settings.fieldDescriptions, field)).toBe('应用于新对话。')
   })
 
   it('falls back to English when the active locale cannot resolve a key', () => {

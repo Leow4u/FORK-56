@@ -73,9 +73,8 @@ describe('Voice settings', () => {
     await renderVoice()
 
     expect(await screen.findByText('Dictation')).toBeTruthy()
-    expect(screen.getByText('Echo Transcripts')).toBeTruthy()
+    expect(screen.getByText('Show Transcripts in Chat')).toBeTruthy()
     expect(screen.getByText('Read Responses Aloud')).toBeTruthy()
-    expect(screen.getByText('The voice Work4You uses when it speaks.')).toBeTruthy()
     expect(screen.getByText('Voice Shortcut')).toBeTruthy()
     expect(screen.getByDisplayValue('alloy')).toBeTruthy()
     expect(screen.queryByText('Text-To-Speech Provider')).toBeNull()

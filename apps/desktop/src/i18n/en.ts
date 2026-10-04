@@ -388,7 +388,6 @@ export const en: Translations = {
     },
     account: {
       title: 'Account',
-      intro: 'The person signed in to Work4You.',
       identity: 'Identity',
       email: 'Email',
       firstName: 'First name',
@@ -401,15 +400,13 @@ export const en: Translations = {
       signInAgain: 'Sign in again to save your name.',
       signIn: 'Sign-in',
       linkedAccounts: 'Linked accounts',
-      linkedAccountsDesc: 'Email, Google, GitHub, Discord, or a passkey.',
       manage: 'Manage',
       session: 'Session',
       logOut: 'Log out',
-      logOutDesc: 'Ends the Portal session on this app.',
+      logOutTitle: 'Log out of this device',
       logOutFailed: 'Sign-out failed'
     },
     imageVideo: {
-      intro: 'Choose the image model and the video model.',
       showModels: count => `Show ${count} more ${count === 1 ? 'model' : 'models'}`,
       hideModels: 'Show less'
     },
@@ -481,38 +478,29 @@ export const en: Translations = {
     },
     notifications: {
       title: 'Notifications',
-      intro: 'OS notifications (not in-app toasts). Per device.',
-      enableAll: 'Enable notifications',
-      enableAllDesc: 'Off silences every notification below.',
-      focusedHint: 'Completion alerts only fire while Work4You is in the background.',
+      enableAll: 'Desktop notifications',
+      enableAllDesc: 'On this device only.',
       kinds: {
         approval: {
-          label: 'Approval needed',
-          description: 'A command is waiting for you to approve or reject it.'
+          label: 'Approval needed'
         },
         input: {
-          label: 'Input needed',
-          description: 'Work4You asked a question or needs a password or secret.'
+          label: 'Input needed'
         },
         turnDone: {
-          label: 'Response ready',
-          description: 'A turn finished while Work4You was in the background.'
+          label: 'Response ready'
         },
         turnError: {
-          label: 'Turn failed',
-          description: 'Background turn errors.'
+          label: 'Turn failed'
         },
         backgroundDone: {
-          label: 'Background task finished',
-          description: 'A backgrounded terminal command completed.'
+          label: 'Background task finished'
         },
         credits: {
-          label: 'Credit alerts',
-          description: 'Credit access is paused or restored.'
+          label: 'Credit alerts'
         },
         plugin: {
-          label: 'Plugin notifications',
-          description: 'A desktop plugin sent a notification while Work4You was in the background.'
+          label: 'Plugin notifications'
         }
       },
       test: 'Send test notification',
@@ -521,7 +509,6 @@ export const en: Translations = {
       testSent: 'Test sent. If nothing appears, check your OS notification permissions and Focus/Do Not Disturb.',
       testUnsupported: 'This system does not support native notifications.',
       completionSoundTitle: 'Completion Sound',
-      completionSoundDesc: 'Plays when an agent turn finishes. Pick a preset and preview it here.',
       completionSoundPreview: 'Preview'
     },
     sections: {
@@ -550,31 +537,24 @@ export const en: Translations = {
     },
     appearance: {
       title: 'Appearance',
-      intro: 'Desktop-only. Mode is brightness; theme is palette and chat chrome.',
       colorMode: 'Color Mode',
       colorModeDesc: 'Pick a fixed mode or let Work4You follow your system setting.',
       toolViewTitle: 'Tool Call Display',
       toolViewDesc:
         'Product folds a finished turn into one Worked-for line. Technical keeps the tool log and payloads.',
-      reasoningCollapsedTitle: 'Collapse thinking by default',
-      reasoningCollapsedDesc: 'Keep streamed reasoning available without expanding it until you open it.',
+      reasoningCollapsedTitle: 'Collapse reasoning by default',
       uiScaleTitle: 'UI Scale',
-      uiScaleDesc: (percent: number) =>
-        `Scales text and controls across the whole app. Cmd/Ctrl with +, - and 0 also works. Current: ${percent}%.`,
-      sessionDensityTitle: 'Session List Density',
-      sessionDensityDesc: 'Choose how much context appears beneath session titles in the sidebar.',
+      sessionDensityTitle: 'Sidebar Density',
       sessionDensityCompact: 'Compact',
       sessionDensityComfortable: 'Comfortable',
       sessionDensityDetailed: 'Detailed',
       terminalFontTitle: 'Terminal Font',
-      terminalFontDesc:
-        'Choose an installed font for Desktop terminals. Nerd Fonts render Powerlevel10k and shell icons; leave blank to use bundled JetBrains Mono.',
+      terminalFontDesc: 'Leave blank for JetBrains Mono.',
       terminalFontPlaceholder: 'MesloLGS NF or a CSS font stack',
       terminalFontPreview: 'Glyph preview',
       terminalFontReset: 'Use default',
-      translucencyTitle: 'Window Translucency',
+      translucencyTitle: 'Translucency',
       translucencyDesc: 'See your desktop through the whole window, text and all.',
-      translucencyGlassDesc: 'Matte glass: the desktop shows through as a smooth blur while text stays sharp.',
       translucencyModeClear: 'Clear',
       translucencyModeGlass: 'Glass',
       translucencyTintTitle: 'Tint',
@@ -592,14 +572,13 @@ export const en: Translations = {
         sidebar: 'Sidebar only'
       },
       introSplashTitle: 'Intro Splash',
-      introSplashDesc: 'The wordmark and prompt shown on an empty chat.',
+      introSplashDesc: 'Shown on an empty chat.',
       reactionsTitle: 'Message Reactions',
-      reactionsDesc: 'iMessage-style emoji tapbacks — react to messages, and Work4You can react to yours.',
+      reactionsDesc: 'Emoji reactions on messages.',
       composerPopoutTitle: 'Floating Composer',
-      composerPopoutDesc: 'Allow dragging the composer out of its dock. Turn this off to keep it locked at the bottom.',
-      embedsTitle: 'Inline Embeds',
-      embedsDesc:
-        'Rich previews load from third-party sites (YouTube, X, …). Ask shows a placeholder until you allow each one; Always loads them automatically; Off keeps plain links.',
+      composerPopoutDesc: 'Drag the composer out of its dock.',
+      embedsTitle: 'Link Previews',
+      embedsDesc: 'YouTube, X and other sites.',
       embedsAsk: 'Ask',
       embedsAlways: 'Always',
       embedsOff: 'Off',
@@ -610,7 +589,6 @@ export const en: Translations = {
       technicalDesc: 'Include raw tool args/results and low-level details.',
       themeTitle: 'Theme',
       themeDesc: 'Desktop palettes only. The selected mode is applied on top.',
-      themeProfileNote: profile => `Saved for the ${profile} profile — each profile keeps its own theme.`,
       installTitle: 'Install from VS Code',
       installDesc:
         'Paste a Marketplace extension id (e.g. dracula-theme.theme-dracula) to convert its color theme into a desktop palette.',
@@ -722,7 +700,7 @@ export const en: Translations = {
       toolsetsWipeConfirm:
         'Remove all enabled toolsets? This disables memory, terminal, web search, delegation, and most other tools until you re-enable them.',
       keepAwakeTitle: 'Keep computer awake',
-      keepAwakeDesc: 'Stop this machine from sleeping so long or overnight runs keep going. The display can still dim.',
+      keepAwakeDesc: 'For long runs. The display can still dim.',
       disableF12Title: 'Disable F12 DevTools',
       disableF12Desc: 'Block F12 from opening Developer Tools. Ctrl+Shift+I (or Cmd+Opt+I on Mac) still works.',
       attachmentSizeTitle: 'Max preview / image load size',
@@ -733,10 +711,8 @@ export const en: Translations = {
     },
     quickEntry: {
       enabledTitle: 'Quick Entry',
-      enabledDesc:
-        'Summon a small composer from anywhere with a global shortcut and fire a prompt without opening Work4You.',
-      shortcutTitle: 'Quick Entry shortcut',
-      shortcutDesc: 'Needs at least one modifier, e.g. CommandOrControl+Shift+Space.',
+      enabledDesc: 'Send a prompt from anywhere with a shortcut.',
+      shortcutTitle: 'Shortcut',
       active: 'Shortcut is active.',
       takenBy: 'Another app already uses this shortcut — pick a different one.',
       invalidShortcut: 'Not a valid shortcut. Include at least one modifier key.'
@@ -1079,7 +1055,6 @@ export const en: Translations = {
     },
     model: {
       loading: 'Loading model configuration...',
-      pickerIntro: 'Choose which models appear in the model picker.',
       searchModels: 'Add or search model',
       viewAll: 'View all models',
       appliesDesc: 'Applies to new sessions. Use the model picker in the composer to hot-swap the active chat.',
@@ -1153,8 +1128,7 @@ export const en: Translations = {
       restored: 'Restored',
       deleteConfirm: title => `Permanently delete "${title}"? This cannot be undone.`,
       autoArchiveTitle: 'Auto-archive stale chats',
-      autoArchiveDesc:
-        "Automatically archive chats you haven't touched in a while. Pinned chats are never archived, and nothing is deleted.",
+      autoArchiveDesc: 'Pinned chats are kept. Nothing is deleted.',
       autoArchiveDaysLabel: 'Archive after',
       autoArchiveDaysUnit: 'days of inactivity',
       autoArchiveFailed: 'Could not update auto-archive',

@@ -55,7 +55,7 @@ export function SectionHeading({
     return (
       <header className="mb-6">
         <div className="flex items-end gap-3">
-          <h1 className="min-w-0 flex-1 text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+          <h1 className="min-w-0 flex-1 text-[1.75rem] font-semibold tracking-tight text-foreground">{title}</h1>
           {meta && <Pill>{meta}</Pill>}
           {aside && <div className="mb-0.5 flex min-w-0 items-center">{aside}</div>}
         </div>
@@ -70,10 +70,8 @@ export function SectionHeading({
 
   if (variant === 'group') {
     return (
-      <div className="mb-2 flex items-center gap-2">
-        <h2 className="min-w-0 text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-secondary)">
-          {title}
-        </h2>
+      <div className="mb-3 flex items-center gap-2">
+        <h2 className="min-w-0 text-sm font-semibold text-foreground">{title}</h2>
         {meta && <Pill>{meta}</Pill>}
         {aside && <div className="ml-auto flex min-w-0 items-center">{aside}</div>}
       </div>
@@ -106,10 +104,10 @@ export function SettingsGroup({
   title?: string
 }) {
   return (
-    <section className={cn('mb-6 last:mb-0', className)}>
+    <section className={cn('mb-10 last:mb-0', className)}>
       {title ? <SectionHeading aside={aside} meta={meta} title={title} variant="group" /> : null}
       <div
-        className="divide-y divide-(--ui-stroke-secondary) overflow-hidden rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) px-4"
+        className="divide-y divide-(--ui-stroke-secondary) overflow-hidden rounded-(--card-radius) border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) px-4"
         data-slot="settings-group"
       >
         {children}
@@ -209,7 +207,7 @@ export function ListRow({
         )}
       >
         <div className={cn('min-w-0', !wide && 'col-start-1 row-start-1 self-center')}>
-          <div className="text-[length:var(--conversation-text-font-size)] font-medium text-foreground">{title}</div>
+          <div className="text-sm font-medium text-foreground">{title}</div>
         </div>
         {action && (
           <div
@@ -225,7 +223,7 @@ export function ListRow({
         {detail && (
           <div className={cn(!wide && 'col-span-2 col-start-1 row-start-2 @xl:col-span-1')}>
             {description && (
-              <div className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-tertiary)">
+              <div className="mt-1 text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-text-secondary)">
                 {description}
               </div>
             )}

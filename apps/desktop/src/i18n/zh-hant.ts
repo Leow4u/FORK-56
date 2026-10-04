@@ -261,38 +261,29 @@ export const zhHant = defineLocale({
     },
     notifications: {
       title: '通知',
-      intro: '原生桌面通知，與應用程式內提示不同。設定會依裝置保存，每台電腦各自獨立。',
-      enableAll: '啟用通知',
-      enableAllDesc: '關閉後靜音下方所有通知。',
-      focusedHint: '完成提醒僅在 Work4You 位於背景時觸發。',
+      enableAll: '桌面通知',
+      enableAllDesc: '僅限此裝置。',
       kinds: {
         approval: {
-          label: '需要核准',
-          description: '有指令正在等待你核准或拒絕。'
+          label: '需要核准'
         },
         input: {
-          label: '需要輸入',
-          description: 'Work4You 提出了問題，或需要密碼或密鑰。'
+          label: '需要輸入'
         },
         turnDone: {
-          label: '回覆就緒',
-          description: 'Work4You 在背景時完成了一輪對話。'
+          label: '回覆就緒'
         },
         turnError: {
-          label: '本輪失敗',
-          description: '背景回合錯誤。'
+          label: '本輪失敗'
         },
         backgroundDone: {
-          label: '背景工作完成',
-          description: '背景終端機指令已完成。'
+          label: '背景工作完成'
         },
         credits: {
-          label: '額度提醒',
-          description: '額度存取被暫停或恢復。'
+          label: '額度提醒'
         },
         plugin: {
-          label: '外掛通知',
-          description: 'Work4You 在背景時，桌面外掛傳送了通知。'
+          label: '外掛通知'
         }
       },
       test: '傳送測試通知',
@@ -301,7 +292,6 @@ export const zhHant = defineLocale({
       testSent: '測試已傳送。若沒有出現，請檢查系統通知權限與專注模式／勿擾模式。',
       testUnsupported: '此系統不支援原生通知。',
       completionSoundTitle: '完成提示音',
-      completionSoundDesc: '代理回合結束時播放。可在此選擇預設並預覽。',
       completionSoundPreview: '預覽'
     },
     sections: {
@@ -330,30 +320,23 @@ export const zhHant = defineLocale({
     },
     appearance: {
       title: '外觀',
-      intro: '這些是僅限桌面端的顯示偏好。模式控制亮度；主題控制強調色與聊天介面樣式。',
       colorMode: '色彩模式',
       colorModeDesc: '選擇固定模式，或讓 Work4You 跟隨系統設定。',
       toolViewTitle: '工具呼叫顯示',
       toolViewDesc: '產品模式會把已完成的一輪收成一條 Worked-for；技術模式保留工具紀錄與完整輸入/輸出。',
       reasoningCollapsedTitle: '預設摺疊推理過程',
-      reasoningCollapsedDesc: '保留串流推理內容，但在您開啟前維持摺疊。',
       uiScaleTitle: '介面縮放',
-      uiScaleDesc: (percent: number) =>
-        `縮放整個應用程式的文字與介面。也可使用 Cmd/Ctrl 加 +、- 或 0 調整。目前：${percent}%`,
-      sessionDensityTitle: '工作階段列表密度',
-      sessionDensityDesc: '選擇側邊欄工作階段標題下方顯示的資訊量。',
+      sessionDensityTitle: '側邊欄密度',
       sessionDensityCompact: '緊湊',
       sessionDensityComfortable: '舒適',
       sessionDensityDetailed: '詳細',
       terminalFontTitle: '終端機字型',
-      terminalFontDesc:
-        '選擇已安裝的字型用於桌面端終端機。Nerd Font 可正確顯示 Powerlevel10k 與 Shell 圖示；留空則使用內建的 JetBrains Mono。',
+      terminalFontDesc: '留空則使用 JetBrains Mono。',
       terminalFontPlaceholder: 'MesloLGS NF 或 CSS 字型堆疊',
       terminalFontPreview: '字形預覽',
       terminalFontReset: '使用預設字型',
-      translucencyTitle: '視窗透明',
+      translucencyTitle: '透明度',
       translucencyDesc: '讓整個視窗（包括文字）透出桌面。',
-      translucencyGlassDesc: '霧面玻璃：桌面以柔和模糊透出，文字保持清晰。',
       translucencyModeClear: '透明',
       translucencyModeGlass: '玻璃',
       translucencyTintTitle: '色調',
@@ -371,14 +354,13 @@ export const zhHant = defineLocale({
         sidebar: '僅側邊欄'
       },
       introSplashTitle: '開場標識',
-      introSplashDesc: '空白對話中顯示的字標和提示語。',
+      introSplashDesc: '顯示在空白對話中。',
       reactionsTitle: '訊息回應',
-      reactionsDesc: 'iMessage 風格的表情回應 — 你可以對訊息做出回應，Work4You 也能回應你的訊息。',
+      reactionsDesc: '為訊息加上表情回應。',
       composerPopoutTitle: '懸浮輸入框',
-      composerPopoutDesc: '允許將輸入框拖出底部停靠區。關閉後，輸入框會鎖定在底部。',
-      embedsTitle: '內嵌預覽',
-      embedsDesc:
-        '豐富預覽會從第三方網站（YouTube、X 等）載入。詢問會在你允許前顯示佔位符；一律會自動載入；關閉則保留純連結。',
+      composerPopoutDesc: '可將輸入框拖出停靠區。',
+      embedsTitle: '連結預覽',
+      embedsDesc: 'YouTube、X 等網站。',
       embedsAsk: '詢問',
       embedsAlways: '一律',
       embedsOff: '關閉',
@@ -389,7 +371,6 @@ export const zhHant = defineLocale({
       technicalDesc: '包含原始工具參數、結果與底層細節。',
       themeTitle: '主題',
       themeDesc: '僅限桌面端的調色盤。所選模式會套用在其上。',
-      themeProfileNote: profile => `已為「${profile}」設定檔儲存——每個設定檔保留各自的主題。`,
       installTitle: '從 VS Code 安裝',
       installDesc: '貼上 Marketplace 擴充功能 ID（例如 dracula-theme.theme-dracula），將其配色主題轉換為桌面調色盤。',
       installPlaceholder: 'publisher.extension',
@@ -447,7 +428,7 @@ export const zhHant = defineLocale({
       timezone: '時區',
       display: {
         personality: '人格',
-        showReasoning: '推理區塊'
+        showReasoning: '顯示推理'
       },
       desktop: {
         repoScanEnabled: '自動探索程式碼儲存庫',
@@ -486,7 +467,7 @@ export const zhHant = defineLocale({
         timeout: '批准逾時',
         mcpReloadConfirm: '確認 MCP 重新載入'
       },
-      commandAllowlist: '指令允許清單',
+      commandAllowlist: '免詢問即可執行',
       security: {
         redactSecrets: '遮蔽密鑰',
         allowPrivateUrls: '允許私有 URL'
@@ -606,8 +587,7 @@ export const zhHant = defineLocale({
       modelContextLength: '保留 0 會使用所選模型偵測到的上下文視窗。',
       fallbackProviders: '預設模型失敗時要嘗試的備用 provider:model 項目。',
       display: {
-        personality: '新工作階段的預設助手風格。',
-        showReasoning: '後端提供推理內容時顯示該區塊。'
+        personality: '套用於新對話。'
       },
       desktop: {
         repoScanEnabled: '掃描本機資料夾，並在「專案」中顯示 Git 程式碼儲存庫。',
@@ -629,7 +609,6 @@ export const zhHant = defineLocale({
       },
       fileReadMaxChars: 'Work4You 單次檔案讀取可讀取的最大字元數。',
       approvals: {
-        mode: 'Work4You 如何處理需要明確批准的指令。',
         timeout: '批准提示逾時前等待的時間。'
       },
       security: {
@@ -639,8 +618,8 @@ export const zhHant = defineLocale({
         enabled: '在檔案編輯前建立可回復的快照。'
       },
       memory: {
-        memoryEnabled: '儲存有助於未來工作階段的持久記憶。',
-        userProfileEnabled: '維護一份精簡的使用者偏好設定檔。'
+        memoryEnabled: '跨對話記住內容。',
+        userProfileEnabled: '保留一份你的偏好簡短摘要。'
       },
       context: {
         engine: '長對話接近上下文上限時的管理策略。'
@@ -648,11 +627,7 @@ export const zhHant = defineLocale({
       compression: {
         enabled: '對話變大時摘要較早的上下文。'
       },
-      voice: {
-        autoTts: '自動朗讀助手回覆。'
-      },
       stt: {
-        enabled: '啟用本機或提供方支援的語音轉寫。',
         elevenlabs: {
           languageCode: '可選的 ISO-639-3 語言代碼。留空讓 ElevenLabs 自動偵測。'
         }
@@ -711,13 +686,12 @@ export const zhHant = defineLocale({
       imported: '設定已匯入',
       invalidJson: '設定 JSON 無效',
       keepAwakeTitle: '保持電腦喚醒',
-      keepAwakeDesc: '阻止本機睡眠，讓長時間或整夜執行持續進行。螢幕仍可變暗。'
+      keepAwakeDesc: '適用於長時間執行。螢幕仍可變暗。'
     },
     quickEntry: {
       enabledTitle: '快速輸入',
-      enabledDesc: '用全域快速鍵在任何地方喚出一個小輸入框，無需開啟 Work4You 即可送出提示。',
-      shortcutTitle: '快速輸入快速鍵',
-      shortcutDesc: '至少需要一個修飾鍵，例如 CommandOrControl+Shift+Space。',
+      enabledDesc: '用快速鍵從任何地方送出提示。',
+      shortcutTitle: '快速鍵',
       active: '快速鍵已生效。',
       takenBy: '此快速鍵已被其他應用程式占用，請換一個。',
       invalidShortcut: '不是有效的快速鍵。請至少包含一個修飾鍵。'
@@ -983,7 +957,7 @@ export const zhHant = defineLocale({
       restored: '已還原',
       deleteConfirm: title => `永久刪除「${title}」？此操作無法復原。`,
       autoArchiveTitle: '自動封存閒置對話',
-      autoArchiveDesc: '自動封存你一段時間未使用的對話。已釘選的對話永遠不會被封存，也不會刪除任何內容。',
+      autoArchiveDesc: '已釘選的對話會保留，不會刪除任何內容。',
       autoArchiveDaysLabel: '封存前',
       autoArchiveDaysUnit: '天無活動',
       autoArchiveFailed: '無法更新自動封存設定',

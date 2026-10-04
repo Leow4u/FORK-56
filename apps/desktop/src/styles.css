@@ -489,9 +489,14 @@
        min(this, 100% - 2rem) so narrow panes still fill. */
     --composer-width: 48rem;
     /* Prompt card only. Chrome stays on --radius-scalar so sidebars and
-       controls keep their tight corners; the composer matches the floating
+       menus keep their tight corners; the composer matches the floating
        field used by the chat benchmarks. */
     --composer-radius: 1.125rem;
+    /* Like the composer, these sit outside --radius-scalar on purpose.
+       Buttons, inputs, selects and segmented controls share one soft corner;
+       grouped settings cards use the larger one. */
+    --control-radius: 0.375rem;
+    --card-radius: 0.75rem;
     --composer-control-size: 1.5rem;
     --composer-control-primary-size: 1.625rem;
     --composer-control-gap: 0.25rem;

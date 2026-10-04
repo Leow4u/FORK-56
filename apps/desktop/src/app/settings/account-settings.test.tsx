@@ -82,7 +82,6 @@ describe('Account settings', () => {
     render(<AccountSettings />)
 
     expect(await screen.findByRole('heading', { name: 'Account' })).toBeTruthy()
-    expect(screen.getByText('The person signed in to Work4You.')).toBeTruthy()
     expect(screen.getByText('leo@work4you.ai', { selector: 'span' })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: 'First name' })).toHaveProperty('value', 'Leonardo')
     expect(screen.getByRole('textbox', { name: 'Last name' })).toHaveProperty('value', 'Duarte')

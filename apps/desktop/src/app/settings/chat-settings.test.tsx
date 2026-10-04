@@ -75,8 +75,8 @@ describe('Chat settings', () => {
     await renderChat()
 
     expect(await screen.findByText('Personality')).toBeTruthy()
-    expect(screen.getByText('Reasoning Blocks')).toBeTruthy()
-    expect(screen.getByText('Collapse thinking by default')).toBeTruthy()
+    expect(screen.getByText('Show Reasoning')).toBeTruthy()
+    expect(screen.getByText('Collapse reasoning by default')).toBeTruthy()
     expect(screen.getByText('Auto-archive stale chats')).toBeTruthy()
     expect(screen.queryByText('Timezone')).toBeNull()
     expect(screen.queryByText('Image Attachments')).toBeNull()
@@ -91,7 +91,7 @@ describe('Chat settings', () => {
   it('persists collapse thinking from the chat page', async () => {
     await renderChat()
 
-    const toggle = await screen.findByRole('switch', { name: 'Collapse thinking by default' })
+    const toggle = await screen.findByRole('switch', { name: 'Collapse reasoning by default' })
     expect(toggle.getAttribute('aria-checked')).toBe('false')
     fireEvent.click(toggle)
 
