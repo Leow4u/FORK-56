@@ -9,7 +9,7 @@ import { Check, Copy, RefreshCw } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 import { $gatewayRestarting, runGatewayRestart } from '@/store/system-actions'
-import { getActionStatus, restartGateway } from '@/work4you'
+import { getActionStatus, restartGateway, testMessagingPlatform } from '@/work4you'
 
 /** The shared pieces of a channel's first connection: one question per screen
  *  inside the channel page, a numbered stepper above it, Back / Next below,
@@ -102,22 +102,30 @@ export function splitAround(text: string, part: string): [string, string, string
   return at === -1 ? null : [text.slice(0, at), part, text.slice(at + part.length)]
 }
 
-/** A translated sentence with its \`**marked**\` words in bold — button
- *  names, menu paths, the person's choice — so the words to bold travel with
- *  the sentence instead of living in keys of their own. */
+/** A translated sentence with its `**marked**` words in bold — button names,
+ *  menu paths, the person's choice — and its `` `quoted` `` commands in code,
+ *  so the words to set apart travel with the sentence instead of living in
+ *  keys of their own. */
 export function Marked({ className, text }: { className?: string; text: string }) {
+  // One span, so a flex row it sits in (a ready line) keeps its spaces.
   return (
-    <>
-      {text.split(/\*\*(.+?)\*\*/g).map((piece, index) =>
-        index % 2 === 1 ? (
-          <b className={cn('font-medium', className ?? 'text-foreground')} key={index}>
-            {piece}
-          </b>
+    <span>
+      {text.split(/(\*\*.+?\*\*|`.+?`)/g).map((piece, index) => {
+        if (index % 2 === 0) {
+          return piece
+        }
+
+        return piece.startsWith('`') ? (
+          <code className="font-mono text-[0.92em]" key={index}>
+            {piece.slice(1, -1)}
+          </code>
         ) : (
-          piece
+          <b className={cn('font-medium', className ?? 'text-foreground')} key={index}>
+            {piece.slice(2, -2)}
+          </b>
         )
-      )}
-    </>
+      })}
+    </span>
   )
 }
 
@@ -375,6 +383,49 @@ export async function restartAndWatch(): Promise<RestartState> {
   } finally {
     $gatewayRestarting.set(false)
   }
+}
+
+/** A check the ready screen runs with the channel's existing connection
+ *  test: `skipped` when there is nothing to prove yet (the restart failed). */
+export interface LiveCheck {
+  message?: string
+  outcome: 'failed' | 'ok' | 'pending' | 'skipped'
+}
+
+/** The channel's connection test after a save, tried a few times while the
+ *  adapter comes up behind the restart. The last answer wins. */
+export async function testUntilOk(platformId: string, scopeProfile: null | string, attempts = 5): Promise<LiveCheck> {
+  let message = ''
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+    }
+
+    try {
+      const result = await testMessagingPlatform(platformId, scopeProfile)
+
+      if (result.ok) {
+        return { message: result.message, outcome: 'ok' }
+      }
+
+      message = result.message
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error)
+    }
+  }
+
+  return { message, outcome: 'failed' }
+}
+
+/** The ready screen's line for a live check: what it proved, the test's own
+ *  explanation when it failed, a spinner while it runs. */
+export function LiveCheckLine({ check, ok, pending }: { check: LiveCheck; ok: ReactNode; pending: string }) {
+  return (
+    <ReadyLine done={check.outcome === 'ok'} failed={check.outcome === 'failed'}>
+      {check.outcome === 'ok' ? ok : check.outcome === 'failed' ? check.message || pending : pending}
+    </ReadyLine>
+  )
 }
 
 /** The ready screen's restart line, with the manual restart one click away

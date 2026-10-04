@@ -1526,55 +1526,6 @@ export const ar = defineLocale({
       copyFailed: 'تعذّر النسخ إلى الحافظة.',
       openGuide: 'دليل Graph webhook'
     },
-    teamsQuickSetup: {
-      title: 'الإعداد السريع',
-      recommended: 'موصى به',
-      intro:
-        'هذه بطاقة روبوت دردشة Teams — يراسله الأشخاص فيجيب Work4You. الصق المعرّفات الثلاثة من تسجيل الروبوت في Azure، ثم انسخ نقطة نهاية الرسائل أدناه إلى Azure. يتصل Teams بروبوتك من الإنترنت، لذا يحتاج التثبيت المحلي إلى نفق أولاً.',
-      replacesExisting: 'Teams مُهيَّأ بالفعل. الحفظ هنا يستبدل بيانات اعتماد الروبوت والربط المخزَّنة.',
-      credentialsHelp:
-        'من تسجيل الروبوت في Azure: معرّف التطبيق (العميل)، معرّف الدليل (المستأجر)، وسر العميل. يطبع `teams app create` الثلاثة.',
-      clientIdLabel: 'معرّف التطبيق (العميل)',
-      tenantIdLabel: 'معرّف الدليل (المستأجر)',
-      clientSecretLabel: 'سر العميل',
-      guidPlaceholder: '00000000-0000-0000-0000-000000000000',
-      secretPlaceholder: 'الصق قيمة سر العميل',
-      secretKeepPlaceholder: 'محفوظ — اتركه فارغاً للإبقاء عليه',
-      secretWarning:
-        'يظهر سر العميل مرة واحدة في Azure، وينتهي وفق المدة التي اخترتها، ويتيح لأي شخص يملكه تشغيل روبوتك. تعامل معه ككلمة مرور.',
-      openPortal: 'بوابة Azure',
-      idsRequired: 'أدخل معرّف العميل ومعرّف المستأجر أولاً — يرفض المحوّل البدء بدونهما.',
-      secretRequired: 'أدخل سر العميل أولاً — يرفض المحوّل البدء بدونه.',
-      bindLabel: 'من يمكنه الوصول إلى مستمع الروبوت',
-      bindLocalhost: 'هذا الجهاز فقط (127.0.0.1)',
-      bindRemote: 'الشبكة (0.0.0.0)',
-      bindHelp:
-        'المضيف المحلي هو الخيار الصحيح خلف نفق أو وكيل عكسي. اختر الشبكة فقط عندما تصل حركة Teams مباشرة إلى هذا الجهاز.',
-      endpointTitle: 'نقطة نهاية رسائل الروبوت',
-      endpointHint:
-        'سجّل هذا العنوان في Azure (إعدادات الروبوت ← نقطة نهاية الرسائل، أو `teams app update --endpoint`). يستمع Work4You على المسار /api/messages.',
-      copyEndpoint: 'نسخ نقطة النهاية',
-      publicUrlLabel: 'أصل HTTPS عام',
-      publicUrlPlaceholder: 'https://your-tunnel.example',
-      publicUrlHelp:
-        'يرفض Teams نقطة نهاية HTTP عادية. أنهِ TLS عند نفق أو وكيل عكسي، ثم الصق أصل https:// — وستتحدث نقطة النهاية أعلاه معه.',
-      tunnelWarning:
-        'بدون أصل عام تشير نقطة النهاية إلى localhost الذي لا يستطيع Teams الوصول إليه: يُثبَّت الروبوت لكنه لا يجيب أبداً. شغّل نفقاً (cloudflared، ngrok) والصق أصل https:// الخاص به.',
-      allowedUsersLabel: 'المستخدمون المسموح لهم',
-      allowedUsersPlaceholder: '00000000-0000-0000-0000-000000000000, …',
-      allowedUsersHelp:
-        'معرّفات كائنات Azure AD مفصولة بفواصل — نفّذ `teams status --verbose` لقراءة معرّف من راسل الروبوت. استخدم * للسماح للجميع داخل المستأجر.',
-      openWarning:
-        'بدون قائمة سماح، يستطيع أي شخص يجد الروبوت في مستأجرك تشغيل وكيلك. أضف معرّف الكائن الخاص بك على الأقل.',
-      pipelineTitle: 'الاجتماعات وإشعارات Graph',
-      pipelineHelp:
-        'تصل نصوص الاجتماعات وإشعارات تغييرات Graph الأخرى إلى بطاقة Graph webhook المنفصلة، ويتم الاشتراك فيها بـ `work4you teams-pipeline subscribe`. هذه البطاقة تحمل روبوت الدردشة فقط.',
-      saved: 'تم حفظ Teams وتفعيله. أعد تشغيل البوابة لبدء مستمع الروبوت.',
-      saveFailed: 'تعذّر حفظ إعدادات Teams.',
-      copied: 'تم النسخ إلى الحافظة.',
-      copyFailed: 'تعذّر النسخ إلى الحافظة.',
-      openGuide: 'دليل Teams'
-    },
     whatsappCloudQuickSetup: {
       title: 'الإعداد السريع',
       recommended: 'موصى به',
