@@ -157,7 +157,7 @@ export function A2AConnectSteps({
       setPhase('applied')
       onApplied()
       setRestart({ outcome: 'pending' })
-      const restarted = await restartAndWatch()
+      const restarted = await restartAndWatch(scopeProfile)
       setRestart(restarted)
 
       if (inbound) {
@@ -294,7 +294,9 @@ export function A2AConnectSteps({
             </ReadyLine>
           )}
           {phase === 'applied' && calls && <ReadyLine done>{s.checkPeers(peers.length, outbound.on)}</ReadyLine>}
-          {(restart.outcome === 'failed' || restart.outcome === 'none') && <RestartLine restart={restart} />}
+          {(restart.outcome === 'failed' || restart.outcome === 'none') && (
+            <RestartLine restart={restart} scopeProfile={scopeProfile} />
+          )}
         </ReadyView>
       )}
     </StepsFrame>

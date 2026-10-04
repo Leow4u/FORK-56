@@ -99,6 +99,7 @@ export function WhatsAppCloudDetail({
           onRunSteps={() => setSteps(true)}
           onTest={onTest}
           platform={platform}
+          scopeProfile={scopeProfile}
           testing={saving === `test:${platform.id}`}
         >
           <div className={`mt-2 ${BLOCK_ROW}`}>

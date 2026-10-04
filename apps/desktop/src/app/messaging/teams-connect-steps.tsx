@@ -196,7 +196,7 @@ export function TeamsConnectSteps({
       setPhase('applied')
       onApplied()
       setRestart({ outcome: 'pending' })
-      const restarted = await restartAndWatch()
+      const restarted = await restartAndWatch(scopeProfile)
       setRestart(restarted)
 
       if (restarted.outcome === 'ok') {
@@ -376,7 +376,7 @@ export function TeamsConnectSteps({
           {phase === 'applied' && listener.outcome !== 'skipped' && (
             <LiveCheckLine check={listener} ok={s.checkListener(port)} pending={s.checkListenerPending} />
           )}
-          {phase === 'applied' && <RestartLine restart={restart} />}
+          {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
           <ReadyLine done>
             <Marked text={s.checkEndpoint(endpoint)} />
           </ReadyLine>

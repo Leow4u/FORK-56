@@ -111,6 +111,7 @@ export function MsgraphDetail({
           onTest={onTest}
           platform={platform}
           restartButton="needed"
+          scopeProfile={scopeProfile}
           testing={saving === `test:${platform.id}`}
         />
       </SettingsBlock>

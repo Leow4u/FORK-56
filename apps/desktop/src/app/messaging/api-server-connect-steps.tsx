@@ -109,7 +109,7 @@ export function ApiServerConnectSteps({
       setPhase('applied')
       onApplied()
       setRestart({ outcome: 'pending' })
-      const restarted = await restartAndWatch()
+      const restarted = await restartAndWatch(scopeProfile)
       setRestart(restarted)
 
       // The test also passes before the listener is up ("restart to start
@@ -191,7 +191,7 @@ export function ApiServerConnectSteps({
               pending={s.checkPending}
             />
           )}
-          {phase === 'applied' && <RestartLine restart={restart} />}
+          {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
           {phase === 'applied' && (endpoint.outcome === 'ok' || endpoint.outcome === 'pending') && (
             <ReadyLine done={endpoint.outcome === 'ok'}>
               <Marked text={s.checkModel(model)} />

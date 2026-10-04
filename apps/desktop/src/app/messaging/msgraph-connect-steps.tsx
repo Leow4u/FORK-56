@@ -160,7 +160,7 @@ export function MsgraphConnectSteps({
       setPhase('applied')
       onApplied()
       setRestart({ outcome: 'pending' })
-      const restarted = await restartAndWatch()
+      const restarted = await restartAndWatch(scopeProfile)
       setRestart(restarted)
 
       // The test also passes before the listener answers ("starts with the
@@ -304,7 +304,7 @@ export function MsgraphConnectSteps({
               <Marked text={s.checkRegister(facts?.notifyUrl ?? notifyUrl)} />
             </ReadyLine>
           )}
-          {phase === 'applied' && <RestartLine restart={restart} />}
+          {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
         </ReadyView>
       )}
     </StepsFrame>

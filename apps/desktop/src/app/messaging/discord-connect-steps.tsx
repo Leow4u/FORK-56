@@ -145,7 +145,7 @@ export function DiscordConnectSteps({
       setPhase('applied')
       onApplied()
       setRestart({ outcome: 'pending' })
-      setRestart(await restartAndWatch())
+      setRestart(await restartAndWatch(scopeProfile))
     } catch (saveError) {
       setPhase('idle')
       setStep('talk')
@@ -308,7 +308,7 @@ export function DiscordConnectSteps({
           title={phase === 'applying' ? s.readySaving : platformConnected ? s.readyTitle : s.readySetUp}
         >
           <ReadyLine done>{s.checkTokenSaved}</ReadyLine>
-          {phase === 'applied' && <RestartLine restart={restart} />}
+          {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
           <ReadyLine done>{whoLine}</ReadyLine>
         </ReadyView>
       )}

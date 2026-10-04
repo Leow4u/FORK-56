@@ -146,6 +146,7 @@ export function WebhookDetail({
           onTest={onTest}
           platform={platform}
           restartButton="needed"
+          scopeProfile={scopeProfile}
           testing={saving === `test:${platform.id}`}
         />
       </SettingsBlock>

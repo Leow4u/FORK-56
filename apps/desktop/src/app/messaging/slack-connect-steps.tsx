@@ -168,7 +168,7 @@ export function SlackConnectSteps({
       setPhase('applied')
       onApplied()
       setRestart({ outcome: 'pending' })
-      setRestart(await restartAndWatch())
+      setRestart(await restartAndWatch(scopeProfile))
     } catch (saveError) {
       setPhase('idle')
       setStep('talk')
@@ -326,7 +326,7 @@ export function SlackConnectSteps({
           title={phase === 'applying' ? s.readySaving : platformConnected ? s.readyTitle : s.readySetUp}
         >
           <ReadyLine done>{s.checkTokensSaved}</ReadyLine>
-          {phase === 'applied' && <RestartLine restart={restart} />}
+          {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
           <ReadyLine done>{whoLine}</ReadyLine>
         </ReadyView>
       )}

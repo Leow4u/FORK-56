@@ -723,6 +723,29 @@ test('resolveProfileApiRequest scopes complete safe families according to their 
   )
 })
 
+test('resolveProfileApiRequest polls a gateway action on the backend that ran it', () => {
+  // POST /api/gateway/restart (and start/stop, the channel onboarding apply,
+  // the webhook enable) is served by the profile's own backend, so the poll
+  // must ask that backend too: the primary never ran it and reported its own
+  // idle restart, so a restart that failed for the profile read as done.
+  for (const action of ['gateway-restart', 'gateway-start', 'gateway-stop']) {
+    assert.deepEqual(
+      resolveProfileApiRequest('iris', `/api/actions/${action}/status?lines=5`, { requestMethod: 'GET' }),
+      { backendProfile: 'iris', requestPath: `/api/actions/${action}/status?lines=5` }
+    )
+  }
+
+  assert.deepEqual(resolveProfileApiRequest('iris', '/api/gateway/restart', { requestMethod: 'POST' }), {
+    backendProfile: 'iris',
+    requestPath: '/api/gateway/restart'
+  })
+  // The primary profile keeps both on the primary.
+  assert.deepEqual(
+    resolveProfileApiRequest('default', '/api/actions/gateway-restart/status?lines=5', { requestMethod: 'GET' }),
+    { backendProfile: null, requestPath: '/api/actions/gateway-restart/status?lines=5' }
+  )
+})
+
 test('resolveProfileApiRequest routes action-status polls with the action-spawning routes', () => {
   // /api/actions/{name}/status must land on the SAME backend as the endpoints
   // that spawn actions (skills hub install/uninstall/update, mcp catalog

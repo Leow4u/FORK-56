@@ -134,9 +134,10 @@ export function runCurator(): Promise<ActionResponse> {
   })
 }
 
-export function restartGateway(): Promise<ActionResponse> {
+/** Restart `profile`'s gateway; without one, the app's active profile's. */
+export function restartGateway(profile?: string): Promise<ActionResponse> {
   return work4youApi<ActionResponse>({
-    ...profileScoped(),
+    ...profileScoped(profile),
     path: '/api/gateway/restart',
     method: 'POST'
   })

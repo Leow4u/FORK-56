@@ -228,7 +228,7 @@ export function GoogleChatConnectSteps({
       // The credentials check talks to Google Cloud, not the gateway: it runs
       // beside the restart instead of waiting for it.
       void testUntilOk('google_chat', scopeProfile, 1).then(setCredentials)
-      setRestart(await restartAndWatch())
+      setRestart(await restartAndWatch(scopeProfile))
     } catch (saveError) {
       setPhase('idle')
       setStep('talk')
@@ -426,7 +426,7 @@ export function GoogleChatConnectSteps({
               pending={s.checkPending}
             />
           )}
-          {phase === 'applied' && <RestartLine restart={restart} />}
+          {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
           <ReadyLine done>{whoLine}</ReadyLine>
         </ReadyView>
       )}

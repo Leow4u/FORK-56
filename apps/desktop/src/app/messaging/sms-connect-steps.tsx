@@ -194,7 +194,7 @@ export function SmsConnectSteps({
       // The account check talks to Twilio, not the gateway: it runs beside
       // the restart instead of waiting for it.
       void testUntilOk('sms', scopeProfile, 1).then(setTwilio)
-      setRestart(await restartAndWatch())
+      setRestart(await restartAndWatch(scopeProfile))
     } catch (saveError) {
       setPhase('idle')
       setStep('text')
@@ -372,7 +372,7 @@ export function SmsConnectSteps({
               pending={s.checkTwilioPending}
             />
           )}
-          {phase === 'applied' && <RestartLine restart={restart} />}
+          {phase === 'applied' && <RestartLine restart={restart} scopeProfile={scopeProfile} />}
           <ReadyLine done>{whoLine}</ReadyLine>
         </ReadyView>
       )}
