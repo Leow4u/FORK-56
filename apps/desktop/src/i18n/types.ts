@@ -1576,32 +1576,6 @@ export interface Translations {
     /** Localized labels for env keys rendered as a segmented picker
      *  (FIELD_OPTIONS), keyed by env key then by option value. */
     envOptions: Record<string, Record<string, string>>
-    emailQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      addressLabel: string
-      addressHelp: string
-      addressPlaceholder: string
-      providerLabel: string
-      providerCustom: string
-      imapHostLabel: string
-      imapPortLabel: string
-      smtpHostLabel: string
-      smtpPortLabel: string
-      passwordLabel: string
-      passwordHelp: string
-      passwordPlaceholder: string
-      createAppPassword: string
-      allowedUsersLabel: string
-      allowedUsersHelp: string
-      allowedUsersPlaceholder: string
-      addressAndPasswordRequired: string
-      hostsRequired: string
-      saved: string
-      saveFailed: string
-    }
     googleChatQuickSetup: {
       title: string
       recommended: string
@@ -2051,6 +2025,55 @@ export interface Translations {
       whoOnlyNumbers: (count: number) => string
       whoNone: string
       callbackLine: (url: string) => string
+      advancedHint: string
+    }
+    emailPage: {
+      stepWho: string
+      stepMailbox: string
+      stepWrite: string
+      stepReady: string
+      whoTitle: string
+      whoNote: string
+      meTitle: string
+      meDesc: string
+      othersTitle: string
+      othersDesc: string
+      mailboxTitle: string
+      mailboxNote: string
+      addressLabel: string
+      providerLabel: string
+      custom: string
+      serversFilled: (imap: string, smtp: string) => string
+      imapHostLabel: string
+      imapPortLabel: string
+      smtpHostLabel: string
+      smtpPortLabel: string
+      hostsRequired: string
+      passwordLabel: string
+      passwordHelp: string
+      passwordKept: string
+      writeTitle: string
+      writeNote: (choice: string) => string
+      allowedLabel: string
+      allowedHelp: string
+      meAddressTitle: string
+      meAddressNote: string
+      meAddressLabel: string
+      addressesRequired: string
+      readySaving: string
+      readyTitle: string
+      readySetUp: string
+      checkLogin: (address: string) => string
+      checkLoginPending: string
+      whoMe: string
+      whoList: (count: number) => string
+      tryIt: (address: string) => string
+      whoCanWriteTitle: string
+      connectedLabel: string
+      whoOnlyAddresses: (count: number) => string
+      whoNone: string
+      listTitle: string
+      repliesToEmail: string
       advancedHint: string
     }
     telegramQuickSetup: {

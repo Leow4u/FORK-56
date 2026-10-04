@@ -195,6 +195,25 @@ function whatsappCloudReady(patch: Partial<MessagingPlatformInfo> = {}): Messagi
   })
 }
 
+/** Email on and connected with two allowed senders. */
+function emailReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
+  return platform({
+    configured: true,
+    enabled: true,
+    env_vars: [
+      envField('EMAIL_ADDRESS', 'bot@example.com', { required: true }),
+      envField('EMAIL_PASSWORD', 'secret', { is_password: true, required: true, value: null }),
+      envField('EMAIL_IMAP_HOST', 'imap.gmail.com', { required: true }),
+      envField('EMAIL_SMTP_HOST', 'smtp.gmail.com', { required: true }),
+      envField('EMAIL_ALLOWED_USERS', 'ana@example.com,bruno@example.com')
+    ],
+    id: 'email',
+    name: 'Email',
+    state: 'connected',
+    ...patch
+  })
+}
+
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
     configured: false,
@@ -1250,6 +1269,39 @@ describe('MessagingView channel page', () => {
     await renderMessaging()
     await openChannel('WhatsApp Cloud API')
     expect(await screen.findByText(en.messaging.whatsappCloudPage.whoNone)).toBeTruthy()
+  })
+
+  it('walks Email through its first connection step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ id: 'email', name: 'Email' })] })
+
+    await renderMessaging()
+    await openChannel('Email')
+
+    expect(await screen.findByText(en.messaging.emailPage.whoTitle)).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows Email as settings: the mailbox it checks and who can write', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [emailReady()] })
+
+    await renderMessaging()
+    await openChannel('Email')
+
+    expect(await screen.findByText(en.messaging.emailPage.connectedLabel)).toBeTruthy()
+    expect(screen.getByText(/bot@example\.com/)).toBeTruthy()
+    expect(screen.getByText(en.messaging.emailPage.whoCanWriteTitle)).toBeTruthy()
+    expect(screen.getByText(en.messaging.emailPage.whoOnlyAddresses(2))).toBeTruthy()
+    expect(screen.getByText(en.messaging.emailPage.repliesToEmail)).toBeTruthy()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.messaging.edit }))
+    })
+    fireEvent.change(screen.getByLabelText(en.messaging.emailPage.listTitle), { target: { value: '*' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    expect(screen.getByText(en.messaging.envErrors.emailAddress('*'))).toBeTruthy()
+    expect(updateMessagingPlatform).not.toHaveBeenCalled()
   })
 
   it('counts the routines that deliver to WhatsApp', async () => {

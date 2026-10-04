@@ -1310,34 +1310,6 @@ export const ar = defineLocale({
         'self-chat': 'محادثة ذاتية'
       }
     },
-    emailQuickSetup: {
-      title: 'الإعداد السريع',
-      recommended: 'موصى به',
-      intro:
-        'اختر مزود البريد وسيملأ Work4You خوادم البريد تلقائيًا. استخدم صندوق بريد مخصصًا — يقرأ الوكيل كل ما فيه ويرد عليه.',
-      replacesExisting: 'البريد الإلكتروني مهيأ بالفعل. الحفظ هنا يستبدل إعدادات الصندوق المخزنة.',
-      addressLabel: 'عنوان البريد الإلكتروني',
-      addressHelp: 'صندوق البريد الذي سيقرأ منه الوكيل ويرسل.',
-      addressPlaceholder: 'agent@example.com',
-      providerLabel: 'المزود',
-      providerCustom: 'مخصص',
-      imapHostLabel: 'مضيف IMAP',
-      imapPortLabel: 'منفذ IMAP',
-      smtpHostLabel: 'مضيف SMTP',
-      smtpPortLabel: 'منفذ SMTP',
-      passwordLabel: 'كلمة المرور',
-      passwordHelp:
-        'بالنسبة إلى Gmail وOutlook وYahoo وiCloud يجب استخدام كلمة مرور تطبيق — كلمة مرور الحساب العادية لا تعمل مع IMAP.',
-      passwordPlaceholder: 'كلمة مرور التطبيق',
-      createAppPassword: 'إنشاء كلمة مرور تطبيق',
-      allowedUsersLabel: 'المرسلون المسموح بهم',
-      allowedUsersHelp: 'موصى به. عناوين مفصولة بفواصل يُسمح لها بمحادثة الوكيل — يتم تجاهل بريد أي شخص آخر.',
-      allowedUsersPlaceholder: 'you@example.com, teammate@example.com',
-      addressAndPasswordRequired: 'أدخل عنوان البريد الإلكتروني وكلمة المرور أولًا.',
-      hostsRequired: 'أدخل مضيفي IMAP وSMTP، أو اختر مزودًا.',
-      saved: 'تم حفظ البريد الإلكتروني وتفعيله. أعد تشغيل البوابة للاتصال.',
-      saveFailed: 'تعذر حفظ إعدادات البريد الإلكتروني.'
-    },
     googleChatQuickSetup: {
       title: 'الإعداد السريع',
       recommended: 'موصى به',

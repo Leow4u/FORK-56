@@ -51,7 +51,7 @@ import { type PlatformDetailProps } from './channel-settings'
 import { detailStatus, stateLabel, stateTone, ToneDot } from './channel-status'
 import { type ChannelsConnectedRow, ChannelsConnectedTable } from './channels-connected-table'
 import { DiscordDetail } from './discord-detail'
-import { EmailQuickSetup } from './email-quick-setup'
+import { EmailDetail } from './email-detail'
 import { GoogleChatQuickSetup } from './google-chat-quick-setup'
 import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
 import { PlatformAvatar } from './platform-icon'
@@ -78,7 +78,6 @@ const CHANNEL_LABEL = 'text-xs font-medium normal-case tracking-normal text-fore
 const QUICK_SETUP_PLATFORMS = new Set([
   'a2a',
   'api_server',
-  'email',
   'google_chat',
   'msgraph_webhook',
   'sms',
@@ -885,6 +884,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <WhatsAppCloudDetail {...props} />
   }
 
+  if (platform.id === 'email') {
+    return <EmailDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -906,10 +909,6 @@ function PlatformDetail(props: PlatformDetailProps) {
         onRevoke={onRevoke}
         pending={pending}
       />
-
-      {platform.id === 'email' && (
-        <EmailQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
-      )}
 
       {platform.id === 'sms' && (
         <SmsQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
@@ -1210,8 +1209,6 @@ const PLATFORM_INTRO: Record<string, string> = {
     'Run BlueBubbles Server on a Mac with iMessage, expose its API, then point Work4You at the URL with the server password.',
   homeassistant:
     'In Home Assistant, open your profile and create a long-lived access token. Paste it here along with your HA URL.',
-  email:
-    'Use Quick setup above with a dedicated mailbox — pick your provider and the IMAP/SMTP hosts are filled in for you. Accounts with 2FA (Gmail, Outlook) need an app password, not the account password, and only senders on the allowlist get replies.',
   sms: 'Use Quick setup above. Besides the Twilio credentials and an SMS-capable phone number, inbound texts need a public webhook URL — Twilio must be able to reach your machine (use a tunnel like cloudflared or ngrok if you run locally), and the same URL goes into the Twilio console.',
   dingtalk: 'Create a DingTalk app in the developer console, then copy the Client ID (App key) and Client Secret here.',
   feishu:
