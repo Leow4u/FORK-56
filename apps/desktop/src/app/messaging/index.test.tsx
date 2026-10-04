@@ -141,6 +141,23 @@ function discordReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlat
   })
 }
 
+/** Slack on and connected with two allowed member ids. */
+function slackReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
+  return platform({
+    configured: true,
+    enabled: true,
+    env_vars: [
+      envField('SLACK_BOT_TOKEN', 'secret', { is_password: true, required: true, value: null }),
+      envField('SLACK_APP_TOKEN', 'secret', { is_password: true, required: true, value: null }),
+      envField('SLACK_ALLOWED_USERS', 'U01ABC2DEF3,U04XYZ9GHI7')
+    ],
+    id: 'slack',
+    name: 'Slack',
+    state: 'connected',
+    ...patch
+  })
+}
+
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
     configured: false,
@@ -1058,6 +1075,65 @@ describe('MessagingView channel page', () => {
 
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith('discord', { env: { DISCORD_ALLOWED_USERS: '*' } })
+    )
+  })
+
+  it('walks Slack through its first connection step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [platform({ id: 'slack', name: 'Slack' })] })
+
+    await renderMessaging()
+    await openChannel('Slack')
+
+    expect(await screen.findByText(en.messaging.slackPage.whoTitle)).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows Slack as settings once it is set up, with nobody let in until there is a list', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [slackReady()] })
+
+    const { unmount } = await renderMessaging()
+    await openChannel('Slack')
+
+    expect(await screen.findByText(en.messaging.connectedListening)).toBeTruthy()
+    expect(screen.getByText(en.messaging.channelSettings.whoOnlyPeople(2))).toBeTruthy()
+    expect(screen.getByText('U01ABC2DEF3, U04XYZ9GHI7')).toBeTruthy()
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(en.messaging.advancedTitle) }))
+    })
+    expect(screen.getByRole('button', { name: en.messaging.slackPage.copyManifest })).toBeTruthy()
+    unmount()
+
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [slackReady({ env_vars: [envField('SLACK_ALLOWED_USERS', '')] })]
+    })
+    await renderMessaging()
+    await openChannel('Slack')
+    expect(await screen.findByText(en.messaging.slackPage.whoNone)).toBeTruthy()
+  })
+
+  it('edits who can talk on Slack, member ids checked', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [slackReady()] })
+
+    await renderMessaging()
+    await openChannel('Slack')
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: en.messaging.edit }))
+    })
+    const list = screen.getByLabelText(en.messaging.channelSettings.listTitle)
+    fireEvent.change(list, { target: { value: 'U01ABC2DEF3, ana' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    expect(screen.getByText(en.messaging.envErrors.slackMemberId('ana'))).toBeTruthy()
+    expect(updateMessagingPlatform).not.toHaveBeenCalled()
+
+    fireEvent.change(list, { target: { value: 'U01ABC2DEF3' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: en.common.save }))
+    })
+    await waitFor(() =>
+      expect(updateMessagingPlatform).toHaveBeenCalledWith('slack', { env: { SLACK_ALLOWED_USERS: 'U01ABC2DEF3' } })
     )
   })
 

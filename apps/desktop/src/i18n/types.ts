@@ -1880,29 +1880,6 @@ export interface Translations {
       saved: string
       saveFailed: string
     }
-    slackQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      manifestHelp: string
-      copyManifest: string
-      manifestCopied: string
-      manifestCopyFailed: string
-      createApp: string
-      botTokenLabel: string
-      botTokenHelp: string
-      botTokenPlaceholder: string
-      appTokenLabel: string
-      appTokenHelp: string
-      appTokenPlaceholder: string
-      allowedUsersLabel: string
-      allowedUsersHelp: string
-      allowedUsersPlaceholder: string
-      bothTokensRequired: string
-      saved: string
-      saveFailed: string
-    }
     channelSettings: {
       whoOnlyPeople: (count: number) => string
       whoApprove: string
@@ -2006,6 +1983,53 @@ export interface Translations {
       whoNone: string
       inviteLabel: string
       inviteHint: string
+      advancedHint: string
+    }
+    slackPage: {
+      stepWho: string
+      stepCreate: string
+      stepTokens: string
+      stepTalk: string
+      stepReady: string
+      whoTitle: string
+      whoNote: string
+      meTitle: string
+      meDesc: string
+      othersTitle: string
+      othersDesc: string
+      createTitle: string
+      createNote: string
+      createStep1: string
+      createStep2: string
+      copyManifest: string
+      manifestCopied: string
+      manifestCopyFailed: string
+      createApp: string
+      tokensTitle: string
+      tokensNote: string
+      botTokenLabel: string
+      botTokenHelp: string
+      appTokenLabel: string
+      appTokenHelp: string
+      talkTitle: string
+      talkNote: (choice: string) => string
+      meIdTitle: string
+      meIdNote: string
+      meIdLabel: string
+      listDesc: string
+      listHint: string
+      everyoneTitle: string
+      everyoneDesc: string
+      idsRequired: string
+      readySaving: string
+      readyTitle: string
+      readySetUp: string
+      checkTokensSaved: string
+      whoMe: string
+      whoList: (count: number) => string
+      whoEveryone: string
+      tryIt: string
+      whoNone: string
       advancedHint: string
     }
     telegramQuickSetup: {

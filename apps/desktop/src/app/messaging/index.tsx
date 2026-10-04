@@ -55,7 +55,7 @@ import { EmailQuickSetup } from './email-quick-setup'
 import { GoogleChatQuickSetup } from './google-chat-quick-setup'
 import { MsgraphWebhookQuickSetup } from './msgraph-webhook-quick-setup'
 import { PlatformAvatar } from './platform-icon'
-import { SlackQuickSetup } from './slack-quick-setup'
+import { SlackDetail } from './slack-detail'
 import { SmsQuickSetup } from './sms-quick-setup'
 import { $channelsCategory, $channelsView, readChannelsSnapshot, writeChannelsSnapshot } from './store'
 import { TeamsQuickSetup } from './teams-quick-setup'
@@ -81,7 +81,6 @@ const QUICK_SETUP_PLATFORMS = new Set([
   'email',
   'google_chat',
   'msgraph_webhook',
-  'slack',
   'sms',
   'teams',
   'webhook',
@@ -876,6 +875,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <DiscordDetail {...props} />
   }
 
+  if (platform.id === 'slack') {
+    return <SlackDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -897,10 +900,6 @@ function PlatformDetail(props: PlatformDetailProps) {
         onRevoke={onRevoke}
         pending={pending}
       />
-
-      {platform.id === 'slack' && (
-        <SlackQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
-      )}
 
       {platform.id === 'email' && (
         <EmailQuickSetup configured={platform.configured} onApplied={onQuickSetupApplied} scopeProfile={scopeProfile} />
@@ -1212,8 +1211,6 @@ function PlatformActionBar({
 }
 
 const PLATFORM_INTRO: Record<string, string> = {
-  slack:
-    'Use Quick setup above: paste the generated manifest when creating your Slack app and every scope, event subscription, and slash command is configured at once — a missed channels:history scope is why bots answer DMs but stay silent in channels. Then install the app and paste the two tokens.',
   mattermost:
     'On your Mattermost server, create a bot account or personal access token, then paste the server URL and token here.',
   matrix: 'Sign in to your homeserver with the bot account, then copy the access token, user ID, and homeserver URL.',
