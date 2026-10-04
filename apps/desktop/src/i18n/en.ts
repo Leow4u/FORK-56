@@ -1631,7 +1631,6 @@ export const en: Translations = {
 
   messaging: {
     title: 'Messaging',
-    manualSetup: 'Manual setup',
     search: 'Search messaging...',
     loading: 'Loading messaging platforms...',
     loadFailed: 'Messaging platforms failed to load',
@@ -1800,51 +1799,6 @@ export const en: Translations = {
         bot: 'Bot',
         'self-chat': 'Self-chat'
       }
-    },
-    msgraphQuickSetup: {
-      title: 'Quick setup',
-      recommended: 'Recommended',
-      intro:
-        'This card is the inbound Graph listener only. Microsoft Graph POSTs change notifications here — it is not the Teams chat bot. Generate a clientState secret, bind localhost behind a tunnel or add source CIDRs for a network bind, then register the notification URL with Graph.',
-      replacesExisting: 'Graph webhook is already configured. Saving here updates the secret and bind.',
-      secretHelp:
-        'Shared clientState secret. Graph echoes it on every notification — generate with openssl rand -hex 32.',
-      secretLabel: 'clientState secret',
-      secretPlaceholder: 'Click Generate, or paste a 32-byte hex secret',
-      generateSecret: 'Generate secret',
-      copySecret: 'Copy secret',
-      secretWarning: 'Anyone with this secret can forge Graph notifications. Treat it like a password.',
-      secretRequired: 'Generate a clientState first — the listener refuses to start without it.',
-      bindLabel: 'Who can reach the listener',
-      bindLocalhost: 'This machine only (127.0.0.1)',
-      bindRemote: 'Network (0.0.0.0) — requires source CIDRs',
-      remoteNeedsCidrs: 'A network bind requires source CIDRs (Microsoft Graph egress ranges).',
-      notificationTitle: 'Notification URL',
-      notificationHint:
-        'Register this URL with Graph. Behind a tunnel, set the public HTTPS origin so the copied URL is what Graph can reach.',
-      copyNotificationUrl: 'Copy notification URL',
-      handshakeHint:
-        'Graph first GETs this path with ?validationToken=… — the listener echoes the token. Then it POSTs change notifications. No subscriptions CRUD lives on this card.',
-      publicUrlLabel: 'Public HTTPS origin (optional)',
-      publicUrlPlaceholder: 'https://your-tunnel.example',
-      publicUrlHelp: 'Graph refuses HTTP. Terminate TLS at a reverse proxy or tunnel, then paste the https:// origin.',
-      resourcesLabel: 'Accepted resources (optional)',
-      resourcesPlaceholder: 'communications/onlineMeetings, chats/*/messages',
-      resourcesHelp: 'Comma-separated Graph resource paths. Empty accepts every resource the listener sees.',
-      cidrsLabel: 'Source CIDRs',
-      cidrsPlaceholder: '52.96.0.0/14, 13.107.64.0/18',
-      cidrsHelp:
-        'Required for a network bind. /health uses the same allowlist — a local Test can then return 403 while the process is up.',
-      networkExposedWarning:
-        'A remote bind needs source CIDRs. Without them the adapter refuses to start — paste Microsoft Graph egress ranges first.',
-      pipelineTitle: 'Subscriptions and Teams chat',
-      pipelineHelp:
-        'Create Graph subscriptions with `work4you teams-pipeline subscribe`. Chat replies go through the separate Teams bot card. Azure tenant / client / secret stay there — not on this listener.',
-      saved: 'Graph webhook saved and enabled. Restart the gateway to start the listener.',
-      saveFailed: 'Could not save the Graph webhook settings.',
-      copied: 'Copied to the clipboard.',
-      copyFailed: 'Could not copy to the clipboard.',
-      openGuide: 'Graph webhook guide'
     },
     channelSettings: {
       whoOnlyPeople: (count: number) => `Only these people · ${count} ${count === 1 ? 'person' : 'people'}`,
@@ -2457,6 +2411,58 @@ export const en: Translations = {
       tokenNone: 'none',
       advancedHint: 'host, port, agent name, public URL',
       activeHint: 'Off stops the listener after a gateway restart; peers are kept.'
+    },
+    msgraphPage: {
+      stepSecret: 'Secret',
+      stepReach: 'Reach',
+      stepResources: 'Resources',
+      stepReady: 'Ready',
+      secretTitle: 'Create the shared secret',
+      secretNote: 'Graph echoes it in every notification, so the listener knows the call is real.',
+      secretLabel: 'clientState secret',
+      secretPlaceholder: 'Click Generate secret, or paste a 32-byte hex secret',
+      secretKept: 'Saved — leave empty to keep it',
+      generateSecret: 'Generate secret',
+      secretCaution: 'Anyone with this secret can forge Graph notifications. Treat it like a password.',
+      secretRequired: 'Generate a clientState first — the listener refuses to start without it.',
+      listenerOnly:
+        'This is the inbound Graph listener only. Teams chat replies go through the Microsoft Teams channel.',
+      reachTitle: 'Let Graph reach the listener',
+      reachNote: 'Graph refuses HTTP, so terminate TLS at a tunnel or reverse proxy.',
+      reachLabel: 'Who can reach the listener',
+      reachLocal: 'This machine only (127.0.0.1)',
+      reachNetwork: 'Network (0.0.0.0) — requires source CIDRs',
+      cidrsLabel: 'Source CIDRs',
+      cidrsHelp:
+        'Only for a network bind: Microsoft Graph egress ranges. Without them a network bind refuses to start.',
+      networkNeedsCidrs: 'A network bind needs source CIDRs — without them the listener refuses to start.',
+      publicUrlLabel: 'Public HTTPS origin',
+      publicUrlHelp: 'Optional. The copied URL below follows it.',
+      notifyLabel: 'Notification URL',
+      copyNotifyUrl: 'Copy notification URL',
+      notifyHelp:
+        'Register this URL with Graph. Graph first checks it with a validation token, then posts notifications.',
+      resourcesTitle: 'Which notifications to accept',
+      resourcesNote: 'Optional. Empty accepts every resource the listener sees.',
+      resourcesLabel: 'Accepted resources',
+      readySaving: 'Saving and restarting the gateway…',
+      readyTitle: 'The Graph listener is on.',
+      checkListener: (port: string, network: boolean) =>
+        `Listener is up on port ${port} — ${network ? 'network, source CIDRs only' : 'this machine only'}`,
+      checkListenerPending: 'Checking the listener…',
+      checkRegister: (url: string) => `Register **${url}** with Graph`,
+      nextSubscribe: 'Next: create the Graph subscriptions with `work4you teams-pipeline subscribe`.',
+      openGuide: 'Graph webhook guide',
+      listenerBlock: 'Listener',
+      copyUrl: 'Copy URL',
+      securityTitle: 'Security',
+      secretSet: 'set',
+      secretNone: 'none',
+      cidrsNone: 'none — this machine only',
+      acceptedTitle: 'Notifications accepted',
+      everyResource: 'Every resource the listener sees',
+      advancedHint: 'host, port, raw settings',
+      activeHint: 'Off stops the listener after a gateway restart.'
     },
     telegramQuickSetup: {
       waiting: 'Waiting for you to confirm in Telegram…',

@@ -1310,49 +1310,6 @@ export const ar = defineLocale({
         'self-chat': 'محادثة ذاتية'
       }
     },
-    msgraphQuickSetup: {
-      title: 'الإعداد السريع',
-      recommended: 'موصى به',
-      intro:
-        'هذه البطاقة مستمع Graph الوارد فقط. Microsoft Graph يرسل إشعارات التغيير إلى هنا — ليست روبوت دردشة Teams. ولّد سر clientState، واربط المضيف المحلي خلف نفق أو أضف CIDR المصدر للربط الشبكي، ثم سجّل عنوان الإشعار لدى Graph.',
-      replacesExisting: 'Webhook الخاص بـ Graph مهيأ بالفعل. الحفظ هنا يحدّث السر والربط.',
-      secretHelp: 'سر clientState المشترك. يعيده Graph في كل إشعار — ولّده بـ openssl rand -hex 32.',
-      secretLabel: 'سر clientState',
-      secretPlaceholder: 'انقر توليد، أو الصق سراً سداسياً من 32 بايت',
-      generateSecret: 'توليد سر',
-      copySecret: 'نسخ السر',
-      secretWarning: 'أي شخص يملك هذا السر يمكنه تزوير إشعارات Graph. عامله ككلمة مرور.',
-      secretRequired: 'ولّد clientState أولاً — يرفض المستمع البدء بدونه.',
-      bindLabel: 'من يمكنه الوصول إلى المستمع',
-      bindLocalhost: 'هذا الجهاز فقط (127.0.0.1)',
-      bindRemote: 'الشبكة (0.0.0.0) — يتطلب CIDR المصدر',
-      remoteNeedsCidrs: 'الربط الشبكي يتطلب CIDR المصدر (نطاقات خروج Microsoft Graph).',
-      notificationTitle: 'عنوان URL للإشعار',
-      notificationHint:
-        'سجّل هذا العنوان لدى Graph. خلف نفق، عيّن أصل HTTPS العام حتى يكون العنوان المنسوخ هو ما يصل إليه Graph.',
-      copyNotificationUrl: 'نسخ عنوان الإشعار',
-      handshakeHint:
-        'Graph يطلب أولاً هذا المسار بـ GET مع ?validationToken=… — يرد المستمع بالرمز. ثم يرسل إشعارات التغيير بـ POST. لا يوجد CRUD للاشتراكات على هذه البطاقة.',
-      publicUrlLabel: 'أصل HTTPS عام (اختياري)',
-      publicUrlPlaceholder: 'https://your-tunnel.example',
-      publicUrlHelp: 'Graph يرفض HTTP. أنهِ TLS عند وكيل عكسي أو نفق، ثم الصق أصل https://.',
-      resourcesLabel: 'الموارد المقبولة (اختياري)',
-      resourcesPlaceholder: 'communications/onlineMeetings, chats/*/messages',
-      resourcesHelp: 'مسارات موارد Graph مفصولة بفواصل. الفارغ يقبل كل مورد يراه المستمع.',
-      cidrsLabel: 'CIDR المصدر',
-      cidrsPlaceholder: '52.96.0.0/14, 13.107.64.0/18',
-      cidrsHelp: 'مطلوب للربط الشبكي. يستخدم /health نفس القائمة — قد يعيد Test المحلي 403 بينما العملية تعمل.',
-      networkExposedWarning:
-        'الربط البعيد يحتاج CIDR المصدر. بدونها يرفض المحوّل البدء — الصق نطاقات خروج Microsoft Graph أولاً.',
-      pipelineTitle: 'الاشتراكات ودردشة Teams',
-      pipelineHelp:
-        'أنشئ اشتراكات Graph بـ `work4you teams-pipeline subscribe`. ردود الدردشة تمر عبر بطاقة روبوت Teams المنفصلة. يبقى مستأجر Azure / العميل / السر هناك — ليس على هذا المستمع.',
-      saved: 'تم حفظ Webhook الخاص بـ Graph وتفعيله. أعد تشغيل البوابة لبدء المستمع.',
-      saveFailed: 'تعذّر حفظ إعدادات Webhook الخاص بـ Graph.',
-      copied: 'تم النسخ إلى الحافظة.',
-      copyFailed: 'تعذّر النسخ إلى الحافظة.',
-      openGuide: 'دليل Graph webhook'
-    },
     telegramQuickSetup: {
       waiting: 'في انتظار تأكيدك في Telegram...',
       qrAlt: 'رمز QR لإعداد Telegram',

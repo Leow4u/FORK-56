@@ -1681,6 +1681,60 @@ describe('MessagingView channel page', () => {
     expect(screen.getByText(s.peerTokens).nextSibling?.textContent).toBe(s.tokenNone)
   })
 
+  it('walks the Microsoft Graph webhook through its first setup step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ id: 'msgraph_webhook', name: 'Microsoft Graph Webhook' })]
+    })
+
+    await renderMessaging()
+    await openChannel('Microsoft Graph Webhook')
+
+    expect(await screen.findByText(en.messaging.msgraphPage.secretTitle)).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows the Microsoft Graph webhook as settings: its URL, security and accepted notifications', async () => {
+    const s = en.messaging.msgraphPage
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [
+        platform({
+          configured: true,
+          enabled: true,
+          env_vars: [
+            envField('MSGRAPH_WEBHOOK_CLIENT_STATE', 'secret', { is_password: true, required: true, value: null }),
+            envField('MSGRAPH_WEBHOOK_HOST', '0.0.0.0'),
+            envField('MSGRAPH_WEBHOOK_PORT', ''),
+            envField('MSGRAPH_WEBHOOK_ACCEPTED_RESOURCES', 'communications/onlineMeetings,chats/*/messages'),
+            envField('MSGRAPH_WEBHOOK_ALLOWED_SOURCE_CIDRS', '52.96.0.0/14,13.107.64.0/18'),
+            envField('MSGRAPH_WEBHOOK_PUBLIC_URL', 'https://bot.example.com')
+          ],
+          id: 'msgraph_webhook',
+          name: 'Microsoft Graph Webhook',
+          state: 'connected'
+        })
+      ]
+    })
+
+    await renderMessaging()
+    await openChannel('Microsoft Graph Webhook')
+
+    expect(await screen.findByText('https://bot.example.com/msgraph/webhook')).toBeTruthy()
+    expect(screen.getAllByText(en.messaging.stateListening)).toHaveLength(2)
+    expect(screen.getByText('52.96.0.0/14, 13.107.64.0/18')).toBeTruthy()
+    expect(screen.getByText('communications/onlineMeetings · chats/*/messages')).toBeTruthy()
+
+    // Edit opens the secret and the allowlist; a CIDR without a mask is refused.
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: en.messaging.edit })[0])
+    })
+    fireEvent.change(screen.getByLabelText(s.cidrsLabel), { target: { value: '52.96.0.0' } })
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: en.common.save })[1])
+    })
+    expect(screen.getByText(en.messaging.envErrors.msgraphCidr('52.96.0.0'))).toBeTruthy()
+    expect(updateMessagingPlatform).not.toHaveBeenCalled()
+  })
+
   it('counts the routines that deliver to WhatsApp', async () => {
     getMessagingPlatforms.mockResolvedValue({
       platforms: [whatsappReady({ whatsapp_setup: { allowed_users_set: true, home_channel_set: true, mode: 'bot' } })]

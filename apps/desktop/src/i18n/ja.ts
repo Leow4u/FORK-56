@@ -1483,53 +1483,6 @@ export const ja = defineLocale({
         'self-chat': 'セルフチャット'
       }
     },
-    msgraphQuickSetup: {
-      title: 'クイックセットアップ',
-      recommended: '推奨',
-      intro:
-        'このカードはインバウンド Graph リスナーだけです。Microsoft Graph が変更通知を POST します。Teams チャットボットではありません。clientState シークレットを生成し、トンネル背後でローカルホストにバインドするか、ネットワークバインド用のソース CIDR を追加してから、通知 URL を Graph に登録してください。',
-      replacesExisting: 'Graph webhook はすでに設定済みです。ここで保存するとシークレットとバインドが更新されます。',
-      secretHelp:
-        '共有 clientState シークレット。Graph は各通知でこれをエコーします。openssl rand -hex 32 で生成します。',
-      secretLabel: 'clientState シークレット',
-      secretPlaceholder: '生成をクリックするか、32 バイトの hex シークレットを貼り付け',
-      generateSecret: 'シークレットを生成',
-      copySecret: 'シークレットをコピー',
-      secretWarning:
-        'このシークレットを持つ人は誰でも Graph 通知を偽造できます。パスワードと同じように扱ってください。',
-      secretRequired: '先に clientState を生成してください。無いとリスナーは起動を拒否します。',
-      bindLabel: '誰がリスナーに到達できるか',
-      bindLocalhost: 'このマシンのみ (127.0.0.1)',
-      bindRemote: 'ネットワーク (0.0.0.0) — ソース CIDR 必須',
-      remoteNeedsCidrs: 'ネットワークバインドにはソース CIDR（Microsoft Graph 出力レンジ）が必要です。',
-      notificationTitle: '通知 URL',
-      notificationHint:
-        'この URL を Graph に登録します。トンネルの背後では公開 HTTPS オリジンを設定し、コピーした URL が Graph から到達できるようにしてください。',
-      copyNotificationUrl: '通知 URL をコピー',
-      handshakeHint:
-        'Graph は最初に ?validationToken=… でこのパスを GET し、リスナーがトークンをエコーします。その後変更通知を POST します。このカードに購読 CRUD はありません。',
-      publicUrlLabel: '公開 HTTPS オリジン（任意）',
-      publicUrlPlaceholder: 'https://your-tunnel.example',
-      publicUrlHelp:
-        'Graph は HTTP を拒否します。リバースプロキシまたはトンネルで TLS を終端し、https:// オリジンを貼り付けてください。',
-      resourcesLabel: '受け入れるリソース（任意）',
-      resourcesPlaceholder: 'communications/onlineMeetings, chats/*/messages',
-      resourcesHelp: 'カンマ区切りの Graph リソースパス。空ならリスナーが見るすべてのリソースを受け入れます。',
-      cidrsLabel: 'ソース CIDR',
-      cidrsPlaceholder: '52.96.0.0/14, 13.107.64.0/18',
-      cidrsHelp:
-        'ネットワークバインドに必須。/health も同じ許可リストを使います。ローカル Test は 403 でもプロセスは稼働中です。',
-      networkExposedWarning:
-        'リモートバインドにはソース CIDR が必要です。無いとアダプターは起動を拒否します。先に Microsoft Graph 出力レンジを貼り付けてください。',
-      pipelineTitle: '購読と Teams チャット',
-      pipelineHelp:
-        'Graph 購読は `work4you teams-pipeline subscribe` で作成します。チャット返信は別の Teams ボットカード経由です。Azure テナント / クライアント / シークレットはそちらに残します。このリスナーには置きません。',
-      saved: 'Graph webhook を保存して有効にしました。ゲートウェイを再起動するとリスナーが起動します。',
-      saveFailed: 'Graph webhook の設定を保存できませんでした。',
-      copied: 'クリップボードにコピーしました。',
-      copyFailed: 'クリップボードにコピーできませんでした。',
-      openGuide: 'Graph webhook ガイド'
-    },
     telegramQuickSetup: {
       waiting: 'Telegram での確認を待っています...',
       qrAlt: 'Telegram セットアップ QR コード',

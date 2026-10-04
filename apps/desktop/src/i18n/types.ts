@@ -1518,7 +1518,6 @@ export interface Translations {
     advancedTitle: string
     advancedHint: string
     title: string
-    manualSetup: string
     getCredentials: string
     openSetupGuide: string
     required: string
@@ -1577,44 +1576,6 @@ export interface Translations {
     /** Localized labels for env keys rendered as a segmented picker
      *  (FIELD_OPTIONS), keyed by env key then by option value. */
     envOptions: Record<string, Record<string, string>>
-    msgraphQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      secretHelp: string
-      secretLabel: string
-      secretPlaceholder: string
-      generateSecret: string
-      copySecret: string
-      secretWarning: string
-      secretRequired: string
-      bindLabel: string
-      bindLocalhost: string
-      bindRemote: string
-      remoteNeedsCidrs: string
-      notificationTitle: string
-      notificationHint: string
-      copyNotificationUrl: string
-      handshakeHint: string
-      publicUrlLabel: string
-      publicUrlPlaceholder: string
-      publicUrlHelp: string
-      resourcesLabel: string
-      resourcesPlaceholder: string
-      resourcesHelp: string
-      cidrsLabel: string
-      cidrsPlaceholder: string
-      cidrsHelp: string
-      networkExposedWarning: string
-      pipelineTitle: string
-      pipelineHelp: string
-      saved: string
-      saveFailed: string
-      copied: string
-      copyFailed: string
-      openGuide: string
-    }
     channelSettings: {
       whoOnlyPeople: (count: number) => string
       whoApprove: string
@@ -2195,6 +2156,54 @@ export interface Translations {
       peerTokensHelp: string
       tokenSet: string
       tokenNone: string
+      advancedHint: string
+      activeHint: string
+    }
+    msgraphPage: {
+      stepSecret: string
+      stepReach: string
+      stepResources: string
+      stepReady: string
+      secretTitle: string
+      secretNote: string
+      secretLabel: string
+      secretPlaceholder: string
+      secretKept: string
+      generateSecret: string
+      secretCaution: string
+      secretRequired: string
+      listenerOnly: string
+      reachTitle: string
+      reachNote: string
+      reachLabel: string
+      reachLocal: string
+      reachNetwork: string
+      cidrsLabel: string
+      cidrsHelp: string
+      networkNeedsCidrs: string
+      publicUrlLabel: string
+      publicUrlHelp: string
+      notifyLabel: string
+      copyNotifyUrl: string
+      notifyHelp: string
+      resourcesTitle: string
+      resourcesNote: string
+      resourcesLabel: string
+      readySaving: string
+      readyTitle: string
+      checkListener: (port: string, network: boolean) => string
+      checkListenerPending: string
+      checkRegister: (url: string) => string
+      nextSubscribe: string
+      openGuide: string
+      listenerBlock: string
+      copyUrl: string
+      securityTitle: string
+      secretSet: string
+      secretNone: string
+      cidrsNone: string
+      acceptedTitle: string
+      everyResource: string
       advancedHint: string
       activeHint: string
     }
