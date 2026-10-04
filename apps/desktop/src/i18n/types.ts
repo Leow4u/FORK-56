@@ -1491,6 +1491,7 @@ export interface Translations {
     channelActiveHint: string
     connectionTitle: string
     connectedListening: string
+    stateListening: string
     whoCanTalkTitle: string
     whatsappActiveHint: string
     connectedSince: (when: string) => string
@@ -1576,28 +1577,6 @@ export interface Translations {
     /** Localized labels for env keys rendered as a segmented picker
      *  (FIELD_OPTIONS), keyed by env key then by option value. */
     envOptions: Record<string, Record<string, string>>
-    apiServerQuickSetup: {
-      title: string
-      recommended: string
-      intro: string
-      replacesExisting: string
-      keyHelp: string
-      keyLabel: string
-      keyPlaceholder: string
-      generateKey: string
-      keyWarning: string
-      keyRequired: string
-      connectionTitle: string
-      connectionHint: string
-      copyBaseUrl: string
-      copied: string
-      copyFailed: string
-      modelHint: (model: string) => string
-      networkExposedWarning: string
-      openGuide: string
-      saved: string
-      saveFailed: string
-    }
     webhookRoutesPanel: {
       title: string
       startHere: string
@@ -2130,6 +2109,45 @@ export interface Translations {
       modePubsub: string
       modeHttp: string
       advancedHint: string
+    }
+    apiServerPage: {
+      stepKey: string
+      stepConnect: string
+      stepReady: string
+      keyTitle: string
+      keyNote: string
+      keyLabel: string
+      keyPlaceholder: string
+      keyKept: string
+      generateKey: string
+      keyHelp: string
+      keyCaution: string
+      keyRequired: string
+      connectTitle: string
+      connectNote: string
+      baseUrlLabel: string
+      copyBaseUrl: string
+      modelLabel: string
+      keyFromStep: string
+      openGuide: string
+      networkExposed: string
+      readySaving: string
+      readyTitle: string
+      readySetUp: string
+      checkLive: (url: string) => string
+      checkPending: string
+      checkModel: (model: string) => string
+      tryIt: (model: string) => string
+      endpointTitle: string
+      accessTitle: string
+      replaceKey: string
+      browserApps: string
+      browserAppsNone: string
+      originsLabel: string
+      originsHelp: string
+      openAiCompatible: string
+      advancedHint: string
+      activeHint: string
     }
     telegramQuickSetup: {
       waiting: string

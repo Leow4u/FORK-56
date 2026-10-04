@@ -1483,31 +1483,6 @@ export const ja = defineLocale({
         'self-chat': 'セルフチャット'
       }
     },
-    apiServerQuickSetup: {
-      title: 'クイックセットアップ',
-      recommended: '推奨',
-      intro:
-        'Work4You を OpenAI 互換 API として公開し、Open WebUI・LobeChat・自作のチャットフロントエンドから利用できます。強力なキーを生成して保存し、下の接続情報を相手ツールにコピーしてください。',
-      replacesExisting: 'API サーバーは設定済みです。ここで保存すると保存済みのキーを置き換えます。',
-      keyHelp: '外部ツールが認証に使う API キー（16 文字以上）。',
-      keyLabel: 'API キー',
-      keyPlaceholder: '「キーを生成」をクリックするか、自分のキーを貼り付け',
-      generateKey: 'キーを生成',
-      keyWarning:
-        'このキーを持つ人は誰でもエージェントを実行できます（ターミナルとファイルを含む）。パスワードと同じように扱い、サーバー側の設定にのみ保存し、公開ページには絶対に置かないでください。',
-      keyRequired: 'まず API キーを生成するか貼り付けてください。',
-      connectionTitle: 'ツールを接続',
-      connectionHint: '外部ツールで OpenAI 互換プロバイダーを追加し、このベース URL とキーを入力します。',
-      copyBaseUrl: 'ベース URL をコピー',
-      copied: 'クリップボードにコピーしました。',
-      copyFailed: 'クリップボードにコピーできませんでした。',
-      modelHint: (model: string) => `ツールで選択するモデル名：${model}`,
-      networkExposedWarning:
-        'サーバーはネットワークから到達可能なアドレスにバインドされています。キーを持つネットワーク上の誰でもこのマシンでエージェントコマンドを実行できます。HTTPS 付きリバースプロキシの利用を推奨します。',
-      openGuide: 'Open WebUI ガイド',
-      saved: 'API サーバーを保存して有効にしました。ゲートウェイを再起動すると起動します。',
-      saveFailed: 'API サーバーの設定を保存できませんでした。'
-    },
     webhookRoutesPanel: {
       title: 'Webhook ルート',
       startHere: 'ここから開始',

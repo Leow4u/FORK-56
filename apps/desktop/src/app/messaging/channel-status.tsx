@@ -19,6 +19,10 @@ export function ToneDot({ tone }: { tone: StatusTone }) {
 export const stateLabel = (state: null | string | undefined, m: Translations['messaging']) =>
   state ? m.states[state] || state.replace(/_/g, ' ') : m.unknown
 
+// Channels that wait for other programs to call them (an endpoint, a
+// listener): once up they are listening, not "connected" to anything.
+const LISTENER_CHANNELS = new Set(['a2a', 'api_server', 'msgraph_webhook', 'webhook'])
+
 export function stateTone({ enabled, state }: MessagingPlatformInfo): StatusTone {
   if (!enabled) {
     return 'muted'
@@ -52,6 +56,10 @@ export function detailStatus(
 
   if (!platform.gateway_running && platform.state !== 'startup_failed') {
     return { label: m.gatewayStopped, tone: 'warn' }
+  }
+
+  if (platform.state === 'connected' && LISTENER_CHANNELS.has(platform.id)) {
+    return { label: m.stateListening, tone: 'good' }
   }
 
   return { label: stateLabel(platform.state, m), tone: stateTone(platform) }

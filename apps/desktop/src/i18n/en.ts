@@ -1679,6 +1679,7 @@ export const en: Translations = {
     channelActiveHint: 'Off keeps the setup; the change applies after a gateway restart.',
     connectionTitle: 'Connection',
     connectedListening: 'Connected and receiving messages',
+    stateListening: 'Listening',
     whoCanTalkTitle: 'Who can talk',
     whatsappActiveHint: 'Turning it off stops the bridge after a gateway restart; the link is kept.',
     connectedSince: (when: string) => `since ${when}`,
@@ -1799,31 +1800,6 @@ export const en: Translations = {
         bot: 'Bot',
         'self-chat': 'Self-chat'
       }
-    },
-    apiServerQuickSetup: {
-      title: 'Quick setup',
-      recommended: 'Recommended',
-      intro:
-        'Turn Work4You into an OpenAI-compatible API for tools like Open WebUI, LobeChat, or your own chat frontend. Generate a strong key, save, and copy the connection details below into the other tool.',
-      replacesExisting: 'The API server is already configured. Saving here replaces the stored key.',
-      keyHelp: 'API key the external tool authenticates with (16+ characters).',
-      keyLabel: 'API key',
-      keyPlaceholder: 'Click Generate key, or paste your own',
-      generateKey: 'Generate key',
-      keyWarning:
-        'Anyone with this key can run your agent — terminal and files included. Treat it like a password: keep it in your server-side config, never in a public web page.',
-      keyRequired: 'Generate or paste an API key first.',
-      connectionTitle: 'Connect your tool',
-      connectionHint: 'In the external tool, add an OpenAI-compatible provider with this base URL and your key.',
-      copyBaseUrl: 'Copy base URL',
-      copied: 'Copied to the clipboard.',
-      copyFailed: 'Could not copy to the clipboard.',
-      modelHint: (model: string) => `Model name to select in the tool: ${model}`,
-      networkExposedWarning:
-        'The server is bound to a network-reachable address — anyone on the network with the key can run agent commands on this machine. Prefer a reverse proxy with HTTPS.',
-      openGuide: 'Open WebUI guide',
-      saved: 'API server saved and enabled. Restart the gateway to start it.',
-      saveFailed: 'Could not save the API server settings.'
     },
     webhookRoutesPanel: {
       title: 'Webhook routes',
@@ -2396,6 +2372,48 @@ export const en: Translations = {
       modePubsub: 'Pub/Sub',
       modeHttp: 'HTTP callback',
       advancedHint: 'service account, project, subscription, HTTP callback settings'
+    },
+    apiServerPage: {
+      stepKey: 'Key',
+      stepConnect: 'Connect your tool',
+      stepReady: 'Ready',
+      keyTitle: 'Create the key your tool will use',
+      keyNote: 'Open WebUI, LobeChat or your own app sends it with every request.',
+      keyLabel: 'API key',
+      keyPlaceholder: 'Click Generate key, or paste your own',
+      keyKept: 'Saved — leave empty to keep it',
+      generateKey: 'Generate key',
+      keyHelp: '16 characters or more.',
+      keyCaution:
+        'Anyone with this key can run your agent — terminal and files included. Keep it in server-side config, never in a public web page.',
+      keyRequired: 'Generate or paste an API key first.',
+      connectTitle: 'Connect your tool',
+      connectNote: 'In the other tool, add an OpenAI-compatible provider with these values.',
+      baseUrlLabel: 'Base URL',
+      copyBaseUrl: 'Copy base URL',
+      modelLabel: 'Model name',
+      keyFromStep: 'The key from the previous step.',
+      openGuide: 'Open WebUI guide',
+      networkExposed:
+        'The server is bound to a network-reachable address — anyone on the network with the key can run agent commands on this machine. Prefer a reverse proxy with HTTPS.',
+      readySaving: 'Saving and restarting the gateway…',
+      readyTitle: 'The API server is running.',
+      readySetUp: 'The API server is set up.',
+      checkLive: (url: string) => `API server is live at **${url}** and the key is valid`,
+      checkPending: 'Checking the endpoint…',
+      checkModel: (model: string) => `Model **${model}** on /v1/models`,
+      tryIt: (model: string) => `Try it: pick the **${model}** model in your tool and send a message.`,
+      endpointTitle: 'Endpoint',
+      accessTitle: 'Access',
+      replaceKey: 'Replace',
+      browserApps: 'Browser apps',
+      browserAppsNone: 'none — only server-side tools can call it',
+      originsLabel: 'Allowed browser origins',
+      originsHelp:
+        'Only for browser-side frontends that call the API directly. Separate with commas; server-side tools don’t need this.',
+      openAiCompatible: 'OpenAI-compatible',
+      advancedHint: 'host, port, model name, CORS origins',
+      activeHint: 'Off stops the endpoint after a gateway restart; the key is kept.'
     },
     telegramQuickSetup: {
       waiting: 'Waiting for you to confirm in Telegram…',

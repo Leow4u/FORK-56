@@ -1869,6 +1869,7 @@ export const zh: Translations = {
     channelActiveHint: '关闭后设置仍会保留；更改在网关重启后生效。',
     connectionTitle: '连接',
     connectedListening: '已连接并正在接收消息',
+    stateListening: '正在监听',
     whoCanTalkTitle: '谁可以交谈',
     whatsappActiveHint: '关闭后，网关重启时会停止桥接；关联会保留。',
     connectedSince: (when: string) => `自 ${when}`,
@@ -1983,31 +1984,6 @@ export const zh: Translations = {
         bot: '机器人',
         'self-chat': '自聊'
       }
-    },
-    apiServerQuickSetup: {
-      title: '快速设置',
-      recommended: '推荐',
-      intro:
-        '把 Work4You 变成兼容 OpenAI 的 API，供 Open WebUI、LobeChat 或你自己的聊天前端使用。生成一个强密钥，保存后把下方的连接信息复制到对应工具中。',
-      replacesExisting: 'API 服务器已配置。在此保存会替换已存储的密钥。',
-      keyHelp: '外部工具用来鉴权的 API 密钥（16 个字符以上）。',
-      keyLabel: 'API 密钥',
-      keyPlaceholder: '点击"生成密钥"，或粘贴你自己的',
-      generateKey: '生成密钥',
-      keyWarning:
-        '持有此密钥的任何人都能运行你的智能体——包括终端和文件。请像密码一样对待它：只放在服务器端配置中，绝不要放进公开网页。',
-      keyRequired: '请先生成或粘贴一个 API 密钥。',
-      connectionTitle: '连接你的工具',
-      connectionHint: '在外部工具中添加一个兼容 OpenAI 的提供商，填入此基础 URL 和你的密钥。',
-      copyBaseUrl: '复制基础 URL',
-      copied: '已复制到剪贴板。',
-      copyFailed: '无法复制到剪贴板。',
-      modelHint: (model: string) => `在工具中选择的模型名称：${model}`,
-      networkExposedWarning:
-        '服务器绑定在可从网络访问的地址上——网络上持有密钥的任何人都能在这台机器上运行智能体命令。建议使用带 HTTPS 的反向代理。',
-      openGuide: 'Open WebUI 指南',
-      saved: 'API 服务器已保存并启用。重启网关即可启动。',
-      saveFailed: '无法保存 API 服务器设置。'
     },
     webhookRoutesPanel: {
       title: 'Webhook 路由',
@@ -2555,6 +2531,47 @@ export const zh: Translations = {
       modePubsub: 'Pub/Sub',
       modeHttp: 'HTTP 回调',
       advancedHint: '服务账号、项目、订阅、HTTP 回调设置'
+    },
+    apiServerPage: {
+      stepKey: '密钥',
+      stepConnect: '连接你的工具',
+      stepReady: '就绪',
+      keyTitle: '创建你的工具要使用的密钥',
+      keyNote: 'Open WebUI、LobeChat 或你自己的应用会在每次请求时发送它。',
+      keyLabel: 'API 密钥',
+      keyPlaceholder: '点击“生成密钥”，或粘贴你自己的密钥',
+      keyKept: '已保存 — 留空则保留',
+      generateKey: '生成密钥',
+      keyHelp: '16 个字符或更多。',
+      keyCaution:
+        '拥有此密钥的任何人都可以运行你的智能体，包括终端和文件。请把它放在服务器端配置中，切勿放在公开网页里。',
+      keyRequired: '请先生成或粘贴一个 API 密钥。',
+      connectTitle: '连接你的工具',
+      connectNote: '在另一个工具中，用这些值添加一个兼容 OpenAI 的提供方。',
+      baseUrlLabel: 'Base URL',
+      copyBaseUrl: '复制 Base URL',
+      modelLabel: '模型名称',
+      keyFromStep: '上一步中的密钥。',
+      openGuide: 'Open WebUI 指南',
+      networkExposed:
+        '服务器绑定在网络可访问的地址上 — 网络中任何持有密钥的人都可以在这台机器上运行智能体命令。建议使用带 HTTPS 的反向代理。',
+      readySaving: '正在保存并重启网关……',
+      readyTitle: 'API 服务器正在运行。',
+      readySetUp: 'API 服务器已设置好。',
+      checkLive: (url: string) => `API 服务器已在 **${url}** 上线，密钥有效`,
+      checkPending: '正在检查端点……',
+      checkModel: (model: string) => `/v1/models 上的模型 **${model}**`,
+      tryIt: (model: string) => `试一试：在你的工具中选择 **${model}** 模型并发送一条消息。`,
+      endpointTitle: '端点',
+      accessTitle: '访问',
+      replaceKey: '替换',
+      browserApps: '浏览器应用',
+      browserAppsNone: '无 — 只有服务器端工具可以调用它',
+      originsLabel: '允许的浏览器来源',
+      originsHelp: '仅用于直接调用 API 的浏览器端前端。用逗号分隔；服务器端工具不需要。',
+      openAiCompatible: '兼容 OpenAI',
+      advancedHint: '主机、端口、模型名称、CORS 来源',
+      activeHint: '关闭后，网关重启时会停止端点；密钥会保留。'
     },
     telegramQuickSetup: {
       waiting: '等待你在 Telegram 中确认…',
