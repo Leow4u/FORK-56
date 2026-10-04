@@ -177,6 +177,24 @@ function teamsReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatfo
   })
 }
 
+/** WhatsApp Cloud API on and connected behind a tunnel, with two numbers. */
+function whatsappCloudReady(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
+  return platform({
+    configured: true,
+    enabled: true,
+    env_vars: [
+      envField('WHATSAPP_CLOUD_PHONE_NUMBER_ID', '109876543210987', { required: true }),
+      envField('WHATSAPP_CLOUD_ACCESS_TOKEN', 'secret', { is_password: true, required: true, value: null }),
+      envField('WHATSAPP_CLOUD_ALLOWED_USERS', '5511999993977,5511988880000'),
+      envField('WHATSAPP_CLOUD_PUBLIC_URL', 'https://bot.example.com')
+    ],
+    id: 'whatsapp_cloud',
+    name: 'WhatsApp Cloud API',
+    state: 'connected',
+    ...patch
+  })
+}
+
 function platform(patch: Partial<MessagingPlatformInfo> = {}): MessagingPlatformInfo {
   return {
     configured: false,
@@ -1196,6 +1214,42 @@ describe('MessagingView channel page', () => {
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith('teams', { clear_env: ['TEAMS_ALLOWED_USERS'] })
     )
+  })
+
+  it('walks the WhatsApp Cloud API through its first connection step by step', async () => {
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [platform({ id: 'whatsapp_cloud', name: 'WhatsApp Cloud API' })]
+    })
+
+    await renderMessaging()
+    await openChannel('WhatsApp Cloud API')
+
+    expect(await screen.findByText(en.messaging.whatsappCloudPage.whoTitle)).toBeTruthy()
+    expect(screen.queryByText('Manual setup')).toBeNull()
+  })
+
+  it('shows the WhatsApp Cloud API as settings with the callback and the numbers', async () => {
+    getMessagingPlatforms.mockResolvedValue({ platforms: [whatsappCloudReady()] })
+    getCronJobs.mockResolvedValue([{ deliver: 'whatsapp_cloud', enabled: true, id: 'a' }])
+
+    const { unmount } = await renderMessaging()
+    await openChannel('WhatsApp Cloud API')
+
+    expect(await screen.findByText(en.messaging.connectedListening)).toBeTruthy()
+    expect(
+      screen.getByText(en.messaging.whatsappCloudPage.callbackLine('https://bot.example.com/whatsapp/webhook'))
+    ).toBeTruthy()
+    expect(screen.getByText(en.messaging.whatsappCloudPage.whoOnlyNumbers(2))).toBeTruthy()
+    // Routines cannot deliver to this channel yet, so none is counted.
+    expect(screen.queryByText(en.messaging.botRoutines(1))).toBeNull()
+    unmount()
+
+    getMessagingPlatforms.mockResolvedValue({
+      platforms: [whatsappCloudReady({ env_vars: [envField('WHATSAPP_CLOUD_ALLOWED_USERS', '')] })]
+    })
+    await renderMessaging()
+    await openChannel('WhatsApp Cloud API')
+    expect(await screen.findByText(en.messaging.whatsappCloudPage.whoNone)).toBeTruthy()
   })
 
   it('counts the routines that deliver to WhatsApp', async () => {

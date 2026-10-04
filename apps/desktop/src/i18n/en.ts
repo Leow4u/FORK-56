@@ -2024,70 +2024,6 @@ export const en: Translations = {
       copyFailed: 'Could not copy to the clipboard.',
       openGuide: 'Graph webhook guide'
     },
-    whatsappCloudQuickSetup: {
-      title: 'Quick setup',
-      recommended: 'Recommended',
-      intro:
-        "Meta's official WhatsApp Business API — a business number people message, with no phone or QR code to keep online. Paste three values from the Meta developer dashboard, generate a verify token, then copy the callback URL below into Meta's webhook settings. Meta calls your machine from the internet, so a local install needs a tunnel first.",
-      replacesExisting:
-        'WhatsApp Cloud API is already configured. Saving here replaces the stored Meta credentials and bind.',
-      credentialsHelp:
-        'From the Meta developer dashboard (WhatsApp → API Setup and App settings → Basic). `work4you whatsapp-cloud` asks for the same three values.',
-      phoneNumberIdLabel: 'Phone number ID',
-      phoneNumberIdPlaceholder: '123456789012345',
-      phoneNumberIdHelp:
-        'The 15-17 digit id under the From dropdown in API Setup — not the phone number itself and not the WhatsApp Business Account ID.',
-      accessTokenLabel: 'Access token',
-      accessTokenPlaceholder: 'EAA…',
-      accessTokenHelp:
-        'Starts with EAA. The token in API Setup expires after 24 hours; create a System User with whatsapp_business_messaging permission and generate a permanent token instead.',
-      appSecretLabel: 'App secret',
-      appSecretPlaceholder: '32 hexadecimal characters',
-      appSecretHelp:
-        'App settings → Basic → App secret (click Show). Signs every webhook Meta sends — without it inbound messages are refused.',
-      secretKeepPlaceholder: 'Saved — leave empty to keep it',
-      openMeta: 'Meta developer dashboard',
-      verifyTokenLabel: 'Webhook verify token',
-      verifyTokenPlaceholder: 'Any random string of 16+ characters',
-      verifyTokenHelp:
-        "A shared secret you invent. Meta sends it back during the webhook handshake, so paste the same value into Meta's Verify token field.",
-      verifyTokenSavedHint: 'A verify token is already saved. Generate a new one only if you also update it in Meta.',
-      generateVerifyToken: 'Generate token',
-      copyVerifyToken: 'Copy token',
-      phoneNumberIdRequired: 'Enter the Phone number ID first — the adapter refuses to start without it.',
-      accessTokenRequired: 'Enter the access token first — the adapter refuses to start without it.',
-      appSecretRequired: 'Enter the App secret first — every inbound message is refused without it.',
-      verifyTokenRequired: "Generate or enter a verify token first — Meta's webhook handshake fails without it.",
-      bindLabel: 'Who can reach the webhook listener',
-      bindLocalhost: 'This machine only (127.0.0.1)',
-      bindRemote: 'Network (0.0.0.0)',
-      bindHelp:
-        'Localhost is the right answer behind a tunnel or reverse proxy. Pick network only when Meta traffic arrives straight at this machine.',
-      callbackTitle: 'Webhook callback URL',
-      callbackHint:
-        'Paste this in Meta (WhatsApp → Configuration → Webhook → Edit), together with the verify token, then subscribe to the messages field. Work4You listens on the /whatsapp/webhook path.',
-      copyCallback: 'Copy callback URL',
-      publicUrlLabel: 'Public HTTPS origin',
-      publicUrlPlaceholder: 'https://your-tunnel.example',
-      publicUrlHelp:
-        'Meta refuses a plain-HTTP callback. Terminate TLS at a tunnel or reverse proxy, then paste the https:// origin — the callback URL above updates to match.',
-      tunnelWarning:
-        'Without a public origin the callback points at localhost, which Meta cannot reach: the webhook fails to verify and no message ever arrives. Start a tunnel (cloudflared, ngrok) and paste its https:// origin.',
-      allowedUsersLabel: 'Allowed WhatsApp numbers',
-      allowedUsersPlaceholder: '15551234567, 447700900123',
-      allowedUsersHelp:
-        'Comma-separated numbers with country code and no +. Only these senders reach the agent; everyone else is ignored.',
-      openWarning:
-        'With no allowlist, anyone who messages your business number can drive your agent. Add at least your own number.',
-      afterSaveTitle: 'After saving',
-      afterSaveHelp:
-        "Restart the gateway, then click Verify and save in Meta's webhook dialog. Use Test connection on this card to check the token against Meta and confirm the listener is up.",
-      saved: 'WhatsApp Cloud API saved and enabled. Restart the gateway to start the webhook listener.',
-      saveFailed: 'Could not save the WhatsApp Cloud API settings.',
-      copied: 'Copied to the clipboard.',
-      copyFailed: 'Could not copy to the clipboard.',
-      openGuide: 'WhatsApp Cloud API guide'
-    },
     smsQuickSetup: {
       title: 'Quick setup',
       recommended: 'Recommended',
@@ -2325,6 +2261,68 @@ export const en: Translations = {
       endpointLine: (url: string) => `Endpoint ${url}`,
       graphNote: 'Meeting transcripts and other Graph notifications arrive on the Microsoft Graph Webhook channel.',
       advancedHint: 'Azure IDs and secret, host, port, raw settings'
+    },
+    whatsappCloudPage: {
+      stepWho: 'Who',
+      stepMeta: 'Meta app',
+      stepWebhook: 'Webhook',
+      stepTalk: 'Who can talk',
+      stepReady: 'Ready',
+      whoTitle: 'Who will message this business number?',
+      whoNote: 'You can change this later.',
+      meTitle: 'Just me, for testing',
+      meDesc: 'Only your own number gets a reply. Everyone else is ignored.',
+      othersTitle: 'Clients and team',
+      othersDesc: 'People message your business number. You choose who on a later step.',
+      metaTitle: 'Paste the three values from Meta',
+      metaNote: 'From the Meta developer dashboard: WhatsApp › API Setup, and App settings › Basic.',
+      phoneIdLabel: 'Phone number ID',
+      phoneIdHelp: 'The 15–17 digit ID under the From dropdown in API Setup — not the phone number.',
+      tokenLabel: 'Access token',
+      tokenHelp: 'Use a System User permanent token. The API Setup token expires after 24 hours.',
+      secretLabel: 'App secret',
+      secretHelp:
+        'App settings › Basic › App secret. It signs every webhook — without it inbound messages are refused.',
+      savedKeep: 'Saved — leave empty to keep it',
+      openDashboard: 'Meta developer dashboard',
+      webhookTitle: 'Let Meta reach the webhook',
+      webhookNote: 'Meta calls this machine from the internet, so a local install needs a tunnel first.',
+      verifyLabel: 'Verify token',
+      verifyHelp: 'A shared secret you paste in Meta’s webhook dialog together with the callback URL.',
+      generate: 'Generate token',
+      bindLabel: 'Who can reach the webhook listener',
+      bindLocal: 'This machine only (127.0.0.1)',
+      bindNetwork: 'Network (0.0.0.0)',
+      publicUrlLabel: 'Public HTTPS origin',
+      publicUrlHelp: 'The https:// address of your tunnel or proxy. Meta refuses plain HTTP.',
+      tunnelWarning:
+        'The https:// address of your tunnel or proxy. Without it the callback points at this machine, which Meta cannot reach.',
+      callbackLabel: 'Callback URL',
+      copyCallback: 'Copy callback URL',
+      callbackHelp:
+        'In Meta: **WhatsApp** › **Configuration** › **Webhook** › **Edit** — paste the URL and the verify token, then subscribe to **messages**.',
+      talkTitle: 'Who can talk to the bot?',
+      talkNote: (choice: string) => `You chose **${choice}**. Only the people you allow get a reply.`,
+      meNumberTitle: 'Your WhatsApp number',
+      meNumberNote: 'Only this number gets a reply. Everyone else is ignored.',
+      meNumberLabel: 'WhatsApp number',
+      listTitle: 'Only these numbers',
+      listDesc: 'Country code first, no +. Separate with commas.',
+      listHint:
+        'Everyone else is ignored — the Cloud API sends no approval codes, so a number has to be on this list to get a reply.',
+      numbersRequired: 'Add at least one number.',
+      readySaving: 'Saving and restarting the gateway…',
+      readySetUp: 'WhatsApp Cloud API is set up.',
+      checkMeta: (number: string, name: string) => `Meta confirmed **${number}**${name ? ` · ${name}` : ''}`,
+      checkMetaGeneric: 'Meta confirmed the access token and Phone number ID',
+      checkMetaPending: 'Checking with Meta…',
+      whoMe: 'Only your number can talk to the bot',
+      whoList: (count: number) => `${count} ${count === 1 ? 'number' : 'numbers'} can talk to the bot`,
+      tryIt: 'Last step in Meta: click **Verify and save** in the webhook dialog. Then message the business number.',
+      whoOnlyNumbers: (count: number) => `Only these numbers · ${count} ${count === 1 ? 'number' : 'numbers'}`,
+      whoNone: 'Nobody yet · the Cloud API answers only the numbers on the list',
+      callbackLine: (url: string) => `Callback ${url}`,
+      advancedHint: 'Meta IDs, verify token, webhook host, port, path, API version'
     },
     telegramQuickSetup: {
       waiting: 'Waiting for you to confirm in Telegram…',
