@@ -2,8 +2,9 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { __resetBackendSkinSync, ingestBackendSkin } from './backend-sync'
-import { skinPref, ThemeProvider, useTheme } from './context'
-import { midnightTheme, work4youOliveTheme, work4youTheme } from './presets'
+import { contrastRatio } from './color'
+import { getBaseColors, skinPref, ThemeProvider, useTheme } from './context'
+import { BUILTIN_THEME_LIST, midnightTheme, work4youOliveTheme, work4youTheme } from './presets'
 import { chatSelectionBackground, composerSelectionBackground } from './text-selection'
 
 // The live-authoring loop: Work4You writes/edits one skin file and every surface
@@ -176,5 +177,26 @@ describe('ThemeProvider highlight preview', () => {
     expect(cssVar('--theme-foreground')).toBe(work4youOliveTheme.darkColors?.foreground)
     expect(ctx.themeName).toBe(committed)
     expect(skinPref.resolve('default')).toBe(committed)
+  })
+
+  it('paints a keyboard focus ring that reads on every built-in skin, light and dark', () => {
+    renderProbe()
+
+    for (const theme of BUILTIN_THEME_LIST) {
+      for (const mode of ['light', 'dark'] as const) {
+        act(() => ctx.previewTheme(theme.name, mode))
+
+        const colors = getBaseColors(theme.name, mode)
+        const focusRing = cssVar('--dt-focus-ring')
+
+        expect(contrastRatio(focusRing, colors.background)).toBeGreaterThanOrEqual(3)
+        expect(contrastRatio(focusRing, colors.card)).toBeGreaterThanOrEqual(3)
+
+        // A ring that already reads is the theme's own color, untouched.
+        if (contrastRatio(colors.ring, colors.background) >= 3 && contrastRatio(colors.ring, colors.card) >= 3) {
+          expect(focusRing).toBe(colors.ring)
+        }
+      }
+    }
   })
 })

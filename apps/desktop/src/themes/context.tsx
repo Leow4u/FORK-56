@@ -18,7 +18,7 @@ import { persistString, persistStringRecord, storedString, storedStringRecord } 
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 
 import { $backendThemes, $pendingSkinApply } from './backend-sync'
-import { hexToRgb, mix, readableOn } from './color'
+import { ensureContrast, hexToRgb, mix, readableOn } from './color'
 import { BUILTIN_THEME_LIST, DEFAULT_SKIN_NAME, DEFAULT_TYPOGRAPHY, work4youTheme } from './presets'
 import { chatSelectionBackground, composerSelectionBackground } from './text-selection'
 import type { DesktopTheme, DesktopThemeColors } from './types'
@@ -225,6 +225,10 @@ function applyTheme(theme: DesktopTheme, mode: 'light' | 'dark') {
     '--dt-border': c.border,
     '--dt-input': c.input,
     '--dt-ring': c.ring,
+    // The keyboard focus outline: the theme's own ring, nudged darker / lighter
+    // only where it would vanish on the page (a neon accent on a synthesised
+    // light variant). 3:1 is the WCAG floor for a focus indicator.
+    '--dt-focus-ring': ensureContrast(ensureContrast(c.ring, c.background, 3), c.card, 3),
     '--dt-muted': c.muted,
     '--dt-midground-foreground': c.midgroundForeground ?? readableOn(midground),
     '--dt-composer-ring': c.composerRing ?? midground,

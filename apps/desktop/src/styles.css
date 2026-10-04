@@ -419,6 +419,9 @@
        over a dark gutter shows less. */
     --ui-tab-hover-darken: 2.5%;
     --dt-ring: var(--ui-stroke-primary);
+    /* Keyboard focus outline. applyTheme sets it to the theme's ring, nudged
+       to ≥ 3:1 only where that ring would vanish on the page. */
+    --dt-focus-ring: var(--dt-ring);
     --dt-midground: var(--theme-midground);
     --dt-composer-ring: var(--ui-base);
     --dt-destructive: #cf2d56;
@@ -1170,11 +1173,12 @@
   }
 }
 
-/* No focus rings, anywhere. Kills the native outline plus Tailwind's
-   `focus-visible:ring-*` (a box-shadow driven by --tw-ring-*). Unlayered so it
-   beats the utilities layer without !important on the outline. The composer /
-   .desktop-input-chrome focus glow is untouched — those set `box-shadow`
-   directly rather than through the ring vars. */
+/* Focus rings: keyboard only. A mouse click never draws one (Chromium doesn't
+   match :focus-visible on a clicked button), so the pointer look stays
+   ring-free; Tab does, so keyboard users can always see where they are.
+   Native outlines and Tailwind's `focus-visible:ring-*` (a box-shadow driven by
+   --tw-ring-*) stay off, so this one outline is the only ring. Unlayered so it
+   beats the utilities layer without !important on the outline. */
 *:focus,
 *:focus-visible {
   outline: none;
@@ -1183,6 +1187,47 @@
 *:focus-visible {
   --tw-ring-shadow: 0 0 #0000 !important;
   --tw-ring-offset-shadow: 0 0 #0000 !important;
+}
+
+/* Left out, because they already show focus their own way:
+   - text fields and the composer: they match :focus-visible on every click,
+     and their focus border (.desktop-input-chrome, the composer glow) is the cue;
+   - menu and select items: the highlighted row is the cue;
+   - script-focused containers (tabindex=-1: dialogs, menus, panes) and guest
+     pages (webview / iframe draw their own focus). */
+:focus-visible:not(
+  input:not(
+    [type='checkbox'],
+    [type='radio'],
+    [type='range'],
+    [type='button'],
+    [type='submit'],
+    [type='reset'],
+    [type='color'],
+    [type='file']
+  ),
+  textarea,
+  select,
+  [contenteditable]:not([contenteditable='false']),
+  .desktop-input-chrome,
+  [role='menuitem'],
+  [role='menuitemcheckbox'],
+  [role='menuitemradio'],
+  [data-slot='select-item'],
+  [tabindex='-1'],
+  webview,
+  iframe
+) {
+  outline: 2px solid var(--dt-focus-ring);
+  outline-offset: var(--focus-ring-offset, 2px);
+}
+
+/* Lists whose rows run edge to edge inside a clipping container (the sidebars,
+   the status stack above the composer) take the ring inset, or the container's
+   overflow would cut it in half. Set the variable on the container. */
+[data-slot='sidebar'],
+[data-slot='composer-status-stack'] {
+  --focus-ring-offset: -2px;
 }
 
 button {

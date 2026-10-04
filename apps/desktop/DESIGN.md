@@ -97,6 +97,7 @@ for call-site shadow or border inventions.
 | `--ui-bg-quaternary` | soft control fill (secondary button) |
 | `--ui-widget-surface-background` | fill for inline chat widgets (`WIDGET_SHELL_CLASS`) |
 | `--chrome-action-hover` | hover fill for quiet controls |
+| `--dt-focus-ring` | the keyboard focus outline: the theme's ring, nudged to ≥ 3:1 only where it would vanish |
 | `--theme-primary`, `--ui-accent` | brand/accent |
 
 Never hardcode `border-gray-*`, `bg-white`, `text-black`, etc. `BrandMark` uses
@@ -363,7 +364,15 @@ The detailed state contract lives in the scoped
 
 - `cursor-pointer` at the primitive level (Button, dropdown/select) — don't
   hardcode it per call site.
-- Global focus-ring reset; titlebar actions have no active-background state.
+- One focus ring, keyboard only: a 2px `--dt-focus-ring` outline on
+  `:focus-visible`, set globally in `styles.css`. A mouse click never draws it.
+  Don't add per-component `focus-visible:ring-*` or outline styles; they are
+  switched off so no control draws a second ring. Text fields, menu and select
+  items, and `tabindex=-1` containers are left out because they show focus
+  their own way. A list whose rows run edge to edge inside a clipping container
+  sets `--focus-ring-offset: -2px` on the container, so the ring sits inset
+  instead of being cut off.
+- Titlebar actions have no active-background state.
 - `Esc` closes every dismissable overlay/dialog (install/onboarding excluded);
   close is an x-icon, not the word "Close".
 
