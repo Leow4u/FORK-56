@@ -1820,32 +1820,13 @@ export const zhHant = defineLocale({
       saveFailed: '儲存 Slack 設定失敗'
     },
     telegramQuickSetup: {
-      title: '快速設定',
-      recommended: '建議',
-      intro:
-        '掃描 QR Code 並在 Telegram 中確認——Work4You 會自動建立機器人並偵測你的 Telegram 使用者 ID。想用自己的機器人？請改用下方的憑證欄位。',
-      createWithQr: '透過 QR Code 建立',
-      starting: '啟動中…',
       waiting: '等待你在 Telegram 中確認…',
       qrAlt: 'Telegram 設定 QR Code',
       openTelegram: '開啟 Telegram',
       expiresIn: (value: string) => `將於 ${value} 後過期`,
       expired: '已過期',
       sessionExpired: 'Telegram 配對已過期。請重新開始 QR Code 設定。',
-      startFailed: 'Telegram QR Code 設定啟動失敗',
-      ready: '就緒',
-      allowedUsers: '允許的使用者',
-      ownerDetected: '已偵測到擁有者',
-      addAtLeastOne: '請至少新增一個 Telegram 使用者 ID。',
-      userIdPlaceholder: 'Telegram 使用者 ID',
-      userIdMustBeNumeric: '允許的 Telegram 使用者 ID 必須是數字。',
-      add: '新增',
-      removeUserAria: (id: string) => `移除 ${id}`,
-      saveAndRestart: '儲存並重新啟動',
-      replacesExisting: 'Telegram 憑證已設定——儲存新的 QR Code 設定會取代目前的機器人。',
-      saved: 'Telegram 已儲存；閘道正在重新啟動…',
-      savedRestartFailed: (detail: string) => `Telegram 已儲存；閘道重新啟動失敗${detail}`,
-      restartFailedExit: (code: number) => `閘道重新啟動失敗（結束碼 ${code}）——請手動重新啟動`
+      startFailed: 'Telegram QR Code 設定啟動失敗'
     },
     whatsappQuickSetup: {
       allowedUsersPlaceholder: '15551234567,15557654321',

@@ -6,18 +6,14 @@ import { useNavigate, useParams } from 'react-router'
 import { PageLoader } from '@/components/page-loader'
 import { type StatusTone } from '@/components/status-dot'
 import { Button } from '@/components/ui/button'
-import { Codicon } from '@/components/ui/codicon'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DisclosureCaret } from '@/components/ui/disclosure-caret'
 import { ErrorBanner } from '@/components/ui/error-state'
-import { Field, FieldHint } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { SearchField } from '@/components/ui/search-field'
 import { Switch } from '@/components/ui/switch'
-import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { openExternalLink } from '@/lib/external-link'
-import { ChevronLeft, ExternalLink, RefreshCw, Save, Trash2 } from '@/lib/icons'
+import { ChevronLeft, ExternalLink, RefreshCw, Save } from '@/lib/icons'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import { $changeEventsAvailable, $pairingChangeTick, $platformsChangeTick } from '@/store/live-sync'
@@ -26,10 +22,8 @@ import { $settingsRequestProfile } from '@/store/settings-scope'
 import { $gatewayRestarting, runGatewayRestart } from '@/store/system-actions'
 import {
   approvePairing,
-  getCronJobs,
   getMessagingPlatforms,
   getPairing,
-  type MessagingEnvVarInfo,
   type MessagingPlatformInfo,
   type PairingUser,
   revokePairing,
@@ -41,8 +35,7 @@ import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { LIBRARY_PAGE_MAX_W, PAGE_HEADER_TOP, PAGE_INSET_X } from '../layout-constants'
 import { PanelEmpty } from '../overlays/panel'
 import { PageTitle } from '../page-title'
-import { CRON_ROUTE, MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
-import { CREDENTIAL_CONTROL_CLASS } from '../settings/credential-key-ui'
+import { MESSAGING_ROUTE, messagingPlatformPath, WEBHOOKS_ROUTE } from '../routes'
 import { ListRow } from '../settings/primitives'
 import { SettingsProfileScope } from '../settings/profile-scope'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
@@ -52,7 +45,10 @@ import type { CapabilitiesView } from '../skills/store'
 import { A2AQuickSetup } from './a2a-quick-setup'
 import { ApiServerQuickSetup } from './api-server-quick-setup'
 import { ChannelCard } from './channel-card'
+import { fieldCopy, MessagingFields, pairingKey, pairingLabel } from './channel-fields'
 import { type ChannelKind, channelKind, channelKindLabel, integrationRank } from './channel-kinds'
+import { type PlatformDetailProps } from './channel-settings'
+import { detailStatus, stateLabel, stateTone, ToneDot } from './channel-status'
 import { type ChannelsConnectedRow, ChannelsConnectedTable } from './channels-connected-table'
 import { DiscordQuickSetup } from './discord-quick-setup'
 import { EmailQuickSetup } from './email-quick-setup'
@@ -63,11 +59,11 @@ import { SlackQuickSetup } from './slack-quick-setup'
 import { SmsQuickSetup } from './sms-quick-setup'
 import { $channelsCategory, $channelsView, readChannelsSnapshot, writeChannelsSnapshot } from './store'
 import { TeamsQuickSetup } from './teams-quick-setup'
-import { TelegramQuickSetup } from './telegram-quick-setup'
-import { findInvalidWhatsAppUser, type MessagingEnvError, validateMessagingEnv } from './validate-env'
+import { TelegramDetail } from './telegram-detail'
+import { type MessagingEnvError, validateMessagingEnv } from './validate-env'
 import { WebhookRoutesPanel } from './webhook-routes-panel'
 import { WhatsAppCloudQuickSetup } from './whatsapp-cloud-quick-setup'
-import { ChoiceList, WhatsAppConnectSteps } from './whatsapp-connect-steps'
+import { WhatsAppDetail } from './whatsapp-detail'
 
 interface MessagingViewProps extends React.ComponentProps<'section'> {
   setStatusbarItemGroup?: SetStatusbarItemGroup
@@ -89,65 +85,10 @@ const QUICK_SETUP_PLATFORMS = new Set([
   'slack',
   'sms',
   'teams',
-  'telegram',
   'webhook',
   'whatsapp',
   'whatsapp_cloud'
 ])
-
-// Status color of a dot: the app's success green, amber for "needs a
-// restart / setup", red for failures, quiet gray for off.
-const DOT_TONE: Record<StatusTone, string> = {
-  bad: 'bg-destructive',
-  good: 'bg-emerald-500',
-  muted: 'bg-(--ui-text-quaternary)',
-  warn: 'bg-amber-500'
-}
-
-function ToneDot({ tone }: { tone: StatusTone }) {
-  return <span aria-hidden className={cn('inline-block size-[7px] shrink-0 rounded-full', DOT_TONE[tone])} />
-}
-
-const stateLabel = (state: null | string | undefined, m: Translations['messaging']) =>
-  state ? m.states[state] || state.replace(/_/g, ' ') : m.unknown
-
-function stateTone({ enabled, state }: MessagingPlatformInfo): StatusTone {
-  if (!enabled) {
-    return 'muted'
-  }
-
-  if (state === 'connected') {
-    return 'good'
-  }
-
-  if (state === 'fatal' || state === 'startup_failed') {
-    return 'bad'
-  }
-
-  return 'warn'
-}
-
-/** The one status the channel's page shows. Off wins over everything (a
- *  stale "connected" from the last run must not outrank it), then what keeps
- *  the channel from connecting, then the runtime's own state. */
-function detailStatus(
-  platform: MessagingPlatformInfo,
-  m: Translations['messaging']
-): { label: string; tone: StatusTone } {
-  if (!platform.enabled) {
-    return { label: m.notConnected, tone: 'muted' }
-  }
-
-  if (!platform.configured) {
-    return { label: m.needsSetup, tone: 'warn' }
-  }
-
-  if (!platform.gateway_running && platform.state !== 'startup_failed') {
-    return { label: m.gatewayStopped, tone: 'warn' }
-  }
-
-  return { label: stateLabel(platform.state, m), tone: stateTone(platform) }
-}
 
 const trimEdits = (edits: Record<string, string>): Record<string, string> =>
   Object.fromEntries(
@@ -265,11 +206,6 @@ const envErrorMessage = (error: MessagingEnvError, m: Translations['messaging'])
   }
 }
 
-/** Stable row identity: a user id is only unique within its platform. */
-const pairingKey = (user: PairingUser) => `${user.platform}:${user.user_id}`
-
-const pairingLabel = (user: PairingUser) => user.user_name || user.user_id
-
 /** Group pairing rows by platform id so a detail pane can slice its own. */
 function byPlatform(rows: PairingUser[]): Record<string, PairingUser[]> {
   const grouped: Record<string, PairingUser[]> = {}
@@ -279,46 +215,6 @@ function byPlatform(rows: PairingUser[]): Record<string, PairingUser[]> {
   }
 
   return grouped
-}
-
-/** Env keys with a small closed set of valid values render as a segmented
- *  picker instead of a free-text input — nobody should have to guess that
- *  "self-chat" or "pairing" are the magic words. */
-const FIELD_OPTIONS: Record<string, string[]> = {
-  WHATSAPP_DM_POLICY: ['pairing', 'allowlist', 'open', 'disabled'],
-  WHATSAPP_MODE: ['bot', 'self-chat']
-}
-
-const FIELD_COPY: Record<string, { advanced?: boolean }> = {
-  TELEGRAM_PROXY: { advanced: true },
-  DISCORD_REPLY_TO_MODE: { advanced: true },
-  DISCORD_ALLOW_ALL_USERS: { advanced: true },
-  DISCORD_HOME_CHANNEL: { advanced: true },
-  DISCORD_HOME_CHANNEL_NAME: { advanced: true },
-  BLUEBUBBLES_ALLOW_ALL_USERS: { advanced: true },
-  MATTERMOST_ALLOW_ALL_USERS: { advanced: true },
-  MATTERMOST_HOME_CHANNEL: { advanced: true },
-  QQ_ALLOW_ALL_USERS: { advanced: true },
-  QQBOT_HOME_CHANNEL: { advanced: true },
-  QQBOT_HOME_CHANNEL_NAME: { advanced: true },
-  // Quick setup writes the bind from its "who can reach the bot" choice, so
-  // the raw host/port only matter when a port is already taken.
-  TEAMS_HOST: { advanced: true },
-  TEAMS_PORT: { advanced: true },
-  WHATSAPP_ENABLED: { advanced: true },
-  WHATSAPP_MODE: { advanced: true }
-}
-
-function fieldCopy(field: MessagingEnvVarInfo, m: Translations['messaging']) {
-  const copy = FIELD_COPY[field.key] || {}
-  const localized = m.fieldCopy[field.key] || {}
-
-  return {
-    label: localized.label || field.prompt || field.key,
-    help: localized.help || field.description,
-    placeholder: localized.placeholder || field.prompt,
-    advanced: Boolean(copy.advanced || field.advanced)
-  }
 }
 
 export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, ...props }: MessagingViewProps) {
@@ -942,26 +838,6 @@ export function MessagingView({ setStatusbarItemGroup: _setStatusbarItemGroup, .
   )
 }
 
-interface PlatformDetailProps {
-  approved: PairingUser[]
-  approving: null | string
-  edits: Record<string, string>
-  fieldErrors: Record<string, string>
-  hasEdits: boolean
-  onApprove: (user: PairingUser) => void
-  onClear: (key: string) => void
-  onEdit: (key: string, value: string) => void
-  onQuickSetupApplied: () => void
-  onRevoke: (user: PairingUser) => void
-  onSave: () => void
-  onTest: () => void
-  onToggle: (enabled: boolean) => void
-  pending: PairingUser[]
-  platform: MessagingPlatformInfo
-  saving: string | null
-  scopeProfile: null | string
-}
-
 function PlatformDetail(props: PlatformDetailProps) {
   const {
     approved,
@@ -993,6 +869,10 @@ function PlatformDetail(props: PlatformDetailProps) {
     return <WhatsAppDetail {...props} />
   }
 
+  if (platform.id === 'telegram') {
+    return <TelegramDetail {...props} />
+  }
+
   const quickSetup = QUICK_SETUP_PLATFORMS.has(platform.id)
 
   const requiredFields = platform.env_vars.filter(field => field.required)
@@ -1014,16 +894,6 @@ function PlatformDetail(props: PlatformDetailProps) {
         onRevoke={onRevoke}
         pending={pending}
       />
-
-      {/* QR-first onboarding drives the same backend pairing flow as the web
-          dashboard; the credential fields below stay as the manual path. */}
-      {platform.id === 'telegram' && (
-        <TelegramQuickSetup
-          configured={platform.configured}
-          onApplied={onQuickSetupApplied}
-          scopeProfile={scopeProfile}
-        />
-      )}
 
       {platform.id === 'discord' && (
         <DiscordQuickSetup
@@ -1167,593 +1037,6 @@ function PlatformDetail(props: PlatformDetailProps) {
   )
 }
 
-// WhatsApp's raw settings, in the Advanced block: every field but the
-// allowlist ("Who can talk" edits it), mode and DM policy first. The
-// WHATSAPP_CLOUD_* keys belong to the Cloud API channel and only reach this
-// card through the catalog's WHATSAPP_ prefix match.
-const WHATSAPP_ADVANCED_FIRST = ['WHATSAPP_MODE', 'WHATSAPP_DM_POLICY']
-
-function whatsAppAdvancedFields(fields: MessagingEnvVarInfo[]): MessagingEnvVarInfo[] {
-  const rank = (key: string) => {
-    const index = WHATSAPP_ADVANCED_FIRST.indexOf(key)
-
-    return index === -1 ? WHATSAPP_ADVANCED_FIRST.length : index
-  }
-
-  return fields
-    .filter(field => field.key !== 'WHATSAPP_ALLOWED_USERS' && !field.key.startsWith('WHATSAPP_CLOUD_'))
-    .sort((a, b) => rank(a.key) - rank(b.key))
-}
-
-const splitNumbers = (value: string) =>
-  value
-    .split(',')
-    .map(part => part.trim())
-    .filter(Boolean)
-
-/** Routines (enabled cron jobs) whose delivery reaches this channel: an
- *  explicit `whatsapp` / `whatsapp:<chat>` target, or `all` when the channel
- *  has a home chat. Read-only, from the same list the Routines page shows. */
-function useDeliveringRoutines(platformId: string, homeChannel: boolean, profile: null | string): number {
-  const [count, setCount] = useState(0)
-
-  useEffect(() => {
-    let cancelled = false
-
-    const delivers = (deliver: null | string | undefined) =>
-      (deliver ?? '')
-        .split(',')
-        .map(part => part.trim().toLowerCase())
-        .some(part => (part === 'all' ? homeChannel : part.split(':', 1)[0] === platformId))
-
-    getCronJobs(profile ?? undefined)
-      .then(jobs => {
-        if (!cancelled) {
-          setCount(jobs.filter(job => job.enabled && delivers(job.deliver)).length)
-        }
-      })
-      .catch(() => undefined)
-
-    return () => {
-      cancelled = true
-    }
-  }, [homeChannel, platformId, profile])
-
-  return count
-}
-
-/** WhatsApp's page: the step-by-step first connection until the channel is
- *  set up, then its settings as four blocks — Connection, Who can talk,
- *  What the bot does here, Advanced — over the "Channel active" switch. */
-function WhatsAppDetail({
-  approved,
-  approving,
-  edits,
-  fieldErrors,
-  hasEdits,
-  onApprove,
-  onClear,
-  onEdit,
-  onQuickSetupApplied,
-  onRevoke,
-  onSave,
-  onTest,
-  onToggle,
-  pending,
-  platform,
-  saving,
-  scopeProfile
-}: PlatformDetailProps) {
-  const { t } = useI18n()
-  const m = t.messaging
-  const navigate = useNavigate()
-  const setup = platform.whatsapp_setup
-  // First connection: nothing saved yet and the channel off. Once set up the
-  // page is the channel's settings, and the steps can be run again from it.
-  // Local state, so a list refresh behind the steps never dismisses them.
-  const [steps, setSteps] = useState(!platform.enabled && !setup?.mode)
-  const [showAdvanced, setShowAdvanced] = useState(false)
-  const routines = useDeliveringRoutines(platform.id, Boolean(setup?.home_channel_set), scopeProfile)
-
-  const valueOf = (key: string) => platform.env_vars.find(field => field.key === key)?.value ?? ''
-  const policy = valueOf('WHATSAPP_DM_POLICY') || 'pairing'
-
-  const advancedFields = whatsAppAdvancedFields(platform.env_vars)
-
-  if (steps) {
-    return (
-      <WhatsAppConnectSteps
-        onAdvanced={() => {
-          setSteps(false)
-          setShowAdvanced(true)
-        }}
-        onApplied={onQuickSetupApplied}
-        onDone={() => {
-          setSteps(false)
-          onQuickSetupApplied()
-        }}
-        platformConnected={platform.enabled && platform.state === 'connected'}
-        savedMode={setup?.mode}
-        scopeProfile={scopeProfile}
-      />
-    )
-  }
-
-  const doesHere = [
-    policy === 'disabled' ? m.botNoDms : m.botReplies,
-    routines > 0 ? m.botRoutines(routines) : null,
-    setup?.home_channel_set ? m.botAlerts : null
-  ].filter((item): item is string => Boolean(item))
-
-  return (
-    <div className="space-y-4">
-      <SettingsBlock title={m.connectionTitle}>
-        <WhatsAppConnectionRow
-          onRunSteps={() => setSteps(true)}
-          onTest={onTest}
-          platform={platform}
-          testing={saving === `test:${platform.id}`}
-        />
-      </SettingsBlock>
-
-      <SettingsBlock title={m.whoCanTalkTitle}>
-        <WhatsAppWhoCanTalk
-          allowed={splitNumbers(valueOf('WHATSAPP_ALLOWED_USERS'))}
-          approved={approved}
-          approving={approving}
-          mode={setup?.mode || valueOf('WHATSAPP_MODE')}
-          onApprove={onApprove}
-          onRevoke={onRevoke}
-          onRunSteps={() => setSteps(true)}
-          onSaved={onQuickSetupApplied}
-          pending={pending}
-          platform={platform}
-          policy={policy}
-          scopeProfile={scopeProfile}
-        />
-      </SettingsBlock>
-
-      <SettingsBlock title={m.botDoesTitle}>
-        <div className={BLOCK_ROW}>
-          {doesHere.map((item, index) => (
-            <span className="contents" key={item}>
-              {index > 0 && <span className="text-(--ui-text-quaternary)">·</span>}
-              <span>{item}</span>
-            </span>
-          ))}
-          <span className="flex-1" />
-          <Button onClick={() => navigate(CRON_ROUTE)} size="xs" variant="text">
-            {m.manageRoutines}
-          </Button>
-        </div>
-      </SettingsBlock>
-
-      <section className={BLOCK_CLASS}>
-        <button
-          aria-expanded={showAdvanced}
-          className="flex w-full items-center gap-2 text-left"
-          onClick={() => setShowAdvanced(value => !value)}
-          type="button"
-        >
-          <span className={BLOCK_TITLE}>{m.advancedTitle}</span>
-          <span className="text-xs text-(--ui-text-quaternary)">{m.advancedHint}</span>
-          <span className="flex-1" />
-          <Codicon
-            className={cn('text-(--ui-text-tertiary) transition-transform', showAdvanced && 'rotate-180')}
-            name="chevron-down"
-            size="0.875rem"
-          />
-        </button>
-        {showAdvanced && (
-          <div className="mt-3 space-y-3">
-            <MessagingFields
-              current={field => (field.key === 'WHATSAPP_MODE' ? setup?.mode : undefined)}
-              edits={edits}
-              fieldErrors={fieldErrors}
-              fields={advancedFields}
-              onClear={onClear}
-              onEdit={onEdit}
-              plainValues
-              saving={saving}
-            />
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              {platform.docs_url && (
-                <Button asChild size="xs" variant="text">
-                  <a
-                    href={platform.docs_url}
-                    onClick={event => {
-                      event.preventDefault()
-                      openExternalLink(platform.docs_url)
-                    }}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    {m.openSetupGuide}
-                    <ExternalLink />
-                  </a>
-                </Button>
-              )}
-              <Button onClick={() => setSteps(true)} size="xs" variant="text">
-                {m.runStepsAgain}
-              </Button>
-              <span className="flex-1" />
-              {hasEdits && (
-                <>
-                  <span className="text-xs text-muted-foreground">{m.unsavedChanges}</span>
-                  <Button disabled={saving === `env:${platform.id}`} onClick={onSave} size="sm">
-                    <Save />
-                    {saving === `env:${platform.id}` ? m.saving : m.saveChanges}
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-1.5">
-        <Switch
-          aria-label={platform.enabled ? m.disableAria(platform.name) : m.enableAria(platform.name)}
-          checked={platform.enabled}
-          disabled={saving === `enabled:${platform.id}`}
-          onCheckedChange={onToggle}
-          size="xs"
-        />
-        <span className="text-[0.84375rem] text-foreground">{m.channelActive}</span>
-        <span className="text-xs text-(--ui-text-tertiary)">{m.whatsappActiveHint}</span>
-      </div>
-    </div>
-  )
-}
-
-const BLOCK_CLASS = 'rounded-xl border border-(--ui-stroke-quaternary) px-4 py-3.5'
-const BLOCK_TITLE = 'text-[0.72rem] font-medium text-(--ui-text-tertiary)'
-const BLOCK_ROW = 'flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.84375rem] text-foreground'
-
-function SettingsBlock({ children, title }: { children: React.ReactNode; title: string }) {
-  return (
-    <section className={BLOCK_CLASS}>
-      <h3 className={cn('mb-2.5', BLOCK_TITLE)}>{title}</h3>
-      {children}
-    </section>
-  )
-}
-
-/** The Connection block's one line: the channel's real state, how long it has
- *  held it when connected, and the actions that state calls for. */
-function WhatsAppConnectionRow({
-  onRunSteps,
-  onTest,
-  platform,
-  testing
-}: {
-  onRunSteps: () => void
-  onTest: () => void
-  platform: MessagingPlatformInfo
-  testing: boolean
-}) {
-  const { locale, t } = useI18n()
-  const m = t.messaging
-  const restarting = useStore($gatewayRestarting)
-  const connected = platform.enabled && platform.state === 'connected' && platform.gateway_running
-  const status = detailStatus(platform, m)
-
-  const needsRestart =
-    platform.enabled &&
-    platform.configured &&
-    (!platform.gateway_running || platform.state === 'pending_restart' || platform.state === 'startup_failed')
-
-  const since = (() => {
-    if (!connected || !platform.updated_at) {
-      return null
-    }
-
-    const at = new Date(platform.updated_at)
-
-    if (Number.isNaN(at.getTime())) {
-      return null
-    }
-
-    return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : locale, {
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      month: 'short'
-    }).format(at)
-  })()
-
-  // What to do next when the channel is not up, as the other channels' hint
-  // says it; the restart it may call for is the button on the row.
-  const hint = !platform.enabled
-    ? platform.configured
-      ? m.hintEnableToConnect
-      : null
-    : platform.state === 'pending_restart'
-      ? m.hintPendingRestart
-      : platform.configured && !platform.gateway_running
-        ? m.hintGatewayStopped
-        : null
-
-  const restart = (
-    <Button disabled={restarting} onClick={() => void runGatewayRestart()} size="xs" variant="text">
-      {restarting ? m.restartingGateway : needsRestart ? m.restartGateway : m.reconnect}
-    </Button>
-  )
-
-  return (
-    <>
-      <div className={BLOCK_ROW}>
-        <ToneDot tone={status.tone} />
-        <span>{connected ? m.connectedListening : platform.enabled ? status.label : m.channelOff}</span>
-        {since && <span className="text-xs text-(--ui-text-tertiary)">{m.connectedSince(since)}</span>}
-        <span className="flex-1" />
-        {platform.enabled && !platform.configured && (
-          <Button onClick={onRunSteps} size="xs" variant="text">
-            {m.runSetupSteps}
-          </Button>
-        )}
-        {platform.configured && platform.enabled && platform.gateway_running && (
-          <Button disabled={testing} onClick={onTest} size="xs" variant="text">
-            {testing ? m.testing : m.testConnection}
-          </Button>
-        )}
-        {platform.configured && platform.enabled && restart}
-      </div>
-      {hint && <p className="mt-2 text-xs leading-4 text-(--ui-text-tertiary)">{hint}</p>}
-      {platform.error_message && <p className="mt-2 text-xs leading-4 text-destructive">{platform.error_message}</p>}
-    </>
-  )
-}
-
-/** "Who can talk": one line that says who gets a reply (with the numbers when
- *  there is a list) and Edit; the people waiting for approval; the people
- *  already approved behind Show. Editing the list saves through the same
- *  channel update the raw settings use. */
-function WhatsAppWhoCanTalk({
-  allowed,
-  approved,
-  approving,
-  mode,
-  onApprove,
-  onRevoke,
-  onRunSteps,
-  onSaved,
-  pending,
-  platform,
-  policy,
-  scopeProfile
-}: {
-  allowed: string[]
-  approved: PairingUser[]
-  approving: null | string
-  mode: string
-  onApprove: (user: PairingUser) => void
-  onRevoke: (user: PairingUser) => void
-  onRunSteps: () => void
-  onSaved: () => void
-  pending: PairingUser[]
-  platform: MessagingPlatformInfo
-  policy: string
-  scopeProfile: null | string
-}) {
-  const { t } = useI18n()
-  const m = t.messaging
-  const [editing, setEditing] = useState(false)
-  const [showApproved, setShowApproved] = useState(false)
-  const selfChat = mode === 'self-chat'
-
-  const summary = selfChat
-    ? m.whoSelf
-    : policy === 'disabled'
-      ? m.whoNobody
-      : policy === 'open'
-        ? m.whoAnyone
-        : allowed.length > 0
-          ? m.whoTeam(allowed.length)
-          : m.whoApprove
-
-  return (
-    <>
-      {editing ? (
-        <WhoCanTalkEditor
-          allowed={allowed}
-          onCancel={() => setEditing(false)}
-          onSaved={() => {
-            setEditing(false)
-            onSaved()
-          }}
-          platform={platform}
-          scopeProfile={scopeProfile}
-        />
-      ) : (
-        <div className={BLOCK_ROW}>
-          <span>{summary}</span>
-          {!selfChat && allowed.length > 0 && (
-            <span className="min-w-0 text-xs text-(--ui-text-tertiary) [overflow-wrap:anywhere]">
-              {allowed.join(', ')}
-            </span>
-          )}
-          <span className="flex-1" />
-          <Button onClick={() => (selfChat ? onRunSteps() : setEditing(true))} size="xs" variant="text">
-            {m.edit}
-          </Button>
-        </div>
-      )}
-
-      {pending.length > 0 && (
-        <div className="mt-3">
-          <div className="text-xs text-(--ui-text-tertiary)">{m.pendingRequests(pending.length)}</div>
-          <div className="mt-1 grid gap-1">
-            {pending.map(user => {
-              const busy = approving === pairingKey(user)
-              const waited = typeof user.age_minutes === 'number' ? m.waitingSince(user.age_minutes) : null
-
-              return (
-                <ListRow
-                  action={
-                    <Button
-                      disabled={busy || !user.request_id}
-                      onClick={() => onApprove(user)}
-                      size="sm"
-                      variant="secondary"
-                    >
-                      {busy ? m.approving : m.approve}
-                    </Button>
-                  }
-                  description={[user.user_name ? user.user_id : null, waited].filter(Boolean).join(' · ')}
-                  key={pairingKey(user)}
-                  title={pairingLabel(user)}
-                />
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {approved.length > 0 && (
-        <div className="mt-3">
-          <div className="flex items-center gap-2 text-xs text-(--ui-text-tertiary)">
-            {m.approvedCount(approved.length)}
-            <Button onClick={() => setShowApproved(value => !value)} size="inline" variant="text">
-              {showApproved ? m.hide : m.show}
-            </Button>
-          </div>
-          {showApproved && (
-            <div className="mt-1 grid gap-1">
-              {approved.map(user => (
-                <ListRow
-                  action={
-                    <Button
-                      aria-label={m.revokeAria(pairingLabel(user))}
-                      onClick={() => onRevoke(user)}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      {m.revoke}
-                    </Button>
-                  }
-                  description={user.user_name ? user.user_id : undefined}
-                  key={pairingKey(user)}
-                  title={pairingLabel(user)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  )
-}
-
-/** The Edit of "Who can talk": the same two choices as the setup step. The
- *  list is the channel's allowlist; approving people as they message is the
- *  allowlist cleared, so everyone gets a pairing code to approve here. */
-function WhoCanTalkEditor({
-  allowed,
-  onCancel,
-  onSaved,
-  platform,
-  scopeProfile
-}: {
-  allowed: string[]
-  onCancel: () => void
-  onSaved: () => void
-  platform: MessagingPlatformInfo
-  scopeProfile: null | string
-}) {
-  const { t } = useI18n()
-  const m = t.messaging
-  const s = m.whatsappSteps
-  const [choice, setChoice] = useState<'approve' | 'list'>(allowed.length > 0 ? 'list' : 'approve')
-  const [numbers, setNumbers] = useState(allowed.join(', '))
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  async function save() {
-    const list = splitNumbers(numbers).join(',')
-
-    if (choice === 'list') {
-      if (!list) {
-        setError(s.numbersRequired)
-
-        return
-      }
-
-      const invalid = findInvalidWhatsAppUser(list)
-
-      if (invalid) {
-        setError(m.envErrors.whatsappNumber(invalid))
-
-        return
-      }
-    }
-
-    setBusy(true)
-
-    try {
-      if (choice === 'list') {
-        await updateMessagingPlatform(platform.id, { env: { WHATSAPP_ALLOWED_USERS: list } }, scopeProfile)
-      } else if (allowed.length > 0) {
-        await updateMessagingPlatform(platform.id, { clear_env: ['WHATSAPP_ALLOWED_USERS'] }, scopeProfile)
-      }
-
-      notify({
-        kind: 'success',
-        title: m.setupSaved(platform.name),
-        message: m.restartToReconnect,
-        action: { label: t.commandCenter.restartGateway, onClick: () => void runGatewayRestart() }
-      })
-      onSaved()
-    } catch (err) {
-      notifyError(err, m.failedSave(platform.name))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <div className="space-y-3">
-      <ChoiceList
-        label={m.whoCanTalkTitle}
-        onChange={next => {
-          setChoice(next)
-          setError('')
-        }}
-        options={[
-          {
-            description: s.listDesc,
-            extra: (
-              <Input
-                aria-label={s.listTitle}
-                className="mt-2.5 h-8 font-mono text-[0.78rem]"
-                onChange={event => {
-                  setNumbers(event.target.value)
-                  setError('')
-                }}
-                placeholder="5511999993977, 5511988880000"
-                value={numbers}
-              />
-            ),
-            id: 'list',
-            title: s.listTitle
-          },
-          { description: s.approveDesc, id: 'approve', title: s.approveTitle }
-        ]}
-        value={choice}
-      />
-      {error && <p className="text-xs leading-4 text-destructive">{error}</p>}
-      <div className="flex items-center justify-end gap-2">
-        <Button disabled={busy} onClick={onCancel} size="sm" variant="outline">
-          {t.common.cancel}
-        </Button>
-        <Button disabled={busy} onClick={() => void save()} size="sm">
-          {busy ? m.saving : t.common.save}
-        </Button>
-      </div>
-    </div>
-  )
-}
-
 /** Pending pairing requests and approved users. Rendered only when someone
  *  is actually waiting or already in — an empty-state card here would be
  *  permanent chrome on a page that is usually about credentials. */
@@ -1875,45 +1158,6 @@ function PlatformGuide({ platform }: { platform: MessagingPlatformInfo }) {
   )
 }
 
-function MessagingFields({
-  current,
-  edits,
-  fieldErrors,
-  fields,
-  onClear,
-  onEdit,
-  plainValues = false,
-  saving
-}: {
-  current?: (field: MessagingEnvVarInfo) => null | string | undefined
-  edits: Record<string, string>
-  fieldErrors: Record<string, string>
-  fields: MessagingEnvVarInfo[]
-  onClear: (key: string) => void
-  onEdit: (key: string, value: string) => void
-  /** Show a saved non-secret value as it is instead of masked. */
-  plainValues?: boolean
-  saving: string | null
-}) {
-  return (
-    <div className="mt-3 grid gap-1">
-      {fields.map(field => (
-        <MessagingField
-          current={current?.(field)}
-          edits={edits}
-          error={fieldErrors[field.key]}
-          field={field}
-          key={field.key}
-          onClear={onClear}
-          onEdit={onEdit}
-          plainValue={plainValues}
-          saving={saving}
-        />
-      ))}
-    </div>
-  )
-}
-
 function PlatformActionBar({
   hasEdits,
   onSave,
@@ -1973,8 +1217,6 @@ function PlatformActionBar({
 }
 
 const PLATFORM_INTRO: Record<string, string> = {
-  telegram:
-    'In Telegram, talk to @BotFather, run /newbot, and copy the token it gives you. Then grab your numeric user ID from @userinfobot.',
   discord:
     'Create an application with a Bot in the Discord Developer Portal and paste its token into Quick setup above — Work4You builds the invite link and points you at the required intents. A bot that connects but never replies almost always has the Message Content Intent turned off.',
   slack:
@@ -2020,99 +1262,6 @@ const PLATFORM_INTRO: Record<string, string> = {
 
 const introCopy = (platform: MessagingPlatformInfo, m: Translations['messaging']) =>
   m.platformIntro[platform.id] || PLATFORM_INTRO[platform.id] || platform.description
-
-function MessagingField({
-  current,
-  edits,
-  error,
-  field,
-  onClear,
-  onEdit,
-  plainValue = false,
-  saving
-}: {
-  current?: null | string
-  edits: Record<string, string>
-  error?: string
-  field: MessagingEnvVarInfo
-  onClear: (key: string) => void
-  onEdit: (key: string, value: string) => void
-  plainValue?: boolean
-  saving: string | null
-}) {
-  const { t } = useI18n()
-  const m = t.messaging
-  const copy = fieldCopy(field, m)
-  const fieldId = `messaging-field-${field.key}`
-  const options = FIELD_OPTIONS[field.key]
-  // The backend redacts every saved env value, so a picker can only highlight
-  // the saved choice when the platform payload mirrors it back (`current`).
-  const selected = edits[field.key] || current || ''
-
-  return (
-    <Field
-      htmlFor={options ? undefined : fieldId}
-      label={
-        <span className="flex flex-wrap items-center gap-2">
-          {copy.label}
-          {field.is_set && <span className="text-[0.66rem] font-normal text-primary">{m.saved}</span>}
-        </span>
-      }
-    >
-      <div className="flex items-center gap-2">
-        {options ? (
-          <div aria-label={copy.label} className="flex flex-wrap items-center gap-1.5" role="group">
-            {options.map(option => (
-              <Button
-                key={option}
-                onClick={() => onEdit(field.key, option)}
-                size="sm"
-                variant={selected === option ? 'secondary' : 'ghost'}
-              >
-                {m.envOptions[field.key]?.[option] || option}
-              </Button>
-            ))}
-          </div>
-        ) : (
-          <Input
-            className={CREDENTIAL_CONTROL_CLASS}
-            id={fieldId}
-            onChange={event => onEdit(field.key, event.target.value)}
-            placeholder={
-              field.is_set
-                ? (plainValue && !field.is_password && field.value) || field.redacted_value || m.replaceValue
-                : copy.placeholder
-            }
-            type={field.is_password ? 'password' : 'text'}
-            value={edits[field.key] || ''}
-          />
-        )}
-        {field.url && (
-          <Tip label={m.openDocs}>
-            <Button asChild className="size-8 shrink-0" variant="ghost">
-              <a href={field.url} rel="noreferrer" target="_blank">
-                <ExternalLink className="size-3.5" />
-              </a>
-            </Button>
-          </Tip>
-        )}
-        {field.is_set && (
-          <Tip label={m.clearField(field.key)}>
-            <Button
-              className="size-8 shrink-0"
-              disabled={saving === `clear:${field.key}`}
-              onClick={() => onClear(field.key)}
-              variant="ghost"
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
-          </Tip>
-        )}
-      </div>
-      {(copy.help || error) && <FieldHint error={Boolean(error)}>{error || copy.help}</FieldHint>}
-    </Field>
-  )
-}
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h4 className={CHANNEL_LABEL}>{children}</h4>
