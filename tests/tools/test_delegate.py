@@ -415,7 +415,12 @@ class TestDelegateTask(unittest.TestCase):
 
     def test_work4you_child_rederives_api_mode_from_model(self):
         """Portal is dual-wire — same provider + different model prefix must
-        not inherit the parent's Messages/chat_completions mode verbatim."""
+        not inherit the parent's Messages/chat_completions mode verbatim.
+        Native wire selected (opt-in, ``work4you.anthropic_wire``)."""
+        with patch("work4you_cli.providers._work4you_anthropic_wire", return_value="native"):
+            self._work4you_child_rederives_api_mode_from_model()
+
+    def _work4you_child_rederives_api_mode_from_model(self):
         parent = _make_mock_parent(depth=0)
         parent.base_url = "https://inference-api.work4you.ai/v1"
         parent.api_key = "portal-jwt"
