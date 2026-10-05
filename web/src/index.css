@@ -354,6 +354,25 @@ code { font-size: 0.875rem; }
   padding-inline-start: var(--message-text-indent);
 }
 
+/* A sent prompt — same contract as apps/desktop (DESIGN.md): at the end of the
+   line, as wide as its text, filled and with no border, so the fill alone sets
+   it apart from the reply. A touch of ink over the canvas: a warm gray on the
+   paper theme, a step above the page on a dark one. */
+:root {
+  --dt-user-bubble: color-mix(in srgb, var(--midground-base) 5%, var(--background-base));
+  --prompt-bubble-radius: 1rem;
+}
+
+/* A prompt's actions show on hover, and a touch screen has none: without this
+   they would never appear, and editing — which has only its button — would be
+   out of reach. */
+@media (hover: none) {
+  [data-slot="aui_user-actions"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 /* RTL support — Arabic and any future right-to-left locale. The i18n provider
    sets `dir` on <html>; Tailwind v4's logical spacing utilities (ms-/me-,
    ps-/pe-) and logical properties then flip automatically. Scoped so the
