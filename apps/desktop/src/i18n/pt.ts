@@ -389,7 +389,6 @@ export const pt = defineLocale({
     },
     account: {
       title: 'Conta',
-      intro: 'A pessoa conectada ao Work4You.',
       identity: 'Identidade',
       email: 'E-mail',
       firstName: 'Nome',
@@ -402,15 +401,13 @@ export const pt = defineLocale({
       signInAgain: 'Entre novamente para salvar seu nome.',
       signIn: 'Login',
       linkedAccounts: 'Contas vinculadas',
-      linkedAccountsDesc: 'E-mail, Google, GitHub, Discord ou uma chave de acesso.',
       manage: 'Gerenciar',
       session: 'Sessão',
       logOut: 'Sair',
-      logOutDesc: 'Encerra a sessão do Portal neste app.',
+      logOutTitle: 'Sair deste dispositivo',
       logOutFailed: 'Falha ao sair'
     },
     imageVideo: {
-      intro: 'Escolha o modelo de imagem e o modelo de vídeo.',
       showModels: count => `Mostrar mais ${count} ${count === 1 ? 'modelo' : 'modelos'}`,
       hideModels: 'Mostrar menos'
     },
@@ -483,38 +480,29 @@ export const pt = defineLocale({
     },
     notifications: {
       title: 'Notificações',
-      intro: 'Notificações do sistema (não os avisos dentro do app). Por dispositivo.',
-      enableAll: 'Ativar notificações',
-      enableAllDesc: 'Se desativado, silencia todas as notificações abaixo.',
-      focusedHint: 'Os alertas de conclusão só aparecem quando o Work4You está em segundo plano.',
+      enableAll: 'Notificações no desktop',
+      enableAllDesc: 'Só neste dispositivo.',
       kinds: {
         approval: {
-          label: 'Aprovação necessária',
-          description: 'Um comando está esperando você aprovar ou rejeitar.'
+          label: 'Aprovação necessária'
         },
         input: {
-          label: 'Informação necessária',
-          description: 'O Work4You fez uma pergunta ou precisa de uma senha ou segredo.'
+          label: 'Informação necessária'
         },
         turnDone: {
-          label: 'Resposta pronta',
-          description: 'Um turno terminou enquanto o Work4You estava em segundo plano.'
+          label: 'Resposta pronta'
         },
         turnError: {
-          label: 'Falha no turno',
-          description: 'Erros em turnos em segundo plano.'
+          label: 'Falha no turno'
         },
         backgroundDone: {
-          label: 'Tarefa em segundo plano concluída',
-          description: 'Um comando de terminal em segundo plano terminou.'
+          label: 'Tarefa em segundo plano concluída'
         },
         credits: {
-          label: 'Alertas de créditos',
-          description: 'O acesso aos créditos foi pausado ou restaurado.'
+          label: 'Alertas de créditos'
         },
         plugin: {
-          label: 'Notificações de plugins',
-          description: 'Um plugin do Desktop enviou uma notificação enquanto o Work4You estava em segundo plano.'
+          label: 'Notificações de plugins'
         }
       },
       test: 'Enviar notificação de teste',
@@ -524,7 +512,6 @@ export const pt = defineLocale({
         'Teste enviado. Se nada aparecer, verifique as permissões de notificação do sistema e o modo Foco/Não Perturbe.',
       testUnsupported: 'Este sistema não oferece suporte a notificações nativas.',
       completionSoundTitle: 'Som de conclusão',
-      completionSoundDesc: 'Toca quando um turno do agente termina. Escolha um som predefinido e ouça aqui.',
       completionSoundPreview: 'Ouvir'
     },
     sections: {
@@ -553,32 +540,24 @@ export const pt = defineLocale({
     },
     appearance: {
       title: 'Aparência',
-      intro: 'Só no Desktop. O modo define o brilho; o tema define a paleta e o visual das conversas.',
       colorMode: 'Modo de cor',
       colorModeDesc: 'Escolha um modo fixo ou deixe o Work4You seguir a configuração do sistema.',
       toolViewTitle: 'Exibição das chamadas de ferramenta',
       toolViewDesc:
         'Produto resume cada turno concluído em uma só linha com o tempo de trabalho. Técnico mantém o log das ferramentas e os payloads.',
       reasoningCollapsedTitle: 'Recolher o raciocínio por padrão',
-      reasoningCollapsedDesc: 'Mantém o raciocínio transmitido disponível, mas recolhido até você abri-lo.',
       uiScaleTitle: 'Escala da interface',
-      uiScaleDesc: (percent: number) =>
-        `Ajusta o tamanho do texto e dos controles em todo o app. Cmd/Ctrl com +, - e 0 também funciona. Atual: ${percent}%.`,
-      sessionDensityTitle: 'Densidade da lista de sessões',
-      sessionDensityDesc: 'Escolha quanto contexto aparece abaixo do título de cada sessão na barra lateral.',
+      sessionDensityTitle: 'Densidade da barra lateral',
       sessionDensityCompact: 'Compacta',
       sessionDensityComfortable: 'Confortável',
       sessionDensityDetailed: 'Detalhada',
       terminalFontTitle: 'Fonte do terminal',
-      terminalFontDesc:
-        'Escolha uma fonte instalada para os terminais do Desktop. As Nerd Fonts exibem o Powerlevel10k e os ícones do shell; deixe em branco para usar a JetBrains Mono incluída.',
+      terminalFontDesc: 'Deixe em branco para usar a JetBrains Mono.',
       terminalFontPlaceholder: 'MesloLGS NF ou uma lista de fontes CSS',
       terminalFontPreview: 'Visualização dos glifos',
       terminalFontReset: 'Usar padrão',
-      translucencyTitle: 'Translucidez da janela',
+      translucencyTitle: 'Translucidez',
       translucencyDesc: 'Veja a área de trabalho através de toda a janela, inclusive o texto.',
-      translucencyGlassDesc:
-        'Vidro fosco: a área de trabalho aparece por trás com um desfoque suave, e o texto continua nítido.',
       translucencyModeClear: 'Transparente',
       translucencyModeGlass: 'Vidro',
       translucencyTintTitle: 'Tonalidade',
@@ -596,15 +575,13 @@ export const pt = defineLocale({
         sidebar: 'Só a barra lateral'
       },
       introSplashTitle: 'Tela de abertura',
-      introSplashDesc: 'O logotipo e a frase de boas-vindas exibidos em uma conversa vazia.',
+      introSplashDesc: 'Aparece em uma conversa vazia.',
       reactionsTitle: 'Reações às mensagens',
-      reactionsDesc: 'Reações com emoji no estilo do iMessage — reaja às mensagens, e o Work4You pode reagir às suas.',
+      reactionsDesc: 'Reações com emoji nas mensagens.',
       composerPopoutTitle: 'Caixa de mensagem flutuante',
-      composerPopoutDesc:
-        'Permite arrastar a caixa de mensagem para fora do lugar fixo. Desative para mantê-la presa na parte de baixo.',
-      embedsTitle: 'Conteúdo incorporado',
-      embedsDesc:
-        'As visualizações completas são carregadas de sites de terceiros (YouTube, X, …). Perguntar mostra um espaço reservado até você permitir cada uma; Sempre carrega todas automaticamente; Desativado mantém só os links.',
+      composerPopoutDesc: 'Arraste a caixa de mensagem para fora do lugar fixo.',
+      embedsTitle: 'Visualização de links',
+      embedsDesc: 'YouTube, X e outros sites.',
       embedsAsk: 'Perguntar',
       embedsAlways: 'Sempre',
       embedsOff: 'Desativado',
@@ -615,7 +592,6 @@ export const pt = defineLocale({
       technicalDesc: 'Inclui argumentos/resultados brutos das ferramentas e detalhes de baixo nível.',
       themeTitle: 'Tema',
       themeDesc: 'Só paletas do Desktop. O modo selecionado é aplicado por cima.',
-      themeProfileNote: profile => `Salvo para o perfil ${profile} — cada perfil tem seu próprio tema.`,
       installTitle: 'Instalar do VS Code',
       installDesc:
         'Cole o ID de uma extensão do Marketplace (ex.: dracula-theme.theme-dracula) para converter o tema de cores dela em uma paleta do Desktop.',
@@ -674,7 +650,7 @@ export const pt = defineLocale({
       timezone: 'Fuso horário',
       display: {
         personality: 'Personalidade',
-        showReasoning: 'Blocos de raciocínio'
+        showReasoning: 'Mostrar raciocínio'
       },
       desktop: {
         repoScanEnabled: 'Descoberta automática de repositórios',
@@ -713,7 +689,7 @@ export const pt = defineLocale({
         timeout: 'Tempo limite da aprovação',
         mcpReloadConfirm: 'Confirmar recarregamentos do MCP'
       },
-      commandAllowlist: 'Comandos que podem ser executados',
+      commandAllowlist: 'Permitidos sem perguntar',
       security: {
         redactSecrets: 'Ocultar segredos',
         allowPrivateUrls: 'Permitir URLs privadas'
@@ -733,7 +709,7 @@ export const pt = defineLocale({
       },
       stt: {
         enabled: 'Ditado',
-        echoTranscripts: 'Exibir transcrições',
+        echoTranscripts: 'Mostrar transcrições na conversa',
         provider: 'Provedor de conversão de fala em texto',
         local: {
           model: 'Modelo de transcrição local',
@@ -838,8 +814,8 @@ export const pt = defineLocale({
       modelContextLength: 'Deixe em 0 para usar a janela de contexto detectada do modelo selecionado.',
       fallbackProviders: 'Entradas provedor:modelo de reserva para tentar se o modelo padrão falhar.',
       display: {
-        personality: 'Estilo padrão do assistente para novas sessões.',
-        showReasoning: 'Mostra as seções de raciocínio quando o backend as fornece.'
+        personality: 'Vale para novas conversas.',
+        showReasoning: ''
       },
       desktop: {
         repoScanEnabled: 'Procura repositórios Git em pastas locais para mostrar em Projetos.',
@@ -865,10 +841,10 @@ export const pt = defineLocale({
       },
       fileReadMaxChars: 'Máximo de caracteres que o Work4You pode ler em cada leitura de arquivo.',
       approvals: {
-        mode: 'Perguntar sempre, deixar o Work4You decidir ou executar sem perguntar.',
+        mode: '',
         timeout: 'Quanto tempo os pedidos de aprovação esperam antes de expirar.'
       },
-      commandAllowlist: 'Estes comandos são permitidos sem uma nova confirmação.',
+      commandAllowlist: '',
       security: {
         redactSecrets: 'Oculta segredos detectados no conteúdo visível ao modelo, quando possível.'
       },
@@ -876,8 +852,8 @@ export const pt = defineLocale({
         enabled: 'Cria pontos de restauração antes de editar arquivos.'
       },
       memory: {
-        memoryEnabled: 'Salva memórias duradouras que podem ajudar em sessões futuras.',
-        userProfileEnabled: 'Mantém um perfil compacto das preferências do usuário.'
+        memoryEnabled: 'Lembra entre conversas.',
+        userProfileEnabled: 'Mantém um resumo curto das suas preferências.'
       },
       context: {
         engine: 'Estratégia para lidar com conversas longas perto do limite de contexto.'
@@ -886,11 +862,11 @@ export const pt = defineLocale({
         enabled: 'Resume o contexto mais antigo quando as conversas ficam grandes.'
       },
       voice: {
-        autoTts: 'Lê as respostas do assistente em voz alta automaticamente.'
+        autoTts: ''
       },
       tts: {
         openai: {
-          voice: 'A voz que o Work4You usa ao falar.'
+          voice: ''
         },
         xai: {
           voiceId: 'ID de voz da xAI (ex.: eve) ou o ID de uma voz personalizada.',
@@ -907,8 +883,8 @@ export const pt = defineLocale({
         }
       },
       stt: {
-        enabled: 'Transforma a fala do microfone em texto.',
-        echoTranscripts: 'Envia a transcrição bruta 🎙️ das mensagens de voz de volta para a conversa.',
+        enabled: '',
+        echoTranscripts: '',
         elevenlabs: {
           languageCode: 'Código de idioma ISO-639-3 opcional. Em branco, a ElevenLabs detecta automaticamente.'
         }
@@ -980,8 +956,7 @@ export const pt = defineLocale({
       toolsetsWipeConfirm:
         'Remover todos os conjuntos de ferramentas ativados? Isso desativa memória, terminal, busca na web, delegação e a maioria das outras ferramentas até que você os ative novamente.',
       keepAwakeTitle: 'Manter o computador ativo',
-      keepAwakeDesc:
-        'Impede que esta máquina entre em suspensão, para que execuções longas ou durante a noite continuem. A tela ainda pode escurecer.',
+      keepAwakeDesc: 'Para execuções longas. A tela ainda pode escurecer.',
       disableF12Title: 'Desativar DevTools no F12',
       disableF12Desc:
         'Impede que o F12 abra as Ferramentas do desenvolvedor. Ctrl+Shift+I (ou Cmd+Opt+I no Mac) continua funcionando.',
@@ -993,10 +968,8 @@ export const pt = defineLocale({
     },
     quickEntry: {
       enabledTitle: 'Entrada rápida',
-      enabledDesc:
-        'Abra uma pequena caixa de mensagem de qualquer lugar com um atalho global e envie um prompt sem abrir o Work4You.',
-      shortcutTitle: 'Atalho da entrada rápida',
-      shortcutDesc: 'Precisa de pelo menos um modificador, ex.: CommandOrControl+Shift+Space.',
+      enabledDesc: 'Envie um prompt de qualquer lugar com um atalho.',
+      shortcutTitle: 'Atalho',
       active: 'O atalho está ativo.',
       takenBy: 'Outro app já usa este atalho — escolha outro.',
       invalidShortcut: 'Atalho inválido. Inclua pelo menos uma tecla modificadora.'
@@ -1347,7 +1320,6 @@ export const pt = defineLocale({
     },
     model: {
       loading: 'Carregando configuração de modelos...',
-      pickerIntro: 'Escolha quais modelos aparecem no seletor de modelos.',
       searchModels: 'Adicionar ou buscar modelo',
       viewAll: 'Ver todos os modelos',
       appliesDesc:
@@ -1424,8 +1396,7 @@ export const pt = defineLocale({
       restored: 'Restaurada',
       deleteConfirm: title => `Excluir "${title}" permanentemente? Essa ação não pode ser desfeita.`,
       autoArchiveTitle: 'Arquivar conversas inativas automaticamente',
-      autoArchiveDesc:
-        'Arquiva automaticamente as conversas que você não usa há algum tempo. As conversas fixadas nunca são arquivadas, e nada é excluído.',
+      autoArchiveDesc: 'As conversas fixadas são mantidas. Nada é excluído.',
       autoArchiveDaysLabel: 'Arquivar após',
       autoArchiveDaysUnit: 'dias de inatividade',
       autoArchiveFailed: 'Não foi possível atualizar o arquivamento automático',
