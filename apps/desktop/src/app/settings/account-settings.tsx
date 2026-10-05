@@ -146,7 +146,7 @@ export function AccountSettings() {
 
   return (
     <SettingsContent>
-      <SectionHeading description={copy.intro} title={copy.title} variant="page" />
+      <SectionHeading title={copy.title} variant="page" />
       {identity === null ? (
         <SettingsGroup>
           <ListRowSkeleton />
@@ -215,12 +215,7 @@ export function AccountSettings() {
                   {copy.manage}
                 </Button>
               }
-              description={
-                <>
-                  <div>{copy.linkedAccountsDesc}</div>
-                  {identity.email ? <div>{identity.email}</div> : null}
-                </>
-              }
+              description={identity.email || undefined}
               title={copy.linkedAccounts}
             />
           </SettingsGroup>
@@ -231,8 +226,7 @@ export function AccountSettings() {
                   {copy.logOut}
                 </Button>
               }
-              description={copy.logOutDesc}
-              title={copy.logOut}
+              title={copy.logOutTitle}
             />
           </SettingsGroup>
         </>

@@ -336,7 +336,6 @@ export interface Translations {
     }
     account: {
       title: string
-      intro: string
       identity: string
       email: string
       firstName: string
@@ -349,15 +348,13 @@ export interface Translations {
       signInAgain: string
       signIn: string
       linkedAccounts: string
-      linkedAccountsDesc: string
       manage: string
       session: string
       logOut: string
-      logOutDesc: string
+      logOutTitle: string
       logOutFailed: string
     }
     imageVideo: {
-      intro: string
       showModels: (count: number) => string
       hideModels: string
     }
@@ -427,13 +424,11 @@ export interface Translations {
     }
     notifications: {
       title: string
-      intro: string
       enableAll: string
       enableAllDesc: string
-      focusedHint: string
       kinds: Record<
         'approval' | 'backgroundDone' | 'credits' | 'input' | 'plugin' | 'turnDone' | 'turnError',
-        { label: string; description: string }
+        { label: string }
       >
       test: string
       testTitle: string
@@ -441,7 +436,6 @@ export interface Translations {
       testSent: string
       testUnsupported: string
       completionSoundTitle: string
-      completionSoundDesc: string
       completionSoundPreview: string
     }
     sections: Record<string, string>
@@ -449,17 +443,13 @@ export interface Translations {
     modeOptions: Record<'light' | 'dark' | 'system', ModeOptionCopy>
     appearance: {
       title: string
-      intro: string
       colorMode: string
       colorModeDesc: string
       toolViewTitle: string
       toolViewDesc: string
       reasoningCollapsedTitle: string
-      reasoningCollapsedDesc: string
       uiScaleTitle: string
-      uiScaleDesc: (percent: number) => string
       sessionDensityTitle: string
-      sessionDensityDesc: string
       sessionDensityCompact: string
       sessionDensityComfortable: string
       sessionDensityDetailed: string
@@ -470,7 +460,6 @@ export interface Translations {
       terminalFontReset: string
       translucencyTitle: string
       translucencyDesc: string
-      translucencyGlassDesc: string
       translucencyModeClear: string
       translucencyModeGlass: string
       translucencyTintTitle: string
@@ -505,7 +494,6 @@ export interface Translations {
       technicalDesc: string
       themeTitle: string
       themeDesc: string
-      themeProfileNote: (profile: string) => string
       installTitle: string
       installDesc: string
       installPlaceholder: string
@@ -623,7 +611,6 @@ export interface Translations {
       enabledTitle: string
       enabledDesc: string
       shortcutTitle: string
-      shortcutDesc: string
       active: string
       takenBy: string
       invalidShortcut: string
@@ -945,7 +932,6 @@ export interface Translations {
     }
     model: {
       loading: string
-      pickerIntro: string
       searchModels: string
       viewAll: string
       appliesDesc: string

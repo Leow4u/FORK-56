@@ -1,5 +1,4 @@
 import { useStore } from '@nanostores/react'
-import type { ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -21,12 +20,6 @@ import { notify } from '@/store/notifications'
 import { CONTROL_TEXT } from './constants'
 import { ListRow, SectionHeading, SettingsContent, SettingsGroup, ToggleRow } from './primitives'
 
-const CAPTION = 'text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)'
-
-function Caption({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={cn(CAPTION, className)}>{children}</p>
-}
-
 export function NotificationsSettings() {
   const { t } = useI18n()
   const prefs = useStore($nativeNotifyPrefs)
@@ -41,7 +34,7 @@ export function NotificationsSettings() {
 
   return (
     <SettingsContent>
-      <SectionHeading description={copy.intro} title={copy.title} variant="page" />
+      <SectionHeading title={copy.title} variant="page" />
 
       <SettingsGroup>
         <ToggleRow
@@ -54,7 +47,6 @@ export function NotificationsSettings() {
         {NATIVE_NOTIFICATION_KINDS.map(kind => (
           <ToggleRow
             checked={prefs.enabled && prefs.kinds[kind]}
-            description={copy.kinds[kind].description}
             disabled={!prefs.enabled}
             key={kind}
             label={copy.kinds[kind].label}
@@ -105,17 +97,15 @@ export function NotificationsSettings() {
               </Button>
             </div>
           }
-          description={copy.completionSoundDesc}
           title={copy.completionSoundTitle}
         />
       </SettingsGroup>
 
-      <div className="mt-4 flex flex-col gap-2">
-        <Button className="self-start" onClick={() => void runTest()} size="sm" type="button" variant="outline">
+      <div className="mt-4 flex">
+        <Button onClick={() => void runTest()} size="sm" type="button" variant="outline">
           <Bell />
           {copy.test}
         </Button>
-        <Caption>{copy.focusedHint}</Caption>
       </div>
     </SettingsContent>
   )

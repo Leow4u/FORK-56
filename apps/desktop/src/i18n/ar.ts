@@ -349,31 +349,23 @@ export const ar = defineLocale({
     },
     notifications: {
       title: 'الإشعارات',
-      intro:
-        'إشعارات سطح المكتب الأصلية، منفصلة عن التنبيهات داخل التطبيق. هذه محلية على الجهاز — كل حاسوب يحتفظ بإعداداته الخاصة.',
-      enableAll: 'تفعيل الإشعارات',
-      enableAllDesc: 'إيقافه يصمت كل الإشعارات أدناه.',
-      focusedHint: 'تنبيهات الاكتمال تظهر فقط عندما يكون Work4You في الخلفية.',
+      enableAll: 'إشعارات سطح المكتب',
+      enableAllDesc: 'على هذا الجهاز فقط.',
       kinds: {
         approval: {
-          label: 'يلزم الموافقة',
-          description: 'هناك أمر ينتظر موافقتك أو رفضك له.'
+          label: 'يلزم الموافقة'
         },
         input: {
-          label: 'يلزم إدخال',
-          description: 'طرح Work4You سؤالا أو يحتاج إلى كلمة مرور أو سر.'
+          label: 'يلزم إدخال'
         },
         turnDone: {
-          label: 'الرد جاهز',
-          description: 'انتهى دور بينما كان Work4You في الخلفية.'
+          label: 'الرد جاهز'
         },
         turnError: {
-          label: 'فشل الدور',
-          description: 'أخطاء الأدوار في الخلفية.'
+          label: 'فشل الدور'
         },
         backgroundDone: {
-          label: 'اكتملت مهمة الخلفية',
-          description: 'اكتمل أمر طرفية يعمل في الخلفية.'
+          label: 'اكتملت مهمة الخلفية'
         }
       },
       test: 'إرسال إشعار تجريبي',
@@ -382,7 +374,6 @@ export const ar = defineLocale({
       testSent: 'تم إرسال التجربة. إذا لم يظهر شيء، تحقق من أذونات الإشعارات في نظام التشغيل ووضع التركيز/عدم الإزعاج.',
       testUnsupported: 'هذا النظام لا يدعم الإشعارات الأصلية.',
       completionSoundTitle: 'صوت الاكتمال',
-      completionSoundDesc: 'يُشغّل عند انتهاء دور الوكيل. اختر إعدادا مسبقا وعاينه هنا.',
       completionSoundPreview: 'معاينة'
     },
     sections: {
@@ -420,16 +411,13 @@ export const ar = defineLocale({
     },
     appearance: {
       title: 'المظهر',
-      intro: 'خصص مظهر Work4You Desktop.',
       colorMode: 'نمط الألوان',
       colorModeDesc: 'اختر الوضع الفاتح أو الداكن أو اتبع النظام.',
       toolViewTitle: 'عرض الأدوات',
       toolViewDesc: 'وضع المنتج يطوي الجولة المنتهية في سطر Worked-for واحد. الوضع التقني يُبقي سجل الأدوات والحمولات.',
       reasoningCollapsedTitle: 'طي التفكير افتراضيًا',
-      reasoningCollapsedDesc: 'أبقِ التفكير المتدفق متاحًا دون توسيعه حتى تفتحه.',
-      translucencyTitle: 'شفافية النافذة',
+      translucencyTitle: 'الشفافية',
       translucencyDesc: 'إظهار سطح المكتب من خلال النافذة بالكامل، بما في ذلك النص.',
-      translucencyGlassDesc: 'زجاج غير لامع: يظهر سطح المكتب كضبابية ناعمة بينما يبقى النص واضحًا.',
       translucencyModeClear: 'شفاف',
       translucencyModeGlass: 'زجاج',
       translucencyTintTitle: 'التلوين',
@@ -447,14 +435,13 @@ export const ar = defineLocale({
         sidebar: 'الشريط الجانبي فقط'
       },
       introSplashTitle: 'شاشة المقدمة',
-      introSplashDesc: 'الشعار النصي والعبارة التمهيدية في محادثة فارغة.',
+      introSplashDesc: 'يظهر في محادثة فارغة.',
       reactionsTitle: 'تفاعلات الرسائل',
-      reactionsDesc: 'تفاعلات إيموجي بأسلوب iMessage — تفاعل مع الرسائل، ويمكن لـ Work4You التفاعل مع رسائلك.',
+      reactionsDesc: 'تفاعلات إيموجي على الرسائل.',
       composerPopoutTitle: 'محرر عائم',
-      composerPopoutDesc: 'السماح بسحب محرر الرسائل خارج موضعه. عطّل هذا الخيار لإبقائه مثبتًا في الأسفل.',
-      embedsTitle: 'التضمينات المضمّنة',
-      embedsDesc:
-        'تُحمّل المعاينات الغنية من مواقع طرف ثالث (YouTube، X، …). "اسأل" يعرض عنصرا نائبا حتى تسمح لكل واحد؛ "دائما" يحمّلها تلقائيا؛ "إيقاف" يبقي الروابط عادية.',
+      composerPopoutDesc: 'اسحب محرر الرسائل خارج موضعه.',
+      embedsTitle: 'معاينات الروابط',
+      embedsDesc: 'YouTube وX ومواقع أخرى.',
       embedsAsk: 'اسأل',
       embedsAlways: 'دائما',
       embedsOff: 'إيقاف',
@@ -465,7 +452,6 @@ export const ar = defineLocale({
       technicalDesc: 'يعرض تفاصيل أكثر عن الأدوات والتنفيذ.',
       themeTitle: 'الثيم',
       themeDesc: 'اختر ثيم سطح المكتب.',
-      themeProfileNote: profile => `سيطبق هذا الثيم على الملف الشخصي ${profile}.`,
       installTitle: 'تثبيت ثيم',
       installDesc: 'ألصق رابط ثيم أو اسمه لتثبيته.',
       installPlaceholder: 'رابط أو اسم الثيم',
@@ -543,7 +529,7 @@ export const ar = defineLocale({
       'approvals.mode': 'نمط الموافقات',
       'approvals.timeout': 'مهلة الموافقة',
       'approvals.mcpReloadConfirm': 'تأكيد إعادة تحميل MCP',
-      commandAllowlist: 'قائمة الأوامر المسموحة',
+      commandAllowlist: 'مسموح دون سؤال',
       'security.redactSecrets': 'إخفاء الأسرار',
       'security.allowPrivateUrls': 'السماح بالروابط الخاصة',
       'browser.allowPrivateUrls': 'روابط المتصفح الخاصة',
@@ -605,8 +591,7 @@ export const ar = defineLocale({
       model: 'يستخدم في المحادثات الجديدة ما لم تختر نموذجاً مختلفاً من محرر الرسائل.',
       modelContextLength: 'اتركه 0 لاستخدام نافذة السياق المكتشفة للنموذج المحدد.',
       fallbackProviders: 'إدخالات احتياطية بصيغة provider:model لتجربتها إذا فشل النموذج الافتراضي.',
-      'display.personality': 'أسلوب المساعد الافتراضي للجلسات الجديدة.',
-      'display.showReasoning': 'يعرض أقسام التفكير عندما توفرها الخلفية.',
+      'display.personality': 'يُطبَّق على المحادثات الجديدة.',
       timezone: 'تستخدم عندما يحتاج Work4You إلى سياق الوقت المحلي. اتركها فارغة لاستخدام منطقة النظام.',
       'agent.imageInputMode': 'يتحكم في طريقة إرسال مرفقات الصور إلى النموذج.',
       'agent.maxTurns': 'الحد الأعلى لدورات استدعاء الأدوات قبل أن يوقف Work4You التشغيل.',
@@ -619,19 +604,16 @@ export const ar = defineLocale({
       'terminal.daytonaImage': 'الصورة المستخدمة عند اختيار Daytona.',
       'codeExecution.mode': 'مدى تقييد تنفيذ الكود بالمشروع الحالي.',
       fileReadMaxChars: 'أقصى عدد أحرف يستطيع Work4You قراءته من ملف واحد في الطلب.',
-      'approvals.mode': 'كيف يتعامل Work4You مع الأوامر التي تحتاج موافقة صريحة.',
       'approvals.timeout': 'مدة انتظار طلبات الموافقة قبل انتهاء المهلة.',
       'security.redactSecrets': 'يخفي الأسرار المكتشفة من المحتوى المرئي للنموذج قدر الإمكان.',
       'checkpoints.enabled': 'ينشئ لقطات رجوع قبل تعديلات الملفات.',
-      'memory.memoryEnabled': 'يحفظ ذكريات دائمة يمكن أن تساعد الجلسات القادمة.',
-      'memory.userProfileEnabled': 'يحافظ على ملف مختصر لتفضيلات المستخدم.',
+      'memory.memoryEnabled': 'يتذكر عبر المحادثات.',
+      'memory.userProfileEnabled': 'يحتفظ بملخص قصير لتفضيلاتك.',
       'context.engine': 'استراتيجية إدارة المحادثات الطويلة قرب حد السياق.',
       'compression.enabled': 'يلخص السياق الأقدم عندما تكبر المحادثات.',
-      'voice.autoTts': 'ينطق ردود المساعد تلقائياً.',
       'tts.xai.voiceId': 'معرف صوت xAI مثل eve أو معرف صوت مخصص.',
       'tts.xai.language': 'رمز لغة النطق، مثل en.',
       'tts.neutts.device': 'جهاز الاستدلال المحلي لـ NeuTTS.',
-      'stt.enabled': 'يفعل التفريغ الصوتي المحلي أو عبر مزود.',
       'stt.elevenlabs.languageCode': 'رمز لغة ISO-639-3 اختياري. اتركه فارغاً للاكتشاف التلقائي.',
       'updates.nonInteractiveLocalChanges':
         'عندما يحدّث Work4You نفسه من التطبيق دون موجه طرفية، احتفظ بتعديلات المصدر المحلية أو تجاهلها.'
@@ -686,9 +668,8 @@ export const ar = defineLocale({
     },
     quickEntry: {
       enabledTitle: 'الإدخال السريع',
-      enabledDesc: 'استدعِ محرّرا صغيرا من أي مكان باختصار عام وأرسل طلبا دون فتح Work4You.',
-      shortcutTitle: 'اختصار الإدخال السريع',
-      shortcutDesc: 'يحتاج إلى مفتاح تعديل واحد على الأقل، مثل CommandOrControl+Shift+Space.',
+      enabledDesc: 'أرسل طلبا من أي مكان باختصار.',
+      shortcutTitle: 'الاختصار',
       active: 'الاختصار مفعّل.',
       takenBy: 'يستخدم تطبيق آخر هذا الاختصار — اختر اختصارا مختلفا.',
       invalidShortcut: 'ليس اختصارا صالحا. أضف مفتاح تعديل واحدا على الأقل.'

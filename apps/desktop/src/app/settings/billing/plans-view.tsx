@@ -129,7 +129,7 @@ function PlanCard({ flow, tier }: { flow: DowngradeFlow; tier: BillingPlanTierVi
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-col gap-3 rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) p-4 outline-none',
+        'flex min-w-0 flex-col gap-3 rounded-(--card-radius) border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) p-4 outline-none',
         isCurrent && 'bg-(--ui-green)/8 ring-1 ring-inset ring-(--ui-green)/35'
       )}
       ref={cardRef}
@@ -218,7 +218,7 @@ export function BillingPlansView({ onBack, tiers }: { onBack: () => void; tiers:
           ))}
         </div>
       ) : (
-        <div className="rounded-xl bg-(--ui-bg-quaternary) p-4 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
+        <div className="rounded-(--card-radius) bg-(--ui-bg-quaternary) p-4 text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
           No plans are available to change to right now.
         </div>
       )}

@@ -15,7 +15,9 @@ const SYSTEM_SANS =
   '"Segoe WPC", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif, ' +
   EMOJI_FALLBACK
 
-const SYSTEM_MONO = 'Menlo, Monaco, "SF Mono", "Courier Prime", monospace, ' + EMOJI_FALLBACK
+// Apple's mono faces first; Windows and Linux have none of them and land on the
+// JetBrains Mono bundled in styles.css. Keep in sync with --dt-font-mono there.
+const SYSTEM_MONO = 'Menlo, Monaco, "SF Mono", "JetBrains Mono", monospace, ' + EMOJI_FALLBACK
 
 export const DEFAULT_TYPOGRAPHY: DesktopThemeTypography = { fontSans: SYSTEM_SANS, fontMono: SYSTEM_MONO }
 
@@ -119,11 +121,11 @@ export const work4youTheme: DesktopTheme = {
     userBubble: '#22211E',
     userBubbleBorder: '#383730'
   },
+  // Both faces ship in the bundle (@font-face in styles.css): no fontUrl, so the
+  // default skin never waits on Google Fonts and looks the same offline.
   typography: {
     fontSans: `"Plus Jakarta Sans", ${SYSTEM_SANS}`,
-    fontMono: SYSTEM_MONO,
-    fontUrl:
-      'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Courier+Prime:wght@400;700&display=swap'
+    fontMono: SYSTEM_MONO
   }
 }
 
@@ -193,8 +195,7 @@ export const work4youOliveTheme: DesktopTheme = {
   },
   typography: {
     fontSans: SYSTEM_SANS,
-    fontMono: SYSTEM_MONO,
-    fontUrl: 'https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap'
+    fontMono: SYSTEM_MONO
   }
 }
 

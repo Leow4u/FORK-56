@@ -27,7 +27,7 @@ export function WorkspaceNameButton({ cwd }: { cwd?: null | string }) {
 
   return (
     <span
-      className="min-w-0 max-w-36 truncate text-xs font-normal text-muted-foreground/92"
+      className="min-w-0 max-w-36 truncate text-xs font-normal text-muted-foreground"
       data-slot="workspace-name"
       title={path ? displayPath(path) : name}
     >
@@ -50,7 +50,7 @@ export function WorkspaceConnectionSegment() {
     <>
       <ContextDot />
       <span
-        className="min-w-0 max-w-28 truncate text-xs font-normal text-muted-foreground/92"
+        className="min-w-0 max-w-28 truncate text-xs font-normal text-muted-foreground"
         data-slot="workspace-connection"
         title={label}
       >

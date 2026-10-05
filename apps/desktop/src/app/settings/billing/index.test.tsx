@@ -92,7 +92,7 @@ describe('BillingSettings', () => {
       )
     ).toBeTruthy()
     expect(screen.queryByRole('button', { name: '$100' })).toBeNull()
-    expect(screen.getByText('Charges $10 automatically when your balance falls below $5.')).toBeTruthy()
+    expect(screen.getByText('Adds $10 when your balance falls below $5.')).toBeTruthy()
     expect(screen.getByText('$120 of $220 left')).toBeTruthy()
     expect(screen.getByText('$876.47')).toBeTruthy()
     expect(screen.getByText('$10 of $100 used').classList.contains('tabular-nums')).toBe(true)
@@ -184,7 +184,7 @@ describe('BillingSettings', () => {
 
     renderBilling()
 
-    expect(await screen.findByText('Charges $10 automatically when your balance falls below $5.')).toBeTruthy()
+    expect(await screen.findByText('Adds $10 when your balance falls below $5.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Manage' })).toBeTruthy()
   })
 

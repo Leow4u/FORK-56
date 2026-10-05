@@ -100,7 +100,7 @@ export function ImageVideoCatalog({
       />
       <div
         aria-label={label}
-        className="overflow-hidden rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-bg-editor)"
+        className="overflow-hidden rounded-(--card-radius) border border-(--ui-stroke-secondary) bg-(--ui-bg-editor)"
         role="radiogroup"
       >
         {visible.map(model => {

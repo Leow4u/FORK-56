@@ -93,7 +93,8 @@ for call-site shadow or border inventions.
 | `--ui-stroke-primary…quaternary` | hairlines, in descending strength |
 | `--ui-stroke-tertiary` | the default in-panel divider / list hairline — and every bordered surface in the transcript |
 | `--stroke-work4you` | the overlay hairline (pairs with `shadow-work4you`) |
-| `--ui-text-primary / -secondary / -tertiary` | text hierarchy |
+| `--ui-text-primary / -secondary / -tertiary / -quaternary` | text hierarchy; in light mode tertiary and quaternary sit on the 4.5:1 readability floor |
+| `--dt-input-border` | resting border strength of input fields (% of the ring color); hover doubles it, focus goes full |
 | `--ui-bg-quaternary` | soft control fill (secondary button) |
 | `--ui-widget-surface-background` | fill for inline chat widgets (`WIDGET_SHELL_CLASS`) |
 | `--chrome-action-hover` | hover fill for quiet controls |
@@ -101,6 +102,25 @@ for call-site shadow or border inventions.
 
 Never hardcode `border-gray-*`, `bg-white`, `text-black`, etc. `BrandMark` uses
 the PNG's own alpha — do not put a white (or any) tile behind it.
+
+Readable grey text uses `text-muted-foreground` or a `--ui-text-*` token at
+full strength. Don't stack an alpha on top (`text-muted-foreground/75`): the
+tokens are already tuned to the readability floor, and an extra alpha drops
+the text below it. Alpha steps are fine on decorative glyphs and on controls
+that are revealed on hover.
+
+## Radius tokens
+
+Chrome (sidebars, menus, popovers, dialogs) follows `--radius-scalar`, which
+keeps its corners tight: `rounded-md` / `rounded-xl` resolve to 2–3px there.
+Three radii sit outside the scalar on purpose and are used through their token,
+never a Tailwind `rounded-*` step:
+
+| Token | Use |
+| --- | --- |
+| `--control-radius` (6px) | every `Button` size and variant except `chip`, every `controlVariants` control (Input, Textarea, SelectTrigger), the `SegmentedControl` track (its pill is the token minus the 2px track padding) |
+| `--card-radius` (12px) | grouped settings cards (`SettingsGroup`, the model list, billing cards) |
+| `--composer-radius` | the prompt card |
 
 ## Buttons — one component
 
@@ -147,9 +167,9 @@ context-dependent (e.g. "Show" / "Hide"). Never hardcode combos; always use
 `useKeybindHint` or `TipKeybindLabel`.
 
 Notes:
-- Text buttons are square (no radius) and sized by padding + line-height (no
-  fixed heights). Icon buttons carry the shared 4px radius. `chip` is the
-  exception: it is always a pill (`rounded-full`), including `icon-*` sizes.
+- Buttons are sized by padding + line-height (no fixed heights). Text and icon
+  buttons share `--control-radius`. `chip` is the exception: it is always a
+  pill (`rounded-full`), including `icon-*` sizes.
 - SVGs inherit `size-3.5` (`size-3` at `xs`). Don't re-set icon size.
 - Polymorph with `asChild` when the button must render as a link/Slot.
 

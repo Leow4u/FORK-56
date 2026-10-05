@@ -293,7 +293,7 @@ function ConfigSettingsInner({
     if (activeSectionId === 'model') {
       return (
         <SettingsContent>
-          <SectionHeading description={t.settings.model.pickerIntro} title={t.settings.sections.model} variant="page" />
+          <SectionHeading title={t.settings.sections.model} variant="page" />
           <SettingsProfileScope className="mb-5" />
           <div className="mb-6">
             <ModelSettingsSkeleton />
@@ -320,11 +320,7 @@ function ConfigSettingsInner({
 
   return (
     <SettingsContent>
-      <SectionHeading
-        description={activeSectionId === 'model' ? t.settings.model.pickerIntro : undefined}
-        title={t.settings.sections[activeSectionId] ?? activeSectionId}
-        variant="page"
-      />
+      <SectionHeading title={t.settings.sections[activeSectionId] ?? activeSectionId} variant="page" />
       {/* Which profile's config.yaml this page edits — shared across every
           config-backed settings page (and hidden for single-profile users). */}
       <SettingsProfileScope className="mb-5" />
@@ -384,12 +380,5 @@ function CollapseThinkingSetting() {
   const a = t.settings.appearance
   const collapsed = useStore($reasoningCollapsedByDefault)
 
-  return (
-    <ToggleRow
-      checked={collapsed}
-      description={a.reasoningCollapsedDesc}
-      label={a.reasoningCollapsedTitle}
-      onChange={setReasoningCollapsedByDefault}
-    />
-  )
+  return <ToggleRow checked={collapsed} label={a.reasoningCollapsedTitle} onChange={setReasoningCollapsedByDefault} />
 }
