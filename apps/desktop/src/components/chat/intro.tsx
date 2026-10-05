@@ -1,13 +1,9 @@
 import { useState } from 'react'
 
+import { type IntroCopy, type Translations, useI18n } from '@/i18n'
 import { capitalize, normalize } from '@/lib/text'
 
 import introCopyJsonl from './intro-copy.jsonl?raw'
-
-type IntroCopy = {
-  headline: string
-  body: string
-}
 
 type IntroCopyRecord = IntroCopy & {
   personality: string
@@ -18,30 +14,9 @@ export type IntroProps = {
   seed?: number
 }
 
-const NEUTRAL_PERSONALITIES = new Set(['', 'default', 'none', 'neutral'])
+type IntroCatalog = Translations['intro']
 
-const FALLBACK_COPY: IntroCopy[] = [
-  {
-    headline: 'What are we moving today?',
-    body: "Send a bug, branch, plan, or rough idea. I'll inspect the repo and turn it into the next concrete step."
-  },
-  {
-    headline: "What's on your mind?",
-    body: "Bring the code, question, or stuck part. I'll read the room before making changes."
-  },
-  {
-    headline: 'What should Work4You look at?',
-    body: "Send the task, failing path, or half-formed plan. I'll help turn it into action."
-  },
-  {
-    headline: 'Where should we start?',
-    body: "Bring the problem, goal, or file. I'll inspect first and keep the next step concrete."
-  },
-  {
-    headline: 'What needs attention?',
-    body: "Send the context you have. I'll help sort it into a plan or a fix."
-  }
-]
+const NEUTRAL_PERSONALITIES = new Set(['', 'default', 'none', 'neutral'])
 
 function normalizeKey(value?: string): string {
   return normalize(value)
@@ -105,58 +80,31 @@ function parseIntroCopy(raw: string): Record<string, IntroCopy[]> {
 
 const INTRO_COPY_BY_PERSONALITY = parseIntroCopy(introCopyJsonl)
 
-function neutralCopy(): IntroCopy[] {
-  return INTRO_COPY_BY_PERSONALITY.none || INTRO_COPY_BY_PERSONALITY.default || FALLBACK_COPY
+/** A stock personality's greetings in the active language: the catalog's
+ *  overlay when it has one, else the English JSONL. Both keep the same
+ *  rotation order, so a seed picks the same greeting in every language. */
+function stockCopy(intro: IntroCatalog, key: string): readonly IntroCopy[] | undefined {
+  const translated = intro.stock[key]
+
+  return translated?.length ? translated : INTRO_COPY_BY_PERSONALITY[key]
 }
 
-function fallbackCopyForPersonality(personalityKey: string): IntroCopy[] {
+function resolveCopies(intro: IntroCatalog, personalityKey: string): readonly IntroCopy[] {
   if (NEUTRAL_PERSONALITIES.has(personalityKey)) {
-    return neutralCopy()
+    return stockCopy(intro, personalityKey) || stockCopy(intro, 'none') || stockCopy(intro, 'default') || intro.neutral
   }
 
-  const label = titleize(personalityKey)
-
-  return [
-    {
-      headline: `${label} mode is on. What should we work on?`,
-      body: "Send the task, file, or rough idea. I'll use your configured voice and keep the work grounded in this repo."
-    },
-    {
-      headline: `What does ${label} Work4You need to see?`,
-      body: "Bring the context or the stuck part. I'll adapt to your configured personality."
-    },
-    {
-      headline: `${label} mode is ready.`,
-      body: "Send the problem, file, or idea. I'll follow the personality you've configured."
-    },
-    {
-      headline: `What should ${label} Work4You tackle?`,
-      body: "Drop the task here. I'll keep the work grounded in the repo."
-    },
-    {
-      headline: 'Where should we begin?',
-      body: `Give me the context and I'll answer in ${label} mode.`
-    }
-  ]
+  return stockCopy(intro, personalityKey) || intro.custom(titleize(personalityKey))
 }
 
-function pickCopy(copies: IntroCopy[], seed = 0): IntroCopy {
-  return copies[Math.abs(seed) % copies.length] || FALLBACK_COPY[0]
-}
-
-function resolveCopy(personality?: string, seed?: number): IntroCopy {
-  const personalityKey = normalizeKey(personality)
-
-  const copies = NEUTRAL_PERSONALITIES.has(personalityKey)
-    ? INTRO_COPY_BY_PERSONALITY[personalityKey] || neutralCopy()
-    : INTRO_COPY_BY_PERSONALITY[personalityKey] || fallbackCopyForPersonality(personalityKey)
-
-  return pickCopy(copies, seed)
+function pickCopy(copies: readonly IntroCopy[], fallback: readonly IntroCopy[], seed = 0): IntroCopy {
+  return copies[Math.abs(seed) % copies.length] || fallback[0]
 }
 
 export function Intro({ personality, seed }: IntroProps) {
   const [mountSeed] = useState(() => Math.floor(Math.random() * 100000))
-  const copy = resolveCopy(personality, mountSeed + (seed ?? 0))
+  const { t } = useI18n()
+  const copy = pickCopy(resolveCopies(t.intro, normalizeKey(personality)), t.intro.neutral, mountSeed + (seed ?? 0))
 
   return (
     <div

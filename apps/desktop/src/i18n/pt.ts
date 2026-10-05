@@ -1,6 +1,7 @@
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
 import { defineLocale } from './define-locale'
+import { introPt } from './intro-pt'
 
 export const pt = defineLocale({
   common: {
@@ -5625,5 +5626,7 @@ export const pt = defineLocale({
         waiting: ['sua vez', 'é todo seu', 'com você agora', 'a bola está com você', 'aguardando ordens']
       }
     }
-  }
+  },
+
+  intro: introPt
 })
