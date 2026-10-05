@@ -86,12 +86,14 @@ export function delegateRowsFromCall(args: unknown, result: unknown, toolCallId 
   const goals = delegateGoals(args)
   const finished = resultRows(result)
   const dispatched = dispatchedGoals(result)
+
   const titles =
     goals.length > 0
       ? goals
       : dispatched.length > 0
         ? dispatched
         : finished.map(() => translateNow('assistant.tool.delegatedTask'))
+
   const idle: DelegateRowStatus = result === undefined ? 'running' : 'dispatched'
 
   return titles.map((goal, index) => {
