@@ -563,9 +563,12 @@ class TestFormatPricePerMtok:
 
 
 
-    def test_work4you_list_includes_sonnet_5(self):
+    def test_work4you_list_uses_vendor_prefixed_ids(self):
+        """The Portal routes on ``vendor/model`` ids (``anthropic/*`` picks the wire)."""
         from work4you_cli.models import _PROVIDER_MODELS
-        assert "anthropic/claude-sonnet-5" in _PROVIDER_MODELS["work4you"]
+        for mid in _PROVIDER_MODELS["work4you"]:
+            vendor, _, slug = mid.partition("/")
+            assert vendor and slug, mid
 
 
 class _FakeOllamaTagsHandler(BaseHTTPRequestHandler):

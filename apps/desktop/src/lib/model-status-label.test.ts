@@ -12,7 +12,7 @@ describe('model-status-label', () => {
     expect(displayModelName('anthropic/claude-opus-4.8-fast')).toBe('Claude Opus 4.8')
     expect(displayModelName('anthropic/claude-opus-5')).toBe('Claude Opus 5')
     expect(displayModelName('openai/gpt-5.5-fast')).toBe('GPT-5.5')
-    expect(displayModelName('deepseek/deepseek-v4-pro-thinking')).toBe('Deepseek V4 Pro')
+    expect(displayModelName('deepseek/deepseek-v4-pro-thinking')).toBe('DeepSeek V4 Pro')
     expect(displayModelName('openai/gpt-5.5')).toBe('GPT-5.5')
     expect(displayModelName('google/gemini-3.1-pro-preview')).toBe('Gemini 3.1 Pro')
     expect(displayModelName('tencent/hy3')).toBe('Hunyuan 3')

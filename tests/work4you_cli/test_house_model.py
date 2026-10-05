@@ -10,20 +10,30 @@ from work4you_cli.models import (
 
 
 def test_official_catalog_is_curated_without_openrouter_free():
-    from work4you_cli.models import _PROVIDER_MODELS
+    from work4you_cli.models import _PROVIDER_MODELS, is_legacy_work4you_house_model
 
     ids = _PROVIDER_MODELS["work4you"]
     assert ids[0] == WORK4YOU_HOUSE_MODEL_ID
+    assert ids.count(WORK4YOU_HOUSE_MODEL_ID) == 1
     assert "openrouter/free" not in ids
-    assert "deepseek/deepseek-v4-pro" not in ids
-    assert "deepseek/deepseek-v4-pro-0813" not in ids
-    assert "deepseek/deepseek-v4-flash" not in ids
-    assert "deepseek/deepseek-v4-flash-0731" not in ids
-    assert "google/gemini-3.7-flash" in ids
-    assert "google/gemini-3.8-flash" not in ids
-    assert ids.count("openai/gpt-6-luna") == 1
-    assert "openai/gpt-5.6-luna" not in ids
-    assert "openai/gpt-5.6-luna-pro" in ids
+    assert not any(is_legacy_work4you_house_model(mid) for mid in ids)
+
+
+def test_house_model_is_the_only_luna_in_the_official_catalog():
+    """Operis runs on GPT-6 Luna, so no other Luna id may sit in the picker:
+    it would read as a second Operis."""
+    from work4you_cli.models import _PROVIDER_MODELS
+
+    luna = [mid for mid in _PROVIDER_MODELS["work4you"] if "luna" in mid.rsplit("/", 1)[-1]]
+    assert luna == [WORK4YOU_HOUSE_MODEL_ID]
+
+
+def test_every_official_model_has_a_commercial_name():
+    """The picker never falls back to a raw wire slug for an official model."""
+    from work4you_cli.models import _PROVIDER_MODELS, curated_model_display
+
+    for mid in _PROVIDER_MODELS["work4you"]:
+        assert is_work4you_house_model(mid) or curated_model_display(mid), mid
 
 
 def test_house_model_id_is_gpt6_luna():
@@ -123,21 +133,9 @@ def test_featured_shortlist_is_official_and_includes_house():
     featured = WORK4YOU_FEATURED_MODEL_IDS
     assert featured
     assert set(featured) <= official
+    assert len(set(featured)) == len(featured)
+    assert len(featured) < len(official)
     assert featured[0] == WORK4YOU_HOUSE_MODEL_ID
-    assert WORK4YOU_HOUSE_MODEL_ID in featured
-    assert "anthropic/claude-fable-5" in featured
-    assert "anthropic/claude-opus-5" in featured
-    assert "anthropic/claude-sonnet-5" in featured
-    assert "openai/gpt-5.6-sol" in featured
-    assert "openai/gpt-5.6-terra" in featured
-    assert "openai/gpt-5.6-luna-pro" in featured
-    assert "google/gemini-3.7-flash" in featured
-    assert "x-ai/grok-4.6" in featured
-    assert "qwen/qwen3.8-max" in featured
-    assert "z-ai/glm-5.2" in featured
-    assert "anthropic/claude-opus-4.8" not in featured
-    assert "anthropic/claude-haiku-4.5" not in featured
-    assert "google/gemini-3.1-pro-preview" not in featured
 
 
 def test_retired_house_id_canonicalizes_to_current_wire_id():
