@@ -14,6 +14,7 @@ import { findGroup } from '@/components/pane-shell/tree/model'
 import { $activeTreeGroup, $layoutTree, revealTreePane } from '@/components/pane-shell/tree/store'
 import { FileTypeIcon } from '@/components/ui/file-type-icon'
 import { ToolIcon } from '@/components/ui/tool-icon'
+import { translateNow, useI18n } from '@/i18n'
 import { $rightRailActiveTabId, type RightRailTabId, selectRightRailTab } from '@/store/layout'
 import { $previewTabs, closeRightRailTab, type PreviewTarget } from '@/store/preview'
 
@@ -26,28 +27,47 @@ function targetFor(tabId: string): PreviewTarget | null {
   return $previewTabs.get().find(tab => tab.id === tabId)?.target ?? null
 }
 
+/** The two names a preview tab can fall back on, from whichever catalog read
+ *  is at hand (the live `t` while rendering, `translateNow` while syncing). */
+interface PreviewTitleCopy {
+  browser: string
+  preview: string
+}
+
 /** Tab title. A URL is a BROWSER — the tab names the surface, not the page, so
  *  it doesn't rename itself on every navigation. A file names the file; an
  *  artifact is titled rather than located, so its label is the whole name. */
-function previewTitle(tabId: string): string {
+function previewTitle(tabId: string, copy: PreviewTitleCopy): string {
   const target = targetFor(tabId)
 
   if (!target) {
-    return 'Preview'
+    return copy.preview
   }
 
   if (target.kind === 'url') {
-    return 'Browser'
+    return copy.browser
   }
 
   if (target.kind === 'artifact') {
-    return target.label || 'Preview'
+    return target.label || copy.preview
   }
 
   const value = target.label || target.path || target.source || target.url
   const tail = value.split(/[\\/]/).filter(Boolean).at(-1)
 
-  return tail || value || 'Preview'
+  return tail || value || copy.preview
+}
+
+/** The registered name, resolved when the tile syncs — outside React, and at
+ *  boot possibly before the display language is applied. */
+const registeredPreviewTitle = (tabId: string): string =>
+  previewTitle(tabId, { browser: translateNow('shell.panes.browser'), preview: translateNow('preview.tab') })
+
+/** The tab's label from the live `t`, so the strip follows the language. */
+function PreviewTabTitle({ tabId }: { tabId: string }) {
+  const { t } = useI18n()
+
+  return previewTitle(tabId, { browser: t.shell.panes.browser, preview: t.preview.tab })
 }
 
 /** The tab's lead glyph — the same file/tool icon family the file tree and code
@@ -130,7 +150,8 @@ const watchPreviewTileMirror = paneMirror<{ id: string }>({
   // browser's zone, so ⌘J (toggle file browser) took the preview with it.
   dir: () => 'right',
   minWidth: '22rem',
-  title: previewTitle,
+  title: registeredPreviewTitle,
+  tabTitle: tabId => <PreviewTabTitle tabId={tabId} />,
   tabLead: tabId => <PreviewTabLead tabId={tabId} />,
   render: tabId => <PreviewTilePane tabId={tabId} />,
   close: tabId => {

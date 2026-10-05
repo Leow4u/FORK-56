@@ -888,16 +888,15 @@ export function SkillsView({
   // Scope-selector rows. Multi-connection desktops list every reachable
   // (connection, profile) agent from the union roster — the selected profile
   // is configured ON ITS OWN GATEWAY. Otherwise the legacy per-profile list.
+  const scopeAgentLabel = t.skills.scopeAgent
+
   const scopeOptions: { key: string; label: string; profile: string; value: string }[] = useMemo(() => {
     if (multiConnection && rosterData?.agents?.length) {
       const activeId = activeGatewayConnectionId() ?? 'local'
 
       return rosterData.agents.map((agent: DesktopRosterAgent) => ({
         key: `${agent.connectionId}::${agent.profile}`,
-        label:
-          agent.connectionId === activeId
-            ? `${agent.profile} — ${agent.connectionLabel} (current)`
-            : `${agent.profile} — ${agent.connectionLabel}`,
+        label: scopeAgentLabel(agent.profile, agent.connectionLabel, agent.connectionId === activeId),
         profile: agent.profile,
         value: `${agent.connectionId}::${agent.profile}`
       }))
@@ -909,7 +908,7 @@ export function SkillsView({
       profile: p.name,
       value: p.name
     }))
-  }, [multiConnection, profilesData, rosterData])
+  }, [multiConnection, profilesData, rosterData, scopeAgentLabel])
 
   // The selector's current value must match one option's value exactly. On the
   // roster path an ambient (non-override) scope is the active gateway's
@@ -1160,7 +1159,7 @@ export function SkillsView({
                           ) : calls > 0 ? (
                             `×${compactNumber(calls)}`
                           ) : (
-                            `${toolNames(toolset).length} tools`
+                            t.agents.toolsCount(toolNames(toolset).length)
                           )
                         }
                         onSelect={() => setSelectedToolset(toolset.name)}

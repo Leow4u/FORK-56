@@ -150,8 +150,8 @@ export function ArtifactsView({
         const otherFailures = failures.length - safeLimitFailures
 
         const detail = [
-          safeLimitFailures ? `${safeLimitFailures} exceeded the safe transcript load limit.` : '',
-          otherFailures ? `${otherFailures} could not be read.` : ''
+          safeLimitFailures ? a.skippedSafeLimit(safeLimitFailures) : '',
+          otherFailures ? a.skippedUnreadable(otherFailures) : ''
         ]
           .filter(Boolean)
           .join(' ')
@@ -160,7 +160,7 @@ export function ArtifactsView({
           id: 'artifacts-partial-load',
           kind: 'warning',
           title: a.failedLoad,
-          message: `Skipped ${failures.length} of ${sessions.length} recent sessions while indexing artifacts.`,
+          message: a.skippedSessions(failures.length, sessions.length),
           detail,
           durationMs: 10_000
         })

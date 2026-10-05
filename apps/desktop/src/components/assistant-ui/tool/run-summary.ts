@@ -1,3 +1,4 @@
+import { translateNow } from '@/i18n'
 import { summarizeShellCommand } from '@/lib/summarize-command'
 import { firstStringField } from '@/lib/text'
 
@@ -25,12 +26,22 @@ type RunCategory = 'delegate' | 'edit' | 'explore' | 'other' | 'run'
 // category happens to be live.
 const CATEGORY_ORDER: readonly RunCategory[] = ['edit', 'explore', 'run', 'delegate', 'other']
 
-const CATEGORY_COPY: Record<RunCategory, { noun: [string, string]; past: string; present: string }> = {
-  delegate: { noun: ['task', 'tasks'], past: 'Delegated', present: 'Delegating' },
-  edit: { noun: ['file', 'files'], past: 'Edited', present: 'Editing' },
-  explore: { noun: ['file', 'files'], past: 'Explored', present: 'Exploring' },
-  other: { noun: ['tool', 'tools'], past: 'Used', present: 'Using' },
-  run: { noun: ['command', 'commands'], past: 'Ran', present: 'Running' }
+interface CategoryCopy {
+  noun: [string, string]
+  past: string
+  present: string
+}
+
+// Words for each category, read from the catalog (`assistant.runSummary`) at
+// call time so the line follows the app's language.
+function categoryCopy(category: RunCategory): CategoryCopy {
+  const key = `assistant.runSummary.${category}`
+
+  return {
+    noun: [translateNow(`${key}.one`), translateNow(`${key}.other`)],
+    past: translateNow(`${key}.past`),
+    present: translateNow(`${key}.present`)
+  }
 }
 
 const EXPLORE_TOOLS = new Set([
@@ -73,7 +84,7 @@ function isPending(tool: ToolCallLike): boolean {
  * described in the same words from the moment the model drafts it.
  */
 export function toolPresentVerb(toolName: string): string {
-  return CATEGORY_COPY[toolCategory(toolName)].present
+  return translateNow(`assistant.runSummary.${toolCategory(toolName)}.present`)
 }
 
 /** The thing a tool acted on, as the header should name it. */
@@ -96,7 +107,7 @@ function toolTarget(tool: ToolCallLike): string {
  * command line only earns its space while it's the thing you're waiting on.
  */
 function clause(category: RunCategory, tools: ToolCallLike[], live: boolean): string {
-  const copy = CATEGORY_COPY[category]
+  const copy = categoryCopy(category)
   const verb = live ? copy.present : copy.past
   const target = tools.length === 1 ? toolTarget(tools[0]) : ''
 

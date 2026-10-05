@@ -784,7 +784,7 @@ export function useMessageStream({
         const streamId = state.streamId ?? `assistant-error-${Date.now()}`
         const groupId = state.pendingBranchGroup ?? undefined
         const prev = state.messages
-        const error = errorMessage.trim() || 'Work4You reported an error'
+        const error = errorMessage.trim() || translateNow('desktop.gatewayErrorFallback')
 
         const durationS = wallClockDurationS(state.turnStartedAt)
 

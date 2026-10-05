@@ -394,10 +394,12 @@ export function useComposerActions({
     [attachToMain, currentCwd, scope]
   )
 
+  const contextMenuCopy = t.composer.contextMenu
+
   const pickContextPaths = useCallback(
     async (kind: 'file' | 'folder') => {
       const paths = await selectDesktopPaths({
-        title: kind === 'file' ? 'Add files as context' : 'Add folders as context',
+        title: kind === 'file' ? contextMenuCopy.addFiles : contextMenuCopy.addFolders,
         defaultPath: currentCwd || undefined,
         directories: kind === 'folder'
       })
@@ -419,7 +421,7 @@ export function useComposerActions({
         })
       }
     },
-    [attachToMain, currentCwd]
+    [attachToMain, contextMenuCopy, currentCwd]
   )
 
   const insertContextPathInlineRef = useCallback(
@@ -618,6 +620,7 @@ export function useComposerActions({
 
       let attached = false
       let lastFailure: string | null = null
+      const failed = copy.attachFailed
 
       for (const candidate of candidates) {
         const { file, isDirectory, path: knownPath } = candidate
@@ -631,7 +634,7 @@ export function useComposerActions({
               continue
             }
 
-            lastFailure = `Could not attach folder ${knownPath || ''}`
+            lastFailure = failed.folder(knownPath || '')
 
             continue
           }
@@ -643,7 +646,7 @@ export function useComposerActions({
               continue
             }
 
-            lastFailure = `Could not attach ${knownPath}`
+            lastFailure = failed.named(knownPath)
 
             continue
           }
@@ -654,7 +657,7 @@ export function useComposerActions({
             continue
           }
 
-          lastFailure = `Could not attach ${knownPath || 'file'}`
+          lastFailure = knownPath ? failed.named(knownPath) : failed.file
 
           continue
         }
@@ -679,7 +682,7 @@ export function useComposerActions({
             continue
           }
 
-          lastFailure = `Could not attach ${file.name || 'image'}`
+          lastFailure = file.name ? failed.named(file.name) : failed.image
 
           continue
         }
@@ -690,7 +693,7 @@ export function useComposerActions({
           continue
         }
 
-        lastFailure = `Could not attach ${file.name || 'file'}`
+        lastFailure = file.name ? failed.named(file.name) : failed.file
       }
 
       if (!attached && lastFailure) {
@@ -699,7 +702,14 @@ export function useComposerActions({
 
       return attached
     },
-    [attachContextFilePath, attachContextFolderPath, attachImageBlob, attachImagePath, copy.dropFiles]
+    [
+      attachContextFilePath,
+      attachContextFolderPath,
+      attachImageBlob,
+      attachImagePath,
+      copy.attachFailed,
+      copy.dropFiles
+    ]
   )
 
   const removeAttachment = useCallback(

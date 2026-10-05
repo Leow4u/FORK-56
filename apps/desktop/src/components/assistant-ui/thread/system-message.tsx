@@ -6,6 +6,7 @@ import { MessageTimelineTimestamp } from '@/components/assistant-ui/thread/timel
 import { SCAFFOLD_LABEL_CLASS } from '@/components/chat/scaffold-row'
 import { Codicon } from '@/components/ui/codicon'
 import { ToolIcon } from '@/components/ui/tool-icon'
+import { useI18n } from '@/i18n'
 import { LinkifiedText } from '@/lib/external-link'
 import { cn } from '@/lib/utils'
 
@@ -14,6 +15,7 @@ const STEER_NOTE_RE = /^steer:(?<text>[\s\S]+)$/
 const REVIEW_NOTE_RE = /^review:(?<label>[^:\n]+):?\s*(?<detail>[\s\S]*)$/
 
 export const SystemMessage: FC = () => {
+  const { t } = useI18n()
   const text = useAuiState(s => messageContentText(s.message.content))
 
   if (!text) {
@@ -58,7 +60,7 @@ export const SystemMessage: FC = () => {
         data-slot="aui_system-message-root"
       >
         <Codicon className="text-muted-foreground/55" name="compass" size="0.75rem" />
-        <span className="text-muted-foreground/55">steered</span>
+        <span className="text-muted-foreground/55">{t.assistant.thread.steered}</span>
         <span className="text-muted-foreground/35">·</span>
         <span className="whitespace-pre-wrap">{steerNote.groups.text.trim()}</span> <MessageTimelineTimestamp />
       </MessagePrimitive.Root>

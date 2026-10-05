@@ -3,14 +3,20 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ComposerTriggerPopover } from './trigger-popover'
 
-vi.mock('@/i18n', () => ({
+// Only `useI18n` is stubbed; module-level translators (`translateNow`, used by
+// the shared reference vocabulary) stay real.
+vi.mock('@/i18n', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/i18n')>()),
   useI18n: () => ({
     t: {
       composer: {
         lookupLoading: 'Loading…',
         lookupNoMatches: 'No matches',
         lookupTry: 'Try',
-        lookupOr: 'or'
+        lookupOr: 'or',
+        slashCommands: {
+          groups: { commands: 'Commands', options: 'Options', sessions: 'Sessions', themes: 'Themes' }
+        }
       }
     }
   })

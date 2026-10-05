@@ -603,7 +603,11 @@ function UsagePanel({ error, loading, onRefresh, period, usage }: UsagePanelProp
                   <div
                     className="group relative flex h-24 min-w-0 flex-1 flex-col justify-end"
                     key={entry.day}
-                    title={`${entry.day} · in ${compactNumber(entry.input_tokens)} · out ${compactNumber(entry.output_tokens)}`}
+                    title={cc.dailyTokensTip(
+                      entry.day,
+                      compactNumber(entry.input_tokens),
+                      compactNumber(entry.output_tokens)
+                    )}
                   >
                     <div
                       className="w-full rounded-t-[1px] bg-[color:var(--dt-primary)]/50"

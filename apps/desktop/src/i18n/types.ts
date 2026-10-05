@@ -1153,6 +1153,19 @@ export interface Translations {
     archive: string
     skillArchivedTitle: string
     skillArchivedMessage: string
+    archiveConfirmTitle: (name: string) => string
+    archiveConfirmBody: string
+    scopeAgent: (profile: string, connection: string, current: boolean) => string
+    appConnect: {
+      signInRequiredTitle: string
+      signInRequiredBody: string
+      connectedTitle: (name: string) => string
+      connectedBody: string
+    }
+    mcpDoc: {
+      expectedObject: string
+      wrapServer: string
+    }
     hub: {
       searchPlaceholder: string
       search: string
@@ -1228,6 +1241,33 @@ export interface Translations {
     importSuccess: (nodes: number) => string
     importedBadge: string
     resetToMine: string
+    importFailed: string
+    nodeMenu: {
+      editMemory: string
+      editSkill: string
+      archiveSkill: string
+      deleteMemory: string
+      editTitle: (label: string) => string
+      deleteTitle: (label: string) => string
+      deleteMemoryBody: string
+    }
+    legend: {
+      skill: string
+      memory: string
+      rings: string
+    }
+    timeline: {
+      play: string
+      pause: string
+      scrubber: string
+    }
+    badges: {
+      unknownDate: string
+      profileMemory: string
+      memory: string
+      learned: string
+      pinned: string
+    }
   }
   agents: {
     close: string
@@ -1382,6 +1422,7 @@ export interface Translations {
     noUsage: (period: number) => string
     retry: string
     dailyTokens: string
+    dailyTokensTip: (day: string, input: string, output: string) => string
     input: string
     output: string
     noDailyActivity: string
@@ -2679,6 +2720,9 @@ export interface Translations {
     chat: string
     copyUrl: string
     copyPath: string
+    skippedSessions: (skipped: number, total: number) => string
+    skippedSafeLimit: (count: number) => string
+    skippedUnreadable: (count: number) => string
   }
 
   artifactCard: {
@@ -2832,6 +2876,7 @@ export interface Translations {
       untitledChat: (id: string) => string
       messageCount: (count: number) => string
       todoProgress: string
+      openPullRequest: (number: number) => string
       ageNow: string
       ageDay: string
       ageHour: string
@@ -2849,6 +2894,26 @@ export interface Translations {
       done: string
     }
     markAllRead: string
+    splitDirections: Record<'bottom' | 'left' | 'right' | 'top', string>
+    filters: {
+      title: string
+      grouping: string
+      ordering: string
+      show: string
+      inboxStyle: string
+      status: string
+      pullRequest: string
+      profile: string
+      project: string
+      archived: string
+      expandAll: string
+      collapseAll: string
+      groupings: Record<'date' | 'profile' | 'project' | 'status', string>
+      orderings: Record<'cost' | 'created' | 'manual' | 'status' | 'tokens' | 'updated', string>
+      rowMeta: Record<'cost' | 'pr' | 'preview' | 'profile' | 'tokens' | 'updated', string>
+      prStates: Record<'closed' | 'draft' | 'merged' | 'none' | 'open', string>
+      statuses: Record<'draft' | 'idle' | 'needs-input' | 'unread' | 'working', string>
+    }
   }
 
   composer: {
@@ -2894,6 +2959,72 @@ export interface Translations {
     helpFooter: string
     commandDescs: Record<string, string>
     hotkeyDescs: Record<string, string>
+    slashCommands: {
+      descriptions: {
+        newChat: string
+        branch: string
+        yolo: string
+        wake: string
+        handoff: string
+        profile: string
+        skin: string
+        title: string
+        help: string
+        browser: string
+        journey: string
+        model: string
+        resume: string
+        approvals: string
+        agents: string
+        background: string
+        compress: string
+        debug: string
+        goal: string
+        loop: string
+        personality: string
+        pet: string
+        hatch: string
+        queue: string
+        retry: string
+        rollback: string
+        save: string
+        status: string
+        steer: string
+        stop: string
+        tools: string
+        undo: string
+        usage: string
+        version: string
+      }
+      unavailable: {
+        advanced: (command: string) => string
+        messaging: (command: string) => string
+        settings: (command: string) => string
+        terminal: (command: string) => string
+        modelPicker: (command: string) => string
+        sessionPicker: (command: string) => string
+      }
+      skin: {
+        list: string
+        next: string
+        current: string
+      }
+      groups: {
+        commands: string
+        options: string
+        sessions: string
+        themes: string
+      }
+      browseAllSessions: string
+    }
+    atStarters: {
+      file: string
+      folder: string
+      url: string
+      image: string
+      tool: string
+      git: string
+    }
     attachUrlTitle: string
     attachUrlDesc: string
     urlPlaceholder: string
@@ -2941,6 +3072,11 @@ export interface Translations {
     snippets: Record<string, { label: string; description: string; text: string }>
     dropFiles: string
     dropSession: string
+    contextMenu: {
+      addContext: string
+      addFiles: string
+      addFolders: string
+    }
     mcpSuggestions: {
       label: (server: string) => string
       connectLabel: (server: string) => string
@@ -3186,7 +3322,7 @@ export interface Translations {
     featuredPitch: string
     fireworksPitch: string
     openRouterPitch: string
-    apiKeyOptions: Record<string, { short: string; description: string }>
+    apiKeyOptions: Record<string, { short: string; description: string; name?: string }>
     backToSignIn: string
     getKey: string
     replaceCurrent: string
@@ -3224,6 +3360,12 @@ export interface Translations {
     change: string
     startChatting: string
     docs: (provider: string) => string
+    providerTitles: {
+      openaiCodex: string
+      anthropicApiKey: string
+      claudeCode: string
+    }
+    directApiAccess: (provider: string) => string
     profileSetup: {
       title: (profile: string) => string
       subtitle: string
@@ -3277,6 +3419,29 @@ export interface Translations {
     windowControls: string
     paneControls: string
     appControls: string
+    panes: {
+      sessions: string
+      terminal: string
+      files: string
+      review: string
+      logs: string
+      browser: string
+      agentTerminal: string
+      noPageAt: (path: string) => string
+    }
+    layouts: {
+      default: string
+      focus: string
+      terminalDeck: string
+      quad: string
+    }
+    palette: {
+      resetLayout: string
+      toggleStatusbar: string
+      toggleTerminal: string
+      toggleLogs: string
+      toggleYolo: string
+    }
     modelMenu: {
       search: string
       noModels: string
@@ -3284,6 +3449,7 @@ export interface Translations {
       editModels: string
       refreshModels: string
       fast: string
+      moaPresets: string
     }
     modelOptions: {
       noOptions: string
@@ -3667,6 +3833,18 @@ export interface Translations {
       goForward: string
       sendEdited: string
       attachingFile: string
+      restoreFailed: string
+      summarizingThread: string
+      agentWorking: string
+      timelineLabel: string
+      steered: string
+      messaging: (name: string) => string
+      messaged: (name: string) => string
+      messageFrom: (name: string) => string
+      showMessage: string
+      repliedTo: (name: string) => string
+      showReply: string
+      processOutput: string
     }
     approval: {
       gatewayDisconnected: string
@@ -3777,6 +3955,106 @@ export interface Translations {
         runningTool: (action: string) => string
       }
       titles: Record<ToolTitleKey, ToolTitleCopy>
+      payload: string
+      traceArguments: string
+      traceResult: string
+      searchLabel: string
+      searchResults: string
+      generatedImageAlt: string
+      truncated: (count: string) => string
+      details: string
+      snapshotSummary: string
+      errorDetails: string
+      toolError: string
+      toolFailure: string
+      toolStatus: (status: string) => string
+      commandFailed: (code: number) => string
+      navigated: string
+      snapshotCaptured: string
+      snapshotStats: (buttons: number, links: number, inputs: number) => string
+      topControls: (labels: string) => string
+      clickedPage: string
+      clickedRef: (ref: string) => string
+      clickedTarget: (target: string) => string
+      fieldLabel: (field: string) => string
+      valueLabel: (value: string) => string
+      filledInput: string
+      queryLabel: (query: string) => string
+      queriedWeb: string
+      executedCommand: string
+      changedFile: string
+      fetchedWebpage: string
+      cron: {
+        jobCount: (count: number) => string
+        noJobs: string
+        noJobsScheduled: string
+        jobFallback: string
+        schedule: string
+        repeat: string
+        delivery: string
+        nextRun: string
+      }
+      /** Nouns for result-count badges ("13 entries"). Nouns a tool reports that
+       *  aren't listed here keep the English plural. */
+      countNouns: Record<
+        'document' | 'entry' | 'file' | 'item' | 'match' | 'result' | 'row' | 'search' | 'source' | 'step' | 'todo',
+        { one: string; other: string }
+      >
+      delegateTaskFallback: (index: number) => string
+      delegatedTask: string
+    }
+    runSummary: Record<
+      'delegate' | 'edit' | 'explore' | 'other' | 'run',
+      { one: string; other: string; past: string; present: string }
+    >
+    alerts: {
+      caution: string
+      important: string
+      note: string
+      tip: string
+      warning: string
+    }
+    embeds: {
+      load: (label: string) => string
+      alwaysAllow: (label: string) => string
+      failed: (label: string) => string
+      frameTitle: (label: string) => string
+      holdToZoom: string
+      openDiagram: string
+    }
+    references: {
+      file: string
+      folder: string
+      url: string
+      image: string
+      tool: string
+      line: string
+      terminal: string
+      session: string
+      git: string
+      diff: string
+      staged: string
+      command: string
+      skill: string
+      theme: string
+      emoji: string
+      other: string
+    }
+    markdown: {
+      fetchFailed: (name: string) => string
+      openAudioFile: string
+      openVideoFile: string
+      openFile: (name: string) => string
+      loadingFile: (name: string) => string
+      loadFailed: (name: string) => string
+    }
+    reactions: {
+      search: string
+      loading: string
+      empty: string
+      more: string
+      remove: (emoji: string) => string
+      reactedByAgent: string
     }
   }
 
@@ -3861,6 +4139,107 @@ export interface Translations {
       failed: (error: string) => string
       timedOut: string
     }
+    openSessionFailed: string
+    previewTargetFailed: (target: string) => string
+    gatewayErrorTitle: string
+    gatewayErrorFallback: string
+    dangerousCommand: string
+    remoteAttachTooLarge: (label: string, maxMb: number | null) => string
+    attachFailed: {
+      folder: (path: string) => string
+      named: (name: string) => string
+      read: (name: string) => string
+      file: string
+      image: string
+    }
+    restore: {
+      noSession: string
+      notFound: string
+      emptyMessage: string
+    }
+    previewRestart: {
+      noSession: string
+      noTask: string
+    }
+    artifactOpen: {
+      bridgeUnavailable: string
+      writeFailed: string
+    }
+    pdfPreview: {
+      requiresObjectUrl: string
+      invalidDataUrl: string
+      invalidType: string
+      invalidPayload: string
+      invalidHeader: string
+    }
+    quickEntry: {
+      placeholder: string
+      disconnected: string
+      sendTo: string
+      targetSession: string
+      currentChat: string
+    }
+    moa: {
+      reference: string
+      referenceOf: (index: number, count: number) => string
+      refs: (done: number, total: number) => string
+      aggregating: string
+      defaultLabel: string
+    }
+    slash: {
+      unavailable: (name: string) => string
+      noOutput: (name: string) => string
+      noOutputPlain: string
+      skillPayloadMissing: (name: string) => string
+      emptyMessage: (name: string) => string
+      busyQueued: string
+      busyInterrupt: string
+      error: (message: string) => string
+      invalidDispatch: string
+      commandFailed: (name: string, error: string) => string
+      compressing: string
+      compressingFor: (topic: string) => string
+      compressed: (count: number) => string
+      nothingToCompress: string
+      titleSet: (title: string, queued: boolean) => string
+      titleCleared: string
+      petScaleUsage: string
+      noCommands: string
+      steeredQueued: (text: string) => string
+      steeredNext: string
+      steerRejected: string
+      stoppedProcesses: (count: number) => string
+      noProcesses: string
+      savedTranscript: (file: string) => string
+      usage: (calls: string, input: string, output: string, total: string) => string
+      noTasks: string
+      wake: {
+        title: string
+        state: (listening: boolean) => string
+        phrase: (phrase: string) => string
+        provider: (provider: string) => string
+        surface: (surface: string) => string
+        input: (device: string) => string
+        audioSilent: string
+        inputError: (error: string) => string
+        hint: (hint: string) => string
+        systemDefault: string
+        usage: string
+        startFailed: (reason: string) => string
+      }
+      browser: {
+        remoteOnly: string
+        usage: string
+        checking: (url: string) => string
+        connected: (url: string) => string
+        urlUnavailable: string
+        notConnected: string
+        disconnected: string
+        connectedLive: string
+        endpoint: (url: string) => string
+        nextCall: string
+      }
+    }
   }
 
   errors: {
@@ -3886,6 +4265,48 @@ export interface Translations {
       title: string
       description: string
       toggle: (open: boolean) => string
+    }
+    splitButton: {
+      moreActions: string
+    }
+    zoom: {
+      openFullView: string
+      zoomOut: string
+      reset: string
+      zoomIn: string
+    }
+    pets: {
+      spriteLabel: (name: string) => string
+      spriteFallbackLabel: string
+      hatchingProgress: string
+      unavailableTitle: string
+      unavailableBody: string
+      setUpImageGen: string
+      grabKeyFrom: string
+      examples: readonly string[]
+      examplePrompt: (example: string) => string
+      referenceFallbackName: string
+      removeReference: string
+      addReference: string
+      overlayPlaceholder: string
+      openInApp: string
+      notifyView: string
+      draftsReadyTitle: string
+      draftsReadyBody: string
+      generateFailedTitle: string
+      reopenToRetry: string
+      hatchedTitle: string
+      hatchedBody: string
+      hatchFailedTitle: string
+      generateFailed: string
+      hatchFailed: string
+      adoptFailed: string
+      bubble: {
+        run: readonly string[]
+        review: readonly string[]
+        failed: readonly string[]
+        waiting: readonly string[]
+      }
     }
   }
 }

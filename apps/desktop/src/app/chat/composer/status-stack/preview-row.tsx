@@ -30,7 +30,7 @@ export const PreviewStatusRow = memo(function PreviewStatusRow({ item, onDismiss
     const target = await normalizeOrLocalPreviewTarget(item.target, item.cwd || undefined)
 
     if (!target) {
-      throw new Error(`Could not open preview target: ${item.target}`)
+      throw new Error(t.desktop.previewTargetFailed(item.target))
     }
 
     return target

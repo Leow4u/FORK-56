@@ -11,6 +11,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger
 } from '@/components/ui/dropdown-menu'
+import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import type { SplitDir } from '@/store/session-states'
 
@@ -37,12 +38,13 @@ export const CONTEXT_SPLIT_KIT: SplitMenuKit = {
   SubTrigger: ContextMenuSubTrigger
 }
 
-// Ordered so the default (right) sits first, one hop away.
-const SPLIT_DIRS: { dir: SplitDir; icon: string; label: string }[] = [
-  { dir: 'right', icon: 'arrow-right', label: 'Right' },
-  { dir: 'bottom', icon: 'arrow-down', label: 'Down' },
-  { dir: 'left', icon: 'arrow-left', label: 'Left' },
-  { dir: 'top', icon: 'arrow-up', label: 'Up' }
+// Ordered so the default (right) sits first, one hop away. Labels come from
+// `t.sidebar.splitDirections`, keyed by the same direction.
+const SPLIT_DIRS: { dir: SplitDir; icon: string }[] = [
+  { dir: 'right', icon: 'arrow-right' },
+  { dir: 'bottom', icon: 'arrow-down' },
+  { dir: 'left', icon: 'arrow-left' },
+  { dir: 'top', icon: 'arrow-up' }
 ]
 
 interface SplitSubmenuProps {
@@ -60,6 +62,7 @@ interface SplitSubmenuProps {
  * submenu picks any edge. Shared by session rows and page nav rows.
  */
 export function SplitSubmenu({ close, disabled, kit, label, onSplit }: SplitSubmenuProps) {
+  const { t } = useI18n()
   const { Item, Sub, SubContent, SubTrigger } = kit
 
   const split = (dir: SplitDir) => {
@@ -80,10 +83,10 @@ export function SplitSubmenu({ close, disabled, kit, label, onSplit }: SplitSubm
         <span>{label}</span>
       </SubTrigger>
       <SubContent>
-        {SPLIT_DIRS.map(({ dir, icon, label: dirLabel }) => (
+        {SPLIT_DIRS.map(({ dir, icon }) => (
           <Item key={dir} onSelect={() => split(dir)}>
             <Codicon name={icon} size="0.875rem" />
-            <span>{dirLabel}</span>
+            <span>{t.sidebar.splitDirections[dir]}</span>
           </Item>
         ))}
       </SubContent>

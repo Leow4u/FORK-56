@@ -3,6 +3,7 @@ import { useCallback } from 'react'
 
 import { refChipLabel } from '@/components/assistant-ui/directive-text'
 import { useContributions } from '@/contrib/react/use-contributions'
+import { type Translations, useI18n } from '@/i18n'
 import { cachedPathCompletion, hasCachedPathCompletion } from '@/lib/slash-completion-cache'
 import { normalize } from '@/lib/text'
 import type { Work4YouGateway } from '@/work4you'
@@ -16,16 +17,9 @@ import { useLiveCompletionAdapter } from './use-live-completion-adapter'
 const KIND_RE = /^@(file|folder|url|image|tool|git):(.*)$/
 const REF_STARTERS = new Set(['file', 'folder', 'url', 'image', 'tool', 'git'])
 
-const STARTER_META: Record<string, string> = {
-  file: 'Attach a file reference',
-  folder: 'Attach a folder reference',
-  url: 'Attach a URL reference',
-  image: 'Attach an image reference',
-  tool: 'Attach a tool reference',
-  git: 'Attach git context'
-}
+type StarterCopy = Translations['composer']['atStarters']
 
-function starterEntries(query: string): CompletionEntry[] {
+function starterEntries(query: string, starterCopy: StarterCopy): CompletionEntry[] {
   const q = normalize(query)
   const kinds = Array.from(REF_STARTERS)
   const filtered = q ? kinds.filter(kind => kind.startsWith(q)) : kinds
@@ -33,7 +27,7 @@ function starterEntries(query: string): CompletionEntry[] {
   return filtered.map(kind => ({
     text: `@${kind}:`,
     display: `@${kind}:`,
-    meta: STARTER_META[kind] || ''
+    meta: starterCopy[kind as keyof StarterCopy] || ''
   }))
 }
 
@@ -96,6 +90,8 @@ export function useAtCompletions(options: {
 }): { adapter: Unstable_TriggerAdapter; loading: boolean } {
   const { gateway, sessionId, cwd } = options
   const enabled = Boolean(gateway)
+  const { t } = useI18n()
+  const starterCopy = t.composer.atStarters
 
   const contributed = useContributions(COMPOSER_AREAS.atCompletions)
 
@@ -143,7 +139,7 @@ export function useAtCompletions(options: {
 
   const fetcher = useCallback(
     async (query: string): Promise<CompletionPayload> => {
-      const starters = starterEntries(query)
+      const starters = starterEntries(query, starterCopy)
       const extras = contributedEntries(query)
 
       if (!gateway) {
@@ -179,7 +175,7 @@ export function useAtCompletions(options: {
         return { items: [...extras, ...starters], query }
       }
     },
-    [cacheKey, contributedEntries, gateway, sessionId, cwd]
+    [cacheKey, contributedEntries, gateway, sessionId, cwd, starterCopy]
   )
 
   const toItem = useCallback((entry: CompletionEntry, index: number): Unstable_TriggerItem => {

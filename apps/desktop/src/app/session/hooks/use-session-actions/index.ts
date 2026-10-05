@@ -5,7 +5,7 @@ import type { NavigateFunction } from 'react-router'
 import { graftRefreshedTailOntoBackfill } from '@/app/chat/transcript-backfill'
 import { activateSessionListHome } from '@/app/session/session-home-switch'
 import { revealTreePane } from '@/components/pane-shell/tree/store'
-import { useI18n } from '@/i18n'
+import { translateNow, useI18n } from '@/i18n'
 import { isComputerProjectPath } from '@/lib/attached-folder'
 import { type ChatMessage, preserveLocalAssistantErrors, toChatMessages } from '@/lib/chat-messages'
 import { deliverLocalFolder } from '@/lib/desktop-fs'
@@ -254,7 +254,7 @@ function restorePendingApproval(response: SessionResumeResponse, sessionId: stri
     allowPermanent: pending.allow_permanent !== false,
     choices: pending.choices,
     command: pending.command ?? '',
-    description: pending.description ?? 'dangerous command',
+    description: pending.description ?? translateNow('desktop.dangerousCommand'),
     requestId: typeof pending.request_id === 'string' ? pending.request_id : undefined,
     sessionId,
     smartDenied: pending.smart_denied === true

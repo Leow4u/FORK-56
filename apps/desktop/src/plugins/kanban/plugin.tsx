@@ -103,6 +103,9 @@ const plugin: Work4YouPlugin = {
       host.navigate('/kanban')
     }
 
+    // Command labels are getters: an enabled plugin registers at boot, before
+    // the app applies the user's language, and the language can change later.
+    // The palette and the keybind panel read the label each time they render.
     ctx.registerMany([
       {
         id: 'page',
@@ -127,7 +130,9 @@ const plugin: Work4YouPlugin = {
         area: PALETTE_AREA,
         data: {
           id: 'kanban.open',
-          label: 'Kanban: Open board',
+          get label() {
+            return ctx.i18n.t('openBoard')
+          },
           keywords: ['kanban', 'board', 'tasks', 'agents'],
           run: () => host.navigate('/kanban')
         } satisfies PaletteContribution
@@ -138,7 +143,9 @@ const plugin: Work4YouPlugin = {
         data: {
           id: 'kanban.newTask',
           action: 'kanban.newTask',
-          label: ctx.i18n.t('newTaskCommand'),
+          get label() {
+            return ctx.i18n.t('newTaskCommand')
+          },
           keywords: ['kanban', 'task', 'new', 'create', 'triage'],
           run: newTask
         } satisfies PaletteContribution
@@ -150,7 +157,9 @@ const plugin: Work4YouPlugin = {
           id: 'kanban.newTask',
           category: 'view',
           defaults: ['mod+alt+n'],
-          label: ctx.i18n.t('newTaskCommand'),
+          get label() {
+            return ctx.i18n.t('newTaskCommand')
+          },
           run: newTask
         } satisfies KeybindContribution
       }

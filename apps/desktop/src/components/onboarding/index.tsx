@@ -125,6 +125,7 @@ const API_KEY_OPTIONS: ApiKeyOption[] = [
 // OAuth / external providers are intentionally excluded here — they go through
 // the OAuth picker / sign-in flow, not a pasted key.
 function useApiKeyCatalog(): ApiKeyOption[] {
+  const { t } = useI18n()
   const [rows, setRows] = useState<ModelOptionProvider[]>([])
 
   useEffect(() => {
@@ -172,7 +173,7 @@ function useApiKeyCatalog(): ApiKeyOption[] {
         id: row.slug,
         name: row.name,
         envKey,
-        description: `Direct API access to ${row.name}.`,
+        description: t.onboarding.directApiAccess(row.name),
         docsUrl: ''
       })
     }
@@ -182,7 +183,7 @@ function useApiKeyCatalog(): ApiKeyOption[] {
     derived.sort((a, b) => a.name.localeCompare(b.name))
 
     return [...API_KEY_OPTIONS.filter(o => curatedByEnv.has(o.envKey)), ...derived]
-  }, [rows])
+  }, [rows, t])
 }
 
 // Exit choreography, mirroring the gateway "connecting" overlay's timing:
@@ -735,7 +736,7 @@ function AdoptPortalRow({
           <div className="flex items-center gap-2">
             <img alt="" className="size-5 shrink-0 rounded" src={assetPath('apple-touch-icon.png')} />
             <span className="text-[length:var(--conversation-text-font-size)] font-semibold">
-              {providerTitle(provider)}
+              {providerTitle(provider, t.onboarding.providerTitles)}
             </span>
             <span className="inline-flex items-center gap-1 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               <Check className="size-3" />
@@ -924,7 +925,7 @@ export function ApiKeyForm({
             type="button"
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium">{o.name}</span>
+              <span className="text-sm font-medium">{t.onboarding.apiKeyOptions[o.id]?.name ?? o.name}</span>
               {isSet?.(o.envKey) ? <Check className="size-3.5 text-muted-foreground" /> : null}
             </div>
             {(t.onboarding.apiKeyOptions[o.id]?.short ?? o.short) ? (

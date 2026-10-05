@@ -5,7 +5,7 @@ import { referenceKind, referenceStyle } from '@/components/assistant-ui/referen
 import { composerMenuLabel } from '@/components/chat/composer-dock'
 import { Codicon } from '@/components/ui/codicon'
 import { GlyphSpinner } from '@/components/ui/glyph-spinner'
-import { useI18n } from '@/i18n'
+import { type Translations, useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 import { COMPLETION_DRAWER_BELOW_CLASS, COMPLETION_DRAWER_CLASS, CompletionDrawerEmpty } from './completion-drawer'
@@ -41,6 +41,24 @@ function rowKind(item: Unstable_TriggerItem, isSlash: boolean): string {
   }
 
   return item.type
+}
+
+type SlashGroupCopy = Translations['composer']['slashCommands']['groups']
+
+/** `/` groups stay ids (Themes, Commands, … — `rowKind` and the chip kind key
+ *  off them); only the header text follows the language. Backend catalog
+ *  sections and Skills (a product name) render as given. */
+const SLASH_GROUP_HEADERS = new Map<string, keyof SlashGroupCopy>([
+  ['Commands', 'commands'],
+  ['Options', 'options'],
+  ['Sessions', 'sessions'],
+  ['Themes', 'themes']
+])
+
+function slashGroupHeader(group: string, copy: SlashGroupCopy): string {
+  const key = SLASH_GROUP_HEADERS.get(group)
+
+  return key ? copy[key] : group
 }
 
 const ROW_CLASS = [
@@ -199,7 +217,11 @@ export function ComposerTriggerPopover({
 
           return (
             <Fragment key={item.id}>
-              {showHeader && <div className={cn(GROUP_HEADER_CLASS, isFirstHeader ? 'pt-0.5' : 'pt-2')}>{group}</div>}
+              {showHeader && group && (
+                <div className={cn(GROUP_HEADER_CLASS, isFirstHeader ? 'pt-0.5' : 'pt-2')}>
+                  {slashGroupHeader(group, copy.slashCommands.groups)}
+                </div>
+              )}
               <button
                 className={ROW_CLASS}
                 data-highlighted={active ? '' : undefined}

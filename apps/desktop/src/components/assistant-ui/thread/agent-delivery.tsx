@@ -2,6 +2,7 @@ import { type ToolCallMessagePartProps } from '@assistant-ui/react'
 import { type FC, useEffect, useState } from 'react'
 
 import { AGENT_MESSAGE_RE, agentAvatarCache, resolveAgentAvatar } from '@/components/assistant-ui/thread/user-message'
+import { useI18n } from '@/i18n'
 
 // Sender-side inter-agent delivery: `work4you -p <agent> chat … -q "Message
 // from 🤖 <sender>…"` run through the terminal tool IS the messaging
@@ -88,6 +89,8 @@ const AgentGlyph: FC<{ handle: string }> = ({ handle }) => {
  *  command run via the terminal tool. Returns null when the command is not
  *  a delivery — caller falls through to the normal terminal row. */
 export const AgentDeliveryNotice: FC<ToolCallMessagePartProps> = props => {
+  const { t } = useI18n()
+  const copy = t.assistant.thread
   const command = typeof props.args?.command === 'string' ? props.args.command : ''
   const target = deliveryTargetFromCommand(command)
 
@@ -105,21 +108,18 @@ export const AgentDeliveryNotice: FC<ToolCallMessagePartProps> = props => {
       <div className={NOTICE_CLASS} data-slot="aui_agent-delivery-notice">
         <span className="flex items-center justify-center gap-1.5">
           <AgentGlyph handle={target} />
-          <span className="wrap-anywhere">
-            {pending ? 'Messaging' : 'Messaged'} {target}
-            {pending ? '…' : ''}
-          </span>
+          <span className="wrap-anywhere">{pending ? copy.messaging(target) : copy.messaged(target)}</span>
         </span>
       </div>
       {!pending && replyBody && (
         <div className={NOTICE_CLASS} data-slot="aui_agent-reply-notice">
           <span className="flex items-center justify-center gap-1.5">
             <AgentGlyph handle={target} />
-            <span className="wrap-anywhere">Message from {target}</span>
+            <span className="wrap-anywhere">{copy.messageFrom(target)}</span>
           </span>
           <details className="self-center">
             <summary className="cursor-pointer select-none text-center text-muted-foreground/45 hover:text-muted-foreground/70">
-              show message
+              {copy.showMessage}
             </summary>
             <div className="mt-1 max-w-[36rem] whitespace-pre-wrap rounded-lg border border-(--ui-stroke-tertiary) px-3 py-2 text-left text-[0.75rem] leading-5 text-foreground/85">
               {replyBody}

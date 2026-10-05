@@ -406,8 +406,28 @@ function pluralizeNoun(noun: string, count: number): string {
   return `${noun}s`
 }
 
+// Nouns the catalog carries (`assistant.tool.countNouns`). Anything else is a
+// noun lifted from a result key or summary text, so it keeps the English plural.
+const CATALOG_COUNT_NOUNS = new Set([
+  'document',
+  'entry',
+  'file',
+  'item',
+  'match',
+  'result',
+  'row',
+  'search',
+  'source',
+  'step',
+  'todo'
+])
+
 function formatCountLabel(metric: CountMetric): string {
-  return `${metric.count} ${pluralizeNoun(metric.noun, metric.count)}`
+  const noun = CATALOG_COUNT_NOUNS.has(metric.noun)
+    ? translateNow(`assistant.tool.countNouns.${metric.noun}.${metric.count === 1 ? 'one' : 'other'}`)
+    : pluralizeNoun(metric.noun, metric.count)
+
+  return `${metric.count} ${noun}`
 }
 
 function countMetric(count: number, noun: string): CountMetric {
@@ -581,18 +601,19 @@ export function cleanVisibleText(text: string): string {
 function summarizeBrowserSnapshot(snapshot: string): string {
   const count = (re: RegExp) => snapshot.match(re)?.length ?? 0
 
-  const stats = [
-    `${count(/button\s+"[^"]+"/g)} buttons`,
-    `${count(/link\s+"[^"]+"/g)} links`,
-    `${count(/(?:textbox|combobox|searchbox)\s+"[^"]+"/g)} inputs`
-  ].join(' · ')
+  const stats = translateNow(
+    'assistant.tool.snapshotStats',
+    count(/button\s+"[^"]+"/g),
+    count(/link\s+"[^"]+"/g),
+    count(/(?:textbox|combobox|searchbox)\s+"[^"]+"/g)
+  )
 
   const labels = Array.from(snapshot.matchAll(/(?:button|link|combobox|textbox)\s+"([^"]+)"/g))
     .map(m => m[1].trim())
     .filter(Boolean)
     .slice(0, 4)
 
-  return labels.length ? `${stats}\nTop controls: ${labels.join(', ')}` : stats
+  return labels.length ? `${stats}\n${translateNow('assistant.tool.topControls', labels.join(', '))}` : stats
 }
 
 function collectResultItems(value: unknown): unknown[] {
@@ -655,7 +676,11 @@ function toolErrorText(part: ToolPart, result: Record<string, unknown>): string 
   const extractedError = extractToolErrorMessage(part.result)
 
   if (part.isError) {
-    return extractedError || (typeof part.result === 'string' && part.result.trim()) || 'Tool returned an error.'
+    return (
+      extractedError ||
+      (typeof part.result === 'string' && part.result.trim()) ||
+      translateNow('assistant.tool.toolError')
+    )
   }
 
   if (typeof result.error === 'string' && result.error.trim()) {
@@ -667,11 +692,14 @@ function toolErrorText(part: ToolPart, result: Record<string, unknown>): string 
   }
 
   if (result.success === false || result.ok === false) {
-    return firstStringField(result, ['message', 'reason', 'detail']) || 'Tool returned success=false.'
+    return firstStringField(result, ['message', 'reason', 'detail']) || translateNow('assistant.tool.toolFailure')
   }
 
   if (typeof result.status === 'string' && /\b(error|failed|failure)\b/i.test(result.status)) {
-    return firstStringField(result, ['message', 'reason', 'detail']) || `Tool returned status "${result.status}".`
+    return (
+      firstStringField(result, ['message', 'reason', 'detail']) ||
+      translateNow('assistant.tool.toolStatus', result.status)
+    )
   }
 
   // A non-zero exit code alone is a weak failure signal: grep returns 1 on
@@ -686,7 +714,7 @@ function toolErrorText(part: ToolPart, result: Record<string, unknown>): string 
   if (exit !== null && exit !== 0) {
     const hasOutput = Boolean(firstStringField(result, ['output', 'stdout', 'stderr', 'output_preview'])?.trim())
 
-    return hasOutput ? '' : `Command failed with exit code ${exit}.`
+    return hasOutput ? '' : translateNow('assistant.tool.commandFailed', exit)
   }
 
   return ''
@@ -882,7 +910,9 @@ function cronjobSubtitle(argsRecord: Record<string, unknown>, resultRecord: Reco
   const jobs = Array.isArray(resultRecord.jobs) ? resultRecord.jobs : null
 
   if (jobs) {
-    return jobs.length ? `${jobs.length} cron job${jobs.length === 1 ? '' : 's'}` : 'No cron jobs'
+    return jobs.length
+      ? translateNow('assistant.tool.cron.jobCount', jobs.length)
+      : translateNow('assistant.tool.cron.noJobs')
   }
 
   const message = firstStringField(resultRecord, ['message'])
@@ -903,14 +933,14 @@ function cronjobDetail(argsRecord: Record<string, unknown>, resultRecord: Record
 
   if (jobs) {
     if (!jobs.length) {
-      return 'No cron jobs scheduled'
+      return translateNow('assistant.tool.cron.noJobsScheduled')
     }
 
     return jobs
       .slice(0, 20)
       .map(job => {
         const row = isRecord(job) ? job : {}
-        const name = firstStringField(row, ['name', 'id']) || 'job'
+        const name = firstStringField(row, ['name', 'id']) || translateNow('assistant.tool.cron.jobFallback')
         const sched = firstStringField(row, ['schedule_display', 'schedule'])
 
         return sched ? `- ${name} · ${sched}` : `- ${name}`
@@ -921,10 +951,10 @@ function cronjobDetail(argsRecord: Record<string, unknown>, resultRecord: Record
   const nextRun = cronScalar(resultRecord.next_run_at)
 
   const rows: [string, string][] = [
-    ['Schedule', cronScalar(resultRecord.schedule)],
-    ['Repeat', cronScalar(resultRecord.repeat)],
-    ['Delivery', cronScalar(resultRecord.deliver)],
-    ['Next run', nextRun ? formatCronTime(nextRun) : '']
+    [translateNow('assistant.tool.cron.schedule'), cronScalar(resultRecord.schedule)],
+    [translateNow('assistant.tool.cron.repeat'), cronScalar(resultRecord.repeat)],
+    [translateNow('assistant.tool.cron.delivery'), cronScalar(resultRecord.deliver)],
+    [translateNow('assistant.tool.cron.nextRun'), nextRun ? formatCronTime(nextRun) : '']
   ]
 
   const lines = rows.filter(([, value]) => value).map(([key, value]) => `${key}: ${value}`)
@@ -945,23 +975,25 @@ function toolSubtitle(
       firstStringField(resultRecord, ['url']) ||
       findFirstUrl(argsRecord, resultRecord)
 
-    return url ? hostnameOf(url) : 'Navigated in browser'
+    return url ? hostnameOf(url) : translateNow('assistant.tool.navigated')
   }
 
   if (toolName === 'browser_snapshot') {
     const snapshot = firstStringField(resultRecord, ['snapshot'])
 
-    return snapshot ? summarizeBrowserSnapshot(snapshot) : 'Captured a browser accessibility snapshot'
+    return snapshot ? summarizeBrowserSnapshot(snapshot) : translateNow('assistant.tool.snapshotCaptured')
   }
 
   if (toolName === 'browser_click') {
     const clicked = firstStringField(resultRecord, ['clicked']) || firstStringField(argsRecord, ['ref', 'target'])
 
     if (!clicked) {
-      return 'Clicked on page'
+      return translateNow('assistant.tool.clickedPage')
     }
 
-    return clicked.startsWith('@') ? `Clicked page element (internal ref ${clicked})` : `Clicked ${clicked}`
+    return clicked.startsWith('@')
+      ? translateNow('assistant.tool.clickedRef', clicked)
+      : translateNow('assistant.tool.clickedTarget', clicked)
   }
 
   if (toolName === 'browser_fill' || toolName === 'browser_type') {
@@ -969,15 +1001,19 @@ function toolSubtitle(
     const value = firstStringField(argsRecord, ['value', 'text'])
 
     return (
-      [field && `Field: ${field}`, value && `Value: ${compactPreview(value, 42)}`].filter(Boolean).join(' · ') ||
-      'Filled page input'
+      [
+        field && translateNow('assistant.tool.fieldLabel', field),
+        value && translateNow('assistant.tool.valueLabel', compactPreview(value, 42))
+      ]
+        .filter(Boolean)
+        .join(' · ') || translateNow('assistant.tool.filledInput')
     )
   }
 
   if (toolName === 'web_search') {
     const query = firstStringField(argsRecord, ['search_term', 'query']) || contextValue(argsRecord)
 
-    return query ? `Query: ${query}` : 'Queried web sources'
+    return query ? translateNow('assistant.tool.queryLabel', query) : translateNow('assistant.tool.queriedWeb')
   }
 
   if (toolName === 'terminal' || toolName === 'execute_code') {
@@ -1002,7 +1038,7 @@ function toolSubtitle(
 
     const command = firstStringField(argsRecord, ['context', 'preview', 'command', 'code']) || contextValue(argsRecord)
 
-    return command ? '' : 'Executed command'
+    return command ? '' : translateNow('assistant.tool.executedCommand')
   }
 
   if (toolName === 'read_file' || isFileEditTool(toolName)) {
@@ -1020,7 +1056,7 @@ function toolSubtitle(
       return fallbackDetailText(argsRecord, resultRecord)
     }
 
-    return inlineDiffFromResult(resultRecord) ? 'Changed file' : ''
+    return inlineDiffFromResult(resultRecord) ? translateNow('assistant.tool.changedFile') : ''
   }
 
   if (toolName === 'web_extract') {
@@ -1029,7 +1065,7 @@ function toolSubtitle(
       firstStringField(resultRecord, ['url']) ||
       findFirstUrl(argsRecord, resultRecord)
 
-    return url ? hostnameOf(url) : 'Fetched webpage'
+    return url ? hostnameOf(url) : translateNow('assistant.tool.fetchedWebpage')
   }
 
   if (toolName === 'memory') {
@@ -1053,11 +1089,11 @@ function toolSubtitle(
 
 function toolDetailLabel(toolName: string): string {
   if (toolName === 'web_search') {
-    return 'Details'
+    return translateNow('assistant.tool.details')
   }
 
   if (toolName === 'browser_snapshot') {
-    return 'Snapshot summary'
+    return translateNow('assistant.tool.snapshotSummary')
   }
 
   return ''
@@ -1465,7 +1501,7 @@ export function buildToolView(part: ToolPart, inlineDiff: string): ToolView {
   return {
     countLabel: resultCount ? formatCountLabel(resultCount) : undefined,
     detail,
-    detailLabel: error ? 'Error details' : toolDetailLabel(part.toolName),
+    detailLabel: error ? translateNow('assistant.tool.errorDetails') : toolDetailLabel(part.toolName),
     durationLabel: durationLabel(resultRecord),
     icon: meta.icon,
     imageUrl: toolImageUrl(argsRecord, resultRecord),

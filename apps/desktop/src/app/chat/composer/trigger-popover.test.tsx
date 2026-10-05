@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { I18nProvider } from '@/i18n'
+import { pt } from '@/i18n/pt'
 
 import { ComposerTriggerPopover } from './trigger-popover'
 
@@ -25,12 +26,12 @@ function renderPopover(kind: '@' | '/', loading = false) {
   return { ...rendered, onHover, onPick }
 }
 
-function slashItem(command: string) {
+function slashItem(command: string, group = 'Skills') {
   return {
     id: command,
     type: 'slash',
     label: command.slice(1),
-    metadata: { command, display: command, group: 'Skills', meta: '', rawText: command }
+    metadata: { command, display: command, group, meta: '', rawText: command }
   }
 }
 
@@ -86,6 +87,26 @@ describe('ComposerTriggerPopover i18n', () => {
 
     expect(screen.getByText('没有匹配项。')).toBeTruthy()
     expect(container.textContent).toContain('/help')
+  })
+
+  it('translates the headers of its own slash groups and passes other sections through', () => {
+    render(
+      <I18nProvider configClient={null} initialLocale="pt">
+        <ComposerTriggerPopover
+          activeIndex={0}
+          items={[slashItem('/new', 'Commands'), slashItem('/work', 'Skills'), slashItem('/ship-it', 'User commands')]}
+          kind="/"
+          loading={false}
+          onHover={vi.fn()}
+          onPick={vi.fn()}
+        />
+      </I18nProvider>
+    )
+
+    expect(screen.getByText(pt.composer.slashCommands.groups.commands)).toBeTruthy()
+    // Skills is a product name; backend catalog sections arrive already worded.
+    expect(screen.getByText('Skills')).toBeTruthy()
+    expect(screen.getByText('User commands')).toBeTruthy()
   })
 })
 

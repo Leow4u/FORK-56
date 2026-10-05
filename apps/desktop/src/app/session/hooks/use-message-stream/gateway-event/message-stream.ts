@@ -226,10 +226,14 @@ export function handleMessageStreamEvent(ctx: GatewayEventContext): boolean {
     // the mixture-of-agents process is visible. Reuses the reasoning
     // disclosure rather than introducing a parallel surface.
     if (sessionId) {
-      const label = coerceGatewayText(payload?.label) || 'reference'
+      const label = coerceGatewayText(payload?.label) || translateNow('desktop.moa.defaultLabel')
       const idx = typeof payload?.index === 'number' ? payload.index : undefined
       const cnt = typeof payload?.count === 'number' ? payload.count : undefined
-      const header = idx && cnt ? `◇ Reference ${idx}/${cnt} — ${label}` : `◇ Reference — ${label}`
+
+      const marker =
+        idx && cnt ? translateNow('desktop.moa.referenceOf', idx, cnt) : translateNow('desktop.moa.reference')
+
+      const header = `${marker} — ${label}`
       const body = coerceThinkingText(payload?.text)
       const text = `${header}\n${body}\n\n`
 
@@ -278,10 +282,8 @@ export function handleMessageStreamEvent(ctx: GatewayEventContext): boolean {
     // block, so the progress trail is self-cleaning.
     if (sessionId && typeof payload?.refs_done === 'number' && typeof payload?.refs_total === 'number') {
       const label = coerceGatewayText(payload?.label)
-
-      const line = label
-        ? `◇ MoA refs ${payload.refs_done}/${payload.refs_total} — ${label}\n`
-        : `◇ MoA refs ${payload.refs_done}/${payload.refs_total}\n`
+      const refs = translateNow('desktop.moa.refs', payload.refs_done, payload.refs_total)
+      const line = label ? `${refs} — ${label}\n` : `${refs}\n`
 
       appendReasoningDelta(sessionId, line, payload.refs_done <= 1, occurredAt)
       flushQueuedDeltas(sessionId)
@@ -299,7 +301,7 @@ export function handleMessageStreamEvent(ctx: GatewayEventContext): boolean {
     // aggregator acting). Append a one-line marker; the first
     // moa.reference that follows replaces the whole block.
     if (sessionId && payload?.phase === 'aggregator') {
-      appendReasoningDelta(sessionId, '◇ MoA aggregating…\n', false, occurredAt)
+      appendReasoningDelta(sessionId, `${translateNow('desktop.moa.aggregating')}\n`, false, occurredAt)
       flushQueuedDeltas(sessionId)
     }
 
@@ -340,7 +342,7 @@ export function handleMessageStreamEvent(ctx: GatewayEventContext): boolean {
     const failure =
       payload?.status === 'error'
         ? {
-            error: coerceGatewayText(payload.error).trim() || finalText || 'Work4You reported an error',
+            error: coerceGatewayText(payload.error).trim() || finalText || translateNow('desktop.gatewayErrorFallback'),
             partial: Boolean(payload.partial)
           }
         : undefined

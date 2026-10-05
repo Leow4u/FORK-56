@@ -1,3 +1,4 @@
+import { translateNow } from '@/i18n'
 import type { GatewayEventPayload } from '@/lib/chat-messages'
 import { normalizePersonalityValue } from '@/lib/chat-runtime'
 import { parseApprovalMode } from '@/store/approval-mode'
@@ -192,7 +193,7 @@ export function delegateTaskPayloads(
         : 'subagent.progress'
 
   return tasks.map((task, index) => {
-    const goal = firstString(task.goal, args.goal, payload.context) || 'Delegated task'
+    const goal = firstString(task.goal, args.goal, payload.context) || translateNow('assistant.tool.delegatedTask')
     const summary = firstString(result.summary, payload.summary, payload.message)
 
     return {

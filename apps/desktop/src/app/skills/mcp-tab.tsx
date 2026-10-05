@@ -25,7 +25,7 @@ import { Switch } from '@/components/ui/switch'
 import { TextTab } from '@/components/ui/text-tab'
 import { Textarea } from '@/components/ui/textarea'
 import { Tip } from '@/components/ui/tooltip'
-import { type Translations, useI18n } from '@/i18n'
+import { translateNow, type Translations, useI18n } from '@/i18n'
 import { connectWork4YouApp } from '@/lib/composio-connect'
 import { compactNumber } from '@/lib/format'
 import { estimateServerTokens, serverUsageCount } from '@/lib/mcp-cost'
@@ -97,13 +97,13 @@ function parseServersDoc(raw: string): McpServers {
   const parsed = JSON.parse(raw) as unknown
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Expected a JSON object')
+    throw new Error(translateNow('skills.mcpDoc.expectedObject'))
   }
 
   const doc = parsed as Record<string, unknown>
 
   if (isServerShape(doc)) {
-    throw new Error('Wrap the server in {"mcpServers": {"name": …}} so it has a name')
+    throw new Error(translateNow('skills.mcpDoc.wrapServer'))
   }
 
   const wrapper = doc.mcpServers ?? doc.mcp_servers
@@ -1163,8 +1163,8 @@ export function McpTab({
     if (app.needs_login) {
       notify({
         kind: 'error',
-        title: 'Sign in required',
-        message: 'Sign in to Work4You to connect this app.'
+        title: t.skills.appConnect.signInRequiredTitle,
+        message: t.skills.appConnect.signInRequiredBody
       })
 
       return
@@ -1182,8 +1182,8 @@ export function McpTab({
         await silentReload()
         notify({
           kind: 'success',
-          title: `${app.name} connected`,
-          message: 'Its tools are ready in this chat.'
+          title: t.skills.appConnect.connectedTitle(app.name),
+          message: t.skills.appConnect.connectedBody
         })
       }
 

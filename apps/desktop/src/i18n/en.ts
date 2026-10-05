@@ -1296,6 +1296,19 @@ export const en: Translations = {
     archive: 'Archive',
     skillArchivedTitle: 'Skill archived',
     skillArchivedMessage: 'Restorable via work4you curator restore.',
+    archiveConfirmTitle: name => `Archive ${name}?`,
+    archiveConfirmBody: 'The skill is archived and can be restored with `work4you curator restore`.',
+    scopeAgent: (profile, connection, current) => `${profile} — ${connection}${current ? ' (current)' : ''}`,
+    appConnect: {
+      signInRequiredTitle: 'Sign in required',
+      signInRequiredBody: 'Sign in to Work4You to connect this app.',
+      connectedTitle: name => `${name} connected`,
+      connectedBody: 'Its tools are ready in this chat.'
+    },
+    mcpDoc: {
+      expectedObject: 'Expected a JSON object',
+      wrapServer: 'Wrap the server in {"mcpServers": {"name": …}} so it has a name'
+    },
     hub: {
       searchPlaceholder: 'Search the skill hub',
       search: 'Search',
@@ -1375,7 +1388,34 @@ export const en: Translations = {
     importEmpty: 'Paste a map code to load it.',
     importSuccess: nodes => `Loaded a map with ${nodes} ${nodes === 1 ? 'node' : 'nodes'}.`,
     importedBadge: 'imported map',
-    resetToMine: 'Back to my map'
+    resetToMine: 'Back to my map',
+    importFailed: 'Could not read that map code.',
+    nodeMenu: {
+      editMemory: 'Edit memory…',
+      editSkill: 'Edit skill…',
+      archiveSkill: 'Archive skill',
+      deleteMemory: 'Delete memory',
+      editTitle: label => `Edit ${label}`,
+      deleteTitle: label => `Delete ${label}?`,
+      deleteMemoryBody: 'This memory is removed permanently.'
+    },
+    legend: {
+      skill: 'skill',
+      memory: 'memory',
+      rings: 'core = oldest · outer = newer'
+    },
+    timeline: {
+      play: 'Play timeline',
+      pause: 'Pause',
+      scrubber: 'Timeline scrubber'
+    },
+    badges: {
+      unknownDate: 'unknown',
+      profileMemory: 'profile memory',
+      memory: 'memory',
+      learned: 'learned',
+      pinned: 'pinned'
+    }
   },
   agents: {
     close: 'Close agents',
@@ -1546,6 +1586,7 @@ export const en: Translations = {
     noUsage: period => `No usage in the last ${period} days.`,
     retry: 'Retry',
     dailyTokens: 'Daily tokens',
+    dailyTokensTip: (day, input, output) => `${day} · in ${input} · out ${output}`,
     input: 'input',
     output: 'output',
     noDailyActivity: 'No daily activity.',
@@ -3300,7 +3341,10 @@ export const en: Translations = {
     kindLink: 'link',
     chat: 'Chat',
     copyUrl: 'Copy URL',
-    copyPath: 'Copy path'
+    copyPath: 'Copy path',
+    skippedSessions: (skipped, total) => `Skipped ${skipped} of ${total} recent sessions while indexing artifacts.`,
+    skippedSafeLimit: count => `${count} exceeded the safe transcript load limit.`,
+    skippedUnreadable: count => `${count} could not be read.`
   },
 
   artifactCard: {
@@ -3462,6 +3506,7 @@ export const en: Translations = {
       untitledChat: id => `Chat ${id}`,
       messageCount: count => `${count} ${count === 1 ? 'message' : 'messages'}`,
       todoProgress: 'Tasks completed',
+      openPullRequest: number => `Open pull request #${number}`,
       ageNow: 'now',
       ageDay: 'd',
       ageHour: 'h',
@@ -3478,7 +3523,34 @@ export const en: Translations = {
       working: 'Working',
       done: 'Done'
     },
-    markAllRead: 'Mark all as read'
+    markAllRead: 'Mark all as read',
+    splitDirections: { bottom: 'Down', left: 'Left', right: 'Right', top: 'Up' },
+    filters: {
+      title: 'Filters',
+      grouping: 'Grouping',
+      ordering: 'Ordering',
+      show: 'Show',
+      inboxStyle: 'Inbox style',
+      status: 'Status',
+      pullRequest: 'Pull request',
+      profile: 'Profile',
+      project: 'Project',
+      archived: 'Archived',
+      expandAll: 'Expand all',
+      collapseAll: 'Collapse all',
+      groupings: { date: 'Updated', profile: 'Profile', project: 'Project', status: 'Status' },
+      orderings: {
+        cost: 'Cost',
+        created: 'Created',
+        manual: 'Manual',
+        status: 'Status',
+        tokens: 'Tokens',
+        updated: 'Updated'
+      },
+      rowMeta: { cost: 'Cost', pr: 'PR', preview: 'Preview', profile: 'Profile', tokens: 'Tokens', updated: 'Updated' },
+      prStates: { closed: 'Closed', draft: 'Draft', merged: 'Merged', none: 'No PR', open: 'Open' },
+      statuses: { draft: 'Draft', idle: 'Idle', 'needs-input': 'Needs input', unread: 'Unread', working: 'Working' }
+    }
   },
 
   composer: {
@@ -3556,6 +3628,73 @@ export const en: Translations = {
       'composer.cancel': 'close popover · cancel run',
       'composer.history': 'cycle popover / history'
     },
+    slashCommands: {
+      descriptions: {
+        newChat: 'Start a new desktop chat',
+        branch: 'Branch the latest message into a new chat',
+        yolo: 'Toggle YOLO — auto-approve dangerous commands',
+        wake: 'Control the desktop wake-word listener [on|off|status]',
+        handoff: 'Hand off this session to a messaging platform',
+        profile: 'Switch the active Work4You profile',
+        skin: 'Switch desktop theme or cycle to the next one',
+        title: 'Rename the current session',
+        help: 'Show desktop slash commands',
+        browser: 'Manage browser CDP connection [connect|disconnect|status] (local gateway only)',
+        journey: 'Open the memory graph — skills + memories over time',
+        model: 'Switch the model for this session',
+        resume: 'Resume a saved session',
+        approvals: 'Show or set approval mode [manual|smart|off]',
+        agents: 'Show active desktop sessions and running tasks',
+        background: 'Run a prompt in the background',
+        compress: 'Compress this conversation context',
+        debug: 'Create a debug report',
+        goal: 'Manage the standing goal for this session',
+        loop: 'Re-run a prompt on a recurring interval in this session',
+        personality: 'Switch personality for this session',
+        pet: 'Toggle or adopt a petdex mascot (/pet, /pet list, /pet boba)',
+        hatch: 'Generate a new pet (opens the pet generator)',
+        queue: 'Queue a prompt for the next turn',
+        retry: 'Retry the last user message',
+        rollback: 'List or restore filesystem checkpoints',
+        save: 'Save the current transcript to JSON',
+        status: 'Show current session status',
+        steer: 'Steer the current run after the next tool call',
+        stop: 'Stop running background processes',
+        tools: 'List or toggle tools available to the agent',
+        undo: 'Remove the last user/assistant exchange',
+        usage: 'Show token usage for this session',
+        version: 'Show Work4You version'
+      },
+      unavailable: {
+        advanced: command =>
+          `${command} is not shown in the desktop slash palette. Use the relevant desktop control or terminal interface instead.`,
+        messaging: command => `${command} is only used from messaging platforms.`,
+        settings: command => `${command} is managed from the desktop sidebar.`,
+        terminal: command => `${command} is only available in the terminal interface.`,
+        modelPicker: command => `${command} uses the desktop model picker instead of a slash command.`,
+        sessionPicker: command => `${command} uses the desktop session picker instead of a slash command.`
+      },
+      skin: {
+        list: 'Show available desktop themes',
+        next: 'Cycle to the next desktop theme',
+        current: ' (current)'
+      },
+      groups: {
+        commands: 'Commands',
+        options: 'Options',
+        sessions: 'Sessions',
+        themes: 'Themes'
+      },
+      browseAllSessions: 'Browse all sessions…'
+    },
+    atStarters: {
+      file: 'Attach a file reference',
+      folder: 'Attach a folder reference',
+      url: 'Attach a URL reference',
+      image: 'Attach an image reference',
+      tool: 'Attach a tool reference',
+      git: 'Attach git context'
+    },
     attachUrlTitle: 'Attach a URL',
     attachUrlDesc: 'Work4You will fetch the page and include it as context for this turn.',
     urlPlaceholder: 'https://example.com/post',
@@ -3602,6 +3741,11 @@ export const en: Translations = {
     snippetsDesc: 'Pick a starter prompt to drop into the composer.',
     dropFiles: 'Drop files to attach',
     dropSession: 'Drop to link this chat',
+    contextMenu: {
+      addContext: 'Add context',
+      addFiles: 'Add files as context',
+      addFolders: 'Add folders as context'
+    },
     mcpSuggestions: {
       label: server => `Add ${server}`,
       connectLabel: server => `Connect ${server}`,
@@ -3912,6 +4056,7 @@ export const en: Translations = {
       gemini: { short: 'Gemini models', description: 'Direct access to Google Gemini models.' },
       xai: { short: 'Grok models', description: 'Direct access to xAI Grok models.' },
       local: {
+        name: 'Local / custom endpoint',
         short: 'self-hosted',
         description:
           'Point Work4You at a local or self-hosted OpenAI-compatible endpoint (vLLM, llama.cpp, Ollama, etc).'
@@ -3961,6 +4106,12 @@ export const en: Translations = {
     change: 'Change',
     startChatting: 'Begin',
     docs: provider => `${provider} docs`,
+    providerTitles: {
+      openaiCodex: 'ChatGPT or Codex Subscription',
+      anthropicApiKey: 'Anthropic API Key',
+      claudeCode: 'Anthropic OAuth: Required Extra Usage Credits to Use Subscription'
+    },
+    directApiAccess: provider => `Direct API access to ${provider}.`,
     profileSetup: {
       title: profile => `Set up ${profile}`,
       subtitle: 'Connect a model provider for this profile. Other profiles stay exactly as they are.',
@@ -4015,13 +4166,37 @@ export const en: Translations = {
     windowControls: 'Window controls',
     paneControls: 'Pane controls',
     appControls: 'App controls',
+    panes: {
+      sessions: 'sessions',
+      terminal: 'terminal',
+      files: 'files',
+      review: 'review',
+      logs: 'logs',
+      browser: 'Browser',
+      agentTerminal: 'agent',
+      noPageAt: path => `no page at ${path}`
+    },
+    layouts: {
+      default: 'Default',
+      focus: 'Focus',
+      terminalDeck: 'Terminal deck',
+      quad: 'Quad'
+    },
+    palette: {
+      resetLayout: 'Reset layout',
+      toggleStatusbar: 'Toggle status bar',
+      toggleTerminal: 'Toggle terminal',
+      toggleLogs: 'Toggle logs',
+      toggleYolo: 'Toggle yolo'
+    },
     modelMenu: {
       search: 'Search models',
       noModels: 'No models found',
       models: 'Models',
       editModels: 'Add Models',
       refreshModels: 'Refresh Models',
-      fast: 'Fast'
+      fast: 'Fast',
+      moaPresets: 'MoA presets'
     },
     modelOptions: {
       noOptions: 'No options for this model',
@@ -4413,7 +4588,19 @@ export const en: Translations = {
       restoreNext: 'Restore next checkpoint',
       goForward: 'Go forward',
       sendEdited: 'Send edited message',
-      attachingFile: 'Attaching…'
+      attachingFile: 'Attaching…',
+      restoreFailed: 'Restore failed',
+      summarizingThread: 'Summarizing thread',
+      agentWorking: 'Work4You is working',
+      timelineLabel: 'Conversation timeline',
+      steered: 'steered',
+      messaging: name => `Messaging ${name}…`,
+      messaged: name => `Messaged ${name}`,
+      messageFrom: name => `Message from ${name}`,
+      showMessage: 'show message',
+      repliedTo: name => `Replied to ${name}`,
+      showReply: 'show reply',
+      processOutput: 'output'
     },
     approval: {
       gatewayDisconnected: 'Work4You gateway is not connected',
@@ -4559,7 +4746,117 @@ export const en: Translations = {
         web_extract: { done: 'Read webpage', pending: 'Reading webpage', pendingAction: 'Reading' },
         web_search: { done: 'Searched web', pending: 'Searching web', pendingAction: 'Searching' },
         write_file: { done: 'Edited file', pending: 'Editing file', pendingAction: 'Editing' }
-      }
+      },
+      payload: 'Tool payload',
+      traceArguments: 'Arguments',
+      traceResult: 'Result',
+      searchLabel: 'Search',
+      searchResults: 'Search results',
+      generatedImageAlt: 'Generated image',
+      truncated: count => `${count} more characters truncated — use Copy for the full output.`,
+      details: 'Details',
+      snapshotSummary: 'Snapshot summary',
+      errorDetails: 'Error details',
+      toolError: 'Tool returned an error.',
+      toolFailure: 'Tool returned success=false.',
+      toolStatus: status => `Tool returned status "${status}".`,
+      commandFailed: code => `Command failed with exit code ${code}.`,
+      navigated: 'Navigated in browser',
+      snapshotCaptured: 'Captured a browser accessibility snapshot',
+      snapshotStats: (buttons, links, inputs) => `${buttons} buttons · ${links} links · ${inputs} inputs`,
+      topControls: labels => `Top controls: ${labels}`,
+      clickedPage: 'Clicked on page',
+      clickedRef: ref => `Clicked page element (internal ref ${ref})`,
+      clickedTarget: target => `Clicked ${target}`,
+      fieldLabel: field => `Field: ${field}`,
+      valueLabel: value => `Value: ${value}`,
+      filledInput: 'Filled page input',
+      queryLabel: query => `Query: ${query}`,
+      queriedWeb: 'Queried web sources',
+      executedCommand: 'Executed command',
+      changedFile: 'Changed file',
+      fetchedWebpage: 'Fetched webpage',
+      cron: {
+        jobCount: count => `${count} cron job${count === 1 ? '' : 's'}`,
+        noJobs: 'No cron jobs',
+        noJobsScheduled: 'No cron jobs scheduled',
+        jobFallback: 'job',
+        schedule: 'Schedule',
+        repeat: 'Repeat',
+        delivery: 'Delivery',
+        nextRun: 'Next run'
+      },
+      countNouns: {
+        document: { one: 'document', other: 'documents' },
+        entry: { one: 'entry', other: 'entries' },
+        file: { one: 'file', other: 'files' },
+        item: { one: 'item', other: 'items' },
+        match: { one: 'match', other: 'matches' },
+        result: { one: 'result', other: 'results' },
+        row: { one: 'row', other: 'rows' },
+        search: { one: 'search', other: 'searches' },
+        source: { one: 'source', other: 'sources' },
+        step: { one: 'step', other: 'steps' },
+        todo: { one: 'todo', other: 'todos' }
+      },
+      delegateTaskFallback: index => `Task ${index}`,
+      delegatedTask: 'Delegated task'
+    },
+    runSummary: {
+      delegate: { one: 'task', other: 'tasks', past: 'Delegated', present: 'Delegating' },
+      edit: { one: 'file', other: 'files', past: 'Edited', present: 'Editing' },
+      explore: { one: 'file', other: 'files', past: 'Explored', present: 'Exploring' },
+      other: { one: 'tool', other: 'tools', past: 'Used', present: 'Using' },
+      run: { one: 'command', other: 'commands', past: 'Ran', present: 'Running' }
+    },
+    alerts: {
+      caution: 'Caution',
+      important: 'Important',
+      note: 'Note',
+      tip: 'Tip',
+      warning: 'Warning'
+    },
+    embeds: {
+      load: label => `Load ${label}`,
+      alwaysAllow: label => `Always allow ${label}`,
+      failed: label => `Failed to load ${label} embed`,
+      frameTitle: label => `${label} embed`,
+      holdToZoom: 'Hold ⌘ to zoom',
+      openDiagram: 'Open diagram'
+    },
+    references: {
+      file: 'Files',
+      folder: 'Folders',
+      url: 'Links',
+      image: 'Images',
+      tool: 'Tools',
+      line: 'Lines',
+      terminal: 'Terminal',
+      session: 'Sessions',
+      git: 'Git',
+      diff: 'Changes',
+      staged: 'Staged',
+      command: 'Commands',
+      skill: 'Skills',
+      theme: 'Themes',
+      emoji: 'Emoji',
+      other: 'Other'
+    },
+    markdown: {
+      fetchFailed: name => `Couldn't fetch ${name} from the gateway (missing, unreadable, or too large).`,
+      openAudioFile: 'Open audio file',
+      openVideoFile: 'Open video file',
+      openFile: name => `Open ${name}`,
+      loadingFile: name => `Loading ${name}...`,
+      loadFailed: name => `Couldn't load ${name}.`
+    },
+    reactions: {
+      search: 'Search…',
+      loading: 'Loading emoji…',
+      empty: 'No emoji found.',
+      more: 'More emoji',
+      remove: emoji => `Remove ${emoji} reaction`,
+      reactedByAgent: 'Reacted by Work4You'
     }
   },
 
@@ -4645,6 +4942,109 @@ export const en: Translations = {
       systemNote: platform => `↻ Handed off to ${platform} — resume here anytime.`,
       failed: error => `Handoff failed: ${error}`,
       timedOut: 'Timed out waiting for the gateway. Is `work4you gateway` running?'
+    },
+    openSessionFailed: "Couldn't open this session",
+    previewTargetFailed: target => `Could not open preview target: ${target}`,
+    gatewayErrorTitle: 'Work4You error',
+    gatewayErrorFallback: 'Work4You reported an error',
+    dangerousCommand: 'dangerous command',
+    remoteAttachTooLarge: (label, maxMb) =>
+      `${label} is too large to upload to the remote gateway${maxMb === null ? '' : ` (max ${maxMb} MB)`}.`,
+    attachFailed: {
+      folder: path => `Could not attach folder ${path}`,
+      named: name => `Could not attach ${name}`,
+      read: name => `Could not read ${name}`,
+      file: 'Could not attach file',
+      image: 'Could not attach image'
+    },
+    restore: {
+      noSession: 'No active session to restore.',
+      notFound: 'Could not find the message to restore.',
+      emptyMessage: 'Cannot restore an empty message.'
+    },
+    previewRestart: {
+      noSession: 'No active session for background restart',
+      noTask: 'Background restart did not return a task id'
+    },
+    artifactOpen: {
+      bridgeUnavailable: 'Desktop bridge unavailable',
+      writeFailed: 'Could not write artifact file'
+    },
+    pdfPreview: {
+      requiresObjectUrl: 'PDF preview requires object URL support',
+      invalidDataUrl: 'Invalid PDF data URL',
+      invalidType: 'Invalid PDF data URL type',
+      invalidPayload: 'Invalid PDF data URL payload',
+      invalidHeader: 'Invalid PDF file header'
+    },
+    quickEntry: {
+      placeholder: 'Ask Work4You…',
+      disconnected: 'Not connected — open Work4You to reconnect',
+      sendTo: 'Send to',
+      targetSession: 'Target session',
+      currentChat: 'Current chat'
+    },
+    moa: {
+      reference: '◇ Reference',
+      referenceOf: (index, count) => `◇ Reference ${index}/${count}`,
+      refs: (done, total) => `◇ MoA refs ${done}/${total}`,
+      aggregating: '◇ MoA aggregating…',
+      defaultLabel: 'reference'
+    },
+    slash: {
+      unavailable: name => `/${name} is not available in the desktop app.`,
+      noOutput: name => `/${name}: no output`,
+      noOutputPlain: '(no output)',
+      skillPayloadMissing: name => `/${name}: skill payload missing message`,
+      emptyMessage: name => `/${name}: empty message`,
+      busyQueued: 'session busy — message queued to send when the current turn finishes',
+      busyInterrupt: 'session busy — /interrupt the current turn before sending this command',
+      error: message => `error: ${message}`,
+      invalidDispatch: 'error: invalid response: command.dispatch',
+      commandFailed: (name, error) => `error: /${name} failed: ${error}`,
+      compressing: 'compressing context...',
+      compressingFor: topic => `compressing context for: ${topic}`,
+      compressed: count => `compressed ${count} messages`,
+      nothingToCompress: 'nothing to compress',
+      titleSet: (title, queued) => `Session title set: ${title}${queued ? ' (queued while session initializes)' : ''}`,
+      titleCleared: 'Session title cleared.',
+      petScaleUsage: 'usage: /pet scale <factor>  (e.g. /pet scale 0.5)',
+      noCommands: 'No desktop commands available.',
+      steeredQueued: text => `Steered · "${text}" queued for next tool call`,
+      steeredNext: 'Steered next tool call',
+      steerRejected: 'Steer rejected — agent declined input',
+      stoppedProcesses: count => `Stopped ${count} background process${count === 1 ? '' : 'es'}.`,
+      noProcesses: 'No background processes to stop.',
+      savedTranscript: file => `Saved transcript to ${file}`,
+      usage: (calls, input, output, total) => `Usage: ${calls} calls · ${input} in / ${output} out · ${total} total`,
+      noTasks: 'No background tasks running.',
+      wake: {
+        title: 'Wake Word Status',
+        state: listening => `State: ${listening ? 'LISTENING' : 'OFF'}`,
+        phrase: phrase => `Phrase: "${phrase}"`,
+        provider: provider => `Provider: ${provider}`,
+        surface: surface => `Surface: ${surface}`,
+        input: device => `Input: ${device}`,
+        audioSilent: 'Audio: silent',
+        inputError: error => `Input error: ${error}`,
+        hint: hint => `Hint: ${hint}`,
+        systemDefault: 'system default',
+        usage: 'usage: /wake [on|off|status]',
+        startFailed: reason => `Failed to start wake word: ${reason}`
+      },
+      browser: {
+        remoteOnly:
+          '/browser manages a Chromium-family browser on the gateway host — only available when connected to a local gateway.',
+        usage: 'usage: /browser [connect|disconnect|status] [url] · persistent: set browser.cdp_url in config.yaml',
+        checking: url => `checking Chromium-family browser remote debugging at ${url}...`,
+        connected: url => `browser connected: ${url}`,
+        urlUnavailable: '(url unavailable)',
+        notConnected: 'browser not connected (try /browser connect <url> or set browser.cdp_url in config.yaml)',
+        disconnected: 'browser disconnected',
+        connectedLive: 'Browser connected to live Chromium-family browser via CDP',
+        endpoint: url => `Endpoint: ${url}`,
+        nextCall: 'next browser tool call will use this CDP endpoint'
+      }
     }
   },
 
@@ -4671,6 +5071,70 @@ export const en: Translations = {
       title: 'Sidebar',
       description: 'Displays the mobile sidebar.',
       toggle: open => `${open ? 'Show' : 'Hide'} sidebar`
+    },
+    splitButton: {
+      moreActions: 'More actions'
+    },
+    zoom: {
+      openFullView: 'Open full view',
+      zoomOut: 'Zoom out',
+      reset: 'Reset',
+      zoomIn: 'Zoom in'
+    },
+    pets: {
+      spriteLabel: name => `${name} pet`,
+      spriteFallbackLabel: 'pet',
+      hatchingProgress: 'Hatching progress',
+      unavailableTitle: 'Add an image backend to generate',
+      unavailableBody: 'Hatching a custom pet needs a provider that can ground on a reference image.',
+      setUpImageGen: 'Set up image generation',
+      grabKeyFrom: 'Grab a key from',
+      examples: ['bubble-tea otter', 'sock elf', 'pixel dragon', 'office cat', 'neon axolotl', 'moss golem'],
+      examplePrompt: example => `a ${example}`,
+      referenceFallbackName: 'Reference',
+      removeReference: 'Remove reference',
+      addReference: 'Add a reference',
+      overlayPlaceholder: 'Message…',
+      openInApp: 'Open in Work4You',
+      notifyView: 'View',
+      draftsReadyTitle: 'Pet drafts ready',
+      draftsReadyBody: 'Your pet looks finished — pick one to hatch.',
+      generateFailedTitle: 'Pet generation failed',
+      reopenToRetry: 'Reopen to try again.',
+      hatchedTitle: 'Your pet hatched',
+      hatchedBody: 'Reopen to name and adopt it.',
+      hatchFailedTitle: 'Hatching failed',
+      generateFailed: 'Could not generate pet drafts.',
+      hatchFailed: 'Could not hatch the pet.',
+      adoptFailed: 'Could not adopt the pet.',
+      bubble: {
+        run: [
+          'working…',
+          'on it…',
+          'crunching…',
+          'tinkering…',
+          'cooking…',
+          'in the weeds…',
+          'wiring it up…',
+          'making moves…',
+          'heads down…',
+          'hammering away…'
+        ],
+        review: [
+          'thinking…',
+          'reading…',
+          'reviewing…',
+          'pondering…',
+          'connecting dots…',
+          'sizing it up…',
+          'tracing it…',
+          'mulling…',
+          'scheming…',
+          'hmm…'
+        ],
+        failed: ['hit a snag', 'welp', 'that broke', 'oof', 'snagged'],
+        waiting: ['your turn', 'all yours', 'over to you', 'ball’s in your court', 'awaiting orders']
+      }
     }
   }
 }

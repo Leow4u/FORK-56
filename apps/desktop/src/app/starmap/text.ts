@@ -1,15 +1,16 @@
+import { translateNow } from '@/i18n'
 import { fmtDate } from '@/lib/time'
 import type { StarmapNode } from '@/types/work4you'
 
 export function formatDate(ts?: null | number): string {
   if (!ts) {
-    return 'unknown'
+    return translateNow('starmap.badges.unknownDate')
   }
 
   try {
     return fmtDate.format(new Date(ts * 1000))
   } catch {
-    return 'unknown'
+    return translateNow('starmap.badges.unknownDate')
   }
 }
 
@@ -19,16 +20,16 @@ export function metaBadges(n: StarmapNode): string[] {
   const out: string[] = [formatDate(n.timestamp)]
 
   if (n.kind === 'memory') {
-    out.push(n.memorySource === 'profile' ? 'profile memory' : 'memory')
+    out.push(translateNow(n.memorySource === 'profile' ? 'starmap.badges.profileMemory' : 'starmap.badges.memory'))
   } else {
     out.push(n.category)
 
     if (n.createdBy === 'agent') {
-      out.push('learned')
+      out.push(translateNow('starmap.badges.learned'))
     }
 
     if (n.pinned) {
-      out.push('pinned')
+      out.push(translateNow('starmap.badges.pinned'))
     }
   }
 

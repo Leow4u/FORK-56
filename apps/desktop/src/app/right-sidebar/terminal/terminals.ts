@@ -1,5 +1,6 @@
 import { atom, computed } from 'nanostores'
 
+import { translateNow } from '@/i18n'
 import { readKey, writeKey } from '@/lib/storage'
 import { $currentCwd } from '@/store/session'
 
@@ -188,7 +189,10 @@ export function ensureAgentTerminal(procId: string, title: string): string | nul
 
   surfacedProcs.add(procId)
   const id = newId()
-  $terminals.set([...$terminals.get(), { id, title: title || 'agent', auto: false, cwd: '', kind: 'agent', procId }])
+  $terminals.set([
+    ...$terminals.get(),
+    { id, title: title || translateNow('shell.panes.agentTerminal'), auto: false, cwd: '', kind: 'agent', procId }
+  ])
 
   return id
 }
@@ -202,7 +206,10 @@ export function openAgentTerminal(procId: string, title: string): void {
 
   if (!id) {
     id = newId()
-    $terminals.set([...$terminals.get(), { id, title: title || 'agent', auto: false, cwd: '', kind: 'agent', procId }])
+    $terminals.set([
+      ...$terminals.get(),
+      { id, title: title || translateNow('shell.panes.agentTerminal'), auto: false, cwd: '', kind: 'agent', procId }
+    ])
   }
 
   $activeTerminalId.set(id)
