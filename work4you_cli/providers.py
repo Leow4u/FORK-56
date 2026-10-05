@@ -738,7 +738,8 @@ def determine_api_mode(provider: str, base_url: str = "", model: str = "") -> st
         return mandated
 
     # Work4You is dual-wire: anthropic/* → Messages when
-    # ``work4you.anthropic_wire: native``, everything else → chat_completions. The Work4You overlay still advertises openai_chat
+    # ``work4you.anthropic_wire: native``, everything else →
+    # chat_completions. The Work4You overlay still advertises openai_chat
     # (the majority of the Portal catalog), so the transport lookup below
     # would pin Claude on the wrong wire without this carve-out.
     provider_norm = (provider or "").strip().lower()
