@@ -1484,6 +1484,19 @@ export const zh: Translations = {
     archive: '归档',
     skillArchivedTitle: '技能已归档',
     skillArchivedMessage: '可通过 work4you curator restore 恢复。',
+    archiveConfirmTitle: name => `归档 ${name}？`,
+    archiveConfirmBody: '该技能将被归档，可通过 `work4you curator restore` 恢复。',
+    scopeAgent: (profile, connection, current) => `${profile} — ${connection}${current ? '（当前）' : ''}`,
+    appConnect: {
+      signInRequiredTitle: '需要登录',
+      signInRequiredBody: '请登录 Work4You 以连接此应用。',
+      connectedTitle: name => `${name} 已连接`,
+      connectedBody: '其工具已在此对话中可用。'
+    },
+    mcpDoc: {
+      expectedObject: '应为 JSON 对象',
+      wrapServer: '请将服务器包裹在 {"mcpServers": {"name": …}} 中，以便为其命名'
+    },
     hub: {
       searchPlaceholder: '搜索技能中心',
       search: '搜索',
@@ -1562,7 +1575,34 @@ export const zh: Translations = {
     importEmpty: '粘贴图谱代码以加载。',
     importSuccess: nodes => `已加载包含 ${nodes} 个节点的图谱。`,
     importedBadge: '导入的图谱',
-    resetToMine: '返回我的图谱'
+    resetToMine: '返回我的图谱',
+    importFailed: '无法读取该图谱代码。',
+    nodeMenu: {
+      editMemory: '编辑记忆…',
+      editSkill: '编辑技能…',
+      archiveSkill: '归档技能',
+      deleteMemory: '删除记忆',
+      editTitle: label => `编辑 ${label}`,
+      deleteTitle: label => `删除 ${label}？`,
+      deleteMemoryBody: '此记忆将被永久删除。'
+    },
+    legend: {
+      skill: '技能',
+      memory: '记忆',
+      rings: '中心 = 最早 · 外圈 = 较新'
+    },
+    timeline: {
+      play: '播放时间线',
+      pause: '暂停',
+      scrubber: '时间线滑块'
+    },
+    badges: {
+      unknownDate: '日期未知',
+      profileMemory: '用户画像记忆',
+      memory: '记忆',
+      learned: '已学习',
+      pinned: '已固定'
+    }
   },
   agents: {
     close: '关闭代理',
@@ -1732,6 +1772,7 @@ export const zh: Translations = {
     noUsage: period => `最近 ${period} 天暂无用量。`,
     retry: '重试',
     dailyTokens: '每日词元',
+    dailyTokensTip: (day, input, output) => `${day} · 输入 ${input} · 输出 ${output}`,
     input: '输入',
     output: '输出',
     noDailyActivity: '暂无每日活动。',
@@ -3440,7 +3481,10 @@ export const zh: Translations = {
     kindLink: '链接',
     chat: '对话',
     copyUrl: '复制 URL',
-    copyPath: '复制路径'
+    copyPath: '复制路径',
+    skippedSessions: (skipped, total) => `索引产物时跳过了最近 ${total} 个会话中的 ${skipped} 个。`,
+    skippedSafeLimit: count => `${count} 个会话超出了对话记录的安全加载上限。`,
+    skippedUnreadable: count => `${count} 个会话无法读取。`
   },
 
   artifactCard: {
@@ -3601,6 +3645,7 @@ export const zh: Translations = {
       untitledChat: id => `会话 ${id}`,
       messageCount: count => `${count} 条消息`,
       todoProgress: '任务完成度',
+      openPullRequest: number => `打开拉取请求 #${number}`,
       ageNow: '刚刚',
       ageDay: '天',
       ageHour: '时',
@@ -3617,7 +3662,34 @@ export const zh: Translations = {
       working: '进行中',
       done: '已完成'
     },
-    markAllRead: '全部标记为已读'
+    markAllRead: '全部标记为已读',
+    splitDirections: { bottom: '下方', left: '左侧', right: '右侧', top: '上方' },
+    filters: {
+      title: '筛选',
+      grouping: '分组',
+      ordering: '排序',
+      show: '显示',
+      inboxStyle: '收件箱样式',
+      status: '状态',
+      pullRequest: '拉取请求',
+      profile: '配置档案',
+      project: '项目',
+      archived: '已归档',
+      expandAll: '全部展开',
+      collapseAll: '全部收起',
+      groupings: { date: '更新时间', profile: '配置档案', project: '项目', status: '状态' },
+      orderings: {
+        cost: '成本',
+        created: '创建时间',
+        manual: '手动',
+        status: '状态',
+        tokens: '词元',
+        updated: '更新时间'
+      },
+      rowMeta: { cost: '成本', pr: 'PR', preview: '预览', profile: '配置档案', tokens: '词元', updated: '更新时间' },
+      prStates: { closed: '已关闭', draft: '草稿', merged: '已合并', none: '无 PR', open: '开放中' },
+      statuses: { draft: '草稿', idle: '空闲', 'needs-input': '需要输入', unread: '未读', working: '进行中' }
+    }
   },
 
   composer: {
@@ -3695,6 +3767,72 @@ export const zh: Translations = {
       'composer.cancel': '关闭弹窗 · 取消运行',
       'composer.history': '循环弹窗 / 历史'
     },
+    slashCommands: {
+      descriptions: {
+        newChat: '开始新的桌面对话',
+        branch: '将最新消息分支到新对话',
+        yolo: '切换 YOLO — 自动批准危险命令',
+        wake: '控制桌面唤醒词监听 [on|off|status]',
+        handoff: '将此会话移交到消息平台',
+        profile: '切换当前 Work4You 配置档案',
+        skin: '切换桌面主题或循环到下一个',
+        title: '重命名当前会话',
+        help: '显示桌面斜杠命令',
+        browser: '管理浏览器 CDP 连接 [connect|disconnect|status]（仅限本地网关）',
+        journey: '打开记忆图谱 — 技能与记忆随时间的变化',
+        model: '切换此会话的模型',
+        resume: '恢复已保存的会话',
+        approvals: '显示或设置审批模式 [manual|smart|off]',
+        agents: '显示活动的桌面会话和运行中的任务',
+        background: '在后台运行提示词',
+        compress: '压缩此对话的上下文',
+        debug: '创建调试报告',
+        goal: '管理此会话的长期目标',
+        loop: '在此会话中按固定间隔重复运行提示词',
+        personality: '切换此会话的人格',
+        pet: '开关或领养 petdex 宠物（/pet、/pet list、/pet boba）',
+        hatch: '生成新宠物（打开宠物生成器）',
+        queue: '将提示词排队到下一回合',
+        retry: '重试最后一条用户消息',
+        rollback: '列出或恢复文件系统检查点',
+        save: '将当前对话记录保存为 JSON',
+        status: '显示当前会话状态',
+        steer: '在下一次工具调用后引导当前运行',
+        stop: '停止正在运行的后台进程',
+        tools: '列出或开关智能体可用的工具',
+        undo: '移除最后一轮用户/助手对话',
+        usage: '显示此会话的词元用量',
+        version: '显示 Work4You 版本'
+      },
+      unavailable: {
+        advanced: command => `${command} 不会显示在桌面斜杠命令面板中。请改用相应的桌面控件或终端界面。`,
+        messaging: command => `${command} 仅在消息平台中使用。`,
+        settings: command => `${command} 在桌面侧边栏中管理。`,
+        terminal: command => `${command} 仅在终端界面中可用。`,
+        modelPicker: command => `${command} 使用桌面模型选择器，而不是斜杠命令。`,
+        sessionPicker: command => `${command} 使用桌面会话选择器，而不是斜杠命令。`
+      },
+      skin: {
+        list: '显示可用的桌面主题',
+        next: '循环到下一个桌面主题',
+        current: '（当前）'
+      },
+      groups: {
+        commands: '命令',
+        options: '选项',
+        sessions: '会话',
+        themes: '主题'
+      },
+      browseAllSessions: '浏览所有会话…'
+    },
+    atStarters: {
+      file: '附加文件引用',
+      folder: '附加文件夹引用',
+      url: '附加 URL 引用',
+      image: '附加图片引用',
+      tool: '附加工具引用',
+      git: '附加 git 上下文'
+    },
     attachUrlTitle: '附加 URL',
     attachUrlDesc: 'Work4You 将抓取该页面并作为本回合的上下文。',
     urlPlaceholder: 'https://example.com/post',
@@ -3741,6 +3879,11 @@ export const zh: Translations = {
     snippetsDesc: '选择一个起始提示词放入输入框。',
     dropFiles: '拖放文件以附加',
     dropSession: '拖放以链接此对话',
+    contextMenu: {
+      addContext: '添加上下文',
+      addFiles: '将文件添加为上下文',
+      addFolders: '将文件夹添加为上下文'
+    },
     mcpSuggestions: {
       label: server => `添加 ${server}`,
       connectLabel: server => `连接 ${server}`,
@@ -4033,6 +4176,7 @@ export const zh: Translations = {
       gemini: { short: 'Gemini 模型', description: '直接访问 Google Gemini 模型。' },
       xai: { short: 'Grok 模型', description: '直接访问 xAI Grok 模型。' },
       local: {
+        name: '本地 / 自定义端点',
         short: '自托管',
         description: '将 Work4You 指向本地或自托管的 OpenAI 兼容端点 (vLLM、llama.cpp、Ollama 等)。'
       }
@@ -4078,6 +4222,12 @@ export const zh: Translations = {
     change: '更改',
     startChatting: '开始',
     docs: provider => `${provider} 文档`,
+    providerTitles: {
+      openaiCodex: 'ChatGPT 或 Codex 订阅',
+      anthropicApiKey: 'Anthropic API 密钥',
+      claudeCode: 'Anthropic OAuth：需额外用量额度才能使用订阅'
+    },
+    directApiAccess: provider => `直接访问 ${provider} API。`,
     profileSetup: {
       title: profile => `设置 ${profile}`,
       subtitle: '为此配置档案连接一个模型提供方。其他配置档案保持原样。',
@@ -4131,13 +4281,37 @@ export const zh: Translations = {
     windowControls: '窗口控件',
     paneControls: '面板控件',
     appControls: '应用控件',
+    panes: {
+      sessions: '会话',
+      terminal: '终端',
+      files: '文件',
+      review: '审查',
+      logs: '日志',
+      browser: '浏览器',
+      agentTerminal: '智能体',
+      noPageAt: path => `${path} 处没有页面`
+    },
+    layouts: {
+      default: '默认',
+      focus: '专注',
+      terminalDeck: '终端置底',
+      quad: '四分屏'
+    },
+    palette: {
+      resetLayout: '重置布局',
+      toggleStatusbar: '切换状态栏',
+      toggleTerminal: '切换终端',
+      toggleLogs: '切换日志',
+      toggleYolo: '切换 YOLO'
+    },
     modelMenu: {
       search: '搜索模型',
       noModels: '未找到模型',
       models: '模型',
       editModels: '添加模型',
       refreshModels: '刷新模型',
-      fast: '快速'
+      fast: '快速',
+      moaPresets: 'MoA 预设'
     },
     modelOptions: {
       noOptions: '此模型没有可用选项',
@@ -4523,7 +4697,19 @@ export const zh: Translations = {
       restoreNext: '恢复下一个检查点',
       goForward: '前进',
       sendEdited: '发送编辑后的消息',
-      attachingFile: '正在附加…'
+      attachingFile: '正在附加…',
+      restoreFailed: '恢复失败',
+      summarizingThread: '正在总结对话',
+      agentWorking: 'Work4You 正在工作',
+      timelineLabel: '对话时间线',
+      steered: '已引导',
+      messaging: name => `正在向 ${name} 发送消息…`,
+      messaged: name => `已向 ${name} 发送消息`,
+      messageFrom: name => `来自 ${name} 的消息`,
+      showMessage: '显示消息',
+      repliedTo: name => `已回复 ${name}`,
+      showReply: '显示回复',
+      processOutput: '输出'
     },
     approval: {
       gatewayDisconnected: 'Work4You 网关未连接',
@@ -4657,7 +4843,117 @@ export const zh: Translations = {
         web_extract: { done: '已读取网页', pending: '正在读取网页', pendingAction: '正在读取' },
         web_search: { done: '已搜索网页', pending: '正在搜索网页', pendingAction: '正在搜索' },
         write_file: { done: '已编辑文件', pending: '正在编辑文件', pendingAction: '正在编辑' }
-      }
+      },
+      payload: '工具载荷',
+      traceArguments: '参数',
+      traceResult: '结果',
+      searchLabel: '搜索',
+      searchResults: '搜索结果',
+      generatedImageAlt: '生成的图片',
+      truncated: count => `另有 ${count} 个字符已截断 — 请使用“复制”获取完整输出。`,
+      details: '详情',
+      snapshotSummary: '快照摘要',
+      errorDetails: '错误详情',
+      toolError: '工具返回了错误。',
+      toolFailure: '工具返回了 success=false。',
+      toolStatus: status => `工具返回了状态“${status}”。`,
+      commandFailed: code => `命令执行失败（退出码 ${code}）。`,
+      navigated: '已在浏览器中导航',
+      snapshotCaptured: '已捕获浏览器无障碍快照',
+      snapshotStats: (buttons, links, inputs) => `${buttons} 个按钮 · ${links} 个链接 · ${inputs} 个输入框`,
+      topControls: labels => `主要控件：${labels}`,
+      clickedPage: '已点击页面',
+      clickedRef: ref => `已点击页面元素（内部引用 ${ref}）`,
+      clickedTarget: target => `已点击 ${target}`,
+      fieldLabel: field => `字段：${field}`,
+      valueLabel: value => `值：${value}`,
+      filledInput: '已填写页面输入框',
+      queryLabel: query => `查询：${query}`,
+      queriedWeb: '已查询网络来源',
+      executedCommand: '已执行命令',
+      changedFile: '已更改文件',
+      fetchedWebpage: '已获取网页',
+      cron: {
+        jobCount: count => `${count} 个定时任务`,
+        noJobs: '没有定时任务',
+        noJobsScheduled: '尚未排程任何定时任务',
+        jobFallback: '任务',
+        schedule: '排程',
+        repeat: '重复',
+        delivery: '投递',
+        nextRun: '下次运行'
+      },
+      countNouns: {
+        document: { one: '个文档', other: '个文档' },
+        entry: { one: '个条目', other: '个条目' },
+        file: { one: '个文件', other: '个文件' },
+        item: { one: '项', other: '项' },
+        match: { one: '处匹配', other: '处匹配' },
+        result: { one: '条结果', other: '条结果' },
+        row: { one: '行', other: '行' },
+        search: { one: '次搜索', other: '次搜索' },
+        source: { one: '个来源', other: '个来源' },
+        step: { one: '个步骤', other: '个步骤' },
+        todo: { one: '项待办', other: '项待办' }
+      },
+      delegateTaskFallback: index => `任务 ${index}`,
+      delegatedTask: '委派的任务'
+    },
+    runSummary: {
+      delegate: { one: '个任务', other: '个任务', past: '已委派', present: '正在委派' },
+      edit: { one: '个文件', other: '个文件', past: '已编辑', present: '正在编辑' },
+      explore: { one: '个文件', other: '个文件', past: '已探索', present: '正在探索' },
+      other: { one: '个工具', other: '个工具', past: '已使用', present: '正在使用' },
+      run: { one: '条命令', other: '条命令', past: '已运行', present: '正在运行' }
+    },
+    alerts: {
+      caution: '注意',
+      important: '重要',
+      note: '备注',
+      tip: '提示',
+      warning: '警告'
+    },
+    embeds: {
+      load: label => `加载 ${label}`,
+      alwaysAllow: label => `始终允许 ${label}`,
+      failed: label => `无法加载 ${label} 嵌入内容`,
+      frameTitle: label => `${label} 嵌入内容`,
+      holdToZoom: '按住 ⌘ 缩放',
+      openDiagram: '打开图表'
+    },
+    references: {
+      file: '文件',
+      folder: '文件夹',
+      url: '链接',
+      image: '图片',
+      tool: '工具',
+      line: '行',
+      terminal: '终端',
+      session: '会话',
+      git: 'Git',
+      diff: '更改',
+      staged: '已暂存',
+      command: '命令',
+      skill: '技能',
+      theme: '主题',
+      emoji: '表情',
+      other: '其他'
+    },
+    markdown: {
+      fetchFailed: name => `无法从网关获取 ${name}（文件缺失、不可读或过大）。`,
+      openAudioFile: '打开音频文件',
+      openVideoFile: '打开视频文件',
+      openFile: name => `打开 ${name}`,
+      loadingFile: name => `正在加载 ${name}...`,
+      loadFailed: name => `无法加载 ${name}。`
+    },
+    reactions: {
+      search: '搜索…',
+      loading: '正在加载表情…',
+      empty: '未找到表情。',
+      more: '更多表情',
+      remove: emoji => `移除 ${emoji} 回应`,
+      reactedByAgent: '由 Work4You 添加的回应'
     }
   },
 
@@ -4741,6 +5037,108 @@ export const zh: Translations = {
       systemNote: platform => `↻ 已移交到 ${platform} — 随时可在此处恢复。`,
       failed: error => `移交失败：${error}`,
       timedOut: '等待网关超时。`work4you gateway` 是否正在运行？'
+    },
+    openSessionFailed: '无法打开此会话',
+    previewTargetFailed: target => `无法打开预览目标：${target}`,
+    gatewayErrorTitle: 'Work4You 错误',
+    gatewayErrorFallback: 'Work4You 报告了一个错误',
+    dangerousCommand: '危险命令',
+    remoteAttachTooLarge: (label, maxMb) =>
+      `${label} 过大，无法上传到远程网关${maxMb === null ? '' : `（最大 ${maxMb} MB）`}。`,
+    attachFailed: {
+      folder: path => `无法附加文件夹 ${path}`,
+      named: name => `无法附加 ${name}`,
+      read: name => `无法读取 ${name}`,
+      file: '无法附加文件',
+      image: '无法附加图片'
+    },
+    restore: {
+      noSession: '没有可恢复的活动会话。',
+      notFound: '找不到要恢复的消息。',
+      emptyMessage: '无法恢复空消息。'
+    },
+    previewRestart: {
+      noSession: '没有可用于后台重启的活动会话',
+      noTask: '后台重启未返回任务 ID'
+    },
+    artifactOpen: {
+      bridgeUnavailable: '桌面桥接不可用',
+      writeFailed: '无法写入产物文件'
+    },
+    pdfPreview: {
+      requiresObjectUrl: 'PDF 预览需要 object URL 支持',
+      invalidDataUrl: '无效的 PDF data URL',
+      invalidType: '无效的 PDF data URL 类型',
+      invalidPayload: '无效的 PDF data URL 数据',
+      invalidHeader: '无效的 PDF 文件头'
+    },
+    quickEntry: {
+      placeholder: '向 Work4You 提问…',
+      disconnected: '未连接 — 打开 Work4You 以重新连接',
+      sendTo: '发送到',
+      targetSession: '目标会话',
+      currentChat: '当前对话'
+    },
+    moa: {
+      reference: '◇ 参考',
+      referenceOf: (index, count) => `◇ 参考 ${index}/${count}`,
+      refs: (done, total) => `◇ MoA 参考 ${done}/${total}`,
+      aggregating: '◇ MoA 聚合中…',
+      defaultLabel: '参考'
+    },
+    slash: {
+      unavailable: name => `/${name} 在桌面应用中不可用。`,
+      noOutput: name => `/${name}：无输出`,
+      noOutputPlain: '（无输出）',
+      skillPayloadMissing: name => `/${name}：技能载荷缺少消息`,
+      emptyMessage: name => `/${name}：空消息`,
+      busyQueued: '会话忙碌中 — 消息已排队，将在当前回合结束后发送',
+      busyInterrupt: '会话忙碌中 — 发送此命令前请先用 /interrupt 中断当前回合',
+      error: message => `错误：${message}`,
+      invalidDispatch: '错误：无效的响应：command.dispatch',
+      commandFailed: (name, error) => `错误：/${name} 失败：${error}`,
+      compressing: '正在压缩上下文…',
+      compressingFor: topic => `正在压缩上下文，聚焦于：${topic}`,
+      compressed: count => `已压缩 ${count} 条消息`,
+      nothingToCompress: '没有可压缩的内容',
+      titleSet: (title, queued) => `会话标题已设置：${title}${queued ? '（会话初始化期间已排队）' : ''}`,
+      titleCleared: '会话标题已清除。',
+      petScaleUsage: '用法：/pet scale <factor>（例如 /pet scale 0.5）',
+      noCommands: '没有可用的桌面端命令。',
+      steeredQueued: text => `已引导 · “${text}”已排队，将用于下一次工具调用`,
+      steeredNext: '已引导下一次工具调用',
+      steerRejected: '引导被拒绝 — 智能体拒绝了输入',
+      stoppedProcesses: count => `已停止 ${count} 个后台进程。`,
+      noProcesses: '没有可停止的后台进程。',
+      savedTranscript: file => `对话记录已保存到 ${file}`,
+      usage: (calls, input, output, total) => `用量：${calls} 次调用 · 输入 ${input} / 输出 ${output} · 共 ${total}`,
+      noTasks: '没有正在运行的后台任务。',
+      wake: {
+        title: '唤醒词状态',
+        state: listening => `状态：${listening ? '监听中' : '已关闭'}`,
+        phrase: phrase => `唤醒词：“${phrase}”`,
+        provider: provider => `提供方：${provider}`,
+        surface: surface => `界面：${surface}`,
+        input: device => `输入设备：${device}`,
+        audioSilent: '音频：静默',
+        inputError: error => `输入错误：${error}`,
+        hint: hint => `提示：${hint}`,
+        systemDefault: '系统默认',
+        usage: '用法：/wake [on|off|status]',
+        startFailed: reason => `启动唤醒词失败：${reason}`
+      },
+      browser: {
+        remoteOnly: '/browser 用于管理网关主机上的 Chromium 系浏览器 — 仅在连接到本地网关时可用。',
+        usage: '用法：/browser [connect|disconnect|status] [url] · 持久化：在 config.yaml 中设置 browser.cdp_url',
+        checking: url => `正在检查 ${url} 上的 Chromium 系浏览器远程调试…`,
+        connected: url => `浏览器已连接：${url}`,
+        urlUnavailable: '（URL 不可用）',
+        notConnected: '浏览器未连接（请尝试 /browser connect <url> 或在 config.yaml 中设置 browser.cdp_url）',
+        disconnected: '浏览器已断开连接',
+        connectedLive: '浏览器已通过 CDP 连接到正在运行的 Chromium 系浏览器',
+        endpoint: url => `端点：${url}`,
+        nextCall: '下一次浏览器工具调用将使用此 CDP 端点'
+      }
     }
   },
 
@@ -4767,6 +5165,70 @@ export const zh: Translations = {
       title: '侧边栏',
       description: '显示移动端侧边栏。',
       toggle: open => `${open ? '显示' : '隐藏'}侧边栏`
+    },
+    splitButton: {
+      moreActions: '更多操作'
+    },
+    zoom: {
+      openFullView: '打开完整视图',
+      zoomOut: '缩小',
+      reset: '重置',
+      zoomIn: '放大'
+    },
+    pets: {
+      spriteLabel: name => `宠物 ${name}`,
+      spriteFallbackLabel: '宠物',
+      hatchingProgress: '孵化进度',
+      unavailableTitle: '添加图像后端以生成',
+      unavailableBody: '孵化自定义宠物需要一个能基于参考图生成图像的提供方。',
+      setUpImageGen: '设置图像生成',
+      grabKeyFrom: '获取密钥：',
+      examples: ['珍珠奶茶水獭', '袜子精灵', '像素龙', '办公室猫咪', '霓虹美西螈', '苔藓魔像'],
+      examplePrompt: example => `一只${example}`,
+      referenceFallbackName: '参考图',
+      removeReference: '移除参考图',
+      addReference: '添加参考图',
+      overlayPlaceholder: '输入消息…',
+      openInApp: '在 Work4You 中打开',
+      notifyView: '查看',
+      draftsReadyTitle: '宠物草图已就绪',
+      draftsReadyBody: '你的宠物造型已完成 — 选一个来孵化。',
+      generateFailedTitle: '宠物生成失败',
+      reopenToRetry: '重新打开以重试。',
+      hatchedTitle: '你的宠物已孵化',
+      hatchedBody: '重新打开即可为它命名并领养。',
+      hatchFailedTitle: '孵化失败',
+      generateFailed: '无法生成宠物草图。',
+      hatchFailed: '无法孵化该宠物。',
+      adoptFailed: '无法领养该宠物。',
+      bubble: {
+        run: [
+          '工作中…',
+          '马上办…',
+          '运算中…',
+          '捣鼓中…',
+          '热火朝天…',
+          '深陷细节…',
+          '接线中…',
+          '推进中…',
+          '埋头苦干…',
+          '敲敲打打…'
+        ],
+        review: [
+          '思考中…',
+          '阅读中…',
+          '审阅中…',
+          '琢磨中…',
+          '串联线索…',
+          '掂量掂量…',
+          '顺藤摸瓜…',
+          '斟酌中…',
+          '盘算中…',
+          '嗯…'
+        ],
+        failed: ['遇到点麻烦', '呃', '搞坏了', '哎哟', '卡住了'],
+        waiting: ['轮到你了', '交给你了', '请你接手', '球在你这边', '等候指示']
+      }
     }
   }
 }
