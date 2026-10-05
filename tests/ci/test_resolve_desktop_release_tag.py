@@ -6,6 +6,7 @@ Tag resolution is data in → tag out. No GitHub / network calls.
 from __future__ import annotations
 
 import importlib.util
+import io
 from pathlib import Path
 
 import pytest
@@ -167,3 +168,97 @@ def test_cli_rebuilds_hollow_latest(capsys):
     )
     assert code == 0
     assert capsys.readouterr().out == "tag=desktop-v0.0.71\ncreate=false\n"
+
+
+# --- daily release train ---------------------------------------------------
+
+SHA = "a" * 40
+
+
+def test_train_publishes_when_app_code_changed():
+    decision = mod.decide_release_train(
+        github_latest="desktop-v0.0.8",
+        base_sha=SHA,
+        changed_files=["README.md", "apps/desktop/src/app.tsx"],
+    )
+    assert decision.release is True
+
+
+def test_train_skips_when_nothing_that_ships_changed():
+    decision = mod.decide_release_train(
+        github_latest="desktop-v0.0.8",
+        base_sha=SHA,
+        changed_files=["README.md", "website/docs/user-guide/desktop.md"],
+    )
+    assert decision.release is False
+
+
+def test_train_skips_when_latest_already_points_at_head():
+    decision = mod.decide_release_train(
+        github_latest="desktop-v0.0.8",
+        base_sha=SHA,
+        changed_files=[],
+    )
+    assert decision.release is False
+
+
+@pytest.mark.parametrize("latest", ["", "v0.20.4", "nas-code-drop"])
+def test_train_publishes_without_a_desktop_latest_to_compare(latest):
+    decision = mod.decide_release_train(
+        github_latest=latest,
+        base_sha=SHA,
+        changed_files=[],
+    )
+    assert decision.release is True
+
+
+def test_train_publishes_when_the_latest_commit_is_unknown():
+    decision = mod.decide_release_train(
+        github_latest="desktop-v0.0.8",
+        base_sha="",
+        changed_files=[],
+    )
+    assert decision.release is True
+
+
+def test_train_directory_entries_match_whole_path_segments():
+    directories = [p[: -len("/**")] for p in mod.RELEASE_TRAIN_PATHS if p.endswith("/**")]
+    assert directories
+    for directory in directories:
+        assert mod.feeds_desktop_release(f"{directory}/nested/file.ts")
+        assert not mod.feeds_desktop_release(f"{directory}-legacy/file.ts")
+
+
+def test_train_exact_entries_match_only_that_file():
+    exact = [p for p in mod.RELEASE_TRAIN_PATHS if not p.endswith("/**")]
+    assert exact
+    for path in exact:
+        assert mod.feeds_desktop_release(path)
+        assert not mod.feeds_desktop_release(f"{path}.bak")
+        assert not mod.feeds_desktop_release(f"vendor/{path}")
+
+
+def test_cli_train_gate_skips_and_says_why(capsys, monkeypatch):
+    monkeypatch.setattr("sys.stdin", io.StringIO("README.md\nwebsite/docs/index.md\n"))
+    code = mod.main(
+        ["--train-gate", "--github-latest", "desktop-v0.0.8", "--base-sha", SHA]
+    )
+    assert code == 0
+    captured = capsys.readouterr()
+    assert captured.out == "release=false\n"
+    assert "skipping" in captured.err
+
+
+def test_cli_train_gate_publishes_when_app_code_changed(capsys, monkeypatch):
+    monkeypatch.setattr("sys.stdin", io.StringIO("apps/desktop/electron/main.ts\n"))
+    code = mod.main(
+        ["--train-gate", "--github-latest", "desktop-v0.0.8", "--base-sha", SHA]
+    )
+    assert code == 0
+    assert capsys.readouterr().out == "release=true\n"
+
+
+def test_cli_still_requires_an_event_outside_the_train_gate():
+    with pytest.raises(SystemExit) as excinfo:
+        mod.main([])
+    assert excinfo.value.code == 2

@@ -26,6 +26,13 @@ name: Release Desktop Installer
 #
 # Build 2026-09-07: ship Teams (#227) and WhatsApp Cloud API (#228) in the
 # signed desktop installers (.exe / .dmg).
+#
+# Release train: merging to main does not publish. Every eSigner signature is
+# billed, and every release prompts each user to restart the app, so changes
+# ship in one batch a day. The daily schedule publishes the next desktop-v*
+# only when something that ships in the installers changed since GitHub
+# Latest; the `gate` job asks resolve_desktop_release_tag.py --train-gate.
+# Hotfix: a plain Run workflow (empty tag) publishes at once.
 
 on:
   workflow_dispatch:
@@ -49,19 +56,10 @@ on:
         default: false
   release:
     types: [published]
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/release-desktop.yml
-      - scripts/ci/prepare_macos_signing.py
-      - scripts/ci/publish_desktop_release.py
-      - scripts/ci/resolve_desktop_release_tag.py
-      - apps/desktop/**
-      - apps/shared/**
-      - scripts/build-desktop-runtime.ps1
-      - scripts/build-desktop-runtime.sh
-      - scripts/deploy-desktop-runtime.ps1
-      - scripts/deploy-desktop-runtime.sh
+  # Daily release train: 11:00 UTC is 08:00 in Brasilia (UTC-3, no DST).
+  # GitHub can start scheduled runs some minutes late at the top of the hour.
+  schedule:
+    - cron: "0 11 * * *"
 
 permissions:
   contents: write
@@ -73,8 +71,46 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Manual runs and published releases always go on. The daily schedule goes
+  # on only when a path in RELEASE_TRAIN_PATHS changed since GitHub Latest.
+  gate:
+    name: Decide whether to release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      release: ${{ steps.decide.outputs.release }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Compare main with the latest desktop release
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          latest="$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name || true)"
+          base=""
+          if [ -n "$latest" ]; then
+            base="$(gh api "repos/${{ github.repository }}/commits/${latest}" --jq .sha || true)"
+          fi
+          changed=""
+          # A diff only needs the two trees, so a depth-1 fetch of the release
+          # commit is enough on the default shallow checkout. --no-renames
+          # keeps a file moved out of the app visible under its old path.
+          if [ -n "$base" ] && git fetch --no-tags --depth=1 origin "$base"; then
+            changed="$(git diff --name-only --no-renames "$base" HEAD)"
+          else
+            base=""
+          fi
+          echo "$changed" | python3 scripts/ci/resolve_desktop_release_tag.py --train-gate --github-latest "$latest" --base-sha "$base" >> "$GITHUB_OUTPUT"
+
   build-windows:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || startsWith(github.event.release.tag_name, 'desktop-v')
+    needs: gate
+    if: needs.gate.outputs.release == 'true' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || startsWith(github.event.release.tag_name, 'desktop-v'))
     name: Build Windows installer
     runs-on: windows-latest
     timeout-minutes: 150
@@ -222,7 +258,8 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || startsWith(github.event.release.tag_name, 'desktop-v')
+    needs: gate
+    if: needs.gate.outputs.release == 'true' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || startsWith(github.event.release.tag_name, 'desktop-v'))
     name: Build macOS installer
     runs-on: macos-latest
     timeout-minutes: 150
@@ -361,7 +398,7 @@ jobs:
     # Never publish when Windows or macOS signing was skipped or did not
     # succeed. Unsigned Work4You-Setup.exe / Work4You.dmg must not clobber
     # desktop-v* assets.
-    if: (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'desktop-v') || github.event_name == 'workflow_dispatch' || github.event_name == 'push') && needs.build-windows.outputs.windows_signed == 'true' && needs.build-macos.outputs.macos_signed == 'true'
+    if: (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'desktop-v') || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && needs.build-windows.outputs.windows_signed == 'true' && needs.build-macos.outputs.macos_signed == 'true'
     name: Publish desktop release
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
@@ -388,6 +425,7 @@ jobs:
           latest="$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name || true)"
           latest_assets="$(gh api "repos/${{ github.repository }}/releases/latest" --jq '.assets[].name' || true)"
           tags="$(gh api "repos/${{ github.repository }}/releases" --paginate --jq '.[].tag_name' || true)"
+          # A train run (schedule) resolves like a dispatch with an empty tag.
           input_tag=""
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             input_tag="${{ inputs.tag }}"
