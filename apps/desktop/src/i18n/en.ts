@@ -5204,5 +5204,54 @@ export const en: Translations = {
         waiting: ['your turn', 'all yours', 'over to you', 'ball’s in your court', 'awaiting orders']
       }
     }
+  },
+
+  intro: {
+    // English stock greetings live in components/chat/intro-copy.jsonl.
+    stock: {},
+    custom: label => [
+      {
+        headline: `${label} mode is on. What should we work on?`,
+        body: "Send the task, file, or rough idea. I'll use your configured voice and keep the work grounded in this repo."
+      },
+      {
+        headline: `What does ${label} Work4You need to see?`,
+        body: "Bring the context or the stuck part. I'll adapt to your configured personality."
+      },
+      {
+        headline: `${label} mode is ready.`,
+        body: "Send the problem, file, or idea. I'll follow the personality you've configured."
+      },
+      {
+        headline: `What should ${label} Work4You tackle?`,
+        body: "Drop the task here. I'll keep the work grounded in the repo."
+      },
+      {
+        headline: 'Where should we begin?',
+        body: `Give me the context and I'll answer in ${label} mode.`
+      }
+    ],
+    neutral: [
+      {
+        headline: 'What are we moving today?',
+        body: "Send a bug, branch, plan, or rough idea. I'll inspect the repo and turn it into the next concrete step."
+      },
+      {
+        headline: "What's on your mind?",
+        body: "Bring the code, question, or stuck part. I'll read the room before making changes."
+      },
+      {
+        headline: 'What should Work4You look at?',
+        body: "Send the task, failing path, or half-formed plan. I'll help turn it into action."
+      },
+      {
+        headline: 'Where should we start?',
+        body: "Bring the problem, goal, or file. I'll inspect first and keep the next step concrete."
+      },
+      {
+        headline: 'What needs attention?',
+        body: "Send the context you have. I'll help sort it into a plan or a fix."
+      }
+    ]
   }
 }

@@ -5278,5 +5278,54 @@ export const zh: Translations = {
         waiting: ['轮到你了', '交给你了', '请你接手', '球在你这边', '等候指示']
       }
     }
+  },
+
+  intro: {
+    // No stock overlay yet: the personalities keep the English greetings.
+    stock: {},
+    custom: label => [
+      {
+        headline: `${label} 模式已开启。我们要做什么？`,
+        body: '发送任务、文件或粗略的想法。我会使用你配置的语气，并让工作紧扣这个仓库。'
+      },
+      {
+        headline: `${label} Work4You 需要看什么？`,
+        body: '带上上下文或卡住的地方。我会适应你配置的个性。'
+      },
+      {
+        headline: `${label} 模式已就绪。`,
+        body: '发送问题、文件或想法。我会遵循你配置的个性。'
+      },
+      {
+        headline: `${label} Work4You 该处理什么？`,
+        body: '把任务放在这里。我会让工作紧扣仓库。'
+      },
+      {
+        headline: '我们从哪里开始？',
+        body: `给我上下文，我会用 ${label} 模式回答。`
+      }
+    ],
+    neutral: [
+      {
+        headline: '今天要推进什么？',
+        body: '发送一个 bug、分支、计划或粗略的想法。我会检查仓库，把它变成下一个具体步骤。'
+      },
+      {
+        headline: '在想什么？',
+        body: '带上代码、问题或卡住的部分。我会先了解情况再做修改。'
+      },
+      {
+        headline: 'Work4You 该看什么？',
+        body: '发送任务、失败的路径或尚未成形的计划。我会帮你把它变成行动。'
+      },
+      {
+        headline: '从哪里开始？',
+        body: '带上问题、目标或文件。我会先检查，并让下一步保持具体。'
+      },
+      {
+        headline: '什么需要关注？',
+        body: '发送你掌握的上下文。我会帮你整理成计划或修复方案。'
+      }
+    ]
   }
 }

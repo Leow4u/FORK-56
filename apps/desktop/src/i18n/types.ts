@@ -94,6 +94,12 @@ interface AuxTaskCopy {
   hint: string
 }
 
+/** One empty-chat greeting: the headline and the line under it. */
+export interface IntroCopy {
+  headline: string
+  body: string
+}
+
 export interface Translations {
   common: {
     add: string
@@ -4370,5 +4376,17 @@ export interface Translations {
         waiting: readonly string[]
       }
     }
+  }
+
+  // Empty-chat greeting, per personality. English lives in
+  // components/chat/intro-copy.jsonl; a locale overrides it here.
+  intro: {
+    /** Each stock personality's greetings, in the JSONL's rotation order.
+     *  Empty in English, which reads the JSONL. */
+    stock: Readonly<Record<string, readonly IntroCopy[]>>
+    /** Greetings for a personality the stock list does not know. */
+    custom: (label: string) => readonly IntroCopy[]
+    /** Last-resort neutral greetings. */
+    neutral: readonly IntroCopy[]
   }
 }
