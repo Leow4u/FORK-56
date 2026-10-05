@@ -691,20 +691,33 @@ def host_mandated_api_mode(base_url: str = "") -> Optional[str]:
 def work4you_api_mode(model: str = "") -> str:
     """Resolve the wire protocol for a Work4You Portal model.
 
-    Portal serves its ``anthropic/*`` catalog on a native Anthropic Messages
-    route (``/v1/messages``) alongside the OpenAI-compatible
-    ``/v1/chat/completions`` used by every other model it proxies.  Claude
-    traffic goes to the native route so it gets Anthropic's own request shape
-    (inner-block ``cache_control`` breakpoints, thinking blocks) instead of the
-    OpenAI-wire translation.
+    ``anthropic/*`` rides ``/v1/chat/completions`` by default
+    (``work4you.anthropic_wire``), like every other model the Portal proxies.
+    The Portal gateway (``services/work4you-inference-api``) forwards to
+    OpenRouter's chat/completions; its ``/v1/messages`` route maps the request
+    to chat but streams the OpenAI-shaped response back unchanged, which the
+    Anthropic SDK drops event by event — every Claude turn surfaced as
+    ``EmptyStreamError`` (HTTP 200, zero events). Mirrors upstream's
+    ``nous_api_mode`` default. ``work4you.anthropic_wire: native`` restores the
+    Messages wire for a Portal that serves it natively.
 
     When *model* is empty/unknown, defaults to ``chat_completions`` — the
-    historical Work4You transport — so callers that don't yet know the model
-    stay on the safer OpenAI-compatible path.
+    historical Work4You transport.
     """
     if str(model or "").strip().lower().startswith("anthropic/"):
-        return "anthropic_messages"
+        return "anthropic_messages" if _work4you_anthropic_wire() == "native" else "chat_completions"
     return "chat_completions"
+
+
+def _work4you_anthropic_wire() -> str:
+    """``work4you.anthropic_wire``: ``"chat"`` (default) or ``"native"``. Anything else reads as ``chat``."""
+    try:
+        from work4you_cli.config import load_config_readonly
+
+        value = str(((load_config_readonly().get("work4you") or {}).get("anthropic_wire")) or "chat").strip().lower()
+    except Exception:
+        return "chat"
+    return value if value == "native" else "chat"
 
 
 def determine_api_mode(provider: str, base_url: str = "", model: str = "") -> str:
@@ -724,8 +737,8 @@ def determine_api_mode(provider: str, base_url: str = "", model: str = "") -> st
     if mandated is not None:
         return mandated
 
-    # Work4You is dual-wire: anthropic/* → Messages, everything else →
-    # chat_completions. The Work4You overlay still advertises openai_chat
+    # Work4You is dual-wire: anthropic/* → Messages when
+    # ``work4you.anthropic_wire: native``, everything else → chat_completions. The Work4You overlay still advertises openai_chat
     # (the majority of the Portal catalog), so the transport lookup below
     # would pin Claude on the wrong wire without this carve-out.
     provider_norm = (provider or "").strip().lower()
