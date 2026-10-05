@@ -66,7 +66,7 @@ export const LOCALE_META: Record<Locale, { name: string }> = {
   ko: { name: "한국어" },
   it: { name: "Italiano" },
   ga: { name: "Gaeilge" },
-  pt: { name: "Português" },
+  pt: { name: "Português (Brasil)" },
   ru: { name: "Русский" },
   hu: { name: "Magyar" },
   ar: { name: "العربية" },
