@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+
+import { setRuntimeI18nLocale } from '@/i18n'
+import { en } from '@/i18n/en'
+import { pt } from '@/i18n/pt'
 
 import {
   desktopSkinSlashCompletions,
@@ -319,6 +323,33 @@ describe('desktop slash command curation', () => {
     expect(resolveDesktopCommand('/clear')?.surface).toEqual({ kind: 'unavailable', reason: 'terminal' })
     // Skill / quick commands aren't in the registry.
     expect(resolveDesktopCommand('/gif-search')).toBeNull()
+  })
+})
+
+describe('desktop slash command copy', () => {
+  afterEach(() => {
+    setRuntimeI18nLocale('en')
+  })
+
+  it('resolves descriptions and notices in the language active when they are read', () => {
+    const copy = pt.composer.slashCommands
+    const themes = [{ name: 'mono', label: 'Mono', description: 'Clean grayscale' }]
+
+    setRuntimeI18nLocale('pt')
+
+    expect(desktopSlashDescription('/new', 'backend text')).toBe(copy.descriptions.newChat)
+    expect(desktopSlashDescription('/compact')).toBe(copy.descriptions.compress)
+    expect(desktopSlashUnavailableMessage('/clear')).toBe(copy.unavailable.terminal('/clear'))
+    expect(desktopSlashUnavailableMessage('/model sonnet')).toBe(copy.unavailable.modelPicker('/model'))
+    expect(desktopSkinSlashCompletions(themes, 'mono', '').map(item => item.meta)).toEqual([
+      copy.skin.list,
+      copy.skin.next,
+      `Mono${copy.skin.current} - Clean grayscale`
+    ])
+
+    setRuntimeI18nLocale('en')
+
+    expect(desktopSlashDescription('/new', 'backend text')).toBe(en.composer.slashCommands.descriptions.newChat)
   })
 })
 

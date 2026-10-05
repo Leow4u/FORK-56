@@ -1,23 +1,38 @@
 import { RowButton } from '@/components/ui/row-button'
-import { useI18n } from '@/i18n'
+import { translateNow, type Translations, useI18n } from '@/i18n'
 import { Check, ChevronRight, Terminal } from '@/lib/icons'
 import type { OAuthProvider } from '@/types/work4you'
 
-const PROVIDER_DISPLAY: Record<string, { order: number; title: string }> = {
+type ProviderTitleCopy = Translations['onboarding']['providerTitles']
+
+// Brand names render as-is (`title`); titles that describe the provider
+// ("… Subscription", "… API Key") come from the catalog (`titleKey`).
+const PROVIDER_DISPLAY: Record<string, { order: number; title?: string; titleKey?: keyof ProviderTitleCopy }> = {
   work4you: { order: 0, title: 'Work4You Portal' },
-  'openai-codex': { order: 1, title: 'ChatGPT or Codex Subscription' },
+  'openai-codex': { order: 1, titleKey: 'openaiCodex' },
   'minimax-oauth': { order: 2, title: 'MiniMax' },
   'qwen-oauth': { order: 3, title: 'Qwen Code' },
   'xai-oauth': { order: 4, title: 'xAI Grok' },
   // Both Anthropic entries sit at the bottom: the API-key path first, then
   // the subscription OAuth path (only works with extra usage credits).
-  anthropic: { order: 5, title: 'Anthropic API Key' },
-  'claude-code': { order: 6, title: 'Anthropic OAuth: Required Extra Usage Credits to Use Subscription' }
+  anthropic: { order: 5, titleKey: 'anthropicApiKey' },
+  'claude-code': { order: 6, titleKey: 'claudeCode' }
 }
 
 export const assetPath = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`
 
-export const providerTitle = (p: OAuthProvider) => PROVIDER_DISPLAY[p.id]?.title ?? p.name
+/** Display title for a provider. Pass the catalog copy from `useI18n()` when
+ *  rendering; without it the title resolves against the active language now. */
+export const providerTitle = (p: OAuthProvider, titles?: ProviderTitleCopy): string => {
+  const display = PROVIDER_DISPLAY[p.id]
+
+  if (display?.titleKey) {
+    return titles ? titles[display.titleKey] : translateNow(`onboarding.providerTitles.${display.titleKey}`)
+  }
+
+  return display?.title ?? p.name
+}
+
 const orderOf = (p: OAuthProvider) => PROVIDER_DISPLAY[p.id]?.order ?? 99
 
 export const sortProviders = (providers: OAuthProvider[]) =>
@@ -43,7 +58,7 @@ export function FeaturedProviderRow({
         <div className="flex items-center gap-2">
           <img alt="" className="size-5 shrink-0 rounded" src={assetPath('apple-touch-icon.png')} />
           <span className="text-[length:var(--conversation-text-font-size)] font-semibold">
-            {providerTitle(provider)}
+            {providerTitle(provider, t.onboarding.providerTitles)}
           </span>
           {loggedIn ? (
             <ConnectedTag />
@@ -115,7 +130,7 @@ export function ProviderRow({
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-[length:var(--conversation-text-font-size)] font-semibold">
-            {providerTitle(provider)}
+            {providerTitle(provider, t.onboarding.providerTitles)}
           </span>
           {loggedIn ? <ConnectedTag /> : null}
         </div>

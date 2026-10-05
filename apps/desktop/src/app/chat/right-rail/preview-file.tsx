@@ -230,7 +230,7 @@ function dataUrlToBlob(dataUrl: string) {
   const comma = dataUrl.indexOf(',')
 
   if (comma < 0 || !dataUrl.startsWith('data:')) {
-    throw new Error('Invalid PDF data URL')
+    throw new Error(translateNow('desktop.pdfPreview.invalidDataUrl'))
   }
 
   const metadata = dataUrl
@@ -241,7 +241,7 @@ function dataUrlToBlob(dataUrl: string) {
   const payload = dataUrl.slice(comma + 1)
 
   if (metadata[0] !== 'application/pdf' || !metadata.slice(1).includes('base64')) {
-    throw new Error('Invalid PDF data URL type')
+    throw new Error(translateNow('desktop.pdfPreview.invalidType'))
   }
 
   let binary: string
@@ -249,11 +249,11 @@ function dataUrlToBlob(dataUrl: string) {
   try {
     binary = atob(decodeURIComponent(payload))
   } catch {
-    throw new Error('Invalid PDF data URL payload')
+    throw new Error(translateNow('desktop.pdfPreview.invalidPayload'))
   }
 
   if (!binary.startsWith('%PDF-')) {
-    throw new Error('Invalid PDF file header')
+    throw new Error(translateNow('desktop.pdfPreview.invalidHeader'))
   }
 
   const bytes = new Uint8Array(binary.length)
@@ -836,7 +836,7 @@ export function LocalFilePreview({ reloadKey, target }: { reloadKey: number; tar
     // Chromium's PDF viewer is blank for large data: URLs in an iframe. Use a
     // blob URL instead, and revoke it when the target or loaded bytes change.
     if (typeof URL.createObjectURL !== 'function') {
-      setPdfError('PDF preview requires object URL support')
+      setPdfError(translateNow('desktop.pdfPreview.requiresObjectUrl'))
 
       return
     }

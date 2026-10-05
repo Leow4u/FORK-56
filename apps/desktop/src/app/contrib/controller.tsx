@@ -39,8 +39,9 @@ import { Slot } from '@/contrib/react/slot'
 import { useContributions } from '@/contrib/react/use-contributions'
 import { registry } from '@/contrib/registry'
 import { discoverRuntimePlugins } from '@/contrib/runtime-loader'
-import { translateNow } from '@/i18n'
-import { NEW_SESSION_TITLE, sessionTitle as storedSessionTitle } from '@/lib/chat-runtime'
+import type { Contribution } from '@/contrib/types'
+import { translateNow, useI18n } from '@/i18n'
+import { newSessionTitle, sessionTitle as storedSessionTitle } from '@/lib/chat-runtime'
 import { FileText, LayoutDashboard, PanelBottom, Terminal, Upload, Zap } from '@/lib/icons'
 import { TRANSCRIPT_DIRECTIVE_AREA, type TranscriptDirectiveContribution } from '@/lib/transcript-directives'
 import { setYoloEnabled } from '@/lib/yolo-session'
@@ -149,14 +150,54 @@ const workspaceTabDrag = (event: ReactPointerEvent<HTMLElement>, onTap: () => vo
   return true
 }
 
-registry.registerMany([
-  {
-    id: 'sessions',
+// Copy: everything in this module registers at load — before the display
+// language is applied — and stays registered across a language switch, so no
+// label is captured as a string here. Titles and palette labels are getters
+// resolved on read; tab labels render from the live `t`.
+
+type CorePane = 'files' | 'logs' | 'review' | 'sessions' | 'terminal'
+
+/** A core pane's tab label, rendered from the live `t`. */
+function CorePaneTitle({ pane }: { pane: CorePane }) {
+  const { t } = useI18n()
+
+  return t.shell.panes[pane]
+}
+
+/** A core pane contribution — its id doubles as its catalog key. `title` serves
+ *  the readers outside the tab strip (zone menus, drag chips, overlays). */
+function corePane(pane: CorePane, spec: { data: Record<string, unknown>; render: () => ReactElement }): Contribution {
+  return {
+    id: pane,
     area: 'panes',
-    title: 'sessions',
-    // Collapsible: leaves the grid on narrow viewports (edge overlay instead).
-    // dock: where a RE-ADOPTED pane lands (healed from a stale dismissal) —
-    // its default-ish spot beside main, not a random same-placement stack.
+    get title() {
+      return translateNow(`shell.panes.${pane}`)
+    },
+    data: { ...spec.data, tabTitle: () => <CorePaneTitle pane={pane} /> },
+    render: spec.render
+  }
+}
+
+/** `paletteToggle` with its label read whenever the palette renders. */
+function liveToggle(spec: Omit<Parameters<typeof paletteToggle>[0], 'label'>, label: () => string) {
+  const toggle = paletteToggle({ ...spec, label: '' })
+
+  return {
+    ...toggle,
+    data: {
+      ...toggle.data,
+      get label() {
+        return label()
+      }
+    }
+  }
+}
+
+registry.registerMany([
+  // Collapsible: leaves the grid on narrow viewports (edge overlay instead).
+  // dock: where a RE-ADOPTED pane lands (healed from a stale dismissal) —
+  // its default-ish spot beside main, not a random same-placement stack.
+  corePane('sessions', {
     data: {
       placement: 'left',
       collapsible: true,
@@ -171,12 +212,14 @@ registry.registerMany([
       maxWidth: `${SIDEBAR_MAX_WIDTH}px`
     },
     render: () => <WiredPane part="sidebar" />
-  },
+  }),
   {
     id: 'workspace',
     area: 'panes',
     // Live-retitled to the loaded session by syncWorkspaceTitle below.
-    title: NEW_SESSION_TITLE,
+    get title() {
+      return newSessionTitle()
+    },
     data: {
       placement: 'main',
       minWidth: '22vw',
@@ -186,19 +229,16 @@ registry.registerMany([
     },
     render: renderWorkspacePane
   },
-  {
-    id: 'terminal',
-    area: 'panes',
-    title: 'terminal',
-    // revealOnPreset: choosing a layout that places the terminal (e.g.
-    // "Terminal deck") turns takeover on so the zone actually shows, instead of
-    // staying collapsed behind the ⌃` toggle. height sizes the fixed track (a
-    // single-pane zone declaring a height is a fixed track — the preset weight
-    // is moot): a short deck, not a third of the window.
-    //
-    // NO minHeight: a tool panel drags all the way down to its collapsed
-    // header (the sash floors it at COLLAPSED_ZONE_PX and folds the zone to
-    // its rail there). A real floor left a sliver of unusable terminal.
+  // revealOnPreset: choosing a layout that places the terminal (e.g.
+  // "Terminal deck") turns takeover on so the zone actually shows, instead of
+  // staying collapsed behind the ⌃` toggle. height sizes the fixed track (a
+  // single-pane zone declaring a height is a fixed track — the preset weight
+  // is moot): a short deck, not a third of the window.
+  //
+  // NO minHeight: a tool panel drags all the way down to its collapsed
+  // header (the sash floors it at COLLAPSED_ZONE_PX and folds the zone to
+  // its rail there). A real floor left a sliver of unusable terminal.
+  corePane('terminal', {
     data: {
       placement: 'bottom',
       height: '20vh',
@@ -207,12 +247,9 @@ registry.registerMany([
       lifecycleKeepAlive: true
     },
     render: () => <WiredPane part="terminal" />
-  },
-  {
-    id: 'files',
-    area: 'panes',
-    title: 'files',
-    // dock: re-adoption target after a stale dismissal (see sessions).
+  }),
+  // dock: re-adoption target after a stale dismissal (see sessions).
+  corePane('files', {
     data: {
       placement: 'right',
       collapsible: true,
@@ -223,13 +260,10 @@ registry.registerMany([
       maxWidth: FILE_BROWSER_MAX_WIDTH
     },
     render: () => idle(<FilesPane />)
-  },
-  {
-    id: 'review',
-    area: 'panes',
-    title: 'review',
-    // The second right sidebar: hidden until ⌘G ($reviewOpen) — bound below
-    // like the other chrome toggles; its zone collapses while hidden.
+  }),
+  // The second right sidebar: hidden until ⌘G ($reviewOpen) — bound below
+  // like the other chrome toggles; its zone collapses while hidden.
+  corePane('review', {
     data: {
       placement: 'right',
       collapsible: true,
@@ -239,7 +273,7 @@ registry.registerMany([
       maxWidth: FILE_BROWSER_MAX_WIDTH
     },
     render: () => idle(<ReviewPaneContent />)
-  }
+  })
 ])
 
 // ---------------------------------------------------------------------------
@@ -261,7 +295,9 @@ registry.registerMany([
     area: PALETTE_AREA,
     data: {
       id: 'plugins.reload',
-      label: 'Reload desktop plugins',
+      get label() {
+        return translateNow('settings.plugins.reloadDesktop')
+      },
       keywords: ['plugins', 'reload', 'refresh', 'desktop'],
       run: () => void discoverRuntimePlugins()
     } satisfies PaletteContribution
@@ -284,7 +320,9 @@ registry.registerMany([
     area: PALETTE_AREA,
     data: {
       id: 'layout.reset',
-      label: 'Reset layout',
+      get label() {
+        return translateNow('shell.palette.resetLayout')
+      },
       icon: LayoutDashboard,
       keywords: ['layout', 'reset', 'default', 'panes'],
       run: resetLayoutTree
@@ -292,22 +330,26 @@ registry.registerMany([
   },
   // Hiding the bar removes the surface that would otherwise offer it back, so
   // ⌘K is the guaranteed door in (alongside the rebindable ⌘⇧S).
-  paletteToggle({
-    id: 'view.toggleStatusbar',
-    label: 'Toggle status bar',
-    action: 'view.toggleStatusbar',
-    icon: PanelBottom,
-    keywords: ['status bar', 'statusbar', 'bottom bar', 'hide', 'show', 'chrome'],
-    get: () => $statusbarVisible.get(),
-    set: enabled => $statusbarVisible.set(enabled)
-  }),
+  liveToggle(
+    {
+      id: 'view.toggleStatusbar',
+      action: 'view.toggleStatusbar',
+      icon: PanelBottom,
+      keywords: ['status bar', 'statusbar', 'bottom bar', 'hide', 'show', 'chrome'],
+      get: () => $statusbarVisible.get(),
+      set: enabled => $statusbarVisible.set(enabled)
+    },
+    () => translateNow('shell.palette.toggleStatusbar')
+  ),
   // The keybind panel's non-titlebar door (the keyboard icon is gone).
   {
     id: 'keybinds.panel',
     area: PALETTE_AREA,
     data: {
       id: 'keybinds.panel',
-      label: 'Keyboard shortcuts',
+      get label() {
+        return translateNow('keybinds.title')
+      },
       keywords: ['keybinds', 'shortcuts', 'hotkeys', 'keyboard'],
       run: () => window.dispatchEvent(new CustomEvent('work4you:open-keybinds'))
     } satisfies PaletteContribution
@@ -319,7 +361,9 @@ registry.registerMany([
     area: PALETTE_AREA,
     data: {
       id: 'profile.export',
-      label: 'Export profile…',
+      get label() {
+        return translateNow('profiles.exportProfile')
+      },
       icon: Upload,
       keywords: ['profile', 'export', 'share', 'bundle', 'theme', 'settings', 'backup'],
       run: () => void runExportProfileFlow()
@@ -384,11 +428,27 @@ const QUAD_TREE = split(
   [3, 1]
 )
 
+/** A bundled layout preset, its name resolved on read (see "Copy" above). */
+const corePreset = (
+  id: string,
+  titleKey: 'default' | 'focus' | 'quad' | 'terminalDeck',
+  order: number,
+  data: typeof DEFAULT_TREE
+): Contribution => ({
+  id,
+  area: 'layouts',
+  get title() {
+    return translateNow(`shell.layouts.${titleKey}`)
+  },
+  order,
+  data
+})
+
 registry.registerMany([
-  { id: 'default', area: 'layouts', title: 'Default', order: 0, data: DEFAULT_TREE },
-  { id: 'focus', area: 'layouts', title: 'Focus', order: 10, data: FOCUS_TREE },
-  { id: 'terminal-deck', area: 'layouts', title: 'Terminal deck', order: 20, data: TERMINAL_TREE },
-  { id: 'quad', area: 'layouts', title: 'Quad', order: 30, data: QUAD_TREE }
+  corePreset('default', 'default', 0, DEFAULT_TREE),
+  corePreset('focus', 'focus', 10, FOCUS_TREE),
+  corePreset('terminal-deck', 'terminalDeck', 20, TERMINAL_TREE),
+  corePreset('quad', 'quad', 30, QUAD_TREE)
 ])
 
 declareDefaultTree(DEFAULT_TREE)
@@ -437,7 +497,10 @@ const syncWorkspaceTitle = () => {
     area: 'panes',
     // The placeholder, not the draft's live name — `tabTitle` below renders
     // that. Keeping it here would re-register the pane on every keystroke.
-    title: stored ? storedSessionTitle(stored) : NEW_SESSION_TITLE,
+    // Read on access, so the placeholder follows the display language.
+    get title() {
+      return stored ? storedSessionTitle(stored) : newSessionTitle()
+    },
     data: {
       // The tab's status dot — the SAME primitive the sidebar row and session
       // tiles render, so the main tab never disagrees with its sidebar row. A
@@ -568,15 +631,17 @@ bindToolPaneCollapse(
 // behind a stacked sibling tab or a minimized zone, which would light the row
 // "on" for a terminal that isn't on screen.
 registry.register(
-  paletteToggle({
-    id: 'view.showTerminal',
-    label: 'Toggle terminal',
-    action: 'view.showTerminal',
-    icon: Terminal,
-    keywords: ['terminal', 'shell', 'console', 'pty'],
-    get: () => isPaneVisible('terminal'),
-    set: () => togglePaneVisible('terminal')
-  })
+  liveToggle(
+    {
+      id: 'view.showTerminal',
+      action: 'view.showTerminal',
+      icon: Terminal,
+      keywords: ['terminal', 'shell', 'console', 'pty'],
+      get: () => isPaneVisible('terminal'),
+      set: () => togglePaneVisible('terminal')
+    },
+    () => translateNow('shell.palette.toggleTerminal')
+  )
 )
 
 // Logs are ⌘K-ONLY chrome: the pane contribution EXISTS only while $logsOpen
@@ -591,22 +656,21 @@ let unregisterLogsPane: (() => void) | null = null
 
 const syncLogsPane = (open: boolean) => {
   if (open) {
-    unregisterLogsPane ??= registry.register({
-      id: 'logs',
-      area: 'panes',
-      title: 'logs',
-      // Same tool-panel sizing rule as the terminal above — no minHeight, so
-      // the sash floors it at COLLAPSED_ZONE_PX and folds the zone to its rail
-      // rather than leaving a sliver. dock: its OWN zone beside the terminal —
-      // never a tab in the terminal's strip.
-      data: {
-        placement: 'bottom',
-        dock: { pane: 'terminal', pos: 'right' },
-        height: '20vh',
-        maxHeight: '80vh'
-      },
-      render: () => idle(<LogsPane />)
-    })
+    // Same tool-panel sizing rule as the terminal above — no minHeight, so
+    // the sash floors it at COLLAPSED_ZONE_PX and folds the zone to its rail
+    // rather than leaving a sliver. dock: its OWN zone beside the terminal —
+    // never a tab in the terminal's strip.
+    unregisterLogsPane ??= registry.register(
+      corePane('logs', {
+        data: {
+          placement: 'bottom',
+          dock: { pane: 'terminal', pos: 'right' },
+          height: '20vh',
+          maxHeight: '80vh'
+        },
+        render: () => idle(<LogsPane />)
+      })
+    )
     // Summoning logs is explicit intent — front it (un-dismisses if a ✕ close
     // left a dismissal record behind).
     revealTreePane('logs')
@@ -635,19 +699,21 @@ syncLogsPane($logsOpen.get())
 $logsOpen.listen(syncLogsPane)
 
 registry.register(
-  paletteToggle({
-    id: 'logs.toggle',
-    label: 'Toggle logs',
-    icon: FileText,
-    keywords: ['logs', 'agent log', 'tail', 'debug'],
-    // On-screen, not the store's boolean. Summon-only keeps the two in step
-    // while logs sits in its own zone, but the user can still drag it into the
-    // terminal's strip or minimize its zone — and then `$logsOpen` reads true
-    // with nothing visible, so the row would show "on" and its press would
-    // spend itself re-asserting a value it already held.
-    get: () => isPaneVisible('logs'),
-    set: () => togglePaneVisible('logs')
-  })
+  liveToggle(
+    {
+      id: 'logs.toggle',
+      icon: FileText,
+      keywords: ['logs', 'agent log', 'tail', 'debug'],
+      // On-screen, not the store's boolean. Summon-only keeps the two in step
+      // while logs sits in its own zone, but the user can still drag it into the
+      // terminal's strip or minimize its zone — and then `$logsOpen` reads true
+      // with nothing visible, so the row would show "on" and its press would
+      // spend itself re-asserting a value it already held.
+      get: () => isPaneVisible('logs'),
+      set: () => togglePaneVisible('logs')
+    },
+    () => translateNow('shell.palette.toggleLogs')
+  )
 )
 
 // Hide-only chrome tabs (sessions / Bots) get a ⌘K toggle each — the palette
@@ -684,21 +750,25 @@ registry.register(
       stripTabToggles.set(
         pane.id,
         registry.register(
-          paletteToggle({
-            id: `strip-tab.${pane.id}`,
-            label: translateNow('zones.toggleStripTab', title),
-            icon: LayoutDashboard,
-            keywords: [title.toLowerCase(), 'tab', 'pane', 'sidebar', 'show', 'hide'],
-            // On-screen truth, same contract as the logs toggle above.
-            get: () => isPaneVisible(pane.id),
-            set: visible => {
-              if (visible) {
-                revealTreePane(pane.id)
-              } else {
-                setStripTabHidden(pane.id, true)
+          liveToggle(
+            {
+              id: `strip-tab.${pane.id}`,
+              icon: LayoutDashboard,
+              keywords: [title.toLowerCase(), 'tab', 'pane', 'sidebar', 'show', 'hide'],
+              // On-screen truth, same contract as the logs toggle above.
+              get: () => isPaneVisible(pane.id),
+              set: visible => {
+                if (visible) {
+                  revealTreePane(pane.id)
+                } else {
+                  setStripTabHidden(pane.id, true)
+                }
               }
-            }
-          })
+            },
+            // The pane's title is read here too, not captured: the core panes
+            // name themselves in the active language.
+            () => translateNow('zones.toggleStripTab', String(pane.title ?? pane.id))
+          )
         )
       )
     }
@@ -712,14 +782,16 @@ registry.register(
 // command; ⌘K is the third door onto the SAME store function, so a user who
 // lives in the palette never has to hunt for the pill.
 registry.register(
-  paletteToggle({
-    id: 'session.yolo',
-    label: 'Toggle yolo',
-    icon: Zap,
-    keywords: ['yolo', 'approvals', 'auto-approve', 'bypass', 'dangerous', 'commands'],
-    get: () => $yoloActive.get(),
-    set: enabled => void setYoloEnabled(enabled).catch(() => undefined)
-  })
+  liveToggle(
+    {
+      id: 'session.yolo',
+      icon: Zap,
+      keywords: ['yolo', 'approvals', 'auto-approve', 'bypass', 'dangerous', 'commands'],
+      get: () => $yoloActive.get(),
+      set: enabled => void setYoloEnabled(enabled).catch(() => undefined)
+    },
+    () => translateNow('shell.palette.toggleYolo')
+  )
 )
 
 // Sessions/files Close = collapse their SIDE (⌘B/⌘J truthful, titlebar button

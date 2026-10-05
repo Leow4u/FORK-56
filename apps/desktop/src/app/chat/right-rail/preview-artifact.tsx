@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { CopyButton } from '@/components/ui/copy-button'
 import { Tip } from '@/components/ui/tooltip'
-import { useI18n } from '@/i18n'
+import { translateNow, useI18n } from '@/i18n'
 import { artifactDownloadName, type ArtifactKind } from '@/lib/artifact-detect'
 import { downloadTextFile } from '@/lib/download-text'
 import { ChevronLeft, ChevronRight, Download, ExternalLink } from '@/lib/icons'
@@ -50,14 +50,14 @@ async function openHtmlInBrowser(content: string): Promise<void> {
   const bridge = window.work4youDesktop
 
   if (!bridge?.saveImageBuffer || !bridge.openExternal) {
-    throw new Error('Desktop bridge unavailable')
+    throw new Error(translateNow('desktop.artifactOpen.bridgeUnavailable'))
   }
 
   const bytes = new TextEncoder().encode(composeArtifactHtml(content))
   const path = await bridge.saveImageBuffer(bytes, '.html')
 
   if (!path) {
-    throw new Error('Could not write artifact file')
+    throw new Error(translateNow('desktop.artifactOpen.writeFailed'))
   }
 
   const fileUrl = `file://${path.startsWith('/') ? '' : '/'}${path.replace(/\\/g, '/')}`

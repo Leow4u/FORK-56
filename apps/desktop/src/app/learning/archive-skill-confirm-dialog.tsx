@@ -1,9 +1,7 @@
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { type Translations, useI18n } from '@/i18n'
+import { translateNow, type Translations, useI18n } from '@/i18n'
 import { notify } from '@/store/notifications'
 import { deleteLearningNode, type ProfileScope } from '@/work4you'
-
-export const ARCHIVE_SKILL_DESCRIPTION = 'The skill is archived and can be restored with `work4you curator restore`.'
 
 export function notifySkillArchived(t: Translations): void {
   notify({ kind: 'success', message: t.skills.skillArchivedMessage, title: t.skills.skillArchivedTitle })
@@ -13,7 +11,7 @@ export async function archiveLearningSkill(id: string, profile?: ProfileScope): 
   const res = await deleteLearningNode(id, profile)
 
   if (!res.ok) {
-    throw new Error(res.message || 'Archive failed')
+    throw new Error(res.message || translateNow('desktop.archiveFailed'))
   }
 }
 
@@ -54,8 +52,8 @@ export function ArchiveSkillConfirmDialog({
 
   return (
     <ConfirmDialog
-      confirmLabel="Archive"
-      description={ARCHIVE_SKILL_DESCRIPTION}
+      confirmLabel={t.skills.archive}
+      description={t.skills.archiveConfirmBody}
       destructive
       dismissOnConfirm
       onClose={onClose}
@@ -72,7 +70,7 @@ export function ArchiveSkillConfirmDialog({
         )
       }}
       open={open}
-      title={`Archive ${skillName}?`}
+      title={t.skills.archiveConfirmTitle(skillName)}
     />
   )
 }

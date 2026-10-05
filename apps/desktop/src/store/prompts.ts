@@ -1,5 +1,7 @@
 import { atom, computed, type ReadableAtom } from 'nanostores'
 
+import { translateNow } from '@/i18n'
+
 import { $clarifyRequest, $clarifyRequests } from './clarify'
 import { $activeSessionId } from './session'
 
@@ -148,7 +150,8 @@ export async function replayPendingApproval(gateway: ApprovalGateway | null, ses
     allowPermanent: pending.allow_permanent !== false,
     choices: Array.isArray(pending.choices) ? pending.choices.filter(choice => typeof choice === 'string') : undefined,
     command: typeof pending.command === 'string' ? pending.command : '',
-    description: typeof pending.description === 'string' ? pending.description : 'dangerous command',
+    description:
+      typeof pending.description === 'string' ? pending.description : translateNow('desktop.dangerousCommand'),
     requestId: pending.request_id,
     sessionId,
     smartDenied: pending.smart_denied === true

@@ -2,6 +2,7 @@ import type { Unstable_TriggerAdapter, Unstable_TriggerItem } from '@assistant-u
 import { useStore } from '@nanostores/react'
 import { useCallback } from 'react'
 
+import { useI18n } from '@/i18n'
 import { sessionTitle } from '@/lib/chat-runtime'
 import {
   type CommandsCatalogLike,
@@ -72,6 +73,8 @@ export function useSlashCompletions(options: {
   const { gateway, skinThemes, activeSkin } = options
   const enabled = Boolean(gateway)
   const epoch = useStore($slashCompletionsEpoch)
+  const { t } = useI18n()
+  const browseAllSessions = t.composer.slashCommands.browseAllSessions
 
   const fetcher = useCallback(
     async (query: string): Promise<CompletionPayload> => {
@@ -131,7 +134,7 @@ export function useSlashCompletions(options: {
         // submitting it (Enter) still opens the overlay if the action is skipped.
         items.push({
           text: '/resume',
-          display: 'Browse all sessions…',
+          display: browseAllSessions,
           meta: '',
           group: 'Sessions',
           action: 'session-picker'
@@ -251,7 +254,7 @@ export function useSlashCompletions(options: {
         return { items: [], query }
       }
     },
-    [gateway, skinThemes, activeSkin]
+    [gateway, skinThemes, activeSkin, browseAllSessions]
   )
 
   const toItem = useCallback((entry: CompletionEntry, index: number): Unstable_TriggerItem => {

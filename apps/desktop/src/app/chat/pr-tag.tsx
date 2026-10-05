@@ -1,6 +1,7 @@
 import { Codicon } from '@/components/ui/codicon'
 import { Tip } from '@/components/ui/tooltip'
 import type { Work4YouBranchPullRequest } from '@/global'
+import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { pullRequestBucket } from '@/store/pull-requests'
 
@@ -34,12 +35,13 @@ export function PrTag({
   pr: Work4YouBranchPullRequest
   showIcon?: boolean
 }) {
+  const { t } = useI18n()
   const style = PR_STYLE[pullRequestBucket(pr)] ?? PR_STYLE.open
 
   return (
     <Tip label={`#${pr.number} ${pr.title}`}>
       <button
-        aria-label={`Open pull request #${pr.number}`}
+        aria-label={t.sidebar.row.openPullRequest(pr.number)}
         // A flex box doesn't pass text-decoration down to its items, so the
         // underline goes on the number itself rather than the chip.
         className={cn(

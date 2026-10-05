@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef } from 'react'
 
+import { useI18n } from '@/i18n'
 import {
   initialQuickComposerState,
   QUICK_TARGET_CURRENT,
@@ -26,6 +27,8 @@ import {
  * the primary renderer's normal prompt-submit path.
  */
 export function QuickEntryApp() {
+  const { t } = useI18n()
+  const copy = t.desktop.quickEntry
   const inputRef = useRef<HTMLInputElement>(null)
 
   // The reducer returns { send, state }; this wrapper performs the side effect
@@ -110,7 +113,7 @@ export function QuickEntryApp() {
             ›
           </span>
           <input
-            aria-label="Quick Entry"
+            aria-label={t.settings.quickEntry.enabledTitle}
             autoCapitalize="off"
             autoComplete="off"
             autoCorrect="off"
@@ -131,7 +134,7 @@ export function QuickEntryApp() {
                 dispatch({ type: 'dismiss' })
               }
             }}
-            placeholder={state.connected ? 'Ask Work4You…' : 'Not connected — open Work4You to reconnect'}
+            placeholder={state.connected ? copy.placeholder : copy.disconnected}
             ref={inputRef}
             spellCheck={false}
             style={{
@@ -158,10 +161,10 @@ export function QuickEntryApp() {
               userSelect: 'none'
             }}
           >
-            Send to
+            {copy.sendTo}
           </label>
           <select
-            aria-label="Target session"
+            aria-label={copy.targetSession}
             disabled={!state.connected}
             id="quick-entry-target"
             onChange={event => dispatch({ target: event.target.value, type: 'target' })}
@@ -182,8 +185,8 @@ export function QuickEntryApp() {
             }}
             value={state.target}
           >
-            <option value={QUICK_TARGET_CURRENT}>Current chat</option>
-            <option value={QUICK_TARGET_NEW}>New session</option>
+            <option value={QUICK_TARGET_CURRENT}>{copy.currentChat}</option>
+            <option value={QUICK_TARGET_NEW}>{t.sidebar.nav['new-session']}</option>
             {state.sessions.map(session => (
               <option key={session.id} value={session.id}>
                 {session.title}

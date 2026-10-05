@@ -1,6 +1,7 @@
 import { useStore } from '@nanostores/react'
 import { useEffect, useState } from 'react'
 
+import { useI18n } from '@/i18n'
 import { AlertCircle, Clock, type IconComponent } from '@/lib/icons'
 import { $petActivity, $petState, type PetState } from '@/store/pet'
 
@@ -19,54 +20,25 @@ import { $petActivity, $petState, type PetState } from '@/store/pet'
 
 type Tone = 'error' | 'wait'
 
+/** The moods the bubble speaks for — each has its phrasings in `ui.pets.bubble`. */
+type Mood = 'failed' | 'review' | 'run' | 'waiting'
+
 interface Spec {
-  lines: string[]
   glyph?: IconComponent
   tone?: Tone
 }
 
-// Phrasings per mood, picked at random (no immediate repeat) for a bit of life.
-// Keep them short — the bubble is tiny and never wraps.
-const SPECS: Partial<Record<PetState, Spec>> = {
-  run: {
-    lines: [
-      'working…',
-      'on it…',
-      'crunching…',
-      'tinkering…',
-      'cooking…',
-      'in the weeds…',
-      'wiring it up…',
-      'making moves…',
-      'heads down…',
-      'hammering away…'
-    ]
-  },
-  review: {
-    lines: [
-      'thinking…',
-      'reading…',
-      'reviewing…',
-      'pondering…',
-      'connecting dots…',
-      'sizing it up…',
-      'tracing it…',
-      'mulling…',
-      'scheming…',
-      'hmm…'
-    ]
-  },
-  failed: {
-    glyph: AlertCircle,
-    lines: ['hit a snag', 'welp', 'that broke', 'oof', 'snagged'],
-    tone: 'error'
-  },
-  waiting: {
-    glyph: Clock,
-    lines: ['your turn', 'all yours', 'over to you', 'ball’s in your court', 'awaiting orders'],
-    tone: 'wait'
-  }
+// Glyph + tone per mood. The phrasings live in the catalog (`ui.pets.bubble`)
+// and are picked at random (no immediate repeat) for a bit of life. Keep them
+// short — the bubble is tiny and never wraps.
+const SPECS: Record<Mood, Spec> = {
+  run: {},
+  review: {},
+  failed: { glyph: AlertCircle, tone: 'error' },
+  waiting: { glyph: Clock, tone: 'wait' }
 }
+
+const isMood = (state: PetState): state is Mood => state in SPECS
 
 const TONE_COLOR: Record<Tone, string> = {
   error: 'var(--ui-red)',
@@ -74,7 +46,7 @@ const TONE_COLOR: Record<Tone, string> = {
 }
 
 // Random pick that avoids repeating the line we're already showing.
-function pick(lines: string[], prev: string): string {
+function pick(lines: readonly string[], prev: string): string {
   if (lines.length <= 1) {
     return lines[0] ?? ''
   }
@@ -89,47 +61,47 @@ function pick(lines: string[], prev: string): string {
 }
 
 export function PetBubble() {
+  const { t } = useI18n()
   const state = useStore($petState)
   const activity = useStore($petActivity)
   const [line, setLine] = useState('')
 
   // Finish beats are carried by the sprite/mail icon; idle only speaks up when
   // it's actually the user's turn. Everything else maps to a mood spec.
-  const specKey: null | PetState =
-    state in SPECS ? state : state === 'idle' && activity.awaitingInput ? 'waiting' : null
+  const mood: Mood | null = isMood(state) ? state : state === 'idle' && activity.awaitingInput ? 'waiting' : null
+  // Stable per mood + language (catalog arrays), so the effect below re-runs
+  // only when either actually changes.
+  const lines = mood ? t.ui.pets.bubble[mood] : null
 
-  const rotating = specKey === 'run' || specKey === 'review'
+  const rotating = mood === 'run' || mood === 'review'
 
   // Pick a fresh line on every mood change, then keep rotating (random, no
   // repeat) only while the agent is actively working/thinking.
   useEffect(() => {
-    const spec = specKey ? SPECS[specKey] : null
-
-    if (!spec) {
+    if (!lines) {
       setLine('')
 
       return
     }
 
-    setLine(prev => pick(spec.lines, prev))
+    setLine(prev => pick(lines, prev))
 
-    if (!rotating || spec.lines.length <= 1) {
+    if (!rotating || lines.length <= 1) {
       return
     }
 
-    const id = window.setInterval(() => setLine(prev => pick(spec.lines, prev)), 2600)
+    const id = window.setInterval(() => setLine(prev => pick(lines, prev)), 2600)
 
     return () => window.clearInterval(id)
-  }, [specKey, rotating])
+  }, [lines, rotating])
 
-  const spec = specKey ? SPECS[specKey] : null
-
-  if (!spec) {
+  if (!mood || !lines) {
     return null
   }
 
+  const spec = SPECS[mood]
   const Glyph = spec.glyph
-  const text = line || spec.lines[0]
+  const text = line || lines[0]
   const hasText = Boolean(text)
 
   return (

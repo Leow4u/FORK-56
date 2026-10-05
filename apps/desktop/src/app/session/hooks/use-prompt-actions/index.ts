@@ -3,7 +3,7 @@ import { useStore } from '@nanostores/react'
 import { JsonRpcGatewayError } from '@work4you/shared'
 import { type MutableRefObject, useCallback, useEffect, useRef } from 'react'
 
-import { useI18n } from '@/i18n'
+import { translateNow, useI18n } from '@/i18n'
 import { stripAnsi } from '@/lib/ansi'
 import { type ChatMessage, textPart } from '@/lib/chat-messages'
 import { pathLabel, SLASH_COMMAND_RE } from '@/lib/chat-runtime'
@@ -155,7 +155,7 @@ export async function uploadComposerAttachment(
     }
 
     if (attachment.kind === 'image' ? !imagePayload : !fileDataUrl) {
-      throw new Error(`Could not read ${label}`)
+      throw new Error(translateNow('desktop.attachFailed.read', label))
     }
   }
 
@@ -173,7 +173,7 @@ export async function uploadComposerAttachment(
           })
 
       if (!result.attached) {
-        throw new Error(result.message || `Could not attach ${label}`)
+        throw new Error(result.message || translateNow('desktop.attachFailed.named', label))
       }
 
       const attachedPath = result.path || path
@@ -195,7 +195,7 @@ export async function uploadComposerAttachment(
     })
 
     if (!result.attached || !result.ref_text) {
-      throw new Error(result.message || `Could not attach ${label}`)
+      throw new Error(result.message || translateNow('desktop.attachFailed.named', label))
     }
 
     return {
@@ -917,7 +917,7 @@ export function usePromptActions({
       const sessionId = activeSessionIdRef.current
 
       if (!sessionId) {
-        throw new Error('No active session to restore.')
+        throw new Error(translateNow('desktop.restore.noSession'))
       }
 
       const messages = $messages.get()

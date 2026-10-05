@@ -117,7 +117,7 @@ export function PreviewAttachment({ source = 'manual', target }: { source?: Prev
       }
 
       if (!preview) {
-        throw new Error(`Could not open preview target: ${requestTarget}`)
+        throw new Error(t.desktop.previewTargetFailed(requestTarget))
       }
 
       openPreview(preview, source)

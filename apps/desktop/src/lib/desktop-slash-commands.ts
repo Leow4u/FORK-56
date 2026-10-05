@@ -1,3 +1,5 @@
+import { translateNow, type Translations } from '@/i18n'
+
 export interface CommandsCatalogSection {
   name: string
   pairs: [string, string][]
@@ -120,8 +122,11 @@ export type DesktopSlashArgumentMode = 'mixed' | 'options' | 'text'
 export interface DesktopCommandSpec {
   /** Canonical command, leading slash included (e.g. `/resume`). */
   name: string
-  /** Popover/help label; omitted for unavailable commands (never surfaced). */
-  description?: string
+  /**
+   * Popover/help label in the active language, resolved each time it is read;
+   * omitted for unavailable commands (never surfaced).
+   */
+  description?: () => string
   aliases?: string[]
   surface: DesktopCommandSurface
   /**
@@ -154,6 +159,19 @@ const rpc = (
   timeoutMs?: number
 ): DesktopCommandSurface => ({ kind: 'rpc', rpc: rpcName, timeoutMs, buildParams })
 
+type SlashCommandCopy = Translations['composer']['slashCommands']
+
+// Copy is looked up when it is read, never when this module loads: the module
+// initializes before the user's language is applied, and the language can
+// change while the app runs. The keys are typed against the catalog.
+const describe = (key: keyof SlashCommandCopy['descriptions']) => () =>
+  translateNow(`composer.slashCommands.descriptions.${key}`)
+
+const unavailableCopy = (key: keyof SlashCommandCopy['unavailable']) => (command: string) =>
+  translateNow(`composer.slashCommands.unavailable.${key}`, command)
+
+const skinCopy = (key: keyof SlashCommandCopy['skin']) => translateNow(`composer.slashCommands.skin.${key}`)
+
 /**
  * THE source of truth for desktop slash commands. Everything below — execution
  * gating, popover suggestions, catalog filtering, pill grouping, and the
@@ -161,53 +179,53 @@ const rpc = (
  */
 const DESKTOP_COMMAND_SPECS: readonly DesktopCommandSpec[] = [
   // Local client actions
-  { name: '/new', description: 'Start a new desktop chat', aliases: ['/reset'], surface: action('new') },
+  { name: '/new', description: describe('newChat'), aliases: ['/reset'], surface: action('new') },
   {
     name: '/branch',
-    description: 'Branch the latest message into a new chat',
+    description: describe('branch'),
     aliases: ['/fork'],
     surface: action('branch')
   },
-  { name: '/yolo', description: 'Toggle YOLO — auto-approve dangerous commands', surface: action('yolo') },
+  { name: '/yolo', description: describe('yolo'), surface: action('yolo') },
   {
     name: '/wake',
-    description: 'Control the desktop wake-word listener [on|off|status]',
+    description: describe('wake'),
     surface: action('wake'),
     argumentMode: 'options'
   },
   {
     name: '/handoff',
-    description: 'Hand off this session to a messaging platform',
+    description: describe('handoff'),
     surface: action('handoff'),
     argumentMode: 'options'
   },
-  { name: '/profile', description: 'Switch the active Work4You profile', surface: action('profile') },
+  { name: '/profile', description: describe('profile'), surface: action('profile') },
   {
     name: '/skin',
-    description: 'Switch desktop theme or cycle to the next one',
+    description: describe('skin'),
     surface: action('skin'),
     argumentMode: 'options'
   },
-  { name: '/title', description: 'Rename the current session', surface: action('title'), argumentMode: 'text' },
-  { name: '/help', description: 'Show desktop slash commands', aliases: ['/commands'], surface: action('help') },
+  { name: '/title', description: describe('title'), surface: action('title'), argumentMode: 'text' },
+  { name: '/help', description: describe('help'), aliases: ['/commands'], surface: action('help') },
   {
     name: '/browser',
-    description: 'Manage browser CDP connection [connect|disconnect|status] (local gateway only)',
+    description: describe('browser'),
     surface: action('browser'),
     argumentMode: 'options'
   },
   {
     name: '/journey',
-    description: 'Open the memory graph — skills + memories over time',
+    description: describe('journey'),
     aliases: ['/learning', '/memory-graph'],
     surface: action('journey')
   },
 
   // Overlay pickers
-  { name: '/model', description: 'Switch the model for this session', surface: picker('model'), hidden: true },
+  { name: '/model', description: describe('model'), surface: picker('model'), hidden: true },
   {
     name: '/resume',
-    description: 'Resume a saved session',
+    description: describe('resume'),
     aliases: ['/sessions', '/switch'],
     surface: picker('session'),
     // `mixed`, not `options`: the argument is a free-text search the picker
@@ -231,19 +249,19 @@ const DESKTOP_COMMAND_SPECS: readonly DesktopCommandSpec[] = [
   // equivalent.
   {
     name: '/approvals',
-    description: 'Show or set approval mode [manual|smart|off]',
+    description: describe('approvals'),
     surface: exec(),
     argumentMode: 'options'
   },
   {
     name: '/agents',
-    description: 'Show active desktop sessions and running tasks',
+    description: describe('agents'),
     aliases: ['/tasks'],
     surface: exec()
   },
   {
     name: '/background',
-    description: 'Run a prompt in the background',
+    description: describe('background'),
     aliases: ['/bg', '/btw'],
     surface: exec(),
     argumentMode: 'text'
@@ -254,78 +272,78 @@ const DESKTOP_COMMAND_SPECS: readonly DesktopCommandSpec[] = [
   // "not a quick/plugin/skill command: compress" (#44456).
   {
     name: '/compress',
-    description: 'Compress this conversation context',
+    description: describe('compress'),
     aliases: ['/compact'],
     surface: action('compress'),
     argumentMode: 'text'
   },
-  { name: '/debug', description: 'Create a debug report', surface: exec() },
+  { name: '/debug', description: describe('debug'), surface: exec() },
   {
     name: '/goal',
-    description: 'Manage the standing goal for this session',
+    description: describe('goal'),
     surface: exec(),
     argumentMode: 'mixed'
   },
   {
     name: '/loop',
-    description: 'Re-run a prompt on a recurring interval in this session',
+    description: describe('loop'),
     aliases: ['/proactive'],
     surface: exec(),
     argumentMode: 'mixed'
   },
   {
     name: '/personality',
-    description: 'Switch personality for this session',
+    description: describe('personality'),
     surface: exec(),
     argumentMode: 'options'
   },
   {
     name: '/pet',
-    description: 'Toggle or adopt a petdex mascot (/pet, /pet list, /pet boba)',
+    description: describe('pet'),
     surface: action('pet'),
     argumentMode: 'options'
   },
   {
     name: '/hatch',
-    description: 'Generate a new pet (opens the pet generator)',
+    description: describe('hatch'),
     aliases: ['/generate-pet'],
     surface: action('hatch')
   },
   {
     name: '/queue',
-    description: 'Queue a prompt for the next turn',
+    description: describe('queue'),
     aliases: ['/q'],
     surface: exec(),
     argumentMode: 'text'
   },
-  { name: '/retry', description: 'Retry the last user message', surface: exec() },
-  { name: '/rollback', description: 'List or restore filesystem checkpoints', surface: exec() },
+  { name: '/retry', description: describe('retry'), surface: exec() },
+  { name: '/rollback', description: describe('rollback'), surface: exec() },
   {
     name: '/save',
-    description: 'Save the current transcript to JSON',
+    description: describe('save'),
     surface: rpc('session.save', ctx => ({ session_id: ctx.sessionId }))
   },
   {
     name: '/status',
-    description: 'Show current session status',
+    description: describe('status'),
     surface: rpc('session.status', ctx => ({ session_id: ctx.sessionId }))
   },
   {
     name: '/steer',
-    description: 'Steer the current run after the next tool call',
+    description: describe('steer'),
     surface: exec(),
     argumentMode: 'text'
   },
-  { name: '/stop', description: 'Stop running background processes', surface: exec() },
+  { name: '/stop', description: describe('stop'), surface: exec() },
   {
     name: '/tools',
-    description: 'List or toggle tools available to the agent',
+    description: describe('tools'),
     surface: exec(),
     argumentMode: 'options'
   },
-  { name: '/undo', description: 'Remove the last user/assistant exchange', surface: exec() },
-  { name: '/usage', description: 'Show token usage for this session', surface: exec() },
-  { name: '/version', description: 'Show Work4You version', surface: exec() },
+  { name: '/undo', description: describe('undo'), surface: exec() },
+  { name: '/usage', description: describe('usage'), surface: exec() },
+  { name: '/version', description: describe('version'), surface: exec() },
 
   // No desktop surface, but carry an alias (underscore spelling variants).
   { name: '/reload-mcp', aliases: ['/reload_mcp'], surface: unavailable('advanced') },
@@ -387,16 +405,15 @@ const ALIAS_TO_CANONICAL = new Map<string, string>(
 )
 
 const UNAVAILABLE_MESSAGE: Record<DesktopUnavailableReason, (command: string) => string> = {
-  advanced: command =>
-    `${command} is not shown in the desktop slash palette. Use the relevant desktop control or terminal interface instead.`,
-  messaging: command => `${command} is only used from messaging platforms.`,
-  settings: command => `${command} is managed from the desktop sidebar.`,
-  terminal: command => `${command} is only available in the terminal interface.`
+  advanced: unavailableCopy('advanced'),
+  messaging: unavailableCopy('messaging'),
+  settings: unavailableCopy('settings'),
+  terminal: unavailableCopy('terminal')
 }
 
 const PICKER_UNAVAILABLE_MESSAGE: Record<DesktopPickerId, (command: string) => string> = {
-  model: command => `${command} uses the desktop model picker instead of a slash command.`,
-  session: command => `${command} uses the desktop session picker instead of a slash command.`
+  model: unavailableCopy('modelPicker'),
+  session: unavailableCopy('sessionPicker')
 }
 
 function normalizeCommand(command: string): string {
@@ -508,7 +525,7 @@ export function desktopSlashUnavailableMessage(command: string): string | null {
 }
 
 export function desktopSlashDescription(command: string, fallback = ''): string {
-  return SPEC_BY_NAME.get(canonicalDesktopSlashCommand(command))?.description || fallback
+  return SPEC_BY_NAME.get(canonicalDesktopSlashCommand(command))?.description?.() || fallback
 }
 
 export function desktopSlashCommandArgumentMode(command: string): DesktopSlashArgumentMode | null {
@@ -526,17 +543,17 @@ export function desktopSkinSlashCompletions(
     {
       text: '/skin list',
       display: '/skin list',
-      meta: 'Show available desktop themes'
+      meta: skinCopy('list')
     },
     {
       text: '/skin next',
       display: '/skin next',
-      meta: 'Cycle to the next desktop theme'
+      meta: skinCopy('next')
     },
     ...themes.map(theme => ({
       text: `/skin ${theme.name}`,
       display: `/skin ${theme.name}`,
-      meta: `${theme.label}${theme.name === activeThemeName ? ' (current)' : ''} - ${theme.description}`
+      meta: `${theme.label}${theme.name === activeThemeName ? skinCopy('current') : ''} - ${theme.description}`
     }))
   ]
 

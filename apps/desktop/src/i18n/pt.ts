@@ -1573,6 +1573,19 @@ export const pt = defineLocale({
     archive: 'Arquivar',
     skillArchivedTitle: 'Skill arquivada',
     skillArchivedMessage: 'Pode ser restaurada com work4you curator restore.',
+    archiveConfirmTitle: name => `Arquivar ${name}?`,
+    archiveConfirmBody: 'A skill é arquivada e pode ser restaurada com `work4you curator restore`.',
+    scopeAgent: (profile, connection, current) => `${profile} — ${connection}${current ? ' (atual)' : ''}`,
+    appConnect: {
+      signInRequiredTitle: 'Login necessário',
+      signInRequiredBody: 'Entre no Work4You para conectar este app.',
+      connectedTitle: name => `${name} conectado`,
+      connectedBody: 'As ferramentas dele estão prontas nesta conversa.'
+    },
+    mcpDoc: {
+      expectedObject: 'O JSON precisa ser um objeto',
+      wrapServer: 'Coloque o servidor dentro de {"mcpServers": {"name": …}} para que ele tenha um nome'
+    },
     hub: {
       searchPlaceholder: 'Buscar no hub de Skills',
       search: 'Resultados da busca',
@@ -1653,7 +1666,34 @@ export const pt = defineLocale({
     importEmpty: 'Cole um código de mapa para carregá-lo.',
     importSuccess: nodes => `Mapa carregado com ${nodes} ${nodes === 1 ? 'nó' : 'nós'}.`,
     importedBadge: 'mapa importado',
-    resetToMine: 'Voltar ao meu mapa'
+    resetToMine: 'Voltar ao meu mapa',
+    importFailed: 'Não foi possível ler esse código de mapa.',
+    nodeMenu: {
+      editMemory: 'Editar memória…',
+      editSkill: 'Editar skill…',
+      archiveSkill: 'Arquivar skill',
+      deleteMemory: 'Excluir memória',
+      editTitle: label => `Editar ${label}`,
+      deleteTitle: label => `Excluir ${label}?`,
+      deleteMemoryBody: 'Esta memória será excluída permanentemente.'
+    },
+    legend: {
+      skill: 'skill',
+      memory: 'memória',
+      rings: 'centro = mais antigo · borda = mais recente'
+    },
+    timeline: {
+      play: 'Reproduzir linha do tempo',
+      pause: 'Pausar',
+      scrubber: 'Controle da linha do tempo'
+    },
+    badges: {
+      unknownDate: 'sem data',
+      profileMemory: 'memória do perfil',
+      memory: 'memória',
+      learned: 'aprendida',
+      pinned: 'fixada'
+    }
   },
   agents: {
     close: 'Fechar agentes',
@@ -1823,6 +1863,7 @@ export const pt = defineLocale({
     noUsage: period => `Nenhum uso nos últimos ${period} dias.`,
     retry: 'Tentar novamente',
     dailyTokens: 'Tokens por dia',
+    dailyTokensTip: (day, input, output) => `${day} · entrada ${input} · saída ${output}`,
     input: 'entrada',
     output: 'saída',
     noDailyActivity: 'Nenhuma atividade diária.',
@@ -3623,7 +3664,11 @@ export const pt = defineLocale({
     kindLink: 'link',
     chat: 'Conversa',
     copyUrl: 'Copiar URL',
-    copyPath: 'Copiar caminho'
+    copyPath: 'Copiar caminho',
+    skippedSessions: (skipped, total) => `Sessões recentes puladas ao indexar os artefatos: ${skipped} de ${total}.`,
+    skippedSafeLimit: count =>
+      `${count} ${count === 1 ? 'excedeu' : 'excederam'} o limite seguro de carregamento do histórico.`,
+    skippedUnreadable: count => `${count} não ${count === 1 ? 'pôde ser lida' : 'puderam ser lidas'}.`
   },
 
   artifactCard: {
@@ -3786,6 +3831,7 @@ export const pt = defineLocale({
       untitledChat: id => `Conversa ${id}`,
       messageCount: count => `${count} ${count === 1 ? 'mensagem' : 'mensagens'}`,
       todoProgress: 'Tarefas concluídas',
+      openPullRequest: number => `Abrir pull request #${number}`,
       ageNow: 'agora',
       ageDay: 'd',
       ageHour: 'h',
@@ -3802,7 +3848,47 @@ export const pt = defineLocale({
       working: 'Em andamento',
       done: 'Concluídas'
     },
-    markAllRead: 'Marcar todas como lidas'
+    markAllRead: 'Marcar todas como lidas',
+    splitDirections: { bottom: 'Abaixo', left: 'Esquerda', right: 'Direita', top: 'Acima' },
+    filters: {
+      title: 'Filtros',
+      grouping: 'Agrupamento',
+      ordering: 'Ordenação',
+      show: 'Mostrar',
+      inboxStyle: 'Estilo caixa de entrada',
+      status: 'Status',
+      pullRequest: 'Pull request',
+      profile: 'Perfil',
+      project: 'Projeto',
+      archived: 'Arquivadas',
+      expandAll: 'Expandir tudo',
+      collapseAll: 'Recolher tudo',
+      groupings: { date: 'Atualização', profile: 'Perfil', project: 'Projeto', status: 'Status' },
+      orderings: {
+        cost: 'Custo',
+        created: 'Criação',
+        manual: 'Manual',
+        status: 'Status',
+        tokens: 'Tokens',
+        updated: 'Atualização'
+      },
+      rowMeta: {
+        cost: 'Custo',
+        pr: 'PR',
+        preview: 'Prévia',
+        profile: 'Perfil',
+        tokens: 'Tokens',
+        updated: 'Atualização'
+      },
+      prStates: { closed: 'Fechado', draft: 'Rascunho', merged: 'Mesclado', none: 'Sem PR', open: 'Aberto' },
+      statuses: {
+        draft: 'Rascunho',
+        idle: 'Ociosa',
+        'needs-input': 'Precisa de resposta',
+        unread: 'Não lida',
+        working: 'Em andamento'
+      }
+    }
   },
 
   composer: {
@@ -3880,6 +3966,73 @@ export const pt = defineLocale({
       'composer.cancel': 'fechar pop-up · cancelar execução',
       'composer.history': 'percorrer pop-up / histórico'
     },
+    slashCommands: {
+      descriptions: {
+        newChat: 'Iniciar uma nova conversa no app desktop',
+        branch: 'Ramificar a última mensagem em uma nova conversa',
+        yolo: 'Alternar o YOLO — aprovar comandos perigosos automaticamente',
+        wake: 'Controlar a escuta da palavra de ativação no app desktop [on|off|status]',
+        handoff: 'Transferir esta sessão para uma plataforma de mensagens',
+        profile: 'Mudar o perfil ativo do Work4You',
+        skin: 'Mudar o tema do app desktop ou passar para o próximo',
+        title: 'Renomear a sessão atual',
+        help: 'Mostrar os slash commands do app desktop',
+        browser: 'Gerenciar a conexão CDP do navegador [connect|disconnect|status] (só com gateway local)',
+        journey: 'Abrir o grafo de memória — skills + memórias ao longo do tempo',
+        model: 'Mudar o modelo desta sessão',
+        resume: 'Retomar uma sessão salva',
+        approvals: 'Mostrar ou definir o modo de aprovação [manual|smart|off]',
+        agents: 'Mostrar as sessões ativas no app desktop e as tarefas em execução',
+        background: 'Executar um prompt em segundo plano',
+        compress: 'Comprimir o contexto desta conversa',
+        debug: 'Criar um relatório de depuração',
+        goal: 'Gerenciar o objetivo permanente desta sessão',
+        loop: 'Executar um prompt novamente em intervalos recorrentes nesta sessão',
+        personality: 'Mudar a personalidade desta sessão',
+        pet: 'Alternar ou adotar um mascote do petdex (/pet, /pet list, /pet boba)',
+        hatch: 'Gerar um novo pet (abre o gerador de pets)',
+        queue: 'Colocar um prompt na fila para o próximo turno',
+        retry: 'Tentar novamente com a última mensagem do usuário',
+        rollback: 'Listar ou restaurar checkpoints do sistema de arquivos',
+        save: 'Salvar o histórico atual em JSON',
+        status: 'Mostrar o status da sessão atual',
+        steer: 'Redirecionar a execução atual após a próxima chamada de ferramenta',
+        stop: 'Parar os processos em segundo plano em execução',
+        tools: 'Listar ou alternar as ferramentas disponíveis para o agente',
+        undo: 'Remover a última troca entre usuário e assistente',
+        usage: 'Mostrar o uso de tokens desta sessão',
+        version: 'Mostrar a versão do Work4You'
+      },
+      unavailable: {
+        advanced: command =>
+          `${command} não aparece na paleta de slash commands do app desktop. Use o controle correspondente do app ou a interface do terminal.`,
+        messaging: command => `${command} só é usado nas plataformas de mensagens.`,
+        settings: command => `${command} é gerenciado pela barra lateral do app desktop.`,
+        terminal: command => `${command} só está disponível na interface do terminal.`,
+        modelPicker: command => `${command} usa o seletor de modelos do app desktop em vez de um slash command.`,
+        sessionPicker: command => `${command} usa o seletor de sessões do app desktop em vez de um slash command.`
+      },
+      skin: {
+        list: 'Mostrar os temas disponíveis do app desktop',
+        next: 'Passar para o próximo tema do app desktop',
+        current: ' (atual)'
+      },
+      groups: {
+        commands: 'Comandos',
+        options: 'Opções',
+        sessions: 'Sessões',
+        themes: 'Temas'
+      },
+      browseAllSessions: 'Ver todas as sessões…'
+    },
+    atStarters: {
+      file: 'Anexar uma referência de arquivo',
+      folder: 'Anexar uma referência de pasta',
+      url: 'Anexar uma referência de URL',
+      image: 'Anexar uma referência de imagem',
+      tool: 'Anexar uma referência de ferramenta',
+      git: 'Anexar contexto do git'
+    },
     attachUrlTitle: 'Anexar uma URL',
     attachUrlDesc: 'O Work4You vai buscar a página e incluí-la como contexto neste turno.',
     urlPlaceholder: 'https://example.com/post',
@@ -3927,6 +4080,11 @@ export const pt = defineLocale({
     snippetsDesc: 'Escolha um prompt inicial para inserir na caixa de mensagem.',
     dropFiles: 'Solte os arquivos para anexar',
     dropSession: 'Solte para vincular esta conversa',
+    contextMenu: {
+      addContext: 'Adicionar contexto',
+      addFiles: 'Adicionar arquivos como contexto',
+      addFolders: 'Adicionar pastas como contexto'
+    },
     mcpSuggestions: {
       label: server => `Adicionar ${server}`,
       connectLabel: server => `Conectar ${server}`,
@@ -4245,6 +4403,7 @@ export const pt = defineLocale({
       gemini: { short: 'modelos Gemini', description: 'Acesso direto aos modelos Gemini do Google.' },
       xai: { short: 'modelos Grok', description: 'Acesso direto aos modelos Grok da xAI.' },
       local: {
+        name: 'Local / endpoint personalizado',
         short: 'auto-hospedado',
         description:
           'Aponte o Work4You para um endpoint local ou auto-hospedado compatível com a OpenAI (vLLM, llama.cpp, Ollama etc.).'
@@ -4294,6 +4453,12 @@ export const pt = defineLocale({
     change: 'Alterar',
     startChatting: 'Começar',
     docs: provider => `Documentação de ${provider}`,
+    providerTitles: {
+      openaiCodex: 'Assinatura do ChatGPT ou Codex',
+      anthropicApiKey: 'Chave de API da Anthropic',
+      claudeCode: 'Anthropic OAuth: exige créditos de uso extra para usar a assinatura'
+    },
+    directApiAccess: provider => `Acesso direto à API de ${provider}.`,
     profileSetup: {
       title: profile => `Configurar ${profile}`,
       subtitle: 'Conecte um provedor de modelos a este perfil. Os outros perfis continuam exatamente como estão.',
@@ -4350,13 +4515,37 @@ export const pt = defineLocale({
     windowControls: 'Controles da janela',
     paneControls: 'Controles do painel',
     appControls: 'Controles do app',
+    panes: {
+      sessions: 'sessões',
+      terminal: 'terminal',
+      files: 'arquivos',
+      review: 'revisão',
+      logs: 'logs',
+      browser: 'Navegador',
+      agentTerminal: 'agente',
+      noPageAt: path => `nenhuma página em ${path}`
+    },
+    layouts: {
+      default: 'Padrão',
+      focus: 'Foco',
+      terminalDeck: 'Terminal embaixo',
+      quad: 'Quadrantes'
+    },
+    palette: {
+      resetLayout: 'Redefinir layout',
+      toggleStatusbar: 'Alternar barra de status',
+      toggleTerminal: 'Alternar terminal',
+      toggleLogs: 'Alternar logs',
+      toggleYolo: 'Alternar YOLO'
+    },
     modelMenu: {
       search: 'Buscar modelos',
       noModels: 'Nenhum modelo encontrado',
       models: 'Modelos',
       editModels: 'Adicionar modelos',
       refreshModels: 'Atualizar modelos',
-      fast: 'Rápido'
+      fast: 'Rápido',
+      moaPresets: 'Presets MoA'
     },
     modelOptions: {
       noOptions: 'Nenhuma opção para este modelo',
@@ -4758,7 +4947,9 @@ export const pt = defineLocale({
       restoreNext: 'Restaurar próximo checkpoint',
       goForward: 'Avançar',
       sendEdited: 'Enviar mensagem editada',
-      attachingFile: 'Anexando…'
+      attachingFile: 'Anexando…',
+      restoreFailed: 'Falha ao restaurar',
+      timelineLabel: 'Linha do tempo da conversa'
     },
     notices: {
       steered: 'direcionou',
@@ -5052,7 +5243,97 @@ export const pt = defineLocale({
         web_extract: { done: 'Leu página da web', pending: 'Lendo página da web', pendingAction: 'Lendo' },
         web_search: { done: 'Buscou na web', pending: 'Buscando na web', pendingAction: 'Buscando' },
         write_file: { done: 'Editou arquivo', pending: 'Editando arquivo', pendingAction: 'Editando' }
-      }
+      },
+      payload: 'Payload da ferramenta',
+      traceArguments: 'Argumentos',
+      traceResult: 'Resultado',
+      searchLabel: 'Busca',
+      generatedImageAlt: 'Imagem gerada',
+      truncated: count => `mais ${count} caracteres omitidos — use Copiar para ver a saída completa.`,
+      details: 'Detalhes',
+      snapshotSummary: 'Resumo do snapshot',
+      errorDetails: 'Detalhes do erro',
+      toolError: 'A ferramenta retornou um erro.',
+      toolFailure: 'A ferramenta retornou success=false.',
+      toolStatus: status => `A ferramenta retornou o status "${status}".`,
+      commandFailed: code => `Falha no comando (código de saída ${code}).`,
+      navigated: 'Acessou uma página no navegador',
+      snapshotCaptured: 'Capturou um snapshot de acessibilidade do navegador',
+      snapshotStats: (buttons, links, inputs) =>
+        `${buttons} ${buttons === 1 ? 'botão' : 'botões'} · ${links} ${links === 1 ? 'link' : 'links'} · ${inputs} ${inputs === 1 ? 'campo' : 'campos'}`,
+      topControls: labels => `Principais controles: ${labels}`,
+      clickedPage: 'Clicou na página',
+      clickedRef: ref => `Clicou em elemento da página (ref. interna ${ref})`,
+      clickedTarget: target => `Clicou em ${target}`,
+      fieldLabel: field => `Campo: ${field}`,
+      valueLabel: value => `Valor: ${value}`,
+      filledInput: 'Preencheu campo da página',
+      queryLabel: query => `Consulta: ${query}`,
+      queriedWeb: 'Consultou fontes na web',
+      executedCommand: 'Executou comando',
+      changedFile: 'Alterou arquivo',
+      fetchedWebpage: 'Carregou página da web',
+      cron: {
+        jobCount: count => `${count} ${count === 1 ? 'tarefa agendada' : 'tarefas agendadas'}`,
+        noJobs: 'Nenhuma tarefa agendada',
+        noJobsScheduled: 'Nenhuma tarefa agendada',
+        jobFallback: 'tarefa',
+        schedule: 'Agendamento',
+        repeat: 'Repetição',
+        delivery: 'Entrega',
+        nextRun: 'Próxima execução'
+      },
+      delegateTaskFallback: index => `Tarefa ${index}`,
+      delegatedTask: 'Tarefa delegada'
+    },
+    alerts: {
+      caution: 'Cuidado',
+      important: 'Importante',
+      note: 'Observação',
+      tip: 'Dica',
+      warning: 'Aviso'
+    },
+    embeds: {
+      load: label => `Carregar ${label}`,
+      alwaysAllow: label => `Sempre permitir ${label}`,
+      failed: label => `Falha ao carregar o conteúdo incorporado (${label})`,
+      frameTitle: label => `Conteúdo incorporado (${label})`,
+      holdToZoom: 'Segure ⌘ para dar zoom',
+      openDiagram: 'Abrir diagrama'
+    },
+    references: {
+      file: 'Arquivos',
+      folder: 'Pastas',
+      url: 'Links',
+      image: 'Imagens',
+      tool: 'Ferramentas',
+      line: 'Linhas',
+      terminal: 'Terminal',
+      session: 'Sessões',
+      git: 'Git',
+      diff: 'Alterações',
+      staged: 'Preparadas',
+      command: 'Comandos',
+      skill: 'Skills',
+      theme: 'Temas',
+      emoji: 'Emoji',
+      other: 'Outros'
+    },
+    markdown: {
+      fetchFailed: name => `Não foi possível buscar ${name} no gateway (ausente, ilegível ou grande demais).`,
+      openAudioFile: 'Abrir arquivo de áudio',
+      openVideoFile: 'Abrir arquivo de vídeo',
+      openFile: name => `Abrir ${name}`,
+      loadingFile: name => `Carregando ${name}...`,
+      loadFailed: name => `Não foi possível carregar ${name}.`
+    },
+    reactions: {
+      search: 'Buscar…',
+      loading: 'Carregando emojis…',
+      empty: 'Nenhum emoji encontrado.',
+      more: 'Mais emojis',
+      remove: emoji => `Remover reação ${emoji}`,
+      reactedByAgent: 'Reação do Work4You'
     }
   },
 
@@ -5139,6 +5420,112 @@ export const pt = defineLocale({
       systemNote: platform => `↻ Conversa transferida para ${platform} — retome aqui quando quiser.`,
       failed: error => `Falha na transferência: ${error}`,
       timedOut: 'Tempo esgotado aguardando o gateway. O `work4you gateway` está em execução?'
+    },
+    openSessionFailed: 'Não foi possível abrir esta sessão',
+    previewTargetFailed: target => `Não foi possível abrir a visualização: ${target}`,
+    gatewayErrorTitle: 'Erro do Work4You',
+    gatewayErrorFallback: 'O Work4You informou um erro',
+    dangerousCommand: 'comando perigoso',
+    remoteAttachTooLarge: (label, maxMb) =>
+      `${label} é grande demais para enviar ao gateway remoto${maxMb === null ? '' : ` (máx. ${maxMb} MB)`}.`,
+    attachFailed: {
+      folder: path => `Não foi possível anexar a pasta ${path}`,
+      named: name => `Não foi possível anexar ${name}`,
+      read: name => `Não foi possível ler ${name}`,
+      file: 'Não foi possível anexar o arquivo',
+      image: 'Não foi possível anexar a imagem'
+    },
+    restore: {
+      noSession: 'Nenhuma sessão ativa para restaurar.',
+      notFound: 'Não foi possível encontrar a mensagem a restaurar.',
+      emptyMessage: 'Não é possível restaurar uma mensagem vazia.'
+    },
+    previewRestart: {
+      noSession: 'Nenhuma sessão ativa para o reinício em segundo plano',
+      noTask: 'O reinício em segundo plano não retornou o ID da tarefa'
+    },
+    artifactOpen: {
+      bridgeUnavailable: 'Ponte do desktop indisponível',
+      writeFailed: 'Não foi possível gravar o arquivo do artefato'
+    },
+    pdfPreview: {
+      requiresObjectUrl: 'A visualização de PDF exige suporte a URLs de objeto',
+      invalidDataUrl: 'URL de dados do PDF inválida',
+      invalidType: 'Tipo inválido na URL de dados do PDF',
+      invalidPayload: 'Conteúdo inválido na URL de dados do PDF',
+      invalidHeader: 'Cabeçalho de arquivo PDF inválido'
+    },
+    quickEntry: {
+      placeholder: 'Pergunte ao Work4You…',
+      disconnected: 'Desconectado — abra o Work4You para reconectar',
+      sendTo: 'Enviar para',
+      targetSession: 'Sessão de destino',
+      currentChat: 'Conversa atual'
+    },
+    moa: {
+      reference: '◇ Referência',
+      referenceOf: (index, count) => `◇ Referência ${index}/${count}`,
+      refs: (done, total) => `◇ Referências MoA ${done}/${total}`,
+      aggregating: '◇ MoA agregando…',
+      defaultLabel: 'referência'
+    },
+    slash: {
+      unavailable: name => `/${name} não está disponível no app desktop.`,
+      noOutput: name => `/${name}: sem saída`,
+      noOutputPlain: '(sem saída)',
+      skillPayloadMissing: name => `/${name}: o payload da skill está sem mensagem`,
+      emptyMessage: name => `/${name}: mensagem vazia`,
+      busyQueued: 'sessão ocupada — mensagem colocada na fila para ser enviada quando o turno atual terminar',
+      busyInterrupt: 'sessão ocupada — use /interrupt no turno atual antes de enviar este comando',
+      error: message => `erro: ${message}`,
+      invalidDispatch: 'erro: resposta inválida: command.dispatch',
+      commandFailed: (name, error) => `erro: /${name} falhou: ${error}`,
+      compressing: 'comprimindo o contexto...',
+      compressingFor: topic => `comprimindo o contexto com foco em: ${topic}`,
+      compressed: count => `${count} ${count === 1 ? 'mensagem comprimida' : 'mensagens comprimidas'}`,
+      nothingToCompress: 'nada para comprimir',
+      titleSet: (title, queued) =>
+        `Título da sessão definido: ${title}${queued ? ' (na fila enquanto a sessão é iniciada)' : ''}`,
+      titleCleared: 'Título da sessão removido.',
+      petScaleUsage: 'uso: /pet scale <factor>  (ex.: /pet scale 0.5)',
+      noCommands: 'Nenhum comando do desktop disponível.',
+      steeredQueued: text => `Redirecionado · "${text}" na fila para a próxima chamada de ferramenta`,
+      steeredNext: 'Próxima chamada de ferramenta redirecionada',
+      steerRejected: 'Redirecionamento rejeitado — o agente recusou a entrada',
+      stoppedProcesses: count =>
+        `${count} ${count === 1 ? 'processo em segundo plano parado' : 'processos em segundo plano parados'}.`,
+      noProcesses: 'Nenhum processo em segundo plano para parar.',
+      savedTranscript: file => `Histórico salvo em ${file}`,
+      usage: (calls, input, output, total) =>
+        `Uso: ${calls} chamadas · ${input} de entrada / ${output} de saída · ${total} no total`,
+      noTasks: 'Nenhuma tarefa em segundo plano em execução.',
+      wake: {
+        title: 'Status da palavra de ativação',
+        state: listening => `Estado: ${listening ? 'ESCUTANDO' : 'DESATIVADA'}`,
+        phrase: phrase => `Frase: "${phrase}"`,
+        provider: provider => `Provedor: ${provider}`,
+        surface: surface => `Interface: ${surface}`,
+        input: device => `Entrada: ${device}`,
+        audioSilent: 'Áudio: silencioso',
+        inputError: error => `Erro de entrada: ${error}`,
+        hint: hint => `Dica: ${hint}`,
+        systemDefault: 'padrão do sistema',
+        usage: 'uso: /wake [on|off|status]',
+        startFailed: reason => `Falha ao iniciar a palavra de ativação: ${reason}`
+      },
+      browser: {
+        remoteOnly:
+          '/browser gerencia um navegador da família Chromium no host do gateway — disponível apenas quando conectado a um gateway local.',
+        usage: 'uso: /browser [connect|disconnect|status] [url] · persistente: defina browser.cdp_url no config.yaml',
+        checking: url => `verificando a depuração remota do navegador da família Chromium em ${url}...`,
+        connected: url => `navegador conectado: ${url}`,
+        urlUnavailable: '(URL indisponível)',
+        notConnected: 'navegador não conectado (tente /browser connect <url> ou defina browser.cdp_url no config.yaml)',
+        disconnected: 'navegador desconectado',
+        connectedLive: 'Navegador conectado a um navegador da família Chromium ativo via CDP',
+        endpoint: url => `Endpoint: ${url}`,
+        nextCall: 'a próxima chamada da ferramenta de navegador vai usar este endpoint CDP'
+      }
     }
   },
 
@@ -5165,6 +5552,78 @@ export const pt = defineLocale({
       title: 'Barra lateral',
       description: 'Exibe a barra lateral em dispositivos móveis.',
       toggle: open => `${open ? 'Mostrar' : 'Ocultar'} barra lateral`
+    },
+    splitButton: {
+      moreActions: 'Mais ações'
+    },
+    zoom: {
+      openFullView: 'Abrir visualização ampliada',
+      zoomOut: 'Diminuir zoom',
+      reset: 'Redefinir',
+      zoomIn: 'Aumentar zoom'
+    },
+    pets: {
+      spriteLabel: name => `Pet ${name}`,
+      spriteFallbackLabel: 'pet',
+      hatchingProgress: 'Progresso da incubação',
+      unavailableTitle: 'Adicione um backend de imagem para gerar',
+      unavailableBody:
+        'Para chocar um pet personalizado, é preciso um provedor que use uma imagem de referência como base.',
+      setUpImageGen: 'Configurar geração de imagens',
+      grabKeyFrom: 'Obtenha uma chave em',
+      examples: [
+        'lontra de bubble tea',
+        'elfo de meia',
+        'dragão pixelado',
+        'gato de escritório',
+        'axolote neon',
+        'golem de musgo'
+      ],
+      examplePrompt: example => example,
+      referenceFallbackName: 'Referência',
+      removeReference: 'Remover referência',
+      addReference: 'Adicionar uma referência',
+      overlayPlaceholder: 'Mensagem…',
+      openInApp: 'Abrir no Work4You',
+      notifyView: 'Ver',
+      draftsReadyTitle: 'Rascunhos do pet prontos',
+      draftsReadyBody: 'Os visuais do seu pet estão prontos — escolha um para chocar.',
+      generateFailedTitle: 'Falha ao gerar o pet',
+      reopenToRetry: 'Reabra para tentar novamente.',
+      hatchedTitle: 'Seu pet nasceu',
+      hatchedBody: 'Reabra para dar um nome e adotá-lo.',
+      hatchFailedTitle: 'Falha ao chocar',
+      generateFailed: 'Não foi possível gerar os rascunhos do pet.',
+      hatchFailed: 'Não foi possível chocar o pet.',
+      adoptFailed: 'Não foi possível adotar o pet.',
+      bubble: {
+        run: [
+          'trabalhando…',
+          'deixa comigo…',
+          'processando…',
+          'ajustando…',
+          'cozinhando…',
+          'nos detalhes…',
+          'montando tudo…',
+          'avançando…',
+          'concentrado…',
+          'martelando…'
+        ],
+        review: [
+          'pensando…',
+          'lendo…',
+          'revisando…',
+          'ponderando…',
+          'ligando os pontos…',
+          'avaliando…',
+          'rastreando…',
+          'matutando…',
+          'tramando…',
+          'hmm…'
+        ],
+        failed: ['deu um problema', 'eita', 'quebrou', 'ai ai', 'empacou'],
+        waiting: ['sua vez', 'é todo seu', 'com você agora', 'a bola está com você', 'aguardando ordens']
+      }
     }
   }
 })

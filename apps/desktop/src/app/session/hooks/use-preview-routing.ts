@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 
+import { translateNow } from '@/i18n'
 import { gatewayEventCompletedFileDiff } from '@/lib/gateway-events'
 import { normalizeOrLocalPreviewTarget } from '@/lib/local-preview'
 import { reachablePreviewUrl } from '@/lib/preview-reach'
@@ -43,7 +44,7 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
       const sessionId = $focusedRuntimeId.get()
 
       if (!sessionId) {
-        throw new Error('No active session for background restart')
+        throw new Error(translateNow('desktop.previewRestart.noSession'))
       }
 
       const cwd = $currentCwd.get() || currentCwd || ''
@@ -58,7 +59,7 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
       const taskId = result.task_id || ''
 
       if (!taskId) {
-        throw new Error('Background restart did not return a task id')
+        throw new Error(translateNow('desktop.previewRestart.noTask'))
       }
 
       beginPreviewServerRestart(taskId, url)

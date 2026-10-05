@@ -118,7 +118,7 @@ export function handleStatusEvent(ctx: GatewayEventContext): boolean {
   }
 
   if (event.type === 'error') {
-    const errorMessage = payload?.message || 'Work4You reported an error'
+    const errorMessage = payload?.message || translateNow('desktop.gatewayErrorFallback')
     const looksLikeProviderSetup = isProviderSetupErrorMessage(errorMessage)
 
     // A turn that errors out has also ended — drop any open blocking prompt
@@ -162,7 +162,7 @@ export function handleStatusEvent(ctx: GatewayEventContext): boolean {
       notify({
         id: `gateway-error:${errorMessage}`,
         kind: 'error',
-        title: 'Work4You error',
+        title: translateNow('desktop.gatewayErrorTitle'),
         message: errorMessage
       })
     }
