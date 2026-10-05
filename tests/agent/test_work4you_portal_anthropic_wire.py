@@ -21,7 +21,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from work4you_cli import runtime_provider as rp
+from work4you_cli import providers as _providers
 from work4you_cli.providers import work4you_api_mode
+
+
+@pytest.fixture(autouse=True)
+def _native_wire_selected(monkeypatch):
+    """These contracts describe the native wire, which is now opt-in
+    (``work4you.anthropic_wire: native``; default ``chat``, see
+    ``work4you_api_mode``). Select it here so the wire keeps working for a
+    Portal that serves it natively; the default's own contract is in
+    ``test_work4you_anthropic_wire_default.py``."""
+    monkeypatch.setattr(_providers, "_work4you_anthropic_wire", lambda: "native")
 
 PORTAL_URL = "https://inference-api.work4you.ai/v1"
 # Staging / preview hosts used via WORK4YOU_INFERENCE_BASE_URL — not the prod
