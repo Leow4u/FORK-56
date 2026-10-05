@@ -20,8 +20,9 @@
  *   - my-computer — cloud agent host metrics (CPU, disk, uptime).
  *   - keys — tool + server/gateway env vars (mirrors desktop Settings →
  *     Tools & Keys).
- *   - chat — personality, timezone, reasoning blocks, image attachments
- *     (keys mirror desktop Settings → Chat in apps/desktop/src/app/settings/constants.ts).
+ *   - chat — activity detail (a device preference), then personality,
+ *     timezone, reasoning blocks, image attachments (keys mirror desktop
+ *     Settings → Chat in apps/desktop/src/app/settings/constants.ts).
  *   - appearance — dashboard language, theme, and font (same pickers as the
  *     sidebar switchers; mirrors desktop Settings → Appearance).
  *   - workspace — working directory, repo discovery, code execution, file limits
@@ -53,6 +54,7 @@ import { api, type AuxiliaryModelsResponse } from "@/lib/api";
 import { cn, themedBody } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { PluginSlot } from "@/plugins";
+import { ActivityDensityField } from "@/components/activity-density-field";
 import { AppearanceSettingsSection } from "@/components/appearance-panels";
 import { FallbackModelsField } from "@/components/FallbackModelsField";
 import { ImageVideoSettings } from "@/components/ImageVideoSettings";
@@ -359,7 +361,12 @@ const SECTIONS: SettingsSection[] = [
     id: "chat",
     label: "Chat",
     icon: MessageCircle,
-    render: () => <SettingsConfigSection keys={CHAT_CONFIG_KEYS} />,
+    render: () => (
+      <div className="flex flex-col gap-4">
+        <ActivityDensityField />
+        <SettingsConfigSection keys={CHAT_CONFIG_KEYS} />
+      </div>
+    ),
   },
   {
     id: "appearance",

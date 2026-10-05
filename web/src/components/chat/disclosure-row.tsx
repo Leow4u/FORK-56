@@ -8,8 +8,9 @@ import { cn } from '@/lib/utils'
 // uses to escape the message padding) and its own expanded body.
 //
 // Affordance:
-//   - No leading chevron; a caret appears to the RIGHT of the text on hover
-//     (and stays visible when the row is open).
+//   - No leading chevron; a caret sits to the RIGHT of the text, always
+//     visible: quiet at rest (`--disclosure-caret-rest`), full strength on
+//     hover and while the row is open.
 //   - The hover background is a tight content-shaped pill — sized to the
 //     title text, NOT the full row — and reaches just past the chevron with
 //     `-mx-1.5 px-1.5` so it reads as a soft hit-target rather than a slab
@@ -53,8 +54,8 @@ export function DisclosureRow({
             className={cn(
               'flex h-(--conversation-line-height) shrink-0 items-center justify-center transition-opacity duration-150',
               open
-                ? 'opacity-80'
-                : 'opacity-(--disclosure-caret-rest) group-hover/disclosure-row:opacity-80 group-focus-within/disclosure-row:opacity-80'
+                ? 'opacity-100'
+                : 'opacity-(--disclosure-caret-rest) group-hover/disclosure-row:opacity-100 group-focus-within/disclosure-row:opacity-100'
             )}
           >
             <DisclosureCaret open={open} />

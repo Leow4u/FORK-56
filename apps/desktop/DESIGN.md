@@ -95,6 +95,8 @@ for call-site shadow or border inventions.
 | `--stroke-work4you` | the overlay hairline (pairs with `shadow-work4you`) |
 | `--ui-text-primary / -secondary / -tertiary / -quaternary` | text hierarchy; in light mode tertiary and quaternary sit on the 4.5:1 readability floor |
 | `--dt-input-border` | resting border strength of input fields (% of the ring color); hover doubles it, focus goes full |
+| `--conversation-scaffold-text / -meta` | transcript activity lines (thinking headers, tool rows, run summaries, the live status line) and their durations/counts. The root value is the lifted ink; a `data-conversation-scaffold` surface rests both on the 4.5:1 floor and lifts them on hover/keyboard focus. The step is a token, never an opacity fade — opacity compounded under the floor and dimmed error rows with it |
+| `--disclosure-caret-rest` | resting opacity of a disclosure caret. Never 0: a row that opens says so before the pointer finds it; hover and an open row go full |
 | `--ui-bg-quaternary` | soft control fill (secondary button) |
 | `--ui-widget-surface-background` | fill for inline chat widgets (`WIDGET_SHELL_CLASS`) |
 | `--chrome-action-hover` | hover fill for quiet controls |
@@ -235,6 +237,31 @@ Notes:
   existing components under `src/components/assistant-ui` and
   `src/app/chat/composer`; do not fork a second markdown, message, tool-call, or
   approval renderer for one feature.
+- **Activity lines** — thinking headers, tool rows, run summaries and the live
+  status line render through `ScaffoldRow` and read on
+  `--conversation-scaffold-*`, at or above the 4.5:1 floor at rest. Their
+  words come from the catalog (`assistant.tool.runSummary`, `titles`), never a
+  literal. Every file a turn wrote keeps its row, diff or not; a silent call
+  (a todo update, a reaction) is never counted in a summary or ticked live.
+- **Activity density** — `$activityDensity` (Compact / Balanced, the default /
+  Detailed) decides how much of a turn's work the transcript shows; Detailed
+  shows every thought and call as it happens, without exception. In Compact
+  and Balanced a live turn is one block (`LiveTurn`) hosted by the turn's
+  first assistant message: what is done (one summary line), the newest note
+  (Balanced), whatever asks the user for something, the reply, and one status
+  line for now — the call in flight, else the model's reasoning heading, else
+  "Thinking", with the plan's step and the turn clock. At most four lines of
+  work however long the turn runs; a thought has no line of its own there.
+  Opened, the block and a settled turn's line show the same list
+  (`TurnWorkList`): every thought, call and note in order, each row rendered
+  inside its own message. Questions, approvals and cards never fold.
+- **Settled turn** — one line that says what the turn did, in the run-summary
+  words ("Explored 8 files, ran 3 commands, created resumo.md"), with the
+  duration as meta and failed steps counted on it; a turn with no calls says
+  "Worked for …". At Balanced the newest turn stays open until the next
+  message — only earlier turns fold on their own. A write whose diff starts
+  from nothing reads "created", and every file row carries +N −M after a
+  reload too (the diff is kept as display metadata on its tool row).
 - **Composer context bar** — empty-chat workspace picker. A second capsule
   (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
   card as a sibling vessel, not a well inside it: same width, same

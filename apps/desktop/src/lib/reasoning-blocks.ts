@@ -29,3 +29,26 @@ const GLUED_AFTER_PROSE = /(?<=[^\s*])(\*\*(?=[^\s*])[^\n]*?\*\*)/g
 export function separateGluedReasoningBlocks(text: string): string {
   return text.replace(GLUED_HEADING_RUN, '**\n\n**').replace(GLUED_AFTER_PROSE, '\n\n$1')
 }
+
+// A summary part's heading: a whole line that is one bold run, nothing else.
+const HEADING_LINE = /^\s*\*\*(?=\S)([^\n*]+?)\*\*\s*$/gm
+
+/**
+ * The heading of the reasoning part being written now — "Inspecting message
+ * schema" — or '' when the reasoning carries none.
+ *
+ * Summary models open every part with a bold heading line, so the last one is
+ * what the model is thinking about at this moment; that is what the status
+ * line names instead of giving the thought a block of its own. Reasoning
+ * without headings (raw thinking, a summary that skips them) has no name to
+ * give, and the line says it is thinking.
+ */
+export function reasoningHeadline(text: string): string {
+  let headline = ''
+
+  for (const match of separateGluedReasoningBlocks(text).matchAll(HEADING_LINE)) {
+    headline = match[1].trim()
+  }
+
+  return headline
+}

@@ -329,9 +329,12 @@ export const ja = defineLocale({
       title: '外観',
       colorMode: 'カラーモード',
       colorModeDesc: '固定モードを選ぶか、Work4You をシステム設定に合わせます。',
-      toolViewTitle: 'ツール呼び出しの表示',
-      toolViewDesc:
-        'プロダクト表示は完了したターンを Worked-for 1 行に畳みます。テクニカル表示はツールログと入出力を残します。',
+      activityDensityTitle: 'アクティビティの詳細',
+      activityDensityDesc:
+        'エージェントの作業中と完了後に、チャットに作業内容をどこまで表示するか。質問、承認、変更されたファイルは常に表示されます。',
+      activityDensityCompact: 'コンパクト',
+      activityDensityBalanced: 'バランス',
+      activityDensityDetailed: '詳細',
       reasoningCollapsedTitle: '推論をデフォルトで折りたたむ',
       uiScaleTitle: 'UI スケール',
       sessionDensityTitle: 'サイドバーの密度',
@@ -3087,6 +3090,8 @@ export const ja = defineLocale({
       loadingSession: 'セッションを読み込み中',
       showEarlier: '以前のメッセージを表示',
       loadingResponse: 'Work4You が応答を読み込み中',
+      working: 'Work4You が作業中',
+      summarizingThread: 'スレッドを要約中',
       resumeWhenBackgroundDone: count =>
         count === 1
           ? 'バックグラウンドタスクの完了後に再開します'
@@ -3098,6 +3103,9 @@ export const ja = defineLocale({
       worked: '作業済み',
       workedFor: duration => `${duration} 作業`,
       turnDuration: duration => `このターンの所要時間: ${duration}`,
+      writing: '執筆中',
+      stepOf: (step, total) => `ステップ ${step}/${total}`,
+      thoughtAbout: title => `思考 · ${title}`,
       today: time => `今日 ${time}`,
       yesterday: time => `昨日 ${time}`,
       copy: 'コピー',
@@ -3124,6 +3132,16 @@ export const ja = defineLocale({
       goForward: '進む',
       sendEdited: '編集済みメッセージを送信',
       attachingFile: '添付中…'
+    },
+    notices: {
+      steered: '方向修正',
+      repliedTo: name => `${name} に返信`,
+      showReply: '返信を表示',
+      messaging: name => `${name} にメッセージを送信中…`,
+      messaged: name => `${name} にメッセージを送信`,
+      messageFrom: name => `${name} からのメッセージ`,
+      showMessage: 'メッセージを表示',
+      output: '出力'
     },
     approval: {
       gatewayDisconnected: 'Work4You ゲートウェイが接続されていません',
@@ -3206,14 +3224,73 @@ export const ja = defineLocale({
         runningPrefixedTool: (prefix, action) => `${prefix} ${action}を実行中`,
         runningTool: action => `${action}を実行中`
       },
+      searchResults: '検索結果',
+      detailLabels: { details: '詳細', errorDetails: 'エラーの詳細', snapshotSummary: 'スナップショットの概要' },
+      countNouns: {
+        document: count => `${count} 件のドキュメント`,
+        file: count => `${count} 件のファイル`,
+        item: count => `${count} 件の項目`,
+        match: count => `${count} 件の一致`,
+        result: count => `${count} 件の結果`,
+        row: count => `${count} 行`,
+        search: count => `${count} 回の検索`,
+        source: count => `${count} 件のソース`,
+        step: count => `${count} ステップ`,
+        todo: count => `${count} 件のToDo`
+      },
+      runSummary: {
+        categories: {
+          create: { count: count => `${count} 件のファイル`, past: '作成', present: '作成中' },
+          delegate: { count: count => `${count} 件のタスク`, past: '委任', present: '委任中' },
+          edit: { count: count => `${count} 件のファイル`, past: '編集', present: '編集中' },
+          explore: { count: count => `${count} 件のファイル`, past: '確認', present: '確認中' },
+          other: { count: count => `${count} 個のツール`, past: '使用', present: '使用中' },
+          run: { count: count => `${count} 件のコマンド`, past: '実行', present: '実行中' }
+        },
+        clause: (verb, object) => `${object}を${verb}`,
+        separator: '、'
+      },
       titles: {
+        apply_layout: { done: 'レイアウトを適用しました', pending: 'レイアウトを適用中', pendingAction: '適用中' },
+        browser_back: { done: '前のページに戻りました', pending: '前のページへ移動中', pendingAction: '移動中' },
+        browser_cdp: {
+          done: 'ブラウザーコマンドを送信しました',
+          pending: 'ブラウザーコマンドを送信中',
+          pendingAction: '送信中'
+        },
         browser_click: {
           done: 'ページ要素をクリックしました',
           pending: 'ページ要素をクリック中',
           pendingAction: 'クリック中'
         },
+        browser_console: {
+          done: 'ブラウザーコンソールを読み取りました',
+          pending: 'ブラウザーコンソールを読み取り中',
+          pendingAction: '読み取り中'
+        },
+        browser_dialog: {
+          done: 'ページのダイアログに応答しました',
+          pending: 'ページのダイアログに応答中',
+          pendingAction: '応答中'
+        },
+        browser_exec: {
+          done: 'ページスクリプトを実行しました',
+          pending: 'ページスクリプトを実行中',
+          pendingAction: '実行中'
+        },
         browser_fill: { done: 'フォーム欄に入力しました', pending: 'フォーム欄に入力中', pendingAction: '入力中' },
+        browser_get_images: {
+          done: 'ページの画像を一覧表示しました',
+          pending: 'ページの画像を一覧表示中',
+          pendingAction: '一覧表示中'
+        },
         browser_navigate: { done: 'ページを開きました', pending: 'ページをオープン中', pendingAction: 'オープン中' },
+        browser_press: { done: 'キーを押しました', pending: 'キーを押下中', pendingAction: '押下中' },
+        browser_scroll: {
+          done: 'ページをスクロールしました',
+          pending: 'ページをスクロール中',
+          pendingAction: 'スクロール中'
+        },
         browser_snapshot: {
           done: 'ページスナップショットを取得しました',
           pending: 'ページスナップショットを取得中',
@@ -3225,10 +3302,28 @@ export const ja = defineLocale({
           pendingAction: '取得中'
         },
         browser_type: { done: 'ページに入力しました', pending: 'ページに入力中', pendingAction: '入力中' },
+        browser_vision: { done: 'ページを確認しました', pending: 'ページを確認中', pendingAction: '確認中' },
         clarify: { done: '質問しました', pending: '質問中', pendingAction: '質問中' },
+        close_preview: {
+          done: 'プレビューを閉じました',
+          pending: 'プレビューをクローズ中',
+          pendingAction: 'クローズ中'
+        },
+        close_terminal: {
+          done: 'ターミナルを閉じました',
+          pending: 'ターミナルをクローズ中',
+          pendingAction: 'クローズ中'
+        },
+        computer_use: {
+          done: 'コンピューターを操作しました',
+          pending: 'コンピューターを操作中',
+          pendingAction: '操作中'
+        },
         cronjob: { done: 'Cron ジョブ', pending: 'Cron ジョブをスケジュール中', pendingAction: 'スケジュール中' },
+        drive_preview: { done: 'プレビューを操作しました', pending: 'プレビューを操作中', pendingAction: '操作中' },
         edit_file: { done: 'ファイルを編集しました', pending: 'ファイルを編集中', pendingAction: '編集中' },
         execute_code: { done: 'コードを実行しました', pending: 'スクリプト作成中', pendingAction: 'スクリプト作成中' },
+        focus_pane: { done: 'ペインを表示しました', pending: 'ペインを表示中', pendingAction: '表示中' },
         image_generate: { done: '画像を生成しました', pending: '画像を生成中', pendingAction: '生成中' },
         list_files: {
           done: 'ファイルを一覧表示しました',
@@ -3240,20 +3335,79 @@ export const ja = defineLocale({
           pending: 'メモリに保存中',
           pendingAction: '保存中'
         },
+        open_preview: {
+          done: 'プレビューを開きました',
+          pending: 'プレビューをオープン中',
+          pendingAction: 'オープン中'
+        },
         patch: {
           done: 'ファイルにパッチを適用しました',
           pending: 'ファイルにパッチ適用中',
           pendingAction: 'パッチ適用中'
         },
+        process: {
+          done: 'バックグラウンドプロセスを確認しました',
+          pending: 'バックグラウンドプロセスを確認中',
+          pendingAction: '確認中'
+        },
+        project_create: {
+          done: 'プロジェクトを作成しました',
+          pending: 'プロジェクトを作成中',
+          pendingAction: '作成中'
+        },
+        project_list: {
+          done: 'プロジェクトを一覧表示しました',
+          pending: 'プロジェクトを一覧表示中',
+          pendingAction: '一覧表示中'
+        },
+        project_switch: {
+          done: 'プロジェクトを切り替えました',
+          pending: 'プロジェクトを切り替え中',
+          pendingAction: '切り替え中'
+        },
         read_file: { done: 'ファイルを読み取りました', pending: 'ファイルを読み取り中', pendingAction: '読み取り中' },
+        read_preview: {
+          done: 'プレビューを読み取りました',
+          pending: 'プレビューを読み取り中',
+          pendingAction: '読み取り中'
+        },
+        read_terminal: {
+          done: 'ターミナルを読み取りました',
+          pending: 'ターミナルを読み取り中',
+          pendingAction: '読み取り中'
+        },
+        read_window_below: {
+          done: '背後のウィンドウを確認しました',
+          pending: '背後のウィンドウを確認中',
+          pendingAction: '確認中'
+        },
         search_files: { done: 'ファイルを検索しました', pending: 'ファイルを検索中', pendingAction: '検索中' },
+        session_search: {
+          done: '過去のセッションを検索しました',
+          pending: '過去のセッションを検索中',
+          pendingAction: '検索中'
+        },
         session_search_recall: {
           done: 'セッション履歴を検索しました',
           pending: 'セッション履歴を検索中',
           pendingAction: '検索中'
         },
+        skill_manage: { done: 'スキルを更新しました', pending: 'スキルを更新中', pendingAction: '更新中' },
+        skill_view: { done: 'スキルを読み取りました', pending: 'スキルを読み取り中', pendingAction: '読み取り中' },
+        skills_list: { done: 'スキルを一覧表示しました', pending: 'スキルを一覧表示中', pendingAction: '一覧表示中' },
         terminal: { done: 'コマンドを実行しました', pending: 'コマンドを実行中', pendingAction: '実行中' },
+        text_to_speech: { done: '音声を生成しました', pending: '音声を生成中', pendingAction: '生成中' },
         todo: { done: 'Todo を更新しました', pending: 'Todo を更新中', pendingAction: '更新中' },
+        tool_call: { done: 'ツールを使用しました', pending: 'ツールを使用中', pendingAction: '使用中' },
+        tool_describe: {
+          done: 'ツールの詳細を読み取りました',
+          pending: 'ツールの詳細を読み取り中',
+          pendingAction: '読み取り中'
+        },
+        tool_search: { done: 'ツールを検索しました', pending: 'ツールを検索中', pendingAction: '検索中' },
+        tour: { done: 'ツアーを表示しました', pending: 'ツアーを表示中', pendingAction: '表示中' },
+        video_analyze: { done: '動画を分析しました', pending: '動画を分析中', pendingAction: '分析中' },
+        video_generate: { done: '動画を生成しました', pending: '動画を生成中', pendingAction: '生成中' },
         vision_analyze: { done: '画像を分析しました', pending: '画像を分析中', pendingAction: '分析中' },
         web_extract: {
           done: 'Web ページを読み取りました',

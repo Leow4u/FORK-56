@@ -1,10 +1,22 @@
 // @ts-nocheck — extracted from desktop locale; parameter types are implicit.
 export const desktopSections = {
+  settings: {
+    appearance: {
+      activityDensityTitle: 'Activity detail',
+      activityDensityDesc:
+        'How much of the agent’s work the chat shows while it runs and after it finishes. Questions, approvals and changed files always stay on screen.',
+      activityDensityCompact: 'Compact',
+      activityDensityBalanced: 'Balanced',
+      activityDensityDetailed: 'Detailed'
+    }
+  },
   assistant: {
     thread: {
       loadingSession: 'Loading session',
       showEarlier: 'Show earlier messages',
       loadingResponse: 'Work4You is loading a response',
+      working: 'Work4You is working',
+      summarizingThread: 'Summarizing thread',
       resumeWhenBackgroundDone: count =>
         count === 1
           ? 'Will resume when the background task finishes'
@@ -13,7 +25,12 @@ export const desktopSections = {
       thought: 'Thought',
       thoughtBriefly: 'Thought briefly',
       thoughtFor: duration => `Thought for ${duration}`,
+      worked: 'Worked',
+      workedFor: duration => `Worked for ${duration}`,
       turnDuration: duration => `This turn took ${duration}`,
+      writing: 'Writing',
+      stepOf: (step, total) => `Step ${step} of ${total}`,
+      thoughtAbout: title => `Thought · ${title}`,
       today: time => `Today, ${time}`,
       yesterday: time => `Yesterday, ${time}`,
       copy: 'Copy',
@@ -43,6 +60,16 @@ export const desktopSections = {
       goForward: 'Go forward',
       sendEdited: 'Send edited message',
       attachingFile: 'Attaching…'
+    },
+    notices: {
+      steered: 'steered',
+      repliedTo: name => `Replied to ${name}`,
+      showReply: 'show reply',
+      messaging: name => `Messaging ${name}…`,
+      messaged: name => `Messaged ${name}`,
+      messageFrom: name => `Message from ${name}`,
+      showMessage: 'show message',
+      output: 'output'
     },
     approval: {
       gatewayDisconnected: 'Work4You gateway is not connected',
@@ -151,10 +178,53 @@ export const desktopSections = {
         runningPrefixedTool: (prefix, action) => `Running ${prefix.toLowerCase()} ${action.toLowerCase()}`,
         runningTool: action => `Running ${action.toLowerCase()}`
       },
+      searchResults: 'Search results',
+      detailLabels: { details: 'Details', errorDetails: 'Error details', snapshotSummary: 'Snapshot summary' },
+      countNouns: {
+        document: count => (count === 1 ? '1 document' : `${count} documents`),
+        file: count => (count === 1 ? '1 file' : `${count} files`),
+        item: count => (count === 1 ? '1 item' : `${count} items`),
+        match: count => (count === 1 ? '1 match' : `${count} matches`),
+        result: count => (count === 1 ? '1 result' : `${count} results`),
+        row: count => (count === 1 ? '1 row' : `${count} rows`),
+        search: count => (count === 1 ? '1 search' : `${count} searches`),
+        source: count => (count === 1 ? '1 source' : `${count} sources`),
+        step: count => (count === 1 ? '1 step' : `${count} steps`),
+        todo: count => (count === 1 ? '1 todo' : `${count} todos`)
+      },
+      runSummary: {
+        categories: {
+          create: { count: count => (count === 1 ? '1 file' : `${count} files`), past: 'Created', present: 'Creating' },
+          delegate: {
+            count: count => (count === 1 ? '1 task' : `${count} tasks`),
+            past: 'Delegated',
+            present: 'Delegating'
+          },
+          edit: { count: count => (count === 1 ? '1 file' : `${count} files`), past: 'Edited', present: 'Editing' },
+          explore: {
+            count: count => (count === 1 ? '1 file' : `${count} files`),
+            past: 'Explored',
+            present: 'Exploring'
+          },
+          other: { count: count => (count === 1 ? '1 tool' : `${count} tools`), past: 'Used', present: 'Using' },
+          run: { count: count => (count === 1 ? '1 command' : `${count} commands`), past: 'Ran', present: 'Running' }
+        },
+        clause: (verb, object) => `${verb} ${object}`,
+        separator: ', '
+      },
       titles: {
+        apply_layout: { done: 'Applied layout', pending: 'Applying layout', pendingAction: 'Applying' },
+        browser_back: { done: 'Went back a page', pending: 'Going back a page', pendingAction: 'Going back' },
+        browser_cdp: { done: 'Sent browser command', pending: 'Sending browser command', pendingAction: 'Sending' },
         browser_click: { done: 'Clicked page element', pending: 'Clicking page element', pendingAction: 'Clicking' },
+        browser_console: { done: 'Read browser console', pending: 'Reading browser console', pendingAction: 'Reading' },
+        browser_dialog: { done: 'Answered page dialog', pending: 'Answering page dialog', pendingAction: 'Answering' },
+        browser_exec: { done: 'Ran page script', pending: 'Running page script', pendingAction: 'Running' },
         browser_fill: { done: 'Filled form field', pending: 'Filling form field', pendingAction: 'Filling' },
+        browser_get_images: { done: 'Listed page images', pending: 'Listing page images', pendingAction: 'Listing' },
         browser_navigate: { done: 'Opened page', pending: 'Opening page', pendingAction: 'Opening' },
+        browser_press: { done: 'Pressed a key', pending: 'Pressing a key', pendingAction: 'Pressing' },
+        browser_scroll: { done: 'Scrolled page', pending: 'Scrolling page', pendingAction: 'Scrolling' },
         browser_snapshot: {
           done: 'Captured page snapshot',
           pending: 'Capturing page snapshot',
@@ -166,29 +236,80 @@ export const desktopSections = {
           pendingAction: 'Capturing'
         },
         browser_type: { done: 'Typed on page', pending: 'Typing on page', pendingAction: 'Typing' },
+        browser_vision: { done: 'Looked at page', pending: 'Looking at page', pendingAction: 'Looking' },
         clarify: { done: 'Asked a question', pending: 'Asking a question', pendingAction: 'Asking' },
+        close_preview: { done: 'Closed preview', pending: 'Closing preview', pendingAction: 'Closing' },
+        close_terminal: { done: 'Closed terminal', pending: 'Closing terminal', pendingAction: 'Closing' },
+        computer_use: { done: 'Used the computer', pending: 'Using the computer', pendingAction: 'Using' },
         cronjob: { done: 'Cron job', pending: 'Scheduling cron job', pendingAction: 'Scheduling' },
+        drive_preview: { done: 'Used the preview', pending: 'Using the preview', pendingAction: 'Using' },
         edit_file: { done: 'Edited file', pending: 'Editing file', pendingAction: 'Editing' },
         execute_code: { done: 'Ran code', pending: 'Scripting', pendingAction: 'Scripting' },
+        focus_pane: { done: 'Showed pane', pending: 'Showing pane', pendingAction: 'Showing' },
         image_generate: { done: 'Generated image', pending: 'Generating image', pendingAction: 'Generating' },
         list_files: { done: 'Listed files', pending: 'Listing files', pendingAction: 'Listing' },
         memory: { done: 'Saved to memory', pending: 'Saving to memory', pendingAction: 'Saving' },
+        open_preview: { done: 'Opened preview', pending: 'Opening preview', pendingAction: 'Opening' },
         patch: { done: 'Patched file', pending: 'Patching file', pendingAction: 'Patching' },
+        process: {
+          done: 'Checked background process',
+          pending: 'Checking background process',
+          pendingAction: 'Checking'
+        },
+        project_create: { done: 'Created project', pending: 'Creating project', pendingAction: 'Creating' },
+        project_list: { done: 'Listed projects', pending: 'Listing projects', pendingAction: 'Listing' },
+        project_switch: { done: 'Switched project', pending: 'Switching project', pendingAction: 'Switching' },
         read_file: { done: 'Read file', pending: 'Reading file', pendingAction: 'Reading' },
+        read_preview: { done: 'Read preview', pending: 'Reading preview', pendingAction: 'Reading' },
+        read_terminal: { done: 'Read terminal', pending: 'Reading terminal', pendingAction: 'Reading' },
+        read_window_below: {
+          done: 'Checked window behind',
+          pending: 'Checking window behind',
+          pendingAction: 'Checking'
+        },
         search_files: { done: 'Searched files', pending: 'Searching files', pendingAction: 'Searching' },
+        session_search: {
+          done: 'Searched past sessions',
+          pending: 'Searching past sessions',
+          pendingAction: 'Searching'
+        },
         session_search_recall: {
           done: 'Searched session history',
           pending: 'Searching session history',
           pendingAction: 'Searching'
         },
+        skill_manage: { done: 'Updated skill', pending: 'Updating skill', pendingAction: 'Updating' },
+        skill_view: { done: 'Read skill', pending: 'Reading skill', pendingAction: 'Reading' },
+        skills_list: { done: 'Listed skills', pending: 'Listing skills', pendingAction: 'Listing' },
         terminal: { done: 'Ran command', pending: 'Running command', pendingAction: 'Running' },
+        text_to_speech: { done: 'Generated speech', pending: 'Generating speech', pendingAction: 'Generating' },
         todo: { done: 'Updated todos', pending: 'Updating todos', pendingAction: 'Updating' },
+        tool_call: { done: 'Used a tool', pending: 'Using a tool', pendingAction: 'Using' },
+        tool_describe: { done: 'Read tool details', pending: 'Reading tool details', pendingAction: 'Reading' },
+        tool_search: { done: 'Searched tools', pending: 'Searching tools', pendingAction: 'Searching' },
+        tour: { done: 'Showed a tour', pending: 'Showing a tour', pendingAction: 'Showing' },
+        video_analyze: { done: 'Analyzed video', pending: 'Analyzing video', pendingAction: 'Analyzing' },
+        video_generate: { done: 'Generated video', pending: 'Generating video', pendingAction: 'Generating' },
         vision_analyze: { done: 'Analyzed image', pending: 'Analyzing image', pendingAction: 'Analyzing' },
         web_extract: { done: 'Read webpage', pending: 'Reading webpage', pendingAction: 'Reading' },
         web_search: { done: 'Searched web', pending: 'Searching web', pendingAction: 'Searching' },
         write_file: { done: 'Edited file', pending: 'Editing file', pendingAction: 'Editing' }
       }
     }
+  },
+
+  // Read by the ported tool row (dismiss) and artifact card. Without them a
+  // settled tool row threw on `t.statusStack.dismiss`, an error the message
+  // boundary rethrows, so the first finished tool call broke the transcript.
+  artifactCard: {
+    kind: { code: 'Code', html: 'Interactive page', svg: 'Graphic' },
+    generating: lines => `Generating… ${lines} lines`,
+    versionBadge: count => `${count} versions`,
+    open: 'Open'
+  },
+
+  statusStack: {
+    dismiss: 'Dismiss'
   },
 
   ui: {

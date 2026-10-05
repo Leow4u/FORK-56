@@ -68,6 +68,7 @@ export type GatewayEventPayload = {
   service_tier?: string
   fast?: boolean
   approval_mode?: string
+  session_approval_mode?: string
   yolo?: boolean
   running?: boolean
   turn_started_at?: number | null
@@ -93,6 +94,9 @@ export type GatewayEventPayload = {
   // mcp.setup.request (setup_mcp tool — inline MCP consent card)
   server?: string
   action?: string
+  direction?: string
+  key?: string
+  ref?: string
   reason?: string
   // approval.request (dangerous command / execute_code) — session-keyed
   command?: string

@@ -6,6 +6,7 @@ import {
   buildToolView,
   clampForDisplay,
   countDiffLineStats,
+  diffCreatesFile,
   inlineDiffFromResult,
   MAX_TOOL_RENDER_CHARS,
   prettyJson,
@@ -362,6 +363,20 @@ describe('buildToolView title actions', () => {
     expect(view.detail).toBe('')
   })
 
+  it('counts what a tool found in the app language', () => {
+    setRuntimeI18nLocale('pt')
+
+    const search = buildToolView(
+      part({ args: { query: 'TODO' }, result: { matches: ['a', 'b', 'c'] }, toolName: 'search_files' }),
+      ''
+    )
+
+    const web = buildToolView(part({ args: { query: 'x' }, result: { results: [{}] }, toolName: 'web_search' }), '')
+
+    expect(search.countLabel).toBe('3 ocorrências')
+    expect(web.countLabel).toBe('1 resultado')
+  })
+
   it('uses the runtime locale for title text and action placement', () => {
     setRuntimeI18nLocale('ja')
 
@@ -407,6 +422,18 @@ describe('prettyJson caps serialized result size', () => {
 
     expect(out.length).toBeLessThanOrEqual(MAX_TOOL_RENDER_CHARS + 200)
     expect(out).toContain('truncated')
+  })
+})
+
+describe('diffCreatesFile', () => {
+  it('reads a diff from nothing as a new file', () => {
+    expect(diffCreatesFile('a/deck.md → b/deck.md\n@@ -0,0 +1,2 @@\n+# Deck\n+Five slides.')).toBe(true)
+  })
+
+  it('reads any hunk over existing lines as an edit', () => {
+    expect(diffCreatesFile('@@ -1,2 +1,3 @@\n context\n+added')).toBe(false)
+    expect(diffCreatesFile('@@ -0,0 +1 @@\n+top\n@@ -4,1 +5,1 @@\n-old\n+new')).toBe(false)
+    expect(diffCreatesFile('')).toBe(false)
   })
 })
 

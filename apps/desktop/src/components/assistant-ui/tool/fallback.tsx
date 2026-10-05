@@ -57,6 +57,7 @@ import {
   isCardTool,
   isFileEditTool,
   isPreviewableTarget,
+  isSilentToolCall,
   looksRedundant,
   type SearchResultRow,
   selectMessageRunning,
@@ -455,7 +456,7 @@ function ToolEntry({ part }: ToolEntryProps) {
     (part.toolName === 'terminal' || part.toolName === 'execute_code' || part.toolName === 'read_file')
 
   const hasSearchHits = Boolean(view.searchHits?.length)
-  const searchResultsLabel = part.toolName === 'web_search' ? 'Search results' : view.detailLabel
+  const searchResultsLabel = part.toolName === 'web_search' ? copy.searchResults : view.detailLabel
 
   const hasExpandableContent = Boolean(
     view.imageUrl ||
@@ -527,15 +528,12 @@ function ToolEntry({ part }: ToolEntryProps) {
     return null
   }
 
-  // A completed file edit with no diff to review is a bare, unexpandable row.
-  // This is almost always a `write_file` create after a reload: only `patch`
-  // persists its diff in the tool result, so creates rehydrate diff-less and
-  // read like dead duplicates of the real diff row. Hide them — but keep
-  // in-flight writes (activity) and failures (errors) visible.
-  if (isFileEdit && !isPending && view.status !== 'error' && !view.inlineDiff) {
-    return null
-  }
-
+  // Every file edit renders, diff or not. A completed edit with no diff is
+  // almost always a `write_file` create after a reload: only `patch` persists
+  // its diff in the tool result — a create's diff rides the live
+  // `tool.complete` event alone — so creates rehydrate diff-less. Hiding those
+  // made the file a turn delivered vanish from every turn but the newest, the
+  // one whose files-changed card still names it; the bare line is the record.
   return (
     <div
       className={cn(
@@ -831,6 +829,8 @@ interface ToolRunState {
   entryIds: readonly string[]
   key: string
   live: boolean
+  /** Offsets (from the run's first part) of the calls that leave nothing on screen. */
+  silentOffsets: readonly number[]
   startedAt?: number
   /** A call still awaiting a result that could be the one blocking on approval. */
   pendingApprovalTool: boolean
@@ -846,7 +846,15 @@ function useToolRun(startIndex: number, endIndex: number): ToolRunState {
 
   return useAuiState(state => {
     const parts = state.message.parts
-    const tools = parts.slice(Math.max(0, startIndex), endIndex + 1).filter(isToolCallPart)
+    const range = parts.slice(Math.max(0, startIndex), endIndex + 1)
+
+    // A silent call (a todo update, a reaction) is part of the run but shows
+    // nothing, so it is neither counted nor narrated — the run is what's left.
+    const silentOffsets = range.flatMap((part, offset) =>
+      isToolCallPart(part) && isSilentToolCall(part) ? [offset] : []
+    )
+
+    const tools = range.filter(isToolCallPart).filter(tool => !isSilentToolCall(tool))
     const timelineTools = tools as unknown as ToolPart[]
 
     // Live means the turn is still working and nothing has come after this run
@@ -864,7 +872,7 @@ function useToolRun(startIndex: number, endIndex: number): ToolRunState {
         tool =>
           `${tool.toolCallId}:${tool.result === undefined ? 0 : 1}:${tool.timestamp ?? ''}:${tool.completedAt ?? ''}`
       )
-      .concat(String(live))
+      .concat(String(live), silentOffsets.join(','))
       .join('|')
 
     if (cache.current?.signature !== signature) {
@@ -884,6 +892,7 @@ function useToolRun(startIndex: number, endIndex: number): ToolRunState {
           entryIds: tools.map(tool => toolEntryDisclosureId(state.message.id, tool)),
           key: tools[0]?.toolCallId ?? '',
           live,
+          silentOffsets,
           startedAt: timelineTools.reduce<number | undefined>(
             (earliest, tool) =>
               tool.timestamp === undefined
@@ -924,10 +933,8 @@ const ToolRun: FC<PropsWithChildren<{ endIndex: number; startIndex: number }>> =
 }) => {
   const messageRunning = useAuiState(selectMessageRunning)
 
-  const { completedAt, count, entryIds, key, live, pendingApprovalTool, startedAt, summary } = useToolRun(
-    startIndex,
-    endIndex
-  )
+  const { completedAt, count, entryIds, key, live, pendingApprovalTool, silentOffsets, startedAt, summary } =
+    useToolRun(startIndex, endIndex)
 
   const sessionId = useStore(useSessionView().$runtimeId)
   const approval = useStore(useMemo(() => sessionApprovalRequest(sessionId), [sessionId]))
@@ -951,6 +958,11 @@ const ToolRun: FC<PropsWithChildren<{ endIndex: number; startIndex: number }>> =
   const unfurled = blocked || rowOpen
   const expanded = live ? unfurled : (persistedOpen ?? false)
 
+  // The ticker shows the latest call that put something on screen. A silent
+  // one at the tail would otherwise take the window and leave it blank.
+  // Always through `toArray`, so a row keeps its key when a silent call lands.
+  const tickerRows = Children.toArray(children).filter((_, offset) => !silentOffsets.includes(offset))
+
   return (
     <div
       className="grid min-w-0 max-w-full gap-(--tool-row-gap) overflow-hidden"
@@ -966,7 +978,7 @@ const ToolRun: FC<PropsWithChildren<{ endIndex: number; startIndex: number }>> =
         startedAt={startedAt}
         summary={summary}
       />
-      {live && !unfurled && <ToolRunTicker>{children}</ToolRunTicker>}
+      {live && !unfurled && <ToolRunTicker>{tickerRows}</ToolRunTicker>}
       {expanded && <div className="grid min-w-0 max-w-full gap-(--tool-row-gap)">{children}</div>}
     </div>
   )

@@ -6,6 +6,7 @@ import { MessageTimelineTimestamp } from '@/components/assistant-ui/thread/timel
 import { SCAFFOLD_LABEL_CLASS } from '@/components/chat/scaffold-row'
 import { Codicon } from '@/components/ui/codicon'
 import { ToolIcon } from '@/components/ui/tool-icon'
+import { useI18n } from '@/i18n'
 import { LinkifiedText } from '@/lib/external-link'
 import { cn } from '@/lib/utils'
 
@@ -14,6 +15,7 @@ const STEER_NOTE_RE = /^steer:(?<text>[\s\S]+)$/
 const REVIEW_NOTE_RE = /^review:(?<label>[^:\n]+):?\s*(?<detail>[\s\S]*)$/
 
 export const SystemMessage: FC = () => {
+  const { t } = useI18n()
   const text = useAuiState(s => messageContentText(s.message.content))
 
   if (!text) {
@@ -53,13 +55,13 @@ export const SystemMessage: FC = () => {
   if (steerNote?.groups) {
     return (
       <MessagePrimitive.Root
-        className="flex max-w-[min(86%,44rem)] items-center gap-1.5 self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-muted-foreground/60"
+        className="flex max-w-[min(86%,44rem)] items-center gap-1.5 self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-(--ui-text-tertiary)"
         data-role="system"
         data-slot="aui_system-message-root"
       >
-        <Codicon className="text-muted-foreground/55" name="compass" size="0.75rem" />
-        <span className="text-muted-foreground/55">steered</span>
-        <span className="text-muted-foreground/35">·</span>
+        <Codicon className="text-(--ui-text-tertiary)" name="compass" size="0.75rem" />
+        <span className="text-(--ui-text-tertiary)">{t.assistant.notices.steered}</span>
+        <span className="text-(--ui-text-quaternary)">·</span>
         <span className="whitespace-pre-wrap">{steerNote.groups.text.trim()}</span> <MessageTimelineTimestamp />
       </MessagePrimitive.Root>
     )
@@ -77,18 +79,18 @@ export const SystemMessage: FC = () => {
     return (
       <MessagePrimitive.Root
         className={cn(
-          'w-[60%] max-w-[44rem] self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-muted-foreground/60',
+          'w-[60%] max-w-[44rem] self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-(--ui-text-tertiary)',
           multiline ? 'text-left' : 'text-center'
         )}
         data-role="system"
         data-slot="aui_system-message-root"
       >
-        <span className="font-mono text-muted-foreground/55">{slashStatus.groups.command}</span>
+        <span className="font-mono text-(--ui-text-tertiary)">{slashStatus.groups.command}</span>
         {multiline ? (
           <LinkifiedText className="mt-0.5 block whitespace-pre-wrap" explicitOnly pretty={false} text={output} />
         ) : (
           <>
-            <span className="mx-1.5 text-muted-foreground/35">·</span>
+            <span className="mx-1.5 text-(--ui-text-quaternary)">·</span>
             <LinkifiedText className="whitespace-pre-wrap" explicitOnly pretty={false} text={output} />
           </>
         )}{' '}
@@ -102,7 +104,7 @@ export const SystemMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       className={cn(
-        'w-[60%] max-w-[44rem] self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-muted-foreground/55',
+        'w-[60%] max-w-[44rem] self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-(--ui-text-tertiary)',
         multiline ? 'text-left' : 'text-center'
       )}
       data-role="system"

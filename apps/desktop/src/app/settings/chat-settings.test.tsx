@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { $activityDensity } from '@/store/activity-density'
 import { $profiles } from '@/store/profile'
 import { $reasoningCollapsedByDefault } from '@/store/reasoning-disclosure'
 import type { ProfileInfo } from '@/types/work4you'
@@ -33,6 +34,7 @@ vi.mock('@/work4you', () => ({
 
 afterEach(() => {
   cleanup()
+  $activityDensity.set('balanced')
   $reasoningCollapsedByDefault.set(false)
   Reflect.deleteProperty(window, 'work4youDesktop')
 })
@@ -66,7 +68,7 @@ async function renderChat() {
 }
 
 describe('Chat settings', () => {
-  it('shows personality, reasoning blocks, collapse thinking, and auto-archive', async () => {
+  it('shows personality, reasoning blocks, activity detail, and auto-archive', async () => {
     window.work4youDesktop = {} as Window['work4youDesktop']
     $profiles.set([
       { has_env: false, is_default: true, model: null, name: 'default' } as unknown as ProfileInfo,
@@ -76,7 +78,9 @@ describe('Chat settings', () => {
 
     expect(await screen.findByText('Personality')).toBeTruthy()
     expect(screen.getByText('Show Reasoning')).toBeTruthy()
-    expect(screen.getByText('Collapse reasoning by default')).toBeTruthy()
+    expect(screen.getByText('Activity detail')).toBeTruthy()
+    // A thought only has a block of its own to collapse in Detailed.
+    expect(screen.queryByText('Collapse reasoning by default')).toBeNull()
     expect(screen.getByText('Auto-archive stale chats')).toBeTruthy()
     expect(screen.queryByText('Timezone')).toBeNull()
     expect(screen.queryByText('Image Attachments')).toBeNull()
@@ -88,7 +92,20 @@ describe('Chat settings', () => {
     expect(screen.getByRole('combobox', { name: 'Configuring:' })).toBeTruthy()
   })
 
+  it('saves the activity detail level and offers collapse thinking only in Detailed', async () => {
+    await renderChat()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Compact' }))
+    expect($activityDensity.get()).toBe('compact')
+    expect(screen.queryByText('Collapse reasoning by default')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Detailed' }))
+    expect($activityDensity.get()).toBe('detailed')
+    expect(await screen.findByText('Collapse reasoning by default')).toBeTruthy()
+  })
+
   it('persists collapse thinking from the chat page', async () => {
+    $activityDensity.set('detailed')
     await renderChat()
 
     const toggle = await screen.findByRole('switch', { name: 'Collapse reasoning by default' })

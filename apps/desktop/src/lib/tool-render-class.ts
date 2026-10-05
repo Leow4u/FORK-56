@@ -50,3 +50,13 @@ const SILENT_TOOL_NAMES = new Set(['react_to_message', 'todo'])
 export function isSilentTool(toolName: string): boolean {
   return SILENT_TOOL_NAMES.has(toolName)
 }
+
+/**
+ * A call that leaves nothing on screen: a silent tool that did not fail. A run
+ * neither counts it in its summary ("Used 1 tool" for a todo update said the
+ * agent did something it shows nowhere) nor gives it a line in the live ticker,
+ * where it was a blank row ticking over the call before it.
+ */
+export function isSilentToolCall(part: { isError?: boolean; toolName?: string }): boolean {
+  return isSilentTool(part.toolName ?? '') && part.isError !== true
+}

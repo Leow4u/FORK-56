@@ -2,7 +2,8 @@ import { type ThreadMessage } from '@assistant-ui/react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { $toolDisclosureStates, $toolViewMode } from '@/store/tool-view'
+import { $activityDensity } from '@/store/activity-density'
+import { $toolDisclosureStates } from '@/store/tool-view'
 
 import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime, userMessage } from '../test-utils'
 
@@ -95,56 +96,124 @@ function runningWorkMessage(): ThreadMessage {
 }
 
 beforeEach(() => {
-  $toolViewMode.set('product')
+  $activityDensity.set('balanced')
   $toolDisclosureStates.set({})
 })
 
 afterEach(() => {
   cleanup()
-  $toolViewMode.set('product')
+  $activityDensity.set('balanced')
   $toolDisclosureStates.set({})
 })
 
-describe('product-mode settle fold', () => {
-  it('collapses work into Worked-for and keeps the answer plus the files closer', async () => {
+const SUMMARY = 'Explored 2 files, edited DuteLog-deck.pptx'
+
+// An older turn: a later exchange follows it, so it folds on its own.
+const olderTurn = (message: ThreadMessage) => [
+  userMessage('user-deck', 'Make the deck.'),
+  message,
+  userMessage('user-ask', 'What is the answer?'),
+  thoughtOnlyMessage()
+]
+
+describe('settled turn', () => {
+  it('says what the turn did on its line and keeps the answer plus the files closer', async () => {
     const { container } = render(
       <ThreadRuntime messages={[settledWorkMessage()]}>
         <Thread />
       </ThreadRuntime>
     )
 
-    expect(await screen.findByText('Worked for 18m')).toBeTruthy()
+    expect(await screen.findByText(SUMMARY)).toBeTruthy()
+    expect(screen.getByText('18m')).toBeTruthy()
     expect(container.textContent).toContain('Here is the five-slide deck.')
     expect(container.textContent).toContain('1 file changed')
-    expect(container.textContent).toContain('DuteLog-deck.pptx')
-    expect(container.textContent).not.toContain('Explored 2 files')
     expect(container.querySelector('[data-slot="aui_thinking-disclosure"]')).toBeNull()
     expect(container.querySelector('[data-slot="aui_turn-duration"]')).toBeNull()
   })
 
-  it('keeps leftover seconds on the Worked-for line', async () => {
+  it('keeps leftover seconds on the line', async () => {
     render(
       <ThreadRuntime messages={[settledWorkMessage(2 * 60 + 51)]}>
         <Thread />
       </ThreadRuntime>
     )
 
-    expect(await screen.findByText('Worked for 2m 51s')).toBeTruthy()
+    expect(await screen.findByText('2m 51s')).toBeTruthy()
   })
 
-  it('expands the diary on click', async () => {
+  it('says a file the turn made was created, not edited', async () => {
+    const message = settledWorkMessage(90) as unknown as { content: Record<string, unknown>[] }
+
+    message.content[3] = {
+      ...message.content[3],
+      result: { inline_diff: 'a/deck.md → b/deck.md\n@@ -0,0 +1,2 @@\n+# Deck\n+Five slides.', path: 'deck.md' }
+    }
+
+    render(
+      <ThreadRuntime messages={[message as unknown as ThreadMessage]}>
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByText('Explored 2 files, created DuteLog-deck.pptx')).toBeTruthy()
+  })
+
+  it('keeps the newest turn open until the next message, in order', async () => {
     const { container } = render(
       <ThreadRuntime messages={[settledWorkMessage()]}>
         <Thread />
       </ThreadRuntime>
     )
 
-    fireEvent.click(await screen.findByText('Worked for 18m'))
+    await screen.findByText(SUMMARY)
+
+    const rows = [...container.querySelectorAll('[data-slot="aui_turn-work-list"] > *')]
+
+    expect(rows.map(row => row.getAttribute('data-slot'))).toEqual([
+      'aui_turn-thought',
+      'tool-block',
+      'tool-block',
+      'tool-block'
+    ])
+    expect(container.textContent).toContain('logo.svg')
+    expect(container.textContent).not.toContain('I will read the brand kit then write the deck.')
+
+    fireEvent.click(screen.getByText('Thought'))
 
     await waitFor(() => {
-      expect(container.textContent).toContain('Explored 2 files')
+      expect(container.textContent).toContain('I will read the brand kit then write the deck.')
     })
-    expect(container.textContent).toContain('I will read the brand kit then write the deck.')
+  })
+
+  it('folds a turn once the next one starts, and opens on click', async () => {
+    const { container } = render(
+      <ThreadRuntime messages={olderTurn(settledWorkMessage())}>
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByText('Forty-two.')).toBeTruthy()
+    expect(container.querySelector('[data-slot="aui_turn-work-list"]')).toBeNull()
+
+    fireEvent.click(screen.getByText(SUMMARY))
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-slot="aui_turn-work-list"]')).not.toBeNull()
+    })
+  })
+
+  it('keeps even the newest turn to its line in Compact', async () => {
+    $activityDensity.set('compact')
+
+    const { container } = render(
+      <ThreadRuntime messages={[settledWorkMessage()]}>
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByText(SUMMARY)).toBeTruthy()
+    expect(container.querySelector('[data-slot="aui_turn-work-list"]')).toBeNull()
   })
 
   it('does not fold a thought-only reply', async () => {
@@ -161,25 +230,32 @@ describe('product-mode settle fold', () => {
 
   it('does not leave a files closer on a previous folded turn', async () => {
     const { container } = render(
-      <ThreadRuntime
-        messages={[
-          userMessage('user-deck', 'Make the deck.'),
-          settledWorkMessage(),
-          userMessage('user-ask', 'What is the answer?'),
-          thoughtOnlyMessage()
-        ]}
-      >
+      <ThreadRuntime messages={olderTurn(settledWorkMessage())}>
         <Thread />
       </ThreadRuntime>
     )
 
     expect(await screen.findByText('Forty-two.')).toBeTruthy()
-    expect(await screen.findByText('Worked for 18m')).toBeTruthy()
+    expect(await screen.findByText(SUMMARY)).toBeTruthy()
     expect(container.querySelector('[data-slot="aui_changed-files"]')).toBeNull()
     expect(container.textContent).not.toContain('1 file changed')
   })
 
-  it('keeps the live staircase while the turn is running', async () => {
+  it('draws the live block, not a staircase, while the turn is running', async () => {
+    const { container } = render(
+      <ThreadRuntime messages={[runningWorkMessage()]}>
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByRole('status', { name: 'Reading logo.svg' })).toBeTruthy()
+    expect(container.querySelector('[data-tool-row]')).toBeNull()
+    expect(container.querySelector('[data-slot="aui_worked-for"]')).toBeNull()
+  })
+
+  it('keeps the live staircase in Detailed', async () => {
+    $activityDensity.set('detailed')
+
     const { container } = render(
       <ThreadRuntime messages={[runningWorkMessage()]}>
         <Thread />
@@ -189,6 +265,21 @@ describe('product-mode settle fold', () => {
     await waitFor(() => {
       expect(container.querySelector('[data-tool-row]')).not.toBeNull()
     })
-    expect(container.querySelector('[data-slot="aui_worked-for"]')).toBeNull()
+    expect(container.querySelector('[data-slot="aui_turn-now"]')).toBeNull()
+  })
+
+  it('counts a failed step on the line and keeps it in the work, not as a card', async () => {
+    const message = settledWorkMessage(90) as unknown as { content: Record<string, unknown>[] }
+
+    message.content[2] = { ...message.content[2], isError: true, result: { error: 'not found' } }
+
+    const { container } = render(
+      <ThreadRuntime messages={olderTurn(message as unknown as ThreadMessage)}>
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByText(`${SUMMARY} · 1 step failed`)).toBeTruthy()
+    expect(container.querySelector('[data-tool-row]')).toBeNull()
   })
 })
