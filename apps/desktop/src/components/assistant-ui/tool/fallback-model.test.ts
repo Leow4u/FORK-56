@@ -10,6 +10,7 @@ import {
   inlineDiffFromResult,
   MAX_TOOL_RENDER_CHARS,
   prettyJson,
+  toolLineTitle,
   type ToolPart
 } from './fallback-model'
 
@@ -391,6 +392,19 @@ describe('buildToolView title actions', () => {
     expect(read.titleAction).toEqual({ prefix: 'demo.txt を', text: '読み取り中', suffix: '' })
     expect(web.title).toBe('example.com/docs を読み取り中')
     expect(web.titleAction).toEqual({ prefix: 'example.com/docs を', text: '読み取り中', suffix: '' })
+  })
+})
+
+describe('toolLineTitle', () => {
+  const running = (toolName: string, path: string) => part({ args: { path }, result: undefined, toolName })
+
+  // A whole-file write may be making its file, and nothing says so until its
+  // diff lands: while it runs, it is writing — not "editing" a file that may
+  // not exist yet.
+  it('says a whole-file write is writing its file, and an edit is editing it', () => {
+    expect(toolLineTitle(running('write_file', 'gastos/index.html'))).toBe('Writing index.html')
+    expect(toolLineTitle(running('edit_file', 'src/app.ts'))).toBe('Editing app.ts')
+    expect(toolLineTitle(running('patch', 'src/app.ts'))).toBe('Editing app.ts')
   })
 })
 

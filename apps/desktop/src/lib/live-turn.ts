@@ -3,15 +3,13 @@ import { isSilentToolCall } from '@/lib/tool-render-class'
 import { messageContentParts, messageIsInterim, partIsError, partText, partToolName, partType } from '@/lib/turn-fold'
 import {
   buildTurnTimeline,
-  failedToolCount,
-  finishedTools,
   type IndexedTurnMessage,
-  latestNote,
   latestThoughtTitle,
   type PartRef,
+  segmentTurn,
   type TimelineItem,
   type TurnAnswer,
-  type TurnCard
+  type TurnSegment
 } from '@/lib/turn-timeline'
 
 /**
@@ -20,9 +18,9 @@ import {
  * The block draws a turn while it is still arriving, so this is rebuilt as
  * parts land — but only when the turn's SHAPE changes: a call starts or comes
  * back, a bubble seals, a note lands, the model starts thinking about something
- * new. Streamed prose is not shape. The answer renders through its own part,
- * which streams on its own, and keeping its characters out of here is what
- * keeps a 30 Hz token stream from re-rendering the whole block.
+ * new. Streamed prose is not shape. Sentences and the answer render through
+ * their own parts, which stream on their own, and keeping their characters out
+ * of here is what keeps a 30 Hz token stream from re-rendering the whole block.
  */
 
 /** What the newest part of the turn is, which is what the status line narrates. */
@@ -30,19 +28,17 @@ export type LiveTail = 'other' | 'reasoning' | 'text'
 
 export interface LiveTurnModel {
   answers: TurnAnswer[]
-  cards: TurnCard[]
-  failed: number
-  /** Calls that came back, in order — the "what's done" line. */
-  finished: unknown[]
-  items: TimelineItem[]
-  note: Extract<TimelineItem, { kind: 'note' }> | null
   /** The newest call still waiting on its result, in the bubble that is streaming. */
   pending: { part: unknown; ref: PartRef } | null
+  /**
+   * The turn so far, as the screen reads it (see `segmentTurn`). The call in
+   * flight and the thought still arriving are left out: the status line says
+   * them, and listing them as well would say the same thing twice.
+   */
+  segments: TurnSegment[]
   tail: LiveTail
   /** The newest heading the model gave its reasoning, '' when it gave none. */
   thinkingAbout: string
-  /** Stable for the life of the turn: its first assistant message. */
-  turnKey: string
 }
 
 interface LiveMessage {
@@ -136,10 +132,10 @@ function liveTail(parts: readonly unknown[]): LiveTail {
 }
 
 export function buildLiveTurnModel(turn: readonly IndexedTurnMessage[]): LiveTurnModel {
-  const { answers, cards, items } = buildTurnTimeline(turn)
-  const finished = finishedTools(items)
+  const timeline = buildTurnTimeline(turn)
   const last = turn.at(-1)
   const lastParts = last ? messageContentParts(last.message) : []
+  const tail = liveTail(lastParts)
   let pending: LiveTurnModel['pending'] = null
 
   // A call in flight lives in the bubble that is streaming; one left without a
@@ -161,16 +157,23 @@ export function buildLiveTurnModel(turn: readonly IndexedTurnMessage[]): LiveTur
     }
   }
 
+  // Reasoning at the very end is the model thinking right now; it joins the
+  // turn as a row once something follows it.
+  const newest = timeline.items.at(-1)
+  const thinking = tail === 'reasoning' && newest?.kind === 'thought' ? newest : null
+
+  const omit = (item: TimelineItem) =>
+    item === thinking ||
+    (item.kind === 'tool' &&
+      pending !== null &&
+      item.ref.messageIndex === pending.ref.messageIndex &&
+      item.ref.partIndex === pending.ref.partIndex)
+
   return {
-    answers,
-    cards,
-    failed: failedToolCount(finished),
-    finished,
-    items,
-    note: latestNote(items),
+    answers: timeline.answers,
     pending,
-    tail: liveTail(lastParts),
-    thinkingAbout: latestThoughtTitle(items),
-    turnKey: turn[0]?.message.id ?? ''
+    segments: segmentTurn(timeline, omit),
+    tail,
+    thinkingAbout: latestThoughtTitle(timeline.items)
   }
 }

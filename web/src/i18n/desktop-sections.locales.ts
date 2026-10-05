@@ -224,6 +224,7 @@ export const desktopSectionsByLocale = {
           }
         },
         clause: (verb, object) => `${verb} ${object}`,
+        repeated: (action, count) => `${action} ${count} vezes`,
         separator: ', '
       },
       titles: {
@@ -347,7 +348,7 @@ export const desktopSectionsByLocale = {
         vision_analyze: { done: 'Analisou imagem', pending: 'Analisando imagem', pendingAction: 'Analisando' },
         web_extract: { done: 'Leu página da web', pending: 'Lendo página da web', pendingAction: 'Lendo' },
         web_search: { done: 'Buscou na web', pending: 'Buscando na web', pendingAction: 'Buscando' },
-        write_file: { done: 'Editou arquivo', pending: 'Editando arquivo', pendingAction: 'Editando' }
+        write_file: { done: 'Escreveu arquivo', pending: 'Escrevendo arquivo', pendingAction: 'Escrevendo' }
       }
     }
   },
@@ -525,6 +526,7 @@ export const desktopSectionsByLocale = {
           run: { count: count => `${count} 件のコマンド`, past: '実行', present: '実行中' }
         },
         clause: (verb, object) => `${object}を${verb}`,
+        repeated: (action, count) => `${action}（${count}回）`,
         separator: '、'
       },
       titles: {
@@ -692,7 +694,7 @@ export const desktopSectionsByLocale = {
           pendingAction: '読み取り中'
         },
         web_search: { done: 'Web を検索しました', pending: 'Web を検索中', pendingAction: '検索中' },
-        write_file: { done: 'ファイルを編集しました', pending: 'ファイルを編集中', pendingAction: '編集中' }
+        write_file: { done: 'ファイルを書き込みました', pending: 'ファイルを書き込み中', pendingAction: '書き込み中' }
       }
     }
   },
@@ -897,6 +899,7 @@ export const desktopSectionsByLocale = {
           run: { count: count => `${count} 条命令`, past: '运行了', present: '正在运行' }
         },
         clause: (verb, object) => `${verb} ${object}`,
+        repeated: (action, count) => `${action}（${count} 次）`,
         separator: '，'
       },
       titles: {
@@ -956,7 +959,7 @@ export const desktopSectionsByLocale = {
         vision_analyze: { done: '已分析图片', pending: '正在分析图片', pendingAction: '正在分析' },
         web_extract: { done: '已读取网页', pending: '正在读取网页', pendingAction: '正在读取' },
         web_search: { done: '已搜索网页', pending: '正在搜索网页', pendingAction: '正在搜索' },
-        write_file: { done: '已编辑文件', pending: '正在编辑文件', pendingAction: '正在编辑' }
+        write_file: { done: '已写入文件', pending: '正在写入文件', pendingAction: '正在写入' }
       }
     }
   },
@@ -1132,6 +1135,7 @@ export const desktopSectionsByLocale = {
           run: { count: count => `${count} 條指令`, past: '執行了', present: '正在執行' }
         },
         clause: (verb, object) => `${verb} ${object}`,
+        repeated: (action, count) => `${action}（${count} 次）`,
         separator: '，'
       },
       titles: {
@@ -1195,7 +1199,7 @@ export const desktopSectionsByLocale = {
         vision_analyze: { done: '已分析圖片', pending: '正在分析圖片', pendingAction: '正在分析' },
         web_extract: { done: '已讀取網頁', pending: '正在讀取網頁', pendingAction: '正在讀取' },
         web_search: { done: '已搜尋網頁', pending: '正在搜尋網頁', pendingAction: '正在搜尋' },
-        write_file: { done: '已編輯檔案', pending: '正在編輯檔案', pendingAction: '正在編輯' }
+        write_file: { done: '已寫入檔案', pending: '正在寫入檔案', pendingAction: '正在寫入' }
       }
     }
   },
@@ -1370,6 +1374,8 @@ export const desktopSectionsByLocale = {
           run: { count: count => (count === 1 ? 'أمرًا واحدًا' : `${count} أوامر`), past: 'شغّل', present: 'يشغّل' }
         },
         clause: (verb, object) => `${verb} ${object}`,
+        repeated: (action, count) =>
+          count === 2 ? `${action} مرتين` : count <= 10 ? `${action} ${count} مرات` : `${action} ${count} مرة`,
         separator: '، '
       },
       titles: {
@@ -1546,9 +1552,9 @@ export const desktopSectionsByLocale = {
           pendingAction: 'جار البحث'
         },
         write_file: {
-          done: 'تم تحرير الملف',
-          pending: 'جار تحرير الملف',
-          pendingAction: 'جار التحرير'
+          done: 'تمت كتابة الملف',
+          pending: 'جار كتابة الملف',
+          pendingAction: 'جار الكتابة'
         }
       }
     }

@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { $activityDensity } from '@/store/activity-density'
+import { setSessionDraftingTool } from '@/store/tool-drafting'
 import { $toolDisclosureStates } from '@/store/tool-view'
 
 import { createdAt, stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime, userMessage } from '../test-utils'
@@ -79,10 +80,19 @@ function renderTurn(messages: ThreadMessage[]) {
   )
 }
 
-/** The lines the block puts on screen for the work — not the reply. */
+/** The lines the block puts on screen for the work — not what the agent said. */
 function workLines(container: HTMLElement) {
   return container.querySelectorAll(
-    '[data-slot="aui_turn-work"] [data-tool-summary], [data-slot="aui_turn-note"], [data-slot="aui_turn-now"] [role="status"], [data-tool-row], [data-slot="aui_thinking-disclosure"]'
+    '[data-slot="aui_turn-group"] [data-tool-summary], [data-slot="aui_turn-thought"], [data-slot="aui_turn-now"] [role="status"], [data-tool-row], [data-slot="aui_thinking-disclosure"]'
+  )
+}
+
+/** What the block draws, top to bottom, by kind. */
+function blockOrder(container: HTMLElement) {
+  return [...container.querySelectorAll('[data-slot="aui_assistant-message-content"] > *')].map(element =>
+    element.classList.contains('aui-md')
+      ? 'prose'
+      : `${element.getAttribute('data-slot')}${element.hasAttribute('data-under-sentence') ? ' (under)' : ''}`
   )
 }
 
@@ -95,29 +105,32 @@ afterEach(() => {
   cleanup()
   $activityDensity.set('balanced')
   $toolDisclosureStates.set({})
+  setSessionDraftingTool(null, '')
 })
 
-describe('live block, balanced', () => {
-  it('shows what is done, the newest note and what is happening now — nothing else', async () => {
+describe('live block', () => {
+  it('shows what the agent said as prose, with one line under it for the work after it', async () => {
     const { container } = renderTurn(liveTurn())
 
-    expect(await screen.findByText('Explored brief.md, ran 1 command')).toBeTruthy()
-    expect(screen.getByText('Reading the brief first, then the notes.')).toBeTruthy()
+    expect(await screen.findByText('Explored brief.md')).toBeTruthy()
+    expect(screen.getByText('Ran 1 command')).toBeTruthy()
     expect(screen.getByRole('status', { name: 'Reading notes.md' })).toBeTruthy()
+    // The sentence is prose, whole — not a line of activity text.
+    expect(screen.getByText('Reading the brief first, then the notes.').closest('.aui-md')).not.toBeNull()
+    expect(blockOrder(container)).toEqual(['aui_turn-group', 'prose', 'aui_turn-group (under)', 'aui_turn-now'])
     expect(container.querySelector('[data-tool-row]')).toBeNull()
     expect(container.querySelector('[data-slot="aui_thinking-disclosure"]')).toBeNull()
-    expect(workLines(container)).toHaveLength(3)
   })
 
-  it('stays at the same few lines however long the turn runs', async () => {
+  it('keeps the work between two sentences to its one line however long it runs', async () => {
     const many = Array.from({ length: 24 }, (_, index) =>
       index % 2 ? read(`r${index}`, `/docs/file-${index}.md`) : command(`c${index}`, `grep -n x file-${index}`)
     )
 
     const { container } = renderTurn(liveTurn([...many, { type: 'reasoning', text: 'Next, the summary.' }]))
 
-    expect(await screen.findByText('Explored 13 files, ran 12 commands')).toBeTruthy()
-    expect(workLines(container).length).toBeLessThanOrEqual(4)
+    expect(await screen.findByText('Explored 12 files, ran 12 commands')).toBeTruthy()
+    expect(workLines(container)).toHaveLength(3)
   })
 
   it('names what the model is thinking about, or says it is thinking', async () => {
@@ -126,6 +139,8 @@ describe('live block, balanced', () => {
     )
 
     expect(await screen.findByRole('status', { name: 'Planning the table' })).toBeTruthy()
+    // Said once: the thought still arriving is the status line's, not a row too.
+    expect(screen.queryByText('Thought · Planning the table')).toBeNull()
     cleanup()
 
     renderTurn([userMessage('ask', 'Hi'), streamingBubble([{ type: 'reasoning', text: 'Short question.' }])])
@@ -140,25 +155,74 @@ describe('live block, balanced', () => {
     expect(screen.getByRole('status', { name: 'Writing' })).toBeTruthy()
   })
 
-  it('opens into the whole turn, in order, one row per thought, call and note', async () => {
+  // While the model drafts a call, the prose before it is the newest text and
+  // reads as the reply. The call arriving turns it into a sentence; it must not
+  // vanish, jump or be redrawn on the way.
+  it('keeps the prose where it is when the call it leads into arrives', async () => {
+    const said = { type: 'text', text: 'Writing the file now.' }
+    const { container, rerender } = renderTurn(liveTurn([command('c1', 'ls docs'), said]))
+    // The prose block, not its paragraph: a paragraph is redrawn whenever its
+    // part stops streaming, reply or sentence alike.
+    const before = (await screen.findByText('Writing the file now.')).closest('.aui-md')
+
+    expect(before).not.toBeNull()
+
+    rerender(
+      <ThreadRuntime
+        messages={liveTurn([
+          command('c1', 'ls docs'),
+          said,
+          {
+            type: 'tool-call',
+            toolCallId: 'w1',
+            toolName: 'write_file',
+            args: { path: '/docs/index.html' },
+            argsText: '{}'
+          }
+        ])}
+      >
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByRole('status', { name: 'Writing index.html' })).toBeTruthy()
+    expect(screen.getByText('Writing the file now.').closest('.aui-md')).toBe(before)
+    expect(blockOrder(container)).toEqual([
+      'aui_turn-group',
+      'prose',
+      'aui_turn-group (under)',
+      'prose',
+      'aui_turn-now'
+    ])
+  })
+
+  // A big file takes the model a while to write out, before the call starts and
+  // names its file. The status line says what is being written in the meantime.
+  it('says what the model is drafting before the call arrives, not a bare verb', async () => {
+    setSessionDraftingTool(null, 'write_file')
+
+    renderTurn(liveTurn([command('c1', 'ls docs'), { type: 'text', text: 'Writing the file now.' }]))
+
+    expect(await screen.findByRole('status', { name: 'Writing file' })).toBeTruthy()
+  })
+
+  it('opens a line into its rows, in order', async () => {
     const { container } = renderTurn(liveTurn())
 
-    fireEvent.click(await screen.findByText('Explored brief.md, ran 1 command'))
+    fireEvent.click(await screen.findByText('Explored brief.md'))
 
     await waitFor(() => {
-      expect(container.querySelectorAll('[data-tool-row]').length).toBe(2)
+      expect(container.querySelectorAll('[data-tool-row]').length).toBe(1)
     })
 
     const rows = [...container.querySelectorAll('[data-slot="aui_turn-work-list"] > *')].map(
       row => row.getAttribute('data-slot') ?? ''
     )
 
-    // The call still running stays on the status line, not in the list.
-    expect(rows).toEqual(['aui_turn-thought', 'tool-block', 'aui_turn-note', 'tool-block'])
-    expect(screen.getByRole('status', { name: 'Reading notes.md' })).toBeTruthy()
+    expect(rows).toEqual(['aui_turn-thought', 'tool-block'])
     expect(screen.getByText('Thought · Scanning the brief')).toBeTruthy()
-    // The note now sits in the list, in its place, instead of under the block.
-    expect(container.querySelectorAll('[data-slot="aui_turn-note"]')).toHaveLength(1)
+    // The call still running stays on the status line, not in a line's rows.
+    expect(screen.getByRole('status', { name: 'Reading notes.md' })).toBeTruthy()
   })
 
   it('keeps a question in the streaming bubble answerable from the block', async () => {
@@ -185,27 +249,20 @@ describe('live block, balanced', () => {
 
     const { container } = renderTurn(liveTurn([failed, read('r2', '/docs/notes.md', false)]))
 
-    expect(await screen.findByText('Explored brief.md, ran 1 command · 1 step failed')).toBeTruthy()
+    expect(await screen.findByText('Ran 1 command · 1 step failed')).toBeTruthy()
     expect(container.querySelector('[data-tool-row]')).toBeNull()
   })
-})
 
-describe('live block, compact', () => {
-  it('is one line until opened', async () => {
+  // The two quieter levels differ only once the turn ends: Balanced leaves the
+  // newest turn open, Compact folds it. While it runs, they read the same.
+  it('reads the same in Compact while the turn runs', async () => {
     $activityDensity.set('compact')
 
     const { container } = renderTurn(liveTurn())
 
     expect(await screen.findByRole('status', { name: 'Reading notes.md' })).toBeTruthy()
-    expect(container.querySelector('[data-slot="aui_turn-note"]')).toBeNull()
-    expect(container.textContent).not.toContain('ran 1 command')
-    expect(workLines(container)).toHaveLength(1)
-
-    fireEvent.click(screen.getByText('Reading notes.md'))
-
-    await waitFor(() => {
-      expect(container.querySelectorAll('[data-tool-row]').length).toBe(2)
-    })
+    expect(screen.getByText('Reading the brief first, then the notes.')).toBeTruthy()
+    expect(blockOrder(container)).toEqual(['aui_turn-group', 'prose', 'aui_turn-group (under)', 'aui_turn-now'])
   })
 })
 

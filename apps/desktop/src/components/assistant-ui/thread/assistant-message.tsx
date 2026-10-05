@@ -216,7 +216,7 @@ export const AssistantMessage: FC<{
             timeline={view.timeline}
           />
         ) : view.kind === 'live' ? (
-          <LiveTurn compact={density === 'compact'} />
+          <LiveTurn />
         ) : (
           <MessagePrimitive.Parts components={MESSAGE_PARTS_COMPONENTS} />
         )}

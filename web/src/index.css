@@ -303,8 +303,7 @@ code { font-size: 0.875rem; }
     [data-slot="tool-block"],
     [data-slot="aui_thinking-disclosure"],
     [data-slot="aui_turn-activity"],
-    [data-slot="aui_turn-work"],
-    [data-slot="aui_turn-note"],
+    [data-slot="aui_turn-group"],
     [data-slot="aui_turn-now"],
     [data-slot="aui_worked-for"],
     .aui-md
@@ -313,8 +312,7 @@ code { font-size: 0.875rem; }
     [data-slot="tool-block"],
     [data-slot="aui_thinking-disclosure"],
     [data-slot="aui_turn-activity"],
-    [data-slot="aui_turn-work"],
-    [data-slot="aui_turn-note"],
+    [data-slot="aui_turn-group"],
     [data-slot="aui_turn-now"],
     [data-slot="aui_worked-for"],
     .aui-md
@@ -331,8 +329,7 @@ code { font-size: 0.875rem; }
     [data-slot="tool-block"],
     [data-slot="aui_thinking-disclosure"],
     [data-slot="aui_turn-activity"],
-    [data-slot="aui_turn-work"],
-    [data-slot="aui_turn-note"],
+    [data-slot="aui_turn-group"],
     [data-slot="aui_turn-now"],
     [data-slot="aui_worked-for"]
   )
@@ -340,12 +337,21 @@ code { font-size: 0.875rem; }
     [data-slot="tool-block"],
     [data-slot="aui_thinking-disclosure"],
     [data-slot="aui_turn-activity"],
-    [data-slot="aui_turn-work"],
-    [data-slot="aui_turn-note"],
+    [data-slot="aui_turn-group"],
     [data-slot="aui_turn-now"],
     [data-slot="aui_worked-for"]
   ) {
   margin-top: var(--scaffold-block-gap);
+}
+
+/* A line of work under a sentence is that sentence's work: it sits close
+   beneath it and steps in, and the full gap opens before the next sentence. */
+[data-slot="aui_assistant-message-content"] > .aui-md + [data-slot="aui_turn-group"][data-under-sentence] {
+  margin-top: var(--tool-row-gap);
+}
+
+[data-slot="aui_turn-group"][data-under-sentence] {
+  padding-inline-start: var(--message-text-indent);
 }
 
 /* RTL support — Arabic and any future right-to-left locale. The i18n provider

@@ -12,14 +12,15 @@ import {
 
 /**
  * One turn's work as a single list, in the order it happened — what the
- * activity block draws when it is opened, live or settled.
+ * activity block draws, live or settled.
  *
  * A turn reaches the transcript spread over several bubbles (every note the
- * agent writes along the way seals one), and each bubble used to draw its own
- * thoughts and its own runs of calls. That is where the staircase came from:
- * Thought, Explored 2 files, Thought, Explored 1 file, a grey paragraph, and so
- * on down the page. Read as one list instead, the turn is three kinds of row —
- * a thought, a call, a note — and the block decides how much of it to show.
+ * agent writes seals one), and each bubble used to draw its own thoughts and
+ * its own runs of calls. That is where the staircase came from: Thought,
+ * Explored 2 files, Thought, Explored 1 file, a grey paragraph, and so on down
+ * the page. Read as one list instead, the turn is three kinds of row — a
+ * thought, a call, a note — and `segmentTurn` turns it into what the screen
+ * shows: each note as prose, and the work between two notes behind one line.
  */
 
 /** Where a part lives, so a row can render inside its own message's context. */
@@ -36,7 +37,12 @@ export type TimelineItem =
   /** Prose the agent wrote along the way — commentary, not the answer. */
   | { key: string; kind: 'note'; ref: PartRef; text: string }
 
+/** A thought or a call: the rows a line of work opens into. */
+export type WorkItem = Exclude<TimelineItem, { kind: 'note' }>
+
 export interface TurnCard {
+  /** How many items came before it, which is where it sits in the turn. */
+  at: number
   key: string
   part: unknown
   ref: PartRef
@@ -143,7 +149,7 @@ export function buildTurnTimeline(messages: readonly IndexedTurnMessage[]): Turn
       const key = partKey(message.id, partIndex, part)
 
       if (isStayOutCardTool(toolName)) {
-        cards.push({ key, part, ref })
+        cards.push({ at: items.length, key, part, ref })
       } else {
         items.push({ key, kind: 'tool', part, ref })
       }
@@ -166,13 +172,6 @@ export function failedToolCount(tools: readonly unknown[]): number {
   return tools.filter(partIsError).length
 }
 
-/** The newest note: the balanced block keeps it on screen as one line. */
-export function latestNote(items: readonly TimelineItem[]): Extract<TimelineItem, { kind: 'note' }> | null {
-  const note = items.findLast(item => item.kind === 'note')
-
-  return note?.kind === 'note' ? note : null
-}
-
 /** The heading of the newest thought that has one, '' when none does. */
 export function latestThoughtTitle(items: readonly TimelineItem[]): string {
   const thought = items.findLast(item => item.kind === 'thought' && item.title)
@@ -180,16 +179,67 @@ export function latestThoughtTitle(items: readonly TimelineItem[]): string {
   return thought?.kind === 'thought' ? thought.title : ''
 }
 
+export type TurnSegment =
+  /** Something the agent wrote along the way: prose, where it was said. */
+  | { key: string; kind: 'sentence'; ref: PartRef }
+  /** A question, an image, a delegation: in its place, never behind a line. */
+  | { card: TurnCard; key: string; kind: 'card' }
+  /** The thoughts and calls between two sentences, behind one line. */
+  | { items: WorkItem[]; key: string; kind: 'work' }
+
 /**
- * A note as one line of plain text: its prose with the markdown marks that
- * would show as stray symbols taken out. The full note opens beneath it.
+ * The turn the way the screen reads it: what the agent said to the user,
+ * whole and in order, and under each sentence one line for the work that came
+ * after it — "Created index.html", which opens into the rows.
+ *
+ * A sentence is the same part whether the turn is still running or has
+ * settled, and whether it was the answer a moment ago: the text before a call
+ * reads as the reply until the call arrives. It keeps the part's key, so the
+ * prose already on screen stays where it is when that happens.
+ *
+ * `omit` leaves rows out without moving the cards — the live block hands the
+ * status line the call in flight and the thought still arriving.
  */
-export function noteLine(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/^\s{0,3}(?:#{1,6}\s+|>\s?|[-*+]\s+|\d+[.)]\s+)/gm, '')
-    .replace(/(\*\*|\*|`)(?=\S)([^\n]*?\S)\1/g, '$2')
-    .replace(/\s+/g, ' ')
-    .trim()
+export function segmentTurn(
+  timeline: Pick<TurnTimeline, 'cards' | 'items'>,
+  omit?: (item: TimelineItem) => boolean
+): TurnSegment[] {
+  const { cards, items } = timeline
+  const segments: TurnSegment[] = []
+  let nextCard = 0
+
+  const placeCards = (upTo: number) => {
+    for (; nextCard < cards.length && cards[nextCard].at <= upTo; nextCard++) {
+      const card = cards[nextCard]
+
+      segments.push({ card, key: card.key, kind: 'card' })
+    }
+  }
+
+  for (const [index, item] of items.entries()) {
+    placeCards(index)
+
+    if (omit?.(item)) {
+      continue
+    }
+
+    if (item.kind === 'note') {
+      segments.push({ key: item.key, kind: 'sentence', ref: item.ref })
+
+      continue
+    }
+
+    const last = segments.at(-1)
+
+    // Keyed by its first row, so a row landing at the end leaves it in place.
+    if (last?.kind === 'work') {
+      last.items.push(item)
+    } else {
+      segments.push({ items: [item], key: `work:${item.key}`, kind: 'work' })
+    }
+  }
+
+  placeCards(items.length)
+
+  return segments
 }

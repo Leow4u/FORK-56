@@ -2958,6 +2958,8 @@ export const ar = defineLocale({
           run: { count: count => (count === 1 ? 'أمرًا واحدًا' : `${count} أوامر`), past: 'شغّل', present: 'يشغّل' }
         },
         clause: (verb, object) => `${verb} ${object}`,
+        repeated: (action, count) =>
+          count === 2 ? `${action} مرتين` : count <= 10 ? `${action} ${count} مرات` : `${action} ${count} مرة`,
         separator: '، '
       },
       titles: {
@@ -3134,9 +3136,9 @@ export const ar = defineLocale({
           pendingAction: 'جار البحث'
         },
         write_file: {
-          done: 'تم تحرير الملف',
-          pending: 'جار تحرير الملف',
-          pendingAction: 'جار التحرير'
+          done: 'تمت كتابة الملف',
+          pending: 'جار كتابة الملف',
+          pendingAction: 'جار الكتابة'
         }
       }
     }

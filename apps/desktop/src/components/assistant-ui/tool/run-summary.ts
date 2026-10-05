@@ -3,6 +3,7 @@ import { summarizeShellCommand } from '@/lib/summarize-command'
 import { firstStringField } from '@/lib/text'
 
 import {
+  catalogToolTitle,
   diffCreatesFile,
   fileEditBasename,
   inlineDiffFromResult,
@@ -89,12 +90,14 @@ function isPending(tool: ToolCallLike): boolean {
 }
 
 /**
- * How a tool reads while it is happening — "Editing", "Exploring". Shared with
- * the status line that covers the gap before a tool starts, so the same run is
- * described in the same words from the moment the model drafts it.
+ * What the status line calls a call the model is still writing. Its arguments
+ * haven't arrived, so there is nothing to name yet: the row's own words for it
+ * ("Writing file", "Running command") where the catalog has them, else the
+ * verb its kind of work reads with ("Using") — never a bare "Editing" that
+ * leaves the user wondering what.
  */
-export function toolPresentVerb(toolName: string): string {
-  return categoryVerb(toolCategory(toolName), 'present')
+export function toolDraftingTitle(toolName: string): string {
+  return catalogToolTitle(toolName, 'pending') || categoryVerb(toolCategory(toolName), 'present')
 }
 
 /** The thing a tool acted on, as the header should name it. */
@@ -121,6 +124,12 @@ function toolTarget(tool: ToolCallLike): string {
  * have a file name lower-cased under it.
  */
 function clause(category: RunCategory, tools: ToolCallLike[], live: boolean, first: boolean): string {
+  const named = category === 'other' && !live ? namedOtherClause(tools, first) : ''
+
+  if (named) {
+    return named
+  }
+
   const tensed = categoryVerb(category, live ? 'present' : 'past')
   const verb = first ? tensed : lowerFirst(tensed)
   const target = tools.length === 1 ? toolTarget(tools[0]) : ''
@@ -134,6 +143,45 @@ function clause(category: RunCategory, tools: ToolCallLike[], live: boolean, fir
 
 function lowerFirst(text: string): string {
   return text.charAt(0).toLowerCase() + text.slice(1)
+}
+
+// Past two kinds, naming each would crowd out the clauses that say what
+// changed, and the count says enough.
+const NAMED_OTHER_KINDS = 2
+
+/**
+ * Calls with no category of their own, by name when there are few kinds of
+ * them: "opened preview, used the preview 3 times" says more than "used 4
+ * tools". Only the catalog's names — a tool it doesn't know would read in
+ * English whatever the app's language — so '' sends the clause back to the
+ * count.
+ */
+function namedOtherClause(tools: readonly ToolCallLike[], first: boolean): string {
+  const runs = new Map<string, number>()
+
+  for (const tool of tools) {
+    runs.set(tool.toolName, (runs.get(tool.toolName) ?? 0) + 1)
+  }
+
+  if (runs.size > NAMED_OTHER_KINDS) {
+    return ''
+  }
+
+  const named: string[] = []
+
+  for (const [toolName, count] of runs) {
+    const title = catalogToolTitle(toolName, 'done')
+
+    if (!title) {
+      return ''
+    }
+
+    const action = first && named.length === 0 ? title : lowerFirst(title)
+
+    named.push(count > 1 ? translateNow('assistant.tool.runSummary.repeated', action, count) : action)
+  }
+
+  return named.join(translateNow('assistant.tool.runSummary.separator'))
 }
 
 /**

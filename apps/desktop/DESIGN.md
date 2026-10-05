@@ -247,21 +247,33 @@ Notes:
   Detailed) decides how much of a turn's work the transcript shows; Detailed
   shows every thought and call as it happens, without exception. In Compact
   and Balanced a live turn is one block (`LiveTurn`) hosted by the turn's
-  first assistant message: what is done (one summary line), the newest note
-  (Balanced), whatever asks the user for something, the reply, and one status
-  line for now — the call in flight, else the model's reasoning heading, else
-  "Thinking", with the plan's step and the turn clock. At most four lines of
-  work however long the turn runs; a thought has no line of its own there.
-  Opened, the block and a settled turn's line show the same list
-  (`TurnWorkList`): every thought, call and note in order, each row rendered
-  inside its own message. Questions, approvals and cards never fold.
+  first assistant message, and the two read the same while it runs. What the
+  agent says to the user along the way is prose, whole and in order — never
+  clipped, never folded into a list. Under each sentence, one line sums up
+  the work that came after it ("Created index.html", "Opened preview, used
+  the preview 3 times") and opens into its rows; that line sits close under
+  its sentence and steps in. Cards (questions, images, delegations) sit
+  where they happened, the reply comes last, and one status line closes the
+  block: the call in flight, else the model's reasoning heading, else
+  "Thinking", with the plan's step and the turn clock. The call in flight and
+  the thought still arriving belong to the status line, not to a row.
+  `segmentTurn` (`src/lib/turn-timeline.ts`) is the one place that splits a
+  turn this way, and sentences keep their part's key, so the text before a
+  call stays on screen when the call arrives instead of jumping or vanishing.
 - **Settled turn** — one line that says what the turn did, in the run-summary
   words ("Explored 8 files, ran 3 commands, created resumo.md"), with the
   duration as meta and failed steps counted on it; a turn with no calls says
-  "Worked for …". At Balanced the newest turn stays open until the next
-  message — only earlier turns fold on their own. A write whose diff starts
-  from nothing reads "created", and every file row carries +N −M after a
-  reload too (the diff is kept as display metadata on its tool row).
+  "Worked for …". Closed, only the cards and the reply stay out. Opened, it
+  reads the way it ran — the same stream as the live block; a turn that said
+  nothing along the way opens straight into its rows. At Balanced the newest
+  turn stays open until the next message — only earlier turns fold on their
+  own; Compact folds it as soon as it ends. A write whose diff starts from
+  nothing reads "created", and every file row carries +N −M after a reload
+  too (the diff is kept as display metadata on its tool row).
+- **Status words** — while the model writes a call out, before it has a
+  target, the status line uses the row's own words ("Writing file", "Running
+  command"), never a bare category verb. A whole-file write reads "Writing
+  index.html" while it runs.
 - **Composer context bar** — empty-chat workspace picker. A second capsule
   (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
   card as a sibling vessel, not a well inside it: same width, same

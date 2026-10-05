@@ -3148,6 +3148,7 @@ export const zhHant = defineLocale({
           run: { count: count => `${count} 條指令`, past: '執行了', present: '正在執行' }
         },
         clause: (verb, object) => `${verb} ${object}`,
+        repeated: (action, count) => `${action}（${count} 次）`,
         separator: '，'
       },
       titles: {
@@ -3211,7 +3212,7 @@ export const zhHant = defineLocale({
         vision_analyze: { done: '已分析圖片', pending: '正在分析圖片', pendingAction: '正在分析' },
         web_extract: { done: '已讀取網頁', pending: '正在讀取網頁', pendingAction: '正在讀取' },
         web_search: { done: '已搜尋網頁', pending: '正在搜尋網頁', pendingAction: '正在搜尋' },
-        write_file: { done: '已編輯檔案', pending: '正在編輯檔案', pendingAction: '正在編輯' }
+        write_file: { done: '已寫入檔案', pending: '正在寫入檔案', pendingAction: '正在寫入' }
       }
     }
   },

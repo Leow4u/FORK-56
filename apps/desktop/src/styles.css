@@ -2216,8 +2216,7 @@ body.guest-pointer-lock :is(webview, iframe) {
     [data-slot='tool-block'],
     [data-slot='aui_thinking-disclosure'],
     [data-slot='aui_turn-activity'],
-    [data-slot='aui_turn-work'],
-    [data-slot='aui_turn-note'],
+    [data-slot='aui_turn-group'],
     [data-slot='aui_turn-now'],
     [data-slot='aui_worked-for'],
     .aui-md
@@ -2226,8 +2225,7 @@ body.guest-pointer-lock :is(webview, iframe) {
     [data-slot='tool-block'],
     [data-slot='aui_thinking-disclosure'],
     [data-slot='aui_turn-activity'],
-    [data-slot='aui_turn-work'],
-    [data-slot='aui_turn-note'],
+    [data-slot='aui_turn-group'],
     [data-slot='aui_turn-now'],
     [data-slot='aui_worked-for'],
     .aui-md
@@ -2253,8 +2251,7 @@ body.guest-pointer-lock :is(webview, iframe) {
     [data-slot='tool-block'],
     [data-slot='aui_thinking-disclosure'],
     [data-slot='aui_turn-activity'],
-    [data-slot='aui_turn-work'],
-    [data-slot='aui_turn-note'],
+    [data-slot='aui_turn-group'],
     [data-slot='aui_turn-now'],
     [data-slot='aui_worked-for']
   )
@@ -2262,12 +2259,24 @@ body.guest-pointer-lock :is(webview, iframe) {
     [data-slot='tool-block'],
     [data-slot='aui_thinking-disclosure'],
     [data-slot='aui_turn-activity'],
-    [data-slot='aui_turn-work'],
-    [data-slot='aui_turn-note'],
+    [data-slot='aui_turn-group'],
     [data-slot='aui_turn-now'],
     [data-slot='aui_worked-for']
   ) {
   margin-top: var(--scaffold-block-gap);
+}
+
+/* And except a line of work under a sentence: it is that sentence's work, so
+   it sits close beneath it and steps in, and the full gap opens before the
+   next sentence instead. The one place the column's single left edge gives:
+   without the step, each line floats halfway between two sentences and reads
+   as belonging to neither. */
+[data-slot='aui_assistant-message-content'] > .aui-md + [data-slot='aui_turn-group'][data-under-sentence] {
+  margin-top: var(--tool-row-gap);
+}
+
+[data-slot='aui_turn-group'][data-under-sentence] {
+  padding-inline-start: var(--message-text-indent);
 }
 
 /* Except a file edit, which is the deliverable rather than another line in the
