@@ -1,28 +1,26 @@
 import { atom, computed, type ReadableAtom } from 'nanostores'
 
-import { persistBoolean } from '@/lib/storage'
+import { $activityDensity } from './activity-density'
 
 export type ToolViewMode = 'product' | 'technical'
 
 type ToolDisclosureStates = Record<string, boolean>
 
-const TOOL_VIEW_TECHNICAL_STORAGE_KEY = 'work4you.desktop.toolView.technical'
 const TOOL_DISCLOSURE_STORAGE_KEY = 'work4you.desktop.toolDisclosure.v1'
 const MAX_DISCLOSURE_STATES = 240
 
-// Product is the only view Settings offers. A stored technical choice is not
-// restored; the next write clears it.
-export const $toolViewMode = atom<ToolViewMode>('product')
+// How a tool row renders follows the transcript density. Detailed is the
+// technical view — every row expands and carries its raw payload; Compact and
+// Balanced are the product view. The old standalone technical toggle is gone,
+// and a choice it stored is not restored.
+export const $toolViewMode: ReadableAtom<ToolViewMode> = computed($activityDensity, density =>
+  density === 'detailed' ? 'technical' : 'product'
+)
 export const $toolDisclosureStates = atom<ToolDisclosureStates>(loadToolDisclosureStates())
 const disclosureOpenCache = new Map<string, ReadableAtom<boolean | undefined>>()
 const anyDisclosureOpenCache = new Map<string, ReadableAtom<boolean>>()
 
-$toolViewMode.subscribe(mode => persistBoolean(TOOL_VIEW_TECHNICAL_STORAGE_KEY, mode === 'technical'))
 $toolDisclosureStates.subscribe(persistToolDisclosureStates)
-
-export function setToolViewMode(mode: ToolViewMode) {
-  $toolViewMode.set(mode)
-}
 
 export function $toolDisclosureOpen(id: string): ReadableAtom<boolean | undefined> {
   let cached = disclosureOpenCache.get(id)

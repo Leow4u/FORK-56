@@ -87,11 +87,9 @@ export function classifyPart(part: unknown, index: number, lastToolIndex: number
     return 'silent'
   }
 
-  if (partIsError(part) || isStayOutCardTool(toolName)) {
-    return 'card'
-  }
-
-  return 'diary'
+  // A failed read or command is a step that went wrong, not something the user
+  // has to act on: it stays in the work, where the turn's line counts it.
+  return isStayOutCardTool(toolName) ? 'card' : 'diary'
 }
 
 export function classifyTurnParts(parts: readonly unknown[], options: ClassifyTurnOptions = {}): FoldPart[] {
@@ -168,6 +166,21 @@ export function isMessageInLastTurn(roles: readonly string[], index: number): bo
   }
 
   return index > lastUser
+}
+
+/** The turn's first assistant message: the one that exists from the moment the turn starts. */
+export function isFirstAssistantInTurn(roles: readonly string[], index: number): boolean {
+  if (roles[index] !== 'assistant') {
+    return false
+  }
+
+  for (let i = index - 1; i >= 0 && roles[i] !== 'user'; i--) {
+    if (roles[i] === 'assistant') {
+      return false
+    }
+  }
+
+  return true
 }
 
 export function isLastAssistantInTurn(roles: readonly string[], index: number): boolean {

@@ -489,8 +489,11 @@ export interface Translations {
       title: string
       colorMode: string
       colorModeDesc: string
-      toolViewTitle: string
-      toolViewDesc: string
+      activityDensityTitle: string
+      activityDensityDesc: string
+      activityDensityCompact: string
+      activityDensityBalanced: string
+      activityDensityDetailed: string
       reasoningCollapsedTitle: string
       uiScaleTitle: string
       sessionDensityTitle: string
@@ -3687,6 +3690,9 @@ export interface Translations {
       worked: string
       workedFor: (duration: string) => string
       turnDuration: (duration: string) => string
+      writing: string
+      stepOf: (step: number, total: number) => string
+      thoughtAbout: (title: string) => string
       today: (time: string) => string
       yesterday: (time: string) => string
       copy: string

@@ -1,39 +1,41 @@
 import { useAuiState } from '@assistant-ui/react'
 import { useStore } from '@nanostores/react'
-import { type FC, type ReactNode, useRef } from 'react'
+import { type FC, useMemo, useRef } from 'react'
 
-import { MarkdownTextContent } from '@/components/assistant-ui/markdown-text'
-import { ChainToolFallback } from '@/components/assistant-ui/thread/message-parts'
+import { TurnAnswers, TurnCards, TurnWorkList } from '@/components/assistant-ui/thread/turn-work'
 import { WorkedForDisclosure } from '@/components/assistant-ui/thread/worked-for'
-import { splitRunItems, ToolFallback } from '@/components/assistant-ui/tool/fallback'
-import type { ToolPart } from '@/components/assistant-ui/tool/fallback-model'
-import { summarizeToolRun } from '@/components/assistant-ui/tool/run-summary'
-import { SCAFFOLD_LABEL_CLASS, ScaffoldRow } from '@/components/chat/scaffold-row'
-import { FadeText } from '@/components/ui/fade-text'
 import {
-  assistantTurnSlice,
-  classifiedByRole,
-  classifyTurnParts,
-  type FoldPart,
+  isFirstAssistantInTurn,
   isLastAssistantInTurn,
   isMessageInLastTurn,
   messageContentParts,
   messageDurationS,
-  messageIsInterim,
-  partText,
-  partToolName,
-  partType,
-  shouldFoldTurn,
   turnDurationS
 } from '@/lib/turn-fold'
-import { cn } from '@/lib/utils'
+import { buildTurnTimeline, failedToolCount, finishedTools, type TurnTimeline } from '@/lib/turn-timeline'
+import type { ActivityDensity } from '@/store/activity-density'
 import { $toolDisclosureOpen, setToolDisclosureOpen } from '@/store/tool-view'
 
 const PASSTHROUGH = { kind: 'passthrough' } as const
 const HIDE = { kind: 'hide' } as const
+const LIVE = { kind: 'live' } as const
 
-export type TurnFoldView =
-  typeof HIDE | typeof PASSTHROUGH | { classified: FoldPart[]; durationS?: number; kind: 'host'; parts: unknown[] }
+/**
+ * How one assistant message draws itself, decided for its whole turn.
+ *
+ * - `passthrough`: its own parts, as they come — Detailed, and turns with no
+ *   work to fold (a thought and a reply).
+ * - `live`: the activity block for the turn in progress. Only the turn's first
+ *   assistant message hosts it; see `LiveTurn`.
+ * - `host`: a settled turn, folded behind one line. The LAST assistant message
+ *   hosts it, since the reply's footer and actions belong to that message.
+ * - `hide`: every other bubble of a live or folded turn.
+ */
+export type TurnView =
+  | typeof HIDE
+  | typeof LIVE
+  | typeof PASSTHROUGH
+  | { durationS?: number; kind: 'host'; parts: unknown[]; timeline: TurnTimeline }
 
 type ThreadFoldMessage = {
   content: unknown
@@ -44,153 +46,11 @@ type ThreadFoldMessage = {
   status?: { type?: string }
 }
 
-function asToolPart(part: unknown): ToolPart {
-  const record = part && typeof part === 'object' ? (part as Record<string, unknown>) : {}
-
-  return {
-    args: record.args,
-    completedAt: typeof record.completedAt === 'number' ? record.completedAt : undefined,
-    isError: record.isError === true,
-    result: record.result,
-    timestamp: typeof record.timestamp === 'number' ? record.timestamp : undefined,
-    toolCallId: typeof record.toolCallId === 'string' ? record.toolCallId : '',
-    toolName: typeof record.toolName === 'string' ? record.toolName : '',
-    type: 'tool-call'
-  }
-}
-
-function toolPartProps(part: ToolPart) {
-  return {
-    args: part.args ?? {},
-    argsText: '',
-    completedAt: part.completedAt,
-    isError: Boolean(part.isError),
-    result: part.result,
-    timestamp: part.timestamp,
-    toolCallId: part.toolCallId ?? '',
-    toolName: part.toolName
-  } as Parameters<typeof ToolFallback>[0]
-}
-
-function DiaryProse({ text }: { text: string }) {
-  return (
-    <div data-conversation-scaffold="" data-slot="aui_process-prose">
-      <MarkdownTextContent
-        containerClassName="text-xs leading-snug text-muted-foreground"
-        disableArtifacts
-        isRunning={false}
-        text={text}
-      />
-    </div>
-  )
-}
-
-function DiaryRun({ tools }: { tools: ToolPart[] }) {
-  const disclosureId = `diary-run:${tools[0]?.toolCallId ?? tools[0]?.toolName ?? 'run'}`
-  const persistedOpen = useStore($toolDisclosureOpen(disclosureId))
-  const open = persistedOpen ?? false
-  const summary = summarizeToolRun(tools, false)
-
-  if (tools.length < 2) {
-    return <ToolFallback {...toolPartProps(tools[0])} />
-  }
-
-  return (
-    <div className="grid min-w-0 max-w-full gap-(--tool-row-gap)" data-slot="tool-block" data-tool-group="">
-      <div data-conversation-scaffold="" data-tool-summary="">
-        <ScaffoldRow onToggle={() => setToolDisclosureOpen(disclosureId, !open)} open={open}>
-          <FadeText className={cn(SCAFFOLD_LABEL_CLASS, 'truncate')}>{summary}</FadeText>
-        </ScaffoldRow>
-      </div>
-      {open
-        ? tools.map(tool => <ToolFallback key={tool.toolCallId || tool.toolName} {...toolPartProps(tool)} />)
-        : null}
-    </div>
-  )
-}
-
-function DiaryTools({ tools }: { tools: ToolPart[] }) {
-  const items = splitRunItems(tools.map(tool => tool.toolName))
-
-  return (
-    <>
-      {items.map(item =>
-        item.kind === 'card' ? (
-          <ToolFallback key={tools[item.index]?.toolCallId || item.index} {...toolPartProps(tools[item.index])} />
-        ) : (
-          <DiaryRun key={tools[item.start]?.toolCallId || item.start} tools={tools.slice(item.start, item.end + 1)} />
-        )
-      )}
-    </>
-  )
-}
-
-function renderDiary(entries: readonly FoldPart[]): ReactNode[] {
-  const nodes: ReactNode[] = []
-  let index = 0
-
-  while (index < entries.length) {
-    const part = entries[index].part
-    const type = partType(part)
-
-    if (type === 'reasoning') {
-      const start = index
-      const chunks: string[] = []
-
-      while (index < entries.length && partType(entries[index].part) === 'reasoning') {
-        const text = partText(entries[index].part).trim()
-
-        if (text) {
-          chunks.push(text)
-        }
-
-        index += 1
-      }
-
-      if (chunks.length > 0) {
-        nodes.push(<DiaryProse key={`thought:${start}`} text={chunks.join('\n\n')} />)
-      }
-
-      continue
-    }
-
-    if (type === 'text') {
-      const text = partText(part).trim()
-
-      if (text) {
-        nodes.push(<DiaryProse key={`text:${index}`} text={text} />)
-      }
-
-      index += 1
-
-      continue
-    }
-
-    if (type === 'tool-call') {
-      const start = index
-      const tools: ToolPart[] = []
-
-      while (index < entries.length && partType(entries[index].part) === 'tool-call') {
-        tools.push(asToolPart(entries[index].part))
-        index += 1
-      }
-
-      nodes.push(<DiaryTools key={`tools:${start}:${partToolName(part)}`} tools={tools} />)
-
-      continue
-    }
-
-    index += 1
-  }
-
-  return nodes
-}
-
-export function useTurnFold(productMode: boolean): TurnFoldView {
-  const cache = useRef<{ signature: string; value: TurnFoldView } | null>(null)
+export function useTurnView(density: ActivityDensity): TurnView {
+  const cache = useRef<{ signature: string; value: TurnView } | null>(null)
 
   return useAuiState(state => {
-    if (!productMode) {
+    if (density === 'detailed') {
       return PASSTHROUGH
     }
 
@@ -198,41 +58,53 @@ export function useTurnFold(productMode: boolean): TurnFoldView {
     const messages = state.thread.messages as unknown as ThreadFoldMessage[]
     const index = messages.findIndex(entry => entry.id === message.id)
     const roles = messages.map(entry => entry.role)
-    const inLiveTurn = state.thread.isRunning && isMessageInLastTurn(roles, index)
 
-    if (message.status?.type === 'running' || inLiveTurn) {
+    // The turn is live while the app says it is working, or while the thread's
+    // tail is an assistant bubble still streaming — the first turn of a new
+    // chat streams a flush before the busy flag catches up. A bubble left
+    // streaming under a later note (a steer, with the runtime idle) is not.
+    const tail = messages.at(-1)
+    const tailStreaming = tail?.role === 'assistant' && tail.status?.type === 'running'
+
+    if (isMessageInLastTurn(roles, index) && (state.thread.isRunning || tailStreaming)) {
+      return isFirstAssistantInTurn(roles, index) ? LIVE : HIDE
+    }
+
+    // A bubble left streaming in an earlier turn (a turn that ended without its
+    // settle event) draws itself rather than borrowing a live block.
+    if (message.status?.type === 'running') {
       return PASSTHROUGH
     }
 
-    const assistants = assistantTurnSlice(messages, message.id)
+    const assistants = turnAssistants(messages, index)
 
     const signature = assistants
-      .map(entry => `${entry.id}:${messageContentParts(entry).length}:${messageDurationS(entry) ?? ''}`)
+      .map(({ message: entry }) => `${entry.id}:${messageContentParts(entry).length}:${messageDurationS(entry) ?? ''}`)
+      .concat(String(isLastAssistantInTurn(roles, index)))
       .join('|')
 
     if (cache.current?.signature === signature) {
       return cache.current.value
     }
 
-    const classified: FoldPart[] = []
-    const parts: unknown[] = []
+    const timeline = buildTurnTimeline(assistants)
 
-    for (const assistant of assistants) {
-      for (const entry of classifyTurnParts(messageContentParts(assistant), { interim: messageIsInterim(assistant) })) {
-        classified.push(entry)
-        parts.push(entry.part)
-      }
-    }
-
-    if (!shouldFoldTurn(classified)) {
+    // A turn that only thought before replying keeps its Thought row: there is
+    // no work to fold, and one line standing in for one line saves nothing.
+    if (!timeline.items.some(item => item.kind !== 'thought')) {
       cache.current = { signature, value: PASSTHROUGH }
 
       return PASSTHROUGH
     }
 
-    const host = isLastAssistantInTurn(roles, index)
-
-    const value: TurnFoldView = host ? { classified, durationS: turnDurationS(assistants), kind: 'host', parts } : HIDE
+    const value: TurnView = isLastAssistantInTurn(roles, index)
+      ? {
+          durationS: turnDurationS(assistants.map(entry => entry.message)),
+          kind: 'host',
+          parts: assistants.flatMap(entry => messageContentParts(entry.message)),
+          timeline
+        }
+      : HIDE
 
     cache.current = { signature, value }
 
@@ -240,39 +112,47 @@ export function useTurnFold(productMode: boolean): TurnFoldView {
   })
 }
 
+/** The assistant messages of the turn around `index`, with their thread positions. */
+function turnAssistants(messages: readonly ThreadFoldMessage[], index: number) {
+  let start = index
+
+  while (start > 0 && messages[start - 1].role !== 'user') {
+    start -= 1
+  }
+
+  const turn: { index: number; message: ThreadFoldMessage }[] = []
+
+  for (let at = start; at < messages.length && messages[at].role !== 'user'; at++) {
+    if (messages[at].role === 'assistant') {
+      turn.push({ index: at, message: messages[at] })
+    }
+  }
+
+  return turn
+}
+
 export const SettledProductTurn: FC<{
-  classified: readonly FoldPart[]
   durationS?: number
   messageId: string
-}> = ({ classified, durationS, messageId }) => {
+  timeline: TurnTimeline
+}> = ({ durationS, messageId, timeline }) => {
   const disclosureId = `turn-work:${messageId}`
   const persistedOpen = useStore($toolDisclosureOpen(disclosureId))
   const open = persistedOpen ?? false
-  const diary = classifiedByRole(classified, 'diary')
-  const cards = classifiedByRole(classified, 'card')
-
-  const answers = classifiedByRole(classified, 'answer')
-    .map(entry => partText(entry.part).trim())
-    .filter(Boolean)
+  const failed = useMemo(() => failedToolCount(finishedTools(timeline.items)), [timeline.items])
 
   return (
     <>
       <WorkedForDisclosure
         durationS={durationS}
+        failed={failed}
         onToggle={() => setToolDisclosureOpen(disclosureId, !open)}
         open={open}
       >
-        {renderDiary(diary)}
+        <TurnWorkList items={timeline.items} />
       </WorkedForDisclosure>
-      {cards.map((entry, index) => (
-        <ChainToolFallback
-          key={asToolPart(entry.part).toolCallId || `card:${index}`}
-          {...toolPartProps(asToolPart(entry.part))}
-        />
-      ))}
-      {answers.map((text, index) => (
-        <MarkdownTextContent isRunning={false} key={`answer:${index}`} text={text} />
-      ))}
+      <TurnCards cards={timeline.cards} />
+      <TurnAnswers answers={timeline.answers} />
     </>
   )
 }

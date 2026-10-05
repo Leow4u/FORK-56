@@ -4,6 +4,7 @@ import {
   assistantTurnSlice,
   classifyTurnParts,
   formatWorkedDuration,
+  isFirstAssistantInTurn,
   isLastAssistantInTurn,
   isMessageInLastTurn,
   lastAnswerBoundaryIndex,
@@ -48,7 +49,7 @@ describe('lastAnswerBoundaryIndex', () => {
 })
 
 describe('classifyTurnParts', () => {
-  it('keeps clarify, images, delegation and errors on the transcript', () => {
+  it('keeps clarify, images and delegation on the transcript, and a failed step in the work', () => {
     const parts = [
       tool('clarify'),
       tool('read_file'),
@@ -63,7 +64,7 @@ describe('classifyTurnParts', () => {
       'diary',
       'diary',
       'card',
-      'card',
+      'diary',
       'answer'
     ])
   })
@@ -100,6 +101,15 @@ describe('turn geometry', () => {
   it('treats everything after the last user message as the open turn', () => {
     expect(isMessageInLastTurn(['user', 'assistant', 'user', 'assistant', 'assistant'], 3)).toBe(true)
     expect(isMessageInLastTurn(['user', 'assistant', 'user', 'assistant'], 1)).toBe(false)
+  })
+
+  it('names the first assistant bubble as the live host', () => {
+    const roles = ['user', 'assistant', 'system', 'assistant', 'user', 'assistant']
+
+    expect(isFirstAssistantInTurn(roles, 1)).toBe(true)
+    expect(isFirstAssistantInTurn(roles, 3)).toBe(false)
+    expect(isFirstAssistantInTurn(roles, 5)).toBe(true)
+    expect(isFirstAssistantInTurn(roles, 4)).toBe(false)
   })
 
   it('names the last assistant bubble as the fold host', () => {

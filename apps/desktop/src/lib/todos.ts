@@ -86,3 +86,22 @@ export function latestSessionTodos(messages: readonly { parts?: unknown }[]): nu
 
   return null
 }
+
+/**
+ * Where a plan stands, as "step k of n" — the item being worked on, or the one
+ * after the last finished item when none is marked in progress. Cancelled items
+ * count on neither side. `null` when there is no plan worth counting: a single
+ * item, or a list with nothing left to do.
+ */
+export function todoStep(todos: readonly TodoItem[]): null | { step: number; total: number } {
+  const counted = todos.filter(todo => todo.status !== 'cancelled')
+
+  if (counted.length < 2 || !counted.some(todo => todo.status === 'pending' || todo.status === 'in_progress')) {
+    return null
+  }
+
+  const active = counted.findIndex(todo => todo.status === 'in_progress')
+  const done = counted.filter(todo => todo.status === 'completed').length
+
+  return { step: active >= 0 ? active + 1 : Math.min(done + 1, counted.length), total: counted.length }
+}

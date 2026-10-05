@@ -23,6 +23,14 @@ describe('summarizeToolRun', () => {
     expect(settled([searched('toolRuns'), read('a.ts'), read('b.ts'), read('c.ts')])).toBe('Explored 4 files')
   })
 
+  it('reads a whole turn as look, try, then change', () => {
+    const edited = tool('write_file', { path: 'docs/resumo.md' }, { ok: true })
+
+    expect(settled([edited, ran('ls'), read('a.ts'), read('b.ts')])).toBe(
+      'Explored 2 files, ran 1 command, edited resumo.md'
+    )
+  })
+
   it('orders clauses explore then run regardless of call order', () => {
     expect(settled([ran('ls'), read('a.ts'), read('b.ts'), ran('pwd'), ran('id')])).toBe(
       'Explored 2 files, ran 3 commands'

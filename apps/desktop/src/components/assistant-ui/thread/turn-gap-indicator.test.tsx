@@ -7,6 +7,7 @@ import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { __resetElapsedTimerRegistryForTests } from '@/components/chat/activity-timer'
+import { $activityDensity } from '@/store/activity-density'
 import { $activeSessionId, $busy, $messages, $turnStartedAt } from '@/store/session'
 
 import { stubThreadEnvironment, ThreadRuntime, userMessage } from '../test-utils'
@@ -46,6 +47,8 @@ const timerText = (value: string) => screen.getAllByText((_, node) => node?.text
 
 describe('the turn timer covers the gaps, not just the streaming', () => {
   beforeEach(() => {
+    // Detailed's tail row; the live block's status line is covered below.
+    $activityDensity.set('detailed')
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
     vi.spyOn(globalThis.document, 'hasFocus').mockReturnValue(true)
@@ -58,6 +61,7 @@ describe('the turn timer covers the gaps, not just the streaming', () => {
 
   afterEach(() => {
     cleanup()
+    $activityDensity.set('balanced')
     $activeSessionId.set(null)
     $turnStartedAt.set(null)
     $busy.set(false)
@@ -115,5 +119,46 @@ describe('the turn timer covers the gaps, not just the streaming', () => {
     act(() => vi.advanceTimersByTime(7_000))
 
     expect(container.querySelector('[data-slot="aui_turn-activity"]')).toBeNull()
+  })
+})
+
+describe('the live block status line covers the whole turn', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
+    vi.spyOn(globalThis.document, 'hasFocus').mockReturnValue(true)
+    __resetElapsedTimerRegistryForTests()
+    $activeSessionId.set(sessionId)
+    $messages.set([])
+    $turnStartedAt.set(Date.now())
+    $busy.set(true)
+  })
+
+  afterEach(() => {
+    cleanup()
+    $activeSessionId.set(null)
+    $turnStartedAt.set(null)
+    $busy.set(false)
+    __resetElapsedTimerRegistryForTests()
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('times the gap between a finished call and the next thing from the turn start', () => {
+    render(<Harness messages={[userMessage('u1', 'read it'), assistant('a1', [toolCall('read_file', true)], true)]} />)
+
+    act(() => vi.advanceTimersByTime(9_000))
+
+    expect(screen.getByRole('status', { name: 'Thinking' })).toBeTruthy()
+    expect(timerText('9s').length).toBeGreaterThan(0)
+  })
+
+  it('names the call in flight rather than going quiet under it', () => {
+    render(<Harness messages={[userMessage('u1', 'run it'), assistant('a1', [toolCall('terminal', false)], true)]} />)
+
+    act(() => vi.advanceTimersByTime(9_000))
+
+    expect(screen.getByRole('status', { name: 'Running command' })).toBeTruthy()
+    expect(timerText('9s').length).toBeGreaterThan(0)
   })
 })

@@ -2,11 +2,12 @@ import { type ThreadMessage } from '@assistant-ui/react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { $activityDensity } from '@/store/activity-density'
 import { $displayTimestamps } from '@/store/display-timestamps'
 import { clearAllPrompts, setApprovalRequest } from '@/store/prompts'
 import { $activeSessionId } from '@/store/session'
 import { clearDismissedToolRows } from '@/store/tool-dismiss'
-import { $toolDisclosureStates, $toolViewMode } from '@/store/tool-view'
+import { $toolDisclosureStates } from '@/store/tool-view'
 
 import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime } from '../test-utils'
 import { Thread } from '../thread'
@@ -493,7 +494,7 @@ beforeEach(() => {
   clearAllPrompts()
   $activeSessionId.set('sess-1')
   $toolDisclosureStates.set({})
-  $toolViewMode.set('technical')
+  $activityDensity.set('detailed')
   clearDismissedToolRows()
 })
 
@@ -501,7 +502,7 @@ afterEach(() => {
   cleanup()
   clearAllPrompts()
   $activeSessionId.set(null)
-  $toolViewMode.set('product')
+  $activityDensity.set('balanced')
   clearDismissedToolRows()
 })
 

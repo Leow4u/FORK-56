@@ -4,7 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useI18n } from '@/i18n'
+import { triggerHaptic } from '@/lib/haptics'
+import { $activityDensity, type ActivityDensity, setActivityDensity } from '@/store/activity-density'
 import { notifyError } from '@/store/notifications'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import { repoDiscoveryPolicyFromConfig, repoDiscoveryPolicySignature, scanAndRecordRepos } from '@/store/projects'
@@ -30,7 +33,15 @@ import {
 import { MemoryConnect } from './memory/connect'
 import { ProviderConfigPanel } from './memory/provider-config-panel'
 import { ModelSettings, ModelSettingsSkeleton } from './model-settings'
-import { EmptyState, SectionHeading, SettingsContent, SettingsGroup, SettingsSkeleton, ToggleRow } from './primitives'
+import {
+  EmptyState,
+  ListRow,
+  SectionHeading,
+  SettingsContent,
+  SettingsGroup,
+  SettingsSkeleton,
+  ToggleRow
+} from './primitives'
 import { SettingsProfileScope } from './profile-scope'
 import { AutoArchiveSetting } from './sessions-settings'
 
@@ -361,6 +372,7 @@ function ConfigSettingsInner({
           ))}
           {activeSectionId === 'chat' ? (
             <>
+              <ActivityDensitySetting />
               <CollapseThinkingSetting />
               <AutoArchiveSetting />
             </>
@@ -373,12 +385,50 @@ function ConfigSettingsInner({
   )
 }
 
+/** How much of the agent's work the transcript shows — a device preference,
+ *  like the collapse below it (see `store/activity-density`). */
+function ActivityDensitySetting() {
+  const { t } = useI18n()
+  const a = t.settings.appearance
+  const density = useStore($activityDensity)
+
+  const options = [
+    { id: 'compact', label: a.activityDensityCompact },
+    { id: 'balanced', label: a.activityDensityBalanced },
+    { id: 'detailed', label: a.activityDensityDetailed }
+  ] as const satisfies readonly { id: ActivityDensity; label: string }[]
+
+  return (
+    <ListRow
+      action={
+        <SegmentedControl
+          onChange={id => {
+            triggerHaptic('selection')
+            setActivityDensity(id)
+          }}
+          options={options}
+          value={density}
+        />
+      }
+      description={a.activityDensityDesc}
+      title={a.activityDensityTitle}
+    />
+  )
+}
+
 /** One home for thinking-block visibility: show/hide is the schema toggle
- *  above this; collapse is the device preference that used to sit in Appearance. */
+ *  above this; collapse is the device preference that used to sit in Appearance.
+ *  Only Detailed gives a thought a block of its own to collapse — Compact and
+ *  Balanced fold it into the step — so the toggle only shows there. */
 function CollapseThinkingSetting() {
   const { t } = useI18n()
   const a = t.settings.appearance
   const collapsed = useStore($reasoningCollapsedByDefault)
+  const density = useStore($activityDensity)
+
+  if (density !== 'detailed') {
+    return null
+  }
 
   return <ToggleRow checked={collapsed} label={a.reasoningCollapsedTitle} onChange={setReasoningCollapsedByDefault} />
 }

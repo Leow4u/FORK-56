@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { separateGluedReasoningBlocks } from '@/lib/reasoning-blocks'
+import { reasoningHeadline, separateGluedReasoningBlocks } from '@/lib/reasoning-blocks'
 
 describe('separateGluedReasoningBlocks', () => {
   it('splits heading-onto-heading parts (the `****` run)', () => {
@@ -44,5 +44,25 @@ describe('separateGluedReasoningBlocks', () => {
 
   it('does not split a heading that already opens the text', () => {
     expect(separateGluedReasoningBlocks('**Only one part**')).toBe('**Only one part**')
+  })
+})
+
+describe('reasoningHeadline', () => {
+  it('names the newest summary part', () => {
+    expect(reasoningHeadline('**Checking the layout**\n\nFolders first.\n\n**Counting files**\n\nBy extension.')).toBe(
+      'Counting files'
+    )
+  })
+
+  it('finds headings the wire glued together', () => {
+    expect(reasoningHeadline('**Investigating likely culprit PRs****Inspecting message schema**')).toBe(
+      'Inspecting message schema'
+    )
+  })
+
+  it('has no name for reasoning without a heading line', () => {
+    expect(reasoningHeadline('I should read the brief, then the brand kit.')).toBe('')
+    expect(reasoningHeadline('Looking at the **signature** field, the replay fails.')).toBe('')
+    expect(reasoningHeadline('')).toBe('')
   })
 })

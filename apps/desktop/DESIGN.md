@@ -243,6 +243,18 @@ Notes:
   words come from the catalog (`assistant.tool.runSummary`, `titles`), never a
   literal. Every file a turn wrote keeps its row, diff or not; a silent call
   (a todo update, a reaction) is never counted in a summary or ticked live.
+- **Activity density** — `$activityDensity` (Compact / Balanced, the default /
+  Detailed) decides how much of a turn's work the transcript shows; Detailed
+  shows every thought and call as it happens, without exception. In Compact
+  and Balanced a live turn is one block (`LiveTurn`) hosted by the turn's
+  first assistant message: what is done (one summary line), the newest note
+  (Balanced), whatever asks the user for something, the reply, and one status
+  line for now — the call in flight, else the model's reasoning heading, else
+  "Thinking", with the plan's step and the turn clock. At most four lines of
+  work however long the turn runs; a thought has no line of its own there.
+  Opened, the block and a settled turn's line show the same list
+  (`TurnWorkList`): every thought, call and note in order, each row rendered
+  inside its own message. Questions, approvals and cards never fold.
 - **Composer context bar** — empty-chat workspace picker. A second capsule
   (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
   card as a sibling vessel, not a well inside it: same width, same

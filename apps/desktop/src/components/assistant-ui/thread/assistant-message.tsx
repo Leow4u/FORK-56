@@ -16,9 +16,10 @@ import {
   messageContentText,
   pickPrimaryPreviewTarget
 } from '@/components/assistant-ui/thread/content'
+import { LiveTurn } from '@/components/assistant-ui/thread/live-turn'
 import { MESSAGE_PARTS_COMPONENTS } from '@/components/assistant-ui/thread/message-parts'
 import { ReactionPicker } from '@/components/assistant-ui/thread/message-reactions'
-import { SettledProductTurn, useTurnFold } from '@/components/assistant-ui/thread/settled-turn'
+import { SettledProductTurn, useTurnView } from '@/components/assistant-ui/thread/settled-turn'
 import { ResponseLoadingIndicator, TurnActivityIndicator } from '@/components/assistant-ui/thread/status'
 import { MessageTimelineTimestamp } from '@/components/assistant-ui/thread/timeline-timestamp'
 import { useMessageReactions, useTapbackDoubleClick } from '@/components/assistant-ui/thread/use-message-reactions'
@@ -36,8 +37,8 @@ import { markAssistantIdSpoken } from '@/lib/spoken-reply'
 import { useEnterAnimation } from '@/lib/use-enter-animation'
 import { cn } from '@/lib/utils'
 import { playSpeechText, stopVoicePlayback } from '@/lib/voice-playback'
+import { $activityDensity } from '@/store/activity-density'
 import { notifyError } from '@/store/notifications'
-import { $toolViewMode } from '@/store/tool-view'
 import { $voicePlayback } from '@/store/voice-playback'
 
 // Stable empty identity for the settled-parts selector — a fresh [] per render
@@ -61,8 +62,8 @@ export const AssistantMessage: FC<{
   const messageId = useAuiState(s => s.message.id)
   const messageRuntime = useMessageRuntime()
   const { t } = useI18n()
-  const toolViewMode = useStore($toolViewMode)
-  const fold = useTurnFold(toolViewMode === 'product')
+  const density = useStore($activityDensity)
+  const view = useTurnView(density)
 
   // A reply to an inter-agent delivery is part of that exchange, not part of
   // the human conversation — collapse it under a compact notice ("Reply to
@@ -165,7 +166,7 @@ export const AssistantMessage: FC<{
   // parity — the transcript shows the event; the text is one click away).
   // Never collapse while streaming: the user should see progress, and the
   // status selectors above stay live either way.
-  if (fold.kind === 'hide') {
+  if (view.kind === 'hide') {
     return null
   }
 
@@ -207,8 +208,10 @@ export const AssistantMessage: FC<{
         className="wrap-anywhere min-w-0 max-w-full overflow-hidden text-pretty text-[length:var(--conversation-text-font-size)] leading-(--dt-line-height) text-foreground"
         data-slot="aui_assistant-message-content"
       >
-        {fold.kind === 'host' ? (
-          <SettledProductTurn classified={fold.classified} durationS={fold.durationS} messageId={messageId} />
+        {view.kind === 'host' ? (
+          <SettledProductTurn durationS={view.durationS} messageId={messageId} timeline={view.timeline} />
+        ) : view.kind === 'live' ? (
+          <LiveTurn compact={density === 'compact'} />
         ) : (
           <MessagePrimitive.Parts components={MESSAGE_PARTS_COMPONENTS} />
         )}
@@ -218,8 +221,11 @@ export const AssistantMessage: FC<{
             seals a bubble mid-flight (message.interim) or finishes one while
             the agent keeps going leaves a settled message at the tail, so the
             row unmounted and the seconds went uncounted while the composer's
-            arc border and Stop button said work was still happening. */}
-        {isLastMessage && (isPlaceholder ? <ResponseLoadingIndicator /> : <TurnActivityIndicator />)}
+            arc border and Stop button said work was still happening. A live
+            block carries its own status line, so the row is for Detailed. */}
+        {isLastMessage &&
+          view.kind !== 'live' &&
+          (isPlaceholder ? <ResponseLoadingIndicator /> : <TurnActivityIndicator />)}
         {previewTargets.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {previewTargets.map(target => (
@@ -249,7 +255,7 @@ export const AssistantMessage: FC<{
       <MessageTimelineTimestamp className="px-(--message-text-indent) pt-0.5" suppressIfDuplicatePart />
       {hasVisibleText && !isInterim && (
         <AssistantFooter
-          durationS={fold.kind === 'host' ? undefined : turnDurationS}
+          durationS={view.kind === 'host' ? undefined : turnDurationS}
           getMessageText={getMessageText}
           messageId={messageId}
           onBranchInNewChat={onBranchInNewChat}
@@ -259,7 +265,7 @@ export const AssistantMessage: FC<{
           ends a turn on its summary rather than burying it above the controls.
           A folded host still has to be the tail: older Worked-for rows keep
           their diary, not a stack of stale files cards. */}
-      <ChangedFilesCard parts={fold.kind === 'host' && isLastMessage ? fold.parts : settledParts} />
+      <ChangedFilesCard parts={view.kind === 'host' && isLastMessage ? view.parts : settledParts} />
     </MessagePrimitive.Root>
   )
 }

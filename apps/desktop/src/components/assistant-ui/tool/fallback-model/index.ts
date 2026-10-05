@@ -1428,6 +1428,31 @@ function dynamicTitle(
   return fallback
 }
 
+/**
+ * A call named the way its own row names it — "Reading config.yaml", "Running
+ * npm test" while it runs, "Read config.yaml" once it has — without building
+ * the rest of the row. The status line says what the turn is doing with it.
+ *
+ * A file edit's row title is the bare file name beside its icon; on a line of
+ * its own the verb has to come back ("Editing wiring.tsx").
+ */
+export function toolLineTitle(part: ToolPart): string {
+  const meta = toolMeta(part.toolName)
+  const pending = part.result === undefined
+  const args = parseMaybeObject(part.args)
+  const result = parseMaybeObject(part.result)
+  const base = pending ? meta.pending : meta.done
+
+  if (isFileEditTool(part.toolName)) {
+    const path = fileEditPath(args, result)
+    const verb = translateNow(`assistant.tool.runSummary.categories.edit.${pending ? 'present' : 'past'}`)
+
+    return path ? translateNow('assistant.tool.runSummary.clause', verb, fileEditBasename(path)) : base
+  }
+
+  return dynamicTitle(part, args, result, titlePartsFromAction(base, pending ? meta.pendingAction : undefined)).title
+}
+
 export function buildToolView(part: ToolPart, inlineDiff: string): ToolView {
   const argsRecord = parseMaybeObject(part.args)
   const resultRecord = parseMaybeObject(part.result)

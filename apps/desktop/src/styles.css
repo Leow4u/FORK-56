@@ -2212,8 +2212,26 @@ body.guest-pointer-lock :is(webview, iframe) {
    *pairs* qualified meant the live status line (not tool, thinking or prose)
    fell through every branch and carried its own half-size margin instead. */
 [data-slot='aui_assistant-message-content']
-  > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], .aui-md)
-  + :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'], .aui-md) {
+  > :is(
+    [data-slot='tool-block'],
+    [data-slot='aui_thinking-disclosure'],
+    [data-slot='aui_turn-activity'],
+    [data-slot='aui_turn-work'],
+    [data-slot='aui_turn-note'],
+    [data-slot='aui_turn-now'],
+    [data-slot='aui_worked-for'],
+    .aui-md
+  )
+  + :is(
+    [data-slot='tool-block'],
+    [data-slot='aui_thinking-disclosure'],
+    [data-slot='aui_turn-activity'],
+    [data-slot='aui_turn-work'],
+    [data-slot='aui_turn-note'],
+    [data-slot='aui_turn-now'],
+    [data-slot='aui_worked-for'],
+    .aui-md
+  ) {
   margin-top: var(--turn-block-gap);
 }
 
@@ -2231,8 +2249,24 @@ body.guest-pointer-lock :is(webview, iframe) {
    is the wrong hook here: it's absent on a multi-call tool GROUP, which is most
    of a real run, and present on rows nested inside one. */
 [data-slot='aui_assistant-message-content']
-  > :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity'])
-  + :is([data-slot='tool-block'], [data-slot='aui_thinking-disclosure'], [data-slot='aui_turn-activity']) {
+  > :is(
+    [data-slot='tool-block'],
+    [data-slot='aui_thinking-disclosure'],
+    [data-slot='aui_turn-activity'],
+    [data-slot='aui_turn-work'],
+    [data-slot='aui_turn-note'],
+    [data-slot='aui_turn-now'],
+    [data-slot='aui_worked-for']
+  )
+  + :is(
+    [data-slot='tool-block'],
+    [data-slot='aui_thinking-disclosure'],
+    [data-slot='aui_turn-activity'],
+    [data-slot='aui_turn-work'],
+    [data-slot='aui_turn-note'],
+    [data-slot='aui_turn-now'],
+    [data-slot='aui_worked-for']
+  ) {
   margin-top: var(--scaffold-block-gap);
 }
 

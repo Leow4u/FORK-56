@@ -2,7 +2,8 @@ import { type ThreadMessage } from '@assistant-ui/react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { $toolDisclosureStates, $toolViewMode } from '@/store/tool-view'
+import { $activityDensity } from '@/store/activity-density'
+import { $toolDisclosureStates } from '@/store/tool-view'
 
 import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime, userMessage } from '../test-utils'
 
@@ -95,13 +96,13 @@ function runningWorkMessage(): ThreadMessage {
 }
 
 beforeEach(() => {
-  $toolViewMode.set('product')
+  $activityDensity.set('balanced')
   $toolDisclosureStates.set({})
 })
 
 afterEach(() => {
   cleanup()
-  $toolViewMode.set('product')
+  $activityDensity.set('balanced')
   $toolDisclosureStates.set({})
 })
 
@@ -141,10 +142,19 @@ describe('product-mode settle fold', () => {
 
     fireEvent.click(await screen.findByText('Worked for 18m'))
 
+    // One row per thought and call, in order — not a summary per run.
     await waitFor(() => {
-      expect(container.textContent).toContain('Explored 2 files')
+      expect(container.textContent).toContain('logo.svg')
     })
-    expect(container.textContent).toContain('I will read the brand kit then write the deck.')
+    expect(container.textContent).toContain('colors.json')
+    expect(container.textContent).not.toContain('Explored 2 files')
+    expect(container.textContent).not.toContain('I will read the brand kit then write the deck.')
+
+    fireEvent.click(screen.getByText('Thought'))
+
+    await waitFor(() => {
+      expect(container.textContent).toContain('I will read the brand kit then write the deck.')
+    })
   })
 
   it('does not fold a thought-only reply', async () => {
@@ -179,7 +189,21 @@ describe('product-mode settle fold', () => {
     expect(container.textContent).not.toContain('1 file changed')
   })
 
-  it('keeps the live staircase while the turn is running', async () => {
+  it('draws the live block, not a staircase, while the turn is running', async () => {
+    const { container } = render(
+      <ThreadRuntime messages={[runningWorkMessage()]}>
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByRole('status', { name: 'Reading logo.svg' })).toBeTruthy()
+    expect(container.querySelector('[data-tool-row]')).toBeNull()
+    expect(container.querySelector('[data-slot="aui_worked-for"]')).toBeNull()
+  })
+
+  it('keeps the live staircase in Detailed', async () => {
+    $activityDensity.set('detailed')
+
     const { container } = render(
       <ThreadRuntime messages={[runningWorkMessage()]}>
         <Thread />
@@ -189,6 +213,21 @@ describe('product-mode settle fold', () => {
     await waitFor(() => {
       expect(container.querySelector('[data-tool-row]')).not.toBeNull()
     })
-    expect(container.querySelector('[data-slot="aui_worked-for"]')).toBeNull()
+    expect(container.querySelector('[data-slot="aui_turn-now"]')).toBeNull()
+  })
+
+  it('counts a failed step on the line instead of leaving it as a card', async () => {
+    const message = settledWorkMessage(90) as unknown as { content: Record<string, unknown>[] }
+
+    message.content[2] = { ...message.content[2], isError: true, result: { error: 'not found' } }
+
+    const { container } = render(
+      <ThreadRuntime messages={[message as unknown as ThreadMessage]}>
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByText('Worked for 1m 30s · 1 step failed')).toBeTruthy()
+    expect(container.querySelector('[data-tool-row]')).toBeNull()
   })
 })

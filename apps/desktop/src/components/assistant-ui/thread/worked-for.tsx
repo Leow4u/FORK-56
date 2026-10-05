@@ -13,10 +13,18 @@ import { cn } from '@/lib/utils'
 export const WorkedForDisclosure: FC<{
   children?: ReactNode
   durationS?: number
+  /** Steps that failed along the way. They sit in the work, so the line says so. */
+  failed?: number
   onToggle: () => void
   open: boolean
-}> = ({ children, durationS, onToggle, open }) => {
+}> = ({ children, durationS, failed = 0, onToggle, open }) => {
   const { t } = useI18n()
+  const worked = workedForLabel(durationS, t.assistant.thread)
+
+  const label =
+    failed > 0
+      ? `${worked} · ${failed === 1 ? t.assistant.tool.failedOne : t.assistant.tool.failedMany(failed)}`
+      : worked
 
   return (
     <div
@@ -27,9 +35,7 @@ export const WorkedForDisclosure: FC<{
           carry their own, and each should lift only when it is the one hovered. */}
       <div data-conversation-scaffold="">
         <ScaffoldRow onToggle={onToggle} open={open}>
-          <FadeText className={cn(SCAFFOLD_LABEL_CLASS, 'truncate')}>
-            {workedForLabel(durationS, t.assistant.thread)}
-          </FadeText>
+          <FadeText className={cn(SCAFFOLD_LABEL_CLASS, 'truncate')}>{label}</FadeText>
         </ScaffoldRow>
       </div>
       {open && children ? <div className="mt-0.5 grid min-w-0 max-w-full gap-(--tool-row-gap)">{children}</div> : null}
