@@ -76,7 +76,7 @@ function DiaryProse({ text }: { text: string }) {
   return (
     <div data-conversation-scaffold="" data-slot="aui_process-prose">
       <MarkdownTextContent
-        containerClassName="text-xs leading-snug text-muted-foreground/85"
+        containerClassName="text-xs leading-snug text-muted-foreground"
         disableArtifacts
         isRunning={false}
         text={text}

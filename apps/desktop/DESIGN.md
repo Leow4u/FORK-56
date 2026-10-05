@@ -95,6 +95,8 @@ for call-site shadow or border inventions.
 | `--stroke-work4you` | the overlay hairline (pairs with `shadow-work4you`) |
 | `--ui-text-primary / -secondary / -tertiary / -quaternary` | text hierarchy; in light mode tertiary and quaternary sit on the 4.5:1 readability floor |
 | `--dt-input-border` | resting border strength of input fields (% of the ring color); hover doubles it, focus goes full |
+| `--conversation-scaffold-text / -meta` | transcript activity lines (thinking headers, tool rows, run summaries, the live status line) and their durations/counts. The root value is the lifted ink; a `data-conversation-scaffold` surface rests both on the 4.5:1 floor and lifts them on hover/keyboard focus. The step is a token, never an opacity fade — opacity compounded under the floor and dimmed error rows with it |
+| `--disclosure-caret-rest` | resting opacity of a disclosure caret. Never 0: a row that opens says so before the pointer finds it; hover and an open row go full |
 | `--ui-bg-quaternary` | soft control fill (secondary button) |
 | `--ui-widget-surface-background` | fill for inline chat widgets (`WIDGET_SHELL_CLASS`) |
 | `--chrome-action-hover` | hover fill for quiet controls |
@@ -235,6 +237,12 @@ Notes:
   existing components under `src/components/assistant-ui` and
   `src/app/chat/composer`; do not fork a second markdown, message, tool-call, or
   approval renderer for one feature.
+- **Activity lines** — thinking headers, tool rows, run summaries and the live
+  status line render through `ScaffoldRow` and read on
+  `--conversation-scaffold-*`, at or above the 4.5:1 floor at rest. Their
+  words come from the catalog (`assistant.tool.runSummary`, `titles`), never a
+  literal. Every file a turn wrote keeps its row, diff or not; a silent call
+  (a todo update, a reaction) is never counted in a summary or ticked live.
 - **Composer context bar** — empty-chat workspace picker. A second capsule
   (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
   card as a sibling vessel, not a well inside it: same width, same

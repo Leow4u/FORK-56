@@ -1,3 +1,4 @@
+import { translateNow } from '@/i18n'
 import { summarizeShellCommand } from '@/lib/summarize-command'
 import { firstStringField } from '@/lib/text'
 
@@ -25,18 +26,19 @@ type RunCategory = 'delegate' | 'edit' | 'explore' | 'other' | 'run'
 // category happens to be live.
 const CATEGORY_ORDER: readonly RunCategory[] = ['edit', 'explore', 'run', 'delegate', 'other']
 
-const CATEGORY_COPY: Record<RunCategory, { noun: [string, string]; past: string; present: string }> = {
-  delegate: { noun: ['task', 'tasks'], past: 'Delegated', present: 'Delegating' },
-  edit: { noun: ['file', 'files'], past: 'Edited', present: 'Editing' },
-  explore: { noun: ['file', 'files'], past: 'Explored', present: 'Exploring' },
-  other: { noun: ['tool', 'tools'], past: 'Used', present: 'Using' },
-  run: { noun: ['command', 'commands'], past: 'Ran', present: 'Running' }
-}
+// The words live in the catalog (`assistant.tool.runSummary`), so a summary
+// reads in the app's language like the rows it stands in for.
+const categoryVerb = (category: RunCategory, tense: 'past' | 'present') =>
+  translateNow(`assistant.tool.runSummary.categories.${category}.${tense}`)
+
+const categoryCount = (category: RunCategory, count: number) =>
+  translateNow(`assistant.tool.runSummary.categories.${category}.count`, count)
 
 const EXPLORE_TOOLS = new Set([
   'list_files',
   'read_file',
   'search_files',
+  'session_search',
   'session_search_recall',
   'vision_analyze',
   'web_extract',
@@ -73,7 +75,7 @@ function isPending(tool: ToolCallLike): boolean {
  * described in the same words from the moment the model drafts it.
  */
 export function toolPresentVerb(toolName: string): string {
-  return CATEGORY_COPY[toolCategory(toolName)].present
+  return categoryVerb(toolCategory(toolName), 'present')
 }
 
 /** The thing a tool acted on, as the header should name it. */
@@ -94,17 +96,21 @@ function toolTarget(tool: ToolCallLike): string {
  * ("Edited wiring.tsx"); anything else counts ("explored 3 files"). A settled
  * command is the exception — "ran 5 commands" is the useful reading, and a
  * command line only earns its space while it's the thing you're waiting on.
+ *
+ * Only the first clause opens the line, so later ones lower-case their verb —
+ * the verb, not the clause: a language that puts the object first must not
+ * have a file name lower-cased under it.
  */
-function clause(category: RunCategory, tools: ToolCallLike[], live: boolean): string {
-  const copy = CATEGORY_COPY[category]
-  const verb = live ? copy.present : copy.past
+function clause(category: RunCategory, tools: ToolCallLike[], live: boolean, first: boolean): string {
+  const tensed = categoryVerb(category, live ? 'present' : 'past')
+  const verb = first ? tensed : lowerFirst(tensed)
   const target = tools.length === 1 ? toolTarget(tools[0]) : ''
 
   if (target && (live || category !== 'run')) {
-    return `${verb} ${target}`
+    return translateNow('assistant.tool.runSummary.clause', verb, target)
   }
 
-  return `${verb} ${tools.length} ${copy.noun[tools.length === 1 ? 0 : 1]}`
+  return translateNow('assistant.tool.runSummary.clause', verb, categoryCount(category, tools.length))
 }
 
 function lowerFirst(text: string): string {
@@ -147,11 +153,9 @@ export function summarizeToolRun(tools: readonly ToolCallLike[], live: boolean):
     }
   }
 
-  const clauses = CATEGORY_ORDER.flatMap(category => {
-    const group = byCategory.get(category)
+  const present = CATEGORY_ORDER.filter(category => byCategory.has(category))
 
-    return group ? [clause(category, group, category === liveCategory)] : []
-  })
-
-  return clauses.map((text, index) => (index === 0 ? text : lowerFirst(text))).join(', ')
+  return present
+    .map((category, index) => clause(category, byCategory.get(category) ?? [], category === liveCategory, index === 0))
+    .join(translateNow('assistant.tool.runSummary.separator'))
 }

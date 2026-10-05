@@ -379,6 +379,110 @@ function movedOnMessage(): ThreadMessage {
   } as unknown as ThreadMessage
 }
 
+// A todo update in the middle of a run of reads. The run carries it, but a
+// silent call puts nothing on screen, so there is nothing for the run to count
+// or for the live ticker to show.
+function todoInRunMessage(status: 'complete' | 'running'): ThreadMessage {
+  const settled = status === 'complete'
+
+  return {
+    id: `assistant-todo-in-run-${status}`,
+    role: 'assistant',
+    content: [
+      {
+        type: 'tool-call',
+        toolCallId: 'read-t1',
+        toolName: 'read_file',
+        args: { path: '/repo/src/a.ts' },
+        argsText: JSON.stringify({ path: '/repo/src/a.ts' }),
+        result: { content: 'a' }
+      },
+      {
+        type: 'tool-call',
+        toolCallId: 'read-t2',
+        toolName: 'read_file',
+        args: { path: '/repo/src/b.ts' },
+        argsText: JSON.stringify({ path: '/repo/src/b.ts' }),
+        result: { content: 'b' }
+      },
+      {
+        type: 'tool-call',
+        toolCallId: 'todo-t1',
+        toolName: 'todo',
+        args: { todos: [{ content: 'Ship it', id: '1', status: 'in_progress' }] },
+        argsText: '{}',
+        ...(settled ? { result: { todos: [] } } : {})
+      }
+    ],
+    status: settled ? { type: 'complete', reason: 'stop' } : { type: 'running' },
+    createdAt,
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {}
+    }
+  } as unknown as ThreadMessage
+}
+
+// A todo update the backend refused. Unlike a landed one it has something to
+// say, so it renders as an ordinary error row.
+function failedTodoMessage(): ThreadMessage {
+  return {
+    id: 'assistant-failed-todo',
+    role: 'assistant',
+    content: [
+      {
+        type: 'tool-call',
+        toolCallId: 'todo-failed',
+        toolName: 'todo',
+        args: { todos: 'not a list' },
+        argsText: '{}',
+        isError: true,
+        result: { error: 'todos must be a list' }
+      }
+    ],
+    status: { type: 'complete', reason: 'stop' },
+    createdAt,
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {}
+    }
+  } as unknown as ThreadMessage
+}
+
+// A create as it rehydrates: `write_file` persists no diff (the live one rode
+// the `tool.complete` event), so the stored call is a path and nothing else.
+function diffLessWriteMessage(): ThreadMessage {
+  return {
+    id: 'assistant-diffless-write',
+    role: 'assistant',
+    content: [
+      {
+        type: 'tool-call',
+        toolCallId: 'write-1',
+        toolName: 'write_file',
+        args: { path: '/repo/report.html', content: '<h1>Report</h1>' },
+        argsText: JSON.stringify({ path: '/repo/report.html' }),
+        result: { path: '/repo/report.html', bytes_written: 15 }
+      }
+    ],
+    status: { type: 'complete', reason: 'stop' },
+    createdAt,
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {}
+    }
+  } as unknown as ThreadMessage
+}
+
 const GroupHarness = ({ message }: { message: ThreadMessage }) => (
   <ThreadRuntime messages={[message]}>
     <Thread />
@@ -454,10 +558,10 @@ describe('a file edit among ordinary activity', () => {
   })
 })
 
-// The transcript rests its scaffolding at a fade, keyed off one attribute. A
-// surface that renders without it is brighter than everything around it, which
-// is how two adjacent, identical rows came to sit at two opacities.
-describe('transcript fade', () => {
+// The transcript rests its scaffolding a step quieter, keyed off one attribute.
+// A surface that renders without it is brighter than everything around it,
+// which is how two adjacent, identical rows came to sit at two strengths.
+describe('transcript rest step', () => {
   it('marks every row and summary as scaffolding', async () => {
     const { container } = render(<GroupHarness message={editBetweenRunsMessage()} />)
 
@@ -659,5 +763,48 @@ describe('tool lifecycle timestamps', () => {
     expect(timestamps).toContain(
       formatTimelineRange(createdAt.getTime() / 1000 + 20, createdAt.getTime() / 1000 + 23.5)
     )
+  })
+})
+
+describe('a silent call inside a run', () => {
+  it('is not counted in the summary', async () => {
+    render(<GroupHarness message={todoInRunMessage('complete')} />)
+
+    expect(await screen.findByText('Explored 2 files')).toBeTruthy()
+  })
+
+  // The ticker shows the newest row in the run. A pending todo at the tail used
+  // to take that window and render it blank, ticking over the read before it.
+  it('never takes a line in the live ticker', async () => {
+    const { container } = render(<GroupHarness message={todoInRunMessage('running')} />)
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-tool-ticker]')).not.toBeNull()
+    })
+
+    const reel = [...container.querySelectorAll('[data-tool-ticker] .tool-ticker__row')]
+
+    expect(reel.length).toBeGreaterThan(0)
+    expect(reel.filter(row => !row.querySelector('[data-tool-row]'))).toHaveLength(0)
+  })
+
+  it('still renders when it fails', async () => {
+    const { container } = render(<GroupHarness message={failedTodoMessage()} />)
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-tool-row]')).not.toBeNull()
+    })
+  })
+})
+
+describe('a file the turn wrote', () => {
+  // Every turn but the newest has no files-changed card, so the row is the only
+  // place the file is named.
+  it('keeps its row when it reloads without a diff', async () => {
+    const { container } = render(<GroupHarness message={diffLessWriteMessage()} />)
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-tool-row]')?.textContent).toContain('report.html')
+    })
   })
 })

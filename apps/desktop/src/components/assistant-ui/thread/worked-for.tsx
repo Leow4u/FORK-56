@@ -21,14 +21,17 @@ export const WorkedForDisclosure: FC<{
   return (
     <div
       className="text-[length:var(--conversation-tool-font-size)] text-(--ui-text-tertiary)"
-      data-conversation-scaffold=""
       data-slot="aui_worked-for"
     >
-      <ScaffoldRow onToggle={onToggle} open={open}>
-        <FadeText className={cn(SCAFFOLD_LABEL_CLASS, 'truncate')}>
-          {workedForLabel(durationS, t.assistant.thread)}
-        </FadeText>
-      </ScaffoldRow>
+      {/* The mark sits on the header, not the block: the diary rows under it
+          carry their own, and each should lift only when it is the one hovered. */}
+      <div data-conversation-scaffold="">
+        <ScaffoldRow onToggle={onToggle} open={open}>
+          <FadeText className={cn(SCAFFOLD_LABEL_CLASS, 'truncate')}>
+            {workedForLabel(durationS, t.assistant.thread)}
+          </FadeText>
+        </ScaffoldRow>
+      </div>
       {open && children ? <div className="mt-0.5 grid min-w-0 max-w-full gap-(--tool-row-gap)">{children}</div> : null}
     </div>
   )

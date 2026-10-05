@@ -375,12 +375,12 @@
     --ui-text-tertiary: color-mix(in srgb, var(--ui-base) 63%, transparent);
     --ui-text-quaternary: color-mix(in srgb, var(--ui-base) 63%, transparent);
     /* Transcript scaffolding — thinking headers, settled tool runs, the live
-       activity ticker. One colour for all of them (see `ScaffoldRow`), pitched
-       between the secondary and tertiary greys those lines used to pick
-       individually, and dimmed once more by the fade rule below so the prose
-       reading column stays primary. */
-    --conversation-scaffold-text: color-mix(in srgb, var(--ui-base) 64%, transparent);
-    --conversation-scaffold-meta: color-mix(in srgb, var(--ui-base) 44%, transparent);
+       activity ticker. One colour for all of them (see `ScaffoldRow`). This is
+       the lifted ink; a surface marked `data-conversation-scaffold` rests a
+       step quieter (its rule sits with the transcript's block rhythm), so the
+       prose reading column stays primary without a line under the floor. */
+    --conversation-scaffold-text: var(--ui-text-secondary);
+    --conversation-scaffold-meta: var(--ui-text-secondary);
     --ui-stroke-primary: color-mix(
       in srgb,
       var(--ui-accent) var(--theme-stroke-primary-accent-mix),
@@ -528,9 +528,10 @@
     /* Tight gap between tool rows inside a single action group, so a back-to-back
        run still reads as one cohesive sequence. */
     --tool-row-gap: 0.375rem;
-    /* Resting opacity of a disclosure caret — invisible until hover, except
-       where a surface opts into a faint hint of the affordance. */
-    --disclosure-caret-rest: 0;
+    /* Resting opacity of a disclosure caret. Never 0: a row that opens has to
+       say so before the pointer finds it, or a run of collapsed rows reads as
+       plain text. Hover and an open row take the caret to full strength. */
+    --disclosure-caret-rest: 0.8;
     /* Paragraph spacing — vertical gap between prose paragraphs, both inside a
        markdown block and between consecutive prose parts. Single knob; tweak
        freely. */
@@ -2108,35 +2109,39 @@ body.guest-pointer-lock :is(webview, iframe) {
 }
 
 /* Tool / thinking blocks are scaffolding around the model's reply, so we
-   keep them transparent and fade them slightly. The reading column (prose)
-   stays at full strength; scaffolding lifts back to full opacity on
-   hover/focus so it stays legible when the user actually wants to read it. */
+   keep them transparent and rest them a step quieter than the prose. The
+   reading column stays at full strength; scaffolding lifts on hover/focus. */
 [data-slot='tool-block'],
 [data-slot='aui_thinking-disclosure'] {
   background: transparent !important;
 }
 
-/* Fade scaffolding so the prose reading column stays primary. Each surface
-   opts in with `data-conversation-scaffold` — thinking header, tool row, run
-   summary, live status line — instead of being named by its own selector here.
-   Spelling them out individually is how the status line came to sit a shade
-   brighter than the rows either side of it.
+/* Rest scaffolding a step quieter so the prose reading column stays primary.
+   Each surface opts in with `data-conversation-scaffold` — thinking header,
+   tool row, run summary, live status line — instead of being named by its own
+   selector here. Spelling them out individually is how the status line came to
+   sit a shade brighter than the rows either side of it.
 
-   Marked per surface and never on a container: opacity opens a stacking
-   context, so nothing inside a faded parent can be more opaque than it, and
-   one row (an open diff) could not stay lit while its siblings dimmed. Hence
-   the tool group wrapper carries no mark and each row inside it carries its
-   own — no two marked elements nest, so the fade never compounds. */
+   The step is a token, not opacity. A 0.67 opacity used to multiply into the
+   scaffold inks and land the lines at 2.7:1 (1.9:1 for durations and counts,
+   and again wherever a marked block held marked rows) — under the 4.5:1 floor
+   the rest of the app is held to, and it dimmed error and warning rows with
+   them. Redefining the scaffold inks instead keeps the resting line on the
+   floor in both modes, never compounds when marks nest, and leaves colours
+   that are not scaffold ink (errors, diff counts) at full strength. */
 [data-slot='aui_assistant-message-content'] [data-conversation-scaffold] {
-  opacity: 0.67;
-  transition: opacity 120ms ease-out;
+  /* 64% of the ink: 5.2:1 on the light chat field, 6.5:1 on the dark one. */
+  --conversation-scaffold-text: color-mix(in srgb, var(--ui-base) 64%, transparent);
+  /* Durations and counts share the readability floor with captions. */
+  --conversation-scaffold-meta: var(--ui-text-tertiary);
 }
 
 /* Lift on hover or *keyboard* focus only. `:focus-within` also matches the
    focus a mouse click leaves on the disclosure toggle, which kept a row lit
    after you clicked to collapse it; `:has(:focus-visible)` excludes that. */
 [data-slot='aui_assistant-message-content'] [data-conversation-scaffold]:is(:hover, :has(:focus-visible)) {
-  opacity: 1;
+  --conversation-scaffold-text: var(--ui-text-secondary);
+  --conversation-scaffold-meta: var(--ui-text-secondary);
 }
 
 /* Shiki surfaces in the inline file diff + source preview: strip the theme's
@@ -2191,11 +2196,12 @@ body.guest-pointer-lock :is(webview, iframe) {
 
 /* File edits (write_file / edit_file / patch) are the deliverable, not
    scaffolding — the diff is what the user reviews, like a PR. An *expanded*
-   edit stays at full strength; collapsed it fades like any other row. The
+   edit stays lifted; collapsed it rests like any other row. The
    `data-file-edit` marker sits on the same row element and is only present
    while the row is open. */
 [data-slot='aui_assistant-message-content'] [data-slot='tool-block'][data-tool-row][data-file-edit] {
-  opacity: 1;
+  --conversation-scaffold-text: var(--ui-text-secondary);
+  --conversation-scaffold-meta: var(--ui-text-secondary);
 }
 
 /* Conversation block rhythm. assistant-ui renders each range as a direct child
@@ -2238,14 +2244,6 @@ body.guest-pointer-lock :is(webview, iframe) {
    next to it, and adjacent margins collapse rather than stacking. */
 [data-slot='aui_assistant-message-content'] > [data-tool-row][data-file-edit] {
   margin-block: var(--turn-block-gap);
-}
-
-/* Thinking headers carry a faint resting caret. A run of them is the one place
-   the affordance isn't otherwise discoverable — every other disclosure sits in
-   a row you're already reaching for. The scaffold fade multiplies this, so the
-   painted value lands well under the number here. */
-[data-slot='aui_thinking-disclosure'] {
-  --disclosure-caret-rest: 0.4;
 }
 
 /* A streaming turn is sealed into several assistant bubbles as it goes

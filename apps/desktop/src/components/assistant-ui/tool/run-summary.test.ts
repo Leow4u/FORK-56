@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+
+import { setRuntimeI18nLocale, TRANSLATIONS } from '@/i18n'
 
 import { summarizeToolRun, type ToolCallLike } from './run-summary'
 
@@ -56,5 +58,30 @@ describe('summarizeToolRun', () => {
   // or it narrates work that stopped happening and never offers its toggle.
   it('reads a run the turn left unresolved as finished', () => {
     expect(settled([read('a.ts'), tool('search_files', { query: 'toolRuns' })])).toBe('Explored 2 files')
+  })
+})
+
+// The summary stands in for rows that already read in the app's language, so it
+// has to as well: every word comes from the active catalog.
+describe('summarizeToolRun in another language', () => {
+  afterEach(() => setRuntimeI18nLocale('en'))
+
+  it('builds each clause from the active catalog and joins them with its separator', () => {
+    setRuntimeI18nLocale('zh')
+    const copy = TRANSLATIONS.zh.assistant.tool.runSummary
+    const { explore, run } = copy.categories
+
+    expect(settled([read('a.ts'), read('b.ts'), ran('x')])).toBe(
+      [copy.clause(explore.past, explore.count(2)), copy.clause(run.past, run.count(1))].join(copy.separator)
+    )
+  })
+
+  // A later clause lower-cases its verb so the line reads as one sentence. A
+  // language that puts the object first must not have the object lower-cased
+  // in the verb's place.
+  it('never lower-cases a target that a later clause leads with', () => {
+    setRuntimeI18nLocale('ja')
+
+    expect(settled([read('a.ts'), read('b.ts'), tool('custom_tool', { path: 'README.md' }, {})])).toContain('README.md')
   })
 })

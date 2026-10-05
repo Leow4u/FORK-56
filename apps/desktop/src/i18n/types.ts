@@ -8,25 +8,59 @@
 export type Locale = 'en' | 'zh' | 'zh-hant' | 'ja' | 'ar' | 'pt'
 
 export type ToolTitleKey =
+  | 'apply_layout'
+  | 'browser_back'
+  | 'browser_cdp'
   | 'browser_click'
+  | 'browser_console'
+  | 'browser_dialog'
+  | 'browser_exec'
   | 'browser_fill'
+  | 'browser_get_images'
   | 'browser_navigate'
+  | 'browser_press'
+  | 'browser_scroll'
   | 'browser_snapshot'
   | 'browser_take_screenshot'
   | 'browser_type'
+  | 'browser_vision'
   | 'clarify'
+  | 'close_preview'
+  | 'close_terminal'
+  | 'computer_use'
   | 'cronjob'
+  | 'drive_preview'
   | 'edit_file'
   | 'execute_code'
+  | 'focus_pane'
   | 'image_generate'
   | 'list_files'
   | 'memory'
+  | 'open_preview'
   | 'patch'
+  | 'process'
+  | 'project_create'
+  | 'project_list'
+  | 'project_switch'
   | 'read_file'
+  | 'read_preview'
+  | 'read_terminal'
+  | 'read_window_below'
   | 'search_files'
+  | 'session_search'
   | 'session_search_recall'
+  | 'skill_manage'
+  | 'skill_view'
+  | 'skills_list'
   | 'terminal'
+  | 'text_to_speech'
   | 'todo'
+  | 'tool_call'
+  | 'tool_describe'
+  | 'tool_search'
+  | 'tour'
+  | 'video_analyze'
+  | 'video_generate'
   | 'vision_analyze'
   | 'web_extract'
   | 'web_search'
@@ -36,6 +70,16 @@ interface ToolTitleCopy {
   done: string
   pending: string
   pendingAction: string
+}
+
+/** The kinds of call a tool-run summary groups into one clause each. */
+type ToolRunCategory = 'delegate' | 'edit' | 'explore' | 'other' | 'run'
+
+interface ToolRunCategoryCopy {
+  /** What the clause counts once it holds more than one call — "3 files". */
+  count: (count: number) => string
+  past: string
+  present: string
 }
 
 interface ModeOptionCopy {
@@ -3631,6 +3675,10 @@ export interface Translations {
       loadingSession: string
       showEarlier: string
       loadingResponse: string
+      /** Accessible name of the live status line when it carries no hint. */
+      working: string
+      /** Status line while auto-compaction runs. */
+      summarizingThread: string
       resumeWhenBackgroundDone: (count: number) => string
       thinking: string
       thought: string
@@ -3775,6 +3823,14 @@ export interface Translations {
         prefixedDone: (prefix: string, action: string) => string
         runningPrefixedTool: (prefix: string, action: string) => string
         runningTool: (action: string) => string
+      }
+      /** The one line that stands in for a run of tool calls — "Explored 3 files, ran 5 commands". */
+      runSummary: {
+        categories: Record<ToolRunCategory, ToolRunCategoryCopy>
+        /** One clause: a verb and what it acted on, a target ("status.ts") or a count ("3 files"). */
+        clause: (verb: string, object: string) => string
+        /** Between clauses. */
+        separator: string
       }
       titles: Record<ToolTitleKey, ToolTitleCopy>
     }
