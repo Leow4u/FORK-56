@@ -35,6 +35,12 @@ export function isCardTool(toolName: string): boolean {
   return CARD_TOOL_NAMES.has(toolName) || isFileEditTool(toolName)
 }
 
+/** Cards that stay on the transcript after a product-mode settle fold.
+ *  File edits leave the staircase for the files-changed closer; these cannot. */
+export function isStayOutCardTool(toolName: string): boolean {
+  return CARD_TOOL_NAMES.has(toolName)
+}
+
 // Activity tools that render nothing at all: `todo` parts are hoisted to a
 // dedicated panel above the message content, and a reaction's UI is the emoji
 // landing on the bubble. Both still render when they FAIL, which is a bounded

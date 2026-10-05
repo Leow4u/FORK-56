@@ -21,6 +21,7 @@ export interface ChangedFile {
 
 interface ChangedFilePart {
   args?: unknown
+  isError?: unknown
   result?: unknown
   toolName?: unknown
   type?: unknown
@@ -28,8 +29,9 @@ interface ChangedFilePart {
 
 /**
  * One row per file the turn edited, in first-touched order, with the +/- of
- * every edit to that file summed. Only landed edits with a diff count: a call
- * still running has no result, and a failed one changed nothing.
+ * every edit to that file summed. A create that never persisted a diff still
+ * counts — the closer has to name a landed `.pptx`, not only a patch hunk.
+ * A call still running has no result; a failed one changed nothing.
  */
 export function deriveChangedFiles(parts: readonly unknown[]): ChangedFile[] {
   const byPath = new Map<string, ChangedFile>()
@@ -41,10 +43,13 @@ export function deriveChangedFiles(parts: readonly unknown[]): ChangedFile[] {
       continue
     }
 
-    const result = parseMaybeObject(part.result)
-    const diff = inlineDiffFromResult(result)
+    if (part.isError === true || part.result === undefined || part.result === null) {
+      continue
+    }
 
-    if (!diff) {
+    const result = parseMaybeObject(part.result)
+
+    if (result.success === false) {
       continue
     }
 
@@ -54,7 +59,8 @@ export function deriveChangedFiles(parts: readonly unknown[]): ChangedFile[] {
       continue
     }
 
-    const stats = countDiffLineStats(diff)
+    const diff = inlineDiffFromResult(result)
+    const stats = diff ? countDiffLineStats(diff) : { added: 0, removed: 0 }
     const existing = byPath.get(path)
 
     if (existing) {

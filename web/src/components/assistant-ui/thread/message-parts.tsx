@@ -63,7 +63,7 @@ const DelegateToolPart: FC<TimelineToolCallProps> = props => {
   )
 }
 
-const ChainToolFallback: FC<TimelineToolCallProps> = props => {
+export const ChainToolFallback: FC<TimelineToolCallProps> = props => {
   // todo parts are hoisted to a dedicated panel above the message content. A
   // failed one still renders, as a bounded error row: the panel shows the list,
   // not why an update to it was refused.

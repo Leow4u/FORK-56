@@ -4,7 +4,8 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { $activeSessionId } from '@/store/session'
-import { $toolDisclosureStates, $toolViewMode } from '@/store/tool-view'
+import { $activityDensity } from '@/store/activity-density'
+import { $toolDisclosureStates } from '@/store/tool-view'
 
 import { createdAt, stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime } from '../test-utils'
 import { Thread } from '../thread'
@@ -43,12 +44,13 @@ function settledTurn(): ThreadMessage {
 beforeEach(() => {
   $activeSessionId.set('web-session')
   $toolDisclosureStates.set({})
-  $toolViewMode.set('technical')
+  $activityDensity.set('detailed')
 })
 
 afterEach(() => {
   cleanup()
   $activeSessionId.set(null)
+  $activityDensity.set('balanced')
 })
 
 describe('the web chat transcript', () => {

@@ -52,7 +52,7 @@ const HintText: FC<{ children: ReactNode }> = ({ children }) => (
 /** These indicators render inside whichever transcript mounted them, so every
  *  session-scoped signal comes from that surface's view — a tile must never
  *  show the primary chat's compaction, prompt-wait, or turn timer. */
-function useThreadSessionStatus() {
+export function useThreadSessionStatus() {
   const view = useSessionView()
   const sessionId = useStore(view.$runtimeId)
   // The same turn-busy the composer's arc border and Stop button read. The
@@ -92,7 +92,7 @@ const DRAFTING_REVEAL_MS = 200
  * What to call the wait, if it deserves a name. Compaction outranks a draft —
  * it's rarer, slower, and explains a transcript that looks like it reset.
  */
-function useStatusHint(compacting: boolean, drafting: DraftingTool | null, providerWait: string): string {
+export function useStatusHint(compacting: boolean, drafting: DraftingTool | null, providerWait: string): string {
   const { t } = useI18n()
   const [revealed, setRevealed] = useState(false)
   const name = drafting?.name ?? ''
@@ -181,7 +181,7 @@ export const BackgroundResumeNotice: FC = () => {
   return (
     <div
       aria-live="polite"
-      className="flex max-w-[min(86%,44rem)] items-center gap-1.5 self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-muted-foreground/55"
+      className="flex max-w-[min(86%,44rem)] items-center gap-1.5 self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-muted-foreground"
       data-slot="aui_background-resume"
       role="status"
     >

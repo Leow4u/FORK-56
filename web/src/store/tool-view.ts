@@ -1,28 +1,26 @@
 import { atom, computed, type ReadableAtom } from 'nanostores'
 
-import { persistBoolean, storedBoolean } from '@/lib/storage'
+import { $activityDensity } from '@/store/activity-density'
 
 export type ToolViewMode = 'product' | 'technical'
 
 type ToolDisclosureStates = Record<string, boolean>
 
-const TOOL_VIEW_TECHNICAL_STORAGE_KEY = 'work4you.desktop.toolView.technical'
 const TOOL_DISCLOSURE_STORAGE_KEY = 'work4you.desktop.toolDisclosure.v1'
 const MAX_DISCLOSURE_STATES = 240
 
-export const $toolViewMode = atom<ToolViewMode>(
-  storedBoolean(TOOL_VIEW_TECHNICAL_STORAGE_KEY, false) ? 'technical' : 'product'
+/**
+ * Whether tool rows show their raw payloads. Detailed is the level that hides
+ * nothing; Compact and Balanced read the work as product lines.
+ */
+export const $toolViewMode: ReadableAtom<ToolViewMode> = computed($activityDensity, density =>
+  density === 'detailed' ? 'technical' : 'product'
 )
 export const $toolDisclosureStates = atom<ToolDisclosureStates>(loadToolDisclosureStates())
 const disclosureOpenCache = new Map<string, ReadableAtom<boolean | undefined>>()
 const anyDisclosureOpenCache = new Map<string, ReadableAtom<boolean>>()
 
-$toolViewMode.subscribe(mode => persistBoolean(TOOL_VIEW_TECHNICAL_STORAGE_KEY, mode === 'technical'))
 $toolDisclosureStates.subscribe(persistToolDisclosureStates)
-
-export function setToolViewMode(mode: ToolViewMode) {
-  $toolViewMode.set(mode)
-}
 
 export function $toolDisclosureOpen(id: string): ReadableAtom<boolean | undefined> {
   let cached = disclosureOpenCache.get(id)

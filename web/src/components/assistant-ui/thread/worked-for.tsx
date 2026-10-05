@@ -1,0 +1,45 @@
+// @ts-nocheck — desktop parity port; web shims pending.
+import { type FC, type ReactNode } from 'react'
+
+import { SCAFFOLD_LABEL_CLASS, ScaffoldRow } from '@/components/chat/scaffold-row'
+import { FadeText } from '@/components/ui/fade-text'
+import { useI18n } from '@/i18n'
+import { workedForLabel } from '@/lib/turn-fold'
+import { cn } from '@/lib/utils'
+
+/**
+ * The one line a settled Product turn leaves behind: the work diary sits
+ * behind it, the answer and deliverable stay outside.
+ */
+export const WorkedForDisclosure: FC<{
+  children?: ReactNode
+  durationS?: number
+  /** Steps that failed along the way. They sit in the work, so the line says so. */
+  failed?: number
+  onToggle: () => void
+  open: boolean
+}> = ({ children, durationS, failed = 0, onToggle, open }) => {
+  const { t } = useI18n()
+  const worked = workedForLabel(durationS, t.assistant.thread)
+
+  const label =
+    failed > 0
+      ? `${worked} · ${failed === 1 ? t.assistant.tool.failedOne : t.assistant.tool.failedMany(failed)}`
+      : worked
+
+  return (
+    <div
+      className="text-[length:var(--conversation-tool-font-size)] text-(--ui-text-tertiary)"
+      data-slot="aui_worked-for"
+    >
+      {/* The mark sits on the header, not the block: the diary rows under it
+          carry their own, and each should lift only when it is the one hovered. */}
+      <div data-conversation-scaffold="">
+        <ScaffoldRow onToggle={onToggle} open={open}>
+          <FadeText className={cn(SCAFFOLD_LABEL_CLASS, 'truncate')}>{label}</FadeText>
+        </ScaffoldRow>
+      </div>
+      {open && children ? <div className="mt-0.5 grid min-w-0 max-w-full gap-(--tool-row-gap)">{children}</div> : null}
+    </div>
+  )
+}

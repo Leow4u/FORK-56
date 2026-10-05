@@ -1,4 +1,5 @@
 import { isCardTool, isFileEditTool, isSilentTool } from '@/lib/tool-render-class'
+import { classifyTurnParts, shouldFoldTurn } from '@/lib/turn-fold'
 
 /**
  * Render cost of one message's content parts, in budget units.
@@ -176,26 +177,14 @@ function partPaintWeight(part: unknown, measure: (parts: readonly unknown[]) => 
   return isFileEditTool(toolName) ? measure([part]) : CARD_WEIGHT
 }
 
-/**
- * Estimate what one message's content array actually MOUNTS in the transcript.
- *
- * Cached like the store weight: a settled message keeps its number across
- * later store updates, and a streaming one publishes a fresh array per delta
- * so the live tail is always re-measured.
- */
-export function messagePaintWeight(content: unknown): number {
-  if (!Array.isArray(content)) {
-    return 1
-  }
+export interface MessagePaintWeightOptions {
+  /** Product-mode settle: one Worked-for line instead of N scaffold rows. */
+  foldSettledDiary?: boolean
+  /** Settled interim (or other non-host) bubble whose body is not mounted. */
+  hidden?: boolean
+}
 
-  const cached = paintWeightCache.get(content)
-
-  if (cached !== undefined) {
-    return cached
-  }
-
-  // One character ceiling for the whole message, not one per part — otherwise a
-  // message of many huge parts walks past it one part at a time.
+function paintWeightFromParts(content: readonly unknown[]): number {
   let remaining = MAX_MEASURED_MESSAGE_CHARS
 
   const measure = (parts: readonly unknown[]) => {
@@ -211,7 +200,57 @@ export function messagePaintWeight(content: unknown): number {
     weight += partPaintWeight(part, measure)
   }
 
-  weight = Math.max(1, weight)
+  return Math.max(1, weight)
+}
+
+/**
+ * Estimate what one message's content array actually MOUNTS in the transcript.
+ *
+ * Cached like the store weight: a settled message keeps its number across
+ * later store updates, and a streaming one publishes a fresh array per delta
+ * so the live tail is always re-measured.
+ */
+export function messagePaintWeight(content: unknown, options?: MessagePaintWeightOptions): number {
+  if (options?.hidden) {
+    return 0
+  }
+
+  if (!Array.isArray(content)) {
+    return 1
+  }
+
+  if (options?.foldSettledDiary) {
+    const classified = classifyTurnParts(content)
+
+    if (shouldFoldTurn(classified)) {
+      let remaining = MAX_MEASURED_MESSAGE_CHARS
+
+      const measure = (parts: readonly unknown[]) => {
+        const characters = payloadCharacters(parts, remaining)
+        remaining -= characters
+
+        return parts.length + Math.ceil(characters / RENDER_WEIGHT_CHARS)
+      }
+
+      let weight = 1
+
+      for (const entry of classified) {
+        if (entry.role === 'answer' || entry.role === 'card') {
+          weight += partPaintWeight(entry.part, measure)
+        }
+      }
+
+      return Math.max(1, weight)
+    }
+  }
+
+  const cached = paintWeightCache.get(content)
+
+  if (cached !== undefined) {
+    return cached
+  }
+
+  const weight = paintWeightFromParts(content)
   paintWeightCache.set(content, weight)
 
   return weight

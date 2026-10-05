@@ -23,8 +23,10 @@ export function isToolCallPart<T extends { type: string }>(part: T): part is Ext
 type RunCategory = 'delegate' | 'edit' | 'explore' | 'other' | 'run'
 
 // Clause order is fixed so the same run always reads the same way, whichever
-// category happens to be live.
-const CATEGORY_ORDER: readonly RunCategory[] = ['edit', 'explore', 'run', 'delegate', 'other']
+// category happens to be live. It follows the shape most work takes — look,
+// try, then change — so a whole turn reads "Explored 8 files, ran 3 commands,
+// edited resumo.md" rather than leading with the last thing it did.
+const CATEGORY_ORDER: readonly RunCategory[] = ['explore', 'run', 'edit', 'delegate', 'other']
 
 // The words live in the catalog (`assistant.tool.runSummary`), so a summary
 // reads in the app's language like the rows it stands in for.
@@ -128,9 +130,10 @@ function lowerFirst(text: string): string {
  * agent that moved on, and a run like that has to read as finished rather than
  * narrate work that stopped happening.
  *
- * A run only ever holds ephemeral activity — file edits and other cards are
- * split out before this sees them (`splitRunItems`), so there is no aggregate
- * diff to report here; each edit carries its own +N/−M on its card.
+ * A run of rows only ever holds ephemeral activity — file edits and other cards
+ * are split out before this sees them (`splitRunItems`) and carry their own
+ * +N/−M. A whole turn's work is summarized here too, edits included: that line
+ * says what the turn did, from the first read to the last file it wrote.
  */
 export function summarizeToolRun(tools: readonly ToolCallLike[], live: boolean): string {
   // Which clause narrates in the present tense: normally the outstanding call,

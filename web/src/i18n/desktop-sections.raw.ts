@@ -1,5 +1,15 @@
 // @ts-nocheck — extracted from desktop locale; parameter types are implicit.
 export const desktopSections = {
+  settings: {
+    appearance: {
+      activityDensityTitle: 'Activity detail',
+      activityDensityDesc:
+        'How much of the agent’s work the chat shows while it runs and after it finishes. Questions, approvals and changed files always stay on screen.',
+      activityDensityCompact: 'Compact',
+      activityDensityBalanced: 'Balanced',
+      activityDensityDetailed: 'Detailed'
+    }
+  },
   assistant: {
     thread: {
       loadingSession: 'Loading session',
@@ -15,7 +25,12 @@ export const desktopSections = {
       thought: 'Thought',
       thoughtBriefly: 'Thought briefly',
       thoughtFor: duration => `Thought for ${duration}`,
+      worked: 'Worked',
+      workedFor: duration => `Worked for ${duration}`,
       turnDuration: duration => `This turn took ${duration}`,
+      writing: 'Writing',
+      stepOf: (step, total) => `Step ${step} of ${total}`,
+      thoughtAbout: title => `Thought · ${title}`,
       today: time => `Today, ${time}`,
       yesterday: time => `Yesterday, ${time}`,
       copy: 'Copy',
