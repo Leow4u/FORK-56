@@ -529,9 +529,10 @@ describe('assistant-ui streaming renderer', () => {
 
     expect(container.querySelector('[data-slot="aui_worked-for"]')?.textContent).toContain('Worked')
     expect(container.textContent).toContain('All done — patch applied.')
-    // The newest turn stays open until the next message: its notes are in the
-    // work list, one line each, not as paragraphs of their own.
-    expect(container.querySelectorAll('[data-slot="aui_turn-note"]')).toHaveLength(2)
+    // The newest turn stays open until the next message, reading the way it
+    // did while it ran: what the agent said along the way, as prose, in order.
+    expect(screen.getByText('Let me check the files.').closest('.aui-md')).not.toBeNull()
+    expect(screen.getByText('Now applying the patch.').closest('.aui-md')).not.toBeNull()
 
     const actionBars = container.querySelectorAll('[data-slot="aui_msg-actions"]')
     expect(actionBars).toHaveLength(1)

@@ -96,6 +96,65 @@ function runningWorkMessage(): ThreadMessage {
   } as unknown as ThreadMessage
 }
 
+// The turn from the expense-tracker test: the agent says what it is about to
+// do between steps, and each note seals a bubble.
+function talkingTurn(): ThreadMessage[] {
+  const call = (toolCallId: string, toolName: string, args: Record<string, unknown>, result: unknown) => ({
+    type: 'tool-call',
+    toolCallId,
+    toolName,
+    args,
+    argsText: JSON.stringify(args),
+    result
+  })
+
+  const bubble = (id: string, content: unknown[], custom: Record<string, unknown>) =>
+    ({
+      id,
+      role: 'assistant',
+      content,
+      status: { type: 'complete', reason: 'stop' },
+      createdAt,
+      metadata: { ...meta(), custom }
+    }) as unknown as ThreadMessage
+
+  return [
+    userMessage('user-page', 'Make a simple expense page.'),
+    bubble(
+      'talk-a',
+      [call('s1', 'skill_view', { name: 'web' }, { ok: true }), { type: 'text', text: 'I will create the file now.' }],
+      { interim: true }
+    ),
+    bubble(
+      'talk-b',
+      [
+        call('w1', 'write_file', { path: 'gastos/index.html' }, { inline_diff: '@@ -0,0 +1,1 @@\n+<html></html>' }),
+        { type: 'text', text: 'File created. Opening it in the preview.' }
+      ],
+      { interim: true }
+    ),
+    bubble(
+      'talk-c',
+      [
+        call('p1', 'open_preview', { url: 'file:///gastos/index.html' }, { ok: true }),
+        call('d1', 'drive_preview', { action: 'click' }, { ok: true }),
+        call('d2', 'drive_preview', { action: 'type' }, { ok: true }),
+        { type: 'text', text: 'Done — the page works.' }
+      ],
+      { durationS: 92 }
+    )
+  ]
+}
+
+/** What the turn draws, top to bottom, by kind. */
+function turnOrder(container: HTMLElement) {
+  return [...container.querySelectorAll('[data-slot="aui_assistant-message-content"] > *')].map(element =>
+    element.classList.contains('aui-md')
+      ? 'prose'
+      : `${element.getAttribute('data-slot')}${element.hasAttribute('data-under-sentence') ? ' (under)' : ''}`
+  )
+}
+
 beforeEach(() => {
   $activityDensity.set('balanced')
   $toolDisclosureStates.set({})
@@ -267,6 +326,49 @@ describe('settled turn', () => {
       expect(container.querySelector('[data-tool-row]')).not.toBeNull()
     })
     expect(container.querySelector('[data-slot="aui_turn-now"]')).toBeNull()
+  })
+
+  it('reads the newest turn the way it ran: each sentence whole, the work after it on one line', async () => {
+    const { container } = render(
+      <ThreadRuntime messages={talkingTurn()}>
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByText('Created index.html, used 4 tools')).toBeTruthy()
+    expect(screen.getByText('Read skill')).toBeTruthy()
+    expect(screen.getByText('Created index.html')).toBeTruthy()
+    expect(screen.getByText('Opened preview, used the preview 2 times')).toBeTruthy()
+    expect(turnOrder(container)).toEqual([
+      'aui_worked-for',
+      'aui_turn-group',
+      'prose',
+      'aui_turn-group (under)',
+      'prose',
+      'aui_turn-group (under)',
+      'prose'
+    ])
+    expect(container.textContent).toContain('I will create the file now.')
+    expect(container.textContent).toContain('Done — the page works.')
+  })
+
+  it('folds everything but the reply in Compact, and opens back into the sentences', async () => {
+    $activityDensity.set('compact')
+
+    const { container } = render(
+      <ThreadRuntime messages={talkingTurn()}>
+        <Thread />
+      </ThreadRuntime>
+    )
+
+    expect(await screen.findByText('Done — the page works.')).toBeTruthy()
+    expect(turnOrder(container)).toEqual(['aui_worked-for', 'prose'])
+    expect(container.textContent).not.toContain('I will create the file now.')
+
+    fireEvent.click(screen.getByText('Created index.html, used 4 tools'))
+
+    expect(await screen.findByText('I will create the file now.')).toBeTruthy()
+    expect(screen.getByText('File created. Opening it in the preview.')).toBeTruthy()
   })
 
   it('counts a failed step on the line and keeps it in the work, not as a card', async () => {

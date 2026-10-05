@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { summarizeToolRun, type ToolCallLike } from './run-summary'
+import { summarizeToolRun, type ToolCallLike, toolDraftingTitle } from './run-summary'
 
 function tool(toolName: string, args: Record<string, unknown> = {}, result?: unknown): ToolCallLike {
   return { args, result, toolCallId: `${toolName}-${Math.random()}`, toolName }
@@ -76,3 +76,40 @@ describe('summarizeToolRun', () => {
 
 // The summary stands in for rows that already read in the app's language, so it
 // has to as well: every word comes from the active catalog.
+
+// A call with no category of its own used to read "Used 2 tools", which says
+// nothing about what happened. By name, the line says what the turn did.
+describe('summarizeToolRun naming calls with no category', () => {
+  const opened = () => tool('open_preview', { url: 'file:///page.html' }, { ok: true })
+  const drove = () => tool('drive_preview', { action: 'click' }, { ok: true })
+
+  it('names a few kinds by what they did, and counts a repeat', () => {
+    expect(settled([tool('skill_view', { name: 'web' }, { ok: true })])).toBe('Read skill')
+    expect(settled([opened(), drove(), drove()])).toBe('Opened preview, used the preview 2 times')
+  })
+
+  it('reads as one sentence after another clause', () => {
+    expect(settled([read('a.ts'), opened()])).toBe('Explored a.ts, opened preview')
+  })
+
+  it('counts once there are too many kinds to name', () => {
+    expect(settled([tool('skill_view', {}, {}), opened(), drove()])).toBe('Used 3 tools')
+  })
+
+  it('counts a tool the catalog has no words for, rather than naming it in English', () => {
+    expect(settled([tool('custom_tool', {}, {}), drove()])).toBe('Used 2 tools')
+  })
+})
+
+describe('toolDraftingTitle', () => {
+  // Before its arguments arrive a call has no target, and a bare "Editing"
+  // left the user asking: editing what?
+  it('names a call being drafted the way its row will', () => {
+    expect(toolDraftingTitle('write_file')).toBe('Writing file')
+    expect(toolDraftingTitle('terminal')).toBe('Running command')
+  })
+
+  it("falls back to its kind of work for a tool the catalog doesn't know", () => {
+    expect(toolDraftingTitle('custom_tool')).toBe('Using')
+  })
+})

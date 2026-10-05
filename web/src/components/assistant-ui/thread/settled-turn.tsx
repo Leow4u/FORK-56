@@ -3,7 +3,7 @@ import { useAuiState } from '@assistant-ui/react'
 import { useStore } from '@nanostores/react'
 import { type FC, useMemo, useRef } from 'react'
 
-import { TurnAnswers, TurnCards, TurnWorkList } from '@/components/assistant-ui/thread/turn-work'
+import { TurnStream } from '@/components/assistant-ui/thread/turn-work'
 import { WorkedForDisclosure } from '@/components/assistant-ui/thread/worked-for'
 import { summarizeToolRun, type ToolCallLike } from '@/components/assistant-ui/tool/run-summary'
 import {
@@ -14,7 +14,7 @@ import {
   messageDurationS,
   turnDurationS
 } from '@/lib/turn-fold'
-import { buildTurnTimeline, failedToolCount, finishedTools, type TurnTimeline } from '@/lib/turn-timeline'
+import { buildTurnTimeline, failedToolCount, finishedTools, segmentTurn, type TurnTimeline } from '@/lib/turn-timeline'
 import type { ActivityDensity } from '@/store/activity-density'
 import { $toolDisclosureOpen, setToolDisclosureOpen } from '@/store/tool-view'
 
@@ -145,6 +145,16 @@ function turnAssistants(messages: readonly ThreadFoldMessage[], index: number) {
   return turn
 }
 
+// Closed, a settled turn keeps only what the user still has to see: every
+// row goes behind the line, and the cards and the reply stay out.
+const behindTheLine = () => true
+
+/**
+ * A finished turn: one line for the whole of it, and the reply. Opened, it
+ * reads the way it did while it ran — the sentences in their places, a line of
+ * work under each — and Balanced leaves the newest turn that way until the
+ * next message, so the turn the user just watched doesn't fold up under them.
+ */
 export const SettledProductTurn: FC<{
   durationS?: number
   messageId: string
@@ -164,6 +174,13 @@ export const SettledProductTurn: FC<{
     }
   }, [timeline.items])
 
+  const segments = useMemo(() => segmentTurn(timeline, open ? undefined : behindTheLine), [open, timeline])
+
+  // A turn that said nothing along the way is one run of work, and the line
+  // above already sums it up: a second line saying the same would be all that
+  // opening it showed. Its rows come straight out instead.
+  const said = segments.some(segment => segment.kind === 'sentence')
+
   return (
     <>
       <WorkedForDisclosure
@@ -172,11 +189,8 @@ export const SettledProductTurn: FC<{
         onToggle={() => setToolDisclosureOpen(disclosureId, !open)}
         open={open}
         summary={summary}
-      >
-        <TurnWorkList items={timeline.items} />
-      </WorkedForDisclosure>
-      <TurnCards cards={timeline.cards} />
-      <TurnAnswers answers={timeline.answers} />
+      />
+      <TurnStream answers={timeline.answers} openWork={!said} segments={segments} />
     </>
   )
 }

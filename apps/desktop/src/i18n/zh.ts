@@ -4851,6 +4851,7 @@ export const zh: Translations = {
           run: { count: count => `${count} 条命令`, past: '运行了', present: '正在运行' }
         },
         clause: (verb, object) => `${verb} ${object}`,
+        repeated: (action, count) => `${action}（${count} 次）`,
         separator: '，'
       },
       titles: {
@@ -4910,7 +4911,7 @@ export const zh: Translations = {
         vision_analyze: { done: '已分析图片', pending: '正在分析图片', pendingAction: '正在分析' },
         web_extract: { done: '已读取网页', pending: '正在读取网页', pendingAction: '正在读取' },
         web_search: { done: '已搜索网页', pending: '正在搜索网页', pendingAction: '正在搜索' },
-        write_file: { done: '已编辑文件', pending: '正在编辑文件', pendingAction: '正在编辑' }
+        write_file: { done: '已写入文件', pending: '正在写入文件', pendingAction: '正在写入' }
       },
       payload: '工具载荷',
       traceArguments: '参数',

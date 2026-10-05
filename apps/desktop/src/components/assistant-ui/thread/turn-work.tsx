@@ -5,80 +5,215 @@ import { type FC, useMemo } from 'react'
 import { MarkdownText, MarkdownTextContent } from '@/components/assistant-ui/markdown-text'
 import { ChainToolFallback } from '@/components/assistant-ui/thread/message-parts'
 import { asToolPart, toolPartProps } from '@/components/assistant-ui/thread/turn-parts'
-import { DisclosureRow } from '@/components/chat/disclosure-row'
+import { summarizeToolRun, type ToolCallLike } from '@/components/assistant-ui/tool/run-summary'
 import { SCAFFOLD_LABEL_CLASS, ScaffoldRow } from '@/components/chat/scaffold-row'
 import { FadeText } from '@/components/ui/fade-text'
 import { useI18n } from '@/i18n'
 import { separateGluedReasoningBlocks } from '@/lib/reasoning-blocks'
 import { messageContentParts, partText } from '@/lib/turn-fold'
-import { noteLine, type PartRef, type TimelineItem, type TurnAnswer, type TurnCard } from '@/lib/turn-timeline'
+import {
+  failedToolCount,
+  finishedTools,
+  type PartRef,
+  type TimelineItem,
+  type TurnAnswer,
+  type TurnCard,
+  type TurnSegment,
+  type WorkItem
+} from '@/lib/turn-timeline'
 import { cn } from '@/lib/utils'
 import { $toolDisclosureOpen, setToolDisclosureOpen } from '@/store/tool-view'
 
 /**
- * A turn's work, opened: every thought, call and note in the order it
- * happened, one line each. The same list sits behind the live block and behind
- * a settled turn's line, so opening either shows the same thing.
+ * A turn as it reads on screen: what the agent said along the way as prose,
+ * whole and in order, and under each sentence one line for the work that came
+ * after it — "Created index.html", "Opened preview, used the preview 3 times" —
+ * which opens into the rows. Cards sit where they happened; the reply comes
+ * last. The live block and an opened settled turn draw the same stream, so
+ * what the user watched is what they find when they open it again.
+ *
+ * Sentences and the reply are one keyed list: the text before a call reads as
+ * the reply until the call arrives and turns it into a sentence, and in one
+ * list that is a move, not an unmount — the prose stays on screen.
+ *
+ * `openWork` draws the work as its rows instead of a line: for a settled turn
+ * that said nothing along the way, whose own line already sums the work up.
+ */
+export const TurnStream: FC<{
+  answers: readonly TurnAnswer[]
+  openWork?: boolean
+  segments: readonly TurnSegment[]
+}> = ({ answers, openWork = false, segments }) => (
+  <>
+    {[
+      ...segments.map((segment, index) => {
+        if (segment.kind === 'sentence') {
+          return <TurnProse at={segment.ref} key={segment.key} />
+        }
+
+        if (segment.kind === 'card') {
+          return <TurnCardRow card={segment.card} key={segment.key} />
+        }
+
+        if (openWork) {
+          return (
+            <div className="grid min-w-0 max-w-full gap-(--tool-row-gap)" data-slot="aui_turn-group" key={segment.key}>
+              <TurnWorkList items={segment.items} />
+            </div>
+          )
+        }
+
+        return (
+          <WorkLine
+            items={segment.items}
+            key={segment.key}
+            lineKey={segment.key}
+            underSentence={segments[index - 1]?.kind === 'sentence'}
+          />
+        )
+      }),
+      ...answers.map(answer => <TurnProse at={answer.ref} key={answer.key} />)
+    ]}
+  </>
+)
+
+/**
+ * Prose rendered from its own part, so it streams the way any reply does —
+ * the block around it never sees the characters.
+ */
+const TurnProse: FC<{ at: PartRef }> = ({ at }) => (
+  <MessageByIndexProvider index={at.messageIndex}>
+    <PartByIndexProvider index={at.partIndex}>
+      <MarkdownText />
+    </PartByIndexProvider>
+  </MessageByIndexProvider>
+)
+
+/** Questions, images, delegations and setup prompts — each in its own message. */
+const TurnCardRow: FC<{ card: TurnCard }> = ({ card }) => (
+  <MessageByIndexProvider index={card.ref.messageIndex}>
+    <ChainToolFallback {...toolPartProps(asToolPart(card.part))} />
+  </MessageByIndexProvider>
+)
+
+/**
+ * The work between two sentences, as one line: what its calls did, in the
+ * run-summary words, opening into every thought and call in order. Until a
+ * call has come back there is nothing to sum up, and the thoughts stand on
+ * their own.
+ *
+ * Under a sentence the line is that sentence's work: it sits close beneath it
+ * and steps in (styles.css, `data-under-sentence`).
+ */
+const WorkLine: FC<{ items: readonly WorkItem[]; lineKey: string; underSentence: boolean }> = ({
+  items,
+  lineKey,
+  underSentence
+}) => {
+  const { t } = useI18n()
+  const disclosureId = `turn-line:${lineKey}`
+  const open = useStore($toolDisclosureOpen(disclosureId)) ?? false
+
+  const label = useMemo(() => {
+    const finished = finishedTools(items)
+
+    if (finished.length === 0) {
+      return ''
+    }
+
+    const work = summarizeToolRun(finished as ToolCallLike[], false)
+    const failed = failedToolCount(finished)
+
+    if (failed === 0) {
+      return work
+    }
+
+    return `${work} · ${failed === 1 ? t.assistant.tool.failedOne : t.assistant.tool.failedMany(failed)}`
+  }, [items, t])
+
+  const thoughts = useMemo(() => (label ? [] : items.filter(item => item.kind === 'thought')), [items, label])
+
+  if (!label && thoughts.length === 0) {
+    return null
+  }
+
+  return (
+    <div
+      className="grid min-w-0 max-w-full gap-(--tool-row-gap)"
+      data-slot="aui_turn-group"
+      data-under-sentence={underSentence ? '' : undefined}
+    >
+      {label ? (
+        <>
+          <div data-conversation-scaffold="" data-tool-summary="">
+            <ScaffoldRow onToggle={() => setToolDisclosureOpen(disclosureId, !open)} open={open}>
+              <FadeText className={cn(SCAFFOLD_LABEL_CLASS, 'truncate')}>{label}</FadeText>
+            </ScaffoldRow>
+          </div>
+          {open && <TurnWorkList items={items} />}
+        </>
+      ) : (
+        thoughts.map(item => <ThoughtRow item={item} key={item.key} />)
+      )}
+    </div>
+  )
+}
+
+/**
+ * A line of work, opened: every thought and call in the order it happened, one
+ * row each.
  *
  * Rows are drawn inside their OWN message, not the one hosting the list. A call
  * reads its message to know whether it is still running and to key its
  * disclosure, and a turn's calls are spread over every bubble it sealed.
  */
-export const TurnWorkList: FC<{ items: readonly TimelineItem[] }> = ({ items }) => {
+const TurnWorkList: FC<{ items: readonly WorkItem[] }> = ({ items }) => {
   const segments = useMemo(() => segmentByMessage(items), [items])
 
   return (
     <div className="grid min-w-0 max-w-full gap-(--tool-row-gap)" data-slot="aui_turn-work-list">
       {segments.map(segment => (
         <MessageByIndexProvider index={segment.messageIndex} key={segment.key}>
-          {segment.items.map(item => (
-            <WorkRow item={item} key={item.key} />
-          ))}
+          {segment.items.map(item =>
+            item.kind === 'thought' ? (
+              <ThoughtRow item={item} key={item.key} />
+            ) : (
+              <ChainToolFallback key={item.key} {...toolPartProps(asToolPart(item.part))} />
+            )
+          )}
         </MessageByIndexProvider>
       ))}
     </div>
   )
 }
 
-interface Segment {
-  items: TimelineItem[]
+interface MessageRun {
+  items: WorkItem[]
   key: string
   messageIndex: number
 }
 
-function itemMessageIndex(item: TimelineItem): number {
+function itemMessageIndex(item: WorkItem): number {
   return item.kind === 'thought' ? (item.refs[0]?.messageIndex ?? 0) : item.ref.messageIndex
 }
 
 // Consecutive rows from one message share a provider. Keyed by the first row,
-// so a row landing at the end of a segment leaves the segment where it is.
-function segmentByMessage(items: readonly TimelineItem[]): Segment[] {
-  const segments: Segment[] = []
+// so a row landing at the end of a run leaves the run where it is.
+function segmentByMessage(items: readonly WorkItem[]): MessageRun[] {
+  const runs: MessageRun[] = []
 
   for (const item of items) {
     const messageIndex = itemMessageIndex(item)
-    const last = segments.at(-1)
+    const last = runs.at(-1)
 
     if (last && last.messageIndex === messageIndex) {
       last.items.push(item)
     } else {
-      segments.push({ items: [item], key: item.key, messageIndex })
+      runs.push({ items: [item], key: item.key, messageIndex })
     }
   }
 
-  return segments
-}
-
-const WorkRow: FC<{ item: TimelineItem }> = ({ item }) => {
-  if (item.kind === 'thought') {
-    return <ThoughtRow item={item} />
-  }
-
-  if (item.kind === 'note') {
-    return <NoteRow noteKey={item.key} text={item.text} />
-  }
-
-  return <ChainToolFallback {...toolPartProps(asToolPart(item.part))} />
+  return runs
 }
 
 /**
@@ -127,69 +262,3 @@ const ThoughtText: FC<{ refs: readonly PartRef[] }> = ({ refs }) => {
     </div>
   )
 }
-
-// Past this, a note no longer fits its line at the transcript's usual width.
-const NOTE_LINE_CHARS = 90
-
-/**
- * Something the agent said along the way, as one line in the transcript's
- * secondary ink — legible, but quieter than the reply. A note longer than its
- * line, or carrying structure a line can't hold, opens to the full text.
- */
-export const NoteRow: FC<{ noteKey: string; text: string }> = ({ noteKey, text }) => {
-  const disclosureId = `turn-note:${noteKey}`
-  const open = useStore($toolDisclosureOpen(disclosureId)) ?? false
-  const line = useMemo(() => noteLine(text), [text])
-  const expandable = line.length > NOTE_LINE_CHARS || line !== text.trim()
-
-  return (
-    <div className="min-w-0 max-w-full text-[length:var(--conversation-tool-font-size)]" data-slot="aui_turn-note">
-      <DisclosureRow onToggle={expandable ? () => setToolDisclosureOpen(disclosureId, !open) : undefined} open={open}>
-        {expandable ? (
-          <FadeText className="truncate leading-(--conversation-line-height) text-(--ui-text-secondary)">
-            {line}
-          </FadeText>
-        ) : (
-          <span className="wrap-anywhere leading-(--conversation-line-height) text-(--ui-text-secondary)">{line}</span>
-        )}
-      </DisclosureRow>
-      {open && expandable && (
-        <div className="mt-0.5 min-w-0 max-w-full pb-1">
-          <MarkdownTextContent
-            containerClassName="text-xs leading-snug text-(--ui-text-secondary)"
-            disableArtifacts
-            isRunning={false}
-            text={text}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** Questions, images, delegations and setup prompts — each in its own message. */
-export const TurnCards: FC<{ cards: readonly TurnCard[] }> = ({ cards }) => (
-  <>
-    {cards.map(card => (
-      <MessageByIndexProvider index={card.ref.messageIndex} key={card.key}>
-        <ChainToolFallback {...toolPartProps(asToolPart(card.part))} />
-      </MessageByIndexProvider>
-    ))}
-  </>
-)
-
-/**
- * The reply, rendered from its own part so it streams the way any reply does —
- * the block around it never sees the characters.
- */
-export const TurnAnswers: FC<{ answers: readonly TurnAnswer[] }> = ({ answers }) => (
-  <>
-    {answers.map(answer => (
-      <MessageByIndexProvider index={answer.ref.messageIndex} key={answer.key}>
-        <PartByIndexProvider index={answer.ref.partIndex}>
-          <MarkdownText />
-        </PartByIndexProvider>
-      </MessageByIndexProvider>
-    ))}
-  </>
-)

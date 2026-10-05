@@ -5,7 +5,7 @@ import { type FC, type ReactNode, useEffect, useMemo, useState } from 'react'
 
 import { useSessionView } from '@/app/chat/session-view'
 import { activitySignature, toolNarratesWait, TURN_QUIET_S } from '@/components/assistant-ui/thread/turn-activity'
-import { toolPresentVerb } from '@/components/assistant-ui/tool/run-summary'
+import { toolDraftingTitle } from '@/components/assistant-ui/tool/run-summary'
 import { useElapsedSeconds } from '@/components/chat/activity-timer'
 import { ActivityTimerText } from '@/components/chat/activity-timer-text'
 import { SCAFFOLD_LABEL_CLASS } from '@/components/chat/scaffold-row'
@@ -118,7 +118,7 @@ export function useStatusHint(compacting: boolean, drafting: DraftingTool | null
     return providerWait
   }
 
-  return revealed && name ? toolPresentVerb(name) : ''
+  return revealed && name ? toolDraftingTitle(name) : ''
 }
 
 export const CenteredThreadSpinner: FC = () => {

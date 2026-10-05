@@ -263,6 +263,15 @@ function isToolTitleKey(name: string): name is ToolTitleKey {
   return name in TOOL_META
 }
 
+/**
+ * A tool's row title as the catalog words it — "Opened preview" once it has
+ * run, "Opening preview" while it runs — or '' for a tool the catalog doesn't
+ * know, whose made-up name would read in English whatever the app's language.
+ */
+export function catalogToolTitle(toolName: string, state: 'done' | 'pending'): string {
+  return isToolTitleKey(toolName) ? translateNow(`assistant.tool.titles.${toolName}.${state}`) : ''
+}
+
 const INLINE_CODE_SPLIT_RE = /(`[^`\n]+`)/g
 const CITATION_MARKER_RE = /(?<=[\p{L}\p{N})\].,!?:;"'”’])\[(?:\d+(?:\s*,\s*\d+)*)\](?!\()/gu
 const BACKTICK_NOISE_RE = /`{3,}/g
@@ -1472,7 +1481,9 @@ function dynamicTitle(
  * the rest of the row. The status line says what the turn is doing with it.
  *
  * A file edit's row title is the bare file name beside its icon; on a line of
- * its own the verb has to come back ("Editing wiring.tsx").
+ * its own the verb has to come back ("Editing wiring.tsx"). A whole-file write
+ * is writing while it runs ("Writing index.html"): it may be making the file,
+ * and nothing says so until its diff lands.
  */
 export function toolLineTitle(part: ToolPart): string {
   const meta = toolMeta(part.toolName)
@@ -1483,7 +1494,11 @@ export function toolLineTitle(part: ToolPart): string {
 
   if (isFileEditTool(part.toolName)) {
     const path = fileEditPath(args, result)
-    const verb = translateNow(`assistant.tool.runSummary.categories.edit.${pending ? 'present' : 'past'}`)
+
+    const verb =
+      pending && part.toolName === 'write_file'
+        ? meta.pendingAction
+        : translateNow(`assistant.tool.runSummary.categories.edit.${pending ? 'present' : 'past'}`)
 
     return path ? translateNow('assistant.tool.runSummary.clause', verb, fileEditBasename(path)) : base
   }

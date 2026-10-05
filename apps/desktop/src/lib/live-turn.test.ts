@@ -45,7 +45,14 @@ describe('liveTurnMessages', () => {
 describe('buildLiveTurnModel', () => {
   const turn = (messages: ReturnType<typeof assistant>[]) => messages.map((message, index) => ({ index, message }))
 
-  it('reads what is done, what was said and what is happening across bubbles', () => {
+  const shape = (model: ReturnType<typeof buildLiveTurnModel>) =>
+    model.segments.map(segment =>
+      segment.kind === 'work'
+        ? `work[${segment.items.map(item => item.key).join(',')}]`
+        : `${segment.kind}:${segment.key}`
+    )
+
+  it('reads what was said, the work after each sentence and what is happening across bubbles', () => {
     const model = buildLiveTurnModel(
       turn([
         sealed('a', [thought('**Scanning the brief**'), tool('read_file', 'r1'), text('Reading the brief first.')]),
@@ -54,13 +61,26 @@ describe('buildLiveTurnModel', () => {
       ])
     )
 
-    expect(model.turnKey).toBe('a')
-    expect(model.finished.map(part => (part as { toolCallId: string }).toolCallId)).toEqual(['r1', 'c1', 'c2'])
-    expect(model.failed).toBe(1)
-    expect(model.note?.text).toBe('That failed; retrying.')
+    // The call in flight is the status line's, not a row.
+    expect(shape(model)).toEqual(['work[a:0,r1]', 'sentence:a:2', 'work[c1]', 'sentence:b:1', 'work[c2]'])
     expect(model.pending).toMatchObject({ part: { toolCallId: 'w1' }, ref: { messageIndex: 2, partIndex: 1 } })
     expect(model.thinkingAbout).toBe('Scanning the brief')
     expect(model.tail).toBe('other')
+  })
+
+  it('leaves the thought still arriving to the status line, and lists it once something follows', () => {
+    const thinking = buildLiveTurnModel(
+      turn([assistant('a', [tool('read_file', 'r1'), thought('**Planning the table**')])])
+    )
+
+    expect(shape(thinking)).toEqual(['work[r1]'])
+    expect(thinking.thinkingAbout).toBe('Planning the table')
+
+    const moved = buildLiveTurnModel(
+      turn([assistant('a', [tool('read_file', 'r1'), thought('**Planning the table**'), tool('terminal', 'c1')])])
+    )
+
+    expect(shape(moved)).toEqual(['work[r1,a:1,c1]'])
   })
 
   it('narrates the newest call still running, past calls that already came back', () => {

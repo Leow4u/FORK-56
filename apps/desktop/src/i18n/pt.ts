@@ -5119,6 +5119,7 @@ export const pt = defineLocale({
           }
         },
         clause: (verb, object) => `${verb} ${object}`,
+        repeated: (action, count) => `${action} ${count} vezes`,
         separator: ', '
       },
       titles: {
@@ -5242,7 +5243,7 @@ export const pt = defineLocale({
         vision_analyze: { done: 'Analisou imagem', pending: 'Analisando imagem', pendingAction: 'Analisando' },
         web_extract: { done: 'Leu página da web', pending: 'Lendo página da web', pendingAction: 'Lendo' },
         web_search: { done: 'Buscou na web', pending: 'Buscando na web', pendingAction: 'Buscando' },
-        write_file: { done: 'Editou arquivo', pending: 'Editando arquivo', pendingAction: 'Editando' }
+        write_file: { done: 'Escreveu arquivo', pending: 'Escrevendo arquivo', pendingAction: 'Escrevendo' }
       },
       payload: 'Payload da ferramenta',
       traceArguments: 'Argumentos',

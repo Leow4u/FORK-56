@@ -1,107 +1,47 @@
 import { useAuiState } from '@assistant-ui/react'
 import { useStore } from '@nanostores/react'
-import { type FC, type ReactNode, useMemo, useRef } from 'react'
+import { type FC, useMemo, useRef } from 'react'
 
 import { useSessionView } from '@/app/chat/session-view'
 import { useStatusHint, useThreadSessionStatus } from '@/components/assistant-ui/thread/status'
 import { asToolPart } from '@/components/assistant-ui/thread/turn-parts'
-import { NoteRow, TurnAnswers, TurnCards, TurnWorkList } from '@/components/assistant-ui/thread/turn-work'
+import { TurnStream } from '@/components/assistant-ui/thread/turn-work'
 import { APPROVAL_TOOLS, PendingToolApproval } from '@/components/assistant-ui/tool/approval'
 import { toolLineTitle } from '@/components/assistant-ui/tool/fallback-model'
-import { summarizeToolRun, type ToolCallLike } from '@/components/assistant-ui/tool/run-summary'
 import { useElapsedSeconds } from '@/components/chat/activity-timer'
 import { ActivityTimerText } from '@/components/chat/activity-timer-text'
-import { SCAFFOLD_LABEL_CLASS, SCAFFOLD_META_CLASS, ScaffoldRow } from '@/components/chat/scaffold-row'
-import { FadeText } from '@/components/ui/fade-text'
+import { SCAFFOLD_LABEL_CLASS, SCAFFOLD_META_CLASS } from '@/components/chat/scaffold-row'
 import { StatusPulse } from '@/components/ui/status-pulse'
 import { useI18n } from '@/i18n'
 import { buildLiveTurnModel, liveTurnMessages, type LiveTurnModel, liveTurnSignature } from '@/lib/live-turn'
 import { todoStep } from '@/lib/todos'
 import { cn } from '@/lib/utils'
 import { $todosBySession } from '@/store/todos'
-import { $toolDisclosureOpen, setToolDisclosureOpen } from '@/store/tool-view'
 
 /**
  * The turn in progress, as one block instead of a line per event.
  *
- * Balanced: what is done ("Explored 8 files, ran 3 commands"), the newest note
- * the agent wrote, anything that asks the user for something, the reply as it
- * streams, and one line for what is happening now. Compact keeps only the line
- * for now. However long the turn runs, that is all the work it puts on screen;
- * the rest is one click away, in order, under the first line.
+ * What the agent says to the user along the way stays on screen as prose, in
+ * order, and under each sentence one line says what the work after it did —
+ * "Created index.html", which opens into the rows. One status line, always
+ * last, says what is happening now. However long the turn runs, the work
+ * between two sentences never takes more than its line.
  *
  * The block is hosted by the turn's FIRST assistant message, which exists from
  * the moment the turn starts and never moves. Every note the agent writes seals
  * a bubble and opens another, and a block that followed the newest bubble
  * would unmount and remount — replaying its entrance — each time. Parts from
- * the other bubbles render here inside their own message (see TurnWorkList),
- * so a question or an approval in the streaming bubble still answers to it.
+ * the other bubbles render here inside their own message (see TurnStream), so
+ * a question or an approval in the streaming bubble still answers to it.
  */
-export const LiveTurn: FC<{ compact: boolean }> = ({ compact }) => {
-  const { t } = useI18n()
+export const LiveTurn: FC = () => {
   const model = useLiveTurnModel()
-  const disclosureId = `turn-work:${model.turnKey}`
-  const open = useStore($toolDisclosureOpen(disclosureId)) ?? false
-
-  // The call in flight is the status line's to narrate; listing it as well
-  // would say the same thing twice, one line apart.
-  const items = useMemo(() => {
-    const pending = model.pending?.ref
-
-    return pending
-      ? model.items.filter(
-          item =>
-            item.kind !== 'tool' ||
-            item.ref.messageIndex !== pending.messageIndex ||
-            item.ref.partIndex !== pending.partIndex
-        )
-      : model.items
-  }, [model.items, model.pending])
-
-  const canOpen = items.length > 0
-  const onToggle = canOpen ? () => setToolDisclosureOpen(disclosureId, !open) : undefined
-  const expanded = open && canOpen
-  const failedCopy = t.assistant.tool
-
-  const summary = useMemo(() => {
-    if (model.finished.length === 0) {
-      return ''
-    }
-
-    const work = summarizeToolRun(model.finished as ToolCallLike[], false)
-
-    if (model.failed === 0) {
-      return work
-    }
-
-    return `${work} · ${model.failed === 1 ? failedCopy.failedOne : failedCopy.failedMany(model.failed)}`
-  }, [failedCopy, model.failed, model.finished])
-
-  const approval = model.pending ? <LiveApproval part={model.pending.part} /> : null
 
   return (
     <>
-      {compact ? (
-        <NowLine model={model} onToggle={onToggle} open={expanded}>
-          {expanded && <TurnWorkList items={items} />}
-        </NowLine>
-      ) : (
-        summary && (
-          <div className="grid min-w-0 max-w-full gap-(--tool-row-gap)" data-slot="aui_turn-work">
-            <div data-conversation-scaffold="" data-tool-summary="">
-              <ScaffoldRow onToggle={onToggle} open={expanded}>
-                <FadeText className={cn(SCAFFOLD_LABEL_CLASS, 'truncate')}>{summary}</FadeText>
-              </ScaffoldRow>
-            </div>
-            {expanded && <TurnWorkList items={items} />}
-          </div>
-        )
-      )}
-      {!compact && !expanded && model.note && <NoteRow noteKey={model.note.key} text={model.note.text} />}
-      <TurnCards cards={model.cards} />
-      {approval}
-      <TurnAnswers answers={model.answers} />
-      {!compact && <NowLine model={model} />}
+      <TurnStream answers={model.answers} segments={model.segments} />
+      {model.pending && <LiveApproval part={model.pending.part} />}
+      <NowLine model={model} />
     </>
   )
 }
@@ -132,12 +72,7 @@ function useLiveTurnModel(): LiveTurnModel {
  * says work is happening. It steps aside while the turn waits on the user:
  * the card asking for an answer is the line then.
  */
-const NowLine: FC<{ children?: ReactNode; model: LiveTurnModel; onToggle?: () => void; open?: boolean }> = ({
-  children,
-  model,
-  onToggle,
-  open = false
-}) => {
+const NowLine: FC<{ model: LiveTurnModel }> = ({ model }) => {
   const { t } = useI18n()
   const { awaitingInput, compacting, drafting, providerWait, turnStartedAt } = useThreadSessionStatus()
   const hint = useStatusHint(compacting, drafting, providerWait)
@@ -150,7 +85,7 @@ const NowLine: FC<{ children?: ReactNode; model: LiveTurnModel; onToggle?: () =>
   )
 
   if (awaitingInput) {
-    return children ? <div data-slot="aui_turn-work">{children}</div> : null
+    return null
   }
 
   const label =
@@ -160,38 +95,26 @@ const NowLine: FC<{ children?: ReactNode; model: LiveTurnModel; onToggle?: () =>
     model.thinkingAbout ||
     t.assistant.thread.thinking
 
-  const meta = (
-    <span className="flex shrink-0 items-center gap-1.5">
-      {step && <span className={SCAFFOLD_META_CLASS}>{t.assistant.thread.stepOf(step.step, step.total)}</span>}
-      <ActivityTimerText seconds={elapsed} />
-    </span>
-  )
-
-  const pulse = (
-    <StatusPulse
-      aria-hidden="true"
-      className="dither inline-block size-3 shrink-0 rounded-[2px] text-midground/80"
-      kind="opacity"
-    />
-  )
-
   return (
-    <div className="grid min-w-0 max-w-full gap-(--tool-row-gap)" data-slot="aui_turn-now">
-      <div aria-label={label} aria-live="polite" data-conversation-scaffold="" role="status">
-        {onToggle ? (
-          <ScaffoldRow onToggle={onToggle} open={open} trailing={meta}>
-            {pulse}
-            <FadeText className={cn(SCAFFOLD_LABEL_CLASS, 'shimmer truncate')}>{label}</FadeText>
-          </ScaffoldRow>
-        ) : (
-          <div className="flex min-w-0 max-w-full items-center gap-1.5 leading-(--conversation-line-height)">
-            {pulse}
-            <span className={cn(SCAFFOLD_LABEL_CLASS, 'shimmer min-w-0 truncate')}>{label}</span>
-            {meta}
-          </div>
-        )}
+    <div className="min-w-0 max-w-full" data-slot="aui_turn-now">
+      <div
+        aria-label={label}
+        aria-live="polite"
+        className="flex min-w-0 max-w-full items-center gap-1.5 leading-(--conversation-line-height)"
+        data-conversation-scaffold=""
+        role="status"
+      >
+        <StatusPulse
+          aria-hidden="true"
+          className="dither inline-block size-3 shrink-0 rounded-[2px] text-midground/80"
+          kind="opacity"
+        />
+        <span className={cn(SCAFFOLD_LABEL_CLASS, 'shimmer min-w-0 truncate')}>{label}</span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          {step && <span className={SCAFFOLD_META_CLASS}>{t.assistant.thread.stepOf(step.step, step.total)}</span>}
+          <ActivityTimerText seconds={elapsed} />
+        </span>
       </div>
-      {children}
     </div>
   )
 }

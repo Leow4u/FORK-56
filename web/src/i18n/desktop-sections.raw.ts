@@ -210,6 +210,7 @@ export const desktopSections = {
           run: { count: count => (count === 1 ? '1 command' : `${count} commands`), past: 'Ran', present: 'Running' }
         },
         clause: (verb, object) => `${verb} ${object}`,
+        repeated: (action, count) => `${action} ${count} times`,
         separator: ', '
       },
       titles: {
@@ -293,7 +294,7 @@ export const desktopSections = {
         vision_analyze: { done: 'Analyzed image', pending: 'Analyzing image', pendingAction: 'Analyzing' },
         web_extract: { done: 'Read webpage', pending: 'Reading webpage', pendingAction: 'Reading' },
         web_search: { done: 'Searched web', pending: 'Searching web', pendingAction: 'Searching' },
-        write_file: { done: 'Edited file', pending: 'Editing file', pendingAction: 'Editing' }
+        write_file: { done: 'Wrote file', pending: 'Writing file', pendingAction: 'Writing' }
       }
     }
   },

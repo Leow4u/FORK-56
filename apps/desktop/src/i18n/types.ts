@@ -4020,6 +4020,8 @@ export interface Translations {
         categories: Record<ToolRunCategory, ToolRunCategoryCopy>
         /** One clause: a verb and what it acted on, a target ("status.ts") or a count ("3 files"). */
         clause: (verb: string, object: string) => string
+        /** A step named on its own that ran more than once: "Used the preview 3 times". */
+        repeated: (action: string, count: number) => string
         /** Between clauses. */
         separator: string
       }

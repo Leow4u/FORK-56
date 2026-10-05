@@ -4,10 +4,10 @@ import {
   buildTurnTimeline,
   failedToolCount,
   finishedTools,
-  latestNote,
   latestThoughtTitle,
-  noteLine,
-  type TimelineItem
+  segmentTurn,
+  type TimelineItem,
+  type TurnSegment
 } from './turn-timeline'
 
 const thought = (text: string) => ({ type: 'reasoning', text })
@@ -93,6 +93,8 @@ describe('buildTurnTimeline', () => {
 
     expect(cards.map(card => card.key)).toEqual(['q1', 'i1', 'd1'])
     expect(items.map(item => item.key)).toEqual(['t1'])
+    // Each card remembers where it sat among the rows.
+    expect(cards.map(card => card.at)).toEqual([0, 1, 1])
   })
 
   it('leaves silent calls out, but not the ones that failed', () => {
@@ -163,26 +165,88 @@ describe('timeline readers', () => {
     expect(finishedTools(items).map(part => (part as { toolCallId: string }).toolCallId)).toEqual(['t1'])
   })
 
-  it('finds the newest note and the newest titled thought', () => {
-    expect(latestNote(items)?.text).toBe('Second note.')
+  it('finds the newest titled thought', () => {
     expect(latestThoughtTitle(items)).toBe('Scanning files')
-    expect(latestNote([])).toBeNull()
     expect(latestThoughtTitle([])).toBe('')
   })
 })
 
-describe('noteLine', () => {
-  it('reads markdown prose as one plain line', () => {
-    expect(noteLine('## Plan\n\nI will **read** the `config` and\n- list [the files](http://x).')).toBe(
-      'Plan I will read the config and list the files.'
-    )
+const shape = (segments: readonly TurnSegment[]) =>
+  segments.map(segment =>
+    segment.kind === 'work'
+      ? `work[${segment.items.map(item => item.key).join(',')}]`
+      : `${segment.kind}:${segment.key}`
+  )
+
+describe('segmentTurn', () => {
+  it('reads each note as a sentence and the work after it as one line', () => {
+    const timeline = buildTurnTimeline([
+      {
+        index: 0,
+        message: bubble('a', [thought('**Plan**'), tool('skill_view', 's1'), text('Writing it now.')], true)
+      },
+      { index: 1, message: bubble('b', [tool('write_file', 'w1'), text('Saved. Opening it.')], true) },
+      { index: 2, message: bubble('c', [thought('check'), tool('open_preview', 'p1'), text('Done.')]) }
+    ])
+
+    expect(shape(segmentTurn(timeline))).toEqual([
+      'work[a:0,s1]',
+      'sentence:a:2',
+      'work[w1]',
+      'sentence:b:1',
+      'work[c:0,p1]'
+    ])
+    // The reply is not a sentence: it stays out of every line.
+    expect(timeline.answers.map(answer => answer.key)).toEqual(['c:2'])
   })
 
-  it('drops code blocks rather than flattening them into the line', () => {
-    expect(noteLine('Running this:\n```sh\nnpm test\n```\nthen reporting.')).toBe('Running this: then reporting.')
+  it('puts cards where they happened, between the lines around them', () => {
+    const timeline = buildTurnTimeline([
+      {
+        index: 0,
+        message: bubble('a', [tool('read_file', 't1'), tool('image_generate', 'i1'), tool('read_file', 't2')])
+      }
+    ])
+
+    expect(shape(segmentTurn(timeline))).toEqual(['work[t1]', 'card:i1', 'work[t2]'])
   })
 
-  it('leaves file names and lone asterisks alone', () => {
-    expect(noteLine('Reading my_brand_kit.md output, 2 * 3 items')).toBe('Reading my_brand_kit.md output, 2 * 3 items')
+  it('leaves rows out without moving the cards', () => {
+    const timeline = buildTurnTimeline([
+      {
+        index: 0,
+        message: bubble('a', [tool('read_file', 't1'), tool('clarify', 'q1'), text('ok'), tool('read_file', 't2')])
+      }
+    ])
+
+    expect(shape(segmentTurn(timeline, item => item.key === 't2'))).toEqual(['work[t1]', 'card:q1', 'sentence:a:2'])
+    expect(shape(segmentTurn(timeline, () => true))).toEqual(['card:q1'])
+  })
+
+  it('keeps a line in place while rows land at its end', () => {
+    const first = bubble('a', [tool('read_file', 't1')])
+    const later = bubble('a', [tool('read_file', 't1'), thought('more'), tool('terminal', 't2')])
+
+    const before = segmentTurn(buildTurnTimeline([{ index: 0, message: first }]))
+    const after = segmentTurn(buildTurnTimeline([{ index: 0, message: later }]))
+
+    expect(after.map(segment => segment.key)).toEqual(before.map(segment => segment.key))
+  })
+
+  // While the model drafts a call, the text before it is the newest prose and
+  // reads as the reply. When the call arrives it becomes a sentence — under the
+  // same key, so the prose on screen is moved, not torn down and redrawn.
+  it('gives a sentence the key it had as the reply', () => {
+    const drafting = buildTurnTimeline([{ index: 0, message: bubble('a', [text('Writing the file now.')]) }])
+
+    const started = buildTurnTimeline([
+      {
+        index: 0,
+        message: bubble('a', [text('Writing the file now.'), tool('write_file', 'w1', { result: undefined })])
+      }
+    ])
+
+    expect(drafting.answers.map(answer => answer.key)).toEqual(['a:0'])
+    expect(segmentTurn(started).map(segment => segment.key)).toContain('a:0')
   })
 })

@@ -3248,6 +3248,7 @@ export const ja = defineLocale({
           run: { count: count => `${count} 件のコマンド`, past: '実行', present: '実行中' }
         },
         clause: (verb, object) => `${object}を${verb}`,
+        repeated: (action, count) => `${action}（${count}回）`,
         separator: '、'
       },
       titles: {
@@ -3415,7 +3416,7 @@ export const ja = defineLocale({
           pendingAction: '読み取り中'
         },
         web_search: { done: 'Web を検索しました', pending: 'Web を検索中', pendingAction: '検索中' },
-        write_file: { done: 'ファイルを編集しました', pending: 'ファイルを編集中', pendingAction: '編集中' }
+        write_file: { done: 'ファイルを書き込みました', pending: 'ファイルを書き込み中', pendingAction: '書き込み中' }
       }
     }
   },

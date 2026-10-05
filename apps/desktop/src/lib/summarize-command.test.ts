@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+
+import { type Locale, setRuntimeI18nLocale, TRANSLATIONS } from '@/i18n'
 
 import { summarizeShellCommand } from './summarize-command'
 
@@ -28,6 +30,19 @@ describe('summarizeShellCommand', () => {
   it('compacts a genuine multi-command compound without listing every command', () => {
     const compound = 'git add -A && git commit -m "wip"'
     expect(summarizeShellCommand(compound)).toBe('git add -A + 1 command')
+  })
+
+  // The row reads in the app's language, so the count it tacks on has to too.
+  describe('in every language', () => {
+    afterEach(() => setRuntimeI18nLocale('en'))
+
+    it.each(Object.keys(TRANSLATIONS) as Locale[])('counts the folded commands from the %s catalog', locale => {
+      setRuntimeI18nLocale(locale)
+      const { count } = TRANSLATIONS[locale].assistant.tool.runSummary.categories.run
+
+      expect(summarizeShellCommand('git add -A && git commit -m "wip"')).toBe(`git add -A + ${count(1)}`)
+      expect(summarizeShellCommand('which node && node -v && pnpm -v')).toBe(`which node + ${count(2)}`)
+    })
   })
 
   it('leaves a single bare command untouched', () => {
