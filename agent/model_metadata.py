@@ -515,7 +515,7 @@ DEFAULT_CONTEXT_LENGTHS = {
     # ensures "glm-5.2" resolves to 1M while older variants still hit the
     # generic 202K fallback.
     "glm-5.2": 1_048_576,
-    "glm-5.3": 1_310_720,         # also covers glm-5.3-flash
+    "glm-5.3": 1_048_576,         # also covers glm-5.3-flash (OpenRouter, verified 2026-10-05)
     "glm": 202752,
     # xAI Grok — xAI /v1/models does not return context_length metadata,
     # so these hardcoded fallbacks prevent Work4You from probing-down to
@@ -534,6 +534,7 @@ DEFAULT_CONTEXT_LENGTHS = {
     "grok-2-vision": 8192,      # grok-2-vision, -1212, -latest
     "grok-4-fast": 2000000,     # grok-4-fast-(non-)reasoning, also matches -reasoning
     "grok-4.20": 2000000,       # grok-4.20-0309-(non-)reasoning, -multi-agent-0309
+    "grok-4.7": 500000,         # grok-4.7 — 500K context (OpenRouter, verified 2026-10-05)
     "grok-4.6": 500000,         # grok-4.6 — 500K context (OpenRouter / docs.x.ai)
     "grok-4.5": 500000,         # grok-4.5, grok-4.5-latest — 500K context per docs.x.ai
     "grok-4.3": 1000000,        # grok-4.3, grok-4.3-latest — 1M context per docs.x.ai
