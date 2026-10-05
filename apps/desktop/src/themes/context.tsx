@@ -181,7 +181,8 @@ const mixesFor = (isDark: boolean): Record<string, string> => ({
   '--theme-mix-sidebar': '100%',
   '--theme-mix-card': isDark ? '38%' : '22%',
   '--theme-mix-elevated': isDark ? '46%' : '28%',
-  '--theme-mix-bubble': isDark ? '46%' : '0%'
+  '--theme-mix-bubble': isDark ? '46%' : '0%',
+  '--theme-bubble-lift': isDark ? '6%' : '0%'
 })
 
 function applyTheme(theme: DesktopTheme, mode: 'light' | 'dark') {

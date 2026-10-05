@@ -1304,8 +1304,8 @@ export function ChatSidebar({
                       // 6px of clearance. Drag regions win hit-testing over DOM
                       // (pointer-events can't override), and on Linux/WSLg the
                       // resolved region has been observed to swallow clicks on the
-                      // top rows. Same carve-out as USER_BUBBLE_BASE_CLASS in
-                      // thread.tsx.
+                      // top rows. Same carve-out as USER_PROMPT_BUBBLE_CLASS in
+                      // thread/user-message.tsx.
                       'flex w-full justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none',
                       isNewSession ? 'h-8' : 'h-7',
                       active &&

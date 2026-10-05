@@ -115,7 +115,7 @@ that are revealed on hover.
 
 Chrome (sidebars, menus, popovers, dialogs) follows `--radius-scalar`, which
 keeps its corners tight: `rounded-md` / `rounded-xl` resolve to 2–3px there.
-Three radii sit outside the scalar on purpose and are used through their token,
+Four radii sit outside the scalar on purpose and are used through their token,
 never a Tailwind `rounded-*` step:
 
 | Token | Use |
@@ -123,6 +123,7 @@ never a Tailwind `rounded-*` step:
 | `--control-radius` (6px) | every `Button` size and variant except `chip`, every `controlVariants` control (Input, Textarea, SelectTrigger), the `SegmentedControl` track (its pill is the token minus the 2px track padding) |
 | `--card-radius` (12px) | grouped settings cards (`SettingsGroup`, the model list, billing cards) |
 | `--composer-radius` | the prompt card |
+| `--prompt-bubble-radius` (16px) | a sent prompt's bubble |
 
 ## Buttons — one component
 
@@ -274,6 +275,19 @@ Notes:
   target, the status line uses the row's own words ("Writing file", "Running
   command"), never a bare category verb. A whole-file write reads "Writing
   index.html" while it runs.
+- **Prompt bubble** — a sent prompt sits at the end of the line (the right,
+  or the left when the UI runs right to left), as wide as its text and at
+  most 80% of the column, filled with `--dt-user-bubble` and no border: the
+  fill is what sets it apart from the reply, which reads as prose across the
+  column. The fill is the theme's bubble seed at full strength, lifted toward
+  the ink in dark mode (`--theme-bubble-lift`). The prompt is shown in full,
+  never clamped, and scrolls with the conversation; the timeline rail is the
+  way back to it. Its text is text, not a button — a click selects. One line
+  under it holds its reactions, always shown, and its actions — Copy, Edit,
+  and Restore, or Stop while its turn runs — shown on hover or keyboard focus
+  (always on a touch screen), keeping their height while hidden. Edit opens
+  the inline editor at full width. Attachments sit just above the bubble.
+  Process and agent-to-agent notices stay centered notices, never bubbles.
 - **Composer context bar** — empty-chat workspace picker. A second capsule
   (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
   card as a sibling vessel, not a well inside it: same width, same

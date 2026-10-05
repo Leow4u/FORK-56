@@ -1,5 +1,5 @@
 import { ActionBarPrimitive, BranchPickerPrimitive, MessagePrimitive, useAuiState } from '@assistant-ui/react'
-import { type FC, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { type FC, type ReactNode, useEffect, useState } from 'react'
 
 import { DirectiveContent } from '@/components/assistant-ui/directive-text'
 import { messageAttachmentRefs, messageContentText } from '@/components/assistant-ui/thread/content'
@@ -8,12 +8,12 @@ import { MessageTimelineTimestamp } from '@/components/assistant-ui/thread/timel
 import { type RestoreMessageTarget } from '@/components/assistant-ui/thread/types'
 import { useMessageReactions } from '@/components/assistant-ui/thread/use-message-reactions'
 import { UserMessageText } from '@/components/assistant-ui/thread/user-message-text'
+import { TooltipIconButton } from '@/components/assistant-ui/tooltip-icon-button'
 import { Codicon } from '@/components/ui/codicon'
-import { useResizeObserver } from '@/hooks/use-resize-observer'
+import { CopyButton } from '@/components/ui/copy-button'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { StopFilled } from '@/lib/icons'
-import { cn } from '@/lib/utils'
+import { PencilIcon, StopFilled } from '@/lib/icons'
 import { $gateway } from '@/store/gateway'
 import { notifyThreadEditOpen } from '@/store/thread-scroll'
 import { isWatchWindow } from '@/store/windows'
@@ -25,46 +25,45 @@ export function hasTextSelection(): boolean {
   return Boolean(selection && !selection.isCollapsed && selection.toString().length > 0)
 }
 
-export function StickyHumanMessageContainer({
-  attachments,
-  children,
-  messageId
-}: {
-  attachments?: ReactNode
-  children: ReactNode
-  messageId?: string
-}) {
+/**
+ * The row a prompt sits in. Everything in it lines up at the end of the line —
+ * the right, or the left when the window runs right to left — so who is
+ * speaking reads before a word of it does: the prompt there, the reply as prose
+ * across the column. The inline editor takes the same row at full width.
+ *
+ * It scrolls with the conversation. The prompt used to pin to the top of the
+ * scroller while its reply ran underneath; the conversation timeline rail is
+ * the way back to a prompt now.
+ */
+export function HumanMessageContainer({ children, messageId }: { children: ReactNode; messageId?: string }) {
   return (
-    // Fragment, not a wrapper: a wrapping element becomes the sticky's
-    // containing block (it'd stick within its own height = never). The bubble
-    // and attachments are flow siblings so the bubble pins against the scroller
-    // while attachments below it scroll away.
-    <>
-      <div
-        className="group/user-message sticky z-40 -mx-4 flex w-[calc(100%+2rem)] min-w-0 max-w-none flex-col items-stretch gap-0 self-end overflow-visible bg-(--ui-chat-surface-background) px-4 pb-(--conversation-turn-gap) pt-1"
-        data-message-id={messageId}
-        data-role="user"
-        data-slot="aui_user-message-root"
-      >
-        {children}
-      </div>
-      {attachments}
-    </>
+    <div
+      className="group/user-message flex w-full min-w-0 flex-col items-end gap-0 pb-(--conversation-turn-gap) pt-1"
+      data-message-id={messageId}
+      data-role="user"
+      data-slot="aui_user-message-root"
+    >
+      {children}
+    </div>
   )
 }
 
-// Shared "user bubble" base. Both the read-only message and the inline
-// edit composer render the same bubble surface (rounded glass card);
-// they only differ in border weight, cursor, and padding-right (the
-// read-only view reserves room for the restore icon).
+// The prompt: as wide as its text, up to 80% of the column, filled with the
+// theme's bubble color and no border — the fill is what sets it apart from the
+// reply. Text inside reads from the start of the line.
 //
-// no-drag: sticky bubbles park at --sticky-human-top (~4px), sliding under the
+// no-drag: a bubble scrolled up to the top of the transcript slides under the
 // titlebar's [-webkit-app-region:drag] strips (app-shell.tsx). Electron resolves
 // drag regions at the compositor level — z-index and pointer-events don't help —
-// so without the carve-out, clicking a stuck bubble drags the window instead of
-// opening the edit composer.
-export const USER_BUBBLE_BASE_CLASS =
-  'composer-human-message standalone-glass relative flex w-full min-w-0 max-w-full flex-col gap-1.5 overflow-y-auto rounded-xl border bg-(--dt-user-bubble) px-3 py-2 text-left [-webkit-app-region:no-drag]'
+// so without the carve-out a click there drags the window instead of selecting
+// the text.
+const USER_PROMPT_BUBBLE_CLASS =
+  'composer-human-message relative w-fit min-w-0 max-w-full rounded-(--prompt-bubble-radius) bg-(--dt-user-bubble) px-3.5 py-2 text-start text-[length:var(--conversation-text-font-size)] leading-(--dt-line-height) text-foreground/95 [-webkit-app-region:no-drag]'
+
+// The inline editor keeps the composer's look: a bordered field, full width,
+// on the chat surface — the gray belongs to a prompt that has been sent.
+export const USER_EDIT_BUBBLE_CLASS =
+  'composer-human-message relative flex w-full min-w-0 max-w-full flex-col gap-1.5 overflow-y-auto rounded-xl border bg-(--ui-chat-bubble-background) px-3 py-2 text-left [-webkit-app-region:no-drag]'
 
 export const USER_ACTION_ICON_BUTTON_CLASS =
   'grid place-items-center rounded-md bg-transparent text-(--ui-text-secondary) transition-colors hover:bg-(--ui-control-active-background) hover:text-foreground disabled:cursor-default disabled:text-(--ui-text-quaternary) disabled:opacity-70'
@@ -312,64 +311,14 @@ export const UserMessage: FC<{
   const [pickerOpen, setPickerOpen] = useState(false)
   const { enabled: reactionsEnabled, react, reactions: shownReactions } = useMessageReactions(messageId, 'user')
 
-  const pickEmoji = useCallback(
-    (emoji: null | string) => {
-      setPickerOpen(false)
-      react(emoji)
-    },
-    [react]
-  )
-
-  // Sticky human bubbles clamp to ~2 lines with a soft fade so a long prompt
-  // doesn't dominate the viewport while the response streams underneath; the
-  // clamp lifts on hover / focus (see styles.css). We measure the *unclamped*
-  // inner wrapper so the ResizeObserver only fires on real content / width
-  // changes, not on every frame while the outer max-height animates open.
-  const clampInnerRef = useRef<HTMLDivElement | null>(null)
-  const [bodyClamped, setBodyClamped] = useState(false)
-  const lastClampHeightRef = useRef(-1)
-  const lineHeightRef = useRef(0)
+  const pickEmoji = (emoji: null | string) => {
+    setPickerOpen(false)
+    react(emoji)
+  }
 
   // Watch windows spectate a subagent run driven elsewhere — prompts can't be
-  // edited, restored, or stopped from here. The bubble stays a button that
-  // toggles the 2-line clamp so long prompts are still fully readable.
+  // edited, restored, or stopped from here. Copying still works.
   const readOnly = isWatchWindow()
-  const [expanded, setExpanded] = useState(false)
-  const clampActive = !(readOnly && expanded)
-
-  const measureClamp = useCallback((entries: readonly ResizeObserverEntry[]) => {
-    const inner = clampInnerRef.current
-    const outer = inner?.parentElement
-
-    if (!inner || !outer) {
-      return
-    }
-
-    // Prefer the size the ResizeObserver already computed — reading
-    // `scrollHeight` outside RO timing forces a synchronous layout, and with
-    // many user bubbles observed at once those reads interleave with the
-    // style write below into a read-write-read reflow cascade.
-    const entryHeight = entries.find(entry => entry.target === inner)?.borderBoxSize?.[0]?.blockSize
-    const fullHeight = Math.ceil(entryHeight ?? inner.scrollHeight)
-
-    if (fullHeight === lastClampHeightRef.current) {
-      return
-    }
-
-    lastClampHeightRef.current = fullHeight
-
-    // Line-height is stable for the life of the bubble (font settings don't
-    // change under it) — resolve the computed style once.
-    if (!lineHeightRef.current) {
-      const styles = getComputedStyle(inner)
-      lineHeightRef.current = parseFloat(styles.lineHeight) || 1.5 * parseFloat(styles.fontSize) || 20
-    }
-
-    outer.style.setProperty('--human-msg-full', `${fullHeight}px`)
-    setBodyClamped(fullHeight > lineHeightRef.current * 2 + 1)
-  }, [])
-
-  useResizeObserver(measureClamp, clampInnerRef)
 
   // Injected background-process notification, not a human prompt — render the
   // compact system-style notice (after all hooks above have run).
@@ -407,46 +356,19 @@ export const UserMessage: FC<{
   // the live turn before rewinding.
   const showRestore = !readOnly && !showStop && Boolean(onRequestRestoreConfirm) && hasBody
 
-  const bubbleClassName = cn(
-    USER_BUBBLE_BASE_CLASS,
-    'cursor-pointer pr-9 text-[length:var(--conversation-text-font-size)] leading-(--dt-line-height) text-foreground/95 transition-colors',
-    'border-(--ui-stroke-tertiary) hover:border-(--ui-stroke-secondary)'
-  )
-
-  const bubbleContent = hasBody && (
-    // Render the user's text through a minimal markdown pipeline:
-    // backtick `code` and ``` fenced ``` blocks, with directive chips
-    // (`@file:` etc.) still resolved inside the plain-text spans.
-    <div
-      className={cn(clampActive && 'sticky-human-clamp')}
-      data-clamped={clampActive && bodyClamped ? 'true' : undefined}
-    >
-      {/* Match the edit composer's collapsed line box (min-h-[1.25rem]) so
-          clicking to edit can't grow the bubble by a sub-pixel and reflow the
-          turn 1px. */}
-      <div className="min-h-[1.25rem]" ref={clampInnerRef}>
-        <UserMessageText className="wrap-anywhere" text={messageText} />
-      </div>
-    </div>
-  )
-
   return (
     <MessagePrimitive.Root asChild>
-      <StickyHumanMessageContainer
-        attachments={
-          // Attachments live BELOW the sticky bubble in normal flow, so they
-          // scroll away behind the pinned bubble instead of riding along with
-          // it. Image refs render as thumbnails, file refs as chips; no border.
-          attachmentRefs.length > 0 ? (
-            <div className="flex flex-wrap gap-1 -mt-3 mb-2">
-              <DirectiveContent text={attachmentRefs.join(' ')} />
-            </div>
-          ) : null
-        }
-        messageId={messageId}
-      >
-        <ActionBarPrimitive.Root className="relative w-full max-w-full" data-slot="aui_user-bubble-actions">
-          <div className="human-message-with-todos-wrapper flex w-full flex-col gap-0">
+      <HumanMessageContainer messageId={messageId}>
+        {attachmentRefs.length > 0 && (
+          // Attachments go with what they were sent with: at the end of the
+          // line, just above the bubble. Image refs render as thumbnails, file
+          // refs as chips.
+          <div className="flex max-w-[80%] flex-wrap justify-end gap-1 pb-1" data-slot="aui_user-attachments">
+            <DirectiveContent text={attachmentRefs.join(' ')} />
+          </div>
+        )}
+        <ActionBarPrimitive.Root className="flex w-full min-w-0 flex-col items-end" data-slot="aui_user-bubble-actions">
+          {hasBody && (
             <ReactionPicker
               onOpenChange={setPickerOpen}
               onSelect={pickEmoji}
@@ -454,7 +376,7 @@ export const UserMessage: FC<{
               selected={shownReactions.find(reaction => reaction.author === 'user')?.emoji}
             >
               <div
-                className="relative w-full"
+                className="min-w-0 max-w-[80%]"
                 // The app context menu skips PLAIN right-clicks here (the
                 // attr below) so this handler keeps the picker gesture; a
                 // link/image/selection inside the bubble still gets the app
@@ -476,116 +398,68 @@ export const UserMessage: FC<{
                       }
                 }
               >
-                {readOnly ? (
-                  // Spectator transcript: clicking only toggles the clamp so the
-                  // full prompt is readable — never opens an edit composer.
-                  <button
-                    aria-expanded={bodyClamped ? expanded : undefined}
-                    className={cn(bubbleClassName, !bodyClamped && 'cursor-default')}
-                    onClick={() => {
-                      // Drag-select ends on mouseup→click; don't collapse the
-                      // clamp just because the highlight finished.
-                      if (hasTextSelection() || !bodyClamped) {
-                        return
-                      }
-
-                      triggerHaptic('selection')
-                      setExpanded(value => !value)
-                    }}
-                    title={bodyClamped ? (expanded ? t.common.collapse : copy.expandMessage) : undefined}
-                    type="button"
-                  >
-                    {bubbleContent}
-                  </button>
-                ) : (
-                  // Always editable — clicking opens the edit composer even while a
-                  // turn streams; sending the edit reverts (interrupt + rewind).
-                  // A live text highlight wins: finishing a drag-select must not
-                  // open the editor and throw the selection away.
-                  <ActionBarPrimitive.Edit asChild>
-                    <button
-                      aria-label={copy.editMessage}
-                      className={bubbleClassName}
-                      onClick={event => {
-                        if (hasTextSelection()) {
-                          event.preventDefault()
-                          event.stopPropagation()
-
-                          return
-                        }
-
-                        triggerHaptic('selection')
-                      }}
-                      onPointerDown={() => {
-                        if (hasTextSelection()) {
-                          return
-                        }
-
-                        notifyThreadEditOpen()
-                      }}
-                      type="button"
-                    >
-                      {bubbleContent}
-                    </button>
-                  </ActionBarPrimitive.Edit>
-                )}
-                {(showStop || showRestore) && (
-                  <div className="pointer-events-none absolute right-2 bottom-2 z-10 flex items-center justify-center opacity-0 transition-opacity group-hover/user-message:opacity-100 group-focus-within/user-message:opacity-100">
-                    {showStop ? (
-                      <button
-                        aria-label={copy.stop}
-                        className={cn('pointer-events-auto size-5', USER_ACTION_ICON_BUTTON_CLASS)}
-                        onClick={event => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          void onCancel?.()
-                        }}
-                        title={copy.stop}
-                        type="button"
-                      >
-                        {StopGlyph}
-                      </button>
-                    ) : (
-                      <button
-                        aria-label={copy.restoreCheckpoint}
-                        className={cn('pointer-events-auto size-6', USER_ACTION_ICON_BUTTON_CLASS)}
-                        onClick={event => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          triggerHaptic('selection')
-                          onRequestRestoreConfirm?.(messageId, {
-                            text: messageText,
-                            userOrdinal: runtimeUserOrdinal
-                          })
-                        }}
-                        onPointerDown={event => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                        }}
-                        title={copy.restoreFromHere}
-                        type="button"
-                      >
-                        <Codicon name="discard" size="0.875rem" />
-                      </button>
-                    )}
-                  </div>
-                )}
+                {/* Text, not a button: a click selects, the way it does in
+                    the reply. The prompt is read in full — no clamp, however
+                    long — and editing has its own button below. Messages
+                    render a bare-minimum markdown: backtick `code` and ```
+                    fenced ``` blocks, with directive chips (`@file:` etc.)
+                    still resolved inside the plain-text spans. */}
+                <div className={USER_PROMPT_BUBBLE_CLASS} data-slot="aui_user-bubble">
+                  <UserMessageText className="wrap-anywhere" text={messageText} />
+                </div>
               </div>
             </ReactionPicker>
-            {/* Below the bubble, same register as the assistant action row:
-                same emoji size, same vertical padding, right-aligned to the
-                sent bubble. Overlaying the corner read badly in practice. */}
-            <ReactionBadge
-              className="justify-end gap-1.5 py-1.5 pr-1.5"
-              onRetract={() => react(null)}
-              reactions={shownReactions}
-            />
-            <MessageTimelineTimestamp className="self-end pr-1.5" />
-            <BranchPickerPrimitive.Root
-              className={cn(
-                'checkpoint-container flex items-center gap-1 pb-0 pt-1 pl-1.5 text-[0.75rem] leading-none text-(--ui-text-tertiary)',
-                readOnly && 'hidden'
+          )}
+          {/* One line under the bubble, at its end: the reactions it got,
+              always shown, and its actions, shown while the pointer is on the
+              prompt or a button in it has focus. The line keeps its height
+              while hidden, so nothing moves when it appears. */}
+          <div className="flex h-7 min-w-0 items-center justify-end gap-1.5" data-slot="aui_user-footer">
+            <MessageTimelineTimestamp />
+            <ReactionBadge className="gap-1.5" onRetract={() => react(null)} reactions={shownReactions} />
+            <div
+              className="pointer-events-none flex items-center gap-0.5 opacity-0 transition-opacity focus-within:pointer-events-auto focus-within:opacity-100 group-hover/user-message:pointer-events-auto group-hover/user-message:opacity-100"
+              data-slot="aui_user-actions"
+            >
+              {hasBody && <CopyButton appearance="icon" buttonSize="icon-xs" label={copy.copy} text={messageText} />}
+              {!readOnly && (
+                <ActionBarPrimitive.Edit asChild>
+                  <TooltipIconButton
+                    onClick={() => triggerHaptic('selection')}
+                    // Before React swaps the editor in, so the viewport holds
+                    // its place while the bubble turns into the full-width
+                    // editor (thread-scroll).
+                    onPointerDown={() => notifyThreadEditOpen()}
+                    tooltip={copy.editMessage}
+                  >
+                    <PencilIcon className="size-3.5" />
+                  </TooltipIconButton>
+                </ActionBarPrimitive.Edit>
               )}
+              {showStop && (
+                <TooltipIconButton onClick={() => void onCancel?.()} tooltip={copy.stop}>
+                  {StopGlyph}
+                </TooltipIconButton>
+              )}
+              {showRestore && (
+                <TooltipIconButton
+                  onClick={() => {
+                    triggerHaptic('selection')
+                    onRequestRestoreConfirm?.(messageId, {
+                      text: messageText,
+                      userOrdinal: runtimeUserOrdinal
+                    })
+                  }}
+                  tooltip={copy.restoreFromHere}
+                >
+                  <Codicon name="discard" size="0.875rem" />
+                </TooltipIconButton>
+              )}
+            </div>
+          </div>
+          {!readOnly && (
+            <BranchPickerPrimitive.Root
+              className="checkpoint-container flex items-center justify-end gap-1 pb-0 pt-1 pe-1.5 text-[0.75rem] leading-none text-(--ui-text-tertiary)"
               hideWhenSingleBranch
             >
               <span aria-hidden className="checkpoint-icon size-1.5 rounded-full border border-current" />
@@ -605,9 +479,9 @@ export const UserMessage: FC<{
                 {copy.goForward}
               </BranchPickerPrimitive.Next>
             </BranchPickerPrimitive.Root>
-          </div>
+          )}
         </ActionBarPrimitive.Root>
-      </StickyHumanMessageContainer>
+      </HumanMessageContainer>
     </MessagePrimitive.Root>
   )
 }
