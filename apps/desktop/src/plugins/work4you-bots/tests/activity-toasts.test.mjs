@@ -18,6 +18,11 @@ function loadTracker(toastsEnabled) {
   const helperStart = source.indexOf('function botActivitySession(')
   const helperEnd = source.indexOf('/** Bots that are working', helperStart)
   assert.ok(helperStart >= 0 && helperEnd > helperStart, 'botActivitySession must remain extractable')
+  // Toast copy resolves through the plugin's own translator (English with no
+  // host i18n) — extract the REAL bundle + tr() so the text can't drift.
+  const i18nStart = source.indexOf('const BOT_MODE_LOCALES')
+  const i18nEnd = source.indexOf('/** Translator hook for components', i18nStart)
+  assert.ok(i18nStart >= 0 && i18nEnd > i18nStart, 'the Bot Mode translator must remain extractable')
   const notifications = []
   const context = {
     pluginCtx: null,
@@ -35,7 +40,8 @@ function loadTracker(toastsEnabled) {
     displayName: bot => bot.name
   }
   const section = source
-    .slice(helperStart, helperEnd)
+    .slice(i18nStart, i18nEnd)
+    .concat('\n', source.slice(helperStart, helperEnd))
     .concat('\n', source.slice(start, end))
     .concat('\nglobalThis.__t = { trackInboundActivity, $activityToasts, setActivityToasts };\n')
   vm.runInNewContext(section, context, { filename: 't.js' })

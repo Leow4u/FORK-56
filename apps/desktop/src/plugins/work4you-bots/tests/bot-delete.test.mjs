@@ -100,7 +100,10 @@ test('integration: a deleted bot is removed from plugin-local state and the rost
 })
 
 test('regression: the bot context menu exposes a destructive delete action and confirmation', () => {
-  assert.match(pluginSource, /ContextMenuItem, \{[\s\S]*?variant: 'destructive'[\s\S]*?children: 'Delete'/)
+  assert.match(
+    pluginSource,
+    /ContextMenuItem, \{[\s\S]*?variant: 'destructive'[\s\S]*?children: t\('roster\.menu\.delete'\)/
+  )
   assert.match(pluginSource, /bot\.is_default \? null : jsx\(ContextMenuSeparator/)
   assert.match(pluginSource, /ConfirmDialog/)
   assert.match(pluginSource, /title: 'Delete bot and profile\?'/)
