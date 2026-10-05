@@ -136,7 +136,7 @@ test('row age label and recency sort key off botActivitySession, not last_sessio
 test('ActiveNowStrip renders above the roster, is a live region, and is click-accessible', () => {
   // Strip is placed between the pane header and the search field.
   const headerEnd = source.indexOf("children: 'WorkBots'")
-  const searchField = source.indexOf("placeholder: 'Search bots…'")
+  const searchField = source.indexOf("placeholder: t('roster.searchBots')")
   assert.ok(headerEnd >= 0 && searchField > headerEnd)
 
   const stripStart = source.indexOf('jsx(ActiveNowStrip')
@@ -146,7 +146,7 @@ test('ActiveNowStrip renders above the roster, is a live region, and is click-ac
   assert.match(source, /'aria-live': 'polite'/)
   // Chips are real buttons (keyboard/click accessible), reuse BotFace, and
   // open the canonical chat via the same path as roster rows.
-  assert.match(source, /jsx\('button', \{\s*type: 'button',\s*title: `Open \$\{label\}'s chat`/)
+  assert.match(source, /jsx\('button', \{\s*type: 'button',\s*title: t\('roster\.openChat', label\)/)
   // The key rides as jsx()'s third argument — the ONLY form React treats as
   // a list key; a `key:` prop leaves chips unkeyed (index identity).
   assert.match(source, /\}, botRosterKey\(bot\)\)\s*\}\)\s*\]\s*\}\)\s*\}\s*\/\*\* Assign a bot to a group/s)

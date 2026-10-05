@@ -72,6 +72,7 @@ function renderBotRow(input = 'alpha') {
     A2A_PREFIX_RE: /^$/,
     useEffect: () => undefined,
     useState: initial => [typeof initial === 'function' ? initial() : initial, () => undefined],
+    useBotModeT: () => key => key,
     host: {
       state: { gateway: atom('open'), profile: atom('default') },
       ensureAgent: async (connectionId, profile) => {
@@ -200,6 +201,7 @@ test('behavior: remote default does not open this-device chat when the source di
     A2A_PREFIX_RE: /^$/,
     useEffect: () => undefined,
     useState: initial => [typeof initial === 'function' ? initial() : initial, () => undefined],
+    useBotModeT: () => key => key,
     host: {
       state: { gateway: atom('open'), profile: atom('default') },
       ensureAgent: async (connectionId, profile) => ensured.push([connectionId, profile]),
