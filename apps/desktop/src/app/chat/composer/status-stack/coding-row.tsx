@@ -177,7 +177,7 @@ export const CodingStatusRow = memo(function CodingStatusRow({
                 so the button lays out nothing of its own: the label stays the
                 same flex child it always was, and the hit area is the text. */}
             <button className="contents" onClick={onOpen} type="button">
-              <span className="min-w-0 truncate text-xs font-normal text-muted-foreground/92" title={branchLabel}>
+              <span className="min-w-0 truncate text-xs font-normal text-muted-foreground" title={branchLabel}>
                 {branchLabel}
               </span>
             </button>
@@ -195,7 +195,7 @@ export const CodingStatusRow = memo(function CodingStatusRow({
             {resolvedRepoPath && (
               <div className="flex min-w-0 flex-1 items-center gap-0.5 opacity-0 transition-opacity group-hover/status-row:opacity-100 group-focus-within/status-row:opacity-100">
                 <span
-                  className="min-w-0 truncate font-mono text-[0.62rem] leading-4 text-muted-foreground/50"
+                  className="min-w-0 truncate font-mono text-[0.62rem] leading-4 text-muted-foreground"
                   data-slot="coding-status-cwd"
                 >
                   {displayPath(resolvedRepoPath)}
@@ -244,7 +244,7 @@ export const CodingStatusRow = memo(function CodingStatusRow({
           {(status.ahead > 0 || status.behind > 0 || hasLineDelta || untrackedOnly) && (
             <button className="contents" onClick={onOpen} type="button">
               {(status.ahead > 0 || status.behind > 0) && (
-                <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[0.68rem] leading-4 text-muted-foreground/75 tabular-nums">
+                <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[0.68rem] leading-4 text-muted-foreground tabular-nums">
                   {status.ahead > 0 && (
                     <span className="flex items-center gap-0.5" title={s.ahead(status.ahead)}>
                       <span aria-hidden>↑</span>

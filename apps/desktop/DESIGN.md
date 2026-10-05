@@ -93,7 +93,8 @@ for call-site shadow or border inventions.
 | `--ui-stroke-primary…quaternary` | hairlines, in descending strength |
 | `--ui-stroke-tertiary` | the default in-panel divider / list hairline — and every bordered surface in the transcript |
 | `--stroke-work4you` | the overlay hairline (pairs with `shadow-work4you`) |
-| `--ui-text-primary / -secondary / -tertiary` | text hierarchy |
+| `--ui-text-primary / -secondary / -tertiary / -quaternary` | text hierarchy; in light mode tertiary and quaternary sit on the 4.5:1 readability floor |
+| `--dt-input-border` | resting border strength of input fields (% of the ring color); hover doubles it, focus goes full |
 | `--ui-bg-quaternary` | soft control fill (secondary button) |
 | `--ui-widget-surface-background` | fill for inline chat widgets (`WIDGET_SHELL_CLASS`) |
 | `--chrome-action-hover` | hover fill for quiet controls |
@@ -101,6 +102,12 @@ for call-site shadow or border inventions.
 
 Never hardcode `border-gray-*`, `bg-white`, `text-black`, etc. `BrandMark` uses
 the PNG's own alpha — do not put a white (or any) tile behind it.
+
+Readable grey text uses `text-muted-foreground` or a `--ui-text-*` token at
+full strength. Don't stack an alpha on top (`text-muted-foreground/75`): the
+tokens are already tuned to the readability floor, and an extra alpha drops
+the text below it. Alpha steps are fine on decorative glyphs and on controls
+that are revealed on hover.
 
 ## Radius tokens
 
