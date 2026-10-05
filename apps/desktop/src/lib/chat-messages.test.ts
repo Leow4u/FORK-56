@@ -11,6 +11,7 @@ import {
   completeOpenTimelineParts,
   mergeFinalAssistantText,
   preserveLocalAssistantErrors,
+  reasoningDetailsText,
   reasoningPart,
   renderMediaTags,
   sealOpenToolParts,
@@ -1347,5 +1348,42 @@ describe('sealOpenToolParts', () => {
     const messages = [assistantWithParts([done])]
 
     expect(sealOpenToolParts(messages)).toBe(messages)
+  })
+})
+
+describe('reasoningDetailsText', () => {
+  it('reads thinking, summaries and text out of the provider blocks', () => {
+    expect(
+      reasoningDetailsText(
+        JSON.stringify([
+          { signature: 'sig', thinking: 'Check the brief first.', type: 'thinking' },
+          { summary: 'Then the notes.', type: 'reasoning.summary' },
+          { text: 'And the deck.', type: 'reasoning.text' }
+        ])
+      )
+    ).toBe('Check the brief first.\n\nThen the notes.\n\nAnd the deck.')
+  })
+
+  it('shows nothing for sealed blocks instead of their payload', () => {
+    expect(reasoningDetailsText(JSON.stringify([{ data: 'EqQBCkgIARABGAIiQL', type: 'redacted_thinking' }]))).toBe('')
+    expect(reasoningDetailsText([{ data: 'gAAAAABo', type: 'reasoning.encrypted' }])).toBe('')
+  })
+
+  it('keeps text that was never JSON', () => {
+    expect(reasoningDetailsText('Plain reasoning text.')).toBe('Plain reasoning text.')
+    expect(reasoningDetailsText(undefined)).toBe('')
+  })
+
+  it('hydrates a row whose only reasoning is a redacted block without a Thought', () => {
+    const [message] = toChatMessages([
+      {
+        content: 'Done.',
+        reasoning_details: JSON.stringify([{ data: 'EqQBCkgIARABGAIiQL', type: 'redacted_thinking' }]),
+        role: 'assistant',
+        timestamp: 1
+      }
+    ])
+
+    expect(message.parts.some(part => part.type === 'reasoning')).toBe(false)
   })
 })

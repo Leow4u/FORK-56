@@ -205,20 +205,16 @@ describe("applyGatewayEvent", () => {
     expect(msgs[0].text).toBe("hmm");
   });
 
-  it("fills reasoning from reasoning.available when nothing streamed yet", () => {
+  it("never files reasoning.available — the step's visible reply — as reasoning", () => {
     let msgs: ChatMessage[] = [];
     let turn = createThinChatTurnState();
     ({ messages: msgs, turn } = applyGatewayEvent(
       msgs,
       "reasoning.available",
-      { text: "done thinking" },
+      { text: "Reading the brief first." },
       turn,
     ));
-    expect(msgs[0]).toMatchObject({
-      role: "reasoning",
-      text: "done thinking",
-      streaming: false,
-    });
+    expect(msgs.filter((m) => m.role === "reasoning")).toEqual([]);
   });
 
   it("ignores fallback reasoning.available when streamed reasoning already exists", () => {

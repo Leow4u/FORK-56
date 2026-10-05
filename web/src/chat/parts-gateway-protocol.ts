@@ -558,11 +558,14 @@ export function applyPartsGatewayEvent(
       if (!chunk) return { messages, turn };
       return appendReasoningDelta(messages, turn, chunk, false, occurredAt);
     }
-    case "reasoning.available": {
-      const text = coerceThinkingText(coerceEventText(payload)).trim();
-      if (!text) return { messages, turn };
-      return appendReasoningDelta(messages, turn, text, true, occurredAt);
-    }
+    case "reasoning.available":
+      // Despite the name, this carries the step's VISIBLE reply
+      // (`assistant_message.content`, agent/conversation_loop.py), which also
+      // arrives as message.delta / message.interim / message.complete. Filing
+      // it as reasoning replaced the real reasoning reasoning.delta streamed
+      // and left the reply under "Thinking" whenever the final text matched
+      // what streamed.
+      return { messages, turn };
     case "moa.reference":
     case "moa.progress":
     case "moa.phase": {

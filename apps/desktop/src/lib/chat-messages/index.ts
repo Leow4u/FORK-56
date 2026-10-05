@@ -1,4 +1,4 @@
-export { toChatMessages } from './hydration'
+export { reasoningDetailsText, toChatMessages } from './hydration'
 export {
   appendAssistantTextPart,
   appendReasoningPart,

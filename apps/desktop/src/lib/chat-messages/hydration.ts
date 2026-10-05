@@ -115,6 +115,60 @@ function timelineDisplayContent(message: SessionMessage, content: string): strin
   return content
 }
 
+const SEALED_REASONING_TYPE = /encrypted|redacted/i
+
+function reasoningDetailText(detail: unknown): string {
+  if (!detail || typeof detail !== 'object') {
+    return ''
+  }
+
+  const record = detail as Record<string, unknown>
+  const type = typeof record.type === 'string' ? record.type : ''
+
+  // Signed or encrypted blocks are for the provider's replay, not for reading.
+  if (SEALED_REASONING_TYPE.test(type)) {
+    return ''
+  }
+
+  for (const key of ['thinking', 'summary', 'text']) {
+    const value = record[key]
+
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+
+  return ''
+}
+
+/**
+ * The readable reasoning inside a row's `reasoning_details`: the provider's
+ * raw blocks, kept for replay — Anthropic `thinking` / `redacted_thinking`,
+ * OpenRouter `reasoning.text` / `reasoning.summary` / `reasoning.encrypted`.
+ * The REST transcript hands the column over as JSON text, which used to be shown
+ * as is: a row whose only reasoning was a redacted block opened onto its
+ * signature. Text that is not JSON is taken as written.
+ */
+export function reasoningDetailsText(details: unknown): string {
+  let value: unknown = details
+
+  if (typeof details === 'string') {
+    try {
+      value = JSON.parse(details)
+    } catch {
+      return details.trim()
+    }
+  }
+
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+
+  const blocks: unknown[] = Array.isArray(value) ? value : [value]
+
+  return blocks.map(reasoningDetailText).filter(Boolean).join('\n\n')
+}
+
 export function toChatMessages(messages: SessionMessage[]): ChatMessage[] {
   const result: ChatMessage[] = []
   let pendingToolParts: ChatMessagePart[] = []
@@ -217,10 +271,7 @@ export function toChatMessages(messages: SessionMessage[]): ChatMessage[] {
 
     const parts: ChatMessagePart[] = []
 
-    const reasoning =
-      message.reasoning ||
-      message.reasoning_content ||
-      (typeof message.reasoning_details === 'string' ? message.reasoning_details : '')
+    const reasoning = message.reasoning || message.reasoning_content || reasoningDetailsText(message.reasoning_details)
 
     if (reasoning && message.role === 'assistant') {
       parts.push(reasoningPart(reasoning, message.timestamp))
