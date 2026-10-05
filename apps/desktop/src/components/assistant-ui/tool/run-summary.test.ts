@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { setRuntimeI18nLocale, TRANSLATIONS } from '@/i18n'
+import { type Locale, setRuntimeI18nLocale, TRANSLATIONS } from '@/i18n'
 
 import { summarizeToolRun, type ToolCallLike } from './run-summary'
 
@@ -63,18 +63,22 @@ describe('summarizeToolRun', () => {
 
 // The summary stands in for rows that already read in the app's language, so it
 // has to as well: every word comes from the active catalog.
-describe('summarizeToolRun in another language', () => {
+describe('summarizeToolRun in every language', () => {
   afterEach(() => setRuntimeI18nLocale('en'))
 
-  it('builds each clause from the active catalog and joins them with its separator', () => {
-    setRuntimeI18nLocale('zh')
-    const copy = TRANSLATIONS.zh.assistant.tool.runSummary
-    const { explore, run } = copy.categories
+  it.each(Object.keys(TRANSLATIONS) as Locale[])(
+    'builds each clause from the %s catalog and joins them with its separator',
+    locale => {
+      setRuntimeI18nLocale(locale)
+      const copy = TRANSLATIONS[locale].assistant.tool.runSummary
+      const { explore, run } = copy.categories
+      const second = copy.clause(run.past.charAt(0).toLowerCase() + run.past.slice(1), run.count(1))
 
-    expect(settled([read('a.ts'), read('b.ts'), ran('x')])).toBe(
-      [copy.clause(explore.past, explore.count(2)), copy.clause(run.past, run.count(1))].join(copy.separator)
-    )
-  })
+      expect(settled([read('a.ts'), read('b.ts'), ran('x')])).toBe(
+        [copy.clause(explore.past, explore.count(2)), second].join(copy.separator)
+      )
+    }
+  )
 
   // A later clause lower-cases its verb so the line reads as one sentence. A
   // language that puts the object first must not have the object lower-cased
