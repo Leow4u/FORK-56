@@ -489,6 +489,42 @@ export function applyStoredToolResult(messages: ChatMessage[], toolMessage: Sess
   return false
 }
 
+/**
+ * A file edit's diff, kept with its tool row as display metadata
+ * (`SessionDB.merge_tool_display_metadata`). A `write_file` result carries
+ * none — its diff only ever rode the live `tool.complete` event — so without
+ * this a reloaded turn showed the file it created with no +N −M.
+ */
+function storedInlineDiff(toolMessage: SessionMessage): string {
+  let meta: unknown = toolMessage.display_metadata
+
+  if (typeof meta === 'string') {
+    try {
+      meta = JSON.parse(meta)
+    } catch {
+      return ''
+    }
+  }
+
+  const diff = meta && typeof meta === 'object' ? (meta as Record<string, unknown>).inline_diff : undefined
+
+  return typeof diff === 'string' ? diff : ''
+}
+
+/** The stored result, with the row's kept diff where the result has none of its own. */
+function storedToolResult(toolMessage: SessionMessage, content: unknown): unknown {
+  const result = parseStoredToolResult(content)
+  const diff = storedInlineDiff(toolMessage)
+
+  if (!diff || !result || typeof result !== 'object' || Array.isArray(result)) {
+    return result
+  }
+
+  const record = result as Record<string, unknown>
+
+  return record.inline_diff || record.diff ? result : { ...record, inline_diff: diff }
+}
+
 export function applyStoredToolResultToParts(
   parts: ChatMessagePart[],
   toolMessage: SessionMessage
@@ -512,7 +548,7 @@ export function applyStoredToolResultToParts(
   next[partIndex] = {
     ...existing,
     completedAt: toolMessage.timestamp,
-    result: parseStoredToolResult(content),
+    result: storedToolResult(toolMessage, content),
     isError: false
   } as ChatMessagePart
 

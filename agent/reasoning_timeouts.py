@@ -73,6 +73,7 @@ _REASONING_STALE_TIMEOUT_FLOORS: tuple[tuple[str, int], ...] = (
     ("deepseek-r1", 600),
     ("deepseek-reasoner", 600),
     ("deepseek-v4-flash", 600),
+    ("deepseek-v4.1-flash", 600),
     ("deepseek-v4-pro", 600),
     # Qwen — QwQ reasoning + Qwen3 thinking variants.  QwQ-32B
     # preview is the stable slug; ``qwen3`` covers the family of
@@ -99,6 +100,9 @@ _REASONING_STALE_TIMEOUT_FLOORS: tuple[tuple[str, int], ...] = (
     ("o3-pro", 600),
     ("o3-mini", 300),
     ("o4-mini", 300),
+    # OpenAI GPT-6 named reasoning lines (Astra / Sol / Luna and their
+    # -pro variants): minutes-long thinking at high effort.
+    ("gpt-6", 600),
     # Anthropic Claude 4.x thinking variants.  Anchored at
     # ``claude-opus-4`` so non-thinking Claude 3.x or future
     # non-reasoning Claude variants don't match.

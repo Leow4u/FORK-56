@@ -146,13 +146,16 @@ class TestFallbackChainAdvancement:
             assert mock_rpc.call_args.kwargs["explicit_api_key"] == "env-secret"
 
 
-    def test_work4you_anthropic_fallback_uses_the_messages_wire(self):
-        """Portal Claude fallbacks must not stay on chat_completions.
+    def test_work4you_anthropic_fallback_uses_the_messages_wire(self, monkeypatch):
+        """Portal Claude fallbacks must not stay on chat_completions when the native wire is selected.
 
         ``resolve_provider_client`` still returns an OpenAI client for Work4You;
         activation has to re-derive api_mode from the model and rebuild the
-        Anthropic client — otherwise the turn POSTs /chat/completions.
+        Anthropic client — otherwise the turn POSTs /chat/completions. The wire
+        is opt-in (``work4you.anthropic_wire``, see ``work4you_api_mode``).
         """
+        from work4you_cli import providers as _providers
+        monkeypatch.setattr(_providers, "_work4you_anthropic_wire", lambda: "native")
         portal = "https://inference-api.work4you.ai/v1"
         fbs = [
             {

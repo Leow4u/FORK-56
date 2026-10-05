@@ -209,10 +209,15 @@ export function handleMessageStreamEvent(ctx: GatewayEventContext): boolean {
   }
 
   if (event.type === 'reasoning.available') {
-    if (sessionId) {
-      appendReasoningDelta(sessionId, coerceThinkingText(payload?.text), true, occurredAt)
-    }
-
+    // Despite the name, this carries the model's VISIBLE reply for the step —
+    // `assistant_message.content` with only the think-tag markers stripped
+    // (agent/conversation_loop.py) — not its reasoning. The same text reaches
+    // the transcript as message.delta / message.interim / message.complete.
+    // Filing it as reasoning showed the reply under "Thinking", and replacing
+    // with it deleted the real reasoning reasoning.delta had streamed whenever
+    // the step's text arrived unstreamed (after a tool call, from a
+    // non-streaming provider, right after a bubble sealed). It still tells us
+    // the model is working, which is all the pet needs.
     if (isActiveEvent) {
       setPetActivity({ reasoning: true })
     }

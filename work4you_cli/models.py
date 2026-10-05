@@ -261,47 +261,36 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
     "moa": ["default"],
     "work4you": [
         # House model (Operis) first so leftover Settings picks land here.
-        # Paid DeepSeek / Gemini Flash siblings stay on the OpenRouter snapshot.
+        # Newest model per family only; the rest of the GPT-6 Luna line stays
+        # out so nothing in the picker reads as a second Operis.
         "openai/gpt-6-luna",
         # Anthropic
-        "anthropic/claude-fable-5",
-        "anthropic/claude-opus-5",
-        "anthropic/claude-opus-4.8",
-        "anthropic/claude-sonnet-5",
+        "anthropic/claude-fable-5.1",
+        "anthropic/claude-opus-5.5",
+        "anthropic/claude-sonnet-5.5",
         "anthropic/claude-haiku-4.5",
         # OpenAI
-        "openai/gpt-5.6-sol",
-        "openai/gpt-5.6-sol-pro",
-        "openai/gpt-5.6-terra",
-        "openai/gpt-5.6-terra-pro",
-        "openai/gpt-5.6-luna-pro",
-        "openai/gpt-5.5",
-        "openai/gpt-5.5-pro",
-        "openai/gpt-5.4-mini",
+        "openai/gpt-6-astra",
+        "openai/gpt-6-astra-pro",
+        "openai/gpt-6.1-sol",
+        "openai/gpt-6.1-sol-pro",
         # Google
         "google/gemini-3.1-pro-preview",
-        "google/gemini-3.7-flash",
+        "google/gemini-3.8-flash",
         # xAI
-        "x-ai/grok-4.6",
+        "x-ai/grok-4.7",
+        # DeepSeek
+        "deepseek/deepseek-v4-pro",
+        "deepseek/deepseek-v4.1-flash",
         # Qwen
-        "qwen/qwen3.8-max",
-        # MoonshotAI
-        "moonshotai/kimi-k3",
-        # MiniMax
-        "minimax/minimax-m3",
+        "qwen/qwen3.8-max-0902",
+        "qwen/qwen3.8-flash",
         # Z-AI
-        "z-ai/glm-5.2",
-        "z-ai/glm-5.1",
+        "z-ai/glm-5.3",
+        "z-ai/glm-5.3-flash",
         # Xiaomi
-        "xiaomi/mimo-v2.5-pro",
-        # Tencent
-        "tencent/hy3",
-        # StepFun
-        "stepfun/step-3.7-flash",
-        # NVIDIA
-        "nvidia/nemotron-3-super-120b-a12b",
-        # Sakana
-        "sakana/fugu-ultra",
+        "xiaomi/mimo-v2.6-pro",
+        "xiaomi/mimo-v2.6-flash",
     ],
     # Native OpenAI Chat Completions (api.openai.com). Used by /model counts and
     # provider_model_ids fallback when /v1/models is unavailable.
@@ -690,16 +679,14 @@ _WORK4YOU_LEGACY_HOUSE_MODEL_SLUGS = frozenset({
 # Operis (house) stays on so a Free first-run still sees the selected model.
 WORK4YOU_FEATURED_MODEL_IDS: tuple[str, ...] = (
     WORK4YOU_HOUSE_MODEL_ID,
-    "anthropic/claude-fable-5",
-    "anthropic/claude-opus-5",
-    "anthropic/claude-sonnet-5",
-    "openai/gpt-5.6-sol",
-    "openai/gpt-5.6-terra",
-    "openai/gpt-5.6-luna-pro",
-    "google/gemini-3.7-flash",
-    "x-ai/grok-4.6",
-    "qwen/qwen3.8-max",
-    "z-ai/glm-5.2",
+    "anthropic/claude-fable-5.1",
+    "anthropic/claude-opus-5.5",
+    "anthropic/claude-sonnet-5.5",
+    "openai/gpt-6.1-sol",
+    "google/gemini-3.8-flash",
+    "x-ai/grok-4.7",
+    "qwen/qwen3.8-max-0902",
+    "z-ai/glm-5.3",
 )
 
 
@@ -768,6 +755,23 @@ _CURATED_MODEL_DISPLAY: dict[str, str] = {
     "step-3.7-flash": "Step 3.7 Flash",
     "nemotron-3-super-120b-a12b": "Nemotron 3 Super",
     "fugu-ultra": "Fugu Ultra",
+    "claude-fable-5.1": "Claude Fable 5.1",
+    "claude-opus-5.5": "Claude Opus 5.5",
+    "claude-sonnet-5.5": "Claude Sonnet 5.5",
+    "gpt-6-astra": "GPT-6 Astra",
+    "gpt-6-astra-pro": "GPT-6 Astra Pro",
+    "gpt-6.1-sol": "GPT-6.1 Sol",
+    "gpt-6.1-sol-pro": "GPT-6.1 Sol Pro",
+    "gemini-3.8-flash": "Gemini 3.8 Flash",
+    "grok-4.7": "Grok 4.7",
+    "deepseek-v4-pro": "DeepSeek V4 Pro",
+    "deepseek-v4.1-flash": "DeepSeek V4.1 Flash",
+    "qwen3.8-max-0902": "Qwen 3.8 Max",
+    "qwen3.8-flash": "Qwen 3.8 Flash",
+    "glm-5.3": "GLM 5.3",
+    "glm-5.3-flash": "GLM 5.3 Flash",
+    "mimo-v2.6-pro": "MiMo 2.6 Pro",
+    "mimo-v2.6-flash": "MiMo 2.6 Flash",
 }
 _CURATED_VARIANT_SUFFIXES = ("-fast", "-thinking", "-latest")
 

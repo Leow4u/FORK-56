@@ -8,6 +8,7 @@ import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { __resetElapsedTimerRegistryForTests } from '@/components/chat/activity-timer'
+import { $activityDensity } from '@/store/activity-density'
 import { setSessionCompacting } from '@/store/compaction'
 import { $activeSessionId, $turnStartedAt } from '@/store/session'
 
@@ -78,6 +79,9 @@ function Harness({ messages, isRunning = false }: { messages: ThreadMessage[]; i
 
 describe('TurnActivityIndicator tail gating (#68634)', () => {
   beforeEach(() => {
+    // The tail indicator is Detailed's; Compact and Balanced carry a status
+    // line in the live block instead (see the block's own suite below).
+    $activityDensity.set('detailed')
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
     __resetElapsedTimerRegistryForTests()
@@ -88,6 +92,7 @@ describe('TurnActivityIndicator tail gating (#68634)', () => {
 
   afterEach(() => {
     cleanup()
+    $activityDensity.set('balanced')
     setSessionCompacting(sessionId, false)
     $activeSessionId.set(null)
     $turnStartedAt.set(null)
@@ -211,5 +216,103 @@ describe('TurnActivityIndicator tail gating (#68634)', () => {
 
     expect(document.querySelectorAll('[data-slot="aui_response-loading"]').length).toBe(1)
     expect(document.querySelectorAll('[data-slot="aui_turn-activity"]').length).toBe(0)
+  })
+})
+
+describe('live block status line keeps the same one-row contract (#68634)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
+    __resetElapsedTimerRegistryForTests()
+    $activeSessionId.set(sessionId)
+    $turnStartedAt.set(Date.now())
+    setSessionCompacting(sessionId, true)
+  })
+
+  afterEach(() => {
+    cleanup()
+    setSessionCompacting(sessionId, false)
+    $activeSessionId.set(null)
+    $turnStartedAt.set(null)
+    __resetElapsedTimerRegistryForTests()
+    vi.useRealTimers()
+  })
+
+  it('draws one status line, in the live turn, when an earlier bubble is stuck running', () => {
+    const { container } = render(
+      <Harness
+        messages={[
+          userMessage('user-1', 'Summarize this thread for me'),
+          runningAssistantMessage('assistant-1', 'Working on it'),
+          userMessage('user-2', 'hola?'),
+          runningAssistantMessage('assistant-2', 'On it too')
+        ]}
+      />
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(5_000)
+    })
+
+    expect(screen.getAllByRole('status', { name: 'Summarizing thread' })).toHaveLength(1)
+
+    const roots = container.querySelectorAll('[data-slot="aui_assistant-message-root"]')
+    expect(roots[0]?.querySelector('[data-slot="aui_turn-now"]')).toBeNull()
+    expect(roots[1]?.querySelector('[data-slot="aui_turn-now"]')).not.toBeNull()
+  })
+
+  it('stays silent when a queued prompt or a steer note trails a running bubble and the runtime is idle', () => {
+    const queued = render(
+      <Harness
+        messages={[
+          userMessage('user-1', 'Summarize this thread for me'),
+          runningAssistantMessage('assistant-1', 'Working on it'),
+          userMessage('user-2', 'hola?')
+        ]}
+      />
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(5_000)
+    })
+
+    expect(queued.container.querySelector('[data-slot="aui_turn-now"]')).toBeNull()
+    cleanup()
+
+    const steered = render(
+      <Harness
+        messages={[
+          userMessage('user-1', 'Summarize this thread for me'),
+          runningAssistantMessage('assistant-1', 'Working on it'),
+          systemMessage('system-steer-1', 'steer:focus on the errors')
+        ]}
+      />
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(5_000)
+    })
+
+    expect(steered.container.querySelector('[data-slot="aui_turn-now"]')).toBeNull()
+  })
+
+  it('draws one status line for the optimistic placeholder (isRunning:true)', () => {
+    render(
+      <Harness
+        isRunning
+        messages={[
+          userMessage('user-1', 'Summarize this thread for me'),
+          runningAssistantMessage('assistant-1', 'Working on it'),
+          userMessage('user-2', 'hola?')
+        ]}
+      />
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(5_000)
+    })
+
+    expect(screen.getAllByRole('status', { name: 'Summarizing thread' })).toHaveLength(1)
+    expect(document.querySelectorAll('[data-slot="aui_turn-now"]')).toHaveLength(1)
   })
 })

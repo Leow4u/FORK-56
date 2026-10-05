@@ -239,11 +239,9 @@ export function applyGatewayEvent(
       if (!chunk) return { messages, turn };
       return { messages: appendReasoningDelta(messages, chunk), turn };
     }
-    case "reasoning.available": {
-      const text = coerceEventText(payload).trim();
-      if (!text) return { messages, turn };
-      return { messages: replaceReasoningBlock(messages, text), turn };
-    }
+    case "reasoning.available":
+      // The step's visible reply, not reasoning — see parts-gateway-protocol.
+      return { messages, turn };
     case "moa.reference":
     case "moa.aggregating":
     case "moa.progress":
@@ -497,11 +495,6 @@ function findTurnReasoningIndex(messages: FlatChatMessage[]): number {
   return -1;
 }
 
-function turnReasoningText(messages: FlatChatMessage[]): string {
-  const idx = findTurnReasoningIndex(messages);
-  return idx >= 0 ? messages[idx].text.trim() : "";
-}
-
 function pruneEmptyReasoning(messages: FlatChatMessage[]): FlatChatMessage[] {
   const next = messages.filter(
     (m) => m.role !== "reasoning" || m.text.trim().length > 0,
@@ -596,48 +589,6 @@ function appendReasoningDelta(
       text: chunk,
       streaming: true,
     },
-  ];
-}
-
-function replaceReasoningBlock(
-  messages: FlatChatMessage[],
-  text: string,
-): FlatChatMessage[] {
-  const trimmed = text.trim();
-  if (!trimmed) return messages;
-
-  if (turnReasoningText(messages)) {
-    return messages;
-  }
-
-  const last = messages[messages.length - 1];
-  if (last?.role === "reasoning") {
-    const next = messages.slice();
-    next[next.length - 1] = { ...last, text: trimmed, streaming: false };
-    return next;
-  }
-
-  const turnIdx = findTurnReasoningIndex(messages);
-  if (turnIdx >= 0) {
-    const next = messages.slice();
-    next[turnIdx] = {
-      ...next[turnIdx],
-      text: trimmed,
-      streaming: false,
-    };
-    return next;
-  }
-
-  const lastAssistant = [...messages]
-    .reverse()
-    .find((m) => m.role === "assistant");
-  if (lastAssistant?.text.trim() && !lastAssistant.streaming) {
-    return messages;
-  }
-
-  return [
-    ...sealStreaming(messages),
-    { id: createMessageId(), role: "reasoning", text: trimmed, streaming: false },
   ];
 }
 

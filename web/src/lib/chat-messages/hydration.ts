@@ -115,6 +115,60 @@ function timelineDisplayContent(message: SessionMessage, content: string): strin
   return content
 }
 
+const SEALED_REASONING_TYPE = /encrypted|redacted/i
+
+function reasoningDetailText(detail: unknown): string {
+  if (!detail || typeof detail !== 'object') {
+    return ''
+  }
+
+  const record = detail as Record<string, unknown>
+  const type = typeof record.type === 'string' ? record.type : ''
+
+  // Signed or encrypted blocks are for the provider's replay, not for reading.
+  if (SEALED_REASONING_TYPE.test(type)) {
+    return ''
+  }
+
+  for (const key of ['thinking', 'summary', 'text']) {
+    const value = record[key]
+
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+
+  return ''
+}
+
+/**
+ * The readable reasoning inside a row's `reasoning_details`: the provider's
+ * raw blocks, kept for replay — Anthropic `thinking` / `redacted_thinking`,
+ * OpenRouter `reasoning.text` / `reasoning.summary` / `reasoning.encrypted`.
+ * The REST transcript hands the column over as JSON text, which used to be shown
+ * as is: a row whose only reasoning was a redacted block opened onto its
+ * signature. Text that is not JSON is taken as written.
+ */
+export function reasoningDetailsText(details: unknown): string {
+  let value: unknown = details
+
+  if (typeof details === 'string') {
+    try {
+      value = JSON.parse(details)
+    } catch {
+      return details.trim()
+    }
+  }
+
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+
+  const blocks: unknown[] = Array.isArray(value) ? value : [value]
+
+  return blocks.map(reasoningDetailText).filter(Boolean).join('\n\n')
+}
+
 export function toChatMessages(messages: SessionMessage[]): ChatMessage[] {
   const result: ChatMessage[] = []
   let pendingToolParts: ChatMessagePart[] = []
@@ -217,10 +271,7 @@ export function toChatMessages(messages: SessionMessage[]): ChatMessage[] {
 
     const parts: ChatMessagePart[] = []
 
-    const reasoning =
-      message.reasoning ||
-      message.reasoning_content ||
-      (typeof message.reasoning_details === 'string' ? message.reasoning_details : '')
+    const reasoning = message.reasoning || message.reasoning_content || reasoningDetailsText(message.reasoning_details)
 
     if (reasoning && message.role === 'assistant') {
       parts.push(reasoningPart(reasoning, message.timestamp))
@@ -316,9 +367,71 @@ export function toChatMessages(messages: SessionMessage[]): ChatMessage[] {
       : message
   )
 
-  return withUniqueToolCallIds(
-    withoutGeneratedImageEchoes.filter(
-      m => chatMessageText(m).trim() || m.parts.some(part => part.type !== 'text') || m.attachmentRefs?.length
+  return withTurnDurations(
+    withUniqueToolCallIds(
+      withoutGeneratedImageEchoes.filter(
+        m => chatMessageText(m).trim() || m.parts.some(part => part.type !== 'text') || m.attachmentRefs?.length
+      )
     )
   )
+}
+
+function latestTurnMoment(message: ChatMessage): number | undefined {
+  let latest = message.timestamp
+
+  for (const part of message.parts) {
+    for (const value of [part.timestamp, part.completedAt]) {
+      if (typeof value === 'number' && (latest === undefined || value > latest)) {
+        latest = value
+      }
+    }
+  }
+
+  return latest
+}
+
+/**
+ * How long each reloaded turn ran, read off the rows themselves: from the
+ * user's message to the last thing the turn persisted. The live view measures
+ * it with a wall clock that never reaches the database, so a reopened session
+ * had lost every turn's duration. The clock it reads is the one each row was
+ * stamped with when it was written, so the two agree to within a write.
+ */
+export function withTurnDurations(messages: ChatMessage[]): ChatMessage[] {
+  const next = [...messages]
+  let start: number | undefined
+  let host = -1
+  let end: number | undefined
+
+  const settle = () => {
+    const message = next[host]
+
+    if (message && message.durationS === undefined && start !== undefined && end !== undefined && end > start) {
+      next[host] = { ...message, durationS: end - start }
+    }
+  }
+
+  next.forEach((message, index) => {
+    if (message.role === 'user') {
+      settle()
+      start = message.timestamp
+      host = -1
+      end = undefined
+
+      return
+    }
+
+    if (message.role === 'assistant') {
+      host = index
+      const moment = latestTurnMoment(message)
+
+      if (moment !== undefined && (end === undefined || moment > end)) {
+        end = moment
+      }
+    }
+  })
+
+  settle()
+
+  return next
 }

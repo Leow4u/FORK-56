@@ -177,7 +177,7 @@ export async function resolveAgentAvatar(handle: string): Promise<null | string>
 }
 
 const AgentMessageNote: FC<{ text: string }> = ({ text }) => {
-  const { t } = useI18n()
+  const notices = useI18n().t.assistant.notices
   const match = AGENT_MESSAGE_RE.exec(text)
   const sender = (match?.[1] || match?.[3] || 'agent').trim()
   const handle = (match?.[2] || match?.[3] || sender).trim()
@@ -205,7 +205,7 @@ const AgentMessageNote: FC<{ text: string }> = ({ text }) => {
   // message, so the exchange still reads in order.
   return (
     <div
-      className="flex max-w-[min(86%,44rem)] flex-col gap-0.5 self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-muted-foreground/60"
+      className="flex max-w-[min(86%,44rem)] flex-col gap-0.5 self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-(--ui-text-tertiary)"
       data-slot="aui_agent-message-note"
     >
       <span className="flex items-center justify-center gap-1.5">
@@ -216,12 +216,12 @@ const AgentMessageNote: FC<{ text: string }> = ({ text }) => {
             🤖
           </span>
         )}
-        <span className="wrap-anywhere">{t.assistant.thread.messageFrom(sender)}</span>
+        <span className="wrap-anywhere">{notices.messageFrom(sender)}</span>
       </span>
       {body && (
         <details className="self-center">
-          <summary className="cursor-pointer select-none text-center text-muted-foreground/45 hover:text-muted-foreground/70">
-            {t.assistant.thread.showMessage}
+          <summary className="cursor-pointer select-none text-center text-(--ui-text-tertiary) hover:text-(--ui-text-secondary)">
+            {notices.showMessage}
           </summary>
           <div className="mt-1 max-w-[36rem] rounded-lg border border-(--ui-stroke-tertiary) px-3 py-2 text-left text-[0.75rem] leading-5 text-foreground/85">
             <UserMessageText text={body} />
@@ -233,25 +233,25 @@ const AgentMessageNote: FC<{ text: string }> = ({ text }) => {
 }
 
 const ProcessNotificationNote: FC<{ text: string }> = ({ text }) => {
-  const { t } = useI18n()
+  const notices = useI18n().t.assistant.notices
   const body = text.replace(/^\[IMPORTANT:\s*/, '').replace(/\]$/, '')
   const newline = body.indexOf('\n')
   const headline = (newline === -1 ? body : body.slice(0, newline)).trim()
   const detail = newline === -1 ? '' : body.slice(newline + 1).trim()
 
   return (
-    <div className="flex max-w-[min(86%,44rem)] flex-col gap-0.5 self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-muted-foreground/60">
+    <div className="flex max-w-[min(86%,44rem)] flex-col gap-0.5 self-center px-2 py-0.5 text-[0.6875rem] leading-5 text-(--ui-text-tertiary)">
       <span className="flex items-center gap-1.5">
-        <Codicon className="shrink-0 text-muted-foreground/55" name="terminal" size="0.75rem" />
+        <Codicon className="shrink-0 text-(--ui-text-tertiary)" name="terminal" size="0.75rem" />
         <span className="wrap-anywhere">{headline}</span>
       </span>
       {detail && (
         <details className="pl-[1.3125rem]">
-          <summary className="cursor-pointer select-none text-muted-foreground/45 hover:text-muted-foreground/70">
-            {t.assistant.thread.processOutput}
+          <summary className="cursor-pointer select-none text-(--ui-text-tertiary) hover:text-(--ui-text-secondary)">
+            {notices.output}
           </summary>
           <pre
-            className="mt-0.5 max-h-48 overflow-auto whitespace-pre-wrap font-mono text-[0.625rem] leading-4 text-muted-foreground/55"
+            className="mt-0.5 max-h-48 overflow-auto whitespace-pre-wrap font-mono text-[0.625rem] leading-4 text-(--ui-text-tertiary)"
             data-selectable-text="true"
           >
             {detail}

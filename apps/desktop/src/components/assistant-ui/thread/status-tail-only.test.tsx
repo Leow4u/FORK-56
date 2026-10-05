@@ -7,6 +7,8 @@ import { type ThreadMessage } from '@assistant-ui/react'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { $activityDensity } from '@/store/activity-density'
+
 import { stubThreadEnvironment, ThreadRuntime, userMessage } from '../test-utils'
 
 import { Thread } from '.'
@@ -16,6 +18,7 @@ stubThreadEnvironment()
 
 afterEach(() => {
   cleanup()
+  $activityDensity.set('balanced')
 })
 
 const assistantMetadata = {
@@ -44,11 +47,20 @@ const Harness = ({ messages }: { messages: ThreadMessage[] }) => (
 )
 
 describe('thinking indicator is tail-only', () => {
-  it('shows the loading indicator on a running placeholder at the tail', async () => {
+  it('shows the loading indicator on a running placeholder at the tail (Detailed)', async () => {
+    $activityDensity.set('detailed')
+
     const { container } = render(<Harness messages={[userMessage('u1', 'question'), assistant('a1', '', true)]} />)
 
     expect(await screen.findByRole('status', { name: 'Work4You is loading a response' })).toBeTruthy()
     expect(container.querySelector('[data-slot="aui_response-loading"]')).toBeTruthy()
+  })
+
+  it('shows the live block status line on a running placeholder at the tail', async () => {
+    const { container } = render(<Harness messages={[userMessage('u1', 'question'), assistant('a1', '', true)]} />)
+
+    expect(await screen.findByRole('status', { name: 'Thinking' })).toBeTruthy()
+    expect(container.querySelectorAll('[data-slot="aui_turn-now"]')).toHaveLength(1)
   })
 
   it('never shows an indicator on a stale running message mid-transcript', async () => {
@@ -68,5 +80,6 @@ describe('thinking indicator is tail-only', () => {
 
     expect(container.querySelector('[data-slot="aui_response-loading"]')).toBeNull()
     expect(container.querySelector('[data-slot="aui_turn-activity"]')).toBeNull()
+    expect(container.querySelector('[data-slot="aui_turn-now"]')).toBeNull()
   })
 })

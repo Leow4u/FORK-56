@@ -542,9 +542,12 @@ export const pt = defineLocale({
       title: 'Aparência',
       colorMode: 'Modo de cor',
       colorModeDesc: 'Escolha um modo fixo ou deixe o Work4You seguir a configuração do sistema.',
-      toolViewTitle: 'Exibição das chamadas de ferramenta',
-      toolViewDesc:
-        'Produto resume cada turno concluído em uma só linha com o tempo de trabalho. Técnico mantém o log das ferramentas e os payloads.',
+      activityDensityTitle: 'Detalhe da atividade',
+      activityDensityDesc:
+        'Quanto do trabalho do agente o chat mostra enquanto ele trabalha e depois que termina. Perguntas, aprovações e arquivos alterados sempre ficam na tela.',
+      activityDensityCompact: 'Compacto',
+      activityDensityBalanced: 'Equilibrado',
+      activityDensityDetailed: 'Detalhado',
       reasoningCollapsedTitle: 'Recolher o raciocínio por padrão',
       uiScaleTitle: 'Escala da interface',
       sessionDensityTitle: 'Densidade da barra lateral',
@@ -4900,6 +4903,8 @@ export const pt = defineLocale({
       loadingSession: 'Carregando sessão',
       showEarlier: 'Mostrar mensagens anteriores',
       loadingResponse: 'O Work4You está carregando uma resposta',
+      working: 'O Work4You está trabalhando',
+      summarizingThread: 'Resumindo a conversa',
       resumeWhenBackgroundDone: count =>
         count === 1
           ? 'Continua quando a tarefa em segundo plano terminar'
@@ -4911,6 +4916,9 @@ export const pt = defineLocale({
       worked: 'Trabalhou',
       workedFor: duration => `Trabalhou por ${duration}`,
       turnDuration: duration => `Este turno levou ${duration}`,
+      writing: 'Escrevendo',
+      stepOf: (step, total) => `Etapa ${step} de ${total}`,
+      thoughtAbout: title => `Pensamento · ${title}`,
       today: time => `Hoje, ${time}`,
       yesterday: time => `Ontem, ${time}`,
       copy: 'Copiar',
@@ -4941,17 +4949,17 @@ export const pt = defineLocale({
       sendEdited: 'Enviar mensagem editada',
       attachingFile: 'Anexando…',
       restoreFailed: 'Falha ao restaurar',
-      summarizingThread: 'Resumindo a conversa',
-      agentWorking: 'O Work4You está trabalhando',
-      timelineLabel: 'Linha do tempo da conversa',
-      steered: 'redirecionado',
+      timelineLabel: 'Linha do tempo da conversa'
+    },
+    notices: {
+      steered: 'direcionou',
+      repliedTo: name => `Respondeu a ${name}`,
+      showReply: 'ver resposta',
       messaging: name => `Enviando mensagem para ${name}…`,
       messaged: name => `Mensagem enviada para ${name}`,
       messageFrom: name => `Mensagem de ${name}`,
-      showMessage: 'mostrar mensagem',
-      repliedTo: name => `Respondeu a ${name}`,
-      showReply: 'mostrar resposta',
-      processOutput: 'saída'
+      showMessage: 'ver mensagem',
+      output: 'saída'
     },
     approval: {
       gatewayDisconnected: 'O gateway do Work4You não está conectado',
@@ -5063,18 +5071,101 @@ export const pt = defineLocale({
         runningPrefixedTool: (prefix, action) => `Executando ${action.toLowerCase()} (${prefix.toLowerCase()})`,
         runningTool: action => `Executando ${action.toLowerCase()}`
       },
+      searchResults: 'Resultados da busca',
+      detailLabels: { details: 'Detalhes', errorDetails: 'Detalhes do erro', snapshotSummary: 'Resumo da captura' },
+      countNouns: {
+        document: count => (count === 1 ? '1 documento' : `${count} documentos`),
+        file: count => (count === 1 ? '1 arquivo' : `${count} arquivos`),
+        item: count => (count === 1 ? '1 item' : `${count} itens`),
+        match: count => (count === 1 ? '1 ocorrência' : `${count} ocorrências`),
+        result: count => (count === 1 ? '1 resultado' : `${count} resultados`),
+        row: count => (count === 1 ? '1 linha' : `${count} linhas`),
+        search: count => (count === 1 ? '1 busca' : `${count} buscas`),
+        source: count => (count === 1 ? '1 fonte' : `${count} fontes`),
+        step: count => (count === 1 ? '1 etapa' : `${count} etapas`),
+        todo: count => (count === 1 ? '1 tarefa' : `${count} tarefas`)
+      },
+      runSummary: {
+        categories: {
+          create: {
+            count: count => (count === 1 ? '1 arquivo' : `${count} arquivos`),
+            past: 'Criou',
+            present: 'Criando'
+          },
+          delegate: {
+            count: count => (count === 1 ? '1 tarefa' : `${count} tarefas`),
+            past: 'Delegou',
+            present: 'Delegando'
+          },
+          edit: {
+            count: count => (count === 1 ? '1 arquivo' : `${count} arquivos`),
+            past: 'Editou',
+            present: 'Editando'
+          },
+          explore: {
+            count: count => (count === 1 ? '1 arquivo' : `${count} arquivos`),
+            past: 'Explorou',
+            present: 'Explorando'
+          },
+          other: {
+            count: count => (count === 1 ? '1 ferramenta' : `${count} ferramentas`),
+            past: 'Usou',
+            present: 'Usando'
+          },
+          run: {
+            count: count => (count === 1 ? '1 comando' : `${count} comandos`),
+            past: 'Executou',
+            present: 'Executando'
+          }
+        },
+        clause: (verb, object) => `${verb} ${object}`,
+        separator: ', '
+      },
       titles: {
+        apply_layout: { done: 'Aplicou o layout', pending: 'Aplicando o layout', pendingAction: 'Aplicando' },
+        browser_back: { done: 'Voltou uma página', pending: 'Voltando uma página', pendingAction: 'Voltando' },
+        browser_cdp: {
+          done: 'Enviou comando ao navegador',
+          pending: 'Enviando comando ao navegador',
+          pendingAction: 'Enviando'
+        },
         browser_click: {
           done: 'Clicou em elemento da página',
           pending: 'Clicando em elemento da página',
           pendingAction: 'Clicando'
+        },
+        browser_console: {
+          done: 'Leu o console do navegador',
+          pending: 'Lendo o console do navegador',
+          pendingAction: 'Lendo'
+        },
+        browser_dialog: {
+          done: 'Respondeu a um diálogo da página',
+          pending: 'Respondendo a um diálogo da página',
+          pendingAction: 'Respondendo'
+        },
+        browser_exec: {
+          done: 'Executou script na página',
+          pending: 'Executando script na página',
+          pendingAction: 'Executando'
         },
         browser_fill: {
           done: 'Preencheu campo de formulário',
           pending: 'Preenchendo campo de formulário',
           pendingAction: 'Preenchendo'
         },
+        browser_get_images: {
+          done: 'Listou imagens da página',
+          pending: 'Listando imagens da página',
+          pendingAction: 'Listando'
+        },
         browser_navigate: { done: 'Abriu página', pending: 'Abrindo página', pendingAction: 'Abrindo' },
+        browser_press: {
+          done: 'Pressionou uma tecla',
+          pending: 'Pressionando uma tecla',
+          pendingAction: 'Pressionando'
+        },
+        browser_scroll: { done: 'Rolou a página', pending: 'Rolando a página', pendingAction: 'Rolando' },
         browser_snapshot: {
           done: 'Capturou snapshot da página',
           pending: 'Capturando snapshot da página',
@@ -5086,27 +5177,68 @@ export const pt = defineLocale({
           pendingAction: 'Capturando'
         },
         browser_type: { done: 'Digitou na página', pending: 'Digitando na página', pendingAction: 'Digitando' },
+        browser_vision: { done: 'Olhou a página', pending: 'Olhando a página', pendingAction: 'Olhando' },
         clarify: { done: 'Fez uma pergunta', pending: 'Fazendo uma pergunta', pendingAction: 'Fazendo' },
+        close_preview: { done: 'Fechou o preview', pending: 'Fechando o preview', pendingAction: 'Fechando' },
+        close_terminal: { done: 'Fechou o terminal', pending: 'Fechando o terminal', pendingAction: 'Fechando' },
+        computer_use: { done: 'Usou o computador', pending: 'Usando o computador', pendingAction: 'Usando' },
         cronjob: { done: 'Tarefa agendada', pending: 'Agendando tarefa', pendingAction: 'Agendando' },
+        drive_preview: { done: 'Usou o preview', pending: 'Usando o preview', pendingAction: 'Usando' },
         edit_file: { done: 'Editou arquivo', pending: 'Editando arquivo', pendingAction: 'Editando' },
         execute_code: { done: 'Executou código', pending: 'Executando código', pendingAction: 'Executando código' },
+        focus_pane: { done: 'Mostrou um painel', pending: 'Mostrando um painel', pendingAction: 'Mostrando' },
         image_generate: { done: 'Gerou imagem', pending: 'Gerando imagem', pendingAction: 'Gerando' },
         list_files: { done: 'Listou arquivos', pending: 'Listando arquivos', pendingAction: 'Listando' },
         memory: { done: 'Salvou na memória', pending: 'Salvando na memória', pendingAction: 'Salvando' },
+        open_preview: { done: 'Abriu o preview', pending: 'Abrindo o preview', pendingAction: 'Abrindo' },
         patch: { done: 'Alterou arquivo', pending: 'Alterando arquivo', pendingAction: 'Alterando' },
+        process: {
+          done: 'Verificou processo em segundo plano',
+          pending: 'Verificando processo em segundo plano',
+          pendingAction: 'Verificando'
+        },
+        project_create: { done: 'Criou projeto', pending: 'Criando projeto', pendingAction: 'Criando' },
+        project_list: { done: 'Listou projetos', pending: 'Listando projetos', pendingAction: 'Listando' },
+        project_switch: { done: 'Trocou de projeto', pending: 'Trocando de projeto', pendingAction: 'Trocando' },
         read_file: { done: 'Leu arquivo', pending: 'Lendo arquivo', pendingAction: 'Lendo' },
+        read_preview: { done: 'Leu o preview', pending: 'Lendo o preview', pendingAction: 'Lendo' },
+        read_terminal: { done: 'Leu o terminal', pending: 'Lendo o terminal', pendingAction: 'Lendo' },
+        read_window_below: {
+          done: 'Verificou a janela atrás',
+          pending: 'Verificando a janela atrás',
+          pendingAction: 'Verificando'
+        },
         search_files: { done: 'Buscou nos arquivos', pending: 'Buscando nos arquivos', pendingAction: 'Buscando' },
+        session_search: {
+          done: 'Buscou em sessões anteriores',
+          pending: 'Buscando em sessões anteriores',
+          pendingAction: 'Buscando'
+        },
         session_search_recall: {
           done: 'Buscou no histórico de sessões',
           pending: 'Buscando no histórico de sessões',
           pendingAction: 'Buscando'
         },
+        skill_manage: { done: 'Atualizou skill', pending: 'Atualizando skill', pendingAction: 'Atualizando' },
+        skill_view: { done: 'Leu skill', pending: 'Lendo skill', pendingAction: 'Lendo' },
+        skills_list: { done: 'Listou skills', pending: 'Listando skills', pendingAction: 'Listando' },
         terminal: { done: 'Executou comando', pending: 'Executando comando', pendingAction: 'Executando' },
+        text_to_speech: { done: 'Gerou áudio', pending: 'Gerando áudio', pendingAction: 'Gerando' },
         todo: {
           done: 'Atualizou a lista de tarefas',
           pending: 'Atualizando a lista de tarefas',
           pendingAction: 'Atualizando'
         },
+        tool_call: { done: 'Usou uma ferramenta', pending: 'Usando uma ferramenta', pendingAction: 'Usando' },
+        tool_describe: {
+          done: 'Leu detalhes da ferramenta',
+          pending: 'Lendo detalhes da ferramenta',
+          pendingAction: 'Lendo'
+        },
+        tool_search: { done: 'Buscou ferramentas', pending: 'Buscando ferramentas', pendingAction: 'Buscando' },
+        tour: { done: 'Mostrou um tour', pending: 'Mostrando um tour', pendingAction: 'Mostrando' },
+        video_analyze: { done: 'Analisou vídeo', pending: 'Analisando vídeo', pendingAction: 'Analisando' },
+        video_generate: { done: 'Gerou vídeo', pending: 'Gerando vídeo', pendingAction: 'Gerando' },
         vision_analyze: { done: 'Analisou imagem', pending: 'Analisando imagem', pendingAction: 'Analisando' },
         web_extract: { done: 'Leu página da web', pending: 'Lendo página da web', pendingAction: 'Lendo' },
         web_search: { done: 'Buscou na web', pending: 'Buscando na web', pendingAction: 'Buscando' },
@@ -5116,7 +5248,6 @@ export const pt = defineLocale({
       traceArguments: 'Argumentos',
       traceResult: 'Resultado',
       searchLabel: 'Busca',
-      searchResults: 'Resultados da busca',
       generatedImageAlt: 'Imagem gerada',
       truncated: count => `mais ${count} caracteres omitidos — use Copiar para ver a saída completa.`,
       details: 'Detalhes',
@@ -5152,28 +5283,8 @@ export const pt = defineLocale({
         delivery: 'Entrega',
         nextRun: 'Próxima execução'
       },
-      countNouns: {
-        document: { one: 'documento', other: 'documentos' },
-        entry: { one: 'entrada', other: 'entradas' },
-        file: { one: 'arquivo', other: 'arquivos' },
-        item: { one: 'item', other: 'itens' },
-        match: { one: 'ocorrência', other: 'ocorrências' },
-        result: { one: 'resultado', other: 'resultados' },
-        row: { one: 'linha', other: 'linhas' },
-        search: { one: 'busca', other: 'buscas' },
-        source: { one: 'fonte', other: 'fontes' },
-        step: { one: 'etapa', other: 'etapas' },
-        todo: { one: 'tarefa', other: 'tarefas' }
-      },
       delegateTaskFallback: index => `Tarefa ${index}`,
       delegatedTask: 'Tarefa delegada'
-    },
-    runSummary: {
-      delegate: { one: 'tarefa', other: 'tarefas', past: 'Delegou', present: 'Delegando' },
-      edit: { one: 'arquivo', other: 'arquivos', past: 'Editou', present: 'Editando' },
-      explore: { one: 'arquivo', other: 'arquivos', past: 'Explorou', present: 'Explorando' },
-      other: { one: 'ferramenta', other: 'ferramentas', past: 'Usou', present: 'Usando' },
-      run: { one: 'comando', other: 'comandos', past: 'Executou', present: 'Executando' }
     },
     alerts: {
       caution: 'Cuidado',

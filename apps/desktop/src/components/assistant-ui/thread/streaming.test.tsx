@@ -3,8 +3,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { useEffect, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { $activityDensity } from '@/store/activity-density'
 import { $reasoningCollapsedByDefault } from '@/store/reasoning-disclosure'
-import { $toolViewMode } from '@/store/tool-view'
 
 import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime } from '../test-utils'
 
@@ -443,10 +443,12 @@ describe('assistant-ui streaming renderer', () => {
   beforeEach(() => {
     resizeObservers.clear()
     $reasoningCollapsedByDefault.set(false)
-    $toolViewMode.set('product')
+    $activityDensity.set('balanced')
   })
 
   it('renders assistant text incrementally before completion', async () => {
+    $activityDensity.set('detailed')
+
     let controls: StreamingControls | undefined
 
     const registerControls = (next: StreamingControls) => {
@@ -478,6 +480,35 @@ describe('assistant-ui streaming renderer', () => {
     })
   })
 
+  it('streams the reply inside the live block, under one status line', async () => {
+    let controls: StreamingControls | undefined
+
+    const registerControls = (next: StreamingControls) => {
+      controls = next
+    }
+
+    const { container } = render(<StreamingHarness onControls={registerControls} />)
+
+    expect(await screen.findByRole('status', { name: 'Thinking' })).toBeTruthy()
+
+    await waitFor(() => {
+      expect(container.textContent).toContain('first chunk')
+    })
+    expect(screen.getByRole('status', { name: 'Writing' })).toBeTruthy()
+
+    act(() => controls?.emitSecond())
+    await waitFor(() => {
+      expect(container.textContent).toContain('first chunk second chunk')
+    })
+    expect(container.querySelectorAll('[data-slot="aui_turn-now"]')).toHaveLength(1)
+
+    act(() => controls?.complete())
+    await waitFor(() => {
+      expect(container.querySelector('[data-slot="aui_turn-now"]')).toBeNull()
+    })
+    expect(container.textContent).toContain('first chunk second chunk')
+  })
+
   it('does not render composer clearance for intro-only threads', () => {
     const { container } = render(<IntroHarness />)
 
@@ -498,8 +529,9 @@ describe('assistant-ui streaming renderer', () => {
 
     expect(container.querySelector('[data-slot="aui_worked-for"]')?.textContent).toContain('Worked')
     expect(container.textContent).toContain('All done — patch applied.')
-    expect(container.textContent).not.toContain('Let me check the files.')
-    expect(container.textContent).not.toContain('Now applying the patch.')
+    // The newest turn stays open until the next message: its notes are in the
+    // work list, one line each, not as paragraphs of their own.
+    expect(container.querySelectorAll('[data-slot="aui_turn-note"]')).toHaveLength(2)
 
     const actionBars = container.querySelectorAll('[data-slot="aui_msg-actions"]')
     expect(actionBars).toHaveLength(1)
@@ -512,12 +544,12 @@ describe('assistant-ui streaming renderer', () => {
 
     fireEvent.click(container.querySelector('[data-slot="aui_worked-for"] button') as HTMLElement)
 
-    expect(container.textContent).toContain('Let me check the files.')
-    expect(container.textContent).toContain('Now applying the patch.')
+    expect(container.textContent).not.toContain('Let me check the files.')
+    expect(container.textContent).not.toContain('Now applying the patch.')
   })
 
   it('keeps interim commentary visible in Technical mode', () => {
-    $toolViewMode.set('technical')
+    $activityDensity.set('detailed')
 
     const { container } = render(
       <TranscriptHarness
@@ -575,6 +607,8 @@ describe('assistant-ui streaming renderer', () => {
   })
 
   it('renders an incomplete streaming reasoning fenced code block as a code card', async () => {
+    $activityDensity.set('detailed')
+
     const { container } = render(<RunningReasoningHarness />)
     const ui = within(container)
     const thinkingToggle = ui.getByRole('button', { name: /thinking/i })
@@ -594,6 +628,8 @@ describe('assistant-ui streaming renderer', () => {
   })
 
   it('keeps streaming reasoning collapsed by default when the preference is enabled', () => {
+    $activityDensity.set('detailed')
+
     $reasoningCollapsedByDefault.set(true)
 
     const { container } = render(<RunningReasoningHarness />)
@@ -635,6 +671,8 @@ describe('assistant-ui streaming renderer', () => {
   })
 
   it('does not reopen an earlier completed thinking group when a later group is running', () => {
+    $activityDensity.set('detailed')
+
     const { container } = render(<RunningMessageHarness message={assistantSeparatedReasoningMessage()} />)
 
     const disclosures = container.querySelectorAll('[data-slot="aui_thinking-disclosure"]')
@@ -690,7 +728,10 @@ describe('assistant-ui streaming renderer', () => {
   it('shows the command prompt and exit code for terminal calls', async () => {
     const { container } = render(<MessageHarness message={assistantTerminalMessage()} />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /worked/i }))
+    // The newest turn stays open, so its work list is already on screen.
+    await waitFor(() => {
+      expect(container.querySelector('[data-tool-row] button')).not.toBeNull()
+    })
     fireEvent.click(container.querySelector('[data-tool-row] button')!)
 
     await waitFor(() => {

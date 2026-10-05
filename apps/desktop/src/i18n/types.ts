@@ -8,25 +8,59 @@
 export type Locale = 'en' | 'zh' | 'zh-hant' | 'ja' | 'ar' | 'pt'
 
 export type ToolTitleKey =
+  | 'apply_layout'
+  | 'browser_back'
+  | 'browser_cdp'
   | 'browser_click'
+  | 'browser_console'
+  | 'browser_dialog'
+  | 'browser_exec'
   | 'browser_fill'
+  | 'browser_get_images'
   | 'browser_navigate'
+  | 'browser_press'
+  | 'browser_scroll'
   | 'browser_snapshot'
   | 'browser_take_screenshot'
   | 'browser_type'
+  | 'browser_vision'
   | 'clarify'
+  | 'close_preview'
+  | 'close_terminal'
+  | 'computer_use'
   | 'cronjob'
+  | 'drive_preview'
   | 'edit_file'
   | 'execute_code'
+  | 'focus_pane'
   | 'image_generate'
   | 'list_files'
   | 'memory'
+  | 'open_preview'
   | 'patch'
+  | 'process'
+  | 'project_create'
+  | 'project_list'
+  | 'project_switch'
   | 'read_file'
+  | 'read_preview'
+  | 'read_terminal'
+  | 'read_window_below'
   | 'search_files'
+  | 'session_search'
   | 'session_search_recall'
+  | 'skill_manage'
+  | 'skill_view'
+  | 'skills_list'
   | 'terminal'
+  | 'text_to_speech'
   | 'todo'
+  | 'tool_call'
+  | 'tool_describe'
+  | 'tool_search'
+  | 'tour'
+  | 'video_analyze'
+  | 'video_generate'
   | 'vision_analyze'
   | 'web_extract'
   | 'web_search'
@@ -36,6 +70,18 @@ interface ToolTitleCopy {
   done: string
   pending: string
   pendingAction: string
+}
+
+/** The kinds of call a tool-run summary groups into one clause each. */
+type ToolRunCategory = 'create' | 'delegate' | 'edit' | 'explore' | 'other' | 'run'
+
+type ToolCountNoun = 'document' | 'file' | 'item' | 'match' | 'result' | 'row' | 'search' | 'source' | 'step' | 'todo'
+
+interface ToolRunCategoryCopy {
+  /** What the clause counts once it holds more than one call — "3 files". */
+  count: (count: number) => string
+  past: string
+  present: string
 }
 
 interface ModeOptionCopy {
@@ -445,8 +491,11 @@ export interface Translations {
       title: string
       colorMode: string
       colorModeDesc: string
-      toolViewTitle: string
-      toolViewDesc: string
+      activityDensityTitle: string
+      activityDensityDesc: string
+      activityDensityCompact: string
+      activityDensityBalanced: string
+      activityDensityDetailed: string
       reasoningCollapsedTitle: string
       uiScaleTitle: string
       sessionDensityTitle: string
@@ -3797,6 +3846,10 @@ export interface Translations {
       loadingSession: string
       showEarlier: string
       loadingResponse: string
+      /** Accessible name of the live status line when it carries no hint. */
+      working: string
+      /** Status line while auto-compaction runs. */
+      summarizingThread: string
       resumeWhenBackgroundDone: (count: number) => string
       thinking: string
       thought: string
@@ -3805,6 +3858,9 @@ export interface Translations {
       worked: string
       workedFor: (duration: string) => string
       turnDuration: (duration: string) => string
+      writing: string
+      stepOf: (step: number, total: number) => string
+      thoughtAbout: (title: string) => string
       today: (time: string) => string
       yesterday: (time: string) => string
       copy: string
@@ -3834,17 +3890,18 @@ export interface Translations {
       sendEdited: string
       attachingFile: string
       restoreFailed: string
-      summarizingThread: string
-      agentWorking: string
       timelineLabel: string
+    }
+    notices: {
+      /** A user steering note: "steered · <what they said>". */
       steered: string
+      repliedTo: (name: string) => string
+      showReply: string
       messaging: (name: string) => string
       messaged: (name: string) => string
       messageFrom: (name: string) => string
       showMessage: string
-      repliedTo: (name: string) => string
-      showReply: string
-      processOutput: string
+      output: string
     }
     approval: {
       gatewayDisconnected: string
@@ -3954,12 +4011,23 @@ export interface Translations {
         runningPrefixedTool: (prefix: string, action: string) => string
         runningTool: (action: string) => string
       }
+      /** The one line that stands in for a run of tool calls — "Explored 3 files, ran 5 commands". */
+      searchResults: string
+      detailLabels: { details: string; errorDetails: string; snapshotSummary: string }
+      /** "3 matches", "1 result" — the counts tool rows report. */
+      countNouns: Record<ToolCountNoun, (count: number) => string>
+      runSummary: {
+        categories: Record<ToolRunCategory, ToolRunCategoryCopy>
+        /** One clause: a verb and what it acted on, a target ("status.ts") or a count ("3 files"). */
+        clause: (verb: string, object: string) => string
+        /** Between clauses. */
+        separator: string
+      }
       titles: Record<ToolTitleKey, ToolTitleCopy>
       payload: string
       traceArguments: string
       traceResult: string
       searchLabel: string
-      searchResults: string
       generatedImageAlt: string
       truncated: (count: string) => string
       details: string
@@ -3996,17 +4064,9 @@ export interface Translations {
       }
       /** Nouns for result-count badges ("13 entries"). Nouns a tool reports that
        *  aren't listed here keep the English plural. */
-      countNouns: Record<
-        'document' | 'entry' | 'file' | 'item' | 'match' | 'result' | 'row' | 'search' | 'source' | 'step' | 'todo',
-        { one: string; other: string }
-      >
       delegateTaskFallback: (index: number) => string
       delegatedTask: string
     }
-    runSummary: Record<
-      'delegate' | 'edit' | 'explore' | 'other' | 'run',
-      { one: string; other: string; past: string; present: string }
-    >
     alerts: {
       caution: string
       important: string

@@ -9640,6 +9640,44 @@ class SessionDB(SessionSearchMixin, SessionSchemaMixin, SessionPortabilityMixin)
 
         return self._execute_write(_do)
 
+    def merge_tool_display_metadata(
+        self,
+        session_id: str,
+        tool_call_id: str,
+        updates: Dict[str, Any],
+    ) -> bool:
+        """Merge display-only fields into the newest tool row for *tool_call_id*.
+
+        For what a client draws but the model never reads — the diff a
+        ``write_file`` call produced, which otherwise exists only in the live
+        ``tool.complete`` event, so a reloaded session showed the file it wrote
+        without its +N −M. ``display_metadata`` is stripped from every outgoing
+        API copy, so nothing merged here reaches the provider or changes the
+        cached prefix. Returns False when *session_id* has no such tool row.
+        """
+        if not session_id or not tool_call_id or not updates:
+            return False
+
+        def _do(conn):
+            row = conn.execute(
+                "SELECT id, display_metadata FROM messages "
+                "WHERE session_id = ? AND role = 'tool' AND tool_call_id = ? "
+                "ORDER BY id DESC LIMIT 1",
+                (session_id, tool_call_id),
+            ).fetchone()
+            if row is None:
+                return False
+
+            meta = self._decode_display_metadata(row[1]) or {}
+            meta.update(updates)
+            conn.execute(
+                "UPDATE messages SET display_metadata = ? WHERE id = ?",
+                (self._encode_display_metadata(meta), row[0]),
+            )
+            return True
+
+        return bool(self._execute_write(_do))
+
     def get_message_reactions(
         self, session_id: str, message_row_id: int
     ) -> List[Dict[str, Any]]:

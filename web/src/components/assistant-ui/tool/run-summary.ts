@@ -1,7 +1,14 @@
+import { translateNow } from '@/i18n'
 import { summarizeShellCommand } from '@/lib/summarize-command'
 import { firstStringField } from '@/lib/text'
 
-import { fileEditBasename, isFileEditTool, parseMaybeObject } from './fallback-model'
+import {
+  diffCreatesFile,
+  fileEditBasename,
+  inlineDiffFromResult,
+  isFileEditTool,
+  parseMaybeObject
+} from './fallback-model'
 
 /**
  * The little a summary needs from a tool call, stated structurally so both
@@ -19,24 +26,27 @@ export function isToolCallPart<T extends { type: string }>(part: T): part is Ext
   return part.type === 'tool-call'
 }
 
-type RunCategory = 'delegate' | 'edit' | 'explore' | 'other' | 'run'
+type RunCategory = 'create' | 'delegate' | 'edit' | 'explore' | 'other' | 'run'
 
 // Clause order is fixed so the same run always reads the same way, whichever
-// category happens to be live.
-const CATEGORY_ORDER: readonly RunCategory[] = ['edit', 'explore', 'run', 'delegate', 'other']
+// category happens to be live. It follows the shape most work takes — look,
+// try, then change — so a whole turn reads "Explored 8 files, ran 3 commands,
+// edited resumo.md" rather than leading with the last thing it did.
+const CATEGORY_ORDER: readonly RunCategory[] = ['explore', 'run', 'create', 'edit', 'delegate', 'other']
 
-const CATEGORY_COPY: Record<RunCategory, { noun: [string, string]; past: string; present: string }> = {
-  delegate: { noun: ['task', 'tasks'], past: 'Delegated', present: 'Delegating' },
-  edit: { noun: ['file', 'files'], past: 'Edited', present: 'Editing' },
-  explore: { noun: ['file', 'files'], past: 'Explored', present: 'Exploring' },
-  other: { noun: ['tool', 'tools'], past: 'Used', present: 'Using' },
-  run: { noun: ['command', 'commands'], past: 'Ran', present: 'Running' }
-}
+// The words live in the catalog (`assistant.tool.runSummary`), so a summary
+// reads in the app's language like the rows it stands in for.
+const categoryVerb = (category: RunCategory, tense: 'past' | 'present') =>
+  translateNow(`assistant.tool.runSummary.categories.${category}.${tense}`)
+
+const categoryCount = (category: RunCategory, count: number) =>
+  translateNow(`assistant.tool.runSummary.categories.${category}.count`, count)
 
 const EXPLORE_TOOLS = new Set([
   'list_files',
   'read_file',
   'search_files',
+  'session_search',
   'session_search_recall',
   'vision_analyze',
   'web_extract',
@@ -63,6 +73,17 @@ function toolCategory(toolName: string): RunCategory {
   return 'other'
 }
 
+/**
+ * The category a call counts under once it has run: a file edit whose diff
+ * starts from nothing made the file — "created resumo.md", not "edited". A
+ * call still running has no diff yet, so it reads as an edit until it lands.
+ */
+function runCategory(tool: ToolCallLike): RunCategory {
+  const category = toolCategory(tool.toolName)
+
+  return category === 'edit' && diffCreatesFile(inlineDiffFromResult(tool.result)) ? 'create' : category
+}
+
 function isPending(tool: ToolCallLike): boolean {
   return tool.result === undefined
 }
@@ -73,7 +94,7 @@ function isPending(tool: ToolCallLike): boolean {
  * described in the same words from the moment the model drafts it.
  */
 export function toolPresentVerb(toolName: string): string {
-  return CATEGORY_COPY[toolCategory(toolName)].present
+  return categoryVerb(toolCategory(toolName), 'present')
 }
 
 /** The thing a tool acted on, as the header should name it. */
@@ -94,17 +115,21 @@ function toolTarget(tool: ToolCallLike): string {
  * ("Edited wiring.tsx"); anything else counts ("explored 3 files"). A settled
  * command is the exception — "ran 5 commands" is the useful reading, and a
  * command line only earns its space while it's the thing you're waiting on.
+ *
+ * Only the first clause opens the line, so later ones lower-case their verb —
+ * the verb, not the clause: a language that puts the object first must not
+ * have a file name lower-cased under it.
  */
-function clause(category: RunCategory, tools: ToolCallLike[], live: boolean): string {
-  const copy = CATEGORY_COPY[category]
-  const verb = live ? copy.present : copy.past
+function clause(category: RunCategory, tools: ToolCallLike[], live: boolean, first: boolean): string {
+  const tensed = categoryVerb(category, live ? 'present' : 'past')
+  const verb = first ? tensed : lowerFirst(tensed)
   const target = tools.length === 1 ? toolTarget(tools[0]) : ''
 
   if (target && (live || category !== 'run')) {
-    return `${verb} ${target}`
+    return translateNow('assistant.tool.runSummary.clause', verb, target)
   }
 
-  return `${verb} ${tools.length} ${copy.noun[tools.length === 1 ? 0 : 1]}`
+  return translateNow('assistant.tool.runSummary.clause', verb, categoryCount(category, tools.length))
 }
 
 function lowerFirst(text: string): string {
@@ -122,9 +147,10 @@ function lowerFirst(text: string): string {
  * agent that moved on, and a run like that has to read as finished rather than
  * narrate work that stopped happening.
  *
- * A run only ever holds ephemeral activity — file edits and other cards are
- * split out before this sees them (`splitRunItems`), so there is no aggregate
- * diff to report here; each edit carries its own +N/−M on its card.
+ * A run of rows only ever holds ephemeral activity — file edits and other cards
+ * are split out before this sees them (`splitRunItems`) and carry their own
+ * +N/−M. A whole turn's work is summarized here too, edits included: that line
+ * says what the turn did, from the first read to the last file it wrote.
  */
 export function summarizeToolRun(tools: readonly ToolCallLike[], live: boolean): string {
   // Which clause narrates in the present tense: normally the outstanding call,
@@ -132,12 +158,12 @@ export function summarizeToolRun(tools: readonly ToolCallLike[], live: boolean):
   // pending. The most recent call covers those, and it's the one the ticker is
   // showing anyway.
   const narrating = live ? (tools.find(isPending) ?? tools.at(-1)) : undefined
-  const liveCategory = narrating ? toolCategory(narrating.toolName) : null
+  const liveCategory = narrating ? runCategory(narrating) : null
 
   const byCategory = new Map<RunCategory, ToolCallLike[]>()
 
   for (const tool of tools) {
-    const category = toolCategory(tool.toolName)
+    const category = runCategory(tool)
     const group = byCategory.get(category)
 
     if (group) {
@@ -147,11 +173,9 @@ export function summarizeToolRun(tools: readonly ToolCallLike[], live: boolean):
     }
   }
 
-  const clauses = CATEGORY_ORDER.flatMap(category => {
-    const group = byCategory.get(category)
+  const present = CATEGORY_ORDER.filter(category => byCategory.has(category))
 
-    return group ? [clause(category, group, category === liveCategory)] : []
-  })
-
-  return clauses.map((text, index) => (index === 0 ? text : lowerFirst(text))).join(', ')
+  return present
+    .map((category, index) => clause(category, byCategory.get(category) ?? [], category === liveCategory, index === 0))
+    .join(translateNow('assistant.tool.runSummary.separator'))
 }

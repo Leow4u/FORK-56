@@ -413,8 +413,12 @@ export const ar = defineLocale({
       title: 'المظهر',
       colorMode: 'نمط الألوان',
       colorModeDesc: 'اختر الوضع الفاتح أو الداكن أو اتبع النظام.',
-      toolViewTitle: 'عرض الأدوات',
-      toolViewDesc: 'وضع المنتج يطوي الجولة المنتهية في سطر Worked-for واحد. الوضع التقني يُبقي سجل الأدوات والحمولات.',
+      activityDensityTitle: 'تفاصيل النشاط',
+      activityDensityDesc:
+        'مقدار ما تعرضه المحادثة من عمل الوكيل أثناء العمل وبعد انتهائه. تبقى الأسئلة والموافقات والملفات المعدّلة ظاهرة دائمًا.',
+      activityDensityCompact: 'مضغوط',
+      activityDensityBalanced: 'متوازن',
+      activityDensityDetailed: 'مفصّل',
       reasoningCollapsedTitle: 'طي التفكير افتراضيًا',
       translucencyTitle: 'الشفافية',
       translucencyDesc: 'إظهار سطح المكتب من خلال النافذة بالكامل، بما في ذلك النص.',
@@ -2799,6 +2803,8 @@ export const ar = defineLocale({
       loadingSession: 'جار تحميل الجلسة...',
       showEarlier: 'عرض الرسائل الأقدم',
       loadingResponse: 'جار تحميل الرد...',
+      working: 'Work4You يعمل',
+      summarizingThread: 'جار تلخيص المحادثة',
       resumeWhenBackgroundDone: count =>
         count === 1 ? 'سيُستأنف عند انتهاء المهمة الخلفية' : `سيُستأنف عند انتهاء ${count} مهام خلفية`,
       thinking: 'يفكر...',
@@ -2808,6 +2814,9 @@ export const ar = defineLocale({
       worked: 'عمل',
       workedFor: duration => `عمل لمدة ${duration}`,
       turnDuration: duration => `استغرقت هذه الجولة ${duration}`,
+      writing: 'يكتب',
+      stepOf: (step, total) => `الخطوة ${step} من ${total}`,
+      thoughtAbout: title => `تفكير · ${title}`,
       today: time => `اليوم ${time}`,
       yesterday: time => `أمس ${time}`,
       copy: 'نسخ',
@@ -2835,6 +2844,16 @@ export const ar = defineLocale({
       goForward: 'تقدم',
       sendEdited: 'إرسال التعديل',
       attachingFile: 'جار إرفاق الملف'
+    },
+    notices: {
+      steered: 'وجّه',
+      repliedTo: name => `ردّ على ${name}`,
+      showReply: 'عرض الرد',
+      messaging: name => `يراسل ${name}…`,
+      messaged: name => `راسل ${name}`,
+      messageFrom: name => `رسالة من ${name}`,
+      showMessage: 'عرض الرسالة',
+      output: 'المخرجات'
     },
     approval: {
       gatewayDisconnected: 'البوابة غير متصلة',
@@ -2911,22 +2930,77 @@ export const ar = defineLocale({
         runningPrefixedTool: (prefix, action) => `جار تشغيل ${prefix.toLowerCase()} ${action.toLowerCase()}`,
         runningTool: action => `جار تشغيل ${action.toLowerCase()}`
       },
+      searchResults: 'نتائج البحث',
+      detailLabels: { details: 'التفاصيل', errorDetails: 'تفاصيل الخطأ', snapshotSummary: 'ملخص اللقطة' },
+      countNouns: {
+        document: count => (count === 1 ? 'مستند واحد' : `${count} مستندات`),
+        file: count => (count === 1 ? 'ملف واحد' : `${count} ملفات`),
+        item: count => (count === 1 ? 'عنصر واحد' : `${count} عناصر`),
+        match: count => (count === 1 ? 'تطابق واحد' : `${count} تطابقات`),
+        result: count => (count === 1 ? 'نتيجة واحدة' : `${count} نتائج`),
+        row: count => (count === 1 ? 'صف واحد' : `${count} صفوف`),
+        search: count => (count === 1 ? 'بحث واحد' : `${count} عمليات بحث`),
+        source: count => (count === 1 ? 'مصدر واحد' : `${count} مصادر`),
+        step: count => (count === 1 ? 'خطوة واحدة' : `${count} خطوات`),
+        todo: count => (count === 1 ? 'مهمة واحدة' : `${count} مهام`)
+      },
+      runSummary: {
+        categories: {
+          create: { count: count => (count === 1 ? 'ملفًا واحدًا' : `${count} ملفات`), past: 'أنشأ', present: 'ينشئ' },
+          delegate: { count: count => (count === 1 ? 'مهمة واحدة' : `${count} مهام`), past: 'فوّض', present: 'يفوّض' },
+          edit: { count: count => (count === 1 ? 'ملفًا واحدًا' : `${count} ملفات`), past: 'حرّر', present: 'يحرّر' },
+          explore: {
+            count: count => (count === 1 ? 'ملفًا واحدًا' : `${count} ملفات`),
+            past: 'استكشف',
+            present: 'يستكشف'
+          },
+          other: { count: count => (count === 1 ? 'أداة واحدة' : `${count} أدوات`), past: 'استخدم', present: 'يستخدم' },
+          run: { count: count => (count === 1 ? 'أمرًا واحدًا' : `${count} أوامر`), past: 'شغّل', present: 'يشغّل' }
+        },
+        clause: (verb, object) => `${verb} ${object}`,
+        separator: '، '
+      },
       titles: {
+        apply_layout: { done: 'تم تطبيق التخطيط', pending: 'جار تطبيق التخطيط', pendingAction: 'جار التطبيق' },
+        browser_back: {
+          done: 'تم الرجوع إلى الصفحة السابقة',
+          pending: 'جار الرجوع إلى الصفحة السابقة',
+          pendingAction: 'جار الرجوع'
+        },
+        browser_cdp: { done: 'تم إرسال أمر المتصفح', pending: 'جار إرسال أمر المتصفح', pendingAction: 'جار الإرسال' },
         browser_click: {
           done: 'تم النقر على عنصر الصفحة',
           pending: 'جار النقر على عنصر الصفحة',
           pendingAction: 'جار النقر'
+        },
+        browser_console: {
+          done: 'تمت قراءة وحدة تحكم المتصفح',
+          pending: 'جار قراءة وحدة تحكم المتصفح',
+          pendingAction: 'جار القراءة'
+        },
+        browser_dialog: {
+          done: 'تم الرد على حوار الصفحة',
+          pending: 'جار الرد على حوار الصفحة',
+          pendingAction: 'جار الرد'
+        },
+        browser_exec: {
+          done: 'تم تشغيل برنامج الصفحة النصي',
+          pending: 'جار تشغيل برنامج الصفحة النصي',
+          pendingAction: 'جار التشغيل'
         },
         browser_fill: {
           done: 'تم ملء حقل النموذج',
           pending: 'جار ملء حقل النموذج',
           pendingAction: 'جار الملء'
         },
+        browser_get_images: { done: 'تم سرد صور الصفحة', pending: 'جار سرد صور الصفحة', pendingAction: 'جار السرد' },
         browser_navigate: {
           done: 'تم فتح الصفحة',
           pending: 'جار فتح الصفحة',
           pendingAction: 'جار الفتح'
         },
+        browser_press: { done: 'تم الضغط على مفتاح', pending: 'جار الضغط على مفتاح', pendingAction: 'جار الضغط' },
+        browser_scroll: { done: 'تم تمرير الصفحة', pending: 'جار تمرير الصفحة', pendingAction: 'جار التمرير' },
         browser_snapshot: {
           done: 'تم التقاط لقطة الصفحة',
           pending: 'جار التقاط لقطة الصفحة',
@@ -2942,16 +3016,21 @@ export const ar = defineLocale({
           pending: 'جار الكتابة على الصفحة',
           pendingAction: 'جار الكتابة'
         },
+        browser_vision: { done: 'تم فحص الصفحة', pending: 'جار فحص الصفحة', pendingAction: 'جار الفحص' },
         clarify: {
           done: 'تم طرح سؤال',
           pending: 'جار طرح سؤال',
           pendingAction: 'جار السؤال'
         },
+        close_preview: { done: 'تم إغلاق المعاينة', pending: 'جار إغلاق المعاينة', pendingAction: 'جار الإغلاق' },
+        close_terminal: { done: 'تم إغلاق الطرفية', pending: 'جار إغلاق الطرفية', pendingAction: 'جار الإغلاق' },
+        computer_use: { done: 'تم استخدام الحاسوب', pending: 'جار استخدام الحاسوب', pendingAction: 'جار الاستخدام' },
         cronjob: {
           done: 'مهمة مجدولة',
           pending: 'جار جدولة المهمة',
           pendingAction: 'جار الجدولة'
         },
+        drive_preview: { done: 'تم استخدام المعاينة', pending: 'جار استخدام المعاينة', pendingAction: 'جار الاستخدام' },
         edit_file: {
           done: 'تم تحرير الملف',
           pending: 'جار تحرير الملف',
@@ -2962,6 +3041,7 @@ export const ar = defineLocale({
           pending: 'جار البرمجة',
           pendingAction: 'جار البرمجة'
         },
+        focus_pane: { done: 'تم عرض اللوحة', pending: 'جار عرض اللوحة', pendingAction: 'جار العرض' },
         image_generate: {
           done: 'تم إنشاء الصورة',
           pending: 'جار إنشاء الصورة',
@@ -2977,19 +3057,36 @@ export const ar = defineLocale({
           pending: 'جار الحفظ في الذاكرة',
           pendingAction: 'جار الحفظ'
         },
+        open_preview: { done: 'تم فتح المعاينة', pending: 'جار فتح المعاينة', pendingAction: 'جار الفتح' },
         patch: {
           done: 'تم تصحيح الملف',
           pending: 'جار تصحيح الملف',
           pendingAction: 'جار التصحيح'
         },
+        process: { done: 'تم فحص العملية الخلفية', pending: 'جار فحص العملية الخلفية', pendingAction: 'جار الفحص' },
+        project_create: { done: 'تم إنشاء المشروع', pending: 'جار إنشاء المشروع', pendingAction: 'جار الإنشاء' },
+        project_list: { done: 'تم سرد المشاريع', pending: 'جار سرد المشاريع', pendingAction: 'جار السرد' },
+        project_switch: { done: 'تم تبديل المشروع', pending: 'جار تبديل المشروع', pendingAction: 'جار التبديل' },
         read_file: {
           done: 'تمت قراءة الملف',
           pending: 'جار قراءة الملف',
           pendingAction: 'جار القراءة'
         },
+        read_preview: { done: 'تمت قراءة المعاينة', pending: 'جار قراءة المعاينة', pendingAction: 'جار القراءة' },
+        read_terminal: { done: 'تمت قراءة الطرفية', pending: 'جار قراءة الطرفية', pendingAction: 'جار القراءة' },
+        read_window_below: {
+          done: 'تم فحص النافذة الخلفية',
+          pending: 'جار فحص النافذة الخلفية',
+          pendingAction: 'جار الفحص'
+        },
         search_files: {
           done: 'تم البحث في الملفات',
           pending: 'جار البحث في الملفات',
+          pendingAction: 'جار البحث'
+        },
+        session_search: {
+          done: 'تم البحث في الجلسات السابقة',
+          pending: 'جار البحث في الجلسات السابقة',
           pendingAction: 'جار البحث'
         },
         session_search_recall: {
@@ -2997,16 +3094,30 @@ export const ar = defineLocale({
           pending: 'جار البحث في سجل الجلسة',
           pendingAction: 'جار البحث'
         },
+        skill_manage: { done: 'تم تحديث المهارة', pending: 'جار تحديث المهارة', pendingAction: 'جار التحديث' },
+        skill_view: { done: 'تمت قراءة المهارة', pending: 'جار قراءة المهارة', pendingAction: 'جار القراءة' },
+        skills_list: { done: 'تم سرد المهارات', pending: 'جار سرد المهارات', pendingAction: 'جار السرد' },
         terminal: {
           done: 'تم تشغيل الأمر',
           pending: 'جار تشغيل الأمر',
           pendingAction: 'جار التشغيل'
         },
+        text_to_speech: { done: 'تم إنشاء مقطع صوتي', pending: 'جار إنشاء مقطع صوتي', pendingAction: 'جار الإنشاء' },
         todo: {
           done: 'تم تحديث المهام',
           pending: 'جار تحديث المهام',
           pendingAction: 'جار التحديث'
         },
+        tool_call: { done: 'تم استخدام أداة', pending: 'جار استخدام أداة', pendingAction: 'جار الاستخدام' },
+        tool_describe: {
+          done: 'تمت قراءة تفاصيل الأداة',
+          pending: 'جار قراءة تفاصيل الأداة',
+          pendingAction: 'جار القراءة'
+        },
+        tool_search: { done: 'تم البحث عن الأدوات', pending: 'جار البحث عن الأدوات', pendingAction: 'جار البحث' },
+        tour: { done: 'تم عرض جولة', pending: 'جار عرض جولة', pendingAction: 'جار العرض' },
+        video_analyze: { done: 'تم تحليل الفيديو', pending: 'جار تحليل الفيديو', pendingAction: 'جار التحليل' },
+        video_generate: { done: 'تم إنشاء الفيديو', pending: 'جار إنشاء الفيديو', pendingAction: 'جار الإنشاء' },
         vision_analyze: {
           done: 'تم تحليل الصورة',
           pending: 'جار تحليل الصورة',

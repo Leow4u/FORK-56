@@ -19831,3 +19831,94 @@ def test_workspace_move_rehomes_running_session(monkeypatch, tmp_path):
     assert captured["row_update"] == (target, str(new_cwd))
     assert live["cwd"] == str(new_cwd)
     assert live.get("explicit_cwd") is True
+
+
+
+def _write_file_turn(db, session_key: str, call_id: str, path: str) -> None:
+    db.append_message(session_key, "user", "write the summary")
+    db.append_message(
+        session_key,
+        "assistant",
+        "",
+        tool_calls=[
+            {
+                "id": call_id,
+                "type": "function",
+                "function": {
+                    "name": "write_file",
+                    "arguments": json.dumps({"path": path}),
+                },
+            }
+        ],
+    )
+    db.append_message(
+        session_key,
+        "tool",
+        json.dumps({"bytes_written": 21}),
+        tool_name="write_file",
+        tool_call_id=call_id,
+    )
+
+
+def _tool_display_metadata(db, session_key: str, call_id: str) -> dict:
+    row = next(
+        m
+        for m in db.get_messages(session_key)
+        if m.get("role") == "tool" and m.get("tool_call_id") == call_id
+    )
+    raw = row.get("display_metadata")
+    return json.loads(raw) if isinstance(raw, str) else (raw or {})
+
+
+def test_write_file_diff_is_kept_with_its_tool_row_for_reload(tmp_path, monkeypatch):
+    """A created file's diff exists only in the live event; it is persisted on
+    the tool row as display metadata so a reloaded session can draw +N −M."""
+    from work4you_state import SessionDB
+
+    db = SessionDB(db_path=tmp_path / "state.db")
+    monkeypatch.setattr(server, "_get_db", lambda: db)
+    monkeypatch.setattr(server, "_emit", lambda *_args, **_kwargs: None)
+    key = db.create_session("diff-persist", "test")
+    target = tmp_path / "resumo.md"
+    args = {"path": str(target), "content": "# Resumo\n\nTres secoes.\n"}
+    _write_file_turn(db, key, "call-write", str(target))
+    monkeypatch.setitem(
+        server._sessions, "diff-sid", {"session_key": key, "tool_started_at": {}}
+    )
+
+    server._on_tool_start("diff-sid", "call-write", "write_file", args)
+    target.write_text(args["content"])
+    server._on_tool_complete(
+        "diff-sid", "call-write", "write_file", args, json.dumps({"bytes_written": 21})
+    )
+
+    diff = _tool_display_metadata(db, key, "call-write").get("inline_diff", "")
+    assert "Resumo" in diff
+    # What the model reads is the plain tool result, unchanged.
+    tool = next(
+        m for m in db.get_messages_as_conversation(key) if m.get("role") == "tool"
+    )
+    assert tool["content"] == json.dumps({"bytes_written": 21})
+
+
+def test_a_result_that_carries_its_own_diff_is_not_duplicated(tmp_path, monkeypatch):
+    from work4you_state import SessionDB
+
+    db = SessionDB(db_path=tmp_path / "state.db")
+    monkeypatch.setattr(server, "_get_db", lambda: db)
+    monkeypatch.setattr(server, "_emit", lambda *_args, **_kwargs: None)
+    key = db.create_session("diff-persist", "test")
+    _write_file_turn(db, key, "call-patch", "notes.md")
+    monkeypatch.setitem(
+        server._sessions, "patch-sid", {"session_key": key, "tool_started_at": {}}
+    )
+    result = json.dumps({
+        "success": True,
+        "diff": "--- a/notes.md\n+++ b/notes.md\n@@ -1 +1 @@\n-old\n+new\n",
+    })
+
+    server._on_tool_complete(
+        "patch-sid", "call-patch", "patch", {"path": "notes.md"}, result
+    )
+
+    assert _tool_display_metadata(db, key, "call-patch") == {}

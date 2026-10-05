@@ -3,7 +3,7 @@ import { type ToolTitleKey, translateNow } from '@/i18n'
 import { normalizeExternalUrl } from '@/lib/external-link'
 import { summarizeShellCommand } from '@/lib/summarize-command'
 import { capitalize, firstStringField, normalize } from '@/lib/text'
-import { isCardTool, isFileEditTool, isSilentTool } from '@/lib/tool-render-class'
+import { isCardTool, isFileEditTool, isSilentTool, isSilentToolCall } from '@/lib/tool-render-class'
 import { extractToolErrorMessage, formatToolResultSummary } from '@/lib/tool-result-summary'
 
 import {
@@ -36,7 +36,7 @@ export * from './types'
 // The transcript's render budget prices a turn by the same classification, so
 // it lives in `@/lib/tool-render-class` where both sides can reach it without
 // pulling this module's formatting/i18n weight into the cost path.
-export { isCardTool, isFileEditTool, isSilentTool }
+export { isCardTool, isFileEditTool, isSilentTool, isSilentToolCall }
 
 export interface DiffLineStats {
   added: number
@@ -56,6 +56,17 @@ export function countDiffLineStats(diff: string): DiffLineStats {
   }
 
   return { added, removed }
+}
+
+/**
+ * Whether a diff made its file rather than changed it: every hunk starts from
+ * an empty old range (`@@ -0,0 …`), which is how a write to a path that held
+ * nothing renders.
+ */
+export function diffCreatesFile(diff: string): boolean {
+  const hunks = diff.match(/^@@ -[^ ]+/gm) ?? []
+
+  return hunks.length > 0 && hunks.every(hunk => hunk === '@@ -0,0')
 }
 
 export function fileEditPath(args: Record<string, unknown>, result: Record<string, unknown>): string {
@@ -141,18 +152,27 @@ function shellCommand(args: Record<string, unknown>): string {
 }
 
 const TOOL_META: Record<ToolTitleKey, ToolMetaSpec> = {
+  apply_layout: { icon: 'tools', tone: 'agent' },
+  browser_back: { icon: 'globe', tone: 'browser' },
+  browser_cdp: { icon: 'globe', tone: 'browser' },
   browser_click: {
     icon: 'globe',
     tone: 'browser'
   },
+  browser_console: { icon: 'globe', tone: 'browser' },
+  browser_dialog: { icon: 'globe', tone: 'browser' },
+  browser_exec: { icon: 'globe', tone: 'browser' },
   browser_fill: {
     icon: 'globe',
     tone: 'browser'
   },
+  browser_get_images: { icon: 'file-media', tone: 'browser' },
   browser_navigate: {
     icon: 'globe',
     tone: 'browser'
   },
+  browser_press: { icon: 'globe', tone: 'browser' },
+  browser_scroll: { icon: 'globe', tone: 'browser' },
   browser_snapshot: {
     icon: 'globe',
     tone: 'browser'
@@ -165,19 +185,25 @@ const TOOL_META: Record<ToolTitleKey, ToolMetaSpec> = {
     icon: 'globe',
     tone: 'browser'
   },
+  browser_vision: { icon: 'eye', tone: 'browser' },
   clarify: {
     icon: 'question',
     tone: 'agent'
   },
+  close_preview: { icon: 'globe', tone: 'agent' },
+  close_terminal: { icon: 'terminal', tone: 'terminal' },
+  computer_use: { icon: 'eye', tone: 'agent' },
   cronjob: {
     icon: 'watch',
     tone: 'agent'
   },
+  drive_preview: { icon: 'globe', tone: 'agent' },
   edit_file: { icon: 'edit', tone: 'file' },
   execute_code: {
     icon: 'terminal',
     tone: 'terminal'
   },
+  focus_pane: { icon: 'tools', tone: 'agent' },
   image_generate: {
     icon: 'file-media',
     tone: 'image'
@@ -190,21 +216,40 @@ const TOOL_META: Record<ToolTitleKey, ToolMetaSpec> = {
     icon: 'brain',
     tone: 'agent'
   },
+  open_preview: { icon: 'globe', tone: 'agent' },
   patch: { icon: 'edit', tone: 'file' },
+  process: { icon: 'terminal', tone: 'terminal' },
+  project_create: { icon: 'files', tone: 'agent' },
+  project_list: { icon: 'files', tone: 'agent' },
+  project_switch: { icon: 'files', tone: 'agent' },
   read_file: { icon: 'file', tone: 'file' },
+  read_preview: { icon: 'globe', tone: 'agent' },
+  read_terminal: { icon: 'terminal', tone: 'terminal' },
+  read_window_below: { icon: 'eye', tone: 'agent' },
   search_files: {
     icon: 'search',
     tone: 'file'
   },
+  session_search: { icon: 'search', tone: 'agent' },
   session_search_recall: {
     icon: 'search',
     tone: 'agent'
   },
+  skill_manage: { icon: 'edit', tone: 'agent' },
+  skill_view: { icon: 'file', tone: 'agent' },
+  skills_list: { icon: 'files', tone: 'agent' },
   terminal: {
     icon: 'terminal',
     tone: 'terminal'
   },
+  text_to_speech: { icon: 'file-media', tone: 'image' },
   todo: { icon: 'tools', tone: 'agent' },
+  tool_call: { icon: 'tools', tone: 'agent' },
+  tool_describe: { icon: 'tools', tone: 'agent' },
+  tool_search: { icon: 'search', tone: 'agent' },
+  tour: { icon: 'question', tone: 'agent' },
+  video_analyze: { icon: 'eye', tone: 'image' },
+  video_generate: { icon: 'file-media', tone: 'image' },
   vision_analyze: {
     icon: 'eye',
     tone: 'image'
@@ -407,7 +452,33 @@ function pluralizeNoun(noun: string, count: number): string {
   return `${noun}s`
 }
 
+const TRANSLATED_COUNT_NOUNS = new Set([
+  'document',
+  'file',
+  'item',
+  'match',
+  'result',
+  'row',
+  'search',
+  'source',
+  'step',
+  'todo'
+] as const)
+
+type TranslatedCountNoun = typeof TRANSLATED_COUNT_NOUNS extends Set<infer T> ? T : never
+
+function isTranslatedCountNoun(noun: string): noun is TranslatedCountNoun {
+  return TRANSLATED_COUNT_NOUNS.has(noun as TranslatedCountNoun)
+}
+
+// The nouns tools report under are counted in the catalog ("3 ocorrências");
+// a noun read off an arbitrary `*_count` key has no entry and keeps the key's
+// own English word.
 function formatCountLabel(metric: CountMetric): string {
+  if (isTranslatedCountNoun(metric.noun)) {
+    return translateNow(`assistant.tool.countNouns.${metric.noun}`, metric.count)
+  }
+
   return `${metric.count} ${pluralizeNoun(metric.noun, metric.count)}`
 }
 
@@ -1054,11 +1125,11 @@ function toolSubtitle(
 
 function toolDetailLabel(toolName: string): string {
   if (toolName === 'web_search') {
-    return 'Details'
+    return translateNow('assistant.tool.detailLabels.details')
   }
 
   if (toolName === 'browser_snapshot') {
-    return 'Snapshot summary'
+    return translateNow('assistant.tool.detailLabels.snapshotSummary')
   }
 
   return ''
@@ -1395,6 +1466,31 @@ function dynamicTitle(
   return fallback
 }
 
+/**
+ * A call named the way its own row names it — "Reading config.yaml", "Running
+ * npm test" while it runs, "Read config.yaml" once it has — without building
+ * the rest of the row. The status line says what the turn is doing with it.
+ *
+ * A file edit's row title is the bare file name beside its icon; on a line of
+ * its own the verb has to come back ("Editing wiring.tsx").
+ */
+export function toolLineTitle(part: ToolPart): string {
+  const meta = toolMeta(part.toolName)
+  const pending = part.result === undefined
+  const args = parseMaybeObject(part.args)
+  const result = parseMaybeObject(part.result)
+  const base = pending ? meta.pending : meta.done
+
+  if (isFileEditTool(part.toolName)) {
+    const path = fileEditPath(args, result)
+    const verb = translateNow(`assistant.tool.runSummary.categories.edit.${pending ? 'present' : 'past'}`)
+
+    return path ? translateNow('assistant.tool.runSummary.clause', verb, fileEditBasename(path)) : base
+  }
+
+  return dynamicTitle(part, args, result, titlePartsFromAction(base, pending ? meta.pendingAction : undefined)).title
+}
+
 export function buildToolView(part: ToolPart, inlineDiff: string): ToolView {
   const argsRecord = parseMaybeObject(part.args)
   const resultRecord = parseMaybeObject(part.result)
@@ -1466,7 +1562,7 @@ export function buildToolView(part: ToolPart, inlineDiff: string): ToolView {
   return {
     countLabel: resultCount ? formatCountLabel(resultCount) : undefined,
     detail,
-    detailLabel: error ? 'Error details' : toolDetailLabel(part.toolName),
+    detailLabel: error ? translateNow('assistant.tool.detailLabels.errorDetails') : toolDetailLabel(part.toolName),
     durationLabel: durationLabel(resultRecord),
     icon: meta.icon,
     imageUrl: toolImageUrl(argsRecord, resultRecord),

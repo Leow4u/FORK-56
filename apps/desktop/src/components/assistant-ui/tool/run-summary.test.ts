@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+
+import { type Locale, setRuntimeI18nLocale, TRANSLATIONS } from '@/i18n'
 
 import { summarizeToolRun, type ToolCallLike } from './run-summary'
 
@@ -19,6 +21,24 @@ const running = (tools: ToolCallLike[]) => summarizeToolRun(tools, true)
 describe('summarizeToolRun', () => {
   it('names a lone target and counts the rest', () => {
     expect(settled([searched('toolRuns'), read('a.ts'), read('b.ts'), read('c.ts')])).toBe('Explored 4 files')
+  })
+
+  it('reads a whole turn as look, try, then change', () => {
+    const edited = tool('write_file', { path: 'docs/resumo.md' }, { ok: true })
+
+    expect(settled([edited, ran('ls'), read('a.ts'), read('b.ts')])).toBe(
+      'Explored 2 files, ran 1 command, edited resumo.md'
+    )
+  })
+
+  it('says a write that started from nothing created its file', () => {
+    const created = tool('write_file', { path: 'docs/resumo.md' }, { inline_diff: '@@ -0,0 +1,2 @@\n+# Resumo\n+ok' })
+    const edited = tool('patch', { path: 'src/app.ts' }, { diff: '@@ -3,1 +3,1 @@\n-old\n+new' })
+
+    expect(settled([read('a.ts'), created])).toBe('Explored a.ts, created resumo.md')
+    expect(settled([created, edited])).toBe('Created resumo.md, edited app.ts')
+    // Still running, a write has no diff yet and reads as the edit it is doing.
+    expect(running([tool('write_file', { path: 'docs/resumo.md' })])).toBe('Editing resumo.md')
   })
 
   it('orders clauses explore then run regardless of call order', () => {
@@ -56,5 +76,34 @@ describe('summarizeToolRun', () => {
   // or it narrates work that stopped happening and never offers its toggle.
   it('reads a run the turn left unresolved as finished', () => {
     expect(settled([read('a.ts'), tool('search_files', { query: 'toolRuns' })])).toBe('Explored 2 files')
+  })
+})
+
+// The summary stands in for rows that already read in the app's language, so it
+// has to as well: every word comes from the active catalog.
+describe('summarizeToolRun in every language', () => {
+  afterEach(() => setRuntimeI18nLocale('en'))
+
+  it.each(Object.keys(TRANSLATIONS) as Locale[])(
+    'builds each clause from the %s catalog and joins them with its separator',
+    locale => {
+      setRuntimeI18nLocale(locale)
+      const copy = TRANSLATIONS[locale].assistant.tool.runSummary
+      const { explore, run } = copy.categories
+      const second = copy.clause(run.past.charAt(0).toLowerCase() + run.past.slice(1), run.count(1))
+
+      expect(settled([read('a.ts'), read('b.ts'), ran('x')])).toBe(
+        [copy.clause(explore.past, explore.count(2)), second].join(copy.separator)
+      )
+    }
+  )
+
+  // A later clause lower-cases its verb so the line reads as one sentence. A
+  // language that puts the object first must not have the object lower-cased
+  // in the verb's place.
+  it('never lower-cases a target that a later clause leads with', () => {
+    setRuntimeI18nLocale('ja')
+
+    expect(settled([read('a.ts'), read('b.ts'), tool('custom_tool', { path: 'README.md' }, {})])).toContain('README.md')
   })
 })
