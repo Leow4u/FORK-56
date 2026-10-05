@@ -3116,6 +3116,7 @@ export const zhHant = defineLocale({
       },
       runSummary: {
         categories: {
+          create: { count: count => `${count} 個檔案`, past: '建立了', present: '正在建立' },
           delegate: { count: count => `${count} 個任務`, past: '委派了', present: '正在委派' },
           edit: { count: count => `${count} 個檔案`, past: '編輯了', present: '正在編輯' },
           explore: { count: count => `${count} 個檔案`, past: '瀏覽了', present: '正在瀏覽' },

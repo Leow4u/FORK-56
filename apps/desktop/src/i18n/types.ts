@@ -73,7 +73,7 @@ interface ToolTitleCopy {
 }
 
 /** The kinds of call a tool-run summary groups into one clause each. */
-type ToolRunCategory = 'delegate' | 'edit' | 'explore' | 'other' | 'run'
+type ToolRunCategory = 'create' | 'delegate' | 'edit' | 'explore' | 'other' | 'run'
 
 interface ToolRunCategoryCopy {
   /** What the clause counts once it holds more than one call — "3 files". */

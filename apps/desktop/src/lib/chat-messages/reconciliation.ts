@@ -112,8 +112,9 @@ function reconcileLocalAssistantTimeline(nextMessages: ChatMessage[], currentMes
     return {
       ...message,
       completedAt: latestBoundary(message.completedAt, local.completedAt, ...parts.map(part => part.completedAt)),
-      // durationS is desktop-only wall-clock — the durable row never has it.
-      ...(local.durationS !== undefined ? { durationS: message.durationS ?? local.durationS } : {}),
+      // The live wall clock is exact; a reload can only derive the duration
+      // from row stamps (withTurnDurations), so the measured value wins.
+      ...(local.durationS !== undefined ? { durationS: local.durationS } : {}),
       parts,
       timestamp: earliestBoundary(message.timestamp, local.timestamp, ...parts.map(part => part.timestamp))
     }

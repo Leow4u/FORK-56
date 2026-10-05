@@ -170,6 +170,7 @@ export const desktopSections = {
       },
       runSummary: {
         categories: {
+          create: { count: count => (count === 1 ? '1 file' : `${count} files`), past: 'Created', present: 'Creating' },
           delegate: {
             count: count => (count === 1 ? '1 task' : `${count} tasks`),
             past: 'Delegated',

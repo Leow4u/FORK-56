@@ -367,9 +367,71 @@ export function toChatMessages(messages: SessionMessage[]): ChatMessage[] {
       : message
   )
 
-  return withUniqueToolCallIds(
-    withoutGeneratedImageEchoes.filter(
-      m => chatMessageText(m).trim() || m.parts.some(part => part.type !== 'text') || m.attachmentRefs?.length
+  return withTurnDurations(
+    withUniqueToolCallIds(
+      withoutGeneratedImageEchoes.filter(
+        m => chatMessageText(m).trim() || m.parts.some(part => part.type !== 'text') || m.attachmentRefs?.length
+      )
     )
   )
+}
+
+function latestTurnMoment(message: ChatMessage): number | undefined {
+  let latest = message.timestamp
+
+  for (const part of message.parts) {
+    for (const value of [part.timestamp, part.completedAt]) {
+      if (typeof value === 'number' && (latest === undefined || value > latest)) {
+        latest = value
+      }
+    }
+  }
+
+  return latest
+}
+
+/**
+ * How long each reloaded turn ran, read off the rows themselves: from the
+ * user's message to the last thing the turn persisted. The live view measures
+ * it with a wall clock that never reaches the database, so a reopened session
+ * had lost every turn's duration. The clock it reads is the one each row was
+ * stamped with when it was written, so the two agree to within a write.
+ */
+export function withTurnDurations(messages: ChatMessage[]): ChatMessage[] {
+  const next = [...messages]
+  let start: number | undefined
+  let host = -1
+  let end: number | undefined
+
+  const settle = () => {
+    const message = next[host]
+
+    if (message && message.durationS === undefined && start !== undefined && end !== undefined && end > start) {
+      next[host] = { ...message, durationS: end - start }
+    }
+  }
+
+  next.forEach((message, index) => {
+    if (message.role === 'user') {
+      settle()
+      start = message.timestamp
+      host = -1
+      end = undefined
+
+      return
+    }
+
+    if (message.role === 'assistant') {
+      host = index
+      const moment = latestTurnMoment(message)
+
+      if (moment !== undefined && (end === undefined || moment > end)) {
+        end = moment
+      }
+    }
+  })
+
+  settle()
+
+  return next
 }

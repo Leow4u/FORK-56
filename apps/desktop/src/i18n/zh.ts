@@ -4643,6 +4643,7 @@ export const zh: Translations = {
       },
       runSummary: {
         categories: {
+          create: { count: count => `${count} 个文件`, past: '创建了', present: '正在创建' },
           delegate: { count: count => `${count} 个任务`, past: '委派了', present: '正在委派' },
           edit: { count: count => `${count} 个文件`, past: '编辑了', present: '正在编辑' },
           explore: { count: count => `${count} 个文件`, past: '浏览了', present: '正在浏览' },

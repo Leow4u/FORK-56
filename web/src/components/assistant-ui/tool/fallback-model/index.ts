@@ -58,6 +58,17 @@ export function countDiffLineStats(diff: string): DiffLineStats {
   return { added, removed }
 }
 
+/**
+ * Whether a diff made its file rather than changed it: every hunk starts from
+ * an empty old range (`@@ -0,0 …`), which is how a write to a path that held
+ * nothing renders.
+ */
+export function diffCreatesFile(diff: string): boolean {
+  const hunks = diff.match(/^@@ -[^ ]+/gm) ?? []
+
+  return hunks.length > 0 && hunks.every(hunk => hunk === '@@ -0,0')
+}
+
 export function fileEditPath(args: Record<string, unknown>, result: Record<string, unknown>): string {
   return (
     firstStringField(args, ['path', 'file', 'filepath']) ||

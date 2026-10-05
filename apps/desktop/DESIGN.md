@@ -255,6 +255,13 @@ Notes:
   Opened, the block and a settled turn's line show the same list
   (`TurnWorkList`): every thought, call and note in order, each row rendered
   inside its own message. Questions, approvals and cards never fold.
+- **Settled turn** — one line that says what the turn did, in the run-summary
+  words ("Explored 8 files, ran 3 commands, created resumo.md"), with the
+  duration as meta and failed steps counted on it; a turn with no calls says
+  "Worked for …". At Balanced the newest turn stays open until the next
+  message — only earlier turns fold on their own. A write whose diff starts
+  from nothing reads "created", and every file row carries +N −M after a
+  reload too (the diff is kept as display metadata on its tool row).
 - **Composer context bar** — empty-chat workspace picker. A second capsule
   (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
   card as a sibling vessel, not a well inside it: same width, same

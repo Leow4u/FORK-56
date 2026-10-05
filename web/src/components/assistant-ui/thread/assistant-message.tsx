@@ -209,7 +209,12 @@ export const AssistantMessage: FC<{
         data-slot="aui_assistant-message-content"
       >
         {view.kind === 'host' ? (
-          <SettledProductTurn durationS={view.durationS} messageId={messageId} timeline={view.timeline} />
+          <SettledProductTurn
+            durationS={view.durationS}
+            messageId={messageId}
+            openByDefault={view.openByDefault}
+            timeline={view.timeline}
+          />
         ) : view.kind === 'live' ? (
           <LiveTurn compact={density === 'compact'} />
         ) : (

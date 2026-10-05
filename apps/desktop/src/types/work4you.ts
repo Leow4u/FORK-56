@@ -665,6 +665,8 @@ export type TimelineDisplayMetadata =
       duration_seconds?: number
     }
   | { reactions: MessageReaction[] }
+  /** A file edit's diff, kept with its tool row for display only. */
+  | { inline_diff: string }
 
 /** One emoji reaction on a message. One per author, iOS-Tapback style. */
 export interface MessageReaction {

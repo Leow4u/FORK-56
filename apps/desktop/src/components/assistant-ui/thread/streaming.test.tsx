@@ -529,8 +529,9 @@ describe('assistant-ui streaming renderer', () => {
 
     expect(container.querySelector('[data-slot="aui_worked-for"]')?.textContent).toContain('Worked')
     expect(container.textContent).toContain('All done — patch applied.')
-    expect(container.textContent).not.toContain('Let me check the files.')
-    expect(container.textContent).not.toContain('Now applying the patch.')
+    // The newest turn stays open until the next message: its notes are in the
+    // work list, one line each, not as paragraphs of their own.
+    expect(container.querySelectorAll('[data-slot="aui_turn-note"]')).toHaveLength(2)
 
     const actionBars = container.querySelectorAll('[data-slot="aui_msg-actions"]')
     expect(actionBars).toHaveLength(1)
@@ -543,8 +544,8 @@ describe('assistant-ui streaming renderer', () => {
 
     fireEvent.click(container.querySelector('[data-slot="aui_worked-for"] button') as HTMLElement)
 
-    expect(container.textContent).toContain('Let me check the files.')
-    expect(container.textContent).toContain('Now applying the patch.')
+    expect(container.textContent).not.toContain('Let me check the files.')
+    expect(container.textContent).not.toContain('Now applying the patch.')
   })
 
   it('keeps interim commentary visible in Technical mode', () => {
@@ -727,7 +728,10 @@ describe('assistant-ui streaming renderer', () => {
   it('shows the command prompt and exit code for terminal calls', async () => {
     const { container } = render(<MessageHarness message={assistantTerminalMessage()} />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /worked/i }))
+    // The newest turn stays open, so its work list is already on screen.
+    await waitFor(() => {
+      expect(container.querySelector('[data-tool-row] button')).not.toBeNull()
+    })
     fireEvent.click(container.querySelector('[data-tool-row] button')!)
 
     await waitFor(() => {

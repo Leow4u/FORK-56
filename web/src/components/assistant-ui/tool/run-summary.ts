@@ -2,7 +2,13 @@ import { translateNow } from '@/i18n'
 import { summarizeShellCommand } from '@/lib/summarize-command'
 import { firstStringField } from '@/lib/text'
 
-import { fileEditBasename, isFileEditTool, parseMaybeObject } from './fallback-model'
+import {
+  diffCreatesFile,
+  fileEditBasename,
+  inlineDiffFromResult,
+  isFileEditTool,
+  parseMaybeObject
+} from './fallback-model'
 
 /**
  * The little a summary needs from a tool call, stated structurally so both
@@ -20,13 +26,13 @@ export function isToolCallPart<T extends { type: string }>(part: T): part is Ext
   return part.type === 'tool-call'
 }
 
-type RunCategory = 'delegate' | 'edit' | 'explore' | 'other' | 'run'
+type RunCategory = 'create' | 'delegate' | 'edit' | 'explore' | 'other' | 'run'
 
 // Clause order is fixed so the same run always reads the same way, whichever
 // category happens to be live. It follows the shape most work takes — look,
 // try, then change — so a whole turn reads "Explored 8 files, ran 3 commands,
 // edited resumo.md" rather than leading with the last thing it did.
-const CATEGORY_ORDER: readonly RunCategory[] = ['explore', 'run', 'edit', 'delegate', 'other']
+const CATEGORY_ORDER: readonly RunCategory[] = ['explore', 'run', 'create', 'edit', 'delegate', 'other']
 
 // The words live in the catalog (`assistant.tool.runSummary`), so a summary
 // reads in the app's language like the rows it stands in for.
@@ -65,6 +71,17 @@ function toolCategory(toolName: string): RunCategory {
   }
 
   return 'other'
+}
+
+/**
+ * The category a call counts under once it has run: a file edit whose diff
+ * starts from nothing made the file — "created resumo.md", not "edited". A
+ * call still running has no diff yet, so it reads as an edit until it lands.
+ */
+function runCategory(tool: ToolCallLike): RunCategory {
+  const category = toolCategory(tool.toolName)
+
+  return category === 'edit' && diffCreatesFile(inlineDiffFromResult(tool.result)) ? 'create' : category
 }
 
 function isPending(tool: ToolCallLike): boolean {
@@ -141,12 +158,12 @@ export function summarizeToolRun(tools: readonly ToolCallLike[], live: boolean):
   // pending. The most recent call covers those, and it's the one the ticker is
   // showing anyway.
   const narrating = live ? (tools.find(isPending) ?? tools.at(-1)) : undefined
-  const liveCategory = narrating ? toolCategory(narrating.toolName) : null
+  const liveCategory = narrating ? runCategory(narrating) : null
 
   const byCategory = new Map<RunCategory, ToolCallLike[]>()
 
   for (const tool of tools) {
-    const category = toolCategory(tool.toolName)
+    const category = runCategory(tool)
     const group = byCategory.get(category)
 
     if (group) {

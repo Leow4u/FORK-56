@@ -4872,6 +4872,11 @@ export const pt = defineLocale({
       },
       runSummary: {
         categories: {
+          create: {
+            count: count => (count === 1 ? '1 arquivo' : `${count} arquivos`),
+            past: 'Criou',
+            present: 'Criando'
+          },
           delegate: {
             count: count => (count === 1 ? '1 tarefa' : `${count} tarefas`),
             past: 'Delegou',

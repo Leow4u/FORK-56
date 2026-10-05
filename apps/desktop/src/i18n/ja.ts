@@ -3216,6 +3216,7 @@ export const ja = defineLocale({
       },
       runSummary: {
         categories: {
+          create: { count: count => `${count} 件のファイル`, past: '作成', present: '作成中' },
           delegate: { count: count => `${count} 件のタスク`, past: '委任', present: '委任中' },
           edit: { count: count => `${count} 件のファイル`, past: '編集', present: '編集中' },
           explore: { count: count => `${count} 件のファイル`, past: '確認', present: '確認中' },

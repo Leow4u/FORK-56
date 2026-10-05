@@ -5,6 +5,7 @@ import { type FC, useMemo, useRef } from 'react'
 
 import { TurnAnswers, TurnCards, TurnWorkList } from '@/components/assistant-ui/thread/turn-work'
 import { WorkedForDisclosure } from '@/components/assistant-ui/thread/worked-for'
+import { summarizeToolRun, type ToolCallLike } from '@/components/assistant-ui/tool/run-summary'
 import {
   isFirstAssistantInTurn,
   isLastAssistantInTurn,
@@ -36,7 +37,18 @@ export type TurnView =
   | typeof HIDE
   | typeof LIVE
   | typeof PASSTHROUGH
-  | { durationS?: number; kind: 'host'; parts: unknown[]; timeline: TurnTimeline }
+  | {
+      durationS?: number
+      kind: 'host'
+      /**
+       * The newest turn stays open until the next message — at Balanced.
+       * Only the turns before it fold on their own; nothing the user was just
+       * watching disappears when the turn ends.
+       */
+      openByDefault: boolean
+      parts: unknown[]
+      timeline: TurnTimeline
+    }
 
 type ThreadFoldMessage = {
   content: unknown
@@ -81,7 +93,7 @@ export function useTurnView(density: ActivityDensity): TurnView {
 
     const signature = assistants
       .map(({ message: entry }) => `${entry.id}:${messageContentParts(entry).length}:${messageDurationS(entry) ?? ''}`)
-      .concat(String(isLastAssistantInTurn(roles, index)))
+      .concat(String(isLastAssistantInTurn(roles, index)), String(isMessageInLastTurn(roles, index)), density)
       .join('|')
 
     if (cache.current?.signature === signature) {
@@ -102,6 +114,7 @@ export function useTurnView(density: ActivityDensity): TurnView {
       ? {
           durationS: turnDurationS(assistants.map(entry => entry.message)),
           kind: 'host',
+          openByDefault: density === 'balanced' && isMessageInLastTurn(roles, index),
           parts: assistants.flatMap(entry => messageContentParts(entry.message)),
           timeline
         }
@@ -135,12 +148,21 @@ function turnAssistants(messages: readonly ThreadFoldMessage[], index: number) {
 export const SettledProductTurn: FC<{
   durationS?: number
   messageId: string
+  openByDefault?: boolean
   timeline: TurnTimeline
-}> = ({ durationS, messageId, timeline }) => {
+}> = ({ durationS, messageId, openByDefault = false, timeline }) => {
   const disclosureId = `turn-work:${messageId}`
   const persistedOpen = useStore($toolDisclosureOpen(disclosureId))
-  const open = persistedOpen ?? false
-  const failed = useMemo(() => failedToolCount(finishedTools(timeline.items)), [timeline.items])
+  const open = persistedOpen ?? openByDefault
+
+  const { failed, summary } = useMemo(() => {
+    const finished = finishedTools(timeline.items)
+
+    return {
+      failed: failedToolCount(finished),
+      summary: finished.length > 0 ? summarizeToolRun(finished as ToolCallLike[], false) : ''
+    }
+  }, [timeline.items])
 
   return (
     <>
@@ -149,6 +171,7 @@ export const SettledProductTurn: FC<{
         failed={failed}
         onToggle={() => setToolDisclosureOpen(disclosureId, !open)}
         open={open}
+        summary={summary}
       >
         <TurnWorkList items={timeline.items} />
       </WorkedForDisclosure>

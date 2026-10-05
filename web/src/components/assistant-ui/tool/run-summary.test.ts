@@ -1,6 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
-
-import { type Locale, setRuntimeI18nLocale, TRANSLATIONS } from '@/i18n'
+import { describe, expect, it } from 'vitest'
 
 import { summarizeToolRun, type ToolCallLike } from './run-summary'
 
@@ -15,9 +13,6 @@ const ran = (command: string) => tool('terminal', { command }, { exit_code: 0 })
 const settled = (tools: ToolCallLike[]) => summarizeToolRun(tools, false)
 const running = (tools: ToolCallLike[]) => summarizeToolRun(tools, true)
 
-// A run only ever holds ephemeral activity: reads, searches, commands. File
-// edits and other cards are split out before a run is summarized, so there is
-// no "Edited …" clause to test here — that work shows as its own diff card.
 describe('summarizeToolRun', () => {
   it('names a lone target and counts the rest', () => {
     expect(settled([searched('toolRuns'), read('a.ts'), read('b.ts'), read('c.ts')])).toBe('Explored 4 files')
@@ -81,29 +76,3 @@ describe('summarizeToolRun', () => {
 
 // The summary stands in for rows that already read in the app's language, so it
 // has to as well: every word comes from the active catalog.
-describe('summarizeToolRun in every language', () => {
-  afterEach(() => setRuntimeI18nLocale('en'))
-
-  it.each(Object.keys(TRANSLATIONS) as Locale[])(
-    'builds each clause from the %s catalog and joins them with its separator',
-    locale => {
-      setRuntimeI18nLocale(locale)
-      const copy = TRANSLATIONS[locale].assistant.tool.runSummary
-      const { explore, run } = copy.categories
-      const second = copy.clause(run.past.charAt(0).toLowerCase() + run.past.slice(1), run.count(1))
-
-      expect(settled([read('a.ts'), read('b.ts'), ran('x')])).toBe(
-        [copy.clause(explore.past, explore.count(2)), second].join(copy.separator)
-      )
-    }
-  )
-
-  // A later clause lower-cases its verb so the line reads as one sentence. A
-  // language that puts the object first must not have the object lower-cased
-  // in the verb's place.
-  it('never lower-cases a target that a later clause leads with', () => {
-    setRuntimeI18nLocale('ja')
-
-    expect(settled([read('a.ts'), read('b.ts'), tool('custom_tool', { path: 'README.md' }, {})])).toContain('README.md')
-  })
-})

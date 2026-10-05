@@ -2922,6 +2922,7 @@ export const ar = defineLocale({
       },
       runSummary: {
         categories: {
+          create: { count: count => (count === 1 ? 'ملفًا واحدًا' : `${count} ملفات`), past: 'أنشأ', present: 'ينشئ' },
           delegate: { count: count => (count === 1 ? 'مهمة واحدة' : `${count} مهام`), past: 'فوّض', present: 'يفوّض' },
           edit: { count: count => (count === 1 ? 'ملفًا واحدًا' : `${count} ملفات`), past: 'حرّر', present: 'يحرّر' },
           explore: {
