@@ -45,9 +45,6 @@ const StatusRow: FC<{ children: ReactNode; label: string } & React.ComponentProp
   </div>
 )
 
-// Fixed label while auto-compaction runs — decoupled from backend status text.
-const COMPACTION_LABEL = 'Summarizing thread'
-
 const HintText: FC<{ children: ReactNode }> = ({ children }) => (
   <span className={cn(SCAFFOLD_LABEL_CLASS, 'shimmer min-w-0 flex-1 truncate')}>{children}</span>
 )
@@ -96,6 +93,7 @@ const DRAFTING_REVEAL_MS = 200
  * it's rarer, slower, and explains a transcript that looks like it reset.
  */
 function useStatusHint(compacting: boolean, drafting: DraftingTool | null, providerWait: string): string {
+  const { t } = useI18n()
   const [revealed, setRevealed] = useState(false)
   const name = drafting?.name ?? ''
 
@@ -111,8 +109,9 @@ function useStatusHint(compacting: boolean, drafting: DraftingTool | null, provi
     return () => window.clearTimeout(id)
   }, [name])
 
+  // A fixed label while auto-compaction runs — decoupled from backend status text.
   if (compacting) {
-    return COMPACTION_LABEL
+    return t.assistant.thread.summarizingThread
   }
 
   if (providerWait) {
@@ -208,6 +207,7 @@ export const BackgroundResumeNotice: FC = () => {
 // so that per-token updates re-render only this leaf, not the whole
 // AssistantMessage subtree.
 export const TurnActivityIndicator: FC = () => {
+  const { t } = useI18n()
   const activity = useAuiState(s => activitySignature(s.message.content))
 
   // Timestamp of the last visible progress, held from the moment the quiet
@@ -258,7 +258,7 @@ export const TurnActivityIndicator: FC = () => {
   }
 
   return (
-    <StatusRow data-slot="aui_turn-activity" label={hint || 'Work4You is working'}>
+    <StatusRow data-slot="aui_turn-activity" label={hint || t.assistant.thread.working}>
       <StatusPulse
         aria-hidden="true"
         className="dither inline-block size-3 rounded-[2px] text-midground/80"

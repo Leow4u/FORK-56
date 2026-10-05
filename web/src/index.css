@@ -7,6 +7,10 @@
    stack (Tabs, Segmented, Typography, Buttons, etc. all look unstyled). */
 @import '@work4you/ui/styles/fonts.css';
 @import '@work4you/ui/styles/globals.css';
+/* The chat transcript ported from desktop draws its glyphs (disclosure carets,
+   tool and status icons) with the codicon font, same as desktop's styles.css.
+   Without it every one of them rendered as an empty box. */
+@import '@vscode/codicons/dist/codicon.css';
 
 /* Scan the published design-system bundle so its utility classes survive
    Tailwind's JIT purge. */
@@ -243,6 +247,31 @@ code { font-size: 0.875rem; }
   pointer-events: none;
   background: repeating-conic-gradient(currentColor 0% 25%, #0000 0% 50%) 0 0 /
     2px 2px;
+}
+
+/* Transcript activity lines — thinking headers, tool rows, run summaries and
+   the live status line of the chat ported from desktop. Same contract as
+   apps/desktop (DESIGN.md): the root value is the lifted ink; a surface marked
+   `data-conversation-scaffold` rests it on the readability floor (the DS
+   tertiary step, ≥ 4.5:1 on the paper canvas) and lifts it on hover or
+   keyboard focus. A token step, not an opacity fade, so it never compounds. */
+:root {
+  --conversation-scaffold-text: color-mix(in srgb, var(--midground-base) 80%, transparent);
+  --conversation-scaffold-meta: color-mix(in srgb, var(--midground-base) 80%, transparent);
+  /* Resting opacity of a disclosure caret. Never 0: a row that opens has to
+     say so before the pointer finds it. */
+  --disclosure-caret-rest: 0.8;
+}
+
+[data-slot="aui_assistant-message-content"] [data-conversation-scaffold] {
+  --conversation-scaffold-text: color-mix(in srgb, var(--midground-base) 65%, transparent);
+  --conversation-scaffold-meta: color-mix(in srgb, var(--midground-base) 65%, transparent);
+}
+
+[data-slot="aui_assistant-message-content"] [data-conversation-scaffold]:is(:hover, :has(:focus-visible)),
+[data-slot="aui_assistant-message-content"] [data-slot="tool-block"][data-tool-row][data-file-edit] {
+  --conversation-scaffold-text: color-mix(in srgb, var(--midground-base) 80%, transparent);
+  --conversation-scaffold-meta: color-mix(in srgb, var(--midground-base) 80%, transparent);
 }
 
 /* RTL support — Arabic and any future right-to-left locale. The i18n provider

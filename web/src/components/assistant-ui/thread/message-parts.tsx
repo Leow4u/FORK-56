@@ -64,8 +64,10 @@ const DelegateToolPart: FC<TimelineToolCallProps> = props => {
 }
 
 const ChainToolFallback: FC<TimelineToolCallProps> = props => {
-  // todo parts are hoisted to a dedicated panel above the message content.
-  if (props.toolName === 'todo') {
+  // todo parts are hoisted to a dedicated panel above the message content. A
+  // failed one still renders, as a bounded error row: the panel shows the list,
+  // not why an update to it was refused.
+  if (props.toolName === 'todo' && !props.isError) {
     return null
   }
 
@@ -224,9 +226,7 @@ const ThinkingDisclosure: FC<{
       {open && (
         <div
           className={cn(
-            // Body sits flush with the "Thinking" header — no left indent —
-            // and inherits the disclosure-level opacity fade defined in
-            // styles.css (~0.67 at rest, 1 on hover/focus).
+            // Body sits flush with the "Thinking" header — no left indent.
             'mt-0.5 w-full min-w-0 max-w-full overflow-hidden wrap-anywhere pb-1',
             isPreview && 'max-h-40'
           )}
@@ -318,7 +318,7 @@ const ReasoningTextPart: ReasoningMessagePartComponent = () => {
 
   return (
     <MarkdownTextContent
-      containerClassName="text-xs leading-snug text-muted-foreground/85"
+      containerClassName="text-xs leading-snug text-muted-foreground"
       containerProps={{ 'data-slot': 'aui_reasoning-text' } as ComponentProps<'div'>}
       disableArtifacts
       isRunning={status.type === 'running' || messageRunning}

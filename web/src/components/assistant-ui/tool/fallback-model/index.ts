@@ -3,7 +3,7 @@ import { type ToolTitleKey, translateNow } from '@/i18n'
 import { normalizeExternalUrl } from '@/lib/external-link'
 import { summarizeShellCommand } from '@/lib/summarize-command'
 import { capitalize, firstStringField, normalize } from '@/lib/text'
-import { isCardTool, isFileEditTool, isSilentTool } from '@/lib/tool-render-class'
+import { isCardTool, isFileEditTool, isSilentTool, isSilentToolCall } from '@/lib/tool-render-class'
 import { extractToolErrorMessage, formatToolResultSummary } from '@/lib/tool-result-summary'
 
 import {
@@ -36,7 +36,7 @@ export * from './types'
 // The transcript's render budget prices a turn by the same classification, so
 // it lives in `@/lib/tool-render-class` where both sides can reach it without
 // pulling this module's formatting/i18n weight into the cost path.
-export { isCardTool, isFileEditTool, isSilentTool }
+export { isCardTool, isFileEditTool, isSilentTool, isSilentToolCall }
 
 export interface DiffLineStats {
   added: number
@@ -141,18 +141,27 @@ function shellCommand(args: Record<string, unknown>): string {
 }
 
 const TOOL_META: Record<ToolTitleKey, ToolMetaSpec> = {
+  apply_layout: { icon: 'tools', tone: 'agent' },
+  browser_back: { icon: 'globe', tone: 'browser' },
+  browser_cdp: { icon: 'globe', tone: 'browser' },
   browser_click: {
     icon: 'globe',
     tone: 'browser'
   },
+  browser_console: { icon: 'globe', tone: 'browser' },
+  browser_dialog: { icon: 'globe', tone: 'browser' },
+  browser_exec: { icon: 'globe', tone: 'browser' },
   browser_fill: {
     icon: 'globe',
     tone: 'browser'
   },
+  browser_get_images: { icon: 'file-media', tone: 'browser' },
   browser_navigate: {
     icon: 'globe',
     tone: 'browser'
   },
+  browser_press: { icon: 'globe', tone: 'browser' },
+  browser_scroll: { icon: 'globe', tone: 'browser' },
   browser_snapshot: {
     icon: 'globe',
     tone: 'browser'
@@ -165,19 +174,25 @@ const TOOL_META: Record<ToolTitleKey, ToolMetaSpec> = {
     icon: 'globe',
     tone: 'browser'
   },
+  browser_vision: { icon: 'eye', tone: 'browser' },
   clarify: {
     icon: 'question',
     tone: 'agent'
   },
+  close_preview: { icon: 'globe', tone: 'agent' },
+  close_terminal: { icon: 'terminal', tone: 'terminal' },
+  computer_use: { icon: 'eye', tone: 'agent' },
   cronjob: {
     icon: 'watch',
     tone: 'agent'
   },
+  drive_preview: { icon: 'globe', tone: 'agent' },
   edit_file: { icon: 'edit', tone: 'file' },
   execute_code: {
     icon: 'terminal',
     tone: 'terminal'
   },
+  focus_pane: { icon: 'tools', tone: 'agent' },
   image_generate: {
     icon: 'file-media',
     tone: 'image'
@@ -190,21 +205,40 @@ const TOOL_META: Record<ToolTitleKey, ToolMetaSpec> = {
     icon: 'brain',
     tone: 'agent'
   },
+  open_preview: { icon: 'globe', tone: 'agent' },
   patch: { icon: 'edit', tone: 'file' },
+  process: { icon: 'terminal', tone: 'terminal' },
+  project_create: { icon: 'files', tone: 'agent' },
+  project_list: { icon: 'files', tone: 'agent' },
+  project_switch: { icon: 'files', tone: 'agent' },
   read_file: { icon: 'file', tone: 'file' },
+  read_preview: { icon: 'globe', tone: 'agent' },
+  read_terminal: { icon: 'terminal', tone: 'terminal' },
+  read_window_below: { icon: 'eye', tone: 'agent' },
   search_files: {
     icon: 'search',
     tone: 'file'
   },
+  session_search: { icon: 'search', tone: 'agent' },
   session_search_recall: {
     icon: 'search',
     tone: 'agent'
   },
+  skill_manage: { icon: 'edit', tone: 'agent' },
+  skill_view: { icon: 'file', tone: 'agent' },
+  skills_list: { icon: 'files', tone: 'agent' },
   terminal: {
     icon: 'terminal',
     tone: 'terminal'
   },
+  text_to_speech: { icon: 'file-media', tone: 'image' },
   todo: { icon: 'tools', tone: 'agent' },
+  tool_call: { icon: 'tools', tone: 'agent' },
+  tool_describe: { icon: 'tools', tone: 'agent' },
+  tool_search: { icon: 'search', tone: 'agent' },
+  tour: { icon: 'question', tone: 'agent' },
+  video_analyze: { icon: 'eye', tone: 'image' },
+  video_generate: { icon: 'file-media', tone: 'image' },
   vision_analyze: {
     icon: 'eye',
     tone: 'image'
