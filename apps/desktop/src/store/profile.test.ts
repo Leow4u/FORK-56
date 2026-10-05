@@ -41,8 +41,10 @@ const {
 
 const { $projectScope, ALL_PROJECTS } = await import('./project-scope')
 const { $projectTree, resolveNewSessionCwd } = await import('./projects')
+
 const { $connection, $currentCwd, $newChatWorkspaceTarget, setCurrentCwdTransient, setNewChatWorkspaceTarget } =
   await import('./session')
+
 const { invalidateProfileScopedQueries } = await import('@/lib/query-client')
 const { getProfiles } = await import('@/work4you')
 

@@ -448,6 +448,11 @@ DEFAULT_CONTEXT_LENGTHS = {
     "gpt-5.6-luna": 1050000,
     "gpt-5.6-terra": 1050000,
     "gpt-5.6-sol": 1050000,
+    # GPT-6 series (Astra / Sol / Luna; substring match covers -pro).
+    # 1.05M, verified live on OpenRouter 2026-09.
+    "gpt-6-astra": 1050000,
+    "gpt-6.1-sol": 1050000,
+    "gpt-6-luna": 1050000,
     "gpt-5.5": 1050000,
     "gpt-5.4-nano": 400000,           # 400k (not 1.05M like full 5.4)
     "gpt-5.4-mini": 400000,           # 400k (not 1.05M like full 5.4)
@@ -480,6 +485,7 @@ DEFAULT_CONTEXT_LENGTHS = {
     # https://api-docs.deepseek.com/zh-cn/quick_start/pricing
     "deepseek-v4-pro": 1_000_000,
     "deepseek-v4-flash": 1_000_000,
+    "deepseek-v4.1-flash": 1_000_000,
     "deepseek-chat": 1_000_000,
     "deepseek-reasoner": 1_000_000,
     "deepseek": 128000,
@@ -488,6 +494,7 @@ DEFAULT_CONTEXT_LENGTHS = {
     # Qwen — specific model families before the catch-all.
     # Official docs: https://help.aliyun.com/zh/model-studio/developer-reference/
     "qwen3.8-max": 1_000_000,     # 1M context (OpenRouter & Work4You portal, verified 2026-08-03)
+    "qwen3.8-flash": 1_000_000,
     "qwen3.6-plus": 1048576,      # 1M context (DashScope/Alibaba & OpenRouter)
     "qwen3.7-plus": 1048576,      # 1M context (DashScope/Alibaba)
     "qwen3-coder-plus": 1000000,  # 1M context
@@ -508,6 +515,7 @@ DEFAULT_CONTEXT_LENGTHS = {
     # ensures "glm-5.2" resolves to 1M while older variants still hit the
     # generic 202K fallback.
     "glm-5.2": 1_048_576,
+    "glm-5.3": 1_048_576,         # also covers glm-5.3-flash (OpenRouter, verified 2026-10-05)
     "glm": 202752,
     # xAI Grok — xAI /v1/models does not return context_length metadata,
     # so these hardcoded fallbacks prevent Work4You from probing-down to
@@ -526,6 +534,7 @@ DEFAULT_CONTEXT_LENGTHS = {
     "grok-2-vision": 8192,      # grok-2-vision, -1212, -latest
     "grok-4-fast": 2000000,     # grok-4-fast-(non-)reasoning, also matches -reasoning
     "grok-4.20": 2000000,       # grok-4.20-0309-(non-)reasoning, -multi-agent-0309
+    "grok-4.7": 500000,         # grok-4.7 — 500K context (OpenRouter, verified 2026-10-05)
     "grok-4.6": 500000,         # grok-4.6 — 500K context (OpenRouter / docs.x.ai)
     "grok-4.5": 500000,         # grok-4.5, grok-4.5-latest — 500K context per docs.x.ai
     "grok-4.3": 1000000,        # grok-4.3, grok-4.3-latest — 1M context per docs.x.ai
@@ -574,6 +583,8 @@ DEFAULT_CONTEXT_LENGTHS = {
     "mimo-v2-pro": 1048576,
     "mimo-v2.5-pro": 1048576,
     "mimo-v2.5": 1048576,
+    "mimo-v2.6-pro": 1048576,
+    "mimo-v2.6-flash": 1048576,
     "mimo-v2-omni": 262144,
     "mimo-v2-flash": 262144,
     "zai-org/GLM-5": 202752,

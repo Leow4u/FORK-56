@@ -25,19 +25,18 @@ class TestGetDefaultModelForProvider:
 
         from work4you_cli import models as models_mod
 
+        labeled = next(
+            mid
+            for mid in models_mod._PROVIDER_MODELS["work4you"]
+            if not models_mod.is_work4you_house_model(mid)
+        )
         with patch(
             "work4you_cli.model_catalog.get_default_model_from_cache",
-            return_value="qwen/qwen3.8-max",
+            return_value=labeled,
         ):
-            assert (
-                models_mod.get_preferred_silent_default_model("work4you")
-                == "qwen/qwen3.8-max"
-            )
-            # work4you catalog carries qwen3.8-max, so the full resolver follows.
-            assert (
-                models_mod.get_default_model_for_provider("work4you")
-                == "qwen/qwen3.8-max"
-            )
+            assert models_mod.get_preferred_silent_default_model("work4you") == labeled
+            # The work4you catalog carries the labeled id, so the full resolver follows.
+            assert models_mod.get_default_model_for_provider("work4you") == labeled
 
 
 

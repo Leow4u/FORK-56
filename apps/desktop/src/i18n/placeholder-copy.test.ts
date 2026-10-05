@@ -22,7 +22,7 @@ describe('empty-chat placeholder copy', () => {
 
       expect(selectWorkspacePlaceholder.trim().length).toBeGreaterThan(0)
       expect(selectWorkspacePlaceholder).not.toBe(searchPlaceholder)
-      expect(selectWorkspacePlaceholder).not.toMatch(/remote|リモート|远程|遠端|عن بُعد/i)
+      expect(selectWorkspacePlaceholder).not.toMatch(/remote|リモート|远程|遠端|عن بُعد|remot[oa]/i)
     }
   })
 
@@ -30,8 +30,12 @@ describe('empty-chat placeholder copy', () => {
     // The chip selects a saved project; calling it a workspace promised a
     // folder picker it never was.
     for (const locale of Object.values(TRANSLATIONS)) {
-      expect(locale.commandCenter.selectWorkspace).not.toMatch(/workspace|ワークスペース|工作区|工作區|مساحة العمل/i)
-      expect(locale.sidebar.projects.createDesc).not.toMatch(/workspace|ワークスペース|工作区|工作區|مساحة العمل/i)
+      expect(locale.commandCenter.selectWorkspace).not.toMatch(
+        /workspace|ワークスペース|工作区|工作區|مساحة العمل|espaço de trabalho|área de trabalho/i
+      )
+      expect(locale.sidebar.projects.createDesc).not.toMatch(
+        /workspace|ワークスペース|工作区|工作區|مساحة العمل|espaço de trabalho|área de trabalho/i
+      )
     }
   })
 })

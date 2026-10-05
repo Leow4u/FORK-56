@@ -64,7 +64,24 @@ const CURATED_MODEL_DISPLAY: Record<string, string> = {
   hy3: 'Hunyuan 3',
   'step-3.7-flash': 'Step 3.7 Flash',
   'nemotron-3-super-120b-a12b': 'Nemotron 3 Super',
-  'fugu-ultra': 'Fugu Ultra'
+  'fugu-ultra': 'Fugu Ultra',
+  'claude-fable-5.1': 'Claude Fable 5.1',
+  'claude-opus-5.5': 'Claude Opus 5.5',
+  'claude-sonnet-5.5': 'Claude Sonnet 5.5',
+  'gpt-6-astra': 'GPT-6 Astra',
+  'gpt-6-astra-pro': 'GPT-6 Astra Pro',
+  'gpt-6.1-sol': 'GPT-6.1 Sol',
+  'gpt-6.1-sol-pro': 'GPT-6.1 Sol Pro',
+  'gemini-3.8-flash': 'Gemini 3.8 Flash',
+  'grok-4.7': 'Grok 4.7',
+  'deepseek-v4-pro': 'DeepSeek V4 Pro',
+  'deepseek-v4.1-flash': 'DeepSeek V4.1 Flash',
+  'qwen3.8-max-0902': 'Qwen 3.8 Max',
+  'qwen3.8-flash': 'Qwen 3.8 Flash',
+  'glm-5.3': 'GLM 5.3',
+  'glm-5.3-flash': 'GLM 5.3 Flash',
+  'mimo-v2.6-pro': 'MiMo 2.6 Pro',
+  'mimo-v2.6-flash': 'MiMo 2.6 Flash'
 }
 
 const CURATED_VARIANT_SUFFIXES = ['-fast', '-thinking', '-latest'] as const
