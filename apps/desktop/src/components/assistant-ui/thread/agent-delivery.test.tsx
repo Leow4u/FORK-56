@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { type ToolCallMessagePartProps } from '@assistant-ui/react'
+import { cleanup, render } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { deliveryTargetFromCommand, replyTextFromResult } from './agent-delivery'
+import { I18nProvider } from '@/i18n'
+
+import { AgentDeliveryNotice, deliveryTargetFromCommand, replyTextFromResult } from './agent-delivery'
 
 // Sender-side inter-agent deliveries render as "Messaged X" / "Message from
 // X" notices instead of terminal transcript rows. This pins the detection
@@ -41,5 +45,40 @@ describe('reply extraction', () => {
   it('returns empty for empty results', () => {
     expect(replyTextFromResult(undefined)).toBe('')
     expect(replyTextFromResult({ output: '' })).toBe('')
+  })
+})
+
+describe('delivery notice', () => {
+  afterEach(cleanup)
+
+  const command = 'work4you -p coder chat --in ~ -Q -q "Message from 🤖 Work4You (@work4you): ping"'
+
+  const notice = (result?: unknown) => {
+    const props = {
+      args: { command },
+      isError: false,
+      result,
+      toolCallId: 'd1',
+      toolName: 'terminal'
+    } as unknown as ToolCallMessagePartProps
+
+    return (
+      <I18nProvider configClient={null} initialLocale="pt">
+        <AgentDeliveryNotice {...props} />
+      </I18nProvider>
+    )
+  }
+
+  it('reads in the app language, while sending and once the reply lands', () => {
+    const sending = render(notice())
+
+    expect(sending.container.textContent).toContain('Enviando mensagem para coder…')
+    sending.unmount()
+
+    const replied = render(notice({ output: 'session_id: abc\npong' }))
+
+    expect(replied.container.textContent).toContain('Mensagem enviada para coder')
+    expect(replied.container.textContent).toContain('Mensagem de coder')
+    expect(replied.container.textContent).toContain('ver mensagem')
   })
 })

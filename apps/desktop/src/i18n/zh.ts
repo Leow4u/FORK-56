@@ -4533,6 +4533,16 @@ export const zh: Translations = {
       sendEdited: '发送编辑后的消息',
       attachingFile: '正在附加…'
     },
+    notices: {
+      steered: '已转向',
+      repliedTo: name => `已回复 ${name}`,
+      showReply: '查看回复',
+      messaging: name => `正在给 ${name} 发消息…`,
+      messaged: name => `已给 ${name} 发消息`,
+      messageFrom: name => `来自 ${name} 的消息`,
+      showMessage: '查看消息',
+      output: '输出'
+    },
     approval: {
       gatewayDisconnected: 'Work4You 网关未连接',
       sendFailed: '无法发送审批响应',
@@ -4640,6 +4650,20 @@ export const zh: Translations = {
         prefixedDone: (prefix, action) => `${prefix}${action}`,
         runningPrefixedTool: (prefix, action) => `正在运行${prefix}${action}`,
         runningTool: action => `正在运行 ${action}`
+      },
+      searchResults: '搜索结果',
+      detailLabels: { details: '详情', errorDetails: '错误详情', snapshotSummary: '快照摘要' },
+      countNouns: {
+        document: count => `${count} 个文档`,
+        file: count => `${count} 个文件`,
+        item: count => `${count} 项`,
+        match: count => `${count} 处匹配`,
+        result: count => `${count} 条结果`,
+        row: count => `${count} 行`,
+        search: count => `${count} 次搜索`,
+        source: count => `${count} 个来源`,
+        step: count => `${count} 个步骤`,
+        todo: count => `${count} 个待办`
       },
       runSummary: {
         categories: {

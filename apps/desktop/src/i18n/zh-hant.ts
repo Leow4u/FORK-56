@@ -3033,6 +3033,16 @@ export const zhHant = defineLocale({
       sendEdited: '傳送編輯後的訊息',
       attachingFile: '正在附加…'
     },
+    notices: {
+      steered: '已轉向',
+      repliedTo: name => `已回覆 ${name}`,
+      showReply: '查看回覆',
+      messaging: name => `正在傳訊息給 ${name}…`,
+      messaged: name => `已傳訊息給 ${name}`,
+      messageFrom: name => `來自 ${name} 的訊息`,
+      showMessage: '查看訊息',
+      output: '輸出'
+    },
     approval: {
       gatewayDisconnected: 'Work4You 閘道未連線',
       sendFailed: '無法傳送核准回應',
@@ -3113,6 +3123,20 @@ export const zhHant = defineLocale({
         prefixedDone: (prefix, action) => `${prefix}${action}`,
         runningPrefixedTool: (prefix, action) => `正在執行${prefix}${action}`,
         runningTool: action => `正在執行 ${action}`
+      },
+      searchResults: '搜尋結果',
+      detailLabels: { details: '詳細資料', errorDetails: '錯誤詳細資料', snapshotSummary: '快照摘要' },
+      countNouns: {
+        document: count => `${count} 個文件`,
+        file: count => `${count} 個檔案`,
+        item: count => `${count} 項`,
+        match: count => `${count} 處相符`,
+        result: count => `${count} 筆結果`,
+        row: count => `${count} 列`,
+        search: count => `${count} 次搜尋`,
+        source: count => `${count} 個來源`,
+        step: count => `${count} 個步驟`,
+        todo: count => `${count} 個待辦`
       },
       runSummary: {
         categories: {

@@ -2845,6 +2845,16 @@ export const ar = defineLocale({
       sendEdited: 'إرسال التعديل',
       attachingFile: 'جار إرفاق الملف'
     },
+    notices: {
+      steered: 'وجّه',
+      repliedTo: name => `ردّ على ${name}`,
+      showReply: 'عرض الرد',
+      messaging: name => `يراسل ${name}…`,
+      messaged: name => `راسل ${name}`,
+      messageFrom: name => `رسالة من ${name}`,
+      showMessage: 'عرض الرسالة',
+      output: 'المخرجات'
+    },
     approval: {
       gatewayDisconnected: 'البوابة غير متصلة',
       sendFailed: 'فشل الإرسال',
@@ -2919,6 +2929,20 @@ export const ar = defineLocale({
         prefixedDone: (prefix, action) => `${prefix} ${action}`,
         runningPrefixedTool: (prefix, action) => `جار تشغيل ${prefix.toLowerCase()} ${action.toLowerCase()}`,
         runningTool: action => `جار تشغيل ${action.toLowerCase()}`
+      },
+      searchResults: 'نتائج البحث',
+      detailLabels: { details: 'التفاصيل', errorDetails: 'تفاصيل الخطأ', snapshotSummary: 'ملخص اللقطة' },
+      countNouns: {
+        document: count => (count === 1 ? 'مستند واحد' : `${count} مستندات`),
+        file: count => (count === 1 ? 'ملف واحد' : `${count} ملفات`),
+        item: count => (count === 1 ? 'عنصر واحد' : `${count} عناصر`),
+        match: count => (count === 1 ? 'تطابق واحد' : `${count} تطابقات`),
+        result: count => (count === 1 ? 'نتيجة واحدة' : `${count} نتائج`),
+        row: count => (count === 1 ? 'صف واحد' : `${count} صفوف`),
+        search: count => (count === 1 ? 'بحث واحد' : `${count} عمليات بحث`),
+        source: count => (count === 1 ? 'مصدر واحد' : `${count} مصادر`),
+        step: count => (count === 1 ? 'خطوة واحدة' : `${count} خطوات`),
+        todo: count => (count === 1 ? 'مهمة واحدة' : `${count} مهام`)
       },
       runSummary: {
         categories: {

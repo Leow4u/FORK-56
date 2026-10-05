@@ -363,6 +363,20 @@ describe('buildToolView title actions', () => {
     expect(view.detail).toBe('')
   })
 
+  it('counts what a tool found in the app language', () => {
+    setRuntimeI18nLocale('pt')
+
+    const search = buildToolView(
+      part({ args: { query: 'TODO' }, result: { matches: ['a', 'b', 'c'] }, toolName: 'search_files' }),
+      ''
+    )
+
+    const web = buildToolView(part({ args: { query: 'x' }, result: { results: [{}] }, toolName: 'web_search' }), '')
+
+    expect(search.countLabel).toBe('3 ocorrências')
+    expect(web.countLabel).toBe('1 resultado')
+  })
+
   it('uses the runtime locale for title text and action placement', () => {
     setRuntimeI18nLocale('ja')
 

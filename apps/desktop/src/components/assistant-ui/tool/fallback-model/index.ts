@@ -451,7 +451,33 @@ function pluralizeNoun(noun: string, count: number): string {
   return `${noun}s`
 }
 
+const TRANSLATED_COUNT_NOUNS = new Set([
+  'document',
+  'file',
+  'item',
+  'match',
+  'result',
+  'row',
+  'search',
+  'source',
+  'step',
+  'todo'
+] as const)
+
+type TranslatedCountNoun = typeof TRANSLATED_COUNT_NOUNS extends Set<infer T> ? T : never
+
+function isTranslatedCountNoun(noun: string): noun is TranslatedCountNoun {
+  return TRANSLATED_COUNT_NOUNS.has(noun as TranslatedCountNoun)
+}
+
+// The nouns tools report under are counted in the catalog ("3 ocorrências");
+// a noun read off an arbitrary `*_count` key has no entry and keeps the key's
+// own English word.
 function formatCountLabel(metric: CountMetric): string {
+  if (isTranslatedCountNoun(metric.noun)) {
+    return translateNow(`assistant.tool.countNouns.${metric.noun}`, metric.count)
+  }
+
   return `${metric.count} ${pluralizeNoun(metric.noun, metric.count)}`
 }
 
@@ -1098,11 +1124,11 @@ function toolSubtitle(
 
 function toolDetailLabel(toolName: string): string {
   if (toolName === 'web_search') {
-    return 'Details'
+    return translateNow('assistant.tool.detailLabels.details')
   }
 
   if (toolName === 'browser_snapshot') {
-    return 'Snapshot summary'
+    return translateNow('assistant.tool.detailLabels.snapshotSummary')
   }
 
   return ''
@@ -1535,7 +1561,7 @@ export function buildToolView(part: ToolPart, inlineDiff: string): ToolView {
   return {
     countLabel: resultCount ? formatCountLabel(resultCount) : undefined,
     detail,
-    detailLabel: error ? 'Error details' : toolDetailLabel(part.toolName),
+    detailLabel: error ? translateNow('assistant.tool.detailLabels.errorDetails') : toolDetailLabel(part.toolName),
     durationLabel: durationLabel(resultRecord),
     icon: meta.icon,
     imageUrl: toolImageUrl(argsRecord, resultRecord),

@@ -61,6 +61,16 @@ export const desktopSections = {
       sendEdited: 'Send edited message',
       attachingFile: 'Attaching…'
     },
+    notices: {
+      steered: 'steered',
+      repliedTo: name => `Replied to ${name}`,
+      showReply: 'show reply',
+      messaging: name => `Messaging ${name}…`,
+      messaged: name => `Messaged ${name}`,
+      messageFrom: name => `Message from ${name}`,
+      showMessage: 'show message',
+      output: 'output'
+    },
     approval: {
       gatewayDisconnected: 'Work4You gateway is not connected',
       sendFailed: 'Could not send approval response',
@@ -167,6 +177,20 @@ export const desktopSections = {
         prefixedDone: (prefix, action) => `${prefix} ${action}`,
         runningPrefixedTool: (prefix, action) => `Running ${prefix.toLowerCase()} ${action.toLowerCase()}`,
         runningTool: action => `Running ${action.toLowerCase()}`
+      },
+      searchResults: 'Search results',
+      detailLabels: { details: 'Details', errorDetails: 'Error details', snapshotSummary: 'Snapshot summary' },
+      countNouns: {
+        document: count => (count === 1 ? '1 document' : `${count} documents`),
+        file: count => (count === 1 ? '1 file' : `${count} files`),
+        item: count => (count === 1 ? '1 item' : `${count} items`),
+        match: count => (count === 1 ? '1 match' : `${count} matches`),
+        result: count => (count === 1 ? '1 result' : `${count} results`),
+        row: count => (count === 1 ? '1 row' : `${count} rows`),
+        search: count => (count === 1 ? '1 search' : `${count} searches`),
+        source: count => (count === 1 ? '1 source' : `${count} sources`),
+        step: count => (count === 1 ? '1 step' : `${count} steps`),
+        todo: count => (count === 1 ? '1 todo' : `${count} todos`)
       },
       runSummary: {
         categories: {

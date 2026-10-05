@@ -184,7 +184,7 @@ export const BackgroundResumeNotice: FC = () => {
       data-slot="aui_background-resume"
       role="status"
     >
-      <Codicon className="text-muted-foreground/55" name="sync" size="0.75rem" />
+      <Codicon className="text-(--ui-text-tertiary)" name="sync" size="0.75rem" />
       <span className="shimmer min-w-0 truncate">{label}</span>
     </div>
   )

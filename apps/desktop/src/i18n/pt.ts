@@ -4760,6 +4760,16 @@ export const pt = defineLocale({
       sendEdited: 'Enviar mensagem editada',
       attachingFile: 'Anexando…'
     },
+    notices: {
+      steered: 'direcionou',
+      repliedTo: name => `Respondeu a ${name}`,
+      showReply: 'ver resposta',
+      messaging: name => `Enviando mensagem para ${name}…`,
+      messaged: name => `Mensagem enviada para ${name}`,
+      messageFrom: name => `Mensagem de ${name}`,
+      showMessage: 'ver mensagem',
+      output: 'saída'
+    },
     approval: {
       gatewayDisconnected: 'O gateway do Work4You não está conectado',
       sendFailed: 'Não foi possível enviar a resposta de aprovação',
@@ -4869,6 +4879,20 @@ export const pt = defineLocale({
         prefixedDone: (prefix, action) => `${prefix}: ${action}`,
         runningPrefixedTool: (prefix, action) => `Executando ${action.toLowerCase()} (${prefix.toLowerCase()})`,
         runningTool: action => `Executando ${action.toLowerCase()}`
+      },
+      searchResults: 'Resultados da busca',
+      detailLabels: { details: 'Detalhes', errorDetails: 'Detalhes do erro', snapshotSummary: 'Resumo da captura' },
+      countNouns: {
+        document: count => (count === 1 ? '1 documento' : `${count} documentos`),
+        file: count => (count === 1 ? '1 arquivo' : `${count} arquivos`),
+        item: count => (count === 1 ? '1 item' : `${count} itens`),
+        match: count => (count === 1 ? '1 ocorrência' : `${count} ocorrências`),
+        result: count => (count === 1 ? '1 resultado' : `${count} resultados`),
+        row: count => (count === 1 ? '1 linha' : `${count} linhas`),
+        search: count => (count === 1 ? '1 busca' : `${count} buscas`),
+        source: count => (count === 1 ? '1 fonte' : `${count} fontes`),
+        step: count => (count === 1 ? '1 etapa' : `${count} etapas`),
+        todo: count => (count === 1 ? '1 tarefa' : `${count} tarefas`)
       },
       runSummary: {
         categories: {

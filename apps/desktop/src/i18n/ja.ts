@@ -3133,6 +3133,16 @@ export const ja = defineLocale({
       sendEdited: '編集済みメッセージを送信',
       attachingFile: '添付中…'
     },
+    notices: {
+      steered: '方向修正',
+      repliedTo: name => `${name} に返信`,
+      showReply: '返信を表示',
+      messaging: name => `${name} にメッセージを送信中…`,
+      messaged: name => `${name} にメッセージを送信`,
+      messageFrom: name => `${name} からのメッセージ`,
+      showMessage: 'メッセージを表示',
+      output: '出力'
+    },
     approval: {
       gatewayDisconnected: 'Work4You ゲートウェイが接続されていません',
       sendFailed: '承認応答を送信できませんでした',
@@ -3213,6 +3223,20 @@ export const ja = defineLocale({
         prefixedDone: (prefix, action) => `${prefix} ${action}`,
         runningPrefixedTool: (prefix, action) => `${prefix} ${action}を実行中`,
         runningTool: action => `${action}を実行中`
+      },
+      searchResults: '検索結果',
+      detailLabels: { details: '詳細', errorDetails: 'エラーの詳細', snapshotSummary: 'スナップショットの概要' },
+      countNouns: {
+        document: count => `${count} 件のドキュメント`,
+        file: count => `${count} 件のファイル`,
+        item: count => `${count} 件の項目`,
+        match: count => `${count} 件の一致`,
+        result: count => `${count} 件の結果`,
+        row: count => `${count} 行`,
+        search: count => `${count} 回の検索`,
+        source: count => `${count} 件のソース`,
+        step: count => `${count} ステップ`,
+        todo: count => `${count} 件のToDo`
       },
       runSummary: {
         categories: {

@@ -75,6 +75,8 @@ interface ToolTitleCopy {
 /** The kinds of call a tool-run summary groups into one clause each. */
 type ToolRunCategory = 'create' | 'delegate' | 'edit' | 'explore' | 'other' | 'run'
 
+type ToolCountNoun = 'document' | 'file' | 'item' | 'match' | 'result' | 'row' | 'search' | 'source' | 'step' | 'todo'
+
 interface ToolRunCategoryCopy {
   /** What the clause counts once it holds more than one call — "3 files". */
   count: (count: number) => string
@@ -3722,6 +3724,17 @@ export interface Translations {
       sendEdited: string
       attachingFile: string
     }
+    notices: {
+      /** A user steering note: "steered · <what they said>". */
+      steered: string
+      repliedTo: (name: string) => string
+      showReply: string
+      messaging: (name: string) => string
+      messaged: (name: string) => string
+      messageFrom: (name: string) => string
+      showMessage: string
+      output: string
+    }
     approval: {
       gatewayDisconnected: string
       sendFailed: string
@@ -3831,6 +3844,10 @@ export interface Translations {
         runningTool: (action: string) => string
       }
       /** The one line that stands in for a run of tool calls — "Explored 3 files, ran 5 commands". */
+      searchResults: string
+      detailLabels: { details: string; errorDetails: string; snapshotSummary: string }
+      /** "3 matches", "1 result" — the counts tool rows report. */
+      countNouns: Record<ToolCountNoun, (count: number) => string>
       runSummary: {
         categories: Record<ToolRunCategory, ToolRunCategoryCopy>
         /** One clause: a verb and what it acted on, a target ("status.ts") or a count ("3 files"). */
