@@ -77,6 +77,10 @@ jobs:
     name: Decide whether to release
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Reads releases and fetches one commit; it never needs the workflow's
+    # contents: write.
+    permissions:
+      contents: read
     outputs:
       release: ${{ steps.decide.outputs.release }}
     steps:
