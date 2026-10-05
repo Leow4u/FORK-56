@@ -6121,8 +6121,45 @@ def _on_tool_complete(sid: str, tool_call_id: str, name: str, args: dict, result
             payload["inline_diff"] = "\n".join(rendered)
     except Exception:
         pass
+    if (
+        session is not None
+        and payload.get("inline_diff")
+        and not _result_carries_diff(payload.get("result"))
+    ):
+        _persist_tool_diff(session, tool_call_id, str(payload["inline_diff"]))
     if _tool_progress_enabled(sid) or payload.get("inline_diff") or _tool_lifecycle_required_for_ui(name):
         _emit("tool.complete", sid, payload)
+
+
+def _result_carries_diff(result: object) -> bool:
+    """Whether a tool result already holds its own diff (``patch`` does)."""
+    return isinstance(result, dict) and any(
+        isinstance(result.get(key), str) and result.get(key, "").strip()
+        for key in ("inline_diff", "diff")
+    )
+
+
+def _persist_tool_diff(session: dict, tool_call_id: str, diff: str) -> None:
+    """Keep an edit's diff with its tool row, for display only.
+
+    A ``write_file`` result carries no diff — the diff is rendered here from a
+    snapshot taken at tool start and reaches the client only in this event —
+    so a reloaded session showed every file it created without its +N −M. The
+    tool row is already persisted by now (tool results are flushed before the
+    completion callbacks run), and ``display_metadata`` never reaches the
+    model, so this changes nothing the agent reads.
+    """
+    session_id = getattr(session.get("agent"), "session_id", None) or session.get("session_key")
+    if not session_id or not tool_call_id:
+        return
+    try:
+        with _session_db(session) as db:
+            if db is not None:
+                db.merge_tool_display_metadata(
+                    session_id, tool_call_id, {"inline_diff": diff}
+                )
+    except Exception:
+        logger.debug("could not persist the inline diff of %s", tool_call_id, exc_info=True)
 
 
 def _on_tool_progress(
