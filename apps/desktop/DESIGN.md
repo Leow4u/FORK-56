@@ -286,8 +286,24 @@ Notes:
   under it holds its reactions, always shown, and its actions — Copy, Edit,
   and Restore, or Stop while its turn runs — shown on hover or keyboard focus
   (always on a touch screen), keeping their height while hidden. Edit opens
-  the inline editor at full width. Attachments sit just above the bubble.
-  Process and agent-to-agent notices stay centered notices, never bubbles.
+  the inline editor at full width. Attachments sit just above the bubble, at
+  the same end of the line: images as thumbnails 8rem tall, in a row that
+  wraps from that end. Process and agent-to-agent notices stay centered
+  notices, never bubbles.
+- **Reply actions** — one row under a reply, where the reply starts: its
+  versions when there is more than one, then Branch in new chat, Copy, Read
+  aloud, Refresh and React, then how long the turn took. The newest settled
+  reply keeps the row on screen; older replies show it on hover or keyboard
+  focus, and it keeps its height while hidden.
+- **Changed files** — the newest settled turn that edited files ends with
+  one card, under the reply and above its actions (`changed-files-card.tsx`):
+  a `--ui-stroke-tertiary` hairline at `--card-radius`, no fill, lined up
+  with the reply's text and at its type size. A title row (Edited N files,
+  the turn's total, a chevron) opens the diff pane; one row per file (icon,
+  name, its count, a chevron) opens that file's diff. Counts show both
+  sides even at zero (`+95 −0`) and come from the whole edit, not from the
+  capped diff a tool row keeps. It is an index of the turn, not a tool
+  widget, so it doesn't wear `WIDGET_SHELL_CLASS`.
 - **Composer context bar** — empty-chat workspace picker. A second capsule
   (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
   card as a sibling vessel, not a well inside it: same width, same

@@ -1661,6 +1661,23 @@ body.guest-pointer-lock :is(webview, iframe) {
   }
 }
 
+/* A prompt's attachments sit over its bubble at the end of the line, as
+   thumbnails in a row that wraps from that end. DirectiveContent sizes images
+   for a reply (up to 12rem tall): at that size two screenshots don't fit a
+   prompt's 80% side by side, and they stacked at the start of the line. */
+[data-slot='aui_user-attachments'] [data-slot='aui_directive-text'] {
+  text-align: end;
+}
+
+[data-slot='aui_user-attachments'] [data-slot='aui_embedded-images'] {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+[data-slot='aui_user-attachments'] :is([data-slot='aui_directive-image'], [data-slot='aui_embedded-image']) img {
+  max-height: 8rem;
+}
+
 /* Stick-to-bottom owns scrollTop while following. Once escaped, native anchoring
    is safe and keeps an inline edit (a bubble turning into the full-width
    editor) from shoving the viewport; data-editing enables that path before
@@ -2358,6 +2375,17 @@ button[data-slot='aui_msg-reactions']:not([data-reacted])[data-state='open'] {
 
 .group:hover button[data-slot='aui_msg-reactions']:not([data-reacted]):hover,
 button[data-slot='aui_msg-reactions']:not([data-reacted])[data-state='open'] {
+  opacity: 1;
+}
+
+/* The newest settled reply keeps its row on screen ([data-pinned]), the empty
+   reaction slot included, at the same dim as its neighbors. */
+[data-slot='aui_msg-footer'][data-pinned] button[data-slot='aui_msg-reactions']:not([data-reacted]) {
+  opacity: 0.5;
+  pointer-events: auto;
+}
+
+[data-slot='aui_msg-footer'][data-pinned] button[data-slot='aui_msg-reactions']:not([data-reacted]):hover {
   opacity: 1;
 }
 

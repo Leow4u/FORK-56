@@ -7,6 +7,7 @@ import {
   clampForDisplay,
   countDiffLineStats,
   diffCreatesFile,
+  editLineStats,
   inlineDiffFromResult,
   MAX_TOOL_RENDER_CHARS,
   prettyJson,
@@ -454,6 +455,25 @@ describe('diffCreatesFile', () => {
 describe('countDiffLineStats', () => {
   it('counts added and removed lines', () => {
     expect(countDiffLineStats(`--- a/x\n+++ b/x\n@@\n-old\n+new\n context\n+another`)).toEqual({ added: 2, removed: 1 })
+  })
+})
+
+describe('editLineStats', () => {
+  const capped = '@@ -0,0 +1,300 @@\n+<p>0</p>\n+<p>1</p>'
+
+  it('takes the counts the gateway took over the whole edit', () => {
+    expect(editLineStats({ diff_stats: { added: 300, removed: 0 } }, capped)).toEqual({ added: 300, removed: 0 })
+    expect(editLineStats(JSON.stringify({ diff_stats: { added: 4, removed: 2 } }), capped)).toEqual({
+      added: 4,
+      removed: 2
+    })
+  })
+
+  it('counts the diff on hand when the gateway sent no usable counts', () => {
+    expect(editLineStats({}, capped)).toEqual({ added: 2, removed: 0 })
+    expect(editLineStats({ diff_stats: { added: '300', removed: 0 } }, capped)).toEqual({ added: 2, removed: 0 })
+    expect(editLineStats({ diff_stats: { added: -1, removed: 0 } }, capped)).toEqual({ added: 2, removed: 0 })
+    expect(editLineStats(undefined, '')).toEqual({ added: 0, removed: 0 })
   })
 })
 

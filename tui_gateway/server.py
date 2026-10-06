@@ -6111,14 +6111,20 @@ def _on_tool_complete(sid: str, tool_call_id: str, name: str, args: dict, result
         from agent.display import render_edit_diff_with_delta
 
         rendered: list[str] = []
+        # The rendered diff is capped, so its +/- would undercount a large
+        # edit: the exact counts ride beside it for the client's +N −M.
+        stats: dict[str, int] = {}
         if render_edit_diff_with_delta(
             name,
             result,
             function_args=args,
             snapshot=snapshot,
             print_fn=rendered.append,
+            stats=stats,
         ):
             payload["inline_diff"] = "\n".join(rendered)
+            if stats:
+                payload["diff_stats"] = stats
     except Exception:
         pass
     if (
@@ -6126,7 +6132,9 @@ def _on_tool_complete(sid: str, tool_call_id: str, name: str, args: dict, result
         and payload.get("inline_diff")
         and not _result_carries_diff(payload.get("result"))
     ):
-        _persist_tool_diff(session, tool_call_id, str(payload["inline_diff"]))
+        _persist_tool_diff(
+            session, tool_call_id, str(payload["inline_diff"]), payload.get("diff_stats")
+        )
     if _tool_progress_enabled(sid) or payload.get("inline_diff") or _tool_lifecycle_required_for_ui(name):
         _emit("tool.complete", sid, payload)
 
@@ -6139,7 +6147,9 @@ def _result_carries_diff(result: object) -> bool:
     )
 
 
-def _persist_tool_diff(session: dict, tool_call_id: str, diff: str) -> None:
+def _persist_tool_diff(
+    session: dict, tool_call_id: str, diff: str, stats: dict | None = None
+) -> None:
     """Keep an edit's diff with its tool row, for display only.
 
     A ``write_file`` result carries no diff — the diff is rendered here from a
@@ -6147,17 +6157,19 @@ def _persist_tool_diff(session: dict, tool_call_id: str, diff: str) -> None:
     so a reloaded session showed every file it created without its +N −M. The
     tool row is already persisted by now (tool results are flushed before the
     completion callbacks run), and ``display_metadata`` never reaches the
-    model, so this changes nothing the agent reads.
+    model, so this changes nothing the agent reads. ``stats`` are the whole
+    diff's line counts, which the capped rendering can't give back.
     """
     session_id = getattr(session.get("agent"), "session_id", None) or session.get("session_key")
     if not session_id or not tool_call_id:
         return
+    metadata: dict = {"inline_diff": diff}
+    if stats:
+        metadata["diff_stats"] = stats
     try:
         with _session_db(session) as db:
             if db is not None:
-                db.merge_tool_display_metadata(
-                    session_id, tool_call_id, {"inline_diff": diff}
-                )
+                db.merge_tool_display_metadata(session_id, tool_call_id, metadata)
     except Exception:
         logger.debug("could not persist the inline diff of %s", tool_call_id, exc_info=True)
 

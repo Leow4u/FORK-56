@@ -141,7 +141,7 @@ export const AssistantMessage: FC<{
 
   const getMessageText = useCallback(() => messageContentText(messageRuntime.getState().content), [messageRuntime])
 
-  // Cursor's changed-files card only appears once the turn settles: while the
+  // The changed-files card only appears once the turn settles: while the
   // agent is still editing, the tool rows narrate each patch and a card that
   // grew a row per write would thrash the transcript. `[]` while running keeps
   // this selector referentially stable across the 30 Hz delta stream.
@@ -257,6 +257,11 @@ export const AssistantMessage: FC<{
           </ErrorPrimitive.Root>
         </MessagePrimitive.Error>
       </div>
+      {/* What the newest turn changed, right under what it said and above its
+          actions, the way Claude closes a turn. A folded host still has to
+          own it: older Worked-for rows keep their diary, not a stack of stale
+          files cards. */}
+      <ChangedFilesCard parts={view.kind === 'host' && isLastMessage ? view.parts : settledParts} />
       <MessageTimelineTimestamp className="px-(--message-text-indent) pt-0.5" suppressIfDuplicatePart />
       {hasVisibleText && !isInterim && (
         <AssistantFooter
@@ -264,18 +269,26 @@ export const AssistantMessage: FC<{
           getMessageText={getMessageText}
           messageId={messageId}
           onBranchInNewChat={onBranchInNewChat}
+          pinned={isLastMessage && !isRunning}
         />
       )}
-      {/* Last thing in the newest turn — under the action bar, the way Cursor
-          ends a turn on its summary rather than burying it above the controls.
-          A folded host still has to be the tail: older Worked-for rows keep
-          their diary, not a stack of stale files cards. */}
-      <ChangedFilesCard parts={view.kind === 'host' && isLastMessage ? view.parts : settledParts} />
     </MessagePrimitive.Root>
   )
 }
 
-const AssistantActionBar: FC<MessageActionProps> = ({ messageId, getMessageText, onBranchInNewChat }) => {
+// Older replies keep their row out of sight until the reply is hovered or one
+// of its buttons has focus. The row keeps its place either way, so nothing
+// moves when it appears.
+const REVEAL_ON_HOVER =
+  'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100'
+
+const AssistantActionBar: FC<MessageActionProps & { durationS?: number; pinned: boolean }> = ({
+  durationS,
+  getMessageText,
+  messageId,
+  onBranchInNewChat,
+  pinned
+}) => {
   const { t } = useI18n()
   const copy = t.assistant.thread
 
@@ -291,18 +304,19 @@ const AssistantActionBar: FC<MessageActionProps> = ({ messageId, getMessageText,
   )
 
   return (
-    <div className="relative flex w-full shrink-0 items-center justify-end gap-1.5">
+    <div className="relative flex min-w-0 shrink-0 items-center gap-1.5">
       <ActionBarPrimitive.Root
-        className={
+        className={cn(
           // NOTE: intentionally NOT `hideWhenRunning`. That prop unmounts the
           // bar while the thread streams, which collapses every completed
           // assistant message's footer by this bar's height and shifts the
-          // whole conversation when the turn resolves. The bar is already
-          // invisible by default (opacity-0 + pointer-events-none, reveals on
-          // hover), so keeping it mounted reserves stable layout height with
-          // no visual change during streaming.
-          'relative flex flex-row items-center justify-end gap-1.5 py-1.5 opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100'
-        }
+          // whole conversation when the turn resolves. The bar is invisible
+          // until hovered (pinned on the newest settled reply), so keeping it
+          // mounted reserves stable layout height with no visual change
+          // during streaming.
+          'relative flex flex-row items-center gap-1.5 py-1.5',
+          !pinned && REVEAL_ON_HOVER
+        )}
         data-slot="aui_msg-actions"
       >
         {onBranchInNewChat && (
@@ -360,6 +374,20 @@ const AssistantActionBar: FC<MessageActionProps> = ({ messageId, getMessageText,
           </TooltipIconButton>
         </ReactionPicker>
       )}
+      {/* How long the reply took, after its actions — shown and hidden with
+          them, so an older reply's row comes back whole on hover. */}
+      {durationS !== undefined && (
+        <span
+          className={cn(
+            'select-none px-0.5 text-[0.6875rem] leading-5 tabular-nums text-muted-foreground',
+            !pinned && 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
+          )}
+          data-slot="aui_turn-duration"
+          title={copy.turnDuration(formatElapsed(durationS))}
+        >
+          ⏱ {formatElapsed(durationS)}
+        </span>
+      )}
     </div>
   )
 }
@@ -409,35 +437,36 @@ const ReadAloudButton: FC<{ getText: () => string; messageId: string }> = ({ get
   )
 }
 
-const AssistantFooter: FC<MessageActionProps & { durationS?: number }> = ({ durationS, ...props }) => {
-  const { t } = useI18n()
-
-  return (
-    <div className="flex min-h-6 flex-col items-end gap-1 pr-(--message-text-indent) pl-(--message-text-indent)">
-      {durationS !== undefined && (
-        <span
-          className="select-none px-0.5 text-[0.6875rem] leading-5 tabular-nums text-muted-foreground"
-          data-slot="aui_turn-duration"
-          title={t.assistant.thread.turnDuration(formatElapsed(durationS))}
-        >
-          ⏱ {formatElapsed(durationS)}
-        </span>
-      )}
-      <BranchPickerPrimitive.Root
-        className="inline-flex h-6 items-center gap-1 text-xs text-muted-foreground"
-        hideWhenSingleBranch
-      >
-        <BranchPickerPrimitive.Previous className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-35">
-          <Codicon name="chevron-left" size="0.875rem" />
-        </BranchPickerPrimitive.Previous>
-        <span className="tabular-nums">
-          <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
-        </span>
-        <BranchPickerPrimitive.Next className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-35">
-          <Codicon name="chevron-right" size="0.875rem" />
-        </BranchPickerPrimitive.Next>
-      </BranchPickerPrimitive.Root>
-      <AssistantActionBar {...props} />
-    </div>
-  )
-}
+/**
+ * One row under the reply, where the reply starts — away from the prompts on
+ * the other side of the column: its versions, its actions, how long it took.
+ * The newest settled reply keeps the row on screen; older replies show it on
+ * hover or keyboard focus.
+ */
+const AssistantFooter: FC<MessageActionProps & { durationS?: number; pinned: boolean }> = ({
+  durationS,
+  pinned,
+  ...props
+}) => (
+  <div
+    className="flex min-h-6 min-w-0 items-center gap-1.5 px-(--message-text-indent)"
+    data-pinned={pinned ? '' : undefined}
+    data-slot="aui_msg-footer"
+  >
+    <BranchPickerPrimitive.Root
+      className="inline-flex h-6 items-center gap-1 text-xs text-muted-foreground"
+      hideWhenSingleBranch
+    >
+      <BranchPickerPrimitive.Previous className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-35">
+        <Codicon name="chevron-left" size="0.875rem" />
+      </BranchPickerPrimitive.Previous>
+      <span className="tabular-nums">
+        <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+      </span>
+      <BranchPickerPrimitive.Next className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-default disabled:opacity-35">
+        <Codicon name="chevron-right" size="0.875rem" />
+      </BranchPickerPrimitive.Next>
+    </BranchPickerPrimitive.Root>
+    <AssistantActionBar {...props} durationS={durationS} pinned={pinned} />
+  </div>
+)

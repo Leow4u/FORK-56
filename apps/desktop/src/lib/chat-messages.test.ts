@@ -727,6 +727,24 @@ describe('upsertToolPart', () => {
     })
   })
 
+  // The diff an event carries is capped; the whole edit's counts ride beside it.
+  it('keeps the whole edit line counts a completion event carries', () => {
+    const [part] = upsertToolPart(
+      [],
+      {
+        diff_stats: { added: 300, removed: 0 },
+        inline_diff: '@@ -0,0 +1,300 @@\n+<p>0</p>',
+        name: 'write_file',
+        tool_id: 'tool-big'
+      },
+      'complete'
+    )
+
+    expect(part && 'result' in part ? part.result : undefined).toMatchObject({
+      diff_stats: { added: 300, removed: 0 }
+    })
+  })
+
   it('keeps live todo rows stable across sparse progress payloads', () => {
     const first = upsertToolPart(
       [],
@@ -1426,6 +1444,16 @@ describe('hydrating a file edit', () => {
   it('leaves a row without one as it was', () => {
     expect(writeResult(turn())).toEqual({ bytes_written: 9 })
     expect(writeResult(turn({ reactions: [] }))).toEqual({ bytes_written: 9 })
+  })
+
+  it('brings back the whole edit line counts kept beside its capped diff', () => {
+    const stats = { added: 300, removed: 0 }
+
+    expect(writeResult(turn({ diff_stats: stats, inline_diff: '+<p>0</p>' }))).toEqual({
+      bytes_written: 9,
+      diff_stats: stats,
+      inline_diff: '+<p>0</p>'
+    })
   })
 })
 

@@ -26,23 +26,26 @@ interface DiffCountProps {
   added: number
   removed: number
   className?: string
+  /** Show both sides even at zero (`+12 −0`), the way a changed-files list
+   *  reads; otherwise a zero side, and an all-zero count, is left out. */
+  showZero?: boolean
 }
 
 /** Animated `+A −B` line-count, green/red via the top-level theme vars. Each
  *  number springs up/down via Motion (0 → value on first mount). */
-export function DiffCount({ added, removed, className }: DiffCountProps) {
-  if (!added && !removed) {
+export function DiffCount({ added, removed, className, showZero = false }: DiffCountProps) {
+  if (!showZero && !added && !removed) {
     return null
   }
 
   return (
     <span className={cn('flex shrink-0 items-center gap-1 tabular-nums', className)}>
-      {added > 0 && (
+      {(showZero || added > 0) && (
         <span className="text-(--ui-green)">
           +<AnimatedInt value={added} />
         </span>
       )}
-      {removed > 0 && (
+      {(showZero || removed > 0) && (
         <span className="text-(--ui-red)">
           −<AnimatedInt value={removed} />
         </span>

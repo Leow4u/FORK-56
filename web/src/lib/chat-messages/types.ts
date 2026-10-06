@@ -60,6 +60,8 @@ export type GatewayEventPayload = {
   summary?: string
   error?: string | boolean
   inline_diff?: string
+  /** The whole edit's line counts; `inline_diff` is capped, so counting it undercounts. */
+  diff_stats?: { added: number; removed: number }
   duration_s?: number
   todos?: unknown
   model?: string

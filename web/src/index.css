@@ -373,6 +373,38 @@ code { font-size: 0.875rem; }
   }
 }
 
+/* A prompt's attachments sit over its bubble at the end of the line, as
+   thumbnails in a row that wraps from that end (same rules as apps/desktop). */
+[data-slot="aui_user-attachments"] [data-slot="aui_directive-text"] {
+  text-align: end;
+}
+
+[data-slot="aui_user-attachments"] [data-slot="aui_embedded-images"] {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
+[data-slot="aui_user-attachments"] :is([data-slot="aui_directive-image"], [data-slot="aui_embedded-image"]) img {
+  max-height: 8rem;
+}
+
+/* The changed-files card is the desktop component, drawn with desktop tokens
+   the dashboard doesn't define. Mapped here for the card, so its hairline
+   doesn't fall back to the text color and its counts keep green and red. */
+[data-slot="aui_changed-files"] {
+  --card-radius: 0.75rem;
+  --ui-stroke-tertiary: var(--color-border);
+  --ui-text-primary: var(--color-foreground);
+  --ui-text-secondary: var(--color-muted-foreground);
+  --ui-text-tertiary: var(--color-muted-foreground);
+  --ui-green: var(--color-success);
+  --ui-red: var(--color-destructive);
+}
+
+[data-slot="aui_changed-files"] button:hover {
+  background-color: var(--color-muted);
+}
+
 /* RTL support — Arabic and any future right-to-left locale. The i18n provider
    sets `dir` on <html>; Tailwind v4's logical spacing utilities (ms-/me-,
    ps-/pe-) and logical properties then flip automatically. Scoped so the

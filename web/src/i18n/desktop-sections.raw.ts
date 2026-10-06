@@ -39,7 +39,7 @@ export const desktopSections = {
       branchNewChat: 'Branch in new chat',
       react: 'React',
       dismissError: 'Dismiss error',
-      filesChanged: count => (count === 1 ? '1 file changed' : `${count} files changed`),
+      filesChanged: count => (count === 1 ? 'Edited 1 file' : `Edited ${count} files`),
       reviewChanges: 'Review',
       readAloudFailed: 'Read aloud failed',
       preparingAudio: 'Preparing audio...',
