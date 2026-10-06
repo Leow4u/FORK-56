@@ -295,6 +295,12 @@ Notes:
   aloud, Refresh and React, then how long the turn took. The newest settled
   reply keeps the row on screen; older replies show it on hover or keyboard
   focus, and it keeps its height while hidden.
+- **Turn rhythm** — a prompt sits closer to its own reply than to the reply
+  before it, so each exchange reads as one piece: about 34px from a prompt's
+  bubble to its reply, 54px from a reply's last line to the next prompt.
+  Turn rows are spaced by `--conversation-pair-gap`; inside a turn, blocks
+  keep `--conversation-turn-gap`. The HUD sets the pair gap back to the turn
+  gap, since there the air is most of the band.
 - **Changed files** — the newest settled turn that edited files ends with
   one card, under the reply and above its actions (`changed-files-card.tsx`):
   a `--ui-stroke-tertiary` hairline at `--card-radius`, no fill, lined up

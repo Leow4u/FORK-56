@@ -523,6 +523,10 @@
     --conversation-line-height: 1.125rem;
     --conversation-caption-line-height: 1rem;
     --conversation-turn-gap: 0.375rem;
+    /* Between one turn (a prompt and its reply) and the next. Wider than the
+       turn gap, so a prompt sits closer to its own reply than to the reply
+       before it and each exchange reads as one piece. */
+    --conversation-pair-gap: 1.5rem;
     /* Gap between top-level turn blocks (prose ↔ tools ↔ thinking) — enough air
        that scaffolding reads as separate from the reply, not crammed into it. */
     --turn-block-gap: 0.75rem;
@@ -2297,6 +2301,12 @@ body.guest-pointer-lock :is(webview, iframe) {
   margin-block: var(--turn-block-gap);
 }
 
+/* Turn rows are spaced by the pair gap: each row already ends on the turn
+   gap, so the next one tops it up. */
+[data-slot='aui_turn-row'] + [data-slot='aui_turn-row'] {
+  margin-top: calc(var(--conversation-pair-gap) - var(--conversation-turn-gap));
+}
+
 /* A streaming turn is sealed into several assistant bubbles as it goes
    (`message.interim`) and rehydrates into fewer, so the same two blocks are
    sometimes siblings inside one bubble and sometimes split across two. The
@@ -3237,6 +3247,7 @@ html:has([data-hud-shell]) #root,
      most of the band, and the ramp eats the older turns before you can read
      them. Same knobs the app uses, just smaller here. */
   --conversation-turn-gap: 0.1875rem;
+  --conversation-pair-gap: var(--conversation-turn-gap);
   --turn-block-gap: 0.375rem;
   --paragraph-gap: 0.4rem;
   --composer-shell-pad-block-end: 0px;

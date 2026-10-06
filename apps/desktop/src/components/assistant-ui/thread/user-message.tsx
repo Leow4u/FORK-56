@@ -38,7 +38,7 @@ export function hasTextSelection(): boolean {
 export function HumanMessageContainer({ children, messageId }: { children: ReactNode; messageId?: string }) {
   return (
     <div
-      className="group/user-message flex w-full min-w-0 flex-col items-end gap-0 pb-(--conversation-turn-gap) pt-1"
+      className="group/user-message flex w-full min-w-0 flex-col items-end gap-0 pt-1"
       data-message-id={messageId}
       data-role="user"
       data-slot="aui_user-message-root"
