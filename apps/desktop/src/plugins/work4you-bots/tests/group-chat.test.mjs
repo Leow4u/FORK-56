@@ -522,6 +522,28 @@ test('disband: skips source-qualified remote members instead of mutating same-na
   assert.equal(gc.$botMeta.get()['[object Object]'], undefined)
 })
 
+test('disband: scrubs orphaned bot-meta so an empty "0 bots" row cannot linger', async () => {
+  const gc = load(() => '(pass)')
+  gc.$groupChats.set({
+    Ghost: { log: [], watermarks: {}, sessions: {}, members: [] }
+  })
+  // Seated members list is empty (agents already left), but stale meta still
+  // names the group — the bug that left "0 bots" rows in the roster.
+  gc.$botMeta.set({
+    orphan: { groups: ['Ghost', 'Keep'], group: 'Ghost' },
+    keeper: { groups: ['Keep'], group: 'Keep' }
+  })
+  gc.$groupChatWorkspace.set('Ghost')
+
+  await gc.disbandGroupChat('Ghost', [])
+
+  assert.equal(gc.$groupChats.get().Ghost, undefined)
+  assert.equal(gc.$groupChatWorkspace.get(), null)
+  assert.equal(JSON.stringify(gc.$botMeta.get().orphan.groups), JSON.stringify(['Keep']))
+  assert.equal(gc.$botMeta.get().orphan.group, 'Keep')
+  assert.equal(JSON.stringify(gc.$botMeta.get().keeper.groups), JSON.stringify(['Keep']))
+})
+
 test('disband: a running room leaves an epoch-bumped empty tombstone so in-flight turns bail', async () => {
   const gc = load(() => '(pass)')
 
