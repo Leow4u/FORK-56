@@ -90,6 +90,7 @@ from plugins.memory.config_schema import (
     STORAGE_HONCHO_HOST_BLOCK,
     get_provider_config_schema,
 )
+from gateway.scale_to_zero import note_activity as note_scale_to_zero_activity
 from gateway.status import (
     derive_gateway_busy,
     derive_gateway_drainable,
@@ -18096,6 +18097,7 @@ async def _legacy_pump(ws: "WebSocket", bridge) -> None:
             if match and match.end() == len(raw):
                 bridge.resize(cols=int(match.group(1)), rows=int(match.group(2)))
                 continue
+            note_scale_to_zero_activity()
             bridge.write(raw)
     except WebSocketDisconnect:
         pass
@@ -19400,6 +19402,7 @@ async def pty_ws(ws: WebSocket) -> None:
                 session.bridge.resize(cols=int(match.group(1)), rows=int(match.group(2)))
                 continue
 
+            note_scale_to_zero_activity()
             session.bridge.write(raw)
     except WebSocketDisconnect:
         pass

@@ -103,64 +103,123 @@ def test_real_inbound_after_dormancy_restores_running_status(monkeypatch):
     assert status_updates == ["running"]
 
 
-# ── _scale_to_zero_should_arm: the CALL SITE feeds config.platforms (the F25 bug) ──
+# ── arm gate: opt-in flag + wake URL only ────────────────────────────────────
 #
-# config.platforms is pre-seeded with a DISABLED placeholder PlatformConfig for every
-# known platform, so list(config.platforms.keys()) is always the full ~20-entry catalog
-# regardless of what the instance runs. The arm check must filter to ENABLED platforms
-# (mirroring the connect loop) before asking messaging_is_relay_only_or_absent — passing
-# the bare placeholder keys made it see disabled `discord`/`telegram`/… as live direct
-# platforms and refuse to arm on a real relay-only instance. The pure-helper tests in
-# test_scale_to_zero.py pass bare names so they never exercised this call site.
+# Arming used to also require relay-only messaging, decided once at startup from
+# the ENABLED platforms. An enabled WhatsApp bridge that never paired therefore
+# kept a paid Cloud VM on 24/7 ("NOT armed ... enabled platforms=['whatsapp']" on
+# every boot). Platforms are now checked on every idle tick, from what is
+# actually connected (see the next section).
 
 
-def _arm_runner(monkeypatch, platform_states, *, enabled=True, wake_url="https://wake.example"):
-    """Build a GatewayRunner stand-in whose config.platforms mirrors a real load:
-    `platform_states` is {Platform: enabled_bool}; everything runs the REAL
-    _scale_to_zero_should_arm. Only the env flag + wake_url resolution are stubbed."""
+def _arm_runner(monkeypatch, *, enabled=True, wake_url="https://wake.example"):
     from types import SimpleNamespace
 
     from gateway.config import PlatformConfig
+    from gateway.platforms.base import Platform
 
     r = GatewayRunner.__new__(GatewayRunner)
-    platforms = {p: PlatformConfig(enabled=en) for p, en in platform_states.items()}
-    r.config = SimpleNamespace(platforms=platforms)
-
+    r.config = SimpleNamespace(platforms={Platform.WHATSAPP: PlatformConfig(enabled=True)})
     monkeypatch.setattr("gateway.scale_to_zero.scale_to_zero_enabled", lambda *a, **k: enabled)
     monkeypatch.setattr("gateway.relay.relay_wake_url", lambda: wake_url)
     return r
 
 
-def test_arm_true_for_relay_only_with_disabled_placeholders(monkeypatch):
-    """The F25 regression test: relay ENABLED, every other platform present but
-    DISABLED (the real load_gateway_config() shape). Must arm — the disabled
-    placeholders must NOT count as live direct-socket platforms."""
+def test_arm_with_an_enabled_direct_platform(monkeypatch):
+    assert _arm_runner(monkeypatch)._scale_to_zero_should_arm() is True
+
+
+def test_no_arm_without_wake_url_or_opt_in(monkeypatch):
+    assert _arm_runner(monkeypatch, wake_url=None)._scale_to_zero_should_arm() is False
+    assert _arm_runner(monkeypatch, enabled=False)._scale_to_zero_should_arm() is False
+
+
+# ── idle predicate on a real runner stand-in ─────────────────────────────────
+#
+# These run the REAL _scale_to_zero_is_idle composition. Only the gateway's
+# inbound clock and its platform maps are set; config, cron store and the
+# dashboard activity stamp come from the isolated WORK4YOU_HOME.
+
+
+def _idle_runner(*, adapters=(), failed=None, inbound_age=3600.0):
+    r = GatewayRunner.__new__(GatewayRunner)
+    r._running = True
+    r._running_agents = {}
+    r._background_tasks = set()
+    r._last_inbound_at = time.time() - inbound_age
+    r.adapters = {p: object() for p in adapters}
+    r._failed_platforms = dict(failed or {})
+    return r
+
+
+def test_idle_with_no_messaging_and_no_activity():
+    assert _idle_runner()._scale_to_zero_is_idle() is True
+
+
+def test_connected_relay_and_non_messaging_surfaces_do_not_hold_awake():
     from gateway.platforms.base import Platform
 
-    r = _arm_runner(
-        monkeypatch,
-        {
-            Platform.TELEGRAM: False,
-            Platform.DISCORD: False,
-            Platform.SLACK: False,
-            Platform.MATRIX: False,
-            Platform.RELAY: True,
-        },
+    r = _idle_runner(
+        adapters=(Platform.RELAY, Platform.API_SERVER, Platform.WEBHOOK, Platform.LOCAL)
     )
-    assert r._scale_to_zero_should_arm() is True
+    assert r._scale_to_zero_is_idle() is True
 
 
-def test_no_arm_when_a_direct_platform_is_actually_enabled(monkeypatch):
-    """A genuinely-enabled direct-socket platform (real Discord token) DOES disarm —
-    the filter must not over-broaden to 'ignore everything but relay'."""
+def test_connected_direct_platform_holds_awake():
     from gateway.platforms.base import Platform
 
-    r = _arm_runner(
-        monkeypatch,
-        {Platform.DISCORD: True, Platform.RELAY: True},
-    )
-    assert r._scale_to_zero_should_arm() is False
+    r = _idle_runner(adapters=(Platform.DISCORD, Platform.API_SERVER))
+    assert r._scale_to_zero_is_idle() is False
 
+
+def test_platform_retrying_a_blip_holds_awake():
+    from gateway.platforms.base import Platform
+
+    r = _idle_runner(failed={Platform.WHATSAPP: {"attempts": 2}})
+    assert r._scale_to_zero_is_idle() is False
+
+
+def test_platform_flagged_needs_attention_or_paused_does_not_hold_awake():
+    from gateway.platforms.base import Platform
+
+    for info in ({"attempts": 40, "attention_flagged": True}, {"paused": True}):
+        r = _idle_runner(failed={Platform.WHATSAPP: info})
+        assert r._scale_to_zero_is_idle() is True, info
+
+
+def test_recent_dashboard_activity_keeps_it_awake(monkeypatch):
+    from gateway import scale_to_zero
+
+    monkeypatch.setenv(scale_to_zero.SCALE_TO_ZERO_ENV, "1")
+    scale_to_zero.note_activity()
+    assert _idle_runner()._scale_to_zero_is_idle() is False
+
+
+def test_stale_dashboard_activity_does_not(monkeypatch):
+    import os
+
+    from gateway import scale_to_zero
+
+    monkeypatch.setenv(scale_to_zero.SCALE_TO_ZERO_ENV, "1")
+    scale_to_zero.note_activity()
+    stamp = scale_to_zero.activity_stamp_path()
+    old = time.time() - 3600
+    os.utime(stamp, (old, old))
+    assert _idle_runner()._scale_to_zero_is_idle() is True
+
+
+def test_enabled_cron_job_keeps_it_awake():
+    from cron.jobs import create_job, pause_job
+
+    job = create_job(prompt="daily digest", schedule="every 1d")
+    assert _idle_runner()._scale_to_zero_is_idle() is False
+    pause_job(job["id"])
+    assert _idle_runner()._scale_to_zero_is_idle() is True
+
+
+def test_running_cron_job_counts_as_active_work(monkeypatch):
+    monkeypatch.setattr("cron.scheduler.get_running_job_ids", lambda: {"job-1"})
+    assert _idle_runner()._scale_to_zero_is_idle() is False
 
 
 # ── the self-suspend step: fires only after a clean quiesce, in order ─────────
@@ -271,62 +330,6 @@ async def test_self_suspend_noop_off_fly(monkeypatch):
     assert called == []
 
 
-# ── non-messaging platforms must not disarm (the api_server-key regression) ──
-#
-# The Docker stage2 hook now generates API_SERVER_KEY for every container, and
-# key presence force-enables the api_server platform (gateway/config.py). The
-# arm gate counted every enabled platform, so `api_server` (a loopback
-# listener, not a messaging socket) made messaging_is_relay_only_or_absent
-# False on EVERY hosted instance — silently disarming scale-to-zero. The gate
-# must only count messaging platforms (excluding LOCAL/API_SERVER/WEBHOOK,
-# mirroring _connect_platforms' messaging_platforms exclusion set).
-
-
-def test_arm_true_with_api_server_enabled(monkeypatch):
-    from gateway.platforms.base import Platform
-
-    r = _arm_runner(
-        monkeypatch,
-        {
-            Platform.RELAY: True,
-            Platform.API_SERVER: True,
-            Platform.TELEGRAM: False,
-        },
-    )
-    assert r._scale_to_zero_should_arm() is True
-
-
-def test_arm_true_with_all_non_messaging_surfaces_enabled(monkeypatch):
-    from gateway.platforms.base import Platform
-
-    r = _arm_runner(
-        monkeypatch,
-        {
-            Platform.RELAY: True,
-            Platform.API_SERVER: True,
-            Platform.WEBHOOK: True,
-            Platform.LOCAL: True,
-        },
-    )
-    assert r._scale_to_zero_should_arm() is True
-
-
-def test_direct_platform_still_disarms_alongside_api_server(monkeypatch):
-    """The messaging-only filter must not over-broaden: a genuinely enabled
-    direct-socket platform still disarms even with api_server also enabled."""
-    from gateway.platforms.base import Platform
-
-    r = _arm_runner(
-        monkeypatch,
-        {
-            Platform.RELAY: True,
-            Platform.API_SERVER: True,
-            Platform.DISCORD: True,
-        },
-    )
-    assert r._scale_to_zero_should_arm() is False
-
-
 # ── supervised watchers must NOT count as live background work (staging bug) ──
 #
 # _spawn_supervised parks every permanent watcher task (session-expiry, kanban,
@@ -391,3 +394,37 @@ async def test_done_supervised_watcher_is_ignored_either_way():
     await t
     r._background_tasks = {t}
     assert r._scale_to_zero_has_live_background_work() is False
+
+
+@pytest.mark.asyncio
+async def test_resume_from_suspend_restarts_the_idle_window(monkeypatch):
+    """A tick that lands long after its interval means the machine was suspended
+    and a request woke it. That tick must not re-suspend; the next idle one may."""
+    r, _ = _runner_with(monkeypatch, idle=True, armed_adapter=False)
+    r._last_inbound_at = 0.0
+    # Elapsed wall-clock per sleep: startup settle, one normal tick, then a
+    # 1h jump (suspended), then normal ticks again.
+    steps = iter([30.0, 30.0, 3600.0, 30.0, 30.0])
+    clock = {"now": 1_000_000.0, "sleeps": 0}
+    suspended_on = []
+    real_sleep = asyncio.sleep
+
+    async def fake_sleep(_seconds):
+        clock["now"] += next(steps)
+        clock["sleeps"] += 1
+        await real_sleep(0)
+
+    async def fake_suspend():
+        suspended_on.append(clock["sleeps"])
+        r._scale_to_zero_cooldown_until = 0.0
+        if len(suspended_on) == 2:
+            r._running = False
+
+    monkeypatch.setattr("gateway.run.time.time", lambda: clock["now"])
+    monkeypatch.setattr("gateway.run.asyncio.sleep", fake_sleep)
+    monkeypatch.setattr(r, "_scale_to_zero_self_suspend", fake_suspend, raising=False)
+    await asyncio.wait_for(r._scale_to_zero_watcher(interval=30.0), timeout=2)
+
+    # sleep #2 is the first normal tick (suspend), #3 is the wake (skip), #4 suspends.
+    assert suspended_on == [2, 4]
+    assert r._last_inbound_at == 1_000_000.0 + 30.0 + 30.0 + 3600.0

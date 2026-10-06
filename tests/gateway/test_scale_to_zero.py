@@ -62,8 +62,13 @@ def test_no_platform_is_true():
 
 def test_arm_blocked_without_wake_url():
     # A suspended instance with no wake target is a black hole (§3.4(1)).
-    assert should_arm(enabled=True, relay_only_or_absent=True, wake_url=None) is False
-    assert should_arm(enabled=True, relay_only_or_absent=True, wake_url="") is False
+    assert should_arm(enabled=True, wake_url=None) is False
+    assert should_arm(enabled=True, wake_url="") is False
+
+
+def test_arm_needs_the_opt_in_flag():
+    assert should_arm(enabled=False, wake_url="https://wake.example") is False
+    assert should_arm(enabled=True, wake_url="https://wake.example") is True
 
 
 # ── is_idle (D2/D3/F7) — each conjunct flips the result ──────────────────────
@@ -178,3 +183,77 @@ def test_self_suspend_available_needs_identity_and_socket():
         assert self_suspend_available(_FLY_ENV) is False
     # Missing identity -> unavailable regardless of socket.
     assert self_suspend_available({}) is False
+
+
+# ── dashboard activity stamp + heartbeat (web/TUI chat the gateway can't see) ──
+
+from gateway import scale_to_zero as stz  # noqa: E402 - grouped with their section
+
+
+@pytest.fixture
+def opted_in(monkeypatch):
+    monkeypatch.setenv(SCALE_TO_ZERO_ENV, "1")
+    monkeypatch.setattr(stz, "_busy_probes", [])
+    monkeypatch.setattr(stz, "_last_noted", {})
+    monkeypatch.setattr(stz, "_ensure_activity_heartbeat", lambda: None)
+
+
+def test_note_activity_is_a_noop_without_opt_in(monkeypatch, tmp_path):
+    monkeypatch.delenv(SCALE_TO_ZERO_ENV, raising=False)
+    stamp = tmp_path / "stamp"
+    stz.note_activity(stamp)
+    assert not stamp.exists()
+
+
+def test_note_activity_resets_seconds_since_activity(opted_in, tmp_path):
+    stamp = tmp_path / "stamp"
+    assert stz.seconds_since_activity(path=stamp) == float("inf")
+    stz.note_activity(stamp)
+    assert stz.seconds_since_activity(path=stamp) < 5
+    old = stamp.stat().st_mtime - 600
+    os.utime(stamp, (old, old))
+    assert stz.seconds_since_activity(path=stamp) >= 600
+
+
+def test_bursts_of_input_stamp_once_per_window(opted_in, tmp_path, monkeypatch):
+    stamp = tmp_path / "stamp"
+    clock = {"now": 100.0}
+    monkeypatch.setattr(stz.time, "monotonic", lambda: clock["now"])
+    stz.note_activity(stamp)
+    old = stamp.stat().st_mtime - 600
+    os.utime(stamp, (old, old))
+
+    clock["now"] += 1.0
+    stz.note_activity(stamp)
+    assert stz.seconds_since_activity(path=stamp) >= 600
+
+    clock["now"] += stz.ACTIVITY_MIN_INTERVAL_SECONDS
+    stz.note_activity(stamp)
+    assert stz.seconds_since_activity(path=stamp) < 5
+
+
+def test_profile_scoped_chat_stamps_where_the_gateway_reads(opted_in, monkeypatch):
+    from work4you_constants import get_work4you_home
+
+    root = get_work4you_home()
+    gateway_path = stz.activity_stamp_path()
+    profile_home = root / "profiles" / "coder"
+    profile_home.mkdir(parents=True)
+    monkeypatch.setenv("WORK4YOU_HOME", str(profile_home))
+    stz.note_activity()
+    monkeypatch.setenv("WORK4YOU_HOME", str(root))
+    assert stz.activity_stamp_path() == gateway_path
+    assert stz.seconds_since_activity() < 5
+
+
+def test_busy_probe_drives_dashboard_busy_and_a_broken_one_is_ignored(opted_in):
+    state = {"busy": False}
+
+    def broken():
+        raise RuntimeError("probe failed")
+
+    stz.register_busy_probe(broken)
+    stz.register_busy_probe(lambda: state["busy"])
+    assert stz.dashboard_busy() is False
+    state["busy"] = True
+    assert stz.dashboard_busy() is True

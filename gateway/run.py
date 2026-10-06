@@ -4157,6 +4157,11 @@ def _reconnect_needs_attention(info: dict, now: float) -> bool:
     return (now - queued_at) >= _RECONNECT_ATTENTION_AFTER_SECONDS
 
 
+# A scale-to-zero watcher tick that lands this much later than its interval
+# means the machine was suspended in between.
+_SCALE_TO_ZERO_WAKE_GAP_SECONDS = 120.0
+
+
 class TurnRunner:
     """Per-turn collaborator carrying the tool-progress callbacks that used to
     be nested closures inside ``GatewayRunner._run_agent_inner``.
@@ -8514,53 +8519,61 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
             pass
         return max_restarts, window_seconds, max_gap_seconds
 
-    def _scale_to_zero_active_messaging_platforms(self) -> list:
-        """ENABLED platforms that count for the relay-only arm gate (D1/F6).
+    def _scale_to_zero_messaging_holding_awake(self) -> list:
+        """Messaging platforms whose socket must stay live (D1/F6).
 
-        Two filters, both load-bearing:
-        - enabled only: config.platforms is pre-seeded with disabled
-          placeholders for the full platform catalog (the F25 bug).
-        - MESSAGING only: non-messaging surfaces must not disarm scale-to-zero.
-          The api_server is a loopback listener force-enabled by the presence
-          of API_SERVER_KEY (which the Docker stage2 hook now generates for
-          every container, so hosted instances ALWAYS have it enabled) — it
-          holds no outbound socket and Chronos fires through it already reset
-          the idle clock. Counting it made messaging_is_relay_only_or_absent
-          False on every hosted instance, silently disarming the feature.
-          Mirrors the non-messaging exclusion set used for handoff eligibility
-          (see the `messaging_platforms` computation in _connect_platforms).
+        A connected adapter holds a socket that has to keep receiving. A
+        platform in the reconnect queue counts too while it is a blip. Once it
+        is paused, or has failed long enough to be flagged NEEDS_ATTENTION, it
+        holds nothing — keeping the machine up only burns money (a WhatsApp
+        bridge that never paired kept a paid VM on 24/7).
+
+        Non-messaging surfaces never count. The api_server is a loopback
+        listener force-enabled by API_SERVER_KEY (the Docker stage2 hook
+        generates one for every container), so counting it would keep every
+        hosted instance awake. Mirrors the non-messaging exclusion set used
+        for handoff eligibility (see `messaging_platforms` in _connect_platforms).
         """
-        if not self.config:
-            return []
         non_messaging = {Platform.LOCAL, Platform.API_SERVER, Platform.WEBHOOK}
+        holding = []
         try:
-            return [
-                p
-                for p, pc in self.config.platforms.items()
-                if getattr(pc, "enabled", False) and p not in non_messaging
-            ]
-        except Exception:  # noqa: BLE001
-            return []
+            for platform in getattr(self, "adapters", {}) or {}:
+                if platform not in non_messaging:
+                    holding.append(platform)
+            for platform, info in (getattr(self, "_failed_platforms", {}) or {}).items():
+                if platform in non_messaging or platform in holding:
+                    continue
+                if info.get("paused") or info.get("attention_flagged"):
+                    continue
+                holding.append(platform)
+        except Exception:  # noqa: BLE001 - fail awake
+            return [Platform.LOCAL]
+        return holding
+
+    def _scale_to_zero_has_scheduled_jobs(self) -> bool:
+        """An enabled cron job needs a running machine: a suspended VM cannot fire it."""
+        try:
+            from cron.jobs import effective_job_state, is_job_runnable, load_jobs
+
+            return any(
+                is_job_runnable(job)
+                and effective_job_state(job) not in {"completed", "error"}
+                for job in load_jobs()
+            )
+        except Exception:  # noqa: BLE001 - fail awake
+            logger.debug("scale-to-zero cron check failed", exc_info=True)
+            return True
 
     def _scale_to_zero_should_arm(self) -> bool:
-        """Whether to start the idle watcher (D1/D11/§3.4(1))."""
+        """Whether to start the idle watcher (D11/§3.4(1))."""
         from gateway.relay import relay_wake_url
-        from gateway.scale_to_zero import (
-            messaging_is_relay_only_or_absent,
-            scale_to_zero_enabled,
-            should_arm,
-        )
+        from gateway.scale_to_zero import scale_to_zero_enabled, should_arm
 
-        platforms = self._scale_to_zero_active_messaging_platforms()
         try:
             wake_url = relay_wake_url()
         except Exception:  # noqa: BLE001
             wake_url = None
-        return should_arm(
-            enabled=scale_to_zero_enabled(),
-            relay_only_or_absent=messaging_is_relay_only_or_absent(platforms),
-            wake_url=wake_url,
-        )
+        return should_arm(enabled=scale_to_zero_enabled(), wake_url=wake_url)
 
     def _log_scale_to_zero_not_armed_reason(self) -> None:
         """Log why the idle watcher did NOT arm — but only for an OPTED-IN instance.
@@ -8570,44 +8583,38 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
         didn't arm, that's the surprising case worth one INFO line so "why won't it
         suspend/wake?" is a log grep, not a box-dive.
         """
-        from gateway.relay import relay_wake_url
-        from gateway.scale_to_zero import (
-            messaging_is_relay_only_or_absent,
-            scale_to_zero_enabled,
-        )
+        from gateway.scale_to_zero import scale_to_zero_enabled
 
         try:
-            enabled = scale_to_zero_enabled()
-            if not enabled:
+            if not scale_to_zero_enabled():
                 return  # not opted in — normal, stay quiet
-            active = [
-                getattr(p, "value", p)
-                for p in self._scale_to_zero_active_messaging_platforms()
-            ]
-            relay_only = messaging_is_relay_only_or_absent(active)
-            try:
-                wake_url = relay_wake_url()
-            except Exception:  # noqa: BLE001
-                wake_url = None
             logger.info(
-                "scale-to-zero: NOT armed despite opt-in — "
-                "relay_only_or_absent=%s (enabled platforms=%s), wake_url=%s. "
-                "Need relay-only messaging + a registered wake URL.",
-                relay_only,
-                active or "none",
-                "set" if wake_url else "MISSING",
+                "scale-to-zero: NOT armed despite opt-in — no wake URL registered "
+                "(GATEWAY_RELAY_WAKE_URL or gateway.relay_wake_url)."
             )
         except Exception:  # noqa: BLE001 - diagnostics must never block startup
             logger.debug("scale-to-zero: not-armed reason logging failed", exc_info=True)
 
     def _scale_to_zero_is_idle(self) -> bool:
-        from gateway.scale_to_zero import is_idle
+        from gateway.scale_to_zero import (
+            is_idle,
+            messaging_is_relay_only_or_absent,
+            seconds_since_activity,
+        )
 
+        if not messaging_is_relay_only_or_absent(self._scale_to_zero_messaging_holding_awake()):
+            return False
+        now = time.time()
         return is_idle(
-            running_agent_count=self._running_agent_count(),
-            seconds_since_last_inbound=time.time() - self._last_inbound_at,
+            running_agent_count=self._active_work_count(),
+            seconds_since_last_inbound=min(
+                now - self._last_inbound_at, seconds_since_activity(now)
+            ),
             idle_timeout_seconds=self._scale_to_zero_idle_timeout_seconds(),
-            has_live_background_work=self._scale_to_zero_has_live_background_work(),
+            has_live_background_work=(
+                self._scale_to_zero_has_live_background_work()
+                or self._scale_to_zero_has_scheduled_jobs()
+            ),
         )
 
     def _scale_to_zero_note_real_inbound(self) -> None:
@@ -8666,11 +8673,23 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
         dormancy still happens, the process just stays running — fail-awake.
         """
         await asyncio.sleep(min(interval, 30.0))  # let startup settle
+        last_tick = time.time()
         while self._running:
             try:
                 await asyncio.sleep(interval)
                 if not self._running:
                     return
+                now = time.time()
+                woke = now - last_tick > interval + _SCALE_TO_ZERO_WAKE_GAP_SECONDS
+                last_tick = now
+                if woke:
+                    # The wall clock jumped: the machine was suspended and a
+                    # request just woke it. That request is activity — give the
+                    # user a full idle window instead of re-suspending on the
+                    # first tick, before the dashboard has stamped anything.
+                    logger.info("scale-to-zero: resumed from suspend — idle window restarted")
+                    self._last_inbound_at = now
+                    continue
                 if time.time() < self._scale_to_zero_cooldown_until:
                     continue
                 if not self._scale_to_zero_is_idle():
@@ -13122,10 +13141,11 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
         self._spawn_supervised(self._loop_wakeup_watcher, "loop_wakeup_watcher")
 
         # Start the scale-to-zero idle watcher ONLY when this instance is opted
-        # in (the NAS "Labs" WORK4YOU_SCALE_TO_ZERO stamp), messaging is
-        # relay-only/absent, and a wakeUrl is registered (decisions.md D1/D11/
-        # §3.4(1)). A non-opted instance never starts it, so behaviour is exactly
-        # as today. When armed, the watcher drives the relay dormant on sustained
+        # in (the NAS "Labs" WORK4YOU_SCALE_TO_ZERO stamp) and a wakeUrl is
+        # registered (decisions.md D11/§3.4(1)). A non-opted instance never starts
+        # it, so behaviour is exactly as today. A live direct messaging platform
+        # keeps it from going idle on every tick (D1). When armed, the watcher
+        # drives the relay dormant on sustained
         # idle and then suspends the machine itself via the local flaps socket
         # (Fly Proxy autostop is inbound-only and job-blind, so the gateway owns
         # the suspend decision; NAS provisions these machines autostop:"off").
