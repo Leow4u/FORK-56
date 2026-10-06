@@ -8,17 +8,17 @@ describe('activity density', () => {
     window.localStorage.clear()
   })
 
-  it('defaults to balanced', async () => {
+  it('defaults to compact', async () => {
     const { $activityDensity } = await import('@/store/activity-density')
 
-    expect($activityDensity.get()).toBe('balanced')
+    expect($activityDensity.get()).toBe('compact')
   })
 
   it('restores a stored choice and falls back on anything else', async () => {
     for (const [stored, expected] of [
-      ['compact', 'compact'],
+      ['balanced', 'balanced'],
       ['detailed', 'detailed'],
-      ['technical', 'balanced']
+      ['technical', 'compact']
     ] as const) {
       window.localStorage.setItem(STORAGE_KEY, stored)
       vi.resetModules()
@@ -32,8 +32,8 @@ describe('activity density', () => {
   it('persists a change', async () => {
     const { setActivityDensity } = await import('@/store/activity-density')
 
-    setActivityDensity('compact')
+    setActivityDensity('balanced')
 
-    expect(window.localStorage.getItem(STORAGE_KEY)).toBe('compact')
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBe('balanced')
   })
 })

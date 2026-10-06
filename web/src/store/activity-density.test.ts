@@ -14,17 +14,17 @@ describe('activity density', () => {
     vi.resetModules()
   })
 
-  it('defaults to balanced', async () => {
+  it('defaults to compact', async () => {
     const { $activityDensity } = await import('@/store/activity-density')
 
-    expect($activityDensity.get()).toBe('balanced')
+    expect($activityDensity.get()).toBe('compact')
   })
 
   it('restores a stored choice and falls back on anything else', async () => {
     for (const [stored, expected] of [
-      ['compact', 'compact'],
+      ['balanced', 'balanced'],
       ['detailed', 'detailed'],
-      ['technical', 'balanced']
+      ['technical', 'compact']
     ] as const) {
       window.localStorage.setItem(STORAGE_KEY, stored)
       vi.resetModules()
