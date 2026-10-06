@@ -504,10 +504,7 @@ export function CloudPage() {
                 <p className={styles.cardModel}>{agent.model}</p>
               ) : null}
               {agent.updateAvailable ? (
-                <p className={styles.cardWarn}>
-                  Atualização de runtime disponível — o histórico no disco é
-                  preservado.
-                </p>
+                <p className={styles.cardWarn}>Atualização de runtime disponível.</p>
               ) : agent.runningImage ? (
                 <p className={styles.cardMeta}>Runtime em dia.</p>
               ) : null}
