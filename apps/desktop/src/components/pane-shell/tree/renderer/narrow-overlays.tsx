@@ -9,7 +9,7 @@
 import { useStore } from '@nanostores/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { PaneTab, PaneTabLabel, PaneTabSegments, PaneTabStrip } from '@/components/ui/pane-tab'
+import { PaneTab, PaneTabLabel, PaneTabStrip } from '@/components/ui/pane-tab'
 import { ContribBoundary, ContribRender } from '@/contrib/react/boundary'
 import { useContributions } from '@/contrib/react/use-contributions'
 import type { Contribution } from '@/contrib/types'
@@ -159,25 +159,22 @@ export function NarrowOverlays() {
               (SESSIONS | BOTS) — a lone pane keeps the stripless form. */}
           {zonePanes.length > 1 && (
             <PaneTabStrip>
-              <PaneTabSegments fill>
-                {zonePanes.map(pane => (
-                  <PaneTab
-                    active={pane.id === revealed.id}
-                    aria-selected={pane.id === revealed.id}
-                    data-narrow-overlay-tab={pane.id}
-                    key={pane.id}
-                    onPointerDown={event => {
-                      if (event.button === 0) {
-                        event.preventDefault()
-                        setReveal(current => ({ id: pane.id, pinned: current?.pinned ?? false }))
-                      }
-                    }}
-                    variant="segment"
-                  >
-                    <PaneTabLabel>{pane.title ?? pane.id}</PaneTabLabel>
-                  </PaneTab>
-                ))}
-              </PaneTabSegments>
+              {zonePanes.map(pane => (
+                <PaneTab
+                  active={pane.id === revealed.id}
+                  aria-selected={pane.id === revealed.id}
+                  data-narrow-overlay-tab={pane.id}
+                  key={pane.id}
+                  onPointerDown={event => {
+                    if (event.button === 0) {
+                      event.preventDefault()
+                      setReveal(current => ({ id: pane.id, pinned: current?.pinned ?? false }))
+                    }
+                  }}
+                >
+                  <PaneTabLabel>{pane.title ?? pane.id}</PaneTabLabel>
+                </PaneTab>
+              ))}
             </PaneTabStrip>
           )}
           <ContribBoundary id={revealed.id}>

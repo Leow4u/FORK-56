@@ -10,7 +10,6 @@ describe('persisted preview migration', () => {
       JSON.stringify([
         {
           id: `file:file://${source}`,
-          sessionId: 'session-a',
           target: {
             binary: true,
             kind: 'file',
@@ -35,7 +34,6 @@ describe('persisted preview migration', () => {
       JSON.stringify([
         {
           id: `file:file://${source}`,
-          sessionId: 'session-a',
           target: {
             binary: true,
             kind: 'file',
@@ -59,7 +57,6 @@ describe('persisted preview migration', () => {
       JSON.stringify([
         {
           id: `file:file://${encodeURI(source)}`,
-          sessionId: 'session-a',
           target: {
             binary: true,
             kind: 'file',
@@ -83,7 +80,6 @@ describe('persisted preview migration', () => {
       JSON.stringify([
         {
           id: `file:file://${source}`,
-          sessionId: 'session-a',
           target: {
             kind: 'file',
             label: 'spec.pdf',

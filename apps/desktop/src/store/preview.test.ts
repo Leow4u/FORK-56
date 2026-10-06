@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { $rightRailActiveTabId } from './layout'
 import {
-  $allPreviewTabs,
   $previewServerRestart,
   $previewServerRestartStatus,
   $previewTabs,
@@ -12,13 +11,11 @@ import {
   closePreviewMatching,
   closeRightRail,
   closeRightRailTab,
-  decodePreviewTabs,
   openPreview,
   previewTabId,
   type PreviewTarget,
   progressPreviewServerRestart
 } from './preview'
-import { $activeSessionId, $selectedStoredSessionId } from './session'
 
 function fileTarget(source: string): PreviewTarget {
   return { kind: 'file', label: source, path: source, previewKind: 'html', source, url: `file://${source}` }
@@ -35,17 +32,13 @@ function artifactTarget(id: string): PreviewTarget {
 describe('preview store', () => {
   beforeEach(() => {
     $previewServerRestart.set(null)
-    $selectedStoredSessionId.set(null)
-    $activeSessionId.set(null)
-    $allPreviewTabs.set([])
+    closeRightRail()
     window.localStorage.clear()
   })
 
   afterEach(() => {
     $previewServerRestart.set(null)
-    $selectedStoredSessionId.set(null)
-    $activeSessionId.set(null)
-    $allPreviewTabs.set([])
+    closeRightRail()
     window.localStorage.clear()
   })
 
@@ -164,7 +157,7 @@ describe('preview store', () => {
     openPreview(urlTarget('http://localhost:5174'), 'tool-result')
     openPreview(artifactTarget('session-1:dashboard'))
 
-    const stored = window.localStorage.getItem('work4you.desktop.previewTabs.v3') ?? ''
+    const stored = window.localStorage.getItem('work4you.desktop.previewTabs.v2') ?? ''
 
     expect(stored).toContain('/work/demo.html')
     expect(stored).toContain('localhost:5174')
@@ -174,13 +167,13 @@ describe('preview store', () => {
   it('strips inline image bytes rather than pushing megabytes into storage', () => {
     openPreview({ ...fileTarget('/work/shot.png'), dataUrl: 'data:image/png;base64,AAAA', previewKind: 'image' })
 
-    expect(window.localStorage.getItem('work4you.desktop.previewTabs.v3') ?? '').not.toContain('base64')
+    expect(window.localStorage.getItem('work4you.desktop.previewTabs.v2') ?? '').not.toContain('base64')
   })
 
   it('does not persist remote HTML without its in-memory document', () => {
     openPreview({ ...fileTarget('/remote/report.html'), dataUrl: 'data:text/html;base64,PGgxPnJlbW90ZTwvaDE+' })
 
-    expect(window.localStorage.getItem('work4you.desktop.previewTabs.v3')).toBe('[]')
+    expect(window.localStorage.getItem('work4you.desktop.previewTabs.v2')).toBe('[]')
   })
 
   it('preserves an explicit HTML source fallback', () => {
@@ -194,92 +187,6 @@ describe('preview store', () => {
 
     openPreview(target, 'tool-result')
 
-    expect(window.localStorage.getItem('work4you.desktop.previewTabs.v3')).toBe('[]')
-  })
-
-  describe('per-conversation tabs', () => {
-    it('shows only the focused conversation tabs and restores them on return', () => {
-      $selectedStoredSessionId.set('session-a')
-      openPreview(fileTarget('/work/a.html'), 'file-browser')
-
-      $selectedStoredSessionId.set('session-b')
-
-      expect($previewTabs.get()).toHaveLength(0)
-      expect($previewTarget.get()).toBeNull()
-
-      $selectedStoredSessionId.set('session-a')
-
-      expect($previewTabs.get().map(tab => tab.target.source)).toEqual(['/work/a.html'])
-      expect($rightRailActiveTabId.get()).toBe(previewTabId(fileTarget('/work/a.html')))
-    })
-
-    it('closing in one conversation never touches another', () => {
-      $selectedStoredSessionId.set('session-a')
-      openPreview(fileTarget('/work/a.html'), 'file-browser')
-      $selectedStoredSessionId.set('session-b')
-      openPreview(fileTarget('/work/b.html'), 'file-browser')
-
-      closeRightRail()
-
-      expect($previewTabs.get()).toHaveLength(0)
-
-      $selectedStoredSessionId.set('session-a')
-
-      expect($previewTabs.get()).toHaveLength(1)
-    })
-
-    it('lets two conversations hold the same file and Browser without colliding', () => {
-      $selectedStoredSessionId.set('session-a')
-      openPreview(fileTarget('/work/shared.html'), 'file-browser')
-      openPreview(urlTarget('http://localhost:5174'), 'tool-result')
-      $selectedStoredSessionId.set('session-b')
-      openPreview(fileTarget('/work/shared.html'), 'file-browser')
-      openPreview(urlTarget('http://localhost:9000'), 'tool-result')
-
-      closeRightRailTab(previewTabId(fileTarget('/work/shared.html')))
-
-      expect($previewTabs.get().map(tab => tab.target.url)).toEqual(['http://localhost:9000'])
-
-      $selectedStoredSessionId.set('session-a')
-
-      expect($previewTabs.get().map(tab => tab.target.url)).toEqual([
-        'file:///work/shared.html',
-        'http://localhost:5174'
-      ])
-    })
-
-    it('hands a live draft its tabs once its stored id arrives', () => {
-      $activeSessionId.set('runtime-1')
-      openPreview(fileTarget('/work/draft.html'), 'file-browser')
-
-      expect($previewTabs.get()).toHaveLength(1)
-
-      $selectedStoredSessionId.set('session-new')
-
-      expect($previewTabs.get().map(tab => tab.target.source)).toEqual(['/work/draft.html'])
-
-      $selectedStoredSessionId.set(null)
-
-      expect($previewTabs.get()).toHaveLength(0)
-    })
-
-    it('keeps an idle draft its own when another conversation is opened from it', () => {
-      openPreview(fileTarget('/work/draft.html'), 'file-browser')
-
-      $selectedStoredSessionId.set('session-existing')
-
-      expect($previewTabs.get()).toHaveLength(0)
-
-      $selectedStoredSessionId.set(null)
-
-      expect($previewTabs.get().map(tab => tab.target.source)).toEqual(['/work/draft.html'])
-    })
-
-    it('drops stored rows that have no owning conversation', () => {
-      const orphan = { id: 'file:file:///work/old.html', target: fileTarget('/work/old.html') }
-      const owned = { ...orphan, sessionId: 'session-a' }
-
-      expect(decodePreviewTabs(JSON.stringify([orphan, owned])).map(tab => tab.sessionId)).toEqual(['session-a'])
-    })
+    expect(window.localStorage.getItem('work4you.desktop.previewTabs.v2')).toBe('[]')
   })
 })
