@@ -3710,9 +3710,24 @@ function groupMembershipPatch(meta, group, enabled) {
 
 /** Group chats that should hold a roster row: every group named in bot meta
  *  (local members) plus every room record that still has stored members or
- *  log — cross-connection rooms whose members can't ride bot-meta. */
-function groupChatNames(metaByName, rooms) {
-  const names = new Set(knownGroups(metaByName))
+ *  log — cross-connection rooms whose members can't ride bot-meta.
+ *
+ *  When `roster` is provided, meta-only names with nobody seated (and no
+ *  room content) are dropped — otherwise a stale `$botMeta` key after bots
+ *  leave/delete keeps an empty "0 bots" row that Disband already cleared. */
+function groupChatNames(metaByName, rooms, roster) {
+  const names = new Set()
+
+  for (const name of knownGroups(metaByName)) {
+    if (
+      roster === undefined ||
+      groupChatMemberBots(name, roster, metaByName).length > 0 ||
+      (Array.isArray(rooms?.[name]?.members) && rooms[name].members.length) ||
+      (Array.isArray(rooms?.[name]?.log) && rooms[name].log.length)
+    ) {
+      names.add(name)
+    }
+  }
 
   for (const [name, room] of Object.entries(rooms || {})) {
     if ((Array.isArray(room?.members) && room.members.length) || (Array.isArray(room?.log) && room.log.length)) {
@@ -4083,16 +4098,30 @@ async function disbandGroupChat(group, members) {
     /* storage unavailable — the atom reset above still empties the room */
   }
 
-  // Remove this membership last. saveBotMeta never throws (local storage +
-  // best-effort profiles.configure per member), so a flaky gateway can't
-  // strand the disband halfway with the room log already gone.
-  for (const member of members) {
-    if (!member?.name || member.remoteSource) {
-      continue
-    }
+  // Scrub this group from EVERY local bot-meta entry — not only the currently
+  // seated `members` list. Orphaned keys (a bot removed via Manage groups, or
+  // meta left behind after a profile delete race) otherwise keep the name in
+  // knownGroups and the roster shows an empty "0 bots" row after Disband.
+  // saveBotMeta never throws (local storage + best-effort profiles.configure),
+  // so a flaky gateway can't strand the disband halfway with the room already gone.
+  const metaByName = $botMeta.get()
+  const toClear = new Set()
 
-    const meta = $botMeta.get()[member.name] || {}
-    await saveBotMeta(member.name, groupMembershipPatch(meta, group, false))
+  for (const [name, meta] of Object.entries(metaByName)) {
+    if (botGroups(meta).includes(group)) {
+      toClear.add(name)
+    }
+  }
+
+  for (const member of members || []) {
+    if (member?.name && !member.remoteSource) {
+      toClear.add(member.name)
+    }
+  }
+
+  for (const name of toClear) {
+    const meta = $botMeta.get()[name] || {}
+    await saveBotMeta(name, groupMembershipPatch(meta, group, false))
   }
 }
 
@@ -9764,7 +9793,7 @@ function GroupChatMainView() {
   const { data } = useRoster({ poll: false })
   const lastRoster = useValue($lastRoster)
   const roster = Array.isArray(data?.profiles) ? data.profiles : lastRoster
-  const known = Boolean(group) && groupChatNames(allMeta, rooms).includes(group)
+  const known = Boolean(group) && groupChatNames(allMeta, rooms, roster).includes(group)
 
   // Count this view while it is mounted: the roster lights the open room's
   // row only while the room is on screen.
@@ -9985,7 +10014,7 @@ function BotsPane() {
   // group's activity is its newest room-log line. Pinned bots still lead;
   // groups and unpinned bots interleave by recency below them.
   const needle = query.trim().toLowerCase()
-  const groupRows = groupChatNames(allMeta, groupRooms)
+  const groupRows = groupChatNames(allMeta, groupRooms, roster)
     .filter(name => !needle || name.toLowerCase().includes(needle))
     .map(name => ({
       kind: 'group',

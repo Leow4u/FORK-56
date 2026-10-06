@@ -93,6 +93,23 @@ test('groupChatNames: unions bot-meta groups with room records that carry member
   )
 })
 
+test('groupChatNames: with a roster, drops orphan meta-only names that seat nobody', () => {
+  const { groupChatNames } = load()
+  const meta = {
+    researcher: { group: 'Research' },
+    // Ghost: meta still names a group, but this profile is gone from the roster.
+    gone: { groups: ['Ghost'], group: 'Ghost' }
+  }
+  const rooms = {
+    Remote: { log: [], members: [{ name: 'spark', remoteSource: true }] }
+  }
+  const roster = [{ name: 'researcher' }]
+
+  const names = groupChatNames(meta, rooms, roster)
+
+  assert.equal(JSON.stringify([...names].sort()), JSON.stringify(['Remote', 'Research']))
+})
+
 test('groupLastActivity: newest room-log timestamp, 0 for silence', () => {
   const { groupLastActivity } = load()
 
