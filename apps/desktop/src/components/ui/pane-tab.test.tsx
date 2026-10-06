@@ -149,4 +149,42 @@ describe('PaneTab hover close button', () => {
 
     expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()
   })
+
+  it('keeps a standing ✕ reachable by keyboard without any hover', () => {
+    const onClose = vi.fn()
+    render(
+      <PaneTab onClose={onClose}>
+        <PaneTabLabel>tab</PaneTabLabel>
+      </PaneTab>
+    )
+
+    const close = screen.getByRole('button', { name: 'Close' })
+    expect(close.tabIndex).toBeGreaterThanOrEqual(0)
+    fireEvent.click(close)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('still closes from a hover-reveal ✕ and still receives focus', () => {
+    const onClose = vi.fn()
+    render(
+      <PaneTab closeButton="hover" onClose={onClose}>
+        <PaneTabLabel>tab</PaneTabLabel>
+      </PaneTab>
+    )
+
+    const close = screen.getByRole('button', { name: 'Close' })
+    expect(close.tabIndex).toBeGreaterThanOrEqual(0)
+    fireEvent.click(close)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders no ✕ on a segment, which is shown or hidden but never closed', () => {
+    render(
+      <PaneTab onClose={vi.fn()} variant="segment">
+        <PaneTabLabel>Sessions</PaneTabLabel>
+      </PaneTab>
+    )
+
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()
+  })
 })

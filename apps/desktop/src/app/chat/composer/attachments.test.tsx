@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { I18nProvider } from '@/i18n/context'
 import type { ComposerAttachment } from '@/store/composer'
-import { $previewTabs } from '@/store/preview'
+import { $previewTabs, closeRightRail } from '@/store/preview'
 
 import { AttachmentList } from './attachments'
 
@@ -74,7 +74,7 @@ describe('AttachmentList', () => {
   })
 
   it('renders the thumbnail in the pill but opens the full-resolution image in the lightbox', async () => {
-    $previewTabs.set([])
+    closeRightRail()
 
     const image: ComposerAttachment = {
       id: 'img',
@@ -237,7 +237,7 @@ describe('AttachmentList', () => {
   })
 
   it('still routes a non-image attachment to the preview rail', async () => {
-    $previewTabs.set([])
+    closeRightRail()
 
     const file: ComposerAttachment = { id: 'doc', kind: 'file', label: 'notes.md', path: '/tmp/notes.md' }
 

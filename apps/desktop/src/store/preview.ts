@@ -4,6 +4,7 @@ import { persistentAtom } from '@/lib/persisted'
 import { normalize } from '@/lib/text'
 
 import { $rightRailActiveTabId, type RightRailTabId, selectRightRailTab } from './layout'
+import { $activeSessionId, $selectedStoredSessionId, $sessions, resolveComposerSessionKey } from './session'
 
 /**
  * PREVIEW RAIL — one list of tabs, one way in.
@@ -14,8 +15,11 @@ import { $rightRailActiveTabId, type RightRailTabId, selectRightRailTab } from '
  * a tool result, a file-browser click, and an artifact card all travel the
  * same road and behave identically once open.
  *
- * Tabs are global and outlive the session that created them, like tabs
- * anywhere else — they close when you close them.
+ * Every tab belongs to the conversation that opened it (`sessionId`, keyed on
+ * the durable lineage root so compression can't orphan it). The rail only ever
+ * shows the focused conversation's tabs: switching away hides them, switching
+ * back restores them, and closing one never touches another conversation.
+ * `$previewTabs` is that scoped view; `$allPreviewTabs` is the persisted whole.
  */
 
 export interface PreviewTarget {
@@ -57,12 +61,18 @@ export type PreviewRecordSource = 'explicit-link' | 'file-browser' | 'manual' | 
 
 export interface PreviewTab {
   id: RightRailTabId
+  /** The conversation that owns this tab (lineage-root id, or the draft scope). */
+  sessionId: string
   target: PreviewTarget
 }
 
-const TABS_STORAGE_KEY = 'work4you.desktop.previewTabs.v2'
-/** Superseded by the tab list above; cleared so it can't leak forever. */
-const LEGACY_SESSION_REGISTRY_KEY = 'work4you.desktop.sessionPreviews.v1'
+const TABS_STORAGE_KEY = 'work4you.desktop.previewTabs.v3'
+/** Superseded storage, cleared so it can't leak forever. The v2 rows carried no
+ *  owning conversation, so they are dropped instead of migrated. */
+const LEGACY_STORAGE_KEYS = ['work4you.desktop.sessionPreviews.v1', 'work4you.desktop.previewTabs.v2']
+
+/** Owner of tabs opened before the first message creates a session. */
+export const DRAFT_PREVIEW_SCOPE = 'draft'
 
 function isPreviewTarget(value: unknown): value is PreviewTarget {
   if (!value || typeof value !== 'object') {
@@ -89,7 +99,13 @@ function isPreviewTab(value: unknown): value is PreviewTab {
 
   const r = value as Record<string, unknown>
 
-  return typeof r.id === 'string' && (r.id.startsWith('file:') || r.id.startsWith('url:')) && isPreviewTarget(r.target)
+  return (
+    typeof r.id === 'string' &&
+    (r.id.startsWith('file:') || r.id.startsWith('url:')) &&
+    typeof r.sessionId === 'string' &&
+    r.sessionId.length > 0 &&
+    isPreviewTarget(r.target)
+  )
 }
 
 function isPdfFileTarget(target: PreviewTarget): boolean {
@@ -124,17 +140,24 @@ export function decodePreviewTabs(raw: string): PreviewTab[] {
       : tab
   )
 
-  // One Browser: rekey restored URL tabs onto the singleton id (rows written
-  // before the id existed carried one id per address) and keep only the
-  // LAST — the most recently opened page is the one the browser shows.
-  const lastUrl = tabs.findLast(tab => tab.target.kind === 'url')
+  // One Browser per conversation: rekey restored URL tabs onto the singleton id
+  // and keep only the LAST of each conversation — the most recently opened page
+  // is the one its browser shows.
+  const lastUrlBySession = new Map<string, PreviewTab>()
+
+  for (const tab of tabs) {
+    if (tab.target.kind === 'url') {
+      lastUrlBySession.set(tab.sessionId, tab)
+    }
+  }
 
   return tabs
-    .filter(tab => tab.target.kind !== 'url' || tab === lastUrl)
+    .filter(tab => tab.target.kind !== 'url' || lastUrlBySession.get(tab.sessionId) === tab)
     .map(tab => (tab.target.kind === 'url' ? { ...tab, id: previewTabId(tab.target) } : tab))
 }
 
-export const $previewTabs = persistentAtom<PreviewTab[]>(TABS_STORAGE_KEY, [], {
+/** Every conversation's tabs, persisted. Read it through `$previewTabs`. */
+export const $allPreviewTabs = persistentAtom<PreviewTab[]>(TABS_STORAGE_KEY, [], {
   decode: decodePreviewTabs,
   // Inline bytes are not restorable. Strip them from images, and skip remote
   // HTML and artifact tabs that cannot render without their in-memory payload.
@@ -152,11 +175,39 @@ export const $previewTabs = persistentAtom<PreviewTab[]>(TABS_STORAGE_KEY, [], {
 
 if (typeof window !== 'undefined') {
   try {
-    window.localStorage.removeItem(LEGACY_SESSION_REGISTRY_KEY)
+    LEGACY_STORAGE_KEYS.forEach(key => window.localStorage.removeItem(key))
   } catch {
     // Storage access can throw in locked-down contexts; nothing depends on it.
   }
 }
+
+/** The conversation whose tabs the rail shows: the primary selection's lineage
+ *  root, so compression's id rotation keeps its tabs, or the draft scope. */
+export const $previewScope = computed(
+  [$selectedStoredSessionId, $sessions],
+  (selected, sessions) => resolveComposerSessionKey(selected, sessions) ?? DRAFT_PREVIEW_SCOPE
+)
+
+// A draft whose runtime is already live gets its stored id a beat later (the
+// first message creates the session). Tabs opened meanwhile were scoped to the
+// draft; they belong to the conversation it just became. Resuming some OTHER
+// conversation from an empty draft has no live runtime yet, so it never adopts.
+let lastSelectedSessionId = $selectedStoredSessionId.get()
+
+$selectedStoredSessionId.listen(selected => {
+  const previous = lastSelectedSessionId
+
+  lastSelectedSessionId = selected
+
+  if (previous === null && selected && $activeSessionId.get()) {
+    adoptDraftPreviewTabs(selected)
+  }
+})
+
+/** The focused conversation's tabs — what the rail, ⌘W and the panes read. */
+export const $previewTabs = computed([$allPreviewTabs, $previewScope], (tabs, scope) =>
+  tabs.filter(tab => tab.sessionId === scope)
+)
 
 /** The tab the rail actually shows. A stale or missing selection falls back to
  *  the first tab, so the strip, `⌘W`, and the pane never disagree about which
@@ -170,8 +221,12 @@ function activePreviewTab(): PreviewTab | null {
 }
 
 // A restored active id whose tab didn't survive validation would leave the rail
-// pointing at nothing.
-selectRightRailTab(activePreviewTab()?.id ?? null)
+// pointing at nothing — and so would a switch to a conversation that doesn't own
+// the previously selected tab.
+const reconcileActiveTab = () => selectRightRailTab(activePreviewTab()?.id ?? null)
+
+reconcileActiveTab()
+$previewScope.listen(reconcileActiveTab)
 
 /** The target the rail is currently showing, or null when it has no tabs. */
 export const $previewTarget = computed(
@@ -218,11 +273,12 @@ function previewTargetForSource(target: PreviewTarget, source: PreviewRecordSour
 export function openPreview(target: PreviewTarget, source: PreviewRecordSource = 'manual') {
   const resolved = previewTargetForSource(target, source)
   const id = previewTabId(resolved)
-  const current = $previewTabs.get()
-  const index = current.findIndex(tab => tab.id === id)
-  const tab: PreviewTab = { id, target: resolved }
+  const sessionId = $previewScope.get()
+  const current = $allPreviewTabs.get()
+  const index = current.findIndex(tab => tab.id === id && tab.sessionId === sessionId)
+  const tab: PreviewTab = { id, sessionId, target: resolved }
 
-  $previewTabs.set(index === -1 ? [...current, tab] : current.map((item, i) => (i === index ? tab : item)))
+  $allPreviewTabs.set(index === -1 ? [...current, tab] : current.map((item, i) => (i === index ? tab : item)))
   selectRightRailTab(id)
 }
 
@@ -236,6 +292,7 @@ export function openBrowserTab() {
 }
 
 export function closeRightRailTab(tabId: string) {
+  const sessionId = $previewScope.get()
   const current = $previewTabs.get()
   const index = current.findIndex(tab => tab.id === tabId)
 
@@ -245,7 +302,7 @@ export function closeRightRailTab(tabId: string) {
 
   const next = current.filter(tab => tab.id !== tabId)
 
-  $previewTabs.set(next)
+  $allPreviewTabs.set($allPreviewTabs.get().filter(tab => !(tab.id === tabId && tab.sessionId === sessionId)))
 
   if ($rightRailActiveTabId.get() === tabId) {
     selectRightRailTab(next[Math.min(index, next.length - 1)]?.id ?? null)
@@ -294,12 +351,37 @@ export function closeArtifactPreviewTabs() {
       closeRightRailTab(tab.id)
     }
   }
+
+  // Other conversations' artifact tabs are just as stale, and have no pane open.
+  $allPreviewTabs.set($allPreviewTabs.get().filter(tab => tab.target.kind !== 'artifact'))
 }
 
-/** Close every tab so the rail's panes leave the tree. */
+/** Close the focused conversation's tabs so its panes leave the tree. Other
+ *  conversations keep theirs. */
 export function closeRightRail() {
-  $previewTabs.set([])
+  const sessionId = $previewScope.get()
+
+  $allPreviewTabs.set($allPreviewTabs.get().filter(tab => tab.sessionId !== sessionId))
   selectRightRailTab(null)
+}
+
+/** A draft just became a real conversation: its tabs follow it. A tab the new
+ *  conversation already holds wins over the draft's copy. */
+function adoptDraftPreviewTabs(sessionId: string) {
+  const key = resolveComposerSessionKey(sessionId.trim(), $sessions.get()) ?? ''
+  const all = $allPreviewTabs.get()
+
+  if (!key || key === DRAFT_PREVIEW_SCOPE || !all.some(tab => tab.sessionId === DRAFT_PREVIEW_SCOPE)) {
+    return
+  }
+
+  const owned = new Set(all.filter(tab => tab.sessionId === key).map(tab => tab.id))
+
+  $allPreviewTabs.set(
+    all.flatMap(tab =>
+      tab.sessionId !== DRAFT_PREVIEW_SCOPE ? [tab] : owned.has(tab.id) ? [] : [{ ...tab, sessionId: key }]
+    )
+  )
 }
 
 export function requestPreviewReload() {

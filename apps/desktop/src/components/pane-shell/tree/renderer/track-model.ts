@@ -22,11 +22,11 @@ export const MIN_PANE_PX = 80
 /**
  * The floor for a TOOL PANEL zone (terminal / logs) instead of `MIN_PANE_PX`.
  * A tool panel is meant to be draggable down to nothing — the minimized rail
- * (its header strip, `h-7`) is the smallest meaningful form, so the sash lets
+ * (its header strip, `h-9`) is the smallest meaningful form, so the sash lets
  * it shrink to exactly that and then collapses the zone rather than jamming
  * against an 80px floor with a sliver of unusable content still showing.
  */
-export const COLLAPSED_ZONE_PX = 28
+export const COLLAPSED_ZONE_PX = 36
 
 /** Optional CSS sizing a pane contributes (`data.width` / `data.minWidth`…).
  *  Applied to the pane's GROUP along the axis of the split that contains it —
@@ -65,7 +65,7 @@ interface PaneChrome extends PaneSizing {
   /** No Close in the tab menu — the one surface the app can't lose (the
    *  main workspace). Session tiles share `placement: 'main'` but close. */
   uncloseable?: boolean
-  /** Hide the hover ✕ while retaining explicit close behavior for this pane. */
+  /** Hide the ✕ while retaining explicit close behavior for this pane. */
   showCloseButton?: boolean
   /** Standing chrome tab (sessions / Bots) whose tab shows NO ✕ and no Close
    *  verbs — it is shown/hidden instead (the zone menu's Show/Hide rows and a
@@ -172,8 +172,8 @@ export const cssMax = (values: (string | null | undefined)[]): string | undefine
  * fraction of the window.
  */
 /** A minimized zone IS its strip: the vertical rail (row) / header (column)
- *  are both 28px thick. */
-export const MINIMIZED_TRACK = '1.75rem'
+ *  are both 36px thick (the tab strip's `h-9`). */
+export const MINIMIZED_TRACK = '2.25rem'
 
 /**
  * In an all-fixed split, the last uncapped track may absorb leftover space
