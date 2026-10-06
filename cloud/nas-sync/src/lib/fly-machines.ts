@@ -212,14 +212,16 @@ export async function extendVolume(args: {
     await flyFetch(
       `/apps/${encodeURIComponent(args.appName)}/volumes/${encodeURIComponent(args.volumeId)}/extend`,
       {
-        method: 'POST',
+        // Fly routes extend on PUT only; POST answers a bare "404 page not found".
+        method: 'PUT',
         body: JSON.stringify({ size_gb: args.sizeGb }),
       },
     )
   } catch (error) {
     if (flyAlreadyExists(error)) return
     const message = error instanceof Error ? error.message : ''
-    if (/greater than or equal|already at|not larger|cannot be smaller|same size/i.test(message)) {
+    // Fly's same-size reply: "Specified volume size must be greater than 10".
+    if (/greater than|already at|not larger|cannot be smaller|same size/i.test(message)) {
       return
     }
     throw error
