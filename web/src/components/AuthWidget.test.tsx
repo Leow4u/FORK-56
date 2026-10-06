@@ -4,12 +4,31 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { FooterPlan } from "@/app/account/use-account-footer";
+import type { PortalAccountIdentity } from "@/lib/api";
+
 const apiMocks = vi.hoisted(() => ({
   getAuthMe: vi.fn(),
   logout: vi.fn(async () => new Response()),
 }));
 
+const footer = vi.hoisted(() => ({
+  identity: null as PortalAccountIdentity | null,
+  plan: null as FooterPlan | null,
+}));
+
 vi.mock("@/lib/api", () => ({ api: apiMocks }));
+
+vi.mock("@/app/account/use-account-footer", async () => {
+  const { accountCopyFor } = await import("@/app/account/copy");
+  return {
+    useAccountFooter: () => ({
+      copy: accountCopyFor("en"),
+      identity: footer.identity,
+      plan: footer.plan,
+    }),
+  };
+});
 
 vi.mock("@/plugins", () => ({
   usePlugins: () => ({
@@ -27,6 +46,7 @@ vi.mock("@/plugins", () => ({
 
 vi.mock("@/i18n", () => ({
   useI18n: () => ({
+    locale: "en",
     t: {
       app: {
         brand: "Work4You",
@@ -39,8 +59,8 @@ vi.mock("@/i18n", () => ({
 }));
 
 function LocationProbe() {
-  const { pathname } = useLocation();
-  return <span data-testid="location">{pathname}</span>;
+  const { pathname, search } = useLocation();
+  return <span data-testid="location">{`${pathname}${search}`}</span>;
 }
 
 let container: HTMLDivElement;
@@ -62,6 +82,16 @@ async function renderWidget() {
   });
 }
 
+function trigger(): HTMLButtonElement {
+  return container.querySelector('button[aria-haspopup="menu"]') as HTMLButtonElement;
+}
+
+function openMenu() {
+  act(() => {
+    trigger().click();
+  });
+}
+
 function menuItems(): string[] {
   const menu = document.body.querySelector('[role="menu"]');
   if (!menu) return [];
@@ -70,13 +100,29 @@ function menuItems(): string[] {
   );
 }
 
-describe("AuthWidget footer user area", () => {
+function clickItem(label: string) {
+  const item = Array.from(
+    document.body.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+  ).find((b) => b.textContent?.trim() === label);
+  expect(item, `menu item ${label}`).toBeTruthy();
+  act(() => {
+    item!.click();
+  });
+}
+
+function location(): string | null | undefined {
+  return container.querySelector('[data-testid="location"]')?.textContent;
+}
+
+describe("AuthWidget footer account area", () => {
   beforeEach(() => {
     (
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
     apiMocks.getAuthMe.mockReset();
     apiMocks.logout.mockClear();
+    footer.identity = null;
+    footer.plan = null;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -94,67 +140,83 @@ describe("AuthWidget footer user area", () => {
       .__WORK4YOU_AUTH_REQUIRED__;
   });
 
-  it("loopback (ungated): account row opens Settings and Documentation menu items", async () => {
+  it("loopback (ungated): the menu reaches Account, Settings, Profile, Docs and plugins", async () => {
     await renderWidget();
-    const trigger = container.querySelector(
-      'button[aria-haspopup="menu"]',
-    ) as HTMLButtonElement;
-    expect(trigger).toBeTruthy();
-    expect(trigger.textContent).toContain("Work4You");
-    expect(trigger.textContent).not.toContain("Settings");
+    expect(trigger().textContent).toContain("Work4You");
+    expect(trigger().textContent).not.toContain("Settings");
 
-    act(() => {
-      trigger.click();
-    });
-    expect(menuItems()).toEqual(["Settings", "Documentation", "Achievements"]);
+    openMenu();
+    expect(menuItems()).toEqual([
+      "Account",
+      "Settings",
+      "Profile",
+      "Documentation",
+      "Achievements",
+    ]);
 
-    act(() => {
-      (
-        document.body.querySelectorAll('[role="menuitem"]')[0] as HTMLButtonElement
-      ).click();
-    });
-    expect(
-      container.querySelector('[data-testid="location"]')?.textContent,
-    ).toBe("/settings");
+    clickItem("Settings");
+    expect(location()).toBe("/settings");
   });
 
-  it("loopback (ungated): Documentation menu item navigates to /docs", async () => {
+  it("Account and Profile open the account surface on the right section", async () => {
     await renderWidget();
-    const trigger = container.querySelector(
-      'button[aria-haspopup="menu"]',
-    ) as HTMLButtonElement;
-    act(() => {
-      trigger.click();
-    });
-    act(() => {
-      (
-        document.body.querySelectorAll('[role="menuitem"]')[1] as HTMLButtonElement
-      ).click();
-    });
-    expect(
-      container.querySelector('[data-testid="location"]')?.textContent,
-    ).toBe("/docs");
+    openMenu();
+    clickItem("Account");
+    expect(location()).toBe("/account");
+
+    openMenu();
+    clickItem("Profile");
+    expect(location()).toBe("/account?section=profile");
   });
 
-  it("loopback (ungated): Achievements menu item navigates to /achievements", async () => {
+  it("Documentation and plugin items navigate to their routes", async () => {
     await renderWidget();
-    const trigger = container.querySelector(
-      'button[aria-haspopup="menu"]',
-    ) as HTMLButtonElement;
-    act(() => {
-      trigger.click();
-    });
-    act(() => {
-      (
-        document.body.querySelectorAll('[role="menuitem"]')[2] as HTMLButtonElement
-      ).click();
-    });
-    expect(
-      container.querySelector('[data-testid="location"]')?.textContent,
-    ).toBe("/achievements");
+    openMenu();
+    clickItem("Documentation");
+    expect(location()).toBe("/docs");
+
+    openMenu();
+    clickItem("Achievements");
+    expect(location()).toBe("/achievements");
   });
 
-  it("gated: clicking the identity opens Settings, Documentation, and Log out", async () => {
+  it("shows the portal person and plan instead of the opaque user id", async () => {
+    (window as { __WORK4YOU_AUTH_REQUIRED__?: boolean }).__WORK4YOU_AUTH_REQUIRED__ =
+      true;
+    apiMocks.getAuthMe.mockResolvedValue({
+      user_id: "did:privy:cmt2abcdef",
+      display_name: "",
+      email: "",
+      provider: "work4you",
+    });
+    footer.identity = { email: "ana@example.com", logged_in: true, name: "Ana Souza" };
+    footer.plan = { isFree: false, label: "Plus", upgradable: false };
+    await renderWidget();
+
+    expect(trigger().textContent).toContain("Ana Souza");
+    expect(trigger().textContent).toContain("Plus");
+    expect(trigger().textContent).not.toContain("did:privy");
+  });
+
+  it("Free plan: Upgrade leads with the plans grid", async () => {
+    footer.plan = { isFree: true, label: "Free plan", upgradable: true };
+    await renderWidget();
+    expect(trigger().textContent).toContain("Free plan");
+
+    openMenu();
+    expect(menuItems()[0]).toBe("Upgrade plan");
+    clickItem("Upgrade plan");
+    expect(location()).toBe("/account?section=billing&view=plans");
+  });
+
+  it("paid plan: no Upgrade item", async () => {
+    footer.plan = { isFree: false, label: "Plus", upgradable: false };
+    await renderWidget();
+    openMenu();
+    expect(menuItems()).not.toContain("Upgrade plan");
+  });
+
+  it("gated: the identity menu ends with Log out", async () => {
     (window as { __WORK4YOU_AUTH_REQUIRED__?: boolean }).__WORK4YOU_AUTH_REQUIRED__ =
       true;
     apiMocks.getAuthMe.mockResolvedValue({
@@ -165,26 +227,11 @@ describe("AuthWidget footer user area", () => {
     });
     await renderWidget();
 
-    const identity = container.querySelector(
-      'button[aria-haspopup="menu"]',
-    ) as HTMLButtonElement;
-    expect(identity.textContent).toContain("did:privy:cmt2…");
+    expect(trigger().textContent).toContain("did:privy:cmt2…");
 
-    act(() => {
-      identity.click();
-    });
-    expect(menuItems()).toEqual([
-      "Settings",
-      "Documentation",
-      "Achievements",
-      "Log out",
-    ]);
-
-    act(() => {
-      (
-        document.body.querySelectorAll('[role="menuitem"]')[3] as HTMLButtonElement
-      ).click();
-    });
+    openMenu();
+    expect(menuItems().at(-1)).toBe("Log out");
+    clickItem("Log out");
     expect(apiMocks.logout).toHaveBeenCalled();
   });
 });

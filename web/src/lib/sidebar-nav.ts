@@ -56,6 +56,7 @@ export const WEB_OVERLAY_ROUTES_NOT_IN_NAV = [
   "/webhooks",
   "/profiles",
   "/settings",
+  "/account",
   "/docs",
   "/agents",
   "/starmap",
@@ -68,10 +69,24 @@ export function isSettingsPath(pathname: string): boolean {
   return normalized === "/settings";
 }
 
-/** Stash the last non-Settings route so closing Settings returns there. */
+export function isAccountPath(pathname: string): boolean {
+  const normalized = pathname.replace(/\/$/, "") || "/";
+  return normalized === "/account";
+}
+
+/**
+ * Full-screen surfaces opened from the footer account menu (Settings,
+ * Account): product sidebar and page header hidden, closed back to the
+ * route the user came from.
+ */
+export function isDedicatedSurfacePath(pathname: string): boolean {
+  return isSettingsPath(pathname) || isAccountPath(pathname);
+}
+
+/** Stash the last ordinary route so closing Settings / Account returns there. */
 export function rememberSettingsReturnPath(pathname: string, search = ""): void {
   if (typeof sessionStorage === "undefined") return;
-  if (isSettingsPath(pathname)) return;
+  if (isDedicatedSurfacePath(pathname)) return;
   try {
     sessionStorage.setItem(
       SETTINGS_RETURN_STORAGE_KEY,
@@ -88,7 +103,7 @@ export function readSettingsReturnPath(fallback = "/chat"): string {
     const stored = sessionStorage.getItem(SETTINGS_RETURN_STORAGE_KEY);
     if (!stored) return fallback;
     const storedPath = stored.split("?")[0] ?? stored;
-    if (isSettingsPath(storedPath)) return fallback;
+    if (isDedicatedSurfacePath(storedPath)) return fallback;
     return stored;
   } catch {
     return fallback;

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { PageHeaderContext } from "./page-header-context";
-import { isSettingsPath } from "@/lib/sidebar-nav";
+import { isDedicatedSurfacePath } from "@/lib/sidebar-nav";
 import { resolvePageTitle } from "@/lib/resolve-page-title";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
@@ -38,7 +38,7 @@ export function PageHeaderProvider({
   const isChatRoute = pathname === "/chat" || pathname === "/chat/";
   const isStarmapRoute =
     pathname === "/starmap" || pathname === "/starmap/";
-  const isSettingsRoute = isSettingsPath(pathname);
+  const isSettingsRoute = isDedicatedSurfacePath(pathname);
   /** Env jump-nav is wide — stack below title on small screens so KEYS stays readable. */
   const isEnvRoute =
     pathname === "/env" || pathname.startsWith("/env/");

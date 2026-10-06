@@ -81,6 +81,7 @@ const EnvPage = lazy(() => import("@/pages/EnvPage"));
 const SessionsPage = lazy(() => import("@/pages/SessionsPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
+const AccountPage = lazy(() => import("@/pages/AccountPage"));
 const CronPage = lazy(() => import("@/pages/CronPage"));
 const ProfilesPage = lazy(() => import("@/pages/ProfilesPage"));
 const ProfileBuilderPage = lazy(() => import("@/pages/ProfileBuilderPage"));
@@ -111,8 +112,8 @@ import { isDashboardEmbeddedChatEnabled } from "@/lib/dashboard-flags";
 import { latchChatActivation, shouldKeepChatHost } from "@/lib/chat-activation";
 import { api } from "@/lib/api";
 import {
+  isDedicatedSurfacePath,
   isNewSessionNavItem,
-  isSettingsPath,
   rememberSettingsReturnPath,
   userSidebarNavForEmbeddedChat,
   type UserSidebarNavSpec,
@@ -213,6 +214,7 @@ const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
   // /analytics. See ModelsRouteGate.
   "/models": ModelsRouteGate,
   "/settings": SettingsPage,
+  "/account": AccountPage,
   // Operator-only diagnostics: fully absent unless dashboard.show_logs_admin
   // is set (the gate redirects home). See LogsRouteGate.
   "/logs": LogsRouteGate,
@@ -486,7 +488,7 @@ export default function App() {
   const normalizedPath = pathname.replace(/\/$/, "") || "/";
   const isChatRoute = normalizedPath === "/chat";
   const isStarmapRoute = normalizedPath === "/starmap";
-  const isSettingsRoute = isSettingsPath(pathname);
+  const isSettingsRoute = isDedicatedSurfacePath(pathname);
   const isFillRoute =
     isChatRoute || isDocsRoute || isStarmapRoute || isSettingsRoute;
   const embeddedChat = isDashboardEmbeddedChatEnabled();

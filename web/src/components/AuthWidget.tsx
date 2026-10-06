@@ -1,9 +1,12 @@
 /**
- * AuthWidget — sidebar footer user area: identity + Settings + Docs + Log out.
+ * AuthWidget — sidebar footer account area: identity + plan, and the account
+ * menu (Upgrade, Account, Settings, Profile, Docs, Log out).
  *
- * Mirrors the desktop-app / Cursor pattern: the logged-in identity sits at
- * the bottom of the sidebar; clicking it opens a small drop-up menu with
- * "Settings", "Docs", "Achievements", and (when authenticated) "Log out".
+ * Mirrors the desktop-app / Cursor pattern: the person and their plan sit at
+ * the bottom of the sidebar; clicking opens a drop-up menu into the Account
+ * surface (/account — plan, billing, usage, profile), Settings, and Docs.
+ * The name/email come from the Portal account cached by the agent
+ * (/api/portal/account); the plan from the billing RPCs.
  *
  * Auth behavior (unchanged from the original OAuth-gate widget):
  *   - Gated mode (non-loopback, OAuth/password): fetches /api/auth/me and
@@ -24,8 +27,17 @@ import { useNavigate } from "react-router";
 import { api, type AuthMeResponse } from "@/lib/api";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { BookOpen, LogOut, Settings, Star } from "lucide-react";
+import {
+  BookOpen,
+  CircleUser,
+  LogOut,
+  Settings,
+  Sparkles,
+  Star,
+  User,
+} from "lucide-react";
 import { usePlugins } from "@/plugins";
+import { useAccountFooter } from "@/app/account/use-account-footer";
 
 interface AuthWidgetProps {
   className?: string;
@@ -42,6 +54,7 @@ function truncateUserId(id: string): string {
 export function AuthWidget({ className }: AuthWidgetProps) {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const account = useAccountFooter();
   const [me, setMe] = useState<AuthMeResponse | null>(null);
   const [hidden, setHidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,9 +68,10 @@ export function AuthWidget({ className }: AuthWidgetProps) {
     (m) => m.tab.hidden && !m.tab.override,
   );
 
-  const settingsLabel = t.app.nav.settings ?? "Settings";
-  const docsLabel = t.app.nav.documentation ?? "Docs";
-  const logOutLabel = t.app.logOut ?? "Log out";
+  const menuCopy = account.copy.menu;
+  const settingsLabel = t.app.nav.settings ?? menuCopy.settings;
+  const docsLabel = t.app.nav.documentation ?? menuCopy.docs;
+  const logOutLabel = t.app.logOut ?? menuCopy.logOut;
 
   const gated =
     typeof window !== "undefined" && !!window.__WORK4YOU_AUTH_REQUIRED__;
@@ -106,20 +120,14 @@ export function AuthWidget({ className }: AuthWidgetProps) {
 
   const closeMenu = () => setMenuOpen(false);
 
-  const openSettings = () => {
-    closeMenu();
-    navigate("/settings");
-  };
-
-  const openDocs = () => {
-    closeMenu();
-    navigate("/docs");
-  };
-
-  const openAccountMenuPlugin = (path: string) => {
+  const go = (path: string) => {
     closeMenu();
     navigate(path);
   };
+
+  const openSettings = () => go("/settings");
+  const openDocs = () => go("/docs");
+  const openAccountMenuPlugin = (path: string) => go(path);
 
   const handleLogout = () => {
     closeMenu();
@@ -134,7 +142,9 @@ export function AuthWidget({ className }: AuthWidgetProps) {
   const showLogout = gated && !hidden && !!me && !error;
 
   const identityAbsent = !gated || hidden;
+  const portalName = account.identity?.name || account.identity?.email || null;
   const primaryLabel = (() => {
+    if (portalName) return portalName;
     if (error) return error;
     if (me) {
       return me.display_name || me.email || truncateUserId(me.user_id);
@@ -143,10 +153,15 @@ export function AuthWidget({ className }: AuthWidgetProps) {
   })();
 
   const secondaryLabel = (() => {
+    if (account.plan) return account.plan.label;
     if (me) return `via ${me.provider}`;
     if (identityAbsent) return null;
     return "…";
   })();
+
+  const upgradePath = account.plan?.upgradable
+    ? "/account?section=billing&view=plans"
+    : "/account?section=billing";
 
   const menu = (() => {
     if (!menuOpen) return null;
@@ -167,6 +182,26 @@ export function AuthWidget({ className }: AuthWidgetProps) {
         className="fixed z-[100] min-w-[11rem] border border-border bg-popover py-1 shadow-md"
         style={{ bottom: window.innerHeight - rect.top + 4, left: rect.left }}
       >
+        {account.plan?.isFree && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => go(upgradePath)}
+            className={cn(itemClass, "text-foreground")}
+          >
+            <Sparkles className="h-3 w-3 shrink-0" />
+            <span className="truncate">{menuCopy.upgrade}</span>
+          </button>
+        )}
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => go("/account")}
+          className={itemClass}
+        >
+          <CircleUser className="h-3 w-3 shrink-0" />
+          <span className="truncate">{menuCopy.account}</span>
+        </button>
         <button
           type="button"
           role="menuitem"
@@ -175,6 +210,15 @@ export function AuthWidget({ className }: AuthWidgetProps) {
         >
           <Settings className="h-3 w-3 shrink-0" />
           <span className="truncate">{settingsLabel}</span>
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => go("/account?section=profile")}
+          className={itemClass}
+        >
+          <User className="h-3 w-3 shrink-0" />
+          <span className="truncate">{menuCopy.profile}</span>
         </button>
         <button
           type="button"
@@ -224,7 +268,9 @@ export function AuthWidget({ className }: AuthWidgetProps) {
       )}
       role="status"
       aria-label={
-        me ? `Logged in as ${primaryLabel}` : `Account menu — ${primaryLabel}`
+        me || portalName
+          ? `Logged in as ${primaryLabel}`
+          : `Account menu — ${primaryLabel}`
       }
     >
       <button

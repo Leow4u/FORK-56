@@ -1,15 +1,25 @@
 import { useQuery } from '@tanstack/react-query'
+import {
+  buildManageSubscriptionUrl,
+  classifyPlanTiers,
+  FALLBACK_PORTAL_BILLING_URL,
+  FALLBACK_PORTAL_URL,
+  findCurrentTier,
+  isFreeCatalogTier,
+  isFreePlan,
+  plansCapable
+} from '@work4you/shared/billing-plan'
 
 import { fmtDate } from '@/lib/time'
 
 import type { BillingRefusal, BillingResult } from './api'
 import { useBillingApi } from './api'
 import { resolveRefusal } from './errors'
-import type { BillingStateResponse, SubscriptionStateResponse, SubscriptionTierOption, UsageModelData } from './types'
+import type { BillingStateResponse, SubscriptionStateResponse, UsageModelData } from './types'
+
+export { buildManageSubscriptionUrl, FALLBACK_PORTAL_BILLING_URL, FALLBACK_PORTAL_URL }
 
 export const EMPTY_BILLING_VALUE = '—'
-export const FALLBACK_PORTAL_BILLING_URL = 'https://portal.work4you.ai/billing'
-export const FALLBACK_PORTAL_URL = 'https://portal.work4you.ai'
 
 // The billing endpoint is the authoritative source of truth for balance / cap /
 // plan — the inference `x-work4you-credits-*` headers are best-effort and can drift
@@ -243,41 +253,6 @@ export function deriveBillingView(
   }
 }
 
-export function buildManageSubscriptionUrl(
-  subscription?: null | Pick<SubscriptionStateResponse, 'org_id' | 'portal_url'>,
-  fallbackPortalUrl?: null | string,
-  // Optional tier to pre-select on the portal, appended as `plan=<tierId>`
-  // (validated server-side by the NAS reader, draft #748).
-  tierId?: null | string
-): string {
-  // The hard-coded portal is the LAST-RESORT origin, not a bare early return:
-  // org_id / plan must still be applied to it so a null portal_url never silently
-  // strips the params that route the user to the right org + pre-selected tier.
-  const portalUrls = [subscription?.portal_url, fallbackPortalUrl, FALLBACK_PORTAL_BILLING_URL].filter(
-    (url): url is string => typeof url === 'string' && url.length > 0
-  )
-
-  for (const portalUrl of portalUrls) {
-    try {
-      const url = new URL('/manage-subscription', new URL(portalUrl).origin)
-
-      if (subscription?.org_id) {
-        url.searchParams.set('org_id', subscription.org_id)
-      }
-
-      if (tierId) {
-        url.searchParams.set('plan', tierId)
-      }
-
-      return url.toString()
-    } catch {
-      // Try the next candidate; malformed portal URLs should not break settings.
-    }
-  }
-
-  return FALLBACK_PORTAL_BILLING_URL
-}
-
 export function formatBillingDate(value?: null | string): string {
   if (!value) {
     return EMPTY_BILLING_VALUE
@@ -328,52 +303,6 @@ function noCardNotice(billing: BillingStateResponse): BillingNoticeView | undefi
   }
 }
 
-function isFreeCatalogTier(tier: { name?: string; tier_id?: string }): boolean {
-  return (tier.name || '').trim().toLowerCase() === 'free' || (tier.tier_id || '').trim().toLowerCase() === 'free'
-}
-
-function isPaidSubscriptionCurrent(
-  current: null | undefined | NonNullable<SubscriptionStateResponse['current']>
-): boolean {
-  if (!current?.tier_id || current.tier_id === 'free') {
-    return false
-  }
-
-  return (current.tier_name || '').trim().toLowerCase() !== 'free'
-}
-
-// The active tier from the UNFILTERED catalog — a grandfathered current tier is
-// is_enabled:false, so it must still resolve here (by is_current or matching id).
-// A Free account (`current: null`) may only resolve to a Free catalog tile —
-// never a stale `is_current` on Plus, and never the cheapest remaining paid tier.
-function findCurrentTier(subscription: null | SubscriptionStateResponse): SubscriptionTierOption | undefined {
-  const current = subscription?.current
-  const tiers = subscription?.tiers
-
-  if (!tiers?.length) {
-    return undefined
-  }
-
-  if (!isPaidSubscriptionCurrent(current)) {
-    return tiers.find(isFreeCatalogTier)
-  }
-
-  return tiers.find(tier => tier.is_current || tier.tier_id === current?.tier_id)
-}
-
-// Whether this account can change plans in-app: a personal (non-team) subscription
-// the server says the user can change, whose payload actually loaded.
-function plansCapable(
-  subscription: null | SubscriptionStateResponse,
-  subscriptionResult: BillingResult<SubscriptionStateResponse> | undefined
-): boolean {
-  if (!subscription || (subscriptionResult && !subscriptionResult.ok)) {
-    return false
-  }
-
-  return subscription.context !== 'team' && Boolean(subscription.can_change_plan)
-}
-
 // Monthly credits are dollars; NAS sends a bare decimal string. Never render a
 // bare number — always "$110 credits/mo" (mirrors the retired subscriptionTierChips).
 function creditsPerMonthDisplay(monthlyCredits: null | string): string | undefined {
@@ -406,27 +335,6 @@ export function formatMonthlyCreditsDelta(delta?: null | string): null | string 
  * subscription, top tier, empty catalog) the card ALWAYS carries the portal
  * escape-hatch link so the user is never stranded on an info-only card.
  */
-function isFreePlan(billing: BillingStateResponse, subscription: null | SubscriptionStateResponse): boolean {
-  const current = subscription?.current
-
-  if (current?.tier_id && current.tier_id !== 'free') {
-    return false
-  }
-
-  const plan = (current?.tier_name ?? billing.usage?.plan_name ?? '').trim().toLowerCase()
-
-  if (plan && plan !== 'free') {
-    return false
-  }
-
-  if (current?.tier_id === 'free' || plan === 'free') {
-    return true
-  }
-
-  // NAS Free: subscription payload loaded with current: null.
-  return subscription != null && current == null
-}
-
 function derivePlanCard(
   billing: BillingStateResponse,
   subscription: null | SubscriptionStateResponse,
@@ -532,29 +440,11 @@ function derivePlanTiers(
     return []
   }
 
-  const allTiers = subscription.tiers ?? []
-  const explicitCurrent = findCurrentTier(subscription)
-
-  // The grid shows the enabled catalog plus the grandfathered current tier (so it
-  // still renders as the inert "Current plan" card), sorted low→high.
-  const gridTiers = allTiers
-    .filter(tier => tier.is_enabled || tier.tier_id === explicitCurrent?.tier_id)
-    .slice()
-    .sort((a, b) => a.tier_order - b.tier_order)
-
-  if (gridTiers.length === 0) {
-    return []
-  }
-
-  // No paid subscription → a Free tile (if present) is current. Do not fall back
-  // to gridTiers[0]: NAS often omits Free, and that leftover was Plus.
-  const currentTier = explicitCurrent
-  const currentOrder = currentTier?.tier_order
   const manageBase = subscription.portal_url ?? fallbackPortalUrl
   // Only a downgrade has a target tier to mark; a cancellation has none.
   const pendingName = pending?.kind === 'downgrade' ? pending.tierName : null
 
-  return gridTiers.map((tier): BillingPlanTierView => {
+  return classifyPlanTiers(subscription, pendingName).map(({ state, tier }): BillingPlanTierView => {
     const freeTile = isFreeCatalogTier(tier)
 
     const base: BillingPlanTierBase = {
@@ -565,29 +455,15 @@ function derivePlanTiers(
       tierId: tier.tier_id
     }
 
-    if (currentTier && tier.tier_id === currentTier.tier_id) {
-      return { ...base, state: 'current' }
+    if (state === 'upgrade') {
+      return {
+        ...base,
+        action: { label: 'Choose ↗', url: buildManageSubscriptionUrl(subscription, manageBase, tier.tier_id) },
+        state
+      }
     }
 
-    // A scheduled downgrade target is inert (matched by name — NAS sends no id for
-    // the pending target). Name is a safe key: SubscriptionTypes.name is @unique in
-    // NAS, so two tiers can't collide. Checked before the downgrade branch since the
-    // target IS a lower tier.
-    if (pendingName && tier.name === pendingName) {
-      return { ...base, state: 'scheduled' }
-    }
-
-    // Downgrade = strictly below the current tier's order → an in-app chargeless
-    // change (the PlanCard wires the confirm flow by tierId).
-    if (currentOrder != null && tier.tier_order < currentOrder) {
-      return { ...base, state: 'downgrade' }
-    }
-
-    return {
-      ...base,
-      action: { label: 'Choose ↗', url: buildManageSubscriptionUrl(subscription, manageBase, tier.tier_id) },
-      state: 'upgrade'
-    }
+    return { ...base, state }
   })
 }
 
