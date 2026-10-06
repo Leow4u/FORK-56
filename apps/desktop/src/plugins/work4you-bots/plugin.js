@@ -668,7 +668,8 @@ const BOT_MODE_LOCALES = {
       generationFailed: 'falha na geração',
       generateFailed: 'Falha ao gerar o avatar',
       removeImage: 'Remover imagem — usar forma',
-      blobAuto: 'Automático',
+      // "Auto", as in English: the label sits in a 44px cell; the hint spells it out.
+      blobAuto: 'Auto',
       blobAutoHint: 'Automático — o nome decide',
       randomize: 'Sortear',
       unlockHint: 'Destravar — o rosto volta a seguir o nome do agente',
