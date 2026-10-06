@@ -1,4 +1,4 @@
-import { cloudAgentChatUrl } from './cloud-agent-chat.ts'
+import { cloudAgentChatUrl } from './cloud-agent-chat'
 
 /**
  * Cloud chat / Fly VM is paid-only (Plus, Super, Ultra). Free matches Cursor:
