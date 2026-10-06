@@ -23,8 +23,16 @@ Rules:
   35266198169 left ``desktop-v0.0.71`` empty after an upload HTTP 500),
   rebuild that tag in place instead of bumping.
 
+Daily release train (``schedule``): merging to ``main`` does not publish.
+Once a day ``--train-gate`` reads ``git diff --name-only --no-renames``
+between the commit behind GitHub Latest and ``HEAD`` on stdin and answers
+``release=true`` only when a file that ships in the installers changed
+(``RELEASE_TRAIN_PATHS``). Without a ``desktop-v*`` Latest, or when its commit
+cannot be resolved, the train publishes rather than stalling. A train run
+resolves its tag exactly like a dispatch with an empty tag.
+
 Used by ``.github/workflows/release-desktop.yml``. No network I/O — the
-workflow feeds GitHub's current tags in as data.
+workflow feeds GitHub's current tags and the changed paths in as data.
 """
 
 from __future__ import annotations
@@ -41,6 +49,22 @@ BUMP_ALIASES = frozenset({"", "next", "bump"})
 LATEST_ALIASES = frozenset({"latest"})
 REQUIRED_INSTALLERS = frozenset({"Work4You-Setup.exe", "Work4You.dmg"})
 
+# What the daily release train watches: the same set the workflow used as its
+# ``push`` path filter while every merge published. ``/**`` entries cover a
+# directory; the rest are exact files.
+RELEASE_TRAIN_PATHS = (
+    ".github/workflows/release-desktop.yml",
+    "scripts/ci/prepare_macos_signing.py",
+    "scripts/ci/publish_desktop_release.py",
+    "scripts/ci/resolve_desktop_release_tag.py",
+    "apps/desktop/**",
+    "apps/shared/**",
+    "scripts/build-desktop-runtime.ps1",
+    "scripts/build-desktop-runtime.sh",
+    "scripts/deploy-desktop-runtime.ps1",
+    "scripts/deploy-desktop-runtime.sh",
+)
+
 
 class ResolveError(ValueError):
     """Invalid tag / event combination."""
@@ -49,6 +73,11 @@ class ResolveError(ValueError):
 class ResolvedDesktopTag(NamedTuple):
     tag: str
     create: bool
+
+
+class TrainDecision(NamedTuple):
+    release: bool
+    reason: str
 
 
 def parse_desktop_tag(tag: str) -> tuple[int, int, int] | None:
@@ -156,6 +185,43 @@ def resolve_desktop_release_tag(
     )
 
 
+def feeds_desktop_release(path: str) -> bool:
+    """True when a repo-relative path ships in the desktop installers."""
+    clean = path.strip()
+    for pattern in RELEASE_TRAIN_PATHS:
+        if pattern.endswith("/**"):
+            if clean.startswith(pattern[:-2]):
+                return True
+        elif clean == pattern:
+            return True
+    return False
+
+
+def decide_release_train(
+    *,
+    github_latest: str,
+    base_sha: str,
+    changed_files: list[str],
+) -> TrainDecision:
+    """Should today's scheduled run publish a new ``desktop-v*`` release?"""
+    latest = github_latest.strip()
+    if parse_desktop_tag(latest) is None:
+        return TrainDecision(True, "no desktop-v* Latest to compare against; publishing")
+    if not base_sha.strip():
+        return TrainDecision(True, f"could not resolve the commit behind {latest}; publishing")
+    shipped = [path for path in changed_files if feeds_desktop_release(path)]
+    if shipped:
+        return TrainDecision(True, f"{len(shipped)} desktop file(s) changed since {latest}")
+    return TrainDecision(
+        False,
+        f"nothing that ships in the installers changed since {latest}; skipping",
+    )
+
+
+def format_train_output(decision: TrainDecision) -> str:
+    return f"release={'true' if decision.release else 'false'}\n"
+
+
 def format_github_output(resolved: ResolvedDesktopTag) -> str:
     create = "true" if resolved.create else "false"
     return f"tag={resolved.tag}\ncreate={create}\n"
@@ -169,7 +235,7 @@ def _split_tags(raw: str) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--event", required=True, help="release or workflow_dispatch")
+    parser.add_argument("--event", default="", help="release or workflow_dispatch")
     parser.add_argument("--release-tag", default="", help="github.event.release.tag_name")
     parser.add_argument("--input-tag", default="", help="workflow_dispatch inputs.tag")
     parser.add_argument(
@@ -187,7 +253,31 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="newline- or comma-separated asset names on GitHub Latest",
     )
+    parser.add_argument(
+        "--train-gate",
+        action="store_true",
+        help="decide whether the daily release train publishes; reads the "
+        "changed paths (git diff --name-only) from stdin",
+    )
+    parser.add_argument(
+        "--base-sha",
+        default="",
+        help="commit behind GitHub Latest (with --train-gate)",
+    )
     args = parser.parse_args(argv)
+
+    if args.train_gate:
+        decision = decide_release_train(
+            github_latest=args.github_latest,
+            base_sha=args.base_sha,
+            changed_files=sys.stdin.read().splitlines(),
+        )
+        print(f"::notice::release train: {decision.reason}", file=sys.stderr)
+        sys.stdout.write(format_train_output(decision))
+        return 0
+
+    if not args.event:
+        parser.error("--event is required unless --train-gate is set")
 
     try:
         resolved = resolve_desktop_release_tag(
