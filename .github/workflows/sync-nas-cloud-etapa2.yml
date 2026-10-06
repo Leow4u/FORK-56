@@ -182,6 +182,7 @@ jobs:
           cp cloud/nas-sync/src/portal/lib/portal-nav.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/cloud-agent-chat.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/portal-cloud-lifecycle.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/open-cloud-chat.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/components/AuthProviderIcons.tsx nas/src/portal/components/
           cp cloud/nas-sync/src/portal/components/EmailCodeBoxes.tsx nas/src/portal/components/
           mkdir -p nas/public/brand
@@ -211,6 +212,8 @@ jobs:
           cp cloud/nas-sync/src/portal/components/PortalShell.tsx nas/src/portal/components/
           cp cloud/nas-sync/src/portal/components/PortalShell.module.css nas/src/portal/components/
           cp cloud/nas-sync/src/portal/components/OrgPage.tsx nas/src/portal/components/
+          cp cloud/nas-sync/src/portal/components/OpenCloudChatButton.tsx nas/src/portal/components/
+          cp cloud/nas-sync/src/portal/components/OpenCloudChatButton.module.css nas/src/portal/components/
           mkdir -p nas/src/portal/lib
           cp cloud/nas-sync/src/portal/lib/linked-accounts.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/info-content.ts nas/src/portal/lib/
@@ -270,6 +273,7 @@ jobs:
             src/portal/lib/portal-nav.ts \
             src/portal/lib/cloud-agent-chat.ts \
             src/portal/lib/portal-cloud-lifecycle.ts \
+            src/portal/lib/open-cloud-chat.ts \
             src/portal/components/AuthProviderIcons.tsx \
             src/portal/components/EmailCodeBoxes.tsx \
             public/brand/work4you-favicon-transparent-1024.png \
@@ -296,6 +300,8 @@ jobs:
             src/portal/components/PortalShell.tsx \
             src/portal/components/PortalShell.module.css \
             src/portal/components/OrgPage.tsx \
+            src/portal/components/OpenCloudChatButton.tsx \
+            src/portal/components/OpenCloudChatButton.module.css \
             src/portal/lib/linked-accounts.ts \
             src/portal/lib/info-content.ts \
             src/portal/pages/org/InfoPage.tsx \

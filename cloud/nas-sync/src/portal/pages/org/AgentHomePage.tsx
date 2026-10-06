@@ -2,15 +2,13 @@
 
 import { usePrivy } from '@privy-io/react-auth'
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { OpenCloudChatButton } from '../../components/OpenCloudChatButton'
 import { OrgPage } from '../../components/OrgPage'
-import pageStyles from '../../components/OrgPage.module.css'
 import {
-  CLOUD_PERSISTENCE_TAGLINE,
   canOpenCloudChat,
   cloudAgentStatusDetail,
   cloudAgentStatusHeadline,
-  cloudChatWakeHint,
 } from '../../lib/portal-cloud-lifecycle'
 import styles from './AgentHomePage.module.css'
 
@@ -46,7 +44,7 @@ export function AgentHomePage() {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) {
-        setError('Não foi possível carregar a instância Cloud.')
+        setError('Não foi possível carregar o agente.')
         setAgent(null)
         setCanUseCloud(false)
         return
@@ -59,7 +57,7 @@ export function AgentHomePage() {
       setAgent(rows[0] ?? null)
       setCanUseCloud(data.entitlement?.canUseCloud === true)
     } catch {
-      setError('Não foi possível contactar o Portal.')
+      setError('Sem ligação ao Portal.')
       setAgent(null)
       setCanUseCloud(false)
     } finally {
@@ -85,84 +83,25 @@ export function AgentHomePage() {
     status: agent?.status ?? '',
     canUseCloud,
   })
-  const wakeHint = cloudChatWakeHint(chatAccess.wakeOnOpen)
-
-  const cloudPath = orgId ? `/orgs/${orgId}/agents` : '/agents'
-  const billingPath = orgId ? `/orgs/${orgId}/billing` : '/billing'
-  const localPath = orgId ? `/orgs/${orgId}/local-dashboards` : '/local-dashboards'
 
   const status = agent?.status ?? (canUseCloud ? 'provisioning' : 'none')
+  const detail = loading ? null : cloudAgentStatusDetail(status)
 
   return (
-    <OrgPage
-      eyebrow="Work4You Agent"
-      title="Agente"
-      lead="Fale com o agente na Cloud (casa persistente), no CLI ou num dashboard local — a conta Portal é o mesmo login."
-    >
-      <p className={pageStyles.policyCallout}>{CLOUD_PERSISTENCE_TAGLINE}</p>
-
+    <OrgPage eyebrow="Work4You" title={loading ? '…' : cloudAgentStatusHeadline(status)}>
       {error ? <p className={styles.errorBanner}>{error}</p> : null}
 
-      <section className={styles.hero} aria-labelledby="agent-cta-heading">
-        <h2 id="agent-cta-heading" className={styles.heroTitle}>
-          {loading ? 'A carregar…' : cloudAgentStatusHeadline(status)}
-        </h2>
-        <p className={styles.heroLead}>
-          {loading
-            ? 'A verificar a instância Cloud desta conta.'
-            : cloudAgentStatusDetail(status, canUseCloud)}
-        </p>
-
-        <div className={styles.actions}>
-          {chatAccess.allowed && chatAccess.chatUrl ? (
-            <a
-              className={styles.primary}
-              href={chatAccess.chatUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Abrir chat
-            </a>
-          ) : (
-            <button type="button" className={styles.primary} disabled>
-              Abrir chat
-            </button>
-          )}
-          <Link className={styles.secondary} to={cloudPath}>
-            Instância Cloud
-          </Link>
-        </div>
-
-        {wakeHint ? <p className={styles.meta}>{wakeHint}</p> : null}
-
-        {agent?.name ? (
-          <p className={styles.meta}>
-            Instância: <strong>{agent.name}</strong>
-          </p>
-        ) : null}
-
-        {!loading && !canUseCloud && !agent ? (
-          <p className={styles.meta}>
-            <Link to={billingPath}>Ver planos</Link> para ativar a Cloud incluída no
-            Plus, Super e Ultra.
-          </p>
-        ) : null}
-      </section>
-
-      <section className={styles.alt} aria-labelledby="other-surfaces">
-        <h2 id="other-surfaces" className={styles.altTitle}>
-          Outras formas de correr o agente
-        </h2>
-        <ul className={styles.altList}>
-          <li>
-            <code>work4you setup --portal</code> — CLI com login OAuth
-          </li>
-          <li>
-            <Link to={localPath}>Dashboards locais</Link> — agente no seu PC com a mesma
-            conta
-          </li>
-        </ul>
-      </section>
+      <div className={styles.center}>
+        <OpenCloudChatButton
+          chatUrl={chatAccess.chatUrl}
+          allowed={!loading && chatAccess.allowed}
+          wakeOnOpen={chatAccess.wakeOnOpen}
+          agentId={agent?.id}
+          orgId={orgId}
+          getAccessToken={getAccessToken}
+        />
+        {detail ? <p className={styles.hint}>{detail}</p> : null}
+      </div>
     </OrgPage>
   )
 }

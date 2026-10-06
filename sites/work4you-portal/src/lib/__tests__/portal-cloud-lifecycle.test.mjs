@@ -3,12 +3,12 @@ import test from 'node:test'
 
 import { canOpenCloudChat } from '../portal-cloud-lifecycle.ts'
 
-test('canOpenCloudChat mirrors NAS policy for stopped wake', () => {
+test('canOpenCloudChat allows starting without wake flag', () => {
   const out = canOpenCloudChat({
     dashboardUrl: 'https://x.fly.dev',
-    status: 'stopped',
+    status: 'starting',
     canUseCloud: true,
   })
   assert.equal(out.allowed, true)
-  assert.equal(out.wakeOnOpen, true)
+  assert.equal(out.wakeOnOpen, false)
 })

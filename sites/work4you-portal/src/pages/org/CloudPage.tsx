@@ -4,11 +4,6 @@ import { usePrivy } from '@privy-io/react-auth'
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { OrgPage } from '../../components/OrgPage'
-import pageStyles from '../../components/OrgPage.module.css'
-import {
-  CLOUD_INSTANCE_PAGE_LEAD,
-  CLOUD_PERSISTENCE_TAGLINE,
-} from '../../lib/portal-cloud-lifecycle'
 import styles from './CloudPage.module.css'
 
 type CloudSize = {
@@ -424,10 +419,7 @@ export function CloudPage() {
     <OrgPage
       eyebrow="Work4You Cloud"
       title="Instâncias"
-      lead={CLOUD_INSTANCE_PAGE_LEAD}
     >
-      <p className={pageStyles.policyCallout}>{CLOUD_PERSISTENCE_TAGLINE}</p>
-
       <section className={styles.toolbar}>
         <p className={styles.sectionLead}>{instanceCountLabel}</p>
         <button

@@ -4,15 +4,9 @@ import { usePrivy } from '@privy-io/react-auth'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { OrgPage } from '../../components/OrgPage'
-import pageStyles from '../../components/OrgPage.module.css'
+import { OpenCloudChatButton } from '../../components/OpenCloudChatButton'
 import { requestSubscriptionCloud } from '../../lib/ensure-subscription-cloud'
-import {
-  CLOUD_INSTANCE_PAGE_LEAD,
-  CLOUD_PERSISTENCE_TAGLINE,
-  canOpenCloudChat,
-  cloudChatWakeHint,
-  cloudInstanceLifecycleHint,
-} from '../../lib/portal-cloud-lifecycle'
+import { canOpenCloudChat } from '../../lib/portal-cloud-lifecycle'
 import styles from './CloudPage.module.css'
 
 type AgentRow = {
@@ -352,11 +346,7 @@ export function CloudPage() {
       const headers = await authHeaders()
       if (!headers) return
       if (action === 'update') {
-        if (
-          !confirm(
-            'Atualizar o runtime desta instância? O histórico (sessões, memória, skills) no disco é preservado.',
-          )
-        ) {
+        if (!confirm('Atualizar o runtime desta instância?')) {
           return
         }
       }
@@ -414,13 +404,7 @@ export function CloudPage() {
   const billingPath = orgId ? `/orgs/${orgId}/billing` : '/billing'
 
   return (
-    <OrgPage
-      eyebrow="Work4You Cloud"
-      title="Instâncias"
-      lead={CLOUD_INSTANCE_PAGE_LEAD}
-    >
-      <p className={pageStyles.policyCallout}>{CLOUD_PERSISTENCE_TAGLINE}</p>
-
+    <OrgPage eyebrow="Work4You Cloud" title="Instância">
       {loading || agents.length > 0 ? (
         <section className={styles.toolbar}>
           <p className={styles.sectionLead}>{instanceCountLabel}</p>
@@ -465,13 +449,11 @@ export function CloudPage() {
       <div className={styles.grid}>
         {agents.map((agent) => {
           const hint = gatewayHint(agent.dashboardGatewayState, agent.status)
-          const lifecycleHint = cloudInstanceLifecycleHint(agent.status, canUseCloud)
           const chatAccess = canOpenCloudChat({
             dashboardUrl: agent.dashboardUrl,
             status: agent.status,
             canUseCloud,
           })
-          const wakeHint = cloudChatWakeHint(chatAccess.wakeOnOpen)
           return (
             <article key={agent.id} className={styles.card}>
               <header className={styles.cardHead}>
@@ -533,26 +515,16 @@ export function CloudPage() {
               {agent.errorMessage ? (
                 <p className={styles.cardError}>{agent.errorMessage}</p>
               ) : null}
-              {lifecycleHint ? (
-                <p className={styles.cardMeta}>{lifecycleHint}</p>
-              ) : null}
-              {wakeHint ? <p className={styles.cardMeta}>{wakeHint}</p> : null}
-
               <div className={styles.cardActions}>
-                {chatAccess.allowed && chatAccess.chatUrl ? (
-                  <a
-                    className={styles.primary}
-                    href={chatAccess.chatUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Abrir chat
-                  </a>
-                ) : (
-                  <button type="button" className={styles.primary} disabled>
-                    Abrir chat
-                  </button>
-                )}
+                <OpenCloudChatButton
+                  variant="card"
+                  chatUrl={chatAccess.chatUrl}
+                  allowed={chatAccess.allowed}
+                  wakeOnOpen={chatAccess.wakeOnOpen}
+                  agentId={agent.id}
+                  orgId={orgId}
+                  getAccessToken={getAccessToken}
+                />
                 {!canUseCloud ? (
                   <Link className={styles.ghost} to={billingPath}>
                     Ver planos
