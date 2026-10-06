@@ -1,8 +1,9 @@
 /**
  * Plan → single Cloud VM contract.
  *
- * Free has no VM. Plus/Super/Ultra map to one machine size. Callers never
- * pick the size. ensureOrgCloudInstanceWith is the only create path; POST
+ * Free has no VM. Every paid plan gets the same machine size; plans differ by
+ * credits, not by VM. Callers never pick the size, and moving between paid
+ * plans never resizes. ensureOrgCloudInstanceWith is the only create path; POST
  * /api/agents stays closed. POST /api/cloud/ensure runs after the plan is
  * paid — not when Checkout opens. Returning to Free parks that machine:
  * the row and disk stay, and the next paid ensure wakes the same instance.
@@ -11,10 +12,13 @@ import { getTier, isPaidTierId, type TierId } from './tiers'
 
 export type CloudSizeId = 'small' | 'medium' | 'large'
 
+/** 4 shared vCPU, 2 GB RAM, 20 GB disk (spec in cloud-sizes). */
+export const PAID_CLOUD_SIZE: CloudSizeId = 'medium'
+
 export const TIER_CLOUD_SIZE: Record<Exclude<TierId, 'free'>, CloudSizeId> = {
-  plus: 'small',
-  super: 'medium',
-  ultra: 'large',
+  plus: PAID_CLOUD_SIZE,
+  super: PAID_CLOUD_SIZE,
+  ultra: PAID_CLOUD_SIZE,
 }
 
 /** Portal-registered local dashboards are not the subscription VM. */
@@ -196,7 +200,8 @@ export function volumeExtendGb(currentGb: number, targetGb: number): number | nu
 }
 
 /**
- * Paid plan size when the existing machine should change.
+ * Paid size when the existing machine is not on it yet — a machine born
+ * under the old per-plan sizes moves once onto PAID_CLOUD_SIZE.
  * An unborn row is resumed first. Free never resizes. A blank size is left
  * alone so we do not guess the machine's current shape.
  */
@@ -230,7 +235,7 @@ export function cloudInstanceNeedsPark(
 
 /**
  * Paid plan should start the machine Free parked.
- * A different plan size is a resize, which starts a parked machine.
+ * A machine not on the paid size is a resize, which starts a parked machine.
  * Status `stopped` is a user stop and is not woken.
  */
 export function cloudInstanceNeedsWake(
@@ -372,7 +377,7 @@ export function manualCloudCreateRefusal(): {
 /**
  * Size is not an input. A live Cloud row stays the org's only VM.
  * A paid row whose Fly machine never got an id is resumed. A paid row whose
- * recorded size differs from the plan is resized in place. Free parks a
+ * recorded size is not the paid size is resized in place. Free parks a
  * born machine and does not create. A parked machine wakes on the next
  * paid plan; a user stop stays stopped.
  */

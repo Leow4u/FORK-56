@@ -24,6 +24,7 @@ import {
   cloudResizeShouldStart,
   cloudSizeForTier,
   cloudStatusForFlyState,
+  PAID_CLOUD_SIZE,
   planDiskGb,
   volumeExtendGb,
   DEFAULT_CLOUD_INSTANCE_NAME,
@@ -41,6 +42,10 @@ import {
   withCloudScaleToZero,
 } from '../fly-machines.ts'
 import { isPaidTierId, TIER_CATALOG } from '../tiers.ts'
+
+const OLD_SIZES = (['small', 'medium', 'large'] as const).filter(
+  (size) => size !== PAID_CLOUD_SIZE,
+)
 
 const row = (
   id: string,
@@ -60,11 +65,12 @@ describe('cloud size for tier', () => {
     }
   })
 
-  it('assigns Plus Small, Super Medium, Ultra Large', () => {
-    assert.equal(cloudSizeForTier('plus'), 'small')
-    assert.equal(cloudSizeForTier(' PLUS '), 'small')
-    assert.equal(cloudSizeForTier('super'), 'medium')
-    assert.equal(cloudSizeForTier('ultra'), 'large')
+  it('gives every paid tier the same machine size', () => {
+    for (const tier of TIER_CATALOG) {
+      if (!isPaidTierId(tier.tierId)) continue
+      assert.equal(cloudSizeForTier(tier.tierId), PAID_CLOUD_SIZE, tier.tierId)
+    }
+    assert.equal(cloudSizeForTier(' PLUS '), PAID_CLOUD_SIZE)
   })
 
   it('fails closed for free, empty, and unknown tiers', () => {
@@ -82,7 +88,7 @@ describe('entitlement', () => {
     const entitlement = cloudEntitlement('ultra')
     assert.equal(entitlement.tierId, 'ultra')
     assert.equal(entitlement.canUseCloud, true)
-    assert.equal(entitlement.allowedSize, 'large')
+    assert.equal(entitlement.allowedSize, PAID_CLOUD_SIZE)
     assert.equal(entitlement.manualCreate, false)
     assert.equal(entitlement.reason, 'ok')
   })
@@ -164,7 +170,7 @@ describe('ensureOrgCloudInstanceWith', () => {
     const ensure = () =>
       ensureOrgCloudInstanceWith({
         tierId: 'plus',
-        size: 'large',
+        size: OLD_SIZES[0],
         list: async () => store.slice(),
         create: async (input) => {
           seen.push(input)
@@ -180,7 +186,7 @@ describe('ensureOrgCloudInstanceWith', () => {
     assert.equal(first.ok, true)
     if (!first.ok) return
     assert.equal(first.created, true)
-    assert.deepEqual(seen, [{ size: 'small', name: DEFAULT_CLOUD_INSTANCE_NAME }])
+    assert.deepEqual(seen, [{ size: PAID_CLOUD_SIZE, name: DEFAULT_CLOUD_INSTANCE_NAME }])
     assert.equal(store.length, 1)
 
     assert.equal(second.ok, true)
@@ -190,9 +196,9 @@ describe('ensureOrgCloudInstanceWith', () => {
     assert.equal(seen.length, 1)
   })
 
-  it('uses medium for super and large for ultra', async () => {
+  it('creates the same size on every paid tier', async () => {
     const sizes: string[] = []
-    for (const tierId of ['super', 'ultra'] as const) {
+    for (const tierId of ['plus', 'super', 'ultra'] as const) {
       const result = await ensureOrgCloudInstanceWith({
         tierId,
         list: async () => [],
@@ -203,15 +209,13 @@ describe('ensureOrgCloudInstanceWith', () => {
       })
       assert.equal(result.ok && result.created, true)
     }
-    assert.deepEqual(sizes, ['medium', 'large'])
+    assert.deepEqual(sizes, [PAID_CLOUD_SIZE, PAID_CLOUD_SIZE, PAID_CLOUD_SIZE])
   })
 
-  it('resizes the same VM when the paid plan size differs', async () => {
-    const cases = [
-      { tierId: 'ultra', from: 'small', to: 'large' },
-      { tierId: 'plus', from: 'large', to: 'small' },
-      { tierId: 'super', from: 'small', to: 'medium' },
-    ]
+  it('moves a machine born on an older size onto the paid size', async () => {
+    const cases = (['plus', 'super', 'ultra'] as const).flatMap((tierId) =>
+      OLD_SIZES.map((from) => ({ tierId, from, to: PAID_CLOUD_SIZE })),
+    )
     for (const entry of cases) {
       let created = 0
       let resumed = 0
@@ -257,16 +261,16 @@ describe('ensureOrgCloudInstanceWith', () => {
     }
   })
 
-  it('does not resize a matching size or a row with no recorded size', async () => {
+  it('does not resize between paid plans or a row with no recorded size', async () => {
     const cases: Array<{ tierId: string; instance: CloudInstanceRef }> = [
-      {
-        tierId: 'plus',
+      ...(['plus', 'super', 'ultra'] as const).map((tierId) => ({
+        tierId,
         instance: {
-          ...row('match', '2022-01-01T00:00:00.000Z', 'online'),
-          size: 'small',
+          ...row(`match-${tierId}`, '2022-01-01T00:00:00.000Z', 'online'),
+          size: PAID_CLOUD_SIZE,
           flyMachineId: 'mach',
         },
-      },
+      })),
       {
         tierId: 'ultra',
         instance: {
@@ -414,7 +418,7 @@ describe('ensureOrgCloudInstanceWith', () => {
   it('wakes a parked machine on the same paid size and does not wake a user stop', async () => {
     const parked = {
       ...row('kept', '2022-01-01T00:00:00.000Z', 'parked'),
-      size: 'small',
+      size: PAID_CLOUD_SIZE,
       flyMachineId: 'mach',
     }
     let woken = 0
@@ -444,7 +448,7 @@ describe('ensureOrgCloudInstanceWith', () => {
 
     const userStop = {
       ...row('halted', '2022-01-01T00:00:00.000Z', 'stopped'),
-      size: 'small',
+      size: PAID_CLOUD_SIZE,
       flyMachineId: 'mach',
     }
     let wakeStop = 0
@@ -462,10 +466,10 @@ describe('ensureOrgCloudInstanceWith', () => {
     assert.equal(cloudInstanceNeedsWake(userStop, 'plus'), false)
   })
 
-  it('resizes a parked machine onto a new plan size instead of only waking it', async () => {
+  it('resizes a parked machine onto the paid size instead of only waking it', async () => {
     const parked = {
       ...row('kept', '2022-01-01T00:00:00.000Z', 'parked'),
-      size: 'small',
+      size: OLD_SIZES[0],
       flyMachineId: 'mach',
     }
     let woken = 0
@@ -484,7 +488,7 @@ describe('ensureOrgCloudInstanceWith', () => {
       },
     })
     assert.equal(woken, 0)
-    assert.deepEqual(seen, ['kept:large'])
+    assert.deepEqual(seen, [`kept:${PAID_CLOUD_SIZE}`])
     assert.equal(result.ok && result.instance.status, 'online')
     assert.equal(cloudInstanceNeedsWake(parked, 'ultra'), false)
     assert.equal(
@@ -544,7 +548,7 @@ describe('ensureOrgCloudInstanceWith', () => {
         return row('vm', '2026-01-01T00:00:00.000Z')
       },
     })
-    assert.deepEqual(seen, ['small'])
+    assert.deepEqual(seen, [PAID_CLOUD_SIZE])
     assert.equal(result.ok && result.created, true)
   })
 
