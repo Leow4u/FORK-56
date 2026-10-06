@@ -2,7 +2,7 @@
 
 import { usePrivy } from '@privy-io/react-auth'
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { OpenCloudChatButton } from '../../components/OpenCloudChatButton'
 import { OrgPage } from '../../components/OrgPage'
 import {
@@ -86,6 +86,7 @@ export function AgentHomePage() {
 
   const status = agent?.status ?? (canUseCloud ? 'provisioning' : 'none')
   const detail = loading ? null : cloudAgentStatusDetail(status)
+  const billingPath = orgId ? `/orgs/${orgId}/billing` : '/billing'
 
   return (
     <OrgPage eyebrow="Work4You" title={loading ? '…' : cloudAgentStatusHeadline(status)}>
@@ -101,6 +102,11 @@ export function AgentHomePage() {
           getAccessToken={getAccessToken}
         />
         {detail ? <p className={styles.hint}>{detail}</p> : null}
+        {!loading && chatAccess.blockedReason === 'paid_plan_required' ? (
+          <Link className={styles.upgrade} to={billingPath}>
+            Ver planos
+          </Link>
+        ) : null}
       </div>
     </OrgPage>
   )

@@ -12,3 +12,14 @@ test('canOpenCloudChat allows starting without wake flag', () => {
   assert.equal(out.allowed, true)
   assert.equal(out.wakeOnOpen, false)
 })
+
+test('Free blocks cloud chat', () => {
+  assert.equal(
+    canOpenCloudChat({
+      dashboardUrl: 'https://x.fly.dev',
+      status: 'online',
+      canUseCloud: false,
+    }).blockedReason,
+    'paid_plan_required',
+  )
+})

@@ -17,6 +17,16 @@ test('canOpenCloudChat allows online, starting, and stopped wake', () => {
   assert.equal(canOpenCloudChat({ ...base, status: 'parked' }).allowed, false)
 })
 
+test('Free tier blocks chat even when a parked VM row has a dashboard URL', () => {
+  const out = canOpenCloudChat({
+    dashboardUrl: 'https://agent.example.fly.dev',
+    status: 'online',
+    canUseCloud: false,
+  })
+  assert.equal(out.allowed, false)
+  assert.equal(out.blockedReason, 'paid_plan_required')
+})
+
 test('cloudAgentStatusDetail stays minimal', () => {
   assert.equal(cloudAgentStatusDetail('online'), null)
   assert.match(cloudAgentStatusDetail('provisioning') ?? '', /momento/i)

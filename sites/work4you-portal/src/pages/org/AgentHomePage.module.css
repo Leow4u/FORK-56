@@ -7,8 +7,12 @@
   max-width: 20rem;
 }
 
-.hint {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--grafite);
+.upgrade {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--oliva);
+}
+
+.upgrade:hover {
+  color: var(--oliva-esc);
 }
