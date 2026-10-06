@@ -24,8 +24,8 @@ test('source contract: create-group modal has search, checkboxes, name, create',
   // Create requires 2+ members. Membership mutation is covered by the
   // behavioral groupMembershipPatch tests rather than another source regex.
   assert.match(pluginSource, /selected\.length >= 2/)
-  // Creating drops the user straight into the room (main window when the
-  // desktop offers host.openWorkspace, in-panel fallback otherwise).
+  // Creating drops the user straight into the room (the center page when the
+  // desktop has plugin pages, the in-pane room otherwise).
   assert.match(pluginSource, /onCreated: groupName => openGroupChat\(groupName\)/)
 })
 

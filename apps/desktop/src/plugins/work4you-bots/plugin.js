@@ -88,6 +88,9 @@ const displayModelName =
   typeof sdk === 'undefined' || typeof sdk.displayModelName !== 'function'
     ? mid => String(mid || '')
     : sdk.displayModelName
+// Plugin pages (a full page in the workspace pane). Feature-detected: older
+// desktops without the export keep the group room inside the Bots pane.
+const ROUTES_AREA = typeof sdk === 'undefined' ? undefined : sdk.ROUTES_AREA
 
 const ID = 'work4you-bots'
 const ROSTER_KEY = [ID, 'roster']
@@ -488,7 +491,6 @@ const BOT_MODE_LOCALES = {
       pickAtLeast: 'Pick at least 2 bots',
       createButton: count => `Create Group${count ? ` (${count})` : ''}`,
       everyBot: 'Every bot in the room',
-      roomTitle: group => `${group} — group chat`,
       botCount: count => `${count} bots`,
       settingsTooltip: group => `Group settings — rename ${group} or set a room picture`,
       disbandTooltip: group => `Disband the ${group} group chat`,
@@ -503,22 +505,18 @@ const BOT_MODE_LOCALES = {
       attachedImage: 'attached image',
       hideHandle: 'Hide full handle',
       showHandle: 'Show full handle',
-      openThread: 'Open this thread',
-      thread: 'Thread',
-      replies: count => `${count} ${count === 1 ? 'reply' : 'replies'}`,
-      collapseThreadTitle: 'Collapse this thread',
-      collapseThread: 'Collapse thread',
-      replyInThread: 'Reply in thread',
-      replyPlaceholder: 'Reply in thread…',
-      reply: 'Reply',
-      dropToReply: 'Drop to attach to this thread reply',
+      blockToday: time => `Today, ${time}`,
+      blockYesterday: time => `Yesterday, ${time}`,
+      blockDate: (date, time) => `${date}, ${time}`,
       dropToAttach: 'Drop to attach — every responding bot sees it',
       emptyRoom: 'Say something — every bot in this group hears the room.',
+      noRoomTitle: 'No group open',
+      noRoomDescription: 'Pick a group in WorkBots to open its conversation.',
       thinking: name => `${name} is thinking…`,
       roomWorking: 'The room is working…',
       messageLabel: group => `Message ${group}`,
-      composerPlaceholder: group => `New thread in ${group}… (@name to direct, @everyone for all)`,
-      newThread: 'New Thread',
+      composerPlaceholder: group => `Message ${group}… (@name to direct, @everyone for all)`,
+      send: 'Send',
       disbandTitle: 'Disband group chat?',
       disbandBodyStart: 'This removes the ',
       disbandBodyMiddle: count =>
@@ -942,7 +940,6 @@ const BOT_MODE_LOCALES = {
       pickAtLeast: 'Escolha pelo menos 2 bots',
       createButton: count => `Criar grupo${count ? ` (${count})` : ''}`,
       everyBot: 'Todos os bots da sala',
-      roomTitle: group => `${group} — conversa em grupo`,
       botCount: count => `${count} ${count === 1 ? 'bot' : 'bots'}`,
       settingsTooltip: group => `Configurações do grupo — renomeie ${group} ou defina uma imagem para a sala`,
       disbandTooltip: group => `Dissolver a conversa em grupo ${group}`,
@@ -957,22 +954,18 @@ const BOT_MODE_LOCALES = {
       attachedImage: 'imagem anexada',
       hideHandle: 'Ocultar identificador completo',
       showHandle: 'Mostrar identificador completo',
-      openThread: 'Abrir este tópico',
-      thread: 'Tópico',
-      replies: count => `${count} ${count === 1 ? 'resposta' : 'respostas'}`,
-      collapseThreadTitle: 'Recolher este tópico',
-      collapseThread: 'Recolher tópico',
-      replyInThread: 'Responder no tópico',
-      replyPlaceholder: 'Responder no tópico…',
-      reply: 'Responder',
-      dropToReply: 'Solte para anexar a esta resposta no tópico',
+      blockToday: time => `Hoje, ${time}`,
+      blockYesterday: time => `Ontem, ${time}`,
+      blockDate: (date, time) => `${date}, ${time}`,
       dropToAttach: 'Solte para anexar — todos os bots que responderem vão ver',
       emptyRoom: 'Diga algo — todos os bots deste grupo ouvem a sala.',
+      noRoomTitle: 'Nenhum grupo aberto',
+      noRoomDescription: 'Escolha um grupo no WorkBots para abrir a conversa.',
       thinking: name => `${name} está pensando…`,
       roomWorking: 'A sala está trabalhando…',
       messageLabel: group => `Mensagem para ${group}`,
-      composerPlaceholder: group => `Novo tópico em ${group}… (@nome para direcionar, @everyone para todos)`,
-      newThread: 'Novo tópico',
+      composerPlaceholder: group => `Mensagem para ${group}… (@nome para direcionar, @everyone para todos)`,
+      send: 'Enviar',
       disbandTitle: 'Dissolver a conversa em grupo?',
       disbandBodyStart: 'Isso remove o agrupamento ',
       disbandBodyMiddle: count =>
@@ -1133,9 +1126,13 @@ const $sessionsGatewayGeneration = atom(0)
 /** Group-chat rooms: { [group]: { log: [{from:{kind,name},text,at}], watermarks:{[member]:idx}, epoch, running } }.
  *  Log + watermarks persist via plugin storage; epoch/running are runtime-only. */
 const $groupChats = atom({})
-/** Group whose room view is open in the Bots pane (secondary navigation,
- *  same pattern as $botSessionsWorkspace). */
+/** The selected group chat: the room the center page shows (on desktops
+ *  without plugin pages, the room the Bots pane swaps in). Outlives a trip to
+ *  a bot's chat, so coming back to the page reopens the same room. */
 const $groupChatWorkspace = atom(null)
+/** Room views mounted right now. The roster lights a group row only while its
+ *  room is actually on screen — not merely selected. */
+const $groupRoomViews = atom(0)
 /** Groups whose latest room activity mentions @user — the needs-you badge. */
 const $groupNeedsYou = atom({})
 
@@ -2831,7 +2828,9 @@ function preferredSessionIds(allMeta) {
   return pins
 }
 
-function useRoster() {
+/** The roster query (shared cache). `poll: false` reads it — fetching only
+ *  when stale — without starting a second 5s poller beside the Bots pane's. */
+function useRoster({ poll = true } = {}) {
   const activeConnectionId = useValue(host.state.connectionId)
 
   return useQuery({
@@ -2865,7 +2864,7 @@ function useRoster() {
 
       return local
     },
-    refetchInterval: 5000,
+    refetchInterval: poll ? 5000 : false,
     staleTime: 5000,
     // Remote (SSH) gateways connect slowly and drop on sleep/wake; keep
     // retrying instead of latching a terminal error card.
@@ -4033,9 +4032,9 @@ function updateGroupChat(group, mutate) {
 
 /** Soft-disband a group chat: remove only this group from every local member's
  *  membership list (the metadata syncs cross-machine via ui_meta), drop the
- *  room log from the atom + plugin storage, and close the room view if it's
- *  open. Other group memberships and the members' per-group gateway sessions
- *  ("Group: <name>") are intentionally KEPT. */
+ *  room log from the atom + plugin storage, and clear the selection if it was
+ *  this room. Other group memberships and the members' per-group gateway
+ *  sessions ("Group: <name>") are intentionally KEPT. */
 async function disbandGroupChat(group, members) {
   // Invalidate any in-flight round-robin FIRST: bump the epoch so a running
   // drive bails at its next member boundary instead of appending to a room
@@ -4052,12 +4051,10 @@ async function disbandGroupChat(group, members) {
 
   $groupChats.set(all)
 
+  // The center page falls back to its empty state; the user picks what's next.
   if ($groupChatWorkspace.get() === group) {
-    $groupChatWorkspace.set(null)
+    selectGroupRoom(null)
   }
-
-  // Retire the room's MAIN-window tab too (host.openWorkspace path).
-  closeGroupChatMainTab(group)
 
   const needs = { ...$groupNeedsYou.get() }
 
@@ -4151,6 +4148,12 @@ async function renameGroupChat(oldName, newName, members) {
 
   $groupChats.set(all)
 
+  // The selection follows the room to its new identity right away, so the
+  // open page never shows a room that is mid-move.
+  if ($groupChatWorkspace.get() === oldName) {
+    selectGroupRoom(next)
+  }
+
   const needs = { ...$groupNeedsYou.get() }
 
   if (oldName in needs) {
@@ -4176,16 +4179,6 @@ async function renameGroupChat(oldName, newName, members) {
   // Persist the re-keyed map (updateGroupChat writes the whole durable map).
   updateGroupChat(next, r => r)
 
-  // Follow the open views to the new identity.
-  if ($groupChatWorkspace.get() === oldName) {
-    $groupChatWorkspace.set(next)
-  }
-
-  if (groupChatMainTabs.has(oldName)) {
-    closeGroupChatMainTab(oldName)
-    openGroupChat(next)
-  }
-
   return next
 }
 
@@ -4203,8 +4196,11 @@ function appendGroupChatEntry(group, from, text, thread, images) {
     return room
   })
 
-  // Needs-you: a member addressing @user badges the group header.
-  if (from.kind === 'member' && /@user\b/i.test(entry.text)) {
+  // Needs-you: a member addressing @user badges the group's roster row —
+  // unless that room is on screen, where the mention is already in view.
+  const onScreen = $groupRoomViews.get() > 0 && $groupChatWorkspace.get() === group
+
+  if (from.kind === 'member' && /@user\b/i.test(entry.text) && !onScreen) {
     $groupNeedsYou.set({ ...$groupNeedsYou.get(), [group]: true })
   }
 
@@ -4623,8 +4619,9 @@ async function runGroupChatRounds(group, members, thread) {
   }
 }
 
-/** User send into a group room. `thread` continues that thread (its reply
- *  box); omitted/null mints a NEW thread — the main composer's Slack shape.
+/** User send into a group room. `thread` continues that thread; omitted/null
+ *  mints a NEW one — the composer passes groupComposerThread(), so a message
+ *  after a lull starts a new block of the conversation.
  *  Appends, bumps the room epoch (supersedes any running loop at its next
  *  member boundary), and starts the turn drive for the target thread.
  *  Returns the thread id the message landed in. */
@@ -4931,14 +4928,14 @@ function BotRow({ bot, onDelete, onEdit, onGroup }) {
   const t = useBotModeT()
   const activeProfile = useValue(host.state.profile)
   const focusedProfile = useValue($focusedBotProfile)
-  const activeGroup = useValue($groupChatWorkspace)
+  const activeGroup = useOpenGroupRoom()
   const meta = botRosterMeta(bot, useValue($botMeta))
   const groups = botGroups(meta)
   const last = bot.last_session
   // Highlight follows the chat on screen (focused session's owner), not the
   // gateway socket's home — a focused tab doesn't swap the socket, and on the
   // old keying the wrong bot stayed highlighted while you read another's chat.
-  // A selected group chat suppresses every bot-row highlight: the group row
+  // A group room on screen suppresses every bot-row highlight: the group row
   // owns the selection then (#88979).
   const isActive = !activeGroup && !bot.remoteSource && bot.name === focusedProfile
   // Turn-busy is a SOCKET fact: only the gateway-home profile can be mid-turn.
@@ -5002,7 +4999,6 @@ function BotRow({ bot, onDelete, onEdit, onGroup }) {
   const open = async () => {
     const generation = ++botOpenGeneration
     haptic('tap')
-    $groupChatWorkspace.set(null)
     $selectedBot.set(bot.name)
 
     if (bot.remoteSource) {
@@ -8797,11 +8793,14 @@ function CreateGroupChatDialog({ open, roster, onClose, onCreated }) {
   })
 }
 
-// ── threads: the Slack/Discord shape ─────────────────────────────────────────
-// Every room entry belongs to a THREAD. Messaging the room composer starts a
-// new thread with the whole group; replying inside a thread continues that
-// work. Member turns are scoped to the thread that triggered them — deltas,
-// watermarks, and responder resolution all key on the thread id.
+// ── threads: blocks of one continuous conversation ──────────────────────────
+// The room reads as ONE conversation — every bot in the group hears it. Under
+// the hood every entry still belongs to a THREAD, and member turns stay scoped
+// to the thread that triggered them (deltas, watermarks, and responder
+// resolution all key on the thread id). The user never picks one: a message
+// continues the current block, and after GROUP_THREAD_GAP_MS of silence the
+// next message starts a new block — a new thread — that the log marks only
+// with a time separator.
 
 function groupThreadOf(entry) {
   return entry?.thread || 'legacy'
@@ -8811,9 +8810,9 @@ function mintGroupThreadId() {
   return `t${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
 }
 
-// Pre-thread logs (hydrated from storage) get synthetic thread ids: a user
-// entry after a real lull starts one, so multi-turn tasks stay whole instead
-// of splitting on every follow-up.
+// The silence that closes a block. Pre-thread logs (hydrated from storage)
+// use it too: a user entry after a real lull starts a synthetic thread, so
+// multi-turn tasks stay whole instead of splitting on every follow-up.
 const GROUP_THREAD_GAP_MS = 15 * 60000
 
 function assignLegacyThreads(log) {
@@ -8838,12 +8837,104 @@ function assignLegacyThreads(log) {
   })
 }
 
-/** Merged room view for one group: shared timeline with per-member
- *  attribution, a composer that drives the round-robin, and a working
- *  indicator while member turns run. Renders identically in the MAIN chat
- *  window (host.openWorkspace tile) and in the bots panel (older-desktop
- *  fallback); `onBack` is where the Back button routes — the main tile's
- *  closer, or clearing the in-panel workspace atom. */
+/** The thread a new message joins: the current block's — the thread of the
+ *  latest user message — while the room spoke within GROUP_THREAD_GAP_MS;
+ *  null after a lull, which mints a fresh thread (a new block). */
+function groupComposerThread(log, now = Date.now()) {
+  const entries = Array.isArray(log) ? log : []
+  const last = entries[entries.length - 1]
+
+  if (!last || now - (last.at || 0) >= GROUP_THREAD_GAP_MS) {
+    return null
+  }
+
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i]?.from?.kind === 'user') {
+      return groupThreadOf(entries[i])
+    }
+  }
+
+  return groupThreadOf(last)
+}
+
+/** Split the log into the blocks the room shows. A user message after a lull
+ *  of GROUP_THREAD_GAP_MS opens a new block — the same rule that mints a new
+ *  thread — so a slow reply never splits from the question it answers.
+ *  Returns [{ at, entries: [{ entry, index }] }], `index` into the log. */
+function groupLogBlocks(log) {
+  const entries = Array.isArray(log) ? log : []
+  const blocks = []
+
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index]
+    const at = entry?.at || 0
+    const lull = index > 0 && at - (entries[index - 1]?.at || 0) >= GROUP_THREAD_GAP_MS
+
+    if (!blocks.length || (entry?.from?.kind === 'user' && lull)) {
+      blocks.push({ at, entries: [] })
+    }
+
+    blocks[blocks.length - 1].entries.push({ entry, index })
+  }
+
+  return blocks
+}
+
+/** The app's display language as a BCP 47 tag (the shell mirrors it onto
+ *  <html lang>), so dates read in the language the UI speaks. */
+function documentLocale() {
+  try {
+    return document.documentElement.lang || undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Clock time of a room entry ("14:58"). */
+function groupClockTime(at, locale) {
+  const date = new Date(at || 0)
+
+  try {
+    return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date)
+  } catch {
+    return date.toLocaleTimeString()
+  }
+}
+
+/** A block's separator label: "Today, 14:58", "Yesterday, 23:10", else the
+ *  date ("3 Oct, 09:12" — with the year only when it isn't this year's). */
+function groupBlockLabel(at, t = tr, now = Date.now(), locale = undefined) {
+  const date = new Date(at || 0)
+  const today = new Date(now)
+  const dayStart = d => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  // Rounded: a DST switch makes a calendar day 23 or 25 hours long.
+  const daysAgo = Math.round((dayStart(today) - dayStart(date)) / 86400000)
+  const time = groupClockTime(at, locale)
+
+  if (daysAgo === 0) {
+    return t('groups.blockToday', time)
+  }
+
+  if (daysAgo === 1) {
+    return t('groups.blockYesterday', time)
+  }
+
+  const sameYear = date.getFullYear() === today.getFullYear()
+  let day
+
+  try {
+    day = new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'short',
+      ...(sameYear ? {} : { year: 'numeric' })
+    }).format(date)
+  } catch {
+    day = date.toLocaleDateString()
+  }
+
+  return t('groups.blockDate', day, time)
+}
+
 /** The active @-token at the caret: text from the nearest '@' (that begins a
  *  word) up to the caret, or null when the caret isn't inside a mention. */
 function mentionTokenAt(text, caret) {
@@ -8858,8 +8949,8 @@ function mentionTokenAt(text, caret) {
 }
 
 /** Mention-aware composer input for group rooms. The core composer's
- *  @-completion area doesn't mount inside workspace tiles (#89049), so this
- *  wraps the plain SDK Input with a member-scoped popover: @everyone/@all
+ *  @-completion area doesn't mount outside the chat view (#89049), so this
+ *  pairs a bare composer field with a member-scoped popover: @everyone/@all
  *  quick picks plus each seated member's handle. Insertion produces exactly
  *  the strings parseGroupChatMentions resolves. Keyboard: Up/Down navigate,
  *  Enter/Tab insert (Enter falls through to submit when the popover is
@@ -8929,18 +9020,20 @@ function GroupMentionInput({ members, onChange, value, ...inputProps }) {
   }
 
   return jsxs('div', {
-    className: 'relative min-w-0 flex-1',
+    className: 'relative flex min-w-0 flex-1',
     children: [
       open
         ? jsx('div', {
+            // The menu surface the app's dropdowns use — opaque enough that the
+            // transcript under it never reads through.
             className:
-              'absolute bottom-full left-0 z-50 mb-1 max-h-48 w-64 overflow-y-auto rounded-md border border-(--ui-stroke-secondary) bg-(--ui-bg-primary,#111) py-1 shadow-lg',
+              'absolute bottom-full left-0 z-50 mb-3 max-h-48 w-64 overflow-y-auto rounded-lg border border-(--ui-stroke-secondary) bg-[color-mix(in_srgb,var(--ui-bg-elevated)_96%,transparent)] p-1 shadow-md backdrop-blur-md',
             children: options.map((option, index) =>
               jsxs('button', {
                 type: 'button',
                 className: cn(
-                  'flex w-full items-baseline gap-2 px-2 py-1 text-left text-xs',
-                  index === active ? 'bg-(--ui-control-hover-background) text-foreground' : 'text-(--ui-text-secondary)'
+                  'flex w-full items-baseline gap-2 rounded-md px-2 py-1 text-left text-xs',
+                  index === active ? 'bg-(--ui-control-active-background) text-foreground' : 'text-(--ui-text-secondary)'
                 ),
                 // preventDefault on mousedown so the input keeps focus.
                 onMouseDown: event => {
@@ -8956,9 +9049,14 @@ function GroupMentionInput({ members, onChange, value, ...inputProps }) {
             )
           })
         : null,
-      jsx(Input, {
+      // A composer field, not a form control: the composer surface around it
+      // owns the chrome, the way the chat composer's own input does.
+      jsx('input', {
         ...inputProps,
         ref: inputRef,
+        type: 'text',
+        className:
+          'min-w-0 flex-1 border-0 bg-transparent px-1 py-0.5 text-[length:var(--conversation-text-font-size)] leading-(--dt-line-height) text-foreground outline-none placeholder:text-(--ui-text-tertiary)',
         value,
         onChange: event => {
           onChange(event.target.value)
@@ -8990,6 +9088,14 @@ function GroupMentionInput({ members, onChange, value, ...inputProps }) {
   })
 }
 
+/** The room for one group: ONE continuous conversation that every bot in the
+ *  group hears. The user's lines are bubbles on the right and members speak
+ *  on the left — the reading shape of a bot's 1:1 chat. After a lull of
+ *  GROUP_THREAD_GAP_MS the next message opens a new block (a new thread under
+ *  the hood), marked only by a time separator. The room renders on the center
+ *  page, beside a roster that never changes; `onBack` exists only for the
+ *  Bots-pane fallback on desktops without plugin pages, where the room takes
+ *  the roster's place. */
 function GroupChatWorkspace({ group, members, onBack }) {
   const t = useBotModeT()
   const rooms = useValue($groupChats)
@@ -9002,42 +9108,20 @@ function GroupChatWorkspace({ group, members, onBack }) {
   // @handle (the roster's name-device form when names collide across
   // connections). Naturally every speaker just shows its display name.
   const [revealedSpeaker, setRevealedSpeaker] = useState(null)
-  // Threads, the Slack/Discord shape: entries carry a thread id. The most
-  // recently active thread renders open; older ones collapse to summary rows.
-  // `openThreads` is the user's explicit expand/collapse overrides, and
-  // `replyThread` is the thread whose reply box currently owns the composer
-  // (null = the main composer, which STARTS a new thread).
-  const [openThreads, setOpenThreads] = useState({})
-  const [replyThread, setReplyThread] = useState(null)
-  const [replyDrafts, setReplyDrafts] = useState({})
-  // Pending image attachments per composer: `null` thread key = the main
-  // composer, otherwise the reply box of that thread. Data URLs, already
-  // downscaled — they ride the send into every responding member's session.
-  const [pendingImages, setPendingImages] = useState({})
+  // Pending attachments for the composer. Data URLs, already downscaled —
+  // they ride the send into every responding member's session.
+  const [pendingImages, setPendingImages] = useState([])
 
-  const imagesFor = thread => pendingImages[thread ?? 'main'] || []
-
-  const addImages = (thread, picked) => {
-    if (!picked.length) {
-      return
+  const addImages = picked => {
+    if (picked.length) {
+      setPendingImages(prev => [...prev, ...picked])
     }
-
-    const key = thread ?? 'main'
-    setPendingImages(prev => ({ ...prev, [key]: [...(prev[key] || []), ...picked] }))
   }
 
-  const clearImages = thread => {
-    const key = thread ?? 'main'
-    setPendingImages(prev => ({ ...prev, [key]: [] }))
-  }
+  const removeImage = index => setPendingImages(prev => prev.filter((_, i) => i !== index))
 
-  const removeImage = (thread, index) => {
-    const key = thread ?? 'main'
-    setPendingImages(prev => ({ ...prev, [key]: (prev[key] || []).filter((_, i) => i !== index) }))
-  }
-
-  // Ctrl/⌘-V a screenshot (or any file) into any composer in this room.
-  const pasteImages = (thread, event) => {
+  // Ctrl/⌘-V a screenshot (or any file) into the composer.
+  const pasteImages = event => {
     const files = [...(event.clipboardData?.files || [])]
 
     if (!files.length) {
@@ -9045,12 +9129,11 @@ function GroupChatWorkspace({ group, members, onBack }) {
     }
 
     event.preventDefault()
-    void filesToGroupAttachments(files).then(picked => addImages(thread, picked))
+    void filesToGroupAttachments(files).then(addImages)
   }
 
-  // Drag & drop anywhere on the room drops into the ACTIVE composer — the
-  // open reply box when one owns the composer, else the main (new-thread)
-  // composer. Matches the 1:1 chat's drop affordance.
+  // Drag & drop anywhere on the room attaches to the composer — matches the
+  // 1:1 chat's drop affordance.
   const [dragOver, setDragOver] = useState(false)
 
   const dropFiles = event => {
@@ -9063,8 +9146,46 @@ function GroupChatWorkspace({ group, members, onBack }) {
     }
 
     event.preventDefault()
-    void filesToGroupAttachments(files).then(picked => addImages(replyThread, picked))
+    void filesToGroupAttachments(files).then(addImages)
   }
+
+  // Follow the conversation: while the reader sits at the newest line, the
+  // log stays pinned to it as replies (and their images) grow it; scrolling
+  // up to read history parks it there until they come back down. Their own
+  // send always brings it back.
+  const logRef = useRef(null)
+  const followRef = useRef(true)
+
+  useEffect(() => {
+    const content = logRef.current
+    const viewport = content?.closest?.('[data-slot="scroll-area-viewport"]')
+
+    if (!content || !viewport) {
+      return undefined
+    }
+
+    const stick = () => {
+      if (followRef.current) {
+        viewport.scrollTop = viewport.scrollHeight
+      }
+    }
+
+    const onScroll = () => {
+      followRef.current = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 48
+    }
+
+    const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(stick) : null
+
+    stick()
+    resize?.observe(content)
+    resize?.observe(viewport)
+    viewport.addEventListener('scroll', onScroll, { passive: true })
+
+    return () => {
+      resize?.disconnect()
+      viewport.removeEventListener('scroll', onScroll)
+    }
+  }, [])
 
   // Collapsible Activity view: collapsed by default — opening it is always an
   // explicit user action, it never steals focus, and it never auto-scrolls.
@@ -9072,62 +9193,82 @@ function GroupChatWorkspace({ group, members, onBack }) {
   // Subscribe: activity rows re-render as turn events land.
   useValue($groupActivity)
 
-  const header = jsxs('div', {
-    className: 'flex items-center gap-2 px-2.5 pt-2.5 pb-2',
-    children: [
-      jsx(Button, {
-        variant: 'ghost',
-        size: 'sm',
-        onClick: () => (onBack ? onBack() : $groupChatWorkspace.set(null)),
-        children: t('common.back')
-      }),
-      // Room picture (set via Group settings) leads the title when present.
-      room.image
-        ? jsx('img', {
-            src: room.image,
-            alt: '',
-            className: 'size-6 shrink-0 rounded-full object-cover ring-1 ring-(--ui-stroke-secondary)'
-          })
-        : null,
-      jsx('div', {
-        className: 'min-w-0 flex-1 truncate text-sm font-semibold',
-        children: t('groups.roomTitle', group)
-      }),
-      // Member faces: the room's roster at a glance, matching each bot's
-      // avatar in the sidebar. Falls back to the count for the title tooltip.
-      jsx('div', {
-        className: 'flex shrink-0 items-center -space-x-1.5',
-        title: members.map(b => displayName(b, botRosterMeta(b, allMeta))).join(', '),
-        children: members.slice(0, 6).map(b => {
-          const bMeta = botRosterMeta(b, allMeta)
-          const { shape, color, image } = botAppearance(b.name, bMeta)
-          const photo = Boolean(image && !isBackfilledFacePng(image))
+  const memberNames = members.map(b => displayName(b, botRosterMeta(b, allMeta))).join(', ')
 
-          return jsx('div', {
-            className: 'rounded-full ring-2 ring-(--ui-bg-primary,#111)',
-            children: jsx(BotFace, { shape, color, image: photo ? image : null, size: 20, name: b.name })
-          }, botRosterKey(b))
-        })
+  // Header: the room as a centered pill (picture or member faces, name, size)
+  // with its settings and disband actions at the right edge. No Back — the
+  // roster beside the page is the navigation. On a narrow pane the side
+  // columns keep their buttons and the pill's name truncates instead.
+  const header = jsxs('div', {
+    className: 'grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2',
+    children: [
+      jsx('div', {
+        className: 'flex min-w-0 items-center',
+        children: onBack
+          ? jsx(Button, { variant: 'ghost', size: 'sm', onClick: onBack, children: t('common.back') })
+          : null
       }),
-      jsx('span', {
-        className: 'shrink-0 text-[0.65rem] text-(--ui-text-quaternary)',
-        children: t('groups.botCount', members.length)
+      jsxs('div', {
+        className: 'flex min-w-0 items-center gap-2 rounded-full border border-(--ui-stroke-tertiary) py-1 pr-3 pl-1.5',
+        children: [
+          // Room picture (set via Group settings) leads the title when present;
+          // else the member faces, matching each bot's avatar in the roster.
+          room.image
+            ? jsx('img', {
+                src: room.image,
+                alt: '',
+                className: 'size-5 shrink-0 rounded-full object-cover'
+              })
+            : jsx(Tip, {
+                label: memberNames,
+                children: jsx('span', {
+                  className: 'flex shrink-0 items-center -space-x-1.5',
+                  children: members.slice(0, 3).map(b => {
+                    const { shape, color, image } = botAppearance(b.name, botRosterMeta(b, allMeta))
+                    const photo = Boolean(image && !isBackfilledFacePng(image))
+
+                    return jsx(
+                      'span',
+                      {
+                        className: 'rounded-full ring-2 ring-(--ui-chat-surface-background)',
+                        children: jsx(BotFace, { shape, color, image: photo ? image : null, size: 20, name: b.name })
+                      },
+                      botRosterKey(b)
+                    )
+                  })
+                })
+              }),
+          jsx('h1', { className: 'min-w-0 truncate text-[0.8125rem] font-semibold', children: group }),
+          jsx('span', {
+            className: 'shrink-0 text-[0.6875rem] text-(--ui-text-tertiary)',
+            children: t('groups.botCount', members.length)
+          })
+        ]
       }),
-      jsx(Button, {
-        variant: 'ghost',
-        size: 'sm',
-        className: 'shrink-0 text-(--ui-text-tertiary) hover:text-foreground',
-        title: t('groups.settingsTooltip', group),
-        onClick: () => setSettingsOpen(true),
-        children: jsx(Codicon, { name: 'gear' })
-      }),
-      jsx(Button, {
-        variant: 'ghost',
-        size: 'sm',
-        className: 'shrink-0 text-(--ui-text-tertiary) hover:text-destructive',
-        title: t('groups.disbandTooltip', group),
-        onClick: () => setConfirmDisband(true),
-        children: jsx(Codicon, { name: 'trash' })
+      jsxs('div', {
+        className: 'flex items-center justify-end gap-0.5',
+        children: [
+          jsx(Tip, {
+            label: t('groups.settingsTooltip', group),
+            children: jsx(Button, {
+              variant: 'ghost',
+              size: 'icon-sm',
+              'aria-label': t('groups.settingsTitle'),
+              onClick: () => setSettingsOpen(true),
+              children: jsx(Codicon, { name: 'gear' })
+            })
+          }),
+          jsx(Tip, {
+            label: t('groups.disbandTooltip', group),
+            children: jsx(Button, {
+              variant: 'ghost',
+              size: 'icon-sm',
+              'aria-label': t('groups.disbandTooltip', group),
+              onClick: () => setConfirmDisband(true),
+              children: jsx(Codicon, { name: 'trash' })
+            })
+          })
+        ]
       })
     ]
   })
@@ -9205,355 +9346,242 @@ function GroupChatWorkspace({ group, members, onBack }) {
 
   const submit = () => {
     const text = draft.trim()
-    const images = imagesFor(null)
+    const images = pendingImages
 
-    if (!text && !images.length) {
+    if ((!text && !images.length) || !members.length) {
       return
     }
 
     setDraft('')
-    clearImages(null)
-    // Main composer = START A NEW THREAD with the whole group (Slack shape).
-    // Full descriptors ride into the turn loop: remote members keep their
-    // connection fields so their turns route to their own machines.
-    const minted = sendToGroupChat(group, memberDescriptors(), text, null, images)
-
-    if (minted) {
-      setOpenThreads(prev => ({ ...prev, [minted]: true }))
-    }
+    setPendingImages([])
+    // Their own message always brings the log back to the newest line.
+    followRef.current = true
+    // One continuous conversation: the message joins the current block's
+    // thread, or opens a new block after a lull. Full descriptors ride into
+    // the turn loop: remote members keep their connection fields so their
+    // turns route to their own machines.
+    sendToGroupChat(group, memberDescriptors(), text, groupComposerThread(room.log), images)
   }
 
-  const submitReply = thread => {
-    const text = (replyDrafts[thread] || '').trim()
-    const images = imagesFor(thread)
-
-    if (!text && !images.length) {
-      return
-    }
-
-    setReplyDrafts(prev => ({ ...prev, [thread]: '' }))
-    clearImages(thread)
-    // Reply box = CONTINUE this thread; the member turns it triggers are
-    // scoped to it.
-    sendToGroupChat(group, memberDescriptors(), text, thread, images)
-    setOpenThreads(prev => ({ ...prev, [thread]: true }))
-  }
-
-  /** Pending-attachment chips + the picker for one composer (thread = null →
-   *  main). Image chips preview the pixels; PDFs/files show a type icon.
-   *  X removes it. */
-  const attachmentRow = thread => {
-    const images = imagesFor(thread)
-
-    if (!images.length) {
-      return null
-    }
-
-    return jsx('div', {
-      className: 'flex flex-wrap items-center gap-1.5 px-1 pb-1',
-      children: images.map((img, index) =>
-        jsxs('div', {
-          className:
-            'flex items-center gap-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-bg-secondary,#181818) px-1 py-0.5',
-          children: [
-            img.kind === 'pdf' || img.kind === 'file'
-              ? jsx(Codicon, {
-                  name: img.kind === 'pdf' ? 'file-pdf' : 'file',
-                  className: 'text-[0.9rem] text-(--ui-text-tertiary)'
+  // Pending attachments above the composer: image chips preview the pixels,
+  // PDFs/files show a type icon. X removes one.
+  const attachmentRow = pendingImages.length
+    ? jsx('div', {
+        className: 'flex flex-wrap items-center gap-1.5',
+        children: pendingImages.map((img, index) =>
+          jsxs(
+            'div',
+            {
+              className: 'flex items-center gap-1 rounded-md border border-(--ui-stroke-tertiary) px-1 py-0.5',
+              children: [
+                img.kind === 'pdf' || img.kind === 'file'
+                  ? jsx(Codicon, {
+                      name: img.kind === 'pdf' ? 'file-pdf' : 'file',
+                      className: 'text-[0.9rem] text-(--ui-text-tertiary)'
+                    })
+                  : jsx('img', { src: img.data, alt: '', className: 'size-6 rounded object-cover' }),
+                jsx('span', {
+                  className: 'max-w-32 truncate text-[0.6875rem] text-(--ui-text-tertiary)',
+                  children: img.name || t('groups.image')
+                }),
+                jsx('button', {
+                  type: 'button',
+                  'aria-label': t('groups.removeAttachment'),
+                  className:
+                    'cursor-pointer border-0 bg-transparent p-0 text-(--ui-text-tertiary) hover:text-foreground',
+                  onClick: () => removeImage(index),
+                  children: jsx(Codicon, { name: 'close', className: 'text-[0.65rem]' })
                 })
-              : jsx('img', { src: img.data, alt: '', className: 'size-6 rounded object-cover' }),
-            jsx('span', {
-              className: 'max-w-32 truncate text-[0.65rem] text-(--ui-text-tertiary)',
-              children: img.name || t('groups.image')
-            }),
-            jsx('button', {
-              type: 'button',
-              className: 'cursor-pointer border-0 bg-transparent p-0 text-(--ui-text-quaternary) hover:text-foreground',
-              title: t('groups.removeAttachment'),
-              onClick: () => removeImage(thread, index),
-              children: jsx(Codicon, { name: 'close', className: 'text-[0.65rem]' })
+              ]
+            },
+            `${img.name || 'img'}:${index}`
+          )
+        )
+      })
+    : null
+
+  const locale = documentLocale()
+
+  // One room line. The user's lines are bubbles on the right; a member's line
+  // is its face, name and clock time, then the markdown body. Attachments
+  // (what every responding bot was shown) ride under the text either way.
+  const renderEntry = (entry, index) => {
+    const isUser = entry.from.kind === 'user'
+    const entryKey = `${entry.at}:${index}`
+    const text = String(entry.text || '')
+    // Hover-revealed copy, the same affordance on every line.
+    const copy = text.trim()
+      ? jsx('div', {
+          className:
+            'ml-auto shrink-0 opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100',
+          children: jsx(CopyButton, { appearance: 'icon', buttonSize: 'icon', stopPropagation: true, text: entry.text })
+        })
+      : null
+    const attachments =
+      Array.isArray(entry.images) && entry.images.length
+        ? jsx('div', {
+            className: cn('mt-1.5 flex flex-wrap items-center gap-1.5', isUser && 'justify-end'),
+            children: entry.images.map((img, imgIndex) =>
+              img.kind === 'pdf' || img.kind === 'file'
+                ? jsxs(
+                    'div',
+                    {
+                      className:
+                        'flex items-center gap-1 rounded-md border border-(--ui-stroke-tertiary) px-1.5 py-1 text-[0.6875rem] text-(--ui-text-tertiary)',
+                      title: img.name || t('groups.attachedFile'),
+                      children: [
+                        jsx(Codicon, { name: img.kind === 'pdf' ? 'file-pdf' : 'file', className: 'text-[0.8rem]' }),
+                        jsx('span', { className: 'max-w-48 truncate', children: img.name || t('groups.attachedFile') })
+                      ]
+                    },
+                    `${entryKey}:img:${imgIndex}`
+                  )
+                : jsx(
+                    'img',
+                    {
+                      src: img.data,
+                      alt: img.name || t('groups.attachedImage'),
+                      title: img.name || t('groups.attachedImage'),
+                      className: 'max-h-40 max-w-60 rounded-md border border-(--ui-stroke-tertiary) object-contain'
+                    },
+                    `${entryKey}:img:${imgIndex}`
+                  )
+            )
+          })
+        : null
+
+    if (isUser) {
+      return jsxs(
+        'div',
+        {
+          className: 'group flex items-start justify-end gap-1',
+          children: [
+            copy,
+            jsxs('div', {
+              className: 'flex min-w-0 max-w-[80%] flex-col items-end',
+              children: [
+                text.trim()
+                  ? jsx('div', {
+                      className:
+                        'min-w-0 max-w-full whitespace-pre-wrap wrap-anywhere rounded-(--prompt-bubble-radius) bg-(--dt-user-bubble) px-3.5 py-2 text-[length:var(--conversation-text-font-size)] leading-(--dt-line-height) text-foreground/95',
+                      // The app shell sets user-select: none globally; message
+                      // bodies opt back in so drag-select and ⌘C work here.
+                      'data-selectable-text': 'true',
+                      children: text
+                    })
+                  : null,
+                attachments
+              ]
             })
           ]
-        }, `${img.name || 'img'}:${index}`)
+        },
+        entryKey
       )
-    })
-  }
-
-  const attachButton = thread =>
-    jsx(Button, {
-      type: 'button',
-      variant: 'ghost',
-      size: 'sm',
-      className: 'shrink-0 text-(--ui-text-tertiary) hover:text-foreground',
-      title: t('groups.attachFiles'),
-      onClick: () => void pickGroupAttachments().then(picked => addImages(thread, picked)),
-      children: jsx(Codicon, { name: 'attach' })
-    })
-
-  // One log entry, rendered exactly as before conversation folding existed.
-  const renderEntry = (entry, index) => {
-                  const isUser = entry.from.kind === 'user'
-                  const meta = isUser || entry.from.source ? null : allMeta[entry.from.name]
-                  // Match this speaker back to its member descriptor so display
-                  // names and disambiguating handles come from the roster (the
-                  // primary "default" profile renders as Work4You, remote dupes
-                  // carry their @name-device handle) instead of raw profile ids.
-                  const member = isUser
-                    ? null
-                    : members.find(b =>
-                        b.name === entry.from.name &&
-                        (entry.from.source
-                          ? (b.connectionLabel || b.connectionId) === entry.from.source
-                          : !b.remoteSource)
-                      ) || null
-                  const display = isUser ? t('groups.you') : displayName(member || { name: entry.from.name }, meta)
-                  const entryKey = `${entry.at}:${index}`
-                  const revealed = !isUser && revealedSpeaker === entryKey
-                  // Clicked: append the gateway name so same-named agents on
-                  // two connections are tellable apart on demand.
-                  const label = isUser
-                    ? t('groups.you')
-                    : revealed
-                      ? `${display}${entry.from.source ? `-${entry.from.source}` : ''} (@${botHandle(entry.from.name, member || undefined)})`
-                      : display
-                  // Speaker avatar: same appearance pipeline as the roster
-                  // (custom image/pet, else deterministic shape+color face).
-                  // Remote speakers have no local meta and get the
-                  // deterministic face for their name — stable per bot.
-                  const { shape, color, image } = isUser
-                    ? { shape: null, color: null, image: null }
-                    : botAppearance(entry.from.name, meta)
-                  const photo = Boolean(image && !isBackfilledFacePng(image))
-
-                  return jsxs('div', {
-                    className: cn(
-                      'group flex items-start gap-2',
-                      isUser ? 'rounded-md bg-(--chrome-action-hover) px-2 py-1.5' : 'px-2 py-1'
-                    ),
-                    children: [
-                      isUser
-                        ? null
-                        : jsx('div', {
-                            className: 'mt-0.5 shrink-0',
-                            children: jsx(BotFace, {
-                              shape,
-                              color,
-                              image: photo ? image : null,
-                              size: 24,
-                              name: entry.from.name
-                            })
-                          }),
-                      jsxs('div', {
-                        className: 'min-w-0 flex-1',
-                        children: [
-                          jsxs('div', {
-                            className: 'flex items-center gap-2',
-                            children: [
-                              isUser
-                                ? jsx('span', {
-                                    className: 'text-[0.7rem] font-semibold text-foreground',
-                                    children: label
-                                  })
-                                : jsx('button', {
-                                    type: 'button',
-                                    className:
-                                      'cursor-pointer border-0 bg-transparent p-0 text-left text-[0.7rem] font-semibold text-(--ui-accent,#4f9cf9)',
-                                    title: revealed ? t('groups.hideHandle') : t('groups.showHandle'),
-                                    onClick: () => setRevealedSpeaker(revealed ? null : entryKey),
-                                    children: label
-                                  }),
-                              jsx('span', {
-                                className: 'text-[0.625rem] text-(--ui-text-quaternary)',
-                                children: relativeTime(entry.at)
-                              }),
-                              entry.text.trim()
-                                ? jsx('div', {
-                                    className:
-                                      'ml-auto shrink-0 opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100',
-                                    children: jsx(CopyButton, {
-                                      appearance: 'icon',
-                                      buttonSize: 'icon',
-                                      stopPropagation: true,
-                                      text: entry.text
-                                    })
-                                  })
-                                : null
-                            ]
-                          }),
-                          jsx('div', {
-                            className:
-                              'text-xs text-(--ui-text-secondary) [&_p]:mb-1 [&_p:last-child]:mb-0 [&_ul]:mb-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:mb-1 [&_ol]:list-decimal [&_ol]:pl-4 [&_pre]:overflow-x-auto',
-                            // The app shell sets user-select: none globally; message bodies opt
-                            // back in so drag-select and ⌘C work in group chat logs.
-                            'data-selectable-text': 'true',
-                            children: Streamdown ? jsx(Streamdown, { children: entry.text }) : entry.text
-                          }),
-                          // User attachments: what every responding bot was
-                          // shown — image previews, or a named chip for
-                          // PDFs/files.
-                          Array.isArray(entry.images) && entry.images.length
-                            ? jsx('div', {
-                                className: 'mt-1 flex flex-wrap items-center gap-1.5',
-                                children: entry.images.map((img, imgIndex) =>
-                                  img.kind === 'pdf' || img.kind === 'file'
-                                    ? jsxs('div', {
-                                        className:
-                                          'flex items-center gap-1 rounded-md border border-(--ui-stroke-secondary) px-1.5 py-1 text-[0.65rem] text-(--ui-text-tertiary)',
-                                        title: img.name || t('groups.attachedFile'),
-                                        children: [
-                                          jsx(Codicon, { name: img.kind === 'pdf' ? 'file-pdf' : 'file', className: 'text-[0.8rem]' }),
-                                          jsx('span', { className: 'max-w-48 truncate', children: img.name || t('groups.attachedFile') })
-                                        ]
-                                      }, `${entryKey}:img:${imgIndex}`)
-                                    : jsx('img', {
-                                        src: img.data,
-                                        alt: img.name || t('groups.attachedImage'),
-                                        title: img.name || t('groups.attachedImage'),
-                                        className:
-                                          'max-h-40 max-w-60 rounded-md border border-(--ui-stroke-secondary) object-contain'
-                                      }, `${entryKey}:img:${imgIndex}`)
-                                )
-                              })
-                            : null
-                        ]
-                      })
-                    ]
-                  }, entryKey)
-  }
-
-  // Threads: group entries by thread id (hydration assigned legacy ids, but
-  // guard live pre-thread entries too), ordered by last activity — oldest
-  // first, so the busiest/newest thread sits at the bottom by the composer.
-  // The most recently ACTIVE thread renders open; older ones collapse to a
-  // Slack-style summary row unless explicitly opened. Every open thread gets
-  // its own reply box, which continues THAT thread.
-  const threadsById = new Map()
-
-  for (let i = 0; i < room.log.length; i++) {
-    const entry = room.log[i]
-    const id = groupThreadOf(entry)
-    let bucket = threadsById.get(id)
-
-    if (!bucket) {
-      bucket = { entries: [], id, startIndex: i }
-      threadsById.set(id, bucket)
     }
 
-    bucket.entries.push({ entry, index: i })
+    const meta = entry.from.source ? null : allMeta[entry.from.name]
+    // Match this speaker back to its member descriptor so display names and
+    // disambiguating handles come from the roster (the primary "default"
+    // profile renders as Work4You, remote dupes carry their @name-device
+    // handle) instead of raw profile ids.
+    const member =
+      members.find(
+        b =>
+          b.name === entry.from.name &&
+          (entry.from.source ? (b.connectionLabel || b.connectionId) === entry.from.source : !b.remoteSource)
+      ) || null
+    const display = displayName(member || { name: entry.from.name }, meta)
+    const revealed = revealedSpeaker === entryKey
+    // Clicked: append the gateway name so same-named agents on two
+    // connections are tellable apart on demand.
+    const label = revealed
+      ? `${display}${entry.from.source ? `-${entry.from.source}` : ''} (@${botHandle(entry.from.name, member || undefined)})`
+      : display
+    // Speaker avatar: same appearance pipeline as the roster (custom
+    // image/pet, else deterministic shape+color face). Remote speakers have
+    // no local meta and get the deterministic face for their name.
+    const { shape, color, image } = botAppearance(entry.from.name, meta)
+    const photo = Boolean(image && !isBackfilledFacePng(image))
+
+    return jsxs(
+      'div',
+      {
+        className: 'group flex items-start gap-2.5',
+        children: [
+          jsx('div', {
+            className: 'mt-0.5 shrink-0',
+            children: jsx(BotFace, { shape, color, image: photo ? image : null, size: 26, name: entry.from.name })
+          }),
+          jsxs('div', {
+            className: 'min-w-0 flex-1',
+            children: [
+              jsxs('div', {
+                className: 'flex min-w-0 items-center gap-2',
+                children: [
+                  jsx(Tip, {
+                    label: revealed ? t('groups.hideHandle') : t('groups.showHandle'),
+                    children: jsx('button', {
+                      type: 'button',
+                      className:
+                        'min-w-0 cursor-pointer truncate border-0 bg-transparent p-0 text-left text-xs font-semibold text-foreground',
+                      onClick: () => setRevealedSpeaker(revealed ? null : entryKey),
+                      children: label
+                    })
+                  }),
+                  jsx('span', {
+                    className: 'shrink-0 text-[0.6875rem] text-(--ui-text-tertiary)',
+                    children: groupClockTime(entry.at, locale)
+                  }),
+                  copy
+                ]
+              }),
+              jsx('div', {
+                className:
+                  'text-[length:var(--conversation-text-font-size)] leading-(--dt-line-height) text-foreground [&_ol]:mb-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_pre]:overflow-x-auto [&_ul]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-5',
+                'data-selectable-text': 'true',
+                children: Streamdown ? jsx(Streamdown, { children: text }) : text
+              }),
+              attachments
+            ]
+          })
+        ]
+      },
+      entryKey
+    )
   }
 
-  const threads = [...threadsById.values()].sort(
-    (a, b) => (a.entries[a.entries.length - 1].entry.at || 0) - (b.entries[b.entries.length - 1].entry.at || 0)
-  )
-  const newestThread = threads.length ? threads[threads.length - 1].id : null
+  // The log reads top to bottom as one conversation. Each block opens with a
+  // time separator ("Today, 14:58") — the only mark a new block gets.
+  const now = Date.now()
   const logChildren = []
 
-  threads.forEach(threadBucket => {
-    const { entries, id } = threadBucket
-    const head = entries.find(({ entry }) => entry.from.kind === 'user')?.entry || entries[0].entry
-    const isNewest = id === newestThread
-    const expanded = openThreads[id] ?? isNewest
-
-    if (!expanded) {
-      const replies = entries.length - 1
-      const headText = stripPreviewMarkdown(head?.text || '').slice(0, 80)
-
-      logChildren.push(
-        jsxs('button', {
-          type: 'button',
-          className:
-            'flex w-full items-center gap-2 rounded-md border border-(--ui-stroke-secondary) px-2 py-1.5 text-left text-xs text-(--ui-text-tertiary) transition-colors hover:bg-(--chrome-action-hover)',
-          title: t('groups.openThread'),
-          onClick: () => setOpenThreads(prev => ({ ...prev, [id]: true })),
-          children: [
-            jsx(Codicon, { name: 'chevron-right', className: 'shrink-0 text-[0.65rem]' }),
-            jsx('span', { className: 'min-w-0 flex-1 truncate', children: headText || t('groups.thread') }),
-            jsx('span', {
-              className: 'shrink-0 text-[0.625rem] text-(--ui-text-quaternary)',
-              children: `${t('groups.replies', replies)} · ${relativeTime(entries[entries.length - 1].entry.at)}`
-            })
-          ]
-        }, `fold:${id}`)
-      )
-
-      return
-    }
-
-    // Open thread: a rail-indented block — collapse affordance, its entries,
-    // and its own reply box (Slack's "reply in thread").
-    const threadRows = []
-
-    if (!isNewest || openThreads[id] !== undefined) {
-      threadRows.push(
-        jsxs('button', {
-          type: 'button',
-          className:
-            'flex w-full items-center gap-1.5 px-2 pt-1 text-left text-[0.65rem] text-(--ui-text-quaternary) transition-colors hover:text-foreground',
-          title: t('groups.collapseThreadTitle'),
-          onClick: () => setOpenThreads(prev => ({ ...prev, [id]: false })),
-          children: [jsx(Codicon, { name: 'chevron-down', className: 'text-[0.6rem]' }), t('groups.collapseThread')]
-        }, `unfold:${id}`)
-      )
-    }
-
-    for (const { entry, index } of entries) {
-      threadRows.push(renderEntry(entry, index))
-    }
-
-    // Reply-in-thread: the newest thread's continuation ALSO lives here, so
-    // the main composer below can stay "new thread" without ambiguity.
-    threadRows.push(
-      replyThread === id
-        ? jsxs('form', {
-            className: 'grid gap-0 px-2 pb-1',
-            onSubmit: event => {
-              event.preventDefault()
-              submitReply(id)
-            },
-            children: [
-              attachmentRow(id),
-              jsxs('div', {
-                className: 'flex items-center gap-1.5',
-                children: [
-                  jsx(GroupMentionInput, {
-                    'aria-label': t('groups.replyInThread'),
-                    autoFocus: true,
-                    placeholder: t('groups.replyPlaceholder'),
-                    members,
-                    value: replyDrafts[id] || '',
-                    onChange: text => setReplyDrafts(prev => ({ ...prev, [id]: text })),
-                    onPaste: event => pasteImages(id, event)
-                  }),
-                  attachButton(id),
-                  jsx(Button, {
-                    type: 'submit',
-                    size: 'sm',
-                    disabled: !(replyDrafts[id] || '').trim() && !imagesFor(id).length,
-                    children: t('groups.reply')
-                  })
-                ]
-              })
-            ]
-          }, `replybox:${id}`)
-        : jsx('button', {
-            type: 'button',
-            className:
-              'w-fit px-2 pb-1 text-left text-[0.65rem] text-(--ui-accent,#4f9cf9) transition-colors hover:underline',
-            onClick: () => setReplyThread(id),
-            children: t('groups.replyInThread')
-          }, `replylink:${id}`)
-    )
+  for (const block of groupLogBlocks(room.log)) {
+    const label = groupBlockLabel(block.at, t, now, locale)
 
     logChildren.push(
-      jsx('div', {
-        className: 'grid gap-1.5 border-l-2 border-(--ui-stroke-secondary) pl-1.5',
-        children: threadRows
-      }, `thread:${id}`)
+      jsxs(
+        'div',
+        {
+          role: 'separator',
+          'aria-label': label,
+          className: 'flex items-center gap-3 text-[0.6875rem] text-(--ui-text-tertiary)',
+          children: [
+            jsx('span', { 'aria-hidden': true, className: 'h-px flex-1 bg-(--ui-stroke-tertiary)' }),
+            jsx('span', { 'aria-hidden': true, className: 'shrink-0', children: label }),
+            jsx('span', { 'aria-hidden': true, className: 'h-px flex-1 bg-(--ui-stroke-tertiary)' })
+          ]
+        },
+        `block:${block.entries[0].index}`
+      )
     )
-  })
+
+    for (const { entry, index } of block.entries) {
+      logChildren.push(renderEntry(entry, index))
+    }
+  }
 
   return jsxs('div', {
-    className: 'relative flex h-full flex-col',
+    className: 'relative flex h-full min-h-0 flex-col',
     onDragOver: event => {
       if ([...(event.dataTransfer?.types || [])].includes('Files')) {
         event.preventDefault()
@@ -9570,70 +9598,93 @@ function GroupChatWorkspace({ group, members, onBack }) {
     onDrop: dropFiles,
     children: [
       dragOver
-        ? jsx('div', {
-            className:
-              'pointer-events-none absolute inset-0 z-40 flex items-center justify-center border-2 border-dashed border-(--ui-accent,#4f9cf9) text-sm font-medium text-(--ui-accent,#4f9cf9)',
-            children: replyThread ? t('groups.dropToReply') : t('groups.dropToAttach')
-          }, 'dropzone')
+        ? jsx(
+            'div',
+            {
+              className:
+                'pointer-events-none absolute inset-0 z-40 flex items-center justify-center border-2 border-dashed border-(--ui-accent,#4f9cf9) text-sm font-medium text-(--ui-accent,#4f9cf9)',
+              children: t('groups.dropToAttach')
+            },
+            'dropzone'
+          )
         : null,
       header,
       activityPanel,
       jsx(ScrollArea, {
         className: 'min-h-0 flex-1',
         children: jsxs('div', {
-          className: 'grid gap-1.5 px-2.5 pb-2',
+          ref: logRef,
+          className: 'mx-auto flex w-[min(var(--composer-width),calc(100%-2rem))] flex-col gap-4 pt-4 pb-3',
           children: [
             ...(room.log.length
               ? logChildren
-              : [
-                  jsx('div', {
-                    className: 'px-2 py-4 text-center text-xs text-(--ui-text-tertiary)',
-                    children: t('groups.emptyRoom')
-                  }, 'empty')
-                ]),
+              : [jsx(EmptyState, { title: group, description: t('groups.emptyRoom') }, 'empty')]),
             room.running
-              ? jsx('div', {
-                  className: 'px-2 py-1 text-[0.7rem] italic text-(--ui-text-quaternary)',
-                  children: room.turn
-                    ? t('groups.thinking', groupSpeakerLabel(room.turn))
-                    : t('groups.roomWorking')
-                }, 'working')
+              ? jsxs(
+                  'div',
+                  {
+                    role: 'status',
+                    className: 'flex items-center gap-2 text-xs text-(--ui-text-tertiary)',
+                    children: [
+                      jsx(GlyphSpinner, { spinner: 'breathe', className: 'text-(--ui-text-tertiary)' }),
+                      jsx('span', {
+                        className: 'italic',
+                        children: room.turn
+                          ? t('groups.thinking', groupSpeakerLabel(room.turn))
+                          : t('groups.roomWorking')
+                      })
+                    ]
+                  },
+                  'working'
+                )
               : null
           ]
         })
       }),
-      jsx('div', {
-        className: 'border-t border-(--ui-stroke-secondary) p-2',
-        children: jsxs('form', {
-          className: 'grid gap-0',
-          onSubmit: event => {
-            event.preventDefault()
-            submit()
-          },
-          children: [
-            attachmentRow(null),
-            jsxs('div', {
-              className: 'flex items-center gap-1.5',
-              children: [
-                jsx(GroupMentionInput, {
-                  'aria-label': t('groups.messageLabel', group),
-                  placeholder: t('groups.composerPlaceholder', group),
-                  members,
-                  value: draft,
-                  onChange: setDraft,
-                  onPaste: event => pasteImages(null, event)
-                }),
-                attachButton(null),
-                jsx(Button, {
-                  type: 'submit',
-                  size: 'sm',
-                  disabled: !draft.trim() && !imagesFor(null).length,
-                  children: t('groups.newThread')
+      // The composer: one surface — attach, the message, send — in the same
+      // centered column as the log, like the chat composer.
+      jsxs('form', {
+        className: 'mx-auto grid w-[min(var(--composer-width),calc(100%-2rem))] gap-1.5 pt-1 pb-3',
+        onSubmit: event => {
+          event.preventDefault()
+          submit()
+        },
+        children: [
+          attachmentRow,
+          jsxs('div', {
+            className:
+              'flex items-center gap-1 rounded-(--composer-radius) border border-(--ui-stroke-secondary) bg-(--composer-fill) p-1.5 transition-colors focus-within:border-(--ui-stroke-primary)',
+            children: [
+              jsx(Tip, {
+                label: t('groups.attachFiles'),
+                children: jsx(Button, {
+                  type: 'button',
+                  variant: 'ghost',
+                  size: 'icon-xs',
+                  'aria-label': t('groups.attachFiles'),
+                  onClick: () => void pickGroupAttachments().then(addImages),
+                  children: jsx(Codicon, { name: 'attach' })
                 })
-              ]
-            })
-          ]
-        })
+              }),
+              jsx(GroupMentionInput, {
+                'aria-label': t('groups.messageLabel', group),
+                autoFocus: true,
+                placeholder: t('groups.composerPlaceholder', group),
+                members,
+                value: draft,
+                onChange: setDraft,
+                onPaste: pasteImages
+              }),
+              jsx(Button, {
+                type: 'submit',
+                size: 'icon-xs',
+                'aria-label': t('groups.send'),
+                disabled: (!draft.trim() && !pendingImages.length) || !members.length,
+                children: jsx(Codicon, { name: 'arrow-up' })
+              })
+            ]
+          })
+        ]
       }),
       jsx(GroupChatSettingsDialog, {
         group,
@@ -9667,80 +9718,92 @@ function GroupChatWorkspace({ group, members, onBack }) {
   })
 }
 
-/** Live closers for group-chat MAIN-window tabs, by group name — so a
- *  disband (or the room view's own Back) can retire the tab it opened. */
-const groupChatMainTabs = new Map()
+/** Center-page path of the open group room — where a bot's chat renders, so
+ *  the roster beside it never changes. */
+const GROUP_ROOM_PATH = '/workbots-group'
 
-function closeGroupChatMainTab(group) {
-  const close = groupChatMainTabs.get(group)
+/** Set once register() mounts the room page. Older desktops without plugin
+ *  pages keep the room inside the Bots pane. */
+let groupRoomPageRegistered = false
 
-  groupChatMainTabs.delete(group)
+/** Select a group room and remember it: the app reopens its last route on
+ *  launch, and the room page has to know which group it was showing. */
+function selectGroupRoom(group) {
+  $groupChatWorkspace.set(group || null)
 
-  if ($groupChatWorkspace.get() === group) {
-    $groupChatWorkspace.set(null)
-  }
-
-  if (typeof close === 'function') {
-    try {
-      close()
-    } catch {
-      /* tab already gone */
-    }
+  try {
+    Promise.resolve(pluginCtx?.storage?.set?.('open-group', group || null)).catch(() => undefined)
+  } catch {
+    /* storage unavailable — the selection holds for this window only */
   }
 }
 
-/** Main-window wrapper: seats the member roster reactively (live roster +
- *  bot meta + the room's stored cross-connection descriptors) so the room
- *  keeps working as members change while the tab is open. */
-function GroupChatMainView({ group }) {
+/** The group whose room is ON SCREEN, else null. The selection outlives a
+ *  trip to a bot's chat; the roster highlight must not. */
+function useOpenGroupRoom() {
+  const selected = useValue($groupChatWorkspace)
+  const views = useValue($groupRoomViews)
+
+  return views > 0 ? selected : null
+}
+
+/** The room page (GROUP_ROOM_PATH). Seats the member roster reactively (live
+ *  roster + bot meta + the room's stored cross-connection descriptors) so the
+ *  room keeps working as members change, and keys the room by group so a
+ *  draft never follows the user into another group. */
+function GroupChatMainView() {
+  const t = useBotModeT()
+  const group = useValue($groupChatWorkspace)
   const allMeta = useValue($botMeta)
   // Subscribe: membership changes ride bot meta AND the room record.
-  useValue($groupChats)
-  const roster = useValue($lastRoster)
-  const members = groupChatMemberBots(group, roster, allMeta)
+  const rooms = useValue($groupChats)
+  // The page can be on screen without the Bots pane (a relaunch restores the
+  // last route), so it reads the roster itself — from the shared cache, no
+  // second poller. Seating from the live roster keeps local members on their
+  // bare-name identity (their sessions and watermarks).
+  const { data } = useRoster({ poll: false })
+  const lastRoster = useValue($lastRoster)
+  const roster = Array.isArray(data?.profiles) ? data.profiles : lastRoster
+  const known = Boolean(group) && groupChatNames(allMeta, rooms).includes(group)
 
-  return jsx(GroupChatWorkspace, { group, members, onBack: () => closeGroupChatMainTab(group) })
+  // Count this view while it is mounted: the roster lights the open room's
+  // row only while the room is on screen.
+  useEffect(() => {
+    $groupRoomViews.set($groupRoomViews.get() + 1)
+
+    return () => $groupRoomViews.set(Math.max(0, $groupRoomViews.get() - 1))
+  }, [])
+
+  return jsx('div', {
+    className: 'flex h-full min-h-0 min-w-0 flex-col bg-(--ui-chat-surface-background)',
+    children: known
+      ? jsx(GroupChatWorkspace, { group, members: groupChatMemberBots(group, roster, allMeta) }, group)
+      : jsx(EmptyState, {
+          className: 'flex-1',
+          title: t('groups.noRoomTitle'),
+          description: t('groups.noRoomDescription')
+        })
+  })
 }
 
-/** Open a group chat the Discord way: a tab taking over the MAIN chat window
- *  (host.openWorkspace, newer desktops), falling back to the in-panel room
- *  view on desktops whose SDK predates the main-area door. */
+/** Open a group chat the Grok way: its conversation takes the center page,
+ *  where a bot's chat renders, and the roster stays put — moving between bots
+ *  and groups is one click. Desktops without plugin pages fall back to the
+ *  room inside the Bots pane. */
 function openGroupChat(group) {
   $groupNeedsYou.set({ ...$groupNeedsYou.get(), [group]: false })
-  $groupChatWorkspace.set(group)
+  selectGroupRoom(group)
 
-  if (typeof host.openWorkspace === 'function') {
-    try {
-      const close = host.openWorkspace(`${ID}:group:${slugify(group)}`, {
-        title: group,
-        minWidth: '24rem',
-        render: () => jsx(GroupChatMainView, { group }),
-        onClose: () => {
-          groupChatMainTabs.delete(group)
-
-          if ($groupChatWorkspace.get() === group) {
-            $groupChatWorkspace.set(null)
-          }
-        }
-      })
-
-      groupChatMainTabs.set(group, close)
-
-      return
-    } catch {
-      // Fall through to the in-panel room below.
-    }
+  if (groupRoomPageRegistered) {
+    host.navigate(GROUP_ROOM_PATH)
   }
-
-  // The selected-group atom was set before trying the main-window door, so
-  // older desktops naturally render the in-panel room as the fallback.
 }
 
 /** One group chat as ONE roster row — the Discord shape: stacked member
  *  avatars, group name, member count, the newest room line as the preview
  *  (markdown flattened), relative time of the last activity, and the
  *  needs-you badge on the row itself. Sorts into the same recency ordering
- *  as bot rows; clicking opens the room in the main chat window. */
+ *  as bot rows; clicking opens the room on the center page. */
 function GroupRow({ active, group, members, needsYou, onOpen }) {
   const t = useBotModeT()
   const rooms = useValue($groupChats)
@@ -9864,6 +9927,7 @@ function BotsPane() {
   const activityToasts = useValue($activityToasts)
   const sessionsWorkspaceName = useValue($botSessionsWorkspace)
   const groupChatName = useValue($groupChatWorkspace)
+  const openGroup = useOpenGroupRoom()
   const groupNeedsYou = useValue($groupNeedsYou)
   const groupRooms = useValue($groupChats)
 
@@ -9959,10 +10023,17 @@ function BotsPane() {
     return jsx(ProfileSessionsWorkspace, { bot: sessionsWorkspaceBot })
   }
 
-  const groupChatMembers = groupChatName ? groupChatMemberBots(groupChatName, roster, allMeta) : []
+  // Desktops without plugin pages: the selected room takes the roster's place
+  // here, with a Back button to return to it.
+  const paneRoomMembers =
+    !groupRoomPageRegistered && groupChatName ? groupChatMemberBots(groupChatName, roster, allMeta) : []
 
-  if (groupChatName && groupChatMembers.length) {
-    return jsx(GroupChatWorkspace, { group: groupChatName, members: groupChatMembers })
+  if (paneRoomMembers.length) {
+    return jsx(
+      GroupChatWorkspace,
+      { group: groupChatName, members: paneRoomMembers, onBack: () => selectGroupRoom(null) },
+      groupChatName
+    )
   }
 
   return jsxs('div', {
@@ -10191,7 +10262,7 @@ function BotsPane() {
                         ? jsx(
                             GroupRow,
                             {
-                              active: groupChatName === row.name,
+                              active: openGroup === row.name,
                               group: row.name,
                               members: row.members,
                               needsYou: Boolean(groupNeedsYou[row.name]),
@@ -10420,6 +10491,33 @@ export default {
         .catch(() => undefined)
     } catch {
       /* no storage — rooms start empty */
+    }
+
+    // The group room page: a group's conversation opens in the center, where
+    // a bot's chat renders, beside the unchanged roster.
+    if (ROUTES_AREA && typeof host.navigate === 'function') {
+      ctx.register({
+        id: 'group-room',
+        area: ROUTES_AREA,
+        title: 'WorkBots',
+        data: { path: GROUP_ROOM_PATH },
+        render: () => jsx(GroupChatMainView, {})
+      })
+      groupRoomPageRegistered = true
+
+      // Reselect the last open room: the app restores its last route on
+      // launch, and that may be this page.
+      try {
+        Promise.resolve(ctx.storage?.get?.('open-group'))
+          .then(value => {
+            if (typeof value === 'string' && value && $groupChatWorkspace.get() === null) {
+              $groupChatWorkspace.set(value)
+            }
+          })
+          .catch(() => undefined)
+      } catch {
+        /* no storage — the page shows its empty state until a room is picked */
+      }
     }
 
     // Routines follow the chat you're in: track the focused chat's owner

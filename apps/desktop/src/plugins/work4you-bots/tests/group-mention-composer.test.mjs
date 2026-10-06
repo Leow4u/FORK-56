@@ -3,25 +3,21 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import vm from 'node:vm'
 
-// Group-composer mentions (#89049): the room's "new thread" composer and the
-// reply-in-thread box mount a member-scoped @-mention popover instead of a
-// dead plain Input. Source-shape assertions plus a functional check of the
-// caret tokenizer, extracted and run in isolation.
+// Group-composer mentions (#89049): the room's composer mounts a
+// member-scoped @-mention popover instead of a dead plain Input.
+// Source-shape assertions plus a functional check of the caret tokenizer,
+// extracted and run in isolation.
 
 const source = readFileSync(new URL('../plugin.js', import.meta.url), 'utf8')
 
-test('group room composers mount GroupMentionInput, not bare Input', () => {
-  // Main composer (new thread) and thread reply box both use the wrapper.
-  const mainComposer = source.match(/jsx\(GroupMentionInput, \{\s*'aria-label': t\('groups\.messageLabel', group\)/)
-  const replyComposer = source.match(/jsx\(GroupMentionInput, \{\s*'aria-label': t\('groups\.replyInThread'\)/)
-  assert.ok(mainComposer, 'main group composer must render GroupMentionInput')
-  assert.ok(replyComposer, 'thread reply box must render GroupMentionInput')
+test('the group room composer mounts GroupMentionInput, not bare Input', () => {
+  const composer = source.match(/jsx\(GroupMentionInput, \{\s*'aria-label': t\('groups\.messageLabel', group\)/)
+  assert.ok(composer, 'the group composer must render GroupMentionInput')
 
-  // Neither composer renders a dead plain Input anymore.
+  // The composer never renders a dead plain Input.
   assert.ok(!/jsx\(Input, \{\s*'aria-label': t\('groups\.messageLabel', group\)/.test(source))
-  assert.ok(!/jsx\(Input, \{\s*'aria-label': t\('groups\.replyInThread'\)/.test(source))
 
-  // Both receive the seated members for the popover scope.
+  // It receives the seated members for the popover scope.
   assert.ok(/GroupMentionInput\(\{ members, onChange, value/.test(source))
 })
 

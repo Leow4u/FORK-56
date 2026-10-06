@@ -7,8 +7,10 @@ const pluginSource = readFileSync(new URL('../plugin.js', import.meta.url), 'utf
 
 /** Load the plugin in a vm with a scripted cli.exec so member turns are
  *  deterministic. `turnScript(profile, prompt)` returns the member's reply
- *  text (or throws to simulate a failed turn). */
-function load(turnScript, { busyUntilResumeCall } = {}) {
+ *  text (or throws to simulate a failed turn). `pages` stands in for a
+ *  desktop whose SDK exports plugin pages (ROUTES_AREA); `stored` seeds
+ *  plugin storage reads. */
+function load(turnScript, { busyUntilResumeCall, pages = false, stored = {} } = {}) {
   const values = new Map()
   const atom = initial => {
     const slot = { get: () => values.get(slot), set: value => values.set(slot, value) }
@@ -31,8 +33,11 @@ function load(turnScript, { busyUntilResumeCall } = {}) {
     const stored = runtimeToStored.get(target) || (sessions.has(target) ? target : titleToStored.get(`${profile}::${target}`))
     return stored ? sessions.get(stored) : null
   }
+  const navigations = []
+  const registered = []
   const context = {
     atom,
+    ...(pages ? { sdk: { ROUTES_AREA: 'routes' } } : {}),
     setTimeout: fn => {
       fn()
       return 0
@@ -91,6 +96,7 @@ function load(turnScript, { busyUntilResumeCall } = {}) {
         }
         return {}
       },
+      navigate: path => navigations.push(path),
       state: { profile: { get: () => 'default', listen: () => undefined }, gateway: { listen: () => undefined } },
       notify: () => undefined,
       notifyError: () => undefined
@@ -104,15 +110,18 @@ function load(turnScript, { busyUntilResumeCall } = {}) {
     .replace(/^import .* from 'react\/jsx-runtime'\r?\n/m, '')
     .replace('export default {', 'globalThis.plugin = {')
     .concat(
-      '\nglobalThis.__gc = { sendToGroupChat, runGroupChatRounds, harvestStrandedGroupReply, resolveGroupResponders, parseGroupChatMentions, rotateGroupSpeakers, isGroupPassText, formatGroupChatLine, buildGroupChatTurnPrompt, trimGroupChatLog, disbandGroupChat, updateGroupChat, openGroupChat, closeGroupChatMainTab, $groupChats, $groupNeedsYou, $groupChatWorkspace, $botMeta, GROUP_CHAT_MAX_ROUNDS, GROUP_CHAT_MAX_MESSAGES };\n'
+      '\nglobalThis.__gc = { sendToGroupChat, runGroupChatRounds, harvestStrandedGroupReply, resolveGroupResponders, parseGroupChatMentions, rotateGroupSpeakers, isGroupPassText, formatGroupChatLine, buildGroupChatTurnPrompt, trimGroupChatLog, disbandGroupChat, renameGroupChat, updateGroupChat, appendGroupChatEntry, openGroupChat, assignLegacyThreads, groupComposerThread, groupLogBlocks, groupBlockLabel, $groupChats, $groupNeedsYou, $groupChatWorkspace, $groupRoomViews, $botMeta, GROUP_CHAT_MAX_ROUNDS, GROUP_CHAT_MAX_MESSAGES, GROUP_THREAD_GAP_MS, GROUP_ROOM_PATH };\n'
     )
   vm.runInNewContext(source, context, { filename: 'plugin.js' })
   const storageWrites = new Map()
   context.plugin.register({
-    storage: { get: () => null, set: (key, value) => storageWrites.set(key, value) },
-    register: () => undefined
+    storage: { get: key => stored[key] ?? null, set: (key, value) => storageWrites.set(key, value) },
+    register: contribution => {
+      registered.push(contribution)
+      return () => undefined
+    }
   })
-  return { ...context.__gc, calls, host: context.host, sessions, storageWrites }
+  return { ...context.__gc, calls, host: context.host, navigations, registered, sessions, storageWrites }
 }
 
 const MEMBERS = [{ name: 'research', title: '' }, { name: 'builder', title: '' }, { name: 'ops', title: 'The Ops' }]
@@ -344,48 +353,109 @@ test('log trimming keeps watermarks consistent', () => {
   assert.equal(watermarks.builder, 0)
 })
 
-test('source contract: workspace + main-window door + prompt rules are wired', () => {
+test('source contract: workspace + prompt rules are wired', () => {
   assert.match(pluginSource, /function GroupChatWorkspace\(/)
-  // Group rows open through the main-window door, feature-detected with the
-  // in-panel room as the older-desktop fallback.
   assert.match(pluginSource, /function openGroupChat\(/)
-  assert.match(pluginSource, /typeof host\.openWorkspace === 'function'/)
-  assert.match(pluginSource, /\$groupChatWorkspace\.set\(group\)/)
   assert.match(pluginSource, /reply with exactly "\(pass\)"/i)
   assert.match(pluginSource, /\[Group chat: "\$\{groupName\}"\]/)
 })
 
-test('group selection follows main-window open and close', () => {
-  const gc = load(() => '(pass)')
-  let onClose
+test('the room page registers at its own path only where the desktop has plugin pages', () => {
+  const withPages = load(() => '(pass)', { pages: true })
+  const page = withPages.registered.find(contribution => contribution.area === 'routes')
 
-  gc.host.openWorkspace = (_id, options) => {
-    onClose = options.onClose
-    return () => onClose()
-  }
+  assert.ok(page, 'the room page is a routes contribution')
+  assert.equal(page.data.path, withPages.GROUP_ROOM_PATH)
+  assert.match(page.data.path, /^\/[a-z0-9-]+$/, 'one segment, no params')
+  assert.equal(typeof page.render, 'function')
 
-  gc.openGroupChat('Core')
-  assert.equal(gc.$groupChatWorkspace.get(), 'Core')
-
-  onClose()
-  assert.equal(gc.$groupChatWorkspace.get(), null)
+  const legacy = load(() => '(pass)')
+  assert.equal(
+    legacy.registered.some(contribution => contribution.area === 'routes'),
+    false
+  )
 })
 
-test('closing an older selected group does not clear the newer selection', () => {
+test('opening a group selects it, remembers it, clears its badge, and shows it on the center page', () => {
+  const gc = load(() => '(pass)', { pages: true })
+  gc.$groupNeedsYou.set({ Core: true, Ops: true })
+
+  gc.openGroupChat('Core')
+
+  assert.equal(gc.$groupChatWorkspace.get(), 'Core')
+  assert.equal(gc.storageWrites.get('open-group'), 'Core', 'a relaunch reopens the same room')
+  assert.deepEqual([...gc.navigations], [gc.GROUP_ROOM_PATH])
+  assert.equal(gc.$groupNeedsYou.get().Core, false)
+  assert.equal(gc.$groupNeedsYou.get().Ops, true, 'other rooms keep their badge')
+
+  // Switching rooms is the same page with a new selection.
+  gc.openGroupChat('Ops')
+  assert.equal(gc.$groupChatWorkspace.get(), 'Ops')
+  assert.deepEqual([...gc.navigations], [gc.GROUP_ROOM_PATH, gc.GROUP_ROOM_PATH])
+})
+
+test('without plugin pages, opening a group selects it in place and never navigates', () => {
   const gc = load(() => '(pass)')
 
-  gc.host.openWorkspace = () => () => undefined
   gc.openGroupChat('Core')
-  gc.openGroupChat('Ops')
-  gc.closeGroupChatMainTab('Core')
 
-  assert.equal(gc.$groupChatWorkspace.get(), 'Ops')
+  assert.equal(gc.$groupChatWorkspace.get(), 'Core')
+  assert.equal(gc.navigations.length, 0)
+})
+
+test('launch reselects the remembered room on the page, never over a live selection', async () => {
+  const restored = load(() => '(pass)', { pages: true, stored: { 'open-group': 'Core' } })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(restored.$groupChatWorkspace.get(), 'Core')
+
+  const live = load(() => '(pass)', { pages: true, stored: { 'open-group': 'Core' } })
+  live.$groupChatWorkspace.set('Ops')
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(live.$groupChatWorkspace.get(), 'Ops')
+
+  // Older desktops keep the roster on launch: their room view replaces it.
+  const legacy = load(() => '(pass)', { stored: { 'open-group': 'Core' } })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(legacy.$groupChatWorkspace.get(), null)
+})
+
+test('rename: the selection follows the room to its new name', async () => {
+  const gc = load(() => '(pass)', { pages: true })
+  gc.updateGroupChat('Core', r => {
+    r.members = [{ name: 'research', connectionId: 'local' }]
+    return r
+  })
+  gc.$botMeta.set({ research: { groups: ['Core'], group: 'Core' } })
+  gc.openGroupChat('Core')
+
+  assert.equal(await gc.renameGroupChat('Core', 'Platform', [{ name: 'research' }]), 'Platform')
+  assert.equal(gc.$groupChatWorkspace.get(), 'Platform')
+  assert.equal(gc.storageWrites.get('open-group'), 'Platform')
+  assert.ok(gc.$groupChats.get().Platform, 'the room moved')
+})
+
+test('needs-you stays quiet for the room on screen and still badges the others', () => {
+  const gc = load(() => '(pass)', { pages: true })
+  const bot = { kind: 'member', name: 'research' }
+
+  gc.openGroupChat('Core')
+  gc.$groupRoomViews.set(1)
+  gc.appendGroupChatEntry('Core', bot, '@user which plan?', null)
+  gc.appendGroupChatEntry('Ops', bot, '@user which plan?', null)
+
+  assert.equal(gc.$groupNeedsYou.get().Core, false, 'the mention is already in view')
+  assert.equal(gc.$groupNeedsYou.get().Ops, true)
+
+  // Selected but not on screen (the user is in a bot's chat): badge it.
+  gc.$groupRoomViews.set(0)
+  gc.appendGroupChatEntry('Core', bot, '@user still there?', null)
+  assert.equal(gc.$groupNeedsYou.get().Core, true)
 })
 
 test('source contract: active group styling suppresses bot styling', () => {
   assert.match(pluginSource, /const isActive = !activeGroup && !bot\.remoteSource && bot\.name === focusedProfile/)
   assert.match(pluginSource, /active && 'bg-\(--ui-row-active-background\)'/)
-  assert.match(pluginSource, /active: groupChatName === row\.name/)
+  assert.match(pluginSource, /active: openGroup === row\.name/)
 })
 
 test('disband: removes only this membership, room log, workspace, and needs-you state', async () => {
@@ -429,6 +499,8 @@ test('disband: removes only this membership, room log, workspace, and needs-you 
   assert.equal(gc.$botMeta.get().builder.group, 'Keep')
   assert.equal(JSON.stringify(gc.$botMeta.get().research.groups), JSON.stringify(['Keep']))
   assert.equal(gc.$botMeta.get().research.group, 'Keep')
+  // The remembered room is forgotten too, so a relaunch can't reselect it.
+  assert.equal(gc.storageWrites.get('open-group'), null)
   // Persisted room map no longer carries the room.
   const durable = gc.storageWrites.get('group-chats')
   assert.ok(durable && !('Gone' in durable), 'disbanded room not persisted')
@@ -477,7 +549,7 @@ test('disband: a running room leaves an epoch-bumped empty tombstone so in-fligh
 test('source contract: workspace header offers disband behind a ConfirmDialog', () => {
   assert.match(pluginSource, /function disbandGroupChat\(/)
   assert.match(pluginSource, /Disband group chat\?/)
-  assert.match(pluginSource, /title: t\('groups\.disbandTooltip', group\)/)
+  assert.match(pluginSource, /label: t\('groups\.disbandTooltip', group\)/)
 })
 
 test('default profile speaks as Work4You in room transcripts, not @default', () => {
@@ -539,11 +611,18 @@ test('source contract: room messages carry the speaker avatar via the roster app
   // image/pet honored, backfilled PNG dropped so the math face animates).
   assert.match(workspace, /botAppearance\(entry\.from\.name, meta\)/)
   assert.match(workspace, /image && !isBackfilledFacePng\(image\)/)
-  assert.match(workspace, /jsx\(BotFace, \{\s*shape,\s*color,\s*image: photo \? image : null,\s*size: 24,\s*name: entry\.from\.name/)
+  assert.match(
+    workspace,
+    /jsx\(BotFace, \{\s*shape,\s*color,\s*image: photo \? image : null,\s*size: 26,\s*name: entry\.from\.name/
+  )
 
   // Header shows the member faces (capped) with a names tooltip.
-  assert.match(workspace, /members\.slice\(0, 6\)\.map\(/)
-  assert.match(workspace, /title: members\.map\(b => displayName\(b, botRosterMeta\(b, allMeta\)\)\)\.join\(', '\)/)
+  assert.match(workspace, /members\.slice\(0, 3\)\.map\(/)
+  assert.match(
+    workspace,
+    /const memberNames = members\.map\(b => displayName\(b, botRosterMeta\(b, allMeta\)\)\)\.join\(', '\)/
+  )
+  assert.match(workspace, /label: memberNames/)
 })
 
 test('stranded harvest: a timed-out turn whose reply landed late posts into the room and clears the marker', async () => {
@@ -699,7 +778,7 @@ test('turn prompt: results are full quality — only chatter is asked to stay sh
   assert.match(prompt, /Keep chatter short/i)
 })
 
-test('threads: room composer mints a new thread; replies land in it', async () => {
+test('threads: a send without a thread id mints a new thread; replies land in it', async () => {
   const gc = load(() => '(pass)')
 
   const t1 = gc.sendToGroupChat('Rooms', [{ name: 'research', title: '' }], 'first topic')
@@ -752,16 +831,11 @@ test('threads: replying with an explicit thread id continues that thread and sco
 
 test('threads: hydration assigns legacy thread ids — lull splits, follow-ups stay together', () => {
   const gc = load(() => '(pass)')
-  assert.match(pluginSource, /function assignLegacyThreads\(log\)/)
-
-  const fn = new Function(
-    `${pluginSource.slice(pluginSource.indexOf('const GROUP_THREAD_GAP_MS'), pluginSource.indexOf('/** Merged room view'))}; return assignLegacyThreads`
-  )()
   const M = 60000
   const u = (text, at) => ({ from: { kind: 'user', name: 'You' }, text, at })
   const m = (name, text, at) => ({ from: { kind: 'member', name }, text, at })
 
-  const log = fn([
+  const log = gc.assignLegacyThreads([
     u('task one', 0),
     m('a', 'r1', 1 * M),
     u('quick follow-up', 3 * M), // inside the 15-min window: SAME thread
@@ -773,22 +847,117 @@ test('threads: hydration assigns legacy thread ids — lull splits, follow-ups s
   assert.equal(log[2].thread, log[3].thread)
   assert.notEqual(log[0].thread, log[4].thread, 'post-lull message starts a new thread')
   assert.equal(log[4].thread, log[5].thread)
-  void gc
 })
 
-test('source contract: thread UI — folded rows, per-thread reply box, new-thread composer', () => {
-  assert.match(pluginSource, /Open this thread/)
-  assert.match(pluginSource, /Collapse thread/)
-  assert.match(pluginSource, /Reply in thread…/)
-  assert.match(pluginSource, /children: t\('groups\.newThread'\)/)
-  assert.match(pluginSource, /const markKey = `\$\{thread\}::\$\{memberKey\}`/)
+// One continuous conversation: the composer never asks for a thread. A
+// message joins the current block's thread, and after a lull of
+// GROUP_THREAD_GAP_MS the next one opens a new block (a new thread).
+const M = 60000
+const userLine = (text, at, thread) => ({ from: { kind: 'user', name: 'You' }, text, at, thread })
+const botLine = (name, text, at, thread) => ({ from: { kind: 'member', name }, text, at, thread })
+
+test('composer thread: a message inside the window joins the current block, after a lull it opens a new one', () => {
+  const gc = load(() => '(pass)')
+  const log = [userLine('plan the launch', 0, 't1'), botLine('a', 'on it', 2 * M, 't1')]
+
+  assert.equal(gc.groupComposerThread([], 0), null, 'an empty room starts a block')
+  assert.equal(gc.groupComposerThread(log, 5 * M), 't1')
+  // The lull counts from the room's LAST line, whoever spoke it.
+  assert.equal(gc.groupComposerThread(log, 2 * M + gc.GROUP_THREAD_GAP_MS - 1), 't1')
+  assert.equal(gc.groupComposerThread(log, 2 * M + gc.GROUP_THREAD_GAP_MS), null)
+})
+
+test('composer thread: a late reply into an older thread never pulls the next message back into it', () => {
+  const gc = load(() => '(pass)')
+  const log = [
+    userLine('old task', 0, 't1'),
+    userLine('new topic', 60 * M, 't2'),
+    // A timed-out member delivers its t1 reply late, inside the new block.
+    botLine('a', 'late result for the old task', 61 * M, 't1')
+  ]
+
+  assert.equal(gc.groupComposerThread(log, 62 * M), 't2', 'joins the block of the latest user message')
+})
+
+test('end to end: sends a minute apart share a thread; a send after the lull opens a new one', async () => {
+  const gc = load(() => '(pass)')
+  const members = [{ name: 'research', title: '' }]
+  const drain = async () => {
+    for (let i = 0; i < 200 && (gc.$groupChats.get().Flow || {}).running; i++) {
+      await new Promise(resolve => setImmediate(resolve))
+    }
+  }
+  const send = async (text, now) => {
+    const log = (gc.$groupChats.get().Flow || { log: [] }).log
+    const thread = gc.sendToGroupChat('Flow', members, text, gc.groupComposerThread(log, now))
+    await drain()
+    return thread
+  }
+
+  const first = await send('first question', Date.now())
+  const second = await send('follow-up', Date.now() + M)
+  const third = await send('much later', Date.now() + gc.GROUP_THREAD_GAP_MS + 2 * M)
+
+  assert.equal(second, first)
+  assert.notEqual(third, first)
+})
+
+test('log blocks: a user message after a lull opens a block; a slow reply stays with its question', () => {
+  const gc = load(() => '(pass)')
+  const log = [
+    userLine('task one', 0),
+    botLine('a', 'r1', 1 * M),
+    userLine('follow-up', 3 * M),
+    // A long turn: the reply lands 40 minutes after the question.
+    botLine('a', 'slow but thorough', 43 * M),
+    userLine('new topic', 90 * M),
+    botLine('a', 'r3', 91 * M)
+  ]
+
+  const blocks = gc.groupLogBlocks(log)
+
+  // (Spread: arrays built inside the vm carry a foreign prototype.)
+  assert.deepEqual(
+    [...blocks.map(block => [...block.entries.map(({ index }) => index)])],
+    [
+      [0, 1, 2, 3],
+      [4, 5]
+    ]
+  )
+  assert.deepEqual([...blocks.map(block => block.at)], [0, 90 * M], 'each block is labeled by its first line')
+  assert.equal(blocks[0].entries[3].entry, log[3], 'entries keep their log identity and index')
+  assert.equal(gc.groupLogBlocks([]).length, 0)
+  assert.equal(gc.groupLogBlocks([botLine('a', 'trimmed log starts mid-reply', 5 * M)]).length, 1)
+})
+
+test('block labels: today and yesterday by name, older days by date, in the given language', () => {
+  const gc = load(() => '(pass)')
+  const now = new Date(2026, 9, 6, 15, 30).getTime()
+  const at = (day, hour, minute) => new Date(2026, 9, day, hour, minute).getTime()
+  const clock = time => new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' }).format(time)
+
+  assert.equal(gc.groupBlockLabel(at(6, 14, 58), undefined, now, 'en'), `Today, ${clock(at(6, 14, 58))}`)
+  assert.equal(gc.groupBlockLabel(at(5, 23, 10), undefined, now, 'en'), `Yesterday, ${clock(at(5, 23, 10))}`)
+
+  const older = gc.groupBlockLabel(at(1, 9, 12), undefined, now, 'en')
+  assert.ok(older.startsWith(new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(at(1, 9, 12))))
+  assert.ok(older.endsWith(clock(at(1, 9, 12))))
+  // Another year carries the year.
+  assert.match(gc.groupBlockLabel(new Date(2025, 11, 31, 8, 0).getTime(), undefined, now, 'en'), /2025/)
+
+  // The words come from the translator and the clock from the locale, so
+  // pt-BR reads "Hoje, 14:58".
+  const pt = (key, ...args) =>
+    ({ 'groups.blockToday': `Hoje, ${args[0]}`, 'groups.blockYesterday': `Ontem, ${args[0]}` })[key] ?? key
+  assert.equal(gc.groupBlockLabel(at(6, 14, 58), pt, now, 'pt'), 'Hoje, 14:58')
+  assert.equal(gc.groupBlockLabel(at(5, 23, 10), pt, now, 'pt'), 'Ontem, 23:10')
 })
 
 function groupChatWorkspaceSource() {
   const start = pluginSource.indexOf('function GroupChatWorkspace')
-  const end = pluginSource.indexOf('function closeGroupChatMainTab')
+  const end = pluginSource.indexOf('const GROUP_ROOM_PATH')
   assert.ok(start >= 0, 'GroupChatWorkspace is defined')
-  assert.ok(end > start, 'closeGroupChatMainTab follows GroupChatWorkspace')
+  assert.ok(end > start, 'the room page follows GroupChatWorkspace')
   return pluginSource.slice(start, end)
 }
 
