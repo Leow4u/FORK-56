@@ -244,7 +244,7 @@ Notes:
   words come from the catalog (`assistant.tool.runSummary`, `titles`), never a
   literal. Every file a turn wrote keeps its row, diff or not; a silent call
   (a todo update, a reaction) is never counted in a summary or ticked live.
-- **Activity density** — `$activityDensity` (Compact / Balanced, the default /
+- **Activity density** — `$activityDensity` (Compact, the default / Balanced /
   Detailed) decides how much of a turn's work the transcript shows; Detailed
   shows every thought and call as it happens, without exception. In Compact
   and Balanced a live turn is one block (`LiveTurn`) hosted by the turn's
