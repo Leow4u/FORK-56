@@ -9,12 +9,11 @@ import vm from 'node:vm'
 
 const source = readFileSync(new URL('../plugin.js', import.meta.url), 'utf8')
 
-function loadIsolation() {
+function loadIsolation(context = {}) {
   const start = source.indexOf('const FRESH_CLONE_FROM')
   const end = source.indexOf('function CreateAgentDialog(')
   assert.notEqual(start, -1, 'FRESH_CLONE_FROM helper block is missing')
   assert.ok(end > start, 'CreateAgentDialog must follow the isolation helpers')
-  const context = {}
   vm.runInNewContext(
     `${source.slice(start, end)}\nglobalThis.__iso = { FRESH_CLONE_FROM, DEFAULT_CREATE_PROVIDER, DEFAULT_CREATE_MODEL, isFreshProfileCreate, capabilityCatalogSource, profilesCreateIsolationParams, profilesCreateModelParams };\n`,
     context,
@@ -48,20 +47,31 @@ test('Fresh is the default clone-from; reset restores the same sentinel', () => 
   assert.match(source, /setCloneFrom\(FRESH_CLONE_FROM\)/)
 })
 
-test('New Agent pins Work4You Portal + Operis, not Inherit', () => {
-  const iso = loadIsolation()
+test('New Agent pins Work4You + the SDK house model, not Inherit', () => {
+  const iso = loadIsolation({ sdk: { WORK4YOU_HOUSE_MODEL_ID: 'acme/house-next' } })
   assert.equal(iso.DEFAULT_CREATE_PROVIDER, 'work4you')
-  assert.equal(iso.DEFAULT_CREATE_MODEL, 'openai/gpt-5.6-luna')
+  // Follows the desktop's house id, so a house-model move moves New Agent too.
+  assert.equal(iso.DEFAULT_CREATE_MODEL, 'acme/house-next')
   assert.match(source, /useState\(DEFAULT_CREATE_PROVIDER\)/)
   assert.match(source, /useState\(DEFAULT_CREATE_MODEL\)/)
   assert.match(source, /setProvider\(DEFAULT_CREATE_PROVIDER\)/)
   assert.match(source, /setModel\(DEFAULT_CREATE_MODEL\)/)
   assert.deepEqual(snapshot(iso.profilesCreateModelParams(iso.DEFAULT_CREATE_PROVIDER, iso.DEFAULT_CREATE_MODEL)), {
     provider: 'work4you',
-    model: 'openai/gpt-5.6-luna'
+    model: 'acme/house-next'
   })
   assert.deepEqual(snapshot(iso.profilesCreateModelParams('', '')), {})
   assert.deepEqual(snapshot(iso.profilesCreateModelParams('work4you', '')), {})
+})
+
+test('an SDK without the house id still pins a live vendor-prefixed model', () => {
+  for (const context of [{}, { sdk: {} }, { sdk: { WORK4YOU_HOUSE_MODEL_ID: '' } }]) {
+    const iso = loadIsolation(context)
+    assert.match(iso.DEFAULT_CREATE_MODEL, /^[^/\s]+\/[^/\s]+$/)
+    // Operis 4.0's retired id: the Portal only unlocks the current house id
+    // on Free, and the dialog must never show it as the default again.
+    assert.notEqual(iso.DEFAULT_CREATE_MODEL, 'openai/gpt-5.6-luna')
+  }
 })
 
 test('Fresh create does not clone or overlay launch credentials', () => {
@@ -89,6 +99,9 @@ test('New Agent model.options lists only connected providers, like Settings', ()
   const params = loadModelOptionsParams()
   assert.equal(params.explicit_only, true)
   assert.notEqual(params.include_unconfigured, true)
+  // A normal open reads the cached catalog; refresh is the explicit
+  // "refresh models" action and re-fetches every provider.
+  assert.notEqual(params.refresh, true)
   assert.match(source, /host\.request\('model\.options', MODEL_OPTIONS_PARAMS\)/)
 })
 

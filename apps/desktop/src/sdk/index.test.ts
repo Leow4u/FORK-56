@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { createClientSessionState } from '@/lib/chat-runtime'
-import { host } from '@/sdk'
+import { WORK4YOU_HOUSE_MODEL_DISPLAY } from '@/lib/model-status-label'
+import { host, modelDisplayParts, WORK4YOU_HOUSE_MODEL_ID } from '@/sdk'
 import { setActiveSessionId, setAwaitingResponse, setBusy } from '@/store/session'
 import { clearAllSessionStates, publishSessionState } from '@/store/session-states'
 
@@ -105,6 +106,14 @@ describe('host.state turn flags', () => {
     expect(host.state.awaitingResponse.get()).toBe(false)
 
     $sessionTiles.set([])
+  })
+})
+
+describe('house model export', () => {
+  it('is the id the catalog chrome renders as Operis', () => {
+    // Plugins (Bot Mode's New Agent) default to this id; it must be the one
+    // the composer labels as the house model, not a retired wire id.
+    expect(modelDisplayParts(WORK4YOU_HOUSE_MODEL_ID).name).toBe(WORK4YOU_HOUSE_MODEL_DISPLAY)
   })
 })
 
