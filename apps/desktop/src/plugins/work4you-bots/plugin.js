@@ -82,7 +82,7 @@ const blobatarSvg = typeof sdk === 'undefined' ? undefined : sdk.blobatarSvg
 // Budgeted render loop (fps cap + observability pause + dormancy + teardown).
 // Feature-detected: older desktops fall back to the hand-rolled clock below.
 const createBudgetedLoop = typeof sdk === 'undefined' ? undefined : sdk.createBudgetedLoop
-// Commercial catalog chrome (Operis 4.0, Claude Opus 5, …). Older SDKs without
+// Commercial catalog chrome (Operis 5.0, Claude Opus 5, …). Older SDKs without
 // the export keep the wire id so the plugin still loads on a stale desktop.
 const displayModelName =
   typeof sdk === 'undefined' || typeof sdk.displayModelName !== 'function'
@@ -283,7 +283,8 @@ const BOT_MODE_LOCALES = {
       modelExample: 'e.g. antigravity/gemini-3.6-flash-high',
       backToDropdowns: '← Back to dropdowns',
       inherit: 'Inherit (launch profile)',
-      enterManually: '✏️ Enter manually…'
+      enterManually: '✏️ Enter manually…',
+      proNeedsSubscription: 'Pro models need a paid Work4You subscription.'
     },
     config: {
       needsNewerGateway: 'Full configuration needs a newer gateway (restart it after updating Work4You).',
@@ -727,7 +728,8 @@ const BOT_MODE_LOCALES = {
       modelExample: 'ex.: antigravity/gemini-3.6-flash-high',
       backToDropdowns: '← Voltar às listas',
       inherit: 'Herdar (perfil de inicialização)',
-      enterManually: '✏️ Digitar manualmente…'
+      enterManually: '✏️ Digitar manualmente…',
+      proNeedsSubscription: 'Os modelos Pro exigem uma assinatura paga do Work4You.'
     },
     config: {
       needsNewerGateway:
@@ -5263,10 +5265,66 @@ function BotRow({ bot, onDelete, onEdit, onGroup }) {
 }
 
 // ── model picker (provider/model dropdowns via model.options) ───────────────
-// Same flags as Settings → Model and the composer: only providers the user
-// connected. include_unconfigured would list Fireworks / OpenRouter / etc.
-// with no key, which New Agent cannot set up.
-const MODEL_OPTIONS_PARAMS = { explicit_only: true, refresh: true }
+// Same flags as a normal Settings → Model / composer open: only providers the
+// user connected. include_unconfigured would list Fireworks / OpenRouter /
+// etc. with no key, which New Agent cannot set up. No `refresh`: it busts
+// every provider's model cache and re-fetches the live catalogs, which the
+// app keeps for the explicit "refresh models" action.
+const MODEL_OPTIONS_PARAMS = { explicit_only: true }
+
+// Provider-select sentinel for "Inherit (launch profile)".
+const MODEL_PICKER_INHERIT = '__default__'
+
+// The Portal row reads as the product name, not "Work4You Portal (work4you)".
+const PORTAL_PROVIDER_SLUG = 'work4you'
+const PORTAL_PROVIDER_LABEL = 'Work4You'
+
+function providerOptionLabel(provider) {
+  if (provider.slug === PORTAL_PROVIDER_SLUG) {
+    return PORTAL_PROVIDER_LABEL
+  }
+
+  return provider.name ? `${provider.name} (${provider.slug})` : provider.slug
+}
+
+function providerModelIds(provider) {
+  return (provider?.models || []).map(m => (typeof m === 'string' ? m : m.id || m.name || ''))
+}
+
+/** Models this account cannot use: paid models on a Free Portal plan. */
+function lockedModelIds(provider) {
+  return new Set(provider?.unavailable_models || [])
+}
+
+/** The model to land on for `provider`: the current one when the provider
+ *  lists it and the account can use it, else the first usable one. */
+function modelForProvider(provider, currentModel) {
+  const ids = providerModelIds(provider)
+  const locked = lockedModelIds(provider)
+
+  if (currentModel && ids.includes(currentModel) && !locked.has(currentModel)) {
+    return currentModel
+  }
+
+  return ids.find(id => id && !locked.has(id)) || ''
+}
+
+/** Free-text mode only when the user chose it (`freeTextChoice` true/false),
+ *  or, before any choice (null), when the loaded inventory does not list the
+ *  provider. Read from the inventory on every render: freezing it on the
+ *  first render, while model.options is still loading and the list is empty,
+ *  made every pinned provider look unknown and stuck New Agent in free text. */
+function modelPickerUsesFreeText(freeTextChoice, provider, providers) {
+  if (freeTextChoice !== null) {
+    return freeTextChoice
+  }
+
+  if (!provider || provider === MODEL_PICKER_INHERIT) {
+    return false
+  }
+
+  return !providers.some(p => p.slug === provider)
+}
 
 function useModelOptions() {
   return useQuery({
@@ -5288,12 +5346,12 @@ function ModelPicker({ value, onChange, placeholderModel }) {
 
   // Hooks are ALWAYS declared up front, before any conditional return.
   // Declaring them after a return trips React error #310.
-  const NONE = '__default__'
+  const NONE = MODEL_PICKER_INHERIT
   const CUSTOM = '__custom__'
   const providers = (data?.providers || []).filter(p => p && p.slug)
-  const isKnown =
-    !value.provider || value.provider === NONE || providers.some(p => p.slug === value.provider)
-  const [useFreeText, setUseFreeText] = useState(!isKnown)
+  // null until the user picks a mode — see modelPickerUsesFreeText.
+  const [freeTextChoice, setFreeTextChoice] = useState(null)
+  const useFreeText = modelPickerUsesFreeText(freeTextChoice, value.provider, providers)
 
   if (isLoading) {
     return jsx('div', {
@@ -5356,7 +5414,7 @@ function ModelPicker({ value, onChange, placeholderModel }) {
           variant: 'ghost',
           size: 'sm',
           className: 'w-fit self-start text-[length:var(--conversation-text-font-size)] text-(--ui-text-secondary)',
-          onClick: () => setUseFreeText(false),
+          onClick: () => setFreeTextChoice(false),
           children: t('model.backToDropdowns')
         })
       ]
@@ -5364,9 +5422,8 @@ function ModelPicker({ value, onChange, placeholderModel }) {
   }
 
   const activeProvider = providers.find(p => p.slug === value.provider) || null
-  const models = activeProvider
-    ? (activeProvider.models || []).map(m => (typeof m === 'string' ? m : m.id || m.name || ''))
-    : []
+  const models = activeProvider ? providerModelIds(activeProvider) : []
+  const locked = lockedModelIds(activeProvider)
 
   return jsxs('div', {
     style: { display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '10px' },
@@ -5379,17 +5436,10 @@ function ModelPicker({ value, onChange, placeholderModel }) {
             if (v === NONE) {
               onChange({ provider: '', model: '' })
             } else if (v === CUSTOM) {
-              setUseFreeText(true)
+              setFreeTextChoice(true)
             } else {
               const prov = providers.find(p => p.slug === v)
-              const provModels = (prov?.models || []).map(m =>
-                typeof m === 'string' ? m : m.id || m.name || ''
-              )
-              const first = provModels[0] || ''
-              onChange({
-                provider: v,
-                model: prov && provModels.includes(value.model) ? value.model : first
-              })
+              onChange({ provider: v, model: modelForProvider(prov, value.model) })
             }
           },
           children: [
@@ -5400,7 +5450,7 @@ function ModelPicker({ value, onChange, placeholderModel }) {
                 ...providers.map(p =>
                   jsx(
                     SelectItem,
-                    { value: p.slug, children: p.name ? `${p.name} (${p.slug})` : p.slug },
+                    { value: p.slug, children: providerOptionLabel(p) },
                     p.slug
                   )
                 ),
@@ -5414,12 +5464,36 @@ function ModelPicker({ value, onChange, placeholderModel }) {
         t('model.model'),
         activeProvider && models.length > 0
           ? jsxs(Select, {
-              value: value.model || (models[0] ?? ''),
+              value: value.model || modelForProvider(activeProvider, ''),
               onValueChange: v => onChange({ model: v }),
               children: [
                 jsx(SelectTrigger, { children: jsx(SelectValue, {}) }),
                 jsx(SelectContent, {
-                  children: models.map(m => jsx(SelectItem, { value: m, children: displayModelName(m) }, m))
+                  children: models.map(m =>
+                    // Same lock the composer picker shows: listed, not selectable.
+                    locked.has(m)
+                      ? jsx(
+                          SelectItem,
+                          {
+                            value: m,
+                            disabled: true,
+                            children: jsxs('span', {
+                              className: 'flex items-center gap-1.5',
+                              children: [
+                                displayModelName(m),
+                                jsx(Codicon, {
+                                  className: 'shrink-0 opacity-80',
+                                  name: 'lock',
+                                  size: '0.75rem',
+                                  title: t('model.proNeedsSubscription')
+                                })
+                              ]
+                            })
+                          },
+                          m
+                        )
+                      : jsx(SelectItem, { value: m, children: displayModelName(m) }, m)
+                  )
                 })
               ]
             })
@@ -6288,12 +6362,18 @@ function EditProfileDialog({ bot, open, onClose }) {
 // .env, or messaging tokens. The GUI default is this sentinel; Clone from
 // default remains an explicit opt-in.
 const FRESH_CLONE_FROM = '__none__'
-// House-model pin (Work4You Portal + Operis 4.0). Fresh profiles have no
-// local auth.json / .env keys; Inherit left the first agent build on
-// `auto` and failed with no_provider_configured. Advanced can still pick
-// Inherit or another provider. Wire id matches work4you_cli.models.
+// House-model pin (Work4You + Operis). Fresh profiles have no local
+// auth.json / .env keys; Inherit left the first agent build on `auto` and
+// failed with no_provider_configured. Advanced can still pick Inherit or
+// another provider. The model is the SDK's house id — the constant the
+// composer uses — so a house-model move cannot leave New Agent on a retired
+// id again. Older SDKs without the export get the current wire id.
 const DEFAULT_CREATE_PROVIDER = 'work4you'
-const DEFAULT_CREATE_MODEL = 'openai/gpt-5.6-luna'
+const DEFAULT_CREATE_MODEL =
+  (typeof sdk !== 'undefined' &&
+    typeof sdk.WORK4YOU_HOUSE_MODEL_ID === 'string' &&
+    sdk.WORK4YOU_HOUSE_MODEL_ID) ||
+  'openai/gpt-6-luna'
 
 function isFreshProfileCreate(cloneFrom) {
   return cloneFrom == null || cloneFrom === '' || cloneFrom === FRESH_CLONE_FROM
@@ -6919,7 +6999,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
                                   setModel(patch.model)
                                 }
                               },
-                              placeholderModel: 'Operis 4.0'
+                              placeholderModel: displayModelName(DEFAULT_CREATE_MODEL)
                             }),
                             labeled(
                               t('create.soulLabel'),
