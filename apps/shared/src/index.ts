@@ -1,5 +1,27 @@
 export { backendScopeKey, backendScopePrefix, LOCAL_CONNECTION_ID, registryBackendScopeKey } from './backend-scope'
 export {
+  type BillingApi,
+  type BillingChargeResult,
+  type BillingErrorKind,
+  type BillingRefusal,
+  type BillingRequestGateway,
+  type BillingResult,
+  createBillingApi,
+  type UpdateAutoReloadInput
+} from './billing-client'
+export {
+  buildManageSubscriptionUrl,
+  type ClassifiedPlanTier,
+  classifyPlanTiers,
+  FALLBACK_PORTAL_BILLING_URL,
+  FALLBACK_PORTAL_URL,
+  findCurrentTier,
+  isFreeCatalogTier,
+  isFreePlan,
+  type PlanTierState,
+  plansCapable
+} from './billing-plan'
+export {
   BILLING_REFUSAL_POLICY,
   type BillingRecovery,
   type BillingRefusalPolicy,
