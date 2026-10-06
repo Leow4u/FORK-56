@@ -419,7 +419,6 @@ export function CloudPage() {
     <OrgPage
       eyebrow="Work4You Cloud"
       title="Instâncias"
-      lead="Agent hospedado pela Work4You. Crie uma VM, acompanhe o estado e abra o dashboard. Atualizações de runtime aplicam a image nova sem apagar o disco — o histórico permanece."
     >
       <section className={styles.toolbar}>
         <p className={styles.sectionLead}>{instanceCountLabel}</p>
@@ -521,11 +520,11 @@ export function CloudPage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Abrir dashboard
+                    Abrir chat
                   </a>
                 ) : (
                   <button type="button" className={styles.primary} disabled>
-                    Abrir dashboard
+                    Abrir chat
                   </button>
                 )}
                 {agent.status === 'stopped' ? (

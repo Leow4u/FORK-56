@@ -37,6 +37,17 @@
   gap: 1rem;
 }
 
+.policyCallout {
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  background: rgba(228, 230, 221, 0.35);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--grafite);
+}
+
 .panel {
   padding: 1.15rem 1.2rem;
   border: 1px solid var(--linha);

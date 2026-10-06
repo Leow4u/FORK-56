@@ -50,7 +50,7 @@
   border-radius: 8px;
   background: var(--papel);
   display: grid;
-  gap: 0.2rem;
+  gap: 0.35rem;
 }
 
 .balanceLabel {
@@ -68,9 +68,21 @@
   color: var(--tinta);
 }
 
-.balanceHint {
+.buyBtn {
+  margin-top: 0.15rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--linha);
+  border-radius: 6px;
+  background: var(--nevoa);
   font-size: 0.72rem;
-  color: var(--grafite);
+  font-weight: 700;
+  color: var(--tinta);
+  cursor: pointer;
+}
+
+.buyBtn:hover {
+  border-color: var(--oliva);
+  color: var(--oliva-esc);
 }
 
 .nav {
@@ -98,11 +110,6 @@
   padding: 0 0.35rem 0.25rem;
 }
 
-.accountNav .navLink {
-  font-size: 0.8125rem;
-  padding: 0.45rem 0.7rem;
-}
-
 .navLink {
   display: block;
   padding: 0.55rem 0.7rem;
@@ -111,6 +118,12 @@
   font-weight: 600;
   color: var(--grafite);
   transition: background 0.15s ease, color 0.15s ease;
+}
+
+.accountNav .navLink {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.45rem 0.7rem;
 }
 
 .navLink:hover {

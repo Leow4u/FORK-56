@@ -1,0 +1,35 @@
+.errorBanner {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(180, 80, 60, 0.35);
+  background: rgba(255, 240, 236, 0.85);
+  color: var(--tinta);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 2rem 0 1rem;
+  max-width: 20rem;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--grafite);
+}
+
+.upgrade {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--oliva);
+}
+
+.upgrade:hover {
+  color: var(--oliva-esc);
+}

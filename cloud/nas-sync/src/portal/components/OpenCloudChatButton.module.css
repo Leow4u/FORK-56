@@ -1,0 +1,48 @@
+.heroPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.65rem;
+  padding: 0.45rem 1.15rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--oliva);
+  color: var(--papel);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.heroPrimary:hover:not(:disabled) {
+  background: var(--oliva-esc);
+}
+
+.heroPrimary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cardPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.35rem;
+  padding: 0.4rem 0.95rem;
+  border-radius: 6px;
+  border: none;
+  background: var(--oliva);
+  color: #faf9f5;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.cardPrimary:hover:not(:disabled) {
+  background: var(--oliva-esc);
+}
+
+.cardPrimary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
