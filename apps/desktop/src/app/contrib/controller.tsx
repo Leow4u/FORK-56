@@ -14,6 +14,7 @@ import { LayoutTreeRoot } from '@/components/pane-shell/tree/renderer'
 import type { DoubleTapContext } from '@/components/pane-shell/tree/renderer/drag-session'
 import {
   $layoutTree,
+  $paneVisible,
   bindPaneVisibility,
   bindToolPaneCollapse,
   bindTreeSideVisibility,
@@ -58,6 +59,7 @@ import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH
 } from '@/store/layout'
+import { endProfileNavigationView } from '@/store/profile'
 import { runExportProfileFlow } from '@/store/profile-share'
 import {
   $reviewOpen,
@@ -805,6 +807,15 @@ registerPaneCloser('sessions', () =>
 registerPaneCloser('files', () =>
   paneRootSide('files') === 'right' ? setFileBrowserOpen(false) : dismissTreePane('files')
 )
+
+// Back on the Sessions pane, the list is the user's again: a plugin open (Bot
+// Mode) may have shown every profile for its own navigation, and that view ends
+// here instead of sticking as if the user had picked it.
+$paneVisible('sessions').subscribe(visible => {
+  if (visible) {
+    endProfileNavigationView()
+  }
+})
 
 // ---------------------------------------------------------------------------
 

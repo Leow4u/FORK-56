@@ -70,7 +70,13 @@ import { $dismissedAutoProjectIds, $sidebarProjectOrderIds } from '@/store/layou
 import { openPetGenerate } from '@/store/pet-generate'
 import { openBrowserTab } from '@/store/preview'
 import { $projectScope } from '@/store/project-scope'
-import { $activeProjectId, $projectTree, openFolderAsProject, requestStartWorkSession } from '@/store/projects'
+import {
+  $activeProjectId,
+  $ownProfileProjectTree,
+  openFolderAsProject,
+  refreshOwnProfileProjectTree,
+  requestStartWorkSession
+} from '@/store/projects'
 import { $connection, $currentCwd } from '@/store/session'
 import { runGatewayRestart } from '@/store/system-actions'
 import {
@@ -752,7 +758,13 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     [t, worktrees]
   )
 
-  const projectTree = useStore($projectTree)
+  // Select project picks the folder of a chat on the active profile, so it lists
+  // that profile's projects only, as the composer chip does.
+  const projectTree = useStore($ownProfileProjectTree)
+
+  useEffect(() => {
+    void refreshOwnProfileProjectTree()
+  }, [])
   const projectOrderIds = useStore($sidebarProjectOrderIds)
   const dismissedAutoProjectIds = useStore($dismissedAutoProjectIds)
   const projectScope = useStore($projectScope)

@@ -9,7 +9,7 @@ import { FolderOpen } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { repoStatusForCwd } from '@/store/coding-status'
 import { $projectScope, ALL_PROJECTS } from '@/store/project-scope'
-import { $projectTree, clearActiveWorkspace } from '@/store/projects'
+import { $ownProfileProjectTree, clearActiveWorkspace } from '@/store/projects'
 
 import { ComposerRunTargetMenu } from './run-target-menu'
 import { WorkspaceBranchChip } from './workspace-branch-chip'
@@ -37,7 +37,7 @@ function WorkspaceBranchChipSegment({ cwd }: { cwd: string }) {
 export function WorkspaceChipRow({ cwd, messagesEmpty }: { cwd?: null | string; messagesEmpty: boolean }) {
   const { t } = useI18n()
   const selectLabel = t.commandCenter.selectWorkspace
-  const tree = useStore($projectTree)
+  const tree = useStore($ownProfileProjectTree)
   const scope = useStore($projectScope)
   const path = (cwd ?? '').trim()
   const scopedProject = scope === ALL_PROJECTS ? undefined : tree.find(project => project.id === scope)

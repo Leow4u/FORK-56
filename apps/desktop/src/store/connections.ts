@@ -10,7 +10,8 @@ import {
   ensureGatewayAgent,
   normalizeProfileKey,
   refreshActiveProfile,
-  requestFreshSession
+  requestFreshSession,
+  setShowAllProfiles
 } from '@/store/profile'
 import { $connection } from '@/store/session'
 
@@ -180,7 +181,7 @@ export async function selectConnection(connectionId: string): Promise<void> {
   }
 
   if (pendingTarget === null && currentConnectionId === connectionId && currentProfile === targetProfile) {
-    $showAllProfiles.set(false)
+    setShowAllProfiles(false)
     $newChatProfile.set(targetProfile)
     requestFreshSession()
     await rememberConnection(connectionId)
@@ -207,7 +208,7 @@ export async function selectConnection(connectionId: string): Promise<void> {
     if (revision === switchRevision) {
       await rememberConnection(connectionId)
       wipeSessionListsForGatewaySwitch()
-      $showAllProfiles.set(false)
+      setShowAllProfiles(false)
       $newChatProfile.set(targetProfile)
       requestFreshSession()
       await refreshActiveProfile()

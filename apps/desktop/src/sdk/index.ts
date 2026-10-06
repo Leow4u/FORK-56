@@ -54,7 +54,8 @@ import {
   refreshProfiles,
   selectProfile,
   setActiveProfile,
-  setShowAllProfiles
+  setShowAllProfiles,
+  showAllProfilesForNavigation
 } from '@/store/profile'
 import {
   $activeSessionId,
@@ -615,8 +616,12 @@ export const host = {
         profileActiveAt = Date.now()
       }
 
-      if (plan.showAllProfiles !== null) {
-        setShowAllProfiles(plan.showAllProfiles)
+      // A navigation open shows every profile for now without rewriting the
+      // user's saved scope; an explicit workspace switch is a real pick.
+      if (plan.showAllProfiles === true) {
+        showAllProfilesForNavigation()
+      } else if (plan.showAllProfiles === false) {
+        setShowAllProfiles(false)
       }
 
       wakePhase = 'hydration'

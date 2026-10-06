@@ -1,8 +1,10 @@
 /**
  * Select-workspace actions and the recent-project list.
  *
- * The project rows are saved projects from the sidebar's `$projectTree`
- * (same sort, same dismissals) — not a second catalog of folders. Home,
+ * The project rows are the active profile's saved projects
+ * (`$ownProfileProjectTree`: the sidebar's tree, or that profile's own tree
+ * while the sidebar browses every profile; same sort, same dismissals) — not a
+ * second catalog of folders. Home,
  * archived rows, and auto-discovered repos stay out: a folder a chat happened
  * to use is not a project the user created, and it must not linger in this
  * menu after that project is deleted. New project is the only create action
