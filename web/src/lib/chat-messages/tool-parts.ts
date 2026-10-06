@@ -269,6 +269,7 @@ function toolResult(
   return {
     ...parsedResult,
     ...(payload?.inline_diff ? { inline_diff: payload.inline_diff } : {}),
+    ...(payload?.diff_stats ? { diff_stats: payload.diff_stats } : {}),
     ...(payload?.summary ? { summary: payload.summary } : {}),
     ...(payload?.message ? { message: payload.message } : {}),
     ...(payload?.preview ? { preview: payload.preview } : {}),
@@ -493,28 +494,30 @@ export function applyStoredToolResult(messages: ChatMessage[], toolMessage: Sess
  * A file edit's diff, kept with its tool row as display metadata
  * (`SessionDB.merge_tool_display_metadata`). A `write_file` result carries
  * none — its diff only ever rode the live `tool.complete` event — so without
- * this a reloaded turn showed the file it created with no +N −M.
+ * this a reloaded turn showed the file it created with no +N −M. The kept
+ * diff is capped, so the whole edit's line counts are kept beside it.
  */
-function storedInlineDiff(toolMessage: SessionMessage): string {
+function storedInlineDiff(toolMessage: SessionMessage): { diff: string; stats?: unknown } {
   let meta: unknown = toolMessage.display_metadata
 
   if (typeof meta === 'string') {
     try {
       meta = JSON.parse(meta)
     } catch {
-      return ''
+      return { diff: '' }
     }
   }
 
-  const diff = meta && typeof meta === 'object' ? (meta as Record<string, unknown>).inline_diff : undefined
+  const record = meta && typeof meta === 'object' ? (meta as Record<string, unknown>) : {}
+  const diff = typeof record.inline_diff === 'string' ? record.inline_diff : ''
 
-  return typeof diff === 'string' ? diff : ''
+  return record.diff_stats ? { diff, stats: record.diff_stats } : { diff }
 }
 
 /** The stored result, with the row's kept diff where the result has none of its own. */
 function storedToolResult(toolMessage: SessionMessage, content: unknown): unknown {
   const result = parseStoredToolResult(content)
-  const diff = storedInlineDiff(toolMessage)
+  const { diff, stats } = storedInlineDiff(toolMessage)
 
   if (!diff || !result || typeof result !== 'object' || Array.isArray(result)) {
     return result
@@ -522,7 +525,11 @@ function storedToolResult(toolMessage: SessionMessage, content: unknown): unknow
 
   const record = result as Record<string, unknown>
 
-  return record.inline_diff || record.diff ? result : { ...record, inline_diff: diff }
+  if (record.inline_diff || record.diff) {
+    return result
+  }
+
+  return { ...record, inline_diff: diff, ...(stats ? { diff_stats: stats } : {}) }
 }
 
 export function applyStoredToolResultToParts(

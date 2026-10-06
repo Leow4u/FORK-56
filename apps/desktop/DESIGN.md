@@ -295,6 +295,15 @@ Notes:
   aloud, Refresh and React, then how long the turn took. The newest settled
   reply keeps the row on screen; older replies show it on hover or keyboard
   focus, and it keeps its height while hidden.
+- **Changed files** — the newest settled turn that edited files ends with
+  one card, under the reply and above its actions (`changed-files-card.tsx`):
+  a `--ui-stroke-tertiary` hairline at `--card-radius`, no fill, lined up
+  with the reply's text and at its type size. A title row (Edited N files,
+  the turn's total, a chevron) opens the diff pane; one row per file (icon,
+  name, its count, a chevron) opens that file's diff. Counts show both
+  sides even at zero (`+95 −0`) and come from the whole edit, not from the
+  capped diff a tool row keeps. It is an index of the turn, not a tool
+  widget, so it doesn't wear `WIDGET_SHELL_CLASS`.
 - **Composer context bar** — empty-chat workspace picker. A second capsule
   (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
   card as a sibling vessel, not a well inside it: same width, same

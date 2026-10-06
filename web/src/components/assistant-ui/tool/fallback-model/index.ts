@@ -59,6 +59,25 @@ export function countDiffLineStats(diff: string): DiffLineStats {
 }
 
 /**
+ * A file edit's +/-: the whole edit's counts when the gateway sent them
+ * (`diff_stats`), else counted from the diff on hand. That diff is capped at
+ * ~80 lines, so counting it undercounts a large edit.
+ */
+export function editLineStats(result: unknown, diff: string): DiffLineStats {
+  const stats = parseMaybeObject(result).diff_stats
+
+  if (isRecord(stats) && isLineCount(stats.added) && isLineCount(stats.removed)) {
+    return { added: stats.added, removed: stats.removed }
+  }
+
+  return diff ? countDiffLineStats(diff) : { added: 0, removed: 0 }
+}
+
+function isLineCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+/**
  * Whether a diff made its file rather than changed it: every hunk starts from
  * an empty old range (`@@ -0,0 …`), which is how a write to a path that held
  * nothing renders.

@@ -241,6 +241,55 @@ class TestEditDiffPreview:
         assert not any("a/file7.py" in line for line in rendered)
         assert "additional file" in rendered[-1]
 
+    def test_render_reports_the_whole_diff_counts_past_the_rendered_cap(self, tmp_path):
+        target = tmp_path / "index.html"
+        snapshot = capture_local_edit_snapshot("write_file", {"path": str(target)})
+        target.write_text("".join(f"<p>{i}</p>\n" for i in range(300)), encoding="utf-8")
+        printed: list[str] = []
+        stats: dict = {}
+
+        rendered = render_edit_diff_with_delta(
+            "write_file",
+            '{"bytes_written": 3000}',
+            function_args={"path": str(target)},
+            snapshot=snapshot,
+            print_fn=printed.append,
+            stats=stats,
+        )
+
+        assert rendered is True
+        assert any("omitted" in line for line in printed)
+        assert stats == {"added": 300, "removed": 0}
+
+    def test_diff_line_stats_reads_lines_by_their_place_in_the_hunk(self):
+        # An added "++i" line and a removed "-- note" line look like file
+        # headers by their first characters; the hunk header says otherwise.
+        diff = (
+            "--- a/loop.c\n+++ b/loop.c\n"
+            "@@ -1,3 +1,3 @@\n"
+            " int i = 0;\n"
+            "--- note\n"
+            "+++i;\n"
+            " return i;\n"
+        )
+
+        assert display_module.diff_line_stats(diff) == {"added": 1, "removed": 1}
+
+    def test_diff_line_stats_counts_every_file_and_hunk(self):
+        diff = (
+            "--- a/a.py\n+++ b/a.py\n@@ -1,2 +1,2 @@\n-x = 1\n+x = 2\n y = 3\n"
+            "@@ -10 +10,2 @@\n z = 0\n+w = 1\n"
+            "--- /dev/null\n+++ b/new.py\n@@ -0,0 +1,2 @@\n+a\n+b\n"
+        )
+
+        assert display_module.diff_line_stats(diff) == {"added": 4, "removed": 1}
+
+    def test_diff_line_stats_without_hunk_headers_falls_back_to_markers(self):
+        assert display_module.diff_line_stats("+one\n+two\n-three\n") == {
+            "added": 2,
+            "removed": 1,
+        }
+
 
 class TestBuildToolLabel:
     """Friendly human-phrased tool labels for built-in tools."""

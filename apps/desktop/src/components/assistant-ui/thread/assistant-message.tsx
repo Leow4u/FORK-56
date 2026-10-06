@@ -141,7 +141,7 @@ export const AssistantMessage: FC<{
 
   const getMessageText = useCallback(() => messageContentText(messageRuntime.getState().content), [messageRuntime])
 
-  // Cursor's changed-files card only appears once the turn settles: while the
+  // The changed-files card only appears once the turn settles: while the
   // agent is still editing, the tool rows narrate each patch and a card that
   // grew a row per write would thrash the transcript. `[]` while running keeps
   // this selector referentially stable across the 30 Hz delta stream.
@@ -257,6 +257,11 @@ export const AssistantMessage: FC<{
           </ErrorPrimitive.Root>
         </MessagePrimitive.Error>
       </div>
+      {/* What the newest turn changed, right under what it said and above its
+          actions, the way Claude closes a turn. A folded host still has to
+          own it: older Worked-for rows keep their diary, not a stack of stale
+          files cards. */}
+      <ChangedFilesCard parts={view.kind === 'host' && isLastMessage ? view.parts : settledParts} />
       <MessageTimelineTimestamp className="px-(--message-text-indent) pt-0.5" suppressIfDuplicatePart />
       {hasVisibleText && !isInterim && (
         <AssistantFooter
@@ -267,11 +272,6 @@ export const AssistantMessage: FC<{
           pinned={isLastMessage && !isRunning}
         />
       )}
-      {/* Last thing in the newest turn — under the action bar, the way Cursor
-          ends a turn on its summary rather than burying it above the controls.
-          A folded host still has to be the tail: older Worked-for rows keep
-          their diary, not a stack of stale files cards. */}
-      <ChangedFilesCard parts={view.kind === 'host' && isLastMessage ? view.parts : settledParts} />
     </MessagePrimitive.Root>
   )
 }

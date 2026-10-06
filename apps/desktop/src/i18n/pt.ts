@@ -4928,7 +4928,7 @@ export const pt = defineLocale({
       branchNewChat: 'Ramificar em nova conversa',
       react: 'Reagir',
       dismissError: 'Dispensar erro',
-      filesChanged: count => (count === 1 ? '1 arquivo alterado' : `${count} arquivos alterados`),
+      filesChanged: count => (count === 1 ? 'Editou 1 arquivo' : `Editou ${count} arquivos`),
       reviewChanges: 'Revisar',
       readAloudFailed: 'Falha ao ler em voz alta',
       preparingAudio: 'Preparando áudio...',

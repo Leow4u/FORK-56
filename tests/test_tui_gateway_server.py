@@ -19901,6 +19901,38 @@ def test_write_file_diff_is_kept_with_its_tool_row_for_reload(tmp_path, monkeypa
     assert tool["content"] == json.dumps({"bytes_written": 21})
 
 
+def test_a_large_write_keeps_its_exact_line_counts(tmp_path, monkeypatch):
+    """The diff shown is capped, so the client can't count a big file's +N
+    from it: the whole diff's counts ride on the event and on the stored row."""
+    from work4you_state import SessionDB
+
+    db = SessionDB(db_path=tmp_path / "state.db")
+    emitted: list[tuple] = []
+    monkeypatch.setattr(server, "_get_db", lambda: db)
+    monkeypatch.setattr(server, "_emit", lambda *args, **_kwargs: emitted.append(args))
+    key = db.create_session("diff-stats", "test")
+    target = tmp_path / "index.html"
+    args = {"path": str(target), "content": "".join(f"<p>{i}</p>\n" for i in range(300))}
+    _write_file_turn(db, key, "call-big", str(target))
+    monkeypatch.setitem(
+        server._sessions, "big-sid", {"session_key": key, "tool_started_at": {}}
+    )
+
+    server._on_tool_start("big-sid", "call-big", "write_file", args)
+    target.write_text(args["content"])
+    server._on_tool_complete(
+        "big-sid", "call-big", "write_file", args, json.dumps({"bytes_written": 3000})
+    )
+
+    complete = next(a[2] for a in emitted if a and a[0] == "tool.complete")
+    assert complete["inline_diff"].count("\n") < 300
+    assert complete["diff_stats"] == {"added": 300, "removed": 0}
+    assert _tool_display_metadata(db, key, "call-big")["diff_stats"] == {
+        "added": 300,
+        "removed": 0,
+    }
+
+
 def test_a_result_that_carries_its_own_diff_is_not_duplicated(tmp_path, monkeypatch):
     from work4you_state import SessionDB
 

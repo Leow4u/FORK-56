@@ -31,6 +31,24 @@ describe('deriveChangedFiles', () => {
     ])
   })
 
+  // What a row keeps of a diff is capped at ~80 lines, so a big file's +N
+  // comes from the counts the gateway took over the whole edit.
+  it('takes the whole edit line counts over the capped diff', () => {
+    expect(
+      deriveChangedFiles([
+        {
+          type: 'tool-call',
+          toolName: 'write_file',
+          args: { path: 'site/index.html' },
+          result: {
+            diff_stats: { added: 300, removed: 0 },
+            inline_diff: '@@ -0,0 +1,300 @@\n+<p>0</p>\n+<p>1</p>'
+          }
+        }
+      ])
+    ).toEqual([{ added: 300, name: 'index.html', path: 'site/index.html', removed: 0 }])
+  })
+
   it('skips failed or still-running edits', () => {
     expect(
       deriveChangedFiles([

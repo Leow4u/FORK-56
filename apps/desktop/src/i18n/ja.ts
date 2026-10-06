@@ -3114,7 +3114,7 @@ export const ja = defineLocale({
       branchNewChat: '新しいチャットでブランチ',
       react: 'リアクション',
       dismissError: 'エラーを閉じる',
-      filesChanged: count => `${count} 件のファイルを変更`,
+      filesChanged: count => `${count} 件のファイルを編集`,
       reviewChanges: 'レビュー',
       readAloudFailed: '読み上げに失敗しました',
       preparingAudio: '音声を準備中...',

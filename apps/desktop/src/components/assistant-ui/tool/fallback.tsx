@@ -52,7 +52,7 @@ import {
   buildToolView,
   clampForDisplay,
   cleanVisibleText,
-  countDiffLineStats,
+  editLineStats,
   inlineDiffFromResult,
   isCardTool,
   isFileEditTool,
@@ -476,8 +476,8 @@ function ToolEntry({ part }: ToolEntryProps) {
   const copyAction = useMemo(() => toolCopyPayload(stablePart, view), [stablePart, view])
 
   const diffStats = useMemo(
-    () => (isFileEdit && view.inlineDiff ? countDiffLineStats(view.inlineDiff) : null),
-    [isFileEdit, view.inlineDiff]
+    () => (isFileEdit && view.inlineDiff ? editLineStats(result, view.inlineDiff) : null),
+    [isFileEdit, result, view.inlineDiff]
   )
 
   const showDiffStats = !isPending && Boolean(diffStats && (diffStats.added > 0 || diffStats.removed > 0))

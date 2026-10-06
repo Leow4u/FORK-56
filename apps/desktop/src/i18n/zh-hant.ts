@@ -3014,7 +3014,7 @@ export const zhHant = defineLocale({
       branchNewChat: '在新聊天中分支',
       react: '回應',
       dismissError: '关闭错误',
-      filesChanged: count => `${count} 個檔案已變更`,
+      filesChanged: count => `已編輯 ${count} 個檔案`,
       reviewChanges: '檢視',
       readAloudFailed: '朗讀失敗',
       preparingAudio: '正在準備音訊...',

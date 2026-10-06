@@ -1052,6 +1052,50 @@ def _summarize_rendered_diff_sections(
     return rendered
 
 
+_HUNK_HEADER_RE = re.compile(r"^@@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? @@")
+
+
+def diff_line_stats(diff: str) -> dict[str, int]:
+    """Count the lines a unified diff adds and removes.
+
+    Hunk headers say how many old and new lines each hunk spans, so a line is
+    read by its place in the hunk rather than its first character: an added
+    line that itself starts with ``++`` is still one added line, not a file
+    header. A diff without hunk headers falls back to the first character.
+    """
+    added = removed = 0
+    old_left = new_left = 0
+    saw_hunk = False
+
+    for line in diff.splitlines():
+        if old_left > 0 or new_left > 0:
+            if line.startswith("+"):
+                added += 1
+                new_left -= 1
+            elif line.startswith("-"):
+                removed += 1
+                old_left -= 1
+            elif not line.startswith("\\"):  # "\ No newline at end of file"
+                old_left -= 1
+                new_left -= 1
+            continue
+        match = _HUNK_HEADER_RE.match(line)
+        if match:
+            saw_hunk = True
+            old_left = int(match.group(1)) if match.group(1) is not None else 1
+            new_left = int(match.group(2)) if match.group(2) is not None else 1
+
+    if saw_hunk:
+        return {"added": added, "removed": removed}
+
+    for line in diff.splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            added += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            removed += 1
+    return {"added": added, "removed": removed}
+
+
 def render_edit_diff_with_delta(
     tool_name: str,
     result: str | None,
@@ -1059,8 +1103,14 @@ def render_edit_diff_with_delta(
     function_args: dict | None = None,
     snapshot: LocalEditSnapshot | None = None,
     print_fn=None,
+    stats: dict | None = None,
 ) -> bool:
-    """Render an edit diff inline without taking over the terminal UI."""
+    """Render an edit diff inline without taking over the terminal UI.
+
+    ``stats``, when given, receives the whole diff's ``added`` and ``removed``
+    line counts. The rendered text stops at ``_MAX_INLINE_DIFF_LINES``, so
+    counting its lines undercounts any larger edit.
+    """
     diff = extract_edit_diff(
         tool_name,
         result,
@@ -1069,6 +1119,8 @@ def render_edit_diff_with_delta(
     )
     if not diff:
         return False
+    if stats is not None:
+        stats.update(diff_line_stats(diff))
     try:
         rendered_lines = _summarize_rendered_diff_sections(diff)
     except Exception as exc:
