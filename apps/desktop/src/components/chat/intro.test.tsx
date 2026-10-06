@@ -12,6 +12,7 @@ function englishStock(): Record<string, { headline: string; body: string }[]> {
 
   for (const line of introCopyJsonl.split(/\r?\n/).filter(Boolean)) {
     const { personality, headline, body } = JSON.parse(line) as { personality: string; headline: string; body: string }
+
     ;(byPersonality[personality] ??= []).push({ headline, body })
   }
 
