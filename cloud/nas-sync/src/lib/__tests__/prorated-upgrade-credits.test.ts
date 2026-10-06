@@ -1,52 +1,57 @@
 /**
- * Run: node --import ./cloud/nas-sync/src/lib/__tests__/register-ts-resolve.mjs --test cloud/nas-sync/src/lib/__tests__/prorated-upgrade-credits.test.mjs
+ * Run: node --experimental-strip-types --import ./cloud/nas-sync/src/lib/__tests__/register-ts-resolve.mjs --test cloud/nas-sync/src/lib/__tests__/prorated-upgrade-credits.test.ts
  */
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { proratedUpgradeCredits } from '../tiers.ts'
+import { getTier, proratedUpgradeCredits } from '../tiers.ts'
 
 describe('proratedUpgradeCredits', () => {
-  it('returns zero when target allowance is not higher', () => {
-    const end = new Date('2026-06-01T00:00:00.000Z')
-    const start = new Date('2026-05-01T00:00:00.000Z')
-    assert.equal(
-      proratedUpgradeCredits({
-        currentMonthlyCredits: '110',
-        targetMonthlyCredits: '22',
-        cycleEndsAt: end,
-        cycleStartedAt: start,
-        effectiveAt: new Date('2026-05-15T00:00:00.000Z'),
-      }),
-      '0',
-    )
+  it('keeps the current balance and adds the remaining share of the delta', () => {
+    const next = proratedUpgradeCredits({
+      currentCreditsUsd: '10',
+      fromMonthlyCredits: getTier('plus').monthlyCredits,
+      toMonthlyCredits: getTier('super').monthlyCredits,
+      remainingFraction: 0.5,
+    })
+    const delta =
+      Number(getTier('super').monthlyCredits) - Number(getTier('plus').monthlyCredits)
+    assert.equal(Number(next), 10 + delta / 2)
   })
 
-  it('prorates by remaining fraction of the cycle', () => {
-    const end = new Date('2026-06-01T00:00:00.000Z')
-    const start = new Date('2026-05-01T00:00:00.000Z')
-    const mid = new Date('2026-05-16T00:00:00.000Z')
-    const grant = proratedUpgradeCredits({
-      currentMonthlyCredits: '22',
-      targetMonthlyCredits: '110',
-      cycleEndsAt: end,
-      cycleStartedAt: start,
-      effectiveAt: mid,
+  it('never lowers the balance when the target allowance is not higher', () => {
+    const next = proratedUpgradeCredits({
+      currentCreditsUsd: '7.5',
+      fromMonthlyCredits: getTier('super').monthlyCredits,
+      toMonthlyCredits: getTier('plus').monthlyCredits,
+      remainingFraction: 0.9,
     })
-    assert.ok(Number(grant) > 0)
-    assert.ok(Number(grant) < 88)
+    assert.equal(Number(next), 7.5)
   })
 
-  it('floors at cents', () => {
-    const end = new Date('2026-06-01T00:00:00.000Z')
-    const start = new Date('2026-05-01T00:00:00.000Z')
-    const grant = proratedUpgradeCredits({
-      currentMonthlyCredits: '22',
-      targetMonthlyCredits: '22.01',
-      cycleEndsAt: end,
-      cycleStartedAt: start,
-      effectiveAt: new Date('2026-05-31T23:59:00.000Z'),
+  it('clamps the fraction and floors the grant to cents', () => {
+    const full = proratedUpgradeCredits({
+      currentCreditsUsd: '0',
+      fromMonthlyCredits: '0',
+      toMonthlyCredits: '10',
+      remainingFraction: 4,
     })
-    assert.match(grant, /^\d+\.\d{2}$/)
+    assert.equal(Number(full), 10)
+
+    const tiny = proratedUpgradeCredits({
+      currentCreditsUsd: '1',
+      fromMonthlyCredits: '0',
+      toMonthlyCredits: '0.01',
+      remainingFraction: 0.99,
+    })
+    assert.equal(Number(tiny), 1)
+
+    const bad = proratedUpgradeCredits({
+      currentCreditsUsd: '',
+      fromMonthlyCredits: '0',
+      toMonthlyCredits: '10',
+      remainingFraction: Number.NaN,
+    })
+    assert.equal(Number(bad), 0)
   })
 })

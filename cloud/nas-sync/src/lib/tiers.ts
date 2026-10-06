@@ -155,52 +155,25 @@ export function shouldUpgradeLegacyFreeGrant(params: {
   return moneyCmp(params.creditsUsd || '0', LEGACY_FREE_MONTHLY_CREDITS) === 0
 }
 
-const MS_PER_DAY = 86_400_000
-const DEFAULT_CREDIT_CYCLE_DAYS = 30
-
 export type ProratedUpgradeCreditsInput = {
-  currentMonthlyCredits?: string
-  targetMonthlyCredits?: string
-  currentTierId?: TierId
-  targetTierId?: TierId
-  /** Org billing cycle end (same field as `cycleEndsAt` on the org row). */
-  cycleEndsAt: Date
-  /** Inclusive cycle start; defaults to `cycleEndsAt - 30 days`. */
-  cycleStartedAt?: Date
-  /** When the upgrade takes effect (defaults to now). */
-  effectiveAt?: Date
+  /** Subscription credits left on the org right now. */
+  currentCreditsUsd: string
+  fromMonthlyCredits: string
+  toMonthlyCredits: string
+  /** Share of the billing cycle still ahead, 0..1. */
+  remainingFraction: number
 }
 
 /**
- * USD subscription-credit grant for the remainder of the current cycle after a
- * paid upgrade. Floors at cent precision so stacked mid-cycle upgrades cannot
- * over-grant via rounding.
+ * New subscription-credit balance after an in-place paid upgrade: keep what is
+ * left and add the monthly-allowance delta for the remaining part of the cycle.
+ * The added grant is floored to cents so stacked upgrades cannot over-grant.
  */
 export function proratedUpgradeCredits(input: ProratedUpgradeCreditsInput): string {
-  const currentMonthlyCredits =
-    input.currentMonthlyCredits ??
-    getTier(input.currentTierId ?? 'free').monthlyCredits
-  const targetMonthlyCredits =
-    input.targetMonthlyCredits ?? getTier(input.targetTierId ?? 'free').monthlyCredits
-  const delta = moneySub(targetMonthlyCredits, currentMonthlyCredits)
-  if (moneyCmp(delta, '0') <= 0) return '0'
-
-  const periodEndMs = input.cycleEndsAt.getTime()
-  const periodStartMs =
-    input.cycleStartedAt?.getTime() ??
-    periodEndMs - DEFAULT_CREDIT_CYCLE_DAYS * MS_PER_DAY
-  const effectiveMs = (input.effectiveAt ?? new Date()).getTime()
-
-  if (periodEndMs <= periodStartMs) return '0'
-  if (effectiveMs >= periodEndMs) return '0'
-
-  const windowStartMs = Math.max(periodStartMs, effectiveMs)
-  const remainingMs = periodEndMs - windowStartMs
-  const periodMs = periodEndMs - periodStartMs
-  if (remainingMs <= 0 || periodMs <= 0) return '0'
-
-  const fraction = remainingMs / periodMs
-  const raw = Number(delta) * fraction
-  const flooredCents = Math.floor(Math.max(0, raw) * 100) / 100
-  return trimMoney(flooredCents.toFixed(2))
+  const delta = moneySub(input.toMonthlyCredits, input.fromMonthlyCredits)
+  const fraction = Number.isFinite(input.remainingFraction)
+    ? Math.min(1, Math.max(0, input.remainingFraction))
+    : 0
+  const grant = Math.floor(Number(delta) * fraction * 100) / 100
+  return moneyAdd(input.currentCreditsUsd || '0', grant.toFixed(2))
 }
