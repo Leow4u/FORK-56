@@ -4,7 +4,15 @@ import { usePrivy } from '@privy-io/react-auth'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { OrgPage } from '../../components/OrgPage'
+import pageStyles from '../../components/OrgPage.module.css'
 import { requestSubscriptionCloud } from '../../lib/ensure-subscription-cloud'
+import {
+  CLOUD_INSTANCE_PAGE_LEAD,
+  CLOUD_PERSISTENCE_TAGLINE,
+  canOpenCloudChat,
+  cloudChatWakeHint,
+  cloudInstanceLifecycleHint,
+} from '../../lib/portal-cloud-lifecycle'
 import styles from './CloudPage.module.css'
 
 type AgentRow = {
@@ -409,8 +417,10 @@ export function CloudPage() {
     <OrgPage
       eyebrow="Work4You Cloud"
       title="Instâncias"
-      lead="A instância Cloud desta organização. Acompanhe o estado e abra o dashboard. Atualizações de runtime aplicam a image nova sem apagar o disco — o histórico permanece."
+      lead={CLOUD_INSTANCE_PAGE_LEAD}
     >
+      <p className={pageStyles.policyCallout}>{CLOUD_PERSISTENCE_TAGLINE}</p>
+
       {loading || agents.length > 0 ? (
         <section className={styles.toolbar}>
           <p className={styles.sectionLead}>{instanceCountLabel}</p>
@@ -455,6 +465,13 @@ export function CloudPage() {
       <div className={styles.grid}>
         {agents.map((agent) => {
           const hint = gatewayHint(agent.dashboardGatewayState, agent.status)
+          const lifecycleHint = cloudInstanceLifecycleHint(agent.status, canUseCloud)
+          const chatAccess = canOpenCloudChat({
+            dashboardUrl: agent.dashboardUrl,
+            status: agent.status,
+            canUseCloud,
+          })
+          const wakeHint = cloudChatWakeHint(chatAccess.wakeOnOpen)
           return (
             <article key={agent.id} className={styles.card}>
               <header className={styles.cardHead}>
@@ -516,31 +533,16 @@ export function CloudPage() {
               {agent.errorMessage ? (
                 <p className={styles.cardError}>{agent.errorMessage}</p>
               ) : null}
-              {canUseCloud && agent.status === 'online' ? (
-                <p className={styles.cardMeta}>
-                  Adormece sem sessões e acorda quando alguém volta.
-                </p>
+              {lifecycleHint ? (
+                <p className={styles.cardMeta}>{lifecycleHint}</p>
               ) : null}
-              {agent.status === 'parked' ? (
-                <p className={styles.cardMeta}>
-                  {canUseCloud
-                    ? 'A instância está a voltar com o plano.'
-                    : 'No plano Free a instância fica em pausa. O disco é guardado.'}
-                </p>
-              ) : null}
-              {!canUseCloud && agent.status === 'stopped' ? (
-                <p className={styles.cardMeta}>
-                  No plano Free a instância fica parada. O disco é guardado.
-                </p>
-              ) : null}
+              {wakeHint ? <p className={styles.cardMeta}>{wakeHint}</p> : null}
 
               <div className={styles.cardActions}>
-                {canUseCloud && agent.status !== 'parked' && agent.dashboardUrl ? (
+                {chatAccess.allowed && chatAccess.chatUrl ? (
                   <a
                     className={styles.primary}
-                    href={
-                      agent.dashboardUrl.replace(/\/$/, '') + '/chat'
-                    }
+                    href={chatAccess.chatUrl}
                     target="_blank"
                     rel="noreferrer"
                   >

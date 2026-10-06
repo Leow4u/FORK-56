@@ -1,5 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { OrgPage } from '../../components/OrgPage'
+import pageStyles from '../../components/OrgPage.module.css'
+import { CLOUD_PERSISTENCE_TAGLINE } from '../../lib/portal-cloud-lifecycle'
 import styles from './AgentHomePage.module.css'
 
 /** Vite fork — live agent state comes from NAS `/api/agents` on production Portal. */
@@ -13,8 +15,10 @@ export function AgentHomePage() {
     <OrgPage
       eyebrow="Work4You Agent"
       title="Agente"
-      lead="Depois do login, o passo principal é falar com o agente — Cloud, CLI ou dashboard local."
+      lead="Fale com o agente na Cloud (casa persistente), no CLI ou num dashboard local — a conta Portal é o mesmo login."
     >
+      <p className={pageStyles.policyCallout}>{CLOUD_PERSISTENCE_TAGLINE}</p>
+
       <section className={styles.hero} aria-labelledby="agent-cta-heading">
         <h2 id="agent-cta-heading" className={styles.heroTitle}>
           Abrir o chat na Cloud

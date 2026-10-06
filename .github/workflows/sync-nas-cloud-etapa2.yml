@@ -181,6 +181,7 @@ jobs:
           cp cloud/nas-sync/src/portal/lib/privy-public-app-id.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/portal-nav.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/cloud-agent-chat.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/portal-cloud-lifecycle.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/components/AuthProviderIcons.tsx nas/src/portal/components/
           cp cloud/nas-sync/src/portal/components/EmailCodeBoxes.tsx nas/src/portal/components/
           mkdir -p nas/public/brand
@@ -268,6 +269,7 @@ jobs:
             src/portal/lib/privy-public-app-id.ts \
             src/portal/lib/portal-nav.ts \
             src/portal/lib/cloud-agent-chat.ts \
+            src/portal/lib/portal-cloud-lifecycle.ts \
             src/portal/components/AuthProviderIcons.tsx \
             src/portal/components/EmailCodeBoxes.tsx \
             public/brand/work4you-favicon-transparent-1024.png \

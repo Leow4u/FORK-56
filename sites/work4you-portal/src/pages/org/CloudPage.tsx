@@ -4,6 +4,11 @@ import { usePrivy } from '@privy-io/react-auth'
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { OrgPage } from '../../components/OrgPage'
+import pageStyles from '../../components/OrgPage.module.css'
+import {
+  CLOUD_INSTANCE_PAGE_LEAD,
+  CLOUD_PERSISTENCE_TAGLINE,
+} from '../../lib/portal-cloud-lifecycle'
 import styles from './CloudPage.module.css'
 
 type CloudSize = {
@@ -419,8 +424,10 @@ export function CloudPage() {
     <OrgPage
       eyebrow="Work4You Cloud"
       title="Instâncias"
-      lead="Agent hospedado pela Work4You. Crie uma VM, acompanhe o estado e abra o dashboard. Atualizações de runtime aplicam a image nova sem apagar o disco — o histórico permanece."
+      lead={CLOUD_INSTANCE_PAGE_LEAD}
     >
+      <p className={pageStyles.policyCallout}>{CLOUD_PERSISTENCE_TAGLINE}</p>
+
       <section className={styles.toolbar}>
         <p className={styles.sectionLead}>{instanceCountLabel}</p>
         <button
@@ -521,11 +528,11 @@ export function CloudPage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Abrir dashboard
+                    Abrir chat
                   </a>
                 ) : (
                   <button type="button" className={styles.primary} disabled>
-                    Abrir dashboard
+                    Abrir chat
                   </button>
                 )}
                 {agent.status === 'stopped' ? (

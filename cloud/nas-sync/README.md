@@ -32,3 +32,7 @@ No **work4you-account-service**, confirme no router SPA (ficheiro que monta
 
 O login continua a redirecionar para `/orgs/{personalOrgId}` — agora é a superfície
 do agente, não a tabela de sessões.
+
+Copy de sleep/wake (disco persistente + compute adormece) vive em
+`portal/lib/portal-cloud-lifecycle.ts` — Agent home e Instância Cloud partilham
+a mesma política e **Abrir chat** acorda quando a instância está `stopped` (plano pago).
