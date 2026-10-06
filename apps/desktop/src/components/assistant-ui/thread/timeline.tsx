@@ -153,6 +153,7 @@ export const ThreadTimeline: FC = () => {
  *  the transcript subscription it opens — never runs for a background tab. */
 const ActiveThreadTimeline: FC = () => {
   const { t } = useI18n()
+
   // Cheap in the selector, expensive only when it changes: the ids alone tell
   // us whether the RAIL changed. Prompt text is immutable once sent, and an
   // edit rewinds the transcript (dropping every id after it) and re-appends a
