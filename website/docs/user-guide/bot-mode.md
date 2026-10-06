@@ -80,8 +80,9 @@ Right-click a local Bot → **Manage groups** to add or remove it from any numbe
 
 Groups are standalone rows in the same activity-ordered roster as Bot DMs. A Bot keeps one DM row even when it belongs to several groups, while every group gets its own room row with member count, latest-message preview, timestamp, and needs-you state.
 
-**Open chat** on any group row (2–6 Bots) opens a shared room where the whole group coordinates:
+Click any group row (2–6 Bots) to open its shared room in the center — the same place a Bot's chat opens — while the roster stays put, so moving between Bots and groups is one click. In the room, the whole group coordinates:
 
+- **One continuous conversation.** There are no topics to pick: every message joins the room's conversation. After 15 minutes of silence, your next message starts a new block — marked only by a time separator such as “Today, 14:58” — and member turns follow the current block.
 - Your message triggers up to **three serial rounds** of member turns. @-mentioned Bots respond (everyone responds when nobody is mentioned); each Bot replies briefly or passes, and the room settles when a full round stays silent.
 - Bots pull each other in with `@name`, and escalate real judgment calls to you with `@user` — the group row shows a **needs you** badge when that happens.
 - Hard caps (10 messages per send, 3 rounds) keep rooms from spinning.

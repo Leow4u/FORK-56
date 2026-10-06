@@ -80,8 +80,9 @@ Clique com o botão direito em um Bot local → **Manage groups** para adicioná
 
 Grupos são linhas independentes no mesmo elenco ordenado por atividade das DMs de Bots. Um Bot mantém uma única linha de DM mesmo quando pertence a vários grupos, enquanto cada grupo ganha sua própria linha de sala com contagem de membros, prévia da última mensagem, timestamp e estado de "precisa de você".
 
-**Open chat** em qualquer linha de grupo (2–6 Bots) abre uma sala compartilhada onde todo o grupo coordena:
+Clique em qualquer linha de grupo (2–6 Bots) para abrir a sala compartilhada no centro — no mesmo lugar onde o chat de um Bot abre — enquanto o elenco continua no lugar, então ir de um Bot para um grupo é um clique. Na sala, todo o grupo coordena:
 
+- **Uma conversa contínua.** Não há tópicos para escolher: toda mensagem entra na conversa da sala. Depois de 15 minutos de silêncio, sua próxima mensagem começa um novo bloco — marcado apenas por um separador de horário, como “Hoje, 14:58” — e as falas dos membros seguem o bloco atual.
 - Sua mensagem aciona até **três rodadas seriais** de falas dos membros. Bots @mencionados respondem (todos respondem quando ninguém é mencionado); cada Bot responde brevemente ou passa a vez, e a sala se estabiliza quando uma rodada inteira permanece em silêncio.
 - Os Bots puxam uns aos outros com `@name`, e escalam decisões que exigem julgamento real para você com `@user` — a linha do grupo mostra um selo **needs you** quando isso acontece.
 - Limites rígidos (10 mensagens por envio, 3 rodadas) impedem que as salas entrem em loop.

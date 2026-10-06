@@ -79,7 +79,7 @@ test('without host i18n every translator returns the English source verbatim', (
   assert.equal(tr('roster.copyTitle', 'Researcher'), 'Researcher (copy)')
   assert.equal(tr('notify.newMessage', 'Scout'), '🤖 New message for Scout')
   // Components get the same English translator on SDKs without usePluginI18n.
-  assert.equal(useBotModeT()('groups.newThread'), 'New Thread')
+  assert.equal(useBotModeT()('groups.send'), 'Send')
   // Helpers keep producing the exact copy they produced before translation.
   assert.equal(groupActivityLabel({ kind: 'queued', member: 'You' }), 'You sent a message')
   assert.equal(
