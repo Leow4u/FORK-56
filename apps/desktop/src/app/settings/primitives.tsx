@@ -88,6 +88,11 @@ export function SectionHeading({
   )
 }
 
+// The gap a group keeps below it, dropped after the page's last group. An
+// element that wraps a group (a form) takes the gap instead: inside it the
+// group is the last child, so the group's own gap is dropped.
+export const SETTINGS_GROUP_GAP = 'mb-10 last:mb-0'
+
 // Grouped rows on the off-white settings page. The label stays outside; the
 // rows sit in one white card so every settings screen shares the same group.
 export function SettingsGroup({
@@ -104,7 +109,7 @@ export function SettingsGroup({
   title?: string
 }) {
   return (
-    <section className={cn('mb-10 last:mb-0', className)}>
+    <section className={cn(SETTINGS_GROUP_GAP, className)}>
       {title ? <SectionHeading aside={aside} meta={meta} title={title} variant="group" /> : null}
       <div
         className="divide-y divide-(--ui-stroke-secondary) overflow-hidden rounded-(--card-radius) border border-(--ui-stroke-secondary) bg-(--ui-bg-editor) px-4"

@@ -13,7 +13,14 @@ import { getPortalAccount, refreshPortalAccount } from '@/work4you'
 import { accountProfilePatchBody, portalAccountSettingsUrl } from './account-name'
 import { openExternal } from './billing/open-external'
 import { PortalAccount } from './portal-account'
-import { ListRow, ListRowSkeleton, SectionHeading, SettingsContent, SettingsGroup } from './primitives'
+import {
+  ListRow,
+  ListRowSkeleton,
+  SectionHeading,
+  SETTINGS_GROUP_GAP,
+  SettingsContent,
+  SettingsGroup
+} from './primitives'
 
 const SIGNED_OUT: PortalAccountIdentity = { email: null, logged_in: false, name: null }
 
@@ -155,6 +162,7 @@ export function AccountSettings() {
       ) : identity.logged_in ? (
         <>
           <form
+            className={SETTINGS_GROUP_GAP}
             onSubmit={event => {
               event.preventDefault()
               void save()
