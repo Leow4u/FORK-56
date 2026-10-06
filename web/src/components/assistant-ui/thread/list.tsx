@@ -338,6 +338,7 @@ const TurnRow = memo(function TurnRow({ components, group, resetKey, virtualized
         'flex min-w-0 flex-col gap-(--conversation-turn-gap) pb-(--conversation-turn-gap)',
         virtualized && '[contain-intrinsic-size:auto_37.5rem] [content-visibility:auto]'
       )}
+      data-slot="aui_turn-row"
     >
       <MessageRenderBoundary resetKey={resetKey}>
         {group.kind === 'turn' ? (

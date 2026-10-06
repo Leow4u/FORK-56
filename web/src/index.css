@@ -288,6 +288,8 @@ code { font-size: 0.875rem; }
   --conversation-line-height: calc(var(--theme-base-size) * 18 / 15);
   --conversation-caption-line-height: calc(var(--theme-base-size) * 16 / 15);
   --conversation-turn-gap: 0.375rem;
+  /* Between one turn and the next: wider, so a prompt sits with its reply. */
+  --conversation-pair-gap: 1.5rem;
   /* Between the reply and the work around it. */
   --turn-block-gap: 0.75rem;
   /* Between adjacent activity lines: one sequence, not blocks to hold apart. */
@@ -386,6 +388,12 @@ code { font-size: 0.875rem; }
 
 [data-slot="aui_user-attachments"] :is([data-slot="aui_directive-image"], [data-slot="aui_embedded-image"]) img {
   max-height: 8rem;
+}
+
+/* Turn rows are spaced by the pair gap: each row already ends on the turn
+   gap, so the next one tops it up. */
+[data-slot="aui_turn-row"] + [data-slot="aui_turn-row"] {
+  margin-top: calc(var(--conversation-pair-gap) - var(--conversation-turn-gap));
 }
 
 /* The changed-files card is the desktop component, drawn with desktop tokens
