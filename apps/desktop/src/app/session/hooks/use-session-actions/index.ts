@@ -533,6 +533,7 @@ export function useSessionActions({
         setNewChatWorkspaceTarget(undefined)
         setActiveSessionId(created.session_id)
         setSelectedStoredSessionId(stored)
+
         setSessionStartedAt(Date.now())
         const yoloArmed = $yoloActive.get()
         const draftApprovalMode = $draftSessionApprovalMode.get()

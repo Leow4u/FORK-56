@@ -175,4 +175,39 @@ describe('TreeGroup', () => {
     expect(cron?.className).not.toContain('rounded-tl-(--ui-stage-radius)')
     expect(cron?.className).not.toContain('rounded-tr-(--ui-stage-radius)')
   })
+
+  it('shows standing chrome as one switcher with no ✕, and closeable panes as chips with a ✕', () => {
+    const pane = (id: string, data: Record<string, unknown>) =>
+      registry.register({ area: 'panes', data, id, render: () => <div>{id}</div>, title: id })
+
+    disposePanes.push(
+      pane('sessions', { hideOnly: true, placement: 'left', showCloseButton: false }),
+      pane('bots', { hideOnly: true, placement: 'left', showCloseButton: false }),
+      pane('shell', { placement: 'bottom' })
+    )
+    vi.stubGlobal('CSS', { escape: (value: string) => value })
+
+    render(
+      <TreeGroup
+        node={{
+          active: 'sessions',
+          headerHidden: false,
+          id: 'side-zone',
+          minimized: false,
+          panes: ['sessions', 'bots', 'shell'],
+          type: 'group'
+        }}
+        parentAxis="row"
+      />
+    )
+
+    const tab = (id: string) => globalThis.document.querySelector<HTMLElement>(`[data-tree-tab="${id}"]`)!
+    const close = (id: string) => tab(id).querySelector('button[aria-label="Close"]')
+
+    expect(tab('sessions').parentElement).toBe(tab('bots').parentElement)
+    expect(tab('shell').parentElement).not.toBe(tab('sessions').parentElement)
+    expect(close('sessions')).toBeNull()
+    expect(close('bots')).toBeNull()
+    expect(close('shell')).not.toBeNull()
+  })
 })

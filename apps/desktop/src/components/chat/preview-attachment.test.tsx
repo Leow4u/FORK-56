@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type * as MediaModule from '@/lib/media'
 import type * as PreviewStore from '@/store/preview'
-import { $previewTabs } from '@/store/preview'
+import { closeRightRail } from '@/store/preview'
 
 import { PreviewAttachment } from './preview-attachment'
 
@@ -36,7 +36,7 @@ vi.mock('@/store/preview', async () => {
 describe('PreviewAttachment', () => {
   afterEach(() => {
     cleanup()
-    $previewTabs.set([])
+    closeRightRail()
     normalizeOrLocalPreviewTarget.mockReset()
     openPreview.mockReset()
     downloadDeliveredFile.mockReset()
