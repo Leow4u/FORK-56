@@ -17,6 +17,14 @@ A partir daí o sync corre **sozinho** quando:
 
 Não precisas de PowerShell, GitHub Desktop, nem clicar "Run workflow" no dia a dia.
 
+## Ficheiros sincronizados são do fork
+
+O sync **sobrescreve** no NAS cada ficheiro listado em
+`.github/workflows/sync-nas-cloud-etapa2.yml` (ex.: `src/lib/tiers.ts`).
+Uma alteração feita só no NAS a um desses ficheiros desaparece no próximo
+sync e pode partir o build da Vercel (código NAS-only que importa o símbolo).
+Faça a alteração aqui em `cloud/nas-sync/` primeiro.
+
 ## Manual (só debug)
 
 Actions → **Sync NAS Cloud (Etapa 2)** → Run workflow.
