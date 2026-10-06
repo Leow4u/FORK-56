@@ -179,6 +179,8 @@ jobs:
           cp cloud/nas-sync/src/portal/lib/login-email-code.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/oauth-authorize.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/privy-public-app-id.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/portal-nav.ts nas/src/portal/lib/
+          cp cloud/nas-sync/src/portal/lib/cloud-agent-chat.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/components/AuthProviderIcons.tsx nas/src/portal/components/
           cp cloud/nas-sync/src/portal/components/EmailCodeBoxes.tsx nas/src/portal/components/
           mkdir -p nas/public/brand
@@ -193,6 +195,10 @@ jobs:
           cp cloud/nas-sync/src/portal/pages/OAuthAuthorizePage.module.css nas/src/portal/pages/
           mkdir -p nas/src/app/oauth/authorize
           cp cloud/nas-sync/src/app/oauth/authorize/page.tsx nas/src/app/oauth/authorize/
+          cp cloud/nas-sync/src/portal/pages/org/AgentHomePage.tsx nas/src/portal/pages/org/
+          cp cloud/nas-sync/src/portal/pages/org/AgentHomePage.module.css nas/src/portal/pages/org/
+          cp cloud/nas-sync/src/portal/pages/org/AgentSessionsPage.tsx nas/src/portal/pages/org/
+          cp cloud/nas-sync/src/portal/pages/org/AgentSessionsPage.module.css nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/CloudPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.tsx nas/src/portal/pages/org/
           cp cloud/nas-sync/src/portal/pages/org/LocalDashboardsPage.module.css nas/src/portal/pages/org/
@@ -202,6 +208,8 @@ jobs:
           cp cloud/nas-sync/src/portal/pages/ManageSubscriptionPage.tsx nas/src/portal/pages/
           mkdir -p nas/src/portal/components
           cp cloud/nas-sync/src/portal/components/PortalShell.tsx nas/src/portal/components/
+          cp cloud/nas-sync/src/portal/components/PortalShell.module.css nas/src/portal/components/
+          cp cloud/nas-sync/src/portal/components/OrgPage.tsx nas/src/portal/components/
           mkdir -p nas/src/portal/lib
           cp cloud/nas-sync/src/portal/lib/linked-accounts.ts nas/src/portal/lib/
           cp cloud/nas-sync/src/portal/lib/info-content.ts nas/src/portal/lib/
@@ -258,6 +266,8 @@ jobs:
             src/portal/lib/login-email-code.ts \
             src/portal/lib/oauth-authorize.ts \
             src/portal/lib/privy-public-app-id.ts \
+            src/portal/lib/portal-nav.ts \
+            src/portal/lib/cloud-agent-chat.ts \
             src/portal/components/AuthProviderIcons.tsx \
             src/portal/components/EmailCodeBoxes.tsx \
             public/brand/work4you-favicon-transparent-1024.png \
@@ -270,6 +280,10 @@ jobs:
             src/portal/pages/OAuthAuthorizePage.tsx \
             src/portal/pages/OAuthAuthorizePage.module.css \
             src/app/oauth/authorize/page.tsx \
+            src/portal/pages/org/AgentHomePage.tsx \
+            src/portal/pages/org/AgentHomePage.module.css \
+            src/portal/pages/org/AgentSessionsPage.tsx \
+            src/portal/pages/org/AgentSessionsPage.module.css \
             src/portal/pages/org/CloudPage.tsx \
             src/portal/pages/org/LocalDashboardsPage.tsx \
             src/portal/pages/org/LocalDashboardsPage.module.css \
@@ -278,6 +292,8 @@ jobs:
             src/portal/pages/org/BillingPage.tsx \
             src/portal/pages/ManageSubscriptionPage.tsx \
             src/portal/components/PortalShell.tsx \
+            src/portal/components/PortalShell.module.css \
+            src/portal/components/OrgPage.tsx \
             src/portal/lib/linked-accounts.ts \
             src/portal/lib/info-content.ts \
             src/portal/pages/org/InfoPage.tsx \

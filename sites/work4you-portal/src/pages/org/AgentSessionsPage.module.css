@@ -1,0 +1,17 @@
+.wrap {
+  max-width: 64rem;
+}
+
+.sessionsTitle {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--tinta);
+}
+
+.emptyRow {
+  margin: 0;
+  color: var(--grafite);
+  font-size: 0.875rem;
+}

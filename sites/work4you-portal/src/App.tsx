@@ -5,6 +5,7 @@ import { DeviceApprovePage } from './pages/DeviceApprovePage'
 import { LoginPage } from './pages/LoginPage'
 import { AccountSettingsPage } from './pages/org/AccountSettingsPage'
 import { AgentHomePage } from './pages/org/AgentHomePage'
+import { AgentSessionsPage } from './pages/org/AgentSessionsPage'
 import { ApiKeysPage } from './pages/org/ApiKeysPage'
 import { BillingPage } from './pages/org/BillingPage'
 import { CloudPage } from './pages/org/CloudPage'
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="billing" element={<BillingPage />} />
         <Route path="api-keys" element={<ApiKeysPage />} />
         <Route path="usage" element={<UsagePage />} />
+        <Route path="login-sessions" element={<AgentSessionsPage />} />
         <Route path="agents" element={<CloudPage />} />
         <Route path="local-dashboards" element={<LocalDashboardsPage />} />
         <Route path="settings" element={<AccountSettingsPage />} />

@@ -544,11 +544,11 @@ export function CloudPage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Abrir dashboard
+                    Abrir chat
                   </a>
                 ) : (
                   <button type="button" className={styles.primary} disabled>
-                    Abrir dashboard
+                    Abrir chat
                   </button>
                 )}
                 {!canUseCloud ? (

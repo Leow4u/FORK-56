@@ -2,7 +2,11 @@ import { usePrivy } from '@privy-io/react-auth'
 import { useEffect } from 'react'
 import { NavLink, Outlet, useParams } from 'react-router-dom'
 import { displayName } from '../lib/auth-display'
-import { PORTAL_NAV, navPath } from '../lib/portal-nav'
+import {
+  PORTAL_ACCOUNT_NAV,
+  PORTAL_WORKSPACE_NAV,
+  navPath,
+} from '../lib/portal-nav'
 import { syncProfileAfterAuth } from '../lib/sync-profile'
 import styles from './PortalShell.module.css'
 
@@ -35,8 +39,24 @@ export function PortalShell() {
           <span className={styles.balanceHint}>Billing liga com o NAS</span>
         </div>
 
-        <nav className={styles.nav} aria-label="Secções">
-          {PORTAL_NAV.map((item) => (
+        <nav className={styles.nav} aria-label="Agente">
+          {PORTAL_WORKSPACE_NAV.map((item) => (
+            <NavLink
+              key={item.id}
+              to={navPath(orgId, item.segment)}
+              end={item.segment === ''}
+              className={({ isActive }) =>
+                isActive ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink
+              }
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <p className={styles.navSectionLabel}>Conta</p>
+        <nav className={styles.accountNav} aria-label="Conta">
+          {PORTAL_ACCOUNT_NAV.map((item) => (
             <NavLink
               key={item.id}
               to={navPath(orgId, item.segment)}
