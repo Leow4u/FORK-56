@@ -18,8 +18,8 @@ export {
   findCurrentTier,
   isFreeCatalogTier,
   isFreePlan,
-  type PlanTierState,
-  plansCapable
+  plansCapable,
+  type PlanTierState
 } from './billing-plan'
 export {
   BILLING_REFUSAL_POLICY,
