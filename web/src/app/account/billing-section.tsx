@@ -170,17 +170,23 @@ function PlansGrid({ copy, view }: SectionProps) {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">{tier.name}</p>
-                <p className="text-xs text-text-secondary">
-                  {tier.price ? `${tier.price}${copy.plan.perMonth}` : copy.plan.free}
-                </p>
+                {tier.price ? (
+                  <p className="text-xs text-text-secondary">
+                    {`${tier.price}${copy.plan.perMonth}`}
+                  </p>
+                ) : null}
                 {tier.credits ? (
                   <p className="text-xs text-text-tertiary">{tier.credits}</p>
                 ) : null}
               </div>
               {tier.state === "current" ? (
-                <Badge tone="secondary">{copy.tiers.current}</Badge>
+                <Badge tone="secondary" className="shrink-0 text-xs">
+                  {copy.tiers.current}
+                </Badge>
               ) : tier.state === "scheduled" ? (
-                <Badge tone="warning">{copy.tiers.scheduled}</Badge>
+                <Badge tone="warning" className="shrink-0 text-xs">
+                  {copy.tiers.scheduled}
+                </Badge>
               ) : null}
             </div>
             {tier.state === "upgrade" && tier.upgradeUrl ? (

@@ -305,17 +305,17 @@ function cardLabel(brand: null | string | undefined, last4: null | string | unde
 }
 
 /**
- * `payment_method` is authoritative when the gateway sends it; `card` is only
- * populated for card methods, so a Link customer has `card: null`.
+ * The typed `payment_method` wins when present. The gateway sends it as null
+ * whenever the Portal omits `paymentMethod`, so null still falls back to the
+ * compatibility `card`; a Link customer has `card: null`.
  */
 export function paymentMethodLabel(
   billing: Pick<BillingStateResponse, "card" | "payment_method">,
 ): null | string {
   const method = billing.payment_method;
-  if (method === undefined) {
+  if (!method) {
     return billing.card ? cardLabel(billing.card.brand, billing.card.last4) : null;
   }
-  if (method === null) return null;
   switch (method.kind) {
     case "card":
       return cardLabel(method.brand, method.last4) ?? method.brand;
@@ -551,7 +551,7 @@ export function deriveAccountView(
     : free
       ? renewal !== EMPTY_VALUE
         ? copy.plan.allowanceResets(renewal)
-        : copy.plan.free
+        : copy.plan.freeCaption
       : current
         ? copy.plan.renews(renewal)
         : copy.plan.noSubscription;

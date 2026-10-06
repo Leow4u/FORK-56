@@ -49,6 +49,7 @@ export interface AccountCopy {
     perMonth: string;
     renews: (date: string) => string;
     allowanceResets: (date: string) => string;
+    freeCaption: string;
     noSubscription: string;
     changesTo: (tier: string, date: string) => string;
     cancels: (date: string) => string;
@@ -216,6 +217,7 @@ const en: AccountCopy = {
     perMonth: "/mo",
     renews: (date) => `Renews ${date}`,
     allowanceResets: (date) => `Allowance resets ${date}`,
+    freeCaption: "Includes a monthly allowance",
     noSubscription: "No active subscription — paid models use top-up credits.",
     changesTo: (tier, date) => `Changes to ${tier} on ${date}.`,
     cancels: (date) => `Cancels on ${date}.`,
@@ -395,6 +397,7 @@ const pt: AccountCopy = {
     perMonth: "/mês",
     renews: (date) => `Renova em ${date}`,
     allowanceResets: (date) => `Allowance reinicia em ${date}`,
+    freeCaption: "Inclui uma franquia mensal",
     noSubscription:
       "Sem assinatura ativa — modelos pagos usam créditos avulsos.",
     changesTo: (tier, date) => `Muda para ${tier} em ${date}.`,

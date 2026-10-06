@@ -156,9 +156,10 @@ describe("paymentMethodLabel", () => {
     ).toContain("a@b.co");
   });
 
-  it("falls back to the legacy card only when the gateway omits payment_method", () => {
+  it("falls back to the card when the Portal sent no typed payment method", () => {
     expect(paymentMethodLabel({ card: billingState().card })).toContain("4242");
-    expect(paymentMethodLabel({ card: billingState().card, payment_method: null })).toBeNull();
+    expect(paymentMethodLabel({ card: billingState().card, payment_method: null })).toContain("4242");
+    expect(paymentMethodLabel({ card: null, payment_method: null })).toBeNull();
   });
 });
 
