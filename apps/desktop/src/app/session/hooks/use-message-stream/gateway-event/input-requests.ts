@@ -189,6 +189,7 @@ export function handleInputRequestEvent(ctx: GatewayEventContext): boolean {
     // raise it and wait — the sidebar flags "needs input" and the inline bar
     // surfaces once the user focuses that chat.
     const command = typeof payload?.command === 'string' ? payload.command : ''
+
     const description =
       typeof payload?.description === 'string' ? payload.description : translateNow('desktop.dangerousCommand')
 
