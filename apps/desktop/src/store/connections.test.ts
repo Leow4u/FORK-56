@@ -28,7 +28,8 @@ vi.mock('@/store/profile', () => ({
   ensureGatewayAgent,
   normalizeProfileKey: (name: null | string | undefined) => (name ?? '').trim() || 'default',
   refreshActiveProfile,
-  requestFreshSession
+  requestFreshSession,
+  setShowAllProfiles: (value: boolean) => $showAllProfiles.set(value)
 }))
 
 const {

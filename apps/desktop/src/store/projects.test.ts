@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NO_PROJECT_ID, type SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
 import { rememberDesktopProjects } from '@/store/desktop-project-catalog'
 import { $sidebarAgentsGrouped, setSidebarAgentsGrouped } from '@/store/layout'
-import { $activeGatewayProfile } from '@/store/profile'
+import { $activeGatewayProfile, setShowAllProfiles } from '@/store/profile'
 import {
   $activeSessionId,
   $currentCwd,
@@ -19,6 +19,7 @@ import {
 import { $projectScope, ALL_PROJECTS, exitProjectScope } from './project-scope'
 import {
   $activeProjectId,
+  $ownProfileProjectTree,
   $projects,
   $projectsRpcAvailable,
   $projectTree,
@@ -33,9 +34,11 @@ import {
   enterProject,
   goToProject,
   openProjectCreate,
+  ownProfileProjectNodes,
   pickProjectFolder,
   projectIdForCwd,
   projectNameForCwd,
+  refreshOwnProfileProjectTree,
   refreshProjects,
   refreshProjectTree,
   resolveCreateSessionCwd,
@@ -918,5 +921,94 @@ describe('tombstone pruning', () => {
     await refreshProjectTree()
 
     expect($removedSessionIds.get().has('sess-1')).toBe(false)
+  })
+})
+
+describe("the folder pickers' project list", () => {
+  const project = (id: string, label = id): SidebarProjectTree => ({
+    id,
+    label,
+    path: `/work/${id}`,
+    repos: [],
+    sessionCount: 0
+  })
+
+  const ids = (nodes: SidebarProjectTree[]) => nodes.map(node => node.id)
+
+  afterEach(() => {
+    setShowAllProfiles(false)
+    $projectTree.set([])
+    $activeGatewayProfile.set('default')
+    activeGateway.mockReset()
+  })
+
+  it('is the sidebar tree when the sidebar shows one profile', () => {
+    const tree = [project('mine')]
+
+    expect(ownProfileProjectNodes({ activeProfile: 'asas', scope: 'asas', snapshot: null, tree })).toBe(tree)
+  })
+
+  it("offers only the active profile's projects while the sidebar shows every profile", () => {
+    const nodes = ownProfileProjectNodes({
+      activeProfile: 'asas',
+      scope: '__all__',
+      snapshot: { nodes: [project('asas-site')], profile: 'asas' },
+      tree: [project('default-repo'), project('asas-site')]
+    })
+
+    expect(ids(nodes)).toEqual(['asas-site'])
+  })
+
+  it('keeps the optimistic edits the sidebar tree already holds', () => {
+    const nodes = ownProfileProjectNodes({
+      activeProfile: 'asas',
+      scope: '__all__',
+      snapshot: { nodes: [project('asas-site', 'Old name')], profile: 'asas' },
+      tree: [project('asas-site', 'New name')]
+    })
+
+    expect(nodes.map(node => node.label)).toEqual(['New name'])
+  })
+
+  it("never offers another profile's list after the active profile changed", () => {
+    const nodes = ownProfileProjectNodes({
+      activeProfile: 'asas',
+      scope: '__all__',
+      snapshot: { nodes: [project('default-repo')], profile: 'default' },
+      tree: [project('default-repo')]
+    })
+
+    expect(nodes).toEqual([])
+  })
+
+  it("fetches the active profile's own tree when every profile is shown", async () => {
+    const request = vi.fn(async () => ({
+      active_id: null,
+      projects: [project('asas-site')],
+      scoped_session_ids: []
+    }))
+
+    activeGateway.mockReturnValue({ connectionState: 'open', request } as never)
+    $activeGatewayProfile.set('asas')
+    setShowAllProfiles(true)
+    // The cross-profile merge the sidebar draws: another profile's project too.
+    $projectTree.set([project('default-repo'), project('asas-site')])
+
+    await refreshOwnProfileProjectTree()
+
+    expect(request).toHaveBeenCalledWith('projects.tree', expect.any(Object))
+    expect(ids($ownProfileProjectTree.get())).toEqual(['asas-site'])
+  })
+
+  it('does not fetch when the sidebar already holds the single profile', async () => {
+    const request = vi.fn()
+
+    activeGateway.mockReturnValue({ connectionState: 'open', request } as never)
+    $projectTree.set([project('mine')])
+
+    await refreshOwnProfileProjectTree()
+
+    expect(request).not.toHaveBeenCalled()
+    expect(ids($ownProfileProjectTree.get())).toEqual(['mine'])
   })
 })

@@ -74,7 +74,8 @@ vi.mock('@/store/profile', async () => {
     refreshProfiles: vi.fn(async () => profiles.get()),
     selectProfile: vi.fn(),
     setActiveProfile: vi.fn(),
-    setShowAllProfiles: vi.fn()
+    setShowAllProfiles: vi.fn(),
+    showAllProfilesForNavigation: vi.fn()
   }
 })
 vi.mock('@/store/gateway', async () => {
@@ -115,7 +116,8 @@ const {
   $profiles,
   ensureGatewayProfile,
   refreshProfiles,
-  setShowAllProfiles
+  setShowAllProfiles,
+  showAllProfilesForNavigation
 } = await import('@/store/profile')
 
 const { $focusedRuntimeId, $focusedSessionState, $focusedStoredSessionId } = await import('@/store/session-states')
@@ -576,7 +578,10 @@ describe('profile-aware plugin session opens', () => {
 
     expect(ensureGatewayProfile).not.toHaveBeenCalled()
     expect(openGatewayForProfile).toHaveBeenCalledWith('worker')
-    expect(setShowAllProfiles).toHaveBeenCalledWith(true)
+    // A navigation open shows every profile without rewriting the user's
+    // saved scope.
+    expect(showAllProfilesForNavigation).toHaveBeenCalled()
+    expect(setShowAllProfiles).not.toHaveBeenCalled()
     expect($activeGatewayProfile.get()).toBe('default')
   })
 
@@ -587,7 +592,10 @@ describe('profile-aware plugin session opens', () => {
 
     expect(ensureGatewayProfile).not.toHaveBeenCalled()
     expect(openGatewayForProfile).toHaveBeenCalledWith('worker')
-    expect(setShowAllProfiles).toHaveBeenCalledWith(true)
+    // A navigation open shows every profile without rewriting the user's
+    // saved scope.
+    expect(showAllProfilesForNavigation).toHaveBeenCalled()
+    expect(setShowAllProfiles).not.toHaveBeenCalled()
     expect($activeGatewayProfile.get()).toBe('default')
   })
 
@@ -603,6 +611,7 @@ describe('profile-aware plugin session opens', () => {
     expect(ensureGatewayProfile).toHaveBeenCalledWith('worker')
     expect(openGatewayForProfile).not.toHaveBeenCalled()
     expect(setShowAllProfiles).toHaveBeenCalledWith(false)
+    expect(showAllProfilesForNavigation).not.toHaveBeenCalled()
     expect($activeGatewayProfile.get()).toBe('worker')
   })
 
@@ -619,7 +628,10 @@ describe('profile-aware plugin session opens', () => {
       hydrationTimeoutMs: 1_000
     })
 
-    expect(setShowAllProfiles).toHaveBeenCalledWith(true)
+    // A navigation open shows every profile without rewriting the user's
+    // saved scope.
+    expect(showAllProfilesForNavigation).toHaveBeenCalled()
+    expect(setShowAllProfiles).not.toHaveBeenCalled()
   })
 
   it('surfaces a wedged profile activation instead of waiting on it forever (#89556)', async () => {

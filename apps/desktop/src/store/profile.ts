@@ -599,9 +599,22 @@ const SHOW_ALL_PROFILES_STORAGE_KEY = 'work4you.desktop.showAllProfiles'
 
 // Opt-in unified view. When false, scope follows the live gateway profile, so
 // single-profile users (who never see the switcher) are completely unaffected.
-export const $showAllProfiles = atom<boolean>(storedBoolean(SHOW_ALL_PROFILES_STORAGE_KEY, false))
+// This is the user's own choice and the only half that is persisted.
+const $showAllProfilesPreference = atom<boolean>(storedBoolean(SHOW_ALL_PROFILES_STORAGE_KEY, false))
 
-$showAllProfiles.subscribe(value => persistBoolean(SHOW_ALL_PROFILES_STORAGE_KEY, value))
+$showAllProfilesPreference.subscribe(value => persistBoolean(SHOW_ALL_PROFILES_STORAGE_KEY, value))
+
+// The unified view a plugin navigation asks for (Bot Mode opening a bot whose
+// forever-chat is hidden, so a single-profile list would look empty). Window
+// state, never persisted: the app turning the view on must not rewrite the
+// user's choice, and it ends when the user is back on the Sessions pane
+// (endProfileNavigationView) or picks a scope themselves.
+const $showAllProfilesForNavigation = atom(false)
+
+export const $showAllProfiles = computed(
+  [$showAllProfilesPreference, $showAllProfilesForNavigation],
+  (preference, navigation) => preference || navigation
+)
 
 // The profile context the sidebar is currently showing: a concrete profile key,
 // or ALL_PROFILES for the unified grouped view. Concrete scope is tied to the
@@ -642,7 +655,7 @@ export function selectProfile(name: string): void {
   // Switching profiles (or coming back from the all-profiles browse view) starts
   // fresh; re-tapping the profile you're already in leaves your session be.
   const switching = $showAllProfiles.get() || target !== normalizeProfileKey($activeGatewayProfile.get())
-  $showAllProfiles.set(false)
+  setShowAllProfiles(false)
   $newChatProfile.set(target)
 
   if (switching) {
@@ -704,12 +717,26 @@ export function setProfileRailCollapsed(collapsed: boolean): void {
   $profileRailPreference.set(collapsed ? 'collapsed' : 'expanded')
 }
 
+/** The user's scope choice (switcher, hotkey, a connection or profile pick):
+ *  persisted, and it supersedes any navigation view in effect. */
 export function setShowAllProfiles(value: boolean): void {
-  $showAllProfiles.set(value)
+  $showAllProfilesForNavigation.set(false)
+  $showAllProfilesPreference.set(value)
 }
 
 export function toggleShowAllProfiles(): void {
-  $showAllProfiles.set(!$showAllProfiles.get())
+  setShowAllProfiles(!$showAllProfiles.get())
+}
+
+/** Show every profile for a navigation the user did not ask to rescope
+ *  (a plugin opening another profile's session). Leaves the saved choice. */
+export function showAllProfilesForNavigation(): void {
+  $showAllProfilesForNavigation.set(true)
+}
+
+/** Drop the navigation view, back to the user's saved choice. */
+export function endProfileNavigationView(): void {
+  $showAllProfilesForNavigation.set(false)
 }
 
 // ── Hotkey-driven profile switching ────────────────────────────────────────

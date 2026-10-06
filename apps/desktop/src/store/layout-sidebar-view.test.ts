@@ -11,10 +11,10 @@ import {
   toggleSidebarRowMeta,
   toggleSidebarStatusFilter
 } from './layout'
-import { $showAllProfiles } from './profile'
+import { $showAllProfiles, setShowAllProfiles } from './profile'
 
 beforeEach(() => {
-  $showAllProfiles.set(false)
+  setShowAllProfiles(false)
   resetSidebarView()
 })
 
@@ -49,7 +49,7 @@ describe('the sidebar as it ships', () => {
   })
 
   it('ships by project in the all-profiles scope too, and resets back to it', () => {
-    $showAllProfiles.set(true)
+    setShowAllProfiles(true)
     setSidebarGrouping('profile')
 
     resetSidebarView()
@@ -60,11 +60,11 @@ describe('the sidebar as it ships', () => {
 
   it('resets the scope the user is not looking at, so flipping the rail cannot restore it', () => {
     setSidebarGrouping('status')
-    $showAllProfiles.set(true)
+    setShowAllProfiles(true)
     setSidebarGrouping('profile')
 
     resetSidebarView()
-    $showAllProfiles.set(false)
+    setShowAllProfiles(false)
 
     expect($sidebarGrouping.get()).toBe('project')
   })

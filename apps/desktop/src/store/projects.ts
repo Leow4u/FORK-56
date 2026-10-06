@@ -1,4 +1,4 @@
-import { atom } from 'nanostores'
+import { atom, computed } from 'nanostores'
 
 import {
   liveSessionProjectId,
@@ -20,7 +20,13 @@ import {
 import { $gateway, activeGateway, ensureActiveGatewayOpen } from '@/store/gateway'
 import { setSidebarAgentsGrouped } from '@/store/layout'
 import { notify } from '@/store/notifications'
-import { $activeGatewayProfile, $profileScope, ALL_PROFILES, requestFreshSession } from '@/store/profile'
+import {
+  $activeGatewayProfile,
+  $profileScope,
+  ALL_PROFILES,
+  normalizeProfileKey,
+  requestFreshSession
+} from '@/store/profile'
 import { $projectScope, ALL_PROJECTS, exitProjectScope } from '@/store/project-scope'
 import {
   $activeSessionId,
@@ -571,7 +577,7 @@ async function refreshProjectTreeOn(gateway: Work4YouGateway): Promise<void> {
 // cached tree intact so the sidebar doesn't flicker.
 export async function refreshProjectTree(): Promise<void> {
   if ($profileScope.get() === ALL_PROFILES) {
-    await refreshProjectTreeAcrossProfiles()
+    await Promise.all([refreshProjectTreeAcrossProfiles(), refreshOwnProfileProjectTree()])
 
     return
   }
@@ -581,6 +587,83 @@ export async function refreshProjectTree(): Promise<void> {
     await refreshProjectTreeOn(gateway)
   } catch {
     // Backend may not be ready; keep the last known tree.
+  }
+}
+
+// ── The active profile's own projects (the folder pickers' list) ────────────
+// The composer's Select project chip and the ⌘K Select project page choose the
+// folder a NEW chat starts in, and a new chat is always created on the active
+// profile. In all-profiles mode `$projectTree` is the cross-profile merge, whose
+// nodes carry no owner, so the pickers would offer other profiles' folders. They
+// read this instead: the sidebar tree as-is in a single-profile scope, and the
+// active backend's own `projects.tree` while browsing every profile.
+
+interface OwnProfileTreeSnapshot {
+  nodes: SidebarProjectTree[]
+  profile: string
+}
+
+const $ownProfileTreeSnapshot = atom<null | OwnProfileTreeSnapshot>(null)
+
+export function ownProfileProjectNodes(input: {
+  activeProfile: null | string | undefined
+  scope: string
+  snapshot: null | OwnProfileTreeSnapshot
+  tree: SidebarProjectTree[]
+}): SidebarProjectTree[] {
+  if (input.scope !== ALL_PROFILES) {
+    return input.tree
+  }
+
+  // Fetched for another profile (the active one changed since): nothing of it
+  // belongs to this draft, so offer no rows until the active profile answers.
+  if (!input.snapshot || input.snapshot.profile !== normalizeProfileKey(input.activeProfile)) {
+    return []
+  }
+
+  // Same checkout, same id: prefer the live node so an optimistic rename or
+  // color change shows here too.
+  const live = new Map(input.tree.map(node => [node.id, node]))
+
+  return input.snapshot.nodes.map(node => live.get(node.id) ?? node)
+}
+
+export const $ownProfileProjectTree = computed(
+  [$profileScope, $activeGatewayProfile, $projectTree, $ownProfileTreeSnapshot],
+  (scope, activeProfile, tree, snapshot) => ownProfileProjectNodes({ activeProfile, scope, snapshot, tree })
+)
+
+let ownProfileTreeGeneration = 0
+
+/** Fetch the active profile's own tree for the folder pickers. Only needed in
+ *  all-profiles mode; a single-profile scope already holds it in $projectTree. */
+export async function refreshOwnProfileProjectTree(): Promise<void> {
+  if ($profileScope.get() !== ALL_PROFILES) {
+    return
+  }
+
+  const generation = ++ownProfileTreeGeneration
+
+  try {
+    const { gateway, profile } = await activeProjectsContext()
+
+    // The pickers list projects, not sessions: one preview row is enough.
+    const res = await gatewayRequestOn<ProjectTreePayload>(gateway, 'projects.tree', {
+      preview_limit: 1,
+      session_limit: PROJECT_TREE_SESSION_LIMIT
+    })
+
+    if (generation !== ownProfileTreeGeneration || activeGateway() !== gateway) {
+      return
+    }
+
+    $ownProfileTreeSnapshot.set({
+      nodes: withDesktopProjectTree(res.projects ?? []),
+      profile: normalizeProfileKey(profile)
+    })
+  } catch {
+    // Backend may not be ready; keep the last snapshot (the profile check above
+    // keeps a stale one from leaking into another profile's picker).
   }
 }
 

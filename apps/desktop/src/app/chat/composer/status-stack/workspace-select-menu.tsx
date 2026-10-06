@@ -24,7 +24,7 @@ import { useI18n } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { $dismissedAutoProjectIds, $sidebarProjectOrderIds } from '@/store/layout'
 import { $projectScope } from '@/store/project-scope'
-import { $activeProjectId, $projectTree } from '@/store/projects'
+import { $activeProjectId, $ownProfileProjectTree, refreshOwnProfileProjectTree } from '@/store/projects'
 
 import { useComposerMenuSide } from '../use-composer-menu-side'
 
@@ -58,7 +58,9 @@ export function WorkspaceSelectMenu({
   const menuSide = useComposerMenuSide(hostRef)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const projects = useStore($projectTree)
+  // A new chat starts on the active profile, so offer its projects only — even
+  // while the sidebar browses every profile.
+  const projects = useStore($ownProfileProjectTree)
   const orderIds = useStore($sidebarProjectOrderIds)
   const dismissedIds = useStore($dismissedAutoProjectIds)
   const scope = useStore($projectScope)
@@ -101,6 +103,10 @@ export function WorkspaceSelectMenu({
 
   const setMenuOpen = (next: boolean) => {
     setOpen(next)
+
+    if (next) {
+      void refreshOwnProfileProjectTree()
+    }
 
     if (!next) {
       setQuery('')
