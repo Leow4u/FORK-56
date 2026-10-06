@@ -1515,6 +1515,8 @@ export const api = {
 
   // ── Admin: Portal ───────────────────────────────────────────────────
   getPortal: () => fetchJSON<PortalStatus>("/api/portal"),
+  getPortalAccount: () =>
+    fetchJSON<PortalAccountIdentity>("/api/portal/account"),
 
   // ── Admin: Diagnostics (backgrounded) ───────────────────────────────
   runPromptSize: () =>
@@ -1575,6 +1577,16 @@ export const api = {
       `/api/skills/hub/scan?identifier=${encodeURIComponent(identifier)}`,
     ),
 };
+
+/** Who is signed in to this agent's Portal login (``GET /api/portal/account``). */
+export interface PortalAccountIdentity {
+  email: string | null;
+  logged_in: boolean;
+  /** Cadastro name, only when both parts were saved. */
+  name: string | null;
+  /** Portal this login belongs to. Absent on backends that predate the field. */
+  portal_url?: string | null;
+}
 
 /** Identity payload returned by ``GET /api/auth/me`` (Phase 7).
  *
