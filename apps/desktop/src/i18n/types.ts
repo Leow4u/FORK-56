@@ -2592,6 +2592,8 @@ export interface Translations {
     personaTemplates: { blank: string; research: string; writer: string; developer: string; support: string }
     personaTemplateHint: string
     avatar: {
+      characters: string
+      characterNames: Record<'headphones' | 'sunglasses' | 'glasses' | 'beret' | 'bowtie' | 'cap', string>
       label: string
       hint: string
       tabs: { bot: string; generate: string; upload: string; pet: string }

@@ -4,7 +4,8 @@ import type { atom } from 'nanostores'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type * as AvatarImage from '@/lib/avatar-image'
-import { blobShapeString, defaultShapeFor } from '@/lib/bot-avatar'
+import { defaultShapeFor } from '@/lib/bot-avatar'
+import { BOT_CHARACTERS } from '@/lib/bot-characters'
 import type * as PetGalleryStore from '@/store/pet-gallery'
 import type { PetGallery, PetGalleryStatus } from '@/store/pet-gallery'
 
@@ -31,7 +32,7 @@ const pets = vi.hoisted(() => {
   }
 })
 
-vi.mock('../gateway/hooks/use-gateway-request', () => ({
+vi.mock('@/app/gateway/hooks/use-gateway-request', () => ({
   useGatewayRequest: () => ({ requestGateway: gateway.request })
 }))
 vi.mock('@/lib/avatar-image', async importOriginal => ({
@@ -97,7 +98,7 @@ describe('AvatarPicker · Bot', () => {
 
     expect(tile.getAttribute('aria-pressed')).toBe('true')
     expect(tile.querySelector('svg')?.getAttribute('data-bot-face')).toBe('research')
-    expect(screen.getByRole('button', { name: 'Blob face — drawn from the name' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Characters' })).toBeTruthy()
   })
 
   it('picking a shape drops any picture; picking a color reports it', () => {
@@ -118,18 +119,42 @@ describe('AvatarPicker · Bot', () => {
     expect(onImage).toHaveBeenCalledTimes(2)
   })
 
-  it('opens the blob controls for a blob shape: kinds, lock to the name, back to classic', () => {
+  it('picks a ready-made character, clears a previous image and preserves the selection after reopening', () => {
     const onShape = vi.fn()
+    const onImage = vi.fn()
+    const onColor = vi.fn()
+    const character = BOT_CHARACTERS[0]
+    const { rerender } = render(
+      <Harness image="data:image/png;base64,old" onColor={onColor} onImage={onImage} onShape={onShape} />
+    )
 
-    render(<Harness onShape={onShape} shape="blobatar" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Characters' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Headphones' }))
+    expect(onShape).toHaveBeenCalledWith(character.shape)
+    expect(onColor).toHaveBeenCalledWith(character.color)
+    expect(onImage).toHaveBeenCalledWith(null)
 
-    expect(screen.getByText('Face follows the name.')).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Lock face' }))
-    expect(onShape).toHaveBeenCalledWith(blobShapeString('research', ''))
+    rerender(<Harness name="renamed-profile" shape={character.shape} />)
+    expect(screen.getByRole('button', { name: 'Headphones' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Headphones' }).querySelector('img')?.getAttribute('src')).toBe(
+      character.image
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'Classic shapes' }))
-    expect(onShape).toHaveBeenCalledWith(defaultShapeFor('research'))
+    expect(screen.getByRole('button', { name: 'Shape cloud' }).getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('opens saved characters on their catalog and retains legacy blob appearances until a new choice', () => {
+    const onShape = vi.fn()
+    const { unmount } = render(<Harness onShape={onShape} shape={BOT_CHARACTERS[1].shape} />)
+
+    expect(screen.getByRole('button', { name: 'Sunglasses' }).getAttribute('aria-pressed')).toBe('true')
+    expect(onShape).not.toHaveBeenCalled()
+    unmount()
+
+    render(<Harness onShape={onShape} shape="blobatar::cloud" />)
+    expect(screen.getByRole('button', { name: 'Headphones' }).getAttribute('aria-pressed')).toBe('false')
+    expect(onShape).not.toHaveBeenCalled()
   })
 })
 

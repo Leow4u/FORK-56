@@ -3260,6 +3260,15 @@ export const zh: Translations = {
     personaTemplates: { blank: '空白', research: '研究', writer: '写作', developer: '开发', support: '客服' },
     personaTemplateHint: '选择一个起点，然后编辑文本。保存为 SOUL.md。',
     avatar: {
+      characters: '角色',
+      characterNames: {
+        headphones: '耳机',
+        sunglasses: '墨镜',
+        glasses: '圆框眼镜',
+        beret: '贝雷帽',
+        bowtie: '领结',
+        cap: '棒球帽'
+      },
       label: '头像',
       hint: '此配置档案在各处显示的面孔：档案条、芯片和 Workbots 名册。',
       tabs: { bot: '机器人', generate: '生成', upload: '上传', pet: '宠物' },

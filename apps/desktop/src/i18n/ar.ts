@@ -1691,6 +1691,18 @@ export const ar = defineLocale({
     platformIntro: {}
   },
   profiles: {
+    avatar: {
+      characters: 'الشخصيات',
+      characterNames: {
+        headphones: 'سماعات',
+        sunglasses: 'نظارة شمسية',
+        glasses: 'نظارة مستديرة',
+        beret: 'قبعة بيريه',
+        bowtie: 'ربطة فراشة',
+        cap: 'قبعة رياضية'
+      },
+      classicShapes: 'أشكال كلاسيكية'
+    },
     agentPanel: 'لوحة الوكيل',
     editProfile: 'تعديل الملف الشخصي…',
     allConversations: 'محادثات جميع الملفات الشخصية',

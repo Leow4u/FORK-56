@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { ActionStatus } from '@/components/ui/action-status'
+import { AvatarPicker } from '@/components/ui/avatar-picker'
 import { BotFace } from '@/components/ui/bot-face'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -26,7 +27,6 @@ import { saveProfileLook } from '@/store/profile'
 import type { ProfileInfo } from '@/types/work4you'
 import { createProfile, updateProfileSoul } from '@/work4you'
 
-import { AvatarPicker } from './avatar-picker'
 import { isValidProfileName } from './profile-name'
 
 /** GUI create is Fresh (blank) unless the user explicitly picks a clone source. */

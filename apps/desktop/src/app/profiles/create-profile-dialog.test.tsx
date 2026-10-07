@@ -28,7 +28,7 @@ vi.mock('@/lib/bot-face-clock', () => ({ startFaceClock: vi.fn() }))
 
 // The picker has its own test; here it is three buttons that hand a pick to
 // the dialog, so the test reads what the dialog saves.
-vi.mock('./avatar-picker', () => ({
+vi.mock('@/components/ui/avatar-picker', () => ({
   AvatarPicker: ({
     onColor,
     onImage,

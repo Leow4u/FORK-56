@@ -462,6 +462,17 @@ export function sampleFaceRing(shape: null | string | undefined, steps = 52): Po
     return sampleCloudRing(steps)
   }
 
+  if (kind === 'pill') {
+    // A capsule has semicircular ends and straight top/bottom edges.
+    // Keep the same proportions as the classic 36×26 pill.
+    return Array.from({ length: steps }, (_, i): Point => {
+      const angle = (i / steps) * Math.PI * 2 - Math.PI / 2
+      const cosine = Math.cos(angle)
+
+      return [20 + Math.sign(cosine) * 5 + 13 * cosine, 20 + 13 * Math.sin(angle)]
+    })
+  }
+
   const pts: Point[] = []
 
   for (let i = 0; i < steps; i++) {
@@ -476,14 +487,10 @@ export function sampleFaceRing(shape: null | string | undefined, steps = 52): Po
     } else if (kind === 'blob') {
       rx = ry = 16 + 1.7 * Math.sin(3 * a) + 0.7 * Math.cos(5 * a)
     } else if (kind === 'squircle') {
-      const p = 5
+      const p = 4
       const d = Math.pow(Math.abs(c) ** p + Math.abs(s) ** p, 1 / p) || 1
 
       rx = ry = 16.2 / d
-    } else if (kind === 'pill') {
-      const d = Math.pow(Math.abs(c) ** 8 + Math.abs(s / 0.72) ** 8, 1 / 8) || 1
-
-      rx = ry = 16 / d
     } else if (kind === 'triangle' || kind === 'tetrahedron' || kind === 'wedge') {
       const u = (a + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2)
       const sector = (u / ((Math.PI * 2) / 3)) % 1
@@ -509,6 +516,20 @@ export function sampleFaceRing(shape: null | string | undefined, steps = 52): Po
     pts.push([20 + rx * c, 20 + ry * s])
   }
 
+  if (kind === 'triangle' || kind === 'hexagon') {
+    // Soften the classic corners without changing the selected silhouette.
+    for (let pass = 0; pass < 2; pass++) {
+      const rounded = pts.map(([x, y], i): Point => {
+        const before = pts[(i + pts.length - 1) % pts.length]
+        const after = pts[(i + 1) % pts.length]
+
+        return [(before[0] + 2 * x + after[0]) / 4, (before[1] + 2 * y + after[1]) / 4]
+      })
+
+      pts.splice(0, pts.length, ...rounded)
+    }
+  }
+
   return pts
 }
 
@@ -530,10 +551,15 @@ export function ringToPath(pts: readonly Point[]): string {
     return ''
   }
 
-  let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`
+  const last = pts[pts.length - 1]
+  let d = `M${((last[0] + pts[0][0]) / 2).toFixed(2)} ${((last[1] + pts[0][1]) / 2).toFixed(2)}`
 
-  for (let i = 1; i < pts.length; i++) {
-    d += `L${pts[i][0].toFixed(2)} ${pts[i][1].toFixed(2)}`
+  // Midpoint curves keep the animated contour smooth even in a large preview.
+  for (let i = 0; i < pts.length; i++) {
+    const [x, y] = pts[i]
+    const next = pts[(i + 1) % pts.length]
+
+    d += `Q${x.toFixed(2)} ${y.toFixed(2)} ${((x + next[0]) / 2).toFixed(2)} ${((y + next[1]) / 2).toFixed(2)}`
   }
 
   return d + 'Z'

@@ -3124,6 +3124,15 @@ export const en: Translations = {
     },
     personaTemplateHint: 'Pick a starting point, then edit the text. Saved as SOUL.md.',
     avatar: {
+      characters: 'Characters',
+      characterNames: {
+        headphones: 'Headphones',
+        sunglasses: 'Sunglasses',
+        glasses: 'Round glasses',
+        beret: 'Beret',
+        bowtie: 'Bow tie',
+        cap: 'Cap'
+      },
       label: 'Avatar',
       hint: 'The face this profile wears everywhere: the rail, the chips, the Workbots roster.',
       tabs: { bot: 'Bot', generate: 'Generate', upload: 'Upload', pet: 'Pet' },

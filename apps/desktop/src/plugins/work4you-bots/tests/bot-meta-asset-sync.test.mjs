@@ -89,3 +89,16 @@ test('regression: duplicating a bot still pushes the copied avatar once', async 
     { name: 'source-2', asset: 'avatar', data: png } // fresh profile: image differs from its (empty) meta
   ])
 })
+
+test('changing a built-in face clears its old notice snapshot, but an unchanged save does not', async () => {
+  const { saveBotMeta, $botMeta, requests } = load()
+  $botMeta.set({ ops: { shape: 'circle', color: '#8b5cf6', image: null } })
+
+  await saveBotMeta('ops', { shape: 'character:headphones', color: '#2585ef', image: null })
+  await saveBotMeta('ops', { shape: 'character:headphones', color: '#2585ef', image: null, title: 'Renamed' })
+
+  const assets = requests.filter(([method]) => method === 'profiles.set_asset')
+  assert.equal(assets.length, 1)
+  assert.equal(assets[0][1].name, 'ops')
+  assert.equal(assets[0][1].clear, true)
+})

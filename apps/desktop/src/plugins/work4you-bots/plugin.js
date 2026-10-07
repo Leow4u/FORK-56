@@ -1267,10 +1267,18 @@ async function saveBotMeta(name, patch) {
   // (changed or not); a no-op `clear` from one machine can race another
   // machine's just-pushed avatar and wipe it server-side, and a no-op
   // `data` push re-uploads the full data URL for nothing.
-  if ('image' in patch && patch.image !== (prevMeta.image ?? null)) {
+  const imageChanged = 'image' in patch && patch.image !== (prevMeta.image ?? null)
+  const builtInChanged = !next[name].image && (
+    ('shape' in patch && patch.shape !== prevMeta.shape) ||
+    ('color' in patch && patch.color !== prevMeta.color)
+  )
+  if (imageChanged || builtInChanged) {
+    // A ready-made character or recolored classic replaces the old notice
+    // snapshot too. An unchanged save still leaves the asset alone.
+    avatarPushInflight.delete(name)
     try {
-      const req = patch.image
-        ? host.request('profiles.set_asset', { name, asset: 'avatar', data: patch.image })
+      const req = next[name].image
+        ? host.request('profiles.set_asset', { name, asset: 'avatar', data: next[name].image })
         : host.request('profiles.set_asset', { name, asset: 'avatar', clear: true })
       req.catch(() => undefined)
     } catch {
@@ -1471,17 +1479,19 @@ function pushLocalAvatars(roster) {
       continue
     }
 
-    // Vector shape/color face: no image exists anywhere — rasterize the
-    // live SVG (tagged data-bot-face) to a PNG and push that, so the
+    // Built-in face: snapshot the live vector or bundled character so the
     // inter-agent notices (core #85855/#85888) can show the real pfp.
-    const svg = document.querySelector('svg[data-bot-face=' + JSON.stringify(bot.name) + ']')
+    const face = document.querySelector('[data-bot-face=' + JSON.stringify(bot.name) + ']')
 
-    if (!svg) {
+    if (!face) {
       continue
     }
 
     avatarPushInflight.add(bot.name)
-    rasterizeSvgToPng(svg, 160)
+    const snapshot = face.tagName.toLowerCase() === 'img'
+      ? normalizeAvatarImage(face.currentSrc || face.src, 160)
+      : rasterizeSvgToPng(face, 160)
+    snapshot
       .then(png =>
         png
           ? host
@@ -2293,7 +2303,25 @@ async function generateAvatarImage(bot, title, description) {
  *  Layout uses inline grid styles — arbitrary Tailwind classes like
  *  `grid-cols-7` are NOT in the app's precompiled CSS, which collapsed
  *  this into a single vertical column. */
-function AvatarPicker({ shape, color, image, onShape, onColor, onImage, generateSeed }) {
+const avatarGatewayRequest = (method, params) => host.request(method, params)
+
+function AvatarPicker(props) {
+  if (!avatarSdk.AvatarPicker) {
+    return jsx(LegacyAvatarPicker, props)
+  }
+
+  const { generateSeed, ...appearance } = props
+
+  return jsx(avatarSdk.AvatarPicker, {
+    ...appearance,
+    name: generateSeed?.name || 'agent',
+    title: generateSeed?.title,
+    request: avatarGatewayRequest
+  })
+}
+
+// Compatibility for this plugin loaded by a desktop predating the shared picker.
+function LegacyAvatarPicker({ shape, color, image, onShape, onColor, onImage, generateSeed }) {
   const t = useBotModeT()
   const pickerName = generateSeed?.name || 'agent'
   const imagen = useValue($imagenAvailable)
@@ -6442,10 +6470,9 @@ function CreateAgentDialog({ open, onClose, roster }) {
   const flightRef = useRef(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  // Default shapes mode: deterministic blob face drawn from the agent's name
-  // (falls back to the legacy shape vocabulary on older SDKs).
-  const [shape, setShape] = useState(blobatarSvg ? 'blobatar' : 'circle')
-  const [color, setColor] = useState(AVATAR_COLORS[3])
+  // Match New profile: an untouched appearance follows the profile name.
+  const [shape, setShape] = useState(avatarSdk.AvatarPicker ? null : blobatarSvg ? 'blobatar' : 'circle')
+  const [color, setColor] = useState(avatarSdk.AvatarPicker ? null : AVATAR_COLORS[3])
   const [image, setImage] = useState(null)
   const [advanced, setAdvanced] = useState(false)
   const [cloneFrom, setCloneFrom] = useState(FRESH_CLONE_FROM)
@@ -6544,8 +6571,8 @@ function CreateAgentDialog({ open, onClose, roster }) {
     setName('')
     setTitle('')
     setDescription('')
-    setShape(blobatarSvg ? 'blobatar' : 'circle')
-    setColor(AVATAR_COLORS[3])
+    setShape(avatarSdk.AvatarPicker ? null : blobatarSvg ? 'blobatar' : 'circle')
+    setColor(avatarSdk.AvatarPicker ? null : AVATAR_COLORS[3])
     setImage(null)
     setAdvanced(false)
     // Same default as the initial useState — Fresh, not clone-from-default.
@@ -6845,7 +6872,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
           children: [
             jsx('div', {
               className: 'flex justify-center py-1',
-              children: jsx(BotFace, { shape, color, image, size: 56, name: slug || 'agent' })
+              children: jsx(BotFace, { ...botAppearance(slug || 'agent', { shape, color, custom: true }), image, size: 56, name: slug || 'agent' })
             }),
             jsx(AvatarPicker, {
               shape,

@@ -107,14 +107,15 @@ export function avatarPrompt({ describe, name, title }: AvatarPromptSeed): strin
   const custom = (describe ?? '').trim()
 
   if (custom) {
-    return `${custom}. Avatar for an AI agent: centered, bold flat vector style, solid color background, no text.`
+    return `${custom}. Avatar for an AI agent: centered, clear silhouette, no text.`
   }
 
   const who = (title ?? '').trim() || name.trim() || 'agent'
 
   return (
     `Cute minimal robot avatar for an AI agent named "${who}". ` +
-    'Friendly simple mascot face, bold flat vector style, solid color background, centered, no text.'
+    'Friendly simple 3D mascot with two expressive eyes, rounded shapes, satin finish, ' +
+    'soft studio lighting, transparent background, centered, no text.'
   )
 }
 

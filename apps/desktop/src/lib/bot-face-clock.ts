@@ -26,13 +26,19 @@ export function paintMathFace(svg: SVGSVGElement, t: number): void {
   const dots = svg.querySelectorAll('[data-hb-dot]')
 
   if (body) {
+    let outline: string
+
     if (shape === 'cloud') {
-      body.setAttribute('d', CLOUD_BODY_PATH)
+      outline = CLOUD_BODY_PATH
     } else {
       const ring = sampleFaceRing(shape).map(([x, y]) => projectFacePoint(x, y, pose.turn, pose.tilt, pose.roll))
 
-      body.setAttribute('d', ringToPath(ring))
+      outline = ringToPath(ring)
     }
+
+    body.setAttribute('d', outline)
+    // Lighting follows the same animated silhouette, including head turns.
+    svg.querySelectorAll('[data-hb-surface]').forEach(surface => surface.setAttribute('d', outline))
   }
 
   const eyeY = faceEyeY(shape) + pose.gazeY
