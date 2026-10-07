@@ -50,11 +50,13 @@ import { pruneComposerPopoutZones } from '@/store/composer-popout'
 import {
   $fileBrowserOpen,
   $panesFlipped,
+  $rightSidebarOpen,
   $sidebarOpen,
   FILE_BROWSER_DEFAULT_WIDTH,
   FILE_BROWSER_MAX_WIDTH,
   FILE_BROWSER_MIN_WIDTH,
   setFileBrowserOpen,
+  setRightSidebarOpen,
   setSidebarOpen,
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH
@@ -584,10 +586,11 @@ $panesFlipped.listen(flipped => {
 })
 
 // POSITIONAL side toggles (titlebar buttons, ⌘B / ⌘J): $sidebarOpen ≙ the
-// LEFT side of the main zone, $fileBrowserOpen ≙ the RIGHT — everything on
-// that side hides together, whatever panes have been rearranged there.
+// LEFT side of the main zone, $rightSidebarOpen ≙ the RIGHT — everything on
+// that side hides together, whatever panes have been rearranged there, the
+// content area included.
 bindTreeSideVisibility('left', $sidebarOpen, setSidebarOpen)
-bindTreeSideVisibility('right', $fileBrowserOpen, setFileBrowserOpen)
+bindTreeSideVisibility('right', $rightSidebarOpen, setRightSidebarOpen)
 
 // Workspace-scoped surfaces: the file tree and git diff only mean something
 // inside a project. A detached chat (no cwd) hides them — their zones
@@ -596,16 +599,16 @@ bindTreeSideVisibility('right', $fileBrowserOpen, setFileBrowserOpen)
 // rode the rail's row and vanished with it), its zone stands on its own.
 const $hasWorkspace = computed($currentCwd, cwd => Boolean(cwd.trim()))
 
-// The tree pane's own presence tracks ⌘J directly, not just the column's
-// collapse — otherwise a pane revealed into that shared column would drag the
-// tree along with it.
+// The tree pane's own presence is its own store, apart from the right side's —
+// otherwise a pane revealed into that shared column would drag the tree along
+// with it.
 //
-// Both get a CLOSER and an OPENER. The closer keeps ⌘J/⌘G truthful when the
-// pane is closed from the tab menu; the opener is its mirror, so bringing the
-// pane back through the tree (the toggle's reveal path, the rail, a preset)
-// writes the store too. Without the opener the boolean went stale the moment
-// anything but the toggle showed the pane — the divergence this whole change
-// is about.
+// Both get a CLOSER and an OPENER. The closer keeps their toggles (⌘K's Show
+// file browser, ⌘G) truthful when the pane is closed from the tab menu; the
+// opener is its mirror, so bringing the pane back through the tree (the
+// toggle's reveal path, the rail, a preset) writes the store too. Without the
+// opener the boolean went stale the moment anything but the toggle showed the
+// pane — the divergence this whole change is about.
 bindPaneVisibility(
   'files',
   computed([$hasWorkspace, $fileBrowserOpen], (workspace, open) => workspace && open),
@@ -796,16 +799,14 @@ registry.register(
   )
 )
 
-// Sessions/files Close = collapse their SIDE (⌘B/⌘J truthful, titlebar button
-// flips back) — but only while the pane actually lives in that root side
-// column. Dragged next to main, a side collapse can't hide it (the collapse
-// skips main-bearing children), so Close falls back to dismissal there —
-// otherwise ⌘W/Close silently no-op.
+// Sessions Close = collapse its SIDE (⌘B truthful, titlebar button flips
+// back) — but only while the pane actually lives in that root side column.
+// Dragged next to main, a side collapse can't hide it (the collapse skips
+// main-bearing children), so Close falls back to dismissal there — otherwise
+// ⌘W/Close silently no-op. (Files Close hides the tree through its own store,
+// wherever it lives — see its binding above; the right side isn't its toggle.)
 registerPaneCloser('sessions', () =>
   paneRootSide('sessions') === 'left' ? setSidebarOpen(false) : dismissTreePane('sessions')
-)
-registerPaneCloser('files', () =>
-  paneRootSide('files') === 'right' ? setFileBrowserOpen(false) : dismissTreePane('files')
 )
 
 // Back on the Sessions pane, the list is the user's again: a plugin open (Bot

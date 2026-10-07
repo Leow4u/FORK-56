@@ -2,18 +2,13 @@ import { useStore } from '@nanostores/react'
 import { type ComponentProps, type MouseEvent, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
+import { $contentAreaShowing, toggleRightSidebar } from '@/app/right-sidebar/toggle'
 import { Button } from '@/components/ui/button'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { cn } from '@/lib/utils'
-import {
-  $fileBrowserOpen,
-  $sidebarOpen,
-  toggleFileBrowserOpen,
-  togglePanesFlipped,
-  toggleSidebarOpen
-} from '@/store/layout'
+import { $sidebarOpen, togglePanesFlipped, toggleSidebarOpen } from '@/store/layout'
 
 import { appViewForPath, isOverlayView } from '../routes'
 
@@ -48,16 +43,16 @@ export function TitlebarControls({ leftTools = [], tools = [] }: TitlebarControl
   const { t } = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
-  const fileBrowserOpen = useStore($fileBrowserOpen)
+  const contentAreaShowing = useStore($contentAreaShowing)
   const sidebarOpen = useStore($sidebarOpen)
 
   // POSITIONAL toggles: each button shows/hides everything on its physical
   // side of the main zone (the layout tree collapses the whole side), so they
-  // stay correct through flips and rearranges. $sidebarOpen ≙ left side,
-  // $fileBrowserOpen ≙ right side. Never an active highlight — plain
-  // show/hide affordances.
+  // stay correct through flips and rearranges. $sidebarOpen ≙ left side; the
+  // right button follows the content area (see toggleRightSidebar), so it says
+  // what a press does. Never an active highlight — plain show/hide affordances.
   const leftEdge = { open: sidebarOpen, toggle: toggleSidebarOpen }
-  const rightEdge = { open: fileBrowserOpen, toggle: toggleFileBrowserOpen }
+  const rightEdge = { open: contentAreaShowing, toggle: toggleRightSidebar }
 
   const leftToolbarTools: TitlebarTool[] = [
     {

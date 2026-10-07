@@ -48,6 +48,24 @@ export type DropPosition = 'center' | 'left' | 'right' | 'top' | 'bottom'
 
 export type RootEdge = 'left' | 'right' | 'top' | 'bottom'
 
+const CONTENT_AREA_PREFIX = 'preview-tile:'
+
+/** A pane of the CONTENT AREA — an open preview (a page, a file, an artifact).
+ *  A zone holding one draws its strip as `surface` tabs; the chat's strip
+ *  keeps its own look even when a preview is stacked into it. */
+export const isContentAreaPane = (paneId: string): boolean => paneId.startsWith(CONTENT_AREA_PREFIX)
+
+/** The layout pane of the content area's tab `tabId`. */
+export const contentAreaPaneId = (tabId: string): string => `${CONTENT_AREA_PREFIX}${tabId}`
+
+/** Whether a pane makes its column the MAIN one, which the side toggles never
+ *  collapse: a main surface (the chat, a session tile) — but not the content
+ *  area. Its previews register as main surfaces too (a tab of their own, a ✕),
+ *  yet the area is a side column, and the right side's toggle folds it with
+ *  the rest of that side. */
+export const anchorsMain = (paneId: string, placement: string | undefined): boolean =>
+  placement === 'main' && !isContentAreaPane(paneId)
+
 let seq = 0
 export const nodeId = (kind: string) => `${kind}-${Date.now().toString(36)}-${(seq++).toString(36)}`
 

@@ -9,9 +9,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // forced the right sidebar open and persisted that open state to localStorage.
 //
 // We mirror controller.tsx exactly: register the `files` pane with
-// `placement: 'right'`, declare the default tree, bind the right side to
-// the file-browser open store, then collapse the right sidebar and trigger
-// the reactive unhide via the same primitive `bindPaneVisibility` invokes.
+// `placement: 'right'`, declare the default tree, bind the right side to its
+// own open store, then collapse the right sidebar and trigger the reactive
+// unhide via the same primitive `bindPaneVisibility` invokes.
 
 describe('reactive pane unhide', () => {
   beforeEach(() => {
@@ -73,8 +73,9 @@ describe('reactive pane unhide', () => {
       )
     )
 
-    // Mirror controller.tsx:512.
-    tree.bindTreeSideVisibility('right', layout.$fileBrowserOpen, layout.setFileBrowserOpen)
+    // Mirror controller.tsx: the right side has its own store — the file tree
+    // is not its toggle.
+    tree.bindTreeSideVisibility('right', layout.$rightSidebarOpen, layout.setRightSidebarOpen)
 
     return { tree, layout }
   }
@@ -90,8 +91,8 @@ describe('reactive pane unhide', () => {
     tree.setTreePaneHidden('files', true)
     expect(tree.$hiddenTreePanes.get().has('files')).toBe(true)
 
-    layout.setFileBrowserOpen(false)
-    expect(layout.$fileBrowserOpen.get()).toBe(false)
+    layout.setRightSidebarOpen(false)
+    expect(layout.$rightSidebarOpen.get()).toBe(false)
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(true)
 
     // Workspace flips: `bindPaneVisibility('files', $hasWorkspace)` calls
@@ -103,16 +104,16 @@ describe('reactive pane unhide', () => {
 
     // …but the user-collapsed side MUST stay collapsed. Before the fix, the
     // unhide called `revealTreePane`, which saw the side was collapsed and
-    // called `setFileBrowserOpen(true)` — silently re-opening the right
-    // sidebar on every session create / resume.
-    expect(layout.$fileBrowserOpen.get()).toBe(false)
+    // opened it — silently re-opening the right sidebar on every session
+    // create / resume.
+    expect(layout.$rightSidebarOpen.get()).toBe(false)
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(true)
   })
 
   it('reactive HIDE (hidden=true) leaves the side flag alone', async () => {
     const { tree, layout } = await setupWithFiles()
 
-    layout.setFileBrowserOpen(false)
+    layout.setRightSidebarOpen(false)
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(true)
 
     // A reactive HIDE (workspace goes away) must not flip the side either —
@@ -121,37 +122,42 @@ describe('reactive pane unhide', () => {
     tree.setTreePaneHidden('files', true)
 
     expect(tree.$hiddenTreePanes.get().has('files')).toBe(true)
-    expect(layout.$fileBrowserOpen.get()).toBe(false)
+    expect(layout.$rightSidebarOpen.get()).toBe(false)
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(true)
   })
 
-  it('explicit setFileBrowserOpen still expands the side (user toggle)', async () => {
+  it("the side's own toggle folds and unfolds it; the file tree's doesn't", async () => {
     const { tree, layout } = await setupWithFiles()
 
-    layout.setFileBrowserOpen(false)
+    layout.setRightSidebarOpen(false)
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(true)
 
-    // The user toggles the sidebar back open — this MUST still work; the
-    // binding mirrors `$fileBrowserOpen` to `$collapsedTreeSides`.
-    layout.setFileBrowserOpen(true)
-    expect(layout.$fileBrowserOpen.get()).toBe(true)
+    // The user toggles the sidebar back open — the binding mirrors
+    // `$rightSidebarOpen` to `$collapsedTreeSides`.
+    layout.setRightSidebarOpen(true)
+    expect(tree.$collapsedTreeSides.get().has('right')).toBe(false)
+
+    // Closing the file tree hides the tree, never its side.
+    layout.setFileBrowserOpen(false)
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(false)
   })
 
   // Opening a neighbour used to drag the file tree open with it: review and
-  // preview share ⌘J's column, and `revealTreePane` un-collapsed a column
-  // through its bound store — which for the right side IS the file-browser
-  // toggle. The reveal now un-collapses the column directly.
+  // preview share ⌘J's column, and the right side's store used to BE the
+  // file-browser toggle. The side has its own store now, and a reveal opens
+  // the side through it — so its toggle says what is on screen.
   it('revealing a preview opens its column without flipping the file-tree toggle', async () => {
     const { tree, layout } = await setupWithFiles()
 
+    layout.setRightSidebarOpen(false)
     layout.setFileBrowserOpen(false)
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(true)
 
     tree.revealTreePane('preview')
 
-    // The column is showing…
+    // The column is showing, and the side's toggle says so…
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(false)
+    expect(layout.$rightSidebarOpen.get()).toBe(true)
     // …but the tree's own toggle never moved, so the tree stays closed.
     expect(layout.$fileBrowserOpen.get()).toBe(false)
   })
@@ -159,6 +165,7 @@ describe('reactive pane unhide', () => {
   it('opening the diff pane leaves the file tree closed', async () => {
     const { tree, layout } = await setupWithFiles()
 
+    layout.setRightSidebarOpen(false)
     layout.setFileBrowserOpen(false)
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(true)
 
@@ -167,6 +174,7 @@ describe('reactive pane unhide', () => {
     tree.revealTreePane('review')
 
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(false)
+    expect(layout.$rightSidebarOpen.get()).toBe(true)
     expect(layout.$fileBrowserOpen.get()).toBe(false)
   })
 
@@ -176,9 +184,9 @@ describe('reactive pane unhide', () => {
     // Spy on the opener that `revealTreePane` would call when expanding a
     // collapsed side — the bug is exactly this call firing on reactive unhide.
     const openerSpy = vi.fn()
-    tree.bindTreeSideVisibility('right', layout.$fileBrowserOpen, openerSpy)
+    tree.bindTreeSideVisibility('right', layout.$rightSidebarOpen, openerSpy)
 
-    layout.setFileBrowserOpen(false)
+    layout.setRightSidebarOpen(false)
     expect(tree.$collapsedTreeSides.get().has('right')).toBe(true)
 
     tree.setTreePaneHidden('files', true)
@@ -190,7 +198,7 @@ describe('reactive pane unhide', () => {
     tree.setTreePaneHidden('files', false)
 
     // The opener MUST NOT be called — before the fix, the auto-reveal would
-    // call `setFileBrowserOpen(true)` via this opener.
+    // open the side via this opener.
     expect(tree.$hiddenTreePanes.get().has('files')).toBe(false)
     expect(openerSpy).not.toHaveBeenCalled()
   })

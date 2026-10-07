@@ -289,7 +289,7 @@ export const pt = defineLocale({
       'composer.modelPicker': 'Abrir seletor de modelo',
       'composer.voice': 'Iniciar / parar conversa por voz',
       'view.toggleSidebar': 'Alternar barra lateral de sessões',
-      'view.toggleRightSidebar': 'Alternar navegador de arquivos',
+      'view.toggleRightSidebar': 'Alternar barra lateral direita',
       'view.toggleReview': 'Alternar painel de revisão',
       'view.toggleStatusbar': 'Alternar barra de status',
       'view.showFiles': 'Mostrar navegador de arquivos',
