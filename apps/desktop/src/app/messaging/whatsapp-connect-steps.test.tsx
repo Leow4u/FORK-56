@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import type * as NanostoresModule from 'nanostores'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { en } from '@/i18n/en'
+
 const startWhatsAppOnboarding = vi.fn()
 const getWhatsAppOnboardingStatus = vi.fn()
 const applyWhatsAppOnboarding = vi.fn()
@@ -115,6 +117,15 @@ async function next() {
 
 const nextButton = () => screen.getByRole('button', { name: 'Next' }) as HTMLButtonElement
 
+const hd = en.messaging.homeDelivery
+const LINKED_HOME = CONNECTED_RESPONSE.account_id
+const home = (chatId: string) => ({ chat_id: chatId, name: chatId })
+
+async function throughDeliver() {
+  expect(await screen.findByText(hd.title)).toBeTruthy()
+  await next()
+}
+
 describe('WhatsAppConnectSteps', () => {
   it('asks who will use the channel first, then starts the pairing for that choice', async () => {
     await renderSteps({ scopeProfile: 'work' })
@@ -173,11 +184,16 @@ describe('WhatsAppConnectSteps', () => {
     expect(nextButton().disabled).toBe(false)
 
     await next()
+    await throughDeliver()
 
     // "Just me" with a dedicated number: bot mode, no allowlist — the first
     // message asks for approval here.
     await waitFor(() =>
-      expect(applyWhatsAppOnboarding).toHaveBeenCalledWith('wa-pair-1', { allowed_users: '', mode: 'bot' }, null)
+      expect(applyWhatsAppOnboarding).toHaveBeenCalledWith(
+        'wa-pair-1',
+        { allowed_users: '', home_channel: home(LINKED_HOME), mode: 'bot' },
+        null
+      )
     )
     expect(await screen.findByText('WhatsApp is set up.')).toBeTruthy()
     expect(screen.getByText('Number linked as +15551234567')).toBeTruthy()
@@ -203,6 +219,7 @@ describe('WhatsAppConnectSteps', () => {
     choose(/Just me, from my own number/)
     await next()
     await next()
+    await throughDeliver()
 
     expect(await screen.findByText('WhatsApp is set up.')).toBeTruthy()
 
@@ -238,11 +255,12 @@ describe('WhatsAppConnectSteps', () => {
 
     fireEvent.change(numbers, { target: { value: '15557654321, 15551112222' } })
     await next()
+    await throughDeliver()
 
     await waitFor(() =>
       expect(applyWhatsAppOnboarding).toHaveBeenCalledWith(
         'wa-pair-1',
-        { allowed_users: '15557654321, 15551112222', mode: 'bot' },
+        { allowed_users: '15557654321, 15551112222', home_channel: home(LINKED_HOME), mode: 'bot' },
         'work'
       )
     )
@@ -260,9 +278,14 @@ describe('WhatsAppConnectSteps', () => {
     choose(/Approve people as they message/)
     expect(screen.queryByLabelText('Only these numbers')).toBeNull()
     await next()
+    await throughDeliver()
 
     await waitFor(() =>
-      expect(applyWhatsAppOnboarding).toHaveBeenCalledWith('wa-pair-1', { allowed_users: '', mode: 'bot' }, null)
+      expect(applyWhatsAppOnboarding).toHaveBeenCalledWith(
+        'wa-pair-1',
+        { allowed_users: '', home_channel: home(LINKED_HOME), mode: 'bot' },
+        null
+      )
     )
     expect(await screen.findByText('People you approve as they message')).toBeTruthy()
   })
@@ -277,9 +300,10 @@ describe('WhatsAppConnectSteps', () => {
     await next()
     fireEvent.change(screen.getByLabelText('Only these numbers'), { target: { value: '15557654321' } })
     await next()
+    await throughDeliver()
 
     expect(await screen.findByText('500 boom')).toBeTruthy()
-    expect(screen.getByText('Who can talk to the bot?')).toBeTruthy()
+    expect(screen.getByText(hd.title)).toBeTruthy()
   })
 
   it('reports a failed gateway restart on the ready screen with a restart action', async () => {
@@ -290,6 +314,7 @@ describe('WhatsAppConnectSteps', () => {
     choose(/Just me, from my own number/)
     await next()
     await next()
+    await throughDeliver()
 
     expect(await screen.findByText('Gateway restart failed (exit 1)', {}, { timeout: 4000 })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Restart gateway/ }))
