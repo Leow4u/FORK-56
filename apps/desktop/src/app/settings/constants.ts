@@ -723,7 +723,9 @@ export const SECTIONS: DesktopConfigSection[] = [
     // Providers, model ids, recording length, and the other catalogs stay
     // off this page. The voice row is the subscription voice. Capabilities
     // still edits each backend through VOICE_PROVIDER_FIELD_KEYS.
-    keys: ['stt.enabled', 'stt.echo_transcripts', 'voice.auto_tts', 'tts.openai.voice', 'voice.record_key']
+    // `voice.record_key` is the terminal's push-to-talk key, so the page shows
+    // the app's own voice shortcut instead (voice-settings-rows.tsx).
+    keys: ['stt.enabled', 'stt.echo_transcripts', 'voice.auto_tts', 'tts.openai.voice']
   },
   {
     id: 'image_video',

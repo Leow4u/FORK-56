@@ -73,10 +73,16 @@ describe('Voice settings', () => {
     await renderVoice()
 
     expect(await screen.findByText('Dictation')).toBeTruthy()
+    expect(screen.getByText('Dictation Language')).toBeTruthy()
     expect(screen.getByText('Show Transcripts in Chat')).toBeTruthy()
     expect(screen.getByText('Read Responses Aloud')).toBeTruthy()
     expect(screen.getByText('Voice Shortcut')).toBeTruthy()
-    expect(screen.getByDisplayValue('alloy')).toBeTruthy()
+    // The subscription voice is a name, not an id to type; it can be heard.
+    expect(screen.getAllByRole('combobox').some(trigger => trigger.textContent === 'Alloy')).toBe(true)
+    expect(screen.queryByDisplayValue('alloy')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Listen' })).toBeTruthy()
+    // The app's own shortcut, not the terminal's push-to-talk key as free text.
+    expect(screen.queryByDisplayValue('ctrl+b')).toBeNull()
     expect(screen.queryByText('Text-To-Speech Provider')).toBeNull()
     expect(screen.queryByText('Speech-To-Text Provider')).toBeNull()
     expect(screen.queryByText('OpenAI TTS Model')).toBeNull()

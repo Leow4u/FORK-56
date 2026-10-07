@@ -210,6 +210,58 @@ def _resolve_stt_language(
     return None
 
 
+def _sets_stt_language(config: Any) -> bool:
+    """Whether a config dict names an STT language.
+
+    ``stt.language`` (even ``""``, which asks for auto-detect) or a non-blank
+    per-provider ``language`` / ``language_code``.
+    """
+    stt = config.get("stt") if isinstance(config, dict) else None
+    if not isinstance(stt, dict):
+        return False
+    if "language" in stt:
+        return True
+    sections = [section for section in stt.values() if isinstance(section, dict)]
+    sections += [
+        section
+        for section in _get_stt_section(stt, "providers").values()
+        if isinstance(section, dict)
+    ]
+    return any(
+        isinstance(section.get(key), str) and section[key].strip()
+        for section in sections
+        for key in ("language", "language_code")
+    )
+
+
+def client_stt_language(
+    language: Optional[str], ui_language: Optional[str]
+) -> Optional[str]:
+    """The language to transcribe a client app's recording in; None defers to config.
+
+    ``language`` is one the user picked in the app and wins over their
+    config.yaml. ``ui_language`` is the app's own language: it only replaces
+    the shipped ``stt.language: "en"``, never a language the user wrote in
+    config.yaml (``""`` for auto-detect included). A language an
+    administrator pinned (managed scope) wins over both.
+
+    Config is read raw: the merged view always carries the shipped ``"en"``,
+    which is nobody's choice (``save_config`` never writes a default the user
+    didn't set).
+    """
+    try:
+        from work4you_cli import managed_scope
+        from work4you_cli.config import read_raw_config_readonly
+
+        pinned = _sets_stt_language(managed_scope.load_managed_config())
+        configured = pinned or _sets_stt_language(read_raw_config_readonly())
+    except Exception:
+        pinned = configured = False
+    if pinned:
+        return None
+    return language or (None if configured else ui_language)
+
+
 def _has_openai_audio_backend() -> bool:
     """Return True when OpenAI audio can use config credentials, env credentials, or the managed gateway."""
     try:
@@ -2926,6 +2978,7 @@ def _transcribe_prepared_audio(
     file_path: str,
     model: Optional[str] = None,
     source: Optional[str] = None,
+    language: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Transcribe an audio file using the configured STT provider.
@@ -2940,6 +2993,8 @@ def _transcribe_prepared_audio(
         source:    Optional caller-surface label (e.g. ``"gateway"``,
                    ``"voice_mode"``) forwarded to the ``pre_transcription``
                    plugin hook for observability. Not used for dispatch.
+        language:  The language spoken, when the caller knows it. Wins over
+                   ``stt.<provider>.language`` and ``stt.language``.
 
     Returns:
         dict with keys:
@@ -3000,7 +3055,7 @@ def _transcribe_prepared_audio(
             trim_cleanup_dir = os.path.dirname(trimmed)
 
     try:
-        return _dispatch_stt_provider(file_path, provider, stt_config, model, source)
+        return _dispatch_stt_provider(file_path, provider, stt_config, model, source, language)
     finally:
         if trim_cleanup_dir:
             shutil.rmtree(trim_cleanup_dir, ignore_errors=True)
@@ -3012,6 +3067,7 @@ def _dispatch_stt_provider(
     stt_config: Dict[str, Any],
     model: Optional[str] = None,
     source: Optional[str] = None,
+    language: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Route *file_path* to the handler for *provider* (built-in > command > plugin)."""
     # Optional static transcription prompt (``stt.prompt`` in config.yaml):
@@ -3026,16 +3082,18 @@ def _dispatch_stt_provider(
     # BEFORE any backend (built-in, command-type, or plugin-registered) is
     # invoked. Hooks may mutate prompt/language/model; file_path is
     # read-only. The helper short-circuits on has_hook() so the no-hook
-    # dispatch path stays byte-identical. ``language`` stays None unless a
-    # hook overrides it — backends keep their own config/env resolution.
-    model, language, prompt = _apply_pre_transcription_hook(
+    # dispatch path stays byte-identical. A hook's language wins, then the
+    # caller's (the language the user speaks, when a client knows it); left
+    # None, backends keep their own config/env resolution.
+    model, hook_language, prompt = _apply_pre_transcription_hook(
         file_path=file_path,
         provider=provider,
         model=model,
-        language=_get_stt_section(stt_config, provider).get("language"),
+        language=language or _get_stt_section(stt_config, provider).get("language"),
         prompt=prompt,
         source=source,
     )
+    language = hook_language or language
 
     # Whisper-family prompt windows top out around 224 tokens — truncate
     # (keeping the tail) with a warning rather than erroring or letting a
@@ -3176,12 +3234,14 @@ def transcribe_audio(
     file_path: str,
     model: Optional[str] = None,
     source: Optional[str] = None,
+    language: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Safely validate, preprocess supported inputs, and dispatch transcription.
 
     ``source`` is an optional caller-surface label (e.g. ``"gateway"``,
     ``"voice_mode"``) forwarded to the ``pre_transcription`` plugin hook for
-    observability. Not used for dispatch.
+    observability. Not used for dispatch. ``language`` is the language spoken,
+    when the caller knows it; it wins over the configured language hint.
     """
     # Refuse to feed a credential / secret store (auth.json, .env, OAuth
     # tokens, mcp-tokens/, ...) to an STT provider — before ANY validation or
@@ -3214,7 +3274,7 @@ def transcribe_audio(
         prepared_error = _validate_audio_file(prepared_path, enforce_size_limit=False)
         if prepared_error:
             return prepared_error
-        return _transcribe_prepared_audio(prepared_path, model, source)
+        return _transcribe_prepared_audio(prepared_path, model, source, language)
     finally:
         if cleanup_dir:
             shutil.rmtree(cleanup_dir, ignore_errors=True)

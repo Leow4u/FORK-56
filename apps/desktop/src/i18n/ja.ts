@@ -325,6 +325,17 @@ export const ja = defineLocale({
       dark: { label: 'ダーク', description: 'まぶしさを抑えたワークスペース' },
       system: { label: 'システム', description: 'OS の外観に合わせる' }
     },
+    voice: {
+      dictationLanguageTitle: '音声入力の言語',
+      dictationLanguageDesc: 'マイクに向かって話す言語。',
+      dictationLanguageApp: language => `アプリと同じ（${language}）`,
+      previewVoice: '試聴',
+      stopPreview: '停止',
+      previewSample: 'こんにちは！返信を読み上げるときは、この声を使います。',
+      previewFailed: '音声を再生できませんでした。',
+      shortcutTitle: '音声ショートカット',
+      shortcutDesc: '音声会話を開始・終了します。キーをクリックすると変更できます。'
+    },
     appearance: {
       title: '外観',
       colorMode: 'カラーモード',

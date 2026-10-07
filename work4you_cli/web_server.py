@@ -5396,6 +5396,20 @@ async def check_work4you_update(force: bool = False):
     return payload
 
 
+_STT_LANGUAGE_RE = re.compile(r"^[a-z]{2,3}$")
+
+
+def _stt_language_hint(value: Optional[str]) -> Optional[str]:
+    """A client's spoken-language hint as an ISO 639 code, or None.
+
+    A locale tag keeps its language ("pt-BR" → "pt"): STT providers take the
+    bare code. A malformed value is dropped rather than refused, so dictation
+    keeps working on the configured hint.
+    """
+    code = (value or "").strip().lower().replace("_", "-").split("-", 1)[0]
+    return code if _STT_LANGUAGE_RE.match(code) else None
+
+
 @app.post("/api/audio/transcribe")
 async def transcribe_audio_upload(
     payload: AudioTranscriptionRequest, profile: Optional[str] = None
@@ -5432,6 +5446,12 @@ async def transcribe_audio_upload(
     if len(audio_bytes) > _MAX_TRANSCRIPTION_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Audio recording is too large")
 
+    # Whisper told to expect English (the shipped stt.language) translates
+    # other speech into English, so the app says what its user speaks; see
+    # client_stt_language for how that ranks against config.
+    language = _stt_language_hint(payload.language)
+    ui_language = _stt_language_hint(payload.ui_language)
+
     temp_path = ""
     try:
         suffix = _audio_extension_for_mime(mime_type)
@@ -5447,6 +5467,7 @@ async def transcribe_audio_upload(
         # hallucinations and maps provider "empty transcript" errors to a
         # successful empty result — the live voice loop treats "" as silence
         # and re-listens instead of surfacing a 400 on every quiet turn.
+        from tools.transcription_tools import client_stt_language
         from tools.voice_mode import transcribe_recording
 
         def _transcribe_scoped():
@@ -5456,7 +5477,8 @@ async def transcribe_audio_upload(
             # probe above). STT only needs config/.env resolution, which the
             # contextvar override provides inside this worker thread.
             with _config_profile_scope(profile):
-                return transcribe_recording(temp_path)
+                spoken = client_stt_language(language, ui_language)
+                return transcribe_recording(temp_path, language=spoken)
 
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, _transcribe_scoped)

@@ -524,6 +524,17 @@ export const zh: Translations = {
       dark: { label: '暗色', description: '低眩光工作区' },
       system: { label: '跟随系统', description: '跟随系统外观' }
     },
+    voice: {
+      dictationLanguageTitle: '听写语言',
+      dictationLanguageDesc: '你对着麦克风说的语言。',
+      dictationLanguageApp: language => `与应用相同（${language}）`,
+      previewVoice: '试听',
+      stopPreview: '停止',
+      previewSample: '你好！我会用这个声音朗读我的回复。',
+      previewFailed: '无法播放该声音。',
+      shortcutTitle: '语音快捷键',
+      shortcutDesc: '开始和结束语音对话。点击按键即可更改。'
+    },
     appearance: {
       title: '外观',
       colorMode: '颜色模式',

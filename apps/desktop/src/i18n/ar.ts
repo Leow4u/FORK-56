@@ -409,6 +409,17 @@ export const ar = defineLocale({
         description: 'اتباع مظهر نظام التشغيل'
       }
     },
+    voice: {
+      dictationLanguageTitle: 'لغة الإملاء',
+      dictationLanguageDesc: 'اللغة التي تتحدث بها في الميكروفون.',
+      dictationLanguageApp: language => `مثل لغة التطبيق (${language})`,
+      previewVoice: 'استماع',
+      stopPreview: 'إيقاف',
+      previewSample: 'مرحبًا! هذا هو الصوت الذي سأستخدمه لقراءة ردودي بصوت عالٍ.',
+      previewFailed: 'تعذّر تشغيل الصوت.',
+      shortcutTitle: 'اختصار الصوت',
+      shortcutDesc: 'يبدأ المحادثة الصوتية وينهيها. انقر على المفاتيح لتغييره.'
+    },
     appearance: {
       title: 'المظهر',
       colorMode: 'نمط الألوان',

@@ -520,8 +520,11 @@ export const api = {
     fetchJSON<{ dataUrl: string }>(
       `/api/fs/read-data-url?path=${encodeURIComponent(path)}`,
     ),
-  /** Desktop-parity STT — same ``/api/audio/transcribe`` the Electron app uses. */
-  transcribeAudio: (dataUrl: string, mimeType?: string) =>
+  /** Desktop-parity STT — same ``/api/audio/transcribe`` the Electron app uses.
+   *  ``uiLanguage`` stands in for the language spoken: the backend otherwise
+   *  assumes English (unless config.yaml sets ``stt.language``), and Whisper
+   *  turns other speech into English text. */
+  transcribeAudio: (dataUrl: string, mimeType?: string, uiLanguage?: string) =>
     fetchJSON<{ ok?: boolean; transcript?: string; text?: string; error?: string }>(
       "/api/audio/transcribe",
       {
@@ -530,6 +533,7 @@ export const api = {
         body: JSON.stringify({
           data_url: dataUrl,
           mime_type: mimeType,
+          ui_language: uiLanguage,
         }),
       },
     ),

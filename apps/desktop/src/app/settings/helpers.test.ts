@@ -390,7 +390,9 @@ describe('settings helpers', () => {
   })
 
   describe('sectionFieldEntries', () => {
-    it('keeps Voice to dictation, echo, read aloud, the subscription voice, and the shortcut', () => {
+    // The terminal's push-to-talk key (`voice.record_key`) stays off: the page
+    // shows the app's own voice shortcut as a row of its own.
+    it('keeps Voice to dictation, echo, read aloud, and the subscription voice', () => {
       const schema = {
         'stt.enabled': { type: 'boolean' as const },
         'stt.echo_transcripts': { type: 'boolean' as const },
@@ -416,13 +418,7 @@ describe('settings helpers', () => {
 
       const voiceKeys = (sectionFieldEntries(schema, config).get('voice') ?? []).map(([key]) => key)
 
-      expect(voiceKeys).toEqual([
-        'stt.enabled',
-        'stt.echo_transcripts',
-        'voice.auto_tts',
-        'tts.openai.voice',
-        'voice.record_key'
-      ])
+      expect(voiceKeys).toEqual(['stt.enabled', 'stt.echo_transcripts', 'voice.auto_tts', 'tts.openai.voice'])
     })
 
     it('keeps Memory to the two toggles', () => {

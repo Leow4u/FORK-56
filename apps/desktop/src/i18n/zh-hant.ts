@@ -318,6 +318,17 @@ export const zhHant = defineLocale({
       dark: { label: '深色', description: '降低眩光的工作區' },
       system: { label: '跟隨系統', description: '跟隨作業系統外觀' }
     },
+    voice: {
+      dictationLanguageTitle: '聽寫語言',
+      dictationLanguageDesc: '你對著麥克風說的語言。',
+      dictationLanguageApp: language => `與應用程式相同（${language}）`,
+      previewVoice: '試聽',
+      stopPreview: '停止',
+      previewSample: '你好！我會用這個聲音朗讀我的回覆。',
+      previewFailed: '無法播放該聲音。',
+      shortcutTitle: '語音快速鍵',
+      shortcutDesc: '開始和結束語音對話。點擊按鍵即可更改。'
+    },
     appearance: {
       title: '外觀',
       colorMode: '色彩模式',

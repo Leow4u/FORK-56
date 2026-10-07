@@ -535,6 +535,17 @@ export const en: Translations = {
       dark: { label: 'Dark', description: 'Low-glare workspace' },
       system: { label: 'System', description: 'Follow OS appearance' }
     },
+    voice: {
+      dictationLanguageTitle: 'Dictation Language',
+      dictationLanguageDesc: 'The language you speak into the microphone.',
+      dictationLanguageApp: language => `Same as the app (${language})`,
+      previewVoice: 'Listen',
+      stopPreview: 'Stop',
+      previewSample: "Hi! This is the voice I'll use to read my replies aloud.",
+      previewFailed: "Couldn't play the voice.",
+      shortcutTitle: 'Voice Shortcut',
+      shortcutDesc: 'Starts and ends voice chat. Click the keys to change it.'
+    },
     appearance: {
       title: 'Appearance',
       colorMode: 'Color Mode',
