@@ -149,12 +149,13 @@ export function ReviewPane() {
           <TreeSkeleton />
         ) : loading ? (
           <div className="min-h-0 flex-1" />
+        ) : isRepo ? (
+          <PaneEmptyState label={c.noChanges} />
         ) : (
-          <PaneEmptyState label={t.rightSidebar.noDiffs} />
+          <PaneEmptyState label={c.notRepo} />
         )
       ) : (
-        // No repo at all → same terse empty state, just without the chrome.
-        <PaneEmptyState label={t.rightSidebar.noDiffs} />
+        <PaneEmptyState label={c.notRepo} />
       )}
 
       {/* Selected file's diff — reuses the shiki-highlighted FileDiffPanel. */}
