@@ -3226,7 +3226,21 @@ export const pt = defineLocale({
       WHATSAPP_CLOUD_API_VERSION: { label: 'Versão da Graph API', placeholder: 'v20.0' }
     },
     platformIntro: {},
-    channelDescriptions: {}
+    channelDescriptions: {
+      a2a: 'Permita que outros agentes chamem o bot — e que o bot os chame.',
+      api_server: 'Exponha um endpoint compatível com OpenAI para o bot em ferramentas e scripts.',
+      discord: 'Use o bot nas suas DMs, canais e tópicos do Discord.',
+      email: 'Escreva ao bot e receba as respostas na sua caixa de entrada.',
+      google_chat: 'Converse com o bot nos espaços do Google Chat.',
+      msgraph_webhook: 'Reaja a reuniões do Teams e a alterações no Microsoft 365.',
+      slack: 'Converse com o bot pelo Slack, só você ou com sua equipe.',
+      sms: 'Envie SMS ao bot de qualquer telefone, via Twilio.',
+      teams: 'Converse com o bot pelo Teams.',
+      telegram: 'Converse com o bot pelo Telegram — DMs, grupos e tópicos.',
+      webhook: 'Deixe GitHub, GitLab e outros serviços acionarem o bot.',
+      whatsapp: 'Converse com o bot no WhatsApp, pelo seu número ou por um dedicado.',
+      whatsapp_cloud: 'Número oficial da Meta para sua empresa atender clientes em escala.'
+    }
   },
   webhooks: {
     search: 'Buscar webhooks...',
