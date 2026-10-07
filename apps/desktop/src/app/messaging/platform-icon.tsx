@@ -19,21 +19,14 @@ import { forwardRef, memo } from 'react'
 import { Globe, Link as LinkIcon, MessageSquareText } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 
+import { MicrosoftBrandIcon, MicrosoftTeamsBrandIcon, SlackBrandIcon } from './platform-brand-icons'
+
 // ---------------------------------------------------------------------------
 // Photon brand icon — three diagonal rounded bars (the Photon logo mark).
 // Rendered at ~14 px inside the PlatformAvatar so the bars are kept thick
 // enough to stay legible. At small sizes the bars blend into a distinctive
 // silhouette; the wide triangular spacing preserves the logo's identity.
 // ---------------------------------------------------------------------------
-function MsgraphWebhookIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24" {...props}>
-      <rect height="10" rx="1.6" width="16" x="4" y="7" />
-      <path d="M8 7V5.8A2.8 2.8 0 0 1 10.8 3h2.4A2.8 2.8 0 0 1 16 5.8V7" strokeLinecap="round" />
-      <path d="M9 12h6M9 15h3.5" strokeLinecap="round" />
-    </svg>
-  )
-}
 
 function A2AIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -56,9 +49,9 @@ function PhotonIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 // We render simpleicons.org brand glyphs for platforms whose owners publish a
-// usable mark (telegram, discord, matrix, ...). A few brands — Slack, Dingtalk,
-// Feishu, WeCom — have been removed from Simple Icons at the brand owner's
-// request, so we fall back to a colored letter monogram for those.
+// usable mark (telegram, discord, matrix, ...). Slack and Microsoft marks were
+// removed from Simple Icons at the brand owner's request — those ship as local
+// SVGs in platform-brand-icons.tsx. Dingtalk, Feishu, WeCom still use monograms.
 //
 // `iconColor` is the brand's hex from simpleicons.org so we can paint each
 // glyph in its native color on top of a soft tint. The fallback monogram uses
@@ -75,11 +68,8 @@ interface PlatformIconSpec {
 const PLATFORM_ICONS: Record<string, PlatformIconSpec> = {
   telegram: { Icon: SiTelegram, color: '#26A5E4', kind: 'brand' },
   discord: { Icon: SiDiscord, color: '#5865F2', kind: 'brand' },
-  // Slack removed from Simple Icons by Salesforce request — letter monogram.
-  slack: { color: '#4A154B', kind: 'brand', monogram: 'S' },
-  // Microsoft marks are likewise absent from Simple Icons — Teams purple
-  // monogram keeps it distinct from the blue Graph listener card.
-  teams: { color: '#6264A7', kind: 'brand', monogram: 'T' },
+  slack: { Icon: SlackBrandIcon, color: '#4A154B', kind: 'brand' },
+  teams: { Icon: MicrosoftTeamsBrandIcon, color: '#6264A7', kind: 'brand' },
   mattermost: { Icon: SiMattermost, color: '#0058CC', kind: 'brand' },
   matrix: { Icon: SiMatrix, color: '#000000', kind: 'brand' },
   signal: { Icon: SiSignal, color: '#3A76F0', kind: 'brand' },
@@ -96,7 +86,7 @@ const PLATFORM_ICONS: Record<string, PlatformIconSpec> = {
   webhook: { Icon: LinkIcon, color: '#71717A', kind: 'generic' },
   api_server: { Icon: Globe, color: '#64748B', kind: 'generic' },
   a2a: { Icon: A2AIcon, color: '#6366F1', kind: 'generic' },
-  msgraph_webhook: { Icon: MsgraphWebhookIcon, color: '#0078D4', kind: 'generic' },
+  msgraph_webhook: { Icon: MicrosoftBrandIcon, color: '#0078D4', kind: 'brand' },
   weixin: { Icon: SiWechat, color: '#07C160', kind: 'brand' },
   qqbot: { Icon: SiQq, color: '#EB1923', kind: 'brand' },
   yuanbao: { Icon: SiBilibili, color: '#FB7299', kind: 'brand' }

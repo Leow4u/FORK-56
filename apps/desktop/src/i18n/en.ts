@@ -2909,7 +2909,21 @@ export const en: Translations = {
       WHATSAPP_CLOUD_API_VERSION: { label: 'Graph API version', placeholder: 'v20.0' }
     },
     platformIntro: {},
-    channelDescriptions: {}
+    channelDescriptions: {
+      a2a: 'Let other agents call the bot, and the bot call them.',
+      api_server: 'Give your tools and scripts an OpenAI-compatible endpoint to the bot.',
+      discord: 'Bring the bot into your Discord DMs, channels and threads.',
+      email: 'Write to the bot and get its replies in your inbox.',
+      google_chat: 'Chat with the bot from Google Chat spaces.',
+      msgraph_webhook: 'React to Teams meetings and Microsoft 365 changes.',
+      slack: 'Chat with the bot from Slack, for you or your team.',
+      sms: 'Text the bot from any phone, through Twilio.',
+      teams: 'Chat with the bot from Teams.',
+      telegram: 'Chat with the bot from Telegram — DMs, groups and topics.',
+      webhook: 'Let GitHub, GitLab and other services trigger the bot.',
+      whatsapp: 'Chat with the bot on WhatsApp, from your own number or a dedicated one.',
+      whatsapp_cloud: "Meta's official number for your business, to serve clients at scale."
+    }
   },
 
   webhooks: {
