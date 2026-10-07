@@ -1691,6 +1691,10 @@ export const ar = defineLocale({
     platformIntro: {}
   },
   profiles: {
+    agentPanel: 'لوحة الوكيل',
+    editProfile: 'تعديل الملف الشخصي…',
+    allConversations: 'محادثات جميع الملفات الشخصية',
+    railState: { running: 'جاهز', waking: 'جارٍ البدء…', asleep: 'في وضع الاستعداد' },
     close: 'إغلاق',
     nameHint: 'اسم الملف الشخصي',
     title: 'الملفات الشخصية',

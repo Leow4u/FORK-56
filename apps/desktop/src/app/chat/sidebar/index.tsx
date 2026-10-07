@@ -1659,7 +1659,7 @@ export function ChatSidebar({
             trailing off into blank space. Bleed through SidebarContent's
             horizontal padding so the line spans the sidebar like the
             account row's does. */}
-        <div className="-mx-2.5 mt-1 shrink-0 border-t border-(--ui-stroke-tertiary) px-3 pb-1 pt-1.5">
+        <div className="-mx-2.5 mt-1 shrink-0 border-t border-(--ui-stroke-tertiary) px-3 py-2">
           <ProfileRail />
         </div>
       </SidebarContent>

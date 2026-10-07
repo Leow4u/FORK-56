@@ -59,10 +59,11 @@ const PROFILE_SEARCH_MIN = 7
 type DetailTab = 'description' | 'export' | 'model' | 'persona'
 
 interface ProfilesViewProps {
+  initialProfile?: null | string
   onClose: () => void
 }
 
-export function ProfilesView({ onClose }: ProfilesViewProps) {
+export function ProfilesView({ initialProfile = null, onClose }: ProfilesViewProps) {
   const { t } = useI18n()
   const p = t.profiles
   const activeKey = normalizeProfileKey(useStore($activeGatewayProfile))
@@ -71,7 +72,7 @@ export function ProfilesView({ onClose }: ProfilesViewProps) {
   const [souls, setSouls] = useState<Record<string, string>>({})
   const [soulsReady, setSoulsReady] = useState<Record<string, boolean>>({})
   const [soulErrors, setSoulErrors] = useState<Record<string, string>>({})
-  const [selectedName, setSelectedName] = useState<null | string>(null)
+  const [selectedName, setSelectedName] = useState<null | string>(initialProfile)
   const [query, setQuery] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [pendingRename, setPendingRename] = useState<null | ProfileInfo>(null)

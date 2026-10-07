@@ -1758,6 +1758,10 @@ export const zhHant = defineLocale({
   },
 
   profiles: {
+    agentPanel: '代理程式面板',
+    editProfile: '編輯設定檔…',
+    allConversations: '所有設定檔的對話',
+    railState: { running: '就緒', waking: '正在啟動…', asleep: '待命' },
     close: '關閉設定檔',
     nameHint: '小寫字母、數字、連字號和底線。必須以字母或數字開頭。',
     title: '設定檔',
