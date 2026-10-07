@@ -354,6 +354,37 @@ describe('PreviewPane console state', () => {
     closeRightRail(owner)
   })
 
+  // The workspace changed: the pages it serves reload — a local dev server —
+  // while a tab on another site (docs, a dashboard) keeps its page.
+  it('reloads a local page when the workspace changes, never another site', async () => {
+    const reloads: string[] = []
+
+    const changeWorkspace = async (url: string) => {
+      const target = { kind: 'url' as const, label: url, source: url, url }
+      let rendered!: ReturnType<typeof render>
+
+      await act(async () => {
+        rendered = render(<PreviewPane reloadRequest={0} target={target} />)
+      })
+
+      const webview = rendered.container.querySelector('webview') as HTMLElement
+
+      Object.assign(webview, { reload: () => reloads.push(url) })
+
+      await act(async () => {
+        rendered.rerender(<PreviewPane reloadRequest={1} target={target} />)
+      })
+
+      rendered.unmount()
+    }
+
+    await changeWorkspace('http://localhost:5173')
+    await changeWorkspace('http://127.0.0.1:8080/app')
+    await changeWorkspace('https://vitejs.dev/guide')
+
+    expect(reloads).toEqual(['http://localhost:5173', 'http://127.0.0.1:8080/app'])
+  })
+
   // The webview always runs on THIS machine, so a remote agent's localhost is
   // a different computer's localhost. The failure is honest but baffling
   // without saying so.

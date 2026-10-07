@@ -11,6 +11,7 @@ import {
   $previewTabs,
   $previewTarget,
   $previewTileSession,
+  agentPreviewTab,
   beginPreviewServerRestart,
   closePreviewForSource,
   closePreviewMatching,
@@ -19,6 +20,8 @@ import {
   closeRightRailTab,
   followPreviewTile,
   forgetPreviewSessions,
+  openBrowserTab,
+  openNewBrowserTab,
   openPreview,
   previewOwnerFor,
   previewResumeUrl,
@@ -93,18 +96,114 @@ describe('preview store', () => {
     expect($previewTabs.get().map(tab => tab.target.kind)).toEqual(['file', 'url', 'artifact'])
   })
 
-  // The Browser is a SINGLETON: the tab names the surface, not the page, so a
-  // second URL navigates the browser it already has instead of stacking a
-  // second Browser tab beside the first.
-  it('keeps one Browser tab — a second url swaps its target instead of adding a tab', () => {
+  // One web tab per site: a page opens in the tab already on its site, else in
+  // a blank tab, else in a tab of its own — so the agent opening docs never
+  // swaps out the dev server the user works against.
+  it('opens each site in its own web tab, and a page of a site in its tab', () => {
+    openPreview(urlTarget('http://localhost:5173'), 'tool-result')
+    openPreview(urlTarget('https://vitejs.dev/guide'), 'tool-result')
+
+    expect($previewTabs.get().map(tab => [tab.id, tab.target.url])).toEqual([
+      ['url:browser', 'http://localhost:5173'],
+      ['url:browser:2', 'https://vitejs.dev/guide']
+    ])
+    expect($rightRailActiveTabId.get()).toBe('url:browser:2')
+
+    openPreview(urlTarget('http://localhost:5173/about'), 'tool-result')
+
+    expect($previewTabs.get().map(tab => tab.target.url)).toEqual([
+      'http://localhost:5173/about',
+      'https://vitejs.dev/guide'
+    ])
+    expect($rightRailActiveTabId.get()).toBe('url:browser')
+  })
+
+  // A tab's site is where it is now, not where it was opened.
+  it('finds a site by the page a tab navigated to', () => {
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    rememberPreviewUrl('url:browser', 'https://news.ycombinator.com/item?id=1')
+
     openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
-    openPreview(urlTarget('https://www.reddit.com'), 'tool-result')
+    expect($previewTabs.get().map(tab => tab.id)).toEqual(['url:browser'])
 
-    const urlTabs = $previewTabs.get().filter(tab => tab.target.kind === 'url')
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    expect($previewTabs.get().map(tab => tab.id)).toEqual(['url:browser', 'url:browser:2'])
+  })
 
-    expect(urlTabs).toHaveLength(1)
-    expect(urlTabs[0].target.url).toBe('https://www.reddit.com')
-    expect($rightRailActiveTabId.get()).toBe(urlTabs[0].id)
+  it('takes a blank web tab before opening another', () => {
+    openNewBrowserTab()
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+
+    expect($previewTabs.get().map(tab => [tab.id, tab.target.url])).toEqual([['url:browser', 'https://example.com']])
+  })
+
+  // The "+": always a new tab, on the new tab page; the open ones keep theirs.
+  it('opens a new blank web tab every time', () => {
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    openNewBrowserTab()
+    openNewBrowserTab()
+
+    expect($previewTabs.get().map(tab => [tab.id, tab.target.url])).toEqual([
+      ['url:browser', 'https://example.com'],
+      ['url:browser:2', 'about:blank'],
+      ['url:browser:3', 'about:blank']
+    ])
+    expect($rightRailActiveTabId.get()).toBe('url:browser:3')
+  })
+
+  // The Browser shortcut brings back the web tab last in front, page and all.
+  it('brings back the web tab last in front', () => {
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    selectPreviewTab('url:browser')
+    openPreview(fileTarget('/work/notes.html'), 'file-browser')
+
+    openBrowserTab()
+
+    expect($rightRailActiveTabId.get()).toBe('url:browser')
+    expect($previewTabs.get()).toHaveLength(3)
+  })
+
+  // The agent's page tools work on the tab in front when it shows a page, else
+  // on the web tab last in front — never on a file's source in front of it.
+  it("points the agent's page tools at the page in front, else the web tab last in front", () => {
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    selectPreviewTab('url:browser')
+    expect(agentPreviewTab()?.id).toBe('url:browser')
+
+    openPreview(fileTarget('/work/notes.html'), 'file-browser')
+    expect(agentPreviewTab()?.id).toBe('url:browser')
+
+    openPreview(fileTarget('/work/page.html'), 'tool-result')
+    expect(agentPreviewTab()?.target.path).toBe('/work/page.html')
+
+    selectPreviewTab(previewTabId(fileTarget('/work/notes.html')))
+    closeRightRailTab('url:browser')
+    expect(agentPreviewTab()?.id).toBe('url:browser:2')
+  })
+
+  it("leaves the agent the tab in front when no web tab is open", () => {
+    openPreview(fileTarget('/work/notes.html'), 'file-browser')
+
+    expect(agentPreviewTab()?.target.path).toBe('/work/notes.html')
+  })
+
+  // An agent working off screen fronts tabs in its own conversation; those
+  // count as in front there.
+  it('remembers the web tab last in front of a conversation off screen', () => {
+    $selectedStoredSessionId.set('a')
+
+    const a = previewOwnerFor('a')
+
+    $selectedStoredSessionId.set('b')
+    openPreview(urlTarget('https://example.com'), 'tool-result', a)
+    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result', a)
+    openPreview(urlTarget('https://example.com/docs'), 'tool-result', a)
+    openPreview(fileTarget('/work/notes.html'), 'file-browser', a)
+
+    expect(agentPreviewTab(a)?.target.url).toBe('https://example.com/docs')
+    expect($previewTabs.get()).toEqual([])
   })
 
   it('re-fronts an existing tab instead of duplicating it, refreshing its target', () => {
@@ -406,7 +505,7 @@ describe('conversation tabs', () => {
     expect(previewResumeUrl('url:browser')).toBeUndefined()
 
     rememberPreviewUrl('url:browser', 'https://example.com/docs')
-    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    openPreview(urlTarget('https://example.com/blog'), 'tool-result')
     expect(previewResumeUrl('url:browser')).toBeUndefined()
   })
 
@@ -462,7 +561,7 @@ describe('conversation tabs', () => {
     openPreview(urlTarget('https://example.com'), 'tool-result')
     rememberPreviewTitle('url:browser', 'Example Domain')
 
-    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    openPreview(urlTarget('https://example.com/news'), 'tool-result')
     expect($previewPages.get()['url:browser']?.title).toBeUndefined()
 
     rememberPreviewTitle('url:browser', 'Hacker News')
@@ -531,7 +630,7 @@ describe('conversation tabs', () => {
     openPreview(urlTarget('https://example.com'), 'tool-result')
     rememberPreviewIcon('url:browser', 'https://example.com/favicon.ico')
 
-    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    openPreview(urlTarget('https://example.com/news'), 'tool-result')
     expect($previewPages.get()['url:browser']?.icon).toBeUndefined()
 
     rememberPreviewIcon('url:browser', 'https://news.ycombinator.com/favicon.ico')

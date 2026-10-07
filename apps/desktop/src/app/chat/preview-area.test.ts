@@ -89,6 +89,25 @@ describe('preview destination — the content area', () => {
 
   // Every conversation shares the one area: a conversation's first tab lands
   // where the others' tabs wait out of view, not in a column of its own.
+  // The area strip's "+": a new web tab on the new tab page, every time,
+  // stacked into the area in front like any other tab.
+  it("opens a new web tab with the area's +, every time", async () => {
+    const { model, preview, tree } = await setup()
+
+    tree.$newContentTabAction.get()?.()
+    tree.$newContentTabAction.get()?.()
+
+    expect(preview.$previewTabs.get().map(tab => [tab.id, tab.target.url])).toEqual([
+      ['url:browser', 'about:blank'],
+      ['url:browser:2', 'about:blank']
+    ])
+
+    const zoneOf = (paneId: string) => model.findGroupOfPane(tree.$layoutTree.get()!, paneId)
+
+    expect(zoneOf('preview-tile:url:browser:2')?.id).toBe(zoneOf('preview-tile:url:browser')?.id)
+    expect(zoneOf('preview-tile:url:browser:2')?.active).toBe('preview-tile:url:browser:2')
+  })
+
   it("gives another conversation's first tab the same area", async () => {
     const { open, session, zoneOf } = await setup()
 

@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { $rightRailActiveTabId, selectRightRailTab } from '@/store/layout'
-import { $allPreviewTabs, closeRightRail, openPreview, previewOwnerFor, type PreviewTarget } from '@/store/preview'
+import {
+  $allPreviewTabs,
+  closeRightRail,
+  openPreview,
+  previewOwnerFor,
+  type PreviewTarget,
+  selectPreviewTab
+} from '@/store/preview'
 import { $selectedStoredSessionId } from '@/store/session'
 
 import { PREVIEW_READ_MAX_CHARS, readActivePreview, registerPreviewPageReader } from './preview-reader'
@@ -15,8 +22,8 @@ function fileTarget(path: string): PreviewTarget {
 }
 
 describe('readActivePreview (read_preview tool)', () => {
-  // All URL targets share the singleton Browser tab id, so a reader registered
-  // in one test would answer the next — unregister whatever a test installed.
+  // Web tab ids are reused from test to test, so a reader registered in one
+  // test would answer the next — unregister whatever a test installed.
   let cleanups: Array<() => void> = []
 
   const register = (tabId: string, reader: Parameters<typeof registerPreviewPageReader>[1]) => {
@@ -110,6 +117,23 @@ describe('readActivePreview (read_preview tool)', () => {
       note: expect.stringContaining('read_file') as string,
       path: '/work/notes.md'
     })
+  })
+
+  // With a file's source in front, the agent reads the web tab last in front —
+  // the page it was working on.
+  it('reads the web tab last in front when a file is in front', async () => {
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    register('url:browser', async () => ({ text: 'Example Domain', title: 'Example', url: 'https://example.com' }))
+    register('url:browser:2', async () => ({
+      text: 'Top stories…',
+      title: 'Hacker News',
+      url: 'https://news.ycombinator.com'
+    }))
+    selectPreviewTab('url:browser')
+    openPreview(fileTarget('/work/notes.md'), 'file-browser')
+
+    expect(await readActivePreview()).toMatchObject({ kind: 'url', text: 'Example Domain' })
   })
 
   it('reads the tab the user is LOOKING at, not the last one opened', async () => {

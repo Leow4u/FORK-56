@@ -214,6 +214,34 @@ describe('persisted preview migration', () => {
     ).toEqual([])
   })
 
+  // Web tabs keep their ids across a restart. A URL tab from a build that keyed
+  // tabs by address comes back as its conversation's last such page, on a web
+  // tab id the conversation doesn't hold.
+  it('restores every web tab, and a legacy URL tab on a free id', () => {
+    const tab = (id: string, session: string, url: string) => ({
+      id,
+      owner: { profile: 'default', session },
+      target: { kind: 'url', label: url, source: url, url }
+    })
+
+    const restored = decodePreviewTabs(
+      JSON.stringify([
+        tab('url:browser', 'a', 'http://localhost:5173'),
+        tab('url:browser:2', 'a', 'https://vitejs.dev'),
+        tab('url:https://old.example', 'a', 'https://old.example'),
+        tab('url:https://older.example', 'b', 'https://older.example'),
+        tab('url:https://newer.example', 'b', 'https://newer.example')
+      ])
+    )
+
+    expect(restored.map(item => [item.owner.session, item.id, item.target.url])).toEqual([
+      ['a', 'url:browser', 'http://localhost:5173'],
+      ['a', 'url:browser:2', 'https://vitejs.dev'],
+      ['a', 'url:browser:3', 'https://old.example'],
+      ['b', 'url:browser', 'https://newer.example']
+    ])
+  })
+
   it("keeps each conversation's last Browser page", () => {
     const browser = (session: string, url: string) => ({
       id: 'url:browser',

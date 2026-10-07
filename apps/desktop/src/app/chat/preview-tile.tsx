@@ -45,7 +45,7 @@ import {
   $previewTileSession,
   closeRightRailTab,
   followPreviewTile,
-  openBrowserTab,
+  openNewBrowserTab,
   previewOwnerFor,
   type PreviewPage,
   type PreviewTab,
@@ -214,9 +214,8 @@ const areaAnchorFor = (tabId: string) =>
 export function watchPreviewTiles(): void {
   watchPreviewTileMirror()
 
-  // The area strip's "+" opens the Browser — a blank one when the
-  // conversation has none yet.
-  $newContentTabAction.set(openBrowserTab)
+  // The area strip's "+" opens a new web tab, on the new tab page.
+  $newContentTabAction.set(openNewBrowserTab)
 
   // The reveal analog of session tiles (session-states calls revealTreePane on
   // open): `openPreview` selects the tab, and the TREE must show its pane —

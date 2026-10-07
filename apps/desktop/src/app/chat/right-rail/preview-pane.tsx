@@ -17,6 +17,7 @@ import { notify, notifyError } from '@/store/notifications'
 import {
   $previewServerRestart,
   failPreviewServerRestart,
+  isPagePreview,
   type PreviewOwner,
   previewResumeUrl,
   type PreviewTarget,
@@ -145,10 +146,11 @@ const LOOPBACK_HOST_RE = /^(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[?::1\]?)$
  * URL isn't wrong, it's just addressed to a different computer.
  */
 function isRemoteLoopbackUrl(url: string): boolean {
-  if (!isRemoteGateway()) {
-    return false
-  }
+  return isRemoteGateway() && isLoopbackUrl(url)
+}
 
+/** Whether `url` addresses this machine — a loopback host. */
+function isLoopbackUrl(url: string): boolean {
   try {
     return LOOPBACK_HOST_RE.test(new URL(url).hostname)
   } catch {
@@ -250,9 +252,7 @@ export function PreviewPane({
 
   // Artifacts have no URL to load — they render from the registry, never in a
   // webview.
-  const isWebPreview =
-    target.kind !== 'artifact' &&
-    (target.kind === 'url' || (target.previewKind === 'html' && target.renderMode !== 'source'))
+  const isWebPreview = isPagePreview(target)
 
   const isRemoteHtmlTarget =
     target.kind === 'file' && target.previewKind === 'html' && Boolean(target.dataUrl || target.transient)
@@ -649,7 +649,10 @@ export function PreviewPane({
 
     lastReloadRequestRef.current = reloadRequest
 
-    if (target.kind !== 'url') {
+    // The workspace changed: reload the pages it serves — a local dev server
+    // (a remote one is forwarded to this machine's loopback too). A tab on
+    // another site (docs, a dashboard) keeps its page.
+    if (target.kind !== 'url' || !isLoopbackUrl(currentUrl)) {
       return
     }
 
@@ -658,7 +661,7 @@ export function PreviewPane({
       message: copy.workspaceReloading
     })
     reloadPreview()
-  }, [appendConsoleEntry, copy.workspaceReloading, reloadPreview, reloadRequest, target.kind])
+  }, [appendConsoleEntry, copy.workspaceReloading, currentUrl, reloadPreview, reloadRequest, target.kind])
 
   useEffect(() => {
     if (

@@ -17,7 +17,7 @@
  * the tab's identity with a note saying so.
  */
 
-import { $previewOwner, isFollowedPreviewOwner, type PreviewOwner, previewTabsOf } from '@/store/preview'
+import { $previewOwner, agentPreviewTab, isFollowedPreviewOwner, type PreviewOwner } from '@/store/preview'
 
 export interface PreviewReadOptions {
   /** Characters to return from `start` (capped at PREVIEW_READ_MAX_CHARS). */
@@ -77,14 +77,15 @@ function windowText(
   return { ...base, end: to, start: from, text: text.slice(from, to), total_chars: total }
 }
 
-/** Read `owner`'s ACTIVE preview tab (the conversation on screen when
- *  `owner` is undefined). Null only when that conversation has no tab open. */
+/** Read the tab the agent's page tools work on in `owner`'s conversation (the
+ *  one on screen when `owner` is undefined) — `agentPreviewTab`. Null only
+ *  when that conversation has no tab open. */
 export async function readActivePreview(
   opts: PreviewReadOptions = {},
   owner?: PreviewOwner
 ): Promise<PreviewReadResult | null> {
   const onScreen = isFollowedPreviewOwner(owner)
-  const tab = previewTabsOf(owner ?? $previewOwner.get()).active
+  const tab = agentPreviewTab(owner ?? $previewOwner.get())
 
   if (!tab) {
     return null
