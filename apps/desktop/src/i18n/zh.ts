@@ -2309,14 +2309,12 @@ export const zh: Translations = {
       appPasswordYes: '有，我已准备好应用专用密码',
       appPasswordNo: '还没有——告诉我如何创建',
       appPasswordSetupTitle: '请先创建应用专用密码',
-      appPasswordSetupBody:
-        '这些服务商的 IMAP 需要专用应用密码——普通登录密码无法用于 IMAP。',
+      appPasswordSetupBody: '这些服务商的 IMAP 需要专用应用密码——普通登录密码无法用于 IMAP。',
       appPasswordSetupLink: '打开服务商设置',
       writeTitle: '谁可以给机器人发邮件？',
       writeNote: (choice: string) => `你选择了**${choice}**。`,
       allowedLabel: '允许的地址',
-      allowedHelp:
-        '每输入一个地址后按 Enter 或逗号。机器人只读取这些发件人的邮件并只回复他们——邮件没有批准码。',
+      allowedHelp: '每输入一个地址后按 Enter 或逗号。机器人只读取这些发件人的邮件并只回复他们——邮件没有批准码。',
       allowedPlaceholder: '添加邮箱地址…',
       chipRemove: (address: string) => `移除 ${address}`,
       meAddressTitle: '你的邮箱地址',

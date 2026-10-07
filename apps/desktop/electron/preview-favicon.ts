@@ -56,7 +56,12 @@ function iconType(bytes: Buffer, declared: string): string | null {
     return raster
   }
 
-  if (!declared || declared === 'application/octet-stream' || declared === 'image/svg+xml' || declared === 'image/svg') {
+  if (
+    !declared ||
+    declared === 'application/octet-stream' ||
+    declared === 'image/svg+xml' ||
+    declared === 'image/svg'
+  ) {
     return /<svg[\s>/]/i.test(bytes.toString('utf8')) ? 'image/svg+xml' : null
   }
 

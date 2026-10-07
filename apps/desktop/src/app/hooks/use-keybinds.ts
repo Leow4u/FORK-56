@@ -28,12 +28,7 @@ import {
 } from '@/store/find-in-page'
 import { toggleHud } from '@/store/hud'
 import { $capture, $comboIndex, endCapture, setBinding } from '@/store/keybinds'
-import {
-  requestSessionSearchFocus,
-  setFileBrowserOpen,
-  togglePanesFlipped,
-  toggleSidebarOpen
-} from '@/store/layout'
+import { requestSessionSearchFocus, setFileBrowserOpen, togglePanesFlipped, toggleSidebarOpen } from '@/store/layout'
 import { openBrowserTab } from '@/store/preview'
 import {
   $newChatProfile,
