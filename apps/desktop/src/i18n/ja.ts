@@ -2113,6 +2113,8 @@ export const ja = defineLocale({
   },
 
   artifacts: {
+    subtitle: '会話からの成果物',
+    colDate: '日時',
     search: 'アーティファクトを検索...',
     refresh: 'アーティファクトを更新',
     refreshing: 'アーティファクトを更新中',

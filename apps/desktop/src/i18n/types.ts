@@ -2834,6 +2834,8 @@ export interface Translations {
   }
 
   artifacts: {
+    subtitle: string
+    colDate: string
     search: string
     refresh: string
     refreshing: string

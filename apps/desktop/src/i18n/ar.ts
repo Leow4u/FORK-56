@@ -1946,6 +1946,8 @@ export const ar = defineLocale({
     }
   },
   artifacts: {
+    subtitle: 'نتائج محادثاتك',
+    colDate: 'التاريخ',
     search: 'بحث',
     refresh: 'تحديث',
     refreshing: 'جار التحديث...',
