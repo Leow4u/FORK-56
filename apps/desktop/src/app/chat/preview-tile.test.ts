@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { group, split } from '@/components/pane-shell/tree/model'
 
-import { interactedChat } from './preview-tile'
+import { interactedChat, previewAreaAnchor } from './preview-tile'
 
 const tree = split('row', [
   group(['workspace', 'session-tile:stacked'], { active: 'workspace', id: 'main' }),
@@ -33,5 +33,31 @@ describe('interactedChat — the conversation the content area follows', () => {
     expect(interactedChat(tree, 'area', 'selected', 'selected')).toBeUndefined()
     expect(interactedChat(tree, null, 'selected', 'selected')).toBeUndefined()
     expect(interactedChat(null, 'main', 'selected', 'selected')).toBeUndefined()
+  })
+})
+
+describe('previewAreaAnchor — where a preview entering the layout lands', () => {
+  const layout = split('row', [
+    group(['workspace'], { active: 'workspace', id: 'main' }),
+    group(['preview-tile:file:a', 'preview-tile:file:b'], { active: 'preview-tile:file:a', id: 'area' }),
+    group(['preview-tile:url:browser'], { active: 'preview-tile:url:browser', id: 'side' })
+  ])
+
+  it("lands beside the tab in front, else beside the conversation's other tabs", () => {
+    expect(previewAreaAnchor('file:new', layout, 'url:browser', ['file:a'])).toBe('preview-tile:url:browser')
+    expect(previewAreaAnchor('file:new', layout, null, ['file:b'])).toBe('preview-tile:file:b')
+  })
+
+  // Coming back to a conversation whose front tab never entered the layout (an
+  // agent opened it off screen): the tab entering can't anchor on itself.
+  it('never anchors a tab on its own pane', () => {
+    expect(previewAreaAnchor('file:a', layout, 'file:a', ['file:a'])).toBe('preview-tile:file:b')
+  })
+
+  it('has no anchor while there is no area yet', () => {
+    expect(
+      previewAreaAnchor('file:new', split('row', [group(['workspace'], { id: 'main' })]), null, [])
+    ).toBeUndefined()
+    expect(previewAreaAnchor('file:new', null, null, [])).toBeUndefined()
   })
 })
