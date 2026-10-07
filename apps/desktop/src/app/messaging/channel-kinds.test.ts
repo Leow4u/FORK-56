@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { pt } from '@/i18n/pt'
 import { en } from '@/i18n/en'
+import { pt } from '@/i18n/pt'
 import type { MessagingPlatformInfo } from '@/types/work4you'
 
 import { channelCardDescription } from './channel-kinds'
