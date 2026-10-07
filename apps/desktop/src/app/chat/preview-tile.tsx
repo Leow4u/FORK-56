@@ -19,6 +19,8 @@
  * more column.
  */
 
+import { useStore } from '@nanostores/react'
+
 import { allPaneIds, findGroup, type LayoutNode } from '@/components/pane-shell/tree/model'
 import {
   $activeTreeGroup,
@@ -30,15 +32,18 @@ import {
 import { FileTypeIcon } from '@/components/ui/file-type-icon'
 import { ToolIcon } from '@/components/ui/tool-icon'
 import { translateNow, useI18n } from '@/i18n'
+import { isBlankPageUrl } from '@/lib/local-preview'
 import { $rightRailActiveTabId, type RightRailTabId } from '@/store/layout'
 import {
   $allPreviewTabIds,
+  $previewPages,
   $previewTabs,
   $previewTileSession,
   closeRightRailTab,
   followPreviewTile,
   openBrowserTab,
   previewOwnerFor,
+  type PreviewPage,
   type PreviewTarget,
   selectPreviewTab
 } from '@/store/preview'
@@ -61,9 +66,11 @@ interface PreviewTitleCopy {
   preview: string
 }
 
-/** Tab title. A URL is a BROWSER — the tab names the surface, not the page, so
- *  it doesn't rename itself on every navigation. A file names the file; an
- *  artifact is titled rather than located, so its label is the whole name. */
+/** The tab's registered name. A URL is a BROWSER here — the surface, not the
+ *  page: a page renames itself as it moves, and re-registering would remount
+ *  the pane, reloading the page. The strip shows the page's own name live
+ *  (`PreviewTabTitle`). A file names the file; an artifact is titled rather
+ *  than located, so its label is the whole name. */
 function previewTitle(tabId: string, copy: PreviewTitleCopy): string {
   const target = targetFor(tabId)
 
@@ -90,9 +97,26 @@ function previewTitle(tabId: string, copy: PreviewTitleCopy): string {
 const registeredPreviewTitle = (tabId: string): string =>
   previewTitle(tabId, { browser: translateNow('shell.panes.browser'), preview: translateNow('preview.tab') })
 
-/** The tab's label from the live `t`, so the strip follows the language. */
-function PreviewTabTitle({ tabId }: { tabId: string }) {
+/** What a web tab is labelled with: the new tab page by name, else what its
+ *  page is called, else the surface. */
+export function webTabTitle(page: PreviewPage, copy: { browser: string; newTab: string }): string {
+  if (isBlankPageUrl(page.url)) {
+    return copy.newTab
+  }
+
+  return page.title || copy.browser
+}
+
+/** The tab's label from the live `t`, so the strip follows the language — and
+ *  a web tab's from its page, live, so it follows the page without
+ *  re-registering. */
+export function PreviewTabTitle({ tabId }: { tabId: string }) {
   const { t } = useI18n()
+  const page = useStore($previewPages)[tabId as RightRailTabId]
+
+  if (page) {
+    return webTabTitle(page, { browser: t.shell.panes.browser, newTab: t.zones.newTab })
+  }
 
   return previewTitle(tabId, { browser: t.shell.panes.browser, preview: t.preview.tab })
 }

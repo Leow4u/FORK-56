@@ -5,6 +5,7 @@ import type { SessionInfo } from '@/types/work4you'
 import { $rightRailActiveTabId } from './layout'
 import {
   $allPreviewTabs,
+  $previewPages,
   $previewServerRestart,
   $previewServerRestartStatus,
   $previewTabs,
@@ -25,6 +26,7 @@ import {
   previewTabsOf,
   type PreviewTarget,
   progressPreviewServerRestart,
+  rememberPreviewTitle,
   rememberPreviewUrl,
   selectPreviewTab
 } from './preview'
@@ -422,6 +424,88 @@ describe('conversation tabs', () => {
 
     expect(previewResumeUrl('url:browser')).toBeUndefined()
     expect(previewResumeUrl('url:browser', a)).toBe('https://example.com/late')
+  })
+
+  // A web tab is labelled by its page. The name is kept with the address, in
+  // the conversation's own memory, so the tab is named before its page loads
+  // again.
+  it("names a web tab after its page, in its conversation's own memory", () => {
+    $selectedStoredSessionId.set('a')
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    rememberPreviewTitle('url:browser', '  Example Domain ')
+
+    expect($previewPages.get()['url:browser']).toEqual({ title: 'Example Domain', url: 'https://example.com' })
+
+    $selectedStoredSessionId.set('b')
+    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    expect($previewPages.get()['url:browser']?.title).toBeUndefined()
+
+    $selectedStoredSessionId.set('a')
+    expect($previewPages.get()['url:browser']?.title).toBe('Example Domain')
+
+    rememberPreviewTitle('url:browser', '')
+    expect($previewPages.get()['url:browser']?.title).toBeUndefined()
+  })
+
+  it('says where a web tab is: where it had navigated, else where it opened', () => {
+    $selectedStoredSessionId.set('a')
+    openPreview(urlTarget('about:blank'), 'manual')
+    expect($previewPages.get()['url:browser']?.url).toBe('about:blank')
+
+    rememberPreviewUrl('url:browser', 'https://example.com')
+    expect($previewPages.get()['url:browser']?.url).toBe('https://example.com')
+  })
+
+  it('forgets a page name with its tab, and when the tab is handed a new page', () => {
+    $selectedStoredSessionId.set('a')
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    rememberPreviewTitle('url:browser', 'Example Domain')
+
+    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    expect($previewPages.get()['url:browser']?.title).toBeUndefined()
+
+    rememberPreviewTitle('url:browser', 'Hacker News')
+    closeRightRailTab('url:browser')
+    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    expect($previewPages.get()['url:browser']?.title).toBeUndefined()
+  })
+
+  // A file is named by the file, never by the page it renders.
+  it('keeps no page name for a file', () => {
+    $selectedStoredSessionId.set('a')
+    openPreview(fileTarget('/work/page.html'), 'tool-result')
+    rememberPreviewTitle(previewTabId(fileTarget('/work/page.html')), 'Rendered page')
+
+    expect($previewPages.get()).toEqual({})
+    expect(window.localStorage.getItem('work4you.desktop.previewTabState.v1')).not.toContain('Rendered page')
+  })
+
+  // Same race as the address: the page reports its name while the area is
+  // switching to another conversation.
+  it("remembers a page's name under the conversation it belongs to", () => {
+    $selectedStoredSessionId.set('a')
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+
+    const a = previewOwnerFor('a')
+
+    $selectedStoredSessionId.set('b')
+    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    rememberPreviewTitle('url:browser', 'Example Domain', a)
+
+    expect($previewPages.get()['url:browser']?.title).toBeUndefined()
+
+    $selectedStoredSessionId.set('a')
+    expect($previewPages.get()['url:browser']?.title).toBe('Example Domain')
+  })
+
+  it("hands a live draft's page names to its conversation", () => {
+    $activeSessionId.set('runtime-1')
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    rememberPreviewTitle('url:browser', 'Example Domain')
+
+    $selectedStoredSessionId.set('created')
+
+    expect($previewPages.get()['url:browser']?.title).toBe('Example Domain')
   })
 
   it('persists every conversation, each tab with its owner', () => {

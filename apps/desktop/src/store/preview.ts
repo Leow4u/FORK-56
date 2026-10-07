@@ -92,6 +92,9 @@ export interface PreviewTab {
 interface PreviewOwnerState {
   /** The tab that was in front. */
   active?: RightRailTabId
+  /** What a web tab's page is called, by tab id — the tab's label, there
+   *  before the page loads again. */
+  titles?: Partial<Record<RightRailTabId, string>>
   /** Where a web tab had navigated to, by tab id — it reopens there. */
   urls?: Partial<Record<RightRailTabId, string>>
 }
@@ -265,23 +268,37 @@ function sanitizeOwnerStates(value: unknown): PreviewOwnerStates {
         next.active = record.active as RightRailTabId
       }
 
-      if (record.urls && typeof record.urls === 'object' && !Array.isArray(record.urls)) {
-        const urls = Object.entries(record.urls).filter(
-          (entry): entry is [RightRailTabId, string] => typeof entry[1] === 'string'
-        )
+      const titles = sanitizeTabTexts(record.titles)
+      const urls = sanitizeTabTexts(record.urls)
 
-        if (urls.length) {
-          next.urls = Object.fromEntries(urls)
-        }
+      if (titles) {
+        next.titles = titles
       }
 
-      if (next.active || next.urls) {
+      if (urls) {
+        next.urls = urls
+      }
+
+      if (next.active || next.titles || next.urls) {
         states[profile] = { ...states[profile], [session]: next }
       }
     }
   }
 
   return states
+}
+
+/** A stored tab id → text map, keeping its text entries; undefined when none. */
+function sanitizeTabTexts(value: unknown): Partial<Record<RightRailTabId, string>> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+
+  const entries = Object.entries(value).filter(
+    (entry): entry is [RightRailTabId, string] => typeof entry[1] === 'string'
+  )
+
+  return entries.length ? Object.fromEntries(entries) : undefined
 }
 
 const $ownerStates = connectionScopedAtom<PreviewOwnerStates>(
@@ -439,10 +456,16 @@ function writeOwnerState(owner: PreviewOwner, update: (state: PreviewOwnerState)
   const key = ownerStateKey(owner, states) ?? owner.session
   const bucket = { ...states[owner.profile] }
   const next = update(bucket[key] ?? {})
+  const titles = next.titles && Object.keys(next.titles).length ? next.titles : undefined
   const urls = next.urls && Object.keys(next.urls).length ? next.urls : undefined
-  const state: PreviewOwnerState = { ...(next.active ? { active: next.active } : {}), ...(urls ? { urls } : {}) }
 
-  if (state.active || state.urls) {
+  const state: PreviewOwnerState = {
+    ...(next.active ? { active: next.active } : {}),
+    ...(titles ? { titles } : {}),
+    ...(urls ? { urls } : {})
+  }
+
+  if (state.active || state.titles || state.urls) {
     bucket[key] = state
   } else {
     delete bucket[key]
@@ -467,6 +490,29 @@ function withoutUrl(state: PreviewOwnerState, tabId: RightRailTabId): PreviewOwn
   const { [tabId]: _dropped, ...urls } = state.urls
 
   return { ...state, urls }
+}
+
+function withoutTitle(state: PreviewOwnerState, tabId: RightRailTabId): PreviewOwnerState {
+  if (!state.titles?.[tabId]) {
+    return state
+  }
+
+  const { [tabId]: _dropped, ...titles } = state.titles
+
+  return { ...state, titles }
+}
+
+/** `tabId`'s page forgotten — where it had navigated and what it was called —
+ *  for a tab that closed or was handed a new page. */
+const withoutPage = (state: PreviewOwnerState, tabId: RightRailTabId) => withoutTitle(withoutUrl(state, tabId), tabId)
+
+/** Two records of one conversation folded into one; `kept`'s entries win. */
+function mergedOwnerState(kept: PreviewOwnerState, other: PreviewOwnerState): PreviewOwnerState {
+  return {
+    active: kept.active ?? other.active,
+    titles: { ...other.titles, ...kept.titles },
+    urls: { ...other.urls, ...kept.urls }
+  }
 }
 
 /** The tab the rail actually shows. A stale or missing selection falls back to
@@ -529,10 +575,7 @@ function adoptDraftPreviewTabs(storedSessionId: string) {
   )
 
   if (draftState) {
-    writeOwnerState(owner, state => ({
-      active: state.active ?? draftState.active,
-      urls: { ...draftState.urls, ...state.urls }
-    }))
+    writeOwnerState(owner, state => mergedOwnerState(state, draftState))
     writeOwnerState(draft, () => ({}))
   }
 }
@@ -594,10 +637,7 @@ function rootPreviewOwners(sessions: readonly OwnerRow[]) {
 
       if (root !== session) {
         writeOwnerState({ profile, session }, () => ({}))
-        writeOwnerState({ profile, session: root }, current => ({
-          active: current.active ?? state.active,
-          urls: { ...state.urls, ...current.urls }
-        }))
+        writeOwnerState({ profile, session: root }, current => mergedOwnerState(current, state))
       }
     }
   }
@@ -670,10 +710,10 @@ export function openPreview(target: PreviewTarget, source: PreviewRecordSource =
 
   $allPreviewTabs.set(index === -1 ? [...current, tab] : current.map((item, i) => (i === index ? tab : item)))
 
-  // A new page for the same tab: the place the old page had navigated to no
-  // longer applies.
+  // A new page for the same tab: where the old page had navigated to, and what
+  // it was called, no longer apply.
   if (previous && previous.target.url !== resolved.url) {
-    writeOwnerState(tab.owner, state => withoutUrl(state, id))
+    writeOwnerState(tab.owner, state => withoutPage(state, id))
   }
 
   if (sameOwner(followed, tab.owner, sessions)) {
@@ -685,7 +725,7 @@ export function openPreview(target: PreviewTarget, source: PreviewRecordSource =
 
 /** Open the Browser tab — the surface, not a page. Keeps whatever it was last
  *  showing so the hotkey re-fronts your page instead of wiping it; a fresh tab
- *  lands on `about:blank`, where the pane's empty state invites an address. */
+ *  lands on `about:blank`, where the pane shows the new tab page. */
 export function openBrowserTab() {
   const existing = $previewTabs.get().find(tab => tab.id === BROWSER_TAB_ID)
 
@@ -710,7 +750,7 @@ export function closeRightRailTab(tabId: string, owner?: PreviewOwner) {
   const neighbour = next[Math.min(index, next.length - 1)]?.id ?? null
 
   $allPreviewTabs.set(all.filter(tab => tab !== closing))
-  writeOwnerState(tabOwner, state => withoutUrl(state, closing.id))
+  writeOwnerState(tabOwner, state => withoutPage(state, closing.id))
 
   if (sameOwner(followed, tabOwner, sessions)) {
     if ($rightRailActiveTabId.get() === tabId || next.length === 0) {
@@ -859,6 +899,54 @@ export function rememberPreviewUrl(tabId: string, url: string, owner: PreviewOwn
     writeOwnerState(owner, state => ({ ...state, urls: { ...state.urls, [tab.id]: url } }))
   }
 }
+
+/** Remember what the page in `owner`'s web tab `tabId` is called (the
+ *  followed conversation's by default) — the tab's label, kept with its
+ *  address so the tab is named before the page loads again. Empty forgets it.
+ *  A file is named by the file, so only a web tab keeps one. */
+export function rememberPreviewTitle(tabId: string, title: string, owner: PreviewOwner = $previewOwner.get()) {
+  const tab = tabsOf(owner).find(item => item.id === tabId)
+
+  if (!tab || tab.target.kind !== 'url') {
+    return
+  }
+
+  const next = title.trim()
+
+  if ((readOwnerState(owner)?.titles?.[tab.id] ?? '') === next) {
+    return
+  }
+
+  writeOwnerState(owner, state =>
+    next ? { ...state, titles: { ...state.titles, [tab.id]: next } } : withoutTitle(state, tab.id)
+  )
+}
+
+/** Where a web tab is and what its page is called. */
+export interface PreviewPage {
+  /** The title its page reported, once it has. */
+  title?: string
+  /** The address it is on: where it had navigated, else where it opened. */
+  url: string
+}
+
+/** The followed conversation's web tabs as pages, by tab id — what the strip
+ *  labels them with, live. */
+export const $previewPages = computed(
+  [$previewTabs, $ownerStates, $previewOwner, $sessions],
+  (tabs, states, owner, sessions): Partial<Record<RightRailTabId, PreviewPage>> => {
+    const key = ownerStateKey(owner, states, sessions)
+    const state = key ? states[owner.profile]?.[key] : undefined
+
+    return Object.fromEntries(
+      tabs.flatMap(tab =>
+        tab.target.kind === 'url'
+          ? [[tab.id, { title: state?.titles?.[tab.id], url: state?.urls?.[tab.id] ?? tab.target.url }]]
+          : []
+      )
+    )
+  }
+)
 
 export function requestPreviewReload() {
   $previewReloadRequest.set($previewReloadRequest.get() + 1)

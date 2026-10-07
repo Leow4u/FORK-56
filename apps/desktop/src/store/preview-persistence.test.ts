@@ -60,6 +60,28 @@ describe('restored tabs', () => {
     expect(stored.default?.kept).toBeDefined()
     expect(stored.default?.gone).toBeUndefined()
   })
+
+  // A restored web tab is named before its page loads again; a conversation
+  // remembered only by a page's name is still remembered.
+  it('names a restored web tab after its page', async () => {
+    window.localStorage.setItem(TABS_KEY, JSON.stringify([browserRow]))
+    window.localStorage.setItem(
+      STATE_KEY,
+      JSON.stringify({ default: { kept: { titles: { 'url:browser': 'Example Domain', 'url:stale': 42 } } } })
+    )
+
+    vi.resetModules()
+    const store = await import('./preview')
+    const session = await import('./session')
+
+    session.$selectedStoredSessionId.set('kept')
+
+    expect(store.$previewPages.get()['url:browser']).toEqual({ title: 'Example Domain', url: page })
+
+    const stored = JSON.parse(window.localStorage.getItem(STATE_KEY) ?? '{}') as Record<string, Record<string, unknown>>
+
+    expect(stored.default?.kept).toBeDefined()
+  })
 })
 
 describe('persisted preview migration', () => {

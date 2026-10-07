@@ -1,7 +1,14 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { $previewOwner, closeRightRail, openPreview, previewResumeUrl, previewTabId } from '@/store/preview'
+import {
+  $previewOwner,
+  $previewPages,
+  closeRightRail,
+  openPreview,
+  previewResumeUrl,
+  previewTabId
+} from '@/store/preview'
 import { $connection } from '@/store/session'
 
 import { forgetPreviewConsole, previewConsoleState } from './preview-console-store'
@@ -227,6 +234,81 @@ describe('PreviewPane console state', () => {
     navigateInPage('http://localhost:6006/iframe.html?id=button#anchor', false)
     expect(address()).toBe('http://localhost:6006/?path=/story/button')
     expect(previewResumeUrl(tabId, owner)).toBe('http://localhost:6006/?path=/story/button')
+
+    closeRightRail(owner)
+  })
+
+  // The page names its tab. Read when the page reports a title and again when
+  // a load settles: going back, or reloading, returns to a page whose title
+  // didn't change, and Chromium doesn't report it. The blank page has no name
+  // of its own.
+  it('names its tab after the page', async () => {
+    const target = { kind: 'url' as const, label: 'Example', source: 'https://example.com', url: 'https://example.com' }
+
+    openPreview(target)
+
+    const owner = $previewOwner.get()
+    const tabId = previewTabId(target)
+    let rendered!: ReturnType<typeof render>
+
+    await act(async () => {
+      rendered = render(<PreviewPane owner={owner} tabId={tabId} target={target} />)
+    })
+
+    const webview = rendered.container.querySelector('webview') as HTMLElement
+    let title = 'Example Domain'
+    let url = 'https://example.com'
+
+    Object.assign(webview, { getTitle: () => title, getURL: () => url })
+
+    const fire = (event: Event) =>
+      act(() => {
+        webview.dispatchEvent(event)
+      })
+
+    fire(Object.assign(new Event('page-title-updated'), { title }))
+    expect($previewPages.get()[tabId]?.title).toBe('Example Domain')
+
+    title = 'Earlier page'
+    fire(new Event('did-stop-loading'))
+    expect($previewPages.get()[tabId]?.title).toBe('Earlier page')
+
+    url = 'about:blank'
+    title = 'about:blank'
+    fire(new Event('did-stop-loading'))
+    expect($previewPages.get()[tabId]?.title).toBeUndefined()
+
+    closeRightRail(owner)
+  })
+
+  // Before `dom-ready` the webview can't be asked yet; the title the page
+  // reported is all there is.
+  it("takes the reported title while the page can't be asked yet", async () => {
+    const target = { kind: 'url' as const, label: 'Example', source: 'https://example.com', url: 'https://example.com' }
+
+    openPreview(target)
+
+    const owner = $previewOwner.get()
+    const tabId = previewTabId(target)
+    let rendered!: ReturnType<typeof render>
+
+    await act(async () => {
+      rendered = render(<PreviewPane owner={owner} tabId={tabId} target={target} />)
+    })
+
+    const webview = rendered.container.querySelector('webview') as HTMLElement
+
+    Object.assign(webview, {
+      getTitle: () => {
+        throw new Error('The WebView must be attached to the DOM and the dom-ready event emitted')
+      }
+    })
+
+    act(() => {
+      webview.dispatchEvent(Object.assign(new Event('page-title-updated'), { title: 'Example Domain' }))
+    })
+
+    expect($previewPages.get()[tabId]?.title).toBe('Example Domain')
 
     closeRightRail(owner)
   })

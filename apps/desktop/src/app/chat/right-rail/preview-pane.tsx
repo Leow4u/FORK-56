@@ -7,7 +7,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
 import { guardGuestPointers } from '@/lib/guest-pointer-guard'
-import { openPreviewTargetInBrowser, remoteHtmlPreviewDocument } from '@/lib/local-preview'
+import { isBlankPageUrl, openPreviewTargetInBrowser, remoteHtmlPreviewDocument } from '@/lib/local-preview'
 import { isRemoteGateway } from '@/lib/media'
 import { reachablePreviewUrl } from '@/lib/preview-reach'
 import { rafCoalesce } from '@/lib/raf-coalesce'
@@ -19,6 +19,7 @@ import {
   type PreviewOwner,
   previewResumeUrl,
   type PreviewTarget,
+  rememberPreviewTitle,
   rememberPreviewUrl
 } from '@/store/preview'
 
@@ -267,7 +268,7 @@ export function PreviewPane({
   // `about:blank` paints a white void that reads as broken next to the app's
   // dark chrome, so the pane shows the new tab page instead — the address bar
   // above it, the conversation's tools below.
-  const isBlankPage = isWebPreview && !isRemoteHtml && (!currentUrl || /^about:blank\/?$/i.test(currentUrl))
+  const isBlankPage = isWebPreview && !isRemoteHtml && isBlankPageUrl(currentUrl)
 
   const previewLabel =
     target.label && target.label.replace(/\/$/, '') !== currentLabel.replace(/\/$/, '') ? target.label : currentLabel
@@ -856,6 +857,36 @@ export function PreviewPane({
       setLoading(false)
     }
 
+    // The page names its tab. The strip reads the name from the store, live:
+    // re-registering the pane for it would remount the pane, and so reload this
+    // page. Read when the page reports a title and again when a load settles —
+    // going back, or reloading, returns to a page whose title didn't change,
+    // and Chromium doesn't report an unchanged title. Never at commit, so a page
+    // coming back keeps its name instead of flickering. The blank page has no
+    // name of its own: its tab is the new tab.
+    const syncTitle = (reported?: string) => {
+      if (!tabId) {
+        return
+      }
+
+      let title = reported
+      let url: string | undefined
+
+      try {
+        title = webview.getTitle?.() ?? reported
+        url = webview.getURL?.()
+      } catch {
+        // Not ready to answer yet (before `dom-ready`): the reported title is
+        // all there is.
+      }
+
+      if (title !== undefined) {
+        rememberPreviewTitle(tabId, url !== undefined && isBlankPageUrl(url) ? '' : title, owner)
+      }
+    }
+
+    const onTitle = (event: Event) => syncTitle((event as Event & { title?: string }).title)
+
     const onStart = () => setLoading(true)
 
     const onStop = () => {
@@ -864,6 +895,7 @@ export function PreviewPane({
       // cancelled navigation) still settles the history — resync so the
       // buttons can't be left stale.
       syncHistory()
+      syncTitle()
     }
 
     // The WEBVIEW is the source of truth for DevTools, not our click handler:
@@ -955,6 +987,7 @@ export function PreviewPane({
     webview.addEventListener('did-navigate-in-page', onNavigate)
     webview.addEventListener('did-start-loading', onStart)
     webview.addEventListener('did-stop-loading', onStop)
+    webview.addEventListener('page-title-updated', onTitle)
     host.appendChild(webview)
     webviewRef.current = webview
 
@@ -968,6 +1001,7 @@ export function PreviewPane({
       webview.removeEventListener('did-navigate-in-page', onNavigate)
       webview.removeEventListener('did-start-loading', onStart)
       webview.removeEventListener('did-stop-loading', onStop)
+      webview.removeEventListener('page-title-updated', onTitle)
       webview.remove()
     }
   }, [appendConsoleEntry, consoleState, copy, isRemoteHtml, isWebPreview, owner, tabId, target.url])
