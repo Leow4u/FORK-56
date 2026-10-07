@@ -10,6 +10,8 @@ const platform = (id: string): MessagingPlatformInfo => ({
   id,
   name: id,
   description: 'backend fallback',
+  docs_url: '',
+  env_vars: [],
   enabled: false,
   configured: false,
   state: 'not_configured',
