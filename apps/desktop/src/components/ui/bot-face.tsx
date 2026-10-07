@@ -16,16 +16,19 @@ import {
 import { botCharacter } from '@/lib/bot-characters'
 import { startFaceClock } from '@/lib/bot-face-clock'
 
+import { BotCharacterFace } from './bot-character-face'
+
 // The bot's face: the one drawing of a Work4You profile as a character, shared
 // by the WorkBots roster, the sidebar profile rail and the settings scope
-// chips. Three render paths:
+// chips. Render paths:
 //   - an image (uploaded / generated / pet) is a plain <img>;
+//   - a ready-made character keeps its artwork and moves its layered eyes;
 //   - a blobatar shape is the library's whole face, inlined as SVG;
 //   - everything else is the "math face": a filled outline with two eyes
 //     that the shared clock (`lib/bot-face-clock`) animates in place.
 // The data-* attributes are a contract: the clock finds faces by
-// `data-hb-math` and moves the `data-hb-*` parts; the roster's PNG backfill
-// finds any face by `data-bot-face`.
+// `data-hb-math` / `data-hb-character`; the roster's PNG backfill finds the
+// original illustration or vector by `data-bot-face`.
 
 export interface BotFaceProps {
   color: string
@@ -173,19 +176,7 @@ export function BotFace({ color, image, mood = 'idle', name = 'agent', shape, si
   const character = botCharacter(shape)
 
   if (character) {
-    return (
-      <img
-        alt=""
-        aria-hidden
-        data-bot-character={character.id}
-        data-bot-face={name}
-        draggable={false}
-        height={size}
-        src={character.image}
-        style={{ display: 'block', objectFit: 'contain' }}
-        width={size}
-      />
-    )
+    return <BotCharacterFace character={character} key={character.id} mood={mood} name={name} size={size} />
   }
 
   let drawn = shape

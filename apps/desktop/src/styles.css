@@ -2065,9 +2065,8 @@ body.guest-pointer-lock :is(webview, iframe) {
   border: 1px solid var(--ui-stroke-tertiary);
 }
 
-[data-presentation='creation'] [data-shape^='character:'] img {
-  width: 5.5rem;
-  height: 5.5rem;
+[data-presentation='creation'] [data-shape^='character:'] .bot-character-face {
+  --bot-character-display-size: 5.5rem;
 }
 
 [data-profile-creation] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']) {

@@ -1,8 +1,6 @@
-// The one animation clock behind every math face on screen. Faces render as
-// static SVG tagged `data-hb-math`; this clock finds them, projects their
-// outline for the current pose, and moves the eyes — so a baked path never
-// has to be swapped and a face in a React tree, a plugin pane or a shadow
-// root all breathe in step.
+// The shared clock behind classic and ready-made character faces. It moves
+// vector outlines or layered character eyes in place, including plugin
+// shadow roots, without per-frame React renders or per-avatar timers.
 //
 // Scheduling goes through `createBudgetedLoop` (15fps budget, pause while the
 // window is hidden/unfocused, dormancy, teardown). The clock parks itself
@@ -10,6 +8,7 @@
 // calls `startFaceClock`) or the IntersectionObserver wakes it.
 
 import { CLOUD_BODY_PATH, faceEyeY, facePose, projectFacePoint, ringToPath, sampleFaceRing } from '@/lib/bot-avatar'
+import { paintCharacterFace } from '@/lib/bot-character-motion'
 import { createBudgetedLoop } from '@/lib/budgeted-loop'
 
 /** Paint one face for time `t` (seconds): body outline, eye line, catchlights,
@@ -93,17 +92,19 @@ export function paintMathFace(svg: SVGSVGElement, t: number): void {
   svg.style.transformOrigin = '50% 70%'
 }
 
-/** Every mounted math face, shadow roots included (plugin panes may render
- *  into one). */
-export function walkMathFaces(root: Document | ShadowRoot | null | undefined, acc: SVGSVGElement[]): SVGSVGElement[] {
+type AnimatedFace = HTMLElement | SVGSVGElement
+
+/** Both kinds of live face share one budget/visibility observer, including
+ * plugin shadow roots. Uploaded pictures stay outside this clock. */
+export function walkAnimatedFaces(root: Document | ShadowRoot | null | undefined, acc: AnimatedFace[]): AnimatedFace[] {
   if (!root || typeof root.querySelectorAll !== 'function') {
     return acc
   }
 
-  root.querySelectorAll<SVGSVGElement>('svg[data-hb-math]').forEach(node => acc.push(node))
+  root.querySelectorAll<AnimatedFace>('svg[data-hb-math], [data-hb-character]').forEach(node => acc.push(node))
   root.querySelectorAll('*').forEach(element => {
     if (element.shadowRoot) {
-      walkMathFaces(element.shadowRoot, acc)
+      walkAnimatedFaces(element.shadowRoot, acc)
     }
   })
 
@@ -133,10 +134,14 @@ export function startFaceClock(): void {
   const t0 = performance.now()
   // A large roster can mount hundreds of faces. Observe the cached nodes so
   // off-screen cards do not consume a full animation frame by themselves.
-  let faces: SVGSVGElement[] = []
+  let faces: AnimatedFace[] = []
   let lastScan = -Infinity
-  const visibleFaces = new Set<SVGSVGElement>()
-  const observedFaces = new Set<SVGSVGElement>()
+  const visibleFaces = new Set<AnimatedFace>()
+  const observedFaces = new Set<AnimatedFace>()
+  const motionPreference = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+  // Commit a preference change together with its neutral paint. Polling
+  // matches in idleWhen can park a throttled frame before that reset.
+  let reducedMotion = motionPreference?.matches === true
 
   const observer =
     typeof IntersectionObserver === 'function'
@@ -144,7 +149,7 @@ export function startFaceClock(): void {
           let becameVisible = false
 
           for (const entry of entries) {
-            const target = entry.target as SVGSVGElement
+            const target = entry.target as AnimatedFace
 
             if (entry.isIntersecting) {
               visibleFaces.add(target)
@@ -162,7 +167,7 @@ export function startFaceClock(): void {
       : null
 
   const scanFaces = () => {
-    faces = walkMathFaces(window.document, [])
+    faces = walkAnimatedFaces(window.document, [])
 
     if (!observer) {
       return
@@ -195,24 +200,40 @@ export function startFaceClock(): void {
     }
 
     const t = (now - t0) / 1000
-    const facesToPaint = observer ? visibleFaces : faces
+    const facesToPaint = reducedMotion || !observer ? faces : visibleFaces
 
-    for (const svg of facesToPaint) {
-      if (svg.isConnected) {
-        paintMathFace(svg, t)
+    for (const face of facesToPaint) {
+      if (face.isConnected) {
+        if (face.hasAttribute('data-hb-character')) {
+          paintCharacterFace(face as HTMLElement, now / 1000, reducedMotion)
+        } else {
+          paintMathFace(face as SVGSVGElement, reducedMotion ? 0 : t)
+        }
       }
     }
   }
 
   // Nothing worth animating: no faces mounted (the next BotFace mount wakes
   // us) or none visible (the observer wakes us when one scrolls in).
-  const idle = () => faces.length === 0 || (observer !== null && visibleFaces.size === 0)
+  const idle = () => reducedMotion || faces.length === 0 || (observer !== null && visibleFaces.size === 0)
 
   const loop = createBudgetedLoop(paint, { fps: 15, idleWhen: idle })
+
+  const onMotionChange = () => {
+    // Reset even invisible faces immediately; a reduced-motion window never
+    // stays frozen halfway through a blink or greeting.
+    reducedMotion = motionPreference?.matches === true
+    lastScan = -Infinity
+    paint(performance.now())
+    loop.wake()
+  }
+
+  motionPreference?.addEventListener('change', onMotionChange)
 
   clock = {
     stop: () => {
       loop.dispose()
+      motionPreference?.removeEventListener('change', onMotionChange)
       observer?.disconnect()
       visibleFaces.clear()
       observedFaces.clear()
