@@ -2159,7 +2159,7 @@ export const en: Translations = {
       whoList: (count: number) =>
         `${count} ${count === 1 ? 'address' : 'addresses'} can send and receive with the bot`,
       tryIt: (address: string) => `Try it: from an allowed address, email **${address}**.`,
-      whoCanWriteTitle: 'Who can write',
+      whoCanWriteTitle: 'Who can send and receive',
       connectedLabel: 'Connected and checking the inbox',
       whoOnlyAddresses: (count: number) => `Only these addresses · ${count} ${count === 1 ? 'address' : 'addresses'}`,
       whoNone: 'Nobody yet · email answers only the addresses on the list',

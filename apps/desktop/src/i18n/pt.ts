@@ -2448,7 +2448,7 @@ export const pt = defineLocale({
       whoList: (count: number) =>
         `${count} ${count === 1 ? 'endereço pode' : 'endereços podem'} enviar e receber com o bot`,
       tryIt: (address: string) => `Experimente: de um endereço permitido, envie um e-mail para **${address}**.`,
-      whoCanWriteTitle: 'Quem pode escrever',
+      whoCanWriteTitle: 'Quem envia e recebe',
       connectedLabel: 'Conectado e verificando a caixa de entrada',
       whoOnlyAddresses: (count: number) => `Só estes endereços · ${count} ${count === 1 ? 'endereço' : 'endereços'}`,
       whoNone: 'Ninguém ainda · o e-mail só responde aos endereços da lista',
