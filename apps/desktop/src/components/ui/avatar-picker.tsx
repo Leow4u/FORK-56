@@ -40,6 +40,7 @@ export interface AvatarPickerProps {
   /** The profile name being created; the drawn face follows it. */
   name: string
   title?: string
+  presentation?: 'compact' | 'creation'
   request?: AvatarRequest
   onColor: (color: null | string) => void
   onImage: (image: null | string) => void
@@ -59,6 +60,7 @@ export function AvatarPicker({
   onImage,
   onShape,
   request,
+  presentation = 'compact',
   shape,
   title
 }: AvatarPickerProps) {
@@ -104,8 +106,13 @@ export function AvatarPicker({
   }
 
   return (
-    <div className="grid w-full min-w-0 justify-items-center gap-3" data-slot="avatar-picker">
+    <div
+      className="grid w-full min-w-0 justify-items-center gap-3"
+      data-presentation={presentation}
+      data-slot="avatar-picker"
+    >
       <SegmentedControl
+        className={presentation === 'creation' ? 'profile-creation-choice' : undefined}
         onChange={setTab}
         options={[
           { id: 'bot', label: copy.tabs.bot },
@@ -123,8 +130,9 @@ export function AvatarPicker({
       ) : null}
 
       {tab === 'bot' ? (
-        <div className="grid justify-items-center gap-3">
+        <div className="avatar-picker-bot grid justify-items-center gap-3">
           <SegmentedControl
+            className={presentation === 'creation' ? 'profile-creation-families' : undefined}
             onChange={setFamily}
             options={[
               { id: 'classic', label: copy.classicShapes },
@@ -151,7 +159,12 @@ export function AvatarPicker({
                   type="button"
                 >
                   <BotFace color={character.color} name={faceName} shape={character.shape} size={56} />
-                  <span className="text-center text-[0.6875rem] leading-4 text-(--ui-text-secondary)">
+                  <span
+                    className={cn(
+                      'text-center text-[0.6875rem] leading-4 text-(--ui-text-secondary)',
+                      presentation === 'creation' && 'sr-only'
+                    )}
+                  >
                     {copy.characterNames[character.id]}
                   </span>
                 </button>

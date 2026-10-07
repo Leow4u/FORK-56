@@ -3,6 +3,17 @@ import { defineConfig } from 'vitest/config'
 
 const reactUi: TestProjectConfiguration = {
   extends: './vite.config.ts',
+  plugins: [
+    {
+      name: 'test-bot-creation-dialog',
+      enforce: 'pre',
+      transform(code, id) {
+        if (id.split('?')[0].endsWith('/work4you-bots/plugin.js')) {
+          return `${code}\nexport { CreateAgentDialog };\n`
+        }
+      }
+    }
+  ],
   test: {
     name: 'ui',
     environment: 'jsdom',

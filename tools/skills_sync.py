@@ -797,6 +797,47 @@ def _demote_connector_skills(
     return demoted
 
 
+def initialize_profile_skills(quiet: bool = False) -> dict:
+    """Seed a newly created GUI profile, including a clone's missing natives.
+
+    This runs only at creation. Normal sync continues to respect subsequent
+    pruning/disable choices. User, hub and plugin skills are left untouched.
+    """
+    from work4you_cli.config import read_user_config_raw, save_config
+    from work4you_cli.skills_config import _normalize_skill_names
+    from tools.skill_usage import remove_suppressed_name
+
+    bundled_dir = _get_bundled_dir()
+    bundled = _discover_bundled_skills(bundled_dir)
+    names = {name for name, _ in bundled}
+    (_work4you_home() / NO_BUNDLED_SKILLS_MARKER).unlink(missing_ok=True)
+    manifest = _read_manifest()
+    suppressed = _read_suppressed_names()
+    for name, source in bundled:
+        if not _compute_relative_dest(source, bundled_dir).exists():
+            manifest.pop(name, None)
+        if name in suppressed:
+            remove_suppressed_name(name)
+    _write_manifest(manifest)
+
+    config = read_user_config_raw() or {}
+    skills = config.get("skills")
+    changed = False
+    if isinstance(skills, dict):
+        platform_disabled = skills.get("platform_disabled")
+        for mapping, key in [(skills, "disabled")] + (
+            [(platform_disabled, key) for key in platform_disabled]
+            if isinstance(platform_disabled, dict) else []
+        ):
+            disabled = _normalize_skill_names(mapping.get(key))
+            if disabled & names:
+                mapping[key] = sorted(disabled - names)
+                changed = True
+    if changed:
+        save_config(config)
+    return sync_skills(quiet=quiet)
+
+
 def sync_skills(quiet: bool = False) -> dict:
     """
     Sync bundled skills into ~/.work4you/skills/ using the manifest.

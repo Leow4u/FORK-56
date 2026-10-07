@@ -331,13 +331,29 @@ const BOT_MODE_LOCALES = {
       advanced: 'Advanced — model, skills, toolsets, SOUL.md'
     },
     create: {
+      retry: 'Try again',
+      instructionsPlaceholder: 'Leave blank to use automatic instructions.',
+      instructionsHint: 'Replaces instructions generated from the name, title and description.',
+      instructions: 'Agent instructions (optional)',
+      appearanceHint: 'This agent’s appearance throughout the app.',
+      startCopy: 'Copy from',
+      startFresh: 'Fresh',
+      startFrom: 'Starting point',
+      capabilitiesHint: 'Skills, MCP and Plugins',
+      customizeCapabilities: 'Customize capabilities',
+      capabilitiesDescription: 'Choose what this agent can do.',
+      settingsDescription: 'Adjust how this agent will work.',
+      settingsHint: 'Model and instructions',
+      settingsTitle: 'Agent settings',
+      settings: 'Settings',
+      back: 'Back to agent',
       draftDiscarded: name => `Draft agent "${name}" discarded`,
       draftCleanupFailed: name => `Could not clean up draft profile "${name}"`,
       failed: 'Could not create the agent.',
       createdOn: (name, target) => `Agent "${name}" created on ${target}`,
       created: name => `Agent "${name}" created`,
       title: 'New Agent',
-      subtitle: 'A named teammate with its own memory, skills, and chat. It can message your other agents.',
+      subtitle: 'Choose the appearance and how this agent will work.',
       namePlaceholder: 'research-assistant',
       takenOn: (slug, target) => `An agent named "${slug}" already exists on ${target}.`,
       taken: slug => `An agent named "${slug}" already exists.`,
@@ -360,7 +376,7 @@ const BOT_MODE_LOCALES = {
         'OAuth logins stay shared (not copied), so token refreshes never invalidate each other. Uncheck for an isolated auth snapshot. Fresh does not copy .env or WhatsApp from the main profile — pick Clone to copy those.',
       noSkills: 'Create empty (skip bundled skills)',
       nameTaken: 'That name is taken — pick another before configuring capabilities.',
-      nameFirst: 'Name the agent first — a draft profile is created when you open this tab (discarded if you cancel).',
+      nameFirst: 'Give the agent a name before customizing capabilities.',
       catalogNeedsGateway: 'Capability catalog needs a newer gateway (restart it after updating Work4You).',
       noSkillsChecked: '“Create empty” is checked — no bundled skills will be installed.',
       freshSkillsHint:
@@ -775,14 +791,29 @@ const BOT_MODE_LOCALES = {
       advanced: 'Avançado — modelo, skills, conjuntos de ferramentas, SOUL.md'
     },
     create: {
+      retry: 'Tentar novamente',
+      instructionsPlaceholder: 'Deixe em branco para usar as instruções automáticas.',
+      instructionsHint: 'Substitui as instruções geradas a partir do nome, título e descrição.',
+      instructions: 'Instruções do agente (opcional)',
+      appearanceHint: 'A aparência deste agente em todo o app.',
+      startCopy: 'Copiar de',
+      startFresh: 'Do zero',
+      startFrom: 'Ponto de partida',
+      capabilitiesHint: 'Skills, MCP e Plugins',
+      customizeCapabilities: 'Personalizar capacidades',
+      capabilitiesDescription: 'Escolha o que este agente pode fazer.',
+      settingsDescription: 'Ajuste como este agente vai trabalhar.',
+      settingsHint: 'Modelo e instruções',
+      settingsTitle: 'Configurações do agente',
+      settings: 'Configurações',
+      back: 'Voltar ao agente',
       draftDiscarded: name => `Rascunho do agente "${name}" descartado`,
       draftCleanupFailed: name => `Não foi possível remover o perfil de rascunho "${name}"`,
       failed: 'Não foi possível criar o agente.',
       createdOn: (name, target) => `Agente "${name}" criado em ${target}`,
       created: name => `Agente "${name}" criado`,
       title: 'Novo agente',
-      subtitle:
-        'Um colega de equipe com nome, memória, skills e conversa próprios. Ele pode mandar mensagens para seus outros agentes.',
+      subtitle: 'Escolha a aparência e como este agente vai trabalhar.',
       namePlaceholder: 'assistente-de-pesquisa',
       takenOn: (slug, target) => `Já existe um agente chamado "${slug}" em ${target}.`,
       taken: slug => `Já existe um agente chamado "${slug}".`,
@@ -806,8 +837,7 @@ const BOT_MODE_LOCALES = {
         'Os logins OAuth ficam compartilhados (não copiados), assim renovar um token nunca invalida o do outro perfil. Desmarque para ter uma cópia isolada da autenticação. Um perfil novo não copia o .env nem o WhatsApp do perfil principal — clone um perfil para copiá-los.',
       noSkills: 'Criar vazio (sem as skills incluídas)',
       nameTaken: 'Esse nome já está em uso — escolha outro antes de configurar as capacidades.',
-      nameFirst:
-        'Dê um nome ao agente primeiro — um perfil de rascunho é criado quando você abre esta aba (e descartado se você cancelar).',
+      nameFirst: 'Dê um nome ao agente antes de personalizar as capacidades.',
       catalogNeedsGateway:
         'O catálogo de capacidades exige um gateway mais recente (reinicie-o depois de atualizar o Work4You).',
       noSkillsChecked: '“Criar vazio” está marcado — nenhuma skill incluída será instalada.',
@@ -6235,6 +6265,7 @@ function labeled(label, control) {
     children: [
       jsx('label', {
         className: fieldLabelClass,
+        htmlFor: control?.props?.id,
         children: label
       }),
       control
@@ -6468,19 +6499,18 @@ function CreateAgentDialog({ open, onClose, roster }) {
   // button + MCP setup buttons). Distinct from createdRef on purpose:
   // createdRef must stay a slug string for its sibling consumers.
   const flightRef = useRef(null)
+  const draftEpoch = useRef(0)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   // Match New profile: an untouched appearance follows the profile name.
   const [shape, setShape] = useState(avatarSdk.AvatarPicker ? null : blobatarSvg ? 'blobatar' : 'circle')
   const [color, setColor] = useState(avatarSdk.AvatarPicker ? null : AVATAR_COLORS[3])
   const [image, setImage] = useState(null)
-  const [advanced, setAdvanced] = useState(false)
+  const [page, setPage] = useState('identity')
   const [cloneFrom, setCloneFrom] = useState(FRESH_CLONE_FROM)
   const [model, setModel] = useState(DEFAULT_CREATE_MODEL)
   const [provider, setProvider] = useState(DEFAULT_CREATE_PROVIDER)
   const [soul, setSoul] = useState('')
-  const [noSkills, setNoSkills] = useState(false)
-  const [shareAuth, setShareAuth] = useState(true)
   const [advTab, setAdvTab] = useState('general')
   // Where the profile is created: '' = the active gateway (unchanged default),
   // else a registry connection id — the profiles.create lands on THAT
@@ -6490,7 +6520,12 @@ function CreateAgentDialog({ open, onClose, roster }) {
   const [connections, setConnections] = useState(null)
 
   useEffect(() => {
-    if (!open || connections !== null || typeof host.connections !== 'function' || typeof host.requestProfile !== 'function') {
+    if (
+      !open ||
+      connections !== null ||
+      typeof host.connections !== 'function' ||
+      typeof host.requestProfile !== 'function'
+    ) {
       return
     }
 
@@ -6499,7 +6534,9 @@ function CreateAgentDialog({ open, onClose, roster }) {
       // host.connections() returns the registry ROWS on current SDKs, but the
       // envelope object ({version, primary, connections: [...]}) on desktops
       // that predate the SDK-side unwrap — accept both shapes.
-      .then(value => setConnections(Array.isArray(value) ? value : Array.isArray(value?.connections) ? value.connections : []))
+      .then(value =>
+        setConnections(Array.isArray(value) ? value : Array.isArray(value?.connections) ? value.connections : [])
+      )
       .catch(() => setConnections([]))
   }, [open, connections])
 
@@ -6541,7 +6578,9 @@ function CreateAgentDialog({ open, onClose, roster }) {
   // name clash is fine there, and the remote's own duplicate check rejects
   // real collisions at profiles.create time.
   const taken = remoteTarget
-    ? roster.some(b => b.remoteSource && b.connectionId === targetConnection && b.name === slug && b.name !== createdRef.current)
+    ? roster.some(
+        b => b.remoteSource && b.connectionId === targetConnection && b.name === slug && b.name !== createdRef.current
+      )
     : roster.some(b => !b.remoteSource && b.name === slug && b.name !== createdRef.current)
 
   // Draft semantics for the lazily-created profile: opening the Capabilities
@@ -6551,6 +6590,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
   // preconfigure-then-back-out leaves zero residue. Best-effort and
   // fire-and-forget: a failed cleanup surfaces a toast, never blocks close.
   const discardDraft = () => {
+    draftEpoch.current += 1
     const draft = createdRef.current
 
     if (!draft) {
@@ -6568,20 +6608,19 @@ function CreateAgentDialog({ open, onClose, roster }) {
   }
 
   const reset = () => {
+    draftEpoch.current += 1
     setName('')
     setTitle('')
     setDescription('')
     setShape(avatarSdk.AvatarPicker ? null : blobatarSvg ? 'blobatar' : 'circle')
     setColor(avatarSdk.AvatarPicker ? null : AVATAR_COLORS[3])
     setImage(null)
-    setAdvanced(false)
+    setPage('identity')
     // Same default as the initial useState — Fresh, not clone-from-default.
     setCloneFrom(FRESH_CLONE_FROM)
     setModel(DEFAULT_CREATE_MODEL)
     setProvider(DEFAULT_CREATE_PROVIDER)
     setSoul('')
-    setNoSkills(false)
-    setShareAuth(true)
     setAdvTab('general')
     setCreatedForCaps(null)
     setCaps(null)
@@ -6660,22 +6699,18 @@ function CreateAgentDialog({ open, onClose, roster }) {
   }
 
   useEffect(() => {
-    if (!open || !advanced) {
+    if (!open || page !== 'capabilities') {
       return
     }
     if (advTab === 'general' || advTab === 'capabilities') {
       return
     }
     ensureCaps()
-  }, [open, advanced, advTab, capSource])
+  }, [open, page, advTab, capSource])
 
   const toggleCap = (kind, name, enabled) => {
     setDirtyCaps(prev => ({ ...prev, [kind === 'mcp' ? 'mcp' : kind]: true }))
-    setCaps(prev =>
-      prev
-        ? { ...prev, [kind]: prev[kind].map(x => (x.name === name ? { ...x, enabled } : x)) }
-        : prev
-    )
+    setCaps(prev => (prev ? { ...prev, [kind]: prev[kind].map(x => (x.name === name ? { ...x, enabled } : x)) } : prev))
   }
 
   // Materialize the profile exactly once. createdRef stores the finished slug
@@ -6696,6 +6731,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
       return Promise.resolve(createdRef.current)
     }
 
+    const epoch = draftEpoch.current
     const flight = singleFlight(flightRef, async () => {
       if (!valid || taken) {
         return null
@@ -6712,15 +6748,29 @@ function CreateAgentDialog({ open, onClose, roster }) {
         // Fresh (the dialog default) sends clone_from: null and does not
         // overlay the launch home's .env / WhatsApp tokens.
         ...profilesCreateIsolationParams(cloneFrom, remoteTarget),
-        no_skills: noSkills,
-        // Shared (not copied) auth keeps ONE OAuth/token pool with the main
-        // profile, so refreshes can't invalidate each other. Older gateways
-        // ignore the param and copy — still functional, just forked.
-        share_auth: shareAuth,
+        no_skills: false,
+        // Use the default profile’s shared platform login. Other copied
+        // credentials remain governed by the selected clone source.
+        share_auth: true,
         soul: composeSoul({ name: slug, title, description, roster, customSoul: soul }),
         ...profilesCreateModelParams(provider, model)
       })
 
+      // Cancellation can arrive while profiles.create is still in flight.
+      // Dispose of that result on its original connection instead of reviving
+      // the closed dialog or leaving an invisible draft in the roster.
+      if (epoch !== draftEpoch.current) {
+        try {
+          if (remoteTarget) {
+            await requestForTarget('cli.exec', { argv: ['profile', 'delete', slug, '--yes'] })
+          } else {
+            await deleteBot({ name: slug })
+          }
+        } catch (err) {
+          host.notifyError(err, t('create.draftCleanupFailed', slug))
+        }
+        return null
+      }
       createdRef.current = slug
 
       // Apply capability picks from the Advanced tabs (best-effort; the
@@ -6733,8 +6783,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
         }
         if (dirtyCaps.toolsets && caps) {
           const en = caps.toolsets.filter(t => t.enabled)
-          capPayload.enabled_toolsets =
-            en.length === caps.toolsets.length || en.length === 0 ? [] : en.map(t => t.name)
+          capPayload.enabled_toolsets = en.length === caps.toolsets.length || en.length === 0 ? [] : en.map(t => t.name)
         }
         if (dirtyCaps.mcp && caps) {
           capPayload.enabled_mcp_servers = caps.mcp.filter(m => m.enabled).map(m => m.name)
@@ -6761,16 +6810,27 @@ function CreateAgentDialog({ open, onClose, roster }) {
         }
 
         try {
-          void requestForTarget('profiles.configure', { name: slug, ui_meta: { 'work4you-bots': look } }).catch(() => undefined)
+          void requestForTarget('profiles.configure', { name: slug, ui_meta: { 'work4you-bots': look } }).catch(
+            () => undefined
+          )
 
           if (avatarImage) {
-            void requestForTarget('profiles.set_asset', { name: slug, asset: 'avatar', data: avatarImage }).catch(() => undefined)
+            void requestForTarget('profiles.set_asset', { name: slug, asset: 'avatar', data: avatarImage }).catch(
+              () => undefined
+            )
           }
         } catch {
           /* older remote gateway */
         }
       } else {
-        saveBotMeta(slug, { shape, color, image, imageKind: image ? 'photo' : 'shape', title: title.trim(), created: Date.now() })
+        saveBotMeta(slug, {
+          shape,
+          color,
+          image,
+          imageKind: image ? 'photo' : 'shape',
+          title: title.trim(),
+          created: Date.now()
+        })
       }
 
       queryClient.invalidateQueries({ queryKey: ROSTER_KEY })
@@ -6778,6 +6838,33 @@ function CreateAgentDialog({ open, onClose, roster }) {
     })
 
     return flight
+  }
+
+  const saveDraftDetails = async draft => {
+    const look = { shape, color, imageKind: image ? 'photo' : 'shape', title: title.trim() }
+    const result = await requestForTarget('profiles.configure', {
+      name: draft,
+      description: [title, description].filter(Boolean).join(' — '),
+      soul: composeSoul({ name: draft, title, description, roster, customSoul: soul }),
+      ...profilesCreateModelParams(provider, model),
+      ui_meta: { 'work4you-bots': look }
+    })
+    if (result?.ok === false || Object.values(result?.applied || {}).some(value => value === false)) {
+      throw new Error(t('create.failed'))
+    }
+    if (!provider && !model) {
+      const cleared = await requestForTarget('cli.exec', { argv: ['--profile', draft, 'config', 'unset', 'model'] })
+      if (cleared?.blocked || cleared?.code !== 0) throw new Error(t('create.failed'))
+    }
+    if (remoteTarget) {
+      await requestForTarget('profiles.set_asset', {
+        name: draft,
+        asset: 'avatar',
+        ...(image ? { data: image } : { clear: true })
+      })
+    } else {
+      await saveBotMeta(draft, { ...look, image })
+    }
   }
 
   const submit = async () => {
@@ -6795,6 +6882,11 @@ function CreateAgentDialog({ open, onClose, roster }) {
         setError(t('create.failed'))
         return
       }
+
+      // Capabilities may have materialized the profile before the user went
+      // back and edited its identity, instructions, model or appearance.
+      // Save only those details here; the live capability choices stay intact.
+      await saveDraftDetails(slugCreated)
 
       host.notify({
         kind: 'success',
@@ -6840,481 +6932,540 @@ function CreateAgentDialog({ open, onClose, roster }) {
     }
   }
 
+  const liveCapabilities = Boolean(SkillsView && (!remoteTarget || skillsViewRoutesConnections))
+  const openCapabilities = () => {
+    const epoch = draftEpoch.current
+    setPage('capabilities')
+    setError(null)
+    if (liveCapabilities) {
+      if (!valid || taken) return
+      void ensureAgentCreated()
+        .then(created => {
+          if (created && epoch === draftEpoch.current) setCreatedForCaps(created)
+        })
+        .catch(err => {
+          if (epoch === draftEpoch.current) setError(err instanceof Error ? err.message : t('create.profileNotReady'))
+        })
+    } else {
+      setAdvTab('skills')
+      ensureCaps()
+    }
+  }
+  const appearance = botAppearance(slug || 'agent', { shape, color, custom: true })
+  const identityLocked = busy || Boolean(createdForCaps) || Boolean(flightRef.current)
+  const clonePicker = labeled(
+    remoteTarget ? t('create.cloneFromOn', targetLabel) : t('create.cloneFrom'),
+    jsxs(Select, {
+      value: cloneFrom,
+      disabled: identityLocked,
+      onValueChange: value => {
+        setCloneFrom(value)
+        setCaps(null)
+        setCapsFailed(false)
+      },
+      children: [
+        jsx(SelectTrigger, { 'aria-label': t('create.cloneFrom'), children: jsx(SelectValue, {}) }),
+        jsx(SelectContent, {
+          children: (remoteTarget ? [{ name: 'default' }] : roster.filter(b => !b.remoteSource)).map(b =>
+            jsx(SelectItem, { value: b.name, children: b.name }, b.name)
+          )
+        })
+      ]
+    })
+  )
+  const legacyCapabilities = capsFailed
+    ? jsx('div', {
+        className: 'px-2 py-3 text-center text-xs text-(--ui-text-tertiary)',
+        children: t('create.catalogNeedsGateway')
+      })
+    : !caps
+      ? jsx('div', {
+          className: 'flex justify-center py-4',
+          children: jsx(GlyphSpinner, {
+            spinner: 'breathe',
+            className: 'text-(--ui-text-tertiary)'
+          })
+        })
+      : advTab === 'skills'
+        ? caps.source === 'fresh'
+          ? jsx('div', {
+              className: 'px-2 py-3 text-center text-xs text-(--ui-text-tertiary)',
+              children: t('create.freshSkillsHint')
+            })
+          : jsxs('div', {
+              className: 'grid gap-1.5',
+              children: [
+                jsx(Input, {
+                  className: 'h-7 text-xs',
+                  placeholder: t('config.filterSkills'),
+                  value: capFilter,
+                  onChange: event => setCapFilter(event.target.value)
+                }),
+                jsx(ScrollArea, {
+                  className: 'work4you-scroll-cap',
+                  style: { maxHeight: 200 },
+                  children: jsx(CheckList, {
+                    items: capFilter.trim()
+                      ? caps.skills.filter(s => s.name.toLowerCase().includes(capFilter.trim().toLowerCase()))
+                      : caps.skills,
+                    onToggle: (name, enabled) => toggleCap('skills', name, enabled),
+                    columns: 2
+                  })
+                }),
+                jsx('div', {
+                  className: 'text-[0.65rem] leading-4 text-(--ui-text-quaternary)',
+                  children: t('create.catalogFrom', caps.source)
+                }),
+                jsx(HubSkillsSection, {
+                  forProfile: null,
+                  onInstalled: name =>
+                    setCaps(prev =>
+                      !prev || prev.skills.some(s => s.name === name)
+                        ? prev
+                        : { ...prev, skills: [...prev.skills, { name, enabled: true }] }
+                    )
+                })
+              ]
+            })
+        : advTab === 'toolsets'
+          ? jsxs('div', {
+              className: 'grid gap-1.5',
+              children: [
+                jsx(ScrollArea, {
+                  className: 'work4you-scroll-cap',
+                  style: { maxHeight: 200 },
+                  children: jsx(CheckList, {
+                    items: caps.toolsets,
+                    onToggle: (name, enabled) => toggleCap('toolsets', name, enabled),
+                    columns: 2
+                  })
+                }),
+                jsx('div', {
+                  className: 'text-[0.65rem] leading-4 text-(--ui-text-quaternary)',
+                  children: t('create.toolsetsHint')
+                })
+              ]
+            })
+          : caps.mcp.length === 0
+            ? jsx('div', {
+                className: 'px-2 py-3 text-center text-xs text-(--ui-text-tertiary)',
+                children: t('config.noMcp')
+              })
+            : jsxs('div', {
+                className: 'grid gap-1.5',
+                children: [
+                  jsx(ScrollArea, {
+                    className: 'work4you-scroll-cap',
+                    style: { maxHeight: 200 },
+                    children: jsx('div', {
+                      className: 'grid gap-1',
+                      children: caps.mcp.map(m => {
+                        const needsSetup =
+                          m.fromCatalog &&
+                          !m.installed &&
+                          ((m.requires || []).length > 0 || (m.auth || '').toLowerCase() === 'oauth')
+
+                        return jsxs(
+                          'label',
+                          {
+                            className: 'flex items-start gap-2 text-xs text-(--ui-text-secondary)',
+                            children: [
+                              jsx(Checkbox, {
+                                checked: !!m.enabled,
+                                disabled: needsSetup,
+                                onCheckedChange: value => toggleCap('mcp', m.name, Boolean(value))
+                              }),
+                              jsxs('span', {
+                                className: 'min-w-0',
+                                children: [
+                                  jsx('span', { children: m.name }),
+                                  m.fromCatalog && !needsSetup
+                                    ? jsx('span', {
+                                        className: 'ml-1.5 text-[0.65rem] text-(--ui-text-quaternary)',
+                                        children: m.installed ? t('config.catalogInstalled') : t('config.catalog')
+                                      })
+                                    : null,
+                                  needsSetup
+                                    ? jsx(McpSetupButton, {
+                                        profile: createdRef.current,
+                                        entry: m,
+                                        ensureProfile: ensureAgentCreated,
+                                        onDone: () => {
+                                          // Setup done: mark installed so the row's
+                                          // checkbox un-disables, and enable it.
+                                          setCaps(prev =>
+                                            prev
+                                              ? {
+                                                  ...prev,
+                                                  mcp: prev.mcp.map(x =>
+                                                    x.name === m.name ? { ...x, installed: true, enabled: true } : x
+                                                  )
+                                                }
+                                              : prev
+                                          )
+                                          setDirtyCaps(prev => ({ ...prev, mcp: true }))
+                                        }
+                                      })
+                                    : null,
+                                  m.description
+                                    ? jsx('div', {
+                                        className: 'truncate text-[0.65rem] leading-4 text-(--ui-text-quaternary)',
+                                        children: m.description
+                                      })
+                                    : null
+                                ]
+                              })
+                            ]
+                          },
+                          m.name
+                        )
+                      })
+                    })
+                  }),
+                  jsx('div', {
+                    className: 'text-[0.65rem] leading-4 text-(--ui-text-quaternary)',
+                    children: t('create.mcpHint')
+                  })
+                ]
+              })
+
   return jsx(Dialog, {
     open,
     onOpenChange: value => {
       if (!value && !busy) {
-        // Cancel path (esc / overlay click): a materialized draft profile is
-        // discarded — preconfigure-then-back-out leaves nothing behind.
         discardDraft()
         reset()
         onClose()
       }
     },
     children: jsxs(DialogContent, {
-      // Same card as the composer menus: stage radius, elevated fill, floating
-      // shadow. The attribute is what the unlayered rule keys on — utility
-      // classes lose to the generic dialog skin.
-      'data-panel-card': '',
-      className: cn('min-w-0', advanced ? 'max-w-3xl' : 'max-w-md'),
-      bodyClassName: 'min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4 overflow-hidden',
+      'data-profile-creation': '',
+      bodyClassName: 'profile-creation-shell',
       children: [
         jsxs(DialogHeader, {
+          className: 'profile-creation-header',
           children: [
-            jsx(DialogTitle, { children: t('create.title') }),
-            jsx(DialogDescription, {
-              children: t('create.subtitle')
+            page !== 'identity' &&
+              jsxs(Button, {
+                variant: 'text',
+                size: 'sm',
+                className: 'mb-2 w-fit',
+                type: 'button',
+                onClick: () => setPage('identity'),
+                children: [jsx(Codicon, { name: 'arrow-left' }), t('create.back')]
+              }),
+            jsxs('div', {
+              className: 'profile-creation-heading',
+              children: [
+                jsxs('div', {
+                  className: 'min-w-0',
+                  children: [
+                    jsx(DialogTitle, {
+                      children:
+                        page === 'identity'
+                          ? t('create.title')
+                          : page === 'settings'
+                            ? t('create.settingsTitle')
+                            : t('create.tabs.capabilities')
+                    }),
+                    jsx(DialogDescription, {
+                      children:
+                        page === 'identity'
+                          ? t('create.subtitle')
+                          : page === 'settings'
+                            ? t('create.settingsDescription')
+                            : t('create.capabilitiesDescription')
+                    })
+                  ]
+                }),
+                page !== 'identity' &&
+                  jsxs('div', {
+                    className: 'profile-creation-identity',
+                    children: [
+                      jsx(BotFace, { ...appearance, image, size: 44, name: slug || 'agent' }),
+                      jsxs('div', {
+                        className: 'min-w-0 text-sm',
+                        children: [
+                          jsx('div', { className: 'truncate font-medium', children: title.trim() || slug }),
+                          jsx('div', { className: 'truncate text-xs text-(--ui-text-tertiary)', children: slug })
+                        ]
+                      })
+                    ]
+                  })
+              ]
             })
           ]
         }),
-        jsxs('div', {
-          className: 'grid min-h-0 min-w-0 gap-4 overflow-y-auto overflow-x-hidden',
+        jsxs('form', {
+          className: 'profile-creation-form',
+          onSubmit: event => {
+            event.preventDefault()
+            void submit()
+          },
           children: [
-            jsx('div', {
-              className: 'flex justify-center py-1',
-              children: jsx(BotFace, { ...botAppearance(slug || 'agent', { shape, color, custom: true }), image, size: 56, name: slug || 'agent' })
-            }),
-            jsx(AvatarPicker, {
-              shape,
-              color,
-              image,
-              onShape: setShape,
-              onColor: setColor,
-              onImage: setImage,
-              generateSeed: { name: slug || 'agent', title, description }
-            }),
-            labeled(
-              t('common.name'),
-              jsx(Input, {
-                autoFocus: true,
-                placeholder: t('create.namePlaceholder'),
-                value: name,
-                onChange: event => setName(event.target.value)
-              })
-            ),
-            taken
-              ? jsx('div', {
-                  className:
-                    'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-accent)',
-                  children: remoteTarget ? t('create.takenOn', slug, targetLabel) : t('create.taken', slug)
-                })
-              : null,
-            // Multi-connection desktops choose WHERE the agent lives. Hidden
-            // on single-connection setups — the active gateway is the only
-            // possible home, exactly the old behavior.
-            Array.isArray(connections) && connections.length > 1
-              ? labeled(
-                  t('create.createOn'),
-                  jsxs(Select, {
-                    value: targetConnection || activeConnectionId || 'local',
-                    onValueChange: value => {
-                      setTargetConnection(value === (activeConnectionId || 'local') ? '' : value)
-                      // The capability catalog and clone list belong to the
-                      // target backend — refetch for the new home. The live
-                      // Capabilities tab re-pins to it via fixedConnection on
-                      // builds that route it (staged checklists otherwise).
-                      setCaps(null)
-                      setCapsFailed(false)
-                      setAdvTab('general')
-                    },
-                    children: [
-                      jsx(SelectTrigger, {
-                        children: jsx(SelectValue, {})
+            jsxs('fieldset', {
+              className: 'profile-creation-body profile-creation-columns',
+              hidden: page !== 'identity',
+              disabled: busy,
+              children: [
+                jsxs('div', {
+                  className: 'profile-creation-appearance',
+                  children: [
+                    jsx('div', {
+                      className: 'profile-creation-preview',
+                      'aria-hidden': true,
+                      children: jsx(BotFace, { ...appearance, image, size: 256, name: slug || 'agent' })
+                    }),
+                    jsx(AvatarPicker, {
+                      shape,
+                      color,
+                      image,
+                      onShape: setShape,
+                      onColor: setColor,
+                      onImage: setImage,
+                      presentation: 'creation',
+                      generateSeed: { name: slug || 'agent', title, description }
+                    }),
+                    jsx('p', { className: hintClass, children: t('create.appearanceHint') })
+                  ]
+                }),
+                jsxs('div', {
+                  className: 'profile-creation-fields',
+                  children: [
+                    labeled(
+                      t('common.name'),
+                      jsx(Input, {
+                        id: 'new-agent-name',
+                        autoFocus: true,
+                        disabled: identityLocked,
+                        'aria-invalid': taken,
+                        placeholder: t('create.namePlaceholder'),
+                        value: name,
+                        onChange: event => setName(event.target.value)
+                      })
+                    ),
+                    taken &&
+                      jsx('p', {
+                        className: hintClass,
+                        role: 'alert',
+                        children: remoteTarget ? t('create.takenOn', slug, targetLabel) : t('create.taken', slug)
                       }),
-                      jsx(SelectContent, {
-                        children: connections.map(connection =>
-                          jsx(
-                            SelectItem,
-                            {
-                              value: connection.id,
-                              children:
-                                connection.id === (activeConnectionId || 'local')
-                                  ? t('create.current', connection.label || connection.id)
-                                  : connection.label || connection.id
-                            },
-                            connection.id
-                          )
-                        )
+                    Array.isArray(connections) &&
+                      connections.length > 1 &&
+                      labeled(
+                        t('create.createOn'),
+                        jsxs(Select, {
+                          value: targetConnection || activeConnectionId || 'local',
+                          disabled: identityLocked,
+                          onValueChange: value => {
+                            setTargetConnection(value === (activeConnectionId || 'local') ? '' : value)
+                            setCaps(null)
+                            setCapsFailed(false)
+                          },
+                          children: [
+                            jsx(SelectTrigger, { 'aria-label': t('create.createOn'), children: jsx(SelectValue, {}) }),
+                            jsx(SelectContent, {
+                              children: connections.map(connection =>
+                                jsx(
+                                  SelectItem,
+                                  {
+                                    value: connection.id,
+                                    children:
+                                      connection.id === (activeConnectionId || 'local')
+                                        ? t('create.current', connection.label || connection.id)
+                                        : connection.label || connection.id
+                                  },
+                                  connection.id
+                                )
+                              )
+                            })
+                          ]
+                        })
+                      ),
+                    remoteTarget && jsx('p', { className: hintClass, children: t('create.remoteHint', targetLabel) }),
+                    labeled(
+                      t('common.title'),
+                      jsx(Input, {
+                        id: 'new-agent-title',
+                        value: title,
+                        placeholder: t('create.titlePlaceholder'),
+                        onChange: event => setTitle(event.target.value)
+                      })
+                    ),
+                    labeled(
+                      t('common.description'),
+                      jsx(Textarea, {
+                        id: 'new-agent-description',
+                        value: description,
+                        placeholder: t('create.descriptionPlaceholder'),
+                        onChange: event => setDescription(event.target.value)
+                      })
+                    ),
+                    jsxs('fieldset', {
+                      disabled: identityLocked,
+                      className: 'grid gap-2',
+                      children: [
+                        jsx('span', { className: fieldLabelClass, children: t('create.startFrom') }),
+                        jsx(SegmentedControl, {
+                          className: 'profile-creation-choice',
+                          disabled: identityLocked,
+                          value: isFreshProfileCreate(cloneFrom) ? 'fresh' : 'copy',
+                          options: [
+                            { id: 'fresh', label: t('create.startFresh') },
+                            { id: 'copy', label: t('create.startCopy') }
+                          ],
+                          onChange: value => {
+                            if (identityLocked) return
+                            setCloneFrom(value === 'fresh' ? FRESH_CLONE_FROM : 'default')
+                            setCaps(null)
+                            setCapsFailed(false)
+                          }
+                        }),
+                        !isFreshProfileCreate(cloneFrom) && clonePicker
+                      ]
+                    }),
+                    jsxs('div', {
+                      className: 'profile-creation-navigation',
+                      children: [
+                        jsxs(Button, {
+                          variant: 'ghost',
+                          size: 'lg',
+                          type: 'button',
+                          onClick: () => setPage('settings'),
+                          children: [
+                            jsx(Codicon, { name: 'settings' }),
+                            jsxs('span', {
+                              className: 'flex-1',
+                              children: [
+                                jsx('span', { className: 'block', children: t('create.settings') }),
+                                jsx('span', {
+                                  className: 'block text-xs text-(--ui-text-tertiary)',
+                                  children: t('create.settingsHint')
+                                })
+                              ]
+                            }),
+                            jsx(Codicon, { name: 'chevron-right' })
+                          ]
+                        }),
+                        jsxs(Button, {
+                          variant: 'ghost',
+                          size: 'lg',
+                          type: 'button',
+                          onClick: openCapabilities,
+                          children: [
+                            jsx(Codicon, { name: 'extensions' }),
+                            jsxs('span', {
+                              className: 'flex-1',
+                              children: [
+                                jsx('span', { className: 'block', children: t('create.customizeCapabilities') }),
+                                jsx('span', {
+                                  className: 'block text-xs text-(--ui-text-tertiary)',
+                                  children: t('create.capabilitiesHint')
+                                })
+                              ]
+                            }),
+                            jsx(Codicon, { name: 'chevron-right' })
+                          ]
+                        })
+                      ]
+                    })
+                  ]
+                })
+              ]
+            }),
+            jsxs('fieldset', {
+              className: 'profile-creation-body profile-creation-settings',
+              hidden: page !== 'settings',
+              disabled: busy,
+              children: [
+                jsx(ModelPicker, {
+                  value: { provider, model },
+                  onChange: patch => {
+                    if ('provider' in patch) setProvider(patch.provider)
+                    if ('model' in patch) setModel(patch.model)
+                  },
+                  placeholderModel: displayModelName(DEFAULT_CREATE_MODEL)
+                }),
+                labeled(
+                  t('create.instructions'),
+                  jsxs('div', {
+                    className: 'flex min-h-0 flex-1 flex-col gap-2',
+                    children: [
+                      jsx('p', { className: hintClass, children: t('create.instructionsHint') }),
+                      jsx(Textarea, {
+                        id: 'new-agent-instructions',
+                        'aria-label': t('create.instructions'),
+                        placeholder: t('create.instructionsPlaceholder'),
+                        value: soul,
+                        onChange: event => setSoul(event.target.value)
                       })
                     ]
                   })
                 )
-              : null,
-            remoteTarget
-              ? jsx('div', {
-                  className: hintClass,
-                  children: t('create.remoteHint', targetLabel)
-                })
-              : null,
-            labeled(
-              t('common.title'),
-              jsx(Input, {
-                placeholder: t('create.titlePlaceholder'),
-                value: title,
-                onChange: event => setTitle(event.target.value)
-              })
-            ),
-            labeled(
-              t('common.description'),
-              jsx(Textarea, {
-                className: 'min-h-16',
-                placeholder: t('create.descriptionPlaceholder'),
-                value: description,
-                onChange: event => setDescription(event.target.value)
-              })
-            ),
-            jsxs(Button, {
-              type: 'button',
-              variant: 'ghost',
-              size: 'sm',
-              className: 'w-fit text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-primary)',
-              onClick: () => {
-                setAdvanced(v => {
-                  if (!v) {
-                    ensureCaps()
-                  }
-                  return !v
-                })
-              },
-              children: [jsx(Codicon, { name: advanced ? 'chevron-down' : 'chevron-right' }), t('create.advanced')]
+              ]
             }),
-            advanced
-              ? jsxs('div', {
-                  className: 'grid min-w-0 gap-4 border-t border-(--ui-stroke-tertiary) pt-4',
-                  children: [
-                    jsx(SegmentedControl, {
-                      className: choiceClass,
-                      // Newer desktops export the whole Capabilities surface —
-                      // one live tab replaces the three staged checklists.
-                      // The live Capabilities surface (SkillsView) binds to
-                      // the ACTIVE gateway's backend unless this build routes
-                      // fixedConnection (skillsViewRoutesConnections) — then a
-                      // remote-target draft gets the live surface pinned to
-                      // ITS machine. Builds without that routing keep the
-                      // staged checklists for remote targets (their catalog
-                      // reads already route to the target).
-                      value: advTab,
-                      options: (SkillsView && (!remoteTarget || skillsViewRoutesConnections)
-                        ? ['general', 'capabilities']
-                        : ['general', 'skills', 'toolsets', 'mcp']
-                      ).map(id => ({ id, label: t(`create.tabs.${id}`) })),
-                      onChange: id => {
-                        setAdvTab(id)
-                        setCapFilter('')
-                        if (id === 'capabilities') {
-                          // The live surface needs a real profile —
-                          // materialize it now (same lazy-create door
-                          // the MCP setup buttons use).
-                          void ensureAgentCreated()
-                            .then(created => created && setCreatedForCaps(created))
-                            .catch(err => host.notifyError(err, t('create.profileNotReady')))
-                        } else if (id !== 'general') {
+            jsx('div', {
+              className: 'profile-creation-body profile-creation-capabilities',
+              hidden: page !== 'capabilities',
+              children: liveCapabilities
+                ? !valid || taken
+                  ? jsx('p', { className: hintClass, children: taken ? t('create.nameTaken') : t('create.nameFirst') })
+                  : createdForCaps
+                    ? jsx(SkillsView, {
+                        embedded: true,
+                        fixedProfile: createdForCaps,
+                        hideTitle: true,
+                        ...(remoteTarget ? { fixedConnection: targetConnection } : {})
+                      })
+                    : error
+                      ? jsx(Button, {
+                          type: 'button',
+                          variant: 'secondary',
+                          onClick: openCapabilities,
+                          children: t('create.retry')
+                        })
+                      : jsx(GlyphSpinner, { spinner: 'breathe', className: 'text-(--ui-text-tertiary)' })
+                : jsxs('div', {
+                    className: 'grid gap-4',
+                    children: [
+                      jsx(SegmentedControl, {
+                        value: advTab,
+                        options: ['skills', 'toolsets', 'mcp'].map(id => ({ id, label: t(`create.tabs.${id}`) })),
+                        onChange: id => {
+                          setAdvTab(id)
+                          setCapFilter('')
                           ensureCaps()
                         }
-                      }
+                      }),
+                      legacyCapabilities
+                    ]
+                  })
+            }),
+            jsxs('div', {
+              className: 'profile-creation-bottom',
+              children: [
+                error && jsx('p', { role: 'alert', className: 'text-sm text-destructive', children: error }),
+                jsxs(DialogFooter, {
+                  children: [
+                    jsx(Button, {
+                      type: 'button',
+                      variant: 'ghost',
+                      disabled: busy,
+                      onClick: () => {
+                        discardDraft()
+                        reset()
+                        onClose()
+                      },
+                      children: t('common.cancel')
                     }),
-                    advTab === 'general'
-                      ? jsxs('div', {
-                          className: 'grid min-w-0 gap-4',
-                          children: [
-                            labeled(
-                              remoteTarget ? t('create.cloneFromOn', targetLabel) : t('create.cloneFrom'),
-                              jsxs(Select, {
-                                value: cloneFrom,
-                                onValueChange: value => {
-                                  setCloneFrom(value)
-                                  setCaps(null)
-                                  setCapsFailed(false)
-                                },
-                                children: [
-                                  jsx(SelectTrigger, {
-                                    children: jsx(SelectValue, {})
-                                  }),
-                                  jsxs(SelectContent, {
-                                    children: [
-                                      jsx(SelectItem, {
-                                        value: '__none__',
-                                        children: t('create.fresh')
-                                      }),
-                                      ...(remoteTarget
-                                        ? [jsx(SelectItem, { value: 'default', children: 'default' }, 'default')]
-                                        : roster.map(b => jsx(SelectItem, { value: b.name, children: b.name }, b.name)))
-                                    ]
-                                  })
-                                ]
-                              })
-                            ),
-                            jsx(ModelPicker, {
-                              value: { provider, model },
-                              onChange: patch => {
-                                if ('provider' in patch) {
-                                  setProvider(patch.provider)
-                                }
-                                if ('model' in patch) {
-                                  setModel(patch.model)
-                                }
-                              },
-                              placeholderModel: displayModelName(DEFAULT_CREATE_MODEL)
-                            }),
-                            labeled(
-                              t('create.soulLabel'),
-                              jsx(Textarea, {
-                                className: 'min-h-24 font-mono text-xs leading-5',
-                                placeholder: t('create.soulPlaceholder'),
-                                value: soul,
-                                onChange: event => setSoul(event.target.value)
-                              })
-                            ),
-                            jsxs('label', {
-                              className: 'flex items-center gap-2 text-sm leading-5 text-(--ui-text-primary)',
-                              children: [
-                                jsx(Checkbox, {
-                                  checked: shareAuth,
-                                  onCheckedChange: value => setShareAuth(Boolean(value))
-                                }),
-                                t('create.shareAuth')
-                              ]
-                            }),
-                            jsx('div', {
-                              className: cn('pl-6', hintClass),
-                              children: t('create.shareAuthHint')
-                            }),
-                            jsxs('label', {
-                              className: 'flex items-center gap-2 text-sm leading-5 text-(--ui-text-primary)',
-                              children: [
-                                jsx(Checkbox, {
-                                  checked: noSkills,
-                                  onCheckedChange: value => setNoSkills(Boolean(value))
-                                }),
-                                t('create.noSkills')
-                              ]
-                            })
-                          ]
-                        })
-                      : advTab === 'capabilities'
-                        ? !valid || taken
-                          ? jsx('div', {
-                              className: cn('px-2 py-3 text-center', hintClass),
-                              children: taken ? t('create.nameTaken') : t('create.nameFirst')
-                            })
-                          : !createdForCaps
-                            ? jsx('div', {
-                                className: 'flex justify-center py-4',
-                                children: jsx(GlyphSpinner, {
-                                  spinner: 'breathe',
-                                  className: 'text-(--ui-text-tertiary)'
-                                })
-                              })
-                            : jsx('div', {
-                                className:
-                                  'min-w-0 overflow-hidden rounded-(--ui-stage-radius) border border-(--ui-stroke-tertiary)',
-                                style: { height: 440, minHeight: 280, resize: 'vertical', overflow: 'auto' },
-                                // The REAL core Capabilities surface (skills +
-                                // one-click hub installs + tools + MCP), pinned
-                                // to the just-created profile — and, for a
-                                // remote-target draft, to the target machine's
-                                // backend via fixedConnection. Writes land
-                                // immediately — no staging needed.
-                                children: jsx(SkillsView, {
-                                  embedded: true,
-                                  fixedProfile: createdForCaps,
-                                  ...(remoteTarget ? { fixedConnection: targetConnection } : {})
-                                })
-                              })
-                      : capsFailed
-                        ? jsx('div', {
-                            className: 'px-2 py-3 text-center text-xs text-(--ui-text-tertiary)',
-                            children: t('create.catalogNeedsGateway')
-                          })
-                        : !caps
-                          ? jsx('div', {
-                              className: 'flex justify-center py-4',
-                              children: jsx(GlyphSpinner, {
-                                spinner: 'breathe',
-                                className: 'text-(--ui-text-tertiary)'
-                              })
-                            })
-                          : advTab === 'skills'
-                            ? noSkills
-                              ? jsx('div', {
-                                  className: 'px-2 py-3 text-center text-xs text-(--ui-text-tertiary)',
-                                  children: t('create.noSkillsChecked')
-                                })
-                              : caps.source === 'fresh'
-                                ? jsx('div', {
-                                    className: 'px-2 py-3 text-center text-xs text-(--ui-text-tertiary)',
-                                    children: t('create.freshSkillsHint')
-                                  })
-                                : jsxs('div', {
-                                  className: 'grid gap-1.5',
-                                  children: [
-                                    jsx(Input, {
-                                      className: 'h-7 text-xs',
-                                      placeholder: t('config.filterSkills'),
-                                      value: capFilter,
-                                      onChange: event => setCapFilter(event.target.value)
-                                    }),
-                                    jsx(ScrollArea, {
-                                      className: 'work4you-scroll-cap',
-                                      style: { maxHeight: 200 },
-                                      children: jsx(CheckList, {
-                                        items: capFilter.trim()
-                                          ? caps.skills.filter(s =>
-                                              s.name.toLowerCase().includes(capFilter.trim().toLowerCase())
-                                            )
-                                          : caps.skills,
-                                        onToggle: (name, enabled) => toggleCap('skills', name, enabled),
-                                        columns: 2
-                                      })
-                                    }),
-                                    jsx('div', {
-                                      className: 'text-[0.65rem] leading-4 text-(--ui-text-quaternary)',
-                                      children: t('create.catalogFrom', caps.source)
-                                    }),
-                                    jsx(HubSkillsSection, {
-                                      forProfile: null,
-                                      onInstalled: name =>
-                                        setCaps(prev =>
-                                          !prev || prev.skills.some(s => s.name === name)
-                                            ? prev
-                                            : { ...prev, skills: [...prev.skills, { name, enabled: true }] }
-                                        )
-                                    })
-                                  ]
-                                })
-                            : advTab === 'toolsets'
-                              ? jsxs('div', {
-                                  className: 'grid gap-1.5',
-                                  children: [
-                                    jsx(ScrollArea, {
-                                      className: 'work4you-scroll-cap',
-                                      style: { maxHeight: 200 },
-                                      children: jsx(CheckList, {
-                                        items: caps.toolsets,
-                                        onToggle: (name, enabled) => toggleCap('toolsets', name, enabled),
-                                        columns: 2
-                                      })
-                                    }),
-                                    jsx('div', {
-                                      className: 'text-[0.65rem] leading-4 text-(--ui-text-quaternary)',
-                                      children: t('create.toolsetsHint')
-                                    })
-                                  ]
-                                })
-                              : caps.mcp.length === 0
-                                ? jsx('div', {
-                                    className: 'px-2 py-3 text-center text-xs text-(--ui-text-tertiary)',
-                                    children: t('config.noMcp')
-                                  })
-                                : jsxs('div', {
-                                    className: 'grid gap-1.5',
-                                    children: [
-                                      jsx(ScrollArea, {
-                                        className: 'work4you-scroll-cap',
-                                        style: { maxHeight: 200 },
-                                        children: jsx('div', {
-                                          className: 'grid gap-1',
-                                          children: caps.mcp.map(m => {
-                                            const needsSetup =
-                                              m.fromCatalog && !m.installed && ((m.requires || []).length > 0 || (m.auth || '').toLowerCase() === 'oauth')
-
-                                            return jsxs(
-                                              'label',
-                                              {
-                                                className: 'flex items-start gap-2 text-xs text-(--ui-text-secondary)',
-                                                children: [
-                                                  jsx(Checkbox, {
-                                                    checked: !!m.enabled,
-                                                    disabled: needsSetup,
-                                                    onCheckedChange: value => toggleCap('mcp', m.name, Boolean(value))
-                                                  }),
-                                                  jsxs('span', {
-                                                    className: 'min-w-0',
-                                                    children: [
-                                                      jsx('span', { children: m.name }),
-                                                      m.fromCatalog && !needsSetup
-                                                        ? jsx('span', {
-                                                            className: 'ml-1.5 text-[0.65rem] text-(--ui-text-quaternary)',
-                                                            children: m.installed
-                                                              ? t('config.catalogInstalled')
-                                                              : t('config.catalog')
-                                                          })
-                                                        : null,
-                                                      needsSetup
-                                                        ? jsx(McpSetupButton, {
-                                                            profile: createdRef.current,
-                                                            entry: m,
-                                                            ensureProfile: ensureAgentCreated,
-                                                            onDone: () => {
-                                                              // Setup done: mark installed so the row's
-                                                              // checkbox un-disables, and enable it.
-                                                              setCaps(prev =>
-                                                                prev
-                                                                  ? {
-                                                                      ...prev,
-                                                                      mcp: prev.mcp.map(x =>
-                                                                        x.name === m.name
-                                                                          ? { ...x, installed: true, enabled: true }
-                                                                          : x
-                                                                      )
-                                                                    }
-                                                                  : prev
-                                                              )
-                                                              setDirtyCaps(prev => ({ ...prev, mcp: true }))
-                                                            }
-                                                          })
-                                                        : null,
-                                                      m.description
-                                                        ? jsx('div', {
-                                                            className:
-                                                              'truncate text-[0.65rem] leading-4 text-(--ui-text-quaternary)',
-                                                            children: m.description
-                                                          })
-                                                        : null
-                                                    ]
-                                                  })
-                                                ]
-                                              },
-                                              m.name
-                                            )
-                                          })
-                                        })
-                                      }),
-                                      jsx('div', {
-                                        className: 'text-[0.65rem] leading-4 text-(--ui-text-quaternary)',
-                                        children: t('create.mcpHint')
-                                      })
-                                    ]
-                                  })
+                    jsx(Button, {
+                      type: 'submit',
+                      disabled: busy || !valid || taken,
+                      children: busy ? t('create.creating') : t('create.submit')
+                    })
                   ]
                 })
-              : null,
-            error
-              ? jsx('div', {
-                  className:
-                    'text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) text-(--ui-accent)',
-                  children: error
-                })
-              : null
-          ]
-        }),
-        jsxs(DialogFooter, {
-          className: 'min-w-0 border-t border-(--ui-stroke-tertiary) pt-3',
-          children: [
-            jsx(Button, {
-              variant: 'ghost',
-              disabled: busy,
-              onClick: () => {
-                discardDraft()
-                reset()
-                onClose()
-              },
-              children: t('common.cancel')
-            }),
-            jsx(Button, {
-              disabled: busy || !valid || taken,
-              onClick: submit,
-              children: busy ? t('create.creating') : t('create.submit')
+              ]
             })
           ]
         })
