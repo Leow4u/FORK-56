@@ -1,3 +1,4 @@
+import { useStore } from '@nanostores/react'
 import type * as React from 'react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -35,7 +36,9 @@ import { downloadGatewayMediaFile, isRemoteGateway } from '@/lib/media'
 import { normalize } from '@/lib/text'
 import { fmtDayTime } from '@/lib/time'
 import { cn } from '@/lib/utils'
+import { $activeConnectionId } from '@/store/connections'
 import { notify, notifyError } from '@/store/notifications'
+import { $profiles, $profileScope, profileLabel, sidebarProfileForScope } from '@/store/profile'
 import { getAllSessionMessages, listAllProfileSessions } from '@/work4you'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
@@ -97,6 +100,7 @@ function paginationItems(page: number, pageCount: number): Array<number | 'ellip
 type CellCtx = {
   onOpen: (href: string) => void | Promise<void>
   onOpenChat: (sessionId: string) => void
+  showProfile: boolean
 }
 
 const itemsLabel = (f: ArtifactFilter, a: Translations['artifacts']) =>
@@ -106,11 +110,22 @@ interface ArtifactsViewProps extends React.ComponentProps<'section'> {
   setStatusbarItemGroup?: SetStatusbarItemGroup
 }
 
-export function ArtifactsView({
+export function ArtifactsView(props: ArtifactsViewProps) {
+  const scope = useStore($profileScope)
+  const connectionId = useStore($activeConnectionId)
+  const profile = sidebarProfileForScope(scope)
+
+  // A scope change starts a fresh view synchronously: no previous profile's
+  // rows, image failures or pending refresh can carry into the new context.
+  return <ScopedArtifactsView {...props} key={JSON.stringify([connectionId, profile])} profile={profile} />
+}
+
+function ScopedArtifactsView({
   className,
+  profile,
   setStatusbarItemGroup: _setStatusbarItemGroup,
   ...props
-}: ArtifactsViewProps) {
+}: ArtifactsViewProps & { profile: string }) {
   const { t } = useI18n()
   const a = t.artifacts
   const navigate = useNavigate()
@@ -124,23 +139,33 @@ export function ArtifactsView({
   const [filePage, setFilePage] = useState(1)
 
   const [refreshing, setRefreshing] = useState(false)
-  const refreshInFlightRef = useRef(false)
+  const loadState = useRef({ epoch: 0, inFlight: false })
 
   const refreshArtifacts = useCallback(async () => {
-    if (refreshInFlightRef.current) {
+    if (loadState.current.inFlight) {
       return
     }
 
-    refreshInFlightRef.current = true
+    loadState.current.inFlight = true
+    const epoch = ++loadState.current.epoch
+    const isCurrent = () => epoch === loadState.current.epoch
+
     setRefreshing(true)
 
     try {
-      const sessions = (await listAllProfileSessions(30, 1)).sessions
+      const sessions = (await listAllProfileSessions(30, 1, 'exclude', 'recent', profile)).sessions
 
-      const { artifacts: nextArtifacts, failures } = await loadArtifactsForSessions(
-        sessions,
-        async session => (await getAllSessionMessages(session.id, session.profile)).messages
+      if (!isCurrent()) {
+        return
+      }
+
+      const { artifacts: nextArtifacts, failures } = await loadArtifactsForSessions(sessions, async session =>
+        isCurrent() ? (await getAllSessionMessages(session.id, session.profile)).messages : []
       )
+
+      if (!isCurrent()) {
+        return
+      }
 
       if (failures.length > 0) {
         const safeLimitFailures = failures.filter(({ error }) =>
@@ -168,18 +193,29 @@ export function ArtifactsView({
 
       setArtifacts(nextArtifacts.sort((left, right) => right.timestamp - left.timestamp))
     } catch (err) {
-      notifyError(err, a.failedLoad)
-      setArtifacts([])
+      if (isCurrent()) {
+        notifyError(err, a.failedLoad)
+        setArtifacts([])
+      }
     } finally {
-      refreshInFlightRef.current = false
-      setRefreshing(false)
+      if (isCurrent()) {
+        loadState.current.inFlight = false
+        setRefreshing(false)
+      }
     }
-  }, [a])
+  }, [a, profile])
 
   useRefreshHotkey(refreshArtifacts)
 
   useEffect(() => {
+    const state = loadState.current
+
     void refreshArtifacts()
+
+    return () => {
+      state.epoch += 1
+      state.inFlight = false
+    }
   }, [refreshArtifacts])
 
   useEffect(() => {
@@ -308,7 +344,12 @@ export function ArtifactsView({
   // async title fetch re-rendered the page repeatedly. openArtifact is already
   // a useCallback; navigate is stable, so onOpenChat can be too.
   const openChat = useCallback((sessionId: string) => openSession(sessionId, navigate), [navigate])
-  const cellCtx: CellCtx = useMemo(() => ({ onOpen: openArtifact, onOpenChat: openChat }), [openArtifact, openChat])
+  const showProfile = profile === 'all'
+
+  const cellCtx: CellCtx = useMemo(
+    () => ({ onOpen: openArtifact, onOpenChat: openChat, showProfile }),
+    [openArtifact, openChat, showProfile]
+  )
 
   const filterTabs = [
     { id: 'all' as const, label: a.tabAll, count: counts.all },
@@ -418,6 +459,7 @@ export function ArtifactsView({
                         key={artifact.id}
                         onImageError={markImageFailed}
                         onOpenChat={sessionId => openSession(sessionId, navigate)}
+                        showProfile={showProfile}
                       />
                     ))}
                   </div>
@@ -551,9 +593,21 @@ interface ArtifactImageCardProps {
   failedImage: boolean
   onImageError: (id: string) => void
   onOpenChat: (sessionId: string) => void
+  showProfile: boolean
 }
 
-function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat }: ArtifactImageCardProps) {
+function ArtifactProfile({ name }: { name?: string }) {
+  const profiles = useStore($profiles)
+  const owner = profiles.find(profile => profile.name === (name || 'default'))
+
+  return (
+    <span className="block truncate text-[0.6875rem] text-(--ui-text-tertiary)">
+      {owner ? profileLabel(owner) : name || 'default'}
+    </span>
+  )
+}
+
+function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat, showProfile }: ArtifactImageCardProps) {
   const { t } = useI18n()
   const a = t.artifacts
   const [src, setSrc] = useState('')
@@ -603,6 +657,7 @@ function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat }: 
           <div className="truncate text-[length:var(--conversation-caption-font-size)] font-medium">
             {artifact.sessionTitle}
           </div>
+          {showProfile ? <ArtifactProfile name={artifact.profile} /> : null}
           <div className="mt-0.5 text-[0.6875rem] text-(--ui-text-tertiary)">
             {formatArtifactTime(artifact.timestamp)}
           </div>
@@ -707,6 +762,7 @@ const SessionCell = memo(function SessionCell({ artifact, ctx }: { artifact: Art
     <ArtifactCellAction onClick={() => ctx.onOpenChat(artifact.sessionId)} title={artifact.sessionTitle}>
       <span className="flex min-w-0 flex-col">
         <span className="truncate">{artifact.sessionTitle}</span>
+        {ctx.showProfile ? <ArtifactProfile name={artifact.profile} /> : null}
         <span className="truncate text-[0.6875rem] font-normal text-(--ui-text-tertiary)">
           {formatArtifactTime(artifact.timestamp)}
         </span>

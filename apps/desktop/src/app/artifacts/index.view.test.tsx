@@ -1,15 +1,20 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { I18nProvider } from '@/i18n/context'
 import { en } from '@/i18n/en'
+import { notify, notifyError } from '@/store/notifications'
+import { $activeGatewayProfile, $profiles, setShowAllProfiles } from '@/store/profile'
+import { $connection } from '@/store/session'
 import type { SessionInfo } from '@/types/work4you'
 import { getAllSessionMessages, listAllProfileSessions } from '@/work4you'
 import type * as Work4YouModule from '@/work4you'
 
 import { ArtifactsView } from './index'
+
+vi.mock('@/store/notifications', () => ({ notify: vi.fn(), notifyError: vi.fn() }))
 
 vi.mock('@/work4you', async () => {
   const actual = await vi.importActual<typeof Work4YouModule>('@/work4you')
@@ -21,10 +26,50 @@ vi.mock('@/work4you', async () => {
   }
 })
 
+beforeEach(() => {
+  $activeGatewayProfile.set('default')
+  setShowAllProfiles(false)
+  $connection.set(null)
+  $profiles.set([])
+  vi.mocked(listAllProfileSessions).mockReset().mockResolvedValue(listResult([]))
+  vi.mocked(getAllSessionMessages)
+    .mockReset()
+    .mockImplementation(async id => messageResult(id))
+})
+
 afterEach(() => {
   cleanup()
+  $activeGatewayProfile.set('default')
+  setShowAllProfiles(false)
+  $connection.set(null)
+  $profiles.set([])
   vi.clearAllMocks()
 })
+
+function listResult(sessions: SessionInfo[]) {
+  return { sessions, total: sessions.length, limit: 30, offset: 0 }
+}
+
+function messageResult(id: string) {
+  return {
+    session_id: id,
+    messages: [
+      { content: `![result](https://example.com/${id}.png)`, role: 'assistant' as const, timestamp: 1_700_000_100 }
+    ]
+  }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason: Error) => void
+
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes
+    reject = no
+  })
+
+  return { promise, resolve, reject }
+}
 
 function session(overrides: Partial<SessionInfo> = {}): SessionInfo {
   return {
@@ -54,6 +99,114 @@ function renderArtifacts(children: ReactNode = <ArtifactsView />) {
 }
 
 describe('ArtifactsView', () => {
+  it('requests only the active profile and routes its transcripts to their owner', async () => {
+    $activeGatewayProfile.set('orlando')
+    vi.mocked(listAllProfileSessions).mockResolvedValue(listResult([session({ profile: 'orlando' })]))
+
+    renderArtifacts()
+
+    await screen.findByRole('button', { name: en.artifacts.chat })
+    expect(listAllProfileSessions).toHaveBeenCalledWith(30, 1, 'exclude', 'recent', 'orlando')
+    expect(getAllSessionMessages).toHaveBeenCalledWith('session-1', 'orlando')
+  })
+
+  it('clears previous rows immediately when switching profiles and handles an empty target', async () => {
+    const next = deferred<ReturnType<typeof listResult>>()
+    vi.mocked(listAllProfileSessions)
+      .mockResolvedValueOnce(listResult([session()]))
+      .mockReturnValueOnce(next.promise)
+    renderArtifacts()
+    await screen.findByRole('button', { name: en.artifacts.chat })
+
+    act(() => $activeGatewayProfile.set('orlando'))
+    expect(screen.queryByText('Remover barba da foto')).toBeNull()
+    await waitFor(() => expect(listAllProfileSessions).toHaveBeenLastCalledWith(30, 1, 'exclude', 'recent', 'orlando'))
+    await act(async () => next.resolve(listResult([])))
+    expect(screen.queryByRole('button', { name: en.artifacts.chat })).toBeNull()
+  })
+
+  it('ignores a late transcript and stops indexing the profile that was left', async () => {
+    const old = deferred<ReturnType<typeof messageResult>>()
+    vi.mocked(listAllProfileSessions)
+      .mockResolvedValueOnce(listResult([session(), session({ id: 'old-second' })]))
+      .mockResolvedValueOnce(listResult([session({ id: 'orlando-chat', profile: 'orlando', title: 'Orlando result' })]))
+    vi.mocked(getAllSessionMessages).mockImplementation(id =>
+      id === 'session-1' ? old.promise : Promise.resolve(messageResult(id))
+    )
+    renderArtifacts()
+    await waitFor(() => expect(getAllSessionMessages).toHaveBeenCalledWith('session-1', undefined))
+
+    act(() => $activeGatewayProfile.set('orlando'))
+    await screen.findByText('Orlando result')
+    await act(async () => old.resolve(messageResult('session-1')))
+
+    expect(screen.queryByText('Remover barba da foto')).toBeNull()
+    expect(screen.getByText('Orlando result')).toBeTruthy()
+    expect(getAllSessionMessages).not.toHaveBeenCalledWith('old-second', undefined)
+    expect(notify).not.toHaveBeenCalled()
+  })
+
+  it('does not report a late failure from the previous scope', async () => {
+    const old = deferred<ReturnType<typeof listResult>>()
+    vi.mocked(listAllProfileSessions).mockReturnValueOnce(old.promise).mockResolvedValueOnce(listResult([]))
+    renderArtifacts()
+
+    act(() => $activeGatewayProfile.set('orlando'))
+    await waitFor(() => expect(listAllProfileSessions).toHaveBeenCalledTimes(2))
+    await act(async () => old.reject(new Error('previous backend closed')))
+
+    expect(notifyError).not.toHaveBeenCalled()
+  })
+
+  it('reloads the same profile when the owning connection changes', async () => {
+    vi.mocked(listAllProfileSessions)
+      .mockResolvedValueOnce(listResult([session()]))
+      .mockResolvedValueOnce(listResult([session({ id: 'remote-chat', title: 'Remote result' })]))
+    renderArtifacts()
+    await screen.findByText('Remover barba da foto')
+
+    act(() =>
+      $connection.set({ connectionId: 'remote-source', mode: 'remote', profile: 'default' } as NonNullable<
+        ReturnType<typeof $connection.get>
+      >)
+    )
+    await screen.findByText('Remote result')
+    expect(screen.queryByText('Remover barba da foto')).toBeNull()
+    expect(listAllProfileSessions).toHaveBeenCalledTimes(2)
+  })
+
+  it('aggregates only in all-profiles mode, shows each owner, and returns to the selected profile', async () => {
+    setShowAllProfiles(true)
+    $activeGatewayProfile.set('orlando')
+    vi.mocked(listAllProfileSessions).mockResolvedValue(
+      listResult([
+        session({ profile: 'default', title: 'Default result' }),
+        session({ id: 'orlando-chat', profile: 'orlando', title: 'Orlando result' })
+      ])
+    )
+    vi.mocked(getAllSessionMessages).mockImplementation(async id =>
+      id === 'orlando-chat'
+        ? {
+            session_id: id,
+            messages: [
+              { content: '[report](https://example.com/report.csv)', role: 'assistant', timestamp: 1_700_000_100 }
+            ]
+          }
+        : messageResult(id)
+    )
+    renderArtifacts()
+    await screen.findByText('Orlando result')
+    expect(listAllProfileSessions).toHaveBeenLastCalledWith(30, 1, 'exclude', 'recent', 'all')
+    expect(screen.getByText('default')).toBeTruthy()
+    expect(screen.getByText('orlando')).toBeTruthy()
+    expect(getAllSessionMessages).toHaveBeenCalledWith('orlando-chat', 'orlando')
+
+    vi.mocked(listAllProfileSessions).mockResolvedValue(listResult([]))
+    act(() => setShowAllProfiles(false))
+    await waitFor(() => expect(listAllProfileSessions).toHaveBeenLastCalledWith(30, 1, 'exclude', 'recent', 'orlando'))
+    expect(screen.queryByText('Default result')).toBeNull()
+  })
+
   it('shows photos with the session caption and Chat, and links in a titled table', async () => {
     vi.mocked(listAllProfileSessions).mockResolvedValue({
       sessions: [session()],
