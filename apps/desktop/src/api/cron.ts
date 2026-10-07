@@ -52,9 +52,9 @@ export async function getCronJobRuns(jobId: string, limit = 20): Promise<Session
 // The single source of truth for cron delivery targets (local + configured
 // gateways). Both the manual cron editor and the blueprint dialog use this so
 // they never offer a platform that isn't connected. Mirrors the dashboard.
-export async function getCronDeliveryTargets(): Promise<CronDeliveryTarget[]> {
+export async function getCronDeliveryTargets(profile?: string): Promise<CronDeliveryTarget[]> {
   const { targets } = await work4youApi<{ targets: CronDeliveryTarget[] }>({
-    ...profileScoped(),
+    ...profileScoped(profile),
     ...connectionScoped(),
     path: '/api/cron/delivery-targets'
   })

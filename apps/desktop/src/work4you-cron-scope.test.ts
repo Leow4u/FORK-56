@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createCronJob,
   deleteCronJob,
+  getCronDeliveryTargets,
   getCronJob,
   getCronJobRuns,
   getCronJobs,
@@ -97,6 +98,25 @@ describe('cron helpers are profile-scoped', () => {
       expect((call[0] as { connectionId?: string }).connectionId).toBe('gw-tailscale')
       expect(call[0].profile).toBe('research')
     }
+  })
+
+  it('reads delivery targets from the creation owner without changing the active gateway', async () => {
+    setApiRequestProfile('research')
+    setApiRequestConnection('gw-tailscale')
+
+    await getCronDeliveryTargets('default')
+    expect(api.mock.calls.at(-1)?.[0]).toEqual({
+      path: '/api/cron/delivery-targets',
+      profile: 'default',
+      connectionId: 'gw-tailscale'
+    })
+
+    await getCronDeliveryTargets()
+    expect(api.mock.calls.at(-1)?.[0]).toEqual({
+      path: '/api/cron/delivery-targets',
+      profile: 'research',
+      connectionId: 'gw-tailscale'
+    })
   })
 
   it('list accepts an explicit ?profile= for endpoint-level filtering', () => {

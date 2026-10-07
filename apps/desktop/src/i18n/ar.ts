@@ -1799,6 +1799,33 @@ export const ar = defineLocale({
     failedRename: 'فشل إعادة التسمية'
   },
   cron: {
+    create: {
+      description: 'جدولة تعليمات لهذا الوكيل.',
+      useTemplate: 'استخدام قالب',
+      instructions: 'التعليمات',
+      project: 'اختيار مشروع',
+      noProject: 'بدون مشروع',
+      localProjectHint: 'مجلدات المشاريع للروتينات متاحة على الخادم المحلي.',
+      defaultModel: 'الافتراضي',
+      defaultModelHint: 'النموذج الافتراضي المضبوط',
+      ai: 'AI',
+      repeat: 'التكرار',
+      time: 'الوقت',
+      weekday: 'يوم الأسبوع',
+      monthDay: 'يوم الشهر',
+      minute: 'الدقيقة',
+      receive: 'مكان الاستلام',
+      receiveHint: 'اختر وجهة واحدة أو أكثر',
+      more: 'خيارات إضافية',
+      submit: 'إنشاء روتين',
+      customHint: 'استخدم تعبير cron أو فترة مثل every 30m أو every 2h.',
+      timezoneHint: 'تتبع الأوقات المنطقة الزمنية للبيئة التي تشغّل الروتين.',
+      retryDestinations: 'تعذّر تحميل الوجهات. أعد المحاولة.',
+      retryModels: 'تعذّر تحميل النماذج. أعد المحاولة.',
+      retryTemplates: 'تعذّر تحميل القوالب. أعد المحاولة.',
+      templateUnavailable: 'هذا القالب غير متاح. اختر قالباً آخر أو ابدأ بروتين مخصص.',
+      destinations: count => `${count} وجهات`
+    },
     close: 'إغلاق',
     modelImpact: {
       title: 'تحتاج المهام المجدولة إلى المراجعة',
