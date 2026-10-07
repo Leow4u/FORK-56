@@ -18,7 +18,7 @@ import { $paneStates, type PaneStateSnapshot, setPaneHeightOverride, setPaneWidt
 
 import { $layoutEditMode } from '../../edit-mode'
 import type { LayoutNode, SplitNode } from '../model'
-import { allPaneIds } from '../model'
+import { allPaneIds, anchorsMain } from '../model'
 import {
   $collapsedTreeSides,
   $hiddenTreePanes,
@@ -111,7 +111,7 @@ export function TreeSplit({ node, root, rootRow }: { node: SplitNode; root?: boo
       return false
     }
 
-    return allPaneIds(child).some(id => paneChrome(paneFor(id)).placement === 'main')
+    return allPaneIds(child).some(id => anchorsMain(id, paneChrome(paneFor(id)).placement))
   }
 
   // A pane leaves the grid when its contribution isn't registered (yet) — a

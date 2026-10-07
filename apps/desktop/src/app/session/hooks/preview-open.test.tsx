@@ -191,6 +191,16 @@ describe('preview routing', () => {
       await waitFor(() => expect($previewTarget.get()?.renderMode).toBe('preview'))
     })
 
+    // An agent asking for a blank tab gets the Browser on its blank page, not
+    // a broken "file does not exist" tab named about:blank.
+    it('opens a requested blank tab in the Browser', async () => {
+      render(<Harness />)
+
+      await emitPreviewOpen('about:blank')
+
+      await waitFor(() => expect($previewTarget.get()).toMatchObject({ kind: 'url', url: 'about:blank' }))
+    })
+
     // Offer, don't hijack: only an explicit open_preview call opens the rail.
     it('does not infer a preview from assistant prose', async () => {
       render(<Harness />)

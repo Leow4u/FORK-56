@@ -350,8 +350,9 @@ describe('PreviewPane console state', () => {
   })
 
   // `about:blank` in a webview is a white void that reads as broken against
-  // the app's chrome — the pane should say it's empty on purpose.
-  it('shows the blank-page empty state instead of a white void', async () => {
+  // the app's chrome — an empty Browser is a new tab: the address bar above,
+  // the conversation's tools below.
+  it('shows the new tab page instead of a white void', async () => {
     let rendered!: ReturnType<typeof render>
     await act(async () => {
       rendered = render(
@@ -359,7 +360,7 @@ describe('PreviewPane console state', () => {
       )
     })
 
-    expect(rendered.container.textContent).toContain('Type an address above')
+    expect(rendered.queryByRole('heading', { name: 'Tools' })).not.toBeNull()
 
     const webview = rendered.container.querySelector('webview') as HTMLElement
 
@@ -368,7 +369,7 @@ describe('PreviewPane console state', () => {
       webview.dispatchEvent(Object.assign(new Event('did-navigate'), { url: 'https://example.com' }))
     })
 
-    expect(rendered.container.textContent).not.toContain('Type an address above')
+    expect(rendered.queryByRole('heading', { name: 'Tools' })).toBeNull()
     expect(rendered.queryByRole('textbox', { name: 'Address' })).not.toBeNull()
   })
 

@@ -17,6 +17,7 @@ import { isSecondaryWindow } from '@/store/windows'
 
 import {
   allPaneIds,
+  anchorsMain,
   type DropPosition,
   findGroup,
   findGroupOfPane,
@@ -487,11 +488,6 @@ export const isHideOnlyPane = (paneId: string): boolean =>
 export const isSessionStripPane = (paneId: string): boolean =>
   paneId === 'workspace' || paneId.startsWith('session-tile:')
 
-/** A pane of the CONTENT AREA — an open preview (a page, a file, an artifact).
- *  A zone holding one draws its strip as `surface` tabs; the chat's strip
- *  keeps its own look even when a preview is stacked into it. */
-export const isContentAreaPane = (paneId: string): boolean => paneId.startsWith('preview-tile:')
-
 /** Any MAIN-placement tile's pane — a session, a page, a preview. The zones
  *  these stack into are real tab strips, so the generic tab verbs (⌘W, ⌃Tab)
  *  must serve them all; keying on the session prefix left ⌘W and ⌃Tab dead
@@ -683,6 +679,10 @@ export function treePanesWithPrefix(prefix: string): string[] {
  *  An atom so the strip re-renders when the action becomes available. */
 export const $newSessionTabAction = atom<(() => void) | null>(null)
 
+/** The content area's "+": open a new tab in the area (a blank Browser). Wired
+ *  by the app like `$newSessionTabAction`; null until wired (the "+" hides). */
+export const $newContentTabAction = atom<(() => void) | null>(null)
+
 /**
  * Keyboard slots (⌘1…⌘9, ⌃Tab) must index the SAME tabs the strip paints —
  * chrome-hidden panes (files in Focus layout), unregistered ones, and
@@ -809,8 +809,8 @@ function rootRow(): SplitNode | null {
 
   const hasMain = (node: LayoutNode): boolean => {
     if (node.type === 'group') {
-      return node.panes.some(
-        id => (panes.find(p => p.id === id)?.data as { placement?: string } | undefined)?.placement === 'main'
+      return node.panes.some(id =>
+        anchorsMain(id, (panes.find(p => p.id === id)?.data as { placement?: string } | undefined)?.placement)
       )
     }
 
@@ -904,10 +904,10 @@ export type TreeSide = 'left' | 'right'
 export const $collapsedTreeSides = atom<ReadonlySet<TreeSide>>(new Set())
 
 // Side visibility is DERIVED from an app store (the binding owns persistence
-// + button state). Reveals un-collapse the column directly instead of writing
-// back through the setter — the right side's store IS the file tree's toggle,
-// so a neighbour's reveal must not press it. Layout reset still reopens every
-// side through its setter, because there the toggles SHOULD move.
+// + button state). Reveals and layout reset open a side through its setter, so
+// the side's toggle always says what is on screen. (The right side's store
+// used to be the file tree's own toggle, and a neighbour's reveal dragged the
+// tree open; the side has its own record now.)
 const sideOpeners: Partial<Record<TreeSide, (open: boolean) => void>> = {}
 
 export function setTreeSideCollapsed(side: TreeSide, collapsed: boolean) {
@@ -923,24 +923,6 @@ export function setTreeSideCollapsed(side: TreeSide, collapsed: boolean) {
   if (!collapsed) {
     restoreDismissedSidePanes(side)
   }
-}
-
-/**
- * Does the layout have a collapsible root side of `side`? ⌘J's normal target is
- * the right sidebar; a layout without one (e.g. a terminal-on-bottom preset)
- * lets callers fall back to the terminal so ⌘J is never a dead key. Semantic —
- * reuses `rootChildSide`, so it tracks a ⌘\ flip / drag like the toggles do.
- */
-export function layoutHasRootSide(side: TreeSide): boolean {
-  const row = rootRow()
-
-  if (!row) {
-    return false
-  }
-
-  const panes = registry.getArea('panes')
-
-  return row.children.some(child => rootChildSide(child, id => panes.find(p => p.id === id)) === side)
 }
 
 /**
@@ -989,33 +971,12 @@ export function bindTreeSideVisibility(
   $open.listen(open => setTreeSideCollapsed(side, !open))
 }
 
-/** The chrome toggle owning `paneId`'s root-row column — SEMANTIC, matching
- *  the renderer's `rootChildSide`: ⌘B ⇔ the sessions column (left-placement
- *  panes) wherever it sits, ⌘J ⇔ the other side columns. Null for the main
- *  column (never side-collapsed). */
+/** The chrome toggle owning `paneId`'s root-row column — SEMANTIC, the
+ *  renderer's own `rootChildSide`: ⌘B ⇔ the sessions column (left-placement
+ *  panes) wherever it sits, ⌘J ⇔ the other side columns, the content area
+ *  among them. Null for the main column (never side-collapsed). */
 export function treeSideOfPane(paneId: string): TreeSide | null {
-  const row = rootRow()
-
-  if (!row) {
-    return null
-  }
-
-  const child = row.children.find(node => allPaneIds(node).includes(paneId))
-
-  if (!child) {
-    return null
-  }
-
-  const placementOf = (id: string) =>
-    (registry.getArea('panes').find(c => c.id === id)?.data as { placement?: string } | undefined)?.placement
-
-  const placements = allPaneIds(child).map(placementOf)
-
-  if (placements.includes('main')) {
-    return null
-  }
-
-  return placements.includes('left') ? 'left' : 'right'
+  return paneRootSide(paneId)
 }
 
 /**
@@ -1038,12 +999,17 @@ export function revealTreePane(paneId: string) {
   const side = treeSideOfPane(paneId)
 
   if (side && $collapsedTreeSides.get().has(side)) {
-    // Un-collapse the COLUMN, never the side's bound store: on the right that
-    // store is ⌘J / $fileBrowserOpen, i.e. the file tree's own toggle. Routing
-    // a reveal through it dragged the tree open behind every neighbour that
-    // shares the column — open the diff (⌘G) and the file tree appeared too.
-    // The tree opens only when the user opens it.
-    setTreeSideCollapsed(side, false)
+    // Through the side's own store when it has one, so its toggle doesn't read
+    // "show" for a side on screen (and spend the next press re-showing it).
+    // The file tree is no longer that store: opening the diff (⌘G) or a preview
+    // opens their side, never the tree.
+    const open = sideOpeners[side]
+
+    if (open) {
+      open(true)
+    } else {
+      setTreeSideCollapsed(side, false)
+    }
   }
 
   const hiddenNow = $hiddenTreePanes.get()

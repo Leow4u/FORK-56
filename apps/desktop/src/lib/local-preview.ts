@@ -178,6 +178,11 @@ export async function openPreviewTargetInBrowser(target: PreviewTarget): Promise
   await bridge.openPreviewInBrowser(pathToFileUrl(filePath))
 }
 
+/** The Browser's empty page — never a file, whatever the filesystem holds. An
+ *  agent asking for a blank tab gets the Browser on its blank page instead of a
+ *  "file does not exist" tab. */
+const BLANK_PAGE = /^about:blank$/i
+
 export function localPreviewTarget(rawTarget: string, cwd?: string | null): PreviewTarget | null {
   const raw = rawTarget.trim().replace(/^`|`$/g, '')
 
@@ -187,6 +192,10 @@ export function localPreviewTarget(rawTarget: string, cwd?: string | null): Prev
 
   if (/^https?:\/\//i.test(raw)) {
     return { kind: 'url', label: basename(raw), source: raw, url: raw }
+  }
+
+  if (BLANK_PAGE.test(raw)) {
+    return { kind: 'url', label: raw, source: raw, url: 'about:blank' }
   }
 
   let path = raw
@@ -261,6 +270,12 @@ export async function normalizeOrLocalPreviewTarget(
   rawTarget: string,
   cwd?: string | null
 ): Promise<PreviewTarget | null> {
+  // Settled before the desktop is asked: it resolves anything that isn't
+  // http(s) against the filesystem.
+  if (BLANK_PAGE.test(rawTarget.trim())) {
+    return localPreviewTarget(rawTarget, cwd)
+  }
+
   try {
     const normalized = await window.work4youDesktop?.normalizePreviewTarget?.(rawTarget, cwd || undefined)
 

@@ -289,7 +289,7 @@ export const pt = defineLocale({
       'composer.modelPicker': 'Abrir seletor de modelo',
       'composer.voice': 'Iniciar / parar conversa por voz',
       'view.toggleSidebar': 'Alternar barra lateral de sessões',
-      'view.toggleRightSidebar': 'Alternar navegador de arquivos',
+      'view.toggleRightSidebar': 'Alternar barra lateral direita',
       'view.toggleReview': 'Alternar painel de revisão',
       'view.toggleStatusbar': 'Alternar barra de status',
       'view.showFiles': 'Mostrar navegador de arquivos',
@@ -4750,6 +4750,11 @@ export const pt = defineLocale({
   },
 
   preview: {
+    newTab: {
+      tools: 'Ferramentas',
+      review: 'Diff / Revisão',
+      needsProject: 'Arquivos e Diff / Revisão precisam de um projeto aberto.'
+    },
     tab: 'Visualização',
     closePane: 'Fechar painel de visualização',
     loading: 'Carregando visualização',
@@ -4835,7 +4840,6 @@ export const pt = defineLocale({
       reload: 'Recarregar página',
       address: 'Endereço',
       addressPlaceholder: 'Digite uma URL',
-      blankPageBody: 'Digite um endereço acima para navegar ou peça ao Work4You para abrir uma página.',
       finishedRestarting: message =>
         `O Work4You terminou de reiniciar o servidor de visualização${message ? `: ${message}` : ''}`,
       failedRestarting: message => `Falha ao reiniciar o servidor: ${message}`,
@@ -4879,6 +4883,7 @@ export const pt = defineLocale({
     closeToRight: 'Fechar à direita',
     closeAll: 'Fechar todas',
     newSessionTab: 'Nova aba de sessão',
+    newTab: 'Nova aba',
     pluginDisabled: pluginId => `Plugin "${pluginId}" desativado`,
     pluginDisabledBody: 'Reative-o em Configurações → Plugins para trazer o painel de volta.',
     missingPane: paneId => `painel ausente: ${paneId}`,

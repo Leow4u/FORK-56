@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { registry } from '@/contrib/registry'
 
 import type { GroupNode } from '../model'
+import { $newContentTabAction } from '../store'
 
 import { TreeGroup } from './tree-group'
 
@@ -223,5 +224,50 @@ describe('TreeGroup', () => {
 
     render(<TreeGroup node={zone('terminal-zone', ['terminal'])} parentAxis="column" />)
     expect(stripVariant('terminal-zone')).toBe('underline')
+  })
+
+  // The content area's "+" opens a new tab in the area — only there.
+  it('offers the content area its own "+", and no other strip', () => {
+    const newTab = vi.fn()
+
+    $newContentTabAction.set(newTab)
+    disposePanes.push(
+      () => $newContentTabAction.set(null),
+      registry.register({
+        area: 'panes',
+        data: { placement: 'main' },
+        id: 'preview-tile:file:a',
+        render: () => <div>Preview</div>,
+        title: 'a.html'
+      }),
+      registry.register({
+        area: 'panes',
+        data: { height: '12rem' },
+        id: 'terminal',
+        render: () => <div>Terminal</div>,
+        title: 'Terminal'
+      })
+    )
+    vi.stubGlobal('CSS', { escape: (value: string) => value })
+
+    const plus = (id: string) =>
+      globalThis.document.querySelector<HTMLButtonElement>(`[data-tree-group="${id}"] button[aria-label="New tab"]`)
+
+    render(
+      <TreeGroup
+        node={{
+          active: 'preview-tile:file:a',
+          headerHidden: false,
+          id: 'area-zone',
+          panes: ['preview-tile:file:a'],
+          type: 'group'
+        }}
+      />
+    )
+    act(() => plus('area-zone')!.click())
+    expect(newTab).toHaveBeenCalledTimes(1)
+
+    render(<TreeGroup node={terminalGroup(false)} parentAxis="column" />)
+    expect(plus('terminal-zone')).toBeNull()
   })
 })

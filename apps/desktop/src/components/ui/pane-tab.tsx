@@ -3,7 +3,7 @@ import * as React from 'react'
 import { type MenuKit, renderActionItem } from '@/components/ui/actions-menu'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
-import { Tip } from '@/components/ui/tooltip'
+import { OverflowTip, Tip } from '@/components/ui/tooltip'
 import { translateNow } from '@/i18n'
 import { isMetaClose, middleClickHandlers } from '@/lib/middle-click'
 import { cn } from '@/lib/utils'
@@ -249,7 +249,8 @@ interface PaneTabLabelProps extends React.ComponentProps<'button'> {
 
 /** Truncating label inside a `PaneTab`. `className` merges into the text span
  *  (e.g. `normal-case tracking-normal` for filenames). On a `surface` strip the
- *  title keeps its own case at the tab's text size. */
+ *  title keeps its own case at the tab's text size, and a title cut short shows
+ *  in full on a lingering hover. */
 export const PaneTabLabel = React.forwardRef<HTMLElement, PaneTabLabelProps>(function PaneTabLabel(
   { as = 'span', className, children, ...props },
   ref
@@ -257,21 +258,25 @@ export const PaneTabLabel = React.forwardRef<HTMLElement, PaneTabLabelProps>(fun
   const Comp = as as React.ElementType
   const surface = React.useContext(PaneTabVariantContext) === 'surface'
 
+  const text = (
+    <span
+      className={cn(
+        'block min-w-0 truncate font-medium',
+        surface ? 'text-[0.6875rem]' : 'text-[9px] tracking-wide uppercase',
+        className
+      )}
+    >
+      {children}
+    </span>
+  )
+
   return (
     <Comp
       className="flex h-full min-w-0 max-w-full items-center overflow-hidden px-2 text-left outline-none group-data-[vertical]/tab:h-auto group-data-[vertical]/tab:w-full group-data-[vertical]/tab:justify-center group-data-[vertical]/tab:py-2"
       ref={ref}
       {...props}
     >
-      <span
-        className={cn(
-          'block min-w-0 truncate font-medium',
-          surface ? 'text-[0.6875rem]' : 'text-[9px] tracking-wide uppercase',
-          className
-        )}
-      >
-        {children}
-      </span>
+      {surface ? <OverflowTip label={children}>{text}</OverflowTip> : text}
     </Comp>
   )
 })

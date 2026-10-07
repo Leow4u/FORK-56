@@ -3690,6 +3690,12 @@ export interface Translations {
   }
 
   preview: {
+    /** What an empty Browser shows: the conversation's tools. */
+    newTab: {
+      tools: string
+      review: string
+      needsProject: string
+    }
     tab: string
     closePane: string
     loading: string
@@ -3771,7 +3777,6 @@ export interface Translations {
       reload: string
       address: string
       addressPlaceholder: string
-      blankPageBody: string
       finishedRestarting: (message?: string) => string
       failedRestarting: (message: string) => string
       unknownError: string
@@ -3810,6 +3815,7 @@ export interface Translations {
     closeToRight: string
     closeAll: string
     newSessionTab: string
+    newTab: string
     pluginDisabled: (pluginId: string) => string
     pluginDisabledBody: string
     missingPane: (paneId: string) => string

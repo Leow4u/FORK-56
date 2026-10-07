@@ -19,19 +19,29 @@
  * more column.
  */
 
-import { allPaneIds, findGroup, type LayoutNode } from '@/components/pane-shell/tree/model'
-import { $activeTreeGroup, $layoutTree, isSessionStripPane, revealTreePane } from '@/components/pane-shell/tree/store'
+import { allPaneIds, findGroup, findGroupOfPane, type LayoutNode } from '@/components/pane-shell/tree/model'
+import {
+  $activeTreeGroup,
+  $layoutTree,
+  $newContentTabAction,
+  activateTreePane,
+  isSessionStripPane,
+  revealTreePane
+} from '@/components/pane-shell/tree/store'
 import { FileTypeIcon } from '@/components/ui/file-type-icon'
 import { ToolIcon } from '@/components/ui/tool-icon'
 import { translateNow, useI18n } from '@/i18n'
 import { $rightRailActiveTabId, type RightRailTabId } from '@/store/layout'
 import {
   $allPreviewTabIds,
+  $previewOwner,
   $previewTabs,
   $previewTileSession,
   closeRightRailTab,
   followPreviewTile,
+  openBrowserTab,
   previewOwnerFor,
+  type PreviewTab,
   type PreviewTarget,
   selectPreviewTab
 } from '@/store/preview'
@@ -151,16 +161,63 @@ const areaAnchorFor = (tabId: string) =>
 export function watchPreviewTiles(): void {
   watchPreviewTileMirror()
 
-  // The reveal analog of session tiles (session-states calls revealTreePane on
-  // open): `openPreview` selects the tab, and the TREE must front its pane —
-  // un-minimize, un-hide, activate in its zone. Both stores, because re-opening
-  // the already-active tab changes only `$previewTabs` (fresh tab object), while
-  // switching tabs changes only the active id.
-  const reveal = () => {
-    const tabId = $rightRailActiveTabId.get()
+  // The area strip's "+" opens the Browser — a blank one when the
+  // conversation has none yet.
+  $newContentTabAction.set(openBrowserTab)
 
-    if (tabId && targetFor(tabId)) {
-      revealTreePane(`${PREVIEW_TILE_PREFIX}:${tabId}`)
+  // The reveal analog of session tiles (session-states calls revealTreePane on
+  // open): `openPreview` selects the tab, and the TREE must show its pane —
+  // un-minimize, un-hide, open its side, activate in its zone. Only an OPEN
+  // does: it hands the tab a fresh object. Anything else that moves the
+  // selection — coming back to another conversation, a close falling to the
+  // neighbour, a click in the strip — fronts the tab in its zone and no more,
+  // so an area the user folded stays folded. Both stores, because re-opening
+  // the already-active tab changes only `$previewTabs` (fresh tab object),
+  // while switching tabs changes only the active id.
+  const known = new WeakSet<PreviewTab>($previewTabs.get())
+  const opened = new WeakSet<PreviewTab>()
+  let knownOwner = $previewOwner.get()
+
+  const reveal = () => {
+    const owner = $previewOwner.get()
+    const tabs = $previewTabs.get()
+    const tabId = $rightRailActiveTabId.get()
+    const tab = tabId ? tabs.find(item => item.id === tabId) : undefined
+    // Another conversation's tabs coming into view are its own, not opens.
+    const switched = owner !== knownOwner
+
+    knownOwner = owner
+
+    for (const item of tabs) {
+      if (!known.has(item)) {
+        known.add(item)
+
+        if (!switched) {
+          opened.add(item)
+        }
+      }
+    }
+
+    if (!tab) {
+      return
+    }
+
+    const paneId = `${PREVIEW_TILE_PREFIX}:${tab.id}`
+
+    // Shown once, when it first comes to the front: the selection lands a
+    // moment after the tab itself.
+    if (opened.has(tab)) {
+      opened.delete(tab)
+      revealTreePane(paneId)
+
+      return
+    }
+
+    const tree = $layoutTree.get()
+    const group = tree ? findGroupOfPane(tree, paneId) : null
+
+    if (group && group.active !== paneId) {
+      activateTreePane(group.id, paneId)
     }
   }
 
@@ -274,7 +331,7 @@ const watchPreviewTileMirror = paneMirror<{ id: string }>({
   // first tab opens the area as its own zone docked beside main, sized by the
   // split weights — NOT anchored to the file tree: the old rail was a
   // files-adjacent strip, and carrying that over welded preview into the file
-  // browser's zone, so ⌘J (toggle file browser) took the preview with it.
+  // browser's zone, so toggling the file browser took the preview with it.
   anchor: tab => areaAnchorFor(tab.id),
   dir: tab => (areaAnchorFor(tab.id) ? 'center' : 'right'),
   minWidth: '22rem',
