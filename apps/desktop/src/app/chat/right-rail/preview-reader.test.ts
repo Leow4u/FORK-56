@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { $rightRailActiveTabId, selectRightRailTab } from '@/store/layout'
-import { closeRightRail, openPreview, type PreviewTarget } from '@/store/preview'
+import { $allPreviewTabs, closeRightRail, openPreview, previewOwnerFor, type PreviewTarget } from '@/store/preview'
+import { $selectedStoredSessionId } from '@/store/session'
 
 import { PREVIEW_READ_MAX_CHARS, readActivePreview, registerPreviewPageReader } from './preview-reader'
 
@@ -32,6 +33,8 @@ describe('readActivePreview (read_preview tool)', () => {
     }
 
     cleanups = []
+    $selectedStoredSessionId.set(null)
+    $allPreviewTabs.set([])
     closeRightRail()
     window.localStorage.clear()
   })
@@ -136,5 +139,31 @@ describe('readActivePreview (read_preview tool)', () => {
     first()
 
     expect(await readActivePreview()).toMatchObject({ text: 'second' })
+  })
+
+  // Tabs belong to conversations. An agent reads its own conversation's front
+  // tab — never the page on screen when that page is another conversation's,
+  // even though the two Browsers share a tab id.
+  it("reads the asking conversation's tab, not the page another conversation has on screen", async () => {
+    $selectedStoredSessionId.set('other')
+    openPreview(urlTarget('https://mine.example'), 'tool-result', previewOwnerFor('mine'))
+    openPreview(urlTarget('https://on-screen.example'), 'tool-result')
+    register($rightRailActiveTabId.get()!, async () => ({ text: 'on screen', title: '', url: '' }))
+
+    expect(await readActivePreview({}, previewOwnerFor('mine'))).toMatchObject({
+      note: expect.stringContaining('Not on screen') as string,
+      text: '',
+      url: 'https://mine.example'
+    })
+    expect(await readActivePreview({}, previewOwnerFor('other'))).toMatchObject({ text: 'on screen' })
+  })
+
+  it("answers an off-screen conversation's file tab with read_file, as on screen", async () => {
+    openPreview(fileTarget('/work/notes.md'), 'tool-result', previewOwnerFor('mine'))
+
+    expect(await readActivePreview({}, previewOwnerFor('mine'))).toMatchObject({
+      note: expect.stringContaining('read_file') as string,
+      path: '/work/notes.md'
+    })
   })
 })

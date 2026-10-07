@@ -14,7 +14,14 @@ import { reachablePreviewUrl } from '@/lib/preview-reach'
 import { rafCoalesce } from '@/lib/raf-coalesce'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
-import { $previewServerRestart, failPreviewServerRestart, type PreviewTarget } from '@/store/preview'
+import {
+  $previewServerRestart,
+  failPreviewServerRestart,
+  type PreviewOwner,
+  previewResumeUrl,
+  type PreviewTarget,
+  rememberPreviewUrl
+} from '@/store/preview'
 
 import { ArtifactPreview } from './preview-artifact'
 import { PreviewBrowserBar } from './preview-browser-bar'
@@ -88,6 +95,10 @@ interface GuestContextMenuParams {
 interface PreviewPaneProps {
   embedded?: boolean
   onRestartServer?: (url: string, context?: string) => Promise<string>
+  /** The conversation the tab belongs to — where its web page's address is
+   *  remembered. Fixed for the pane's life: a different conversation remounts
+   *  it (the followed one when absent). */
+  owner?: PreviewOwner
   reloadRequest?: number
   /** The preview tab this pane renders. Keys the per-tab console store the
    *  browser bar's console toggle and the console panel both read. */
@@ -201,7 +212,14 @@ function PreviewLoadError({
   )
 }
 
-export function PreviewPane({ embedded = false, onRestartServer, reloadRequest = 0, tabId, target }: PreviewPaneProps) {
+export function PreviewPane({
+  embedded = false,
+  onRestartServer,
+  owner,
+  reloadRequest = 0,
+  tabId,
+  target
+}: PreviewPaneProps) {
   const { t } = useI18n()
   const copy = t.preview.web
   // The console store belongs to the TAB, not this render: the toggles live on
@@ -218,7 +236,9 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
   const driveMark = useStore($previewDriveMark)
   const consoleHeight = useStore(consoleState.$height)
   const consoleOpen = useStore(consoleState.$open)
-  const [currentUrl, setCurrentUrl] = useState(target.url)
+  // A web tab reopens where it had navigated to (its conversation remembers),
+  // not on the page it was opened with.
+  const [currentUrl, setCurrentUrl] = useState(() => (tabId && previewResumeUrl(tabId, owner)) || target.url)
   const [devtoolsOpen, setDevtoolsOpen] = useState(false)
   const [history, setHistory] = useState({ back: false, forward: false })
   const [loading, setLoading] = useState(true)
@@ -734,7 +754,10 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
 
     host.replaceChildren()
     webviewRef.current = null
-    setCurrentUrl(target.url)
+
+    const startUrl = (tabId && previewResumeUrl(tabId, owner)) || target.url
+
+    setCurrentUrl(startUrl)
     setDevtoolsOpen(false)
     setHistory({ back: false, forward: false })
     setLoadError(null)
@@ -750,7 +773,7 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
     const webview = document.createElement('webview') as PreviewWebview
     webview.className = 'flex h-full w-full flex-1 bg-transparent'
     webview.setAttribute('partition', 'persist:work4you-preview')
-    webview.setAttribute('src', target.url)
+    webview.setAttribute('src', startUrl)
     webview.setAttribute('webpreferences', 'contextIsolation=yes,nodeIntegration=no,sandbox=yes')
 
     const onConsole = (event: Event) => {
@@ -788,6 +811,12 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
       if (detail.url) {
         setLoadError(null)
         setCurrentUrl(detail.url)
+
+        // Under the pane's own conversation: a page that moves while the area is
+        // switching to another conversation must not land in that one.
+        if (tabId) {
+          rememberPreviewUrl(tabId, detail.url, owner)
+        }
       }
 
       // Ask the webview rather than counting navigations: the guest page can
@@ -936,7 +965,7 @@ export function PreviewPane({ embedded = false, onRestartServer, reloadRequest =
       webview.removeEventListener('did-stop-loading', onStop)
       webview.remove()
     }
-  }, [appendConsoleEntry, consoleState, copy, isRemoteHtml, isWebPreview, target.url])
+  }, [appendConsoleEntry, consoleState, copy, isRemoteHtml, isWebPreview, owner, tabId, target.url])
 
   return (
     <aside

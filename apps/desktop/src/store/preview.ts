@@ -1,21 +1,40 @@
 import { atom, computed } from 'nanostores'
 
-import { persistentAtom } from '@/lib/persisted'
+import { connectionScopedAtom } from '@/lib/connection-scoped'
+import { Codecs } from '@/lib/persisted'
+import { stableArray } from '@/lib/stable-array'
 import { normalize } from '@/lib/text'
+import type { SessionInfo } from '@/types/work4you'
 
 import { $rightRailActiveTabId, type RightRailTabId, selectRightRailTab } from './layout'
+import { $activeGatewayProfile, normalizeProfileKey } from './profile-identity'
+import {
+  $activeSessionId,
+  $selectedStoredSessionId,
+  $sessions,
+  lineageAliases,
+  sessionMatchesStoredId,
+  sessionPinId
+} from './session'
 
 /**
- * PREVIEW RAIL — one list of tabs, one way in.
+ * PREVIEW TABS — one list of tabs per conversation, one way in.
  *
- * Everything the rail can show is a `PreviewTarget` in `$previewTabs`: a file
- * on disk, a live URL, or a generated artifact. There is no privileged "live
- * preview" slot alongside the tabs; `openPreview` is the only entry point, so
- * a tool result, a file-browser click, and an artifact card all travel the
- * same road and behave identically once open.
+ * Everything the content area can show is a `PreviewTarget`: a file on disk, a
+ * live URL, or a generated artifact. There is no privileged "live preview" slot
+ * alongside the tabs; `openPreview` is the only entry point, so a tool result,
+ * a file-browser click, and an artifact card all travel the same road and
+ * behave identically once open.
  *
- * Tabs are global and outlive the session that created them, like tabs
- * anywhere else — they close when you close them.
+ * Every tab belongs to the conversation that opened it: its `owner` is a
+ * profile plus the conversation's lineage root, so compression can't orphan
+ * it. A chat that has no conversation yet owns its tabs as the profile's
+ * draft and hands them to the conversation its first message creates.
+ * `$allPreviewTabs` is every owner's tabs, persisted per connection;
+ * `$previewTabs` is the followed conversation's — what the strip, ⌘W, the
+ * panes and the agent's page tools read. Switching conversations swaps that
+ * view and closes nothing; tabs close when you close them, or when their
+ * conversation is archived or deleted.
  */
 
 export interface PreviewTarget {
@@ -55,14 +74,48 @@ export interface PreviewServerRestart {
  *  "run it". Not a separate code path — just a property of the target. */
 export type PreviewRecordSource = 'explicit-link' | 'file-browser' | 'manual' | 'tool-result'
 
+/** The conversation a tab belongs to. `session` is the conversation's lineage
+ *  root (its stored id until the session row is known), or `PREVIEW_DRAFT` for
+ *  a chat whose first message hasn't created a conversation yet. */
+export interface PreviewOwner {
+  profile: string
+  session: string
+}
+
 export interface PreviewTab {
   id: RightRailTabId
+  owner: PreviewOwner
   target: PreviewTarget
 }
 
-const TABS_STORAGE_KEY = 'work4you.desktop.previewTabs.v2'
-/** Superseded by the tab list above; cleared so it can't leak forever. */
-const LEGACY_SESSION_REGISTRY_KEY = 'work4you.desktop.sessionPreviews.v1'
+/** What a conversation remembers about its tabs while it is off screen. */
+interface PreviewOwnerState {
+  /** The tab that was in front. */
+  active?: RightRailTabId
+  /** Where a web tab had navigated to, by tab id — it reopens there. */
+  urls?: Partial<Record<RightRailTabId, string>>
+}
+
+/** profile → conversation key → state. */
+type PreviewOwnerStates = Record<string, Record<string, PreviewOwnerState>>
+
+type OwnerRow = Pick<SessionInfo, '_lineage_root_id' | 'id' | 'profile'>
+
+/** Owner session for tabs opened before a conversation exists. */
+export const PREVIEW_DRAFT = 'draft'
+
+// Connection-scoped: a conversation id is only meaningful against the backend
+// that minted it.
+const TABS_STORAGE_KEY = 'work4you.desktop.previewTabs.v4'
+const OWNER_STATE_STORAGE_KEY = 'work4you.desktop.previewTabState.v1'
+
+/** Superseded storage, cleared so it can't leak forever. Rows written before
+ *  tabs had an owner can't be placed in a conversation, so they are dropped. */
+const LEGACY_STORAGE_KEYS = [
+  'work4you.desktop.sessionPreviews.v1',
+  'work4you.desktop.previewTabs.v2',
+  'work4you.desktop.previewTabs.v3'
+]
 
 function isPreviewTarget(value: unknown): value is PreviewTarget {
   if (!value || typeof value !== 'object') {
@@ -79,6 +132,16 @@ function isPreviewTarget(value: unknown): value is PreviewTarget {
   )
 }
 
+function isPreviewOwner(value: unknown): value is PreviewOwner {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const r = value as Record<string, unknown>
+
+  return typeof r.profile === 'string' && r.profile.length > 0 && typeof r.session === 'string' && r.session.length > 0
+}
+
 // Artifact tabs are never written (their registry is memory-only), so a
 // restored artifact row is stale storage — drop it rather than reviving a tab
 // with nothing behind it.
@@ -89,7 +152,12 @@ function isPreviewTab(value: unknown): value is PreviewTab {
 
   const r = value as Record<string, unknown>
 
-  return typeof r.id === 'string' && (r.id.startsWith('file:') || r.id.startsWith('url:')) && isPreviewTarget(r.target)
+  return (
+    typeof r.id === 'string' &&
+    (r.id.startsWith('file:') || r.id.startsWith('url:')) &&
+    isPreviewOwner(r.owner) &&
+    isPreviewTarget(r.target)
+  )
 }
 
 function isPdfFileTarget(target: PreviewTarget): boolean {
@@ -112,13 +180,15 @@ function isPdfFileTarget(target: PreviewTarget): boolean {
   }
 }
 
+const ownerKey = (owner: PreviewOwner) => `${owner.profile}\u0000${owner.session}`
+
 /** The one Browser tab's id. URL targets all share it: the tab names the
  *  SURFACE (Browser), not the page, so opening a second URL navigates the
  *  browser it already has — re-front the tab, swap its target, and the pane
  *  rebuilds its webview against the new url. Files and artifacts stay keyed
- *  by identity; only the web surface is a singleton. Declared ahead of the
- *  restore below, which keys URL tabs with it while the module is still
- *  loading. */
+ *  by identity; only the web surface is a singleton (one per conversation).
+ *  Declared ahead of the restore below, which keys URL tabs with it while the
+ *  module is still loading. */
 const BROWSER_TAB_ID: RightRailTabId = 'url:browser'
 
 export function previewTabId(target: PreviewTarget): RightRailTabId {
@@ -137,17 +207,25 @@ export function decodePreviewTabs(raw: string): PreviewTab[] {
       : tab
   )
 
-  // One Browser: rekey restored URL tabs onto the singleton id (rows written
-  // before the id existed carried one id per address) and keep only the
-  // LAST — the most recently opened page is the one the browser shows.
-  const lastUrl = tabs.findLast(tab => tab.target.kind === 'url')
+  // One Browser per conversation: rekey restored URL tabs onto the singleton id
+  // and keep only each conversation's LAST — the most recently opened page is
+  // the one its browser shows.
+  const lastUrlByOwner = new Map<string, PreviewTab>()
+
+  for (const tab of tabs) {
+    if (tab.target.kind === 'url') {
+      lastUrlByOwner.set(ownerKey(tab.owner), tab)
+    }
+  }
 
   return tabs
-    .filter(tab => tab.target.kind !== 'url' || tab === lastUrl)
+    .filter(tab => tab.target.kind !== 'url' || lastUrlByOwner.get(ownerKey(tab.owner)) === tab)
     .map(tab => (tab.target.kind === 'url' ? { ...tab, id: previewTabId(tab.target) } : tab))
 }
 
-export const $previewTabs = persistentAtom<PreviewTab[]>(TABS_STORAGE_KEY, [], {
+/** Every conversation's tabs. Read the followed conversation's through
+ *  `$previewTabs`; write through the functions below. */
+export const $allPreviewTabs = connectionScopedAtom<PreviewTab[]>(TABS_STORAGE_KEY, [], {
   decode: decodePreviewTabs,
   // Inline bytes are not restorable. Strip them from images, and skip remote
   // HTML and artifact tabs that cannot render without their in-memory payload.
@@ -163,28 +241,385 @@ export const $previewTabs = persistentAtom<PreviewTab[]>(TABS_STORAGE_KEY, [], {
     )
 })
 
+function sanitizeOwnerStates(value: unknown): PreviewOwnerStates {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  const states: PreviewOwnerStates = {}
+
+  for (const [profile, sessions] of Object.entries(value)) {
+    if (!sessions || typeof sessions !== 'object' || Array.isArray(sessions)) {
+      continue
+    }
+
+    for (const [session, state] of Object.entries(sessions)) {
+      if (!state || typeof state !== 'object' || Array.isArray(state)) {
+        continue
+      }
+
+      const record = state as Record<string, unknown>
+      const next: PreviewOwnerState = {}
+
+      if (typeof record.active === 'string') {
+        next.active = record.active as RightRailTabId
+      }
+
+      if (record.urls && typeof record.urls === 'object' && !Array.isArray(record.urls)) {
+        const urls = Object.entries(record.urls).filter(
+          (entry): entry is [RightRailTabId, string] => typeof entry[1] === 'string'
+        )
+
+        if (urls.length) {
+          next.urls = Object.fromEntries(urls)
+        }
+      }
+
+      if (next.active || next.urls) {
+        states[profile] = { ...states[profile], [session]: next }
+      }
+    }
+  }
+
+  return states
+}
+
+const $ownerStates = connectionScopedAtom<PreviewOwnerStates>(
+  OWNER_STATE_STORAGE_KEY,
+  {},
+  Codecs.json(sanitizeOwnerStates)
+)
+
 if (typeof window !== 'undefined') {
   try {
-    window.localStorage.removeItem(LEGACY_SESSION_REGISTRY_KEY)
+    LEGACY_STORAGE_KEYS.forEach(key => window.localStorage.removeItem(key))
   } catch {
     // Storage access can throw in locked-down contexts; nothing depends on it.
   }
 }
 
+/** The row a stored id names. Ids are per profile — two profiles can hold the
+ *  same one, and the lists mix profiles — so a tie breaks toward the live
+ *  gateway: opening or running a session swaps the gateway onto its profile.
+ *  Same rule as the unread store. */
+function ownerRow(stored: string, sessions: readonly OwnerRow[], activeProfile: string): OwnerRow | undefined {
+  const matches = sessions.filter(session => sessionMatchesStoredId(session, stored))
+
+  if (matches.length < 2) {
+    return matches[0]
+  }
+
+  const live = normalizeProfileKey(activeProfile)
+
+  return matches.find(row => normalizeProfileKey(row.profile) === live) ?? matches[0]
+}
+
+/** The owner a conversation's tabs are kept under: its profile plus its
+ *  lineage root, or the profile's draft when there is no conversation (null).
+ *  The profile is the row's own (absent → "default", as everywhere sessions
+ *  are scoped); with no row yet, the live gateway's. */
+export function previewOwnerFor(
+  storedSessionId: null | string | undefined,
+  sessions: readonly OwnerRow[] = $sessions.get(),
+  activeProfile: string = $activeGatewayProfile.get()
+): PreviewOwner {
+  const stored = storedSessionId?.trim() || null
+  const row = stored ? ownerRow(stored, sessions, activeProfile) : undefined
+
+  return {
+    profile: normalizeProfileKey(row ? row.profile : activeProfile),
+    session: row ? sessionPinId(row) : (stored ?? PREVIEW_DRAFT)
+  }
+}
+
+/** Whether `candidate` names the same conversation as `owner` — across
+ *  compression too: a tab written under a tip id before the session row was
+ *  known still belongs to the lineage root it resolves to now. */
+function sameOwner(owner: PreviewOwner, candidate: PreviewOwner, sessions: readonly OwnerRow[]): boolean {
+  if (owner.profile !== candidate.profile) {
+    return false
+  }
+
+  if (owner.session === candidate.session) {
+    return true
+  }
+
+  if (owner.session === PREVIEW_DRAFT || candidate.session === PREVIEW_DRAFT) {
+    return false
+  }
+
+  return lineageAliases(owner.session, sessions).includes(candidate.session)
+}
+
+/** A session tile the content area follows instead of the primary chat — the
+ *  conversation the user last worked in, kept current by the area's wiring
+ *  (it knows the layout). Null = follow the primary chat. */
+export const $previewTileSession = atom<null | string>(null)
+
+export function followPreviewTile(storedSessionId: null | string) {
+  if ($previewTileSession.get() !== storedSessionId) {
+    $previewTileSession.set(storedSessionId)
+  }
+}
+
+/** The conversation the content area follows (null = the primary chat's draft). */
+export const $previewSession = computed(
+  [$previewTileSession, $selectedStoredSessionId],
+  (tile, selected) => tile ?? selected
+)
+
+let followedOwner: PreviewOwner = previewOwnerFor($previewSession.get())
+
+/** Owner of the followed conversation's tabs. Keeps its identity until the
+ *  conversation really changes, so listeners don't fire on list refreshes. */
+export const $previewOwner = computed(
+  [$previewSession, $sessions, $activeGatewayProfile],
+  (session, sessions, profile) => {
+    const next = previewOwnerFor(session, sessions, profile)
+
+    return next.profile === followedOwner.profile && next.session === followedOwner.session
+      ? followedOwner
+      : (followedOwner = next)
+  }
+)
+
+/** A stable string for an owner — a React key or a map key. */
+export const previewOwnerKey = ownerKey
+
+/** Whether `owner` is the conversation on screen (undefined = an unattributed
+ *  request, which speaks for the screen as it always has). */
+export function isFollowedPreviewOwner(owner: PreviewOwner | undefined): boolean {
+  return !owner || sameOwner($previewOwner.get(), owner, $sessions.get())
+}
+
+function tabsOf(owner: PreviewOwner, tabs = $allPreviewTabs.get(), sessions = $sessions.get()): PreviewTab[] {
+  return tabs.filter(tab => sameOwner(owner, tab.owner, sessions))
+}
+
+let followedTabs: readonly PreviewTab[] = []
+
+/** The followed conversation's tabs — what the strip, ⌘W, the panes and the
+ *  agent's page tools read. */
+export const $previewTabs = computed(
+  [$allPreviewTabs, $previewOwner, $sessions],
+  (tabs, owner, sessions) => (followedTabs = stableArray(followedTabs, tabsOf(owner, tabs, sessions)))
+)
+
+let allTabIds: readonly string[] = []
+
+/** Every open tab id across conversations. A tab of a conversation that is off
+ *  screen is out of view, not closed — its pane keeps its place in the layout. */
+export const $allPreviewTabIds = computed(
+  $allPreviewTabs,
+  tabs => (allTabIds = stableArray(allTabIds, [...new Set(tabs.map(tab => tab.id))]))
+)
+
+function ownerStateKey(owner: PreviewOwner, states = $ownerStates.get(), sessions = $sessions.get()) {
+  const bucket = states[owner.profile]
+
+  if (!bucket) {
+    return undefined
+  }
+
+  if (bucket[owner.session]) {
+    return owner.session
+  }
+
+  return Object.keys(bucket).find(session => sameOwner(owner, { profile: owner.profile, session }, sessions))
+}
+
+function readOwnerState(owner: PreviewOwner): PreviewOwnerState | undefined {
+  const key = ownerStateKey(owner)
+
+  return key ? $ownerStates.get()[owner.profile]?.[key] : undefined
+}
+
+function writeOwnerState(owner: PreviewOwner, update: (state: PreviewOwnerState) => PreviewOwnerState) {
+  const states = $ownerStates.get()
+  const key = ownerStateKey(owner, states) ?? owner.session
+  const bucket = { ...states[owner.profile] }
+  const next = update(bucket[key] ?? {})
+  const urls = next.urls && Object.keys(next.urls).length ? next.urls : undefined
+  const state: PreviewOwnerState = { ...(next.active ? { active: next.active } : {}), ...(urls ? { urls } : {}) }
+
+  if (state.active || state.urls) {
+    bucket[key] = state
+  } else {
+    delete bucket[key]
+  }
+
+  const nextStates = { ...states }
+
+  if (Object.keys(bucket).length) {
+    nextStates[owner.profile] = bucket
+  } else {
+    delete nextStates[owner.profile]
+  }
+
+  $ownerStates.set(nextStates)
+}
+
+function withoutUrl(state: PreviewOwnerState, tabId: RightRailTabId): PreviewOwnerState {
+  if (!state.urls?.[tabId]) {
+    return state
+  }
+
+  const { [tabId]: _dropped, ...urls } = state.urls
+
+  return { ...state, urls }
+}
+
 /** The tab the rail actually shows. A stale or missing selection falls back to
  *  the first tab, so the strip, `⌘W`, and the pane never disagree about which
  *  tab is on screen. */
-function resolveActiveTab(tabs: PreviewTab[], activeTabId: RightRailTabId | null): PreviewTab | null {
+function resolveActiveTab(tabs: readonly PreviewTab[], activeTabId: RightRailTabId | null): PreviewTab | null {
   return tabs.find(tab => tab.id === activeTabId) ?? tabs[0] ?? null
 }
 
-function activePreviewTab(): PreviewTab | null {
-  return resolveActiveTab($previewTabs.get(), $rightRailActiveTabId.get())
+/** Front `tabId` in the followed conversation, and remember it as the tab that
+ *  conversation shows when the user comes back to it. */
+export function selectPreviewTab(tabId: RightRailTabId | null) {
+  const owner = $previewOwner.get()
+
+  selectRightRailTab(tabId)
+
+  if ((readOwnerState(owner)?.active ?? null) !== tabId) {
+    writeOwnerState(owner, state => ({ ...state, active: tabId ?? undefined }))
+  }
 }
 
-// A restored active id whose tab didn't survive validation would leave the rail
-// pointing at nothing.
-selectRightRailTab(activePreviewTab()?.id ?? null)
+let reconciledOwner = $previewOwner.get()
+
+// The selection always names one of the followed conversation's tabs. Coming
+// back to a conversation fronts the tab it had in front; otherwise a selection
+// that no longer exists (a restored id that didn't survive validation, a tab
+// closed elsewhere) falls back to the first tab.
+function reconcileActiveTab() {
+  const owner = $previewOwner.get()
+  const tabs = $previewTabs.get()
+  const current = $rightRailActiveTabId.get()
+  const remembered = readOwnerState(owner)?.active
+  const preferred = owner === reconciledOwner ? [current, remembered] : [remembered, current]
+
+  reconciledOwner = owner
+
+  const id = preferred.find(candidate => candidate && tabs.some(tab => tab.id === candidate)) ?? tabs[0]?.id ?? null
+
+  if (id !== current) {
+    selectRightRailTab(id)
+  }
+}
+
+/** A draft just became a conversation: its tabs, and what it remembered about
+ *  them, follow it. A tab the conversation already holds wins over the draft's. */
+function adoptDraftPreviewTabs(storedSessionId: string) {
+  const owner = previewOwnerFor(storedSessionId)
+  const draft: PreviewOwner = { profile: owner.profile, session: PREVIEW_DRAFT }
+  const all = $allPreviewTabs.get()
+
+  if (owner.session === PREVIEW_DRAFT || !all.some(tab => sameOwner(draft, tab.owner, []))) {
+    return
+  }
+
+  const held = new Set(tabsOf(owner, all).map(tab => tab.id))
+  const draftState = readOwnerState(draft)
+
+  $allPreviewTabs.set(
+    all.flatMap(tab => (!sameOwner(draft, tab.owner, []) ? [tab] : held.has(tab.id) ? [] : [{ ...tab, owner }]))
+  )
+
+  if (draftState) {
+    writeOwnerState(owner, state => ({
+      active: state.active ?? draftState.active,
+      urls: { ...draftState.urls, ...state.urls }
+    }))
+    writeOwnerState(draft, () => ({}))
+  }
+}
+
+// A draft's first message creates its conversation: the runtime goes live,
+// then the stored id lands. Tabs opened meanwhile were the draft's; they belong
+// to the conversation it just became. Resuming another conversation from an
+// empty draft has no live runtime yet, so it never adopts. (Registered before
+// the selection reconcile below, so the conversation already holds the draft's
+// tabs when the area switches to it.)
+let lastSelectedSessionId = $selectedStoredSessionId.get()
+
+$selectedStoredSessionId.listen(selected => {
+  const previous = lastSelectedSessionId
+
+  lastSelectedSessionId = selected
+
+  if (previous === null && selected && $activeSessionId.get()) {
+    adoptDraftPreviewTabs(selected)
+  }
+})
+
+// A tab (or remembered state) written under a conversation's live id before
+// its session row was known moves onto the lineage root as soon as the row
+// says what that is — the live id rotates on every compression, the root
+// never does. Same move the composer makes for drafts.
+function rootPreviewOwners(sessions: readonly OwnerRow[]) {
+  // Only the owner's own profile's rows: the same id in another profile is
+  // another conversation.
+  const rootOf = ({ profile, session }: PreviewOwner) => {
+    if (session === PREVIEW_DRAFT) {
+      return session
+    }
+
+    const row = sessions.find(
+      candidate => normalizeProfileKey(candidate.profile) === profile && sessionMatchesStoredId(candidate, session)
+    )
+
+    return row ? sessionPinId(row) : session
+  }
+
+  const tabs = $allPreviewTabs.get()
+
+  if (tabs.some(tab => rootOf(tab.owner) !== tab.owner.session)) {
+    $allPreviewTabs.set(
+      tabs.map(tab => {
+        const session = rootOf(tab.owner)
+
+        return session === tab.owner.session ? tab : { ...tab, owner: { ...tab.owner, session } }
+      })
+    )
+  }
+
+  const states = $ownerStates.get()
+
+  for (const [profile, bucket] of Object.entries(states)) {
+    for (const [session, state] of Object.entries(bucket)) {
+      const root = rootOf({ profile, session })
+
+      if (root !== session) {
+        writeOwnerState({ profile, session }, () => ({}))
+        writeOwnerState({ profile, session: root }, current => ({
+          active: current.active ?? state.active,
+          urls: { ...state.urls, ...current.urls }
+        }))
+      }
+    }
+  }
+}
+
+rootPreviewOwners($sessions.get())
+$sessions.listen(rootPreviewOwners)
+
+// What a conversation remembers is only about its tabs. One whose tabs didn't
+// survive the restart (artifacts and remote pages are never kept) has nothing
+// left to remember, so it isn't carried forward.
+for (const [profile, bucket] of Object.entries($ownerStates.get())) {
+  for (const session of Object.keys(bucket)) {
+    if (!$allPreviewTabs.get().some(tab => sameOwner({ profile, session }, tab.owner, []))) {
+      writeOwnerState({ profile, session }, () => ({}))
+    }
+  }
+}
+
+reconcileActiveTab()
+$previewOwner.listen(reconcileActiveTab)
+$previewTabs.listen(reconcileActiveTab)
 
 /** The target the rail is currently showing, or null when it has no tabs. */
 export const $previewTarget = computed(
@@ -216,16 +651,36 @@ function previewTargetForSource(target: PreviewTarget, source: PreviewRecordSour
 
 /** Open (or re-front) the tab for `target`. Re-opening an existing tab refreshes
  *  its target so a stale label/path can't outlive the thing it points at. The
- *  only way anything reaches a preview. */
-export function openPreview(target: PreviewTarget, source: PreviewRecordSource = 'manual') {
+ *  only way anything reaches a preview.
+ *
+ *  `owner` is the conversation the tab belongs to — the followed one unless
+ *  said otherwise (an agent opens into its own conversation). A tab for a
+ *  conversation that is off screen waits there, in front for when the user
+ *  comes back; it never pulls the area over to it. */
+export function openPreview(target: PreviewTarget, source: PreviewRecordSource = 'manual', owner?: PreviewOwner) {
   const resolved = previewTargetForSource(target, source)
   const id = previewTabId(resolved)
-  const current = $previewTabs.get()
-  const index = current.findIndex(tab => tab.id === id)
-  const tab: PreviewTab = { id, target: resolved }
+  const followed = $previewOwner.get()
+  const sessions = $sessions.get()
+  const tabOwner = owner ?? followed
+  const current = $allPreviewTabs.get()
+  const index = current.findIndex(tab => tab.id === id && sameOwner(tabOwner, tab.owner, sessions))
+  const previous = index === -1 ? null : current[index]
+  const tab: PreviewTab = { id, owner: previous?.owner ?? tabOwner, target: resolved }
 
-  $previewTabs.set(index === -1 ? [...current, tab] : current.map((item, i) => (i === index ? tab : item)))
-  selectRightRailTab(id)
+  $allPreviewTabs.set(index === -1 ? [...current, tab] : current.map((item, i) => (i === index ? tab : item)))
+
+  // A new page for the same tab: the place the old page had navigated to no
+  // longer applies.
+  if (previous && previous.target.url !== resolved.url) {
+    writeOwnerState(tab.owner, state => withoutUrl(state, id))
+  }
+
+  if (sameOwner(followed, tab.owner, sessions)) {
+    selectPreviewTab(id)
+  } else {
+    writeOwnerState(tab.owner, state => ({ ...state, active: id }))
+  }
 }
 
 /** Open the Browser tab — the surface, not a page. Keeps whatever it was last
@@ -237,24 +692,32 @@ export function openBrowserTab() {
   openPreview(existing?.target ?? { kind: 'url', label: 'Browser', source: 'about:blank', url: 'about:blank' })
 }
 
-export function closeRightRailTab(tabId: string) {
-  const current = $previewTabs.get()
-  const index = current.findIndex(tab => tab.id === tabId)
+/** Close `owner`'s tab `tabId` (the followed conversation's by default). */
+export function closeRightRailTab(tabId: string, owner?: PreviewOwner) {
+  const followed = $previewOwner.get()
+  const sessions = $sessions.get()
+  const tabOwner = owner ?? followed
+  const all = $allPreviewTabs.get()
+  const owned = tabsOf(tabOwner, all, sessions)
+  const index = owned.findIndex(tab => tab.id === tabId)
 
   if (index === -1) {
     return
   }
 
-  const next = current.filter(tab => tab.id !== tabId)
+  const closing = owned[index]
+  const next = owned.filter(tab => tab !== closing)
+  const neighbour = next[Math.min(index, next.length - 1)]?.id ?? null
 
-  $previewTabs.set(next)
+  $allPreviewTabs.set(all.filter(tab => tab !== closing))
+  writeOwnerState(tabOwner, state => withoutUrl(state, closing.id))
 
-  if ($rightRailActiveTabId.get() === tabId) {
-    selectRightRailTab(next[Math.min(index, next.length - 1)]?.id ?? null)
-  }
-
-  if (next.length === 0) {
-    selectRightRailTab(null)
+  if (sameOwner(followed, tabOwner, sessions)) {
+    if ($rightRailActiveTabId.get() === tabId || next.length === 0) {
+      selectPreviewTab(next.length ? neighbour : null)
+    }
+  } else if (readOwnerState(tabOwner)?.active === tabId) {
+    writeOwnerState(tabOwner, state => ({ ...state, active: neighbour ?? undefined }))
   }
 }
 
@@ -263,17 +726,24 @@ export function closePreviewForSource(source: string): boolean {
   return closePreviewMatching(source)
 }
 
-/** Close the first tab whose source, url, or label matches any candidate.
- *  Empty candidates are a no-op so a missed match cannot wipe the rail —
- *  closing the whole pane is `closeRightRail`. */
+/** Close the followed conversation's first tab whose source, url, or label
+ *  matches any candidate. */
 export function closePreviewMatching(...candidates: string[]): boolean {
+  return closePreviewMatchingIn(undefined, ...candidates)
+}
+
+/** Close `owner`'s first tab whose source, url, or label matches any
+ *  candidate (the followed conversation's when `owner` is undefined). Empty
+ *  candidates are a no-op so a missed match cannot wipe the rail — closing
+ *  every tab is `closeRightRail`. */
+export function closePreviewMatchingIn(owner: PreviewOwner | undefined, ...candidates: string[]): boolean {
   const queries = [...new Set(candidates.map(value => value.trim()).filter(Boolean))]
 
   if (queries.length === 0) {
     return false
   }
 
-  const tab = $previewTabs.get().find(item => {
+  const tab = tabsOf(owner ?? $previewOwner.get()).find(item => {
     const fields = [item.target.source, item.target.url, item.target.label]
 
     return queries.some(query => fields.includes(query))
@@ -283,25 +753,111 @@ export function closePreviewMatching(...candidates: string[]): boolean {
     return false
   }
 
-  closeRightRailTab(tab.id)
+  closeRightRailTab(tab.id, owner)
 
   return true
 }
 
 /** Artifact tabs can't outlive the registry they read from, so clearing it
- *  closes them. File and URL tabs re-read from their source and are left alone. */
+ *  closes them — in every conversation. File and URL tabs re-read from their
+ *  source and are left alone. */
 export function closeArtifactPreviewTabs() {
-  for (const tab of $previewTabs.get()) {
+  for (const tab of $allPreviewTabs.get()) {
     if (tab.target.kind === 'artifact') {
-      closeRightRailTab(tab.id)
+      closeRightRailTab(tab.id, tab.owner)
     }
   }
 }
 
-/** Close every tab so the rail's panes leave the tree. */
-export function closeRightRail() {
-  $previewTabs.set([])
-  selectRightRailTab(null)
+/** Close every tab of `owner` (the followed conversation by default), so its
+ *  panes leave the tree. Other conversations keep theirs. */
+export function closeRightRail(owner?: PreviewOwner) {
+  const followed = $previewOwner.get()
+  const sessions = $sessions.get()
+  const tabOwner = owner ?? followed
+
+  $allPreviewTabs.set($allPreviewTabs.get().filter(tab => !sameOwner(tabOwner, tab.owner, sessions)))
+  writeOwnerState(tabOwner, () => ({}))
+
+  if (sameOwner(followed, tabOwner, sessions)) {
+    selectRightRailTab(null)
+  }
+}
+
+/** The conversation is gone from the user's world (archived or deleted): its
+ *  tabs and what it remembered about them go with it. Drops every candidate id
+ *  (stored id, live id, lineage root) in `profile` — the row's own, absent →
+ *  "default", like `forgetSessionUnread`. Same ids in other profiles survive. */
+export function forgetPreviewSessions(
+  candidateIds: readonly (null | string | undefined)[],
+  profile?: null | string
+): void {
+  const ids = new Set(candidateIds.filter((id): id is string => Boolean(id) && id !== PREVIEW_DRAFT))
+
+  if (!ids.size) {
+    return
+  }
+
+  const key = normalizeProfileKey(profile)
+  const gone = (owner: PreviewOwner) => owner.profile === key && ids.has(owner.session)
+  const all = $allPreviewTabs.get()
+  const kept = all.filter(tab => !gone(tab.owner))
+
+  if (kept.length !== all.length) {
+    $allPreviewTabs.set(kept)
+  }
+
+  const bucket = $ownerStates.get()[key]
+
+  if (bucket && Object.keys(bucket).some(session => ids.has(session))) {
+    for (const session of Object.keys(bucket)) {
+      if (ids.has(session)) {
+        writeOwnerState({ profile: key, session }, () => ({}))
+      }
+    }
+  }
+}
+
+/** `owner`'s tabs and the one it shows in front — for reading a conversation
+ *  that is off screen. */
+export function previewTabsOf(owner: PreviewOwner): { active: PreviewTab | null; tabs: PreviewTab[] } {
+  const tabs = tabsOf(owner)
+
+  if (isFollowedPreviewOwner(owner)) {
+    return { active: resolveActiveTab(tabs, $rightRailActiveTabId.get()), tabs }
+  }
+
+  return { active: resolveActiveTab(tabs, readOwnerState(owner)?.active ?? null), tabs }
+}
+
+/** Where `owner`'s web tab `tabId` had navigated to (the followed
+ *  conversation's by default), when it left the page it was opened on — the
+ *  address it reopens at. */
+export function previewResumeUrl(tabId: string, owner: PreviewOwner = $previewOwner.get()): string | undefined {
+  return readOwnerState(owner)?.urls?.[tabId as RightRailTabId]
+}
+
+/** Remember where `owner`'s web tab `tabId` has navigated (the followed
+ *  conversation's by default), so switching away and back (or reopening the
+ *  app) returns to that page instead of the one it was opened on. */
+export function rememberPreviewUrl(tabId: string, url: string, owner: PreviewOwner = $previewOwner.get()) {
+  const tab = tabsOf(owner).find(item => item.id === tabId)
+
+  if (!tab || !url) {
+    return
+  }
+
+  if (url === tab.target.url) {
+    if (previewResumeUrl(tab.id, owner)) {
+      writeOwnerState(owner, state => withoutUrl(state, tab.id))
+    }
+
+    return
+  }
+
+  if (previewResumeUrl(tab.id, owner) !== url) {
+    writeOwnerState(owner, state => ({ ...state, urls: { ...state.urls, [tab.id]: url } }))
+  }
 }
 
 export function requestPreviewReload() {

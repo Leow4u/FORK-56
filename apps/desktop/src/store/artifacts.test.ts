@@ -114,7 +114,7 @@ describe('artifacts store', () => {
 
     openArtifact(result.artifactId)
 
-    expect(window.localStorage.getItem('work4you.desktop.previewTabs.v2')).toBe('[]')
+    expect(window.localStorage.getItem('work4you.desktop.previewTabs.v4')).toBe('[]')
   })
 
   it('tracks version selection and snaps back to latest', () => {

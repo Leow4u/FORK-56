@@ -10,10 +10,14 @@
  * a tab with no reader (a file peek, an artifact) still answers with its
  * identity and a note pointing the agent at the tool that reads that content
  * directly (read_file / the conversation's artifact).
+ *
+ * Tabs belong to conversations. An agent reads its OWN conversation's front
+ * tab; when that conversation is not the one on screen, its pages aren't
+ * mounted (and a same-id tab on screen is someone else's), so the answer is
+ * the tab's identity with a note saying so.
  */
 
-import { $rightRailActiveTabId } from '@/store/layout'
-import { $previewTabs } from '@/store/preview'
+import { $previewOwner, isFollowedPreviewOwner, type PreviewOwner, previewTabsOf } from '@/store/preview'
 
 export interface PreviewReadOptions {
   /** Characters to return from `start` (capped at PREVIEW_READ_MAX_CHARS). */
@@ -73,17 +77,23 @@ function windowText(
   return { ...base, end: to, start: from, text: text.slice(from, to), total_chars: total }
 }
 
-/** Read the ACTIVE preview tab. Null only when no tab is open at all. */
-export async function readActivePreview(opts: PreviewReadOptions = {}): Promise<PreviewReadResult | null> {
-  const tabs = $previewTabs.get()
-  const tab = tabs.find(t => t.id === $rightRailActiveTabId.get()) ?? tabs[0]
+/** Read `owner`'s ACTIVE preview tab (the conversation on screen when
+ *  `owner` is undefined). Null only when that conversation has no tab open. */
+export async function readActivePreview(
+  opts: PreviewReadOptions = {},
+  owner?: PreviewOwner
+): Promise<PreviewReadResult | null> {
+  const onScreen = isFollowedPreviewOwner(owner)
+  const tab = previewTabsOf(owner ?? $previewOwner.get()).active
 
   if (!tab) {
     return null
   }
 
   const { target } = tab
-  const reader = readers.get(tab.id)
+  // Off screen, the pane isn't mounted — and a reader under the same tab id
+  // belongs to the conversation that IS on screen.
+  const reader = onScreen ? readers.get(tab.id) : undefined
 
   if (reader) {
     try {
@@ -111,7 +121,9 @@ export async function readActivePreview(opts: PreviewReadOptions = {}): Promise<
           ? 'File preview — read the file itself with read_file.'
           : target.kind === 'artifact'
             ? 'Generated artifact — its content is in the conversation that produced it.'
-            : 'The page has not finished loading — retry in a moment.',
+            : onScreen
+              ? 'The page has not finished loading — retry in a moment.'
+              : 'Not on screen — the user is viewing another conversation, so this page cannot be read now.',
       path: target.path,
       title: target.label,
       url: target.url

@@ -21,6 +21,7 @@ import { openGatewayForAgent, openGatewayForProfile } from '@/store/gateway'
 import { $gatewaySwitching } from '@/store/gateway-switch'
 import { $pinnedSessionIds } from '@/store/layout'
 import { clearNotifications, notify, notifyError } from '@/store/notifications'
+import { forgetPreviewSessions } from '@/store/preview'
 import {
   $activeGatewayProfile,
   $gatewaySwapTarget,
@@ -1806,6 +1807,8 @@ export function useSessionActions({
         // Only after the RPC lands — the optimistic eviction above can roll
         // back, and a rolled-back row must keep its watermark/marker.
         forgetSessionUnread(removedIds, removed?.profile)
+        // Its preview tabs go with it.
+        forgetPreviewSessions(removedIds, removed?.profile)
         clearQueuedPrompts(storedSessionId)
 
         if (closingRuntimeId) {
@@ -1899,6 +1902,8 @@ export function useSessionActions({
         // Archived rows never reach the sidebar, so their persisted unread can
         // only rot. Dropped after the RPC so a failed archive keeps it.
         forgetSessionUnread(archivedIds, archived?.profile)
+        // Its preview tabs go with it.
+        forgetPreviewSessions(archivedIds, archived?.profile)
         // An archived session is hidden from the sidebar; its tile must go too.
         const tiledRuntimeId = runtimeIdByStoredSessionIdRef.current.get(storedSessionId)
         closeSessionTile(storedSessionId)

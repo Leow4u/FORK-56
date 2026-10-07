@@ -16,9 +16,14 @@ import type { TileDock } from '@/store/session-states'
 
 export interface PaneMirror<T> {
   /** Reactive source list. */
-  source: ReadableAtom<T[]>
+  source: ReadableAtom<readonly T[]>
   /** Extra atoms whose changes should re-sync (e.g. titles living elsewhere). */
   also?: ReadableAtom<unknown>[]
+  /** Keys whose tree panes outlive their registration: a tile that is only out
+   *  of view, not closed (another conversation's preview). Its contribution
+   *  goes and its zone hides with it, but its slot in the layout stays, so it
+   *  comes back exactly where it was. Re-syncs when it changes. */
+  retain?: ReadableAtom<readonly string[]>
   /** Stable key + pane-id seed for a tile. */
   key: (tile: T) => string
   /** Pane-id namespace — the id is `${prefix}:${key}`. */
@@ -63,6 +68,7 @@ export function paneMirror<T>(cfg: PaneMirror<T>): () => void {
   const sync = () => {
     const tiles = cfg.source.get()
     const wanted = new Set(tiles.map(cfg.key))
+    const retained = new Set(cfg.retain?.get() ?? [])
 
     for (const tile of tiles) {
       const key = cfg.key(tile)
@@ -111,16 +117,22 @@ export function paneMirror<T>(cfg: PaneMirror<T>): () => void {
       if (!wanted.has(key)) {
         entry.dispose()
         registered.delete(key)
-        removeTreePane(paneId(key))
+
+        if (!retained.has(key)) {
+          removeTreePane(paneId(key))
+        }
       }
     }
 
     // Prune tree panes the SHARED tree persisted for a tile we never registered
     // this session and that isn't wanted now — a profile switch reloads with the
     // other profile's tile panes still stacked in. (`registered` is empty after a
-    // reload, so the loop above can't catch these.)
+    // reload, so the loop above can't catch these.) A retained tile keeps its
+    // pane: it is out of view, not gone.
     for (const id of treePanesWithPrefix(`${cfg.prefix}:`)) {
-      if (!wanted.has(id.slice(cfg.prefix.length + 1))) {
+      const key = id.slice(cfg.prefix.length + 1)
+
+      if (!wanted.has(key) && !retained.has(key)) {
         removeTreePane(id)
       }
     }
@@ -129,6 +141,7 @@ export function paneMirror<T>(cfg: PaneMirror<T>): () => void {
   return () => {
     sync()
     cfg.source.listen(sync)
+    cfg.retain?.listen(sync)
     cfg.also?.forEach(atom => atom.listen(sync))
   }
 }

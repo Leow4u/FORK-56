@@ -8,15 +8,31 @@
  * through the same `paneMirror` the other tiles use, so a preview tab IS a zone
  * tab — same strip, same drag/stack/split, same ⌘W, same right-click verbs, and
  * one bar instead of two.
+ *
+ * Tabs belong to conversations (see store/preview), and the strip shows the
+ * conversation the user is working in. Another conversation's tabs are out of
+ * view, not closed: their panes keep their place in the layout and come back
+ * to it when the user returns to that conversation.
  */
 
-import { findGroup } from '@/components/pane-shell/tree/model'
-import { $activeTreeGroup, $layoutTree, revealTreePane } from '@/components/pane-shell/tree/store'
+import { findGroup, type LayoutNode } from '@/components/pane-shell/tree/model'
+import { $activeTreeGroup, $layoutTree, isSessionStripPane, revealTreePane } from '@/components/pane-shell/tree/store'
 import { FileTypeIcon } from '@/components/ui/file-type-icon'
 import { ToolIcon } from '@/components/ui/tool-icon'
 import { translateNow, useI18n } from '@/i18n'
-import { $rightRailActiveTabId, type RightRailTabId, selectRightRailTab } from '@/store/layout'
-import { $previewTabs, closeRightRailTab, type PreviewTarget } from '@/store/preview'
+import { $rightRailActiveTabId, type RightRailTabId } from '@/store/layout'
+import {
+  $allPreviewTabIds,
+  $previewTabs,
+  $previewTileSession,
+  closeRightRailTab,
+  followPreviewTile,
+  previewOwnerFor,
+  type PreviewTarget,
+  selectPreviewTab
+} from '@/store/preview'
+import { $selectedStoredSessionId, $sessions, idsShareLineage } from '@/store/session'
+import { $focusedStoredSessionId, $sessionTiles } from '@/store/session-states'
 
 import { paneMirror } from './pane-mirror'
 import { PreviewTilePane } from './right-rail/preview'
@@ -132,16 +148,88 @@ export function watchPreviewTiles(): void {
     const tabId = active.slice(PREVIEW_TILE_PREFIX.length + 1) as RightRailTabId
 
     if (targetFor(tabId) && $rightRailActiveTabId.get() !== tabId) {
-      selectRightRailTab(tabId)
+      selectPreviewTab(tabId)
     }
   }
 
   $layoutTree.listen(follow)
   $activeTreeGroup.listen(follow)
+
+  watchFollowedChat()
+}
+
+/** The chat the interacted zone shows: the primary chat (`null`), a session
+ *  tile (its stored id), or no chat at all (`undefined` — this area, a tool,
+ *  the sidebar). */
+export function interactedChat(
+  tree: LayoutNode | null,
+  groupId: null | string,
+  focusedSessionId: null | string,
+  selectedSessionId: null | string
+): null | string | undefined {
+  const active = groupId && tree ? findGroup(tree, groupId)?.active : undefined
+
+  if (!active || !isSessionStripPane(active)) {
+    return undefined
+  }
+
+  return focusedSessionId && focusedSessionId !== selectedSessionId ? focusedSessionId : null
+}
+
+// The area shows the tabs of the conversation the user is working in: the
+// primary chat, or the session tile they last clicked into. Clicking anything
+// that isn't a chat — this area itself, a tool, the sidebar — keeps the
+// conversation it has. That's why this can't read $focusedStoredSessionId
+// directly: it falls back to the primary the moment the interacted zone isn't
+// a session tile.
+function watchFollowedChat() {
+  const followChat = () => {
+    const chat = interactedChat(
+      $layoutTree.get(),
+      $activeTreeGroup.get(),
+      $focusedStoredSessionId.get(),
+      $selectedStoredSessionId.get()
+    )
+
+    if (chat !== undefined) {
+      // Keyed on the lineage root when the row is known, so a compression in
+      // the tile doesn't lose it.
+      followPreviewTile(chat && previewOwnerFor(chat).session)
+    }
+  }
+
+  $layoutTree.listen(followChat)
+  $activeTreeGroup.listen(followChat)
+
+  // Opening a different conversation in the primary chat is working in it. A
+  // compression rotation (same conversation, next tip) is not.
+  let lastSelected = $selectedStoredSessionId.get()
+
+  $selectedStoredSessionId.listen(selected => {
+    const previous = lastSelected
+
+    lastSelected = selected
+
+    if (!previous || !selected || !idsShareLineage(previous, selected, $sessions.get())) {
+      followPreviewTile(null)
+    }
+  })
+
+  // A closed tile can't be followed; the area goes back to the primary chat.
+  $sessionTiles.listen(tiles => {
+    const tile = $previewTileSession.get()
+
+    if (tile && !tiles.some(item => idsShareLineage(item.storedSessionId, tile, $sessions.get()))) {
+      followPreviewTile(null)
+    }
+  })
 }
 
 const watchPreviewTileMirror = paneMirror<{ id: string }>({
   source: $previewTabs,
+  // Another conversation's tab is out of view, not closed: its pane keeps its
+  // place in the layout until the tab itself closes.
+  retain: $allPreviewTabIds,
   key: tab => tab.id,
   prefix: PREVIEW_TILE_PREFIX,
   // Identical to route (page) tiles: its own zone docked beside main, sized by
