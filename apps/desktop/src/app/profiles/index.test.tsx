@@ -136,9 +136,9 @@ function realClick(el: HTMLElement) {
 // so the first paint is the loader and the rows commit a microtask later. Flush
 // that inside act() so the rows exist before anything queries them, and so the
 // mount setState isn't left unwrapped.
-async function renderProfilesView() {
+async function renderProfilesView(initialProfile?: string) {
   await act(async () => {
-    render(<ProfilesView onClose={vi.fn()} />)
+    render(<ProfilesView initialProfile={initialProfile} onClose={vi.fn()} />)
   })
 }
 
@@ -169,6 +169,20 @@ function waitForDialogClosed() {
 }
 
 describe('ProfilesView', () => {
+  it('opens the requested profile for editing without changing the active agent', async () => {
+    vi.mocked(refreshProfiles).mockResolvedValue([makeProfile('default', true), makeProfile(NAMED_PROFILE)])
+    vi.mocked(selectProfile).mockClear()
+    await renderProfilesView(NAMED_PROFILE)
+    expect(screen.getByRole('heading', { name: NAMED_PROFILE })).toBeTruthy()
+    expect(selectProfile).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the default when an edit link targets a removed profile', async () => {
+    vi.mocked(refreshProfiles).mockResolvedValue([makeProfile('default', true), makeProfile(NAMED_PROFILE)])
+    await renderProfilesView('removed-profile')
+    expect(screen.getByRole('heading', { name: 'default' })).toBeTruthy()
+  })
+
   it('opens the shared create dialog with the SOUL.md field (parity with the rail)', async () => {
     vi.mocked(refreshProfiles).mockResolvedValue([])
 

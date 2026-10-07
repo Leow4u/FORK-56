@@ -1157,7 +1157,11 @@ export function ContribWiring({ children }: { children: ReactNode }) {
 
       {profilesOpen && (
         <Suspense fallback={null}>
-          <ProfilesView onClose={closeOverlayToPreviousRoute} />
+          <ProfilesView
+            initialProfile={new URLSearchParams(location.search).get('profile')}
+            key={location.search}
+            onClose={closeOverlayToPreviousRoute}
+          />
         </Suspense>
       )}
 

@@ -3139,6 +3139,10 @@ export const zh: Translations = {
   },
 
   profiles: {
+    agentPanel: '智能体面板',
+    editProfile: '编辑配置档案…',
+    allConversations: '所有配置档案的对话',
+    railState: { running: '就绪', waking: '正在启动…', asleep: '待机' },
     close: '关闭配置档案',
     nameHint: '小写字母、数字、连字符和下划线。必须以字母或数字开头。',
     title: '配置档案',
@@ -3244,9 +3248,6 @@ export const zh: Translations = {
     thisProfile: '当前配置档案',
     showingAllProfiles: '正在显示全部配置档案',
     switcher: '配置档案切换器',
-    collapseRail: '收起配置档案',
-    expandRail: '展开配置档案',
-    collapsedRail: name => `配置档案 · ${name}`,
     switchTo: '切换到',
     current: '当前',
     manageShort: '管理…',

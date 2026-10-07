@@ -2983,6 +2983,10 @@ export const en: Translations = {
   },
 
   profiles: {
+    agentPanel: 'Agent panel',
+    editProfile: 'Edit profile…',
+    allConversations: 'Conversations from all profiles',
+    railState: { running: 'Ready', waking: 'Starting…', asleep: 'On standby' },
     close: 'Close profiles',
     nameHint: 'Lowercase letters, digits, hyphens, and underscores. Must start with a letter or digit.',
     title: 'Profiles',
@@ -3088,9 +3092,6 @@ export const en: Translations = {
     thisProfile: 'This profile',
     showingAllProfiles: 'Showing all profiles',
     switcher: 'Profile switcher',
-    collapseRail: 'Collapse profiles',
-    expandRail: 'Expand profiles',
-    collapsedRail: name => `Profiles · ${name}`,
     switchTo: 'Switch to',
     current: 'Current',
     manageShort: 'Manage…',

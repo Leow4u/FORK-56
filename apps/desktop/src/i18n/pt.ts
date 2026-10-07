@@ -3300,6 +3300,10 @@ export const pt = defineLocale({
   },
 
   profiles: {
+    agentPanel: 'Painel do agente',
+    editProfile: 'Editar perfil…',
+    allConversations: 'Conversas de todos os perfis',
+    railState: { running: 'Pronto', waking: 'Iniciando…', asleep: 'Em espera' },
     close: 'Fechar perfis',
     nameHint: 'Letras minúsculas, números, hifens e sublinhados. Deve começar com uma letra ou um número.',
     title: 'Perfis',
@@ -3406,9 +3410,6 @@ export const pt = defineLocale({
     thisProfile: 'Este perfil',
     showingAllProfiles: 'Mostrando todos os perfis',
     switcher: 'Seletor de perfis',
-    collapseRail: 'Recolher perfis',
-    expandRail: 'Expandir perfis',
-    collapsedRail: name => `Perfis · ${name}`,
     switchTo: 'Mudar para',
     current: 'Atual',
     manageShort: 'Gerenciar…',

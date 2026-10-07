@@ -1819,6 +1819,10 @@ export const ja = defineLocale({
   },
 
   profiles: {
+    agentPanel: 'エージェントパネル',
+    editProfile: 'プロファイルを編集…',
+    allConversations: 'すべてのプロファイルの会話',
+    railState: { running: '準備完了', waking: '起動中…', asleep: '待機中' },
     close: 'プロファイルを閉じる',
     nameHint: '小文字、数字、ハイフン、アンダースコア。文字または数字で始める必要があります。',
     title: 'プロファイル',

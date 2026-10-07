@@ -2576,9 +2576,10 @@ export interface Translations {
     thisProfile: string
     showingAllProfiles: string
     switcher: string
-    collapseRail: string
-    expandRail: string
-    collapsedRail: (name: string) => string
+    agentPanel: string
+    editProfile: string
+    allConversations: string
+    railState: { running: string; waking: string; asleep: string }
     switchTo: string
     current: string
     manageShort: string
