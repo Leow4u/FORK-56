@@ -19,6 +19,10 @@
  * more column.
  */
 
+import { useStore } from '@nanostores/react'
+import { previewFaviconSrc } from '@work4you/shared'
+import { useState } from 'react'
+
 import { allPaneIds, findGroup, findGroupOfPane, type LayoutNode } from '@/components/pane-shell/tree/model'
 import {
   $activeTreeGroup,
@@ -31,16 +35,19 @@ import {
 import { FileTypeIcon } from '@/components/ui/file-type-icon'
 import { ToolIcon } from '@/components/ui/tool-icon'
 import { translateNow, useI18n } from '@/i18n'
+import { isBlankPageUrl } from '@/lib/local-preview'
 import { $rightRailActiveTabId, type RightRailTabId } from '@/store/layout'
 import {
   $allPreviewTabIds,
   $previewOwner,
+  $previewPages,
   $previewTabs,
   $previewTileSession,
   closeRightRailTab,
   followPreviewTile,
-  openBrowserTab,
+  openNewBrowserTab,
   previewOwnerFor,
+  type PreviewPage,
   type PreviewTab,
   type PreviewTarget,
   selectPreviewTab
@@ -64,9 +71,11 @@ interface PreviewTitleCopy {
   preview: string
 }
 
-/** Tab title. A URL is a BROWSER — the tab names the surface, not the page, so
- *  it doesn't rename itself on every navigation. A file names the file; an
- *  artifact is titled rather than located, so its label is the whole name. */
+/** The tab's registered name. A URL is a BROWSER here — the surface, not the
+ *  page: a page renames itself as it moves, and re-registering would remount
+ *  the pane, reloading the page. The strip shows the page's own name live
+ *  (`PreviewTabTitle`). A file names the file; an artifact is titled rather
+ *  than located, so its label is the whole name. */
 function previewTitle(tabId: string, copy: PreviewTitleCopy): string {
   const target = targetFor(tabId)
 
@@ -93,16 +102,60 @@ function previewTitle(tabId: string, copy: PreviewTitleCopy): string {
 const registeredPreviewTitle = (tabId: string): string =>
   previewTitle(tabId, { browser: translateNow('shell.panes.browser'), preview: translateNow('preview.tab') })
 
-/** The tab's label from the live `t`, so the strip follows the language. */
-function PreviewTabTitle({ tabId }: { tabId: string }) {
+/** What a web tab is labelled with: the new tab page by name, else what its
+ *  page is called, else the surface. */
+export function webTabTitle(page: PreviewPage, copy: { browser: string; newTab: string }): string {
+  if (isBlankPageUrl(page.url)) {
+    return copy.newTab
+  }
+
+  return page.title || copy.browser
+}
+
+/** The tab's label from the live `t`, so the strip follows the language — and
+ *  a web tab's from its page, live, so it follows the page without
+ *  re-registering. */
+export function PreviewTabTitle({ tabId }: { tabId: string }) {
   const { t } = useI18n()
+  const page = useStore($previewPages)[tabId as RightRailTabId]
+
+  if (page) {
+    return webTabTitle(page, { browser: t.shell.panes.browser, newTab: t.zones.newTab })
+  }
 
   return previewTitle(tabId, { browser: t.shell.panes.browser, preview: t.preview.tab })
 }
 
+/** A web tab's lead: its page's icon, painted through the work4you-favicon
+ *  scheme, else the globe — on the new tab page too, and when the icon
+ *  doesn't load. Live from the store, like the label. */
+function WebTabIcon({ tabId }: { tabId: string }) {
+  const page = useStore($previewPages)[tabId as RightRailTabId]
+  const [failed, setFailed] = useState<string>()
+  const icon = page?.icon && page.icon !== failed && !isBlankPageUrl(page.url) ? page.icon : undefined
+  const src = icon ? previewFaviconSrc(icon) : null
+
+  if (!src) {
+    return <ToolIcon className="opacity-70" name="globe" size="0.6875rem" />
+  }
+
+  return (
+    <img
+      alt=""
+      className="size-[0.6875rem] shrink-0 object-contain"
+      decoding="async"
+      draggable={false}
+      onError={() => setFailed(icon)}
+      referrerPolicy="no-referrer"
+      src={src}
+    />
+  )
+}
+
 /** The tab's lead glyph — the same file/tool icon family the file tree and code
- *  fences resolve through, so a `.tsx` peek and its sidebar row agree. */
-function PreviewTabLead({ tabId }: { tabId: string }) {
+ *  fences resolve through, so a `.tsx` peek and its sidebar row agree. A web
+ *  tab leads with its page's icon. */
+export function PreviewTabLead({ tabId }: { tabId: string }) {
   const target = targetFor(tabId)
 
   if (!target) {
@@ -114,7 +167,7 @@ function PreviewTabLead({ tabId }: { tabId: string }) {
   }
 
   if (target.kind === 'url') {
-    return <ToolIcon className="opacity-70" name="globe" size="0.6875rem" />
+    return <WebTabIcon tabId={tabId} />
   }
 
   return <FileTypeIcon className="opacity-70" path={target.path || target.url} size="0.6875rem" />
@@ -161,9 +214,8 @@ const areaAnchorFor = (tabId: string) =>
 export function watchPreviewTiles(): void {
   watchPreviewTileMirror()
 
-  // The area strip's "+" opens the Browser — a blank one when the
-  // conversation has none yet.
-  $newContentTabAction.set(openBrowserTab)
+  // The area strip's "+" opens a new web tab, on the new tab page.
+  $newContentTabAction.set(openNewBrowserTab)
 
   // The reveal analog of session tiles (session-states calls revealTreePane on
   // open): `openPreview` selects the tab, and the TREE must show its pane —

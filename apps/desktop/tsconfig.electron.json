@@ -20,6 +20,7 @@
     "electron",
     "../shared/src/data-url-read-max.ts",
     "../shared/src/mcp-directory.ts",
+    "../shared/src/preview-favicon.ts",
     "../shared/src/translucency.ts"
   ],
   "exclude": ["src", "electron/**/*.e2e.mts"]

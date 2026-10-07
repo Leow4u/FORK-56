@@ -254,6 +254,12 @@ import { selectPoolEvictions } from './pool-eviction'
 import { createPoolStopper } from './pool-stop'
 import { poolTouchKeys } from './pool-touch-scope'
 import { createKeepAwake } from './power-save'
+import {
+  bindPreviewFaviconFetch,
+  handlePreviewFaviconProtocol,
+  PREVIEW_BROWSER_PARTITION,
+  PREVIEW_FAVICON_PROTOCOL
+} from './preview-favicon'
 import { PreviewReachRegistry } from './preview-reach'
 import {
   createPrimaryRemoteConnection,
@@ -1254,6 +1260,15 @@ protocol.registerSchemesAsPrivileged([
       standard: true,
       supportFetchAPI: true
     }
+  },
+  {
+    scheme: PREVIEW_FAVICON_PROTOCOL,
+    privileges: {
+      corsEnabled: true,
+      secure: true,
+      standard: true,
+      supportFetchAPI: true
+    }
   }
 ])
 
@@ -1302,6 +1317,16 @@ function registerMediaProtocol() {
 function registerComposioLogoProtocol() {
   protocol.handle(COMPOSIO_LOGO_PROTOCOL, request =>
     handleComposioLogoProtocol(request, bindComposioLogoNetFetch(electronNet.fetch.bind(electronNet)))
+  )
+}
+
+// A page's icon in the content area's strip, fetched by that area's browser
+// session: the page's own network context, never its cookies.
+function registerPreviewFaviconProtocol() {
+  const browser = session.fromPartition(PREVIEW_BROWSER_PARTITION)
+
+  protocol.handle(PREVIEW_FAVICON_PROTOCOL, request =>
+    handlePreviewFaviconProtocol(request, bindPreviewFaviconFetch(browser.fetch.bind(browser)))
   )
 }
 
@@ -15354,6 +15379,7 @@ app.whenReady().then(() => {
   installDownloadHandling()
   registerMediaProtocol()
   registerComposioLogoProtocol()
+  registerPreviewFaviconProtocol()
   installEmbedReferer()
   installRemoteHeaderRules()
   registerDeepLinkProtocol()

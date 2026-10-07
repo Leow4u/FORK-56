@@ -1,4 +1,5 @@
 import { useStore } from '@nanostores/react'
+import { PREVIEW_BROWSER_PARTITION, previewFaviconTarget } from '@work4you/shared'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -7,7 +8,7 @@ import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
 import { guardGuestPointers } from '@/lib/guest-pointer-guard'
-import { openPreviewTargetInBrowser, remoteHtmlPreviewDocument } from '@/lib/local-preview'
+import { isBlankPageUrl, openPreviewTargetInBrowser, remoteHtmlPreviewDocument } from '@/lib/local-preview'
 import { isRemoteGateway } from '@/lib/media'
 import { reachablePreviewUrl } from '@/lib/preview-reach'
 import { rafCoalesce } from '@/lib/raf-coalesce'
@@ -16,9 +17,12 @@ import { notify, notifyError } from '@/store/notifications'
 import {
   $previewServerRestart,
   failPreviewServerRestart,
+  isPagePreview,
   type PreviewOwner,
   previewResumeUrl,
   type PreviewTarget,
+  rememberPreviewIcon,
+  rememberPreviewTitle,
   rememberPreviewUrl
 } from '@/store/preview'
 
@@ -142,10 +146,11 @@ const LOOPBACK_HOST_RE = /^(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[?::1\]?)$
  * URL isn't wrong, it's just addressed to a different computer.
  */
 function isRemoteLoopbackUrl(url: string): boolean {
-  if (!isRemoteGateway()) {
-    return false
-  }
+  return isRemoteGateway() && isLoopbackUrl(url)
+}
 
+/** Whether `url` addresses this machine — a loopback host. */
+function isLoopbackUrl(url: string): boolean {
   try {
     return LOOPBACK_HOST_RE.test(new URL(url).hostname)
   } catch {
@@ -247,9 +252,7 @@ export function PreviewPane({
 
   // Artifacts have no URL to load — they render from the registry, never in a
   // webview.
-  const isWebPreview =
-    target.kind !== 'artifact' &&
-    (target.kind === 'url' || (target.previewKind === 'html' && target.renderMode !== 'source'))
+  const isWebPreview = isPagePreview(target)
 
   const isRemoteHtmlTarget =
     target.kind === 'file' && target.previewKind === 'html' && Boolean(target.dataUrl || target.transient)
@@ -267,7 +270,7 @@ export function PreviewPane({
   // `about:blank` paints a white void that reads as broken next to the app's
   // dark chrome, so the pane shows the new tab page instead — the address bar
   // above it, the conversation's tools below.
-  const isBlankPage = isWebPreview && !isRemoteHtml && (!currentUrl || /^about:blank\/?$/i.test(currentUrl))
+  const isBlankPage = isWebPreview && !isRemoteHtml && isBlankPageUrl(currentUrl)
 
   const previewLabel =
     target.label && target.label.replace(/\/$/, '') !== currentLabel.replace(/\/$/, '') ? target.label : currentLabel
@@ -646,7 +649,10 @@ export function PreviewPane({
 
     lastReloadRequestRef.current = reloadRequest
 
-    if (target.kind !== 'url') {
+    // The workspace changed: reload the pages it serves — a local dev server
+    // (a remote one is forwarded to this machine's loopback too). A tab on
+    // another site (docs, a dashboard) keeps its page.
+    if (target.kind !== 'url' || !isLoopbackUrl(currentUrl)) {
       return
     }
 
@@ -655,7 +661,7 @@ export function PreviewPane({
       message: copy.workspaceReloading
     })
     reloadPreview()
-  }, [appendConsoleEntry, copy.workspaceReloading, reloadPreview, reloadRequest, target.kind])
+  }, [appendConsoleEntry, copy.workspaceReloading, currentUrl, reloadPreview, reloadRequest, target.kind])
 
   useEffect(() => {
     if (
@@ -773,7 +779,7 @@ export function PreviewPane({
 
     const webview = document.createElement('webview') as PreviewWebview
     webview.className = 'flex h-full w-full flex-1 bg-transparent'
-    webview.setAttribute('partition', 'persist:work4you-preview')
+    webview.setAttribute('partition', PREVIEW_BROWSER_PARTITION)
     webview.setAttribute('src', startUrl)
     webview.setAttribute('webpreferences', 'contextIsolation=yes,nodeIntegration=no,sandbox=yes')
 
@@ -835,12 +841,18 @@ export function PreviewPane({
       const detail = event as Event & {
         errorCode?: number
         errorDescription?: string
+        isMainFrame?: boolean
         validatedURL?: string
       }
 
       const errorCode = detail.errorCode
 
-      if (errorCode === -3) {
+      // -3 is a load another navigation replaced, not a failure. And the event
+      // fires for every frame: an embed that fails to load (a frame that
+      // refuses to be framed, offline content) is not the page failing, so the
+      // page stays on screen. Chromium logs the embed's own failure to the
+      // console.
+      if (errorCode === -3 || detail.isMainFrame === false) {
         return
       }
 
@@ -856,6 +868,53 @@ export function PreviewPane({
       setLoading(false)
     }
 
+    // The page names its tab. The strip reads the name from the store, live:
+    // re-registering the pane for it would remount the pane, and so reload this
+    // page. Read when the page reports a title and again when a load settles —
+    // going back, or reloading, returns to a page whose title didn't change,
+    // and Chromium doesn't report an unchanged title. Never at commit, so a page
+    // coming back keeps its name instead of flickering. The blank page has no
+    // name or icon of its own: its tab is the new tab.
+    const syncLabel = (reported?: string) => {
+      if (!tabId) {
+        return
+      }
+
+      let title = reported
+      let url: string | undefined
+
+      try {
+        title = webview.getTitle?.() ?? reported
+        url = webview.getURL?.()
+      } catch {
+        // Not ready to answer yet (before `dom-ready`): the reported title is
+        // all there is.
+      }
+
+      const blank = url !== undefined && isBlankPageUrl(url)
+
+      if (blank) {
+        rememberPreviewIcon(tabId, '', owner)
+      }
+
+      if (title !== undefined) {
+        rememberPreviewTitle(tabId, blank ? '' : title, owner)
+      }
+    }
+
+    const onTitle = (event: Event) => syncLabel((event as Event & { title?: string }).title)
+
+    // The page names its icon the way it names its title, and the tab keeps
+    // the first one main can fetch (http(s)). A page whose icons are all
+    // inline has none the tab shows: it falls back to the globe.
+    const onFavicon = (event: Event) => {
+      if (tabId) {
+        const icons = (event as Event & { favicons?: string[] }).favicons ?? []
+
+        rememberPreviewIcon(tabId, icons.find(icon => previewFaviconTarget(icon)) ?? '', owner)
+      }
+    }
+
     const onStart = () => setLoading(true)
 
     const onStop = () => {
@@ -864,6 +923,7 @@ export function PreviewPane({
       // cancelled navigation) still settles the history — resync so the
       // buttons can't be left stale.
       syncHistory()
+      syncLabel()
     }
 
     // The WEBVIEW is the source of truth for DevTools, not our click handler:
@@ -955,6 +1015,8 @@ export function PreviewPane({
     webview.addEventListener('did-navigate-in-page', onNavigate)
     webview.addEventListener('did-start-loading', onStart)
     webview.addEventListener('did-stop-loading', onStop)
+    webview.addEventListener('page-favicon-updated', onFavicon)
+    webview.addEventListener('page-title-updated', onTitle)
     host.appendChild(webview)
     webviewRef.current = webview
 
@@ -968,6 +1030,8 @@ export function PreviewPane({
       webview.removeEventListener('did-navigate-in-page', onNavigate)
       webview.removeEventListener('did-start-loading', onStart)
       webview.removeEventListener('did-stop-loading', onStop)
+      webview.removeEventListener('page-favicon-updated', onFavicon)
+      webview.removeEventListener('page-title-updated', onTitle)
       webview.remove()
     }
   }, [appendConsoleEntry, consoleState, copy, isRemoteHtml, isWebPreview, owner, tabId, target.url])

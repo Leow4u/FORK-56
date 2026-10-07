@@ -181,7 +181,15 @@ export async function openPreviewTargetInBrowser(target: PreviewTarget): Promise
 /** The Browser's empty page — never a file, whatever the filesystem holds. An
  *  agent asking for a blank tab gets the Browser on its blank page instead of a
  *  "file does not exist" tab. */
-const BLANK_PAGE = /^about:blank$/i
+const BLANK_PAGE = /^about:blank\/?$/i
+
+/** Whether a web tab at `url` is on the blank page, or on no address yet —
+ *  where the Browser shows the new tab page, and its tab is named for it. */
+export function isBlankPageUrl(url: string): boolean {
+  const value = url.trim()
+
+  return !value || BLANK_PAGE.test(value)
+}
 
 export function localPreviewTarget(rawTarget: string, cwd?: string | null): PreviewTarget | null {
   const raw = rawTarget.trim().replace(/^`|`$/g, '')

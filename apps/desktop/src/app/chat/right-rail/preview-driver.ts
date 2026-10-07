@@ -5,8 +5,7 @@
 
 import { atom } from 'nanostores'
 
-import { $rightRailActiveTabId } from '@/store/layout'
-import { $previewTabs } from '@/store/preview'
+import { agentPreviewTab } from '@/store/preview'
 
 import {
   assignPreviewRefs,
@@ -57,9 +56,10 @@ export function previewDriverScript(): string {
   return previewInventoryScript()
 }
 
+/** The page the agent drives: the tab its page tools work on in the
+ *  conversation on screen (`agentPreviewTab`). */
 function activeHost(): { host: PreviewDriverHost; tabId: string } | null {
-  const tabs = $previewTabs.get()
-  const tab = tabs.find(item => item.id === $rightRailActiveTabId.get()) ?? tabs[0]
+  const tab = agentPreviewTab()
 
   if (!tab) {
     return null

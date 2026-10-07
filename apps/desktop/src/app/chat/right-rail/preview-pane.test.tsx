@@ -1,7 +1,14 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { $previewOwner, closeRightRail, openPreview, previewResumeUrl, previewTabId } from '@/store/preview'
+import {
+  $previewOwner,
+  $previewPages,
+  closeRightRail,
+  openPreview,
+  previewResumeUrl,
+  previewTabId
+} from '@/store/preview'
 import { $connection } from '@/store/session'
 
 import { forgetPreviewConsole, previewConsoleState } from './preview-console-store'
@@ -231,6 +238,153 @@ describe('PreviewPane console state', () => {
     closeRightRail(owner)
   })
 
+  // The page names its tab. Read when the page reports a title and again when
+  // a load settles: going back, or reloading, returns to a page whose title
+  // didn't change, and Chromium doesn't report it. The blank page has no name
+  // of its own.
+  it('names its tab after the page', async () => {
+    const target = { kind: 'url' as const, label: 'Example', source: 'https://example.com', url: 'https://example.com' }
+
+    openPreview(target)
+
+    const owner = $previewOwner.get()
+    const tabId = previewTabId(target)
+    let rendered!: ReturnType<typeof render>
+
+    await act(async () => {
+      rendered = render(<PreviewPane owner={owner} tabId={tabId} target={target} />)
+    })
+
+    const webview = rendered.container.querySelector('webview') as HTMLElement
+    let title = 'Example Domain'
+    let url = 'https://example.com'
+
+    Object.assign(webview, { getTitle: () => title, getURL: () => url })
+
+    const fire = (event: Event) =>
+      act(() => {
+        webview.dispatchEvent(event)
+      })
+
+    fire(Object.assign(new Event('page-title-updated'), { title }))
+    expect($previewPages.get()[tabId]?.title).toBe('Example Domain')
+
+    title = 'Earlier page'
+    fire(new Event('did-stop-loading'))
+    expect($previewPages.get()[tabId]?.title).toBe('Earlier page')
+
+    url = 'about:blank'
+    title = 'about:blank'
+    fire(new Event('did-stop-loading'))
+    expect($previewPages.get()[tabId]?.title).toBeUndefined()
+
+    closeRightRail(owner)
+  })
+
+  // Before `dom-ready` the webview can't be asked yet; the title the page
+  // reported is all there is.
+  it("takes the reported title while the page can't be asked yet", async () => {
+    const target = { kind: 'url' as const, label: 'Example', source: 'https://example.com', url: 'https://example.com' }
+
+    openPreview(target)
+
+    const owner = $previewOwner.get()
+    const tabId = previewTabId(target)
+    let rendered!: ReturnType<typeof render>
+
+    await act(async () => {
+      rendered = render(<PreviewPane owner={owner} tabId={tabId} target={target} />)
+    })
+
+    const webview = rendered.container.querySelector('webview') as HTMLElement
+
+    Object.assign(webview, {
+      getTitle: () => {
+        throw new Error('The WebView must be attached to the DOM and the dom-ready event emitted')
+      }
+    })
+
+    act(() => {
+      webview.dispatchEvent(Object.assign(new Event('page-title-updated'), { title: 'Example Domain' }))
+    })
+
+    expect($previewPages.get()[tabId]?.title).toBe('Example Domain')
+
+    closeRightRail(owner)
+  })
+
+  // The page names its icon as it names its title. The tab keeps the first
+  // icon main can fetch; inline icons alone, or the blank page, leave it none.
+  it('leads its tab with the icon the page names', async () => {
+    const target = { kind: 'url' as const, label: 'Example', source: 'https://example.com', url: 'https://example.com' }
+
+    openPreview(target)
+
+    const owner = $previewOwner.get()
+    const tabId = previewTabId(target)
+    let rendered!: ReturnType<typeof render>
+
+    await act(async () => {
+      rendered = render(<PreviewPane owner={owner} tabId={tabId} target={target} />)
+    })
+
+    const webview = rendered.container.querySelector('webview') as HTMLElement
+    let url = 'https://example.com'
+
+    Object.assign(webview, { getTitle: () => 'Example Domain', getURL: () => url })
+
+    const fire = (event: Event) =>
+      act(() => {
+        webview.dispatchEvent(event)
+      })
+
+    const favicons = (icons: string[]) => Object.assign(new Event('page-favicon-updated'), { favicons: icons })
+
+    fire(favicons(['data:image/png;base64,AAAA', 'https://example.com/icon.svg', 'https://example.com/favicon.ico']))
+    expect($previewPages.get()[tabId]?.icon).toBe('https://example.com/icon.svg')
+
+    fire(favicons(['data:image/png;base64,AAAA']))
+    expect($previewPages.get()[tabId]?.icon).toBeUndefined()
+
+    fire(favicons(['https://example.com/favicon.ico']))
+    url = 'about:blank'
+    fire(new Event('did-stop-loading'))
+    expect($previewPages.get()[tabId]?.icon).toBeUndefined()
+
+    closeRightRail(owner)
+  })
+
+  // The workspace changed: the pages it serves reload — a local dev server —
+  // while a tab on another site (docs, a dashboard) keeps its page.
+  it('reloads a local page when the workspace changes, never another site', async () => {
+    const reloads: string[] = []
+
+    const changeWorkspace = async (url: string) => {
+      const target = { kind: 'url' as const, label: url, source: url, url }
+      let rendered!: ReturnType<typeof render>
+
+      await act(async () => {
+        rendered = render(<PreviewPane reloadRequest={0} target={target} />)
+      })
+
+      const webview = rendered.container.querySelector('webview') as HTMLElement
+
+      Object.assign(webview, { reload: () => reloads.push(url) })
+
+      await act(async () => {
+        rendered.rerender(<PreviewPane reloadRequest={1} target={target} />)
+      })
+
+      rendered.unmount()
+    }
+
+    await changeWorkspace('http://localhost:5173')
+    await changeWorkspace('http://127.0.0.1:8080/app')
+    await changeWorkspace('https://vitejs.dev/guide')
+
+    expect(reloads).toEqual(['http://localhost:5173', 'http://127.0.0.1:8080/app'])
+  })
+
   // The webview always runs on THIS machine, so a remote agent's localhost is
   // a different computer's localhost. The failure is honest but baffling
   // without saying so.
@@ -320,6 +474,39 @@ describe('PreviewPane console state', () => {
 
     await waitFor(() => expect(rendered.container.textContent).toContain('ERR_NAME_NOT_RESOLVED'))
     expect(rendered.container.textContent).not.toContain('machine running your agent')
+  })
+
+  // The event fires for every frame: an embed that fails to load (a frame that
+  // refuses to be framed) is not the page failing, so the page stays on screen.
+  it('keeps the page on screen when an embedded frame fails to load', async () => {
+    let rendered!: ReturnType<typeof render>
+    await act(async () => {
+      rendered = render(
+        <PreviewPane
+          target={{ kind: 'url', label: 'Preview', source: 'https://example.com', url: 'https://example.com' }}
+        />
+      )
+    })
+
+    const webview = rendered.container.querySelector('webview') as HTMLElement
+
+    const fail = (isMainFrame: boolean) =>
+      act(async () => {
+        webview.dispatchEvent(
+          Object.assign(new Event('did-fail-load'), {
+            errorCode: -27,
+            errorDescription: 'ERR_BLOCKED_BY_RESPONSE',
+            isMainFrame,
+            validatedURL: isMainFrame ? 'https://example.com' : 'https://video.example/embed'
+          })
+        )
+      })
+
+    await fail(false)
+    expect(rendered.container.textContent).not.toContain('ERR_BLOCKED_BY_RESPONSE')
+
+    await fail(true)
+    await waitFor(() => expect(rendered.container.textContent).toContain('ERR_BLOCKED_BY_RESPONSE'))
   })
 
   it('surfaces a rejected navigation as a load error', async () => {

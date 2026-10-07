@@ -10,8 +10,7 @@
  * preview-tour.ts).
  */
 
-import { $rightRailActiveTabId } from '@/store/layout'
-import { $previewTabs } from '@/store/preview'
+import { agentPreviewTab } from '@/store/preview'
 
 /** Runs JS source in the pane's guest page, resolving its completion value. */
 export type TourScriptRunner = (code: string) => Promise<unknown>
@@ -29,10 +28,10 @@ export function registerPreviewTourRunner(tabId: string, runner: TourScriptRunne
   }
 }
 
-/** The ACTIVE preview tab's script runner. Null = no live page to tour. */
+/** The script runner of the tab the agent's page tools work on
+ *  (`agentPreviewTab`). Null = no live page to tour. */
 export function activeTourRunner(): TourScriptRunner | null {
-  const tabs = $previewTabs.get()
-  const tab = tabs.find(t => t.id === $rightRailActiveTabId.get()) ?? tabs[0]
+  const tab = agentPreviewTab()
 
   return (tab && runners.get(tab.id)) || null
 }
