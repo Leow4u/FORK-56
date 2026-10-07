@@ -100,6 +100,28 @@ export interface IntroCopy {
   body: string
 }
 
+export type BlueprintCatalogFieldCopy = {
+  default?: string
+  help?: string
+  label?: string
+  options?: Record<string, string>
+}
+
+/** Client-side overlay for automation blueprint gallery + form labels. */
+export type BlueprintCatalogTranslations = {
+  dayOptions?: Record<string, string>
+  items?: Record<
+    string,
+    {
+      description?: string
+      fields?: Record<string, BlueprintCatalogFieldCopy>
+      title?: string
+    }
+  >
+  sharedFields?: Record<string, BlueprintCatalogFieldCopy>
+  weekdayOptions?: Record<string, string>
+}
+
 export interface Translations {
   common: {
     add: string
@@ -2765,6 +2787,8 @@ export interface Translations {
       failedLoad: string
       emptyTitle: string
       emptyDesc: string
+      /** Locale overlay for GET /api/cron/blueprints copy (backend ships English). */
+      catalog?: BlueprintCatalogTranslations
     }
   }
 

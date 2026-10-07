@@ -51,14 +51,19 @@ export function BlueprintSlotControl({
   field,
   id,
   onChange,
+  optionLabel,
   value
 }: {
   field: AutomationBlueprintField
   id: string
   onChange: (next: string) => void
+  /** Display label for enum/weekday values; stored value stays the backend token. */
+  optionLabel?: (option: string) => string
   value: string
 }) {
   if (field.type === 'enum' || field.type === 'weekdays') {
+    const labelFor = optionLabel ?? ((option: string) => option)
+
     return (
       <Select onValueChange={onChange} value={value}>
         <SelectTrigger className="h-9 rounded-md" id={id}>
@@ -67,7 +72,7 @@ export function BlueprintSlotControl({
         <SelectContent>
           {field.options.map(option => (
             <SelectItem key={option} value={option}>
-              {option}
+              {labelFor(option)}
             </SelectItem>
           ))}
         </SelectContent>
