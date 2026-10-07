@@ -806,9 +806,13 @@ export function PreviewPane({
       setHistory({ back: webview.canGoBack?.() ?? false, forward: webview.canGoForward?.() ?? false })
 
     const onNavigate = (event: Event) => {
-      const detail = event as Event & { url?: string }
+      const detail = event as Event & { isMainFrame?: boolean; url?: string }
 
-      if (detail.url) {
+      // `did-navigate-in-page` fires for every frame. An embed moving inside
+      // the page (an iframe's hash route — Storybook's canvas, a video player)
+      // is not the page moving: the address stays the page's own, and the tab
+      // must not reopen on the embed.
+      if (detail.url && detail.isMainFrame !== false) {
         setLoadError(null)
         setCurrentUrl(detail.url)
 
