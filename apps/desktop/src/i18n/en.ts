@@ -1842,6 +1842,7 @@ export const en: Translations = {
       stepWho: 'Who',
       stepCreate: 'Create the bot',
       stepTalk: 'Who can talk',
+      stepDeliver: 'Alerts & cron',
       stepReady: 'Ready',
       whoTitle: 'Who will use Telegram with Work4You?',
       whoNote: 'You can change this later.',
@@ -2108,6 +2109,7 @@ export const en: Translations = {
       stepWho: 'Who',
       stepMailbox: 'Mailbox',
       stepWrite: 'Who can send & receive',
+      stepDeliver: 'Alerts & cron',
       stepReady: 'Ready',
       whoTitle: 'Who will email the bot?',
       whoNote: 'You can change this later.',
@@ -2528,6 +2530,15 @@ export const en: Translations = {
       deviceLinked: 'WhatsApp device linked',
       openChatLink: 'Open chat'
     },
+    homeDelivery: {
+      stepLabel: 'Alerts & cron',
+      title: 'Where should scheduled jobs and cross-platform alerts go?',
+      note: 'This is the **home channel** for this platform — cron results and messages from other channels land here. It should match someone you already allowed above.',
+      label: 'Delivery target',
+      help: 'An address, chat, or user ID you configured in the previous steps.',
+      required: 'Choose where alerts and cron deliveries should go.',
+      notInAllowlist: 'Pick one of the addresses or accounts you allowed in the previous steps.'
+    },
     channelSteps: {
       next: 'Next',
       tryAgain: 'Try again',
@@ -2540,6 +2551,7 @@ export const en: Translations = {
       stepWho: 'Who',
       stepConnect: 'Connect',
       stepTalk: 'Who can talk',
+      stepDeliver: 'Alerts & cron',
       stepReady: 'Ready',
       whoTitle: 'Who will use WhatsApp with Work4You?',
       whoNote: 'You can change this later.',

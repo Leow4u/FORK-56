@@ -1561,6 +1561,7 @@ from work4you_cli.web_models import (  # noqa: F401
     MemoryProviderConfigUpdate,
     MemoryProviderSetupRequest,
     CustomEndpointUpdate,
+    MessagingHomeChannelWrite,
     MessagingPlatformUpdate,
     TelegramOnboardingStart,
     TelegramOnboardingApply,
@@ -10363,6 +10364,62 @@ async def get_whatsapp_onboarding_status(pairing_id: str):
         return _whatsapp_onboarding_payload(pairing_id, record)
 
 
+def _normalize_whatsapp_home_key(value: str) -> str:
+    """Loose match for phone/JID allowlist checks."""
+    raw = str(value or "").strip().lower()
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    return digits or raw
+
+
+def _persist_messaging_home_from_setup(
+    platform_id: str,
+    home: Optional[MessagingHomeChannelWrite],
+    *,
+    allowed_telegram_ids: Optional[list[str]] = None,
+    allowed_emails: Optional[list[str]] = None,
+    allowed_whatsapp_keys: Optional[set[str]] = None,
+) -> None:
+    if home is None:
+        return
+    chat_id = str(home.chat_id or "").strip()
+    if not chat_id:
+        raise HTTPException(status_code=400, detail="Home channel target is required.")
+    if platform_id == "telegram" and allowed_telegram_ids:
+        if chat_id not in allowed_telegram_ids:
+            raise HTTPException(
+                status_code=400,
+                detail="Home channel must be one of the allowed Telegram user IDs.",
+            )
+    if platform_id == "email" and allowed_emails:
+        allowed = {addr.strip().lower() for addr in allowed_emails if addr.strip()}
+        if chat_id.strip().lower() not in allowed:
+            raise HTTPException(
+                status_code=400,
+                detail="Home channel must be one of the allowed email addresses.",
+            )
+    if platform_id == "whatsapp" and allowed_whatsapp_keys:
+        if _normalize_whatsapp_home_key(chat_id) not in allowed_whatsapp_keys:
+            raise HTTPException(
+                status_code=400,
+                detail="Home channel must match the linked WhatsApp account or allowlist.",
+            )
+    from work4you_cli.messaging_home import save_messaging_home_channel
+
+    user_id = home.user_id
+    if platform_id == "telegram" and not user_id:
+        user_id = chat_id
+    try:
+        save_messaging_home_channel(
+            platform_id,
+            chat_id=chat_id,
+            name=home.name,
+            user_id=user_id,
+            thread_id=home.thread_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.post("/api/messaging/whatsapp/onboarding/{pairing_id}/apply")
 async def apply_whatsapp_onboarding(
     pairing_id: str, body: WhatsAppOnboardingApply, profile: Optional[str] = None
@@ -10396,6 +10453,18 @@ async def apply_whatsapp_onboarding(
             # still lives in the normal config editor where the field is visible.
             save_env_value("WHATSAPP_ENABLED", "true")
             _write_platform_enabled("whatsapp", True)
+            wa_keys = {
+                _normalize_whatsapp_home_key(record.account_id or ""),
+                _normalize_whatsapp_home_key(record.account_phone or ""),
+            }
+            for part in (allowed_users or "").split(","):
+                wa_keys.add(_normalize_whatsapp_home_key(part))
+            wa_keys.discard("")
+            _persist_messaging_home_from_setup(
+                "whatsapp",
+                body.home_channel,
+                allowed_whatsapp_keys=wa_keys,
+            )
     except HTTPException:
         raise
     except ValueError as exc:
@@ -10764,6 +10833,11 @@ async def apply_telegram_onboarding(
             save_env_value("TELEGRAM_BOT_TOKEN", bot_token)
             save_env_value("TELEGRAM_ALLOWED_USERS", ",".join(allowed_user_ids))
             _write_platform_enabled("telegram", True)
+            _persist_messaging_home_from_setup(
+                "telegram",
+                body.home_channel,
+                allowed_telegram_ids=allowed_user_ids,
+            )
 
     try:
         await asyncio.to_thread(_apply)
@@ -10964,18 +11038,51 @@ async def update_messaging_platform(
             if body.enabled is not None:
                 _write_platform_enabled(platform_id, body.enabled)
 
+            allowed_emails: list[str] | None = None
+            if platform_id == "email" and body.home_channel:
+                raw = body.env.get("EMAIL_ALLOWED_USERS")
+                if raw is None:
+                    from work4you_cli.config import load_config
+
+                    cfg = load_config() or {}
+                    raw = (os.getenv("EMAIL_ALLOWED_USERS") or "").strip()
+                if raw:
+                    allowed_emails = [
+                        part.strip()
+                        for part in str(raw).split(",")
+                        if part.strip()
+                    ]
+            allowed_telegram: list[str] | None = None
+            if platform_id == "telegram" and body.home_channel:
+                raw = body.env.get("TELEGRAM_ALLOWED_USERS")
+                if raw is None:
+                    raw = (os.getenv("TELEGRAM_ALLOWED_USERS") or "").strip()
+                if raw:
+                    allowed_telegram = [
+                        part.strip()
+                        for part in str(raw).split(",")
+                        if part.strip()
+                    ]
+            _persist_messaging_home_from_setup(
+                platform_id,
+                body.home_channel,
+                allowed_emails=allowed_emails,
+                allowed_telegram_ids=allowed_telegram,
+            )
+
     try:
         await asyncio.to_thread(_apply)
 
         # Audit trail for channel config mutations: names only, never values.
         _log.info(
             "Messaging platform updated: platform=%s profile=%s enabled=%s "
-            "env_keys=%s cleared_keys=%s",
+            "env_keys=%s cleared_keys=%s home_channel=%s",
             platform_id,
             target_profile or "current",
             body.enabled,
             sorted(body.env),
             sorted(body.clear_env),
+            bool(body.home_channel),
         )
         return {"ok": True, "platform": platform_id}
     except HTTPException:

@@ -278,10 +278,18 @@ export interface PairingResponse {
   pending: PairingUser[]
 }
 
+export interface MessagingHomeChannelWrite {
+  chat_id: string
+  name?: string
+  thread_id?: string
+  user_id?: string
+}
+
 export interface MessagingPlatformUpdate {
   clear_env?: string[]
   enabled?: boolean
   env?: Record<string, string>
+  home_channel?: MessagingHomeChannelWrite
 }
 
 export interface MessagingPlatformTestResponse {

@@ -31,6 +31,13 @@ vi.mock('@/store/system-actions', async () => {
 })
 
 const s = en.messaging.emailPage
+const hd = en.messaging.homeDelivery
+const home = (chatId: string) => ({ chat_id: chatId, name: chatId })
+
+async function throughDeliver() {
+  expect(await screen.findByText(hd.title)).toBeTruthy()
+  await next()
+}
 
 function envVar(key: string, value: null | string, isSet = Boolean(value)): MessagingEnvVarInfo {
   return {
@@ -140,6 +147,7 @@ describe('EmailConnectSteps', () => {
     await next()
     addChip(s.allowedLabel, 'ana@example.org')
     await next()
+    await throughDeliver()
 
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith(
@@ -153,7 +161,8 @@ describe('EmailConnectSteps', () => {
             EMAIL_PASSWORD: 'secret',
             EMAIL_SMTP_HOST: 'mail.example.org',
             EMAIL_SMTP_PORT: '465'
-          }
+          },
+          home_channel: home('ana@example.org')
         },
         null
       )
@@ -181,6 +190,7 @@ describe('EmailConnectSteps', () => {
     addChip(s.allowedLabel, 'ana@example.com')
     addChip(s.allowedLabel, 'bruno@example.com')
     await next()
+    await throughDeliver()
 
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith(
@@ -193,7 +203,8 @@ describe('EmailConnectSteps', () => {
             EMAIL_IMAP_HOST: 'imap.gmail.com',
             EMAIL_PASSWORD: 'app-password',
             EMAIL_SMTP_HOST: 'smtp.gmail.com'
-          }
+          },
+          home_channel: home('ana@example.com')
         },
         'work'
       )
@@ -221,6 +232,7 @@ describe('EmailConnectSteps', () => {
     expect(screen.getByText(s.meAddressTitle)).toBeTruthy()
     addChip(s.meAddressLabel, 'ana@example.com')
     await next()
+    await throughDeliver()
 
     expect(await screen.findByText('IMAP login to imap.gmail.com:993 failed: bad password')).toBeTruthy()
     expect(screen.getByText(s.whoMe)).toBeTruthy()
@@ -249,6 +261,7 @@ describe('EmailConnectSteps', () => {
     expect(nextButton().disabled).toBe(false)
     await next()
     await next()
+    await throughDeliver()
 
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith(
@@ -261,7 +274,8 @@ describe('EmailConnectSteps', () => {
             EMAIL_ALLOWED_USERS: 'ana@example.org',
             EMAIL_IMAP_HOST: 'imap.fastmail.com',
             EMAIL_SMTP_HOST: 'smtp.fastmail.com'
-          }
+          },
+          home_channel: home('ana@example.org')
         },
         null
       )

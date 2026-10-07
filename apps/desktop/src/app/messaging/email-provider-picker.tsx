@@ -3,10 +3,9 @@ import type { ComponentType, SVGProps } from 'react'
 import { cn } from '@/lib/utils'
 
 import type { EmailProviderPreset } from './email-presets'
-import {
-  EMAIL_PROVIDER_ICON_COLORS,
-  EMAIL_PROVIDER_ICON_COMPONENTS
-} from './email-provider-icons'
+import { EMAIL_PROVIDER_ICON_COLORS, EMAIL_PROVIDER_ICON_COMPONENTS } from './email-provider-icons'
+
+type EmailProviderIconId = keyof typeof EMAIL_PROVIDER_ICON_COMPONENTS
 
 const CUSTOM = 'custom'
 
@@ -27,12 +26,16 @@ export function EmailProviderPicker({
 }) {
   const entries: { Icon: ComponentType<SVGProps<SVGSVGElement>>; color: string; id: EmailProviderChoice; name: string }[] =
     [
-      ...presets.map(preset => ({
-        Icon: EMAIL_PROVIDER_ICON_COMPONENTS[preset.id],
-        color: EMAIL_PROVIDER_ICON_COLORS[preset.id],
-        id: preset.id as EmailProviderChoice,
-        name: preset.label
-      })),
+      ...presets.map(preset => {
+        const id = preset.id as EmailProviderIconId
+
+        return {
+          Icon: EMAIL_PROVIDER_ICON_COMPONENTS[id],
+          color: EMAIL_PROVIDER_ICON_COLORS[id],
+          id: id as EmailProviderChoice,
+          name: preset.label
+        }
+      }),
       {
         Icon: EMAIL_PROVIDER_ICON_COMPONENTS.custom,
         color: EMAIL_PROVIDER_ICON_COLORS.custom,

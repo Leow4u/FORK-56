@@ -27,6 +27,8 @@ import {
   StepsFrame,
   watchRestartOutcome
 } from './channel-steps'
+import { buildHomeChannelPayload, defaultHomeFromChoices } from './home-delivery'
+import { HomeDeliveryField, HomeDeliveryNote } from './home-delivery-field'
 import { findInvalidWhatsAppUser } from './validate-env'
 
 /** Who the person said will use the channel. `self` and `solo` are both
@@ -35,7 +37,7 @@ import { findInvalidWhatsAppUser } from './validate-env'
  *  mode with other people allowed in. */
 type Audience = 'self' | 'solo' | 'team'
 
-type Step = 'connect' | 'ready' | 'talk' | 'who'
+type Step = 'connect' | 'deliver' | 'ready' | 'talk' | 'who'
 
 /** Who gets a reply once other people are allowed in: the numbers on a list
  *  (anyone else asks for approval) or whoever writes, each approved here. */
@@ -100,8 +102,10 @@ export function WhatsAppConnectSteps({
   const [allowedUsers, setAllowedUsers] = useState('')
   const [error, setError] = useState('')
   const [restart, setRestart] = useState<RestartState>({ outcome: 'pending' })
+  const [homeTarget, setHomeTarget] = useState('')
 
   const mode: WhatsAppOnboardingMode = audience === 'self' ? 'self-chat' : 'bot'
+  const hd = t.messaging.homeDelivery
   const polling = phase === 'preparing' || phase === 'waiting'
 
   const steps = useMemo<{ id: Step; label: string }[]>(
@@ -109,10 +113,62 @@ export function WhatsAppConnectSteps({
       { id: 'who', label: s.stepWho },
       { id: 'connect', label: s.stepConnect },
       ...(audience === 'team' ? [{ id: 'talk' as const, label: s.stepTalk }] : []),
+      { id: 'deliver', label: s.stepDeliver },
       { id: 'ready', label: s.stepReady }
     ],
     [audience, s]
   )
+
+  function whatsappHomeCandidates(users: string): string[] {
+    const linked = [setup?.account_id, setup?.account_phone].filter(Boolean) as string[]
+    const listed = users
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+
+    return [...linked, ...listed]
+  }
+
+  function openDeliverStep(users: string) {
+    if (audience === 'team' && allowChoice === 'list') {
+      if (!users) {
+        setError(s.numbersRequired)
+
+        return
+      }
+
+      const invalid = findInvalidWhatsAppUser(users)
+
+      if (invalid) {
+        setError(m.envErrors.whatsappNumber(invalid))
+
+        return
+      }
+    }
+
+    setError('')
+    setHomeTarget(current => current.trim() || defaultHomeFromChoices(whatsappHomeCandidates(users)))
+    setStep('deliver')
+  }
+
+  function validateHomeTarget(users: string): string {
+    const target = homeTarget.trim()
+
+    if (!target) {
+      return hd.required
+    }
+
+    const keys = new Set(
+      whatsappHomeCandidates(users).map(value => value.replace(/\D/g, '') || value.trim().toLowerCase())
+    )
+    const normalized = target.replace(/\D/g, '') || target.trim().toLowerCase()
+
+    if (!keys.has(normalized)) {
+      return hd.notInAllowlist
+    }
+
+    return ''
+  }
 
   useEffect(() => {
     if (!setup || !polling) {
@@ -282,30 +338,29 @@ export function WhatsAppConnectSteps({
 
     const listed = audience === 'team' && allowChoice === 'list'
     const users = listed ? allowedUsers.trim() : ''
+    const homeError = validateHomeTarget(users)
 
-    if (listed) {
-      if (!users) {
-        setError(s.numbersRequired)
+    if (homeError) {
+      setError(homeError)
 
-        return
-      }
-
-      const invalid = findInvalidWhatsAppUser(users)
-
-      if (invalid) {
-        setError(m.envErrors.whatsappNumber(invalid))
-
-        return
-      }
+      return
     }
 
-    const from: Step = audience === 'team' ? 'talk' : 'connect'
+    const from: Step = 'deliver'
     setError('')
     setPhase('applying')
     setStep('ready')
 
     try {
-      const result = await applyWhatsAppOnboarding(setup.pairing_id, { allowed_users: users, mode }, scopeProfile)
+      const result = await applyWhatsAppOnboarding(
+        setup.pairing_id,
+        {
+          allowed_users: users,
+          home_channel: buildHomeChannelPayload(homeTarget.trim()),
+          mode
+        },
+        scopeProfile
+      )
       setPhase('applied')
       onApplied()
 
@@ -456,7 +511,7 @@ export function WhatsAppConnectSteps({
             next={{
               disabled: phase !== 'connected',
               label: c.next,
-              onClick: () => (audience === 'team' ? setStep('talk') : void finish())
+              onClick: () => (audience === 'team' ? setStep('talk') : openDeliverStep(''))
             }}
           />
         </StepPanel>
@@ -485,6 +540,23 @@ export function WhatsAppConnectSteps({
           {error && <p className="mt-3 text-xs leading-4 text-destructive">{error}</p>}
           <StepFooter
             back={{ label: t.common.back, onClick: () => setStep('connect') }}
+            next={{ label: c.next, onClick: () => openDeliverStep(allowedUsers.trim()) }}
+          />
+        </StepPanel>
+      )}
+
+      {step === 'deliver' && (
+        <StepPanel note={<HomeDeliveryNote />} title={hd.title}>
+          <HomeDeliveryField
+            error={error || undefined}
+            onChange={value => {
+              setHomeTarget(value)
+              setError('')
+            }}
+            value={homeTarget}
+          />
+          <StepFooter
+            back={{ label: t.common.back, onClick: () => setStep(audience === 'team' ? 'talk' : 'connect') }}
             next={{ label: c.next, onClick: () => void finish() }}
           />
         </StepPanel>
