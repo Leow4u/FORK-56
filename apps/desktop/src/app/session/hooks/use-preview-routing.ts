@@ -7,15 +7,17 @@ import { reachablePreviewUrl } from '@/lib/preview-reach'
 import {
   $previewTabs,
   beginPreviewServerRestart,
-  closePreviewMatching,
+  closePreviewMatchingIn,
   closeRightRail,
   completePreviewServerRestart,
   openPreview,
+  type PreviewOwner,
+  previewOwnerFor,
   progressPreviewServerRestart,
   requestPreviewReload
 } from '@/store/preview'
-import { $activeSessionId, $currentCwd } from '@/store/session'
-import { $focusedRuntimeId, $sessionTiles } from '@/store/session-states'
+import { $activeSessionId, $currentCwd, $selectedStoredSessionId } from '@/store/session'
+import { $focusedRuntimeId, $sessionStates, $sessionTiles } from '@/store/session-states'
 import type { RpcEvent } from '@/types/work4you'
 
 type EventHandler = (event: RpcEvent) => void
@@ -36,6 +38,26 @@ function sessionIsOnScreen(sessionId: string): boolean {
     sessionId === $activeSessionId.get() ||
     $sessionTiles.get().some(tile => tile.runtimeId === sessionId)
   )
+}
+
+/** The conversation an agent event speaks for, as the owner of its preview
+ *  tabs: the primary chat's runtime is the primary selection (null = its
+ *  draft), a tile's runtime is that tile, any other runtime resolves through
+ *  its session state. Undefined when the event names no runtime this window
+ *  knows — it then speaks for the conversation on screen, as it always has. */
+export function previewOwnerForRuntime(runtimeId: null | string | undefined): PreviewOwner | undefined {
+  if (!runtimeId) {
+    return undefined
+  }
+
+  if (runtimeId === $activeSessionId.get()) {
+    return previewOwnerFor($selectedStoredSessionId.get())
+  }
+
+  const tile = $sessionTiles.get().find(item => item.runtimeId === runtimeId)
+  const storedSessionId = tile?.storedSessionId ?? $sessionStates.get()[runtimeId]?.storedSessionId
+
+  return storedSessionId ? previewOwnerFor(storedSessionId) : undefined
 }
 
 export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestGateway }: PreviewRoutingOptions) {
@@ -84,8 +106,13 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
         // session that is NOT visible anywhere still can't yank the pane
         // open (offer, don't hijack). Routes through the same normalizer as
         // the file browser so URLs, localhost, and file paths all resolve.
+        //
+        // The tab belongs to the conversation that asked. When that isn't the
+        // one the area follows (a tile's turn while the user works in main), it
+        // waits in that conversation instead of taking over the area.
         const { url, label } = asRecord(event.payload)
         const target = typeof url === 'string' ? url.trim() : ''
+        const owner = previewOwnerForRuntime(event.session_id)
 
         if (target && (!event.session_id || sessionIsOnScreen(event.session_id))) {
           void normalizeOrLocalPreviewTarget(target, $currentCwd.get() || currentCwd || undefined).then(
@@ -101,7 +128,7 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
               const url = resolved.kind === 'url' ? await reachablePreviewUrl(resolved.url) : resolved.url
               const reached = url === resolved.url ? resolved : { ...resolved, label: resolved.label || target, url }
 
-              openPreview(trimmedLabel ? { ...reached, label: trimmedLabel } : reached, 'tool-result')
+              openPreview(trimmedLabel ? { ...reached, label: trimmedLabel } : reached, 'tool-result', owner)
             }
           )
         }
@@ -112,21 +139,23 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
       if (event.type === 'preview.close') {
         // Agent-driven close via close_preview. Same on-screen gate as open:
         // a session the user can see may tidy the pane it opened; a hidden
-        // background turn must not dismiss the user's preview.
+        // background turn must not dismiss the user's preview. It closes the
+        // asking conversation's tabs, never another conversation's.
         const { url } = asRecord(event.payload)
         const target = typeof url === 'string' ? url.trim() : ''
+        const owner = previewOwnerForRuntime(event.session_id)
 
         if (event.session_id && !sessionIsOnScreen(event.session_id)) {
           return
         }
 
         if (!target) {
-          closeRightRail()
+          closeRightRail(owner)
 
           return
         }
 
-        if (closePreviewMatching(target)) {
+        if (closePreviewMatchingIn(owner, target)) {
           return
         }
 
@@ -142,7 +171,7 @@ export function usePreviewRouting({ baseHandleGatewayEvent, currentCwd, requestG
               }
             }
 
-            closePreviewMatching(...candidates)
+            closePreviewMatchingIn(owner, ...candidates)
           }
         )
 

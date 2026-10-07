@@ -3,7 +3,16 @@ import { useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { assistantTextPart, type ChatMessage } from '@/lib/chat-messages'
-import { $previewTabs, $previewTarget, closeRightRail, type PreviewTarget } from '@/store/preview'
+import {
+  $allPreviewTabs,
+  $previewTabs,
+  $previewTarget,
+  closeRightRail,
+  followPreviewTile,
+  previewOwnerFor,
+  previewTabsOf,
+  type PreviewTarget
+} from '@/store/preview'
 import { $activeSessionId, $currentCwd, $messages, $selectedStoredSessionId } from '@/store/session'
 import type { RpcEvent } from '@/types/work4you'
 
@@ -61,6 +70,7 @@ describe('preview routing', () => {
     $activeSessionId.set(RUNTIME_SESSION_ID)
     $currentCwd.set('/work')
     $messages.set([])
+    $allPreviewTabs.set([])
     closeRightRail()
     window.localStorage.clear()
 
@@ -73,6 +83,8 @@ describe('preview routing', () => {
   afterEach(() => {
     cleanup()
     $messages.set([])
+    followPreviewTile(null)
+    $allPreviewTabs.set([])
     closeRightRail()
     $activeSessionId.set(null)
     $selectedStoredSessionId.set(null)
@@ -125,8 +137,10 @@ describe('preview routing', () => {
 
     // The turn that calls open_preview is often a TILE's session while focus
     // sits on main (the user asked, then clicked elsewhere). On-screen is the
-    // bar — gating on focus made an explicit "open reddit" silently vanish.
-    it('honors an open from an open tile session even when main holds focus', async () => {
+    // bar — gating on focus made an explicit "open reddit" silently vanish. The
+    // tab belongs to the tile's conversation: it waits there instead of taking
+    // over the area main is showing, and is in front when the user goes to it.
+    it("opens a tile session's tab in that conversation without taking the screen", async () => {
       const { $sessionTiles } = await import('@/store/session-states')
       const tiles = $sessionTiles.get()
 
@@ -136,7 +150,13 @@ describe('preview routing', () => {
       try {
         await emitPreviewOpen('/tmp/from-tile.html', 'tile-runtime')
 
-        await waitFor(() => expect($previewTarget.get()?.path).toBe('/tmp/from-tile.html'))
+        await waitFor(() =>
+          expect(previewTabsOf(previewOwnerFor('stored-tile')).active?.target.path).toBe('/tmp/from-tile.html')
+        )
+        expect($previewTabs.get()).toHaveLength(0)
+
+        followPreviewTile('stored-tile')
+        expect($previewTarget.get()?.path).toBe('/tmp/from-tile.html')
       } finally {
         $sessionTiles.set(tiles)
       }
@@ -244,20 +264,26 @@ describe('preview routing', () => {
       expect($previewTabs.get()).toHaveLength(1)
     })
 
-    it('honors a close from an open tile session even when main holds focus', async () => {
+    it("closes a tile session's own tabs and leaves the screen's alone", async () => {
       const { $sessionTiles } = await import('@/store/session-states')
       const tiles = $sessionTiles.get()
+      const tileTabs = () => previewTabsOf(previewOwnerFor('stored-tile')).tabs
 
       $sessionTiles.set([{ dir: 'right', runtimeId: 'tile-runtime', storedSessionId: 'stored-tile' }])
       render(<Harness />)
 
       try {
+        await emitPreviewOpen('/tmp/main.html')
         await emitPreviewOpen('/tmp/from-tile.html', 'tile-runtime')
-        await waitFor(() => expect($previewTabs.get()).toHaveLength(1))
+        await emitPreviewOpen('/tmp/tile-two.html', 'tile-runtime')
+        await waitFor(() => expect(tileTabs()).toHaveLength(2))
 
         await emitPreviewClose('/tmp/from-tile.html', 'tile-runtime')
+        await waitFor(() => expect(tileTabs()).toHaveLength(1))
 
-        await waitFor(() => expect($previewTabs.get()).toHaveLength(0))
+        await emitPreviewClose('', 'tile-runtime')
+        expect(tileTabs()).toHaveLength(0)
+        expect($previewTarget.get()?.path).toBe('/tmp/main.html')
       } finally {
         $sessionTiles.set(tiles)
       }

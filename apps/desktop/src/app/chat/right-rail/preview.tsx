@@ -1,7 +1,7 @@
 import { useStore } from '@nanostores/react'
 
 import { $restartPreviewServer } from '@/app/contrib/panes'
-import { $previewReloadRequest, $previewTabs } from '@/store/preview'
+import { $previewOwner, $previewReloadRequest, $previewTabs, previewOwnerKey } from '@/store/preview'
 
 import { PreviewPane } from './preview-pane'
 
@@ -23,6 +23,7 @@ interface PreviewTilePaneProps {
 export function PreviewTilePane({ tabId }: PreviewTilePaneProps) {
   const previewReloadRequest = useStore($previewReloadRequest)
   const previewTabs = useStore($previewTabs)
+  const owner = useStore($previewOwner)
   const restartPreviewServer = useStore($restartPreviewServer)
   const target = previewTabs.find(tab => tab.id === tabId)?.target
 
@@ -32,10 +33,15 @@ export function PreviewTilePane({ tabId }: PreviewTilePaneProps) {
     return null
   }
 
+  // Keyed by the conversation: two conversations can each hold the same tab id
+  // (their Browser, the same file), and switching between them must rebuild
+  // the page from the conversation now on screen rather than keep the other's.
   return (
     <PreviewPane
       embedded
+      key={previewOwnerKey(owner)}
       onRestartServer={target.kind === 'url' ? (restartPreviewServer ?? undefined) : undefined}
+      owner={owner}
       reloadRequest={previewReloadRequest}
       tabId={tabId}
       target={target}

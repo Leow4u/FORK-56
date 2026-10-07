@@ -3,9 +3,11 @@ import { readActivePreview } from '@/app/chat/right-rail/preview-reader'
 import { writeAgentTerminalChunk } from '@/app/right-sidebar/terminal/agent-terminal-stream'
 import { readActiveTerminal } from '@/app/right-sidebar/terminal/buffer'
 import { closeAgentTerminalByProc } from '@/app/right-sidebar/terminal/terminals'
+import { previewOwnerForRuntime } from '@/app/session/hooks/use-preview-routing'
 import type { TourAction, TourStep } from '@/lib/tour'
 import { $gateway } from '@/store/gateway'
 import { applyDesktopLayoutPreset, revealDesktopPane } from '@/store/pane-focus'
+import { isFollowedPreviewOwner } from '@/store/preview'
 import { recordAgentReaction } from '@/store/reactions-local'
 import { setMessages } from '@/store/session'
 
@@ -16,6 +18,10 @@ import type { GatewayEventContext } from './types'
  *  message reactions. */
 export function handleDesktopBridgeEvent(ctx: GatewayEventContext): boolean {
   const { event, payload, isActiveEvent } = ctx
+  // Preview tabs belong to conversations: the asking conversation's tabs are
+  // the ones it reads, and it may only move the page while its tabs are the
+  // ones on screen. An unscoped event speaks for the screen, as it always has.
+  const previewOwner = () => previewOwnerForRuntime(ctx.explicitSid || undefined)
 
   if (event.type === 'terminal.read.request') {
     // read_terminal tool: serialize the renderer's xterm buffer and answer
@@ -37,15 +43,16 @@ export function handleDesktopBridgeEvent(ctx: GatewayEventContext): boolean {
   }
 
   if (event.type === 'preview.read.request') {
-    // read_preview tool: serialize the active preview tab (a Browser
-    // webview's page text is async) and answer. Empty text = nothing open.
+    // read_preview tool: serialize the asking conversation's active preview
+    // tab (a Browser webview's page text is async) and answer. Empty text =
+    // nothing open.
     const requestId = typeof payload?.request_id === 'string' ? payload.request_id : ''
 
     if (requestId) {
       const start = typeof payload?.start === 'number' ? payload.start : undefined
       const count = typeof payload?.count === 'number' ? payload.count : undefined
 
-      void readActivePreview({ count, start }).then(result => {
+      void readActivePreview({ count, start }, previewOwner()).then(result => {
         void $gateway.get()?.request('preview.read.respond', {
           request_id: requestId,
           text: result ? JSON.stringify(result) : ''
@@ -58,7 +65,9 @@ export function handleDesktopBridgeEvent(ctx: GatewayEventContext): boolean {
 
   if (event.type === 'preview.drive.request') {
     // drive_preview: inventory or act on the in-app page. Active session
-    // only — a background turn must not click the page on screen.
+    // only, and only while its own tabs are the ones on screen — a background
+    // turn must not click the page on screen, and neither may a conversation
+    // whose tabs are out of view (the page on screen is another's).
     const requestId = typeof payload?.request_id === 'string' ? payload.request_id : ''
 
     if (requestId) {
@@ -68,7 +77,7 @@ export function handleDesktopBridgeEvent(ctx: GatewayEventContext): boolean {
           text: result ? JSON.stringify(result) : ''
         })
 
-      if (isActiveEvent) {
+      if (isActiveEvent && isFollowedPreviewOwner(previewOwner())) {
         void driveActivePreview({
           action: typeof payload?.action === 'string' ? payload.action : '',
           direction: typeof payload?.direction === 'string' ? payload.direction : '',
@@ -144,7 +153,11 @@ export function handleDesktopBridgeEvent(ctx: GatewayEventContext): boolean {
           text: result ? JSON.stringify(result) : ''
         })
 
-      if (isActiveEvent) {
+      // A tour inside the preview page also needs the asking conversation's
+      // tabs on screen — the page there may be another conversation's.
+      const surface = payload?.surface === 'preview' ? 'preview' : 'app'
+
+      if (isActiveEvent && (surface === 'app' || isFollowedPreviewOwner(previewOwner()))) {
         void import('@/lib/tour')
           .then(({ runTour }) =>
             runTour(
@@ -157,7 +170,7 @@ export function handleDesktopBridgeEvent(ctx: GatewayEventContext): boolean {
                 text: payload?.text,
                 title: payload?.title
               },
-              payload?.surface === 'preview' ? 'preview' : 'app'
+              surface
             )
           )
           .then(answer, error =>
