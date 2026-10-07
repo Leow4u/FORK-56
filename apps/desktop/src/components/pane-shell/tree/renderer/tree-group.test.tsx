@@ -175,4 +175,53 @@ describe('TreeGroup', () => {
     expect(cron?.className).not.toContain('rounded-tl-(--ui-stage-radius)')
     expect(cron?.className).not.toContain('rounded-tr-(--ui-stage-radius)')
   })
+
+  // The content area's strip draws its tabs as surfaces; every other strip —
+  // the chat's included, even with a preview stacked into it — keeps its own.
+  it("draws the content area's tabs as surfaces, and only there", () => {
+    disposePanes.push(
+      registry.register({
+        area: 'panes',
+        data: { placement: 'main' },
+        id: 'workspace',
+        render: () => <div>Chat</div>,
+        title: 'Workspace'
+      }),
+      registry.register({
+        area: 'panes',
+        data: { placement: 'main' },
+        id: 'preview-tile:file:a',
+        render: () => <div>Preview</div>,
+        title: 'a.html'
+      }),
+      registry.register({
+        area: 'panes',
+        data: { height: '12rem' },
+        id: 'terminal',
+        render: () => <div>Terminal</div>,
+        title: 'Terminal'
+      })
+    )
+    vi.stubGlobal('CSS', { escape: (value: string) => value })
+
+    const zone = (id: string, panes: string[]): GroupNode => ({
+      active: panes[0]!,
+      headerHidden: false,
+      id,
+      panes,
+      type: 'group'
+    })
+
+    const stripVariant = (id: string) =>
+      globalThis.document.querySelector(`[data-zone-tabstrip="${id}"]`)?.getAttribute('data-variant')
+
+    render(<TreeGroup node={zone('area-zone', ['preview-tile:file:a'])} />)
+    expect(stripVariant('area-zone')).toBe('surface')
+
+    render(<TreeGroup node={zone('chat-zone', ['workspace', 'preview-tile:file:a'])} />)
+    expect(stripVariant('chat-zone')).toBe('underline')
+
+    render(<TreeGroup node={zone('terminal-zone', ['terminal'])} parentAxis="column" />)
+    expect(stripVariant('terminal-zone')).toBe('underline')
+  })
 })

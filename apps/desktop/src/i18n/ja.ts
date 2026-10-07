@@ -3002,7 +3002,7 @@ export const ja = defineLocale({
       goForward: '進む',
       reload: 'ページを再読み込み',
       address: 'アドレス',
-      addressPlaceholder: 'アドレスを入力',
+      addressPlaceholder: 'URLを入力',
       blankPageBody: '上のアドレス欄に入力するか、Work4You にページを開くよう頼んでください。',
       finishedRestarting: message =>
         `Work4You がプレビューサーバーの再起動を完了しました${message ? `: ${message}` : ''}`,

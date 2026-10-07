@@ -4528,13 +4528,13 @@ export const pt = defineLocale({
     paneControls: 'Controles do painel',
     appControls: 'Controles do app',
     panes: {
-      sessions: 'sessões',
-      terminal: 'terminal',
-      files: 'arquivos',
-      review: 'revisão',
-      logs: 'logs',
+      sessions: 'Sessões',
+      terminal: 'Terminal',
+      files: 'Arquivos',
+      review: 'Revisão',
+      logs: 'Logs',
       browser: 'Navegador',
-      agentTerminal: 'agente',
+      agentTerminal: 'Agente',
       noPageAt: path => `nenhuma página em ${path}`
     },
     layouts: {
@@ -4810,7 +4810,7 @@ export const pt = defineLocale({
       goForward: 'Avançar',
       reload: 'Recarregar página',
       address: 'Endereço',
-      addressPlaceholder: 'Digite um endereço',
+      addressPlaceholder: 'Digite uma URL',
       blankPageBody: 'Digite um endereço acima para navegar ou peça ao Work4You para abrir uma página.',
       finishedRestarting: message =>
         `O Work4You terminou de reiniciar o servidor de visualização${message ? `: ${message}` : ''}`,

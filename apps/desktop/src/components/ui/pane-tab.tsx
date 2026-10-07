@@ -48,11 +48,28 @@ const TAB_IDLE =
 const TAB_SELECTED =
   '[background-image:linear-gradient(color-mix(in_srgb,var(--ui-accent)_14%,transparent),color-mix(in_srgb,var(--ui-accent)_14%,transparent))] [--tab-face:color-mix(in_srgb,var(--ui-accent)_14%,var(--tab-bg))] text-foreground'
 
+// `surface` strips: each tab is a rounded chip inset in the bar, no seams
+// between them. The active one is a surface of its own — the stage, a step
+// brighter than the rail — with a thin outline instead of the underline.
+const TAB_SURFACE = 'my-[3px] h-[calc(100%-6px)] min-w-0 max-w-48 rounded-md'
+
+const TAB_ACTIVE_SURFACE =
+  'text-foreground [--tab-bg:var(--ui-editor-surface-background)] shadow-[inset_0_0_0_1px_var(--ui-stroke-secondary)]'
+
+/** How a strip draws its tabs. `underline` (the default): tabs merge into the
+ *  bar and the active one carries the accent underline. `surface`: each tab is
+ *  a rounded chip, the active one a brighter surface with a thin outline, the ✕
+ *  always shown in a slot of its own, and titles in their own case. */
+export type PaneTabVariant = 'surface' | 'underline'
+
+const PaneTabVariantContext = React.createContext<PaneTabVariant>('underline')
+
 interface PaneTabProps extends React.ComponentProps<'div'> {
   active?: boolean
   dirty?: boolean
   /** Close verb. Horizontal tabs reveal a hover ✕ on the right (a `--tab-face`
-   *  gradient fades it over the label); middle-click and ⌘-click always work,
+   *  gradient fades it over the label) — or, on a `surface` strip, keep the ✕
+   *  in a slot of its own, always shown; middle-click and ⌘-click always work,
    *  and stay the only gestures on vertical rails (no room for a chip ✕). */
   onClose?: () => void
   /** Part of a multi-tab selection (⌥/Ctrl-click, Shift-click) — an accent
@@ -96,15 +113,34 @@ export const PaneTab = React.forwardRef<HTMLDivElement, PaneTabProps>(function P
   // that rule, and a per-tab border stacked a second translucent line over it.
   const edge = vertical ? (side === 'right' ? 'border-l' : 'border-r') : undefined
   const middle = middleClickHandlers(onClose)
+  const surface = React.useContext(PaneTabVariantContext) === 'surface' && !vertical
+
+  const closeButtonHandlers = onClose && {
+    onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+      onClose()
+    },
+    onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
+      // Claim a plain left press so the shell can't also activate or drag the
+      // tab. Middle/⌘ presses bubble on purpose — the tab's own close gestures
+      // already route them.
+      if (event.button === 0 && !isMetaClose(event)) {
+        event.stopPropagation()
+      }
+    }
+  }
 
   return (
     <div
       className={cn(
         TAB,
-        vertical ? TAB_VERTICAL : TAB_HORIZONTAL,
+        vertical ? TAB_VERTICAL : surface ? TAB_SURFACE : TAB_HORIZONTAL,
         edge,
         active
-          ? cn(TAB_ACTIVE, !vertical && TAB_ACTIVE_UNDERLINE)
+          ? surface
+            ? TAB_ACTIVE_SURFACE
+            : cn(TAB_ACTIVE, !vertical && TAB_ACTIVE_UNDERLINE)
           : cn(TAB_IDLE, edge && `${edge}-(--ui-stroke-tertiary)`),
         selected && TAB_SELECTED,
         className
@@ -162,7 +198,20 @@ export const PaneTab = React.forwardRef<HTMLDivElement, PaneTabProps>(function P
           <span className="size-2 rounded-full bg-amber-500 shadow-[0_0_0_2px_var(--tab-bg),0_1px_2px_rgba(0,0,0,0.45)] dark:bg-amber-400" />
         </span>
       )}
-      {onClose && showCloseButton && !vertical && (
+      {closeButtonHandlers && showCloseButton && !vertical && surface && (
+        // Surface tabs keep the ✕ in a slot of its own at the end, always
+        // shown: the title truncates before it and never runs underneath.
+        <button
+          aria-label={translateNow('common.close')}
+          className="mr-1 grid size-4 shrink-0 cursor-pointer place-items-center rounded-sm text-(--ui-text-tertiary) outline-none hover:bg-(--chrome-action-hover) hover:text-foreground"
+          tabIndex={-1}
+          type="button"
+          {...closeButtonHandlers}
+        >
+          <Codicon name="close" size="0.6875rem" />
+        </button>
+      )}
+      {closeButtonHandlers && showCloseButton && !vertical && !surface && (
         // Hover ✕, painted OVER the label's right edge as an overlay (no
         // layout shift, tab width never jumps on hover). The runway is a tiny
         // transparent→`--tab-face` gradient, so the button melts into the
@@ -180,21 +229,9 @@ export const PaneTab = React.forwardRef<HTMLDivElement, PaneTabProps>(function P
           <button
             aria-label={translateNow('common.close')}
             className="grid cursor-pointer place-items-center bg-(--tab-face) pr-1.5 pl-0.5 text-(--ui-text-tertiary) outline-none hover:text-foreground group-data-[active=true]/tab:shadow-[inset_0_-2px_0_var(--pane-tab-active-accent,var(--theme-primary))]"
-            onClick={event => {
-              event.preventDefault()
-              event.stopPropagation()
-              onClose()
-            }}
-            onPointerDown={event => {
-              // Claim a plain left press so the shell can't also activate or
-              // drag the tab. Middle/⌘ presses bubble on purpose — the tab's
-              // own close gestures already route them.
-              if (event.button === 0 && !isMetaClose(event)) {
-                event.stopPropagation()
-              }
-            }}
             tabIndex={-1}
             type="button"
+            {...closeButtonHandlers}
           >
             <Codicon name="close" size="0.6875rem" />
           </button>
@@ -211,12 +248,14 @@ interface PaneTabLabelProps extends React.ComponentProps<'button'> {
 }
 
 /** Truncating label inside a `PaneTab`. `className` merges into the text span
- *  (e.g. `normal-case tracking-normal` for filenames). */
+ *  (e.g. `normal-case tracking-normal` for filenames). On a `surface` strip the
+ *  title keeps its own case at the tab's text size. */
 export const PaneTabLabel = React.forwardRef<HTMLElement, PaneTabLabelProps>(function PaneTabLabel(
   { as = 'span', className, children, ...props },
   ref
 ) {
   const Comp = as as React.ElementType
+  const surface = React.useContext(PaneTabVariantContext) === 'surface'
 
   return (
     <Comp
@@ -224,7 +263,13 @@ export const PaneTabLabel = React.forwardRef<HTMLElement, PaneTabLabelProps>(fun
       ref={ref}
       {...props}
     >
-      <span className={cn('block min-w-0 truncate text-[9px] font-medium tracking-wide uppercase', className)}>
+      <span
+        className={cn(
+          'block min-w-0 truncate font-medium',
+          surface ? 'text-[0.6875rem]' : 'text-[9px] tracking-wide uppercase',
+          className
+        )}
+      >
         {children}
       </span>
     </Comp>
@@ -238,6 +283,8 @@ interface PaneTabStripProps extends React.ComponentProps<'div'> {
   listRef?: React.Ref<HTMLDivElement>
   /** Non-scrolling trailing chrome pinned to the right (the minimize chevron). */
   trailing?: React.ReactNode
+  /** How its tabs are drawn (see `PaneTabVariant`). */
+  variant?: PaneTabVariant
 }
 
 /**
@@ -247,10 +294,11 @@ interface PaneTabStripProps extends React.ComponentProps<'div'> {
  * re-deriving the geometry and drifting out of alignment.
  *
  * Tabs go in `children` as `PaneTab`s; per-strip extras (drag handlers,
- * `data-zone-tabstrip`, drop carets) ride on the usual div props.
+ * `data-zone-tabstrip`, drop carets) ride on the usual div props. `variant`
+ * reaches every tab and label inside, so a strip changes look in one place.
  */
 export const PaneTabStrip = React.forwardRef<HTMLDivElement, PaneTabStripProps>(function PaneTabStrip(
-  { children, className, listRef, trailing, ...props },
+  { children, className, listRef, trailing, variant = 'underline', ...props },
   ref
 ) {
   return (
@@ -261,15 +309,19 @@ export const PaneTabStrip = React.forwardRef<HTMLDivElement, PaneTabStripProps>(
         'group/pane-header relative flex h-7 shrink-0 select-none bg-(--ui-sidebar-surface-background) [-webkit-app-region:no-drag] [--pane-tab-active-bg:var(--ui-sidebar-surface-background)]',
         className
       )}
+      data-variant={variant}
       ref={ref}
       {...props}
     >
       <div
-        className="flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className={cn(
+          'flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          variant === 'surface' && 'gap-0.5 px-1'
+        )}
         ref={listRef}
         role="tablist"
       >
-        {children}
+        <PaneTabVariantContext.Provider value={variant}>{children}</PaneTabVariantContext.Provider>
       </div>
       {trailing}
     </div>

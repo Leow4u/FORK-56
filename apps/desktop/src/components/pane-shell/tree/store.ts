@@ -487,6 +487,11 @@ export const isHideOnlyPane = (paneId: string): boolean =>
 export const isSessionStripPane = (paneId: string): boolean =>
   paneId === 'workspace' || paneId.startsWith('session-tile:')
 
+/** A pane of the CONTENT AREA — an open preview (a page, a file, an artifact).
+ *  A zone holding one draws its strip as `surface` tabs; the chat's strip
+ *  keeps its own look even when a preview is stacked into it. */
+export const isContentAreaPane = (paneId: string): boolean => paneId.startsWith('preview-tile:')
+
 /** Any MAIN-placement tile's pane — a session, a page, a preview. The zones
  *  these stack into are real tab strips, so the generic tab verbs (⌘W, ⌃Tab)
  *  must serve them all; keying on the session prefix left ⌘W and ⌃Tab dead

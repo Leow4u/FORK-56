@@ -4576,7 +4576,7 @@ export const zh: Translations = {
       goForward: '前进',
       reload: '重新加载页面',
       address: '地址',
-      addressPlaceholder: '输入地址',
+      addressPlaceholder: '输入网址',
       blankPageBody: '在上方输入地址开始浏览，或让 Work4You 打开一个页面。',
       finishedRestarting: message => `Work4You 已完成预览服务器重启${message ? `: ${message}` : ''}`,
       failedRestarting: message => `服务器重启失败：${message}`,

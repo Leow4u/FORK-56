@@ -58,6 +58,7 @@ import {
   collapseTreePane,
   hideOnlyZoneTabs,
   isCollapsePane,
+  isContentAreaPane,
   isMainStripPane,
   isSessionStripPane,
   noteActiveTreeGroup,
@@ -289,6 +290,9 @@ export function TreeGroup({
   const verticalCollapse = Boolean(node.minimized) && parentAxis === 'row' && !isEmpty
   const headerVisible = !isEmpty && !verticalCollapse && (Boolean(node.minimized) || !headerHidden)
   const isStage = isMainStageZone(shown, isSessionStripPane)
+  // The content area draws its tabs as surfaces; the chat's strip keeps its
+  // own look even with a preview stacked into it.
+  const isContentArea = !isStage && shown.some(isContentAreaPane)
 
   // Keep the activated tab — and, on the last one, the trailing "+" — inside
   // the strip's scroll window. Opening a tab past the right edge otherwise
@@ -484,6 +488,7 @@ export function TreeGroup({
                 <StripDropCaret groupId={node.id} stripRef={stripRef} />
               </>
             }
+            variant={isContentArea ? 'surface' : undefined}
           >
             {shown.map(paneId => {
               const isActive = paneId === activeId && !node.minimized

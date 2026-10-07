@@ -122,27 +122,31 @@ export function PreviewBrowserBar({
 
   return (
     <div className="flex min-h-(--titlebar-height) shrink-0 items-center gap-1 border-b border-border/60 bg-background px-1.5 py-1">
-      <PaneStripGlyph
-        disabled={!canGoBack}
-        icon={<Codicon name="arrow-left" size="0.8125rem" />}
-        label={copy.goBack}
-        onSelect={onBack}
-      />
-      <PaneStripGlyph
-        disabled={!canGoForward}
-        icon={<Codicon name="arrow-right" size="0.8125rem" />}
-        label={copy.goForward}
-        onSelect={onForward}
-      />
-      <PaneStripGlyph
-        icon={<Codicon name="refresh" size="0.8125rem" spinning={loading} />}
-        label={copy.reload}
-        onSelect={onReload}
-      />
-      {/* The copy control lives INSIDE the field, on its right edge — the
-          same pre-faded inline icon code blocks use, not a toolbar button.
-          It copies what the field shows: on a remote gateway, that is the
-          reach-resolved address. */}
+      {/* Back, forward and reload read as one control: all three move this
+          page through its own history. */}
+      <div className="flex shrink-0 items-center divide-x divide-(--ui-stroke-tertiary) rounded-(--control-radius) border border-(--ui-stroke-tertiary)">
+        <PaneStripGlyph
+          disabled={!canGoBack}
+          icon={<Codicon name="arrow-left" size="0.8125rem" />}
+          label={copy.goBack}
+          onSelect={onBack}
+        />
+        <PaneStripGlyph
+          disabled={!canGoForward}
+          icon={<Codicon name="arrow-right" size="0.8125rem" />}
+          label={copy.goForward}
+          onSelect={onForward}
+        />
+        <PaneStripGlyph
+          icon={<Codicon name="refresh" size="0.8125rem" spinning={loading} />}
+          label={copy.reload}
+          onSelect={onReload}
+        />
+      </div>
+      {/* The address is a long rounded field, the copy control INSIDE it on
+          its right edge — the same pre-faded inline icon code blocks use, not
+          a toolbar button. It copies what the field shows: on a remote
+          gateway, that is the reach-resolved address. */}
       <div className="relative min-w-0 flex-1">
         <Input
           aria-invalid={invalid || undefined}
@@ -167,13 +171,14 @@ export function PreviewBrowserBar({
             }
           }}
           placeholder={copy.addressPlaceholder}
+          shape="pill"
           size="xs"
           spellCheck={false}
           value={draft ?? url}
         />
         <CopyButton
           appearance="inline"
-          className="absolute right-1 top-1/2 -translate-y-1/2 rounded-sm p-1"
+          className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full p-1"
           iconClassName="size-3"
           label={t.contextMenu.link.copyUrl}
           showLabel={false}
