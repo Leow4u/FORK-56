@@ -13,9 +13,13 @@
  * conversation the user is working in. Another conversation's tabs are out of
  * view, not closed: their panes keep their place in the layout and come back
  * to it when the user returns to that conversation.
+ *
+ * All of them share one content area: the first tab opens it as a zone beside
+ * main, and every tab after it stacks into that zone instead of opening one
+ * more column.
  */
 
-import { findGroup, type LayoutNode } from '@/components/pane-shell/tree/model'
+import { allPaneIds, findGroup, type LayoutNode } from '@/components/pane-shell/tree/model'
 import { $activeTreeGroup, $layoutTree, isSessionStripPane, revealTreePane } from '@/components/pane-shell/tree/store'
 import { FileTypeIcon } from '@/components/ui/file-type-icon'
 import { ToolIcon } from '@/components/ui/tool-icon'
@@ -107,6 +111,39 @@ function PreviewTabLead({ tabId }: { tabId: string }) {
 }
 
 const PREVIEW_TILE_PREFIX = 'preview-tile'
+
+const previewPaneId = (tabId: string) => `${PREVIEW_TILE_PREFIX}:${tabId}`
+
+/** Where a preview tab entering the layout lands: stacked into the content
+ *  area — the zone of the tab in front, else of another of the followed
+ *  conversation's tabs, else of any preview still in the layout (another
+ *  conversation's, out of view: it is the same area). Undefined when there is
+ *  no area yet, so the first tab opens it beside main. Only a tab ENTERING the
+ *  layout is placed: panes already in it stay where the user put them. */
+export function previewAreaAnchor(
+  tabId: string,
+  tree: LayoutNode | null,
+  frontTabId: null | string,
+  followedTabIds: readonly string[]
+): string | undefined {
+  if (!tree) {
+    return undefined
+  }
+
+  const own = previewPaneId(tabId)
+  const previews = allPaneIds(tree).filter(id => id.startsWith(`${PREVIEW_TILE_PREFIX}:`) && id !== own)
+  const preferred = [frontTabId, ...followedTabIds].flatMap(id => (id ? [previewPaneId(id)] : []))
+
+  return preferred.find(id => previews.includes(id)) ?? previews[0]
+}
+
+const areaAnchorFor = (tabId: string) =>
+  previewAreaAnchor(
+    tabId,
+    $layoutTree.get(),
+    $rightRailActiveTabId.get(),
+    $previewTabs.get().map(tab => tab.id)
+  )
 
 /** Keep pane contributions mirroring `$previewTabs`, keep the store's selection
  *  and the tree's active pane agreeing, and front a tile when its tab is
@@ -232,11 +269,14 @@ const watchPreviewTileMirror = paneMirror<{ id: string }>({
   retain: $allPreviewTabIds,
   key: tab => tab.id,
   prefix: PREVIEW_TILE_PREFIX,
-  // Identical to route (page) tiles: its own zone docked beside main, sized by
-  // the split weights. NOT anchored to the file tree — the old rail was a
+  // The content area: a tab entering the layout stacks into the zone that
+  // already shows previews, so new content never opens one more column. The
+  // first tab opens the area as its own zone docked beside main, sized by the
+  // split weights — NOT anchored to the file tree: the old rail was a
   // files-adjacent strip, and carrying that over welded preview into the file
   // browser's zone, so ⌘J (toggle file browser) took the preview with it.
-  dir: () => 'right',
+  anchor: tab => areaAnchorFor(tab.id),
+  dir: tab => (areaAnchorFor(tab.id) ? 'center' : 'right'),
   minWidth: '22rem',
   title: registeredPreviewTitle,
   tabTitle: tabId => <PreviewTabTitle tabId={tabId} />,
