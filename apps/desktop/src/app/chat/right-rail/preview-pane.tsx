@@ -836,12 +836,18 @@ export function PreviewPane({
       const detail = event as Event & {
         errorCode?: number
         errorDescription?: string
+        isMainFrame?: boolean
         validatedURL?: string
       }
 
       const errorCode = detail.errorCode
 
-      if (errorCode === -3) {
+      // -3 is a load another navigation replaced, not a failure. And the event
+      // fires for every frame: an embed that fails to load (a frame that
+      // refuses to be framed, offline content) is not the page failing, so the
+      // page stays on screen. Chromium logs the embed's own failure to the
+      // console.
+      if (errorCode === -3 || detail.isMainFrame === false) {
         return
       }
 

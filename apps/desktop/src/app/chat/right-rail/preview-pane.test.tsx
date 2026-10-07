@@ -404,6 +404,39 @@ describe('PreviewPane console state', () => {
     expect(rendered.container.textContent).not.toContain('machine running your agent')
   })
 
+  // The event fires for every frame: an embed that fails to load (a frame that
+  // refuses to be framed) is not the page failing, so the page stays on screen.
+  it('keeps the page on screen when an embedded frame fails to load', async () => {
+    let rendered!: ReturnType<typeof render>
+    await act(async () => {
+      rendered = render(
+        <PreviewPane
+          target={{ kind: 'url', label: 'Preview', source: 'https://example.com', url: 'https://example.com' }}
+        />
+      )
+    })
+
+    const webview = rendered.container.querySelector('webview') as HTMLElement
+
+    const fail = (isMainFrame: boolean) =>
+      act(async () => {
+        webview.dispatchEvent(
+          Object.assign(new Event('did-fail-load'), {
+            errorCode: -27,
+            errorDescription: 'ERR_BLOCKED_BY_RESPONSE',
+            isMainFrame,
+            validatedURL: isMainFrame ? 'https://example.com' : 'https://video.example/embed'
+          })
+        )
+      })
+
+    await fail(false)
+    expect(rendered.container.textContent).not.toContain('ERR_BLOCKED_BY_RESPONSE')
+
+    await fail(true)
+    await waitFor(() => expect(rendered.container.textContent).toContain('ERR_BLOCKED_BY_RESPONSE'))
+  })
+
   it('surfaces a rejected navigation as a load error', async () => {
     let rendered!: ReturnType<typeof render>
     await act(async () => {
