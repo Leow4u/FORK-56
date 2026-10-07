@@ -62,10 +62,20 @@ class CustomEndpointUpdate(BaseModel):
     models: Optional[List[str]] = None
 
 
+class MessagingHomeChannelWrite(BaseModel):
+    """Home target the user confirmed during channel setup."""
+
+    chat_id: str
+    name: Optional[str] = None
+    user_id: Optional[str] = None
+    thread_id: Optional[str] = None
+
+
 class MessagingPlatformUpdate(BaseModel):
     enabled: Optional[bool] = None
     env: Dict[str, str] = {}
     clear_env: List[str] = []
+    home_channel: Optional[MessagingHomeChannelWrite] = None
     # Explicit body profile beats the query param injected by the global
     # dashboard profile switcher (same precedence as other scoped writes).
     profile: Optional[str] = None
@@ -77,6 +87,7 @@ class TelegramOnboardingStart(BaseModel):
 
 class TelegramOnboardingApply(BaseModel):
     allowed_user_ids: List[str]
+    home_channel: Optional[MessagingHomeChannelWrite] = None
     profile: Optional[str] = None
 
 
@@ -89,6 +100,7 @@ class WhatsAppOnboardingStart(BaseModel):
 class WhatsAppOnboardingApply(BaseModel):
     mode: Optional[str] = None
     allowed_users: Optional[str] = None
+    home_channel: Optional[MessagingHomeChannelWrite] = None
     profile: Optional[str] = None
 
 
