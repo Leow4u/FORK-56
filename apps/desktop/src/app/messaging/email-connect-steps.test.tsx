@@ -79,6 +79,16 @@ function choose(name: RegExp | string) {
   fireEvent.click(screen.getByRole('radio', { name }))
 }
 
+function addChip(label: string, value: string) {
+  const input = screen.getByLabelText(label)
+  fireEvent.change(input, { target: { value } })
+  fireEvent.keyDown(input, { key: 'Enter' })
+}
+
+function chooseAppPasswordYes() {
+  choose(new RegExp(s.appPasswordYes))
+}
+
 async function click(name: RegExp | string) {
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name }))
@@ -87,7 +97,7 @@ async function click(name: RegExp | string) {
 
 const next = () => click('Next')
 const nextButton = () => screen.getByRole('button', { name: 'Next' }) as HTMLButtonElement
-const pressed = (name: string) => screen.getByRole('button', { name }).getAttribute('aria-pressed')
+const pressed = (name: string) => screen.getByRole('radio', { name }).getAttribute('aria-checked')
 
 describe('EmailConnectSteps', () => {
   it('fills in the mail servers from the provider the address names', async () => {
@@ -102,6 +112,7 @@ describe('EmailConnectSteps', () => {
     expect(screen.getByText(s.serversFilled('imap.gmail.com:993', 'smtp.gmail.com:587'))).toBeTruthy()
     expect(nextButton().disabled).toBe(true)
 
+    chooseAppPasswordYes()
     fireEvent.change(screen.getByLabelText(s.passwordLabel), { target: { value: 'app-password' } })
     expect(nextButton().disabled).toBe(false)
   })
@@ -112,8 +123,8 @@ describe('EmailConnectSteps', () => {
     choose(new RegExp(s.othersTitle))
     await next()
     fireEvent.change(screen.getByLabelText(s.addressLabel), { target: { value: 'bot@example.org' } })
-    fireEvent.change(screen.getByLabelText(s.passwordLabel), { target: { value: 'secret' } })
-    await click(s.custom)
+    choose(new RegExp(`^${s.custom}$`))
+    fireEvent.change(screen.getByLabelText(s.customPasswordLabel), { target: { value: 'secret' } })
 
     expect(nextButton().disabled).toBe(true)
     fireEvent.change(screen.getByLabelText(s.imapHostLabel), { target: { value: 'https://mail.example.org' } })
@@ -127,7 +138,7 @@ describe('EmailConnectSteps', () => {
     fireEvent.change(screen.getByLabelText(s.smtpPortLabel), { target: { value: '465' } })
     expect(nextButton().disabled).toBe(false)
     await next()
-    fireEvent.change(screen.getByLabelText(s.allowedLabel), { target: { value: 'ana@example.org' } })
+    addChip(s.allowedLabel, 'ana@example.org')
     await next()
 
     await waitFor(() =>
@@ -155,6 +166,7 @@ describe('EmailConnectSteps', () => {
     choose(new RegExp(s.othersTitle))
     await next()
     fireEvent.change(screen.getByLabelText(s.addressLabel), { target: { value: 'bot@gmail.com' } })
+    chooseAppPasswordYes()
     fireEvent.change(screen.getByLabelText(s.passwordLabel), { target: { value: 'app-password' } })
     await next()
 
@@ -163,11 +175,11 @@ describe('EmailConnectSteps', () => {
     expect(screen.getByText(s.addressesRequired)).toBeTruthy()
 
     // `*` would drop every email, so it is refused like any non-address.
-    fireEvent.change(screen.getByLabelText(s.allowedLabel), { target: { value: '*' } })
-    await next()
+    addChip(s.allowedLabel, '*')
     expect(screen.getByText(en.messaging.envErrors.emailAddress('*'))).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText(s.allowedLabel), { target: { value: 'ana@example.com, bruno@example.com' } })
+    addChip(s.allowedLabel, 'ana@example.com')
+    addChip(s.allowedLabel, 'bruno@example.com')
     await next()
 
     await waitFor(() =>
@@ -202,11 +214,12 @@ describe('EmailConnectSteps', () => {
     choose(new RegExp(s.meTitle))
     await next()
     fireEvent.change(screen.getByLabelText(s.addressLabel), { target: { value: 'bot@gmail.com' } })
+    chooseAppPasswordYes()
     fireEvent.change(screen.getByLabelText(s.passwordLabel), { target: { value: 'wrong' } })
     await next()
 
     expect(screen.getByText(s.meAddressTitle)).toBeTruthy()
-    fireEvent.change(screen.getByLabelText(s.meAddressLabel), { target: { value: 'ana@example.com' } })
+    addChip(s.meAddressLabel, 'ana@example.com')
     await next()
 
     expect(await screen.findByText('IMAP login to imap.gmail.com:993 failed: bad password')).toBeTruthy()
@@ -229,9 +242,10 @@ describe('EmailConnectSteps', () => {
     choose(new RegExp(s.othersTitle))
     await next()
     expect(pressed(s.custom)).toBe('true')
-    expect((screen.getByLabelText(s.passwordLabel) as HTMLInputElement).placeholder).toBe(s.passwordKept)
+    expect((screen.getByLabelText(s.customPasswordLabel) as HTMLInputElement).placeholder).toBe(s.passwordKept)
 
-    await click('Fastmail')
+    choose(/^Fastmail$/)
+    chooseAppPasswordYes()
     expect(nextButton().disabled).toBe(false)
     await next()
     await next()
