@@ -1,9 +1,16 @@
-import { act, cleanup, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { $allPreviewTabs, closeRightRail, openPreview, rememberPreviewTitle } from '@/store/preview'
+import {
+  $allPreviewTabs,
+  closeRightRail,
+  openPreview,
+  rememberPreviewIcon,
+  rememberPreviewTitle,
+  rememberPreviewUrl
+} from '@/store/preview'
 
-import { PreviewTabTitle, webTabTitle } from './preview-tile'
+import { PreviewTabLead, PreviewTabTitle, webTabTitle } from './preview-tile'
 
 const copy = { browser: 'Browser', newTab: 'New tab' }
 
@@ -44,5 +51,43 @@ describe('web tab label', () => {
     const { container } = render(<PreviewTabTitle tabId="url:browser" />)
 
     expect(container.textContent).toBe('New tab')
+  })
+})
+
+// A web tab leads with its page's icon, painted through main (the
+// work4you-favicon scheme); the globe stands in until there is one, on the new
+// tab page, and when the icon doesn't load.
+describe('web tab icon', () => {
+  const icon = (container: HTMLElement) => container.querySelector('img')?.getAttribute('src')
+
+  it('follows the page, else shows the globe', () => {
+    openPreview({ kind: 'url', label: 'Example', source: 'https://example.com', url: 'https://example.com' })
+
+    const { container } = render(<PreviewTabLead tabId="url:browser" />)
+
+    expect(icon(container)).toBeUndefined()
+    expect(container.querySelector('svg')).not.toBeNull()
+
+    act(() => rememberPreviewIcon('url:browser', 'https://example.com/favicon.ico'))
+    expect(icon(container)).toBe(`work4you-favicon://icon/${encodeURIComponent('https://example.com/favicon.ico')}`)
+
+    act(() => rememberPreviewUrl('url:browser', 'about:blank'))
+    expect(icon(container)).toBeUndefined()
+  })
+
+  it("falls back to the globe when the icon doesn't load, and tries the page's next one", () => {
+    openPreview({ kind: 'url', label: 'Example', source: 'https://example.com', url: 'https://example.com' })
+    rememberPreviewIcon('url:browser', 'https://example.com/missing.ico')
+
+    const { container } = render(<PreviewTabLead tabId="url:browser" />)
+    const img = container.querySelector('img')
+
+    expect(img).not.toBeNull()
+    fireEvent.error(img!)
+    expect(icon(container)).toBeUndefined()
+    expect(container.querySelector('svg')).not.toBeNull()
+
+    act(() => rememberPreviewIcon('url:browser', 'https://example.com/icon.svg'))
+    expect(icon(container)).toBe(`work4you-favicon://icon/${encodeURIComponent('https://example.com/icon.svg')}`)
   })
 })

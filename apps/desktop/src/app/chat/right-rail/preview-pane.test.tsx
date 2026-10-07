@@ -313,6 +313,47 @@ describe('PreviewPane console state', () => {
     closeRightRail(owner)
   })
 
+  // The page names its icon as it names its title. The tab keeps the first
+  // icon main can fetch; inline icons alone, or the blank page, leave it none.
+  it('leads its tab with the icon the page names', async () => {
+    const target = { kind: 'url' as const, label: 'Example', source: 'https://example.com', url: 'https://example.com' }
+
+    openPreview(target)
+
+    const owner = $previewOwner.get()
+    const tabId = previewTabId(target)
+    let rendered!: ReturnType<typeof render>
+
+    await act(async () => {
+      rendered = render(<PreviewPane owner={owner} tabId={tabId} target={target} />)
+    })
+
+    const webview = rendered.container.querySelector('webview') as HTMLElement
+    let url = 'https://example.com'
+
+    Object.assign(webview, { getTitle: () => 'Example Domain', getURL: () => url })
+
+    const fire = (event: Event) =>
+      act(() => {
+        webview.dispatchEvent(event)
+      })
+
+    const favicons = (icons: string[]) => Object.assign(new Event('page-favicon-updated'), { favicons: icons })
+
+    fire(favicons(['data:image/png;base64,AAAA', 'https://example.com/icon.svg', 'https://example.com/favicon.ico']))
+    expect($previewPages.get()[tabId]?.icon).toBe('https://example.com/icon.svg')
+
+    fire(favicons(['data:image/png;base64,AAAA']))
+    expect($previewPages.get()[tabId]?.icon).toBeUndefined()
+
+    fire(favicons(['https://example.com/favicon.ico']))
+    url = 'about:blank'
+    fire(new Event('did-stop-loading'))
+    expect($previewPages.get()[tabId]?.icon).toBeUndefined()
+
+    closeRightRail(owner)
+  })
+
   // The webview always runs on THIS machine, so a remote agent's localhost is
   // a different computer's localhost. The failure is honest but baffling
   // without saying so.

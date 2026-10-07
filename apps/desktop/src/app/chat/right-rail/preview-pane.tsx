@@ -1,4 +1,5 @@
 import { useStore } from '@nanostores/react'
+import { PREVIEW_BROWSER_PARTITION, previewFaviconTarget } from '@work4you/shared'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -19,6 +20,7 @@ import {
   type PreviewOwner,
   previewResumeUrl,
   type PreviewTarget,
+  rememberPreviewIcon,
   rememberPreviewTitle,
   rememberPreviewUrl
 } from '@/store/preview'
@@ -774,7 +776,7 @@ export function PreviewPane({
 
     const webview = document.createElement('webview') as PreviewWebview
     webview.className = 'flex h-full w-full flex-1 bg-transparent'
-    webview.setAttribute('partition', 'persist:work4you-preview')
+    webview.setAttribute('partition', PREVIEW_BROWSER_PARTITION)
     webview.setAttribute('src', startUrl)
     webview.setAttribute('webpreferences', 'contextIsolation=yes,nodeIntegration=no,sandbox=yes')
 
@@ -869,8 +871,8 @@ export function PreviewPane({
     // going back, or reloading, returns to a page whose title didn't change,
     // and Chromium doesn't report an unchanged title. Never at commit, so a page
     // coming back keeps its name instead of flickering. The blank page has no
-    // name of its own: its tab is the new tab.
-    const syncTitle = (reported?: string) => {
+    // name or icon of its own: its tab is the new tab.
+    const syncLabel = (reported?: string) => {
       if (!tabId) {
         return
       }
@@ -886,12 +888,29 @@ export function PreviewPane({
         // all there is.
       }
 
+      const blank = url !== undefined && isBlankPageUrl(url)
+
+      if (blank) {
+        rememberPreviewIcon(tabId, '', owner)
+      }
+
       if (title !== undefined) {
-        rememberPreviewTitle(tabId, url !== undefined && isBlankPageUrl(url) ? '' : title, owner)
+        rememberPreviewTitle(tabId, blank ? '' : title, owner)
       }
     }
 
-    const onTitle = (event: Event) => syncTitle((event as Event & { title?: string }).title)
+    const onTitle = (event: Event) => syncLabel((event as Event & { title?: string }).title)
+
+    // The page names its icon the way it names its title, and the tab keeps
+    // the first one main can fetch (http(s)). A page whose icons are all
+    // inline has none the tab shows: it falls back to the globe.
+    const onFavicon = (event: Event) => {
+      if (tabId) {
+        const icons = (event as Event & { favicons?: string[] }).favicons ?? []
+
+        rememberPreviewIcon(tabId, icons.find(icon => previewFaviconTarget(icon)) ?? '', owner)
+      }
+    }
 
     const onStart = () => setLoading(true)
 
@@ -901,7 +920,7 @@ export function PreviewPane({
       // cancelled navigation) still settles the history — resync so the
       // buttons can't be left stale.
       syncHistory()
-      syncTitle()
+      syncLabel()
     }
 
     // The WEBVIEW is the source of truth for DevTools, not our click handler:
@@ -993,6 +1012,7 @@ export function PreviewPane({
     webview.addEventListener('did-navigate-in-page', onNavigate)
     webview.addEventListener('did-start-loading', onStart)
     webview.addEventListener('did-stop-loading', onStop)
+    webview.addEventListener('page-favicon-updated', onFavicon)
     webview.addEventListener('page-title-updated', onTitle)
     host.appendChild(webview)
     webviewRef.current = webview
@@ -1007,6 +1027,7 @@ export function PreviewPane({
       webview.removeEventListener('did-navigate-in-page', onNavigate)
       webview.removeEventListener('did-start-loading', onStart)
       webview.removeEventListener('did-stop-loading', onStop)
+      webview.removeEventListener('page-favicon-updated', onFavicon)
       webview.removeEventListener('page-title-updated', onTitle)
       webview.remove()
     }

@@ -1,3 +1,4 @@
+import { previewFaviconTarget } from '@work4you/shared'
 import { atom, computed } from 'nanostores'
 
 import { connectionScopedAtom } from '@/lib/connection-scoped'
@@ -92,12 +93,20 @@ export interface PreviewTab {
 interface PreviewOwnerState {
   /** The tab that was in front. */
   active?: RightRailTabId
+  /** The icon a web tab's page names, by tab id — beside its label, there
+   *  before the page loads again. */
+  icons?: Partial<Record<RightRailTabId, string>>
   /** What a web tab's page is called, by tab id — the tab's label, there
    *  before the page loads again. */
   titles?: Partial<Record<RightRailTabId, string>>
   /** Where a web tab had navigated to, by tab id — it reopens there. */
   urls?: Partial<Record<RightRailTabId, string>>
 }
+
+/** What a conversation remembers about each web tab's page. */
+const PAGE_RECORDS = ['icons', 'titles', 'urls'] as const
+
+type PageRecord = (typeof PAGE_RECORDS)[number]
 
 /** profile → conversation key → state. */
 type PreviewOwnerStates = Record<string, Record<string, PreviewOwnerState>>
@@ -268,18 +277,15 @@ function sanitizeOwnerStates(value: unknown): PreviewOwnerStates {
         next.active = record.active as RightRailTabId
       }
 
-      const titles = sanitizeTabTexts(record.titles)
-      const urls = sanitizeTabTexts(record.urls)
+      for (const field of PAGE_RECORDS) {
+        const entries = sanitizeTabTexts(record[field])
 
-      if (titles) {
-        next.titles = titles
+        if (entries) {
+          next[field] = entries
+        }
       }
 
-      if (urls) {
-        next.urls = urls
-      }
-
-      if (next.active || next.titles || next.urls) {
+      if (next.active || PAGE_RECORDS.some(field => next[field])) {
         states[profile] = { ...states[profile], [session]: next }
       }
     }
@@ -456,16 +462,17 @@ function writeOwnerState(owner: PreviewOwner, update: (state: PreviewOwnerState)
   const key = ownerStateKey(owner, states) ?? owner.session
   const bucket = { ...states[owner.profile] }
   const next = update(bucket[key] ?? {})
-  const titles = next.titles && Object.keys(next.titles).length ? next.titles : undefined
-  const urls = next.urls && Object.keys(next.urls).length ? next.urls : undefined
+  const state: PreviewOwnerState = next.active ? { active: next.active } : {}
 
-  const state: PreviewOwnerState = {
-    ...(next.active ? { active: next.active } : {}),
-    ...(titles ? { titles } : {}),
-    ...(urls ? { urls } : {})
+  for (const field of PAGE_RECORDS) {
+    const entries = next[field]
+
+    if (entries && Object.keys(entries).length) {
+      state[field] = entries
+    }
   }
 
-  if (state.active || state.titles || state.urls) {
+  if (Object.keys(state).length) {
     bucket[key] = state
   } else {
     delete bucket[key]
@@ -482,37 +489,33 @@ function writeOwnerState(owner: PreviewOwner, update: (state: PreviewOwnerState)
   $ownerStates.set(nextStates)
 }
 
-function withoutUrl(state: PreviewOwnerState, tabId: RightRailTabId): PreviewOwnerState {
-  if (!state.urls?.[tabId]) {
+/** `state` without `tabId`'s entry in its `field` record. */
+function withoutEntry(state: PreviewOwnerState, field: PageRecord, tabId: RightRailTabId): PreviewOwnerState {
+  const entries = state[field]
+
+  if (!entries?.[tabId]) {
     return state
   }
 
-  const { [tabId]: _dropped, ...urls } = state.urls
+  const { [tabId]: _dropped, ...rest } = entries
 
-  return { ...state, urls }
+  return { ...state, [field]: rest }
 }
 
-function withoutTitle(state: PreviewOwnerState, tabId: RightRailTabId): PreviewOwnerState {
-  if (!state.titles?.[tabId]) {
-    return state
-  }
-
-  const { [tabId]: _dropped, ...titles } = state.titles
-
-  return { ...state, titles }
-}
-
-/** `tabId`'s page forgotten — where it had navigated and what it was called —
- *  for a tab that closed or was handed a new page. */
-const withoutPage = (state: PreviewOwnerState, tabId: RightRailTabId) => withoutTitle(withoutUrl(state, tabId), tabId)
+/** `tabId`'s page forgotten — where it had navigated, what it was called and
+ *  its icon — for a tab that closed or was handed a new page. */
+const withoutPage = (state: PreviewOwnerState, tabId: RightRailTabId) =>
+  PAGE_RECORDS.reduce((next, field) => withoutEntry(next, field, tabId), state)
 
 /** Two records of one conversation folded into one; `kept`'s entries win. */
 function mergedOwnerState(kept: PreviewOwnerState, other: PreviewOwnerState): PreviewOwnerState {
-  return {
-    active: kept.active ?? other.active,
-    titles: { ...other.titles, ...kept.titles },
-    urls: { ...other.urls, ...kept.urls }
+  const merged: PreviewOwnerState = { active: kept.active ?? other.active }
+
+  for (const field of PAGE_RECORDS) {
+    merged[field] = { ...other[field], ...kept[field] }
   }
+
+  return merged
 }
 
 /** The tab the rail actually shows. A stale or missing selection falls back to
@@ -889,7 +892,7 @@ export function rememberPreviewUrl(tabId: string, url: string, owner: PreviewOwn
 
   if (url === tab.target.url) {
     if (previewResumeUrl(tab.id, owner)) {
-      writeOwnerState(owner, state => withoutUrl(state, tab.id))
+      writeOwnerState(owner, state => withoutEntry(state, 'urls', tab.id))
     }
 
     return
@@ -900,30 +903,39 @@ export function rememberPreviewUrl(tabId: string, url: string, owner: PreviewOwn
   }
 }
 
-/** Remember what the page in `owner`'s web tab `tabId` is called (the
- *  followed conversation's by default) — the tab's label, kept with its
- *  address so the tab is named before the page loads again. Empty forgets it.
- *  A file is named by the file, so only a web tab keeps one. */
-export function rememberPreviewTitle(tabId: string, title: string, owner: PreviewOwner = $previewOwner.get()) {
+/** Keep `text` as `owner`'s web tab `tabId`'s entry in its `field` record;
+ *  empty forgets it. A file is named by the file, so only a web tab keeps
+ *  one. */
+function rememberPageEntry(field: 'icons' | 'titles', tabId: string, text: string, owner: PreviewOwner) {
   const tab = tabsOf(owner).find(item => item.id === tabId)
 
-  if (!tab || tab.target.kind !== 'url') {
-    return
-  }
-
-  const next = title.trim()
-
-  if ((readOwnerState(owner)?.titles?.[tab.id] ?? '') === next) {
+  if (!tab || tab.target.kind !== 'url' || (readOwnerState(owner)?.[field]?.[tab.id] ?? '') === text) {
     return
   }
 
   writeOwnerState(owner, state =>
-    next ? { ...state, titles: { ...state.titles, [tab.id]: next } } : withoutTitle(state, tab.id)
+    text ? { ...state, [field]: { ...state[field], [tab.id]: text } } : withoutEntry(state, field, tab.id)
   )
 }
 
-/** Where a web tab is and what its page is called. */
+/** Remember what the page in `owner`'s web tab `tabId` is called (the
+ *  followed conversation's by default) — the tab's label, kept with its
+ *  address so the tab is named before the page loads again. Empty forgets it. */
+export function rememberPreviewTitle(tabId: string, title: string, owner: PreviewOwner = $previewOwner.get()) {
+  rememberPageEntry('titles', tabId, title.trim(), owner)
+}
+
+/** Remember the icon the page in `owner`'s web tab `tabId` names (the
+ *  followed conversation's by default) — beside the tab's label, kept with its
+ *  title. Only an http(s) icon is kept: anything else forgets it. */
+export function rememberPreviewIcon(tabId: string, url: string, owner: PreviewOwner = $previewOwner.get()) {
+  rememberPageEntry('icons', tabId, previewFaviconTarget(url) ?? '', owner)
+}
+
+/** Where a web tab is, what its page is called, and its icon. */
 export interface PreviewPage {
+  /** The icon its page named, once it has — http(s) only. */
+  icon?: string
   /** The title its page reported, once it has. */
   title?: string
   /** The address it is on: where it had navigated, else where it opened. */
@@ -939,11 +951,19 @@ export const $previewPages = computed(
     const state = key ? states[owner.profile]?.[key] : undefined
 
     return Object.fromEntries(
-      tabs.flatMap(tab =>
-        tab.target.kind === 'url'
-          ? [[tab.id, { title: state?.titles?.[tab.id], url: state?.urls?.[tab.id] ?? tab.target.url }]]
-          : []
-      )
+      tabs.flatMap(({ id, target }) => {
+        if (target.kind !== 'url') {
+          return []
+        }
+
+        const page: PreviewPage = {
+          icon: state?.icons?.[id],
+          title: state?.titles?.[id],
+          url: state?.urls?.[id] ?? target.url
+        }
+
+        return [[id, page]]
+      })
     )
   }
 )

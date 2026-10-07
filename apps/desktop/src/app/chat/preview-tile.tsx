@@ -20,6 +20,8 @@
  */
 
 import { useStore } from '@nanostores/react'
+import { previewFaviconSrc } from '@work4you/shared'
+import { useState } from 'react'
 
 import { allPaneIds, findGroup, findGroupOfPane, type LayoutNode } from '@/components/pane-shell/tree/model'
 import {
@@ -124,9 +126,36 @@ export function PreviewTabTitle({ tabId }: { tabId: string }) {
   return previewTitle(tabId, { browser: t.shell.panes.browser, preview: t.preview.tab })
 }
 
+/** A web tab's lead: its page's icon, painted through the work4you-favicon
+ *  scheme, else the globe — on the new tab page too, and when the icon
+ *  doesn't load. Live from the store, like the label. */
+function WebTabIcon({ tabId }: { tabId: string }) {
+  const page = useStore($previewPages)[tabId as RightRailTabId]
+  const [failed, setFailed] = useState<string>()
+  const icon = page?.icon && page.icon !== failed && !isBlankPageUrl(page.url) ? page.icon : undefined
+  const src = icon ? previewFaviconSrc(icon) : null
+
+  if (!src) {
+    return <ToolIcon className="opacity-70" name="globe" size="0.6875rem" />
+  }
+
+  return (
+    <img
+      alt=""
+      className="size-[0.6875rem] shrink-0 object-contain"
+      decoding="async"
+      draggable={false}
+      onError={() => setFailed(icon)}
+      referrerPolicy="no-referrer"
+      src={src}
+    />
+  )
+}
+
 /** The tab's lead glyph — the same file/tool icon family the file tree and code
- *  fences resolve through, so a `.tsx` peek and its sidebar row agree. */
-function PreviewTabLead({ tabId }: { tabId: string }) {
+ *  fences resolve through, so a `.tsx` peek and its sidebar row agree. A web
+ *  tab leads with its page's icon. */
+export function PreviewTabLead({ tabId }: { tabId: string }) {
   const target = targetFor(tabId)
 
   if (!target) {
@@ -138,7 +167,7 @@ function PreviewTabLead({ tabId }: { tabId: string }) {
   }
 
   if (target.kind === 'url') {
-    return <ToolIcon className="opacity-70" name="globe" size="0.6875rem" />
+    return <WebTabIcon tabId={tabId} />
   }
 
   return <FileTypeIcon className="opacity-70" path={target.path || target.url} size="0.6875rem" />

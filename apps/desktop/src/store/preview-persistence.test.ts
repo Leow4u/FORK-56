@@ -82,6 +82,23 @@ describe('restored tabs', () => {
 
     expect(stored.default?.kept).toBeDefined()
   })
+
+  // And leads with the icon its page named, before the page loads again.
+  it("shows a restored web tab's icon", async () => {
+    window.localStorage.setItem(TABS_KEY, JSON.stringify([browserRow]))
+    window.localStorage.setItem(
+      STATE_KEY,
+      JSON.stringify({ default: { kept: { icons: { 'url:browser': 'https://example.com/favicon.ico', 'url:stale': 42 } } } })
+    )
+
+    vi.resetModules()
+    const store = await import('./preview')
+    const session = await import('./session')
+
+    session.$selectedStoredSessionId.set('kept')
+
+    expect(store.$previewPages.get()['url:browser']).toEqual({ icon: 'https://example.com/favicon.ico', url: page })
+  })
 })
 
 describe('persisted preview migration', () => {

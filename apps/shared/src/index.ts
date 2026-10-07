@@ -113,6 +113,13 @@ export {
   mcpSetupCardIdentity,
   visibleMcpServerNames
 } from './mcp-directory'
+export {
+  PREVIEW_BROWSER_PARTITION,
+  PREVIEW_FAVICON_PROTOCOL,
+  previewFaviconSrc,
+  previewFaviconTarget,
+  previewFaviconTargetFromRequest
+} from './preview-favicon'
 export { skillInvocationText } from './skill-scaffold'
 export {
   SKIN_BRANDING_TOKENS,

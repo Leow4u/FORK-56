@@ -26,6 +26,7 @@ import {
   previewTabsOf,
   type PreviewTarget,
   progressPreviewServerRestart,
+  rememberPreviewIcon,
   rememberPreviewTitle,
   rememberPreviewUrl,
   selectPreviewTab
@@ -506,6 +507,47 @@ describe('conversation tabs', () => {
     $selectedStoredSessionId.set('created')
 
     expect($previewPages.get()['url:browser']?.title).toBe('Example Domain')
+  })
+
+  // A web tab leads with the icon its page names, kept with its name. Main
+  // fetches it, so only an http(s) icon is kept; a file has its file icon.
+  it('keeps the http(s) icon a web tab\'s page names, never a file\'s', () => {
+    $selectedStoredSessionId.set('a')
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    rememberPreviewIcon('url:browser', 'https://example.com/favicon.ico')
+
+    expect($previewPages.get()['url:browser']?.icon).toBe('https://example.com/favicon.ico')
+
+    rememberPreviewIcon('url:browser', 'data:image/png;base64,AAAA')
+    expect($previewPages.get()['url:browser']?.icon).toBeUndefined()
+
+    openPreview(fileTarget('/work/page.html'), 'tool-result')
+    rememberPreviewIcon(previewTabId(fileTarget('/work/page.html')), 'https://example.com/rendered.ico')
+    expect(window.localStorage.getItem('work4you.desktop.previewTabState.v1')).not.toContain('rendered.ico')
+  })
+
+  it("forgets a page's icon with its tab, and when the tab is handed a new page", () => {
+    $selectedStoredSessionId.set('a')
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    rememberPreviewIcon('url:browser', 'https://example.com/favicon.ico')
+
+    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    expect($previewPages.get()['url:browser']?.icon).toBeUndefined()
+
+    rememberPreviewIcon('url:browser', 'https://news.ycombinator.com/favicon.ico')
+    closeRightRailTab('url:browser')
+    openPreview(urlTarget('https://news.ycombinator.com'), 'tool-result')
+    expect($previewPages.get()['url:browser']?.icon).toBeUndefined()
+  })
+
+  it("hands a live draft's page icons to its conversation", () => {
+    $activeSessionId.set('runtime-1')
+    openPreview(urlTarget('https://example.com'), 'tool-result')
+    rememberPreviewIcon('url:browser', 'https://example.com/favicon.ico')
+
+    $selectedStoredSessionId.set('created')
+
+    expect($previewPages.get()['url:browser']?.icon).toBe('https://example.com/favicon.ico')
   })
 
   it('persists every conversation, each tab with its owner', () => {
