@@ -81,6 +81,17 @@ function mountFace(shape = 'circle', mood = 'idle'): SVGSVGElement {
   return svg
 }
 
+function mountCharacter(root: HTMLElement | ShadowRoot = document.body): HTMLElement {
+  const character = document.createElement('span')
+
+  character.dataset.hbCharacter = 'headphones'
+  character.innerHTML =
+    '<img src="headphones.webp"><svg data-character-eyes data-ready="true"><g data-character-eye data-eye-x="136" data-eye-y="139"></g></svg>'
+  root.appendChild(character)
+
+  return character
+}
+
 beforeEach(() => {
   vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
   loopFactory.calls.dispose = 0
@@ -96,6 +107,88 @@ afterEach(() => {
 })
 
 describe('startFaceClock', () => {
+  it('uses the same clock for characters and classics, including a plugin shadow root', () => {
+    const classic = mountFace()
+    const host = document.createElement('div')
+
+    document.body.appendChild(host)
+    const character = mountCharacter(host.attachShadow({ mode: 'open' }))
+
+    startFaceClock()
+    loopFactory.state.draw?.(1000)
+    expect(FakeIntersectionObserver.instance?.observed.has(classic)).toBe(true)
+    expect(FakeIntersectionObserver.instance?.observed.has(character)).toBe(true)
+    expect(loopFactory.createBudgetedLoop).toHaveBeenCalledTimes(1)
+
+    FakeIntersectionObserver.instance?.emit([{ isIntersecting: true, target: character }])
+    loopFactory.state.draw?.(1100)
+    expect(character.style.transform).toContain('rotate(')
+    const visiblePose = character.style.transform
+
+    FakeIntersectionObserver.instance?.emit([{ isIntersecting: false, target: character }])
+    loopFactory.state.draw?.(1200)
+    expect(character.style.transform).toBe(visiblePose)
+    expect(loopFactory.state.options?.idleWhen?.()).toBe(true)
+
+    host.remove()
+    loopFactory.state.draw?.(2201)
+    expect(FakeIntersectionObserver.instance?.observed.has(character)).toBe(false)
+  })
+
+  it('resets faces and parks for reduced motion, resumes on change, and removes the listener on teardown', () => {
+    const media = new EventTarget()
+    let reduced = false
+
+    vi.stubGlobal('matchMedia', () => ({
+      get matches() {
+        return reduced
+      },
+      addEventListener: media.addEventListener.bind(media),
+      removeEventListener: media.removeEventListener.bind(media)
+    }))
+    const character = mountCharacter()
+
+    startFaceClock()
+    loopFactory.state.draw?.(1000)
+    FakeIntersectionObserver.instance?.emit([{ isIntersecting: true, target: character }])
+    loopFactory.state.draw?.(1100)
+    expect(character.style.transform).not.toBe('')
+
+    reduced = true
+    // Preference and rest pose become authoritative together. A frame must
+    // not park between the browser changing matches and delivering change.
+    expect(loopFactory.state.options?.idleWhen?.()).toBe(false)
+    media.dispatchEvent(new Event('change'))
+    expect(character.style.transform).toBe('')
+    expect(character.querySelector('svg')?.style.visibility).toBe('hidden')
+    expect(loopFactory.state.options?.idleWhen?.()).toBe(true)
+
+    reduced = false
+    media.dispatchEvent(new Event('change'))
+    loopFactory.state.draw?.(2000)
+    expect(loopFactory.state.options?.idleWhen?.()).toBe(false)
+    expect(character.style.transform).not.toBe('')
+    expect(loopFactory.calls.wake).toBeGreaterThan(0)
+
+    stopFaceClock()
+    const stopped = character.style.transform
+
+    reduced = true
+    media.dispatchEvent(new Event('change'))
+    expect(character.style.transform).toBe(stopped)
+  })
+
+  it('starts at rest and immediately parks when reduced motion is already enabled', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    const character = mountCharacter()
+
+    startFaceClock()
+    loopFactory.state.draw?.(1000)
+    expect(character.style.transform).toBe('')
+    expect(character.querySelector('svg')?.style.visibility).toBe('hidden')
+    expect(loopFactory.state.options?.idleWhen?.()).toBe(true)
+  })
+
   it('schedules through the budgeted loop at 15fps with a visibility-aware idle predicate', () => {
     const face = mountFace()
 
