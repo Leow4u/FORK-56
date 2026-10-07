@@ -87,7 +87,9 @@ jobs:
             cache-to: type=gha,mode=max,scope=docker-arm64
 
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 45
+    # Cold-cache builds (SQLite compile, npm ci, docker tests) exceeded 45m on
+    # main; arm64 was often cancelled mid playwright install (cdn path).
+    timeout-minutes: 90
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -119,6 +121,7 @@ jobs:
           tags: ${{ env.IMAGE_NAME }}:test
           build-args: |
             WORK4YOU_GIT_SHA=${{ github.sha }}
+            PLAYWRIGHT_BROWSERS_SOURCE=copy
           cache-from: ${{ matrix.cache-from }}
           cache-to: ${{ (github.event_name != 'pull_request') && matrix.cache-to || '' }}
 
@@ -194,7 +197,7 @@ jobs:
             cache-from: type=gha,scope=docker-arm64
             cache-to: type=gha,mode=max,scope=docker-arm64
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Checkout trusted source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -229,6 +232,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           build-args: |
             WORK4YOU_GIT_SHA=${{ github.sha }}
+            PLAYWRIGHT_BROWSERS_SOURCE=copy
           outputs: type=image,name=${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           cache-from: ${{ matrix.cache-from }}
           cache-to: ${{ matrix.cache-to }}
