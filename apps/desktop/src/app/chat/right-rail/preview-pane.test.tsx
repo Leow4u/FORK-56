@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { $previewOwner, closeRightRail, openPreview, previewResumeUrl, previewTabId } from '@/store/preview'
 import { $connection } from '@/store/session'
 
 import { forgetPreviewConsole, previewConsoleState } from './preview-console-store'
@@ -189,6 +190,45 @@ describe('PreviewPane console state', () => {
     // forward, so the load lands a microtask later.
     await waitFor(() => expect(loadURL).toHaveBeenCalledWith('http://localhost:4000/app'))
     expect(webview.getAttribute('src')).toBe('http://localhost:5174')
+  })
+
+  // `did-navigate-in-page` fires for every frame: an embed moving inside the
+  // page (Storybook's canvas iframe) is not the page moving.
+  it('keeps the page address when an embedded frame navigates', async () => {
+    const target = {
+      kind: 'url' as const,
+      label: 'Storybook',
+      source: 'http://localhost:6006',
+      url: 'http://localhost:6006'
+    }
+
+    openPreview(target)
+
+    const owner = $previewOwner.get()
+    const tabId = previewTabId(target)
+    let rendered!: ReturnType<typeof render>
+
+    await act(async () => {
+      rendered = render(<PreviewPane owner={owner} tabId={tabId} target={target} />)
+    })
+
+    const webview = rendered.container.querySelector('webview') as HTMLElement
+    const address = () => (rendered.getByRole('textbox', { name: 'Address' }) as HTMLInputElement).value
+
+    const navigateInPage = (url: string, isMainFrame: boolean) =>
+      act(() => {
+        webview.dispatchEvent(Object.assign(new Event('did-navigate-in-page'), { isMainFrame, url }))
+      })
+
+    navigateInPage('http://localhost:6006/?path=/story/button', true)
+    expect(address()).toBe('http://localhost:6006/?path=/story/button')
+    expect(previewResumeUrl(tabId, owner)).toBe('http://localhost:6006/?path=/story/button')
+
+    navigateInPage('http://localhost:6006/iframe.html?id=button#anchor', false)
+    expect(address()).toBe('http://localhost:6006/?path=/story/button')
+    expect(previewResumeUrl(tabId, owner)).toBe('http://localhost:6006/?path=/story/button')
+
+    closeRightRail(owner)
   })
 
   // The webview always runs on THIS machine, so a remote agent's localhost is
