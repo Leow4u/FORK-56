@@ -2702,6 +2702,33 @@ export interface Translations {
   }
 
   cron: {
+    create: {
+      description: string
+      useTemplate: string
+      instructions: string
+      project: string
+      noProject: string
+      localProjectHint: string
+      defaultModel: string
+      defaultModelHint: string
+      ai: string
+      repeat: string
+      time: string
+      weekday: string
+      monthDay: string
+      minute: string
+      receive: string
+      receiveHint: string
+      more: string
+      submit: string
+      customHint: string
+      timezoneHint: string
+      retryDestinations: string
+      retryModels: string
+      retryTemplates: string
+      templateUnavailable: string
+      destinations: (count: number) => string
+    }
     close: string
     title: string
     count: (count: number) => string
