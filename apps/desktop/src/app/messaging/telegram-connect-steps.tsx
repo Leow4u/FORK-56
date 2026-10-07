@@ -34,6 +34,8 @@ import {
   StepsFrame,
   watchRestartOutcome
 } from './channel-steps'
+import { buildHomeChannelPayload, defaultHomeFromChoices } from './home-delivery'
+import { HomeDeliveryField, HomeDeliveryNote } from './home-delivery-field'
 import { TELEGRAM_USER_ID_RE, validateMessagingEnv } from './validate-env'
 
 /** Who the person said will use the bot: only them, or them and others. */
@@ -43,7 +45,7 @@ type Audience = 'me' | 'others'
  *  token the person already got from @BotFather. */
 type Method = 'qr' | 'token'
 
-type Step = 'create' | 'ready' | 'talk' | 'who'
+type Step = 'create' | 'deliver' | 'ready' | 'talk' | 'who'
 
 /** Who gets a reply on the token path when other people are let in: the ids
  *  on a list, or whoever messages, each approved by code. */
@@ -113,8 +115,10 @@ export function TelegramConnectSteps({
   const [ids, setIds] = useState('')
   const [allowChoice, setAllowChoice] = useState<AllowChoice>('list')
   const [error, setError] = useState('')
+  const [homeTarget, setHomeTarget] = useState('')
   const [restart, setRestart] = useState<RestartState>({ outcome: 'pending' })
   const [, setTick] = useState(0)
+  const hd = t.messaging.homeDelivery
 
   const created = method === 'qr' && (phase === 'created' || phase === 'applying' || phase === 'applied')
   // "Just me" through the QR needs no question: Telegram tells us who made
@@ -126,6 +130,7 @@ export function TelegramConnectSteps({
       { id: 'who', label: s.stepWho },
       { id: 'create', label: s.stepCreate },
       ...(asksWho ? [{ id: 'talk' as const, label: s.stepTalk }] : []),
+      { id: 'deliver', label: s.stepDeliver },
       { id: 'ready', label: s.stepReady }
     ],
     [asksWho, s]
@@ -281,8 +286,40 @@ export function TelegramConnectSteps({
     if (asksWho) {
       setStep('talk')
     } else {
-      void finish()
+      openDeliverStep()
     }
+  }
+
+  function openDeliverStep() {
+    const allowed = allowedIds()
+
+    if ('error' in allowed) {
+      setError(allowed.error)
+
+      return
+    }
+
+    setError('')
+    setHomeTarget(current => current.trim() || defaultHomeFromChoices(allowed.ids))
+    setStep('deliver')
+  }
+
+  function validateHomeTarget(allowed: string[]): string {
+    const target = homeTarget.trim()
+
+    if (!target) {
+      return hd.required
+    }
+
+    if (!TELEGRAM_USER_ID_RE.test(target)) {
+      return m.envErrors.telegramUserId(target)
+    }
+
+    if (allowed.length > 0 && !allowed.includes(target)) {
+      return hd.notInAllowlist
+    }
+
+    return ''
   }
 
   /** The ids the save allows, or a message when the answer is not usable. */
@@ -324,7 +361,16 @@ export function TelegramConnectSteps({
       return
     }
 
+    const homeError = validateHomeTarget(allowed.ids)
+
+    if (homeError) {
+      setError(homeError)
+
+      return
+    }
+
     const from = step
+    const homeChannel = buildHomeChannelPayload(homeTarget.trim())
 
     setError('')
     setPhase('applying')
@@ -336,7 +382,12 @@ export function TelegramConnectSteps({
           throw new Error(q.sessionExpired)
         }
 
-        const result = await applyTelegramOnboarding(setup.pairing_id, allowed.ids, scopeProfile)
+        const result = await applyTelegramOnboarding(
+          setup.pairing_id,
+          allowed.ids,
+          scopeProfile,
+          homeChannel
+        )
 
         if (result.bot_username) {
           setBotUsername(result.bot_username)
@@ -359,8 +410,17 @@ export function TelegramConnectSteps({
       await updateMessagingPlatform(
         'telegram',
         allowed.ids.length > 0
-          ? { enabled: true, env: { TELEGRAM_ALLOWED_USERS: allowed.ids.join(','), TELEGRAM_BOT_TOKEN: token.trim() } }
-          : { clear_env: ['TELEGRAM_ALLOWED_USERS'], enabled: true, env: { TELEGRAM_BOT_TOKEN: token.trim() } },
+          ? {
+              enabled: true,
+              env: { TELEGRAM_ALLOWED_USERS: allowed.ids.join(','), TELEGRAM_BOT_TOKEN: token.trim() },
+              home_channel: homeChannel
+            }
+          : {
+              clear_env: ['TELEGRAM_ALLOWED_USERS'],
+              enabled: true,
+              env: { TELEGRAM_BOT_TOKEN: token.trim() },
+              home_channel: homeChannel
+            },
         scopeProfile
       )
       setPhase('applied')
@@ -558,7 +618,7 @@ export function TelegramConnectSteps({
           {errorLine}
           <StepFooter
             back={{ label: t.common.back, onClick: () => setStep('create') }}
-            next={{ label: c.next, onClick: () => void finish() }}
+            next={{ label: c.next, onClick: openDeliverStep }}
           />
         </StepPanel>
       )}
@@ -600,6 +660,23 @@ export function TelegramConnectSteps({
           {errorLine}
           <StepFooter
             back={{ label: t.common.back, onClick: () => setStep('create') }}
+            next={{ label: c.next, onClick: openDeliverStep }}
+          />
+        </StepPanel>
+      )}
+
+      {step === 'deliver' && (
+        <StepPanel note={<HomeDeliveryNote />} title={hd.title}>
+          <HomeDeliveryField
+            error={error || undefined}
+            onChange={value => {
+              setHomeTarget(value)
+              setError('')
+            }}
+            value={homeTarget}
+          />
+          <StepFooter
+            back={{ label: t.common.back, onClick: () => setStep(asksWho ? 'talk' : 'create') }}
             next={{ label: c.next, onClick: () => void finish() }}
           />
         </StepPanel>

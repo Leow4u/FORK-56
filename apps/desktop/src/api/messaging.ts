@@ -11,6 +11,7 @@ import type {
   TelegramOnboardingApplyResponse,
   TelegramOnboardingStartResponse,
   TelegramOnboardingStatusResponse,
+  MessagingHomeChannelWrite,
   WebhookCreatePayload,
   WebhookCreateResponse,
   WebhookEnableResponse,
@@ -91,13 +92,18 @@ export function getTelegramOnboardingStatus(pairingId: string): Promise<Telegram
 export function applyTelegramOnboarding(
   pairingId: string,
   allowedUserIds: string[],
-  profile?: null | string
+  profile?: null | string,
+  homeChannel?: MessagingHomeChannelWrite
 ): Promise<TelegramOnboardingApplyResponse> {
   return work4youApi<TelegramOnboardingApplyResponse>({
     ...profileScoped(profile),
     path: `/api/messaging/telegram/onboarding/${encodeURIComponent(pairingId)}/apply`,
     method: 'POST',
-    body: { allowed_user_ids: allowedUserIds, ...profileScoped(profile) }
+    body: {
+      allowed_user_ids: allowedUserIds,
+      home_channel: homeChannel,
+      ...profileScoped(profile)
+    }
   })
 }
 
@@ -135,7 +141,11 @@ export function getWhatsAppOnboardingStatus(pairingId: string): Promise<WhatsApp
 
 export function applyWhatsAppOnboarding(
   pairingId: string,
-  body: { allowed_users?: string; mode?: WhatsAppOnboardingMode },
+  body: {
+    allowed_users?: string
+    home_channel?: MessagingHomeChannelWrite
+    mode?: WhatsAppOnboardingMode
+  },
   profile?: null | string
 ): Promise<WhatsAppOnboardingApplyResponse> {
   return work4youApi<WhatsAppOnboardingApplyResponse>({

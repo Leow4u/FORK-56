@@ -1489,6 +1489,15 @@ export const ja = defineLocale({
       deviceLinked: 'WhatsApp デバイスが連携されました',
       openChatLink: 'チャットを開く'
     },
+    homeDelivery: {
+      stepLabel: 'Alerts & cron',
+      title: 'Where should scheduled jobs and cross-platform alerts go?',
+      note: 'This is the **home channel** for this platform — cron results and messages from other channels land here. It should match someone you already allowed above.',
+      label: 'Delivery target',
+      help: 'An address, chat, or user ID you configured in the previous steps.',
+      required: 'Choose where alerts and cron deliveries should go.',
+      notInAllowlist: 'Pick one of the addresses or accounts you allowed in the previous steps.'
+    },
     replaceValue: '現在の値を置き換え',
     openDocs: 'ドキュメントを開く',
     clearField: key => `${key} をクリア`,

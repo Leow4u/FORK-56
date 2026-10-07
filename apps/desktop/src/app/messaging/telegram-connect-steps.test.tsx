@@ -16,8 +16,12 @@ const openExternalLink = vi.fn()
 const runGatewayRestart = vi.fn()
 
 vi.mock('@/work4you', () => ({
-  applyTelegramOnboarding: (pairingId: string, ids: string[], profile?: null | string) =>
-    applyTelegramOnboarding(pairingId, ids, profile),
+  applyTelegramOnboarding: (
+    pairingId: string,
+    ids: string[],
+    profile?: null | string,
+    homeChannel?: { chat_id: string; name: string }
+  ) => applyTelegramOnboarding(pairingId, ids, profile, homeChannel),
   cancelTelegramOnboarding: (pairingId: string) => cancelTelegramOnboarding(pairingId),
   getActionStatus: () => getActionStatus(),
   getTelegramOnboardingStatus: (pairingId: string) => getTelegramOnboardingStatus(pairingId),
@@ -49,6 +53,18 @@ vi.mock('qrcode', () => ({
 }))
 
 const s = en.messaging.telegramPage
+const hd = en.messaging.homeDelivery
+const home = (chatId: string) => ({ chat_id: chatId, name: chatId })
+
+async function throughDeliver(manualId?: string) {
+  expect(await screen.findByText(hd.title)).toBeTruthy()
+
+  if (manualId) {
+    fireEvent.change(screen.getByLabelText(hd.label), { target: { value: manualId } })
+  }
+
+  await next()
+}
 /** A sentence as the screen shows it: its **marked** words lose the marks. */
 const shown = (text: string) => text.replace(/\*\*/g, '')
 const EXPIRES_AT = new Date(Date.now() + 5 * 60_000).toISOString()
@@ -156,8 +172,11 @@ describe('TelegramConnectSteps', () => {
     // The owner is known, so there is nothing to ask about who can talk.
     expect(screen.queryByText(s.stepTalk)).toBeNull()
     await next()
+    await throughDeliver()
 
-    await waitFor(() => expect(applyTelegramOnboarding).toHaveBeenCalledWith('pair-1', ['4242'], 'work'))
+    await waitFor(() =>
+      expect(applyTelegramOnboarding).toHaveBeenCalledWith('pair-1', ['4242'], 'work', home('4242'))
+    )
     expect(onApplied).toHaveBeenCalled()
     expect(await screen.findByText(s.readySetUp)).toBeTruthy()
     // The bot's handle is set in bold inside the line.
@@ -190,7 +209,8 @@ describe('TelegramConnectSteps', () => {
 
     fireEvent.change(screen.getByLabelText(s.meIdLabel), { target: { value: '777' } })
     await next()
-    await waitFor(() => expect(applyTelegramOnboarding).toHaveBeenCalledWith('pair-1', ['777'], null))
+    await throughDeliver()
+    await waitFor(() => expect(applyTelegramOnboarding).toHaveBeenCalledWith('pair-1', ['777'], null, home('777')))
   })
 
   it('lists who can talk for other people, starting from the owner, and needs at least one', async () => {
@@ -213,8 +233,11 @@ describe('TelegramConnectSteps', () => {
 
     fireEvent.change(list, { target: { value: '4242, 99, 4242' } })
     await next()
+    await throughDeliver()
 
-    await waitFor(() => expect(applyTelegramOnboarding).toHaveBeenCalledWith('pair-1', ['4242', '99'], null))
+    await waitFor(() =>
+      expect(applyTelegramOnboarding).toHaveBeenCalledWith('pair-1', ['4242', '99'], null, home('4242'))
+    )
     expect(await screen.findByText(s.whoList(2))).toBeTruthy()
   })
 
@@ -240,11 +263,17 @@ describe('TelegramConnectSteps', () => {
     // A token says nothing about the person: approving by code is an answer.
     choose(new RegExp(en.messaging.channelSettings.approveTitle))
     await next()
+    await throughDeliver('424242424')
 
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith(
         'telegram',
-        { clear_env: ['TELEGRAM_ALLOWED_USERS'], enabled: true, env: { TELEGRAM_BOT_TOKEN: VALID_TOKEN } },
+        {
+          clear_env: ['TELEGRAM_ALLOWED_USERS'],
+          enabled: true,
+          env: { TELEGRAM_BOT_TOKEN: VALID_TOKEN },
+          home_channel: home('424242424')
+        },
         'work'
       )
     )
@@ -266,11 +295,16 @@ describe('TelegramConnectSteps', () => {
 
     fireEvent.change(screen.getByLabelText(s.idsLabel), { target: { value: '11, 22' } })
     await next()
+    await throughDeliver()
 
     await waitFor(() =>
       expect(updateMessagingPlatform).toHaveBeenCalledWith(
         'telegram',
-        { enabled: true, env: { TELEGRAM_ALLOWED_USERS: '11,22', TELEGRAM_BOT_TOKEN: VALID_TOKEN } },
+        {
+          enabled: true,
+          env: { TELEGRAM_ALLOWED_USERS: '11,22', TELEGRAM_BOT_TOKEN: VALID_TOKEN },
+          home_channel: home('11')
+        },
         null
       )
     )
@@ -286,9 +320,10 @@ describe('TelegramConnectSteps', () => {
     await waitForBot()
     await next()
     await next()
+    await throughDeliver()
 
     expect(await screen.findByText('500 boom')).toBeTruthy()
-    expect(screen.getByText(s.talkTitle)).toBeTruthy()
+    expect(screen.getByText(hd.title)).toBeTruthy()
   })
 
   it('starts again from an expired QR with Try again', async () => {
@@ -312,6 +347,7 @@ describe('TelegramConnectSteps', () => {
     await next()
     await waitForBot()
     await next()
+    await throughDeliver()
 
     expect(await screen.findByText(en.messaging.channelSteps.checkRestartFailed(1), {}, { timeout: 4000 })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Restart gateway/ }))

@@ -1706,6 +1706,7 @@ export interface Translations {
       stepWho: string
       stepCreate: string
       stepTalk: string
+      stepDeliver: string
       stepReady: string
       whoTitle: string
       whoNote: string
@@ -1959,6 +1960,7 @@ export interface Translations {
       stepWho: string
       stepMailbox: string
       stepWrite: string
+      stepDeliver: string
       stepReady: string
       whoTitle: string
       whoNote: string
@@ -2357,6 +2359,15 @@ export interface Translations {
       deviceLinked: string
       openChatLink: string
     }
+    homeDelivery: {
+      stepLabel: string
+      title: string
+      note: string
+      label: string
+      help: string
+      required: string
+      notInAllowlist: string
+    }
     channelSteps: {
       next: string
       tryAgain: string
@@ -2369,6 +2380,7 @@ export interface Translations {
       stepWho: string
       stepConnect: string
       stepTalk: string
+      stepDeliver: string
       stepReady: string
       whoTitle: string
       whoNote: string

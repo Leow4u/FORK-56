@@ -28,13 +28,15 @@ import {
 import { EmailAddressChipInput } from './email-address-chips'
 import { detectEmailPreset, EMAIL_PROVIDER_PRESETS, type EmailProviderPreset } from './email-presets'
 import { type EmailProviderChoice, EmailProviderPicker } from './email-provider-picker'
+import { buildHomeChannelPayload, defaultHomeFromChoices } from './home-delivery'
+import { HomeDeliveryField, HomeDeliveryNote } from './home-delivery-field'
 import { findInvalidEmailSender, validateMessagingEnv } from './validate-env'
 
 /** Who the person said will email the bot: only them, or their team or
  *  clients. */
 type Audience = 'me' | 'others'
 
-type Step = 'mailbox' | 'ready' | 'who' | 'write'
+type Step = 'deliver' | 'mailbox' | 'ready' | 'who' | 'write'
 
 type Phase = 'applied' | 'applying' | 'idle'
 
@@ -99,16 +101,19 @@ export function EmailConnectSteps({
   const [error, setError] = useState('')
   const [restart, setRestart] = useState<RestartState>({ outcome: 'pending' })
   const [login, setLogin] = useState<LiveCheck>({ outcome: 'pending' })
+  const [homeTarget, setHomeTarget] = useState('')
 
   const steps = useMemo<{ id: Step; label: string }[]>(
     () => [
       { id: 'who', label: s.stepWho },
       { id: 'mailbox', label: s.stepMailbox },
       { id: 'write', label: s.stepWrite },
+      { id: 'deliver', label: s.stepDeliver },
       { id: 'ready', label: s.stepReady }
     ],
     [s]
   )
+  const hd = t.messaging.homeDelivery
 
   function fieldError(key: string, value: string): string {
     const invalid = value.trim() ? validateMessagingEnv(key, value) : null
@@ -180,11 +185,45 @@ export function EmailConnectSteps({
     return invalid ? { error: m.envErrors.emailAddress(invalid) } : { value: list.join(',') }
   }
 
+  function openDeliverStep() {
+    const allowed = allowedAddresses()
+
+    if ('error' in allowed) {
+      setError(allowed.error)
+
+      return
+    }
+
+    setError('')
+    setHomeTarget(current => current.trim() || defaultHomeFromChoices(addressList))
+    setStep('deliver')
+  }
+
+  function validateHomeTarget(): string {
+    const target = homeTarget.trim().toLowerCase()
+
+    if (!target) {
+      return hd.required
+    }
+
+    const allowed = new Set(addressList.map(addr => addr.trim().toLowerCase()))
+
+    return allowed.has(target) ? '' : hd.notInAllowlist
+  }
+
   async function finish() {
     const allowed = allowedAddresses()
 
     if ('error' in allowed) {
       setError(allowed.error)
+
+      return
+    }
+
+    const homeError = validateHomeTarget()
+
+    if (homeError) {
+      setError(homeError)
 
       return
     }
@@ -222,7 +261,14 @@ export function EmailConnectSteps({
     try {
       await updateMessagingPlatform(
         'email',
-        clear.length > 0 ? { clear_env: clear, enabled: true, env } : { enabled: true, env },
+        clear.length > 0
+          ? {
+              clear_env: clear,
+              enabled: true,
+              env,
+              home_channel: buildHomeChannelPayload(homeTarget.trim())
+            }
+          : { enabled: true, env, home_channel: buildHomeChannelPayload(homeTarget.trim()) },
         scopeProfile
       )
       setPhase('applied')
@@ -384,7 +430,7 @@ export function EmailConnectSteps({
             value={addressList}
           />
           {errorLine}
-          <StepFooter back={back('mailbox')} next={{ label: c.next, onClick: () => void finish() }} />
+          <StepFooter back={back('mailbox')} next={{ label: c.next, onClick: openDeliverStep }} />
         </StepPanel>
       )}
 
@@ -407,7 +453,21 @@ export function EmailConnectSteps({
             value={addressList}
           />
           {errorLine}
-          <StepFooter back={back('mailbox')} next={{ label: c.next, onClick: () => void finish() }} />
+          <StepFooter back={back('mailbox')} next={{ label: c.next, onClick: openDeliverStep }} />
+        </StepPanel>
+      )}
+
+      {step === 'deliver' && (
+        <StepPanel note={<HomeDeliveryNote />} title={hd.title}>
+          <HomeDeliveryField
+            error={error || undefined}
+            onChange={value => {
+              setHomeTarget(value)
+              setError('')
+            }}
+            value={homeTarget}
+          />
+          <StepFooter back={back('write')} next={{ label: c.next, onClick: () => void finish() }} />
         </StepPanel>
       )}
 

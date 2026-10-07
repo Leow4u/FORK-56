@@ -2122,6 +2122,7 @@ export const pt = defineLocale({
       stepWho: 'Quem',
       stepCreate: 'Criar o bot',
       stepTalk: 'Quem pode conversar',
+      stepDeliver: 'Alertas e cron',
       stepReady: 'Pronto',
       whoTitle: 'Quem vai usar o Telegram com o Work4You?',
       whoNote: 'Você pode alterar isso depois.',
@@ -2397,6 +2398,7 @@ export const pt = defineLocale({
       stepWho: 'Quem',
       stepMailbox: 'Caixa de e-mail',
       stepWrite: 'Quem envia e recebe',
+      stepDeliver: 'Alertas e cron',
       stepReady: 'Pronto',
       whoTitle: 'Quem vai enviar e-mails para o bot?',
       whoNote: 'Você pode alterar isso depois.',
@@ -2831,6 +2833,15 @@ export const pt = defineLocale({
       deviceLinked: 'Aparelho do WhatsApp conectado',
       openChatLink: 'Abrir conversa'
     },
+    homeDelivery: {
+      stepLabel: 'Alertas e cron',
+      title: 'Para onde vão rotinas agendadas e alertas entre canais?',
+      note: 'Este é o **canal padrão (home)** desta plataforma — resultados de cron e mensagens de outros canais chegam aqui. Deve ser alguém que você já autorizou nos passos anteriores.',
+      label: 'Destino de entrega',
+      help: 'Endereço, chat ou ID de usuário que você configurou antes.',
+      required: 'Escolha para onde vão alertas e entregas de cron.',
+      notInAllowlist: 'Use um dos endereços ou contas que você permitiu nos passos anteriores.'
+    },
     channelSteps: {
       next: 'Avançar',
       tryAgain: 'Tentar novamente',
@@ -2843,6 +2854,7 @@ export const pt = defineLocale({
       stepWho: 'Quem',
       stepConnect: 'Conectar',
       stepTalk: 'Quem pode conversar',
+      stepDeliver: 'Alertas e cron',
       stepReady: 'Pronto',
       whoTitle: 'Quem vai usar o WhatsApp com o Work4You?',
       whoNote: 'Você pode alterar isso depois.',
