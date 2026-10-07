@@ -2,11 +2,11 @@ import type { ComponentType, SVGProps } from 'react'
 
 import { cn } from '@/lib/utils'
 
+import type { EmailProviderPreset } from './email-presets'
 import {
   EMAIL_PROVIDER_ICON_COLORS,
   EMAIL_PROVIDER_ICON_COMPONENTS
 } from './email-provider-icons'
-import type { EmailProviderPreset } from './email-presets'
 
 const CUSTOM = 'custom'
 

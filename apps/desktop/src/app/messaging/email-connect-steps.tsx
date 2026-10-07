@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
-import type { MessagingEnvVarInfo } from '@/types/work4you'
 import { cn } from '@/lib/utils'
+import type { MessagingEnvVarInfo } from '@/types/work4you'
 import { updateMessagingPlatform } from '@/work4you'
 
 import { splitList } from './channel-settings'
@@ -26,8 +26,8 @@ import {
   testUntilOk
 } from './channel-steps'
 import { EmailAddressChipInput } from './email-address-chips'
-import { EmailProviderPicker, type EmailProviderChoice } from './email-provider-picker'
 import { detectEmailPreset, EMAIL_PROVIDER_PRESETS, type EmailProviderPreset } from './email-presets'
+import { type EmailProviderChoice, EmailProviderPicker } from './email-provider-picker'
 import { findInvalidEmailSender, validateMessagingEnv } from './validate-env'
 
 /** Who the person said will email the bot: only them, or their team or

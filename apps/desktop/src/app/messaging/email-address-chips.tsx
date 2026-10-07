@@ -124,6 +124,7 @@ export function EmailAddressChipInput({
           onBlur={() => commitDraft(draft)}
           onChange={event => {
             setDraft(event.target.value)
+
             if (error) {
               setError('')
             }
