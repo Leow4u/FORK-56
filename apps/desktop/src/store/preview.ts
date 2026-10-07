@@ -112,6 +112,19 @@ function isPdfFileTarget(target: PreviewTarget): boolean {
   }
 }
 
+/** The one Browser tab's id. URL targets all share it: the tab names the
+ *  SURFACE (Browser), not the page, so opening a second URL navigates the
+ *  browser it already has — re-front the tab, swap its target, and the pane
+ *  rebuilds its webview against the new url. Files and artifacts stay keyed
+ *  by identity; only the web surface is a singleton. Declared ahead of the
+ *  restore below, which keys URL tabs with it while the module is still
+ *  loading. */
+const BROWSER_TAB_ID: RightRailTabId = 'url:browser'
+
+export function previewTabId(target: PreviewTarget): RightRailTabId {
+  return target.kind === 'url' ? BROWSER_TAB_ID : `${target.kind}:${target.url}`
+}
+
 /** Upgrade tabs persisted by builds that classified PDFs as generic binary.
  * Without this restore-time migration, an already-open PDF keeps taking the
  * obsolete raw-binary path after Desktop itself has been upgraded. */
@@ -186,17 +199,6 @@ export const $previewTabSources = computed($previewTabs, tabs => tabs.map(tab =>
 export const $previewReloadRequest = atom(0)
 export const $previewServerRestart = atom<PreviewServerRestart | null>(null)
 export const $previewServerRestartStatus = computed($previewServerRestart, restart => restart?.status ?? 'idle')
-
-/** The one Browser tab's id. URL targets all share it: the tab names the
- *  SURFACE (Browser), not the page, so opening a second URL navigates the
- *  browser it already has — re-front the tab, swap its target, and the pane
- *  rebuilds its webview against the new url. Files and artifacts stay keyed
- *  by identity; only the web surface is a singleton. */
-const BROWSER_TAB_ID: RightRailTabId = 'url:browser'
-
-export function previewTabId(target: PreviewTarget): RightRailTabId {
-  return target.kind === 'url' ? BROWSER_TAB_ID : `${target.kind}:${target.url}`
-}
 
 // Browsing files is "peek at the source"; a tool or an explicit link handing
 // you an HTML file means "run it".
