@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { PaneTab, PaneTabLabel } from './pane-tab'
+import { PaneTab, PaneTabLabel, PaneTabStrip } from './pane-tab'
 
 afterEach(cleanup)
 
@@ -145,6 +145,47 @@ describe('PaneTab hover close button', () => {
       <PaneTab onClose={onClose} vertical>
         <PaneTabLabel>tab</PaneTabLabel>
       </PaneTab>
+    )
+
+    expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()
+  })
+})
+
+// The content area's strip: the ✕ is always there, in a slot of its own, so the
+// title truncates before it instead of running underneath.
+describe('PaneTab on a surface strip', () => {
+  it('keeps the ✕ in the tab itself, and it closes without activating or dragging', () => {
+    const onClose = vi.fn()
+    const onActivate = vi.fn()
+    const onPointerDown = vi.fn()
+    render(
+      <PaneTabStrip variant="surface">
+        <PaneTab onClose={onClose} onPointerDown={onPointerDown} role="tab">
+          <PaneTabLabel as="button" onClick={onActivate}>
+            tab
+          </PaneTabLabel>
+        </PaneTab>
+      </PaneTabStrip>
+    )
+
+    const close = screen.getByRole('button', { name: 'Close' })
+
+    expect(close.parentElement).toBe(screen.getByRole('tab'))
+
+    fireEvent.pointerDown(close, { button: 0 })
+    fireEvent.click(close, { button: 0 })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onActivate).not.toHaveBeenCalled()
+    expect(onPointerDown).not.toHaveBeenCalled()
+  })
+
+  it('leaves a vertical rail tab to middle/⌘-click', () => {
+    render(
+      <PaneTabStrip variant="surface">
+        <PaneTab onClose={vi.fn()} vertical>
+          <PaneTabLabel>tab</PaneTabLabel>
+        </PaneTab>
+      </PaneTabStrip>
     )
 
     expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()

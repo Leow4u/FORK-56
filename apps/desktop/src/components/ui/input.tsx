@@ -16,7 +16,7 @@ type InputProps = Omit<React.ComponentProps<'input'>, 'size' | 'prefix' | 'suffi
     containerClassName?: string
   }
 
-function Input({ className, containerClassName, prefix, suffix, size, type, ...props }: InputProps) {
+function Input({ className, containerClassName, prefix, shape, suffix, size, type, ...props }: InputProps) {
   const grouped = prefix != null || suffix != null
 
   const field = (
@@ -32,7 +32,7 @@ function Input({ className, containerClassName, prefix, suffix, size, type, ...p
         // box; otherwise the input carries the chrome itself.
         grouped
           ? 'min-w-0 flex-1 border-0 bg-transparent p-0 text-xs leading-4 text-foreground outline-none placeholder:text-muted-foreground'
-          : controlVariants({ size }),
+          : controlVariants({ shape, size }),
         'selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-foreground',
         className
       )}
@@ -52,7 +52,7 @@ function Input({ className, containerClassName, prefix, suffix, size, type, ...p
       className={cn(
         // Same control chrome/sizing as a bare input; `.desktop-input-chrome`
         // lights on `:focus-within` (styles.css) since the div never focuses.
-        controlVariants({ size }),
+        controlVariants({ shape, size }),
         'inline-flex items-center gap-1',
         props.disabled && 'cursor-not-allowed opacity-50',
         containerClassName

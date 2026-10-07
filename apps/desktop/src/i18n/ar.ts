@@ -2732,7 +2732,7 @@ export const ar = defineLocale({
       goForward: 'تقدم',
       reload: 'إعادة تحميل الصفحة',
       address: 'العنوان',
-      addressPlaceholder: 'أدخل العنوان',
+      addressPlaceholder: 'أدخل عنوان URL',
       blankPageBody: 'اكتب عنوانًا في الأعلى للتصفح، أو اطلب من Work4You فتح صفحة.',
       finishedRestarting: message => `أنهى Work4You إعادة تشغيل خادم المعاينة${message ? `: ${message}` : ''}`,
       failedRestarting: message => `فشلت إعادة تشغيل الخادم: ${message}`,

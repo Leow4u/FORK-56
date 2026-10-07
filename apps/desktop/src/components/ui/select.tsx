@@ -13,13 +13,14 @@ function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>)
 function SelectTrigger({
   className,
   children,
+  shape,
   size,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Trigger> & ControlVariantProps) {
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        controlVariants({ size }),
+        controlVariants({ shape, size }),
         'flex items-center justify-between gap-2 whitespace-nowrap data-placeholder:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0',
         className
       )}

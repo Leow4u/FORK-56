@@ -180,6 +180,8 @@ Notes:
 
 - **`controlVariants`** (`src/components/ui/control.ts`) is the shared shape for
   `Input` / `Textarea` / `SelectTrigger`. New text-entry controls compose it.
+  `shape="pill"` is the rounded field (the Browser's address bar) — the same
+  shape `SearchField`'s pill draws; reach for it instead of a radius override.
 - **`SearchField`** — the only search input. Default is borderless,
   underline-on-focus, auto-width. `shape="pill"` is that same field with the
   rounded hairline (artifacts library header). Don't wrap it in another
@@ -188,6 +190,17 @@ Notes:
   (color mode, tool-call display, usage period). Replaces radio piles and
   pill rows.
 - **`Switch`** (`size="xs"`) — bare, with `aria-label`. No bordered text wrapper.
+
+## Tab strips
+
+- **`PaneTabStrip` + `PaneTab`** (`src/components/ui/pane-tab.tsx`) draw every
+  strip; its `variant` reaches every tab and label in it. `underline` (default):
+  tabs merge into the bar, the active one carries the accent underline, the ✕
+  appears on hover and titles are set in small uppercase. `surface`: each tab is a rounded
+  chip, the active one the stage surface with a `--ui-stroke-secondary`
+  hairline, the ✕ always shown in a slot of its own and titles in their own
+  case — the content area's strip (any zone holding previews). The chat stage
+  keeps its strip (`MAIN_STAGE_TAB_STRIP_CLASS`) even with a preview in it.
 
 ## Layout
 

@@ -4205,13 +4205,13 @@ export const en: Translations = {
     paneControls: 'Pane controls',
     appControls: 'App controls',
     panes: {
-      sessions: 'sessions',
-      terminal: 'terminal',
-      files: 'files',
-      review: 'review',
-      logs: 'logs',
+      sessions: 'Sessions',
+      terminal: 'Terminal',
+      files: 'Files',
+      review: 'Review',
+      logs: 'Logs',
       browser: 'Browser',
-      agentTerminal: 'agent',
+      agentTerminal: 'Agent',
       noPageAt: path => `no page at ${path}`
     },
     layouts: {
@@ -4486,7 +4486,7 @@ export const en: Translations = {
       goForward: 'Forward',
       reload: 'Reload page',
       address: 'Address',
-      addressPlaceholder: 'Enter address',
+      addressPlaceholder: 'Enter a URL',
       blankPageBody: 'Type an address above to browse, or ask Work4You to open a page.',
       finishedRestarting: message => `Work4You finished restarting the preview server${message ? `: ${message}` : ''}`,
       failedRestarting: message => `Server restart failed: ${message}`,

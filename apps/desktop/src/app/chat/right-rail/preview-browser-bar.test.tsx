@@ -273,4 +273,17 @@ describe('PreviewBrowserBar', () => {
     expect(copyButton.parentElement?.contains(address)).toBe(true)
     expect(copyButton.className).toContain('absolute')
   })
+
+  // Back, forward and reload move the same page through its history, so they
+  // read as one control — apart from the address and the page toggles.
+  it('groups back, forward and reload into one control', () => {
+    render(<PreviewBrowserBar {...baseProps} />)
+
+    const group = screen.getByRole('button', { name: 'Back' }).parentElement
+
+    expect(screen.getByRole('button', { name: 'Forward' }).parentElement).toBe(group)
+    expect(screen.getByRole('button', { name: 'Reload page' }).parentElement).toBe(group)
+    expect(group?.contains(screen.getByRole('textbox', { name: 'Address' }))).toBe(false)
+    expect(group?.contains(screen.getByRole('button', { name: 'Open in browser' }))).toBe(false)
+  })
 })
