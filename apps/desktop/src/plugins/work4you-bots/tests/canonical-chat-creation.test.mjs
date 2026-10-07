@@ -5,7 +5,7 @@ import vm from 'node:vm'
 
 const source = readFileSync(new URL('../plugin.js', import.meta.url), 'utf8')
 
-function loadCanonicalCreation({ openSession, request }) {
+function loadCanonicalCreation({ openSession, request, tr = () => 'Hey, tell me about yourself!' }) {
   const start = source.indexOf('const canonicalCreations = new Map()')
   const end = source.indexOf('function displayName(', start)
   const saved = []
@@ -13,7 +13,8 @@ function loadCanonicalCreation({ openSession, request }) {
     host: { openSession, request },
     saveBotMeta: (name, patch) => saved.push({ name, patch }),
     $hideBotChats: { get: () => false },
-    window: { setTimeout: callback => callback() }
+    window: { setTimeout: callback => callback() },
+    tr
   }
   const section = source
     .slice(start, end)
@@ -82,4 +83,21 @@ test('New Agent kickoff session.create pins Portal + Operis when given a runtime
   assert.equal(creates[0].profile, 'leo')
   assert.equal(creates[0].provider, 'work4you')
   assert.equal(creates[0].model, 'openai/gpt-5.6-luna')
+})
+
+test('canonical kickoff uses tr() for the intro prompt text', async () => {
+  let submitted
+  const ptIntro = 'Oi! Apresente-se — quem você é e como pode ajudar.'
+  const runtime = loadCanonicalCreation({
+    openSession: async () => undefined,
+    request: async (method, params) => {
+      if (method === 'session.create') return { stored_session_id: 'stored', session_id: 'runtime' }
+      if (method === 'prompt.submit') submitted = params?.text
+      return {}
+    },
+    tr: key => (key === 'create.canonicalKickoff' ? ptIntro : key)
+  })
+
+  await runtime.createCanonicalChat('comercial')
+  assert.equal(submitted, ptIntro)
 })

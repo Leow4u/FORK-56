@@ -76,6 +76,7 @@ test('without host i18n every translator returns the English source verbatim', (
   const { tr, useBotModeT, groupActivityLabel, scheduleSummary, scheduleLabel } = context.__i18n
 
   assert.equal(tr('roster.searchBots'), 'Search bots…')
+  assert.equal(tr('create.canonicalKickoff'), 'Hey, tell me about yourself!')
   assert.equal(tr('roster.copyTitle', 'Researcher'), 'Researcher (copy)')
   assert.equal(tr('notify.newMessage', 'Scout'), '🤖 New message for Scout')
   // Components get the same English translator on SDKs without usePluginI18n.
@@ -99,6 +100,10 @@ test('with host i18n the bundles register and the copy follows the active langua
 
   assert.deepEqual(Object.keys(i18n.bundles).sort(), ['en', 'pt'])
   assert.equal(tr('roster.searchBots'), 'Buscar bots…')
+  assert.equal(
+    tr('create.canonicalKickoff'),
+    'Oi! Apresente-se — quem você é e como pode ajudar.'
+  )
   assert.equal(tr('roster.copyTitle', 'Pesquisador'), 'Pesquisador (cópia)')
   assert.equal(tr('groups.botCount', 1), '1 bot')
   assert.equal(tr('groups.botCount', 3), '3 bots')

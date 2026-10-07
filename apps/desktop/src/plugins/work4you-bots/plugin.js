@@ -370,7 +370,8 @@ const BOT_MODE_LOCALES = {
       mcpHint:
         'Configured servers copy from the main profile; catalog entries are the bundled MCP menu. Entries needing API keys route through setup first (credentials follow the shared keys setting).',
       creating: 'Creating…',
-      submit: 'Create Agent'
+      submit: 'Create Agent',
+      canonicalKickoff: 'Hey, tell me about yourself!'
     },
     routines: {
       untitled: 'Untitled cronjob',
@@ -817,7 +818,8 @@ const BOT_MODE_LOCALES = {
       mcpHint:
         'Os servidores configurados são copiados do perfil principal; os itens do catálogo são o menu MCP incluído. Itens que precisam de chaves de API passam primeiro pela configuração (as credenciais seguem a opção de chaves compartilhadas).',
       creating: 'Criando…',
-      submit: 'Criar agente'
+      submit: 'Criar agente',
+      canonicalKickoff: 'Oi! Apresente-se — quem você é e como pode ajudar.'
     },
     routines: {
       untitled: 'Tarefa sem título',
@@ -3455,7 +3457,7 @@ function createCanonicalChat(name, createRuntime) {
       await new Promise(resolve => window.setTimeout(resolve, 400))
 
       try {
-        await host.request('prompt.submit', { session_id: runtime, text: 'Hey, tell me about yourself!' })
+        await host.request('prompt.submit', { session_id: runtime, text: tr('create.canonicalKickoff') })
 
         if (!opened && sid && typeof host.openSession === 'function') {
           await host.openSession(sid, { profile: name, intent: 'main', keepAllProfilesScope: true })
