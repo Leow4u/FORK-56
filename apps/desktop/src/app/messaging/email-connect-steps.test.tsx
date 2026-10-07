@@ -66,7 +66,11 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-async function renderSteps({ envVars = [] as MessagingEnvVarInfo[], scopeProfile = null as null | string } = {}) {
+async function renderSteps({
+  envVars = [] as MessagingEnvVarInfo[],
+  requireFreshPassword = false,
+  scopeProfile = null as null | string
+} = {}) {
   const { EmailConnectSteps } = await import('./email-connect-steps')
 
   await act(async () => {
@@ -76,6 +80,7 @@ async function renderSteps({ envVars = [] as MessagingEnvVarInfo[], scopeProfile
         onApplied={vi.fn()}
         onDone={vi.fn()}
         platformConnected={false}
+        requireFreshPassword={requireFreshPassword}
         scopeProfile={scopeProfile}
       />
     )
@@ -236,6 +241,21 @@ describe('EmailConnectSteps', () => {
 
     expect(await screen.findByText('IMAP login to imap.gmail.com:993 failed: bad password')).toBeTruthy()
     expect(screen.getByText(s.whoMe)).toBeTruthy()
+  })
+
+  it('requires a new app password when setup is re-run on a profile that already had one', async () => {
+    await renderSteps({
+      envVars: [envVar('EMAIL_PASSWORD', null, true), envVar('EMAIL_ADDRESS', 'bot@gmail.com')],
+      requireFreshPassword: true
+    })
+
+    choose(new RegExp(s.meTitle))
+    await next()
+    fireEvent.change(screen.getByLabelText(s.addressLabel), { target: { value: 'bot@gmail.com' } })
+    chooseAppPasswordYes()
+    expect(nextButton().disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText(s.passwordLabel), { target: { value: 'fresh-app-password' } })
+    expect(nextButton().disabled).toBe(false)
   })
 
   it('keeps the saved password and clears custom ports when a provider is picked again', async () => {
