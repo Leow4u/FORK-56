@@ -4514,6 +4514,32 @@ def apply_provider_selection(ts_key: str, provider_name: str, config: dict) -> N
         img_cfg.pop("use_gateway", None)
 
 
+def persist_toolset_model_selection(
+    ts_key: str,
+    model_id: str,
+    config: dict,
+    *,
+    provider_name: Optional[str] = None,
+) -> None:
+    """Persist a model pick for image/video generation toolsets.
+
+    The desktop Settings → Image & Video pane selects a backend row
+    (``Work4You Subscription``) and then a model. The CLI writes both
+    ``<section>.provider`` and ``<section>.model``; this helper keeps the
+    GUI/API path in lockstep so runtime dispatch (managed FAL gateway vs
+    direct ``FAL_KEY``) matches what the user picked in settings.
+    """
+    if ts_key not in {"image_gen", "video_gen"}:
+        raise KeyError(f"Toolset has no model catalog: {ts_key}")
+    if provider_name:
+        apply_provider_selection(ts_key, provider_name, config)
+    section_cfg = config.setdefault(ts_key, {})
+    if not isinstance(section_cfg, dict):
+        section_cfg = {}
+        config[ts_key] = section_cfg
+    section_cfg["model"] = model_id
+
+
 def _configure_provider(
     provider: dict,
     config: dict,

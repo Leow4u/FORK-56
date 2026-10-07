@@ -446,11 +446,17 @@ async def select_toolset_model(
                         detail=f"Unknown model {model_id!r} for backend {plugin!r}",
                     )
 
-                section_cfg = config.setdefault(section, {})
-                if not isinstance(section_cfg, dict):
-                    section_cfg = {}
-                    config[section] = section_cfg
-                section_cfg["model"] = model_id
+                from work4you_cli.tools_config import persist_toolset_model_selection
+
+                try:
+                    persist_toolset_model_selection(
+                        name,
+                        model_id,
+                        config,
+                        provider_name=body.provider,
+                    )
+                except KeyError as exc:
+                    raise HTTPException(status_code=400, detail=str(exc)) from exc
                 save_config(config)
         return plugin
 
