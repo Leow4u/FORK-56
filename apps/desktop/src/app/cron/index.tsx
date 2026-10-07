@@ -35,6 +35,7 @@ import {
 import { ResponsiveTabs } from '@/components/ui/tab-dropdown'
 import { Textarea } from '@/components/ui/textarea'
 import { type Translations, useI18n } from '@/i18n'
+import { blueprintOptionLabel, localizeAutomationBlueprints } from '@/lib/blueprint-i18n'
 import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
 import { AlertTriangle } from '@/lib/icons'
 import { requestModelOptions } from '@/lib/model-options'
@@ -426,12 +427,18 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
     queryFn: async () => (await getAutomationBlueprints()).blueprints
   })
 
+  const localizedBlueprints = useMemo(
+    () => localizeAutomationBlueprints(blueprintsQuery.data ?? [], c.blueprints.catalog),
+    [blueprintsQuery.data, c.blueprints.catalog]
+  )
+
   const visibleBlueprints = useMemo(() => {
-    const list = blueprintsQuery.data ?? []
     const needle = query.trim().toLowerCase()
 
-    return needle ? list.filter(item => `${item.title} ${item.description}`.toLowerCase().includes(needle)) : list
-  }, [blueprintsQuery.data, query])
+    return needle
+      ? localizedBlueprints.filter(item => `${item.title} ${item.description}`.toLowerCase().includes(needle))
+      : localizedBlueprints
+  }, [localizedBlueprints, query])
 
   // Detail is an explicit open. Search filtering must not dismiss it, so the
   // lookup is the full job list rather than the visible gallery.
@@ -498,13 +505,13 @@ export function CronView({ setStatusbarItemGroup: _setStatusbarItemGroup, classN
         : 'ready'
 
   const searchHints = useMemo(() => {
-    const source = tab === 'jobs' ? jobs.map(jobTitle) : (blueprintsQuery.data ?? []).map(item => item.title)
+    const source = tab === 'jobs' ? jobs.map(jobTitle) : localizedBlueprints.map(item => item.title)
 
     return source
       .filter(Boolean)
       .slice(0, 5)
       .map(title => t.common.tryHint(title))
-  }, [blueprintsQuery.data, jobs, t, tab])
+  }, [jobs, localizedBlueprints, t, tab])
 
   function beginJobBusy(jobId: string): symbol {
     const token = Symbol(jobId)
@@ -1178,7 +1185,10 @@ function CronEditorDialog({
     enabled: open && !isEdit
   })
 
-  const blueprintList = blueprintsQuery.data ?? []
+  const blueprintList = useMemo(
+    () => localizeAutomationBlueprints(blueprintsQuery.data ?? [], c.blueprints.catalog),
+    [blueprintsQuery.data, c.blueprints.catalog]
+  )
 
   const blueprint =
     templateChoice === CUSTOM_TEMPLATE ? null : (blueprintList.find(item => item.key === templateChoice) ?? null)
@@ -1392,6 +1402,9 @@ function CronEditorDialog({
                     field={field}
                     id={fieldId}
                     onChange={next => setSlotValues(prev => ({ ...prev, [field.name]: next }))}
+                    optionLabel={option =>
+                      blueprintOptionLabel(blueprint.key, field, option, c.blueprints.catalog)
+                    }
                     value={slotValues[field.name] ?? ''}
                   />
                 )}

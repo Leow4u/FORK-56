@@ -1,5 +1,6 @@
 import { defineFieldCopy } from '@/app/settings/field-copy'
 
+import { blueprintCatalogPt } from './blueprint-catalog/pt'
 import { defineLocale } from './define-locale'
 import { introPt } from './intro-pt'
 
@@ -3655,7 +3656,8 @@ export const pt = defineLocale({
       loading: 'Carregando modelos...',
       failedLoad: 'Falha ao carregar os modelos',
       emptyTitle: 'Nenhum modelo disponível',
-      emptyDesc: 'Nenhum modelo de automação está disponível neste backend.'
+      emptyDesc: 'Nenhum modelo de automação está disponível neste backend.',
+      catalog: blueprintCatalogPt
     }
   },
 
