@@ -85,7 +85,7 @@ describe('CreateProfileDialog', () => {
 
     render(<CreateProfileDialog onClose={() => undefined} open profiles={[defaultProfile]} />)
 
-    expect(screen.getByText(/independent Work4You environments/)).toBeTruthy()
+    expect(screen.getByText('Choose the appearance and how this profile will work.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Fresh' }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.queryByRole('combobox')).toBeNull()
 
@@ -217,14 +217,14 @@ describe('CreateProfileDialog', () => {
     )
   })
 
-  it('turns bundled skills off for a blank profile when asked', async () => {
+  it('always includes native skills without exposing an opt-out or login setting', async () => {
     render(<CreateProfileDialog onClose={() => undefined} open profiles={[defaultProfile]} />)
 
     typeName('vazio')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Install bundled skills' }))
+    expect(screen.queryByRole('checkbox')).toBeNull()
     await submit()
 
     await waitFor(() => expect(createProfile).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(createProfile).mock.calls[0][0]).toMatchObject({ no_skills: true })
+    expect(vi.mocked(createProfile).mock.calls[0][0]).toMatchObject({ no_skills: false })
   })
 })

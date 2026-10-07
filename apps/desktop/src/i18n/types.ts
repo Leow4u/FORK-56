@@ -2556,6 +2556,8 @@ export interface Translations {
     useProfile: string
     fileLabel: string
     personaPlaceholder: string
+    createAppearanceHint: string
+    personaPrompt: string
     soulOptional: string
     soulPlaceholder: (mode: string) => string
     soulPlaceholderCloned: string

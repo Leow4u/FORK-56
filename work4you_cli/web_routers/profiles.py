@@ -866,13 +866,12 @@ async def create_profile_endpoint(body: ProfileCreate):
             no_skills=body.no_skills,
             description=body.description,
         )
-        # Match the CLI's profile-create flow: fresh named profiles get the
-        # bundled skills installed. When cloning from default, create_profile()
-        # has already copied the source profile's skills, including any
-        # user-installed skills. When no_skills=True, create_profile() wrote
-        # the opt-out marker and seed_profile_skills() will no-op.
-        if not clone:
-            profiles_mod.seed_profile_skills(path, quiet=True)
+        # Both GUI creation paths include native skills, even when copying a
+        # source that pruned/disabled some. Keep the explicit API/CLI opt-out
+        # compatible; the creation UI no longer exposes it.
+        if not body.no_skills:
+            profiles_mod.seed_profile_skills(path, quiet=True, initialize=True)
+        profiles_mod.share_profile_platform_login(path)
 
         # Match the CLI's profile-create flow: named profiles should get a
         # wrapper in ~/.local/bin when the alias is safe to create.

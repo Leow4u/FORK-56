@@ -304,11 +304,11 @@ def _(rid, params: dict) -> dict:
     except Exception as e:
         return _err(rid, 5062, str(e))
 
-    # Mirror the CLI/REST create flow: fresh profiles get the bundled
-    # skills; safe alias wrapper. Both best-effort.
+    # GUI profiles include native skills even when their clone source
+    # disabled/pruned them. The explicit API opt-out remains compatible.
     try:
-        if not clone_from:
-            profiles_mod.seed_profile_skills(path, quiet=True)
+        if not is_truthy_value(params.get("no_skills", False)):
+            profiles_mod.seed_profile_skills(path, quiet=True, initialize=True)
     except Exception:
         pass
     try:
@@ -382,6 +382,8 @@ def _(rid, params: dict) -> dict:
                 mirrored["auth"] = True
         except Exception:
             pass
+
+    profiles_mod.share_profile_platform_login(path)
 
     model = str(params.get("model") or "").strip()
     provider = str(params.get("provider") or "").strip()

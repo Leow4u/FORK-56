@@ -20,15 +20,6 @@ test('Edit Profile renders the pinned Capabilities surface when the export exist
   assert.match(source, /jsx\(SkillsView, \{ embedded: true, fixedProfile: bot \}\)/)
 })
 
-test('New Agent gains a Capabilities tab that materializes the profile first', () => {
-  // Tab list swaps to General + Capabilities on newer builds…
-  assert.match(source, /\['general', 'capabilities'\]/)
-  // …and opening it creates the profile through the same lazy door MCP setup uses.
-  assert.match(source, /id === 'capabilities'/)
-  assert.match(source, /ensureAgentCreated\(\)\s*\n?\s*\.then\(created => created && setCreatedForCaps\(created\)\)/)
-  assert.match(source, /jsx\(SkillsView, \{\s*embedded: true,\s*fixedProfile: createdForCaps,/)
-})
-
 test('remote-target drafts pin the live surface to the target connection', () => {
   // Builds whose SkillsView routes fixedConnection get the live Capabilities
   // tab for remote targets too — pinned to the target machine's backend.

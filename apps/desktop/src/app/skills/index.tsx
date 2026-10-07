@@ -196,6 +196,8 @@ interface SkillsViewProps extends React.ComponentProps<'section'> {
    *  state lives in local React state instead of the route's `?tab=` param,
    *  so an embedding dialog never fights the page router. */
   embedded?: boolean
+  /** The containing creation dialog already supplies its heading. */
+  hideTitle?: boolean
   /** Pin the WHOLE view to one profile: the scope selector is hidden and
    *  every tab reads/writes THAT profile. This is the plugin door — Bot Mode
    *  renders the real Capabilities surface pinned to a bot. */
@@ -211,6 +213,7 @@ interface SkillsViewProps extends React.ComponentProps<'section'> {
 export function SkillsView({
   className,
   embedded = false,
+  hideTitle = false,
   fixedConnection,
   fixedProfile,
   setStatusbarItemGroup: _setStatusbarItemGroup,
@@ -974,9 +977,9 @@ export function SkillsView({
       {...props}
       className={cn('flex h-full min-w-0 flex-col overflow-hidden bg-(--ui-chat-surface-background)', className)}
     >
-      <div className={cn('shrink-0 pb-4', PAGE_HEADER_TOP, PAGE_INSET_X)}>
+      <div className={cn('shrink-0 pb-4', !hideTitle && [PAGE_HEADER_TOP, PAGE_INSET_X])}>
         <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
-          <PageTitle>{t.sidebar.nav.skills}</PageTitle>
+          {!hideTitle && <PageTitle>{t.sidebar.nav.skills}</PageTitle>}
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-3">
               {profileScopeSelector}

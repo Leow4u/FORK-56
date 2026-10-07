@@ -1264,7 +1264,32 @@ def create_profile(
     return profile_dir
 
 
-def seed_profile_skills(profile_dir: Path, quiet: bool = False) -> Optional[dict]:
+def share_profile_platform_login(profile_dir: Path) -> None:
+    """Let a new GUI profile resolve the default Work4You login via fallback.
+
+    Full copies may carry the source's auth.json. Remove only its Work4You
+    entries; other providers, MCP credentials and channel secrets stay scoped
+    to the copied profile. Never copy refresh tokens from default.
+    """
+    auth_file = profile_dir / "auth.json"
+    if not auth_file.is_file():
+        return
+    store = json.loads(auth_file.read_text(encoding="utf-8"))
+    changed = False
+    for section, key in (("providers", "work4you"), ("credential_pool", "work4you"),
+                         ("systems", "work4you_portal")):
+        entries = store.get(section)
+        if isinstance(entries, dict) and key in entries:
+            del entries[key]
+            changed = True
+    if changed:
+        from utils import atomic_json_write
+        atomic_json_write(auth_file, store, mode=0o600)
+
+
+def seed_profile_skills(
+    profile_dir: Path, quiet: bool = False, *, initialize: bool = False,
+) -> Optional[dict]:
     """Seed bundled skills into a profile via subprocess.
 
     Uses subprocess because sync_skills() caches WORK4YOU_HOME at module level.
@@ -1275,7 +1300,7 @@ def seed_profile_skills(profile_dir: Path, quiet: bool = False) -> Optional[dict
     are skipped and get an empty-result dict so callers can report
     "opted out" instead of "failed".
     """
-    if has_bundled_skills_opt_out(profile_dir):
+    if not initialize and has_bundled_skills_opt_out(profile_dir):
         return {
             "copied": [],
             "updated": [],
@@ -1283,11 +1308,12 @@ def seed_profile_skills(profile_dir: Path, quiet: bool = False) -> Optional[dict
             "skipped_opt_out": True,
         }
     project_root = Path(__file__).parent.parent.resolve()
+    sync_function = "initialize_profile_skills" if initialize else "sync_skills"
     try:
         result = subprocess.run(
             [sys.executable, "-c",
-             "import json; from tools.skills_sync import sync_skills; "
-             "r = sync_skills(quiet=True); print(json.dumps(r))"],
+             f"import json; from tools.skills_sync import {sync_function}; "
+             f"r = {sync_function}(quiet=True); print(json.dumps(r))"],
             env={**os.environ, "WORK4YOU_HOME": str(profile_dir)},
             cwd=str(project_root),
             capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60,
