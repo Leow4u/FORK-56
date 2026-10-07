@@ -1,6 +1,6 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,8 @@ import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 import { PanelEmpty } from '../overlays/panel'
 
 import { ConfigField } from './config-field'
+import { FIELD_LABELS } from './constants'
+import { fieldCopyForSchemaKey } from './field-copy'
 import {
   clearsEnabledToolsets,
   enumOptionsFor,
@@ -44,6 +46,7 @@ import {
 } from './primitives'
 import { SettingsProfileScope } from './profile-scope'
 import { AutoArchiveSetting } from './sessions-settings'
+import { DictationLanguageSetting, SubscriptionVoiceSetting, VoiceShortcutSetting } from './voice-settings-rows'
 
 export function ConfigSettings({ activeSectionId, onConfigSaved, onMainModelChanged }: ConfigSettingsProps) {
   // Shared settings scope as the CONCRETE profile key every request carries
@@ -112,6 +115,8 @@ function ConfigSettingsInner({
   const [elevenLabsVoiceOptions, setElevenLabsVoiceOptions] = useState<string[] | null>(null)
   const [elevenLabsVoiceLabels, setElevenLabsVoiceLabels] = useState<Record<string, string>>({})
   const saveVersionRef = useRef(0)
+  // The edit the last save wrote; behind saveVersionRef while autosave waits.
+  const savedVersionRef = useRef(0)
   const savedDiscoverySignatureRef = useRef<string | undefined>(undefined)
   const [saveVersion, setSaveVersion] = useState(0)
 
@@ -137,6 +142,7 @@ function ConfigSettingsInner({
     savedDiscoverySignatureRef.current = undefined
     setConfig(null)
     saveVersionRef.current = 0
+    savedVersionRef.current = 0
     setSaveVersion(0)
   })
 
@@ -180,6 +186,8 @@ function ConfigSettingsInner({
             throw new Error(c.autosaveFailed)
           }
 
+          savedVersionRef.current = Math.max(savedVersionRef.current, v)
+
           // Mirror the saved record into the shared cache so MCP/model surfaces
           // reflect the edit without their own refetch.
           writeConfigCache(config)
@@ -209,6 +217,24 @@ function ConfigSettingsInner({
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- copy is stable; avoid re-scheduling autosave on locale change
   }, [config, onConfigSaved, saveVersion])
+
+  // Write an edit autosave hasn't reached yet, now: the voice preview speaks
+  // with the saved voice, so a voice just picked must be on disk first.
+  const flushPendingSave = async () => {
+    const v = saveVersionRef.current
+
+    if (!config || v === savedVersionRef.current) {
+      return
+    }
+
+    const result = await saveWork4YouConfig(config, scopeProfile)
+
+    if (!result.ok) {
+      throw new Error(c.autosaveFailed)
+    }
+
+    savedVersionRef.current = Math.max(savedVersionRef.current, v)
+  }
 
   const updateConfig = (next: Work4YouConfigRecord) => {
     // Guard the single most destructive config edit: clearing the entire
@@ -343,33 +369,55 @@ function ConfigSettingsInner({
       {activeSectionId === 'chat' || visibleFields.length > 0 ? (
         <SettingsGroup>
           {visibleFields.map(([key, field]) => (
-            <div className="scroll-mt-6 rounded-lg" id={`setting-field-${key}`} key={key}>
-              <ConfigField
-                descriptionExtra={
-                  key === 'memory.provider' && isExternalMemoryProvider(getNested(config, key)) ? (
-                    <MemoryConnect profile={scopeProfile} provider={String(getNested(config, key))} />
-                  ) : undefined
-                }
-                enumOptions={
-                  key === 'tts.elevenlabs.voice_id'
-                    ? enumOptionsFor(key, getNested(config, key), config, elevenLabsVoiceOptions ?? undefined)
-                    : enumOptionsFor(key, getNested(config, key), config)
-                }
-                onChange={value => updateConfig(setNested(config, key, value))}
-                optionLabels={key === 'tts.elevenlabs.voice_id' ? elevenLabsVoiceLabels : undefined}
-                schema={field}
-                schemaKey={key}
-                value={getNested(config, key)}
-              />
-              {key === 'memory.provider' && isExternalMemoryProvider(getNested(config, key)) ? (
-                <ProviderConfigPanel
-                  key={String(getNested(config, key))}
-                  profile={scopeProfile}
-                  provider={String(getNested(config, key))}
-                />
+            <Fragment key={key}>
+              <div className="scroll-mt-6 rounded-lg" id={`setting-field-${key}`}>
+                {activeSectionId === 'voice' && key === 'tts.openai.voice' ? (
+                  <SubscriptionVoiceSetting
+                    beforePreview={flushPendingSave}
+                    label={
+                      fieldCopyForSchemaKey(t.settings.fieldLabels, key) ??
+                      fieldCopyForSchemaKey(FIELD_LABELS, key) ??
+                      key
+                    }
+                    onChange={value => updateConfig(setNested(config, key, value))}
+                    options={enumOptionsFor(key, getNested(config, key), config) ?? []}
+                    profile={scopeProfile}
+                    value={String(getNested(config, key) ?? '')}
+                  />
+                ) : (
+                  <ConfigField
+                    descriptionExtra={
+                      key === 'memory.provider' && isExternalMemoryProvider(getNested(config, key)) ? (
+                        <MemoryConnect profile={scopeProfile} provider={String(getNested(config, key))} />
+                      ) : undefined
+                    }
+                    enumOptions={
+                      key === 'tts.elevenlabs.voice_id'
+                        ? enumOptionsFor(key, getNested(config, key), config, elevenLabsVoiceOptions ?? undefined)
+                        : enumOptionsFor(key, getNested(config, key), config)
+                    }
+                    onChange={value => updateConfig(setNested(config, key, value))}
+                    optionLabels={key === 'tts.elevenlabs.voice_id' ? elevenLabsVoiceLabels : undefined}
+                    schema={field}
+                    schemaKey={key}
+                    value={getNested(config, key)}
+                  />
+                )}
+                {key === 'memory.provider' && isExternalMemoryProvider(getNested(config, key)) ? (
+                  <ProviderConfigPanel
+                    key={String(getNested(config, key))}
+                    profile={scopeProfile}
+                    provider={String(getNested(config, key))}
+                  />
+                ) : null}
+              </div>
+              {/* What the microphone hears sits right under the switch that turns it on. */}
+              {activeSectionId === 'voice' && key === 'stt.enabled' && getNested(config, key) !== false ? (
+                <DictationLanguageSetting />
               ) : null}
-            </div>
+            </Fragment>
           ))}
+          {activeSectionId === 'voice' ? <VoiceShortcutSetting /> : null}
           {activeSectionId === 'chat' ? (
             <>
               <ActivityDensitySetting />

@@ -95,6 +95,11 @@ class WhatsAppOnboardingApply(BaseModel):
 class AudioTranscriptionRequest(BaseModel):
     data_url: str
     mime_type: Optional[str] = None
+    # ISO 639 codes ("pt"). `language` is the one the user picked to dictate
+    # in and wins over config; `ui_language` is the app's own language and
+    # only replaces the shipped "en" default of stt.language.
+    language: Optional[str] = None
+    ui_language: Optional[str] = None
 
 
 class ManagedFileUpload(BaseModel):

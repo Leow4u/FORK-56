@@ -1,3 +1,4 @@
+import { dictationLanguageHint } from '@/store/dictation-language'
 import type {
   ActionResponse,
   ActionStatusResponse,
@@ -168,6 +169,8 @@ export function getActionStatus(name: string, lines = 200, profile?: ProfileScop
   })
 }
 
+/** Carries the language the user speaks (Settings → Voice, the app language
+ *  by default): without it the backend assumes English and Whisper translates. */
 export function transcribeAudio(dataUrl: string, mimeType?: string): Promise<AudioTranscriptionResponse> {
   return work4youApi<AudioTranscriptionResponse>({
     path: '/api/audio/transcribe',
@@ -175,7 +178,8 @@ export function transcribeAudio(dataUrl: string, mimeType?: string): Promise<Aud
     ...profileScoped(),
     body: {
       data_url: dataUrl,
-      mime_type: mimeType
+      mime_type: mimeType,
+      ...dictationLanguageHint()
     },
     // Transcription blocks until provider STT, file handling, and response
     // encoding finish. Remote providers and long clips regularly exceed the
@@ -184,9 +188,11 @@ export function transcribeAudio(dataUrl: string, mimeType?: string): Promise<Aud
   })
 }
 
-export function speakText(text: string): Promise<AudioSpeakResponse> {
+/** `profile` defaults to the active one; Settings → Voice previews the
+ *  voice of the profile it edits. */
+export function speakText(text: string, profile?: null | string): Promise<AudioSpeakResponse> {
   return work4youApi<AudioSpeakResponse>({
-    ...profileScoped(),
+    ...profileScoped(profile),
     path: '/api/audio/speak',
     method: 'POST',
     body: { text },

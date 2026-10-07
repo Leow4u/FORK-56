@@ -671,7 +671,7 @@ class TestProfileScopedAudio:
 
         seen = {}
 
-        def _fake_transcribe(path):
+        def _fake_transcribe(path, language=None):
             from work4you_constants import get_work4you_home
 
             seen["home"] = str(get_work4you_home())
@@ -686,6 +686,62 @@ class TestProfileScopedAudio:
         assert resp.status_code == 200
         assert resp.json()["transcript"] == "hi"
         assert seen["home"] == str(isolated_profiles["worker_beta"])
+
+    @staticmethod
+    def _spoken_languages(client, monkeypatch, bodies, profile=None):
+        """The language transcription was told, per request body."""
+        import base64
+
+        import tools.voice_mode as voice_mode
+
+        seen = []
+
+        def _fake_transcribe(path, language=None):
+            seen.append(language)
+            return {"success": True, "transcript": "oi", "provider": "fake"}
+
+        monkeypatch.setattr(voice_mode, "transcribe_recording", _fake_transcribe)
+        payload = base64.b64encode(b"\x00fakeaudio").decode("ascii")
+        url = "/api/audio/transcribe" + (f"?profile={profile}" if profile else "")
+        for body in bodies:
+            body = {"data_url": f"data:audio/webm;base64,{payload}", **body}
+            assert client.post(url, json=body).status_code == 200
+        return seen
+
+    def test_transcribe_passes_on_the_spoken_language(
+        self, client, isolated_profiles, monkeypatch
+    ):
+        """The desktop says which language its user dictates in. Without it
+        the configured hint (English by default) applies, and Whisper turned
+        Portuguese speech into English text."""
+        sent = ("pt", "PT", "pt-BR", "zh_Hant", "portuguese", "", None)
+        bodies = [{} if code is None else {"language": code} for code in sent]
+
+        seen = self._spoken_languages(client, monkeypatch, bodies)
+
+        assert seen == ["pt", "pt", "pt", "zh", None, None, None]
+
+    def test_the_app_language_replaces_only_the_shipped_default(
+        self, client, isolated_profiles, monkeypatch
+    ):
+        """The app's language beats the "en" nobody chose, but not an STT
+        language the user set: "" (auto-detect for multilingual speakers) or
+        their own code. A language picked in the app still wins over both."""
+        worker = isolated_profiles["worker_beta"]
+        bodies = [{"ui_language": "pt-BR"}, {"language": "es", "ui_language": "pt"}]
+
+        assert self._spoken_languages(client, monkeypatch, bodies) == ["pt", "es"]
+
+        for configured in ({"language": ""}, {"language": "de"}, {"openai": {"language": "de"}}):
+            (worker / "config.yaml").write_text(
+                yaml.safe_dump({"stt": configured}), encoding="utf-8"
+            )
+            seen = self._spoken_languages(
+                client, monkeypatch, bodies, profile="worker_beta"
+            )
+            assert seen == [None, "es"], configured
+            # Only the profile that set it: the default one has no stt.language.
+            assert self._spoken_languages(client, monkeypatch, bodies[:1]) == ["pt"]
 
     def test_audio_endpoints_unknown_profile_404(self, client, isolated_profiles):
         resp = client.get("/api/audio/elevenlabs/voices?profile=ghost")

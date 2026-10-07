@@ -187,7 +187,9 @@ function CategoryHeader({ label, onToggle, open }: { label: string; onToggle: ()
   )
 }
 
-function KeybindRow({ action }: { action: KeybindActionMeta }) {
+/** An action's keys; click them, then press the new combo to rebind it (the
+ *  global keybind handler records it). Settings → Voice shows one too. */
+export function KeybindCaps({ actionId }: { actionId: string }) {
   const { t } = useI18n()
   const k = t.keybinds
   const bindings = useStore($bindings)
@@ -196,8 +198,34 @@ function KeybindRow({ action }: { action: KeybindActionMeta }) {
   // bindingsFor resolves stored overrides for late-registered (contributed)
   // actions too — $bindings only carries built-ins, so a raw lookup would show
   // the default instead of the user's rebinding for a plugin/contrib action.
+  const combos = bindingsFor(actionId, bindings)
+  const capturing = capture === actionId
+
+  return (
+    <Tip label={k.rebind}>
+      <button
+        aria-label={k.rebind}
+        className="flex shrink-0 items-center gap-1 rounded-lg outline-none"
+        onClick={() => (capturing ? endCapture() : beginCapture(actionId))}
+        type="button"
+      >
+        {capturing ? (
+          <Kbd variant="capturing">{k.pressKey}</Kbd>
+        ) : combos.length > 0 ? (
+          combos.map(combo => <KbdCombo combo={combo} key={combo} />)
+        ) : (
+          <Kbd variant="ghost">{k.set}</Kbd>
+        )}
+      </button>
+    </Tip>
+  )
+}
+
+function KeybindRow({ action }: { action: KeybindActionMeta }) {
+  const { t } = useI18n()
+  const k = t.keybinds
+  const bindings = useStore($bindings)
   const combos = bindingsFor(action.id, bindings)
-  const capturing = capture === action.id
   const label = k.actions[action.id] ?? action.label ?? action.id
   const isDefault = arraysEqual(combos, [...action.defaults])
 
@@ -216,22 +244,7 @@ function KeybindRow({ action }: { action: KeybindActionMeta }) {
       )}
 
       {/* Click the caps to rebind — the on-screen editor does the same thing. */}
-      <Tip label={k.rebind}>
-        <button
-          aria-label={k.rebind}
-          className="flex shrink-0 items-center gap-1 rounded-lg outline-none"
-          onClick={() => (capturing ? endCapture() : beginCapture(action.id))}
-          type="button"
-        >
-          {capturing ? (
-            <Kbd variant="capturing">{k.pressKey}</Kbd>
-          ) : combos.length > 0 ? (
-            combos.map(combo => <KbdCombo combo={combo} key={combo} />)
-          ) : (
-            <Kbd variant="ghost">{k.set}</Kbd>
-          )}
-        </button>
-      </Tip>
+      <KeybindCaps actionId={action.id} />
 
       {/* Reset only shows once a binding diverges from its default; the spacer
           holds the column otherwise so rows stay aligned. */}

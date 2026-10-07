@@ -2,6 +2,7 @@ import { Button } from "@work4you/ui/ui/components/button";
 import { Loader2, Mic, Square } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
+import { useI18n } from "@/i18n";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ export function ComposerVoiceButton({
   onError,
   className,
 }: ComposerVoiceButtonProps) {
+  const { locale } = useI18n();
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const mediaRef = useRef<MediaRecorder | null>(null);
@@ -56,7 +58,12 @@ export function ComposerVoiceButton({
     setBusy(true);
     try {
       const dataUrl = await blobToDataUrl(blob);
-      const result = await api.transcribeAudio(dataUrl, blob.type);
+      // The UI language stands in for the one spoken ("zh-hant" → "zh").
+      const result = await api.transcribeAudio(
+        dataUrl,
+        blob.type,
+        locale.split("-")[0],
+      );
       const text = (result.transcript || result.text || "").trim();
       if (result.error && !text) {
         onError?.(result.error);
@@ -72,7 +79,7 @@ export function ComposerVoiceButton({
     } finally {
       setBusy(false);
     }
-  }, [onError, onTranscript]);
+  }, [locale, onError, onTranscript]);
 
   const start = useCallback(async () => {
     if (disabled || busy || recording) return;

@@ -2020,6 +2020,8 @@ stt:
 
 Language resolution is the same for **every** STT provider (local, groq, openai, mistral, xai, elevenlabs, deepinfra, command providers, and plugins): `stt.<provider>.language` → `stt.language` → `WORK4YOU_LOCAL_STT_LANGUAGE` env var → provider auto-detect. **The default is `stt.language: "en"`** — Whisper auto-detection frequently misidentifies short or accented clips, which shows up as voice notes transcribed in the wrong language. Non-English speakers should set `stt.language` to their language code once (e.g. `"es"`, `"zh"`, `"uk"`); set it to `""` to restore auto-detection for multilingual use.
 
+The desktop app and the web dashboard also say which language you dictate in. A language picked in the desktop's **Settings → Voice → Dictation language** wins over your `stt.*` language settings. Otherwise their interface language replaces only the shipped `"en"`: an `stt.language` or per-provider `language` you set yourself, `""` included, still applies. A language pinned by an administrator's managed config wins over both.
+
 Set `stt.echo_transcripts: false` when the gateway should transcribe voice notes for the agent but must not post the raw transcript back to the chat (for example, customer-facing WhatsApp bots).
 
 Provider behavior:

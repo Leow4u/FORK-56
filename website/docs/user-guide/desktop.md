@@ -127,6 +127,12 @@ Quick Entry is a small always-available composer summoned by a **global hotkey f
 
 Talk to Work4You and hear it back, the same [voice mode](./features/voice-mode.md) available elsewhere. On macOS the OS will prompt once for microphone access.
 
+**Settings → Voice** covers the rest:
+
+- **Dictation language** — the language you speak into the microphone. It follows the app language (**Settings → Appearance**) unless you pick another one, and a language you pick wins over `stt.language` for the app's dictation (see [Speech-to-Text](./configuration.md#speech-to-text-stt)).
+- **Voice** — the voice that reads replies aloud; **Listen** plays a sample of it.
+- **Voice shortcut** — starts and ends a voice chat: **⌃B** on macOS, **Ctrl+Shift+D** on Windows and Linux. Click the keys to change it, here or in **Settings → Keyboard Shortcuts**.
+
 ### HUD mode
 
 **⌘/Ctrl+Shift+H** (or the titlebar button) detaches the chat into a chrome-free, always-on-top floating bar that sits over whatever you are working in. The app window steps aside; the HUD keeps your live conversation and a composer. Where you park it is context — the bar's position tells Work4You which app and screen you're asking about, so "this", "here", and "that page" resolve to what's underneath it.

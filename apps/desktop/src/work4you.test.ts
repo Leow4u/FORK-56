@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { setRuntimeI18nLocale } from './i18n/runtime'
+import { setDictationLanguage } from './store/dictation-language'
 import { refreshActiveProfile } from './store/profile'
 import { $transcriptTailBySessionId, transcriptTailState } from './store/transcript-tail'
 import {
@@ -539,11 +541,33 @@ describe('Work4You REST helpers', () => {
     })
 
     expect(api).toHaveBeenCalledWith({
-      body: { data_url: 'data:audio/webm;base64,AA==', mime_type: 'audio/webm' },
+      body: { data_url: 'data:audio/webm;base64,AA==', mime_type: 'audio/webm', ui_language: 'en' },
       method: 'POST',
       path: '/api/audio/transcribe',
       timeoutMs: AUDIO_TRANSCRIBE_MIN_REQUEST_TIMEOUT_MS
     })
+  })
+
+  it('tells transcription the language the user speaks', async () => {
+    // The app language by default (Whisper assumed English and translated
+    // Portuguese speech); the one picked in Settings → Voice when set.
+    const lastBody = () => api.mock.lastCall?.[0].body
+
+    setRuntimeI18nLocale('pt')
+
+    try {
+      await transcribeAudio('data:audio/webm;base64,AA==', 'audio/webm')
+      expect(lastBody()).toMatchObject({ ui_language: 'pt' })
+      expect(lastBody()).not.toHaveProperty('language')
+
+      setDictationLanguage('es')
+      await transcribeAudio('data:audio/webm;base64,AA==', 'audio/webm')
+      expect(lastBody()).toMatchObject({ language: 'es' })
+      expect(lastBody()).not.toHaveProperty('ui_language')
+    } finally {
+      setDictationLanguage('app')
+      setRuntimeI18nLocale('en')
+    }
   })
 
   it('defaults model options to configured providers only', async () => {

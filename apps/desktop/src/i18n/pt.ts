@@ -539,6 +539,17 @@ export const pt = defineLocale({
       dark: { label: 'Escuro', description: 'Ambiente com menos ofuscamento' },
       system: { label: 'Sistema', description: 'Segue a aparência do sistema' }
     },
+    voice: {
+      dictationLanguageTitle: 'Idioma do ditado',
+      dictationLanguageDesc: 'O idioma em que você fala no microfone.',
+      dictationLanguageApp: language => `Igual ao app (${language})`,
+      previewVoice: 'Ouvir',
+      stopPreview: 'Parar',
+      previewSample: 'Olá! Esta é a voz que vou usar para ler as minhas respostas.',
+      previewFailed: 'Não foi possível tocar a voz.',
+      shortcutTitle: 'Atalho de voz',
+      shortcutDesc: 'Inicia e encerra a conversa por voz. Clique para trocar.'
+    },
     appearance: {
       title: 'Aparência',
       colorMode: 'Modo de cor',

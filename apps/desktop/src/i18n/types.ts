@@ -493,6 +493,19 @@ export interface Translations {
     sections: Record<string, string>
     searchPlaceholder: Record<'about' | 'config' | 'gateway' | 'keys' | 'mcp' | 'sessions', string>
     modeOptions: Record<'light' | 'dark' | 'system', ModeOptionCopy>
+    // Settings → Voice rows that are not config.yaml fields (device
+    // preferences and the app's own voice shortcut).
+    voice: {
+      dictationLanguageTitle: string
+      dictationLanguageDesc: string
+      dictationLanguageApp: (language: string) => string
+      previewVoice: string
+      stopPreview: string
+      previewSample: string
+      previewFailed: string
+      shortcutTitle: string
+      shortcutDesc: string
+    }
     appearance: {
       title: string
       colorMode: string

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { en } from '@/i18n/en'
 
 import { defaultBindings, KEYBIND_ACTIONS, keybindAction } from './actions'
+import { canonicalizeCombo } from './combo'
 
 describe('session.archive keybind action', () => {
   it('is registered under the session category', () => {
@@ -29,5 +30,26 @@ describe('session.archive keybind action', () => {
     const matches = KEYBIND_ACTIONS.filter(action => action.id === 'session.archive')
 
     expect(matches).toHaveLength(1)
+  })
+})
+
+describe('composer.voice keybind action', () => {
+  // Off macOS the voice toggle shipped unbound (Ctrl+B is the sidebar there),
+  // so Windows users had no voice shortcut at all.
+  it('ships a shortcut on this platform that no other action claims by default', () => {
+    const defaults = defaultBindings()
+    const voice = (defaults['composer.voice'] ?? []).map(canonicalizeCombo)
+
+    expect(voice.length).toBeGreaterThan(0)
+
+    for (const [id, combos] of Object.entries(defaults)) {
+      if (id === 'composer.voice') {
+        continue
+      }
+
+      for (const combo of combos) {
+        expect(voice, id).not.toContain(canonicalizeCombo(combo))
+      }
+    }
   })
 })
