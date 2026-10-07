@@ -46,6 +46,7 @@ import {
   $dropHint,
   $hiddenTreePanes,
   $narrowViewport,
+  $newContentTabAction,
   $newSessionTabAction,
   $panesWithCloser,
   $treeDragging,
@@ -222,6 +223,7 @@ export function TreeGroup({
   const hiddenPanes = useStore($hiddenTreePanes)
   const narrow = useStore($narrowViewport)
   const newSessionTabAction = useStore($newSessionTabAction)
+  const newContentTabAction = useStore($newContentTabAction)
   const panesWithCloser = useStore($panesWithCloser)
   // Multi-tab selection (⌥/Ctrl-click, Shift-click) — null for every zone but
   // the one holding it, so this subscription is quiet during normal use.
@@ -621,6 +623,19 @@ export function TreeGroup({
                   icon={<Codicon name="add" size="0.8125rem" />}
                   label={t.zones.newSessionTab}
                   onSelect={() => newSessionTabAction()}
+                />
+              </span>
+            )}
+
+            {/* The content area's "+": a new tab in the area. The pointerdown
+                makes THIS zone the interacted one first, so the new tab lands
+                beside this strip's tab rather than wherever the last click was. */}
+            {isContentArea && newContentTabAction && !node.minimized && (
+              <span onPointerDownCapture={() => noteActiveTreeGroup(node.id)}>
+                <PaneStripGlyph
+                  icon={<Codicon name="add" size="0.8125rem" />}
+                  label={t.zones.newTab}
+                  onSelect={() => newContentTabAction()}
                 />
               </span>
             )}

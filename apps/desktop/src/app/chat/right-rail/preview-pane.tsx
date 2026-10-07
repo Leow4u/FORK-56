@@ -3,7 +3,6 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { openGuestContextMenu } from '@/app/context-menu/store'
-import { PanelEmpty } from '@/app/overlays/panel'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
@@ -37,6 +36,7 @@ import { previewConsoleState } from './preview-console-store'
 import { $previewDriveMark, previewDriverScript, registerPreviewDriver } from './preview-driver'
 import { LocalFilePreview, PreviewEmptyState } from './preview-file'
 import { PREVIEW_BROWSER_ATTR, registerPreviewNav } from './preview-nav'
+import { PreviewNewTab } from './preview-new-tab'
 import { registerPreviewPageReader } from './preview-reader'
 import { registerPreviewTourRunner } from './preview-tour-runner'
 
@@ -265,7 +265,8 @@ export function PreviewPane({
 
   // Nothing loaded: no address yet, or the blank page itself. A webview on
   // `about:blank` paints a white void that reads as broken next to the app's
-  // dark chrome, so the pane says what it is instead.
+  // dark chrome, so the pane shows the new tab page instead — the address bar
+  // above it, the conversation's tools below.
   const isBlankPage = isWebPreview && !isRemoteHtml && (!currentUrl || /^about:blank\/?$/i.test(currentUrl))
 
   const previewLabel =
@@ -1068,11 +1069,7 @@ export function PreviewPane({
             ) : (
               <LocalFilePreview reloadKey={localReloadKey} target={target} />
             ))}
-          {isBlankPage && (
-            <div className="absolute inset-0 grid bg-background">
-              <PanelEmpty description={copy.blankPageBody} icon="globe" />
-            </div>
-          )}
+          {isBlankPage && <PreviewNewTab />}
           {loadError && (
             <PreviewLoadError
               consoleHeight={consoleOpen ? consoleHeight : 0}

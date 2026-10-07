@@ -4495,6 +4495,11 @@ export const zh: Translations = {
   },
 
   preview: {
+    newTab: {
+      tools: '工具',
+      review: '差异 / 审查',
+      needsProject: '文件和差异 / 审查需要先打开项目。'
+    },
     tab: '预览',
     closePane: '关闭预览面板',
     loading: '正在加载预览',
@@ -4577,7 +4582,6 @@ export const zh: Translations = {
       reload: '重新加载页面',
       address: '地址',
       addressPlaceholder: '输入网址',
-      blankPageBody: '在上方输入地址开始浏览，或让 Work4You 打开一个页面。',
       finishedRestarting: message => `Work4You 已完成预览服务器重启${message ? `: ${message}` : ''}`,
       failedRestarting: message => `服务器重启失败：${message}`,
       unknownError: '未知错误',
@@ -4617,6 +4621,7 @@ export const zh: Translations = {
     closeToRight: '关闭右侧',
     closeAll: '全部关闭',
     newSessionTab: '新建会话标签',
+    newTab: '新建标签页',
     pluginDisabled: pluginId => `插件“${pluginId}”已禁用`,
     pluginDisabledBody: '在 设置 → 插件 中重新启用即可恢复面板。',
     missingPane: paneId => `缺少面板：${paneId}`,

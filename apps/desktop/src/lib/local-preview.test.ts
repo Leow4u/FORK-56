@@ -169,6 +169,15 @@ describe('remote HTML previews', () => {
   })
 })
 
+// An agent asking for a blank tab means the Browser on its blank page — never a
+// file named "about:blank" under the project.
+describe('blank page', () => {
+  it('opens about:blank in the Browser, not as a file', () => {
+    expect(localPreviewTarget('about:blank', '/work')).toMatchObject({ kind: 'url', url: 'about:blank' })
+    expect(localPreviewTarget('  About:Blank  ', '/work')).toMatchObject({ kind: 'url', url: 'about:blank' })
+  })
+})
+
 describe('PDF previews', () => {
   it('classifies PDF files as PDF previews', () => {
     expect(localPreviewTarget('/tmp/spec.pdf')).toMatchObject({

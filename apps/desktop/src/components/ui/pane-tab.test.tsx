@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { PaneTab, PaneTabLabel, PaneTabStrip } from './pane-tab'
@@ -189,5 +189,60 @@ describe('PaneTab on a surface strip', () => {
     )
 
     expect(screen.queryByRole('button', { name: 'Close' })).toBeNull()
+  })
+})
+
+// A content-area title cut short shows in full on a lingering hover — and only
+// when it IS cut short; other strips keep their labels as they are.
+describe('PaneTab full title', () => {
+  const title = 'quarterly-report-with-a-very-long-name.html'
+
+  const overflowing = (el: HTMLElement) => {
+    Object.defineProperty(el, 'scrollWidth', { configurable: true, value: 300 })
+    Object.defineProperty(el, 'clientWidth', { configurable: true, value: 100 })
+  }
+
+  const hover = (el: HTMLElement) =>
+    act(() => {
+      fireEvent.pointerEnter(el)
+      vi.advanceTimersByTime(700)
+    })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows a cut-short title in full on a surface strip', () => {
+    vi.useFakeTimers()
+    render(
+      <PaneTabStrip variant="surface">
+        <PaneTab>
+          <PaneTabLabel>{title}</PaneTabLabel>
+        </PaneTab>
+      </PaneTabStrip>
+    )
+
+    const label = screen.getByText(title)
+
+    overflowing(label)
+    hover(label)
+    expect(screen.getByRole('tooltip').textContent).toContain(title)
+  })
+
+  it('adds no tooltip to the other strips', () => {
+    vi.useFakeTimers()
+    render(
+      <PaneTabStrip>
+        <PaneTab>
+          <PaneTabLabel>{title}</PaneTabLabel>
+        </PaneTab>
+      </PaneTabStrip>
+    )
+
+    const label = screen.getByText(title)
+
+    overflowing(label)
+    hover(label)
+    expect(screen.queryByRole('tooltip')).toBeNull()
   })
 })

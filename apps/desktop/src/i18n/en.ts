@@ -4380,6 +4380,11 @@ export const en: Translations = {
   },
 
   preview: {
+    newTab: {
+      tools: 'Tools',
+      review: 'Diff / Review',
+      needsProject: 'Files and Diff / Review need an open project.'
+    },
     tab: 'Preview',
     closePane: 'Close preview pane',
     loading: 'Loading preview',
@@ -4463,7 +4468,6 @@ export const en: Translations = {
       reload: 'Reload page',
       address: 'Address',
       addressPlaceholder: 'Enter a URL',
-      blankPageBody: 'Type an address above to browse, or ask Work4You to open a page.',
       finishedRestarting: message => `Work4You finished restarting the preview server${message ? `: ${message}` : ''}`,
       failedRestarting: message => `Server restart failed: ${message}`,
       unknownError: 'unknown error',
@@ -4505,6 +4509,7 @@ export const en: Translations = {
     closeToRight: 'Close to the right',
     closeAll: 'Close all',
     newSessionTab: 'New session tab',
+    newTab: 'New tab',
     pluginDisabled: pluginId => `Plugin "${pluginId}" disabled`,
     pluginDisabledBody: 'Re-enable it in Settings → Plugins to bring the pane back.',
     missingPane: paneId => `missing pane: ${paneId}`,

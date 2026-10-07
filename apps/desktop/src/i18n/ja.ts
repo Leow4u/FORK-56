@@ -2920,6 +2920,11 @@ export const ja = defineLocale({
   },
 
   preview: {
+    newTab: {
+      tools: 'ツール',
+      review: '差分 / レビュー',
+      needsProject: 'ファイルと差分 / レビューを使うにはプロジェクトを開いてください。'
+    },
     tab: 'プレビュー',
     closePane: 'プレビューペインを閉じる',
     loading: 'プレビューを読み込み中',
@@ -3003,7 +3008,6 @@ export const ja = defineLocale({
       reload: 'ページを再読み込み',
       address: 'アドレス',
       addressPlaceholder: 'URLを入力',
-      blankPageBody: '上のアドレス欄に入力するか、Work4You にページを開くよう頼んでください。',
       finishedRestarting: message =>
         `Work4You がプレビューサーバーの再起動を完了しました${message ? `: ${message}` : ''}`,
       failedRestarting: message => `サーバーの再起動に失敗しました: ${message}`,
@@ -3043,6 +3047,7 @@ export const ja = defineLocale({
     closeToRight: '右側を閉じる',
     closeAll: 'すべて閉じる',
     newSessionTab: '新しいセッションタブ',
+    newTab: '新しいタブ',
     pluginDisabled: pluginId => `プラグイン「${pluginId}」を無効化しました`,
     pluginDisabledBody: '設定 → プラグイン で再有効化するとペインが戻ります。',
     missingPane: paneId => `ペインが見つかりません: ${paneId}`,

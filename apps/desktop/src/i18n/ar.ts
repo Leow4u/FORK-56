@@ -2635,6 +2635,11 @@ export const ar = defineLocale({
     addToChat: 'إضافة للمحادثة'
   },
   preview: {
+    newTab: {
+      tools: 'الأدوات',
+      review: 'الفروقات / المراجعة',
+      needsProject: 'تحتاج الملفات والفروقات / المراجعة إلى مشروع مفتوح.'
+    },
     tab: 'معاينة',
     closePane: 'إغلاق جزء المعاينة',
     loading: 'جار تحميل المعاينة',
@@ -2717,7 +2722,6 @@ export const ar = defineLocale({
       reload: 'إعادة تحميل الصفحة',
       address: 'العنوان',
       addressPlaceholder: 'أدخل عنوان URL',
-      blankPageBody: 'اكتب عنوانًا في الأعلى للتصفح، أو اطلب من Work4You فتح صفحة.',
       finishedRestarting: message => `أنهى Work4You إعادة تشغيل خادم المعاينة${message ? `: ${message}` : ''}`,
       failedRestarting: message => `فشلت إعادة تشغيل الخادم: ${message}`,
       unknownError: 'خطأ غير معروف',

@@ -2826,6 +2826,11 @@ export const zhHant = defineLocale({
   },
 
   preview: {
+    newTab: {
+      tools: '工具',
+      review: '差異 / 審查',
+      needsProject: '檔案和差異 / 審查需要先開啟專案。'
+    },
     tab: '預覽',
     closePane: '關閉預覽窗格',
     loading: '正在載入預覽',
@@ -2908,7 +2913,6 @@ export const zhHant = defineLocale({
       reload: '重新載入頁面',
       address: '網址',
       addressPlaceholder: '輸入網址',
-      blankPageBody: '在上方輸入網址開始瀏覽，或請 Work4You 開啟頁面。',
       finishedRestarting: message => `Work4You 已完成預覽伺服器重新啟動${message ? `：${message}` : ''}`,
       failedRestarting: message => `伺服器重新啟動失敗：${message}`,
       unknownError: '未知錯誤',
@@ -2945,6 +2949,7 @@ export const zhHant = defineLocale({
     closeToRight: '關閉右側',
     closeAll: '全部關閉',
     newSessionTab: '新增工作階段分頁',
+    newTab: '新增分頁',
     pluginDisabled: pluginId => `外掛「${pluginId}」已停用`,
     pluginDisabledBody: '在 設定 → 外掛 中重新啟用即可恢復面板。',
     missingPane: paneId => `缺少面板：${paneId}`,

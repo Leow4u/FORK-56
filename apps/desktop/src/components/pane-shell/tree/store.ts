@@ -683,6 +683,10 @@ export function treePanesWithPrefix(prefix: string): string[] {
  *  An atom so the strip re-renders when the action becomes available. */
 export const $newSessionTabAction = atom<(() => void) | null>(null)
 
+/** The content area's "+": open a new tab in the area (a blank Browser). Wired
+ *  by the app like `$newSessionTabAction`; null until wired (the "+" hides). */
+export const $newContentTabAction = atom<(() => void) | null>(null)
+
 /**
  * Keyboard slots (⌘1…⌘9, ⌃Tab) must index the SAME tabs the strip paints —
  * chrome-hidden panes (files in Focus layout), unregistered ones, and

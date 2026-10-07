@@ -20,7 +20,13 @@
  */
 
 import { allPaneIds, findGroup, type LayoutNode } from '@/components/pane-shell/tree/model'
-import { $activeTreeGroup, $layoutTree, isSessionStripPane, revealTreePane } from '@/components/pane-shell/tree/store'
+import {
+  $activeTreeGroup,
+  $layoutTree,
+  $newContentTabAction,
+  isSessionStripPane,
+  revealTreePane
+} from '@/components/pane-shell/tree/store'
 import { FileTypeIcon } from '@/components/ui/file-type-icon'
 import { ToolIcon } from '@/components/ui/tool-icon'
 import { translateNow, useI18n } from '@/i18n'
@@ -31,6 +37,7 @@ import {
   $previewTileSession,
   closeRightRailTab,
   followPreviewTile,
+  openBrowserTab,
   previewOwnerFor,
   type PreviewTarget,
   selectPreviewTab
@@ -150,6 +157,10 @@ const areaAnchorFor = (tabId: string) =>
  *  selected. Call once from the root. */
 export function watchPreviewTiles(): void {
   watchPreviewTileMirror()
+
+  // The area strip's "+" opens the Browser — a blank one when the
+  // conversation has none yet.
+  $newContentTabAction.set(openBrowserTab)
 
   // The reveal analog of session tiles (session-states calls revealTreePane on
   // open): `openPreview` selects the tab, and the TREE must front its pane —
