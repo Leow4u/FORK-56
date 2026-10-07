@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useI18n } from '@/i18n'
+import { cn } from '@/lib/utils'
 import type { MessagingEnvVarInfo } from '@/types/work4you'
 import { updateMessagingPlatform } from '@/work4you'
 
@@ -25,7 +25,9 @@ import {
   StepsFrame,
   testUntilOk
 } from './channel-steps'
+import { EmailAddressChipInput } from './email-address-chips'
 import { detectEmailPreset, EMAIL_PROVIDER_PRESETS, type EmailProviderPreset } from './email-presets'
+import { type EmailProviderChoice, EmailProviderPicker } from './email-provider-picker'
 import { findInvalidEmailSender, validateMessagingEnv } from './validate-env'
 
 /** Who the person said will email the bot: only them, or their team or
@@ -35,6 +37,8 @@ type Audience = 'me' | 'others'
 type Step = 'mailbox' | 'ready' | 'who' | 'write'
 
 type Phase = 'applied' | 'applying' | 'idle'
+
+type AppPasswordReady = 'no' | 'yes'
 
 const CUSTOM = 'custom'
 const SANS_FIELD = 'font-sans text-[0.8125rem]'
@@ -89,7 +93,8 @@ export function EmailConnectSteps({
   const [imapPort, setImapPort] = useState(savedValue(envVars, 'EMAIL_IMAP_PORT'))
   const [smtpHost, setSmtpHost] = useState(savedPreset ? '' : savedValue(envVars, 'EMAIL_SMTP_HOST'))
   const [smtpPort, setSmtpPort] = useState(savedValue(envVars, 'EMAIL_SMTP_PORT'))
-  const [addresses, setAddresses] = useState(splitList(savedValue(envVars, 'EMAIL_ALLOWED_USERS')).join(', '))
+  const [addressList, setAddressList] = useState(() => splitList(savedValue(envVars, 'EMAIL_ALLOWED_USERS')))
+  const [appPasswordReady, setAppPasswordReady] = useState<AppPasswordReady | null>(passwordSaved ? 'yes' : null)
   const [phase, setPhase] = useState<Phase>('idle')
   const [error, setError] = useState('')
   const [restart, setRestart] = useState<RestartState>({ outcome: 'pending' })
@@ -133,8 +138,14 @@ export function EmailConnectSteps({
     ? { imap: provider.imapHost, smtp: provider.smtpHost }
     : { imap: imapHost.trim(), smtp: smtpHost.trim() }
 
+  const hasPassword = Boolean(password.trim() || passwordSaved)
+
+  const passwordReady = provider
+    ? appPasswordReady === 'yes' && hasPassword
+    : hasPassword
+
   const mailboxOk =
-    Boolean(address.trim() && (password || passwordSaved) && servers.imap && servers.smtp) &&
+    Boolean(address.trim() && passwordReady && servers.imap && servers.smtp) &&
     !addressError &&
     !imapHostError &&
     !smtpHostError &&
@@ -149,10 +160,16 @@ export function EmailConnectSteps({
     }
   }
 
+  function onProviderChange(id: EmailProviderChoice) {
+    setProvider(EMAIL_PROVIDER_PRESETS.find(preset => preset.id === id) ?? null)
+    setProviderPinned(true)
+    setAppPasswordReady(passwordSaved ? 'yes' : null)
+  }
+
   /** The addresses the save allows, or a message when the answer is not
    *  usable: email answers nobody without a list, and `*` would drop all mail. */
   function allowedAddresses(): { error: string } | { value: string } {
-    const list = splitList(addresses)
+    const list = addressList
 
     if (list.length === 0) {
       return { error: s.addressesRequired }
@@ -160,7 +177,7 @@ export function EmailConnectSteps({
 
     const invalid = list.includes('*') ? '*' : findInvalidEmailSender(list.join(','))
 
-    return invalid ? { error: m.envErrors.emailAddress(invalid) } : { value: Array.from(new Set(list)).join(',') }
+    return invalid ? { error: m.envErrors.emailAddress(invalid) } : { value: list.join(',') }
   }
 
   async function finish() {
@@ -227,15 +244,15 @@ export function EmailConnectSteps({
     { description: s.othersDesc, id: 'others', title: s.othersTitle }
   ]
 
-  const providerOptions = [
-    ...EMAIL_PROVIDER_PRESETS.map(preset => ({ id: preset.id, label: preset.label })),
-    { id: CUSTOM, label: s.custom }
-  ]
-
-  const whoLine = audience === 'me' ? s.whoMe : s.whoList(new Set(splitList(addresses)).size)
+  const whoLine = audience === 'me' ? s.whoMe : s.whoList(new Set(addressList).size)
   const errorLine = error ? <p className="mt-3 text-xs leading-4 text-destructive">{error}</p> : null
   const back = (to: Step) => ({ label: t.common.back, onClick: () => setStep(to) })
   const help = (message: string) => (message ? <span className="text-destructive">{message}</span> : undefined)
+
+  const appPasswordOptions: ChoiceOption<AppPasswordReady>[] = [
+    { description: s.passwordHelp, id: 'yes', title: s.appPasswordYes },
+    { description: s.appPasswordSetupBody, id: 'no', title: s.appPasswordNo }
+  ]
 
   return (
     <StepsFrame current={step} slot="email-connect-steps" steps={steps}>
@@ -258,13 +275,11 @@ export function EmailConnectSteps({
           />
           <div className="mt-3.5 flex flex-col gap-1.5">
             <span className="text-[0.78125rem] font-medium text-(--ui-text-secondary)">{s.providerLabel}</span>
-            <SegmentedControl
-              className="flex flex-wrap"
-              onChange={id => {
-                setProvider(EMAIL_PROVIDER_PRESETS.find(preset => preset.id === id) ?? null)
-                setProviderPinned(true)
-              }}
-              options={providerOptions}
+            <EmailProviderPicker
+              customLabel={s.custom}
+              label={s.providerLabel}
+              onChange={onProviderChange}
+              presets={EMAIL_PROVIDER_PRESETS}
               value={provider?.id ?? CUSTOM}
             />
             {provider && (
@@ -305,14 +320,47 @@ export function EmailConnectSteps({
               />
             </div>
           )}
-          <StepField
-            help={s.passwordHelp}
-            label={s.passwordLabel}
-            onChange={event => setPassword(event.target.value)}
-            placeholder={passwordSaved ? s.passwordKept : ''}
-            type="password"
-            value={password}
-          />
+          {provider ? (
+            <div className="mt-3.5">
+              <ChoiceList
+                label={s.appPasswordQuestion}
+                onChange={setAppPasswordReady}
+                options={appPasswordOptions}
+                value={appPasswordReady}
+              />
+              {appPasswordReady === 'yes' && (
+                <StepField
+                  className={SANS_FIELD}
+                  help={s.passwordHelp}
+                  label={s.passwordLabel}
+                  onChange={event => setPassword(event.target.value)}
+                  placeholder={passwordSaved ? s.passwordKept : ''}
+                  type="password"
+                  value={password}
+                />
+              )}
+              {appPasswordReady === 'no' && provider.appPasswordUrl && (
+                <div className="mt-3 rounded-lg border border-(--ui-stroke-quaternary) bg-(--ui-bg-quinary) px-3.5 py-3">
+                  <p className="text-sm font-medium text-foreground">{s.appPasswordSetupTitle}</p>
+                  <p className={cn('mt-1', STEP_NOTE)}>{s.appPasswordSetupBody}</p>
+                  <Button asChild className="mt-3" size="sm" variant="outline">
+                    <a href={provider.appPasswordUrl} rel="noreferrer" target="_blank">
+                      {s.appPasswordSetupLink}
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <StepField
+              help={s.customPasswordHelp}
+              label={s.customPasswordLabel}
+              onChange={event => setPassword(event.target.value)}
+              placeholder={passwordSaved ? s.passwordKept : ''}
+              type="password"
+              value={password}
+            />
+          )}
           <StepFooter
             back={back('who')}
             next={{ disabled: !mailboxOk, label: c.next, onClick: () => setStep('write') }}
@@ -322,15 +370,18 @@ export function EmailConnectSteps({
 
       {step === 'write' && audience === 'me' && (
         <StepPanel note={s.meAddressNote} title={s.meAddressTitle}>
-          <StepField
+          <EmailAddressChipInput
             className={SANS_FIELD}
+            formatInvalid={value => m.envErrors.emailAddress(value)}
+            help={s.allowedHelp}
             label={s.meAddressLabel}
-            onChange={event => {
-              setAddresses(event.target.value)
+            onChange={next => {
+              setAddressList(next)
               setError('')
             }}
-            placeholder="ana@example.com"
-            value={addresses}
+            placeholder={s.allowedPlaceholder}
+            removeLabel={s.chipRemove}
+            value={addressList}
           />
           {errorLine}
           <StepFooter back={back('mailbox')} next={{ label: c.next, onClick: () => void finish() }} />
@@ -342,16 +393,18 @@ export function EmailConnectSteps({
           note={<Marked className="text-(--ui-text-secondary)" text={s.writeNote(s.othersTitle)} />}
           title={s.writeTitle}
         >
-          <StepField
+          <EmailAddressChipInput
             className={SANS_FIELD}
+            formatInvalid={value => m.envErrors.emailAddress(value)}
             help={s.allowedHelp}
             label={s.allowedLabel}
-            onChange={event => {
-              setAddresses(event.target.value)
+            onChange={next => {
+              setAddressList(next)
               setError('')
             }}
-            placeholder="ana@example.com, bruno@example.com"
-            value={addresses}
+            placeholder={s.allowedPlaceholder}
+            removeLabel={s.chipRemove}
+            value={addressList}
           />
           {errorLine}
           <StepFooter back={back('mailbox')} next={{ label: c.next, onClick: () => void finish() }} />

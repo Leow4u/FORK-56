@@ -1958,10 +1958,20 @@ export interface Translations {
       passwordLabel: string
       passwordHelp: string
       passwordKept: string
+      customPasswordLabel: string
+      customPasswordHelp: string
+      appPasswordQuestion: string
+      appPasswordYes: string
+      appPasswordNo: string
+      appPasswordSetupTitle: string
+      appPasswordSetupBody: string
+      appPasswordSetupLink: string
       writeTitle: string
       writeNote: (choice: string) => string
       allowedLabel: string
       allowedHelp: string
+      allowedPlaceholder: string
+      chipRemove: (address: string) => string
       meAddressTitle: string
       meAddressNote: string
       meAddressLabel: string
