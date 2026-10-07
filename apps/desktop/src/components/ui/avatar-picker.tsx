@@ -1,6 +1,7 @@
 import { useStore } from '@nanostores/react'
 import { useEffect, useState } from 'react'
 
+import { useGatewayRequest } from '@/app/gateway/hooks/use-gateway-request'
 import { PetThumb } from '@/components/pet/pet-thumb'
 import { BotFace } from '@/components/ui/bot-face'
 import { Button } from '@/components/ui/button'
@@ -12,31 +13,22 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Textarea } from '@/components/ui/textarea'
 import { useI18n } from '@/i18n'
 import {
+  type AvatarRequest,
   generateAvatarImage,
   normalizeAvatarImage,
   pickAvatarFile,
   probeImageGeneration,
   readAvatarFile
 } from '@/lib/avatar-image'
-import {
-  AVATAR_COLORS,
-  AVATAR_PICKER_SHAPES,
-  BLOB_KINDS,
-  blobShapeString,
-  defaultShapeFor,
-  isBlobShape,
-  parseBlobShape
-} from '@/lib/bot-avatar'
+import { AVATAR_COLORS, AVATAR_PICKER_SHAPES, botAppearance, isBlobShape } from '@/lib/bot-avatar'
+import { BOT_CHARACTERS, botCharacter } from '@/lib/bot-characters'
 import { cn } from '@/lib/utils'
 import { $petGallery, $petGalleryStatus, loadPetGallery, loadPetThumb, rankedGalleryPets } from '@/store/pet-gallery'
 
-import { useGatewayRequest } from '../gateway/hooks/use-gateway-request'
-
-// The avatar picker of the New profile dialog: the same four ways the
-// WorkBots editor offers to give a bot a face. Bot = a shape and a color
-// drawn by the shared face engine; Generate = the gateway's image backend
-// draws one; Upload = a picture from the device; Pet = a petdex companion's
-// idle frame. The dialog owns the picked values and saves them on create.
+// Shared by New profile and the WorkBots editor. Bot offers recolorable
+// classic faces and ready-made characters; Generate uses the gateway's image
+// backend; Upload accepts a picture; Pet uses a companion's idle frame.
+// Each dialog owns the picked values and persists them through its existing flow.
 
 export type AvatarTab = 'bot' | 'generate' | 'pet' | 'upload'
 
@@ -47,6 +39,8 @@ export interface AvatarPickerProps {
   image: null | string
   /** The profile name being created; the drawn face follows it. */
   name: string
+  title?: string
+  request?: AvatarRequest
   onColor: (color: null | string) => void
   onImage: (image: null | string) => void
   onShape: (shape: string) => void
@@ -57,16 +51,33 @@ export interface AvatarPickerProps {
 const TILE_CLASS = 'grid size-11 place-items-center rounded-md transition-colors hover:bg-(--chrome-action-hover)'
 const HINT_CLASS = 'text-center text-[0.6875rem] leading-4 text-(--ui-text-tertiary)'
 
-export function AvatarPicker({ color, image, name, onColor, onImage, onShape, shape }: AvatarPickerProps) {
+export function AvatarPicker({
+  color,
+  image,
+  name,
+  onColor,
+  onImage,
+  onShape,
+  request,
+  shape,
+  title
+}: AvatarPickerProps) {
   const { t } = useI18n()
   const copy = t.profiles.avatar
   const { requestGateway } = useGatewayRequest()
   const [tab, setTab] = useState<AvatarTab>('bot')
+
+  const [family, setFamily] = useState<'characters' | 'classic'>(() =>
+    botCharacter(shape) || isBlobShape(shape) ? 'characters' : 'classic'
+  )
+
   const [message, setMessage] = useState<null | string>(null)
   const faceName = name.trim() || 'agent'
   // What the shape grid highlights: the pick, else what the name rolls.
-  const shownShape = shape ?? defaultShapeFor(faceName)
-  const shownColor = color ?? AVATAR_COLORS[7]
+  const look = botAppearance(faceName, { color, shape, custom: true })
+  const shownShape = look.shape
+  const shownColor = look.color
+  const avatarRequest = request ?? requestGateway
 
   const pickShape = (next: string) => {
     onImage(null)
@@ -112,38 +123,71 @@ export function AvatarPicker({ color, image, name, onColor, onImage, onShape, sh
       ) : null}
 
       {tab === 'bot' ? (
-        isBlobShape(shape) ? (
-          <BlobControls color={shownColor} name={faceName} onShape={pickShape} shape={shape} />
-        ) : (
-          <div className="grid justify-items-center gap-3">
-            <div className="grid grid-cols-[repeat(5,2.75rem)] gap-1.5" role="group">
-              {['blobatar', ...AVATAR_PICKER_SHAPES].map(option => (
+        <div className="grid justify-items-center gap-3">
+          <SegmentedControl
+            onChange={setFamily}
+            options={[
+              { id: 'classic', label: copy.classicShapes },
+              { id: 'characters', label: copy.characters }
+            ]}
+            value={family}
+          />
+          {family === 'characters' ? (
+            <div aria-label={copy.characters} className="grid grid-cols-3 gap-2" role="group">
+              {BOT_CHARACTERS.map(character => (
                 <button
-                  aria-label={option === 'blobatar' ? copy.blobFace : copy.shape(option)}
-                  aria-pressed={option === shownShape && !image}
-                  className={cn(TILE_CLASS, option === shownShape && !image && 'ring-1 ring-(--ui-accent)')}
-                  data-shape={option}
-                  key={option}
-                  onClick={() => pickShape(option)}
+                  aria-label={copy.characterNames[character.id]}
+                  aria-pressed={character.shape === shownShape && !image}
+                  className={cn(
+                    'grid w-20 justify-items-center gap-1 rounded-md p-2 transition-colors hover:bg-(--chrome-action-hover)',
+                    character.shape === shownShape && !image && 'ring-1 ring-(--ui-accent)'
+                  )}
+                  data-shape={character.shape}
+                  key={character.id}
+                  onClick={() => {
+                    onColor(character.color)
+                    pickShape(character.shape)
+                  }}
                   type="button"
                 >
-                  <BotFace color={shownColor} name={faceName} shape={option} size={32} />
+                  <BotFace color={character.color} name={faceName} shape={character.shape} size={56} />
+                  <span className="text-center text-[0.6875rem] leading-4 text-(--ui-text-secondary)">
+                    {copy.characterNames[character.id]}
+                  </span>
                 </button>
               ))}
             </div>
-            <ColorSwatches
-              clearLabel={t.profiles.autoColor}
-              onChange={onColor}
-              swatches={AVATAR_COLORS}
-              swatchLabel={t.profiles.setColor}
-              value={color}
-            />
-          </div>
-        )
+          ) : (
+            <>
+              <div aria-label={copy.classicShapes} className="grid grid-cols-[repeat(4,2.75rem)] gap-1.5" role="group">
+                {AVATAR_PICKER_SHAPES.map(option => (
+                  <button
+                    aria-label={copy.shape(option)}
+                    aria-pressed={option === shownShape && !image}
+                    className={cn(TILE_CLASS, option === shownShape && !image && 'ring-1 ring-(--ui-accent)')}
+                    data-shape={option}
+                    key={option}
+                    onClick={() => pickShape(option)}
+                    type="button"
+                  >
+                    <BotFace color={shownColor} name={faceName} shape={option} size={32} />
+                  </button>
+                ))}
+              </div>
+              <ColorSwatches
+                clearLabel={t.profiles.autoColor}
+                onChange={onColor}
+                swatches={AVATAR_COLORS}
+                swatchLabel={t.profiles.setColor}
+                value={color}
+              />
+            </>
+          )}
+        </div>
       ) : null}
 
       {tab === 'generate' ? (
-        <GenerateTab name={faceName} onImage={onImage} onMessage={setMessage} request={requestGateway} />
+        <GenerateTab name={faceName} onImage={onImage} onMessage={setMessage} request={avatarRequest} title={title} />
       ) : null}
 
       {tab === 'upload' ? (
@@ -153,86 +197,13 @@ export function AvatarPicker({ color, image, name, onColor, onImage, onShape, sh
         </Button>
       ) : null}
 
-      {tab === 'pet' ? <PetTab onImage={onImage} onMessage={setMessage} request={requestGateway} /> : null}
+      {tab === 'pet' ? <PetTab onImage={onImage} onMessage={setMessage} request={avatarRequest} /> : null}
 
       {message ? (
         <p className={cn(HINT_CLASS, 'text-destructive')} role="status">
           {message}
         </p>
       ) : null}
-    </div>
-  )
-}
-
-// ── blob faces: six silhouettes, a random seed, and a lock ──────────────────
-
-function BlobControls({
-  color,
-  name,
-  onShape,
-  shape
-}: {
-  color: string
-  name: string
-  onShape: (shape: string) => void
-  shape: string
-}) {
-  const { t } = useI18n()
-  const copy = t.profiles.avatar
-  const { kind, seedPart } = parseBlobShape(shape, name)
-  const locked = Boolean(seedPart)
-
-  return (
-    <div className="grid justify-items-center gap-3">
-      <div className="grid grid-cols-[repeat(4,2.75rem)] gap-1.5" role="group">
-        {['' as const, ...BLOB_KINDS].map(option => (
-          <button
-            aria-label={option || copy.blobAutoHint}
-            aria-pressed={option === kind}
-            className={cn(TILE_CLASS, option === kind && 'ring-1 ring-(--ui-accent)')}
-            key={option || 'auto'}
-            onClick={() => onShape(blobShapeString(seedPart, option))}
-            type="button"
-          >
-            {option ? (
-              <BotFace color={color} name={name} shape={blobShapeString(seedPart, option)} size={32} />
-            ) : (
-              <span className="text-[0.6875rem] text-(--ui-text-tertiary)">{copy.blobAuto}</span>
-            )}
-          </button>
-        ))}
-      </div>
-      <div className="flex items-center gap-1">
-        <Button
-          onClick={() => onShape(blobShapeString(Math.random().toString(36).slice(2, 10), kind))}
-          size="sm"
-          type="button"
-          variant="ghost"
-        >
-          <Codicon className="mr-1 text-[0.8rem]" name="refresh" />
-          {copy.randomize}
-        </Button>
-        <Button
-          onClick={() => onShape(blobShapeString(locked ? '' : name, kind))}
-          size="sm"
-          title={locked ? copy.unlockHint : copy.lockHint}
-          type="button"
-          variant="ghost"
-        >
-          <Codicon className="mr-1 text-[0.8rem]" name={locked ? 'unlock' : 'lock'} />
-          {locked ? copy.unlockFace : copy.lockFace}
-        </Button>
-      </div>
-      <p className={HINT_CLASS}>{locked ? copy.faceLocked : copy.faceFollowsName}</p>
-      <Button
-        className="text-(--ui-text-secondary)"
-        onClick={() => onShape(defaultShapeFor(name))}
-        size="sm"
-        type="button"
-        variant="ghost"
-      >
-        {copy.classicShapes}
-      </Button>
     </div>
   )
 }
@@ -245,12 +216,14 @@ function GenerateTab({
   name,
   onImage,
   onMessage,
-  request
+  request,
+  title
 }: {
   name: string
+  title?: string
   onImage: (image: string) => void
   onMessage: (message: null | string) => void
-  request: ReturnType<typeof useGatewayRequest>['requestGateway']
+  request: AvatarRequest
 }) {
   const { t } = useI18n()
   const copy = t.profiles.avatar
@@ -283,7 +256,7 @@ function GenerateTab({
     onMessage(null)
 
     try {
-      const image = await generateAvatarImage(request, { describe, name })
+      const image = await generateAvatarImage(request, { describe, name, title })
 
       onImage(await normalizeAvatarImage(image))
     } catch (error) {
@@ -338,7 +311,7 @@ function PetTab({
 }: {
   onImage: (image: string) => void
   onMessage: (message: null | string) => void
-  request: ReturnType<typeof useGatewayRequest>['requestGateway']
+  request: AvatarRequest
 }) {
   const { t } = useI18n()
   const copy = t.profiles.avatar

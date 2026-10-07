@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 
 import {
   blobMarkup,
@@ -13,6 +13,7 @@ import {
   sampleFaceRing,
   sigilGeometry
 } from '@/lib/bot-avatar'
+import { botCharacter } from '@/lib/bot-characters'
 import { startFaceClock } from '@/lib/bot-face-clock'
 
 // The bot's face: the one drawing of a Work4You profile as a character, shared
@@ -152,6 +153,7 @@ export function shapeNode(shape: string, color: string, botName = 'agent') {
  * them (a baked PNG cannot).
  */
 export function BotFace({ color, image, mood = 'idle', name = 'agent', shape, size = 36 }: BotFaceProps) {
+  const surfaceId = useId().replace(/:/g, '')
   // A mounting face is what wakes a parked clock.
   useEffect(() => {
     startFaceClock()
@@ -164,6 +166,24 @@ export function BotFace({ color, image, mood = 'idle', name = 'agent', shape, si
         aria-hidden
         src={image}
         style={{ borderRadius: '22%', display: 'block', height: size, objectFit: 'cover', width: size }}
+      />
+    )
+  }
+
+  const character = botCharacter(shape)
+
+  if (character) {
+    return (
+      <img
+        alt=""
+        aria-hidden
+        data-bot-character={character.id}
+        data-bot-face={name}
+        draggable={false}
+        height={size}
+        src={character.image}
+        style={{ display: 'block', objectFit: 'contain' }}
+        width={size}
       />
     )
   }
@@ -219,6 +239,7 @@ export function BotFace({ color, image, mood = 'idle', name = 'agent', shape, si
   // (and their catchlights) start at the cloud position instead of jumping
   // there on the first clock paint.
   const eyeY0 = faceEyeY(drawn)
+  const bodyPath = drawn === 'cloud' ? CLOUD_BODY_PATH : ringToPath(sampleFaceRing(drawn))
 
   return (
     <svg
@@ -232,10 +253,47 @@ export function BotFace({ color, image, mood = 'idle', name = 'agent', shape, si
       viewBox="0 0 40 44"
       width={size}
     >
-      <path d={drawn === 'cloud' ? CLOUD_BODY_PATH : ringToPath(sampleFaceRing(drawn))} data-hb-body="1" fill={color} />
+      <defs>
+        <linearGradient id={`${surfaceId}-shade`} x1="20%" x2="75%" y1="0%" y2="100%">
+          <stop offset="0%" stopColor="white" stopOpacity={0.3} />
+          <stop offset="38%" stopColor="white" stopOpacity={0} />
+          <stop offset="66%" stopColor="black" stopOpacity={0.02} />
+          <stop offset="100%" stopColor="black" stopOpacity={0.27} />
+        </linearGradient>
+        <radialGradient cx="28%" cy="16%" id={`${surfaceId}-light`} r="72%">
+          <stop offset="0%" stopColor="white" stopOpacity={0.5} />
+          <stop offset="25%" stopColor="white" stopOpacity={0.12} />
+          <stop offset="65%" stopColor="white" stopOpacity={0} />
+        </radialGradient>
+        <linearGradient id={`${surfaceId}-rim`} x1="0%" x2="85%" y1="0%" y2="100%">
+          <stop offset="0%" stopColor="white" stopOpacity={0.8} />
+          <stop offset="35%" stopColor="white" stopOpacity={0.2} />
+          <stop offset="60%" stopColor="black" stopOpacity={0.03} />
+          <stop offset="100%" stopColor="black" stopOpacity={0.45} />
+        </linearGradient>
+        <clipPath id={`${surfaceId}-body`}>
+          <path d={bodyPath} data-hb-surface="1" />
+        </clipPath>
+        <filter id={`${surfaceId}-soft-edge`}>
+          <feGaussianBlur stdDeviation={0.7} />
+        </filter>
+      </defs>
+      <path d={bodyPath} data-hb-body="1" fill={color} />
+      <path d={bodyPath} data-hb-surface="1" fill={`url(#${surfaceId}-shade)`} />
+      <path d={bodyPath} data-hb-surface="1" fill={`url(#${surfaceId}-light)`} />
+      <g clipPath={`url(#${surfaceId}-body)`}>
+        <path
+          d={bodyPath}
+          data-hb-surface="1"
+          fill="none"
+          filter={`url(#${surfaceId}-soft-edge)`}
+          stroke={`url(#${surfaceId}-rim)`}
+          strokeWidth={3.5}
+        />
+      </g>
       <g data-hb-open="1">
-        <ellipse cx={15.4} cy={eyeY0} data-hb-el="1" fill={eyeFill} rx={2.2} ry={working ? 2.6 : 2.3} />
-        <ellipse cx={24.6} cy={eyeY0} data-hb-er="1" fill={eyeFill} rx={2.2} ry={working ? 2.6 : 2.3} />
+        <ellipse cx={15.4} cy={eyeY0} data-hb-el="1" fill={eyeFill} rx={1.9} ry={working ? 3.3 : 3} />
+        <ellipse cx={24.6} cy={eyeY0} data-hb-er="1" fill={eyeFill} rx={1.9} ry={working ? 3.3 : 3} />
         <circle cx={14.8} cy={eyeY0 - 0.7} data-hb-hl-l="1" fill={hlFill} r={0.65} />
         <circle cx={24} cy={eyeY0 - 0.7} data-hb-hl-r="1" fill={hlFill} r={0.65} />
       </g>

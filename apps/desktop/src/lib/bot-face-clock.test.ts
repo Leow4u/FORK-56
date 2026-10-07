@@ -170,6 +170,19 @@ describe('startFaceClock', () => {
 })
 
 describe('paintMathFace', () => {
+  it('keeps the lighting inside the moving body during head turns', () => {
+    const face = mountFace('squircle')
+    const surface = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+
+    surface.setAttribute('data-hb-surface', '1')
+    face.appendChild(surface)
+
+    for (const time of [0, 1, 4.5]) {
+      paintMathFace(face, time)
+      expect(surface.getAttribute('d')).toBe(face.querySelector('[data-hb-body]')?.getAttribute('d'))
+    }
+  })
+
   it('moves the body, eyes and catchlights for the pose and shows the thinking dots while working', () => {
     const idle = mountFace('squircle', 'idle')
     const work = mountFace('cloud', 'work')

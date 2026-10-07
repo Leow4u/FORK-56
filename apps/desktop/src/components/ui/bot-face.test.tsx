@@ -1,6 +1,8 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { BOT_CHARACTERS } from '@/lib/bot-characters'
+
 const clock = vi.hoisted(() => ({ startFaceClock: vi.fn() }))
 
 vi.mock('@/lib/bot-face-clock', () => ({ startFaceClock: clock.startFaceClock }))
@@ -13,6 +15,18 @@ afterEach(() => {
 })
 
 describe('BotFace', () => {
+  it.each(BOT_CHARACTERS)('keeps $id artwork stable after a rename and lets uploaded images override it', character => {
+    const { container, rerender } = render(<BotFace color={character.color} name="before" shape={character.shape} />)
+
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(character.image)
+    rerender(<BotFace color="#ffffff" name="after" shape={character.shape} />)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(character.image)
+    expect(container.querySelector('img')?.getAttribute('data-bot-face')).toBe('after')
+
+    rerender(<BotFace color={character.color} image="data:image/png;base64,uploaded" shape={character.shape} />)
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,uploaded')
+  })
+
   it('draws an image avatar as a plain picture', () => {
     const { container } = render(
       <BotFace color="#ef4444" image="data:image/png;base64,x" name="research" shape="circle" />

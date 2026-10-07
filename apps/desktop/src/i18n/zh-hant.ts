@@ -1758,6 +1758,18 @@ export const zhHant = defineLocale({
   },
 
   profiles: {
+    avatar: {
+      characters: '角色',
+      characterNames: {
+        headphones: '耳機',
+        sunglasses: '太陽眼鏡',
+        glasses: '圓框眼鏡',
+        beret: '貝雷帽',
+        bowtie: '領結',
+        cap: '棒球帽'
+      },
+      classicShapes: '經典形狀'
+    },
     agentPanel: '代理程式面板',
     editProfile: '編輯設定檔…',
     allConversations: '所有設定檔的對話',

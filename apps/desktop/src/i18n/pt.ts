@@ -3428,6 +3428,15 @@ export const pt = defineLocale({
     },
     personaTemplateHint: 'Escolha um ponto de partida e depois edite o texto. Salvo como SOUL.md.',
     avatar: {
+      characters: 'Personagens',
+      characterNames: {
+        headphones: 'Fones',
+        sunglasses: 'Óculos de sol',
+        glasses: 'Óculos redondos',
+        beret: 'Boina',
+        bowtie: 'Gravata',
+        cap: 'Boné'
+      },
       label: 'Avatar',
       hint: 'O rosto que este perfil usa em todo lugar: na barra de perfis, nos chips e na lista de Workbots.',
       tabs: { bot: 'Bot', generate: 'Gerar', upload: 'Enviar', pet: 'Pet' },

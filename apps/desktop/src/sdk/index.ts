@@ -934,11 +934,12 @@ export { McpTab } from '@/app/skills/mcp-tab'
  *  `width`/`height`. */
 export type { FloatingAnchor } from '@/components/pane-shell/tree/renderer/floating-rect'
 export { StatusDot, type StatusTone } from '@/components/status-dot'
+/** Shared profile avatar UI: one picker for creation/editing and one face
+ * renderer for the WorkBots roster, sidebar rail and settings scope chips.
+ * Classic shapes use the shared animation clock; ready-made characters and
+ * uploaded/generated pictures use their image assets. */
+export { AvatarPicker, type AvatarPickerProps } from '@/components/ui/avatar-picker'
 export { Badge } from '@/components/ui/badge'
-/** THE bot face: a Work4You profile drawn as a character (shape + color +
- *  eyes, blob face, or an image), animated by the app's shared face clock.
- *  The WorkBots roster, the sidebar profile rail and the settings scope chips
- *  all draw through this, so a bot looks the same everywhere. */
 export { BotFace, type BotFaceProps, shapeNode } from '@/components/ui/bot-face'
 export { Button } from '@/components/ui/button'
 export { Checkbox } from '@/components/ui/checkbox'

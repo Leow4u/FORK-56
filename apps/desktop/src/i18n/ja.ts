@@ -1819,6 +1819,18 @@ export const ja = defineLocale({
   },
 
   profiles: {
+    avatar: {
+      characters: 'キャラクター',
+      characterNames: {
+        headphones: 'ヘッドホン',
+        sunglasses: 'サングラス',
+        glasses: '丸メガネ',
+        beret: 'ベレー帽',
+        bowtie: '蝶ネクタイ',
+        cap: 'キャップ'
+      },
+      classicShapes: 'クラシックな形'
+    },
     agentPanel: 'エージェントパネル',
     editProfile: 'プロファイルを編集…',
     allConversations: 'すべてのプロファイルの会話',
