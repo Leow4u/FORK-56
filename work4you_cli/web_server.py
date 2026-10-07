@@ -11042,10 +11042,9 @@ async def update_messaging_platform(
             if platform_id == "email" and body.home_channel:
                 raw = body.env.get("EMAIL_ALLOWED_USERS")
                 if raw is None:
-                    from work4you_cli.config import load_config
+                    from work4you_cli.config import load_env
 
-                    cfg = load_config() or {}
-                    raw = (os.getenv("EMAIL_ALLOWED_USERS") or "").strip()
+                    raw = (load_env().get("EMAIL_ALLOWED_USERS") or "").strip()
                 if raw:
                     allowed_emails = [
                         part.strip()
@@ -11056,7 +11055,9 @@ async def update_messaging_platform(
             if platform_id == "telegram" and body.home_channel:
                 raw = body.env.get("TELEGRAM_ALLOWED_USERS")
                 if raw is None:
-                    raw = (os.getenv("TELEGRAM_ALLOWED_USERS") or "").strip()
+                    from work4you_cli.config import load_env
+
+                    raw = (load_env().get("TELEGRAM_ALLOWED_USERS") or "").strip()
                 if raw:
                     allowed_telegram = [
                         part.strip()

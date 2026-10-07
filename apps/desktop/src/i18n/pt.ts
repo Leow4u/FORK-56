@@ -2420,7 +2420,7 @@ export const pt = defineLocale({
       hostsRequired: 'Informe os dois servidores de e-mail.',
       passwordLabel: 'Senha de aplicativo',
       passwordHelp: 'Cole a senha de aplicativo aqui — não use a senha normal da conta.',
-      passwordKept: 'Senha salva — deixe em branco para mantê-la',
+      passwordKept: 'Senha deste perfil — deixe em branco para manter ou cole a nova senha de app',
       customPasswordLabel: 'Senha da caixa de e-mail',
       customPasswordHelp: 'A senha que o seu servidor de e-mail exige para login IMAP e SMTP.',
       appPasswordQuestion: 'Você já tem uma senha de aplicativo para esta caixa?',

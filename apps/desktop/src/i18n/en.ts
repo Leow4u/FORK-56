@@ -2130,7 +2130,7 @@ export const en: Translations = {
       hostsRequired: 'Enter both mail servers.',
       passwordLabel: 'App password',
       passwordHelp: 'Paste the app password here — not your normal account password.',
-      passwordKept: 'Saved — leave empty to keep it',
+      passwordKept: 'Saved for this profile — leave empty to keep it, or paste a new app password',
       customPasswordLabel: 'Mailbox password',
       customPasswordHelp: 'The password your mail server expects for IMAP and SMTP login.',
       appPasswordQuestion: 'Do you already have an app password for this mailbox?',

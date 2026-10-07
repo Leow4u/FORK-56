@@ -50,6 +50,7 @@ export function EmailDetail({
   // the page is the channel's settings, and the steps can be run again.
   // Local state, so a list refresh behind the steps never dismisses them.
   const [steps, setSteps] = useState(!platform.enabled && !platform.configured)
+  const [requireFreshPassword, setRequireFreshPassword] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [editing, setEditing] = useState(false)
   const routines = useDeliveringRoutines(platform.id, Boolean(platform.home_channel), scopeProfile)
@@ -65,9 +66,11 @@ export function EmailDetail({
         onApplied={onQuickSetupApplied}
         onDone={() => {
           setSteps(false)
+          setRequireFreshPassword(false)
           onQuickSetupApplied()
         }}
         platformConnected={platform.enabled && platform.state === 'connected'}
+        requireFreshPassword={requireFreshPassword}
         scopeProfile={scopeProfile}
       />
     )
@@ -85,7 +88,10 @@ export function EmailDetail({
         <ConnectionRow
           connectedLabel={s.connectedLabel}
           meta={envValue(platform, 'EMAIL_ADDRESS') || undefined}
-          onRunSteps={() => setSteps(true)}
+          onRunSteps={() => {
+            setRequireFreshPassword(true)
+            setSteps(true)
+          }}
           onTest={onTest}
           platform={platform}
           scopeProfile={scopeProfile}
@@ -149,7 +155,10 @@ export function EmailDetail({
         />
         <AdvancedActions
           hasEdits={hasEdits}
-          onRunSteps={() => setSteps(true)}
+          onRunSteps={() => {
+            setRequireFreshPassword(true)
+            setSteps(true)
+          }}
           onSave={onSave}
           platform={platform}
           saving={saving}

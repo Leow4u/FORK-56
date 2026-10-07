@@ -58,6 +58,7 @@ export function EmailConnectSteps({
   onApplied,
   onDone,
   platformConnected,
+  requireFreshPassword = false,
   scopeProfile
 }: {
   /** What is saved now: the steps start from it when run again. */
@@ -68,6 +69,8 @@ export function EmailConnectSteps({
   onDone: () => void
   /** The channel list reports Email on and connected. */
   platformConnected: boolean
+  /** When re-running setup, force a new app password instead of silently keeping the profile's old one. */
+  requireFreshPassword?: boolean
   scopeProfile: null | string
 }) {
   const { t } = useI18n()
@@ -143,7 +146,9 @@ export function EmailConnectSteps({
     ? { imap: provider.imapHost, smtp: provider.smtpHost }
     : { imap: imapHost.trim(), smtp: smtpHost.trim() }
 
-  const hasPassword = Boolean(password.trim() || passwordSaved)
+  const hasPassword = Boolean(
+    password.trim() || (passwordSaved && !requireFreshPassword)
+  )
 
   const passwordReady = provider
     ? appPasswordReady === 'yes' && hasPassword
