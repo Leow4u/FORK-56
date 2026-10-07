@@ -12,7 +12,7 @@ import type * as React from 'react'
 import type { Contribution } from '@/contrib/types'
 
 import type { GroupNode, LayoutNode } from '../model'
-import { allPaneIds } from '../model'
+import { allPaneIds, anchorsMain } from '../model'
 
 import type { DoubleTapContext } from './drag-session'
 import type { FloatingAnchor } from './floating-rect'
@@ -284,17 +284,19 @@ export function subtreeGone(node: LayoutNode, ctx: TrackContext): boolean {
 /**
  * Which chrome toggle owns a root-row child — SEMANTIC, not positional:
  * ⌘B is the sessions/nav column (any `placement: 'left'` pane) wherever a
- * flip or drag puts it; ⌘J is every other side column. `null` = contains
- * the main zone, never side-collapsed. This is what keeps the titlebar
- * toggles and reveals 100% main-compatible through ⌘\ flips.
+ * flip or drag puts it; ⌘J is every other side column, the content area
+ * among them. `null` = contains the main zone, never side-collapsed. This is
+ * what keeps the titlebar toggles and reveals 100% main-compatible through
+ * ⌘\ flips.
  */
 export function rootChildSide(
   child: LayoutNode,
   paneFor: (id: string) => Contribution | undefined
 ): 'left' | 'right' | null {
-  const placements = allPaneIds(child).map(id => paneChrome(paneFor(id)).placement)
+  const ids = allPaneIds(child)
+  const placements = ids.map(id => paneChrome(paneFor(id)).placement)
 
-  if (placements.includes('main')) {
+  if (ids.some((id, i) => anchorsMain(id, placements[i]))) {
     return null
   }
 

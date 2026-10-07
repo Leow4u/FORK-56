@@ -5,12 +5,12 @@ import { closeActiveTab } from '@/app/chat/close-tab'
 import { hudTargetSessionId } from '@/app/hud/handoff'
 import { setTerminalTakeover } from '@/app/right-sidebar/store'
 import { closeActiveTerminal, createTerminal, cycleTerminal } from '@/app/right-sidebar/terminal/terminals'
+import { toggleRightSidebar } from '@/app/right-sidebar/toggle'
 import { appViewForPath, isOverlayView } from '@/app/routes'
 import {
   activateTreeTabSlot,
   cycleTreeTabInFocusedZone,
   isPaneVisible,
-  layoutHasRootSide,
   togglePaneVisible
 } from '@/components/pane-shell/tree/store'
 import { onReleaseTypingFocus } from '@/components/ui/keyboard-first'
@@ -31,7 +31,6 @@ import { $capture, $comboIndex, endCapture, setBinding } from '@/store/keybinds'
 import {
   requestSessionSearchFocus,
   setFileBrowserOpen,
-  toggleFileBrowserOpen,
   togglePanesFlipped,
   toggleSidebarOpen
 } from '@/store/layout'
@@ -238,11 +237,10 @@ export function useKeybinds(deps: KeybindRuntimeDeps): void {
 
     // Narrow-viewport reveal is handled inside the store toggles now.
     'view.toggleSidebar': toggleSidebarOpen,
-    // ⌘J toggles the right sidebar — but a layout with no right side (e.g.
-    // terminal-on-bottom) would leave it a dead key, so it falls back to the
-    // terminal there. The single "secondary panel" toggle.
-    'view.toggleRightSidebar': () =>
-      layoutHasRootSide('right') ? toggleFileBrowserOpen() : togglePaneVisible('terminal'),
+    // ⌘J is the right button: the right side, the content area in it. Never a
+    // dead key — a conversation without tabs opens the area on a new tab, so it
+    // no longer falls back to the terminal on a layout with no right side.
+    'view.toggleRightSidebar': toggleRightSidebar,
     'view.toggleReview': toggleReview,
     'view.toggleStatusbar': toggleStatusbarVisible,
     'view.showFiles': showFiles,

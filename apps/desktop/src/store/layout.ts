@@ -2,7 +2,6 @@ import { atom, computed, type ReadableAtom, type WritableAtom } from 'nanostores
 
 import { SIDEBAR_COLLAPSE_MEDIA_QUERY } from '@/app/layout-constants'
 import { PANE_TOGGLE_REVEAL_EVENT } from '@/components/pane-shell'
-import { isPaneVisible, revealTreePane } from '@/components/pane-shell/tree/store'
 import { matchesQuery } from '@/hooks/use-media-query'
 import { connectionScopedAtom } from '@/lib/connection-scoped'
 import { type Codec, Codecs, persistentAtom } from '@/lib/persisted'
@@ -56,6 +55,8 @@ const RIGHT_RAIL_ACTIVE_TAB_STORAGE_KEY = 'work4you.desktop.rightRailActiveTab'
 
 export const CHAT_SIDEBAR_PANE_ID = 'chat-sidebar'
 export const FILE_BROWSER_PANE_ID = 'file-browser'
+/** The right side's own open record — the titlebar's right button and ⌘J. */
+export const RIGHT_SIDEBAR_PANE_ID = 'right-sidebar'
 /** The file tree's id in the LAYOUT TREE — distinct from the pane-state id
  *  above, which keys its open/width record. Toggles need both. */
 export const FILES_PANE_ID = 'files'
@@ -66,15 +67,27 @@ export type RightRailTabId = `artifact:${string}` | `file:${string}` | `url:${st
 
 ensurePaneRegistered(CHAT_SIDEBAR_PANE_ID, { open: true })
 ensurePaneRegistered(FILE_BROWSER_PANE_ID, { open: false })
+// The right side used to ride on the file tree's record (its button toggled the
+// tree), so it starts where that record left the side.
+ensurePaneRegistered(RIGHT_SIDEBAR_PANE_ID, { open: $paneStates.get()[FILE_BROWSER_PANE_ID]?.open ?? false })
 
 export const $sidebarOpen: ReadableAtom<boolean> = computed(
   $paneStates,
   states => states[CHAT_SIDEBAR_PANE_ID]?.open ?? true
 )
 
+/** The file tree's own presence — its tab, ⌘K's Show file browser, the new
+ *  tab page's Files card. Not the right side: that is `$rightSidebarOpen`. */
 export const $fileBrowserOpen: ReadableAtom<boolean> = computed(
   $paneStates,
   states => states[FILE_BROWSER_PANE_ID]?.open ?? false
+)
+
+/** The right side of the main zone — everything there folds together, the
+ *  content area included. */
+export const $rightSidebarOpen: ReadableAtom<boolean> = computed(
+  $paneStates,
+  states => states[RIGHT_SIDEBAR_PANE_ID]?.open ?? false
 )
 
 // Persisted so a relaunch reopens the same rail tab. Null when the rail has no
@@ -474,24 +487,8 @@ export function toggleSidebarOpen() {
   }
 }
 
-export function toggleFileBrowserOpen() {
-  if (revealNarrowPane(FILE_BROWSER_PANE_ID, 'toggle')) {
-    return
-  }
-
-  // Ask the TREE, not the pane's boolean. `$fileBrowserOpen` stays true while
-  // the tree pane sits behind a sibling tab in the shared right column (the
-  // preview rail, the diff) or inside a minimized zone, so ⌘J spent its press
-  // re-asserting a value it already held and read as a dead key. Only fold the
-  // side when the tree is genuinely the thing on screen; otherwise bring it
-  // forward through the reveal path, which fronts and un-minimizes.
-  if (!isPaneVisible(FILES_PANE_ID) && $fileBrowserOpen.get()) {
-    revealTreePane(FILES_PANE_ID)
-
-    return
-  }
-
-  togglePane(FILE_BROWSER_PANE_ID)
+export function setRightSidebarOpen(open: boolean) {
+  setPaneOpen(RIGHT_SIDEBAR_PANE_ID, open)
 }
 
 export function setFileBrowserOpen(open: boolean) {

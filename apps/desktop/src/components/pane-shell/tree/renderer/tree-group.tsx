@@ -41,7 +41,7 @@ import { $layoutEditMode } from '../../edit-mode'
 import { useWindowControlsOverlap } from '../../geometry'
 import { emptyPaneLifecycleState, reconcilePaneLifecycle } from '../../pane-lifecycle'
 import { hiddenPaneProps, PaneGroupContext, PaneLifecycleContext, PaneVisibleContext } from '../../pane-visibility'
-import type { DropPosition, GroupNode } from '../model'
+import { type DropPosition, type GroupNode, isContentAreaPane } from '../model'
 import {
   $dropHint,
   $hiddenTreePanes,
@@ -59,7 +59,6 @@ import {
   collapseTreePane,
   hideOnlyZoneTabs,
   isCollapsePane,
-  isContentAreaPane,
   isMainStripPane,
   isSessionStripPane,
   noteActiveTreeGroup,
