@@ -24,8 +24,38 @@ def test_fal_provider_registers():
 
     assert video_gen_registry.get_provider("fal") is provider
     assert provider.display_name == "FAL"
-    assert provider.default_model() == DEFAULT_MODEL
+    # Never-configured + no FAL_KEY → managed autodetect default (cheap tier).
+    assert provider.default_model() == "ltx-2.3"
     assert DEFAULT_MODEL == "veo3.1"
+
+
+def test_effective_default_model_work4you_vs_byok(monkeypatch):
+    from plugins.video_gen.fal import (
+        DEFAULT_MODEL,
+        MANAGED_SUBSCRIPTION_DEFAULT_MODEL,
+        _effective_default_model_id,
+    )
+    from tools.tool_backend_helpers import WORK4YOU_MANAGED_PROVIDER
+
+    monkeypatch.setattr(
+        "tools.tool_backend_helpers.read_selection",
+        lambda _section: WORK4YOU_MANAGED_PROVIDER,
+    )
+    monkeypatch.setattr(
+        "tools.tool_backend_helpers.fal_key_is_configured",
+        lambda: False,
+    )
+    assert _effective_default_model_id() == MANAGED_SUBSCRIPTION_DEFAULT_MODEL
+
+    monkeypatch.setattr(
+        "tools.tool_backend_helpers.read_selection",
+        lambda _section: "fal",
+    )
+    monkeypatch.setattr(
+        "tools.tool_backend_helpers.fal_key_is_configured",
+        lambda: True,
+    )
+    assert _effective_default_model_id() == DEFAULT_MODEL
 
 
 def test_kling_4k_uses_start_image_url():

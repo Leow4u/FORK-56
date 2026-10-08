@@ -291,8 +291,30 @@ FAL_FAMILIES: Dict[str, Dict[str, Any]] = {
     },
 }
 
-# Factory family for a new install. An explicit video_gen.model still wins.
+# Factory default for BYOK / direct FAL. An explicit ``video_gen.model`` still wins.
 DEFAULT_MODEL = "veo3.1"
+# Work4You Subscription (managed fal-queue) exposes a subset of FAL routes;
+# premium families (e.g. veo3.1) often 404 on the Portal proxy. Default new
+# managed installs to a cheap-tier family that is typically enabled.
+MANAGED_SUBSCRIPTION_DEFAULT_MODEL = "ltx-2.3"
+
+
+def _effective_default_model_id() -> str:
+    """Default family when no ``video_gen.model`` is configured."""
+    from tools.tool_backend_helpers import (
+        WORK4YOU_MANAGED_PROVIDER,
+        fal_key_is_configured,
+        read_selection,
+    )
+
+    selected = read_selection("video_gen")
+    if selected == WORK4YOU_MANAGED_PROVIDER:
+        return MANAGED_SUBSCRIPTION_DEFAULT_MODEL
+    # Never-configured category: legacy autodetect uses the managed gateway
+    # when FAL_KEY is absent.
+    if selected is None and not fal_key_is_configured():
+        return MANAGED_SUBSCRIPTION_DEFAULT_MODEL
+    return DEFAULT_MODEL
 
 
 def _is_duration_range(durations: Any) -> bool:
@@ -415,7 +437,8 @@ def _resolve_family(explicit: Optional[str]) -> Tuple[str, Dict[str, Any]]:
             if fid:
                 return fid, FAL_FAMILIES[fid]
 
-    return DEFAULT_MODEL, FAL_FAMILIES[DEFAULT_MODEL]
+    default_id = _effective_default_model_id()
+    return default_id, FAL_FAMILIES[default_id]
 
 
 # ---------------------------------------------------------------------------
@@ -618,10 +641,18 @@ def _submit_fal_video_request(endpoint: str, arguments: Dict[str, Any]):
 
         status = _extract_http_status(exc)
         if status is not None and 400 <= status < 500:
+            portal_hint = (
+                " HTTP 404 usually means this model's FAL route is not exposed "
+                "on your Work4You Portal plan (premium families are often "
+                "BYOK-only). Try LTX 2.3 or Pixverse v6 in Settings → "
+                "Image & Video, or set FAL_KEY for direct FAL.ai access."
+                if status == 404
+                else ""
+            )
             raise ValueError(
                 f"Work4You Subscription gateway rejected endpoint '{endpoint}' "
                 f"(HTTP {status}). This model may not yet be enabled on "
-                f"the Work4You Portal's FAL proxy. Either:\n"
+                f"the Work4You Portal's FAL proxy.{portal_hint} Either:\n"
                 f"  • Set FAL_KEY in your environment to use FAL.ai directly, or\n"
                 f"  • Pick a different model via `work4you tools` → Video Generation."
             ) from exc
@@ -754,7 +785,7 @@ class FALVideoGenProvider(VideoGenProvider):
         return out
 
     def default_model(self) -> Optional[str]:
-        return DEFAULT_MODEL
+        return _effective_default_model_id()
 
     def get_setup_schema(self) -> Dict[str, Any]:
         return {
