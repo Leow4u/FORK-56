@@ -2170,8 +2170,10 @@ def _terminate_scoped_lock_owner_once(
         clear_takeover_marker(target_home)
 
 
-def write_planned_stop_marker(target_pid: int) -> bool:
+def write_planned_stop_marker(target_pid: int, *, work4you_home: Path | None = None) -> bool:
     """Record that ``target_pid`` is being stopped intentionally.
+
+    An explicit home lets a supervisor mark its own child's profile.
 
     The gateway exits non-zero for unexpected SIGTERM so service managers can
     revive it. Service stop commands send the same SIGTERM, so the CLI writes
@@ -2185,7 +2187,11 @@ def write_planned_stop_marker(target_pid: int) -> bool:
             "stopper_pid": os.getpid(),
             "written_at": _utc_now_iso(),
         }
-        _write_json_file(_get_planned_stop_marker_path(), record)
+        path = (
+            work4you_home / _PLANNED_STOP_MARKER_FILENAME
+            if work4you_home is not None else _get_planned_stop_marker_path()
+        )
+        _write_json_file(path, record)
         return True
     except (OSError, PermissionError):
         return False

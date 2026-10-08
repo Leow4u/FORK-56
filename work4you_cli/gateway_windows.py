@@ -40,6 +40,11 @@ import time
 from pathlib import Path
 from xml.sax.saxutils import escape
 
+from work4you_cli.gateway_supervisor import (
+    is_supervisor_running,
+    request_supervisor_stop,
+    supervisor_command,
+)
 from work4you_cli._subprocess_compat import (
     _WINDOWS_GATEWAY_BREAKAWAY_ENV,
     windows_detach_flags,
@@ -398,7 +403,7 @@ def _build_gateway_cmd_script(
     The script:
       - cd's into a stable working directory
       - exports WORK4YOU_HOME, PYTHONIOENCODING, VIRTUAL_ENV
-      - invokes ``python -m work4you_cli.main [--profile X] gateway run``
+      - supervises ``python -m work4you_cli.main [--profile X] gateway run``
 
     The .cmd is a compatibility/manual-run artifact: service persistence
     (Scheduled Task, Startup folder) routes through the ``.vbs`` launcher,
@@ -433,7 +438,7 @@ def _build_gateway_cmd_script(
     # gateway lifecycle/status harder to reason about.
     # Do NOT use `--replace` for service-managed starts; repeated /Run calls
     # should be idempotent, not churn parent/child takeover loops.
-    lines.append(" ".join(_quote_cmd_script_arg(a) for a in prog_args))
+    lines.append(" ".join(_quote_cmd_script_arg(a) for a in supervisor_command(prog_args)))
     lines.append("exit /b 0")
     return "\r\n".join(lines) + "\r\n"
 
@@ -484,7 +489,7 @@ def _build_gateway_vbs_script(
         prog_args.extend(profile_arg.split())
     prog_args.extend(["gateway", "run"])
     # list2cmdline gives CreateProcess-correct quoting for WScript.Shell.Run.
-    command_line = subprocess.list2cmdline(prog_args)
+    command_line = subprocess.list2cmdline(supervisor_command(prog_args))
 
     repo_root = _preserve_work4you_home_path(Path(__file__).resolve().parent.parent)
     static_pythonpath = os.pathsep.join(
@@ -822,7 +827,7 @@ def _build_gateway_argv() -> tuple[list[str], str, dict[str, str]]:
         if extra_pythonpath
         else [project_root],
     )
-    return argv, working_dir, env_overlay
+    return supervisor_command(argv), working_dir, env_overlay
 
 
 def windowless_gateway_restart_spec(
@@ -843,8 +848,8 @@ def windowless_gateway_restart_spec(
     working directory.
 
     Returns ``(new_argv, working_dir, env_overlay)``.  ``new_argv``
-    preserves every argument after the interpreter (``-m work4you_cli.main
-    [--profile X] gateway run [--replace]``) verbatim.  On non-Windows, or
+    wraps the CLI arguments (``[--profile X] gateway run [--replace]``) in
+    the same supervisor used by manual and login starts. On non-Windows, or
     if ``run_argv`` doesn't start with a resolvable python, the argv is
     returned unchanged with an empty overlay.
     """
@@ -889,13 +894,13 @@ def windowless_gateway_restart_spec(
         env_overlay,
         [project_root, *extra_pythonpath] if extra_pythonpath else [project_root],
     )
-    return new_argv, working_dir, env_overlay
+    return supervisor_command(new_argv), working_dir, env_overlay
 
 
 def _spawn_detached(script_path: Path | None = None) -> int:
     """Launch the gateway as a fully detached background process.
 
-    We spawn ``python.exe -m work4you_cli.main gateway run`` directly — NOT
+    We spawn ``python.exe -m work4you_cli.gateway_supervisor`` directly — NOT
     through a cmd.exe shim — because on Windows a cmd.exe child inherits the
     parent session's console handle and tends to get reaped when the spawning
     shell exits.  With ``CREATE_NO_WINDOW`` the gateway gets its OWN hidden
@@ -904,7 +909,8 @@ def _spawn_detached(script_path: Path | None = None) -> int:
     instead of flashing a visible one (#54220/#56747 — this is why we don't
     use console-less pythonw.exe here). Combined with
     CREATE_NEW_PROCESS_GROUP + DEVNULL stdin + a fresh env, the resulting
-    process is independent of whichever shell started it.
+    process is independent of whichever shell started it. The supervisor keeps
+    watching the gateway after startup and retries unexpected exits.
 
     Arg ``script_path`` is accepted for API symmetry with older callers
     but ignored — we don't need it now that we go direct.
@@ -1488,9 +1494,15 @@ def status(deep: bool = False) -> None:
 def start() -> None:
     """Start the gateway using the canonical detached Windows launch path."""
     _assert_windows()
+    from work4you_cli.config import get_work4you_home
+
+    home = Path(get_work4you_home())
     running_pids = _gateway_pids()
     if running_pids:
         print(f"✓ Gateway already running (PID: {', '.join(map(str, running_pids))})")
+        return
+    if is_supervisor_running(home):
+        print("✓ Gateway recovery is already in progress")
         return
 
     task_installed = is_task_registered()
@@ -1510,6 +1522,10 @@ def start() -> None:
             print("⚠ Gateway install did not complete in this process.")
             print("  If a UAC prompt opened, approve it, then run: work4you gateway start")
             return
+
+    # Refresh installed launchers too, so the next login keeps supervision
+    # after upgrading an older detached-only installation.
+    _write_task_script()
 
     # Manual starts use the same console-less direct spawn path as restart()
     # and install --start-now. Scheduled Task / Startup entries are only login
@@ -1621,6 +1637,11 @@ def stop() -> None:
     """
     _assert_windows()
     from gateway.status import get_running_pid
+    from work4you_cli.config import get_work4you_home
+
+    # Disable recovery BEFORE draining/killing the child, including when the
+    # supervisor is between attempts and no gateway PID exists yet.
+    supervisor_stopped = request_supervisor_stop(Path(get_work4you_home()))
 
     # Phase 1: ask the running gateway (if any) to drain itself by writing
     # the planned-stop marker, then wait briefly for it to exit cleanly.
@@ -1632,7 +1653,7 @@ def stop() -> None:
     if pid is not None:
         drained = _drain_gateway_pid(pid, _windows_stop_drain_timeout())
 
-    stopped_any = drained
+    stopped_any = drained or supervisor_stopped
     if is_task_registered():
         code, _out, err = _exec_schtasks(["/End", "/TN", get_task_name()])
         # schtasks returns nonzero when the task isn't currently running — don't treat that as an error.
@@ -1668,13 +1689,16 @@ def _wait_for_gateway_absent(timeout_s: float = 30.0, interval_s: float = 0.5) -
     never races a still-alive old process.
     """
     from gateway.status import get_running_pid
+    from work4you_cli.config import get_work4you_home
+
+    home = Path(get_work4you_home())
 
     deadline = time.monotonic() + max(timeout_s, interval_s)
     while time.monotonic() < deadline:
-        if get_running_pid() is None and not _gateway_pids():
+        if get_running_pid() is None and not _gateway_pids() and not is_supervisor_running(home):
             return True
         time.sleep(interval_s)
-    return get_running_pid() is None and not _gateway_pids()
+    return get_running_pid() is None and not _gateway_pids() and not is_supervisor_running(home)
 
 
 def restart() -> None:

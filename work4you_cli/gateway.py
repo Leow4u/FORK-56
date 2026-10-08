@@ -914,6 +914,10 @@ def _spawn_gateway_restart_watcher(old_pid: int, run_argv: list[str]) -> bool:
             # a failed respawn is worse still — keep the gateway coming back.
             respawn_cwd = ""
             respawn_env_overlay = {}
+    else:
+        from work4you_cli.gateway_supervisor import supervisor_command
+
+        run_argv = supervisor_command(run_argv)
 
     # Serialized as JSON literals embedded in the watcher source so the
     # inner respawn can apply cwd= / env= without extra argv plumbing.
@@ -1609,6 +1613,18 @@ def kill_gateway_processes(
         all_profiles: When ``True``, kill across all profiles.  Passed
             through to :func:`find_gateway_pids`.
     """
+    from work4you_cli.gateway_supervisor import request_supervisor_stop
+    from work4you_cli.profiles import list_profiles
+    from gateway.status import get_running_pid
+
+    homes = (
+        [profile.path for profile in list_profiles()]
+        if all_profiles else [Path(get_work4you_home())]
+    )
+    for home in homes:
+        if exclude_pids and get_running_pid(home / "gateway.pid") in exclude_pids:
+            continue
+        request_supervisor_stop(home)
     pids = find_gateway_pids(exclude_pids=exclude_pids, all_profiles=all_profiles)
     killed = 0
 
@@ -1631,7 +1647,7 @@ _REAPER_SUPERVISOR_WALK_LIMIT = 12
 
 
 def _reaper_candidate_is_supervisor_owned(pid: int) -> bool:
-    """True when ``pid`` is a gateway process owned by the Windows Task Scheduler.
+    """Recognize the local recovery supervisor and Windows Task Scheduler.
 
     Windows-only backstop for the orphan reaper: ``_get_service_pids()`` is
     empty on Windows (no systemd/launchd query), so a Scheduled-Task gateway
@@ -1641,12 +1657,9 @@ def _reaper_candidate_is_supervisor_owned(pid: int) -> bool:
     chain reaches ``services.exe`` is spared even with no pidfile (#83683,
     #86098).
 
-    This check is deliberately NOT applied on POSIX: there, every process has
-    PID 1 (launchd / init / systemd) in its ancestry — and a genuine orphan is
-    *reparented directly to PID 1* — so supervisor-name ancestry carries zero
-    signal and would spare every orphan the reaper exists to kill (#51325,
-    #75936). POSIX supervised gateways are already covered pidfile-
-    independently by the ``_get_service_pids()`` exclusion.
+    On POSIX only the explicit recovery-supervisor module counts. PID 1 in
+    the ancestry proves nothing: genuine orphans are also reparented to it.
+    Native POSIX services are covered by the _get_service_pids() exclusion.
 
     Known limitation (fail-open): if the Task-launched bootstrap parent has
     already exited, Windows does not reparent the gateway, the chain breaks
@@ -1654,8 +1667,6 @@ def _reaper_candidate_is_supervisor_owned(pid: int) -> bool:
     error (process gone, psutil unavailable) is likewise treated as "not
     owned" so a genuine orphan is still reaped.
     """
-    if not is_windows():
-        return False
     try:
         import psutil  # type: ignore
 
@@ -1667,8 +1678,13 @@ def _reaper_candidate_is_supervisor_owned(pid: int) -> bool:
                 name = (parent.name() or "").lower()
             except Exception:
                 name = ""
-            if name == "services.exe":
+            if is_windows() and name == "services.exe":
                 return True
+            try:
+                if parent.cmdline()[1:3] == ["-m", "work4you_cli.gateway_supervisor"]:
+                    return True
+            except Exception:
+                pass
             parent = parent.parent()
     except Exception:
         pass
@@ -1837,9 +1853,12 @@ def stop_profile_gateway() -> bool:
     except ImportError:
         return False
 
+    from work4you_cli.gateway_supervisor import request_supervisor_stop
+
+    supervisor_stopped = request_supervisor_stop(Path(get_work4you_home()))
     pid = get_running_pid()
     if pid is None:
-        return _reap_unsupervised_gateway_orphans()
+        return _reap_unsupervised_gateway_orphans() or supervisor_stopped
 
     try:
         from gateway.status import write_planned_stop_marker
@@ -4492,6 +4511,7 @@ def _timestamped_stderr_gateway_command(
     error_log: Path,
     *,
     external_supervisor: bool = False,
+    local_supervisor: bool = False,
 ) -> list[str]:
     """Wrap gateway run so raw stderr lines are timestamped before file write.
 
@@ -4499,11 +4519,16 @@ def _timestamped_stderr_gateway_command(
     inner ``gateway run`` must carry ``--external-supervisor`` so
     ``work4you update`` sees the flag on the live grandchild argv and hands
     the process back to launchd instead of starting a detached watcher
-    (#86893 / #87005). The detached nohup fallback stays unmarked.
+    (#86893 / #87005). Detached fallbacks use local_supervisor instead;
+    that wrapper marks each child as supervised when it launches it.
     """
     inner = _gateway_run_command()
     if external_supervisor and "--external-supervisor" not in inner:
         inner = [*inner, "--external-supervisor"]
+    if local_supervisor:
+        from work4you_cli.gateway_supervisor import supervisor_command
+
+        inner = supervisor_command(inner)
     return [
         get_python_path(),
         "-m",
@@ -4516,16 +4541,19 @@ def _timestamped_stderr_gateway_command(
 
 
 def _spawn_detached_gateway() -> bool:
-    """Launch the gateway as a detached background process (launchd fallback).
+    """Launch a supervised background gateway without a native service manager.
 
     Used when launchctl can no longer bootstrap/kickstart the gateway on
-    macOS 26+ (issue #23387). Mirrors the `nohup work4you gateway run --replace`
-    workaround but keeps it CLI-managed: stdout goes to gateway.log, stderr is
-    timestamped into gateway.error.log, and the PID is tracked via the
+    macOS 26+ (issue #23387), and by Linux/WSL without systemd. stdout goes
+    to gateway.log, stderr is timestamped into gateway.error.log, and the PID is tracked via the
     gateway.pid file that `run_gateway` writes, so stop/status/restart keep
     working.
     """
     from work4you_cli._subprocess_compat import windows_detach_popen_kwargs
+    from work4you_cli.gateway_supervisor import is_supervisor_running
+
+    if is_supervisor_running(get_work4you_home()):
+        return True
 
     log_dir = get_work4you_home() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -4538,7 +4566,7 @@ def _spawn_detached_gateway() -> bool:
     try:
         with out:
             subprocess.Popen(
-                _timestamped_stderr_gateway_command(err_path),
+                _timestamped_stderr_gateway_command(err_path, local_supervisor=True),
                 stdin=subprocess.DEVNULL,
                 stdout=out,
                 stderr=subprocess.DEVNULL,
@@ -4547,6 +4575,30 @@ def _spawn_detached_gateway() -> bool:
     except OSError:
         return False
     return True
+
+
+def _start_gateway_without_service() -> None:
+    from gateway.status import get_running_pid
+
+    pid = get_running_pid()
+    if pid is not None:
+        print(f"✓ Gateway already running (PID: {pid})")
+        return
+    if not _spawn_detached_gateway():
+        raise RuntimeError("Failed to start the supervised background gateway; check logs/gateway.log")
+    print("✓ Gateway started in the background with automatic crash recovery")
+    print("  Stop with: work4you gateway stop")
+
+
+def _restart_gateway_without_service() -> None:
+    from work4you_cli.gateway_supervisor import wait_for_supervisor_exit
+
+    stop_profile_gateway()
+    if not _wait_for_gateway_exit(timeout=10.0, force_after=5.0):
+        raise RuntimeError("Gateway is still running; refusing to start a duplicate")
+    if not wait_for_supervisor_exit(get_work4you_home()):
+        raise RuntimeError("Gateway supervisor is still stopping; retry the restart shortly")
+    _start_gateway_without_service()
 
 
 def _launchd_fallback_to_detached(reason: str, *, exit_on_failure: bool = True) -> bool:
@@ -4562,7 +4614,7 @@ def _launchd_fallback_to_detached(reason: str, *, exit_on_failure: bool = True) 
     print(f"⚠ launchd cannot manage the gateway on this macOS version ({reason}).")
     if _spawn_detached_gateway():
         print("✓ Started gateway as a background process instead")
-        print("  It will NOT auto-start at login or auto-restart on crash.")
+        print("  Automatic crash recovery is enabled; auto-start at login is unavailable.")
         print(f"  Logs: {_dhh()}/logs/gateway.log")
         print("  Stop it with: work4you gateway stop")
         return True
@@ -4976,6 +5028,11 @@ def launchd_uninstall():
 
 
 def launchd_start():
+    from work4you_cli.gateway_supervisor import is_supervisor_running
+
+    if is_supervisor_running(get_work4you_home()):
+        print("✓ Background gateway recovery is already active")
+        return
     plist_path = get_launchd_plist_path()
     label = get_launchd_label()
 
@@ -5034,6 +5091,19 @@ def launchd_start():
 
 
 def launchd_stop():
+    from work4you_cli.gateway_supervisor import (
+        is_supervisor_running,
+        wait_for_supervisor_exit,
+    )
+
+    if is_supervisor_running(get_work4you_home()):
+        stop_profile_gateway()
+        if not _wait_for_gateway_exit(timeout=10.0, force_after=5.0):
+            raise RuntimeError("Background gateway did not stop")
+        if not wait_for_supervisor_exit(get_work4you_home()):
+            raise RuntimeError("Background gateway supervisor did not stop")
+        print("✓ Background gateway stopped")
+        return
     label = get_launchd_label()
     target = f"{_launchd_domain()}/{label}"
     try:
@@ -5117,6 +5187,16 @@ def _wait_for_gateway_exit(
 
 
 def launchd_restart():
+    from work4you_cli.gateway_supervisor import is_supervisor_running
+    from gateway.status import get_running_pid
+
+    if is_supervisor_running(get_work4you_home()):
+        pid = get_running_pid()
+        if pid is not None and _request_gateway_self_restart(pid):
+            print("✓ Background gateway restart requested")
+        else:
+            _restart_gateway_without_service()
+        return
     label = get_launchd_label()
     target = f"{_launchd_domain()}/{label}"
     drain_timeout = _get_restart_drain_timeout()
@@ -5230,6 +5310,9 @@ def launchd_status(deep: bool = False):
     # launchd cannot manage the domain on this host.
     from gateway.status import get_running_pid
     fallback_pid = get_running_pid(cleanup_stale=False)
+    from work4you_cli.gateway_supervisor import is_supervisor_running
+
+    recovery_active = is_supervisor_running(get_work4you_home())
 
     # Avoid double-counting: when launchd IS supervising, fallback_pid and
     # launchd_pid point at the same process (the gateway writes both the
@@ -5262,10 +5345,15 @@ def launchd_status(deep: bool = False):
             if fallback_pid:
                 print(f"✓ Detached fallback process is running (PID {fallback_pid})")
                 print("  Cron jobs will fire. Stop with: work4you gateway stop")
+            elif recovery_active:
+                print("↻ Background supervisor is recovering the gateway")
             else:
                 print("✗ No fallback process is running")
                 print("  Run: work4you gateway start")
-            print("  ⚠ Auto-start at login and auto-restart on crash are NOT available.")
+            if recovery_active:
+                print("  Automatic crash recovery is active; auto-start at login is unavailable.")
+            else:
+                print("  ⚠ Auto-start at login and auto-restart on crash are NOT available.")
         else:
             print("✓ Gateway service is registered with launchd")
             print(list_output)
@@ -5277,6 +5365,8 @@ def launchd_status(deep: bool = False):
         print("  Run: work4you gateway start")
         if fallback_pid:
             print(f"  Note: a detached gateway process is running (PID {fallback_pid})")
+        if recovery_active:
+            print("  Background supervision and automatic crash recovery are active.")
 
     if deep:
         log_file = get_work4you_home() / "logs" / "gateway.log"
@@ -7678,6 +7768,10 @@ def _gateway_command_inner(args):
                     f"✓ Killed {killed} stale gateway process(es) across all profiles"
                 )
                 _wait_for_gateway_exit(timeout=10.0, force_after=5.0)
+            from work4you_cli.gateway_supervisor import wait_for_supervisor_exit
+
+            if not wait_for_supervisor_exit(get_work4you_home()):
+                raise RuntimeError("Gateway supervisor is still stopping; retry the start shortly")
 
         if is_termux():
             print(
@@ -7694,23 +7788,7 @@ def _gateway_command_inner(args):
 
             gateway_windows.start()
         elif is_wsl():
-            print("WSL detected but systemd is not available.")
-            print("Run the gateway in foreground mode instead:")
-            print()
-            print(
-                "  work4you gateway run                              # direct foreground"
-            )
-            print(
-                "  tmux new -s work4you 'work4you gateway run'         # persistent via tmux"
-            )
-            print(
-                "  nohup work4you gateway run > ~/.work4you/logs/gateway.log 2>&1 &  # background"
-            )
-            print()
-            print(
-                "To enable systemd: add systemd=true to /etc/wsl.conf and run 'wsl --shutdown' from PowerShell."
-            )
-            sys.exit(1)
+            _start_gateway_without_service()
         elif is_container():
             # Reached only when s6 ISN'T running (the early dispatch
             # above handles the s6 case). Pre-s6 containers or other
@@ -7725,6 +7803,8 @@ def _gateway_command_inner(args):
             print()
             print("Or run the gateway directly: work4you gateway run")
             sys.exit(0)
+        elif is_linux():
+            _start_gateway_without_service()
         else:
             print("Not supported on this platform.")
             sys.exit(1)
@@ -7883,6 +7963,10 @@ def _gateway_command_inner(args):
             _wait_for_gateway_exit(timeout=10.0, force_after=5.0)
 
             # Start the current profile's service fresh
+            from work4you_cli.gateway_supervisor import wait_for_supervisor_exit
+
+            if not wait_for_supervisor_exit(get_work4you_home()):
+                raise RuntimeError("Gateway supervisor is still stopping; retry the restart shortly")
             print("Starting gateway...")
             if supports_systemd_services() and (
                 get_systemd_unit_path(system=False).exists()
@@ -7902,7 +7986,7 @@ def _gateway_command_inner(args):
                 # stopped and can die before the replacement is stable.
                 gateway_windows.start()
             else:
-                run_gateway(verbose=0)
+                _restart_gateway_without_service()
             return
 
         if supports_systemd_services() and (
@@ -7970,15 +8054,7 @@ def _gateway_command_inner(args):
                 print("  Fix the service, then retry: work4you gateway start")
                 sys.exit(1)
 
-            # Manual restart: stop only this profile's gateway
-            if stop_profile_gateway():
-                print("✓ Stopped gateway for this profile")
-
-            _wait_for_gateway_exit(timeout=10.0, force_after=5.0)
-
-            # Start fresh
-            print("Starting gateway...")
-            run_gateway(verbose=0)
+            _restart_gateway_without_service()
 
     elif subcmd == "status":
         deep = getattr(args, "deep", False)
@@ -8008,10 +8084,16 @@ def _gateway_command_inner(args):
             _print_gateway_process_mismatch(snapshot)
         else:
             # Check for manually running processes
+            from work4you_cli.gateway_supervisor import is_supervisor_running
+
+            recovery_active = is_supervisor_running(get_work4you_home())
             pids = list(snapshot.gateway_pids)
             if pids:
                 print(f"✓ Gateway is running (PID: {', '.join(map(str, pids))})")
-                print("  (Running manually, not as a system service)")
+                if recovery_active:
+                    print("  (Background gateway with automatic crash recovery)")
+                else:
+                    print("  (Running manually, not as a system service)")
                 runtime_lines = _runtime_health_lines()
                 if runtime_lines:
                     print()
@@ -8022,10 +8104,10 @@ def _gateway_command_inner(args):
                 if is_termux():
                     print("Termux note:")
                     print("  Android may stop background jobs when Termux is suspended")
-                elif is_wsl():
+                elif is_wsl() and not recovery_active:
                     print("WSL note:")
                     print(
-                        "  The gateway is running in foreground/manual mode (recommended for WSL)."
+                        "  The gateway is running in foreground/manual mode."
                     )
                     print(
                         "  Use tmux or screen for persistence across terminal closes."
@@ -8039,6 +8121,8 @@ def _gateway_command_inner(args):
                     print("To install as a service:")
                     print("  work4you gateway install")
                     print("  sudo work4you gateway install --system")
+            elif recovery_active:
+                print("↻ Gateway recovery is in progress")
             else:
                 print("✗ Gateway is not running")
                 runtime_lines = _runtime_health_lines()
@@ -8054,13 +8138,8 @@ def _gateway_command_inner(args):
                     print(
                         "  nohup work4you gateway run > ~/.work4you/logs/gateway.log 2>&1 &  # Best-effort background start"
                     )
-                elif is_wsl():
-                    print(
-                        "  tmux new -s work4you 'work4you gateway run'         # persistent via tmux"
-                    )
-                    print(
-                        "  nohup work4you gateway run > ~/.work4you/logs/gateway.log 2>&1 &  # background"
-                    )
+                elif is_wsl() or (is_linux() and not is_container() and not supports_systemd_services()):
+                    print("  work4you gateway start    # Background with automatic crash recovery")
                 elif is_windows():
                     print(
                         "  work4you gateway install  # Install as Windows Scheduled Task (auto-start on login)"

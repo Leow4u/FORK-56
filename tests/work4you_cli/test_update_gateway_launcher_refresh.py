@@ -76,7 +76,8 @@ def test_restart_spec_normalizes_legacy_pythonw_argv(tmp_path):
         new_argv, cwd, env = gateway_windows.windowless_gateway_restart_spec(list(argv))
 
     assert new_argv[0] == str(python)
-    assert new_argv[1:] == argv[1:]
+    assert new_argv[1:4] == ["-m", "work4you_cli.gateway_supervisor", "--"]
+    assert new_argv[4:] == argv[3:]
     assert cwd == str(tmp_path)
     assert env["VIRTUAL_ENV"] == str(tmp_path / "venv")
 
