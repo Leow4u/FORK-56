@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { atom, computed } from 'nanostores'
+import { atom } from 'nanostores'
 import type { CSSProperties, ReactElement, PointerEvent as ReactPointerEvent } from 'react'
 
 import { SessionDraftTitle } from '@/app/chat/session-draft-title'
@@ -15,8 +15,6 @@ import type { DoubleTapContext } from '@/components/pane-shell/tree/renderer/dra
 import {
   $layoutTree,
   $paneVisible,
-  bindPaneVisibility,
-  bindToolPaneCollapse,
   bindTreeSideVisibility,
   declareDefaultTree,
   dismissTreePane,
@@ -35,6 +33,7 @@ import {
   watchContributedPanes
 } from '@/components/pane-shell/tree/store'
 import { SidebarProvider } from '@/components/ui/sidebar'
+import { ToolIcon } from '@/components/ui/tool-icon'
 import { discoverBundledPlugins } from '@/contrib/plugins'
 import { Slot } from '@/contrib/react/slot'
 import { useContributions } from '@/contrib/react/use-contributions'
@@ -48,14 +47,9 @@ import { TRANSCRIPT_DIRECTIVE_AREA, type TranscriptDirectiveContribution } from 
 import { setYoloEnabled } from '@/lib/yolo-session'
 import { pruneComposerPopoutZones } from '@/store/composer-popout'
 import {
-  $fileBrowserOpen,
   $panesFlipped,
   $rightSidebarOpen,
   $sidebarOpen,
-  FILE_BROWSER_DEFAULT_WIDTH,
-  FILE_BROWSER_MAX_WIDTH,
-  FILE_BROWSER_MIN_WIDTH,
-  setFileBrowserOpen,
   setRightSidebarOpen,
   setSidebarOpen,
   SIDEBAR_DEFAULT_WIDTH,
@@ -63,15 +57,8 @@ import {
 } from '@/store/layout'
 import { endProfileNavigationView } from '@/store/profile'
 import { runExportProfileFlow } from '@/store/profile-share'
-import {
-  $reviewOpen,
-  $reviewScopeCwd,
-  $reviewScopeTarget,
-  closeReview,
-  openReview,
-  REVIEW_PANE_ID
-} from '@/store/review'
-import { $currentCwd, $selectedStoredSessionId, $sessions, $yoloActive, sessionMatchesStoredId } from '@/store/session'
+import { REVIEW_PANE_ID } from '@/store/review'
+import { $selectedStoredSessionId, $sessions, $yoloActive, sessionMatchesStoredId } from '@/store/session'
 import { watchSessionPins } from '@/store/session-pin-sync'
 import { watchUnreadWriteGuard } from '@/store/session-unread-remote'
 import { $statusbarVisible } from '@/store/statusbar-prefs'
@@ -89,7 +76,7 @@ import {
 } from '../chat/session-tile'
 import { AppContextMenu } from '../context-menu/app-context-menu'
 import { HudShell } from '../hud/hud-shell'
-import { $terminalTakeover, setTerminalTakeover } from '../right-sidebar/store'
+import { bindContentTools, contentToolData } from '../right-sidebar/content-tools'
 import { $workspaceIsPage } from '../routes'
 
 import { FilesPane, LogsPane, ReviewPaneContent } from './panes'
@@ -233,50 +220,31 @@ registry.registerMany([
     },
     render: renderWorkspacePane
   },
-  // revealOnPreset: choosing a layout that places the terminal (e.g.
-  // "Terminal deck") turns takeover on so the zone actually shows, instead of
-  // staying collapsed behind the ⌃` toggle. height sizes the fixed track (a
-  // single-pane zone declaring a height is a fixed track — the preset weight
-  // is moot): a short deck, not a third of the window.
-  //
-  // NO minHeight: a tool panel drags all the way down to its collapsed
-  // header (the sash floors it at COLLAPSED_ZONE_PX and folds the zone to
-  // its rail there). A real floor left a sliver of unusable terminal.
-  corePane('terminal', {
-    data: {
-      placement: 'bottom',
-      height: '20vh',
-      maxHeight: '80vh',
-      revealOnPreset: true,
-      lifecycleKeepAlive: true
-    },
-    render: () => <WiredPane part="terminal" />
-  }),
-  // dock: re-adoption target after a stale dismissal (see sessions).
+  // Register the area anchor before its tool siblings, including when an
+  // installed layout still has Files, Review and Terminal in separate zones.
   corePane('files', {
     data: {
-      placement: 'right',
-      collapsible: true,
-      dock: { pane: 'workspace', pos: 'right' },
+      ...contentToolData('files'),
       revealAliases: ['file-browser'],
-      width: FILE_BROWSER_DEFAULT_WIDTH,
-      minWidth: FILE_BROWSER_MIN_WIDTH,
-      maxWidth: FILE_BROWSER_MAX_WIDTH
+      tabLead: () => <ToolIcon name="files" size="0.6875rem" />
     },
     render: () => idle(<FilesPane />)
   }),
-  // The second right sidebar: hidden until ⌘G ($reviewOpen) — bound below
-  // like the other chrome toggles; its zone collapses while hidden.
   corePane('review', {
     data: {
-      placement: 'right',
-      collapsible: true,
+      ...contentToolData('review'),
       revealAliases: [REVIEW_PANE_ID],
-      width: FILE_BROWSER_DEFAULT_WIDTH,
-      minWidth: FILE_BROWSER_MIN_WIDTH,
-      maxWidth: FILE_BROWSER_MAX_WIDTH
+      tabLead: () => <ToolIcon name="git-compare" size="0.6875rem" />
     },
     render: () => idle(<ReviewPaneContent />)
+  }),
+  corePane('terminal', {
+    data: {
+      ...contentToolData('terminal'),
+      revealOnPreset: true,
+      tabLead: () => <ToolIcon name="terminal" size="0.6875rem" />
+    },
+    render: () => <WiredPane part="terminal" />
   })
 ])
 
@@ -379,36 +347,16 @@ registry.registerMany([
 // Layout presets — CHAT (main) always dominates.
 // ---------------------------------------------------------------------------
 
-// The REAL default: sessions left, chat main, and the right sidebars in column
-// order main | … | review | file-browser (files outermost). Each is its OWN
-// zone. Review collapses to nothing while its pane is hidden (⌘G off).
-//
-// Preview tiles are DYNAMIC panes (like session tiles), so no preset names one:
-// they're registered by watchPreviewTiles as tabs open. The first one opens the
-// content area as its own zone beside main; every later one stacks into that
-// area (see preview-tile.tsx) — never a column of its own, and never a tab
-// stacked into the files sidebar.
+// One content area beside the chat. Tools and dynamic preview tiles share
+// its strip and dimensions; unopened tool tabs remain hidden.
 const DEFAULT_TREE = split(
   'row',
   [
     group(['sessions'], { id: 'grp-sessions' }),
     group(['workspace'], { id: 'grp-main' }),
-    split(
-      'column',
-      [
-        split(
-          'row',
-          [group(['review'], { id: 'grp-review' }), group(['files'], { id: 'grp-files' })],
-          [1, 1.2],
-          'spl-rail'
-        ),
-        group(['terminal'], { id: 'grp-terminal' })
-      ],
-      [1.6, 1],
-      'spl-right'
-    )
+    group(['files', 'review', 'terminal'], { id: 'grp-content' })
   ],
-  [1, 3.4, 1.25],
+  [1, 3.4, 3.4],
   'spl-root'
 )
 
@@ -537,18 +485,13 @@ registerLayoutResetHandler(stackSessionTilesIntoMain)
 
 // ---------------------------------------------------------------------------
 // Titlebar chrome toggles -> tree. The TitlebarControls buttons keep their
-// store semantics ($sidebarOpen / $fileBrowserOpen / $panesFlipped); the tree
+// store semantics ($sidebarOpen / $rightSidebarOpen / $panesFlipped); the tree
 // reacts — a hidden pane's zone collapses (content stays mounted), the flip
 // toggle mirrors the root row.
 // ---------------------------------------------------------------------------
 
-// HIDE-STYLE PANES (files, review, preview): the binding lives in the tree
-// store — bindPaneVisibility — alongside bindToolPaneCollapse, so both are
-// testable against the real function instead of a copy.
-
-// TOOL PANELS (terminal, logs): the binding lives in the tree store —
-// bindToolPaneCollapse — so the boot rule it encodes is testable against the
-// real function instead of a copy. See its docblock for the semantics.
+// Content tool visibility is bound below through the existing tree primitives.
+// Each tab has its own open state; the side toggle preserves them all.
 
 // SIDES have one source of truth: the TREE. The legacy $panesFlipped flag is
 // DERIVED from where the sessions zone actually sits (TitlebarControls maps
@@ -592,44 +535,7 @@ $panesFlipped.listen(flipped => {
 bindTreeSideVisibility('left', $sidebarOpen, setSidebarOpen)
 bindTreeSideVisibility('right', $rightSidebarOpen, setRightSidebarOpen)
 
-// Workspace-scoped surfaces: the file tree and git diff only mean something
-// inside a project. A detached chat (no cwd) hides them — their zones
-// collapse and the chat absorbs the width; picking a project brings them
-// back. The terminal is NOT workspace-gated: unlike the old shell (where it
-// rode the rail's row and vanished with it), its zone stands on its own.
-const $hasWorkspace = computed($currentCwd, cwd => Boolean(cwd.trim()))
-
-// The tree pane's own presence is its own store, apart from the right side's —
-// otherwise a pane revealed into that shared column would drag the tree along
-// with it.
-//
-// Both get a CLOSER and an OPENER. The closer keeps their toggles (⌘K's Show
-// file browser, ⌘G) truthful when the pane is closed from the tab menu; the
-// opener is its mirror, so bringing the pane back through the tree (the
-// toggle's reveal path, the rail, a preset) writes the store too. Without the
-// opener the boolean went stale the moment anything but the toggle showed the
-// pane — the divergence this whole change is about.
-bindPaneVisibility(
-  'files',
-  computed([$hasWorkspace, $fileBrowserOpen], (workspace, open) => workspace && open),
-  () => setFileBrowserOpen(false),
-  () => setFileBrowserOpen(true)
-)
-// ⌘G — the review sidebar appears/disappears (and comes to the front).
-bindPaneVisibility(
-  'review',
-  computed([$reviewOpen, $hasWorkspace], (open, workspace) => open && workspace),
-  closeReview,
-  () => openReview($reviewScopeCwd.get(), $reviewScopeTarget.get())
-)
-// ⌃` / statusbar toggle — the terminal COLLAPSES to a rail (tab stays), not
-// hides; PTYs stay alive while collapsed (see PersistentTerminal).
-bindToolPaneCollapse(
-  'terminal',
-  $terminalTakeover,
-  () => setTerminalTakeover(false),
-  () => setTerminalTakeover(true)
-)
+bindContentTools()
 // ⌘K door onto the same pane the keybind and statusbar pill flip — was a
 // one-way "open" row under Go to, so it never showed on/off and couldn't hide.
 // Reads the TREE like every other pane toggle: `$terminalTakeover` stays true

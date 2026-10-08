@@ -53,7 +53,8 @@ const CONTENT_AREA_PREFIX = 'preview-tile:'
 /** A pane of the CONTENT AREA — an open preview (a page, a file, an artifact).
  *  A zone holding one draws its strip as `surface` tabs; the chat's strip
  *  keeps its own look even when a preview is stacked into it. */
-export const isContentAreaPane = (paneId: string): boolean => paneId.startsWith(CONTENT_AREA_PREFIX)
+export const isContentAreaPane = (paneId: string): boolean =>
+  paneId.startsWith(CONTENT_AREA_PREFIX) || paneId === 'files' || paneId === 'review' || paneId === 'terminal'
 
 /** The layout pane of the content area's tab `tabId`. */
 export const contentAreaPaneId = (tabId: string): string => `${CONTENT_AREA_PREFIX}${tabId}`

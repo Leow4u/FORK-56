@@ -1,8 +1,7 @@
 /**
  * NEW TAB — what an empty Browser shows. The address bar above it takes a URL;
- * below, the conversation's tools. A card brings its tool up WHERE IT ALREADY
- * LIVES, through the same door its own toggle uses (the pane's opener, then a
- * reveal): it never moves the tool into the area, and never hides it.
+ * below, the conversation's tools. A card selects its tool in the shared
+ * content area through the same opener and reveal path as its shortcut.
  *
  * Files and Diff / Review only mean something inside a project — the same gate
  * their panes have — so without one their cards are off and say why.
