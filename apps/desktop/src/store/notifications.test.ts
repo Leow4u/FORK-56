@@ -1,6 +1,15 @@
-import { beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
-import { $notifications, clearNotifications, isDiskFullErrorMessage, notifyError } from './notifications'
+import {
+  $notifications,
+  clearNotifications,
+  dismissNotification,
+  isDiskFullErrorMessage,
+  NOTIFICATION_CATEGORY_ENABLED,
+  type NotificationCategory,
+  notify,
+  notifyError
+} from './notifications'
 
 beforeEach(() => {
   clearNotifications()
@@ -55,3 +64,66 @@ test('session storage write failure is treated as disk-full class', () => {
 
   expect(lastMessage()).toMatch(/Disk full/i)
 })
+
+afterEach(() => {
+  clearNotifications()
+  vi.useRealTimers()
+})
+
+test.each<NotificationCategory>(['credits-50', 'credits-75', 'updates', 'connections', 'settings', 'files', 'pets'])(
+  'suppresses %s without losing the ability to re-enable its action',
+  category => {
+    const action = vi.fn()
+    const onDismiss = vi.fn()
+    const input = { category, message: 'notice', action: { label: 'Continue', onClick: action }, onDismiss }
+    notify(input)
+    expect($notifications.get()).toEqual([])
+    expect(onDismiss).not.toHaveBeenCalled()
+    NOTIFICATION_CATEGORY_ENABLED[category] = true
+
+    try {
+      const id = notify(input)
+      expect($notifications.get()).toHaveLength(1)
+      $notifications.get()[0].action?.onClick()
+      dismissNotification(id)
+      expect(action).toHaveBeenCalledOnce()
+      expect(onDismiss).toHaveBeenCalledOnce()
+    } finally {
+      NOTIFICATION_CATEGORY_ENABLED[category] = false
+    }
+  }
+)
+
+test('unifies legacy positions and preserves sticky errors, info expiry, replacement and queue cap', () => {
+  vi.useFakeTimers()
+  const error = notify({ id: 'error', kind: 'error', message: 'Failed', placement: 'default' })
+  notify({ id: 'info', message: 'Done', placement: 'bottom-right' })
+  expect($notifications.get().every(item => item.placement === 'bottom-right')).toBe(true)
+  vi.advanceTimersByTime(5000)
+  expect($notifications.get().map(item => item.id)).toEqual([error])
+  notify({ id: error, kind: 'error', message: 'Retry failed' })
+  expect($notifications.get()).toHaveLength(1)
+
+  for (let i = 0; i < 4; i++) {
+    notify({ id: `task-${i}`, message: 'Task complete' })
+  }
+
+  expect($notifications.get().map(item => item.id)).toEqual(['task-3', 'task-2', 'task-1', 'task-0'])
+})
+
+test('a suppressed replacement cancels its prior timer without calling onDismiss', () => {
+  vi.useFakeTimers()
+  const onDismiss = vi.fn()
+  notify({ id: 'usage', message: '90%', durationMs: 100, onDismiss })
+  notify({ id: 'usage', message: '75%', category: 'credits-75' })
+  expect($notifications.get()).toEqual([])
+  vi.advanceTimersByTime(1000)
+  expect(onDismiss).not.toHaveBeenCalled()
+})
+
+// These cases exercise notifications in a foreground app window.
+beforeEach(() => {
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+})
+
+afterEach(() => vi.restoreAllMocks())

@@ -176,11 +176,11 @@ export async function runExportProfileFlow(profile?: string): Promise<null | str
 
   try {
     const archive = await exportProfileBundle(target, output)
-    notify({ kind: 'success', title: translateNow('profiles.exported'), message: archive })
+    notify({ category: 'settings', kind: 'success', title: translateNow('profiles.exported'), message: archive })
 
     return archive
   } catch (error) {
-    notifyError(error, translateNow('profiles.failedExport'))
+    notifyError(error, translateNow('profiles.failedExport'), 'settings')
 
     return null
   }
@@ -203,7 +203,7 @@ export async function runImportProfileFlow(): Promise<null | string> {
 
   try {
     const name = await importProfileBundle(archive)
-    notify({ kind: 'success', title: translateNow('profiles.imported'), message: name })
+    notify({ category: 'settings', kind: 'success', title: translateNow('profiles.imported'), message: name })
     // Same landing as CreateProfileDialog's onCreated: refresh the list, then
     // switch into the new profile on a fresh chat.
     await refreshActiveProfile()
@@ -211,7 +211,7 @@ export async function runImportProfileFlow(): Promise<null | string> {
 
     return name
   } catch (error) {
-    notifyError(error, translateNow('profiles.failedImport'))
+    notifyError(error, translateNow('profiles.failedImport'), 'settings')
 
     return null
   }

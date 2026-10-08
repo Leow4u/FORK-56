@@ -211,7 +211,7 @@ export function ComposerRunTargetMenu() {
           setPortal(portalSnapshot)
         } catch (error) {
           if (!cloud?.remoteUrl.trim()) {
-            notifyError(error, gateway.cloudDiscoverFailed)
+            notifyError(error, gateway.cloudDiscoverFailed, 'connections')
 
             return
           }
@@ -239,7 +239,7 @@ export function ComposerRunTargetMenu() {
 
     if (intent.type === 'preparing') {
       triggerHaptic('selection')
-      notify({ kind: 'info', message: copy.kindCloudPreparing, title: copy.kindCloud })
+      notify({ category: 'connections', kind: 'info', message: copy.kindCloudPreparing, title: copy.kindCloud })
 
       return
     }
@@ -271,10 +271,15 @@ export function ComposerRunTargetMenu() {
           ? { cloudOrg: intent.payload.cloudOrg, remoteUrl: intent.payload.remoteUrl }
           : cloud
       )
-      notify({ kind: 'success', message: gateway.restartingMessage, title: gateway.restartingTitle })
+      notify({
+        category: 'connections',
+        kind: 'success',
+        message: gateway.restartingMessage,
+        title: gateway.restartingTitle
+      })
     } catch (error) {
       $heldRunTarget.set(null)
-      notifyError(error, gateway.applyFailed)
+      notifyError(error, gateway.applyFailed, 'connections')
     } finally {
       applyingRef.current = false
       $pendingConnectionId.set(null)

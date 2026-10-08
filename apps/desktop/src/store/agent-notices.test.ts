@@ -1,4 +1,4 @@
-import { beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import {
   type AgentNoticePayload,
@@ -166,7 +166,7 @@ test('noticeToToast attaches the band accent to the toast', () => {
 // ── show / clear: rendered through the notifications store ────────────────────
 
 test('showAgentNotice renders a toast; empty text is a no-op', () => {
-  showAgentNotice(usage())
+  showAgentNotice(usage({ usage_band: 90 }))
   expect($notifications.get()).toHaveLength(1)
   expect($notifications.get()[0]?.id).toBe('credits.usage')
 
@@ -186,7 +186,7 @@ test('re-emitting the same key replaces the toast instead of stacking (50→75�
 })
 
 test('clearAgentNotice dismisses only the matching key', () => {
-  showAgentNotice(usage())
+  showAgentNotice(usage({ usage_band: 90 }))
   showAgentNotice({ key: 'credits.depleted', kind: 'sticky', level: 'error', text: '✕ paused' })
   expect($notifications.get()).toHaveLength(2)
 
@@ -229,3 +229,40 @@ test('the urgent pair maps to a global native input carrying the text as its bod
   expect(restored?.kind).toBe('credits')
   expect(restored?.body).toBe('✓ Credit access restored')
 })
+
+test.each([50, 75])('keeps usage band %s quiet even when the message is localized', band => {
+  showAgentNotice(usage({ usage_band: band, text: 'Créditos utilizados neste ciclo', level: 'warn' }))
+  expect($notifications.get()).toEqual([])
+})
+
+test.each([
+  "• You've used $10.00 of your $20.00 cap",
+  "⚠ You've used $15.00 of your $20.00 cap",
+  '• Free allowance halfway used this cycle',
+  '⚠ Free allowance running low this cycle'
+])('keeps older-runtime usage notice quiet: %s', text => {
+  showAgentNotice(usage({ text }))
+  expect($notifications.get()).toEqual([])
+})
+
+test('keeps free-plan 90% warnings and clears them when usage drops to a quiet band', () => {
+  showAgentNotice(usage({ text: '⚠ Free allowance almost gone this cycle' }))
+  expect($notifications.get()).toHaveLength(1)
+  showAgentNotice(usage({ usage_band: 75 }))
+  expect($notifications.get()).toEqual([])
+})
+
+test.each(['credits.depleted', 'credits.restored', 'credits.grant_spent'])(
+  'preserves the enabled credit notice %s',
+  key => {
+    showAgentNotice({ key, text: 'Credit status', kind: 'sticky' })
+    expect($notifications.get()[0]).toMatchObject({ id: key, category: 'credits' })
+  }
+)
+
+// These cases exercise notifications in a foreground app window.
+beforeEach(() => {
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+})
+
+afterEach(() => vi.restoreAllMocks())

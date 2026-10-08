@@ -449,7 +449,7 @@ export function usePromptActions({
         // remove it) and flag the card; also toast so a hard failure (unreadable
         // file, gateway perms) isn't swallowed while the user keeps typing.
         setComposerAttachmentUploadState(attachment.id, 'error')
-        notifyError(err, copy.dropFiles)
+        notifyError(err, copy.dropFiles, 'files')
       }
     },
     [copy.dropFiles, requestGateway]

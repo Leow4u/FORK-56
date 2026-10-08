@@ -71,7 +71,7 @@ export function AutoArchiveSetting() {
       try {
         await saveWork4YouConfig(updated)
       } catch (err) {
-        notifyError(err, s.autoArchiveFailed)
+        notifyError(err, s.autoArchiveFailed, 'settings')
       }
     },
     [config, s.autoArchiveFailed]

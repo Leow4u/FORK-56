@@ -93,6 +93,6 @@ export async function applyModelPreset(
       await ctx.request('config.set', { key: 'fast', session_id: ctx.sessionId, value: fast ? 'fast' : 'normal' })
     }
   } catch (err) {
-    notifyError(err, ctx.failMessage)
+    notifyError(err, ctx.failMessage, 'settings')
   }
 }

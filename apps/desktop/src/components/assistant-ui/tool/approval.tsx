@@ -4,7 +4,6 @@ import { useStore } from '@nanostores/react'
 import { type FC, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useSessionView } from '@/app/chat/session-view'
-import { WIDGET_SHELL_CLASS } from '@/components/chat/widget-shell'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -33,8 +32,7 @@ import {
 import type { ToolPart } from './fallback-model'
 
 // Inline approval card. Rendered under the pending tool row that raised the
-// approval, wearing the same widget shell as clarify / MCP / files-changed so
-// it reads as a conversation card rather than a system toolbar.
+// approval, with its explanation and actions grouped in one conversation card.
 //
 // Binding is POSITIONAL, not command-matched: the desktop `tool.start` payload
 // carries no structured args (only tool_id/name/context — see
@@ -46,7 +44,8 @@ import type { ToolPart } from './fallback-model'
 // event payload), which is the only place that data reliably exists.
 export const APPROVAL_TOOLS = new Set(['terminal', 'execute_code'])
 
-const APPROVAL_SHELL_CLASS = `${WIDGET_SHELL_CLASS} text-[length:var(--conversation-text-font-size)] text-(--ui-text-primary)`
+const APPROVAL_SHELL_CLASS =
+  'min-w-0 rounded-(--card-radius) border border-(--ui-stroke-tertiary) bg-(--ui-widget-surface-background) p-3 text-(--ui-text-primary)'
 
 // Canonical gateway choices (ui-tui/src/components/prompts.tsx).
 type ApprovalChoice = 'once' | 'session' | 'always' | 'deny'
@@ -176,50 +175,51 @@ const ApprovalCard: FC<{ request: ApprovalRequest; surface: 'floating' | 'inline
       data-slot={surface === 'inline' ? 'tool-approval-inline' : 'tool-approval-actions'}
     >
       <div aria-label={copy.title} className={APPROVAL_SHELL_CLASS} role="group">
-        <p className="font-medium leading-(--conversation-line-height)">{copy.title}</p>
-        {reason ? <p className="mt-0.5 text-[0.6875rem] text-(--ui-text-tertiary)">{reason}</p> : null}
+        <p className="text-sm font-medium leading-5">{copy.title}</p>
+        {reason ? (
+          <p className="mt-1 text-[0.8125rem] leading-5 wrap-anywhere text-(--ui-text-secondary)">{reason}</p>
+        ) : null}
         {command ? (
           <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-[0.75rem] leading-snug text-(--ui-text-secondary)">
             {command}
           </pre>
         ) : null}
-      </div>
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+          {hasMoreOptions && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button aria-label={copy.moreOptions} className="me-auto" disabled={busy} variant="text">
+                  {copy.more}
+                  <ChevronDown />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-44">
+                {allowSession && (
+                  <DropdownMenuItem onSelect={() => void respond('session')}>{copy.allowSession}</DropdownMenuItem>
+                )}
+                {allowAlways && (
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      // Defer one tick so the menu fully unmounts before the dialog
+                      // mounts — otherwise Radix's focus-return races the dialog and
+                      // dismisses it via onInteractOutside.
+                      setTimeout(() => setConfirmAlways(true), 0)
+                    }}
+                  >
+                    {copy.alwaysAllowMenu}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
-      <div className="mt-1 flex items-center justify-end gap-1">
-        {hasMoreOptions && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button aria-label={copy.moreOptions} disabled={busy} size="xs" variant="text">
-                {copy.more}
-                <ChevronDown />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-44">
-              {allowSession && (
-                <DropdownMenuItem onSelect={() => void respond('session')}>{copy.allowSession}</DropdownMenuItem>
-              )}
-              {allowAlways && (
-                <DropdownMenuItem
-                  onSelect={() => {
-                    // Defer one tick so the menu fully unmounts before the dialog
-                    // mounts — otherwise Radix's focus-return races the dialog and
-                    // dismisses it via onInteractOutside.
-                    setTimeout(() => setConfirmAlways(true), 0)
-                  }}
-                >
-                  {copy.alwaysAllowMenu}
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-
-        <Button disabled={busy} onClick={() => void respond('deny')} size="xs" variant="text">
-          {submitting === 'deny' ? <Loader2 className="animate-spin" /> : copy.notNow}
-        </Button>
-        <Button disabled={busy} onClick={() => void respond('once')} size="xs">
-          {submitting === 'once' ? <Loader2 className="animate-spin" /> : copy.allow}
-        </Button>
+          <Button disabled={busy} onClick={() => void respond('deny')} variant="outline">
+            {submitting === 'deny' ? <Loader2 className="animate-spin" /> : copy.notNow}
+          </Button>
+          <Button disabled={busy} onClick={() => void respond('once')}>
+            {submitting === 'once' ? <Loader2 className="animate-spin" /> : copy.allow}
+          </Button>
+        </div>
       </div>
 
       <Dialog onOpenChange={setConfirmAlways} open={confirmAlways}>

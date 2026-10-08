@@ -75,7 +75,7 @@ export function useEnvCredentials(profile: null | string = null): UseEnvCredenti
           setVars(next)
         }
       } catch (err) {
-        notifyError(err, t.settings.keys.failedLoad)
+        notifyError(err, t.settings.keys.failedLoad, 'settings')
       }
     })()
 
@@ -105,9 +105,9 @@ export function useEnvCredentials(profile: null | string = null): UseEnvCredenti
       await setEnvVar(key, value, profile)
       patchVar(key, { is_set: true, redacted_value: redactedValue(value) })
       clearLocalState(key)
-      notify({ kind: 'success', title: toolsets.savedTitle, message: toolsets.savedMessage(key) })
+      notify({ category: 'settings', kind: 'success', title: toolsets.savedTitle, message: toolsets.savedMessage(key) })
     } catch (err) {
-      notifyError(err, toolsets.failedSave(key))
+      notifyError(err, toolsets.failedSave(key), 'settings')
     } finally {
       setSaving(null)
     }
@@ -129,11 +129,11 @@ export function useEnvCredentials(profile: null | string = null): UseEnvCredenti
       await setEnvVar(key, trimmed, profile)
       patchVar(key, { is_set: true, redacted_value: redactedValue(trimmed) })
       clearLocalState(key)
-      notify({ kind: 'success', message: toolsets.savedMessage(key), title: toolsets.savedTitle })
+      notify({ category: 'settings', kind: 'success', message: toolsets.savedMessage(key), title: toolsets.savedTitle })
 
       return { ok: true }
     } catch (err) {
-      notifyError(err, toolsets.failedSave(key))
+      notifyError(err, toolsets.failedSave(key), 'settings')
 
       return { message: err instanceof Error ? err.message : credentials.couldNotSave, ok: false }
     } finally {
@@ -152,9 +152,14 @@ export function useEnvCredentials(profile: null | string = null): UseEnvCredenti
       await deleteEnvVar(key, profile)
       patchVar(key, { is_set: false, redacted_value: null })
       clearLocalState(key)
-      notify({ kind: 'success', title: toolsets.removedTitle, message: toolsets.removedMessage(key) })
+      notify({
+        category: 'settings',
+        kind: 'success',
+        title: toolsets.removedTitle,
+        message: toolsets.removedMessage(key)
+      })
     } catch (err) {
-      notifyError(err, toolsets.failedRemove(key))
+      notifyError(err, toolsets.failedRemove(key), 'settings')
     } finally {
       setSaving(null)
     }
@@ -171,7 +176,7 @@ export function useEnvCredentials(profile: null | string = null): UseEnvCredenti
       const result = await revealEnvVar(key, profile)
       setRevealed(c => ({ ...c, [key]: result.value }))
     } catch (err) {
-      notifyError(err, toolsets.failedReveal(key))
+      notifyError(err, toolsets.failedReveal(key), 'settings')
     }
   }
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { $cronReviewRequest } from '@/store/cron'
 import { $notifications, clearNotifications, dismissNotification } from '@/store/notifications'
@@ -197,3 +197,10 @@ describe('setMainModelAssignment', () => {
     expect(setModelAssignment).toHaveBeenCalledTimes(1)
   })
 })
+
+// These cases exercise notifications in a foreground app window.
+beforeEach(() => {
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+})
+
+afterEach(() => vi.restoreAllMocks())

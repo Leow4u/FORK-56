@@ -133,7 +133,7 @@ export function ModelMenuPanel({ gateway, onSelectModel, profile = 'default', re
       }
 
       setModelPreset(provider, model, { effort: previous })
-      notifyError(err, t.shell.modelOptions.updateFailed)
+      notifyError(err, t.shell.modelOptions.updateFailed, 'settings')
     }
   }
 
@@ -163,7 +163,7 @@ export function ModelMenuPanel({ gateway, onSelectModel, profile = 'default', re
       }
 
       setModelPreset(provider, model, { fast: !enabled })
-      notifyError(err, t.shell.modelOptions.fastFailed)
+      notifyError(err, t.shell.modelOptions.fastFailed, 'settings')
     }
   }
 

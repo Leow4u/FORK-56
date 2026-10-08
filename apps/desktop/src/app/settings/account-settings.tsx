@@ -98,7 +98,7 @@ export function AccountSettings() {
     const saveAccount = window.work4youDesktop?.cloud?.saveAccountProfile
 
     if (!saveAccount) {
-      notify({ kind: 'error', title: copy.title, message: copy.saveFailed })
+      notify({ category: 'settings', kind: 'error', title: copy.title, message: copy.saveFailed })
 
       return
     }
@@ -109,7 +109,7 @@ export function AccountSettings() {
       const saved = await saveAccount(names)
 
       if (!saved.ok) {
-        notify({ kind: 'error', title: copy.title, message: saveFailureCopy(saved.error, copy) })
+        notify({ category: 'settings', kind: 'error', title: copy.title, message: saveFailureCopy(saved.error, copy) })
 
         return
       }
@@ -125,9 +125,9 @@ export function AccountSettings() {
       }
 
       notifyPortalAccountChanged()
-      notify({ durationMs: 3_000, kind: 'success', title: copy.title, message: copy.saved })
+      notify({ category: 'settings', durationMs: 3_000, kind: 'success', title: copy.title, message: copy.saved })
     } catch (err) {
-      notifyError(err, copy.saveFailed)
+      notifyError(err, copy.saveFailed, 'settings')
     } finally {
       setSaving(false)
     }
@@ -145,7 +145,7 @@ export function AccountSettings() {
       setIdentity(SIGNED_OUT)
       notifyPortalAccountChanged()
     } catch (err) {
-      notifyError(err, copy.logOutFailed)
+      notifyError(err, copy.logOutFailed, 'settings')
     } finally {
       setSigningOut(false)
     }

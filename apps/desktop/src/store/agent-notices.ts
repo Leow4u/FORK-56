@@ -1,5 +1,11 @@
 import type { NativeNotificationInput } from '@/store/native-notifications'
-import { dismissNotification, type NotificationInput, type NotificationKind, notify } from '@/store/notifications'
+import {
+  dismissNotification,
+  type NotificationCategory,
+  type NotificationInput,
+  type NotificationKind,
+  notify
+} from '@/store/notifications'
 
 /**
  * Wire shape of a `notification.show` payload — the driver-agnostic
@@ -22,6 +28,7 @@ export interface AgentNoticePayload {
   level?: string
   kind?: string
   ttl_ms?: null | number
+  usage_band?: null | number
   key?: string
   id?: string
 }
@@ -97,6 +104,28 @@ export function noticeAccent(payload: AgentNoticePayload | undefined): string | 
   return undefined
 }
 
+/** Older runtimes send only text. Keep the fallback specific to the existing credit wire format. */
+function noticeCategory(payload: AgentNoticePayload): NotificationCategory {
+  if (payload.key !== 'credits.usage') {
+    return payload.key?.startsWith('credits.') ? 'credits' : 'general'
+  }
+
+  const fraction = usageFraction(payload.text)
+
+  const legacyFreeBand = {
+    'Free allowance halfway used this cycle': 50,
+    'Free allowance running low this cycle': 75,
+    'Free allowance almost gone this cycle': 90
+  }[stripGlyph(payload.text?.trim() ?? '')]
+
+  const band =
+    payload.usage_band ??
+    legacyFreeBand ??
+    (fraction === null ? undefined : fraction >= 0.9 ? 90 : fraction >= 0.75 ? 75 : 50)
+
+  return band === 50 ? 'credits-50' : band === 75 ? 'credits-75' : 'credits'
+}
+
 /**
  * Map an agent notice to a toast input, or `null` when it carries no text.
  *
@@ -129,6 +158,7 @@ export function noticeToToast(payload: AgentNoticePayload | undefined): Notifica
     // Icon + text tint by usage band (muted → orange → red); undefined keeps
     // the default muted color.
     accentColor: noticeAccent(payload),
+    category: noticeCategory(payload ?? {}),
     // sticky → 0 (never auto-dismiss); ttl with a ttl_ms → that value; a ttl
     // without a usable ttl_ms falls back to notify()'s per-kind default.
     durationMs: isTtl ? ttl : 0,

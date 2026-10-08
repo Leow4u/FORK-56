@@ -262,6 +262,7 @@ function notifyReady(provider: string) {
   const setup = $desktopOnboarding.get().profileSetup
 
   notify({
+    category: 'settings',
     kind: 'success',
     title: setup
       ? translateNow('onboarding.profileSetup.readyTitle', profileDisplayLabel(setup.profile))
@@ -293,6 +294,7 @@ function notifyGatewayTools(tools: string[] | undefined) {
   const list = labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
 
   notify({
+    category: 'settings',
     durationMs: 8000,
     kind: 'info',
     message: `${list} now run through your Work4You subscription — no separate API keys needed.`,
@@ -681,6 +683,7 @@ export async function adoptPortalLoginForProfile(ctx: OnboardingContext) {
     }
 
     notify({
+      category: 'settings',
       kind: 'success',
       title: translateNow('onboarding.profileSetup.readyTitle', profileDisplayLabel(setup.profile)),
       message: translateNow('onboarding.profileSetup.readyMessage', model),
@@ -1212,7 +1215,7 @@ export async function saveOnboardingApiKey(
 
     return { ok: true }
   } catch (error) {
-    notifyError(error, `Could not save ${label}`)
+    notifyError(error, `Could not save ${label}`, 'settings')
 
     return { ok: false, message: errMessage(error) }
   }
@@ -1288,7 +1291,7 @@ export async function saveOnboardingLocalEndpoint(baseUrl: string, apiKey: strin
 
     return { ok: true }
   } catch (error) {
-    notifyError(error, 'Could not save local endpoint')
+    notifyError(error, 'Could not save local endpoint', 'settings')
 
     return { ok: false, message: errMessage(error) }
   }
@@ -1318,7 +1321,7 @@ export async function setOnboardingModel(model: string) {
       setFlow({ ...current, currentModel: model, saving: false })
     }
   } catch (error) {
-    notifyError(error, 'Could not change model')
+    notifyError(error, 'Could not change model', 'settings')
     const current = $desktopOnboarding.get().flow
 
     if (current.status === 'confirming_model') {

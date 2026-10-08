@@ -108,7 +108,7 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
           setDiscoveredModels(current.models)
         }
       } catch (err) {
-        notifyError(err, 'Could not load custom endpoints')
+        notifyError(err, 'Could not load custom endpoints', 'settings')
       } finally {
         if (!cancelled) {
           setLoading(false)
@@ -141,9 +141,9 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
 
       triggerHaptic('success')
       onConfigSaved?.()
-      notify({ kind: 'success', message: 'Custom endpoint saved.' })
+      notify({ category: 'settings', kind: 'success', message: 'Custom endpoint saved.' })
     } catch (err) {
-      notifyError(err, 'Save failed')
+      notifyError(err, 'Save failed', 'settings')
     } finally {
       setSaving(false)
     }
@@ -161,6 +161,7 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
         }
 
         notify({
+          category: 'settings',
           kind: 'success',
           message: response.models.length
             ? `Endpoint is reachable. Found ${response.models.length} models.`
@@ -168,12 +169,13 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
         })
       } else {
         notify({
+          category: 'settings',
           kind: response.reachable ? 'warning' : 'error',
           message: response.message || 'Endpoint validation failed.'
         })
       }
     } catch (err) {
-      notifyError(err, 'Validation failed')
+      notifyError(err, 'Validation failed', 'settings')
     } finally {
       setTesting(false)
     }
@@ -188,7 +190,7 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
       onMainModelChanged?.(response.provider, response.model)
       triggerHaptic('success')
     } catch (err) {
-      notifyError(err, 'Activation failed')
+      notifyError(err, 'Activation failed', 'settings')
     } finally {
       setActivating(null)
     }
@@ -212,7 +214,7 @@ export function CustomEndpointsSettings({ onConfigSaved, onMainModelChanged }: C
       onConfigSaved?.()
       triggerHaptic('success')
     } catch (err) {
-      notifyError(err, 'Delete failed')
+      notifyError(err, 'Delete failed', 'settings')
     } finally {
       setDeleting(null)
     }

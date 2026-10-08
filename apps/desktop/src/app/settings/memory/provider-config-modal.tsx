@@ -81,11 +81,16 @@ export function ProviderConfigModal({
 
     try {
       await saveMemoryProviderConfig(provider, edited, profile)
-      notify({ kind: 'success', title: `${config.label} saved`, message: 'Memory provider configuration updated.' })
+      notify({
+        category: 'settings',
+        kind: 'success',
+        title: `${config.label} saved`,
+        message: 'Memory provider configuration updated.'
+      })
       await onSaved()
       onOpenChange(false)
     } catch (err) {
-      notifyError(err, `Failed to save ${config.label} settings`)
+      notifyError(err, `Failed to save ${config.label} settings`, 'settings')
     } finally {
       setSaving(false)
     }

@@ -92,3 +92,10 @@ describe('useMessageStream agent-init error surfacing (#63078)', () => {
     expect(state.busy).toBe(false)
   })
 })
+
+// These cases exercise notifications in a foreground app window.
+beforeEach(() => {
+  vi.spyOn(window.document, 'hasFocus').mockReturnValue(true)
+})
+
+afterEach(() => vi.restoreAllMocks())

@@ -246,7 +246,13 @@ function notifyPetGenDone(title: string, message: string, kind: 'error' | 'succe
     return
   }
 
-  notify({ kind, title, message, action: { label: translateNow('ui.pets.notifyView'), onClick: openPetGenerate } })
+  notify({
+    category: 'pets',
+    kind,
+    title,
+    message,
+    action: { label: translateNow('ui.pets.notifyView'), onClick: openPetGenerate }
+  })
   // Pet generation isn't tied to a chat session — mark it global so the OS
   // notification fires whenever the user is away, even with no active session
   // (the common case: generating from the command center with no conversation).

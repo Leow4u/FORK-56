@@ -94,7 +94,7 @@ export function VoiceProviderFields({
     const timeout = window.setTimeout(() => {
       void saveWork4YouConfigRecord(config, scope)
         .then(() => writeConfigCache(config))
-        .catch(err => notifyError(err, t.settings.config.autosaveFailed))
+        .catch(err => notifyError(err, t.settings.config.autosaveFailed, 'settings'))
     }, 550)
 
     return () => window.clearTimeout(timeout)

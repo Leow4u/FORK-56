@@ -109,7 +109,7 @@ export function TerminalFontSetting() {
           setSaveVersion(0)
           setDraft(rollback)
           setTerminalFontFamilyFromConfig(rollback)
-          notifyError(error, t.settings.config.autosaveFailed)
+          notifyError(error, t.settings.config.autosaveFailed, 'settings')
         })
     }, AUTOSAVE_DELAY_MS)
 

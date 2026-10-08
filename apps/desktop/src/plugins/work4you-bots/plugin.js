@@ -2200,7 +2200,7 @@ function pickImageFromDevice() {
       }
 
       if (file.size > 15_000_000) {
-        host.notify({ kind: 'error', message: tr('avatar.imageTooLarge') })
+        host.notify({ category: 'files', kind: 'error', message: tr('avatar.imageTooLarge') })
         return resolve(null)
       }
 
@@ -2241,7 +2241,7 @@ async function filesToGroupAttachments(files) {
     }
 
     if (file.size > 15_000_000) {
-      host.notify({ kind: 'error', message: tr('attachments.tooLarge', file.name || tr('attachments.unnamed')) })
+      host.notify({ category: 'files', kind: 'error', message: tr('attachments.tooLarge', file.name || tr('attachments.unnamed')) })
       continue
     }
 

@@ -29,7 +29,7 @@ export function NotificationsSettings() {
   const runTest = async () => {
     triggerHaptic('open')
     const ok = await sendTestNativeNotification(copy.testTitle, copy.testBody)
-    notify({ kind: ok ? 'info' : 'error', message: ok ? copy.testSent : copy.testUnsupported })
+    notify({ category: 'settings', kind: ok ? 'info' : 'error', message: ok ? copy.testSent : copy.testUnsupported })
   }
 
   return (

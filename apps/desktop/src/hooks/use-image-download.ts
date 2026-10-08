@@ -87,7 +87,7 @@ export function useImageDownload(src?: string) {
     try {
       if (window.work4youDesktop?.saveImageFromUrl) {
         if (await window.work4youDesktop.saveImageFromUrl(src)) {
-          notify({ kind: 'success', title: copy.imageSaved, message: imageFilename(src) })
+          notify({ category: 'files', kind: 'success', title: copy.imageSaved, message: imageFilename(src) })
         }
 
         return
@@ -98,15 +98,15 @@ export function useImageDownload(src?: string) {
       if (isMissingIpcHandler(error)) {
         try {
           await startBrowserDownload(src)
-          notify({ kind: 'info', title: copy.downloadStarted, message: copy.restartToUseSaveImage })
+          notify({ category: 'files', kind: 'info', title: copy.downloadStarted, message: copy.restartToUseSaveImage })
         } catch (fallbackError) {
-          notifyError(fallbackError, copy.restartToSaveImages)
+          notifyError(fallbackError, copy.restartToSaveImages, 'files')
         }
 
         return
       }
 
-      notifyError(error, copy.imageDownloadFailed)
+      notifyError(error, copy.imageDownloadFailed, 'files')
     } finally {
       setSaving(false)
     }

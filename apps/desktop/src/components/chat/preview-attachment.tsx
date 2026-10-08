@@ -154,10 +154,10 @@ export function PreviewAttachment({ source = 'manual', target }: { source?: Prev
       }
 
       if (window.work4youDesktop?.saveGatewayFile) {
-        notify({ durationMs: 1500, kind: 'info', message: t.fileMenu.downloadSaved })
+        notify({ category: 'files', durationMs: 1500, kind: 'info', message: t.fileMenu.downloadSaved })
       }
     } catch (error) {
-      notifyError(error, t.fileMenu.downloadFailed)
+      notifyError(error, t.fileMenu.downloadFailed, 'files')
     } finally {
       if (mountedRef.current) {
         setDownloading(false)

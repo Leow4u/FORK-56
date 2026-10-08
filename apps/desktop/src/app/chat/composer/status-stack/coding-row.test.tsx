@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { atom } from 'nanostores'
 import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DesktopConnectionsRegistry, Work4YouConnection } from '@/global'
 import { closeCommandPalette } from '@/store/command-palette'
@@ -193,3 +193,10 @@ describe('CodingStatusRow', () => {
     expect(screen.queryByRole('menuitem', { name: /Open folder as project/ })).toBeNull()
   })
 })
+
+// These cases exercise notifications in a foreground app window.
+beforeEach(() => {
+  vi.spyOn(window.document, 'hasFocus').mockReturnValue(true)
+})
+
+afterEach(() => vi.restoreAllMocks())

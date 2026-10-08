@@ -71,6 +71,7 @@ export function PortalAccount() {
     try {
       await disconnectOAuthProvider(portal.id)
       notify({
+        category: 'settings',
         durationMs: 3_000,
         kind: 'success',
         title: copy.removedTitle,
@@ -78,7 +79,7 @@ export function PortalAccount() {
       })
       await refresh()
     } catch (err) {
-      notifyError(err, copy.failedRemove(title))
+      notifyError(err, copy.failedRemove(title), 'settings')
     } finally {
       setDisconnecting(false)
     }

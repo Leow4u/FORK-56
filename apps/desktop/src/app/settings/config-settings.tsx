@@ -208,7 +208,7 @@ function ConfigSettingsInner({
           }
         } catch (err) {
           if (saveVersionRef.current === v) {
-            notifyError(err, c.autosaveFailed)
+            notifyError(err, c.autosaveFailed, 'settings')
           }
         }
       })()

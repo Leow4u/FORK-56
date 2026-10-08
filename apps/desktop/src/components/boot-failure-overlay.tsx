@@ -185,19 +185,25 @@ export function BootFailureOverlay() {
       const result = await window.work4youDesktop?.oauthLoginConnectionConfig(remoteReauth.url)
 
       if (result?.connected) {
-        notify({ kind: 'success', title: t.boot.failure.signedInTitle, message: t.boot.failure.signedInMessage })
+        notify({
+          category: 'connections',
+          kind: 'success',
+          title: t.boot.failure.signedInTitle,
+          message: t.boot.failure.signedInMessage
+        })
         window.location.reload()
 
         return
       }
 
       notify({
+        category: 'connections',
         kind: 'warning',
         title: t.boot.failure.signInIncompleteTitle,
         message: t.boot.failure.signInIncompleteMessage
       })
     } catch (err) {
-      notifyError(err, t.boot.failure.signInFailed)
+      notifyError(err, t.boot.failure.signInFailed, 'connections')
     } finally {
       setBusy(null)
     }

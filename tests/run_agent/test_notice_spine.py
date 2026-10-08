@@ -137,3 +137,33 @@ class TestAgentCbsNoticeBinding:
         assert captured[0][0] == "notification.clear"
         assert captured[0][1] == "sid123"
         assert captured[0][2] == {"key": "some.key"}
+
+
+@pytest.mark.parametrize("plan_is_free", [False, True])
+def test_credit_usage_band_reaches_gateway_payload(plan_is_free):
+    """Desktop can filter a band without parsing either paid or free-plan prose."""
+    from agent.credits_tracker import CreditsState, evaluate_credits_notices, new_credits_latch
+    from tui_gateway import server
+
+    latch = new_credits_latch()
+    state = CreditsState(
+        subscription_limit_micros=20_000_000,
+        subscription_limit_usd="20.00",
+        subscription_micros=20_000_000,
+    )
+    evaluate_credits_notices(state, latch, plan_is_free=plan_is_free)
+    emitted = []
+    with patch("tui_gateway.server._emit", side_effect=lambda *args: emitted.append(args)):
+        callback = server._agent_cbs("credit-session")["notice_callback"]
+        for band in (50, 75, 90):
+            state.subscription_micros = (100 - band) * 200_000
+            notices, _ = evaluate_credits_notices(state, latch, plan_is_free=plan_is_free)
+            usage = next(n for n in notices if n.key == "credits.usage")
+            callback(usage)
+            event, sid, payload = emitted[-1]
+            assert event == "notification.show"
+            assert sid == "credit-session"
+            assert payload["usage_band"] == band
+            assert payload["text"] == usage.text
+            assert payload["key"] == usage.key
+            assert payload["kind"] == usage.kind

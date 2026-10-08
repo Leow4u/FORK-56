@@ -161,6 +161,7 @@ export function reportBackendContract(contract: number | undefined): void {
   }
 
   notify({
+    category: 'updates',
     action: {
       label: translateNow('notifications.updateWork4You'),
       onClick: () => {
@@ -189,6 +190,7 @@ export function reportInstallMethodWarning(message: string | undefined): void {
   }
 
   notify({
+    category: 'updates',
     durationMs: 0,
     id: INSTALL_METHOD_TOAST_ID,
     kind: 'warning',
@@ -233,6 +235,7 @@ export function maybeNotifyUpdateAvailable(status: DesktopUpdateStatus | null) {
   }
 
   notify({
+    category: 'updates',
     action: {
       label: translateNow('notifications.seeWhatsNew'),
       onClick: () => {
@@ -530,6 +533,7 @@ export async function applyUpdates(opts: DesktopUpdateApplyOptions = {}): Promis
         setUpdateOverlayOpen(false)
         resetUpdateApplyState()
         notify({
+          category: 'updates',
           durationMs: 8000,
           id: UPDATE_TOAST_ID,
           kind: 'success',
