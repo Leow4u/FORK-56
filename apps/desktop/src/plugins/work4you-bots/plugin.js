@@ -7350,7 +7350,6 @@ function CreateAgentDialog({ open, onClose, roster }) {
                       children: [
                         jsxs(Button, {
                           variant: 'ghost',
-                          size: 'lg',
                           type: 'button',
                           onClick: () => setPage('settings'),
                           children: [
@@ -7370,7 +7369,6 @@ function CreateAgentDialog({ open, onClose, roster }) {
                         }),
                         jsxs(Button, {
                           variant: 'ghost',
-                          size: 'lg',
                           type: 'button',
                           onClick: openCapabilities,
                           children: [

@@ -1894,17 +1894,6 @@ body.guest-pointer-lock :is(webview, iframe) {
   text-align: start;
 }
 
-[data-profile-creation] [data-slot='dialog-title'] {
-  font-size: 1.375rem;
-  line-height: 1.25;
-}
-
-[data-profile-creation] [data-slot='dialog-description'] {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--ui-text-secondary);
-}
-
 .profile-creation-body {
   flex: 1;
   min-height: 0;
@@ -1945,8 +1934,6 @@ body.guest-pointer-lock :is(webview, iframe) {
 
 [data-profile-creation] textarea.profile-creation-persona {
   font-family: inherit;
-  font-size: 0.875rem;
-  line-height: 1.5;
 }
 
 .profile-creation-settings {
@@ -1965,8 +1952,6 @@ body.guest-pointer-lock :is(webview, iframe) {
   flex: 1;
   min-height: 12rem;
   font-family: inherit;
-  font-size: 0.875rem;
-  line-height: 1.5;
 }
 
 .profile-creation-bottom {
@@ -2016,7 +2001,6 @@ body.guest-pointer-lock :is(webview, iframe) {
   padding-inline: 1rem;
   border-radius: 0;
   background: transparent;
-  font-size: 0.875rem;
   box-shadow: none;
 }
 
@@ -2026,22 +2010,12 @@ body.guest-pointer-lock :is(webview, iframe) {
 
 .profile-creation-capabilities [data-slot='capabilities-toolbar'] button {
   min-height: 2rem;
-  font-size: 0.875rem;
 }
 
 .profile-creation-capabilities [id^='mcp-server-'] {
   justify-content: center;
   min-height: 4.5rem;
   padding: 1rem;
-}
-
-.profile-creation-capabilities [id^='mcp-server-'] .truncate {
-  font-size: 1rem;
-}
-
-.profile-creation-capabilities [id^='mcp-server-'] .line-clamp-2 {
-  font-size: 0.8125rem;
-  line-height: 1.5;
 }
 
 [data-profile-creation] [hidden] {
@@ -2070,7 +2044,6 @@ body.guest-pointer-lock :is(webview, iframe) {
 
 [data-profile-creation] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']) {
   min-height: 2rem;
-  font-size: 0.875rem;
   border-radius: var(--control-radius);
 }
 
@@ -2087,17 +2060,6 @@ body.guest-pointer-lock :is(webview, iframe) {
   min-height: 8rem;
 }
 
-[data-profile-creation] :is(label, .profile-creation-fields fieldset > span) {
-  font-size: 0.875rem;
-  line-height: 1.4;
-}
-
-.profile-creation-appearance > p,
-.profile-creation-fields p {
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
-
 .profile-creation-choice {
   width: 100%;
   max-width: 23rem;
@@ -2107,7 +2069,6 @@ body.guest-pointer-lock :is(webview, iframe) {
 .profile-creation-choice > button {
   border-radius: calc(var(--card-radius) - 0.125rem);
   min-height: 2rem;
-  font-size: 0.875rem;
 }
 
 .profile-creation-choice > button[aria-pressed='true'] {
@@ -2126,7 +2087,6 @@ body.guest-pointer-lock :is(webview, iframe) {
   padding: 0.5rem 0;
   border-radius: 0;
   border-bottom: 2px solid transparent;
-  font-size: 0.875rem;
 }
 
 .profile-creation-families > button[aria-pressed='true'] {
@@ -2138,7 +2098,6 @@ body.guest-pointer-lock :is(webview, iframe) {
 .profile-creation-navigation > button {
   min-height: 3.5rem;
   padding: 0.5rem 0;
-  font-size: 0.875rem;
   gap: 0.75rem;
 }
 
@@ -2152,7 +2111,6 @@ body.guest-pointer-lock :is(webview, iframe) {
 
 .profile-creation-navigation > button > span > span + span {
   margin-top: 0.25rem;
-  font-size: 0.8125rem;
 }
 
 @media (max-width: 720px) {
