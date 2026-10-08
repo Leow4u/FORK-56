@@ -1,6 +1,7 @@
 import { atom } from 'nanostores'
 
 import { translateNow } from '@/i18n'
+import { isWindowBackgrounded } from '@/lib/window-focus'
 
 export type NotificationKind = 'error' | 'warning' | 'info' | 'success'
 
@@ -167,7 +168,9 @@ export function notify(input: NotificationInput): string {
   window.clearTimeout(timers.get(id))
   timers.delete(id)
 
-  if (NOTIFICATION_CATEGORY_ENABLED[category] === false) {
+  if (NOTIFICATION_CATEGORY_ENABLED[category] === false || isWindowBackgrounded()) {
+    // Toasts belong to the focused window. Background events use their existing
+    // native notification paths; never queue a second toast to replay on return.
     // A quieter replacement (e.g. credit usage dropping from 90% to 75%)
     // must also retire the old visible notice. This is not a user dismissal.
     if ($notifications.get().some(item => item.id === id)) {

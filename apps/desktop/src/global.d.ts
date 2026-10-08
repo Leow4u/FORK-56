@@ -1,6 +1,8 @@
 import type { GatewayWsUrlResult } from '@work4you/shared'
 import type { TranslucencyState } from '@work4you/shared/translucency'
 
+import type { Work4YouNotification } from '../electron/native-notification-delivery'
+
 import type { WakeIndicatorState } from './lib/wake-indicator'
 import type {
   PetOverlayBounds,
@@ -9,6 +11,8 @@ import type {
   PetOverlayStatePayload
 } from './store/pet-overlay'
 import type { QuickEntryStatePush, QuickEntryStatus, QuickEntrySubmitPayload } from './store/quick-entry'
+
+export type { Work4YouNotification } from '../electron/native-notification-delivery'
 
 export {}
 
@@ -1137,23 +1141,6 @@ export interface Work4YouApiRequest {
   // through the owning connection, not the local profile pool. Omit / '' to
   // keep the legacy profile-routed path; explicit 'local' forces this device.
   connectionId?: string | null
-}
-
-export interface Work4YouNotification {
-  title?: string
-  body?: string
-  silent?: boolean
-  kind?: string
-  sessionId?: string
-  /** Dedupe discriminator for session-less notifications (e.g. plugin id). */
-  tag?: string
-  /** Absolute icon path for Electron `Notification`. */
-  icon?: string
-  /** Resolved hash-router path opened on body click (plugin / deeplink-compatible). */
-  activate?: string
-  /** Renderer handle for onActivate / onAction callbacks. */
-  notifyId?: string
-  actions?: { id: string; text: string; activate?: string }[]
 }
 
 export interface Work4YouPreviewTarget {

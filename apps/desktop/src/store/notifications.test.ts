@@ -120,3 +120,10 @@ test('a suppressed replacement cancels its prior timer without calling onDismiss
   vi.advanceTimersByTime(1000)
   expect(onDismiss).not.toHaveBeenCalled()
 })
+
+// These cases exercise notifications in a foreground app window.
+beforeEach(() => {
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+})
+
+afterEach(() => vi.restoreAllMocks())

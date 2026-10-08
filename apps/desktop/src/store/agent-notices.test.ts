@@ -1,4 +1,4 @@
-import { beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 import {
   type AgentNoticePayload,
@@ -259,3 +259,10 @@ test.each(['credits.depleted', 'credits.restored', 'credits.grant_spent'])(
     expect($notifications.get()[0]).toMatchObject({ id: key, category: 'credits' })
   }
 )
+
+// These cases exercise notifications in a foreground app window.
+beforeEach(() => {
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+})
+
+afterEach(() => vi.restoreAllMocks())

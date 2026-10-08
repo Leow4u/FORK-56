@@ -91,11 +91,11 @@ describe('dispatchNativeNotification focus gating', () => {
     expect(notify).not.toHaveBeenCalled()
   })
 
-  it('fires an attention notification for an off-screen session even when focused', () => {
+  it('keeps an off-screen approval inside the app while focused', () => {
     setWindowState({ focused: true, hidden: false })
     setActiveSessionId('on-screen')
     dispatchNativeNotification({ kind: 'approval', sessionId: 'background', title: 'approve' })
-    expect(notify).toHaveBeenCalledTimes(1)
+    expect(notify).not.toHaveBeenCalled()
   })
 
   it('suppresses an attention notification for the active session when focused', () => {
@@ -291,7 +291,7 @@ describe('sendTestNativeNotification', () => {
     setWindowState({ focused: true, hidden: false })
     setActiveSessionId('on-screen')
     sendTestNativeNotification('Work4You', 'works')
-    expect(notify).toHaveBeenCalledTimes(1)
+    expect(notify).toHaveBeenCalledWith({ body: 'works', kind: 'turnDone', test: true, title: 'Work4You' })
   })
 })
 
@@ -339,4 +339,21 @@ describe('respondToApprovalAction', () => {
     await respondToApprovalAction('bg', 'approve')
     expect(request).not.toHaveBeenCalled()
   })
+})
+
+it.each([false, 'rejected'] as const)('releases plugin callbacks when main declines delivery (%s)', async result => {
+  if (result === false) {
+    notify.mockResolvedValueOnce(false)
+  } else {
+    notify.mockRejectedValueOnce(new Error('OS unavailable'))
+  }
+
+  const onActivate = vi.fn()
+  dispatchPluginNativeNotification(`suppressed-${result}`, { title: 'Task completed', onActivate })
+  const payload = notify.mock.calls[0]?.[0] as { notifyId?: string }
+  expect(payload.notifyId).toBeTruthy()
+  await Promise.resolve()
+  await Promise.resolve()
+  invokePluginNotifyActivate(payload.notifyId)
+  expect(onActivate).not.toHaveBeenCalled()
 })

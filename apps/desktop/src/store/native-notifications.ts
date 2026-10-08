@@ -1,6 +1,7 @@
 import { atom } from 'nanostores'
 
 import { persistString, storedString } from '@/lib/storage'
+import { isWindowBackgrounded } from '@/lib/window-focus'
 import { resolveWork4YouOpenPath, type Work4YouOpenTarget } from '@/lib/work4you-open-target'
 
 import { $gateway } from './gateway'
@@ -25,7 +26,7 @@ export const NATIVE_NOTIFICATION_KINDS: readonly NativeNotificationKind[] = [
   'plugin'
 ]
 
-// Blocking prompts — surface even while focused if they're for another session.
+// Blocking prompts can notify for any session, but only while away.
 const ATTENTION_KINDS = new Set<NativeNotificationKind>(['approval', 'input'])
 
 export interface NativeNotificationPrefs {
@@ -113,38 +114,27 @@ function throttled(key: string, now: number): boolean {
   return false
 }
 
-// "Backgrounded" = the user isn't on Work4You. `document.hidden` only flips when
-// minimized/occluded; an alt-tabbed window is visible-but-unfocused, so we also
-// check `document.hasFocus()`.
-function isBackgrounded(): boolean {
-  if (typeof document === 'undefined') {
+function shouldFire(kind: NativeNotificationKind, sessionId?: null | string, global = false): boolean {
+  if (!isWindowBackgrounded()) {
     return false
   }
 
-  if (document.hidden) {
-    return true
-  }
-
-  return typeof document.hasFocus === 'function' && !document.hasFocus()
-}
-
-function shouldFire(kind: NativeNotificationKind, sessionId?: null | string, global = false): boolean {
   // Global notifications aren't tied to a chat session (e.g. pet generation,
   // which runs from the command center with no active conversation). They fire
   // whenever the user is away, with no session-match requirement — otherwise a
   // background run started without an open session would be silently dropped.
   if (global) {
-    return isBackgrounded()
+    return true
   }
 
-  // Attention kinds break through for an off-screen session even while focused.
+  // In-app prompts and sidebar indicators already cover other sessions in focus.
   if (ATTENTION_KINDS.has(kind)) {
-    return isBackgrounded() || (Boolean(sessionId) && sessionId !== $activeSessionId.get())
+    return true
   }
 
   // Completion kinds: only the active session, only while away — so a busy
   // gateway (messaging, kanban, cron) can't spam a toast per background session.
-  return isBackgrounded() && Boolean(sessionId) && sessionId === $activeSessionId.get()
+  return Boolean(sessionId) && sessionId === $activeSessionId.get()
 }
 
 export interface NativeNotificationAction {
@@ -189,8 +179,9 @@ export interface NativeNotificationInput {
  *  must only do so on true, or suppressed/throttled notifications leak it. */
 export function dispatchNativeNotification(input: NativeNotificationInput): boolean {
   const prefs = $nativeNotifyPrefs.get()
+  const bridge = window.work4youDesktop
 
-  if (!prefs.enabled || !prefs.kinds[input.kind]) {
+  if (!prefs.enabled || !prefs.kinds[input.kind] || !bridge?.notify) {
     return false
   }
 
@@ -206,7 +197,7 @@ export function dispatchNativeNotification(input: NativeNotificationInput): bool
     return false
   }
 
-  void window.work4youDesktop?.notify({
+  const delivery = bridge.notify({
     actions: input.actions,
     activate: input.activate,
     body: input.body,
@@ -218,6 +209,20 @@ export function dispatchNativeNotification(input: NativeNotificationInput): bool
     tag: input.tag,
     title: input.title
   })
+
+  // Main may suppress this because another Work4You window is focused, or the
+  // OS may reject delivery. Retire plugin callbacks; don't enqueue a toast.
+  void Promise.resolve(delivery)
+    .then(accepted => {
+      if (!accepted && input.notifyId) {
+        clearPluginNotifyHandlers(input.notifyId)
+      }
+    })
+    .catch(() => {
+      if (input.notifyId) {
+        clearPluginNotifyHandlers(input.notifyId)
+      }
+    })
 
   return true
 }
@@ -376,7 +381,7 @@ export async function sendTestNativeNotification(title: string, body: string): P
   }
 
   try {
-    return await bridge.notify({ body, kind: 'turnDone', title })
+    return await bridge.notify({ body, kind: 'turnDone', test: true, title })
   } catch {
     return false
   }

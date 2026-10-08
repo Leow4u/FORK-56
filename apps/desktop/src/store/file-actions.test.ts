@@ -70,3 +70,10 @@ describe('downloadRemoteFile', () => {
     expect($notifications.get()).toEqual([])
   })
 })
+
+// These cases exercise notifications in a foreground app window.
+beforeEach(() => {
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+})
+
+afterEach(() => vi.restoreAllMocks())

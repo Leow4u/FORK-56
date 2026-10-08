@@ -5377,3 +5377,10 @@ describe('usePromptActions editMessage stale-target recovery (#82462)', () => {
     })
   })
 })
+
+// These cases exercise notifications in a foreground app window.
+beforeEach(() => {
+  vi.spyOn(window.document, 'hasFocus').mockReturnValue(true)
+})
+
+afterEach(() => vi.restoreAllMocks())
