@@ -5,7 +5,10 @@ name: Desktop install smoke
 #
 # Inputs (workflow_dispatch):
 #   mode=release  — download Work4You-Setup.exe / Work4You.dmg from a desktop-v* release
-#   mode=build    — build unsigned installer from the checked-out commit (slow; pre-release)
+#                   (deploy phase breakdown appears only after a desktop-v* built with this
+#                   instrumentation; older release installers omit install-deploy-phases.json)
+#   mode=build    — build unsigned installer from the checked-out commit (slow; pre-release;
+#                   use this to validate deploy-phase timing on the branch under test)
 #   platform      — both | windows | macos
 #   tag           — release tag (empty / latest → GitHub Latest when it is desktop-v*)
 

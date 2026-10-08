@@ -52,6 +52,12 @@ try {
         -SkipImportProbe
     Assert-True ($LASTEXITCODE -eq 0) "present bundle deploy failed: $LASTEXITCODE"
 
+    $phasesPath = Join-Path $destHome "install-deploy-phases.json"
+    Assert-True (Test-Path -LiteralPath $phasesPath) "install-deploy-phases.json missing after deploy"
+    $phasesDoc = Get-Content -LiteralPath $phasesPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True ($phasesDoc.deployTotalMs -ge 0) "deployTotalMs missing"
+    Assert-True ($phasesDoc.phases.Count -ge 1) "deploy phases array empty"
+
     $cfg = Get-Content -LiteralPath (Join-Path $destHome "work4you\venv\pyvenv.cfg") -Raw
     $expectedPython = [System.IO.Path]::GetFullPath((Join-Path $destHome "python"))
     $cfgNorm = ($cfg -replace '/', '\').ToLowerInvariant()

@@ -33,6 +33,41 @@ function Write-Utf8NoBom {
     [System.IO.File]::WriteAllText($Path, $Text, $utf8)
 }
 
+$script:DeployPhaseRecords = [System.Collections.Generic.List[object]]::new()
+
+function Measure-DeployPhase {
+    param([string]$Name, [scriptblock]$Action)
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
+        & $Action
+    } finally {
+        $sw.Stop()
+        $ms = [int64]$sw.ElapsedMilliseconds
+        [void]$script:DeployPhaseRecords.Add([ordered]@{ name = $Name; ms = $ms })
+        Write-Host "::notice title=work4you-deploy-phase::${Name} ms=$ms"
+    }
+}
+
+function Write-InstallDeployPhases {
+    param(
+        [string]$HomeDir,
+        [System.Diagnostics.Stopwatch]$TotalSw,
+        [bool]$SkippedCopy
+    )
+    $totalMs = [int64]$TotalSw.ElapsedMilliseconds
+    Write-Host "::notice title=work4you-deploy-phase::deployTotal ms=$totalMs"
+    $payload = [ordered]@{
+        schemaVersion  = 1
+        skippedCopy    = $SkippedCopy
+        phases         = @($script:DeployPhaseRecords)
+        deployTotalMs  = $totalMs
+        completedAtUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+    }
+    New-Item -ItemType Directory -Force -Path $HomeDir | Out-Null
+    $outPath = Join-Path $HomeDir "install-deploy-phases.json"
+    Write-Utf8NoBom -Path $outPath -Text (($payload | ConvertTo-Json -Depth 8 -Compress:$false) + "`n")
+}
+
 function Get-RuntimeManifest {
     param([string]$Dir)
     $path = Join-Path $Dir "manifest.json"
@@ -238,47 +273,133 @@ if (-not (Test-Path -LiteralPath $bundleWork4You) -or -not (Test-Path -LiteralPa
     exit 1
 }
 
-if (-not $PinnedCommit -and $InstallStampPath -and (Test-Path -LiteralPath $InstallStampPath)) {
-    try {
-        $stamp = Get-Content -LiteralPath $InstallStampPath -Raw -Encoding UTF8 | ConvertFrom-Json
-        if ($stamp.commit) { $PinnedCommit = [string]$stamp.commit }
-        if (-not $PinnedBranch -and $stamp.branch) { $PinnedBranch = [string]$stamp.branch }
-    } catch {}
+$deployTotalSw = [System.Diagnostics.Stopwatch]::StartNew()
+
+Measure-DeployPhase -Name "resolveStamp" -Action {
+    if (-not $PinnedCommit -and $InstallStampPath -and (Test-Path -LiteralPath $InstallStampPath)) {
+        try {
+            $stamp = Get-Content -LiteralPath $InstallStampPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($stamp.commit) { $PinnedCommit = [string]$stamp.commit }
+            if (-not $PinnedBranch -and $stamp.branch) { $PinnedBranch = [string]$stamp.branch }
+        } catch {}
+    }
+    if (-not $PinnedCommit -and $manifest.commit) { $PinnedCommit = [string]$manifest.commit }
+    if ((-not $PinnedBranch) -and $manifest.branch) { $PinnedBranch = [string]$manifest.branch }
+    if (-not $PinnedBranch) { $PinnedBranch = "main" }
 }
-if (-not $PinnedCommit -and $manifest.commit) { $PinnedCommit = [string]$manifest.commit }
-if ((-not $PinnedBranch) -and $manifest.branch) { $PinnedBranch = [string]$manifest.branch }
-if (-not $PinnedBranch) { $PinnedBranch = "main" }
 
 $installDir = Join-Path $Work4YouHome "work4you"
 $pythonHome = Join-Path $Work4YouHome "python"
 
-$skipCopy = -not $Force -and (Test-InstalledRuntimeCurrent -Bundle $BundleDir -HomeDir $Work4YouHome)
-if ($skipCopy -and -not $SkipImportProbe) {
-    $pythonExe = Join-Path $installDir "venv\Scripts\python.exe"
-    $probeOk = $false
-    if (Test-Path -LiteralPath $pythonExe) {
-        $prevPythonioencoding = $env:PYTHONIOENCODING
-        $prevPythonutf8 = $env:PYTHONUTF8
-        $env:PYTHONIOENCODING = "utf-8"
-        $env:PYTHONUTF8 = "1"
-        $env:PYTHONPATH = $installDir
-        try {
-            & $pythonExe -c "import work4you_cli" | Out-Null
-            if ($LASTEXITCODE -eq 0) { $probeOk = $true }
-        } catch {
-            $probeOk = $false
-        } finally {
-            if ($null -eq $prevPythonioencoding) { Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue } else { $env:PYTHONIOENCODING = $prevPythonioencoding }
-            if ($null -eq $prevPythonutf8) { Remove-Item Env:PYTHONUTF8 -ErrorAction SilentlyContinue } else { $env:PYTHONUTF8 = $prevPythonutf8 }
+$skipCopy = $false
+Measure-DeployPhase -Name "skipCheckFingerprint" -Action {
+    $script:skipCopy = -not $Force -and (Test-InstalledRuntimeCurrent -Bundle $BundleDir -HomeDir $Work4YouHome)
+    if ($script:skipCopy -and -not $SkipImportProbe) {
+        $pythonExe = Join-Path $installDir "venv\Scripts\python.exe"
+        $probeOk = $false
+        if (Test-Path -LiteralPath $pythonExe) {
+            $prevPythonioencoding = $env:PYTHONIOENCODING
+            $prevPythonutf8 = $env:PYTHONUTF8
+            $env:PYTHONIOENCODING = "utf-8"
+            $env:PYTHONUTF8 = "1"
+            $env:PYTHONPATH = $installDir
+            try {
+                & $pythonExe -c "import work4you_cli" | Out-Null
+                if ($LASTEXITCODE -eq 0) { $probeOk = $true }
+            } catch {
+                $probeOk = $false
+            } finally {
+                if ($null -eq $prevPythonioencoding) { Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue } else { $env:PYTHONIOENCODING = $prevPythonioencoding }
+                if ($null -eq $prevPythonutf8) { Remove-Item Env:PYTHONUTF8 -ErrorAction SilentlyContinue } else { $env:PYTHONUTF8 = $prevPythonutf8 }
+            }
         }
+        if (-not $probeOk) { $script:skipCopy = $false }
     }
-    if (-not $probeOk) { $skipCopy = $false }
 }
+$skipCopy = $script:skipCopy
 
 if ($skipCopy) {
     Write-Host "[work4you] prebuilt runtime already current at $installDir; skipping copy"
-    Update-PyvenvCfg -VenvDir (Join-Path $installDir "venv") -PythonHome $pythonHome
+    Measure-DeployPhase -Name "skipCopyMaintenance" -Action {
+        Update-PyvenvCfg -VenvDir (Join-Path $installDir "venv") -PythonHome $pythonHome
+        Seed-HomeTemplates -TargetDir $Work4YouHome -InstallDir $installDir
+        Write-Utf8NoBom -Path (Join-Path $installDir ".install_method") -Text "desktop`n"
+        $runtimeRef = [ordered]@{
+            commit     = $PinnedCommit
+            branch     = $PinnedBranch
+            ref        = $(if ($PinnedCommit) { $PinnedCommit } else { $PinnedBranch })
+            updated_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        }
+        Write-Utf8NoBom -Path (Join-Path $installDir ".runtime-ref") -Text (($runtimeRef | ConvertTo-Json -Compress:$false) + "`n")
+        $launcherDir = Join-Path $installDir "bin"
+        New-Item -ItemType Directory -Force -Path $launcherDir | Out-Null
+        $venvDir = Join-Path $installDir "venv"
+        foreach ($launcher in @("work4you.exe", "work4you-acp.exe")) {
+            $src = Join-Path $venvDir "Scripts\$launcher"
+            $dest = Join-Path $launcherDir $launcher
+            if ((Test-Path -LiteralPath $src) -and -not (Test-Path -LiteralPath $dest)) {
+                Copy-Item -LiteralPath $src -Destination $dest -Force
+            }
+        }
+        if ($PinnedCommit -and $PinnedCommit.Length -ge 7) {
+            $marker = [ordered]@{
+                schemaVersion = 1
+                pinnedCommit  = $PinnedCommit
+                pinnedBranch  = $PinnedBranch
+                completedAt   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+            }
+            Write-Utf8NoBom -Path (Join-Path $installDir ".work4you-bootstrap-complete") -Text (($marker | ConvertTo-Json -Compress:$false) + "`n")
+        }
+    }
+    Measure-DeployPhase -Name "writeFingerprint" -Action {
+        Write-RuntimeFingerprint -InstallDir $installDir -HomeDir $Work4YouHome
+    }
+    Write-InstallDeployPhases -HomeDir $Work4YouHome -TotalSw $deployTotalSw -SkippedCopy $true
+    Write-Host "[work4you] prebuilt runtime ready at $installDir"
+    exit 0
+}
+
+Write-Host "[work4you] deploying prebuilt runtime to $Work4YouHome"
+
+New-Item -ItemType Directory -Force -Path $Work4YouHome | Out-Null
+
+function Copy-BundleTree {
+    param([string]$TreeName)
+    $phaseName = switch ($TreeName) {
+        "python" { "copyPython" }
+        "node"   { "copyNode" }
+        "bin"    { "copyBin" }
+        default  { "copy$TreeName" }
+    }
+    Measure-DeployPhase -Name $phaseName -Action {
+        $src = Join-Path $BundleDir $TreeName
+        if (-not (Test-Path -LiteralPath $src)) { return }
+        $dest = Join-Path $Work4YouHome $TreeName
+        if (Test-Path -LiteralPath $dest) {
+            Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        Copy-Item -LiteralPath $src -Destination $dest -Recurse -Force
+    }
+}
+
+Copy-BundleTree -TreeName "python"
+Copy-BundleTree -TreeName "node"
+Copy-BundleTree -TreeName "bin"
+
+Measure-DeployPhase -Name "copyWork4you" -Action {
+    Copy-ReplaceDirectory -Source $bundleWork4You -Destination $installDir -Preserve @(".env", ".git")
+}
+
+$venvDir = Join-Path $installDir "venv"
+Measure-DeployPhase -Name "pyvenvCfg" -Action {
+    Update-PyvenvCfg -VenvDir $venvDir -PythonHome $pythonHome
+}
+
+Measure-DeployPhase -Name "seedTemplates" -Action {
     Seed-HomeTemplates -TargetDir $Work4YouHome -InstallDir $installDir
+}
+
+Measure-DeployPhase -Name "metadataAndLaunchers" -Action {
     Write-Utf8NoBom -Path (Join-Path $installDir ".install_method") -Text "desktop`n"
     $runtimeRef = [ordered]@{
         commit     = $PinnedCommit
@@ -287,14 +408,14 @@ if ($skipCopy) {
         updated_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
     }
     Write-Utf8NoBom -Path (Join-Path $installDir ".runtime-ref") -Text (($runtimeRef | ConvertTo-Json -Compress:$false) + "`n")
+    # Same layout as install.ps1 Set-PathVariable: launchers live in
+    # %LOCALAPPDATA%\work4you\work4you\bin, not HOME\bin (HOME\bin is uv/rg).
     $launcherDir = Join-Path $installDir "bin"
     New-Item -ItemType Directory -Force -Path $launcherDir | Out-Null
-    $venvDir = Join-Path $installDir "venv"
     foreach ($launcher in @("work4you.exe", "work4you-acp.exe")) {
         $src = Join-Path $venvDir "Scripts\$launcher"
-        $dest = Join-Path $launcherDir $launcher
-        if ((Test-Path -LiteralPath $src) -and -not (Test-Path -LiteralPath $dest)) {
-            Copy-Item -LiteralPath $src -Destination $dest -Force
+        if (Test-Path -LiteralPath $src) {
+            Copy-Item -LiteralPath $src -Destination (Join-Path $launcherDir $launcher) -Force
         }
     }
     if ($PinnedCommit -and $PinnedCommit.Length -ge 7) {
@@ -306,74 +427,36 @@ if ($skipCopy) {
         }
         Write-Utf8NoBom -Path (Join-Path $installDir ".work4you-bootstrap-complete") -Text (($marker | ConvertTo-Json -Compress:$false) + "`n")
     }
-    Write-RuntimeFingerprint -InstallDir $installDir -HomeDir $Work4YouHome
-    Write-Host "[work4you] prebuilt runtime ready at $installDir"
-    exit 0
 }
 
-Write-Host "[work4you] deploying prebuilt runtime to $Work4YouHome"
-
-New-Item -ItemType Directory -Force -Path $Work4YouHome | Out-Null
-foreach ($name in @("python", "node", "bin")) {
-    $src = Join-Path $BundleDir $name
-    if (-not (Test-Path -LiteralPath $src)) { continue }
-    $dest = Join-Path $Work4YouHome $name
-    if (Test-Path -LiteralPath $dest) {
-        Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue
-    }
-    Copy-Item -LiteralPath $src -Destination $dest -Recurse -Force
-}
-
-Copy-ReplaceDirectory -Source $bundleWork4You -Destination $installDir -Preserve @(".env", ".git")
-
-$venvDir = Join-Path $installDir "venv"
-Update-PyvenvCfg -VenvDir $venvDir -PythonHome $pythonHome
-
-Seed-HomeTemplates -TargetDir $Work4YouHome -InstallDir $installDir
-Write-Utf8NoBom -Path (Join-Path $installDir ".install_method") -Text "desktop`n"
-
-$runtimeRef = [ordered]@{
-    commit     = $PinnedCommit
-    branch     = $PinnedBranch
-    ref        = $(if ($PinnedCommit) { $PinnedCommit } else { $PinnedBranch })
-    updated_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-}
-Write-Utf8NoBom -Path (Join-Path $installDir ".runtime-ref") -Text (($runtimeRef | ConvertTo-Json -Compress:$false) + "`n")
-
-# Same layout as install.ps1 Set-PathVariable: launchers live in
-# %LOCALAPPDATA%\work4you\work4you\bin, not HOME\bin (HOME\bin is uv/rg).
 $launcherDir = Join-Path $installDir "bin"
-New-Item -ItemType Directory -Force -Path $launcherDir | Out-Null
-foreach ($launcher in @("work4you.exe", "work4you-acp.exe")) {
-    $src = Join-Path $venvDir "Scripts\$launcher"
-    if (Test-Path -LiteralPath $src) {
-        Copy-Item -LiteralPath $src -Destination (Join-Path $launcherDir $launcher) -Force
+Measure-DeployPhase -Name "pathEnv" -Action {
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $userPathItems = if ($userPath) { @($userPath -split ";") } else { @() }
+    $legacyScripts = Join-Path $installDir "venv\Scripts"
+    $rest = @($userPathItems | Where-Object { $_ -and $_ -ne $launcherDir -and $_ -ne $legacyScripts })
+    $nodeDir = Join-Path $Work4YouHome "node"
+    $pathLead = @($launcherDir)
+    if (Test-Path -LiteralPath (Join-Path $nodeDir "node.exe")) {
+        $rest = @($rest | Where-Object { $_ -ne $nodeDir })
+        $pathLead = @($nodeDir) + $pathLead
     }
+    $updatedPath = ($pathLead + $rest) -join ";"
+    if ($updatedPath -ne $userPath) {
+        [Environment]::SetEnvironmentVariable("Path", $updatedPath, "User")
+    }
+    [Environment]::SetEnvironmentVariable("WORK4YOU_HOME", $Work4YouHome, "User")
+    $env:WORK4YOU_HOME = $Work4YouHome
+    $env:Path = "$launcherDir;$env:Path"
 }
-
-$userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-$userPathItems = if ($userPath) { @($userPath -split ";") } else { @() }
-$legacyScripts = Join-Path $installDir "venv\Scripts"
-$rest = @($userPathItems | Where-Object { $_ -and $_ -ne $launcherDir -and $_ -ne $legacyScripts })
-$nodeDir = Join-Path $Work4YouHome "node"
-$pathLead = @($launcherDir)
-if (Test-Path -LiteralPath (Join-Path $nodeDir "node.exe")) {
-    $rest = @($rest | Where-Object { $_ -ne $nodeDir })
-    $pathLead = @($nodeDir) + $pathLead
-}
-$updatedPath = ($pathLead + $rest) -join ";"
-if ($updatedPath -ne $userPath) {
-    [Environment]::SetEnvironmentVariable("Path", $updatedPath, "User")
-}
-[Environment]::SetEnvironmentVariable("WORK4YOU_HOME", $Work4YouHome, "User")
-$env:WORK4YOU_HOME = $Work4YouHome
-$env:Path = "$launcherDir;$env:Path"
 
 $pythonExe = Join-Path $venvDir "Scripts\python.exe"
-if (-not $SkipImportProbe) {
+$importProbeError = ""
+Measure-DeployPhase -Name "importProbe" -Action {
+    if ($SkipImportProbe) { return }
     if (-not (Test-Path -LiteralPath $pythonExe)) {
-        Write-Error "deployed runtime is missing $pythonExe"
-        exit 1
+        $script:importProbeError = "deployed runtime is missing $pythonExe"
+        return
     }
 
     $prevPythonioencoding = $env:PYTHONIOENCODING
@@ -384,25 +467,27 @@ if (-not $SkipImportProbe) {
     try {
         & $pythonExe -c "import work4you_cli" | Out-Null
         if ($LASTEXITCODE -ne 0) {
-            Write-Error "deployed interpreter cannot import work4you_cli"
-            exit 1
+            $script:importProbeError = "deployed interpreter cannot import work4you_cli"
         }
+    } catch {
+        $script:importProbeError = $_.Exception.Message
     } finally {
         if ($null -eq $prevPythonioencoding) { Remove-Item Env:PYTHONIOENCODING -ErrorAction SilentlyContinue } else { $env:PYTHONIOENCODING = $prevPythonioencoding }
         if ($null -eq $prevPythonutf8) { Remove-Item Env:PYTHONUTF8 -ErrorAction SilentlyContinue } else { $env:PYTHONUTF8 = $prevPythonutf8 }
     }
 }
+$importProbeError = $script:importProbeError
 
-if ($PinnedCommit -and $PinnedCommit.Length -ge 7) {
-    $marker = [ordered]@{
-        schemaVersion = 1
-        pinnedCommit  = $PinnedCommit
-        pinnedBranch  = $PinnedBranch
-        completedAt   = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-    }
-    Write-Utf8NoBom -Path (Join-Path $installDir ".work4you-bootstrap-complete") -Text (($marker | ConvertTo-Json -Compress:$false) + "`n")
+Measure-DeployPhase -Name "writeFingerprint" -Action {
+    Write-RuntimeFingerprint -InstallDir $installDir -HomeDir $Work4YouHome
 }
 
-Write-RuntimeFingerprint -InstallDir $installDir -HomeDir $Work4YouHome
+Write-InstallDeployPhases -HomeDir $Work4YouHome -TotalSw $deployTotalSw -SkippedCopy $false
+
+if ($importProbeError) {
+    Write-Error $importProbeError
+    exit 1
+}
+
 Write-Host "[work4you] prebuilt runtime ready at $installDir"
 exit 0
