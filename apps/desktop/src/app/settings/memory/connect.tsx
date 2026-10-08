@@ -76,7 +76,7 @@ export function MemoryConnect({ profile = null, provider }: { profile?: null | s
     } catch (err) {
       setPhase('error')
       setDetail('Could not start the connection.')
-      notifyError(err, 'Failed to start connection')
+      notifyError(err, 'Failed to start connection', 'settings')
 
       return
     }

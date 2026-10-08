@@ -6454,6 +6454,7 @@ def _agent_cbs(sid: str) -> dict:
                 "ttl_ms": n.ttl_ms,
                 "key": n.key,
                 "id": n.id,
+                **({"usage_band": n.usage_band} if n.usage_band is not None else {}),
             },
         ),
         "notice_clear_callback": lambda key: _emit(

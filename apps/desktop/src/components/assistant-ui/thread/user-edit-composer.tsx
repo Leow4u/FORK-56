@@ -437,7 +437,7 @@ export const UserEditComposer: FC<UserEditComposerProps> = ({ cwd, gateway, sess
             refs.push(ref)
           }
         } catch (err) {
-          notifyError(err, t.desktop.dropFiles)
+          notifyError(err, t.desktop.dropFiles, 'files')
         }
       }
 

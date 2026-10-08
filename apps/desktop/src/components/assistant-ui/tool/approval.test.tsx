@@ -78,9 +78,9 @@ describe('PendingToolApproval', () => {
     expect(screen.getByRole('button', { name: 'Not now' })).toBeTruthy()
     expect(screen.getByText('dangerous command')).toBeTruthy()
     expect(screen.getByText('chmod -R 777 /tmp/x')).toBeTruthy()
-    // Widget contract: the panel is the read surface; actions sit below it.
-    expect(within(panel).queryByRole('button', { name: 'Allow' })).toBeNull()
-    expect(within(panel).queryByRole('button', { name: 'Not now' })).toBeNull()
+    // The approval and its actions are one accessible group.
+    expect(within(panel).getByRole('button', { name: 'Allow' })).toBeTruthy()
+    expect(within(panel).getByRole('button', { name: 'Not now' })).toBeTruthy()
   })
 
   it('sends approval.respond {choice: "once"} and clears the request on Allow', async () => {

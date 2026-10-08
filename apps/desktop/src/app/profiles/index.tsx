@@ -90,7 +90,7 @@ export function ProfilesView({ initialProfile = null, onClose }: ProfilesViewPro
         return list.find(p => p.is_default)?.name ?? list[0]?.name ?? null
       })
     } catch (err) {
-      notifyError(err, p.failedLoad)
+      notifyError(err, p.failedLoad, 'settings')
     }
   }, [p])
 
@@ -505,7 +505,7 @@ function SoulEditor({
     try {
       await updateProfileSoul(profileName, content)
       setOriginal(content)
-      notify({ kind: 'success', title: p.soulSaved, message: profileName })
+      notify({ category: 'settings', kind: 'success', title: p.soulSaved, message: profileName })
     } catch (err) {
       setError(err instanceof Error ? err.message : p.failedSaveSoul)
     } finally {
@@ -571,10 +571,10 @@ function ModelSection({ onChanged, profile }: { onChanged: () => Promise<void>; 
 
     try {
       await updateProfileModel(profile.name, selection)
-      notify({ kind: 'success', title: p.modelSaved, message: displayModelName(selection.model) })
+      notify({ category: 'settings', kind: 'success', title: p.modelSaved, message: displayModelName(selection.model) })
       await onChanged()
     } catch (err) {
-      notifyError(err, p.failedSaveModel)
+      notifyError(err, p.failedSaveModel, 'settings')
     } finally {
       setSaving(false)
     }
@@ -627,7 +627,7 @@ function DescriptionSection({ onChanged, profile }: { onChanged: () => Promise<v
     try {
       await updateProfileDescription(profile.name, text.trim())
       setSaved(text)
-      notify({ kind: 'success', title: p.descriptionSaved, message: profileLabel(profile) })
+      notify({ category: 'settings', kind: 'success', title: p.descriptionSaved, message: profileLabel(profile) })
       await onChanged()
     } catch (err) {
       setError(err instanceof Error ? err.message : p.failedSaveDescription)

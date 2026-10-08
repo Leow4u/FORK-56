@@ -4,6 +4,24 @@ import { translateNow } from '@/i18n'
 
 export type NotificationKind = 'error' | 'warning' | 'info' | 'success'
 
+export type NotificationCategory =
+  'general' | 'credits' | 'credits-50' | 'credits-75' | 'updates' | 'connections' | 'settings' | 'files' | 'pets'
+
+// Reversible presentation switches. Keep emitters and their actions intact:
+// changing a flag here restores that category without changing its workflow.
+// Uncategorized notices (including external plugins) remain enabled.
+export const NOTIFICATION_CATEGORY_ENABLED: Record<NotificationCategory, boolean> = {
+  general: true,
+  credits: true,
+  'credits-50': false,
+  'credits-75': false,
+  updates: false,
+  connections: false,
+  settings: false,
+  files: false,
+  pets: false
+}
+
 export interface NotificationAction {
   label: string
   onClick: () => void
@@ -14,6 +32,7 @@ export type NotificationPlacement = 'default' | 'bottom-right'
 export interface AppNotification {
   id: string
   kind: NotificationKind
+  category?: NotificationCategory
   /** When set, renders this codicon instead of the default kind icon. */
   icon?: string
   /** When set, tints the icon and message with this CSS color (severity ramp). */
@@ -32,6 +51,7 @@ export interface AppNotification {
 export interface NotificationInput {
   id?: string
   kind?: NotificationKind
+  category?: NotificationCategory
   icon?: string
   accentColor?: string
   meta?: string
@@ -55,21 +75,6 @@ function defaultDuration(kind: NotificationKind) {
   }
 
   return 5_000
-}
-
-// Only interruptions worth a top-center toast: errors, warnings, and anything
-// with an action button the user needs to notice and click (restart gateway,
-// update available, sign-in prompts). Everything else — the bulk of routine
-// "saved"/"enabled"/"archived" confirmations across settings, MCP, cron,
-// profiles, messaging — is ambient feedback and defaults to a quiet
-// bottom-right toast instead. Callers can still force `placement: 'default'`
-// for a specific case.
-function defaultPlacement(kind: NotificationKind, action?: NotificationAction): NotificationPlacement {
-  if (kind === 'error' || kind === 'warning' || action) {
-    return 'default'
-  }
-
-  return 'bottom-right'
 }
 
 function cleanErrorText(value: string) {
@@ -157,10 +162,25 @@ export function readableError(error: unknown, fallback: string): { message: stri
 export function notify(input: NotificationInput): string {
   const kind = input.kind ?? 'info'
   const id = input.id ?? `${Date.now()}-${notificationCounter++}`
+  const category = input.category ?? 'general'
+
+  window.clearTimeout(timers.get(id))
+  timers.delete(id)
+
+  if (NOTIFICATION_CATEGORY_ENABLED[category] === false) {
+    // A quieter replacement (e.g. credit usage dropping from 90% to 75%)
+    // must also retire the old visible notice. This is not a user dismissal.
+    if ($notifications.get().some(item => item.id === id)) {
+      $notifications.set($notifications.get().filter(item => item.id !== id))
+    }
+
+    return id
+  }
 
   const notification: AppNotification = {
     id,
     kind,
+    category,
     icon: input.icon,
     accentColor: input.accentColor,
     meta: input.meta,
@@ -170,11 +190,10 @@ export function notify(input: NotificationInput): string {
     action: input.action,
     onDismiss: input.onDismiss,
     createdAt: Date.now(),
-    placement: input.placement ?? defaultPlacement(kind, input.action)
+    // Accept legacy placement inputs from plugins, but use one global surface.
+    placement: 'bottom-right'
   }
 
-  window.clearTimeout(timers.get(id))
-  timers.delete(id)
   $notifications.set([notification, ...$notifications.get().filter(item => item.id !== id)].slice(0, 4))
 
   const duration = input.durationMs ?? defaultDuration(kind)
@@ -189,10 +208,11 @@ export function notify(input: NotificationInput): string {
   return id
 }
 
-export function notifyError(error: unknown, fallback: string): string {
+export function notifyError(error: unknown, fallback: string, category?: NotificationCategory): string {
   const readable = readableError(error, fallback)
 
   return notify({
+    category,
     kind: 'error',
     title: fallback,
     message: readable.message,

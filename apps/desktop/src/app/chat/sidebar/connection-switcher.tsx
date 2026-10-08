@@ -124,7 +124,7 @@ export function ConnectionSwitcher({ compact = false, onConnect }: { compact?: b
     const connection = connections.find(candidate => candidate.id === connectionId)
 
     void selectConnection(connectionId).catch(error =>
-      notifyError(error, t.profiles.switchConnectionFailed(connection?.label ?? connectionId))
+      notifyError(error, t.profiles.switchConnectionFailed(connection?.label ?? connectionId), 'connections')
     )
   }
 

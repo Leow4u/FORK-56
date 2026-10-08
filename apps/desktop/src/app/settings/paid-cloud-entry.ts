@@ -74,6 +74,7 @@ async function connectPaidCloud(desktop: PaidCloudEntryDesktop, org?: string): P
   })
 
   notify({
+    category: 'connections',
     kind: 'success',
     message: translateNow('settings.gateway.cloudConnectedTo', agentLabel(discovered, decision.source.remoteUrl)),
     title: translateNow('settings.gateway.cloudConnectedTitle')

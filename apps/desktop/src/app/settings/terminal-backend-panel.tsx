@@ -58,7 +58,7 @@ export function TerminalBackendPanel({ onConfiguredChange }: TerminalBackendPane
     try {
       setData(await getTerminalBackends())
     } catch (err) {
-      notifyError(err, copy.failedLoad)
+      notifyError(err, copy.failedLoad, 'settings')
     } finally {
       setLoading(false)
     }
@@ -88,10 +88,15 @@ export function TerminalBackendPanel({ onConfiguredChange }: TerminalBackendPane
             }
           : current
       )
-      notify({ kind: 'success', title: copy.selectedTitle, message: copy.selectedMessage(backend.label) })
+      notify({
+        category: 'settings',
+        kind: 'success',
+        title: copy.selectedTitle,
+        message: copy.selectedMessage(backend.label)
+      })
       onConfiguredChange?.()
     } catch (err) {
-      notifyError(err, copy.failedSelect(backend.label))
+      notifyError(err, copy.failedSelect(backend.label), 'settings')
     } finally {
       setSelecting(null)
     }

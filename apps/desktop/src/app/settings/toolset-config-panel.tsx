@@ -108,9 +108,9 @@ function EnvVarField({ envVar, isSet, onSaved, onCleared, profile }: EnvVarField
       setEditing(false)
       setValue('')
       onSaved(envVar.key)
-      notify({ kind: 'success', title: copy.savedTitle, message: copy.savedMessage(envVar.key) })
+      notify({ category: 'settings', kind: 'success', title: copy.savedTitle, message: copy.savedMessage(envVar.key) })
     } catch (err) {
-      notifyError(err, copy.failedSave(envVar.key))
+      notifyError(err, copy.failedSave(envVar.key), 'settings')
     } finally {
       setBusy(false)
     }
@@ -127,9 +127,14 @@ function EnvVarField({ envVar, isSet, onSaved, onCleared, profile }: EnvVarField
       await deleteEnvVar(envVar.key, profile)
       setRevealed(null)
       onCleared(envVar.key)
-      notify({ kind: 'success', title: copy.removedTitle, message: copy.removedMessage(envVar.key) })
+      notify({
+        category: 'settings',
+        kind: 'success',
+        title: copy.removedTitle,
+        message: copy.removedMessage(envVar.key)
+      })
     } catch (err) {
-      notifyError(err, copy.failedRemove(envVar.key))
+      notifyError(err, copy.failedRemove(envVar.key), 'settings')
     } finally {
       setBusy(false)
     }
@@ -146,7 +151,7 @@ function EnvVarField({ envVar, isSet, onSaved, onCleared, profile }: EnvVarField
       const result = await revealEnvVar(envVar.key, profile)
       setRevealed(result.value)
     } catch (err) {
-      notifyError(err, copy.failedReveal(envVar.key))
+      notifyError(err, copy.failedReveal(envVar.key), 'settings')
     }
   }
 
@@ -413,9 +418,14 @@ function ModelCatalogPicker({ toolset, providerName, isActiveBackend, profile }:
     try {
       await selectToolsetModel(toolset, modelId, providerName, profile)
       setCatalog(current => (current ? { ...current, current: modelId } : current))
-      notify({ kind: 'success', title: copy.modelSelectedTitle, message: copy.modelSelectedMessage(modelId) })
+      notify({
+        category: 'settings',
+        kind: 'success',
+        title: copy.modelSelectedTitle,
+        message: copy.modelSelectedMessage(modelId)
+      })
     } catch (err) {
-      notifyError(err, copy.failedSelectModel(modelId))
+      notifyError(err, copy.failedSelectModel(modelId), 'settings')
     } finally {
       setSaving(null)
     }
@@ -529,7 +539,7 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange, profile }: Too
 
       setEnvState(seeded)
     } catch (err) {
-      notifyError(err, copy.failedLoad)
+      notifyError(err, copy.failedLoad, 'settings')
     } finally {
       setLoading(false)
     }
@@ -597,6 +607,7 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange, profile }: Too
         // signs in (the CLI runs this gate inline; the GUI surfaces it as a
         // sign-in action). Reuses the existing Work4You Portal device-code flow.
         notify({
+          category: 'connections',
           kind: 'warning',
           title: copy.work4youAuthNeededTitle,
           message: copy.work4youAuthNeededMessage(provider.name),
@@ -606,10 +617,15 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange, profile }: Too
         return
       }
 
-      notify({ kind: 'success', title: copy.selectedTitle, message: copy.selectedMessage(provider.name) })
+      notify({
+        category: 'settings',
+        kind: 'success',
+        title: copy.selectedTitle,
+        message: copy.selectedMessage(provider.name)
+      })
       onConfiguredChange?.()
     } catch (err) {
-      notifyError(err, copy.failedSelect(provider.name))
+      notifyError(err, copy.failedSelect(provider.name), 'settings')
     } finally {
       setSelecting(null)
     }
@@ -623,7 +639,7 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange, profile }: Too
       const start = await startOAuthLogin('work4you', profile)
 
       if (start.flow !== 'device_code') {
-        notifyError(new Error(`unexpected flow: ${start.flow}`), copy.work4youAuthFailed)
+        notifyError(new Error(`unexpected flow: ${start.flow}`), copy.work4youAuthFailed, 'connections')
 
         return
       }
@@ -651,7 +667,12 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange, profile }: Too
         const polled = await pollOAuthSession('work4you', start.session_id, profile)
 
         if (polled.status === 'approved') {
-          notify({ kind: 'success', title: copy.work4youAuthDoneTitle, message: copy.work4youAuthDoneMessage })
+          notify({
+            category: 'connections',
+            kind: 'success',
+            title: copy.work4youAuthDoneTitle,
+            message: copy.work4youAuthDoneMessage
+          })
           await refresh()
           onConfiguredChange?.()
 
@@ -659,14 +680,18 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange, profile }: Too
         }
 
         if (polled.status !== 'pending') {
-          notifyError(new Error(polled.error_message || `Sign-in ${polled.status}`), copy.work4youAuthFailed)
+          notifyError(
+            new Error(polled.error_message || `Sign-in ${polled.status}`),
+            copy.work4youAuthFailed,
+            'connections'
+          )
 
           return
         }
       }
     } catch (err) {
       if (mountedRef.current) {
-        notifyError(err, copy.work4youAuthFailed)
+        notifyError(err, copy.work4youAuthFailed, 'connections')
       }
     }
   }
@@ -694,13 +719,14 @@ export function ToolsetConfigPanel({ toolset, onConfiguredChange, profile }: Too
           : current
       )
       notify({
+        category: 'settings',
         kind: 'success',
         title: copy.selectedTitle,
         message: copy.webCapabilitySelectedMessage(provider.name, capability)
       })
       onConfiguredChange?.()
     } catch (err) {
-      notifyError(err, copy.failedSelectCapability(provider.name))
+      notifyError(err, copy.failedSelectCapability(provider.name), 'settings')
     } finally {
       setSelecting(null)
     }

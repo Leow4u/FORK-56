@@ -395,6 +395,7 @@ export function ProvidersSettings({
     onClose()
     runInTerminal(command)
     notify({
+      category: 'settings',
       kind: 'info',
       title: t.settings.providers.removedTitle,
       message: t.settings.providers.removeTerminalRunning(name)
@@ -413,6 +414,7 @@ export function ProvidersSettings({
     try {
       await disconnectOAuthProvider(provider.id)
       notify({
+        category: 'settings',
         durationMs: 3_000,
         kind: 'success',
         title: t.settings.providers.removedTitle,
@@ -420,7 +422,7 @@ export function ProvidersSettings({
       })
       await refreshOAuthProviders().catch(() => undefined)
     } catch (err) {
-      notifyError(err, t.settings.providers.failedRemove(name))
+      notifyError(err, t.settings.providers.failedRemove(name), 'settings')
     } finally {
       setDisconnecting(null)
     }

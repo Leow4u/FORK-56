@@ -277,7 +277,7 @@ export function useComposerVoice({
 
   const handleToggleAutoSpeak = useCallback(() => {
     void setAutoSpeakReplies(!$autoSpeakReplies.get()).catch(error =>
-      notifyError(error, t.settings.config.autosaveFailed)
+      notifyError(error, t.settings.config.autosaveFailed, 'settings')
     )
   }, [t])
 

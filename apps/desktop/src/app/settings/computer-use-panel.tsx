@@ -70,7 +70,7 @@ export function ComputerUsePanel({ onConfiguredChange }: ComputerUsePanelProps) 
     try {
       setStatus(await getComputerUseStatus())
     } catch (err) {
-      notifyError(err, 'Could not read Computer Use status')
+      notifyError(err, 'Could not read Computer Use status', 'settings')
     } finally {
       setLoading(false)
     }
@@ -91,12 +91,13 @@ export function ComputerUsePanel({ onConfiguredChange }: ComputerUsePanelProps) 
       const started = await grantComputerUsePermissions()
 
       if (!started.ok) {
-        notifyError(new Error('spawn failed'), 'Could not request permissions')
+        notifyError(new Error('spawn failed'), 'Could not request permissions', 'settings')
 
         return
       }
 
       notify({
+        category: 'settings',
         kind: 'info',
         title: 'Approve in System Settings',
         message: 'macOS will show a permission dialog attributed to CuaDriver. Approve it, then return here.'
@@ -124,7 +125,7 @@ export function ComputerUsePanel({ onConfiguredChange }: ComputerUsePanelProps) 
       }
     } catch (err) {
       if (activeRef.current) {
-        notifyError(err, 'Could not request permissions')
+        notifyError(err, 'Could not request permissions', 'settings')
       }
     } finally {
       if (activeRef.current) {

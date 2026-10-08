@@ -114,7 +114,7 @@ function AttachmentPill({ attachment, onRemove }: { attachment: ComposerAttachme
         setLoadedImageSrc(source)
         setLightboxOpen(true)
       } catch (error) {
-        notifyError(error, c.previewUnavailable)
+        notifyError(error, c.previewUnavailable, 'files')
       }
 
       return
@@ -142,7 +142,7 @@ function AttachmentPill({ attachment, onRemove }: { attachment: ComposerAttachme
 
       openPreview(preview, 'manual')
     } catch (error) {
-      notifyError(error, c.previewUnavailable)
+      notifyError(error, c.previewUnavailable, 'files')
     }
   }
 

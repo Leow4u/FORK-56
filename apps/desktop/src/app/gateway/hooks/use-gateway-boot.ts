@@ -262,7 +262,7 @@ export function useGatewayBoot({
         // backoff in the finally block below.
         if (!cancelled && isGatewayReauthRequired(err) && !reauthNotified) {
           reauthNotified = true
-          notifyError(err, translateNow('boot.errors.gatewaySignInRequired'))
+          notifyError(err, translateNow('boot.errors.gatewaySignInRequired'), 'connections')
         }
       } finally {
         reconnecting = false

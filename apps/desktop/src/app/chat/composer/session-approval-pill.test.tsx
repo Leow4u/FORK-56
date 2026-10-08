@@ -194,9 +194,10 @@ describe('SessionApprovalPill', () => {
     choose(/off/i)
 
     await waitFor(() => {
-      expect($notifications.get().some(item => item.message === 'Could not change approval mode')).toBe(true)
+      expect(screen.getByRole('button', { name: 'Approval mode: Smart' })).toBeTruthy()
     })
 
+    expect($notifications.get()).toEqual([])
     expect($sessionStates.get()['runtime-a']?.approvalMode).toBeNull()
     expect(screen.getByRole('button', { name: 'Approval mode: Smart' })).toBeTruthy()
   })

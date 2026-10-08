@@ -121,7 +121,7 @@ export function GatewayMenuPanel({
 
     setReconnecting(true)
     void reconnectGateway()
-      .catch(err => notifyError(err, copy.reconnectGateway))
+      .catch(err => notifyError(err, copy.reconnectGateway, 'connections'))
       .finally(() => setReconnecting(false))
   }
 

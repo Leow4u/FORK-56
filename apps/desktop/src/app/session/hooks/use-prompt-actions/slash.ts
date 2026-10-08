@@ -670,7 +670,7 @@ export function useSlashCommand(deps: SlashCommandDeps) {
 
           if (!sid) {
             setYoloActive(next)
-            notify({ kind: 'success', message: next ? copy.yoloArmed : copy.yoloOff })
+            notify({ category: 'settings', kind: 'success', message: next ? copy.yoloArmed : copy.yoloOff })
 
             return
           }
@@ -679,7 +679,7 @@ export function useSlashCommand(deps: SlashCommandDeps) {
             const active = await setSessionYolo(requestGateway, sid, next)
             appendSessionTextMessage(sid, 'system', copy.yoloSystem(active))
           } catch {
-            notify({ kind: 'error', title: copy.yoloTitle, message: copy.yoloToggleFailed })
+            notify({ category: 'settings', kind: 'error', title: copy.yoloTitle, message: copy.yoloToggleFailed })
           }
         },
         // /wake must stay in the gateway process that owns the Desktop wake
@@ -785,7 +785,7 @@ export function useSlashCommand(deps: SlashCommandDeps) {
           const current = normalizeProfileKey($activeGatewayProfile.get())
 
           if (!target) {
-            notify({ kind: 'success', message: copy.profileStatus(current) })
+            notify({ category: 'settings', kind: 'success', message: copy.profileStatus(current) })
 
             return
           }
@@ -796,6 +796,7 @@ export function useSlashCommand(deps: SlashCommandDeps) {
 
             if (!match) {
               notify({
+                category: 'settings',
                 kind: 'error',
                 title: copy.unknownProfile,
                 message: copy.noProfileNamed(target, profiles.map(profile => profile.name).join(', '))
@@ -808,9 +809,9 @@ export function useSlashCommand(deps: SlashCommandDeps) {
 
             $newChatProfile.set(key)
             await ensureGatewayProfile(key)
-            notify({ kind: 'success', message: copy.newChatsProfile(match.name) })
+            notify({ category: 'settings', kind: 'success', message: copy.newChatsProfile(match.name) })
           } catch (err) {
-            notifyError(err, copy.setProfileFailed)
+            notifyError(err, copy.setProfileFailed, 'settings')
           }
         },
         skin: async ({ arg, command, recordInput, sessionHint }) => {

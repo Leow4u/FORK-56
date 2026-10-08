@@ -59,7 +59,7 @@ export function LanguageSwitcher({ className, collapsed = false, dropUp = false 
       setOpen(false)
       triggerHaptic('success')
     } catch (error) {
-      notifyError(error, t.language.saveError)
+      notifyError(error, t.language.saveError, 'settings')
     }
   }
 

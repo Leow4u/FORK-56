@@ -71,7 +71,7 @@ export function ProviderConfigPanel({ profile = null, provider }: { profile?: nu
           setSaved(current => ({ ...current, [field.key]: value }))
         }
       } catch (err) {
-        notifyError(err, `Failed to save ${field.label}`)
+        notifyError(err, `Failed to save ${field.label}`, 'settings')
       }
     },
     [profile, provider, saved]

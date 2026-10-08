@@ -213,6 +213,7 @@ class AgentNotice:
     ttl_ms: Optional[int] = None   # honored only when kind == "ttl"
     key: Optional[str] = None      # dedupe / fired-once-latch / clear key
     id: Optional[str] = None
+    usage_band: Optional[int] = None  # Presentation metadata; credit policy stays unchanged.
 
 
 # ── is_free_tier_model (local-data-only free-model check) ────────────────────
@@ -383,6 +384,7 @@ def evaluate_credits_notices(
                     kind=CREDITS_NOTICE_KIND,
                     key=CREDITS_USAGE_KEY,
                     id=CREDITS_USAGE_KEY,
+                    usage_band=target_band,
                 )
             )
             active.add(CREDITS_USAGE_KEY)

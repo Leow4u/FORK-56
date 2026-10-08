@@ -191,7 +191,7 @@ export function AccountFooter() {
     try {
       await signOutOfPortal()
     } catch (err) {
-      notifyError(err, t.settings.gateway.signOutFailed)
+      notifyError(err, t.settings.gateway.signOutFailed, 'connections')
 
       return
     }

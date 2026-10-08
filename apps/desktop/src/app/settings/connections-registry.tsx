@@ -260,7 +260,7 @@ export function ConnectionsRegistrySection() {
     try {
       publishRegistry(await bridge.list())
     } catch (err) {
-      notifyError(err, s.loadFailed)
+      notifyError(err, s.loadFailed, 'connections')
     } finally {
       setLoading(false)
     }
@@ -362,7 +362,7 @@ export function ConnectionsRegistrySection() {
           return
         }
 
-        notifyError(err, s.saveFailed)
+        notifyError(err, s.saveFailed, 'connections')
       } finally {
         setSaving(false)
       }
@@ -381,7 +381,7 @@ export function ConnectionsRegistrySection() {
       const result = await bridge.remove(removeTarget.id)
       publishRegistry(result.registry)
     } catch (err) {
-      notifyError(err, s.removeFailed)
+      notifyError(err, s.removeFailed, 'connections')
     } finally {
       setBusyId(null)
       setRemoveTarget(null)
@@ -400,7 +400,7 @@ export function ConnectionsRegistrySection() {
         const result = await bridge.setPrimary(id)
         publishRegistry(result.registry)
       } catch (err) {
-        notifyError(err, s.saveFailed)
+        notifyError(err, s.saveFailed, 'connections')
       } finally {
         setBusyId(null)
       }
@@ -420,7 +420,7 @@ export function ConnectionsRegistrySection() {
         const result = await bridge.setLaunchMode(mode)
         publishRegistry(result.registry)
       } catch (err) {
-        notifyError(err, s.saveFailed)
+        notifyError(err, s.saveFailed, 'connections')
       } finally {
         setLaunchModeBusy(false)
       }
@@ -441,12 +441,12 @@ export function ConnectionsRegistrySection() {
         const reachable = result.ok === true || result.reachable === true
 
         if (reachable) {
-          notify({ title: conn.label, message: s.testOk })
+          notify({ category: 'connections', title: conn.label, message: s.testOk })
         } else {
-          notifyError(new Error(result.error || conn.label), s.testFailed)
+          notifyError(new Error(result.error || conn.label), s.testFailed, 'connections')
         }
       } catch (err) {
-        notifyError(err, s.testFailed)
+        notifyError(err, s.testFailed, 'connections')
       } finally {
         setTestingId(null)
       }
@@ -468,15 +468,15 @@ export function ConnectionsRegistrySection() {
 
       for (const row of results) {
         if (row.ok) {
-          notify({ title: row.label, message: row.detail || s.updateAllDone })
+          notify({ category: 'connections', title: row.label, message: row.detail || s.updateAllDone })
         } else if (row.skipped && row.reason === 'cloud-managed') {
-          notify({ title: row.label, message: s.updateSkippedCloud })
+          notify({ category: 'connections', title: row.label, message: s.updateSkippedCloud })
         } else {
-          notifyError(new Error(row.error || row.detail || row.reason || row.label), s.updateAllFailed)
+          notifyError(new Error(row.error || row.detail || row.reason || row.label), s.updateAllFailed, 'connections')
         }
       }
     } catch (err) {
-      notifyError(err, s.updateAllFailed)
+      notifyError(err, s.updateAllFailed, 'connections')
     } finally {
       setUpdatingAll(false)
     }

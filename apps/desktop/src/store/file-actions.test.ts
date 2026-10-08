@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { $notifications, clearNotifications } from '@/store/notifications'
+import { $notifications, clearNotifications, NOTIFICATION_CATEGORY_ENABLED } from '@/store/notifications'
 
 vi.mock('@/lib/media', () => ({
   downloadGatewayMediaFile: vi.fn()
@@ -36,7 +36,22 @@ describe('downloadRemoteFile', () => {
     await downloadRemoteFile('/home/linux/project/notes.md')
 
     expect(downloadGatewayMediaFile).toHaveBeenCalledWith('/home/linux/project/notes.md')
-    expect($notifications.get()[0]?.message).toBe('Saved')
+    expect($notifications.get()).toEqual([])
+  })
+
+  it('restores download feedback when the files category is enabled', async () => {
+    NOTIFICATION_CATEGORY_ENABLED.files = true
+
+    try {
+      downloadGatewayMediaFile.mockResolvedValue({ path: '/Users/me/Downloads/notes.md', saved: true })
+      await downloadRemoteFile('/home/linux/project/notes.md')
+      expect($notifications.get()[0]?.message).toBe('Saved')
+      downloadGatewayMediaFile.mockRejectedValue(new Error('Download failed'))
+      await downloadRemoteFile('/home/linux/project/notes.md')
+      expect($notifications.get()[0]).toMatchObject({ kind: 'error', title: 'Download failed' })
+    } finally {
+      NOTIFICATION_CATEGORY_ENABLED.files = false
+    }
   })
 
   it('stays quiet when the save dialog is canceled', async () => {
@@ -47,12 +62,11 @@ describe('downloadRemoteFile', () => {
     expect($notifications.get()).toEqual([])
   })
 
-  it('toasts when the gateway download fails', async () => {
+  it('keeps failed downloads quiet while the files category is disabled', async () => {
     downloadGatewayMediaFile.mockRejectedValue(new Error('Desktop file download bridge is unavailable'))
 
     await downloadRemoteFile('/home/linux/project/notes.md')
 
-    expect($notifications.get()[0]?.kind).toBe('error')
-    expect($notifications.get()[0]?.title).toBe('Download failed')
+    expect($notifications.get()).toEqual([])
   })
 })

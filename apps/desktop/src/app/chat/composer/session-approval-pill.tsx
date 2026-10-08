@@ -94,7 +94,7 @@ export function SessionApprovalPill({ compact = false, disabled }: { compact?: b
       })
       .catch(() => {
         patchSessionApprovalMode(id, previous)
-        notify({ kind: 'error', message: copy.saveFailed, title: copy.title })
+        notify({ category: 'settings', kind: 'error', message: copy.saveFailed, title: copy.title })
       })
       .finally(() => {
         pending.current = false

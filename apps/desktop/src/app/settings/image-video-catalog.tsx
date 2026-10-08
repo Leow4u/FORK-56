@@ -64,9 +64,14 @@ export function ImageVideoCatalog({
       queryClient.setQueryData<ToolsetModelsResponse>(queryKey, current =>
         current ? { ...current, current: modelId } : current
       )
-      notify({ kind: 'success', title: copy.modelSelectedTitle, message: copy.modelSelectedMessage(modelId) })
+      notify({
+        category: 'settings',
+        kind: 'success',
+        title: copy.modelSelectedTitle,
+        message: copy.modelSelectedMessage(modelId)
+      })
     } catch (err) {
-      notifyError(err, copy.failedSelectModel(modelId))
+      notifyError(err, copy.failedSelectModel(modelId), 'settings')
     } finally {
       setSaving(null)
     }

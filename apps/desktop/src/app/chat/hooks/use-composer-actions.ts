@@ -499,7 +499,7 @@ export function useComposerActions({
 
         return true
       } catch (err) {
-        notifyError(err, copy.imagePreviewFailed)
+        notifyError(err, copy.imagePreviewFailed, 'files')
 
         return true
       }
@@ -523,14 +523,14 @@ export function useComposerActions({
         const savedPath = await window.work4youDesktop?.saveImageBuffer(data, blobExtension(blob))
 
         if (!savedPath) {
-          notify({ kind: 'error', title: copy.imageAttach, message: copy.imageWriteFailed })
+          notify({ category: 'files', kind: 'error', title: copy.imageAttach, message: copy.imageWriteFailed })
 
           return false
         }
 
         return attachImagePath(savedPath)
       } catch (err) {
-        notifyError(err, copy.imageAttachFailed)
+        notifyError(err, copy.imageAttachFailed, 'files')
 
         return false
       }
@@ -566,11 +566,7 @@ export function useComposerActions({
 
         if (!path) {
           if (!silent) {
-            notify({
-              kind: 'warning',
-              title: copy.clipboard,
-              message: copy.noClipboardImage
-            })
+            notify({ category: 'files', kind: 'warning', title: copy.clipboard, message: copy.noClipboardImage })
           }
 
           return false
@@ -581,7 +577,7 @@ export function useComposerActions({
         return true
       } catch (err) {
         if (!silent) {
-          notifyError(err, copy.clipboardPasteFailed)
+          notifyError(err, copy.clipboardPasteFailed, 'files')
         }
 
         return false
@@ -697,7 +693,7 @@ export function useComposerActions({
       }
 
       if (!attached && lastFailure) {
-        notify({ kind: 'warning', title: copy.dropFiles, message: lastFailure })
+        notify({ category: 'files', kind: 'warning', title: copy.dropFiles, message: lastFailure })
       }
 
       return attached

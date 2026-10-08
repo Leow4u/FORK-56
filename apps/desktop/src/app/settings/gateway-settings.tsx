@@ -237,7 +237,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
 
         acceptSavedConfig(config)
       })
-      .catch(err => notifyError(err, g.failedLoad))
+      .catch(err => notifyError(err, g.failedLoad, 'connections'))
       .finally(() => {
         if (!cancelled) {
           setLoading(false)
@@ -474,6 +474,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       acceptSavedConfig(next)
       setRemoteToken('')
       notify({
+        category: 'connections',
         kind: 'success',
         title: apply ? g.restartingTitle : g.savedTitle,
         message: apply ? g.restartingMessage : g.savedMessage
@@ -504,12 +505,13 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
 
       if (state.mode === 'ssh' && sshError) {
         notify({
+          category: 'connections',
           kind: 'error',
           title: apply ? g.applyFailed : g.saveFailed,
           message: (errors as Record<string, string>)[sshError] || g.sshErrUnknown
         })
       } else {
-        notifyError(err, apply ? g.applyFailed : g.saveFailed)
+        notifyError(err, apply ? g.applyFailed : g.saveFailed, 'connections')
       }
     } finally {
       if (seq === saveSeq.current) {
@@ -521,6 +523,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
   const save = async (apply: boolean) => {
     if (state.mode === 'remote' && !canUseRemote) {
       notify({
+        category: 'connections',
         kind: 'warning',
         title: g.incompleteTitle,
         message: authMode === 'oauth' ? g.incompleteSignIn : g.incompleteToken
@@ -546,7 +549,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
     const seq = ++signingSeq.current
 
     if (!trimmedUrl) {
-      notify({ kind: 'warning', title: g.incompleteTitle, message: g.enterUrlFirst })
+      notify({ category: 'connections', kind: 'warning', title: g.incompleteTitle, message: g.enterUrlFirst })
 
       return
     }
@@ -577,9 +580,10 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       if (result.connected) {
         const refreshed = await window.work4youDesktop.getConnectionConfig(null)
         acceptSavedConfig(refreshed)
-        notify({ kind: 'success', title: g.signedIn, message: g.connectedTo(providerLabel) })
+        notify({ category: 'connections', kind: 'success', title: g.signedIn, message: g.connectedTo(providerLabel) })
       } else {
         notify({
+          category: 'connections',
           kind: 'warning',
           title: t.boot.failure.signInIncompleteTitle,
           message: t.boot.failure.signInIncompleteMessage
@@ -587,7 +591,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       }
     } catch (err) {
       if (seq === signingSeq.current) {
-        notifyError(err, g.signInFailed)
+        notifyError(err, g.signInFailed, 'connections')
       }
     } finally {
       if (seq === signingSeq.current) {
@@ -609,10 +613,10 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       }
 
       acceptSavedConfig(refreshed)
-      notify({ kind: 'success', title: g.signedOutTitle, message: g.signedOutMessage })
+      notify({ category: 'connections', kind: 'success', title: g.signedOutTitle, message: g.signedOutMessage })
     } catch (err) {
       if (seq === signingSeq.current) {
-        notifyError(err, g.signOutFailed)
+        notifyError(err, g.signOutFailed, 'connections')
       }
     } finally {
       if (seq === signingSeq.current) {
@@ -685,7 +689,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
         setCloudSignedIn(false)
       }
 
-      notifyError(err, g.cloudDiscoverFailed)
+      notifyError(err, g.cloudDiscoverFailed, 'connections')
 
       return null
     }
@@ -805,7 +809,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       }
     } catch (err) {
       if (seq === signingSeq.current) {
-        notifyError(err, g.cloudSignInFailed)
+        notifyError(err, g.cloudSignInFailed, 'connections')
       }
     } finally {
       if (seq === signingSeq.current) {
@@ -841,6 +845,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
 
       if (!result.connected) {
         notify({
+          category: 'connections',
           kind: 'warning',
           title: t.boot.failure.signInIncompleteTitle,
           message: t.boot.failure.signInIncompleteMessage
@@ -865,7 +870,12 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       }
 
       acceptSavedConfig(next)
-      notify({ kind: 'success', title: g.cloudConnectedTitle, message: g.cloudConnectedTo(agent.name) })
+      notify({
+        category: 'connections',
+        kind: 'success',
+        title: g.cloudConnectedTitle,
+        message: g.cloudConnectedTo(agent.name)
+      })
     } catch (err) {
       if (seq !== contextSeq.current) {
         return
@@ -875,7 +885,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
         setCloudSignedIn(false)
       }
 
-      notifyError(err, g.cloudConnectFailed)
+      notifyError(err, g.cloudConnectFailed, 'connections')
     } finally {
       if (seq === contextSeq.current) {
         setCloudConnectingId(null)
@@ -920,7 +930,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
     const seq = ++sshTestSeq.current
 
     if (!state.sshHost.trim()) {
-      notify({ kind: 'warning', title: g.incompleteTitle, message: g.sshIncompleteHost })
+      notify({ category: 'connections', kind: 'warning', title: g.incompleteTitle, message: g.sshIncompleteHost })
 
       return
     }
@@ -952,10 +962,10 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
 
       const message = g.sshReachable(result.host || state.sshHost, result.remotePlatform || '?')
       setLastTest(message)
-      notify({ kind: 'success', title: g.reachableTitle, message })
+      notify({ category: 'connections', kind: 'success', title: g.reachableTitle, message })
     } catch (err) {
       if (seq === sshTestSeq.current) {
-        notifyError(err, g.testFailed)
+        notifyError(err, g.testFailed, 'connections')
       }
     } finally {
       if (seq === sshTestSeq.current) {
@@ -969,6 +979,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
 
     if (!canUseRemote) {
       notify({
+        category: 'connections',
         kind: 'warning',
         title: g.incompleteTitle,
         message: authMode === 'oauth' ? g.incompleteSignInTest : g.incompleteTokenTest
@@ -994,10 +1005,10 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
 
       const message = g.connectedTo(result.baseUrl || trimmedUrl, result.version ?? undefined)
       setLastTest(message)
-      notify({ kind: 'success', title: g.reachableTitle, message })
+      notify({ category: 'connections', kind: 'success', title: g.reachableTitle, message })
     } catch (err) {
       if (seq === sshTestSeq.current) {
-        notifyError(err, g.testFailed)
+        notifyError(err, g.testFailed, 'connections')
       }
     } finally {
       if (seq === sshTestSeq.current) {

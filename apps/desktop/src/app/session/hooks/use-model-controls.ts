@@ -280,7 +280,7 @@ export function useModelControls({ queryClient, requestGateway }: ModelControlsO
           touchesPrimary && !liveSessionId,
           liveGatewayProfile
         )
-        notifyError(err, copy.modelSwitchFailed)
+        notifyError(err, copy.modelSwitchFailed, 'settings')
 
         return false
       }
