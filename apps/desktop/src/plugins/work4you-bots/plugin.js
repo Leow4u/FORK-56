@@ -63,7 +63,7 @@ import {
   useQuery,
   useValue
 } from '@work4you/plugin-sdk'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 
 const { McpTab, ToolsetConfigPanel } = sdk
@@ -451,18 +451,29 @@ const BOT_MODE_LOCALES = {
         days: 'days'
       },
       dayOfMonth: 'Day of month',
-      stopAfter: 'Stop after',
-      runsForever: 'runs (blank = forever)',
+      repeat: 'Repeat',
+      time: 'Time',
+      weekday: 'Day of week',
+      delay: 'Run in',
+      interval: 'Every',
+      amount: 'Amount',
+      unit: 'Unit',
+      customSchedule: 'Schedule',
+      customScheduleHint: 'Use an interval such as every 2h, or a cron expression such as 0 9 * * *.',
+      runLimit: 'Run limit',
+      unlimited: 'No limit',
+      limited: 'Set a limit',
+      runCount: 'Number of runs',
       scheduled: title => `Cronjob "${title}" scheduled`,
-      newTitle: 'New Cronjob',
-      newSubtitle: name => `A recurring task ${name} runs on a schedule. Runs land in its own chat history.`,
-      namePlaceholder: 'Name this cronjob',
-      instruction: 'Instruction',
-      instructionPlaceholder: 'What should this cronjob do each time it runs?',
-      whenToRun: 'When to run',
-      continuity: 'Continuity: each run sees the previous run’s output (dedupe, continue where it left off)',
+      newTitle: 'New routine',
+      newSubtitle: 'Runs appear in the agent’s history.',
+      namePlaceholder: 'Name this routine',
+      instruction: 'Instructions',
+      instructionPlaceholder: 'What should the agent do each time this routine runs?',
+      continuity: 'Use the previous result',
+      continuityHint: 'Each run receives the result of the previous one.',
       scheduling: 'Scheduling…',
-      create: 'Create Cronjob',
+      create: 'Create routine',
       staleNotice: 'Could not refresh cronjobs. Showing the last list we had.',
       paneTitle: 'Cronjobs',
       loadFailed: 'Could not load cronjobs. The list may still be there.',
@@ -913,19 +924,29 @@ const BOT_MODE_LOCALES = {
         days: 'dias'
       },
       dayOfMonth: 'Dia do mês',
-      stopAfter: 'Parar após',
-      runsForever: 'execuções (vazio = sem limite)',
+      repeat: 'Repetir',
+      time: 'Horário',
+      weekday: 'Dia da semana',
+      delay: 'Executar em',
+      interval: 'A cada',
+      amount: 'Quantidade',
+      unit: 'Unidade',
+      customSchedule: 'Agendamento',
+      customScheduleHint: 'Use um intervalo como every 2h ou uma expressão cron como 0 9 * * *.',
+      runLimit: 'Limite de execuções',
+      unlimited: 'Sem limite',
+      limited: 'Definir limite',
+      runCount: 'Número de execuções',
       scheduled: title => `Tarefa "${title}" agendada`,
-      newTitle: 'Nova tarefa agendada',
-      newSubtitle: name =>
-        `Uma tarefa recorrente que ${name} executa conforme um agendamento. As execuções ficam no histórico de conversa dele.`,
-      namePlaceholder: 'Dê um nome a esta tarefa',
-      instruction: 'Instrução',
-      instructionPlaceholder: 'O que esta tarefa deve fazer a cada execução?',
-      whenToRun: 'Quando executar',
-      continuity: 'Continuidade: cada execução vê o resultado da anterior (evita repetições e continua de onde parou)',
+      newTitle: 'Nova rotina',
+      newSubtitle: 'Execuções no histórico do agente.',
+      namePlaceholder: 'Dê um nome a esta rotina',
+      instruction: 'Instruções',
+      instructionPlaceholder: 'O que o agente deve fazer a cada execução desta rotina?',
+      continuity: 'Usar o resultado anterior',
+      continuityHint: 'Cada execução recebe o resultado da anterior.',
       scheduling: 'Agendando…',
-      create: 'Criar tarefa agendada',
+      create: 'Criar rotina',
       staleNotice: 'Não foi possível atualizar as tarefas agendadas. Mostrando a última lista disponível.',
       paneTitle: 'Tarefas agendadas',
       loadFailed: 'Não foi possível carregar as tarefas agendadas. A lista pode continuar lá.',
@@ -7845,12 +7866,144 @@ function scheduleSummary(state, t = tr) {
   }
 }
 
-function pickerSelect(value, onChange, options) {
+// Kept in the plugin so the creation surface also works when the plugin is
+// loaded dynamically. Every selector is scoped to this dialog.
+const ROUTINE_CREATE_CSS = `
+[data-slot='dialog-content'][data-workbots-routine-create] {
+  width: min(32.5rem, calc(100vw - 2rem));
+  max-width: none;
+  max-height: calc(100dvh - 2rem);
+  border-radius: var(--card-radius);
+  background: var(--ui-bg-elevated);
+  color: var(--ui-text-primary);
+  font-size: 0.875rem;
+}
+[data-workbots-routine-create] .workbots-routine-body,
+[data-workbots-routine-create] .workbots-routine-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+[data-workbots-routine-create] .workbots-routine-header {
+  padding: 1.25rem 2.75rem 0.875rem 1.25rem;
+  flex-shrink: 0;
+  text-align: start;
+}
+[data-workbots-routine-create] [data-slot='dialog-title'] {
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+[data-workbots-routine-create] .workbots-routine-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+[data-workbots-routine-create] .workbots-routine-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0 1.25rem 1.25rem;
+}
+[data-workbots-routine-create] .workbots-routine-owner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+[data-workbots-routine-create] .workbots-routine-owner-text { min-width: 0; }
+[data-workbots-routine-create] .workbots-routine-owner-name {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+[data-workbots-routine-create] .workbots-routine-instructions {
+  min-height: 5rem;
+  resize: vertical;
+}
+[data-workbots-routine-create] .workbots-routine-schedule,
+[data-workbots-routine-create] .workbots-routine-execution {
+  display: grid;
+  gap: 0.625rem;
+  border-top: 1px solid var(--ui-stroke-tertiary);
+  padding-top: 0.875rem;
+}
+[data-workbots-routine-create] .workbots-routine-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.25rem;
+}
+[data-workbots-routine-create] .workbots-routine-label {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+[data-workbots-routine-create] .workbots-routine-label .codicon { flex-shrink: 0; }
+[data-workbots-routine-create] .workbots-routine-pair {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+[data-workbots-routine-create] .workbots-routine-number { flex: 0 0 4rem; width: 4rem; }
+[data-workbots-routine-create] .workbots-routine-continuity {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+[data-workbots-routine-create] .workbots-routine-hint {
+  color: var(--ui-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+[data-workbots-routine-create] .workbots-routine-continuity .workbots-routine-hint {
+  margin: 0.25rem 0 0;
+  margin-inline-start: 1.625rem;
+}
+[data-workbots-routine-create] .workbots-routine-footer {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid var(--ui-stroke-tertiary);
+  padding: 0.875rem 1.25rem;
+}
+[data-workbots-routine-create] .workbots-routine-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+[data-workbots-routine-create] .workbots-routine-summary .codicon { flex-shrink: 0; }
+[data-workbots-routine-create] .workbots-routine-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+@media (max-width: 420px) {
+  [data-workbots-routine-create] .workbots-routine-row { grid-template-columns: minmax(0, 1fr); gap: 0.375rem; }
+  [data-workbots-routine-create] .workbots-routine-continuity { grid-template-columns: minmax(0, 1fr) auto; }
+}
+`
+
+function pickerSelect(value, onChange, options, id, disabled) {
   return jsxs(Select, {
     value,
     onValueChange: onChange,
+    disabled,
     children: [
-      jsx(SelectTrigger, { className: 'h-8 rounded-md', children: jsx(SelectValue, {}) }),
+      jsx(SelectTrigger, { id, size: 'lg', children: jsx(SelectValue, {}) }),
       jsx(SelectContent, {
         children: options.map(o => jsx(SelectItem, { value: o.id, children: o.label }, o.id))
       })
@@ -7858,125 +8011,179 @@ function pickerSelect(value, onChange, options) {
   })
 }
 
-function SchedulePicker({ state, setState }) {
+function routineSettingRow(label, icon, id, control) {
+  return jsxs('div', {
+    className: 'workbots-routine-row',
+    children: [
+      jsxs('label', {
+        htmlFor: id,
+        className: 'workbots-routine-label',
+        children: [jsx(Codicon, { name: icon, size: 16, 'aria-hidden': true }), label]
+      }),
+      control
+    ]
+  })
+}
+
+function SchedulePicker({ state, setState, id, disabled }) {
   const t = useBotModeT()
   const upd = patch => setState(prev => ({ ...prev, ...patch }))
   const needsTime = ['daily', 'weekdays', 'weekly', 'monthly'].includes(state.freq)
-
-  return jsxs('div', {
-    className: 'grid gap-2',
-    children: [
+  const select = (key, value, onChange, options) => pickerSelect(value, onChange, options, `${id}-${key}`, disabled)
+  const duration = (kind, label) =>
+    routineSettingRow(
+      label,
+      'watch',
+      `${id}-${kind}-amount`,
       jsxs('div', {
-        style: { display: 'grid', gridTemplateColumns: needsTime ? '1fr 1fr' : '1fr', gap: '8px' },
+        className: 'workbots-routine-pair',
         children: [
-          pickerSelect(
-            state.freq,
-            v => upd({ freq: v }),
-            FREQUENCIES.map(id => ({ id, label: t(`routines.frequency.${id}`) }))
-          ),
-          needsTime
-            ? pickerSelect(
-                state.time,
-                v => upd({ time: v }),
-                TIMES.map(x => ({ id: x.id, label: t('routines.timeOfDay', x.h, x.m) }))
-              )
-            : null
-        ]
-      }),
-      state.freq === 'once'
-        ? jsxs('div', {
-            style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
+          jsx(Input, {
+            id: `${id}-${kind}-amount`,
+            size: 'lg',
+            className: 'workbots-routine-number',
+            inputMode: 'numeric',
+            'aria-label': `${label}: ${t('routines.amount')}`,
+            value: state[`${kind}N`],
+            onChange: event => upd({ [`${kind}N`]: event.target.value.replace(/[^0-9]/g, '').slice(0, 4) })
+          }),
+          jsx('span', { id: `${id}-${kind}-unit-label`, className: 'sr-only', children: t('routines.unit') }),
+          jsxs(Select, {
+            value: state[`${kind}Unit`],
+            onValueChange: value => upd({ [`${kind}Unit`]: value }),
+            disabled,
             children: [
-              jsx(Input, {
-                className: 'h-8',
-                placeholder: '30',
-                value: state.onceN,
-                onChange: event => upd({ onceN: event.target.value.replace(/[^0-9]/g, '').slice(0, 4) })
+              jsx(SelectTrigger, {
+                size: 'lg',
+                'aria-labelledby': `${id}-${kind}-unit-label`,
+                children: jsx(SelectValue, {})
               }),
-              pickerSelect(state.onceUnit, v => upd({ onceUnit: v }), [
-                { id: 'm', label: t('routines.units.minutesFromNow') },
-                { id: 'h', label: t('routines.units.hoursFromNow') },
-                { id: 'd', label: t('routines.units.daysFromNow') }
-              ])
+              jsx(SelectContent, {
+                children: ['m', 'h', 'd'].map((unit, index) =>
+                  jsx(
+                    SelectItem,
+                    {
+                      value: unit,
+                      children: t(`routines.units.${['minutes', 'hours', 'days'][index]}`)
+                    },
+                    unit
+                  )
+                )
+              })
             ]
           })
+        ]
+      })
+    )
+
+  return jsxs('div', {
+    className: 'workbots-routine-schedule',
+    children: [
+      routineSettingRow(
+        t('routines.repeat'),
+        'sync',
+        `${id}-frequency`,
+        select(
+          'frequency',
+          state.freq,
+          value => upd({ freq: value }),
+          FREQUENCIES.map(freq => ({ id: freq, label: t(`routines.frequency.${freq}`) }))
+        )
+      ),
+      needsTime
+        ? routineSettingRow(
+            t('routines.time'),
+            'history',
+            `${id}-time`,
+            select(
+              'time',
+              state.time,
+              value => upd({ time: value }),
+              TIMES.map(time => ({ id: time.id, label: t('routines.timeOfDay', time.h, time.m) }))
+            )
+          )
         : null,
       state.freq === 'weekly'
-        ? pickerSelect(
-            state.weekday,
-            v => upd({ weekday: v }),
-            WEEKDAYS.map(day => ({ id: day.id, label: t(`routines.weekdays.${day.key}`) }))
+        ? routineSettingRow(
+            t('routines.weekday'),
+            'calendar',
+            `${id}-weekday`,
+            select(
+              'weekday',
+              state.weekday,
+              value => upd({ weekday: value }),
+              WEEKDAYS.map(day => ({ id: day.id, label: t(`routines.weekdays.${day.key}`) }))
+            )
           )
         : null,
       state.freq === 'monthly'
-        ? labeled(
+        ? routineSettingRow(
             t('routines.dayOfMonth'),
+            'calendar',
+            `${id}-monthday`,
             jsx(Input, {
-              className: 'h-8',
+              id: `${id}-monthday`,
+              size: 'lg',
+              inputMode: 'numeric',
               placeholder: '1',
               value: state.monthday,
               onChange: event => upd({ monthday: event.target.value.replace(/[^0-9]/g, '').slice(0, 2) })
             })
           )
         : null,
-      state.freq === 'interval'
-        ? jsxs('div', {
-            style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-            children: [
-              jsx(Input, {
-                className: 'h-8',
-                placeholder: '2',
-                value: state.intervalN,
-                onChange: event => upd({ intervalN: event.target.value.replace(/[^0-9]/g, '').slice(0, 4) })
-              }),
-              pickerSelect(state.intervalUnit, v => upd({ intervalUnit: v }), [
-                { id: 'm', label: t('routines.units.minutes') },
-                { id: 'h', label: t('routines.units.hours') },
-                { id: 'd', label: t('routines.units.days') }
-              ])
-            ]
-          })
-        : null,
+      state.freq === 'once' ? duration('once', t('routines.delay')) : null,
+      state.freq === 'interval' ? duration('interval', t('routines.interval')) : null,
       state.freq === 'advanced'
-        ? jsx(Input, {
-            className: 'h-8 font-mono text-xs',
-            placeholder: 'every 1d \u00b7 every 2h \u00b7 0 9 * * * (cron)',
-            value: state.raw,
-            onChange: event => upd({ raw: event.target.value })
-          })
-        : null,
-      state.freq !== 'once' && state.freq !== 'advanced'
         ? jsxs('div', {
-            className: 'flex items-center gap-2',
             children: [
-              jsx('span', { className: 'text-xs text-(--ui-text-tertiary)', children: t('routines.stopAfter') }),
-              jsx(Input, {
-                className: 'h-7 w-16 text-xs',
-                placeholder: '\u221e',
-                value: state.repeatN,
-                onChange: event => upd({ repeatN: event.target.value.replace(/[^0-9]/g, '').slice(0, 4) })
-              }),
-              jsx('span', { className: 'text-xs text-(--ui-text-tertiary)', children: t('routines.runsForever') })
+              labeled(
+                t('routines.customSchedule'),
+                jsx(Input, {
+                  id: `${id}-raw`,
+                  size: 'lg',
+                  className: 'font-mono',
+                  'aria-describedby': `${id}-raw-hint`,
+                  placeholder: '0 9 * * *',
+                  value: state.raw,
+                  onChange: event => upd({ raw: event.target.value })
+                })
+              ),
+              jsx('p', {
+                id: `${id}-raw-hint`,
+                className: 'workbots-routine-hint',
+                children: t('routines.customScheduleHint')
+              })
             ]
           })
-        : null,
-      jsx('div', {
-        className: 'text-[0.65rem] text-(--ui-text-quaternary)',
-        children: `${scheduleSummary(state, t)} \u00b7 ${composeSchedule(state) || '\u2014'}`
-      })
+        : null
     ]
   })
 }
 
 function defaultScheduleState() {
-  return { freq: 'daily', time: '9:0', weekday: '1', monthday: '1', intervalN: '2', intervalUnit: 'h', onceN: '30', onceUnit: 'm', repeatN: '', raw: '' }
+  return {
+    freq: 'daily',
+    time: '9:0',
+    weekday: '1',
+    monthday: '1',
+    intervalN: '2',
+    intervalUnit: 'h',
+    onceN: '30',
+    onceUnit: 'm',
+    repeatN: '',
+    raw: ''
+  }
 }
 
 function CreateRoutineDialog({ bot, open, onClose }) {
   const t = useBotModeT()
+  const id = useId()
+  const meta = useValue($botMeta)[bot]
+  const appearance = botAppearance(bot, meta)
   const [name, setName] = useState('')
   const [instruction, setInstruction] = useState('')
   const [sched, setSched] = useState(defaultScheduleState())
+  const [limited, setLimited] = useState(false)
   const [continuity, setContinuity] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -7987,6 +8194,7 @@ function CreateRoutineDialog({ bot, open, onClose }) {
     setName('')
     setInstruction('')
     setSched(defaultScheduleState())
+    setLimited(false)
     setContinuity(false)
     setBusy(false)
     setError(null)
@@ -8042,73 +8250,190 @@ function CreateRoutineDialog({ bot, open, onClose }) {
       }
     },
     children: jsxs(DialogContent, {
-      className: 'max-w-md',
+      'data-workbots-routine-create': '',
+      bodyClassName: 'workbots-routine-body',
       children: [
-        jsxs(DialogHeader, {
-          children: [
-            jsx(DialogTitle, { children: t('routines.newTitle') }),
-            jsx(DialogDescription, {
-              children: t('routines.newSubtitle', displayName({ name: bot }, $botMeta.get()[bot]))
-            })
-          ]
+        jsx('style', { children: ROUTINE_CREATE_CSS }),
+        jsx(DialogHeader, {
+          className: 'workbots-routine-header',
+          children: jsx(DialogTitle, { children: t('routines.newTitle') })
         }),
-        jsxs('div', {
-          className: 'grid gap-3.5',
+        jsxs('form', {
+          className: 'workbots-routine-form',
+          onSubmit: event => {
+            event.preventDefault()
+            void submit()
+          },
           children: [
-            labeled(
-              t('common.name'),
-              jsx(Input, {
-                autoFocus: true,
-                placeholder: t('routines.namePlaceholder'),
-                value: name,
-                onChange: event => setName(event.target.value)
+            jsx('div', {
+              className: 'workbots-routine-scroll',
+              children: jsxs('fieldset', {
+                disabled: busy,
+                className: 'workbots-routine-fields',
+                children: [
+                  jsxs('div', {
+                    className: 'workbots-routine-owner',
+                    children: [
+                      jsx(BotFace, { ...appearance, size: 44, name: bot }),
+                      jsxs('div', {
+                        className: 'workbots-routine-owner-text',
+                        children: [
+                          jsx('span', {
+                            className: 'workbots-routine-owner-name',
+                            children: displayName({ name: bot }, meta)
+                          }),
+                          jsx(DialogDescription, {
+                            className: 'workbots-routine-hint',
+                            children: t('routines.newSubtitle')
+                          })
+                        ]
+                      })
+                    ]
+                  }),
+                  labeled(
+                    t('common.name'),
+                    jsx(Input, {
+                      id: `${id}-name`,
+                      autoFocus: true,
+                      required: true,
+                      size: 'lg',
+                      placeholder: t('routines.namePlaceholder'),
+                      value: name,
+                      onChange: event => setName(event.target.value)
+                    })
+                  ),
+                  labeled(
+                    t('routines.instruction'),
+                    jsx(Textarea, {
+                      id: `${id}-instructions`,
+                      required: true,
+                      size: 'lg',
+                      className: 'workbots-routine-instructions',
+                      placeholder: t('routines.instructionPlaceholder'),
+                      value: instruction,
+                      onChange: event => setInstruction(event.target.value)
+                    })
+                  ),
+                  jsx(SchedulePicker, { state: sched, setState: setSched, id, disabled: busy }),
+                  jsxs('div', {
+                    className: 'workbots-routine-execution',
+                    children: [
+                      sched.freq !== 'once' && sched.freq !== 'advanced'
+                        ? routineSettingRow(
+                            t('routines.runLimit'),
+                            'play-circle',
+                            `${id}-limit`,
+                            jsxs('div', {
+                              className: 'workbots-routine-pair',
+                              children: [
+                                pickerSelect(
+                                  limited ? 'limited' : 'unlimited',
+                                  value => {
+                                    setLimited(value === 'limited')
+                                    setSched(prev => ({ ...prev, repeatN: value === 'unlimited' ? '' : '1' }))
+                                  },
+                                  [
+                                    { id: 'unlimited', label: t('routines.unlimited') },
+                                    { id: 'limited', label: t('routines.limited') }
+                                  ],
+                                  `${id}-limit`,
+                                  busy
+                                ),
+                                limited
+                                  ? jsx(Input, {
+                                      size: 'lg',
+                                      className: 'workbots-routine-number',
+                                      inputMode: 'numeric',
+                                      required: true,
+                                      'aria-label': t('routines.runCount'),
+                                      value: sched.repeatN,
+                                      onChange: event =>
+                                        setSched(prev => ({
+                                          ...prev,
+                                          repeatN: event.target.value.replace(/[^0-9]/g, '').slice(0, 4)
+                                        })),
+                                      onBlur: () => setSched(prev => ({ ...prev, repeatN: prev.repeatN || '1' }))
+                                    })
+                                  : null
+                              ]
+                            })
+                          )
+                        : null,
+                      jsxs('div', {
+                        className: 'workbots-routine-row workbots-routine-continuity',
+                        children: [
+                          jsxs('div', {
+                            children: [
+                              jsxs('label', {
+                                className: 'workbots-routine-label',
+                                htmlFor: `${id}-continuity`,
+                                children: [
+                                  jsx(Codicon, { name: 'database', size: 16, 'aria-hidden': true }),
+                                  t('routines.continuity')
+                                ]
+                              }),
+                              jsx('p', {
+                                id: `${id}-continuity-hint`,
+                                className: 'workbots-routine-hint',
+                                children: t('routines.continuityHint')
+                              })
+                            ]
+                          }),
+                          jsx(Switch, {
+                            id: `${id}-continuity`,
+                            size: 'xs',
+                            'aria-label': t('routines.continuity'),
+                            'aria-describedby': `${id}-continuity-hint`,
+                            checked: continuity,
+                            disabled: busy,
+                            onCheckedChange: setContinuity
+                          })
+                        ]
+                      })
+                    ]
+                  }),
+                  error
+                    ? jsx('div', {
+                        role: 'alert',
+                        className: 'text-xs text-destructive',
+                        children: error
+                      })
+                    : null
+                ]
               })
-            ),
-            labeled(
-              t('routines.instruction'),
-              jsx(Textarea, {
-                className: 'min-h-20',
-                placeholder: t('routines.instructionPlaceholder'),
-                value: instruction,
-                onChange: event => setInstruction(event.target.value)
-              })
-            ),
-            labeled(t('routines.whenToRun'), jsx(SchedulePicker, { state: sched, setState: setSched })),
-            jsxs('label', {
-              className: 'flex items-center gap-2 text-xs text-(--ui-text-tertiary) cursor-pointer select-none',
+            }),
+            jsxs(DialogFooter, {
+              className: 'workbots-routine-footer',
               children: [
-                jsx('input', {
-                  type: 'checkbox',
-                  className: 'accent-(--ui-accent)',
-                  checked: continuity,
-                  onChange: event => setContinuity(event.target.checked)
+                jsxs('div', {
+                  className: 'workbots-routine-summary workbots-routine-hint',
+                  role: 'status',
+                  children: [
+                    jsx(Codicon, { name: 'history', size: 16, 'aria-hidden': true }),
+                    jsx('span', { children: scheduleSummary(sched, t) })
+                  ]
                 }),
-                t('routines.continuity')
-              ]
-            }),
-            error
-              ? jsx('div', {
-                  className: 'rounded-md border border-(--ui-stroke-secondary) px-3 py-2 text-xs text-(--ui-accent)',
-                  children: error
+                jsxs('div', {
+                  className: 'workbots-routine-actions',
+                  children: [
+                    jsx(Button, {
+                      type: 'button',
+                      variant: 'ghost',
+                      disabled: busy,
+                      onClick: () => {
+                        reset()
+                        onClose()
+                      },
+                      children: t('common.cancel')
+                    }),
+                    jsx(Button, {
+                      type: 'submit',
+                      disabled: busy || !name.trim() || !instruction.trim() || !schedule.trim(),
+                      children: busy ? t('routines.scheduling') : t('routines.create')
+                    })
+                  ]
                 })
-              : null
-          ]
-        }),
-        jsxs(DialogFooter, {
-          children: [
-            jsx(Button, {
-              variant: 'ghost',
-              disabled: busy,
-              onClick: () => {
-                reset()
-                onClose()
-              },
-              children: t('common.cancel')
-            }),
-            jsx(Button, {
-              disabled: busy || !name.trim() || !instruction.trim() || !schedule.trim(),
-              onClick: submit,
-              children: busy ? t('routines.scheduling') : t('routines.create')
+              ]
             })
           ]
         })
