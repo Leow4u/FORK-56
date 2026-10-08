@@ -4769,6 +4769,15 @@ export const pt = defineLocale({
     }
   },
   rightSidebar: {
+    openFile: 'Abrir arquivo',
+    selectFileFromTree: 'Selecione um arquivo na árvore ao lado.',
+    fileLocation: 'Localização do arquivo',
+    hideFileTree: 'Ocultar árvore de arquivos',
+    showFileTree: 'Mostrar árvore de arquivos',
+    filterFiles: 'Filtrar arquivos...',
+    noMatchingFiles: 'Nenhum arquivo encontrado.',
+    partialFilter: 'Filtro parcial: algumas pastas não foram lidas.',
+
     aria: 'Barra lateral direita',
     panelsAria: 'Painéis da barra lateral direita',
     files: 'Sistema de arquivos',

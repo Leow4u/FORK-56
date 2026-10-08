@@ -5,8 +5,10 @@ import { type NodeApi, type NodeRendererProps, type RowRendererProps, Tree, type
 
 import { TreeSkeleton } from '@/components/chat/skeletons'
 import { Codicon } from '@/components/ui/codicon'
+import { FileTypeIcon } from '@/components/ui/file-type-icon'
 import { markRightPanePerf } from '@/debug/right-pane-events'
 import { useResizeObserver } from '@/hooks/use-resize-observer'
+import { comparisonPath } from '@/lib/path-compare'
 import { cn } from '@/lib/utils'
 import { type RepoChangeKind, repoChangeKindForPath } from '@/store/coding-status'
 import { $renamingPath, beginInlineRename } from '@/store/file-actions'
@@ -15,6 +17,7 @@ import { $revealInTreeRequest } from '@/store/layout'
 import { FileEntryContextMenu, InlineRenameInput, isRenameShortcut } from '../file-actions'
 
 import { getFileTreeDndManager } from './dnd-manager'
+import { findTreeNode } from './filter'
 import type { TreeNode } from './use-project-tree'
 
 const ROW_HEIGHT = 22
@@ -43,6 +46,9 @@ interface ProjectTreeProps {
   onLoadChildren: (id: string) => void | Promise<void>
   onNodeOpenChange: (id: string, open: boolean) => void
   onPreviewFile?: (path: string) => void
+  searchTerm?: string
+  visible?: boolean
+  selectedPath?: string
   openState: Record<string, boolean>
 }
 
@@ -55,7 +61,10 @@ export function ProjectTree({
   onLoadChildren,
   onNodeOpenChange,
   onPreviewFile,
-  openState
+  openState,
+  searchTerm,
+  selectedPath,
+  visible = true
 }: ProjectTreeProps) {
   markRightPanePerf('project-tree-render')
 
@@ -105,30 +114,44 @@ export function ProjectTree({
   // pane is opened by the caller; this drives the tree to the file.
   const revealNode = useCallback(
     async (absPath: string) => {
-      const root = cwd.replace(/[\\/]+$/, '')
-      const target = absPath.replace(/[\\/]+$/, '')
-      const rel = target.startsWith(root) ? target.slice(root.length).replace(/^[\\/]+/, '') : ''
+      const root = cwd.replace(/\\/g, '/').replace(/\/+$/, '')
+      const target = absPath.replace(/\\/g, '/').replace(/\/+$/, '')
+
+      const rel = comparisonPath(target).startsWith(`${comparisonPath(root)}/`)
+        ? target.slice(root.length).replace(/^[\\/]+/, '')
+        : ''
+
       const segments = rel.split(/[\\/]/).filter(Boolean)
 
       let acc = root
 
       for (let i = 0; i < segments.length - 1; i += 1) {
         acc = `${acc}/${segments[i]}`
-        const node = treeRef.current?.get(acc)
+        const row = findTreeNode(treeRef.current?.props.data ?? [], acc)
+        const node = row ? treeRef.current?.get(row.id) : null
 
         if (node?.data?.isDirectory && node.data.children === undefined) {
-          await onLoadChildren(acc)
+          await onLoadChildren(node.id)
         }
 
-        onNodeOpenChange(acc, true)
-        treeRef.current?.open(acc)
+        if (node) {
+          onNodeOpenChange(node.id, true)
+          treeRef.current?.open(node.id)
+        }
+
         await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)))
       }
 
-      treeRef.current?.select(target)
+      const selected = findTreeNode(treeRef.current?.props.data ?? [], target)?.id
+
+      if (!selected) {
+        return
+      }
+
+      treeRef.current?.select(selected)
       // 'start' lands the file at/near the top (instant — arborist sets scrollTop
       // directly, no smooth scroll).
-      treeRef.current?.scrollTo(target, 'start')
+      treeRef.current?.scrollTo(selected, 'start')
     },
     [cwd, onLoadChildren, onNodeOpenChange]
   )
@@ -136,15 +159,21 @@ export function ProjectTree({
   useEffect(
     () =>
       $revealInTreeRequest.subscribe(path => {
-        if (!path) {
+        if (!path || !visible) {
           return
         }
 
         $revealInTreeRequest.set(null)
         void revealNode(path)
       }),
-    [revealNode]
+    [revealNode, visible]
   )
+
+  useEffect(() => {
+    if (selectedPath && visible && !searchTerm && size.height > 0 && size.width > 0) {
+      void revealNode(selectedPath)
+    }
+  }, [selectedPath, visible, searchTerm, revealNode, size.height, size.width])
 
   const handleActivate = useCallback(
     (node: NodeApi<TreeNode>) => {
@@ -203,6 +232,8 @@ export function ProjectTree({
           ref={treeRef}
           renderRow={ProjectTreeRowContainer}
           rowHeight={ROW_HEIGHT}
+          searchTerm={searchTerm}
+          selection={selectedPath ? findTreeNode(data, selectedPath)?.id : undefined}
           width={size.width}
         >
           {props => (
@@ -359,7 +390,7 @@ function ProjectTreeRow({
         ) : isFolder ? (
           <Codicon name={node.isOpen ? 'folder-opened' : 'folder'} size="0.875rem" />
         ) : (
-          <Codicon name="file" size="0.875rem" />
+          <FileTypeIcon path={node.data.id} size="0.875rem" />
         )}
       </span>
       {editing ? (

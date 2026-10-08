@@ -28,6 +28,18 @@ function ok(entries: { name: string; path: string; isDirectory: boolean }[]): Wo
 }
 
 describe('useProjectTree', () => {
+  it('does not let a hidden file tab load or replace the active tree', async () => {
+    readDir.mockResolvedValue(ok([{ name: 'README.md', path: '/active/README.md', isDirectory: false }]))
+    const active = renderHook(() => useProjectTree('/active'))
+    await waitFor(() => expect(active.result.current.data[0]?.name).toBe('README.md'))
+    readDir.mockClear()
+    const hidden = renderHook(({ enabled }) => useProjectTree('/hidden', enabled), { initialProps: { enabled: false } })
+    expect(readDir).not.toHaveBeenCalled()
+    expect(active.result.current.effectiveCwd).toBe('/active')
+    hidden.rerender({ enabled: true })
+    await waitFor(() => expect(readDir).toHaveBeenCalledWith('/hidden'))
+  })
+
   it('starts empty when cwd is blank and skips IPC', async () => {
     const { result } = renderHook(() => useProjectTree(''))
 

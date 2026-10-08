@@ -2837,6 +2837,15 @@ export const zhHant = defineLocale({
   },
 
   rightSidebar: {
+    openFile: '開啟檔案',
+    selectFileFromTree: '從檔案樹中選擇檔案。',
+    fileLocation: '檔案位置',
+    hideFileTree: '隱藏檔案樹',
+    showFileTree: '顯示檔案樹',
+    filterFiles: '篩選檔案…',
+    noMatchingFiles: '沒有符合的檔案。',
+    partialFilter: '篩選結果不完整：部分資料夾未讀取。',
+
     aria: '右側邊欄',
     panelsAria: '右側邊欄面板',
     files: '檔案系統',

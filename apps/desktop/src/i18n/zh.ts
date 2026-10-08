@@ -4523,6 +4523,15 @@ export const zh: Translations = {
   },
 
   rightSidebar: {
+    openFile: '打开文件',
+    selectFileFromTree: '从文件树中选择文件。',
+    fileLocation: '文件位置',
+    hideFileTree: '隐藏文件树',
+    showFileTree: '显示文件树',
+    filterFiles: '筛选文件…',
+    noMatchingFiles: '没有匹配的文件。',
+    partialFilter: '筛选结果不完整：部分文件夹未读取。',
+
     aria: '右侧边栏',
     panelsAria: '右侧边栏面板',
     files: '文件系统',

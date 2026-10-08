@@ -79,7 +79,7 @@ import { HudShell } from '../hud/hud-shell'
 import { bindContentTools, contentToolData } from '../right-sidebar/content-tools'
 import { $workspaceIsPage } from '../routes'
 
-import { FilesPane, LogsPane, ReviewPaneContent } from './panes'
+import { FilesPane, FilesPaneTitle, LogsPane, ReviewPaneContent } from './panes'
 import { ContribWiring, WiredPane } from './wiring'
 
 /**
@@ -226,6 +226,7 @@ registry.registerMany([
     data: {
       ...contentToolData('files'),
       revealAliases: ['file-browser'],
+      tabTitle: () => <FilesPaneTitle />,
       tabLead: () => <ToolIcon name="files" size="0.6875rem" />
     },
     render: () => idle(<FilesPane />)

@@ -2941,6 +2941,15 @@ export const ja = defineLocale({
   },
 
   rightSidebar: {
+    openFile: 'ファイルを開く',
+    selectFileFromTree: 'ツリーからファイルを選択してください。',
+    fileLocation: 'ファイルの場所',
+    hideFileTree: 'ファイルツリーを隠す',
+    showFileTree: 'ファイルツリーを表示',
+    filterFiles: 'ファイルを絞り込み…',
+    noMatchingFiles: '一致するファイルがありません。',
+    partialFilter: '一部のフォルダーを読み込めなかったため、結果は不完全です。',
+
     aria: '右サイドバー',
     panelsAria: '右サイドバーパネル',
     files: 'ファイルシステム',

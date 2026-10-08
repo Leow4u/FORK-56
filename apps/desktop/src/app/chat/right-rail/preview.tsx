@@ -1,6 +1,7 @@
 import { useStore } from '@nanostores/react'
 
 import { $restartPreviewServer } from '@/app/contrib/panes'
+import { RightSidebarPane } from '@/app/right-sidebar'
 import { $previewOwner, $previewReloadRequest, $previewTabs, previewOwnerKey } from '@/store/preview'
 
 import { PreviewPane } from './preview-pane'
@@ -36,7 +37,7 @@ export function PreviewTilePane({ tabId }: PreviewTilePaneProps) {
   // Keyed by the conversation: two conversations can each hold the same tab id
   // (their Browser, the same file), and switching between them must rebuild
   // the page from the conversation now on screen rather than keep the other's.
-  return (
+  const content = (
     <PreviewPane
       embedded
       key={previewOwnerKey(owner)}
@@ -46,5 +47,13 @@ export function PreviewTilePane({ tabId }: PreviewTilePaneProps) {
       tabId={tabId}
       target={target}
     />
+  )
+
+  return target.kind === 'file' && target.path ? (
+    <RightSidebarPane key={`${previewOwnerKey(owner)}:${tabId}`} selectedPath={target.path}>
+      {content}
+    </RightSidebarPane>
+  ) : (
+    content
   )
 }
