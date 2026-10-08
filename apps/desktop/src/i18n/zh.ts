@@ -4751,6 +4751,20 @@ export const zh: Translations = {
 
   assistant: {
     thread: {
+      errorCard: {
+        title: '无法完成请求',
+        generic: '发生错误，无法完成此请求。请查看技术详情以了解更多信息。',
+        inFlightCredits: '考虑到其他正在处理的请求，提供商的可用额度不足以处理此请求。请等待这些请求完成后重试。',
+        billing: '由于额度或账单限制，服务无法批准此请求。请查看技术详情以了解具体限制。',
+        authentication: '服务拒绝了此请求的访问。请检查连接凭据和权限。',
+        rateLimit: '服务收到的请求过多。请稍候重试。',
+        timeout: '请求超时。请稍后重试。',
+        connection: '连接服务失败。请检查连接后重试。',
+        context: '请求超出模型的上下文限制。请减少发送的内容或开始新对话。',
+        unavailable: '服务发生服务器错误。请稍后重试。',
+        setup: '尚未配置推理提供商。请检查模型和提供商设置。',
+        details: '技术详情'
+      },
       loadingSession: '正在加载会话',
       showEarlier: '显示更早的消息',
       loadingResponse: 'Work4You 正在加载回复',

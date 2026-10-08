@@ -1,7 +1,6 @@
 import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
-  ErrorPrimitive,
   MessagePrimitive,
   useAuiState,
   useMessageRuntime
@@ -17,6 +16,7 @@ import {
   pickPrimaryPreviewTarget
 } from '@/components/assistant-ui/thread/content'
 import { LiveTurn } from '@/components/assistant-ui/thread/live-turn'
+import { MessageError } from '@/components/assistant-ui/thread/message-error'
 import { MESSAGE_PARTS_COMPONENTS } from '@/components/assistant-ui/thread/message-parts'
 import { ReactionPicker } from '@/components/assistant-ui/thread/message-reactions'
 import { SettledProductTurn, useTurnView } from '@/components/assistant-ui/thread/settled-turn'
@@ -31,7 +31,7 @@ import { Codicon } from '@/components/ui/codicon'
 import { CopyButton } from '@/components/ui/copy-button'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
-import { AudioLines, GitForkIcon, Loader2Icon, RefreshCwIcon, SmilePlusIcon, VolumeXIcon, XIcon } from '@/lib/icons'
+import { AudioLines, GitForkIcon, Loader2Icon, RefreshCwIcon, SmilePlusIcon, VolumeXIcon } from '@/lib/icons'
 import { extractPreviewTargets } from '@/lib/preview-targets'
 import { markAssistantIdSpoken } from '@/lib/spoken-reply'
 import { useEnterAnimation } from '@/lib/use-enter-animation'
@@ -239,22 +239,7 @@ export const AssistantMessage: FC<{
           </div>
         )}
         <MessagePrimitive.Error>
-          <ErrorPrimitive.Root
-            className="mt-1.5 flex items-start gap-1.5 text-[0.78rem] leading-5 text-[color-mix(in_srgb,var(--dt-destructive)_78%,var(--ui-text-secondary))]"
-            role="alert"
-          >
-            <ErrorPrimitive.Message className="min-w-0 flex-1" />
-            {onDismissError && (
-              <TooltipIconButton
-                className="-my-0.5 shrink-0 text-current opacity-70 hover:opacity-100"
-                onClick={() => onDismissError(messageId)}
-                side="top"
-                tooltip={t.assistant.thread.dismissError}
-              >
-                <XIcon className="size-3.5" />
-              </TooltipIconButton>
-            )}
-          </ErrorPrimitive.Root>
+          <MessageError onDismiss={onDismissError ? () => onDismissError(messageId) : undefined} />
         </MessagePrimitive.Error>
       </div>
       {/* What the newest turn changed, right under what it said and above its
