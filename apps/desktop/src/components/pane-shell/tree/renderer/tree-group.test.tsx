@@ -177,9 +177,8 @@ describe('TreeGroup', () => {
     expect(cron?.className).not.toContain('rounded-tr-(--ui-stage-radius)')
   })
 
-  // The content area's strip draws its tabs as surfaces; every other strip —
-  // the chat's included, even with a preview stacked into it — keeps its own.
-  it("draws the content area's tabs as surfaces, and only there", () => {
+  // Chat and content zones share working-tab chrome, including mixed groups.
+  it('shares surface tabs across chat and content while keeping navigation compact', () => {
     disposePanes.push(
       registry.register({
         area: 'panes',
@@ -220,10 +219,21 @@ describe('TreeGroup', () => {
     expect(stripVariant('area-zone')).toBe('surface')
 
     render(<TreeGroup node={zone('chat-zone', ['workspace', 'preview-tile:file:a'])} />)
-    expect(stripVariant('chat-zone')).toBe('underline')
+    expect(stripVariant('chat-zone')).toBe('surface')
 
     render(<TreeGroup node={zone('terminal-zone', ['terminal'])} parentAxis="column" />)
     expect(stripVariant('terminal-zone')).toBe('surface')
+
+    disposePanes.push(
+      registry.register({
+        area: 'panes',
+        id: 'sessions',
+        render: () => <div>Sessions</div>,
+        title: 'Sessions'
+      })
+    )
+    render(<TreeGroup node={zone('sidebar-zone', ['sessions'])} />)
+    expect(stripVariant('sidebar-zone')).toBe('underline')
   })
 
   // The content area's "+" opens a new tab in the area — only there.

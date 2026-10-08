@@ -220,7 +220,7 @@ export function TreeSplit({ node, root, rootRow }: { node: SplitNode; root?: boo
         // header — the generic 80px floor is not its floor. Below that the
         // release minimizes the zone instead of leaving a useless sliver.
         const toolZone = allPaneIds(child).length > 0 && allPaneIds(child).every(isCollapsePane)
-        const floor = toolZone ? COLLAPSED_ZONE_PX : MIN_PANE_PX
+        const floor = toolZone ? (horizontal ? 28 : COLLAPSED_ZONE_PX) : MIN_PANE_PX
 
         return {
           // EVERY shown pane of the zone: the zone's track is the max() of its

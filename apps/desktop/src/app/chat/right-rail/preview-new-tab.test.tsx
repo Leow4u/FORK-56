@@ -19,30 +19,30 @@ afterEach(() => {
   $currentCwd.set('')
 })
 
-const card = (name: RegExp) => screen.getByRole('button', { name }) as HTMLButtonElement
+const row = (name: RegExp) => screen.getByRole('button', { name }) as HTMLButtonElement
 
-// A card brings its tool up where it already lives — through the pane's own
+// A row brings its tool up where it already lives — through the pane's own
 // reveal path, which opens it the way its toggle does and never hides it.
 describe('new tab tools', () => {
   it('reveals each tool where it lives', () => {
     $currentCwd.set('/work')
     render(<PreviewNewTab />)
 
-    fireEvent.click(card(/Files/))
-    fireEvent.click(card(/Diff \/ Review/))
-    fireEvent.click(card(/Terminal/))
+    fireEvent.click(row(/Files/))
+    fireEvent.click(row(/Changes/))
+    fireEvent.click(row(/Terminal/))
 
     expect(restoreTreePane.mock.calls).toEqual([['files'], ['review'], ['terminal']])
   })
 
-  it('keeps Files and Diff / Review to a project, and says so', () => {
+  it('keeps Files and Changes to a project, and says so', () => {
     render(<PreviewNewTab />)
 
-    expect(card(/Files/).disabled).toBe(true)
-    expect(card(/Diff \/ Review/).disabled).toBe(true)
-    expect(screen.getByText('Files and Diff / Review need an open project.')).toBeTruthy()
+    expect(row(/Files/).disabled).toBe(true)
+    expect(row(/Changes/).disabled).toBe(true)
+    expect(screen.getByText('Files and Changes need an open project.')).toBeTruthy()
 
-    fireEvent.click(card(/Terminal/))
+    fireEvent.click(row(/Terminal/))
     expect(restoreTreePane).toHaveBeenCalledWith('terminal')
   })
 })

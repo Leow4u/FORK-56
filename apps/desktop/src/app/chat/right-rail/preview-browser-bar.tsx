@@ -122,7 +122,7 @@ export function PreviewBrowserBar({
   }
 
   return (
-    <div className="flex min-h-(--titlebar-height) shrink-0 items-center gap-1 border-b border-border/60 bg-background px-1.5 py-1">
+    <div className="flex min-h-10 shrink-0 items-center gap-2 border-b border-(--ui-stroke-tertiary) bg-(--ui-editor-surface-background) px-2 py-1">
       {/* Back, forward and reload read as one control: all three move this
           page through its own history. */}
       <div className="flex shrink-0 items-center divide-x divide-(--ui-stroke-tertiary) rounded-(--control-radius) border border-(--ui-stroke-tertiary)">

@@ -48,17 +48,15 @@ const TAB_IDLE =
 const TAB_SELECTED =
   '[background-image:linear-gradient(color-mix(in_srgb,var(--ui-accent)_14%,transparent),color-mix(in_srgb,var(--ui-accent)_14%,transparent))] [--tab-face:color-mix(in_srgb,var(--ui-accent)_14%,var(--tab-bg))] text-foreground'
 
-// `surface` strips: each tab is a rounded chip inset in the bar, no seams
-// between them. The active one is a surface of its own — the stage, a step
-// brighter than the rail — with a thin outline instead of the underline.
-const TAB_SURFACE = 'my-[3px] h-[calc(100%-6px)] min-w-0 max-w-48 rounded-md'
+// Working tabs keep the same width in the chat and content zones. Short titles
+// leave room; long titles truncate before the close slot without shrinking peers.
+const TAB_SURFACE = 'my-1 h-[calc(100%-8px)] w-[200px] min-w-[200px] max-w-[200px] rounded-(--control-radius)'
 
-const TAB_ACTIVE_SURFACE =
-  'text-foreground [--tab-bg:var(--ui-editor-surface-background)] shadow-[inset_0_0_0_1px_var(--ui-stroke-secondary)]'
+const TAB_ACTIVE_SURFACE = 'text-foreground [--tab-bg:var(--ui-bg-quaternary)]'
 
 /** How a strip draws its tabs. `underline` (the default): tabs merge into the
  *  bar and the active one carries the accent underline. `surface`: each tab is
- *  a rounded chip, the active one a brighter surface with a thin outline, the ✕
+ *  a fixed-width rounded chip, the active one a soft control fill, the ✕
  *  always shown in a slot of its own, and titles in their own case. */
 export type PaneTabVariant = 'surface' | 'underline'
 
@@ -272,7 +270,10 @@ export const PaneTabLabel = React.forwardRef<HTMLElement, PaneTabLabelProps>(fun
 
   return (
     <Comp
-      className="flex h-full min-w-0 max-w-full items-center overflow-hidden px-2 text-left outline-none group-data-[vertical]/tab:h-auto group-data-[vertical]/tab:w-full group-data-[vertical]/tab:justify-center group-data-[vertical]/tab:py-2"
+      className={cn(
+        'flex h-full min-w-0 max-w-full items-center overflow-hidden px-2 text-left outline-none group-data-[vertical]/tab:h-auto group-data-[vertical]/tab:w-full group-data-[vertical]/tab:justify-center group-data-[vertical]/tab:py-2',
+        surface && 'flex-1'
+      )}
       ref={ref}
       {...props}
     >
@@ -311,7 +312,9 @@ export const PaneTabStrip = React.forwardRef<HTMLDivElement, PaneTabStripProps>(
       // Default strip sits on the rail. The main chat zone overrides both
       // fills to the stage so tabs belong to the palco, not the sidebar.
       className={cn(
-        'group/pane-header relative flex h-7 shrink-0 select-none bg-(--ui-sidebar-surface-background) [-webkit-app-region:no-drag] [--pane-tab-active-bg:var(--ui-sidebar-surface-background)]',
+        'group/pane-header relative flex h-10 shrink-0 select-none bg-(--ui-sidebar-surface-background) [-webkit-app-region:no-drag] [--pane-tab-active-bg:var(--ui-sidebar-surface-background)]',
+        variant === 'surface' &&
+          'bg-(--ui-editor-surface-background) [--pane-tab-strip-bg:var(--ui-editor-surface-background)]',
         className
       )}
       data-variant={variant}
@@ -321,7 +324,7 @@ export const PaneTabStrip = React.forwardRef<HTMLDivElement, PaneTabStripProps>(
       <div
         className={cn(
           'flex min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-          variant === 'surface' && 'gap-0.5 px-1'
+          variant === 'surface' ? 'gap-1 px-2' : 'px-1'
         )}
         ref={listRef}
         role="tablist"

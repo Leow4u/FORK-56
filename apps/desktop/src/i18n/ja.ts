@@ -2477,7 +2477,7 @@ export const ja = defineLocale({
       changed: count => `${count} 件変更`,
       ahead: count => `${count} 先行`,
       behind: count => `${count} 遅延`,
-      review: 'レビュー',
+      review: '変更',
       close: '閉じる',
       openChanges: '変更を開く',
       openFile: 'ファイルを開く',
@@ -2813,6 +2813,7 @@ export const ja = defineLocale({
   },
 
   shell: {
+    panes: { review: '変更' },
     windowControls: 'ウィンドウコントロール',
     paneControls: 'ペインコントロール',
     appControls: 'アプリコントロール',
@@ -2979,8 +2980,8 @@ export const ja = defineLocale({
   preview: {
     newTab: {
       tools: 'ツール',
-      review: '差分 / レビュー',
-      needsProject: 'ファイルと差分 / レビューを使うにはプロジェクトを開いてください。'
+      review: '変更',
+      needsProject: 'ファイルと変更を表示するには、プロジェクトを開いてください。'
     },
     tab: 'プレビュー',
     closePane: 'プレビューペインを閉じる',

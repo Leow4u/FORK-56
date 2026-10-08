@@ -1,10 +1,10 @@
 /**
  * NEW TAB — what an empty Browser shows. The address bar above it takes a URL;
- * below, the conversation's tools. A card selects its tool in the shared
+ * below, the conversation's tools. A row selects its tool in the shared
  * content area through the same opener and reveal path as its shortcut.
  *
- * Files and Diff / Review only mean something inside a project — the same gate
- * their panes have — so without one their cards are off and say why.
+ * Files and Changes only mean something inside a project — the same gate
+ * their panes have — so without one their rows are off and say why.
  */
 
 import { useStore } from '@nanostores/react'
@@ -29,7 +29,6 @@ export function PreviewNewTab() {
   const hasProject = Boolean(useStore($currentCwd).trim())
   const copy = t.preview.newTab
 
-  // Files and Diff / Review on the first row, the Terminal on the second.
   const tools: NewTabTool[] = [
     { icon: 'files', label: t.shell.panes.files, pane: 'files', project: true },
     { icon: 'git-compare', label: copy.review, pane: 'review', project: true },
@@ -38,12 +37,12 @@ export function PreviewNewTab() {
 
   return (
     <div className="absolute inset-0 overflow-auto bg-background">
-      <section className="flex max-w-xl flex-col px-7 py-7">
+      <section className="flex flex-col px-7 py-7">
         <SectionHeading title={copy.tools} variant="group" />
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="flex flex-col divide-y divide-(--ui-stroke-tertiary)">
           {tools.map(tool => (
             <RowButton
-              className="flex min-w-0 cursor-pointer items-center gap-3 rounded-(--control-radius) border border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) px-3.5 py-3 text-left text-sm text-foreground hover:bg-(--chrome-action-hover) disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex min-w-0 cursor-pointer items-center gap-3 px-3.5 py-3 text-left text-sm text-foreground hover:bg-(--chrome-action-hover) disabled:cursor-not-allowed disabled:opacity-50"
               disabled={tool.project && !hasProject}
               key={tool.pane}
               onClick={() => restoreTreePane(tool.pane)}

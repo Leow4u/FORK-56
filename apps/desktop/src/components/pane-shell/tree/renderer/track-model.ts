@@ -22,11 +22,11 @@ export const MIN_PANE_PX = 80
 /**
  * The floor for a TOOL PANEL zone (terminal / logs) instead of `MIN_PANE_PX`.
  * A tool panel is meant to be draggable down to nothing — the minimized rail
- * (its header strip, `h-7`) is the smallest meaningful form, so the sash lets
+ * (its horizontal header strip, `h-10`) is the smallest meaningful form, so the sash lets
  * it shrink to exactly that and then collapses the zone rather than jamming
  * against an 80px floor with a sliver of unusable content still showing.
  */
-export const COLLAPSED_ZONE_PX = 28
+export const COLLAPSED_ZONE_PX = 40
 
 /** Optional CSS sizing a pane contributes (`data.width` / `data.minWidth`…).
  *  Applied to the pane's GROUP along the axis of the split that contains it —
@@ -171,8 +171,7 @@ export const cssMax = (values: (string | null | undefined)[]): string | undefine
  * content (237px, or 474px when review is visible) instead of taking a
  * fraction of the window.
  */
-/** A minimized zone IS its strip: the vertical rail (row) / header (column)
- *  are both 28px thick. */
+/** A minimized vertical rail is 28px wide; a horizontal header is 40px tall. */
 export const MINIMIZED_TRACK = '1.75rem'
 
 /**
@@ -211,7 +210,7 @@ export function fixedTrackSize(node: LayoutNode, axis: 'row' | 'column', ctx: Tr
     // panes' declared widths — otherwise the outer track keeps reserving the
     // full sidebar width and the collapsed rail floats in a dead column.
     if (node.minimized) {
-      return MINIMIZED_TRACK
+      return axis === 'row' ? MINIMIZED_TRACK : '2.5rem'
     }
 
     const overrideKey = axis === 'row' ? 'widthOverride' : 'heightOverride'
