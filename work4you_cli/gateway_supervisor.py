@@ -174,7 +174,7 @@ def supervise(
 
         previous_handlers = {}
         if os.name == "posix":
-            for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+            for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):  # windows-footgun: ok — guarded by os.name == "posix"
                 try:
                     previous = signal.signal(signum, on_stop_signal)
                     previous_handlers[signum] = previous
