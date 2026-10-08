@@ -5006,6 +5006,24 @@ export const pt = defineLocale({
 
   assistant: {
     thread: {
+      errorCard: {
+        title: 'Não foi possível concluir a solicitação',
+        generic: 'Um erro impediu a conclusão desta solicitação. Consulte os detalhes técnicos para mais informações.',
+        inFlightCredits:
+          'O crédito disponível no provedor é insuficiente para esta solicitação, considerando as solicitações em andamento. Aguarde a conclusão delas e tente novamente.',
+        billing:
+          'O serviço não pôde autorizar esta solicitação devido a uma restrição de créditos ou cobrança. Consulte os detalhes técnicos para identificar a restrição.',
+        authentication:
+          'O serviço recusou o acesso para esta solicitação. Verifique as credenciais e permissões da conexão.',
+        rateLimit: 'O serviço está recebendo muitas solicitações. Aguarde um momento e tente novamente.',
+        timeout: 'O tempo de espera da solicitação foi excedido. Tente novamente em instantes.',
+        connection: 'A conexão com o serviço falhou. Verifique sua conexão e tente novamente.',
+        context:
+          'A solicitação excede o limite de contexto do modelo. Reduza o conteúdo enviado ou inicie uma nova conversa.',
+        unavailable: 'O serviço encontrou um erro no servidor. Tente novamente em instantes.',
+        setup: 'Nenhum provedor de inferência está configurado. Verifique as configurações de modelo e provedor.',
+        details: 'Detalhes técnicos'
+      },
       loadingSession: 'Carregando sessão',
       showEarlier: 'Mostrar mensagens anteriores',
       loadingResponse: 'O Work4You está carregando uma resposta',

@@ -3957,6 +3957,20 @@ export interface Translations {
 
   assistant: {
     thread: {
+      errorCard: {
+        title: string
+        generic: string
+        inFlightCredits: string
+        billing: string
+        authentication: string
+        rateLimit: string
+        timeout: string
+        connection: string
+        context: string
+        unavailable: string
+        setup: string
+        details: string
+      }
       loadingSession: string
       showEarlier: string
       loadingResponse: string

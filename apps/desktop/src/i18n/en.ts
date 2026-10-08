@@ -4653,6 +4653,23 @@ export const en: Translations = {
 
   assistant: {
     thread: {
+      errorCard: {
+        title: 'Unable to complete the request',
+        generic: 'An error prevented this request from completing. See the technical details for more information.',
+        inFlightCredits:
+          'The provider has insufficient available credit for this request while other requests are in progress. Wait for them to finish and try again.',
+        billing:
+          'The service could not authorize this request because of a credit or billing restriction. See the technical details to identify the restriction.',
+        authentication:
+          'The service rejected access to this request. Check your connection credentials and permissions.',
+        rateLimit: 'The service is receiving too many requests. Wait a moment and try again.',
+        timeout: 'The request timed out. Try again in a moment.',
+        connection: 'The connection to the service failed. Check your connection and try again.',
+        context: 'The request exceeds the model’s context limit. Reduce the content sent or start a new conversation.',
+        unavailable: 'The service encountered a server error. Try again in a moment.',
+        setup: 'No inference provider is configured. Check your model and provider settings.',
+        details: 'Technical details'
+      },
       loadingSession: 'Loading session',
       showEarlier: 'Show earlier messages',
       loadingResponse: 'Work4You is loading a response',

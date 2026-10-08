@@ -3062,6 +3062,20 @@ export const zhHant = defineLocale({
 
   assistant: {
     thread: {
+      errorCard: {
+        title: '無法完成請求',
+        generic: '發生錯誤，無法完成此請求。請查看技術詳細資訊以了解更多資訊。',
+        inFlightCredits: '考量其他正在處理的請求，供應商的可用額度不足以處理此請求。請等待這些請求完成後重試。',
+        billing: '由於額度或帳單限制，服務無法核准此請求。請查看技術詳細資訊以了解具體限制。',
+        authentication: '服務拒絕了此請求的存取。請檢查連線憑證與權限。',
+        rateLimit: '服務收到的請求過多。請稍候重試。',
+        timeout: '請求逾時。請稍後重試。',
+        connection: '連線至服務失敗。請檢查連線後重試。',
+        context: '請求超出模型的上下文限制。請減少傳送的內容或開始新對話。',
+        unavailable: '服務發生伺服器錯誤。請稍後重試。',
+        setup: '尚未設定推論供應商。請檢查模型與供應商設定。',
+        details: '技術詳細資訊'
+      },
       loadingSession: '正在載入工作階段',
       showEarlier: '顯示較早的訊息',
       loadingResponse: 'Work4You 正在載入回覆',
