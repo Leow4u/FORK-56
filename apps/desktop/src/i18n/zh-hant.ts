@@ -2378,6 +2378,11 @@ export const zhHant = defineLocale({
   },
 
   statusStack: {
+    tasksTitle: '任務',
+    tasksMinimize: '最小化',
+    tasksPinHint: '點擊標籤以保持展開',
+    tasksCompleted: (done, total) => `已完成 ${done}/${total} 項`,
+    taskStates: { pending: '待處理', in_progress: '進行中', completed: '已完成', cancelled: '已取消' },
     agents: '代理',
     background: count => `${count} 個背景任務`,
     goalActive: '目標進行中',

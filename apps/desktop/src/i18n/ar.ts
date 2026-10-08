@@ -2252,6 +2252,11 @@ export const ar = defineLocale({
     }
   },
   statusStack: {
+    tasksTitle: 'المهام',
+    tasksMinimize: 'تصغير',
+    tasksPinHint: 'انقر على الشريحة لإبقائها مفتوحة',
+    tasksCompleted: (done, total) => `اكتملت ${done} من ${total}`,
+    taskStates: { pending: 'قيد الانتظار', in_progress: 'قيد التنفيذ', completed: 'مكتملة', cancelled: 'ملغاة' },
     agents: 'الوكلاء',
     background: count => `${count} في الخلفية`,
     subagents: count => `${count} ${count === 1 ? 'وكيل فرعي' : 'وكيل فرعي'}`,
