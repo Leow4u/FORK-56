@@ -948,8 +948,8 @@ class TestWindowlessGatewayRestartSpec:
     @pytest.mark.windows_only
     def test_windows_keeps_console_python_and_preserves_tail(self):
         """On Windows the console interpreter is kept (hidden-console launch,
-        NOT a pythonw swap — #54220/#56747) while every subsequent argument
-        is preserved verbatim.
+        NOT a pythonw swap — #54220/#56747), and supervision preserves the
+        profile and gateway arguments verbatim.
 
         ``windows_only``: faking this on Linux needed two more fakes to hold
         it up — a pre-import so the lazy ``work4you_cli.gateway`` import didn't
@@ -984,8 +984,9 @@ class TestWindowlessGatewayRestartSpec:
         # Interpreter is kept as the console python — hidden-console launch,
         # no pythonw swap.
         assert new_argv[0] == "C:/venv/Scripts/python.exe"
-        # Everything after the interpreter is byte-for-byte preserved.
-        assert new_argv[1:] == argv[1:]
+        assert new_argv[1:4] == ["-m", "work4you_cli.gateway_supervisor", "--"]
+        # Wrapping the entrypoint must preserve the profile/run payload.
+        assert new_argv[4:] == argv[3:]
         assert cwd == "C:/work4you"
         assert env["VIRTUAL_ENV"] == str(Path("C:/venv"))
         assert "PYTHONPATH" in env
