@@ -44,8 +44,8 @@ export function useProfileSetupWarning(): null | ProfileCredentialWarning {
 
 /**
  * Calm, in-stack "this profile has no provider yet" row — the non-blocking
- * half of profile onboarding. Same {@link StatusRow} chrome as the billing
- * wall. One click adopts the Portal login the root already holds (offered only
+ * half of profile onboarding. Uses the shared {@link StatusRow} chrome.
+ * One click adopts the Portal login the root already holds (offered only
  * when this profile's backend reports that login, and only on a profile other
  * than the window's primary — the primary IS that login); the other opens the
  * profile-scoped picker. Dismiss hides it until a different warning arrives;

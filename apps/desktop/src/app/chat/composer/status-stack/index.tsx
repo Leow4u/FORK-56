@@ -96,6 +96,7 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
   const previews = useSessionSlice($previewStatusBySession, sessionId)
   const scrolledUp = useStore($threadScrolledUp)
   const billing = useStore($billingBlock)
+  const hasBilling = Boolean(billing && sessionId && billing.sessionId === sessionId)
   const profileWarning = useProfileSetupWarning()
 
   const groups = useMemo(() => groupStatusItems(items), [items])
@@ -151,13 +152,6 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
   // below it can be acted on until this profile can run a turn.
   if (profileWarning) {
     sections.push({ key: 'profile-setup', node: <ProfileSetupBanner warning={profileWarning} /> })
-  }
-
-  // Billing wall sits at the very top of the stack — it's the most important
-  // thing above the composer when the account is out of credits. Rendered here
-  // (not as a composer-disable) so slash commands stay usable.
-  if (billing && sessionId && billing.sessionId === sessionId) {
-    sections.push({ key: 'billing', node: <BillingBanner sessionId={sessionId} /> })
   }
 
   const todos = groups.find(group => group.type === 'todo')
@@ -227,7 +221,7 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
   // status card, above the billing wall, above everything. They're the only
   // rows up here you press instead of read, so nothing may ever stack on top
   // of them. Rendered outside the card (below) so the pills float.
-  const visible = sections.length > 0 || Boolean(todos)
+  const visible = hasBilling || sections.length > 0 || Boolean(todos)
 
   // No height to publish: the stack is an in-flow child of the composer dock,
   // so the dock's own measurement (--composer-measured-height) already covers
@@ -247,6 +241,18 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
       onPointerDownCapture={() => blurComposerInput()}
     >
       {todos && <TasksProgress items={todos.items} key={sessionId} />}
+      {/* A separate notice, aligned to the input surface's 5px grab margin.
+          Keep the other status rows in their existing fused composer stack. */}
+      {hasBilling && (
+        <div
+          className={cn(
+            'mx-[5px] mb-1.5 transition-opacity duration-200 ease-out',
+            scrolledUp ? 'opacity-30 group-hover/composer:opacity-100' : 'opacity-100'
+          )}
+        >
+          <BillingBanner sessionId={sessionId} />
+        </div>
+      )}
       {/* The card paints the shared --composer-fill (rest / scrolled / focused
           all match the composer surface by construction); on scroll we only
           ghost the CONTENT — element opacity on the card would kill the blur.

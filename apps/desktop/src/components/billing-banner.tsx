@@ -1,20 +1,15 @@
 import { useStore } from '@nanostores/react'
+import { useId } from 'react'
 
-import { StatusRow } from '@/components/chat/status-row'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
+import { chatErrorDescription } from '@/lib/chat-error-presentation'
 import { $billingBlock, billingCtaLabel, clearBillingBlock, runBillingRecovery } from '@/store/billing-block'
 
-function firstLine(text: string): string {
-  return (text || '').split('\n')[0]?.trim() ?? ''
-}
-
 /**
- * Persistent, in-stack billing wall for THIS session. Rendered as a shared
- * {@link StatusRow} — same chrome as its status-stack siblings, so it reads as
- * one piece with the composer card (no bordered alert-in-a-card). It never
+ * Persistent billing notice for THIS session, above the composer. It never
  * disables the composer — slash commands (`/topup`, `/model`, `/login`) stay
  * usable — it only offers recovery: Work4You opens Settings → Billing in-app, other
  * providers deep-link out. The sticky toast is the loud surface; this is the calm
@@ -23,6 +18,8 @@ function firstLine(text: string): string {
 export function BillingBanner({ sessionId }: { sessionId: null | string }) {
   const active = useStore($billingBlock)
   const { t } = useI18n()
+  const titleId = useId()
+  const descriptionId = useId()
 
   if (!active || !sessionId || active.sessionId !== sessionId) {
     return null
@@ -31,42 +28,42 @@ export function BillingBanner({ sessionId }: { sessionId: null | string }) {
   const { block } = active
   const copy = t.billingBlock
   const title = block.is_nous ? copy.titleWork4You : copy.titleProvider(block.provider_label)
-  const message = firstLine(block.message) || copy.fallbackMessage
+  const errorCopy = t.assistant.thread.errorCard
+  const description = chatErrorDescription(block.message, errorCopy)
+  const message = description === errorCopy.generic ? errorCopy.billing : description
 
   return (
-    <StatusRow
-      leading={<Codicon aria-hidden className="text-destructive/85" name="credit-card" size="0.8rem" />}
-      trailing={
-        <>
-          <Button
-            className="text-foreground/90 hover:text-foreground"
-            onClick={() => runBillingRecovery(block)}
-            size="micro"
-            type="button"
-            variant="text"
-          >
+    <section
+      aria-describedby={descriptionId}
+      aria-labelledby={titleId}
+      className="flex min-w-0 items-start gap-3 rounded-(--card-radius) border border-(--ui-stroke-tertiary) bg-(--ui-bg-quaternary) px-3.5 py-3"
+      data-slot="composer-billing-notice"
+    >
+      <Codicon className="mt-0.5 shrink-0 text-destructive" name="credit-card" size="1.125rem" />
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <h3 className="wrap-anywhere text-sm leading-5 font-medium text-(--ui-text-primary)" id={titleId}>
+          {title}
+        </h3>
+        <p className="wrap-anywhere text-sm leading-5 text-(--ui-text-secondary)" id={descriptionId}>
+          {message}
+        </p>
+        <div>
+          <Button onClick={() => runBillingRecovery(block)} size="sm" type="button" variant="outline">
             {billingCtaLabel(block, copy)}
           </Button>
-          <Tip label={copy.dismiss}>
-            <Button
-              aria-label={copy.dismiss}
-              className="size-4 rounded-md text-muted-foreground/60 hover:text-foreground/90"
-              onClick={() => clearBillingBlock(sessionId)}
-              size="icon-xs"
-              type="button"
-              variant="ghost"
-            >
-              <Codicon name="close" size="0.75rem" />
-            </Button>
-          </Tip>
-        </>
-      }
-      trailingVisible
-    >
-      <span className="min-w-0 truncate text-[0.73rem] leading-4 text-foreground/92">
-        <span className="font-medium">{title}</span>
-        {message && <span className="text-muted-foreground/80"> · {message}</span>}
-      </span>
-    </StatusRow>
+        </div>
+      </div>
+      <Tip label={copy.dismiss}>
+        <Button
+          aria-label={copy.dismiss}
+          onClick={() => clearBillingBlock(sessionId)}
+          size="icon-xs"
+          type="button"
+          variant="ghost"
+        >
+          <Codicon name="close" size="0.875rem" />
+        </Button>
+      </Tip>
+    </section>
   )
 }
