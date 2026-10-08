@@ -3,16 +3,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Work4YouReviewFile, Work4YouReviewShipInfo } from '@/global'
 
 import {
+  $reviewBaseRef,
   $reviewCommitDefault,
   $reviewCommitMsgBusy,
+  $reviewCommitSummary,
   $reviewDiff,
+  $reviewDiffError,
   $reviewDiffLoading,
+  $reviewDiffPart,
+  $reviewDirectoryPath,
+  $reviewError,
   $reviewFiles,
+  $reviewFullContext,
   $reviewIsRepo,
   $reviewLoading,
   $reviewMaxChurn,
+  $reviewMissingPath,
   $reviewOpen,
   $reviewRevertTarget,
+  $reviewScope,
   $reviewScopeCwd,
   $reviewScopeTarget,
   $reviewSelectedPath,
@@ -27,13 +36,19 @@ import {
   createOrOpenPr,
   generateCommitMessage,
   openReview,
+  openReviewForPath,
   pushChanges,
   refreshReview,
   refreshShipInfo,
   requestRevert,
+  revealCurrentReview,
   revealReview,
   revertReviewFile,
+  selectReviewDirectory,
   selectReviewFile,
+  setReviewBaseRef,
+  setReviewDiffPart,
+  setReviewScope,
   stageReviewFile,
   toggleReview,
   toggleReviewTreeMode,
@@ -50,7 +65,11 @@ vi.mock('@/lib/oneshot', () => ({ requestOneShot: (args: unknown) => requestOneS
 // doesn't try to hit the (absent) probe and log. repoStatusForCwd is read when a
 // new PR binds its session to the branch it came from — no probe here, so no
 // branch either.
-vi.mock('./coding-status', () => ({ refreshRepoStatus: vi.fn(), repoStatusForCwd: () => ({ get: () => null }) }))
+const repoStatus = vi.hoisted(() => ({ current: null as null | { defaultBranch: string } }))
+vi.mock('./coding-status', () => ({
+  refreshRepoStatus: vi.fn(),
+  repoStatusForCwd: () => ({ get: () => repoStatus.current })
+}))
 
 function file(path: string, over: Partial<Work4YouReviewFile> = {}): Work4YouReviewFile {
   return { path, status: 'modified', staged: false, added: 1, removed: 0, ...over } as Work4YouReviewFile
@@ -84,10 +103,18 @@ function stubReview(over: ReviewStub = {}) {
 }
 
 beforeEach(() => {
+  repoStatus.current = null
   requestOneShot.mockClear()
   requestOneShot.mockResolvedValue('generated message')
   // Reset stores touched across tests.
   $reviewOpen.set(false)
+  $reviewScope.set('uncommitted')
+  $reviewBaseRef.set(null)
+  $reviewDirectoryPath.set(null)
+  $reviewError.set(null)
+  $reviewDiffError.set(null)
+  $reviewDiffPart.set('unstaged')
+  $reviewFullContext.set(false)
   $reviewFiles.set([])
   $reviewLoading.set(false)
   $reviewIsRepo.set(true)
@@ -533,4 +560,230 @@ describe('$reviewCommitDefault', () => {
     $reviewCommitDefault.set('commit')
     expect($reviewCommitDefault.get()).toBe('commit')
   })
+})
+
+describe('review scopes and request ownership', () => {
+  it('keeps commit eligibility independent of the selected scope and directory', async () => {
+    const all = [file('first.ts', { staged: true }), file('second.ts')]
+
+    const review = stubReview({
+      list: vi.fn(async (_cwd, scope, _base, directory) => ({
+        files: scope === 'uncommitted' && !directory ? all : [file('folder/third.ts')]
+      }))
+    })
+
+    $reviewOpen.set(true)
+    $reviewScope.set('unstaged')
+    await selectReviewDirectory('folder/')
+    expect(review.list).toHaveBeenCalledWith('/repo', 'unstaged', null, 'folder/')
+    expect($reviewFiles.get().map(f => f.path)).toEqual(['folder/third.ts'])
+    expect($reviewCommitSummary.get()).toEqual({
+      hasStaged: true,
+      stagedCount: 1,
+      totalCount: 2,
+      includesDirectories: false,
+      truncated: false
+    })
+  })
+
+  it('uses uncapped Git totals when staged paths are outside the visible list', async () => {
+    stubReview({
+      list: vi.fn(async () => ({
+        files: [file('visible.ts')],
+        state: 'ready',
+        truncated: true,
+        stagedCount: 1,
+        totalCount: 2001
+      }))
+    })
+    $reviewOpen.set(true)
+    await refreshReview()
+    expect($reviewCommitSummary.get()).toMatchObject({ hasStaged: true, stagedCount: 1, totalCount: 2001 })
+  })
+
+  it('lets Git resolve its default comparison rather than using a shortened branch label', async () => {
+    repoStatus.current = { defaultBranch: 'main' }
+    const review = stubReview()
+    $reviewOpen.set(true)
+    setReviewScope('branch')
+    await Promise.resolve()
+    expect($reviewBaseRef.get()).toBeNull()
+    expect(review.list).toHaveBeenCalledWith('/repo', 'branch', null)
+  })
+
+  it('opens a new response file through compact untracked ancestors', async () => {
+    const review = stubReview({
+      list: vi.fn(async (_cwd, _scope, _base, directory) => ({
+        files:
+          directory === 'new/nested/'
+            ? [file('new/nested/a.ts')]
+            : directory === 'new/'
+              ? [file('new/nested/', { kind: 'directory' })]
+              : [file('new/', { kind: 'directory' })],
+        state: 'ready'
+      }))
+    })
+
+    await openReviewForPath('/repo/new/nested/a.ts')
+    expect($reviewDirectoryPath.get()).toBe('new/nested/')
+    expect($reviewSelectedPath.get()).toBe('new/nested/a.ts')
+    expect($reviewMissingPath.get()).toBeNull()
+    expect(review.diff).toHaveBeenCalledWith('/repo', 'new/nested/a.ts', 'uncommitted', null, false)
+  })
+
+  it('does not claim an edited path is absent from a truncated list', async () => {
+    stubReview({ list: vi.fn(async () => ({ files: [file('visible.ts')], truncated: true })) })
+    await openReviewForPath('omitted.ts')
+    expect($reviewMissingPath.get()).toBeNull()
+    expect($reviewSelectedPath.get()).toBeNull()
+  })
+
+  it.each([stageReviewFile, unstageReviewFile, revertReviewFile])(
+    'returns to root after a mutation changes the compact directory grouping',
+    async mutate => {
+      const review = stubReview({
+        list: vi.fn(async (_cwd, _scope, _base, directory) =>
+          directory
+            ? { files: [], state: 'error', error: 'Directory is now tracked' }
+            : { files: [file('new/a.ts', { staged: true })], state: 'ready' }
+        )
+      })
+
+      $reviewOpen.set(true)
+      $reviewDirectoryPath.set('new/')
+      await mutate('new/a.ts')
+      expect($reviewDirectoryPath.get()).toBeNull()
+      expect($reviewError.get()).toBeNull()
+      expect(review.list).toHaveBeenLastCalledWith('/repo', 'uncommitted', null)
+    }
+  )
+
+  it('shows each side of a partially staged file with its matching diff', async () => {
+    const partial = file('partial.ts', { staged: true, unstaged: true })
+
+    const review = stubReview({
+      diff: vi.fn(async (_cwd, _path, _scope, _base, staged) => (staged ? 'index patch' : 'working patch'))
+    })
+
+    $reviewFiles.set([partial])
+    await selectReviewFile(partial)
+    expect($reviewDiff.get()).toBe('working patch')
+    setReviewDiffPart('staged')
+    await Promise.resolve()
+    expect($reviewDiff.get()).toBe('index patch')
+    expect(review.diff).toHaveBeenLastCalledWith('/repo', 'partial.ts', 'uncommitted', null, true)
+  })
+
+  it('does not turn a Git read failure into a clean working tree', async () => {
+    stubReview({ list: vi.fn(async () => ({ files: [], state: 'error', error: 'Cannot read index' })) })
+    $reviewOpen.set(true)
+    await refreshReview()
+    expect($reviewError.get()).toBe('Cannot read index')
+    expect($reviewFiles.get()).toEqual([])
+    expect($reviewLoading.get()).toBe(false)
+  })
+
+  it('distinguishes a non-repository from a clean repository', async () => {
+    const review = stubReview({ list: vi.fn(async () => ({ files: [], state: 'not-repo' })) })
+    $reviewOpen.set(true)
+    await refreshReview()
+    expect($reviewIsRepo.get()).toBe(false)
+    review.list.mockResolvedValue({ files: [], state: 'ready' })
+    await refreshReview()
+    expect($reviewIsRepo.get()).toBe(true)
+    expect($reviewError.get()).toBeNull()
+  })
+
+  it('ignores a diff that resolves after the same path is opened in another repository', async () => {
+    let finish!: (value: string) => void
+
+    const review = stubReview({
+      diff: vi.fn(
+        () =>
+          new Promise<string>(resolve => {
+            finish = resolve
+          })
+      )
+    })
+
+    const first = selectReviewFile(file('same.ts'))
+    $currentCwd.set('/other')
+    review.diff.mockResolvedValue('other patch')
+    await selectReviewFile(file('same.ts'))
+    finish('old patch')
+    await first
+    expect($reviewDiff.get()).toBe('other patch')
+  })
+
+  it('ignores an older base comparison response and retains the selected reference', async () => {
+    let finish!: (value: unknown) => void
+
+    const review = stubReview({
+      list: vi.fn(async (_cwd, scope, base) => {
+        if (scope === 'branch' && base === 'old') {
+          return new Promise(resolve => {
+            finish = resolve
+          })
+        }
+
+        return { files: scope === 'branch' ? [file('new.ts')] : [] }
+      })
+    })
+
+    $reviewOpen.set(true)
+    $reviewScope.set('branch')
+    $reviewBaseRef.set('old')
+    const first = refreshReview()
+    setReviewBaseRef('origin/main')
+    await refreshReview()
+    finish({ files: [file('stale.ts')] })
+    await first
+    expect($reviewFiles.get().map(f => f.path)).toEqual(['new.ts'])
+    expect(review.list).toHaveBeenCalledWith('/repo', 'branch', 'origin/main')
+    expect($reviewBaseRef.get()).toBe('origin/main')
+  })
+
+  it('never stages or commits from the branch comparison view', async () => {
+    const review = stubReview()
+    $reviewScope.set('branch')
+    await stageReviewFile(null)
+    await unstageReviewFile('first.ts')
+    await commitChanges('message')
+    expect(review.stage).not.toHaveBeenCalled()
+    expect(review.unstage).not.toHaveBeenCalled()
+    expect(review.commit).not.toHaveBeenCalled()
+  })
+
+  it('opens a response card against current changes and explains a missing historical file', async () => {
+    stubReview({ list: vi.fn(async () => ({ files: [file('other.ts')] })) })
+    $reviewScope.set('branch')
+    await openReviewForPath('previously-edited.ts')
+    expect($reviewScope.get()).toBe('uncommitted')
+    expect($reviewMissingPath.get()).toBe('previously-edited.ts')
+    expect($reviewSelectedPath.get()).toBeNull()
+  })
+
+  it('surfaces diff errors without rendering an empty patch', async () => {
+    stubReview({
+      diff: vi.fn(async () => {
+        throw new Error('Missing revision')
+      })
+    })
+    await selectReviewFile(file('a.ts'))
+    expect($reviewDiffError.get()).toBe('Missing revision')
+    expect($reviewDiff.get()).toBeNull()
+    expect($reviewDiffLoading.get()).toBe(false)
+  })
+})
+
+it('opens current changes from a composer even after a branch comparison was left open', async () => {
+  const review = stubReview()
+  $reviewOpen.set(true)
+  $reviewScope.set('branch')
+  $reviewDirectoryPath.set('other/')
+  revealCurrentReview()
+  await refreshReview()
+  expect($reviewScope.get()).toBe('uncommitted')
+  expect($reviewDirectoryPath.get()).toBeNull()
+  expect(review.list).toHaveBeenLastCalledWith('/repo', 'uncommitted', null)
 })

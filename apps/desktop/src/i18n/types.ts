@@ -2953,6 +2953,9 @@ export interface Translations {
       staleBackend: string
       deleteConfirm: string
       startWork: string
+      createWorktreeDraft: string
+      newWorktreeDraftDesc: string
+      createWorktreeSession: string
       newWorktreeTitle: string
       newWorktreeDesc: string
       branchPlaceholder: string
@@ -3284,6 +3287,47 @@ export interface Translations {
     dismiss: string
     exit: (code: number) => string
     coding: {
+      currentFolder: string
+      otherWorktrees: string
+      createContext: string
+      newBranchWorktree: string
+      existingBranchWorktree: string
+      copyBranch: string
+      reviewScope: string
+      uncommitted: string
+      unstaged: string
+      branchComparison: string
+      comparisonBase: string
+      compareWith: string
+      reviewOptions: string
+      showFullContext: string
+      backToChanges: string
+      fileActions: string
+      collapseFile: string
+      expandFile: string
+      partialChanges: string
+      untrackedDirectory: string
+      untrackedDirectoryBody: string
+      browseDirectory: string
+      diffError: string
+      binaryDiff: string
+      emptyFileDiff: string
+      reviewError: string
+      noRepository: string
+      noRepositoryBody: string
+      fileChangedSinceReview: string
+      selectChangedFile: string
+      cleanScope: string
+      commitStaged: string
+      commitStagedAndPush: string
+      commitAll: string
+      commitAllAndPush: string
+      scopeDoesNotLimitCommit: string
+      runtimeUpdateForScopes: string
+      partialListing: string
+      directoryCount: (count: number) => string
+      commitScopeStaged: (count: number) => string
+      commitScopeAll: (count: number) => string
       title: string
       noBranch: string
       detached: string
@@ -4010,6 +4054,8 @@ export interface Translations {
       react: string
       dismissError: string
       filesChanged: (count: number) => string
+      editedThisResponse: (count: number) => string
+      viewCurrentChanges: string
       reviewChanges: string
       readAloudFailed: string
       preparingAudio: string

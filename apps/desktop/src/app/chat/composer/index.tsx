@@ -20,7 +20,7 @@ import { POPOUT_WIDTH_REM } from '@/store/composer-popout'
 import { parkQueuedPrompts, removeQueuedPrompt, unparkQueuedPrompts } from '@/store/composer-queue'
 import { $hudMode } from '@/store/hud'
 import { sessionBlockingPrompt } from '@/store/prompts'
-import { toggleReview } from '@/store/review'
+import { revealCurrentReview } from '@/store/review'
 import { $gatewayState } from '@/store/session'
 import { $threadScrolledUp } from '@/store/thread-scroll'
 import { $autoSpeakReplies } from '@/store/voice-prefs'
@@ -44,7 +44,6 @@ import { COMPOSER_DROP_ACTIVE_CLASS, COMPOSER_DROP_FADE_CLASS } from './drop-aff
 import { markActiveComposer, onComposerAttachImagesRequest } from './focus'
 import { HelpHint } from './help-hint'
 import { useAtCompletions } from './hooks/use-at-completions'
-import { useComposerBranch } from './hooks/use-composer-branch'
 import { useComposerDraft } from './hooks/use-composer-draft'
 import { useComposerDrop } from './hooks/use-composer-drop'
 import { useComposerEscCancel } from './hooks/use-composer-esc-cancel'
@@ -926,11 +925,6 @@ export function ChatBar({
     handleInputDrop
   } = useComposerDrop({ cwd, insertInlineRefs, onAttachDroppedItems, requestMainFocus })
 
-  // Branch / worktree hand-offs (CodingStatusRow). Owns the worktree open +
-  // branch-off/convert/list/switch actions; draft travels into the new session.
-  const { handleBranchOff, handleConvertBranch, handleListBranches, handleSwitchBranch, openInWorktree } =
-    useComposerBranch({ clearDraft, cwd, draftRef })
-
   // Global Esc-to-cancel when the chat (not the composer input) has focus.
   // Same explicit-halt semantics as the Stop button: park the queue.
   useComposerEscCancel({ awaitingInput, busy, onCancel: haltRun, target: scope.target })
@@ -1191,6 +1185,15 @@ export function ChatBar({
             }
             sessionId={statusSessionId}
           />
+          {!messagesEmpty && (
+            <div className={cn(composerFloatingStrip, 'px-[5px] pb-1.5 empty:hidden')}>
+              <CodingStatusRow
+                onOpen={() => revealCurrentReview(scope.target === 'main' ? null : (cwd ?? null), scope.target)}
+                placement="changes"
+                repoPath={cwd}
+              />
+            </div>
+          )}
           <ComposerPrimitive.Root
             className={cn(
               'group/composer relative w-full overflow-visible rounded-3xl',
@@ -1258,7 +1261,7 @@ export function ChatBar({
               {hudMode && busy && <span aria-hidden className="arc-border arc-composer" />}
               <div
                 className={cn(
-                  'group/composer-surface relative z-4 isolate grid grid-rows-[auto_1fr] overflow-hidden rounded-[inherit] border border-[color-mix(in_srgb,var(--dt-composer-ring)_calc(18%*var(--composer-ring-strength)),var(--dt-input))] shadow-prompt-card',
+                  'group/composer-surface relative z-4 isolate overflow-hidden rounded-[inherit] border border-[color-mix(in_srgb,var(--dt-composer-ring)_calc(18%*var(--composer-ring-strength)),var(--dt-input))] shadow-prompt-card',
                   COMPOSER_DROP_FADE_CLASS,
                   dragActive && COMPOSER_DROP_ACTIVE_CLASS
                 )}
@@ -1273,21 +1276,6 @@ export function ChatBar({
                     composerSurfaceGlass
                   )}
                 />
-                <div className="min-w-0">
-                  <CodingStatusRow
-                    onBranchOff={handleBranchOff}
-                    onConvertBranch={handleConvertBranch}
-                    onListBranches={handleListBranches}
-                    // A tile's rail reviews ITS worktree: pin the pane's scope to
-                    // this surface's cwd. Main keeps the classic follow-the-
-                    // active-session scope (null).
-                    onOpen={() => toggleReview(scope.target === 'main' ? null : (cwd ?? null), scope.target)}
-                    onOpenWorktree={openInWorktree}
-                    onSwitchBranch={handleSwitchBranch}
-                    repoPath={cwd}
-                    showWorkspaceName={!messagesEmpty}
-                  />
-                </div>
                 <div
                   className={cn(
                     'relative z-1 flex min-h-0 w-full flex-col gap-(--composer-row-gap) overflow-hidden rounded-[inherit] px-(--composer-surface-pad-x) py-(--composer-surface-pad-y) transition-opacity duration-200 ease-out',
@@ -1360,6 +1348,7 @@ export function ChatBar({
               the pop-out drag region. Same px as the strip above, so the two
               bracket the composer on one vertical line. */}
           <div className={cn(composerFloatingStrip, 'px-[5px] pt-1.5 empty:hidden')}>
+            {!messagesEmpty && <CodingStatusRow placement="identity" repoPath={cwd} />}
             <ContribSlot area={COMPOSER_AREAS.underside} />
             <ComposerContextUsage busy={busy} hidden={messagesEmpty || voiceConversationActive} sessionId={sessionId} />
           </div>

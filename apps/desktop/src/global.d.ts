@@ -332,13 +332,19 @@ declare global {
         // Codex-style review pane: changed files per scope, per-file diff, and
         // stage / unstage / revert.
         review: {
-          list: (repoPath: string, scope: Work4YouReviewScope, baseRef?: null | string) => Promise<Work4YouReviewList>
+          list: (
+            repoPath: string,
+            scope: Work4YouReviewScope,
+            baseRef?: null | string,
+            directory?: null | string
+          ) => Promise<Work4YouReviewList>
           diff: (
             repoPath: string,
             filePath: string,
             scope: Work4YouReviewScope,
             baseRef?: null | string,
-            staged?: boolean
+            staged?: boolean,
+            fullContext?: boolean
           ) => Promise<string>
           stage: (repoPath: string, filePath?: null | string) => Promise<{ ok: boolean }>
           unstage: (repoPath: string, filePath?: null | string) => Promise<{ ok: boolean }>
@@ -1257,7 +1263,7 @@ export interface Work4YouRepoStatus {
 // Diff scope for the review pane, mirroring Codex: uncommitted working-tree
 // changes, all changes vs the branch base, or everything since the current
 // turn began.
-export type Work4YouReviewScope = 'branch' | 'lastTurn' | 'uncommitted'
+export type Work4YouReviewScope = 'branch' | 'lastTurn' | 'uncommitted' | 'staged' | 'unstaged'
 
 // One changed file in the review pane (status letter, +/- lines, staged flag).
 export interface Work4YouReviewFile {
@@ -1267,10 +1273,24 @@ export interface Work4YouReviewFile {
   // M(odified) A(dded) D(eleted) R(enamed) C(opied) U(nmerged) ?(untracked)
   status: string
   staged: boolean
+  unstaged?: boolean
+  stagedAdded?: number
+  stagedRemoved?: number
+  unstagedAdded?: number
+  unstagedRemoved?: number
+  kind?: 'file' | 'directory'
+  binary?: boolean
 }
 
 export interface Work4YouReviewList {
   files: Work4YouReviewFile[]
+  // Status-row totals before the display cap; compact directories count as one.
+  stagedCount?: number
+  totalCount?: number
+  repoRoot?: string
+  state?: 'ready' | 'not-repo' | 'error'
+  error?: string
+  truncated?: boolean
   // The resolved base ref the scope diffed against (branch merge-base / turn
   // baseline), or null for the uncommitted scope.
   base: null | string

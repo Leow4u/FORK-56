@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Work4YouReviewFile } from '@/global'
 import { I18nProvider } from '@/i18n'
 import { $sidebarWorkspaceNodeOpen } from '@/store/layout'
-import { $reviewFiles, $reviewOpen } from '@/store/review'
+import { $reviewError, $reviewFiles, $reviewLoading, $reviewOpen, $reviewScope } from '@/store/review'
 
 import { ReviewFileTree } from './file-tree'
 
@@ -29,10 +29,10 @@ function topLevelFiles(count: number): Work4YouReviewFile[] {
   return Array.from({ length: count }, (_, i) => file(`file-${String(i).padStart(4, '0')}.ts`))
 }
 
-function renderTree() {
+function renderTree(query = '') {
   return render(
     <I18nProvider configClient={null} initialLocale="en">
-      <ReviewFileTree />
+      <ReviewFileTree query={query} />
     </I18nProvider>
   )
 }
@@ -41,6 +41,9 @@ describe('ReviewFileTree', () => {
   beforeEach(() => {
     $reviewOpen.set(true)
     $reviewFiles.set([])
+    $reviewScope.set('uncommitted')
+    $reviewLoading.set(false)
+    $reviewError.set(null)
     $sidebarWorkspaceNodeOpen.set({})
 
     // jsdom has no layout: report the real row height for virtualized rows and
@@ -126,5 +129,26 @@ describe('ReviewFileTree', () => {
     expect(screen.getByText('b.ts')).toBeTruthy()
     expect(screen.getByText('src')).toBeTruthy()
     expect(screen.getByText('c.ts')).toBeTruthy()
+  })
+
+  it('searches loaded paths even when their parent folder is collapsed', () => {
+    $reviewFiles.set([file('src/nested/target.ts'), file('src/other.ts')])
+    $sidebarWorkspaceNodeOpen.set({ 'review:src': false, 'review:src/nested': false })
+
+    renderTree('nested/target')
+
+    expect(screen.getByText('target.ts')).toBeTruthy()
+    expect(screen.queryByText('other.ts')).toBeNull()
+    expect($reviewFiles.get()).toHaveLength(2)
+  })
+
+  it('does not offer working-tree mutations for a branch comparison', () => {
+    $reviewFiles.set([file('src/example.ts')])
+    $reviewScope.set('branch')
+
+    renderTree()
+
+    expect(screen.queryByRole('button', { name: 'Stage' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Discard changes' })).toBeNull()
   })
 })

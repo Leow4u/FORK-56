@@ -284,9 +284,10 @@ contextBridge.exposeInMainWorld('work4youDesktop', {
     fileDiff: (repoPath, filePath) => ipcRenderer.invoke('work4you:git:fileDiff', repoPath, filePath),
     scanRepos: (roots, options) => ipcRenderer.invoke('work4you:git:scanRepos', roots, options),
     review: {
-      list: (repoPath, scope, baseRef) => ipcRenderer.invoke('work4you:git:review:list', repoPath, scope, baseRef),
-      diff: (repoPath, filePath, scope, baseRef, staged) =>
-        ipcRenderer.invoke('work4you:git:review:diff', repoPath, filePath, scope, baseRef, staged),
+      list: (repoPath, scope, baseRef, directory) =>
+        ipcRenderer.invoke('work4you:git:review:list', repoPath, scope, baseRef, directory),
+      diff: (repoPath, filePath, scope, baseRef, staged, fullContext) =>
+        ipcRenderer.invoke('work4you:git:review:diff', repoPath, filePath, scope, baseRef, staged, fullContext),
       stage: (repoPath, filePath) => ipcRenderer.invoke('work4you:git:review:stage', repoPath, filePath),
       unstage: (repoPath, filePath) => ipcRenderer.invoke('work4you:git:review:unstage', repoPath, filePath),
       revert: (repoPath, filePath) => ipcRenderer.invoke('work4you:git:review:revert', repoPath, filePath),

@@ -90,6 +90,24 @@ describe('desktop git facade', () => {
     })
   })
 
+  it('preserves review scope, selected base, directory and full context on the active remote profile', async () => {
+    $connection.set({ mode: 'remote', profile: 'review-remote' } as never)
+
+    await desktopGit()?.review.list('/srv/work', 'unstaged', null, 'new folder/')
+    expect(api).toHaveBeenCalledWith({
+      path: '/api/git/review/list?path=%2Fsrv%2Fwork&scope=unstaged&directory=new+folder%2F',
+      profile: 'review-remote'
+    })
+
+    await desktopGit()?.review.diff('/srv/work', 'src/a.txt', 'branch', 'origin/release', false, true)
+    expect(api).toHaveBeenCalledWith({
+      path: '/api/git/review/diff?base=origin%2Frelease&file=src%2Fa.txt&path=%2Fsrv%2Fwork&scope=branch&staged=false&fullContext=true',
+      profile: 'review-remote'
+    })
+    expect(repoStatus).not.toHaveBeenCalled()
+    expect(localGit.review.stage).not.toHaveBeenCalled()
+  })
+
   it('sends mutations as POST bodies on a remote gateway', async () => {
     $connection.set({ mode: 'remote' } as never)
 

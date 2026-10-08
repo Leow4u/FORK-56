@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
@@ -26,6 +26,7 @@ import {
   projectIdForCwd,
   projectRootCwd,
   requestStartWorkSession,
+  retargetDraftWorkspace,
   startWorkInRepo,
   switchBranchInRepo
 } from '@/store/projects'
@@ -82,6 +83,7 @@ export function WorktreeDialog() {
   // and the user does not reopen the dialog.
   const [repoPath, setRepoPath] = useState('')
   const [projectOpen, setProjectOpen] = useState(false)
+  const branchRequest = useRef(0)
 
   // Every project with a working root is a valid target. The list is deduped by
   // path, because an auto project and a user project can share one folder.
@@ -122,7 +124,7 @@ export function WorktreeDialog() {
   useEffect(() => {
     if (state) {
       setName('')
-      setConvertMode(false)
+      setConvertMode(state.mode === 'existing')
       setSelectedBase(state.base ?? '')
       setRepoPath(state.repoPath)
       setBranches([])
@@ -140,20 +142,45 @@ export function WorktreeDialog() {
       return
     }
 
+    const request = ++branchRequest.current
     setBranchesLoading(true)
 
     try {
-      setBranches(await listRepoBranches(repoPath))
+      const list = await listRepoBranches(repoPath)
+
+      if (request === branchRequest.current) {
+        setBranches(list)
+      }
     } catch {
-      setBranches([])
+      if (request === branchRequest.current) {
+        setBranches([])
+      }
     } finally {
-      setBranchesLoading(false)
+      if (request === branchRequest.current) {
+        setBranchesLoading(false)
+      }
     }
   }, [repoPath])
 
-  // Give the new worktree to a fresh session, then close the dialog.
+  // eslint-disable-next-line no-restricted-syntax -- cleanup invalidates a request generation; no reactive state is mirrored
+  useEffect(() => {
+    if (open && convertMode) {
+      void loadBranches()
+    }
+
+    return () => {
+      branchRequest.current += 1
+    }
+  }, [open, convertMode, loadBranches])
+
+  // Apply the worktree to the originating draft or open a fresh session, then close the dialog.
   const started = (path: string) => {
-    requestStartWorkSession(path)
+    if (state?.target === 'draft') {
+      retargetDraftWorkspace(path)
+    } else {
+      requestStartWorkSession(path)
+    }
+
     closeWorktreeDialog()
   }
 
@@ -211,7 +238,6 @@ export function WorktreeDialog() {
 
   const enterConvert = () => {
     setConvertMode(true)
-    void loadBranches()
   }
 
   return (
@@ -219,7 +245,9 @@ export function WorktreeDialog() {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{convertMode ? p.convertBranchTitle : p.newWorktreeTitle}</DialogTitle>
-          <DialogDescription>{convertMode ? p.convertBranchDesc : p.newWorktreeDesc}</DialogDescription>
+          <DialogDescription>
+            {convertMode ? p.convertBranchDesc : state?.target === 'draft' ? p.newWorktreeDraftDesc : p.newWorktreeDesc}
+          </DialogDescription>
         </DialogHeader>
 
         {/* Project picker: change the repo that the worktree is cut from. Show
@@ -326,7 +354,7 @@ export function WorktreeDialog() {
               disabled={pending}
               // Remount on a repo change, so the picker loads the branches of
               // the new repo and does not show those of the previous project.
-              key={repoPath}
+              key={`${repoPath}:${state?.base ?? ''}`}
               onValueChange={setSelectedBase}
               repoPath={repoPath}
               value={selectedBase}
@@ -362,7 +390,7 @@ export function WorktreeDialog() {
                 {t.common.cancel}
               </Button>
               <Button disabled={pending || !name.trim()} onClick={() => void submit()} type="button">
-                {p.startWork}
+                {state?.target === 'draft' ? p.createWorktreeDraft : p.createWorktreeSession}
               </Button>
             </div>
           </DialogFooter>

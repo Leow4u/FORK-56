@@ -1,7 +1,8 @@
 import { atom, computed } from 'nanostores'
 
 import { isPaneVisible, revealTreePane } from '@/components/pane-shell/tree/store'
-import type { Work4YouReviewFile, Work4YouReviewShipInfo } from '@/global'
+import type { Work4YouReviewFile, Work4YouReviewScope, Work4YouReviewShipInfo } from '@/global'
+import { desktopFsCacheKey } from '@/lib/desktop-fs'
 import { desktopGit } from '@/lib/desktop-git'
 import { isExcludedPath } from '@/lib/excluded-paths'
 import { requestOneShot } from '@/lib/oneshot'
@@ -9,7 +10,7 @@ import { Codecs, persistentAtom } from '@/lib/persisted'
 
 import { refreshRepoStatus, repoStatusForCwd } from './coding-status'
 import { stampSessionPrBranch } from './pull-requests'
-import { $busy, $currentCwd, $selectedStoredSessionId, $sessions } from './session'
+import { $busy, $connection, $currentCwd, $selectedStoredSessionId, $sessions } from './session'
 import { $workspaceChangeTick } from './workspace-events'
 
 // State for the review pane: the working-tree changed-file list, the selected
@@ -17,10 +18,6 @@ import { $workspaceChangeTick } from './workspace-events'
 // session's cwd is the repo; the pane reads git as the source of truth, the
 // same bounded "re-probe on structural edges" model as the coding rail.
 //
-// Scope is always "uncommitted" — Work4You' flow is agent edits you review BEFORE
-// committing, so branch/last-turn scopes are almost always empty here (unlike
-// Codex, which commits per turn). We show the one view that's always populated.
-
 // Must match the review <Pane id> in desktop-controller (the forced-reveal
 // event is addressed by pane id).
 export const REVIEW_PANE_ID = 'review'
@@ -57,6 +54,78 @@ export function toggleReviewTreeMode(): void {
 
 export const $reviewFiles = atom<Work4YouReviewFile[]>([])
 export const $reviewLoading = atom(false)
+export type ReviewScope = Exclude<Work4YouReviewScope, 'lastTurn'>
+export const $reviewScope = atom<ReviewScope>('uncommitted')
+export const $reviewBaseRef = atom<null | string>(null)
+export const $reviewResolvedBaseRef = atom<null | string>(null)
+export const $reviewRepoRoot = atom<null | string>(null)
+export const $reviewError = atom<null | string>(null)
+export const $reviewDiffError = atom<null | string>(null)
+export const $reviewMissingPath = atom<null | string>(null)
+export const $reviewDiffPart = atom<'unstaged' | 'staged'>('unstaged')
+export const $reviewDirectoryPath = atom<null | string>(null)
+export const $reviewTruncated = atom(false)
+export const $reviewTreeVisible = atom(true)
+export const $reviewFullContext = atom(false)
+// Older remote runtimes lack the scoped-review response contract.
+export const $reviewScopesSupported = atom(false)
+// Commit eligibility comes from the whole working tree, never the visible scope or filter.
+export const $reviewCommitSummary = atom({
+  hasStaged: false,
+  stagedCount: 0,
+  totalCount: 0,
+  includesDirectories: false,
+  truncated: false
+})
+
+export function toggleReviewTreeVisible(): void {
+  $reviewTreeVisible.set(!$reviewTreeVisible.get())
+}
+
+export function setReviewScope(scope: ReviewScope): void {
+  if ($reviewScope.get() === scope) {
+    return
+  }
+
+  $reviewScope.set(scope)
+
+  // Let Git resolve its default base. The status label may omit the remote prefix.
+
+  $reviewDirectoryPath.set(null)
+  clearReviewSelection()
+  void refreshReview()
+}
+
+export function setReviewBaseRef(ref: string): void {
+  $reviewBaseRef.set(ref)
+  clearReviewSelection()
+  void refreshReview()
+}
+
+export async function selectReviewDirectory(path: null | string): Promise<void> {
+  $reviewDirectoryPath.set(path)
+  clearReviewSelection()
+  await refreshReview()
+}
+
+export function setReviewFullContext(value: boolean): void {
+  $reviewFullContext.set(value)
+  const file = $reviewFiles.get().find(item => item.path === $reviewSelectedPath.get())
+
+  if (file) {
+    void selectReviewFile(file, true)
+  }
+}
+
+export function setReviewDiffPart(part: 'unstaged' | 'staged'): void {
+  $reviewDiffPart.set(part)
+  const file = $reviewFiles.get().find(item => item.path === $reviewSelectedPath.get())
+
+  if (file) {
+    void selectReviewFile(file, true)
+  }
+}
+
 // False when the active session isn't in a local git repo (detached/fresh chat,
 // remote backend). Lets the pane say "not a repo" instead of stranding on a
 // skeleton or implying a clean repo with "no changes".
@@ -100,6 +169,7 @@ const repoCwd = reviewRepoCwd
 
 type ReviewBridge = NonNullable<NonNullable<NonNullable<Window['work4youDesktop']>['git']>['review']>
 let reviewRefreshSeq = 0
+let reviewDiffSeq = 0
 let reviewRefreshTimer: ReturnType<typeof setTimeout> | null = null
 let shipInfoSeq = 0
 let shipInfoLastCheckedAt = 0
@@ -115,60 +185,106 @@ function reviewCtx(): { cwd: string; review: ReviewBridge } | null {
 
 // ── Reads ────────────────────────────────────────────────────────────────────
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 export async function refreshReview(): Promise<void> {
   const ctx = reviewCtx()
-  const seq = (reviewRefreshSeq += 1)
+  const seq = ++reviewRefreshSeq
+  const connection = desktopFsCacheKey()
+  const scope = $reviewScope.get()
+  const base = scope === 'branch' ? $reviewBaseRef.get() : null
+  const directory = $reviewDirectoryPath.get()
+
+  const live = () =>
+    seq === reviewRefreshSeq && repoCwd() === ctx?.cwd && desktopFsCacheKey() === connection && $reviewOpen.get()
+
+  $reviewError.set(null)
 
   if (!$reviewOpen.get() || !ctx) {
     $reviewFiles.set([])
     $reviewIsRepo.set(Boolean(ctx))
-
-    // Critical: clear loading on the no-cwd / not-a-repo path too. It's set
-    // true (optimistically) before a refresh is scheduled, so skipping it here
-    // strands the pane on a forever-skeleton for a fresh, detached chat.
-    if (seq === reviewRefreshSeq) {
-      $reviewLoading.set(false)
-    }
+    $reviewCommitSummary.set({
+      hasStaged: false,
+      stagedCount: 0,
+      totalCount: 0,
+      includesDirectories: false,
+      truncated: false
+    })
+    $reviewLoading.set(false)
+    clearReviewSelection()
 
     return
   }
 
-  const { cwd, review } = ctx
-
-  $reviewIsRepo.set(true)
   $reviewLoading.set(true)
 
   try {
-    const result = await review.list(cwd, 'uncommitted', null)
+    const read = directory ? ctx.review.list(ctx.cwd, scope, base, directory) : ctx.review.list(ctx.cwd, scope, base)
 
-    // Ignore a result that resolved after the cwd moved on.
-    if (seq !== reviewRefreshSeq || repoCwd() !== cwd) {
+    const [result, working] = await Promise.all([
+      read,
+      scope === 'uncommitted' && !directory ? read : ctx.review.list(ctx.cwd, 'uncommitted', null)
+    ])
+
+    if (!live()) {
       return
     }
 
-    // Hide dep/build/cache dirs and OS noise even when the repo tracks them —
-    // .gitignored paths are already dropped upstream by `git status`.
-    const files = result.files.filter(file => !isExcludedPath(file.path))
+    $reviewIsRepo.set(result.state !== 'not-repo')
+    $reviewScopesSupported.set(result.state !== undefined)
 
-    $reviewFiles.set(files)
-
-    // Drop the selection if the file is gone (staged away, reverted) so the diff
-    // pane doesn't strand on a ghost; otherwise lazily fetch its diff so a
-    // restored (persisted) selection re-renders on boot.
-    const selected = $reviewSelectedPath.get()
-    const selectedFile = selected ? files.find(file => file.path === selected) : null
-
-    if (selected && !selectedFile) {
-      clearReviewSelection()
-    } else if (selectedFile && $reviewDiff.get() === null) {
-      void selectReviewFile(selectedFile)
+    if (result.state === 'error') {
+      throw new Error(result.error || 'Git review failed')
     }
-  } catch {
-    if (seq === reviewRefreshSeq) {
+
+    if (working.state === 'error') {
+      throw new Error(working.error || 'Git status failed')
+    }
+
+    $reviewRepoRoot.set(result.repoRoot ?? ctx.cwd)
+    $reviewResolvedBaseRef.set(result.base ?? null)
+    const stagedCount = working.stagedCount ?? working.files.filter(file => file.staged).length
+    $reviewCommitSummary.set({
+      hasStaged: stagedCount > 0,
+      stagedCount,
+      totalCount: working.totalCount ?? working.files.length,
+      includesDirectories: working.files.some(file => file.kind === 'directory'),
+      truncated: Boolean(working.truncated)
+    })
+    $reviewTruncated.set(Boolean(result.truncated))
+    const files = result.files.filter(file => !isExcludedPath(file.path))
+    $reviewFiles.set(files)
+    const selected = $reviewSelectedPath.get()
+    const selectedFile = files.find(file => file.path === selected)
+
+    if (selectedFile) {
+      void selectReviewFile(selectedFile, true)
+    } else if (selected) {
+      clearReviewSelection()
+    } else {
+      const firstFile = files.find(file => file.kind !== 'directory' && !file.path.endsWith('/'))
+
+      if (firstFile) {
+        void selectReviewFile(firstFile)
+      }
+    }
+  } catch (error) {
+    if (live()) {
       $reviewFiles.set([])
+      $reviewCommitSummary.set({
+        hasStaged: false,
+        stagedCount: 0,
+        totalCount: 0,
+        includesDirectories: false,
+        truncated: false
+      })
+      clearReviewSelection()
+      $reviewError.set(errorMessage(error))
     }
   } finally {
-    if (seq === reviewRefreshSeq) {
+    if (live()) {
       $reviewLoading.set(false)
     }
   }
@@ -189,13 +305,40 @@ function scheduleReviewRefresh(): void {
   }, REVIEW_REFRESH_DEBOUNCE_MS)
 }
 
-export async function selectReviewFile(file: Work4YouReviewFile): Promise<void> {
-  $reviewSelectedPath.set(file.path)
+export async function selectReviewFile(file: Work4YouReviewFile, preservePart = false): Promise<void> {
+  if (file.kind === 'directory' || file.path.endsWith('/')) {
+    await selectReviewDirectory(file.path)
 
+    return
+  }
+
+  const previous = $reviewSelectedPath.get()
+  const scope = $reviewScope.get()
+  const hasUnstaged = file.unstaged ?? !file.staged
+
+  const staged =
+    scope === 'staged' ||
+    (scope === 'uncommitted' &&
+      file.staged &&
+      (!hasUnstaged || (preservePart && previous === file.path && $reviewDiffPart.get() === 'staged')))
+
+  $reviewDiffPart.set(staged ? 'staged' : 'unstaged')
+  $reviewSelectedPath.set(file.path)
+  $reviewMissingPath.set(null)
+  $reviewDiff.set(null)
+  $reviewDiffError.set(null)
   const ctx = reviewCtx()
+  const seq = ++reviewDiffSeq
+  const connection = desktopFsCacheKey()
+
+  const live = () =>
+    seq === reviewDiffSeq &&
+    repoCwd() === ctx?.cwd &&
+    desktopFsCacheKey() === connection &&
+    $reviewSelectedPath.get() === file.path
 
   if (!ctx) {
-    $reviewDiff.set(null)
+    $reviewDiffLoading.set(false)
 
     return
   }
@@ -203,33 +346,40 @@ export async function selectReviewFile(file: Work4YouReviewFile): Promise<void> 
   $reviewDiffLoading.set(true)
 
   try {
-    const diff = await ctx.review.diff(ctx.cwd, file.path, 'uncommitted', null, file.staged)
+    const base = scope === 'branch' ? $reviewBaseRef.get() : null
+    const full = $reviewFullContext.get()
 
-    if ($reviewSelectedPath.get() === file.path) {
-      $reviewDiff.set(diff || '')
+    const diff = full
+      ? await ctx.review.diff(ctx.cwd, file.path, scope, base, staged, true)
+      : await ctx.review.diff(ctx.cwd, file.path, scope, base, staged)
+
+    if (live()) {
+      $reviewDiff.set(diff)
     }
-  } catch {
-    if ($reviewSelectedPath.get() === file.path) {
-      $reviewDiff.set('')
+  } catch (error) {
+    if (live()) {
+      $reviewDiffError.set(errorMessage(error))
     }
   } finally {
-    if ($reviewSelectedPath.get() === file.path) {
+    if (live()) {
       $reviewDiffLoading.set(false)
     }
   }
 }
 
 export function clearReviewSelection(): void {
+  reviewDiffSeq += 1
   $reviewSelectedPath.set(null)
   $reviewDiff.set(null)
+  $reviewDiffError.set(null)
+  $reviewMissingPath.set(null)
   $reviewDiffLoading.set(false)
 }
-
-// ── View state ───────────────────────────────────────────────────────────────
 
 export async function refreshShipInfo(): Promise<void> {
   const ctx = reviewCtx()
   const seq = (shipInfoSeq += 1)
+  const connection = desktopFsCacheKey()
 
   if (!ctx) {
     $reviewShipInfo.set({ ghReady: false, pr: null })
@@ -240,12 +390,12 @@ export async function refreshShipInfo(): Promise<void> {
   try {
     const info = await ctx.review.shipInfo(ctx.cwd)
 
-    if (seq === shipInfoSeq && repoCwd() === ctx.cwd) {
+    if (seq === shipInfoSeq && repoCwd() === ctx.cwd && desktopFsCacheKey() === connection) {
       $reviewShipInfo.set(info)
       shipInfoLastCheckedAt = Date.now()
     }
   } catch {
-    if (seq === shipInfoSeq) {
+    if (seq === shipInfoSeq && repoCwd() === ctx.cwd && desktopFsCacheKey() === connection) {
       $reviewShipInfo.set({ ghReady: false, pr: null })
       shipInfoLastCheckedAt = Date.now()
     }
@@ -270,7 +420,9 @@ export function openReview(scopeCwd: null | string = null, scopeTarget = 'main')
 }
 
 export function closeReview(): void {
+  reviewRefreshSeq += 1
   $reviewOpen.set(false)
+  $reviewLoading.set(false)
   $reviewScopeCwd.set(null)
   $reviewScopeTarget.set('main')
   clearReviewSelection()
@@ -282,7 +434,13 @@ export function toggleReview(scopeCwd: null | string = null, scopeTarget = 'main
   // boolean flip spent the press re-asserting a value it already held and ⌘G
   // read as a dead key. `revealReview` fronts and un-minimizes; only close when
   // the diff is genuinely the thing on screen.
-  if (isPaneVisible(REVIEW_PANE_ID)) {
+  const targetCwd = scopeCwd?.trim() || $currentCwd.get()?.trim() || null
+
+  if (
+    isPaneVisible(REVIEW_PANE_ID) &&
+    repoCwd() === targetCwd &&
+    $reviewScopeTarget.get() === (scopeTarget.trim() || 'main')
+  ) {
     closeReview()
   } else {
     revealReview(scopeCwd, scopeTarget)
@@ -311,6 +469,20 @@ export function revealReview(scopeCwd: null | string = null, scopeTarget = 'main
   revealTreePane(REVIEW_PANE_ID)
 }
 
+/** Composer counts and response cards always refer to the current working tree. */
+export function revealCurrentReview(scopeCwd: null | string = null, scopeTarget = 'main'): void {
+  const reset = $reviewScope.get() !== 'uncommitted' || $reviewDirectoryPath.get() !== null
+  $reviewScope.set('uncommitted')
+  $reviewDirectoryPath.set(null)
+
+  if (reset) {
+    clearReviewSelection()
+  }
+
+  revealReview(scopeCwd, scopeTarget)
+  void refreshReview()
+}
+
 /** The changed file matching a tool-reported path (absolute or repo-relative). */
 function matchReviewFile(files: readonly Work4YouReviewFile[], path: string): Work4YouReviewFile | undefined {
   const target = path.replace(/\\/g, '/').replace(/\/+$/, '')
@@ -336,12 +508,65 @@ export async function openReviewForPath(
   scopeTarget = 'main'
 ): Promise<void> {
   revealReview(scopeCwd, scopeTarget)
-  await refreshReview()
+  $reviewScope.set('uncommitted')
+  $reviewDirectoryPath.set(null)
+  clearReviewSelection()
+  const cwd = repoCwd()
+  const connection = desktopFsCacheKey()
+  const target = $reviewScopeTarget.get()
+  let pending = refreshReview()
+  let request = reviewRefreshSeq
 
-  const file = matchReviewFile($reviewFiles.get(), path)
+  const live = () =>
+    request === reviewRefreshSeq &&
+    repoCwd() === cwd &&
+    desktopFsCacheKey() === connection &&
+    $reviewScopeTarget.get() === target &&
+    $reviewScope.get() === 'uncommitted' &&
+    $reviewOpen.get()
 
-  if (file) {
-    await selectReviewFile(file)
+  await pending
+
+  // Git compacts wholly untracked directories. Follow only the requested path,
+  // opening one ancestor at a time, rather than scanning the whole workspace.
+  const visited = new Set<string>()
+
+  while (live() && !$reviewError.get()) {
+    const files = $reviewFiles.get()
+    const file = matchReviewFile(files, path)
+
+    if (file) {
+      await selectReviewFile(file)
+
+      return
+    }
+
+    const normalized = path.replace(/\\/g, '/')
+
+    const directory = files.find(item => {
+      const prefix = item.path.replace(/\\/g, '/').replace(/\/+$/, '') + '/'
+
+      return (
+        item.kind === 'directory' &&
+        !visited.has(item.path) &&
+        (normalized.startsWith(prefix) || normalized.includes(`/${prefix}`))
+      )
+    })
+
+    if (!directory) {
+      clearReviewSelection()
+
+      if (!$reviewTruncated.get()) {
+        $reviewMissingPath.set(path)
+      }
+
+      return
+    }
+
+    visited.add(directory.path)
+    pending = selectReviewDirectory(directory.path)
+    request = reviewRefreshSeq
+    await pending
   }
 }
 
@@ -349,32 +574,57 @@ export async function openReviewForPath(
 
 // Run a git mutation then re-sync both the review list and the rail's +/- (the
 // working tree changed). A failure is swallowed by the caller's notify wrapper.
-async function afterMutation(): Promise<void> {
-  await refreshReview()
-  void refreshRepoStatus(repoCwd())
-
-  const selected = $reviewSelectedPath.get()
-  const file = selected ? $reviewFiles.get().find(f => f.path === selected) : null
-
-  // Re-fetch the open diff (staging flips which diff — cached vs worktree).
-  if (file) {
-    void selectReviewFile(file)
+async function afterMutation(cwd: string, connection: string): Promise<void> {
+  if (repoCwd() !== cwd || desktopFsCacheKey() !== connection) {
+    return
   }
+
+  void refreshRepoStatus(cwd)
+
+  // A staged child is no longer inside a wholly untracked directory. Re-read
+  // the root so Git can describe the new tracked/untracked grouping truthfully.
+  if ($reviewDirectoryPath.get()) {
+    $reviewDirectoryPath.set(null)
+    clearReviewSelection()
+  }
+
+  await refreshReview()
 }
 
 export async function stageReviewFile(path: null | string): Promise<void> {
-  await desktopGit()?.review?.stage(repoCwd() ?? '', path)
-  await afterMutation()
+  const ctx = reviewCtx()
+
+  if (!ctx || $reviewScope.get() === 'branch' || $reviewError.get() || $reviewLoading.get()) {
+    return
+  }
+
+  const connection = desktopFsCacheKey()
+  await ctx.review.stage(ctx.cwd, path)
+  await afterMutation(ctx.cwd, connection)
 }
 
 export async function unstageReviewFile(path: null | string): Promise<void> {
-  await desktopGit()?.review?.unstage(repoCwd() ?? '', path)
-  await afterMutation()
+  const ctx = reviewCtx()
+
+  if (!ctx || $reviewScope.get() === 'branch' || $reviewError.get() || $reviewLoading.get()) {
+    return
+  }
+
+  const connection = desktopFsCacheKey()
+  await ctx.review.unstage(ctx.cwd, path)
+  await afterMutation(ctx.cwd, connection)
 }
 
 export async function revertReviewFile(path: null | string): Promise<void> {
-  await desktopGit()?.review?.revert(repoCwd() ?? '', path)
-  await afterMutation()
+  const ctx = reviewCtx()
+
+  if (!ctx || $reviewScope.get() === 'branch' || $reviewError.get() || $reviewLoading.get()) {
+    return
+  }
+
+  const connection = desktopFsCacheKey()
+  await ctx.review.revert(ctx.cwd, path)
+  await afterMutation(ctx.cwd, connection)
 }
 
 // Revert is destructive (discards working-tree edits with no undo), so it always
@@ -419,14 +669,21 @@ async function runShip<T>(action: () => Promise<T>): Promise<T> {
 export async function commitChanges(message: string, opts: { push?: boolean } = {}): Promise<void> {
   const ctx = reviewCtx()
 
-  if (!ctx || !message.trim()) {
+  if (
+    !ctx ||
+    !message.trim() ||
+    $reviewScope.get() === 'branch' ||
+    $reviewError.get() ||
+    $reviewLoading.get() ||
+    $reviewShipBusy.get()
+  ) {
     return
   }
 
   await runShip(async () => {
+    const connection = desktopFsCacheKey()
     await ctx.review.commit(ctx.cwd, message.trim(), Boolean(opts.push))
-    await refreshReview()
-    void refreshRepoStatus(repoCwd())
+    await afterMutation(ctx.cwd, connection)
     void refreshShipInfo()
   })
 }
@@ -454,7 +711,8 @@ export async function generateCommitMessage(previous = ''): Promise<string> {
   }
 
   const gen = (commitGenSeq += 1)
-  const live = () => gen === commitGenSeq
+  const connection = desktopFsCacheKey()
+  const live = () => gen === commitGenSeq && repoCwd() === ctx.cwd && desktopFsCacheKey() === connection
 
   $reviewCommitMsgBusy.set(true)
 
@@ -562,9 +820,32 @@ $busy.subscribe(busy => {
 // straight to its loading skeleton instead of blipping the previous repo's
 // diff into the new one.
 function onReviewRepoMoved(): void {
+  reviewRefreshSeq += 1
+  reviewDiffSeq += 1
+  shipInfoSeq += 1
+  cancelCommitMessage()
+  cancelRevert()
+  $reviewScope.set('uncommitted')
+  $reviewScopesSupported.set(false)
+  $reviewFullContext.set(false)
+  $reviewBaseRef.set(null)
+  $reviewResolvedBaseRef.set(null)
+  $reviewRepoRoot.set(null)
+  $reviewDirectoryPath.set(null)
+  $reviewError.set(null)
+  $reviewCommitSummary.set({
+    hasStaged: false,
+    stagedCount: 0,
+    totalCount: 0,
+    includesDirectories: false,
+    truncated: false
+  })
+  $reviewShipInfo.set({ ghReady: false, pr: null })
+  clearReviewSelection()
+  $reviewFiles.set([])
+  $reviewTruncated.set(false)
+
   if ($reviewOpen.get()) {
-    clearReviewSelection()
-    $reviewFiles.set([])
     $reviewLoading.set(true)
     scheduleReviewRefresh()
     void refreshShipInfo()
@@ -582,6 +863,16 @@ let prevScopeCwd = $reviewScopeCwd.get()
 $reviewScopeCwd.subscribe(scope => {
   if (scope !== prevScopeCwd) {
     prevScopeCwd = scope
+    onReviewRepoMoved()
+  }
+})
+
+let previousConnection = desktopFsCacheKey()
+$connection.subscribe(() => {
+  const next = desktopFsCacheKey()
+
+  if (next !== previousConnection) {
+    previousConnection = next
     onReviewRepoMoved()
   }
 })

@@ -69,12 +69,20 @@ const remoteGit: GitBridge = {
     (await gitGet<{ diff: string }>('file-diff', { file: filePath, path: repoPath })).diff,
 
   review: {
-    list: (repoPath, scope, baseRef) =>
-      gitGet<Work4YouReviewList>('review/list', { base: baseRef, path: repoPath, scope }),
+    list: (repoPath, scope, baseRef, directory) =>
+      gitGet<Work4YouReviewList>('review/list', { base: baseRef, path: repoPath, scope, directory }),
 
-    diff: async (repoPath, filePath, scope, baseRef, staged) =>
-      (await gitGet<{ diff: string }>('review/diff', { base: baseRef, file: filePath, path: repoPath, scope, staged }))
-        .diff,
+    diff: async (repoPath, filePath, scope, baseRef, staged, fullContext) =>
+      (
+        await gitGet<{ diff: string }>('review/diff', {
+          base: baseRef,
+          file: filePath,
+          path: repoPath,
+          scope,
+          staged,
+          fullContext
+        })
+      ).diff,
 
     stage: (repoPath, filePath) => gitPost('review/stage', { file: filePath ?? null, path: repoPath }),
 

@@ -14,7 +14,10 @@ import { notifyError } from '@/store/notifications'
 import {
   $reviewCommitDefault,
   $reviewCommitMsgBusy,
-  $reviewFiles,
+  $reviewCommitSummary,
+  $reviewError,
+  $reviewLoading,
+  $reviewScope,
   $reviewScopeTarget,
   $reviewShipBusy,
   $reviewShipInfo,
@@ -34,7 +37,10 @@ const ICON = '0.85rem'
 export function ReviewShipBar() {
   const { t } = useI18n()
   const c = t.statusStack.coding
-  const files = useStore($reviewFiles)
+  const summary = useStore($reviewCommitSummary)
+  const scope = useStore($reviewScope)
+  const loading = useStore($reviewLoading)
+  const error = useStore($reviewError)
   const ship = useStore($reviewShipInfo)
   const scopeTarget = useStore($reviewScopeTarget)
   const busy = useStore($reviewShipBusy)
@@ -43,13 +49,15 @@ export function ReviewShipBar() {
   const [message, setMessage] = useState('')
   const prLabel = ship.pr?.url ? c.openPr : c.createPr
 
-  const hasFiles = files.length > 0
-  const canCommit = hasFiles && message.trim().length > 0 && !busy
-  const canGenerate = hasFiles && !generating && !busy
+  const hasFiles = summary.totalCount > 0
+  const canCommit = hasFiles && message.trim().length > 0 && !busy && !loading && !error
+  const canGenerate = hasFiles && !generating && !busy && !loading && !error
+  const commitLabel = summary.hasStaged ? c.commitStaged : c.commitAll
+  const commitPushLabel = summary.hasStaged ? c.commitStagedAndPush : c.commitAllAndPush
 
   // Nothing to commit → no ship bar at all; the pane just shows the tree /
   // "No changes" state.
-  if (!hasFiles) {
+  if (!hasFiles || scope === 'branch') {
     return null
   }
 
@@ -76,7 +84,18 @@ export function ReviewShipBar() {
   }
 
   return (
-    <div className="flex shrink-0 flex-col gap-1.5 p-2" data-suppress-pane-reveal-side="">
+    <div
+      className="flex shrink-0 flex-col gap-1.5 border-t border-(--ui-stroke-tertiary) p-2"
+      data-suppress-pane-reveal-side=""
+    >
+      <div className="text-xs text-muted-foreground" role="status">
+        {summary.truncated || (!summary.hasStaged && summary.includesDirectories)
+          ? commitLabel
+          : summary.hasStaged
+            ? c.commitScopeStaged(summary.stagedCount)
+            : c.commitScopeAll(summary.totalCount)}
+        {scope !== 'uncommitted' && <span className="ml-1">{c.scopeDoesNotLimitCommit}</span>}
+      </div>
       {/* Auto-growing message field (CSS field-sizing); generate/stop action
           fills the right edge on one row, then sticks to the top as it grows. */}
       <div className="relative">
@@ -111,8 +130,8 @@ export function ReviewShipBar() {
       <div className="flex min-w-0">
         <SplitButton
           actions={[
-            { id: 'commit', label: c.commit },
-            { id: 'commitPush', label: c.commitAndPush }
+            { id: 'commit', label: commitLabel },
+            { id: 'commitPush', label: commitPushLabel }
           ]}
           className="min-w-0 flex-1"
           disabled={!canCommit}
@@ -130,7 +149,7 @@ export function ReviewShipBar() {
       <div className="relative flex min-w-0 items-center">
         <Button
           className="min-w-0 flex-1 justify-center px-7 text-[0.7rem] text-muted-foreground/85 hover:text-foreground"
-          disabled={!hasFiles}
+          disabled={!hasFiles || Boolean(error) || loading}
           onClick={() => {
             if (!requestComposerSubmit(c.agentShipPrompt, { target: scopeTarget })) {
               notifyError(new Error(c.agentShipUnavailable), c.agentShip)

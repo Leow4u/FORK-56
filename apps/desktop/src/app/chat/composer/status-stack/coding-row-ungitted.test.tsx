@@ -29,15 +29,15 @@ afterEach(() => {
 
 describe('CodingStatusRow without git', () => {
   it('stays hidden on an empty chat', () => {
-    const { container } = renderRow(<CodingStatusRow repoPath="/repos/notes" />)
+    const { container } = renderRow(<CodingStatusRow placement="changes" repoPath="/repos/notes" />)
 
-    expect(container.querySelector('.coding-status-bar')).toBeNull()
+    expect(container.textContent).toBe('')
   })
 
   it('stays hidden on an occupied chat', () => {
-    const { container } = renderRow(<CodingStatusRow repoPath="/repos/notes" showWorkspaceName />)
+    const { container } = renderRow(<CodingStatusRow placement="identity" repoPath="/repos/notes" />)
 
-    expect(container.querySelector('.coding-status-bar')).toBeNull()
+    expect(container.textContent).toBe('')
     expect(screen.queryByText('notes')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Select project' })).toBeNull()
   })

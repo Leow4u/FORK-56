@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
@@ -7,7 +7,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { Work4YouGitBaseBranch } from '@/global'
 import { useI18n } from '@/i18n'
-import { $repoStatus } from '@/store/coding-status'
+import { repoStatusForCwd } from '@/store/coding-status'
 import { listBaseBranches } from '@/store/projects'
 
 // Filterable combobox for picking the base branch of a new worktree. Lists
@@ -28,10 +28,13 @@ export function BaseBranchPicker({
 }) {
   const { t } = useI18n()
   const p = t.sidebar.projects
-  const repoStatus = useStore($repoStatus)
+  const repoStatus = useStore(repoStatusForCwd(repoPath))
   const [branches, setBranches] = useState<Work4YouGitBaseBranch[]>([])
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
+  const requestVersion = useRef(0)
+  const valueRef = useRef(value)
+  valueRef.current = value
 
   const currentBranch = repoStatus?.detached ? null : (repoStatus?.branch ?? null)
 
@@ -40,10 +43,16 @@ export function BaseBranchPicker({
       return
     }
 
+    const version = ++requestVersion.current
     setLoading(true)
 
     try {
       const list = await listBaseBranches(repoPath)
+
+      if (version !== requestVersion.current) {
+        return
+      }
+
       setBranches(list)
 
       // Default to the remote default (origin/HEAD). Fall back to the local
@@ -51,25 +60,38 @@ export function BaseBranchPicker({
       // always a concrete branch — never undefined.
       const defaultBranch = list.find(b => b.isDefault)
 
+      if (valueRef.current) {
+        return
+      }
+
       if (defaultBranch) {
         onValueChange(defaultBranch.name)
       } else {
         onValueChange(list[0]?.name ?? '')
       }
     } catch {
-      setBranches([])
+      if (version === requestVersion.current) {
+        setBranches([])
+      }
     } finally {
-      setLoading(false)
+      if (version === requestVersion.current) {
+        setLoading(false)
+      }
     }
   }, [repoPath, onValueChange])
 
-  // Load on mount so the default branch fills in before the user opens the
-  // popover — otherwise the button reads "branch off " with nothing after it.
+  // Load once per repository. An empty result or a failed read must not spin
+  // forever; opening the picker is the explicit retry. Preserve any supplied
+  // base, including a user choice made while the request was in flight.
+  // eslint-disable-next-line no-restricted-syntax -- cleanup invalidates a request generation; no reactive state is mirrored
   useEffect(() => {
-    if (branches.length === 0 && !loading) {
-      void load()
+    setBranches([])
+    void load()
+
+    return () => {
+      requestVersion.current += 1
     }
-  }, [branches.length, loading, load])
+  }, [load])
 
   // Pin the current session's branch to the top, keep the rest in git's
   // most-recently-committed order.
