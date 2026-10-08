@@ -12,6 +12,7 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 import work4you_cli.gateway as gateway
+from work4you_cli import gateway_supervisor
 
 
 _BREAKAWAY_MARKER = "_WORK4YOU_GATEWAY_BREAKAWAY"
@@ -352,7 +353,7 @@ def test_spawn_detached_gateway_timestamps_stderr(monkeypatch, tmp_path):
         "--error-log",
         str(tmp_path / "logs" / "gateway.error.log"),
         "--",
-        *child_cmd,
+        *gateway_supervisor.supervisor_command(child_cmd),
     ]
     assert kwargs["stdin"] is gateway.subprocess.DEVNULL
     assert kwargs["stderr"] is gateway.subprocess.DEVNULL
@@ -361,7 +362,7 @@ def test_spawn_detached_gateway_timestamps_stderr(monkeypatch, tmp_path):
 
 @pytest.mark.skipif(
     sys.platform == "win32",
-    reason="systemd user-linger is Linux-only (drives os.getuid())",
+    reason="systemd user-linger requires the native Linux user ID",
 )
 def test_systemd_install_checks_linger_status(monkeypatch, tmp_path, capsys):
     unit_path = tmp_path / "systemd" / "user" / "work4you-gateway.service"
@@ -744,7 +745,7 @@ class TestReaperCandidateIsSupervisorOwned:
     On Windows ``_get_service_pids()`` is empty and a Scheduled-Task gateway
     that lost ``gateway.pid`` is invisible to both the service-PID and
     recorded-PID exclusions — the backstop spares it via services.exe
-    ancestry. On POSIX the backstop must be inert: every process (and
+    ancestry. On POSIX only an explicit local supervisor counts: every process (and
     especially a genuine orphan, which is reparented to PID 1) has
     launchd/init in its ancestry, so ancestry carries no supervision signal
     there (#51325, #75936).
@@ -846,16 +847,26 @@ class TestReaperCandidateIsSupervisorOwned:
         assert result is True
         assert orphan_pid in [pid for pid, _ in killed_pids]
 
-    def test_backstop_is_inert_on_posix(self, monkeypatch):
-        """Direct unit guard: on non-Windows the backstop returns False without
-        touching psutil, even for a launchd/init-ancestored process."""
-        monkeypatch.setattr(gateway, "is_windows", lambda: False)
+    def test_backstop_fails_open_when_process_lookup_fails(self, monkeypatch):
+        """A lookup failure cannot hide a genuine orphan from cleanup."""
 
         def _boom(_pid):
-            raise AssertionError("psutil must not be consulted on POSIX")
+            raise ProcessLookupError("process exited")
 
         monkeypatch.setitem(sys.modules, "psutil", SimpleNamespace(Process=_boom))
         assert gateway._reaper_candidate_is_supervisor_owned(12345) is False
+
+    def test_explicit_recovery_supervisor_spares_child_on_every_platform(self, monkeypatch):
+        owner = SimpleNamespace(
+            pid=4241,
+            parent=lambda: None,
+            name=lambda: "python",
+            cmdline=lambda: [sys.executable, "-m", "work4you_cli.gateway_supervisor", "--", "gateway", "run"],
+        )
+        child = SimpleNamespace(pid=4242, parent=lambda: owner)
+        self._install_fake_psutil(monkeypatch, {4242: child})
+
+        assert gateway._reaper_candidate_is_supervisor_owned(4242) is True
 
     def test_windows_backstop_fails_open_when_bootstrap_exited(self, monkeypatch):
         """Documented limitation: if the Task bootstrap already exited, the

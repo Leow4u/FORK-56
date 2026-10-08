@@ -4,6 +4,7 @@ import logging
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 
@@ -73,7 +74,8 @@ def test_build_gateway_argv_keeps_venv_console_python_for_uv_venv(monkeypatch, t
 
     argv, cwd, env_overlay = gateway_windows._build_gateway_argv()
 
-    assert argv[:3] == [str(venv_python), "-m", "work4you_cli.main"]
+    assert argv[:4] == [str(venv_python), "-m", "work4you_cli.gateway_supervisor", "--"]
+    assert argv[4:] == ["gateway", "run"]
     assert cwd == str(work4you_home.resolve())
     assert env_overlay["VIRTUAL_ENV"] == str(project / "venv")
     assert str(project) in env_overlay["PYTHONPATH"].split(gateway_windows.os.pathsep)
@@ -331,13 +333,43 @@ def test_gateway_vbs_script_is_console_less(monkeypatch):
     assert "cmd.exe" not in content.lower()
     assert 'CreateObject("WScript.Shell")' in content
     assert "pythonw.exe" in content
-    assert "work4you_cli.main" in content
+    assert "work4you_cli.gateway_supervisor" in content
     assert "gateway run" in content
     assert ", 0, False" in content  # hidden window, detached/async
     for var in ("WORK4YOU_HOME", "PYTHONIOENCODING", "WORK4YOU_GATEWAY_DETACHED", "VIRTUAL_ENV", "PYTHONPATH"):
         assert var in content
     assert "--profile" in content and "work" in content
     assert content.endswith("\r\n")
+
+
+@pytest.mark.windows_only
+def test_start_during_recovery_does_not_spawn_duplicate(monkeypatch, tmp_path):
+    monkeypatch.setattr("work4you_cli.config.get_work4you_home", lambda: tmp_path)
+    monkeypatch.setattr(gateway_windows, "_gateway_pids", lambda: [])
+    monkeypatch.setattr(gateway_windows, "is_supervisor_running", lambda home: home == tmp_path)
+    spawn = mock.Mock()
+    monkeypatch.setattr(gateway_windows, "_spawn_detached", spawn)
+
+    gateway_windows.start()
+
+    spawn.assert_not_called()
+
+
+@pytest.mark.windows_only
+def test_stop_disables_recovery_before_draining_or_killing(monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setattr("work4you_cli.config.get_work4you_home", lambda: tmp_path)
+    monkeypatch.setattr("gateway.status.get_running_pid", lambda: 4242)
+    monkeypatch.setattr(gateway_windows, "request_supervisor_stop", lambda home: calls.append(("disable", home)) or True)
+    monkeypatch.setattr(gateway_windows, "_collect_gateway_stop_pids", lambda *args: [4242])
+    monkeypatch.setattr(gateway_windows, "_windows_stop_drain_timeout", lambda: 0)
+    monkeypatch.setattr(gateway_windows, "_drain_gateway_pid", lambda *args: calls.append(("drain", 4242)) or False)
+    monkeypatch.setattr(gateway_windows, "is_task_registered", lambda: False)
+    monkeypatch.setattr(gateway_windows, "_force_terminate_known_gateway_pids", lambda pids: calls.append(("kill", pids)) or 1)
+
+    gateway_windows.stop()
+
+    assert calls == [("disable", tmp_path), ("drain", 4242), ("kill", [4242])]
 
 
 

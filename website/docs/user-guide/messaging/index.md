@@ -622,6 +622,20 @@ launchd plists are static — if you install new tools (e.g. a new Node.js versi
 Like the Linux systemd service, each `WORK4YOU_HOME` directory gets its own launchd label. The default `~/.work4you` uses `ai.work4you.gateway`; other installations use `ai.work4you.gateway-<suffix>`.
 :::
 
+### Background recovery without a native service
+
+Windows background launches, the macOS fallback when launchd cannot manage the gateway, and Linux/WSL without systemd use a per-profile supervisor. Start or restart it with:
+
+```bash
+work4you gateway start
+work4you gateway restart
+work4you gateway stop
+```
+
+After upgrading an existing unsupervised gateway, run `work4you gateway restart` once to activate recovery. Unexpected exits trigger up to five retries with increasing delays (2, 4, 8, 16, and 30 seconds). Five minutes of stable operation resets that budget. An intentional stop or fatal configuration error ends recovery. Repeated failures are recorded in `logs/gateway-supervisor.log` inside the affected profile's Work4You home.
+
+Where available, systemd and launchd continue to manage their own services. The macOS/Linux background fallback does not provide automatic startup after login or reboot. `work4you gateway run` remains a foreground command. Recovery restarts the gateway process; it cannot keep a suspended computer or stopped WSL instance online, or restore a WhatsApp session that requires pairing again.
+
 ## Platform-Specific Toolsets
 
 Each platform has its own toolset:
