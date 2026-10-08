@@ -76,8 +76,7 @@ export const blueprintCatalogPt: BlueprintCatalogTranslations = {
   items: {
     'morning-brief': {
       title: 'Briefing matinal',
-      description:
-        'Um resumo curto do dia: agenda, clima e qualquer coisa urgente que precise da sua atenção.'
+      description: 'Um resumo curto do dia: agenda, clima e qualquer coisa urgente que precise da sua atenção.'
     },
     'important-mail': {
       title: 'Monitor de e-mail importante',
@@ -113,8 +112,7 @@ export const blueprintCatalogPt: BlueprintCatalogTranslations = {
     },
     'news-digest': {
       title: 'Resumo de notícias',
-      description:
-        'Um digest recorrente sobre um assunto — sem repetir o que já foi enviado; só novidades de verdade.',
+      description: 'Um digest recorrente sobre um assunto — sem repetir o que já foi enviado; só novidades de verdade.',
       fields: {
         topic: {
           label: 'Sobre qual assunto?',

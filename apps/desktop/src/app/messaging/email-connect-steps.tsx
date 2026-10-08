@@ -116,6 +116,7 @@ export function EmailConnectSteps({
     ],
     [s]
   )
+
   const hd = t.messaging.homeDelivery
 
   function fieldError(key: string, value: string): string {
@@ -146,13 +147,9 @@ export function EmailConnectSteps({
     ? { imap: provider.imapHost, smtp: provider.smtpHost }
     : { imap: imapHost.trim(), smtp: smtpHost.trim() }
 
-  const hasPassword = Boolean(
-    password.trim() || (passwordSaved && !requireFreshPassword)
-  )
+  const hasPassword = Boolean(password.trim() || (passwordSaved && !requireFreshPassword))
 
-  const passwordReady = provider
-    ? appPasswordReady === 'yes' && hasPassword
-    : hasPassword
+  const passwordReady = provider ? appPasswordReady === 'yes' && hasPassword : hasPassword
 
   const mailboxOk =
     Boolean(address.trim() && passwordReady && servers.imap && servers.smtp) &&

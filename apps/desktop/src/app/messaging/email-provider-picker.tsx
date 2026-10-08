@@ -24,25 +24,29 @@ export function EmailProviderPicker({
   presets: EmailProviderPreset[]
   value: EmailProviderChoice
 }) {
-  const entries: { Icon: ComponentType<SVGProps<SVGSVGElement>>; color: string; id: EmailProviderChoice; name: string }[] =
-    [
-      ...presets.map(preset => {
-        const id = preset.id as EmailProviderIconId
+  const entries: {
+    Icon: ComponentType<SVGProps<SVGSVGElement>>
+    color: string
+    id: EmailProviderChoice
+    name: string
+  }[] = [
+    ...presets.map(preset => {
+      const id = preset.id as EmailProviderIconId
 
-        return {
-          Icon: EMAIL_PROVIDER_ICON_COMPONENTS[id],
-          color: EMAIL_PROVIDER_ICON_COLORS[id],
-          id: id as EmailProviderChoice,
-          name: preset.label
-        }
-      }),
-      {
-        Icon: EMAIL_PROVIDER_ICON_COMPONENTS.custom,
-        color: EMAIL_PROVIDER_ICON_COLORS.custom,
-        id: CUSTOM,
-        name: customLabel
+      return {
+        Icon: EMAIL_PROVIDER_ICON_COMPONENTS[id],
+        color: EMAIL_PROVIDER_ICON_COLORS[id],
+        id: id as EmailProviderChoice,
+        name: preset.label
       }
-    ]
+    }),
+    {
+      Icon: EMAIL_PROVIDER_ICON_COMPONENTS.custom,
+      color: EMAIL_PROVIDER_ICON_COLORS.custom,
+      id: CUSTOM,
+      name: customLabel
+    }
+  ]
 
   return (
     <div aria-label={label} className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup">

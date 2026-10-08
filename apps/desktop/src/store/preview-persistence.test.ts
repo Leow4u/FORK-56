@@ -88,7 +88,9 @@ describe('restored tabs', () => {
     window.localStorage.setItem(TABS_KEY, JSON.stringify([browserRow]))
     window.localStorage.setItem(
       STATE_KEY,
-      JSON.stringify({ default: { kept: { icons: { 'url:browser': 'https://example.com/favicon.ico', 'url:stale': 42 } } } })
+      JSON.stringify({
+        default: { kept: { icons: { 'url:browser': 'https://example.com/favicon.ico', 'url:stale': 42 } } }
+      })
     )
 
     vi.resetModules()

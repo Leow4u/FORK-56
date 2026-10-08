@@ -2158,8 +2158,7 @@ export const en: Translations = {
       checkLogin: (address: string) => `IMAP and SMTP logins succeeded for **${address}**`,
       checkLoginPending: 'Logging in to the mail servers…',
       whoMe: 'Only your address can send and receive with the bot',
-      whoList: (count: number) =>
-        `${count} ${count === 1 ? 'address' : 'addresses'} can send and receive with the bot`,
+      whoList: (count: number) => `${count} ${count === 1 ? 'address' : 'addresses'} can send and receive with the bot`,
       tryIt: (address: string) => `Try it: from an allowed address, email **${address}**.`,
       whoCanWriteTitle: 'Who can send and receive',
       connectedLabel: 'Connected and checking the inbox',
