@@ -4575,6 +4575,13 @@ export const zh: Translations = {
 
   preview: {
     newTab: {
+      suggested: '建议',
+      recent: '最近使用',
+      noSuggestions: '在此对话中打开的网站将显示在这里。',
+      noRecents: '在此对话中打开的文件和页面将显示在这里。',
+      page: '页面',
+      image: '图片',
+      file: '文件',
       tools: '工具',
       review: '更改',
       needsProject: '文件和更改需要先打开项目。'

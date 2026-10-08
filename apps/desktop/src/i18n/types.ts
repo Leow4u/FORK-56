@@ -3783,6 +3783,13 @@ export interface Translations {
   preview: {
     /** What an empty Browser shows: the conversation's tools. */
     newTab: {
+      suggested: string
+      recent: string
+      noSuggestions: string
+      noRecents: string
+      page: string
+      image: string
+      file: string
       tools: string
       review: string
       needsProject: string

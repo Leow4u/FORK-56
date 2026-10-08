@@ -2889,6 +2889,13 @@ export const zhHant = defineLocale({
 
   preview: {
     newTab: {
+      suggested: '建議',
+      recent: '最近使用',
+      noSuggestions: '在此對話中開啟的網站將顯示在這裡。',
+      noRecents: '在此對話中開啟的檔案和頁面將顯示在這裡。',
+      page: '頁面',
+      image: '圖片',
+      file: '檔案',
       tools: '工具',
       review: '變更',
       needsProject: '檔案和變更需要先開啟專案。'
