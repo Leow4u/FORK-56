@@ -17,9 +17,11 @@ import {
   PaginationNext,
   PaginationPrevious
 } from '@/components/ui/pagination'
+import { ProfileFace } from '@/components/ui/profile-face'
 import { RowButton } from '@/components/ui/row-button'
 import { SearchField } from '@/components/ui/search-field'
 import { CountSkeleton } from '@/components/ui/skeleton'
+import { TextTab, TextTabMeta } from '@/components/ui/text-tab'
 import { Tip } from '@/components/ui/tooltip'
 import { type Translations, useI18n } from '@/i18n'
 import { resolveBrandIcon } from '@/lib/brand-icon'
@@ -31,7 +33,7 @@ import {
   urlSlugTitleLabel,
   useLinkTitle
 } from '@/lib/external-link'
-import { FileText, FolderOpen, Link2 } from '@/lib/icons'
+import { FileText, FolderOpen, Link2, ExternalLink as OpenIcon } from '@/lib/icons'
 import { downloadGatewayMediaFile, isRemoteGateway } from '@/lib/media'
 import { normalize } from '@/lib/text'
 import { fmtDayTime } from '@/lib/time'
@@ -103,9 +105,6 @@ type CellCtx = {
   showProfile: boolean
 }
 
-const itemsLabel = (f: ArtifactFilter, a: Translations['artifacts']) =>
-  f === 'link' ? a.itemsLink : f === 'file' ? a.itemsFile : a.itemsGeneric
-
 interface ArtifactsViewProps extends React.ComponentProps<'section'> {
   setStatusbarItemGroup?: SetStatusbarItemGroup
 }
@@ -137,6 +136,7 @@ function ScopedArtifactsView({
   const [failedImageIds, setFailedImageIds] = useState<Set<string>>(() => new Set())
   const [imagePage, setImagePage] = useState(1)
   const [filePage, setFilePage] = useState(1)
+  const [linkPage, setLinkPage] = useState(1)
 
   const [refreshing, setRefreshing] = useState(false)
   const loadState = useRef({ epoch: 0, inFlight: false })
@@ -221,6 +221,7 @@ function ScopedArtifactsView({
   useEffect(() => {
     setImagePage(1)
     setFilePage(1)
+    setLinkPage(1)
   }, [artifacts, kindFilter, query])
 
   const visibleArtifacts = useMemo(() => {
@@ -253,12 +254,19 @@ function ScopedArtifactsView({
   )
 
   const visibleFileArtifacts = useMemo(
-    () => visibleArtifacts.filter(artifact => artifact.kind !== 'image'),
+    () => visibleArtifacts.filter(artifact => artifact.kind === 'file'),
+    [visibleArtifacts]
+  )
+
+  const visibleLinkArtifacts = useMemo(
+    () => visibleArtifacts.filter(artifact => artifact.kind === 'link'),
     [visibleArtifacts]
   )
 
   const imagePageCount = Math.max(1, Math.ceil(visibleImageArtifacts.length / 24))
   const filePageCount = Math.max(1, Math.ceil(visibleFileArtifacts.length / 100))
+  const linkPageCount = Math.max(1, Math.ceil(visibleLinkArtifacts.length / 100))
+  const currentLinkPage = Math.min(linkPage, linkPageCount)
   const currentImagePage = Math.min(imagePage, imagePageCount)
   const currentFilePage = Math.min(filePage, filePageCount)
 
@@ -270,6 +278,11 @@ function ScopedArtifactsView({
   const pagedFileArtifacts = useMemo(
     () => visibleFileArtifacts.slice((currentFilePage - 1) * 100, currentFilePage * 100),
     [currentFilePage, visibleFileArtifacts]
+  )
+
+  const pagedLinkArtifacts = useMemo(
+    () => visibleLinkArtifacts.slice((currentLinkPage - 1) * 100, currentLinkPage * 100),
+    [currentLinkPage, visibleLinkArtifacts]
   )
 
   // Rotating placeholder nudges from real data — search matches file paths and
@@ -367,57 +380,63 @@ function ScopedArtifactsView({
         <div className={cn('mx-auto w-full', LIBRARY_PAGE_MAX_W)}>
           <PageTitle
             aside={
-              <Tip label={refreshing ? a.refreshing : a.refresh}>
-                <Button
-                  aria-label={refreshing ? a.refreshing : a.refresh}
-                  className="text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
-                  disabled={refreshing}
-                  onClick={() => void refreshArtifacts()}
-                  size="icon-titlebar"
-                  variant="ghost"
-                >
-                  {refreshing ? <TitlebarIcon name="loading" spinning /> : <TitlebarIcon name="refresh" />}
-                </Button>
-              </Tip>
+              <div className="flex min-w-0 flex-1 basis-72 items-center justify-end gap-3">
+                {counts.all > 0 && (
+                  <SearchField
+                    containerClassName="w-full max-w-xs"
+                    hints={searchHints}
+                    onChange={setQuery}
+                    placeholder={a.search}
+                    recede={false}
+                    shape="pill"
+                    value={query}
+                  />
+                )}
+                <Tip label={refreshing ? a.refreshing : a.refresh}>
+                  <Button
+                    aria-label={refreshing ? a.refreshing : a.refresh}
+                    className="text-(--ui-text-tertiary) hover:bg-(--chrome-action-hover) hover:text-foreground"
+                    disabled={refreshing}
+                    onClick={() => void refreshArtifacts()}
+                    size="icon-titlebar"
+                    variant="ghost"
+                  >
+                    {refreshing ? <TitlebarIcon name="loading" spinning /> : <TitlebarIcon name="refresh" />}
+                  </Button>
+                </Tip>
+              </div>
             }
+            className="flex-wrap"
           >
-            {t.sidebar.nav.artifacts}
+            <span className="flex items-center gap-3">
+              {profile !== 'all' && <ProfileFace name={profile} size={36} />}
+              {t.sidebar.nav.artifacts}
+            </span>
           </PageTitle>
+          <div className="-mt-5 mb-6 flex items-center gap-2 text-sm text-(--ui-text-tertiary)">
+            {profile === 'all' ? t.profiles.allProfiles : <ArtifactProfile className="text-sm" name={profile} />}
+            <span aria-hidden>·</span>
+            <span>{a.subtitle}</span>
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-wrap items-center gap-1" data-tour="page-tabs">
               {filterTabs.map(tab => {
                 const active = kindFilter === tab.id
 
                 return (
-                  <Button
+                  <TextTab
+                    active={active}
                     aria-pressed={active}
                     key={tab.id}
                     onClick={() => setKindFilter(tab.id)}
-                    size="sm"
                     type="button"
-                    variant={active ? 'chip' : 'text'}
                   >
                     {tab.label}
-                    {artifacts ? (
-                      <span className="text-[0.72em] font-normal text-(--ui-text-tertiary)">{tab.count}</span>
-                    ) : (
-                      <CountSkeleton />
-                    )}
-                  </Button>
+                    {artifacts ? <TextTabMeta>{tab.count}</TextTabMeta> : <CountSkeleton />}
+                  </TextTab>
                 )
               })}
             </div>
-            {counts.all > 0 && (
-              <SearchField
-                containerClassName="w-full max-w-xs"
-                hints={searchHints}
-                onChange={setQuery}
-                placeholder={a.search}
-                recede={false}
-                shape="pill"
-                value={query}
-              />
-            )}
           </div>
         </div>
       </div>
@@ -437,6 +456,7 @@ function ScopedArtifactsView({
               {visibleImageArtifacts.length > 0 && (
                 <section className="flex flex-col">
                   <ArtifactSectionHeader
+                    count={kindFilter === 'all' ? visibleImageArtifacts.length : undefined}
                     pagination={
                       imagePageCount > 1 ? (
                         <ArtifactsPagination
@@ -469,11 +489,12 @@ function ScopedArtifactsView({
               {visibleFileArtifacts.length > 0 && (
                 <section className="flex flex-col">
                   <ArtifactSectionHeader
+                    count={kindFilter === 'all' ? visibleFileArtifacts.length : undefined}
                     pagination={
                       filePageCount > 1 ? (
                         <ArtifactsPagination
                           className="ml-auto justify-end px-0"
-                          itemLabel={itemsLabel(kindFilter, a)}
+                          itemLabel={a.itemsFile}
                           onPageChange={setFilePage}
                           page={currentFilePage}
                           pageSize={100}
@@ -481,10 +502,33 @@ function ScopedArtifactsView({
                         />
                       ) : null
                     }
-                    title={restSectionTitle(kindFilter, visibleFileArtifacts, a)}
+                    title={kindFilter === 'all' ? a.tabFiles : null}
                   />
-                  <div className="overflow-x-auto rounded-lg border border-(--ui-stroke-tertiary) bg-(--ui-chat-bubble-background)">
-                    <ArtifactTable artifacts={pagedFileArtifacts} ctx={cellCtx} filter={kindFilter} />
+                  <div className="overflow-x-auto">
+                    <ArtifactTable artifacts={pagedFileArtifacts} ctx={cellCtx} filter="file" />
+                  </div>
+                </section>
+              )}
+              {visibleLinkArtifacts.length > 0 && (
+                <section className="flex flex-col">
+                  <ArtifactSectionHeader
+                    count={kindFilter === 'all' ? visibleLinkArtifacts.length : undefined}
+                    pagination={
+                      linkPageCount > 1 ? (
+                        <ArtifactsPagination
+                          className="ml-auto justify-end px-0"
+                          itemLabel={a.itemsLink}
+                          onPageChange={setLinkPage}
+                          page={currentLinkPage}
+                          pageSize={100}
+                          total={visibleLinkArtifacts.length}
+                        />
+                      ) : null
+                    }
+                    title={kindFilter === 'all' ? a.tabLinks : null}
+                  />
+                  <div className="overflow-x-auto">
+                    <ArtifactTable artifacts={pagedLinkArtifacts} ctx={cellCtx} filter="link" />
                   </div>
                 </section>
               )}
@@ -505,36 +549,23 @@ interface ArtifactsPaginationProps {
   total: number
 }
 
-function restSectionTitle(
-  filter: ArtifactFilter,
-  items: readonly ArtifactRecord[],
-  a: Translations['artifacts']
-): string | null {
-  if (filter !== 'all' || items.length === 0) {
-    return null
-  }
-
-  const kind = items[0]?.kind
-
-  if (!kind || items.some(item => item.kind !== kind)) {
-    return null
-  }
-
-  return kind === 'link' ? a.tabLinks : a.tabFiles
-}
-
-function ArtifactSectionHeader({ pagination, title }: { pagination?: React.ReactNode; title: string | null }) {
+function ArtifactSectionHeader({
+  count,
+  pagination,
+  title
+}: {
+  count?: number
+  pagination?: React.ReactNode
+  title: string | null
+}) {
   if (!title && !pagination) {
     return null
   }
 
   return (
-    <div className="mb-2 flex min-h-6 items-center gap-3">
-      {title ? (
-        <h2 className="min-w-0 text-[length:var(--conversation-text-font-size)] font-medium text-(--ui-text-secondary)">
-          {title}
-        </h2>
-      ) : null}
+    <div className="mb-3 flex min-h-6 items-center gap-3">
+      {title ? <h2 className="min-w-0 text-base font-semibold text-foreground">{title}</h2> : null}
+      {count !== undefined && <span className="text-sm text-(--ui-text-tertiary)">{count}</span>}
       {pagination}
     </div>
   )
@@ -596,12 +627,12 @@ interface ArtifactImageCardProps {
   showProfile: boolean
 }
 
-function ArtifactProfile({ name }: { name?: string }) {
+function ArtifactProfile({ name, className }: { name?: string; className?: string }) {
   const profiles = useStore($profiles)
   const owner = profiles.find(profile => profile.name === (name || 'default'))
 
   return (
-    <span className="block truncate text-[0.6875rem] text-(--ui-text-tertiary)">
+    <span className={cn('block truncate text-[0.6875rem] text-(--ui-text-tertiary)', className)}>
       {owner ? profileLabel(owner) : name || 'default'}
     </span>
   )
@@ -674,7 +705,7 @@ function ArtifactImageCard({ artifact, failedImage, onImageError, onOpenChat, sh
 }
 
 const artifactActionClass =
-  'flex h-full w-full min-w-0 items-center gap-2 px-2.5 py-1.5 text-left text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-normal text-(--ui-text-secondary) no-underline underline-offset-4 decoration-current/20 transition-colors hover:text-foreground hover:underline'
+  'flex h-full w-full min-w-0 items-center gap-3 py-3 text-left text-[length:var(--conversation-caption-font-size)] leading-(--conversation-caption-line-height) font-normal text-(--ui-text-secondary) no-underline underline-offset-4 decoration-current/20 transition-colors hover:text-foreground hover:underline'
 
 function ArtifactCellAction({
   children,
@@ -718,41 +749,50 @@ const PrimaryCell = memo(function PrimaryCell({ artifact, ctx }: { artifact: Art
       <span className="mt-0.5 grid size-6 shrink-0 place-items-center self-start rounded-md bg-(--ui-bg-tertiary) text-(--ui-text-tertiary)">
         <Icon className="size-3.5" />
       </span>
-      <span className={cn('min-w-0 flex-1', isLink ? 'wrap-anywhere' : 'truncate')}>
-        {label}
-        {isLink && <ExternalLinkIcon />}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium text-foreground">
+          {label}
+          {isLink && <ExternalLinkIcon />}
+        </span>
+        <Tip label={artifact.value}>
+          <span className="mt-0.5 block truncate text-xs text-(--ui-text-tertiary)">
+            {isLink
+              ? hostPathLabel(artifact.value)
+              : artifact.value.replace(/\\/g, '/').split('/').slice(0, -1).filter(Boolean).at(-1) || artifact.value}
+          </span>
+        </Tip>
       </span>
     </ArtifactCellAction>
   )
 })
 
-const LocationCell = memo(function LocationCell({ artifact }: { artifact: ArtifactRecord; ctx: CellCtx }) {
+const DateCell = memo(function DateCell({ artifact, ctx }: { artifact: ArtifactRecord; ctx: CellCtx }) {
   const { t } = useI18n()
-  const isLink = artifact.kind === 'link'
-  const value = isLink ? hostPathLabel(artifact.value) : artifact.value
-  const copyLabel = isLink ? t.artifacts.copyUrl : t.artifacts.copyPath
+  const copyLabel = artifact.kind === 'link' ? t.artifacts.copyUrl : t.artifacts.copyPath
 
   return (
-    <div className="group/location flex min-w-0 items-center gap-1.5">
-      <Tip label={artifact.value}>
-        <div
-          className={cn(
-            'min-w-0 flex-1 truncate text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)',
-            isLink ? 'font-normal' : 'font-mono'
-          )}
-        >
-          {value}
-        </div>
-      </Tip>
-      <CopyButton
-        appearance="icon"
-        buttonSize="icon-xs"
-        className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/location:opacity-100"
-        iconClassName="size-3.5"
-        label={copyLabel}
-        text={artifact.value}
-        title={copyLabel}
-      />
+    <div className="flex min-w-0 items-center justify-between gap-3">
+      <span className="truncate text-xs text-(--ui-text-tertiary)">{formatArtifactTime(artifact.timestamp)}</span>
+      <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover/artifact:opacity-100 group-focus-within/artifact:opacity-100 [@media(hover:none)]:opacity-100">
+        <Tip label={t.artifactCard.open}>
+          <Button
+            aria-label={t.artifactCard.open}
+            onClick={() => void ctx.onOpen(artifact.href)}
+            size="icon-xs"
+            variant="ghost"
+          >
+            <OpenIcon />
+          </Button>
+        </Tip>
+        <CopyButton
+          appearance="icon"
+          buttonSize="icon-xs"
+          className="text-muted-foreground hover:text-foreground"
+          label={copyLabel}
+          text={artifact.value}
+          title={copyLabel}
+        />
+      </div>
     </div>
   )
 })
@@ -763,9 +803,6 @@ const SessionCell = memo(function SessionCell({ artifact, ctx }: { artifact: Art
       <span className="flex min-w-0 flex-col">
         <span className="truncate">{artifact.sessionTitle}</span>
         {ctx.showProfile ? <ArtifactProfile name={artifact.profile} /> : null}
-        <span className="truncate text-[0.6875rem] font-normal text-(--ui-text-tertiary)">
-          {formatArtifactTime(artifact.timestamp)}
-        </span>
       </span>
     </ArtifactCellAction>
   )
@@ -773,35 +810,29 @@ const SessionCell = memo(function SessionCell({ artifact, ctx }: { artifact: Art
 
 interface ArtifactColumn {
   Cell: React.ComponentType<{ artifact: ArtifactRecord; ctx: CellCtx }>
-  bodyClassName: string
   header: (filter: ArtifactFilter, a: Translations['artifacts']) => string
-  id: 'location' | 'primary' | 'session'
-  width: (filter: ArtifactFilter) => string
+  id: 'date' | 'primary' | 'session'
+  width: string
 }
 
 const ARTIFACT_COLUMNS: readonly ArtifactColumn[] = [
   {
     Cell: PrimaryCell,
-    bodyClassName: 'p-0',
-    header: (filter, a) =>
-      filter === 'link' ? a.colTitleLink : filter === 'file' ? a.colTitleFile : a.colTitleDefault,
+    header: (filter, a) => (filter === 'link' ? a.colTitleLink : a.colTitleFile),
     id: 'primary',
-    width: filter => (filter === 'link' ? 'w-[50%]' : 'w-[35%]')
-  },
-  {
-    Cell: LocationCell,
-    bodyClassName: 'px-2.5 py-1.5',
-    header: (filter, a) =>
-      filter === 'link' ? a.colLocationLink : filter === 'file' ? a.colLocationFile : a.colLocationDefault,
-    id: 'location',
-    width: filter => (filter === 'link' ? 'w-[30%]' : 'w-[41%]')
+    width: 'w-[44%]'
   },
   {
     Cell: SessionCell,
-    bodyClassName: 'p-0',
-    header: (_filter, a) => a.colSession,
+    header: (_filter, a) => a.chat,
     id: 'session',
-    width: filter => (filter === 'link' ? 'w-[20%]' : 'w-[24%]')
+    width: 'w-[34%]'
+  },
+  {
+    Cell: DateCell,
+    header: (_filter, a) => a.colDate,
+    id: 'date',
+    width: 'w-[22%]'
   }
 ]
 
@@ -818,10 +849,10 @@ function ArtifactTable({
 
   return (
     <table className="w-full min-w-176 table-fixed text-left text-[length:var(--conversation-caption-font-size)]">
-      <thead className="border-b border-(--ui-stroke-tertiary) bg-(--ui-bg-quinary) text-[0.625rem] uppercase tracking-[0.08em] text-(--ui-text-tertiary)">
+      <thead className="border-b border-(--ui-stroke-tertiary) text-xs text-(--ui-text-tertiary)">
         <tr>
           {ARTIFACT_COLUMNS.map(col => (
-            <th className={cn(col.width(filter), 'px-2.5 py-1.5 font-medium')} key={col.id}>
+            <th className={cn(col.width, 'pe-4 pb-2 font-normal')} key={col.id}>
               {col.header(filter, t.artifacts)}
             </th>
           ))}
@@ -829,12 +860,15 @@ function ArtifactTable({
       </thead>
       <tbody>
         {artifacts.map(artifact => (
-          <tr className="group/artifact" key={artifact.id}>
+          <tr
+            className="group/artifact border-b border-(--ui-stroke-tertiary) transition-colors last:border-0 hover:bg-(--chrome-action-hover) focus-within:bg-(--chrome-action-hover)"
+            key={artifact.id}
+          >
             {ARTIFACT_COLUMNS.map(col => {
               const Cell = col.Cell
 
               return (
-                <td className={cn('align-middle', col.bodyClassName)} key={col.id}>
+                <td className={'pe-4 align-middle'} key={col.id}>
                   <Cell artifact={artifact} ctx={ctx} />
                 </td>
               )

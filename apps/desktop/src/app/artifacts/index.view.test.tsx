@@ -207,6 +207,34 @@ describe('ArtifactsView', () => {
     expect(screen.queryByText('Default result')).toBeNull()
   })
 
+  it('keeps both artifact kinds reachable when paging one section', async () => {
+    vi.mocked(listAllProfileSessions).mockResolvedValue(listResult([session()]))
+    vi.mocked(getAllSessionMessages).mockResolvedValue({
+      session_id: 'session-1',
+      messages: [
+        {
+          role: 'assistant',
+          timestamp: 1_700_000_100,
+          content: Array.from(
+            { length: 101 },
+            (_, index) => `MEDIA: /tmp/report-${index}.md\nhttps://example.com/result-${index}`
+          ).join('\n')
+        }
+      ]
+    })
+    const { container } = renderArtifacts()
+
+    const fileNext = await screen.findByRole('button', { name: en.artifacts.goToPage(en.artifacts.itemsFile, 2) })
+    act(() => fileNext.click())
+    await screen.findByRole('button', { name: /report-100\.md/ })
+    expect(container.querySelector('a[href="https://example.com/result-0"]')).toBeTruthy()
+    expect(container.querySelector('a[href="https://example.com/result-100"]')).toBeNull()
+
+    act(() => screen.getByRole('button', { name: en.artifacts.goToPage(en.artifacts.itemsLink, 2) }).click())
+    await waitFor(() => expect(container.querySelector('a[href="https://example.com/result-100"]')).toBeTruthy())
+    expect(screen.getByRole('button', { name: /report-100\.md/ })).toBeTruthy()
+  })
+
   it('shows photos with the session caption and Chat, and links in a titled table', async () => {
     vi.mocked(listAllProfileSessions).mockResolvedValue({
       sessions: [session()],
@@ -233,9 +261,9 @@ describe('ArtifactsView', () => {
     expect(screen.getAllByText('Remover barba da foto').length).toBeGreaterThan(0)
     expect(screen.getByText('Getting Started')).toBeTruthy()
     expect(screen.queryByText('beard.png')).toBeNull()
-    expect(screen.getByRole('columnheader', { name: en.artifacts.colTitleDefault })).toBeTruthy()
-    expect(screen.getByRole('columnheader', { name: en.artifacts.colLocationDefault })).toBeTruthy()
-    expect(screen.getByRole('columnheader', { name: en.artifacts.colSession })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: en.artifacts.colTitleLink })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: en.artifacts.colDate })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: en.artifacts.chat })).toBeTruthy()
     expect(screen.queryByText(en.artifacts.kindImage)).toBeNull()
   })
 })

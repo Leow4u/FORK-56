@@ -3401,6 +3401,8 @@ export const en: Translations = {
   },
 
   artifacts: {
+    subtitle: 'Results from your conversations',
+    colDate: 'Date',
     search: 'Search artifacts...',
     refresh: 'Refresh artifacts',
     refreshing: 'Refreshing artifacts',

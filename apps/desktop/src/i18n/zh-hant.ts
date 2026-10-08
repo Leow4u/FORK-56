@@ -2038,6 +2038,8 @@ export const zhHant = defineLocale({
   },
 
   artifacts: {
+    subtitle: '對話中的成果',
+    colDate: '日期',
     search: '搜尋成品…',
     refresh: '重新整理成品',
     refreshing: '正在重新整理成品',

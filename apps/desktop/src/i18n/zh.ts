@@ -3527,6 +3527,8 @@ export const zh: Translations = {
   },
 
   artifacts: {
+    subtitle: '对话中的成果',
+    colDate: '日期',
     search: '搜索产物…',
     refresh: '刷新产物',
     refreshing: '正在刷新产物',

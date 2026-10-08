@@ -3723,6 +3723,8 @@ export const pt = defineLocale({
   },
 
   artifacts: {
+    subtitle: 'Resultados das suas conversas',
+    colDate: 'Data',
     search: 'Buscar artefatos...',
     refresh: 'Atualizar artefatos',
     refreshing: 'Atualizando artefatos',
