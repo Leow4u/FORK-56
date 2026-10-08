@@ -335,7 +335,7 @@ async function revalidateTree(cwd: string, change: { dirs: string[]; full: boole
  * disclosure caret shows for unloaded folders. `refreshRoot` invalidates the
  * whole tree (used after cwd change or manual refresh).
  */
-export function useProjectTree(cwd: string): UseProjectTreeResult {
+export function useProjectTree(cwd: string, enabled = true): UseProjectTreeResult {
   const state = useStore($projectTree)
   const connection = useStore($connection)
   const workspaceTick = useStore($workspaceChangeTick)
@@ -421,12 +421,16 @@ export function useProjectTree(cwd: string): UseProjectTreeResult {
   // Live, non-destructive refresh when the agent touches the tree (skip the
   // very first render: tick 0 is the initial value, not a real change).
   useEffect(() => {
-    if (workspaceTick > 0) {
+    if (enabled && workspaceTick > 0) {
       void revalidateTree(cwd, consumeWorkspaceChange())
     }
-  }, [workspaceTick, cwd])
+  }, [workspaceTick, cwd, enabled])
 
   useEffect(() => {
+    if (!enabled) {
+      return
+    }
+
     const connectionChanged = lastConnectionKey !== '' && lastConnectionKey !== connectionKey
     lastConnectionKey = connectionKey
 
@@ -438,20 +442,20 @@ export function useProjectTree(cwd: string): UseProjectTreeResult {
     }
 
     void loadRoot(cwd)
-  }, [connectionKey, cwd])
+  }, [connectionKey, cwd, enabled])
 
   // Self-heal: an errored root re-probes every few seconds while the tree is
   // mounted. Each attempt bumps requestId, so a persistent error re-arms the
   // timer; a success clears rootError and stops it.
   useEffect(() => {
-    if (!cwd || state.cwd !== cwd || !state.rootError) {
+    if (!enabled || !cwd || state.cwd !== cwd || !state.rootError) {
       return
     }
 
     const timer = window.setTimeout(() => void loadRoot(cwd, { force: true }), ROOT_ERROR_RETRY_MS)
 
     return () => window.clearTimeout(timer)
-  }, [cwd, state.cwd, state.requestId, state.rootError])
+  }, [cwd, state.cwd, state.requestId, state.rootError, enabled])
 
   // While showing the fallback root, quietly re-probe the session's real cwd
   // (a worktree re-created, a checkout restored) and switch back when it
@@ -459,7 +463,7 @@ export function useProjectTree(cwd: string): UseProjectTreeResult {
   const usingFallback = state.cwd === cwd && Boolean(state.resolvedCwd) && state.resolvedCwd !== cwd
 
   useEffect(() => {
-    if (!cwd || !usingFallback) {
+    if (!enabled || !cwd || !usingFallback) {
       return
     }
 
@@ -477,7 +481,7 @@ export function useProjectTree(cwd: string): UseProjectTreeResult {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [cwd, usingFallback])
+  }, [cwd, usingFallback, enabled])
 
   return useMemo(
     () => ({

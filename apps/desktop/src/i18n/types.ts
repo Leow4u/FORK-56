@@ -3730,6 +3730,15 @@ export interface Translations {
   }
 
   rightSidebar: {
+    openFile: string
+    selectFileFromTree: string
+    fileLocation: string
+    hideFileTree: string
+    showFileTree: string
+    filterFiles: string
+    noMatchingFiles: string
+    partialFilter: string
+
     aria: string
     panelsAria: string
     files: string

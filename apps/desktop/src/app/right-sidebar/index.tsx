@@ -1,40 +1,63 @@
 import { useStore } from '@nanostores/react'
-import type { ComponentProps } from 'react'
+import { type ComponentProps, type ReactNode, useRef, useState } from 'react'
 
 import { TreeSkeleton } from '@/components/chat/skeletons'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { usePaneVisible } from '@/components/pane-shell/pane-visibility'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
+import { SearchField } from '@/components/ui/search-field'
 import { Tip } from '@/components/ui/tooltip'
 import { useDelayedTrue } from '@/hooks/use-delayed-true'
 import { useI18n } from '@/i18n'
+import { desktopFsCacheKey } from '@/lib/desktop-fs'
 import { normalizeOrLocalPreviewTarget } from '@/lib/local-preview'
 import { cn } from '@/lib/utils'
-import { $panesFlipped } from '@/store/layout'
+import { setFileBrowserOpen } from '@/store/layout'
 import { notifyError } from '@/store/notifications'
-import { openPreview } from '@/store/preview'
-import { $currentCwd } from '@/store/session'
+import { $previewOwner, $previewTileSession, openPreview, previewOwnerKey } from '@/store/preview'
+import { $connection, $currentCwd, $sessions, sessionMatchesStoredId } from '@/store/session'
 
 import { SidebarPanelLabel } from '../shell/sidebar-label'
 
+import { fileBreadcrumb, hasTreeMatch } from './files/filter'
 import { ProjectTree } from './files/tree'
+import { useFileFilter } from './files/use-file-filter'
 import { useProjectTree } from './files/use-project-tree'
+import { $fileViews, DEFAULT_FILE_VIEW, updateFileView } from './files/view-state'
 
 interface RightSidebarPaneProps {
-  onActivateFile: (path: string) => void
-  onActivateFolder: (path: string) => void
+  onActivateFile?: (path: string) => void
+  onActivateFolder?: (path: string) => void
+  children?: ReactNode
+  selectedPath?: string
 }
 
-export function RightSidebarPane({ onActivateFile, onActivateFolder }: RightSidebarPaneProps) {
+export function RightSidebarPane({ children, selectedPath, onActivateFile, onActivateFolder }: RightSidebarPaneProps) {
   const { t } = useI18n()
   const r = t.rightSidebar
-  const panesFlipped = useStore($panesFlipped)
-  const currentCwd = useStore($currentCwd).trim()
+  const owner = useStore($previewOwner)
+  const connectionState = useStore($connection)
+  const openRequest = useRef(0)
+  const paneVisible = usePaneVisible()
+  const primaryCwd = useStore($currentCwd)
+  const tileSession = useStore($previewTileSession)
+  const sessions = useStore($sessions)
+
+  const currentCwd = (
+    tileSession ? sessions.find(session => sessionMatchesStoredId(session, tileSession))?.cwd || '' : primaryCwd
+  ).trim()
+
+  const [filterRevision, setFilterRevision] = useState(0)
 
   // The file tree is simply "browse the session's working directory". If the
   // session has a cwd — a repo, a sibling worktree, or any folder — show it. A
   // bare/detached chat (resolveNewSessionCwd → '') has none, so it shows the
   // empty hint instead of whatever dir Work4You happens to run from.
+  const viewScope = `${desktopFsCacheKey(connectionState)}:${previewOwnerKey(owner)}:${currentCwd}`
+  const viewStates = useStore($fileViews, { keys: [viewScope] })
+  const { treeOpen, query } = viewStates[viewScope] ?? DEFAULT_FILE_VIEW
+  const setQuery = (value: string) => updateFileView(viewScope, { query: value })
   const hasWorkspace = Boolean(currentCwd)
 
   const {
@@ -48,7 +71,7 @@ export function RightSidebarPane({ onActivateFile, onActivateFolder }: RightSide
     rootError,
     rootLoading,
     setNodeOpen
-  } = useProjectTree(hasWorkspace ? currentCwd : '')
+  } = useProjectTree(hasWorkspace ? currentCwd : '', paneVisible && treeOpen)
 
   const cwdName =
     effectiveCwd
@@ -56,9 +79,24 @@ export function RightSidebarPane({ onActivateFile, onActivateFolder }: RightSide
       .filter(Boolean)
       .pop() ?? effectiveCwd
 
+  const filter = useFileFilter(effectiveCwd, paneVisible && treeOpen && Boolean(query.trim()), filterRevision)
+  const crumbs = fileBreadcrumb(effectiveCwd, selectedPath)
   const canCollapse = Object.values(openState).some(Boolean)
 
   const previewFile = async (path: string) => {
+    const request = ++openRequest.current
+    const scope = previewOwnerKey(owner)
+    const connection = desktopFsCacheKey()
+
+    const isCurrent = () =>
+      request === openRequest.current &&
+      connection === desktopFsCacheKey() &&
+      previewOwnerKey($previewOwner.get()) === scope &&
+      (tileSession
+        ? ($sessions.get().find(session => sessionMatchesStoredId(session, tileSession))?.cwd || '').trim() ===
+          currentCwd
+        : $currentCwd.get().trim() === currentCwd)
+
     try {
       const preview = await normalizeOrLocalPreviewTarget(path, effectiveCwd || undefined)
 
@@ -66,41 +104,124 @@ export function RightSidebarPane({ onActivateFile, onActivateFolder }: RightSide
         throw new Error(r.couldNotPreview(path))
       }
 
-      openPreview(preview, 'file-browser')
+      if (!isCurrent()) {
+        return
+      }
+
+      openPreview(preview, 'file-browser', owner)
+
+      if (previewOwnerKey($previewOwner.get()) === scope) {
+        setFileBrowserOpen(false)
+      }
     } catch (error) {
-      notifyError(error, r.previewUnavailable)
+      if (isCurrent()) {
+        notifyError(error, r.previewUnavailable)
+      }
     }
   }
 
   return (
-    <aside
-      aria-label={r.aria}
-      className={cn(
-        'before:pointer-events-none relative flex h-full w-full min-w-0 flex-col overflow-hidden border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background) pt-(--titlebar-height) text-(--ui-text-tertiary)',
-        panesFlipped
-          ? 'border-r shadow-[inset_-0.0625rem_0_0_color-mix(in_srgb,white_18%,transparent)]'
-          : 'border-l shadow-[inset_0.0625rem_0_0_color-mix(in_srgb,white_18%,transparent)]'
-      )}
+    <section
+      aria-label={r.files}
+      className="flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground"
+      data-files-workspace=""
     >
-      <FilesystemTab
-        canCollapse={canCollapse}
-        collapseNonce={collapseNonce}
-        cwd={effectiveCwd}
-        cwdName={cwdName}
-        data={data}
-        error={rootError}
-        hasWorkspace={hasWorkspace}
-        loading={rootLoading}
-        onActivateFile={onActivateFile}
-        onActivateFolder={onActivateFolder}
-        onCollapseAll={collapseAll}
-        onLoadChildren={loadChildren}
-        onNodeOpenChange={setNodeOpen}
-        onPreviewFile={previewFile}
-        onRefresh={() => void refreshRoot()}
-        openState={openState}
-      />
-    </aside>
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-(--ui-stroke-tertiary) px-3">
+        <div
+          aria-label={r.fileLocation}
+          className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-xs text-muted-foreground"
+          title={selectedPath || effectiveCwd}
+        >
+          {crumbs.map((crumb, index) => (
+            <span
+              className={cn(
+                'flex min-w-0 items-center gap-1',
+                index === crumbs.length - 1 ? 'text-foreground' : 'shrink'
+              )}
+              key={`${index}:${crumb}`}
+            >
+              {index > 0 && <Codicon name="chevron-right" size="0.75rem" />}
+              <span className="truncate">{crumb}</span>
+            </span>
+          ))}
+        </div>
+        <Tip label={treeOpen ? r.hideFileTree : r.showFileTree}>
+          <Button
+            aria-label={treeOpen ? r.hideFileTree : r.showFileTree}
+            aria-pressed={treeOpen}
+            onClick={() => updateFileView(viewScope, { treeOpen: !treeOpen })}
+            size="icon-sm"
+            variant={treeOpen ? 'secondary' : 'ghost'}
+          >
+            <Codicon name="files" />
+          </Button>
+        </Tip>
+      </div>
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-file-reader="">
+          {children ?? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center">
+              <Codicon className="text-muted-foreground" name="folder-opened" size="1.5rem" />
+              <div className="text-sm font-medium">{r.openFile}</div>
+              <div className="text-xs text-muted-foreground">
+                {hasWorkspace ? r.selectFileFromTree : r.noProjectBody}
+              </div>
+            </div>
+          )}
+        </div>
+        <aside
+          aria-label={r.aria}
+          className={cn(
+            'flex w-[38%] max-w-60 shrink-0 flex-col border-l border-(--ui-stroke-tertiary)',
+            !treeOpen && 'hidden'
+          )}
+        >
+          {hasWorkspace && (
+            <div className="px-2 py-2">
+              <SearchField
+                aria-label={r.filterFiles}
+                containerClassName="w-full"
+                loading={filter.loading}
+                onChange={setQuery}
+                placeholder={r.filterFiles}
+                recede={false}
+                shape="pill"
+                value={query}
+              />
+            </div>
+          )}
+          {query.trim() && filter.partial && (
+            <div className="px-3 pb-2 text-xs text-muted-foreground" role="status">
+              {r.partialFilter}
+            </div>
+          )}
+          <FilesystemTab
+            canCollapse={canCollapse}
+            collapseNonce={collapseNonce}
+            cwd={effectiveCwd}
+            cwdName={cwdName}
+            data={query.trim() ? filter.data : data}
+            error={query.trim() ? null : rootError}
+            hasWorkspace={hasWorkspace}
+            loading={query.trim() ? filter.loading : rootLoading}
+            onActivateFile={onActivateFile ?? previewFile}
+            onActivateFolder={onActivateFolder ?? previewFile}
+            onCollapseAll={collapseAll}
+            onLoadChildren={loadChildren}
+            onNodeOpenChange={setNodeOpen}
+            onPreviewFile={previewFile}
+            onRefresh={() => {
+              setFilterRevision(value => value + 1)
+              void refreshRoot()
+            }}
+            openState={openState}
+            searchTerm={query.trim()}
+            selectedPath={selectedPath}
+            visible={paneVisible && treeOpen}
+          />
+        </aside>
+      </div>
+    </section>
   )
 }
 
@@ -135,7 +256,10 @@ function FilesystemTab({
   onNodeOpenChange,
   onPreviewFile,
   onRefresh,
-  openState
+  openState,
+  searchTerm,
+  selectedPath,
+  visible
 }: FilesystemTabProps) {
   const { t } = useI18n()
   const r = t.rightSidebar
@@ -190,6 +314,9 @@ function FilesystemTab({
         onPreviewFile={onPreviewFile}
         onRetry={onRefresh}
         openState={openState}
+        searchTerm={searchTerm}
+        selectedPath={selectedPath}
+        visible={visible}
       />
     </div>
   )
@@ -217,6 +344,9 @@ interface FileTreeBodyProps {
   /** Force-reload the root. The hook also auto-retries while errored, so this
    *  is the impatient-user path. */
   onRetry?: () => void
+  searchTerm?: string
+  selectedPath?: string
+  visible?: boolean
   openState: ReturnType<typeof useProjectTree>['openState']
 }
 
@@ -232,7 +362,10 @@ function FileTreeBody({
   onNodeOpenChange,
   onPreviewFile,
   onRetry,
-  openState
+  openState,
+  searchTerm,
+  selectedPath,
+  visible
 }: FileTreeBodyProps) {
   const { t } = useI18n()
   const r = t.rightSidebar
@@ -265,8 +398,10 @@ function FileTreeBody({
     return showSkeleton ? <FileTreeLoadingState /> : <div className="min-h-0 flex-1" />
   }
 
-  if (data.length === 0) {
-    return <EmptyState body={r.emptyBody} title={r.emptyTitle} />
+  if (data.length === 0 || (searchTerm && !hasTreeMatch(data, searchTerm))) {
+    return (
+      <EmptyState body={searchTerm ? r.noMatchingFiles : r.emptyBody} title={searchTerm ? undefined : r.emptyTitle} />
+    )
   }
 
   return (
@@ -296,6 +431,9 @@ function FileTreeBody({
         onNodeOpenChange={onNodeOpenChange}
         onPreviewFile={onPreviewFile}
         openState={openState}
+        searchTerm={searchTerm}
+        selectedPath={selectedPath}
+        visible={visible}
       />
     </ErrorBoundary>
   )

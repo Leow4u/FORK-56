@@ -2651,6 +2651,15 @@ export const ar = defineLocale({
     }
   },
   rightSidebar: {
+    openFile: 'فتح ملف',
+    selectFileFromTree: 'اختر ملفًا من شجرة الملفات.',
+    fileLocation: 'موقع الملف',
+    hideFileTree: 'إخفاء شجرة الملفات',
+    showFileTree: 'إظهار شجرة الملفات',
+    filterFiles: 'تصفية الملفات…',
+    noMatchingFiles: 'لا توجد ملفات مطابقة.',
+    partialFilter: 'تصفية جزئية: لم تُقرأ بعض المجلدات.',
+
     aria: 'الشريط الجانبي الأيمن',
     panelsAria: 'لوحات الشريط الأيمن',
     files: 'الملفات',

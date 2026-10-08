@@ -4422,6 +4422,15 @@ export const en: Translations = {
   },
 
   rightSidebar: {
+    openFile: 'Open file',
+    selectFileFromTree: 'Select a file from the tree.',
+    fileLocation: 'File location',
+    hideFileTree: 'Hide file tree',
+    showFileTree: 'Show file tree',
+    filterFiles: 'Filter files...',
+    noMatchingFiles: 'No matching files.',
+    partialFilter: 'Partial filter: some folders were not read.',
+
     aria: 'Right sidebar',
     panelsAria: 'Right sidebar panels',
     files: 'File system',
