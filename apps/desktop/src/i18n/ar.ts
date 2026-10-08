@@ -2268,7 +2268,7 @@ export const ar = defineLocale({
       changed: count => `${count} مُغيَّر`,
       ahead: count => `${count} متقدم`,
       behind: count => `${count} متأخر`,
-      review: 'مراجعة',
+      review: 'التغييرات',
       close: 'إغلاق',
       openChanges: 'فتح التغييرات',
       openFile: 'فتح الملف',
@@ -2561,6 +2561,7 @@ export const ar = defineLocale({
     addProvider: 'إضافة مزوّد…'
   },
   shell: {
+    panes: { review: 'التغييرات' },
     windowControls: 'تحكم النافذة',
     paneControls: 'تحكم اللوحات',
     appControls: 'تحكم التطبيق',
@@ -2684,8 +2685,8 @@ export const ar = defineLocale({
   preview: {
     newTab: {
       tools: 'الأدوات',
-      review: 'الفروقات / المراجعة',
-      needsProject: 'تحتاج الملفات والفروقات / المراجعة إلى مشروع مفتوح.'
+      review: 'التغييرات',
+      needsProject: 'تتطلب الملفات والتغييرات مشروعًا مفتوحًا.'
     },
     tab: 'معاينة',
     closePane: 'إغلاق جزء المعاينة',

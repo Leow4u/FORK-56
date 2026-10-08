@@ -3917,7 +3917,7 @@ export const en: Translations = {
       changed: count => `${count} changed`,
       ahead: count => `${count} ahead`,
       behind: count => `${count} behind`,
-      review: 'Review',
+      review: 'Changes',
       close: 'Close',
       openChanges: 'Open Changes',
       openFile: 'Open File',
@@ -4263,7 +4263,7 @@ export const en: Translations = {
       sessions: 'Sessions',
       terminal: 'Terminal',
       files: 'Files',
-      review: 'Review',
+      review: 'Changes',
       logs: 'Logs',
       browser: 'Browser',
       agentTerminal: 'Agent',
@@ -4461,8 +4461,8 @@ export const en: Translations = {
   preview: {
     newTab: {
       tools: 'Tools',
-      review: 'Diff / Review',
-      needsProject: 'Files and Diff / Review need an open project.'
+      review: 'Changes',
+      needsProject: 'Files and Changes need an open project.'
     },
     tab: 'Preview',
     closePane: 'Close preview pane',

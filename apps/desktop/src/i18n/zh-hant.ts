@@ -2398,7 +2398,7 @@ export const zhHant = defineLocale({
       changed: count => `${count} 處變更`,
       ahead: count => `領先 ${count}`,
       behind: count => `落後 ${count}`,
-      review: '審查',
+      review: '變更',
       close: '關閉',
       openChanges: '開啟變更',
       openFile: '開啟檔案',
@@ -2709,6 +2709,7 @@ export const zhHant = defineLocale({
   },
 
   shell: {
+    panes: { review: '變更' },
     windowControls: '視窗控制項',
     paneControls: '窗格控制項',
     appControls: '應用程式控制項',
@@ -2875,8 +2876,8 @@ export const zhHant = defineLocale({
   preview: {
     newTab: {
       tools: '工具',
-      review: '差異 / 審查',
-      needsProject: '檔案和差異 / 審查需要先開啟專案。'
+      review: '變更',
+      needsProject: '檔案和變更需要先開啟專案。'
     },
     tab: '預覽',
     closePane: '關閉預覽窗格',

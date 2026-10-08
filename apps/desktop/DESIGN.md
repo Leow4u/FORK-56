@@ -201,10 +201,12 @@ Notes:
   strip; its `variant` reaches every tab and label in it. `underline` (default):
   tabs merge into the bar, the active one carries the accent underline, the ✕
   appears on hover and titles are set in small uppercase. `surface`: each tab is a rounded
-  chip, the active one the stage surface with a `--ui-stroke-secondary`
-  hairline, the ✕ always shown in a slot of its own and titles in their own
-  case — the content area's strip (any zone holding previews). The chat stage
-  keeps its strip (`MAIN_STAGE_TAB_STRIP_CLASS`) even with a preview in it.
+  chip with a fixed 200px width, a soft `--ui-bg-quaternary` active fill,
+  the ✕ always shown in a slot of its own and ellipsized titles in their own
+  case. Chat and content zones share this variant and its existing 11px label
+  typography. Horizontal strips are 40px tall; collapsed vertical rails remain
+  28px wide. The strip background continues the pane surface; the chat stage
+  retains `MAIN_STAGE_TAB_STRIP_CLASS` so its header matches the chat body.
 
 ## Layout
 

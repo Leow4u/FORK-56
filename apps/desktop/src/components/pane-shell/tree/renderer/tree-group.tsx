@@ -291,8 +291,8 @@ export function TreeGroup({
   const verticalCollapse = Boolean(node.minimized) && parentAxis === 'row' && !isEmpty
   const headerVisible = !isEmpty && !verticalCollapse && (Boolean(node.minimized) || !headerHidden)
   const isStage = isMainStageZone(shown, isSessionStripPane)
-  // The content area draws its tabs as surfaces; the chat's strip keeps its
-  // own look even with a preview stacked into it.
+  // Chat and content use the same working-tab treatment, including when a
+  // preview is stacked into a session. Navigation rails keep compact labels.
   const isContentArea = !isStage && shown.some(isContentAreaPane)
 
   // Keep the activated tab — and, on the last one, the trailing "+" — inside
@@ -379,7 +379,7 @@ export function TreeGroup({
       className={cn(
         'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden',
         isStage ? MAIN_STAGE_SURFACE_CLASS : RAIL_ZONE_SURFACE_CLASS,
-        isStage && mainStageCornerClass()
+        isStage && !headerVisible && mainStageCornerClass()
       )}
       data-tree-group={node.id}
       // Advertises the visible tab strip so panes can drop their own
@@ -489,7 +489,7 @@ export function TreeGroup({
                 <StripDropCaret groupId={node.id} stripRef={stripRef} />
               </>
             }
-            variant={isContentArea ? 'surface' : undefined}
+            variant={isStage || isContentArea ? 'surface' : undefined}
           >
             {shown.map(paneId => {
               const isActive = paneId === activeId && !node.minimized
@@ -713,7 +713,7 @@ export function TreeGroup({
             className="absolute inset-x-0 bottom-0 z-50 flex cursor-grab items-center justify-center outline-1 -outline-offset-2 outline-dashed backdrop-blur-[2px]"
             onPointerDown={e => startPaneDrag(activeId, e, undefined, undefined, undefined, active?.title ?? activeId)}
             style={{
-              top: headerVisible ? 28 : 0,
+              top: headerVisible ? 40 : 0,
               background:
                 'color-mix(in srgb, var(--ui-accent) 6%, color-mix(in srgb, var(--ui-bg-chrome) 55%, transparent))',
               outlineColor: 'color-mix(in srgb, var(--ui-accent) 55%, transparent)'

@@ -4041,7 +4041,7 @@ export const zh: Translations = {
       changed: count => `${count} 处更改`,
       ahead: count => `领先 ${count}`,
       behind: count => `落后 ${count}`,
-      review: '审查',
+      review: '更改',
       close: '关闭',
       openChanges: '打开更改',
       openFile: '打开文件',
@@ -4364,7 +4364,7 @@ export const zh: Translations = {
       sessions: '会话',
       terminal: '终端',
       files: '文件',
-      review: '审查',
+      review: '更改',
       logs: '日志',
       browser: '浏览器',
       agentTerminal: '智能体',
@@ -4562,8 +4562,8 @@ export const zh: Translations = {
   preview: {
     newTab: {
       tools: '工具',
-      review: '差异 / 审查',
-      needsProject: '文件和差异 / 审查需要先打开项目。'
+      review: '更改',
+      needsProject: '文件和更改需要先打开项目。'
     },
     tab: '预览',
     closePane: '关闭预览面板',

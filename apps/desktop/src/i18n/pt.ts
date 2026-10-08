@@ -4255,7 +4255,7 @@ export const pt = defineLocale({
       changed: count => `${count} ${count === 1 ? 'alterado' : 'alterados'}`,
       ahead: count => `${count} à frente`,
       behind: count => `${count} atrás`,
-      review: 'Revisão',
+      review: 'Alterações',
       close: 'Fechar',
       openChanges: 'Abrir alterações',
       openFile: 'Abrir arquivo',
@@ -4611,7 +4611,7 @@ export const pt = defineLocale({
       sessions: 'Sessões',
       terminal: 'Terminal',
       files: 'Arquivos',
-      review: 'Revisão',
+      review: 'Alterações',
       logs: 'Logs',
       browser: 'Navegador',
       agentTerminal: 'Agente',
@@ -4808,8 +4808,8 @@ export const pt = defineLocale({
   preview: {
     newTab: {
       tools: 'Ferramentas',
-      review: 'Diff / Revisão',
-      needsProject: 'Arquivos e Diff / Revisão precisam de um projeto aberto.'
+      review: 'Alterações',
+      needsProject: 'Arquivos e Alterações precisam de um projeto aberto.'
     },
     tab: 'Visualização',
     closePane: 'Fechar painel de visualização',
