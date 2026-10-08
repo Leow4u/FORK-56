@@ -13,12 +13,12 @@ import {
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
 import { DiffCount } from '@/components/ui/diff-count'
+import { FileTypeIcon } from '@/components/ui/file-type-icon'
 import { Tip } from '@/components/ui/tooltip'
 import type { Work4YouReviewFile } from '@/global'
 import { useI18n } from '@/i18n'
 import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
 import { displayPath } from '@/lib/display-path'
-import { normalizeOrLocalPreviewTarget } from '@/lib/local-preview'
 import { cn } from '@/lib/utils'
 import {
   $renamingPath,
@@ -30,16 +30,18 @@ import {
 } from '@/store/file-actions'
 import { $sidebarWorkspaceNodeOpen, revealFileInTree, toggleWorkspaceNodeCollapsed } from '@/store/layout'
 import { notifyError } from '@/store/notifications'
-import { openPreview } from '@/store/preview'
 import {
+  $reviewError,
   $reviewFiles,
   $reviewLoading,
   $reviewOpen,
+  $reviewRepoRoot,
+  $reviewScope,
   $reviewScopeCwd,
   $reviewSelectedPath,
   $reviewTreeMode,
   requestRevert,
-  reviewRepoCwd,
+  selectReviewDirectory,
   selectReviewFile,
   stageReviewFile,
   unstageReviewFile
@@ -48,6 +50,7 @@ import { $currentCwd } from '@/store/session'
 
 import { pickRevealLabel } from '../file-actions'
 
+import { openReviewFile, reviewAbsolutePath } from './file-actions'
 import {
   buildReviewFlatList,
   buildReviewTree,
@@ -59,28 +62,16 @@ import {
 
 const INDENT = 12
 
-// Per git status letter: a tinted diff codicon so the file's nature reads at a
-// glance (added / modified / deleted / renamed / untracked).
-const STATUS_GLYPH: Record<string, { icon: string; tone: string }> = {
-  A: { icon: 'diff-added', tone: 'text-(--ui-green)' },
-  C: { icon: 'diff-added', tone: 'text-(--ui-green)' },
-  D: { icon: 'diff-removed', tone: 'text-(--ui-red)' },
-  M: { icon: 'diff-modified', tone: 'text-amber-500/85' },
-  R: { icon: 'diff-renamed', tone: 'text-sky-500/85' },
-  U: { icon: 'warning', tone: 'text-(--ui-red)' },
-  '?': { icon: 'diff-added', tone: 'text-muted-foreground/60' }
-}
-
-// Review paths are repo-relative; the composer drop expects absolute paths, so
-// join against the pane's repo (its pinned scope, else the active session cwd).
-function absolutePath(relative: string): string {
-  if (/^([a-zA-Z]:[\\/]|\/)/.test(relative)) {
-    return relative
-  }
-
-  const cwd = reviewRepoCwd()?.replace(/[\\/]+$/, '')
-
-  return cwd ? `${cwd}/${relative}` : relative
+// File type and Git status are independent identities: keep the familiar file
+// icon, and tint the Git status letter at the trailing edge.
+const STATUS_TONE: Record<string, string> = {
+  A: 'text-(--ui-green)',
+  C: 'text-(--ui-green)',
+  D: 'text-(--ui-red)',
+  M: 'text-(--ui-yellow)',
+  R: 'text-(--ui-blue)',
+  U: 'text-(--ui-red)',
+  '?': 'text-muted-foreground'
 }
 
 // Fast, layout-aware row: `layout` slides siblings when one is inserted/removed
@@ -107,13 +98,21 @@ const ROW_HEIGHT = 24
 // Rows mounted above and below the viewport while scrolling.
 const OVERSCAN_ROWS = 12
 
-export function ReviewFileTree() {
+export function ReviewFileTree({ query = '' }: { query?: string }) {
+  const { t } = useI18n()
   const files = useStore($reviewFiles)
   const open = useStore($reviewOpen)
   const loading = useStore($reviewLoading)
   const mode = useStore($reviewTreeMode)
 
-  const tree = useMemo(() => (mode === 'tree' ? buildReviewTree(files) : buildReviewFlatList(files)), [files, mode])
+  // Search the loaded changed paths only. A flat filtered result keeps matches
+  // visible even when their ancestor folders were collapsed before searching.
+  const tree = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase()
+    const filtered = needle ? files.filter(file => file.path.toLocaleLowerCase().includes(needle)) : files
+
+    return mode === 'tree' && !needle ? buildReviewTree(filtered) : buildReviewFlatList(filtered)
+  }, [files, mode, query])
 
   // Heavy is decided by the TOTAL node count, not the top-level row count: the
   // classic blow-up is ONE folder holding tens of thousands of untracked files,
@@ -163,11 +162,15 @@ export function ReviewFileTree() {
 
   return (
     <div
+      aria-label={t.rightSidebar.aria}
       className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 py-1"
       data-suppress-pane-reveal-side=""
       ref={scrollerRef}
+      role="tree"
     >
-      {heavy ? (
+      {query.trim() && tree.length === 0 ? (
+        <div className="px-2 py-4 text-xs text-muted-foreground">{t.rightSidebar.noMatchingFiles}</div>
+      ) : heavy ? (
         <VirtualizedReviewList rows={rows} scrollRef={scrollerRef} />
       ) : (
         <ReviewNodeList animate={animate} depth={0} nodes={tree} />
@@ -313,15 +316,20 @@ function ReviewFileRow({ node, depth }: { node: ReviewTreeNode; depth: number })
   const { t } = useI18n()
   const c = t.statusStack.coding
   const selectedPath = useStore($reviewSelectedPath)
+  const scope = useStore($reviewScope)
+  const loading = useStore($reviewLoading)
+  const error = useStore($reviewError)
   const file = node.file!
   const selected = file.path === selectedPath
-  const glyph = STATUS_GLYPH[file.status] ?? STATUS_GLYPH.M
-  const dragPath = absolutePath(file.path)
+  const statusTone = STATUS_TONE[file.status] ?? STATUS_TONE.M
+  const directory = file.kind === 'directory'
+  const dragPath = reviewAbsolutePath(file.path)
   // Reactive mirror of reviewRepoCwd(): the pinned scope wins, else the
   // active session's cwd (subscribing to both keeps the row live either way).
   const scopeCwd = useStore($reviewScopeCwd)
+  const repoRoot = useStore($reviewRepoRoot)
   const activeCwd = useStore($currentCwd)
-  const cwd = scopeCwd?.trim() || activeCwd
+  const cwd = repoRoot || scopeCwd?.trim() || activeCwd
 
   // Single-click shows the inline diff; double-click opens the file in the main
   // preview pane (matching the file browser). They're mutually exclusive: defer
@@ -356,17 +364,11 @@ function ReviewFileRow({ node, depth }: { node: ReviewTreeNode; depth: number })
   }
 
   const openInPreview = () => {
-    void (async () => {
-      try {
-        const preview = await normalizeOrLocalPreviewTarget(dragPath)
+    if (file.status === 'D') {
+      return
+    }
 
-        if (preview) {
-          openPreview(preview, 'file-browser')
-        }
-      } catch (error) {
-        notifyError(error, t.rightSidebar.previewUnavailable)
-      }
-    })()
+    void openReviewFile(file.path).catch(error => notifyError(error, t.rightSidebar.previewUnavailable))
   }
 
   const handleDoubleClick = () => {
@@ -375,7 +377,11 @@ function ReviewFileRow({ node, depth }: { node: ReviewTreeNode; depth: number })
       clickTimer.current = null
     }
 
-    openInPreview()
+    if (directory) {
+      void selectReviewDirectory(file.path)
+    } else {
+      openInPreview()
+    }
   }
 
   return (
@@ -387,6 +393,7 @@ function ReviewFileRow({ node, depth }: { node: ReviewTreeNode; depth: number })
       onOpenFile={openInPreview}
     >
       <div
+        aria-label={node.name}
         aria-selected={selected}
         className={cn(
           'group/review-row row-hover flex h-6 select-none items-center gap-1.5 rounded-md pr-1.5 text-xs text-(--ui-text-secondary) hover:text-foreground',
@@ -399,14 +406,22 @@ function ReviewFileRow({ node, depth }: { node: ReviewTreeNode; depth: number })
           event.dataTransfer.effectAllowed = 'copy'
           event.dataTransfer.setData(
             'application/x-work4you-paths',
-            JSON.stringify([{ isDirectory: false, path: dragPath }])
+            JSON.stringify([{ isDirectory: directory, path: dragPath }])
           )
           event.dataTransfer.setData('text/plain', dragPath)
         }}
+        onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            void selectReviewFile(file)
+          }
+        }}
+        role="treeitem"
         style={rowStyle(depth)}
+        tabIndex={0}
         title={displayPath(dragPath)}
       >
-        <Codicon className={cn('shrink-0', glyph.tone)} name={glyph.icon} size="0.8rem" />
+        {directory ? <Codicon name="folder" size="0.8rem" /> : <FileTypeIcon path={file.path} size="0.8rem" />}
         {/* Dir collapses first (huge shrink); the name only ellipsizes once the
             dir is gone — either way neither runs into the diff count. */}
         <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
@@ -420,42 +435,54 @@ function ReviewFileRow({ node, depth }: { node: ReviewTreeNode; depth: number })
           )}
         </span>
 
-        <span className="hidden shrink-0 items-center gap-0.5 group-hover/review-row:flex">
-          <Tip label={file.staged ? c.unstage : c.stage}>
-            <Button
-              aria-label={file.staged ? c.unstage : c.stage}
-              className="size-4 rounded text-muted-foreground/70 hover:text-foreground"
-              onClick={event => {
-                event.stopPropagation()
-                void (file.staged ? unstageReviewFile(file.path) : stageReviewFile(file.path))
-              }}
-              size="icon-xs"
-              variant="ghost"
-            >
-              <Codicon name={file.staged ? 'remove' : 'add'} size="0.7rem" />
-            </Button>
-          </Tip>
-          <Tip label={c.revert}>
-            <Button
-              aria-label={c.revert}
-              className="size-4 rounded text-muted-foreground/70 hover:text-(--ui-red)"
-              onClick={event => {
-                event.stopPropagation()
-                requestRevert(file.path)
-              }}
-              size="icon-xs"
-              variant="ghost"
-            >
-              <Codicon name="discard" size="0.7rem" />
-            </Button>
-          </Tip>
-        </span>
+        {scope !== 'branch' && (
+          <span className="hidden shrink-0 items-center gap-0.5 group-hover/review-row:flex group-focus-within/review-row:flex">
+            <Tip label={file.unstaged || !file.staged ? c.stage : c.unstage}>
+              <Button
+                aria-label={file.unstaged || !file.staged ? c.stage : c.unstage}
+                className="size-4 rounded text-muted-foreground/70 hover:text-foreground"
+                disabled={loading || Boolean(error)}
+                onClick={event => {
+                  event.stopPropagation()
+                  void (
+                    file.unstaged || !file.staged ? stageReviewFile(file.path) : unstageReviewFile(file.path)
+                  ).catch(error => notifyError(error, c.stage))
+                }}
+                size="icon-xs"
+                variant="ghost"
+              >
+                <Codicon name={file.unstaged || !file.staged ? 'add' : 'remove'} size="0.7rem" />
+              </Button>
+            </Tip>
+            <Tip label={c.revert}>
+              <Button
+                aria-label={c.revert}
+                className="size-4 rounded text-muted-foreground/70 hover:text-(--ui-red)"
+                disabled={loading || Boolean(error)}
+                onClick={event => {
+                  event.stopPropagation()
+                  requestRevert(file.path)
+                }}
+                size="icon-xs"
+                variant="ghost"
+              >
+                <Codicon name="discard" size="0.7rem" />
+              </Button>
+            </Tip>
+          </span>
+        )}
 
-        <DiffCount
-          added={node.added}
-          className="text-[0.64rem] leading-4 group-hover/review-row:hidden"
-          removed={node.removed}
-        />
+        {!directory && (
+          <DiffCount
+            added={node.added}
+            className={cn(
+              'text-[0.64rem] leading-4',
+              scope !== 'branch' && 'group-hover/review-row:hidden group-focus-within/review-row:hidden'
+            )}
+            removed={node.removed}
+          />
+        )}
+        <span className={cn('shrink-0 text-[0.64rem]', statusTone)}>{file.status}</span>
         {file.staged && (
           <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-(--ui-green)/70" title={c.staged} />
         )}
@@ -487,26 +514,42 @@ function ReviewFileContextMenu({
   const c = t.statusStack.coding
   const m = t.fileMenu
   const localFs = !isDesktopFsRemoteMode()
+  const scope = useStore($reviewScope)
+  const loading = useStore($reviewLoading)
+  const error = useStore($reviewError)
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onSelect={onOpenChanges}>{c.openChanges}</ContextMenuItem>
-        <ContextMenuItem onSelect={onOpenFile}>{c.openFile}</ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          onSelect={() =>
-            void (file.staged ? unstageReviewFile(file.path) : stageReviewFile(file.path)).catch(err =>
-              notifyError(err, file.staged ? c.unstage : c.stage)
-            )
-          }
-        >
-          {file.staged ? c.unstage : c.stage}
+        <ContextMenuItem disabled={file.status === 'D'} onSelect={onOpenFile}>
+          {c.openFile}
         </ContextMenuItem>
-        <ContextMenuItem onSelect={() => requestRevert(file.path)} variant="destructive">
-          {c.revert}
-        </ContextMenuItem>
+        {scope !== 'branch' && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              disabled={loading || Boolean(error) || !(file.unstaged ?? !file.staged)}
+              onSelect={() => void stageReviewFile(file.path).catch(error => notifyError(error, c.stage))}
+            >
+              {c.stage}
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={loading || Boolean(error) || !file.staged}
+              onSelect={() => void unstageReviewFile(file.path).catch(error => notifyError(error, c.unstage))}
+            >
+              {c.unstage}
+            </ContextMenuItem>
+            <ContextMenuItem
+              disabled={loading || Boolean(error)}
+              onSelect={() => requestRevert(file.path)}
+              variant="destructive"
+            >
+              {c.revert}
+            </ContextMenuItem>
+          </>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={() => revealFileInTree(dragPath)}>{m.revealInSidebar}</ContextMenuItem>
         {localFs && (
@@ -521,7 +564,7 @@ function ReviewFileContextMenu({
             {m.copyRelativePath}
           </ContextMenuItem>
         )}
-        {shouldOfferRemoteFileDownload(false) && (
+        {shouldOfferRemoteFileDownload(file.kind === 'directory') && (
           <>
             <ContextMenuSeparator />
             <ContextMenuItem onSelect={() => void downloadRemoteFile(dragPath)}>{m.download}</ContextMenuItem>

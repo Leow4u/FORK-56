@@ -1374,6 +1374,8 @@ export const $startWorkSessionRequest = atom<StartWorkSessionRequest | null>(nul
 // It is not read from the rail that received the key, so the dialog always
 // targets the surface the user looks at.
 export interface WorktreeDialogState {
+  target?: 'draft' | 'session'
+  mode?: 'create' | 'existing'
   repoPath: string
   /** The base branch selected in a "branch off from X" menu. */
   base?: string

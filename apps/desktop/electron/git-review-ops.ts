@@ -1,8 +1,8 @@
 // Git ops backing the coding rail + Codex-style review pane. Built on `simple-git`
 // (a maintained wrapper around the system git binary — same git the rest of the
 // app shells to, no native build) so we read structured status()/diffSummary()
-// results instead of hand-parsing porcelain. Reads degrade to null/empty on a
-// non-repo / remote backend; mutations reject so the renderer can toast.
+// results instead of hand-parsing porcelain. Legacy probes degrade to null;
+// Review reads distinguish clean/non-repo/error and mutations reject.
 
 import { execFile } from 'node:child_process'
 import fs from 'node:fs/promises'
@@ -80,21 +80,6 @@ function resolveRenamePath(raw) {
   return path.split(' => ').pop().trim()
 }
 
-// DiffResult.files → Map<path, {added, removed}> (binary files carry no line
-// delta).
-function countsByPath(summary) {
-  const map = new Map()
-
-  for (const file of summary.files) {
-    map.set(resolveRenamePath(file.file), {
-      added: file.binary ? 0 : file.insertions,
-      removed: file.binary ? 0 : file.deletions
-    })
-  }
-
-  return map
-}
-
 // Untracked files don't appear in diffSummary(); count insertions from disk so
 // the review tree can show +N for new files (matches an all-add diff view).
 // Insertions = line count: newline bytes, plus one for a final unterminated
@@ -102,7 +87,7 @@ function countsByPath(summary) {
 async function untrackedInsertions(cwd, relPath) {
   try {
     const fullPath = path.join(cwd, relPath)
-    const stat = await fs.stat(fullPath)
+    const stat = await fs.lstat(fullPath)
 
     if (!stat.isFile() || stat.size > UNTRACKED_LINE_COUNT_MAX_BYTES) {
       return 0
@@ -136,18 +121,6 @@ function capText(text, maxChars, label = 'truncated') {
   }
 
   return `${value.slice(0, maxChars)}\n# ${label}: ${value.length - maxChars} chars omitted\n`
-}
-
-async function fillUntrackedCounts(cwd, files) {
-  const pending = files.filter(file => file.status === '?' && file.added === 0 && file.removed === 0)
-
-  for (let i = 0; i < pending.length; i += UNTRACKED_LINE_COUNT_CONCURRENCY) {
-    await Promise.all(
-      pending.slice(i, i + UNTRACKED_LINE_COUNT_CONCURRENCY).map(async file => {
-        file.added = await untrackedInsertions(cwd, file.path)
-      })
-    )
-  }
 }
 
 // Resolve the base ref for "all branch changes": merge-base with the remote
@@ -232,142 +205,442 @@ function statusLetter(file) {
 
 const isStaged = file => Boolean(file.index && file.index !== ' ' && file.index !== '?')
 
-async function reviewList(repoPath, scope, baseRef, gitBin) {
-  let cwd
+// Review reads distinguish an empty repository from failed Git/file reads.
+// Keep the old fields for older renderers while exposing per-part counts.
+function reviewFailure(error) {
+  const message = error instanceof Error ? error.message : String(error)
 
-  try {
-    cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Review list' })
-  } catch {
-    return { files: [], base: null }
+  return {
+    files: [],
+    base: null,
+    state: /not a git repository/i.test(message) ? 'not-repo' : 'error',
+    error: message,
+    repoRoot: undefined,
+    truncated: false
+  }
+}
+
+async function reviewRepoRoot(repoPath, gitBin) {
+  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Review repository' })
+
+  return (await gitFor(cwd, gitBin).raw(['rev-parse', '--show-toplevel'])).trim()
+}
+
+function reviewPath(cwd, filePath) {
+  if (typeof filePath !== 'string' || !filePath || filePath.includes('\0')) {
+    throw new Error('A repository-relative file path is required.')
   }
 
-  const git = gitFor(cwd, gitBin)
+  const rel = filePath.replace(/\\/g, '/')
 
-  try {
-    if (scope === 'branch' || scope === 'lastTurn') {
-      const base = scope === 'branch' ? await branchBase(git) : baseRef
+  if (
+    path.isAbsolute(rel) ||
+    /^[A-Za-z]:/.test(rel) ||
+    rel.split('/').some(p => p === '..' || p.toLowerCase() === '.git')
+  ) {
+    throw new Error('The file must be inside the repository working directory.')
+  }
 
-      if (!base) {
-        return { files: [], base: null }
+  const full = resolveRequestedPathForIpc(rel, { baseDir: cwd, purpose: 'Review file' })
+  const within = path.relative(cwd, full)
+
+  if (!within || within === '..' || within.startsWith(`..${path.sep}`) || path.isAbsolute(within)) {
+    throw new Error('The file must be inside the repository working directory.')
+  }
+
+  return rel
+}
+
+async function reviewBase(git, requested) {
+  if (!requested) {
+    const base = await branchBase(git)
+
+    if (!base) {
+      throw new Error('No comparison base is available. Select a branch.')
+    }
+
+    return { base, commit: base }
+  }
+
+  // Resolve the requested ref before constructing a range, so malformed refs
+  // cannot become options and an invalid selection never falls back to trunk.
+  const commit = (await git.raw(['rev-parse', '--verify', '--end-of-options', `${requested}^{commit}`])).trim()
+
+  return { base: requested, commit }
+}
+
+async function reviewCounts(git, args) {
+  const raw = await git.raw(['diff', '--no-ext-diff', '--numstat', '-z', ...args])
+  const records = raw.split('\0')
+  const counts = new Map<string, { added: number; removed: number; binary: boolean; previousPath?: string }>()
+
+  for (let i = 0; i < records.length; i++) {
+    const match = records[i].match(/^(\d+|-)\t(\d+|-)\t([\s\S]*)$/)
+
+    if (!match) {
+      continue
+    }
+
+    let filePath = match[3]
+    let previousPath: string | undefined
+
+    if (!filePath) {
+      previousPath = records[++i]
+      filePath = records[++i]
+    }
+
+    if (filePath) {
+      counts.set(filePath, {
+        added: match[1] === '-' ? 0 : Number(match[1]),
+        removed: match[2] === '-' ? 0 : Number(match[2]),
+        binary: match[1] === '-',
+        ...(previousPath ? { previousPath } : {})
+      })
+    }
+  }
+
+  return counts
+}
+
+async function reviewStatuses(git, range) {
+  const records = (await git.raw(['diff', '--no-ext-diff', '--name-status', '-z', range])).split('\0')
+  const statuses = new Map<string, string>()
+
+  for (let i = 0; i < records.length - 1;) {
+    const status = records[i++]
+    let filePath = records[i++]
+
+    if (/^[RC]/.test(status)) {
+      filePath = records[i++]
+    }
+
+    if (filePath) {
+      statuses.set(filePath, status.slice(0, 1))
+    }
+  }
+
+  return statuses
+}
+
+async function reviewUntrackedFile(cwd, filePath) {
+  const target = path.join(cwd, filePath)
+  const stat = await fs.lstat(target)
+  const kind = stat.isDirectory() ? 'directory' : 'file'
+  let added = 0
+  let binary = false
+
+  // Never follow a symlink while counting an untracked item.
+  if (stat.isFile() && stat.size <= UNTRACKED_LINE_COUNT_MAX_BYTES) {
+    const content = await fs.readFile(target)
+
+    binary = content.includes(0)
+
+    if (!binary) {
+      for (const byte of content) {
+        if (byte === 10) {
+          added++
+        }
       }
 
-      const range = scope === 'branch' ? `${base}...HEAD` : base
-      const summary = await git.diffSummary([range])
+      if (content.length && content[content.length - 1] !== 10) {
+        added++
+      }
+    }
+  }
 
-      const files = summary.files.slice(0, REVIEW_FILE_CAP).map(file => ({
-        path: resolveRenamePath(file.file),
-        added: 'insertions' in file ? file.insertions : 0,
-        removed: 'deletions' in file ? file.deletions : 0,
-        status: 'M',
-        staged: false
+  return {
+    path: filePath,
+    added,
+    removed: 0,
+    status: '?',
+    staged: false,
+    unstaged: true,
+    stagedAdded: 0,
+    stagedRemoved: 0,
+    unstagedAdded: added,
+    unstagedRemoved: 0,
+    kind,
+    binary
+  }
+}
+
+async function reviewDirectory(cwd, git, requested, gitBin) {
+  const rel = reviewPath(cwd, requested).replace(/\/$/, '')
+  const target = path.join(cwd, rel)
+  const realCwd = await fs.realpath(cwd)
+  const realTarget = await fs.realpath(target)
+  const relative = path.relative(realCwd, realTarget)
+
+  if (
+    !relative ||
+    relative === '..' ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative) ||
+    (await fs.lstat(target)).isSymbolicLink()
+  ) {
+    throw new Error('The directory must be inside the repository working directory.')
+  }
+
+  // Only browse an untracked directory. This prevents this endpoint becoming a
+  // second general filesystem tree or accidentally returning tracked children.
+  const status = await git.status(['--untracked-files=normal', '--', `:(literal)${rel}/`])
+
+  if (!status.not_added.some(p => p.replace(/\/$/, '') === rel)) {
+    throw new Error('This untracked directory changed. Refresh the review.')
+  }
+
+  const dir = await fs.opendir(target)
+  const paths: string[] = []
+  let truncated = false
+
+  for await (const entry of dir) {
+    if (entry.name.toLowerCase() === '.git') {
+      continue
+    }
+
+    if (paths.length === REVIEW_FILE_CAP) {
+      truncated = true
+
+      break
+    }
+
+    paths.push(`${rel}/${entry.name}${entry.isDirectory() ? '/' : ''}`)
+  }
+
+  // check-ignore is non-recursive; exit 1 means no matching ignored paths.
+  const ignored = paths.length
+    ? await new Promise<string>((resolve, reject) => {
+        const child = execFile(
+          gitBin || 'git',
+          ['check-ignore', '-z', '--stdin'],
+          { cwd, windowsHide: true, timeout: 30_000, maxBuffer: 32 * 1024 * 1024 },
+          (error, stdout, stderr) => {
+            if (error && error.code !== 1) {
+              reject(new Error(String(stderr || error.message)))
+            } else {
+              resolve(String(stdout || ''))
+            }
+          }
+        )
+
+        child.stdin?.on('error', () => undefined)
+        child.stdin?.end(paths.join('\0') + '\0')
+      })
+    : ''
+
+  const ignoredPaths = new Set(ignored.split('\0').map(p => p.replace(/\/$/, '')))
+  const visible = paths.filter(p => !ignoredPaths.has(p.replace(/\/$/, '')))
+  const files: Awaited<ReturnType<typeof reviewUntrackedFile>>[] = []
+
+  for (let i = 0; i < visible.length; i += UNTRACKED_LINE_COUNT_CONCURRENCY) {
+    files.push(
+      ...(await Promise.all(
+        visible.slice(i, i + UNTRACKED_LINE_COUNT_CONCURRENCY).map(p => reviewUntrackedFile(cwd, p))
+      ))
+    )
+  }
+
+  return { files: files.sort((a, b) => a.path.localeCompare(b.path)), base: null, state: 'ready', truncated }
+}
+
+async function reviewList(repoPath, scope, baseRef, gitBin, directory = null) {
+  try {
+    const cwd = await reviewRepoRoot(repoPath, gitBin)
+    const git = gitFor(cwd, gitBin)
+    const inside = (await git.raw(['rev-parse', '--is-inside-work-tree'])).trim()
+
+    if (inside !== 'true') {
+      return { files: [], base: null, state: 'not-repo' }
+    }
+
+    if (directory) {
+      if (scope !== 'uncommitted' && scope !== 'unstaged') {
+        throw new Error('Directories are only available for uncommitted files.')
+      }
+
+      return { ...(await reviewDirectory(cwd, git, directory, gitBin)), repoRoot: cwd }
+    }
+
+    if (scope === 'branch' || scope === 'lastTurn') {
+      if (scope === 'lastTurn' && !baseRef) {
+        throw new Error('No comparison base is available.')
+      }
+
+      const resolved = await reviewBase(git, baseRef)
+
+      if (!resolved.commit) {
+        throw new Error('No comparison base is available.')
+      }
+
+      const range = scope === 'branch' ? `${resolved.commit}...HEAD` : resolved.commit
+      const counts = await reviewCounts(git, [range])
+      const statuses = await reviewStatuses(git, range)
+
+      const files = [...counts].slice(0, REVIEW_FILE_CAP).map(([filePath, count]) => ({
+        path: filePath,
+        ...count,
+        status: statuses.get(filePath) || 'M',
+        staged: false,
+        unstaged: false,
+        kind: 'file'
       }))
 
-      // "Last turn" also surfaces files created since the baseline (untracked).
+      // Preserve the existing lastTurn API; the UI does not expose it without
+      // an authoritative turn baseline.
       if (scope === 'lastTurn' && files.length < REVIEW_FILE_CAP) {
-        // Keep untracked directories compact. A recursive status can produce
-        // hundreds of thousands of rows for browser profiles, generated
-        // artifacts, or dependency trees before the response reaches the
-        // renderer.
         const status = await git.status(['--untracked-files=normal'])
-        const knownPaths = new Set(files.map(file => file.path))
 
-        for (const path of status.not_added) {
-          if (files.length >= REVIEW_FILE_CAP) {
+        for (const filePath of status.not_added) {
+          if (files.length === REVIEW_FILE_CAP) {
             break
           }
 
-          if (!knownPaths.has(path)) {
-            files.push({ path, added: 0, removed: 0, status: '?', staged: false })
-            knownPaths.add(path)
+          if (!counts.has(filePath)) {
+            files.push(await reviewUntrackedFile(cwd, filePath))
           }
         }
       }
 
-      files.sort((a, b) => a.path.localeCompare(b.path))
-      await fillUntrackedCounts(cwd, files)
-
-      return { files, base }
+      return {
+        files: files.sort((a, b) => a.path.localeCompare(b.path)),
+        base: resolved.base,
+        repoRoot: cwd,
+        state: 'ready',
+        truncated: counts.size > REVIEW_FILE_CAP
+      }
     }
 
-    // Default: uncommitted (staged + unstaged + untracked), one row per path.
+    if (!['uncommitted', 'staged', 'unstaged'].includes(scope)) {
+      throw new Error('Unknown review scope.')
+    }
+
     const [status, staged, unstaged] = await Promise.all([
-      // `normal` reports an untracked directory as one row instead of walking
-      // every descendant. The result is also capped before per-file stat/read
-      // work and before crossing the Electron IPC boundary.
       git.status(['--untracked-files=normal']),
-      git.diffSummary(['--cached']),
-      git.diffSummary([])
+      reviewCounts(git, ['--cached']),
+      reviewCounts(git, [])
     ])
 
-    const stagedCounts = countsByPath(staged)
-    const unstagedCounts = countsByPath(unstaged)
+    const selected = status.files.filter(
+      file =>
+        scope === 'uncommitted' ||
+        (scope === 'staged' ? isStaged(file) : Boolean(file.working_dir && file.working_dir !== ' '))
+    )
 
-    const files = status.files.slice(0, REVIEW_FILE_CAP).map(file => {
-      const filePath = resolveRenamePath(file.path)
-      const sc = stagedCounts.get(filePath) || { added: 0, removed: 0 }
-      const uc = unstagedCounts.get(filePath) || { added: 0, removed: 0 }
+    const files = []
 
-      return {
-        path: filePath,
-        added: sc.added + uc.added,
-        removed: sc.removed + uc.removed,
-        status: statusLetter(file),
-        staged: isStaged(file)
-      }
-    })
+    for (let i = 0; i < Math.min(selected.length, REVIEW_FILE_CAP); i += UNTRACKED_LINE_COUNT_CONCURRENCY) {
+      files.push(
+        ...(await Promise.all(
+          selected.slice(i, Math.min(i + UNTRACKED_LINE_COUNT_CONCURRENCY, REVIEW_FILE_CAP)).map(async file => {
+            const filePath = file.path
 
-    files.sort((a, b) => a.path.localeCompare(b.path))
-    await fillUntrackedCounts(cwd, files)
+            if (statusLetter(file) === '?') {
+              return reviewUntrackedFile(cwd, filePath)
+            }
 
-    return { files, base: null }
-  } catch {
-    return { files: [], base: null }
+            const sc = staged.get(filePath) || { added: 0, removed: 0, binary: false }
+            const uc = unstaged.get(filePath) || { added: 0, removed: 0, binary: false }
+            const stagedOnly = scope === 'staged'
+            const unstagedOnly = scope === 'unstaged'
+
+            return {
+              path: filePath,
+              added: (unstagedOnly ? 0 : sc.added) + (stagedOnly ? 0 : uc.added),
+              removed: (unstagedOnly ? 0 : sc.removed) + (stagedOnly ? 0 : uc.removed),
+              stagedAdded: sc.added,
+              stagedRemoved: sc.removed,
+              unstagedAdded: uc.added,
+              unstagedRemoved: uc.removed,
+              status: unstagedOnly ? file.working_dir : statusLetter(file),
+              staged: isStaged(file),
+              unstaged: Boolean(file.working_dir && file.working_dir !== ' '),
+              kind: 'file',
+              binary: stagedOnly ? sc.binary : unstagedOnly ? uc.binary : sc.binary || uc.binary
+            }
+          })
+        ))
+      )
+    }
+
+    return {
+      files: files.sort((a, b) => a.path.localeCompare(b.path)),
+      base: null,
+      repoRoot: cwd,
+      state: 'ready',
+      // Commit intent uses the complete status, regardless of scope or payload cap.
+      // A compact untracked directory counts as one entry, without walking it.
+      stagedCount: status.files.filter(isStaged).length,
+      totalCount: status.files.length,
+      truncated: selected.length > REVIEW_FILE_CAP
+    }
+  } catch (error) {
+    return reviewFailure(error)
   }
 }
 
-async function reviewDiff(repoPath, filePath, scope, baseRef, staged, gitBin) {
-  let cwd
+function reviewExecDiff(cwd, args, gitBin, noIndex = false): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      gitBin || 'git',
+      ['--literal-pathspecs', 'diff', '--no-ext-diff', ...args],
+      { cwd, windowsHide: true, timeout: 30_000, maxBuffer: 32 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        if (error && !(noIndex && error.code === 1)) {
+          reject(new Error(String(stderr || error.message)))
+        } else {
+          resolve(String(stdout || ''))
+        }
+      }
+    )
+  })
+}
 
-  try {
-    cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Review diff' })
-  } catch {
+async function reviewDiff(repoPath, filePath, scope, baseRef, staged, fullContext, gitBin) {
+  const cwd = await reviewRepoRoot(repoPath, gitBin)
+  const rel = reviewPath(cwd, filePath)
+  const git = gitFor(cwd, gitBin)
+  const args: string[] = fullContext ? ['--unified=2147483647'] : []
+  let range: string[]
+
+  if (scope === 'branch') {
+    const { commit } = await reviewBase(git, baseRef)
+    range = [`${commit}...HEAD`]
+  } else if (scope === 'lastTurn') {
+    if (!baseRef) {
+      throw new Error('No comparison base is available.')
+    }
+
+    const { commit } = await reviewBase(git, baseRef)
+    range = [commit]
+  } else if (scope === 'staged' || (scope === 'uncommitted' && staged)) {
+    range = ['--cached']
+  } else if (scope === 'unstaged' || scope === 'uncommitted') {
+    range = []
+  } else {
+    throw new Error('Unknown review scope.')
+  }
+
+  const counts = await reviewCounts(git, range)
+  const previous = counts.get(rel)?.previousPath
+  const patch = await reviewExecDiff(cwd, [...args, ...range, '--', ...(previous ? [previous] : []), rel], gitBin)
+
+  if (patch.trim() || range.length) {
+    return patch
+  }
+
+  const status = await git.status(['--untracked-files=normal', '--', `:(literal)${rel}`])
+
+  // A clean tracked file, a staged-only file or a disappeared path is not an
+  // all-add diff. Only synthesize one for a genuine untracked regular entry.
+  if (!status.not_added.some(p => p === rel)) {
     return ''
   }
 
-  const git = gitFor(cwd, gitBin)
-  const safe = args => git.diff(args).catch(() => '')
-
-  if (scope === 'branch') {
-    const base = await branchBase(git)
-
-    return base ? safe([`${base}...HEAD`, '--', filePath]) : ''
+  if ((await fs.lstat(path.join(cwd, rel))).isDirectory()) {
+    throw new Error('Select a file inside this untracked directory.')
   }
 
-  if (scope === 'lastTurn') {
-    return baseRef ? safe([baseRef, '--', filePath]) : ''
-  }
-
-  if (staged) {
-    return safe(['--cached', '--', filePath])
-  }
-
-  const worktree = await safe(['--', filePath])
-
-  if (worktree.trim()) {
-    return worktree
-  }
-
-  // Untracked file: no worktree diff exists, so synthesize an all-add diff via
-  // --no-index (exits non-zero by design when files differ, so go around
-  // simple-git's reject-on-nonzero with a raw execFile).
-  return new Promise(resolve => {
-    execFile(
-      gitBin || 'git',
-      ['diff', '--no-index', '--', '/dev/null', filePath],
-      { cwd, windowsHide: true, timeout: 30_000, maxBuffer: 32 * 1024 * 1024 },
-      (_err, stdout) => resolve(String(stdout || ''))
-    )
-  })
+  return reviewExecDiff(cwd, [...args, '--no-index', '--', '/dev/null', rel], gitBin, true)
 }
 
 // Working-tree-vs-HEAD diff for ONE file — the "what changed since the last
@@ -409,17 +682,60 @@ async function fileDiffVsHead(repoPath, filePath, gitBin) {
 }
 
 async function reviewStage(repoPath, filePath, gitBin) {
-  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Review stage' })
+  const cwd = await reviewRepoRoot(repoPath, gitBin)
 
-  await gitFor(cwd, gitBin).raw(filePath ? ['add', '--', filePath] : ['add', '-A'])
+  if (filePath) {
+    filePath = reviewPath(cwd, filePath)
+  }
+
+  await gitFor(cwd, gitBin).raw(filePath ? ['--literal-pathspecs', 'add', '--', filePath] : ['add', '-A'])
 
   return { ok: true }
 }
 
 async function reviewUnstage(repoPath, filePath, gitBin) {
-  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Review unstage' })
+  const cwd = await reviewRepoRoot(repoPath, gitBin)
 
-  await gitFor(cwd, gitBin).raw(filePath ? ['reset', '-q', 'HEAD', '--', filePath] : ['reset', '-q', 'HEAD'])
+  if (filePath) {
+    filePath = reviewPath(cwd, filePath)
+  }
+
+  const git = gitFor(cwd, gitBin)
+
+  const hasHead = await new Promise<boolean>((resolve, reject) => {
+    execFile(
+      gitBin || 'git',
+      ['rev-parse', '--verify', '--quiet', 'HEAD'],
+      { cwd, windowsHide: true, timeout: 30_000 },
+      (error, _stdout, stderr) => {
+        if (error && error.code !== 1) {
+          reject(new Error(String(stderr || error.message)))
+        } else {
+          resolve(!error)
+        }
+      }
+    )
+  })
+
+  if (hasHead) {
+    await git.raw(filePath ? ['--literal-pathspecs', 'reset', '-q', 'HEAD', '--', filePath] : ['reset', '-q', 'HEAD'])
+  } else {
+    // An unborn branch has no HEAD to reset to. Remove only index entries;
+    // --cached preserves working files, including edits made after staging.
+    // symbolic-ref must still succeed: a failed repository read is not unborn.
+    await git.raw(['symbolic-ref', '--quiet', 'HEAD'])
+    await git.raw([
+      '--literal-pathspecs',
+      'rm',
+      '--cached',
+      '-q',
+      '-r',
+      '-f',
+      '--ignore-unmatch',
+      '--',
+      filePath || '.'
+    ])
+  }
 
   return { ok: true }
 }
@@ -427,12 +743,17 @@ async function reviewUnstage(repoPath, filePath, gitBin) {
 // Discard changes back to the committed state. Destructive — the renderer
 // confirms first. Restores tracked files and removes untracked ones.
 async function reviewRevert(repoPath, filePath, gitBin) {
-  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Review revert' })
+  const cwd = await reviewRepoRoot(repoPath, gitBin)
+
+  if (filePath) {
+    filePath = reviewPath(cwd, filePath)
+  }
+
   const git = gitFor(cwd, gitBin)
 
   if (filePath) {
-    await git.raw(['checkout', 'HEAD', '--', filePath]).catch(() => undefined)
-    await git.raw(['clean', '-fd', '--', filePath]).catch(() => undefined)
+    await git.raw(['--literal-pathspecs', 'checkout', 'HEAD', '--', filePath]).catch(() => undefined)
+    await git.raw(['--literal-pathspecs', 'clean', '-fd', '--', filePath]).catch(() => undefined)
   } else {
     await git.raw(['checkout', 'HEAD', '--', '.']).catch(() => undefined)
     await git.raw(['clean', '-fd']).catch(() => undefined)
@@ -779,7 +1100,7 @@ async function reviewCreatePr(repoPath, gitBin, ghBin) {
 }
 
 // Compact working-tree status for the composer coding rail: branch, ahead/behind,
-// per-state change counts, +/- vs HEAD, and a capped changed-file list.
+// per-state change counts, +/- for both index/worktree parts, and a capped file list.
 async function repoStatus(repoPath, gitBin) {
   let cwd
 
@@ -805,6 +1126,7 @@ async function repoStatus(repoPath, gitBin) {
   let git
 
   try {
+    cwd = await reviewRepoRoot(cwd, gitBin)
     git = gitFor(cwd, gitBin)
   } catch {
     return null
@@ -849,22 +1171,28 @@ async function repoStatus(repoPath, gitBin) {
     files: files.slice(0, 200)
   }
 
-  // +/- vs HEAD (staged + unstaged tracked changes). No HEAD yet → leave 0.
+  // Match Review's two visible parts, including partial staging where an
+  // edit in the worktree may undo a staged edit (net HEAD would hide both).
   try {
-    const summary = await git.diffSummary(['HEAD'])
-    result.added = summary.insertions
-    result.removed = summary.deletions
+    const counts = await Promise.all([reviewCounts(git, ['--cached']), reviewCounts(git, [])])
+
+    for (const part of counts) {
+      for (const count of part.values()) {
+        result.added += count.added
+        result.removed += count.removed
+      }
+    }
   } catch {
-    // No commits yet.
+    return null
   }
 
-  // `git diff HEAD` ignores untracked files, so a turn that only creates new
+  // Tracked diffs ignore untracked files, so a turn that only creates new
   // files (the common case — a fresh module) showed +0 in the rail while the
   // review pane counted them. Fold top-level untracked file insertions into
   // `added`; directories reported by the compact `normal` scan intentionally
   // remain at zero rather than recursively walking their contents.
   try {
-    const untracked = status.not_added.slice(0, 500)
+    const untracked = status.not_added.slice(0, REVIEW_FILE_CAP)
 
     for (let i = 0; i < untracked.length; i += UNTRACKED_LINE_COUNT_CONCURRENCY) {
       const batch = await Promise.all(

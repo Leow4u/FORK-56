@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
-import { comparisonPath } from '@/lib/path-compare'
+import { isUnderPath } from '@/lib/path-compare'
 import { cn } from '@/lib/utils'
 import {
   openWorktreeDialog,
@@ -26,19 +26,18 @@ import { renderBranchMenuItems } from './branch-menu-items'
 
 /**
  * Empty-chat branch chip: sits beside Select project when the draft's folder is
- * a git repo, naming the current branch and opening the same branch / worktree
- * menu the occupied chat hides behind the coding strip's kebab. Hidden while
+ * a git repo, naming the current branch and offering draft workspace choices.
+ * Hidden while
  * the repo probe has nothing (no folder, not a repo, probe pending). Never
  * shows ahead/behind or ± — there is nothing to review on an empty chat.
  *
  * Picking a worktree re-targets the draft at that folder (the project chip
  * stays put: same project, other checkout). New branch / New worktree open the
- * shared worktree dialog, which creates the worktree and anchors a session there.
+ * shared worktree dialog, which creates the worktree and re-targets this draft.
  */
 export function WorkspaceBranchChip({ cwd }: { cwd?: null | string }) {
   const { t } = useI18n()
   const s = t.statusStack.coding
-  const p = t.sidebar.projects
   const path = (cwd ?? '').trim()
   const status = useStore(repoStatusForCwd(path || undefined))
   const worktrees = useStore(repoWorktreesForCwd(path || undefined))
@@ -57,11 +56,10 @@ export function WorkspaceBranchChip({ cwd }: { cwd?: null | string }) {
   const label = status.detached ? s.detached : status.branch || s.noBranch
   // The draft sits in a linked worktree (not the main checkout): swap the glyph
   // so the chip reads "worktree <branch>" rather than "branch".
-  const target = comparisonPath(path)
-  const inLinkedWorktree = worktrees.some(w => !w.isMain && w.path && comparisonPath(w.path) === target)
+  const inLinkedWorktree = worktrees.some(w => !w.isMain && w.path && isUnderPath(w.path, path))
 
   const startBranch = (base: string | undefined) => {
-    void openWorktreeDialog({ base, repoPath: path })
+    void openWorktreeDialog({ base, repoPath: path, target: 'draft' })
   }
 
   const switchBranch = async (branch: string) => {
@@ -107,17 +105,18 @@ export function WorkspaceBranchChip({ cwd }: { cwd?: null | string }) {
       >
         {renderBranchMenuItems(DROPDOWN_KIT, {
           labels: {
-            branchOffFrom: s.branchOffFrom,
-            convertBranch: p.convertBranch,
-            newBranch: s.newBranch,
-            startWork: p.startWork,
-            switchTo: s.switchTo,
-            worktrees: s.worktrees
+            currentFolder: s.currentFolder,
+            otherWorktrees: s.otherWorktrees,
+            createContext: s.createContext,
+            newBranchWorktree: s.newBranchWorktree,
+            existingBranchWorktree: s.existingBranchWorktree,
+            switchTo: s.switchTo
           },
+          onExistingBranch: () => void openWorktreeDialog({ mode: 'existing', repoPath: path, target: 'draft' }),
+          repoPath: path,
           onOpenWorktree: retargetDraftWorkspace,
           onStartBranch: startBranch,
           onSwitchBranch: branch => void switchBranch(branch),
-          showConvertBranch: true,
           status,
           worktrees
         })}

@@ -511,10 +511,15 @@ export async function resolveWorktreeRepoPath(): Promise<string> {
   return ''
 }
 
-export async function openWorktreeDialog(options?: { base?: string; repoPath?: string }): Promise<void> {
+export async function openWorktreeDialog(options?: {
+  base?: string
+  mode?: 'create' | 'existing'
+  target?: 'draft' | 'session'
+  repoPath?: string
+}): Promise<void> {
   const repoPath = options?.repoPath?.trim() || (await resolveWorktreeRepoPath())
 
   if (repoPath) {
-    $worktreeDialog.set({ base: options?.base, repoPath })
+    $worktreeDialog.set({ base: options?.base, mode: options?.mode, target: options?.target, repoPath })
   }
 }

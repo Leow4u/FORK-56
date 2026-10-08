@@ -1,9 +1,8 @@
 import { useStore } from '@nanostores/react'
+import { useState } from 'react'
 
-import { FileDiffPanel } from '@/components/chat/diff-lines'
-import { DiffSkeleton, TreeSkeleton } from '@/components/chat/skeletons'
+import { TreeSkeleton } from '@/components/chat/skeletons'
 import { Button } from '@/components/ui/button'
-import { Codicon } from '@/components/ui/codicon'
 import {
   Dialog,
   DialogContent,
@@ -12,229 +11,170 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import { DiffCount } from '@/components/ui/diff-count'
-import { Tip } from '@/components/ui/tooltip'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
+import { SearchField } from '@/components/ui/search-field'
 import { useDelayedTrue } from '@/hooks/use-delayed-true'
 import { useI18n } from '@/i18n'
+import { desktopFsCacheKey } from '@/lib/desktop-fs'
 import { displayPath } from '@/lib/display-path'
 import { cn } from '@/lib/utils'
-import { $panesFlipped } from '@/store/layout'
 import { notifyError } from '@/store/notifications'
 import {
-  $reviewDiff,
-  $reviewDiffLoading,
+  $reviewError,
   $reviewFiles,
   $reviewIsRepo,
   $reviewLoading,
+  $reviewMissingPath,
   $reviewRevertTarget,
+  $reviewScopeCwd,
   $reviewSelectedPath,
-  $reviewTreeMode,
+  $reviewTreeVisible,
+  $reviewTruncated,
   cancelRevert,
-  clearReviewSelection,
-  closeReview,
   confirmRevert,
-  refreshReview,
-  requestRevert,
-  stageReviewFile,
-  toggleReviewTreeMode,
-  unstageReviewFile
+  refreshReview
 } from '@/store/review'
+import { $connection, $currentCwd } from '@/store/session'
 
-import { SidebarPanelLabel } from '../../shell/sidebar-label'
-import { PaneEmptyState, RightSidebarSectionHeader } from '../index'
-
+import { ReviewFilePanel } from './file-panel'
 import { ReviewFileTree } from './file-tree'
 import { ReviewShipBar } from './ship-bar'
-
-// Compact header/diff action buttons — micro hit targets packed tight, matching
-// the rest of the app's icon-action rows.
-const ACTION_BTN = 'size-5'
+import { ReviewToolbar } from './toolbar'
 
 export function ReviewPane() {
   const { t } = useI18n()
-  const c = t.statusStack.coding
-  const panesFlipped = useStore($panesFlipped)
-  const files = useStore($reviewFiles)
-  const loading = useStore($reviewLoading)
-  const isRepo = useStore($reviewIsRepo)
-  const selectedPath = useStore($reviewSelectedPath)
-  const diff = useStore($reviewDiff)
-  const diffLoading = useStore($reviewDiffLoading)
-  const revertTarget = useStore($reviewRevertTarget)
-  const treeMode = useStore($reviewTreeMode)
-
-  const selectedFile = files.find(file => file.path === selectedPath)
-  const hasFiles = files.length > 0
-  // `{ path: null }` → revert all; `{ path: '…' }` → revert one file.
-  const revertingAll = revertTarget?.path == null
-  // Delay the skeletons so fast loads (most project switches) just blank → content
-  // instead of flashing a jarring loading state.
-  const showTreeSkeleton = useDelayedTrue(loading && !hasFiles)
-  const showDiffSkeleton = useDelayedTrue(diffLoading)
+  const scopeCwd = useStore($reviewScopeCwd)
+  const currentCwd = useStore($currentCwd)
+  const connection = useStore($connection)
+  const cwd = scopeCwd?.trim() || currentCwd.trim()
 
   return (
     <aside
-      aria-label={c.review}
-      className={cn(
-        'before:pointer-events-none relative flex h-full w-full min-w-0 flex-col overflow-hidden border-(--ui-stroke-secondary) bg-(--ui-sidebar-surface-background) pt-(--titlebar-height) text-(--ui-text-tertiary)',
-        panesFlipped
-          ? 'border-r shadow-[inset_-0.0625rem_0_0_color-mix(in_srgb,white_18%,transparent)]'
-          : 'border-l shadow-[inset_0.0625rem_0_0_color-mix(in_srgb,white_18%,transparent)]'
-      )}
+      aria-label={t.statusStack.coding.review}
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background text-foreground"
+      data-review-workspace=""
     >
-      {(loading || isRepo) && (
-        <RightSidebarSectionHeader data-suppress-pane-reveal-side="">
-          <div className="flex min-w-0 flex-1">
-            {/* Pure self-naming label — redundant under a zone tab that already
-                says "review", so the zone header hides it (styles.css). */}
-            <SidebarPanelLabel data-pane-self-label="">{c.review}</SidebarPanelLabel>
-          </div>
-          <Tip label={treeMode === 'tree' ? c.viewAsList : c.viewAsTree}>
-            <Button
-              aria-label={treeMode === 'tree' ? c.viewAsList : c.viewAsTree}
-              className={ACTION_BTN}
-              disabled={!hasFiles}
-              onClick={toggleReviewTreeMode}
-              size="icon-xs"
-              variant="ghost"
-            >
-              <Codicon name={treeMode === 'tree' ? 'list-flat' : 'list-tree'} size="0.8125rem" />
-            </Button>
-          </Tip>
-          <Tip label={c.stageAll}>
-            <Button
-              aria-label={c.stageAll}
-              className={ACTION_BTN}
-              disabled={!hasFiles}
-              onClick={() => void stageReviewFile(null).catch(err => notifyError(err, c.stageAll))}
-              size="icon-xs"
-              variant="ghost"
-            >
-              <Codicon name="add" size="0.8125rem" />
-            </Button>
-          </Tip>
-          <Tip label={c.revertAll}>
-            <Button
-              aria-label={c.revertAll}
-              className={ACTION_BTN}
-              disabled={!hasFiles}
-              onClick={() => requestRevert(null)}
-              size="icon-xs"
-              variant="ghost"
-            >
-              <Codicon name="discard" size="0.8125rem" />
-            </Button>
-          </Tip>
-          <Tip label={t.rightSidebar.refreshTree}>
-            <Button
-              aria-label={t.rightSidebar.refreshTree}
-              className={ACTION_BTN}
-              onClick={() => void refreshReview()}
-              size="icon-xs"
-              variant="ghost"
-            >
-              <Codicon name="refresh" size="0.8125rem" spinning={loading} />
-            </Button>
-          </Tip>
-          <Button aria-label={c.close} className={ACTION_BTN} onClick={closeReview} size="icon-xs" variant="ghost">
-            <Codicon name="close" size="0.8125rem" />
-          </Button>
-        </RightSidebarSectionHeader>
-      )}
-
-      {loading || isRepo ? (
-        hasFiles ? (
-          <ReviewFileTree />
-        ) : showTreeSkeleton ? (
-          <TreeSkeleton />
-        ) : loading ? (
-          <div className="min-h-0 flex-1" />
-        ) : (
-          <PaneEmptyState label={t.rightSidebar.noDiffs} />
-        )
-      ) : (
-        // No repo at all → same terse empty state, just without the chrome.
-        <PaneEmptyState label={t.rightSidebar.noDiffs} />
-      )}
-
-      {/* Selected file's diff — reuses the shiki-highlighted FileDiffPanel. */}
-      {selectedFile && (
-        <div className="flex max-h-[55%] shrink-0 flex-col border-t border-(--ui-stroke-secondary)">
-          <div className="flex items-center gap-1 px-2.5 py-1.5" data-suppress-pane-reveal-side="">
-            <span
-              className="min-w-0 flex-1 truncate font-mono text-[0.66rem] text-(--ui-text-secondary)"
-              title={displayPath(selectedFile.path)}
-            >
-              {displayPath(selectedFile.path)}
-            </span>
-            <DiffCount added={selectedFile.added} className="text-[0.64rem] leading-4" removed={selectedFile.removed} />
-            <Tip label={selectedFile.staged ? c.unstage : c.stage}>
-              <Button
-                aria-label={selectedFile.staged ? c.unstage : c.stage}
-                className={ACTION_BTN}
-                onClick={() =>
-                  void (
-                    selectedFile.staged ? unstageReviewFile(selectedFile.path) : stageReviewFile(selectedFile.path)
-                  ).catch(err => notifyError(err, c.stage))
-                }
-                size="icon-xs"
-                variant="ghost"
-              >
-                <Codicon name={selectedFile.staged ? 'remove' : 'add'} size="0.8rem" />
-              </Button>
-            </Tip>
-            <Button
-              aria-label={c.close}
-              className={ACTION_BTN}
-              onClick={clearReviewSelection}
-              size="icon-xs"
-              variant="ghost"
-            >
-              <Codicon name="close" size="0.8rem" />
-            </Button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-auto px-1 pb-1">
-            {diffLoading ? (
-              showDiffSkeleton ? (
-                <DiffSkeleton />
-              ) : null
-            ) : diff ? (
-              <FileDiffPanel className="mx-0 mb-0 h-full max-h-none" diff={diff} path={selectedFile.path} virtualized />
-            ) : (
-              <div className="py-6 text-center text-[0.66rem] text-muted-foreground/60">{c.noDiff}</div>
-            )}
-          </div>
-        </div>
-      )}
-
+      <ReviewToolbar cwd={cwd} key={`toolbar:${desktopFsCacheKey(connection)}:${cwd}`} />
+      <ReviewBody key={`body:${desktopFsCacheKey(connection)}:${cwd}`} />
       <ReviewShipBar />
-
-      <Dialog onOpenChange={open => !open && cancelRevert()} open={revertTarget !== undefined}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{revertingAll ? c.revertAll : c.revert}</DialogTitle>
-            <DialogDescription>
-              {revertingAll ? c.revertAllConfirm : c.revertConfirm}
-              {!revertingAll && revertTarget?.path && (
-                <span
-                  className="mt-2 block truncate font-mono text-[0.7rem] text-(--ui-text-secondary)"
-                  title={displayPath(revertTarget.path)}
-                >
-                  {displayPath(revertTarget.path)}
-                </span>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={cancelRevert} variant="ghost">
-              {t.common.cancel}
-            </Button>
-            <Button onClick={() => void confirmRevert().catch(err => notifyError(err, c.revert))} variant="destructive">
-              {revertingAll ? c.revertAll : c.revert}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RevertConfirmation />
     </aside>
+  )
+}
+
+function ReviewBody() {
+  const { t } = useI18n()
+  const c = t.statusStack.coding
+  const files = useStore($reviewFiles)
+  const loading = useStore($reviewLoading)
+  const isRepo = useStore($reviewIsRepo)
+  const error = useStore($reviewError)
+  const missingPath = useStore($reviewMissingPath)
+  const selectedPath = useStore($reviewSelectedPath)
+  const treeVisible = useStore($reviewTreeVisible)
+  const truncated = useStore($reviewTruncated)
+  const [query, setQuery] = useState('')
+  const skeleton = useDelayedTrue(loading && files.length === 0)
+  const selectedFile = files.find(file => file.path === selectedPath)
+  const hasFiles = files.length > 0
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-review-reader="">
+        {error ? (
+          <div className="grid min-h-0 flex-1 place-items-center overflow-auto p-4">
+            <ErrorState
+              description={<p className="break-words text-xs text-muted-foreground">{error}</p>}
+              title={<p className="text-sm font-medium">{c.reviewError}</p>}
+            >
+              <Button onClick={() => void refreshReview()} size="sm" variant="secondary">
+                {t.rightSidebar.tryAgain}
+              </Button>
+            </ErrorState>
+          </div>
+        ) : selectedFile ? (
+          <ReviewFilePanel file={selectedFile} key={selectedFile.path} />
+        ) : loading ? (
+          skeleton ? (
+            <TreeSkeleton />
+          ) : (
+            <div className="min-h-0 flex-1" />
+          )
+        ) : !isRepo ? (
+          <EmptyState className="flex-1 px-4" description={c.noRepositoryBody} title={c.noRepository} />
+        ) : missingPath ? (
+          <EmptyState className="flex-1 px-4" description={displayPath(missingPath)} title={c.fileChangedSinceReview} />
+        ) : (
+          <EmptyState className="flex-1 px-4" title={hasFiles ? c.selectChangedFile : c.cleanScope} />
+        )}
+      </div>
+      <aside
+        aria-label={t.rightSidebar.aria}
+        className={cn(
+          'flex w-[38%] max-w-60 shrink-0 flex-col border-l border-(--ui-stroke-tertiary)',
+          !treeVisible && 'hidden'
+        )}
+      >
+        {(hasFiles || query) && (
+          <div className="px-2 py-2">
+            <SearchField
+              aria-label={t.rightSidebar.filterFiles}
+              containerClassName="w-full"
+              onChange={setQuery}
+              placeholder={t.rightSidebar.filterFiles}
+              recede={false}
+              shape="pill"
+              value={query}
+            />
+          </div>
+        )}
+        {truncated && (
+          <p className="px-3 pb-2 text-xs text-muted-foreground" role="status">
+            {c.partialListing}
+          </p>
+        )}
+        <ReviewFileTree query={query} />
+      </aside>
+    </div>
+  )
+}
+
+function RevertConfirmation() {
+  const { t } = useI18n()
+  const c = t.statusStack.coding
+  const target = useStore($reviewRevertTarget)
+  const all = target?.path == null
+
+  return (
+    <Dialog onOpenChange={open => !open && cancelRevert()} open={target !== undefined}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{all ? c.revertAll : c.revert}</DialogTitle>
+          <DialogDescription>
+            {all ? c.revertAllConfirm : c.revertConfirm}
+            {!all && target?.path && (
+              <span
+                className="mt-2 block truncate font-mono text-xs text-muted-foreground"
+                title={displayPath(target.path)}
+              >
+                {displayPath(target.path)}
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button onClick={cancelRevert} variant="ghost">
+            {t.common.cancel}
+          </Button>
+          <Button
+            onClick={() => void confirmRevert().catch(error => notifyError(error, c.revert))}
+            variant="destructive"
+          >
+            {all ? c.revertAll : c.revert}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

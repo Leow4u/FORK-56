@@ -101,15 +101,15 @@ async def git_base_branches_route(path: str):
 
 
 @router.get("/api/git/review/list")
-async def git_review_list_route(path: str, scope: str = "uncommitted", base: Optional[str] = None):
-    return await _git_op(_web_git.review_list, _git_path(path), scope, base)
+async def git_review_list_route(path: str, scope: str = "uncommitted", base: Optional[str] = None, directory: Optional[str] = None):
+    return await _git_op(_web_git.review_list, _git_path(path), scope, base, directory)
 
 
 @router.get("/api/git/review/diff")
 async def git_review_diff_route(
-    path: str, file: str, scope: str = "uncommitted", base: Optional[str] = None, staged: bool = False
+    path: str, file: str, scope: str = "uncommitted", base: Optional[str] = None, staged: bool = False, fullContext: bool = False
 ):
-    return {"diff": await _git_op(_web_git.review_diff, _git_path(path), file, scope, base, staged)}
+    return {"diff": await _git_op(_web_git.review_diff, _git_path(path), file, scope, base, staged, fullContext)}
 
 
 @router.get("/api/git/file-diff")

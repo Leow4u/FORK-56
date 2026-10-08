@@ -131,9 +131,9 @@ describe('WorkspaceBranchChip', () => {
     renderUi(<WorkspaceBranchChip cwd="/repo" />)
     await openBranchMenu()
 
-    expect(screen.getByRole('menuitem', { name: 'New branch from main' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'New worktree' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Convert a branch…' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'main' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'New branch + worktree…' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Worktree from existing branch…' })).toBeTruthy()
     // On main there is no "Switch to main" row.
     expect(screen.queryByRole('menuitem', { name: /Switch to/ })).toBeNull()
 
@@ -143,14 +143,35 @@ describe('WorkspaceBranchChip', () => {
     expect($currentCwd.get()).toBe('/repo/.worktrees/mc')
   })
 
+  it('recognizes a Windows subfolder inside a linked worktree as the current folder', async () => {
+    $status.set(repoStatus({ branch: 'feature/windows' }))
+    $worktrees.set([
+      worktree({ path: 'C:/Repo', branch: 'main' }),
+      worktree({ branch: 'feature/windows', isMain: false, path: 'C:/Repo/.worktrees/windows' })
+    ])
+    renderUi(<WorkspaceBranchChip cwd={'c:\\repo\\.worktrees\\windows\\src'} />)
+    expect(screen.getByRole('button', { name: 'Branch and worktree' }).hasAttribute('data-worktree')).toBe(true)
+    await openBranchMenu()
+    expect(screen.getAllByRole('menuitem', { name: 'feature/windows' })).toHaveLength(1)
+    expect(screen.getByRole('menuitem', { name: 'main' })).toBeTruthy()
+  })
+
+  it('opens the existing-branch picker directly, preserving the target repository', async () => {
+    $status.set(repoStatus())
+    renderUi(<WorkspaceBranchChip cwd="/repo" />)
+    await openBranchMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Worktree from existing branch…' }))
+    expect(openWorktreeDialog).toHaveBeenCalledWith({ mode: 'existing', repoPath: '/repo', target: 'draft' })
+  })
+
   it('opens the shared worktree dialog for a new branch and switches to the trunk', async () => {
     $status.set(repoStatus({ branch: 'feat/chip' }))
 
     renderUi(<WorkspaceBranchChip cwd="/repo" />)
     await openBranchMenu()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'New branch from feat/chip' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'New branch + worktree…' }))
 
-    expect(openWorktreeDialog).toHaveBeenCalledWith({ base: 'feat/chip', repoPath: '/repo' })
+    expect(openWorktreeDialog).toHaveBeenCalledWith({ base: 'feat/chip', repoPath: '/repo', target: 'draft' })
 
     await openBranchMenu()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Switch to main' }))

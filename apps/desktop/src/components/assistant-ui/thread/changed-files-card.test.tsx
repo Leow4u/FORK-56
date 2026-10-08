@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type * as ReviewStore from '@/store/review'
-import { openReviewForPath, revealReview } from '@/store/review'
+import { openReviewForPath, revealCurrentReview } from '@/store/review'
 
 import { stubThreadEnvironment, stubThreadViewportSize, ThreadRuntime, userMessage } from '../test-utils'
 
@@ -12,7 +12,7 @@ import { Thread } from '.'
 vi.mock('@/store/review', async importOriginal => ({
   ...(await importOriginal<typeof ReviewStore>()),
   openReviewForPath: vi.fn(async () => undefined),
-  revealReview: vi.fn()
+  revealCurrentReview: vi.fn()
 }))
 
 stubThreadEnvironment()
@@ -21,7 +21,7 @@ stubThreadViewportSize()
 afterEach(() => {
   cleanup()
   vi.mocked(openReviewForPath).mockClear()
-  vi.mocked(revealReview).mockClear()
+  vi.mocked(revealCurrentReview).mockClear()
 })
 
 const call = (toolCallId: string, toolName: string, args: Record<string, unknown>, result: unknown) => ({
@@ -67,7 +67,9 @@ async function renderCard() {
     </ThreadRuntime>
   )
 
-  const card = await view.findByText('Edited 2 files').then(title => title.closest('[data-slot="aui_changed-files"]'))
+  const card = await view
+    .findByText('Files edited in this response (2)')
+    .then(title => title.closest('[data-slot="aui_changed-files"]'))
 
   return { card: card as HTMLElement, container: view.container }
 }
@@ -78,8 +80,8 @@ describe('the changed-files card', () => {
   it('totals the turn and gives each file its lines, both sides even at zero', async () => {
     const { card } = await renderCard()
 
-    expect(rowFor(card, 'Edited 2 files').textContent).toContain('+302')
-    expect(rowFor(card, 'Edited 2 files').textContent).toContain('−1')
+    expect(card.querySelector('[data-slot="aui_changed-files-summary"]')?.textContent).toContain('+302')
+    expect(card.querySelector('[data-slot="aui_changed-files-summary"]')?.textContent).toContain('−1')
     expect(rowFor(card, 'index.html').textContent).toContain('+300')
     expect(rowFor(card, 'index.html').textContent).toContain('−0')
     expect(rowFor(card, 'app.js').textContent).toContain('+2')
@@ -96,13 +98,15 @@ describe('the changed-files card', () => {
     expect(card.compareDocumentPosition(actions!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('opens the diff pane from its title and a file diff from that file row', async () => {
+  it('labels the response summary separately from the current Git review actions', async () => {
     const { card } = await renderCard()
 
-    fireEvent.click(rowFor(card, 'Edited 2 files'))
+    fireEvent.click(within(card).getByText('Files edited in this response (2)'))
+    expect(revealCurrentReview).not.toHaveBeenCalled()
+    fireEvent.click(within(card).getByRole('button', { name: 'View current changes' }))
     fireEvent.click(rowFor(card, 'app.js'))
 
-    expect(revealReview).toHaveBeenCalledTimes(1)
+    expect(revealCurrentReview).toHaveBeenCalledTimes(1)
     expect(openReviewForPath).toHaveBeenCalledWith('site/app.js', null, expect.anything())
   })
 })

@@ -4,13 +4,15 @@ import { type FC, useMemo } from 'react'
 import { useComposerScope } from '@/app/chat/composer/scope'
 import { useSessionView } from '@/app/chat/session-view'
 import { deriveChangedFiles } from '@/components/assistant-ui/thread/changed-files'
+import { Button } from '@/components/ui/button'
 import { DiffCount } from '@/components/ui/diff-count'
 import { FadeScroll } from '@/components/ui/fade-scroll'
 import { FileTypeIcon } from '@/components/ui/file-type-icon'
+import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { displayPath } from '@/lib/display-path'
 import { ChevronRight, FileDiff } from '@/lib/icons'
-import { openReviewForPath, revealReview } from '@/store/review'
+import { openReviewForPath, revealCurrentReview } from '@/store/review'
 
 // ~5 rows. A turn that rewrites twenty files should still read as one card in
 // the transcript, not a wall the user has to scroll past to reach the composer.
@@ -22,9 +24,10 @@ const CHEVRON = <ChevronRight className="size-3.5 shrink-0 text-(--ui-text-terti
 
 /**
  * Claude-style "Edited N files" card closing out the newest assistant turn:
- * a summary row with the turn's total +/- that opens the diff pane (⌘G), then
+ * a summary row with the tool-reported edit totals, then
  * one row per file it edited with that file's +/-, which opens that file's
- * diff. Both sides of a count always show (`+12 −0`), as a list of changes
+ * current Git diff. These totals are not a saved Git snapshot of the turn.
+ * Both sides of a count always show (`+12 −0`), as a list of changes
  * reads.
  *
  * A hairline list rather than a `WIDGET_SHELL_CLASS` panel: it indexes what
@@ -60,34 +63,40 @@ export const ChangedFilesCard: FC<{ parts: readonly unknown[] }> = ({ parts }) =
       className="ms-(--message-text-indent) mt-3 overflow-hidden rounded-(--card-radius) border border-(--ui-stroke-tertiary) py-1 text-[length:var(--conversation-text-font-size)] leading-5"
       data-slot="aui_changed-files"
     >
-      <button
-        className={ROW_CLASS}
-        data-slot="aui_changed-files-summary"
-        onClick={() => revealReview(scopeCwd, composerScope.target)}
-        title={copy.reviewChanges}
-        type="button"
-      >
+      <div className="flex min-h-7 items-center gap-2 px-3" data-slot="aui_changed-files-summary">
         <FileDiff className="size-3.5 shrink-0 text-(--ui-text-secondary)" />
-        <span className="min-w-0 flex-1 truncate text-(--ui-text-primary)">{copy.filesChanged(files.length)}</span>
+        <span className="min-w-0 flex-1 truncate text-(--ui-text-primary)">
+          {copy.editedThisResponse(files.length)}
+        </span>
         <DiffCount added={total.added} removed={total.removed} showZero />
-        {CHEVRON}
-      </button>
+      </div>
       <FadeScroll className="flex flex-col" maxHeight={MAX_ROWS_HEIGHT}>
         {files.map(file => (
-          <button
-            className={ROW_CLASS}
-            key={file.path}
-            onClick={() => void openReviewForPath(file.path, scopeCwd, composerScope.target)}
-            title={displayPath(file.path)}
-            type="button"
-          >
-            <FileTypeIcon className="shrink-0 text-(--ui-text-secondary)" path={file.path} size="0.875rem" />
-            <span className="min-w-0 flex-1 truncate text-(--ui-text-primary)">{file.name}</span>
-            <DiffCount added={file.added} removed={file.removed} showZero />
-            {CHEVRON}
-          </button>
+          <Tip key={file.path} label={`${copy.viewCurrentChanges} — ${displayPath(file.path)}`}>
+            <button
+              className={ROW_CLASS}
+              onClick={() => void openReviewForPath(file.path, scopeCwd, composerScope.target)}
+              type="button"
+            >
+              <FileTypeIcon className="shrink-0 text-(--ui-text-secondary)" path={file.path} size="0.875rem" />
+              <span className="min-w-0 flex-1 truncate text-(--ui-text-primary)">{file.name}</span>
+              <DiffCount added={file.added} removed={file.removed} showZero />
+              {CHEVRON}
+            </button>
+          </Tip>
         ))}
       </FadeScroll>
+      <div className="flex px-3 pb-1 pt-2">
+        <Button
+          onClick={() => revealCurrentReview(scopeCwd, composerScope.target)}
+          size="inline"
+          type="button"
+          variant="text"
+        >
+          {copy.viewCurrentChanges}
+          {CHEVRON}
+        </Button>
+      </div>
     </div>
   )
 }

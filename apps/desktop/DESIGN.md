@@ -323,19 +323,29 @@ Notes:
 - **Changed files** — the newest settled turn that edited files ends with
   one card, under the reply and above its actions (`changed-files-card.tsx`):
   a `--ui-stroke-tertiary` hairline at `--card-radius`, no fill, lined up
-  with the reply's text and at its type size. A title row (Edited N files,
-  the turn's total, a chevron) opens the diff pane; one row per file (icon,
-  name, its count, a chevron) opens that file's diff. Counts show both
-  sides even at zero (`+95 −0`) and come from the whole edit, not from the
-  capped diff a tool row keeps. It is an index of the turn, not a tool
-  widget, so it doesn't wear `WIDGET_SHELL_CLASS`.
-- **Composer context bar** — empty-chat workspace picker. A second capsule
-  (`composerContextShell` in `composer-dock.ts`) stacked under the prompt
-  card as a sibling vessel, not a well inside it: same width, same
-  `--composer-radius`, the surface hairline, a complete rounded top of its own.
-  The prompt card sits slightly on the tray (`shadow-work4you`); occupied
-  git chats keep the coding-status strip. Without git, occupied composer
-  is the prompt card only.
+  with the reply's text and at its type size. It labels the files edited in
+  that response; its counts come from tool edits, not a Git snapshot of the
+  turn. "View current changes" opens the repository's current uncommitted
+  changes. File rows open the corresponding current diff; a file no longer
+  changed gets an explicit explanation. Counts show both sides at zero too.
+- **Composer context** — the empty-chat workspace picker stays below the
+  prompt, with the branch/worktree selector beside the project and no
+  duplicated Git strip above it. The selector distinguishes the current
+  folder, other worktree folders and creation actions. Creation identifies
+  the selected base and whether it uses a new or existing branch.
+  In occupied Git chats, Changes is a small chip outside the prompt's upper
+  left edge; the transparent branch chip below the prompt copies its name.
+  The folder is available in its tooltip and execution context stays beside
+  it. Prompt controls and text sizes use the existing composer primitives.
+- **Changes preview** — a unified diff occupies the main reading area; the
+  changed-file tree is on the right, open initially, with search and a toggle.
+  The scope selector separates uncommitted, unstaged, staged and branch
+  comparison. Branch comparison uses the chosen base without switching the
+  checkout. Partially staged files expose both parts explicitly. Full context
+  expands the same revision-correct patch. Commit labels describe the actual
+  staged-or-all operation independently of scope, search and directory browsing.
+  Non-repository, clean, failed, binary and missing historical-file states are
+  distinct. Compact untracked directories expand only when opened.
 - **Inline widgets** — a tool result that renders as a panel the user reads or
   acts on (clarify, artifact card) wears `WIDGET_SHELL_CLASS`
   (`src/components/chat/widget-shell.ts`): shared radius, the

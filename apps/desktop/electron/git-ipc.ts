@@ -66,13 +66,13 @@ export function registerGitIpc({ resolveGitBinary, resolveGhBinary }: GitIpcDeps
   ipcMain.handle('work4you:git:repoStatus', async (_event, repoPath) => repoStatus(repoPath, resolveGitBinary()))
 
   // Codex-style review pane: list changed files for a scope, fetch one file's
-  // unified diff, and stage / unstage / revert. Reads return empty on failure;
+  // unified diff, and stage / unstage / revert. Read failures remain distinct;
   // mutations reject so the renderer can toast.
-  ipcMain.handle('work4you:git:review:list', async (_event, repoPath, scope, baseRef) =>
-    reviewList(repoPath, scope, baseRef, resolveGitBinary())
+  ipcMain.handle('work4you:git:review:list', async (_event, repoPath, scope, baseRef, directory) =>
+    reviewList(repoPath, scope, baseRef, resolveGitBinary(), directory)
   )
-  ipcMain.handle('work4you:git:review:diff', async (_event, repoPath, filePath, scope, baseRef, staged) =>
-    reviewDiff(repoPath, filePath, scope, baseRef, staged, resolveGitBinary())
+  ipcMain.handle('work4you:git:review:diff', async (_event, repoPath, filePath, scope, baseRef, staged, fullContext) =>
+    reviewDiff(repoPath, filePath, scope, baseRef, staged, fullContext, resolveGitBinary())
   )
   // Working-tree-vs-HEAD diff for one file (the preview's "show the diff" view).
   ipcMain.handle('work4you:git:fileDiff', async (_event, repoPath, filePath) =>
