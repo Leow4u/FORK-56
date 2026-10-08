@@ -76,6 +76,20 @@ def markdown_summary(data: dict, *, tag: str = "", mode: str = "") -> str:
         lines.extend(["", "### Phases", ""])
         for p in phases:
             lines.append(f"- **{p.get('name')}**: {p.get('ms')} ms")
+    deploy_phases = data.get("deployPhases") or []
+    if deploy_phases:
+        lines.extend(["", "### Deploy runtime (inside NSIS)", ""])
+        for p in deploy_phases:
+            lines.append(f"- **{p.get('name')}**: {p.get('ms')} ms")
+    elif data.get("deployPhasesMissing"):
+        lines.extend(
+            [
+                "",
+                "### Deploy runtime (inside NSIS)",
+                "",
+                "_install-deploy-phases.json missing (release installer built before phase instrumentation)._",
+            ]
+        )
     return "\n".join(lines) + "\n"
 
 

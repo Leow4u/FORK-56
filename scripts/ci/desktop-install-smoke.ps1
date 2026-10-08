@@ -143,6 +143,30 @@ try {
         throw "NSIS silent install exit code $($proc.ExitCode)"
     }
 
+    $deployPhasesPath = Join-Path $Work4YouHome "install-deploy-phases.json"
+    $deployArtifact = Read-JsonFile -Path $deployPhasesPath
+    if ($deployArtifact) {
+        $deployTotal = [int64]($deployArtifact.deployTotalMs)
+        $result.deployPhases = @($deployArtifact.phases)
+        $result.timingsMs.deployRuntime = $deployTotal
+        if ($null -ne $result.timingsMs.install) {
+            $result.timingsMs.nsisExtractEstimate = [int64]$result.timingsMs.install - $deployTotal
+        }
+        if ($deployArtifact.skippedCopy -eq $true) {
+            Log "Deploy skipped copy (fingerprint match); deployTotalMs=$deployTotal"
+        } else {
+            Log "Deploy runtime phases recorded; deployTotalMs=$deployTotal"
+        }
+        foreach ($dp in @($deployArtifact.phases)) {
+            $phaseName = "deploy:$($dp.name)"
+            $ms = [int64]$dp.ms
+            Add-Phase -Name $phaseName -StartMs 0 -EndMs $ms -Extra @{ ms = $ms; deployPhase = $true }
+        }
+    } else {
+        $result.deployPhasesMissing = $true
+        Log "WARNING: missing $deployPhasesPath (installer predates deploy phase instrumentation?)"
+    }
+
     $discoverStart = Get-UnixMs
     $installDir = Find-InstalledAppRoot
     $discoverEnd = Get-UnixMs
