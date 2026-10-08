@@ -223,7 +223,7 @@ export function CreateProfileDialog({
                   image={preview.image}
                   name={previewName}
                   shape={preview.shape}
-                  size={256}
+                  size={144}
                 />
               </div>
               <AvatarPicker

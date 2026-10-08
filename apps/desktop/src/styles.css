@@ -1865,10 +1865,10 @@ body.guest-pointer-lock :is(webview, iframe) {
 
 /* The two profile creation entry points share a frame and responsive layout. */
 [data-slot='dialog-content'][data-profile-creation] {
-  width: min(58rem, calc(100vw - 2rem));
+  width: min(47.5rem, calc(100vw - 2rem));
   max-width: none;
-  height: min(54rem, calc(100dvh - 3rem));
-  max-height: calc(100dvh - 3rem);
+  height: min(40rem, calc(100dvh - 2rem));
+  max-height: calc(100dvh - 2rem);
   border-radius: var(--card-radius);
   background: var(--ui-bg-elevated);
   color: var(--ui-text-primary);
@@ -1889,18 +1889,18 @@ body.guest-pointer-lock :is(webview, iframe) {
 
 .profile-creation-header {
   flex-shrink: 0;
-  gap: 0.4rem;
-  padding: 1.75rem 2rem 1.25rem;
+  gap: 0.25rem;
+  padding: 1.25rem 1.5rem 0.75rem;
   text-align: start;
 }
 
 [data-profile-creation] [data-slot='dialog-title'] {
-  font-size: 2rem;
+  font-size: 1.375rem;
   line-height: 1.25;
 }
 
 [data-profile-creation] [data-slot='dialog-description'] {
-  font-size: 1.125rem;
+  font-size: 0.875rem;
   line-height: 1.5;
   color: var(--ui-text-secondary);
 }
@@ -1910,13 +1910,13 @@ body.guest-pointer-lock :is(webview, iframe) {
   min-height: 0;
   min-width: 0;
   overflow: auto;
-  padding: 1rem 2rem 1.75rem;
+  padding: 0.5rem 1.5rem 1rem;
 }
 
 .profile-creation-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
-  gap: 2rem;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 1.5rem;
   align-items: start;
 }
 
@@ -1924,14 +1924,14 @@ body.guest-pointer-lock :is(webview, iframe) {
   display: grid;
   min-width: 0;
   justify-items: center;
-  gap: 1rem;
-  padding-inline-end: 2rem;
+  gap: 0.75rem;
+  padding-inline-end: 1.5rem;
   border-inline-end: 1px solid var(--ui-stroke-tertiary);
 }
 
 .profile-creation-preview {
   display: grid;
-  min-height: 13.5rem;
+  min-height: 9rem;
   place-items: center;
 }
 
@@ -1939,12 +1939,11 @@ body.guest-pointer-lock :is(webview, iframe) {
 .profile-creation-settings {
   display: grid;
   min-width: 0;
-  gap: 1.5rem;
+  gap: 1rem;
   align-content: start;
 }
 
 [data-profile-creation] textarea.profile-creation-persona {
-  min-height: 10rem;
   font-family: inherit;
   font-size: 0.875rem;
   line-height: 1.5;
@@ -1975,7 +1974,7 @@ body.guest-pointer-lock :is(webview, iframe) {
   flex-shrink: 0;
   gap: 0.75rem;
   border-top: 1px solid var(--ui-stroke-tertiary);
-  padding: 1.1rem 2rem;
+  padding: 0.75rem 1.5rem;
 }
 
 .profile-creation-heading {
@@ -2017,7 +2016,7 @@ body.guest-pointer-lock :is(webview, iframe) {
   padding-inline: 1rem;
   border-radius: 0;
   background: transparent;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   box-shadow: none;
 }
 
@@ -2026,13 +2025,13 @@ body.guest-pointer-lock :is(webview, iframe) {
 }
 
 .profile-creation-capabilities [data-slot='capabilities-toolbar'] button {
-  min-height: 2.25rem;
+  min-height: 2rem;
   font-size: 0.875rem;
 }
 
 .profile-creation-capabilities [id^='mcp-server-'] {
   justify-content: center;
-  min-height: 6rem;
+  min-height: 4.5rem;
   padding: 1rem;
 }
 
@@ -2050,46 +2049,46 @@ body.guest-pointer-lock :is(webview, iframe) {
 }
 
 [data-slot='avatar-picker'][data-presentation='creation'] {
-  gap: 1.25rem;
+  gap: 0.75rem;
 }
 
 [data-presentation='creation'] .avatar-picker-bot {
   width: 100%;
-  gap: 1.25rem;
+  gap: 0.75rem;
 }
 
 [data-presentation='creation'] [data-shape^='character:'] {
-  width: 6rem;
-  height: 6rem;
+  width: 4.5rem;
+  height: 4.5rem;
   border-radius: var(--card-radius);
   border: 1px solid var(--ui-stroke-tertiary);
 }
 
 [data-presentation='creation'] [data-shape^='character:'] .bot-character-face {
-  --bot-character-display-size: 5.5rem;
+  --bot-character-display-size: 4rem;
 }
 
 [data-profile-creation] :is([data-slot='input'], [data-slot='textarea'], [data-slot='select-trigger']) {
-  min-height: 2.5rem;
-  font-size: 0.9375rem;
+  min-height: 2rem;
+  font-size: 0.875rem;
   border-radius: var(--control-radius);
 }
 
 .profile-creation-preview > * {
-  max-height: 14rem;
-  max-width: 15rem;
+  max-height: 9rem;
+  max-width: 9rem;
 }
 
 [data-profile-creation] .profile-creation-fields textarea {
-  min-height: 6rem;
+  min-height: 4.5rem;
 }
 
 [data-profile-creation] textarea.profile-creation-persona {
-  min-height: 12rem;
+  min-height: 8rem;
 }
 
 [data-profile-creation] :is(label, .profile-creation-fields fieldset > span) {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 
@@ -2097,20 +2096,6 @@ body.guest-pointer-lock :is(webview, iframe) {
 .profile-creation-fields p {
   font-size: 0.8125rem;
   line-height: 1.5;
-}
-
-.profile-creation-bottom [data-slot='button'] {
-  min-height: 2.75rem;
-  padding-inline: 1.25rem;
-  font-size: 0.9375rem;
-  border-radius: var(--control-radius);
-}
-
-.profile-creation-templates > button {
-  min-height: 2.25rem;
-  padding-inline: 0.875rem;
-  font-size: 0.875rem;
-  border-radius: var(--control-radius);
 }
 
 .profile-creation-choice {
@@ -2121,8 +2106,8 @@ body.guest-pointer-lock :is(webview, iframe) {
 
 .profile-creation-choice > button {
   border-radius: calc(var(--card-radius) - 0.125rem);
-  min-height: 2.25rem;
-  font-size: 0.9375rem;
+  min-height: 2rem;
+  font-size: 0.875rem;
 }
 
 .profile-creation-choice > button[aria-pressed='true'] {
@@ -2138,7 +2123,7 @@ body.guest-pointer-lock :is(webview, iframe) {
 }
 
 .profile-creation-families > button {
-  padding: 0.75rem 0;
+  padding: 0.5rem 0;
   border-radius: 0;
   border-bottom: 2px solid transparent;
   font-size: 0.875rem;
@@ -2151,10 +2136,10 @@ body.guest-pointer-lock :is(webview, iframe) {
 }
 
 .profile-creation-navigation > button {
-  min-height: 4.5rem;
-  padding: 1rem 0;
-  font-size: 1rem;
-  gap: 1rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  gap: 0.75rem;
 }
 
 .profile-creation-navigation > button + button {
@@ -2162,7 +2147,7 @@ body.guest-pointer-lock :is(webview, iframe) {
 }
 
 .profile-creation-navigation .codicon {
-  font-size: 1.25rem;
+  font-size: 1rem;
 }
 
 .profile-creation-navigation > button > span > span + span {
@@ -2170,7 +2155,7 @@ body.guest-pointer-lock :is(webview, iframe) {
   font-size: 0.8125rem;
 }
 
-@media (max-width: 700px) {
+@media (max-width: 720px) {
   .profile-creation-header {
     padding: 1.25rem 1.25rem 0.75rem;
   }

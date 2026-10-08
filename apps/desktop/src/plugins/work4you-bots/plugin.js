@@ -7235,7 +7235,7 @@ function CreateAgentDialog({ open, onClose, roster }) {
                     jsx('div', {
                       className: 'profile-creation-preview',
                       'aria-hidden': true,
-                      children: jsx(BotFace, { ...appearance, image, size: 256, name: slug || 'agent' })
+                      children: jsx(BotFace, { ...appearance, image, size: 144, name: slug || 'agent' })
                     }),
                     jsx(AvatarPicker, {
                       shape,

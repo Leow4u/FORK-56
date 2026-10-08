@@ -280,7 +280,7 @@ export function RoutineCreateDialog({
           <div className="routine-dialog-scroll">
             <fieldset className="routine-fields" disabled={saving}>
               <div className="routine-owner">
-                <ProfileFace name={owner} size={64} />
+                <ProfileFace name={owner} size={40} />
                 <span className="truncate font-semibold">{ownerInfo ? profileLabel(ownerInfo) : owner}</span>
               </div>
 
