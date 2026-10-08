@@ -958,6 +958,8 @@ def apply_work4you_managed_defaults(
             config["video_gen"] = video_cfg
         video_cfg["provider"] = "work4you"
         video_cfg.pop("use_gateway", None)
+        if not str(video_cfg.get("model") or "").strip():
+            video_cfg["model"] = "ltx-2.3"
         changed.add("video_gen")
 
     return changed
