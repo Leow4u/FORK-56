@@ -563,10 +563,10 @@ TOOL_CATEGORIES = {
                 "requires_work4you_auth": True,
                 "managed_work4you_feature": "video_gen",
                 "override_env_vars": ["FAL_KEY"],
-                # The underlying plugin backend — when the user picks
-                # "Work4You Subscription" we set video_gen.provider = "fal"
-                # and video_gen.use_gateway = True so the FAL plugin
-                # routes through the managed queue gateway.
+                # Underlying FAL plugin dispatches the job; billing/route is
+                # NOT BYOK. apply_provider_selection writes
+                # video_gen.provider = "work4you" (read_selection → fal-queue
+                # gateway + Portal token). Same pattern as image_gen.
                 "video_gen_plugin_name": "fal",
             },
         ],
