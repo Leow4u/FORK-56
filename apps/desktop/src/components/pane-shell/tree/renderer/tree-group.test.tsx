@@ -223,7 +223,7 @@ describe('TreeGroup', () => {
     expect(stripVariant('chat-zone')).toBe('underline')
 
     render(<TreeGroup node={zone('terminal-zone', ['terminal'])} parentAxis="column" />)
-    expect(stripVariant('terminal-zone')).toBe('underline')
+    expect(stripVariant('terminal-zone')).toBe('surface')
   })
 
   // The content area's "+" opens a new tab in the area — only there.
@@ -268,6 +268,7 @@ describe('TreeGroup', () => {
     expect(newTab).toHaveBeenCalledTimes(1)
 
     render(<TreeGroup node={terminalGroup(false)} parentAxis="column" />)
-    expect(plus('terminal-zone')).toBeNull()
+    act(() => plus('terminal-zone')!.click())
+    expect(newTab).toHaveBeenCalledTimes(2)
   })
 })

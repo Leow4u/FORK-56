@@ -21,6 +21,7 @@ import { CopyButton } from '@/components/ui/copy-button'
 import { Input } from '@/components/ui/input'
 import { PaneStripGlyph } from '@/components/ui/pane-tab'
 import { useI18n } from '@/i18n'
+import { isBlankPageUrl } from '@/lib/local-preview'
 
 interface PreviewBrowserBarProps {
   canGoBack: boolean
@@ -156,7 +157,7 @@ export function PreviewBrowserBar({
           onBlur={() => setDraft(null)}
           onChange={event => setDraft(event.target.value)}
           onFocus={event => {
-            setDraft(url)
+            setDraft(isBlankPageUrl(url) ? '' : url)
             event.currentTarget.select()
           }}
           onKeyDown={event => {
@@ -174,7 +175,7 @@ export function PreviewBrowserBar({
           shape="pill"
           size="xs"
           spellCheck={false}
-          value={draft ?? url}
+          value={draft ?? (isBlankPageUrl(url) ? '' : url)}
         />
         <CopyButton
           appearance="inline"

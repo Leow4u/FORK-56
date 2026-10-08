@@ -9,6 +9,8 @@
  *  - a collapse tool panel dragged into its own zone
  */
 
+import { isContentAreaPane } from '../model'
+
 export interface LoneHeaderChrome {
   placement?: string
   uncloseable?: boolean
@@ -25,7 +27,7 @@ export function forceLoneHeaderForPanes(
     shown.some(id => {
       const chrome = chromeOf(id)
 
-      return !chrome.uncloseable && chrome.placement === 'main'
+      return !chrome.uncloseable && (chrome.placement === 'main' || isContentAreaPane(id))
     })
   ) {
     return true

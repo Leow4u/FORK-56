@@ -7,7 +7,7 @@
 
 import { computed, type ReadableAtom } from 'nanostores'
 
-import { contentAreaPaneId } from '@/components/pane-shell/tree/model'
+import { allPaneIds, contentAreaPaneId, findGroupOfPane, isContentAreaPane } from '@/components/pane-shell/tree/model'
 import {
   $collapsedTreeSides,
   $dismissedPanes,
@@ -25,10 +25,25 @@ import { $rightRailActiveTabId, setRightSidebarOpen } from '@/store/layout'
 /** The content area's front tab as a layout pane — null when the conversation
  *  on screen has no tabs (only the followed conversation's panes register). */
 function contentAreaFront(): null | string {
+  const tree = $layoutTree.get()
+
+  if (!tree) {
+    return null
+  }
+
   const tabId = $rightRailActiveTabId.get()
   const paneId = tabId ? contentAreaPaneId(tabId) : null
+  const registered = new Set(registry.getArea('panes').map(pane => pane.id))
 
-  return paneId && registry.getArea('panes').some(pane => pane.id === paneId) ? paneId : null
+  const available = allPaneIds(tree).filter(
+    id =>
+      isContentAreaPane(id) && registered.has(id) && !$hiddenTreePanes.get().has(id) && !$dismissedPanes.get().has(id)
+  )
+
+  const anchor = paneId && available.includes(paneId) ? paneId : available[0]
+  const group = anchor ? findGroupOfPane(tree, anchor) : null
+
+  return group && available.includes(group.active) ? group.active : (anchor ?? null)
 }
 
 /** Ask the TREE whether the area is on screen: its front tab showing, and the

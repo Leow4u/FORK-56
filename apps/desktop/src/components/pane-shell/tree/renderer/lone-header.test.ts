@@ -31,7 +31,13 @@ describe('forceLoneHeaderForPanes', () => {
     expect(forceLoneHeaderForPanes(['workspace'], chrome('main', true), noCollapse)).toBe(false)
   })
 
-  it('leaves standing side chrome (files / sessions) headerless', () => {
-    expect(forceLoneHeaderForPanes(['files'], chrome('right'), noCollapse)).toBe(false)
+  it('keeps content tool tabs available even when alone', () => {
+    for (const pane of ['files', 'review', 'terminal']) {
+      expect(forceLoneHeaderForPanes([pane], chrome('right'), noCollapse)).toBe(true)
+    }
+  })
+
+  it('leaves the sessions sidebar headerless', () => {
+    expect(forceLoneHeaderForPanes(['sessions'], chrome('left'), noCollapse)).toBe(false)
   })
 })

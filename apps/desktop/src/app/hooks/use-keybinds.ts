@@ -11,6 +11,7 @@ import {
   activateTreeTabSlot,
   cycleTreeTabInFocusedZone,
   isPaneVisible,
+  restoreTreePane,
   togglePaneVisible
 } from '@/components/pane-shell/tree/store'
 import { onReleaseTypingFocus } from '@/components/ui/keyboard-first'
@@ -28,12 +29,7 @@ import {
 } from '@/store/find-in-page'
 import { toggleHud } from '@/store/hud'
 import { $capture, $comboIndex, endCapture, setBinding } from '@/store/keybinds'
-import {
-  requestSessionSearchFocus,
-  setFileBrowserOpen,
-  togglePanesFlipped,
-  toggleSidebarOpen
-} from '@/store/layout'
+import { requestSessionSearchFocus, togglePanesFlipped, toggleSidebarOpen } from '@/store/layout'
 import { openBrowserTab } from '@/store/preview'
 import {
   $newChatProfile,
@@ -172,10 +168,7 @@ export function useKeybinds(deps: KeybindRuntimeDeps): void {
     }
   }
 
-  const showFiles = () => {
-    setFileBrowserOpen(true)
-    setTerminalTakeover(false)
-  }
+  const showFiles = () => restoreTreePane('files')
 
   handlersRef.current = {
     'keybinds.openPanel': () => navigate(`${SETTINGS_ROUTE}?tab=keybinds`),

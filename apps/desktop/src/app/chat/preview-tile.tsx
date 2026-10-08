@@ -14,16 +14,21 @@
  * view, not closed: their panes keep their place in the layout and come back
  * to it when the user returns to that conversation.
  *
- * All of them share one content area: the first tab opens it as a zone beside
- * main, and every tab after it stacks into that zone instead of opening one
- * more column.
+ * Previews and tools share one content area beside main. New tabs join that
+ * area's strip instead of opening another column.
  */
 
 import { useStore } from '@nanostores/react'
 import { previewFaviconSrc } from '@work4you/shared'
 import { useState } from 'react'
 
-import { allPaneIds, findGroup, findGroupOfPane, type LayoutNode } from '@/components/pane-shell/tree/model'
+import {
+  allPaneIds,
+  findGroup,
+  findGroupOfPane,
+  isContentAreaPane,
+  type LayoutNode
+} from '@/components/pane-shell/tree/model'
 import {
   $activeTreeGroup,
   $layoutTree,
@@ -194,7 +199,7 @@ export function previewAreaAnchor(
   }
 
   const own = previewPaneId(tabId)
-  const previews = allPaneIds(tree).filter(id => id.startsWith(`${PREVIEW_TILE_PREFIX}:`) && id !== own)
+  const previews = allPaneIds(tree).filter(id => isContentAreaPane(id) && id !== own)
   const preferred = [frontTabId, ...followedTabIds].flatMap(id => (id ? [previewPaneId(id)] : []))
 
   return preferred.find(id => previews.includes(id)) ?? previews[0]
@@ -275,6 +280,9 @@ export function watchPreviewTiles(): void {
 
   $rightRailActiveTabId.listen(reveal)
   $previewTabs.listen(reveal)
+  // Empty → empty owner switches don't emit $previewTabs (stableArray keeps
+  // the same []). Track them too, or the first open looks like a restore.
+  $previewOwner.listen(reveal)
 
   // And the reverse: clicking a preview TAB activates its pane in the TREE
   // only, so the store's selection must follow or `$previewTarget` (⌘L quote
@@ -378,12 +386,8 @@ const watchPreviewTileMirror = paneMirror<{ id: string }>({
   retain: $allPreviewTabIds,
   key: tab => tab.id,
   prefix: PREVIEW_TILE_PREFIX,
-  // The content area: a tab entering the layout stacks into the zone that
-  // already shows previews, so new content never opens one more column. The
-  // first tab opens the area as its own zone docked beside main, sized by the
-  // split weights — NOT anchored to the file tree: the old rail was a
-  // files-adjacent strip, and carrying that over welded preview into the file
-  // browser's zone, so toggling the file browser took the preview with it.
+  // Join the existing preview/tool area. Without one, open beside main.
+  // Files owns only its tab's visibility; the area has its own side toggle.
   anchor: tab => areaAnchorFor(tab.id),
   dir: tab => (areaAnchorFor(tab.id) ? 'center' : 'right'),
   minWidth: '22rem',

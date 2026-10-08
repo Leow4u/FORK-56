@@ -1016,8 +1016,6 @@ export function revealTreePane(paneId: string) {
 
   if (hiddenNow.has(paneId)) {
     setTreePaneHidden(paneId, false)
-
-    return
   }
 
   const tree = $layoutTree.get()
@@ -1678,8 +1676,9 @@ export function isPaneVisible(paneId: string): boolean {
   }
 
   const group = paneGroup(paneId)
+  const side = treeSideOfPane(paneId)
 
-  return Boolean(group && !group.minimized && group.active === paneId)
+  return Boolean(group && !group.minimized && group.active === paneId && !(side && $collapsedTreeSides.get().has(side)))
 }
 
 const paneVisibleCache = new Map<string, ReadableAtom<boolean>>()
@@ -1691,7 +1690,9 @@ export function $paneVisible(paneId: string): ReadableAtom<boolean> {
   let cached = paneVisibleCache.get(paneId)
 
   if (!cached) {
-    cached = computed([$layoutTree, $dismissedPanes, $hiddenTreePanes], () => isPaneVisible(paneId))
+    cached = computed([$layoutTree, $dismissedPanes, $hiddenTreePanes, $collapsedTreeSides], () =>
+      isPaneVisible(paneId)
+    )
     paneVisibleCache.set(paneId, cached)
   }
 

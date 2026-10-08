@@ -1,10 +1,7 @@
 import { atom, computed } from 'nanostores'
 
-import { SIDEBAR_COLLAPSE_MEDIA_QUERY } from '@/app/layout-constants'
-import { PANE_TOGGLE_REVEAL_EVENT } from '@/components/pane-shell'
 import { isPaneVisible, revealTreePane } from '@/components/pane-shell/tree/store'
 import type { Work4YouReviewFile, Work4YouReviewShipInfo } from '@/global'
-import { matchesQuery } from '@/hooks/use-media-query'
 import { desktopGit } from '@/lib/desktop-git'
 import { isExcludedPath } from '@/lib/excluded-paths'
 import { requestOneShot } from '@/lib/oneshot'
@@ -280,24 +277,6 @@ export function closeReview(): void {
 }
 
 export function toggleReview(scopeCwd: null | string = null, scopeTarget = 'main'): void {
-  // Narrow width: the pane is a collapsed overlay (like the sidebar under ⌘B).
-  // Make sure its data is loaded, then slide it in/out via the forced-reveal pin
-  // — never the docked open state, which a 0px track would render invisibly.
-  if (matchesQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY)) {
-    const target = scopeTarget.trim() || 'main'
-
-    const originChanged =
-      ($reviewScopeCwd.get() ?? null) !== (scopeCwd?.trim() || null) || $reviewScopeTarget.get() !== target
-
-    if (!$reviewOpen.get() || originChanged) {
-      openReview(scopeCwd, target)
-    }
-
-    window.dispatchEvent(new CustomEvent(PANE_TOGGLE_REVEAL_EVENT, { detail: { id: REVIEW_PANE_ID } }))
-
-    return
-  }
-
   // Ask the TREE, not `$reviewOpen`. The store stays true while the pane sits
   // behind a sibling tab in the right column or inside a minimized zone, so a
   // boolean flip spent the press re-asserting a value it already held and ⌘G
@@ -327,16 +306,6 @@ export function revealReview(scopeCwd: null | string = null, scopeTarget = 'main
     // originating composer target alongside the cwd for the agent-ship action.
     $reviewScopeCwd.set(scopeCwd?.trim() || null)
     $reviewScopeTarget.set(target)
-  }
-
-  if (matchesQuery(SIDEBAR_COLLAPSE_MEDIA_QUERY)) {
-    // The reveal pin is a toggle, so only fire it when the overlay isn't
-    // already slid in — otherwise "show me the diff" would hide the pane.
-    if (!wasOpen) {
-      window.dispatchEvent(new CustomEvent(PANE_TOGGLE_REVEAL_EVENT, { detail: { id: REVIEW_PANE_ID } }))
-    }
-
-    return
   }
 
   revealTreePane(REVIEW_PANE_ID)
