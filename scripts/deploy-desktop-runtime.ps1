@@ -274,19 +274,24 @@ if (-not (Test-Path -LiteralPath $bundleWork4You) -or -not (Test-Path -LiteralPa
 }
 
 $deployTotalSw = [System.Diagnostics.Stopwatch]::StartNew()
+# Measure-DeployPhase invokes scriptblocks in function scope; pin ref writes must use $script:.
+$script:PinnedCommit = $PinnedCommit
+$script:PinnedBranch = $PinnedBranch
 
 Measure-DeployPhase -Name "resolveStamp" -Action {
-    if (-not $PinnedCommit -and $InstallStampPath -and (Test-Path -LiteralPath $InstallStampPath)) {
+    if (-not $script:PinnedCommit -and $InstallStampPath -and (Test-Path -LiteralPath $InstallStampPath)) {
         try {
             $stamp = Get-Content -LiteralPath $InstallStampPath -Raw -Encoding UTF8 | ConvertFrom-Json
-            if ($stamp.commit) { $PinnedCommit = [string]$stamp.commit }
-            if (-not $PinnedBranch -and $stamp.branch) { $PinnedBranch = [string]$stamp.branch }
+            if ($stamp.commit) { $script:PinnedCommit = [string]$stamp.commit }
+            if (-not $script:PinnedBranch -and $stamp.branch) { $script:PinnedBranch = [string]$stamp.branch }
         } catch {}
     }
-    if (-not $PinnedCommit -and $manifest.commit) { $PinnedCommit = [string]$manifest.commit }
-    if ((-not $PinnedBranch) -and $manifest.branch) { $PinnedBranch = [string]$manifest.branch }
-    if (-not $PinnedBranch) { $PinnedBranch = "main" }
+    if (-not $script:PinnedCommit -and $manifest.commit) { $script:PinnedCommit = [string]$manifest.commit }
+    if ((-not $script:PinnedBranch) -and $manifest.branch) { $script:PinnedBranch = [string]$manifest.branch }
+    if (-not $script:PinnedBranch) { $script:PinnedBranch = "main" }
 }
+$PinnedCommit = $script:PinnedCommit
+$PinnedBranch = $script:PinnedBranch
 
 $installDir = Join-Path $Work4YouHome "work4you"
 $pythonHome = Join-Path $Work4YouHome "python"
