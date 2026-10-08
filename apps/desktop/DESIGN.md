@@ -190,6 +190,10 @@ Notes:
   (color mode, tool-call display, usage period). Replaces radio piles and
   pill rows.
 - **`Switch`** (`size="xs"`) — bare, with `aria-label`. No bordered text wrapper.
+- **`ColorSwatches`** — `presentation="compact"` keeps the small swatch grid;
+  `presentation="palette"` groups five columns with larger hit targets, a
+  checked selection and a labeled automatic-color action. Profile and agent
+  creation use the palette presentation.
 
 ## Tab strips
 
